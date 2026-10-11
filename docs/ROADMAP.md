@@ -7,7 +7,9 @@ work to do, not completed support or promised delivery dates.
 
 Sketch entities, local geometric constraints, driving and driven dimensions,
 trim/extend, single-corner chamfers between straight sketch lines, planar
-supports, reference planes and a feature history. Solid
+supports, reference planes and a feature history. [Sketch fillets](SKETCH_FILLET.md)
+handle line/arc pairs one corner at a time, with keep/delete policies, editable
+radii and consecutive equal-radius relations. Solid
 operations include extrude/cut/revolve, sweep/loft, finishing, patterns/mirror,
 shell/draft and hole features. Documents can be edited and recovered; geometry
 can be exported as STEP and STL. Each operation has explicit limitations.
@@ -22,6 +24,16 @@ can be exported as STEP and STL. Each operation has explicit limitations.
    topology; develop a fuller body manager and persistent reference system.
 5. Add missing sketch tools, import workflows, assemblies, technical drawings
    and manufacturing modules as separately scoped proposals with acceptance tests.
+
+The staged [sketch fillet issue #6](https://github.com/angelcp2802/solidflow/issues/6)
+remains open. Remaining scope includes full-circle sources, arc prolongation,
+atomic batches of interacting corners and broader curved-pair robustness.
+The current browser interaction covers linked fillets on a rectangular plate;
+the closed line–arc example has analytical CAD evidence but has not been edited
+through the real UI. Final interaction regressions for legacy conversion and
+undo/reference reconciliation, plus interactive reopening of the saved browser
+document, remain unexecuted. See the [fillet guide](SKETCH_FILLET.md) and
+[validation record](VALIDATION.md) for the evidence and its limits.
 
 Internationalization, packaging for additional architectures and contributor
 onboarding are welcome contributions. Discuss large architectural changes in

@@ -30,7 +30,8 @@ No external CAD installation or account is required.
 ## Current capabilities
 
 - Sketch lines, circular arcs and circles; geometric constraints, driving and
-  driven dimensions, trim and extend, [straight-line sketch chamfers](docs/SKETCH_CHAMFER.md),
+  driven dimensions, trim and extend, [sketch fillets](docs/SKETCH_FILLET.md)
+  with editable or linked radii, [straight-line sketch chamfers](docs/SKETCH_CHAMFER.md),
   construction geometry and undo/redo.
 - Associative planar supports and reference planes; extrude, cut, revolve,
   sweep, loft, fillet, chamfer, patterns, mirror, shell, draft and hole features.
@@ -40,6 +41,13 @@ No external CAD installation or account is required.
 The interface currently uses Spanish labels. Unsupported commands are disabled.
 Assemblies, technical drawings, sheet metal, simulation, general CAD import and
 complete persistent topological naming are still pending.
+
+Sketch fillets handle one pair of lines or circular arcs per command, with
+keep/delete corner policies and repeatable linked radii. Full-circle sources,
+arc prolongation and atomic multi-corner batches remain work in
+[issue #6](https://github.com/angelcp2802/solidflow/issues/6). The
+[fillet guide](docs/SKETCH_FILLET.md) separates analytical CAD evidence from the
+browser interaction exercised so far.
 
 ## Development and collaboration
 
