@@ -238,9 +238,9 @@ it('records a whole associative offset as one detached history step', () => {
   const source = createSketchOffsetDocument(), history = new DocumentHistory(source), result = apply(history.current);
   expect(history.canUndo).toBe(false); history.apply(result.document); expect(history.undo()).toEqual(source); expect(history.redo()).toEqual(result.document);
 });
-it.each([lineDocument, arcDocument])('leaves uncapped open endpoints free and refuses their extrusion', factory => {
+it.each([lineDocument, arcDocument])('aligns dimensioned open line endpoints, leaves arc ends free and refuses extrusion', factory => {
   const source = factory(), result = apply(source, { construction: 'source' });
-  expect(result.solution.status).toBe('underdefined'); expect(result.solution.degreesOfFreedom).toBe(2);
+  expect(result.solution.status).toBe(factory === lineDocument ? 'fullyDefined' : 'underdefined'); expect(result.solution.degreesOfFreedom).toBe(factory === lineDocument ? 0 : 2);
   const solid = engine.build(extrude(result.document).features); expect(solid.featureErrors[0].message).toMatch(/abierto|cerrad/); expect(solid.volume).toBe(0); expect(()=>engine.export('step')).toThrow(/errores/);
 });
 it('rejects inward collapse atomically and does not replace the original solved document', () => {

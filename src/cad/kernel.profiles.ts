@@ -66,6 +66,9 @@ export function entityProfileStructure(profile: EntityProfile): unknown {
         // Keep side, ownership and discrete join branches in the topology key.
         const structural = constraint.type === 'offset' ? { ...constraint, images: constraint.images.map(image => ({
           side: image.side, entityIds: image.entityIds, joins: image.joins,
+          // Explicit free and legacy absence have the same topology. Alignment
+          // adds endpoint stations and must participate in structural naming.
+          ...(image.lineEndpointMode === 'aligned' ? { lineEndpointMode: 'aligned' } : {}),
         })) } : constraint;
         return Object.fromEntries(Object.entries(structural)
           .filter(([key]) => !['value', 'x', 'y', 'driven', 'referenceRole'].includes(key)).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0));

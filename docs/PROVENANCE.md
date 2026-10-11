@@ -72,3 +72,12 @@ offsets, extrusions, documents and STEP exports in memory using tracked
 source and declared dependencies. These are original synthetic examples,
 not imported models or saved UI captures. Their analytical expectations
 are independent of the planner and kernel reconstruction.
+
+The offset continuation regressions author a horizontal line from `(0,0)` to
+`(10,0)`, an uncapped right offset at 2 mm, and a second pair at 1 mm with
+straight end caps. Only the final 10×2 rectangle contributes material. At a
+4 mm extrusion depth, independently `V=8L` and `A=12L+16`: length 10 gives
+`V=80 mm³`, `A=136 mm²`; length 12 gives `V=96 mm³`, `A=160 mm²`.
+These profiles and their STEP round trips are generated in memory from public
+source. No external model or new binary fixture is used. Endpoint alignment
+is checked with explicit Cartesian coordinates and dimensional targets.
