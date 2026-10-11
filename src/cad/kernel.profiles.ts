@@ -61,8 +61,15 @@ export function entityProfileStructure(profile: EntityProfile): unknown {
     // existing driving dimensions when their mode changes to driven and back.
     profile.constraints.filter((constraint) => !('value' in constraint) ||
       (constraint.referenceRole ?? (constraint.driven ? 'annotation' : 'constraint')) !== 'annotation')
-      .map((constraint) => Object.fromEntries(Object.entries(constraint)
-      .filter(([key]) => !['value', 'x', 'y', 'driven', 'referenceRole'].includes(key)).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)))
+      .map((constraint) => {
+        // Offset distance seeds are continuous geometry, like dimension values.
+        // Keep side, ownership and discrete join branches in the topology key.
+        const structural = constraint.type === 'offset' ? { ...constraint, images: constraint.images.map(image => ({
+          side: image.side, entityIds: image.entityIds, joins: image.joins,
+        })) } : constraint;
+        return Object.fromEntries(Object.entries(structural)
+          .filter(([key]) => !['value', 'x', 'y', 'driven', 'referenceRole'].includes(key)).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0));
+      })
       .sort((a, b) => String(a.id) < String(b.id) ? -1 : String(a.id) > String(b.id) ? 1 : 0),
     // Ordinal roles contain no coordinates or radii. They guard a symmetric
     // profile whose point/entity IDs exchange geometric roles during an edit.

@@ -1,6 +1,6 @@
 import type { EntityProfile, SketchConstraint, SketchEntity } from "./types";
 import { validateEntityProfile } from "./validation";
-import { constraintReferences } from "./references";
+import { assertOffsetTopologyEditable, cleanupConstraintDependencies, constraintReferences } from "./references";
 
 export interface TrimPoint {
   x: number;
@@ -317,6 +317,7 @@ function planTrim(
   const curve = all.find((candidate) => candidate.entity.id === entityId);
   if (!curve)
     throw new Error("Selecciona una entidad existente para recortar.");
+  assertOffsetTopologyEditable(profile.constraints, [entityId]);
   const pointMap = new Map<string, TrimPoint>(
     profile.points.map((point) => [point.id, point]),
   );
@@ -651,6 +652,7 @@ export function trimToClosest(
         }
         return true;
       });
+    profile.constraints = cleanupConstraintDependencies(profile.constraints);
     for (const boundary of newBoundaries)
       for (const lineId of boundary.hit.lineIds)
         addConstraint({

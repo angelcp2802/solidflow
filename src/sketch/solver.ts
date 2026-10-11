@@ -7,7 +7,8 @@ import type {
 } from "./types";
 import { SKETCH_LIMITS, validateEntityProfile } from "./validation";
 import { arcStepPreservesWinding } from "./arc-step";
-import { orderedMirrorArcDirections } from "./mirror-directions";
+import { orderedArcDirections } from "./arc-directions";
+import { offsetGeometryError } from "./offset-geometry";
 
 /** Accepted equation residual, in mm (angular equations are scaled by line length). */
 export const SKETCH_SOLVER_TOLERANCE = 1e-7;
@@ -42,7 +43,28 @@ export function measureDimension(
       : null;
   };
   let value: number;
-  if (constraint.type === "angle") {
+  if (constraint.type === "offsetDistance") {
+    const group = profile.constraints.find(c => c.id === constraint.offsetId);
+    if (group?.type !== "offset") return null;
+    const image = group.images.find(candidate => candidate.side === constraint.side);
+    if (!image) return null;
+    const source = group.sources[0], a = profile.entities.find(e => e.id === source.entityId), b = profile.entities.find(e => e.id === image.entityIds[0]);
+    if (!a || !b) return null;
+    const sign = image.side === "right" ? 1 : -1;
+    if (a.type === "line" && b.type === "line") {
+      const u = delta(a.start, a.end), v = delta(a.start, b.start);
+      if (!u || !v || !Math.hypot(...u)) return null;
+      value = -(u[0] * v[1] - u[1] * v[0]) / Math.hypot(...u) * (source.reversed ? -1 : 1) * sign;
+    } else if (a.type !== "line" && b.type !== "line") {
+      const radius = (entity: typeof a): number | null => {
+        if (entity.type === "circle") return entity.radius;
+        const radial = delta(entity.center, entity.start); return radial && Math.hypot(...radial);
+      };
+      const sourceRadius = radius(a), targetRadius = radius(b);
+      if (sourceRadius === null || targetRadius === null) return null;
+      value = (targetRadius - sourceRadius) * sign * (a.type === "arc" && (a.clockwise !== source.reversed) ? -1 : 1);
+    } else return null;
+  } else if (constraint.type === "angle") {
     const a = profile.entities.find((entity) => entity.id === constraint.a),
       b = profile.entities.find((entity) => entity.id === constraint.b);
     if (a?.type !== "line" || b?.type !== "line" || a.id === b.id) return null;
@@ -128,6 +150,7 @@ interface Evaluation {
 interface Layout {
   pointIndices: Map<string, number>;
   radiusIndices: Map<string, number>;
+  offsetIndices: Map<string, Map<"right" | "left", number>>;
   entities: Map<string, SketchEntity>;
   scale: number;
   offset: [number, number];
@@ -244,6 +267,12 @@ function makeLayout(profile: EntityProfile): Layout {
       values.push(entity.radius / scale);
     }
   });
+  const offsetIndices = new Map<string, Map<"right" | "left", number>>();
+  for (const relation of profile.constraints) if (relation.type === "offset") {
+    const sides = new Map<"right" | "left", number>();
+    for (const image of relation.images) { sides.set(image.side, values.length); values.push(image.distance / scale); }
+    offsetIndices.set(relation.id, sides);
+  }
   const entities = new Map(
     profile.entities.map((entity) => [entity.id, entity]),
   );
@@ -318,6 +347,7 @@ function makeLayout(profile: EntityProfile): Layout {
   return {
     pointIndices,
     radiusIndices,
+    offsetIndices,
     entities,
     scale,
     offset,
@@ -437,6 +467,67 @@ function evaluate(
       case "mirrorArcDirection":
         // A discrete source-owned flag is propagated before continuous solving.
         break;
+      case "offsetDistance": {
+        const index = layout.offsetIndices.get(constraint.offsetId)!.get(constraint.side)!;
+        push(id, sub(variable(values[index], index), constant(constraint.value / layout.scale)));
+        break;
+      }
+      case "offset": {
+        const endpoint = (entity: SketchEntity, reversed: boolean, end: 0 | 1): string => {
+          if (entity.type === "circle") throw new Error("Un círculo completo no tiene extremos.");
+          return (end === 0) !== reversed ? entity.start : entity.end;
+        };
+        const station = (source: SketchEntity, targetPoint: string, sourcePoint: string, reversed: boolean) => {
+          if (source.type === "circle") return;
+          if (source.type === "line") {
+            const direction = line(source.id), length = magnitude(direction);
+            if (length.value <= 0) { singular = true; return; }
+            push(id, div(dot(direction, difference(point(targetPoint), point(sourcePoint))), length));
+          } else {
+            const radial = difference(point(sourcePoint), point(source.center)), imageRadial = difference(point(targetPoint), point(source.center));
+            push(id, div(cross(radial, imageRadial), magnitude(radial)));
+          }
+          void reversed;
+        };
+        const centers = new Set<string>();
+        for (const image of constraint.images) {
+          const index = layout.offsetIndices.get(id)!.get(image.side)!, distance = variable(values[index], index), side = image.side === "right" ? 1 : -1;
+          constraint.sources.forEach((reference, i) => {
+            const source = layout.entities.get(reference.entityId)!, target = layout.entities.get(image.entityIds[i])!;
+            if (source.type === "line" && target.type === "line") {
+              const direction = line(source.id).map(coordinate => times(coordinate, reference.reversed ? -1 : 1)) as Point, length = magnitude(direction);
+              if (length.value <= 0) { singular = true; return; }
+              for (const targetPoint of [target.start, target.end]) push(id, add(div(cross(direction, difference(point(targetPoint), point(source.start))), length), times(distance, side)));
+            } else if (source.type !== "line" && target.type !== "line") {
+              const centerKey = `${source.center}\u0000${target.center}`;
+              if (!centers.has(centerKey)) {
+                centers.add(centerKey); const delta = difference(point(target.center), point(source.center)); push(id, delta[0]); push(id, delta[1]);
+              }
+              const radialSign = source.type === "arc" && (source.clockwise !== reference.reversed) ? -1 : 1;
+              push(id, sub(sub(size(target.id), size(source.id)), times(distance, side * radialSign)));
+            }
+          });
+          image.joins.forEach((join, i) => {
+            if (join.kind !== "continuation") return;
+            const reference = constraint.sources[i], source = layout.entities.get(reference.entityId)!, target = layout.entities.get(image.entityIds[i])!;
+            station(source, endpoint(target, reference.reversed, 1), endpoint(source, reference.reversed, 1), reference.reversed);
+          });
+          if (constraint.cap !== "none") for (const end of [0, 1] as const) {
+            const i = end === 0 ? 0 : constraint.sources.length - 1, reference = constraint.sources[i], source = layout.entities.get(reference.entityId)!, target = layout.entities.get(image.entityIds[i])!;
+            station(source, endpoint(target, reference.reversed, end), endpoint(source, reference.reversed, end), reference.reversed);
+          }
+        }
+        if (constraint.cap === "arc") constraint.capEntityIds.forEach((capId, end) => {
+          const cap = layout.entities.get(capId) as Extract<SketchEntity, { type: "arc" }>;
+          let center: Point;
+          if (constraint.images.length === 2) {
+            const i = end === 0 ? 0 : constraint.sources.length - 1, reference = constraint.sources[i], source = layout.entities.get(reference.entityId)!;
+            center = point(endpoint(source, reference.reversed, end as 0 | 1));
+          } else center = [times(add(point(cap.start)[0], point(cap.end)[0]), .5), times(add(point(cap.start)[1], point(cap.end)[1]), .5)];
+          const delta = difference(point(cap.center), center); push(id, delta[0]); push(id, delta[1]);
+        });
+        break;
+      }
       case "horizontal":
         push(id, line(constraint.entityId)[1]);
         break;
@@ -682,6 +773,17 @@ function geometryError(
         ? distance(entity.center, entity.start)
         : 0;
   for (const constraint of profile.constraints) {
+    if (constraint.type === "offset") {
+      for (const index of layout.offsetIndices.get(constraint.id)!.values()) {
+        const distance = values[index] * layout.scale;
+        if (!Number.isFinite(distance) || distance < SKETCH_LIMITS.minDimension - SKETCH_SOLVER_TOLERANCE || distance > SKETCH_LIMITS.maxDimension) return "La distancia equidistante sale del intervalo admitido.";
+      }
+      if (enforceTangentBranch) {
+        const error = offsetGeometryError(outputProfile(profile, layout, values), constraint);
+        if (error) return error;
+      }
+      continue;
+    }
     if (constraint.type === "mirrorArcDirection") {
       const source = layout.entities.get(constraint.a) as Extract<SketchEntity, { type: "arc" }>;
       const image = layout.entities.get(constraint.b) as Extract<SketchEntity, { type: "arc" }>;
@@ -869,6 +971,10 @@ function outputProfile(
         entity.radius = SKETCH_LIMITS.minDimension;
     }
   });
+  for (const constraint of result.constraints) if (constraint.type === "offset") for (const image of constraint.images) {
+    image.distance = values[layout.offsetIndices.get(constraint.id)!.get(image.side)!] * layout.scale;
+    if (image.distance < SKETCH_LIMITS.minDimension && image.distance >= SKETCH_LIMITS.minDimension - SKETCH_SOLVER_TOLERANCE) image.distance = SKETCH_LIMITS.minDimension;
+  }
   return result;
 }
 
@@ -961,13 +1067,17 @@ export function solveSketch(
   // ownership. Apply dependencies before any winding/geometry guard so an
   // ordinary source direction edit can also update every reflected descendant.
   const arcEntities = new Map(profile.entities.map(entity => [entity.id, entity]));
-  for (const relation of orderedMirrorArcDirections(profile.constraints)) {
-    const source = arcEntities.get(relation.a) as Extract<SketchEntity, { type: "arc" }>;
-    const image = arcEntities.get(relation.b) as Extract<SketchEntity, { type: "arc" }>;
-    image.clockwise = !source.clockwise;
+  for (const relation of profile.constraints) if (relation.type === "offset" && relation.cap === "arc") relation.capEntityIds.forEach((id, end) => {
+    const cap = arcEntities.get(id) as Extract<SketchEntity, { type: "arc" }>;
+    cap.clockwise = (relation.images[0].side === "right") === (end === 0);
+  });
+  for (const relation of orderedArcDirections(profile.constraints, profile.entities)) {
+    const source = arcEntities.get(relation.sourceId) as Extract<SketchEntity, { type: "arc" }>;
+    const image = arcEntities.get(relation.imageId) as Extract<SketchEntity, { type: "arc" }>;
+    image.clockwise = relation.reflected ? !source.clockwise : source.clockwise;
   }
   const layout = makeLayout(profile);
-  const refinementTolerance = profile.constraints.some(c => c.type === "symmetric")
+  const refinementTolerance = profile.constraints.some(c => c.type === "symmetric" || c.type === "offset")
     ? SYMMETRY_REFINEMENT_TOLERANCE : SKETCH_SOLVER_TOLERANCE;
   let values = layout.initial.slice();
   // Stored geometry may still reflect the previous dimensions. In particular,

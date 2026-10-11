@@ -363,3 +363,55 @@ corner batches and general curved-pair robustness remain unverified or open.
 This revision needs its own hosted checks; earlier platform results do not
 establish a pass for the new source. Binary upload remains disabled under
 [issue #5](https://github.com/angelcp2802/solidflow/issues/5).
+
+## Associative sketch offsets — 2026-10-11
+
+On Windows x64 with Node 24.11.1, `npm test` passed all 1,351 portable tests in
+66 files and all 11 IPC tests, with no skips. `npm run build` passed with the
+existing large-chunk and dependency-externalization warnings.
+`npm run test:desktop` passed the real production loader, with WASM loaded,
+no console errors and no failed requests. A fresh isolated `npm ci` installed
+341 packages from the lockfile; the dependency audit reported zero
+high/critical findings and eight moderate development findings.
+
+The increment adds 104 portable cases, including 21 CAD cases and 9
+server-rendered component cases. Core checks exercise open line/arc freedoms,
+optional dimensions and fresh driven readings, two independent sides versus
+symmetric round caps, clockwise/reversed closed representations, connected
+line/arc chains, major arcs, rotated/translated cap ownership, construction,
+typed references, immutable rejection, structural limits and malformed saved
+groups. Collapsed/reversed segments, finite overlap, self-intersections,
+repeated interior vertices, wrong branches and antipodal capped/continuation
+arc stations reject. Editing a cap's retained clockwise flag is corrected
+from the owning group; a valid BRep alone would not detect an inward cap.
+
+CAD checks use original Cartesian rectangle, circle, concave L, mixed capsule,
+line-cap and quarter-circle-strip profiles. The [offset guide](SKETCH_OFFSET.md)
+gives independent area/perimeter and 4 mm prism formulas. The tests check valid
+BRep, one solid, mass, area, bounds, saved-document reconstruction and
+programmatic STEP export/reimport. Source-width, source-radius and distance
+edits are exercised; selected face/edge references and a dependent outer-corner
+fillet survive the tested rectangular edits. These cases do not establish
+general persistent topological naming. Absolute CAD mass/area/bounds tolerance
+is `5e-6` in the respective units, with `5e-7` mm per coordinate. Offset
+equations attempt `1e-10` mm refinement while retaining the existing public
+`1e-7` mm residual acceptance and geometry checks.
+
+Rendered checks cover complete overlays, both sides and caps, construction
+styling, stale-preview suppression, blocked application and a fresh driven
+measurement in the inspector. Read-only application review confirms one
+draft-history write for a successful proposal and rejection of unhealthy
+offset edits before that write. These checks do not execute pointer, keyboard,
+cancel, undo/redo or interactive reopening. Real interaction with the new
+tool and library cards remains unverified; the Electron smoke exercises only
+the initial model. STEP producer and reader share the project's OpenCascade
+runtime, so those round trips do not prove independent interoperability.
+
+Uncapped endpoints remain free along their supports. Topology-changing
+trim/extend/chamfer/fillet commands require explicitly unlinking participating
+offset entities first. Disconnected sets, splines, external projected edges,
+general overlap resolution and broader robustness remain open in
+[issue #14](https://github.com/angelcp2802/solidflow/issues/14). This source
+requires its own hosted checks before merge; earlier platform results are
+separate. Binary upload remains disabled under
+[issue #5](https://github.com/angelcp2802/solidflow/issues/5).

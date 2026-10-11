@@ -62,3 +62,13 @@ units; coordinate-based selected-edge checks use `5e-7` mm. Tests check fixture
 hashes, BRep validity, a single closed solid, saved-document reconstruction,
 stable references and programmatic STEP export/reimport. No private models,
 external application or untracked research input is needed by the public suite.
+
+`sketch-offset.ts` authors an origin-anchored 10×6 rectangle, a radius-3 circle
+and an L polygon with vertices `(0,0),(10,0),(10,4),(4,4),(4,10),(0,10)`.
+Its original dimensions and coordinates are in millimeters; no offset is
+pre-applied. The [offset guide](SKETCH_OFFSET.md) derives areas and perimeters
+from rectangles, circles and the polygon shoelace formula. Tests construct
+offsets, extrusions, documents and STEP exports in memory using tracked
+source and declared dependencies. These are original synthetic examples,
+not imported models or saved UI captures. Their analytical expectations
+are independent of the planner and kernel reconstruction.

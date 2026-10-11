@@ -9,7 +9,7 @@ import type {
   TangentBranch,
 } from "./types";
 import { validateEntityProfile } from "./validation";
-import { constraintReferences } from "./references";
+import { cleanupConstraintDependencies, constraintReferences } from "./references";
 export { constraintReferences } from "./references";
 import {
   isDimensionalConstraint,
@@ -335,13 +335,13 @@ export function removeSelection(
       .filter((item) => item.kind === "constraint")
       .map((item) => item.id),
   );
-  next.constraints = next.constraints.filter(
+  next.constraints = cleanupConstraintDependencies(next.constraints.filter(
     (constraint) =>
       !removedConstraints.has(constraint.id) &&
       !constraintReferences(constraint).some(
         (id) => removedEntities.has(id) || removedPoints.has(id),
       ),
-  );
+  ));
   return next;
 }
 export function measureEntity(
@@ -466,6 +466,7 @@ export function createAngularConstraint(
 }
 
 export type DrivenDimensionDefinition =
+  | { type: "offsetDistance"; offsetId: string; side: "right" | "left" }
   | { type: "distance" | "distanceX" | "distanceY"; a: string; b: string }
   | { type: "length" | "radius"; entityId: string }
   | ({ type: "angle"; a: string; b: string } & AngleOptions);

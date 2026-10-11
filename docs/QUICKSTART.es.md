@@ -37,6 +37,16 @@ croquis; después puedes extruir 4 mm y editar la cota de semianchura.
 Las copias siguen las cotas de las fuentes. El [contrato de simetría](SKETCH_MIRROR.md)
 detalla las relaciones, la compatibilidad y la validación disponible.
 
+Para practicar la equidistancia, abre **Equidistancia de una placa**, edita el
+croquis y elige **Equidistancia**. Selecciona un lado del rectángulo y mantén
+**Seleccionar cadena conectada**. Con distancia 1 mm, la vista previa muestra
+el contorno exterior de 12 × 8 mm. Aplica, pulsa Esc y acepta el croquis.
+Al extruir 4 mm, los dos contornos ordinarios producen un anillo de
+144 mm³. Si eliges **Entidades originales** como geometría de construcción,
+el contorno exterior produce una placa llena. La cota de equidistancia queda
+editable en el inspector. Consulta los cierres, las cotas conducidas y los
+límites en la [guía de equidistancia](SKETCH_OFFSET.md).
+
 Para probar la compilación de producción, ejecuta `npm run build` y `npm start`.
 Los paquetes de desarrollo se generan en el sistema correspondiente con
 `npm run package:win`, `npm run package:mac` o `npm run package:linux`.

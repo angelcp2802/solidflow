@@ -39,6 +39,7 @@ import type { TrimSegment } from "../sketch/trim";
 import type { ChamferPlan } from "../sketch/chamfer";
 import type { FilletPlan, FilletBatchPlan } from "../sketch/fillet";
 import type { MirrorPlan } from "../sketch/mirror";
+import type { OffsetPlan } from "../sketch/offset";
 import LegacySketchCanvas from "./LegacySketchCanvas";
 
 interface Props {
@@ -54,13 +55,14 @@ interface Props {
   chamferPreview?: ChamferPlan | null;
   filletPreview?: FilletPlan | FilletBatchPlan | null;
   mirrorPreview?: MirrorPlan | null;
+  offsetPreview?: OffsetPlan | null;
   mirrorAxisEntityId?: string;
   mirrorPickingAxis?: boolean;
   onMirrorAxis?: (id: string) => void;
 }
 type Point = [number, number];
 type Draft = {
-  tool: Exclude<SketchTool, "select" | "trim" | "extend" | "chamfer" | "fillet" | "mirror">;
+  tool: Exclude<SketchTool, "select" | "trim" | "extend" | "chamfer" | "fillet" | "mirror" | "offset">;
   anchors: SnapPoint[];
 };
 type Gesture =
@@ -105,7 +107,7 @@ export default function SketchCanvas(props: Props) {
           props.tool === "arc" ||
           props.tool === "trim" ||
           props.tool === "extend" ||
-          props.tool === "chamfer" || props.tool === "fillet" || props.tool === "mirror"
+          props.tool === "chamfer" || props.tool === "fillet" || props.tool === "mirror" || props.tool === "offset"
             ? "select"
             : props.tool
         }
@@ -130,6 +132,7 @@ function EntitySketchCanvas({
   chamferPreview,
   filletPreview,
   mirrorPreview,
+  offsetPreview,
   mirrorAxisEntityId,
   mirrorPickingAxis,
   onMirrorAxis,
@@ -169,7 +172,6 @@ function EntitySketchCanvas({
     }
     return segments;
   }, [referenceLines]);
-  const displayed = preview ?? profile;
   const visibleChamfer =
     tool === "chamfer" &&
     chamferPreview?.changed &&
@@ -184,6 +186,13 @@ function EntitySketchCanvas({
   const visibleMirror = tool === "mirror" && mirrorPreview?.changed &&
     mirrorPreview.sourceProfile === profile &&
     solution && ["underdefined", "fullyDefined"].includes(solution.status) ? mirrorPreview : null;
+  const visibleOffset = tool === "offset" && offsetPreview?.changed &&
+    offsetPreview.sourceProfile === profile &&
+    solution && ["underdefined", "fullyDefined"].includes(solution.status) ? offsetPreview : null;
+  const displayed = preview ?? (visibleOffset ? {
+    ...profile,
+    entities: visibleOffset.profile.entities.filter(entity => profile.entities.some(source => source.id === entity.id)),
+  } : profile);
   const screen = (point: Point): Point => [
     (point[0] - view.center[0]) * view.scale + size.width / 2,
     size.height / 2 - (point[1] - view.center[1]) * view.scale,
@@ -433,6 +442,18 @@ function EntitySketchCanvas({
       return;
     }
     if (event.button !== 0) return;
+    if (tool === "offset") {
+      const target = pickTarget(event.target);
+      if (target?.kind !== "entity") {
+        setMessage("Selecciona líneas, arcos o círculos para crear la equidistancia.");
+        return;
+      }
+      onSelection(selection.some(item => sameSelection(item, target))
+        ? selection.filter(item => !sameSelection(item, target))
+        : [...selection.filter(item => item.kind === "entity"), target]);
+      setMessage("");
+      return;
+    }
     if (tool === "mirror") {
       const target = pickTarget(event.target);
       if (target?.kind !== "entity") {
@@ -697,7 +718,7 @@ function EntitySketchCanvas({
       setHover(null);
       return;
     }
-    if (tool === "select" || tool === "trim" || tool === "extend" || tool === "chamfer" || tool === "fillet" || tool === "mirror") return;
+    if (tool === "select" || tool === "trim" || tool === "extend" || tool === "chamfer" || tool === "fillet" || tool === "mirror" || tool === "offset") return;
     const end = drawingPoint(position);
     if (tool === "arc") {
       const anchors = draft?.anchors ?? [];
@@ -796,7 +817,22 @@ function EntitySketchCanvas({
     index: number,
   ): Point => {
     let anchor: Point = [0, 0];
-    if (
+    if (constraint.type === "offset" || constraint.type === "offsetDistance") {
+      const relation = constraint.type === "offset" ? constraint
+        : displayed.constraints.find(item => item.id === constraint.offsetId && item.type === "offset");
+      if (relation?.type === "offset") {
+        const image = constraint.type === "offsetDistance"
+          ? relation.images.find(item => item.side === constraint.side) : relation.images[0];
+        const entity = displayed.entities.find(item => item.id === image?.entityIds[0]);
+        if (entity?.type === "line") {
+          const a = sketchPoint(displayed, entity.start), b = sketchPoint(displayed, entity.end);
+          anchor = [(a.x + b.x) / 2, (a.y + b.y) / 2];
+        } else if (entity) {
+          const center = sketchPoint(displayed, entity.center), radius = measureEntity(displayed, entity);
+          anchor = [center.x + radius * 0.7, center.y + radius * 0.7];
+        }
+      }
+    } else if (
       "a" in constraint &&
       (constraint.type === "coincident" || constraint.type === "symmetric" ||
         constraint.type.startsWith("distance"))
@@ -836,6 +872,8 @@ function EntitySketchCanvas({
     coincident: "●",
     symmetric: "↔",
     mirrorArcDirection: "↶↷",
+    offset: "∥↔",
+    offsetDistance: "d ",
     horizontal: "H",
     vertical: "V",
     parallel: "∥",
@@ -855,10 +893,15 @@ function EntitySketchCanvas({
     displayed.constraints
       .filter(
         (constraint) =>
-          (constraint.type === "angle" || constraint.type === "tangent" || constraint.type === "symmetric" || constraint.type === "mirrorArcDirection") &&
+          (constraint.type === "angle" || constraint.type === "tangent" || constraint.type === "symmetric" || constraint.type === "mirrorArcDirection" || constraint.type === "offset" || constraint.type === "offsetDistance") &&
           selected("constraint", constraint.id),
       )
-      .flatMap(constraintEntityReferences),
+      .flatMap(constraint => {
+        if (constraint.type !== "offsetDistance") return constraintEntityReferences(constraint);
+        const relation = displayed.constraints.find(item => item.id === constraint.offsetId && item.type === "offset");
+        return relation?.type === "offset" ? [...relation.sources.map(source => source.entityId),
+          ...(relation.images.find(image => image.side === constraint.side)?.entityIds ?? []), ...relation.capEntityIds] : [];
+      }),
   );
   const angularDrawing = (
     constraint: Extract<SketchConstraint, { type: "angle" }>,
@@ -942,6 +985,8 @@ function EntitySketchCanvas({
             ? "Redondeo: selecciona una o varias esquinas, o dos entidades · Aplica desde el panel · Esc termina"
           : tool === "mirror"
             ? mirrorPickingAxis ? "Simetría: selecciona una línea como eje" : "Simetría: selecciona entidades · Aplica desde el panel · Esc termina"
+          : tool === "offset"
+            ? "Equidistancia: selecciona entidades · Define la distancia en el panel · Esc termina"
           : tool === "arc"
             ? [
                 "Arco: selecciona el centro",
@@ -1164,7 +1209,7 @@ function EntitySketchCanvas({
               role="button"
               aria-label={`${"value" in constraint && constraint.driven ? "Cota conducida" : "Restricción"} ${constraint.type}${"value" in constraint ? ` ${label} ${constraint.type === "angle" ? "grados" : "mm"}` : ""}`}
               pointerEvents={
-                tool === "trim" || tool === "extend" || tool === "chamfer" || tool === "fillet" ? "none" : undefined
+                tool === "trim" || tool === "extend" || tool === "chamfer" || tool === "fillet" || tool === "offset" ? "none" : undefined
               }
             >
               {angular && (
@@ -1222,7 +1267,7 @@ function EntitySketchCanvas({
               role="button"
               aria-label={`Punto ${point.x.toFixed(2)}, ${point.y.toFixed(2)}`}
               pointerEvents={
-                tool === "trim" || tool === "extend" || tool === "mirror" ? "none" : undefined
+                tool === "trim" || tool === "extend" || tool === "mirror" || tool === "offset" ? "none" : undefined
               }
             >
               <circle cx={x} cy={y} r={7} fill="transparent" />
@@ -1244,7 +1289,7 @@ function EntitySketchCanvas({
           role="button"
           aria-label="Origen fijo (0, 0)"
           pointerEvents={
-            tool === "trim" || tool === "extend" || tool === "mirror" ? "none" : undefined
+            tool === "trim" || tool === "extend" || tool === "mirror" || tool === "offset" ? "none" : undefined
           }
         >
           <circle cx={origin[0]} cy={origin[1]} r={9} fill="transparent" />
@@ -1265,6 +1310,11 @@ function EntitySketchCanvas({
         {visibleMirror && <g data-mirror-preview="true" pointerEvents="none" aria-label="Vista previa de simetría">
           {visibleMirror.profile.entities.filter(e => visibleMirror.imageEntityIds.includes(e.id)).map(entity =>
             <path key={entity.id} data-mirror-image={entity.id} d={entityPath(entity, visibleMirror.profile)}
+              fill="none" stroke="#168b9f" strokeWidth="2.7" strokeDasharray={entity.construction ? "7 5" : undefined} />)}
+        </g>}
+        {visibleOffset && <g data-offset-preview="true" pointerEvents="none" aria-label="Vista previa de equidistancia">
+          {visibleOffset.profile.entities.filter(entity => visibleOffset.imageEntityIds.includes(entity.id) || visibleOffset.capEntityIds.includes(entity.id)).map(entity =>
+            <path key={entity.id} data-offset-image={entity.id} d={entityPath(entity, visibleOffset.profile)}
               fill="none" stroke="#168b9f" strokeWidth="2.7" strokeDasharray={entity.construction ? "7 5" : undefined} />)}
         </g>}
         {visibleFillet && (

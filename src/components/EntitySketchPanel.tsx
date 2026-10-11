@@ -37,6 +37,8 @@ const relationNames: Record<SketchConstraint["type"], string> = {
   coincident: "Coincidente",
   symmetric: "Simétrica respecto a línea",
   mirrorArcDirection: "Sentido de arco reflejado",
+  offset: "Equidistancia asociativa",
+  offsetDistance: "Distancia de equidistancia",
   horizontal: "Horizontal",
   vertical: "Vertical",
   parallel: "Paralela",
@@ -55,7 +57,7 @@ const relationNames: Record<SketchConstraint["type"], string> = {
 type DimensionType =
   "length" | "radius" | "distance" | "distanceX" | "distanceY" | "angle";
 
-const dimensionMinimum = (type: DimensionType) =>
+const dimensionMinimum = (type: DimensionType | "offsetDistance") =>
   type === "angle"
     ? 0
     : type === "distanceX" || type === "distanceY"
@@ -63,7 +65,7 @@ const dimensionMinimum = (type: DimensionType) =>
       : type === "distance"
         ? Number.MIN_VALUE
         : SKETCH_LIMITS.minDimension;
-const dimensionMaximum = (type: DimensionType) =>
+const dimensionMaximum = (type: DimensionType | "offsetDistance") =>
   type === "angle" ? 360 : SKETCH_LIMITS.maxDimension;
 const tangentNames = {
   left: "Centro a la izquierda",
@@ -219,6 +221,10 @@ export default function EntitySketchPanel({
       ? profile.constraints.find(
           (constraint) => constraint.id === selection[0].id,
         )
+      : undefined;
+  const selectedOffset = selectedConstraint?.type === "offset" ? selectedConstraint
+    : selectedConstraint?.type === "offsetDistance"
+      ? profile.constraints.find(constraint => constraint.id === selectedConstraint.offsetId && constraint.type === "offset")
       : undefined;
   const oneEntity =
     selectedEntities.length === 1 && selection.length === 1
@@ -499,7 +505,8 @@ export default function EntitySketchPanel({
         : [...selection, item],
     );
   const constraintText = (constraint: SketchConstraint) => {
-    const name = relationNames[constraint.type];
+    const name = relationNames[constraint.type] + (constraint.type === "offsetDistance"
+      ? constraint.side === "right" ? " · lado derecho" : " · lado izquierdo" : "");
     const entityId = "axisId" in constraint ? constraint.axisId : "entityId" in constraint ? constraint.entityId : undefined;
     const index = profile.entities.findIndex(
       (entity) => entity.id === entityId,
@@ -976,6 +983,14 @@ export default function EntitySketchPanel({
           {selectedConstraint.type === "mirrorArcDirection" && ` El sentido lo gobierna ${referencedEntityName(selectedConstraint.a)}.`}
           {" "}Eliminar esta relación rompe ese vínculo; las demás relaciones permanecen activas.
         </p>}
+        {selectedOffset?.type === "offset" && <div className="muted-small" aria-label="Geometría asociada de equidistancia">
+          <p>Entidades originales: {selectedOffset.sources.map(source => referencedEntityName(source.entityId)).join(", ")}.</p>
+          {selectedOffset.images.map(image => <p key={image.side}>
+            Copia del lado {image.side === "right" ? "derecho" : "izquierdo"}: {image.entityIds.map(referencedEntityName).join(", ")}.
+          </p>)}
+          {selectedOffset.cap !== "none" && <p>Cierres: {selectedOffset.cap === "arc" ? "semicirculares" : "rectos"}.</p>}
+          <p>Eliminar la cota deja libre la separación. Eliminar la relación desvincula las copias.</p>
+        </div>}
         {selectedConstraint?.type === "tangent" && (
           <>
             <p className="muted-small">

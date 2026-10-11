@@ -6,6 +6,7 @@ import type {
   SketchSelection,
 } from "./types";
 import { SKETCH_LIMITS, validateEntityProfile } from "./validation";
+import { assertOffsetTopologyEditable } from "./references";
 
 export type ChamferParameters =
   | { mode: "equal"; distance: number }
@@ -191,6 +192,7 @@ export function planSketchChamfer(
   try {
     const profile = validateEntityProfile(input);
     const [first, second] = selectCorner(profile, selection);
+    assertOffsetTopologyEditable(profile.constraints, [first.entity.id, second.entity.id]);
     const turn = cross(first.direction, second.direction);
     if (Math.abs(turn) <= 1e-12)
       throw new Error(
