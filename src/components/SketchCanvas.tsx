@@ -36,6 +36,7 @@ import { previewTrimToClosest, trimToClosest } from "../sketch/trim";
 import { previewExtendToClosest, extendToClosest } from "../sketch/extend";
 import type { TrimSegment } from "../sketch/trim";
 import type { ChamferPlan } from "../sketch/chamfer";
+import type { FilletPlan } from "../sketch/fillet";
 import LegacySketchCanvas from "./LegacySketchCanvas";
 
 interface Props {
@@ -49,10 +50,11 @@ interface Props {
   fitStamp: number;
   referenceLines?: number[];
   chamferPreview?: ChamferPlan | null;
+  filletPreview?: FilletPlan | null;
 }
 type Point = [number, number];
 type Draft = {
-  tool: Exclude<SketchTool, "select" | "trim" | "extend" | "chamfer">;
+  tool: Exclude<SketchTool, "select" | "trim" | "extend" | "chamfer" | "fillet">;
   anchors: SnapPoint[];
 };
 type Gesture =
@@ -97,7 +99,7 @@ export default function SketchCanvas(props: Props) {
           props.tool === "arc" ||
           props.tool === "trim" ||
           props.tool === "extend" ||
-          props.tool === "chamfer"
+          props.tool === "chamfer" || props.tool === "fillet"
             ? "select"
             : props.tool
         }
@@ -120,6 +122,7 @@ function EntitySketchCanvas({
   fitStamp,
   referenceLines,
   chamferPreview,
+  filletPreview,
 }: Props & { profile: EntityProfile }) {
   const profile =
     solution && ["underdefined", "fullyDefined"].includes(solution.status)
@@ -164,6 +167,10 @@ function EntitySketchCanvas({
     solution && ["underdefined", "fullyDefined"].includes(solution.status)
       ? chamferPreview
       : null;
+  const visibleFillet = tool === "fillet" && filletPreview?.changed &&
+    filletPreview.sourceProfile === profile &&
+    solution && ["underdefined", "fullyDefined"].includes(solution.status)
+      ? filletPreview : null;
   const screen = (point: Point): Point => [
     (point[0] - view.center[0]) * view.scale + size.width / 2,
     size.height / 2 - (point[1] - view.center[1]) * view.scale,
@@ -413,7 +420,7 @@ function EntitySketchCanvas({
       return;
     }
     if (event.button !== 0) return;
-    if (tool === "chamfer") {
+    if (tool === "chamfer" || tool === "fillet") {
       const target = pickTarget(event.target);
       setMessage("");
       if (!target) {
@@ -424,15 +431,19 @@ function EntitySketchCanvas({
         onSelection([target]);
         return;
       }
-      if (target.kind !== "entity" || profile.entities.find(entity => entity.id === target.id)?.type !== "line") {
-        setMessage("Selecciona un vértice o dos líneas adyacentes para el chaflán.");
+      const eligible = (id: string) => {
+        const entity = profile.entities.find(entity => entity.id === id);
+        return entity?.type === "line" || (tool === "fillet" && entity?.type === "arc");
+      };
+      if (target.kind !== "entity" || !eligible(target.id)) {
+        setMessage(tool === "fillet" ? "Selecciona una esquina, dos líneas o arcos para el redondeo." : "Selecciona un vértice o dos líneas adyacentes para el chaflán.");
         return;
       }
-      const lines = selection.filter(item => item.kind === "entity" && profile.entities.find(entity => entity.id === item.id)?.type === "line");
+      const lines = selection.filter(item => item.kind === "entity" && eligible(item.id));
       if (lines.some(item => sameSelection(item, target)))
         onSelection(lines.filter(item => !sameSelection(item, target)));
       else if (lines.length < 2) onSelection([...lines, target]);
-      else setMessage("Ya hay dos líneas seleccionadas. Quita una o limpia la selección antes de elegir otra.");
+      else setMessage("Ya hay dos entidades seleccionadas. Quita una o limpia la selección antes de elegir otra.");
       return;
     }
     if (tool === "trim" || tool === "extend") {
@@ -558,9 +569,10 @@ function EntitySketchCanvas({
         setPreview(moveProfile(active, position));
       return;
     }
-    if (tool === "chamfer") {
+    if (tool === "chamfer" || tool === "fillet") {
       const target = pickTarget(event.target);
-      setHovered(target?.kind === "point" || (target?.kind === "entity" && profile.entities.find(entity => entity.id === target.id)?.type === "line") ? target : null);
+      const type = target?.kind === "entity" ? profile.entities.find(entity => entity.id === target.id)?.type : null;
+      setHovered(target?.kind === "point" || (target?.kind === "entity" && (type === "line" || (tool === "fillet" && type === "arc"))) ? target : null);
       return;
     }
     if (tool === "trim" || tool === "extend") {
@@ -648,7 +660,7 @@ function EntitySketchCanvas({
       setHover(null);
       return;
     }
-    if (tool === "select" || tool === "trim" || tool === "extend" || tool === "chamfer") return;
+    if (tool === "select" || tool === "trim" || tool === "extend" || tool === "chamfer" || tool === "fillet") return;
     const end = drawingPoint(position);
     if (tool === "arc") {
       const anchors = draft?.anchors ?? [];
@@ -889,6 +901,8 @@ function EntitySketchCanvas({
           ? "Extender: apunta a la mitad de la entidad y haz clic · Esc termina"
           : tool === "chamfer"
             ? "Chaflán: selecciona un vértice o dos líneas en orden A / B · Aplica desde el panel · Esc cancela"
+          : tool === "fillet"
+            ? "Redondeo: selecciona una esquina o dos entidades · Aplica desde el panel · Esc termina"
           : tool === "arc"
             ? [
                 "Arco: selecciona el centro",
@@ -1056,7 +1070,7 @@ function EntitySketchCanvas({
                         : geometryColor
                 }
                 strokeWidth={active ? 2.6 : related ? 2.2 : 1.7}
-                opacity={visibleChamfer?.affectedEntityIds.includes(entity.id) ? 0.25 : undefined}
+                opacity={(visibleChamfer ?? visibleFillet)?.affectedEntityIds.includes(entity.id) ? 0.25 : undefined}
                 strokeDasharray={entity.construction ? "7 5" : undefined}
                 pointerEvents="none"
               />
@@ -1111,7 +1125,7 @@ function EntitySketchCanvas({
               role="button"
               aria-label={`${"value" in constraint && constraint.driven ? "Cota conducida" : "Restricción"} ${constraint.type}${"value" in constraint ? ` ${label} ${constraint.type === "angle" ? "grados" : "mm"}` : ""}`}
               pointerEvents={
-                tool === "trim" || tool === "extend" || tool === "chamfer" ? "none" : undefined
+                tool === "trim" || tool === "extend" || tool === "chamfer" || tool === "fillet" ? "none" : undefined
               }
             >
               {angular && (
@@ -1209,6 +1223,18 @@ function EntitySketchCanvas({
             pointerEvents="none"
           />
         </g>
+        {visibleFillet && (
+          <g data-fillet-preview="true" pointerEvents="none" aria-label="Vista previa del redondeo">
+            {visibleFillet.profile.entities
+              .filter(entity => visibleFillet.affectedEntityIds.includes(entity.id) || visibleFillet.createdEntityIds.includes(entity.id))
+              .map(entity => <path key={entity.id}
+                data-fillet-segment={entity.id === visibleFillet.filletEntityId ? "fillet" : visibleFillet.affectedEntityIds.includes(entity.id) ? "trimmed" : "support"}
+                d={entityPath(entity, visibleFillet.profile)} fill="none" stroke="#168b9f"
+                strokeWidth={entity.construction ? "1.2" : "2.7"}
+                strokeDasharray={entity.construction ? "4 5" : undefined}
+                opacity={entity.construction ? 0.55 : undefined} pointerEvents="none" />)}
+          </g>
+        )}
         {visibleChamfer && (
           <g data-chamfer-preview="true" pointerEvents="none" aria-label="Vista previa del chaflán">
             {visibleChamfer.profile.entities

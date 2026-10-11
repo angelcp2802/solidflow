@@ -3,7 +3,7 @@
 These project-owned regression inputs were copied byte for byte from local
 verification files on 2026-10-11. The STEP files were exported from the
 SolidFlow desktop UI while exercising the corresponding examples. The chamfer
-document described below was downloaded from the browser UI, not Electron.
+and fillet documents described below were downloaded from the browser UI, not Electron.
 
 `solidflow-0.10-angular-60-programmatic.solidflow` is the original programmatic
 0.10 angular baseline used to verify serialization and driven-dimension
@@ -14,7 +14,7 @@ directory. These files do not require `artifacts/` or machine-specific paths.
 No test substitutes regenerated geometry when an input is missing.
 
 The table records the exact copied bytes. STEP filenames retain their original
-sample names; the browser chamfer download was renamed as documented below.
+sample names; the browser downloads were renamed as documented below.
 These are project-created sample documents and exports; their
 reuse follows the project license, with dependency licenses remaining separate.
 
@@ -22,6 +22,7 @@ reuse follows the project license, with dependency licenses remaining separate.
 | --- | --- | ---: | --- |
 | `solidflow-0.10-angular-60-programmatic.solidflow` | `kernel.driven-dimensions.test.ts` | 2203 | `310b59d03e36cdbca4e23bb849f4d3e9b420edb2bbd4d6869d2c15487722fc6a` |
 | `sketch-chamfer-distances-2-3.solidflow` | `kernel.sketch-chamfer.test.ts` | 4092 | `8b8f27f25606f4a7dc8e4c9fc8208772e44d54108fa0187ca249d765b517c6f1` |
+| `sketch-fillet-linked-r1.solidflow` | `kernel.sketch-fillet.test.ts` | 5810 | `26df431bdb33e008f6120aacc147e83a44261528a5e491203c3e6f46901fb5ba` |
 | `Caja exterior abierta por dos caras.step` | `kernel.face-operations.test.ts` | 31079 | `e6c0fa21de0daa9a6f64395470c686032ff35a2e162436016a045ae81f39ca15` |
 | `Desmoldeo asociado a cara superior 50 mm.step` | `kernel.face-operations.test.ts` | 16905 | `243e2920c7a5ab094471322cea56995bf1b933eb7f800274274c16b3ddac9093` |
 | `Caja con apertura curva.step` | `kernel.face-operations.test.ts` | 73237 | `53769c5e0b07ea144456ee106065fe11d0d993e444ce14dbe368cc68f1795220` |
@@ -61,3 +62,27 @@ area `222 + 4√13` mm² and bounds (0,0,0)–(10,6,4) mm. The test also exports
 reimports STEP programmatically, checking valid BRep and one solid. Volume,
 area and bounds use five-decimal-place comparisons (approximately 5×10⁻⁶ in
 their respective units).
+
+## Browser-saved linked sketch fillets
+
+`sketch-fillet-linked-r1.solidflow` is the exact `Placa para redondear.solidflow`
+download saved through the browser UI on 2026-10-11, renamed and copied without
+reserialization. Its source is the project-owned
+[`createFilletSketchDocument`](../../../examples/sketch-fillet.ts) rectangle:
+10×6 mm, anchored at the origin, extruded 4 mm.
+
+In an isolated browser session, the origin received an R2 fillet with its
+virtual corner retained. Undo restored four entities; redo restored the fillet.
+A second R2 fillet at (10,6) was linked by an equal-radius relation. After
+terminating the tool, editing the first radius to 1 mm with Enter updated both
+arcs and left the sketch fully defined with zero degrees of freedom. The
+rebuilt browser model displayed 0.238 cm³ and a 10×6×4 mm envelope before saving.
+Comma-decimal input, invalid drafts and Escape from the radius input were also
+exercised before application. These observations do not establish native
+Electron file-dialog behavior.
+
+The regression reads these bytes directly, verifies both 1 mm radii and their
+equality relation, then checks save/reopen, stable references and a valid
+single-solid STEP round trip. Independent expectations are volume `232+2π`
+mm³, surface area `228+5π` mm² and bounds (0,0,0)–(10,6,4) mm. STEP export is
+programmatic. The mass, surface and bounds comparisons use five decimal places.

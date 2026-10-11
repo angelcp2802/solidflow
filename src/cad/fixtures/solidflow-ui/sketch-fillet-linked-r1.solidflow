@@ -1,0 +1,225 @@
+{
+  "version": 1,
+  "id": "6c47fc33-31c5-4592-8d0a-e432f282132a",
+  "name": "Placa para redondear",
+  "units": "mm",
+  "features": [
+    {
+      "id": "fillet-sketch",
+      "name": "Croquis · rectángulo 10 × 6",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 0,
+      "profile": {
+        "kind": "entities",
+        "points": [
+          {
+            "id": "bottom-right",
+            "x": 9.999999989727556,
+            "y": 5.441326056399021e-9
+          },
+          {
+            "id": "top-right",
+            "x": 9.999999978059451,
+            "y": 5.999999974097115
+          },
+          {
+            "id": "top-left",
+            "x": 7.586962169625622e-9,
+            "y": 5.999999987833688
+          },
+          {
+            "id": "fillet-center-1",
+            "x": 1.0000000350891582,
+            "y": 1.0000000288678517
+          },
+          {
+            "id": "fillet-point-1",
+            "x": 1.0000000359712118,
+            "y": 4.280974241765989e-9
+          },
+          {
+            "id": "fillet-point-2",
+            "x": 5.7708477996243346e-9,
+            "y": 1.0000000301089966
+          },
+          {
+            "id": "fillet-center-2",
+            "x": 8.999999939611408,
+            "y": 4.9999999262744055
+          },
+          {
+            "id": "fillet-point-3",
+            "x": 9.999999980748658,
+            "y": 4.999999926818642
+          },
+          {
+            "id": "fillet-point-4",
+            "x": 8.999999939588651,
+            "y": 5.999999976523638
+          }
+        ],
+        "entities": [
+          {
+            "id": "bottom",
+            "construction": false,
+            "type": "line",
+            "start": "fillet-point-1",
+            "end": "bottom-right"
+          },
+          {
+            "id": "right",
+            "construction": false,
+            "type": "line",
+            "start": "bottom-right",
+            "end": "fillet-point-3"
+          },
+          {
+            "id": "top",
+            "construction": false,
+            "type": "line",
+            "start": "fillet-point-4",
+            "end": "top-left"
+          },
+          {
+            "id": "left",
+            "construction": false,
+            "type": "line",
+            "start": "top-left",
+            "end": "fillet-point-2"
+          },
+          {
+            "id": "fillet-arc-1",
+            "construction": false,
+            "type": "arc",
+            "center": "fillet-center-1",
+            "start": "fillet-point-1",
+            "end": "fillet-point-2",
+            "clockwise": true
+          },
+          {
+            "id": "fillet-arc-2",
+            "construction": false,
+            "type": "arc",
+            "center": "fillet-center-2",
+            "start": "fillet-point-3",
+            "end": "fillet-point-4",
+            "clockwise": false
+          }
+        ],
+        "constraints": [
+          {
+            "id": "bottom-horizontal",
+            "type": "horizontal",
+            "entityId": "bottom"
+          },
+          {
+            "id": "right-vertical",
+            "type": "vertical",
+            "entityId": "right"
+          },
+          {
+            "id": "top-horizontal",
+            "type": "horizontal",
+            "entityId": "top"
+          },
+          {
+            "id": "plate-width",
+            "type": "distance",
+            "a": "origin",
+            "b": "bottom-right",
+            "value": 10
+          },
+          {
+            "id": "left-vertical",
+            "type": "vertical",
+            "entityId": "left"
+          },
+          {
+            "id": "plate-height",
+            "type": "distance",
+            "a": "top-left",
+            "b": "origin",
+            "value": 6
+          },
+          {
+            "id": "fillet-constraint-1",
+            "type": "pointOnLine",
+            "pointId": "origin",
+            "entityId": "bottom"
+          },
+          {
+            "id": "fillet-constraint-2",
+            "type": "pointOnLine",
+            "pointId": "origin",
+            "entityId": "left"
+          },
+          {
+            "id": "fillet-constraint-3",
+            "type": "tangent",
+            "a": "bottom",
+            "b": "fillet-arc-1",
+            "branch": "left"
+          },
+          {
+            "id": "fillet-constraint-4",
+            "type": "tangent",
+            "a": "left",
+            "b": "fillet-arc-1",
+            "branch": "left"
+          },
+          {
+            "id": "fillet-constraint-5",
+            "type": "radius",
+            "entityId": "fillet-arc-1",
+            "value": 1
+          },
+          {
+            "id": "fillet-constraint-6",
+            "type": "pointOnLine",
+            "pointId": "top-right",
+            "entityId": "right"
+          },
+          {
+            "id": "fillet-constraint-7",
+            "type": "pointOnLine",
+            "pointId": "top-right",
+            "entityId": "top"
+          },
+          {
+            "id": "fillet-constraint-8",
+            "type": "tangent",
+            "a": "right",
+            "b": "fillet-arc-2",
+            "branch": "left"
+          },
+          {
+            "id": "fillet-constraint-9",
+            "type": "tangent",
+            "a": "top",
+            "b": "fillet-arc-2",
+            "branch": "left"
+          },
+          {
+            "id": "fillet-constraint-10",
+            "type": "equal",
+            "a": "fillet-arc-2",
+            "b": "fillet-arc-1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "fillet-extrude",
+      "name": "Saliente · 4 mm",
+      "suppressed": false,
+      "type": "extrude",
+      "sketchId": "fillet-sketch",
+      "depth": 4,
+      "symmetric": false
+    }
+  ],
+  "createdAt": "2026-10-11T17:47:18.886Z",
+  "updatedAt": "2026-10-11T17:49:43.520Z"
+}

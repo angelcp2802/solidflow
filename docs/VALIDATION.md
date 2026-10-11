@@ -84,3 +84,61 @@ production-loader smoke and unsigned packaging:
 [Security analysis](https://github.com/angelcp2802/solidflow/actions/runs/38158887842)
 and the separate CodeQL code-scanning result also passed. This result belongs
 to that source revision; later changes need their own required checks.
+
+## Sketch fillet increment — 2026-10-11
+
+On Windows x64 with Node 24.11.1, the final local tree passed `npm test`: all
+903 unit/CAD/component tests in 44 files and all 8 IPC tests, with no skips.
+TypeScript/Vite build and the real Electron production-loader smoke passed.
+An earlier sandboxed revision passed its 883 portable tests but blocked two IPC
+filesystem operations; the final complete suite ran outside that sandbox.
+The build retained its existing large-chunk and dependency externalization
+warnings.
+
+The increment adds 51 core cases, 18 arc-step/solver cases, 5 server-rendered
+component cases and 7 CAD cases. Core checks cover line–line, line–arc and
+arc–arc contacts, finite sweeps,
+virtual line intersections, fixed branch selection, keep/delete corner policy,
+driving/driven dimensions, equal radii, later radius edits, structural limits
+and atomic rejection. The [tool contract](SKETCH_FILLET.md) records the scope;
+these cases do not establish general curved-geometry robustness.
+
+Delete mode retains corner anchors still used by a source arc's center or other
+surviving geometry. Solver trials reject a finite arc crossing its zero/full-turn
+boundary, including crossings hidden between the trial endpoints, while allowing
+valid minor/major transitions through a half-turn. Tests cover translated and
+scaled cases, serialization and unchanged geometry on rejection. This local
+continuity guard uses the saved initial coordinates; it does not repair already
+wound documents. Existing near-boundary precision failures at small scales are
+recorded as rejection cases without weakening solver tolerances.
+
+Six CAD cases use analytical volume, surface area and contact-coordinate
+oracles for a 10×6×4 mm plate, radius/extents edits, two linked fillets and a
+closed line–arc contour. A seventh reads the exact browser-saved
+`sketch-fillet-linked-r1.solidflow` fixture, checks its hash and reconstructs
+both R1 arcs with their equality relation. All seven check fully defined
+sketches, saved-document reconstruction, stable references, valid BRep and
+single-solid STEP round trips. Volume, area and bounds comparisons use five
+decimal places; contact-coordinate comparisons use six. Fixture provenance
+is recorded in its adjacent README.
+
+Real browser interaction checked the rectangular example: origin selection,
+R2 preview/application, comma decimals, invalid-input blocking and Escape from
+the radius input, first-fillet undo/redo, a second opposite R2 fillet linked to
+the first, and editing the first radius to R1 with both arcs updating. The
+sketch remained fully defined with zero degrees of freedom. Rebuilding showed
+0.238 cm³ and 10×6×4 mm bounds, and the actual download was saved byte for byte.
+
+Interactive file reopening was denied by browser permissions. Later browser
+access was also denied, so the final legacy-conversion and undo/reference fixes
+have code-review evidence but no final interactive regression. The curved
+example was loaded but not edited through the UI. Delete mode, alternative
+branches, virtual extensions and macOS/Linux editor interaction remain pending.
+SSR tests do not execute events, and Electron smoke covers the initial solid,
+not the fillet editor or native file dialogs. STEP exports above are
+programmatic. Full-circle sources, arc prolongation and atomic corner batches
+remain open in [issue #6](https://github.com/angelcp2802/solidflow/issues/6).
+
+Hosted checks for this increment require their own PR revision; prior runs do
+not establish a pass for the new source. Binary upload remains gated by
+[issue #5](https://github.com/angelcp2802/solidflow/issues/5).

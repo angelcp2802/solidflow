@@ -5,7 +5,7 @@ import { configDefaults, defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     pool: 'threads',
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
     exclude: [...configDefaults.exclude, 'src/cad/kernel.*-native.test.ts'],
   },
 });

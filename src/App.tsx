@@ -54,6 +54,8 @@ import SketchCanvas from "./components/SketchCanvas";
 import EntitySketchPanel from "./components/EntitySketchPanel";
 import SketchChamferPanel from "./components/SketchChamferPanel";
 import type { ChamferPlan } from "./sketch/chamfer";
+import SketchFilletPanel from "./components/SketchFilletPanel";
+import type { FilletPlan } from "./sketch/fillet";
 import PlaneSupportPanel, {
   supportLabel,
 } from "./components/PlaneSupportPanel";
@@ -75,6 +77,7 @@ import { createMeasuredPlateDocument } from "./examples/driven-dimensions";
 import { createTrimSketchDocument } from "./examples/sketch-trim";
 import { createExtendSketchDocument } from "./examples/sketch-extend";
 import { createChamferSketchDocument } from "./examples/sketch-chamfer";
+import { createFilletSketchDocument } from "./examples/sketch-fillet";
 import {
   createLoftExample,
   createSweepExample,
@@ -330,6 +333,9 @@ export default function App() {
     [sketchTool, setSketchTool] = useState<SketchTool>("rectangle");
   const [sketchSelection, setSketchSelection] = useState<SketchSelection[]>([]);
   const [chamferPreview, setChamferPreview] = useState<ChamferPlan | null>(null);
+  const [filletPreview, setFilletPreview] = useState<FilletPlan | null>(null);
+  const [previousFilletId, setPreviousFilletId] = useState<string | null>(null);
+  const filletSessionIds = useRef<string[]>([]);
   const [sketchPast, setSketchPast] = useState<SketchFeature[]>([]);
   const [sketchFuture, setSketchFuture] = useState<SketchFeature[]>([]);
   const [sketchInspector, setSketchInspector] = useState<{
@@ -369,10 +375,21 @@ export default function App() {
         : null,
     );
   }, [model, editing]);
+  // A legacy sketch is displayed as entities during the tool, but conversion
+  // enters history only together with a successfully applied fillet.
+  const filletConvertedProfile = useMemo(() =>
+    sketchTool === "fillet" && editing?.type === "sketch" && editing.profile.kind !== "entities"
+      ? convertProfile(editing.profile) : null,
+  [sketchTool === "fillet", editing?.type === "sketch" ? editing.profile : null]);
   const entityProfile =
     editing?.type === "sketch" && editing.profile.kind === "entities"
       ? editing.profile
-      : null;
+      : filletConvertedProfile;
+  useEffect(() => {
+    const ids = new Set(entityProfile?.entities.filter(entity => entity.type === "arc").map(entity => entity.id));
+    if (sketchTool === "fillet")
+      setPreviousFilletId(filletSessionIds.current.filter(id => ids.has(id)).at(-1) ?? null);
+  }, [entityProfile, sketchTool]);
   const sketchSolution = useMemo(
     () => (entityProfile ? solveSketch(entityProfile) : null),
     [entityProfile],
@@ -491,6 +508,7 @@ export default function App() {
     (editing.type !== "sketch" ||
       sketchTool !== "chamfer" ||
       !!chamferPreview?.changed) &&
+    (editing.type !== "sketch" || sketchTool !== "fillet" || !!filletPreview?.changed) &&
     model.featureErrors.length === 0;
   const canExport =
     !editing &&
@@ -702,6 +720,9 @@ export default function App() {
   };
   const loadChamferDemo = async () => {
     if (await canReplace()) reset(createChamferSketchDocument());
+  };
+  const loadFilletDemo = async (kind: "rectangle" | "curved" = "rectangle") => {
+    if (await canReplace()) reset(createFilletSketchDocument(kind));
   };
   const loadPatternDemo = async (kind: RepetitionFeature["type"]) => {
     if (await canReplace())
@@ -1445,10 +1466,32 @@ export default function App() {
     setSketchSelection([{ kind: "entity", id: plan.chamferEntityId }]);
     notify("Chaflán aplicado. Sus cotas se pueden editar en el croquis.");
   };
+  const applySketchFillet = (plan: FilletPlan) => {
+    if (editing?.type !== "sketch" || !plan.changed || !plan.filletEntityId ||
+      plan.sourceProfile !== sketchSolution?.profile) {
+      notify("El croquis ha cambiado. Revisa la vista previa del redondeo.", true);
+      return;
+    }
+    const result = solveSketch(plan.profile);
+    if (!["underdefined", "fullyDefined"].includes(result.status)) {
+      notify(`No se puede aplicar el redondeo: ${result.message}`, true);
+      return;
+    }
+    changeDraft({ profile: result.profile });
+    setFilletPreview(null);
+    filletSessionIds.current = [...filletSessionIds.current.filter(id => id !== plan.filletEntityId), plan.filletEntityId];
+    setPreviousFilletId(plan.filletEntityId);
+    setSketchSelection([]);
+    notify("Redondeo aplicado. Selecciona otra esquina o termina con Esc.");
+  };
   const acceptEdit = () => {
     if (!editing || !canAccept) return;
     if (editing.type === "sketch" && sketchTool === "chamfer") {
       if (chamferPreview) applySketchChamfer(chamferPreview);
+      return;
+    }
+    if (editing.type === "sketch" && sketchTool === "fillet") {
+      if (filletPreview) applySketchFillet(filletPreview);
       return;
     }
     try {
@@ -1496,10 +1539,13 @@ export default function App() {
     setEditing(next);
   };
   const cancelActiveEdit = () => {
-    if (editing?.type === "sketch" && sketchTool === "chamfer") {
+    if (editing?.type === "sketch" && (sketchTool === "chamfer" || sketchTool === "fillet")) {
       setSketchTool("select");
       setSketchSelection([]);
       setChamferPreview(null);
+      setFilletPreview(null);
+      setPreviousFilletId(null);
+      filletSessionIds.current = [];
     } else cancelEdit();
   };
   const changeEntityProfile = (candidate: EntityProfile) => {
@@ -1537,7 +1583,11 @@ export default function App() {
     )
       changeEntityProfile(convertProfile(editing.profile));
     setSketchTool(tool);
-    if (tool !== "chamfer") setSketchSelection([]);
+    if (tool === "fillet") {
+      filletSessionIds.current = [];
+      setPreviousFilletId(null);
+    }
+    if (tool !== "chamfer" && tool !== "fillet") setSketchSelection([]);
   };
   const changeProfile = (patch: Partial<LegacyProfile>) => {
     if (editing?.type === "sketch" && editing.profile.kind !== "entities")
@@ -1583,7 +1633,7 @@ export default function App() {
       if (
         e.key === "Escape" &&
         editing?.type === "sketch" &&
-        sketchTool === "chamfer"
+        (sketchTool === "chamfer" || sketchTool === "fillet")
       ) {
         e.preventDefault();
         cancelActiveEdit();
@@ -1630,7 +1680,7 @@ export default function App() {
   });
   const profile: Profile =
     editing?.type === "sketch"
-      ? editing.profile
+      ? (filletConvertedProfile ?? editing.profile)
       : { kind: "rectangle", center: [0, 0], width: 60, height: 40 };
   const editingSupport: PlaneSupport | null =
     editing?.type === "plane" ||
@@ -2171,6 +2221,8 @@ export default function App() {
                     editing?.type === "sketch"
                       ? sketchTool === "chamfer"
                         ? "Aplicar chaflán"
+                        : sketchTool === "fillet"
+                        ? "Aplicar redondeo"
                         : "Salir del croquis"
                       : "Nuevo croquis"
                   }
@@ -2288,6 +2340,14 @@ export default function App() {
                   large
                   onClick={() => selectSketchTool("chamfer")}
                   active={sketchTool === "chamfer"}
+                  disabled={editing?.type !== "sketch"}
+                />
+                <Command
+                  icon={CornerDownRight}
+                  label="Redondeo de croquis"
+                  large
+                  onClick={() => selectSketchTool("fillet")}
+                  active={sketchTool === "fillet"}
                   disabled={editing?.type !== "sketch"}
                 />
                 <Command
@@ -2492,6 +2552,18 @@ export default function App() {
               </div>
               {editing.type === "sketch" ? (
                 <>
+                  {sketchTool === "fillet" && entityProfile && (
+                    <SketchFilletPanel
+                      profile={entityProfile}
+                      solution={sketchSolution}
+                      selection={sketchSelection}
+                      previousFilletId={previousFilletId}
+                      onSelection={setSketchSelection}
+                      onPreview={setFilletPreview}
+                      onApply={applySketchFillet}
+                      onCancel={cancelActiveEdit}
+                    />
+                  )}
                   {sketchTool === "chamfer" && entityProfile && (
                     <SketchChamferPanel
                       profile={entityProfile}
@@ -3152,7 +3224,7 @@ export default function App() {
           {editing?.type === "sketch" && !pickingSupport ? (
             <SketchCanvas
               key={editing.id}
-              profile={editing.profile}
+              profile={filletConvertedProfile ?? editing.profile}
               onChange={(p) =>
                 p.kind === "entities"
                   ? changeEntityProfile(p)
@@ -3166,6 +3238,7 @@ export default function App() {
               solution={sketchSolution}
               fitStamp={view.stamp}
               chamferPreview={sketchTool === "chamfer" ? chamferPreview : null}
+              filletPreview={sketchTool === "fillet" ? filletPreview : null}
             />
           ) : placingHoles && holeEditing ? (
             holeFrame ? (
@@ -3555,6 +3628,16 @@ export default function App() {
                   <span>
                     Rectángulo 10 × 6 · selecciona una esquina y define el chaflán
                   </span>
+                </button>
+                <button className="library-card" onClick={() => loadFilletDemo()}>
+                  <CornerDownRight size={36} />
+                  <strong>Placa para redondear</strong>
+                  <span>Rectángulo 10 × 6 · radio editable y esquinas virtuales</span>
+                </button>
+                <button className="library-card" onClick={() => loadFilletDemo("curved")}>
+                  <CornerDownRight size={36} />
+                  <strong>Placa para redondear con arco</strong>
+                  <span>Línea y arco R5 · selecciona el origen y prueba un radio de 1 mm</span>
                 </button>
                 <button
                   className="library-card"
