@@ -7,10 +7,15 @@ import type {
 } from "./types";
 import { SKETCH_LIMITS, validateEntityProfile } from "./validation";
 import { arcStepPreservesWinding } from "./arc-step";
+import { orderedMirrorArcDirections } from "./mirror-directions";
 
 /** Accepted equation residual, in mm (angular equations are scaled by line length). */
 export const SKETCH_SOLVER_TOLERANCE = 1e-7;
 const MIN_GEOMETRY = 1e-6;
+// Reflection transports orientation to the image without a copied H/V or fix.
+// Refine its coupled equations below the public acceptance threshold so tiny
+// off-axis drift does not become a new normal in downstream geometric names.
+const SYMMETRY_REFINEMENT_TOLERANCE = 1e-10;
 const RANK_TOLERANCE = 1e-8;
 const TIME_LIMIT_MS = 4_000;
 
@@ -405,6 +410,33 @@ function evaluate(
         push(id, delta[1]);
         break;
       }
+      case "symmetric": {
+        const axis = layout.entities.get(constraint.axisId) as Extract<
+          SketchEntity,
+          { type: "line" }
+        >;
+        const direction = line(axis.id);
+        const length = magnitude(direction);
+        if (length.value <= 0) {
+          singular = true;
+          break;
+        }
+        const a = point(constraint.a), b = point(constraint.b);
+        const midpoint: Point = [
+          times(add(a[0], b[0]), 0.5),
+          times(add(a[1], b[1]), 0.5),
+        ];
+        // Reflection has a perpendicular connecting segment and an on-axis
+        // midpoint. Signed residuals exclude coincident off-axis solutions.
+        // Normalizing keeps both equations in length units, independent of
+        // the finite axis length and its endpoint storage direction.
+        push(id, div(dot(direction, difference(b, a)), length));
+        push(id, div(cross(direction, difference(midpoint, point(axis.start))), length));
+        break;
+      }
+      case "mirrorArcDirection":
+        // A discrete source-owned flag is propagated before continuous solving.
+        break;
       case "horizontal":
         push(id, line(constraint.entityId)[1]);
         break;
@@ -650,6 +682,13 @@ function geometryError(
         ? distance(entity.center, entity.start)
         : 0;
   for (const constraint of profile.constraints) {
+    if (constraint.type === "mirrorArcDirection") {
+      const source = layout.entities.get(constraint.a) as Extract<SketchEntity, { type: "arc" }>;
+      const image = layout.entities.get(constraint.b) as Extract<SketchEntity, { type: "arc" }>;
+      if (source.clockwise === image.clockwise)
+        return `El sentido del arco ${image.id} no corresponde a su fuente reflejada.`;
+      continue;
+    }
     if (
       !enforceTangentBranch ||
       constraint.type !== "tangent" ||
@@ -918,7 +957,18 @@ export function solveSketch(
       "invalid",
       "El máximo de iteraciones debe ser un entero entre 0 y 200.",
     );
+  // validateEntityProfile returned a detached copy and checked directed
+  // ownership. Apply dependencies before any winding/geometry guard so an
+  // ordinary source direction edit can also update every reflected descendant.
+  const arcEntities = new Map(profile.entities.map(entity => [entity.id, entity]));
+  for (const relation of orderedMirrorArcDirections(profile.constraints)) {
+    const source = arcEntities.get(relation.a) as Extract<SketchEntity, { type: "arc" }>;
+    const image = arcEntities.get(relation.b) as Extract<SketchEntity, { type: "arc" }>;
+    image.clockwise = !source.clockwise;
+  }
   const layout = makeLayout(profile);
+  const refinementTolerance = profile.constraints.some(c => c.type === "symmetric")
+    ? SYMMETRY_REFINEMENT_TOLERANCE : SKETCH_SOLVER_TOLERANCE;
   let values = layout.initial.slice();
   // Stored geometry may still reflect the previous dimensions. In particular,
   // newly edited radii can repair equal/reversed internal-tangency radii. The
@@ -934,7 +984,7 @@ export function solveSketch(
   let timedOut = false;
   let rejectedGeometry = false;
   while (
-    current.maxResidual > SKETCH_SOLVER_TOLERANCE &&
+    current.maxResidual > refinementTolerance &&
     iterations < requestedIterations
   ) {
     if (performance.now() - started > TIME_LIMIT_MS) {

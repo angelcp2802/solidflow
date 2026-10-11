@@ -1,5 +1,6 @@
 import type { EntityProfile, SketchConstraint, SketchEntity } from "./types";
 import { validateEntityProfile } from "./validation";
+import { constraintReferences } from "./references";
 
 export interface TrimPoint {
   x: number;
@@ -465,16 +466,6 @@ export function previewTrimToClosest(
           : "No se puede recortar la entidad.",
     };
   }
-}
-
-function constraintReferences(constraint: SketchConstraint): string[] {
-  if ("a" in constraint) return [constraint.a, constraint.b];
-  if ("pointId" in constraint)
-    return [
-      constraint.pointId,
-      ...("entityId" in constraint ? [constraint.entityId] : []),
-    ];
-  return [constraint.entityId];
 }
 
 /**

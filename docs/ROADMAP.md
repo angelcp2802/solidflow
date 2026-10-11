@@ -10,7 +10,8 @@ trim/extend, single-corner chamfers between straight sketch lines, planar
 supports, reference planes and a feature history. [Sketch fillets](SKETCH_FILLET.md)
 handle line/arc pairs and atomic batches of common straight-line corners, with
 keep/delete policies, editable radii, source trimming/prolongation and optional
-equal-radius relations. Solid
+equal-radius relations. [Sketch mirror](SKETCH_MIRROR.md) copies lines, arcs and
+circles with persistent point-reflection and circle-radius relations. Solid
 operations include extrude/cut/revolve, sweep/loft, finishing, patterns/mirror,
 shell/draft and hole features. Documents can be edited and recovered; geometry
 can be exported as STEP and STL. Each operation has explicit limitations.

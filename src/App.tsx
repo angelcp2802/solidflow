@@ -47,6 +47,7 @@ import {
   BoxSelect,
   Cone,
   ArrowRightToLine,
+  FlipHorizontal2,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Viewport, { type ViewName } from "./components/Viewport";
@@ -57,6 +58,9 @@ import type { ChamferPlan } from "./sketch/chamfer";
 import SketchFilletPanel from "./components/SketchFilletPanel";
 import type { FilletPlan, FilletBatchPlan } from "./sketch/fillet";
 import { solveFilletApplication } from "./sketch/filletApplication";
+import SketchMirrorPanel from "./components/SketchMirrorPanel";
+import type { MirrorPlan } from "./sketch/mirror";
+import { solveMirrorApplication } from "./sketch/mirrorApplication";
 import PlaneSupportPanel, {
   supportLabel,
 } from "./components/PlaneSupportPanel";
@@ -81,6 +85,7 @@ import { createChamferSketchDocument } from "./examples/sketch-chamfer";
 import { createFilletSketchDocument } from "./examples/sketch-fillet";
 import { createFilletProlongationDocument } from "./examples/sketch-fillet-prolongation";
 import { createFilletBatchDocument } from "./examples/sketch-fillet-batch";
+import { createSketchMirrorDocument, createSketchMirrorArcDocument } from "./examples/sketch-mirror";
 import {
   createLoftExample,
   createSweepExample,
@@ -337,6 +342,9 @@ export default function App() {
   const [sketchSelection, setSketchSelection] = useState<SketchSelection[]>([]);
   const [chamferPreview, setChamferPreview] = useState<ChamferPlan | null>(null);
   const [filletPreview, setFilletPreview] = useState<FilletPlan | FilletBatchPlan | null>(null);
+  const [mirrorPreview, setMirrorPreview] = useState<MirrorPlan | null>(null);
+  const [mirrorAxisId, setMirrorAxisId] = useState("");
+  const [mirrorPickingAxis, setMirrorPickingAxis] = useState(false);
   const [previousFilletId, setPreviousFilletId] = useState<string | null>(null);
   const filletSessionIds = useRef<string[]>([]);
   const filletSelectionCheck = useRef<((selection: SketchSelection[]) => string | null) | null>(null);
@@ -380,15 +388,15 @@ export default function App() {
     );
   }, [model, editing]);
   // A legacy sketch is displayed as entities during the tool, but conversion
-  // enters history only together with a successfully applied fillet.
-  const filletConvertedProfile = useMemo(() =>
-    sketchTool === "fillet" && editing?.type === "sketch" && editing.profile.kind !== "entities"
+  // enters history only together with a successfully applied operation.
+  const toolConvertedProfile = useMemo(() =>
+    (sketchTool === "fillet" || sketchTool === "mirror") && editing?.type === "sketch" && editing.profile.kind !== "entities"
       ? convertProfile(editing.profile) : null,
-  [sketchTool === "fillet", editing?.type === "sketch" ? editing.profile : null]);
+  [sketchTool === "fillet" || sketchTool === "mirror", editing?.type === "sketch" ? editing.profile : null]);
   const entityProfile =
     editing?.type === "sketch" && editing.profile.kind === "entities"
       ? editing.profile
-      : filletConvertedProfile;
+      : toolConvertedProfile;
   useEffect(() => {
     const ids = new Set(entityProfile?.entities.filter(entity => entity.type === "arc").map(entity => entity.id));
     if (sketchTool === "fillet")
@@ -513,6 +521,7 @@ export default function App() {
       sketchTool !== "chamfer" ||
       !!chamferPreview?.changed) &&
     (editing.type !== "sketch" || sketchTool !== "fillet" || !!filletPreview?.changed) &&
+    (editing.type !== "sketch" || sketchTool !== "mirror" || !!mirrorPreview?.changed) &&
     model.featureErrors.length === 0;
   const canExport =
     !editing &&
@@ -733,6 +742,9 @@ export default function App() {
   };
   const loadFilletBatchDemo = async () => {
     if (await canReplace()) reset(createFilletBatchDocument());
+  };
+  const loadSketchMirrorDemo = async (kind: "lines" | "arc") => {
+    if (await canReplace()) reset(kind === "lines" ? createSketchMirrorDocument() : createSketchMirrorArcDocument());
   };
   const loadPatternDemo = async (kind: RepetitionFeature["type"]) => {
     if (await canReplace())
@@ -1493,6 +1505,26 @@ export default function App() {
       ? `${filletIds.length} esquinas redondeadas en una operación. Selecciona otras o termina con Esc.`
       : "Redondeo aplicado. Selecciona otra esquina o termina con Esc.");
   };
+  const chooseMirrorAxis = (id: string) => {
+    setMirrorPreview(null);
+    setMirrorAxisId(id);
+    setMirrorPickingAxis(false);
+    setSketchSelection(old => old.filter(item => item.kind === "entity" && item.id !== id));
+  };
+  const applySketchMirror = (plan: MirrorPlan) => {
+    if (editing?.type !== "sketch") return;
+    if (plan.axisEntityId !== mirrorAxisId ||
+      JSON.stringify(plan.sourceEntityIds) !== JSON.stringify(sketchSelection.filter(s => s.kind === "entity").map(s => s.id).sort())) {
+      notify("La selección ha cambiado. Revisa la vista previa de simetría.", true); return;
+    }
+    const application = solveMirrorApplication(sketchSolution, plan);
+    if (!application.accepted) { notify(application.message, true); return; }
+    changeDraft({ profile: application.solution.profile });
+    setMirrorPreview(null);
+    setMirrorPickingAxis(false);
+    setSketchSelection([]);
+    notify("Simetría aplicada. Las copias siguen las cotas de las fuentes y del eje.");
+  };
   const acceptEdit = () => {
     if (!editing || !canAccept) return;
     if (editing.type === "sketch" && sketchTool === "chamfer") {
@@ -1501,6 +1533,10 @@ export default function App() {
     }
     if (editing.type === "sketch" && sketchTool === "fillet") {
       if (filletPreview) applySketchFillet(filletPreview);
+      return;
+    }
+    if (editing.type === "sketch" && sketchTool === "mirror") {
+      if (mirrorPreview) applySketchMirror(mirrorPreview);
       return;
     }
     try {
@@ -1548,11 +1584,13 @@ export default function App() {
     setEditing(next);
   };
   const cancelActiveEdit = () => {
-    if (editing?.type === "sketch" && (sketchTool === "chamfer" || sketchTool === "fillet")) {
+    if (editing?.type === "sketch" && (sketchTool === "chamfer" || sketchTool === "fillet" || sketchTool === "mirror")) {
       setSketchTool("select");
       setSketchSelection([]);
       setChamferPreview(null);
       setFilletPreview(null);
+      setMirrorPreview(null);
+      setMirrorPickingAxis(false);
       setPreviousFilletId(null);
       filletSessionIds.current = [];
     } else cancelEdit();
@@ -1596,7 +1634,13 @@ export default function App() {
       filletSessionIds.current = [];
       setPreviousFilletId(null);
     }
-    if (tool !== "chamfer" && tool !== "fillet") setSketchSelection([]);
+    if (tool === "mirror") {
+      setMirrorPreview(null);
+      setMirrorAxisId("");
+      setMirrorPickingAxis(false);
+      setSketchSelection(old => old.filter(item => item.kind === "entity"));
+    }
+    if (tool !== "chamfer" && tool !== "fillet" && tool !== "mirror") setSketchSelection([]);
   };
   const changeProfile = (patch: Partial<LegacyProfile>) => {
     if (editing?.type === "sketch" && editing.profile.kind !== "entities")
@@ -1642,7 +1686,7 @@ export default function App() {
       if (
         e.key === "Escape" &&
         editing?.type === "sketch" &&
-        (sketchTool === "chamfer" || sketchTool === "fillet")
+        (sketchTool === "chamfer" || sketchTool === "fillet" || sketchTool === "mirror")
       ) {
         e.preventDefault();
         cancelActiveEdit();
@@ -1689,7 +1733,7 @@ export default function App() {
   });
   const profile: Profile =
     editing?.type === "sketch"
-      ? (filletConvertedProfile ?? editing.profile)
+      ? (toolConvertedProfile ?? editing.profile)
       : { kind: "rectangle", center: [0, 0], width: 60, height: 40 };
   const editingSupport: PlaneSupport | null =
     editing?.type === "plane" ||
@@ -2232,6 +2276,8 @@ export default function App() {
                         ? "Aplicar chaflán"
                         : sketchTool === "fillet"
                         ? "Aplicar redondeo"
+                        : sketchTool === "mirror"
+                        ? "Aplicar simetría"
                         : "Salir del croquis"
                       : "Nuevo croquis"
                   }
@@ -2359,6 +2405,9 @@ export default function App() {
                   active={sketchTool === "fillet"}
                   disabled={editing?.type !== "sketch"}
                 />
+                <Command icon={FlipHorizontal2} label="Simetría de croquis" large
+                  onClick={() => selectSketchTool("mirror")} active={sketchTool === "mirror"}
+                  disabled={editing?.type !== "sketch"} />
                 <Command
                   icon={Component}
                   label="Relaciones de croquis"
@@ -2561,6 +2610,12 @@ export default function App() {
               </div>
               {editing.type === "sketch" ? (
                 <>
+                  {sketchTool === "mirror" && entityProfile && <SketchMirrorPanel
+                    profile={entityProfile} solution={sketchSolution} selection={sketchSelection}
+                    axisEntityId={mirrorAxisId} pickingAxis={mirrorPickingAxis}
+                    onAxisChange={chooseMirrorAxis} onPickAxis={() => setMirrorPickingAxis(old => !old)}
+                    onSelection={next => { setMirrorPreview(null); setSketchSelection(next); }} onPreview={setMirrorPreview}
+                    onApply={applySketchMirror} onCancel={cancelActiveEdit} />}
                   {sketchTool === "fillet" && entityProfile && (
                     <SketchFilletPanel
                       profile={entityProfile}
@@ -3234,7 +3289,7 @@ export default function App() {
           {editing?.type === "sketch" && !pickingSupport ? (
             <SketchCanvas
               key={editing.id}
-              profile={filletConvertedProfile ?? editing.profile}
+              profile={toolConvertedProfile ?? editing.profile}
               onChange={(p) =>
                 p.kind === "entities"
                   ? changeEntityProfile(p)
@@ -3245,6 +3300,7 @@ export default function App() {
               referenceLines={referenceLines}
               selection={sketchSelection}
               onSelection={next => {
+                if (sketchTool === "mirror") setMirrorPreview(null);
                 if (sketchTool === "fillet" && next.length > sketchSelection.length &&
                   next.length > 1 && next.every(item => item.kind === "point") &&
                   filletPreview?.sourceProfile === sketchSolution?.profile) {
@@ -3257,6 +3313,9 @@ export default function App() {
               fitStamp={view.stamp}
               chamferPreview={sketchTool === "chamfer" ? chamferPreview : null}
               filletPreview={sketchTool === "fillet" ? filletPreview : null}
+              mirrorPreview={sketchTool === "mirror" ? mirrorPreview : null}
+              mirrorAxisEntityId={mirrorAxisId} mirrorPickingAxis={mirrorPickingAxis}
+              onMirrorAxis={chooseMirrorAxis}
             />
           ) : placingHoles && holeEditing ? (
             holeFrame ? (
@@ -3671,6 +3730,14 @@ export default function App() {
                   <CornerDownRight size={36} />
                   <strong>Redondear varias esquinas</strong>
                   <span>Placa 10 × 6 × 4 mm · selecciona las dos esquinas inferiores y aplica R2</span>
+                </button>
+                <button className="library-card" onClick={() => loadSketchMirrorDemo("lines")}>
+                  <FlipHorizontal2 size={36} /><strong>Simetría de medio perfil</strong>
+                  <span>Croquis abierto · refleja los tres tramos sobre el eje de construcción</span>
+                </button>
+                <button className="library-card" onClick={() => loadSketchMirrorDemo("arc")}>
+                  <FlipHorizontal2 size={36} /><strong>Simetría de un arco</strong>
+                  <span>Semicírculo R5 · refleja el arco y comparte los puntos sobre el eje</span>
                 </button>
                 <button
                   className="library-card"

@@ -21,6 +21,14 @@ deshacer y rehacer, F para encuadrar y Ctrl+7 para la vista isométrica.
 Guarda el documento editable como `.solidflow`. Desde Archivo puedes exportar
 la geometría a STEP o STL. La exportación no conserva el historial paramétrico.
 
+Para practicar la simetría, abre **Simetría de medio perfil** en la biblioteca,
+edita su croquis y elige **Simetría de croquis**. Selecciona los tres tramos y
+el eje de construcción en **Con respecto a**, mantén los puntos sobre el eje
+compartidos y aplica. Pulsa Esc para terminar la herramienta y acepta el
+croquis; después puedes extruir 4 mm y editar la cota de semianchura.
+Las copias siguen las cotas de las fuentes. El [contrato de simetría](SKETCH_MIRROR.md)
+detalla las relaciones, la compatibilidad y la validación disponible.
+
 Para probar la compilación de producción, ejecuta `npm run build` y `npm start`.
 Los paquetes de desarrollo se generan en el sistema correspondiente con
 `npm run package:win`, `npm run package:mac` o `npm run package:linux`.

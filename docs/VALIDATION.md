@@ -27,6 +27,52 @@ successful installation, notarization or all interactive workflows on that OS.
 The project does not yet have exhaustive topology, numerical robustness,
 accessibility, performance or platform coverage.
 
+## Associative sketch mirror increment — 2026-10-11
+
+On Windows x64 with Node 24.11.1, the final `npm test` passed all 1,121 portable
+tests in 55 files and all 8 IPC checks, without skips. TypeScript/Vite build
+passed with the existing dependency-externalization and large-chunk warnings.
+Real Electron production-loader smoke passed with WASM loaded, no console
+errors and no failed requests; it exercises the initial solid, not the new
+mirror controls. An isolated fresh `npm ci` succeeded without replacing the
+dependencies used by a running development application. The dependency audit
+reports 0 high/critical and 8 moderate development findings; none is suppressed.
+
+The 128 added cases comprise 52 symmetry/typed-reference checks, 23 discrete
+arc-direction checks, 7 document/history checks, 29 planner/application checks,
+4 rendered-component cases and 13 CAD cases. They cover horizontal/vertical/
+oblique and reversed axes, source/axis edits, shared points and explicit seam
+joining, origin handling, linked circle radii, arc winding and major arcs,
+direction chains/ownership rejection, strict fields, deletion/trim/extend/
+fillet reference cleanup, version-1 round trips and atomic rejection.
+Application tests distinguish stale/unhealthy sources from one whole-proposal
+solve, including a real conflicting image constraint.
+
+The [mirror guide](SKETCH_MIRROR.md) records independent plate, circular-hole,
+disk and major-segment formulas. A mirrored 5×6 half-profile extruded 4 mm has
+`V=240 mm³`, `A=248 mm²`; changing half-width to 7 after reopening gives
+`V=336 mm³`, `A=328 mm²`. These tests check coordinates, valid BRep, one solid,
+bounds, exact document reopening and programmatic STEP reconstruction. Selected
+face/edge references and a dependent fillet remain valid across that width edit.
+Coordinate tolerance is `5e-7` mm per axis; mass/area/bounds use absolute
+`5e-6` in their respective units. A dedicated regression also changes the
+source arc sense after reopening and checks the correctly reflected complete
+disk, rather than accepting overlapping semicircles. Numerical refinement
+reduces mirror orientation drift without changing the public solver acceptance
+or the geometric naming/validity criteria. No general convergence or naming
+guarantee is inferred.
+
+Server rendering checks source/axis controls, seam sharing, the combined image
+overlay, stale preview suppression and blocked application. Static integration
+review confirms the single draft-history commit and configuration/source guards.
+Neither executes pointer/keyboard, cancel, undo/redo or interactive reopening.
+Real interaction with this tool/card remains unverified. Move without copy,
+dynamic mirroring and general overlap resolution remain open in
+[issue #10](https://github.com/angelcp2802/solidflow/issues/10).
+This source needs its own hosted checks; earlier platform results are separate.
+Binary publication remains disabled under
+[issue #5](https://github.com/angelcp2802/solidflow/issues/5).
+
 ## Initial public-source validation — 2026-10-11
 
 A clean copy of the initial tracked tree, with a fresh `npm ci` on Windows x64

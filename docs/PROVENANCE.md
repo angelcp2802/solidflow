@@ -28,3 +28,12 @@ the adjacent left corners are `origin` and `top-left`. The
 perimeter by subtracting a square minus a quarter disk at each rounded corner.
 The batch tests construct and reopen documents and STEP exports in memory;
 these are programmatic checks, not saved UI captures.
+
+`sketch-mirror.ts` authors an open Cartesian half-profile
+`(0,0)→(5,0)→(5,6)→(0,6)` and a separate right semicircle of radius 5 mm.
+Both have construction axes and original driving constraints, in millimeters.
+The [mirror guide](SKETCH_MIRROR.md) gives independent rectangle, disk,
+circular-hole and major-segment area/perimeter formulas for the 4 mm CAD
+extrusions used in tests. These factories and in-memory document/STEP round
+trips use no imported/private geometry or new binary fixtures. They are
+programmatic examples, not saved interaction captures.
