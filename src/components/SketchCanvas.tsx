@@ -35,6 +35,7 @@ import { angleText, lengthText } from "../sketch/formatting";
 import { previewTrimToClosest, trimToClosest } from "../sketch/trim";
 import { previewExtendToClosest, extendToClosest } from "../sketch/extend";
 import type { TrimSegment } from "../sketch/trim";
+import type { ChamferPlan } from "../sketch/chamfer";
 import LegacySketchCanvas from "./LegacySketchCanvas";
 
 interface Props {
@@ -47,10 +48,11 @@ interface Props {
   solution: SketchSolveResult | null;
   fitStamp: number;
   referenceLines?: number[];
+  chamferPreview?: ChamferPlan | null;
 }
 type Point = [number, number];
 type Draft = {
-  tool: Exclude<SketchTool, "select" | "trim" | "extend">;
+  tool: Exclude<SketchTool, "select" | "trim" | "extend" | "chamfer">;
   anchors: SnapPoint[];
 };
 type Gesture =
@@ -94,7 +96,8 @@ export default function SketchCanvas(props: Props) {
           props.tool === "line" ||
           props.tool === "arc" ||
           props.tool === "trim" ||
-          props.tool === "extend"
+          props.tool === "extend" ||
+          props.tool === "chamfer"
             ? "select"
             : props.tool
         }
@@ -116,6 +119,7 @@ function EntitySketchCanvas({
   solution,
   fitStamp,
   referenceLines,
+  chamferPreview,
 }: Props & { profile: EntityProfile }) {
   const profile =
     solution && ["underdefined", "fullyDefined"].includes(solution.status)
@@ -153,6 +157,13 @@ function EntitySketchCanvas({
     return segments;
   }, [referenceLines]);
   const displayed = preview ?? profile;
+  const visibleChamfer =
+    tool === "chamfer" &&
+    chamferPreview?.changed &&
+    chamferPreview.sourceProfile === profile &&
+    solution && ["underdefined", "fullyDefined"].includes(solution.status)
+      ? chamferPreview
+      : null;
   const screen = (point: Point): Point => [
     (point[0] - view.center[0]) * view.scale + size.width / 2,
     size.height / 2 - (point[1] - view.center[1]) * view.scale,
@@ -402,6 +413,28 @@ function EntitySketchCanvas({
       return;
     }
     if (event.button !== 0) return;
+    if (tool === "chamfer") {
+      const target = pickTarget(event.target);
+      setMessage("");
+      if (!target) {
+        onSelection([]);
+        return;
+      }
+      if (target.kind === "point") {
+        onSelection([target]);
+        return;
+      }
+      if (target.kind !== "entity" || profile.entities.find(entity => entity.id === target.id)?.type !== "line") {
+        setMessage("Selecciona un vértice o dos líneas adyacentes para el chaflán.");
+        return;
+      }
+      const lines = selection.filter(item => item.kind === "entity" && profile.entities.find(entity => entity.id === item.id)?.type === "line");
+      if (lines.some(item => sameSelection(item, target)))
+        onSelection(lines.filter(item => !sameSelection(item, target)));
+      else if (lines.length < 2) onSelection([...lines, target]);
+      else setMessage("Ya hay dos líneas seleccionadas. Quita una o limpia la selección antes de elegir otra.");
+      return;
+    }
     if (tool === "trim" || tool === "extend") {
       const target = pickTarget(event.target);
       if (target?.kind !== "entity") return;
@@ -525,6 +558,11 @@ function EntitySketchCanvas({
         setPreview(moveProfile(active, position));
       return;
     }
+    if (tool === "chamfer") {
+      const target = pickTarget(event.target);
+      setHovered(target?.kind === "point" || (target?.kind === "entity" && profile.entities.find(entity => entity.id === target.id)?.type === "line") ? target : null);
+      return;
+    }
     if (tool === "trim" || tool === "extend") {
       if (active?.kind === "boundary") return;
       const target = pickTarget(event.target);
@@ -610,7 +648,7 @@ function EntitySketchCanvas({
       setHover(null);
       return;
     }
-    if (tool === "select" || tool === "trim" || tool === "extend") return;
+    if (tool === "select" || tool === "trim" || tool === "extend" || tool === "chamfer") return;
     const end = drawingPoint(position);
     if (tool === "arc") {
       const anchors = draft?.anchors ?? [];
@@ -849,6 +887,8 @@ function EntitySketchCanvas({
         ? "Recortar hasta más cercano: haz clic en el tramo rojo · Esc termina"
         : tool === "extend"
           ? "Extender: apunta a la mitad de la entidad y haz clic · Esc termina"
+          : tool === "chamfer"
+            ? "Chaflán: selecciona un vértice o dos líneas en orden A / B · Aplica desde el panel · Esc cancela"
           : tool === "arc"
             ? [
                 "Arco: selecciona el centro",
@@ -1016,6 +1056,7 @@ function EntitySketchCanvas({
                         : geometryColor
                 }
                 strokeWidth={active ? 2.6 : related ? 2.2 : 1.7}
+                opacity={visibleChamfer?.affectedEntityIds.includes(entity.id) ? 0.25 : undefined}
                 strokeDasharray={entity.construction ? "7 5" : undefined}
                 pointerEvents="none"
               />
@@ -1070,7 +1111,7 @@ function EntitySketchCanvas({
               role="button"
               aria-label={`${"value" in constraint && constraint.driven ? "Cota conducida" : "Restricción"} ${constraint.type}${"value" in constraint ? ` ${label} ${constraint.type === "angle" ? "grados" : "mm"}` : ""}`}
               pointerEvents={
-                tool === "trim" || tool === "extend" ? "none" : undefined
+                tool === "trim" || tool === "extend" || tool === "chamfer" ? "none" : undefined
               }
             >
               {angular && (
@@ -1168,6 +1209,39 @@ function EntitySketchCanvas({
             pointerEvents="none"
           />
         </g>
+        {visibleChamfer && (
+          <g data-chamfer-preview="true" pointerEvents="none" aria-label="Vista previa del chaflán">
+            {visibleChamfer.profile.entities
+              .filter(entity => visibleChamfer.affectedEntityIds.includes(entity.id) || entity.id === visibleChamfer.chamferEntityId)
+              .map(entity => (
+                <path
+                  key={entity.id}
+                  data-chamfer-segment={entity.id === visibleChamfer.chamferEntityId ? "chamfer" : "trimmed-line"}
+                  d={entityPath(entity, visibleChamfer.profile)}
+                  fill="none"
+                  stroke="#168b9f"
+                  strokeWidth="2.7"
+                  strokeDasharray={entity.construction ? "7 5" : undefined}
+                  pointerEvents="none"
+                />
+              ))}
+            {visibleChamfer.profile.entities
+              .filter(entity => entity.construction && visibleChamfer.createdEntityIds.includes(entity.id) && entity.id !== visibleChamfer.chamferEntityId)
+              .map(entity => (
+                <path
+                  key={entity.id}
+                  data-chamfer-construction="true"
+                  d={entityPath(entity, visibleChamfer.profile)}
+                  fill="none"
+                  stroke="#168b9f"
+                  strokeWidth="1.2"
+                  strokeDasharray="4 5"
+                  opacity=".55"
+                  pointerEvents="none"
+                />
+              ))}
+          </g>
+        )}
         {tool === "trim" && trimPreview?.segment && (
           <path
             data-trim-preview="true"
