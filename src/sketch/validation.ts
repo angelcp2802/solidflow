@@ -302,7 +302,13 @@ export function validateEntityProfile(
       const images = array(constraint.images, 2, `${location}.images`).map((value, index): OffsetImage => {
         const imagePath = `${location}.images[${index}]`;
         const image = object(value, imagePath);
-        keys(image, ["side", "distance", "entityIds", "joins"], imagePath);
+        keys(image, ["side", "distance", "entityIds", "joins", ...(Object.hasOwn(image, "lineEndpointMode") ? ["lineEndpointMode"] : [])], imagePath);
+        const lineEndpointMode = image.lineEndpointMode;
+        if (Object.hasOwn(image, "lineEndpointMode") && lineEndpointMode !== "aligned" && lineEndpointMode !== "free")
+          fail(`${imagePath}.lineEndpointMode`, "se esperaba aligned o free");
+        if (lineEndpointMode === "aligned" && (closed || constraint.cap !== "none" ||
+          ![sources[0], sources[sources.length - 1]].some(source => entityMap.get(source.entityId)!.type === "line")))
+          fail(`${imagePath}.lineEndpointMode`, "la alineación requiere extremos libres de línea en una cadena abierta sin tapas");
         if (image.side !== "right" && image.side !== "left") fail(`${imagePath}.side`, "se esperaba right o left");
         if (sides.has(image.side)) fail(`${imagePath}.side`, "lado de equidistancia duplicado");
         sides.add(image.side);
@@ -330,7 +336,8 @@ export function validateEntityProfile(
         });
         const expectedJoins = hasCircle ? 0 : closed ? sources.length : sources.length - 1;
         if (joins.length !== expectedJoins) fail(`${imagePath}.joins`, "el número de uniones no corresponde a la cadena fuente");
-        return { side: image.side, distance: dimension(image.distance, `${imagePath}.distance`), entityIds, joins };
+        return { side: image.side, distance: dimension(image.distance, `${imagePath}.distance`), entityIds, joins,
+          ...(lineEndpointMode === "aligned" || lineEndpointMode === "free" ? { lineEndpointMode } : {}) };
       });
       if (!images.length) fail(`${location}.images`, "se requiere al menos un lado de equidistancia");
       if (constraint.cap !== "none" && constraint.cap !== "line" && constraint.cap !== "arc") fail(`${location}.cap`, "se esperaba none, line o arc");

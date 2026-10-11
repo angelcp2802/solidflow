@@ -45,6 +45,8 @@ export interface OffsetImage {
   side: "right" | "left";
   /** Geometric seed for this side; a distance dimension is a separate target. */
   distance: number;
+  /** Uncapped line-end stations; absence preserves legacy free endpoints. */
+  lineEndpointMode?: "aligned" | "free";
   /** One image for each source, in the same traversal order. */
   entityIds: string[];
   joins: OffsetJoin[];

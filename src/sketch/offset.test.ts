@@ -19,11 +19,11 @@ const healthy = (profile: EntityProfile) => { const result = solveSketch(profile
 const dimension = (profile: EntityProfile, side: "left" | "right" = "right") => profile.constraints.find(c => c.type === "offsetDistance" && c.side === side) as Extract<SketchConstraint, { type: "offsetDistance" }>;
 
 describe("associative support offsets", () => {
-  it("seeds positive right of stored traversal and keeps uncapped endpoints free", () => {
+  it("seeds positive right of stored traversal and aligns new dimensioned line endpoints", () => {
     const input = line(), before = structuredClone(input), plan = planSketchOffset(input, select("line"), options);
     expect(plan.changed, plan.message).toBe(true); expect(input).toEqual(before);
     expect(imageEnds(plan.profile)).toEqual([{ x: 0, y: -2 }, { x: 10, y: -2 }]);
-    const solved = healthy(plan.profile); expect(solved.degreesOfFreedom).toBe(2);
+    const solved = healthy(plan.profile); expect(solved.degreesOfFreedom).toBe(0);
     const reversed = line(); if (reversed.entities[0].type !== "line") throw Error(); [reversed.entities[0].start, reversed.entities[0].end] = ["end", "origin"];
     expect(imageEnds(planSketchOffset(reversed, select("line"), options).profile)).toEqual([{ x: 10, y: 2 }, { x: 0, y: 2 }]);
     expect(imageEnds(planSketchOffset(reversed, select("line"), { ...options, reverse: true }).profile, "left")).toEqual([{ x: 10, y: -2 }, { x: 0, y: -2 }]);
@@ -43,13 +43,15 @@ describe("associative support offsets", () => {
     dimension(edited).value = 3;
     const next = healthy(edited); expect(imageEnds(next.profile).every(p => Math.abs(p.y + 3) < 1e-8)).toBe(true);
     dimension(edited).driven = true; dimension(edited).value = 77;
-    expect(healthy(edited).degreesOfFreedom).toBe(3);
+    // Converting the distance releases only the normal translation; endpoint
+    // stations belong to the persisted image rather than the dimension mode.
+    expect(healthy(edited).degreesOfFreedom).toBe(1);
   });
   it.each(["none", "line"] as const)("keeps both %s-cap distances independent", cap => {
     const plan = planSketchOffset(line(), select("line"), { ...options, bothDirections: true, cap }), edited = structuredClone(healthy(plan.profile).profile);
     dimension(edited).value = 3; const solved = healthy(edited);
     expect(imageEnds(solved.profile, "right").every(p => Math.abs(p.y + 3) < 1e-8)).toBe(true); expect(imageEnds(solved.profile, "left").every(p => Math.abs(p.y - 2) < 1e-8)).toBe(true);
-    expect(solved.degreesOfFreedom).toBe(cap === "line" ? 0 : 4);
+    expect(solved.degreesOfFreedom).toBe(0);
   });
   it("round caps make the two distances equal geometrically and keep the second dimension driven", () => {
     const plan = planSketchOffset(line(), select("line"), { ...options, bothDirections: true, cap: "arc", construction: "source" });
@@ -111,7 +113,7 @@ describe("associative support offsets", () => {
     expect(solveOffsetApplication(current, plan, solver).accepted).toBe(true); expect(solver).toHaveBeenCalledTimes(1);
     const stale = { ...current, profile: structuredClone(current.profile) }; expect(solveOffsetApplication(stale, plan, solver).accepted).toBe(false); expect(solver).toHaveBeenCalledTimes(1);
     const detached = removeSelection(plan.profile, [{ kind: "constraint", id: group(plan.profile).id }]); expect(detached.constraints.some(c => c.type === "offsetDistance")).toBe(false); expect(detached.entities).toEqual(plan.profile.entities);
-    const onlyDimRemoved = removeSelection(plan.profile, [{ kind: "constraint", id: dimension(plan.profile).id }]); expect(group(onlyDimRemoved)).toBeTruthy(); expect(healthy(onlyDimRemoved).degreesOfFreedom).toBe(3);
+    const onlyDimRemoved = removeSelection(plan.profile, [{ kind: "constraint", id: dimension(plan.profile).id }]); expect(group(onlyDimRemoved)).toBeTruthy(); expect(healthy(onlyDimRemoved).degreesOfFreedom).toBe(1);
     const conflicting = structuredClone(plan.profile), target = conflicting.entities.find(e => e.id === plan.imageEntityIds[0])!; if (target.type !== "line") throw Error(); conflicting.constraints.push({ id: "conflict", type: "fix", pointId: target.start, x: 0, y: 2 });
     const badPlan = { ...plan, profile: conflicting }; expect(solveOffsetApplication(current, badPlan).accepted).toBe(false); expect(current.profile).toEqual(line());
   });

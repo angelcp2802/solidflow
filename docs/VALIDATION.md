@@ -134,6 +134,49 @@ This source needs its own hosted checks; earlier platform results are separate.
 Binary publication remains disabled under
 [issue #5](https://github.com/angelcp2802/solidflow/issues/5).
 
+## Aligned line-offset endpoints — 2026-10-12
+
+On Windows x64 with Node 24.11.1, `npm test` passed 1,379 portable tests in
+68 files and all 11 IPC tests, with no skips. `npm run build` passed with the
+existing chunk-size and dependency-externalization warnings.
+`npm run test:desktop` passed the isolated initial-model production loader:
+WASM loaded, zero console errors and zero failed requests. This smoke check
+does not interact with the offset tool. A fresh isolated `npm ci` installed
+341 packages on the same dependency graph; the later 0.17 version change
+affects only root package metadata. Audit: zero high/critical findings and
+eight moderate development findings.
+
+The increment adds 25 core cases, two document/CAD cases and one structural
+naming case. Newly dimensioned uncapped line images align their endpoint
+stations with the source. Checks cover source length 10→12 mm and distance
+2→3 mm, bidirectional dimensions, immutable incompatible-target rejection,
+reversed/vertical lines, independent sides and mixed line/arc ends. Converting
+or deleting the distance dimension keeps alignment and frees only normal
+separation; a driven reading measures that solved separation. Legacy absence
+of `lineEndpointMode` preserves free endpoint behavior. Explicit free mode
+shares its structural descriptor, while aligned mode differs. Caps, closed
+groups and free arc intervals retain their prior rules.
+
+Original Cartesian geometry exercises two successive offset associations
+and a 4 mm extrusion: a 10×2 rectangle becomes 12×2, with volume 80→96 mm³
+and surface area 136→160 mm². The checks establish valid BRep, one solid,
+analytical bounds, saved-document reconstruction, one history entry with
+programmatic undo/redo, stable selected face/edge references and a fresh
+STEP export after replacing the engine's current body. Coordinate tolerance
+is `5e-7` mm and CAD mass/area/bounds use absolute `5e-6` in their respective
+units. The STEP producer and reader share OpenCascade; this is not independent
+interoperability evidence. These selected references do not establish general
+topological naming.
+
+Free separation can move numerically while remaining unconstrained; its seed
+is not a fixed target. Following an untouched no-dimension line endpoint until
+the user repositions it remains open in
+[issue #17](https://github.com/angelcp2802/solidflow/issues/17). Real offset-tool
+interaction remains unexecuted. This revision needs its own hosted checks;
+earlier platform results do not establish a pass for the new source. Binary
+upload remains disabled under
+[issue #5](https://github.com/angelcp2802/solidflow/issues/5).
+
 ## Initial public-source validation — 2026-10-11
 
 A clean copy of the initial tracked tree, with a fresh `npm ci` on Windows x64

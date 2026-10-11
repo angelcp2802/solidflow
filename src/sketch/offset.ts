@@ -129,7 +129,10 @@ export function planSketchOffset(input: EntityProfile, selection: SketchSelectio
         }
         profile.entities.push(entity); entityIds.push(id); imageEntityIds.push(id);
       });
-      images.push({ side, distance: parameters.distance, entityIds, joins });
+      const alignLineEnds = parameters.addDimensions && !closed && cap === "none" &&
+        [sources[0], sources[sources.length - 1]].some(source => offsetEntity(profile, source.entityId).type === "line");
+      images.push({ side, distance: parameters.distance, entityIds, joins,
+        ...(alignLineEnds ? { lineEndpointMode: "aligned" as const } : {}) });
     }
     if (cap !== "none") for (const endIndex of [0, 1]) {
       const index = endIndex === 0 ? 0 : sources.length - 1, source = sources[index], entity = offsetEntity(profile, source.entityId), sourceEndpoint = ends(entity, source.reversed)[endIndex];

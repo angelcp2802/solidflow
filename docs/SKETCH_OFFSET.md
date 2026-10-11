@@ -48,8 +48,20 @@ With **Añadir cota de distancia**, edit the distance in the dimensions
 inspector. Without it, the separation can change while the image remains
 parallel or concentric. A driven distance measures the current solved
 separation; its retained value is not a target. Uncapped open endpoints remain
-free along their supports. Association alone does not require an image line
-to retain the source length or an image arc to retain the source sweep.
+free along their supports when their endpoint policy is free. New uncapped
+line offsets created with a distance dimension instead align their end
+stations with the source endpoints: the displacement is perpendicular to the
+source line. A source length edit from 10 to 12 mm therefore moves an image
+endpoint from `(10,-2)` to `(12,-2)`; changing the distance to 3 mm then gives
+`(12,-3)`. These equations work in both directions, so an image length
+dimension can drive an otherwise free source length. An incompatible image
+endpoint target is rejected when the source is fully constrained.
+
+Alignment belongs to the stored association. Converting its distance to a
+driven measurement, or deleting only that dimension, frees the separation
+while retaining endpoint alignment. Arc endpoints retain their own free
+intervals; line alignment does not copy the source arc sweep. Caps and closed
+chains retain their existing endpoint equations.
 
 For two sides without caps, or with straight caps, the distances are
 independent. Two semicircular caps instead center on the source endpoints
@@ -94,6 +106,23 @@ version-1 format. Existing version-1 documents remain readable. Older builds
 that do not recognize `offset` or `offsetDistance` reject those newer
 documents explicitly; forward compatibility is not promised.
 
+Starting with 0.17, an image may additionally store
+`lineEndpointMode: "aligned" | "free"`. An absent field means free, preserving
+0.16 documents even when they have a driving distance dimension. Explicit
+free mode has the same geometry and structural naming as absence. Aligned
+mode applies only to line endpoints of uncapped open chains; it is rejected
+on closed or capped groups and groups whose two ends are arcs. Older builds
+that do not recognize the field reject such newer documents. The enclosing
+document remains version 1.
+
+Offsets created without a distance dimension currently retain free Cartesian
+endpoint seeds. After an explicit endpoint edit to x=12 mm, a source length
+edit to 14 mm leaves that endpoint at x=12 mm. Following an untouched source
+endpoint until the user repositions it remains separate work; the current
+free policy does not distinguish those states.
+That follow/detach behavior is tracked in
+[issue #17](https://github.com/angelcp2802/solidflow/issues/17).
+
 ## Original examples and analytical checks
 
 The library examples are authored Cartesian geometry in millimeters. They
@@ -137,6 +166,14 @@ distance 2 instead give `S=40+4π`, `P=20+4π`, `V=160+16π`, `A=160+24π`.
 A quarter-circle strip between radii 2 and 3, with straight radial caps,
 gives `S=5π/4`, `P=5π/2+2`, `V=5π`, `A=8+25π/2`.
 Lengths, areas and volumes here use mm, mm² and mm³ respectively.
+
+The endpoint-continuation check starts with a length-10 source line, an
+uncapped right offset at 2 mm, then two 1 mm offsets with straight caps.
+Only the final rectangle is material. At depth 4 mm its width is 2 mm, so
+`V=8L` and `A=12L+16`: changing the source length from 10 to 12 mm changes
+volume from 80 to 96 mm³ and area from 136 to 160 mm². This checks a
+dimension edit through two associations, saved document history, selected
+references and a fresh programmatic STEP export.
 
 The current command handles one connected chain or one circle at a time.
 It does not resolve arbitrary overlapping contours, branch networks or
