@@ -78,6 +78,7 @@ import { createTrimSketchDocument } from "./examples/sketch-trim";
 import { createExtendSketchDocument } from "./examples/sketch-extend";
 import { createChamferSketchDocument } from "./examples/sketch-chamfer";
 import { createFilletSketchDocument } from "./examples/sketch-fillet";
+import { createFilletProlongationDocument } from "./examples/sketch-fillet-prolongation";
 import {
   createLoftExample,
   createSweepExample,
@@ -723,6 +724,9 @@ export default function App() {
   };
   const loadFilletDemo = async (kind: "rectangle" | "curved" = "rectangle") => {
     if (await canReplace()) reset(createFilletSketchDocument(kind));
+  };
+  const loadFilletProlongationDemo = async (kind: "line-arc" | "arc-arc") => {
+    if (await canReplace()) reset(createFilletProlongationDocument(kind));
   };
   const loadPatternDemo = async (kind: RepetitionFeature["type"]) => {
     if (await canReplace())
@@ -3638,6 +3642,16 @@ export default function App() {
                   <CornerDownRight size={36} />
                   <strong>Placa para redondear con arco</strong>
                   <span>Línea y arco R5 · selecciona el origen y prueba un radio de 1 mm</span>
+                </button>
+                <button className="library-card" onClick={() => loadFilletProlongationDemo("line-arc")}>
+                  <CornerDownRight size={36} />
+                  <strong>Redondeo con prolongación de arco</strong>
+                  <span>Croquis abierto · une la línea y el arco R10 con un redondeo R2</span>
+                </button>
+                <button className="library-card" onClick={() => loadFilletProlongationDemo("arc-arc")}>
+                  <CornerDownRight size={36} />
+                  <strong>Redondeo entre dos arcos separados</strong>
+                  <span>Croquis abierto · prolonga los dos arcos R10 hasta un redondeo R2</span>
                 </button>
                 <button
                   className="library-card"

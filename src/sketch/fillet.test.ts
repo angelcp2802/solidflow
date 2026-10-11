@@ -408,7 +408,7 @@ describe("fillet analytical candidates", () => {
     solve(result.profile);
   });
 
-  it("rejects contacts outside the finite source arc instead of using its whole circle", () => {
+  it("rejects a shared-corner fillet that would cross the retained arc endpoint", () => {
     const input = externalLineArc();
     input.points.find((point) => point.id === "far-b")!.x =
       10 * Math.cos(Math.PI / 180);

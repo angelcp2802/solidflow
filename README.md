@@ -43,8 +43,8 @@ Assemblies, technical drawings, sheet metal, simulation, general CAD import and
 complete persistent topological naming are still pending.
 
 Sketch fillets handle one pair of lines or circular arcs per command, with
-keep/delete corner policies and repeatable linked radii. Full-circle sources,
-arc prolongation and atomic multi-corner batches remain work in
+keep/delete corner policies, source trimming or prolongation and repeatable
+linked radii. Full-circle sources and atomic multi-corner batches remain work in
 [issue #6](https://github.com/angelcp2802/solidflow/issues/6). The
 [fillet guide](docs/SKETCH_FILLET.md) separates analytical CAD evidence from the
 browser interaction exercised so far.

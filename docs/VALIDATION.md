@@ -139,6 +139,68 @@ not the fillet editor or native file dialogs. STEP exports above are
 programmatic. Full-circle sources, arc prolongation and atomic corner batches
 remain open in [issue #6](https://github.com/angelcp2802/solidflow/issues/6).
 
-Hosted checks for this increment require their own PR revision; prior runs do
-not establish a pass for the new source. Binary upload remains gated by
+Hosted checks on the final fillet head `27f9a7a` passed on Windows x64,
+macOS arm64 and Linux x64, including all 903 portable tests, 8 IPC tests,
+build, real Electron production-loader smoke and unsigned packaging:
+[desktop CI](https://github.com/angelcp2802/solidflow/actions/runs/38165413775).
+[Security analysis](https://github.com/angelcp2802/solidflow/actions/runs/38165413774)
+and the separate CodeQL result also passed. These results belong to that
+revision, not subsequent source changes. Binary upload remains gated by
+[issue #5](https://github.com/angelcp2802/solidflow/issues/5).
+
+## Sketch arc prolongation increment — 2026-10-11
+
+On Windows x64 with Node 24.11.1, `npm test` passed all 952 portable tests in
+46 files and all 8 IPC tests, with no skips. TypeScript/Vite build passed,
+retaining the existing large-chunk and dependency externalization warnings.
+Real Electron production-loader smoke passed with WASM loaded, no console
+errors and no failed requests. It exercises the initial solid, not interaction
+with the new library cards or the fillet editor.
+
+This increment adds 38 core cases, 2 rendered-component cases and 9 CAD cases.
+Core checks include analytical line–arc and two-arc prolongation, reflected
+and reversed representations, A/B order, rotation/scale, physical branch
+deduplication, radius transitions from extension to trimming, retained
+major-arc intervals, tied defaults, exclusive constraint cleanup and atomic
+rejection. Common-corner behavior remains covered by the earlier tests.
+Connected-radius component checks reject retained-end crossings instead of
+silently wrapping a tiny source arc into an almost complete turn. Fresh major
+intervals remain available. These regressions include reflected/reversed A/B
+variants, offset-intersection side, tangent births, no-finite-root cases,
+one/two-source arc–arc crossings and scaled/translated representations.
+The rendered-component additions check the line–arc overlay and trim/extend
+labels, plus blocked application with selectable candidates for a tied default.
+They do not execute pointer or keyboard events.
+
+The CAD cases start from the two synthetic, intentionally open, sketch-only
+[examples](../src/examples/sketch-fillet-prolongation.ts). Actual R2 planning
+closes each contour; fully defined solutions retain support/far anchors and
+share tangent contact IDs. The tests add a 4 mm extrusion and check analytical
+volume/surface area, bounds, valid BRep, one solid, exact document reopening,
+stable face/edge references and programmatic STEP round trips. Exact analytical
+R3 final seeds provide separate ideal-mass controls. R2/R3 ideal controls use
+absolute `5e-6` mm³/mm² for mass/surface and `5e-6` mm for bounds. The
+[fillet guide](SKETCH_FILLET.md) records their independent formulas.
+
+Reopened R2→R3 edits use absolute `5e-7` mm per coordinate, checking centers,
+contacts and all anchors. With `d=√2×5e-7` mm, independently checked endpoint
+and center coordinates imply radial error at most `2d` and a sufficient
+sweep-error bound `2asin(2d/R)` radians. These are numerical edit checks, not
+the stricter exact-seed mass controls. For these edited examples, measured
+volume differs from ideal R3 by approximately `−9.06882e-6` mm³ (line–arc)
+and `+6.90356e-6` mm³ (two arcs); both exceed the exact-seed `5e-6` bound.
+Their CAD reconstruction is checked separately at `5e-6` against an independent
+Green integration of the realized endpoint/midpoint circumcircles. This
+separates accepted solver seed error from kernel reconstruction accuracy.
+Solver tolerances were not changed.
+
+A large anchored line–arc R3→R10 radius edit remains a `notConverged`
+regression, with the input and returned fallback unchanged; direct planning
+at R10/R12 and R2→R3 edits pass their focused checks. This local solver does
+not guarantee convergence for every valid radius path.
+
+Real interaction with the new examples, full-circle source trimming, atomic
+corner batches and general curved-pair robustness remain unverified or open.
+This revision needs its own hosted checks; earlier platform results do not
+establish a pass for the new source. Binary upload remains disabled under
 [issue #5](https://github.com/angelcp2802/solidflow/issues/5).
