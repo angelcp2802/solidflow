@@ -120,8 +120,10 @@ test('open grants a selected document, rejects oversized files and export preser
   const selected = path.join(temporary, 'open.solidflow');
   await fs.writeFile(selected, content);
   dialogQueue.push({ canceled: false, filePaths: [selected] });
-  assert.equal((await handlers.get('document:open')(event)).content, content);
-  assert.equal(await handlers.get('document:save')(event, { content, filePath: selected }), selected);
+  const opened = await handlers.get('document:open')(event);
+  assert.equal(opened.content, content);
+  assert.equal(opened.path, await fs.realpath(selected));
+  assert.equal(await handlers.get('document:save')(event, { content, filePath: opened.path }), opened.path);
   const tooLarge = path.join(temporary, 'large.solidflow');
   const large = await fs.open(tooLarge, 'w'); await large.truncate(20 * 1024 * 1024 + 1); await large.close();
   dialogQueue.push({ canceled: false, filePaths: [tooLarge] });
