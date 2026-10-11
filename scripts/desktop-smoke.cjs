@@ -12,11 +12,15 @@ async function launch() {
   const environment = { ...process.env, SOLIDFLOW_SMOKE_DIR: temporary };
   delete environment.ELECTRON_RUN_AS_NODE;
   delete environment.SOLIDFLOW_DEV_URL;
+  // Hosted Linux CI uses Mesa llvmpipe, which Chromium blocklists for WebGL.
+  // Permit that software renderer for this smoke test while keeping sandboxing.
+  const electronArgs = process.platform === 'linux' && environment.CI === 'true'
+    ? ['--ignore-gpu-blocklist', __filename] : [__filename];
   let child;
   let timer;
   try {
     const exitCode = await new Promise((resolve, reject) => {
-      child = spawn(require('electron'), [__filename], { cwd: ROOT, env: environment, stdio: 'inherit', windowsHide: true });
+      child = spawn(require('electron'), electronArgs, { cwd: ROOT, env: environment, stdio: 'inherit', windowsHide: true });
       child.once('error', reject);
       child.once('exit', (code) => resolve(code ?? 1));
       timer = setTimeout(() => { child.kill(); reject(new Error('Electron no terminó en 45 segundos.')); }, 45_000);
@@ -82,8 +86,9 @@ function runInElectron() {
       } catch (error) { finish(1, error.message); }
     });
   });
-  // Override only the visibility of the app's window. Everything else, including
-  // the actual main process, protocol, preload, renderer and worker, is unchanged.
+  // Hide the app's window and observe protocol responses. Linux CI also permits
+  // the runner's software GPU through the launch switch above. The actual main
+  // process, preload, renderer and worker code and sandbox settings are unchanged.
   const Module = require('node:module');
   const originalLoad = Module._load;
   class HiddenWindow extends electron.BrowserWindow {
