@@ -302,13 +302,28 @@ export function validateEntityProfile(
       const images = array(constraint.images, 2, `${location}.images`).map((value, index): OffsetImage => {
         const imagePath = `${location}.images[${index}]`;
         const image = object(value, imagePath);
-        keys(image, ["side", "distance", "entityIds", "joins", ...(Object.hasOwn(image, "lineEndpointMode") ? ["lineEndpointMode"] : [])], imagePath);
+        keys(image, ["side", "distance", "entityIds", "joins", ...["lineEndpointMode", "lineEndpointFollowing"].filter(key => Object.hasOwn(image, key))], imagePath);
+        if (Object.hasOwn(image, "lineEndpointMode") && Object.hasOwn(image, "lineEndpointFollowing"))
+          fail(imagePath, "lineEndpointMode y lineEndpointFollowing no pueden coexistir");
+        const lineEnds = [sources[0], sources[sources.length - 1]].map(source => entityMap.get(source.entityId)!.type === "line");
+        const eligibleLineEnds = !closed && constraint.cap === "none" && lineEnds.some(Boolean);
         const lineEndpointMode = image.lineEndpointMode;
         if (Object.hasOwn(image, "lineEndpointMode") && lineEndpointMode !== "aligned" && lineEndpointMode !== "free")
           fail(`${imagePath}.lineEndpointMode`, "se esperaba aligned o free");
-        if (lineEndpointMode === "aligned" && (closed || constraint.cap !== "none" ||
-          ![sources[0], sources[sources.length - 1]].some(source => entityMap.get(source.entityId)!.type === "line")))
+        if (lineEndpointMode === "aligned" && !eligibleLineEnds)
           fail(`${imagePath}.lineEndpointMode`, "la alineación requiere extremos libres de línea en una cadena abierta sin tapas");
+        let lineEndpointFollowing: [boolean, boolean] | undefined;
+        if (Object.hasOwn(image, "lineEndpointFollowing")) {
+          const followingPath = `${imagePath}.lineEndpointFollowing`;
+          if (!eligibleLineEnds) fail(followingPath, "el seguimiento requiere extremos libres de línea en una cadena abierta sin tapas");
+          const following = Array.from(array(image.lineEndpointFollowing, 2, followingPath)).map((value, end) => {
+            const follows = boolean(value, `${followingPath}[${end}]`);
+            if (follows && !lineEnds[end]) fail(`${followingPath}[${end}]`, "solo un extremo de línea puede seguir a su fuente");
+            return follows;
+          });
+          if (following.length !== 2) fail(followingPath, "se requieren los estados inicial y final de seguimiento");
+          lineEndpointFollowing = [following[0], following[1]];
+        }
         if (image.side !== "right" && image.side !== "left") fail(`${imagePath}.side`, "se esperaba right o left");
         if (sides.has(image.side)) fail(`${imagePath}.side`, "lado de equidistancia duplicado");
         sides.add(image.side);
@@ -337,7 +352,8 @@ export function validateEntityProfile(
         const expectedJoins = hasCircle ? 0 : closed ? sources.length : sources.length - 1;
         if (joins.length !== expectedJoins) fail(`${imagePath}.joins`, "el número de uniones no corresponde a la cadena fuente");
         return { side: image.side, distance: dimension(image.distance, `${imagePath}.distance`), entityIds, joins,
-          ...(lineEndpointMode === "aligned" || lineEndpointMode === "free" ? { lineEndpointMode } : {}) };
+          ...(lineEndpointMode === "aligned" || lineEndpointMode === "free" ? { lineEndpointMode } : {}),
+          ...(lineEndpointFollowing ? { lineEndpointFollowing } : {}) };
       });
       if (!images.length) fail(`${location}.images`, "se requiere al menos un lado de equidistancia");
       if (constraint.cap !== "none" && constraint.cap !== "line" && constraint.cap !== "arc") fail(`${location}.cap`, "se esperaba none, line o arc");

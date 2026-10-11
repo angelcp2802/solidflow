@@ -81,3 +81,17 @@ straight end caps. Only the final 10×2 rectangle contributes material. At a
 These profiles and their STEP round trips are generated in memory from public
 source. No external model or new binary fixture is used. Endpoint alignment
 is checked with explicit Cartesian coordinates and dimensional targets.
+
+The no-dimension following regressions reuse an authored `(0,0)→(10,0)`
+source and a right offset at 2 mm, with two capped 1 mm descendants. At depth
+4 mm the material is a length-L, width-2 rectangular prism, independently
+`V=8L` and `A=12L+16`. Untouched source continuation to 14 gives `V=112`,
+`A=184`; an end released at x=12 retains `V=96`, `A=160`; a released start
+at x=-2 and an untouched end following to 14 give `V=128`, `A=208`.
+Station coordinates, explicit targets and relative separations use `5e-7`
+mm. The free normal translation is taken from the realized solved profile;
+it is not required to retain its nominal seed. CAD mass, area and bounds use
+absolute `5e-6` in their respective units. Point-reposition fixtures also use an
+original R10 circle centered at `(0,0)`: requesting X=8 permits Y=6, while
+fixing both X=8 and Y=8 conflicts with the circle. No saved interaction,
+private input or new binary fixture is involved in these tests.

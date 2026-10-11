@@ -28,8 +28,9 @@ describe("associative support offsets", () => {
     expect(imageEnds(planSketchOffset(reversed, select("line"), options).profile)).toEqual([{ x: 10, y: 2 }, { x: 0, y: 2 }]);
     expect(imageEnds(planSketchOffset(reversed, select("line"), { ...options, reverse: true }).profile, "left")).toEqual([{ x: 10, y: -2 }, { x: 0, y: -2 }]);
   });
-  it("keeps no-dimension association with a free uniform distance and fresh driven measurement", () => {
+  it("keeps legacy no-dimension association with a free uniform distance and fresh driven measurement", () => {
     const plan = planSketchOffset(line(), select("line"), { ...options, addDimensions: false });
+    delete group(plan.profile).images[0].lineEndpointFollowing;
     expect(healthy(plan.profile).degreesOfFreedom).toBe(3);
     const target = plan.profile.entities.find(e => e.id === plan.imageEntityIds[0])!; if (target.type !== "line") throw Error();
     const edited = structuredClone(plan.profile); edited.constraints.push({ id: "image-end-target", type: "fix", pointId: target.end, x: 12, y: -4 });

@@ -112,8 +112,9 @@ describe("persisted offset line endpoint modes", () => {
     expect(Object.hasOwn(group(result.profile).images[0], "lineEndpointMode")).toBe(false);
   });
 
-  it("keeps a no-dimension endpoint at its edited Cartesian station after a source length edit", () => {
+  it("keeps a legacy no-dimension endpoint at its edited Cartesian station after a source length edit", () => {
     const profile = planned(line(), { addDimensions: false }).profile;
+    delete group(profile).images[0].lineEndpointFollowing;
     expect(Object.hasOwn(group(profile).images[0], "lineEndpointMode")).toBe(false);
     const image = imageLine(profile);
     coordinate(profile, image.end).x = 12;

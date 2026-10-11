@@ -134,6 +134,68 @@ This source needs its own hosted checks; earlier platform results are separate.
 Binary publication remains disabled under
 [issue #5](https://github.com/angelcp2802/solidflow/issues/5).
 
+## Releasable line-offset endpoint following — 2026-10-12
+
+On Windows x64 with Node 24.11.1, `npm test` passed 1,441 portable tests in
+71 files and all 11 IPC checks, with no skips. TypeScript/Vite build passed
+with the existing dependency-externalization and large-chunk warnings. The
+isolated Electron production-loader smoke passed with WASM loaded, zero
+console errors and zero failed requests; it exercises the initial model.
+Fresh isolated `npm ci` installed 341 packages. Its dependency graph and
+manifest match this source except for root version metadata, changed from
+0.17 to 0.18 after installation. Audit: eight moderate, zero high/critical.
+
+The 62 added cases comprise 28 core, 28 explicit-reposition and 6 CAD checks.
+New no-dimension uncapped line boundaries follow independently until an
+accepted explicit point edit releases the requested boundary. Checks cover
+untouched source length 10→14, released end x=12, released start x=-2 with
+untouched end continuing to 14, normal-only release, reversed traversal,
+rotated 3-4-5 geometry, mixed line/arc boundaries and independent sides.
+Strict parsing preserves false flags, rejects malformed/ineligible states
+and keeps legacy absence/free mode and permanent aligned mode unchanged.
+Output constraints remain hard targets; they may drive a free source or
+reject a fixed-source conflict without implicitly releasing a boundary.
+Local reported DOF is tested; equivalence to another solver is not claimed.
+
+The explicit command uses the solved profile displayed to the user and rejects
+stale or unhealthy sources. Full XY targets and partial X/Y targets are tested
+against existing relations, including an R10 circle where X=8 permits Y=6.
+Temporary target points/constraints are removed before saved rank and driven
+values are calculated. Invalid IDs, origin edits, nonfinite/out-of-range
+coordinates, capacity overflow and conflicting targets reject atomically.
+Targets within `5e-7` mm of their current coordinate preserve following and
+avoid a history write. Final requested axes must also remain within `5e-7`
+mm after temporary target removal; a small equation residual alone cannot
+confirm a point destination. A near-parallel support regression rejects a
+request whose cleaned solution moves away from its target. A successful
+release survives one programmatic undo/redo entry and saved-document reopening.
+App wiring calls the command from the canvas and numeric point inspector;
+focused component checks are server rendering, not pointer/keyboard execution.
+
+The original Cartesian fixture builds a width-2, height-4 prism through two
+offset associations. Independent `V=8L` and `A=12L+16` give length 14:
+`V=112 mm³`, `A=184 mm²`; released end x=12: `V=96`, `A=160`;
+released start x=-2 and end following to 14: `V=128`, `A=208`.
+Checks establish valid BRep, one solid, bounds and fresh programmatic STEP
+export/reimport. Station/target coordinates and relative separations use
+`5e-7` mm; mass, area and bounds use absolute `5e-6` in their respective units.
+The free normal translation is measured from the solved sketch, not asserted
+to retain its seed: a nested source-length edit shifted it by approximately
+`2.28e-6` mm. A partial Y request also leaves X free; the full XY normal-only
+case preserves the requested station. Production acceptance was not loosened.
+
+Face/edge references survive the tested unchanged-document reopening.
+Releasing a station equation with identical coordinates changes those keys,
+and a selected fillet using the obsolete key rejects instead of silently
+rebinding. This is conservative naming evidence, not general persistent naming.
+STEP producer and reader share OpenCascade; independent interoperability is
+not established. Automatic reattachment is not implemented. Real editing,
+cancel, keyboard, pointer and interactive undo/reopen remain unexecuted for
+this increment under [issue #14](https://github.com/angelcp2802/solidflow/issues/14).
+This source requires its own hosted checks; earlier platform results are
+separate. Binary upload remains disabled under
+[issue #5](https://github.com/angelcp2802/solidflow/issues/5).
+
 ## Aligned line-offset endpoints — 2026-10-12
 
 On Windows x64 with Node 24.11.1, `npm test` passed 1,379 portable tests in
