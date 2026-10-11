@@ -34,6 +34,10 @@ export type TangentBranch =
 export type SketchConstraint =
   | (ConstraintBase & { type: "fix"; pointId: string; x: number; y: number })
   | (ConstraintBase & { type: "coincident"; a: string; b: string })
+  /** Point reflection across the complete supporting line; a and b are point IDs. */
+  | (ConstraintBase & { type: "symmetric"; a: string; b: string; axisId: string })
+  /** Source arc a owns the opposite clockwise flag of image arc b; point reflection is separate. */
+  | (ConstraintBase & { type: "mirrorArcDirection"; a: string; b: string; axisId: string })
   | (ConstraintBase & { type: "horizontal" | "vertical"; entityId: string })
   | (ConstraintBase & {
       type: "parallel" | "perpendicular" | "equal";
@@ -100,7 +104,7 @@ export type LegacyProfile =
     }
   | { kind: "circle"; center: [number, number]; radius: number };
 export type SketchTool =
-  "select" | "line" | "rectangle" | "circle" | "arc" | "trim" | "extend" | "chamfer" | "fillet";
+  "select" | "line" | "rectangle" | "circle" | "arc" | "trim" | "extend" | "chamfer" | "fillet" | "mirror";
 export type SketchSelection = {
   kind: "point" | "entity" | "constraint";
   id: string;

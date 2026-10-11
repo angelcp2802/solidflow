@@ -9,6 +9,8 @@ import type {
   TangentBranch,
 } from "./types";
 import { validateEntityProfile } from "./validation";
+import { constraintReferences } from "./references";
+export { constraintReferences } from "./references";
 import {
   isDimensionalConstraint,
   measureDimension,
@@ -296,16 +298,6 @@ export function convertProfile(profile: LegacyProfile): EntityProfile {
     },
   );
   return next;
-}
-export function constraintReferences(constraint: SketchConstraint): string[] {
-  return "a" in constraint
-    ? [constraint.a, constraint.b]
-    : "pointId" in constraint
-      ? [
-          constraint.pointId,
-          ...("entityId" in constraint ? [constraint.entityId] : []),
-        ]
-      : [constraint.entityId];
 }
 export function removeSelection(
   profile: EntityProfile,

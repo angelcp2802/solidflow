@@ -35,6 +35,8 @@ interface Props {
 const relationNames: Record<SketchConstraint["type"], string> = {
   fix: "Fijo",
   coincident: "Coincidente",
+  symmetric: "Simétrica respecto a línea",
+  mirrorArcDirection: "Sentido de arco reflejado",
   horizontal: "Horizontal",
   vertical: "Vertical",
   parallel: "Paralela",
@@ -498,7 +500,7 @@ export default function EntitySketchPanel({
     );
   const constraintText = (constraint: SketchConstraint) => {
     const name = relationNames[constraint.type];
-    const entityId = "entityId" in constraint ? constraint.entityId : undefined;
+    const entityId = "axisId" in constraint ? constraint.axisId : "entityId" in constraint ? constraint.entityId : undefined;
     const index = profile.entities.findIndex(
       (entity) => entity.id === entityId,
     );
@@ -969,6 +971,11 @@ export default function EntitySketchPanel({
             </button>
           ))}
         </div>
+        {selectedConstraint && "axisId" in selectedConstraint && <p className="muted-small">
+          Eje: {referencedEntityName(selectedConstraint.axisId)}.
+          {selectedConstraint.type === "mirrorArcDirection" && ` El sentido lo gobierna ${referencedEntityName(selectedConstraint.a)}.`}
+          {" "}Eliminar esta relación rompe ese vínculo; las demás relaciones permanecen activas.
+        </p>}
         {selectedConstraint?.type === "tangent" && (
           <>
             <p className="muted-small">

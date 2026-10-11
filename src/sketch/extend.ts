@@ -1,6 +1,7 @@
 import type { EntityProfile, SketchConstraint, SketchEntity } from "./types";
 import type { TrimPoint, TrimSegment } from "./trim";
 import { validateEntityProfile } from "./validation";
+import { constraintReferences as references } from "./references";
 
 export type ExtendPoint = TrimPoint;
 export type ExtendSegment = Exclude<TrimSegment, { type: "circle" }>;
@@ -450,16 +451,6 @@ export function previewExtendToClosest(
           : "No se puede extender la entidad.",
     };
   }
-}
-
-function references(constraint: SketchConstraint): string[] {
-  if ("a" in constraint) return [constraint.a, constraint.b];
-  if ("pointId" in constraint)
-    return [
-      constraint.pointId,
-      ...("entityId" in constraint ? [constraint.entityId] : []),
-    ];
-  return [constraint.entityId];
 }
 
 /** Extend the displayed geometry as one detached editing transaction. */

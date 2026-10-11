@@ -6,6 +6,7 @@ import type {
   SketchSelection,
   TangentBranch,
 } from "./types";
+import { constraintReferences as constraintRefs } from "./references";
 import { SKETCH_LIMITS, validateEntityProfile } from "./validation";
 
 export interface FilletParameters {
@@ -114,12 +115,6 @@ const pointRefs = (e: SketchEntity) =>
     : e.type === "circle"
       ? [e.center]
       : [e.center, e.start, e.end];
-const constraintRefs = (c: SketchConstraint): string[] =>
-  "a" in c
-    ? [c.a, c.b]
-    : "pointId" in c
-      ? [c.pointId, ...("entityId" in c ? [c.entityId] : [])]
-      : [c.entityId];
 
 function allocateIds(profile: EntityProfile) {
   const ids = new Set([

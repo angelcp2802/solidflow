@@ -5,6 +5,7 @@ import type {
   SketchEntity,
   SketchPoint,
 } from "./types";
+import { orderedMirrorArcDirections } from "./mirror-directions";
 
 /** File-format limits. A solver may report a lower, explicit computational limit. */
 export const SKETCH_LIMITS = Object.freeze({
@@ -279,6 +280,36 @@ export function validateEntityProfile(
         b: pointReference(constraint.b, `${location}.b`),
       };
     }
+    if (constraint.type === "symmetric") {
+      keys(constraint, ["id", "type", "a", "b", "axisId"], location);
+      const a = pointReference(constraint.a, `${location}.a`);
+      const b = pointReference(constraint.b, `${location}.b`);
+      if (a === b)
+        fail(location, "simetría requiere dos puntos distintos; para un punto del eje usa pointOnLine");
+      return {
+        id,
+        type: "symmetric",
+        a,
+        b,
+        axisId: entityReference(constraint.axisId, `${location}.axisId`, "line").id,
+      };
+    }
+    if (constraint.type === "mirrorArcDirection") {
+      keys(constraint, ["id", "type", "a", "b", "axisId"], location);
+      const a = entityReference(constraint.a, `${location}.a`, "circular");
+      const b = entityReference(constraint.b, `${location}.b`, "circular");
+      if (a.type !== "arc" || b.type !== "arc")
+        fail(location, "sentido reflejado requiere dos arcos");
+      if (a.id === b.id)
+        fail(location, "sentido reflejado requiere dos arcos distintos");
+      return {
+        id,
+        type: "mirrorArcDirection",
+        a: a.id,
+        b: b.id,
+        axisId: entityReference(constraint.axisId, `${location}.axisId`, "line").id,
+      };
+    }
     if (constraint.type === "horizontal" || constraint.type === "vertical") {
       keys(constraint, ["id", "type", "entityId"], location);
       return {
@@ -447,5 +478,10 @@ export function validateEntityProfile(
     }
     return fail(`${location}.type`, "tipo de restricción desconocido");
   });
+  try {
+    orderedMirrorArcDirections(constraints);
+  } catch (error) {
+    fail(`${path}.constraints`, error instanceof Error ? error.message : "Relaciones de sentido reflejado no válidas.");
+  }
   return { kind: "entities", points, entities, constraints };
 }

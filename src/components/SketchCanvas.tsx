@@ -31,12 +31,14 @@ import {
 } from "../sketch/editing";
 import type { SnapPoint } from "../sketch/editing";
 import { validateEntityProfile } from "../sketch/validation";
+import { constraintEntityReferences } from "../sketch/references";
 import { angleText, lengthText } from "../sketch/formatting";
 import { previewTrimToClosest, trimToClosest } from "../sketch/trim";
 import { previewExtendToClosest, extendToClosest } from "../sketch/extend";
 import type { TrimSegment } from "../sketch/trim";
 import type { ChamferPlan } from "../sketch/chamfer";
 import type { FilletPlan, FilletBatchPlan } from "../sketch/fillet";
+import type { MirrorPlan } from "../sketch/mirror";
 import LegacySketchCanvas from "./LegacySketchCanvas";
 
 interface Props {
@@ -51,10 +53,14 @@ interface Props {
   referenceLines?: number[];
   chamferPreview?: ChamferPlan | null;
   filletPreview?: FilletPlan | FilletBatchPlan | null;
+  mirrorPreview?: MirrorPlan | null;
+  mirrorAxisEntityId?: string;
+  mirrorPickingAxis?: boolean;
+  onMirrorAxis?: (id: string) => void;
 }
 type Point = [number, number];
 type Draft = {
-  tool: Exclude<SketchTool, "select" | "trim" | "extend" | "chamfer" | "fillet">;
+  tool: Exclude<SketchTool, "select" | "trim" | "extend" | "chamfer" | "fillet" | "mirror">;
   anchors: SnapPoint[];
 };
 type Gesture =
@@ -99,7 +105,7 @@ export default function SketchCanvas(props: Props) {
           props.tool === "arc" ||
           props.tool === "trim" ||
           props.tool === "extend" ||
-          props.tool === "chamfer" || props.tool === "fillet"
+          props.tool === "chamfer" || props.tool === "fillet" || props.tool === "mirror"
             ? "select"
             : props.tool
         }
@@ -123,6 +129,10 @@ function EntitySketchCanvas({
   referenceLines,
   chamferPreview,
   filletPreview,
+  mirrorPreview,
+  mirrorAxisEntityId,
+  mirrorPickingAxis,
+  onMirrorAxis,
 }: Props & { profile: EntityProfile }) {
   const profile =
     solution && ["underdefined", "fullyDefined"].includes(solution.status)
@@ -171,6 +181,9 @@ function EntitySketchCanvas({
     filletPreview.sourceProfile === profile &&
     solution && ["underdefined", "fullyDefined"].includes(solution.status)
       ? filletPreview : null;
+  const visibleMirror = tool === "mirror" && mirrorPreview?.changed &&
+    mirrorPreview.sourceProfile === profile &&
+    solution && ["underdefined", "fullyDefined"].includes(solution.status) ? mirrorPreview : null;
   const screen = (point: Point): Point => [
     (point[0] - view.center[0]) * view.scale + size.width / 2,
     size.height / 2 - (point[1] - view.center[1]) * view.scale,
@@ -420,6 +433,25 @@ function EntitySketchCanvas({
       return;
     }
     if (event.button !== 0) return;
+    if (tool === "mirror") {
+      const target = pickTarget(event.target);
+      if (target?.kind !== "entity") {
+        setMessage(mirrorPickingAxis ? "Selecciona una línea para el eje." : "Selecciona líneas, arcos o círculos para reflejar.");
+        return;
+      }
+      if (mirrorPickingAxis) {
+        if (profile.entities.find(e => e.id === target.id)?.type !== "line") {
+          setMessage("El eje de simetría debe ser una línea."); return;
+        }
+        onMirrorAxis?.(target.id);
+      } else if (target.id === mirrorAxisEntityId) {
+        setMessage("El eje no forma parte de las entidades que se reflejan."); return;
+      } else onSelection(selection.some(s => sameSelection(s, target))
+        ? selection.filter(s => !sameSelection(s, target))
+        : [...selection.filter(s => s.kind === "entity"), target]);
+      setMessage("");
+      return;
+    }
     if (tool === "chamfer" || tool === "fillet") {
       const target = pickTarget(event.target);
       setMessage("");
@@ -665,7 +697,7 @@ function EntitySketchCanvas({
       setHover(null);
       return;
     }
-    if (tool === "select" || tool === "trim" || tool === "extend" || tool === "chamfer" || tool === "fillet") return;
+    if (tool === "select" || tool === "trim" || tool === "extend" || tool === "chamfer" || tool === "fillet" || tool === "mirror") return;
     const end = drawingPoint(position);
     if (tool === "arc") {
       const anchors = draft?.anchors ?? [];
@@ -766,7 +798,7 @@ function EntitySketchCanvas({
     let anchor: Point = [0, 0];
     if (
       "a" in constraint &&
-      (constraint.type === "coincident" ||
+      (constraint.type === "coincident" || constraint.type === "symmetric" ||
         constraint.type.startsWith("distance"))
     ) {
       const a = sketchPoint(displayed, constraint.a),
@@ -802,6 +834,8 @@ function EntitySketchCanvas({
   const labels: Record<SketchConstraint["type"], string> = {
     fix: "Fijo",
     coincident: "●",
+    symmetric: "↔",
+    mirrorArcDirection: "↶↷",
     horizontal: "H",
     vertical: "V",
     parallel: "∥",
@@ -821,12 +855,10 @@ function EntitySketchCanvas({
     displayed.constraints
       .filter(
         (constraint) =>
-          (constraint.type === "angle" || constraint.type === "tangent") &&
+          (constraint.type === "angle" || constraint.type === "tangent" || constraint.type === "symmetric" || constraint.type === "mirrorArcDirection") &&
           selected("constraint", constraint.id),
       )
-      .flatMap((constraint) =>
-        "a" in constraint ? [constraint.a, constraint.b] : [],
-      ),
+      .flatMap(constraintEntityReferences),
   );
   const angularDrawing = (
     constraint: Extract<SketchConstraint, { type: "angle" }>,
@@ -908,6 +940,8 @@ function EntitySketchCanvas({
             ? "Chaflán: selecciona un vértice o dos líneas en orden A / B · Aplica desde el panel · Esc cancela"
           : tool === "fillet"
             ? "Redondeo: selecciona una o varias esquinas, o dos entidades · Aplica desde el panel · Esc termina"
+          : tool === "mirror"
+            ? mirrorPickingAxis ? "Simetría: selecciona una línea como eje" : "Simetría: selecciona entidades · Aplica desde el panel · Esc termina"
           : tool === "arc"
             ? [
                 "Arco: selecciona el centro",
@@ -1044,7 +1078,7 @@ function EntitySketchCanvas({
         />
         {displayed.entities.map((entity, index) => {
           const active = selected("entity", entity.id),
-            related = relatedEntityIds.has(entity.id),
+            related = relatedEntityIds.has(entity.id) || tool === "mirror" && entity.id === mirrorAxisEntityId,
             highlighted = isHovered("entity", entity.id),
             path = entityPath(entity);
           return (
@@ -1188,7 +1222,7 @@ function EntitySketchCanvas({
               role="button"
               aria-label={`Punto ${point.x.toFixed(2)}, ${point.y.toFixed(2)}`}
               pointerEvents={
-                tool === "trim" || tool === "extend" ? "none" : undefined
+                tool === "trim" || tool === "extend" || tool === "mirror" ? "none" : undefined
               }
             >
               <circle cx={x} cy={y} r={7} fill="transparent" />
@@ -1210,7 +1244,7 @@ function EntitySketchCanvas({
           role="button"
           aria-label="Origen fijo (0, 0)"
           pointerEvents={
-            tool === "trim" || tool === "extend" ? "none" : undefined
+            tool === "trim" || tool === "extend" || tool === "mirror" ? "none" : undefined
           }
         >
           <circle cx={origin[0]} cy={origin[1]} r={9} fill="transparent" />
@@ -1228,6 +1262,11 @@ function EntitySketchCanvas({
             pointerEvents="none"
           />
         </g>
+        {visibleMirror && <g data-mirror-preview="true" pointerEvents="none" aria-label="Vista previa de simetría">
+          {visibleMirror.profile.entities.filter(e => visibleMirror.imageEntityIds.includes(e.id)).map(entity =>
+            <path key={entity.id} data-mirror-image={entity.id} d={entityPath(entity, visibleMirror.profile)}
+              fill="none" stroke="#168b9f" strokeWidth="2.7" strokeDasharray={entity.construction ? "7 5" : undefined} />)}
+        </g>}
         {visibleFillet && (
           <g data-fillet-preview="true" pointerEvents="none" aria-label="Vista previa del redondeo">
             {visibleFillet.profile.entities
