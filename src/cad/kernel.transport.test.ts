@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { buildModel, disposeKernel, initKernel } from './kernel';
+import { buildModel, disposeKernel, exportCad, initKernel } from './kernel';
 import type { CadResult, KernelRequest, KernelResponse } from './kernel.types';
+import { createStepSource } from '../model/stepSource';
 
 class ControlledWorker {
   static instances: ControlledWorker[] = [];
@@ -11,7 +12,7 @@ class ControlledWorker {
   constructor() { ControlledWorker.instances.push(this); }
   postMessage(message: KernelRequest) { this.messages.push(structuredClone(message)); }
   terminate() { this.terminated = true; }
-  reply(index: number, value: CadResult | null = null) {
+  reply(index: number, value: CadResult | Blob | null = null) {
     this.onmessage?.({ data: { id: this.messages[index].id, ok: true, value } } as MessageEvent<KernelResponse>);
   }
 }
@@ -95,5 +96,33 @@ describe('CAD worker lifecycle', () => {
     activeWorker.reply(0);
     expect(await outcome).toBeUndefined();
     await cancelled;
+  });
+
+  it('sends the owned STEP source again after replacing a worker', async () => {
+    const features = [{ type: 'importedSolid' as const, id: 'import', name: 'Imported', suppressed: false,
+      source: createStepSource(new TextEncoder().encode('ISO-10303-21;')) }];
+    const first = initKernel(); ControlledWorker.instances[0].reply(0); await first;
+    disposeKernel();
+    const rebuilding = buildModel(features);
+    const worker = ControlledWorker.instances[1]; worker.reply(0);
+    await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
+    expect(worker.messages[1]).toEqual({ id: expect.any(Number), action: 'build', features });
+    const request = worker.messages[1];
+    expect(request.action === 'build' && request.features).not.toBe(features);
+    worker.reply(1, { volume: 240, vertices: [], normals: [], triangles: [], edgeLines: [], edges: [],
+      bounds: { min: [0, 0, 0], max: [10, 6, 4] }, warnings: [], featureErrors: [] });
+    expect((await rebuilding).volume).toBe(240);
+  });
+
+  it('exports an owned imported document independently of an unrelated build request', async () => {
+    const initialized = initKernel(), worker = ControlledWorker.instances[0]; worker.reply(0); await initialized;
+    const features = [{ type: 'importedSolid' as const, id: 'committed', name: 'Imported', suppressed: false,
+      source: createStepSource(new TextEncoder().encode('ISO-10303-21;')) }];
+    const rebuilding = buildModel([]), exporting = exportCad('step', features);
+    await Promise.resolve();
+    expect(worker.messages[2]).toEqual({ id: expect.any(Number), action: 'export', format: 'step', features });
+    const blob = new Blob(['STEP bytes']); worker.reply(2, blob); worker.reply(1);
+    expect(await exporting).toBe(blob);
+    await rebuilding;
   });
 });

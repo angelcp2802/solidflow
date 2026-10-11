@@ -1,0 +1,278 @@
+{
+  "provenance": "Original analytical synthetic fixtures authored for SolidFlow. OpenCascade writer and reader probes use the same kernel; geometry expectations are independent formulas. This does not independently prove cross-implementation interoperability.",
+  "fixtures": [
+    {
+      "name": "box-mm.step",
+      "bytes": 15807,
+      "sha256": "5383b7f791350e8510ba14c73b8acb8836a4e4b3f662d49b73bc2f4493972577",
+      "producer": "Replicad 1.1.0 / replicad-opencascadejs 1.1.0, same kernel as importer",
+      "sourceUnits": "MM",
+      "parameters": {
+        "dimensions": [
+          10,
+          6,
+          4
+        ]
+      },
+      "expected": {
+        "volume": 240,
+        "area": 248,
+        "bounds": [
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            10,
+            6,
+            4
+          ]
+        ]
+      }
+    },
+    {
+      "name": "box-translated-mm.step",
+      "bytes": 15861,
+      "sha256": "4cd65d598884534774edba3870552b099beceb22d96ec9a0d0069680b3251b83",
+      "producer": "Replicad 1.1.0 / replicad-opencascadejs 1.1.0, same kernel as importer",
+      "sourceUnits": "MM",
+      "parameters": {
+        "dimensions": [
+          10,
+          6,
+          4
+        ],
+        "translation": [
+          12,
+          -4,
+          7
+        ]
+      },
+      "expected": {
+        "volume": 240,
+        "area": 248,
+        "bounds": [
+          [
+            12,
+            -4,
+            7
+          ],
+          [
+            22,
+            2,
+            11
+          ]
+        ]
+      }
+    },
+    {
+      "name": "box-rotated-mm.step",
+      "bytes": 16129,
+      "sha256": "d3eec1d45e6e2803033fbf43176eb9c19d61555c18025556338adf828d0a70fb",
+      "producer": "Replicad 1.1.0 / replicad-opencascadejs 1.1.0, same kernel as importer",
+      "sourceUnits": "MM",
+      "parameters": {
+        "dimensions": [
+          10,
+          6,
+          4
+        ],
+        "rotationZDegrees": 90,
+        "translation": [
+          12,
+          -4,
+          7
+        ]
+      },
+      "expected": {
+        "volume": 240,
+        "area": 248,
+        "bounds": [
+          [
+            6,
+            -4,
+            7
+          ],
+          [
+            12,
+            6,
+            11
+          ]
+        ]
+      }
+    },
+    {
+      "name": "cylinder-mm.step",
+      "bytes": 6074,
+      "sha256": "1a12c2d9457779e17d25adb5dbcf07fed4c98e50af9de9a2da664be803fa9b7b",
+      "producer": "Replicad 1.1.0 / replicad-opencascadejs 1.1.0, same kernel as importer",
+      "sourceUnits": "MM",
+      "parameters": {
+        "radius": 3,
+        "height": 8
+      },
+      "expected": {
+        "volume": 226.1946710584651,
+        "area": 207.34511513692635,
+        "bounds": [
+          [
+            -3,
+            -3,
+            0
+          ],
+          [
+            3,
+            3,
+            8
+          ]
+        ]
+      }
+    },
+    {
+      "name": "box-inch.step",
+      "bytes": 16012,
+      "sha256": "3808b8eb53009ba15e3e5cdc79c01ffeb246050d6b33ccc274697a4f46dd26b7",
+      "producer": "Replicad 1.1.0 / replicad-opencascadejs 1.1.0, same kernel as importer",
+      "sourceUnits": "INCH",
+      "parameters": {
+        "dimensions": [
+          1,
+          0.5,
+          0.25
+        ]
+      },
+      "expected": {
+        "volume": 2048.383,
+        "area": 1129.03,
+        "bounds": [
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            25.4,
+            12.7,
+            6.35
+          ]
+        ]
+      }
+    },
+    {
+      "name": "box-meter.step",
+      "bytes": 15947,
+      "sha256": "2d18419ed17eef182f6f1f2d5247a8163fdca97497a9534ed0f75d86c0b82bd0",
+      "producer": "Replicad 1.1.0 / replicad-opencascadejs 1.1.0, same kernel as importer",
+      "sourceUnits": "M",
+      "parameters": {
+        "dimensions": [
+          0.01,
+          0.006,
+          0.004
+        ]
+      },
+      "expected": {
+        "volume": 240,
+        "area": 248,
+        "bounds": [
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            10,
+            6,
+            4
+          ]
+        ]
+      }
+    },
+    {
+      "name": "open-shell-mm.step",
+      "bytes": 14040,
+      "sha256": "54865f7aab953eb27af48061188a81aa8e94a566d1b8f0205fd07a5d3b0e3330",
+      "producer": "Replicad 1.1.0 / replicad-opencascadejs 1.1.0, same kernel as importer",
+      "sourceUnits": "MM",
+      "parameters": {
+        "originalBox": [
+          10,
+          6,
+          4
+        ],
+        "omittedFaceOrdinal": 5
+      },
+      "expected": {
+        "reject": "No closed solid"
+      }
+    },
+    {
+      "name": "multiple-solids-mm.step",
+      "bytes": 31134,
+      "sha256": "398cbc1a2456f07b6aa86a64dfeb93dec4453942254bdaffbf69ef5bcba9e5d5",
+      "producer": "Replicad 1.1.0 / replicad-opencascadejs 1.1.0, same kernel as importer",
+      "sourceUnits": "MM",
+      "parameters": {
+        "firstDimensions": [
+          10,
+          6,
+          4
+        ],
+        "secondBounds": [
+          [
+            20,
+            0,
+            0
+          ],
+          [
+            22,
+            2,
+            2
+          ]
+        ]
+      },
+      "expected": {
+        "reject": "Two solids"
+      }
+    },
+    {
+      "name": "solid-and-free-edge-mm.step",
+      "bytes": 16452,
+      "sha256": "d3207b38a9f8c5b472a2f26b026c9d1529bb91c09fc0d5d49af3570e51da6d29",
+      "producer": "Replicad 1.1.0 / replicad-opencascadejs 1.1.0, same kernel as importer",
+      "sourceUnits": "MM",
+      "parameters": {
+        "box": [
+          10,
+          6,
+          4
+        ],
+        "freeEdge": [
+          [
+            20,
+            0,
+            0
+          ],
+          [
+            21,
+            0,
+            0
+          ]
+        ]
+      },
+      "expected": {
+        "reject": "Free edge outside solid"
+      }
+    },
+    {
+      "name": "truncated.step",
+      "bytes": 22,
+      "sha256": "e9e061fe2f0a3bf7134452d4184258b47cfb0918ffadd8a02dbad8e1d6592c92",
+      "producer": "Original authored invalid text",
+      "expected": {
+        "reject": "Truncated header"
+      }
+    }
+  ]
+}

@@ -20,12 +20,19 @@ export type SketchSupport =
 export type PlaneSupport = SketchSupport | { kind: 'principal'; plane: Plane };
 
 import type { EntityProfile, LegacyProfile } from '../sketch/types';
+import type { StepSource } from '../model/stepSource';
 export type Profile = LegacyProfile | EntityProfile;
 
 interface FeatureBase {
   id: string;
   name: string;
   suppressed: boolean;
+}
+
+/** A self-contained STEP base, reconstructed from exact owned bytes. */
+export interface ImportedSolidFeature extends FeatureBase {
+  type: 'importedSolid';
+  source: StepSource;
 }
 
 export interface SketchFeature extends FeatureBase {
@@ -222,7 +229,7 @@ export interface DraftFeature extends FeatureBase {
 
 export type FaceOperationFeature = ShellFeature | DraftFeature;
 
-export type Feature = SketchFeature | ReferencePlaneFeature | ExtrudeFeature | RevolveFeature | HoleFeature | SweepFeature | LoftFeature | EdgeFinishFeature | RepetitionFeature | FaceOperationFeature;
+export type Feature = ImportedSolidFeature | SketchFeature | ReferencePlaneFeature | ExtrudeFeature | RevolveFeature | HoleFeature | SweepFeature | LoftFeature | EdgeFinishFeature | RepetitionFeature | FaceOperationFeature;
 
 export interface PickableFace {
   ref: FaceReference;

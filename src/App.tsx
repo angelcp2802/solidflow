@@ -117,6 +117,8 @@ import {
   createMirrorExample,
 } from "./examples/patterns";
 import { featureSketchIds } from "./model/featureInputs";
+import { importStepPart, type StepFile } from "./model/stepImport";
+import { MAX_STEP_BYTES } from "./model/stepSource";
 import { initialLoftSection, resolvedSweepPath } from "./model/advancedInputs";
 import { buildModel, exportCad, initKernel } from "./cad/kernel";
 import type {
@@ -169,6 +171,7 @@ const labels: Record<string, string> = {
   shell: "Vaciado",
   draft: "Desmoldeo",
   hole: "Taladro",
+  importedSolid: "Sólido importado STEP",
 };
 const featureIcons: Record<string, LucideIcon> = {
   sketch: Pencil,
@@ -186,6 +189,7 @@ const featureIcons: Record<string, LucideIcon> = {
   shell: BoxSelect,
   draft: Cone,
   hole: Crosshair,
+  importedSolid: FolderOpen,
 };
 function isFaceOperation(
   feature: Feature | null,
@@ -365,8 +369,10 @@ export default function App() {
   const [filePath, setFilePath] = useState<string | undefined>(),
     [saved, setSaved] = useState(""),
     [exporting, setExporting] = useState(false),
+    [importing, setImporting] = useState(false),
     [treeOpen, setTreeOpen] = useState(true);
   const fileInput = useRef<HTMLInputElement>(null);
+  const stepInput = useRef<HTMLInputElement>(null);
   const fileOperation = useRef(false);
   const discardDecision = useRef<((accepted: boolean) => void) | null>(null);
   const discardDialog = useRef<HTMLDivElement>(null);
@@ -491,7 +497,8 @@ export default function App() {
       error === "Selecciona al menos una cara para desmoldear.")
       ? ""
       : error;
-  const dirty = serializeDocument(doc) !== saved || editing !== null;
+  const serializedDocument = useMemo(() => serializeDocument(doc), [doc]);
+  const dirty = serializedDocument !== saved || editing !== null;
   const previewCurrent = builtFeatures === effectiveFeatures;
   const editingResolved =
     !editing ||
@@ -530,7 +537,8 @@ export default function App() {
     previewCurrent &&
     !!model?.vertices.length &&
     !error &&
-    !exporting;
+    !exporting &&
+    !importing;
   const notify = (message: string, isError = false) => {
     setToast(message);
     setToastError(isError);
@@ -633,13 +641,13 @@ export default function App() {
   }, [doc.features]);
   useEffect(() => {
     try {
-      localStorage.setItem("solidflow.autosave", serializeDocument(doc));
+      localStorage.setItem("solidflow.autosave", serializedDocument);
     } catch {
       notify(
         "No se pudo guardar la recuperación local. Guarda la pieza en un archivo.",
       );
     }
-  }, [doc]);
+  }, [serializedDocument]);
   useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(() => setToast(""), 4500);
@@ -687,10 +695,10 @@ export default function App() {
     setDiscardOpen(false);
     resolve?.(accepted);
   };
-  const canReplace = async (): Promise<boolean> => {
+  const canReplace = async (ownsFileOperation = false): Promise<boolean> => {
     // A second shortcut must not queue another document replacement.
     if (discardDecision.current) return false;
-    if (fileOperation.current) {
+    if (fileOperation.current && !ownsFileOperation) {
       notify("Espera a que termine la operación de archivo actual.");
       return false;
     }
@@ -838,7 +846,7 @@ export default function App() {
       return;
     }
     fileOperation.current = true;
-    const snapshot = serializeDocument(doc);
+    const snapshot = serializedDocument;
     try {
       if (window.solidflow) {
         const path = await window.solidflow.saveDocument(
@@ -874,6 +882,44 @@ export default function App() {
     } finally {
       fileOperation.current = false;
     }
+  };
+  const performStepImport = async (read: () => Promise<StepFile | null>) => {
+    if (!requireFinishedEdit()) return;
+    if (fileOperation.current) {
+      notify("Espera a que termine la operación de archivo actual.");
+      return;
+    }
+    if (!ready) {
+      notify("Espera a que se inicie el motor CAD.");
+      return;
+    }
+    fileOperation.current = true;
+    setImporting(true);
+    try {
+      const result = await importStepPart({
+        current: () => ({ document: docRef.current, editing: editingRef.current }),
+        read,
+        build: buildModel,
+        confirm: () => canReplace(true),
+        commit: next => reset(next),
+      });
+      if (result === "imported") notify("Sólido STEP importado. Guarda la pieza para conservarlo.");
+      if (result === "stale") notify("La pieza cambió durante la importación. Vuelve a seleccionar el STEP.");
+    } catch (reason) {
+      notify((reason as Error).message, true);
+    } finally {
+      setImporting(false);
+      fileOperation.current = false;
+    }
+  };
+  const selectStep = () => {
+    if (!requireFinishedEdit()) return;
+    if (fileOperation.current) {
+      notify("Espera a que termine la operación de archivo actual.");
+      return;
+    }
+    if (window.solidflow) void performStepImport(() => window.solidflow!.importStep());
+    else stepInput.current?.click();
   };
   const exportFile = async (format: "step" | "stl") => {
     if (!requireFinishedEdit()) return;
@@ -1912,6 +1958,20 @@ export default function App() {
           e.target.value = "";
         }}
       />
+      <input
+        ref={stepInput}
+        type="file"
+        accept=".step,.stp"
+        hidden
+        onChange={e => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (file) void performStepImport(async () => {
+            if (file.size > MAX_STEP_BYTES) throw new Error("El STEP supera los 8 MB admitidos.");
+            return { name: file.name, data: new Uint8Array(await file.arrayBuffer()) };
+          });
+        }}
+      />
       <header className="menubar">
         <div className="brand">
           <div className="brand-mark">
@@ -1946,6 +2006,7 @@ export default function App() {
                     ? [
                         ["Nueva pieza", "Ctrl+N", newDoc],
                         ["Abrir…", "Ctrl+O", openDoc],
+                        ["Importar STEP…", "", selectStep],
                         ["Guardar", "Ctrl+S", () => saveDoc()],
                         ["Guardar como…", "Ctrl+Mayús+S", () => saveDoc(true)],
                         ["Exportar STEP", "", () => exportFile("step")],
@@ -2890,6 +2951,12 @@ export default function App() {
                   }
                   loading={sourceLoading}
                 />
+              ) : editing.type === "importedSolid" ? (
+                <div className="property-section">
+                  <h3><ChevronDown size={12} /> Geometría base</h3>
+                  <p className="muted-small">El sólido STEP está guardado dentro de esta pieza. Selecciona sus caras o aristas para añadir croquis, taladros y operaciones.</p>
+                  <p className="muted-small">La importación conserva la geometría; no reconstruye el historial de diseño original. Las nuevas operaciones aparecen en el árbol y siguen siendo editables.</p>
+                </div>
               ) : editing.type === "sweep" || editing.type === "loft" ? (
                 <SweepLoftPanel
                   feature={editing}
@@ -3908,10 +3975,10 @@ export default function App() {
           {toast}
         </div>
       )}
-      {exporting && (
+      {(exporting || (importing && !discardOpen)) && (
         <div className="toast">
           <Loader2 size={17} className="spin" />
-          Exportando geometría…
+          {importing ? "Preparando sólido STEP…" : "Exportando geometría…"}
         </div>
       )}
       {showHelp && (

@@ -14,7 +14,9 @@ equal-radius relations. [Sketch mirror](SKETCH_MIRROR.md) copies lines, arcs and
 circles with persistent point-reflection and circle-radius relations. Solid
 operations include extrude/cut/revolve, sweep/loft, finishing, patterns/mirror,
 shell/draft and hole features. Documents can be edited and recovered; geometry
-can be exported as STEP and STL. Each operation has explicit limitations.
+can be exported as STEP and STL. [STEP import](STEP_IMPORT.md) adds one closed
+solid as an owned base for downstream operations. Each operation has explicit
+limitations.
 
 ## Next priorities
 

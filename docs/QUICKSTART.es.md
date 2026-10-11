@@ -21,6 +21,14 @@ deshacer y rehacer, F para encuadrar y Ctrl+7 para la vista isométrica.
 Guarda el documento editable como `.solidflow`. Desde Archivo puedes exportar
 la geometría a STEP o STL. La exportación no conserva el historial paramétrico.
 
+Para partir de geometría existente, elige **Archivo → Importar STEP…** y un
+archivo `.step` o `.stp` de hasta 8 MiB con un único sólido cerrado. El programa
+valida la pieza antes de pedir sustituir el documento actual. Selecciona sus
+caras para añadir croquis o taladros y guarda el resultado como `.solidflow`;
+los datos importados quedan dentro del documento. No se recupera el historial
+de diseño original. Consulta las unidades admitidas y límites en la
+[guía de importación](STEP_IMPORT.md).
+
 Para practicar la simetría, abre **Simetría de medio perfil** en la biblioteca,
 edita su croquis y elige **Simetría de croquis**. Selecciona los tres tramos y
 el eje de construcción en **Con respecto a**, mantén los puntos sobre el eje

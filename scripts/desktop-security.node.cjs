@@ -144,6 +144,52 @@ test('failed atomic replacement removes its temporary file', async (t) => {
   assert.equal((await fs.readdir(temporary)).some(name => name.endsWith('.tmp')), false);
 });
 
+test('STEP import returns exact selected bytes and a basename without granting write access', async (t) => {
+  const { handlers, event, temporary, dialogQueue } = await harness(t);
+  const selected = path.join(temporary, 'Part.STP');
+  const bytes = Buffer.from([73, 83, 79, 45, 0, 255, 13, 10]);
+  await fs.writeFile(selected, bytes);
+  dialogQueue.push({ canceled: false, filePaths: [selected] });
+  const imported = await handlers.get('document:import-step')(event);
+  assert.deepEqual(Object.keys(imported).sort(), ['data', 'name']);
+  assert.equal(imported.name, 'Part.STP');
+  assert.deepEqual([...imported.data], [...bytes]);
+  await assert.rejects(handlers.get('document:save')(event, { content, filePath: path.join(temporary, 'Part.solidflow') }), /Guardar como/);
+  assert.deepEqual(await fs.readFile(selected), bytes);
+});
+
+test('STEP import bounds reads, rejects other extensions and leaves cancelled selections untouched', async (t) => {
+  const { handlers, event, temporary, dialogQueue } = await harness(t);
+  const importing = handlers.get('document:import-step');
+  dialogQueue.push({ canceled: true, filePaths: [] });
+  assert.equal(await importing(event), null);
+  dialogQueue.push({ canceled: false, filePaths: [path.join(temporary, 'piece.exe')] });
+  await assert.rejects(importing(event), /\.step o \.stp/);
+  const largePath = path.join(temporary, 'large.step');
+  const large = await fs.open(largePath, 'w');
+  await large.truncate(8 * 1024 * 1024 + 1); await large.close();
+  dialogQueue.push({ canceled: false, filePaths: [largePath] });
+  await assert.rejects(importing(event), /8 MB/);
+  const emptyPath = path.join(temporary, 'empty.step'); await fs.writeFile(emptyPath, '');
+  dialogQueue.push({ canceled: false, filePaths: [emptyPath] });
+  await assert.rejects(importing(event), /vacío/);
+});
+
+test('STEP import checks the sender before and after the dialog and serializes file operations', async (t) => {
+  const { handlers, event, temporary, dialogQueue, state } = await harness(t);
+  const importing = handlers.get('document:import-step');
+  await assert.rejects(importing({ sender: {}, senderFrame: event.senderFrame }), /no autorizada/);
+  await assert.rejects(importing({ sender: event.sender, senderFrame: { url: event.senderFrame.url } }), /no autorizada/);
+  assert.equal(state.dialogCalls, 0);
+  dialogQueue.push({ canceled: false, filePaths: [path.join(temporary, 'not-read.step')] });
+  const first = importing(event);
+  const rejected = assert.rejects(first, /no autorizada/);
+  const concurrent = assert.rejects(handlers.get('document:open')(event), /operación de archivo actual/);
+  event.senderFrame.url = 'solidflow://app/another.html';
+  await Promise.all([rejected, concurrent]);
+  assert.equal(state.dialogCalls, 1);
+});
+
 test('application protocol confines assets to dist and limits eval to the CAD worker', async (t) => {
   const { protocols, state } = await harness(t);
   const serve = protocols.get('solidflow');

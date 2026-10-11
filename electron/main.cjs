@@ -5,6 +5,7 @@ const { pathToFileURL } = require('node:url');
 const { randomUUID } = require('node:crypto');
 
 const MAX_DOCUMENT_BYTES = 20 * 1024 * 1024;
+const MAX_STEP_BYTES = 8 * 1024 * 1024;
 const MAX_EXPORT_BYTES = 256 * 1024 * 1024;
 const DIST_PATH = path.resolve(__dirname, '../dist');
 const APP_URL = 'solidflow://app/index.html';
@@ -88,11 +89,11 @@ async function atomicWrite(target, data) {
   }
 }
 
-async function readDocument(filePath) {
+async function readBoundedFile(filePath, limit, description) {
   const handle = await fs.open(filePath, 'r');
   try {
     const stat = await handle.stat();
-    if (!stat.isFile() || stat.size > MAX_DOCUMENT_BYTES) throw new Error('El documento debe ser un archivo de hasta 20 MB.');
+    if (!stat.isFile() || stat.size > limit) throw new Error(description);
     // Bound the read even if a different process grows the file after stat.
     const bytes = Buffer.alloc(stat.size + 1);
     let length = 0;
@@ -102,8 +103,18 @@ async function readDocument(filePath) {
       length += result.bytesRead;
     }
     if (length !== stat.size) throw new Error('El archivo cambió durante la lectura. Vuelve a abrirlo.');
-    return bytes.subarray(0, length).toString('utf8');
+    return bytes.subarray(0, length);
   } finally { await handle.close(); }
+}
+
+async function readDocument(filePath) {
+  return (await readBoundedFile(filePath, MAX_DOCUMENT_BYTES, 'El documento debe ser un archivo de hasta 20 MB.')).toString('utf8');
+}
+
+function requireStepPath(filePath) {
+  const extension = typeof filePath === 'string' ? path.extname(filePath).toLowerCase() : '';
+  if (!['.step', '.stp'].includes(extension)) throw new Error('Selecciona un archivo .step o .stp.');
+  return requireFilePath(filePath, extension.slice(1));
 }
 
 function handleFileOperation(channel, operation) {
@@ -129,6 +140,22 @@ handleFileOperation('document:open', async (event) => {
   assertSender(event);
   documentGrants.set(pathKey(filePath), filePath);
   return { path: filePath, content };
+});
+
+handleFileOperation('document:import-step', async (event) => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Importar sólido STEP', filters: [{ name: 'Sólido STEP', extensions: ['step', 'stp'] }], properties: ['openFile'],
+  });
+  if (result.canceled || !result.filePaths[0]) return null;
+  assertSender(event);
+  const selectedPath = requireStepPath(result.filePaths[0]);
+  const filePath = await fs.realpath(selectedPath);
+  requireStepPath(filePath);
+  const bytes = await readBoundedFile(filePath, MAX_STEP_BYTES, 'El STEP debe ser un archivo de hasta 8 MB.');
+  if (!bytes.length) throw new Error('El archivo STEP está vacío.');
+  assertSender(event);
+  // Import never grants write access to the selected neutral file or returns its path.
+  return { name: path.basename(filePath), data: new Uint8Array(bytes) };
 });
 
 handleFileOperation('document:save', async (event, payload) => {

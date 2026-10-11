@@ -27,6 +27,67 @@ successful installation, notarization or all interactive workflows on that OS.
 The project does not yet have exhaustive topology, numerical robustness,
 accessibility, performance or platform coverage.
 
+## Owned STEP import increment — 2026-10-11
+
+On Windows x64 with Node 24.11.1, `npm test` passed all 1,247 portable tests in
+61 files and all 11 IPC checks, without skips. `npm run build` passed with the
+existing dependency-externalization and large-chunk warnings. The real Electron
+production-loader smoke passed with `wasmLoaded: true`, `consoleErrors: []` and
+`failedRequests: []`. This smoke exercises the initial solid, not STEP file
+selection or the import controls. An isolated fresh `npm ci` installed all
+341 packages successfully. The dependency audit reported 0 high/critical and
+8 moderate development findings; none is suppressed.
+
+This increment adds 126 portable cases and 3 IPC checks. They cover exact owned
+bytes, canonical base64, SHA-256 integrity and the 8 MiB source boundary;
+strict additive version-1 parsing; first-solid and single-import ownership;
+history, suppression, deletion and reference dependencies; and atomic import
+preparation. Transaction cases reject malformed files, failed construction,
+cancelled replacement and stale document/edit contexts before a commit.
+Transport checks resend the complete source after worker replacement and
+export a committed snapshot independently of another build. Real main-process
+handlers, with controlled dialog transport and temporary files, check bounded
+reads, exact bytes, sender identity, operation serialization and absence of a
+write grant for the original STEP. These controlled checks are separate from
+actual editor and native-dialog interaction, which remains unverified for this
+increment.
+
+The ten original inputs, generator and manifest are described in
+[PROVENANCE.md](PROVENANCE.md). Accepted cases check a box, translation,
+rotation, a true cylindrical BRep, declared inch conversion and declared metre
+conversion against analytical expectations. Open shells, multiple solids,
+free topology outside the solid, truncated input and an unsupported native
+geometric entity reject. A closed-shell gate, BRep validity, positive volume,
+one solid and complete root transfer are required. Cleanup tests check that
+repeated success/failure leaves no temporary virtual import file.
+
+The [STEP contract](STEP_IMPORT.md) records independent formulas for the
+10×6×4 mm box (`V=240 mm³`, `A=248 mm²`), cylinder and unit conversions.
+An imported top face supports a through-hole at `(5,3)` with radius 1 mm:
+`V=240−4π` and `A=248+6π`. Editing its radius to 1.5 mm after reopening gives
+`V=240−9π` and `A=248+15π/2`. A selected imported edge supports an R1 fillet.
+Checks include exact source-byte reopening, face/edge reference stability,
+reference invalidation after source replacement, downstream reconstruction,
+suppression/deletion, undo/redo and programmatic STEP export/reimport.
+Absolute mass/area/bounds tolerances are `5e-6` in their respective units;
+coordinate-based selected-edge checks use `5e-7` mm. Public fixtures and round
+trips use the same OpenCascade runtime for generation and consumption; they do
+not establish interoperability with an independent producer or kernel.
+
+The bounded Part 21 unit gate follows referenced 3D representation contexts
+and conversion factors. It accepts SI millimetres, SI metres and declared
+25.4 mm conversion units; missing, malformed, conflicting and unsupported
+length declarations reject. Strings, comments and unused contexts cannot
+supply a missing unit. External-resource entities and additional sections
+reject before native transfer. The gate is not a full EXPRESS schema validator
+and does not establish support for arbitrary STEP schemas, assemblies or
+metadata. Source bytes remain embedded in the editable document; no original
+path, native handle or worker cache is required to reopen it.
+
+Hosted checks are pending for this increment's exact source head. Earlier
+platform results do not establish a pass for these changes. Binary publication
+remains disabled under [issue #5](https://github.com/angelcp2802/solidflow/issues/5).
+
 ## Associative sketch mirror increment — 2026-10-11
 
 On Windows x64 with Node 24.11.1, the final `npm test` passed all 1,121 portable
