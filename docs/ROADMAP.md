@@ -11,7 +11,9 @@ supports, reference planes and a feature history. [Sketch fillets](SKETCH_FILLET
 handle line/arc pairs and atomic batches of common straight-line corners, with
 keep/delete policies, editable radii, source trimming/prolongation and optional
 equal-radius relations. [Sketch mirror](SKETCH_MIRROR.md) copies lines, arcs and
-circles with persistent point-reflection and circle-radius relations. Solid
+circles with persistent point-reflection and circle-radius relations. Sketch
+[offsets](SKETCH_OFFSET.md) retain support relationships, editable
+separations, connected line/arc chains and optional end caps. Solid
 operations include extrude/cut/revolve, sweep/loft, finishing, patterns/mirror,
 shell/draft and hole features. Documents can be edited and recovered; geometry
 can be exported as STEP and STL. [STEP import](STEP_IMPORT.md) adds one closed

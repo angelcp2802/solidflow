@@ -6,7 +6,7 @@ import type {
   SketchSelection,
   TangentBranch,
 } from "./types";
-import { constraintReferences as constraintRefs } from "./references";
+import { assertOffsetTopologyEditable, cleanupConstraintDependencies, constraintReferences as constraintRefs } from "./references";
 import { SKETCH_LIMITS, validateEntityProfile } from "./validation";
 
 export interface FilletParameters {
@@ -181,6 +181,7 @@ function deleteSourceCorners(
     }
     return true;
   });
+  profile.constraints = cleanupConstraintDependencies(profile.constraints);
   const used = new Set([
     ...profile.entities.flatMap(pointRefs),
     ...profile.constraints.flatMap(constraintRefs),
@@ -822,6 +823,7 @@ export function planSketchFillet(
       throw new Error("La solución seleccionada no es válida.");
     const selected = select(profile, selection, points),
       cs = selected.curves;
+    assertOffsetTopologyEditable(profile.constraints, cs.map(c => c.entity.id));
     const sourceIds = new Set(cs.map((c) => c.entity.id));
     if (parameters.equalRadiusEntityId !== undefined) {
       const reference = profile.entities.find(
@@ -1014,6 +1016,7 @@ export function planSketchFilletBatch(
       if (selected.curves.some((c) => c.entity.type !== "line"))
         throw new Error("El lote admite únicamente esquinas comunes entre líneas.");
       const cs = [...selected.curves].sort((a, b) => compareIds(a.entity, b.entity)) as [Curve, Curve];
+      assertOffsetTopologyEditable(profile.constraints, cs.map(c => c.entity.id));
       const chosen = defaultCandidate(candidates(cs, cornerOptions(cs, selected.point), r));
       if (!chosen)
         throw new Error(`La esquina ${target.id} no admite ese radio con los tramos disponibles.`);

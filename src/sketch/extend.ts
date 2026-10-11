@@ -1,7 +1,7 @@
 import type { EntityProfile, SketchConstraint, SketchEntity } from "./types";
 import type { TrimPoint, TrimSegment } from "./trim";
 import { validateEntityProfile } from "./validation";
-import { constraintReferences as references } from "./references";
+import { assertOffsetTopologyEditable, cleanupConstraintDependencies, constraintReferences as references } from "./references";
 
 export type ExtendPoint = TrimPoint;
 export type ExtendSegment = Exclude<TrimSegment, { type: "circle" }>;
@@ -264,6 +264,7 @@ function planExtend(
   const target = all.find((curve) => curve.entity.id === entityId);
   if (!target)
     throw new Error("Selecciona una entidad existente para extender.");
+  assertOffsetTopologyEditable(profile.constraints, [entityId]);
   if (target.entity.type === "circle")
     throw new Error(
       "Los círculos completos delimitan la extensión; selecciona una línea o un arco.",
@@ -522,6 +523,7 @@ export function extendToClosest(
       }
       return true;
     });
+    profile.constraints = cleanupConstraintDependencies(profile.constraints);
     const createdConstraintIds: string[] = [];
     const add = (type: "pointOnLine" | "pointOnCircle", boundaryId: string) => {
       const boundary = profile.entities.find(

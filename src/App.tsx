@@ -48,6 +48,7 @@ import {
   Cone,
   ArrowRightToLine,
   FlipHorizontal2,
+  CopyPlus,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Viewport, { type ViewName } from "./components/Viewport";
@@ -61,6 +62,9 @@ import { solveFilletApplication } from "./sketch/filletApplication";
 import SketchMirrorPanel from "./components/SketchMirrorPanel";
 import type { MirrorPlan } from "./sketch/mirror";
 import { solveMirrorApplication } from "./sketch/mirrorApplication";
+import SketchOffsetPanel from "./components/SketchOffsetPanel";
+import type { OffsetPlan } from "./sketch/offset";
+import { solveOffsetApplication } from "./sketch/offsetApplication";
 import PlaneSupportPanel, {
   supportLabel,
 } from "./components/PlaneSupportPanel";
@@ -86,6 +90,7 @@ import { createFilletSketchDocument } from "./examples/sketch-fillet";
 import { createFilletProlongationDocument } from "./examples/sketch-fillet-prolongation";
 import { createFilletBatchDocument } from "./examples/sketch-fillet-batch";
 import { createSketchMirrorDocument, createSketchMirrorArcDocument } from "./examples/sketch-mirror";
+import { createSketchOffsetDocument } from "./examples/sketch-offset";
 import {
   createLoftExample,
   createSweepExample,
@@ -347,6 +352,7 @@ export default function App() {
   const [chamferPreview, setChamferPreview] = useState<ChamferPlan | null>(null);
   const [filletPreview, setFilletPreview] = useState<FilletPlan | FilletBatchPlan | null>(null);
   const [mirrorPreview, setMirrorPreview] = useState<MirrorPlan | null>(null);
+  const [offsetPreview, setOffsetPreview] = useState<OffsetPlan | null>(null);
   const [mirrorAxisId, setMirrorAxisId] = useState("");
   const [mirrorPickingAxis, setMirrorPickingAxis] = useState(false);
   const [previousFilletId, setPreviousFilletId] = useState<string | null>(null);
@@ -396,9 +402,9 @@ export default function App() {
   // A legacy sketch is displayed as entities during the tool, but conversion
   // enters history only together with a successfully applied operation.
   const toolConvertedProfile = useMemo(() =>
-    (sketchTool === "fillet" || sketchTool === "mirror") && editing?.type === "sketch" && editing.profile.kind !== "entities"
+    (sketchTool === "fillet" || sketchTool === "mirror" || sketchTool === "offset") && editing?.type === "sketch" && editing.profile.kind !== "entities"
       ? convertProfile(editing.profile) : null,
-  [sketchTool === "fillet" || sketchTool === "mirror", editing?.type === "sketch" ? editing.profile : null]);
+  [sketchTool === "fillet" || sketchTool === "mirror" || sketchTool === "offset", editing?.type === "sketch" ? editing.profile : null]);
   const entityProfile =
     editing?.type === "sketch" && editing.profile.kind === "entities"
       ? editing.profile
@@ -529,6 +535,7 @@ export default function App() {
       !!chamferPreview?.changed) &&
     (editing.type !== "sketch" || sketchTool !== "fillet" || !!filletPreview?.changed) &&
     (editing.type !== "sketch" || sketchTool !== "mirror" || !!mirrorPreview?.changed) &&
+    (editing.type !== "sketch" || sketchTool !== "offset" || !!offsetPreview?.changed) &&
     model.featureErrors.length === 0;
   const canExport =
     !editing &&
@@ -753,6 +760,9 @@ export default function App() {
   };
   const loadSketchMirrorDemo = async (kind: "lines" | "arc") => {
     if (await canReplace()) reset(kind === "lines" ? createSketchMirrorDocument() : createSketchMirrorArcDocument());
+  };
+  const loadSketchOffsetDemo = async (kind: "rectangle" | "circle" | "concave") => {
+    if (await canReplace()) reset(createSketchOffsetDocument(kind));
   };
   const loadPatternDemo = async (kind: RepetitionFeature["type"]) => {
     if (await canReplace())
@@ -1571,6 +1581,20 @@ export default function App() {
     setSketchSelection([]);
     notify("Simetría aplicada. Las copias siguen las cotas de las fuentes y del eje.");
   };
+  const applySketchOffset = (plan: OffsetPlan) => {
+    if (editing?.type !== "sketch") return;
+    if (sketchSelection.some(item => item.kind !== "entity") ||
+      JSON.stringify(plan.selectedEntityIds) !== JSON.stringify(sketchSelection.map(item => item.id))) {
+      notify("La selección ha cambiado. Revisa la vista previa de equidistancia.", true);
+      return;
+    }
+    const application = solveOffsetApplication(sketchSolution, plan);
+    if (!application.accepted) { notify(application.message, true); return; }
+    changeDraft({ profile: application.solution.profile });
+    setOffsetPreview(null);
+    setSketchSelection([]);
+    notify("Equidistancia aplicada. Las copias conservan su relación con las entidades originales.");
+  };
   const acceptEdit = () => {
     if (!editing || !canAccept) return;
     if (editing.type === "sketch" && sketchTool === "chamfer") {
@@ -1583,6 +1607,10 @@ export default function App() {
     }
     if (editing.type === "sketch" && sketchTool === "mirror") {
       if (mirrorPreview) applySketchMirror(mirrorPreview);
+      return;
+    }
+    if (editing.type === "sketch" && sketchTool === "offset") {
+      if (offsetPreview) applySketchOffset(offsetPreview);
       return;
     }
     try {
@@ -1630,12 +1658,13 @@ export default function App() {
     setEditing(next);
   };
   const cancelActiveEdit = () => {
-    if (editing?.type === "sketch" && (sketchTool === "chamfer" || sketchTool === "fillet" || sketchTool === "mirror")) {
+    if (editing?.type === "sketch" && (sketchTool === "chamfer" || sketchTool === "fillet" || sketchTool === "mirror" || sketchTool === "offset")) {
       setSketchTool("select");
       setSketchSelection([]);
       setChamferPreview(null);
       setFilletPreview(null);
       setMirrorPreview(null);
+      setOffsetPreview(null);
       setMirrorPickingAxis(false);
       setPreviousFilletId(null);
       filletSessionIds.current = [];
@@ -1655,6 +1684,12 @@ export default function App() {
       return;
     }
     const result = solveSketch(candidate);
+    if ((candidate.constraints.some(constraint => constraint.type === "offset") ||
+      entityProfile?.constraints.some(constraint => constraint.type === "offset")) &&
+      !["underdefined", "fullyDefined"].includes(result.status)) {
+      notify(`No se puede modificar la equidistancia: ${result.message}`, true);
+      return;
+    }
     changeDraft({
       profile: ["underdefined", "fullyDefined"].includes(result.status)
         ? result.profile
@@ -1686,7 +1721,11 @@ export default function App() {
       setMirrorPickingAxis(false);
       setSketchSelection(old => old.filter(item => item.kind === "entity"));
     }
-    if (tool !== "chamfer" && tool !== "fillet" && tool !== "mirror") setSketchSelection([]);
+    if (tool === "offset") {
+      setOffsetPreview(null);
+      setSketchSelection(old => old.filter(item => item.kind === "entity"));
+    }
+    if (tool !== "chamfer" && tool !== "fillet" && tool !== "mirror" && tool !== "offset") setSketchSelection([]);
   };
   const changeProfile = (patch: Partial<LegacyProfile>) => {
     if (editing?.type === "sketch" && editing.profile.kind !== "entities")
@@ -1732,7 +1771,7 @@ export default function App() {
       if (
         e.key === "Escape" &&
         editing?.type === "sketch" &&
-        (sketchTool === "chamfer" || sketchTool === "fillet" || sketchTool === "mirror")
+        (sketchTool === "chamfer" || sketchTool === "fillet" || sketchTool === "mirror" || sketchTool === "offset")
       ) {
         e.preventDefault();
         cancelActiveEdit();
@@ -2339,6 +2378,8 @@ export default function App() {
                         ? "Aplicar redondeo"
                         : sketchTool === "mirror"
                         ? "Aplicar simetría"
+                        : sketchTool === "offset"
+                        ? "Aplicar equidistancia"
                         : "Salir del croquis"
                       : "Nuevo croquis"
                   }
@@ -2468,6 +2509,9 @@ export default function App() {
                 />
                 <Command icon={FlipHorizontal2} label="Simetría de croquis" large
                   onClick={() => selectSketchTool("mirror")} active={sketchTool === "mirror"}
+                  disabled={editing?.type !== "sketch"} />
+                <Command icon={CopyPlus} label="Equidistancia de entidades" large
+                  onClick={() => selectSketchTool("offset")} active={sketchTool === "offset"}
                   disabled={editing?.type !== "sketch"} />
                 <Command
                   icon={Component}
@@ -2671,6 +2715,10 @@ export default function App() {
               </div>
               {editing.type === "sketch" ? (
                 <>
+                  {sketchTool === "offset" && entityProfile && <SketchOffsetPanel
+                    profile={entityProfile} solution={sketchSolution} selection={sketchSelection}
+                    onSelection={next => { setOffsetPreview(null); setSketchSelection(next); }} onPreview={setOffsetPreview}
+                    onApply={applySketchOffset} onCancel={cancelActiveEdit} />}
                   {sketchTool === "mirror" && entityProfile && <SketchMirrorPanel
                     profile={entityProfile} solution={sketchSolution} selection={sketchSelection}
                     axisEntityId={mirrorAxisId} pickingAxis={mirrorPickingAxis}
@@ -3368,6 +3416,7 @@ export default function App() {
               selection={sketchSelection}
               onSelection={next => {
                 if (sketchTool === "mirror") setMirrorPreview(null);
+                if (sketchTool === "offset") setOffsetPreview(null);
                 if (sketchTool === "fillet" && next.length > sketchSelection.length &&
                   next.length > 1 && next.every(item => item.kind === "point") &&
                   filletPreview?.sourceProfile === sketchSolution?.profile) {
@@ -3381,6 +3430,7 @@ export default function App() {
               chamferPreview={sketchTool === "chamfer" ? chamferPreview : null}
               filletPreview={sketchTool === "fillet" ? filletPreview : null}
               mirrorPreview={sketchTool === "mirror" ? mirrorPreview : null}
+              offsetPreview={sketchTool === "offset" ? offsetPreview : null}
               mirrorAxisEntityId={mirrorAxisId} mirrorPickingAxis={mirrorPickingAxis}
               onMirrorAxis={chooseMirrorAxis}
             />
@@ -3805,6 +3855,18 @@ export default function App() {
                 <button className="library-card" onClick={() => loadSketchMirrorDemo("arc")}>
                   <FlipHorizontal2 size={36} /><strong>Simetría de un arco</strong>
                   <span>Semicírculo R5 · refleja el arco y comparte los puntos sobre el eje</span>
+                </button>
+                <button className="library-card" onClick={() => loadSketchOffsetDemo("rectangle")}>
+                  <CopyPlus size={36} /><strong>Equidistancia de una placa</strong>
+                  <span>Rectángulo 10 × 6 · crea un contorno paralelo con distancia editable</span>
+                </button>
+                <button className="library-card" onClick={() => loadSketchOffsetDemo("circle")}>
+                  <CopyPlus size={36} /><strong>Equidistancia circular</strong>
+                  <span>Círculo R3 · crea un anillo concéntrico y edita su separación</span>
+                </button>
+                <button className="library-card" onClick={() => loadSketchOffsetDemo("concave")}>
+                  <CopyPlus size={36} /><strong>Equidistancia de un contorno en L</strong>
+                  <span>Contorno cóncavo · compara el lado interior y el exterior</span>
                 </button>
                 <button
                   className="library-card"

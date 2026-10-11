@@ -4,8 +4,11 @@ import type {
   SketchConstraint,
   SketchEntity,
   SketchPoint,
+  SketchOffsetRelation,
+  OffsetJoin,
+  OffsetImage,
 } from "./types";
-import { orderedMirrorArcDirections } from "./mirror-directions";
+import { orderedArcDirections } from "./arc-directions";
 
 /** File-format limits. A solver may report a lower, explicit computational limit. */
 export const SKETCH_LIMITS = Object.freeze({
@@ -261,6 +264,102 @@ export function validateEntityProfile(
         ],
         location,
       );
+    if (constraint.type === "offset") {
+      keys(constraint, ["id", "type", "sources", "images", "closed", "cap", "capEntityIds"], location);
+      const closed = boolean(constraint.closed, `${location}.closed`);
+      const sourceIds = new Set<string>();
+      const sources = array(constraint.sources, SKETCH_LIMITS.maxEntities, `${location}.sources`).map((value, index) => {
+        const sourcePath = `${location}.sources[${index}]`;
+        const source = object(value, sourcePath);
+        keys(source, ["entityId", "reversed"], sourcePath);
+        const entityId = entityReference(source.entityId, `${sourcePath}.entityId`).id;
+        if (sourceIds.has(entityId)) fail(`${sourcePath}.entityId`, "fuente de equidistancia duplicada");
+        sourceIds.add(entityId);
+        return { entityId, reversed: boolean(source.reversed, `${sourcePath}.reversed`) };
+      });
+      if (!sources.length) fail(`${location}.sources`, "se requiere al menos una entidad fuente");
+      const hasCircle = sources.some(source => entityMap.get(source.entityId)!.type === "circle");
+      if (hasCircle && (sources.length !== 1 || !closed))
+        fail(`${location}.sources`, "un círculo debe ser la única fuente y formar una equidistancia cerrada");
+      const endpoint = (entityId: string, reversed: boolean, end: 0 | 1): string => {
+        const entity = entityMap.get(entityId)!;
+        if (entity.type === "circle") return fail(location, "un círculo completo no tiene extremos de cadena");
+        return (end === 0) !== reversed ? entity.start : entity.end;
+      };
+      const validateChain = (entityIds: string[], chainPath: string) => {
+        if (hasCircle) return;
+        for (let i = 0; i < entityIds.length - 1; i++) if (endpoint(entityIds[i], sources[i].reversed, 1) !== endpoint(entityIds[i + 1], sources[i + 1].reversed, 0))
+          fail(chainPath, "las entidades ordenadas deben compartir la identidad de cada extremo de unión");
+        const sameEnds = endpoint(entityIds[0], sources[0].reversed, 0) === endpoint(entityIds[entityIds.length - 1], sources[sources.length - 1].reversed, 1);
+        if (sameEnds !== closed) fail(chainPath, "el cierre de la cadena no corresponde a las identidades de sus extremos");
+        const vertices = entityIds.map((id, index) => endpoint(id, sources[index].reversed, 0));
+        if (!closed) vertices.push(endpoint(entityIds[entityIds.length - 1], sources[sources.length - 1].reversed, 1));
+        if (new Set(vertices).size !== vertices.length) fail(chainPath, "la cadena no puede repetir vértices interiores ni contener bifurcaciones");
+      };
+      validateChain(sources.map(source => source.entityId), `${location}.sources`);
+      const members = new Set(sourceIds);
+      const sides = new Set<string>();
+      const images = array(constraint.images, 2, `${location}.images`).map((value, index): OffsetImage => {
+        const imagePath = `${location}.images[${index}]`;
+        const image = object(value, imagePath);
+        keys(image, ["side", "distance", "entityIds", "joins"], imagePath);
+        if (image.side !== "right" && image.side !== "left") fail(`${imagePath}.side`, "se esperaba right o left");
+        if (sides.has(image.side)) fail(`${imagePath}.side`, "lado de equidistancia duplicado");
+        sides.add(image.side);
+        const entityIds = array(image.entityIds, SKETCH_LIMITS.maxEntities, `${imagePath}.entityIds`).map((value, sourceIndex) => {
+          const entityPath = `${imagePath}.entityIds[${sourceIndex}]`;
+          const entity = entityReference(value, entityPath);
+          if (members.has(entity.id)) fail(entityPath, "cada fuente, imagen y tapa debe ser una entidad distinta");
+          members.add(entity.id);
+          if (sourceIndex >= sources.length || entity.type !== entityMap.get(sources[sourceIndex].entityId)!.type)
+            fail(entityPath, "la imagen debe tener el mismo tipo que su fuente correspondiente");
+          return entity.id;
+        });
+        if (entityIds.length !== sources.length) fail(`${imagePath}.entityIds`, "se requiere una imagen por cada fuente");
+        validateChain(entityIds, `${imagePath}.entityIds`);
+        const joins = array(image.joins, SKETCH_LIMITS.maxEntities, `${imagePath}.joins`).map((value, joinIndex): OffsetJoin => {
+          const joinPath = `${imagePath}.joins[${joinIndex}]`;
+          const join = object(value, joinPath);
+          keys(join, ["kind", "branch"], joinPath);
+          if (join.kind !== "intersection" && join.kind !== "continuation") fail(`${joinPath}.kind`, "unión de equidistancia desconocida");
+          if (join.branch !== -1 && join.branch !== 0 && join.branch !== 1) fail(`${joinPath}.branch`, "se esperaba -1, 0 o 1");
+          if (join.kind === "continuation" && join.branch !== 0) fail(`${joinPath}.branch`, "una continuación tiene rama 0");
+          if (entityMap.get(entityIds[joinIndex])?.type === "line" && entityMap.get(entityIds[(joinIndex + 1) % entityIds.length])?.type === "line" && join.branch !== 0)
+            fail(`${joinPath}.branch`, "la intersección entre líneas tiene rama 0");
+          return { kind: join.kind, branch: join.branch };
+        });
+        const expectedJoins = hasCircle ? 0 : closed ? sources.length : sources.length - 1;
+        if (joins.length !== expectedJoins) fail(`${imagePath}.joins`, "el número de uniones no corresponde a la cadena fuente");
+        return { side: image.side, distance: dimension(image.distance, `${imagePath}.distance`), entityIds, joins };
+      });
+      if (!images.length) fail(`${location}.images`, "se requiere al menos un lado de equidistancia");
+      if (constraint.cap !== "none" && constraint.cap !== "line" && constraint.cap !== "arc") fail(`${location}.cap`, "se esperaba none, line o arc");
+      if (constraint.cap !== "none" && closed) fail(`${location}.cap`, "las tapas requieren una cadena abierta");
+      const capEntityIds = array(constraint.capEntityIds, 2, `${location}.capEntityIds`).map((value, index) => {
+        const capPath = `${location}.capEntityIds[${index}]`;
+        const entity = entityReference(value, capPath);
+        if (entity.type !== constraint.cap) fail(capPath, "la entidad de tapa no corresponde al tipo indicado");
+        if (members.has(entity.id)) fail(capPath, "cada fuente, imagen y tapa debe ser una entidad distinta");
+        members.add(entity.id);
+        return entity.id;
+      });
+      if (capEntityIds.length !== (constraint.cap === "none" ? 0 : 2)) fail(`${location}.capEntityIds`, "se requieren las tapas inicial y final, o ninguna para una cadena sin tapas");
+      for (const [end, capId] of capEntityIds.entries()) {
+        const index = end === 0 ? 0 : sources.length - 1, reversed = sources[index].reversed, first = endpoint(images[0].entityIds[index], reversed, end as 0 | 1), second = endpoint(images.length === 2 ? images[1].entityIds[index] : sources[index].entityId, reversed, end as 0 | 1), capEntity = entityMap.get(capId)!;
+        if (capEntity.type === "circle" || capEntity.start !== first || capEntity.end !== second)
+          fail(`${location}.capEntityIds[${end}]`, "la tapa debe compartir los extremos correspondientes de la cadena");
+      }
+      return { id, type: "offset", sources,
+        images, closed, cap: constraint.cap, capEntityIds } satisfies SketchOffsetRelation;
+    }
+    if (constraint.type === "offsetDistance") {
+      dimensionKeys(["id", "type", "offsetId", "side", "value"]);
+      const mode = dimensionMode();
+      if (constraint.side !== "right" && constraint.side !== "left") fail(`${location}.side`, "se esperaba right o left");
+      return { id, type: "offsetDistance", offsetId: identifier(constraint.offsetId, `${location}.offsetId`), side: constraint.side,
+        value: mode.driven ? number(constraint.value, `${location}.value`, 0, SKETCH_LIMITS.maxDimension)
+          : dimension(constraint.value, `${location}.value`), ...mode };
+    }
     if (constraint.type === "fix") {
       keys(constraint, ["id", "type", "pointId", "x", "y"], location);
       return {
@@ -478,8 +577,26 @@ export function validateEntityProfile(
     }
     return fail(`${location}.type`, "tipo de restricción desconocido");
   });
+  const constraintMap = new Map(constraints.map(constraint => [constraint.id, constraint]));
+  const offsetOwners = new Map<string, string>();
+  for (const [index, constraint] of constraints.entries()) {
+    const location = `${path}.constraints[${index}]`;
+    if (constraint.type === "offsetDistance") {
+      const offset = constraintMap.get(constraint.offsetId);
+      if (offset?.type !== "offset") fail(`${location}.offsetId`, "debe referenciar una relación de equidistancia existente");
+      if (!offset.images.some(image => image.side === constraint.side))
+        fail(`${location}.side`, "debe referenciar un lado existente de la equidistancia");
+    }
+    if (constraint.type !== "offset") continue;
+    for (const entityId of [...constraint.images.flatMap(image => image.entityIds), ...constraint.capEntityIds]) {
+      if (offsetOwners.has(entityId)) fail(location, "una entidad imagen o tapa no puede pertenecer a dos equidistancias");
+      offsetOwners.set(entityId, constraint.id);
+    }
+  }
+  const ownedCaps = new Set(constraints.flatMap(constraint => constraint.type === "offset" && constraint.cap === "arc" ? constraint.capEntityIds : []));
+  if (constraints.some(constraint => constraint.type === "mirrorArcDirection" && ownedCaps.has(constraint.b))) fail(`${path}.constraints`, "una tapa equidistante no puede tener otra fuente de sentido");
   try {
-    orderedMirrorArcDirections(constraints);
+    orderedArcDirections(constraints, entities);
   } catch (error) {
     fail(`${path}.constraints`, error instanceof Error ? error.message : "Relaciones de sentido reflejado no válidas.");
   }

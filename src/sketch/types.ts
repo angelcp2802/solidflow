@@ -30,8 +30,39 @@ interface DimensionBase extends ConstraintBase {
 /** Persisted solution branch; editing dimensions never rededuces it. */
 export type TangentBranch =
   "left" | "right" | "external" | "aContainsB" | "bContainsA";
+
+/** Traversal is explicit so entity-array order never changes an offset's side. */
+export interface OffsetSource {
+  entityId: string;
+  reversed: boolean;
+}
+export interface OffsetJoin {
+  kind: "intersection" | "continuation";
+  /** Oriented physical intersection root; zero denotes a unique/tangent root. */
+  branch: -1 | 0 | 1;
+}
+export interface OffsetImage {
+  side: "right" | "left";
+  /** Geometric seed for this side; a distance dimension is a separate target. */
+  distance: number;
+  /** One image for each source, in the same traversal order. */
+  entityIds: string[];
+  joins: OffsetJoin[];
+}
+/** Geometric association survives removal or conversion of its distance dimension. */
+export interface SketchOffsetRelation extends ConstraintBase {
+  type: "offset";
+  sources: OffsetSource[];
+  images: OffsetImage[];
+  closed: boolean;
+  cap: "none" | "line" | "arc";
+  /** Start cap then end cap; empty for uncapped or closed sources. */
+  capEntityIds: string[];
+}
 /** Point IDs may also reference the immutable sketch origin, named 'origin'. */
 export type SketchConstraint =
+  | SketchOffsetRelation
+  | (DimensionBase & { type: "offsetDistance"; offsetId: string; side: "right" | "left"; value: number })
   | (ConstraintBase & { type: "fix"; pointId: string; x: number; y: number })
   | (ConstraintBase & { type: "coincident"; a: string; b: string })
   /** Point reflection across the complete supporting line; a and b are point IDs. */
@@ -104,7 +135,7 @@ export type LegacyProfile =
     }
   | { kind: "circle"; center: [number, number]; radius: number };
 export type SketchTool =
-  "select" | "line" | "rectangle" | "circle" | "arc" | "trim" | "extend" | "chamfer" | "fillet" | "mirror";
+  "select" | "line" | "rectangle" | "circle" | "arc" | "trim" | "extend" | "chamfer" | "fillet" | "mirror" | "offset";
 export type SketchSelection = {
   kind: "point" | "entity" | "constraint";
   id: string;

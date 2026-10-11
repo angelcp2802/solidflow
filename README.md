@@ -33,7 +33,8 @@ No external CAD installation or account is required.
 - Sketch lines, circular arcs and circles; geometric constraints, driving and
   driven dimensions, trim and extend, [sketch fillets](docs/SKETCH_FILLET.md)
   with editable or linked radii, [straight-line sketch chamfers](docs/SKETCH_CHAMFER.md),
-  [associative sketch mirror](docs/SKETCH_MIRROR.md), construction geometry and undo/redo.
+  [associative sketch mirror](docs/SKETCH_MIRROR.md),
+  [associative sketch offsets](docs/SKETCH_OFFSET.md), construction geometry and undo/redo.
 - Associative planar supports and reference planes; extrude, cut, revolve,
   sweep, loft, fillet, chamfer, patterns, mirror, shell, draft and hole features.
 - Feature history, reconstruction, suppression, editable documents, recovery
