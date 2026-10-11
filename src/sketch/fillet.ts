@@ -26,6 +26,13 @@ export interface FilletPlan {
   createdConstraintIds: string[];
   deletedConstraintIds: string[];
   convertedConstraintIds: string[];
+  sourceEdits: {
+    entityId: string;
+    endpoint: "start" | "end";
+    movement: "trim" | "extend" | "none";
+    /** Nonnegative travel along the source, in millimetres. */
+    amount: number;
+  }[];
   candidates: { index: number; label: string }[];
   selectedSolutionIndex: number | null;
 }
@@ -61,7 +68,7 @@ type Locus =
       code: number;
       branch: TangentBranch;
     };
-type Corner = { point: XY | null; code: number; ends: [End, End] };
+type Corner = { point: XY | null; ends: [End, End] };
 type Candidate = {
   index: number;
   label: string;
@@ -71,6 +78,7 @@ type Candidate = {
   sweep: number;
   corner: Corner;
   branches: [TangentBranch, TangentBranch];
+  sourceEdits: FilletPlan["sourceEdits"];
 };
 type NewConstraint<T = SketchConstraint> = T extends SketchConstraint
   ? Omit<T, "id">
@@ -305,21 +313,23 @@ function cornerOptions(cs: [Curve, Curve], selectedPoint?: XY): Corner[] {
         (!selectedPoint ||
           distance(cs[0][a], selectedPoint) <= FILLET_TOLERANCE)
       )
-        shared.push({ point: cs[0][a], code: 0, ends: [a, b] });
+        shared.push({ point: cs[0][a], ends: [a, b] });
     }
+  // A real common corner identifies the source ends to replace. Prolongation
+  // of a separated pair uses virtual support witnesses instead; it must not
+  // silently replace the far ends of an already selected physical corner.
   if (shared.length) return shared;
   if (selectedPoint)
     throw new Error(
       "El punto seleccionado no es un extremo común de las dos entidades.",
     );
-  const hits = intersections(support(cs[0]), support(cs[1])).filter((hit) =>
-    cs.every((c) => c.entity.type === "line" || contains(c, hit.point)),
-  );
+  const hits = intersections(support(cs[0]), support(cs[1]));
   if (!hits.length && cs.every((c) => c.entity.type === "line"))
     throw new Error(
       "Las líneas paralelas o colineales no definen una esquina única.",
     );
   const options = (c: Curve, p: XY): End[] => {
+    if (c.entity.type === "arc" && !contains(c, p)) return ["start", "end"];
     const t = parameter(c, p);
     return t <= FILLET_TOLERANCE
       ? ["start"]
@@ -331,12 +341,57 @@ function cornerOptions(cs: [Curve, Curve], selectedPoint?: XY): Corner[] {
   for (const hit of hits)
     for (const a of options(cs[0], hit.point))
       for (const b of options(cs[1], hit.point))
-        corners.push({ point: hit.point, code: hit.side, ends: [a, b] });
+        if (
+          !corners.some(
+            (corner) =>
+              corner.point &&
+              corner.ends[0] === a &&
+              corner.ends[1] === b &&
+              distance(corner.point, hit.point) <= FILLET_TOLERANCE,
+          )
+        )
+          corners.push({ point: hit.point, ends: [a, b] });
   if (!hits.length)
     for (const a of ends)
       for (const b of ends)
-        corners.push({ point: null, code: 2, ends: [a, b] });
+        corners.push({ point: null, ends: [a, b] });
   return corners;
+}
+
+/**
+ * One finite directed interval, anchored at the endpoint that survives.
+ * Its unique unwrapped contact lies in (L−2π,L) for start replacement,
+ * or (0,2π) for end replacement. This permits extension through the old
+ * endpoint and π, but never through the retained endpoint or a full turn.
+ */
+function retainedSweep(c: Curve, endpoint: End, p: XY): number {
+  const far = c[endpoint === "start" ? "end" : "start"];
+  const from = sub(endpoint === "start" ? p : far, c.center!);
+  const to = sub(endpoint === "start" ? far : p, c.center!);
+  return wrap(Math.sign(c.sweep) * Math.atan2(cross(from, to), dot(from, to)));
+}
+
+function sourceEdit(
+  c: Curve,
+  endpoint: End,
+  p: XY,
+): FilletPlan["sourceEdits"][number] {
+  const oldLength =
+    c.entity.type === "line"
+      ? distance(c.start, c.end)
+      : c.radius * Math.abs(c.sweep);
+  const newLength =
+    c.entity.type === "line"
+      ? distance(p, c[endpoint === "start" ? "end" : "start"])
+      : c.radius * retainedSweep(c, endpoint, p);
+  const difference = newLength - oldLength;
+  const unchanged = Math.abs(difference) <= FILLET_TOLERANCE;
+  return {
+    entityId: c.entity.id,
+    endpoint,
+    movement: unchanged ? "none" : difference > 0 ? "extend" : "trim",
+    amount: unchanged ? 0 : Math.abs(difference),
+  };
 }
 
 function validContact(
@@ -349,13 +404,14 @@ function validContact(
   if (distance(far, p) < MIN_LENGTH) return false;
   const t = parameter(c, p);
   if (c.entity.type === "arc") {
-    if (!contains(c, p)) return false;
+    if (Math.abs(distance(p, c.center!) - c.radius) > FILLET_TOLERANCE)
+      return false;
+    const retained = retainedSweep(c, endpoint, p);
+    if (retained <= 0 || retained >= TAU) return false;
     if (corner) {
-      const v = parameter(c, corner);
       if (
-        endpoint === "start"
-          ? t < v - FILLET_TOLERANCE / c.radius
-          : t > v + FILLET_TOLERANCE / c.radius
+        retained >
+        retainedSweep(c, endpoint, corner) + FILLET_TOLERANCE / c.radius
       )
         return false;
     }
@@ -371,6 +427,104 @@ function away(c: Curve, endpoint: End, p: XY): XY {
     unit(left(sub(p, c.center!))),
     Math.sign(c.sweep) * (endpoint === "start" ? 1 : -1),
   );
+}
+
+/** Whether a center belongs to an ordered offset-intersection slot. */
+function matchesIntersectionSide(
+  a: Locus,
+  b: Locus,
+  center: XY,
+  side: number,
+): boolean {
+  if (a.type === "circle" && b.type === "line")
+    return matchesIntersectionSide(b, a, center, side);
+  if (a.type === "line" && b.type === "circle") {
+    const along = dot(sub(center, b.center), a.direction);
+    // At a tangent birth both ordered roots meet, even though intersections()
+    // returns just slot zero at the double root.
+    return Math.abs(along) <= FILLET_TOLERANCE || side === (along < 0 ? 0 : 1);
+  }
+  if (a.type !== "circle" || b.type !== "circle") return false;
+  const axis = sub(b.center, a.center), d = length(axis);
+  if (d <= FILLET_TOLERANCE) return false;
+  const height = cross(axis, sub(center, a.center)) / d;
+  return Math.abs(height) <= FILLET_TOLERANCE || side === (height > 0 ? 0 : 1);
+}
+
+/**
+ * Each source arc has at most one retained-end crossing per tangent-locus pair.
+ * There the fillet center is F(r)=Q+r*n. Substitution in the other offset
+ * support is linear in r: the quadratic terms cancel because |n|=1.
+ */
+function retainedEndCriticalRadius(
+  cs: [Curve, Curve],
+  corner: Corner,
+  currentLoci: [Locus, Locus],
+  sourceIndex: number,
+  side: number,
+): number | undefined {
+  const source = cs[sourceIndex];
+  if (source.entity.type !== "arc") return undefined;
+  const otherIndex = sourceIndex === 0 ? 1 : 0,
+    other = cs[otherIndex],
+    sourceLocus = currentLoci[sourceIndex],
+    otherLocus = currentLoci[otherIndex];
+  const far = source[corner.ends[sourceIndex] === "start" ? "end" : "start"];
+  const radial = unit(sub(far, source.center!));
+  // The accepted input may have a tiny endpoint radial residual. Project Q to
+  // the measured support so the cancellation uses one exact source radius.
+  const q = add(source.center!, mul(radial, source.radius));
+  const normal = mul(radial, sourceLocus.branch === "external" ? 1 : -1);
+  let numerator: number, denominator: number;
+  if (other.entity.type === "line") {
+    const lineNormal = left(other.direction),
+      branchSign = otherLocus.branch === "left" ? 1 : -1;
+    numerator = -dot(sub(q, other.start), lineNormal);
+    denominator = dot(normal, lineNormal) - branchSign;
+  } else {
+    const offset = sub(q, other.center!),
+      d = length(offset),
+      branchSign = otherLocus.branch === "external" ? 1 : -1;
+    numerator = (other.radius - d) * (other.radius + d);
+    denominator = 2 * (dot(offset, normal) - branchSign * other.radius);
+  }
+  if (denominator === 0) return undefined;
+  const radius = numerator / denominator;
+  if (
+    !Number.isFinite(radius) ||
+    radius < SKETCH_LIMITS.minDimension ||
+    radius > SKETCH_LIMITS.maxDimension
+  )
+    return undefined;
+  const criticalLoci = cs.map((c, i) =>
+    loci(c, radius).find((locus) => locus.code === currentLoci[i].code),
+  );
+  if (!criticalLoci[0] || !criticalLoci[1]) return undefined;
+  const center = add(q, mul(normal, radius));
+  const onLocus = (locus: Locus) =>
+    locus.type === "line"
+      ? Math.abs(cross(sub(center, locus.start), locus.direction)) <= FILLET_TOLERANCE
+      : Math.abs(distance(center, locus.center) - locus.radius) <= FILLET_TOLERANCE;
+  if (
+    !onLocus(criticalLoci[0]) ||
+    !onLocus(criticalLoci[1]) ||
+    !matchesIntersectionSide(criticalLoci[0], criticalLoci[1], center, side)
+  )
+    return undefined;
+  return radius;
+}
+
+function radiusFamily(
+  cs: [Curve, Curve],
+  corner: Corner,
+  currentLoci: [Locus, Locus],
+  side: number,
+  radius: number,
+): number {
+  return cs.reduce((mask, _, i) => {
+    const critical = retainedEndCriticalRadius(cs, corner, currentLoci, i, side);
+    return critical !== undefined && radius > critical ? mask | (1 << i) : mask;
+  }, 0);
 }
 
 function candidates(
@@ -414,17 +568,20 @@ function candidates(
             dot(endTangent, away(cs[1], corner.ends[1], contacts[1])) < 1 - 1e-6
           )
             continue;
-          const index =
-            (((((corner.ends[0] === "end" ? 1 : 0) * 2 +
+          // Fixed physical slots; support-corner witnesses never enter the
+          // key. A retained-end crossing splits disconnected radius families,
+          // so an explicit choice cannot reappear across a zero/full-turn gap.
+          const physicalIndex =
+            ((((corner.ends[0] === "end" ? 1 : 0) * 2 +
               (corner.ends[1] === "end" ? 1 : 0)) *
-              3 +
-              corner.code) *
               3 +
               a.code) *
               3 +
               b.code) *
               2 +
             hit.side;
+          const index =
+            physicalIndex + 72 * radiusFamily(cs, corner, [a, b], hit.side, r);
           if (result.some((candidate) => candidate.index === index)) continue;
           const sweep = wrap(
             sign *
@@ -437,19 +594,53 @@ function candidates(
                   contacts[0].x - hit.point.x,
                 )),
           );
+          const sourceEdits = cs.map((c, i) =>
+            sourceEdit(c, corner.ends[i], contacts[i]),
+          );
+          const sourceLabel = (i: number, branch: TangentBranch) => {
+            const c = cs[i],
+              edit = sourceEdits[i];
+            const major =
+              c.entity.type === "arc" &&
+              retainedSweep(c, corner.ends[i], contacts[i]) > Math.PI;
+            return `${i === 0 ? "Primera" : "Segunda"}: ${endLabels[corner.ends[i]]}, ${branchLabels[branch]}${edit.movement === "extend" ? ", prolonga" : ""}${major ? ", arco fuente mayor" : ""}`;
+          };
           result.push({
             index,
-            label: `Primera: ${endLabels[corner.ends[0]]}, ${branchLabels[a.branch]} · Segunda: ${endLabels[corner.ends[1]]}, ${branchLabels[b.branch]} · ${clockwise ? "horario" : "antihorario"}${sweep > Math.PI ? " · arco mayor" : ""}`,
+            label: `${sourceLabel(0, a.branch)} · ${sourceLabel(1, b.branch)} · ${clockwise ? "horario" : "antihorario"}${sweep > Math.PI ? " · arco mayor" : ""}`,
             center: hit.point,
             contacts,
             clockwise,
             sweep,
             corner,
             branches: [a.branch, b.branch],
+            sourceEdits,
           });
         }
       }
   return result.sort((a, b) => a.index - b.index);
+}
+
+/**
+ * Entity-only default: minor fillet, then minimum total source travel in mm.
+ * It is invariant under rigid transforms and scaling beyond geometric tolerance.
+ * A genuine tie needs an explicit branch; a latched choice never uses this rule.
+ */
+function defaultCandidate(possible: Candidate[]): Candidate | undefined {
+  const minor = possible.filter((candidate) => candidate.sweep <= Math.PI);
+  const eligible = minor.length ? minor : possible;
+  if (!eligible.length) return undefined;
+  const travel = (candidate: Candidate) =>
+    candidate.sourceEdits.reduce((sum, edit) => sum + edit.amount, 0);
+  const minimum = Math.min(...eligible.map(travel));
+  const closest = eligible.filter(
+    (candidate) => Math.abs(travel(candidate) - minimum) <= FILLET_TOLERANCE,
+  );
+  if (closest.length !== 1)
+    throw new Error(
+      "Varias ramas tienen el mismo desplazamiento; elige una solución explícita.",
+    );
+  return closest[0];
 }
 
 function select(
@@ -570,8 +761,7 @@ export function planSketchFillet(
       );
     const chosen =
       parameters.solutionIndex === undefined
-        ? (possible.find((candidate) => candidate.sweep <= Math.PI) ??
-          possible[0])
+        ? defaultCandidate(possible)
         : possible.find((c) => c.index === parameters.solutionIndex);
     if (!chosen)
       throw new Error(
@@ -579,6 +769,15 @@ export function planSketchFillet(
           ? "No existe un redondeo tangente con ese radio y los tramos disponibles."
           : "La rama seleccionada ya no existe para ese radio; elige otra solución explícitamente.",
       );
+    const commonOriginalCorner = ends.some((a) =>
+      ends.some((b) => distance(cs[0][a], cs[1][b]) <= FILLET_TOLERANCE),
+    );
+    // A separated curved pair does not have an original shared corner to
+    // preserve. Its replaced exclusive endpoints and anchors are cleaned up
+    // for both policies; surviving/external points still use the same guards.
+    const deleteCorners =
+      parameters.cornerPolicy === "delete" ||
+      (!commonOriginalCorner && cs.some((c) => c.entity.type === "arc"));
     const ids = new Set([
       "origin",
       ...profile.points.map((p) => p.id),
@@ -612,7 +811,7 @@ export function planSketchFillet(
       end: contacts[1].id,
       clockwise: chosen.clockwise,
     };
-    if (parameters.cornerPolicy === "keep") {
+    if (!deleteCorners) {
       profile.constraints = profile.constraints.map((c) => {
         const source = cs.find(
           (source) => c.type === "length" && c.entityId === source.entity.id,
@@ -634,7 +833,7 @@ export function planSketchFillet(
     profile.points.push(center, ...contacts);
     profile.entities.push(fillet);
     let sharedCornerKept = false;
-    if (parameters.cornerPolicy === "delete") {
+    if (deleteCorners) {
       const sourcePoints = new Set(
         cs.flatMap((c) => [
           c.start.id,
@@ -746,6 +945,7 @@ export function planSketchFillet(
       createdConstraintIds,
       deletedConstraintIds,
       convertedConstraintIds,
+      sourceEdits: chosen.sourceEdits,
       candidates: choices,
       selectedSolutionIndex: chosen.index,
     };
@@ -764,6 +964,7 @@ export function planSketchFillet(
       createdConstraintIds: [],
       deletedConstraintIds: [],
       convertedConstraintIds: [],
+      sourceEdits: [],
       candidates: choices,
       selectedSolutionIndex: null,
     };

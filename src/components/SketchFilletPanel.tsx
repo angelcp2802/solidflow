@@ -80,7 +80,7 @@ export default function SketchFilletPanel({
   const orderedIds = plan?.affectedEntityIds ?? selectedEntities;
   return <div className="property-section trim-property fillet-property">
     <h3><CornerDownRight size={14} /> Redondeo de croquis</h3>
-    <p>Selecciona una esquina o dos entidades. La vista previa muestra los contactos tangentes y los tramos que se conservan.</p>
+    <p>Selecciona una esquina o dos entidades. Las líneas y los arcos se recortan o prolongan hasta los contactos tangentes de la vista previa.</p>
     <label className="number-field">
       <span>Radio del redondeo</span>
       <div>
@@ -109,7 +109,7 @@ export default function SketchFilletPanel({
         <option value="delete">Eliminar restricciones de la esquina</option>
       </select>
     </label>
-    <p className="muted-small">Mantener conserva la intersección virtual. Eliminar retira las restricciones afectadas que no pertenecen también a otras entidades.</p>
+    <p className="muted-small">Mantener conserva una esquina común y sus cotas. En parejas separadas con arcos, ambos modos retiran los extremos sustituidos y sus restricciones exclusivas. Los puntos usados por otras entidades se conservan.</p>
     <div aria-label="Entidades del redondeo">
       {orderedIds.slice(0, 2).map((id, index) => <div className="sketch-selection-actions" key={id}>
         <span>{index === 0 ? "A" : "B"}: {entityName(id)}</span>
@@ -123,13 +123,22 @@ export default function SketchFilletPanel({
       <span>Solución geométrica</span>
       <select aria-label="Solución geométrica" value={planning.selectedSolutionIndex ?? ""}
         onChange={event => setSolutionIndex(Number(event.target.value))}>
-        {planning.selectedSolutionIndex === null && <option value="" disabled>La solución elegida ya no está disponible</option>}
+        {planning.selectedSolutionIndex === null && <option value="" disabled>Elige una solución disponible</option>}
         {planning.candidates.map(candidate => <option key={candidate.index} value={candidate.index}>{candidate.label}</option>)}
       </select>
     </label>}
-    {plan && <p className="muted-small" aria-label="Cambios en las restricciones">
-      {plan.convertedConstraintIds.length} cotas convertidas · {plan.deletedConstraintIds.length} restricciones eliminadas · {plan.createdConstraintIds.length} nuevas.
-    </p>}
+    {plan && <>
+      <ul className="muted-small" aria-label="Cambios en los tramos">
+        {plan.sourceEdits.map(edit => <li key={edit.entityId}>
+          {orderedIds.indexOf(edit.entityId) === 0 ? "A" : "B"} · {entityName(edit.entityId)}: {edit.movement === "none"
+            ? "conserva la posición del extremo."
+            : `${edit.movement === "extend" ? "prolonga" : "recorta"} ${edit.amount.toLocaleString("es-ES", { maximumFractionDigits: 6 })} mm.`}
+        </li>)}
+      </ul>
+      <p className="muted-small" aria-label="Cambios en las restricciones">
+        {plan.convertedConstraintIds.length} cotas convertidas · {plan.deletedConstraintIds.length} restricciones eliminadas · {plan.createdConstraintIds.length} nuevas.
+      </p>
+    </>}
     {error && <p id={errorId} role="alert">{error}</p>}
     <p aria-live="polite" aria-atomic="true">{plan ? plan.message : !completeSelection ? "Selecciona un vértice o completa la selección de dos entidades." : "Sin vista previa aplicable."}</p>
     <button type="button" className="outline-button" aria-label="Aplicar redondeo" disabled={!plan} onClick={() => { if (plan) onApply(plan); }}>Aplicar redondeo</button>

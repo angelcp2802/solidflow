@@ -12,7 +12,8 @@ milestone does not establish support for all curved pairs or virtual corners.
    existing entity sketch. Choose **Redondeo de croquis**.
 2. Select a common endpoint, or select two lines/arcs in order A/B. The preview
    shows the modified source entities and the new tangent arc. Choose a labeled
-   **Solución geométrica** when several candidates exist.
+   **Solución geométrica** when several candidates exist. The panel reports
+   which source trims or extends, and its endpoint travel in millimeters.
 3. Enter a radius in millimeters. Comma and dot decimal separators are accepted.
    Choose **Mantener esquina y cotas** or **Eliminar restricciones de la esquina**.
 4. Choose an individual radius, a radius equal to an existing circular entity,
@@ -29,6 +30,15 @@ use a 1 mm radius to exercise a closed line–arc contour. The programmatic CAD
 checks below cover this example. Its library card was loaded in the browser,
 but its fillet was not created through real interaction. Electron interaction
 is also separate validation work.
+
+For separated sources, open **Redondeo con prolongación de arco** or **Redondeo
+entre dos arcos separados**. Each starts as a sketch only, with an intentional
+gap. Edit that sketch, select its first two source entities and apply R2.
+The first example trims its line and prolongs its R10 arc; the second prolongs
+both R10 arcs. Finish and accept the sketch before creating an extrusion.
+Their geometry is covered programmatically; the line–arc preview also has
+rendered-component coverage. Real interaction with the two new cards has not
+been checked.
 
 ## Editing contract
 
@@ -50,8 +60,22 @@ applying a preview after the source changes; it is not saved in the document.
 The result identifies the fillet arc, affected entities, created entities and
 created/converted/deleted constraints. Candidate labels and an explicit selected
 solution distinguish geometric branches when several tangent arcs are possible.
-Candidate indices are stable branch/endpoint codes and can have gaps; they are
-not positions in the filtered candidate list.
+Candidate indices identify branch, replaced endpoints and the connected radius
+component; they can have gaps and are
+not positions in the filtered candidate list. A virtual support intersection
+is only a geometric witness: two witnesses do not duplicate the same physical
+branch. These codes are preview state, not new persisted document fields.
+
+Without an explicit choice, entity-list selection prefers a minor fillet and
+then the least total endpoint travel along the sources. A tied minimum requires
+an explicit choice. This is the tool's selection policy; it does not infer a
+canvas pick position. Once chosen, a branch remains selected across radius
+changes; an unavailable branch is rejected without choosing another silently.
+When a radius path would pass through a retained arc endpoint, the solutions
+on its two sides have different component codes. A latched preview therefore
+rejects the crossing instead of silently wrapping a tiny source arc into an
+almost complete turn. A valid major interval on the other side remains
+available through a fresh explicit choice.
 
 The editor validates a candidate with the normal solver before application
 and rejects it without changing history when it cannot solve. Application
@@ -66,8 +90,9 @@ were inspected in code; a final interactive regression was not performed.
 
 ## Corner and radius behavior
 
-Keep-corner mode retains original endpoints as virtual points on the source
-supports. Driving line-length dimensions become distances between their
+For a common original corner, keep-corner mode retains original endpoints as
+virtual points on the source supports. The existing straight-line virtual-corner
+behavior also remains. Driving line-length dimensions become distances between their
 original endpoints, preserving IDs, values and dimension metadata. Other
 existing constraints remain. A combination that cannot solve is rejected by
 the editor. Driven lengths remain on their entities and are measured afresh.
@@ -82,6 +107,15 @@ subsequent movement is governed by the normal solver and retained constraints.
 An old corner point that remains a source arc's center or a retained endpoint
 also keeps its anchoring relations, even when both entities belong to the
 selected pair.
+
+For a separated pair containing a circular arc, both modes remove replaced
+endpoints and their exclusive constraints instead of creating ghost anchors.
+Driving source-line lengths are removed; driven lengths remain fresh readings
+of the retained entity. This is an explicit editing policy for these separated
+pairs. It does not apply to a common original corner. Source centers, retained
+far endpoints, the origin and points still used by external geometry keep their
+identities and anchoring relations. The preview lists deleted/converted
+constraint counts before application.
 
 Each new fillet has a driving radius or an equality relation to a different
 existing circular entity. An equality request must use that entity's currently
@@ -105,10 +139,13 @@ solver and does not guarantee a path to every valid constrained configuration.
 The planner handles one pair at a time: line–line, line–arc or arc–arc. A point
 selection requires exactly two incident source entities. Complete circles are
 not trimmed into fillets; they can serve as equal-radius references. Parallel
-or collinear lines without a unique corner are rejected. Lines can extend
-towards a virtual intersection, while circular-arc contacts must lie on the
-existing finite sweep. Circular arcs are not prolonged to arbitrary support
-intersections. Ambiguous geometry requires explicit entity/candidate selection.
+or collinear lines without a unique corner are rejected. Lines and circular arcs
+can trim or prolong to tangent contacts. An arc retains its direction and the
+opposite endpoint; its new directed interval must remain strictly between zero
+and one turn, with distinct endpoints. Extension through a semicircle is allowed.
+Support-intersection witnesses constrain which side of the corner is retained;
+proximity to the old endpoint does not choose an arc interval. Ambiguous geometry
+requires explicit entity/candidate selection.
 A pair sharing two distinct corners requires a selected vertex or an explicit
 solution. An unavailable explicit branch is rejected rather than replaced by
 another branch silently.
@@ -121,9 +158,14 @@ entities are construction geometry. Structural/count limits are validated
 before a changed plan is returned; a rejected plan leaves its source intact.
 
 This is a repeatable single-corner tool, not an atomic batch of interacting
-corners. Full-circle source trimming, arc prolongation and broader robustness
+corners. Full-circle source trimming and broader robustness
 across curved configurations remain work for the open issue. One closed
 line–arc case does not establish complete curved-pair or platform coverage.
+
+The local solver can reject a large radius edit even when direct planning at
+the target radius is valid. An anchored line–arc R3→R10 edit is retained as a
+precision rejection regression; the unchanged input is returned. Successful
+R2→R3 edits do not establish convergence for every radius path.
 
 ## Independent example and analytical checks
 
@@ -169,6 +211,53 @@ example with a fixed R5 support. They use five-decimal-place comparisons for
 volume, surface area and bounds; analytical arc coordinates use six decimal
 places. Programmatic reconstruction does not establish browser or Electron
 interaction, delete-mode solids or general arc–arc robustness.
+
+## Separated-source analytical examples
+
+[`createFilletProlongationDocument`](../src/examples/sketch-fillet-prolongation.ts)
+generates the two open sketches above from Cartesian constants, without an
+external fixture. Coordinates and lengths below are in millimeters; angles
+are radians. Source and fillet contacts share point IDs after application.
+
+For the line–arc example, the line runs from (10,0) to (30,0); the R10 arc,
+centered at the origin, runs counterclockwise from 30° to 90°. At R2 the fillet
+center is (2√35,2), the line contact is (2√35,0) and the source-arc contact is
+(5√35/3,5/3). The source arc extends backwards to `asin(1/6)` while retaining
+its (0,10) endpoint. The contour closes through (30,20) and (0,20).
+
+For two arcs, centers are (-6,0) and (6,0), both R10. The left arc runs
+counterclockwise from 75° to 180°; the right runs clockwise from 105° to 0°.
+At R2 the fillet center is (0,6√3), with contacts (-1,5√3) and (1,5√3).
+The left-to-right fillet is a counterclockwise 60° arc. Each source retains
+a 120° sweep. The contour closes through (-16,-10) and (16,-10).
+
+For a fillet radius `r` on the illustrated external branch, while its retained
+contour remains valid, offset circles and similar triangles give the contacts.
+Independent Green integration gives planar area `S` and perimeter `P`:
+
+```text
+Line–arc: t = sqrt(100+20r), θ = asin(r/(10+r)), δ = π/2−θ
+S = 600 − (100−r²)δ/2 − rt/2
+P = 90 − t + (10+r)δ
+
+Two arcs: h = sqrt((10+r)²−36), β = acos(6/(10+r))
+S = 320 + 100(π−β) − r²(π−2β)/2 + 6h
+P = 52 + 20(π−β) + r(π−2β)
+
+Depth 4: V = 4S, A = 2S+4P
+```
+
+| R2 contour | S (mm²) | P (mm) | Extruded bounds (mm) |
+| --- | --- | --- | --- |
+| Line–arc | `600−24π+48asin(1/6)−2√35` | `90−2√35+6π−12asin(1/6)` | (0,0,0)–(30,20,4) |
+| Two arcs | `320+66π+36√3` | `52+14π` | (-16,-10,0)–(16,10,4) |
+
+R3 line–arc contacts are (4√10,0) and (40√10/13,30/13), with center
+(4√10,3). Two-arc R3 contacts are (±18/13,10√133/13), with center
+(0,√133). These formulas supply expected values independently of the planner
+and CAD kernel. Validation distinguishes exact analytical seeds from a radius
+edit solved numerically; their precision evidence belongs in
+[VALIDATION.md](VALIDATION.md).
 
 ## Observed browser interaction
 

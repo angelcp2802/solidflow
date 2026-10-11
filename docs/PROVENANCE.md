@@ -10,3 +10,12 @@ The files under `examples/` are synthetic editable demonstrations, not customer
 models. Do not add confidential designs, credentials, personal paths or vendor
 binaries. New fixtures must identify how they were made and how a reviewer can
 check them. Do not relabel third-party output as an original project output.
+
+The source factories under `src/examples/` generate synthetic documents from
+the parameters in their code; they are separate from saved UI captures.
+`sketch-fillet-prolongation.ts` defines an R10 line–arc gap and an R10/R10
+two-arc gap, with fixed support geometry and rectangular closing edges. The
+[fillet guide](SKETCH_FILLET.md) records the independent Cartesian contacts,
+Green-integral area and perimeter formulas used to validate their R2 fillets
+and 4 mm extrusions. Their tests generate documents in memory; no private model
+or binary fixture is required.
