@@ -724,6 +724,94 @@ describe("fillet constraints and transactions", () => {
     ).toBe(false);
   });
 
+  it.each([false, true])(
+    "keeps an old endpoint's anchor when its source partner retains it as an arc center (reversed selection %s)",
+    (reversed) => {
+      const input: EntityProfile = {
+        kind: "entities",
+        points: [
+          p("center", 50, -10),
+          p("far-a", 80, -10),
+          p("old-arc-start", 58, -10),
+          p("far-b", 50, -2),
+        ],
+        entities: [
+          line("a", "center", "far-a"),
+          arc("b", "center", "old-arc-start", "far-b"),
+        ],
+        constraints: [
+          {
+            id: "center-anchor",
+            type: "fix",
+            pointId: "center",
+            x: 50,
+            y: -10,
+          },
+          { id: "line-anchor", type: "fix", pointId: "far-a", x: 80, y: -10 },
+          { id: "arc-anchor", type: "fix", pointId: "far-b", x: 50, y: -2 },
+          { id: "line-horizontal", type: "horizontal", entityId: "a" },
+          {
+            id: "original-contact",
+            type: "pointOnLine",
+            pointId: "old-arc-start",
+            entityId: "a",
+          },
+        ],
+      };
+      expect(solve(input).degreesOfFreedom).toBe(0);
+      const snapshot = structuredClone(input);
+      const result = plan(
+        input,
+        { ...params, cornerPolicy: "delete" },
+        reversed ? [...pair].reverse() : pair,
+      );
+      expect(input).toEqual(snapshot);
+      expect(result.deletedConstraintIds).toEqual(["original-contact"]);
+      expect(result.profile.constraints).toContainEqual(input.constraints[0]);
+      expect(
+        result.profile.points.some((point) => point.id === "old-arc-start"),
+      ).toBe(false);
+      expect(entity(result.profile, "b")).toMatchObject({ center: "center" });
+      const committed = solve(result.profile);
+      expect(committed.degreesOfFreedom).toBe(0);
+      expectXY(
+        rounded(committed.profile, result.filletEntityId!).c,
+        50 + 4 * Math.sqrt(6),
+        -8,
+        6,
+      );
+      const document = createDocument("Retained circular support");
+      document.features.push({
+        id: "sketch",
+        name: "Sketch",
+        type: "sketch",
+        suppressed: false,
+        plane: "XY",
+        offset: 0,
+        profile: committed.profile,
+      });
+      const reopened = parseDocument(serializeDocument(document));
+      const sketch = reopened.features[0];
+      if (sketch.type !== "sketch" || sketch.profile.kind !== "entities")
+        throw new Error("Expected entity sketch");
+      expect(sketch.profile.constraints).toContainEqual(input.constraints[0]);
+      dimension(
+        sketch.profile,
+        radiusDimension(sketch.profile, result.filletEntityId!),
+        3,
+      );
+      const edited = solve(sketch.profile);
+      expect(edited.degreesOfFreedom).toBe(0);
+      expectXY(xy(edited.profile, "center"), 50, -10, 6);
+      expectXY(
+        rounded(edited.profile, result.filletEntityId!).c,
+        50 + 4 * Math.sqrt(7),
+        -7,
+        6,
+      );
+    },
+  );
+
   it("keeps origin constraints in delete mode without adding virtual-corner supports", () => {
     const input = corner();
     input.constraints.push({

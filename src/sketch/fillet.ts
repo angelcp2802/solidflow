@@ -647,8 +647,17 @@ export function planSketchFillet(
           .filter((e) => !sourceIds.has(e.id) && e.id !== fillet.id)
           .flatMap(pointRefs),
       );
+      // An old line endpoint can also be the retained center or far endpoint
+      // of its source partner. Its anchoring relations still define geometry.
+      const retainedCornerPoints = new Set(
+        profile.entities
+          .flatMap(pointRefs)
+          .filter((id) => oldCorners.includes(id)),
+      );
       const corners = new Set(
-        oldCorners.filter((id) => id !== "origin" && !externalPoints.has(id)),
+        oldCorners.filter(
+          (id) => id !== "origin" && !retainedCornerPoints.has(id),
+        ),
       );
       profile.constraints = profile.constraints.filter((c) => {
         const refs = constraintRefs(c),
@@ -660,6 +669,7 @@ export function planSketchFillet(
               sourceIds.has(id) ||
               (sourcePoints.has(id) &&
                 id !== "origin" &&
+                !retainedCornerPoints.has(id) &&
                 !externalPoints.has(id)),
           );
         const lengthTarget =

@@ -87,19 +87,30 @@ to that source revision; later changes need their own required checks.
 
 ## Sketch fillet increment — 2026-10-11
 
-On Windows x64 with Node 24, `npm test` passed all 883 unit/CAD/component tests
-in 43 files and all 8 IPC tests, with no skips. TypeScript/Vite build and the
-real Electron production-loader smoke passed. The initial sandboxed run passed
-the 883 portable tests but blocked two IPC filesystem operations; the complete
-suite passed when repeated outside that sandbox. The build retained its
-existing large-chunk and dependency externalization warnings.
+On Windows x64 with Node 24.11.1, the final local tree passed `npm test`: all
+903 unit/CAD/component tests in 44 files and all 8 IPC tests, with no skips.
+TypeScript/Vite build and the real Electron production-loader smoke passed.
+An earlier sandboxed revision passed its 883 portable tests but blocked two IPC
+filesystem operations; the final complete suite ran outside that sandbox.
+The build retained its existing large-chunk and dependency externalization
+warnings.
 
-The increment adds 49 core cases, 5 server-rendered component cases and 7 CAD
-cases. Core checks cover line–line, line–arc and arc–arc contacts, finite sweeps,
+The increment adds 51 core cases, 18 arc-step/solver cases, 5 server-rendered
+component cases and 7 CAD cases. Core checks cover line–line, line–arc and
+arc–arc contacts, finite sweeps,
 virtual line intersections, fixed branch selection, keep/delete corner policy,
 driving/driven dimensions, equal radii, later radius edits, structural limits
 and atomic rejection. The [tool contract](SKETCH_FILLET.md) records the scope;
 these cases do not establish general curved-geometry robustness.
+
+Delete mode retains corner anchors still used by a source arc's center or other
+surviving geometry. Solver trials reject a finite arc crossing its zero/full-turn
+boundary, including crossings hidden between the trial endpoints, while allowing
+valid minor/major transitions through a half-turn. Tests cover translated and
+scaled cases, serialization and unchanged geometry on rejection. This local
+continuity guard uses the saved initial coordinates; it does not repair already
+wound documents. Existing near-boundary precision failures at small scales are
+recorded as rejection cases without weakening solver tolerances.
 
 Six CAD cases use analytical volume, surface area and contact-coordinate
 oracles for a 10×6×4 mm plate, radius/extents edits, two linked fillets and a

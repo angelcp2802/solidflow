@@ -79,6 +79,9 @@ uses it. The immutable origin and shared/referenced points remain. Horizontal,
 vertical and circular-radius constraints are not removed merely because an
 entity is trimmed. The planner does not move unaffected neighboring points;
 subsequent movement is governed by the normal solver and retained constraints.
+An old corner point that remains a source arc's center or a retained endpoint
+also keeps its anchoring relations, even when both entities belong to the
+selected pair.
 
 Each new fillet has a driving radius or an equality relation to a different
 existing circular entity. An equality request must use that entity's currently
@@ -88,6 +91,14 @@ explicit tangency branches and arc direction persist in the document.
 Point-on-line and point-on-circle relations constrain complete supports; finite
 contact tests are a separate part of planning. Support-circle tangency alone
 does not establish endpoint connectivity.
+
+The generic sketch solver preserves each arc's continuous sweep during its
+Newton trials. A trial that passes through a zero/full-turn sweep or collapses
+a radial vector is rejected and damped; crossing a semicircle is allowed. This
+does not lock an arc to its initial minor/major classification. Saved point
+coordinates define the initial branch: the guard does not retroactively repair
+an arc whose branch was already changed before solving. It remains a local
+solver and does not guarantee a path to every valid constrained configuration.
 
 ## Limits
 

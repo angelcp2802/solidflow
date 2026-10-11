@@ -6,6 +6,7 @@ import type {
   SketchSolveResult,
 } from "./types";
 import { SKETCH_LIMITS, validateEntityProfile } from "./validation";
+import { arcStepPreservesWinding } from "./arc-step";
 
 /** Accepted equation residual, in mm (angular equations are scaled by line length). */
 export const SKETCH_SOLVER_TOLERANCE = 1e-7;
@@ -840,6 +841,34 @@ function fallbackProfile(input: EntityProfile): EntityProfile {
   }
 }
 
+function preservesArcSteps(
+  profile: EntityProfile,
+  layout: Layout,
+  before: Float64Array,
+  after: Float64Array,
+): boolean {
+  const point = (values: Float64Array, id: string): [number, number] => {
+    if (id === "origin")
+      return [-layout.offset[0] / layout.scale, -layout.offset[1] / layout.scale];
+    const index = layout.pointIndices.get(id)!;
+    return [values[index], values[index + 1]];
+  };
+  return profile.entities.every(entity => {
+    if (entity.type !== "arc") return true;
+    const radials = (values: Float64Array) => {
+      const center = point(values, entity.center);
+      const radial = (id: string): [number, number] => {
+        const endpoint = point(values, id);
+        return [endpoint[0] - center[0], endpoint[1] - center[1]];
+      };
+      return { start: radial(entity.start), end: radial(entity.end) };
+    };
+    return arcStepPreservesWinding(
+      radials(before), radials(after), MIN_GEOMETRY / layout.scale,
+    );
+  });
+}
+
 /**
  * Local 2D solver with analytic derivatives,
  * damped least squares and numerical rank; no new runtime dependencies.
@@ -926,7 +955,10 @@ export function solveSketch(
         continue;
       }
       const candidate = values.map((value, index) => value + step[index]);
-      if (geometryError(profile, layout, candidate)) {
+      if (
+        geometryError(profile, layout, candidate) ||
+        !preservesArcSteps(profile, layout, values, candidate)
+      ) {
         rejectedGeometry = true;
         lambda *= 10;
         continue;
