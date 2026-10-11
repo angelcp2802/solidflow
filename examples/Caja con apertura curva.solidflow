@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "id": "07ecd7bb-ec33-48af-89ef-ab7d34107051",
+  "name": "Caja con apertura curva",
+  "units": "mm",
+  "features": [
+    {
+      "id": "sketch",
+      "name": "Croquis · 40 × 30 mm",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 0,
+      "profile": {
+        "kind": "rectangle",
+        "center": [
+          0,
+          0
+        ],
+        "width": 40,
+        "height": 30
+      }
+    },
+    {
+      "id": "base",
+      "name": "Saliente · 20 mm",
+      "suppressed": false,
+      "type": "extrude",
+      "sketchId": "sketch",
+      "depth": 20,
+      "symmetric": false
+    },
+    {
+      "id": "round",
+      "name": "Cuatro esquinas · R3 mm",
+      "suppressed": false,
+      "type": "fillet",
+      "baseFeatureId": "base",
+      "size": 3,
+      "selection": {
+        "mode": "selected",
+        "edges": [
+          {
+            "sourceFeatureId": "base",
+            "key": "edge-v1|[\"536c69d9d5717e6e5a2b6a56e86ba72c4112c8e491cae10da736f4665220e41a\",[12,6,1,[[\"LINE\",12]],[[\"PLANE\",6]]],\"LINE\",false,[[0,0,0],[0,0,1]],[[0,0,0.5],[0,0,0],[0,0,1]],[\"[\\\"PLANE\\\",[[0,0,0],[0,1,1]],[-1,0,0]]\",\"[\\\"PLANE\\\",[[0,0,0],[1,0,1]],[0,-1,0]]\"]]"
+          },
+          {
+            "sourceFeatureId": "base",
+            "key": "edge-v1|[\"536c69d9d5717e6e5a2b6a56e86ba72c4112c8e491cae10da736f4665220e41a\",[12,6,1,[[\"LINE\",12]],[[\"PLANE\",6]]],\"LINE\",false,[[1,0,0],[1,0,1]],[[1,0,0.5],[1,0,0],[1,0,1]],[\"[\\\"PLANE\\\",[[0,0,0],[1,0,1]],[0,-1,0]]\",\"[\\\"PLANE\\\",[[1,0,0],[1,1,1]],[1,0,0]]\"]]"
+          },
+          {
+            "sourceFeatureId": "base",
+            "key": "edge-v1|[\"536c69d9d5717e6e5a2b6a56e86ba72c4112c8e491cae10da736f4665220e41a\",[12,6,1,[[\"LINE\",12]],[[\"PLANE\",6]]],\"LINE\",false,[[1,1,0],[1,1,1]],[[1,1,0.5],[1,1,0],[1,1,1]],[\"[\\\"PLANE\\\",[[0,1,0],[1,1,1]],[0,1,0]]\",\"[\\\"PLANE\\\",[[1,0,0],[1,1,1]],[1,0,0]]\"]]"
+          },
+          {
+            "sourceFeatureId": "base",
+            "key": "edge-v1|[\"536c69d9d5717e6e5a2b6a56e86ba72c4112c8e491cae10da736f4665220e41a\",[12,6,1,[[\"LINE\",12]],[[\"PLANE\",6]]],\"LINE\",false,[[0,1,0],[0,1,1]],[[0,1,0.5],[0,1,0],[0,1,1]],[\"[\\\"PLANE\\\",[[0,0,0],[0,1,1]],[-1,0,0]]\",\"[\\\"PLANE\\\",[[0,1,0],[1,1,1]],[0,1,0]]\"]]"
+          }
+        ]
+      }
+    },
+    {
+      "id": "shell",
+      "name": "Vaciado · 2 mm · apertura curva +X/+Y",
+      "suppressed": false,
+      "type": "shell",
+      "baseFeatureId": "round",
+      "thickness": 2,
+      "direction": "inward",
+      "removedFaces": [
+        {
+          "sourceFeatureId": "round",
+          "key": "face-v1|31b16ddef5723f5c172667375f471308fe68bc78c36d02cae2affd1c4fd3b03c"
+        }
+      ]
+    }
+  ],
+  "createdAt": "2026-10-10T20:47:55.340Z",
+  "updatedAt": "2026-10-10T20:47:55.340Z"
+}

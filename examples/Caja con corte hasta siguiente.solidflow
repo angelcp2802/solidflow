@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "id": "17c5fe00-85c6-4836-8c8a-cdbe43995ab5",
+  "name": "Caja con corte hasta siguiente",
+  "units": "mm",
+  "features": [
+    {
+      "id": "end-example-base-sketch",
+      "name": "Croquis de base · 80 × 60",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 0,
+      "profile": {
+        "kind": "rectangle",
+        "center": [
+          0,
+          0
+        ],
+        "width": 80,
+        "height": 60
+      }
+    },
+    {
+      "id": "end-example-base",
+      "name": "Saliente · 40 mm",
+      "suppressed": false,
+      "type": "extrude",
+      "sketchId": "end-example-base-sketch",
+      "depth": 40,
+      "symmetric": false
+    },
+    {
+      "id": "end-example-shell",
+      "name": "Vaciado cerrado · 4 mm",
+      "suppressed": false,
+      "type": "shell",
+      "baseFeatureId": "end-example-base",
+      "thickness": 4,
+      "direction": "inward",
+      "removedFaces": []
+    },
+    {
+      "id": "end-example-profile",
+      "name": "Croquis del taladro · R8",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 0,
+      "profile": {
+        "kind": "circle",
+        "center": [
+          0,
+          0
+        ],
+        "radius": 8
+      },
+      "support": {
+        "kind": "face",
+        "face": {
+          "sourceFeatureId": "end-example-shell",
+          "key": "face-v1|5a2cb3a3ec3e605e1b2d33f30e05937481613e4076b8292776f85e3e618d9236"
+        }
+      }
+    },
+    {
+      "id": "end-example-operation",
+      "name": "Corte hasta siguiente",
+      "suppressed": false,
+      "type": "cut",
+      "sketchId": "end-example-profile",
+      "depth": -20,
+      "symmetric": false,
+      "endCondition": {
+        "kind": "untilNext",
+        "baseFeatureId": "end-example-shell"
+      }
+    }
+  ],
+  "createdAt": "2026-10-10T21:10:27.501Z",
+  "updatedAt": "2026-10-10T21:10:27.501Z"
+}

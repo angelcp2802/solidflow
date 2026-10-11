@@ -1,0 +1,116 @@
+{
+  "version": 1,
+  "id": "a0698ed5-deed-4fa9-850e-71b081b330f5",
+  "name": "Caja con corte hasta siguiente",
+  "units": "mm",
+  "features": [
+    {
+      "id": "end-example-base-sketch",
+      "name": "Croquis de base · 80 × 60",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 0,
+      "profile": {
+        "kind": "rectangle",
+        "center": [
+          0,
+          0
+        ],
+        "width": 80,
+        "height": 60
+      }
+    },
+    {
+      "id": "end-example-base",
+      "name": "Saliente · 40 mm",
+      "suppressed": false,
+      "type": "extrude",
+      "sketchId": "end-example-base-sketch",
+      "depth": 40,
+      "symmetric": false
+    },
+    {
+      "id": "end-example-shell",
+      "name": "Vaciado cerrado · 4 mm",
+      "suppressed": false,
+      "type": "shell",
+      "baseFeatureId": "end-example-base",
+      "thickness": 4,
+      "direction": "inward",
+      "removedFaces": []
+    },
+    {
+      "id": "end-example-profile",
+      "name": "Croquis del taladro · R8",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 0,
+      "profile": {
+        "kind": "circle",
+        "center": [
+          0,
+          0
+        ],
+        "radius": 8
+      },
+      "support": {
+        "kind": "face",
+        "face": {
+          "sourceFeatureId": "end-example-shell",
+          "key": "face-v1|5a2cb3a3ec3e605e1b2d33f30e05937481613e4076b8292776f85e3e618d9236"
+        }
+      }
+    },
+    {
+      "id": "end-example-operation",
+      "name": "Corte hasta siguiente",
+      "suppressed": false,
+      "type": "cut",
+      "sketchId": "end-example-profile",
+      "depth": -20,
+      "symmetric": false,
+      "endCondition": {
+        "kind": "untilNext",
+        "baseFeatureId": "end-example-shell"
+      }
+    },
+    {
+      "id": "0ba1ecd9-7ae7-413d-9968-5749b6ea8395",
+      "name": "Dos taladros hasta siguiente",
+      "suppressed": false,
+      "type": "hole",
+      "baseFeatureId": "end-example-operation",
+      "support": {
+        "kind": "face",
+        "face": {
+          "sourceFeatureId": "end-example-operation",
+          "key": "face-v1|11dfc3267f9dbfdb3ae4e47c061d2770573c68fa2cb981af866c7955a07e9b8d"
+        }
+      },
+      "positions": [
+        {
+          "id": "48cdeb05-d391-418a-935e-38632591515b",
+          "x": -25,
+          "y": 15
+        },
+        {
+          "id": "e404a881-bb4b-4161-b230-7c71bae50929",
+          "x": 25,
+          "y": 15
+        }
+      ],
+      "reversed": false,
+      "diameter": 8,
+      "endCondition": {
+        "kind": "untilNext"
+      },
+      "head": {
+        "kind": "simple"
+      }
+    }
+  ],
+  "createdAt": "2026-10-10T21:35:02.824Z",
+  "updatedAt": "2026-10-10T21:35:21.755Z"
+}

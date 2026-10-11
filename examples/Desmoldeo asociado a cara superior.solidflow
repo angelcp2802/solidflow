@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "id": "0ce4c5b0-d329-44b5-a8e2-c98abaf6696d",
+  "name": "Bloque con desmoldeo",
+  "units": "mm",
+  "features": [
+    {
+      "id": "face-example-sketch",
+      "name": "Croquis de base",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 0,
+      "profile": {
+        "kind": "rectangle",
+        "center": [
+          0,
+          0
+        ],
+        "width": 80,
+        "height": 50
+      }
+    },
+    {
+      "id": "face-example-base",
+      "name": "Saliente · 40 mm",
+      "suppressed": false,
+      "type": "extrude",
+      "sketchId": "face-example-sketch",
+      "depth": 40,
+      "symmetric": false
+    },
+    {
+      "id": "3cace298-76ad-499f-8f97-2bbe02ba6ca0",
+      "name": "Desmoldeo sobre cara superior · 5°",
+      "suppressed": false,
+      "type": "draft",
+      "baseFeatureId": "face-example-base",
+      "support": {
+        "kind": "face",
+        "face": {
+          "sourceFeatureId": "face-example-base",
+          "key": "face-v1|a03c5b23db0c5872abff0e135e79462ea70a1b8247459160cddbeb62615d0d5c"
+        }
+      },
+      "angle": 5,
+      "reversed": false,
+      "propagation": "tangent",
+      "faces": [
+        {
+          "sourceFeatureId": "face-example-base",
+          "key": "face-v1|91993466e124a088aa4d0a7b17eb21a5077c53e33e409857134a4922a72ac067"
+        }
+      ]
+    }
+  ],
+  "createdAt": "2026-10-10T20:42:29.123Z",
+  "updatedAt": "2026-10-10T20:43:47.770Z"
+}

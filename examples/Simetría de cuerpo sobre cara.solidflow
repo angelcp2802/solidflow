@@ -1,0 +1,106 @@
+{
+  "version": 1,
+  "id": "00c06a20-aeee-4e21-b6b9-9b5ef59fca46",
+  "name": "Placa con salientes simétricos",
+  "units": "mm",
+  "features": [
+    {
+      "id": "base-sketch",
+      "name": "Croquis de placa",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 0,
+      "profile": {
+        "kind": "rectangle",
+        "center": [
+          0,
+          0
+        ],
+        "width": 100,
+        "height": 70
+      }
+    },
+    {
+      "id": "base",
+      "name": "Placa · 12 mm",
+      "suppressed": false,
+      "type": "extrude",
+      "sketchId": "base-sketch",
+      "depth": 12,
+      "symmetric": false
+    },
+    {
+      "id": "boss-sketch",
+      "name": "Croquis saliente · R6",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 12,
+      "profile": {
+        "kind": "entities",
+        "points": [
+          {
+            "id": "center",
+            "x": -25,
+            "y": 0
+          }
+        ],
+        "entities": [
+          {
+            "id": "circle",
+            "construction": false,
+            "type": "circle",
+            "center": "center",
+            "radius": 6
+          }
+        ],
+        "constraints": [
+          {
+            "id": "fixed-center",
+            "type": "fix",
+            "pointId": "center",
+            "x": -25,
+            "y": 0
+          },
+          {
+            "id": "radius",
+            "type": "radius",
+            "entityId": "circle",
+            "value": 6
+          }
+        ]
+      }
+    },
+    {
+      "id": "boss",
+      "name": "Saliente original · 15 mm",
+      "suppressed": false,
+      "type": "extrude",
+      "sketchId": "boss-sketch",
+      "depth": 15,
+      "symmetric": false
+    },
+    {
+      "id": "mirror",
+      "name": "Simetría sobre cara de placa",
+      "suppressed": false,
+      "type": "mirror",
+      "baseFeatureId": "boss",
+      "source": {
+        "mode": "body",
+        "sourceFeatureId": "boss"
+      },
+      "support": {
+        "kind": "face",
+        "face": {
+          "sourceFeatureId": "boss",
+          "key": "face-v1|cc31579ff999e49db545e1fffd6d3c3448029206d0ea7c9ba3fe8b67ad970deb"
+        }
+      },
+      "mergeBodies": true
+    }
+  ],
+  "createdAt": "2026-10-10T20:25:50.662Z",
+  "updatedAt": "2026-10-10T20:27:09.652Z"
+}

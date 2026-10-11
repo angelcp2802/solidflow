@@ -1,0 +1,34 @@
+name: Feature or improvement
+description: Propose a concrete CAD workflow or project improvement. English or Spanish is welcome.
+title: "[Feature]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Check the roadmap and existing issues first. Describe one useful workflow and a result we can validate. Break broad requests into smaller proposals with clear acceptance criteria.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: Describe the task, who needs it and the current limitation or workaround.
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Proposed behavior
+      description: Use a small example with steps, dimensions or inputs. Explain how a user would use it.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: How could we check the result?
+      description: Suggest a measurable result, sample model, UI outcome or platform check. It is fine to ask for help defining this.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives and relevant platforms
+      description: Optional alternatives, related issues, documentation and platforms. Share only material you have permission to publish.

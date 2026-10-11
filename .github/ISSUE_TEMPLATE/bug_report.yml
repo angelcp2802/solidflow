@@ -1,0 +1,64 @@
+name: Bug report
+description: Report a reproducible SolidFlow problem. English or Spanish is welcome.
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For security vulnerabilities, use the repository's Security → Report a vulnerability option and follow SECURITY.md. Do not disclose them in this public form.
+        A small synthetic model and exact steps help us reproduce a CAD bug. Remove private models, credentials and personal data from attachments.
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      placeholder: "App version, or commit and branch when running from source"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Operating system and architecture
+      placeholder: "For example: Windows 11 x64; include GPU/driver if the issue is graphical"
+    validations:
+      required: true
+  - type: dropdown
+    id: execution
+    attributes:
+      label: How are you running SolidFlow?
+      options:
+        - Packaged desktop application
+        - Electron from source
+        - Browser development view
+        - Other (explain below)
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Include the starting example or a minimal file, operations and parameter values.
+      placeholder: |
+        1. Open ...
+        2. Set ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: Expected and actual result
+      description: Include measurements, units, error text or data loss when relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Minimal file, screenshots or logs
+      description: Attach only files you can share publicly. Say whether the problem also occurs in a new document.
+  - type: checkboxes
+    id: conduct
+    attributes:
+      label: Participation
+      options:
+        - label: I agree to follow the repository's Code of Conduct.
+          required: true

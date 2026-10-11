@@ -1,0 +1,97 @@
+{
+  "name": "solidflow",
+  "version": "0.13.0",
+  "private": true,
+  "description": "Free, open-source parametric desktop CAD",
+  "type": "module",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "desktop": "node scripts/start-desktop.mjs",
+    "build": "tsc -b && vite build",
+    "start": "electron .",
+    "test": "npm run test:unit && npm run test:ipc",
+    "package": "npm run build && electron-builder --publish never",
+    "test:desktop": "node scripts/desktop-smoke.cjs",
+    "test:unit": "vitest run --config vitest.config.ts",
+    "test:ipc": "node --test scripts/desktop-security.node.cjs",
+    "package:win": "npm run build && electron-builder --win portable --publish never",
+    "package:mac": "npm run build && electron-builder --mac zip --publish never",
+    "package:linux": "npm run build && electron-builder --linux AppImage tar.gz --publish never"
+  },
+  "dependencies": {
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "three": "0.186.1",
+    "lucide-react": "1.55.0",
+    "replicad": "1.1.0",
+    "replicad-opencascadejs": "1.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/three": "0.186.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "electron": "44.7.0",
+    "electron-builder": "^26.0.12",
+    "typescript": "7.0.2",
+    "vite": "8.3.4",
+    "vitest": "5.0.3"
+  },
+  "build": {
+    "appId": "com.solidflow.desktop",
+    "productName": "SolidFlow",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json",
+      "build/icon.ico",
+      "LICENSE",
+      "THIRD_PARTY_NOTICES.md"
+    ],
+    "win": {
+      "target": [
+        "portable"
+      ],
+      "icon": "build/icon.ico"
+    },
+    "electronDist": "node_modules/electron/dist",
+    "extraResources": [
+      {
+        "from": "licenses",
+        "to": "licenses"
+      }
+    ],
+    "mac": {
+      "target": [
+        "zip"
+      ],
+      "category": "public.app-category.graphics"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "tar.gz"
+      ],
+      "category": "Graphics",
+      "maintainer": "SolidFlow contributors"
+    }
+  },
+  "license": "GPL-3.0-only",
+  "author": "SolidFlow contributors",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/angelcp2802/solidflow.git"
+  },
+  "homepage": "https://github.com/angelcp2802/solidflow#readme",
+  "bugs": {
+    "url": "https://github.com/angelcp2802/solidflow/issues"
+  },
+  "engines": {
+    "node": ">=24 <25"
+  }
+}

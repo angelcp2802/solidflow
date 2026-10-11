@@ -1,0 +1,135 @@
+{
+  "version": 1,
+  "id": "fcee52bc-44c8-4968-94b2-6c532aeb2c10",
+  "name": "Pieza1",
+  "units": "mm",
+  "features": [
+    {
+      "id": "60b45efb-40f4-45ae-b879-684cb5c2cf96",
+      "name": "Plano de destino · 45 mm",
+      "suppressed": false,
+      "type": "plane",
+      "support": {
+        "kind": "principal",
+        "plane": "XY"
+      },
+      "offset": 45,
+      "reversed": false
+    },
+    {
+      "id": "8db1d2e4-913c-44f0-afa6-4a1d6f53a8b4",
+      "name": "Croquis1",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 0,
+      "profile": {
+        "kind": "entities",
+        "points": [
+          {
+            "id": "04749596-f0db-4ea9-a423-193a9c64f8be",
+            "x": -20.000000000010044,
+            "y": 15.00000000047485
+          },
+          {
+            "id": "caf8d768-620e-4ecb-a90a-c62680bf29f9",
+            "x": 20.000000000010058,
+            "y": 15.000000000197879
+          },
+          {
+            "id": "2587eee0-6d65-48de-810d-f66967600915",
+            "x": 20.000000000020066,
+            "y": -15.0000000001978
+          },
+          {
+            "id": "014effe9-2d8b-4a41-88c9-070b68cf6292",
+            "x": -20.00000000002005,
+            "y": -15.00000000047477
+          }
+        ],
+        "entities": [
+          {
+            "id": "17964664-bb86-4c39-8404-ee5f4703a5a4",
+            "construction": false,
+            "type": "line",
+            "start": "04749596-f0db-4ea9-a423-193a9c64f8be",
+            "end": "caf8d768-620e-4ecb-a90a-c62680bf29f9"
+          },
+          {
+            "id": "832853bd-2cd6-4267-a29c-d9d6bea7d6bb",
+            "construction": false,
+            "type": "line",
+            "start": "caf8d768-620e-4ecb-a90a-c62680bf29f9",
+            "end": "2587eee0-6d65-48de-810d-f66967600915"
+          },
+          {
+            "id": "1ecdb334-7d19-46ea-b5f9-38012e06b1fb",
+            "construction": false,
+            "type": "line",
+            "start": "2587eee0-6d65-48de-810d-f66967600915",
+            "end": "014effe9-2d8b-4a41-88c9-070b68cf6292"
+          },
+          {
+            "id": "09e464ec-b535-4598-ba20-fb17af6fd2c2",
+            "construction": false,
+            "type": "line",
+            "start": "014effe9-2d8b-4a41-88c9-070b68cf6292",
+            "end": "04749596-f0db-4ea9-a423-193a9c64f8be"
+          }
+        ],
+        "constraints": [
+          {
+            "id": "d2ea8b41-205c-4e39-9e24-4e9c227d85ed",
+            "type": "horizontal",
+            "entityId": "17964664-bb86-4c39-8404-ee5f4703a5a4"
+          },
+          {
+            "id": "d3bf00b8-305b-4e83-9505-c627cb833dfa",
+            "type": "vertical",
+            "entityId": "832853bd-2cd6-4267-a29c-d9d6bea7d6bb"
+          },
+          {
+            "id": "21adc87c-3330-4416-8697-531c0ba5a58c",
+            "type": "horizontal",
+            "entityId": "1ecdb334-7d19-46ea-b5f9-38012e06b1fb"
+          },
+          {
+            "id": "aaa9426a-8f07-4b70-830b-46b017280a92",
+            "type": "vertical",
+            "entityId": "09e464ec-b535-4598-ba20-fb17af6fd2c2"
+          },
+          {
+            "id": "966719b6-bb23-4bb9-84bd-89c815720b77",
+            "type": "length",
+            "entityId": "17964664-bb86-4c39-8404-ee5f4703a5a4",
+            "value": 40
+          },
+          {
+            "id": "16ed1dcc-8600-4d1f-8612-31602a490d77",
+            "type": "length",
+            "entityId": "832853bd-2cd6-4267-a29c-d9d6bea7d6bb",
+            "value": 30
+          }
+        ]
+      }
+    },
+    {
+      "id": "f7808f4f-7734-41f0-adf4-1d78ae3166fb",
+      "name": "Saliente hasta plano",
+      "suppressed": false,
+      "type": "extrude",
+      "sketchId": "8db1d2e4-913c-44f0-afa6-4a1d6f53a8b4",
+      "depth": 20,
+      "symmetric": false,
+      "endCondition": {
+        "kind": "upToSurface",
+        "target": {
+          "kind": "plane",
+          "planeId": "60b45efb-40f4-45ae-b879-684cb5c2cf96"
+        }
+      }
+    }
+  ],
+  "createdAt": "2026-10-10T21:12:19.235Z",
+  "updatedAt": "2026-10-10T21:13:01.889Z"
+}

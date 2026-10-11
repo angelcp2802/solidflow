@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "id": "0ce4c5b0-d329-44b5-a8e2-c98abaf6696d",
+  "name": "Bloque con desmoldeo",
+  "units": "mm",
+  "features": [
+    {
+      "id": "face-example-sketch",
+      "name": "Croquis de base",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 0,
+      "profile": {
+        "kind": "rectangle",
+        "center": [
+          0,
+          0
+        ],
+        "width": 80,
+        "height": 50
+      }
+    },
+    {
+      "id": "face-example-base",
+      "name": "Saliente · 40 mm",
+      "suppressed": false,
+      "type": "extrude",
+      "sketchId": "face-example-sketch",
+      "depth": 40,
+      "symmetric": false
+    },
+    {
+      "id": "face-example-operation",
+      "name": "Desmoldeo inverso · 8°",
+      "suppressed": false,
+      "type": "draft",
+      "baseFeatureId": "face-example-base",
+      "support": {
+        "kind": "principal",
+        "plane": "XY"
+      },
+      "angle": 8,
+      "reversed": true,
+      "propagation": "tangent",
+      "faces": [
+        {
+          "sourceFeatureId": "face-example-base",
+          "key": "face-v1|3f4054f7a98f64e7ab2514a076d265d67aec53f3d43d0ba416cf9397e7ba9aaf"
+        },
+        {
+          "sourceFeatureId": "face-example-base",
+          "key": "face-v1|91993466e124a088aa4d0a7b17eb21a5077c53e33e409857134a4922a72ac067"
+        },
+        {
+          "sourceFeatureId": "face-example-base",
+          "key": "face-v1|6be370db5b2245a0f7f4ab2fcb3cd570654e3e3b84147ea3525a5b4186f983bc"
+        },
+        {
+          "sourceFeatureId": "face-example-base",
+          "key": "face-v1|ff9e92f0bcaec06d3bfc753714624e16e76a3fa4ffbfbc654d75cb3888ad13ed"
+        }
+      ]
+    }
+  ],
+  "createdAt": "2026-10-10T20:42:29.123Z",
+  "updatedAt": "2026-10-10T20:43:04.729Z"
+}

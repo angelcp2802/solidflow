@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "id": "49a147fd-6f42-4b51-b8ec-b3a409381b6c",
+  "name": "Placa con corte por todo",
+  "units": "mm",
+  "features": [
+    {
+      "id": "end-example-base-sketch",
+      "name": "Croquis de base · 80 × 60",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 0,
+      "profile": {
+        "kind": "rectangle",
+        "center": [
+          0,
+          0
+        ],
+        "width": 80,
+        "height": 60
+      }
+    },
+    {
+      "id": "end-example-base",
+      "name": "Saliente · 35 mm",
+      "suppressed": false,
+      "type": "extrude",
+      "sketchId": "end-example-base-sketch",
+      "depth": 35,
+      "symmetric": false
+    },
+    {
+      "id": "end-example-profile",
+      "name": "Croquis del taladro · R8",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 0,
+      "profile": {
+        "kind": "circle",
+        "center": [
+          0,
+          0
+        ],
+        "radius": 8
+      },
+      "support": {
+        "kind": "face",
+        "face": {
+          "sourceFeatureId": "end-example-base",
+          "key": "face-v1|6e1153f9d0c6d6a18614cb7899d08b7232efbdf0f8d21704ed3e9082a3782374"
+        }
+      }
+    },
+    {
+      "id": "end-example-operation",
+      "name": "Corte por todo",
+      "suppressed": false,
+      "type": "cut",
+      "sketchId": "end-example-profile",
+      "depth": -20,
+      "symmetric": false,
+      "endCondition": {
+        "kind": "throughAll",
+        "baseFeatureId": "end-example-base",
+        "bothDirections": false
+      }
+    }
+  ],
+  "createdAt": "2026-10-10T21:09:41.572Z",
+  "updatedAt": "2026-10-10T21:09:57.048Z"
+}

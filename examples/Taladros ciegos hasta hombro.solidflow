@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "id": "9b020958-4b21-48a2-8b53-7b5911284f74",
+  "name": "Placa con taladros ciegos",
+  "units": "mm",
+  "features": [
+    {
+      "id": "hole-example-base-sketch",
+      "name": "Croquis de placa · 100 × 70",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 0,
+      "profile": {
+        "kind": "rectangle",
+        "center": [
+          0,
+          0
+        ],
+        "width": 100,
+        "height": 70
+      }
+    },
+    {
+      "id": "hole-example-base",
+      "name": "Placa · 24 mm",
+      "suppressed": false,
+      "type": "extrude",
+      "sketchId": "hole-example-base-sketch",
+      "depth": 24,
+      "symmetric": false
+    },
+    {
+      "id": "hole-example-holes",
+      "name": "Cuatro taladros ciegos · Ø8",
+      "suppressed": false,
+      "type": "hole",
+      "baseFeatureId": "hole-example-base",
+      "support": {
+        "kind": "face",
+        "face": {
+          "sourceFeatureId": "hole-example-base",
+          "key": "face-v1|7db66c62d8f37c3acb1b7c2ee7ecec51d0467dd6f7820d156eb92fe6142eed10"
+        }
+      },
+      "positions": [
+        {
+          "id": "hole-center-1",
+          "x": -30,
+          "y": -20
+        },
+        {
+          "id": "hole-center-2",
+          "x": 30,
+          "y": -20
+        },
+        {
+          "id": "hole-center-3",
+          "x": 30,
+          "y": 20
+        },
+        {
+          "id": "hole-center-4",
+          "x": -30,
+          "y": 20
+        }
+      ],
+      "reversed": false,
+      "diameter": 8,
+      "endCondition": {
+        "kind": "blind",
+        "depth": 10,
+        "depthReference": "shoulder",
+        "tip": {
+          "kind": "conical",
+          "angle": 118
+        }
+      },
+      "head": {
+        "kind": "simple"
+      }
+    }
+  ],
+  "createdAt": "2026-10-10T21:26:38.708Z",
+  "updatedAt": "2026-10-10T21:26:45.218Z"
+}

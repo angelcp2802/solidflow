@@ -1,0 +1,133 @@
+{
+  "notice": "Original upstream license texts, preserved without changes.",
+  "packages": [
+    {
+      "name": "@types/opentype.js",
+      "version": "1.3.10",
+      "license": "MIT",
+      "files": [
+        "@types-opentype.js-LICENSE"
+      ]
+    },
+    {
+      "name": "@types/react",
+      "version": "19.3.0",
+      "license": "MIT",
+      "files": [
+        "@types-react-LICENSE"
+      ]
+    },
+    {
+      "name": "csstype",
+      "version": "3.2.3",
+      "license": "MIT",
+      "files": [
+        "csstype-LICENSE"
+      ]
+    },
+    {
+      "name": "flatbush",
+      "version": "4.6.2",
+      "license": "ISC",
+      "files": [
+        "flatbush-LICENSE"
+      ]
+    },
+    {
+      "name": "flatqueue",
+      "version": "3.1.0",
+      "license": "ISC",
+      "files": [
+        "flatqueue-LICENSE"
+      ]
+    },
+    {
+      "name": "lucide-react",
+      "version": "1.55.0",
+      "license": "ISC",
+      "files": [
+        "lucide-react-LICENSE"
+      ]
+    },
+    {
+      "name": "opentype.js",
+      "version": "1.3.4",
+      "license": "MIT",
+      "files": [
+        "opentype.js-LICENSE"
+      ]
+    },
+    {
+      "name": "react",
+      "version": "19.3.0",
+      "license": "MIT",
+      "files": [
+        "react-LICENSE"
+      ]
+    },
+    {
+      "name": "react-dom",
+      "version": "19.3.0",
+      "license": "MIT",
+      "files": [
+        "react-dom-LICENSE"
+      ]
+    },
+    {
+      "name": "replicad",
+      "version": "1.1.0",
+      "license": "MIT",
+      "files": [
+        "replicad-LICENSE"
+      ]
+    },
+    {
+      "name": "replicad-opencascadejs",
+      "version": "1.1.0",
+      "license": "LGPL-2.1-only",
+      "files": [
+        "replicad-opencascadejs-LICENSE"
+      ]
+    },
+    {
+      "name": "scheduler",
+      "version": "0.28.0",
+      "license": "MIT",
+      "files": [
+        "scheduler-LICENSE"
+      ]
+    },
+    {
+      "name": "string.prototype.codepointat",
+      "version": "0.2.1",
+      "license": "MIT",
+      "files": [
+        "string.prototype.codepointat-LICENSE-MIT.txt"
+      ]
+    },
+    {
+      "name": "three",
+      "version": "0.186.1",
+      "license": "MIT",
+      "files": [
+        "three-LICENSE"
+      ]
+    },
+    {
+      "name": "tiny-inflate",
+      "version": "1.0.3",
+      "license": "MIT",
+      "files": [
+        "tiny-inflate-LICENSE"
+      ]
+    }
+  ],
+  "electron": {
+    "version": "44.7.0",
+    "license": "MIT",
+    "files": [
+      "electron-LICENSE"
+    ],
+    "chromiumNotices": "Electron distributions include LICENSES.chromium.html; preserve that file."
+  }
+}

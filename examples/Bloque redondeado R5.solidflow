@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "id": "7c2f5eaf-dcfb-4df3-a04f-1c4511ef1fb7",
+  "name": "Pieza1",
+  "units": "mm",
+  "features": [
+    {
+      "id": "6d2a5ca0-39b2-4b42-a472-8fe2d5975d0d",
+      "name": "Croquis1",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 0,
+      "profile": {
+        "kind": "rectangle",
+        "center": [
+          0,
+          0
+        ],
+        "width": 80,
+        "height": 50
+      }
+    },
+    {
+      "id": "9b0d1062-2123-4e2d-a191-deeb616481be",
+      "name": "Saliente-Extruir1",
+      "suppressed": false,
+      "type": "extrude",
+      "sketchId": "6d2a5ca0-39b2-4b42-a472-8fe2d5975d0d",
+      "depth": 20,
+      "symmetric": false
+    },
+    {
+      "id": "cbc1ffdc-110c-4096-87f6-9749a7689049",
+      "name": "Redondeo1",
+      "suppressed": false,
+      "type": "fillet",
+      "baseFeatureId": "9b0d1062-2123-4e2d-a191-deeb616481be",
+      "size": 5,
+      "selection": {
+        "mode": "selected",
+        "edges": [
+          {
+            "sourceFeatureId": "9b0d1062-2123-4e2d-a191-deeb616481be",
+            "key": "edge-v1|[\"f723fdcb4c5fe11438ff3f1c5cce4618644b710288a1f53d5e8da101a7a56fc4\",[12,6,1,[[\"LINE\",12]],[[\"PLANE\",6]]],\"LINE\",false,[[1,0,1],[1,1,1]],[[1,0,1],[1,0.5,1],[1,1,1]],[\"[\\\"PLANE\\\",[[0,0,1],[1,1,1]],[0,0,1]]\",\"[\\\"PLANE\\\",[[1,0,0],[1,1,1]],[1,0,0]]\"]]"
+          }
+        ]
+      }
+    }
+  ],
+  "createdAt": "2026-10-10T18:43:53.702Z",
+  "updatedAt": "2026-10-10T19:02:12.131Z"
+}

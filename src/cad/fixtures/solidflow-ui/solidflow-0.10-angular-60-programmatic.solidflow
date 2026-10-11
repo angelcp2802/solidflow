@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "id": "234d8f2c-e4d0-46a8-8ed4-f97f97f3ae68",
+  "name": "Placa angular 60° · exportación programática",
+  "units": "mm",
+  "features": [
+    {
+      "id": "relations-sketch",
+      "name": "Croquis angular · 60°",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 0,
+      "profile": {
+        "kind": "entities",
+        "points": [
+          {
+            "id": "base-end",
+            "x": 60,
+            "y": 0
+          },
+          {
+            "id": "side-end",
+            "x": 20,
+            "y": 34.64101615137754
+          }
+        ],
+        "entities": [
+          {
+            "id": "base",
+            "construction": false,
+            "type": "line",
+            "start": "origin",
+            "end": "base-end"
+          },
+          {
+            "id": "side",
+            "construction": false,
+            "type": "line",
+            "start": "origin",
+            "end": "side-end"
+          },
+          {
+            "id": "closing",
+            "construction": false,
+            "type": "line",
+            "start": "base-end",
+            "end": "side-end"
+          }
+        ],
+        "constraints": [
+          {
+            "id": "base-horizontal",
+            "type": "horizontal",
+            "entityId": "base"
+          },
+          {
+            "id": "base-length",
+            "type": "length",
+            "entityId": "base",
+            "value": 60
+          },
+          {
+            "id": "side-length",
+            "type": "length",
+            "entityId": "side",
+            "value": 40
+          },
+          {
+            "id": "included-angle",
+            "type": "angle",
+            "a": "base",
+            "b": "side",
+            "value": 60,
+            "reversedA": false,
+            "reversedB": false,
+            "clockwise": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "relations-extrude",
+      "name": "Saliente · 8 mm",
+      "suppressed": false,
+      "type": "extrude",
+      "sketchId": "relations-sketch",
+      "depth": 8,
+      "symmetric": false
+    }
+  ],
+  "createdAt": "2026-10-11T11:33:46.194Z",
+  "updatedAt": "2026-10-11T11:33:46.194Z"
+}

@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "id": "33c628cb-58a4-4279-b6e1-3bcc7de960ce",
+  "name": "Caja con vaciado",
+  "units": "mm",
+  "features": [
+    {
+      "id": "face-example-sketch",
+      "name": "Croquis de base",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 0,
+      "profile": {
+        "kind": "rectangle",
+        "center": [
+          0,
+          0
+        ],
+        "width": 100,
+        "height": 70
+      }
+    },
+    {
+      "id": "face-example-base",
+      "name": "Saliente · 40 mm",
+      "suppressed": false,
+      "type": "extrude",
+      "sketchId": "face-example-sketch",
+      "depth": 40,
+      "symmetric": false
+    },
+    {
+      "id": "face-example-operation",
+      "name": "Vaciado · 3 mm",
+      "suppressed": false,
+      "type": "shell",
+      "baseFeatureId": "face-example-base",
+      "thickness": 4,
+      "direction": "inward",
+      "removedFaces": [
+        {
+          "sourceFeatureId": "face-example-base",
+          "key": "face-v1|a03c5b23db0c5872abff0e135e79462ea70a1b8247459160cddbeb62615d0d5c"
+        }
+      ]
+    }
+  ],
+  "createdAt": "2026-10-10T20:40:32.100Z",
+  "updatedAt": "2026-10-10T20:41:02.271Z"
+}

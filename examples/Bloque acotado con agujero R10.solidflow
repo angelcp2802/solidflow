@@ -1,0 +1,129 @@
+{
+  "version": 1,
+  "id": "7eb4f5a7-838d-44ea-b83a-2d828b9d5d95",
+  "name": "Pieza1",
+  "units": "mm",
+  "features": [
+    {
+      "id": "609bfaa2-3d37-4903-9ebf-78c732f683f1",
+      "name": "Croquis1",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 0,
+      "profile": {
+        "kind": "entities",
+        "points": [
+          {
+            "id": "11d1abeb-74dc-4756-a1b1-fdbdb31b6ed2",
+            "x": -43.27100000000102,
+            "y": 23.909500000000456
+          },
+          {
+            "id": "b352198e-96d6-45f5-a1f1-c16ded2e3447",
+            "x": 36.72899999999898,
+            "y": 23.909500000000456
+          },
+          {
+            "id": "dce0fd51-6775-456b-a17b-aed995548301",
+            "x": 36.72899999999898,
+            "y": -26.09049999999954
+          },
+          {
+            "id": "7180509d-0a50-4c30-ab6b-c97da5f79924",
+            "x": -43.27100000000102,
+            "y": -26.09049999999954
+          }
+        ],
+        "entities": [
+          {
+            "id": "68afd6a1-80ca-4ede-963b-2b1c7239aaf1",
+            "construction": false,
+            "type": "line",
+            "start": "11d1abeb-74dc-4756-a1b1-fdbdb31b6ed2",
+            "end": "b352198e-96d6-45f5-a1f1-c16ded2e3447"
+          },
+          {
+            "id": "7246a722-2d91-43cb-983c-44c7376b2899",
+            "construction": false,
+            "type": "line",
+            "start": "b352198e-96d6-45f5-a1f1-c16ded2e3447",
+            "end": "dce0fd51-6775-456b-a17b-aed995548301"
+          },
+          {
+            "id": "791a20af-8b10-4e77-b796-a48a19bcb229",
+            "construction": false,
+            "type": "line",
+            "start": "dce0fd51-6775-456b-a17b-aed995548301",
+            "end": "7180509d-0a50-4c30-ab6b-c97da5f79924"
+          },
+          {
+            "id": "602c564e-1169-42c7-aacb-9639e2a3ecc5",
+            "construction": false,
+            "type": "line",
+            "start": "7180509d-0a50-4c30-ab6b-c97da5f79924",
+            "end": "11d1abeb-74dc-4756-a1b1-fdbdb31b6ed2"
+          },
+          {
+            "id": "86a58320-b36f-4372-b09f-8ff689491506",
+            "construction": false,
+            "type": "circle",
+            "center": "origin",
+            "radius": 10.000000000017526
+          }
+        ],
+        "constraints": [
+          {
+            "id": "8d1eb67b-2153-4498-a518-1cd69646df7a",
+            "type": "horizontal",
+            "entityId": "68afd6a1-80ca-4ede-963b-2b1c7239aaf1"
+          },
+          {
+            "id": "0f84a3c2-3def-4b1f-ac18-bf87ad54ca97",
+            "type": "vertical",
+            "entityId": "7246a722-2d91-43cb-983c-44c7376b2899"
+          },
+          {
+            "id": "412b0258-3180-47aa-865a-18f111d20382",
+            "type": "horizontal",
+            "entityId": "791a20af-8b10-4e77-b796-a48a19bcb229"
+          },
+          {
+            "id": "b5e5aa24-4e24-496e-9ad6-da704d2cfc3f",
+            "type": "vertical",
+            "entityId": "602c564e-1169-42c7-aacb-9639e2a3ecc5"
+          },
+          {
+            "id": "72b23032-19c3-4bec-84fc-e032404f9c35",
+            "type": "length",
+            "entityId": "68afd6a1-80ca-4ede-963b-2b1c7239aaf1",
+            "value": 80
+          },
+          {
+            "id": "42317e30-94b0-4a28-b37f-e59736a02658",
+            "type": "length",
+            "entityId": "7246a722-2d91-43cb-983c-44c7376b2899",
+            "value": 50
+          },
+          {
+            "id": "e1851006-e42f-4c6d-a34c-9c32e712b588",
+            "type": "radius",
+            "entityId": "86a58320-b36f-4372-b09f-8ff689491506",
+            "value": 10
+          }
+        ]
+      }
+    },
+    {
+      "id": "7b616b69-974d-4f72-9e3c-47d32d6c418c",
+      "name": "Saliente-Extruir1",
+      "suppressed": false,
+      "type": "extrude",
+      "sketchId": "609bfaa2-3d37-4903-9ebf-78c732f683f1",
+      "depth": 20,
+      "symmetric": false
+    }
+  ],
+  "createdAt": "2026-10-10T19:26:37.047Z",
+  "updatedAt": "2026-10-10T19:27:47.058Z"
+}

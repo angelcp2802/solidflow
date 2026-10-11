@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "id": "70c76346-3165-443a-8219-7d339c9c5192",
+  "name": "Saliente hasta techo cilíndrico",
+  "units": "mm",
+  "features": [
+    {
+      "id": "end-example-base-sketch",
+      "name": "Croquis del techo · R20",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": "XZ",
+      "offset": -50,
+      "profile": {
+        "kind": "circle",
+        "center": [
+          0,
+          30
+        ],
+        "radius": 20
+      }
+    },
+    {
+      "id": "end-example-base",
+      "name": "Techo cilíndrico · 100 mm",
+      "suppressed": false,
+      "type": "extrude",
+      "sketchId": "end-example-base-sketch",
+      "depth": 100,
+      "symmetric": false
+    },
+    {
+      "id": "end-example-profile",
+      "name": "Perfil del saliente · R7",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 0,
+      "profile": {
+        "kind": "circle",
+        "center": [
+          0,
+          0
+        ],
+        "radius": 7
+      }
+    },
+    {
+      "id": "end-example-operation",
+      "name": "Saliente hasta superficie curva",
+      "suppressed": false,
+      "type": "extrude",
+      "sketchId": "end-example-profile",
+      "depth": 20,
+      "symmetric": false,
+      "endCondition": {
+        "kind": "upToSurface",
+        "target": {
+          "kind": "face",
+          "face": {
+            "sourceFeatureId": "end-example-base",
+            "key": "face-v1|01c3019f1e62a2050509dc8d7fe2e41055614386d291be8e072818c78d248dca"
+          }
+        }
+      }
+    }
+  ],
+  "createdAt": "2026-10-10T21:11:02.745Z",
+  "updatedAt": "2026-10-10T21:11:37.700Z"
+}

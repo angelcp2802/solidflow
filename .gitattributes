@@ -1,0 +1,10 @@
+* text=auto eol=lf
+*.ico binary
+*.png binary
+*.jpg binary
+*.wasm binary
+# Keep reference STEP bytes stable: tests verify captured hashes.
+*.step -text
+*.step -whitespace
+LICENSE -whitespace
+licenses/* -whitespace

@@ -1,0 +1,143 @@
+{
+  "version": 1,
+  "id": "c067fc04-f22b-40db-9f04-a435cb3338f5",
+  "name": "Brida con matriz circular",
+  "units": "mm",
+  "features": [
+    {
+      "id": "base-sketch",
+      "name": "Croquis de brida · R40",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 0,
+      "profile": {
+        "kind": "entities",
+        "points": [
+          {
+            "id": "center",
+            "x": 0,
+            "y": 0
+          }
+        ],
+        "entities": [
+          {
+            "id": "circle",
+            "construction": false,
+            "type": "circle",
+            "center": "center",
+            "radius": 40
+          }
+        ],
+        "constraints": [
+          {
+            "id": "fixed-center",
+            "type": "fix",
+            "pointId": "center",
+            "x": 0,
+            "y": 0
+          },
+          {
+            "id": "radius",
+            "type": "radius",
+            "entityId": "circle",
+            "value": 40
+          }
+        ]
+      }
+    },
+    {
+      "id": "base",
+      "name": "Brida · 8 mm",
+      "suppressed": false,
+      "type": "extrude",
+      "sketchId": "base-sketch",
+      "depth": 8,
+      "symmetric": false
+    },
+    {
+      "id": "hole-sketch",
+      "name": "Croquis taladro · R4",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 0,
+      "profile": {
+        "kind": "entities",
+        "points": [
+          {
+            "id": "center",
+            "x": 20,
+            "y": 0
+          }
+        ],
+        "entities": [
+          {
+            "id": "circle",
+            "construction": false,
+            "type": "circle",
+            "center": "center",
+            "radius": 4
+          }
+        ],
+        "constraints": [
+          {
+            "id": "fixed-center",
+            "type": "fix",
+            "pointId": "center",
+            "x": 20,
+            "y": 0
+          },
+          {
+            "id": "radius",
+            "type": "radius",
+            "entityId": "circle",
+            "value": 4
+          }
+        ]
+      }
+    },
+    {
+      "id": "hole",
+      "name": "Taladro original",
+      "suppressed": false,
+      "type": "cut",
+      "sketchId": "hole-sketch",
+      "depth": 8,
+      "symmetric": false
+    },
+    {
+      "id": "pattern",
+      "name": "Matriz circular · 3 / 180° inversa",
+      "suppressed": false,
+      "type": "circularPattern",
+      "baseFeatureId": "hole",
+      "source": {
+        "mode": "features",
+        "geometryPattern": true,
+        "featureIds": [
+          "hole"
+        ]
+      },
+      "axis": {
+        "origin": [
+          0,
+          0,
+          0
+        ],
+        "direction": [
+          0,
+          0,
+          1
+        ]
+      },
+      "count": 3,
+      "angle": 180,
+      "equalSpacing": true,
+      "reversed": true,
+      "skipped": []
+    }
+  ],
+  "createdAt": "2026-10-10T20:24:57.273Z",
+  "updatedAt": "2026-10-10T20:25:14.198Z"
+}

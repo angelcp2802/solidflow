@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <title>SolidFlow</title>
+  <defs>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#258fd0"/>
+      <stop offset="1" stop-color="#07558f"/>
+    </linearGradient>
+  </defs>
+  <g transform="matrix(1 -.14 0 1 0 18)">
+    <rect x="24" y="42" width="208" height="182" rx="18" fill="url(#blue)"/>
+    <path fill="#fff" d="M119 85C104 73 80 74 65 86C45 103 57 124 79 131L94 136C111 142 104 162 88 162C77 162 67 156 59 149L47 167C58 178 74 183 91 182C117 181 132 165 130 145C128 125 113 120 94 114L82 110C71 106 73 98 81 96C91 92 101 96 108 103Z"/>
+    <path fill="#fff" d="M145 80H209V101H168V121H202V142H168V181H145Z"/>
+  </g>
+</svg>

@@ -1,0 +1,136 @@
+{
+  "version": 1,
+  "id": "a08554e9-20d7-48ee-ac15-38ba6ebbfe08",
+  "name": "Placa de montaje",
+  "units": "mm",
+  "features": [
+    {
+      "id": "45d032d2-bda5-4aa8-ad20-8902c55709d7",
+      "name": "Croquis base · 100 × 70",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 0,
+      "profile": {
+        "kind": "rectangle",
+        "center": [
+          0,
+          0
+        ],
+        "width": 100,
+        "height": 70
+      }
+    },
+    {
+      "id": "77f28176-b498-44a5-a378-8c2989438062",
+      "name": "Saliente extruido · 12 mm",
+      "suppressed": false,
+      "type": "extrude",
+      "sketchId": "45d032d2-bda5-4aa8-ad20-8902c55709d7",
+      "depth": 12,
+      "symmetric": false
+    },
+    {
+      "id": "ebcaed36-ea5f-41f2-a8d2-e473ecda4a70",
+      "name": "Croquis taladro 1",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 0,
+      "profile": {
+        "kind": "circle",
+        "center": [
+          -35,
+          -20
+        ],
+        "radius": 5
+      }
+    },
+    {
+      "id": "612d537d-2e1a-44de-9f86-275943809081",
+      "name": "Corte extruido 1 · Ø10",
+      "suppressed": false,
+      "type": "cut",
+      "sketchId": "ebcaed36-ea5f-41f2-a8d2-e473ecda4a70",
+      "depth": 12,
+      "symmetric": false
+    },
+    {
+      "id": "97a57a82-c400-4445-9d66-176100952b32",
+      "name": "Croquis taladro 2",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 0,
+      "profile": {
+        "kind": "circle",
+        "center": [
+          35,
+          -20
+        ],
+        "radius": 5
+      }
+    },
+    {
+      "id": "16583e88-3686-49d6-9af6-81dbdd4cc292",
+      "name": "Corte extruido 2 · Ø10",
+      "suppressed": false,
+      "type": "cut",
+      "sketchId": "97a57a82-c400-4445-9d66-176100952b32",
+      "depth": 12,
+      "symmetric": false
+    },
+    {
+      "id": "7e843d2c-899e-4576-a8ca-30a0d7a1c4dd",
+      "name": "Croquis taladro 3",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 0,
+      "profile": {
+        "kind": "circle",
+        "center": [
+          35,
+          20
+        ],
+        "radius": 5
+      }
+    },
+    {
+      "id": "7ac3a07f-2047-4369-9fea-d619042d5a71",
+      "name": "Corte extruido 3 · Ø10",
+      "suppressed": false,
+      "type": "cut",
+      "sketchId": "7e843d2c-899e-4576-a8ca-30a0d7a1c4dd",
+      "depth": 12,
+      "symmetric": false
+    },
+    {
+      "id": "905d0648-3ac3-4d16-8110-e999ee7c254f",
+      "name": "Croquis taladro 4",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 0,
+      "profile": {
+        "kind": "circle",
+        "center": [
+          -35,
+          20
+        ],
+        "radius": 5
+      }
+    },
+    {
+      "id": "a2fb669e-1565-49ed-918b-a182ea00d657",
+      "name": "Corte extruido 4 · Ø10",
+      "suppressed": false,
+      "type": "cut",
+      "sketchId": "905d0648-3ac3-4d16-8110-e999ee7c254f",
+      "depth": 12,
+      "symmetric": false
+    }
+  ],
+  "createdAt": "2026-10-10T18:45:06.973Z",
+  "updatedAt": "2026-10-10T18:45:06.973Z"
+}

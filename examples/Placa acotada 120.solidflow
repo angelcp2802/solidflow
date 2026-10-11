@@ -1,0 +1,251 @@
+{
+  "version": 1,
+  "id": "b9b59fe0-578a-425d-935c-47a928418454",
+  "name": "Placa con croquis acotado",
+  "units": "mm",
+  "features": [
+    {
+      "id": "9d97e151-4f57-4014-97a1-3becfc53c599",
+      "name": "Croquis acotado · placa y taladros",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 0,
+      "profile": {
+        "kind": "entities",
+        "points": [
+          {
+            "id": "p0",
+            "x": -50.00000000003921,
+            "y": -34.999999999999154
+          },
+          {
+            "id": "p1",
+            "x": 69.99999999993628,
+            "y": -34.99999999999839
+          },
+          {
+            "id": "p2",
+            "x": 69.99999999992284,
+            "y": 35.000000000002196
+          },
+          {
+            "id": "p3",
+            "x": -50.000000000047194,
+            "y": 35.00000000000251
+          },
+          {
+            "id": "h0",
+            "x": -35.00000000004271,
+            "y": -19.99999999999911
+          },
+          {
+            "id": "h1",
+            "x": 54.999999999930516,
+            "y": -19.999999999998305
+          },
+          {
+            "id": "h2",
+            "x": 54.999999999915815,
+            "y": 20.000000000002338
+          },
+          {
+            "id": "h3",
+            "x": -35.000000000051344,
+            "y": 20.00000000000267
+          }
+        ],
+        "entities": [
+          {
+            "id": "line0",
+            "construction": false,
+            "type": "line",
+            "start": "p0",
+            "end": "p1"
+          },
+          {
+            "id": "line1",
+            "construction": false,
+            "type": "line",
+            "start": "p1",
+            "end": "p2"
+          },
+          {
+            "id": "line2",
+            "construction": false,
+            "type": "line",
+            "start": "p2",
+            "end": "p3"
+          },
+          {
+            "id": "line3",
+            "construction": false,
+            "type": "line",
+            "start": "p3",
+            "end": "p0"
+          },
+          {
+            "id": "hole0",
+            "construction": false,
+            "type": "circle",
+            "center": "h0",
+            "radius": 5
+          },
+          {
+            "id": "hole1",
+            "construction": false,
+            "type": "circle",
+            "center": "h1",
+            "radius": 5
+          },
+          {
+            "id": "hole2",
+            "construction": false,
+            "type": "circle",
+            "center": "h2",
+            "radius": 5
+          },
+          {
+            "id": "hole3",
+            "construction": false,
+            "type": "circle",
+            "center": "h3",
+            "radius": 5
+          }
+        ],
+        "constraints": [
+          {
+            "id": "align0",
+            "type": "horizontal",
+            "entityId": "line0"
+          },
+          {
+            "id": "align1",
+            "type": "vertical",
+            "entityId": "line1"
+          },
+          {
+            "id": "align2",
+            "type": "horizontal",
+            "entityId": "line2"
+          },
+          {
+            "id": "align3",
+            "type": "vertical",
+            "entityId": "line3"
+          },
+          {
+            "id": "anchor",
+            "type": "fix",
+            "pointId": "p0",
+            "x": -50,
+            "y": -35
+          },
+          {
+            "id": "width",
+            "type": "length",
+            "entityId": "line0",
+            "value": 120
+          },
+          {
+            "id": "height",
+            "type": "length",
+            "entityId": "line1",
+            "value": 70
+          },
+          {
+            "id": "holeX0",
+            "type": "distanceX",
+            "a": "p0",
+            "b": "h0",
+            "value": 15
+          },
+          {
+            "id": "holeY0",
+            "type": "distanceY",
+            "a": "p0",
+            "b": "h0",
+            "value": 15
+          },
+          {
+            "id": "holeR0",
+            "type": "radius",
+            "entityId": "hole0",
+            "value": 5
+          },
+          {
+            "id": "holeX1",
+            "type": "distanceX",
+            "a": "p1",
+            "b": "h1",
+            "value": -15
+          },
+          {
+            "id": "holeY1",
+            "type": "distanceY",
+            "a": "p1",
+            "b": "h1",
+            "value": 15
+          },
+          {
+            "id": "holeR1",
+            "type": "radius",
+            "entityId": "hole1",
+            "value": 5
+          },
+          {
+            "id": "holeX2",
+            "type": "distanceX",
+            "a": "p2",
+            "b": "h2",
+            "value": -15
+          },
+          {
+            "id": "holeY2",
+            "type": "distanceY",
+            "a": "p2",
+            "b": "h2",
+            "value": -15
+          },
+          {
+            "id": "holeR2",
+            "type": "radius",
+            "entityId": "hole2",
+            "value": 5
+          },
+          {
+            "id": "holeX3",
+            "type": "distanceX",
+            "a": "p3",
+            "b": "h3",
+            "value": 15
+          },
+          {
+            "id": "holeY3",
+            "type": "distanceY",
+            "a": "p3",
+            "b": "h3",
+            "value": -15
+          },
+          {
+            "id": "holeR3",
+            "type": "radius",
+            "entityId": "hole3",
+            "value": 5
+          }
+        ]
+      }
+    },
+    {
+      "id": "0a9a76c7-635c-4e42-9893-a83b52987753",
+      "name": "Saliente-Extruir1",
+      "suppressed": false,
+      "type": "extrude",
+      "sketchId": "9d97e151-4f57-4014-97a1-3becfc53c599",
+      "depth": 12,
+      "symmetric": false
+    }
+  ],
+  "createdAt": "2026-10-10T19:21:38.229Z",
+  "updatedAt": "2026-10-10T19:26:18.226Z"
+}

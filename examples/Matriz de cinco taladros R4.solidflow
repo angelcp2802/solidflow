@@ -1,0 +1,126 @@
+{
+  "version": 1,
+  "id": "e4f6c09a-7258-4d5a-9936-12a508968ff4",
+  "name": "Placa con matriz de taladros",
+  "units": "mm",
+  "features": [
+    {
+      "id": "base-sketch",
+      "name": "Croquis de placa",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 0,
+      "profile": {
+        "kind": "rectangle",
+        "center": [
+          0,
+          0
+        ],
+        "width": 100,
+        "height": 70
+      }
+    },
+    {
+      "id": "base",
+      "name": "Placa · 12 mm",
+      "suppressed": false,
+      "type": "extrude",
+      "sketchId": "base-sketch",
+      "depth": 12,
+      "symmetric": false
+    },
+    {
+      "id": "hole-sketch",
+      "name": "Croquis taladro · R3",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 0,
+      "profile": {
+        "kind": "entities",
+        "points": [
+          {
+            "id": "center",
+            "x": -30,
+            "y": -20
+          }
+        ],
+        "entities": [
+          {
+            "id": "circle",
+            "construction": false,
+            "type": "circle",
+            "center": "center",
+            "radius": 3.9999999999843956
+          }
+        ],
+        "constraints": [
+          {
+            "id": "fixed-center",
+            "type": "fix",
+            "pointId": "center",
+            "x": -30,
+            "y": -20
+          },
+          {
+            "id": "radius",
+            "type": "radius",
+            "entityId": "circle",
+            "value": 4
+          }
+        ]
+      }
+    },
+    {
+      "id": "hole",
+      "name": "Taladro original",
+      "suppressed": false,
+      "type": "cut",
+      "sketchId": "hole-sketch",
+      "depth": 12,
+      "symmetric": false
+    },
+    {
+      "id": "pattern",
+      "name": "Matriz lineal · 3 × 2",
+      "suppressed": false,
+      "type": "linearPattern",
+      "baseFeatureId": "hole",
+      "source": {
+        "mode": "features",
+        "geometryPattern": true,
+        "featureIds": [
+          "hole"
+        ]
+      },
+      "first": {
+        "direction": [
+          1,
+          0,
+          0
+        ],
+        "spacing": 25,
+        "count": 3
+      },
+      "second": {
+        "direction": [
+          0,
+          1,
+          0
+        ],
+        "spacing": 30,
+        "count": 2
+      },
+      "secondSeedOnly": false,
+      "skipped": [
+        [
+          2,
+          1
+        ]
+      ]
+    }
+  ],
+  "createdAt": "2026-10-10T20:23:43.518Z",
+  "updatedAt": "2026-10-10T20:27:44.028Z"
+}

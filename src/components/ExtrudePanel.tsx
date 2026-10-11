@@ -1,0 +1,236 @@
+import { ChevronDown, MousePointer2, RotateCw } from "lucide-react";
+import type {
+  ExtrudeFeature,
+  Feature,
+  Plane,
+  PlaneSupport,
+  ReferencePlaneFeature,
+} from "../cad/kernel.types";
+
+interface Props {
+  feature: ExtrudeFeature;
+  features: Feature[];
+  planes: ReferencePlaneFeature[];
+  baseFeatureId: string | null;
+  preferredTarget: PlaneSupport;
+  picking: boolean;
+  loading: boolean;
+  canPickFace: boolean;
+  onChange: (patch: Partial<ExtrudeFeature>) => void;
+  onTarget: (target: PlaneSupport) => void;
+  onPickFace: () => void;
+}
+
+export default function ExtrudePanel({
+  feature,
+  features,
+  planes,
+  baseFeatureId,
+  preferredTarget,
+  picking,
+  loading,
+  canPickFace,
+  onChange,
+  onTarget,
+  onPickFace,
+}: Props) {
+  const end = feature.endCondition;
+  const mode =
+    end?.kind === "throughAll" && end.bothDirections
+      ? "throughAllBoth"
+      : (end?.kind ?? (feature.symmetric ? "mid" : "blind"));
+  const target = end?.kind === "upToSurface" ? end.target : null;
+  const targetValue =
+    target?.kind === "principal"
+      ? `principal:${target.plane}`
+      : target?.kind === "plane"
+        ? `plane:${target.planeId}`
+        : "face";
+  const changeMode = (value: string) => {
+    const rememberedDepth =
+      Number.isFinite(feature.depth) &&
+      Math.abs(feature.depth) >= 0.01 &&
+      Math.abs(feature.depth) <= 100_000
+        ? feature.depth
+        : feature.depth < 0
+          ? -20
+          : 20;
+    if (value === "blind" || value === "mid") {
+      onChange({ endCondition: undefined, symmetric: value === "mid" });
+    } else if (value === "upToSurface") {
+      onChange({
+        endCondition: {
+          kind: "upToSurface",
+          target: target ?? preferredTarget,
+        },
+        symmetric: false,
+        depth: rememberedDepth,
+      });
+    } else if (baseFeatureId) {
+      onChange({
+        endCondition:
+          value === "untilNext"
+            ? { kind: "untilNext", baseFeatureId }
+            : {
+                kind: "throughAll",
+                baseFeatureId,
+                bothDirections: value === "throughAllBoth",
+              },
+        symmetric: false,
+        depth: rememberedDepth,
+      });
+    }
+  };
+  return (
+    <>
+      <div className="property-section">
+        <h3>
+          <ChevronDown size={12} /> Dirección 1
+        </h3>
+        <select
+          aria-label="Condición final"
+          value={mode}
+          onChange={(event) => changeMode(event.target.value)}
+        >
+          <option value="blind">Hasta profundidad específica</option>
+          <option value="mid">Plano medio</option>
+          <option value="throughAll" disabled={!baseFeatureId || loading}>
+            Por todo
+          </option>
+          <option value="throughAllBoth" disabled={!baseFeatureId || loading}>
+            Por todo · ambos sentidos
+          </option>
+          <option value="untilNext" disabled={!baseFeatureId || loading}>
+            Hasta siguiente
+          </option>
+          <option value="upToSurface">Hasta superficie</option>
+        </select>
+        {!end && (
+          <label className="number-field">
+            <span>Profundidad</span>
+            <div>
+              <input
+                aria-label="Profundidad"
+                type="number"
+                step={1}
+                value={Number.isFinite(feature.depth) ? feature.depth : ""}
+                onChange={(event) =>
+                  onChange({
+                    depth:
+                      event.target.value === ""
+                        ? 0
+                        : Number(event.target.value),
+                  })
+                }
+              />
+              <small>mm</small>
+            </div>
+          </label>
+        )}
+        {end && (
+          <p className="muted-small">
+            {mode === "throughAllBoth"
+              ? "Atraviesa la pieza a ambos lados del croquis."
+              : mode === "throughAll"
+                ? "Atraviesa la pieza en el sentido seleccionado. La longitud se adapta al reconstruir."
+                : mode === "untilNext"
+                  ? "Termina en la siguiente superficie que cubra todo el perfil."
+                  : "El extremo sigue la superficie elegida al reconstruir la pieza."}
+          </p>
+        )}
+        {mode !== "throughAllBoth" && (
+          <button
+            className={`outline-button ${feature.depth < 0 ? "active" : ""}`}
+            aria-pressed={feature.depth < 0}
+            onClick={() => onChange({ depth: -feature.depth })}
+          >
+            <RotateCw size={14} /> Invertir dirección
+          </button>
+        )}
+        {end && "baseFeatureId" in end && (
+          <>
+            <p className="muted-small">
+              Sólido de referencia:{" "}
+              {features.find((item) => item.id === end.baseFeatureId)?.name ??
+                "Referencia perdida"}
+              .
+            </p>
+            {baseFeatureId && baseFeatureId !== end.baseFeatureId && (
+              <button
+                className="outline-button"
+                disabled={loading}
+                onClick={() =>
+                  onChange({ endCondition: { ...end, baseFeatureId } })
+                }
+              >
+                Actualizar sólido de referencia
+              </button>
+            )}
+          </>
+        )}
+      </div>
+      {target && (
+        <div className="property-section">
+          <h3>
+            <ChevronDown size={12} /> Superficie de destino
+          </h3>
+          <select
+            aria-label="Superficie de destino"
+            value={targetValue}
+            onChange={(event) => {
+              const value = event.target.value;
+              if (value.startsWith("principal:"))
+                onTarget({
+                  kind: "principal",
+                  plane: value.slice(10) as Plane,
+                });
+              else if (value.startsWith("plane:"))
+                onTarget({ kind: "plane", planeId: value.slice(6) });
+            }}
+          >
+            <option value="principal:XY">Alzado (XY)</option>
+            <option value="principal:XZ">Planta (XZ)</option>
+            <option value="principal:YZ">Vista lateral (YZ)</option>
+            {planes.map((plane) => (
+              <option
+                key={plane.id}
+                value={`plane:${plane.id}`}
+                disabled={plane.suppressed}
+              >
+                {plane.name}
+                {plane.suppressed ? " · suprimido" : ""}
+              </option>
+            ))}
+            {target.kind === "plane" &&
+              !planes.some((plane) => plane.id === target.planeId) && (
+                <option value={targetValue}>Plano no disponible</option>
+              )}
+            {target.kind === "face" && (
+              <option value="face">
+                Cara de{" "}
+                {features.find(
+                  (item) => item.id === target.face.sourceFeatureId,
+                )?.name ?? "Referencia perdida"}
+              </option>
+            )}
+          </select>
+          <button
+            className={`outline-button ${picking ? "active" : ""}`}
+            disabled={!canPickFace}
+            onClick={onPickFace}
+          >
+            <MousePointer2 size={14} />
+            {picking ? "Volver a vista previa" : "Seleccionar cara de destino"}
+          </button>
+          <p className="muted-small">
+            {loading
+              ? "Preparando la pieza anterior…"
+              : picking
+                ? "Selecciona una cara plana o curva de la pieza anterior."
+                : "Puedes elegir un plano o una cara del historial. Si se pierde la referencia, vuelve a seleccionar el destino."}
+          </p>
+        </div>
+      )}
+    </>
+  );
+}

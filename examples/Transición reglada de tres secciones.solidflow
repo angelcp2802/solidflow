@@ -1,0 +1,122 @@
+{
+  "version": 1,
+  "id": "2efcb33a-609e-44d5-8237-de1129785ebe",
+  "name": "Transición de tres secciones",
+  "units": "mm",
+  "features": [
+    {
+      "id": "section-1",
+      "name": "Sección 1 · R16",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 0,
+      "profile": {
+        "kind": "entities",
+        "points": [],
+        "entities": [
+          {
+            "id": "circle",
+            "construction": false,
+            "type": "circle",
+            "center": "origin",
+            "radius": 16
+          }
+        ],
+        "constraints": [
+          {
+            "id": "radius",
+            "type": "radius",
+            "entityId": "circle",
+            "value": 16
+          }
+        ]
+      }
+    },
+    {
+      "id": "section-2",
+      "name": "Sección 2 · R10",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 25,
+      "profile": {
+        "kind": "entities",
+        "points": [],
+        "entities": [
+          {
+            "id": "circle",
+            "construction": false,
+            "type": "circle",
+            "center": "origin",
+            "radius": 10
+          }
+        ],
+        "constraints": [
+          {
+            "id": "radius",
+            "type": "radius",
+            "entityId": "circle",
+            "value": 10
+          }
+        ]
+      }
+    },
+    {
+      "id": "section-3",
+      "name": "Sección 3 · R14",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 55,
+      "profile": {
+        "kind": "entities",
+        "points": [],
+        "entities": [
+          {
+            "id": "circle",
+            "construction": false,
+            "type": "circle",
+            "center": "origin",
+            "radius": 14
+          }
+        ],
+        "constraints": [
+          {
+            "id": "radius",
+            "type": "radius",
+            "entityId": "circle",
+            "value": 14
+          }
+        ]
+      }
+    },
+    {
+      "id": "loft",
+      "name": "Saliente-Recubrir1",
+      "suppressed": false,
+      "type": "loft",
+      "sections": [
+        {
+          "sketchId": "section-1",
+          "startEntityId": "circle",
+          "reversed": false
+        },
+        {
+          "sketchId": "section-2",
+          "startEntityId": "circle",
+          "reversed": false
+        },
+        {
+          "sketchId": "section-3",
+          "startEntityId": "circle",
+          "reversed": false
+        }
+      ],
+      "ruled": true,
+      "merge": true
+    }
+  ],
+  "createdAt": "2026-10-10T20:05:14.641Z",
+  "updatedAt": "2026-10-10T20:06:05.880Z"
+}

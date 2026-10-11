@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "id": "645a9d16-4d24-43f9-9ad3-6ab40bbfa21b",
+  "name": "Placa con taladros avellanados",
+  "units": "mm",
+  "features": [
+    {
+      "id": "hole-example-base-sketch",
+      "name": "Croquis de placa · 100 × 70",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 0,
+      "profile": {
+        "kind": "rectangle",
+        "center": [
+          0,
+          0
+        ],
+        "width": 100,
+        "height": 70
+      }
+    },
+    {
+      "id": "hole-example-base",
+      "name": "Placa · 24 mm",
+      "suppressed": false,
+      "type": "extrude",
+      "sketchId": "hole-example-base-sketch",
+      "depth": 24,
+      "symmetric": false
+    },
+    {
+      "id": "hole-example-holes",
+      "name": "Cuatro avellanados de 100 grados",
+      "suppressed": false,
+      "type": "hole",
+      "baseFeatureId": "hole-example-base",
+      "support": {
+        "kind": "face",
+        "face": {
+          "sourceFeatureId": "hole-example-base",
+          "key": "face-v1|7db66c62d8f37c3acb1b7c2ee7ecec51d0467dd6f7820d156eb92fe6142eed10"
+        }
+      },
+      "positions": [
+        {
+          "id": "hole-center-1",
+          "x": -30,
+          "y": -20
+        },
+        {
+          "id": "hole-center-2",
+          "x": 30,
+          "y": -20
+        },
+        {
+          "id": "hole-center-3",
+          "x": 30,
+          "y": 20
+        },
+        {
+          "id": "hole-center-4",
+          "x": -30,
+          "y": 20
+        }
+      ],
+      "reversed": false,
+      "diameter": 8,
+      "endCondition": {
+        "kind": "throughAll"
+      },
+      "head": {
+        "kind": "countersink",
+        "diameter": 16,
+        "angle": 100
+      }
+    }
+  ],
+  "createdAt": "2026-10-10T21:34:27.087Z",
+  "updatedAt": "2026-10-10T21:34:35.513Z"
+}

@@ -1,0 +1,151 @@
+{
+  "version": 1,
+  "id": "56723c45-feec-4268-8d03-a788c3041bf7",
+  "name": "Conducto barrido",
+  "units": "mm",
+  "features": [
+    {
+      "id": "section",
+      "name": "Perfil circular · R4",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 0,
+      "profile": {
+        "kind": "entities",
+        "points": [],
+        "entities": [
+          {
+            "id": "circle",
+            "construction": false,
+            "type": "circle",
+            "center": "origin",
+            "radius": 4.999999999984396
+          }
+        ],
+        "constraints": [
+          {
+            "id": "radius",
+            "type": "radius",
+            "entityId": "circle",
+            "value": 5
+          }
+        ]
+      }
+    },
+    {
+      "id": "path",
+      "name": "Recorrido · recta, arco y recta",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": "XZ",
+      "offset": 0,
+      "profile": {
+        "kind": "entities",
+        "points": [
+          {
+            "id": "a",
+            "x": 0,
+            "y": 20
+          },
+          {
+            "id": "c",
+            "x": 20,
+            "y": 20
+          },
+          {
+            "id": "b",
+            "x": 20,
+            "y": 40
+          },
+          {
+            "id": "end",
+            "x": 40,
+            "y": 40
+          }
+        ],
+        "entities": [
+          {
+            "id": "line-1",
+            "construction": false,
+            "type": "line",
+            "start": "origin",
+            "end": "a"
+          },
+          {
+            "id": "bend",
+            "construction": false,
+            "type": "arc",
+            "center": "c",
+            "start": "a",
+            "end": "b",
+            "clockwise": true
+          },
+          {
+            "id": "line-2",
+            "construction": false,
+            "type": "line",
+            "start": "b",
+            "end": "end"
+          }
+        ],
+        "constraints": [
+          {
+            "id": "fixed-a",
+            "type": "fix",
+            "pointId": "a",
+            "x": 0,
+            "y": 20
+          },
+          {
+            "id": "fixed-c",
+            "type": "fix",
+            "pointId": "c",
+            "x": 20,
+            "y": 20
+          },
+          {
+            "id": "fixed-b",
+            "type": "fix",
+            "pointId": "b",
+            "x": 20,
+            "y": 40
+          },
+          {
+            "id": "fixed-end",
+            "type": "fix",
+            "pointId": "end",
+            "x": 40,
+            "y": 40
+          }
+        ]
+      }
+    },
+    {
+      "id": "sweep",
+      "name": "Saliente-Barrido1",
+      "suppressed": false,
+      "type": "sweep",
+      "profileSketchId": "section",
+      "pathSketchId": "path",
+      "path": [
+        {
+          "entityId": "line-1",
+          "reversed": false
+        },
+        {
+          "entityId": "bend",
+          "reversed": false
+        },
+        {
+          "entityId": "line-2",
+          "reversed": false
+        }
+      ],
+      "orientation": "followPath",
+      "merge": true
+    }
+  ],
+  "createdAt": "2026-10-10T20:03:18.159Z",
+  "updatedAt": "2026-10-10T20:03:36.946Z"
+}

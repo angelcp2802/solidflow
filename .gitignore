@@ -1,0 +1,34 @@
+node_modules/
+dist/
+release/
+*.tsbuildinfo
+*.log
+.vite/
+artifacts/
+release-*/
+coverage/
+.agents/
+.codex/
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.pfx
+
+# Local research captures and machine-specific recovery history.
+# Public geometry fixtures and provenance live under src/cad/fixtures/.
+docs/research/
+/src/cad/kernel.*-native.test.ts
+/vitest.native.config.ts
+/scripts/export-driven-dimensions.mjs
+/scripts/export-sketch-extend.mjs
+/scripts/export-sketch-relations.mjs
+/scripts/export-sketch-trim.mjs
+/scripts/verify-ui-driven-dimensions.mjs
+/scripts/verify-ui-sketch-extend.mjs
+/scripts/verify-ui-sketch-trim.mjs

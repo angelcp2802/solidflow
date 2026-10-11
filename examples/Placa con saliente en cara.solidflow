@@ -1,0 +1,181 @@
+{
+  "version": 1,
+  "id": "ff860a1a-9828-49fa-9ad5-1dac836d51ed",
+  "name": "Placa de montaje",
+  "units": "mm",
+  "features": [
+    {
+      "id": "60104cd5-80b9-4b47-9e1c-7aefb4b2d42d",
+      "name": "Croquis base · 100 × 70",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 0,
+      "profile": {
+        "kind": "rectangle",
+        "center": [
+          0,
+          0
+        ],
+        "width": 100,
+        "height": 70
+      }
+    },
+    {
+      "id": "5352a634-b0f7-4fe8-a94d-8e3a173bcec6",
+      "name": "Saliente extruido · 12 mm",
+      "suppressed": false,
+      "type": "extrude",
+      "sketchId": "60104cd5-80b9-4b47-9e1c-7aefb4b2d42d",
+      "depth": 8,
+      "symmetric": false
+    },
+    {
+      "id": "880bfc9e-0d95-4ad7-8e0a-443b45c6177f",
+      "name": "Croquis taladro 1",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 0,
+      "profile": {
+        "kind": "circle",
+        "center": [
+          -35,
+          -20
+        ],
+        "radius": 5
+      }
+    },
+    {
+      "id": "9ff1b2d8-40f0-48a6-9f7e-880373dfb7ce",
+      "name": "Corte extruido 1 · Ø10",
+      "suppressed": false,
+      "type": "cut",
+      "sketchId": "880bfc9e-0d95-4ad7-8e0a-443b45c6177f",
+      "depth": 12,
+      "symmetric": false
+    },
+    {
+      "id": "99a096c3-1a33-4024-bd34-a877073699c7",
+      "name": "Croquis taladro 2",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 0,
+      "profile": {
+        "kind": "circle",
+        "center": [
+          35,
+          -20
+        ],
+        "radius": 5
+      }
+    },
+    {
+      "id": "110fd792-541d-4836-b0c0-be7a21fdc964",
+      "name": "Corte extruido 2 · Ø10",
+      "suppressed": false,
+      "type": "cut",
+      "sketchId": "99a096c3-1a33-4024-bd34-a877073699c7",
+      "depth": 12,
+      "symmetric": false
+    },
+    {
+      "id": "8243873d-69a8-4e06-8546-a2c8e3b298b1",
+      "name": "Croquis taladro 3",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 0,
+      "profile": {
+        "kind": "circle",
+        "center": [
+          35,
+          20
+        ],
+        "radius": 5
+      }
+    },
+    {
+      "id": "4933a93b-2ebb-41a8-9a53-100145ded301",
+      "name": "Corte extruido 3 · Ø10",
+      "suppressed": false,
+      "type": "cut",
+      "sketchId": "8243873d-69a8-4e06-8546-a2c8e3b298b1",
+      "depth": 12,
+      "symmetric": false
+    },
+    {
+      "id": "94739b90-4d0d-4b24-a47b-be77690e8da5",
+      "name": "Croquis taladro 4",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 0,
+      "profile": {
+        "kind": "circle",
+        "center": [
+          -35,
+          20
+        ],
+        "radius": 5
+      }
+    },
+    {
+      "id": "dbc313d3-f761-4f63-950b-a7befca7bf09",
+      "name": "Corte extruido 4 · Ø10",
+      "suppressed": false,
+      "type": "cut",
+      "sketchId": "94739b90-4d0d-4b24-a47b-be77690e8da5",
+      "depth": 12,
+      "symmetric": false
+    },
+    {
+      "id": "a4ebc301-fd49-4884-ad3f-fbaf0236e2fc",
+      "name": "Croquis6",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 0,
+      "profile": {
+        "kind": "entities",
+        "points": [],
+        "entities": [
+          {
+            "id": "f1f5054d-a691-41d0-8c2d-aae344d17346",
+            "construction": false,
+            "type": "circle",
+            "center": "origin",
+            "radius": 9.999999980673838
+          }
+        ],
+        "constraints": [
+          {
+            "id": "66a71e49-0e85-4878-aa4a-7941e043bf7b",
+            "type": "radius",
+            "entityId": "f1f5054d-a691-41d0-8c2d-aae344d17346",
+            "value": 10
+          }
+        ]
+      },
+      "support": {
+        "kind": "face",
+        "face": {
+          "sourceFeatureId": "dbc313d3-f761-4f63-950b-a7befca7bf09",
+          "key": "face-v1|ff276b7b5d9c13494a1fce1bf0cf1851e4c5150edd533934bbdc73d923af6e2f"
+        }
+      }
+    },
+    {
+      "id": "926f829a-f307-441e-9325-fc3a04a20feb",
+      "name": "Saliente-Extruir2",
+      "suppressed": false,
+      "type": "extrude",
+      "sketchId": "a4ebc301-fd49-4884-ad3f-fbaf0236e2fc",
+      "depth": 20,
+      "symmetric": false
+    }
+  ],
+  "createdAt": "2026-10-10T19:28:33.025Z",
+  "updatedAt": "2026-10-10T19:44:12.494Z"
+}
