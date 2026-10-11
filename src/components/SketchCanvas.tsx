@@ -40,11 +40,13 @@ import type { ChamferPlan } from "../sketch/chamfer";
 import type { FilletPlan, FilletBatchPlan } from "../sketch/fillet";
 import type { MirrorPlan } from "../sketch/mirror";
 import type { OffsetPlan } from "../sketch/offset";
+import { selectionPointTargets, type PointRepositionCommand } from "../sketch/point-reposition";
 import LegacySketchCanvas from "./LegacySketchCanvas";
 
 interface Props {
   profile: Profile;
   onChange: (profile: Profile) => void;
+  onReposition?: (command: PointRepositionCommand) => void;
   tool: SketchTool;
   plane: string;
   selection: SketchSelection[];
@@ -122,6 +124,7 @@ export default function SketchCanvas(props: Props) {
 function EntitySketchCanvas({
   profile: sourceProfile,
   onChange,
+  onReposition,
   tool,
   plane,
   selection,
@@ -582,10 +585,10 @@ function EntitySketchCanvas({
     };
     event.currentTarget.setPointerCapture(event.pointerId);
   };
-  const moveProfile = (
+  const moveDelta = (
     active: Extract<Gesture, { kind: "move" }>,
     position: Point,
-  ): EntityProfile => {
+  ): Point => {
     const point = world(position);
     let dx = point[0] - active.world[0],
       dy = point[1] - active.world[1];
@@ -601,6 +604,13 @@ function EntitySketchCanvas({
       dy = snapped.y - initial.y;
       setHover(snapped);
     }
+    return [dx, dy];
+  };
+  const moveProfile = (
+    active: Extract<Gesture, { kind: "move" }>,
+    position: Point,
+  ): EntityProfile => {
+    const [dx, dy] = moveDelta(active, position);
     return translateSelection(active.base, active.selection, dx, dy);
   };
   const pointerMove = (event: ReactPointerEvent<SVGSVGElement>) => {
@@ -712,8 +722,14 @@ function EntitySketchCanvas({
           position[0] - active.screen[0],
           position[1] - active.screen[1],
         ) > 3
-      )
-        commit(moveProfile(active, position));
+      ) {
+        try {
+          const [dx, dy] = moveDelta(active, position), targets = selectionPointTargets(active.base, active.selection, dx, dy);
+          if (targets.length && onReposition) onReposition({ sourceProfile: active.base, targets });
+        } catch (error) {
+          setMessage(error instanceof Error ? error.message : "No se pudieron reposicionar los puntos.");
+        }
+      }
       setPreview(null);
       setHover(null);
       return;

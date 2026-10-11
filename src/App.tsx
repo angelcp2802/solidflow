@@ -69,6 +69,7 @@ import PlaneSupportPanel, {
   supportLabel,
 } from "./components/PlaneSupportPanel";
 import { solveSketch } from "./sketch/solver";
+import { repositionDisplayedSketch, type PointRepositionCommand } from "./sketch/point-reposition";
 import { validateEntityProfile } from "./sketch/validation";
 import { convertProfile, emptySketch, removeSelection } from "./sketch/editing";
 import type {
@@ -1696,6 +1697,12 @@ export default function App() {
         : candidate,
     });
   };
+  const repositionEntityPoints = (command: PointRepositionCommand) => {
+    if (editing?.type !== "sketch") return;
+    const result = repositionDisplayedSketch(sketchSolution, command);
+    if (!result.accepted) { notify(result.message, true); return; }
+    if (result.changed) changeDraft({ profile: result.solution.profile });
+  };
   const selectSketchTool = (tool: SketchTool) => {
     if (editing?.type !== "sketch") {
       startSketch(tool);
@@ -2823,6 +2830,7 @@ export default function App() {
                       selection={sketchSelection}
                       onSelection={setSketchSelection}
                       onChange={changeEntityProfile}
+                      onReposition={repositionEntityPoints}
                       solution={sketchSolution}
                       focusSection={sketchInspector}
                     />
@@ -3405,6 +3413,7 @@ export default function App() {
             <SketchCanvas
               key={editing.id}
               profile={toolConvertedProfile ?? editing.profile}
+              onReposition={repositionEntityPoints}
               onChange={(p) =>
                 p.kind === "entities"
                   ? changeEntityProfile(p)

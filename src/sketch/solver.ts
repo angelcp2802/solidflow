@@ -512,7 +512,9 @@ function evaluate(
             const reference = constraint.sources[i], source = layout.entities.get(reference.entityId)!, target = layout.entities.get(image.entityIds[i])!;
             station(source, endpoint(target, reference.reversed, 1), endpoint(source, reference.reversed, 1), reference.reversed);
           });
-          if (constraint.cap !== "none" || !constraint.closed && image.lineEndpointMode === "aligned") for (const end of [0, 1] as const) {
+          for (const end of [0, 1] as const) {
+            if (constraint.cap === "none" && (constraint.closed ||
+              image.lineEndpointMode !== "aligned" && !image.lineEndpointFollowing?.[end])) continue;
             const i = end === 0 ? 0 : constraint.sources.length - 1, reference = constraint.sources[i], source = layout.entities.get(reference.entityId)!, target = layout.entities.get(image.entityIds[i])!;
             if (constraint.cap === "none" && source.type !== "line") continue;
             station(source, endpoint(target, reference.reversed, end), endpoint(source, reference.reversed, end), reference.reversed);

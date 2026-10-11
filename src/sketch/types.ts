@@ -47,6 +47,8 @@ export interface OffsetImage {
   distance: number;
   /** Uncapped line-end stations; absence preserves legacy free endpoints. */
   lineEndpointMode?: "aligned" | "free";
+  /** Releasable line-end stations, ordered by source traversal start then end. */
+  lineEndpointFollowing?: [boolean, boolean];
   /** One image for each source, in the same traversal order. */
   entityIds: string[];
   joins: OffsetJoin[];

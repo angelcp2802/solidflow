@@ -115,13 +115,51 @@ on closed or capped groups and groups whose two ends are arcs. Older builds
 that do not recognize the field reject such newer documents. The enclosing
 document remains version 1.
 
-Offsets created without a distance dimension currently retain free Cartesian
-endpoint seeds. After an explicit endpoint edit to x=12 mm, a source length
-edit to 14 mm leaves that endpoint at x=12 mm. Following an untouched source
-endpoint until the user repositions it remains separate work; the current
-free policy does not distinguish those states.
-That follow/detach behavior is tracked in
-[issue #17](https://github.com/angelcp2802/solidflow/issues/17).
+Starting with 0.18, new offsets without a distance dimension instead store
+`lineEndpointFollowing: [startFollows, endFollows]` for eligible line ends.
+Indices refer to the chain's traversal direction, including reversed sources,
+rather than an entity's stored endpoint order. Each true flag adds a station
+equation. An untouched line initially from `(0,-2)` to `(10,-2)` therefore
+has end stations x=0 and x=14 when its source length changes to 14 mm. Its
+uniform normal separation remains free and can drift numerically from the
+2 mm seed; these station equations do not fix Y at -2.
+
+Dragging an image endpoint or editing its X/Y coordinate explicitly releases
+that endpoint's following flag if the requested coordinate changes and the
+whole reposition succeeds. A normal-only edit releases it too. Placing the
+end at `(12,-2)` then changing the source to 14 mm leaves its end station
+at x=12. Moving only the start to `(-2,-2)` leaves the untouched end
+following to x=14. The two ends and the two sides retain independent
+flags. Permanent aligned mode is unaffected. A source edit, dimension edit
+or arbitrary numerical displacement does not implicitly release a flag.
+
+Repositioning targets the solved geometry displayed in the editor. A drag
+requests both coordinates; a numeric edit requests only the entered axis,
+allowing the other coordinate to satisfy existing relations. Targets are
+temporary and are removed before reporting the saved sketch's DOF and driven
+measurements. Every supplied axis must still reach its requested coordinate
+within `5e-7` mm after target removal; a healthy residual alone is insufficient.
+Requested movement of at most `5e-7` mm is treated as a no-op at that editing
+precision. Rejected, stale and no-op requests do not release a flag or create
+a history entry. Successful repositioning commits once; undo/redo
+and save/reopen preserve the geometry and following state.
+
+This is an explicit local solver policy using hard station equations. For a
+fixed source line without a distance dimension, its reported freedom is one
+before release, two after releasing one end, and three after releasing both.
+Output dimensions remain constraints: they may drive a free source or reject
+a conflict with a fixed source while the station follows. They do not release
+following automatically. These rules do not establish equivalence to another
+solver's internal rank or behavior. Automatic reattachment, including returning
+to a coincident station, is not implemented.
+
+The new field is mutually exclusive with `lineEndpointMode`, requires an
+uncapped open chain with a line at either boundary, and permits true only at
+a line boundary. `[false,false]` is retained on save and has the same
+structural naming as legacy free mode. An absent field retains legacy free
+Cartesian endpoint seeds; existing documents are not silently upgraded.
+An older build rejects the unfamiliar field. Arc intervals, caps and closed
+groups retain their existing rules. The enclosing document remains version 1.
 
 ## Original examples and analytical checks
 
@@ -174,6 +212,17 @@ Only the final rectangle is material. At depth 4 mm its width is 2 mm, so
 volume from 80 to 96 mm³ and area from 136 to 160 mm². This checks a
 dimension edit through two associations, saved document history, selected
 references and a fresh programmatic STEP export.
+
+The no-dimension following checks use the same authored line and capped
+descendants. At depth 4 mm, untouched continuation to length 14 gives
+`V=112 mm³`, `A=184 mm²`. Releasing the end at x=12 retains
+`V=96 mm³`, `A=160 mm²` after that source edit. Releasing the start at x=-2
+while the untouched end follows to 14 gives length 16, hence
+`V=128 mm³`, `A=208 mm²`. A normal-only edit moves the rectangle without
+changing its dimensions. The tests check saved documents, programmatic
+history, valid BRep, a single solid, bounds and fresh STEP reconstruction.
+Changing following equations changes the structural descriptor; no general
+persistent-reference guarantee across a release is inferred.
 
 The current command handles one connected chain or one circle at a time.
 It does not resolve arbitrary overlapping contours, branch networks or

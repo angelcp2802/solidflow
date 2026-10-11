@@ -23,12 +23,14 @@ import {
 import type { AngleOptions } from "../sketch/editing";
 import { SKETCH_LIMITS } from "../sketch/validation";
 import { angleText, lengthText } from "../sketch/formatting";
+import type { PointRepositionCommand } from "../sketch/point-reposition";
 
 interface Props {
   profile: EntityProfile;
   selection: SketchSelection[];
   onSelection: (selection: SketchSelection[]) => void;
   onChange: (profile: EntityProfile) => void;
+  onReposition?: (command: PointRepositionCommand) => void;
   solution: SketchSolveResult | null;
   focusSection: { name: "dimensions" | "relations"; stamp: number };
 }
@@ -185,6 +187,7 @@ export default function EntitySketchPanel({
   selection,
   onSelection,
   onChange,
+  onReposition,
   solution,
   focusSection,
 }: Props) {
@@ -714,12 +717,9 @@ export default function EntitySketchPanel({
                       value={selectedPoints[0][axis]}
                       minimum={-SKETCH_LIMITS.maxCoordinate}
                       maximum={SKETCH_LIMITS.maxCoordinate}
+                      disabled={!onReposition}
                       onCommit={(value) =>
-                        change((next) => {
-                          next.points.find(
-                            (point) => point.id === selectedPoints[0].id,
-                          )![axis] = value;
-                        })
+                        onReposition?.({ sourceProfile: profile, targets: [{ pointId: selectedPoints[0].id, [axis]: value }] })
                       }
                     />
                     <small>mm</small>
