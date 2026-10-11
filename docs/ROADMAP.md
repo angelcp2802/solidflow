@@ -6,7 +6,8 @@ work to do, not completed support or promised delivery dates.
 ## Current foundation
 
 Sketch entities, local geometric constraints, driving and driven dimensions,
-trim/extend, planar supports, reference planes and a feature history. Solid
+trim/extend, single-corner chamfers between straight sketch lines, planar
+supports, reference planes and a feature history. Solid
 operations include extrude/cut/revolve, sweep/loft, finishing, patterns/mirror,
 shell/draft and hole features. Documents can be edited and recovered; geometry
 can be exported as STEP and STL. Each operation has explicit limitations.

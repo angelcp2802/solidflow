@@ -1,0 +1,168 @@
+{
+  "version": 1,
+  "id": "fd130dcd-e32a-40b4-95d0-dc2192690b4e",
+  "name": "Placa para achaflanar",
+  "units": "mm",
+  "features": [
+    {
+      "id": "chamfer-sketch",
+      "name": "Croquis · rectángulo 10 × 6",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 0,
+      "profile": {
+        "kind": "entities",
+        "points": [
+          {
+            "id": "bottom-right",
+            "x": 10,
+            "y": 0
+          },
+          {
+            "id": "top-right",
+            "x": 10,
+            "y": 6
+          },
+          {
+            "id": "top-left",
+            "x": 0,
+            "y": 6
+          },
+          {
+            "id": "chamfer-point-1",
+            "x": 2,
+            "y": 0
+          },
+          {
+            "id": "chamfer-point-2",
+            "x": 0,
+            "y": 3
+          }
+        ],
+        "entities": [
+          {
+            "id": "bottom",
+            "construction": false,
+            "type": "line",
+            "start": "chamfer-point-1",
+            "end": "bottom-right"
+          },
+          {
+            "id": "right",
+            "construction": false,
+            "type": "line",
+            "start": "bottom-right",
+            "end": "top-right"
+          },
+          {
+            "id": "top",
+            "construction": false,
+            "type": "line",
+            "start": "top-right",
+            "end": "top-left"
+          },
+          {
+            "id": "left",
+            "construction": false,
+            "type": "line",
+            "start": "top-left",
+            "end": "chamfer-point-2"
+          },
+          {
+            "id": "chamfer-support-1",
+            "construction": true,
+            "type": "line",
+            "start": "origin",
+            "end": "chamfer-point-1"
+          },
+          {
+            "id": "chamfer-support-2",
+            "construction": true,
+            "type": "line",
+            "start": "origin",
+            "end": "chamfer-point-2"
+          },
+          {
+            "id": "chamfer-edge-1",
+            "construction": false,
+            "type": "line",
+            "start": "chamfer-point-1",
+            "end": "chamfer-point-2"
+          }
+        ],
+        "constraints": [
+          {
+            "id": "bottom-horizontal",
+            "type": "horizontal",
+            "entityId": "bottom"
+          },
+          {
+            "id": "right-vertical",
+            "type": "vertical",
+            "entityId": "right"
+          },
+          {
+            "id": "top-horizontal",
+            "type": "horizontal",
+            "entityId": "top"
+          },
+          {
+            "id": "left-vertical",
+            "type": "vertical",
+            "entityId": "left"
+          },
+          {
+            "id": "plate-width",
+            "type": "distance",
+            "a": "origin",
+            "b": "bottom-right",
+            "value": 10
+          },
+          {
+            "id": "plate-height",
+            "type": "distance",
+            "a": "top-left",
+            "b": "origin",
+            "value": 6
+          },
+          {
+            "id": "chamfer-constraint-1",
+            "type": "pointOnLine",
+            "pointId": "origin",
+            "entityId": "bottom"
+          },
+          {
+            "id": "chamfer-constraint-2",
+            "type": "pointOnLine",
+            "pointId": "origin",
+            "entityId": "left"
+          },
+          {
+            "id": "chamfer-constraint-3",
+            "type": "length",
+            "entityId": "chamfer-support-1",
+            "value": 2
+          },
+          {
+            "id": "chamfer-constraint-4",
+            "type": "length",
+            "entityId": "chamfer-support-2",
+            "value": 3
+          }
+        ]
+      }
+    },
+    {
+      "id": "chamfer-extrude",
+      "name": "Saliente · 4 mm",
+      "suppressed": false,
+      "type": "extrude",
+      "sketchId": "chamfer-sketch",
+      "depth": 4,
+      "symmetric": false
+    }
+  ],
+  "createdAt": "2026-10-11T14:52:04.228Z",
+  "updatedAt": "2026-10-11T14:55:05.534Z"
+}

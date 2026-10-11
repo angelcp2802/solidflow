@@ -44,3 +44,43 @@ Hosted checks for the initial source commit:
 [desktop CI](https://github.com/angelcp2802/solidflow/actions/runs/38145914642)
 and [security analysis](https://github.com/angelcp2802/solidflow/actions/runs/38145914644).
 Inspect each job's conclusion before making a platform claim.
+
+## Sketch chamfer increment — 2026-10-11
+
+On Windows x64, the final local tree passed `npm test`: 822 unit/CAD tests in
+40 files and all 8 IPC tests, with no skips. TypeScript/Vite build passed.
+The real Electron production-loader smoke also passed with WASM loaded and no
+console errors or failed requests; it exercises the initial solid, not the
+chamfer editor or native file dialogs.
+
+The increment adds 51 core chamfer cases, 5 server-rendered component cases and
+5 CAD integration cases. These cover acute/right/obtuse corners, endpoint and
+selection order, fixed and virtual corners, editable driving dimensions, fresh
+driven measurements, atomic rejection, stale-preview guards, persistence and
+STEP reconstruction. Solid checks include analytical volume/area, bounds,
+reference stability and valid single-solid BRep. Test assertions record their
+tolerances. The [tool contract](SKETCH_CHAMFER.md) states the geometric scope.
+
+Real browser interaction in an isolated local development session checked:
+origin selection, ordered entity-list selection, A/B reversal, equal-distance
+and two-distance previews, comma decimals, invalid-input blocking, Escape with
+an input focused, apply, undo/redo, editing the setback from 2 to 1.5 mm, undoing
+that edit and rebuilding the existing 4 mm extrusion. The 10 x 6 mm plate with
+2/3 mm setbacks displayed 0.228 cm3 and a 10 x 6 x 4 mm envelope. Saving and
+reopening the actual `.solidflow` download preserved that result.
+
+That exact browser download is tracked as
+`src/cad/fixtures/solidflow-ui/sketch-chamfer-distances-2-3.solidflow`; its fixture
+README records provenance, byte count and hash. Tests read it directly without
+regeneration. STEP checks here are programmatic exports, not captures from a
+native desktop save dialog. SSR tests do not execute pointer or keyboard events.
+Interactive chamfer evidence on macOS/Linux and the distance/angle UI flow
+remain pending; numerical CAD tests cover all three parameter modes.
+
+Hosted checks on the initial chamfer head `64ef269` passed on Windows x64,
+macOS arm64 and Linux x64, including build, portable tests, IPC, real Electron
+production-loader smoke and unsigned packaging:
+[desktop CI](https://github.com/angelcp2802/solidflow/actions/runs/38158887834).
+[Security analysis](https://github.com/angelcp2802/solidflow/actions/runs/38158887842)
+and the separate CodeQL code-scanning result also passed. This result belongs
+to that source revision; later changes need their own required checks.

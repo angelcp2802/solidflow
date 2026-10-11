@@ -100,7 +100,7 @@ export type LegacyProfile =
     }
   | { kind: "circle"; center: [number, number]; radius: number };
 export type SketchTool =
-  "select" | "line" | "rectangle" | "circle" | "arc" | "trim" | "extend";
+  "select" | "line" | "rectangle" | "circle" | "arc" | "trim" | "extend" | "chamfer";
 export type SketchSelection = {
   kind: "point" | "entity" | "constraint";
   id: string;

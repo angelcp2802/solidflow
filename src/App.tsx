@@ -52,6 +52,8 @@ import type { LucideIcon } from "lucide-react";
 import Viewport, { type ViewName } from "./components/Viewport";
 import SketchCanvas from "./components/SketchCanvas";
 import EntitySketchPanel from "./components/EntitySketchPanel";
+import SketchChamferPanel from "./components/SketchChamferPanel";
+import type { ChamferPlan } from "./sketch/chamfer";
 import PlaneSupportPanel, {
   supportLabel,
 } from "./components/PlaneSupportPanel";
@@ -72,6 +74,7 @@ import {
 import { createMeasuredPlateDocument } from "./examples/driven-dimensions";
 import { createTrimSketchDocument } from "./examples/sketch-trim";
 import { createExtendSketchDocument } from "./examples/sketch-extend";
+import { createChamferSketchDocument } from "./examples/sketch-chamfer";
 import {
   createLoftExample,
   createSweepExample,
@@ -326,6 +329,7 @@ export default function App() {
     }),
     [sketchTool, setSketchTool] = useState<SketchTool>("rectangle");
   const [sketchSelection, setSketchSelection] = useState<SketchSelection[]>([]);
+  const [chamferPreview, setChamferPreview] = useState<ChamferPlan | null>(null);
   const [sketchPast, setSketchPast] = useState<SketchFeature[]>([]);
   const [sketchFuture, setSketchFuture] = useState<SketchFeature[]>([]);
   const [sketchInspector, setSketchInspector] = useState<{
@@ -484,6 +488,9 @@ export default function App() {
     !error &&
     (!sketchSolution ||
       ["underdefined", "fullyDefined"].includes(sketchSolution.status)) &&
+    (editing.type !== "sketch" ||
+      sketchTool !== "chamfer" ||
+      !!chamferPreview?.changed) &&
     model.featureErrors.length === 0;
   const canExport =
     !editing &&
@@ -692,6 +699,9 @@ export default function App() {
   };
   const loadExtendDemo = async () => {
     if (await canReplace()) reset(createExtendSketchDocument());
+  };
+  const loadChamferDemo = async () => {
+    if (await canReplace()) reset(createChamferSketchDocument());
   };
   const loadPatternDemo = async (kind: RepetitionFeature["type"]) => {
     if (await canReplace())
@@ -1412,8 +1422,35 @@ export default function App() {
       setSelected(null);
     }
   };
+  const applySketchChamfer = (plan: ChamferPlan) => {
+    if (
+      editing?.type !== "sketch" ||
+      !plan.changed ||
+      !plan.chamferEntityId ||
+      plan.sourceProfile !== sketchSolution?.profile
+    ) {
+      notify("El croquis ha cambiado. Revisa la vista previa del chaflán.", true);
+      return;
+    }
+    // Validate the same planned profile through the normal editing solver once.
+    // A failed solve must not replace the current sketch or enter undo history.
+    const result = solveSketch(plan.profile);
+    if (!["underdefined", "fullyDefined"].includes(result.status)) {
+      notify(`No se puede aplicar el chaflán: ${result.message}`, true);
+      return;
+    }
+    changeDraft({ profile: result.profile });
+    setSketchTool("select");
+    setChamferPreview(null);
+    setSketchSelection([{ kind: "entity", id: plan.chamferEntityId }]);
+    notify("Chaflán aplicado. Sus cotas se pueden editar en el croquis.");
+  };
   const acceptEdit = () => {
     if (!editing || !canAccept) return;
+    if (editing.type === "sketch" && sketchTool === "chamfer") {
+      if (chamferPreview) applySketchChamfer(chamferPreview);
+      return;
+    }
     try {
       const next = doc.features.some((f) => f.id === editing.id)
         ? updateFeature(
@@ -1458,6 +1495,13 @@ export default function App() {
     setError("");
     setEditing(next);
   };
+  const cancelActiveEdit = () => {
+    if (editing?.type === "sketch" && sketchTool === "chamfer") {
+      setSketchTool("select");
+      setSketchSelection([]);
+      setChamferPreview(null);
+    } else cancelEdit();
+  };
   const changeEntityProfile = (candidate: EntityProfile) => {
     if (editing?.type !== "sketch") return;
     if (
@@ -1488,11 +1532,12 @@ export default function App() {
       (tool === "line" ||
         tool === "arc" ||
         tool === "trim" ||
-        tool === "extend")
+        tool === "extend" ||
+        tool === "chamfer")
     )
       changeEntityProfile(convertProfile(editing.profile));
     setSketchTool(tool);
-    setSketchSelection([]);
+    if (tool !== "chamfer") setSketchSelection([]);
   };
   const changeProfile = (patch: Partial<LegacyProfile>) => {
     if (editing?.type === "sketch" && editing.profile.kind !== "entities")
@@ -1533,6 +1578,15 @@ export default function App() {
           ["n", "o", "s"].includes(e.key.toLowerCase())
         )
           e.preventDefault();
+        return;
+      }
+      if (
+        e.key === "Escape" &&
+        editing?.type === "sketch" &&
+        sketchTool === "chamfer"
+      ) {
+        e.preventDefault();
+        cancelActiveEdit();
         return;
       }
       if (e.ctrlKey || e.metaKey) {
@@ -2115,7 +2169,9 @@ export default function App() {
                   icon={editing?.type === "sketch" ? Check : Pencil}
                   label={
                     editing?.type === "sketch"
-                      ? "Salir del croquis"
+                      ? sketchTool === "chamfer"
+                        ? "Aplicar chaflán"
+                        : "Salir del croquis"
                       : "Nuevo croquis"
                   }
                   large
@@ -2224,6 +2280,14 @@ export default function App() {
                   large
                   onClick={() => selectSketchTool("extend")}
                   active={sketchTool === "extend"}
+                  disabled={editing?.type !== "sketch"}
+                />
+                <Command
+                  icon={Triangle}
+                  label="Chaflán de croquis"
+                  large
+                  onClick={() => selectSketchTool("chamfer")}
+                  active={sketchTool === "chamfer"}
                   disabled={editing?.type !== "sketch"}
                 />
                 <Command
@@ -2389,7 +2453,7 @@ export default function App() {
             <div className="property-manager">
               <div className="property-title">
                 <span>{labels[editing.type]}</span>
-                <button onClick={cancelEdit} title="Cancelar">
+                <button onClick={cancelActiveEdit} title="Cancelar">
                   <X size={15} />
                 </button>
               </div>
@@ -2404,7 +2468,7 @@ export default function App() {
                 </button>
                 <button
                   className="cancel"
-                  onClick={cancelEdit}
+                  onClick={cancelActiveEdit}
                   title="Cancelar operación"
                 >
                   <X size={23} />
@@ -2428,6 +2492,17 @@ export default function App() {
               </div>
               {editing.type === "sketch" ? (
                 <>
+                  {sketchTool === "chamfer" && entityProfile && (
+                    <SketchChamferPanel
+                      profile={entityProfile}
+                      solution={sketchSolution}
+                      selection={sketchSelection}
+                      onSelection={setSketchSelection}
+                      onPreview={setChamferPreview}
+                      onApply={applySketchChamfer}
+                      onCancel={cancelActiveEdit}
+                    />
+                  )}
                   {sketchTool === "trim" && (
                     <div className="property-section trim-property">
                       <h3>
@@ -3090,6 +3165,7 @@ export default function App() {
               onSelection={setSketchSelection}
               solution={sketchSolution}
               fitStamp={view.stamp}
+              chamferPreview={sketchTool === "chamfer" ? chamferPreview : null}
             />
           ) : placingHoles && holeEditing ? (
             holeFrame ? (
@@ -3273,7 +3349,7 @@ export default function App() {
               >
                 <Check size={30} />
               </button>
-              <button onClick={cancelEdit} className="cancel" title="Cancelar">
+              <button onClick={cancelActiveEdit} className="cancel" title="Cancelar">
                 <X size={28} />
               </button>
             </div>
@@ -3471,6 +3547,13 @@ export default function App() {
                   <span>
                     Arco R20 y línea corta · prolonga sus dos extremos para
                     cerrar
+                  </span>
+                </button>
+                <button className="library-card" onClick={loadChamferDemo}>
+                  <Triangle size={36} />
+                  <strong>Placa para achaflanar</strong>
+                  <span>
+                    Rectángulo 10 × 6 · selecciona una esquina y define el chaflán
                   </span>
                 </button>
                 <button
