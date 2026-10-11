@@ -76,3 +76,11 @@ regeneration. STEP checks here are programmatic exports, not captures from a
 native desktop save dialog. SSR tests do not execute pointer or keyboard events.
 Interactive chamfer evidence on macOS/Linux and the distance/angle UI flow
 remain pending; numerical CAD tests cover all three parameter modes.
+
+Hosted checks on the initial chamfer head `64ef269` passed on Windows x64,
+macOS arm64 and Linux x64, including build, portable tests, IPC, real Electron
+production-loader smoke and unsigned packaging:
+[desktop CI](https://github.com/angelcp2802/solidflow/actions/runs/38158887834).
+[Security analysis](https://github.com/angelcp2802/solidflow/actions/runs/38158887842)
+and the separate CodeQL code-scanning result also passed. This result belongs
+to that source revision; later changes need their own required checks.
