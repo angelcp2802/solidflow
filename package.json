@@ -73,6 +73,7 @@
       "category": "public.app-category.graphics"
     },
     "linux": {
+      "icon": "public/solidflow.svg",
       "target": [
         "AppImage",
         "tar.gz"
