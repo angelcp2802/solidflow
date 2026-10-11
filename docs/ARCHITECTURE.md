@@ -19,6 +19,13 @@ engine and returns meshes, bounds, diagnostics and catalogs of references.
 Dependencies rebuild in feature order. Missing or ambiguous supports produce
 an explicit diagnostic instead of silently choosing another face or edge.
 
+An `importedSolid` feature owns bounded STEP bytes and an integrity digest.
+Reconstruction reads those bytes in the CAD worker with an explicitly owned
+native reader and temporary virtual file, then feeds the exact solid into the
+same downstream feature pipeline. Build and committed-snapshot export do not
+depend on the original filesystem path or a retained import cache. See the
+[import contract](STEP_IMPORT.md) for units, compatibility and scope.
+
 The Electron renderer has no Node integration. Filesystem access goes through
 specific preload/IPC methods validated by the main process. The production
 loader serves bundled assets through the application protocol; its smoke test

@@ -32,6 +32,7 @@ import { geometryDelta, isRepetition, patternPlan, repetitionSolid, type Feature
 import { draftSolid, shellSolid } from './kernel.face-operations';
 import { throughAllBossTool, throughAllTool, untilNextTool, upToSurfaceTool } from './kernel.extrusion-limits';
 import { holePositionStructure, holeSolid } from './kernel.holes';
+import { importStepSolid } from './kernel.step';
 
 const MESH_OPTIONS = { tolerance: 0.05, angularTolerance: 0.12 };
 const MIN_LENGTH = 0.01;
@@ -316,6 +317,17 @@ export class CadEngine {
           sketchFrames.set(feature.id, frame);
           if (support) sketchSupportLineages.set(feature.id, support.lineage);
           result.sketches!.push(sketchVisual(resolved, frame));
+          continue;
+        }
+        if (feature.type === 'importedSolid') {
+          if (solidFeatureIds.size || body) throw new Error('La importación STEP debe ser la primera y única importación sólida, incluso si las operaciones anteriores están suprimidas.');
+          solidFeatureIds.add(feature.id);
+          if (feature.suppressed) { unavailableFeatureIds.add(feature.id); continue; }
+          tool = importStepSolid(feature.source);
+          currentVolume = validateSolid(tool);
+          body = tool; tool = null; sourceFeatureId = feature.id;
+          lineage = advanceLineage('', [feature.id, 'importedSolid', feature.source.sha256]);
+          rememberReferencedSource(null);
           continue;
         }
         if (feature.suppressed) {

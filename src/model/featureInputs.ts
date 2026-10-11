@@ -28,7 +28,7 @@ export function featureSketchIds(feature: Feature): string[] {
 export function featureDependencyIds(feature: Feature): string[] {
   const ids = featureSketchIds(feature)
   if (hasBaseFeature(feature)) ids.push(feature.baseFeatureId)
-  if ('source' in feature) {
+  if (feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror') {
     if (feature.source.mode === 'features') ids.push(...feature.source.featureIds)
     else ids.push(feature.source.sourceFeatureId)
   }

@@ -1,6 +1,7 @@
 import type { EdgeReference, EdgeSelection, ExtrudeEndCondition, FaceReference, Feature, HoleEndCondition, HoleHead, HolePosition, LinearPatternDirection, LoftSection, PatternSource, Plane, PlaneSupport, Profile, SketchSupport, SweepPathSegment, Vec3 } from '../cad/kernel.types'
 import { validateEntityProfile } from '../sketch/validation'
 import { featureDependencyIds, featureSketchIds } from './featureInputs'
+import { validateStepSource } from './stepSource'
 
 export interface Document {
   version: 1
@@ -436,6 +437,10 @@ function feature(value: unknown, path: string): Feature {
     name: string(source.name, `${path}.name`),
     suppressed: boolean(source.suppressed, `${path}.suppressed`),
   }
+  if (source.type === 'importedSolid') {
+    keys(source, [...baseKeys, 'source'], path)
+    return { ...base, type: 'importedSolid', source: validateStepSource(source.source, `${path}.source`) }
+  }
   if (source.type === 'sketch') {
     keys(source, [...baseKeys, 'plane', 'offset', 'profile'], path, ['support'])
     if (!['XY', 'XZ', 'YZ'].includes(source.plane as string)) {
@@ -591,10 +596,18 @@ export function validateDocument(value: unknown): Document {
     fail('Documento.features', `se esperaba una lista de hasta ${MAX_FEATURES} operaciones`)
   }
   const seen = new Map<string, Feature>()
+  let seenSolid = false
+  let seenImport = false
   const features = source.features.map((value, index) => {
     const path = `Documento.features[${index}]`
     const parsed = feature(value, path)
     if (seen.has(parsed.id)) fail(`${path}.id`, 'identificador duplicado')
+    if (parsed.type === 'importedSolid') {
+      if (seenImport) fail(`${path}.type`, 'solo se admite un sólido importado')
+      if (seenSolid) fail(`${path}.type`, 'el sólido importado debe ser la primera operación sólida, incluso con operaciones suprimidas')
+      seenImport = true
+    }
+    if (parsed.type !== 'sketch' && parsed.type !== 'plane') seenSolid = true
     for (const [inputIndex, sketchId] of featureSketchIds(parsed).entries()) {
       if (seen.get(sketchId)?.type !== 'sketch') {
         const inputPath = parsed.type === 'sweep' ? (inputIndex === 0 ? 'profileSketchId' : 'pathSketchId')
@@ -608,7 +621,7 @@ export function validateDocument(value: unknown): Document {
         fail(`${path}.baseFeatureId`, 'debe referenciar una operación sólida anterior')
       }
     }
-    if ('source' in parsed) {
+    if (parsed.type === 'linearPattern' || parsed.type === 'circularPattern' || parsed.type === 'mirror') {
       const references = parsed.source.mode === 'features' ? parsed.source.featureIds : [parsed.source.sourceFeatureId]
       references.forEach((id, index) => {
         const seed = seen.get(id)

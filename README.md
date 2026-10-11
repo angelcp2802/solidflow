@@ -24,7 +24,8 @@ npm run desktop
 ```
 
 For the production loader: `npm run build`, then `npm start`.
-The editable format is `.solidflow`; STEP and STL are export formats.
+The editable format is `.solidflow`; a single closed STEP solid can be imported
+as an owned base, and geometry can be exported as STEP or STL.
 No external CAD installation or account is required.
 
 ## Current capabilities
@@ -37,6 +38,8 @@ No external CAD installation or account is required.
   sweep, loft, fillet, chamfer, patterns, mirror, shell, draft and hole features.
 - Feature history, reconstruction, suppression, editable documents, recovery
   and STEP/STL export built on OpenCascade BRep geometry.
+- [Owned STEP base solids](docs/STEP_IMPORT.md) with preserved placement,
+  explicit units and editable downstream operations, saved inside the document.
 
 The interface currently uses Spanish labels. Unsupported commands are disabled.
 Assemblies, technical drawings, sheet metal, simulation, general CAD import and

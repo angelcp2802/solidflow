@@ -2,6 +2,7 @@
 interface Window {
   solidflow?: {
     openDocument(): Promise<{path:string;content:string}|null>;
+    importStep(): Promise<{name:string;data:Uint8Array}|null>;
     saveDocument(content:string,name:string,filePath?:string): Promise<string|null>;
     exportDocument(data:Uint8Array,name:string,format:'step'|'stl'): Promise<string|null>;
   };
