@@ -148,6 +148,58 @@ and the separate CodeQL result also passed. These results belong to that
 revision, not subsequent source changes. Binary upload remains gated by
 [issue #5](https://github.com/angelcp2802/solidflow/issues/5).
 
+## Atomic straight-line sketch fillet batches — 2026-10-11
+
+On Windows x64 with Node 24.11.1, `npm test` passed 993 portable tests in
+49 files and all 8 IPC tests, with no skips. `npm run build` passed with the
+existing chunk/externalization warnings. `npm run test:desktop` passed the
+real production loader with WASM loaded, no console errors and no failed
+requests. The dependency audit reported no high/critical findings and eight
+moderate development findings; this is not a claim of zero vulnerabilities.
+
+The first workspace `npm ci` attempt could not replace files held by the
+running desktop/development processes; a recovery install also encountered
+locked runtime files. An isolated clean install from the unchanged lockfile
+succeeded. The workspace's 15,499 installed package/runtime files were verified
+byte for byte against that installation after recovery. An initial desktop
+smoke attempt stopped during runtime installation, before loading the app;
+the completed smoke result above followed recovery. No running user process
+was stopped for this check.
+
+This increment adds 23 batch core cases, 5 application-boundary cases,
+2 server-rendered component cases and 11 CAD cases. Core cases exercise
+adjacent/opposite corners, reversed selection/source representation, original
+length conversion once, complete cleanup, linked/individual/external radii,
+structural limits and whole-selection rejection. A healthy rectangle with an
+existing opposite-edge equality provides a real solver-conflict rejection.
+Stale/unhealthy sources skip solving; a valid application solves the entire
+proposal once. Post-solve checks reject source collapse/reversal or changed
+contact topology before a commit. Anchored linked left-corner R2→R3/R3.1
+dimension edits reject through the existing solver and return the edited
+input unchanged; no generic path guarantee or changed solver tolerance is
+claimed.
+
+The synthetic 10×6×4 mm plate checks bottom and left adjacency using independent
+centers/contacts and the square-minus-quarter-disk formulas in the
+[fillet guide](SKETCH_FILLET.md). Both R2 corners give `V=208+8π` mm³ and
+`A=200+12π` mm². CAD checks include linked R2→R1, one individual R2→R1,
+original dimensions changed to 12×8, valid BRep, one solid, bounds, exact
+document reopening, stable face/edge references and programmatic STEP round
+trips. Absolute mass/area/bounds tolerances are `5e-6` in their respective
+units; coordinates use `5e-7` mm per axis. Shared 6 mm edge collapse at R3 and
+reversal at R3.1 reject in both selection orders and leave the original plate
+rebuildable.
+
+Server rendering checks both fillet arcs, the combined retained source and
+both endpoint reports. Static application review confirms one draft-history
+commit for the accepted whole batch and no editor writes on rejection. These
+checks do not execute pointer, radius-blur, Escape or undo/redo events. Real
+interaction with the new batch tool/card remains unverified; Electron smoke
+covers the initial solid. Full-circle sources, curved/virtual corner batches
+and broader robustness remain open in
+[issue #6](https://github.com/angelcp2802/solidflow/issues/6). This source needs
+its own hosted checks before merge; earlier platform results are separate.
+
 ## Sketch arc prolongation increment — 2026-10-11
 
 On Windows x64 with Node 24.11.1, `npm test` passed all 952 portable tests in

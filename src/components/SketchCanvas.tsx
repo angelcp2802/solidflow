@@ -36,7 +36,7 @@ import { previewTrimToClosest, trimToClosest } from "../sketch/trim";
 import { previewExtendToClosest, extendToClosest } from "../sketch/extend";
 import type { TrimSegment } from "../sketch/trim";
 import type { ChamferPlan } from "../sketch/chamfer";
-import type { FilletPlan } from "../sketch/fillet";
+import type { FilletPlan, FilletBatchPlan } from "../sketch/fillet";
 import LegacySketchCanvas from "./LegacySketchCanvas";
 
 interface Props {
@@ -50,7 +50,7 @@ interface Props {
   fitStamp: number;
   referenceLines?: number[];
   chamferPreview?: ChamferPlan | null;
-  filletPreview?: FilletPlan | null;
+  filletPreview?: FilletPlan | FilletBatchPlan | null;
 }
 type Point = [number, number];
 type Draft = {
@@ -428,7 +428,12 @@ function EntitySketchCanvas({
         return;
       }
       if (target.kind === "point") {
-        onSelection([target]);
+        const corners = selection.filter(item => item.kind === "point");
+        onSelection(tool === "fillet"
+          ? corners.some(item => sameSelection(item, target))
+            ? corners.filter(item => !sameSelection(item, target))
+            : [...corners, target]
+          : [target]);
         return;
       }
       const eligible = (id: string) => {
@@ -902,7 +907,7 @@ function EntitySketchCanvas({
           : tool === "chamfer"
             ? "Chaflán: selecciona un vértice o dos líneas en orden A / B · Aplica desde el panel · Esc cancela"
           : tool === "fillet"
-            ? "Redondeo: selecciona una esquina o dos entidades · Aplica desde el panel · Esc termina"
+            ? "Redondeo: selecciona una o varias esquinas, o dos entidades · Aplica desde el panel · Esc termina"
           : tool === "arc"
             ? [
                 "Arco: selecciona el centro",
@@ -1228,7 +1233,7 @@ function EntitySketchCanvas({
             {visibleFillet.profile.entities
               .filter(entity => visibleFillet.affectedEntityIds.includes(entity.id) || visibleFillet.createdEntityIds.includes(entity.id))
               .map(entity => <path key={entity.id}
-                data-fillet-segment={entity.id === visibleFillet.filletEntityId ? "fillet" : visibleFillet.affectedEntityIds.includes(entity.id) ? "trimmed" : "support"}
+                data-fillet-segment={visibleFillet.createdEntityIds.includes(entity.id) ? "fillet" : visibleFillet.affectedEntityIds.includes(entity.id) ? "trimmed" : "support"}
                 d={entityPath(entity, visibleFillet.profile)} fill="none" stroke="#168b9f"
                 strokeWidth={entity.construction ? "1.2" : "2.7"}
                 strokeDasharray={entity.construction ? "4 5" : undefined}

@@ -55,7 +55,8 @@ import EntitySketchPanel from "./components/EntitySketchPanel";
 import SketchChamferPanel from "./components/SketchChamferPanel";
 import type { ChamferPlan } from "./sketch/chamfer";
 import SketchFilletPanel from "./components/SketchFilletPanel";
-import type { FilletPlan } from "./sketch/fillet";
+import type { FilletPlan, FilletBatchPlan } from "./sketch/fillet";
+import { solveFilletApplication } from "./sketch/filletApplication";
 import PlaneSupportPanel, {
   supportLabel,
 } from "./components/PlaneSupportPanel";
@@ -79,6 +80,7 @@ import { createExtendSketchDocument } from "./examples/sketch-extend";
 import { createChamferSketchDocument } from "./examples/sketch-chamfer";
 import { createFilletSketchDocument } from "./examples/sketch-fillet";
 import { createFilletProlongationDocument } from "./examples/sketch-fillet-prolongation";
+import { createFilletBatchDocument } from "./examples/sketch-fillet-batch";
 import {
   createLoftExample,
   createSweepExample,
@@ -334,9 +336,10 @@ export default function App() {
     [sketchTool, setSketchTool] = useState<SketchTool>("rectangle");
   const [sketchSelection, setSketchSelection] = useState<SketchSelection[]>([]);
   const [chamferPreview, setChamferPreview] = useState<ChamferPlan | null>(null);
-  const [filletPreview, setFilletPreview] = useState<FilletPlan | null>(null);
+  const [filletPreview, setFilletPreview] = useState<FilletPlan | FilletBatchPlan | null>(null);
   const [previousFilletId, setPreviousFilletId] = useState<string | null>(null);
   const filletSessionIds = useRef<string[]>([]);
+  const filletSelectionCheck = useRef<((selection: SketchSelection[]) => string | null) | null>(null);
   const [sketchPast, setSketchPast] = useState<SketchFeature[]>([]);
   const [sketchFuture, setSketchFuture] = useState<SketchFeature[]>([]);
   const [sketchInspector, setSketchInspector] = useState<{
@@ -727,6 +730,9 @@ export default function App() {
   };
   const loadFilletProlongationDemo = async (kind: "line-arc" | "arc-arc") => {
     if (await canReplace()) reset(createFilletProlongationDocument(kind));
+  };
+  const loadFilletBatchDemo = async () => {
+    if (await canReplace()) reset(createFilletBatchDocument());
   };
   const loadPatternDemo = async (kind: RepetitionFeature["type"]) => {
     if (await canReplace())
@@ -1470,23 +1476,22 @@ export default function App() {
     setSketchSelection([{ kind: "entity", id: plan.chamferEntityId }]);
     notify("Chaflán aplicado. Sus cotas se pueden editar en el croquis.");
   };
-  const applySketchFillet = (plan: FilletPlan) => {
-    if (editing?.type !== "sketch" || !plan.changed || !plan.filletEntityId ||
-      plan.sourceProfile !== sketchSolution?.profile) {
-      notify("El croquis ha cambiado. Revisa la vista previa del redondeo.", true);
+  const applySketchFillet = (plan: FilletPlan | FilletBatchPlan) => {
+    if (editing?.type !== "sketch") return;
+    const application = solveFilletApplication(sketchSolution, plan);
+    if (!application.accepted) {
+      notify(application.message, true);
       return;
     }
-    const result = solveSketch(plan.profile);
-    if (!["underdefined", "fullyDefined"].includes(result.status)) {
-      notify(`No se puede aplicar el redondeo: ${result.message}`, true);
-      return;
-    }
-    changeDraft({ profile: result.profile });
+    changeDraft({ profile: application.solution.profile });
     setFilletPreview(null);
-    filletSessionIds.current = [...filletSessionIds.current.filter(id => id !== plan.filletEntityId), plan.filletEntityId];
-    setPreviousFilletId(plan.filletEntityId);
+    const filletIds = "filletEntityIds" in plan ? plan.filletEntityIds : [plan.filletEntityId!];
+    filletSessionIds.current = [...filletSessionIds.current.filter(id => !filletIds.includes(id)), ...filletIds];
+    setPreviousFilletId(filletIds.at(-1) ?? null);
     setSketchSelection([]);
-    notify("Redondeo aplicado. Selecciona otra esquina o termina con Esc.");
+    notify(filletIds.length > 1
+      ? `${filletIds.length} esquinas redondeadas en una operación. Selecciona otras o termina con Esc.`
+      : "Redondeo aplicado. Selecciona otra esquina o termina con Esc.");
   };
   const acceptEdit = () => {
     if (!editing || !canAccept) return;
@@ -2563,6 +2568,7 @@ export default function App() {
                       selection={sketchSelection}
                       previousFilletId={previousFilletId}
                       onSelection={setSketchSelection}
+                      onSelectionCheck={check => { filletSelectionCheck.current = check; }}
                       onPreview={setFilletPreview}
                       onApply={applySketchFillet}
                       onCancel={cancelActiveEdit}
@@ -3238,7 +3244,15 @@ export default function App() {
               plane={sketchPlaneShortLabel}
               referenceLines={referenceLines}
               selection={sketchSelection}
-              onSelection={setSketchSelection}
+              onSelection={next => {
+                if (sketchTool === "fillet" && next.length > sketchSelection.length &&
+                  next.length > 1 && next.every(item => item.kind === "point") &&
+                  filletPreview?.sourceProfile === sketchSolution?.profile) {
+                  const message = filletSelectionCheck.current?.(next);
+                  if (message) { notify(message, true); return; }
+                }
+                setSketchSelection(next);
+              }}
               solution={sketchSolution}
               fitStamp={view.stamp}
               chamferPreview={sketchTool === "chamfer" ? chamferPreview : null}
@@ -3652,6 +3666,11 @@ export default function App() {
                   <CornerDownRight size={36} />
                   <strong>Redondeo entre dos arcos separados</strong>
                   <span>Croquis abierto · prolonga los dos arcos R10 hasta un redondeo R2</span>
+                </button>
+                <button className="library-card" onClick={() => loadFilletBatchDemo()}>
+                  <CornerDownRight size={36} />
+                  <strong>Redondear varias esquinas</strong>
+                  <span>Placa 10 × 6 × 4 mm · selecciona las dos esquinas inferiores y aplica R2</span>
                 </button>
                 <button
                   className="library-card"

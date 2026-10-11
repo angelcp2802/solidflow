@@ -1,7 +1,8 @@
 # Sketch fillet
 
-The sketch fillet command inserts an editable tangent arc between two lines or
-circular arcs; it is separate from a solid-edge fillet. It changes saved sketch
+The sketch fillet command inserts editable tangent arcs between line/arc pairs
+or at several common straight-line corners; it is separate from a solid-edge
+fillet. It changes saved sketch
 entities and constraints. The staged scope remains open in
 [issue #6](https://github.com/angelcp2802/solidflow/issues/6). A straight-line
 milestone does not establish support for all curved pairs or virtual corners.
@@ -157,8 +158,8 @@ merged by proximity. The fillet is construction geometry only when both source
 entities are construction geometry. Structural/count limits are validated
 before a changed plan is returned; a rejected plan leaves its source intact.
 
-This is a repeatable single-corner tool, not an atomic batch of interacting
-corners. Full-circle source trimming and broader robustness
+Curved sources remain a single-pair operation; the atomic batch accepts common
+straight-line corners. Full-circle source trimming and broader robustness
 across curved configurations remain work for the open issue. One closed
 line–arc case does not establish complete curved-pair or platform coverage.
 
@@ -258,6 +259,72 @@ R3 line–arc contacts are (4√10,0) and (40√10/13,30/13), with center
 and CAD kernel. Validation distinguishes exact analytical seeds from a radius
 edit solved numerically; their precision evidence belongs in
 [VALIDATION.md](VALIDATION.md).
+
+## Several straight-line corners in one operation
+
+Choose the fillet tool and click two or more original corners between straight
+lines. Clicking a selected corner removes it; the panel can also remove an
+individual corner or clear the selection. Selecting entities switches back to
+the single-pair command. The multi-corner command requires exactly two incident
+line sources at each corner and does not discover additional corners.
+When a valid preview already exists, adding a corner that cannot fit rejects
+that new pick and retains the current selection. Changing the radius after
+selecting several corners validates the complete selection again.
+
+All selected corners use the displayed radius and keep/delete policy. The
+default linked mode creates one driving radius on the canonical first corner
+and equal-radius relations for the others when no preceding session fillet
+exists. Otherwise it links the batch to that preceding fillet. It can also link
+the complete batch to an explicitly chosen circular reference. Individual mode creates one driving radius
+per corner, initially with the same value; later edits can change them
+independently. Canonical target IDs make geometry and dimension ownership
+independent of selection order. The panel lists both endpoint edits when two
+corners share a source line.
+
+Preview prepares one detached profile from the solved geometry. Application
+checks that the displayed source is still current, solves the whole proposal
+once, validates retained source direction and commits through one draft-history
+entry. A geometric, structural, stale-source or solver failure rejects the
+complete batch. Escape discards the preview. This whole-selection policy does
+not apply a successful prefix. Batch grouping is transient: saved documents
+contain ordinary arcs, shared contact IDs, tangent relations and dimensions.
+
+Keep mode converts a driving source length once to a distance between its
+original endpoints and preserves the original corner on its line supports.
+Delete mode evaluates exclusive corner constraints against the complete
+surviving topology; origin and external references remain protected. Existing
+source IDs and construction flags survive. Shared retained line intervals must
+remain at least `1e-6` mm in their original direction. Two individually valid
+fillets may therefore be rejected together.
+
+The synthetic [batch example](../src/examples/sketch-fillet-batch.ts) is a
+10×6×4 mm plate. For nonoverlapping right-corner radii `r_i`, subtracting the
+removed squares minus quarter disks gives planar area `S` and perimeter `P`:
+
+```text
+S = 60 − (1−π/4) Σ r_i²
+P = 32 − (2−π/2) Σ r_i
+V = 4S; A = 2S+4P
+```
+
+At the two bottom corners with R2, centers are (2,2) and (8,2); contacts are
+(2,0), (0,2), (8,0), (10,2). The shared bottom line retains its ID and runs
+from (2,0) to (8,0). Volume is `208+8π` mm³ and surface area `200+12π` mm².
+Bounds remain (0,0,0)–(10,6,4). At the two left corners R2 leaves a 2 mm
+vertical segment; R3 consumes that segment and R3.1 reverses it by 0.2 mm.
+Both latter batches reject without changing the input.
+
+The command's post-solve direction check applies to its initial commit. Later
+dimension edits use the existing local solver. Anchored linked R2→R3 and
+R2→R3.1 left-corner edits are checked rejection cases; they do not establish
+continuity for all radius paths or freely rotating supports.
+
+These formulas also distinguish independent radius edits through the sums,
+but mass alone cannot distinguish bottom from left adjacency. Tests therefore
+check center/contact coordinates, shared point IDs and both source endpoint
+replacements separately. Curved/virtual corner batches and circle trimming
+remain outside this increment. See [VALIDATION.md](VALIDATION.md) for executed
+checks and interaction limits.
 
 ## Observed browser interaction
 

@@ -19,3 +19,12 @@ two-arc gap, with fixed support geometry and rectangular closing edges. The
 Green-integral area and perimeter formulas used to validate their R2 fillets
 and 4 mm extrusions. Their tests generate documents in memory; no private model
 or binary fixture is required.
+
+`sketch-fillet-batch.ts` generates a 10×6 mm Cartesian rectangle with a 4 mm
+extrusion, anchored at the sketch origin. It uses no imported geometry or
+external fixture. The adjacent bottom corners are `origin` and `bottom-right`;
+the adjacent left corners are `origin` and `top-left`. The
+[fillet guide](SKETCH_FILLET.md) derives independent contacts, area and
+perimeter by subtracting a square minus a quarter disk at each rounded corner.
+The batch tests construct and reopen documents and STEP exports in memory;
+these are programmatic checks, not saved UI captures.
