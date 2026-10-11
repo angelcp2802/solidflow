@@ -36,6 +36,12 @@ export interface FilletPlan {
   candidates: { index: number; label: string }[];
   selectedSolutionIndex: number | null;
 }
+export interface FilletBatchParameters extends FilletParameters {
+  radiusMode: "individual" | "linked";
+}
+export interface FilletBatchPlan extends FilletPlan {
+  filletEntityIds: string[];
+}
 
 /** Millimetres. Proximity does not merge existing point identities. */
 export const FILLET_TOLERANCE = 1e-7;
@@ -114,6 +120,111 @@ const constraintRefs = (c: SketchConstraint): string[] =>
     : "pointId" in c
       ? [c.pointId, ...("entityId" in c ? [c.entityId] : [])]
       : [c.entityId];
+
+function allocateIds(profile: EntityProfile) {
+  const ids = new Set([
+    "origin",
+    ...profile.points.map((p) => p.id),
+    ...profile.entities.map((e) => e.id),
+    ...profile.constraints.map((c) => c.id),
+  ]);
+  return (kind: string) => {
+    let index = 1;
+    while (ids.has(`fillet-${kind}-${index}`)) index++;
+    const id = `fillet-${kind}-${index}`;
+    ids.add(id);
+    return id;
+  };
+}
+
+function convertSourceLengths(profile: EntityProfile, sources: SourceEntity[]) {
+  const converted: string[] = [];
+  profile.constraints = profile.constraints.map((c) => {
+    const source = sources.find(
+      (source) => c.type === "length" && c.entityId === source.id,
+    );
+    if (!source || c.type !== "length" || c.driven) return c;
+    const { entityId: _entityId, ...original } = c;
+    converted.push(c.id);
+    return { ...original, type: "distance", a: source.start, b: source.end };
+  });
+  return converted;
+}
+
+/** Cleanup against the complete surviving topology, not an intermediate corner. */
+function deleteSourceCorners(
+  profile: EntityProfile,
+  sources: Curve[],
+  oldCorners: string[],
+  filletIds: Set<string>,
+) {
+  const sourceIds = new Set(sources.map((c) => c.entity.id));
+  const sourcePoints = new Set(
+    sources.flatMap((c) => [c.start.id, c.end.id, ...(c.center ? [c.center.id] : [])]),
+  );
+  const externalPoints = new Set(
+    profile.entities
+      .filter((e) => !sourceIds.has(e.id) && !filletIds.has(e.id))
+      .flatMap(pointRefs),
+  );
+  const retainedCornerPoints = new Set(
+    profile.entities.flatMap(pointRefs).filter((id) => oldCorners.includes(id)),
+  );
+  const corners = new Set(
+    oldCorners.filter((id) => id !== "origin" && !retainedCornerPoints.has(id)),
+  );
+  const deleted: string[] = [];
+  profile.constraints = profile.constraints.filter((c) => {
+    const refs = constraintRefs(c);
+    const exclusive = refs.some((id) => corners.has(id)) && refs.every((id) =>
+      sourceIds.has(id) || (sourcePoints.has(id) && id !== "origin" &&
+        !retainedCornerPoints.has(id) && !externalPoints.has(id)),
+    );
+    if (exclusive || (c.type === "length" && !c.driven && sourceIds.has(c.entityId))) {
+      deleted.push(c.id);
+      return false;
+    }
+    return true;
+  });
+  const used = new Set([
+    ...profile.entities.flatMap(pointRefs),
+    ...profile.constraints.flatMap(constraintRefs),
+  ]);
+  profile.points = profile.points.filter((p) => !corners.has(p.id) || used.has(p.id));
+  return {
+    deleted,
+    sharedCornerKept: oldCorners.some((id) => id === "origin" || externalPoints.has(id) || used.has(id)),
+  };
+}
+
+function keepSourceCorner(
+  profile: EntityProfile,
+  cs: [Curve, Curve],
+  corner: Corner,
+  oldCorners: string[],
+  put: (constraint: NewConstraint) => void,
+) {
+  cs.forEach((c, i) => {
+    const type = c.entity.type === "line" ? "pointOnLine" : "pointOnCircle";
+    if (!profile.constraints.some((relation) => relation.type === type &&
+      relation.pointId === oldCorners[i] && relation.entityId === c.entity.id))
+      put({ type, pointId: oldCorners[i], entityId: c.entity.id });
+  });
+  if (!corner.point || oldCorners[0] === oldCorners[1] ||
+    distance(cs[0][corner.ends[0]], corner.point) > FILLET_TOLERANCE ||
+    distance(cs[1][corner.ends[1]], corner.point) > FILLET_TOLERANCE) return;
+  const connected = new Set([oldCorners[0]]);
+  for (let previous = -1; previous !== connected.size;) {
+    previous = connected.size;
+    for (const c of profile.constraints)
+      if (c.type === "coincident") {
+        if (connected.has(c.a)) connected.add(c.b);
+        if (connected.has(c.b)) connected.add(c.a);
+      }
+  }
+  if (!connected.has(oldCorners[1]))
+    put({ type: "coincident", a: oldCorners[0], b: oldCorners[1] });
+}
 
 function curve(entity: SourceEntity, points: Map<string, SketchPoint>): Curve {
   const start = points.get(entity.start)!,
@@ -778,19 +889,7 @@ export function planSketchFillet(
     const deleteCorners =
       parameters.cornerPolicy === "delete" ||
       (!commonOriginalCorner && cs.some((c) => c.entity.type === "arc"));
-    const ids = new Set([
-      "origin",
-      ...profile.points.map((p) => p.id),
-      ...profile.entities.map((e) => e.id),
-      ...profile.constraints.map((c) => c.id),
-    ]);
-    const uid = (kind: string) => {
-      let index = 1;
-      while (ids.has(`fillet-${kind}-${index}`)) index++;
-      const id = `fillet-${kind}-${index}`;
-      ids.add(id);
-      return id;
-    };
+    const uid = allocateIds(profile);
     const createdConstraintIds: string[] = [],
       convertedConstraintIds: string[] = [],
       deletedConstraintIds: string[] = [];
@@ -812,20 +911,7 @@ export function planSketchFillet(
       clockwise: chosen.clockwise,
     };
     if (!deleteCorners) {
-      profile.constraints = profile.constraints.map((c) => {
-        const source = cs.find(
-          (source) => c.type === "length" && c.entityId === source.entity.id,
-        );
-        if (!source || c.type !== "length" || c.driven) return c;
-        const { entityId: _entityId, ...original } = c;
-        convertedConstraintIds.push(c.id);
-        return {
-          ...original,
-          type: "distance",
-          a: source.entity.start,
-          b: source.entity.end,
-        };
-      });
+      convertedConstraintIds.push(...convertSourceLengths(profile, cs.map((c) => c.entity)));
     }
     cs.forEach((c, i) => {
       c.entity[chosen.corner.ends[i]] = contacts[i].id;
@@ -834,94 +920,11 @@ export function planSketchFillet(
     profile.entities.push(fillet);
     let sharedCornerKept = false;
     if (deleteCorners) {
-      const sourcePoints = new Set(
-        cs.flatMap((c) => [
-          c.start.id,
-          c.end.id,
-          ...(c.center ? [c.center.id] : []),
-        ]),
-      );
-      const externalPoints = new Set(
-        profile.entities
-          .filter((e) => !sourceIds.has(e.id) && e.id !== fillet.id)
-          .flatMap(pointRefs),
-      );
-      // An old line endpoint can also be the retained center or far endpoint
-      // of its source partner. Its anchoring relations still define geometry.
-      const retainedCornerPoints = new Set(
-        profile.entities
-          .flatMap(pointRefs)
-          .filter((id) => oldCorners.includes(id)),
-      );
-      const corners = new Set(
-        oldCorners.filter(
-          (id) => id !== "origin" && !retainedCornerPoints.has(id),
-        ),
-      );
-      profile.constraints = profile.constraints.filter((c) => {
-        const refs = constraintRefs(c),
-          touchedCorner = refs.some((id) => corners.has(id));
-        const exclusive =
-          touchedCorner &&
-          refs.every(
-            (id) =>
-              sourceIds.has(id) ||
-              (sourcePoints.has(id) &&
-                id !== "origin" &&
-                !retainedCornerPoints.has(id) &&
-                !externalPoints.has(id)),
-          );
-        const lengthTarget =
-          c.type === "length" && !c.driven && sourceIds.has(c.entityId);
-        if (exclusive || lengthTarget) {
-          deletedConstraintIds.push(c.id);
-          return false;
-        }
-        return true;
-      });
-      const used = new Set([
-        ...profile.entities.flatMap(pointRefs),
-        ...profile.constraints.flatMap(constraintRefs),
-      ]);
-      profile.points = profile.points.filter(
-        (p) => !corners.has(p.id) || used.has(p.id),
-      );
-      sharedCornerKept = oldCorners.some(
-        (id) => id === "origin" || externalPoints.has(id) || used.has(id),
-      );
+      const cleanup = deleteSourceCorners(profile, cs, oldCorners, new Set([fillet.id]));
+      deletedConstraintIds.push(...cleanup.deleted);
+      sharedCornerKept = cleanup.sharedCornerKept;
     } else {
-      cs.forEach((c, i) => {
-        const type = c.entity.type === "line" ? "pointOnLine" : "pointOnCircle";
-        if (
-          !profile.constraints.some(
-            (relation) =>
-              relation.type === type &&
-              relation.pointId === oldCorners[i] &&
-              relation.entityId === c.entity.id,
-          )
-        )
-          put({ type, pointId: oldCorners[i], entityId: c.entity.id });
-      });
-      if (
-        chosen.corner.point &&
-        distance(cs[0][chosen.corner.ends[0]], chosen.corner.point) <=
-          FILLET_TOLERANCE &&
-        distance(cs[1][chosen.corner.ends[1]], chosen.corner.point) <=
-          FILLET_TOLERANCE &&
-        oldCorners[0] !== oldCorners[1]
-      ) {
-        const connected = new Set([oldCorners[0]]);
-        for (let previous = -1; previous !== connected.size;) {
-          previous = connected.size;
-          for (const c of profile.constraints)
-            if (c.type === "coincident") {
-              if (connected.has(c.a)) connected.add(c.b);
-              if (connected.has(c.b)) connected.add(c.a);
-            }
-        }
-        if (!connected.has(oldCorners[1]))
-          put({ type: "coincident", a: oldCorners[0], b: oldCorners[1] });
-      }
+      keepSourceCorner(profile, cs, chosen.corner, oldCorners, put);
     }
     cs.forEach((c, i) =>
       put({
@@ -969,4 +972,167 @@ export function planSketchFillet(
       selectedSolutionIndex: null,
     };
   }
+}
+
+/**
+ * Atomic common-corner line batch on the displayed solved geometry. Every
+ * candidate uses the same original supports; joint intervals are checked before
+ * any detached topology is changed. The caller solves once before committing.
+ */
+export function planSketchFilletBatch(
+  input: EntityProfile,
+  selection: SketchSelection[],
+  parameters: FilletBatchParameters,
+): FilletBatchPlan {
+  try {
+    const profile = validateEntityProfile(input);
+    const { radius: r, cornerPolicy, radiusMode, equalRadiusEntityId } = parameters;
+    if (!Number.isFinite(r) || r < SKETCH_LIMITS.minDimension || r > SKETCH_LIMITS.maxDimension)
+      throw new Error("El radio debe estar entre 0.01 y 100000 mm.");
+    if (cornerPolicy !== "keep" && cornerPolicy !== "delete")
+      throw new Error("La política de esquina no es válida.");
+    if (radiusMode !== "individual" && radiusMode !== "linked")
+      throw new Error("Elige radios individuales o enlazados para el lote.");
+    if (parameters.solutionIndex !== undefined)
+      throw new Error("Las soluciones de pareja no se aplican a un lote de vértices.");
+    if (equalRadiusEntityId !== undefined && radiusMode !== "linked")
+      throw new Error("Una referencia externa requiere radios enlazados.");
+    if (selection.length < 2 || selection.some((s) => s.kind !== "point"))
+      throw new Error("Selecciona al menos dos vértices comunes entre líneas.");
+    if (new Set(selection.map((s) => s.id)).size !== selection.length)
+      throw new Error("El lote contiene una esquina repetida.");
+    const compareIds = (a: { id: string }, b: { id: string }) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+    const points = new Map(profile.points.map((p) => [p.id, p]));
+    points.set("origin", { id: "origin", x: 0, y: 0 });
+    if (equalRadiusEntityId !== undefined) {
+      const reference = profile.entities.find((e) => e.id === equalRadiusEntityId);
+      if (!reference || reference.type === "line")
+        throw new Error("La igualdad de radio requiere otra entidad circular existente.");
+      const measured = reference.type === "circle" ? reference.radius :
+        distance(points.get(reference.center)!, points.get(reference.start)!);
+      if (Math.abs(measured - r) > FILLET_TOLERANCE)
+        throw new Error("El radio debe coincidir con el radio medido de la entidad de referencia.");
+    }
+    const editedEnds = new Set<string>();
+    const targets = [...selection].sort(compareIds).map((target) => {
+      const selected = select(profile, [target], points);
+      if (selected.curves.some((c) => c.entity.type !== "line"))
+        throw new Error("El lote admite únicamente esquinas comunes entre líneas.");
+      const cs = [...selected.curves].sort((a, b) => compareIds(a.entity, b.entity)) as [Curve, Curve];
+      const chosen = defaultCandidate(candidates(cs, cornerOptions(cs, selected.point), r));
+      if (!chosen)
+        throw new Error(`La esquina ${target.id} no admite ese radio con los tramos disponibles.`);
+      const oldCorners = cs.map((c, i) => c.entity[chosen.corner.ends[i]]);
+      cs.forEach((c, i) => {
+        const key = `${c.entity.id}\0${chosen.corner.ends[i]}`;
+        if (editedEnds.has(key)) throw new Error("El lote contiene una esquina física repetida.");
+        editedEnds.add(key);
+      });
+      return { cs, chosen, oldCorners };
+    });
+    const sources = new Map<string, Curve>();
+    const contacts = new Map<string, Partial<Record<End, XY>>>();
+    targets.forEach(({ cs, chosen }) => cs.forEach((c, i) => {
+      sources.set(c.entity.id, c);
+      const edits = contacts.get(c.entity.id) ?? {};
+      edits[chosen.corner.ends[i]] = chosen.contacts[i];
+      contacts.set(c.entity.id, edits);
+    }));
+    // An individually valid pair can cross the other contact on a shared line.
+    // Signed order on the ORIGINAL support catches both zero and reversal.
+    for (const [id, edits] of contacts) {
+      const source = sources.get(id)!;
+      const start = edits.start ?? source.start, end = edits.end ?? source.end;
+      if (dot(sub(end, start), source.direction) < MIN_LENGTH)
+        throw new Error(`Los redondeos consumen o invierten el tramo compartido ${id}.`);
+    }
+    const uid = allocateIds(profile);
+    const createdConstraintIds: string[] = [];
+    const put = (c: NewConstraint) => {
+      const id = uid("constraint");
+      profile.constraints.push({ ...c, id } as SketchConstraint);
+      createdConstraintIds.push(id);
+    };
+    const convertedConstraintIds = cornerPolicy === "keep" ?
+      convertSourceLengths(profile, [...sources.values()].map((c) => c.entity)) : [];
+    const filletEntityIds: string[] = [];
+    for (const { cs, chosen, oldCorners } of targets) {
+      const center = { id: uid("center"), ...chosen.center };
+      const contactPoints = chosen.contacts.map((p) => ({ id: uid("point"), ...p }));
+      const fillet: Extract<SketchEntity, { type: "arc" }> = {
+        id: uid("arc"), type: "arc", construction: cs.every((c) => c.entity.construction),
+        center: center.id, start: contactPoints[0].id, end: contactPoints[1].id,
+        clockwise: chosen.clockwise,
+      };
+      cs.forEach((c, i) => { c.entity[chosen.corner.ends[i]] = contactPoints[i].id; });
+      profile.points.push(center, ...contactPoints);
+      profile.entities.push(fillet);
+      filletEntityIds.push(fillet.id);
+      if (cornerPolicy === "keep") keepSourceCorner(profile, cs, chosen.corner, oldCorners, put);
+      cs.forEach((c, i) => put({ type: "tangent", a: c.entity.id, b: fillet.id, branch: chosen.branches[i] }));
+      const reference = equalRadiusEntityId ?? (radiusMode === "linked" ? filletEntityIds[0] : undefined);
+      if (reference !== undefined && reference !== fillet.id)
+        put({ type: "equal", a: fillet.id, b: reference });
+      else put({ type: "radius", entityId: fillet.id, value: r });
+    }
+    const deletedConstraintIds = cornerPolicy === "delete" ?
+      deleteSourceCorners(profile, [...sources.values()], targets.flatMap((t) => t.oldCorners), new Set(filletEntityIds)).deleted : [];
+    return {
+      changed: true, sourceProfile: input, profile: validateEntityProfile(profile),
+      message: `${filletEntityIds.length} redondeos preparados como un único lote.`,
+      affectedEntityIds: [...sources.keys()].sort(),
+      filletEntityId: filletEntityIds[0], filletEntityIds,
+      createdEntityIds: [...filletEntityIds], createdConstraintIds,
+      deletedConstraintIds, convertedConstraintIds,
+      sourceEdits: targets.flatMap((t) => t.chosen.sourceEdits),
+      candidates: [], selectedSolutionIndex: null,
+    };
+  } catch (error) {
+    return {
+      changed: false, sourceProfile: input, profile: input,
+      message: error instanceof Error ? error.message : "No se puede preparar el lote de redondeos.",
+      affectedEntityIds: [], filletEntityId: null, filletEntityIds: [],
+      createdEntityIds: [], createdConstraintIds: [], deletedConstraintIds: [],
+      convertedConstraintIds: [], sourceEdits: [], candidates: [], selectedSolutionIndex: null,
+    };
+  }
+}
+
+/** Conservative post-solve command check; this is not a generic solver path guard. */
+export function validateSketchFilletBatchResult(
+  plan: FilletBatchPlan,
+  solved: EntityProfile,
+): string | null {
+  if (!plan.changed) return "El lote no contiene una propuesta válida.";
+  const points = new Map(solved.points.map((p) => [p.id, p]));
+  points.set("origin", { id: "origin", x: 0, y: 0 });
+  const previewPoints = new Map(plan.profile.points.map((p) => [p.id, p]));
+  previewPoints.set("origin", { id: "origin", x: 0, y: 0 });
+  for (const id of plan.affectedEntityIds) {
+    const source = plan.profile.entities.find((e) => e.id === id);
+    const result = solved.entities.find((e) => e.id === id);
+    if (!source || source.type !== "line" || !result || result.type !== "line" ||
+      result.start !== source.start || result.end !== source.end)
+      return "El solver ha cambiado la topología de una línea del lote.";
+    const start = points.get(result.start), end = points.get(result.end);
+    const previewStart = previewPoints.get(source.start), previewEnd = previewPoints.get(source.end);
+    if (!start || !end || !previewStart || !previewEnd)
+      return "El lote ha perdido un punto de contacto.";
+    const signed = dot(sub(end, start), unit(sub(previewEnd, previewStart)));
+    if (!Number.isFinite(signed) || signed < MIN_LENGTH)
+      return "El solver ha consumido o invertido una línea del lote.";
+  }
+  for (const id of plan.filletEntityIds) {
+    const arc = solved.entities.find((e) => e.id === id);
+    const preview = plan.profile.entities.find((e) => e.id === id);
+    if (!arc || arc.type !== "arc" || !preview || preview.type !== "arc" ||
+      arc.start !== preview.start || arc.end !== preview.end ||
+      arc.center !== preview.center || arc.clockwise !== preview.clockwise)
+      return "El lote ha perdido la topología de un arco de redondeo.";
+    const start = points.get(arc.start), end = points.get(arc.end), center = points.get(arc.center);
+    if (!start || !end || !center || distance(start, end) < MIN_LENGTH ||
+      distance(center, start) < MIN_LENGTH || distance(center, end) < MIN_LENGTH)
+      return "El solver ha colapsado un arco de redondeo del lote.";
+  }
+  return null;
 }

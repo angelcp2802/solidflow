@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { CornerDownRight, X } from "lucide-react";
-import { planSketchFillet, type FilletParameters, type FilletPlan } from "../sketch/fillet";
+import { planSketchFillet, planSketchFilletBatch, type FilletParameters, type FilletPlan, type FilletBatchPlan } from "../sketch/fillet";
 import { measureEntity } from "../sketch/editing";
 import { SKETCH_LIMITS } from "../sketch/validation";
 import type { EntityProfile, SketchSelection, SketchSolveResult } from "../sketch/types";
@@ -11,9 +11,10 @@ interface Props {
   selection: SketchSelection[];
   previousFilletId: string | null;
   onSelection: (selection: SketchSelection[]) => void;
-  onApply: (plan: FilletPlan) => void;
+  onSelectionCheck?: (check: ((selection: SketchSelection[]) => string | null) | null) => void;
+  onApply: (plan: FilletPlan | FilletBatchPlan) => void;
   onCancel: () => void;
-  onPreview: (plan: FilletPlan | null) => void;
+  onPreview: (plan: FilletPlan | FilletBatchPlan | null) => void;
 }
 function decimal(text: string): number | null {
   const normalized = text.trim().replace(",", ".");
@@ -25,7 +26,7 @@ const validRadius = (value: number | null): value is number => value !== null &&
   value >= SKETCH_LIMITS.minDimension && value <= SKETCH_LIMITS.maxDimension;
 
 export default function SketchFilletPanel({
-  profile, solution, selection, previousFilletId, onSelection, onApply, onCancel, onPreview,
+  profile, solution, selection, previousFilletId, onSelection, onSelectionCheck, onApply, onCancel, onPreview,
 }: Props) {
   const [radius, setRadius] = useState("2");
   const [cornerPolicy, setCornerPolicy] = useState<FilletParameters["cornerPolicy"]>("keep");
@@ -37,11 +38,15 @@ export default function SketchFilletPanel({
   const errorId = useId();
   const previewCallback = useRef(onPreview);
   previewCallback.current = onPreview;
+  const selectionCheckCallback = useRef(onSelectionCheck);
+  selectionCheckCallback.current = onSelectionCheck;
   const healthy = solution?.status === "underdefined" || solution?.status === "fullyDefined";
   const resolved = healthy && solution ? solution.profile : profile;
   const selectedEntities = selection.filter(item => item.kind === "entity").map(item => item.id);
+  const selectedCorners = selection.filter(item => item.kind === "point");
+  const batch = selection.length >= 2 && selectedCorners.length === selection.length;
   const completeSelection = (selection.length === 1 && selection[0].kind === "point") ||
-    (selection.length === 2 && selectedEntities.length === 2);
+    (selection.length === 2 && selectedEntities.length === 2) || batch;
   const circular = resolved.entities.filter(entity => entity.type !== "line" && !selectedEntities.includes(entity.id));
   const requestedReferenceId = reference === "previous" ? previousFilletId : reference === "independent" ? null : reference;
   const referenceEntity = circular.find(entity => entity.id === requestedReferenceId);
@@ -57,8 +62,22 @@ export default function SketchFilletPanel({
     };
   }, [effectiveRadius, cornerPolicy, solutionIndex, requestedReferenceId, referenceEntity]);
   const planning = useMemo(() => healthy && parameters && completeSelection
-    ? planSketchFillet(resolved, selection, parameters) : null,
-  [healthy, parameters, completeSelection, resolved, selection]);
+    ? batch ? planSketchFilletBatch(resolved, selection, {
+        ...parameters, solutionIndex: undefined,
+        radiusMode: reference === "independent" ? "individual" : "linked",
+      }) : planSketchFillet(resolved, selection, parameters) : null,
+  [healthy, parameters, completeSelection, resolved, selection, batch, reference]);
+  useEffect(() => {
+    selectionCheckCallback.current?.(next => {
+      if (!healthy || !parameters) return "Revisa el radio y el estado del croquis antes de añadir otra esquina.";
+      const proposal = planSketchFilletBatch(resolved, next, {
+        ...parameters, solutionIndex: undefined,
+        radiusMode: reference === "independent" ? "individual" : "linked",
+      });
+      return proposal.changed ? null : proposal.message;
+    });
+    return () => selectionCheckCallback.current?.(null);
+  }, [healthy, parameters, resolved, reference]);
   const plan = planning?.changed ? planning : null;
   useEffect(() => {
     if (plan && solutionIndex === undefined && plan.selectedSolutionIndex !== null)
@@ -80,7 +99,7 @@ export default function SketchFilletPanel({
   const orderedIds = plan?.affectedEntityIds ?? selectedEntities;
   return <div className="property-section trim-property fillet-property">
     <h3><CornerDownRight size={14} /> Redondeo de croquis</h3>
-    <p>Selecciona una esquina o dos entidades. Las líneas y los arcos se recortan o prolongan hasta los contactos tangentes de la vista previa.</p>
+    <p>Selecciona una esquina o dos entidades. Haz clic en varias esquinas entre líneas para redondearlas juntas. La vista previa muestra todos los contactos tangentes.</p>
     <label className="number-field">
       <span>Radio del redondeo</span>
       <div>
@@ -95,13 +114,15 @@ export default function SketchFilletPanel({
     <label>
       <span>Relación de radios</span>
       <select aria-label="Relación de radios" value={reference} onChange={event => setReference(event.target.value)}>
-        <option value="previous">Enlazar redondeos consecutivos</option>
-        <option value="independent">Cota de radio individual</option>
+        <option value="previous">{batch ? "Enlazar radios de las esquinas" : "Enlazar redondeos consecutivos"}</option>
+        <option value="independent">{batch ? "Una cota de radio por esquina" : "Cota de radio individual"}</option>
         {circular.map(entity => <option key={entity.id} value={entity.id}>Igual a {entityName(entity.id)}</option>)}
       </select>
     </label>
     {referenceEntity ? <p className="muted-small">Radio enlazado: {referenceRadius?.toLocaleString("es-ES", { maximumFractionDigits: 6 })} mm. La relación de igualdad mantiene ambos radios al editar sus cotas.</p>
-      : reference === "previous" && <p className="muted-small">El primer redondeo lleva una cota. Los siguientes se enlazan con el anterior durante esta sesión de herramienta.</p>}
+      : reference === "previous" && <p className="muted-small">{batch
+        ? "Una cota controla todos los radios seleccionados. Se aplican juntos y se deshacen en un solo paso."
+        : "El primer redondeo lleva una cota. Los siguientes se enlazan con el anterior durante esta sesión de herramienta."}</p>}
     <label>
       <span>Esquina original</span>
       <select aria-label="Esquina original" value={cornerPolicy} onChange={event => setCornerPolicy(event.target.value as FilletParameters["cornerPolicy"])}>
@@ -111,12 +132,19 @@ export default function SketchFilletPanel({
     </label>
     <p className="muted-small">Mantener conserva una esquina común y sus cotas. En parejas separadas con arcos, ambos modos retiran los extremos sustituidos y sus restricciones exclusivas. Los puntos usados por otras entidades se conservan.</p>
     <div aria-label="Entidades del redondeo">
-      {orderedIds.slice(0, 2).map((id, index) => <div className="sketch-selection-actions" key={id}>
+      {!batch && orderedIds.slice(0, 2).map((id, index) => <div className="sketch-selection-actions" key={id}>
         <span>{index === 0 ? "A" : "B"}: {entityName(id)}</span>
         <button type="button" aria-label={`Quitar entidad ${index === 0 ? "A" : "B"}`}
           onClick={() => { setSolutionIndex(undefined); onSelection(orderedIds.filter(item => item !== id).map(item => ({ kind: "entity", id: item }))); }}><X size={13} /></button>
       </div>)}
       {selection.length === 1 && selection[0].kind === "point" && <p className="muted-small">Vértice seleccionado{selection[0].id === "origin" ? " · origen" : ""}.</p>}
+      {batch && <div aria-label="Esquinas del redondeo">
+        {selectedCorners.map((corner, index) => <div className="sketch-selection-actions" key={corner.id}>
+          <span>Esquina {index + 1}{corner.id === "origin" ? " · origen" : ""}</span>
+          <button type="button" aria-label={`Quitar esquina ${index + 1}`}
+            onClick={() => onSelection(selection.filter(item => item.id !== corner.id))}><X size={13} /></button>
+        </div>)}
+      </div>}
     </div>
     <button type="button" disabled={!selection.length} onClick={() => { setSolutionIndex(undefined); onSelection([]); }}>Limpiar selección</button>
     {!!planning?.candidates.length && <label>
@@ -129,8 +157,8 @@ export default function SketchFilletPanel({
     </label>}
     {plan && <>
       <ul className="muted-small" aria-label="Cambios en los tramos">
-        {plan.sourceEdits.map(edit => <li key={edit.entityId}>
-          {orderedIds.indexOf(edit.entityId) === 0 ? "A" : "B"} · {entityName(edit.entityId)}: {edit.movement === "none"
+        {plan.sourceEdits.map(edit => <li key={`${edit.entityId}:${edit.endpoint}`}>
+          {!batch && `${orderedIds.indexOf(edit.entityId) === 0 ? "A" : "B"} · `}{entityName(edit.entityId)}{batch && ` · ${edit.endpoint === "start" ? "inicio" : "final"}`}: {edit.movement === "none"
             ? "conserva la posición del extremo."
             : `${edit.movement === "extend" ? "prolonga" : "recorta"} ${edit.amount.toLocaleString("es-ES", { maximumFractionDigits: 6 })} mm.`}
         </li>)}
@@ -140,7 +168,7 @@ export default function SketchFilletPanel({
       </p>
     </>}
     {error && <p id={errorId} role="alert">{error}</p>}
-    <p aria-live="polite" aria-atomic="true">{plan ? plan.message : !completeSelection ? "Selecciona un vértice o completa la selección de dos entidades." : "Sin vista previa aplicable."}</p>
+    <p aria-live="polite" aria-atomic="true">{plan ? plan.message : !completeSelection ? "Selecciona una o varias esquinas, o completa la selección de dos entidades." : "Sin vista previa aplicable."}</p>
     <button type="button" className="outline-button" aria-label="Aplicar redondeo" disabled={!plan} onClick={() => { if (plan) onApply(plan); }}>Aplicar redondeo</button>
     <button type="button" className="outline-button" onClick={onCancel}>Terminar redondeo · Esc</button>
   </div>;

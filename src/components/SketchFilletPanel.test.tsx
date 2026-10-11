@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 import SketchFilletPanel from "./SketchFilletPanel";
 import SketchCanvas from "./SketchCanvas";
 import { createFilletSketchDocument } from "../examples/sketch-fillet";
-import { planSketchFillet } from "../sketch/fillet";
+import { createFilletBatchDocument } from "../examples/sketch-fillet-batch";
+import { planSketchFillet, planSketchFilletBatch } from "../sketch/fillet";
 import { solveSketch } from "../sketch/solver";
 import type { EntityProfile, SketchSelection } from "../sketch/types";
 
@@ -17,6 +18,37 @@ function setup() {
 }
 const noop = () => undefined;
 describe("sketch fillet rendering", () => {
+  it("renders both adjacent corners, all endpoint edits and the two preview arcs", () => {
+    const sketch = createFilletBatchDocument().features[0];
+    if (sketch.type !== "sketch" || sketch.profile.kind !== "entities") throw new Error("Expected sketch");
+    const profile = sketch.profile;
+    const solution = solveSketch(profile);
+    const selection: SketchSelection[] = [{ kind: "point", id: "origin" }, { kind: "point", id: "bottom-right" }];
+    const plan = planSketchFilletBatch(solution.profile, selection, { radius: 2, cornerPolicy: "keep", radiusMode: "linked" });
+    expect(plan.changed, plan.message).toBe(true);
+    const html = renderToStaticMarkup(<SketchFilletPanel profile={profile} solution={solution} selection={selection}
+      previousFilletId={null} onSelection={noop} onApply={noop} onCancel={noop} onPreview={noop} />);
+    expect(html).toContain('aria-label="Esquinas del redondeo"');
+    expect(html).toContain("Enlazar radios de las esquinas");
+    expect(html).toContain("Una cota de radio por esquina");
+    expect(html).toContain("inicio: recorta");
+    expect(html).toContain("final: recorta");
+    expect(html).toMatch(/aria-label="Aplicar redondeo"(?! disabled)/);
+    const canvas = renderToStaticMarkup(<SketchCanvas profile={profile} solution={solution} selection={selection}
+      tool="fillet" plane="XY" fitStamp={0} filletPreview={plan} onSelection={noop} onChange={noop} />);
+    expect(canvas.match(/data-fillet-segment="fillet"/g)).toHaveLength(2);
+    expect(canvas.match(/data-fillet-segment="trimmed"/g)).toHaveLength(3);
+    expect(canvas).toContain('pointer-events="none"');
+  });
+
+  it("blocks the entire multi-corner preview when an original corner is missing", () => {
+    const source = setup();
+    const selection: SketchSelection[] = [{ kind: "point", id: "origin" }, { kind: "point", id: "missing" }];
+    const html = renderToStaticMarkup(<SketchFilletPanel {...source} selection={selection} previousFilletId={null}
+      onSelection={noop} onApply={noop} onCancel={noop} onPreview={noop} />);
+    expect(html).toMatch(/aria-label="Aplicar redondeo" disabled/);
+    expect(html).not.toContain('aria-label="Cambios en los tramos"');
+  });
   it("offers radius, corner policy, consecutive radii, candidate choice and an applicable preview", () => {
     const source = setup();
     const html = renderToStaticMarkup(<SketchFilletPanel {...source} previousFilletId={null}
