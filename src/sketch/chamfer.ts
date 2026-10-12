@@ -7,6 +7,7 @@ import type {
 } from "./types";
 import { SKETCH_LIMITS, validateEntityProfile } from "./validation";
 import { assertOffsetTopologyEditable } from "./references";
+import { createSketchIdAllocator } from "./ids";
 
 export type ChamferParameters =
   | { mode: "equal"; distance: number }
@@ -233,19 +234,7 @@ export function planSketchChamfer(
         "Las distancias del chaflán deben dejar un tramo positivo en ambas líneas.",
       );
 
-    const ids = new Set([
-      "origin",
-      ...profile.points.map((item) => item.id),
-      ...profile.entities.map((item) => item.id),
-      ...profile.constraints.map((item) => item.id),
-    ]);
-    const uid = (kind: string): string => {
-      let index = 1;
-      while (ids.has(`chamfer-${kind}-${index}`)) index++;
-      const id = `chamfer-${kind}-${index}`;
-      ids.add(id);
-      return id;
-    };
+    const uid = createSketchIdAllocator(profile, "chamfer");
     const newPoints = [first, second].map((line, index) => ({
       id: uid("point"),
       x: line.corner.x + line.direction.x * (index === 0 ? d1 : d2),

@@ -8,6 +8,7 @@ import type {
 } from "./types";
 import { assertOffsetTopologyEditable, cleanupConstraintDependencies, constraintReferences as constraintRefs } from "./references";
 import { SKETCH_LIMITS, validateEntityProfile } from "./validation";
+import { createSketchIdAllocator } from "./ids";
 
 export interface FilletParameters {
   radius: number;
@@ -115,22 +116,6 @@ const pointRefs = (e: SketchEntity) =>
     : e.type === "circle"
       ? [e.center]
       : [e.center, e.start, e.end];
-
-function allocateIds(profile: EntityProfile) {
-  const ids = new Set([
-    "origin",
-    ...profile.points.map((p) => p.id),
-    ...profile.entities.map((e) => e.id),
-    ...profile.constraints.map((c) => c.id),
-  ]);
-  return (kind: string) => {
-    let index = 1;
-    while (ids.has(`fillet-${kind}-${index}`)) index++;
-    const id = `fillet-${kind}-${index}`;
-    ids.add(id);
-    return id;
-  };
-}
 
 function convertSourceLengths(profile: EntityProfile, sources: SourceEntity[]) {
   const converted: string[] = [];
@@ -789,8 +774,9 @@ function select(
 }
 
 /**
- * Pure plan on the displayed solved profile. Preview and commit share this
- * detached profile; IDs and branch slots are deterministic. A caller must solve
+ * Detached plan on the displayed solved profile. Preview and commit share this
+ * detached profile and its new identities; branch slots are deterministic.
+ * A caller must solve
  * before committing. Tangency branches and arc winding persist in normal data.
  */
 export function planSketchFillet(
@@ -886,7 +872,7 @@ export function planSketchFillet(
     const deleteCorners =
       parameters.cornerPolicy === "delete" ||
       (!commonOriginalCorner && cs.some((c) => c.entity.type === "arc"));
-    const uid = allocateIds(profile);
+    const uid = createSketchIdAllocator(profile, "fillet");
     const createdConstraintIds: string[] = [],
       convertedConstraintIds: string[] = [],
       deletedConstraintIds: string[] = [];
@@ -1044,7 +1030,7 @@ export function planSketchFilletBatch(
       if (dot(sub(end, start), source.direction) < MIN_LENGTH)
         throw new Error(`Los redondeos consumen o invierten el tramo compartido ${id}.`);
     }
-    const uid = allocateIds(profile);
+    const uid = createSketchIdAllocator(profile, "fillet");
     const createdConstraintIds: string[] = [];
     const put = (c: NewConstraint) => {
       const id = uid("constraint");

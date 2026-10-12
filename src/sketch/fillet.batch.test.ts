@@ -8,6 +8,7 @@ import {
 import type { EntityProfile, SketchSelection } from "./types";
 import { solveSketch } from "./solver";
 import { validateEntityProfile } from "./validation";
+import { canonicalCreatedIdentities } from "./identity.test-helpers";
 
 // Own Cartesian fixtures: millimetres, no external document or generated oracle.
 function rectangle(): EntityProfile {
@@ -120,18 +121,21 @@ describe("atomic common-line-corner batches", () => {
     expect(validateSketchFilletBatchResult(result, solution.profile)).toBeNull();
   });
 
-  it("uses canonical target/source IDs independently of selection and entity array order", () => {
+  it("uses canonical target/source geometry independently of selection and entity array order", () => {
     const input = rectangle();
     const a = plan(input);
     const reordered = structuredClone(input);
     reordered.entities.reverse();
     const b = plan(reordered, corners("br", "origin"));
-    expect(b.filletEntityIds).toEqual(a.filletEntityIds);
+    expect(b.filletEntityIds).toHaveLength(a.filletEntityIds.length);
+    expect(b.filletEntityIds.every(id => !a.filletEntityIds.includes(id))).toBe(true);
     expect(b.sourceEdits).toEqual(a.sourceEdits);
-    expect(b.profile.points).toEqual(a.profile.points);
-    expect(b.profile.constraints).toEqual(a.profile.constraints);
-    expect([...b.profile.entities].sort((x, y) => x.id.localeCompare(y.id)))
-      .toEqual([...a.profile.entities].sort((x, y) => x.id.localeCompare(y.id)));
+    const canonicalA = canonicalCreatedIdentities(a.profile, input);
+    const canonicalB = canonicalCreatedIdentities(b.profile, reordered);
+    expect(canonicalB.points).toEqual(canonicalA.points);
+    expect(canonicalB.constraints).toEqual(canonicalA.constraints);
+    expect([...canonicalB.entities].sort((x, y) => x.id.localeCompare(y.id)))
+      .toEqual([...canonicalA.entities].sort((x, y) => x.id.localeCompare(y.id)));
   });
 
   it.each([false, true])("preserves physical geometry when source endpoint storage is reversed: %s", (reverseArray) => {
@@ -155,14 +159,18 @@ describe("atomic common-line-corner batches", () => {
     solved(result.profile);
   });
 
-  it("allocates collision-free deterministic IDs across points, entities and constraints", () => {
+  it("allocates fresh collision-free IDs across points, entities and constraints", () => {
     const input = rectangle();
     input.points.push({ id: "fillet-arc-1", x: 20, y: 20 }, { id: "fillet-point-1", x: 21, y: 20 });
     input.constraints.push({ id: "fillet-center-1", type: "fix", pointId: "fillet-point-1", x: 21, y: 20 });
     const result = plan(input);
-    expect(result.filletEntityIds).toEqual(["fillet-arc-2", "fillet-arc-3"]);
+    expect(result.filletEntityIds).toHaveLength(2);
+    const ids = [...result.profile.points, ...result.profile.entities, ...result.profile.constraints].map(item => item.id);
+    expect(new Set(ids).size).toBe(ids.length);
     expect(result.profile.points.find((p) => p.id === "fillet-center-1")).toBeUndefined();
-    expect(plan(input).profile).toEqual(result.profile);
+    const next = plan(input);
+    expect(next.filletEntityIds.every(id => !result.filletEntityIds.includes(id))).toBe(true);
+    expect(canonicalCreatedIdentities(next.profile, input)).toEqual(canonicalCreatedIdentities(result.profile, input));
   });
 
   it("preserves construction status per corner", () => {

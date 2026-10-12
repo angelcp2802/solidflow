@@ -54,9 +54,28 @@ describe("associative sketch mirror planning", () => {
     if (axis.type === "line") [axis.start, axis.end] = [axis.end, axis.start];
     const b = planSketchMirror(reversed, pick("circle", "source"), { axisEntityId: "axis" });
     expect(a.changed && b.changed).toBe(true);
-    expect(a.pointMap).toEqual(b.pointMap);
-    expect(a.entityMap).toEqual(b.entityMap);
-    expect(a.profile.points).toEqual(b.profile.points);
+    expect(Object.keys(a.pointMap)).toEqual(Object.keys(b.pointMap));
+    expect(Object.keys(a.entityMap)).toEqual(Object.keys(b.entityMap));
+    const pointRoles = (plan: typeof a) => {
+      const sources = new Map(Object.entries(plan.pointMap).map(([source, image]) => [image, `image:${source}`]));
+      return plan.profile.points.map(({ id, ...coordinates }) => ({ ...coordinates, id: sources.get(id) ?? id }));
+    };
+    expect(pointRoles(a)).toEqual(pointRoles(b));
+    const boundImages = (plan: typeof a) => {
+      const points = new Map(Object.entries(plan.pointMap).filter(([source, image]) => source !== image)
+        .map(([source, image]) => [image, `image:${source}`]));
+      const pointRole = (id: string) => points.get(id) ?? id;
+      return Object.fromEntries(Object.entries(plan.entityMap).map(([source, image]) => {
+        const entity = plan.profile.entities.find(candidate => candidate.id === image);
+        if (!entity) throw new Error(`Missing image for source ${source}`);
+        const { id: _identity, ...geometry } = entity;
+        if (entity.type === "circle") return [source, { ...geometry, center: pointRole(entity.center) }];
+        if (entity.type === "line") return [source, { ...geometry, start: pointRole(entity.start), end: pointRole(entity.end) }];
+        return [source, { ...geometry, center: pointRole(entity.center), start: pointRole(entity.start), end: pointRole(entity.end) }];
+      }));
+    };
+    expect(boundImages(a)).toEqual(boundImages(b));
+    expect(a.imageEntityIds.every(id => !b.imageEntityIds.includes(id))).toBe(true);
   });
   it.each([false, true])("reflects shared contacts and reverses a %s clockwise arc", clockwise => {
     const input = fixture();

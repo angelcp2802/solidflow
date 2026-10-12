@@ -3,6 +3,7 @@ import { planSketchOffset, type OffsetParameters } from "./offset";
 import { solveOffsetApplication } from "./offsetApplication";
 import { measureDimension, solveSketch } from "./solver";
 import { removeSelection } from "./editing";
+import { canonicalCreatedIdentities } from "./identity.test-helpers";
 import type { EntityProfile, SketchConstraint, SketchOffsetRelation } from "./types";
 
 const options: OffsetParameters = { distance: 2, reverse: false, bothDirections: false, chain: true, cap: "none", construction: "none", addDimensions: true };
@@ -76,7 +77,9 @@ describe("associative support offsets", () => {
     expect(imageEnds(solved.profile)).toEqual([{ x: -1, y: -1 }, { x: 11, y: -1 }, { x: 11, y: -1 }, { x: 11, y: 7 }, { x: 11, y: 7 }, { x: -1, y: 7 }, { x: -1, y: 7 }, { x: -1, y: -1 }]);
     const permuted = structuredClone(input); permuted.entities.reverse(); permuted.points.reverse();
     const permutedPlan = planSketchOffset(permuted, select("d-left", "c-top", "a-bottom", "b-right"), { ...options, distance: 1, chain: false });
-    expect(imageEnds(permutedPlan.profile)).toEqual(imageEnds(plan.profile)); expect(group(permutedPlan.profile)).toEqual(group(plan.profile));
+    expect(imageEnds(permutedPlan.profile)).toEqual(imageEnds(plan.profile));
+    expect(group(canonicalCreatedIdentities(permutedPlan.profile, permuted)))
+      .toEqual(group(canonicalCreatedIdentities(plan.profile, input)));
     for (const distance of [3, 3.1]) { const invalid = planSketchOffset(input, select("a-bottom"), { ...options, reverse: true, distance }); expect(invalid.changed).toBe(false); expect(invalid.profile).toBe(input); }
     expect(input).toEqual(before);
     const inner = healthy(planSketchOffset(input, select("a-bottom"), { ...options, reverse: true, distance: 2 }).profile), edited = structuredClone(inner.profile); dimension(edited, "left").value = 3.1;
