@@ -36,10 +36,16 @@ warnings. The first complete unit run finished with 1,380 passed and 112
 failed tests across 74 files; IPC did not run because the unit command failed.
 All 112 reported failures were timeouts: 104 at 5 seconds, one at 15 seconds
 and seven at 30 seconds. There was also a worker-termination timeout warning.
-That run used the default file-worker limit on a 16-processor host. A further
-run with `VITEST_MAX_WORKERS=2` also reported test failures, without changing
-test selection, assertions or existing timeout budgets. The local Electron
-smoke exited at its existing 45-second limit before readiness was established.
+That run used the default file-worker limit on a 16-processor host. The second
+complete `npm test` run, with `VITEST_MAX_WORKERS=2`, exited 1 after 1,397.13
+seconds: 1,431 passed and 61 timed out (60 at 5 seconds, one at 30 seconds),
+across 14 failed and 60 passed files. IPC did not run because the unit command
+failed. Test selection, assertions and existing timeout budgets were unchanged.
+Running `npm run test:ipc` separately then passed all 11 checks, with no failures,
+cancellations or skips; this does not change either failed complete-suite result.
+The first local Electron smoke exited at its existing 45-second limit before
+readiness was established. One retry after the complete unit runs had terminated
+also exited at the unchanged 45-second limit without establishing readiness.
 No complete local-suite or local-loader pass is claimed for this increment.
 A bounded resource observation found significant external CPU load, but it
 does not establish the sole cause of these outcomes.
