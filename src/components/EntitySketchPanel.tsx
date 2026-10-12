@@ -40,6 +40,7 @@ const relationNames: Record<SketchConstraint["type"], string> = {
   symmetric: "Simétrica respecto a línea",
   mirrorArcDirection: "Sentido de arco reflejado",
   offset: "Equidistancia asociativa",
+  equalOffsetDistance: "Separación compartida de equidistancias",
   offsetDistance: "Distancia de equidistancia",
   horizontal: "Horizontal",
   vertical: "Vertical",

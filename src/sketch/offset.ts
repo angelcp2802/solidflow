@@ -21,6 +21,16 @@ export interface OffsetPlan {
   imageEntityIds: string[];
   createdConstraintIds: string[];
   capEntityIds: string[];
+  components: OffsetPlanComponent[];
+}
+
+export interface OffsetPlanComponent {
+  relationId: string;
+  primaryEntityId: string;
+  sourceEntityIds: string[];
+  imageEntityIds: string[];
+  capEntityIds: string[];
+  distanceConstraintIds: string[];
 }
 
 /** Follow shared identities, never infer connectivity from coordinate proximity. */
@@ -81,89 +91,128 @@ function orderedSources(profile: EntityProfile, selected: string[], chain: boole
   return { sources, closed };
 }
 
+/** Partition the original topology before allocating any images or caps. */
+function orderedComponents(profile: EntityProfile, selected: string[], chain: boolean) {
+  const entities = new Map(profile.entities.map(entity => [entity.id, entity]));
+  if (selected.some(id => !entities.has(id))) throw new Error("Alguna entidad seleccionada ya no existe.");
+  const candidates = chain ? profile.entities : selected.map(id => entities.get(id)!);
+  const adjacent = new Map<string, string[]>();
+  for (const entity of candidates) if (entity.type !== "circle") for (const pointId of ends(entity, false)) {
+    adjacent.set(pointId, [...(adjacent.get(pointId) ?? []), entity.id]);
+  }
+  const assigned = new Set<string>();
+  const components = selected.flatMap(primaryEntityId => {
+    if (assigned.has(primaryEntityId)) return [];
+    const members = new Set<string>(), pending = [primaryEntityId];
+    while (pending.length) {
+      const id = pending.pop()!;
+      if (members.has(id)) continue;
+      members.add(id); assigned.add(id);
+      const entity = entities.get(id)!;
+      if (entity.type !== "circle") for (const pointId of ends(entity, false)) pending.push(...(adjacent.get(pointId) ?? []));
+    }
+    const ids = [primaryEntityId, ...[...members].filter(id => id !== primaryEntityId).sort()];
+    return [{ ...orderedSources(profile, ids, false), primaryEntityId }];
+  });
+  return components;
+}
+
 /** A detached support-based proposal. No solver or source mutation is hidden here. */
 export function planSketchOffset(input: EntityProfile, selection: SketchSelection[], parameters: OffsetParameters): OffsetPlan {
   const selectedEntityIds = selection.filter(item => item.kind === "entity").map(item => item.id);
-  const rejected = (message: string): OffsetPlan => ({ changed: false, sourceProfile: input, profile: input, message, selectedEntityIds, sourceEntityIds: [], imageEntityIds: [], createdConstraintIds: [], capEntityIds: [] });
+  const rejected = (message: string): OffsetPlan => ({ changed: false, sourceProfile: input, profile: input, message, selectedEntityIds, sourceEntityIds: [], imageEntityIds: [], createdConstraintIds: [], capEntityIds: [], components: [] });
   try {
     const profile = validateEntityProfile(input);
     if (!parameters || !Number.isFinite(parameters.distance) || parameters.distance < SKETCH_LIMITS.minDimension || parameters.distance > SKETCH_LIMITS.maxDimension ||
       ![parameters.reverse, parameters.bothDirections, parameters.chain, parameters.addDimensions].every(value => typeof value === "boolean") ||
       !["none", "line", "arc"].includes(parameters.cap) || !["none", "source", "offset", "both"].includes(parameters.construction)) return rejected("Revisa la distancia y las opciones de equidistancia.");
-    if (!selection.length || selection.some(item => item.kind !== "entity") || new Set(selectedEntityIds).size !== selectedEntityIds.length) return rejected("Selecciona líneas, arcos o un círculo sin repetir entidades.");
-    const { sources, closed } = orderedSources(profile, selectedEntityIds, parameters.chain);
+    if (!selection.length || selection.some(item => item.kind !== "entity") || new Set(selectedEntityIds).size !== selectedEntityIds.length) return rejected("Selecciona líneas, arcos o círculos sin repetir entidades.");
+    const chains = orderedComponents(profile, selectedEntityIds, parameters.chain);
     const ids = new Set(["origin", ...profile.points.map(p => p.id), ...profile.entities.map(e => e.id), ...profile.constraints.map(c => c.id)]);
     const allocate = (kind: string) => { let index = 1; while (ids.has(`offset-${kind}-${index}`)) index++; const id = `offset-${kind}-${index}`; ids.add(id); return id; };
     const createPoint = (p: OffsetPoint) => { const id = allocate("point"); profile.points.push({ id, x: p.x, y: p.y }); return id; };
-    const cap = closed ? "none" : parameters.cap;
     const sides: ("right" | "left")[] = parameters.bothDirections ? [parameters.reverse ? "left" : "right", parameters.reverse ? "right" : "left"] : [parameters.reverse ? "left" : "right"];
-    const images: OffsetImage[] = [], imageEntityIds: string[] = [], capEntityIds: string[] = [];
-    const outputConstruction = parameters.construction === "offset" || parameters.construction === "both";
-    for (const side of sides) {
-      const supports = sources.map(source => support(profile, source, side, parameters.distance));
-      const joins: OffsetJoin[] = [], joints: OffsetPoint[] = [];
-      const count = closed && sources.length > 1 ? sources.length : sources.length - 1;
-      for (let i = 0; i < count; i++) {
-        const j = (i + 1) % sources.length, endpoint = ends(offsetEntity(profile, sources[i].entityId), sources[i].reversed)[1];
-        const seed = projectOffsetPoint(profile, sources[i], side, parameters.distance, endpoint);
-        if (sameSupport(supports[i], supports[j])) { joins.push({ kind: "continuation", branch: 0 }); joints.push(seed); continue; }
-        const hits = supportIntersections(supports[i], supports[j]).map(hit => ({ ...hit, distance: norm(minus(hit.point, seed)) })).sort((a, b) => a.distance - b.distance);
-        if (!hits.length || hits.length > 1 && Math.abs(hits[0].distance - hits[1].distance) < 1e-7) throw new Error("La unión equidistante no tiene una intersección inequívoca.");
-        const tangentContinuation = hits.length === 1 && hits[0].branch === 0 && (supports[i].kind === "circle" || supports[j].kind === "circle");
-        joins.push({ kind: tangentContinuation ? "continuation" : "intersection", branch: hits[0].branch }); joints.push(hits[0].point);
-      }
-      const vertices = closed && sources.length > 1 ? [joints[joints.length - 1], ...joints.slice(0, -1)] : sources.length === 1 && offsetEntity(profile, sources[0].entityId).type === "circle" ? [] : [projectOffsetPoint(profile, sources[0], side, parameters.distance, ends(offsetEntity(profile, sources[0].entityId), sources[0].reversed)[0]), ...joints, projectOffsetPoint(profile, sources[sources.length - 1], side, parameters.distance, ends(offsetEntity(profile, sources[sources.length - 1].entityId), sources[sources.length - 1].reversed)[1])];
-      const vertexIds = vertices.map(createPoint), centers = new Map<string, string>(), entityIds: string[] = [];
-      sources.forEach((source, i) => {
-        const original = offsetEntity(profile, source.entityId), id = allocate("entity");
-        let entity: SketchEntity;
-        if (original.type === "circle") {
-          entity = { id, type: "circle", construction: outputConstruction, center: createPoint(offsetPoint(profile, original.center)), radius: (supports[i] as Extract<typeof supports[number], { kind: "circle" }>).radius };
-        } else {
-          const start = vertexIds[i], end = vertexIds[(i + 1) % vertexIds.length];
-          if (original.type === "line") entity = { id, type: "line", construction: outputConstruction, start: source.reversed ? end : start, end: source.reversed ? start : end };
-          else {
-            if (!centers.has(original.center)) centers.set(original.center, createPoint(offsetPoint(profile, original.center)));
-            entity = { id, type: "arc", construction: outputConstruction, center: centers.get(original.center)!, start: source.reversed ? end : start, end: source.reversed ? start : end, clockwise: original.clockwise };
-          }
+    const components: OffsetPlanComponent[] = [], relations: SketchOffsetRelation[] = [];
+    const sourceEntityIds: string[] = [], allImageEntityIds: string[] = [], allCapEntityIds: string[] = [], createdConstraintIds: string[] = [];
+    for (const { sources, closed, primaryEntityId } of chains) {
+      const cap = closed ? "none" : parameters.cap;
+      const images: OffsetImage[] = [], imageEntityIds: string[] = [], capEntityIds: string[] = [];
+      const outputConstruction = parameters.construction === "offset" || parameters.construction === "both";
+      for (const side of sides) {
+        const supports = sources.map(source => support(profile, source, side, parameters.distance));
+        const joins: OffsetJoin[] = [], joints: OffsetPoint[] = [];
+        const count = closed && sources.length > 1 ? sources.length : sources.length - 1;
+        for (let i = 0; i < count; i++) {
+          const j = (i + 1) % sources.length, endpoint = ends(offsetEntity(profile, sources[i].entityId), sources[i].reversed)[1];
+          const seed = projectOffsetPoint(profile, sources[i], side, parameters.distance, endpoint);
+          if (sameSupport(supports[i], supports[j])) { joins.push({ kind: "continuation", branch: 0 }); joints.push(seed); continue; }
+          const hits = supportIntersections(supports[i], supports[j]).map(hit => ({ ...hit, distance: norm(minus(hit.point, seed)) })).sort((a, b) => a.distance - b.distance);
+          if (!hits.length || hits.length > 1 && Math.abs(hits[0].distance - hits[1].distance) < 1e-7) throw new Error("La unión equidistante no tiene una intersección inequívoca.");
+          const tangentContinuation = hits.length === 1 && hits[0].branch === 0 && (supports[i].kind === "circle" || supports[j].kind === "circle");
+          joins.push({ kind: tangentContinuation ? "continuation" : "intersection", branch: hits[0].branch }); joints.push(hits[0].point);
         }
-        profile.entities.push(entity); entityIds.push(id); imageEntityIds.push(id);
-      });
-      const lineEnds: [boolean, boolean] = [offsetEntity(profile, sources[0].entityId).type === "line",
-        offsetEntity(profile, sources[sources.length - 1].entityId).type === "line"];
-      const hasLineEnds = !closed && cap === "none" && lineEnds.some(Boolean);
-      images.push({ side, distance: parameters.distance, entityIds, joins,
-        ...(hasLineEnds ? parameters.addDimensions ? { lineEndpointMode: "aligned" as const }
-          : { lineEndpointFollowing: lineEnds } : {}) });
-    }
-    if (cap !== "none") for (const endIndex of [0, 1]) {
-      const index = endIndex === 0 ? 0 : sources.length - 1, source = sources[index], entity = offsetEntity(profile, source.entityId), sourceEndpoint = ends(entity, source.reversed)[endIndex];
-      const aId = ends(offsetEntity(profile, images[0].entityIds[index]), source.reversed)[endIndex], bId = images.length === 2 ? ends(offsetEntity(profile, images[1].entityIds[index]), source.reversed)[endIndex] : sourceEndpoint;
-      const a = offsetPoint(profile, aId), b = offsetPoint(profile, bId), id = allocate("cap");
-      let capEntity: SketchEntity;
-      if (cap === "line") capEntity = { id, type: "line", construction: outputConstruction, start: aId, end: bId };
-      else {
-        const center = scaled(plus(a, b), .5), radial = minus(a, center), sourceSupport = support(profile, source, images[0].side, 0);
-        let tangent: OffsetPoint;
-        if (sourceSupport.kind === "line") tangent = sourceSupport.direction;
-        else { const r = minus(offsetPoint(profile, sourceEndpoint), sourceSupport.center), cw = entity.type === "arc" && (entity.clockwise !== source.reversed); tangent = scaled({ x: -r.y, y: r.x }, (cw ? -1 : 1) / norm(r)); }
-        const outward = scaled(tangent, endIndex === 0 ? -1 : 1), clockwise = dot2({ x: radial.y, y: -radial.x }, outward) > 0;
-        capEntity = { id, type: "arc", construction: outputConstruction, center: createPoint(center), start: aId, end: bId, clockwise };
+        const vertices = closed && sources.length > 1 ? [joints[joints.length - 1], ...joints.slice(0, -1)] : sources.length === 1 && offsetEntity(profile, sources[0].entityId).type === "circle" ? [] : [projectOffsetPoint(profile, sources[0], side, parameters.distance, ends(offsetEntity(profile, sources[0].entityId), sources[0].reversed)[0]), ...joints, projectOffsetPoint(profile, sources[sources.length - 1], side, parameters.distance, ends(offsetEntity(profile, sources[sources.length - 1].entityId), sources[sources.length - 1].reversed)[1])];
+        const vertexIds = vertices.map(createPoint), centers = new Map<string, string>(), entityIds: string[] = [];
+        sources.forEach((source, i) => {
+          const original = offsetEntity(profile, source.entityId), id = allocate("entity");
+          let entity: SketchEntity;
+          if (original.type === "circle") {
+            entity = { id, type: "circle", construction: outputConstruction, center: createPoint(offsetPoint(profile, original.center)), radius: (supports[i] as Extract<typeof supports[number], { kind: "circle" }>).radius };
+          } else {
+            const start = vertexIds[i], end = vertexIds[(i + 1) % vertexIds.length];
+            if (original.type === "line") entity = { id, type: "line", construction: outputConstruction, start: source.reversed ? end : start, end: source.reversed ? start : end };
+            else {
+              if (!centers.has(original.center)) centers.set(original.center, createPoint(offsetPoint(profile, original.center)));
+              entity = { id, type: "arc", construction: outputConstruction, center: centers.get(original.center)!, start: source.reversed ? end : start, end: source.reversed ? start : end, clockwise: original.clockwise };
+            }
+          }
+          profile.entities.push(entity); entityIds.push(id); imageEntityIds.push(id);
+        });
+        const lineEnds: [boolean, boolean] = [offsetEntity(profile, sources[0].entityId).type === "line",
+          offsetEntity(profile, sources[sources.length - 1].entityId).type === "line"];
+        const hasLineEnds = !closed && cap === "none" && lineEnds.some(Boolean);
+        images.push({ side, distance: parameters.distance, entityIds, joins,
+          ...(hasLineEnds ? parameters.addDimensions ? { lineEndpointMode: "aligned" as const }
+            : { lineEndpointFollowing: lineEnds } : {}) });
       }
-      profile.entities.push(capEntity); capEntityIds.push(id);
+      if (cap !== "none") for (const endIndex of [0, 1]) {
+        const index = endIndex === 0 ? 0 : sources.length - 1, source = sources[index], entity = offsetEntity(profile, source.entityId), sourceEndpoint = ends(entity, source.reversed)[endIndex];
+        const aId = ends(offsetEntity(profile, images[0].entityIds[index]), source.reversed)[endIndex], bId = images.length === 2 ? ends(offsetEntity(profile, images[1].entityIds[index]), source.reversed)[endIndex] : sourceEndpoint;
+        const a = offsetPoint(profile, aId), b = offsetPoint(profile, bId), id = allocate("cap");
+        let capEntity: SketchEntity;
+        if (cap === "line") capEntity = { id, type: "line", construction: outputConstruction, start: aId, end: bId };
+        else {
+          const center = scaled(plus(a, b), .5), radial = minus(a, center), sourceSupport = support(profile, source, images[0].side, 0);
+          let tangent: OffsetPoint;
+          if (sourceSupport.kind === "line") tangent = sourceSupport.direction;
+          else { const r = minus(offsetPoint(profile, sourceEndpoint), sourceSupport.center), cw = entity.type === "arc" && (entity.clockwise !== source.reversed); tangent = scaled({ x: -r.y, y: r.x }, (cw ? -1 : 1) / norm(r)); }
+          const outward = scaled(tangent, endIndex === 0 ? -1 : 1), clockwise = dot2({ x: radial.y, y: -radial.x }, outward) > 0;
+          capEntity = { id, type: "arc", construction: outputConstruction, center: createPoint(center), start: aId, end: bId, clockwise };
+        }
+        profile.entities.push(capEntity); capEntityIds.push(id);
+      }
+      if (parameters.construction === "source" || parameters.construction === "both") for (const source of sources) offsetEntity(profile, source.entityId).construction = true;
+      const relationId = allocate("relation");
+      const relation: SketchOffsetRelation = { id: relationId, type: "offset", sources, images, closed, cap, capEntityIds };
+      profile.constraints.push(relation);
+      const error = offsetGeometryError(profile, relation);
+      if (error) return rejected(error);
+      relations.push(relation); createdConstraintIds.push(relationId);
+      components.push({ relationId, primaryEntityId, sourceEntityIds: sources.map(source => source.entityId), imageEntityIds, capEntityIds, distanceConstraintIds: [] });
+      sourceEntityIds.push(...sources.map(source => source.entityId)); allImageEntityIds.push(...imageEntityIds); allCapEntityIds.push(...capEntityIds);
     }
-    if (parameters.construction === "source" || parameters.construction === "both") for (const source of sources) offsetEntity(profile, source.entityId).construction = true;
-    const relationId = allocate("relation"), createdConstraintIds = [relationId];
-    const relation: SketchOffsetRelation = { id: relationId, type: "offset", sources, images, closed, cap, capEntityIds };
-    profile.constraints.push(relation);
-    if (parameters.addDimensions) for (let i = 0; i < images.length; i++) {
-      const id = allocate("distance");
-      profile.constraints.push({ id, type: "offsetDistance", offsetId: relationId, side: images[i].side, value: parameters.distance, ...(i === 1 && cap === "arc" ? { driven: true } : {}) });
+    for (const side of sides) if (relations.length > 1) {
+      const id = allocate("family");
+      profile.constraints.push({ id, type: "equalOffsetDistance", members: relations.map(relation => ({ offsetId: relation.id, side })) });
       createdConstraintIds.push(id);
     }
+    const symmetricSides = relations.some(relation => relation.cap === "arc" && relation.images.length === 2);
+    if (parameters.addDimensions) for (let i = 0; i < sides.length; i++) {
+      const id = allocate("distance");
+      profile.constraints.push({ id, type: "offsetDistance", offsetId: relations[0].id, side: sides[i], value: parameters.distance, ...(i === 1 && symmetricSides ? { driven: true } : {}) });
+      createdConstraintIds.push(id); components[0].distanceConstraintIds.push(id);
+    }
     if (profile.points.length > SKETCH_LIMITS.maxPoints || profile.entities.length > SKETCH_LIMITS.maxEntities || profile.constraints.length > SKETCH_LIMITS.maxConstraints) return rejected("La equidistancia completa supera la capacidad del croquis.");
-    const error = offsetGeometryError(profile, relation);
-    if (error) return rejected(error);
-    return { changed: true, sourceProfile: input, profile: validateEntityProfile(profile), message: `${imageEntityIds.length} entidades equidistantes con asociación geométrica.`, selectedEntityIds, sourceEntityIds: sources.map(source => source.entityId), imageEntityIds, createdConstraintIds, capEntityIds };
+    return { changed: true, sourceProfile: input, profile: validateEntityProfile(profile), message: `${allImageEntityIds.length} entidades equidistantes en ${components.length} cadenas con separación compartida.`, selectedEntityIds, sourceEntityIds, imageEntityIds: allImageEntityIds, createdConstraintIds, capEntityIds: allCapEntityIds, components };
   } catch (error) { return rejected(error instanceof Error ? error.message : "No se puede preparar la equidistancia."); }
 }

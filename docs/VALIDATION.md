@@ -27,6 +27,61 @@ successful installation, notarization or all interactive workflows on that OS.
 The project does not yet have exhaustive topology, numerical robustness,
 accessibility, performance or platform coverage.
 
+## Disconnected sketch offsets — 2026-10-12
+
+Local evidence for this increment is from Windows x64 with Node 24.11.1.
+The nine new CAD cases passed in a focused run. TypeScript/Vite production
+build passed with the existing large-chunk and dependency-externalization
+warnings. The first complete unit run finished with 1,380 passed and 112
+failed tests across 74 files; IPC did not run because the unit command failed.
+That run used the default file-worker limit on a 16-processor host. A complete
+rerun with `VITEST_MAX_WORKERS=2` is pending, with no changes to test selection,
+assertions or existing timeout budgets. Successful complete suite, IPC,
+desktop smoke and hosted results for this source must be recorded before
+merge; earlier platform results are separate.
+
+The original Cartesian CAD fixture is a 50×20 mm plate, 4 mm deep, with
+two circular holes. Their source radii 3 and 5 mm, separated by 20 mm, share
+an outward offset of 2 mm, giving hole radii 5 and 7 mm. Independent planar
+area and perimeter are `S=1000−π(rA²+rB²)` and `P=140+2π(rA+rB)`;
+the prism uses `V=4S` and `A=2S+4P`. At radii 5 and 7 this gives
+`V=4000−296π` mm³ and `A=2560−52π` mm². Tests check both selection
+orders, one programmatic history entry, undo/redo, exact document reopening,
+valid BRep, one solid, bounds and fresh programmatic STEP export/reimport.
+
+A second plate starts with source radii 2 and 5 mm and offset 1 mm. Shared
+distance 1→1.5 and source radius 2→2.25 edits rebuild the analytical solid.
+Unchanged exterior face/edge references and an R1 exterior-corner fillet
+survive these particular edits. That fillet independently removes
+`4−π` mm³ and `10−2.5π` mm². Resized circular rims and perforated faces
+currently receive different geometric keys: a saved rim fillet rejects its
+stale selection and export is blocked rather than silently selecting another
+edge. General persistent naming remains open in
+[issue #21](https://github.com/angelcp2802/solidflow/issues/21).
+
+No-dimension, driven-dimension and deleted-dimension cases check a shared
+offset changed through an image-radius constraint. A larger shared offset
+whose circles cross the plate boundary rejects the solid without modifying
+the input or exporting a stale result. Coordinates and radii use `5e-7` mm;
+mass, area and bounds use absolute `5e-6` in their respective units. Healthy
+solver residuals must stay within the existing `1e-7` acceptance. The new
+CAD cases use a 60-second per-case budget for WASM reconstruction; geometric
+criteria and production solver tolerances were not relaxed.
+
+Core and planner coverage includes shared distance families, strict saved
+references, deletion cleanup, disconnected component partitioning, per-chain
+direction, atomic capacity/rejection and both-side cap coupling. Dimension
+ownership, driven/deleted-dimension edits and cap coupling are explicit local
+policies; equivalence to another solver is not established. Server rendering
+and source review are separate from actual pointer, keyboard, cancel and
+interactive history/reopening, which remain unexecuted for the new tool.
+The Electron smoke exercises only the initial model. STEP producer and reader
+share OpenCascade, so these round trips do not establish independent
+interoperability. Broader offset coverage remains open in
+[issue #14](https://github.com/angelcp2802/solidflow/issues/14), and binary
+upload remains disabled under
+[issue #5](https://github.com/angelcp2802/solidflow/issues/5).
+
 ## Owned STEP import increment — 2026-10-11
 
 On Windows x64 with Node 24.11.1, `npm test` passed all 1,247 portable tests in

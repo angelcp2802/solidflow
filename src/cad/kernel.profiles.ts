@@ -72,7 +72,12 @@ export function entityProfileStructure(profile: EntityProfile): unknown {
           // Releasing a following boundary removes a station equation. All
           // released boundaries have the same structure as legacy free mode.
           ...(image.lineEndpointFollowing?.some(Boolean) ? { lineEndpointFollowing: image.lineEndpointFollowing } : {}),
-        })) } : constraint;
+        })) } : constraint.type === 'equalOffsetDistance' ? { ...constraint,
+          // Membership is unordered; the solver's first reference is only an
+          // equation basis and cannot change the material naming descriptor.
+          members: [...constraint.members].sort((a, b) => a.offsetId < b.offsetId ? -1 : a.offsetId > b.offsetId ? 1
+            : a.side < b.side ? -1 : a.side > b.side ? 1 : 0),
+        } : constraint;
         return Object.fromEntries(Object.entries(structural)
           .filter(([key]) => !['value', 'x', 'y', 'driven', 'referenceRole'].includes(key)).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0));
       })

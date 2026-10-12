@@ -62,6 +62,37 @@ describe("offset controls and server-rendered preview", () => {
     expect(JSON.stringify(props.solution.profile)).toBe(before);
   });
 
+  it("renders a complete disconnected proposal and hides it after an ordered selection change", () => {
+    const points = [{ id: "a-end", x: 10, y: 0 }, { id: "b-start", x: 20, y: 5 }, { id: "b-end", x: 30, y: 5 }];
+    const profile: EntityProfile = { kind: "entities", points, entities: [
+      { id: "a-line", type: "line", start: "origin", end: "a-end", construction: false },
+      { id: "b-line", type: "line", start: "b-start", end: "b-end", construction: false },
+    ], constraints: points.map(point => ({ id: `${point.id}-fix`, type: "fix" as const, pointId: point.id, x: point.x, y: point.y })) };
+    const solution = solveSketch(profile), selection: SketchSelection[] = [
+      { kind: "entity", id: "a-line" }, { kind: "entity", id: "b-line" },
+    ];
+    const props = { profile: solution.profile, solution, selection, onSelection: noop, onPreview: noop, onApply: noop, onCancel: noop };
+    const plan = planSketchOffset(solution.profile, selection, options);
+    expect(plan.changed, plan.message).toBe(true);
+    const panel = renderToStaticMarkup(<SketchOffsetPanel {...props} />);
+    expect(panel).toContain("2 cadenas · 2 entidades fuente · 2 copias · 0 cierres");
+    expect(panel).toContain("La separación se comparte entre las cadenas de cada lado.");
+    const preview = renderToStaticMarkup(<SketchCanvas {...props} tool="offset" plane="XY" fitStamp={0} offsetPreview={plan} onChange={noop} />);
+    expect(preview.match(/data-offset-image=/g)).toHaveLength(2);
+    const stale = renderToStaticMarkup(<SketchCanvas {...props} selection={[...selection].reverse()}
+      tool="offset" plane="XY" fitStamp={0} offsetPreview={plan} onChange={noop} />);
+    expect(stale).not.toContain('data-offset-preview="true"');
+    const applied = solveSketch(plan.profile), family = applied.profile.constraints.find(constraint => constraint.type === "equalOffsetDistance");
+    if (!family) throw new Error("Expected shared separation family");
+    const familySelection: SketchSelection[] = [{ kind: "constraint", id: family.id }];
+    const canvas = renderToStaticMarkup(<SketchCanvas {...props} profile={applied.profile} solution={applied} selection={familySelection}
+      tool="select" plane="XY" fitStamp={0} onChange={noop} />);
+    expect(canvas).toContain("d =");
+    const relations = renderToStaticMarkup(<EntitySketchPanel profile={applied.profile} solution={applied} selection={familySelection}
+      onSelection={noop} onChange={noop} focusSection={{ name: "relations", stamp: 0 }} />);
+    expect(relations).toContain("Separación compartida de equidistancias");
+  });
+
   it("shows two sides and both end caps together, including construction styling", () => {
     const profile: EntityProfile = { kind: "entities", points: [{ id: "end", x: 10, y: 0 }],
       entities: [{ id: "line", type: "line", start: "origin", end: "end", construction: false }],

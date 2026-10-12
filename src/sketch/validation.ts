@@ -7,6 +7,7 @@ import type {
   SketchOffsetRelation,
   OffsetJoin,
   OffsetImage,
+  OffsetDistanceReference,
 } from "./types";
 import { orderedArcDirections } from "./arc-directions";
 
@@ -375,6 +376,24 @@ export function validateEntityProfile(
       return { id, type: "offset", sources,
         images, closed, cap: constraint.cap, capEntityIds } satisfies SketchOffsetRelation;
     }
+    if (constraint.type === "equalOffsetDistance") {
+      keys(constraint, ["id", "type", "members"], location);
+      const seen = new Set<string>();
+      const members = array(constraint.members, SKETCH_LIMITS.maxConstraints, `${location}.members`).map((value, index): OffsetDistanceReference => {
+        const memberPath = `${location}.members[${index}]`;
+        const member = object(value, memberPath);
+        keys(member, ["offsetId", "side"], memberPath);
+        const offsetId = identifier(member.offsetId, `${memberPath}.offsetId`);
+        if (member.side !== "right" && member.side !== "left") fail(`${memberPath}.side`, "se esperaba right o left");
+        const side = member.side;
+        const key = JSON.stringify([offsetId, side]);
+        if (seen.has(key)) fail(memberPath, "referencia de separación duplicada");
+        seen.add(key);
+        return { offsetId, side };
+      });
+      if (members.length < 2) fail(`${location}.members`, "se requieren al menos dos separaciones");
+      return { id, type: "equalOffsetDistance", members };
+    }
     if (constraint.type === "offsetDistance") {
       dimensionKeys(["id", "type", "offsetId", "side", "value"]);
       const mode = dimensionMode();
@@ -604,6 +623,15 @@ export function validateEntityProfile(
   const offsetOwners = new Map<string, string>();
   for (const [index, constraint] of constraints.entries()) {
     const location = `${path}.constraints[${index}]`;
+    if (constraint.type === "equalOffsetDistance") {
+      for (const [memberIndex, member] of constraint.members.entries()) {
+        const memberPath = `${location}.members[${memberIndex}]`;
+        const offset = constraintMap.get(member.offsetId);
+        if (offset?.type !== "offset") fail(`${memberPath}.offsetId`, "debe referenciar una relación de equidistancia existente");
+        if (!offset.images.some(image => image.side === member.side))
+          fail(`${memberPath}.side`, "debe referenciar un lado existente de la equidistancia");
+      }
+    }
     if (constraint.type === "offsetDistance") {
       const offset = constraintMap.get(constraint.offsetId);
       if (offset?.type !== "offset") fail(`${location}.offsetId`, "debe referenciar una relación de equidistancia existente");

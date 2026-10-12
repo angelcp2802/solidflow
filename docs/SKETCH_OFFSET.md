@@ -1,10 +1,11 @@
 # Associative sketch offsets
 
-In an entity sketch, choose **Equidistancia**, select a line, arc or circle,
+In an entity sketch, choose **Equidistancia**, select lines, arcs or circles,
 and enter a positive distance in millimeters. **Seleccionar cadena conectada**
 expands the selection through shared endpoint identities. It does not join
 unrelated points that happen to have the same coordinates. Disable it to
-offset only the selected connected portion.
+offset only the selected portions. Separate chains and complete circles can
+be included in the same operation; each circle is its own component.
 
 **Invertir dirección** selects the other side. **Ambas direcciones** prepares
 both copies together. **Cierre de extremos** adds straight or semicircular
@@ -13,7 +14,7 @@ all images and caps before **Aplicar equidistancia** commits the complete
 proposal as one sketch-history entry. Escape ends the tool without applying
 its pending proposal. A previously applied offset remains in the sketch.
 
-For an open chain, the first selected entity supplies the traversal direction.
+For each open chain, its first selected entity supplies the traversal direction.
 The initial side is to its right; reversing that entity's stored endpoints
 reverses that side. Closed contours use a counterclockwise traversal and
 initially offset outward, regardless of their stored endpoint order. Complete
@@ -83,6 +84,56 @@ collapsed radii or segments, self-intersections, structural overflow and failed
 solves leave the original sketch unchanged. These checks also apply during
 later source or distance edits; the solver does not silently choose a different
 intersection branch to rescue an invalid contour.
+
+## Disconnected components and shared distance
+
+The command partitions the original displayed sketch using shared endpoint
+identities before creating any images. Selecting another entity in the same
+expanded component does not create a second copy. With chain expansion off,
+only the selected entities participate; separate selected portions remain
+separate components. Coordinate proximity does not merge them. Every
+component retains its own traversal, source/image association, endpoint
+policy, joins and caps. The preview contains the entire proposed operation;
+a failure in one component rejects the whole proposal without retaining an
+earlier component.
+
+Each side has one shared separation across all selected components. An
+`equalOffsetDistance` relation stores at least two distinct references
+`{ offsetId, side }`. Its equations equate the existing continuous distance
+variables, with no additional driving value. The per-image stored distance
+remains a geometric seed. Thus two source lines `(0,0)→(10,0)` and
+`(20,5)→(30,5)` at right distance 2 produce images at y=-2 and y=3.
+Changing the shared distance to 3 produces y=-3 and y=2. Reversing the stored
+direction of the second source makes its right side point upward instead.
+
+Adding dimensions creates one driving distance per side, owned by the first
+component. The family remains active when that dimension is deleted or made
+driven. Without a driving dimension, an image's normal movement can change
+the common separation while preserving the associations. A driven dimension
+reports solved geometry; its retained nominal value cannot constrain the
+family. Endpoint-following release remains local to the endpoint explicitly
+moved, while the normal distance stays shared.
+
+With two sides and straight or absent caps, each side's family is independent.
+If any open component has semicircular caps, those caps impose side symmetry,
+which propagates through both families. Only the first distance then drives;
+the second is a driven measurement. This is an explicit geometric and solver
+policy. It does not establish another solver's rank, cap-edit or lifecycle
+behavior.
+
+Deleting an association removes its references from each family. A family
+with at least two surviving members keeps its identity and equality equations;
+a smaller family is removed. A dimension owned by the deleted association is
+removed, without promoting a surviving dimension or creating another driver.
+Surviving family members can therefore retain a shared but free separation.
+Deleting only the family relation unlinks its common-distance equations and
+retains the individual offset associations and their existing dimensions.
+
+Starting with 0.19, the family is a new relation in the version-1 document format. Existing
+documents retain their endpoint policies and are not silently upgraded.
+Earlier readers that do not recognize `equalOffsetDistance` reject documents
+containing it. Missing associations or sides, repeated references and unknown
+fields are invalid; no partial family is accepted during parsing.
 
 ## Editing, unlinking and compatibility
 
@@ -224,10 +275,26 @@ history, valid BRep, a single solid, bounds and fresh STEP reconstruction.
 Changing following equations changes the structural descriptor; no general
 persistent-reference guarantee across a release is inferred.
 
-The current command handles one connected chain or one circle at a time.
-It does not resolve arbitrary overlapping contours, branch networks or
-topological events automatically. Disconnected sets, splines, projected
-external edges and round/bevel corner policies remain separate work.
+The disconnected CAD checks use an original 50×20 plate bounded by
+`(-10,-10)` and `(40,10)`, with circular supports centered at `(0,0)` and
+`(20,0)`. The source circles become construction geometry; their images form
+two holes. At depth 4, hole radii `rA,rB` give
+`S=1000−π(rA²+rB²)`, `P=140+2π(rA+rB)`, `V=4S`, `A=2S+4P`.
+Source radii 3 and 5 offset by 2 give hole radii 5 and 7, hence
+`V=4000−296π`, `A=2560−52π`. A separate source-radius pair 2 and 5
+avoids radius-order ties while checking common distance 1→1.5 and a source
+radius edit. The unchanged outer boundary and a selected outer-corner fillet
+retain their references in these edits. Resized holes and perforated planar
+faces can acquire new keys under the existing conservative geometric naming;
+a saved fillet on an obsolete hole edge requires reselection instead of
+silently binding to another edge. General persistent naming remains pending in
+[issue #21](https://github.com/angelcp2802/solidflow/issues/21).
+
+The command does not resolve arbitrary overlapping contours, branch networks
+or topological events automatically. Per-component validity does not establish
+valid global material: intersecting holes or contact with a plate boundary
+can still make an extrusion invalid. Splines, projected external edges and
+round/bevel corner policies remain separate work.
 Real interaction with this new panel, its library cards and reopening remains
 unverified; static component rendering and initial Electron-loader checks
 do not execute pointer, keyboard, cancel or undo/redo workflows.
