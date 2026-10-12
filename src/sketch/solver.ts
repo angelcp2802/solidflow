@@ -472,6 +472,18 @@ function evaluate(
         push(id, sub(variable(values[index], index), constant(constraint.value / layout.scale)));
         break;
       }
+      case "equalOffsetDistance": {
+        // A family constrains existing separations, without adding a driver or
+        // replacing their geometric seeds. N members need N-1 equations.
+        const first = constraint.members[0];
+        const firstIndex = layout.offsetIndices.get(first.offsetId)!.get(first.side)!;
+        const reference = variable(values[firstIndex], firstIndex);
+        for (const member of constraint.members.slice(1)) {
+          const index = layout.offsetIndices.get(member.offsetId)!.get(member.side)!;
+          push(id, sub(variable(values[index], index), reference));
+        }
+        break;
+      }
       case "offset": {
         const endpoint = (entity: SketchEntity, reversed: boolean, end: 0 | 1): string => {
           if (entity.type === "circle") throw new Error("Un círculo completo no tiene extremos.");

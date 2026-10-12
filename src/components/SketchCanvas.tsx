@@ -191,6 +191,8 @@ function EntitySketchCanvas({
     solution && ["underdefined", "fullyDefined"].includes(solution.status) ? mirrorPreview : null;
   const visibleOffset = tool === "offset" && offsetPreview?.changed &&
     offsetPreview.sourceProfile === profile &&
+    selection.every(item => item.kind === "entity") &&
+    JSON.stringify(offsetPreview.selectedEntityIds) === JSON.stringify(selection.map(item => item.id)) &&
     solution && ["underdefined", "fullyDefined"].includes(solution.status) ? offsetPreview : null;
   const displayed = preview ?? (visibleOffset ? {
     ...profile,
@@ -833,12 +835,13 @@ function EntitySketchCanvas({
     index: number,
   ): Point => {
     let anchor: Point = [0, 0];
-    if (constraint.type === "offset" || constraint.type === "offsetDistance") {
+    if (constraint.type === "offset" || constraint.type === "offsetDistance" || constraint.type === "equalOffsetDistance") {
+      const member = constraint.type === "equalOffsetDistance" ? constraint.members[0] : null;
       const relation = constraint.type === "offset" ? constraint
-        : displayed.constraints.find(item => item.id === constraint.offsetId && item.type === "offset");
+        : displayed.constraints.find(item => item.id === (constraint.type === "offsetDistance" ? constraint.offsetId : member!.offsetId) && item.type === "offset");
       if (relation?.type === "offset") {
-        const image = constraint.type === "offsetDistance"
-          ? relation.images.find(item => item.side === constraint.side) : relation.images[0];
+        const side = constraint.type === "offsetDistance" ? constraint.side : member?.side;
+        const image = side ? relation.images.find(item => item.side === side) : relation.images[0];
         const entity = displayed.entities.find(item => item.id === image?.entityIds[0]);
         if (entity?.type === "line") {
           const a = sketchPoint(displayed, entity.start), b = sketchPoint(displayed, entity.end);
@@ -889,6 +892,7 @@ function EntitySketchCanvas({
     symmetric: "↔",
     mirrorArcDirection: "↶↷",
     offset: "∥↔",
+    equalOffsetDistance: "d =",
     offsetDistance: "d ",
     horizontal: "H",
     vertical: "V",
@@ -909,10 +913,15 @@ function EntitySketchCanvas({
     displayed.constraints
       .filter(
         (constraint) =>
-          (constraint.type === "angle" || constraint.type === "tangent" || constraint.type === "symmetric" || constraint.type === "mirrorArcDirection" || constraint.type === "offset" || constraint.type === "offsetDistance") &&
+          (constraint.type === "angle" || constraint.type === "tangent" || constraint.type === "symmetric" || constraint.type === "mirrorArcDirection" || constraint.type === "offset" || constraint.type === "offsetDistance" || constraint.type === "equalOffsetDistance") &&
           selected("constraint", constraint.id),
       )
       .flatMap(constraint => {
+        if (constraint.type === "equalOffsetDistance") return constraint.members.flatMap(member => {
+          const relation = displayed.constraints.find(item => item.id === member.offsetId && item.type === "offset");
+          return relation?.type === "offset" ? [...relation.sources.map(source => source.entityId),
+            ...(relation.images.find(image => image.side === member.side)?.entityIds ?? []), ...relation.capEntityIds] : [];
+        });
         if (constraint.type !== "offsetDistance") return constraintEntityReferences(constraint);
         const relation = displayed.constraints.find(item => item.id === constraint.offsetId && item.type === "offset");
         return relation?.type === "offset" ? [...relation.sources.map(source => source.entityId),

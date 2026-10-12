@@ -13,7 +13,8 @@ keep/delete policies, editable radii, source trimming/prolongation and optional
 equal-radius relations. [Sketch mirror](SKETCH_MIRROR.md) copies lines, arcs and
 circles with persistent point-reflection and circle-radius relations. Sketch
 [offsets](SKETCH_OFFSET.md) retain support relationships, editable
-separations, connected line/arc chains and optional end caps. Solid
+separations, connected line/arc chains, disconnected components with a shared
+distance, and optional end caps. Solid
 operations include extrude/cut/revolve, sweep/loft, finishing, patterns/mirror,
 shell/draft and hole features. Documents can be edited and recovered; geometry
 can be exported as STEP and STL. [STEP import](STEP_IMPORT.md) adds one closed
@@ -30,6 +31,11 @@ limitations.
    topology; develop a fuller body manager and persistent reference system.
 5. Add missing sketch tools, import workflows, assemblies, technical drawings
    and manufacturing modules as separately scoped proposals with acceptance tests.
+
+[Semantic face/edge references](https://github.com/angelcp2802/solidflow/issues/21)
+remain an architecture priority. Current geometric keys deliberately require
+reselection for some edits that retain topology, including a resized hole in
+an unchanged plate; they are not complete persistent topological naming.
 
 The staged [sketch fillet issue #6](https://github.com/angelcp2802/solidflow/issues/6)
 remains open. Remaining scope includes full-circle sources, batches with curved

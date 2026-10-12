@@ -36,6 +36,12 @@ export interface OffsetSource {
   entityId: string;
   reversed: boolean;
 }
+
+/** A particular side of an associative offset group. */
+export interface OffsetDistanceReference {
+  offsetId: string;
+  side: "right" | "left";
+}
 export interface OffsetJoin {
   kind: "intersection" | "continuation";
   /** Oriented physical intersection root; zero denotes a unique/tangent root. */
@@ -66,6 +72,8 @@ export interface SketchOffsetRelation extends ConstraintBase {
 /** Point IDs may also reference the immutable sketch origin, named 'origin'. */
 export type SketchConstraint =
   | SketchOffsetRelation
+  /** Bidirectional separation equality; membership survives deletion of another member. */
+  | (ConstraintBase & { type: "equalOffsetDistance"; members: OffsetDistanceReference[] })
   | (DimensionBase & { type: "offsetDistance"; offsetId: string; side: "right" | "left"; value: number })
   | (ConstraintBase & { type: "fix"; pointId: string; x: number; y: number })
   | (ConstraintBase & { type: "coincident"; a: string; b: string })

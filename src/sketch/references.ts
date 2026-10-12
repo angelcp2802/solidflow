@@ -17,6 +17,8 @@ function referenceGroups(constraint: SketchConstraint): ConstraintReferenceGroup
       ] };
     case "offsetDistance":
       return { pointIds: [], entityIds: [], constraintIds: [constraint.offsetId] };
+    case "equalOffsetDistance":
+      return { pointIds: [], entityIds: [], constraintIds: [...new Set(constraint.members.map(member => member.offsetId))] };
     case "fix":
       return { pointIds: [constraint.pointId], entityIds: [] };
     case "coincident":
@@ -64,12 +66,20 @@ export function constraintConstraintReferences(constraint: SketchConstraint): st
   return referenceGroups(constraint).constraintIds ?? [];
 }
 
-/** Remove dependent dimensions after their geometric association was deleted. */
+/** Remove dependent dimensions and reduce distance families after an offset side was deleted. */
 export function cleanupConstraintDependencies(constraints: SketchConstraint[]): SketchConstraint[] {
   const offsets = new Map(constraints.filter(constraint => constraint.type === "offset")
     .map(constraint => [constraint.id, constraint]));
-  return constraints.filter(constraint => constraint.type !== "offsetDistance" ||
-    offsets.get(constraint.offsetId)?.images.some(image => image.side === constraint.side));
+  return constraints.flatMap((constraint): SketchConstraint[] => {
+    if (constraint.type === "offsetDistance")
+      return offsets.get(constraint.offsetId)?.images.some(image => image.side === constraint.side) ? [constraint] : [];
+    if (constraint.type === "equalOffsetDistance") {
+      const members = constraint.members.filter(member =>
+        offsets.get(member.offsetId)?.images.some(image => image.side === member.side));
+      return members.length < 2 ? [] : [members.length === constraint.members.length ? constraint : { ...constraint, members }];
+    }
+    return [constraint];
+  });
 }
 
 /** Topology-changing tools require an explicit unlink before editing an associated member. */

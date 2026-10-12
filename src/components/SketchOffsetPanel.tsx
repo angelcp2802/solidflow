@@ -34,7 +34,7 @@ export default function SketchOffsetPanel({ profile, solution, selection, onSele
     ? planSketchOffset(resolved, selection, { distance: parsed, reverse, bothDirections, chain, cap, construction, addDimensions }) : null,
   [healthy, validDistance, resolved, selection, parsed, reverse, bothDirections, chain, cap, construction, addDimensions]);
   const applicable = plan?.changed ? plan : null;
-  useEffect(() => { callback.current(applicable); return () => callback.current(null); }, [applicable]);
+  useEffect(() => { callback.current(applicable); return () => callback.current(null); }, [applicable, distance]);
   const invalidate = () => callback.current(null);
   const label = (id: string) => {
     const index = resolved.entities.findIndex(entity => entity.id === id), entity = resolved.entities[index];
@@ -75,7 +75,7 @@ export default function SketchOffsetPanel({ profile, solution, selection, onSele
       onChange={event => { invalidate(); setAddDimensions(event.target.checked); }} />Añadir cota de distancia</label>
     {error && <p id={errorId} role="alert">{error}</p>}
     <p aria-live="polite" aria-atomic="true">{applicable
-      ? `${applicable.sourceEntityIds.length} entidades fuente · ${applicable.imageEntityIds.length} copias · ${applicable.capEntityIds.length} cierres. Las relaciones se guardan con el croquis.`
+      ? `${applicable.components.length} cadenas · ${applicable.sourceEntityIds.length} entidades fuente · ${applicable.imageEntityIds.length} copias · ${applicable.capEntityIds.length} cierres. ${applicable.components.length > 1 ? "La separación se comparte entre las cadenas de cada lado. " : ""}Las relaciones se guardan con el croquis.`
       : "Selecciona las entidades para ver la equidistancia."}</p>
     <button type="button" className="outline-button" aria-label="Aplicar equidistancia" disabled={!applicable}
       onClick={() => { if (applicable) onApply(applicable); }}>Aplicar equidistancia</button>

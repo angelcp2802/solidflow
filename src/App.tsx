@@ -1594,7 +1594,9 @@ export default function App() {
     changeDraft({ profile: application.solution.profile });
     setOffsetPreview(null);
     setSketchSelection([]);
-    notify("Equidistancia aplicada. Las copias conservan su relación con las entidades originales.");
+    notify(plan.components.length > 1
+      ? `${plan.components.length} cadenas equidistantes aplicadas en una operación con separación compartida.`
+      : "Equidistancia aplicada. Las copias conservan su relación con las entidades originales.");
   };
   const acceptEdit = () => {
     if (!editing || !canAccept) return;

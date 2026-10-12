@@ -95,3 +95,47 @@ absolute `5e-6` in their respective units. Point-reposition fixtures also use an
 original R10 circle centered at `(0,0)`: requesting X=8 permits Y=6, while
 fixing both X=8 and Y=8 conflicts with the circle. No saved interaction,
 private input or new binary fixture is involved in these tests.
+
+The disconnected-offset fixtures in
+`src/cad/kernel.offset-disconnected.test.ts` are original in-memory Cartesian
+geometry authored for this project. They construct a fixed 50×20 rectangle
+from `(-10,-10)` to `(40,10)` and source circles at `(0,0)` and `(20,0)`.
+Source radii 3 and 5 with outward distance 2 create hole radii 5 and 7 after
+the originals become construction geometry. A second pair, radii 2 and 5,
+checks distance 1→1.5, a source-radius edit to 2.25, and shared separation
+when a distance dimension is absent, driven or deleted. A new image-radius
+target of 4 makes the second hole radius 7. At 4 mm thickness the independently
+derived formulas are `S=1000−π(rA²+rB²)`, `P=140+2π(rA+rB)`, `V=4S`
+and `A=2S+4P`. Coordinates/radii use absolute `5e-7` mm; CAD volume, area
+and bounds use absolute `5e-6` in their respective units. A distance edit to
+6 creates a hole intersecting the plate boundary and checks rejection of
+global material and stale export. All documents and STEP bytes are generated
+from tracked source and declared dependencies. The STEP writer and reader
+share OCCT; these are programmatic checks, not independent interoperability
+or saved editor-interaction captures. No external input or binary fixture is
+introduced.
+
+The same plate checks an R1 outer-corner fillet: it removes one
+square-minus-quarter-disk prism, changing volume by `−4+π` mm³ and surface
+area by `−10+2.5π` mm². This outer selection is tested through common-distance
+and source-radius edits. A separate R0.25 hole-rim fillet checks that an obsolete
+curved-edge key rejects after resizing the hole. Only the unchanged outer
+boundary is expected to retain its keys across those edits; unchanged-document
+reopening checks the complete face/edge catalogs. No general naming claim is
+inferred.
+
+The distance-family core fixtures in
+`src/sketch/offset.distance-family.test.ts` are also original inline geometry:
+circles of radii 2, 7 and 15 at `(0,0)`, `(50,0)` and `(100,0)`, whose
+image radii are independently `R+d`; and two lines `(0,0)→(10,0)` and
+`(30,5)→(20,5)`. Their stored directions are opposite. A shared right
+separation 3 therefore gives image y=-3 and y=8. The batch-planner fixtures
+in `src/sketch/offset.batch.test.ts` include an authored line
+`(0,-2)→(6,-2)`, a counterclockwise semicircle centered at `(6,0)` ending
+at `(6,2)`, and a separate R3 circle centered at `(20,0)`. Right distance
+1 gives line y=-3, arc radius 3 and circle radius 4. Expected coordinates
+and radii use Cartesian arithmetic rather than the planner. These sources
+exercise shared equations, explicit point repositioning, construction flags,
+parsing, capacity rejection and document/history cleanup. Cleanup and driven
+mobility are explicit local policies; these synthetic fixtures do not claim
+another application's solver or lifecycle behavior.
