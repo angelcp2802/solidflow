@@ -34,11 +34,31 @@ The nine new CAD cases passed in a focused run. TypeScript/Vite production
 build passed with the existing large-chunk and dependency-externalization
 warnings. The first complete unit run finished with 1,380 passed and 112
 failed tests across 74 files; IPC did not run because the unit command failed.
-That run used the default file-worker limit on a 16-processor host. A complete
-rerun with `VITEST_MAX_WORKERS=2` is pending, with no changes to test selection,
-assertions or existing timeout budgets. Successful complete suite, IPC,
-desktop smoke and hosted results for this source must be recorded before
-merge; earlier platform results are separate.
+All 112 reported failures were timeouts: 104 at 5 seconds, one at 15 seconds
+and seven at 30 seconds. There was also a worker-termination timeout warning.
+That run used the default file-worker limit on a 16-processor host. A further
+run with `VITEST_MAX_WORKERS=2` also reported test timeouts, without changing
+test selection, assertions or existing timeout budgets. The local Electron
+smoke exited at its existing 45-second limit before readiness was established.
+No complete local-suite or local-loader pass is claimed for this increment.
+A bounded resource observation found significant external CPU load, but it
+does not establish the sole cause of these outcomes.
+
+A fresh isolated `npm ci` passed from the 0.19.0 manifest and lockfile, whose
+hashes remained unchanged. Audit reported eight moderate findings and zero
+high/critical findings; none was suppressed.
+
+All six required hosted checks passed on source head `65104a3`:
+[desktop CI](https://github.com/angelcp2802/solidflow/actions/runs/38309109057),
+[security](https://github.com/angelcp2802/solidflow/actions/runs/38309109062)
+and [CodeQL](https://github.com/angelcp2802/solidflow/runs/115010656069).
+Each desktop job passed all 1,492 portable tests in 74 files and all 11 IPC
+checks, with no skips, plus build, real initial-model Electron smoke and
+unsigned packaging. Smoke logs report WASM loaded, zero console errors and
+zero failed requests. Windows x64 and Linux x64 used Node 24.21.0; macOS arm64
+used Node 24.20.0. These are results for the recorded source and workflows,
+not exhaustive platform or interactive-tool validation. Subsequent heads
+still require their own checks before merge.
 
 The original Cartesian CAD fixture is a 50×20 mm plate, 4 mm deep, with
 two circular holes. Their source radii 3 and 5 mm, separated by 20 mm, share
