@@ -3,14 +3,21 @@
 ## Body integration development snapshot — 2026-10-13
 
 The body work is on `feat/body-catalog-combine`, based on the reference
-integration in PR #27. Local checks below used Windows x64, Node 24.11.1
-and Vitest 5.0.3. They do not establish platform support or complete the
-body-management checklist in issue #26.
+integration in PR #27. The current source is commit
+`2ebc22e6b971972c133e74edd5a9fd93a84e5394` in
+[draft PR #29](https://github.com/angelcp2802/solidflow/pull/29).
+The final build, full-suite, standalone IPC, desktop and hosted results below
+cover this source; earlier focused runs and their corrections are retained
+separately.
+Local checks used Windows x64, Node 24.11.1 and Vitest 5.0.3. They do not
+establish platform support or complete the body-management checklist in
+[issue #26](https://github.com/angelcp2802/solidflow/issues/26).
 
 - `npm run build`: passed TypeScript and the production build (1980 modules).
   All 232 recorded source/configuration inputs were unchanged during the run.
-  This run preceded the subsequent test-fixture correction and test-only
-  additions; production code was unchanged by those edits.
+  The final build includes the test-fixture correction and three additional
+  scoped-finish tests described below; the earlier successful build preceded
+  those test-only edits.
 - The document/command/SSR/display-selection suite passed 68 tests in six
   files, with no skipped cases, in 34.39 seconds. It covers parsing and
   dependencies, command invalidation, selection namespaces, display occlusion,
@@ -32,12 +39,58 @@ body-management checklist in issue #26.
   in 149.64 seconds; the 29 earlier cases were skipped by the explicit
   `-t scoped.*finish` filter. This run retained all 232 recorded inputs
   unchanged and checked analytical geometry plus fresh same-kernel STEP.
-  The current engine workflow file contains 32 cases. A new build remains
-  pending after these test-only changes.
-- Full `npm test`, a standalone IPC run, the production Electron smoke check
-  and hosted checks for the body source remain pending. The results for the
-  earlier reference integration elsewhere in this record do not validate
-  the body changes.
+  The current engine workflow file contains 32 cases.
+- Full `npm test` exited 1: 1680 passed and 60 failed of 1740 tests in
+  93 files (77 passed, 16 failed), in 616.76 seconds. All 60 reported failures
+  were timeouts: 56 at unchanged 5000 ms budgets and four at unchanged
+  60000 ms budgets. No assertion, crash or hook failure was reported in this
+  run. Its 232 recorded inputs were unchanged. The cause remains unproven;
+  these results do not establish that the affected behavior is defect-free.
+  The command stopped before IPC because its scripts are joined by `&&`.
+- A subsequent standalone `npm run test:ipc` passed all 11 tests, with no
+  failed, cancelled or skipped tests, in 22495.8097 ms. Its 232 recorded
+  inputs were unchanged. This separate result does not turn the failed
+  `npm test` invocation into a pass.
+- The local `npm run test:desktop` exited 1 with an `EBUSY` error while
+  removing the temporary profile's `DIPS` file. Its 232 recorded inputs
+  were unchanged. The log emitted no readiness result or timeout diagnostic,
+  so it does not establish whether the initial model became ready or why
+  the profile file remained locked. This invocation is not a passing smoke
+  check.
+
+Hosted checks for this body source passed in
+[desktop CI](https://github.com/angelcp2802/solidflow/actions/runs/38353551009)
+and [security analysis](https://github.com/angelcp2802/solidflow/actions/runs/38353551184),
+with all six required checks successful. The pull-request head was
+`2ebc22e6b971972c133e74edd5a9fd93a84e5394`, the base was
+`ac7e21fd66cdfc197057a8995ff3dc5d494d4717`, and the checked-out merge commit
+was `5af2989c26c2c7a7700d80f0bc1e6f4f1e6c3d1e`.
+
+| Hosted platform | Node | Unit/CAD result | Vitest duration |
+| --- | --- | --- | --- |
+| Windows x64 | 24.21.0 | 1740 passed in 93 files | 40.27 s |
+| Linux x64 | 24.21.0 | 1740 passed in 93 files | 30.17 s |
+| macOS arm64 | 24.20.0 | 1740 passed in 93 files | 45.06 s |
+
+All three jobs used npm 11.19.0 and Vitest 5.0.3. Each passed the 32 engine
+body-workflow cases and 29 native catalog cases, all 11 IPC tests, the
+1980-module production build, the Electron smoke check and unsigned packaging
+with `--publish never`. The smoke reports recorded WASM loaded, no console
+errors and no failed requests. These are executed checks for this source;
+they do not validate interactive body editing, installer use or complete
+platform support. CodeQL succeeded. The dependency audit passed its
+high/critical gate while retaining eight moderate findings; a passing gate
+does not mean an empty audit.
+
+Retained local log SHA-256 digests identify the final runs without publishing
+local artifacts:
+
+| Local command | Log SHA-256 |
+| --- | --- |
+| `npm run build` | `61c14da9d122605a5c985e152315c8f2ed2b2cc8d12f06e917e909cb31dd8e9c` |
+| `npm test` | `fae871f7ce2aa731d7900854a3c6e43470207224ec87e7842fa821cd44ae5e64` |
+| `npm run test:ipc` | `60532b93499999706a0d950b46d0d910a0593476c190d07d08fcc0a2c28dbaa9` |
+| `npm run test:desktop` | `592f47bc30a0dd581deadbee7f442d48a27b3a7eecedecf30df9cddc2dc3fc7b` |
 
 The focused suites can be reproduced without private artifacts:
 
