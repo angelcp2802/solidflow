@@ -21,6 +21,16 @@ can be exported as STEP and STL. [STEP import](STEP_IMPORT.md) adds one closed
 solid as an owned base for downstream operations. Each operation has explicit
 limitations.
 
+## Work in review
+
+The [project status and review queue](PROJECT_STATUS.md) separates the default
+branch from the draft CAD stack: [#27](https://github.com/angelcp2802/solidflow/pull/27)
+for sketch identities and bounded semantic references, then
+[#29](https://github.com/angelcp2802/solidflow/pull/29) for explicit body management,
+then [#31](https://github.com/angelcp2802/solidflow/pull/31) for body-aware sweep
+and loft. These proposals have not merged. Their checks and remaining acceptance
+work are recorded separately from the foundation above.
+
 ## Next priorities
 
 1. Make Windows, macOS and Linux builds reproducible and verify real interaction

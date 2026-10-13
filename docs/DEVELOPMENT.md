@@ -2,6 +2,20 @@
 
 Use Node.js 24 and npm. Dependency versions are recorded in `package-lock.json`; install them with `npm ci`. Git is needed for the contribution workflow. Windows is the platform with the current local desktop evidence; macOS and Linux are targets whose build and runtime results must be recorded separately.
 
+## Choose a branch and runtime
+
+Start ordinary contributions from `main`. The [project status and review queue](PROJECT_STATUS.md)
+lists dependent draft increments and their intended bases; review a stacked
+change against that base rather than treating its prerequisites as merged.
+Consult the selected branch's own contracts and validation record for behavior
+that is still proposed.
+
+Node runtime major migrations should update `engines`, the CI runtime, this
+guide and matching `@types/node` together in a focused proposal. While Node 24
+is the documented target, Dependabot is configured to ignore semver-major
+`@types/node` version proposals. Other configured update rules and the security
+workflows remain in place; report and review audit findings separately.
+
 ## Run locally
 
 From the repository root:
