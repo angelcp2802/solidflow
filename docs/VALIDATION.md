@@ -1,5 +1,84 @@
 # Validation
 
+## Desktop launcher diagnostics — 2026-10-14
+
+[Draft PR #35](https://github.com/angelcp2802/solidflow/pull/35) proposes
+diagnostic preservation for the desktop smoke launcher. Runtime source
+[`b488bc34f17703b0a1bc2d5fd6bcb69fca07f8f2`](https://github.com/angelcp2802/solidflow/commit/b488bc34f17703b0a1bc2d5fd6bcb69fca07f8f2)
+is based on `43c7573c688b35a0bb70a0206416fff17ae298cd` and extends the
+earlier diagnostic source `038bc50acda77af3a968eed29734f803d7bca1a3`.
+The proposal remains unmerged and [issue #30](https://github.com/angelcp2802/solidflow/issues/30)
+remains open. Main's runtime baseline is unchanged by this proposal.
+
+Local Windows x64 / Node 24.11.1 results for the updated source are:
+
+| Command | Recorded result |
+| --- | --- |
+| `npm test` | Exit 1: 1,352 passed and 140 failed of 1,492 tests; 59 passed and 15 failed of 74 files; 853.24 seconds. The failed unit phase did not enter IPC. |
+| `npm run test:ipc` | Separate run: 31 passed, zero failed, cancelled or skipped; 24,611.7259 ms. These comprise 20 launcher cases and 11 IPC-security cases. |
+| `npm run build` | TypeScript and production build passed; 1,972 modules transformed, with Vite reporting 1 minute 56 seconds. |
+| `npm run test:desktop` | Exit 1: `AggregateError` retains the 45-second deadline as cause and `SMOKE_CLOSE_UNCONFIRMED` as a secondary diagnostic. No readiness report was produced. |
+
+All 140 logged full-suite failures were test timeouts: 136 at 5 seconds and
+four at 30 seconds, across 101 printed error groups. One worker-termination
+warning was separate. Complete log classification identified no assertion,
+hook-failure, unhandled/uncaught or crash diagnostic. This does not establish
+that timed-out assertions completed, exclude latent defects or identify a
+cause. The source and complete before/after maps contain the same 203 runtime
+inputs, without missing, extra, duplicate or changed hashes; no environment
+override was recorded. The separate IPC pass does not change the failed full
+result.
+
+In the real desktop invocation, close remained unconfirmed, cleanup was
+skipped and the isolated temporary data was retained. No cleanup lock error
+was emitted in that invocation. Neither WASM loading nor initial-model
+readiness is established locally. This explicit timeout outcome does not
+recover the primary outcome or cause of the earlier cleanup-only failure.
+The existing deadlines, sandbox settings and cleanup retry budget remain
+unchanged. Child-handle release does not prove that descendants, inherited
+streams or an outer harness terminated.
+
+For this exact source, all six hosted checks succeeded in
+[desktop CI](https://github.com/angelcp2802/solidflow/actions/runs/38476808951)
+and [Security](https://github.com/angelcp2802/solidflow/actions/runs/38476808925).
+The tested merge
+[`0160695c6a28445b890615e4a43219eefaf4e99e`](https://github.com/angelcp2802/solidflow/commit/0160695c6a28445b890615e4a43219eefaf4e99e)
+has parents `43c7573c688b35a0bb70a0206416fff17ae298cd` and
+`b488bc34f17703b0a1bc2d5fd6bcb69fca07f8f2`, with the same tree
+`236ac2b2d074d1007dd30c2601e3a0186a90bc99` as the proposed head.
+Each complete Windows x64, Linux x64 and macOS arm64 log records all 1,492
+tests in 74 files, 31 Node passes without failures/cancellations/skips,
+build 1,972, and real initial-model Electron smoke PASS with
+`wasmLoaded: true`, `consoleErrors: []` and `failedRequests: []`.
+Packaging ran with `--publish never`; binary signatures were not independently
+inspected. Windows/Linux used Node 24.21.0 and macOS used Node 24.20.0,
+with npm 11.19.0, Vitest 5.0.3 and Vite 8.3.4. CodeQL and the high/critical
+audit threshold passed; eight moderate development findings remained visible.
+These bounded checks do not establish total security or platform support.
+
+The earlier `038bc50` results remain separate. Its local full run exited 1
+with 1,346 passed and 146 failed of 1,492 tests; 54 passed and 20 failed of
+74 files, in 1,131.62 seconds. All 146 failures were test timeouts: 138 at
+5 seconds, seven at 30 seconds and one at 15 seconds, across 95 printed error
+groups, with three separate worker warnings. Its own 30-case Node, build and
+six successful hosted checks belong to that earlier source:
+[desktop CI](https://github.com/angelcp2802/solidflow/actions/runs/38471687902)
+and [Security](https://github.com/angelcp2802/solidflow/actions/runs/38471687894).
+Those hosted desktop jobs each checked 1,492 tests in 74 files, 30 Node cases,
+build 1,972 and initial-model smoke. Neither hosted revision explains the
+local full-suite or desktop failures.
+
+The launcher regressions use original synthetic child events and VM checks;
+they do not launch Electron. Initial-model smoke does not execute editor tools,
+native file dialogs or locked-profile recovery. No signing/notarization,
+independent CAD interoperability, native-leak or general lifecycle guarantee
+is established. Binary publication remains gated by
+[issue #5](https://github.com/angelcp2802/solidflow/issues/5).
+This entry records existing checks of the runtime source above, rather than
+a rerun for a later documentation-only head. Any later hosted result must be
+identified by its own head in the pull request. All earlier validation entries
+retain their original scope below.
+
 The public repository uses a self-contained suite. Claims are limited to the
 cases checked, with the tolerances recorded in each test.
 
