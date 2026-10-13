@@ -32,8 +32,9 @@ accessibility, performance or platform coverage.
 This branch combines the generated-sketch identity prerequisite with the prism
 reference modules, then connects the engine, document parser and UI selection
 aliases. Newly written context, persistence, consumer and selection tests are
-tracked separately from their execution. No successful full suite, desktop smoke
-or interactive editor result is yet claimed for this integration source.
+tracked separately from their execution. The results below distinguish passing
+hosted checks from failed local complete-suite and desktop runs. Interactive
+editor workflows have not been checked for this integration source.
 
 On Windows x64 (10.0.26200), Node 24.11.1, npm 11.6.2 and Vitest 5.0.3, a
 focused invocation of the installed Vitest entrypoint passed all 44 cases in
@@ -109,8 +110,85 @@ the old failure log does not contain coordinates from which to measure its
 exact error. The local build after these changes passed TypeScript and Vite
 (1,976 modules, 1 minute 26 seconds reported by Vite), with all 219 recorded
 inputs unchanged and the existing warnings. This precedes a final finite-value
-guard in that test helper. The final source requires a repeat build, the full
-suite including 37 affected context/native cases, and desktop smoke.
+guard in that test helper; final-source results are recorded separately below.
+
+### Corrected integration source `5f5bc3c`
+
+At commit `5f5bc3c8a73f84396fdbe331e36a136c2daa1ff2`, the final local
+`npm run build` exited 0 after the finite-value guard, passing TypeScript and
+Vite (1,976 modules, 1 minute 18 seconds reported by Vite), with the existing
+externalization and large-chunk warnings. All 219 recorded inputs were unchanged.
+The local `npm run test:desktop` exited 1 with the sole diagnostic
+`Electron no terminó en 45 segundos.` Its 219 recorded inputs were also
+unchanged. The failing loader stage and underlying cause are not established;
+this is not a local smoke pass.
+
+A separate instrumented desktop diagnostic also exited 1 with all 219 recorded
+inputs unchanged. It retained the 45/35/25-second budgets, sandbox, hidden window
+and isolated user data, but used a private instrumented entrypoint. Recorded
+elapsed stages reached application readiness at 4.659 seconds, window creation
+at 8.377 seconds, the HTML response at 11.003 seconds, JS/CSS responses at
+20.805 seconds, DOM/load at 23.264 seconds, the worker response at 25.523 seconds
+and the WASM response at 29.778 seconds. These responses had HTTP status 200.
+The outer 45-second deadline fired at 47.489 seconds; the child later exited
+with SIGTERM at 60.458 seconds. No post-inspection, completion, inner 35-second
+timeout or initial-model readiness event was recorded before termination.
+These observations do not establish kernel compilation time, the blocking
+stage or the cause of the original smoke failure, and are not a passing smoke.
+
+On Windows x64 with Node 24.11.1, npm 11.6.2 and Vitest 5.0.3, the full
+local `npm test` exited 1: 1,547 passed and 62 failed portable cases out of
+1,609, across 17 failed and 68 passed files (85 total). Vitest reported
+792.96 seconds. The command and configuration used the project defaults,
+without worker-count or timeout overrides, and all 219 recorded inputs stayed
+unchanged. IPC did not execute because the unit phase failed in
+`npm run test:unit && npm run test:ipc`.
+
+Exhaustive classification of that local log distinguishes these diagnostics:
+
+| Failed cases | Diagnostic |
+| --- | --- |
+| 57 | Vitest timeout at 5,000 ms |
+| 1 | Vitest timeout at 15,000 ms in the 8 MiB STEP-source boundary case |
+| 3 | Vitest timeout at 60,000 ms in semantic-engine continuity/history, hole fillet and historical support/up-to-surface cases |
+| 1 | The connected 128-point solver case expected `fullyDefined` but received `notConverged`, with the solver's calculation-time-limit message |
+
+The solver assertion is distinct from a Vitest timeout. This classification
+does not establish the cause of either diagnostic. Of the 37 affected cases
+(14 semantic-engine, six semantic face-operation and 17 semantic-context),
+34 passed locally and the three engine cases above timed out. No geometric
+assertion, timeout budget or production solver tolerance was relaxed.
+
+Hosted [CI run 38338860064](https://github.com/angelcp2802/solidflow/actions/runs/38338860064)
+checked that same source. Its actual platform results are:
+
+| Platform | Portable and IPC results | Build, initial-model smoke and unsigned packaging |
+| --- | --- | --- |
+| Windows x64, Node 24.21.0 | 1,609 portable cases in 85 files and 11 IPC checks passed | Passed |
+| macOS arm64, Node 24.20.0 | 1,609 portable cases in 85 files and 11 IPC checks passed | Passed |
+| Linux x64, Node 24.21.0, first attempt | Process exited 139 with `Segmentation fault (core dumped)`; no final suite summary or IPC run | Build passed; smoke and packaging skipped |
+| Linux x64, Node 24.21.0, one controlled repeat | 1,609 portable cases in 85 files and 11 IPC checks passed | Passed, with Xvfb for smoke |
+
+The first Linux [job 115105089584](https://github.com/angelcp2802/solidflow/actions/runs/38338860064/job/115105089584)
+reported 1,059 passing cases in 41 files before the crash; these are partial
+counts. The complete log contains no native or Node backtrace, assertion,
+timeout, out-of-memory or worker-error diagnostic identifying its cause.
+The last reported test does not identify the crashing component. The single
+[repeat, job 115108175082](https://github.com/angelcp2802/solidflow/actions/runs/38338860064/job/115108175082),
+used the same head, configuration, Ubuntu 24.04.5 runner image, Node 24.21.0,
+npm 11.19.0 and Vitest 5.0.3, and passed. This does not explain or resolve the
+first crash. Windows and macOS were not rerun. Their logs and the Linux repeat
+explicitly passed all 37 affected cases, including the actual offset-image
+deletion/recreation case: only the recreated image has the new 1.5 mm driver;
+the other offset remains free.
+
+All six hosted checks for this head finished successfully after that repeat.
+[Security run 38338859971](https://github.com/angelcp2802/solidflow/actions/runs/38338859971)
+passed CodeQL and the configured high/critical audit gate; eight moderate
+dependency findings remained visible. These hosted results do not replace the
+failed local checks, establish the crash's cause or prove complete platform
+and interactive-workflow coverage. Packaging is without publication, and
+binary upload remains gated by issue #5.
 
 The earlier opt-in module source
 `52508a0214ad7b36b5e1b18df797c34d20400ad1` has separate evidence. Its local
