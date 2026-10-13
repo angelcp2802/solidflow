@@ -49,6 +49,17 @@ document validation first. Structurally loadable, absent-field legacy sweep/loft
 must reject in an already active catalog for either merge flag, preserving the
 previous body geometry and picking rather than inventing output ownership.
 
+Two additional raw declaration matrices, one per producer, reuse the strict
+body-operation guard shared with extrusion and revolution. Each submits 19
+malformed own declarations, five declarations with inherited required fields
+and two defined inherited `bodyOperation` values, without geometry inputs.
+The `merge` flag is consistent with the supplied mode so it cannot mask an
+invalid operation shape. These cases require the declaration error and an
+empty result before input lookup; they are separate from the 20 geometric
+and workflow cases above. Own properties, prototypes and inherited values
+are checked separately because structured cloning drops prototypes. They do
+not establish behavior for arbitrary getters, proxies or other exotic objects.
+
 Native volume, area and bounds comparisons use absolute tolerance 5e-6;
 planar picking-frame selection uses 5e-7. Display meshes are not precision
 oracles. Fresh STEP imports check BRep validity, closed shells, solid count
@@ -58,6 +69,36 @@ exact body/source references, reopening and undo/redo are checked separately.
 The STEP round trip uses the same kernel and does not establish independent
 interoperability, real editor interaction or general sweep/loft naming.
 Written fixtures are acceptance cases, not executed validation results.
+
+## Raw body-operation boundary fixtures
+
+`src/cad/kernel.body-operation-boundary.test.ts` uses original inline Cartesian
+coordinates in millimeters. The baseline square is centered at `(0,0)` on XY
+at z=-5 with width and height 10; an explicit depth-10 extrusion creates body A
+with bounds `(-5,-5,-5)` to `(5,5,5)`, volume 1000 mm³ and area 600 mm².
+The contained extrusion uses a centered 2×2 square at z=-1 and depth 2, giving
+the cube `[-1,1]^3` (volume 8). The contained revolution rotates the XY
+rectangle centered at `(1,0)`, width 2 and height 4, through 360° around the
+local Y axis; its cylinder has radius 2, length 4, volume `16π`, and bounds
+`(-2,-2,-2)` to `(2,2,2)`.
+
+Raw `CadEngine.build` inputs intentionally bypass saved-document parsing.
+Unknown modes must reject without advancing A's exact body/source reference;
+valid merge controls keep A's analytical geometry and advance its source.
+Rejection cases retain A's own face and edge picking descriptors and block
+both STEP and STL export from the current errored engine state.
+Each unknown-mode case also supplies that declaration through a prototype,
+checks its defined inherited value separately from the feature's own properties,
+and requires rejection with the same retained A state. This bounded case does
+not establish behavior for arbitrary getters, proxies or exotic objects.
+Malformed operation objects are also submitted without an available sketch to
+check that declaration rejection precedes geometry construction. Separate
+absence controls retain the legacy route. Native baseline/result checks use
+BRep validity, one solid, adaptive volume, surface area and bounds with
+absolute tolerance `5e-6`; legacy controls check result volume and bounds.
+The file is authored for this project without external models or binaries.
+These definitions describe test expectations, not an executed pass or general
+platform coverage.
 
 ## Explicit body management fixtures
 

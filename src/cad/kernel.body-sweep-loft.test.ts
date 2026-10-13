@@ -278,6 +278,91 @@ describe.each(['sweep', 'loft'] as const)('explicit %s body workflow', kind => {
     }
   }, 60_000);
 
+  it('rejects strict raw body declaration shapes before unavailable geometry inputs, with mode-consistent merge flags', () => {
+    const template = producer(kind, 'declaration-boundary', { mode: 'new', bodyId: cId }).feature;
+    function rejectedDeclaration(raw: Feature, label: string) {
+      const own = Object.getOwnPropertyDescriptors(raw), json = JSON.stringify(raw);
+      // No sketch inputs are supplied: an input error must not hide a bad declaration.
+      const result = engine.build([raw]);
+      expect(result.featureErrors, label).toHaveLength(1);
+      expect(result.featureErrors[0].id, label).toBe(raw.id);
+      expect(result.featureErrors[0].message, label).toMatch(/operación explícita de cuerpo/);
+      expect(result.bodyCatalogActive, label).not.toBe(true);
+      expect(result.triangles, label).toHaveLength(0);
+      expect(Object.getOwnPropertyDescriptors(raw), label).toEqual(own);
+      expect(JSON.stringify(raw), label).toBe(json);
+    }
+    const malformed: { label: string; declaration: unknown; merge: boolean }[] = [
+      { label: 'new with target', declaration: { mode: 'new', bodyId: cId, target: a }, merge: false },
+      { label: 'merge with bodyId', declaration: { mode: 'merge', target: a, bodyId: cId }, merge: true },
+      { label: 'new missing bodyId', declaration: { mode: 'new' }, merge: false },
+      { label: 'new empty bodyId', declaration: { mode: 'new', bodyId: '' }, merge: false },
+      { label: 'new whitespace bodyId', declaration: { mode: 'new', bodyId: ' ' }, merge: false },
+      { label: 'new controlled bodyId', declaration: { mode: 'new', bodyId: 'bad\u0000id' }, merge: false },
+      { label: 'new long bodyId', declaration: { mode: 'new', bodyId: 'x'.repeat(129) }, merge: false },
+      { label: 'new numeric bodyId', declaration: { mode: 'new', bodyId: 1 }, merge: false },
+      { label: 'merge missing target', declaration: { mode: 'merge' }, merge: true },
+      { label: 'merge null target', declaration: { mode: 'merge', target: null }, merge: true },
+      { label: 'merge array target', declaration: { mode: 'merge', target: [] }, merge: true },
+      { label: 'target missing bodyId', declaration: { mode: 'merge', target: { sourceFeatureId: a.sourceFeatureId } }, merge: true },
+      { label: 'target missing source', declaration: { mode: 'merge', target: { bodyId: a.bodyId } }, merge: true },
+      { label: 'target empty bodyId', declaration: { mode: 'merge', target: { ...a, bodyId: '' } }, merge: true },
+      { label: 'target whitespace source', declaration: { mode: 'merge', target: { ...a, sourceFeatureId: ' ' } }, merge: true },
+      { label: 'target controlled source', declaration: { mode: 'merge', target: { ...a, sourceFeatureId: 'bad\u007fid' } }, merge: true },
+      { label: 'target long source', declaration: { mode: 'merge', target: { ...a, sourceFeatureId: 'x'.repeat(129) } }, merge: true },
+      { label: 'target extra key', declaration: { mode: 'merge', target: { ...a, extra: true } }, merge: true },
+      { label: 'operation missing mode', declaration: { bodyId: cId }, merge: false },
+    ];
+    malformed.forEach((sample, index) => {
+      const raw = { ...template, id: `${kind}-own-declaration-${index}`,
+        bodyOperation: sample.declaration, merge: sample.merge } as unknown as Feature;
+      expect(Object.hasOwn(raw, 'bodyOperation')).toBe(true);
+      rejectedDeclaration(raw, sample.label);
+      expect(Object.hasOwn(raw, 'bodyOperation')).toBe(true);
+      expect((raw as unknown as { bodyOperation: unknown }).bodyOperation).toBe(sample.declaration);
+    });
+    const inherit = (own: Record<string, unknown>, prototype: Record<string, unknown>): Record<string, unknown> =>
+      Object.assign(Object.create(prototype), own);
+    const inheritedMode = inherit({ bodyId: cId }, { mode: 'new' });
+    const inheritedBodyId = inherit({ mode: 'new' }, { bodyId: cId });
+    const inheritedTarget = inherit({ mode: 'merge' }, { target: a });
+    const inheritedRefBody = inherit({ sourceFeatureId: a.sourceFeatureId }, { bodyId: a.bodyId });
+    const inheritedRefSource = inherit({ bodyId: a.bodyId }, { sourceFeatureId: a.sourceFeatureId });
+    const inherited = [
+      { label: 'operation inherited mode', declaration: inheritedMode, merge: false, record: inheritedMode, key: 'mode', value: 'new' },
+      { label: 'operation inherited bodyId', declaration: inheritedBodyId, merge: false, record: inheritedBodyId, key: 'bodyId', value: cId },
+      { label: 'operation inherited target', declaration: inheritedTarget, merge: true, record: inheritedTarget, key: 'target', value: a },
+      { label: 'reference inherited bodyId', declaration: { mode: 'merge', target: inheritedRefBody }, merge: true,
+        record: inheritedRefBody, key: 'bodyId', value: a.bodyId },
+      { label: 'reference inherited source', declaration: { mode: 'merge', target: inheritedRefSource }, merge: true,
+        record: inheritedRefSource, key: 'sourceFeatureId', value: a.sourceFeatureId },
+    ];
+    inherited.forEach((sample, index) => {
+      const prototype = Object.getPrototypeOf(sample.record);
+      const raw = { ...template, id: `${kind}-inherited-required-${index}`,
+        bodyOperation: sample.declaration, merge: sample.merge } as unknown as Feature;
+      expect(Object.hasOwn(sample.record, sample.key), sample.label).toBe(false);
+      expect(sample.record[sample.key], sample.label).toBe(sample.value);
+      rejectedDeclaration(raw, sample.label);
+      // JSON omits inherited fields; verify their prototype and value separately.
+      expect(Object.getPrototypeOf(sample.record), sample.label).toBe(prototype);
+      expect(Object.hasOwn(sample.record, sample.key), sample.label).toBe(false);
+      expect(sample.record[sample.key], sample.label).toBe(sample.value);
+    });
+    for (const declaration of [{ mode: 'unknown', target: a }, { mode: 'merge', target: a }]) {
+      const own: Record<string, unknown> = { ...template, id: `${kind}-inherited-operation-${declaration.mode}`,
+        merge: declaration.mode === 'merge' };
+      delete own.bodyOperation;
+      const prototype = { bodyOperation: declaration }, raw = inherit(own, prototype) as unknown as Feature;
+      expect(Object.hasOwn(raw, 'bodyOperation')).toBe(false);
+      expect((raw as unknown as { bodyOperation: unknown }).bodyOperation).toBe(declaration);
+      rejectedDeclaration(raw, 'feature inherited operation');
+      expect(Object.getPrototypeOf(raw)).toBe(prototype);
+      expect(Object.hasOwn(raw, 'bodyOperation')).toBe(false);
+      expect((raw as unknown as { bodyOperation: unknown }).bodyOperation).toBe(declaration);
+    }
+  }, 60_000);
+
   it('rejects either legacy merge setting in an active catalog instead of assigning implicit body ownership', () => {
     const original = baseline();
     for (const merge of [false, true]) {

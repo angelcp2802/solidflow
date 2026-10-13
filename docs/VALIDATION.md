@@ -1,5 +1,33 @@
 # Validation
 
+## Shared body-operation guard integration — 2026-10-13
+
+This integration combines the body correction at
+`b12c71b8a947e80ec3a24f3f32702f42b37d5456` with the sweep/loft proposal at
+`395b4f8af28a7ec14732b350d4e372cddec77db4`. Extrude, revolve, sweep and loft
+now share the strict raw declaration guard. Sweep/loft `merge`, `ruled` and
+mode-consistency checks remain intact; the saved-document grammar is unchanged.
+
+Local checks used Windows x64, Node 24.11.1 and the public configuration:
+
+- `npm run build` passed TypeScript and the 1980-module production build
+  (Vite 54.90 seconds), with all 236 recorded source/configuration inputs
+  unchanged. Log SHA-256:
+  `41de68d186e3c6819d311a42eb6d6222605be43f2d623feba82b6595fd8cceab`.
+- `npm run test:unit -- src/cad/kernel.body-sweep-loft.test.ts -t strict`
+  passed the two selected declaration-matrix cases in 71.90 seconds
+  (Vitest 5.0.3), with all 236 recorded inputs unchanged. The explicit filter
+  skipped the 20 earlier cases; this invocation does not revalidate them.
+  Each selected case submits 26 malformed declarations before geometry input
+  lookup. Log SHA-256:
+  `2c6084638d4e078a078181005e76bd5319590b166ae830d60556fc04e3369943`.
+
+These are focused programmatic results, with the new cases using 60-second
+budgets and all existing budgets unchanged. Complete checks for the integration
+are tracked in [PR #31](https://github.com/angelcp2802/solidflow/pull/31).
+The source-specific snapshots below preserve earlier passing and failed runs;
+they do not describe a new full-suite or desktop pass for this integration.
+
 ## Explicit sweep/loft body development snapshot — 2026-10-13
 
 The development branch `feat/body-sweep-loft` extends the body work from
@@ -81,13 +109,48 @@ npm run test:unit -- src/model/bodySweepLoft.test.ts src/model/bodyReferences.te
 npm run test:unit -- src/cad/kernel.body-sweep-loft.test.ts src/cad/kernel.sweep-loft.test.ts src/cad/kernel.bodies.test.ts src/cad/kernel.body-workflow.test.ts
 ```
 
-The following body snapshot covers its stated earlier source, before this
-sweep/loft extension.
+The body integration snapshot further below covers its stated earlier source,
+before this sweep/loft extension.
+
+## Raw body-operation rejection review — 2026-10-13
+
+This snapshot covers commit `b12c71b8a947e80ec3a24f3f32702f42b37d5456`
+on the body branch, before integration with the sweep/loft extension.
+
+The correction for [issue #32](https://github.com/angelcp2802/solidflow/issues/32)
+rejects malformed extrusion/revolution body-operation declarations before
+constructing tools or staging catalog changes. Ordinary absent
+fields retain the legacy path; defined inherited declarations reject.
+The saved-document parser already rejected unknown modes. This change closes
+the separately reproduced raw `CadEngine.build` fallthrough.
+
+Local checks used Windows x64, Node 24.11.1 and the public configuration:
+
+- `npm run build` passed TypeScript and the production build (1980 modules;
+  Vite 57.08 seconds). All 233 recorded source/configuration inputs were
+  unchanged. Log SHA-256:
+  `ccfcd5a8bf32e20a7a9d5cbe1c7a36e434b7fba2449cd25f8e29fecd46b0b144`.
+- `npm run test:unit -- src/cad/kernel.body-operation-boundary.test.ts`
+  passed all eight cases in one file, with no skipped cases, in 99.28 seconds
+  (Vitest 5.0.3). Its 233 recorded inputs were unchanged. Log SHA-256:
+  `9b95603ccb8f96b3084f0a1844913340510c5de82e0d4b66dcdf309543d947bb`.
+
+These cases cover own and defined inherited unknown-mode rejection, unchanged
+exact A references and face/edge descriptors, valid BRep/solid count, analytical
+volume/area/bounds, blocked STEP/STL export, valid merge controls, 22 malformed
+declarations per operation type, and ordinary absent-field legacy geometry.
+The [fixture provenance](PROVENANCE.md) states coordinates and tolerances.
+The new cases and their initialization use 60-second budgets; existing budgets
+were unchanged. This is focused programmatic evidence, not a new full
+suite pass, real interaction, independent interoperability or platform support.
+Full checks for the current proposal are tracked in
+[PR #29](https://github.com/angelcp2802/solidflow/pull/29); the earlier full-suite
+and desktop failures below remain evidence for their stated source.
 
 ## Body integration development snapshot — 2026-10-13
 
 The body work is on `feat/body-catalog-combine`, based on the reference
-integration in PR #27. The current source is commit
+integration in PR #27. The original body source is commit
 `2ebc22e6b971972c133e74edd5a9fd93a84e5394` in
 [draft PR #29](https://github.com/angelcp2802/solidflow/pull/29).
 The final build, full-suite, standalone IPC, desktop and hosted results below
