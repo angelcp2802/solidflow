@@ -3,7 +3,8 @@
 ## Explicit sweep/loft body development snapshot — 2026-10-13
 
 The development branch `feat/body-sweep-loft` extends the body work from
-commit `be9415d8a9070f30b8ea3895094a80a7eb934348`. Sweep and loft can
+commit `be9415d8a9070f30b8ea3895094a80a7eb934348`. The implementation is
+commit `6d38ddd93b1542cdd046b6d43d2773a40113119b`. Sweep and loft can
 persist one new output or one exact merge target; legacy absent-field records
 retain their aggregate behavior. This extension does not complete the
 body-management checklist or define pattern/mirror instance ownership.
@@ -19,13 +20,19 @@ public worker settings, time budgets and geometry tolerances:
   model/command/SSR cases and the earlier body, selection and panel checks.
   SSR does not establish actual editor interaction or native geometry.
   Log SHA-256: `686250740a93dd0f4c4f7298fcd1fec0067653b9db4837c291a467a0d1444dbf`.
-- Focused native validation is running. The new file contains 20 acceptance
-  cases, alongside the existing sweep/loft, catalog and body-workflow files.
-  The current invocation has reported a failure in an earlier sweep case;
-  its final result and failure classification are pending.
-- Full `npm test`, standalone IPC and the production Electron smoke check
-  remain pending for this extension. Earlier hosted results below do not
-  validate these source changes.
+- Focused native validation exited 1: 114 passed and five failed of 119 tests
+  in four files (two passed, two failed), in 817.14 seconds, with all 235
+  recorded inputs unchanged. The new sweep/loft file passed 16 and failed four
+  of its 20 cases; its merged-edit/cut/history and malformed-raw-payload cases
+  for both producers timed out at their unchanged 60000 ms budgets. An older
+  saved R5 sweep case timed out at its unchanged 5000 ms budget. The existing
+  catalog and body-workflow files passed all 29 and 32 cases, respectively.
+  No assertion or crash was reported, but the run is failed and its timeout
+  cause remains unproven.
+  Log SHA-256: `bd926814f697181d165176a91965fc1040be3db4c220fb32804d8030d98940d3`.
+- Full `npm test` is running on this implementation source. IPC and the
+  production Electron smoke check remain pending for this extension. Earlier
+  hosted results below do not validate these source changes.
 
 The original analytical fixtures and their limits are described in
 [PROVENANCE.md](PROVENANCE.md#explicit-sweep-and-loft-body-fixtures).
