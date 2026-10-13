@@ -14,6 +14,16 @@ export interface FaceReference {
   key: string;
 }
 
+/** Exact modeled body state; never a native solid index or geometric signature. */
+export interface BodyReference {
+  bodyId: string;
+  sourceFeatureId: string;
+}
+
+export type BodyOperation =
+  | { mode: 'new'; bodyId: string }
+  | { mode: 'merge'; target: BodyReference };
+
 export type SketchSupport =
   | { kind: 'plane'; planeId: string }
   | { kind: 'face'; face: FaceReference };
@@ -55,12 +65,11 @@ export interface ReferencePlaneFeature extends FeatureBase {
 
 /** Geometric termination; absence preserves the legacy signed blind/mid-plane definition. */
 export type ExtrudeEndCondition =
-  | { kind: 'throughAll'; baseFeatureId: string; bothDirections: boolean }
-  | { kind: 'untilNext'; baseFeatureId: string }
+  | { kind: 'throughAll'; baseFeatureId: string; bothDirections: boolean; baseBody?: BodyReference }
+  | { kind: 'untilNext'; baseFeatureId: string; baseBody?: BodyReference }
   | { kind: 'upToSurface'; target: PlaneSupport };
 
-export interface ExtrudeFeature extends FeatureBase {
-  type: 'extrude' | 'cut';
+interface ExtrudeDefinition extends FeatureBase {
   sketchId: string;
   /** Signed blind length; with a geometric end condition only its sign selects direction. */
   depth: number;
@@ -69,12 +78,25 @@ export interface ExtrudeFeature extends FeatureBase {
   endCondition?: ExtrudeEndCondition;
 }
 
+/** Absence of body fields retains the legacy aggregate operation. */
+export type ExtrudeFeature = ExtrudeDefinition & (
+  | { type: 'extrude'; bodyOperation?: BodyOperation }
+  | { type: 'cut'; bodyScope?: BodyReference[] }
+);
+export type CutFeature = Extract<ExtrudeFeature, { type: 'cut' }>;
+
 export interface RevolveFeature extends FeatureBase {
   type: 'revolve';
   sketchId: string;
   /** Revolves around the sketch plane's local Y axis through its origin. */
   angle: number;
+  bodyOperation?: BodyOperation;
 }
+
+export type CombineFeature = FeatureBase & (
+  | { type: 'combine'; operation: 'add' | 'common'; operands: BodyReference[]; resultBodyId: string; keepTools: boolean }
+  | { type: 'combine'; operation: 'subtract'; target: BodyReference; tools: BodyReference[]; keepTools: boolean }
+);
 
 /** Hole centres in the support's local coordinates, with stable editable identity. */
 export interface HolePosition {
@@ -104,6 +126,7 @@ export interface HoleFeature extends FeatureBase {
   /** Blind depth explicitly measures to the drill shoulder or to its tip. */
   endCondition: HoleEndCondition;
   head: HoleHead;
+  bodyScope?: BodyReference[];
 }
 
 /** Explicit ordered traversal, independent of the sketch entity array order. */
@@ -203,6 +226,7 @@ export interface EdgeFinishFeature extends FeatureBase {
   selection: EdgeSelection;
   /** The immediately preceding active solid operation when the selection was made. */
   baseFeatureId: string;
+  bodyScope?: BodyReference;
 }
 
 export interface ShellFeature extends FeatureBase {
@@ -212,6 +236,7 @@ export interface ShellFeature extends FeatureBase {
   direction: 'inward' | 'outward';
   /** Empty removes no faces and creates a closed cavity. */
   removedFaces: FaceReference[];
+  bodyScope?: BodyReference;
 }
 
 export interface DraftFeature extends FeatureBase {
@@ -225,11 +250,27 @@ export interface DraftFeature extends FeatureBase {
   faces: FaceReference[];
   /** The native builder also modifies tangent-connected faces. */
   propagation: 'tangent';
+  bodyScope?: BodyReference;
 }
 
 export type FaceOperationFeature = ShellFeature | DraftFeature;
 
-export type Feature = ImportedSolidFeature | SketchFeature | ReferencePlaneFeature | ExtrudeFeature | RevolveFeature | HoleFeature | SweepFeature | LoftFeature | EdgeFinishFeature | RepetitionFeature | FaceOperationFeature;
+export type Feature = ImportedSolidFeature | SketchFeature | ReferencePlaneFeature | ExtrudeFeature | RevolveFeature | CombineFeature | HoleFeature | SweepFeature | LoftFeature | EdgeFinishFeature | RepetitionFeature | FaceOperationFeature;
+
+/** Serializable display/picking metadata; identity comes from saved producers. */
+export interface PickableBody {
+  ref: BodyReference;
+  createdByFeatureId: string;
+  name: string;
+  vertices: number[];
+  normals: number[];
+  triangles: number[];
+  edgeLines: number[];
+  edges: PickableEdge[];
+  faces: PickableFace[];
+  volume: number;
+  bounds: { min: Vec3; max: Vec3 };
+}
 
 export interface PickableFace {
   ref: FaceReference;
@@ -270,6 +311,9 @@ export interface SketchVisual {
 }
 
 export interface CadResult {
+  bodies?: PickableBody[];
+  /** False/absent retains the legacy aggregate scene. */
+  bodyCatalogActive?: boolean;
   /** Resolved placement frames, including an edited hole still awaiting centres. */
   holes?: { id: string; frame: PlaneFrame }[];
   faces?: PickableFace[];

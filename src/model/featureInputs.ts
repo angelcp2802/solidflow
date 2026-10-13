@@ -1,5 +1,6 @@
 import type { Feature, SketchFeature, SweepPathSegment } from '../cad/kernel.types'
 import type { SketchPoint } from '../sketch/types'
+import { featureBodyReferences } from './bodyReferences'
 
 export type FeatureWithBase = Extract<Feature, { baseFeatureId: string }>
 
@@ -27,6 +28,7 @@ export function featureSketchIds(feature: Feature): string[] {
 /** Direct graph dependencies, including supports and historical pattern sources. */
 export function featureDependencyIds(feature: Feature): string[] {
   const ids = featureSketchIds(feature)
+  ids.push(...featureBodyReferences(feature).map(reference => reference.sourceFeatureId))
   if (hasBaseFeature(feature)) ids.push(feature.baseFeatureId)
   if (feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror') {
     if (feature.source.mode === 'features') ids.push(...feature.source.featureIds)

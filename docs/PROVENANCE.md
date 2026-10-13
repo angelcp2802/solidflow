@@ -1,5 +1,66 @@
 # Public fixture provenance
 
+## Explicit body management fixtures
+
+The original inputs in kernel.bodies.test.ts, kernel.body-workflow.test.ts and
+model/bodyReferences.test.ts are authored Cartesian coordinates in millimeters,
+not imported models. The body workflow uses A from (0,0,0) to (10,6,4) and B
+from (5,0,0) to (15,6,4), or B translated to (20,0,0) for selective cutting.
+The coordinates, analytical volume/area/bounds, shifted-B variants and proposed
+identity/retention policies are recorded in [BODY_MANAGEMENT.md](BODY_MANAGEMENT.md).
+
+Native comparisons use absolute tolerance 5e-6 for volume, area and bounds.
+Face orientation/coordinate selection uses 5e-7; display meshes are not a native
+precision oracle. A radius-1 through hole removes 4π mm³ and adds net 6π mm²
+to each selected 10×6×4 body. A cut selecting distant B while the tool crosses A
+must reject; checking aggregate mass alone would not establish target scope.
+The extending-boss fixture uses a tool from (8,0,0) to (14,6,4), explicitly
+merged into A. The result is a 14×6×4 box with volume 336 mm³ and area
+328 mm²; with unchanged distant B the aggregate has volume 576 mm³ and area
+576 mm². A disconnected tool from (40,0,0) to (50,6,4) must reject.
+The geometric multi-body failure fixture processes A first and distant B
+second with the same radius-1 tool: failure on B must retain both original
+bodies, including A, and block export of the errored document.
+The scoped chamfer selects the vertical A edge at X=10,Y=6,Z=0..4 and uses
+equal face distances of 1 mm. It removes a right-triangular prism of volume
+2 mm³; A's resulting surface area is 239+4sqrt(2) mm². Distant B is unchanged.
+The radius-1 fillet of that same edge has volume 236+π mm³ and surface area
+238+5π/2 mm². The inward thickness-1 shell removes the top face and leaves
+an 8×4×3 cavity: A has volume 144 mm³ and surface area 320 mm².
+For the four-wall 5-degree draft about the bottom XY plane, let t=tan(5°).
+Its section is (10-2Zt)×(6-2Zt), so A's volume is 240-256t+(256/3)t² and
+surface area 120-128t+64t²+(128-64t)/cos(5°). These cases retain A's original
+bounds and distant B, and check their fresh committed STEP aggregate.
+The new-body limit fixture uses overlapping A with Z=-4..10 and B with Z=0..4.
+A radius-1 profile at (7,3,-2) references B explicitly: ThroughAll ends at
+Z=4 (height 6), UntilNext at Z=0 (height 2). The tool's volume is hπ and
+surface area (2h+2)π; retained A and B contribute 1080 mm³ and 816 mm².
+Redirecting an earlier channel cut from A to B must not redirect a saved
+body-limit reference with the same source feature ID.
+The invalid two-solid replacement is constructed from clones transferred to
+the compound builder. The original caller-owned candidates are measured
+again after rejection; fixture preparation must not consume those originals.
+
+The tests also exercise exact saved current-state references, retained operands,
+historical per-body face support, document round trips, undo/redo, suppressed
+supports, cleanup failure and a post-transfer metadata failure. Fault
+injections test failure reporting, history-delta release and ownership after a state transfer; they
+do not establish general leak freedom. Fresh STEP exports are reimported with the same
+OpenCascade implementation. This checks the declared geometric cases, not
+independent interoperability, parametric-history/ID transport through STEP or
+complete multi-body CAD coverage. Written tests are not executed results; see
+[VALIDATION.md](VALIDATION.md) for commands and source-specific outcomes.
+
+The shared curved-limit regression in kernel.extrusion-limits.test.ts uses an
+original radius-20, length-100 cylinder along Y, centered at X=0 and Z=30.
+Its expected volume is 40000π mm³, surface area 4800π mm², and bounds
+(-20,-50,10) to (20,50,50). A radius-5 circular tool starts at Z=0 and ends
+on the cylinder's lower surface Z=30-sqrt(400-X²). The existing Simpson
+quadrature oracle integrates that analytical height over the circular profile.
+The success and injected post-Build failure cases check the original shared
+target's mass, surface, bounds and topology identity; they do not prove general
+absence of native mutation. Geometry and bounds comparisons use 5e-6.
+
 Public regression inputs under `src/cad/fixtures/solidflow-ui/` are synthetic
 SolidFlow documents and STEP exports made for this project. Its README records
 the origin, original names, byte counts and SHA-256 hashes of each input. The

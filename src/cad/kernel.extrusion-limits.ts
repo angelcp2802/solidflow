@@ -52,7 +52,11 @@ function splitAtFace(prism: Shape3D, target: Face, origin: Vec3, direction: Vec3
   const selected: Shape3D[] = [];
   try {
     argumentsList.Append(prism.wrapped).delete(); tools.Append(target.wrapped).delete();
-    builder.SetArguments(argumentsList); builder.SetTools(tools); builder.Build();
+    builder.SetArguments(argumentsList); builder.SetTools(tools);
+    // The limiting face can share topology with a retained historical body.
+    builder.SetNonDestructive(true);
+    if (!builder.NonDestructive()) throw new Error('No se puede proteger la geometría original al dividir la extrusión.');
+    builder.Build();
     result = castOwnedNativeSolid(builder.Shape(), 'No se puede dividir la extrusión con esta superficie.');
     const solids = result.solids, solidFaces=solids.map(solid=>solid.faces);
     try {

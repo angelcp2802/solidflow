@@ -1,8 +1,9 @@
-import type { EdgeReference, EdgeSelection, ExtrudeEndCondition, FaceReference, Feature, HoleEndCondition, HoleHead, HolePosition, LinearPatternDirection, LoftSection, PatternSource, Plane, PlaneSupport, Profile, SketchSupport, SweepPathSegment, Vec3 } from '../cad/kernel.types'
+import type { BodyOperation, BodyReference, EdgeReference, EdgeSelection, ExtrudeEndCondition, FaceReference, Feature, HoleEndCondition, HoleHead, HolePosition, LinearPatternDirection, LoftSection, PatternSource, Plane, PlaneSupport, Profile, SketchSupport, SweepPathSegment, Vec3 } from '../cad/kernel.types'
 import { isEdgeReferenceKeyV2, isFaceReferenceKeyV2 } from '../cad/kernel.semantic-references'
 import { validateEntityProfile } from '../sketch/validation'
 import { featureDependencyIds, featureSketchIds } from './featureInputs'
 import { validateStepSource } from './stepSource'
+import { createdBodyIds, featureBodyOutputIds, featureBodyReferences } from './bodyReferences'
 
 export interface Document {
   version: 1
@@ -24,6 +25,7 @@ const MAX_SELECTED_EDGES = 4096
 export const MAX_SELECTED_FACES = 256
 export const MAX_HOLE_POSITIONS = 128
 const MAX_PATTERN_INSTANCES = 256
+export const MAX_BODY_OPERANDS = 256
 
 function fail(path: string, message: string): never {
   throw new Error(`${path}: ${message}`)
@@ -78,6 +80,48 @@ function boundedArray(value: unknown, path: string, minimum: number, maximum: nu
     if (!Object.hasOwn(value, index)) fail(`${path}[${index}]`, 'elemento obligatorio')
   }
   return value
+}
+
+function bodyReference(value: unknown, path: string): BodyReference {
+  const source = object(value, path)
+  keys(source, ['bodyId', 'sourceFeatureId'], path)
+  return {
+    bodyId: entityIdentifier(source.bodyId, `${path}.bodyId`),
+    sourceFeatureId: entityIdentifier(source.sourceFeatureId, `${path}.sourceFeatureId`),
+  }
+}
+
+function bodyReferences(value: unknown, path: string, minimum = 1, maximum = MAX_BODY_OPERANDS): BodyReference[] {
+  const seen = new Set<string>()
+  return boundedArray(value, path, minimum, maximum).map((value, index) => {
+    const location = `${path}[${index}]`, reference = bodyReference(value, location)
+    if (seen.has(reference.bodyId)) fail(`${location}.bodyId`, 'cuerpo duplicado')
+    seen.add(reference.bodyId)
+    return reference
+  })
+}
+
+function bodyOperation(value: unknown, path: string): BodyOperation {
+  const source = object(value, path)
+  if (source.mode === 'new') {
+    keys(source, ['mode', 'bodyId'], path)
+    return { mode: 'new', bodyId: entityIdentifier(source.bodyId, `${path}.bodyId`) }
+  }
+  if (source.mode === 'merge') {
+    keys(source, ['mode', 'target'], path)
+    return { mode: 'merge', target: bodyReference(source.target, `${path}.target`) }
+  }
+  return fail(`${path}.mode`, 'operación de cuerpo desconocida')
+}
+
+function bodyReferencePath(feature: Feature, index: number, path: string): string {
+  if (feature.type === 'combine') {
+    return feature.operation === 'subtract' ? `${path}.${index === 0 ? 'target' : `tools[${index - 1}]`}`
+      : `${path}.operands[${index}]`
+  }
+  if (feature.type === 'extrude' && feature.bodyOperation?.mode === 'new') return `${path}.endCondition.baseBody`
+  if (feature.type === 'extrude' || feature.type === 'revolve') return `${path}.bodyOperation.target`
+  return `${path}.bodyScope${feature.type === 'cut' || feature.type === 'hole' ? `[${index}]` : ''}`
 }
 
 function integer(value: unknown, path: string, minimum: number, maximum: number): number {
@@ -292,15 +336,17 @@ function support(value: unknown, path: string, allowPrincipal: boolean): PlaneSu
 function extrudeEndCondition(value: unknown, path: string): ExtrudeEndCondition {
   const source = object(value, path)
   if (source.kind === 'throughAll') {
-    keys(source, ['kind', 'baseFeatureId', 'bothDirections'], path)
+    keys(source, ['kind', 'baseFeatureId', 'bothDirections'], path, ['baseBody'])
     return {
       kind: 'throughAll', baseFeatureId: entityIdentifier(source.baseFeatureId, `${path}.baseFeatureId`),
       bothDirections: boolean(source.bothDirections, `${path}.bothDirections`),
+      ...(Object.hasOwn(source, 'baseBody') ? { baseBody: bodyReference(source.baseBody, `${path}.baseBody`) } : {}),
     }
   }
   if (source.kind === 'untilNext') {
-    keys(source, ['kind', 'baseFeatureId'], path)
-    return { kind: 'untilNext', baseFeatureId: entityIdentifier(source.baseFeatureId, `${path}.baseFeatureId`) }
+    keys(source, ['kind', 'baseFeatureId'], path, ['baseBody'])
+    return { kind: 'untilNext', baseFeatureId: entityIdentifier(source.baseFeatureId, `${path}.baseFeatureId`),
+      ...(Object.hasOwn(source, 'baseBody') ? { baseBody: bodyReference(source.baseBody, `${path}.baseBody`) } : {}) }
   }
   if (source.kind === 'upToSurface') {
     keys(source, ['kind', 'target'], path)
@@ -467,27 +513,65 @@ function feature(value: unknown, path: string): Feature {
       reversed: boolean(source.reversed, `${path}.reversed`) }
   }
   if (source.type === 'extrude' || source.type === 'cut') {
-    keys(source, [...baseKeys, 'sketchId', 'depth', 'symmetric'], path, ['endCondition'])
+    keys(source, [...baseKeys, 'sketchId', 'depth', 'symmetric'], path,
+      ['endCondition', source.type === 'extrude' ? 'bodyOperation' : 'bodyScope'])
     const depth = number(source.depth, `${path}.depth`, -MAX_DIMENSION, MAX_DIMENSION)
     if (Math.abs(depth) < MIN_DIMENSION) fail(`${path}.depth`, `el valor absoluto debe ser al menos ${MIN_DIMENSION}`)
     const symmetric = boolean(source.symmetric, `${path}.symmetric`)
     const endCondition = source.endCondition === undefined ? undefined : extrudeEndCondition(source.endCondition, `${path}.endCondition`)
+    const operation = source.type === 'extrude' && Object.hasOwn(source, 'bodyOperation')
+      ? bodyOperation(source.bodyOperation, `${path}.bodyOperation`) : undefined
     if (symmetric && endCondition) fail(`${path}.symmetric`, 'el plano medio solo admite una profundidad definida')
-    return {
-      ...base, type: source.type,
+    if (endCondition && endCondition.kind !== 'upToSurface') {
+      if (operation?.mode === 'new') {
+        if (!endCondition.baseBody) fail(`${path}.endCondition.baseBody`, 'el cuerpo nuevo requiere un cuerpo base explícito')
+        if (endCondition.baseBody.sourceFeatureId !== endCondition.baseFeatureId) {
+          fail(`${path}.endCondition.baseBody.sourceFeatureId`, 'debe coincidir con la operación base de la condición final')
+        }
+      } else if (endCondition.baseBody) {
+        fail(`${path}.endCondition.baseBody`, 'solo se admite al crear un cuerpo nuevo')
+      }
+    }
+    const definition = {
+      ...base,
       sketchId: string(source.sketchId, `${path}.sketchId`, 128),
       depth,
       symmetric,
       ...(endCondition ? { endCondition } : {}),
     }
+    return source.type === 'extrude' ? {
+      ...definition, type: 'extrude',
+      ...(operation ? { bodyOperation: operation } : {}),
+    } : {
+      ...definition, type: 'cut',
+      ...(Object.hasOwn(source, 'bodyScope') ? { bodyScope: bodyReferences(source.bodyScope, `${path}.bodyScope`) } : {}),
+    }
   }
   if (source.type === 'revolve') {
-    keys(source, [...baseKeys, 'sketchId', 'angle'], path)
+    keys(source, [...baseKeys, 'sketchId', 'angle'], path, ['bodyOperation'])
     const angle = number(source.angle, `${path}.angle`, Number.MIN_VALUE, 360)
-    return { ...base, type: 'revolve', sketchId: string(source.sketchId, `${path}.sketchId`, 128), angle }
+    return { ...base, type: 'revolve', sketchId: string(source.sketchId, `${path}.sketchId`, 128), angle,
+      ...(Object.hasOwn(source, 'bodyOperation') ? { bodyOperation: bodyOperation(source.bodyOperation, `${path}.bodyOperation`) } : {}) }
+  }
+  if (source.type === 'combine') {
+    const keepTools = boolean(source.keepTools, `${path}.keepTools`)
+    if (source.operation === 'add' || source.operation === 'common') {
+      keys(source, [...baseKeys, 'operation', 'operands', 'resultBodyId', 'keepTools'], path)
+      return { ...base, type: 'combine', operation: source.operation,
+        operands: bodyReferences(source.operands, `${path}.operands`, 2),
+        resultBodyId: entityIdentifier(source.resultBodyId, `${path}.resultBodyId`), keepTools }
+    }
+    if (source.operation === 'subtract') {
+      keys(source, [...baseKeys, 'operation', 'target', 'tools', 'keepTools'], path)
+      const target = bodyReference(source.target, `${path}.target`)
+      const tools = bodyReferences(source.tools, `${path}.tools`, 1, MAX_BODY_OPERANDS - 1)
+      if (tools.some(tool => tool.bodyId === target.bodyId)) fail(`${path}.tools`, 'el objetivo no puede ser una herramienta')
+      return { ...base, type: 'combine', operation: 'subtract', target, tools, keepTools }
+    }
+    return fail(`${path}.operation`, 'operación de combinación desconocida')
   }
   if (source.type === 'hole') {
-    keys(source, [...baseKeys, 'baseFeatureId', 'support', 'positions', 'reversed', 'diameter', 'endCondition', 'head'], path)
+    keys(source, [...baseKeys, 'baseFeatureId', 'support', 'positions', 'reversed', 'diameter', 'endCondition', 'head'], path, ['bodyScope'])
     const diameter = number(source.diameter, `${path}.diameter`, MIN_DIMENSION, MAX_DIMENSION)
     const endCondition = holeEndCondition(source.endCondition, `${path}.endCondition`)
     const head = holeHead(source.head, `${path}.head`)
@@ -496,6 +580,7 @@ function feature(value: unknown, path: string): Feature {
       ...base, type: 'hole', baseFeatureId: entityIdentifier(source.baseFeatureId, `${path}.baseFeatureId`),
       support: support(source.support, `${path}.support`, true), positions: holePositions(source.positions, `${path}.positions`),
       reversed: boolean(source.reversed, `${path}.reversed`), diameter, endCondition, head,
+      ...(Object.hasOwn(source, 'bodyScope') ? { bodyScope: bodyReferences(source.bodyScope, `${path}.bodyScope`) } : {}),
     }
   }
   if (source.type === 'sweep') {
@@ -559,7 +644,7 @@ function feature(value: unknown, path: string): Feature {
     }
   }
   if (source.type === 'shell') {
-    keys(source, [...baseKeys, 'baseFeatureId', 'thickness', 'direction', 'removedFaces'], path)
+    keys(source, [...baseKeys, 'baseFeatureId', 'thickness', 'direction', 'removedFaces'], path, ['bodyScope'])
     const baseFeatureId = entityIdentifier(source.baseFeatureId, `${path}.baseFeatureId`)
     if (source.direction !== 'inward' && source.direction !== 'outward') fail(`${path}.direction`, 'dirección de vaciado desconocida')
     return {
@@ -567,10 +652,11 @@ function feature(value: unknown, path: string): Feature {
       thickness: number(source.thickness, `${path}.thickness`, MIN_DIMENSION, MAX_DIMENSION),
       direction: source.direction,
       removedFaces: faceSelection(source.removedFaces, baseFeatureId, `${path}.removedFaces`, true),
+      ...(Object.hasOwn(source, 'bodyScope') ? { bodyScope: bodyReference(source.bodyScope, `${path}.bodyScope`) } : {}),
     }
   }
   if (source.type === 'draft') {
-    keys(source, [...baseKeys, 'baseFeatureId', 'support', 'angle', 'reversed', 'faces', 'propagation'], path)
+    keys(source, [...baseKeys, 'baseFeatureId', 'support', 'angle', 'reversed', 'faces', 'propagation'], path, ['bodyScope'])
     const baseFeatureId = entityIdentifier(source.baseFeatureId, `${path}.baseFeatureId`)
     if (source.propagation !== 'tangent') fail(`${path}.propagation`, 'el desmoldeo requiere propagación tangente')
     return {
@@ -579,15 +665,17 @@ function feature(value: unknown, path: string): Feature {
       angle: number(source.angle, `${path}.angle`, 0.01, 89.9),
       reversed: boolean(source.reversed, `${path}.reversed`), propagation: 'tangent',
       faces: faceSelection(source.faces, baseFeatureId, `${path}.faces`, false),
+      ...(Object.hasOwn(source, 'bodyScope') ? { bodyScope: bodyReference(source.bodyScope, `${path}.bodyScope`) } : {}),
     }
   }
   if (source.type === 'fillet' || source.type === 'chamfer') {
-    keys(source, [...baseKeys, 'size', 'selection', 'baseFeatureId'], path)
+    keys(source, [...baseKeys, 'size', 'selection', 'baseFeatureId'], path, ['bodyScope'])
     const baseFeatureId = string(source.baseFeatureId, `${path}.baseFeatureId`, 128)
     return {
       ...base, type: source.type, baseFeatureId,
       size: number(source.size, `${path}.size`, MIN_DIMENSION, MAX_DIMENSION),
       selection: edgeSelection(source.selection, baseFeatureId, `${path}.selection`),
+      ...(Object.hasOwn(source, 'bodyScope') ? { bodyScope: bodyReference(source.bodyScope, `${path}.bodyScope`) } : {}),
     }
   }
   return fail(`${path}.type`, 'operación desconocida')
@@ -599,16 +687,31 @@ export function validateDocument(value: unknown): Document {
   keys(source, ['version', 'id', 'name', 'units', 'features', 'createdAt', 'updatedAt'], 'Documento')
   if (source.version !== 1) fail('Documento.version', 'versión de archivo no compatible')
   if (source.units !== 'mm') fail('Documento.units', 'solo se admiten milímetros')
-  if (!Array.isArray(source.features) || source.features.length > MAX_FEATURES) {
-    fail('Documento.features', `se esperaba una lista de hasta ${MAX_FEATURES} operaciones`)
-  }
+  const sourceFeatures = boundedArray(source.features, 'Documento.features', 0, MAX_FEATURES)
   const seen = new Map<string, Feature>()
+  const createdBodies = new Set<string>()
   let seenSolid = false
   let seenImport = false
-  const features = source.features.map((value, index) => {
+  const features = sourceFeatures.map((value, index) => {
     const path = `Documento.features[${index}]`
     const parsed = feature(value, path)
     if (seen.has(parsed.id)) fail(`${path}.id`, 'identificador duplicado')
+    const bodyIds = createdBodyIds(parsed), bodyRefs = featureBodyReferences(parsed)
+    // Body states use this operation ID as their exact source. Legacy IDs keep
+    // their existing syntax when no explicit body state is created or modified.
+    if (bodyIds.length || bodyRefs.length) entityIdentifier(parsed.id, `${path}.id`)
+    for (const bodyId of bodyIds) {
+      if (createdBodies.has(bodyId)) fail(`${path}.${parsed.type === 'combine' ? 'resultBodyId' : 'bodyOperation.bodyId'}`, 'identificador de cuerpo creado duplicado')
+      createdBodies.add(bodyId)
+    }
+    bodyRefs.forEach((reference, referenceIndex) => {
+      const location = bodyReferencePath(parsed, referenceIndex, path)
+      const owner = seen.get(reference.sourceFeatureId)
+      if (!owner) fail(`${location}.sourceFeatureId`, 'debe referenciar una operación anterior')
+      if (!featureBodyOutputIds(owner).includes(reference.bodyId)) {
+        fail(`${location}.bodyId`, 'el cuerpo no pertenece a la salida explícita de esa operación')
+      }
+    })
     if (parsed.type === 'importedSolid') {
       if (seenImport) fail(`${path}.type`, 'solo se admite un sólido importado')
       if (seenSolid) fail(`${path}.type`, 'el sólido importado debe ser la primera operación sólida, incluso con operaciones suprimidas')
@@ -716,7 +819,11 @@ export function updateFeature(document: Document, id: string, patch: Partial<Fea
   if (!original) throw new Error('La operación que se intenta editar no existe.')
   if (patch.id !== undefined && patch.id !== id) throw new Error('El identificador de una operación no se puede cambiar.')
   if (patch.type !== undefined && patch.type !== original.type) throw new Error('El tipo de una operación no se puede cambiar.')
-  return withFeatures(document, document.features.map((item) => item.id === id ? { ...item, ...patch } as Feature : item))
+  const candidate = { ...original, ...patch } as Feature
+  if (JSON.stringify(createdBodyIds(candidate)) !== JSON.stringify(createdBodyIds(original))) {
+    throw new Error('Los identificadores de cuerpos creados no se pueden cambiar en una edición; crea una operación nueva.')
+  }
+  return withFeatures(document, document.features.map((item) => item.id === id ? candidate : item))
 }
 
 export function removeFeature(document: Document, id: string): Document {

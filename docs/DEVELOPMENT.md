@@ -39,6 +39,11 @@ Run focused tests while developing, then the checks relevant to the complete cha
 
 CI packages have no signing or notarization credentials and are built with `--publish never`. Binary upload is disabled until the CAD library's complete corresponding-source bundle is verified. They are not automatically published releases. Local packaging commands are `npm run package:win`, `npm run package:mac` and `npm run package:linux`; use the command appropriate to the host. Packaging success does not prove interactive operation, signing or acceptance by the platform's application controls. Current evidence and its limits belong in [VALIDATION.md](VALIDATION.md).
 
+Pull-request CI and security checks run for every target branch, including
+stacked pull requests based on a feature branch. The workflow-dispatch entry
+points can also validate a published branch explicitly. Inspect the actual
+head and run results before reporting a pass.
+
 ## Find the right layer
 
 | Path | Responsibility |
@@ -57,6 +62,8 @@ Generated sketch IDs are opaque saved identities. Read the [identity contract](S
 Lengths use millimeters. State angular units explicitly: the sketch's directed angular dimensions use degrees, while geometric calculations may use radians. Persisted point-on-line and point-on-circle relations use complete supports; a finite hit test is a separate requirement. Useful starting points are [sketch types](../src/sketch/types.ts), the [solver](../src/sketch/solver.ts), [trim](../src/sketch/trim.ts), [extend](../src/sketch/extend.ts) and their adjacent regression tests.
 
 Read the [semantic CAD reference contract](SEMANTIC_REFERENCES.md) before changing extrusion provenance, v2 reference identity, document acceptance or selection aliases. This branch integrates verified references for the first eligible finite entity-profile extrusion and retains conservative v1 behavior for saved references and unsupported correspondence. Original regression inputs and analytical expectations are recorded in [fixture provenance](PROVENANCE.md); written tests and source-level ownership reasoning are not executed validation results.
+
+The proposed [body management contract](BODY_MANAGEMENT.md) covers persistent body identity, explicit creation and Combine, selective cuts, history, export and the complete implementation checklist for issue #26. Its analytical fixtures are acceptance targets, not recorded passes.
 
 ## Test geometry and persistence
 

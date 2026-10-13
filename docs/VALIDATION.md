@@ -1,5 +1,60 @@
 # Validation
 
+## Body integration development snapshot — 2026-10-13
+
+The body work is on `feat/body-catalog-combine`, based on the reference
+integration in PR #27. Local checks below used Windows x64, Node 24.11.1
+and Vitest 5.0.3. They do not establish platform support or complete the
+body-management checklist in issue #26.
+
+- `npm run build`: passed TypeScript and the production build (1980 modules).
+  All 232 recorded source/configuration inputs were unchanged during the run.
+  This run preceded the subsequent test-fixture correction and test-only
+  additions; production code was unchanged by those edits.
+- The document/command/SSR/display-selection suite passed 68 tests in six
+  files, with no skipped cases, in 34.39 seconds. It covers parsing and
+  dependencies, command invalidation, selection namespaces, display occlusion,
+  panels and body-limit transitions. It is not real application interaction.
+- The first focused CAD/selection run passed 142 and failed 22 of 164 tests
+  in ten files (eight passed, two failed), in 657.38 seconds. Its 232 recorded
+  inputs were unchanged. All 29 engine body-workflow cases passed, including
+  analytical geometry, current body references, failure atomicity, save/reopen,
+  history and fresh same-kernel STEP checks. The two new shared-curved-target
+  cases and four semantic-limit cases also passed.
+- Of those 22 failures, 21 were unchanged 5000 ms budgets in existing
+  extrusion-limit tests. The remaining assertion received "This object has
+  been deleted" instead of the expected solid-count rejection. Investigation
+  confirmed that the test's compound builder consumed the borrowed candidate
+  wrappers before the assertion. The fixture now transfers clones and checks
+  both originals again after rejection. The subsequent catalog-only run passed
+  all 29 tests in 93.38 seconds, with its 232 recorded inputs unchanged.
+- Three additional scoped-finish cases for fillet, shell and draft passed
+  in 149.64 seconds; the 29 earlier cases were skipped by the explicit
+  `-t scoped.*finish` filter. This run retained all 232 recorded inputs
+  unchanged and checked analytical geometry plus fresh same-kernel STEP.
+  The current engine workflow file contains 32 cases. A new build remains
+  pending after these test-only changes.
+- Full `npm test`, a standalone IPC run, the production Electron smoke check
+  and hosted checks for the body source remain pending. The results for the
+  earlier reference integration elsewhere in this record do not validate
+  the body changes.
+
+The focused suites can be reproduced without private artifacts:
+
+```sh
+npm run test:unit -- src/model/bodyReferences.test.ts src/model/bodyCommands.test.ts src/cad/body-selection.test.ts src/components/BodyManagementPanel.test.tsx src/components/Viewport.bodies.test.ts src/components/ExtrudePanel.body-limit.test.ts
+npm run test:unit -- src/cad/kernel.bodies.test.ts src/cad/kernel.body-workflow.test.ts src/cad/kernel.extrusion-limits.test.ts src/cad/kernel.semantic-catalogs.limits.test.ts src/model/bodyReferences.test.ts src/model/bodyCommands.test.ts src/cad/body-selection.test.ts src/components/BodyManagementPanel.test.tsx src/components/Viewport.bodies.test.ts src/components/ExtrudePanel.body-limit.test.ts
+```
+
+Native body geometry uses absolute 5e-6 volume/area/bounds comparisons and
+5e-7 face-coordinate selection where stated. STEP reimport uses the same
+kernel; these cases do not establish independent interoperability or transport
+of parametric history/body IDs through STEP. The initial catalog policy rejects
+empty, disconnected or split outputs requiring undeclared body identities.
+Sweep, loft and repetition producers still need explicit body-output ownership.
+
+## Evidence scope
+
 The public repository uses a self-contained suite. Claims are limited to the
 cases checked, with the tolerances recorded in each test.
 

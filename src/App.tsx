@@ -100,6 +100,10 @@ import EdgeFinishPanel from "./components/EdgeFinishPanel";
 import SweepLoftPanel from "./components/SweepLoftPanel";
 import PatternPanel from "./components/PatternPanel";
 import FaceOperationPanel from "./components/FaceOperationPanel";
+import { BodyList, BodyFeaturePanel } from "./components/BodyManagementPanel";
+import { bodySelectionDtos } from "./cad/body-selection";
+import { applyBodyCommand, prepareBodyCommand, isBodyCommandFeature, sameBodyReference, withBodySelection } from "./model/bodyCommands";
+import { createdBodyIds, featureBodyReferences } from "./model/bodyReferences";
 import { createEdgeSelectionIndex, createFaceSelectionIndex } from "./cad/selection.references";
 import ExtrudePanel from "./components/ExtrudePanel";
 import HolePanel, { type HoleSection } from "./components/HolePanel";
@@ -144,6 +148,8 @@ import type {
   HoleFeature,
   PlaneFrame,
   Vec3,
+  BodyReference,
+  CombineFeature,
 } from "./cad/kernel.types";
 import {
   createDemoDocument,
@@ -179,6 +185,7 @@ const labels: Record<string, string> = {
   draft: "Desmoldeo",
   hole: "Taladro",
   importedSolid: "Sólido importado STEP",
+  combine: "Combinar",
 };
 const featureIcons: Record<string, LucideIcon> = {
   sketch: Pencil,
@@ -197,6 +204,7 @@ const featureIcons: Record<string, LucideIcon> = {
   draft: Cone,
   hole: Crosshair,
   importedSolid: FolderOpen,
+  combine: Component,
 };
 function isFaceOperation(
   feature: Feature | null,
@@ -338,6 +346,10 @@ export default function App() {
   const [finishPreview, setFinishPreview] = useState(false);
   const [facePreview, setFacePreview] = useState(false);
   const [sourceModel, setSourceModel] = useState<CadResult | null>(null);
+  const [sourceBuiltFeatures, setSourceBuiltFeatures] = useState<Feature[] | null>(null);
+  const [bodySelection, setBodySelection] = useState<BodyReference[]>([]);
+  const [bodyPicking, setBodyPicking] = useState(false);
+  const bodyOutputId = useRef("");
   const [sourceLoading, setSourceLoading] = useState(false);
   const [selected, setSelected] = useState<string | null>(null),
     [editing, setEditing] = useState<Feature | null>(null),
@@ -389,10 +401,20 @@ export default function App() {
   editingRef.current = editing;
   docRef.current = doc;
   const selectedFeature = doc.features.find((f) => f.id === selected);
-  const modelFaceSelection = useMemo(() => createFaceSelectionIndex(model?.faces ?? []), [model]);
-  const modelEdgeSelection = useMemo(() => createEdgeSelectionIndex(model?.edges ?? []), [model]);
-  const sourceFaceSelection = useMemo(() => createFaceSelectionIndex(sourceModel?.faces ?? []), [sourceModel]);
-  const sourceEdgeSelection = useMemo(() => createEdgeSelectionIndex(sourceModel?.edges ?? []), [sourceModel]);
+  const modelSelectionDtos = useMemo(() => bodySelectionDtos(model), [model]);
+  const sourceSelectionDtos = useMemo(() => bodySelectionDtos(sourceModel), [sourceModel]);
+  const sourceOperationDtos = useMemo(() => {
+    if (isEdgeFinish(editing) || isFaceOperation(editing)) {
+      const scope = editing.bodyScope ? [editing.bodyScope] : sourceModel?.bodyCatalogActive ? [] : undefined;
+      return bodySelectionDtos(sourceModel, scope);
+    }
+    return bodySelectionDtos(sourceModel);
+  }, [sourceModel, editing]);
+  const modelFaceSelection = useMemo(() => createFaceSelectionIndex(modelSelectionDtos.faces), [modelSelectionDtos]);
+  const modelEdgeSelection = useMemo(() => createEdgeSelectionIndex(modelSelectionDtos.edges), [modelSelectionDtos]);
+  const sourceFaceSelection = useMemo(() => createFaceSelectionIndex(sourceSelectionDtos.faces), [sourceSelectionDtos]);
+  const sourceOperationFaceSelection = useMemo(() => createFaceSelectionIndex(sourceOperationDtos.faces), [sourceOperationDtos]);
+  const sourceEdgeSelection = useMemo(() => createEdgeSelectionIndex(sourceOperationDtos.edges), [sourceOperationDtos]);
   useEffect(() => {
     if (editing) return;
     setFaceSelection((previous) =>
@@ -429,7 +451,22 @@ export default function App() {
             f.id ===
               (selectedFeature ? featureSketchIds(selectedFeature)[0] : ""),
         ) as SketchFeature | undefined);
+  const sourceFeatures = useMemo(() => {
+    if (!editing || !["fillet", "chamfer", "mirror", "shell", "draft", "extrude", "cut", "hole", "revolve", "combine"].includes(editing.type)) return null;
+    const index = doc.features.findIndex(feature => feature.id === editing.id);
+    return doc.features.slice(0, index < 0 ? doc.features.length : index);
+  }, [doc.features, editing?.id, editing?.type]);
+  const bodyCommand = useMemo(() => {
+    if (!editing || !isBodyCommandFeature(editing) || sourceLoading || !sourceModel || sourceBuiltFeatures !== sourceFeatures) return null;
+    if (sourceModel.featureErrors.length) return { accepted: false as const, message: "Reconstruye los cuerpos de origen antes de continuar." };
+    return prepareBodyCommand({ document: doc, feature: editing, selection: bodySelection,
+      catalog: { active: sourceModel.bodyCatalogActive === true, bodies: sourceModel.bodies ?? [] } });
+  }, [doc, editing, bodySelection, sourceModel, sourceLoading, sourceBuiltFeatures, sourceFeatures]);
+  const bodyPlan = bodyCommand?.accepted ? bodyCommand.plan : null;
   const effectiveFeatures = useMemo(() => {
+    if (bodyPlan) return bodyPlan.previewFeatures;
+    if (sourceFeatures && editing?.type === "extrude" && editing.bodyOperation?.mode === "new"
+      && editing.endCondition && 'baseFeatureId' in editing.endCondition) return sourceFeatures;
     if (!editing) return doc.features;
     const index = doc.features.findIndex(
       (feature) => feature.id === editing.id,
@@ -440,33 +477,13 @@ export default function App() {
       ...doc.features.slice(0, index < 0 ? doc.features.length : index),
       editing,
     ];
-  }, [doc.features, editing]);
+  }, [doc.features, editing, bodyPlan, sourceFeatures]);
   const finishEditing = isEdgeFinish(editing) ? editing : null;
   const mirrorEditing = editing?.type === "mirror" ? editing : null;
   const faceEditing = isFaceOperation(editing) ? editing : null;
   const extrudeEditing =
     editing?.type === "extrude" || editing?.type === "cut" ? editing : null;
   const holeEditing = editing?.type === "hole" ? editing : null;
-  const sourceFeatures = useMemo(() => {
-    const sourceEditing =
-      finishEditing ??
-      mirrorEditing ??
-      faceEditing ??
-      extrudeEditing ??
-      holeEditing;
-    if (!sourceEditing) return null;
-    const index = doc.features.findIndex(
-      (feature) => feature.id === sourceEditing.id,
-    );
-    return doc.features.slice(0, index < 0 ? doc.features.length : index);
-  }, [
-    doc.features,
-    finishEditing?.id,
-    mirrorEditing?.id,
-    faceEditing?.id,
-    extrudeEditing?.id,
-    holeEditing?.id,
-  ]);
   const pickingFinish = !!finishEditing && !finishPreview;
   const pickingMirror = !!mirrorEditing && pickingSupport;
   const pickingFaceOperation =
@@ -478,7 +495,8 @@ export default function App() {
   const pickingHole = !!holeEditing && pickingSupport;
   const placingHoles =
     !!holeEditing && holeSection === "positions" && !pickingHole;
-  const visibleModel =
+  const visibleBase =
+    bodyPicking ||
     pickingFinish ||
     pickingMirror ||
     pickingFaceOperation ||
@@ -486,6 +504,12 @@ export default function App() {
     pickingHole
       ? sourceModel
       : model;
+  const visibleModel = useMemo(() => {
+    if (!visibleBase) return null;
+    const selection = pickingFinish || pickingFaceOperation && !pickingSupport
+      ? sourceOperationDtos : visibleBase === sourceModel ? sourceSelectionDtos : modelSelectionDtos;
+    return { ...visibleBase, faces: selection.faces, edges: selection.edges };
+  }, [visibleBase, pickingFinish, pickingFaceOperation, pickingSupport, sourceOperationDtos, sourceModel, sourceSelectionDtos, modelSelectionDtos]);
   const operationFaces =
     faceEditing?.type === "shell"
       ? faceEditing.removedFaces
@@ -493,7 +517,7 @@ export default function App() {
   const selectedEdges = finishEditing
     ? finishEditing.selection.mode === "selected"
       ? finishEditing.selection.edges
-      : (sourceModel?.edges ?? []).map((edge) => edge.ref)
+      : sourceOperationDtos.edges.map((edge) => edge.ref)
     : edgeSelection;
   const emptyEdgeSelection =
     finishEditing?.selection.mode === "selected" &&
@@ -515,12 +539,15 @@ export default function App() {
       ? model?.sketches?.some((sketch) => sketch.id === editing.id)
       : editing.type === "plane"
         ? model?.planes?.some((reference) => reference.id === editing.id)
-        : model?.faces?.some(
+        : editing.type === "combine" && model?.bodyCatalogActive
+          ? model.bodies?.some(body => body.ref.sourceFeatureId === editing.id)
+          : model?.faces?.some(
             (face) => face.ref.sourceFeatureId === editing.id,
           ));
   const canAccept =
     !!editing &&
     !!editingResolved &&
+    (!editing || !isBodyCommandFeature(editing) || (!!bodyPlan && !bodyPicking)) &&
     !pickingMirror &&
     !pickingExtrude &&
     !pickingHole &&
@@ -565,6 +592,9 @@ export default function App() {
       feature.type === "hole" ? (feature.positions[0]?.id ?? null) : null,
     );
     setEditing(structuredClone(feature));
+    bodyOutputId.current = createdBodyIds(feature)[0] ?? crypto.randomUUID();
+    setBodySelection(featureBodyReferences(feature));
+    setBodyPicking(feature.type === "combine");
     setFinishPreview(false);
     setFacePreview(false);
     setEdgeSelection([]);
@@ -622,16 +652,19 @@ export default function App() {
   useEffect(() => {
     if (!ready || !sourceFeatures) {
       setSourceModel(null);
+      setSourceBuiltFeatures(null);
       setSourceLoading(false);
       return;
     }
     let active = true;
     setSourceLoading(true);
     setSourceModel(null);
+    setSourceBuiltFeatures(null);
     buildModel(sourceFeatures)
       .then((result) => {
         if (active) {
           setSourceModel(result);
+          setSourceBuiltFeatures(sourceFeatures);
           setSourceLoading(false);
         }
       })
@@ -1098,8 +1131,10 @@ export default function App() {
       sourceLoading
     )
       return;
-    const visibleFaces = pickingMirror || pickingFaceOperation || pickingExtrude || pickingHole
-      ? sourceFaceSelection : modelFaceSelection;
+    const visibleFaces = faceEditing && !facePreview && !pickingSupport
+      ? sourceOperationFaceSelection
+      : pickingMirror || pickingFaceOperation || pickingExtrude || pickingHole
+        ? sourceFaceSelection : modelFaceSelection;
     const currentFace = face ? visibleFaces.findPrimary(face.ref) : undefined;
     if (face && !currentFace) return;
     if (pickingHole) {
@@ -1120,7 +1155,7 @@ export default function App() {
     }
     if (faceEditing && !facePreview && !pickingSupport) {
       if (!currentFace) return;
-      const faces = sourceFaceSelection.toggle(operationFaces, currentFace.ref);
+      const faces = sourceOperationFaceSelection.toggle(operationFaces, currentFace.ref);
       if (!faces) return;
       if (faces.length > operationFaces.length && faces.length > 256) {
         notify("Puedes seleccionar hasta 256 caras en esta operación.", true);
@@ -1246,21 +1281,30 @@ export default function App() {
       sketchId: sketch.id,
       suppressed: false,
     };
-    setEditing(
-      type === "revolve"
-        ? { ...base, type, angle: 360 }
-        : {
-            ...base,
-            type,
-            depth:
-              type === "cut" && sketch.type === "sketch" && sketch.support
-                ? -20
-                : 20,
-            symmetric: false,
-          },
-    );
+    const explicitBodies = model?.bodyCatalogActive === true || !doc.features.some(feature => feature.type !== "sketch" && feature.type !== "plane" && !isBodyCommandFeature(feature));
+    bodyOutputId.current = crypto.randomUUID();
+    setBodySelection(type === "cut" && explicitBodies ? bodySelection.map(ref => ({ ...ref })) : []);
+    setBodyPicking(type === "cut" && explicitBodies);
+    if (type === "revolve") setEditing({ ...base, type, angle: 360,
+      ...(explicitBodies ? { bodyOperation: { mode: "new", bodyId: bodyOutputId.current } } : {}) });
+    else if (type === "cut") setEditing({ ...base, type,
+      depth: sketch.type === "sketch" && sketch.support ? -20 : 20, symmetric: false,
+      ...(explicitBodies ? { bodyScope: bodySelection.map(ref => ({ ...ref })) } : {}) });
+    else setEditing({ ...base, type, depth: 20, symmetric: false,
+      ...(explicitBodies ? { bodyOperation: { mode: "new", bodyId: bodyOutputId.current } } : {}) });
     setTab("Operaciones");
     setError("");
+  };
+  const startCombine = () => {
+    if (!requireFinishedEdit()) return;
+    if (!canExport || !model?.bodyCatalogActive || bodySelection.length < 2 || bodySelection.some(ref => model.bodies?.filter(body => sameBodyReference(body.ref, ref)).length !== 1)) {
+      notify("Selecciona al menos dos cuerpos disponibles antes de combinarlos.", true); return;
+    }
+    bodyOutputId.current = crypto.randomUUID();
+    const feature: CombineFeature = { id: crypto.randomUUID(), type: "combine", name: `Combinar${doc.features.filter(item => item.type === "combine").length + 1}`,
+      suppressed: false, operation: "add", operands: bodySelection.map(ref => ({ ...ref })), resultBodyId: bodyOutputId.current, keepTools: false };
+    setEditing(feature); setBodyPicking(true); setPickingSupport(false); setPickingEndFace(false);
+    setFaceSelection(null); setEdgeSelection([]); setSelectionMode("body"); setTab("Operaciones"); setError("");
   };
   const startRepetition = (type: RepetitionFeature["type"]) => {
     if (!requireFinishedEdit()) return;
@@ -1338,9 +1382,11 @@ export default function App() {
       notify("Reconstruye un sólido válido antes de aplicar la operación.");
       return;
     }
-    const baseFeatureId = model?.faces?.[0]?.ref.sourceFeatureId;
+    if (model?.bodyCatalogActive && (bodySelection.length !== 1 || bodySelection.some(ref => model.bodies?.filter(body => sameBodyReference(body.ref, ref)).length !== 1))) { notify("Selecciona un cuerpo disponible para esta operación.", true); return; }
+    const baseFeatureId = model?.bodyCatalogActive ? bodySelection[0]?.sourceFeatureId : model?.faces?.[0]?.ref.sourceFeatureId;
     if (!baseFeatureId) return;
-    const currentFace = faceSelection ? modelFaceSelection.find(faceSelection.ref) : undefined;
+    const targetFaces = createFaceSelectionIndex(bodySelectionDtos(model, model?.bodyCatalogActive ? bodySelection : undefined).faces);
+    const currentFace = faceSelection ? targetFaces.find(faceSelection.ref) : undefined;
     const faces =
       currentFace?.ref.sourceFeatureId === baseFeatureId
         ? [currentFace.ref]
@@ -1350,6 +1396,7 @@ export default function App() {
       name: `${labels[type]}${doc.features.filter((feature) => feature.type === type).length + 1}`,
       suppressed: false,
       baseFeatureId,
+      ...(model?.bodyCatalogActive ? { bodyScope: { ...bodySelection[0] } } : {}),
     };
     setEditing(
       type === "shell"
@@ -1374,6 +1421,7 @@ export default function App() {
           },
     );
     setFacePreview(false);
+    setBodyPicking(false);
     setSelectionMode("body");
     setFaceSelection(null);
     setPickingSupport(false);
@@ -1388,7 +1436,8 @@ export default function App() {
       notify("Reconstruye un sólido válido antes de crear taladros.");
       return;
     }
-    const baseFeatureId = model?.faces?.[0]?.ref.sourceFeatureId;
+    const baseFeatureId = model?.bodyCatalogActive ? bodySelection[0]?.sourceFeatureId : model?.faces?.[0]?.ref.sourceFeatureId;
+    if (model?.bodyCatalogActive && (!bodySelection.length || bodySelection.some(ref => model.bodies?.filter(body => sameBodyReference(body.ref, ref)).length !== 1))) { notify("Selecciona los cuerpos disponibles que reciban el taladro.", true); return; }
     if (!baseFeatureId) return;
     const currentFace = faceSelection ? modelFaceSelection.find(faceSelection.ref) : undefined;
     const selectedFace = currentFace?.frame ? currentFace : null;
@@ -1415,8 +1464,10 @@ export default function App() {
       diameter: 8,
       endCondition: { kind: "throughAll" },
       head: { kind: "simple" },
+      ...(model?.bodyCatalogActive ? { bodyScope: bodySelection.map(ref => ({ ...ref })) } : {}),
     };
     setEditing(feature);
+    setBodyPicking(false);
     setHoleSection("positions");
     setSelectedHolePosition(null);
     setPickingSupport(!selectedFace && !chosenPlane);
@@ -1434,7 +1485,8 @@ export default function App() {
       notify("Reconstruye un sólido válido antes de aplicar el acabado.");
       return;
     }
-    const sourceId = model?.edges[0]?.ref.sourceFeatureId;
+    if (model?.bodyCatalogActive && (bodySelection.length !== 1 || bodySelection.some(ref => model.bodies?.filter(body => sameBodyReference(body.ref, ref)).length !== 1))) { notify("Selecciona un cuerpo disponible para este acabado.", true); return; }
+    const sourceId = model?.bodyCatalogActive ? bodySelection[0]?.sourceFeatureId : model?.edges[0]?.ref.sourceFeatureId;
     const base =
       doc.features.find((feature) => feature.id === sourceId) ??
       [...doc.features]
@@ -1446,10 +1498,11 @@ export default function App() {
             !feature.suppressed,
         );
     if (!base) return;
+    const targetEdges = createEdgeSelectionIndex(bodySelectionDtos(model, model?.bodyCatalogActive ? bodySelection : undefined).edges);
     const edges = edgeSelection.filter(
       (edge) =>
         edge.sourceFeatureId === base.id &&
-        modelEdgeSelection.find(edge),
+        targetEdges.find(edge),
     );
     setEditing({
       id: crypto.randomUUID(),
@@ -1459,8 +1512,10 @@ export default function App() {
       baseFeatureId: base.id,
       selection: { mode: "selected", edges },
       suppressed: false,
+      ...(model?.bodyCatalogActive ? { bodyScope: { ...bodySelection[0] } } : {}),
     });
     setFinishPreview(false);
+    setBodyPicking(false);
     setSelectionMode("body");
     setSelected(null);
     setTab("Operaciones");
@@ -1472,7 +1527,7 @@ export default function App() {
       const current =
         finishEditing.selection.mode === "selected"
           ? finishEditing.selection.edges
-          : (sourceModel?.edges ?? []).map((candidate) => candidate.ref);
+          : sourceOperationDtos.edges.map((candidate) => candidate.ref);
       const edges = sourceEdgeSelection.toggle(current, edge);
       if (!edges) return;
       setEditing({
@@ -1584,7 +1639,12 @@ export default function App() {
       return;
     }
     try {
-      const next = doc.features.some((f) => f.id === editing.id)
+      const bodyApplication = isBodyCommandFeature(editing) && bodyPlan && sourceModel
+        ? applyBodyCommand(bodyPlan, { document: doc, feature: editing, selection: bodySelection,
+          catalog: { active: sourceModel.bodyCatalogActive === true, bodies: sourceModel.bodies ?? [] } },
+          { features: builtFeatures, healthy: !busy && !error && !!model && model.featureErrors.length === 0 }) : null;
+      if (isBodyCommandFeature(editing) && !bodyApplication?.accepted) throw new Error(bodyApplication && !bodyApplication.accepted ? bodyApplication.message : "Espera una vista previa válida de los cuerpos.");
+      const next = bodyApplication?.accepted ? bodyApplication.document : doc.features.some((f) => f.id === editing.id)
         ? updateFeature(
             doc,
             editing.id,
@@ -1596,6 +1656,8 @@ export default function App() {
       apply(next);
       setSelected(editing.id);
       setEditing(null);
+      setBodyPicking(false);
+      setBodySelection([]);
       setPickingSupport(false);
       setPickingEndFace(false);
       setFaceSelection(null);
@@ -1607,6 +1669,8 @@ export default function App() {
     }
   };
   const cancelEdit = () => {
+    setBodyPicking(false);
+    setBodySelection([]);
     setPickingEndFace(false);
     setEditing(null);
     setPickingSupport(false);
@@ -1618,7 +1682,8 @@ export default function App() {
   };
   const changeDraft = (patch: Partial<Feature>) => {
     if (!editing) return;
-    const next = { ...editing, ...patch } as Feature;
+    const merged = { ...editing, ...patch } as Feature;
+    const next = isBodyCommandFeature(merged) ? withBodySelection(merged, bodySelection) : merged;
     if (JSON.stringify(next) === JSON.stringify(editing)) return;
     if (editing.type === "sketch") {
       setSketchPast((old) => [...old, structuredClone(editing)].slice(-100));
@@ -1626,6 +1691,30 @@ export default function App() {
     }
     setError("");
     setEditing(next);
+  };
+  const chooseBodySelection = (references: BodyReference[]) => {
+    setBodySelection(references.map(ref => ({ ...ref })));
+    if (editing && isBodyCommandFeature(editing)) {
+      const changed = withBodySelection(editing, references);
+      if (isEdgeFinish(changed) && JSON.stringify(changed.bodyScope) !== JSON.stringify(editing.type === "fillet" || editing.type === "chamfer" ? editing.bodyScope : undefined)) {
+        changed.selection = { mode: "selected", edges: [] };
+        setFinishPreview(false);
+      }
+      if (isFaceOperation(changed) && JSON.stringify(changed.bodyScope) !== JSON.stringify(isFaceOperation(editing) ? editing.bodyScope : undefined)) {
+        if (changed.type === "shell") changed.removedFaces = []; else changed.faces = [];
+        setFacePreview(false);
+      }
+      setEditing(changed); setBodyPicking(true); setError("");
+    }
+  };
+  const toggleBody = (reference: BodyReference) => {
+    if (editing && !bodyPicking) return;
+    const catalog = editing ? sourceModel : model;
+    if (!catalog?.bodyCatalogActive || catalog.bodies?.filter(body => sameBodyReference(body.ref, reference)).length !== 1) return;
+    const single = !!editing && (editing.type === "extrude" || editing.type === "revolve" || isEdgeFinish(editing) || isFaceOperation(editing));
+    chooseBodySelection(bodySelection.some(ref => sameBodyReference(ref, reference))
+      ? bodySelection.filter(ref => !sameBodyReference(ref, reference))
+      : single ? [{ ...reference }] : [...bodySelection, { ...reference }]);
   };
   const cancelActiveEdit = () => {
     if (editing?.type === "sketch" && (sketchTool === "chamfer" || sketchTool === "fillet" || sketchTool === "mirror" || sketchTool === "offset")) {
@@ -2320,6 +2409,8 @@ export default function App() {
                     disabled={!!editing || !canExport}
                     onClick={() => startRepetition("mirror")}
                   />
+                <Command icon={Component} label="Combinar cuerpos" onClick={startCombine}
+                  disabled={!canExport || !model?.bodyCatalogActive || bodySelection.length < 2} />
                 </div>
               </div>
               <div className="command-group">
@@ -2687,6 +2778,23 @@ export default function App() {
                   onChange={(e) => changeDraft({ name: e.target.value })}
                 />
               </div>
+              {isBodyCommandFeature(editing) && <BodyFeaturePanel
+                feature={editing} outputBodyId={bodyOutputId.current}
+                existing={doc.features.some(feature => feature.id === editing.id)}
+                bodies={sourceModel?.bodies ?? []} selection={bodySelection}
+                onSelection={chooseBodySelection}
+                disabled={sourceLoading || sourceBuiltFeatures !== sourceFeatures}
+                picking={bodyPicking} onPicking={setBodyPicking}
+                onFeature={feature => {
+                  const separate = (feature.type === "extrude" || feature.type === "revolve") && feature.bodyOperation?.mode === "new";
+                  const selection = separate ? [] : bodySelection;
+                  if (separate) setBodySelection([]);
+                  setEditing(withBodySelection(feature, selection));
+                  setBodyPicking(feature.type === "combine" || (feature.type === "extrude" || feature.type === "revolve") && feature.bodyOperation?.mode === "merge");
+                  setError("");
+                }}
+                message={bodyCommand && !bodyCommand.accepted ? bodyCommand.message : undefined}
+              />}
               {editing.type === "sketch" ? (
                 <>
                   {sketchTool === "offset" && entityProfile && <SketchOffsetPanel
@@ -2964,16 +3072,18 @@ export default function App() {
                   picking={pickingHole}
                   canPickFace={
                     !sourceLoading &&
-                    !!sourceModel?.faces?.some((face) => face.frame)
+                    sourceSelectionDtos.faces.some((face) => face.frame)
                   }
                   onPickFace={() => setPickingSupport(!pickingSupport)}
                   selectedPosition={selectedHolePosition}
                   onSelectPosition={setSelectedHolePosition}
                   baseFeatureId={
-                    sourceModel?.faces?.[0]?.ref.sourceFeatureId ?? null
+                    editing.bodyScope ? editing.bodyScope[0]?.sourceFeatureId ?? null : sourceModel?.faces?.[0]?.ref.sourceFeatureId ?? null
                   }
                   loading={sourceLoading}
                 />
+              ) : editing.type === "combine" ? (
+                <p className="muted-small">Revisa la selección y el resultado antes de aceptar. Cancelar conserva todos los cuerpos de origen.</p>
               ) : editing.type === "importedSolid" ? (
                 <div className="property-section">
                   <h3><ChevronDown size={12} /> Geometría base</h3>
@@ -3001,7 +3111,7 @@ export default function App() {
                   pickingSupport={pickingSupport}
                   canPickSupport={
                     !sourceLoading &&
-                    !!sourceModel?.faces?.some((face) => face.frame)
+                    sourceSelectionDtos.faces.some((face) => face.frame)
                   }
                   preview={facePreview}
                   onPreview={(preview) => {
@@ -3025,7 +3135,7 @@ export default function App() {
                   onPickFace={() => setPickingSupport(!pickingSupport)}
                   canPickFace={
                     !sourceLoading &&
-                    !!sourceModel?.faces?.some((face) => face.frame)
+                    sourceSelectionDtos.faces.some((face) => face.frame)
                   }
                 />
               ) : isEdgeFinish(editing) ? (
@@ -3083,7 +3193,10 @@ export default function App() {
                       features={availableFeatures}
                       planes={availablePlanes}
                       baseFeatureId={
-                        sourceModel?.faces?.[0]?.ref.sourceFeatureId ?? null
+                        editing.type === "cut" && editing.bodyScope ? editing.bodyScope[0]?.sourceFeatureId ?? null
+                          : editing.type === "extrude" && editing.bodyOperation?.mode === "merge" ? editing.bodyOperation.target.sourceFeatureId
+                          : editing.type === "extrude" && editing.bodyOperation?.mode === "new" ? editing.endCondition && 'baseFeatureId' in editing.endCondition ? editing.endCondition.baseBody?.sourceFeatureId ?? null : null
+                          : sourceModel?.faces?.[0]?.ref.sourceFeatureId ?? null
                       }
                       preferredTarget={
                         preferredEndPlane
@@ -3102,7 +3215,7 @@ export default function App() {
                       picking={pickingExtrude}
                       loading={sourceLoading}
                       canPickFace={
-                        !!sourceModel?.faces?.length && !sourceLoading
+                        !!sourceSelectionDtos.faces.length && !sourceLoading
                       }
                       onTarget={changeEndTarget}
                       onPickFace={() => setPickingEndFace(!pickingExtrude)}
@@ -3112,7 +3225,7 @@ export default function App() {
                           setPickingEndFace(
                             patch.endCondition?.kind === "upToSurface" &&
                               editing.endCondition?.kind !== "upToSurface" &&
-                              !!sourceModel?.faces?.length &&
+                              !!sourceSelectionDtos.faces.length &&
                               !preferredEndPlane,
                           );
                       }}
@@ -3131,6 +3244,10 @@ export default function App() {
             </div>
           ) : (
             <>
+              {model?.bodyCatalogActive && <div className="property-section">
+                <h3><ChevronDown size={12} /> Cuerpos sólidos ({model.bodies?.length ?? 0})</h3>
+                <BodyList bodies={model.bodies ?? []} selection={bodySelection} onSelection={chooseBodySelection} disabled={busy || !previewCurrent} />
+              </div>}
               <div className="tree-filter">
                 <Search size={13} />
                 <input
@@ -3442,6 +3559,7 @@ export default function App() {
               display={display}
               grid={grid}
               selected={
+                !visibleModel?.bodyCatalogActive &&
                 !!selectedFeature &&
                 selectedFeature.type !== "sketch" &&
                 selectedFeature.type !== "plane" &&
@@ -3452,7 +3570,7 @@ export default function App() {
                 !holeEditing
               }
               selectionMode={
-                pickingSupport ||
+                bodyPicking ? "body" : pickingSupport ||
                 pickingFaceOperation ||
                 pickingExtrude ||
                 pickingHole
@@ -3467,6 +3585,8 @@ export default function App() {
                       : selectionMode
               }
               selectedEdges={selectedEdges}
+              selectedBodies={bodySelection}
+              onSelectBody={(!editing && !busy && previewCurrent || !!editing && bodyPicking && !sourceLoading && sourceBuiltFeatures === sourceFeatures) ? toggleBody : undefined}
               onSelectEdge={toggleEdge}
               visibleSketchIds={visibleSketchIds}
               selectedSketchId={selectedSketchId}
