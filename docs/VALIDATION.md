@@ -1,5 +1,91 @@
 # Validation
 
+## Explicit body patterns — source-specific results, 2026-10-13
+
+[Draft PR #34](https://github.com/angelcp2802/solidflow/pull/34) proposes explicit
+body ownership for linear/circular patterns and mirror. The runtime source for
+this snapshot is `60014c4ad37c955741a0fc1d0c4541fdece69754`, based on #31 at
+`92a8747f421e69fc44daa1d83d287e3e82ef9fb1`. This draft and its prerequisites
+have not merged into the default branch. The [contract](BODY_PATTERNS.md) and
+[provenance](PROVENANCE.md) define the bounded behavior, original analytical
+fixtures, units and tolerances. The earlier ledger below remains unchanged and
+retains each earlier run's original source scope and outcome.
+
+### Local results on this runtime source
+
+Local commands used Windows x64 and Node 24.11.1. Each completed command listed
+below recorded all 243 runtime source/configuration inputs unchanged before/after,
+with no environment overrides. Each command's result has its own scope; a
+separate passing check does not turn the failed full command into a pass.
+
+- `npm run build`: PASS, TypeScript checking and 1,982 production modules,
+  Vite 1 min 13 s. Log SHA-256:
+  `c8523044f4ffcd99606c43cf296b98b7fed547b637bd8971ae5dffd0f84d6553`.
+- `npm run test:unit -- src/cad/kernel.body-patterns.test.ts -t boundary`:
+  PASS, five selected cases in one file, with 18 explicitly filtered skips,
+  138.87 s, Vitest 5.0.3. This covers the raw-declaration matrices and
+  current/historical same-seed target merges; it does not validate all 23
+  native cases or resolve earlier native timeouts. Log SHA-256:
+  `eae38c7ac98eea721c69fd4acf4b350e91f4c28fb8b01b79b06ac7c5067273af`.
+- Full `npm test`: exit 1, 1,719 passed and 169 failed out of 1,888 tests in
+  101 files (84 passed, 17 failed), 1,165.13 s. Classification of the 119
+  reported failure groups accounted for all 169 failed-test headers across
+  the 17 failed files: 159 timeouts at 5 seconds, one existing case at
+  20 seconds and nine cases at 60 seconds. The latter comprise five new
+  body-pattern cases and four semantic cases. The body-pattern native file
+  reported 18 passed and five failed out of 23 cases. The log separately
+  reported three worker-termination warnings; their cause and relationship
+  to the failed cases are unproved.
+  Source verification remained unchanged and no environment override was
+  recorded. Log SHA-256:
+  `90fecaa37791b5f727ca23adb0d0f250b68253b23b21e8a908260c82f6a8dd0b`.
+- Subsequent standalone `npm run test:ipc`: PASS, all 11 tests, zero
+  failures, cancellations or skips, 7,101.0144 ms. All 243 recorded inputs
+  remained unchanged, with no environment overrides. This separate result
+  does not change the failed full-suite result. Log SHA-256:
+  `f7e1b6fad9d93f0319b1c099855948ea3e3ae3c5a08d653656fdb4f7b398e70e`.
+- Local `npm run test:desktop`: exit 1 with the explicit outer 45-second
+  timeout, `Electron no terminó en 45 segundos.` No readiness or smoke-PASS
+  report was emitted. This invocation emitted no `EBUSY` or cleanup error;
+  the cause of noncompletion remains unknown. It establishes no local
+  initial-model readiness, WASM-load or console/request result. All 243
+  recorded inputs remained unchanged, with no environment overrides.
+  Log SHA-256:
+  `fa05e82de7b754093f31e260d304429c367676ad14e4398d2684468fdd45519a`.
+
+### Hosted results
+
+All six checks for source `60014c4ad37c955741a0fc1d0c4541fdece69754` succeeded in
+[CI](https://github.com/angelcp2802/solidflow/actions/runs/38459447247) and
+[security analysis](https://github.com/angelcp2802/solidflow/actions/runs/38459447114).
+The tested merge was `59ce40031465f931d62f75197452e5cb18c35924`, with parents
+`92a8747f421e69fc44daa1d83d287e3e82ef9fb1` and
+`60014c4ad37c955741a0fc1d0c4541fdece69754`; its tree matched the runtime head.
+
+| Hosted platform | Node | Unit/CAD result | Body-pattern native cases | Vitest duration |
+| --- | --- | --- | --- | --- |
+| Windows x64 | 24.21.0 | 1,888 passed in 101 files | 23 passed | 47.14 s |
+| Linux x64 | 24.21.0 | 1,888 passed in 101 files | 23 passed | 58.38 s |
+| macOS arm64 | 24.20.0 | 1,888 passed in 101 files | 23 passed | 70.18 s |
+
+Each job used npm 11.19.0 and Vitest 5.0.3 and passed the 1,982-module
+production build, all 11 IPC tests, the isolated initial-model Electron smoke
+check and unsigned packaging with `--publish never`. The smoke reports recorded
+WASM loaded, no console errors and no failed requests. CodeQL succeeded; the
+dependency audit passed its high/critical gate while retaining eight moderate
+findings.
+
+These hosted results do not explain the local failures, worker warnings or
+earlier unresolved diagnostics. They establish the listed automated checks on
+the tested source and platforms, without proving general platform support,
+native resource/leak behavior, real editor interaction, installer use or
+independent interoperability. Same-kernel exchange round trips do not prove
+opaque identity/history preservation in exchange files. Feature-delta replay
+in the body catalog, legacy adoption, wider interaction/reference coverage and
+the remaining CAD modules stay open; this increment does not complete the body
+management goal. Earlier failures and release restrictions retain their
+original scope.
+
 ## Explicit body patterns — initial local evidence, 2026-10-13
 
 This proposed increment branches from `92a8747f421e69fc44daa1d83d287e3e82ef9fb1`;
