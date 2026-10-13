@@ -33,7 +33,7 @@ deferral concerns the runtime migration policy.
 
 ## Evidence and review still required
 
-The reviewed heads of #27 (`ac7e21f`), #29 (`be9415d`) and #31 (`395b4f8`)
+The recorded runtime heads of #27 (`ac7e21f`), #29 (`b12c71b`) and #31 (`e326878`)
 each have six successful hosted checks, including configured desktop jobs on
 Windows x64, Linux x64 and macOS arm64.
 Those jobs exercise programmatic tests, an isolated initial-model Electron
@@ -42,10 +42,12 @@ coverage, independent interoperability or general platform support. They also
 do not replace review by another contributor.
 
 Local failed runs remain recorded in each proposal and its validation history.
-For #31's implementation source `6d38ddd` (included unchanged in the reviewed
-documentation head), the final local full run reported 1,651 passed and 145 timed-out cases;
-the separate IPC run passed 11 tests, while the desktop smoke check exceeded
-its 45-second outer limit. The hosted full suite passed 1,796 cases in 96 files
+For #31's integrated runtime source `e326878`, the final local full run reported
+1,722 passed and 84 timed-out cases (81 at 5 seconds and three at 60 seconds).
+The separate IPC run passed 11 tests. The desktop smoke command failed while
+cleaning up the temporary profile's `DIPS-wal` file and emitted no readiness
+report; its initial-model outcome remains unknown.
+The hosted full suite passed 1,806 cases in 97 files
 on each of its three configured platforms. Preserve both results when reviewing
 the change; a green hosted run does not explain a local failure.
 
@@ -57,10 +59,10 @@ Known unresolved diagnostics have separate issues:
 - [#30](https://github.com/angelcp2802/solidflow/issues/30): preserve primary
   desktop smoke failures when temporary-profile cleanup also fails.
 - [#32](https://github.com/angelcp2802/solidflow/issues/32): reject unknown
-  body-operation modes at the raw extrusion/revolution engine boundary. Review
-  reproduced acceptance with an incorrectly advanced body-state reference;
-  the document parser already rejects the same mode. A correction and public
-  regressions are pending.
+  body-operation modes at the raw extrusion/revolution engine boundary. The
+  correction is proposed in #29 and shared with sweep/loft in #31, with public
+  rejection and compatibility regressions. The issue remains open for review
+  and integration; the document parser already rejected the original mode.
 
 Use the proposed branch's contracts, provenance and validation record when
 reviewing new CAD behavior. The [validation record](VALIDATION.md) on `main`
