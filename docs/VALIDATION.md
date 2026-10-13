@@ -30,9 +30,45 @@ public worker settings, time budgets and geometry tolerances:
   No assertion or crash was reported, but the run is failed and its timeout
   cause remains unproven.
   Log SHA-256: `bd926814f697181d165176a91965fc1040be3db4c220fb32804d8030d98940d3`.
-- Full `npm test` is running on this implementation source. IPC and the
-  production Electron smoke check remain pending for this extension. Earlier
-  hosted results below do not validate these source changes.
+- Full `npm test` exited 1: 1651 passed and 145 failed of 1796 tests in
+  96 files (77 passed, 19 failed), in 727.24 seconds. All 145 failures were
+  timeouts: 142 at 5000 ms, one at 15000 ms and two at 60000 ms. No assertion,
+  hook timeout, unhandled error, segmentation fault or OOM was reported. All
+  235 recorded inputs were unchanged. The reporter only lists failed files;
+  individual passing-file lines are unavailable in this local full log.
+  This failed command stopped before IPC. Its timeout cause remains unproven.
+  Log SHA-256: `488c5adfb5d5464b3f6d0d1480272f698f5d22c51a2dc19b4a42f8d525f1c682`.
+- Subsequent standalone `npm run test:ipc` passed 11 tests with no failures,
+  cancellations or skips, in 27872.0406 ms, with all 235 recorded inputs
+  unchanged. This separate result does not turn the failed full command into
+  a pass. Log SHA-256: `f4d46537894c8179d77104bde034983f123b7a30eb2d74de2dad9a177c210ff7`.
+- Local `npm run test:desktop` exited 1 with the outer 45-second timeout and
+  no readiness report. All 235 recorded inputs were unchanged. The cause
+  remains unknown. This invocation did not emit the cleanup `EBUSY` diagnostic
+  recorded for the earlier body source below.
+  Log SHA-256: `fa05e82de7b754093f31e260d304429c367676ad14e4398d2684468fdd45519a`.
+
+[Draft PR #31](https://github.com/angelcp2802/solidflow/pull/31) passed all six
+hosted checks in [CI](https://github.com/angelcp2802/solidflow/actions/runs/38381232261)
+and [security analysis](https://github.com/angelcp2802/solidflow/actions/runs/38381232318).
+The head was `c416bced832806fec427a9dadd8328fbd04cfaf6`, the base was
+`be9415d8a9070f30b8ea3895094a80a7eb934348`, and the tested merge was
+`8e623584ffcf8623fcf8ca6fbee799cc531601c1`.
+
+| Hosted platform | Node | Unit/CAD result | Vitest duration |
+| --- | --- | --- | --- |
+| Windows x64 | 24.21.0 | 1796 passed in 96 files | 55.65 s |
+| Linux x64 | 24.21.0 | 1796 passed in 96 files | 34.44 s |
+| macOS arm64 | 24.20.0 | 1796 passed in 96 files | 83.29 s |
+
+Each job used npm 11.19.0 and Vitest 5.0.3, passed the new sweep/loft file's
+20 cases, the 29 catalog cases and 32 body-workflow cases, all 11 IPC tests,
+the 1980-module build, initial-model production Electron smoke and unsigned
+packaging with `--publish never`. Each smoke recorded WASM loaded, no console
+errors and no failed requests. CodeQL passed; the audit passed its high/critical
+gate while retaining eight moderate findings. These checks do not explain the
+local failures, establish real tool interaction or prove complete platform
+support. They do not resolve the earlier unexplained Linux crash in #28.
 
 The original analytical fixtures and their limits are described in
 [PROVENANCE.md](PROVENANCE.md#explicit-sweep-and-loft-body-fixtures).
