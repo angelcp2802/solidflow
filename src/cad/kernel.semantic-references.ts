@@ -50,8 +50,8 @@ const compare = (a: string, b: string): number => a < b ? -1 : a > b ? 1 : 0;
 function fail(message: string): never { throw new Error(`Identidad de prisma v2: ${message}`); }
 const FACE_KEY = /^face-v2\|[0-9a-f]{64}$/;
 const EDGE_KEY = /^edge-v2\|[0-9a-f]{64}$/;
-export const isFaceReferenceKeyV2 = (value: unknown): value is string => typeof value === 'string' && value.length === 72 && FACE_KEY.test(value);
-export const isEdgeReferenceKeyV2 = (value: unknown): value is string => typeof value === 'string' && value.length === 72 && EDGE_KEY.test(value);
+export const isFaceReferenceKeyV2 = (value: unknown): boolean => typeof value === 'string' && value.length === 72 && FACE_KEY.test(value);
+export const isEdgeReferenceKeyV2 = (value: unknown): boolean => typeof value === 'string' && value.length === 72 && EDGE_KEY.test(value);
 
 function record(value: unknown, required: string[], optional: string[] = []): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) fail('se esperaba un objeto.');
