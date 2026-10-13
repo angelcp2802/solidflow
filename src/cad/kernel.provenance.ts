@@ -147,10 +147,15 @@ function constructEntityPrism(
     }
     const outer = material[0];
     const holes = containers.flatMap((parents, index) => parents.length === 1 && parents[0] === outer ? [index] : []);
-    const faceMaker = scope.own(new oc.BRepBuilderAPI_MakeFace(contourFaces[outer].wrapped));
-    holes.forEach(index => faceMaker.Add(wires[index].wrapped));
-    if (!faceMaker.IsDone()) throw new Error('No se pueden incorporar los agujeros de la extrusión.');
-    const beforeFix = scope.own(new Face(faceMaker.Face()));
+    // The outer face is already valid and scope-owned. A hole-free profile
+    // needs no second face builder, whose copy constructor alone is not done.
+    let beforeFix = contourFaces[outer];
+    if (holes.length) {
+      const faceMaker = scope.own(new oc.BRepBuilderAPI_MakeFace(beforeFix.wrapped));
+      holes.forEach(index => faceMaker.Add(wires[index].wrapped));
+      if (!faceMaker.IsDone()) throw new Error('No se pueden incorporar los agujeros de la extrusión.');
+      beforeFix = scope.own(new Face(faceMaker.Face()));
+    }
     const fixer = scope.own(new oc.ShapeFix_Face(beforeFix.wrapped));
     fixer.FixOrientation();
     // Face() may replace the face; keep both owned copies until cleanup.

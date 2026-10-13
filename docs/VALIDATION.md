@@ -32,7 +32,7 @@ accessibility, performance or platform coverage.
 This branch combines the generated-sketch identity prerequisite with the prism
 reference modules, then connects the engine, document parser and UI selection
 aliases. Newly written context, persistence, consumer and selection tests are
-tracked separately from their execution. No completed full suite, desktop smoke
+tracked separately from their execution. No successful full suite, desktop smoke
 or interactive editor result is yet claimed for this integration source.
 
 On Windows x64 (10.0.26200), Node 24.11.1, npm 11.6.2 and Vitest 5.0.3, a
@@ -50,9 +50,8 @@ command or configuration. The recorded `CI`, `NODE_OPTIONS`,
 not an exhaustive inventory of environment variables.
 Eleven recorded files had identical hashes before and
 after the run. These checks do not initialize WASM, build native geometry or
-execute editor events. The six new native face-operation cases and thirteen
-new engine cases remain pending execution; later edits to those separate
-fixtures are not validated by this pure run.
+execute editor events. Later edits to the native fixtures are not validated
+by this pure run.
 
 The first integration `npm run build` exited 1 with two TS2339 diagnostics in
 `kernel.semantic-context.ts`: the dependency-selection expression did not
@@ -61,13 +60,57 @@ The source now checks `feature.type === 'sketch'` in that branch. The repeat
 `npm run build` exited 0, passing TypeScript and the production Vite build,
 with the existing `node:module` externalization and large-chunk warnings.
 All 219 recorded inputs were unchanged during each build. The earlier
-44-case pure run precedes the correction; revalidation of the affected context
-tests is pending alongside the native cases.
+44-case pure run precedes the correction; the later focused run also exercised
+the affected context cases.
 
 The separate `npm run test:ipc` check also exited 0: all 11 checks passed,
 with zero failures, cancellations or skips (30,496.674 ms reported by Node's
 test runner). This is an IPC result, not a completed `npm test` or desktop
 loader result for the integration source.
+
+At integration commit `42840c0e3b77d33d896e009edd402c4271531edb`, the focused
+`npm run test:unit -- src/cad/kernel.semantic-engine.test.ts
+src/cad/kernel.semantic-face-operations.test.ts
+src/cad/kernel.semantic-context.test.ts` run exited 1: 29 cases passed and
+7 failed in 556.15 seconds, across two failed files and one passed file.
+All 219 recorded inputs remained unchanged. Four failures occurred while
+constructing the rectangular face-operation fixture, before its assertions:
+the producer unconditionally copied a face and checked `IsDone()` even when
+there were no holes to add. One engine assertion found no displayed rim for
+the other hole. The fillet and historical support/up-to-surface cases each
+reported the existing 60,000 ms timeout locally. These are distinct diagnostics;
+the construction error does not explain the timeout results.
+
+Hosted [CI run 38335538773](https://github.com/angelcp2802/solidflow/actions/runs/38335538773)
+for that exact head completed with 1,521 passed and 87 failed portable cases
+on each of Windows x64, Linux x64 and macOS arm64 (17 failed and 68 passed
+files). All three builds passed; their IPC, Electron smoke and packaging
+steps were skipped after the portable failures. The hosted logs reproduce the
+four fixture construction errors and the missing-rim assertion, but contain
+no timeout diagnostics. The other hosted failures require revalidation after
+the producer correction, rather than an assumption that they share its cause.
+[Security run 38335538770](https://github.com/angelcp2802/solidflow/actions/runs/38335538770)
+passed CodeQL and the configured high/critical audit gate. Eight moderate
+dependency findings remain visible through the packaging-tool dependency
+chain; passing that gate does not mean an empty audit report.
+
+The subsequent correction reuses the already validated exterior face when
+there are no holes and retains face repair, BRep validity and correspondence
+checks. Partial fixture setup is now covered by cleanup. A new engine case
+uses actual deletion and offset recreation, in addition to the existing
+same-geometry identity replacement case. These edits need their own results;
+the preceding 36-case run does not validate the changed source.
+
+The displayed-rim helper now allows the installed mesh extractor's bounded
+Float32 coordinate rounding, while new fresh-STEP checks evaluate eight
+parameters on each closed native hole circle at unchanged absolute `5e-7` mm
+radial/z tolerance. This distinguishes display coordinates from native geometry;
+the old failure log does not contain coordinates from which to measure its
+exact error. The local build after these changes passed TypeScript and Vite
+(1,976 modules, 1 minute 26 seconds reported by Vite), with all 219 recorded
+inputs unchanged and the existing warnings. This precedes a final finite-value
+guard in that test helper. The final source requires a repeat build, the full
+suite including 37 affected context/native cases, and desktop smoke.
 
 The earlier opt-in module source
 `52508a0214ad7b36b5e1b18df797c34d20400ad1` has separate evidence. Its local

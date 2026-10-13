@@ -249,7 +249,7 @@ Further cases use the same box/plate for legacy compatibility, unavailable or
 foreign references, native alias duplicates and injected construction/release
 failures. They specify ownership behavior rather than proving leak freedom.
 
-The original `src/cad/kernel.semantic-engine.test.ts` defines 13 engine cases;
+The original `src/cad/kernel.semantic-engine.test.ts` defines 14 engine cases;
 these are written assertions, with no execution result inferred here. Its base
 fixture is the 50×20 rectangle from `(-10,-10)` to `(40,10)`, extruded from
 z=0 to z=4. Source circles are centered at `(0,0)` and `(20,0)`, initially
@@ -278,8 +278,15 @@ on `(x−centerAX)²+y²=rA²`, z=4; the second end rim is checked against
 `(x−centerBX)²+y²=rB²`, z=4. Their analytical extents are
 `(centerAX−rA,-rA,4)` to `(centerAX+rA,rA,4)` and
 `(centerBX−rB,-rB,4)` to `(centerBX+rB,rB,4)`. The written engine assertions
-check radial distance and z, rather than measuring a separate native bounding
-box for each rim. The end-cap support frame is exactly origin `(0,0,4)`,
+check radial distance and z. The installed Replicad 1.1.0 edge mesh extractor
+reads its native line buffer through `Float32Array`; the display comparison
+therefore adds a per-coordinate half-ULP rounding bound, combined in XY with
+the Euclidean norm. It is not an exact native-coordinate oracle. Fresh STEP
+checks in the continuity and command-recreation cases separately enumerate
+closed native circles and evaluate eight curve parameters `i/8`, `i=0..7`,
+requiring exactly one rim per expected center/radius/z at absolute `5e-7` mm
+radial and z error. Edges, curves and evaluated vectors have explicit local
+ownership. The end-cap support frame is exactly origin `(0,0,4)`,
 X direction `(1,0,0)` and normal `(0,0,1)`; its analytical outer bounds are
 `(-10,-10,4)` to `(40,10,4)`. The cap check uses that frame, stable reference
 and overall solid bounds, not a separate cap-mesh extent oracle. Catalog
@@ -333,7 +340,25 @@ The final case uses two separate radius-1 disks centered at `(0,0)` and
 `La pieza contiene 2 sólidos separados.` This is not a single-solid import
 fixture.
 
-Written coordinate/radius and rim checks use absolute `5e-7` mm; solved
+An additional command-lifecycle case starts from the two actual offset images,
+stores inactive hole-A rim and cap references, deletes image A with
+`removeSelection`, and recreates it from source circle A using
+`planSketchOffset` and `solveOffsetApplication` at distance 1.5. It checks that
+the old image ID disappears, the recreated image receives a different ID, and
+image B retains its identity. Deletion removes the shared-distance family and
+the former A driver; recreation adds only a new A distance driver 1.5. B keeps
+its undriven offset relation and its current separation 1, checked by geometry.
+Thus this case changes
+both identity and constraint structure, rather than isolating identity alone.
+The earlier same-geometry/new-ID case remains that separate control. New hole
+radii are 3.5 and 6 at centers `(0,0)` and `(20,0)`, giving independent
+`V=4000−193π`, `A=2560−20.5π`, and the unchanged outer bounds. The old rim
+finish and old cap support are activated separately and must reject while
+preserving the last valid body and blocking export of the errored model. The
+valid recreated document is reopened and freshly reconstructed through STEP.
+
+Written sketch coordinate/radius and native rim checks use absolute `5e-7` mm;
+displayed rim coordinates additionally allow the stated Float32 rounding bound. Solved
 sketches require maximum residual at most `1e-7`. CAD volume, area and bounds
 comparisons use absolute `5e-6` in their respective units. Fresh STEP checks
 request native volume integration parameter `1e-10`, BRep validity and the

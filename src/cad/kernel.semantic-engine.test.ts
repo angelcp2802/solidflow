@@ -8,6 +8,7 @@ import {
   validateDocument, type Document,
 } from '../model/document';
 import { planSketchOffset, type OffsetParameters } from '../sketch/offset';
+import { removeSelection } from '../sketch/editing';
 import { solveOffsetApplication } from '../sketch/offsetApplication';
 import { solveSketch } from '../sketch/solver';
 import type { EntityProfile } from '../sketch/types';
@@ -27,6 +28,7 @@ const parameters: OffsetParameters = {
 };
 type Settings = { distance: number; sourceA: number; sourceB: number; centerA: number; centerB: number };
 type Metrics = { volume: number; area: number; bounds: readonly (readonly number[])[] };
+type RimGeometry = { centerX: number; radius: number; z: number };
 const edits: readonly Settings[] = [
   { distance: 1, sourceA: 2, sourceB: 5, centerA: 0, centerB: 20 },
   { distance: 1.5, sourceA: 2, sourceB: 5, centerA: 0, centerB: 20 },
@@ -170,7 +172,25 @@ function measure(shape: Shape3D, solidCount = 1): Metrics {
     return { volume: mass.Mass(), area: surface.area, bounds: box.bounds };
   } finally { cleanup(); }
 }
-async function freshStep(document: Document, wanted: Metrics, solidCount = 1): Promise<void> {
+function expectNativeRims(shape: Shape3D, wanted: readonly RimGeometry[]): void {
+  const [own, cleanup] = localGC();
+  try {
+    const edges = shape.edges; edges.forEach(own);
+    const curves = edges.map(edge => own(edge.curve));
+    const circles = curves.filter(curve => curve.curveType === 'CIRCLE' && curve.isClosed);
+    for (const rim of wanted) {
+      const matches = circles.filter(edge => Array.from({ length: 8 }, (_, index) => index / 8).every(parameter => {
+        // pointAt evaluates the native curve; no tessellation or Float32 conversion.
+        const [x, y, z] = own(edge.pointAt(parameter)).toTuple();
+        return Math.abs(Math.hypot(x - rim.centerX, y) - rim.radius) <= coordinateTolerance &&
+          Math.abs(z - rim.z) <= coordinateTolerance;
+      }));
+      expect(matches, `Native closed circle at x=${rim.centerX}, r=${rim.radius}, z=${rim.z}`).toHaveLength(1);
+    }
+  } finally { cleanup(); }
+}
+async function freshStep(document: Document, wanted: Metrics, solidCount = 1,
+  rims: readonly RimGeometry[] = []): Promise<void> {
   const reopened = parseDocument(serializeDocument(document));
   expect(reopened.features).toEqual(document.features);
   // Explicit features force reconstruction in a fresh engine, rather than exporting a preview.
@@ -180,16 +200,25 @@ async function freshStep(document: Document, wanted: Metrics, solidCount = 1): P
     const actual = measure(shape, solidCount);
     near(actual.volume, wanted.volume); near(actual.area, wanted.area);
     expectBounds(actual.bounds, wanted.bounds);
+    if (rims.length) expectNativeRims(shape, rims);
   } finally { shape.delete(); }
 }
 function sameReference(a: EdgeReference | FaceReference, b: EdgeReference | FaceReference): boolean {
   return a.sourceFeatureId === b.sourceFeatureId && a.key === b.key;
 }
+function displayRoundoff(value: number): number {
+  // meshEdges reads native coordinates through Float32Array. Half a Float32
+  // ULP bounds each coordinate's rounding; keep the native oracle at 5e-7.
+  return Math.max(2 ** (Math.floor(Math.log2(Math.abs(value))) - 24), 2 ** -150);
+}
 function radial(edge: PickableEdge, centerX: number, radius: number, z: number): boolean {
   return edge.lines.length >= 12 && edge.lines.every((coordinate, index, points) => {
     if (index % 3 !== 0) return true;
-    return Math.abs(Math.hypot(coordinate - centerX, points[index + 1]) - radius) < coordinateTolerance &&
-      Math.abs(points[index + 2] - z) < coordinateTolerance;
+    const y = points[index + 1], currentZ = points[index + 2];
+    if (![coordinate, y, currentZ].every(Number.isFinite)) return false;
+    return Math.abs(Math.hypot(coordinate - centerX, y) - radius) <= coordinateTolerance +
+      Math.hypot(displayRoundoff(coordinate), displayRoundoff(y)) &&
+      Math.abs(currentZ - z) <= coordinateTolerance + displayRoundoff(currentZ);
   });
 }
 function endRim(result: CadResult, radius = 3): PickableEdge {
@@ -269,7 +298,10 @@ it('keeps semantic targets and saved IDs through actual offset edits, reopen, un
     expectRemembered(reopened, rim, cap);
     const current = build(reopened);
     aliases(current); expectTargets(current, rim, cap, settings);
-    await freshStep(reopened, expected(settings));
+    await freshStep(reopened, expected(settings), 1, [
+      { centerX: settings.centerA, radius: settings.sourceA + settings.distance, z: 4 },
+      { centerX: settings.centerB, radius: settings.sourceB + settings.distance, z: 4 },
+    ]);
   }
   const previous = history.undo();
   expect(savedIds(previous)).toEqual(identity); expectRemembered(previous, rim, cap);
@@ -394,6 +426,53 @@ function plainPlate(): Document {
   target.constraints = [];
   return updateFeature(original, sketchId, { profile: target });
 }
+it('rejects saved rim and cap references after deleting and recreating an actual offset image', async () => {
+  const original = specimen(), initial = build(original);
+  const rim = endRim(initial).ref, cap = endCap(initial).ref;
+  const remembered = remember(original, rim, cap);
+  const oldImageA = imageId(remembered, 'circle-a'), imageB = imageId(remembered, 'circle-b');
+  const originalProfile = structuredClone(profile(remembered));
+  const deleted = removeSelection(profile(remembered), [{ kind: 'entity', id: oldImageA }]);
+  expect(profile(remembered)).toEqual(originalProfile);
+  expect(deleted.entities.some(entity => entity.id === oldImageA)).toBe(false);
+  expect(deleted.entities.some(entity => entity.id === 'circle-a' && entity.construction)).toBe(true);
+  expect(deleted.constraints.filter(constraint => constraint.type === 'offset')).toHaveLength(1);
+  expect(deleted.constraints.filter(constraint => constraint.type === 'offsetDistance')).toHaveLength(0);
+  expect(deleted.constraints.filter(constraint => constraint.type === 'equalOffsetDistance')).toHaveLength(0);
+  const intermediate = updateFeature(remembered, sketchId, { profile: healthy(deleted).profile });
+  expect(imageId(intermediate, 'circle-b')).toBe(imageB);
+  const current = healthy(profile(intermediate));
+  const plan = planSketchOffset(current.profile, [{ kind: 'entity', id: 'circle-a' }],
+    { ...parameters, distance: 1.5 });
+  expect(plan.changed, plan.message).toBe(true);
+  expect(plan.sourceProfile).toBe(current.profile);
+  const application = solveOffsetApplication(current, plan);
+  if (!application.accepted) throw new Error(application.message);
+  const recreated = parseDocument(serializeDocument(updateFeature(intermediate, sketchId,
+    { profile: application.solution.profile })));
+  expect(imageId(recreated, 'circle-a')).not.toBe(oldImageA);
+  expect(imageId(recreated, 'circle-b')).toBe(imageB);
+  expect(profile(recreated).entities.some(entity => entity.id === oldImageA)).toBe(false);
+  expect(profile(recreated).constraints.filter(constraint => constraint.type === 'offsetDistance')
+    .map(constraint => constraint.value)).toEqual([1.5]);
+  expect(profile(recreated).constraints.filter(constraint => constraint.type === 'equalOffsetDistance')).toHaveLength(0);
+  expectRemembered(recreated, rim, cap);
+  const bare = expectRejectedFinish(recreated, rim);
+  expect(bare.edges.some(edge => sameReference(edge.ref, rim))).toBe(false);
+  expect(bare.faces?.some(face => sameReference(face.ref, cap))).toBe(false);
+  const rejectedSupport = engine.build(updateFeature(recreated, 'saved-support', { suppressed: false }).features);
+  expect(rejectedSupport.featureErrors.map(error => error.id)).toEqual(['saved-support']);
+  expect(rejectedSupport.featureErrors[0].message).toMatch(/cara|referencia|soporte/i);
+  near(rejectedSupport.volume, bare.volume);
+  expect(rejectedSupport.faces).toEqual(bare.faces); expect(rejectedSupport.edges).toEqual(bare.edges);
+  expect(() => engine.export('step')).toThrow(/errores/);
+  // Deletion removes A's driver and the shared family; recreation adds only A's new driver.
+  // R3.5 and the surviving R6 hole give independent V/A, not an identity-only experiment.
+  await freshStep(recreated, { volume: 4000 - 193 * Math.PI, area: 2560 - 20.5 * Math.PI,
+    bounds: [[-10, -10, 0], [40, 10, 4]] }, 1,
+  [{ centerX: 0, radius: 3.5, z: 4 }, { centerX: 20, radius: 6, z: 4 }]);
+}, 60_000);
+
 it('rejects a deleted and recreated circular entity even when its bare geometry is identical', async () => {
   const original = plainPlate(), rim = endRim(build(original)).ref, target = structuredClone(profile(original));
   // Remove the actual material entity and create identical geometry with a new saved identity.

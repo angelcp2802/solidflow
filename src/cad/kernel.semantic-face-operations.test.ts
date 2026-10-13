@@ -200,12 +200,13 @@ describe('semantic selections consumed by shell and draft', () => {
   }, 60_000);
 
   it('rejects absent, foreign, recreated and mixed-alias v2 selections before modifying either source', () => {
-    const initial = specimen(plate());
-    const profile = plate();
-    profile.entities.find(entity => entity.id === 'hole-a')!.id = 'hole-a-recreated';
-    const current = specimen(profile);
-    const box = specimen(rectangle());
+    const opened: Specimen[] = [];
     try {
+      const initial = specimen(plate()); opened.push(initial);
+      const profile = plate();
+      profile.entities.find(entity => entity.id === 'hole-a')!.id = 'hole-a-recreated';
+      const current = specimen(profile); opened.push(current);
+      const box = specimen(rectangle()); opened.push(box);
       const saved = faceReference(initial, 'side', 'hole-a');
       expect(() => draftSolid(initial.owner.shape, draft(saved), principalPlaneFrame('XY'), 'legacy-lineage', validate)).toThrow();
       expect(() => draftSolid(current.owner.shape, draft(saved), principalPlaneFrame('XY'), 'legacy-lineage', validate, current.references)).toThrow(/identificar/);
@@ -221,7 +222,7 @@ describe('semantic selections consumed by shell and draft', () => {
       expect(Math.abs(validate(initial.owner.shape) - 4 * (1000 - 45 * Math.PI))).toBeLessThan(tolerance);
       expect(Math.abs(validate(current.owner.shape) - 4 * (1000 - 45 * Math.PI))).toBeLessThan(tolerance);
       expect(validate(box.owner.shape)).toBeCloseTo(240, 7);
-    } finally { initial.owner.dispose(); current.owner.dispose(); box.owner.dispose(); }
+    } finally { for (const current of opened.reverse()) current.owner.dispose(); }
   }, 60_000);
 
   it('releases a partially constructed draft once and preserves both operation and catalog-release errors', () => {
