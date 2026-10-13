@@ -7,6 +7,8 @@ This integration combines the body correction at
 `395b4f8af28a7ec14732b350d4e372cddec77db4`. Extrude, revolve, sweep and loft
 now share the strict raw declaration guard. Sweep/loft `merge`, `ruled` and
 mode-consistency checks remain intact; the saved-document grammar is unchanged.
+The runtime source for the results in this snapshot is
+`e326878527bae42b259e9eb54fa643e31f682ccf`.
 
 Local checks used Windows x64, Node 24.11.1 and the public configuration:
 
@@ -21,12 +23,54 @@ Local checks used Windows x64, Node 24.11.1 and the public configuration:
   Each selected case submits 26 malformed declarations before geometry input
   lookup. Log SHA-256:
   `2c6084638d4e078a078181005e76bd5319590b166ae830d60556fc04e3369943`.
+- Full `npm test` exited 1: 1722 passed and 84 failed of 1806 tests in
+  97 files (81 passed, 16 failed), in 492.11 seconds. All 84 failures were
+  timeouts: 81 at unchanged 5000 ms budgets and three at unchanged 60000 ms
+  budgets in the semantic-engine file. No assertion, hook failure, unhandled
+  error, segmentation fault or OOM was reported. All 236 recorded inputs were
+  unchanged. The cause remains unproven. The reporter omits individual passing
+  file lines; it reports the global counts and failed files. This failed
+  command stopped before IPC. Log SHA-256:
+  `0a0b832904c120f319145bb6a14f8bd0a5b5e6a27dd2c45e55002f4e34d27b09`.
+- Subsequent standalone `npm run test:ipc` passed all 11 tests with no
+  failures, cancellations or skips, in 14117.6802 ms, with all 236 recorded
+  inputs unchanged. This separate result does not turn the failed full command
+  into a pass. Log SHA-256:
+  `33dfb8c4cae7ef04cb0f77481e38263e4c99c36144c552672399ba5d22703d4f`.
+- Local `npm run test:desktop` exited 1 with `EBUSY` while deleting the
+  temporary profile's `DIPS-wal` file. All 236 recorded inputs were unchanged.
+  The log emitted neither a readiness report nor a timeout diagnostic, so this
+  invocation establishes neither initial-model readiness nor the primary cause.
+  Cleanup diagnostics are tracked in
+  [issue #30](https://github.com/angelcp2802/solidflow/issues/30). Log SHA-256:
+  `47e7d6abaaa98583da9fd371d5891844231e8b4b3807bb8e391c1ba618869076`.
 
-These are focused programmatic results, with the new cases using 60-second
-budgets and all existing budgets unchanged. Complete checks for the integration
-are tracked in [PR #31](https://github.com/angelcp2802/solidflow/pull/31).
-The source-specific snapshots below preserve earlier passing and failed runs;
-they do not describe a new full-suite or desktop pass for this integration.
+The new focused cases use 60-second budgets; all existing budgets remain
+unchanged. The source-specific snapshots below preserve earlier passing and
+failed runs.
+
+[PR #31](https://github.com/angelcp2802/solidflow/pull/31) passed all six hosted
+checks in [CI](https://github.com/angelcp2802/solidflow/actions/runs/38395235144)
+and [security analysis](https://github.com/angelcp2802/solidflow/actions/runs/38395235457).
+The head was `e326878527bae42b259e9eb54fa643e31f682ccf`, the base was
+`b12c71b8a947e80ec3a24f3f32702f42b37d5456`, and the tested merge was
+`3207e883e674223844f28e62061ecfdad53bc931`.
+
+| Hosted platform | Node | Unit/CAD result | Vitest duration |
+| --- | --- | --- | --- |
+| Windows x64 | 24.21.0 | 1806 passed in 97 files | 36.41 s |
+| Linux x64 | 24.21.0 | 1806 passed in 97 files | 55.52 s |
+| macOS arm64 | 24.20.0 | 1806 passed in 97 files | 69.76 s |
+
+Each job used npm 11.19.0 and Vitest 5.0.3 and passed the eight raw extrusion/
+revolution boundary cases, all 22 sweep/loft cases, 29 catalog cases, 32 body
+workflow cases, 11 IPC tests, the 1980-module build, initial-model Electron
+smoke and unsigned packaging with `--publish never`. The smoke reports recorded
+WASM loaded, no console errors and no failed requests. CodeQL succeeded; the
+audit passed its high/critical gate while retaining eight moderate findings.
+These checks do not explain the local timeouts or the earlier Linux exit 139
+tracked in #28. Real editor interaction, independent interoperability,
+installer use and complete platform support remain outside this evidence.
 
 ## Explicit sweep/loft body development snapshot — 2026-10-13
 
