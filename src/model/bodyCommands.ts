@@ -1,6 +1,6 @@
 import type { BodyOperation, BodyReference, Feature } from '../cad/kernel.types'
 import { addFeature, updateFeature, validateDocument, type Document } from './document'
-import { bodyReferenceCreationFeatureId, featureBodyReferences } from './bodyReferences'
+import { bodyReferenceCreationFeatureId, featureBodyOutputIds, featureCurrentBodyReferences } from './bodyReferences'
 
 export interface BodyCommandCatalog {
   active: boolean
@@ -46,6 +46,7 @@ export function sameBodyReference(a: BodyReference, b: BodyReference): boolean {
 
 export function isBodyCommandFeature(feature: Feature): boolean {
   return feature.type === 'combine'
+    || ((feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror') && feature.source.mode === 'bodies' && feature.bodyPattern !== undefined)
     || ((feature.type === 'extrude' || feature.type === 'revolve' || feature.type === 'sweep' || feature.type === 'loft') && feature.bodyOperation !== undefined)
     || ((feature.type === 'cut' || feature.type === 'hole' || feature.type === 'fillet' || feature.type === 'chamfer' || feature.type === 'shell' || feature.type === 'draft') && feature.bodyScope !== undefined)
 }
@@ -71,6 +72,9 @@ export function setBodyOperationDraft(feature: Extract<Feature, { type: 'extrude
 export function withBodySelection(feature: Feature, selection: readonly BodyReference[]): Feature {
   const references = selection.map(reference => ({ ...reference }))
   const first = references[0] ?? { bodyId: '', sourceFeatureId: '' }
+  if ((feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror') && feature.source.mode === 'bodies') {
+    return { ...feature, source: { ...feature.source, bodies: references } }
+  }
   if (feature.type === 'combine') return feature.operation === 'subtract'
     ? { ...feature, target: first, tools: references.slice(1) }
     : { ...feature, operands: references }
@@ -109,7 +113,7 @@ function catalogFingerprint(catalog: BodyCommandCatalog, features: readonly Feat
   return fingerprint([catalog.active, references.sort()])
 }
 
-function selectionFingerprint(selection: readonly BodyReference[], catalog: BodyCommandCatalog): string {
+function selectionFingerprint(selection: readonly BodyReference[], catalog: BodyCommandCatalog, historicalSources?: readonly Feature[]): string {
   if (!Array.isArray(selection) || selection.length > 256) throw new Error('La selección de cuerpos no es válida.')
   const ids = new Set<string>()
   const references: string[] = []
@@ -117,7 +121,11 @@ function selectionFingerprint(selection: readonly BodyReference[], catalog: Body
     if (!Object.hasOwn(selection, index)) throw new Error('La selección contiene un cuerpo ausente.')
     const reference = selection[index]
     if (!reference || !identifier(reference.bodyId) || !identifier(reference.sourceFeatureId) || ids.has(reference.bodyId)) throw new Error('La selección contiene una identidad duplicada o no válida.')
-    if (catalog.bodies.filter(body => sameBodyReference(body.ref, reference)).length !== 1) throw new Error('La selección de cuerpos ha quedado obsoleta.')
+    if (historicalSources) {
+      const source = historicalSources.find(feature => feature.id === reference.sourceFeatureId)
+      if (!source || source.suppressed || !featureBodyOutputIds(source).includes(reference.bodyId)
+        || !bodyReferenceCreationFeatureId(historicalSources, reference)) throw new Error('La selección histórica no pertenece a una salida anterior disponible.')
+    } else if (catalog.bodies.filter(body => sameBodyReference(body.ref, reference)).length !== 1) throw new Error('La selección de cuerpos ha quedado obsoleta.')
     ids.add(reference.bodyId)
     references.push(key(reference))
   }
@@ -127,6 +135,11 @@ function selectionFingerprint(selection: readonly BodyReference[], catalog: Body
 function sourceFeatures(state: BodyCommandState): Feature[] {
   const index = state.document.features.findIndex(feature => feature.id === state.feature.id)
   return state.document.features.slice(0, index < 0 ? state.document.features.length : index)
+}
+
+function historicalSelectionSources(feature: Feature, sources: readonly Feature[]): readonly Feature[] | undefined {
+  return (feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror')
+    && feature.source.mode === 'bodies' && feature.source.scope === 'historical' ? sources : undefined
 }
 
 /**
@@ -139,11 +152,18 @@ export function prepareBodyCommand(state: BodyCommandState): BodyCommandPreparat
     if (!isBodyCommandFeature(state.feature)) throw new Error('La operación conserva el modo agregado anterior; no se convierte automáticamente.')
     const sources = sourceFeatures({ ...state, document })
     const catalog = catalogFingerprint(state.catalog, sources)
-    const selection = selectionFingerprint(state.selection, state.catalog)
-    const references = featureBodyReferences(state.feature)
+    const historicalSources = historicalSelectionSources(state.feature, sources)
+    const selection = selectionFingerprint(state.selection, state.catalog, historicalSources)
+    const references = featureCurrentBodyReferences(state.feature)
     if (references.length && !state.catalog.active) throw new Error('Selecciona cuerpos de un catálogo activo.')
     for (const reference of references) {
       if (state.catalog.bodies.filter(body => sameBodyReference(body.ref, reference)).length !== 1) throw new Error('Un cuerpo de la operación no está disponible en el estado mostrado.')
+    }
+    if (historicalSources && (state.feature.type === 'linearPattern' || state.feature.type === 'circularPattern' || state.feature.type === 'mirror') && state.feature.source.mode === 'bodies') {
+      // Structural availability is checked here; native materialization belongs
+      // to the exact preview, including skipped/retired historical outputs.
+      selectionFingerprint(state.feature.source.bodies, state.catalog, historicalSources)
+      if (!state.catalog.active) throw new Error('La repetición explícita requiere un catálogo activo.')
     }
     if ((state.feature.type === 'extrude' || state.feature.type === 'revolve' || state.feature.type === 'sweep' || state.feature.type === 'loft') && state.feature.bodyOperation?.mode === 'new' && !state.catalog.active
       && sources.some(feature => feature.type !== 'sketch' && feature.type !== 'plane' && !isBodyCommandFeature(feature))) {
@@ -175,7 +195,7 @@ export function applyBodyCommand(plan: BodyCommandPlan, state: BodyCommandState,
     if (!proof) throw new Error('La propuesta no está disponible o ya se aplicó.')
     if (!preview.healthy || preview.features !== plan.previewFeatures) throw new Error('Espera una vista previa válida de esta propuesta.')
     if (fingerprint(state.document) !== proof.source || fingerprint(state.feature) !== proof.feature
-      || selectionFingerprint(state.selection, state.catalog) !== proof.selection
+      || selectionFingerprint(state.selection, state.catalog, historicalSelectionSources(state.feature, sourceFeatures(state))) !== proof.selection
       || catalogFingerprint(state.catalog, sourceFeatures(state)) !== proof.catalog) {
       throw new Error('La pieza, selección o configuración ha cambiado. Revisa la nueva vista previa.')
     }

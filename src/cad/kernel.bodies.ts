@@ -314,6 +314,54 @@ export class NativeBodyCatalog {
       entry({ ...source, lineage: advanceLineage(source.lineage, [source.ref.bodyId, 'new']) }, owners.own(copyBodyShape(borrowedShape)))]);
   }
 
+  /** All copies are validated and transferred together; the source catalog stays borrowed. */
+  stageNewMany(additions: readonly { metadata: NativeBodyMetadata; shape: Shape3D }[]): NativeBodyTransaction {
+    this.available();
+    if (!Array.isArray(additions) || additions.length < 1 || additions.length > MAX_BODIES
+      || this.values.length + additions.length > MAX_BODIES) {
+      throw new Error('Las copias superan el límite de 256 cuerpos activos.');
+    }
+    const identities = new Set(this.values.map(item => item.ref.bodyId));
+    const sources: NativeBodyMetadata[] = [];
+    for (let index = 0; index < additions.length; index++) {
+      if (!Object.hasOwn(additions, index)) throw new Error('La lista de copias contiene posiciones vacías.');
+      const source = metadata(additions[index]?.metadata);
+      if (identities.has(source.ref.bodyId)) throw new Error('La identidad de una copia de cuerpo ya existe.');
+      if (!additions[index].shape || typeof additions[index].shape.clone !== 'function') throw new Error('Una copia no contiene geometría de cuerpo.');
+      identities.add(source.ref.bodyId); sources.push(source);
+    }
+    return this.stage(owners => [
+      ...this.values.map(item => entry(item, owners.own(item.shape.clone()))),
+      ...sources.map((source, index) => entry({ ...source,
+        lineage: advanceLineage(source.lineage, [source.ref.bodyId, 'new']) },
+      owners.own(copyBodyShape(additions[index].shape)))),
+    ]);
+  }
+
+  /** Only the final union must be connected: a later copy may bridge earlier islands. */
+  stageMergeMany(ref: BodyReference, borrowedTools: readonly Shape3D[], update: NativeBodyStateUpdate): NativeBodyTransaction {
+    const selected = this.resolve(ref), state = updated(selected, update);
+    if (!Array.isArray(borrowedTools) || borrowedTools.length < 1 || borrowedTools.length > 512) {
+      throw new Error('Selecciona entre 1 y 512 copias para añadir material.');
+    }
+    for (let index = 0; index < borrowedTools.length; index++) {
+      if (!Object.hasOwn(borrowedTools, index)) throw new Error('La lista de copias contiene posiciones vacías.');
+      validateBodyShape(borrowedTools[index]);
+    }
+    return this.stage(owners => {
+      let result = owners.own(selected.shape.clone());
+      for (const borrowed of borrowedTools) {
+        const tool = owners.own(borrowed.clone()), next = owners.own(bodyBoolean('add', result, tool));
+        if (next === result || next === tool) throw new Error('La unión de copias no tiene un propietario independiente.');
+        owners.release(result); owners.release(tool); result = next;
+      }
+      validateBodyShape(result);
+      return this.values.map(item => item === selected
+        ? entry(state, owners.own(copyBodyShape(result)))
+        : entry(item, owners.own(item.shape.clone())));
+    });
+  }
+
   stageMerge(ref: BodyReference, borrowedTool: Shape3D, update: NativeBodyStateUpdate): NativeBodyTransaction {
     const selected = this.resolve(ref), state = updated(selected, update);
     return this.stage(owners => {

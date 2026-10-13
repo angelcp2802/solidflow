@@ -5,6 +5,8 @@ export function featureBodyReferences(feature: Feature): BodyReference[] {
   let references: readonly BodyReference[] = []
   if (feature.type === 'combine') {
     references = feature.operation === 'subtract' ? [feature.target, ...feature.tools] : feature.operands
+  } else if ((feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror') && feature.source.mode === 'bodies') {
+    references = [...feature.source.bodies, ...(feature.bodyPattern?.mode === 'merge' ? [feature.bodyPattern.target] : [])]
   } else if ((feature.type === 'extrude' || feature.type === 'revolve' || feature.type === 'sweep' || feature.type === 'loft') && feature.bodyOperation?.mode === 'merge') {
     references = [feature.bodyOperation.target]
   } else if (feature.type === 'extrude' && feature.bodyOperation?.mode === 'new'
@@ -18,8 +20,20 @@ export function featureBodyReferences(feature: Feature): BodyReference[] {
   return references.map(reference => ({ ...reference }))
 }
 
+/** Inputs that must resolve in the current catalog; historical seeds are separate. */
+export function featureCurrentBodyReferences(feature: Feature): BodyReference[] {
+  if ((feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror') && feature.source.mode === 'bodies') {
+    return [...(feature.source.scope === 'current' ? feature.source.bodies : []),
+      ...(feature.bodyPattern?.mode === 'merge' ? [feature.bodyPattern.target] : [])].map(reference => ({ ...reference }))
+  }
+  return featureBodyReferences(feature)
+}
+
 /** IDs allocated by this command, including when the feature is suppressed. */
 export function createdBodyIds(feature: Feature): string[] {
+  if ((feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror') && feature.bodyPattern?.mode === 'new') {
+    return feature.bodyPattern.instances.map(instance => instance.bodyId)
+  }
   if (feature.type === 'combine' && feature.operation !== 'subtract') return [feature.resultBodyId]
   if ((feature.type === 'extrude' || feature.type === 'revolve' || feature.type === 'sweep' || feature.type === 'loft') && feature.bodyOperation?.mode === 'new') {
     return [feature.bodyOperation.bodyId]
@@ -29,6 +43,9 @@ export function createdBodyIds(feature: Feature): string[] {
 
 /** Bodies explicitly created or modified, not every body visible at this step. */
 export function featureBodyOutputIds(feature: Feature): string[] {
+  if ((feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror') && feature.bodyPattern?.mode === 'merge') {
+    return [feature.bodyPattern.target.bodyId]
+  }
   if (feature.type === 'combine') {
     return feature.operation === 'subtract' ? [feature.target.bodyId] : [feature.resultBodyId]
   }
@@ -56,7 +73,10 @@ export function bodyReferenceCreationFeatureId(features: readonly Feature[], ref
     const feature = features[index]
     if (createdBodyIds(feature).includes(current.bodyId)) return feature.id
     if (!featureBodyOutputIds(feature).includes(current.bodyId)) return null
-    const source = featureBodyReferences(feature).filter(candidate => candidate.bodyId === current.bodyId)
+    // Historical seeds may share the target identity. Only the modifying target
+    // continues that identity's creation chain; copied inputs never do.
+    const source = (feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror') && feature.bodyPattern?.mode === 'merge'
+      ? [feature.bodyPattern.target] : featureBodyReferences(feature).filter(candidate => candidate.bodyId === current.bodyId)
     if (source.length !== 1) return null
     current = source[0]
     before = index

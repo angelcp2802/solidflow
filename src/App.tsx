@@ -104,6 +104,7 @@ import { BodyList, BodyFeaturePanel } from "./components/BodyManagementPanel";
 import { bodySelectionDtos } from "./cad/body-selection";
 import { applyBodyCommand, prepareBodyCommand, isBodyCommandFeature, sameBodyReference, withBodySelection } from "./model/bodyCommands";
 import { createdBodyIds, featureBodyReferences } from "./model/bodyReferences";
+import { reconcileBodyPatternDraft } from "./model/bodyPatterns";
 import { createEdgeSelectionIndex, createFaceSelectionIndex } from "./cad/selection.references";
 import ExtrudePanel from "./components/ExtrudePanel";
 import HolePanel, { type HoleSection } from "./components/HolePanel";
@@ -452,7 +453,8 @@ export default function App() {
               (selectedFeature ? featureSketchIds(selectedFeature)[0] : ""),
         ) as SketchFeature | undefined);
   const sourceFeatures = useMemo(() => {
-    if (!editing || !["fillet", "chamfer", "mirror", "shell", "draft", "extrude", "cut", "hole", "revolve", "sweep", "loft", "combine"].includes(editing.type)) return null;
+    if (!editing || !["fillet", "chamfer", "mirror", "shell", "draft", "extrude", "cut", "hole", "revolve", "sweep", "loft", "combine"].includes(editing.type)
+      && !(isRepetition(editing) && editing.source.mode === 'bodies')) return null;
     const index = doc.features.findIndex(feature => feature.id === editing.id);
     return doc.features.slice(0, index < 0 ? doc.features.length : index);
   }, [doc.features, editing?.id, editing?.type]);
@@ -593,7 +595,8 @@ export default function App() {
     );
     setEditing(structuredClone(feature));
     bodyOutputId.current = createdBodyIds(feature)[0] ?? crypto.randomUUID();
-    setBodySelection(featureBodyReferences(feature));
+    setBodySelection(isRepetition(feature) && feature.source.mode === 'bodies'
+      ? feature.source.bodies.map(ref => ({ ...ref })) : featureBodyReferences(feature));
     setBodyPicking(feature.type === "combine");
     setFinishPreview(false);
     setFacePreview(false);
@@ -1338,17 +1341,18 @@ export default function App() {
         featureIds: [seed.id],
       },
     };
+    let draft: RepetitionFeature;
     if (type === "linearPattern")
-      setEditing({
+      draft = {
         ...common,
         type,
         first: { direction: [1, 0, 0], spacing: 20, count: 3 },
         second: null,
         secondSeedOnly: false,
         skipped: [],
-      });
+      };
     else if (type === "circularPattern")
-      setEditing({
+      draft = {
         ...common,
         type,
         axis: { origin: [0, 0, 0], direction: [0, 0, 1] },
@@ -1357,9 +1361,9 @@ export default function App() {
         equalSpacing: true,
         reversed: false,
         skipped: [],
-      });
+      };
     else
-      setEditing({
+      draft = {
         ...common,
         type,
         support:
@@ -1373,7 +1377,13 @@ export default function App() {
                     : "YZ",
               },
         mergeBodies: false,
-      });
+      };
+    if (model?.bodyCatalogActive) {
+      const seeds = (bodySelection.length ? bodySelection : (model.bodies?.slice(0, 1).map(body => body.ref) ?? [])).map(ref => ({ ...ref }));
+      draft = reconcileBodyPatternDraft({ ...draft, source: { mode: 'bodies', scope: 'current', bodies: seeds }, bodyPattern: { mode: 'new', instances: [] } });
+      setBodySelection(seeds); setBodyPicking(true);
+    }
+    setEditing(draft);
     setSelectionMode("body");
     setFaceSelection(null);
     setPickingSupport(false);
@@ -1688,19 +1698,30 @@ export default function App() {
   const changeDraft = (patch: Partial<Feature>) => {
     if (!editing) return;
     const merged = { ...editing, ...patch } as Feature;
-    const next = isBodyCommandFeature(merged) ? withBodySelection(merged, bodySelection) : merged;
+    const ownedPattern = isRepetition(merged) && merged.source.mode === 'bodies' ? merged : null;
+    const selection = ownedPattern?.source.mode === 'bodies' ? ownedPattern.source.bodies : bodySelection;
+    let next = isBodyCommandFeature(merged) ? withBodySelection(merged, selection) : merged;
+    let reconciliationError = '';
+    if (isRepetition(next) && next.source.mode === 'bodies') {
+      try { next = reconcileBodyPatternDraft(next, undefined, doc.features.find(feature => feature.id === next.id && isRepetition(feature)) as RepetitionFeature | undefined); }
+      catch (error) { reconciliationError = error instanceof Error ? error.message : String(error); }
+      if ('source' in patch) setBodySelection(selection.map(ref => ({ ...ref })));
+    }
     if (JSON.stringify(next) === JSON.stringify(editing)) return;
     if (editing.type === "sketch") {
       setSketchPast((old) => [...old, structuredClone(editing)].slice(-100));
       setSketchFuture([]);
     }
-    setError("");
+    setError(reconciliationError);
     setEditing(next);
   };
   const chooseBodySelection = (references: BodyReference[]) => {
-    setBodySelection(references.map(ref => ({ ...ref })));
     if (editing && isBodyCommandFeature(editing)) {
-      const changed = withBodySelection(editing, references);
+      let changed = withBodySelection(editing, references);
+      if (isRepetition(changed) && changed.source.mode === 'bodies') {
+        try { changed = reconcileBodyPatternDraft(changed, undefined, doc.features.find(feature => feature.id === changed.id && isRepetition(feature)) as RepetitionFeature | undefined); }
+        catch (error) { setError(error instanceof Error ? error.message : String(error)); return; }
+      }
       if (isEdgeFinish(changed) && JSON.stringify(changed.bodyScope) !== JSON.stringify(editing.type === "fillet" || editing.type === "chamfer" ? editing.bodyScope : undefined)) {
         changed.selection = { mode: "selected", edges: [] };
         setFinishPreview(false);
@@ -1711,6 +1732,7 @@ export default function App() {
       }
       setEditing(changed); setBodyPicking(true); setError("");
     }
+    setBodySelection(references.map(ref => ({ ...ref })));
   };
   const toggleBody = (reference: BodyReference) => {
     if (editing && !bodyPicking) return;
@@ -2783,7 +2805,7 @@ export default function App() {
                   onChange={(e) => changeDraft({ name: e.target.value })}
                 />
               </div>
-              {isBodyCommandFeature(editing) && editing.type !== "sweep" && editing.type !== "loft" && <BodyFeaturePanel
+              {isBodyCommandFeature(editing) && editing.type !== "sweep" && editing.type !== "loft" && !isRepetition(editing) && <BodyFeaturePanel
                 feature={editing} outputBodyId={bodyOutputId.current}
                 existing={doc.features.some(feature => feature.id === editing.id)}
                 bodies={sourceModel?.bodies ?? []} selection={bodySelection}
@@ -3144,6 +3166,12 @@ export default function App() {
                   feature={editing}
                   features={availableFeatures}
                   planes={availablePlanes}
+                  bodyEditor={editing.source.mode === 'bodies' ? {
+                    bodies: sourceModel?.bodies ?? [], existing: doc.features.some(feature => feature.id === editing.id),
+                    picking: bodyPicking, loading: sourceLoading || sourceBuiltFeatures !== sourceFeatures,
+                    onSelection: chooseBodySelection, onPicking: setBodyPicking,
+                    message: bodyCommand && !bodyCommand.accepted ? bodyCommand.message : undefined,
+                  } : undefined}
                   onChange={(patch) => {
                     if ("support" in patch && patch.support)
                       changeSupport(patch.support);

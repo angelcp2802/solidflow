@@ -1,5 +1,88 @@
 # Validation
 
+## Explicit body patterns — initial local evidence, 2026-10-13
+
+This proposed increment branches from `92a8747f421e69fc44daa1d83d287e3e82ef9fb1`;
+it is not merged into the default branch. The [contract](BODY_PATTERNS.md) covers
+linear/circular patterns and mirror with exact current/historical body seeds,
+saved instance identities, committed retirement and one atomic new-body or
+targeted-merge transaction. [PROVENANCE](PROVENANCE.md) gives the original
+analytical coordinates, formulas, units and tolerances. Earlier evidence below
+retains its original source scope and does not validate this increment.
+
+The following are recording-time snapshots on Windows x64 with Node 24.11.1
+and Vitest 5.0.3. Every completed command below recorded 243 runtime input
+hashes unchanged before/after, with no recorded environment overrides.
+Different snapshots include the corrections described here; a pass on an
+earlier snapshot is not a pass on every later file. No local run was filtered
+unless explicitly stated.
+
+- Initial `npm run build`: exit 1, TS2339 in the residual legacy repetition
+  branch after adding the source union. A defensive residual-mode guard fixed
+  that type error. Log SHA-256
+  `d763d9d614f5b096d5fe3d9ea58662cb74b9bc89ade4ec5d7be3485d9bf027dc`.
+- A subsequent pre-selector-refinement `npm run build`: PASS, 1,982 modules,
+  Vite 55.56 s. The later indexed historical selector and final raw pre-scans
+  were not yet present in this build. Log SHA-256
+  `e27c56d48389806d98bb8550f163513eb25b411eeaabdf1db868ae689f35ec65`.
+- Initial focused pure command over `bodyPatterns`, `bodyPatternCommands`,
+  `PatternPanel.bodies`, and the existing `patterns`, `bodyReferences`,
+  `bodyCommands`, `bodySweepLoft`, `BodyManagementPanel` files: 158 passed and
+  two failed out of 160, across eight files, 74.38 s. One new circular-panel
+  assertion counted the equal-spacing checkbox outside the seed list; it now
+  counts only seed controls. The new 65,536-saved-ID boundary case exceeded
+  the default 5 s budget (reported 23.237 s). Its full-size threshold and
+  one-over-limit rejection remain unchanged; that new stress case now has an
+  explicit 60 s budget. Existing public test budgets were not changed.
+  Log SHA-256
+  `12738b14521a177f3e501eb995283ac81fb0ad228eba6ea0debec84d60c8d5d1`.
+- Corrected focused pure command over the same eight files: PASS, all 160
+  cases, 54.62 s, no skips. This includes 31 new model cases, 19 new command
+  cases and nine rendered-control cases, including an 8,192-slot history
+  ledger with bounded displayed choices. These are programmatic/model and
+  server-rendered component checks, not real pointer/keyboard interaction.
+  Log SHA-256
+  `ffb92a7bfb8b61564ff41ea68d08904bcbcb2df41a71405af583072a15a19755`.
+- Initial `npm run test:unit -- src/cad/kernel.body-patterns.test.ts`: exit 1,
+  15 passed and six failed out of 21, one file, 678.63 s. Three raw-declaration
+  matrices exposed an uncaught `source:null` TypeError in the numerical-mode
+  pre-scan before the per-feature error boundary. Three other cases exceeded
+  60 s: the current two-seed skipped grid, nested historical output and its
+  selective cut, and history/reopen/retired-domain reconstruction. No geometric
+  assertion failure was reported for those timed-out cases, but their outcomes
+  remain unproved by this run. Log SHA-256
+  `503524f1622ae20cd60d8a6c1b8bdf0e097b7d48bece11207143799279276df8`.
+
+After that native run, the numerical-mode scan was changed to inspect field
+presence without walking raw operands. Optional source, face-support and
+surface-target pre-scans now leave malformed payloads for their per-feature
+rejection instead of throwing globally. A static review of the current plain
+payload paths found no additional pre-loop escape in the new repetitions;
+this is not arbitrary getter/proxy coverage or a native leak proof.
+Two same-seed merge cases were added to distinguish the current target's
+creation chain from a copied historical state. The current native file has
+23 cases. At this initial snapshot, the focused correction, final build,
+full `npm test`, desktop smoke and hosted platform checks were still pending;
+their results must be recorded separately before requesting review.
+
+Subsequent focused correction on the current 243-input source:
+`npm run test:unit -- src/cad/kernel.body-patterns.test.ts -t boundary` PASS,
+five cases in one file, with 18 explicitly filtered skips, 138.87 s. This covers
+the three raw-declaration matrices (including attributed null/missing mirror
+face-support pre-scans) and current/historical same-seed target merges.
+It does not rerun or resolve the three earlier native timeouts. Inputs were
+unchanged before/after; no environment override was recorded. Log SHA-256
+`eae38c7ac98eea721c69fd4acf4b350e91f4c28fb8b01b79b06ac7c5067273af`.
+
+The native oracles use closed BReps, solid counts, per-body volume/area within
+5e−6 and bounds within 5e−7 mm. New native cases and initialization retain
+60 s budgets. STEP export reconstructs the committed snapshot in a fresh
+engine and reimports with the same kernel; it does not prove independent
+interoperability or preservation of opaque IDs in exchange files. Geometry
+tests and rendered controls do not establish general platform support or full
+editor acceptance. Feature-delta replay in a body catalog, legacy adoption,
+broader interaction/reference coverage and the other CAD modules remain open.
+
 ## Shared body-operation guard integration — 2026-10-13
 
 This integration combines the body correction at

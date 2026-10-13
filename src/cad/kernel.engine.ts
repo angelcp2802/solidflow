@@ -15,6 +15,7 @@ import type {
   Feature,
   EdgeFinishFeature,
   FaceReference,
+  BodyReference,
   ExtrudeFeature,
   Plane,
   PlaneFrame,
@@ -37,8 +38,10 @@ import { holePositionStructure, holeSolid } from './kernel.holes';
 import { importStepSolid } from './kernel.step';
 import { entityProfilePrismIfSingleRegion, type OwnedEntityPrism } from './kernel.provenance';
 import { entityPrismContextFromFeatures } from './kernel.semantic-context';
-import { bodyBoolean, copyBodyShape, NativeBodyCatalog, type NativeBodyTransaction } from './kernel.bodies';
+import { bodyBoolean, copyBodyShape, NativeBodyCatalog, type NativeBodyEntry, type NativeBodyTransaction } from './kernel.bodies';
 import { createdBodyIds, featureBodyReferences } from '../model/bodyReferences';
+import { MAX_CREATED_BODY_IDS, validateBodyPatternDeclaration } from '../model/bodyPatterns';
+import { bodyPatternCopy } from './kernel.body-patterns';
 import {
   createSemanticFaceCatalog, createSemanticEdgeCatalog, preparePrismReferencesV2,
   pickableSemanticFaces, pickableSemanticEdges, resolveSemanticFaceReference,
@@ -317,7 +320,14 @@ export class CadEngine {
 
   build(features: Feature[]): CadResult {
     this.dispose();
-    const accurateMeasurements=features.some(feature=>!feature.suppressed&&(feature.type==='hole'||feature.type==='combine'||featureBodyReferences(feature).length>0||((feature.type==='extrude'||feature.type==='revolve'||feature.type==='sweep'||feature.type==='loft')&&!!feature.bodyOperation)||((feature.type==='extrude'||feature.type==='cut')&&!!feature.endCondition)));
+    // This scan chooses numerical precision, not operand validity. Do not walk
+    // raw reference arrays before the per-feature declaration boundary.
+    const accurateMeasurements = features.some(feature => !feature.suppressed && (
+      feature.type === 'hole' || feature.type === 'combine'
+      || ('bodyScope' in feature && feature.bodyScope !== undefined)
+      || (isRepetition(feature) && (feature.source?.mode === 'bodies' || feature.bodyPattern !== undefined))
+      || ((feature.type === 'extrude' || feature.type === 'revolve' || feature.type === 'sweep' || feature.type === 'loft') && !!feature.bodyOperation)
+      || ((feature.type === 'extrude' || feature.type === 'cut') && !!feature.endCondition)));
     const measuredVolume=(shape:Shape3D):number=>{
       if(!accurateMeasurements)return shapeVolume(shape);
       const oc=getOC(),properties=new oc.GProp_GProps();
@@ -344,16 +354,32 @@ export class CadEngine {
     let featureBodyCommitted = false;
     const prismOwners: OwnedEntityPrism[] = [];
     const repetitions = features.filter(isRepetition).filter((feature) => !feature.suppressed);
-    const wantedDeltas = new Set(repetitions.flatMap((feature) => feature.source.mode === 'features' ? feature.source.featureIds : []));
-    const wantedBodies = new Set(repetitions.flatMap((feature) => feature.source.mode === 'body' ? [feature.source.sourceFeatureId] : []));
+    const wantedDeltas = new Set(repetitions.flatMap((feature) => feature.source?.mode === 'features' ? feature.source.featureIds : []));
+    const wantedBodies = new Set(repetitions.flatMap((feature) => feature.source?.mode === 'body' ? [feature.source.sourceFeatureId] : []));
     const historicalDeltas = new Map<string, FeatureGeometry>();
     const historicalBodies = new Map<string, { body: Shape3D; lineage: string }>();
+    const exactBodyKey = (ref: BodyReference) => JSON.stringify([ref.bodyId, ref.sourceFeatureId]);
+    const wantedExactBodies = new Map<string, BodyReference>();
+    const historicalBodyBudgetErrors = new Set<string>();
+    const historicalExactBodies = new Map<string, NativeBodyEntry>();
+    for (const repetition of repetitions) {
+      if (repetition.source?.mode !== 'bodies' || repetition.source.scope !== 'historical' || !Array.isArray(repetition.source.bodies)) continue;
+      for (const ref of repetition.source.bodies) {
+        if (!ref || typeof ref.bodyId !== 'string' || typeof ref.sourceFeatureId !== 'string') continue;
+        const key = exactBodyKey(ref);
+        if (wantedExactBodies.has(key)) continue;
+        if (wantedExactBodies.size >= 512) { historicalBodyBudgetErrors.add(repetition.id); continue; }
+        wantedExactBodies.set(key, { ...ref });
+      }
+    }
     const wantedLimitFaces = new Set(features.flatMap(feature => !feature.suppressed && (feature.type==='extrude'||feature.type==='cut')
-      && feature.endCondition?.kind==='upToSurface' && feature.endCondition.target.kind==='face'
+      && feature.endCondition?.kind==='upToSurface' && feature.endCondition.target?.kind==='face'
+      && typeof feature.endCondition.target.face?.sourceFeatureId === 'string'
       ? [feature.endCondition.target.face.sourceFeatureId] : []));
     const historicalLimitFaces = new Map<string, FaceCatalog | SemanticFaceCatalog>();
     const referencedSources = new Set([...wantedLimitFaces, ...features.flatMap((feature) =>
       !feature.suppressed && 'support' in feature && feature.support?.kind === 'face'
+        && typeof feature.support.face?.sourceFeatureId === 'string'
         ? [feature.support.face.sourceFeatureId] : [])]);
     const historicalFaces = new Map<string, { entries: SemanticFaceDescriptor[]; lineage: string; semantic: boolean }>();
     const adoptBodyTransaction = (transaction: NativeBodyTransaction): void => {
@@ -385,6 +411,13 @@ export class CadEngine {
     };
     const rememberReferencedSource = (before: Shape3D | null) => {
       if (!body) return;
+      if (bodyCatalog) {
+        for (const [key, ref] of wantedExactBodies) {
+          if (ref.sourceFeatureId !== sourceFeatureId || historicalExactBodies.has(key)) continue;
+          const entry = bodyCatalog.entries().find(item => item.ref.bodyId === ref.bodyId && item.ref.sourceFeatureId === ref.sourceFeatureId);
+          if (entry) historicalExactBodies.set(key, { ...entry, shape: copyBodyShape(entry.shape) });
+        }
+      }
       if (wantedBodies.has(sourceFeatureId)) historicalBodies.set(sourceFeatureId, { body: body.clone(), lineage });
       if (wantedDeltas.has(sourceFeatureId)) {
         const record: FeatureGeometry = { id: sourceFeatureId, order: seenIds.size, lineage };
@@ -465,16 +498,19 @@ export class CadEngine {
       const extraCandidates: Shape3D[] = [];
       let toolSemantic: PrismReferences | undefined;
       let featureFailed = false, featureError: unknown;
-      const bodyAware = createdBodyIds(feature).length > 0 || featureBodyReferences(feature).length > 0;
+      let bodyAware = false;
       try {
+        if (isRepetition(feature)) validateBodyPatternDeclaration(feature);
         if (feature.type === 'extrude' || feature.type === 'revolve' || feature.type === 'sweep' || feature.type === 'loft') {
           validateBodyOperationDeclaration(feature);
         }
+        bodyAware = createdBodyIds(feature).length > 0 || featureBodyReferences(feature).length > 0;
         if (seenIds.has(feature.id)) throw new Error('El identificador de esta operación está duplicado.');
         seenIds.add(feature.id);
         for (const id of createdBodyIds(feature)) {
           if (seenBodyIds.has(id)) throw new Error('El identificador de un cuerpo creado está duplicado, incluso entre operaciones suprimidas.');
           seenBodyIds.add(id);
+          if (seenBodyIds.size > MAX_CREATED_BODY_IDS) throw new Error('El documento supera 65536 identidades de cuerpo guardadas, incluidas las retiradas.');
         }
         if (feature.type !== 'sketch' && feature.type !== 'plane' && !bodyAware) legacySolidSeen = true;
         if (feature.type === 'plane') {
@@ -543,6 +579,53 @@ export class CadEngine {
           rememberReferencedSource(beforeForRecord);
           continue;
         }
+        if (isRepetition(feature) && feature.source.mode === 'bodies') {
+          solidFeatureIds.add(feature.id);
+          if (!bodyCatalog || !body) throw new Error('Las copias explícitas requieren un catálogo de cuerpos; la geometría antigua no se adopta automáticamente.');
+          if (!solidFeatureIds.has(feature.baseFeatureId) || feature.baseFeatureId === feature.id
+            || unavailableFeatureIds.has(feature.baseFeatureId) || sourceFeatureId !== feature.baseFeatureId) {
+            throw new Error('El predecesor de la matriz o simetría no está disponible. Recupera la base.');
+          }
+          if (historicalBodyBudgetErrors.has(feature.id)) throw new Error('El documento supera 512 estados históricos de cuerpo requeridos por patrones.');
+          const source = feature.source, operation = feature.bodyPattern!;
+          const seeds = source.bodies.map(ref => {
+            if (source.scope === 'current') return bodyCatalog!.resolve(ref);
+            const entry = historicalExactBodies.get(exactBodyKey(ref));
+            if (!entry) throw new Error('No está disponible el estado histórico exacto del cuerpo semilla. Recupera la selección.');
+            return entry;
+          });
+          // Resolve every operand before constructing any candidate.
+          if (operation.mode === 'merge') bodyCatalog.resolve(operation.target);
+          const support = feature.type === 'mirror' ? resolveSupport(feature.support) : null;
+          if (feature.type === 'mirror' && !support) throw new Error('No está disponible el plano de la simetría de cuerpos.');
+          const plan = patternPlan(feature, support?.frame);
+          const applications = seeds.length * plan.transforms.length;
+          if (applications > 512) throw new Error('La matriz supera 512 aplicaciones de cuerpos semilla.');
+          if (operation.mode === 'new' && bodyCatalog.entries().length + applications > 256) throw new Error('Las copias superan el límite de 256 cuerpos activos.');
+          const nextLineage = advanceLineage(lineage, [feature.id, feature.type, 'owned-body-pattern', source.scope,
+            seeds.map(seed => [seed.ref, seed.lineage]), plan.structure, support?.lineage ?? null,
+            operation.mode, operation.mode === 'merge' ? operation.target : null]);
+          const slots = operation.mode === 'new'
+            ? new Map(operation.instances.filter(slot => !slot.retired).map(slot => [JSON.stringify([slot.seedBodyId, slot.address]), slot])) : null;
+          const copies: { metadata: Omit<NativeBodyEntry, 'shape'>; shape: Shape3D }[] = [];
+          for (const transform of plan.transforms) for (const seed of seeds) {
+            const copy = bodyPatternCopy(seed.shape, transform);
+            extraCandidates.push(copy);
+            const slot = slots?.get(JSON.stringify([seed.ref.bodyId, transform.key]));
+            if (operation.mode === 'new' && !slot) throw new Error('Falta la identidad guardada de una copia. Edita el patrón para reconstruir su registro.');
+            copies.push({ shape: copy, metadata: {
+              ref: { bodyId: slot?.bodyId ?? seed.ref.bodyId, sourceFeatureId: feature.id },
+              createdByFeatureId: feature.id, name: `${feature.name} · ${seed.name} · ${transform.key}`,
+              lineage: advanceLineage(seed.lineage, [feature.id, source.scope, seed.ref, transform.key,
+                plan.structure, support?.lineage ?? null, slot?.bodyId ?? null, 'body-copy']),
+            } });
+          }
+          adoptBodyTransaction(operation.mode === 'new' ? bodyCatalog.stageNewMany(copies)
+            : bodyCatalog.stageMergeMany(operation.target, copies.map(copy => copy.shape), { sourceFeatureId: feature.id, lineage: nextLineage }));
+          sourceFeatureId = feature.id; lineage = nextLineage; semantic = undefined;
+          rememberReferencedSource(beforeForRecord);
+          continue;
+        }
         if (bodyCatalog && isRepetition(feature)) {
           throw new Error('Esta operación aún no define sus salidas individuales en el catálogo de cuerpos. Los documentos antiguos conservan su comportamiento.');
         }
@@ -586,6 +669,7 @@ export class CadEngine {
           rememberReferencedSource(beforeForRecord);continue;
         }
         if (isRepetition(feature)) {
+          if (feature.source.mode === 'bodies') throw new Error('La repetición explícita no pudo resolver su catálogo de cuerpos.');
           solidFeatureIds.add(feature.id);
           if (!solidFeatureIds.has(feature.baseFeatureId) || feature.baseFeatureId === feature.id) throw new Error('No se encuentra la operación base anterior de la matriz o simetría.');
           const ids = feature.source.mode === 'features' ? feature.source.featureIds : [feature.source.sourceFeatureId];
@@ -986,6 +1070,7 @@ export class CadEngine {
       const releases = [
         ...[...historicalDeltas.values()].map(record => () => record.delta?.dispose()),
         ...[...historicalBodies.values()].map(record => () => record.body.delete()),
+        ...[...historicalExactBodies.values()].map(record => () => record.shape.delete()),
         ...[...historicalLimitFaces.values()].map(catalog => () => catalog.dispose()),
       ];
       for (const release of releases) { try { release(); } catch (error) { failures.push(error); } }

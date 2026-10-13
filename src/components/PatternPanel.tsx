@@ -9,6 +9,7 @@ import type {
   Vec3,
 } from "../cad/kernel.types";
 import { supportLabel } from "./PlaneSupportPanel";
+import BodyPatternPanel, { type BodyPatternEditor } from "./BodyPatternPanel";
 
 interface Props {
   feature: RepetitionFeature;
@@ -18,6 +19,7 @@ interface Props {
   onPickFace: () => void;
   pickingFace: boolean;
   canPickFace: boolean;
+  bodyEditor?: BodyPatternEditor;
 }
 
 function ValueField({
@@ -162,6 +164,7 @@ export default function PatternPanel({
   onPickFace,
   pickingFace,
   canPickFace,
+  bodyEditor,
 }: Props) {
   const solids = features.filter(
     (candidate) => candidate.type !== "sketch" && candidate.type !== "plane",
@@ -199,7 +202,7 @@ export default function PatternPanel({
   }
   return (
     <>
-      <div className="property-section">
+      {feature.source.mode === 'bodies' ? (bodyEditor && <BodyPatternPanel feature={feature} features={features} editor={bodyEditor} onChange={onChange} />) : <div className="property-section">
         <h3>
           <ChevronDown size={12} /> Elementos a repetir
         </h3>
@@ -325,7 +328,7 @@ export default function PatternPanel({
             </p>
           </>
         )}
-      </div>
+      </div>}
       {feature.type === "linearPattern" ? (
         <>
           <div className="property-section">

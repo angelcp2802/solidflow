@@ -166,12 +166,29 @@ export interface LoftFeature extends FeatureBase {
 /** Exact geometry of selected historical features, or a single complete historical body. */
 export type PatternSource =
   | { mode: 'features'; geometryPattern: true; featureIds: string[] }
-  | { mode: 'body'; sourceFeatureId: string };
+  | { mode: 'body'; sourceFeatureId: string }
+  | { mode: 'bodies'; scope: 'current' | 'historical'; bodies: BodyReference[] };
+
+/** A saved command output slot, never a position in native solid enumeration. */
+export interface BodyPatternInstance {
+  seedBodyId: string;
+  /** Canonical grid address, circular index, or the literal "mirror". */
+  address: string;
+  bodyId: string;
+  /** Retired slots reserve their identity permanently; undo restores the old record. */
+  retired: boolean;
+}
+
+export type BodyPatternOperation =
+  | { mode: 'new'; instances: BodyPatternInstance[] }
+  | { mode: 'merge'; target: BodyReference };
 
 interface RepetitionBase extends FeatureBase {
   /** The immediately preceding active solid operation at creation. */
   baseFeatureId: string;
   source: PatternSource;
+  /** Required with source.mode=bodies; absence preserves the aggregate legacy path. */
+  bodyPattern?: BodyPatternOperation;
 }
 
 export interface LinearPatternDirection {

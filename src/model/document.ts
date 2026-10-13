@@ -1,9 +1,10 @@
-import type { BodyOperation, BodyReference, EdgeReference, EdgeSelection, ExtrudeEndCondition, FaceReference, Feature, HoleEndCondition, HoleHead, HolePosition, LinearPatternDirection, LoftSection, PatternSource, Plane, PlaneSupport, Profile, SketchSupport, SweepPathSegment, Vec3 } from '../cad/kernel.types'
+import type { BodyOperation, BodyPatternOperation, BodyReference, EdgeReference, EdgeSelection, ExtrudeEndCondition, FaceReference, Feature, HoleEndCondition, HoleHead, HolePosition, LinearPatternDirection, LoftSection, PatternSource, Plane, PlaneSupport, Profile, RepetitionFeature, SketchSupport, SweepPathSegment, Vec3 } from '../cad/kernel.types'
 import { isEdgeReferenceKeyV2, isFaceReferenceKeyV2 } from '../cad/kernel.semantic-references'
 import { validateEntityProfile } from '../sketch/validation'
 import { featureDependencyIds, featureSketchIds } from './featureInputs'
 import { validateStepSource } from './stepSource'
 import { createdBodyIds, featureBodyOutputIds, featureBodyReferences } from './bodyReferences'
+import { bodyPatternAddresses, MAX_CREATED_BODY_IDS, validateBodyPatternDeclaration } from './bodyPatterns'
 
 export interface Document {
   version: 1
@@ -124,6 +125,9 @@ function bodyMergeOptions(source: Record<string, unknown>, path: string): { merg
 }
 
 function bodyReferencePath(feature: Feature, index: number, path: string): string {
+  if ((feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror') && feature.source.mode === 'bodies') {
+    return index < feature.source.bodies.length ? `${path}.source.bodies[${index}]` : `${path}.bodyPattern.target`
+  }
   if (feature.type === 'combine') {
     return feature.operation === 'subtract' ? `${path}.${index === 0 ? 'target' : `tools[${index - 1}]`}`
       : `${path}.operands[${index}]`
@@ -148,6 +152,11 @@ function vector(value: unknown, path: string, direction = false): Vec3 {
 
 function patternSource(value: unknown, path: string): PatternSource {
   const source = object(value, path)
+  if (source.mode === 'bodies') {
+    keys(source, ['mode', 'scope', 'bodies'], path)
+    if (source.scope !== 'current' && source.scope !== 'historical') fail(`${path}.scope`, 'ámbito de cuerpos desconocido')
+    return { mode: 'bodies', scope: source.scope, bodies: bodyReferences(source.bodies, `${path}.bodies`, 1, 32) }
+  }
   if (source.mode === 'body') {
     keys(source, ['mode', 'sourceFeatureId'], path)
     return { mode: 'body', sourceFeatureId: entityIdentifier(source.sourceFeatureId, `${path}.sourceFeatureId`) }
@@ -169,8 +178,16 @@ function patternSource(value: unknown, path: string): PatternSource {
 }
 
 function checkPatternApplications(source: PatternSource, copies: number, path: string): void {
-  const seedCount = source.mode === 'features' ? source.featureIds.length : 1
+  const seedCount = source.mode === 'features' ? source.featureIds.length : source.mode === 'bodies' ? source.bodies.length : 1
   if (copies * seedCount > 512) fail(path, 'la repetición supera el límite de 512 aplicaciones de semillas')
+}
+
+function repetitionBodyOptions<T extends RepetitionFeature>(parsed: T, source: Record<string, unknown>, path: string): T {
+  const result = Object.hasOwn(source, 'bodyPattern')
+    ? { ...parsed, bodyPattern: structuredClone(source.bodyPattern) as BodyPatternOperation } : parsed
+  try { validateBodyPatternDeclaration(result) }
+  catch (error) { fail(`${path}.bodyPattern`, error instanceof Error ? error.message : String(error)) }
+  return result
 }
 
 function linearDirection(value: unknown, path: string): LinearPatternDirection {
@@ -611,7 +628,7 @@ function feature(value: unknown, path: string): Feature {
     }
   }
   if (source.type === 'linearPattern') {
-    keys(source, [...baseKeys, 'baseFeatureId', 'source', 'first', 'second', 'secondSeedOnly', 'skipped'], path)
+    keys(source, [...baseKeys, 'baseFeatureId', 'source', 'first', 'second', 'secondSeedOnly', 'skipped'], path, ['bodyPattern'])
     const first = linearDirection(source.first, `${path}.first`)
     const second = source.second === null ? null : linearDirection(source.second, `${path}.second`)
     const secondSeedOnly = boolean(source.secondSeedOnly, `${path}.secondSeedOnly`)
@@ -619,38 +636,38 @@ function feature(value: unknown, path: string): Feature {
     const skipped = linearSkips(source.skipped, `${path}.skipped`, first.count, second?.count ?? 1, secondSeedOnly)
     const instances = secondSeedOnly ? first.count + (second?.count ?? 1) - 1 : first.count * (second?.count ?? 1)
     checkPatternApplications(seeds, instances - skipped.length - 1, path)
-    return {
+    return repetitionBodyOptions({
       ...base, type: 'linearPattern', baseFeatureId: entityIdentifier(source.baseFeatureId, `${path}.baseFeatureId`),
       source: seeds, first, second, secondSeedOnly, skipped,
-    }
+    }, source, path)
   }
   if (source.type === 'circularPattern') {
-    keys(source, [...baseKeys, 'baseFeatureId', 'source', 'axis', 'count', 'angle', 'equalSpacing', 'reversed', 'skipped'], path)
+    keys(source, [...baseKeys, 'baseFeatureId', 'source', 'axis', 'count', 'angle', 'equalSpacing', 'reversed', 'skipped'], path, ['bodyPattern'])
     const axis = object(source.axis, `${path}.axis`)
     keys(axis, ['origin', 'direction'], `${path}.axis`)
     const count = integer(source.count, `${path}.count`, 2, MAX_PATTERN_INSTANCES)
     const seeds = patternSource(source.source, `${path}.source`)
     const skipped = circularSkips(source.skipped, `${path}.skipped`, count)
     checkPatternApplications(seeds, count - skipped.length - 1, path)
-    return {
+    return repetitionBodyOptions({
       ...base, type: 'circularPattern', baseFeatureId: entityIdentifier(source.baseFeatureId, `${path}.baseFeatureId`),
       source: seeds,
       axis: { origin: vector(axis.origin, `${path}.axis.origin`), direction: vector(axis.direction, `${path}.axis.direction`, true) },
       count, angle: number(source.angle, `${path}.angle`, Number.MIN_VALUE, 360),
       equalSpacing: boolean(source.equalSpacing, `${path}.equalSpacing`), reversed: boolean(source.reversed, `${path}.reversed`),
       skipped,
-    }
+    }, source, path)
   }
   if (source.type === 'mirror') {
-    keys(source, [...baseKeys, 'baseFeatureId', 'source', 'support', 'mergeBodies'], path)
+    keys(source, [...baseKeys, 'baseFeatureId', 'source', 'support', 'mergeBodies'], path, ['bodyPattern'])
     const seeds = patternSource(source.source, `${path}.source`)
     const mergeBodies = boolean(source.mergeBodies, `${path}.mergeBodies`)
     if (seeds.mode === 'features' && mergeBodies) fail(`${path}.mergeBodies`, 'la fusión de cuerpos solo se aplica al modo cuerpo')
-    return {
+    return repetitionBodyOptions({
       ...base, type: 'mirror', baseFeatureId: entityIdentifier(source.baseFeatureId, `${path}.baseFeatureId`),
       source: seeds,
       support: support(source.support, `${path}.support`, true), mergeBodies,
-    }
+    }, source, path)
   }
   if (source.type === 'shell') {
     keys(source, [...baseKeys, 'baseFeatureId', 'thickness', 'direction', 'removedFaces'], path, ['bodyScope'])
@@ -710,8 +727,9 @@ export function validateDocument(value: unknown): Document {
     // their existing syntax when no explicit body state is created or modified.
     if (bodyIds.length || bodyRefs.length) entityIdentifier(parsed.id, `${path}.id`)
     for (const bodyId of bodyIds) {
-      if (createdBodies.has(bodyId)) fail(`${path}.${parsed.type === 'combine' ? 'resultBodyId' : 'bodyOperation.bodyId'}`, 'identificador de cuerpo creado duplicado')
+      if (createdBodies.has(bodyId)) fail(`${path}.${parsed.type === 'combine' ? 'resultBodyId' : 'bodyPattern' in parsed ? 'bodyPattern.instances' : 'bodyOperation.bodyId'}`, 'identificador de cuerpo creado duplicado')
       createdBodies.add(bodyId)
+      if (createdBodies.size > MAX_CREATED_BODY_IDS) fail(path, 'el documento supera 65536 identificadores de cuerpo creados, incluidos los retirados')
     }
     bodyRefs.forEach((reference, referenceIndex) => {
       const location = bodyReferencePath(parsed, referenceIndex, path)
@@ -741,7 +759,7 @@ export function validateDocument(value: unknown): Document {
       }
     }
     if (parsed.type === 'linearPattern' || parsed.type === 'circularPattern' || parsed.type === 'mirror') {
-      const references = parsed.source.mode === 'features' ? parsed.source.featureIds : [parsed.source.sourceFeatureId]
+      const references = parsed.source.mode === 'features' ? parsed.source.featureIds : parsed.source.mode === 'body' ? [parsed.source.sourceFeatureId] : []
       references.forEach((id, index) => {
         const seed = seen.get(id)
         if (!seed || seed.type === 'sketch' || seed.type === 'plane') {
@@ -829,7 +847,24 @@ export function updateFeature(document: Document, id: string, patch: Partial<Fea
   if (patch.id !== undefined && patch.id !== id) throw new Error('El identificador de una operación no se puede cambiar.')
   if (patch.type !== undefined && patch.type !== original.type) throw new Error('El tipo de una operación no se puede cambiar.')
   const candidate = { ...original, ...patch } as Feature
-  if (JSON.stringify(createdBodyIds(candidate)) !== JSON.stringify(createdBodyIds(original))) {
+  const repetition = (value: Feature): value is RepetitionFeature => value.type === 'linearPattern' || value.type === 'circularPattern' || value.type === 'mirror'
+  if (repetition(original) && repetition(candidate) && (original.bodyPattern || candidate.bodyPattern)) {
+    const before = original.bodyPattern, after = candidate.bodyPattern
+    if (!before || !after || before.mode !== after.mode) throw new Error('El modo de salida de una repetición guardada no se puede cambiar; crea una operación nueva.')
+    if (before.mode === 'new' && after.mode === 'new') {
+      const seeds = new Set(candidate.source.mode === 'bodies' ? candidate.source.bodies.map(reference => reference.bodyId) : [])
+      const addresses = new Set(bodyPatternAddresses(candidate))
+      if (after.instances.length < before.instances.length) throw new Error('El registro de identificadores de la repetición no se puede reducir.')
+      before.instances.forEach((slot, index) => {
+        const next = after.instances[index]
+        if (!next || slot.bodyId !== next.bodyId || slot.seedBodyId !== next.seedBodyId || slot.address !== next.address
+          || (slot.retired && !next.retired)) throw new Error('Los identificadores y posiciones guardadas no se pueden reasignar ni recuperar después de retirarse.')
+        if (!slot.retired && seeds.has(slot.seedBodyId) && addresses.has(slot.address) && next.retired) {
+          throw new Error('Una posición superviviente debe conservar su identificador activo; solo se retiran posiciones o semillas eliminadas.')
+        }
+      })
+    }
+  } else if (JSON.stringify(createdBodyIds(candidate)) !== JSON.stringify(createdBodyIds(original))) {
     throw new Error('Los identificadores de cuerpos creados no se pueden cambiar en una edición; crea una operación nueva.')
   }
   return withFeatures(document, document.features.map((item) => item.id === id ? candidate : item))

@@ -32,7 +32,7 @@ export function featureDependencyIds(feature: Feature): string[] {
   if (hasBaseFeature(feature)) ids.push(feature.baseFeatureId)
   if (feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror') {
     if (feature.source.mode === 'features') ids.push(...feature.source.featureIds)
-    else ids.push(feature.source.sourceFeatureId)
+    else if (feature.source.mode === 'body') ids.push(feature.source.sourceFeatureId)
   }
   if ('support' in feature && feature.support) {
     if (feature.support.kind === 'plane') ids.push(feature.support.planeId)

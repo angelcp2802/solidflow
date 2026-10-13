@@ -1,5 +1,69 @@
 # Public fixture provenance
 
+## Explicit body repetition fixtures
+
+The inputs in `kernel.body-patterns.test.ts` are original inline Cartesian
+fixtures, in millimeters. They use rectangles, extrusions and exact saved body
+references; no imported private model, external application geometry or native
+solid ordering supplies an expected result. The model/command tests use original
+synthetic records and symbolic healthy-preview receipts, not native geometry.
+The component tests are server-rendered controls, not real editor interaction.
+
+For a box of side lengths x,y,z, V=xyz and A=2(xy+xz+yz). Seed A occupies
+X1..3/Y2..5/Z0..4 (V24/A52); a targeted extension raises its current height to
+Z6 (V36/A72). Seed B is X5..6/Y−7..−5/Z1..4 (V6/A22). Unselected U occupies
+X30..35/Y−6..−4/Z1..4 (V30/A62). A 3×2 grid with X10/Y8 spacing, omitting (2,1),
+creates four copies of each selected seed. The eight copies plus current A, B
+and U have eleven solids: historical seed scope gives V192/A452; current scope
+gives V240/A532. Both aggregates have bounds (1,−7,0) to (35,13,6). Per-copy
+positions are written explicitly in the test, independently of the planner.
+
+For circular copies, S is X4..6/Y1..4/Z0..2 (V12/A32), with axis Z through
+(1,−2,0). Positive quarter turns give bounds (−5,1,0)..(−2,3,2),
+(−4,−8,0)..(−2,−5,2), and (4,−7,0)..(7,−5,2). The seed and these three copies
+have V48/A128. Adding U gives V78/A190 and five solids; reversing direction and
+omitting index 2 gives V66/A158 and four solids. Reflection across X5 follows
+x'=10−x, regardless of the plane normal sign: A maps to X7..9/Y2..5/Z0..4 and B
+to X4..5/Y−7..−5/Z1..4. Seeds, copies and U give V90/A210 and five solids.
+
+For new versus merge, S is X0..2/Y0..3/Z0..4 and T is X3..5/Y0..3/Z0..4,
+each V24/A52. A copy translated X4 occupies X4..6 and remains V24/A52 when
+separate; union with T is X3..6 (V36/A66). A face-tangent X5 copy gives the
+target X3..7 (V48/A80). A second X8 copy is disconnected and must reject the
+whole merge without changing T's original V24/A52. A different bridge fixture
+uses unit seed X0..1 and target X3..4, both Y0..1/Z0..1: the first copy X1..2
+is disconnected, the second X2..3 bridges it, and the final target is X1..4,
+V3/A14. Circular 180-degree and principal-YZ mirror merge cases independently
+produce a V36/A66 target; the seed and U remain unchanged.
+
+Same-identity merge cases use current A at height 6 as the target and translate
+its selected current or historical seed by X2. A current height-6 copy produces
+a 4×3×6 box, V72/A108. A historical height-4 copy gives V36+24=60 and
+A72+52−2*(3*4)=100, with bounds (1,2,0) to (5,5,6). With unchanged B and U the
+aggregates are V108/A192 or V96/A184, respectively, each with three solids.
+The output follows the current target's creation chain, not the copied snapshot.
+
+A nested pattern selects only B's saved output X15..16/Y−7..−5/Z1..4 and copies
+it by Y20 to X15..16/Y13..15/Z1..4. Cutting this output with a radius-1/4,
+height-3 through-hole removes 3π/16 volume; two removed disks total π/8 area and
+the cylindrical wall adds 3π/2, for net area +11π/8. The other five entries stay
+unchanged. Coincident new-copy, consumed historical source, stale-current
+rejection, skip/unskip, committed retirement, undo/redo and reopen cases use
+the same original box records and persisted slot bindings.
+
+Native validity, closed shells and exact solid counts are checked alongside
+per-body volume/area (absolute tolerance 5e−6) and bounds (5e−7 mm). Mesh counts
+and serializable picking metadata are separate checks. New native cases and
+initialization use 60-second budgets. The new saved-ID-boundary stress case
+also has a 60-second budget while checking all 65,536 IDs and one-over-limit
+rejection; its initial default-5-second timeout remains in the validation record.
+Existing test budgets are unchanged. STEP
+export/reimport reconstructs the committed snapshot in the same kernel and
+checks analytical geometry; it does not prove independent interoperability or
+opaque-ID preservation. The [body-pattern contract](BODY_PATTERNS.md) separates
+the independent identity design from observed feature behavior. Executed results
+are recorded separately in [VALIDATION](VALIDATION.md).
+
 ## Explicit sweep and loft body fixtures
 
 The inputs in `kernel.body-sweep-loft.test.ts` are original inline Cartesian

@@ -4,6 +4,11 @@
 
 This is the proposed implementation contract for [issue #26](https://github.com/angelcp2802/solidflow/issues/26), not a record of implemented behavior or passing validation. It covers an editable body catalog, explicit body creation, union/subtract/common, selective cuts, persistence, selection, history and committed-snapshot export. A catalog helper or a panel alone does not complete this workflow.
 
+The proposed [explicit body-pattern increment](BODY_PATTERNS.md) specifies
+individual outputs for linear/circular patterns and mirror, including exact
+current/historical seeds and committed retirement. Its evidence and remaining
+limits do not replace the broader acceptance checklist below.
+
 The proposal is an independent design. No corresponding local Combine runtime observation has been retained. Reviewed operation documentation distinguishes subtraction's principal target from the collection of bodies used by union/intersection. This is documentation-level evidence, not a runtime result; it does not establish persistent identity, tool consumption or retention. Operand consumption, retained tools, identity and rejection policies below are local proposals. Assemblies, drawings and manufacturing remain separate [roadmap](ROADMAP.md) work.
 
 ## Existing behavior to preserve
