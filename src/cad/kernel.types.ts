@@ -143,6 +143,8 @@ export interface SweepFeature extends FeatureBase {
   /** Follow the path without additional twist. */
   orientation: 'followPath';
   merge: boolean;
+  /** When present, merge must match the explicit operation mode. */
+  bodyOperation?: BodyOperation;
 }
 
 export interface LoftSection {
@@ -157,6 +159,8 @@ export interface LoftFeature extends FeatureBase {
   sections: LoftSection[];
   ruled: boolean;
   merge: boolean;
+  /** When present, merge must match the explicit operation mode. */
+  bodyOperation?: BodyOperation;
 }
 
 /** Exact geometry of selected historical features, or a single complete historical body. */

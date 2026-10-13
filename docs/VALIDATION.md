@@ -1,5 +1,46 @@
 # Validation
 
+## Explicit sweep/loft body development snapshot — 2026-10-13
+
+The development branch `feat/body-sweep-loft` extends the body work from
+commit `be9415d8a9070f30b8ea3895094a80a7eb934348`. Sweep and loft can
+persist one new output or one exact merge target; legacy absent-field records
+retain their aggregate behavior. This extension does not complete the
+body-management checklist or define pattern/mirror instance ownership.
+
+Local checks use Windows x64, Node 24.11.1 and Vitest 5.0.3, with unchanged
+public worker settings, time budgets and geometry tolerances:
+
+- `npm run build` passed TypeScript and the 1980-module production build.
+  All 235 recorded source/configuration inputs were unchanged during the run.
+  Log SHA-256: `d257978bdd70bd8644d48897e4499db9a4bdfc3179b5fed23c483ad2b49fa325`.
+- The focused pure suite passed 104 tests in eight files in 64.01 seconds,
+  with all 235 recorded inputs unchanged. It includes 36 additional
+  model/command/SSR cases and the earlier body, selection and panel checks.
+  SSR does not establish actual editor interaction or native geometry.
+  Log SHA-256: `686250740a93dd0f4c4f7298fcd1fec0067653b9db4837c291a467a0d1444dbf`.
+- Focused native validation is running. The new file contains 20 acceptance
+  cases, alongside the existing sweep/loft, catalog and body-workflow files.
+  The current invocation has reported a failure in an earlier sweep case;
+  its final result and failure classification are pending.
+- Full `npm test`, standalone IPC and the production Electron smoke check
+  remain pending for this extension. Earlier hosted results below do not
+  validate these source changes.
+
+The original analytical fixtures and their limits are described in
+[PROVENANCE.md](PROVENANCE.md#explicit-sweep-and-loft-body-fixtures).
+Native volume, area and bounds comparisons use absolute tolerance 5e-6;
+planar picking-frame selection uses 5e-7. Same-kernel STEP checks do not prove
+independent interoperability or transport parametric history/body identity.
+
+```sh
+npm run test:unit -- src/model/bodySweepLoft.test.ts src/model/bodyReferences.test.ts src/model/bodyCommands.test.ts src/components/SweepLoftPanel.bodies.test.tsx src/components/BodyManagementPanel.test.tsx src/cad/body-selection.test.ts src/components/Viewport.bodies.test.ts src/components/ExtrudePanel.body-limit.test.ts
+npm run test:unit -- src/cad/kernel.body-sweep-loft.test.ts src/cad/kernel.sweep-loft.test.ts src/cad/kernel.bodies.test.ts src/cad/kernel.body-workflow.test.ts
+```
+
+The following body snapshot covers its stated earlier source, before this
+sweep/loft extension.
+
 ## Body integration development snapshot — 2026-10-13
 
 The body work is on `feat/body-catalog-combine`, based on the reference
@@ -104,7 +145,8 @@ Native body geometry uses absolute 5e-6 volume/area/bounds comparisons and
 kernel; these cases do not establish independent interoperability or transport
 of parametric history/body IDs through STEP. The initial catalog policy rejects
 empty, disconnected or split outputs requiring undeclared body identities.
-Sweep, loft and repetition producers still need explicit body-output ownership.
+At that earlier source, sweep, loft and repetition producers still needed
+explicit body-output ownership.
 
 ## Evidence scope
 

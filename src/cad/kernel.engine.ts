@@ -297,7 +297,7 @@ export class CadEngine {
 
   build(features: Feature[]): CadResult {
     this.dispose();
-    const accurateMeasurements=features.some(feature=>!feature.suppressed&&(feature.type==='hole'||feature.type==='combine'||featureBodyReferences(feature).length>0||((feature.type==='extrude'||feature.type==='revolve')&&!!feature.bodyOperation)||((feature.type==='extrude'||feature.type==='cut')&&!!feature.endCondition)));
+    const accurateMeasurements=features.some(feature=>!feature.suppressed&&(feature.type==='hole'||feature.type==='combine'||featureBodyReferences(feature).length>0||((feature.type==='extrude'||feature.type==='revolve'||feature.type==='sweep'||feature.type==='loft')&&!!feature.bodyOperation)||((feature.type==='extrude'||feature.type==='cut')&&!!feature.endCondition)));
     const measuredVolume=(shape:Shape3D):number=>{
       if(!accurateMeasurements)return shapeVolume(shape);
       const oc=getOC(),properties=new oc.GProp_GProps();
@@ -520,7 +520,7 @@ export class CadEngine {
           rememberReferencedSource(beforeForRecord);
           continue;
         }
-        if (bodyCatalog && (isRepetition(feature) || feature.type === 'sweep' || feature.type === 'loft')) {
+        if (bodyCatalog && isRepetition(feature)) {
           throw new Error('Esta operación aún no define sus salidas individuales en el catálogo de cuerpos. Los documentos antiguos conservan su comportamiento.');
         }
         if(feature.type==='hole'){
@@ -682,6 +682,12 @@ export class CadEngine {
           continue;
         }
         if (feature.type === 'sweep' || feature.type === 'loft') {
+          const declaredOperation = feature.bodyOperation;
+          if (Object.hasOwn(feature, 'bodyOperation') && (!declaredOperation || typeof declaredOperation !== 'object'
+            || Array.isArray(declaredOperation) || (declaredOperation.mode !== 'new' && declaredOperation.mode !== 'merge'))) {
+            throw new Error('La operación explícita de cuerpo debe ser nueva o añadir material a un cuerpo seleccionado.');
+          }
+          if (bodyCatalog && !feature.bodyOperation) throw new Error('Elige crear un cuerpo nuevo o añadir material a un cuerpo seleccionado.');
           solidFeatureIds.add(feature.id);
           const ids = feature.type === 'sweep' ? [feature.profileSketchId, feature.pathSketchId]
             : feature.sections.map((section) => section.sketchId);
@@ -691,12 +697,16 @@ export class CadEngine {
             return sketch;
           });
           if (inputs.some((sketch) => unavailableFeatureIds.has(sketch.id))) {
+            if (bodyAware) throw new Error('Uno de los croquis del cuerpo seleccionado está suprimido o su soporte no está disponible.');
             unavailableFeatureIds.add(feature.id);
             result.warnings.push(`${feature.name}: omitida porque uno de sus croquis o soportes está suprimido.`);
             continue;
           }
           if (typeof feature.merge !== 'boolean' || (feature.type === 'loft' && typeof feature.ruled !== 'boolean')) {
             throw new Error('Las opciones de fusión o recubrimiento no son válidas.');
+          }
+          if (feature.bodyOperation && feature.merge !== (feature.bodyOperation.mode === 'merge')) {
+            throw new Error('La opción de fusión debe coincidir con la operación explícita de cuerpo.');
           }
           const sections = inputs.map((sketch) => ({ profile: sketch.profile, frame: sketchFrames.get(sketch.id)! }));
           tool = feature.type === 'sweep' ? sweepSolid(feature, sections[0], sections[1]) : loftSolid(feature, sections);
@@ -709,6 +719,25 @@ export class CadEngine {
           const structure = [feature.id, feature.type, feature.merge, inputStructures,
             feature.type === 'sweep' ? [feature.orientation, feature.path.map(({ entityId, reversed }) => [entityId, reversed])]
               : [feature.ruled, feature.sections.map(({ sketchId, startEntityId, reversed }) => [sketchId, startEntityId, reversed])]];
+          if (feature.bodyOperation) {
+            const operation = feature.bodyOperation;
+            const nextLineage = advanceLineage(lineage, [...structure, ['bodyOperation', operation]]);
+            if (operation.mode === 'new') {
+              if (!bodyCatalog && legacySolidSeen) throw new Error('Los cuerpos explícitos deben comenzar antes de cualquier operación sólida antigua, incluso suprimida. Crea una pieza nueva.');
+              if (body && !bodyCatalog) throw new Error('No se pueden asignar cuerpos individuales a un compuesto antiguo de forma implícita. Crea una pieza con cuerpos explícitos.');
+              const emptyCatalog = bodyCatalog === null;
+              const catalog = bodyCatalog ?? new NativeBodyCatalog();
+              try {
+                adoptBodyTransaction(catalog.stageNew({ ref: { bodyId: operation.bodyId, sourceFeatureId: feature.id },
+                  createdByFeatureId: feature.id, name: feature.name, lineage: nextLineage }, tool));
+              } finally { if (emptyCatalog) catalog.dispose(); }
+            } else {
+              if (!bodyCatalog) throw new Error('Selecciona un cuerpo explícito al que añadir material.');
+              adoptBodyTransaction(bodyCatalog.stageMerge(operation.target, tool, { sourceFeatureId: feature.id, lineage: nextLineage }));
+            }
+            sourceFeatureId = feature.id; lineage = nextLineage; semantic = undefined;
+            rememberReferencedSource(beforeForRecord); continue;
+          }
           if (body) {
             candidate = feature.merge ? body.fuse(tool) : makeCompound([body, tool]).asShape3D();
             validateSolid(candidate);

@@ -114,13 +114,22 @@ function bodyOperation(value: unknown, path: string): BodyOperation {
   return fail(`${path}.mode`, 'operación de cuerpo desconocida')
 }
 
+/** Legacy merge remains explicit; contradictory body modes are never guessed. */
+function bodyMergeOptions(source: Record<string, unknown>, path: string): { merge: boolean; bodyOperation?: BodyOperation } {
+  const merge = boolean(source.merge, `${path}.merge`)
+  if (!Object.hasOwn(source, 'bodyOperation')) return { merge }
+  const operation = bodyOperation(source.bodyOperation, `${path}.bodyOperation`)
+  if (merge !== (operation.mode === 'merge')) fail(`${path}.merge`, 'debe coincidir con la operación explícita de cuerpo')
+  return { merge, bodyOperation: operation }
+}
+
 function bodyReferencePath(feature: Feature, index: number, path: string): string {
   if (feature.type === 'combine') {
     return feature.operation === 'subtract' ? `${path}.${index === 0 ? 'target' : `tools[${index - 1}]`}`
       : `${path}.operands[${index}]`
   }
   if (feature.type === 'extrude' && feature.bodyOperation?.mode === 'new') return `${path}.endCondition.baseBody`
-  if (feature.type === 'extrude' || feature.type === 'revolve') return `${path}.bodyOperation.target`
+  if (feature.type === 'extrude' || feature.type === 'revolve' || feature.type === 'sweep' || feature.type === 'loft') return `${path}.bodyOperation.target`
   return `${path}.bodyScope${feature.type === 'cut' || feature.type === 'hole' ? `[${index}]` : ''}`
 }
 
@@ -584,21 +593,21 @@ function feature(value: unknown, path: string): Feature {
     }
   }
   if (source.type === 'sweep') {
-    keys(source, [...baseKeys, 'profileSketchId', 'pathSketchId', 'path', 'orientation', 'merge'], path)
+    keys(source, [...baseKeys, 'profileSketchId', 'pathSketchId', 'path', 'orientation', 'merge'], path, ['bodyOperation'])
     if (source.orientation !== 'followPath') fail(`${path}.orientation`, 'orientación de barrido desconocida')
     return {
       ...base, type: 'sweep',
       profileSketchId: string(source.profileSketchId, `${path}.profileSketchId`, 128),
       pathSketchId: string(source.pathSketchId, `${path}.pathSketchId`, 128),
       path: sweepPath(source.path, `${path}.path`), orientation: 'followPath',
-      merge: boolean(source.merge, `${path}.merge`),
+      ...bodyMergeOptions(source, path),
     }
   }
   if (source.type === 'loft') {
-    keys(source, [...baseKeys, 'sections', 'ruled', 'merge'], path)
+    keys(source, [...baseKeys, 'sections', 'ruled', 'merge'], path, ['bodyOperation'])
     return {
       ...base, type: 'loft', sections: loftSections(source.sections, `${path}.sections`),
-      ruled: boolean(source.ruled, `${path}.ruled`), merge: boolean(source.merge, `${path}.merge`),
+      ruled: boolean(source.ruled, `${path}.ruled`), ...bodyMergeOptions(source, path),
     }
   }
   if (source.type === 'linearPattern') {

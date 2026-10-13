@@ -452,7 +452,7 @@ export default function App() {
               (selectedFeature ? featureSketchIds(selectedFeature)[0] : ""),
         ) as SketchFeature | undefined);
   const sourceFeatures = useMemo(() => {
-    if (!editing || !["fillet", "chamfer", "mirror", "shell", "draft", "extrude", "cut", "hole", "revolve", "combine"].includes(editing.type)) return null;
+    if (!editing || !["fillet", "chamfer", "mirror", "shell", "draft", "extrude", "cut", "hole", "revolve", "sweep", "loft", "combine"].includes(editing.type)) return null;
     const index = doc.features.findIndex(feature => feature.id === editing.id);
     return doc.features.slice(0, index < 0 ? doc.features.length : index);
   }, [doc.features, editing?.id, editing?.type]);
@@ -1201,11 +1201,14 @@ export default function App() {
       );
       return;
     }
+    const explicitBodies = model?.bodyCatalogActive === true || !doc.features.some(feature => feature.type !== "sketch" && feature.type !== "plane" && !isBodyCommandFeature(feature));
+    bodyOutputId.current = crypto.randomUUID();
     const base = {
       id: crypto.randomUUID(),
       name: `${labels[type]}${doc.features.filter((feature) => feature.type === type).length + 1}`,
       suppressed: false,
-      merge: true,
+      merge: !explicitBodies,
+      ...(explicitBodies ? { bodyOperation: { mode: "new" as const, bodyId: bodyOutputId.current } } : {}),
     };
     if (type === "sweep") {
       const paths = inputs.flatMap((sketch) => {
@@ -1252,6 +1255,8 @@ export default function App() {
         ruled: false,
       });
     }
+    setBodySelection([]);
+    setBodyPicking(false);
     setSelectionMode("body");
     setFaceSelection(null);
     setEdgeSelection([]);
@@ -1711,7 +1716,7 @@ export default function App() {
     if (editing && !bodyPicking) return;
     const catalog = editing ? sourceModel : model;
     if (!catalog?.bodyCatalogActive || catalog.bodies?.filter(body => sameBodyReference(body.ref, reference)).length !== 1) return;
-    const single = !!editing && (editing.type === "extrude" || editing.type === "revolve" || isEdgeFinish(editing) || isFaceOperation(editing));
+    const single = !!editing && (editing.type === "extrude" || editing.type === "revolve" || editing.type === "sweep" || editing.type === "loft" || isEdgeFinish(editing) || isFaceOperation(editing));
     chooseBodySelection(bodySelection.some(ref => sameBodyReference(ref, reference))
       ? bodySelection.filter(ref => !sameBodyReference(ref, reference))
       : single ? [{ ...reference }] : [...bodySelection, { ...reference }]);
@@ -2778,7 +2783,7 @@ export default function App() {
                   onChange={(e) => changeDraft({ name: e.target.value })}
                 />
               </div>
-              {isBodyCommandFeature(editing) && <BodyFeaturePanel
+              {isBodyCommandFeature(editing) && editing.type !== "sweep" && editing.type !== "loft" && <BodyFeaturePanel
                 feature={editing} outputBodyId={bodyOutputId.current}
                 existing={doc.features.some(feature => feature.id === editing.id)}
                 bodies={sourceModel?.bodies ?? []} selection={bodySelection}
@@ -3094,7 +3099,20 @@ export default function App() {
                 <SweepLoftPanel
                   feature={editing}
                   sketches={availableSketches}
-                  onChange={changeDraft}
+                  bodyEditor={editing.bodyOperation ? {
+                    bodies: sourceModel?.bodies ?? [], selection: bodySelection,
+                    outputBodyId: bodyOutputId.current, existing: doc.features.some(feature => feature.id === editing.id),
+                    picking: bodyPicking, loading: sourceLoading || sourceBuiltFeatures !== sourceFeatures,
+                    onSelection: chooseBodySelection, onPicking: setBodyPicking,
+                    message: bodyCommand && !bodyCommand.accepted ? bodyCommand.message : undefined,
+                  } : undefined}
+                  onChange={patch => {
+                    if ('bodyOperation' in patch && patch.bodyOperation) {
+                      setBodyPicking(patch.bodyOperation.mode === 'merge');
+                      if (patch.bodyOperation.mode === 'new') setBodySelection([]);
+                    }
+                    changeDraft(patch);
+                  }}
                   onError={(message) => notify(message, true)}
                 />
               ) : isFaceOperation(editing) ? (

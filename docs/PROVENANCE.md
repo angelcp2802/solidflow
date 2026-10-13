@@ -1,5 +1,64 @@
 # Public fixture provenance
 
+## Explicit sweep and loft body fixtures
+
+The inputs in `kernel.body-sweep-loft.test.ts` are original inline Cartesian
+millimeter fixtures. A sweep translates an XY circular section along a
+straight world-Z path saved in an XZ sketch. A loft uses two parallel XY
+circles, explicit local seams, and `ruled:true`; no imported model or external
+application supplies the geometry or expected values.
+
+The first explicit producer creates an R2, height-4 cylinder at Z=0..4:
+volume 16π mm³, area 24π mm² and bounds (-2,-2,0) to (2,2,4).
+Editing the sweep's profile to R3 gives volume 36π and area 42π.
+Editing only the loft's upper radius to R3 gives a height-4 conical frustum:
+volume 76π/3 and area (13+5sqrt(17))π, with radial bounds ±3.
+These follow V=πr²h, A=2πr(r+h), and the frustum formulas
+V=πh(r0²+r0r1+r1²)/3 and
+A=π(r0²+r1²)+π(r0+r1)sqrt(h²+(r1-r0)²).
+
+The scoped workflow starts with cylinder A at Z=0..4 and an independent
+10×6×4 box B from (20,0,0) to (30,6,4), of volume 240 and area 248.
+An R2 producer at Z=4..8 touches A. New-body mode retains A, B and the new
+cylinder as three entries, with aggregate volume 240+32π and area 248+48π.
+Merge into A produces two entries with the same aggregate volume and bounds,
+but area 248+40π. Solid count and exposed contact area therefore distinguish
+explicit creation from an unintended fusion; aggregate volume alone cannot.
+
+Changing the upper sweep profile to R3 makes A a stepped pair of cylinders:
+volume 52π and area 58π, including the exposed radius-2-to-3 step at Z=4.
+The corresponding loft edit makes A a lower R2 cylinder plus the R2-to-R3
+frustum: volume 124π/3 and area (29+5sqrt(17))π. Both have bounds
+(-3,-3,0) to (3,3,8). A radius-1 axial through cut, placed on A's saved
+body-owned top face and scoped only to A, removes 8π and adds net 14π
+of surface area. Distant B retains its reference, creating feature, geometry
+and face/edge picking keys through these edits and document-history states.
+
+Rejection cases select disconnected B while the tool actually touches A,
+retain an obsolete A reference after an explicit height-6 modification,
+retain a consumed A after a coaxial-cylinder union, and suppress either input
+of each producer. The consuming union creates one R2, height-8 result with
+volume 32π and area 40π; its new body identity must not replace a saved A
+operand. These cases require atomic rejection and block export of the errored
+document. Existing absent-field sweep/loft regressions retain the legacy
+`merge` behavior; the new fixtures exercise explicit body operations.
+At the worker/kernel boundary, raw features with contradictory `merge` and
+`bodyOperation` fields, unknown modes, null/undefined operation values or an
+array in place of the operation must also reject without passing through
+document validation first. Structurally loadable, absent-field legacy sweep/loft records
+must reject in an already active catalog for either merge flag, preserving the
+previous body geometry and picking rather than inventing output ownership.
+
+Native volume, area and bounds comparisons use absolute tolerance 5e-6;
+planar picking-frame selection uses 5e-7. Display meshes are not precision
+oracles. Fresh STEP imports check BRep validity, closed shells, solid count
+and an unordered multiset of analytical per-solid metrics. That geometric
+comparison does not assign or recover document IDs from STEP. Saved IDs,
+exact body/source references, reopening and undo/redo are checked separately.
+The STEP round trip uses the same kernel and does not establish independent
+interoperability, real editor interaction or general sweep/loft naming.
+Written fixtures are acceptance cases, not executed validation results.
+
 ## Explicit body management fixtures
 
 The original inputs in kernel.bodies.test.ts, kernel.body-workflow.test.ts and

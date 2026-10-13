@@ -5,7 +5,7 @@ export function featureBodyReferences(feature: Feature): BodyReference[] {
   let references: readonly BodyReference[] = []
   if (feature.type === 'combine') {
     references = feature.operation === 'subtract' ? [feature.target, ...feature.tools] : feature.operands
-  } else if ((feature.type === 'extrude' || feature.type === 'revolve') && feature.bodyOperation?.mode === 'merge') {
+  } else if ((feature.type === 'extrude' || feature.type === 'revolve' || feature.type === 'sweep' || feature.type === 'loft') && feature.bodyOperation?.mode === 'merge') {
     references = [feature.bodyOperation.target]
   } else if (feature.type === 'extrude' && feature.bodyOperation?.mode === 'new'
     && feature.endCondition && feature.endCondition.kind !== 'upToSurface' && feature.endCondition.baseBody) {
@@ -21,7 +21,7 @@ export function featureBodyReferences(feature: Feature): BodyReference[] {
 /** IDs allocated by this command, including when the feature is suppressed. */
 export function createdBodyIds(feature: Feature): string[] {
   if (feature.type === 'combine' && feature.operation !== 'subtract') return [feature.resultBodyId]
-  if ((feature.type === 'extrude' || feature.type === 'revolve') && feature.bodyOperation?.mode === 'new') {
+  if ((feature.type === 'extrude' || feature.type === 'revolve' || feature.type === 'sweep' || feature.type === 'loft') && feature.bodyOperation?.mode === 'new') {
     return [feature.bodyOperation.bodyId]
   }
   return []

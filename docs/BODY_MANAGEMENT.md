@@ -19,7 +19,7 @@ Existing version-1 documents must retain their geometry, feature IDs, saved sele
 
 Legacy aggregates without proved individual provenance can remain visible and exportable under their existing rules. They cannot acquire durable individual targets by enumerating their solids. Any future adoption or migration must be explicit and must prove the producer-to-output correspondence; ambiguous legacy outputs remain unavailable for individual targeting.
 
-The current opt-in boundary is strict: start the catalog with an explicitly saved new-body extrusion or revolution before any legacy solid feature. An earlier legacy solid blocks opt-in even when it is suppressed or currently produces no geometry. Suppressing it is not migration. Earlier explicitly identified body features are not classified as legacy merely because they are suppressed. Mixed documents may remain structurally loadable for repair, but execution must reject unsupported transitions rather than assign identities to their old geometry.
+The current opt-in boundary is strict: start the catalog with an explicitly saved new-body extrusion, revolution, sweep or loft before any legacy solid feature. An earlier legacy solid blocks opt-in even when it is suppressed or currently produces no geometry. Suppressing it is not migration. Earlier explicitly identified body features are not classified as legacy merely because they are suppressed. Mixed documents may remain structurally loadable for repair, but execution must reject unsupported transitions rather than assign identities to their old geometry.
 
 ## Identity, provenance and snapshots
 
@@ -39,7 +39,7 @@ The additive schema below is the selected local design. Union/intersection do no
 | Saved field | Meaning |
 | --- | --- |
 | `BodyReference { bodyId, sourceFeatureId }` | Exact body state at its explicit creating or modifying feature. Current execution must match both fields. |
-| `bodyOperation: { mode:'new', bodyId }` | Explicit new output on an extrusion or revolution. |
+| `bodyOperation: { mode:'new', bodyId }` | Explicit new output on an extrusion, revolution, sweep or loft. |
 | `bodyOperation: { mode:'merge', target:BodyReference }` | Add material to that exact existing target; retain its body ID. |
 | `bodyScope:BodyReference[]` | Nonempty explicit targets of a cut or hole, at most 256 distinct body IDs. |
 | `bodyScope:BodyReference` | One exact target for fillet, chamfer, shell or draft. |
@@ -47,11 +47,11 @@ The additive schema below is the selected local design. Union/intersection do no
 | Combine `operation:'add'\|'common'` | Ordered `operands` (2–256), a fresh persisted `resultBodyId`, and required `keepTools`. |
 | Combine `operation:'subtract'` | One `target`, ordered `tools` (1–255), and required `keepTools`; no new result ID. |
 
-`bodyOperation` belongs to material extrusion and revolution, never to a cut. Absence of these fields retains the legacy path without inserting metadata. Once a body catalog is active, a modifying operation needs its explicit scope; unsupported legacy operations must report an error for repair instead of guessing a single body's ownership. The serializable `PickableBody` DTO includes its exact reference, creating feature, name, display mesh/normals/triangles/edge lines, individual face/edge picking, native volume and bounds. `CadResult.bodies` and `bodyCatalogActive` remain optional for legacy results.
+`bodyOperation` belongs to material extrusion, revolution, sweep and loft, never to a cut. Sweep and loft retain their required legacy `merge` boolean; with an explicit body operation it must equal `bodyOperation.mode === 'merge'`. Parsing and execution reject contradictory settings rather than rewriting them. Absence of these fields retains the legacy path without inserting metadata. Once a body catalog is active, a modifying operation needs its explicit scope; unsupported legacy operations must report an error for repair instead of guessing a single body's ownership. The serializable `PickableBody` DTO includes its exact reference, creating feature, name, display mesh/normals/triangles/edge lines, individual face/edge picking, native volume and bounds. `CadResult.bodies` and `bodyCatalogActive` remain optional for legacy results.
 
 Each supported catalog entry must be bound to exactly one valid closed solid by the producing operation's ownership or verified generation history. A pattern or mirror instance needs its own persisted output identity and exact source/instance provenance. A command-defined instance address may locate a saved output slot; it is not a native solid index. Removing an instance and creating another must not resurrect its deleted ID. Parameter edits may preserve a surviving slot only when that correspondence is established.
 
-Individual catalog outputs for sweep, loft, linear/circular patterns and mirror are not yet defined. The current catalog path rejects these active operations; it does not run their aggregate result and guess individual owners afterward. Legacy-only documents retain their existing implementations. Persistent output/instance ownership for those producers remains pending body-management work, not removed project scope or completed validation.
+Sweep and loft each own one explicit closed-solid output, staged as a new catalog entry or fused with one exact selected target. Their generated tool never implicitly fuses with the scene aggregate. A suppressed input of an explicit producer is a feature error that blocks export; legacy-only documents retain their existing omission behavior. Individual catalog outputs for linear/circular patterns and mirror are not yet defined. The current catalog path still rejects these active repetition operations; it does not run their aggregate result and guess individual owners afterward. Persistent output/instance ownership for those producers remains pending body-management work, not removed project scope or completed validation.
 
 Never identify or reassign a body using native traversal order, an index into `shape.solids`, volume, bounds, position, geometric rank, nearest geometry or a geometric sort. A rebuild may enumerate differently while the saved identities remain unchanged. A split, merge or replaced source does not authorize guessing an output assignment.
 
@@ -178,7 +178,7 @@ Every item is pending for this proposal. Record executed evidence against the ex
 - [ ] Implement actual body-targeted cuts/holes and appropriate downstream finishes/supports; leave unselected bodies and their identities intact.
 - [ ] Preserve legacy `merge:false`, body-pattern/mirror, STEP import and conservative v1 behavior; keep unproved Boolean face/edge correspondence unavailable.
 - [ ] Check the strict opt-in boundary, including suppressed legacy predecessors, without adopting old aggregates or silently skipping unsupported transitions.
-- [ ] Define and validate persistent individual outputs for sweep/loft/pattern/mirror before enabling them in the active catalog; retain the explicit rejection until that ownership is established.
+- [ ] Complete validation of explicit sweep/loft outputs and define persistent individual pattern/mirror outputs; retain the explicit rejection for unproved instance ownership.
 - [ ] Bound and dispose current/historical native owners, clones, catalogs and candidates; send complete serializable body/picking metadata through the worker.
 - [ ] Export the committed body set from a fresh engine snapshot and block incomplete/error-state export.
 

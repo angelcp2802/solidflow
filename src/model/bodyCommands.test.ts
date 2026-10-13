@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { BodyReference, CombineFeature, ExtrudeFeature, Feature, SketchFeature } from '../cad/kernel.types'
-import { DocumentHistory, validateDocument, type Document } from './document'
+import type { BodyReference, CombineFeature, ExtrudeFeature, Feature, LoftFeature, SketchFeature, SweepFeature } from '../cad/kernel.types'
+import { DocumentHistory, parseDocument, serializeDocument, validateDocument, type Document } from './document'
 import { applyBodyCommand, prepareBodyCommand, setBodyOperationDraft, withBodySelection, type BodyCommandPlan, type BodyCommandState } from './bodyCommands'
 
 // Original Cartesian command records. These pure tests do not construct BReps
@@ -33,6 +33,32 @@ function prepared(input: BodyCommandState): BodyCommandPlan {
   return result.plan
 }
 const receipt = (plan: BodyCommandPlan) => ({ features: plan.previewFeatures, healthy: true })
+
+// Original radius-1/radius-2 sections at Z0/Z6 and an axial six-mm path.
+// Command tests validate saved records and receipts, without constructing BReps.
+const advancedSketches = (): SketchFeature[] => [
+  { id: 'advanced-section-0', name: 'Section zero', type: 'sketch', suppressed: false, plane: 'XY', offset: 0,
+    profile: { kind: 'circle', center: [0, 0], radius: 1 } },
+  { id: 'advanced-section-1', name: 'Section six', type: 'sketch', suppressed: false, plane: 'XY', offset: 6,
+    profile: { kind: 'circle', center: [0, 0], radius: 2 } },
+  { id: 'advanced-path', name: 'Axial path', type: 'sketch', suppressed: false, plane: 'XZ', offset: 0,
+    profile: { kind: 'entities', points: [{ id: 'path-end', x: 0, y: 6 }],
+      entities: [{ id: 'path-line', type: 'line', start: 'origin', end: 'path-end', construction: false }], constraints: [] } },
+]
+function advancedFeature(kind: 'sweep' | 'loft'): SweepFeature | LoftFeature {
+  const base = { id: `${kind}-command`, name: 'Original advanced output', suppressed: false,
+    merge: false, bodyOperation: { mode: 'new' as const, bodyId: 'advanced-output-allocated-once' } }
+  return kind === 'sweep' ? { ...base, type: kind, profileSketchId: 'advanced-section-0', pathSketchId: 'advanced-path',
+    path: [{ entityId: 'path-line', reversed: false }], orientation: 'followPath' }
+    : { ...base, type: kind, sections: [0, 1].map(index => ({ sketchId: `advanced-section-${index}`, startEntityId: null, reversed: false })), ruled: false }
+}
+function advancedState(kind: 'sweep' | 'loft'): BodyCommandState {
+  const input = state(advancedFeature(kind))
+  input.document.features.push(...advancedSketches())
+  input.document = validateDocument(input.document)
+  input.selection = []
+  return input
+}
 
 describe('detached body command preparation and application', () => {
   it('keeps a new-body termination independent of merge targets and clears it when changing creation mode', () => {
@@ -215,5 +241,87 @@ describe('detached body command preparation and application', () => {
     expect(plan.previewFeatures.at(-1)?.id).toBe(existing.id)
     expect(plan.document.features.at(-1)?.id).toBe('later-sketch')
     expect(plan.document.features.find(feature => feature.id === existing.id)).toEqual(input.feature)
+  })
+})
+
+describe('explicit sweep and loft body commands', () => {
+  it.each(['sweep', 'loft'] as const)('synchronizes the saved merge flag and exact target for %s drafts', kind => {
+    const original = advancedFeature(kind), before = structuredClone(original)
+    const merged = setBodyOperationDraft(original, { mode: 'merge', target: a })
+    expect(merged).toMatchObject({ merge: true, bodyOperation: { mode: 'merge', target: a } })
+    expect(withBodySelection(merged, [b])).toMatchObject({ merge: true, bodyOperation: { target: b } })
+    expect(withBodySelection(merged, [])).toMatchObject({ bodyOperation: { target: { bodyId: '', sourceFeatureId: '' } } })
+    if (merged.type !== 'sweep' && merged.type !== 'loft') throw new Error('Expected an advanced draft')
+    expect(setBodyOperationDraft(merged, { mode: 'new', bodyId: 'advanced-output-allocated-once' }))
+      .toMatchObject({ merge: false, bodyOperation: { mode: 'new', bodyId: 'advanced-output-allocated-once' } })
+    const inconsistent = advancedState(kind)
+    inconsistent.feature = { ...original, merge: true }
+    expect(prepareBodyCommand(inconsistent).accepted).toBe(false)
+    expect(original).toEqual(before)
+  })
+
+  it.each(['sweep', 'loft'] as const)('rejects stale %s targets and previews without rebinding or history changes', kind => {
+    const input = advancedState(kind)
+    if (input.feature.type !== 'sweep' && input.feature.type !== 'loft') throw new Error('Expected an advanced draft')
+    input.feature = setBodyOperationDraft(input.feature, { mode: 'merge', target: a })
+    input.selection = [a]
+    const plan = prepared(input), history = new DocumentHistory(input.document)
+    expect(applyBodyCommand(plan, input, { features: structuredClone(plan.previewFeatures), healthy: true }).accepted).toBe(false)
+    input.feature = withBodySelection(input.feature, [b]); input.selection = [b]
+    expect(applyBodyCommand(plan, input, receipt(plan)).accepted).toBe(false)
+    input.feature = withBodySelection(input.feature, [{ ...a, sourceFeatureId: 'unavailable-state' }])
+    input.selection = []
+    expect(prepareBodyCommand(input).accepted).toBe(false)
+    expect(history.canUndo).toBe(false)
+    expect(history.current).toEqual(input.document)
+  })
+
+  it.each(['sweep', 'loft'] as const)('preserves a single %s output ID through save, editing and one undo/redo entry', kind => {
+    const input = advancedState(kind), history = new DocumentHistory(input.document), plan = prepared(input)
+    const result = applyBodyCommand(plan, input, receipt(plan))
+    if (!result.accepted) throw new Error(result.message)
+    const reopened = parseDocument(serializeDocument(result.document))
+    expect(reopened.features.at(-1)).toEqual(input.feature)
+    history.apply(reopened)
+    expect(history.undo()).toEqual(input.document)
+    expect(history.canUndo).toBe(false)
+    expect(history.redo()).toEqual(reopened)
+    const saved = reopened.features.at(-1)!
+    if (saved.type !== 'sweep' && saved.type !== 'loft') throw new Error('Expected an advanced saved feature')
+    const edited = saved.type === 'sweep' ? { ...saved, name: 'Edited sweep' } : { ...saved, ruled: !saved.ruled }
+    const editing: BodyCommandState = { ...input, document: reopened, feature: edited }
+    expect(prepared(editing).previewFeatures.at(-1)).toMatchObject({ bodyOperation: { mode: 'new', bodyId: 'advanced-output-allocated-once' } })
+    editing.feature = setBodyOperationDraft(edited, { mode: 'new', bodyId: 'replacement-output' })
+    expect(prepareBodyCommand(editing).accepted).toBe(false)
+  })
+
+  it.each(['sweep', 'loft'] as const)('allows first explicit %s creation but does not adopt a suppressed legacy solid', kind => {
+    const input = advancedState(kind)
+    input.document.features = advancedSketches()
+    input.catalog = { active: false, bodies: [] }
+    expect(prepareBodyCommand(input).accepted).toBe(true)
+    const legacy = producer(a, 'advanced-section-0'); delete legacy.bodyOperation; legacy.suppressed = true
+    input.document.features.push(legacy)
+    expect(prepareBodyCommand(input).accepted).toBe(false)
+    const legacyFeature = advancedFeature(kind); delete legacyFeature.bodyOperation; legacyFeature.merge = false
+    input.feature = legacyFeature
+    expect(prepareBodyCommand(input).accepted).toBe(false)
+  })
+
+  it.each(['sweep', 'loft'] as const)('preserves the exact %s merge target through serialization, editing and history', kind => {
+    const input = advancedState(kind)
+    if (input.feature.type !== 'sweep' && input.feature.type !== 'loft') throw new Error('Expected an advanced draft')
+    input.feature = setBodyOperationDraft(input.feature, { mode: 'merge', target: a }); input.selection = [a]
+    const plan = prepared(input), result = applyBodyCommand(plan, input, receipt(plan))
+    if (!result.accepted) throw new Error(result.message)
+    const reopened = parseDocument(serializeDocument(result.document)), history = new DocumentHistory(input.document)
+    expect(reopened.features.at(-1)).toMatchObject({ merge: true, bodyOperation: { mode: 'merge', target: a } })
+    history.apply(reopened)
+    expect(history.undo()).toEqual(input.document)
+    expect(history.canUndo).toBe(false)
+    expect(history.redo()).toEqual(reopened)
+    const saved = reopened.features.at(-1)!
+    expect(prepared({ ...input, document: reopened, feature: { ...saved, name: 'Edited scoped operation' } }).previewFeatures.at(-1))
+      .toMatchObject({ merge: true, bodyOperation: { target: a } })
   })
 })

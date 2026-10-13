@@ -46,13 +46,14 @@ export function sameBodyReference(a: BodyReference, b: BodyReference): boolean {
 
 export function isBodyCommandFeature(feature: Feature): boolean {
   return feature.type === 'combine'
-    || ((feature.type === 'extrude' || feature.type === 'revolve') && feature.bodyOperation !== undefined)
+    || ((feature.type === 'extrude' || feature.type === 'revolve' || feature.type === 'sweep' || feature.type === 'loft') && feature.bodyOperation !== undefined)
     || ((feature.type === 'cut' || feature.type === 'hole' || feature.type === 'fillet' || feature.type === 'chamfer' || feature.type === 'shell' || feature.type === 'draft') && feature.bodyScope !== undefined)
 }
 
 /** Changing draft creation mode never adopts a merge target as a new-body limit. */
-export function setBodyOperationDraft(feature: Extract<Feature, { type: 'extrude' | 'revolve' }>, operation: BodyOperation): Feature {
+export function setBodyOperationDraft(feature: Extract<Feature, { type: 'extrude' | 'revolve' | 'sweep' | 'loft' }>, operation: BodyOperation): Feature {
   const next = { ...feature, bodyOperation: structuredClone(operation) }
+  if (next.type === 'sweep' || next.type === 'loft') return { ...next, merge: operation.mode === 'merge' }
   if (next.type !== 'extrude' || !next.endCondition || !('baseFeatureId' in next.endCondition)) return next
   const endCondition = { ...next.endCondition }
   if (operation.mode === 'merge') {
@@ -73,7 +74,7 @@ export function withBodySelection(feature: Feature, selection: readonly BodyRefe
   if (feature.type === 'combine') return feature.operation === 'subtract'
     ? { ...feature, target: first, tools: references.slice(1) }
     : { ...feature, operands: references }
-  if (feature.type === 'extrude' || feature.type === 'revolve') {
+  if (feature.type === 'extrude' || feature.type === 'revolve' || feature.type === 'sweep' || feature.type === 'loft') {
     if (feature.bodyOperation?.mode !== 'merge') return feature
     return setBodyOperationDraft(feature, { mode: 'merge', target: first })
   }
@@ -144,7 +145,7 @@ export function prepareBodyCommand(state: BodyCommandState): BodyCommandPreparat
     for (const reference of references) {
       if (state.catalog.bodies.filter(body => sameBodyReference(body.ref, reference)).length !== 1) throw new Error('Un cuerpo de la operación no está disponible en el estado mostrado.')
     }
-    if ((state.feature.type === 'extrude' || state.feature.type === 'revolve') && state.feature.bodyOperation?.mode === 'new' && !state.catalog.active
+    if ((state.feature.type === 'extrude' || state.feature.type === 'revolve' || state.feature.type === 'sweep' || state.feature.type === 'loft') && state.feature.bodyOperation?.mode === 'new' && !state.catalog.active
       && sources.some(feature => feature.type !== 'sketch' && feature.type !== 'plane' && !isBodyCommandFeature(feature))) {
       throw new Error('Empieza la gestión explícita de cuerpos en una pieza nueva; la geometría anterior no se adopta automáticamente.')
     }
