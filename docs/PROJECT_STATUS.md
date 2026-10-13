@@ -17,6 +17,7 @@ with dependencies that determine their review order:
 | 1 | [#27](https://github.com/angelcp2802/solidflow/pull/27) | `main` | Generated sketch identities and opt-in semantic references for a bounded finite-prism family; retain conservative geometric references elsewhere. |
 | 2 | [#29](https://github.com/angelcp2802/solidflow/pull/29) | `feat/semantic-reference-integration` (#27) | Explicit body catalog, exact body-state references, targeted operations and Combine. |
 | 3 | [#31](https://github.com/angelcp2802/solidflow/pull/31) | `feat/body-catalog-combine` (#29) | Explicit new-body and targeted-merge ownership for sweep and loft. |
+| 4 | [#34](https://github.com/angelcp2802/solidflow/pull/34) | `feat/body-sweep-loft` (#31) | Explicit body ownership for linear/circular patterns and mirror: exact current/historical sources, persistent instance outputs and targeted merge. |
 
 Review each increment against its stated base. A downstream draft includes
 unmerged prerequisites; its checks do not mean those prerequisites have landed
@@ -51,6 +52,21 @@ The hosted full suite passed 1,806 cases in 97 files
 on each of its three configured platforms. Preserve both results when reviewing
 the change; a green hosted run does not explain a local failure.
 
+For [#34](https://github.com/angelcp2802/solidflow/pull/34), runtime source
+`60014c4` is based on #31 at `92a8747`; hosted jobs tested their merge `59ce400`.
+The [CI run](https://github.com/angelcp2802/solidflow/actions/runs/38459447247)
+and [security run](https://github.com/angelcp2802/solidflow/actions/runs/38459447114)
+completed with six successful checks. Each configured Windows x64, Linux x64
+and macOS arm64 job passed the production build, 1,888 tests in 101 files
+(including 23 body-pattern cases), 11 IPC tests and the isolated initial-model
+Electron/WASM smoke check. The smoke logs reported no console errors or failed
+requests; unsigned packaging used `--publish never`. Complete pattern/mirror
+interaction, independent interoperability and general platform support remain
+unproved. At this snapshot, the local full run was still open and had reported
+slow-case failures and worker-termination warnings; final case totals and a
+cause had not been established. Earlier local failures remain recorded in the proposal;
+the hosted pass does not resolve them or the diagnostic issues below.
+
 Known unresolved diagnostics have separate issues:
 
 - [#28](https://github.com/angelcp2802/solidflow/issues/28): an earlier Linux
@@ -80,7 +96,7 @@ has passing checks:
 | STEP import | [#12](https://github.com/angelcp2802/solidflow/issues/12) | Native file-dialog/editor workflows and independent interoperability. |
 | Sketch offsets | [#14](https://github.com/angelcp2802/solidflow/issues/14), [#20](https://github.com/angelcp2802/solidflow/issues/20) | Broader offset acceptance and interaction for disconnected components already present in the baseline. |
 | Persistent references | [#21](https://github.com/angelcp2802/solidflow/issues/21) | Review #27 and expand beyond its bounded semantic-reference family. |
-| Body management | [#26](https://github.com/angelcp2802/solidflow/issues/26) | Review #29/#31, persistent pattern/mirror outputs, legacy adoption and wider interaction/reference coverage. |
+| Body management | [#26](https://github.com/angelcp2802/solidflow/issues/26) | Review #29/#31/#34, persistent pattern/mirror outputs, legacy adoption and wider interaction/reference coverage. |
 
 Assemblies, technical drawings, sheet metal, simulation and broader import and
 manufacturing workflows remain part of the [roadmap](ROADMAP.md). This queue

@@ -28,8 +28,10 @@ branch from the draft CAD stack: [#27](https://github.com/angelcp2802/solidflow/
 for sketch identities and bounded semantic references, then
 [#29](https://github.com/angelcp2802/solidflow/pull/29) for explicit body management,
 then [#31](https://github.com/angelcp2802/solidflow/pull/31) for body-aware sweep
-and loft. These proposals have not merged. Their checks and remaining acceptance
-work are recorded separately from the foundation above.
+and loft, then [#34](https://github.com/angelcp2802/solidflow/pull/34) for explicit
+body ownership in linear/circular patterns and mirror. These proposals have not
+merged. Their checks and remaining acceptance work are recorded separately from
+the foundation above.
 
 ## Next priorities
 
