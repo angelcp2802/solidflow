@@ -51,6 +51,26 @@ const MIN_LENGTH = 0.01;
 const MAX_LENGTH = 100_000;
 class BodyStateReleaseError extends AggregateError {}
 
+/** Raw worker callers must obey the same body-operation shape as saved documents. */
+function validateBodyOperationDeclaration(feature: Extract<ExtrudeFeature, { type: 'extrude' }> | RevolveFeature): void {
+  const declared = Object.hasOwn(feature, 'bodyOperation');
+  if (!declared && feature.bodyOperation === undefined) return;
+  const record = (value: unknown): Record<string, unknown> | null =>
+    typeof value === 'object' && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : null;
+  const exactKeys = (value: Record<string, unknown>, required: string[]): boolean =>
+    Object.keys(value).every(key => required.includes(key)) && required.every(key => Object.hasOwn(value, key));
+  const identifier = (value: unknown): boolean => typeof value === 'string' && value.trim().length > 0
+    && value.length <= 128 && !/[\x00-\x1f\x7f]/.test(value);
+  const operation = declared ? record(feature.bodyOperation) : null;
+  if (operation?.mode === 'new' && exactKeys(operation, ['mode', 'bodyId']) && identifier(operation.bodyId)) return;
+  if (operation?.mode === 'merge' && exactKeys(operation, ['mode', 'target'])) {
+    const target = record(operation.target);
+    if (target && exactKeys(target, ['bodyId', 'sourceFeatureId'])
+      && identifier(target.bodyId) && identifier(target.sourceFeatureId)) return;
+  }
+  throw new Error('La operación explícita de cuerpo debe declarar un cuerpo nuevo válido o una referencia de cuerpo válida para añadir material.');
+}
+
 /** Matching Replicad's right-handed named sketch planes. */
 function onPlane(plane: Plane, u: number, v: number, offset: number): Vec3 {
   if (plane === 'XY') return [u, v, offset];
@@ -447,6 +467,7 @@ export class CadEngine {
       let featureFailed = false, featureError: unknown;
       const bodyAware = createdBodyIds(feature).length > 0 || featureBodyReferences(feature).length > 0;
       try {
+        if (feature.type === 'extrude' || feature.type === 'revolve') validateBodyOperationDeclaration(feature);
         if (seenIds.has(feature.id)) throw new Error('El identificador de esta operación está duplicado.');
         seenIds.add(feature.id);
         for (const id of createdBodyIds(feature)) {

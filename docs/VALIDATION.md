@@ -1,9 +1,41 @@
 # Validation
 
+## Raw body-operation rejection review — 2026-10-13
+
+The correction for [issue #32](https://github.com/angelcp2802/solidflow/issues/32)
+rejects malformed extrusion/revolution body-operation declarations before
+constructing tools or staging catalog changes. Ordinary absent
+fields retain the legacy path; defined inherited declarations reject.
+The saved-document parser already rejected unknown modes. This change closes
+the separately reproduced raw `CadEngine.build` fallthrough.
+
+Local checks used Windows x64, Node 24.11.1 and the public configuration:
+
+- `npm run build` passed TypeScript and the production build (1980 modules;
+  Vite 57.08 seconds). All 233 recorded source/configuration inputs were
+  unchanged. Log SHA-256:
+  `ccfcd5a8bf32e20a7a9d5cbe1c7a36e434b7fba2449cd25f8e29fecd46b0b144`.
+- `npm run test:unit -- src/cad/kernel.body-operation-boundary.test.ts`
+  passed all eight cases in one file, with no skipped cases, in 99.28 seconds
+  (Vitest 5.0.3). Its 233 recorded inputs were unchanged. Log SHA-256:
+  `9b95603ccb8f96b3084f0a1844913340510c5de82e0d4b66dcdf309543d947bb`.
+
+These cases cover own and defined inherited unknown-mode rejection, unchanged
+exact A references and face/edge descriptors, valid BRep/solid count, analytical
+volume/area/bounds, blocked STEP/STL export, valid merge controls, 22 malformed
+declarations per operation type, and ordinary absent-field legacy geometry.
+The [fixture provenance](PROVENANCE.md) states coordinates and tolerances.
+The new cases and their initialization use 60-second budgets; existing budgets
+were unchanged. This is focused programmatic evidence, not a new full
+suite pass, real interaction, independent interoperability or platform support.
+Full checks for the current proposal are tracked in
+[PR #29](https://github.com/angelcp2802/solidflow/pull/29); the earlier full-suite
+and desktop failures below remain evidence for their stated source.
+
 ## Body integration development snapshot — 2026-10-13
 
 The body work is on `feat/body-catalog-combine`, based on the reference
-integration in PR #27. The current source is commit
+integration in PR #27. The original body source is commit
 `2ebc22e6b971972c133e74edd5a9fd93a84e5394` in
 [draft PR #29](https://github.com/angelcp2802/solidflow/pull/29).
 The final build, full-suite, standalone IPC, desktop and hosted results below
