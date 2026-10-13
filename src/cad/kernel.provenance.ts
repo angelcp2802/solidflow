@@ -72,7 +72,7 @@ class NativeScope {
 const errorMessage = (error: unknown): string => error instanceof Error ? error.message : String(error);
 type AddedSource = { curve: Curve; added: Edge };
 
-/** Opt-in primitive producer. Legacy profile construction and the engine do not call it.
+/** Strict primitive producer; the engine uses the explicit single-region gate below.
  * Supports one finite material region with holes. start/end mean generation order,
  * including negative depth, not coordinate-sorted planes. Splits, booleans,
  * compounds, islands, vertical edges and artificial circle seams are outside its roles.
@@ -80,6 +80,25 @@ type AddedSource = { curve: Curve; added: Edge };
 export function entityProfilePrismWithProvenance(
   profile: EntityProfile, plane: Plane, offset: number, depth: number, frame?: PlaneFrame,
 ): OwnedEntityPrism {
+  return constructEntityPrism(profile, plane, offset, depth, frame, false)!;
+}
+
+/**
+ * Engine construction gate: null means multiple material regions or islands,
+ * identified before a prism is built. The caller may explicitly construct those
+ * profiles through the legacy compound path. Native errors are never swallowed;
+ * unavailable correspondence after construction still returns its valid body.
+ */
+export function entityProfilePrismIfSingleRegion(
+  profile: EntityProfile, plane: Plane, offset: number, depth: number, frame?: PlaneFrame,
+): OwnedEntityPrism | null {
+  return constructEntityPrism(profile, plane, offset, depth, frame, true);
+}
+
+function constructEntityPrism(
+  profile: EntityProfile, plane: Plane, offset: number, depth: number, frame: PlaneFrame | undefined,
+  allowUnsupportedRegions: boolean,
+): OwnedEntityPrism | null {
   if (!Number.isFinite(depth) || Math.abs(depth) < 1e-7)
     throw new Error('La extrusión finita necesita una profundidad distinta de cero.');
   const placement = checkedPlacement(frame ?? principalPlaneFrame(plane, offset));
@@ -122,8 +141,10 @@ export function entityProfilePrismWithProvenance(
         measureDistanceBetween(vertex, face) <= JOIN_TOLERANCE ? [candidate] : []);
     });
     const material = containers.flatMap((parents, index) => parents.length % 2 === 0 ? [index] : []);
-    if (material.length !== 1 || containers.some(parents => parents.length > 1))
+    if (material.length !== 1 || containers.some(parents => parents.length > 1)) {
+      if (allowUnsupportedRegions) return null;
       throw new Error('La correspondencia de extrusión admite un único exterior con agujeros, sin islas.');
+    }
     const outer = material[0];
     const holes = containers.flatMap((parents, index) => parents.length === 1 && parents[0] === outer ? [index] : []);
     const faceMaker = scope.own(new oc.BRepBuilderAPI_MakeFace(contourFaces[outer].wrapped));

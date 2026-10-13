@@ -265,9 +265,11 @@ describe('multi-entity sketch solids', () => {
     expect(result.volume).toBe(0);
   });
 
-  it('requires reselection when entity roles rotate within an otherwise identical square', () => {
+  it('requires v1 reselection when entity roles rotate within an otherwise identical square', () => {
     const profile = rectangle(10, 10);
-    const reference = solid(profile, 10).edges[0].ref;
+    const edge = solid(profile, 10).edges[0];
+    const reference = edge.aliases?.find(alias => alias.key.startsWith('edge-v1|')) ?? edge.ref;
+    expect(reference.key).toMatch(/^edge-v1\|/);
     profile.points = profile.points.map((point) => ({ ...point, x: -point.y, y: point.x }));
     const finish: EdgeFinishFeature = { id: 'fillet', name: 'Redondeo', type: 'fillet', baseFeatureId: 'extrude', size: 1,
       selection: { mode: 'selected', edges: [reference] }, suppressed: false };

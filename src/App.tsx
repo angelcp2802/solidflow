@@ -96,10 +96,11 @@ import {
   createLoftExample,
   createSweepExample,
 } from "./examples/advanced-shapes";
-import EdgeFinishPanel, { sameEdge } from "./components/EdgeFinishPanel";
+import EdgeFinishPanel from "./components/EdgeFinishPanel";
 import SweepLoftPanel from "./components/SweepLoftPanel";
 import PatternPanel from "./components/PatternPanel";
-import FaceOperationPanel, { sameFace } from "./components/FaceOperationPanel";
+import FaceOperationPanel from "./components/FaceOperationPanel";
+import { createEdgeSelectionIndex, createFaceSelectionIndex } from "./cad/selection.references";
 import ExtrudePanel from "./components/ExtrudePanel";
 import HolePanel, { type HoleSection } from "./components/HolePanel";
 import HolePositionsCanvas from "./components/HolePositionsCanvas";
@@ -388,18 +389,18 @@ export default function App() {
   editingRef.current = editing;
   docRef.current = doc;
   const selectedFeature = doc.features.find((f) => f.id === selected);
+  const modelFaceSelection = useMemo(() => createFaceSelectionIndex(model?.faces ?? []), [model]);
+  const modelEdgeSelection = useMemo(() => createEdgeSelectionIndex(model?.edges ?? []), [model]);
+  const sourceFaceSelection = useMemo(() => createFaceSelectionIndex(sourceModel?.faces ?? []), [sourceModel]);
+  const sourceEdgeSelection = useMemo(() => createEdgeSelectionIndex(sourceModel?.edges ?? []), [sourceModel]);
   useEffect(() => {
     if (editing) return;
     setFaceSelection((previous) =>
       previous
-        ? (model?.faces?.find(
-            (face) =>
-              face.ref.key === previous.ref.key &&
-              face.ref.sourceFeatureId === previous.ref.sourceFeatureId,
-          ) ?? null)
+        ? (modelFaceSelection.find(previous.ref) ?? null)
         : null,
     );
-  }, [model, editing]);
+  }, [modelFaceSelection, editing]);
   // A legacy sketch is displayed as entities during the tool, but conversion
   // enters history only together with a successfully applied operation.
   const toolConvertedProfile = useMemo(() =>
@@ -1029,12 +1030,7 @@ export default function App() {
     setError("");
   };
   const selectedSupport = (): PlaneSupport => {
-    const face = model?.faces?.find(
-      (candidate) =>
-        faceSelection &&
-        candidate.ref.key === faceSelection.ref.key &&
-        candidate.ref.sourceFeatureId === faceSelection.ref.sourceFeatureId,
-    );
+    const face = faceSelection ? modelFaceSelection.find(faceSelection.ref) : undefined;
     if (face?.frame) return { kind: "face", face: face.ref };
     if (selectedFeature?.type === "plane" && !selectedFeature.suppressed)
       return { kind: "plane", planeId: selectedFeature.id };
@@ -1102,53 +1098,34 @@ export default function App() {
       sourceLoading
     )
       return;
+    const visibleFaces = pickingMirror || pickingFaceOperation || pickingExtrude || pickingHole
+      ? sourceFaceSelection : modelFaceSelection;
+    const currentFace = face ? visibleFaces.findPrimary(face.ref) : undefined;
+    if (face && !currentFace) return;
     if (pickingHole) {
-      if (
-        !face ||
-        !sourceModel?.faces?.some((candidate) =>
-          sameFace(candidate.ref, face.ref),
-        )
-      )
-        return;
-      if (!face.frame) {
+      if (!currentFace) return;
+      if (!currentFace.frame) {
         notify(
           "Selecciona una cara plana para colocar los centros del taladro.",
           true,
         );
         return;
       }
-      changeSupport({ kind: "face", face: face.ref });
+      changeSupport({ kind: "face", face: currentFace.ref });
       return;
     }
     if (pickingExtrude) {
-      if (
-        face &&
-        sourceModel?.faces?.some((candidate) =>
-          sameFace(candidate.ref, face.ref),
-        )
-      ) {
-        changeEndTarget({ kind: "face", face: face.ref });
-      }
+      if (currentFace) changeEndTarget({ kind: "face", face: currentFace.ref });
       return;
     }
     if (faceEditing && !facePreview && !pickingSupport) {
-      if (
-        !face ||
-        !sourceModel?.faces?.some((candidate) =>
-          sameFace(candidate.ref, face.ref),
-        )
-      )
-        return;
-      const exists = operationFaces.some((candidate) =>
-        sameFace(candidate, face.ref),
-      );
-      if (!exists && operationFaces.length >= 256) {
+      if (!currentFace) return;
+      const faces = sourceFaceSelection.toggle(operationFaces, currentFace.ref);
+      if (!faces) return;
+      if (faces.length > operationFaces.length && faces.length > 256) {
         notify("Puedes seleccionar hasta 256 caras en esta operación.", true);
         return;
       }
-      const faces = exists
-        ? operationFaces.filter((candidate) => !sameFace(candidate, face.ref))
-        : [...operationFaces, face.ref];
       changeDraft(
         faceEditing.type === "shell" ? { removedFaces: faces } : { faces },
       );
@@ -1156,17 +1133,17 @@ export default function App() {
     }
     if (busy || !previewCurrent) return;
     if (pickingSupport) {
-      if (!face?.frame) {
-        if (face)
+      if (!currentFace?.frame) {
+        if (currentFace)
           notify("Esta cara es curva. Selecciona una cara plana.", true);
         return;
       }
-      changeSupport({ kind: "face", face: face.ref });
+      changeSupport({ kind: "face", face: currentFace.ref });
     } else {
-      setFaceSelection(face);
+      setFaceSelection(currentFace ?? null);
       setSelected(null);
       setEdgeSelection([]);
-      if (face && !face.frame)
+      if (currentFace && !currentFace.frame)
         notify(
           "Cara curva seleccionada. Los croquis planos requieren una cara plana.",
         );
@@ -1363,13 +1340,10 @@ export default function App() {
     }
     const baseFeatureId = model?.faces?.[0]?.ref.sourceFeatureId;
     if (!baseFeatureId) return;
+    const currentFace = faceSelection ? modelFaceSelection.find(faceSelection.ref) : undefined;
     const faces =
-      faceSelection &&
-      faceSelection.ref.sourceFeatureId === baseFeatureId &&
-      model?.faces?.some((candidate) =>
-        sameFace(candidate.ref, faceSelection.ref),
-      )
-        ? [faceSelection.ref]
+      currentFace?.ref.sourceFeatureId === baseFeatureId
+        ? [currentFace.ref]
         : [];
     const common = {
       id: crypto.randomUUID(),
@@ -1416,11 +1390,8 @@ export default function App() {
     }
     const baseFeatureId = model?.faces?.[0]?.ref.sourceFeatureId;
     if (!baseFeatureId) return;
-    const selectedFace =
-      faceSelection?.frame &&
-      model?.faces?.some((face) => sameFace(face.ref, faceSelection.ref))
-        ? faceSelection
-        : null;
+    const currentFace = faceSelection ? modelFaceSelection.find(faceSelection.ref) : undefined;
+    const selectedFace = currentFace?.frame ? currentFace : null;
     const chosenPlane =
       selectedFeature?.type === "plane" &&
       !selectedFeature.suppressed &&
@@ -1478,7 +1449,7 @@ export default function App() {
     const edges = edgeSelection.filter(
       (edge) =>
         edge.sourceFeatureId === base.id &&
-        model?.edges.some((candidate) => sameEdge(candidate.ref, edge)),
+        modelEdgeSelection.find(edge),
     );
     setEditing({
       id: crypto.randomUUID(),
@@ -1496,29 +1467,25 @@ export default function App() {
     setError("");
   };
   const toggleEdge = (edge: EdgeReference) => {
-    const toggle = (edges: EdgeReference[]) =>
-      edges.some((candidate) => sameEdge(candidate, edge))
-        ? edges.filter((candidate) => !sameEdge(candidate, edge))
-        : [...edges, edge];
     if (finishEditing) {
-      if (
-        sourceLoading ||
-        !sourceModel?.edges.some((candidate) => sameEdge(candidate.ref, edge))
-      )
-        return;
+      if (sourceLoading) return;
       const current =
         finishEditing.selection.mode === "selected"
           ? finishEditing.selection.edges
           : (sourceModel?.edges ?? []).map((candidate) => candidate.ref);
+      const edges = sourceEdgeSelection.toggle(current, edge);
+      if (!edges) return;
       setEditing({
         ...finishEditing,
-        selection: { mode: "selected", edges: toggle(current) },
+        selection: { mode: "selected", edges },
       });
       setError("");
       setFinishPreview(false);
     } else {
       if (busy || !previewCurrent) return;
-      setEdgeSelection(toggle);
+      const edges = modelEdgeSelection.toggle(edgeSelection, edge);
+      if (!edges) return;
+      setEdgeSelection(edges);
       setSelected(null);
     }
   };
@@ -1902,9 +1869,7 @@ export default function App() {
     if (support.kind === "plane")
       return sourceModel?.planes?.find((item) => item.id === support.planeId)
         ?.frame;
-    const currentFace = sourceModel?.faces?.find((face) =>
-      sameFace(face.ref, support.face),
-    );
+    const currentFace = sourceFaceSelection.find(support.face);
     if (currentFace?.frame) return currentFace.frame;
     const builtHole = builtFeatures?.find((item) => item.id === holeEditing.id);
     if (
@@ -1913,7 +1878,7 @@ export default function App() {
     )
       return model?.holes?.find((item) => item.id === holeEditing.id)?.frame;
     return undefined;
-  }, [holeEditing, sourceModel, model, builtFeatures]);
+  }, [holeEditing, sourceModel, sourceFaceSelection, model, builtFeatures]);
   const holeReferenceLines = useMemo(() => {
     if (!holeFrame || !sourceModel) return undefined;
     const y = frameYDirection(holeFrame),

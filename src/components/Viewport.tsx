@@ -1,13 +1,15 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { LineSegments2 } from "three/addons/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/addons/lines/LineSegmentsGeometry.js";
 import { LineMaterial } from "three/addons/lines/LineMaterial.js";
 import type { CadResult, EdgeReference, FaceReference, PickableFace, PlaneFrame } from "../cad/kernel.types";
+import { createEdgeSelectionIndex, createFaceSelectionIndex, referenceIdentity } from "../cad/selection.references";
 
 interface PickableVisual {
   ref: EdgeReference;
+  aliases?: readonly EdgeReference[];
   object: THREE.LineSegments;
   highlight?: LineSegments2;
 }
@@ -59,7 +61,7 @@ function planeCorners(frame: PlaneFrame, span: number): number[] {
   return [[-1, -1], [1, -1], [1, 1], [-1, 1]].flatMap(([u, v]) => origin.clone().addScaledVector(x, u * span / 2).addScaledVector(y, v * span / 2).toArray());
 }
 
-const edgeIdentity = (ref: EdgeReference) => JSON.stringify([ref.sourceFeatureId, ref.key]);
+const edgeIdentity = referenceIdentity;
 
 /** Pixel-sized picking, followed by a face-depth test at the actual edge point. */
 export function pickVisibleEdge(
@@ -170,8 +172,10 @@ export default function Viewport({
     grid: THREE.GridHelper;
     fit: () => void;
   } | null>(null);
-  const interaction = useRef({ onSelect, onSelectEdge, selectionMode, selectedEdges, visibleSketchIds, selectedSketchId, selectedFace, selectedFaces, onSelectFace, selectedPlaneId, showPlanes, onSelectPlane });
-  interaction.current = { onSelect, onSelectEdge, selectionMode, selectedEdges, visibleSketchIds, selectedSketchId, selectedFace, selectedFaces, onSelectFace, selectedPlaneId, showPlanes, onSelectPlane };
+  const edgeReferences = useMemo(() => createEdgeSelectionIndex(model?.edges ?? []), [model]);
+  const faceReferences = useMemo(() => createFaceSelectionIndex(model?.faces ?? []), [model]);
+  const interaction = useRef({ onSelect, onSelectEdge, selectionMode, selectedEdges, visibleSketchIds, selectedSketchId, selectedFace, selectedFaces, onSelectFace, selectedPlaneId, showPlanes, onSelectPlane, edgeReferences, faceReferences });
+  interaction.current = { onSelect, onSelectEdge, selectionMode, selectedEdges, visibleSketchIds, selectedSketchId, selectedFace, selectedFaces, onSelectFace, selectedPlaneId, showPlanes, onSelectPlane, edgeReferences, faceReferences };
   useEffect(() => {
     const el = host.current!;
     const scene = new THREE.Scene();
@@ -410,7 +414,7 @@ export default function Viewport({
     let hoveredFace: string | null = null;
     let hoveredPlane: string | null = null;
     const updateHighlights = () => {
-      const selectedKeys = new Set(interaction.current.selectedEdges.map(edgeIdentity));
+      const selectedKeys = interaction.current.edgeReferences.selectedKeys(interaction.current.selectedEdges);
       if (interaction.current.selectionMode !== 'edge' || !context.current?.edges.some((edge) => edgeIdentity(edge.ref) === hovered)) hovered = null;
       context.current?.edges.forEach((edge) => {
         if (!edge.highlight) return;
@@ -422,8 +426,10 @@ export default function Viewport({
         edge.highlight.material.linewidth = isSelected ? 3.3 : 2.8;
       });
       if (interaction.current.selectionMode !== 'face') hoveredFace = null;
-      const selectedFaceKeys = new Set(interaction.current.selectedFaces.map(edgeIdentity));
-      if (interaction.current.selectedFace) selectedFaceKeys.add(edgeIdentity(interaction.current.selectedFace));
+      const selectedFaces = interaction.current.selectedFace
+        ? [...interaction.current.selectedFaces, interaction.current.selectedFace]
+        : interaction.current.selectedFaces;
+      const selectedFaceKeys = interaction.current.faceReferences.selectedKeys(selectedFaces);
       context.current?.faces.forEach(face => {
         const key = edgeIdentity(face.face.ref);
         const isSelected = selectedFaceKeys.has(key);
@@ -618,7 +624,7 @@ export default function Viewport({
         highlight.visible = false;
         highlight.renderOrder = 2;
         c.group.add(object, highlight);
-        c.edges.push({ ref: edge.ref, object, highlight });
+        c.edges.push({ ref: edge.ref, aliases: edge.aliases, object, highlight });
       }
     } else if (display === "edges" && model.edgeLines.length) {
       const edges = new THREE.BufferGeometry();

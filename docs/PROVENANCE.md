@@ -160,8 +160,8 @@ The experimental semantic-reference regressions are authored inline in
 `src/cad/kernel.semantic-catalogs.test.ts`. They use original Cartesian
 coordinates in millimeters and symbolic identity inputs, with no imported
 model, saved interaction capture or new binary fixture. The
-[semantic-reference contract](SEMANTIC_REFERENCES.md) separates these opt-in
-modules from the active engine, document parser and editor.
+[semantic-reference contract](SEMANTIC_REFERENCES.md) separates the verified
+primitive roles, compatibility policy and remaining integration evidence.
 
 The producer tests construct a 50×20 rectangle from `(-10,-10)` to `(40,10)`,
 with circular holes centered at `(0,0)` and `(20,0)` and extrusion depth 4.
@@ -214,6 +214,130 @@ initialization, and provide no geometric evidence.
 
 These regression files are programmatic definitions, not execution
 results or independent-kernel interoperability evidence. The native cases
-use the project's locked OCCT runtime. Engine/parser/UI activation,
-downstream reconstruction and the required validation runs remain separate
-acceptance work; no pass is inferred from these fixture descriptions.
+use the project's locked OCCT runtime. Engine/parser/UI integration and
+downstream reconstruction have their own regression definitions and validation
+requirements; no pass is inferred from these fixture descriptions.
+
+The integration's `src/cad/kernel.semantic-context.test.ts` is pure input
+validation using an original unit square with four saved corner and line IDs.
+It includes 1,000 unrelated reference planes, dependency chains with 254 or
+255 planes, continuous placement/depth edits and discrete orientation branches.
+These inputs test the relevant history closure, not native geometry or support
+for a document beyond its existing feature limit. The model tests in
+`src/model/document.semantic-references.test.ts` use an original 10×6 sketch,
+a depth-4 extrusion and literal symbolic keys. They exercise parsing, exact
+selection bounds and detached history without asserting CAD validity.
+`src/cad/selection.references.test.ts` uses plain symbolic picking entries,
+including duplicate aliases. Those definitions test directional matching and
+selection state, not rendered geometry, pointer interaction or native identity.
+
+The original `src/cad/kernel.semantic-face-operations.test.ts` fixtures are in
+millimeters. An open-top inward shell starts from `[0,w]×[0,6]×[0,4]`, with
+`w=10` then `12` and thickness 1. Independent cavity subtraction gives
+`V=24w−12(w−2)` and summing exterior, interior and lip faces gives
+`A=12w+8(w+6)+6(w+2)`. Bounds remain `(0,0,0)` to `(w,6,4)`.
+
+The face-operation plate uses the earlier 50×20×4 boundary and hole pairs
+`(rA,rB)=(3,6),(3.5,6.5),(6,3)`; center A moves from `(0,0)` to `(-1,0)`
+while B remains `(20,0)`. Only hole A is tapered by 5 degrees from the
+principal XY plane at z=0. With `rEnd=rA+4tan(5°)`, independent frustum
+subtraction gives `V=4000−(4π/3)(rA²+rA*rEnd+rEnd²)−4πrB²`. The surface
+expectation is `A=2000−π(rA²+rEnd²+2rB²)+560`
+`+π(rA+rEnd)hypot(4,rEnd−rA)+8πrB`. Written native assertions check valid
+BRep, one solid and absolute `5e-6` volume/area/bounding-coordinate errors.
+Further cases use the same box/plate for legacy compatibility, unavailable or
+foreign references, native alias duplicates and injected construction/release
+failures. They specify ownership behavior rather than proving leak freedom.
+
+The original `src/cad/kernel.semantic-engine.test.ts` defines 13 engine cases;
+these are written assertions, with no execution result inferred here. Its base
+fixture is the 50×20 rectangle from `(-10,-10)` to `(40,10)`, extruded from
+z=0 to z=4. Source circles are centered at `(0,0)` and `(20,0)`, initially
+with radii 2 and 5. Unlike the producer-only inputs above, this fixture invokes
+`planSketchOffset` and `solveOffsetApplication`: outward distance 1, chain
+selection enabled, one side, no caps, source construction geometry and added
+dimensions. The resulting two material circles have radii 3 and 6, with two
+offset relations, one shared-distance family and one driving distance. The
+four rectangle corners and both source centers are fixed, with driving source
+radius dimensions. Center A is its own saved point, initially at `(0,0)`;
+editing it does not move the immutable sketch origin.
+
+The successive `(distance,sourceRadiusA,sourceRadiusB,centerAX,centerBX)` inputs
+are `(1,2,5,0,20)`, `(1.5,2,5,0,20)`, `(1.5,2.25,5,0,20)`,
+`(1.5,2.25,5,-1,21)` and `(1,6,1,-1,20)`. Both centers retain y=0.
+Expected image radii are independently
+`rA=sourceRadiusA+distance` and `rB=sourceRadiusB+distance`; the last edit
+exchanges their size order to `7,2`. These are edits of the original saved
+entities and relations, without replanning or allocating replacement IDs.
+For `S=1000−π(rA²+rB²)` and `P=140+2π(rA+rB)`, the solid expectations are
+`V=4S` mm³ and `A=2S+4P` mm². Overall bounds remain `(-10,-10,0)` to
+`(40,10,4)`.
+
+The selected end rim of hole A is identified by current display coordinates
+on `(x−centerAX)²+y²=rA²`, z=4; the second end rim is checked against
+`(x−centerBX)²+y²=rB²`, z=4. Their analytical extents are
+`(centerAX−rA,-rA,4)` to `(centerAX+rA,rA,4)` and
+`(centerBX−rB,-rB,4)` to `(centerBX+rB,rB,4)`. The written engine assertions
+check radial distance and z, rather than measuring a separate native bounding
+box for each rim. The end-cap support frame is exactly origin `(0,0,4)`,
+X direction `(1,0,0)` and normal `(0,0,1)`; its analytical outer bounds are
+`(-10,-10,4)` to `(40,10,4)`. The cap check uses that frame, stable reference
+and overall solid bounds, not a separate cap-mesh extent oracle. Catalog
+assertions expect eight primary v2 faces and 18 edges: 12 primary v2 rims
+with legacy aliases and six unclaimed legacy vertical/seam edges. Saved
+references and all sketch point/entity/constraint IDs are checked through
+serialization, reopening, undo and redo.
+
+Two further cases create an active selected hole-A top-rim fillet or chamfer
+once, of size `q=0.25`, then retain that exact saved reference through the same
+five parameter sets. Each edited document is serialized and reopened with the
+finish active; undo and redo also reconstruct and export the active finish,
+checking both states against their complete volume, area and bounds oracles.
+Independent revolution of the
+removed section gives chamfer volume removal
+`π(rA*q²+q³/3)` and surface change
+`π[(2√2−4)rA*q+(√2−1)q²]`. For the fillet the removed cross-sectional area
+is `q²(1−π/4)` and its radial first moment is `q³(5/6−π/4)`. Consequently,
+the removed volume is
+`π[rA*q²(2−π/2)+q³(5/3−π/2)]`, including the exterior factor π; the surface
+change is `(π²−4π)rA*q+(π²−3π)q²`. Bounds remain those of the unmodified
+plate. These volume and area oracles are measured on freshly reconstructed
+STEP BReps, rather than inferred from the result's mesh or volume field.
+
+The historical-support case places a 4×4 boss centered at `(30,0)` on the
+original cap z=4 and extrudes it to z=8. A radius-1 cut starts on the principal
+XY plane at z=8 and uses negative direction with `upToSurface` targeting the
+saved original cap reference. Independent expectations are
+`V=4S+64−4π`, `A=2S+4P+64+8π`, and bounds `(-10,-10,0)` to `(40,10,8)`.
+It checks the initial, source-radius-edited, both-centers-moved and
+radius-order-exchanged inputs, including document/history reconstruction.
+Undo returns to the moved-centers state and redo restores the exchanged-radii
+state; both rebuild and fresh STEP checks use full volume, area and bounds
+oracles. The resulting Boolean body must
+use its own legacy picking identity, without inheriting prism v2 metadata.
+
+Discrete-change cases keep valid bare geometry while rejecting the old rim:
+depth −4 has z bounds `[-4,0]`, symmetric depth 4 has bounds `[-2,2]`, an
+identical recreated circle has a new saved entity ID, and a circle is replaced
+by a counterclockwise upper semicircle `(3,0)→(-3,0)` plus its diameter.
+For that D-shaped hole, with the other radius-6 hole, independent section and
+perimeter are `S=1000−π(9/2+36)` and `P=140+3π+6+12π`; expected volume and
+area are `4S` and `2S+4P`, with unchanged plate bounds. Further cases specify
+suppression, size-zero finish rejection with retained valid prism picking,
+a thrown primitive `Shape` read without legacy reconstruction, and a thrown
+`Generated` read that preserves valid legacy geometry but rejects stored v2.
+
+The final case uses two separate radius-1 disks centered at `(0,0)` and
+`(5,0)`, each extruded 4 mm. It expects legacy references, two valid solids,
+`V=8π`, `A=20π`, bounds `(-1,-1,0)` to `(6,1,4)`, and the explicit warning
+`La pieza contiene 2 sólidos separados.` This is not a single-solid import
+fixture.
+
+Written coordinate/radius and rim checks use absolute `5e-7` mm; solved
+sketches require maximum residual at most `1e-7`. CAD volume, area and bounds
+comparisons use absolute `5e-6` in their respective units. Fresh STEP checks
+request native volume integration parameter `1e-10`, BRep validity and the
+declared solid count; that parameter is not a general accuracy guarantee.
+The writer and reader share the project's OCCT runtime. These definitions
+establish neither an executed pass, independent interoperability nor platform
+support, and consume no external models, private artifacts or binary fixtures.

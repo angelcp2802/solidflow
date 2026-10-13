@@ -27,6 +27,80 @@ successful installation, notarization or all interactive workflows on that OS.
 The project does not yet have exhaustive topology, numerical robustness,
 accessibility, performance or platform coverage.
 
+## Semantic reference integration — 2026-10-13 (in progress)
+
+This branch combines the generated-sketch identity prerequisite with the prism
+reference modules, then connects the engine, document parser and UI selection
+aliases. Newly written context, persistence, consumer and selection tests are
+tracked separately from their execution. No completed full suite, desktop smoke
+or interactive editor result is yet claimed for this integration source.
+
+On Windows x64 (10.0.26200), Node 24.11.1, npm 11.6.2 and Vitest 5.0.3, a
+focused invocation of the installed Vitest entrypoint passed all 44 cases in
+three files, exiting 0 in 52.13 seconds of Vitest time:
+
+- `src/cad/kernel.semantic-context.test.ts`: 17 pure ancestry/context cases.
+- `src/model/document.semantic-references.test.ts`: 13 document cases.
+- `src/cad/selection.references.test.ts`: 14 symbolic DTO-selection cases.
+
+The invocation used `run --config vitest.config.ts`, those three file paths
+and `--pool=threads`. No worker-count or timeout overrides were added to the
+command or configuration. The recorded `CI`, `NODE_OPTIONS`,
+`UV_THREADPOOL_SIZE` and Vitest environment variables were absent; this was
+not an exhaustive inventory of environment variables.
+Eleven recorded files had identical hashes before and
+after the run. These checks do not initialize WASM, build native geometry or
+execute editor events. The six new native face-operation cases and thirteen
+new engine cases remain pending execution; later edits to those separate
+fixtures are not validated by this pure run.
+
+The first integration `npm run build` exited 1 with two TS2339 diagnostics in
+`kernel.semantic-context.ts`: the dependency-selection expression did not
+explicitly narrow its final branch to a sketch before accessing `support`.
+The source now checks `feature.type === 'sketch'` in that branch. The repeat
+`npm run build` exited 0, passing TypeScript and the production Vite build,
+with the existing `node:module` externalization and large-chunk warnings.
+All 219 recorded inputs were unchanged during each build. The earlier
+44-case pure run precedes the correction; revalidation of the affected context
+tests is pending alongside the native cases.
+
+The separate `npm run test:ipc` check also exited 0: all 11 checks passed,
+with zero failures, cancellations or skips (30,496.674 ms reported by Node's
+test runner). This is an IPC result, not a completed `npm test` or desktop
+loader result for the integration source.
+
+The earlier opt-in module source
+`52508a0214ad7b36b5e1b18df797c34d20400ad1` has separate evidence. Its local
+build passed, as did 42 focused tests in four files. Hosted CI for that exact
+head passed 1,534 portable tests and 11 IPC tests on each of Windows x64,
+Linux x64 and macOS arm64, along with build, initial-model Electron smoke and
+packaging without publication. Those runs do not validate this later activation.
+
+On Windows x64, Node 24.11.1 and npm 11.6.2, that module source's full local
+`npm test` exited 1 after 843.14 seconds, using the project runner defaults with
+`VITEST_MAX_WORKERS` unset. It reported 1,420 passed and 114 failed tests
+(1,534 total), in 15 failed and 63 passed files (78 total). Exhaustive log
+classification assigned all 114 failures to timeout diagnostics: 108 at
+5,000 ms, five at 30,000 ms and one at 60,000 ms. No assertion failures or
+additional worker/unhandled-error diagnostics were found in that log. IPC did
+not run because the unit phase failed. This is a failed check; its underlying
+cause is not established by the timeout classification or hosted passes.
+
+A separate, single-test reproduction on that same module source selected
+`builds a simple with exact volume and a flat blind bottom` in
+`src/cad/kernel.holes.test.ts`. With runner defaults and the existing budgets
+unchanged, it exited 1: the one selected test timed out at 5,000 ms and 34
+unselected tests were filtered out. Vitest reported 104.77 seconds overall;
+the selected case was reported at 27,250 ms. This establishes that a local
+timeout also occurred outside a full-suite run. It does not identify its cause
+or establish a concurrency, geometry or runtime regression.
+
+The same module source's local desktop smoke exited 1 at its 45-second outer
+deadline without a completion report. The failing stage and cause were not
+established. Initial-model smoke, packaging and programmatic STEP round trips
+do not establish full platform support, interaction coverage or independent
+CAD interoperability. Binary publication remains gated by issue #5.
+
 ## Generated sketch identity prerequisite — 2026-10-13
 
 On Windows x64, source head `857838149858d6eb926d223ead2ccdc5b881d0fd`,

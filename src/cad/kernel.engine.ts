@@ -7,12 +7,14 @@ import {
   Plane as ReplicadPlane,
   type Shape3D,
   type Sketch,
+  type Edge,
 } from 'replicad';
 import type {
   CadExportFormat,
   CadResult,
   Feature,
   EdgeFinishFeature,
+  FaceReference,
   ExtrudeFeature,
   Plane,
   PlaneFrame,
@@ -33,6 +35,14 @@ import { draftSolid, shellSolid } from './kernel.face-operations';
 import { throughAllBossTool, throughAllTool, untilNextTool, upToSurfaceTool } from './kernel.extrusion-limits';
 import { holePositionStructure, holeSolid } from './kernel.holes';
 import { importStepSolid } from './kernel.step';
+import { entityProfilePrismIfSingleRegion, type OwnedEntityPrism } from './kernel.provenance';
+import { entityPrismContextFromFeatures } from './kernel.semantic-context';
+import {
+  createSemanticFaceCatalog, createSemanticEdgeCatalog, preparePrismReferencesV2,
+  pickableSemanticFaces, pickableSemanticEdges, resolveSemanticFaceReference,
+  resolveSemanticSelectedFaces, resolveSemanticEdgeReferences,
+  type PrismReferences, type SemanticFaceCatalog, type SemanticFaceDescriptor,
+} from './kernel.semantic-catalogs';
 
 const MESH_OPTIONS = { tolerance: 0.05, angularTolerance: 0.12 };
 const MIN_LENGTH = 0.01;
@@ -166,25 +176,70 @@ function featureSolid(feature: ExtrudeFeature | RevolveFeature, sketchFeature: S
   }
 }
 
-function finishEdges(body: Shape3D, feature: EdgeFinishFeature, lineage: string): Shape3D {
+function cloneFinishEdges(edges: readonly Edge[]): Edge[] {
+  const clones: Edge[] = [];
+  try {
+    for (const edge of edges) clones.push(edge.clone());
+    return clones;
+  } catch (error) {
+    const failures: unknown[] = [error];
+    for (const clone of clones) { try { clone.delete(); } catch (releaseError) { failures.push(releaseError); } }
+    if (failures.length === 1) throw error;
+    throw new AggregateError(failures, 'Native selected edge clone and release failed.');
+  }
+}
+
+function finishEdges(body: Shape3D, feature: EdgeFinishFeature, lineage: string, semantic?: PrismReferences): Shape3D {
   validateLength(feature.size, feature.type === 'fillet' ? 'Radio' : 'Distancia');
   const operation = feature.type === 'fillet' ? 'redondeo' : 'chaflán';
   if (feature.selection.mode === 'all') {
     try { return body[feature.type](feature.size); }
     catch { throw new Error(`No se puede construir el ${operation} con este tamaño. Reduce el valor o cambia las aristas.`); }
   }
-  const catalog = createEdgeCatalog(body, feature.baseFeatureId, lineage);
+  const catalog = semantic ? createSemanticEdgeCatalog(body, feature.baseFeatureId, lineage, semantic)
+    : createEdgeCatalog(body, feature.baseFeatureId, lineage);
+  let candidate: Shape3D | undefined, operationError: unknown, operationFailed = false;
   try {
-    const edges = resolveEdgeReferences(catalog, feature.selection.edges, feature.baseFeatureId);
+    const edges = 'semanticStatus' in catalog
+      ? resolveSemanticEdgeReferences(catalog, feature.selection.edges, feature.baseFeatureId)
+      : resolveEdgeReferences(catalog, feature.selection.edges, feature.baseFeatureId);
     try {
       // The finder owns its input edges; clone them so the catalog keeps its own lifetime.
-      return body[feature.type](feature.size, (finder) => finder.inList(edges.map((edge) => edge.clone())));
-    } catch {
-      throw new Error(`No se puede construir el ${operation} en las aristas seleccionadas. Reduce el tamaño o recupera la selección.`);
+      candidate = body[feature.type](feature.size, (finder) => finder.inList(cloneFinishEdges(edges)));
+    } catch (error) {
+      throw new Error(`No se puede construir el ${operation} en las aristas seleccionadas. Reduce el tamaño o recupera la selección.`, { cause: error });
     }
+  } catch (error) {
+    operationFailed = true; operationError = error; throw error;
   } finally {
-    catalog.dispose();
+    try { catalog.dispose(); }
+    catch (releaseError) {
+      const failures = operationFailed ? [operationError, releaseError] : [releaseError];
+      // Transfer the result only after the catalog released successfully.
+      try { candidate?.delete(); } catch (error) { failures.push(error); }
+      throw new AggregateError(failures, 'Native edge finish release failed: ' +
+        failures.map(error => error instanceof Error ? error.message : String(error)).join('; '));
+    }
   }
+  return candidate!;
+}
+
+/** Bindings stay alive through historical consumers and final picking. */
+function withPrismOwners<T>(owners: readonly OwnedEntityPrism[], operation: () => T, onFailure: () => void): T {
+  const failures: unknown[] = [];
+  let result!: T;
+  try { result = operation(); } catch (error) { failures.push(error); }
+  for (const owner of owners) {
+    try { failures.push(...owner.dispose().map(message => new Error(message))); }
+    catch (error) { failures.push(error); }
+  }
+  if (failures.length) {
+    try { onFailure(); } catch (error) { failures.push(error); }
+    if (failures.length === 1) throw failures[0];
+    throw new AggregateError(failures, 'Native reconstruction or release failed: ' +
+      failures.map(error => error instanceof Error ? error.message : String(error)).join('; '));
+  }
+  return result;
 }
 
 function emptyResult(): CadResult {
@@ -200,9 +255,10 @@ export class CadEngine {
   private hasErrors = false;
 
   dispose(): void {
-    this.shape?.delete();
+    const shape = this.shape;
     this.shape = null;
     this.hasErrors = false;
+    shape?.delete();
   }
 
   build(features: Feature[]): CadResult {
@@ -227,6 +283,8 @@ export class CadEngine {
     let currentVolume = 0;
     let sourceFeatureId = '';
     let lineage = '';
+    let semantic: PrismReferences | undefined;
+    const prismOwners: OwnedEntityPrism[] = [];
     const repetitions = features.filter(isRepetition).filter((feature) => !feature.suppressed);
     const wantedDeltas = new Set(repetitions.flatMap((feature) => feature.source.mode === 'features' ? feature.source.featureIds : []));
     const wantedBodies = new Set(repetitions.flatMap((feature) => feature.source.mode === 'body' ? [feature.source.sourceFeatureId] : []));
@@ -235,11 +293,11 @@ export class CadEngine {
     const wantedLimitFaces = new Set(features.flatMap(feature => !feature.suppressed && (feature.type==='extrude'||feature.type==='cut')
       && feature.endCondition?.kind==='upToSurface' && feature.endCondition.target.kind==='face'
       ? [feature.endCondition.target.face.sourceFeatureId] : []));
-    const historicalLimitFaces = new Map<string, FaceCatalog>();
+    const historicalLimitFaces = new Map<string, FaceCatalog | SemanticFaceCatalog>();
     const referencedSources = new Set([...wantedLimitFaces, ...features.flatMap((feature) =>
       !feature.suppressed && 'support' in feature && feature.support?.kind === 'face'
         ? [feature.support.face.sourceFeatureId] : [])]);
-    const historicalFaces = new Map<string, { entries: FaceDescriptor[]; lineage: string }>();
+    const historicalFaces = new Map<string, { entries: SemanticFaceDescriptor[]; lineage: string; semantic: boolean }>();
     const rememberReferencedSource = (before: Shape3D | null) => {
       if (!body) return;
       if (wantedBodies.has(sourceFeatureId)) historicalBodies.set(sourceFeatureId, { body: body.clone(), lineage });
@@ -250,13 +308,28 @@ export class CadEngine {
         historicalDeltas.set(sourceFeatureId, record);
       }
       if (!referencedSources.has(sourceFeatureId)) return;
-      const catalog = createFaceCatalog(body, sourceFeatureId, lineage);
+      const catalog = semantic ? createSemanticFaceCatalog(body, sourceFeatureId, lineage, semantic)
+        : createFaceCatalog(body, sourceFeatureId, lineage);
+      let retained = false, copyFailed = false, copyError: unknown;
       try {
-        historicalFaces.set(sourceFeatureId, { lineage, entries: catalog.entries.map(({ ref, frame }) => ({
-          ref: { ...ref }, frame: frame ? clonePlaneFrame(frame) : null,
+        historicalFaces.set(sourceFeatureId, { lineage, semantic: !!semantic,
+          entries: catalog.entries.map((entry: FaceDescriptor & { readonly aliases?: readonly FaceReference[] }) => ({
+          ref: { ...entry.ref }, frame: entry.frame ? clonePlaneFrame(entry.frame) : null,
+          aliases: entry.aliases?.map(alias => ({ ...alias })) ?? [],
         })) });
-        if (wantedLimitFaces.has(sourceFeatureId)) historicalLimitFaces.set(sourceFeatureId, catalog);
-      } finally { if (!wantedLimitFaces.has(sourceFeatureId)) catalog.dispose(); }
+        if (wantedLimitFaces.has(sourceFeatureId)) {
+          historicalLimitFaces.set(sourceFeatureId, catalog); retained = true;
+        }
+      } catch (error) { copyFailed = true; copyError = error; throw error; }
+      finally {
+        if (!retained) {
+          try { catalog.dispose(); }
+          catch (error) {
+            if (copyFailed) throw new AggregateError([copyError, error], 'Historical face copy and release failed.');
+            throw error;
+          }
+        }
+      }
     };
     const resolveSupport = (support: PlaneSupport): { frame: PlaneFrame; lineage: string } | null => {
       if (support.kind === 'principal') return { frame: principalPlaneFrame(support.plane),
@@ -274,14 +347,19 @@ export class CadEngine {
       if (unavailableFeatureIds.has(support.face.sourceFeatureId)) return null;
       const source = historicalFaces.get(support.face.sourceFeatureId);
       if (!source) throw new Error('No se encuentra la geometría de la operación que contiene la cara de soporte. Recupera la selección de la cara.');
-      return { frame: resolveFaceReference(source, support.face, support.face.sourceFeatureId),
+      return { frame: source.semantic ? resolveSemanticFaceReference(source, support.face, support.face.sourceFeatureId)
+        : resolveFaceReference(source, support.face, support.face.sourceFeatureId),
         lineage: advanceLineage(source.lineage, ['face', support.face.sourceFeatureId, support.face.key]) };
     };
 
+    return withPrismOwners(prismOwners, () => {
+    let reconstructionFailed = false, reconstructionError: unknown;
     try { for (const feature of features) {
       let tool: Shape3D | null = null;
       let candidate: Shape3D | null = null;
       let beforeForRecord: Shape3D | null = null;
+      let toolSemantic: PrismReferences | undefined;
+      let featureFailed = false, featureError: unknown;
       try {
         if (seenIds.has(feature.id)) throw new Error('El identificador de esta operación está duplicado.');
         seenIds.add(feature.id);
@@ -349,6 +427,7 @@ export class CadEngine {
           result.holes!.push({id:feature.id,frame:clonePlaneFrame(support.frame)});
           candidate=holeSolid(body,feature,support.frame,validateSolid);
           currentVolume=validateSolid(candidate);body.delete();body=candidate;candidate=null;sourceFeatureId=feature.id;
+          semantic = undefined;
           lineage=advanceLineage(lineage,[feature.id,'hole',feature.baseFeatureId,support.lineage,feature.reversed,
             holePositionStructure(feature.positions),feature.head.kind,feature.endCondition.kind,
             feature.endCondition.kind==='blind'?[feature.endCondition.depthReference,feature.endCondition.tip.kind]:null]);
@@ -385,6 +464,7 @@ export class CadEngine {
           const volume = validateSolid(candidate);
           body.delete(); body = candidate; candidate = null;
           currentVolume = volume; sourceFeatureId = feature.id;
+          semantic = undefined;
           lineage = advanceLineage(lineage, [feature.id, feature.type, feature.baseFeatureId, feature.source.mode,
             seeds ? seeds.map((seed) => [seed.id, seed.lineage]) : [feature.source.mode === 'body' ? feature.source.sourceFeatureId : '', sourceBody!.lineage],
             plan.structure, support?.lineage ?? null]);
@@ -406,11 +486,12 @@ export class CadEngine {
             result.warnings.push(`${feature.name}: omitida porque su plano neutro está suprimido o no está disponible.`);
             continue;
           }
-          candidate = feature.type === 'shell' ? shellSolid(body, feature, lineage, validateSolid)
-            : draftSolid(body, feature, support!.frame, lineage, validateSolid);
+          candidate = feature.type === 'shell' ? shellSolid(body, feature, lineage, validateSolid, semantic)
+            : draftSolid(body, feature, support!.frame, lineage, validateSolid, semantic);
           const volume = validateSolid(candidate);
           body.delete(); body = candidate; candidate = null;
           currentVolume = volume; sourceFeatureId = feature.id;
+          semantic = undefined;
           lineage = advanceLineage(lineage, [feature.id, feature.type, feature.baseFeatureId,
             feature.type === 'shell' ? [feature.direction, feature.removedFaces.map((face) => face.key).sort()]
               : [feature.reversed, feature.propagation, feature.faces.map((face) => face.key).sort(), support!.lineage]]);
@@ -430,13 +511,14 @@ export class CadEngine {
           if (!body || sourceFeatureId !== feature.baseFeatureId) {
             throw new Error('El sólido anterior ha cambiado. Recupera la selección de aristas sobre la operación base actual.');
           }
-          candidate = finishEdges(body, feature, lineage);
+          candidate = finishEdges(body, feature, lineage, semantic);
           const volume = validateSolid(candidate);
           body.delete();
           body = candidate;
           candidate = null;
           currentVolume = volume;
           sourceFeatureId = feature.id;
+          semantic = undefined;
           lineage = advanceLineage(lineage, [feature.id, feature.type, feature.baseFeatureId, feature.selection.mode,
             feature.selection.mode === 'selected' ? feature.selection.edges.map((reference) => reference.key).sort() : null]);
           rememberReferencedSource(beforeForRecord);
@@ -479,6 +561,7 @@ export class CadEngine {
           } else { body = tool; tool = null; }
           currentVolume = measuredVolume(body);
           sourceFeatureId = feature.id;
+          semantic = undefined;
           lineage = advanceLineage(lineage, structure);
           rememberReferencedSource(beforeForRecord);
           continue;
@@ -523,7 +606,8 @@ export class CadEngine {
               }
               const catalog=historicalLimitFaces.get(id);
               if(!catalog) throw new Error('No se encuentra la superficie límite histórica. Recupera la selección.');
-              const face=resolveSelectedFaces(catalog,[end.target.face],id)[0];
+              const face=('semanticStatus' in catalog ? resolveSemanticSelectedFaces(catalog,[end.target.face],id)
+                : resolveSelectedFaces(catalog,[end.target.face],id))[0];
               tool=upToSurfaceTool({face},frame.origin,direction,makePrism);
               limitLineage=['upToSurface','face',id,end.target.face.key,historicalFaces.get(id)!.lineage];
             } else {
@@ -533,6 +617,22 @@ export class CadEngine {
               limitLineage=['upToSurface',end.target.kind,support.lineage];
             }
           } else throw new Error('Condición final de extrusión no compatible.');
+        } else if (!body && feature.type === 'extrude' && sketchFeature.profile.kind === 'entities') {
+          validateLength(feature.depth, 'Profundidad', true);
+          const context = entityPrismContextFromFeatures(features, feature.id);
+          if (context) {
+            const startOffset = sketchFeature.offset - (feature.symmetric ? feature.depth / 2 : 0);
+            const startFrame = sketchFeature.support ? offsetPlaneFrame(sketchFrames.get(sketchFeature.id)!,
+              feature.symmetric ? -feature.depth / 2 : 0) : undefined;
+            const owner = entityProfilePrismIfSingleRegion(sketchFeature.profile, sketchFeature.plane,
+              startOffset, feature.depth, startFrame);
+            if (owner) {
+              prismOwners.push(owner);
+              tool = owner.takeShape();
+              const prepared = preparePrismReferencesV2(sketchFeature.profile, context, owner.provenance);
+              if (prepared.status === 'verified') toolSemantic = prepared.references;
+            } else tool = featureSolid(feature, sketchFeature, sketchFrames.get(sketchFeature.id)!);
+          } else tool = featureSolid(feature, sketchFeature, sketchFrames.get(sketchFeature.id)!);
         } else tool = featureSolid(feature, sketchFeature, sketchFrames.get(sketchFeature.id)!);
         if (feature.type === 'cut' && !body) throw new Error('Crea primero un sólido antes de aplicar un corte.');
         validateSolid(tool);
@@ -551,6 +651,7 @@ export class CadEngine {
           tool = null;
           currentVolume = measuredVolume(body);
           sourceFeatureId = feature.id;
+          semantic = toolSemantic;
           lineage = advanceLineage(lineage, structure);
           rememberReferencedSource(beforeForRecord);
           continue;
@@ -568,9 +669,11 @@ export class CadEngine {
         candidate = null;
         currentVolume = volume;
         sourceFeatureId = feature.id;
+        semantic = undefined;
         lineage = advanceLineage(lineage, structure);
         rememberReferencedSource(beforeForRecord);
       } catch (error) {
+        featureFailed = true; featureError = error;
         result.featureErrors.push({
           id: feature.id,
           message: error instanceof Error ? error.message : 'OpenCascade no pudo construir esta operación. Revisa sus parámetros.',
@@ -578,27 +681,38 @@ export class CadEngine {
         result.warnings.push(`Reconstrucción detenida en «${feature.name}». Se muestra el último sólido válido.`);
         break;
       } finally {
-        tool?.delete();
-        candidate?.delete();
-        beforeForRecord?.delete();
+        const failures: unknown[] = [];
+        for (const owned of [tool, candidate, beforeForRecord]) {
+          try { owned?.delete(); } catch (error) { failures.push(error); }
+        }
+        if (failures.length) throw new AggregateError(featureFailed ? [featureError, ...failures] : failures,
+          'Native feature reconstruction or release failed.');
       }
-    } } finally {
-      historicalDeltas.forEach((record) => record.delta?.dispose());
-      historicalBodies.forEach((record) => record.body.delete());
-      historicalLimitFaces.forEach(catalog=>catalog.dispose());
+    } } catch (error) { reconstructionFailed = true; reconstructionError = error; throw error; }
+    finally {
+      const failures: unknown[] = [];
+      const releases = [
+        ...[...historicalDeltas.values()].map(record => () => record.delta?.dispose()),
+        ...[...historicalBodies.values()].map(record => () => record.body.delete()),
+        ...[...historicalLimitFaces.values()].map(catalog => () => catalog.dispose()),
+      ];
+      for (const release of releases) { try { release(); } catch (error) { failures.push(error); } }
+      if (failures.length) throw new AggregateError(reconstructionFailed ? [reconstructionError, ...failures] : failures,
+        'Historical native catalog reconstruction or release failed.');
     }
 
     this.shape = body;
     this.hasErrors = result.featureErrors.length > 0;
     if (!body) return result;
-    try {
       const mesh = body.mesh(MESH_OPTIONS);
       result.vertices = mesh.vertices;
       result.normals = mesh.normals;
       result.triangles = mesh.triangles;
       result.edgeLines = body.meshEdges(MESH_OPTIONS).lines;
-      result.edges = pickableEdges(body, sourceFeatureId, lineage);
-      result.faces = pickableFaces(body, sourceFeatureId, lineage);
+      result.edges = semantic ? pickableSemanticEdges(body, sourceFeatureId, lineage, semantic)
+        : pickableEdges(body, sourceFeatureId, lineage);
+      result.faces = semantic ? pickableSemanticFaces(body, sourceFeatureId, lineage, semantic)
+        : pickableFaces(body, sourceFeatureId, lineage);
       result.volume = currentVolume;
       const box = body.boundingBox;
       try {
@@ -611,10 +725,13 @@ export class CadEngine {
       if (solids.length > 1) result.warnings.push(`La pieza contiene ${solids.length} sólidos separados.`);
       solids.forEach((solid) => solid.delete());
       return result;
-    } catch (error) {
-      this.dispose();
-      throw error;
-    }
+    }, () => {
+      const failedBody = body;
+      body = null;
+      this.shape = null;
+      this.hasErrors = false;
+      failedBody?.delete();
+    });
   }
 
   export(format: CadExportFormat, features?: Feature[]): Blob {

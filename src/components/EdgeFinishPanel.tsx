@@ -4,6 +4,7 @@ import type {
   EdgeReference,
   EdgeSelection,
 } from "../cad/kernel.types";
+import { sameSelectionReference } from "../cad/selection.references";
 
 interface Props {
   feature: EdgeFinishFeature;
@@ -16,7 +17,7 @@ interface Props {
 }
 
 export function sameEdge(a: EdgeReference, b: EdgeReference) {
-  return a.sourceFeatureId === b.sourceFeatureId && a.key === b.key;
+  return sameSelectionReference(a, b);
 }
 
 export default function EdgeFinishPanel({

@@ -8,9 +8,10 @@ import type {
   ReferencePlaneFeature,
 } from "../cad/kernel.types";
 import { supportLabel } from "./PlaneSupportPanel";
+import { sameSelectionReference } from "../cad/selection.references";
 
 export function sameFace(a: FaceReference, b: FaceReference) {
-  return a.sourceFeatureId === b.sourceFeatureId && a.key === b.key;
+  return sameSelectionReference(a, b);
 }
 
 interface Props {

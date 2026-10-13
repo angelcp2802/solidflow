@@ -11,8 +11,8 @@ import type { PrismProvenance } from './kernel.provenance';
 import type { EntityProfile } from '../sketch/types';
 import type { EdgeReference, FaceReference, PickableEdge, PickableFace, PlaneFrame } from './kernel.types';
 
-/** Opt-in overlay only. The active engine and legacy catalogs do not call this module. */
-type PrismReferences = EntityPrismReferenceCatalogV2<Face, Edge>;
+/** Verified role bindings are borrowed from their retained native producer. */
+export type PrismReferences = EntityPrismReferenceCatalogV2<Face, Edge>;
 export type PreparedPrismReferencesV2 =
   | { readonly status: 'verified'; readonly references: PrismReferences }
   | { readonly status: 'unavailable'; readonly diagnostic: string };
@@ -50,7 +50,7 @@ interface OverlayResult {
   dispose(): void;
 }
 export interface SemanticFaceDescriptor extends FaceDescriptor {
-  /** Internal exact v1 aliases; only the primary ref is exposed for picking. */
+  /** Exact v1 aliases are serializable picking metadata, never stored as a replacement ref. */
   readonly aliases: readonly FaceReference[];
 }
 export interface SemanticFaceCatalog extends OverlayResult {
@@ -227,15 +227,17 @@ export function pickableSemanticFaces(
   shape: Shape3D, sourceFeatureId: string, lineage = '', semantic?: PrismReferences,
 ): PickableFace[] {
   const catalog = createSemanticFaceCatalog(shape, sourceFeatureId, lineage, semantic);
-  return withCatalog(catalog, () => catalog.entries.map(({ face, frame, ref }) => {
+  return withCatalog(catalog, () => catalog.entries.map(({ face, frame, ref, aliases }) => {
     const mesh = face.mesh({ tolerance: .05, angularTolerance: .12 });
-    return { ref: { ...ref }, frame: frame ? clonePlaneFrame(frame) : null, vertices: mesh.vertices, triangles: mesh.triangles };
+    return { ref: { ...ref }, aliases: aliases.map(alias => ({ ...alias })),
+      frame: frame ? clonePlaneFrame(frame) : null, vertices: mesh.vertices, triangles: mesh.triangles };
   }));
 }
 export function pickableSemanticEdges(
   shape: Shape3D, sourceFeatureId: string, lineage = '', semantic?: PrismReferences,
 ): PickableEdge[] {
   const catalog = createSemanticEdgeCatalog(shape, sourceFeatureId, lineage, semantic);
-  return withCatalog(catalog, () => catalog.entries.map(({ edge, ref }) => ({ ref: { ...ref },
+  return withCatalog(catalog, () => catalog.entries.map(({ edge, ref, aliases }) => ({ ref: { ...ref },
+    aliases: aliases.map(alias => ({ ...alias })),
     lines: edge.meshEdges({ tolerance: .05, angularTolerance: .12 }).lines })));
 }

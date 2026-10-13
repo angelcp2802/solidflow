@@ -233,6 +233,8 @@ export type Feature = ImportedSolidFeature | SketchFeature | ReferencePlaneFeatu
 
 export interface PickableFace {
   ref: FaceReference;
+  /** UI-only legacy aliases; saved selections keep their original reference. */
+  aliases?: readonly FaceReference[];
   /** Null for curved faces: they cannot support a planar sketch. */
   frame: PlaneFrame | null;
   /** A face-local display mesh; triangle picking never persists an index. */
@@ -247,6 +249,8 @@ export interface ReferencePlaneVisual {
 
 export interface PickableEdge {
   ref: EdgeReference;
+  /** UI-only legacy aliases; never persisted inside an EdgeReference. */
+  aliases?: readonly EdgeReference[];
   /** Consecutive endpoint pairs for the individual B-rep edge. */
   lines: number[];
 }

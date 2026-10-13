@@ -2,9 +2,11 @@
 
 ## Current behavior and compatibility
 
-The active engine uses conservative `face-v1|` and `edge-v1|` geometric keys. A unique exact key is required when resolving a saved selection. Changed geometry or ambiguous correspondence can require reselection. Existing keys, fixtures and rejection regressions must retain that behavior; loading a document must not reinterpret a v1 key as a semantic reference.
+Existing `face-v1|` and `edge-v1|` keys remain conservative geometric references. A unique exact key is required when resolving a saved selection. Changed geometry or ambiguous correspondence can require reselection. Loading, saving and undo/redo preserve those keys without migration.
 
-[Issue #21](https://github.com/angelcp2802/solidflow/issues/21) tracks references that survive edits to an existing generating entity. The experimental opt-in producer and pure v2 descriptor modules are being developed separately from the active engine. They do not yet establish editor support, downstream reconstruction or a general persistent-naming solution. The document parser and active resolvers continue to accept their existing formats until explicit integration is reviewed and validated.
+[Issue #21](https://github.com/angelcp2802/solidflow/issues/21) tracks references that survive edits to an existing generating entity. This integration branch connects the native producer, pure v2 descriptors, document parser, consumers and picking for the first finite entity-profile extrusion. Its implementation and newly written tests are under review; consult the validation record for executed evidence. This does not establish general persistent naming or complete interactive editor coverage.
+
+The document version remains 1. Strict v2 key syntax and source ownership are validated when loading; unresolved or suppressed references can be retained for repair. Resolution requires the exact current semantic identity. The picker exposes a verified v2 primary reference and serializable v1 aliases on one entry per shape. An existing saved v1 selection can be highlighted and removed through its exact alias, while new selections store only the primary reference's source and key.
 
 ## Identity contract
 
@@ -22,7 +24,7 @@ Catalog selection must preserve the document's existing limits: up to 256 faces 
 
 ## Native provenance and ownership
 
-The first producer is opt-in for a finite nonzero extrusion of one planar material region with holes. The existing extrusion, revolution and compound paths remain independent. Unsupported multiple regions or islands are rejected by this opt-in API; a future caller can explicitly choose the existing construction path for ordinary modeling. Provenance is available only after verifying every claimed history result's type, cardinality and unique membership in the actual body and appropriate cap. Mapping must be unique in both directions. Failure to establish provenance after a valid body is built leaves that geometry usable while reporting that semantic references are unavailable.
+The strict producer accepts a finite nonzero extrusion of one planar material region with holes. Its engine gate returns no primitive for multiple regions or islands, identified before building a prism; those cases explicitly use the existing construction path. Unsupported ancestry also keeps that path. Native construction errors propagate rather than triggering a retry with a different builder. The existing revolution and compound paths remain independent. Provenance is available only after verifying every claimed history result's type, cardinality and unique membership in the actual body and appropriate cap. Mapping must be unique in both directions. Failure to establish provenance after a valid body is built leaves that same geometry usable with legacy references.
 
 The pure identity layer requires boundary connectivity through saved point IDs or explicit coincident constraints. Joins established only by geometric tolerance do not receive v2 references in this increment. Structural descriptor checks do not establish native geometry, nesting or cleanup; those remain separate responsibilities.
 
@@ -40,7 +42,7 @@ Retain the provenance owner until all native consumers and final picking have fi
 
 Picking needs one entry per actual shape and serializable aliases so existing v1 selections remain highlighted and removable when a verified v2 key becomes primary. Exact-key comparisons in the viewport, property panels and hole support lookup need explicit alias handling. Preserve saved v1 references; a stored v2 selection never resolves through a v1 alias. Strict parser acceptance and the edge/face consumers must be integrated together rather than enabling v2 only in the picker.
 
-These integration requirements are pending. The opt-in modules and their tests do not establish the engine, document or editor behavior described here.
+The engine retains producer owners through final picking and clears active semantic metadata after unproved output correspondence, including Boolean operations and edge/face finishes. Historical support descriptors copy aliases and frames; historical limit faces have their own native catalog. Context uses the relevant ordered dependency closure, bounded at 256 entries, rather than applying that bound to the whole document. Runtime and interaction validation of these integration paths remains separate from the earlier opt-in module results.
 
 ## Acceptance evidence still required
 
@@ -48,4 +50,4 @@ Use original Cartesian fixtures in millimeters, including a 50 by 20 plate of th
 
 Exercise shared offset distance, individual source radius and source position edits, including radius-order exchanges. A selected hole-rim finish and a feature supported by a perforated cap must rebuild from their intended sources, then survive save/reopen and undo/redo. Deleted/recreated sources, type changes, suppression, signed-direction changes and ambiguous or split/merged correspondence require explicit rejection cases. Successful downstream operations also need fresh STEP reconstruction and appropriate independent geometry checks.
 
-Record commands, cases, tolerances and actual results in the validation record and pull request. A native experiment, pure descriptor test or initial-model desktop smoke does not establish real editor interaction. The experimental modules remain unverified until their tests and required project checks actually run.
+Record commands, cases, tolerances and actual results in the validation record and pull request. A native experiment, pure descriptor test or initial-model desktop smoke does not establish real editor interaction. Written integration tests do not establish their results until they and the required project checks actually run.

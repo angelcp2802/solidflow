@@ -1,4 +1,5 @@
 import type { EdgeReference, EdgeSelection, ExtrudeEndCondition, FaceReference, Feature, HoleEndCondition, HoleHead, HolePosition, LinearPatternDirection, LoftSection, PatternSource, Plane, PlaneSupport, Profile, SketchSupport, SweepPathSegment, Vec3 } from '../cad/kernel.types'
+import { isEdgeReferenceKeyV2, isFaceReferenceKeyV2 } from '../cad/kernel.semantic-references'
 import { validateEntityProfile } from '../sketch/validation'
 import { featureDependencyIds, featureSketchIds } from './featureInputs'
 import { validateStepSource } from './stepSource'
@@ -234,20 +235,26 @@ function edgeReference(value: unknown, path: string): EdgeReference {
   const source = object(value, path)
   keys(source, ['sourceFeatureId', 'key'], path)
   const key = string(source.key, `${path}.key`, 4096)
-  if (!key.startsWith('edge-v1|') || key.length <= 'edge-v1|'.length || /[\x00-\x1f\x7f]/.test(key)) {
+  const semantic = isEdgeReferenceKeyV2(key)
+  if ((!semantic && (!key.startsWith('edge-v1|') || key.length <= 'edge-v1|'.length)) || /[\x00-\x1f\x7f]/.test(key)) {
     fail(`${path}.key`, 'referencia de arista no compatible')
   }
-  return { sourceFeatureId: string(source.sourceFeatureId, `${path}.sourceFeatureId`, 128), key }
+  const sourceFeatureId = semantic ? entityIdentifier(source.sourceFeatureId, `${path}.sourceFeatureId`)
+    : string(source.sourceFeatureId, `${path}.sourceFeatureId`, 128)
+  return { sourceFeatureId, key }
 }
 
 function faceReference(value: unknown, path: string): FaceReference {
   const source = object(value, path)
   keys(source, ['sourceFeatureId', 'key'], path)
   const key = string(source.key, `${path}.key`, 4096)
-  if (!key.startsWith('face-v1|') || key.length <= 'face-v1|'.length || /[\x00-\x1f\x7f]/.test(key)) {
+  const semantic = isFaceReferenceKeyV2(key)
+  if ((!semantic && (!key.startsWith('face-v1|') || key.length <= 'face-v1|'.length)) || /[\x00-\x1f\x7f]/.test(key)) {
     fail(`${path}.key`, 'referencia de cara no compatible')
   }
-  return { sourceFeatureId: string(source.sourceFeatureId, `${path}.sourceFeatureId`, 128), key }
+  const sourceFeatureId = semantic ? entityIdentifier(source.sourceFeatureId, `${path}.sourceFeatureId`)
+    : string(source.sourceFeatureId, `${path}.sourceFeatureId`, 128)
+  return { sourceFeatureId, key }
 }
 
 function faceSelection(value: unknown, baseFeatureId: string, path: string, allowEmpty: boolean): FaceReference[] {
@@ -417,7 +424,7 @@ function edgeSelection(value: unknown, baseFeatureId: string, path: string): Edg
     fail(`${path}.edges`, `selecciona entre 1 y ${MAX_SELECTED_EDGES} aristas`)
   }
   const seen = new Set<string>()
-  const edges = source.edges.map((value, index) => {
+  const edges = Array.from(source.edges).map((value, index) => {
     const parsed = edgeReference(value, `${path}.edges[${index}]`)
     if (parsed.sourceFeatureId !== baseFeatureId) {
       fail(`${path}.edges[${index}].sourceFeatureId`, 'la arista debe pertenecer a la operación base')
