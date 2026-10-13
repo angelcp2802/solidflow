@@ -139,3 +139,67 @@ exercise shared equations, explicit point repositioning, construction flags,
 parsing, capacity rejection and document/history cleanup. Cleanup and driven
 mobility are explicit local policies; these synthetic fixtures do not claim
 another application's solver or lifecycle behavior.
+
+The experimental semantic-reference regressions are authored inline in
+`src/cad/kernel.provenance.test.ts`,
+`src/cad/kernel.semantic-references.test.ts` and
+`src/cad/kernel.semantic-catalogs.test.ts`. They use original Cartesian
+coordinates in millimeters and symbolic identity inputs, with no imported
+model, saved interaction capture or new binary fixture. The
+[semantic-reference contract](SEMANTIC_REFERENCES.md) separates these opt-in
+modules from the active engine, document parser and editor.
+
+The producer tests construct a 50×20 rectangle from `(-10,-10)` to `(40,10)`,
+with circular holes centered at `(0,0)` and `(20,0)` and extrusion depth 4.
+Their radius pairs are authored arithmetically as `R+d`: source radii 2 and 5
+with distance 1 or 1.5, then source radii 2.25 and 5 with distance 1.5.
+These inputs do not themselves invoke an offset planner or establish shared
+solver behavior. Separate cases exchange radii `3,6` to `6,3`, and extrude
+the `3,6` pair to depth −4. Independent expectations are
+`S=1000−π(rA²+rB²)`, `P=140+2π(rA+rB)`, `V=|depth|S` and
+`A=2S+|depth|P`. Written BRep/solid-count assertions accompany absolute
+`5e-6` volume, area and bounding-coordinate tolerances in their respective
+units. Hole-target bounds use `5e-6` mm; cap-origin and support-frame parity
+assertions use `5e-7` mm for positions and `5e-7` for direction components.
+
+A placed producer case supplies origin `(7,-4,9)`, local X direction
+`(0,1,0)` and normal `(0,0,1)`, with radii `3,6` and `3.5,6.5`.
+That explicit frame overrides the nominal principal-plane offset 100.
+The authored world bounds are `(-3,-14,9)` to `(17,36,13)`; support origins
+are the world origin projected onto the cap planes, `(0,0,9)` and `(0,0,13)`.
+A D-shaped-hole case replaces the radius-3 circle under the same entity ID
+with a counterclockwise upper semicircle from `(3,0)` to `(-3,0)` and its
+closing diameter. With the other radius-6 hole, the independent expected
+volume is `4(1000−4.5π−36π)` mm³, checked at absolute `5e-6` alongside BRep
+validity. This case does not assert a D-shaped-hole surface-area oracle.
+
+The native catalog tests reuse the 50×20×4 plate with initial radii `3,6`.
+Edits use `(rA,rB,centerAX)` values `(3.5,6.5,0)`, `(7,2,0)` and
+`(3.5,6.5,-1)`, retaining the second center at `(20,0)`. Circular rim bounds
+use absolute `5e-7` mm; cap origin `(0,0,4)` and normal `(0,0,1)` use exact
+tuple assertions. These cases specify versioned resolution, legacy aliases,
+duplicate-selection rejection, replaced-source rejection and copied
+historical frames. Injected history/release errors exercise wrapper ownership
+paths; disposal call counts are not proof of native leak freedom.
+
+The pure identity tests start from the same rectangle with radii `3,5` and
+include an affine edit `x→2x+123`, `y→3y−57`: the resulting 100×60 rectangle
+contains holes of radii `16,14`, reversing their size order. Other inline
+inputs cover source types, connectivity, explicit coincident relations,
+history, offset branches and symbolic split/merge ambiguity. SHA-256
+expectations use a separately written canonical payload and Node's crypto
+implementation. Symbolic target tokens and structural validation establish
+neither native correspondence, geometric nesting nor BRep validity.
+
+The separate `src/cad/kernel.semantic-catalogs.limits.test.ts` uses synthetic
+targets whose `isSame` compares object identity. Its four cases specify the
+existing document-selection limits: 257 distinct edges are accepted, 4097
+edges are rejected, 256 faces are accepted and 257 faces are rejected. These
+are API compatibility fixtures, with no native shapes, coordinates or WASM
+initialization, and provide no geometric evidence.
+
+These regression files are programmatic definitions, not execution
+results or independent-kernel interoperability evidence. The native cases
+use the project's locked OCCT runtime. Engine/parser/UI activation,
+downstream reconstruction and the required validation runs remain separate
+acceptance work; no pass is inferred from these fixture descriptions.

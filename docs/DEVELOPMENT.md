@@ -54,6 +54,8 @@ Keep geometry out of presentation-only mockups. A new tool should change the sav
 
 Lengths use millimeters. State angular units explicitly: the sketch's directed angular dimensions use degrees, while geometric calculations may use radians. Persisted point-on-line and point-on-circle relations use complete supports; a finite hit test is a separate requirement. Useful starting points are [sketch types](../src/sketch/types.ts), the [solver](../src/sketch/solver.ts), [trim](../src/sketch/trim.ts), [extend](../src/sketch/extend.ts) and their adjacent regression tests.
 
+Read the [semantic CAD reference contract](SEMANTIC_REFERENCES.md) before changing experimental extrusion provenance or v2 reference identity. These opt-in modules do not activate v2 in the engine, document parser or editor. Their original regression inputs and analytical expectations are recorded in [fixture provenance](PROVENANCE.md); written tests and source-level ownership reasoning are not executed validation results.
+
 ## Test geometry and persistence
 
 Prefer small analytical fixtures with a known result. For example, a closed 10×6 rectangle extruded 4 mm should have volume 240 mm³; the test should also establish valid BRep and the expected number of solids. For affected references, edit an earlier feature, rebuild dependent features and serialize/reopen the document. Test failure paths for atomic behavior when the command can reject a change.
