@@ -3,6 +3,7 @@ import type { EntityProfile, SketchEntity, SketchSelection } from "./types";
 import { planSketchFillet, type FilletParameters } from "./fillet";
 import { solveSketch } from "./solver";
 import { validateEntityProfile } from "./validation";
+import { canonicalCreatedIdentities } from "./identity.test-helpers";
 import {
   createDocument,
   parseDocument,
@@ -848,7 +849,7 @@ describe("fillet constraints and transactions", () => {
     expect(rejected.selectedSolutionIndex).toBeNull();
   });
 
-  it("is deterministic and pure on frozen stale input, without solving or allocating UUIDs", () => {
+  it("keeps frozen stale geometry unchanged while allocating fresh proposal identities without solving", () => {
     const input = definedCorner();
     dimension(input, "old-a", 80);
     input.points.forEach(Object.freeze);
@@ -862,9 +863,18 @@ describe("fillet constraints and transactions", () => {
     try {
       const first = plan(input),
         second = plan(input);
-      expect(first).toEqual(second);
-      expect(random).not.toHaveBeenCalled();
+      expect(first.selectedSolutionIndex).toBe(second.selectedSolutionIndex);
+      expect(first.sourceEdits).toEqual(second.sourceEdits);
+      expect(first.filletEntityId).not.toBe(second.filletEntityId);
+      expect(random).toHaveBeenCalledTimes(2);
+      expect(canonicalCreatedIdentities(first.profile, input)).toEqual(canonicalCreatedIdentities(second.profile, input));
       expectXY(xy(first.profile, "far-a"), 40, 0);
+      expectXY(xy(second.profile, "far-a"), 40, 0);
+      const firstArc = rounded(first.profile, first.filletEntityId!);
+      const secondArc = rounded(second.profile, second.filletEntityId!);
+      for (const role of ["c", "s", "e"] as const)
+        expectXY(secondArc[role], firstArc[role].x, firstArc[role].y, 12);
+      expect(secondArc.clockwise).toBe(firstArc.clockwise);
     } finally {
       random.mockRestore();
     }

@@ -1,5 +1,6 @@
 import type { EntityProfile, SketchEntity, SketchPoint, SketchSelection } from "./types";
 import { SKETCH_LIMITS, validateEntityProfile } from "./validation";
+import { createSketchIdAllocator } from "./ids";
 
 export interface MirrorParameters {
   axisEntityId: string;
@@ -73,7 +74,7 @@ function sameGeometry(profile: EntityProfile, a: SketchEntity, b: SketchEntity):
   );
 }
 
-/** Pure detached proposal. It consumes displayed solved geometry and never solves or edits it. */
+/** Detached proposal. It consumes displayed solved geometry and never solves or edits it. */
 export function planSketchMirror(input: EntityProfile, selection: SketchSelection[], parameters: MirrorParameters): MirrorPlan {
   const rejected = (message: string): MirrorPlan => ({
     changed: false, sourceProfile: input, profile: input, message,
@@ -97,14 +98,7 @@ export function planSketchMirror(input: EntityProfile, selection: SketchSelectio
       joins.some(id => !sourcePoints.includes(id) || geometry.distance(point(profile, id)) > MIRROR_TOLERANCE))
       return rejected("Solo se pueden compartir puntos fuente que estén sobre el eje.");
     const joinSet = new Set(joins);
-    const ids = new Set(["origin", ...profile.points.map(p => p.id), ...profile.entities.map(e => e.id), ...profile.constraints.map(c => c.id)]);
-    const allocate = (kind: string) => {
-      let index = 1;
-      while (ids.has(`mirror-${kind}-${index}`)) index++;
-      const id = `mirror-${kind}-${index}`;
-      ids.add(id);
-      return id;
-    };
+    const allocate = createSketchIdAllocator(profile, "mirror");
     const pointMap = new Map<string, string>();
     const createdConstraintIds: string[] = [];
     for (const sourceId of sourcePoints) {

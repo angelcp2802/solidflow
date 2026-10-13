@@ -52,6 +52,8 @@ CI packages have no signing or notarization credentials and are built with `--pu
 
 Keep geometry out of presentation-only mockups. A new tool should change the saved model through the editing layer and rebuild through the public CAD engine. In sketch trim/extend, preview and commit consume the solved geometry being displayed; they do not run a hidden solve. Driven values come from the solver result, not from a retained nominal value. Read the relevant contract before changing those rules.
 
+Generated sketch IDs are opaque saved identities. Read the [identity contract](SKETCH_IDENTITY.md) before changing creation, preview/application or deletion behavior; a new creation and an edit of an existing object have different identity requirements.
+
 Lengths use millimeters. State angular units explicitly: the sketch's directed angular dimensions use degrees, while geometric calculations may use radians. Persisted point-on-line and point-on-circle relations use complete supports; a finite hit test is a separate requirement. Useful starting points are [sketch types](../src/sketch/types.ts), the [solver](../src/sketch/solver.ts), [trim](../src/sketch/trim.ts), [extend](../src/sketch/extend.ts) and their adjacent regression tests.
 
 Read the [semantic CAD reference contract](SEMANTIC_REFERENCES.md) before changing experimental extrusion provenance or v2 reference identity. These opt-in modules do not activate v2 in the engine, document parser or editor. Their original regression inputs and analytical expectations are recorded in [fixture provenance](PROVENANCE.md); written tests and source-level ownership reasoning are not executed validation results.

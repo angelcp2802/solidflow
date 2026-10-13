@@ -1,5 +1,6 @@
 import type { EntityProfile, OffsetImage, OffsetJoin, OffsetSource, SketchEntity, SketchOffsetRelation, SketchSelection } from "./types";
 import { SKETCH_LIMITS, validateEntityProfile } from "./validation";
+import { createSketchIdAllocator } from "./ids";
 import { cross2, dot2, ends, minus, norm, offsetEntity, offsetGeometryError, offsetPoint, plus, projectOffsetPoint, sameSupport, scaled, support, supportIntersections, type OffsetPoint } from "./offset-geometry";
 
 export interface OffsetParameters {
@@ -128,8 +129,7 @@ export function planSketchOffset(input: EntityProfile, selection: SketchSelectio
       !["none", "line", "arc"].includes(parameters.cap) || !["none", "source", "offset", "both"].includes(parameters.construction)) return rejected("Revisa la distancia y las opciones de equidistancia.");
     if (!selection.length || selection.some(item => item.kind !== "entity") || new Set(selectedEntityIds).size !== selectedEntityIds.length) return rejected("Selecciona líneas, arcos o círculos sin repetir entidades.");
     const chains = orderedComponents(profile, selectedEntityIds, parameters.chain);
-    const ids = new Set(["origin", ...profile.points.map(p => p.id), ...profile.entities.map(e => e.id), ...profile.constraints.map(c => c.id)]);
-    const allocate = (kind: string) => { let index = 1; while (ids.has(`offset-${kind}-${index}`)) index++; const id = `offset-${kind}-${index}`; ids.add(id); return id; };
+    const allocate = createSketchIdAllocator(profile, "offset");
     const createPoint = (p: OffsetPoint) => { const id = allocate("point"); profile.points.push({ id, x: p.x, y: p.y }); return id; };
     const sides: ("right" | "left")[] = parameters.bothDirections ? [parameters.reverse ? "left" : "right", parameters.reverse ? "right" : "left"] : [parameters.reverse ? "left" : "right"];
     const components: OffsetPlanComponent[] = [], relations: SketchOffsetRelation[] = [];

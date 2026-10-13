@@ -11,6 +11,20 @@ models. Do not add confidential designs, credentials, personal paths or vendor
 binaries. New fixtures must identify how they were made and how a reviewer can
 check them. Do not relabel third-party output as an original project output.
 
+The generated-identity regressions author an open Cartesian corner from
+`(0,0)` to `(10,0)` and `(0,10)`, with a construction mirror axis at x=20,
+in millimeters. Offset, mirror, fillet and chamfer proposals use those inline
+profiles; identity comparisons retain every geometry and constraint field and
+replace only newly created IDs with test roles. A separate offset lifecycle
+uses an anchored `(0,0)→(10,0)` source: right offsets at 2 and 3 mm have
+independent expected endpoint heights y=-2 and y=-3. It exercises sketch
+deletion/recreation, document serialization and the real document-history
+class, without a CAD runtime or imported file. The allocator's injected UUID
+is a synthetic identity fixture, not a credential or external model. Existing
+saved CAD fixtures and their hashes are unchanged. See the
+[identity contract](SKETCH_IDENTITY.md); these checks do not establish solid
+face/edge continuity or real editor interaction.
+
 The source factories under `src/examples/` generate synthetic documents from
 the parameters in their code; they are separate from saved UI captures.
 `sketch-fillet-prolongation.ts` defines an R10 line–arc gap and an R10/R10

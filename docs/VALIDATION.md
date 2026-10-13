@@ -27,6 +27,24 @@ successful installation, notarization or all interactive workflows on that OS.
 The project does not yet have exhaustive topology, numerical robustness,
 accessibility, performance or platform coverage.
 
+## Generated sketch identity prerequisite — 2026-10-13
+
+On Windows x64, source head `857838149858d6eb926d223ead2ccdc5b881d0fd`,
+Node 24.11.1 and npm 11.6.2, `npm test` with `VITEST_MAX_WORKERS=1`
+exited 1 after 4,219.39 seconds. The portable phase reported 1,381 passed
+and 122 failed tests (1,503 total), across 15 failed and 61 passed files
+(76 total). All 122 reported failures were test timeouts: 121 at 5,000 ms
+and one at 15,000 ms. IPC did not execute because the unit phase failed in
+`npm run test:unit && npm run test:ipc`. Test selection, assertions and
+existing timeout budgets were unchanged. The underlying cause has not been
+established.
+
+All six hosted checks passed on that same source head, recorded separately
+in [PR #24](https://github.com/angelcp2802/solidflow/pull/24). Their platform
+results do not change this failed local result or establish exhaustive
+platform or interactive-workflow coverage. Subsequent heads require their
+own checks before merge.
+
 ## Disconnected sketch offsets — 2026-10-12
 
 Local evidence for this increment is from Windows x64 with Node 24.11.1.
