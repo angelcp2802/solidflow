@@ -26,14 +26,26 @@ npm start
 
 | Command | Scope |
 | --- | --- |
-| `npm test` | The public unit/CAD suite and desktop-security checks from a fresh checkout. |
+| `npm test` | The public unit/CAD suite and desktop checks from a fresh checkout. |
 | `npm run test:unit` | Unit and CAD regressions that can run from a fresh public checkout. |
-| `npm run test:ipc` | The desktop-security suite without opening a desktop window. |
+| `npm run test:ipc` | Desktop-security and launcher failure-path tests without opening a desktop window. |
 | `npm run build` | TypeScript checking and production compilation of UI, worker and WASM integration. |
 | `npm run test:desktop` | Real Electron production-loader smoke check after building, with a hidden window and isolated temporary user data. |
 | `npx --no-install vitest run src/sketch/extend.review.test.ts --pool=threads` | A focused sketch/CAD regression file; replace the path with the relevant test. |
 
 The desktop smoke check loads the initial model, preload, worker and WASM and checks readiness and console errors. It does not click the editor's tools or launch the packaged installer. On a headless Linux machine, a display server is needed for Electron; CI can use `xvfb-run -a npm run test:desktop` after installing the required system libraries. Do not disable Electron's sandbox to make a check pass.
+
+The Node launcher preserves the first failure, its child exit code or signal,
+and subsequent cleanup failures. It deletes its isolated temporary data only
+after observing the child's `close` event. If close remains unconfirmed at the
+existing 45-second deadline, the check fails and retains that temporary data.
+Releasing the child handle's reference does not prove termination of Chromium
+descendants or release of their inherited streams and files.
+
+Launcher regressions in `npm run test:ipc` use original synthetic child events,
+an explicitly advanced clock and a VM check of the Node entry point. They do
+not launch Electron or validate production readiness. The real smoke check
+remains a separate required command after building.
 
 Run focused tests while developing, then the checks relevant to the complete change. The [CI workflow](../.github/workflows/ci.yml) is configured for Node 24 on Windows 2025 x64, Ubuntu 24.04 x64 and macOS 15 arm64: install, build, unit tests, IPC tests, Electron smoke check and packaging. Linux uses Xvfb. A configured job is not an executed result; check Actions for the actual commit and platform before claiming a pass.
 

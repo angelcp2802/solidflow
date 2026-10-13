@@ -16,24 +16,17 @@ async function launch() {
   // Permit that software renderer for this smoke test while keeping sandboxing.
   const electronArgs = process.platform === 'linux' && environment.CI === 'true'
     ? ['--ignore-gpu-blocklist', __filename] : [__filename];
-  let child;
-  let timer;
-  try {
-    const exitCode = await new Promise((resolve, reject) => {
-      child = spawn(require('electron'), electronArgs, { cwd: ROOT, env: environment, stdio: 'inherit', windowsHide: true });
-      child.once('error', reject);
-      child.once('exit', (code) => resolve(code ?? 1));
-      timer = setTimeout(() => { child.kill(); reject(new Error('Electron no terminó en 45 segundos.')); }, 45_000);
-    });
-    process.exitCode = exitCode;
-  } finally {
-    clearTimeout(timer);
-    if (child && child.exitCode === null && !child.killed) child.kill();
-    if (!path.resolve(temporary).startsWith(path.resolve(os.tmpdir()) + path.sep) || !path.basename(temporary).startsWith('solidflow-runtime-check-')) {
-      throw new Error('Ruta temporal inesperada; no se elimina.');
-    }
-    await fs.rm(temporary, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
-  }
+  const { runSmokeLaunch } = require('./desktop-smoke-launch.cjs');
+  await runSmokeLaunch({
+    spawn: () => spawn(require('electron'), electronArgs, { cwd: ROOT, env: environment, stdio: 'inherit', windowsHide: true }),
+    cleanup: async () => {
+      if (!path.resolve(temporary).startsWith(path.resolve(os.tmpdir()) + path.sep) || !path.basename(temporary).startsWith('solidflow-runtime-check-')) {
+        throw new Error('Ruta temporal inesperada; no se elimina.');
+      }
+      await fs.rm(temporary, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+    },
+  });
+  process.exitCode = 0;
 }
 
 function runInElectron() {
@@ -126,4 +119,7 @@ function runInElectron() {
 }
 
 if (process.versions.electron) runInElectron();
-else launch().catch(error => { console.error(error.message); process.exitCode = 1; });
+else launch().catch(error => {
+  console.error(error);
+  process.exitCode = require('./desktop-smoke-launch.cjs').launchFailureExitCode(error);
+});
