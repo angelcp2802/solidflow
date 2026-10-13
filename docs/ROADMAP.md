@@ -33,6 +33,13 @@ body ownership in linear/circular patterns and mirror. These proposals have not
 merged. Their checks and remaining acceptance work are recorded separately from
 the foundation above.
 
+The independent [desktop diagnostic proposal #35](https://github.com/angelcp2802/solidflow/pull/35)
+targets `main` for [issue #30](https://github.com/angelcp2802/solidflow/issues/30).
+It is a parallel maintenance lane, not another CAD prerequisite. Its current
+hosted checks pass, while local full-suite timeouts and an explicit desktop
+deadline/unconfirmed-close failure remain recorded in the review queue. The
+issue stays open for review and remaining real desktop acceptance.
+
 ## Next priorities
 
 1. Make Windows, macOS and Linux builds reproducible and verify real interaction

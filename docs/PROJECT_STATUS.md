@@ -1,6 +1,6 @@
 # Project status and review queue
 
-Snapshot: 2026-10-13. The default branch is the published source baseline;
+Snapshot: 2026-10-14. The default branch is the published source baseline;
 open pull requests are proposals. Check their current state and commit-specific
 Actions results before using this snapshot to make a decision.
 
@@ -53,27 +53,67 @@ on each of its three configured platforms. Preserve both results when reviewing
 the change; a green hosted run does not explain a local failure.
 
 For [#34](https://github.com/angelcp2802/solidflow/pull/34), runtime source
-`60014c4` is based on #31 at `92a8747`; hosted jobs tested their merge `59ce400`.
-The [CI run](https://github.com/angelcp2802/solidflow/actions/runs/38459447247)
-and [security run](https://github.com/angelcp2802/solidflow/actions/runs/38459447114)
+`60014c4` is based on #31 at `92a8747`. The final documentation-only head
+`601788c` retains the same 243 runtime inputs; hosted jobs tested merge `0e6bd9d`.
+The [CI run](https://github.com/angelcp2802/solidflow/actions/runs/38465622528)
+and [security run](https://github.com/angelcp2802/solidflow/actions/runs/38465622843)
 completed with six successful checks. Each configured Windows x64, Linux x64
 and macOS arm64 job passed the production build, 1,888 tests in 101 files
 (including 23 body-pattern cases), 11 IPC tests and the isolated initial-model
 Electron/WASM smoke check. The smoke logs reported no console errors or failed
-requests; unsigned packaging used `--publish never`. Complete pattern/mirror
+requests; packaging used `--publish never`. Complete pattern/mirror
 interaction, independent interoperability and general platform support remain
-unproved. At this snapshot, the local full run was still open and had reported
-slow-case failures and worker-termination warnings; final case totals and a
-cause had not been established. Earlier local failures remain recorded in the proposal;
-the hosted pass does not resolve them or the diagnostic issues below.
+unproved. The complete local runtime-source run reported 1,719 passed and 169
+failed of 1,888 tests, with 84 passed and 17 failed of 101 files in 1,165.13s.
+All 169 reported failures were test timeouts: 159 at 5 seconds, one at 20 seconds
+and nine at 60 seconds. Three worker-termination warnings were recorded
+separately; their causes remain unknown. Separate IPC passed 11 cases and the
+production build passed 1,982 modules. Local desktop smoke failed at the
+45-second deadline without a readiness report. Preserve those failures and
+the earlier validation history; hosted success does not explain them.
+
+## Parallel desktop diagnostics proposal
+
+[#35](https://github.com/angelcp2802/solidflow/pull/35) addresses
+[#30](https://github.com/angelcp2802/solidflow/issues/30) on `main`, independently
+of the four-proposal CAD stack above. It preserves the primary launch outcome
+alongside cleanup errors and retains isolated temporary data when the owned
+child's close was not observed. It is draft and unmerged; #30 remains open.
+
+For source `b488bc3`, the [CI run](https://github.com/angelcp2802/solidflow/actions/runs/38476808951)
+and [security run](https://github.com/angelcp2802/solidflow/actions/runs/38476808925)
+have six successful checks, testing merge `0160695` with `main` at `43c7573`.
+Each Windows x64, Linux x64 and macOS arm64 log records 1,492 unit/CAD cases in
+74 files, 31 Node cases, the 1,972-module build, an initial-model Electron/WASM
+smoke pass with no console errors or failed requests, and packaging with
+`--publish never`. CodeQL passed; the audit retained eight moderate findings.
+Packaging logs are not independent evidence of binary signing or notarization.
+
+The updated local source passed 31 IPC cases, including the original VM
+temporary-path rejection case, and the 1,972-module build. Its full unit run
+failed: 1,352 passed and 140 failed of 1,492 tests; 59 passed and 15 failed of
+74 files in 853.24s. All 140 logged failures were test timeouts, 136 at 5 seconds
+and four at 30 seconds, with one separate worker-termination warning. The failed
+unit phase did not run IPC; the standalone 31-case result has its own scope.
+Desktop smoke reported an aggregate with the 45-second deadline as cause and
+unconfirmed child close as the secondary failure. Cleanup was skipped and
+isolated temporary data retained; no readiness report or cleanup lock error
+was observed. Neither the local failures nor their causes are resolved by CI.
+
+Keep the earlier source `038bc50` evidence too: its six hosted checks passed,
+while local full reported 1,346 passed and 146 timed-out tests in 20 failed
+files (138 at 5 seconds, seven at 30 seconds and one at 15 seconds), plus three
+separate worker warnings. Synthetic launcher tests do not establish real locked
+profile recovery, descendant/stream termination or full interactive coverage.
 
 Known unresolved diagnostics have separate issues:
 
 - [#28](https://github.com/angelcp2802/solidflow/issues/28): an earlier Linux
   portable-test exit 139 with a segmentation-fault diagnostic. The crashing
   component and cause remain unknown despite a passing repeat.
-- [#30](https://github.com/angelcp2802/solidflow/issues/30): preserve primary
-  desktop smoke failures when temporary-profile cleanup also fails.
+- [#30](https://github.com/angelcp2802/solidflow/issues/30): review the independent
+  diagnostic proposal #35; real locked-profile behavior and the original
+  readiness outcome remain unresolved.
 - [#32](https://github.com/angelcp2802/solidflow/issues/32): reject unknown
   body-operation modes at the raw extrusion/revolution engine boundary. The
   correction is proposed in #29 and shared with sweep/loft in #31, with public
