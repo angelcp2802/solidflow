@@ -43,7 +43,8 @@ Releasing the child handle's reference does not prove termination of Chromium
 descendants or release of their inherited streams and files.
 
 Launcher regressions in `npm run test:ipc` use original synthetic child events,
-an explicitly advanced clock and a VM check of the Node entry point. They do
+an explicitly advanced clock and VM checks of the Node entry point, including
+temporary-path rejection. They do
 not launch Electron or validate production readiness. The real smoke check
 remains a separate required command after building.
 

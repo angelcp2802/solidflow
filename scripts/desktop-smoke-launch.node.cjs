@@ -7,8 +7,8 @@ const test = require('node:test');
 const vm = require('node:vm');
 const { runSmokeLaunch, launchFailureExitCode } = require('./desktop-smoke-launch.cjs');
 
-// Original synthetic event sequences: no Electron, filesystem or process launch.
-// The clock is advanced explicitly, so these tests do not spend a real 45s.
+// Original synthetic event sequences: no Electron, filesystem writes or process launch.
+// Deadline cases advance a manual clock instead of waiting a real 45s.
 function harness({ spawnError, cleanup = () => {}, kill = () => true, unref = () => {} } = {}) {
   const events = [];
   const child = new EventEmitter();
@@ -337,4 +337,96 @@ test('the Node entry point reports the complete aggregate and preserves the prim
   assert.equal(report[0].cause, primary);
   assert.equal(report[0].errors[1].code, 'EBUSY');
   assert.equal(processDouble.exitCode, 7);
+});
+
+test('the real Node entry point rejects invalid temporary paths without deleting data and preserves child status', async () => {
+  const filename = path.join(__dirname, 'desktop-smoke.cjs');
+  const source = fs.readFileSync(filename, 'utf8');
+  const temporaryRoot = path.join(__dirname, 'synthetic-smoke-temp-root');
+  const invalidPaths = [
+    { label: 'outside temporary root', value: path.join(__dirname, 'solidflow-runtime-check-outside') },
+    { label: 'wrong directory prefix', value: path.join(temporaryRoot, 'wrong-prefix') },
+  ];
+  const diagnostic = 'Ruta temporal inesperada; no se elimina.';
+
+  for (const childCode of [0, 7]) {
+    for (const invalid of invalidPaths) {
+      const events = [];
+      const processDouble = { env: {}, versions: {}, platform: process.platform };
+      let accessCount = 0;
+      let temporaryCount = 0;
+      let removeCount = 0;
+      let spawnCount = 0;
+      let report;
+      let reportReady;
+      const reported = new Promise(resolve => { reportReady = resolve; });
+
+      vm.runInNewContext(source, {
+        __dirname, __filename: filename, process: processDouble,
+        console: { error(...args) { events.push('report'); report = args; reportReady(); } },
+        require(name) {
+          if (name === 'node:fs/promises') return {
+            access: async () => { accessCount++; },
+            mkdtemp: async prefix => {
+              temporaryCount++;
+              assert.equal(prefix, path.join(temporaryRoot, 'solidflow-runtime-check-'));
+              return invalid.value;
+            },
+            rm: async () => { removeCount++; assert.fail('invalid temporary data must not reach fs.rm'); },
+          };
+          if (name === 'node:os') return { tmpdir: () => temporaryRoot };
+          if (name === 'node:path') return path;
+          if (name === './desktop-smoke-launch.cjs') return { runSmokeLaunch, launchFailureExitCode };
+          if (name === 'electron') return 'synthetic-electron-executable';
+          if (name === 'node:child_process') return {
+            spawn(executable, args, options) {
+              spawnCount++;
+              assert.equal(executable, 'synthetic-electron-executable');
+              assert.deepEqual(Array.from(args), [filename]);
+              assert.equal(options.env.SOLIDFLOW_SMOKE_DIR, invalid.value);
+              const child = new EventEmitter();
+              child.kill = () => assert.fail('successful synthetic close must not request kill');
+              child.unref = () => assert.fail('observed synthetic close must not unref');
+              events.push('spawn');
+              queueMicrotask(() => {
+                events.push('exit');
+                child.emit('exit', childCode, null);
+                events.push('close');
+                child.emit('close', childCode, null);
+              });
+              return child;
+            },
+          };
+          assert.fail('unexpected Node entry-point dependency: ' + name);
+        },
+      });
+
+      await reported;
+      assert.equal(accessCount, 1, invalid.label);
+      assert.equal(temporaryCount, 1, invalid.label);
+      assert.equal(spawnCount, 1, invalid.label);
+      assert.equal(removeCount, 0, invalid.label);
+      assert.ok(events.indexOf('close') < events.indexOf('report'), invalid.label);
+      assert.equal(report.length, 1, invalid.label);
+      assert.equal(typeof report[0], 'object', invalid.label);
+      const error = report[0];
+
+      if (childCode === 0) {
+        assert.equal(error.name, 'Error', invalid.label);
+        assert.equal(error instanceof AggregateError, false, invalid.label);
+        assert.equal(error.message, diagnostic, invalid.label);
+        assert.equal(processDouble.exitCode, 1, invalid.label);
+      } else {
+        assert.ok(error instanceof AggregateError, invalid.label);
+        assert.equal(error.errors.length, 2, invalid.label);
+        assert.equal(error.cause, error.errors[0], invalid.label);
+        assert.equal(error.errors[0].exitCode, 7, invalid.label);
+        assert.equal(error.errors[0].signal, null, invalid.label);
+        assert.equal(error.errors[1].message, diagnostic, invalid.label);
+        assert.equal(error.exitCode, 7, invalid.label);
+        assert.equal(error.signal, null, invalid.label);
+        assert.equal(processDouble.exitCode, 7, invalid.label);
+      }
+    }
+  }
 });
