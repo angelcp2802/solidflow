@@ -1,5 +1,55 @@
 # Validation
 
+## Scoped feature contributions — hosted result for the published head, 2026-10-14
+
+[Draft PR #36](https://github.com/angelcp2802/solidflow/pull/36) remains open
+and unmerged, based on #34 at `601788c60807cdeb0ae644f7c7a88617d159f065`.
+Its runtime source is `c10d31f6f76613ceffba76a348c0ba3909048c56`; published
+documentation head `ae4498810de64ab46a9398145ea37d8c1f6b00dc` changes only
+this validation document and retains the same 251 runtime inputs.
+
+[CI 38495555168](https://github.com/angelcp2802/solidflow/actions/runs/38495555168)
+and [Security 38495555227](https://github.com/angelcp2802/solidflow/actions/runs/38495555227)
+completed successfully on their first attempts, with six successful checks
+for that exact published head. Every configured desktop job checked out
+merge `2ae4f0db2dfc365be7c0de0117b86538c910a95f`, whose parents are the
+stated #34 base and published head. Its tree
+`9b5a3df566e2988d288301ef4e2a389903a58632` equals the published-head tree.
+
+| Configured job | Node | Unit/CAD | Native feature patterns | IPC | Build modules |
+| --- | --- | --- | --- | --- | --- |
+| Windows 2025 x64 | 24.21.0 | 1,971 passed / 105 files | 22 passed | 11 passed | 1,985 |
+| Ubuntu 24.04 x64 | 24.21.0 | 1,971 passed / 105 files | 22 passed | 11 passed | 1,985 |
+| macOS 15 arm64 | 24.20.0 | 1,971 passed / 105 files | 22 passed | 11 passed | 1,985 |
+
+The logs use npm 11.19.0 and Vitest 5.0.3. The unit/CAD summaries contain no
+skipped tests; the IPC summaries report zero failures, cancellations or skips.
+Each job passed the isolated initial-model production Electron smoke,
+including the application protocol, preload bridge and worker/WASM loading;
+the reports record WASM loaded, no console errors and no failed requests.
+Linux used Xvfb. Each packaging command completed with `--publish never`.
+Packaging is not independent evidence of signing, notarization, installer use
+or release readiness.
+
+The configured JavaScript/TypeScript CodeQL analysis and its result check
+passed. The `npm audit --audit-level=high` job passed while retaining eight
+moderate findings. These finite checks do not establish complete security.
+
+The local runtime-source full result remains 1,877 passed / 94 timed-out
+tests: 82 at 5 seconds and 12 at 60 seconds. Hosted success does not explain
+those deadlines or replace the earlier local failures and separate checks.
+Every previous ledger entry below remains in its original source scope,
+including wording that described hosted checks as pending when recorded.
+
+These are programmatic, rendered-component and initial-loader checks.
+They do not establish real pattern-editor interaction, independent target
+fidelity or interoperability, general platform support, native leak freedom,
+or the full body-management goal. Per-instance recipe regeneration, varying
+sketches, dynamic and automatic scopes, broader nested/dependent patterns
+and ownership lifecycle behavior remain required. The
+[contract](FEATURE_PATTERNS.md) and [original fixture provenance](PROVENANCE.md)
+retain those boundaries.
+
 ## Scoped feature contributions — source-specific results, 2026-10-14
 
 This draft continues explicit body ownership from #34 at
