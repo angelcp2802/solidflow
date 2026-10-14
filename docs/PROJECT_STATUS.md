@@ -39,6 +39,8 @@ Review each increment against its stated base. A downstream draft includes
 unmerged prerequisites; its checks do not mean those prerequisites have landed
 on `main`. Contributions normally start from `main`; coordinate a change to a
 draft increment with its existing branch and issue instead of duplicating it.
+The nine proposals remain draft and unmerged; no human approval is recorded
+in this snapshot.
 
 [#24](https://github.com/angelcp2802/solidflow/pull/24) and
 [#25](https://github.com/angelcp2802/solidflow/pull/25) are closed as superseded
@@ -140,6 +142,47 @@ Broader regeneration, other end/start conditions, exact dependent-reference
 correspondence, all/automatic scope, variation and ownership lifecycle acceptance
 remain required; programmatic and SSR checks do not establish real interaction.
 
+The latest [#38](https://github.com/angelcp2802/solidflow/pull/38) source
+[`06cfdd5c`](https://github.com/angelcp2802/solidflow/commit/06cfdd5cdccb5dac930d7d8c5b30c2300549b6a7)
+retains 279 runtime/configuration inputs and changes only two child
+`fs.realpathSync` calls to `fs.realpathSync.native` in the instrumented desktop
+test's isolated-profile guards. The
+[CI run](https://github.com/angelcp2802/solidflow/actions/runs/38550096433)
+and [security run](https://github.com/angelcp2802/solidflow/actions/runs/38550096455)
+completed with six successful checks. Tested merge `99eae087` has parents
+`682fba8e` and `06cfdd5c`; its tree `67b78118` equals the proposed head.
+Each Windows x64, Linux x64 and macOS arm64 job passed 2,198 tests in 125 files,
+11 IPC checks, the 1,985-module build and the initial-model Electron/WASM smoke
+with no recorded console errors or failed requests. The selected-to-ALL
+interaction completed four distinct selected/preview/committed/reopened worker
+builds, exact owner refs, analytical volume/bounds checks, Save As/reopen,
+actual child close and guarded profile deletion. Packaging used `--publish never`.
+The scripted linear-cut check uses volume tolerance `1e-5` and bounds tolerance
+`1e-6`; it does not establish other editor workflows or general platform support.
+
+Current local Windows x64 / Node 24.11.1 evidence for those native-path bytes
+remains failed: default `npm test` reported 2,117 passed and 81 test timeouts of
+2,198 in 125 files, in 1,038.63 seconds. Its chained IPC command was not entered;
+separate IPC passed 11 checks and the production build passed 1,985 modules with
+warnings retained. Standard desktop smoke failed at 45 seconds without a
+recorded readiness pass. The normal interaction reached healthy selected
+geometry, then its ALL wait failed at 35 seconds; the 180-second workflow did
+not observe child close and retained its profile. A separate real Windows 8.3
+pair reused the same owned container: the old CLI failed the profile guard;
+the native-path CLI reached the renderer and healthy selected state, then ALL
+also failed at 35 seconds. Its outer 240-second deadline left no final record,
+after-map or cleanup proof. Local API probes distinguish default/native path
+outcomes, but do not establish the exact spelling/predicate of the earlier
+hosted Windows failure or explain these local timeouts.
+
+The successful security workflow reports three new medium CodeQL alerts whose
+triage remains pending. Its audit records eight moderate development-package
+entries associated with one advisory,
+[GHSA-hp3w-g68c-fv3c](https://github.com/advisories/GHSA-hp3w-g68c-fv3c),
+with no patched sprintf version listed. Development flags do not establish
+absence of CI exposure, and successful checks are not a zero-vulnerability
+finding. Preserve the following earlier source-specific evidence too.
+
 For earlier [#38](https://github.com/angelcp2802/solidflow/pull/38) evidence, runtime source
 `d2f9904e` is based on #37 at `682fba8e`; documentation head `4a2cee2c`
 retains the same 277 runtime/configuration inputs. Initial intrinsic
@@ -168,7 +211,7 @@ the 1,985-module build and the initial-model Electron/WASM smoke check with no
 recorded console errors or failed requests. Packaging completed with
 `--publish never`. This does not resolve the separate #35 macOS crash.
 
-The latest runtime source
+The earlier runtime source
 [`f65d6f1b`](https://github.com/angelcp2802/solidflow/commit/f65d6f1b8ee1feeb3ca37432fb8668fbbd8e6c79)
 and [documentation head `4f9d8a19`](https://github.com/angelcp2802/solidflow/blob/4f9d8a195bd62c462518bcf9530809466bffecda/docs/VALIDATION.md)
 retain 279 runtime/configuration inputs and add an
@@ -198,8 +241,8 @@ was skipped. The cause of the profile-guard rejection remains unknown.
 Linux and macOS passed the new interaction workflow with four actual worker
 phases, child close and cleanup, and packaging with `--publish never`.
 
-The six successful hosted checks earlier in this entry belong to `4a2cee2c`
-and did not run the new property-panel test. The later results do not explain
+The six successful hosted checks at `4a2cee2c`
+did not run the new property-panel test. Those historical results do not explain
 the Windows guard failure, #35's separate macOS bus error or any earlier local
 failure. One scripted linear-cut workflow does not establish complete
 interaction, independent interoperability or general platform support.
