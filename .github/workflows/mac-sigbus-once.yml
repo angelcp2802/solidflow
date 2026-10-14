@@ -1,0 +1,111 @@
+name: PR35 mac SIGBUS one-shot
+
+on:
+  push:
+    branches: [diagnostic/pr35-mac-sigbus]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    if: >-
+      github.event_name == 'push' &&
+      github.repository == 'angelcp2802/solidflow' &&
+      github.ref == 'refs/heads/diagnostic/pr35-mac-sigbus' &&
+      github.event.ref == github.ref &&
+      github.event.repository.full_name == github.repository &&
+      github.event.created == true &&
+      github.event.deleted == false &&
+      github.event.forced == false &&
+      github.event.before == '0000000000000000000000000000000000000000' &&
+      github.event.after == github.sha &&
+      github.event.head_commit.id == github.sha &&
+      github.run_attempt == 1
+    runs-on: macos-15
+    timeout-minutes: 35
+    env:
+      CI: "true"
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+    steps:
+      - name: Check out the reviewed diagnostic harness
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          path: diagnostic-harness
+          persist-credentials: false
+          sparse-checkout: scripts/ci/mac-sigbus
+          fetch-depth: 2
+
+      - name: Check out the exact original tested merge
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: b720c4f3eb6cf526fc6d3c23a6954c2e3243c733
+          path: source
+          persist-credentials: false
+
+      - name: Set up the original Node version
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24.20.0"
+          package-manager-cache: false
+
+      - name: Check portable one-shot invocation gates
+        run: |
+          node --input-type=module <<'NODE'
+          import { spawnSync } from 'node:child_process';
+          import { closeSync, lstatSync, mkdtempSync, openSync, readFileSync, realpathSync } from 'node:fs';
+          import { constants } from 'node:os';
+          import { join } from 'node:path';
+          let originalTestStatus, testSignal, supervisorFailed = false, counts;
+          const descriptors = [];
+          try {
+            const directory = mkdtempSync(join(realpathSync.native(process.env.RUNNER_TEMP), 'solidflow-sigbus-gates-'));
+            const output = join(directory, 'gate-tests.stdout.raw.log');
+            const stdout = openSync(output, 'wx'); descriptors.push(stdout);
+            const stderr = openSync(join(directory, 'gate-tests.stderr.raw.log'), 'wx'); descriptors.push(stderr);
+            const env = { ...process.env, NODE_OPTIONS: '' };
+            for (const name of ['GITHUB_STEP_SUMMARY', 'GITHUB_OUTPUT', 'GITHUB_ENV', 'GITHUB_STATE', 'GITHUB_PATH',
+              'SOLIDFLOW_SIGBUS_PUBLIC_SUMMARY', 'GITHUB_TOKEN', 'GH_TOKEN', 'NODE_AUTH_TOKEN', 'NPM_TOKEN', 'ACTIONS_RUNTIME_TOKEN']) delete env[name];
+            const child = spawnSync(process.execPath, ['--test', '--test-reporter=tap',
+              'diagnostic-harness/scripts/ci/mac-sigbus/invocation-guard.test.mjs'],
+              { env, shell: false, windowsHide: true, stdio: ['ignore', stdout, stderr] });
+            originalTestStatus = Number.isInteger(child.status) && child.status >= 0 && child.status <= 255 ? child.status : undefined;
+            testSignal = Object.hasOwn(constants.signals, child.signal ?? '') ? child.signal : undefined;
+            if (child.error || child.signal || originalTestStatus === undefined) supervisorFailed = true;
+            const stat = lstatSync(output);
+            if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 2 * 1024 * 1024) throw new Error();
+            const raw = readFileSync(output, 'utf8');
+            counts = Object.fromEntries(['tests', 'pass', 'fail', 'cancelled', 'skipped', 'todo'].map(key => {
+              const matches = [...raw.matchAll(new RegExp('^# ' + key + ' (\\d+)\\r?$', 'gm'))];
+              if (matches.length !== 1 || !Number.isSafeInteger(Number(matches[0][1]))) throw new Error();
+              return [key, Number(matches[0][1])];
+            }));
+            if (counts.tests !== 27 || counts.pass !== 27 || counts.fail !== 0 || counts.cancelled !== 0 || counts.skipped !== 0 || counts.todo !== 0) supervisorFailed = true;
+          } catch { supervisorFailed = true; }
+          finally { for (const fd of descriptors) { try { closeSync(fd); } catch { supervisorFailed = true; } } }
+          const exitStatus = originalTestStatus ? originalTestStatus : supervisorFailed ? 1 : 0;
+          // Raw TAP/stacks remain ephemeral; only strict numeric counts and constants are public.
+          process.stdout.write(JSON.stringify({ diagnostic: 'INVOCATION_GATES', originalTestStatus, testSignal, counts, supervisorFailed, exitStatus }) + '\n');
+          process.exitCode = exitStatus;
+          NODE
+      - name: Diagnose the unchanged full unit suite once
+        run: |
+          export SOLIDFLOW_SIGBUS_PUBLIC_SUMMARY="$RUNNER_TEMP/solidflow-sigbus-public-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT.json"
+          set +e
+          node diagnostic-harness/scripts/ci/mac-sigbus/run-diagnostic.mjs > "$RUNNER_TEMP/solidflow-sigbus-controller.stdout.raw.log" 2> "$RUNNER_TEMP/solidflow-sigbus-controller.stderr.raw.log"
+          diagnostic_status=$?
+          node diagnostic-harness/scripts/ci/mac-sigbus/publish-summary.mjs > "$RUNNER_TEMP/solidflow-sigbus-validated.json" 2> "$RUNNER_TEMP/solidflow-sigbus-publisher.stderr.raw.log"
+          publication_status=$?
+          set -e
+          if [ "$publication_status" -eq 0 ]; then
+            cat "$RUNNER_TEMP/solidflow-sigbus-validated.json"
+          else
+            printf '{"diagnostic":"NO_VALIDATED_SUMMARY","controllerStatus":%s,"publicationStatus":%s}\n' "$diagnostic_status" "$publication_status"
+            if [ "$diagnostic_status" -eq 0 ]; then diagnostic_status=1; fi
+          fi
+          exit "$diagnostic_status"
+
+      # Initial isolated push only; no uploads, releases, secrets, retries or PR trigger.
+      # Raw logs/reports live only in RUNNER_TEMP and disappear with the runner.
+      # Separate one-shot workflow; never merge it into main or a product PR.

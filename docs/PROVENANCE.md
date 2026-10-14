@@ -139,3 +139,43 @@ exercise shared equations, explicit point repositioning, construction flags,
 parsing, capacity rejection and document/history cleanup. Cleanup and driven
 mobility are explicit local policies; these synthetic fixtures do not claim
 another application's solver or lifecycle behavior.
+
+## macOS SIGBUS diagnostic invocation fixtures
+
+The 27 Node builtin cases in
+`scripts/ci/mac-sigbus/invocation-guard.test.mjs` are original synthetic fixtures
+generated entirely by the tracked test. They comprise one accepted initial
+push, 19 rejected contexts, four event-file cases and three publisher cases.
+The event files include malformed JSON, a directory and an actual file one
+byte beyond the 512 KiB limit. Publication fixtures contain synthetic status
+138, fictional private-path text and a SHA-256 receipt bound to a synthetic
+commit, run ID and attempt.
+
+These cases call the same shared context guard and publisher entry function
+as the diagnostic CLI. They read real synthetic event/summary/receipt files
+and capture only output sinks in memory. They check rejection status, matching
+receipt acceptance, retained failed-status metadata, removal of the fictional
+private field and output below the 850000-byte ceiling including newline.
+They do not establish CLI process startup/termination, controller exit
+precedence, macOS crash ancestry or a native failure's cause.
+
+Fixtures are created under a new canonical OS temporary directory. Cleanup
+requires unchanged canonical identity, directory type, direct parent, prefix
+and ownership token. No private artifact, external CAD model, native runtime,
+network service, credential or dependency installation is needed. From a
+fresh checkout with Node 24.20.0, run:
+
+```sh
+node --test --test-reporter=tap scripts/ci/mac-sigbus/invocation-guard.test.mjs
+```
+
+Earlier private privacy validation used 40 original synthetic Node/IPS/legacy
+crash-report and publication fixtures against the earlier five-source helper
+version. Those Windows results cover only that version and those cases; they
+are not 40 tracked cases or a Mac execution. A separate earlier 27-case private
+variant used publisher subprocesses and recorded two inconclusive startup/
+termination timeouts. Its failed result is preserved in the validation record.
+Neither private suite is a runtime dependency of the tracked 27 cases.
+
+See the [diagnostic contract](MAC_SIGBUS_DIAGNOSTIC.md) and
+[validation record](VALIDATION.md) for the measured results and remaining limits.

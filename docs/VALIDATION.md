@@ -724,3 +724,123 @@ general overlap resolution and broader robustness remain open in
 requires its own hosted checks before merge; earlier platform results are
 separate. Binary upload remains disabled under
 [issue #5](https://github.com/angelcp2802/solidflow/issues/5).
+
+## Isolated macOS SIGBUS diagnostic preparation — 2026-10-14
+
+PR35's original macOS 15 arm64 unit job at source
+`0a0ab22a0cd0b6295b9ff7c5761398b1ae457a4a` ended with `Bus error: 10`
+and status 138 before IPC, smoke and packaging. The retained text had 53
+completed-file lines representing 1293 declared cases and no final Vitest
+summary. The last printed file does not identify the crashing code. The cause
+remains unknown. See the [original job](https://github.com/angelcp2802/solidflow/actions/runs/38516444018/job/115696205581).
+
+One local execution of the new tracked invocation suite on Windows x64 with
+Node v24.11.1 passed **27/27**, with zero failures, cancelled, skipped or todo
+cases. Command:
+
+```sh
+node --test --test-reporter=tap scripts/ci/mac-sigbus/invocation-guard.test.mjs
+```
+
+The test child exited and closed with code 0 and no signal; the supervisor
+reported no errors. TAP duration was 24.71959 s; supervision wall time was
+41.979 s. Before/after hashes matched for the seven candidate sources, the
+earlier five- and six-source freezes, ordinary PR35 CI, the manifest, patch and
+supervisor. This validates synthetic invocation gates, real event/receipt
+file handling and publisher return status/output. It does not prove CLI
+termination, the Mac controller, native tests or a crash cause.
+
+The preceding private 27-case subprocess variant remains a failed observation:
+25 passed and two publisher children returned `ETIMEDOUT` under a 10-second
+supervisor limit. Their expected guard outcomes were not attested. No repeat
+was used to turn that run green. The tracked variant calls the shared publisher
+entry in-process and does not increase that limit or change native budgets.
+
+Earlier private Windows Node v24.11.1 privacy validation passed 40/40 original
+synthetic cases against the old five-source helper version. That is separate
+evidence for report sanitization and publication boundaries; it is not execution
+of the new push gates or a Mac diagnostic. Those raw private fixtures and logs
+are not published or needed by the tracked suite.
+
+The earlier five-source freeze was:
+
+| Earlier candidate source | SHA-256 |
+| --- | --- |
+| Unapplied manual-probe workflow, not ordinary CI | `21036397488a143134fc22f6a25ad5e90da8294139519cece9e5f14a6a8f145d` |
+| `collect-crash-reports.mjs` | `ffe9e1c505a871db020ec7d531507fe26fafdf76ba99051b807be63789bfba4b` |
+| `phase-reporter.mjs` | `f1d89c32a9bc3fab57dee4a37f58180bfd80b1eebc71c89443a6dc17703ee444` |
+| `publish-summary.mjs` | `96c615c3e6f2a945df9083fbf71de29387e2d2f77573adf49aa0f3bf23ded326` |
+| `run-diagnostic.mjs` | `8396ca1b3fb9c8647c9b16693e582322d759a67876ee483fd3257a42fc73d425` |
+
+The 40 cases exercised synthetic parser/publication behavior; the Mac workflow
+and controller in that freeze were not run. The new 27-case result is bound to
+tracked test SHA `e7efb5da48413522c216c429bf15b1d850a4cee44365e5d1eae13ed6cf9fa510`,
+publisher SHA `b030116757b85dcea81e188013fc0b018969ff4fb79e45fcd3971d797e5ae2e4`
+and shared guard SHA `89c0d5f0008c2dafea442abae88c2ce5cfae5d9c49bd51e18babca19137d829d`.
+
+The new one-shot Mac diagnostic has **not run**. It uses a separate initial-push
+branch/workflow; ordinary CI and PR35 remain intact. The source under observation
+is the original tested merge `b720c4f3eb6cf526fc6d3c23a6954c2e3243c733`, tree
+`741d8ed0c48d1b988fefd3c6393a6e73e6fd0ff4`, with Node24.20.0/npm11.19.0/
+Vitest5.0.3, its original 1492 tests/74 files, config, pool and deadlines.
+Branch-level product validation remains separate and must be recorded after
+application. No Mac success, failure reproduction, remediation or platform
+support is inferred from this preparation. See the
+[diagnostic contract](MAC_SIGBUS_DIAGNOSTIC.md).
+
+## Applied diagnostic checkout: Windows checks and rehearsal — 2026-10-14
+
+The ten reviewed diagnostic files were applied to an isolated Windows x64
+checkout based on `0a0ab22a0cd0b6295b9ff7c5761398b1ae457a4a`. The local
+checks used existing dependencies with matching lockfile bytes, rather than a
+fresh installation. This was validation of that applied checkout; the pinned
+macOS experiment described above was not executed.
+
+`npm test` exited **1**. Vitest 5.0.3 completed **1,492 cases in 74 files**:
+1,359 cases passed and 133 failed; 57 files passed and 17 failed, with no
+skipped cases. All 133 failed-case headers were reconciled to test-timeout
+diagnostics: 130 at 5,000 ms, one at 15,000 ms and two at 30,000 ms. The log
+also reported one thread-worker termination timeout. Vitest reported
+939.63 s; the complete npm invocation took 1,180.191 s.
+
+IPC did **not** run: the unit failure stopped the `test:unit && test:ipc`
+command chain. No new IPC pass is claimed from this invocation.
+
+`npm run build` exited **0** after TypeScript checking and production
+compilation. Vite 8.3.4 transformed 1,972 modules and reported a build time of
+1 min 24 s; the complete npm invocation took 299.532 s. Warnings concerned
+browser externalization of a Node module and chunks larger than 500 kB.
+
+An auxiliary process-observation command used during local validation had an
+empty-frontier loop and overlapped part of the unit run and the build. Its
+effect on timing was not measured. It is an uncontrolled confounder, with no
+causal explanation established for the timeouts. The observer was stopped
+separately after identity checks; the npm processes were allowed to finish.
+The failed unit result remains recorded. The unit suite was not retried,
+filtered or retuned. The seven diagnostic sources, ordinary CI, package
+manifest, lockfile and Vitest configuration matched their recorded hashes
+before and after the checks.
+
+A separate Windows x64, Node v24.11.1 rehearsal passed four expected-outcome
+cases in 171.834 s:
+
+| Rehearsal case | Observed outer child exit and close |
+| --- | --- |
+| Exact workflow inline gate, with an actual 27-case tracked-suite run and TAP-count validation | 0 / 0; 27 passed, zero failed, cancelled, skipped or todo |
+| Publisher import only | 0 / 0; stdout and stderr empty |
+| Publisher CLI with a valid synthetic receipt | 0 / 0; published synthetic unit and diagnostic status 138 |
+| Publisher CLI with synthetic run attempt two | 1 / 1; expected `INITIAL_PUSH_ENV_REQUIRED` rejection, stdout empty |
+
+All four outer child close events were observed with null signals and no
+supervisor errors. The inline fragment was reconstructed exactly from the
+reviewed workflow, and the staged sources matched before and after. The owned
+temporary rehearsal directory was removed. This separate rehearsal imposed
+no automatic child deadline or process termination. It leaves the earlier
+25-pass/two-timeout subprocess observation and the failed `npm test` result
+intact.
+
+These are local checks of synthetic gates, publication and the applied
+checkout. They do not execute the Mac controller, collect a real Mac crash
+report, attest a GitHub trigger or establish desktop readiness. The one-shot
+macOS diagnostic has not run; the original SIGBUS cause and any remediation
+remain unknown. No macOS success or platform support is inferred.
