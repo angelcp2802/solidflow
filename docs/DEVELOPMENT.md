@@ -65,6 +65,11 @@ Read the [semantic CAD reference contract](SEMANTIC_REFERENCES.md) before changi
 
 The proposed [body management contract](BODY_MANAGEMENT.md) covers persistent body identity, explicit creation and Combine, selective cuts, history, export and the complete implementation checklist for issue #26. Its analytical fixtures are acceptance targets, not recorded passes.
 
+The [scoped feature geometry proposal](FEATURE_PATTERNS.md) distinguishes exact
+per-owner contributions, potential historical states and native availability.
+It is under implementation; regeneration, varying sketches and dynamic scopes
+remain separate required work.
+
 ## Test geometry and persistence
 
 Prefer small analytical fixtures with a known result. For example, a closed 10×6 rectangle extruded 4 mm should have volume 240 mm³; the test should also establish valid BRep and the expected number of solids. For affected references, edit an earlier feature, rebuild dependent features and serialize/reopen the document. Test failure paths for atomic behavior when the command can reject a change.

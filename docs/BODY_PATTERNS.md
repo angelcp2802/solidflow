@@ -2,9 +2,12 @@
 
 This proposed increment extends the explicit body catalog to linear patterns,
 circular patterns and mirror. The older `features` and single historical `body`
-sources retain their aggregate reconstruction behavior when the new fields are
-absent. Feature-delta replay inside an explicit body catalog remains pending;
-this increment does not adopt legacy aggregates or derive identity from solid
+sources retain their aggregate reconstruction behavior in legacy documents
+when the new fields are absent. An active explicit catalog uses the separate
+opt-in [selected feature geometry contract](FEATURE_PATTERNS.md) for feature
+contributions; absence of its declaration does not authorize an unscoped
+aggregate repetition inside that catalog. Neither increment adopts legacy
+aggregates or derives identity from solid
 enumeration, bounds, mass or nearest geometry.
 
 ## Sources and outputs
@@ -84,5 +87,8 @@ analytical fixtures and tolerances are documented in [PROVENANCE](PROVENANCE.md)
 Actual commands, failures and results belong in [VALIDATION](VALIDATION.md).
 Same-kernel STEP round trips check geometry only; they do not preserve opaque
 document IDs or prove independent interoperability. General topological naming,
-feature-delta replay in a body catalog, broader interaction and the other CAD
-modules remain separate acceptance work.
+complete feature-pattern evaluation, broader interaction and the other CAD
+modules remain separate acceptance work. Selected geometry replay and its
+written fixtures are described in [FEATURE_PATTERNS](FEATURE_PATTERNS.md);
+regeneration, varying sketches, dynamic/automatic scopes and broader nested
+ownership recipes remain required work.

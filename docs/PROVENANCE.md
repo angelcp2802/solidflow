@@ -1,5 +1,196 @@
 # Public fixture provenance
 
+## Scoped feature geometry contribution fixtures
+
+The 22 cases declared in `src/cad/kernel.feature-patterns.test.ts` are original
+inline fixtures authored for this project, in millimeters. They use Cartesian
+rectangles/extrusions, cylindrical cuts, explicit planes and closed offsets.
+Documents, native tools and probes are generated in memory from tracked source
+and declared dependencies; no imported model or binary fixture supplies an
+expected result. The formulas below are independent of contribution capture,
+the pattern planner and replay. These descriptions record written assertions,
+not executed passes; actual commands and outcomes belong in
+[VALIDATION](VALIDATION.md).
+
+The [scoped feature contract](FEATURE_PATTERNS.md) distinguishes exact
+historical source contributions from current target references. The fixtures
+allocate no new body IDs in a feature repetition. Only finally changed targets
+advance to the pattern's state. Geometric result cases check per-body BRep
+validity, closed shells and solid count, with absolute volume/area tolerance
+`1e-5` in mm³/mm² and bounds
+tolerance `1e-6` mm. Material probes are cubes of side 0.2 mm, with expected
+intersection volume 0 or 0.008 mm³ at absolute tolerance `1e-7`. The explicit
+empty-topology checks use `1e-10` volume comparisons; the topology and injected
+failure cases have their own stated assertions. Each new native case and
+initialization has a 60-second budget; a budget is not an accuracy guarantee or
+a recorded result.
+
+### Coincident owners and low-region hole copying
+
+A and B are distinct coincident boxes
+`[-50,50]×[-35,35]×[0,12]`, each V84000/A18080. Only A initially has an R3
+through-cut centered at (20,20). Translation (-40,0,0), rotation +90° about Z,
+and reflection in YZ each place one extra cut at (-20,20), in three separate
+cases. For n disjoint radius-r through-holes,
+`V=84000−12πr²n` and `A=18080+(24πr−2πr²)n`.
+Thus A with two R3 holes has V84000−216π/A18080+108π, while B stays uncut.
+A radius edit to 4 gives V84000−384π/A18080+128π. The linear case includes
+serialization/reopening and undo/redo. Body references and serializable picking
+data are checked separately from these geometric formulas.
+
+Three further cases distinguish a copied *actual* hole contribution from
+per-instance end-condition evaluation. The linear/mirror terrace is
+`[0,30]×[0,10]×[0,4]` plus `[15,30]×[0,10]×[4,8]`, V1800/A1120.
+The circular terrace is `[-20,20]²×[0,4]` plus `[0,20]²×[4,8]`,
+V8000/A4160. An R1 through-all hole starts at z=0 in the +Z direction at
+(5,5), or (10,-10) for circular, and actually removes only four millimeters
+of material. Translation +20X, reflection across X15, or rotation +90°Z
+moves that four-millimeter contribution into the tall region, at (25,5) or
+(10,10). The two holes remove 8π volume and add 14π area: the original through
+hole adds 6π and the copied blind cavity adds 8π. A regenerated through hole
+would instead remove 12π total and add 20π area. Probes at z=6 require the
+copied location to retain its roof. These cases specify geometry copying,
+not implemented regeneration.
+
+### Ordered mixed effects, equal-volume changes and one nested recipe
+
+The ordered fixture begins with `[-16,16]²×[0,4]`, V4096/A2560.
+R removes `[7,9]×[3,5]×[2,4]`; later F adds the same XY footprint over
+z=3..6. Its final cell has a 2×2×1 enclosed cavity at z=2..3 and a 2×2×2
+boss at z=4..6, changing volume by +4 and area by +32. Selecting R,F or F,R
+must still replay the historical R→F order. The independent cell centers are:
+
+| Repetition | Centers including the original | Final V/A |
+| --- | --- | --- |
+| Linear, two extra copies at −8X and −16X | (8,4), (0,4), (-8,4) | 4108 / 2656 |
+| Circular, four equally spaced quarter turns | (8,4), (-4,8), (-8,-4), (4,-8) | 4112 / 2688 |
+| YZ reflection | (8,4), (-8,4) | 4104 / 2624 |
+
+All bounds remain x,y=[-16,16], z=[0,6], with one solid. Probes distinguish the
+boss, enclosed cavity and restored z=3..4 material.
+
+A separate three-case family has zero net volume change with different material
+locations. The linear base is `[0,40]×[0,12]×[0,4]`, V1920/A1376.
+A 2×2×4 boss over X4..6/Y5..7 adds 16 volume/+32 area; a through-notch over
+X8..10/Y5..7 removes 16 volume/+24 area. One +20X copy gives V1920/A1488.
+For circular/mirror cases the base is `[-20,20]²×[0,4]`, V6400/A3840;
+the boss is X7..9/Y3..5/Z4..8 and the notch X7..9/Y7..9/Z0..4.
+Four quarter-turn cells give V6400/A4064; two reflected cells give
+V6400/A3952. All these bounds reach z=8. Positive boss and negative notch
+probes ensure equal volume cannot be accepted as proof of no change.
+
+The one nested fixture first copies R→F by +6Y, then mirrors *only that inner
+pattern's net contribution* in YZ. Final centers are (8,4), (8,10), (-8,10):
+V4108/A2656, with no boss at (-8,4). This is a bounded selected-scope
+linear-then-mirror recipe, not evidence for every nested transform, owner,
+scope, dependent-feature remapping or regenerated recipe.
+
+### No-op scopes and late atomic rejection
+
+The no-op fixture starts with `[0,20]×[0,10]×[0,4]`, V800/A640.
+Two R1 through-cuts at (5,5) and (15,5) give V800−8π/A640+12π.
+The selected distant body `[40,42]×[0,2]²` does not change; a separate last
+producer creates `[50,51]×[0,1]²`. Both retain their earlier exact refs and
+picking data. The latter producer is the pattern's aggregate predecessor,
+separate from the historical cut source. A later reference to the distant
+body's potential-but-unmaterialized pattern state must fail rather than use
+its latest actual state.
+
+The stepped rejection family starts from
+`[0,14]×[0,4]×[0,2]` plus `[0,L]×[0,4]×[2,4]`.
+Before a groove, V=112+8L and A=200+4L. With L=8, removing
+X1..2/Y0..4/Z0..2 leaves V168/A244, still bridged above the groove.
+Linear +4X and +8X copies first produce valid V160/A256, then sever the thin
+tail at X9..10. The complete repetition must reject and retain V168/A244.
+
+Reflection across X4 places the groove at X6..7. The L=8 owner remains bridged,
+but a second L=4 owner (V144/A216) splits. The circular case rotates the
+independent historical groove +90°Z into X-4..0/Y1..2/Z0..2. Its vertical
+targets have L=8 (V176/A232) and L=0.5 (V116/A202); the latter splits.
+Each case checks unchanged preceding targets and exact references after the
+late failure, with failed-model export blocked.
+
+### Combine, same-event ordering and empty intermediates
+
+The subtractive Combine fixture uses A=`[0,20]×[0,4]²`, V320/A352, and a
+consumed tool `[2,3]×[-1,5]×[0,2]`. Its actual removed target region ends at
+Y4, giving V312/A364. Copying that contribution +6X gives V304/A376.
+An independently owned `[8,9]×[4.25,4.75]×[0,2]` box, V1/A7, lies only
+in the tool's overshoot and must remain unchanged. Tool consumption cannot
+be replayed as additional negative material.
+
+A direct native replay fixture supplies two owner records for the same event.
+One changes `[0,1]×[0,2]²` to `[0,3]×[0,2]²` (added X1..3); the other
+changes `[0,2]×[0,2]²` to `[0,1]×[0,2]²` (removed X1..2).
+Both route a +10X copy into T=`[11,12]×[0,2]²`.
+All event removals before all additions yield `[11,13]×[0,2]²`, V8/A24,
+for either binding order. Applying the first owner's addition before the
+second owner's removal would incorrectly leave X12..13, V4/A16.
+The source records and expected box formulas are original; this isolated
+event test does not claim a complete model-level mixed producer recipe.
+
+A closed outward unit shell starts from a 10×6×4 box. Planar intersection
+offsets give an outer 12×8×6 box, so the wall has
+V=576−240=336 and A=432+248=680. Copying its signed contribution +20X into
+the original box at X20..30 removes the entire target before adding the
+wall. Final bounds are (19,-1,-1)..(31,7,5), with one solid and stable target
+identity. Cavity and wall probes distinguish the two regions.
+
+A separate actual-topology fixture subtracts a 2×2×2 box from itself and
+compares that empty compound with a compound containing the box's z=0 face.
+Both have zero measured volume; only the compound without topology is an
+admissible empty intermediate. This is local replay policy. Failed/null
+builders and final empty or multiple-solid owners are not accepted.
+
+### Cache-publication failure and evidence limits
+
+The twenty-second case cuts both coincident plate owners and requests both
+exact output contributions, routed only to A. A finishes with two R3 holes;
+B retains its single original hole and current reference. A selective failure
+is then injected *after* the second staged cache insertion. The case requires
+zero commits of the affected transaction, the original error as cause,
+unchanged document bytes, blocked export and one release attempt for each
+observed prior owner, candidate owner, captured delta and candidate aggregate.
+
+The previous aggregate is not separately watched and the previous historical
+contribution cache is empty in this fixture. Its disposal counts therefore do
+not prove those additional paths or native leak freedom. It is causal failure
+evidence, not a heap measurement.
+
+### Owned history cleanup fixtures
+
+Three original inline cases in
+[`kernel.body-workflow.test.ts`](../src/cad/kernel.body-workflow.test.ts)
+exercise the owned history lifecycle and an undeclared catalog repetition.
+They reuse the project's boxes A=`[0,10]×[0,6]×[0,4]` and
+B=`[20,30]×[0,6]×[0,4]`. Each starts at V240/A248. A +10X geometry copy
+routed to its own current owner gives bounds X0..20 and X20..40 respectively,
+each V480/A448 and one closed solid. These per-owner formulas are independent
+of the replay; the compound's two owners must not be replaced by an inferred
+physical union.
+
+The first history contribution is captured and registered before the second
+capture is instrumented. The second uses the real native validator and a
+separate native copy. One case throws a capture error and then throws a release
+error after actually deleting that copy; the other retains its valid copy
+through real replay/commit and throws during final history cleanup. Assertions
+require the original error objects in order, one observed copy-delete attempt,
+one disposal per registered contribution, unchanged document bytes and blocked
+export. The undeclared case requires unchanged preceding bodies and no legacy
+aggregate history capture. These are distinct failure stages; no preassembled
+aggregate error supplies an expected result.
+
+The observations do not count every native wrapper or the previous aggregate,
+measure a heap or establish general leak freedom. Like the other fixture
+descriptions, they define assertions; recorded commands and outcomes belong in
+[VALIDATION](VALIDATION.md).
+
+These 22 feature-contribution definitions do not establish execution results, real editor
+interaction, independent interoperability, general face/edge naming or native
+coverage of every producer. Per-instance regeneration/varying sketches,
+dynamic all-body scope, saved automatic scope, broader nested/dependent
+recipes and ownership lifecycle work remain required by the full goal.
+
 ## Explicit body repetition fixtures
 
 The inputs in `kernel.body-patterns.test.ts` are original inline Cartesian

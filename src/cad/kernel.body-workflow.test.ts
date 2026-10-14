@@ -7,6 +7,7 @@ import { addFeature, createDocument, DocumentHistory, parseDocument, serializeDo
 import { CadEngine } from './kernel.engine';
 import { NativeBodyCatalog } from './kernel.bodies';
 import * as faceCatalogs from './kernel.faces';
+import * as ownedPatternGeometry from './kernel.feature-patterns';
 import * as patternGeometry from './kernel.patterns';
 import type { BodyReference, CadResult, CombineFeature, Feature, HoleFeature, PickableBody, PickableFace } from './kernel.types';
 
@@ -414,30 +415,99 @@ it('fails closed when historical face metadata cannot be finalized after committ
   expect(() => engine.export('step')).toThrow(/ningún sólido/);
 }, 60_000);
 
-it.each([false, true])('releases registered history deltas and preserves errors when isolated-copy cleanup fails, deltaFailure=%s', failDelta => {
-  const document = addFeature(boxes(20), { id: 'future-pattern', type: 'linearPattern', name: 'Future feature-history consumer',
-    baseFeatureId: b.sourceFeatureId, source: { mode: 'features', geometryPattern: true, featureIds: [b.sourceFeatureId] },
-    first: { direction: [1, 0, 0], spacing: 40, count: 2 }, second: null, secondSeedOnly: false, skipped: [], suppressed: false });
-  const geometryDelta = patternGeometry.geometryDelta;
-  const deltaError = new Error('Injected isolated history geometry failure');
-  const releaseError = new Error('Injected isolated history copy release failure');
-  let disposeCount = 0, invoked = false;
-  vi.spyOn(patternGeometry, 'geometryDelta').mockImplementation((...args) => {
-    invoked = true;
-    const deleteCopy = args[1].delete.bind(args[1]);
-    vi.spyOn(args[1], 'delete').mockImplementationOnce(() => { deleteCopy(); throw releaseError; });
-    if (failDelta) throw deltaError;
-    const delta = geometryDelta(...args), disposeDelta = delta.dispose.bind(delta);
-    vi.spyOn(delta, 'dispose').mockImplementation(() => { disposeCount++; disposeDelta(); });
+it.each([false, true])('releases registered owned history and preserves capture/retained-copy failures, captureFailure=%s', failDelta => {
+  const document = addFeature(boxes(20), { id: 'future-pattern', type: 'linearPattern', name: 'Future owned feature-history consumer',
+    baseFeatureId: b.sourceFeatureId, source: { mode: 'features', geometryPattern: true, featureIds: [a.sourceFeatureId, b.sourceFeatureId] },
+    featurePattern: { mode: 'geometry', targets: [{ ...b }, { ...a }], bindings: [
+      { source: { ...a }, targetBodyIds: [a.bodyId] }, { source: { ...b }, targetBodyIds: [b.bodyId] },
+    ] },
+    first: { direction: [1, 0, 0], spacing: 10, count: 2 }, second: null, secondSeedOnly: false, skipped: [], suppressed: false });
+  const saved = serializeDocument(document), ownedGeometryDelta = ownedPatternGeometry.ownedGeometryDelta;
+  const stageReplaceMany = NativeBodyCatalog.prototype.stageReplaceMany;
+  const deltaError = new Error('Injected owned history capture failure');
+  const releaseError = new Error('Injected owned history copy release failure');
+  const disposals: number[] = [];
+  let captures = 0, copyDeleteAttempts = 0, patternCommits = 0;
+  let candidates: { ref: BodyReference; metrics: Metrics }[] = [];
+  vi.spyOn(ownedPatternGeometry, 'ownedGeometryDelta').mockImplementation((before, after, validate, volume) => {
+    const capture = ++captures;
+    const validateCaptured = capture === 2 ? (copy: Shape3D): number => {
+      const measured = validate(copy);
+      expect(copy).not.toBe(after); expect(copy.wrapped.IsSame(after.wrapped)).toBe(false);
+      const deleteCopy = copy.delete.bind(copy);
+      let deleted = false;
+      vi.spyOn(copy, 'delete').mockImplementation(() => {
+        copyDeleteAttempts++;
+        // Count an erroneous retry without issuing a second native deletion.
+        if (!deleted) { deleted = true; deleteCopy(); }
+        throw releaseError;
+      });
+      if (failDelta) throw deltaError;
+      return measured;
+    } : validate;
+    const delta = ownedGeometryDelta(before, after, validateCaptured, volume);
+    const index = disposals.push(0) - 1, disposeDelta = delta.dispose.bind(delta);
+    vi.spyOn(delta, 'dispose').mockImplementation(() => { disposals[index]++; disposeDelta(); });
     return delta;
+  });
+  vi.spyOn(NativeBodyCatalog.prototype, 'stageReplaceMany').mockImplementation(function(this: NativeBodyCatalog, replacements, update) {
+    if (update.sourceFeatureId === 'future-pattern') {
+      // These candidates are still owned by the engine; measurement borrows them.
+      candidates = replacements.map(item => ({ ref: { ...item.ref }, metrics: measure(item.shape, 1) }));
+    }
+    const transaction = stageReplaceMany.call(this, replacements, update);
+    if (update.sourceFeatureId === 'future-pattern') {
+      const commit = transaction.commit.bind(transaction);
+      vi.spyOn(transaction, 'commit').mockImplementation(() => {
+        const next = commit(); patternCommits++; return next;
+      });
+    }
+    return transaction;
   });
   let failure: unknown;
   try { engine.build(document.features); } catch (error) { failure = error; }
-  expect(invoked).toBe(true); expect(failure).toBeInstanceOf(AggregateError);
-  expect((failure as AggregateError).errors).toContain(releaseError);
-  if (failDelta) expect((failure as AggregateError).errors).toContain(deltaError);
-  else expect(disposeCount).toBe(1);
+  expect(captures).toBe(2); expect(copyDeleteAttempts).toBe(1);
+  expect(disposals).toEqual(failDelta ? [1] : [1, 1]);
+  expect(patternCommits).toBe(failDelta ? 0 : 1);
+  expect(failure).toBeInstanceOf(AggregateError);
+  // Production aggregates may nest; check the original objects and their order.
+  const visited = new Set<unknown>();
+  const leaves = (error: unknown): unknown[] => {
+    if (visited.has(error)) return [];
+    visited.add(error);
+    const nested = error instanceof AggregateError ? [...error.errors] : [];
+    if (error instanceof Error && error.cause !== undefined) nested.push(error.cause);
+    return nested.length ? nested.flatMap(leaves) : [error];
+  };
+  expect(leaves(failure)).toEqual(failDelta ? [deltaError, releaseError] : [releaseError]);
+  if (failDelta) expect(candidates).toEqual([]);
+  else {
+    expect(candidates.map(item => item.ref)).toEqual([a, b]);
+    for (const [index, candidate] of candidates.entries()) {
+      expect(Math.abs(candidate.metrics.volume - 480)).toBeLessThan(tolerance);
+      expect(Math.abs(candidate.metrics.area - 448)).toBeLessThan(tolerance);
+      const bounds = index === 0 ? [[0, 0, 0], [20, 6, 4]] : [[20, 0, 0], [40, 6, 4]];
+      candidate.metrics.bounds.forEach((side, i) => side.forEach((coordinate, j) =>
+        expect(Math.abs(coordinate - bounds[i][j])).toBeLessThan(tolerance)));
+    }
+  }
+  expect(serializeDocument(document)).toBe(saved);
   expect(() => engine.export('step')).toThrow(/ningún sólido/);
+}, 60_000);
+
+it('rejects an undeclared feature pattern in the active body catalog without aggregate history capture', () => {
+  const original = boxes(20), initial = healthy(original);
+  const document = addFeature(original, { id: 'undeclared-pattern', type: 'linearPattern', name: 'Missing owned declaration',
+    baseFeatureId: b.sourceFeatureId, source: { mode: 'features', geometryPattern: true, featureIds: [b.sourceFeatureId] },
+    first: { direction: [1, 0, 0], spacing: 40, count: 2 }, second: null, secondSeedOnly: false, skipped: [], suppressed: false });
+  const saved = serializeDocument(document), aggregateCapture = vi.spyOn(patternGeometry, 'geometryDelta');
+  const result = engine.build(document.features);
+  expect(result.bodyCatalogActive).toBe(true);
+  expect(result.featureErrors.map(error => error.id)).toEqual(['undeclared-pattern']);
+  expect(result.bodies).toEqual(initial.bodies);
+  expect(aggregateCapture).not.toHaveBeenCalled();
+  expect(serializeDocument(document)).toBe(saved);
+  expect(() => engine.export('step')).toThrow(/errores/);
 }, 60_000);
 
 it.each(['throughAll', 'untilNext'] as const)('computes $0 on each selected body before one atomic multi-body cut', async kind => {

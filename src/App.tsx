@@ -454,7 +454,7 @@ export default function App() {
         ) as SketchFeature | undefined);
   const sourceFeatures = useMemo(() => {
     if (!editing || !["fillet", "chamfer", "mirror", "shell", "draft", "extrude", "cut", "hole", "revolve", "sweep", "loft", "combine"].includes(editing.type)
-      && !(isRepetition(editing) && editing.source.mode === 'bodies')) return null;
+      && !isRepetition(editing)) return null;
     const index = doc.features.findIndex(feature => feature.id === editing.id);
     return doc.features.slice(0, index < 0 ? doc.features.length : index);
   }, [doc.features, editing?.id, editing?.type]);
@@ -595,8 +595,10 @@ export default function App() {
     );
     setEditing(structuredClone(feature));
     bodyOutputId.current = createdBodyIds(feature)[0] ?? crypto.randomUUID();
-    setBodySelection(isRepetition(feature) && feature.source.mode === 'bodies'
-      ? feature.source.bodies.map(ref => ({ ...ref })) : featureBodyReferences(feature));
+    setBodySelection(isRepetition(feature) && feature.featurePattern
+      ? feature.featurePattern.targets.map(ref => ({ ...ref }))
+      : isRepetition(feature) && feature.source.mode === 'bodies'
+        ? feature.source.bodies.map(ref => ({ ...ref })) : featureBodyReferences(feature));
     setBodyPicking(feature.type === "combine");
     setFinishPreview(false);
     setFacePreview(false);
@@ -3166,12 +3168,42 @@ export default function App() {
                   feature={editing}
                   features={availableFeatures}
                   planes={availablePlanes}
-                  bodyEditor={editing.source.mode === 'bodies' ? {
+                  bodyEditor={sourceModel?.bodyCatalogActive ? {
                     bodies: sourceModel?.bodies ?? [], existing: doc.features.some(feature => feature.id === editing.id),
                     picking: bodyPicking, loading: sourceLoading || sourceBuiltFeatures !== sourceFeatures,
                     onSelection: chooseBodySelection, onPicking: setBodyPicking,
                     message: bodyCommand && !bodyCommand.accepted ? bodyCommand.message : undefined,
                   } : undefined}
+                  onSourceKindChange={mode => {
+                    if (doc.features.some(feature => feature.id === editing.id) || sourceLoading
+                      || sourceBuiltFeatures !== sourceFeatures || !sourceModel?.bodyCatalogActive) return;
+                    const base = { ...editing };
+                    delete base.bodyPattern;
+                    delete base.featurePattern;
+                    const targets = bodySelection.filter(reference => sourceModel.bodies?.some(body => sameBodyReference(body.ref, reference)))
+                      .map(reference => ({ ...reference }));
+                    let next: RepetitionFeature;
+                    if (mode === 'features') {
+                      const featureIds = editing.source.mode === 'features' ? [...editing.source.featureIds]
+                        : editing.source.mode === 'bodies' ? [...new Set(editing.source.bodies.map(reference => reference.sourceFeatureId))]
+                          : [editing.source.sourceFeatureId];
+                      next = { ...base, source: { mode: 'features', geometryPattern: true, featureIds },
+                        featurePattern: { mode: 'geometry', targets, bindings: [] },
+                        ...(editing.type === 'mirror' ? { mergeBodies: false } : {}) } as RepetitionFeature;
+                    } else {
+                      next = { ...base, source: { mode: 'bodies', scope: 'current', bodies: targets },
+                        bodyPattern: { mode: 'new', instances: [] },
+                        ...(editing.type === 'mirror' ? { mergeBodies: false } : {}) } as RepetitionFeature;
+                      if (targets.length) {
+                        try { next = reconcileBodyPatternDraft(next); }
+                        catch (error) { setError(error instanceof Error ? error.message : String(error)); return; }
+                      }
+                    }
+                    setBodySelection(targets);
+                    setBodyPicking(false);
+                    setEditing(next);
+                    setError('');
+                  }}
                   onChange={(patch) => {
                     if ("support" in patch && patch.support)
                       changeSupport(patch.support);

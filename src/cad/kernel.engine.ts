@@ -42,6 +42,8 @@ import { bodyBoolean, copyBodyShape, NativeBodyCatalog, type NativeBodyEntry, ty
 import { createdBodyIds, featureBodyReferences } from '../model/bodyReferences';
 import { MAX_CREATED_BODY_IDS, validateBodyPatternDeclaration } from '../model/bodyPatterns';
 import { bodyPatternCopy } from './kernel.body-patterns';
+import { MAX_FEATURE_PATTERN_CONTRIBUTIONS, featurePatternSourceReferences, validateFeaturePatternDeclaration } from '../model/featurePatterns';
+import { FeatureContributionReleaseError, featureContributionKey, featurePatternReplacements, ownedGeometryDelta, type OwnedFeatureGeometry } from './kernel.feature-patterns';
 import {
   createSemanticFaceCatalog, createSemanticEdgeCatalog, preparePrismReferencesV2,
   pickableSemanticFaces, pickableSemanticEdges, resolveSemanticFaceReference,
@@ -53,6 +55,7 @@ const MESH_OPTIONS = { tolerance: 0.05, angularTolerance: 0.12 };
 const MIN_LENGTH = 0.01;
 const MAX_LENGTH = 100_000;
 class BodyStateReleaseError extends AggregateError {}
+class BodyStatePublicationError extends Error {}
 
 /** Raw worker callers must obey the same body-operation shape as saved documents. */
 function validateBodyOperationDeclaration(feature: Extract<Feature, { type: 'extrude' | 'revolve' | 'sweep' | 'loft' }>): void {
@@ -325,7 +328,7 @@ export class CadEngine {
     const accurateMeasurements = features.some(feature => !feature.suppressed && (
       feature.type === 'hole' || feature.type === 'combine'
       || ('bodyScope' in feature && feature.bodyScope !== undefined)
-      || (isRepetition(feature) && (feature.source?.mode === 'bodies' || feature.bodyPattern !== undefined))
+      || (isRepetition(feature) && (feature.source?.mode === 'bodies' || feature.bodyPattern !== undefined || 'featurePattern' in feature))
       || ((feature.type === 'extrude' || feature.type === 'revolve' || feature.type === 'sweep' || feature.type === 'loft') && !!feature.bodyOperation)
       || ((feature.type === 'extrude' || feature.type === 'cut') && !!feature.endCondition)));
     const measuredVolume=(shape:Shape3D):number=>{
@@ -354,15 +357,33 @@ export class CadEngine {
     let featureBodyCommitted = false;
     const prismOwners: OwnedEntityPrism[] = [];
     const repetitions = features.filter(isRepetition).filter((feature) => !feature.suppressed);
-    const wantedDeltas = new Set(repetitions.flatMap((feature) => feature.source?.mode === 'features' ? feature.source.featureIds : []));
-    const wantedBodies = new Set(repetitions.flatMap((feature) => feature.source?.mode === 'body' ? [feature.source.sourceFeatureId] : []));
+    // Raw consumers are validated before cache planning, but their errors stay
+    // attributable to that feature rather than preventing its predecessors.
+    const repetitionDeclarationErrors = new Map<Feature, unknown>();
+    const validRepetitions = repetitions.filter(feature => {
+      try { validateBodyPatternDeclaration(feature); validateFeaturePatternDeclaration(feature); return true; }
+      catch (error) { repetitionDeclarationErrors.set(feature, error); return false; }
+    });
+    const wantedDeltas = new Set(validRepetitions.flatMap((feature) => feature.source?.mode === 'features' && !feature.featurePattern ? feature.source.featureIds : []));
+    const wantedBodies = new Set(validRepetitions.flatMap((feature) => feature.source?.mode === 'body' ? [feature.source.sourceFeatureId] : []));
     const historicalDeltas = new Map<string, FeatureGeometry>();
+    let historicalOwnedDeltas = new Map<string, OwnedFeatureGeometry>();
+    const wantedOwnedContributions = new Map<string, BodyReference>();
+    const ownedContributionBudgetErrors = new Set<Feature>();
+    for (const repetition of validRepetitions) {
+      const refs = featurePatternSourceReferences(repetition);
+      const newRefs = refs.filter(ref => !wantedOwnedContributions.has(featureContributionKey(ref)));
+      if (wantedOwnedContributions.size + newRefs.length > MAX_FEATURE_PATTERN_CONTRIBUTIONS) {
+        ownedContributionBudgetErrors.add(repetition); continue;
+      }
+      for (const ref of refs) wantedOwnedContributions.set(featureContributionKey(ref), ref);
+    }
     const historicalBodies = new Map<string, { body: Shape3D; lineage: string }>();
     const exactBodyKey = (ref: BodyReference) => JSON.stringify([ref.bodyId, ref.sourceFeatureId]);
     const wantedExactBodies = new Map<string, BodyReference>();
     const historicalBodyBudgetErrors = new Set<string>();
     const historicalExactBodies = new Map<string, NativeBodyEntry>();
-    for (const repetition of repetitions) {
+    for (const repetition of validRepetitions) {
       if (repetition.source?.mode !== 'bodies' || repetition.source.scope !== 'historical' || !Array.isArray(repetition.source.bodies)) continue;
       for (const ref of repetition.source.bodies) {
         if (!ref || typeof ref.bodyId !== 'string' || typeof ref.sourceFeatureId !== 'string') continue;
@@ -384,21 +405,55 @@ export class CadEngine {
     const historicalFaces = new Map<string, { entries: SemanticFaceDescriptor[]; lineage: string; semantic: boolean }>();
     const adoptBodyTransaction = (transaction: NativeBodyTransaction): void => {
       let next: ReturnType<NativeBodyTransaction['commit']> | undefined;
+      const captured = new Map<string, OwnedFeatureGeometry>();
+      let capturedTransferred = false;
       let operationFailed = false, operationError: unknown;
       const failures: unknown[] = [];
       try {
+        // Capture only requested exact outputs while both detached candidate
+        // and prior owner still exist. Consumed entries are never negatives.
+        for (const output of transaction.nextEntries) {
+          const key = featureContributionKey(output.ref);
+          if (!wantedOwnedContributions.has(key) || historicalOwnedDeltas.has(key)) continue;
+          const record: OwnedFeatureGeometry = { ref: { ...output.ref }, order: seenIds.size, lineage: output.lineage };
+          try { captured.set(key, record); }
+          catch (error) { throw new BodyStatePublicationError('Historical body contribution staging failed before state transfer.', { cause: error }); }
+          const before = bodyCatalog?.entries().find(item => item.ref.bodyId === output.ref.bodyId);
+          try { record.delta = ownedGeometryDelta(before?.shape ?? null, output.shape, validateSolid, measuredVolume); }
+          catch (error) {
+            if (error instanceof FeatureContributionReleaseError) throw error;
+            record.error = error instanceof Error ? error.message : 'No se pudo aislar la aportación material exacta.';
+          }
+        }
+        // Prepare the complete cache without publishing partial ownership. Its
+        // old records remain borrowed from the existing cache; only captured
+        // records belong to this proposal until all state transfers succeed.
+        let nextOwnedDeltas: Map<string, OwnedFeatureGeometry>;
+        try {
+          nextOwnedDeltas = new Map(historicalOwnedDeltas);
+          for (const [key, record] of captured) nextOwnedDeltas.set(key, record);
+        } catch (error) {
+          throw new BodyStatePublicationError('Historical body contribution publication failed before state transfer.', { cause: error });
+        }
         next = transaction.commit();
-        const volume = validateSolid(next.aggregate);
+        const nextBody = next.aggregate, nextCatalog = next.catalog;
+        const volume = validateSolid(nextBody);
         const previousBody = body, previousCatalog = bodyCatalog;
-        body = next.aggregate; bodyCatalog = next.catalog; currentVolume = volume;
-        featureBodyCommitted = true;
+        // Only local assignments occur during publication. Disarm candidate
+        // cleanup immediately after adoption, before any fallible release.
+        body = nextBody; bodyCatalog = nextCatalog;
         next = undefined;
+        historicalOwnedDeltas = nextOwnedDeltas; capturedTransferred = true;
+        currentVolume = volume; featureBodyCommitted = true;
         try { previousBody?.delete(); } catch (error) { failures.push(error); }
         try { previousCatalog?.dispose(); } catch (error) { failures.push(error); }
         if (failures.length) throw new BodyStateReleaseError(failures.splice(0), 'Previous body catalog release failed after state transfer.');
       } catch (error) {
         operationFailed = true; operationError = error;
       } finally {
+        if (!capturedTransferred) for (const record of captured.values()) {
+          try { record.delta?.dispose(); } catch (error) { failures.push(error); }
+        }
         if (next) {
           try { next.aggregate.delete(); } catch (error) { failures.push(error); }
           try { next.catalog.dispose(); } catch (error) { failures.push(error); }
@@ -418,28 +473,15 @@ export class CadEngine {
           if (entry) historicalExactBodies.set(key, { ...entry, shape: copyBodyShape(entry.shape) });
         }
       }
-      if (wantedBodies.has(sourceFeatureId)) historicalBodies.set(sourceFeatureId, { body: body.clone(), lineage });
-      if (wantedDeltas.has(sourceFeatureId)) {
+      if (!bodyCatalog && wantedBodies.has(sourceFeatureId)) historicalBodies.set(sourceFeatureId, { body: body.clone(), lineage });
+      if (!bodyCatalog && wantedDeltas.has(sourceFeatureId)) {
         const record: FeatureGeometry = { id: sourceFeatureId, order: seenIds.size, lineage };
         historicalDeltas.set(sourceFeatureId, record);
-        const isolated: Shape3D[] = [];
-        let deltaFailed = false, deltaError: unknown;
         try {
-          const deltaBefore = bodyCatalog && before ? copyBodyShape(before) : before;
-          if (bodyCatalog && deltaBefore) isolated.push(deltaBefore);
-          const deltaAfter = bodyCatalog ? copyBodyShape(body) : body;
-          if (bodyCatalog) isolated.push(deltaAfter);
-          record.delta = geometryDelta(deltaBefore, deltaAfter, validateSolid);
+          record.delta = geometryDelta(before, body, validateSolid);
         }
         catch (error) {
-          deltaFailed = true; deltaError = error;
           record.error = error instanceof Error ? error.message : 'OpenCascade no pudo aislar la aportación geométrica.';
-        }
-        finally {
-          const failures: unknown[] = [];
-          for (const shape of isolated.reverse()) { try { shape.delete(); } catch (error) { failures.push(error); } }
-          if (failures.length) throw new BodyStateReleaseError(deltaFailed ? [deltaError, ...failures] : failures,
-            'Historical body geometry isolation release failed.');
         }
       }
       if (!referencedSources.has(sourceFeatureId)) return;
@@ -500,7 +542,10 @@ export class CadEngine {
       let featureFailed = false, featureError: unknown;
       let bodyAware = false;
       try {
-        if (isRepetition(feature)) validateBodyPatternDeclaration(feature);
+        if (isRepetition(feature)) {
+          if (repetitionDeclarationErrors.has(feature)) throw repetitionDeclarationErrors.get(feature);
+          validateBodyPatternDeclaration(feature); validateFeaturePatternDeclaration(feature);
+        }
         if (feature.type === 'extrude' || feature.type === 'revolve' || feature.type === 'sweep' || feature.type === 'loft') {
           validateBodyOperationDeclaration(feature);
         }
@@ -563,7 +608,7 @@ export class CadEngine {
           unavailableFeatureIds.add(feature.id);
           continue;
         }
-        if (wantedDeltas.has(feature.id)) beforeForRecord = body?.clone() ?? null;
+        if (!bodyCatalog && wantedDeltas.has(feature.id)) beforeForRecord = body?.clone() ?? null;
         if (bodyCatalog && feature.type === 'hole' && !feature.bodyScope?.length) throw new Error('Selecciona los cuerpos exactos sobre los que aplicar los taladros.');
         if (bodyCatalog && (feature.type === 'fillet' || feature.type === 'chamfer' || feature.type === 'shell' || feature.type === 'draft') && !feature.bodyScope) {
           throw new Error('Selecciona un cuerpo exacto para esta operación.');
@@ -622,6 +667,39 @@ export class CadEngine {
           }
           adoptBodyTransaction(operation.mode === 'new' ? bodyCatalog.stageNewMany(copies)
             : bodyCatalog.stageMergeMany(operation.target, copies.map(copy => copy.shape), { sourceFeatureId: feature.id, lineage: nextLineage }));
+          sourceFeatureId = feature.id; lineage = nextLineage; semantic = undefined;
+          rememberReferencedSource(beforeForRecord);
+          continue;
+        }
+        if (isRepetition(feature) && feature.featurePattern) {
+          solidFeatureIds.add(feature.id);
+          if (!bodyCatalog || !body) throw new Error('La repetición de aportaciones requiere cuerpos explícitos; la geometría antigua no se adopta automáticamente.');
+          if (feature.source.mode !== 'features') throw new Error('Selecciona operaciones semilla para repetir sus aportaciones.');
+          if (!solidFeatureIds.has(feature.baseFeatureId) || feature.baseFeatureId === feature.id
+            || unavailableFeatureIds.has(feature.baseFeatureId) || sourceFeatureId !== feature.baseFeatureId) {
+            throw new Error('El predecesor de la repetición no está disponible. Recupera la base.');
+          }
+          if (feature.source.featureIds.some(id => !solidFeatureIds.has(id) || id === feature.id || unavailableFeatureIds.has(id))) {
+            throw new Error('Una operación semilla está ausente, suprimida o no es anterior al patrón.');
+          }
+          if (ownedContributionBudgetErrors.has(feature)) throw new Error('El documento supera 512 aportaciones históricas exactas requeridas por patrones.');
+          const support = feature.type === 'mirror' ? resolveSupport(feature.support) : null;
+          if (feature.type === 'mirror' && !support) throw new Error('El plano de simetría no está disponible. Recupera el soporte.');
+          const plan = patternPlan(feature, support?.frame);
+          const operation = feature.featurePattern;
+          const replacements = featurePatternReplacements(feature, plan, bodyCatalog, historicalOwnedDeltas, validateSolid, measuredVolume);
+          extraCandidates.push(...replacements.map(item => item.shape));
+          const compare = (a: string, b: string): number => a < b ? -1 : a > b ? 1 : 0;
+          const canonicalTargets = [...operation.targets].sort((a, b) => compare(a.bodyId, b.bodyId));
+          const canonicalBindings = [...operation.bindings].sort((a, b) => {
+            const first = historicalOwnedDeltas.get(featureContributionKey(a.source))!;
+            const second = historicalOwnedDeltas.get(featureContributionKey(b.source))!;
+            return first.order - second.order || compare(featureContributionKey(a.source), featureContributionKey(b.source));
+          });
+          const nextLineage = advanceLineage(lineage, [feature.id, feature.type, 'owned-feature-pattern', operation.mode,
+            canonicalTargets, canonicalBindings.map(binding => [binding.source, [...binding.targetBodyIds].sort(compare),
+              historicalOwnedDeltas.get(featureContributionKey(binding.source))?.lineage]), plan.structure, support?.lineage ?? null]);
+          adoptBodyTransaction(bodyCatalog.stageReplaceMany(replacements, { sourceFeatureId: feature.id, lineage: nextLineage }));
           sourceFeatureId = feature.id; lineage = nextLineage; semantic = undefined;
           rememberReferencedSource(beforeForRecord);
           continue;
@@ -1049,7 +1127,7 @@ export class CadEngine {
       } catch (error) {
         featureFailed = true; featureError = error;
         // Finalization after transfer cannot restore already retired geometry.
-        if (error instanceof BodyStateReleaseError || featureBodyCommitted) throw error;
+        if (error instanceof BodyStateReleaseError || error instanceof BodyStatePublicationError || error instanceof FeatureContributionReleaseError || featureBodyCommitted) throw error;
         result.featureErrors.push({
           id: feature.id,
           message: error instanceof Error ? error.message : 'OpenCascade no pudo construir esta operación. Revisa sus parámetros.',
@@ -1069,6 +1147,7 @@ export class CadEngine {
       const failures: unknown[] = [];
       const releases = [
         ...[...historicalDeltas.values()].map(record => () => record.delta?.dispose()),
+        ...[...historicalOwnedDeltas.values()].map(record => () => record.delta?.dispose()),
         ...[...historicalBodies.values()].map(record => () => record.body.delete()),
         ...[...historicalExactBodies.values()].map(record => () => record.shape.delete()),
         ...[...historicalLimitFaces.values()].map(catalog => () => catalog.dispose()),

@@ -1,6 +1,7 @@
 import type { BodyOperation, BodyReference, Feature } from '../cad/kernel.types'
 import { addFeature, updateFeature, validateDocument, type Document } from './document'
 import { bodyReferenceCreationFeatureId, featureBodyOutputIds, featureCurrentBodyReferences } from './bodyReferences'
+import { featurePatternHistoricalFingerprint, withFeaturePatternTargets } from './featurePatternCommands'
 
 export interface BodyCommandCatalog {
   active: boolean
@@ -33,6 +34,7 @@ interface Attestation {
   catalog: string
   proposal: string
   preview: string
+  historicalContributions?: string
 }
 
 const attestations = new WeakMap<BodyCommandPlan, Attestation>()
@@ -46,6 +48,7 @@ export function sameBodyReference(a: BodyReference, b: BodyReference): boolean {
 
 export function isBodyCommandFeature(feature: Feature): boolean {
   return feature.type === 'combine'
+    || ((feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror') && feature.source.mode === 'features' && feature.featurePattern !== undefined)
     || ((feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror') && feature.source.mode === 'bodies' && feature.bodyPattern !== undefined)
     || ((feature.type === 'extrude' || feature.type === 'revolve' || feature.type === 'sweep' || feature.type === 'loft') && feature.bodyOperation !== undefined)
     || ((feature.type === 'cut' || feature.type === 'hole' || feature.type === 'fillet' || feature.type === 'chamfer' || feature.type === 'shell' || feature.type === 'draft') && feature.bodyScope !== undefined)
@@ -72,6 +75,9 @@ export function setBodyOperationDraft(feature: Extract<Feature, { type: 'extrude
 export function withBodySelection(feature: Feature, selection: readonly BodyReference[]): Feature {
   const references = selection.map(reference => ({ ...reference }))
   const first = references[0] ?? { bodyId: '', sourceFeatureId: '' }
+  if ((feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror') && feature.source.mode === 'features' && feature.featurePattern) {
+    return withFeaturePatternTargets(feature, references)
+  }
   if ((feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror') && feature.source.mode === 'bodies') {
     return { ...feature, source: { ...feature.source, bodies: references } }
   }
@@ -154,6 +160,8 @@ export function prepareBodyCommand(state: BodyCommandState): BodyCommandPreparat
     const catalog = catalogFingerprint(state.catalog, sources)
     const historicalSources = historicalSelectionSources(state.feature, sources)
     const selection = selectionFingerprint(state.selection, state.catalog, historicalSources)
+    const historicalContributions = (state.feature.type === 'linearPattern' || state.feature.type === 'circularPattern' || state.feature.type === 'mirror') && state.feature.featurePattern
+      ? featurePatternHistoricalFingerprint(state.feature, sources) : undefined
     const references = featureCurrentBodyReferences(state.feature)
     if (references.length && !state.catalog.active) throw new Error('Selecciona cuerpos de un catálogo activo.')
     for (const reference of references) {
@@ -181,6 +189,7 @@ export function prepareBodyCommand(state: BodyCommandState): BodyCommandPreparat
     attestations.set(plan, {
       source: fingerprint(state.document), feature: fingerprint(state.feature), selection, catalog,
       proposal: fingerprint(proposal), preview: fingerprint(plan.previewFeatures),
+      historicalContributions,
     })
     return { accepted: true, plan }
   } catch (error) {
@@ -200,6 +209,8 @@ export function applyBodyCommand(plan: BodyCommandPlan, state: BodyCommandState,
       throw new Error('La pieza, selección o configuración ha cambiado. Revisa la nueva vista previa.')
     }
     if (fingerprint(plan.document) !== proof.proposal || fingerprint(plan.previewFeatures) !== proof.preview || plan.featureId !== state.feature.id) throw new Error('La propuesta ha cambiado después de su vista previa.')
+    if (proof.historicalContributions !== undefined && (state.feature.type === 'linearPattern' || state.feature.type === 'circularPattern' || state.feature.type === 'mirror')
+      && featurePatternHistoricalFingerprint(state.feature, sourceFeatures(state)) !== proof.historicalContributions) throw new Error('Las aportaciones históricas han cambiado. Revisa la nueva vista previa.')
     const document = validateDocument(plan.document)
     attestations.delete(plan)
     return { accepted: true, document, featureId: plan.featureId }

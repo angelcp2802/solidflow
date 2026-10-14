@@ -9,6 +9,13 @@ individual outputs for linear/circular patterns and mirror, including exact
 current/historical seeds and committed retirement. Its evidence and remaining
 limits do not replace the broader acceptance checklist below.
 
+The separate [scoped feature-pattern increment](FEATURE_PATTERNS.md) defines
+exact historical owner contributions routed to selected current targets.
+It preserves target IDs rather than allocating per-instance bodies. Its
+22 original native fixture definitions are documented in
+[PROVENANCE](PROVENANCE.md#scoped-feature-geometry-contribution-fixtures);
+written tests or a successful build do not complete native or editor acceptance.
+
 The proposal is an independent design. No corresponding local Combine runtime observation has been retained. Reviewed operation documentation distinguishes subtraction's principal target from the collection of bodies used by union/intersection. This is documentation-level evidence, not a runtime result; it does not establish persistent identity, tool consumption or retention. Operand consumption, retained tools, identity and rejection policies below are local proposals. Assemblies, drawings and manufacturing remain separate [roadmap](ROADMAP.md) work.
 
 ## Existing behavior to preserve
@@ -54,9 +61,9 @@ The additive schema below is the selected local design. Union/intersection do no
 
 `bodyOperation` belongs to material extrusion, revolution, sweep and loft, never to a cut. Sweep and loft retain their required legacy `merge` boolean; with an explicit body operation it must equal `bodyOperation.mode === 'merge'`. Parsing and execution reject contradictory settings rather than rewriting them. Absence of these fields retains the legacy path without inserting metadata. Once a body catalog is active, a modifying operation needs its explicit scope; unsupported legacy operations must report an error for repair instead of guessing a single body's ownership. The serializable `PickableBody` DTO includes its exact reference, creating feature, name, display mesh/normals/triangles/edge lines, individual face/edge picking, native volume and bounds. `CadResult.bodies` and `bodyCatalogActive` remain optional for legacy results.
 
-Each supported catalog entry must be bound to exactly one valid closed solid by the producing operation's ownership or verified generation history. A pattern or mirror instance needs its own persisted output identity and exact source/instance provenance. A command-defined instance address may locate a saved output slot; it is not a native solid index. Removing an instance and creating another must not resurrect its deleted ID. Parameter edits may preserve a surviving slot only when that correspondence is established.
+Each supported catalog entry must be bound to exactly one valid closed solid by the producing operation's ownership or verified generation history. An independent body-copy output needs its persisted instance identity and exact source/instance provenance under [BODY_PATTERNS](BODY_PATTERNS.md). A command-defined instance address may locate that saved output slot; it is not a native solid index. Removing a new-body instance and creating another must not resurrect its retired ID. Parameter edits may preserve a surviving slot only when that correspondence is established. Explicit body-copy merges and selected feature geometry instead retain their target IDs; neither allocates an independent body for each transformed contribution.
 
-Sweep and loft each own one explicit closed-solid output, staged as a new catalog entry or fused with one exact selected target. Their generated tool never implicitly fuses with the scene aggregate. A suppressed input of an explicit producer is a feature error that blocks export; legacy-only documents retain their existing omission behavior. Individual catalog outputs for linear/circular patterns and mirror are not yet defined. The current catalog path still rejects these active repetition operations; it does not run their aggregate result and guess individual owners afterward. Persistent output/instance ownership for those producers remains pending body-management work, not removed project scope or completed validation.
+Sweep and loft each own one explicit closed-solid output, staged as a new catalog entry or fused with one exact selected target. Their generated tool never implicitly fuses with the scene aggregate. A suppressed input of an explicit producer is a feature error that blocks export; legacy-only documents retain their existing omission behavior. Explicit linear/circular/mirror body-copy outputs and merges are defined by [BODY_PATTERNS](BODY_PATTERNS.md). Selected feature geometry uses its separate [opt-in declaration](FEATURE_PATTERNS.md), exact historical contributions and one atomic replacement set of finally changed targets. Neither route executes an aggregate result and guesses individual owners afterward. Unsupported undeclared repetitions still reject. Per-instance regeneration, varying sketches, dynamic/automatic scopes and broader nested/dependent ownership lifecycle remain required body-management work, not removed scope or completed validation.
 
 Never identify or reassign a body using native traversal order, an index into `shape.solids`, volume, bounds, position, geometric rank, nearest geometry or a geometric sort. A rebuild may enumerate differently while the saved identities remain unchanged. A split, merge or replaced source does not authorize guessing an output assignment.
 
@@ -183,7 +190,8 @@ Every item is pending for this proposal. Record executed evidence against the ex
 - [ ] Implement actual body-targeted cuts/holes and appropriate downstream finishes/supports; leave unselected bodies and their identities intact.
 - [ ] Preserve legacy `merge:false`, body-pattern/mirror, STEP import and conservative v1 behavior; keep unproved Boolean face/edge correspondence unavailable.
 - [ ] Check the strict opt-in boundary, including suppressed legacy predecessors, without adopting old aggregates or silently skipping unsupported transitions.
-- [ ] Complete validation of explicit sweep/loft outputs and define persistent individual pattern/mirror outputs; retain the explicit rejection for unproved instance ownership.
+- [ ] Complete validation of explicit sweep/loft and body-pattern outputs against their contracts; reject unproved instance ownership.
+- [ ] Validate opt-in selected feature geometry and complete the remaining regeneration, varying-sketch, dynamic/automatic-scope and broader nested/dependent lifecycle requirements; retain exact source/target ownership throughout.
 - [ ] Bound and dispose current/historical native owners, clones, catalogs and candidates; send complete serializable body/picking metadata through the worker.
 - [ ] Export the committed body set from a fresh engine snapshot and block incomplete/error-state export.
 

@@ -5,6 +5,7 @@ import { featureDependencyIds, featureSketchIds } from './featureInputs'
 import { validateStepSource } from './stepSource'
 import { createdBodyIds, featureBodyOutputIds, featureBodyReferences } from './bodyReferences'
 import { bodyPatternAddresses, MAX_CREATED_BODY_IDS, validateBodyPatternDeclaration } from './bodyPatterns'
+import { validateFeaturePatternDeclaration, type FeaturePatternOperation } from './featurePatterns'
 
 export interface Document {
   version: 1
@@ -125,6 +126,10 @@ function bodyMergeOptions(source: Record<string, unknown>, path: string): { merg
 }
 
 function bodyReferencePath(feature: Feature, index: number, path: string): string {
+  if ((feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror') && feature.featurePattern) {
+    const count = feature.featurePattern.bindings.length
+    return index < count ? `${path}.featurePattern.bindings[${index}].source` : `${path}.featurePattern.targets[${index - count}]`
+  }
   if ((feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror') && feature.source.mode === 'bodies') {
     return index < feature.source.bodies.length ? `${path}.source.bodies[${index}]` : `${path}.bodyPattern.target`
   }
@@ -183,10 +188,17 @@ function checkPatternApplications(source: PatternSource, copies: number, path: s
 }
 
 function repetitionBodyOptions<T extends RepetitionFeature>(parsed: T, source: Record<string, unknown>, path: string): T {
-  const result = Object.hasOwn(source, 'bodyPattern')
+  // Check the original declaration before a clone can erase inherited fields.
+  try { validateFeaturePatternDeclaration(source as unknown as RepetitionFeature) }
+  catch (error) { fail(`${path}.featurePattern`, error instanceof Error ? error.message : String(error)) }
+  const bodyResult = Object.hasOwn(source, 'bodyPattern')
     ? { ...parsed, bodyPattern: structuredClone(source.bodyPattern) as BodyPatternOperation } : parsed
+  const result = Object.hasOwn(source, 'featurePattern')
+    ? { ...bodyResult, featurePattern: structuredClone(source.featurePattern) as FeaturePatternOperation } : bodyResult
   try { validateBodyPatternDeclaration(result) }
   catch (error) { fail(`${path}.bodyPattern`, error instanceof Error ? error.message : String(error)) }
+  try { validateFeaturePatternDeclaration(result) }
+  catch (error) { fail(`${path}.featurePattern`, error instanceof Error ? error.message : String(error)) }
   return result
 }
 
@@ -628,7 +640,7 @@ function feature(value: unknown, path: string): Feature {
     }
   }
   if (source.type === 'linearPattern') {
-    keys(source, [...baseKeys, 'baseFeatureId', 'source', 'first', 'second', 'secondSeedOnly', 'skipped'], path, ['bodyPattern'])
+    keys(source, [...baseKeys, 'baseFeatureId', 'source', 'first', 'second', 'secondSeedOnly', 'skipped'], path, ['bodyPattern', 'featurePattern'])
     const first = linearDirection(source.first, `${path}.first`)
     const second = source.second === null ? null : linearDirection(source.second, `${path}.second`)
     const secondSeedOnly = boolean(source.secondSeedOnly, `${path}.secondSeedOnly`)
@@ -642,7 +654,7 @@ function feature(value: unknown, path: string): Feature {
     }, source, path)
   }
   if (source.type === 'circularPattern') {
-    keys(source, [...baseKeys, 'baseFeatureId', 'source', 'axis', 'count', 'angle', 'equalSpacing', 'reversed', 'skipped'], path, ['bodyPattern'])
+    keys(source, [...baseKeys, 'baseFeatureId', 'source', 'axis', 'count', 'angle', 'equalSpacing', 'reversed', 'skipped'], path, ['bodyPattern', 'featurePattern'])
     const axis = object(source.axis, `${path}.axis`)
     keys(axis, ['origin', 'direction'], `${path}.axis`)
     const count = integer(source.count, `${path}.count`, 2, MAX_PATTERN_INSTANCES)
@@ -659,7 +671,7 @@ function feature(value: unknown, path: string): Feature {
     }, source, path)
   }
   if (source.type === 'mirror') {
-    keys(source, [...baseKeys, 'baseFeatureId', 'source', 'support', 'mergeBodies'], path, ['bodyPattern'])
+    keys(source, [...baseKeys, 'baseFeatureId', 'source', 'support', 'mergeBodies'], path, ['bodyPattern', 'featurePattern'])
     const seeds = patternSource(source.source, `${path}.source`)
     const mergeBodies = boolean(source.mergeBodies, `${path}.mergeBodies`)
     if (seeds.mode === 'features' && mergeBodies) fail(`${path}.mergeBodies`, 'la fusión de cuerpos solo se aplica al modo cuerpo')

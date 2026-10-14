@@ -1,3 +1,5 @@
+import type { FeaturePatternOperation } from '../model/featurePatterns';
+
 /** Coordinates and lengths are millimetres; angles are degrees. */
 export type Plane = 'XY' | 'XZ' | 'YZ';
 export type Vec3 = [number, number, number];
@@ -189,6 +191,8 @@ interface RepetitionBase extends FeatureBase {
   source: PatternSource;
   /** Required with source.mode=bodies; absence preserves the aggregate legacy path. */
   bodyPattern?: BodyPatternOperation;
+  /** Explicit selected targets and exact historical contributions; allocates no bodies. */
+  featurePattern?: FeaturePatternOperation;
 }
 
 export interface LinearPatternDirection {

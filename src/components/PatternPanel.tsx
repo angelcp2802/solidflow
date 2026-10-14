@@ -10,6 +10,8 @@ import type {
 } from "../cad/kernel.types";
 import { supportLabel } from "./PlaneSupportPanel";
 import BodyPatternPanel, { type BodyPatternEditor } from "./BodyPatternPanel";
+import FeaturePatternPanel from "./FeaturePatternPanel";
+import { withFeaturePatternSeeds } from "../model/featurePatternCommands";
 
 interface Props {
   feature: RepetitionFeature;
@@ -20,6 +22,7 @@ interface Props {
   pickingFace: boolean;
   canPickFace: boolean;
   bodyEditor?: BodyPatternEditor;
+  onSourceKindChange?: (mode: 'bodies' | 'features') => void;
 }
 
 function ValueField({
@@ -165,16 +168,17 @@ export default function PatternPanel({
   pickingFace,
   canPickFace,
   bodyEditor,
+  onSourceKindChange,
 }: Props) {
   const solids = features.filter(
     (candidate) => candidate.type !== "sketch" && candidate.type !== "plane",
   );
-  const setSource = (source: PatternSource) =>
-    onChange(
-      feature.type === "mirror" && source.mode === "features"
-        ? { source, mergeBodies: false }
-        : { source },
-    );
+  const setSource = (source: PatternSource) => {
+    const scoped = feature.featurePattern && source.mode === 'features'
+      ? withFeaturePatternSeeds(feature, source.featureIds) : null;
+    onChange({ source, ...(scoped ? { featurePattern: scoped.featurePattern } : {}),
+      ...(feature.type === 'mirror' && source.mode === 'features' ? { mergeBodies: false } : {}) });
+  };
   const checkedIds =
     feature.source.mode === "features" ? feature.source.featureIds : [];
   const firstAvailable =
@@ -202,11 +206,20 @@ export default function PatternPanel({
   }
   return (
     <>
+      {bodyEditor && onSourceKindChange && <div className="property-section">
+        <h3>Elementos de la repetición</h3>
+        <select aria-label="Tipo de repetición en cuerpos" value={feature.source.mode === 'bodies' ? 'bodies' : 'features'}
+          disabled={bodyEditor.existing || bodyEditor.loading}
+          onChange={event => onSourceKindChange(event.target.value as 'bodies' | 'features')}>
+          <option value="bodies">Cuerpos completos</option>
+          <option value="features">Operaciones · geometría</option>
+        </select>
+      </div>}
       {feature.source.mode === 'bodies' ? (bodyEditor && <BodyPatternPanel feature={feature} features={features} editor={bodyEditor} onChange={onChange} />) : <div className="property-section">
         <h3>
           <ChevronDown size={12} /> Elementos a repetir
         </h3>
-        <select
+        {!feature.featurePattern && <select
           aria-label="Tipo de elementos a repetir"
           value={feature.source.mode}
           onChange={(event) => {
@@ -229,7 +242,7 @@ export default function PatternPanel({
         >
           <option value="features">Operaciones · geometría</option>
           <option value="body">Cuerpo completo</option>
-        </select>
+        </select>}
         {feature.source.mode === "features" ? (
           <>
             <div
@@ -329,6 +342,7 @@ export default function PatternPanel({
           </>
         )}
       </div>}
+      {feature.featurePattern && bodyEditor && <FeaturePatternPanel feature={feature} features={features} editor={bodyEditor} onChange={onChange} />}
       {feature.type === "linearPattern" ? (
         <>
           <div className="property-section">
