@@ -24,7 +24,7 @@ limitations.
 ## Work in review
 
 The [project status and review queue](PROJECT_STATUS.md) separates the default
-branch from the draft CAD stack: [#27](https://github.com/angelcp2802/solidflow/pull/27)
+branch from the unmerged CAD stack: [#27](https://github.com/angelcp2802/solidflow/pull/27)
 for sketch identities and bounded semantic references, then
 [#29](https://github.com/angelcp2802/solidflow/pull/29) for explicit body management,
 then [#31](https://github.com/angelcp2802/solidflow/pull/31) for body-aware sweep
@@ -38,7 +38,11 @@ with blind/ThroughAll endings, then
 [#38](https://github.com/angelcp2802/solidflow/pull/38) for cut-only regenerate/false
 ALL over the complete current body catalog without a saved target snapshot, then
 [#39](https://github.com/angelcp2802/solidflow/pull/39) for a typed UntilNext
-intersection/ownership foundation without saved recipe or scope-policy activation.
+intersection/ownership foundation without saved recipe or scope-policy activation,
+then [#40](https://github.com/angelcp2802/solidflow/pull/40) for an explicit fixed-world
+principal-plane UpToSurface choice with preview/Apply and saved reopening.
+#39 is ready for review; the other CAD proposals remain drafts in the dated queue.
+None has merged into the default branch.
 The current #38 source `06cfdd5c` retains 279 runtime inputs and changes two
 child path-resolution calls to the native API in its
 [instrumented desktop regression](https://github.com/angelcp2802/solidflow/blob/06cfdd5cdccb5dac930d7d8c5b30c2300549b6a7/scripts/desktop-pattern-all.cjs)
@@ -82,6 +86,17 @@ Its original inline fixtures and source-specific history are recorded in the
 [proposal ledger](https://github.com/angelcp2802/solidflow/blob/0629b3a733b8d98cec586fbe6e79d2265cadda37/docs/VALIDATION.md#untilnext-resolution-foundation--2026-10-14).
 The three medium #38 alerts and eight moderate development-package entries
 remain unresolved; #35's separate macOS crash remains unknown.
+
+For #40 head `51388ba3`, the
+[CI run](https://github.com/angelcp2802/solidflow/actions/runs/38624416703) failed
+selected-to-ALL interaction on all three configured platforms after build,
+unit/CAD, IPC and initial-model smoke passed. Fixed-plane interaction and
+packaging were skipped. Local full and desktop commands also remain failed;
+earlier focused native/model passes retain their own source scopes. The
+[review queue](PROJECT_STATUS.md#fixed-plane-regeneration-proposal-40) records
+those results separately from #39's green checks and the successful
+[Security run](https://github.com/angelcp2802/solidflow/actions/runs/38624416693).
+No platform or release readiness follows from these partial results.
 
 These proposals have not merged. Their
 checks and remaining acceptance work are recorded separately from the foundation
