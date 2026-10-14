@@ -1,5 +1,155 @@
 # Validation
 
+## Saved feature recipe regeneration — local source checkpoint (2026-10-14)
+
+Source commit [97def5ae](https://github.com/angelcp2802/solidflow/commit/97def5ae2ab0b3e15fc007f560cecd465b9c138d)
+connects strict saved declarations, explicit-frame tools, chronological native
+evaluation and staged body/catalog/cache adoption. The branch changes 36 paths
+from base [d0173137](https://github.com/angelcp2802/solidflow/commit/d01731374b08b3031f5b54e6012dfaf8aa54c6c4).
+The final validation map has 271 runtime inputs. Their bytes were checked against
+the committed Git tree; the map SHA-256 is
+`5e80aa6bf96658a88c83e722962f0f6a1bfd637abb92ebae18694f181adc76c1`.
+Dependencies and the lockfile are unchanged. This documentation update does not
+change those runtime inputs.
+
+### Implemented and checked scope
+
+Explicit feature patterns can choose geometry copying or regeneration. Initial
+regeneration accepts selected exact current targets and historical source
+poststates, intrinsic rectangle/circle cut or merge operations, blind/ThroughAll
+endings, no reference policies and no variation. Actual tools rebuild against
+progressive working owners in canonical instance and saved feature order.
+Selected parents have same-address semantic roles even when their material is
+unchanged. Changed final owners publish atomically; unchanged owners retain their
+old references. Geometry copying remains a separate method, with no fallback for
+failed regeneration.
+
+The [fixture provenance](PROVENANCE.md#chronological-recipe-evaluator-fixtures)
+and [regeneration contract](FEATURE_REGENERATION.md) give the exact dimensions,
+formulas, tolerances and limits. Standalone evaluator and saved-engine geometric
+cases check BRep validity, final solid count, volume, area and bounds; selected
+cases add independent material
+probes. Metric tolerance is 1e-5 mm³/mm², coordinate tolerance 1e-6 mm and probe
+volume tolerance 1e-7 mm³. These tolerances do not establish general robustness.
+
+### Final required commands
+
+Local Windows x64, Node 24.11.1, TypeScript 7.0.2, Vitest 5.0.3 and
+Replicad/OpenCascade packages 1.1.0:
+
+| Command | Actual result on the final 271-input snapshot |
+| --- | --- |
+| `npm test` | PASS: 2,144 tests in 120 files, no filtered skips, followed by 11/11 IPC checks. The unit phase reported 52.18 seconds. |
+| `npm run build` | PASS: TypeScript and Vite, 1,985 modules. Existing dependency externalization and large-chunk warnings remain. |
+| `npm run test:desktop` | FAIL: initial-model readiness passed, including the production protocol, preload bridge, two canvases, worker and WASM; no console errors or failed requests were reported. The launcher still exceeded its 45-second exit deadline. This is not an overall desktop pass. |
+
+All three commands retained unchanged before/after runtime maps. They also
+retained equal hashes for all seven compiled outputs before/after execution,
+and the build reproduced the same assets. The critical output hashes are:
+
+| Output | SHA-256 |
+| --- | --- |
+| Renderer | `819f7f37210d6f01c007d7dd1d68ce61577bb6e3176a4f38f268a1954f4c05b8` |
+| Worker | `ea1109463085ae99611fea3dab78924caaf7fdf0566eb73c40d7081b1e800799` |
+| WASM | `4c9f22e9f3828dca6f3c95405934cdbe624e593c35266f47f392ab337478dbde` |
+
+### Focused evidence and retained failures
+
+Focused invocations passed 75 bridge/received-ownership/end-condition cases in
+six files, 21 standalone evaluator cases, 19 primitive/registration cases, 18
+saved-engine integration cases, 37 model/command/static-rendering cases, and
+three actual native cache-capture/registration fault cases. Counts overlap and
+must not be added as independent coverage. The final full suite includes the
+corrected source and tests.
+
+The engine cases distinguish copying a height-four removal from regenerating a
+ThroughAll cut through a height-eight target for linear, circular and mirror
+placements. They also exercise exact older sources after later modification
+and Combine consumption, stale current targets, no-op ownership, late atomic
+rejection, source edits, save/reopen and undo/redo. The evaluator additionally
+checks temporary islands/empty working material, restoration, equal-volume
+spatial changes, dependent operations, freshness and retained-candidate cleanup.
+These programmatic cases do not prove real editor picking or worker preview/Apply.
+
+Two initial builds failed TypeScript checking: a profile narrowing lost across
+a callback, and a test mock's broad callable annotation. Stable local aliases
+fixed the annotations without weakening geometric assertions. The 19-case
+primitive invocation preceded its test-only typing correction; the final build
+and full suite include that correction.
+
+The first evaluator run passed 19 cases and failed two volume expectations.
+The original analytical oracle had counted a radius-.5, depth-two pocket as π
+rather than π/2. Correct expectations are 392−π/2 for one pocket and 400−π for
+two. Production geometry, area/bounds/probe expectations and tolerances were
+unchanged; the corrected 21-case run passed.
+
+An earlier full run on 268 inputs passed 2,103/2,104 tests and 116/117 files,
+with one 5-second timeout in the curved-corner offset-history shell case
+(reported duration 5,187 ms). Its chained IPC phase did not run. A direct
+unchanged-case run at the original deadline passed one case with 34 filtered
+skips; that was not a full-file pass. The case performs several native rebuilds
+and STEP round trips and now has an explicit bounded 30-second budget. Its
+geometry, expected results, algorithms and assertions are unchanged. The final
+full run passed. The observations do not establish the cause of the earlier
+timeout or a performance guarantee.
+
+The first integrated desktop invocation failed its 35-second readiness deadline
+and then its 45-second launcher deadline; it logged HTML/CSS/JS responses but no
+worker/WASM response. Later private diagnostics reached readiness and still
+failed the exit deadline. One observed an exit event with code zero at 47.465
+seconds, after the watchdog deadline; this remains a failed run. A minimal
+same-version Electron control without a BrowserWindow or project code exited
+zero in 5.158 seconds. A separate private comparison changed only successful
+termination from `app.exit` to `app.quit`, keeping the readiness oracle and
+deadlines: it reached readiness and actual exit/close zero at 16.103 seconds,
+before the watchdog. These bounded observations support further shutdown
+investigation, not a general cause or a pass for the unchanged public harness.
+The earlier diagnostics captured source maps; full compiled-output hash capture
+was added for the final required commands above.
+
+The standard final desktop run still fails. The separate
+[desktop diagnostic PR](https://github.com/angelcp2802/solidflow/pull/35) must
+retain its own source and validation; results from this CAD branch cannot be
+transferred to it.
+
+### Log identities
+
+These hashes identify retained local command output; no local artifact or
+private model is required by the public tests.
+
+| Observation | Log SHA-256 |
+| --- | --- |
+| Final full suite and IPC | `463c6e8bb7d4166caf17a83ecb46d07472cf4f168a68228c3a038048fcb316c0` |
+| Final build | `ce825ca011f382a2d901e59b83d8cb3367fd165e8ba4c0cd65a77bfa0290afbd` |
+| Final standard desktop failure | `236acb7d106737ec62a946ec88f22f69810eff3cd8ef8ac242781593d8ed87f8` |
+| Saved engine 18-case pass | `bf0254c20604cc3c53bebd7ce3862684453fdea44c53b8b4c3370d1551bc4574` |
+| Model/commands/SSR 37-case pass | `d0c7ffdca88046cf003514a23cd8bc5e5c40aa0693aa547b0bca66491c9d9b7c` |
+| Native cache faults three-case pass | `d4820ba0cf15f6919fd2abde020b90016ee9a6dd33759fdb3cdec05d625656fa` |
+| First evaluator oracle failure | `03ad7579ca9833849cd7b7e899fbd27ef1eaa69f1bb06b65e9a1b21386ec7bbd` |
+| Corrected evaluator pass | `3267288c817ffb7cdfecae7d524675874caa8479e5371e253b13fc6c2eb39b6d` |
+| Earlier full-suite shell timeout | `3b5962be713e0811f3c885527e44dd8043f7f3edb76384bd5d68c214162a80f5` |
+| Private forced-exit diagnostic failure | `1f5166f695ccd90f3f4e2eaf20d17e680781c53ea235372abedb5b2c907179e2` |
+| Private graceful-exit comparison | `6b6b379d7cfb139926aa799a9f4a29c47d5ac5ae66c541647cb716c1f160c91f` |
+
+### Required continuation
+
+The 28 model/command cases use symbolic healthy receipts and the nine SSR cases
+execute no events. Native cache faults count received-copy delete attempts;
+closure-local cache-Map publication and post-adoption prior-catalog release
+remain outside those injected cases. Legacy validator cleanup attribution,
+SDK-internal allocation and total native leak freedom remain unproved.
+
+Other end/start conditions, exact face/datum/instance correspondence, arbitrary
+and associative solved profiles, dependent sketches/planes/constraints, all/auto
+scope, variation/equations, nested recipes and creation/split/consumption ledgers
+remain required. Complete preview/Apply, suppression/rollback, picking, document
+lifecycle and independent interoperability also remain open. This checkpoint
+does not complete the CAD goal or establish platform support. New hosted checks
+must be inspected on this branch's actual head; no earlier three-platform pass
+is attributed to this source. Binary publication remains gated by
+[issue #5](https://github.com/angelcp2802/solidflow/issues/5).
+
+
 ## Feature recipe components — local source checkpoint (2026-10-14)
 
 Source commit [`ecc7dd3c`](https://github.com/angelcp2802/solidflow/commit/ecc7dd3c85d0b05264eab2f4ae47db11d23ec8c3)
