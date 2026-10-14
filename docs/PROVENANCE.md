@@ -1314,3 +1314,51 @@ Authored assertions are not passing evidence. The actual command, source,
 platform and outcome belong in the validation ledger. This one linear cut
 workflow does not establish general GUI interaction, native-dialog behavior,
 other pattern families, platform support or broader recipe/lifecycle coverage.
+
+## Per-owner UntilNext classification fixtures
+
+The 19 cases in
+[`src/cad/kernel.until-next-resolution.test.ts`](../src/cad/kernel.until-next-resolution.test.ts)
+are original synthetic inputs created for this project from boxes, circles and
+rectangular cavities. The test constructs them in memory using the declared
+dependencies; no external CAD document, binary fixture or private model supplies
+an input or expected result. Lengths are millimeters, areas mm² and volumes mm³.
+
+The procedure builds each target independently, creates a fresh radius-one prism
+in an explicit frame, classifies its actual forward intersection, and checks any
+complete tool and resulting cut. Expected values come from elementary geometry,
+not a second call to the classifier or its limit helper. The geometric cases are:
+
+| Cases | Original construction and independent oracle |
+| --- | --- |
+| 1 remote miss | The circle is centered at `(5,5)` along +Z. Target `[20,30]×[0,10]×[0,8]` has V800/A520; separation is `20−(5+1)=14`. |
+| 3 contact boundaries | The same circle reaches x6. Boxes beginning at x `6+g`, for `g=0,10⁻⁹,10⁻⁵`, have exact separation g and unchanged V800/A520. `10⁻⁷` is the classifier's explicit contact/near distance resolution. |
+| 4 first-wall placements | Outer `10×10×8` minus an enclosed `6×6×4` cavity at z2..6 gives V656/A688. Translated, half-turn and two reflected frames exercise physical ray parity. Both walls intersect the enclosing query, V4π; the first-wall tool has V2π/A6π. Its cut gives V`656−2π`/A`688+2π`, and a far-wall probe retains material. |
+| 1 partial face then complete exit | The radius-one circle centered at x7.5 crosses the cavity edge x8. Circle area inside the cavity footprint is `Ai=2π/3+√3/4`. Tool height8 gives V8π/A18π. Removed material is `8π−4Ai=16π/3−√3`; final V is `656−16π/3+√3` and A is `688+22π/3−9√3/2`. |
+| 1 incomplete overhang | Target `[0,5.5]×[0,10]×[0,8]` has V440/A358. Actual forward material is `8Ai=16π/3+2√3`, but no target face closes the entire circular profile. |
+| 1 temporary-island owner | Removing slab x4..6 through `10×10×8` leaves two `4×10×8` islands, combined V640/A608. A circle centered at `(2,5)` gives a height8 tool. The cut keeps two solids with V`640−8π`/A`608+14π`; the remote island's interior probe stays material. |
+
+For the partial-cavity area, new cylindrical wall contributes `32π/3`. Remove
+two exterior disks `2π`, two cavity horizontal patches `2Ai`, and an inner
+vertical patch `4√3`. The net area change is therefore
+`32π/3−2π−2Ai−4√3=22π/3−9√3/2`.
+
+Volume and area tolerances are `10⁻⁵`; bounds use `10⁻⁶`. Material probes compare
+the intersection of a `0.2³` cube with the analytically expected occupied or
+empty interior, using volume tolerance `10⁻⁷`. Tests check valid BRep, relevant
+solid counts, bounds and unchanged borrowed targets rather than volume alone.
+
+Eight further causal cases cover original factory errors, cleanup errors after
+a miss/incomplete limit or after a complete tool has been built, repeated
+wrappers, and distinct JavaScript facades exposing a borrowed or repeated native
+handle. They preserve sentinel errors and check observed release attempts and
+borrowed-owner geometry. These assertions do not establish general garbage
+collector or upstream factory lifetime safety.
+
+This is native component coverage, not a saved recipe or pattern interaction
+fixture. A completed empty Common plus native separation is distinct from
+contact or material without a complete limit. No selected/ALL no-hit policy,
+source-base remapping, additive scope, AUTO, associative references, variation,
+nested lifecycle, independent interoperability or platform support follows from
+these cases. Written fixture counts are not passing results; exact-source
+execution belongs in [VALIDATION.md](VALIDATION.md).

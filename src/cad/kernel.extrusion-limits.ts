@@ -165,11 +165,19 @@ export function upToSurfaceTool(target: { frame: PlaneFrame } | { face: Face }, 
   }, result => [result], 'Falló la extrusión Hasta superficie o su liberación.');
 }
 
+/** Typed ordinary geometry outcome; never use it to classify native/cleanup failure as a miss. */
+export class NextBoundaryUnavailableError extends Error {
+  constructor(readonly reason: 'NO_FORWARD_EXTENT' | 'NO_COMPLETE_FACE' | 'INCOMPATIBLE_FACES', message: string) {
+    super(message);
+    this.name = 'NextBoundaryUnavailableError';
+  }
+}
+
 /** Candidate is an actual trimmed face closing all contours; no average-depth ranking. */
 export function untilNextTool(body: Shape3D, origin: Vec3, direction: Vec3, makePrism: MakePrism, cutting: boolean): Shape3D {
   return withNativeOwners(owners => {
     const [, maximum] = extent(body, origin, direction);
-    if (maximum <= TOLERANCE) throw new Error('No hay una superficie siguiente en el sentido elegido.');
+    if (maximum <= TOLERANCE) throw new NextBoundaryUnavailableError('NO_FORWARD_EXTENT', 'No hay una superficie siguiente en el sentido elegido.');
     const length = maximum + Math.max(1, Math.abs(maximum) * .01), prism = owners.own(makePrism(length)), faces = body.faces;
     owners.ownAll(faces);
     const candidates: Shape3D[] = [];
@@ -179,12 +187,12 @@ export function untilNextTool(body: Shape3D, origin: Vec3, direction: Vec3, make
       const candidate = splitAtFace(prism, face, origin, direction, length, cutting ? 1 : -1);
       if (candidate) candidates.push(owners.own(candidate));
     }
-    if (!candidates.length) throw new Error('Ninguna superficie siguiente del cuerpo intercepta todo el perfil.');
+    if (!candidates.length) throw new NextBoundaryUnavailableError('NO_COMPLETE_FACE', 'Ninguna superficie siguiente del cuerpo intercepta todo el perfil.');
     candidates.sort((a, b) => volume(a) - volume(b));
     const nearest = candidates[0], tolerance = Math.max(1e-7, volume(nearest) * 1e-8);
     for (const candidate of candidates.slice(1)) withNativeOwners(check => {
       const outside = check.own(nearest.cut(candidate));
-      if (Math.abs(volume(outside)) > tolerance) throw new Error('Hay superficies siguientes incompatibles sobre el perfil. Selecciona una cara límite explícita.');
+      if (Math.abs(volume(outside)) > tolerance) throw new NextBoundaryUnavailableError('INCOMPATIBLE_FACES', 'Hay superficies siguientes incompatibles sobre el perfil. Selecciona una cara límite explícita.');
     });
     return owners.own(nearest.clone());
   }, result => [result], 'Falló la extrusión Hasta siguiente o su liberación.');

@@ -1843,3 +1843,87 @@ general overlap resolution and broader robustness remain open in
 requires its own hosted checks before merge; earlier platform results are
 separate. Binary upload remains disabled under
 [issue #5](https://github.com/angelcp2802/solidflow/issues/5).
+
+
+## UntilNext resolution foundation — 2026-10-14
+
+These local Windows x64 / Node 24.11.1 commands tested a frozen four-file
+candidate based on `4f9d8a195bd62c462518bcf9530809466bffecda`. That is historical
+run identity, not the current branch HEAD. They do not activate a saved end
+condition or establish pattern-scope compatibility. Checked source identifiers:
+
+| File | SHA-256 |
+| --- | --- |
+| `src/cad/kernel.extrusion-limits.ts` | `6f9a2b6475fcb61f181391112d49df2c7b72c28e0e81906ff64061357aa174e6` |
+| `src/cad/kernel.until-next-resolution.ts` | `c85e0bbff7a38333f13d6459064208c76a90fb2120196b7a809a8197001b8293` |
+| `src/cad/kernel.until-next-resolution.test.ts` | `5745ea031c899f9b485ede04f4346f8bb6eb6839e4c81731a5c91f52ea0f63bd` |
+| `docs/PROVENANCE.md` | `a1521e7e0d9bdeb0aef3babf3f954fbc0f2b8e5d19958a2a812e8e122b5ebcdd` |
+
+After these runs, the isolated branch was fast-forwarded to
+`06cfdd5cdccb5dac930d7d8c5b30c2300549b6a7`. The incoming change contains only
+two native path-resolution calls in `scripts/desktop-pattern-all.cjs`;
+the four candidate hashes above remain unchanged. The local run results do
+not establish a full-check pass for that later combined source.
+
+The focused command
+`node node_modules/vitest/vitest.mjs run src/cad/kernel.until-next-resolution.test.ts --config vitest.config.ts --maxWorkers=1`
+passed all 19 cases in one file: 119.26 seconds reported by Vitest and
+359.369746 seconds for the outer invocation. Before/after hashes match all
+three CAD/test sources. The 11 geometric and eight causal cases use actual
+native boxes, circles, cavities, tools and Boolean results. Independent
+expectations are recorded in
+[fixture provenance](PROVENANCE.md#per-owner-untilnext-classification-fixtures).
+
+Coverage distinguishes separated empty forward intersection, tangent/near
+contact, material without a complete limit, first complete walls, a partial
+face followed by a complete exit, and closed temporary islands. Volume tolerance
+is `1e-5 mm³`, area `1e-5 mm²`, and bounds `1e-6 mm`. The `0.2 mm`-side cube
+probe uses volume tolerance `1e-7 mm³`; contact/near resolution is `1e-7 mm`.
+Four supplied frames check physical-ray parity, not actual pattern transforms
+or evaluator routes. Causal cases preserve factory/cleanup errors, release a
+completed tool after later query cleanup failure, reject borrowed/repeated
+wrappers and raw handles exposed through distinct Proxy facades, and check
+release attempts and healthy borrowed geometry. General GC, upstream allocation
+and native-lifetime safety are not established.
+
+The production build passed, transforming 1,985 modules; four guarded files
+remained unchanged. Literal `npm.cmd test` failed: 2,006 passed, 176 failed and
+35 skipped of 2,217 cases; 101 passed and 25 failed of 126 files; 1,222.90
+seconds for the unit phase. All 176 test failures were timeouts: 140 at 5 seconds,
+six at 30 seconds and 30 at 60 seconds. A separate 60-second face-operations hook
+timeout caused 35 skips, and one worker-termination warning was recorded. Chained
+IPC was not entered. Head, status, lockfile, configuration and four-file maps
+matched. Log SHA-256:
+`8b527cd508f70cdbc55020f3bf99663e7b7f25f1273b77fc7b318df65c61e709`;
+classification SHA-256:
+`58890ec7334bab502de4728862c438a4d93450ac7ea6affcb46c7debb5776044`.
+The full reporter does not establish an individual 19-case file pass; focused
+evidence remains separate.
+
+Retain the earlier malformed-launch unit result: 2,135 passed and 82 failed of
+2,217 cases in 126 files, all 82 failures test timeouts; chained IPC did not run.
+Separate IPC passed 11 checks. Standard desktop failed its 45-second deadline
+without readiness or confirmed-close proof.
+
+The whole-unit `--maxWorkers=2` comparison is `ABORTED_PARTIAL`: at least 70
+observed failed tests across four completed file reports, one taking 1,031.101
+seconds. Its recorded outer interval was 12:09:44–12:39:56 UTC. Only the owned
+Vitest PID 19660 was terminated after ownership revalidation; exit −1 was
+revalidated. No full-suite summary was produced. Four-source, lockfile and
+configuration-file hashes matched afterward. Configuration bytes stayed fixed,
+but the runtime worker ceiling changed; includes, timeouts, isolation, filters,
+cache settings and tolerances were unchanged. Log SHA-256:
+`273f8e5d14352bf8102fae462aba0233071d260bbe01ff28c0b1e270af8a415f`;
+post-abort receipt SHA-256:
+`3e7cdac4c713926f9d76d84fec9f20f15cbd3916c25045891e58027ae08aa0fd`.
+No complete comparison, causal diagnosis, original-tree reconstruction or normal
+worker/native cleanup is claimed.
+
+Required work includes saved-recipe/bridge integration, exact historical/current
+owner attestation, progressive same-instance parents/children and real circular/
+mirror paths. Global-part versus per-owner UntilNext, remote/partial/contact
+behavior and selected/ALL activation remain unresolved. Additive ALL, AUTO,
+other end conditions, associative references, variation, nested lifecycle and
+independent interoperability remain required; this does not narrow the goal
+or establish platform support. These results do not satisfy the full validation
+gate; the individual build, IPC and focused passes remain recorded.
