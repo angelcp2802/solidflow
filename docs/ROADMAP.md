@@ -37,6 +37,17 @@ per-instance regeneration of intrinsic rectangle/circle cut and merge recipes
 with blind/ThroughAll endings, then
 [#38](https://github.com/angelcp2802/solidflow/pull/38) for cut-only regenerate/false
 ALL over the complete current body catalog without a saved target snapshot.
+The latest increment also adds an
+[instrumented desktop regression](https://github.com/angelcp2802/solidflow/blob/f65d6f1b8ee1feeb3ca37432fb8668fbbd8e6c79/scripts/desktop-pattern-all.cjs)
+with an
+[original synthetic fixture](https://github.com/angelcp2802/solidflow/blob/f65d6f1b8ee1feeb3ca37432fb8668fbbd8e6c79/src/cad/fixtures/pattern-all-original.json).
+Its local Windows selected-to-ALL preview, Apply, save/reopen and TEMP-alias
+results have a bounded scripted-interaction scope. For
+[documentation head `4f9d8a19`](https://github.com/angelcp2802/solidflow/blob/4f9d8a195bd62c462518bcf9530809466bffecda/docs/VALIDATION.md),
+the added interaction command passed on Linux/macOS and failed at the Windows
+profile guard before its UI workflow; Windows packaging was skipped. The
+[current CI run](https://github.com/angelcp2802/solidflow/actions/runs/38531791880)
+is not green. The review queue records the security and source-specific details.
 Geometry/true retains selected targets. Full regeneration, other end/start
 conditions, varying sketches, additive ALL, dynamic geometry/automatic scope
 and broader nested/dependent ownership and lifecycle behavior remain required.

@@ -33,7 +33,7 @@ with dependencies that determine their review order:
 | 4 | [#34](https://github.com/angelcp2802/solidflow/pull/34) | `feat/body-sweep-loft` (#31) | Explicit body ownership for linear/circular patterns and mirror: exact current/historical sources, persistent instance outputs and targeted merge. |
 | 5 | [#36](https://github.com/angelcp2802/solidflow/pull/36) | `feat/body-pattern-ownership` (#34) | Opt-in selected feature-geometry contributions for linear/circular patterns and mirror, with exact historical owner bindings and current target routes. |
 | 6 | [#37](https://github.com/angelcp2802/solidflow/pull/37) | `feat/owned-feature-patterns` (#36) | Initial selected per-instance regeneration of intrinsic rectangle/circle cut and merge recipes with blind/ThroughAll endings; geometry copying remains a separate method. |
-| 7 | [#38](https://github.com/angelcp2802/solidflow/pull/38) | `feat/feature-recipe-regeneration` (#37) | Dynamic complete-current-catalog ALL regeneration for intrinsic rectangle/circle cuts with blind/ThroughAll endings, exact historical sources and no saved target snapshot. |
+| 7 | [#38](https://github.com/angelcp2802/solidflow/pull/38) | `feat/feature-recipe-regeneration` (#37) | Dynamic complete-current-catalog ALL regeneration for intrinsic rectangle/circle cuts with blind/ThroughAll endings, exact historical sources and no saved target snapshot; an instrumented selected-to-ALL desktop regression. |
 
 Review each increment against its stated base. A downstream draft includes
 unmerged prerequisites; its checks do not mean those prerequisites have landed
@@ -140,7 +140,7 @@ Broader regeneration, other end/start conditions, exact dependent-reference
 correspondence, all/automatic scope, variation and ownership lifecycle acceptance
 remain required; programmatic and SSR checks do not establish real interaction.
 
-For [#38](https://github.com/angelcp2802/solidflow/pull/38), runtime source
+For earlier [#38](https://github.com/angelcp2802/solidflow/pull/38) evidence, runtime source
 `d2f9904e` is based on #37 at `682fba8e`; documentation head `4a2cee2c`
 retains the same 277 runtime/configuration inputs. Initial intrinsic
 rectangle/circle cuts with blind/ThroughAll endings can use saved regenerate/false
@@ -167,6 +167,42 @@ Linux x64 and macOS arm64 job passed 2,198 tests in 125 files, 11 IPC checks,
 the 1,985-module build and the initial-model Electron/WASM smoke check with no
 recorded console errors or failed requests. Packaging completed with
 `--publish never`. This does not resolve the separate #35 macOS crash.
+
+The latest runtime source
+[`f65d6f1b`](https://github.com/angelcp2802/solidflow/commit/f65d6f1b8ee1feeb3ca37432fb8668fbbd8e6c79)
+and [documentation head `4f9d8a19`](https://github.com/angelcp2802/solidflow/blob/4f9d8a195bd62c462518bcf9530809466bffecda/docs/VALIDATION.md)
+retain 279 runtime/configuration inputs and add an
+[instrumented production-renderer regression](https://github.com/angelcp2802/solidflow/blob/f65d6f1b8ee1feeb3ca37432fb8668fbbd8e6c79/scripts/desktop-pattern-all.cjs)
+with an
+[original synthetic fixture](https://github.com/angelcp2802/solidflow/blob/f65d6f1b8ee1feeb3ca37432fb8668fbbd8e6c79/src/cad/fixtures/pattern-all-original.json).
+On Windows x64 with Node 24.11.1, `npm test` passed 2,198 tests in 125 files
+followed by 11 IPC checks (unit phase 55.70 seconds), and the production build
+passed 1,985 modules. Standard initial-model desktop smoke passed in
+19.478 seconds. The normal instrumented UI invocation passed in 29.305 seconds;
+a separate owned TEMP/TMP junction-alias invocation passed in 29.279 seconds.
+Both observed selected, ALL-preview, committed and reopened worker builds,
+checked exact per-owner refs and analytical volumes, and completed actual child
+close/code-zero and guarded cleanup. Native-dialog choices were confined to
+test-owned temporary files; this is one scripted linear-cut workflow.
+
+For head `4f9d8a19`, the
+[new CI run](https://github.com/angelcp2802/solidflow/actions/runs/38531791880)
+finished with a Windows failure; Linux and macOS jobs and all three
+[security checks](https://github.com/angelcp2802/solidflow/actions/runs/38531791689)
+passed: five successful checks and one failed check. Windows passed the
+1,985-module build, 2,198 tests in 125 files, 11 IPC checks and the standard
+initial-model smoke. Its new interaction step reported
+`Error: Unexpected isolated profile.` before the UI workflow, followed by a
+missing `workflow-result.json`; no UI workflow report was produced. Packaging
+was skipped. The cause of the profile-guard rejection remains unknown.
+Linux and macOS passed the new interaction workflow with four actual worker
+phases, child close and cleanup, and packaging with `--publish never`.
+
+The six successful hosted checks earlier in this entry belong to `4a2cee2c`
+and did not run the new property-panel test. The later results do not explain
+the Windows guard failure, #35's separate macOS bus error or any earlier local
+failure. One scripted linear-cut workflow does not establish complete
+interaction, independent interoperability or general platform support.
 
 The organization proposal's six successful checks on `633bc340` validate its
 separate baseline and do not execute these 2,198 CAD cases. ALL additive
