@@ -1,4 +1,4 @@
-# Scoped feature geometry patterns — proposal
+# Scoped feature geometry patterns
 
 This increment extends the [persistent body catalog](BODY_MANAGEMENT.md) with
 selected-scope feature contributions through an explicit opt-in declaration.
@@ -30,12 +30,16 @@ ID. All references must belong to the corresponding earlier ownership history.
 
 `featurePattern` and `bodyPattern` are mutually exclusive. The declaration
 allocates no body identities or instance slots. Its absence preserves the
-legacy grammar. This first envelope requires geometry copying; it must not
-silently accept semantic regeneration and execute a rigid copy instead.
+legacy acceptance rules. The geometry branch requires `geometryPattern:true`.
+The separate [regeneration mode](FEATURE_REGENERATION.md#saved-regeneration-mode)
+requires `mode:'regenerate'`, `geometryPattern:false`, explicit selected scope,
+empty reference policies and no variation. False without that declaration
+still rejects. Failed regeneration must never fall back to a rigid copy.
 
 There are at most 32 selected source features, 32 target owners and 512 exact
 bindings per declaration. The union of requested exact contribution records
-across active feature repetitions in one rebuild is also bounded by 512.
+across active geometry repetitions in one rebuild is also bounded by 512;
+the regeneration branch has its own 512 exact full-state source-record limit.
 Active extra transforms multiplied by the sum of all
 binding routes may not exceed 512. Omitted instances still use the existing
 canonical pattern addresses. Validate the complete declaration and application
@@ -139,16 +143,19 @@ The cases use tracked source and declared dependencies. They do not establish
 real editor interaction, all producer combinations or complete nested replay.
 
 The [feature recipe declaration layer](FEATURE_RECIPES.md) extracts bounded
-source/dependency/owner inputs and fixed-profile frame math for a future
-per-instance evaluator. It is separate from this saved geometry declaration;
-it does not enable `geometryPattern:false`, recalculate tools or publish a
-regenerated catalog. Its pure scenarios are declaration evidence only.
+source/dependency/owner inputs and fixed-profile frame math. The separate
+[regeneration integration](FEATURE_REGENERATION.md) now evaluates the initial
+intrinsic cut/merge subset per instance through an explicit saved false mode.
+It captures full historical owner poststates and constructs actual tools against
+progressive targets; it does not reuse this branch's signed contribution cache.
+Pure recipe scenarios remain declaration evidence, separate from native
+component, integrated engine and real interaction results.
 
 ## Required remaining feature-pattern work
 
 Geometry replay does not complete the feature-pattern goal. Required later
-layers include per-instance feature evaluation and end conditions, applicable
-varying-sketch constraints, selected dependent-feature remapping, dynamic
+layers include broader per-instance recipes and end/start conditions, applicable
+varying-sketch constraints, exact selected dependent-feature remapping, dynamic
 all-body scope, an explicitly saved auto-scope policy, nested semantic recipes
 and broader ownership lifecycle handling. A persisted selected target list is
 not dynamic all-body scope. The written nested linear-then-mirror fixture is

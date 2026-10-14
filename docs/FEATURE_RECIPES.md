@@ -1,8 +1,10 @@
 # Feature recipe declarations
 
-`src/model/featureRecipes.ts` extracts bounded, detached declarations for a future
-per-instance feature evaluator. It does not construct native tools, mutate a body
-catalog or accept a new saved-document grammar. Current
+`src/model/featureRecipes.ts` extracts bounded, detached declarations consumed by
+the [per-instance evaluator and engine integration](FEATURE_REGENERATION.md).
+The extractor itself does not construct native tools or mutate a body catalog.
+The saved parser now has a separate explicit initial regeneration variant.
+Current
 [scoped feature geometry](FEATURE_PATTERNS.md) uses `geometryPattern:true` and
 copies signed material contributions; that path remains separate.
 
@@ -10,20 +12,24 @@ copies signed material contributions; that path remains separate.
 
 `extractRecipeClosure` receives parsed feature definitions and an explicit
 `RegenerationRequest`. The request's `mode:'regenerate'` and
-`geometryPattern:false` identify this internal extraction API. They are not a
-persisted `featurePattern` variant and must not be accepted by relaxing the
-current parser or routed to geometry-delta replay.
+`geometryPattern:false` identify this internal extraction API. The request is
+derived from the explicit saved regeneration mode; the full request is not
+persisted. Saved targets, routes, empty reference policies and no-variation
+intent are parsed strictly. History index, canonical plan, target snapshot and
+closure are reconstructed. False without the explicit variant still rejects,
+and regeneration must not route to geometry-delta replay.
 
 Selected operations are ordered by their saved history. Earlier definitions,
 sketches, supports and target ancestry are detached fingerprint inputs; they
 are not additional operations to replay. Dependencies must be earlier and
 unsuppressed. Each source binding names an exact `(bodyId, sourceFeatureId)`
 poststate and its target routes. A selected parent owner must route to the same
-target in the same future instance. A coincident solid, the latest-looking
+target in the same instance. A coincident solid, the latest-looking
 state, an aggregate scene or a face's position cannot supply missing ownership.
 
-Target currentness and source materialization remain unresolved native
-requirements. An exact face also needs an explicit owner association and,
+The extractor returns native requirements for target currentness and source
+materialization; the evaluator now resolves the initial body-state requirements
+before allocating its working copies. An exact face also needs an explicit owner association and,
 for an instance parent, `parentTargetBodyId`. Its opaque key is preserved;
 no body ID or role is parsed from the key. External world/transformed reference
 policies remain distinct from an instance-parent route and from destination
@@ -72,7 +78,9 @@ trimmed-face or UV correspondence.
 declarative subset. It does not certify a successful native preview.
 The initial declarations describe fixed intrinsic rectangle/circle sketches,
 owned cut or merge extrusions, blind/through-all endings and selected targets.
-All native requirements remain unresolved even for that subset.
+Extraction alone does not resolve any native requirement. The initial native
+bridge/evaluator supports that subset, and the engine connects it to the
+explicit saved selected-scope mode with empty reference policies and no variation.
 
 Until-next, up-to-surface, associative supports and face correspondence are
 retained with explicit pending diagnostics. The offset-intent validator is a
@@ -81,21 +89,27 @@ union or evaluate a surface. A normal distance and an explicit world
 translation are different intents. A valid parent-route field alone does not
 attest the route's native existence.
 
-Required work still includes actual per-instance evaluation for linear,
-circular and mirror patterns, through-all and other end/start conditions,
-current/historical recipes, multiple features/owners, selected-parent remapping,
-dependent sketches/planes/constraints, varying dimensions/sketches and equations,
+The current evaluator handles canonical linear/circular/mirror placements,
+ordered intrinsic operations, exact historical sources, current targets and
+same-address semantic parent body roles. Native and integrated fixtures check
+selected multi-feature/owner, no-op, late rejection and document-history paths.
+Parent roles retain semantic revisions, not parent BRep/face correspondence.
+Required work still includes other end/start conditions, exact dependent
+sketch/plane/face/constraint remapping, varying dimensions/sketches and equations,
 all/auto discovery policies, nested recipes, creation/split/consumption/Combine
-identity ledgers, rollback/release ownership, stale previews, picking and
-save/reopen/undo/suppression. Pending diagnostics block the initial gate;
-rejection does not count as implementing these capabilities.
+identity ledgers, complete stale preview/Apply, suppression/rollback, picking,
+document lifecycle and export interoperability. Pending diagnostics block the
+initial gate; rejection does not count as implementing these capabilities.
 
 An explicit-frame primitive constructor is another component in this work.
-It can resolve one tool against a caller-supplied working owner without being a
-recipe-closure evaluator. Integration still needs an explicit frame path in
-the engine, exact reference resolution, instance DAG evaluation and one atomic
-catalog replacement. Passing a frame to a legacy builder that ignores it for
-intrinsic sketches, or adding a fake support/datum, is not regeneration.
+It resolves one tool against a caller-supplied working owner. The chronological
+evaluator now supplies exact frames and progressive owners, and stages changed
+targets into one atomic catalog proposal after cleanup. The engine captures full
+requested historical owner states before commit and publishes complete cache
+maps with the catalog. It does not fake intrinsic supports/datums or pass frames
+through a legacy builder that ignores them. See the
+[regeneration contract](FEATURE_REGENERATION.md#chronological-evaluation-and-exact-ownership)
+for intermediate islands/empty material and failure ownership.
 
 ## Evidence scope
 
@@ -107,4 +121,6 @@ results, native cleanup, target fidelity or platform support. See
 [fixture provenance](PROVENANCE.md#feature-recipe-declaration-fixtures) and
 [validation](VALIDATION.md) for source-specific execution records. A passing
 prototype or earlier geometry-pattern suite is not validation of a later
-integrated native evaluator.
+integrated native evaluator. Separate original suites define 21 standalone
+evaluator cases and 18 saved engine cases; their fixtures, native results and
+current execution scope are linked from [FEATURE_REGENERATION](FEATURE_REGENERATION.md).

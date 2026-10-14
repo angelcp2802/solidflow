@@ -168,7 +168,7 @@ function patternSource(value: unknown, path: string): PatternSource {
   }
   if (source.mode === 'features') {
     keys(source, ['mode', 'geometryPattern', 'featureIds'], path)
-    if (source.geometryPattern !== true) fail(`${path}.geometryPattern`, 'la repetición de operaciones requiere geometría exacta')
+    if (typeof source.geometryPattern !== 'boolean') fail(`${path}.geometryPattern`, 'el método de repetición debe ser explícito')
     const seen = new Set<string>()
     const featureIds = boundedArray(source.featureIds, `${path}.featureIds`, 1, 32).map((value, index) => {
       const location = `${path}.featureIds[${index}]`
@@ -177,7 +177,7 @@ function patternSource(value: unknown, path: string): PatternSource {
       seen.add(id)
       return id
     })
-    return { mode: 'features', geometryPattern: true, featureIds }
+    return { mode: 'features', geometryPattern: source.geometryPattern, featureIds }
   }
   return fail(`${path}.mode`, 'modo de repetición desconocido')
 }
@@ -189,6 +189,9 @@ function checkPatternApplications(source: PatternSource, copies: number, path: s
 
 function repetitionBodyOptions<T extends RepetitionFeature>(parsed: T, source: Record<string, unknown>, path: string): T {
   // Check the original declaration before a clone can erase inherited fields.
+  if (parsed.source.mode === 'features' && parsed.source.geometryPattern === false && !Object.hasOwn(source, 'featurePattern')) {
+    fail(path + '.source.geometryPattern', 'el recálculo requiere una declaración explícita con destinos y rutas')
+  }
   try { validateFeaturePatternDeclaration(source as unknown as RepetitionFeature) }
   catch (error) { fail(`${path}.featurePattern`, error instanceof Error ? error.message : String(error)) }
   const bodyResult = Object.hasOwn(source, 'bodyPattern')

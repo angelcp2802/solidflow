@@ -912,3 +912,243 @@ in [FEATURE_RECIPES](FEATURE_RECIPES.md); the full per-instance evaluator,
 end-condition and ownership/persistence matrix remains required. Execution
 claims belong to the actual source-specific validation record, separately from
 the fixture descriptions.
+
+## Recipe bridge and native ownership fixtures
+
+The additional recipe/ownership fixtures are original synthetic constructions
+and causal failures authored for the [native recipe bridge](FEATURE_REGENERATION.md#per-instance-native-recipe-bridge).
+They use no external models. Their written count is 24: ten ownership-protocol
+cases, eight native bridge cases, four native helper failure cases and two
+native engine-boundary cases. These are separate from the earlier 51 pure
+declaration cases and 17 primitive cases. Written definitions do not establish
+an execution result; actual source-specific checks belong in [VALIDATION](VALIDATION.md).
+
+The three transformed bridge cases extract a recipe from a source declaration
+`[0,10]²×[0,4]` with a radius-1 ThroughAll cut centered at `(5,5)`. They construct
+the current height-8 target independently with native `makeBox`. Translation
++20X, half-turn about Z through `(15,0,0)` and reflection in X=15 use canonical
+addresses `1,0`, `1` and `mirror`. Translation/reflection target bounds are
+`(20,0,0)..(30,10,8)`; the rotated target is `(20,−10,0)..(30,0,8)`.
+The actual cutting tool has current-owner height 8 plus one-unit enclosure
+margin: `V=9π`, `A=20π`, bounds `(24,4,0)..(26,6,9)` or the corresponding
+Y interval `[−6,−4]`. The cut result is `V=800−8π,A=520+14π`. The material probe
+at `(25,5,6)` or `(25,−5,6)` has zero overlap. These cases exercise model frame
+resolution and native construction, not a complete catalog's historical source
+attestation or a saved false-mode document.
+
+A blind merge case uses a 2×2 profile at z=4, centered `(5,5)`, depth 2 and
+translation +20X. Its actual tool has `V=8,A=24`, bounds `(24,4,4)..(26,6,6)`;
+merging into `[20,30]×[0,10]×[0,4]` gives `V=408,A=376`, bounds z=`[0,6]`.
+No fake intrinsic support or saved datum is introduced. Three rejection cases
+retain inactive-address, unbound-target and pending UntilNext boundaries before
+the validator is called. The eighth case injects a validator primary and an
+owned native-handle release error, retaining both and their identity through
+the bridge while the borrowed current target stays healthy.
+
+Bridge volume/area tolerance is absolute `1e-5`, bounds `1e-6`, and probe
+intersection volume `1e-7` for a cube of volume 0.008. Nonempty tools and bodies
+must pass real native BRep validity, one closed solid, positive finite volume
+and finite bounds. Expected metrics use Cartesian box/cylinder formulas;
+expected geometry is never constructed through the helper under test.
+
+The ten [ownership protocol cases](../src/cad/kernel.native-ownership.test.ts)
+use original JavaScript owners and error sentinels. They require delayed result
+transfer, reverse cleanup without early stopping, exact primary identity,
+result release after sibling failure, earlier acquisition cleanup, no repeated
+delete, rejection of unowned/released transfer, nested failure propagation,
+duplicate handles, and registration failure both after insertion and before
+insertion with a duplicate and a later owner. Registration faults replace only
+one scope's Map instance method; no global/prototype/SDK mutation is used.
+These cases do not establish native allocation safety or OOM behavior.
+
+The four [native helper failure cases](../src/cad/kernel.extrusion-limits.ownership.test.ts)
+construct actual radius-1 blind prisms and/or an actual `[0,10]²×[0,8]` target.
+They inject a later `faces` acquisition failure after UntilNext owns its prism;
+a cut failure after additive ThroughAll receives its real native intersection;
+a final-prism factory failure after UpToSurface receives its probe; and a
+prism release failure after a successful UpToSurface split. Received-instance
+delete faults call the real deleter before throwing. The assertions require
+one attempt, retained primary/cleanup errors and healthy borrowed target where
+applicable. Exact candidate-result release is additionally checked by the
+protocol cases and ownership control-flow review; unseen SDK allocations and
+sequential child-release failures are not measured by these fixtures.
+
+The two [engine boundary cases](../src/cad/kernel.native-cleanup-boundary.test.ts)
+first build an actual legacy 10×10×8 box. A throwing helper module fault returns
+no fake geometry: a NativeCleanupError must escape with its identity and leave
+no retained engine shape/catalog, while an ordinary geometry Error remains a
+feature error with the previous box volume 800 and bounds `(0,0,0)..(10,10,8)`
+within `1e-6`. The helper namespace spy is restored; no SDK/native prototype is
+patched. These are call-site classification checks, separate from actual
+native helper cleanup faults. None establishes all-scope parity, a complete
+DAG, document/reference lifecycle, interaction, export or platform support.
+
+## Primitive constructor registration failure fixtures
+
+Two further original native cases in
+[kernel.recipe-primitives.ownership.test.ts](../src/cad/kernel.recipe-primitives.ownership.test.ts)
+exercise shared ownership when an actual received SDK Sketch cannot be
+registered. They are separate from the preceding 17 primitive cases and the
+24 bridge/ownership cases. Written counts are not execution results; actual
+source-specific validation belongs in [VALIDATION](VALIDATION.md).
+
+Each constructs a native 10×10×4 current target, radius-1 intrinsic circular
+profile centered at `(5,5)`, explicit XY frame and positive ThroughAll direction.
+The actual SDK Sketch factory and its deleter remain real. A project ownership
+scope's Map instance throws either before insertion or after its real insertion
+of that received Sketch. Its captured release calls the real Sketch deleter
+before a second synthetic cleanup error. No SDK/native prototype, global Map,
+fake support, saved identity or geometric return is patched.
+
+Both cases require the registration primary to remain the AggregateError cause,
+the exact primary and cleanup objects in order, one captured release attempt,
+no tool validation/returned tool, and a healthy borrowed target. The unchanged
+target has one valid closed native solid, volume 400 within absolute `1e-5`,
+and bounds `(0,0,0)..(10,10,4)` within `1e-6`. A defensive fixture owner also
+releases an unexpected returned tool if the injection fails to activate.
+
+The original 17 geometry/validator expectations stay unchanged and need rerun
+on the refactored source; these two cases do not substitute for them. The shared
+scope can release only wrappers actually received. Allocations lost inside SDK
+or copy/Boolean factories before return, sequential native child-release
+failures and native OOM remain outside the measured boundary. No complete
+leak-freedom, platform, interaction, lifecycle or regeneration-parity claim is
+made by these cases.
+
+## Chronological recipe evaluator fixtures
+
+The 21 cases in `src/cad/kernel.feature-recipes.test.ts` are original synthetic
+Cartesian models authored for this project. They use intrinsic rectangle/circle
+profiles, boxes and cylinders created by the declared kernel dependencies. No private
+model, external CAD fixture or copied expected boundary representation is required.
+Lengths are millimetres; angular transform inputs are degrees. Source poststates are
+constructed independently from the declared source operations so the evaluator receives
+real exact historical native states. Expected results are mathematical constants and
+point classifications, never expected geometry generated by the evaluator.
+
+The 21 expanded component cases cover:
+
+| Family | Cases | Independent result or causal observation |
+| --- | ---: | --- |
+| Taller-target through-all, linear/circular/mirror | 3 | A 10×10×8 target with a radius-one through hole has V=800−8π, A=520+14π. The independent seed is 10×10×4 with V=400−4π, A=360+6π. A probe at z=6 is void only when the operation regenerates through the taller target. |
+| Selected no-op parent and per-address child | 2 | A 12×8×4 base plus one 2×2×2 boss has V392, A368. Radius-.5 depth-two holes remove π/2 and add 2π area each. One hole gives V392−π/2/A368+2π; two bosses/holes give V400−π/A384+4π. The unchanged first parent still provides its exact same-address semantic role. |
+| Updated-owner dynamic termination | 1 | A 10×10×4 base with a 2×2×4 boss has V416, A392. The radius-.5 through hole traverses height eight, giving V416−2π, A392+7.5π. The independently observed construction tool extends to z=9, with V9π/4, A9.5π. |
+| Missing address, stale target, and every-source attestation | 3 | Exact-key fault injection cannot borrow another address; an old current target rejects before building tools; one missing same-event historical owner rejects before grouping. Previous target geometry and identity remain unchanged. |
+| Routed unchanged owner | 1 | The remote 12×8×4 owner remains V384, A352 at its old exact reference; no target@pattern state is invented for it. |
+| Late final split | 1 | An 8×4×4 box with a 6×4×2 tail has V176, A232. One bottom-through slot gives V168, A244; an earlier copied slot gives V160, A256. The later tail-cut split rejects the final result atomically. |
+| Temporary islands and later bridge | 1 | The intermediate pair of 4×6×4 boxes has V192, A256. Adding the original bridge gives XZ area38 and perimeter36, extruded six along Y: V228, A292; bounds [30,0,0]–[40,6,5]. Only the final one-solid result is publishable. |
+| Empty then restored material | 1 | Removing the complete 10×10×4 target yields genuine topology-free empty material; a later blind 10×10×6 tool restores V600, A440. A zero-volume sheet is not an empty-state oracle. |
+| Equal-volume relocation and cancellation | 2 | Removing one 2×2×1 pocket and adding a separate 2×2×1 boss retains V240 but changes area from248 to264, bounds and point membership. Adding then removing the identical boss is a complete no-op and rejects. |
+| Current-definition freshness | 1 | Changing the parent depth after evaluation, with unchanged native IDs, rejects staging and releases candidates. |
+| Equivalent converging historical routes | 1 | Two exact poststates of the same fixed intrinsic event route to one target. Both sources and virtual roles are attested; only one actual event/target tool is applied, yielding V160, A256. |
+| Ownership and error preservation | 4 | Candidate release before commit; first disposal-registration failure with two real candidates; a fatal actual source-cleanup error appearing before staging; and a late real final-split error plus candidate cleanup failure. Every case preserves the previous catalog. |
+
+Every successful geometric case checks valid BRep, one final solid, volume, area and
+bounds. Target/source point probes distinguish selected configurations. Metric tolerance
+is 1e-5 mm³/mm², bounds tolerance 1e-6 mm and probe-volume tolerance 1e-7 mm³. Runtime
+initialization and each native test use 60 seconds; authored budgets are not execution
+results. Tests use detached native source/target shapes and release received native
+wrappers; causal release tests count attempts, not all native heap allocations.
+
+These are component tests. By themselves they do not establish saved-parser/engine
+integration, worker/editor preview/application, save/reopen, undo/redo, selection,
+complete face correspondence, dynamic all/auto scopes, varying sketches, nested recipes,
+lifecycle outputs or parity with another application's regeneration. The separate engine
+fixture family below has its own boundary. Actual execution belongs in the validation
+record after it occurs.
+
+## Saved regeneration engine fixtures
+
+The 18 cases in `src/cad/kernel.feature-recipes.integration.test.ts` are original
+synthetic millimetre fixtures for the explicit saved regeneration declaration. They use
+project-native rectangle/circle features, separate owned prisms, exact source/target
+references and a datum plane; no external CAD asset or private model is required.
+Expected geometry is given by box/cylinder formulas and Cartesian point probes rather
+than reconstructed expected BReps.
+
+Six cases compare geometry copy and actual regeneration for a radius-one through-all
+source cut through a 10×10×4 seed, applied to a distinct 10×10×8 target. Linear +20X,
+circular 180° about Z through(15,0,0), and reflection in X15 place the target hole at
+the stated analytical center. Geometry copy yields V800−4π/A520+8π, leaving material at
+z6; regenerated through-all yields V800−8π/A520+14π, void at z6. A coincident unselected
+body remains V800/A520 at its original exact identity. Both paths remove material at z2.
+The seed remains V400−4π/A360+6π.
+
+The twelve remaining cases cover an older exact source after a later cut and after
+consumption by Combine; stale current targets; a routed no-op owner; complete no-op
+rejection; a downstream consumer of an unavailable potential no-op state; source edit,
+serialization/reopen and undo/redo; late tail splitting with atomic rejection; false
+without an explicit declaration; a pending creation-output identity diagnostic;
+chronological multi-feature parent→through-all construction; and a no-op parent with a
+real blind child. Their independent constants include later-cut source
+V400−5π/A360+9.5π, combined prism V480−4π/A416+6π, edited radius-two target
+V800−32π/A520+24π, and parent-updated target V416−2π/A392+7.5π. The radius-.5/depth-two
+no-op-parent child removes π/2, giving V392−π/2/A368+2π.
+
+Successful cases check native BRep validity, one final closed solid, volume, area,
+bounds and exact owner references. Selected cases check original creators, body counts,
+renderer metadata and material probes. Rejections preserve all predecessor bodies and
+block export. Metric tolerance is 1e-5 mm³/mm², coordinate tolerance 1e-6 mm,
+probe-volume tolerance 1e-7 mm³. Initialization and each native case retain a 60-second
+budget. Written cases are not execution results.
+
+These fixtures exercise saved-parser/engine integration separately from the standalone
+recipe evaluator. Their actual source-specific execution belongs in
+[VALIDATION](VALIDATION.md). They do not establish browser/Electron interaction,
+picking, worker preview freshness, exported-file interoperability, complete face/offset
+correspondence, dynamic all/auto scopes, varying sketches, nested recipes or
+new/consumed/split recipe output identities. Those remain required work; pending
+rejection is not parity evidence.
+
+## Saved calculation-method model and rendered fixtures
+
+The 28 cases in `src/model/featurePatternSavedModes.test.ts` use original
+symbolic millimetre records: two independently created owners, an earlier
+merge extrusion and a later blind cut on one owner. Linear, circular and
+mirror variants retain both historical source states separately from the
+current target states. No native geometry is constructed by this file.
+Cases check strict geometry/true and regenerate/false pairing, serialization,
+undeclared false rejection, unknown or inherited/decorated declarations,
+unchanged identities and detached routing through method changes. A method
+change invalidates the earlier command plan and requires a fresh preview
+receipt. The supplied `healthy` flag is a symbolic input to the command
+attestation boundary, not proof of native preview health.
+
+The nine cases in `src/components/PatternPanel.savedModes.test.tsx` render
+original symbolic histories with `renderToStaticMarkup`. They check the saved
+method selected for each family, historical seed labels separately from current
+target labels, enabled/disabled states, an unavailable target retained for
+repair, and legacy presentation. Edit callbacks throw if rendering invokes
+them; inputs must remain unchanged. These cases execute no UI event and prove
+neither interaction, native availability nor worker preview/Apply behavior.
+Actual execution results belong in [VALIDATION](VALIDATION.md).
+
+## Recipe-cache capture and registration fault fixtures
+
+The three cases in `src/cad/kernel.recipe-cache-ownership.test.ts` use original
+10×10×4 and 10×10×8 boxes, separated by +20 mm X. Two disjoint radius-one,
+depth-one blind pockets at local (3,5) and (7,5) leave exact source volumes
+400−π and 400−2π mm³. The second cut explicitly follows the first exact owner
+state. Copy-input volumes use absolute tolerance 1e-5 mm³; this file asserts
+lifecycle/error behavior rather than the area of a successful pattern result.
+
+One case throws an ordinary sentinel at the project's exact-source copy call.
+The actual evaluator must retain that cause, reject the consuming pattern
+before constructing a tool, and leave the healthy predecessor bodies and
+serialized input unchanged. No fake native shape is returned.
+
+Two cases use real native copies and a real ownership-scope subclass. Only that
+scope's private Map instance has an own registration fault, before or after
+inserting the second received copy. Its instance delete calls the real native
+delete and then throws a separate cleanup sentinel. The first historical copy
+has already transferred to the old cache. Each old/fresh copy must receive one
+delete attempt; the fatal aggregate must retain the exact primary and cleanup
+causes, skip evaluator/tool calls, and clear the failed engine state. Neither
+an SDK/class prototype nor global Map is patched. Initialization and each
+native case use a 60-second budget.
+
+These are project call-site fault discriminators. They do not inject failure
+into the engine's closure-local cache publication Maps or post-adoption prior
+catalog release, and do not prove native OOM, factory-internal reclamation or
+total leak freedom. The public source-order review and those unexecuted
+boundaries remain separate from the actual three-case execution record.

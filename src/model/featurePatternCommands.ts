@@ -1,6 +1,6 @@
 import type { BodyReference, Feature, RepetitionFeature } from '../cad/kernel.types'
 import { bodyReferenceCreationFeatureId, featureBodyOutputIds } from './bodyReferences'
-import { featurePatternSourceReferences, type FeaturePatternBinding } from './featurePatterns'
+import { featurePatternSourceReferences, type FeaturePatternBinding, type FeaturePatternOperation } from './featurePatterns'
 
 /** Explicit target selection prunes removed routes and defaults new targets on each binding. */
 export function withFeaturePatternTargets(feature: RepetitionFeature, targets: readonly BodyReference[]): RepetitionFeature {
@@ -42,4 +42,16 @@ export function featurePatternHistoricalFingerprint(feature: RepetitionFeature, 
       || !bodyReferenceCreationFeatureId(sources, reference)) throw new Error('La aportación histórica no pertenece a una salida anterior disponible.')
   }
   return JSON.stringify(references.map(reference => [reference.bodyId, reference.sourceFeatureId]))
+}
+
+/** Switching calculation method preserves exact routes and requires a fresh preview. */
+export function withFeaturePatternMode(feature: RepetitionFeature, mode: FeaturePatternOperation['mode']): RepetitionFeature {
+  if (!feature.featurePattern || feature.source.mode !== 'features' || (mode !== 'geometry' && mode !== 'regenerate')) {
+    throw new Error('El método de repetición requiere operaciones con destinos explícitos.')
+  }
+  const next = structuredClone(feature), routes = next.featurePattern!
+  const operation: FeaturePatternOperation = mode === 'geometry'
+    ? { mode, targets: routes.targets, bindings: routes.bindings }
+    : { mode, scope: 'selected', targets: routes.targets, bindings: routes.bindings, referencePolicies: [], variation: { kind: 'none' } }
+  return { ...next, source: { mode: 'features', geometryPattern: mode === 'geometry', featureIds: [...feature.source.featureIds] }, featurePattern: operation }
 }

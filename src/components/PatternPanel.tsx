@@ -11,7 +11,7 @@ import type {
 import { supportLabel } from "./PlaneSupportPanel";
 import BodyPatternPanel, { type BodyPatternEditor } from "./BodyPatternPanel";
 import FeaturePatternPanel from "./FeaturePatternPanel";
-import { withFeaturePatternSeeds } from "../model/featurePatternCommands";
+import { withFeaturePatternMode, withFeaturePatternSeeds } from "../model/featurePatternCommands";
 
 interface Props {
   feature: RepetitionFeature;
@@ -173,7 +173,9 @@ export default function PatternPanel({
   const solids = features.filter(
     (candidate) => candidate.type !== "sketch" && candidate.type !== "plane",
   );
-  const setSource = (source: PatternSource) => {
+  const setSource = (incoming: PatternSource) => {
+    const source: PatternSource = feature.featurePattern && incoming.mode === 'features'
+      ? { ...incoming, geometryPattern: feature.featurePattern.mode === 'geometry' } : incoming;
     const scoped = feature.featurePattern && source.mode === 'features'
       ? withFeaturePatternSeeds(feature, source.featureIds) : null;
     onChange({ source, ...(scoped ? { featurePattern: scoped.featurePattern } : {}),
@@ -212,8 +214,21 @@ export default function PatternPanel({
           disabled={bodyEditor.existing || bodyEditor.loading}
           onChange={event => onSourceKindChange(event.target.value as 'bodies' | 'features')}>
           <option value="bodies">Cuerpos completos</option>
-          <option value="features">Operaciones · geometría</option>
+          <option value="features">Operaciones</option>
         </select>
+      </div>}
+      {feature.source.mode === 'features' && feature.featurePattern && <div className="property-section">
+        <h3>Método de repetición</h3>
+        <select aria-label="Método de repetición de operaciones" value={feature.featurePattern.mode}
+          disabled={bodyEditor?.loading}
+          onChange={event => {
+            const next = withFeaturePatternMode(feature, event.target.value === 'regenerate' ? 'regenerate' : 'geometry');
+            onChange({ source: next.source, featurePattern: next.featurePattern });
+          }}>
+          <option value="geometry">Copiar geometría</option>
+          <option value="regenerate">Recalcular operaciones</option>
+        </select>
+        {feature.featurePattern.mode === 'regenerate' && <p className="muted-small">Cada instancia se recalcula sobre sus cuerpos destino. Usa cortes o salientes unidos, con croquis rectangulares o circulares sin soporte y finales por profundidad o por todo.</p>}
       </div>}
       {feature.source.mode === 'bodies' ? (bodyEditor && <BodyPatternPanel feature={feature} features={features} editor={bodyEditor} onChange={onChange} />) : <div className="property-section">
         <h3>
@@ -240,7 +255,7 @@ export default function PatternPanel({
               });
           }}
         >
-          <option value="features">Operaciones · geometría</option>
+          <option value="features">Operaciones</option>
           <option value="body">Cuerpo completo</option>
         </select>}
         {feature.source.mode === "features" ? (

@@ -133,7 +133,7 @@ export function featurePatternReplacements(feature: RepetitionFeature, plan: Pat
   records: ReadonlyMap<string, OwnedFeatureGeometry>, validate: (shape: Shape3D) => number,
   volume: (shape: Shape3D) => number): NativeBodyReplacement[] {
   const operation = feature.featurePattern;
-  if (!operation || feature.source.mode !== 'features') throw new Error('Falta la declaración de aportaciones y destinos del patrón.');
+  if (!operation || operation.mode !== 'geometry' || feature.source.mode !== 'features' || feature.source.geometryPattern !== true) throw new Error('La copia de aportaciones requiere el método de geometría explícito.');
   const compare = (a: string, b: string): number => a < b ? -1 : a > b ? 1 : 0;
   const targets = operation.targets.map(ref => catalog.resolve(ref)).sort((a, b) => compare(a.ref.bodyId, b.ref.bodyId));
   const seeds = operation.bindings.map(binding => {

@@ -65,16 +65,26 @@ Read the [semantic CAD reference contract](SEMANTIC_REFERENCES.md) before changi
 
 The proposed [body management contract](BODY_MANAGEMENT.md) covers persistent body identity, explicit creation and Combine, selective cuts, history, export and the complete implementation checklist for issue #26. Its analytical fixtures are acceptance targets, not recorded passes.
 
-The [scoped feature geometry proposal](FEATURE_PATTERNS.md) distinguishes exact
+The [scoped feature geometry contract](FEATURE_PATTERNS.md) distinguishes exact
 per-owner contributions, potential historical states and native availability.
-It is under implementation; regeneration, varying sketches and dynamic scopes
-remain separate required work.
+Its signed material copying is separate from the initial saved per-instance
+regeneration path. Varying sketches, dynamic scopes and broader recipes remain
+required work.
 
 The [feature recipe declaration layer](FEATURE_RECIPES.md) documents the pure
-closure/frame API and its pending native evaluator. Its 51 synthetic pure
-cases are separate from [explicit-frame native tool construction](FEATURE_REGENERATION.md),
-integrated regeneration and interactive UI validation. Current saved geometry
-grammar stays unchanged until these layers are explicitly integrated and checked.
+closure/frame API. The [regeneration contract](FEATURE_REGENERATION.md) connects
+explicit-frame tool construction, chronological evaluation and the saved
+selected-scope mode. The initial native path accepts intrinsic rectangle/circle
+cuts or merge extrusions with blind/ThroughAll endings, no reference policies
+and no variation. Geometry copy/true and regeneration/false have distinct saved
+declarations; legacy false without the explicit mode still rejects.
+
+The 51 pure declaration, 21 evaluator and 18 saved engine cases have different
+boundaries. Exact source capture, current-target checks, ordered operations,
+atomic owner publication and programmatic save/reopen/history checks do not
+establish real property-panel interaction or worker preview/Apply behavior.
+Check the actual source-specific [validation](VALIDATION.md) before extending
+an earlier component or desktop-smoke result to later integrated source.
 
 ## Test geometry and persistence
 

@@ -7,12 +7,16 @@ export interface FeaturePatternBinding {
   targetBodyIds: string[]
 }
 
-/** Selected-scope geometry replay; semantic regeneration is a separate pending mode. */
-export interface FeaturePatternOperation {
-  mode: 'geometry'
+interface FeaturePatternRoutes {
   targets: BodyReference[]
   bindings: FeaturePatternBinding[]
 }
+
+/** Saved geometry copying and regeneration have distinct, explicit contracts. */
+export type FeaturePatternOperation = FeaturePatternRoutes & (
+  | { mode: 'geometry' }
+  | { mode: 'regenerate'; scope: 'selected'; referencePolicies: []; variation: { kind: 'none' } }
+)
 
 export const MAX_FEATURE_PATTERN_TARGETS = 32
 export const MAX_FEATURE_PATTERN_CONTRIBUTIONS = 512
@@ -53,8 +57,8 @@ function declaration(feature: RepetitionFeature): FeaturePatternOperation | unde
   if ('bodyPattern' in feature) throw new Error('Las operaciones de cuerpos y de aportaciones geométricas son mutuamente excluyentes.')
   const source = feature.source
   if (!Object.hasOwn(feature, 'source') || !object(source) || !exact(source, ['mode', 'geometryPattern', 'featureIds'])
-    || source.mode !== 'features' || source.geometryPattern !== true || !dense(source.featureIds, 1, 32)) {
-    throw new Error('La repetición explícita requiere entre 1 y 32 operaciones con geometría exacta; la regeneración por instancia sigue pendiente.')
+    || source.mode !== 'features' || typeof source.geometryPattern !== 'boolean' || !dense(source.featureIds, 1, 32)) {
+    throw new Error('La repetición explícita requiere entre 1 y 32 operaciones y un método de repetición válido.')
   }
   const seeds = new Set<string>()
   for (const id of source.featureIds) {
@@ -62,9 +66,15 @@ function declaration(feature: RepetitionFeature): FeaturePatternOperation | unde
     seeds.add(id)
   }
   const operation = feature.featurePattern
-  if (!exact(operation, ['mode', 'targets', 'bindings']) || operation.mode !== 'geometry'
+  const geometry = operation.mode === 'geometry', regenerate = operation.mode === 'regenerate'
+  const fields = regenerate ? ['mode', 'scope', 'targets', 'bindings', 'referencePolicies', 'variation'] : ['mode', 'targets', 'bindings']
+  if ((!geometry && !regenerate) || !exact(operation, fields) || source.geometryPattern !== geometry
     || !dense(operation.targets, 1, MAX_FEATURE_PATTERN_TARGETS)
-    || !dense(operation.bindings, 1, MAX_FEATURE_PATTERN_CONTRIBUTIONS)) throw new Error('La repetición requiere geometría, entre 1 y 32 destinos y una lista acotada de aportaciones exactas.')
+    || !dense(operation.bindings, 1, MAX_FEATURE_PATTERN_CONTRIBUTIONS)) throw new Error('El método debe coincidir con la geometría o el recálculo y declarar destinos y estados exactos.')
+  if (regenerate && (operation.scope !== 'selected' || !dense(operation.referencePolicies, 0, 0)
+    || !object(operation.variation) || !exact(operation.variation, ['kind']) || operation.variation.kind !== 'none')) {
+    throw new Error('El recálculo actual requiere destinos seleccionados, perfiles sin soporte y ninguna variación de cotas.')
+  }
   const targets = new Set<string>()
   for (const target of operation.targets) {
     if (!reference(target) || targets.has(target.bodyId)) throw new Error('Los destinos deben ser referencias exactas de cuerpos distintos.')

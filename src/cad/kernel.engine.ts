@@ -34,6 +34,9 @@ import { loftSolid, sweepSolid } from './kernel.sweep-loft';
 import { geometryDelta, isRepetition, patternPlan, repetitionSolid, type FeatureGeometry } from './kernel.patterns';
 import { draftSolid, shellSolid } from './kernel.face-operations';
 import { throughAllBossTool, throughAllTool, untilNextTool, upToSurfaceTool } from './kernel.extrusion-limits';
+import { isNativeCleanupFailure, NativeCleanupError, NativeOwners } from './kernel.native-ownership';
+import { evaluateFeatureRecipes, stageFeatureRecipeEvaluation, type NativeRecipeSourceState } from './kernel.feature-recipes';
+import type { RegenerationRequest } from '../model/featureRecipes';
 import { holePositionStructure, holeSolid } from './kernel.holes';
 import { importStepSolid } from './kernel.step';
 import { entityProfilePrismIfSingleRegion, type OwnedEntityPrism } from './kernel.provenance';
@@ -368,15 +371,28 @@ export class CadEngine {
     const wantedBodies = new Set(validRepetitions.flatMap((feature) => feature.source?.mode === 'body' ? [feature.source.sourceFeatureId] : []));
     const historicalDeltas = new Map<string, FeatureGeometry>();
     let historicalOwnedDeltas = new Map<string, OwnedFeatureGeometry>();
+    let historicalRecipeStates = new Map<string, NativeRecipeSourceState>();
+    const wantedRecipeStates = new Map<string, BodyReference>();
+    const recipeSourceBudgetErrors = new Set<Feature>();
     const wantedOwnedContributions = new Map<string, BodyReference>();
     const ownedContributionBudgetErrors = new Set<Feature>();
     for (const repetition of validRepetitions) {
+      if (repetition.featurePattern?.mode !== 'geometry') continue;
       const refs = featurePatternSourceReferences(repetition);
       const newRefs = refs.filter(ref => !wantedOwnedContributions.has(featureContributionKey(ref)));
       if (wantedOwnedContributions.size + newRefs.length > MAX_FEATURE_PATTERN_CONTRIBUTIONS) {
         ownedContributionBudgetErrors.add(repetition); continue;
       }
       for (const ref of refs) wantedOwnedContributions.set(featureContributionKey(ref), ref);
+    }
+    for (const repetition of validRepetitions) {
+      if (repetition.featurePattern?.mode !== 'regenerate') continue;
+      const refs = featurePatternSourceReferences(repetition);
+      const additions = refs.filter(ref => !wantedRecipeStates.has(featureContributionKey(ref)));
+      if (wantedRecipeStates.size + additions.length > MAX_FEATURE_PATTERN_CONTRIBUTIONS) {
+        recipeSourceBudgetErrors.add(repetition); continue;
+      }
+      for (const ref of refs) wantedRecipeStates.set(featureContributionKey(ref), { ...ref });
     }
     const historicalBodies = new Map<string, { body: Shape3D; lineage: string }>();
     const exactBodyKey = (ref: BodyReference) => JSON.stringify([ref.bodyId, ref.sourceFeatureId]);
@@ -406,6 +422,8 @@ export class CadEngine {
     const adoptBodyTransaction = (transaction: NativeBodyTransaction): void => {
       let next: ReturnType<NativeBodyTransaction['commit']> | undefined;
       const captured = new Map<string, OwnedFeatureGeometry>();
+      const capturedRecipes = new Map<string, NativeRecipeSourceState>();
+      const recipeOwners = new NativeOwners();
       let capturedTransferred = false;
       let operationFailed = false, operationError: unknown;
       const failures: unknown[] = [];
@@ -425,13 +443,35 @@ export class CadEngine {
             record.error = error instanceof Error ? error.message : 'No se pudo aislar la aportación material exacta.';
           }
         }
+        // Capture full exact recipe poststates before either catalog/cache adopts.
+        // A source declaration or signed delta does not attest a native poststate.
+        for (const output of transaction.nextEntries) {
+          const key = featureContributionKey(output.ref);
+          if (!wantedRecipeStates.has(key) || historicalRecipeStates.has(key)) continue;
+          const record: { ref: BodyReference; lineage: string; shape?: Shape3D; error?: unknown } = {
+            ref: { ...output.ref }, lineage: output.lineage,
+          };
+          try { capturedRecipes.set(key, record); }
+          catch (error) { throw new BodyStatePublicationError('Historical recipe staging failed before state transfer.', { cause: error }); }
+          // Transaction outputs are valid; preflight independently rechecks the
+          // copied source before any recipe tool. Do not swallow a legacy raw
+          // validator cleanup error as an ordinary capture error here.
+          try { record.shape = recipeOwners.own(copyBodyShape(output.shape)); }
+          catch (error) {
+            if (isNativeCleanupFailure(error) || recipeOwners.cleanupErrors().length) throw error;
+            record.error = error; // Preserve the exact ordinary capture cause for its consumer.
+          }
+        }
         // Prepare the complete cache without publishing partial ownership. Its
         // old records remain borrowed from the existing cache; only captured
         // records belong to this proposal until all state transfers succeed.
         let nextOwnedDeltas: Map<string, OwnedFeatureGeometry>;
+        let nextRecipeStates: Map<string, NativeRecipeSourceState>;
         try {
           nextOwnedDeltas = new Map(historicalOwnedDeltas);
           for (const [key, record] of captured) nextOwnedDeltas.set(key, record);
+          nextRecipeStates = new Map(historicalRecipeStates);
+          for (const [key, record] of capturedRecipes) nextRecipeStates.set(key, record);
         } catch (error) {
           throw new BodyStatePublicationError('Historical body contribution publication failed before state transfer.', { cause: error });
         }
@@ -443,7 +483,9 @@ export class CadEngine {
         // cleanup immediately after adoption, before any fallible release.
         body = nextBody; bodyCatalog = nextCatalog;
         next = undefined;
-        historicalOwnedDeltas = nextOwnedDeltas; capturedTransferred = true;
+        historicalOwnedDeltas = nextOwnedDeltas;
+        historicalRecipeStates = nextRecipeStates;
+        capturedTransferred = true; // Plain disarm: no fallible registry mutation after adoption.
         currentVolume = volume; featureBodyCommitted = true;
         try { previousBody?.delete(); } catch (error) { failures.push(error); }
         try { previousCatalog?.dispose(); } catch (error) { failures.push(error); }
@@ -454,6 +496,10 @@ export class CadEngine {
         if (!capturedTransferred) for (const record of captured.values()) {
           try { record.delta?.dispose(); } catch (error) { failures.push(error); }
         }
+        if (!capturedTransferred) {
+          recipeOwners.releaseExcept(new Set());
+          failures.push(...recipeOwners.cleanupErrors());
+        }
         if (next) {
           try { next.aggregate.delete(); } catch (error) { failures.push(error); }
           try { next.catalog.dispose(); } catch (error) { failures.push(error); }
@@ -461,7 +507,7 @@ export class CadEngine {
         try { transaction.dispose(); } catch (error) { failures.push(error); }
       }
       if (failures.length) throw new BodyStateReleaseError(operationFailed ? [operationError, ...failures] : failures,
-        'Body transaction operation or release failed.');
+        'Body transaction operation or release failed.', operationFailed ? { cause: operationError } : undefined);
       if (operationFailed) throw operationError;
     };
     const rememberReferencedSource = (before: Shape3D | null) => {
@@ -667,6 +713,50 @@ export class CadEngine {
           }
           adoptBodyTransaction(operation.mode === 'new' ? bodyCatalog.stageNewMany(copies)
             : bodyCatalog.stageMergeMany(operation.target, copies.map(copy => copy.shape), { sourceFeatureId: feature.id, lineage: nextLineage }));
+          sourceFeatureId = feature.id; lineage = nextLineage; semantic = undefined;
+          rememberReferencedSource(beforeForRecord);
+          continue;
+        }
+        if (isRepetition(feature) && feature.featurePattern?.mode === 'regenerate') {
+          solidFeatureIds.add(feature.id);
+          if (!bodyCatalog || !body) throw new Error('El recálculo de operaciones requiere cuerpos con identidad explícita.');
+          if (feature.source.mode !== 'features' || feature.source.geometryPattern !== false) throw new Error('Selecciona el método de recalcular operaciones.');
+          if (!solidFeatureIds.has(feature.baseFeatureId) || feature.baseFeatureId === feature.id
+            || unavailableFeatureIds.has(feature.baseFeatureId) || sourceFeatureId !== feature.baseFeatureId) {
+            throw new Error('El predecesor del recálculo no está disponible. Recupera la base.');
+          }
+          if (feature.source.featureIds.some(id => !solidFeatureIds.has(id) || id === feature.id || unavailableFeatureIds.has(id))) {
+            throw new Error('Una operación semilla está ausente, suprimida o no es anterior a la repetición.');
+          }
+          if (recipeSourceBudgetErrors.has(feature)) throw new Error('El documento supera 512 estados históricos exactos requeridos para recalcular operaciones.');
+          const support = feature.type === 'mirror' ? resolveSupport(feature.support) : null;
+          if (feature.type === 'mirror' && !support) throw new Error('El plano de simetría no está disponible. Recupera el soporte.');
+          const plan = patternPlan(feature, support?.frame), operation = feature.featurePattern;
+          const request: RegenerationRequest = {
+            mode: 'regenerate', geometryPattern: false, patternId: feature.id, patternKind: feature.type,
+            beforeFeatureIndex: features.indexOf(feature), sourceFeatureIds: [...feature.source.featureIds],
+            plan: { transforms: plan.transforms, structure: plan.structure },
+            scope: { mode: 'selected', targets: operation.targets }, targetSnapshot: operation.targets,
+            bindings: operation.bindings.map(binding => ({ source: binding.source, targets: binding.targetBodyIds })),
+            referencePolicies: operation.referencePolicies, variation: operation.variation,
+          };
+          const evaluation = evaluateFeatureRecipes({ features, request, catalog: bodyCatalog, historicalStates: historicalRecipeStates });
+          let nextLineage: string;
+          try {
+            const proof = evaluation.attestation;
+            nextLineage = advanceLineage(lineage, [feature.id, feature.type, 'owned-feature-regeneration',
+              proof.evaluatorRevision, proof.recipeFingerprintInput, proof.sources.map(item => [item.ref, item.lineage]),
+              proof.targets.map(item => [item.ref, item.lineage]), plan.structure, support?.lineage ?? null]);
+          } catch (error) {
+            try { evaluation.dispose(); }
+            catch (cleanup) { throw new NativeCleanupError({ error }, [cleanup], 'Recipe lineage preparation and release failed.'); }
+            throw error;
+          }
+          // Stage consumes all evaluator candidates before returning its owned proposal.
+          // The existing adoption boundary prepares every cache before one transfer.
+          const transaction = stageFeatureRecipeEvaluation(evaluation, bodyCatalog,
+            { sourceFeatureId: feature.id, lineage: nextLineage }, { features, request });
+          adoptBodyTransaction(transaction);
           sourceFeatureId = feature.id; lineage = nextLineage; semantic = undefined;
           rememberReferencedSource(beforeForRecord);
           continue;
@@ -1127,7 +1217,7 @@ export class CadEngine {
       } catch (error) {
         featureFailed = true; featureError = error;
         // Finalization after transfer cannot restore already retired geometry.
-        if (error instanceof BodyStateReleaseError || error instanceof BodyStatePublicationError || error instanceof FeatureContributionReleaseError || featureBodyCommitted) throw error;
+        if (error instanceof BodyStateReleaseError || error instanceof BodyStatePublicationError || error instanceof FeatureContributionReleaseError || isNativeCleanupFailure(error) || featureBodyCommitted) throw error;
         result.featureErrors.push({
           id: feature.id,
           message: error instanceof Error ? error.message : 'OpenCascade no pudo construir esta operación. Revisa sus parámetros.',
@@ -1148,6 +1238,7 @@ export class CadEngine {
       const releases = [
         ...[...historicalDeltas.values()].map(record => () => record.delta?.dispose()),
         ...[...historicalOwnedDeltas.values()].map(record => () => record.delta?.dispose()),
+        ...[...historicalRecipeStates.values()].map(record => () => record.shape?.delete()),
         ...[...historicalBodies.values()].map(record => () => record.body.delete()),
         ...[...historicalExactBodies.values()].map(record => () => record.shape.delete()),
         ...[...historicalLimitFaces.values()].map(catalog => () => catalog.dispose()),

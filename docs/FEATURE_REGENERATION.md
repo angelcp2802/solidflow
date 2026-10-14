@@ -1,13 +1,45 @@
-# Feature regeneration construction — proposal
+# Feature recipe regeneration
 
-Feature regeneration must evaluate selected operations again at each instance;
-copying the source operation's signed material change does not implement that
-behavior. The [recipe declaration component](FEATURE_RECIPES.md) and
-[explicit-frame primitive builder](../src/cad/kernel.recipe-primitives.ts) are
-separate construction steps. They do not enable a saved regeneration mode or
-establish the complete feature-pattern scope. Existing
-[geometry contribution patterns](FEATURE_PATTERNS.md) retain their own contract.
-Actual executed checks belong in [VALIDATION](VALIDATION.md), not this proposal.
+Feature regeneration evaluates selected operations again at each instance
+against the current working target. The integrated initial path connects
+[recipe declarations](FEATURE_RECIPES.md), explicit-frame native construction,
+chronological evaluation and atomic body-catalog publication. It supports
+intrinsic rectangle/circle cuts and merge extrusions, blind/ThroughAll endings,
+explicitly selected targets, no reference policies and no variation.
+[Geometry contribution patterns](FEATURE_PATTERNS.md) keep their separate
+signed-material-copy contract. This initial path does not complete the full
+feature-pattern goal. Source-specific results belong in [VALIDATION](VALIDATION.md).
+
+## Saved regeneration mode
+
+Linear, circular and mirror feature repetitions opt in explicitly:
+
+```ts
+source: { mode: 'features', geometryPattern: false, featureIds: string[] }
+featurePattern: {
+  mode: 'regenerate';
+  scope: 'selected';
+  targets: BodyReference[];
+  bindings: { source: BodyReference; targetBodyIds: string[] }[];
+  referencePolicies: [];
+  variation: { kind: 'none' };
+}
+```
+
+Every source names an exact historical output state; targets must be exact
+current states. The binding and application budgets match the geometry branch:
+32 source features, 32 targets, 512 bindings and 512 active owner applications.
+Requested exact recipe states across a rebuild have a separate 512-record
+limit. The parser rejects contradictory modes and false without this explicit
+declaration. A geometric copy is never a fallback for failed regeneration.
+No saved plan, ordinal, closure, native handle or instance body ID is added.
+Feature-mode mirror retains `mergeBodies:false`; its transformed tools modify
+the routed existing owners rather than using body-copy merge policy.
+
+The property panel exposes `Copiar geometría` and `Recalcular operaciones` for
+explicit feature patterns, with the source flag updated together with the saved
+mode. That control and programmatic document tests do not establish real editor
+interaction or worker preview/Apply coverage.
 
 ## Explicit-frame primitive input
 
@@ -77,28 +109,150 @@ returned solid be observed and released before the failure escapes. It does
 not patch a global/prototype or change borrowed objects.
 
 An attempted delete is not proof of successful release. Sketch/Plane release
-can be internally sequential; factories, extrusion GC and existing limit
-helpers can throw before returning an allocation. Their current cleanup paths
-can also mask an earlier error or lose a return. This component cannot recover
-those unseen allocations or guarantee all child releases. Safe upstream
-cleanup adapters and causal failure tests remain required for a complete
-ownership claim.
+can be internally sequential; factories and extrusion GC can throw before
+returning an allocation. End-condition helpers now hold received wrappers and
+candidate results in a shared scope until cleanup succeeds, preserving errors
+instead of masking them in finally. SDK allocations lost before return and
+unattempted native child releases remain outside that guarantee. Primitive
+construction uses the shared scope for both prism and final tool, including
+failed registration of a received wrapper. No native OOM or total leak-freedom
+claim is made.
 
-## Integration still required
+## Chronological evaluation and exact ownership
 
-The [original primitive fixtures](PROVENANCE.md#explicit-frame-recipe-primitive-fixtures)
-distinguish a regenerated height-8 cut from a height-4 copied removal for three
-specific transforms. They also specify signed/symmetric depth and dynamic
-termination checks. Written assertions are not an executed pass, platform
-support, exported interoperability or a real interaction result.
+[kernel.feature-recipes.ts](../src/cad/kernel.feature-recipes.ts) extracts a fresh
+closure and attests all historical sources and current targets before the first
+target copy or tool. The engine captures requested full owner poststates before
+their producer's transaction commits. Capture uses detached per-owner shapes,
+not scene aggregates or signed deltas. Later modification or consumption does
+not replace an exact historical source with the body's latest current state.
+An ordinary failed source capture rejects its consumer; classified native
+cleanup/Aggregate failures remain fatal. A potential no-op output does not create
+a historical state.
 
-This module does not evaluate the selected recipe DAG or change the engine's
-existing intrinsic-sketch call sites. Integration still requires exact source
-closure and fingerprints, ordered per-instance evaluation, dependent sketch/
-plane/constraint resolution, remapped native references, arbitrary profiles
-and starts, selected/all/auto scope discovery and re-evaluation, varying
-sketches/dimensions/equations, nested composition, creation/split/consumption/
-Combine ledgers, persistent identities, stale-preview checks, atomic owner and
-cache adoption, no-op references, rollback, picking and document lifecycle.
-False/regeneration must not fall back to geometry-delta copying. Unknown
-false-mode scope fidelity remains unknown until independently checked.
+The evaluator preserves canonical address order and visits selected operations
+in saved history order within each address. Each following address receives the
+preceding address's completed working owners. Each actual tool uses the current
+progressive target, so a ThroughAll child sees a preceding selected boss. For
+the initial fixed intrinsic context, equivalent routes from one feature event
+to one target build one full tool after every exact source is attested. All
+routes still count against the budget. Differing associative or owner-dependent
+contexts require a later explicit evaluation/correspondence policy.
+
+Selected parents publish virtual body roles keyed by exact source poststate,
+target body ID, address and role, including a parent that changes no material.
+These are local semantic existence/revision records, not saved BodyReferences
+or retained parent BReps/faces. Exact event-output correspondence for associative
+children remains required; the latest working face cannot supply it.
+
+Working material may temporarily have several native-valid closed solids with
+finite bounds and no loose topology. They retain one virtual owner until a later
+recipe reconnects them. A successful nonnull topology-free compound is the only
+accepted empty state; a sheet, debris, failed builder or near-zero volume alone
+does not establish emptiness. A blind operation can restore such an empty state.
+Dynamic termination against empty material still needs a separate extent policy.
+Every final owner must be one valid closed solid. Every active address and the
+complete pattern must change material in some routed owner; equal final volume
+alone is insufficient. Only finally changed owners advance to the pattern state.
+
+Staging re-extracts the current closure, checks its fingerprint and evaluator
+revision, and rechecks exact native source/target identity and lineage. The
+caller must supply the current document. All changed candidates are copied into
+one uncommitted catalog proposal and evaluator cleanup finishes before that
+proposal returns. The engine prepares complete cache maps before publication,
+then adopts catalog/cache ownership together. Ordinary pre-commit geometry or
+staging rejection preserves prior owners. Failures identified by the owned
+cleanup/publication protocol retain their primary causes and propagate fatally.
+
+The [component fixtures](PROVENANCE.md#chronological-recipe-evaluator-fixtures)
+and [saved engine fixtures](PROVENANCE.md#saved-regeneration-engine-fixtures)
+have different boundaries. The latter exercise parser/serialization, historical
+and current ownership, selected dependent operations, no-op states, undo/redo
+and late atomic rejection. They do not establish real picking or independent
+export interoperability.
+
+## Per-instance native recipe bridge
+
+`buildRecipeInstanceTool` in [kernel.recipe-instance.ts](../src/cad/kernel.recipe-instance.ts)
+connects an extracted fixed-profile recipe to real native tool construction.
+It accepts the exact active canonical address and target body ID, obtains its
+frame/depth only from `fixedProfileInstanceInput`, checks the operation's route
+to the exact extracted target state, and returns an owned add/subtract tool.
+It accepts no arbitrary caller transform or source frame and never uses a
+captured material delta as a regeneration substitute.
+
+This bridge is limited to the initial `mode:'regenerate'`,
+`geometryPattern:false` declaration subset: selected targets, no variation,
+intrinsic rectangle/circle profiles, owned cut/merge and blind/ThroughAll
+termination. UntilNext/UpToSurface declarations retain their pending gates,
+even though the primitive constructor can build an explicitly resolved tool.
+The bridge itself accepts an extracted declaration; the saved parser and engine
+connect it through the explicit mode above.
+
+The caller must extract the closure from current parsed definitions and attest
+every exact historical source/current target before native evaluation. A route
+check does not attest the supplied native shape's identity. The working target
+must be the current detached owner after earlier operations in that same
+instance, not its saved source geometry or an aggregate. The chronological DAG,
+selected-parent outputs, scope discovery, repeated event routing, no-op policy
+and atomic catalog/cache adoption remain evaluator responsibilities. Generic
+owner-specific converging routes cannot be deduced from the fixed intrinsic
+case. General false-mode scope fidelity remains unestablished.
+
+## Received-wrapper ownership in end-condition helpers
+
+[NativeOwners](../src/cad/kernel.native-ownership.ts) records each received
+wrapper before a later acquisition or operation can fail. A separate released
+marker survives failed ownership registration; duplicate returned-array handles
+are registered once. A failed delete is never retried. Newly fused objects are
+registered before releasing predecessors. Helpers retain ownership of their
+candidate return until all other cleanup succeeds; if cleanup fails, they
+release that candidate and retain the primary and cleanup errors.
+
+The extrusion helpers use this scope for measurements, bounding boxes, faces,
+sample vectors, split builders, raw/downcast wrappers, candidates, probes and
+forward/backward results. Successful geometric selection, cap thresholds,
+adjacency rules, entry/exit direction and enclosure margins stay unchanged.
+The split builder must additionally report `IsDone`, and a constructed limit
+must be an actual native face before transfer.
+
+`NativeCleanupError` is fatal. At the engine reconstruction boundary,
+AggregateErrors are propagated conservatively rather than displayed as an
+ordinary recoverable geometric feature error; ordinary geometry rejection
+retains the previous valid-body behavior. This cannot guarantee native factory
+allocations lost before a return, SDK-internal child releases or native OOM.
+Primitive construction uses the same shared scope for its prism and final
+end-condition result, while retaining the consumed Sketch's own-instance
+adapter. Received-wrapper registration failure has the same once-release
+boundary. These boundaries and the original additional
+fixtures are recorded in [PROVENANCE](PROVENANCE.md#recipe-bridge-and-native-ownership-fixtures).
+
+Fatal classification covers `NativeCleanupError`, Aggregate failures and the
+engine's explicit publication/release failures. Some legacy validator or
+measurement cleanup paths can still throw an unclassified plain Error.
+Preflight/staging still delegate to those validators; this integration does not
+guarantee global cleanup attribution or allocation safety for those paths.
+
+## Executed evidence and remaining work
+
+Focused local Windows checks passed 75 bridge/ownership/termination cases across
+six files, 21 standalone evaluator cases, and 18 saved-parser/engine integration
+cases. The evaluator's first run had two incorrect radius-.5/depth-two volume
+expectations; correcting them to π/2 per hole left production unchanged and the
+21-case rerun passed. A separate 19-case primitive run passed before a test-only
+typing annotation. These invocation counts overlap and are not a combined total.
+The integrated build and separate 11-case IPC check also passed. A successful
+desktop check has not been established for this integrated snapshot; earlier
+desktop success belongs to its earlier source. Full-suite and desktop outcomes,
+separate readiness/exit diagnostics, retained failures and follow-up checks belong
+to their exact source records in [VALIDATION](VALIDATION.md).
+No complete feature or platform-support claim follows.
+
+Required continuation includes up-to-surface, offset, until-next and other
+end/start conditions; exact face/datum/instance correspondence; arbitrary and
+associative solved profiles; dependent sketches/planes/constraints; all/auto
+scope discovery with saved capture/re-evaluation policy; varying sketches,
+dimensions and equations; nested regeneration; creation/split/consumption/Combine
+output ledgers; complete stale preview/Apply, suppression/rollback, picking,
+document lifecycle and interoperability. Pending diagnostics identify these
+gaps without counting rejection as implementation or reference parity.

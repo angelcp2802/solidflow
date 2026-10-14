@@ -1,6 +1,7 @@
 import { Plane as NativePlane, sketchCircle, sketchRectangle, type Face, type Shape3D, type Sketch } from 'replicad';
 import { framePoint } from './kernel.frames';
 import { copyBodyShape } from './kernel.bodies';
+import { withNativeOwners, type NativeOwners } from './kernel.native-ownership';
 import { throughAllBossTool, throughAllTool, untilNextTool, upToSurfaceTool } from './kernel.extrusion-limits';
 import type { PlaneFrame, Vec3 } from './kernel.types';
 
@@ -34,45 +35,10 @@ export interface ExplicitFramePrimitiveInput {
 const MIN_PARAMETER_LENGTH = .01, MAX_PARAMETER_LENGTH = 100_000;
 const MIN_CALCULATED_LENGTH = 1e-7, MAX_CALCULATED_LENGTH = 10_000_000;
 const FRAME_TOLERANCE = 1e-8;
-type NativeOwner = { delete(): void };
-type Failure = { readonly error: unknown };
-
-/** Tracks only wrappers received by this component, not unpublished objects inside upstream helpers. */
-class OwnedWrappers {
-  private readonly records = new Map<NativeOwner, { attempted: boolean; release: () => void }>();
-  private readonly errors: unknown[] = [];
-  own<T extends NativeOwner>(value: T): T {
-    if (!this.records.has(value)) this.records.set(value, { attempted: false, release: value.delete.bind(value) });
-    return value;
-  }
-  /** Removal/marking happens BEFORE invocation. Failure never triggers a second native delete attempt. */
-  release(value: NativeOwner): void {
-    const record = this.records.get(value);
-    if (!record || record.attempted) return;
-    record.attempted = true;
-    try { record.release(); } catch (error) { this.errors.push(error); }
-  }
-  consumeSketch(sketch: Sketch): void {
-    this.own(sketch);
-    // Replicad 1.1.0 Sketch.extrude calls this.delete() before returning its solid.
-    // Adapt ONLY this owned instance: record cleanup failures so that a returned
-    // solid remains observable and can be released before the failure escapes.
-    // This is not a prototype/global patch; this consumed instance never escapes.
-    Object.defineProperty(sketch, 'delete', { configurable: true, value: () => this.release(sketch) });
-  }
-  finish(result: Shape3D | undefined, failure?: Failure): Shape3D {
-    for (const value of [...this.records.keys()].reverse()) if (value !== result) this.release(value);
-    if (failure || this.errors.length) {
-      if (result) this.release(result);
-      if (failure && !this.errors.length) throw failure.error;
-      const causes = failure ? [failure.error, ...this.errors] : [...this.errors];
-      throw new AggregateError(causes, 'Explicit-frame primitive construction or wrapper release failed.',
-        { cause: failure ? failure.error : causes[0] });
-    }
-    if (!result) throw new Error('Primitive construction did not return an owned tool.');
-    this.records.delete(result); // Ownership transfers to caller exactly here.
-    return result;
-  }
+/** Replicad consumes this owned Sketch; retain cleanup failure until its returned solid is observable. */
+function consumeSketch(sketch: Sketch, owners: NativeOwners): void {
+  owners.own(sketch); // Capture original raw deleter BEFORE installing the local consumption adapter.
+  Object.defineProperty(sketch, 'delete', { configurable: true, value: () => owners.release(sketch) });
 }
 
 function vector(value: readonly number[], context: string): Vec3 {
@@ -158,22 +124,18 @@ export function buildExplicitFramePrimitive(input: ExplicitFramePrimitiveInput):
     const startCenter = finitePoint(center.map((value, axis) => value + ray[axis] * start) as Vec3, 'Prism start center');
     const endCenter = finitePoint(startCenter.map((value, axis) => value + ray[axis] * length) as Vec3, 'Prism end center');
     void endCenter; // Reject overflow BEFORE invoking native constructors.
-    const owners = new OwnedWrappers();
-    let result: Shape3D | undefined, failure: Failure | undefined;
-    try {
+    return withNativeOwners(owners => {
       const plane = owners.own(new NativePlane(startCenter, frame.xDirection, frame.normal));
       const sketch = profile.kind === 'rectangle' ? sketchRectangle(profile.width, profile.height, { plane })
         : sketchCircle(profile.radius, { plane });
-      owners.own(sketch);
-      owners.consumeSketch(sketch);
-      result = owners.own(sketch.extrude(sign * length));
+      consumeSketch(sketch, owners);
+      const result = owners.own(sketch.extrude(sign * length));
       input.validateTool(result);
-    } catch (error) { failure = { error }; }
-    return owners.finish(result, failure);
+      return result;
+    }, result => [result], 'Explicit-frame prism construction or release failed.');
   };
-  const owners = new OwnedWrappers();
-  let result: Shape3D | undefined, failure: Failure | undefined;
-  try {
+  return withNativeOwners(owners => {
+    let result: Shape3D;
     // Existing limit helpers include native operations on their target. Protect
     // the borrowed working owner with a geometric/topological duplicate, not
     // Shape.clone() (which shares topology). This is input isolation, NOT a
@@ -190,6 +152,6 @@ export function buildExplicitFramePrimitive(input: ExplicitFramePrimitiveInput):
       default: throw new Error('Unknown primitive termination.');
     }
     input.validateTool(result);
-  } catch (error) { failure = { error }; }
-  return owners.finish(result, failure);
+    return result;
+  }, result => [result], 'Explicit-frame primitive construction or release failed.');
 }

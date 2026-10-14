@@ -165,9 +165,9 @@ export interface LoftFeature extends FeatureBase {
   bodyOperation?: BodyOperation;
 }
 
-/** Exact geometry of selected historical features, or a single complete historical body. */
+/** Selected feature operations or explicitly referenced historical/current bodies. */
 export type PatternSource =
-  | { mode: 'features'; geometryPattern: true; featureIds: string[] }
+  | { mode: 'features'; geometryPattern: boolean; featureIds: string[] }
   | { mode: 'body'; sourceFeatureId: string }
   | { mode: 'bodies'; scope: 'current' | 'historical'; bodies: BodyReference[] };
 
