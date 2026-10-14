@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "id": "ui-world-original-document",
+  "name": "Original isolated world-limit interaction",
+  "units": "mm",
+  "createdAt": "2026-10-14T00:00:00.000Z",
+  "updatedAt": "2026-10-14T00:00:00.000Z",
+  "features": [
+    { "id": "profile-S", "type": "sketch", "name": "Original S profile", "suppressed": false, "plane": "XY", "offset": -8, "profile": { "kind": "rectangle", "center": [0,0], "width": 2, "height": 2 } },
+    { "id": "create-S", "type": "extrude", "name": "Original S", "suppressed": false, "sketchId": "profile-S", "depth": 16, "symmetric": false, "bodyOperation": { "mode": "new", "bodyId": "S" } },
+    { "id": "limit-profile", "type": "sketch", "name": "Original radius-half circle", "suppressed": false, "plane": "XY", "offset": -6, "profile": { "kind": "circle", "center": [0,0], "radius": 0.5 } },
+    { "id": "seed-limit", "type": "cut", "name": "Original fixed-plane seed", "suppressed": false, "sketchId": "limit-profile", "depth": 6, "symmetric": false, "bodyScope": [{ "bodyId": "S", "sourceFeatureId": "create-S" }], "endCondition": { "kind": "upToSurface", "target": { "kind": "principal", "plane": "XY" } } },
+    { "id": "profile-A", "type": "sketch", "name": "Original A profile", "suppressed": false, "plane": "XY", "offset": -8, "profile": { "kind": "rectangle", "center": [3,0], "width": 2, "height": 2 } },
+    { "id": "create-A", "type": "extrude", "name": "Original A", "suppressed": false, "sketchId": "profile-A", "depth": 16, "symmetric": false, "bodyOperation": { "mode": "new", "bodyId": "A" } },
+    { "id": "ui-world-P", "type": "linearPattern", "name": "UI world-limit pattern original", "suppressed": false, "baseFeatureId": "create-A", "source": { "mode": "features", "geometryPattern": true, "featureIds": ["seed-limit"] }, "first": { "direction": [0.6,0,0.8], "spacing": 5, "count": 2 }, "second": null, "secondSeedOnly": false, "skipped": [], "featurePattern": { "mode": "geometry", "targets": [{ "bodyId": "A", "sourceFeatureId": "create-A" }], "bindings": [{ "source": { "bodyId": "S", "sourceFeatureId": "seed-limit" }, "targetBodyIds": ["A"] }] } }
+  ]
+}

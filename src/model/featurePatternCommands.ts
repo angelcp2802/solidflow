@@ -21,8 +21,10 @@ export function withFeaturePatternSeeds(feature: RepetitionFeature, featureIds: 
   const selected = new Set(featureIds), next = structuredClone(feature), operation = next.featurePattern!
   const source = { ...feature.source, featureIds: [...featureIds] }
   return isAllFeaturePattern(operation)
-    ? { ...next, source, featurePattern: { ...operation, bindings: operation.bindings.filter(binding => selected.has(binding.source.sourceFeatureId)) } }
-    : { ...next, source, featurePattern: { ...operation, bindings: operation.bindings.filter(binding => selected.has(binding.source.sourceFeatureId)) } }
+    ? { ...next, source, featurePattern: { ...operation, bindings: operation.bindings.filter(binding => selected.has(binding.source.sourceFeatureId)),
+      referencePolicies: operation.referencePolicies.filter(policy => selected.has(policy.featureId)) } }
+    : { ...next, source, featurePattern: { ...operation, bindings: operation.bindings.filter(binding => selected.has(binding.source.sourceFeatureId)),
+      ...(operation.mode === 'regenerate' ? { referencePolicies: operation.referencePolicies.filter(policy => selected.has(policy.featureId)) } : {}) } }
 }
 
 /** Source selection and routing are explicit edits; missing coverage stays invalid. */
@@ -63,6 +65,7 @@ export function withFeaturePatternMode(feature: RepetitionFeature, mode: Feature
     if (mode === 'geometry') throw new Error('Selecciona destinos explícitos antes de copiar geometría.')
     return next
   }
+  if (routes.mode === mode) return next
   const operation: FeaturePatternOperation = mode === 'geometry'
     ? { mode, targets: routes.targets, bindings: routes.bindings }
     : { mode, scope: 'selected', targets: routes.targets, bindings: routes.bindings, referencePolicies: [], variation: { kind: 'none' } }
@@ -74,12 +77,28 @@ export function withFeaturePatternScope(feature: RepetitionFeature, scope: 'sele
   if (scope !== 'selected' && scope !== 'all') throw new Error('El alcance debe ser seleccionado o ALL.')
   if (!feature.featurePattern || feature.featurePattern.mode !== 'regenerate') throw new Error('El alcance dinámico requiere recalcular operaciones.')
   const next = structuredClone(feature), operation = next.featurePattern!
+  if (operation.mode !== 'regenerate') throw new Error('El alcance dinámico requiere recalcular operaciones.')
   if (isAllFeaturePattern(operation)) {
     if (scope === 'all') return next
     return { ...next, featurePattern: { mode: 'regenerate', scope: 'selected', targets: [],
-      bindings: operation.bindings.map(binding => ({ source: { ...binding.source }, targetBodyIds: [] })), referencePolicies: [], variation: { kind: 'none' } } }
+      bindings: operation.bindings.map(binding => ({ source: { ...binding.source }, targetBodyIds: [] })),
+      referencePolicies: operation.referencePolicies, variation: { kind: 'none' } } }
   }
   if (scope === 'selected') return next
   return { ...next, featurePattern: { mode: 'regenerate', scope: 'all', reevaluateAt: 'patternInput',
-    bindings: operation.bindings.map(binding => ({ source: { ...binding.source }, targetBodyIds: 'scope' })), referencePolicies: [], variation: { kind: 'none' } } }
+    bindings: operation.bindings.map(binding => ({ source: { ...binding.source }, targetBodyIds: 'scope' })),
+    referencePolicies: operation.referencePolicies, variation: { kind: 'none' } } }
+}
+
+/** Explicit choice; never infer a missing reference policy from seed geometry. */
+export function withFeaturePatternWorldLimit(feature: RepetitionFeature, featureId: string, enabled: boolean): RepetitionFeature {
+  if (!feature.featurePattern || feature.featurePattern.mode !== 'regenerate' || feature.source.mode !== 'features'
+    || !feature.source.featureIds.includes(featureId) || typeof enabled !== 'boolean') {
+    throw new Error('El plano límite fijo requiere una operación semilla y recálculo explícitos.')
+  }
+  const next = structuredClone(feature), operation = next.featurePattern!
+  if (operation.mode !== 'regenerate') throw new Error('El método debe recalcular operaciones.')
+  operation.referencePolicies = operation.referencePolicies.filter(policy => policy.featureId !== featureId)
+  if (enabled) operation.referencePolicies.push({ featureId, path: 'endCondition.target', placement: 'world' })
+  return next
 }

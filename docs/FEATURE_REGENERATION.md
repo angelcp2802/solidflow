@@ -4,8 +4,9 @@ Feature regeneration evaluates selected operations again at each instance
 against the current working target. The integrated initial path connects
 [recipe declarations](FEATURE_RECIPES.md), explicit-frame native construction,
 chronological evaluation and atomic body-catalog publication. It supports
-intrinsic rectangle/circle cuts and merge extrusions, blind/ThroughAll endings,
-explicitly selected targets, no reference policies and no variation. Dynamic ALL
+intrinsic rectangle/circle cuts and merge extrusions, blind/ThroughAll endings
+or an explicitly fixed principal-plane UpToSurface limit, selected targets
+and no variation. Dynamic ALL
 currently supports the intrinsic cut subset; additive ALL remains pending.
 [Geometry contribution patterns](FEATURE_PATTERNS.md) keep their separate
 signed-material-copy contract. This initial path does not complete the full
@@ -22,7 +23,7 @@ featurePattern: {
   scope: 'selected';
   targets: BodyReference[];
   bindings: { source: BodyReference; targetBodyIds: string[] }[];
-  referencePolicies: [];
+  referencePolicies: FeaturePatternReferencePolicy[];
   variation: { kind: 'none' };
 }
 ```
@@ -36,7 +37,7 @@ featurePattern: {
   scope: 'all';
   reevaluateAt: 'patternInput';
   bindings: { source: BodyReference; targetBodyIds: 'scope' }[];
-  referencePolicies: [];
+  referencePolicies: FeaturePatternReferencePolicy[];
   variation: { kind: 'none' };
 }
 ```
@@ -137,6 +138,48 @@ For physical ray `sign(depth)·normal`, a prism of length L starting at s moves
 its profile center by `ray·s` and extrudes by `sign(depth)·L`. Blind symmetry
 uses `s=−abs(depth)/2`. There is no second sketch-offset application.
 
+## Fixed principal-plane end reference
+
+An UpToSurface seed can explicitly retain its selected principal plane:
+
+```ts
+referencePolicies: [{
+  featureId: 'the-selected-seed',
+  path: 'endCondition.target',
+  placement: 'world',
+}]
+```
+
+The source's existing end condition supplies the exact XY, XZ or YZ identity.
+The profile and physical extrusion ray follow the canonical instance transform;
+the limiting plane stays in document coordinates. Every copy constructs a new
+tool from that instance's start to the plane. Copying the source's finished tool
+does not implement this declaration. Negative depths and reflection parity
+retain the physical ray, and sketch offset is applied once.
+
+The policy must be explicit, unique and associated with a selected seed.
+Missing policies reject during extraction; unused policies also reject.
+The saved boundary accepts only enumerable own data for this policy table,
+its dense entries and the three exact fields. Getter, hidden, duplicate and
+unsupported transform/instance entries cannot silently change saved intent.
+Old documents with empty policy tables retain their previous behavior. Older
+builds that only accept empty tables reject this new declaration.
+
+The property panel exposes the fixed-plane choice and allows removal of a
+stale choice after its source changes. Scope changes preserve the choice;
+removing a seed prunes its policy. Switching to geometry copying removes
+regeneration policies; switching back requires an explicit new choice.
+Changed source definitions or saved policies stale the existing preview.
+
+Selected cut/merge and cut-only dynamic ALL use the same fixed-plane limit.
+Parallel planes, limits behind the instance ray and failed tool construction
+reject the pattern atomically. Datum/face ownership and correspondence,
+transformed/instance references, other endings and additive ALL remain required.
+These are SolidFlow's explicit semantics; the analytical fixtures do not prove
+interoperability or complete interaction coverage.
+Their original inputs, formulas and tolerances are recorded in the
+[fixed-plane fixture provenance](FEATURE_WORLD_LIMIT_FIXTURES.md).
+
 ## Current target and termination
 
 ThroughAll and UntilNext require the current detached working owner for the
@@ -217,8 +260,10 @@ Working material may temporarily have several native-valid closed solids with
 finite bounds and no loose topology. They retain one virtual owner until a later
 recipe reconnects them. A successful nonnull topology-free compound is the only
 accepted empty state; a sheet, debris, failed builder or near-zero volume alone
-does not establish emptiness. A blind operation can restore such an empty state.
-Dynamic termination against empty material still needs a separate extent policy.
+does not establish emptiness. A blind operation or an independently fixed
+principal-plane limit can construct a tool without borrowing an extent from
+empty material. Owner-dependent dynamic termination against empty material
+still needs a separate extent policy.
 Every final owner must be one valid closed solid. Every active address and the
 complete pattern must change material in some routed owner; equal final volume
 alone is insufficient. Only finally changed owners advance to the pattern state.
@@ -252,9 +297,10 @@ captured material delta as a regeneration substitute.
 This bridge is limited to the initial `mode:'regenerate'`,
 `geometryPattern:false` declaration subset: selected targets or cut-only ALL,
 no variation, intrinsic rectangle/circle profiles, owned cut/merge and
-blind/ThroughAll termination. Selected scope checks its exact saved target
+blind/ThroughAll or explicit principal-plane/world UpToSurface termination.
+Selected scope checks its exact saved target
 routes; ALL checks the attested derived target snapshot and scope routes.
-UntilNext/UpToSurface declarations retain their pending gates,
+UntilNext and other UpToSurface reference declarations retain their pending gates,
 even though the primitive constructor can build an explicitly resolved tool.
 The bridge itself accepts an extracted declaration; the saved parser and engine
 connect it through the explicit mode above.
@@ -318,7 +364,7 @@ separate readiness/exit diagnostics, retained failures and follow-up checks belo
 to their exact source records in [VALIDATION](VALIDATION.md).
 No complete feature or platform-support claim follows.
 
-Required continuation includes up-to-surface, offset, until-next and other
+Required continuation includes broader up-to-surface, offset, until-next and other
 end/start conditions; exact face/datum/instance correspondence; arbitrary and
 associative solved profiles; dependent sketches/planes/constraints; additive ALL,
 dynamic geometry scope and AUTO discovery with saved capture/follow policy;

@@ -33,8 +33,10 @@ allocates no body identities or instance slots. Its absence preserves the
 legacy acceptance rules. The geometry branch requires `geometryPattern:true`.
 The separate [regeneration mode](FEATURE_REGENERATION.md#saved-regeneration-mode)
 requires `mode:'regenerate'`, `geometryPattern:false`, explicit selected or
-cut-only dynamic ALL scope, empty reference policies and no variation. ALL
-saves scope routes rather than current target references. Geometry/true retains
+cut-only dynamic ALL scope and no variation. An UpToSurface source requires an
+explicit saved principal-plane/world policy; other end-reference and placement
+choices remain pending. See the [fixed-plane fixtures](FEATURE_WORLD_LIMIT_FIXTURES.md).
+ALL saves scope routes rather than current target references. Geometry/true retains
 the selected-target declaration above. False without an explicit declaration
 still rejects. Failed regeneration must never fall back to a rigid copy.
 

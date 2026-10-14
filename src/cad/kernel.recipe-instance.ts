@@ -1,7 +1,8 @@
 import type { Shape3D } from 'replicad';
 import { fixedProfileInstanceInput, requireInitialRecipeDeclaration, type RecipeClosure } from '../model/featureRecipes';
 import { withNativeOwners } from './kernel.native-ownership';
-import { buildExplicitFramePrimitive } from './kernel.recipe-primitives';
+import { buildExplicitFramePrimitive, type PrimitiveTermination } from './kernel.recipe-primitives';
+import { principalPlaneFrame } from './kernel.frames';
 
 export interface RecipeInstanceToolInput {
   /** Trusted extractor output; the evaluator extracts from the current parsed document. */
@@ -46,7 +47,9 @@ export function buildRecipeInstanceTool(input: RecipeInstanceToolInput): OwnedRe
   const resolved = fixedProfileInstanceInput(closure, input.featureId, input.address);
   const profile = resolved.profile;
   if (profile.kind !== 'rectangle' && profile.kind !== 'circle') throw new Error('A solved recipe profile is not implemented by this bridge.');
-  if (resolved.termination.kind !== 'blind' && resolved.termination.kind !== 'throughAll') {
+  const end = resolved.termination;
+  if (end.kind !== 'blind' && end.kind !== 'throughAll'
+      && !(end.kind === 'upToSurface' && end.target.kind === 'principal' && end.policy.placement === 'world')) {
     throw new Error('This native recipe bridge does not enable pending end-condition declarations.');
   }
   const definition = closure.definitions.find(item => item.feature.id === input.featureId)?.feature;
@@ -55,9 +58,14 @@ export function buildRecipeInstanceTool(input: RecipeInstanceToolInput): OwnedRe
   else if (definition?.type === 'extrude' && node.type === 'extrude' && definition.bodyOperation?.mode === 'merge') operation = 'add';
   else throw new Error('Creation, consumption and other recipe lifecycle operations remain pending.');
   if (closure.request.scope.mode === 'all' && operation === 'add') throw new Error('ALL_POSITIVE_SCOPE_PENDING: additive ALL applicability remains required and is not enabled.');
-  const termination = resolved.termination.kind === 'blind'
-    ? { kind: 'blind' as const, symmetric: resolved.termination.symmetric }
-    : { kind: 'throughAll' as const, bothDirections: resolved.termination.bothDirections };
+  let termination: PrimitiveTermination;
+  if (end.kind === 'blind') termination = { kind: 'blind', symmetric: end.symmetric };
+  else if (end.kind === 'throughAll') termination = { kind: 'throughAll', bothDirections: end.bothDirections };
+  else if (end.kind === 'upToSurface' && end.target.kind === 'principal' && end.policy.placement === 'world') {
+    // The profile/ray follow the actual instance. The explicitly selected
+    // principal plane remains in document coordinates, rather than following Q.
+    termination = { kind: 'upToSurface', limit: { frame: principalPlaneFrame(end.target.plane) } };
+  } else throw new Error('The exact principal-plane end reference is not resolved.');
   return withNativeOwners(owners => ({ operation, tool: owners.own(buildExplicitFramePrimitive({
     profile, frame: resolved.frame, signedDepth: resolved.signedDepth,
     termination, operation, workingTarget: input.workingTarget, validateTool: input.validateTool,

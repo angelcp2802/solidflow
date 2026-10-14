@@ -99,8 +99,10 @@ The [feature recipe declaration layer](FEATURE_RECIPES.md) documents the pure
 closure/frame API. The [regeneration contract](FEATURE_REGENERATION.md) connects
 explicit-frame tool construction, chronological evaluation and the saved
 selected or cut-only ALL scope. The initial native path accepts intrinsic
-rectangle/circle cuts or selected merge extrusions with blind/ThroughAll endings,
-no reference policies and no variation. ALL resolves the complete current native
+rectangle/circle cuts or selected merge extrusions with blind/ThroughAll endings
+or an explicit fixed principal-plane UpToSurface limit, and no variation.
+The bounded saved policy names the seed and end-condition locator; it is never
+inferred from geometry. ALL resolves the complete current native
 catalog on each rebuild; it does not save a target snapshot. Limits remain
 32 selected targets, 256 dynamic owners and 512 active owner applications, with
 separate closure/history envelopes. Geometry copy/true and regeneration/false have distinct saved

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { BodyReference, Feature, RepetitionFeature } from '../cad/kernel.types';
 import { sameBodyReference } from '../model/bodyCommands';
-import { withFeaturePatternBindings } from '../model/featurePatternCommands';
+import { withFeaturePatternBindings, withFeaturePatternWorldLimit } from '../model/featurePatternCommands';
 import { isAllFeaturePattern, MAX_FEATURE_PATTERN_CONTRIBUTIONS, MAX_FEATURE_PATTERN_TARGETS, type AnyFeaturePatternBinding } from '../model/featurePatterns';
 import { bodyPatternHistoryChoices, type BodyPatternEditor } from './BodyPatternPanel';
 
@@ -43,7 +43,29 @@ export default function FeaturePatternPanel({ feature, features, editor, onChang
       : selectedOperation.targets.filter(target => !sameBodyReference(target, reference)));
   };
   const targetName = (reference: BodyReference) => editor.bodies.find(body => sameBodyReference(body.ref, reference))?.name ?? 'Destino no disponible';
+  const worldLimits = operation.mode === 'regenerate'
+    ? features.filter(source => feature.source.mode === 'features' && feature.source.featureIds.includes(source.id)
+      && !source.suppressed && (source.type === 'extrude' || source.type === 'cut')
+      && source.endCondition?.kind === 'upToSurface' && source.endCondition.target.kind === 'principal') : [];
+  const staleLimits = operation.mode === 'regenerate'
+    ? operation.referencePolicies.filter(policy => !worldLimits.some(source => source.id === policy.featureId)) : [];
   return <>
+    {operation.mode === 'regenerate' && (worldLimits.length > 0 || staleLimits.length > 0) && <div className="property-section">
+      <h3>Planos límite</h3>
+      {worldLimits.map(source => <label key={source.id} className="check-option">
+        <input type="checkbox" disabled={editor.loading}
+          aria-label={`Mantener plano límite fijo de ${source.name}`}
+          checked={operation.referencePolicies.some(policy => policy.featureId === source.id)}
+          onChange={event => onChange({ featurePattern: withFeaturePatternWorldLimit(feature, source.id, event.target.checked).featurePattern })} />
+        <span>Mantener el plano límite de {source.name}</span>
+      </label>)}
+      {staleLimits.map(policy => <label key={policy.featureId} className="check-option">
+        <input type="checkbox" checked disabled={editor.loading} aria-label="Quitar plano límite no disponible"
+          onChange={() => onChange({ featurePattern: withFeaturePatternWorldLimit(feature, policy.featureId, false).featurePattern })} />
+        <span>Plano límite no disponible · quitar</span>
+      </label>)}
+      <p className="muted-small">Cada copia termina en el mismo plano principal. Su profundidad se recalcula desde la posición de la copia.</p>
+    </div>}
     <div className="property-section">
       <h3>Geometría de las operaciones</h3>
       <label className="number-field"><span>Operación seleccionada</span>

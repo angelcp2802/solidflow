@@ -12,7 +12,7 @@ import { buildRecipeInstanceTool } from './kernel.recipe-instance';
 import { isNativeCleanupFailure, NativeCleanupError, withNativeOwners, type NativeOwner, type NativeOwners } from './kernel.native-ownership';
 import { attestNativeRecipeScope, assertNativeRecipeScopeCurrent, type NativeRecipeScopeAttestation } from './kernel.recipe-scopes';
 
-export const RECIPE_EVALUATOR_REVISION = 'fixed-intrinsic-selected-all-v2';
+export const RECIPE_EVALUATOR_REVISION = 'fixed-intrinsic-world-limit-v3';
 const compare = (a: string, b: string): number => a < b ? -1 : a > b ? 1 : 0;
 const tolerance = (volume: number): number => Math.max(1e-8, Math.abs(volume) * 1e-10);
 const sameRef = (a: Readonly<BodyReference>, b: Readonly<BodyReference>): boolean =>
@@ -227,7 +227,7 @@ export function evaluateFeatureRecipes(input: RecipeEvaluationInput): OwnedRecip
             for (const application of applications) assertParent(application, bodyId, transform.key, outputs);
             const before = current.get(bodyId)!;
             const beforeState = intermediate(before);
-            if (beforeState.empty && operation.termination?.kind !== 'blind') {
+            if (beforeState.empty && operation.termination?.kind !== 'blind' && operation.termination?.kind !== 'upToSurface') {
               throw new Error('A dynamic end condition on an empty working owner needs a separate extent policy.');
             }
             // Equivalent fixed intrinsic bindings share one event/target tool.

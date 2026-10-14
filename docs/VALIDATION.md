@@ -1927,3 +1927,188 @@ other end conditions, associative references, variation, nested lifecycle and
 independent interoperability remain required; this does not narrow the goal
 or establish platform support. These results do not satisfy the full validation
 gate; the individual build, IPC and focused passes remain recorded.
+
+
+## Fixed principal-plane regeneration — local evidence, 2026-10-14
+
+These successive local Windows snapshots test explicit saved `world` intent
+for a principal-plane UpToSurface end condition. They do not complete the
+regeneration roadmap. The earlier ledger above retains its original source
+and outcome; no earlier pass is transferred to this increment.
+
+The first native/full/build record contains 18 source, configuration and
+documentation input hashes; the corrected pure selection contains 19; the
+later UI build and desktop records each contain 26. Each recorded before/after
+list matches exactly. These are scoped input lists, not whole-tree manifests.
+The native test file is unchanged across these snapshots, with SHA-256
+`02f81533918ee2e9aec698853e1519d4e26a81c2a3959d809f0eb7698b99660f`.
+The [original fixtures](FEATURE_WORLD_LIMIT_FIXTURES.md) give analytical
+coordinates, formulas and tolerances.
+
+### First native, full-suite and build checkpoint
+
+| Check | Actual outcome |
+| --- | --- |
+| Focused `src/cad/kernel.recipe-world-limit.integration.test.ts` | Exit 0, 11/11 cases in one file; Vitest 474.37 s, outer invocation 553.617 s. |
+| Full `npm test` | Exit 1, 2,114 passed and 136 failed of 2,250 cases in 129 files (105 passed, 24 failed); Vitest 2,087.37 s, outer invocation 2,364.248 s. Chained IPC was not entered. |
+| Subsequent `npm run build` | Exit 1 during TypeScript checking, before the production build; outer invocation 220.256 s. |
+
+The complete failure accounting identifies 133 test timeouts: 86 at unchanged
+5,000 ms budgets and 47 at unchanged 60,000 ms budgets. The other three failures
+are saved-method SSR assertions for linear, circular and mirror controls in
+`PatternPanel.savedModes.test.tsx`. No additional error class, hook timeout,
+unhandled error, crash or worker-termination diagnostic was found in these logs.
+The timeout cause remains unknown. The native world-limit file itself passed
+four and timed out seven of its 11 cases in this full run. Its separate 11/11
+focused pass does not replace those failures or make the full invocation pass.
+
+The failed build reported TS2339 when a cloned selected operation's
+`referencePolicies` was read without preserving its regenerate-mode narrowing,
+and TS2345 in the malformed-policy parameter table. The later correction
+narrows the cloned operation before that read and passes each complete policies
+array as one named test-row value. The three SSR expectations were updated to
+the complete explanatory sentence including the fixed principal-plane option.
+These corrections do not establish a later complete-suite pass.
+
+An earlier initial pure selection reported 22 passing cases. Five malformed-
+policy `it.each` rows were arrays that the runner spread into positional
+arguments; that pass did not exercise the five intended whole-array rejection
+inputs. The later correction uses named `{kind, policies}` rows so each complete
+array reaches the assertion. The corrected 31/31 selection below is the relevant
+evidence for that repaired matrix; the initial 22-case pass is retained without
+crediting rejection coverage it did not establish.
+
+### Corrected pure selection and later UI build
+
+The corrected selection of `featurePatternWorldLimit.test.ts`,
+`FeaturePatternWorldLimit.test.tsx` and `PatternPanel.savedModes.test.tsx`
+passed all 31 cases in three files, exit 0, Vitest 36.53 s and outer invocation
+108.614 s. This is model/command and server-rendered markup evidence, without
+native CAD or editor events. Its corrected source identities include:
+
+| File | SHA-256 |
+| --- | --- |
+| `src/model/featurePatternCommands.ts` | `f834e18660f0105c26e06e7f32896616126a4ffa8ce89644f5ca8468feabc6ee` |
+| `src/model/featurePatternWorldLimit.test.ts` | `a1e5ac6634067a9c025e32d813806b549815f5de5919a323229aa9c068d13b41` |
+| `src/components/PatternPanel.savedModes.test.tsx` | `8f9b4b044635327d798d975933dc58eb9bb9e5cf541c1f743736306ed9ebe1bb` |
+
+After adding the public world-limit workflow and factoring the ALL launcher,
+`npm run build` passed TypeScript and the production build, transforming 1,985
+modules; outer invocation 236.006 s, Vite reported 1 min 3 s. Dependency
+externalization and large-chunk warnings remain. Separate syntax checks exited
+0 for `desktop-pattern-all.cjs`, `desktop-pattern-world-limit.cjs` and
+`desktop-pattern-world-limit-flow.cjs`; parsing does not execute a workflow.
+The later successful build does not change the earlier failed build or full
+suite, and the full suite/IPC were not rerun on this 26-input snapshot.
+
+### Separate production-loader results after that build
+
+| Command | Actual outcome |
+| --- | --- |
+| `npm run test:desktop` | Exit 1, cleanup reported `EBUSY` on a file in its owned temporary profile. No readiness/PASS report or confirmed child close was emitted. Outer invocation 150.245 s; neither initial readiness nor the primary cause is established. |
+| `npm run test:desktop:pattern-all` | Exit 1, exceeded its 180,000 ms interaction deadline with child close unobserved. The launcher reported retaining its owned profile; filesystem presence, process-tree closure and cleanup were not independently established. Outer invocation 269.244 s. |
+| `npm run test:desktop:pattern-world-limit` | Exit 0, workflow PASS, actual child close observed and isolated temporary profile deleted. Outer invocation 223.782 s. |
+
+The world-limit interaction uses scripted DOM events and the real production
+worker/WASM. It recorded four healthy requests: initial geometry `3`, explicit
+world-policy preview `8`, committed Apply `9` and reopened result `10`.
+Request `7` separately rejected missing saved policy while Apply remained
+blocked; it is not a healthy phase. Source S remains `64−3π/2` mm³. Target A
+changes from copied `64−3π/2` to regenerated `64−π/2` mm³. All four phases
+check exact body/source/creator identities and bounds, using absolute volume
+tolerance `1e-5 mm³` and coordinate tolerance `1e-6 mm`. This UI path does
+not report surface area or material probes; those belong to the separate
+native cases and tolerances in the fixture guide.
+
+The run completed restricted preload/IPC open, Save As and reopen operations.
+The saved and reopened declaration retains the explicit policy and routes.
+Native dialog choices were substituted with isolated test-owned paths; no human
+pointer or native-dialog interaction is claimed. The report recorded production
+security settings, no console errors and no failed requests. Its original JSON
+fixture has SHA-256
+`b87673e59da0637dc9b29912ed665a6c7efc3d33ccdfd703fb3d9b757afefbbd`.
+The successful wrapper, flow and shared launcher identities are respectively
+`6b4316a92addb43627f61f7dfd9428e717d3eb8b2fa90748afd274b91ccb79b8`,
+`0cdcd63b825d7738a1b1475d423addaa9e101f173e18afde8094f49aff3f3340`
+and `631b2941551ae306cd547b06ffdf3f44271df35c996e365f962af4ebae4467af`.
+Any subsequent launcher/observation hardening requires new validation; this
+pass does not validate later harness bytes or resolve the separate ALL failure.
+
+### Retained log identities and limits
+
+| Observation | Log SHA-256 |
+| --- | --- |
+| Focused native 11-case pass | `6ef39e3e96a66f36efbf9d939ab33a90b1c028c769abc3349fa36efeaa74d10a` |
+| First full-suite stdout | `735e5e420f55db79556c4175cdea5369543234d99b6341abd4b19304dbc0919c` |
+| First full-suite stderr | `0599c2a800be52280130c8f365fe1ce29aeb7b409cb44416288a7e18de04b88f` |
+| First TypeScript build failure | `dbf7f0cb86f3ffa2a95d9a48d25d9188d60f0175b729f3bcbad5c70c946ac0fa` |
+| Corrected pure 31-case pass | `8f04ab390f98448b6998a20d7a4ca5f687e56a99fbdeb7ed96ae7caee7c0341f` |
+| Later production build stdout | `21e4dbcc1bbe09c493c7f985afb817b324d0824df4de331495d5c44ed982e3e0` |
+| Standard desktop failure stderr | `fcef3ade04074a86585d10932e9370af20e2ba37a22d51d561b4c91fa6a3f8ae` |
+| Factored ALL failure stderr | `fc736244545bb1c35f06c562bddd610a256760a31fa62f93959feb1e260758f1` |
+| World-limit workflow and close/cleanup report | `93764d01e9b6dc34fad56d3ae034d989dc0056c852cfc30911b77e0f13886fb9` |
+
+The full-suite failure remains unresolved by these focused/build/UI passes.
+This one selected linear workflow does not validate circular/mirror editor
+interaction, ALL end-reference choices, general entity profiles, dependent
+datum/face remapping, UntilNext policy, AUTO, additive ALL, variation, nested
+recipes or complete ownership lifecycle. It establishes neither independent
+interoperability nor general shutdown/allocation safety, signing, releases or
+platform support. No hosted result or future harness result is inferred.
+
+
+## Source-string hardening — later local checkpoint, 2026-10-14
+
+This later dirty Windows snapshot includes the source-string serialization
+hardening used by the ALL and fixed-world-limit interaction launchers. It is a
+separate checkpoint from the earlier complete world-limit workflow pass above.
+The recorded checkout HEAD `0629b3a733b8d98cec586fbe6e79d2265cadda37` is the branch
+base, not an exact commit identity for the tested dirty source. All 31 selected
+before/after input hashes match. That selected list is partial; it does not
+establish an unchanged complete runtime tree. Node/npm versions and the full
+inherited environment were not captured in this record.
+
+| Check | Actual outcome |
+| --- | --- |
+| Five script syntax checks | All exited 0. Parsing alone does not execute the interaction or CAD workflows. |
+| Separate `npm run test:ipc` | Exit 0, 32/32 cases; Node reported 27,873.6418 ms. This includes the source-literal regressions and is separate from chained IPC. |
+| `npm run build` | Exit 0, TypeScript and production build, 1,985 modules. Dependency externalization and large-chunk warnings remain. |
+| `npm run test:desktop` | Exit 1 after the 45-second launcher deadline; no readiness/PASS or confirmed child-close outcome was established. |
+| `npm run test:desktop:pattern-all` | Exit 1 after the 180-second interaction deadline; child close was unobserved and the launcher reported retaining the isolated profile. Its filesystem presence was not independently checked. |
+| `npm run test:desktop:pattern-world-limit` | The functional worker workflow reached its four healthy phases, expected missing-policy rejection, Apply, Save As and reopen. The parent command nevertheless exited 1 after its 180-second deadline, with child close unobserved and the launcher reporting retention of the isolated profile. Its filesystem presence was not independently checked. This is not a complete desktop-command pass. |
+| Required `npm test` | Exit 1: 2,123 passed, 127 failed of 2,250 cases; 107 passed and 22 failed of 129 files. Vitest reported 1,744.11 s. Failed units prevented chained IPC from entering. |
+
+The complete full-suite accounting reconciles all 127 failed-case headers with
+96 emitted error groups. Every failed case has a literal test-timeout diagnostic:
+99 at 5,000 ms, one at 20,000 ms, one at 30,000 ms and 26 at 60,000 ms. No
+assertion, hook-failure, unhandled/uncaught error, native-crash or worker-termination
+warning was emitted in the retained full-suite logs. A printed `afterAll` line
+is a source excerpt. These observations do not establish a timeout cause or
+prove the timed-out geometry correct.
+
+The failure-only reporter does not provide individual passing counts for the
+world-limit native file or the three earlier focused model/SSR files. Their
+absence from failure output is not a new focused pass. The earlier 11-case
+native and corrected 31-case model/SSR results retain their own source scopes.
+
+The WORLD functional assertions are narrower than process lifecycle evidence.
+The later parent failure does not erase the earlier close/cleanup pass on its
+different launcher bytes, and the earlier pass does not validate this later
+parent's shutdown. Confirmed process-tree closure and cleanup are not inferred
+from successful worker assertions. The syntax/IPC passes do not establish that
+hosted CodeQL alerts or dependency-audit findings have been resolved; CodeQL was
+not rerun by this local checkpoint.
+
+| Retained identity | SHA-256 |
+| --- | --- |
+| Check record | `6d36025adc96966b1527ed90fd5545f4d8589f2fabee07f0c4f7138089d9e4f1` |
+| Full-suite stdout | `62f76d7c57ca7085d915973e2a20618e2395eb1511377350c0fd7499c220dd86` |
+| Full-suite stderr | `bd3c683b79ce222634068f2a1cf5398a4009084897f54c7c2968ec6bcb272348` |
+
+The fixture scope and tolerances remain those in
+[FEATURE_WORLD_LIMIT_FIXTURES](FEATURE_WORLD_LIMIT_FIXTURES.md). These results do
+not satisfy the full validation gate. Broader profiles/supports, end conditions,
+references, variation, additive ALL/AUTO, nested recipes and ownership lifecycle
+remain required, together with independent interoperability and general desktop
+and platform validation. Individual syntax, IPC, build and earlier focused
+passes remain recorded without promotion to a complete-suite or release pass.

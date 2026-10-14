@@ -1,5 +1,5 @@
 'use strict';
-// Instrumented production-loader regression: selected feature scope to dynamic ALL.
+// Instrumented production-loader pattern regressions with statically selected workflows.
 // Launches its own hidden test child; never attaches to an existing app/session.
 const fs = require('node:fs');
 const fsp = require('node:fs/promises');
@@ -8,7 +8,15 @@ const path = require('node:path');
 const { createRequire } = require('node:module');
 const { randomUUID, createHash } = require('node:crypto');
 const { spawn } = require('node:child_process');
-const FIXTURE = path.join(__dirname, '..', 'src', 'cad', 'fixtures', 'pattern-all-original.json');
+const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
+const SCENARIOS = Object.freeze({
+  all: Object.freeze({ fixture: 'pattern-all-original.json', entry: 'desktop-pattern-all.cjs',
+    test: 'production-renderer-selected-to-ALL', caption: 'ALL' }),
+  'world-limit': Object.freeze({ fixture: 'pattern-world-limit-original.json', entry: 'desktop-pattern-world-limit.cjs',
+    test: 'production-renderer-fixed-world-limit', caption: 'fixed world-limit' }),
+});
+let activeScenario = SCENARIOS.all, started = false;
+const fixturePath = () => path.join(__dirname, '..', 'src', 'cad', 'fixtures', activeScenario.fixture);
 const PATTERN_ID = 'ui-all-P';
 const PROFILE_PREFIX = 'solidflow-pattern-all-test-';
 const INITIAL_READY_MS = 35_000;
@@ -67,10 +75,11 @@ async function launch() {
   try {
     for (const name of ['profile', 'session', 'logs', 'crashes']) await fsp.mkdir(path.join(temporary, name));
     await fsp.writeFile(path.join(temporary, '.test-owned.json'), JSON.stringify({ token }), { flag: 'wx' });
-    await fsp.copyFile(FIXTURE, path.join(temporary, 'input.solidflow'), fs.constants.COPYFILE_EXCL);
+    await fsp.copyFile(fixturePath(), path.join(temporary, 'input.solidflow'), fs.constants.COPYFILE_EXCL);
     const environment = { ...process.env, SOLIDFLOW_PATTERN_UI_TEST_ROOT: root, SOLIDFLOW_PATTERN_UI_TEST_TEMP: temporary, SOLIDFLOW_PATTERN_UI_TEST_TOKEN: token };
     delete environment.ELECTRON_RUN_AS_NODE; delete environment.SOLIDFLOW_DEV_URL;
-    const args = process.platform === 'linux' && environment.CI === 'true' ? ['--ignore-gpu-blocklist', __filename] : [__filename];
+    const entry = path.join(__dirname, activeScenario.entry);
+    const args = process.platform === 'linux' && environment.CI === 'true' ? ['--ignore-gpu-blocklist', entry] : [entry];
     await new Promise((resolve, reject) => {
       const rejectPrimary = error => { primary ??= error; reject(primary); };
       try { child = spawn(requireFromRoot('electron'), args, { cwd: root, env: environment, stdio: 'inherit', windowsHide: true }); }
@@ -90,7 +99,7 @@ async function launch() {
       });
       timer = setTimeout(() => {
         // Capture timeout first: synchronous close during kill cannot win PASS.
-        rejectPrimary(new Error(`Isolated ALL UI test exceeded ${TEST_MS} milliseconds; child close not yet observed.`));
+        rejectPrimary(new Error(`Isolated ${activeScenario.caption} UI test exceeded ${TEST_MS} milliseconds; child close not yet observed.`));
         try { if (child.exitCode === null && child.signalCode === null) child.kill(); } catch (error) { teardown.push(error); }
       }, TEST_MS);
     });
@@ -122,10 +131,10 @@ async function launch() {
     }
   }
   if (primary || teardown.length) {
-    if (teardown.length) throw new AggregateError(primary ? [primary, ...teardown] : teardown, 'Isolated ALL workflow and/or teardown failed.', { cause: primary ?? teardown[0] });
+    if (teardown.length) throw new AggregateError(primary ? [primary, ...teardown] : teardown, `Isolated ${activeScenario.caption} workflow and/or teardown failed.`, { cause: primary ?? teardown[0] });
     throw primary;
   }
-  console.log(JSON.stringify({ test: 'production-renderer-selected-to-ALL', status: 'PASS', productionInputHashes: before, ...report,
+  console.log(JSON.stringify({ test: activeScenario.test, status: 'PASS', productionInputHashes: before, ...report,
     childCloseObserved: true, isolatedTemporaryDeleted: true }, null, 2));
 }
 
@@ -139,7 +148,10 @@ function installWorkerObserver() {
   new MutationObserver(() => {
     const scope = document.querySelector('select[aria-label="Alcance de los cuerpos de la repetición"]');
     const apply = document.querySelector('button[title="Aceptar operación"]');
-    const sample = { scope: scope?.value ?? null, applyDisabled: apply ? apply.disabled : null }, key = JSON.stringify(sample);
+    const method = document.querySelector('select[aria-label="Método de repetición de operaciones"]');
+    const worldLimit = document.querySelector('input[aria-label^="Mantener plano límite fijo de "]');
+    const sample = { scope: scope?.value ?? null, applyDisabled: apply ? apply.disabled : null,
+      method: method?.value ?? null, worldLimitChecked: worldLimit ? worldLimit.checked : null }, key = JSON.stringify(sample);
     if (key !== previousUi && observations.ui.length < 512) {
       previousUi = key; observations.ui.push({ eventSerial: ++observations.eventSerial, ...sample });
     }
@@ -193,7 +205,7 @@ async function runInElectron() {
     try { fs.writeFileSync(path.join(owned, 'workflow-result.json'), JSON.stringify(report, null, 2)); }
     catch (writeError) { console.error(new AggregateError(error ? [error, writeError] : [writeError], 'Workflow evidence could not be written.', { cause: error ?? writeError })); process.exitCode = 1; }
     if (error) { console.error(error); process.exitCode = 1; }
-    console.log(JSON.stringify({ test: 'production-renderer-selected-to-ALL', ...report }));
+    console.log(JSON.stringify({ test: activeScenario.test, ...report }));
     // Successful workflow still requires the parent to observe close/code0.
     app.quit();
   }
@@ -209,11 +221,11 @@ async function runInElectron() {
     throw new Error(`Timed out waiting for ${description}; last observation=${JSON.stringify(last)}.`);
   }
   async function click(selector) {
-    await evaluate(`(() => { const elements=[...document.querySelectorAll(${JSON.stringify(selector)})]; if(elements.length!==1||elements[0].disabled) throw Error('Expected one enabled control: '+${JSON.stringify(selector)}); elements[0].click(); })()`);
+    await evaluate(`(() => { const elements=[...document.querySelectorAll(${encodeJavaScriptString(selector)})]; if(elements.length!==1||elements[0].disabled) throw Error('Expected one enabled control: '+${encodeJavaScriptString(selector)}); elements[0].click(); })()`);
   }
   async function menu(label) {
     await evaluate(`(() => { const find=(selector,text)=>[...document.querySelectorAll(selector)].filter(x=>x.textContent.trim()===text); const top=find('nav .menu-wrap > button','Archivo'); if(top.length!==1) throw Error('Archivo menu is ambiguous'); top[0].click(); })()`);
-    await evaluate(`(() => { const buttons=[...document.querySelectorAll('.dropdown button')].filter(x=>x.textContent.trim().startsWith(${JSON.stringify(label)})); if(buttons.length!==1||buttons[0].disabled) throw Error('Expected one enabled file menu action'); buttons[0].click(); })()`);
+    await evaluate(`(() => { const buttons=[...document.querySelectorAll('.dropdown button')].filter(x=>x.textContent.trim().startsWith(${encodeJavaScriptString(label)})); if(buttons.length!==1||buttons[0].disabled) throw Error('Expected one enabled file menu action'); buttons[0].click(); })()`);
   }
   async function buildAfter(serial, scope) {
     return waitFor('healthy worker build for ' + scope, async () => {
@@ -299,6 +311,12 @@ async function runInElectron() {
       savedPattern: saved.features.at(-1),
       savedContentSha256: digest(await fsp.readFile(output)), savedFeaturesSha256: digest(JSON.stringify(saved.features)) });
   }
+  // The extra workflow is a fixed tracked module, never a caller/env-selected script.
+  const actualWorkflow = activeScenario === SCENARIOS['world-limit']
+    ? require('./desktop-pattern-world-limit-flow.cjs')({ expected, expectedIds, evaluate, observe, waitFor, click, menu, checks,
+      protocolResponses, consoleErrors, failedRequests, ipc, input, output, check, canonical, digest,
+      initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) }) : workflow;
+  check(typeof actualWorkflow === 'function', 'Expected the statically selected test workflow.');
   class HiddenWindow extends electron.BrowserWindow {
     constructor(options) {
       super({ ...options, show: false }); check(!window, 'Unexpected second test application window.'); window = this;
@@ -335,7 +353,7 @@ async function runInElectron() {
         checks.push('test-owned blank target initialized before CDP observation');
       })();
       await this.instrumentation;
-      this.webContents.once('did-finish-load', () => { workflow().then(() => finish(), finish); });
+      this.webContents.once('did-finish-load', () => { actualWorkflow().then(() => finish(), finish); });
       return super.loadURL(...args);
     }
   }
@@ -383,5 +401,11 @@ async function runInElectron() {
   };
   try { require(main); } finally { Module._load = load; }
 }
-if (process.versions.electron) runInElectron().catch(error => { console.error(error); process.exitCode = 1; require('electron').app.quit(); });
-else launch().catch(error => { console.error(error); process.exitCode = error?.launcherExitCode ?? error?.cause?.launcherExitCode ?? 1; });
+function runScenario(name) {
+  check(!started && typeof name === 'string' && Object.hasOwn(SCENARIOS, name), 'Expected one statically allowlisted test scenario.');
+  started = true; activeScenario = SCENARIOS[name];
+  if (process.versions.electron) return runInElectron().catch(error => { console.error(error); process.exitCode = 1; require('electron').app.quit(); });
+  return launch().catch(error => { console.error(error); process.exitCode = error?.launcherExitCode ?? error?.cause?.launcherExitCode ?? 1; });
+}
+module.exports = Object.freeze({ runScenario });
+if (require.main === module) runScenario('all');

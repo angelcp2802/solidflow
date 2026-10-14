@@ -487,7 +487,9 @@ export function extractRecipeClosure(features: readonly Feature[], rawRequest: R
       if (end.kind === 'upToSurface') {
         const policy = policyFor(feature.id, 'endCondition.target', end.target);
         node.termination = { kind: 'upToSurface', target: end.target, policy };
-        pending('UP_TO_SURFACE_PENDING', feature.id, 'endCondition', 'The exact limit is extracted; per-instance limit evaluation is a later required increment.');
+        if (end.target.kind !== 'principal' || policy.placement !== 'world') {
+          pending('UP_TO_SURFACE_PENDING', feature.id, 'endCondition', 'Only an explicitly fixed external principal-plane limit is currently resolved; datum/face and transformed/instance correspondence remain required.');
+        }
       } else if (end.kind === 'throughAll' || end.kind === 'untilNext') {
         if (end.kind === 'throughAll' && typeof end.bothDirections !== 'boolean') invalid('THROUGH_ALL_SENSE', feature.id, 'endCondition.bothDirections', 'Through-all must name one/both directions.');
         const sourceBase = feature.type === 'cut' ? feature.bodyScope?.[0]

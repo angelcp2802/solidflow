@@ -1362,3 +1362,21 @@ source-base remapping, additive scope, AUTO, associative references, variation,
 nested lifecycle, independent interoperability or platform support follows from
 these cases. Written fixture counts are not passing results; exact-source
 execution belongs in [VALIDATION.md](VALIDATION.md).
+
+## Fixed principal-plane recipe fixtures
+
+The [fixed-plane fixture guide](FEATURE_WORLD_LIMIT_FIXTURES.md) records original
+analytical constructions for 18 model cases, four rendered-control cases and
+eleven native cases. Written counts and expectations are not execution results;
+the guide separates native volume/area/probe tolerances from UI evidence.
+
+The original seven-feature
+[pattern-world-limit-original.json](../src/cad/fixtures/pattern-world-limit-original.json)
+uses two 2×2×16 mm boxes, a radius-0.5 circular cut and displacement [3,0,4].
+The [planned production-renderer workflow](FEATURE_WORLD_LIMIT_FIXTURES.md#planned-production-renderer-workflow)
+distinguishes copied and fixed-plane regenerated cavities. It records four
+healthy worker phases plus the expected missing-policy rejection, actual Apply,
+isolated Save As/reopen and exact refs/IDs. UI metrics cover volume and bounds,
+not surface area. Its authored flow is unexecuted until source-specific evidence
+appears in [VALIDATION.md](VALIDATION.md); it does not establish broader
+interaction, interoperability or platform support.

@@ -239,7 +239,7 @@ export default function PatternPanel({
               <option value="selected">Cuerpos seleccionados</option><option value="all">Todos los cuerpos actuales</option>
             </select>
           </label>
-          <p className="muted-small">Cada instancia se recalcula sobre sus cuerpos destino, con croquis rectangulares o circulares sin soporte y finales por profundidad o por todo. Para copiar geometría, elige primero cuerpos seleccionados.</p>
+          <p className="muted-small">Cada instancia se recalcula sobre sus cuerpos destino, con croquis rectangulares o circulares sin soporte y finales por profundidad, por todo o hasta un plano principal fijo. Para copiar geometría, elige primero cuerpos seleccionados.</p>
         </>}
       </div>}
       {feature.source.mode === 'bodies' ? (bodyEditor && <BodyPatternPanel feature={feature} features={features} editor={bodyEditor} onChange={onChange} />) : <div className="property-section">

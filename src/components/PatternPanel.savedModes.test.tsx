@@ -55,7 +55,7 @@ describe('rendered saved feature calculation methods', () => {
     expect(method).toContain(`<option value="${mode}" selected="">`);
     expect(method).toContain('Copiar geometría');
     expect(method).toContain('Recalcular operaciones');
-    expect(html.includes('Cada instancia se recalcula sobre sus cuerpos destino, con croquis rectangulares o circulares sin soporte y finales por profundidad o por todo.')).toBe(mode === 'regenerate');
+    expect(html.includes('Cada instancia se recalcula sobre sus cuerpos destino, con croquis rectangulares o circulares sin soporte y finales por profundidad, por todo o hasta un plano principal fijo.')).toBe(mode === 'regenerate');
     const seed = html.match(/aria-label="Resultados de la operación para repetir">([\s\S]*?)<\/div>/)?.[1];
     const targets = html.match(/aria-label="Cuerpos destino de la repetición de operaciones">([\s\S]*?)<\/div>/)?.[1];
     expect(seed).toContain('Base A — Saliente histórico A');

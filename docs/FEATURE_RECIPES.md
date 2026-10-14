@@ -15,7 +15,7 @@ copies signed material contributions; that path remains separate.
 `geometryPattern:false` identify this internal extraction API. The request is
 derived from the explicit saved regeneration mode; the full request is not
 persisted. Saved selected targets/routes or dynamic ALL intent/scope routes,
-empty reference policies and no-variation intent are parsed strictly. History
+explicit principal-plane limit policies and no-variation intent are parsed strictly. History
 index, canonical plan, target snapshot and
 closure are reconstructed. False without the explicit variant still rejects,
 and regeneration must not route to geometry-delta replay.
@@ -85,7 +85,8 @@ trimmed-face or UV correspondence.
 `requireInitialRecipeDeclaration` accepts only the extracted initial
 declarative subset. It does not certify a successful native preview.
 The initial declarations describe fixed intrinsic rectangle/circle sketches,
-owned cut or merge extrusions, blind/through-all endings and selected targets.
+owned cut or merge extrusions, blind/through-all endings or an explicitly fixed
+principal-plane up-to-surface limit, and selected targets.
 The explicit ALL regeneration variant currently admits cuts from this intrinsic
 subset. ALL additive merge recipes report `ALL_POSITIVE_SCOPE_PENDING` before
 target copies or tools; remote-owner applicability remains unresolved. A failed
@@ -93,11 +94,13 @@ Boolean is not treated as a geometric miss and no bounding-box heuristic selects
 an owner. This gate is an implementation limit, not evidence of external parity.
 Extraction alone does not resolve any native requirement. The initial native
 bridge/evaluator supports that subset, and the engine connects it to the
-explicit saved selected or cut-only dynamic ALL mode with empty reference policies
+explicit saved selected or cut-only dynamic ALL mode with bounded principal-plane policies
 and no variation. The geometry/true branch retains explicitly selected targets.
 
-Until-next, up-to-surface, associative supports and face correspondence are
-retained with explicit pending diagnostics. The offset-intent validator is a
+Until-next, other up-to-surface reference policies, associative supports and
+face correspondence retain explicit pending diagnostics. A principal-plane
+world policy resolves the intrinsic document plane, never an inferred datum,
+face or same-instance parent. The offset-intent validator is a
 future contract utility; it does not add offset to the current end-condition
 union or evaluate a surface. A normal distance and an explicit world
 translation are different intents. A valid parent-route field alone does not

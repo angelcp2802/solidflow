@@ -12,10 +12,17 @@ interface FeaturePatternRoutes {
   bindings: FeaturePatternBinding[]
 }
 
+/** Explicit intent for an external principal-plane end reference. */
+export interface FeaturePatternReferencePolicy {
+  featureId: string
+  path: 'endCondition.target'
+  placement: 'world'
+}
+
 /** Saved geometry copying and regeneration have distinct, explicit contracts. */
 export type SelectedFeaturePatternOperation = FeaturePatternRoutes & (
   | { mode: 'geometry' }
-  | { mode: 'regenerate'; scope: 'selected'; referencePolicies: []; variation: { kind: 'none' } }
+  | { mode: 'regenerate'; scope: 'selected'; referencePolicies: FeaturePatternReferencePolicy[]; variation: { kind: 'none' } }
 )
 export interface AllFeaturePatternBinding { source: BodyReference; targetBodyIds: 'scope' }
 export interface AllFeaturePatternOperation {
@@ -23,7 +30,7 @@ export interface AllFeaturePatternOperation {
   scope: 'all'
   reevaluateAt: 'patternInput'
   bindings: AllFeaturePatternBinding[]
-  referencePolicies: []
+  referencePolicies: FeaturePatternReferencePolicy[]
   variation: { kind: 'none' }
   /** Type-level absence only; raw validation rejects an own targets field. */
   targets?: never
@@ -88,9 +95,26 @@ function declaration(feature: RepetitionFeature): FeaturePatternOperation | unde
   if ((!geometry && !regenerate) || !exact(operation, fields) || source.geometryPattern !== geometry
     || !all && !dense(operation.targets, 1, MAX_FEATURE_PATTERN_TARGETS)
     || !dense(operation.bindings, 1, MAX_FEATURE_PATTERN_CONTRIBUTIONS)) throw new Error('El método debe coincidir con la geometría o el recálculo y declarar destinos y estados exactos.')
-  if (regenerate && ((!all && operation.scope !== 'selected') || all && operation.reevaluateAt !== 'patternInput' || !dense(operation.referencePolicies, 0, 0)
+  const policyTable = Object.getOwnPropertyDescriptor(operation, 'referencePolicies')
+  if (regenerate && ((!all && operation.scope !== 'selected') || all && operation.reevaluateAt !== 'patternInput'
+    || !policyTable || !Object.hasOwn(policyTable, 'value') || !policyTable.enumerable || !dense(policyTable.value, 0, 32)
     || !object(operation.variation) || !exact(operation.variation, ['kind']) || operation.variation.kind !== 'none')) {
-    throw new Error('El recálculo actual requiere un alcance explícito seleccionado o ALL, perfiles sin soporte y ninguna variación de cotas.')
+    throw new Error('El recálculo requiere un alcance explícito seleccionado o ALL, políticas de límites válidas y ninguna variación de cotas.')
+  }
+  if (regenerate) {
+    const policies = policyTable!.value as unknown[], used = new Set<string>()
+    for (let index = 0; index < policies.length; index++) {
+      const entry = Object.getOwnPropertyDescriptor(policies, String(index))
+      if (!entry || !Object.hasOwn(entry, 'value') || !entry.enumerable) throw new Error('Las políticas de límites deben contener datos propios enumerables.')
+      const policy: unknown = entry.value
+      if (!object(policy) || !exact(policy, ['featureId', 'path', 'placement'])
+        || Object.values(Object.getOwnPropertyDescriptors(policy)).some(field => !Object.hasOwn(field, 'value') || !field.enumerable)
+        || !identifier(policy.featureId) || !seeds.has(policy.featureId) || used.has(policy.featureId)
+        || policy.path !== 'endCondition.target' || policy.placement !== 'world') {
+        throw new Error('Cada plano límite fijo requiere una política explícita y única de una operación semilla.')
+      }
+      used.add(policy.featureId)
+    }
   }
   const targets = new Set<string>()
   for (const target of all ? [] : operation.targets as unknown[]) {
