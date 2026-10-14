@@ -4,7 +4,7 @@ Snapshot: 2026-10-14. The default branch is the published source baseline;
 open pull requests are proposals. Check their current state and commit-specific
 Actions results before using this snapshot to make a decision.
 
-This snapshot records nine open drafts:
+This snapshot records ten open drafts:
 [#27](https://github.com/angelcp2802/solidflow/pull/27),
 [#29](https://github.com/angelcp2802/solidflow/pull/29),
 [#31](https://github.com/angelcp2802/solidflow/pull/31),
@@ -12,8 +12,9 @@ This snapshot records nine open drafts:
 [#34](https://github.com/angelcp2802/solidflow/pull/34),
 [#35](https://github.com/angelcp2802/solidflow/pull/35),
 [#36](https://github.com/angelcp2802/solidflow/pull/36),
-[#37](https://github.com/angelcp2802/solidflow/pull/37) and
-[#38](https://github.com/angelcp2802/solidflow/pull/38). #33 is this documentation
+[#37](https://github.com/angelcp2802/solidflow/pull/37),
+[#38](https://github.com/angelcp2802/solidflow/pull/38) and
+[#39](https://github.com/angelcp2802/solidflow/pull/39). #33 is this documentation
 index targeting `main`; #35 is a parallel maintenance proposal for `main`.
 The CAD review order is listed separately below.
 
@@ -34,12 +35,13 @@ with dependencies that determine their review order:
 | 5 | [#36](https://github.com/angelcp2802/solidflow/pull/36) | `feat/body-pattern-ownership` (#34) | Opt-in selected feature-geometry contributions for linear/circular patterns and mirror, with exact historical owner bindings and current target routes. |
 | 6 | [#37](https://github.com/angelcp2802/solidflow/pull/37) | `feat/owned-feature-patterns` (#36) | Initial selected per-instance regeneration of intrinsic rectangle/circle cut and merge recipes with blind/ThroughAll endings; geometry copying remains a separate method. |
 | 7 | [#38](https://github.com/angelcp2802/solidflow/pull/38) | `feat/feature-recipe-regeneration` (#37) | Dynamic complete-current-catalog ALL regeneration for intrinsic rectangle/circle cuts with blind/ThroughAll endings, exact historical sources and no saved target snapshot; an instrumented selected-to-ALL desktop regression. |
+| 8 | [#39](https://github.com/angelcp2802/solidflow/pull/39) | `feat/feature-recipe-dynamic-scope` (#38) | Typed UntilNext forward-intersection classification and native tool ownership foundation; no saved recipe, bridge or selected/ALL policy activation. |
 
 Review each increment against its stated base. A downstream draft includes
 unmerged prerequisites; its checks do not mean those prerequisites have landed
 on `main`. Contributions normally start from `main`; coordinate a change to a
 draft increment with its existing branch and issue instead of duplicating it.
-The nine proposals remain draft and unmerged; no human approval is recorded
+The ten proposals remain draft and unmerged; no human approval is recorded
 in this snapshot.
 
 [#24](https://github.com/angelcp2802/solidflow/pull/24) and
@@ -255,11 +257,50 @@ correspondence, variation, nested recipes, output lifecycle and full interaction
 acceptance remain required. The initial-model smoke is not property-panel
 interaction, independent interoperability or general platform support.
 
+For [#39](https://github.com/angelcp2802/solidflow/pull/39), head
+[`0629b3a7`](https://github.com/angelcp2802/solidflow/commit/0629b3a733b8d98cec586fbe6e79d2265cadda37)
+is based on #38 at `06cfdd5c`. This is a typed UntilNext component foundation:
+it distinguishes separated forward misses, contact/near geometry, material
+without a complete limit and completed native tools, while preserving primary
+and cleanup failures and exact borrowed/repeated-handle ownership boundaries.
+It does not activate saved recipe grammar, the per-instance bridge or a
+selected/ALL no-hit, partial-intersection or global-part/per-owner policy.
+
+The [source-specific ledger](https://github.com/angelcp2802/solidflow/blob/0629b3a733b8d98cec586fbe6e79d2265cadda37/docs/VALIDATION.md#untilnext-resolution-foundation--2026-10-14)
+retains local Windows x64 evidence: 19 focused native cases passed, comprising
+11 geometric and eight causal cases. Four supplied frames do not exercise actual
+pattern transforms. The recorded default full run failed: 2,006 passed, 176 test
+timeouts and 35 skips of 2,217 cases in 126 files, with a separate 60-second hook
+timeout and one worker-termination warning; chained IPC did not run. Separate IPC
+passed 11 checks and the production build passed 1,985 modules. Standard desktop
+failed at 45 seconds without readiness or confirmed-close proof. A two-worker
+whole-unit comparison was aborted after at least 70 observed failures across
+four completed file reports, without a full summary or normal-cleanup proof.
+The earlier malformed-launch result remains in the ledger. These are historical
+source-specific runs, not an assertion that the new head passed locally.
+
+The [CI run](https://github.com/angelcp2802/solidflow/actions/runs/38572088904)
+and [security run](https://github.com/angelcp2802/solidflow/actions/runs/38572089487)
+completed with six successful checks for `0629b3a7`. Each configured Windows x64,
+Linux x64 and macOS arm64 log records 2,217 passed tests in 126 files, including
+the 19 UntilNext component cases without unit skips, 11 IPC checks and the
+1,985-module build. Initial-model Electron/WASM smoke reported no console errors
+or failed requests. The inherited selected-to-ALL workflow completed its four
+healthy worker phases, exact refs and geometric checks, save/reopen, actual child
+close and guarded profile deletion; it does not integrate UntilNext. Packaging
+completed with `--publish never`. Tested merge `f1e4834d` has parents `06cfdd5c`
+and `0629b3a7`; its tree `acabb9a5` equals the proposed head. Hosted success does
+not explain the local failures or establish general platform support. The
+security result does not resolve #38's three medium alerts, its eight moderate
+development-package entries for one GHSA, or #35's macOS bus error.
+
+The organization proposal also has six successful checks at `09497446`; they concern its separate main-based baseline, not the stacked CAD suites.
+
 ## Parallel desktop diagnostics proposal
 
 [#35](https://github.com/angelcp2802/solidflow/pull/35) addresses
 [#30](https://github.com/angelcp2802/solidflow/issues/30) on `main`, independently
-of the seven-proposal CAD stack above. It preserves the primary launch outcome
+of the eight-proposal CAD stack above. It preserves the primary launch outcome
 alongside cleanup errors and retains isolated temporary data when the owned
 child's close was not observed. It is draft and unmerged; #30 remains open.
 
@@ -340,7 +381,7 @@ has passing checks:
 | STEP import | [#12](https://github.com/angelcp2802/solidflow/issues/12) | Native file-dialog/editor workflows and independent interoperability. |
 | Sketch offsets | [#14](https://github.com/angelcp2802/solidflow/issues/14), [#20](https://github.com/angelcp2802/solidflow/issues/20) | Broader offset acceptance and interaction for disconnected components already present in the baseline. |
 | Persistent references | [#21](https://github.com/angelcp2802/solidflow/issues/21) | Review #27 and expand beyond its bounded semantic-reference family. |
-| Body management | [#26](https://github.com/angelcp2802/solidflow/issues/26) | Review #29/#31/#34/#36/#37/#38; full feature regeneration/varying sketches, additive ALL and dynamic geometry/automatic scope, broader nested/dependent ownership, lifecycle, legacy adoption and real interaction/reference coverage. |
+| Body management | [#26](https://github.com/angelcp2802/solidflow/issues/26) | Review #29/#31/#34/#36/#37/#38/#39; full feature regeneration/varying sketches, additive ALL and dynamic geometry/automatic scope, broader nested/dependent ownership, lifecycle, legacy adoption and real interaction/reference coverage. |
 
 Assemblies, technical drawings, sheet metal, simulation and broader import and
 manufacturing workflows remain part of the [roadmap](ROADMAP.md). This queue

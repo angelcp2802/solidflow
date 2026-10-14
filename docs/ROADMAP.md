@@ -36,7 +36,9 @@ feature-geometry contributions routed to current owned bodies, then
 per-instance regeneration of intrinsic rectangle/circle cut and merge recipes
 with blind/ThroughAll endings, then
 [#38](https://github.com/angelcp2802/solidflow/pull/38) for cut-only regenerate/false
-ALL over the complete current body catalog without a saved target snapshot.
+ALL over the complete current body catalog without a saved target snapshot, then
+[#39](https://github.com/angelcp2802/solidflow/pull/39) for a typed UntilNext
+intersection/ownership foundation without saved recipe or scope-policy activation.
 The current #38 source `06cfdd5c` retains 279 runtime inputs and changes two
 child path-resolution calls to the native API in its
 [instrumented desktop regression](https://github.com/angelcp2802/solidflow/blob/06cfdd5cdccb5dac930d7d8c5b30c2300549b6a7/scripts/desktop-pattern-all.cjs)
@@ -66,6 +68,21 @@ was not green. The earlier `4a2cee2c` six-check pass also remains separate.
 Geometry/true retains selected targets. Full regeneration, other end/start
 conditions, varying sketches, additive ALL, dynamic geometry/automatic scope
 and broader nested/dependent ownership and lifecycle behavior remain required.
+For #39 head `0629b3a7`, [CI](https://github.com/angelcp2802/solidflow/actions/runs/38572088904)
+and [security](https://github.com/angelcp2802/solidflow/actions/runs/38572089487)
+have six successful checks. Each configured platform passed 2,217 tests in 126
+files, including the 19 component cases, 11 IPC checks, build 1,985, initial-model
+smoke, the inherited four-phase selected-to-ALL workflow and packaging with
+`--publish never`. Local evidence remains mixed: focused 19, separate IPC 11 and
+build passed; default full failed with 176 test timeouts, 35 hook-related skips
+and a worker warning; desktop failed at 45 seconds. The two-worker comparison
+was aborted with at least 70 observed failures and no complete outcome. These
+results neither explain those failures nor activate UntilNext in saved patterns.
+Its original inline fixtures and source-specific history are recorded in the
+[proposal ledger](https://github.com/angelcp2802/solidflow/blob/0629b3a733b8d98cec586fbe6e79d2265cadda37/docs/VALIDATION.md#untilnext-resolution-foundation--2026-10-14).
+The three medium #38 alerts and eight moderate development-package entries
+remain unresolved; #35's separate macOS crash remains unknown.
+
 These proposals have not merged. Their
 checks and remaining acceptance work are recorded separately from the foundation
 above.
