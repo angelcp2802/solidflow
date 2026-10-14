@@ -176,8 +176,8 @@ async function runInElectron() {
   const electron = require('electron'), { app } = electron, root = applicationRoot(process.env.SOLIDFLOW_PATTERN_UI_TEST_ROOT);
   const temporary = process.env.SOLIDFLOW_PATTERN_UI_TEST_TEMP, token = process.env.SOLIDFLOW_PATTERN_UI_TEST_TOKEN;
   check(temporary && path.isAbsolute(temporary) && token, 'Launch this test through its Node parent.');
-  const owned = fs.realpathSync(temporary), guard = JSON.parse(fs.readFileSync(path.join(owned, '.test-owned.json'), 'utf8'));
-  check(under(fs.realpathSync(os.tmpdir()), owned) && path.basename(owned).startsWith(PROFILE_PREFIX) && guard.token === token, 'Unexpected isolated profile.');
+  const owned = fs.realpathSync.native(temporary), guard = JSON.parse(fs.readFileSync(path.join(owned, '.test-owned.json'), 'utf8'));
+  check(under(fs.realpathSync.native(os.tmpdir()), owned) && path.basename(owned).startsWith(PROFILE_PREFIX) && guard.token === token, 'Unexpected isolated profile.');
   app.setPath('userData', path.join(owned, 'profile')); app.setPath('sessionData', path.join(owned, 'session'));
   app.setPath('crashDumps', path.join(owned, 'crashes')); app.setAppLogsPath(path.join(owned, 'logs'));
   const input = path.join(owned, 'input.solidflow'), output = path.join(owned, 'saved.solidflow');
