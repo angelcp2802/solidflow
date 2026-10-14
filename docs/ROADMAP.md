@@ -87,7 +87,7 @@ Its original inline fixtures and source-specific history are recorded in the
 The three medium #38 alerts and eight moderate development-package entries
 remain unresolved; #35's separate macOS crash remains unknown.
 
-For #40 head `51388ba3`, the
+For historical #40 head `51388ba3`, the
 [CI run](https://github.com/angelcp2802/solidflow/actions/runs/38624416703) failed
 selected-to-ALL interaction on all three configured platforms after build,
 unit/CAD, IPC and initial-model smoke passed. Fixed-plane interaction and
@@ -97,6 +97,19 @@ earlier focused native/model passes retain their own source scopes. The
 those results separately from #39's green checks and the successful
 [Security run](https://github.com/angelcp2802/solidflow/actions/runs/38624416693).
 No platform or release readiness follows from these partial results.
+
+The current #40 head
+[`7cec5c8d`](https://github.com/angelcp2802/solidflow/commit/7cec5c8d2a2378e49ab76158764e59728aba0a67)
+has six successful checks in its
+[CI](https://github.com/angelcp2802/solidflow/actions/runs/38635677883) and
+[Security](https://github.com/angelcp2802/solidflow/actions/runs/38635678148) runs.
+All three configured platforms passed 2,250 cases in 129 files, 32 IPC checks,
+build 1,985, initial-model smoke, ALL/fixed-plane interaction and packaging with
+`--publish never`. The [dated follow-up](PROJECT_STATUS.md#follow-up-at-7cec5c8d-2026-10-14)
+keeps the separate local 136 test timeouts and Electron startup/cleanup failures
+visible; their cause remains unproven. Binary publication remains disabled.
+These bounded results do not establish general platform support, release
+readiness or cleared security findings.
 
 These proposals have not merged. Their
 checks and remaining acceptance work are recorded separately from the foundation

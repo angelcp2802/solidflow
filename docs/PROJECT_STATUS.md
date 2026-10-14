@@ -1,6 +1,6 @@
 # Project status and review queue
 
-Snapshot: 2026-10-14, 19:39 UTC. This is a dated review index. The default branch
+Snapshot: 2026-10-14, 21:19 UTC. This is a dated review index. The default branch
 is the published source baseline; open pull requests are unmerged proposals.
 Refresh their state, base/head and commit-specific Actions results before an
 integration decision.
@@ -31,7 +31,7 @@ with dependencies that determine their review and integration order:
 | 6 | [#37](https://github.com/angelcp2802/solidflow/pull/37), draft | #36 | Initial selected per-instance intrinsic rectangle/circle cut and merge regeneration with blind/ThroughAll endings. | Rebuilt tools versus geometry copying, historical provenance and late-failure atomicity. |
 | 7 | [#38](https://github.com/angelcp2802/solidflow/pull/38), draft | #37 | Cut-only dynamic ALL over the complete current catalog, with no saved derived target snapshot. | Inventory/stale-state handling, output lifecycle and selected-to-ALL interaction. |
 | 8 | [#39](https://github.com/angelcp2802/solidflow/pull/39), ready for review | #38 | Typed native UntilNext forward classification and tool ownership foundation. | Component evidence and owner boundaries; saved recipe/bridge/scope policies remain inactive. |
-| 9 | [#40](https://github.com/angelcp2802/solidflow/pull/40), draft | #39 | Explicit fixed-world principal-plane UpToSurface policy, property-panel preview/Apply and saved reopening. | Resolve the head's CI interaction failure and local full/desktop failures; retain source-specific evidence. |
+| 9 | [#40](https://github.com/angelcp2802/solidflow/pull/40), draft; head `7cec5c8d` | #39 | Explicit fixed-world principal-plane UpToSurface policy, property-panel preview/Apply and saved reopening. | Review the green hosted workflow separately from local full/desktop failures; retain source-specific evidence. |
 
 Review from the earliest unmerged prerequisite against its actual base. A child
 contains unmerged ancestors; its checks do not mean those ancestors landed on
@@ -42,7 +42,7 @@ increment rather than duplicating its branch.
 
 | Parallel lane | State and base | Review purpose |
 | --- | --- | --- |
-| [#33](https://github.com/angelcp2802/solidflow/pull/33) | Draft, `main`; head `5dcf2a59` before this status update | Project index, review queue and matching Node type-update policy. Its main-based checks do not exercise the stacked CAD suites. |
+| [#33](https://github.com/angelcp2802/solidflow/pull/33) | Draft, `main`; head `9c00c01e` before this follow-up | Project index, review queue and matching Node type-update policy. Its main-based checks do not exercise the stacked CAD suites. |
 | [#35](https://github.com/angelcp2802/solidflow/pull/35) | Draft, `main`; head `0a0ab22a` | Desktop outcome/cleanup diagnostics and normal quit after readiness. Review its separate macOS crash and retained local failures. |
 
 All eleven proposals remain unmerged. This index records PR state and evidence,
@@ -306,7 +306,9 @@ The organization proposal also has six successful checks at `09497446`; they con
 
 ### Fixed-plane regeneration proposal #40
 
-[#40](https://github.com/angelcp2802/solidflow/pull/40) publishes the proposed
+#### Historical snapshot at 51388ba3
+
+[#40](https://github.com/angelcp2802/solidflow/pull/40) initially published the proposed
 fixed-world principal-plane UpToSurface behavior at
 [`51388ba3`](https://github.com/angelcp2802/solidflow/commit/51388ba31a4e78c28134f2ea2459cde7cfe5431d),
 based on #39 at `0629b3a7`. It is draft, unmerged and absent from `main`.
@@ -354,6 +356,42 @@ does not replace editor interaction, and the skipped fixed-plane/package stages
 supply no pass. The successful Security workflow does not establish that earlier
 CodeQL alerts or dependency findings were cleared. Neither #39's green checks nor
 these partial #40 results establish platform support or release readiness.
+
+#### Follow-up at 7cec5c8d (2026-10-14)
+
+The current #40 head is
+[`7cec5c8d`](https://github.com/angelcp2802/solidflow/commit/7cec5c8d2a2378e49ab76158764e59728aba0a67),
+still based on #39 at `0629b3a7`, draft and unmerged. Its
+[CI run](https://github.com/angelcp2802/solidflow/actions/runs/38635677883)
+and [Security run](https://github.com/angelcp2802/solidflow/actions/runs/38635678148)
+have six successful checks. Each configured Node 24 job on Windows x64,
+Linux x64 and macOS arm64 passed 2,250 unit/CAD cases in 129 files, 32 IPC checks,
+the 1,985-module build, initial-model smoke, selected-to-ALL interaction,
+fixed-plane interaction and packaging with `--publish never`.
+The fixed-plane report includes four actual worker phases, Apply, save/reopen,
+observed child close and deletion of its test-owned profile. These are bounded
+scripted workflows; native file-dialog choices are substituted.
+
+A separate local Windows x64 / Node 24.11.1 run retained the same 292 recorded
+input hashes and runner before and after execution. The entry-source fixes
+were already present when it began; committing them changed HEAD from
+`51388ba3` to `7cec5c8d` without changing those recorded bytes. The inventory
+does not cover the complete transitive dependency tree. The
+[PR's dated validation report](https://github.com/angelcp2802/solidflow/pull/40)
+retains this local outcome:
+
+| Local command | Recorded result and limit |
+| --- | --- |
+| Required `npm test` | Failed: 2,114 passed and 136 test timeouts of 2,250 cases; 110 passed and 19 failed files of 129. The 91 failure blocks cover 95 cases at 5 s, 11 at 30 s and 30 at 60 s. No hook timeout or unhandled/crash/worker-termination indicator was observed; the timeout cause remains unproven. |
+| Separate IPC / production build | Passed 32/32 and 1,985 modules respectively, with build warnings retained. The IPC phase chained after the failed unit suite was not entered. |
+| Standard desktop | Failed with `EBUSY` during temporary-profile cleanup. Its logs do not establish the primary launch outcome, readiness or descendant-tree closure. |
+| Selected-to-ALL desktop | Failed the 180-second deadline without observed child close; the temporary profile was retained. |
+| Fixed-plane desktop | Failed while waiting for initial renderer readiness, before Open, Apply or save/reopen. |
+
+Hosted success does not explain or erase the local failures. The six green
+checks and bounded scripted cases do not establish general platform support,
+release readiness or clearance of earlier CodeQL/dependency findings. Binary
+publication remains disabled.
 
 ## Parallel desktop diagnostics proposal
 
