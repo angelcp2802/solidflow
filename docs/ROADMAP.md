@@ -31,11 +31,14 @@ then [#31](https://github.com/angelcp2802/solidflow/pull/31) for body-aware swee
 and loft, then [#34](https://github.com/angelcp2802/solidflow/pull/34) for explicit
 body ownership in linear/circular patterns and mirror, then
 [#36](https://github.com/angelcp2802/solidflow/pull/36) for selected historical
-feature-geometry contributions routed to current owned bodies. Per-instance
-regeneration, varying sketches, dynamic/automatic scope and broader
-nested/dependent ownership and lifecycle behavior remain required. These
-proposals have not merged. Their checks and remaining acceptance work are
-recorded separately from the foundation above.
+feature-geometry contributions routed to current owned bodies, then
+[#37](https://github.com/angelcp2802/solidflow/pull/37) for initial selected
+per-instance regeneration of intrinsic rectangle/circle cut and merge recipes
+with blind/ThroughAll endings. Full regeneration, other end/start conditions,
+varying sketches, dynamic/automatic scope and broader nested/dependent ownership
+and lifecycle behavior remain required. These proposals have not merged. Their
+checks and remaining acceptance work are recorded separately from the foundation
+above.
 
 The independent [desktop diagnostic proposal #35](https://github.com/angelcp2802/solidflow/pull/35)
 targets `main` for [issue #30](https://github.com/angelcp2802/solidflow/issues/30).
