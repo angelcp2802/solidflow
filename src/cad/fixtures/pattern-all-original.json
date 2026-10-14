@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "id": "ui-all-original-document",
+  "name": "Original isolated ALL interaction",
+  "units": "mm",
+  "createdAt": "2026-10-14T00:00:00.000Z",
+  "updatedAt": "2026-10-14T00:00:00.000Z",
+  "features": [
+    { "id": "profile-S", "type": "sketch", "name": "Original S profile", "suppressed": false, "plane": "XY", "offset": 0, "profile": { "kind": "rectangle", "center": [5,5], "width": 10, "height": 10 } },
+    { "id": "create-S", "type": "extrude", "name": "Original S", "suppressed": false, "sketchId": "profile-S", "depth": 4, "symmetric": false, "bodyOperation": { "mode": "new", "bodyId": "S" } },
+    { "id": "cut-profile", "type": "sketch", "name": "Original circle", "suppressed": false, "plane": "XY", "offset": 0, "profile": { "kind": "circle", "center": [5,5], "radius": 1 } },
+    { "id": "seed-cut", "type": "cut", "name": "Original ThroughAll seed", "suppressed": false, "sketchId": "cut-profile", "depth": 1, "symmetric": false, "bodyScope": [{ "bodyId": "S", "sourceFeatureId": "create-S" }], "endCondition": { "kind": "throughAll", "baseFeatureId": "create-S", "bothDirections": false } },
+    { "id": "profile-A", "type": "sketch", "name": "Original A profile", "suppressed": false, "plane": "XY", "offset": 0, "profile": { "kind": "rectangle", "center": [25,5], "width": 10, "height": 10 } },
+    { "id": "create-A", "type": "extrude", "name": "Original A", "suppressed": false, "sketchId": "profile-A", "depth": 8, "symmetric": false, "bodyOperation": { "mode": "new", "bodyId": "A" } },
+    { "id": "profile-B", "type": "sketch", "name": "Original B profile", "suppressed": false, "plane": "XY", "offset": 0, "profile": { "kind": "rectangle", "center": [25,5], "width": 10, "height": 10 } },
+    { "id": "create-B", "type": "extrude", "name": "Original B", "suppressed": false, "sketchId": "profile-B", "depth": 8, "symmetric": false, "bodyOperation": { "mode": "new", "bodyId": "B" } },
+    { "id": "profile-C", "type": "sketch", "name": "Original C profile", "suppressed": false, "plane": "XY", "offset": 0, "profile": { "kind": "rectangle", "center": [55,5], "width": 10, "height": 10 } },
+    { "id": "create-C", "type": "extrude", "name": "Original C", "suppressed": false, "sketchId": "profile-C", "depth": 8, "symmetric": false, "bodyOperation": { "mode": "new", "bodyId": "C" } },
+    { "id": "ui-all-P", "type": "linearPattern", "name": "UI ALL pattern original", "suppressed": false, "baseFeatureId": "create-C", "source": { "mode": "features", "geometryPattern": false, "featureIds": ["seed-cut"] }, "first": { "direction": [1,0,0], "spacing": 20, "count": 2 }, "second": null, "secondSeedOnly": false, "skipped": [], "featurePattern": { "mode": "regenerate", "scope": "selected", "targets": [{ "bodyId": "A", "sourceFeatureId": "create-A" }], "bindings": [{ "source": { "bodyId": "S", "sourceFeatureId": "seed-cut" }, "targetBodyIds": ["A"] }], "referencePolicies": [], "variation": { "kind": "none" } } }
+  ]
+}

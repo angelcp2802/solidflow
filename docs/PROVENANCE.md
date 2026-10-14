@@ -1169,7 +1169,8 @@ fresh command attestation after inventory or current-state changes, and
 contextual potential output refs retained for repair. A symbolic healthy flag
 exercises command attestation only; it supplies no native availability proof.
 
-SSR checks the initial selected scope/method, historical labels, a paginated
+SSR checks the initial ALL scope/method and an explicit switch to selected,
+historical labels, a paginated
 current ALL catalog with at most 64 visible names, loading states, pending
 additive scope prose and absence of automatic scope or target checkboxes for ALL.
 Callbacks throw if render edits any input. An original 8192-slot history has
@@ -1279,3 +1280,37 @@ and a .2³ material probe within1e-7 volume. Fixtures release metric/probe
 wrappers and dispose their engines. Case and initialization budgets are60s.
 These checks do not prove native leak absence, real pointer/worker preview/Apply,
 general ownership lifecycle, independent interoperability or platform support.
+
+## Instrumented dynamic ALL desktop fixture
+
+`scripts/desktop-pattern-all.cjs` loads the original synthetic document in
+`src/cad/fixtures/pattern-all-original.json`. The fixture was authored from
+rectangles, one circle and explicit feature/body identities. It contains no
+imported model, external application output or personal filesystem path. Lengths
+are millimeters; volumes are cubic millimeters.
+
+The source S is a 10×10×4 box with a radius-one ThroughAll cut centered at (5,5).
+A and B are independently owned coincident 10×10×8 boxes in X=20…30, Y=0…10,
+Z=0…8. C is a remote 10×10×8 box in X=50…60. A two-position linear pattern moves
+the cut 20 mm along X and initially selects A only. Its source binding is exactly
+S at `seed-cut`; C is the global predecessor.
+
+Independent expected volumes are S=400−4π, A=800−8π, selected B=800 and C=800.
+After changing to dynamic ALL, both A and B have volume 800−8π; S and C retain
+their old exact states. Bounds stay equal to the original boxes. The authored
+checks use volume tolerance 10⁻⁵ and coordinate tolerance 10⁻⁶, compare exact
+body/source/creator identities at four worker phases, and verify the saved and
+reopened ALL declaration has a scope route and no persisted target snapshot.
+
+This is an instrumented production-renderer regression using scripted DOM
+events. It retains the real worker/WASM and restricted preload/file IPC, while
+keeping its fresh window hidden and choosing only test-owned temporary paths
+for native dialogs. It observes Apply disabled before the ALL preview response,
+then performs Apply, Save As and reopen. Initial readiness and individual steps
+retain 35-second limits; the separate complete workflow has a 180-second parent
+deadline. The standard desktop smoke deadlines are unchanged.
+
+Authored assertions are not passing evidence. The actual command, source,
+platform and outcome belong in the validation ledger. This one linear cut
+workflow does not establish general GUI interaction, native-dialog behavior,
+other pattern families, platform support or broader recipe/lifecycle coverage.

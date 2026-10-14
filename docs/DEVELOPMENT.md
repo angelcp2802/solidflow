@@ -31,6 +31,7 @@ npm start
 | `npm run test:ipc` | The desktop-security suite without opening a desktop window. |
 | `npm run build` | TypeScript checking and production compilation of UI, worker and WASM integration. |
 | `npm run test:desktop` | Real Electron production-loader smoke check after building, with a hidden window and isolated temporary user data. |
+| `npm run test:desktop:pattern-all` | Scripted production-renderer selected-to-ALL cut interaction, Apply, Save As and reopen, after building. |
 | `npx --no-install vitest run src/sketch/extend.review.test.ts --pool=threads` | A focused sketch/CAD regression file; replace the path with the relevant test. |
 
 The desktop smoke check loads the initial model, preload, worker and WASM and checks readiness and console errors. It does not click the editor's tools or launch the packaged installer. On a headless Linux machine, a display server is needed for Electron; CI can use `xvfb-run -a npm run test:desktop` after installing the required system libraries. Do not disable Electron's sandbox to make a check pass.
@@ -43,6 +44,28 @@ Pull-request CI and security checks run for every target branch, including
 stacked pull requests based on a feature branch. The workflow-dispatch entry
 points can also validate a published branch explicitly. Inspect the actual
 head and run results before reporting a pass.
+
+## Pattern interaction regression
+
+After building, run `npm run test:desktop:pattern-all`. On headless Linux,
+use `xvfb-run -a npm run test:desktop:pattern-all` with the same Electron libraries
+and sandbox helper as the standard smoke. CI runs this command on each configured
+platform before packaging; inspect the actual run before reporting a pass.
+
+The command starts its own hidden production-loader child and isolated temporary
+profile. Scripted DOM events edit the original selected-A pattern to dynamic ALL,
+wait for the actual worker preview, Apply, Save As and reopen the saved output.
+It checks per-owner geometry, exact refs and saved intent. Native file-dialog
+choices are substituted with test-owned paths. A blank bootstrap initializes CDP
+before the production page; the original preload also runs on that blank page.
+This instrumentation does not supply CAD responses or replace document state.
+
+See the [original fixture](../src/cad/fixtures/pattern-all-original.json),
+[fixture provenance](PROVENANCE.md#instrumented-dynamic-all-desktop-fixture) and
+[recorded validation](VALIDATION.md). The one linear cut workflow does not prove
+human pointer/native-dialog interaction, other pattern families, stale-prefix
+Apply, general ownership lifecycle or platform support. Its complete180s deadline
+is separate from the unchanged standard smoke deadlines.
 
 ## Find the right layer
 

@@ -327,3 +327,19 @@ dimensions and equations; nested regeneration; creation/split/consumption/Combin
 output ledgers; complete stale preview/Apply, suppression/rollback, picking,
 document lifecycle and interoperability. Pending diagnostics identify these
 gaps without counting rejection as implementation or reference parity.
+
+## Production-renderer ALL regression
+
+`npm run test:desktop:pattern-all` is a reproducible scripted DOM-event check for
+one linear cut workflow: selected-A to dynamic ALL, genuine worker preview,
+Apply, native-bridge Save As and reopen. It observes distinct worker requests
+and checks exact per-owner identities, analytical volumes and bounds. Dialog
+choices use only the test's temporary files; its hidden fresh child keeps the
+original production main/preload and worker/WASM. CDP observation uses a preceding
+test-owned blank page, which also executes the original preload.
+
+This command is separate from the standard initial-model desktop smoke and from
+symbolic, SSR and programmatic engine tests. Its [fixture provenance](PROVENANCE.md#instrumented-dynamic-all-desktop-fixture)
+and [actual results](VALIDATION.md) define the evidence boundary. Circular/mirror
+interaction, picking, stale-prefix rejection, binding edits, undo/redo, AUTO,
+additive ALL and the broader recipe/lifecycle requirements remain open.

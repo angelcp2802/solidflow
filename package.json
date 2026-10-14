@@ -13,6 +13,7 @@
     "test": "npm run test:unit && npm run test:ipc",
     "package": "npm run build && electron-builder --publish never",
     "test:desktop": "node scripts/desktop-smoke.cjs",
+    "test:desktop:pattern-all": "node scripts/desktop-pattern-all.cjs",
     "test:unit": "vitest run --config vitest.config.ts",
     "test:ipc": "node --test scripts/desktop-security.node.cjs",
     "package:win": "npm run build && electron-builder --win portable --publish never",
