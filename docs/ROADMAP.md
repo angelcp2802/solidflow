@@ -34,9 +34,13 @@ body ownership in linear/circular patterns and mirror, then
 feature-geometry contributions routed to current owned bodies, then
 [#37](https://github.com/angelcp2802/solidflow/pull/37) for initial selected
 per-instance regeneration of intrinsic rectangle/circle cut and merge recipes
-with blind/ThroughAll endings. Full regeneration, other end/start conditions,
-varying sketches, dynamic/automatic scope and broader nested/dependent ownership
-and lifecycle behavior remain required. These proposals have not merged. Their
+with blind/ThroughAll endings, then
+[#38](https://github.com/angelcp2802/solidflow/pull/38) for cut-only regenerate/false
+ALL over the complete current body catalog without a saved target snapshot.
+Geometry/true retains selected targets. Full regeneration, other end/start
+conditions, varying sketches, additive ALL, dynamic geometry/automatic scope
+and broader nested/dependent ownership and lifecycle behavior remain required.
+These proposals have not merged. Their
 checks and remaining acceptance work are recorded separately from the foundation
 above.
 
