@@ -49,7 +49,7 @@ head and run results before reporting a pass.
 
 After building, run `npm run test:desktop:pattern-all`. On headless Linux,
 use `xvfb-run -a npm run test:desktop:pattern-all` with the same Electron libraries
-and sandbox helper as the standard smoke. CI runs this command on each configured
+and sandbox helper as the standard smoke. CI is configured to run this command on each
 platform before packaging; inspect the actual run before reporting a pass.
 
 The command starts its own hidden production-loader child and isolated temporary
@@ -64,7 +64,7 @@ See the [original fixture](../src/cad/fixtures/pattern-all-original.json),
 [fixture provenance](PROVENANCE.md#instrumented-dynamic-all-desktop-fixture) and
 [recorded validation](VALIDATION.md). The one linear cut workflow does not prove
 human pointer/native-dialog interaction, other pattern families, stale-prefix
-Apply, general ownership lifecycle or platform support. Its complete180s deadline
+Apply, general ownership lifecycle or platform support. Its complete 180-second deadline
 is separate from the unchanged standard smoke deadlines.
 
 ## Find the right layer

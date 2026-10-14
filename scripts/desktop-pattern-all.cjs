@@ -60,7 +60,8 @@ async function productionHashes(root) {
 async function launch() {
   const root = applicationRoot(path.resolve(__dirname, '..')), requireFromRoot = createRequire(path.join(root, 'package.json'));
   const before = await productionHashes(root);
-  const temporary = await fsp.mkdtemp(path.join(os.tmpdir(), PROFILE_PREFIX)), token = randomUUID();
+  const temporaryRoot = await fsp.realpath(os.tmpdir());
+  const temporary = await fsp.mkdtemp(path.join(temporaryRoot, PROFILE_PREFIX)), token = randomUUID();
   let child, timer, closed = false, spawned = false, spawnError = false, primary, report;
   const teardown = [];
   try {
@@ -114,7 +115,7 @@ async function launch() {
     if (!child || closed || spawnError && !spawned && !child.pid) {
       try {
         const resolved = await fsp.realpath(temporary), guard = JSON.parse(await fsp.readFile(path.join(resolved, '.test-owned.json'), 'utf8'));
-        check(under(path.resolve(os.tmpdir()), resolved) && path.basename(resolved).startsWith(PROFILE_PREFIX) && guard.token === token,
+        check(under(temporaryRoot, resolved) && path.basename(resolved).startsWith(PROFILE_PREFIX) && guard.token === token,
           'Unexpected temporary target; refuse cleanup.');
         await fsp.rm(resolved, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
       } catch (error) { teardown.push(error); }
@@ -176,7 +177,7 @@ async function runInElectron() {
   const temporary = process.env.SOLIDFLOW_PATTERN_UI_TEST_TEMP, token = process.env.SOLIDFLOW_PATTERN_UI_TEST_TOKEN;
   check(temporary && path.isAbsolute(temporary) && token, 'Launch this test through its Node parent.');
   const owned = fs.realpathSync(temporary), guard = JSON.parse(fs.readFileSync(path.join(owned, '.test-owned.json'), 'utf8'));
-  check(under(path.resolve(os.tmpdir()), owned) && path.basename(owned).startsWith(PROFILE_PREFIX) && guard.token === token, 'Unexpected isolated profile.');
+  check(under(fs.realpathSync(os.tmpdir()), owned) && path.basename(owned).startsWith(PROFILE_PREFIX) && guard.token === token, 'Unexpected isolated profile.');
   app.setPath('userData', path.join(owned, 'profile')); app.setPath('sessionData', path.join(owned, 'session'));
   app.setPath('crashDumps', path.join(owned, 'crashes')); app.setAppLogsPath(path.join(owned, 'logs'));
   const input = path.join(owned, 'input.solidflow'), output = path.join(owned, 'saved.solidflow');
