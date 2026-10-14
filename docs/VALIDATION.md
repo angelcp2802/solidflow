@@ -1,5 +1,102 @@
 # Validation
 
+## Scoped feature contributions — source-specific results, 2026-10-14
+
+This draft continues explicit body ownership from #34 at
+`601788c60807cdeb0ae644f7c7a88617d159f065`. Its runtime source is
+`c10d31f6f76613ceffba76a348c0ba3909048c56`; it has not merged into the default branch.
+The [feature-pattern contract](FEATURE_PATTERNS.md) defines exact historical
+contribution bindings and current target routes. [Provenance](PROVENANCE.md)
+records original coordinates, analytical expectations and tolerances. The
+earlier ledger below retains each earlier run's source scope and outcome.
+
+### Local checks on the current runtime source
+
+These commands ran on Windows x64 with Node 24.11.1. Each completed command
+recorded the same 251 source/configuration inputs before and after execution,
+without environment overrides. Results apply to the command's actual scope;
+separate passing checks do not make the full command pass.
+
+- `npm run build`: PASS, TypeScript checking and 1,985 production modules;
+  Vite duration 1 min 43 s. Log SHA-256:
+  `85b1030444747edc9d2eb409c9d0d692355c474151ab3a75f9dd319bdee4d7f7`.
+- Three selected native cleanup cases: PASS, with 30 other tests explicitly
+  filtered out of a 33-case file, 136.14 s. The direct Vitest invocation used
+  `src/cad/kernel.body-workflow.test.ts`,
+  `--testNamePattern 'registered owned history|undeclared feature pattern'`,
+  `--pool=threads --maxWorkers=1`. It checks real contribution capture and
+  retained-copy disposal in two failure stages and original error ordering:
+  capture failure permits no pattern commit; retained-history cleanup failure
+  follows one real pattern commit. A separate case rejects an undeclared
+  feature pattern. It does
+  not establish a full-file pass or general native leak freedom. Log SHA-256:
+  `f84e2f9cd441f3223c012cdd90bb198c5cd7864ae6b661241c6fdb5704be1bf3`.
+- Full `npm test`: exit 1, 1,877 passed and 94 failed out of 1,971 tests;
+  84 passed and 21 failed out of 105 files, 759.99 s. Complete classification
+  of 74 reported failure groups accounts for all 94 failed-test headers:
+  82 test timeouts at 5 seconds and 12 at 60 seconds. No assertion failure,
+  other failed-case diagnostic, worker-termination warning or unhandled-error
+  candidate was found in this log. The native feature-pattern file reported
+  18 passed and four failed out of 22; its four failures are included in
+  those timeouts. A timeout does not prove its remaining geometric assertions
+  ran. The unit phase failed and the chained IPC phase was not entered.
+  Log SHA-256:
+  `1c5b891dd2275d4174fd4679728b41490ca70652c7fa4038f88eb1256efc5d2f`.
+- Separate `npm run test:ipc`: PASS, all 11 cases, zero failures,
+  cancellations or skips, 1,519.6067 ms. Log SHA-256:
+  `4a96ea44168a3a816ce4798c1b2c0bd638ace397e1008052e8585464f995af33`.
+- `npm run test:desktop`: PASS for the isolated initial-model production
+  loader. The report recorded the application protocol, preload bridge,
+  worker and WASM readiness, no console errors and no failed requests.
+  It did not click pattern-editor controls or launch an installer.
+  Log SHA-256:
+  `998d7b16cfc16b2250c5aa8fc6ba2b090a70d2f82974219fa0d88eac9e01b893`.
+
+### Earlier checks on the preceding uncommitted snapshot
+
+The earlier snapshot also had 251 runtime inputs. The only runtime file
+changed subsequently was `src/cad/kernel.body-workflow.test.ts`: two obsolete
+aggregate-capture cleanup fixtures were replaced by two causally reachable owned
+history fixtures, and a separate undeclared-pattern rejection case was added.
+Production source was unchanged. These earlier outcomes keep their original
+scope and are not relabeled as checks on the current test snapshot.
+
+- Focused model and server-rendered panels: 69 passed in four files,
+  98.12 s, with `--pool=threads --maxWorkers=1`. This comprises 51 new model
+  cases and 18 rendered-panel cases; rendered markup is not real interaction.
+  Log SHA-256:
+  `1826aa7a11fe08ed39c67dc04b9438333d65b56d0e83bb588d6ea5cac7cc6640`.
+- Earlier `npm run build`: PASS, TypeScript and 1,985 modules.
+  Log SHA-256:
+  `32ea094e6f5910ea5cd318e621568f17ce8f5b907585ff14481019ceeef63b75`.
+- Focused native feature patterns: 17 passed and five test timeouts out of
+  22 cases, 1,055.99 s, with `--pool=threads --maxWorkers=1`.
+  Log SHA-256:
+  `ca888bc1800ea80f7e349d9d2c1d93e0d270b65636682dbd881b82e72e32582a`.
+- First full `npm test`: exit 1, 1,788 passed and 182 failed out of
+  1,970 cases; 85 passed and 20 failed out of 105 files, 1,718.13 s.
+  All 121 reported failure groups were classified: 180 test timeouts
+  (161 at 5 seconds, one at 15 seconds and 18 at 60 seconds), plus the two
+  obsolete cleanup-fixture assertions described above. No other failed-case
+  diagnostic, worker-termination warning or unhandled-error candidate was
+  found. The native feature-pattern file reported 12 passed and ten timeouts
+  out of 22. IPC was not entered after the unit failure. Log SHA-256:
+  `783fe331aa4d40bbcdd2df7cc675388b912b27999ba6ad8a861d8a69f64d01db`.
+
+### Hosted checks and remaining scope
+
+Hosted checks for this runtime source are pending; successful parent-branch
+checks do not validate this increment. No broad platform-support claim follows
+from the local build or initial-model smoke result.
+
+Real pattern-editor interaction, wider export/interoperability evidence,
+per-instance recipe regeneration, varying sketches, dynamic scope, automatic
+target selection, general nested/dependent patterns and lifecycle behavior
+remain required. The complete body-management and CAD roadmap stays open.
+The current results do not explain why local deadlines were exceeded or
+resolve earlier diagnostics, and do not establish general resource/leak
+freedom, installer use, signing or release readiness.
+
 ## Explicit body patterns — source-specific results, 2026-10-13
 
 [Draft PR #34](https://github.com/angelcp2802/solidflow/pull/34) proposes explicit
