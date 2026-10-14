@@ -1,5 +1,101 @@
 # Validation
 
+## Feature recipe components — local source checkpoint (2026-10-14)
+
+Source commit [`ecc7dd3c`](https://github.com/angelcp2802/solidflow/commit/ecc7dd3c85d0b05264eab2f4ae47db11d23ec8c3)
+adds bounded recipe declarations and explicit-frame native circle/rectangle
+construction, with original inline fixtures and contracts. It changes 13 paths
+from `d0173137`; the runtime validation map contains 258 inputs. These are
+components of per-instance regeneration. The saved grammar, editor and engine
+still do not enable `geometryPattern:false`; no copied-delta fallback is added.
+
+### Executed checks
+
+Local Windows x64, Node 24.11.1, TypeScript 7.0.2, Vitest 5.0.3,
+Replicad/OpenCascade packages 1.1.0:
+
+- `npm run build` passed TypeScript and Vite, 1,985 modules. Existing browser
+  externalization/chunk-size warnings remain.
+- The final `npm test` passed **2,039 tests in 110 files**, with no filtered
+  skips, followed by **11/11 IPC checks**. The unit phase reported 54.66 seconds.
+- Focused declaration runs passed **51/51** in four files (3.95 seconds);
+  explicit-frame native runs passed **17/17** in one file (5.10 seconds).
+  They preceded the test-budget-only correction below; all seven new files
+  remained byte-identical and all 68 cases also passed in the final full run.
+- Separate IPC passed 11/11. Before that test-budget-only correction,
+  `npm run test:desktop` passed the initial model, production protocol,
+  preload bridge, worker and WASM readiness, with no console errors or failed
+  requests. Production inputs remained identical. This is an initial-model
+  smoke result, not editor interaction or recipe evaluation through the worker.
+
+The native fixtures check actual BRep validity, one closed solid, finite
+positive volume, surface area, bounds and independently placed material
+probes. Volume/area tolerance is `1e-5`, coordinate tolerance `1e-6` and
+probe-volume tolerance `1e-7` (full cube 0.008 mm³). Three placements contrast
+an actual height-8 regenerated ThroughAll cut with a height-4 blind control.
+Two owner cases also measure the tool itself to distinguish a wrong height-40
+aggregate. Signed/symmetric non-XY frames, UntilNext cut/boss, an explicit
+UpToSurface plane, hollow-body ThroughAll and two causal validator/release
+failures have their exact fixture scope in [PROVENANCE](PROVENANCE.md#explicit-frame-recipe-primitive-fixtures).
+The two failure cases preserve original error identities and one received-handle
+delete attempt; they do not establish hidden-allocation or child-release safety.
+
+### Retained earlier outcomes and one native test budget
+
+Before the correction, the full run reported **2,038 passed / one failed** out
+of 2,039 tests in 110 files (65.71 seconds). The existing toroidal-limit case
+timed out at its default 5,000 ms; its reporter duration was 7,205 ms. A direct
+single-case repeat also timed out at 5,000 ms (reported 5,325 ms), with 33 other
+cases filtered out. Neither run reported an assertion failure.
+
+An initial shell-quoted focus command selected no test: 608 filtered skips
+across 36 files. Its exit zero is **not** a validation pass. A corrected direct
+argument-array invocation produced the single-case failure above.
+
+A diagnostic invocation of the exact toroidal case, with CLI
+`--testTimeout 60000` and unchanged tracked source, then passed its original
+validity, `−sqrt(96)`/20 exit-bound and volume-order assertions: one passed,
+33 filtered skips; 12.73 seconds for the complete focused run. This supports
+a specific bounded runtime budget, not a performance or root-cause claim.
+Only that test now has an explicit **30,000 ms** budget. No production limit
+algorithm, numerical oracle, global timeout or skipped-case policy changed.
+The final full/build results above apply to this corrected source snapshot.
+The two earlier failures and diagnostic override remain part of the evidence.
+
+Sealed decoded process-log SHA-256 values:
+
+| Scope | SHA-256 |
+| --- | --- |
+| Final build | `d7097a2b5c5ca0472a149bd96fcaf128c05be32b8a39fa70c8264aa673279314` |
+| Final full + chained IPC | `26231079d5b4351b63074027cadca63e3a3764612143b51dfd157c8a0895bd81` |
+| Focused pure 51 | `fb42ece057b3cf6da431cc27c110842414c9991ab128b69b2be2737ccf54ba2e` |
+| Focused native 17 | `afe46c2968a675d0224a32033b3998fa0f2dd2e441d47c64de6c371ad350bd84` |
+| Earlier full failure | `2df587a126584a255aa13d6dab84b8a1562adfbd2775310f2ce168221d0cf06c` |
+| Direct 5-second focus failure | `d5fc2d813cc06ed40e8857291e9294b9bb6b70f8ce9d5f3e5cf84e56b993c37d` |
+| No selected test | `2f6b82de5e73e937c6cb12c5c791e6397cf6b8534742a8cdb03888ddf135f07e` |
+| Diagnostic CLI 60-second budget | `1d7577262146e6d1d49b466b269e9c2f10b5951e670f62fe1aca671dd03f3c38` |
+| Separate IPC | `91298921d0035b1ad13e45f5c1975889c89fbaf132fd461b275fb8cc052b82ff` |
+| Initial-model desktop | `998d7b16cfc16b2250c5aa8fc6ba2b090a70d2f82974219fa0d88eac9e01b893` |
+
+### Remaining required work
+
+Source snapshots stayed unchanged during each recorded command. Relative file
+links in the 13 changed source/contract paths were checked (49 links); the
+public-content scan and whitespace check passed. There is no hosted CI claim
+for this source checkpoint yet. Earlier hosted checks belong to their recorded
+heads and do not validate these added components.
+
+Actual selected recipe-DAG evaluation, exact historical/current native
+attestation, same-instance virtual parent roles, updated working targets,
+atomic catalog/cache publication, no-op identities, persisted grammar,
+preview/Apply, picking and document lifecycle remain required. So do arbitrary
+and dependent profiles, associative planes/faces, all/auto scope, varying
+sketches/dimensions/equations, nested recipes and creation/split/consumption/
+Combine ledgers. See [FEATURE_RECIPES](FEATURE_RECIPES.md) and
+[FEATURE_REGENERATION](FEATURE_REGENERATION.md). These Windows cases do not
+establish complete feature coverage, general platform support, independent
+export interoperability, leak freedom, signing, installers or release readiness.
+
 ## Scoped feature contributions — hosted result for the published head, 2026-10-14
 
 [Draft PR #36](https://github.com/angelcp2802/solidflow/pull/36) remains open
