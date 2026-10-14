@@ -138,6 +138,12 @@ Coordinates, formulas, written tolerances and failure-test limits are in
 The cases use tracked source and declared dependencies. They do not establish
 real editor interaction, all producer combinations or complete nested replay.
 
+The [feature recipe declaration layer](FEATURE_RECIPES.md) extracts bounded
+source/dependency/owner inputs and fixed-profile frame math for a future
+per-instance evaluator. It is separate from this saved geometry declaration;
+it does not enable `geometryPattern:false`, recalculate tools or publish a
+regenerated catalog. Its pure scenarios are declaration evidence only.
+
 ## Required remaining feature-pattern work
 
 Geometry replay does not complete the feature-pattern goal. Required later

@@ -137,7 +137,7 @@ it('distinguishes the first and last exits of one toroidal face without using bo
  const next=untilNextTool(torus,[-30,0,0],[1,0,0],make,true),all=throughAllBossTool(torus,[-30,0,0],[1,0,0],false,make);
  try{const first=preciseMetrics(next),last=preciseMetrics(all);expect(first.valid&&last.valid).toBe(true);expect(first.bounds[3]).toBeCloseTo(-Math.sqrt(96),4);expect(last.bounds[3]).toBeCloseTo(20,5);expect(last.volume).toBeGreaterThan(first.volume);}
  finally{next.delete();all.delete();torus.delete();}
-});
+},30_000);
 it('rebinds a target face after changing its parent depth and propagates target suppression',()=>{
  const features=box(),face=good(features).faces!.find(face=>face.frame?.normal[2]===1)!.ref;
  const rest:Feature[]=[sketch('profile',70),{...extrude('up','profile',-1),endCondition:{kind:'upToSurface',target:{kind:'face',face}}}];

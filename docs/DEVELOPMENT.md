@@ -70,6 +70,12 @@ per-owner contributions, potential historical states and native availability.
 It is under implementation; regeneration, varying sketches and dynamic scopes
 remain separate required work.
 
+The [feature recipe declaration layer](FEATURE_RECIPES.md) documents the pure
+closure/frame API and its pending native evaluator. Its 51 synthetic pure
+cases are separate from [explicit-frame native tool construction](FEATURE_REGENERATION.md),
+integrated regeneration and interactive UI validation. Current saved geometry
+grammar stays unchanged until these layers are explicitly integrated and checked.
+
 ## Test geometry and persistence
 
 Prefer small analytical fixtures with a known result. For example, a closed 10×6 rectangle extruded 4 mm should have volume 240 mm³; the test should also establish valid BRep and the expected number of solids. For affected references, edit an earlier feature, rebuild dependent features and serialize/reopen the document. Test failure paths for atomic behavior when the command can reject a change.

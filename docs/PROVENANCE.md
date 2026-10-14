@@ -782,3 +782,133 @@ declared solid count; that parameter is not a general accuracy guarantee.
 The writer and reader share the project's OCCT runtime. These definitions
 establish neither an executed pass, independent interoperability nor platform
 support, and consume no external models, private artifacts or binary fixtures.
+
+## Explicit-frame recipe primitive fixtures
+
+The fixtures in [kernel.recipe-primitives.test.ts](../src/cad/kernel.recipe-primitives.test.ts)
+are original Cartesian boxes, circles, cylinders and explicit frame transforms
+authored for the [primitive construction proposal](FEATURE_REGENERATION.md).
+They use no external models or binary fixtures. Expected geometry is not
+rebuilt through the builder or termination helper under test. The definitions
+below describe 17 written cases, not an executed result; source-specific
+results and limitations belong in [VALIDATION](VALIDATION.md).
+
+The three transformation cases start from a box `[0,10]²×[0,4]` and a radius-1
+ThroughAll cut centered at `(5,5)`, with physical direction +Z. Its source result
+has `V=400−4π`, `A=360+6π`. The current destination is height 8. Regeneration
+must give `V=800−8π`, `A=520+14π`, whereas an independent blind 4-unit cylinder
+control gives `V=800−4π`, `A=520+8π`. In the latter pocket, one removed exterior
+disk and one new interior disk cancel; the 8π area increment is its cylinder
+wall. A 0.2-edge probe centered at destination z=6 distinguishes the results.
+The shallow cylinder is a control, not an implementation of delta copying.
+
+The explicit destination frames are: translation +20X, with origin `(20,0,0)`,
+X=+X and N=+Z; reflection in X=15, with origin `(30,0,0)`, X=−X, signed N=−Z
+and signed depth −1; and a half-turn about Z through `(15,0,0)`, with origin
+`(30,0,0)`, X=−X and N=+Z. Translation/reflection destinations are
+`[20,30]×[0,10]×[0,8]` and probe `(25,5,6)`; the rotated destination is
+`[20,30]×[−10,0]×[0,8]` and probe `(25,−5,6)`. These frames test the native
+input convention, not a complete transform/recipe integration.
+
+Four blind cases use origin `(7,11,13)`, local X=world Y, normal=world X,
+rectangle center `(2,3)`, width 4, height 6 and depth ±5, with/without symmetry.
+World profile center is `(7,13,16)`, `V=120`, `A=148`, Y bounds `[11,15]` and
+Z bounds `[13,19]`. Non-symmetric X bounds are `[7,12]` or `[2,7]`; symmetric
+bounds are `[4.5,9.5]` for either sign. These coordinates expose a duplicated
+center/offset or an incorrect signed start.
+
+Two owner cases separately provide `[0,10]²×[0,h]`, h=4 or 8, while an unrelated
+height-40 box exists elsewhere. After the radius-1 cut the result is
+`V=100h−hπ`, `A=200+40h+(2h−2)π`; the unrelated box stays `V=4000,A=1800`.
+Two direction cases use `[0,10]²×[−3,5]` and the same profile at z=0. A one-sided
+pocket has `V=800−5π,A=520+10π` and retains material at `(5,5,−2)`; the
+both-sided hole has `V=800−8π,A=520+14π` and removes it. Both remove `(5,5,4)`.
+
+UntilNext cutting on the height-8 box must produce the radius-1 tool from z=0
+to 8, `V=8π,A=18π`. Additive UntilNext against `[0,10]²×[4,8]` instead stops at
+entry z=4: tool `V=4π,A=10π`, fused body `V=400+4π,A=360+8π`, bounds z=`[0,8]`.
+UpToSurface uses `[0,4]²×[2,10]`, radius .5 at `(2,2)`, start frame z=2 and an
+explicit plane z=6: tool `V=π,A=4.5π`, cut body `V=128−π,A=160+4π`. This plane
+fixture does not attest a saved face reference's owner or correspondence.
+
+The additive ThroughAll fixture subtracts enclosed `[2,8]²×[2,6]` from
+`[0,10]²×[0,8]`, giving a closed hollow solid `V=656,A=688`. The radius-1 tool
+must end at actual exit z=8, with `V=8π,A=18π`, rather than a cutting margin.
+Filling the cavity's four-unit cylindrical segment gives `V=656+4π,A=688+6π`:
+the new interior wall contributes 8π and the two removed interior disks 2π.
+
+A first-validator failure case throws a synthetic primary on an actual blind tool
+and makes only that received native handle's delete throw after release. It
+requires one attempt, both errors and the retained primary cause. It patches
+no global/prototype. It does not exercise hidden helper allocations, Sketch
+child-release failures, native OOM or complete allocation safety. Existing SDK
+and termination-helper internal cleanup limits remain explicit in the contract.
+
+Proposed absolute tolerances are `1e-5` for volume/area, `1e-6` for bounds and
+`1e-7` for probe intersection volume (full cube 0.008). Nonempty tools/results
+must pass real BRep validity, one closed solid, positive finite volume and
+finite bounds. These numerical checks do not establish exported-file fidelity,
+interactive picking, saved owner/reference lifecycle or platform support.
+
+The two supplied-owner fixtures also inspect the actual radius-1 cutting tool:
+for h=4/8 and physical +Z, its one-unit enclosure margin ends at z=5/9,
+with volume `(h+1)π`, area `2(h+2)π` and bounds `(4,4,0)..(6,6,h+1)`.
+This distinguishes an overlong tool calculated from the unrelated height-40
+owner; it does not attest a complete evaluator's owner lookup. A separate
+seventeenth written case reaches the final validator after ThroughAll returns
+its actual native tool. Both callback stages first pass the real validator;
+the second then injects the primary, and that result's native handle is
+actually deleted before injecting the secondary cleanup error. The case
+requires ordered exact error identities, one delete attempt, no escaped result
+and an unchanged valid target. These are authored acceptance checks until
+source-specific execution is recorded in VALIDATION.
+
+## Feature recipe declaration fixtures
+
+The four inline suites `src/model/featureRecipes.test.ts`,
+`featureRecipes.inputs.test.ts`, `featureRecipes.boundaries.test.ts` and
+`featureRecipes.regression.test.ts` define 51 original synthetic pure cases
+(24+4+3+20). Their code and numerical/symbolic inputs were authored for this
+project under its license. They contain no imported CAD model, external asset,
+binary fixture or reference-application measurement. Generation is the literal
+inline feature/request definitions, ordinary JavaScript objects and arrays,
+and explicitly bounded string repetition in the tests.
+
+The closure fixture declares a 10×10 rectangle centered at(5,5) on XY at z0,
+an explicit source extrusion of depth 4, and a circle of radius1 centered at(5,5)
+for a source cut. A target rectangle is centered at(25,5), with the same sides
+and depth. A translation of 20 along X maps the source coordinates to that
+target. These are declarations only: no native extrusion/cut is performed by
+the tests. A coincident second source owner has a different symbolic body ID;
+its exact state must remain distinct. Other cases add an earlier2×2 boss
+declaration, unrelated sketches, late planes, suppressed ancestry and alternate
+target routes to distinguish dependency closure from replay and native state
+availability. Potential output references are not measured solids.
+
+Frame expectations come from Cartesian reflection/rotation, independently of
+the helper under test. Reflection in YZ maps origin(3,2,1) to(−3,2,1), local
+X to−X and, with sketch parity, normal to−Z; depth 4 becomes−4 while the
+physical extrusion ray stays+Z. Local point(2,4) therefore maps from(5,6,1)
+to(−5,6,1). A positive quarter turn around(2,3,0) maps(5,3,0) to(2,6,0).
+A 450-degree Z rotation around(2,3,4) maps(4,3,5) to(2,5,5) and direction
+(2,0,1) to(0,2,1), while retaining the saved transform rather than changing
+its declaration. Axis-aligned expectations are exact where stated; rotation
+scalars use `toBeCloseTo(...,12)`. These numerical tolerances do not apply to
+unexecuted BReps.
+
+Input-envelope cases use an oversized property name, twenty 60,000-character
+property names, combined 600,000-character keys/values, escaped null characters
+and surrogate-pair keys. The bound counts UTF-16 code units. Other inputs use
+`Number.MAX_VALUE`, ordinary descriptor getters, hidden/symbol fields,
+array subclasses and explicit missing/stale instance parent-route selectors.
+Expected results are rejection codes/error types or preserved exact data,
+never an expected shape generated by another CAD operation. Getter counters
+check that rejection precedes invoking an accessor. Successful expected
+rejections do not establish geometric or native availability.
+
+This fixture family supplies no native solids, volumes, areas, bounds, export
+or application-interaction evidence. It documents the declaration/frame layer
+in [FEATURE_RECIPES](FEATURE_RECIPES.md); the full per-instance evaluator,
+end-condition and ownership/persistence matrix remains required. Execution
+claims belong to the actual source-specific validation record, separately from
+the fixture descriptions.
