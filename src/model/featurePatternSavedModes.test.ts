@@ -4,7 +4,7 @@ import { applyBodyCommand, prepareBodyCommand, type BodyCommandState } from './b
 import { createdBodyIds, featureCurrentBodyReferences } from './bodyReferences'
 import { parseDocument, serializeDocument, validateDocument, type Document } from './document'
 import { withFeaturePatternMode } from './featurePatternCommands'
-import type { FeaturePatternOperation } from './featurePatterns'
+import { isAllFeaturePattern, type FeaturePatternOperation, type SelectedFeaturePatternOperation } from './featurePatterns'
 
 // Original symbolic ownership records. No native geometry or healthy native
 // preview is constructed; command receipts below exercise model attestation only.
@@ -36,12 +36,12 @@ function inputs(): Feature[] {
   ]
 }
 
-function pattern(kind: RepetitionFeature['type'], mode: Mode = 'geometry'): RepetitionFeature {
+function pattern(kind: RepetitionFeature['type'], mode: Mode = 'geometry'): RepetitionFeature & { featurePattern?: SelectedFeaturePatternOperation } {
   const routes = { targets: [{ ...child }, { ...b }], bindings: [
     { source: { ...parent }, targetBodyIds: [a.bodyId, b.bodyId] },
     { source: { ...child }, targetBodyIds: [a.bodyId] },
   ] }
-  const featurePattern: FeaturePatternOperation = mode === 'geometry' ? { mode, ...routes }
+  const featurePattern: SelectedFeaturePatternOperation = mode === 'geometry' ? { mode, ...routes }
     : { mode, scope: 'selected', ...routes, referencePolicies: [], variation: { kind: 'none' } }
   const common = { id: `saved-${kind}`, name: 'Original saved method fixture', suppressed: false, baseFeatureId: child.sourceFeatureId,
     source: { mode: 'features' as const, geometryPattern: mode === 'geometry', featureIds: [parent.sourceFeatureId, child.sourceFeatureId] }, featurePattern }
@@ -59,7 +59,7 @@ function document(feature?: RepetitionFeature): Document {
 }
 
 function state(feature: RepetitionFeature): BodyCommandState {
-  return { document: document(), feature, selection: feature.featurePattern!.targets.map(ref => ({ ...ref })),
+  return { document: document(), feature, selection: featureCurrentBodyReferences(feature),
     catalog: { active: true, bodies: [child, b].map(ref => ({ ref: { ...ref } })) } }
 }
 
@@ -122,6 +122,7 @@ describe('saved feature pattern calculation methods', () => {
   it.each(kinds)('toggles %s methods without changing identities, placements or historical routing', kind => {
     const original = pattern(kind), before = structuredClone(original)
     const regenerated = withFeaturePatternMode(original, 'regenerate'), copied = withFeaturePatternMode(regenerated, 'geometry')
+    if (!regenerated.featurePattern || isAllFeaturePattern(regenerated.featurePattern)) throw new Error('Original selected fixture required')
     expect(copied).toEqual(original)
     expect(regenerated.id).toBe(original.id)
     expect(regenerated.featurePattern!.targets).toEqual([child, b])

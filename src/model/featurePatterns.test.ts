@@ -3,7 +3,7 @@ import type { BodyReference, Feature, RepetitionFeature } from '../cad/kernel.ty
 import { bodyReferenceCreationFeatureId, createdBodyIds, featureBodyOutputIds, featureBodyReferences, featureCurrentBodyReferences } from './bodyReferences'
 import { DocumentHistory, parseDocument, removeFeature, serializeDocument, updateFeature, validateDocument, type Document } from './document'
 import { featureDependencyIds } from './featureInputs'
-import { featurePatternApplications, featurePatternSourceReferences, validateFeaturePatternDeclaration } from './featurePatterns'
+import { featurePatternApplications, featurePatternSourceReferences, validateFeaturePatternDeclaration, type SelectedFeaturePatternOperation } from './featurePatterns'
 
 // Original symbolic ownership/history records. No native geometry is constructed.
 const a: BodyReference = { bodyId: 'feature-owner-a', sourceFeatureId: 'feature-create-a' }
@@ -22,7 +22,7 @@ const types = ['linearPattern', 'circularPattern', 'mirror'] as const
 const document = (...features: Feature[]): Document => validateDocument({ version: 1, id: 'feature-pattern-document', name: 'Original symbolic feature patterns',
   units: 'mm', createdAt: '2026-10-14T00:00:00.000Z', updatedAt: '2026-10-14T00:00:00.000Z', features: [...inputs, modification, ...features] })
 
-function pattern(type: RepetitionFeature['type']): RepetitionFeature {
+function pattern(type: RepetitionFeature['type']): RepetitionFeature & { featurePattern?: SelectedFeaturePatternOperation } {
   const base = { id: `owned-${type}`, name: 'Original selected feature contributions', suppressed: false, baseFeatureId: modification.id,
     source: { mode: 'features' as const, geometryPattern: true as const, featureIds: [a.sourceFeatureId, modification.id] },
     featurePattern: { mode: 'geometry' as const, targets: [{ ...modifiedA }, { ...b }], bindings: [
@@ -178,7 +178,7 @@ describe('owned feature pattern raw grammar and budgets', () => {
     const cut: Feature = { id: 'budget-cut', name: 'Original multi-owner cut declaration', type: 'cut', sketchId: producers[0].id,
       depth: 1, symmetric: false, bodyScope: references, suppressed: false }
     const states = references.map(reference => ({ bodyId: reference.bodyId, sourceFeatureId: cut.id }))
-    const feature: RepetitionFeature = { ...pattern('mirror'), baseFeatureId: cut.id,
+    const feature: RepetitionFeature & { featurePattern?: SelectedFeaturePatternOperation } = { ...pattern('mirror'), baseFeatureId: cut.id,
       source: { mode: 'features', geometryPattern: true, featureIds: [cut.id] },
       featurePattern: { mode: 'geometry', targets: states, bindings: states.slice(0, 16).map(source => ({ source, targetBodyIds: states.map(target => target.bodyId) })) } }
     const raw = { ...document(), features: [...producers, cut, feature] }

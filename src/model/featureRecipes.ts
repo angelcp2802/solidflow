@@ -11,7 +11,7 @@ import { featureDependencyIds } from './featureInputs';
 import { principalPlaneFrame } from '../cad/kernel.frames';
 
 export const RECIPE_LIMITS = Object.freeze({
-  sourceFeatures: 32, targets: 32, bindings: 512, applications: 512,
+  sourceFeatures: 32, targets: 32, dynamicTargets: 256, bindings: 512, applications: 512,
   closureDefinitions: 256, dependencyEdges: 2048, jsonNodes: 50_000, jsonDepth: 64,
   /** UTF-16 code units, aggregated across copied record field names and string values.
    * The final canonical fingerprint is independently bounded by the same cap. */
@@ -91,7 +91,7 @@ export interface RegenerationRequest {
   /** Existing canonical plan: full placements and structure both affect preview identity. */
   plan: { transforms: RecipeInstanceTransform[]; structure: unknown };
   scope: RecipeScopeIntent;
-  /** Preview-only exact current snapshot; all/auto intent remains separate and pending. */
+  /** Preview-only exact current snapshot; dynamic intent is never replaced by it. */
   targetSnapshot: BodyReference[];
   bindings: RecipeBinding[];
   referencePolicies: RecipeReferencePolicy[];
@@ -327,16 +327,17 @@ export function extractRecipeClosure(features: readonly Feature[], rawRequest: R
       stringId(row.parameter, patternId, 'variation.values.parameter'); varied.add(key);
     }
   } else invalid('VARIATION_MODE', patternId, 'variation', 'Unknown variation intent.');
-  if (request.scope.mode !== 'selected') pending('DYNAMIC_SCOPE_PENDING', patternId, 'scope', 'All/auto remain required; membership resolution and false-mode target fidelity are not implemented or observed.');
+  if (request.scope.mode === 'auto') pending('AUTO_DISCOVERY_PENDING', patternId, 'scope', 'Native AUTO capture/discovery and positive-operation applicability remain required; captured IDs alone do not activate this mode.');
   if (request.variation.kind !== 'none') pending('VARIATION_PENDING', patternId, 'variation', 'Constraint/dimension variation requires an instance solve and complete dependency fingerprint.');
   if (!['selected', 'all', 'auto'].includes(request.scope.mode)) invalid('SCOPE_MODE', patternId, 'scope', 'Unknown scope intent.');
   if (request.scope.mode === 'all' && request.scope.reevaluateAt !== 'patternInput') invalid('SCOPE_POLICY', patternId, 'scope', 'All requires an explicit re-evaluation moment.');
   if (request.scope.mode === 'auto') {
-    uniqueStrings(request.scope.capturedBodyIds, 1, RECIPE_LIMITS.targets, patternId, 'scope.capturedBodyIds');
+    uniqueStrings(request.scope.capturedBodyIds, 1, RECIPE_LIMITS.dynamicTargets, patternId, 'scope.capturedBodyIds');
     stringId(request.scope.captureFingerprint, patternId, 'scope.captureFingerprint');
     if (request.scope.follow !== 'sameIdentityAtPatternInput') invalid('SCOPE_POLICY', patternId, 'scope.follow', 'Auto must name its identity-following policy.');
   }
-  if (!Array.isArray(request.targetSnapshot) || !request.targetSnapshot.length || request.targetSnapshot.length > RECIPE_LIMITS.targets) invalid('TARGET_COUNT', patternId, 'targetSnapshot', 'Provide 1..32 exact current preview targets.');
+  const targetLimit = request.scope.mode === 'selected' ? RECIPE_LIMITS.targets : RECIPE_LIMITS.dynamicTargets;
+  if (!Array.isArray(request.targetSnapshot) || !request.targetSnapshot.length || request.targetSnapshot.length > targetLimit) invalid('TARGET_COUNT', patternId, 'targetSnapshot', `Provide 1..${targetLimit} exact current preview targets.`);
   const targets = new Map<string, BodyReference>();
   for (const target of request.targetSnapshot) {
     const exact = ref(target, patternId, 'targetSnapshot');
@@ -466,6 +467,9 @@ export function extractRecipeClosure(features: readonly Feature[], rawRequest: R
     if (feature.type !== 'extrude' && feature.type !== 'cut') {
       pending('OPERATION_RECIPE_PENDING', feature.id, 'type', `Regeneration for ${feature.type} remains required; no aggregate/delta substitute is used.`);
       continue;
+    }
+    if (request.scope.mode === 'all' && feature.type === 'extrude' && feature.bodyOperation?.mode === 'merge') {
+      pending('ALL_POSITIVE_SCOPE_PENDING', feature.id, 'bodyOperation', 'Additive ALL applicability to remote owners is not established; positive dynamic scope remains required and is not activated by this subset.');
     }
     node.sketchId = feature.sketchId;
     const sketch = definitions.get(feature.sketchId)!.feature;

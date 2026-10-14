@@ -10,8 +10,9 @@ import {
 } from './kernel.bodies';
 import { buildRecipeInstanceTool } from './kernel.recipe-instance';
 import { isNativeCleanupFailure, NativeCleanupError, withNativeOwners, type NativeOwner, type NativeOwners } from './kernel.native-ownership';
+import { attestNativeRecipeScope, assertNativeRecipeScopeCurrent, type NativeRecipeScopeAttestation } from './kernel.recipe-scopes';
 
-export const RECIPE_EVALUATOR_REVISION = 'fixed-intrinsic-selected-v1';
+export const RECIPE_EVALUATOR_REVISION = 'fixed-intrinsic-selected-all-v2';
 const compare = (a: string, b: string): number => a < b ? -1 : a > b ? 1 : 0;
 const tolerance = (volume: number): number => Math.max(1e-8, Math.abs(volume) * 1e-10);
 const sameRef = (a: Readonly<BodyReference>, b: Readonly<BodyReference>): boolean =>
@@ -67,6 +68,7 @@ interface EvaluationProof {
   history: ReadonlyMap<string, NativeRecipeSourceState>;
   sources: NativeSnapshot[];
   targets: NativeSnapshot[];
+  scope: NativeRecipeScopeAttestation;
 }
 const evaluations = new WeakMap<OwnedRecipeEvaluation, EvaluationProof>();
 
@@ -196,9 +198,10 @@ function assertParent(application: RecipeOwnerApplication, targetBodyId: string,
 export function evaluateFeatureRecipes(input: RecipeEvaluationInput): OwnedRecipeEvaluation {
   try {
     const closure = requireInitialRecipeDeclaration(extractRecipeClosure(input.features, input.request));
-    if (closure.request.scope.mode !== 'selected' || closure.request.variation.kind !== 'none') {
-      throw new Error('Dynamic scopes and variation require their pending native recipe evaluator.');
+    if (closure.request.scope.mode === 'auto' || closure.request.variation.kind !== 'none') {
+      throw new Error('Automatic discovery and variation require their pending native recipe policies.');
     }
+    const scope = attestNativeRecipeScope(closure.request.scope, closure.request.targetSnapshot, input.catalog);
     // All native requirements resolve before the first target clone or tool.
     const snapshots = preflight(input, closure);
     return withNativeOwners(owners => {
@@ -272,7 +275,7 @@ export function evaluateFeatureRecipes(input: RecipeEvaluationInput): OwnedRecip
         targets: Object.freeze(snapshots.targets.map(item => Object.freeze({ ref: item.ref, lineage: item.lineage }))),
         virtualOutputs: Object.freeze([...outputs.values()]) });
       const proof: EvaluationProof = { active: true, patternId: closure.request.patternId, fingerprintInput: closure.fingerprintInput,
-        catalog: input.catalog, history: input.historicalStates, ...snapshots };
+        catalog: input.catalog, history: input.historicalStates, ...snapshots, scope };
       const result: OwnedRecipeEvaluation = Object.freeze({ replacements: Object.freeze(replacements), attestation,
         dispose() {
           if (!proof.active) return;
@@ -289,6 +292,14 @@ export function evaluateFeatureRecipes(input: RecipeEvaluationInput): OwnedRecip
     }
     throw error;
   }
+}
+
+/** Native event-effects for a future AUTO capture proposal, never a saved receipt. */
+export function recipeEvaluationEventAffectedBodyIds(evaluation: OwnedRecipeEvaluation): readonly string[] {
+  const proof = evaluations.get(evaluation);
+  if (!proof?.active || proof.scope.intent.mode !== 'all') throw new Error('AUTO capture proposals need a genuine active ALL evaluation.');
+  return Object.freeze([...new Set(evaluation.attestation.virtualOutputs.filter(output => output.materialChanged)
+    .map(output => output.targetBodyId))].sort(compare));
 }
 
 /**
@@ -308,6 +319,7 @@ export function stageFeatureRecipeEvaluation(evaluation: OwnedRecipeEvaluation, 
       throw new Error('The recipe document or declaration changed after native evaluation.');
     }
     if (proof.catalog !== catalog || update.sourceFeatureId !== proof.patternId) throw new Error('The recipe proposal belongs to another catalog or pattern.');
+    assertNativeRecipeScopeCurrent(proof.scope, fresh.request.scope, fresh.request.targetSnapshot, catalog);
     for (const snapshot of proof.targets) {
       const actual = catalog.resolve(snapshot.ref);
       if (actual.lineage !== snapshot.lineage || actual.shape !== snapshot.shape) throw new Error('A current recipe target changed after evaluation.');

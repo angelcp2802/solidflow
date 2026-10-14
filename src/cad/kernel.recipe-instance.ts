@@ -21,7 +21,7 @@ export interface OwnedRecipeInstanceTool {
 }
 
 /**
- * Initial native bridge: one fixed intrinsic selected operation/event/address/
+ * Initial native bridge: one fixed intrinsic selected/ALL operation/event/address/
  * target. It never accepts an arbitrary caller transform or source frame and
  * never falls back to geometry-delta copying. Closure/native attestation and
  * atomic owner publication are evaluator responsibilities.
@@ -29,14 +29,14 @@ export interface OwnedRecipeInstanceTool {
 export function buildRecipeInstanceTool(input: RecipeInstanceToolInput): OwnedRecipeInstanceTool {
   const closure = requireInitialRecipeDeclaration(input.closure);
   if (closure.request.mode !== 'regenerate' || closure.request.geometryPattern !== false ||
-      closure.eligibility !== 'initial-declaration-subset' || closure.request.scope.mode !== 'selected' ||
+      closure.eligibility !== 'initial-declaration-subset' || closure.request.scope.mode === 'auto' ||
       closure.request.variation.kind !== 'none') {
     throw new Error('The native recipe bridge requires the extracted initial regeneration subset.');
   }
   const node = closure.operations.find(operation => operation.featureId === input.featureId),
     target = closure.request.targetSnapshot.find(ref => ref.bodyId === input.targetBodyId);
   const applications = node?.applications.filter(application => application.targetAtPatternInput.bodyId === input.targetBodyId) ?? [];
-  if (!node || !target || !applications.length || !closure.request.scope.targets.some(ref =>
+  if (!node || !target || !applications.length || closure.request.scope.mode === 'selected' && !closure.request.scope.targets.some(ref =>
       ref.bodyId === target.bodyId && ref.sourceFeatureId === target.sourceFeatureId) ||
       applications.some(application => application.sourcePoststate.sourceFeatureId !== node.featureId ||
         application.targetAtPatternInput.sourceFeatureId !== target.sourceFeatureId)) {
@@ -54,6 +54,7 @@ export function buildRecipeInstanceTool(input: RecipeInstanceToolInput): OwnedRe
   if (definition?.type === 'cut' && node.type === 'cut') operation = 'subtract';
   else if (definition?.type === 'extrude' && node.type === 'extrude' && definition.bodyOperation?.mode === 'merge') operation = 'add';
   else throw new Error('Creation, consumption and other recipe lifecycle operations remain pending.');
+  if (closure.request.scope.mode === 'all' && operation === 'add') throw new Error('ALL_POSITIVE_SCOPE_PENDING: additive ALL applicability remains required and is not enabled.');
   const termination = resolved.termination.kind === 'blind'
     ? { kind: 'blind' as const, symmetric: resolved.termination.symmetric }
     : { kind: 'throughAll' as const, bothDirections: resolved.termination.bothDirections };

@@ -13,10 +13,25 @@ interface FeaturePatternRoutes {
 }
 
 /** Saved geometry copying and regeneration have distinct, explicit contracts. */
-export type FeaturePatternOperation = FeaturePatternRoutes & (
+export type SelectedFeaturePatternOperation = FeaturePatternRoutes & (
   | { mode: 'geometry' }
   | { mode: 'regenerate'; scope: 'selected'; referencePolicies: []; variation: { kind: 'none' } }
 )
+export interface AllFeaturePatternBinding { source: BodyReference; targetBodyIds: 'scope' }
+export interface AllFeaturePatternOperation {
+  mode: 'regenerate'
+  scope: 'all'
+  reevaluateAt: 'patternInput'
+  bindings: AllFeaturePatternBinding[]
+  referencePolicies: []
+  variation: { kind: 'none' }
+  /** Type-level absence only; raw validation rejects an own targets field. */
+  targets?: never
+}
+export type FeaturePatternOperation = SelectedFeaturePatternOperation | AllFeaturePatternOperation
+export type AnyFeaturePatternBinding = FeaturePatternBinding | AllFeaturePatternBinding
+export const isAllFeaturePattern = (operation: FeaturePatternOperation): operation is AllFeaturePatternOperation =>
+  operation.mode === 'regenerate' && operation.scope === 'all'
 
 export const MAX_FEATURE_PATTERN_TARGETS = 32
 export const MAX_FEATURE_PATTERN_CONTRIBUTIONS = 512
@@ -67,16 +82,18 @@ function declaration(feature: RepetitionFeature): FeaturePatternOperation | unde
   }
   const operation = feature.featurePattern
   const geometry = operation.mode === 'geometry', regenerate = operation.mode === 'regenerate'
-  const fields = regenerate ? ['mode', 'scope', 'targets', 'bindings', 'referencePolicies', 'variation'] : ['mode', 'targets', 'bindings']
+  const all = regenerate && operation.scope === 'all'
+  const fields = regenerate ? all ? ['mode', 'scope', 'reevaluateAt', 'bindings', 'referencePolicies', 'variation']
+    : ['mode', 'scope', 'targets', 'bindings', 'referencePolicies', 'variation'] : ['mode', 'targets', 'bindings']
   if ((!geometry && !regenerate) || !exact(operation, fields) || source.geometryPattern !== geometry
-    || !dense(operation.targets, 1, MAX_FEATURE_PATTERN_TARGETS)
+    || !all && !dense(operation.targets, 1, MAX_FEATURE_PATTERN_TARGETS)
     || !dense(operation.bindings, 1, MAX_FEATURE_PATTERN_CONTRIBUTIONS)) throw new Error('El método debe coincidir con la geometría o el recálculo y declarar destinos y estados exactos.')
-  if (regenerate && (operation.scope !== 'selected' || !dense(operation.referencePolicies, 0, 0)
+  if (regenerate && ((!all && operation.scope !== 'selected') || all && operation.reevaluateAt !== 'patternInput' || !dense(operation.referencePolicies, 0, 0)
     || !object(operation.variation) || !exact(operation.variation, ['kind']) || operation.variation.kind !== 'none')) {
-    throw new Error('El recálculo actual requiere destinos seleccionados, perfiles sin soporte y ninguna variación de cotas.')
+    throw new Error('El recálculo actual requiere un alcance explícito seleccionado o ALL, perfiles sin soporte y ninguna variación de cotas.')
   }
   const targets = new Set<string>()
-  for (const target of operation.targets) {
+  for (const target of all ? [] : operation.targets as unknown[]) {
     if (!reference(target) || targets.has(target.bodyId)) throw new Error('Los destinos deben ser referencias exactas de cuerpos distintos.')
     targets.add(target.bodyId)
   }
@@ -84,19 +101,20 @@ function declaration(feature: RepetitionFeature): FeaturePatternOperation | unde
   let routes = 0
   for (const binding of operation.bindings) {
     if (!object(binding) || !exact(binding, ['source', 'targetBodyIds']) || !reference(binding.source)
-      || !seeds.has(binding.source.sourceFeatureId) || !dense(binding.targetBodyIds, 1, MAX_FEATURE_PATTERN_TARGETS)) {
+      || !seeds.has(binding.source.sourceFeatureId) || (all ? binding.targetBodyIds !== 'scope' : !dense(binding.targetBodyIds, 1, MAX_FEATURE_PATTERN_TARGETS))) {
       throw new Error('Cada aportación debe pertenecer a una operación seleccionada y declarar destinos exactos.')
     }
     const key = JSON.stringify([binding.source.bodyId, binding.source.sourceFeatureId])
     if (contributions.has(key)) throw new Error('Una aportación histórica exacta no puede repetirse.')
     contributions.add(key); representedSeeds.add(binding.source.sourceFeatureId)
+    if (all) { routes++; continue }
     const local = new Set<string>()
-    for (const bodyId of binding.targetBodyIds) {
+    for (const bodyId of binding.targetBodyIds as unknown[]) {
       if (!identifier(bodyId) || !targets.has(bodyId) || local.has(bodyId)) throw new Error('Una ruta contiene un destino desconocido o duplicado.')
       local.add(bodyId); routedTargets.add(bodyId); routes++
     }
   }
-  if (representedSeeds.size !== seeds.size || routedTargets.size !== targets.size) throw new Error('Todas las semillas y destinos seleccionados deben tener una ruta explícita.')
+  if (representedSeeds.size !== seeds.size || !all && routedTargets.size !== targets.size) throw new Error('Todas las semillas y destinos seleccionados deben tener una ruta explícita.')
   if (activeCopies(feature) * routes > MAX_FEATURE_PATTERN_APPLICATIONS) throw new Error('La repetición supera el límite de 512 aplicaciones de aportaciones a destinos.')
   return operation as unknown as FeaturePatternOperation
 }
@@ -107,8 +125,14 @@ export function validateFeaturePatternDeclaration(feature: RepetitionFeature): v
 }
 
 /** Counts every active transform/source/target route, including a possible no-op route. */
-export function featurePatternApplications(feature: RepetitionFeature): number {
+export function featurePatternApplications(feature: RepetitionFeature, currentTargetCount?: number): number {
   const operation = declaration(feature)
+  if (operation && isAllFeaturePattern(operation)) {
+    if (!Number.isInteger(currentTargetCount) || currentTargetCount! < 1 || currentTargetCount! > 256) throw new Error('ALL requiere resolver entre 1 y 256 cuerpos actuales.')
+    const applications = activeCopies(feature) * operation.bindings.length * currentTargetCount!
+    if (applications > MAX_FEATURE_PATTERN_APPLICATIONS) throw new Error('La repetición supera el límite de 512 aplicaciones de aportaciones a destinos.')
+    return applications
+  }
   return operation ? activeCopies(feature) * operation.bindings.reduce((sum, binding) => sum + binding.targetBodyIds.length, 0) : 0
 }
 

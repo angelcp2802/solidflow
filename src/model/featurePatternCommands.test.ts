@@ -3,6 +3,8 @@ import type { BodyReference, Feature, RepetitionFeature } from '../cad/kernel.ty
 import { applyBodyCommand, isBodyCommandFeature, prepareBodyCommand, withBodySelection, type BodyCommandState } from './bodyCommands'
 import { featurePatternHistoricalFingerprint, withFeaturePatternBindings, withFeaturePatternSeeds, withFeaturePatternTargets } from './featurePatternCommands'
 import { parseDocument, serializeDocument, validateDocument, type Document } from './document'
+import { featureCurrentBodyReferences } from './bodyReferences'
+import type { SelectedFeaturePatternOperation } from './featurePatterns'
 
 // Original symbolic command inputs. Healthy receipts exercise attestation only,
 // never native validity or reference-target fidelity.
@@ -22,7 +24,7 @@ const document = (...features: Feature[]): Document => validateDocument({ versio
   createdAt: '2026-10-14T00:00:00.000Z', updatedAt: '2026-10-14T00:00:00.000Z', features: [...inputs, modification, ...features] })
 const types = ['linearPattern', 'circularPattern', 'mirror'] as const
 
-function pattern(type: RepetitionFeature['type']): RepetitionFeature {
+function pattern(type: RepetitionFeature['type']): RepetitionFeature & { featurePattern?: SelectedFeaturePatternOperation } {
   const base = { id: `command-owned-${type}`, name: 'Original feature replay proposal', suppressed: false, baseFeatureId: modification.id,
     source: { mode: 'features' as const, geometryPattern: true as const, featureIds: [a.sourceFeatureId, modification.id] },
     featurePattern: { mode: 'geometry' as const, targets: [{ ...modifiedA }, { ...b }], bindings: [
@@ -35,7 +37,7 @@ function pattern(type: RepetitionFeature['type']): RepetitionFeature {
 }
 function state(feature: Feature, committed = document(), current = [modifiedA, b]): BodyCommandState {
   const selection = (feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror') && feature.featurePattern
-    ? feature.featurePattern.targets : feature.type === 'extrude' && feature.bodyOperation?.mode === 'merge' ? [feature.bodyOperation.target] : []
+    ? featureCurrentBodyReferences(feature) : feature.type === 'extrude' && feature.bodyOperation?.mode === 'merge' ? [feature.bodyOperation.target] : []
   return { document: committed, feature, selection, catalog: { active: true, bodies: current.map(ref => ({ ref })) } }
 }
 

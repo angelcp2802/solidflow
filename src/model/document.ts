@@ -3,7 +3,7 @@ import { isEdgeReferenceKeyV2, isFaceReferenceKeyV2 } from '../cad/kernel.semant
 import { validateEntityProfile } from '../sketch/validation'
 import { featureDependencyIds, featureSketchIds } from './featureInputs'
 import { validateStepSource } from './stepSource'
-import { createdBodyIds, featureBodyOutputIds, featureBodyReferences } from './bodyReferences'
+import { bodyReferenceCreationFeatureId, createdBodyIds, featureBodyOutputIncludes, featureBodyReferences } from './bodyReferences'
 import { bodyPatternAddresses, MAX_CREATED_BODY_IDS, validateBodyPatternDeclaration } from './bodyPatterns'
 import { validateFeaturePatternDeclaration, type FeaturePatternOperation } from './featurePatterns'
 
@@ -750,7 +750,7 @@ export function validateDocument(value: unknown): Document {
       const location = bodyReferencePath(parsed, referenceIndex, path)
       const owner = seen.get(reference.sourceFeatureId)
       if (!owner) fail(`${location}.sourceFeatureId`, 'debe referenciar una operación anterior')
-      if (!featureBodyOutputIds(owner).includes(reference.bodyId)) {
+      if (!featureBodyOutputIncludes(owner, reference.bodyId, [...seen.values()])) {
         fail(`${location}.bodyId`, 'el cuerpo no pertenece a la salida explícita de esa operación')
       }
     })
@@ -889,8 +889,19 @@ export function removeFeature(document: Document, id: string): Document {
   const original = document.features.find((item) => item.id === id)
   if (!original) throw new Error('La operación que se intenta eliminar no existe.')
   const removed = new Set([id])
+  // A dynamic ALL modifier does not depend on each inventory member. Exact
+  // consumers of its potential states still depend on that body's creator.
+  // Resolve against the original structural context, including repairable,
+  // suppressed or non-materialized states; never infer a native replacement.
+  const creators = new Map<string, string | null>()
   const features = document.features.filter((item) => {
     const dependsOnRemoved = featureDependencyIds(item).some((dependencyId) => removed.has(dependencyId))
+      || featureBodyReferences(item).some(reference => {
+        const key = JSON.stringify([reference.bodyId, reference.sourceFeatureId])
+        if (!creators.has(key)) creators.set(key, bodyReferenceCreationFeatureId(document.features, reference))
+        const creator = creators.get(key)
+        return creator !== null && creator !== undefined && removed.has(creator)
+      })
     if (removed.has(item.id) || dependsOnRemoved) {
       removed.add(item.id)
       return false

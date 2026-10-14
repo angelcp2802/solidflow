@@ -103,7 +103,7 @@ import FaceOperationPanel from "./components/FaceOperationPanel";
 import { BodyList, BodyFeaturePanel } from "./components/BodyManagementPanel";
 import { bodySelectionDtos } from "./cad/body-selection";
 import { applyBodyCommand, prepareBodyCommand, isBodyCommandFeature, sameBodyReference, withBodySelection } from "./model/bodyCommands";
-import { createdBodyIds, featureBodyReferences } from "./model/bodyReferences";
+import { createdBodyIds, featureBodyReferences, featureCurrentBodyReferences } from "./model/bodyReferences";
 import { reconcileBodyPatternDraft } from "./model/bodyPatterns";
 import { createEdgeSelectionIndex, createFaceSelectionIndex } from "./cad/selection.references";
 import ExtrudePanel from "./components/ExtrudePanel";
@@ -596,7 +596,7 @@ export default function App() {
     setEditing(structuredClone(feature));
     bodyOutputId.current = createdBodyIds(feature)[0] ?? crypto.randomUUID();
     setBodySelection(isRepetition(feature) && feature.featurePattern
-      ? feature.featurePattern.targets.map(ref => ({ ...ref }))
+      ? featureCurrentBodyReferences(feature)
       : isRepetition(feature) && feature.source.mode === 'bodies'
         ? feature.source.bodies.map(ref => ({ ...ref })) : featureBodyReferences(feature));
     setBodyPicking(feature.type === "combine");
@@ -1701,9 +1701,16 @@ export default function App() {
     if (!editing) return;
     const merged = { ...editing, ...patch } as Feature;
     const ownedPattern = isRepetition(merged) && merged.source.mode === 'bodies' ? merged : null;
-    const selection = ownedPattern?.source.mode === 'bodies' ? ownedPattern.source.bodies : bodySelection;
+    const scopedPattern = isRepetition(merged) && merged.featurePattern ? merged : null;
+    const selection = ownedPattern?.source.mode === 'bodies' ? ownedPattern.source.bodies
+      : scopedPattern && 'featurePattern' in patch ? featureCurrentBodyReferences(scopedPattern)
+        : scopedPattern && !featureCurrentBodyReferences(scopedPattern).length ? [] : bodySelection;
     let next = isBodyCommandFeature(merged) ? withBodySelection(merged, selection) : merged;
     let reconciliationError = '';
+    if (scopedPattern && 'featurePattern' in patch) {
+      setBodySelection(selection.map(ref => ({ ...ref })));
+      if (!selection.length) setBodyPicking(false);
+    }
     if (isRepetition(next) && next.source.mode === 'bodies') {
       try { next = reconcileBodyPatternDraft(next, undefined, doc.features.find(feature => feature.id === next.id && isRepetition(feature)) as RepetitionFeature | undefined); }
       catch (error) { reconciliationError = error instanceof Error ? error.message : String(error); }

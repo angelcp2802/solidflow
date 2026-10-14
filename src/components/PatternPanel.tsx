@@ -11,7 +11,8 @@ import type {
 import { supportLabel } from "./PlaneSupportPanel";
 import BodyPatternPanel, { type BodyPatternEditor } from "./BodyPatternPanel";
 import FeaturePatternPanel from "./FeaturePatternPanel";
-import { withFeaturePatternMode, withFeaturePatternSeeds } from "../model/featurePatternCommands";
+import { withFeaturePatternMode, withFeaturePatternScope, withFeaturePatternSeeds } from "../model/featurePatternCommands";
+import { isAllFeaturePattern } from "../model/featurePatterns";
 
 interface Props {
   feature: RepetitionFeature;
@@ -225,10 +226,21 @@ export default function PatternPanel({
             const next = withFeaturePatternMode(feature, event.target.value === 'regenerate' ? 'regenerate' : 'geometry');
             onChange({ source: next.source, featurePattern: next.featurePattern });
           }}>
-          <option value="geometry">Copiar geometría</option>
+          <option value="geometry" disabled={isAllFeaturePattern(feature.featurePattern)}>Copiar geometría</option>
           <option value="regenerate">Recalcular operaciones</option>
         </select>
-        {feature.featurePattern.mode === 'regenerate' && <p className="muted-small">Cada instancia se recalcula sobre sus cuerpos destino. Usa cortes o salientes unidos, con croquis rectangulares o circulares sin soporte y finales por profundidad o por todo.</p>}
+        {feature.featurePattern.mode === 'regenerate' && <>
+          <label className="number-field"><span>Alcance de los cuerpos</span>
+            <select aria-label="Alcance de los cuerpos de la repetición" value={feature.featurePattern.scope} disabled={bodyEditor?.loading}
+              onChange={event => {
+                const next = withFeaturePatternScope(feature, event.target.value === 'all' ? 'all' : 'selected');
+                onChange({ featurePattern: next.featurePattern });
+              }}>
+              <option value="selected">Cuerpos seleccionados</option><option value="all">Todos los cuerpos actuales</option>
+            </select>
+          </label>
+          <p className="muted-small">Cada instancia se recalcula sobre sus cuerpos destino, con croquis rectangulares o circulares sin soporte y finales por profundidad o por todo. Para copiar geometría, elige primero cuerpos seleccionados.</p>
+        </>}
       </div>}
       {feature.source.mode === 'bodies' ? (bodyEditor && <BodyPatternPanel feature={feature} features={features} editor={bodyEditor} onChange={onChange} />) : <div className="property-section">
         <h3>

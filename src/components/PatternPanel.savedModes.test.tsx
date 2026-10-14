@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { Feature, RepetitionFeature } from '../cad/kernel.types';
-import type { FeaturePatternOperation } from '../model/featurePatterns';
+import type { FeaturePatternOperation, SelectedFeaturePatternOperation } from '../model/featurePatterns';
 import PatternPanel from './PatternPanel';
 
 // Original symbolic records. SSR observes saved-state presentation and render
@@ -23,9 +23,9 @@ const sources: Feature[] = [
 const kinds = ['linearPattern', 'circularPattern', 'mirror'] as const;
 type Mode = FeaturePatternOperation['mode'];
 const cases = kinds.flatMap(kind => (['geometry', 'regenerate'] as const).map(mode => ({ kind, mode })));
-function pattern(kind: RepetitionFeature['type'], mode: Mode): RepetitionFeature {
+function pattern(kind: RepetitionFeature['type'], mode: Mode): RepetitionFeature & { featurePattern?: SelectedFeaturePatternOperation } {
   const routes = { targets: [{ ...current }, { ...b }], bindings: [{ source: { ...historical }, targetBodyIds: [a.bodyId, b.bodyId] }] };
-  const featurePattern: FeaturePatternOperation = mode === 'geometry' ? { mode, ...routes }
+  const featurePattern: SelectedFeaturePatternOperation = mode === 'geometry' ? { mode, ...routes }
     : { mode, scope: 'selected', ...routes, referencePolicies: [], variation: { kind: 'none' } };
   const common = { id: 'mode-ui-pattern', name: 'Método guardado', suppressed: false, baseFeatureId: current.sourceFeatureId,
     source: { mode: 'features' as const, geometryPattern: mode === 'geometry', featureIds: [historical.sourceFeatureId] }, featurePattern };
@@ -55,7 +55,7 @@ describe('rendered saved feature calculation methods', () => {
     expect(method).toContain(`<option value="${mode}" selected="">`);
     expect(method).toContain('Copiar geometría');
     expect(method).toContain('Recalcular operaciones');
-    expect(html.includes('Cada instancia se recalcula sobre sus cuerpos destino.')).toBe(mode === 'regenerate');
+    expect(html.includes('Cada instancia se recalcula sobre sus cuerpos destino, con croquis rectangulares o circulares sin soporte y finales por profundidad o por todo.')).toBe(mode === 'regenerate');
     const seed = html.match(/aria-label="Resultados de la operación para repetir">([\s\S]*?)<\/div>/)?.[1];
     const targets = html.match(/aria-label="Cuerpos destino de la repetición de operaciones">([\s\S]*?)<\/div>/)?.[1];
     expect(seed).toContain('Base A — Saliente histórico A');

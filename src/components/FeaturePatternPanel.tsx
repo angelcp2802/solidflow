@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import type { BodyReference, Feature, RepetitionFeature } from '../cad/kernel.types';
 import { sameBodyReference } from '../model/bodyCommands';
 import { withFeaturePatternBindings } from '../model/featurePatternCommands';
-import { MAX_FEATURE_PATTERN_CONTRIBUTIONS, MAX_FEATURE_PATTERN_TARGETS } from '../model/featurePatterns';
+import { isAllFeaturePattern, MAX_FEATURE_PATTERN_CONTRIBUTIONS, MAX_FEATURE_PATTERN_TARGETS, type AnyFeaturePatternBinding } from '../model/featurePatterns';
 import { bodyPatternHistoryChoices, type BodyPatternEditor } from './BodyPatternPanel';
 
 const key = (reference: BodyReference) => JSON.stringify([reference.bodyId, reference.sourceFeatureId]);
@@ -19,21 +19,29 @@ export default function FeaturePatternPanel({ feature, features, editor, onChang
     [features, operation?.bindings]);
   const [selectedStep, setSelectedStep] = useState(operation?.bindings[0]?.source.sourceFeatureId ?? '');
   const [choicePage, setChoicePage] = useState(0);
+  const [targetPage, setTargetPage] = useState(0);
   if (feature.source.mode !== 'features' || !operation) return null;
+  const selectedOperation = isAllFeaturePattern(operation) ? null : operation;
+  const targetPages = Math.max(1, Math.ceil(editor.bodies.length / PAGE_SIZE));
+  const currentTargetPage = Math.min(targetPage, targetPages - 1);
   const steps = history.steps.filter(step => feature.source.mode === 'features' && feature.source.featureIds.includes(step.id));
   const step = steps.find(candidate => candidate.id === selectedStep) ?? steps[0];
   const choices = step?.choices ?? [];
   const pages = Math.max(1, Math.ceil(choices.length / PAGE_SIZE));
   const page = Math.min(choicePage, pages - 1);
   const displayed = choices.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-  const changeBindings = (bindings: typeof operation.bindings) =>
+  const changeBindings = (bindings: readonly AnyFeaturePatternBinding[]) =>
     onChange({ featurePattern: withFeaturePatternBindings(feature, bindings).featurePattern });
   const selectGeometry = (reference: BodyReference, checked: boolean) => changeBindings(checked
-    ? [...operation.bindings, { source: { ...reference }, targetBodyIds: operation.targets.map(target => target.bodyId) }]
+    ? [...operation.bindings, selectedOperation
+      ? { source: { ...reference }, targetBodyIds: selectedOperation.targets.map(target => target.bodyId) }
+      : { source: { ...reference }, targetBodyIds: 'scope' as const }]
     : operation.bindings.filter(binding => !sameBodyReference(binding.source, reference)));
-  const selectTarget = (reference: BodyReference, checked: boolean) => editor.onSelection(checked
-    ? [...operation.targets, { ...reference }]
-    : operation.targets.filter(target => !sameBodyReference(target, reference)));
+  const selectTarget = (reference: BodyReference, checked: boolean) => {
+    if (!selectedOperation) return;
+    editor.onSelection(checked ? [...selectedOperation.targets, { ...reference }]
+      : selectedOperation.targets.filter(target => !sameBodyReference(target, reference)));
+  };
   const targetName = (reference: BodyReference) => editor.bodies.find(body => sameBodyReference(body.ref, reference))?.name ?? 'Destino no disponible';
   return <>
     <div className="property-section">
@@ -70,38 +78,39 @@ export default function FeaturePatternPanel({ feature, features, editor, onChang
             <span>{name}{choice?.unavailable ? ' · no disponible' : ''}</span>
             <button type="button" disabled={editor.loading} aria-label={`Quitar geometría ${index + 1}: ${name}`}
               onClick={() => selectGeometry(binding.source, false)}>Quitar</button>
-            <details>
+            {selectedOperation && <details>
               <summary>Destinos de esta geometría</summary>
               <div className="pattern-feature-list">
-                {operation.targets.map(target => <label key={key(target)} className="check-option">
-                  <input type="checkbox" checked={binding.targetBodyIds.includes(target.bodyId)} disabled={editor.loading}
+                {selectedOperation.targets.map(target => <label key={key(target)} className="check-option">
+                  <input type="checkbox" checked={Array.isArray(binding.targetBodyIds) && binding.targetBodyIds.includes(target.bodyId)} disabled={editor.loading}
                     aria-label={`Aplicar ${name} a ${targetName(target)}`}
                     onChange={event => changeBindings(operation.bindings.map((candidate, candidateIndex) => candidateIndex !== index ? candidate : {
                       source: { ...candidate.source }, targetBodyIds: event.target.checked
-                        ? [...candidate.targetBodyIds, target.bodyId]
-                        : candidate.targetBodyIds.filter(bodyId => bodyId !== target.bodyId),
+                        ? [...(Array.isArray(candidate.targetBodyIds) ? candidate.targetBodyIds : []), target.bodyId]
+                        : (Array.isArray(candidate.targetBodyIds) ? candidate.targetBodyIds : []).filter(bodyId => bodyId !== target.bodyId),
                     }))} />
                   <span>{targetName(target)}</span>
                 </label>)}
               </div>
-            </details>
+            </details>}
+            {!selectedOperation && <span> · Todos los cuerpos actuales al recalcular</span>}
           </li>;
         })}
       </ol>
     </div>
     <div className="property-section">
       <h3>Cuerpos destino</h3>
-      <div className="pattern-feature-list" aria-label="Cuerpos destino de la repetición de operaciones">
+      {selectedOperation ? <><div className="pattern-feature-list" aria-label="Cuerpos destino de la repetición de operaciones">
         {editor.bodies.map(body => {
-          const checked = operation.targets.some(target => sameBodyReference(target, body.ref));
+          const checked = selectedOperation.targets.some(target => sameBodyReference(target, body.ref));
           return <label key={key(body.ref)} className="check-option">
             <input type="checkbox" checked={checked} aria-label={`Aplicar repetición a ${body.name}`}
-              disabled={editor.loading || !checked && operation.targets.length >= MAX_FEATURE_PATTERN_TARGETS}
+              disabled={editor.loading || !checked && selectedOperation.targets.length >= MAX_FEATURE_PATTERN_TARGETS}
               onChange={event => selectTarget(body.ref, event.target.checked)} />
             <span>{body.name}</span>
           </label>;
         })}
-        {operation.targets.filter(target => !editor.bodies.some(body => sameBodyReference(body.ref, target))).map(target =>
+        {selectedOperation.targets.filter(target => !editor.bodies.some(body => sameBodyReference(body.ref, target))).map(target =>
           <label key={key(target)} className="check-option">
             <input type="checkbox" checked disabled={editor.loading} aria-label="Quitar destino no disponible de la repetición"
               onChange={() => selectTarget(target, false)} />
@@ -111,6 +120,18 @@ export default function FeaturePatternPanel({ feature, features, editor, onChang
       <button type="button" className="outline-button" disabled={editor.loading} aria-pressed={editor.picking}
         onClick={() => editor.onPicking(!editor.picking)}>{editor.picking ? 'Terminar selección de destinos' : 'Seleccionar destinos en la vista'}</button>
       <p className="muted-small">Solo se modifica el material de los destinos seleccionados. Los cuerpos que no cambien conservan su estado.</p>
+      </> : <>
+        <p className="muted-small">Todos los cuerpos actuales se vuelven a resolver al recalcular. Esta selección no se guarda como una lista fija. Los cuerpos sin cambio conservan su estado.</p>
+        <ul aria-label="Catálogo actual para el alcance todos los cuerpos">
+          {editor.bodies.slice(currentTargetPage * PAGE_SIZE, (currentTargetPage + 1) * PAGE_SIZE).map(body => <li key={key(body.ref)}>{body.name}</li>)}
+        </ul>
+        {targetPages > 1 && <div className="pattern-direction-presets" aria-label="Páginas del catálogo actual">
+          <button type="button" disabled={editor.loading || currentTargetPage === 0} onClick={() => setTargetPage(currentTargetPage - 1)}>Anterior</button>
+          <span>{currentTargetPage + 1} / {targetPages}</span>
+          <button type="button" disabled={editor.loading || currentTargetPage + 1 === targetPages} onClick={() => setTargetPage(currentTargetPage + 1)}>Siguiente</button>
+        </div>}
+        <p className="muted-small">El alcance dinámico actual admite cortes. Los salientes con todos los cuerpos siguen pendientes.</p>
+      </>}
       {editor.message && <p className="muted-small" role="alert">{editor.message}</p>}
     </div>
   </>;

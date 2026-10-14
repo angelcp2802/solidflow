@@ -1,6 +1,7 @@
 import type { BodyOperation, BodyReference, Feature } from '../cad/kernel.types'
 import { addFeature, updateFeature, validateDocument, type Document } from './document'
-import { bodyReferenceCreationFeatureId, featureBodyOutputIds, featureCurrentBodyReferences } from './bodyReferences'
+import { bodyReferenceCreationFeatureId, featureBodyOutputIncludes, featureCurrentBodyReferences } from './bodyReferences'
+import { featurePatternApplications, isAllFeaturePattern } from './featurePatterns'
 import { featurePatternHistoricalFingerprint, withFeaturePatternTargets } from './featurePatternCommands'
 
 export interface BodyCommandCatalog {
@@ -76,6 +77,10 @@ export function withBodySelection(feature: Feature, selection: readonly BodyRefe
   const references = selection.map(reference => ({ ...reference }))
   const first = references[0] ?? { bodyId: '', sourceFeatureId: '' }
   if ((feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror') && feature.source.mode === 'features' && feature.featurePattern) {
+    if (isAllFeaturePattern(feature.featurePattern)) {
+      if (selection.length) throw new Error('ALL resuelve sus destinos desde el catálogo; cambia a seleccionados para elegir cuerpos.')
+      return structuredClone(feature)
+    }
     return withFeaturePatternTargets(feature, references)
   }
   if ((feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror') && feature.source.mode === 'bodies') {
@@ -129,7 +134,7 @@ function selectionFingerprint(selection: readonly BodyReference[], catalog: Body
     if (!reference || !identifier(reference.bodyId) || !identifier(reference.sourceFeatureId) || ids.has(reference.bodyId)) throw new Error('La selección contiene una identidad duplicada o no válida.')
     if (historicalSources) {
       const source = historicalSources.find(feature => feature.id === reference.sourceFeatureId)
-      if (!source || source.suppressed || !featureBodyOutputIds(source).includes(reference.bodyId)
+      if (!source || source.suppressed || !featureBodyOutputIncludes(source, reference.bodyId, historicalSources)
         || !bodyReferenceCreationFeatureId(historicalSources, reference)) throw new Error('La selección histórica no pertenece a una salida anterior disponible.')
     } else if (catalog.bodies.filter(body => sameBodyReference(body.ref, reference)).length !== 1) throw new Error('La selección de cuerpos ha quedado obsoleta.')
     ids.add(reference.bodyId)
@@ -158,6 +163,12 @@ export function prepareBodyCommand(state: BodyCommandState): BodyCommandPreparat
     if (!isBodyCommandFeature(state.feature)) throw new Error('La operación conserva el modo agregado anterior; no se convierte automáticamente.')
     const sources = sourceFeatures({ ...state, document })
     const catalog = catalogFingerprint(state.catalog, sources)
+    if ((state.feature.type === 'linearPattern' || state.feature.type === 'circularPattern' || state.feature.type === 'mirror')
+      && state.feature.featurePattern && isAllFeaturePattern(state.feature.featurePattern)) {
+      if (!state.catalog.active || !state.catalog.bodies.length) throw new Error('ALL requiere un catálogo nativo actual activo.')
+      if (state.selection.length) throw new Error('ALL no guarda una selección manual de destinos.')
+      featurePatternApplications(state.feature, state.catalog.bodies.length)
+    }
     const historicalSources = historicalSelectionSources(state.feature, sources)
     const selection = selectionFingerprint(state.selection, state.catalog, historicalSources)
     const historicalContributions = (state.feature.type === 'linearPattern' || state.feature.type === 'circularPattern' || state.feature.type === 'mirror') && state.feature.featurePattern

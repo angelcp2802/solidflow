@@ -197,11 +197,12 @@ it('requires face-owner association and preserves the opaque key as a pending ex
   expect(codes(() => requireInitialRecipeDeclaration(closure))).toContain('FACE_CORRESPONDENCE_PENDING');
 });
 
-it('preserves all scope intent and refuses to declare it implemented from a static snapshot', () => {
+it('preserves ALL as declaration intent while retaining unresolved native current-target requirements', () => {
   const { features, request } = fixture(); request.scope = { mode: 'all', reevaluateAt: 'patternInput' }; request.bindings[0].targets = 'scope';
   const closure = extractRecipeClosure(features, request);
   expect(closure.request.scope).toEqual({ mode: 'all', reevaluateAt: 'patternInput' });
-  expect(codes(() => requireInitialRecipeDeclaration(closure))).toContain('DYNAMIC_SCOPE_PENDING');
+  expect(requireInitialRecipeDeclaration(closure)).toBe(closure);
+  expect(closure.nativeRequirements).toContainEqual({ kind: 'current-target', ref: target });
 });
 
 it('does not expand captured auto membership with an unlisted current body', () => {

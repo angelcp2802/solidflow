@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { BodyReference, Feature, RepetitionFeature } from '../cad/kernel.types';
-import { createdBodyIds, featureBodyOutputIds } from '../model/bodyReferences';
+import { createdBodyIds, featureBodyOutputIds, featureBodyOutputIncludes } from '../model/bodyReferences';
+import { isAllFeaturePattern } from '../model/featurePatterns';
 import { sameBodyReference } from '../model/bodyCommands';
 
 export interface BodyPatternEditor {
@@ -51,17 +52,32 @@ export function bodyPatternHistoryChoices(features: readonly Feature[], selectio
   }
   const selectedChoices = new Map<string, BodyPatternHistoryChoice>();
   const steps: BodyPatternHistoryStep[] = [];
+  // Potential current membership is advanced once. ALL never expands every
+  // retired/consumed creation in the saved ledger into ordinary UI options.
+  const possibleCurrent = new Set<string>();
   for (const owner of features) {
     const choices: BodyPatternHistoryChoice[] = [];
-    for (const bodyId of featureBodyOutputIds(owner)) {
+    const all = (owner.type === 'linearPattern' || owner.type === 'circularPattern' || owner.type === 'mirror')
+      && owner.featurePattern && isAllFeaturePattern(owner.featurePattern);
+    const outputs = all ? new Set(possibleCurrent) : new Set(featureBodyOutputIds(owner));
+    if (all) for (const reference of selection) {
+      if (reference.sourceFeatureId === owner.id && featureBodyOutputIncludes(owner, reference.bodyId, features)) outputs.add(reference.bodyId);
+    }
+    for (const bodyId of outputs) {
       const ref = { bodyId, sourceFeatureId: owner.id }, referenceKey = key(ref), creator = creators.get(bodyId);
-      const unavailable = owner.suppressed || !creator || creator.unavailable;
+      const unavailable = owner.suppressed || !creator || creator.unavailable || !!all && !possibleCurrent.has(bodyId);
       if (unavailable && !selectedKeys.has(referenceKey)) continue;
       const choice = { ref, name: `${creator?.name ?? 'Cuerpo'} — ${owner.name}`, unavailable };
       choices.push(choice);
       if (selectedKeys.has(referenceKey)) selectedChoices.set(referenceKey, choice);
     }
     if (choices.length) steps.push({ id: owner.id, name: owner.name, choices });
+    if (owner.suppressed) continue;
+    if (owner.type === 'combine' && !owner.keepTools) {
+      const consumed = owner.operation === 'subtract' ? owner.tools : owner.operands;
+      for (const reference of consumed) possibleCurrent.delete(reference.bodyId);
+    }
+    for (const bodyId of createdBodyIds(owner)) if (!creators.get(bodyId)?.unavailable) possibleCurrent.add(bodyId);
   }
   return { steps, selected: selection.map(reference => selectedChoices.get(key(reference)) ?? {
     ref: { ...reference }, unavailable: true,

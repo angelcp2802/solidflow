@@ -37,6 +37,7 @@ import { throughAllBossTool, throughAllTool, untilNextTool, upToSurfaceTool } fr
 import { isNativeCleanupFailure, NativeCleanupError, NativeOwners } from './kernel.native-ownership';
 import { evaluateFeatureRecipes, stageFeatureRecipeEvaluation, type NativeRecipeSourceState } from './kernel.feature-recipes';
 import type { RegenerationRequest } from '../model/featureRecipes';
+import { resolveNativeRecipeScope } from './kernel.recipe-scopes';
 import { holePositionStructure, holeSolid } from './kernel.holes';
 import { importStepSolid } from './kernel.step';
 import { entityProfilePrismIfSingleRegion, type OwnedEntityPrism } from './kernel.provenance';
@@ -45,7 +46,7 @@ import { bodyBoolean, copyBodyShape, NativeBodyCatalog, type NativeBodyEntry, ty
 import { createdBodyIds, featureBodyReferences } from '../model/bodyReferences';
 import { MAX_CREATED_BODY_IDS, validateBodyPatternDeclaration } from '../model/bodyPatterns';
 import { bodyPatternCopy } from './kernel.body-patterns';
-import { MAX_FEATURE_PATTERN_CONTRIBUTIONS, featurePatternSourceReferences, validateFeaturePatternDeclaration } from '../model/featurePatterns';
+import { MAX_FEATURE_PATTERN_CONTRIBUTIONS, featurePatternApplications, featurePatternSourceReferences, isAllFeaturePattern, validateFeaturePatternDeclaration } from '../model/featurePatterns';
 import { FeatureContributionReleaseError, featureContributionKey, featurePatternReplacements, ownedGeometryDelta, type OwnedFeatureGeometry } from './kernel.feature-patterns';
 import {
   createSemanticFaceCatalog, createSemanticEdgeCatalog, preparePrismReferencesV2,
@@ -732,11 +733,15 @@ export class CadEngine {
           const support = feature.type === 'mirror' ? resolveSupport(feature.support) : null;
           if (feature.type === 'mirror' && !support) throw new Error('El plano de simetría no está disponible. Recupera el soporte.');
           const plan = patternPlan(feature, support?.frame), operation = feature.featurePattern;
+          const scope: RegenerationRequest['scope'] = isAllFeaturePattern(operation)
+            ? { mode: 'all', reevaluateAt: 'patternInput' } : { mode: 'selected', targets: operation.targets };
+          const targetSnapshot = resolveNativeRecipeScope(scope, bodyCatalog);
+          featurePatternApplications(feature, targetSnapshot.length);
           const request: RegenerationRequest = {
             mode: 'regenerate', geometryPattern: false, patternId: feature.id, patternKind: feature.type,
             beforeFeatureIndex: features.indexOf(feature), sourceFeatureIds: [...feature.source.featureIds],
             plan: { transforms: plan.transforms, structure: plan.structure },
-            scope: { mode: 'selected', targets: operation.targets }, targetSnapshot: operation.targets,
+            scope, targetSnapshot,
             bindings: operation.bindings.map(binding => ({ source: binding.source, targets: binding.targetBodyIds })),
             referencePolicies: operation.referencePolicies, variation: operation.variation,
           };
@@ -761,7 +766,7 @@ export class CadEngine {
           rememberReferencedSource(beforeForRecord);
           continue;
         }
-        if (isRepetition(feature) && feature.featurePattern) {
+        if (isRepetition(feature) && feature.featurePattern?.mode === 'geometry') {
           solidFeatureIds.add(feature.id);
           if (!bodyCatalog || !body) throw new Error('La repetición de aportaciones requiere cuerpos explícitos; la geometría antigua no se adopta automáticamente.');
           if (feature.source.mode !== 'features') throw new Error('Selecciona operaciones semilla para repetir sus aportaciones.');
