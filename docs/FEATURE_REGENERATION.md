@@ -5,7 +5,8 @@ against the current working target. The integrated initial path connects
 [recipe declarations](FEATURE_RECIPES.md), explicit-frame native construction,
 chronological evaluation and atomic body-catalog publication. It supports
 intrinsic rectangle/circle cuts and merge extrusions, blind/ThroughAll endings,
-explicitly selected targets, no reference policies and no variation.
+explicitly selected targets, no reference policies and no variation. Dynamic ALL
+currently supports the intrinsic cut subset; additive ALL remains pending.
 [Geometry contribution patterns](FEATURE_PATTERNS.md) keep their separate
 signed-material-copy contract. This initial path does not complete the full
 feature-pattern goal. Source-specific results belong in [VALIDATION](VALIDATION.md).
@@ -26,9 +27,30 @@ featurePattern: {
 }
 ```
 
-Every source names an exact historical output state; targets must be exact
-current states. The binding and application budgets match the geometry branch:
-32 source features, 32 targets, 512 bindings and 512 active owner applications.
+Every source names an exact historical output state; selected targets must be
+exact current states. Dynamic ALL has a distinct saved variant:
+
+```ts
+featurePattern: {
+  mode: 'regenerate';
+  scope: 'all';
+  reevaluateAt: 'patternInput';
+  bindings: { source: BodyReference; targetBodyIds: 'scope' }[];
+  referencePolicies: [];
+  variation: { kind: 'none' };
+}
+```
+
+ALL uses the same feature source with `geometryPattern:false`. It saves neither
+`targets` nor a derived current snapshot; an own targets field is invalid even
+when undefined. Every binding follows the scope. AUTO is not an accepted saved
+variant. Geometry/true continues to use explicitly selected targets.
+
+Limits are 32 source features, 32 selected targets or 256 current ALL owners,
+512 bindings and 512 active source/placement/owner applications. The actual ALL
+inventory counts before target copies or tools, including no-op and equivalent
+event routes. Separate closure/serialization budgets also apply; exceeding any
+budget rejects rather than silently dropping members.
 Requested exact recipe states across a rebuild have a separate 512-record
 limit. The parser rejects contradictory modes and false without this explicit
 declaration. A geometric copy is never a fallback for failed regeneration.
@@ -40,6 +62,52 @@ The property panel exposes `Copiar geometría` and `Recalcular operaciones` for
 explicit feature patterns, with the source flag updated together with the saved
 mode. That control and programmatic document tests do not establish real editor
 interaction or worker preview/Apply coverage.
+
+## Dynamic ALL scope
+
+The engine resolves every current native owner at the pattern-input boundary on
+each rebuild. Adding an earlier body or advancing an existing owner's current
+state changes the derived snapshot without editing the saved ALL intent. Exact
+historical source poststates remain separate: they never follow those current
+target updates or acquire ownership from a coincident body.
+
+The complete native inventory participates in the freshness proof, including
+remote and no-op owners. Refs, lineages, shape identity, the current definitions,
+scope intent and evaluator revision are checked before evaluation and again at
+staging. Pure commands attest the whole document, declaration, catalog and empty
+manual selection; native availability still requires the real preview. A stale
+snapshot, omitted member or copied proof cannot authorize publication. Derived
+targets are preview data only and are not written back into the declaration.
+
+The property panel exposes selected versus ALL scope only for regeneration.
+Changing selected→ALL removes the target list and routes each exact source to
+scope. Changing ALL→selected creates an empty draft requiring explicit target
+selection; it never guesses current targets. Geometry copying requires selected
+scope first. ALL displays paginated current names rather than target checkboxes.
+Render and property labels do not attest materialization or real interaction.
+
+Only finally changed owners receive the pattern poststate. Contextual structural
+association can keep an old ref or a potential body@pattern ref loadable for
+repair; exact native lookup rejects the latter when that owner was a no-op.
+Deleting a creator removes its exact downstream consumers and their dependents,
+including consumers through ALL. The dynamic pattern itself does not depend on
+every catalog member. Creator association uses the original structural context,
+including suppressed/repairable states, and never substitutes a nearby identity.
+
+ALL additive merge recipes report `ALL_POSITIVE_SCOPE_PENDING` before target
+copies or tools. Applicability to a remote owner has not been established;
+exceptions are not silently interpreted as misses. Selected additive behavior
+is unchanged. AUTO requires genuine native discovery and an explicit saved
+capture/follow policy; a final-replacement list cannot stand in for owners
+affected by intermediate events. These remain required capabilities, not
+successful parity demonstrated by rejection.
+
+The 54 additional authored cases have distinct boundaries:
+[17 model/command and seven SSR](PROVENANCE.md#dynamic-all-model-and-rendered-fixtures),
+[18 native scope/evaluator](PROVENANCE.md#native-dynamic-recipe-scope-fixtures),
+[eight saved-engine](PROVENANCE.md#saved-all-engine-acceptance-fixtures) and
+[four creator-deletion](PROVENANCE.md#dynamic-all-creator-deletion-fixtures).
+Actual executions and retained failures belong in [VALIDATION](VALIDATION.md).
 
 ## Explicit-frame primitive input
 
@@ -182,9 +250,11 @@ It accepts no arbitrary caller transform or source frame and never uses a
 captured material delta as a regeneration substitute.
 
 This bridge is limited to the initial `mode:'regenerate'`,
-`geometryPattern:false` declaration subset: selected targets, no variation,
-intrinsic rectangle/circle profiles, owned cut/merge and blind/ThroughAll
-termination. UntilNext/UpToSurface declarations retain their pending gates,
+`geometryPattern:false` declaration subset: selected targets or cut-only ALL,
+no variation, intrinsic rectangle/circle profiles, owned cut/merge and
+blind/ThroughAll termination. Selected scope checks its exact saved target
+routes; ALL checks the attested derived target snapshot and scope routes.
+UntilNext/UpToSurface declarations retain their pending gates,
 even though the primitive constructor can build an explicitly resolved tool.
 The bridge itself accepts an extracted declaration; the saved parser and engine
 connect it through the explicit mode above.
@@ -235,23 +305,24 @@ guarantee global cleanup attribution or allocation safety for those paths.
 
 ## Executed evidence and remaining work
 
-Focused local Windows checks passed 75 bridge/ownership/termination cases across
+Earlier selected-scope local Windows checks passed 75 bridge/ownership/termination cases across
 six files, 21 standalone evaluator cases, and 18 saved-parser/engine integration
 cases. The evaluator's first run had two incorrect radius-.5/depth-two volume
 expectations; correcting them to π/2 per hole left production unchanged and the
 21-case rerun passed. A separate 19-case primitive run passed before a test-only
 typing annotation. These invocation counts overlap and are not a combined total.
-The integrated build and separate 11-case IPC check also passed. A successful
-desktop check has not been established for this integrated snapshot; earlier
-desktop success belongs to its earlier source. Full-suite and desktop outcomes,
+Those earlier selected-scope checks also passed build and 11 IPC cases, but
+did not establish a successful desktop check for that earlier snapshot. The
+current dynamic-ALL source has its own full-suite, build and desktop record. Full-suite and desktop outcomes,
 separate readiness/exit diagnostics, retained failures and follow-up checks belong
 to their exact source records in [VALIDATION](VALIDATION.md).
 No complete feature or platform-support claim follows.
 
 Required continuation includes up-to-surface, offset, until-next and other
 end/start conditions; exact face/datum/instance correspondence; arbitrary and
-associative solved profiles; dependent sketches/planes/constraints; all/auto
-scope discovery with saved capture/re-evaluation policy; varying sketches,
+associative solved profiles; dependent sketches/planes/constraints; additive ALL,
+dynamic geometry scope and AUTO discovery with saved capture/follow policy;
+varying sketches,
 dimensions and equations; nested regeneration; creation/split/consumption/Combine
 output ledgers; complete stale preview/Apply, suppression/rollback, picking,
 document lifecycle and interoperability. Pending diagnostics identify these

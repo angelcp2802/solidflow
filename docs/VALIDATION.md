@@ -1,5 +1,76 @@
 # Validation
 
+## Dynamic current-body cut regeneration — 2026-10-14
+
+Runtime source
+[`d2f9904edc394af067f1874af856aaf96239ed4f`](https://github.com/angelcp2802/solidflow/commit/d2f9904edc394af067f1874af856aaf96239ed4f)
+is based on draft #37 at `682fba8e3eccb616f4fe442e04c44033bd2682d4`.
+It enables the explicit saved `regenerate`/false ALL declaration for the initial
+intrinsic rectangle/circle cut recipes with blind/ThroughAll endings. Every
+rebuild resolves complete current native membership at the pattern-input
+boundary; the document saves dynamic intent and exact historical sources,
+without current target refs or an inventory snapshot. Only changed owners
+receive a pattern poststate. Geometry/true copying retains selected targets.
+
+The source adds 54 original cases: 17 symbolic model/command, seven SSR,
+18 component-native, eight saved-engine and four contextual-deletion cases.
+The deletion correction removes exact consumers of an owner whose creation
+is deleted, including refs through ALL, while preserving the dynamic pattern
+and unrelated repair refs. It does not make the pattern depend on each member.
+
+Final local Windows x64 / Node 24.11.1 results for these exact 277
+runtime/configuration inputs are:
+
+| Command | Recorded result |
+| --- | --- |
+| `npm test` | Exit 0; 2,198 passed in 125 files, 56.15 seconds for the unit phase, followed by all 11 IPC-security checks without failures/cancellations/skips. |
+| `npm run build` | Exit 0; TypeScript and production build passed, 1,985 modules transformed. Existing externalization and large-chunk warnings remain. |
+| `npm run test:desktop` | Exit 0; initial-model readiness, two canvases, preload bridge, worker/WASM responses and zero recorded console errors/failed requests; actual child close and isolated temporary-data cleanup succeeded. The complete validation invocation took 24.112 seconds. |
+
+The complete before/after maps for each final command are identical and match
+all 277 committed Git-tree inputs byte for byte. No environment override was
+recorded. The final build updated the renderer after the contextual-deletion
+source change; it is not described as an unchanged rebuild. Desktop used all
+seven exact final compiled outputs, which stayed unchanged during its run.
+
+The smoke entry point carries the same success-only `app.quit()` correction
+as [draft #35](https://github.com/angelcp2802/solidflow/pull/35); failures retain
+`app.exit(code)`, and readiness/exit deadlines and cleanup retries are unchanged.
+The separate launcher-diagnostics helper and its 20 additional Node cases are
+not included here. This source's 11 IPC checks are not the 31-case #35 suite.
+The #35 local unit timeout and hosted macOS bus error remain separate results.
+
+Before the final source, build, native18 and engine8 passed on 276 inputs.
+Those focused passes are not substituted for the later 277-input full suite.
+The first saved-model/SSR selection on 277 inputs failed three presentation
+assertions, with 113 passed of 116: an old exact sentence ended in a period
+where the new explanatory clause used a comma. The expectation was updated to
+the complete intended sentence; calculation, route, selection and immutability
+assertions remained intact. The corrected seven-file selection passed all 116
+cases, and the final complete suite above includes them. Original failure
+evidence is retained; no test budget or geometry assertion was changed.
+
+Native checks cover all three placements, independently owned coincident
+destinations, remote no-op owners, full-inventory freshness and stale/forged
+proof rejection. One case actually evaluates 35 current owners, including
+33 changed destinations; this does not prove native evaluation at the256-owner
+limit. The positive512 boundary checks declaration/native membership rather
+than512 Booleans;513 applications reject before target copies/tools. The
+selected-target limit remains32, dynamic membership256 and applications512,
+with independent closure/cache limits. Metric/probe tolerances and original
+parameters are recorded in [fixture provenance](PROVENANCE.md).
+
+Additive ALL applicability and AUTO discovery/capture remain explicit pending
+capabilities. Their rejection is not parity or completed support. Selected
+additions remain supported within the preceding contract. Other end/start
+conditions, dependent references, varying sketches/dimensions, nested recipes,
+full ownership lifecycle, real property-panel/worker preview/Apply interaction
+and independent export interoperability remain required. SSR is not real
+interaction; initial-model smoke does not exercise these tools or prove general
+shutdown, native-leak absence, signing, releases or platform support. No hosted
+result for this new source is inferred from the older revisions below.
+
+
 ## Saved feature recipe regeneration — local source checkpoint (2026-10-14)
 
 Source commit [97def5ae](https://github.com/angelcp2802/solidflow/commit/97def5ae2ab0b3e15fc007f560cecd465b9c138d)

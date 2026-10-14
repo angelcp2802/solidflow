@@ -1152,3 +1152,130 @@ into the engine's closure-local cache publication Maps or post-adoption prior
 catalog release, and do not prove native OOM, factory-internal reclamation or
 total leak freedom. The public source-order review and those unexecuted
 boundaries remain separate from the actual three-case execution record.
+
+## Dynamic ALL model and rendered fixtures
+
+The 17 cases in `src/model/featurePatternAllScope.test.ts` and seven cases in
+`src/components/PatternPanel.allScope.test.tsx` use original symbolic body and
+feature records. No native geometry, external model, application export or
+private asset is required. Linear, circular and mirror records pair explicit
+regeneration with geometryPattern false, exact historical source refs and scope
+routes rather than a saved current-target snapshot.
+
+The model cases check saved round trips, strict declaration shape/parity,
+detached scope edits, explicitly chosen target routes, unchanged identities,
+seed pruning without inferred bindings, selected/dynamic/application budgets,
+fresh command attestation after inventory or current-state changes, and
+contextual potential output refs retained for repair. A symbolic healthy flag
+exercises command attestation only; it supplies no native availability proof.
+
+SSR checks the initial selected scope/method, historical labels, a paginated
+current ALL catalog with at most 64 visible names, loading states, pending
+additive scope prose and absence of automatic scope or target checkboxes for ALL.
+Callbacks throw if render edits any input. An original 8192-slot history has
+8191 retired slots and one active slot; ordinary ALL choices stay bounded while
+an exact selected retired ref remains visible as unavailable repair data.
+These assertions execute no UI event and prove neither interaction nor native
+materialization. Four existing selected-fixture files retain their original
+oracles and case counts; their type narrowings do not broaden what they test.
+
+## Dynamic ALL creator-deletion fixtures
+
+`src/model/featurePatternAllDeletion.test.ts` defines four original symbolic
+ownership graphs. Source S and its historical cut precede independently created
+B and C, an ALL pattern P based on C, an exact B@P consumer and its child, and
+an independent C@P repair consumer. Each of B's creator and its profile is
+deleted with B active or suppressed.
+
+Expected deletion removes B's creator, its exact and transitive consumers, and
+the requested profile when applicable. P, its exact historical seed, C and the
+unchanged C@P repair ref remain. Creation association is queried against the
+original context and memoized by exact ref; unresolved association adds no
+invented dependency. The fixture checks immutability and saved round trips,
+without claiming that a potential P poststate exists natively. No geometric
+identity substitution or dependency on every ALL inventory member is introduced.
+
+Together with the 18 native scope and eight saved-engine cases below, these
+files add 54 authored cases at distinct boundaries. Counts describe fixture
+inventory, not executed passes. Additive ALL, dynamic geometry scope, AUTO,
+dependent/varying recipes and broader output lifecycles remain required work.
+
+## Native dynamic recipe-scope fixtures
+
+The inputs proposed in `src/cad/kernel.recipe-scopes.native.test.ts` are original
+analytical millimeter fixtures constructed from boxes, radius-one cylinders,
+intrinsic rectangle/circle sketches and explicit body references. No external
+CAD model, application export, proprietary source, binary or private asset is
+required. The eighteen authored cases describe a native scope/evaluator boundary;
+their presence alone is not a recorded validation result.
+
+A historical 10-by-10-by-4 source has a radius-one through opening at (5,5).
+Linear translation by +20X, a 180-degree Z rotation about (15,0,0), and reflection
+in X=15 route its recipe to independent coincident 10-by-10-by-8 owners. The
+expected per-owner volume is 800-8pi and surface area is 520+14pi. Circular
+placement has bounds [20,-10,0] to [30,0,8]; linear/mirror bounds are [20,0,0] to
+[30,10,8]. The exact historical source stays 400-4pi/360+6pi, while a remote
+10-by-10-by-8 owner stays 800/520 with its old state reference.
+
+An earlier extension of the same A identity to height10 yields 1000-10pi and
+600+18pi. A newly inserted coincident D at height12 yields 1200-12pi and
+680+22pi. These expectations follow V=100h-pi*h and A=200+40h+(2h-2)pi and
+distinguish fresh ALL membership/current refs from a persisted selected list.
+Each owner must remain one valid closed solid; original creation identity and
+unmodified exact references are asserted separately from geometry.
+
+The file also proposes cropped/extra/stale snapshots, forged proofs and native
+shape-identity drift, exact historical capture failures before target copies or
+tool construction,
+35-owner real evaluation, and a 512-route declaration versus a 513-route rejection
+before target copies or tools. The 512 positive check is declaration/membership
+coverage, not execution of 512 material operations. The shape-drift case uses a
+real deep copy of an unchanged owner to require stage rejection and exactly one
+release of each retained candidate without modifying borrowed catalog geometry.
+
+Selected scope retains real positive and cancellation discriminators. A
+2-by-2-by-2 attached boss changes a 10-by-10-by-4 box from 400/360 to 408/376.
+ALL positive applicability must instead report its explicit pending diagnostic
+before tool construction. A selected through removal followed by a fill has
+genuine per-event effects on both owners while only an originally pocketed owner
+changes finally: a 2-by-2-by-2 bottom pocket has 392/376 and is restored to
+400/360; a 30-by-10-by-4 neighbor returns to 1200/920 and retains its old exact
+state. This does not establish ALL addition or AUTO capture behavior.
+
+Authored tolerances are 1e-5 for volume/area, 1e-6 for bounds, and 1e-7 for cube
+intersection volume. A 0.2-sided cube has expected material volume 0.008 or zero
+at the stated interior probes. Metric expectations are independent formulas;
+the tested kernel supplies only observed geometry. Record actual executions
+separately before claiming that any proposed case passed. Saved dynamic grammar,
+property-panel interaction, automatic capture, varying/dependent recipes and
+broader lifecycle behavior require their own evidence.
+
+## Saved ALL engine acceptance fixtures
+
+`src/cad/kernel.recipe-all.integration.test.ts` defines eight original cases
+using the saved ALL regeneration declaration through CadEngine. It is separate
+from component-native, symbolic-command and server-rendered presentation tests.
+No external CAD model or binary is used.
+
+Units are mm. A 10×10×4 source has a unit-radius ThroughAll hole at (5,5).
+Two independently owned coincident 10×10×8 targets receive a +20 X copy,
+a 180-degree Z rotation about (15,0,0), or reflection in X=15. A remote
+10×10×8 owner remains at X=50..60. For a target height h and radius r,
+independent formulas are V=100h−πr²h and
+A=200+40h−2πr²+2πrh. Baseline aggregate volume, counting both distinct
+coincident owners, is 2800−20π. Current-state/membership edits extend A to
+height10 and insert D of height12; aggregate volume becomes 4200−34π.
+The ALL intent remains unchanged and saves neither targets nor a snapshot.
+
+An R2 source edit is saved/reopened and exercised through undo/redo. Source
+V/A becomes400−16π/360+8π; each height8 target becomes800−32π/520+24π.
+A later remote cut explicitly referencing the no-op C@pattern state must stay
+loadable for repair but fail native construction/export, preserving earlier
+owners. This is an exact-reference rejection, not a missing-body fallback.
+
+Checks require valid BRep, one solid per owner, independent per-owner volume
+and surface area within1e-5, bounds within1e-6, saved opaque refs/creator IDs
+and a .2³ material probe within1e-7 volume. Fixtures release metric/probe
+wrappers and dispose their engines. Case and initialization budgets are60s.
+These checks do not prove native leak absence, real pointer/worker preview/Apply,
+general ownership lifecycle, independent interoperability or platform support.

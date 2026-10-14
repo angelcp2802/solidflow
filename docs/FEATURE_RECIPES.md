@@ -14,8 +14,9 @@ copies signed material contributions; that path remains separate.
 `RegenerationRequest`. The request's `mode:'regenerate'` and
 `geometryPattern:false` identify this internal extraction API. The request is
 derived from the explicit saved regeneration mode; the full request is not
-persisted. Saved targets, routes, empty reference policies and no-variation
-intent are parsed strictly. History index, canonical plan, target snapshot and
+persisted. Saved selected targets/routes or dynamic ALL intent/scope routes,
+empty reference policies and no-variation intent are parsed strictly. History
+index, canonical plan, target snapshot and
 closure are reconstructed. False without the explicit variant still rejects,
 and regeneration must not route to geometry-delta replay.
 
@@ -42,8 +43,12 @@ owners atomically. Unchanged targets must not acquire a phantom poststate.
 
 ## Bounds, preview identity and strict math
 
-The declaration envelope allows 32 source features, 32 targets, 512 bindings and
-512 active owner applications, 256 closure definitions and 2048 dependency edges.
+The declaration envelope allows 32 source features, 32 explicitly selected
+targets or up to 256 current ALL targets, 512 bindings and 512 active owner
+applications. ALL counts the resolved complete catalog, including no-op routes;
+it does not persist that derived target list. The separate limits of 256 closure
+definitions and 2048 dependency edges still apply: a document with 256 owners
+does not automatically fit every other envelope.
 Detached data is limited to 50,000 nodes, depth 64 and 1,000,000 UTF-16 code units
 across copied record field names and string values. Canonical fingerprint
 serialization has its own 1,000,000-unit bound, including escaping, punctuation
@@ -55,7 +60,10 @@ ancestry, source and target references, routes, remap/scope/variation policies,
 and complete canonical transform placements. It is canonical data, not a hash
 or native availability certificate. Native preview must additionally attest
 actual owner/face/plane lineages, scope discovery and evaluator revision before
-Apply. Full all/auto discovery inputs may extend beyond selected target ancestry.
+Apply. ALL additionally attests the complete current catalog, including owners
+that will not change, and rechecks exact refs, lineages and native shape identity
+at staging. Its scope is resolved at the actual pattern-input boundary rather
+than reconstructed from a saved target snapshot. AUTO discovery remains pending.
 
 Math exports check plain dense saved data and descriptors before reading
 operands. Accessors, hidden/symbol fields, sparse arrays and custom prototypes
@@ -78,9 +86,15 @@ trimmed-face or UV correspondence.
 declarative subset. It does not certify a successful native preview.
 The initial declarations describe fixed intrinsic rectangle/circle sketches,
 owned cut or merge extrusions, blind/through-all endings and selected targets.
+The explicit ALL regeneration variant currently admits cuts from this intrinsic
+subset. ALL additive merge recipes report `ALL_POSITIVE_SCOPE_PENDING` before
+target copies or tools; remote-owner applicability remains unresolved. A failed
+Boolean is not treated as a geometric miss and no bounding-box heuristic selects
+an owner. This gate is an implementation limit, not evidence of external parity.
 Extraction alone does not resolve any native requirement. The initial native
 bridge/evaluator supports that subset, and the engine connects it to the
-explicit saved selected-scope mode with empty reference policies and no variation.
+explicit saved selected or cut-only dynamic ALL mode with empty reference policies
+and no variation. The geometry/true branch retains explicitly selected targets.
 
 Until-next, up-to-surface, associative supports and face correspondence are
 retained with explicit pending diagnostics. The offset-intent validator is a
@@ -96,7 +110,8 @@ selected multi-feature/owner, no-op, late rejection and document-history paths.
 Parent roles retain semantic revisions, not parent BRep/face correspondence.
 Required work still includes other end/start conditions, exact dependent
 sketch/plane/face/constraint remapping, varying dimensions/sketches and equations,
-all/auto discovery policies, nested recipes, creation/split/consumption/Combine
+positive ALL and dynamic geometry scope, AUTO discovery policies, nested recipes,
+creation/split/consumption/Combine
 identity ledgers, complete stale preview/Apply, suppression/rollback, picking,
 document lifecycle and export interoperability. Pending diagnostics block the
 initial gate; rejection does not count as implementing these capabilities.
@@ -124,3 +139,9 @@ prototype or earlier geometry-pattern suite is not validation of a later
 integrated native evaluator. Separate original suites define 21 standalone
 evaluator cases and 18 saved engine cases; their fixtures, native results and
 current execution scope are linked from [FEATURE_REGENERATION](FEATURE_REGENERATION.md).
+
+Dynamic ALL has 54 additional authored cases at separate boundaries: 17 symbolic
+model/command, seven SSR, 18 native scope/evaluator, eight saved-engine and four
+contextual deletion cases. Their provenance is linked from the
+[regeneration contract](FEATURE_REGENERATION.md#dynamic-all-scope). These counts
+describe written fixtures, not a combined execution result or interaction proof.

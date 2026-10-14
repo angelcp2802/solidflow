@@ -68,15 +68,19 @@ The proposed [body management contract](BODY_MANAGEMENT.md) covers persistent bo
 The [scoped feature geometry contract](FEATURE_PATTERNS.md) distinguishes exact
 per-owner contributions, potential historical states and native availability.
 Its signed material copying is separate from the initial saved per-instance
-regeneration path. Varying sketches, dynamic scopes and broader recipes remain
+regeneration path. Geometry/true keeps selected targets. Varying sketches,
+additive ALL, dynamic geometry scope, AUTO discovery and broader recipes remain
 required work.
 
 The [feature recipe declaration layer](FEATURE_RECIPES.md) documents the pure
 closure/frame API. The [regeneration contract](FEATURE_REGENERATION.md) connects
 explicit-frame tool construction, chronological evaluation and the saved
-selected-scope mode. The initial native path accepts intrinsic rectangle/circle
-cuts or merge extrusions with blind/ThroughAll endings, no reference policies
-and no variation. Geometry copy/true and regeneration/false have distinct saved
+selected or cut-only ALL scope. The initial native path accepts intrinsic
+rectangle/circle cuts or selected merge extrusions with blind/ThroughAll endings,
+no reference policies and no variation. ALL resolves the complete current native
+catalog on each rebuild; it does not save a target snapshot. Limits remain
+32 selected targets, 256 dynamic owners and 512 active owner applications, with
+separate closure/history envelopes. Geometry copy/true and regeneration/false have distinct saved
 declarations; legacy false without the explicit mode still rejects.
 
 The 51 pure declaration, 21 evaluator and 18 saved engine cases have different
@@ -85,6 +89,16 @@ atomic owner publication and programmatic save/reopen/history checks do not
 establish real property-panel interaction or worker preview/Apply behavior.
 Check the actual source-specific [validation](VALIDATION.md) before extending
 an earlier component or desktop-smoke result to later integrated source.
+
+The dynamic ALL increment adds 54 authored cases across 17 model/command, seven
+SSR, 18 native scope/evaluator, eight saved-engine and four contextual deletion
+cases. Counts are fixture inventory, not passing results. ALL retains exact
+historical sources and native current-target proofs; only changed owners advance.
+An exact consumer through ALL still depends on its body's creator, while ALL
+itself is not a saved inventory dependency. Additive ALL and AUTO remain explicit
+pending capabilities. Their full contract and evidence boundaries are in
+[FEATURE_REGENERATION](FEATURE_REGENERATION.md#dynamic-all-scope) and
+[PROVENANCE](PROVENANCE.md#dynamic-all-model-and-rendered-fixtures).
 
 ## Test geometry and persistence
 

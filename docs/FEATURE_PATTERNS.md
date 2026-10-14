@@ -32,8 +32,10 @@ ID. All references must belong to the corresponding earlier ownership history.
 allocates no body identities or instance slots. Its absence preserves the
 legacy acceptance rules. The geometry branch requires `geometryPattern:true`.
 The separate [regeneration mode](FEATURE_REGENERATION.md#saved-regeneration-mode)
-requires `mode:'regenerate'`, `geometryPattern:false`, explicit selected scope,
-empty reference policies and no variation. False without that declaration
+requires `mode:'regenerate'`, `geometryPattern:false`, explicit selected or
+cut-only dynamic ALL scope, empty reference policies and no variation. ALL
+saves scope routes rather than current target references. Geometry/true retains
+the selected-target declaration above. False without an explicit declaration
 still rejects. Failed regeneration must never fall back to a rigid copy.
 
 There are at most 32 selected source features, 32 target owners and 512 exact
@@ -100,6 +102,12 @@ for repair. Exact native catalog resolution decides availability and currency.
 Preview and Apply must attest the document, declaration, selections and actual
 catalog; UI choices cannot infer availability from structural association alone.
 
+For the separate regenerate/ALL variant, potential output association uses the
+ownership context before the pattern. It does not allocate a poststate or infer
+which owners change. Removing a creator cascades to its exact body consumers,
+including consumers of potential ALL outputs, without making the dynamic pattern
+depend on every catalog member. Exact native availability remains separate.
+
 ## Original analytical regression fixtures
 
 The original inline native file
@@ -155,10 +163,13 @@ component, integrated engine and real interaction results.
 
 Geometry replay does not complete the feature-pattern goal. Required later
 layers include broader per-instance recipes and end/start conditions, applicable
-varying-sketch constraints, exact selected dependent-feature remapping, dynamic
-all-body scope, an explicitly saved auto-scope policy, nested semantic recipes
+varying-sketch constraints, exact selected dependent-feature remapping, additive
+ALL and dynamic geometry scope, an explicitly saved AUTO discovery/capture policy,
+nested semantic recipes
 and broader ownership lifecycle handling. A persisted selected target list is
-not dynamic all-body scope. The written nested linear-then-mirror fixture is
+not dynamic all-body scope. The cut-only regenerate/ALL increment resolves the
+complete current catalog but does not activate additive ALL or AUTO; their
+pending gates are not evidence of implemented fidelity. The written nested linear-then-mirror fixture is
 one selected-scope geometry recipe; broader nested transform/owner combinations,
 dependent-feature remapping and nested regeneration remain required evidence.
 These remain implementation and evidence gaps
