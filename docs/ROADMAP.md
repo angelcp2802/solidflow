@@ -42,10 +42,12 @@ above.
 
 The independent [desktop diagnostic proposal #35](https://github.com/angelcp2802/solidflow/pull/35)
 targets `main` for [issue #30](https://github.com/angelcp2802/solidflow/issues/30).
-It is a parallel maintenance lane, not another CAD prerequisite. Its current
-hosted checks pass, while local full-suite timeouts and an explicit desktop
-deadline/unconfirmed-close failure remain recorded in the review queue. The
-issue stays open for review and remaining real desktop acceptance.
+It is a parallel maintenance lane. Current head `0a0ab22a` passes hosted
+Windows/Linux checks, but macOS unit/CAD terminates with a bus error before IPC
+or desktop smoke. Its local desktop command now passes after normal quit;
+one full-suite CAD timeout remains recorded separately. The review queue keeps
+earlier failures and source-specific results. The issue stays open for review
+and remaining real desktop acceptance.
 
 ## Next priorities
 

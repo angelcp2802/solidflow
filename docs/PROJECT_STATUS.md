@@ -146,6 +146,27 @@ of the six-proposal CAD stack above. It preserves the primary launch outcome
 alongside cleanup errors and retains isolated temporary data when the owned
 child's close was not observed. It is draft and unmerged; #30 remains open.
 
+The latest runtime source `dab4f056` requests normal Electron quit after
+successful readiness; unsuccessful completion retains its forced nonzero exit.
+Documentation head `0a0ab22a` preserves all 203 runtime/configuration inputs.
+Its own local build and 31 Node cases passed, and the real initial-model desktop
+command exited 0 after close and cleanup (15.553 seconds for the complete
+invocation). The local full run still failed: 1,491 passed and one 5-second
+toroidal-case timeout of 1,492 cases in 74 files; IPC was not entered. The exact
+case passed separately at its unchanged timeout; that does not change the full
+result. The [source-specific ledger](https://github.com/angelcp2802/solidflow/blob/0a0ab22a0cd0b6295b9ff7c5761398b1ae457a4a/docs/VALIDATION.md)
+preserves both results and the ineffective initial focused selection.
+
+The current [CI run](https://github.com/angelcp2802/solidflow/actions/runs/38516444018)
+is not green: Windows x64 and Linux x64 passed 1,492 cases in 74 files, 31 Node
+cases, build 1,972, initial-model Electron/WASM smoke and unsigned packaging.
+macOS arm64's unit/CAD process terminated with `Bus error: 10` (step exit 138),
+without a final suite summary; IPC, smoke and packaging were skipped. The crash
+cause remains unknown. All three [security checks](https://github.com/angelcp2802/solidflow/actions/runs/38516444008)
+passed. The tested merge `b720c4f3` has the same tree as head `0a0ab22a`.
+No retry or suppression was requested; these results do not establish general
+platform support or resolve the older failures below.
+
 For source `b488bc3`, the [CI run](https://github.com/angelcp2802/solidflow/actions/runs/38476808951)
 and [security run](https://github.com/angelcp2802/solidflow/actions/runs/38476808925)
 have six successful checks, testing merge `0160695` with `main` at `43c7573`.
@@ -155,7 +176,7 @@ smoke pass with no console errors or failed requests, and packaging with
 `--publish never`. CodeQL passed; the audit retained eight moderate findings.
 Packaging logs are not independent evidence of binary signing or notarization.
 
-The updated local source passed 31 IPC cases, including the original VM
+That earlier local source passed 31 IPC cases, including the original VM
 temporary-path rejection case, and the 1,972-module build. Its full unit run
 failed: 1,352 passed and 140 failed of 1,492 tests; 59 passed and 15 failed of
 74 files in 853.24s. All 140 logged failures were test timeouts, 136 at 5 seconds
