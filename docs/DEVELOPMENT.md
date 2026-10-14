@@ -42,6 +42,11 @@ existing 45-second deadline, the check fails and retains that temporary data.
 Releasing the child handle's reference does not prove termination of Chromium
 descendants or release of their inherited streams and files.
 
+After successful readiness the smoke entry point requests normal Electron
+shutdown with `app.quit()`; unsuccessful completion retains `app.exit(code)`.
+A cancelled quit still fails at the unchanged close deadline. A readiness
+report alone is insufficient: successful child close and cleanup are required.
+
 Launcher regressions in `npm run test:ipc` use original synthetic child events,
 an explicitly advanced clock and VM checks of the Node entry point, including
 temporary-path rejection. They do

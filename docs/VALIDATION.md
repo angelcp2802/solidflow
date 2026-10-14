@@ -1,5 +1,49 @@
 # Validation
 
+## Graceful desktop smoke success — 2026-10-14
+
+[Draft PR #35](https://github.com/angelcp2802/solidflow/pull/35) now uses
+`app.quit()` after successful readiness, while unsuccessful completion retains
+`app.exit(code)`. Runtime source
+[`dab4f0564476cfdabc2cdaae50948da070fa13eb`](https://github.com/angelcp2802/solidflow/commit/dab4f0564476cfdabc2cdaae50948da070fa13eb)
+changes only `scripts/desktop-smoke.cjs` from the preceding documentation head
+`b6a72c223d13aa1db1dd7f2ac9de0713bd8fc153`. The production application, launcher
+helper, readiness assertions, sandbox, deadlines and cleanup retries are unchanged.
+A cancelled quit still fails at the existing close deadline; printed readiness
+alone cannot pass the launcher. Main and issue #30 remain unchanged/open.
+
+The following local Windows x64 / Node 24.11.1 checks used this source's own
+203 runtime/configuration inputs, not the later CAD stack:
+
+| Command | Recorded result |
+| --- | --- |
+| `npm run build` | Exit 0; TypeScript and production build passed, 1,972 modules transformed. Existing chunk-size and externalization warnings remain. |
+| `npm test` | Exit 1; 1,491 passed and one failed of 1,492 cases, in 74 files (73 passed, one failed); 35.03 seconds. The failed unit phase did not enter IPC. |
+| `npm run test:ipc` | Separate exit-0 run; all 31 cases passed, with no failures, cancellations or skips. These are 20 launcher cases and 11 IPC-security cases. |
+| `npm run test:desktop` | Exit 0 after actual child close and successful isolated-data cleanup. Initial-model readiness, two canvases, preload bridge and worker/WASM responses passed, with no recorded console errors or failed requests. The complete validation invocation took 15.553 seconds. |
+
+The full-suite failure was the existing toroidal first/last-exit case in
+`kernel.extrusion-limits.test.ts`: its unchanged 5-second budget timed out,
+with 5,200 ms reported. A separate direct-argument focused invocation of that
+exact case passed (one passed, 31 filtered skips, one file; 6.99 seconds total).
+An initial focused invocation selected zero cases (448 skips in 24 files),
+so its exit 0 is not test evidence. No assertions or test budgets were changed.
+The focused pass does not convert the failed complete run into a pass or
+establish the timeout's cause. No repeated full run is claimed.
+
+Every command's before/after maps and current source contain the same 203
+inputs and hashes. All seven compiled output files were unchanged across
+these checks, including the production rebuild. No environment override was
+recorded. The successful close is evidence for this one initial-model smoke
+invocation; it does not establish general shutdown, descendant termination,
+locked-profile recovery, full editor interaction or platform support.
+
+The previous local failures and hosted results below belong to their stated
+revisions. No hosted result for this new source is inferred from them. The
+proposal remains a draft, issue #30 stays open, and binary publication is
+still gated by [issue #5](https://github.com/angelcp2802/solidflow/issues/5).
+
+
 ## Desktop launcher diagnostics — 2026-10-14
 
 [Draft PR #35](https://github.com/angelcp2802/solidflow/pull/35) proposes
