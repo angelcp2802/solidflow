@@ -1,5 +1,101 @@
 # Validation
 
+## Instrumented production-renderer ALL workflow — 2026-10-14
+
+Runtime source
+[`f65d6f1b8ee1feeb3ca37432fb8668fbbd8e6c79`](https://github.com/angelcp2802/solidflow/commit/f65d6f1b8ee1feeb3ca37432fb8668fbbd8e6c79)
+follows `a271abb1409b0aea873aa187c0c07a613e001db2` on draft #38's
+`4a2cee2c1d20222bbeab709c8594ad49292faeb9` checkpoint. The underlying dynamic
+recipe source is based on draft #37 at
+`682fba8e3eccb616f4fe442e04c44033bd2682d4`. This increment adds the reproducible
+public `npm run test:desktop:pattern-all` command and original JSON fixture,
+with separate CI steps after the standard smoke and before packaging. It does
+not expand the supported recipe grammar or complete the full feature goal.
+
+Final local Windows x64 / Node 24.11.1 results for these exact 279
+runtime/configuration inputs are:
+
+| Command | Recorded result |
+| --- | --- |
+| `npm test` | Exit 0; 2,198 unit/CAD cases passed in 125 files, 55.70 seconds for the unit phase, followed by all 11 IPC-security checks without failures/cancellations/skips. Complete invocation: 67.719 seconds. |
+| `npm run build` | Exit 0; TypeScript and production build passed, 1,985 modules transformed. Complete invocation: 16.469 seconds. |
+| `npm run test:desktop` | Exit 0; standard initial-model readiness check passed, actual child close/code-zero was observed and isolated temporary-data cleanup succeeded. Complete invocation: 19.478 seconds. |
+| `npm run test:desktop:pattern-all` | Exit 0; the scripted selected-A→ALL workflow, actual worker preview, Apply, Save As and reopen passed; actual child close/code-zero and guarded temporary-data cleanup succeeded. Complete invocation: 29.305 seconds. |
+| The same public pattern command with test-owned Windows junctions in `TEMP`/`TMP` | Exit 0; the inner workflow passed in 29.279 seconds with unchanged source/assets, child close/code-zero and inner cleanup. The outer check also unlinked its owned junction and deleted its owned container. This checks that Windows alias scenario only. |
+
+Before/after maps for the final commands match all 279 committed runtime inputs
+byte for byte. The renderer assets stayed unchanged during each recorded run.
+The public pattern script's SHA-256 is
+`d7419d617ed5e594cf6382c8c269e9adfe277cefdde41b5240b279b10273c3c7`.
+The original fixture is 2,962 bytes, SHA-256
+`06540f537c83a14aad45d46aac26d8f894354b5cfbb2a9f52fc25c383eca7b17`;
+its parameters and analytical expectations are documented in
+[fixture provenance](PROVENANCE.md#instrumented-dynamic-all-desktop-fixture).
+The source correction creates its profile beneath the canonical system temporary
+root and checks parent/child ownership in that same namespace. It keeps the
+existing prefix/token/containment guards.
+The successful junction case does not establish arbitrary filesystem aliases,
+general cleanup guarantees or another platform's behavior.
+
+The public interaction check launches a fresh hidden production-loader child.
+It drives the real React controls with scripted DOM events and observes the
+real production worker/WASM. Four distinct actual worker requests were checked:
+selected input `3`, ALL preview `6`, committed ALL `7` and reopened ALL `8`.
+For source S the independent volume is `400−4π`; A is `800−8π`; B is `800`
+under selected-A and `800−8π` under ALL; remote C remains `800`. Per-owner
+volumes use absolute `1e−5` mm³ and bounds `1e−6` mm. Exact body/source/creator
+identities are checked at all four phases. The saved/reopened declaration keeps
+its exact historical source and scope route, with no persisted target snapshot.
+Apply was observed disabled before the actual ALL preview response, then the
+real Apply generated a separate committed build. The unchanged source/target
+prefix, actual saved file and reopened worker input were compared.
+
+File operations use the existing restricted preload/IPC. Native dialog choices
+are substituted with only test-owned temporary paths; no native-dialog or human
+pointer interaction is claimed. The original main/preload sources remain
+unchanged. CDP observation is initialized on a preceding owned blank page, so
+the original preload executes on that page and again on the production page.
+The instrumentation supplies neither CAD responses nor React/document state.
+The complete 180-second interaction deadline is separate from the unchanged
+standard smoke deadlines; the instrumented child has a 170-second deadline and
+initial readiness/individual steps retain 35-second limits.
+
+Earlier private prototypes remain separate, with their failures retained:
+
+- Version 3 failed before production navigation because it assumed the Electron
+  last-preferences getter returned a preload path. That harness assumption was
+  corrected; source/assets were unchanged. Failure log SHA-256:
+  `a67856fee5639fea668dcc2a6f7324beb0e8f775f1ac6ccd0e0fbfda3ab9ea7f`.
+- Version 4 reached its 170-second child and 180-second parent deadlines before
+  production navigation. It made no file-IPC calls or protocol requests, did not
+  reach the CAD interaction, did not observe child close and retained its owned
+  temporary directory. This was not a successful tool check or proof of child
+  termination. Failure log SHA-256:
+  `1ffdbd856e39cbdba7871e72d97a1b7a195eec7474a7e4ed9f74da1b7a1f2e40`.
+- Version 5 initialized observation on its own blank page before production
+  navigation and passed a separate local run in 56.633 seconds on the earlier
+  `4a2cee2c1d20222bbeab709c8594ad49292faeb9` source with 277 runtime inputs,
+  observed child close/code-zero and successful temporary cleanup. That private
+  prototype pass was not validation of the later public script. The public
+  source-specific results are the rows above; no deadline or CAD oracle was
+  relaxed to obtain them.
+
+The workflow is configured to run the new public command on Windows 2025 x64,
+Ubuntu 24.04 x64 with Xvfb and macOS 15 arm64. No hosted execution of this new
+head is recorded here yet. Earlier three-OS success does not validate a command
+added later. This one scripted linear-cut workflow does not establish circular
+or mirror editor interaction, picking, stale-prefix rejection, general binding
+editing, undo/redo, native-dialog behavior, exported-file interoperability,
+complete shutdown/allocation safety or platform support. Other end/start
+conditions, dependent references, AUTO/additive ALL, variation, nested recipes
+and complete creation/split/consumption lifecycles remain required work.
+
+The separate #35 local unit timeout and hosted macOS bus error are neither
+reproduced nor resolved by these results. Standard smoke, scripted tool
+interaction, unit/IPC checks and crash diagnostics keep their distinct evidence
+boundaries. The earlier validation history below is retained in full.
+
+
 ## Dynamic current-body cut regeneration — 2026-10-14
 
 Runtime source
