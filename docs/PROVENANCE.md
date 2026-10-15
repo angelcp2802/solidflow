@@ -1373,7 +1373,7 @@ the guide separates native volume/area/probe tolerances from UI evidence.
 The original seven-feature
 [pattern-world-limit-original.json](../src/cad/fixtures/pattern-world-limit-original.json)
 uses two 2×2×16 mm boxes, a radius-0.5 circular cut and displacement [3,0,4].
-The [planned production-renderer workflow](FEATURE_WORLD_LIMIT_FIXTURES.md#planned-production-renderer-workflow)
+The [planned production-renderer workflow](FEATURE_WORLD_LIMIT_FIXTURES.md#production-renderer-workflow-and-recorded-evidence)
 distinguishes copied and fixed-plane regenerated cavities. It records four
 healthy worker phases plus the expected missing-policy rejection, actual Apply,
 isolated Save As/reopen and exact refs/IDs. UI metrics cover volume and bounds,
@@ -1521,3 +1521,44 @@ Next and IsSame failures, matched-Current/final-Explorer cleanup failures, and
 registration failures before/after insertion with both cleanup errors. Numeric
 success cannot escape a failed traversal or release. These eighteen cases
 establish neither a historical support issuer nor same-instance correspondence.
+
+## ALL unilateral forward-material fixtures
+
+Thirteen additional component cases in `kernel.recipe-scopes.native.test.ts` and
+two saved-engine cases in `kernel.recipe-all.integration.test.ts` are original
+synthetic millimetre fixtures. Written cases are not execution results.
+
+The source is the existing 10×10×4 box with a radius-one through hole. A forward
+10×10×8 target must become V800−8π/A520+14π. A distinct behind-plane 10×10×8
+owner stays V800/A520 at its exact creation state, with a same-address virtual
+no-op role and unchanged metadata. Cartesian variants use: +20X placement with
++Z ray and behind bounds [20,0,−10]..[30,10,−2]; a 90-degree +Y rotation about
+(15,0,0) with +X ray, forward bounds [15,0,5]..[23,10,15] and behind bounds
+[5,0,5]..[13,10,15]; reflection across Z10 with −Z physical ray, forward bounds
+[0,0,12]..[10,10,20] and behind bounds [0,0,22]..[10,10,30]. Independent interior
+probe centers are (25,5,6), (19,5,10) and (5,5,16).
+
+Other component cases require bilateral ThroughAll to cut the negative-Z
+owner, selected unilateral behavior to retain its original rejection, a
+classified no-op owner’s shape-identity drift to reject staging and release
+the retained candidate once, and complete no-op ALL to remain rejected. The
+remaining component cases retain explicit primitive parameter rejection for
+three deliberately invalid evaluator declarations (zero radius/width and an
+out-of-range center), the original native error in the near-plane tolerance
+band, and real received-owner bounds query/release failures without publication.
+engine success case uses saved parsing/reopen and independent body metrics.
+The late-failure case uses a 10×4×2 source with a 1×2 through slot (V76/A144)
+and a separate 8×4×4 target plus 6×2×2 tail (V152/A208). The first +4X slot
+gives a healthy V144/A228 target; the +8X slot cuts the tail across its full
+width and height, producing a later split that must
+reject atomically while the behind-plane owner stays V800/A520.
+
+Metric tolerances are 1e-5 mm³/mm², bounds 1e-6 mm and 0.2-cube common volumes
+1e-7 mm³. Expected geometry uses box/cylinder formulas and Cartesian points,
+not the absence classifier. No external asset, binary or private model is
+used. The complete two affected files subsequently passed 41/41 cases on the
+exact local Windows correction snapshot, including these 15 new cases. Their
+[source-specific execution record](VALIDATION.md#all-unilateral-forward-material-correction-2026-10-15)
+is separate from the definitions above; counts overlap with the full suite.
+These cases do not establish general contact classification, new terminations,
+entity-profile support, platform support or native leak freedom.

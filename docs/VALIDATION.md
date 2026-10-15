@@ -1,5 +1,69 @@
 # Validation
 
+## ALL unilateral forward-material correction (2026-10-15)
+
+Local Windows x64 / Node 24.11.1 validated the reviewed correction over
+`372e25245f1aecff8ac4b61c83ad702038fb32c1`, with six uncommitted changed paths.
+The executed production evaluator SHA-256 was
+`e44df29ad431b5a65530e157864d136e9120950087937c3b38603139d7be25f1`.
+The frozen map contained 340 regular source/configuration/documentation files,
+SHA-256 `7ca711850a45c41fd0491838e6bd42ff03b719b2b2d19e8fff051d1c328281ff`.
+Dependency pins and generated outputs were recorded separately. One own-checkout
+`npm ci` and official Electron 44.7.0 lazy initialization preceded the checks.
+
+| Command | Actual result |
+| --- | --- |
+| Complete native-scope and saved-ALL engine files, public config | PASS: 41/41 cases in 2/2 files, including all 15 new cases; no filtered skips, 7.15 seconds. |
+| `npm test` | PASS: 2,355/2,355 unit/CAD cases in 135/135 files, 20.67-second unit phase, followed by 32/32 security/IPC and JavaScript-literal checks. |
+| `npm run build` | PASS: TypeScript and Vite, 1,985 modules; existing externalization/chunk warnings retained. |
+| `npm run test:desktop` | PASS: production loader, preload bridge, two canvases and actual worker/WASM responses; no console errors or failed requests. |
+| `npm run test:desktop:pattern-all` | PASS: existing selected/preview/committed/reopened workflow, Apply, native-bridge Save As/reopen, observed child close and guarded temporary-data cleanup. |
+
+Every command ran once, sequentially, without pool, timeout or environment
+overrides or retries. Exit/close zero and output-pipe drain were observed.
+Source and selected dependency hashes stayed equal before/after each command.
+Build generated seven compiled outputs and TypeScript build info; those outputs
+then stayed unchanged through both desktop checks. This subsequent evidence-only
+documentation update is separate from the frozen bytes actually executed.
+
+The 13 component and two engine regressions cover the forward A cut and unchanged
+behind-plane B, physical rotation/reflection/offset, full inventory/virtual-role
+freshness, selected/bilateral behavior, invalid primitive inputs, the near-plane
+band, bounds query/release failures and a late split without partial publication.
+[Provenance](PROVENANCE.md#all-unilateral-forward-material-fixtures) gives independent
+formulas/probes: metric tolerance 1e-5 mm³/mm², bounds 1e-6 mm and probe volume
+1e-7 mm³. Counts overlap with the full suite.
+
+The existing scripted linear-cut UI regression used distinct worker requests
+3/5/6/7, retained S/A/B/C refs and analytical volumes/bounds, completed two opens
+and one save, and preserved ALL intent without a target snapshot. It does not
+exercise the new behind-plane case in the editor; that evidence comes from the
+component/engine cases. No pointer/native-dialog, circular/mirror UI or general
+lifecycle/interoperability claim follows.
+
+The earlier one-case discriminator on original #38 source `06cfdd5c` passed by
+requiring its actual unilateral ThroughAll error and unchanged predecessor A/B.
+That confirms the old failure/atomic rejection, not desired corrected behavior.
+Original #38 source, Draft/P2 record and local/hosted history remain separate;
+no hosted check for this correction is recorded here.
+
+Independent static review rejected private V1's rotated/mirror fixtures because
+a reused helper fixed native A's upper Z at 8 while the new definitions/oracles
+required other bounds. V2 explicitly constructs A/B from their row bounds,
+without changing production or analytical oracles. V1 was never applied or
+executed; this was a static fixture failure. The actual checks above used V2.
+
+`npm ci` still reported eight moderate dependency entries; no audit fix was
+applied. Original #38's three medium CodeQL alerts remain pending triage. Earlier
+timeouts/incomplete interactions and #35's separate macOS failure remain in
+their own historical records. This is not a zero-vulnerability finding.
+
+The correction is limited to intrinsic ALL cuts with unilateral ThroughAll.
+Entity-profile composition still requires its real solve/profile/closed-tool
+proof and separate validation. Additive ALL, AUTO, other end conditions, general
+contact classification, platform support, leak freedom and release readiness
+are not established by this run.
+
 ## Instrumented production-renderer ALL workflow — 2026-10-14
 
 Runtime source

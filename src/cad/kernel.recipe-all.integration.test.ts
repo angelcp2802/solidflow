@@ -2,11 +2,12 @@ import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import initOpenCascade from 'replicad-opencascadejs';
 import { makeBox, measureShapeSurfaceProperties, measureShapeVolumeProperties, setOC } from 'replicad';
-import { beforeAll, expect, it } from 'vitest';
+import { beforeAll, expect, it, vi } from 'vitest';
 import { addFeature, createDocument, DocumentHistory, parseDocument, serializeDocument, updateFeature, validateDocument, type Document } from '../model/document';
 import type { AllFeaturePatternOperation } from '../model/featurePatterns';
 import { bodyBoolean, NativeBodyCatalog, validateBodyShape } from './kernel.bodies';
 import { CadEngine } from './kernel.engine';
+import * as recipeBridge from './kernel.recipe-instance';
 import { withNativeOwners } from './kernel.native-ownership';
 import type { BodyReference, Feature, RepetitionFeature, Vec3 } from './kernel.types';
 
@@ -154,4 +155,59 @@ it('keeps a no-op ALL poststate repairable in the document but rejects its downs
   expect(result.featureErrors.map(error => error.id)).toEqual(['consume-noop']); expect(result.bodies).toEqual(initial.bodies);
   expect(serializeDocument(after)).toBe(preserved); expect(() => engine.export('step', after.features)).toThrow();
   unchanged(engine); for (const ref of [a, b]) metrics(engine, output(ref.bodyId), 800 - 8 * Math.PI, 520 + 14 * Math.PI, rows[0].min, rows[0].max);
+}), 60_000);
+
+
+it('regenerates saved ALL through the forward owner while retaining an owner behind the unilateral ray', () => fixture(engine => {
+  const before = prefix(), sketch = before.features.find(feature => feature.id === 'create-b-profile');
+  if (sketch?.type !== 'sketch') throw new Error('Original behind-owner sketch missing.');
+  sketch.offset = -10;
+  const operation = pattern(rows[0]), saved = parseDocument(serializeDocument(addFeature(before, operation))), result = healthy(engine, saved);
+  expect(result.bodies).toHaveLength(4);
+  metrics(engine, output('A'), 800 - 8 * Math.PI, 520 + 14 * Math.PI, rows[0].min, rows[0].max);
+  probe(engine, output('A'), [25, 5, 6], false);
+  metrics(engine, b, 800, 520, [20, 0, -10], [30, 10, -2]); probe(engine, b, [25, 5, -6], true);
+  expect(result.bodies!.find(body => body.ref.bodyId === 'B')!.createdByFeatureId).toBe('create-b');
+  expect(() => catalog(engine).resolve(output('B'))).toThrow();
+  unchanged(engine);
+}), 60_000);
+
+it('keeps a later ALL tail split atomic after an earlier instance and a behind-plane no-op', () => fixture(engine => {
+  const created = { bodyId: 'S', sourceFeatureId: 'create-source' }, target = { bodyId: 'A', sourceFeatureId: 'create-a' };
+  const features: Feature[] = [...box(created.sourceFeatureId, created.bodyId, [0, 0, 0], [10, 4, 2]),
+    { id: 'seed-profile', type: 'sketch', name: 'Original through slot', suppressed: false, plane: 'XY', offset: 0,
+      profile: { kind: 'rectangle', center: [1.5, 2], width: 1, height: 2 } },
+    { id: source.sourceFeatureId, type: 'cut', name: 'Original through slot', suppressed: false, sketchId: 'seed-profile', depth: 1,
+      symmetric: false, bodyScope: [created], endCondition: { kind: 'throughAll', baseFeatureId: created.sourceFeatureId, bothDirections: false } },
+    ...box(target.sourceFeatureId, target.bodyId, [0, 0, 0], [8, 4, 4]),
+    { id: 'tail-profile', type: 'sketch', name: 'Original attached tail', suppressed: false, plane: 'XY', offset: 0,
+      profile: { kind: 'rectangle', center: [11, 2], width: 6, height: 2 } },
+    { id: 'tail', type: 'extrude', name: 'Original attached tail', suppressed: false, sketchId: 'tail-profile', depth: 2,
+      symmetric: false, bodyOperation: { mode: 'merge', target } }, ...box(b.sourceFeatureId, b.bodyId, [20, 0, -10], [30, 10, -2])];
+  const before = document(features), initial = healthy(engine, before), operation = pattern(rows[0], b.sourceFeatureId);
+  if (operation.type !== 'linearPattern') throw new Error('Original linear fixture required.');
+  operation.first = { count: 3, direction: [1, 0, 0], spacing: 4 };
+  const saved = parseDocument(serializeDocument(addFeature(before, operation))), serialized = serializeDocument(saved);
+  const delegate = recipeBridge.buildRecipeInstanceTool; let observedSecond = false;
+  const spy = vi.spyOn(recipeBridge, 'buildRecipeInstanceTool').mockImplementation(input => {
+    if (input.targetBodyId === 'A' && input.address === '2,0') {
+      observedSecond = true;
+      withNativeOwners(owners => {
+        validateBodyShape(input.workingTarget);
+        expect(Math.abs(owners.own(measureShapeVolumeProperties(input.workingTarget)).volume - 144)).toBeLessThan(1e-5);
+        expect(Math.abs(owners.own(measureShapeSurfaceProperties(input.workingTarget)).area - 228)).toBeLessThan(1e-5);
+      });
+    }
+    return delegate(input);
+  });
+  const result = (() => { try { return engine.build(saved.features); } finally { spy.mockRestore(); } })();
+  expect(observedSecond).toBe(true);
+  expect(result.featureErrors.map(error => error.id)).toEqual([operation.id]);
+  expect(result.featureErrors[0].message).toMatch(/sólido|solid|divid/i);
+  expect(result.bodies).toEqual(initial.bodies); expect(serializeDocument(saved)).toBe(serialized);
+  metrics(engine, source, 76, 144, [0, 0, 0], [10, 4, 2]);
+  metrics(engine, { bodyId: 'A', sourceFeatureId: 'tail' }, 152, 208, [0, 0, 0], [14, 4, 4]);
+  metrics(engine, b, 800, 520, [20, 0, -10], [30, 10, -2]);
+  for (const id of ['S', 'A', 'B']) expect(() => catalog(engine).resolve(output(id))).toThrow();
+  expect(() => engine.export('step', saved.features)).toThrow();
 }), 60_000);

@@ -355,3 +355,149 @@ it('retains real selected R-to-F event effects separately from finally changed o
   probe(next.resolve({ bodyId: 'B', sourceFeatureId: setup.request.patternId }).shape, [2, 2, 1], true, owners);
   expect(() => next.resolve({ bodyId: 'A', sourceFeatureId: setup.request.patternId })).toThrow();
 }), 60_000);
+
+
+// Original ALL forward-material regressions. Bounds prove absence only after
+// the complete native inventory and current owners have been validated.
+const behindRows: (Row & { behindMin: Vec3; behindMax: Vec3; name: string })[] = [
+  { ...rows[0], name: 'translated +Z ray', behindMin: [20, 0, -10], behindMax: [30, 10, -2] },
+  { kind: 'circularPattern', name: 'quarter-turn +X ray',
+    transform: { key: '1', angle: 90, origin: [15, 0, 0], direction: [0, 1, 0] },
+    min: [15, 0, 5], max: [23, 10, 15], center: [19, 5, 10], behindMin: [5, 0, 5], behindMax: [13, 10, 15] },
+  { kind: 'mirror', name: 'offset reflected -Z ray',
+    transform: { key: 'mirror', mirror: { origin: [0, 0, 10], xDirection: [1, 0, 0], normal: [0, 0, 1] } },
+    min: [0, 0, 12], max: [10, 10, 20], center: [5, 5, 16], behindMin: [0, 0, 22], behindMax: [10, 10, 30] },
+];
+function behindFixture(owners: Fixtures, row = behindRows[0]): Setup {
+  const setup = cutFixture(owners), replacements = new Map([
+    ...creation('create-a', 'A', row.min, row.max), ...creation('create-b', 'B', row.behindMin, row.behindMax),
+  ].map(feature => [feature.id, feature]));
+  setup.features = setup.features.map(feature => replacements.get(feature.id) ?? feature);
+  setup.catalog = catalog(owners, setup.catalog.entries().map(entry => ({ ref: { ...entry.ref }, creator: entry.createdByFeatureId,
+    shape: entry.ref.bodyId === 'A' ? box(owners, row.min, row.max)
+      : entry.ref.bodyId === 'B' ? box(owners, row.behindMin, row.behindMax) : entry.shape })));
+  setup.request = request(setup.features, [s], snapshot(setup.catalog), row);
+  return setup;
+}
+it.each(behindRows)('retains a genuine behind-plane ALL owner and same-address no-op role for $name', row => fixture(owners => {
+  const setup = behindFixture(owners, row), beforeB = setup.catalog.resolve(b), built = vi.spyOn(recipeBridge, 'buildRecipeInstanceTool');
+  const evaluated = owners.evaluation(evaluateFeatureRecipes(setup));
+  expect(evaluated.replacements.map(item => item.ref.bodyId)).toEqual(['A']);
+  expect(evaluated.attestation.targets.map(item => item.ref.bodyId).sort()).toEqual(['A', 'B', 'C', 'S']);
+  expect(evaluated.attestation.virtualOutputs.filter(output => output.targetBodyId === 'B')).toEqual([
+    { sourcePoststate: s, targetBodyId: 'B', address: row.transform.key, role: 'body', inputRevision: 0, outputRevision: 0, materialChanged: false }]);
+  expect(built.mock.calls.some(([input]) => input.targetBodyId === 'B')).toBe(false);
+  expect(recipeEvaluationEventAffectedBodyIds(evaluated)).toEqual(['A']);
+  metrics(evaluated.replacements[0].shape, 800 - 8 * Math.PI, 520 + 14 * Math.PI, row.min, row.max, owners);
+  probe(evaluated.replacements[0].shape, row.center, false, owners);
+  const next = commit(evaluated, setup, owners), afterB = next.resolve(b);
+  expect(afterB.ref).toEqual(beforeB.ref); expect(afterB.createdByFeatureId).toBe(beforeB.createdByFeatureId);
+  expect(afterB.name).toBe(beforeB.name); expect(afterB.lineage).toBe(beforeB.lineage);
+  metrics(afterB.shape, 800, 520, row.behindMin, row.behindMax, owners);
+  expect(() => next.resolve({ bodyId: 'B', sourceFeatureId: setup.request.patternId })).toThrow();
+  metrics(setup.catalog.resolve(b).shape, 800, 520, row.behindMin, row.behindMax, owners);
+}), 60_000);
+
+it('keeps bilateral ThroughAll on the original native route and cuts the behind-plane owner', () => fixture(owners => {
+  const setup = behindFixture(owners), seed = setup.features.find(feature => feature.id === s.sourceFeatureId);
+  if (seed?.type !== 'cut' || seed.endCondition?.kind !== 'throughAll') throw new Error('Original ThroughAll seed missing.');
+  seed.endCondition.bothDirections = true;
+  const built = vi.spyOn(recipeBridge, 'buildRecipeInstanceTool'), evaluated = owners.evaluation(evaluateFeatureRecipes(setup));
+  expect(evaluated.replacements.map(item => item.ref.bodyId)).toEqual(['A', 'B']);
+  expect(built.mock.calls.some(([input]) => input.targetBodyId === 'B')).toBe(true);
+  metrics(evaluated.replacements.find(item => item.ref.bodyId === 'B')!.shape, 800 - 8 * Math.PI, 520 + 14 * Math.PI,
+    behindRows[0].behindMin, behindRows[0].behindMax, owners);
+  probe(evaluated.replacements.find(item => item.ref.bodyId === 'B')!.shape, [25, 5, -6], false, owners);
+}), 60_000);
+
+it('preserves selected-scope unilateral rejection for the same behind-plane owner', () => fixture(owners => {
+  const setup = behindFixture(owners); setup.request.scope = { mode: 'selected', targets: [b] };
+  setup.request.targetSnapshot = [b]; setup.request.bindings[0].targets = ['B'];
+  expect(() => owners.evaluation(evaluateFeatureRecipes(setup))).toThrow('No hay material en el sentido de extrusión elegido.');
+  metrics(setup.catalog.resolve(b).shape, 800, 520, behindRows[0].behindMin, behindRows[0].behindMax, owners);
+}), 60_000);
+
+it('still rejects shape-identity drift of the classified no-op owner before staging', () => fixture(owners => {
+  const setup = behindFixture(owners), evaluated = owners.evaluation(evaluateFeatureRecipes(setup));
+  const changed = owners.own(copyBodyShape(setup.catalog.resolve(b).shape)), originalEntries = setup.catalog.entries.bind(setup.catalog);
+  const candidate = evaluated.replacements[0].shape, handle = candidate.wrapped, rawDelete = handle.delete.bind(handle), deleted = vi.fn(() => rawDelete());
+  Object.defineProperty(handle, 'delete', { configurable: true, value: deleted });
+  vi.spyOn(setup.catalog, 'entries').mockImplementation(() => originalEntries().map(entry => entry.ref.bodyId === 'B' ? { ...entry, shape: changed } : entry));
+  const staged = vi.spyOn(setup.catalog, 'stageReplaceMany');
+  expect(() => owners.transaction(stageFeatureRecipeEvaluation(evaluated, setup.catalog,
+    { sourceFeatureId: setup.request.patternId, lineage: 'original-behind-owner-stale' }, setup))).toThrow('membership or owner state changed');
+  expect(staged).not.toHaveBeenCalled(); expect(deleted).toHaveBeenCalledTimes(1); vi.restoreAllMocks();
+  metrics(setup.catalog.resolve(a).shape, 800, 520, rows[0].min, rows[0].max, owners);
+  metrics(setup.catalog.resolve(b).shape, 800, 520, behindRows[0].behindMin, behindRows[0].behindMax, owners);
+}), 60_000);
+
+it('keeps complete no-op ALL rejection when the only in-profile owner is behind the ray', () => fixture(owners => {
+  const setup = behindFixture(owners);
+  setup.features = setup.features.filter(feature => !['create-a', 'create-a-profile'].includes(feature.id));
+  setup.catalog = catalog(owners, setup.catalog.entries().filter(entry => entry.ref.bodyId !== 'A').map(entry => ({
+    ref: { ...entry.ref }, creator: entry.createdByFeatureId, shape: entry.shape })));
+  setup.request = request(setup.features, [s], snapshot(setup.catalog));
+  expect(() => owners.evaluation(evaluateFeatureRecipes(setup))).toThrow('changes no material');
+  metrics(setup.catalog.resolve(b).shape, 800, 520, behindRows[0].behindMin, behindRows[0].behindMax, owners);
+}), 60_000);
+
+it.each([
+  { profile: { kind: 'circle' as const, center: [5, 5] as [number, number], radius: 0 }, message: /Circle radius/ },
+  { profile: { kind: 'rectangle' as const, center: [5, 5] as [number, number], width: 0, height: 2 }, message: /Rectangle width/ },
+  { profile: { kind: 'circle' as const, center: [1_000_001, 5] as [number, number], radius: 1 }, message: /Primitive profile center/ },
+])('does not hide invalid intrinsic parameters behind an ALL no-op: $message', ({ profile, message }) => fixture(owners => {
+  const setup = behindFixture(owners), sketch = setup.features.find(feature => feature.id === 'cut-profile');
+  if (sketch?.type !== 'sketch') throw new Error('Original cut profile missing.');
+  // Deliberately invalid evaluator input. Native historical geometry remains real
+  // and borrowed; these records do not claim a successful malformed source build.
+  sketch.profile = profile;
+  setup.catalog = catalog(owners, [{ ref: b, shape: setup.catalog.resolve(b).shape, creator: 'create-b' }]);
+  setup.request = request(setup.features, [s], snapshot(setup.catalog));
+  expect(() => owners.evaluation(evaluateFeatureRecipes(setup))).toThrow(message);
+  metrics(setup.catalog.resolve(b).shape, 800, 520, behindRows[0].behindMin, behindRows[0].behindMax, owners);
+}), 60_000);
+
+it('keeps the original native rejection for a bounding box in the unilateral tolerance band', () => fixture(owners => {
+  const setup = behindFixture(owners), near = { ref: b, shape: box(owners, [20, 0, -8], [30, 10, .0000005]), creator: 'create-b' };
+  const replacements = new Map(creation('create-b', 'B', [20, 0, -8], [30, 10, .0000005]).map(feature => [feature.id, feature]));
+  setup.features = setup.features.map(feature => replacements.get(feature.id) ?? feature);
+  setup.catalog = catalog(owners, [near]); setup.request = request(setup.features, [s], snapshot(setup.catalog));
+  expect(() => owners.evaluation(evaluateFeatureRecipes(setup))).toThrow('No hay material en el sentido de extrusión elegido.');
+  expect(setup.catalog.resolve(b).ref).toEqual(b);
+}), 60_000);
+
+it.each(['query', 'release'] as const)('propagates the behind-owner absence-proof bounds %s failure before publication', fault => fixture(owners => {
+  const setup = behindFixture(owners), originalCopy = bodyHelpers.copyBodyShape, primary = new Error('Original absence-proof bounds ' + fault);
+  const borrowedB = setup.catalog.resolve(b).shape;
+  let behindCopies = 0, queries = 0, injected = false;
+  vi.spyOn(bodyHelpers, 'copyBodyShape').mockImplementation(shape => {
+    const behind = shape === borrowedB;
+    const candidate = originalCopy(shape);
+    try {
+      // Second target copy is the evaluator's current B owner; the first is its
+      // initial comparison snapshot. Only this received instance is adapted.
+      if (behind && ++behindCopies === 2) {
+        const prototype = Object.getPrototypeOf(candidate);
+        Object.defineProperty(candidate, 'boundingBox', { configurable: true, get() {
+          if (++queries !== 2) return Reflect.get(prototype, 'boundingBox', candidate);
+          injected = true;
+          if (fault === 'query') throw primary;
+          const box = Reflect.get(prototype, 'boundingBox', candidate), rawDelete = box.delete.bind(box);
+          Object.defineProperty(box, 'delete', { configurable: true, value: () => { rawDelete(); throw primary; } });
+          return box;
+        } });
+      }
+      return candidate;
+    } catch (error) {
+      try { candidate.delete(); } catch (cleanup) { throw new AggregateError([error, cleanup], 'Observed native copy release failed.', { cause: error }); }
+      throw error;
+    }
+  });
+  let caught: unknown; try { owners.evaluation(evaluateFeatureRecipes(setup)); } catch (error) { caught = error; }
+  vi.restoreAllMocks(); expect(injected).toBe(true);
+  if (fault === 'query') expect(caught).toBe(primary);
+  else { expect(caught).toBeInstanceOf(NativeCleanupError); expect((caught as NativeCleanupError).cause).toBe(primary); }
+  metrics(setup.catalog.resolve(a).shape, 800, 520, rows[0].min, rows[0].max, owners);
+  metrics(setup.catalog.resolve(b).shape, 800, 520, behindRows[0].behindMin, behindRows[0].behindMax, owners);
+  expect(() => setup.catalog.resolve({ bodyId: 'A', sourceFeatureId: setup.request.patternId })).toThrow();
+}), 60_000);

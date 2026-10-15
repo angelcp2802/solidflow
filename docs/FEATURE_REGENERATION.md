@@ -87,6 +87,26 @@ selection; it never guesses current targets. Geometry copying requires selected
 scope first. ALL displays paginated current names rather than target checkboxes.
 Render and property labels do not attest materialization or real interaction.
 
+For an intrinsic ALL cut with unilateral ThroughAll, a current closed owner
+whose conservative bounding box lies strictly behind the physical extrusion
+ray is a geometric no-op. The proof uses the actual transformed profile center
+and signed ray (including offset and reflection parity), all eight finite,
+ordered box corners, a 1e-6 mm separation guard and a floating-point allowance.
+Contact or inconclusive bounds retain the original native path; native query,
+validation and release errors propagate. This is an absence proof, never
+ownership discovery or a catch-based miss policy. The owner remains in the
+complete inventory, application budget, native freshness proof and same-address
+virtual output with unchanged revision. Selected scope, bilateral ThroughAll,
+other terminations and additive ALL keep their existing behavior. Entity
+profiles cannot bypass their required real solve/profile/tool validation
+through this intrinsic-only proof.
+
+The focused local Windows correction passed the complete two affected files
+(41 cases, including 15 new cases), the full suite/build and the existing
+initial-model and selected-to-ALL desktop checks. Source pins, exact outcomes,
+the retained earlier failure and remaining limits are recorded in
+[VALIDATION](VALIDATION.md#all-unilateral-forward-material-correction-2026-10-15).
+
 Only finally changed owners receive the pattern poststate. Contextual structural
 association can keep an old ref or a potential body@pattern ref loadable for
 repair; exact native lookup rejects the latter when that owner was a no-op.

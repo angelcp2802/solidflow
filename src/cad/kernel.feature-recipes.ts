@@ -1,14 +1,15 @@
 import { getOC, measureShapeVolumeProperties, type Shape3D } from 'replicad';
 import type { BodyReference, Feature } from './kernel.types';
 import {
-  exactStateKey, extractRecipeClosure, requireInitialRecipeDeclaration,
-  type RegenerationRequest, type RecipeClosure, type RecipeOwnerApplication,
+  exactStateKey, extractRecipeClosure, fixedProfileInstanceInput, requireInitialRecipeDeclaration,
+  type RegenerationRequest, type RecipeClosure, type RecipeOperation, type RecipeOwnerApplication,
 } from '../model/featureRecipes';
 import {
   bodyBoolean, copyBodyShape, validateBodyShape, type NativeBodyCatalog,
   type NativeBodyReplacement, type NativeBodyStateUpdate, type NativeBodyTransaction,
 } from './kernel.bodies';
 import { buildRecipeInstanceTool } from './kernel.recipe-instance';
+import { framePoint } from './kernel.frames';
 import { validatePositiveClosedTool } from './kernel.closed-tools';
 import { isNativeCleanupFailure, NativeCleanupError, withNativeOwners, type NativeOwner, type NativeOwners } from './kernel.native-ownership';
 import { attestNativeRecipeScope, assertNativeRecipeScopeCurrent, type NativeRecipeScopeAttestation } from './kernel.recipe-scopes';
@@ -16,7 +17,7 @@ import { attestNativeRecipeScope, assertNativeRecipeScopeCurrent, type NativeRec
 import { checkpointSourceSketchSolves, assertSourceSketchSolvesCurrent,
   type SourceSketchSolveCheckpoint, type SourceSketchSolveRegistry } from './kernel.sketch-solves';
 
-export const RECIPE_EVALUATOR_REVISION = 'fixed-intrinsic-world-limit-v3';
+export const RECIPE_EVALUATOR_REVISION = 'fixed-intrinsic-world-limit-all-forward-v4';
 const compare = (a: string, b: string): number => a < b ? -1 : a > b ? 1 : 0;
 const tolerance = (volume: number): number => Math.max(1e-8, Math.abs(volume) * 1e-10);
 const sameRef = (a: Readonly<BodyReference>, b: Readonly<BodyReference>): boolean =>
@@ -101,6 +102,59 @@ function finiteBounds(shape: Shape3D): void {
       throw new Error('Recipe material must have finite three-dimensional bounds.');
     }
   }, undefined, 'Recipe bounds inspection or release failed.');
+}
+
+/**
+ * Absence proof only for the intrinsic ALL/unilateral ThroughAll cut subset.
+ * The caller has already validated this current detached owner with intermediate().
+ * A conservative AABB may prove the entire owner is behind the physical ray;
+ * it never chooses ownership, proves a general miss or turns native errors into no-ops.
+ */
+function allCutEntirelyBehindRay(closure: RecipeClosure, operation: RecipeOperation,
+  address: string, shape: Shape3D): boolean {
+  if (closure.request.scope.mode !== 'all' || operation.type !== 'cut'
+    || operation.termination?.kind !== 'throughAll' || operation.termination.bothDirections) return false;
+  const sketch = closure.definitions.find(definition => definition.feature.id === operation.sketchId)?.feature;
+  // Future entity recipes must still reach their real solve/profile/tool path.
+  // This intrinsic absence proof cannot bypass their profile validation.
+  if (sketch?.type !== 'sketch' || (sketch.profile.kind !== 'rectangle' && sketch.profile.kind !== 'circle')) return false;
+  const resolved = fixedProfileInstanceInput(closure, operation.featureId, address);
+  if (resolved.profile.kind !== 'rectangle' && resolved.profile.kind !== 'circle') return false;
+  const profile = resolved.profile;
+  const parameter = (value: number): boolean => Number.isFinite(value) && value >= .01 && value <= 100_000;
+  // Do not let a behind-owner shortcut hide primitive parameter rejection.
+  // Inconclusive/invalid inputs still go through the unchanged builder validator.
+  if (!Array.isArray(profile.center) || profile.center.length !== 2 || ![0, 1].every(axis => Object.hasOwn(profile.center, axis)
+      && Number.isFinite(profile.center[axis]) && Math.abs(profile.center[axis]) <= 1_000_000)
+    || !parameter(Math.abs(resolved.signedDepth)) || (profile.kind === 'circle' ? !parameter(profile.radius)
+      : !parameter(profile.width) || !parameter(profile.height))) return false;
+  const origin = framePoint(resolved.frame, profile.center[0], profile.center[1]), ray = resolved.ray;
+  if (!origin.every(Number.isFinite) || !ray.every(Number.isFinite)) throw new Error('Recipe ray placement must be finite.');
+  return withNativeOwners(owners => {
+    const bounds = owners.own(shape.boundingBox).bounds;
+    if (!Array.isArray(bounds) || bounds.length !== 2 || ![0, 1].every(side => Object.hasOwn(bounds, side)
+      && Array.isArray(bounds[side]) && bounds[side].length === 3 && [0, 1, 2].every(axis =>
+        Object.hasOwn(bounds[side], axis) && Number.isFinite(bounds[side][axis])))
+      || [0, 1, 2].some(axis => bounds[0][axis] > bounds[1][axis])) {
+      throw new Error('Recipe absence proof needs finite ordered three-dimensional bounds.');
+    }
+    let maximum = -Infinity, arithmeticScale = 0;
+    for (const x of [bounds[0][0], bounds[1][0]]) for (const y of [bounds[0][1], bounds[1][1]])
+      for (const z of [bounds[0][2], bounds[1][2]]) {
+        const point = [x, y, z], terms = point.map((coordinate, axis) => (coordinate - origin[axis]) * ray[axis]);
+        const projection = terms[0] + terms[1] + terms[2];
+        const scale = point.reduce((sum, coordinate, axis) => sum + (Math.abs(coordinate) + Math.abs(origin[axis])) * Math.abs(ray[axis]), 0);
+        if (!terms.every(Number.isFinite) || !Number.isFinite(projection) || !Number.isFinite(scale)) {
+          throw new Error('Recipe absence-proof projection must remain finite.');
+        }
+        maximum = Math.max(maximum, projection); arithmeticScale = Math.max(arithmeticScale, scale);
+      }
+    // Strictly negative separation, with a geometric guard and arithmetic allowance.
+    // Contact, near-plane and inconclusive boxes retain the original native path.
+    const guard = 1e-6 + 32 * Number.EPSILON * arithmeticScale;
+    if (!Number.isFinite(guard)) throw new Error('Recipe absence-proof guard must remain finite.');
+    return maximum < -guard;
+  }, undefined, 'Recipe forward-material bounds inspection or release failed.');
 }
 
 function validateSingle(shape: Shape3D): void { validateBodyShape(shape); finiteBounds(shape); }
@@ -246,24 +300,28 @@ export function evaluateFeatureRecipes(input: RecipeEvaluationInput): OwnedRecip
             }
             // Equivalent fixed intrinsic bindings share one event/target tool.
             // Every source was attested above and every route counted by extraction.
-            const built = buildRecipeInstanceTool({ closure, featureId: operation.featureId,
-              address: transform.key, targetBodyId: bodyId, workingTarget: before,
-              // Tools may contain several closed regions. Recipe/profile gates
-              // remain in the bridge; source/current/final owners still use validateSingle.
-              validateTool: validatePositiveClosedTool });
-            const tool = owners.own(built.tool);
-            const raw = owners.own(bodyBoolean(built.operation, before, tool)), rawState = intermediate(raw);
-            const signedChange = built.operation === 'subtract' ? beforeState.volume - rawState.volume : rawState.volume - beforeState.volume;
-            if (signedChange < -tolerance(beforeState.volume)) throw new Error('A regenerated operation changed material with the wrong sign.');
-            const changed = materialChanged(before, raw, owners), inputRevision = revisions.get(bodyId)!;
-            if (changed) {
-              // Empty topology has no borrowed material to alias. Nonempty
-              // Boolean results are geometrically detached before tool retirement.
-              const next = rawState.empty ? raw : owners.own(copyBodyShape(raw));
-              if (next !== raw) release(owners, raw);
-              release(owners, tool); release(owners, before);
-              current.set(bodyId, next); revisions.set(bodyId, inputRevision + 1);
-            } else { release(owners, raw); release(owners, tool); }
+            const inputRevision = revisions.get(bodyId)!;
+            let changed = false;
+            if (!allCutEntirelyBehindRay(closure, operation, transform.key, before)) {
+              const built = buildRecipeInstanceTool({ closure, featureId: operation.featureId,
+                address: transform.key, targetBodyId: bodyId, workingTarget: before,
+                // Tools may contain several closed regions. Recipe/profile gates
+                // remain in the bridge; source/current/final owners still use validateSingle.
+                validateTool: validatePositiveClosedTool });
+              const tool = owners.own(built.tool);
+              const raw = owners.own(bodyBoolean(built.operation, before, tool)), rawState = intermediate(raw);
+              const signedChange = built.operation === 'subtract' ? beforeState.volume - rawState.volume : rawState.volume - beforeState.volume;
+              if (signedChange < -tolerance(beforeState.volume)) throw new Error('A regenerated operation changed material with the wrong sign.');
+              changed = materialChanged(before, raw, owners);
+              if (changed) {
+                // Empty topology has no borrowed material to alias. Nonempty
+                // Boolean results are geometrically detached before tool retirement.
+                const next = rawState.empty ? raw : owners.own(copyBodyShape(raw));
+                if (next !== raw) release(owners, raw);
+                release(owners, tool); release(owners, before);
+                current.set(bodyId, next); revisions.set(bodyId, inputRevision + 1);
+              } else { release(owners, raw); release(owners, tool); }
+            }
             for (const application of applications) {
               const output: RecipeVirtualOutput = Object.freeze({ sourcePoststate: frozenRef(application.sourcePoststate),
                 targetBodyId: bodyId, address: transform.key, role: 'body', inputRevision,
