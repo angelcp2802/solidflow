@@ -88,7 +88,11 @@ it('rejects a next-boundary base that substitutes the current target for the his
   const { features, request, seed, a } = fixture();
   if (seed.type !== 'cut') throw new Error('Original cut missing.');
   seed.endCondition = { kind: 'untilNext', baseFeatureId: a.sourceFeatureId };
-  try { extractRecipeClosure(features, request); throw new Error('Expected source-base rejection.'); } catch (error) {
+  // The unrelated destination exists before the seed: reject the owner mismatch,
+  // independently of the separate forward-dependency gate.
+  const earlierTarget = [...features.slice(0, 2), ...features.slice(4, 6),
+    ...features.slice(2, 4), ...features.slice(6)];
+  try { extractRecipeClosure(earlierTarget, request); throw new Error('Expected source-base rejection.'); } catch (error) {
     if (!(error instanceof RecipeClosureError)) throw error;
     expect(error.diagnostics.map(item => item.code)).toContain('SOURCE_LIMIT_BASE');
   }

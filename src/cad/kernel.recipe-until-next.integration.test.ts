@@ -520,7 +520,7 @@ it('rejects a genuinely elevated probe near an ALL owner without publishing earl
   });
   try {
     const result = engine.build(saved.features); expect(adapted).toBeGreaterThan(0);
-    expect(result.featureErrors.map(e => e.id)).toEqual(['next-pattern']); expect(result.featureErrors[0].message).toMatch(/toca el cuerpo|intercepta todo el perfil/);
+    expect(result.featureErrors.map(e => e.id)).toEqual(['next-pattern']); expect(result.featureErrors[0].message).toMatch(/el perfil lo toca o está demasiado cerca|intercepta todo el perfil/);
     metrics(engine, A, 1008, 888, [[24, 0, 0], [36, 10, 10]]); metrics(engine, B, 1056, 860, [[24, 0, 0], [36, 10, 10]]);
     metrics(engine, C, 1200, 680, [[31.5002, 0, 0], [43.5002, 10, 10]]); expect(() => catalog(engine).resolve(output())).toThrow();
   } finally { bridge.mockRestore(); native.mockRestore(); }
