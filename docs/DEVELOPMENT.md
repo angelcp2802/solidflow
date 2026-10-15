@@ -32,7 +32,7 @@ npm start
 | `npm run build` | TypeScript checking and production compilation of UI, worker and WASM integration. |
 | `npm run test:desktop` | Real Electron production-loader smoke check after building, with a hidden window and isolated temporary user data. |
 | `npm run test:desktop:pattern-all` | Scripted production-renderer selected-to-ALL cut interaction, Apply, Save As and reopen, after building. |
-| `npx --no-install vitest run src/sketch/extend.review.test.ts --pool=threads` | A focused sketch/CAD regression file; replace the path with the relevant test. |
+| `npx --no-install vitest run --config vitest.config.ts src/sketch/extend.review.test.ts` | A focused sketch/CAD regression file using the public project configuration; replace the path with the relevant test. |
 
 The desktop smoke check loads the initial model, preload, worker and WASM and checks readiness and console errors. It does not click the editor's tools or launch the packaged installer. On a headless Linux machine, a display server is needed for Electron; CI can use `xvfb-run -a npm run test:desktop` after installing the required system libraries. Do not disable Electron's sandbox to make a check pass.
 
@@ -129,7 +129,7 @@ pending capabilities. Their full contract and evidence boundaries are in
 
 Prefer small analytical fixtures with a known result. For example, a closed 10×6 rectangle extruded 4 mm should have volume 240 mm³; the test should also establish valid BRep and the expected number of solids. For affected references, edit an earlier feature, rebuild dependent features and serialize/reopen the document. Test failure paths for atomic behavior when the command can reject a change.
 
-OpenCascade/WASM tests use thread isolation and initialize their runtime before constructing shapes. Dispose engines and release owned native objects after use. Avoid sharing mutable kernel state across test files or weakening validity checks to accommodate a failing fixture.
+OpenCascade/WASM tests use the public Vitest `forks` pool: isolated child processes with a fresh worker per test file under Vitest's enabled isolation default. Initialize the runtime before constructing shapes, dispose engines and release owned native objects after use. Keep focused checks on the project configuration. The worker-count policy, test selection and timeouts remain unchanged; avoid sharing mutable kernel state across test files or weakening validity checks to accommodate a failing fixture.
 
 Distinguish these evidence types in reports: numerical unit/integration tests, server-rendered components, browser or Electron interaction and exported-file checks. Record the exact files and commands used. Public CI must be self-contained: it uses tracked source, declared dependencies and synthetic fixtures that the project can distribute. A new fixture needs documented provenance, generation steps, parameters, units and tolerances. Do not invent a source or an expected result to fill a gap in evidence.
 

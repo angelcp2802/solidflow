@@ -4,7 +4,7 @@ import { configDefaults, defineConfig } from 'vitest/config';
 // Local integration experiments are outside the public test suite.
 export default defineConfig({
   test: {
-    pool: 'threads',
+    pool: 'forks',
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
     exclude: [...configDefaults.exclude, 'src/cad/kernel.*-native.test.ts'],
   },

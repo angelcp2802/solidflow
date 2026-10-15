@@ -2386,3 +2386,28 @@ and [fixture provenance](PROVENANCE.md#entity-all-absence-composition-fixtures)
 describe the implementation and its remaining limits. Original security findings,
 the #35 macOS failure and unvalidated platform/UI claims are not resolved by
 this proposal.
+
+## Windows CI process-isolation proposal — 2026-10-15
+
+PR #43's Windows job on Node 24.21.0 checked out merge
+`afa556219c235fdfee7eb5bf70f0ec5b66450e6c` for head
+`dbdcc9af872079f41384a306783f6e67a5d87728`. Build completed, but the unit
+process aborted with the V8 CHECK `jit_page_->allocations_.erase(addr) == 1`
+and exit 1. It supplied no final unit summary; IPC/desktop/package steps did not
+run. Completed rows are not a full-suite pass. No CAD assertion or timeout
+was reported as the terminal cause.
+
+An [upstream Node report](https://github.com/nodejs/node/issues/66366) describes
+the same assertion signature with Node 24.21.0/WASM worker lifecycle. This is a
+matching report, not a demonstrated explanation of this Windows failure.
+The proposed public configuration selects Vitest `forks`, which uses separate
+child processes instead of worker threads according to the
+[official pool documentation](https://vitest.dev/config/pool.html). Test-file
+isolation stays enabled; include/exclude rules, assertions, timeouts and the
+default parallel worker-count policy stay unchanged.
+
+This proposal has not run. It requires full Windows validation with the exact
+Node 24.21.0 runtime and the deliberate project configuration before any pass
+is added. Earlier local Node 24.11.1/threads results and other CI platform
+results remain their own evidence; neither identifies this abort's cause nor
+validates the proposed process-isolation change.
