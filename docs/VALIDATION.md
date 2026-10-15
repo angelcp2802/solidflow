@@ -2387,7 +2387,7 @@ describe the implementation and its remaining limits. Original security findings
 the #35 macOS failure and unvalidated platform/UI claims are not resolved by
 this proposal.
 
-## Windows CI process-isolation proposal — 2026-10-15
+## Windows CI failure and process-isolation validation — 2026-10-15
 
 PR #43's Windows job on Node 24.21.0 checked out merge
 `afa556219c235fdfee7eb5bf70f0ec5b66450e6c` for head
@@ -2400,14 +2400,48 @@ was reported as the terminal cause.
 An [upstream Node report](https://github.com/nodejs/node/issues/66366) describes
 the same assertion signature with Node 24.21.0/WASM worker lifecycle. This is a
 matching report, not a demonstrated explanation of this Windows failure.
-The proposed public configuration selects Vitest `forks`, which uses separate
+The integration configuration selects Vitest `forks`, which uses separate
 child processes instead of worker threads according to the
 [official pool documentation](https://vitest.dev/config/pool.html). Test-file
 isolation stays enabled; include/exclude rules, assertions, timeouts and the
 default parallel worker-count policy stay unchanged.
 
-This proposal has not run. It requires full Windows validation with the exact
-Node 24.21.0 runtime and the deliberate project configuration before any pass
-is added. Earlier local Node 24.11.1/threads results and other CI platform
-results remain their own evidence; neither identifies this abort's cause nor
-validates the proposed process-isolation change.
+A separate, single local Windows x64 baseline retained `threads` on clean
+`dbdcc9af872079f41384a306783f6e67a5d87728`, using the official portable Node
+24.21.0 and bundled npm 11.19.0: `npm test` passed 2,407 tests in 138 files
+(20.36 s) plus all 32 IPC tests. This did not reproduce the hosted abort or
+recreate the hosted runner's complete environment; it does not identify the cause.
+
+One local Windows x64 integration sequence then ran on clean
+`dbadd4f522bca88b5ff365880821e1f6c781da7b`, with the same portable runtime and
+the reviewed public `forks` configuration. CAD source, Electron/scripts,
+package and lockfile bytes remained those of #43. The eight changed paths were
+configuration, documentation and dependency-update policy. The complete 405
+tracked inputs and 15 selected dependency files were captured with matching
+before/after snapshots across all five commands. The Node executable SHA-256 was
+`ba4e6d110e8c1592a1ecd390f6b05f3da124b13871a5be62b341a07a853c6c32`.
+
+| Command | Actual result on that source |
+| --- | --- |
+| `npm test` | PASS: 2,407/2,407 tests in 138/138 files, 32.15 s; 32/32 IPC tests. |
+| `npm run build` | PASS: TypeScript check and 1,985 Vite modules; Vite built in 806 ms. Existing `node:module` externalization and large-chunk warnings remained. |
+| `npm run test:desktop` | PASS: production readiness, two canvases, original preload and worker/WASM responses. |
+| `npm run test:desktop:pattern-all` | PASS: original selected-to-ALL primitive workflow, Apply, Save As and reopen. |
+| `npm run test:desktop:pattern-world-limit` | PASS: original fixed-plane primitive workflow, explicit world policy and missing-policy rejection, Apply, Save As and reopen. |
+
+Each command ran once, with exit/close 0 and both streams drained. No retry or
+CLI pool override was used; no runtime flags were added, and worker-count policy
+and timeouts were unchanged. Portable runtime selection only prefixed the child environment's PATH;
+the parent/global runtime configuration was unchanged. Seven compiled outputs
+and TypeScript build info were inventoried before and after build; their hashes
+were identical in this sequence and remained fixed through the desktop checks.
+
+The ALL and world checks used volume tolerance 1e-5 and bounds tolerance 1e-6.
+Their real IPC flows substituted test-owned paths for native dialog choices;
+they reported inner child close and temporary cleanup, with no console errors
+or failed requests. These are the existing primitive workflows, not a new
+entity-profile UI run, export/interoperability check or general platform claim.
+Earlier entity UI evidence, Node 24.11.1/threads results and other-platform CI
+results remain separate. This local pass does not establish the hosted abort's
+cause or resolution, resolve the historical #35 macOS failure, close security
+findings or establish release readiness.
