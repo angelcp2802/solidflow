@@ -1,11 +1,13 @@
 import { cast, getOC, type Shape3D } from 'replicad';
-import { copyBodyShape, validateBodyShape } from './kernel.bodies';
+import { copyBodyShape, createConservativeBodyBounds, maximumNativeShapeTolerance, validateBodyShape } from './kernel.bodies';
 import { validatePositiveClosedTool } from './kernel.closed-tools';
 import { NextBoundaryUnavailableError, untilNextTool } from './kernel.extrusion-limits';
 import { withNativeOwners, type NativeOwners } from './kernel.native-ownership';
 import type { Vec3 } from './kernel.types';
 
 /** Geometric observations only. No saved scope policy or native owner attestation. */
+// Distance-resolution floor; a separated observation also clears both actual
+// native tolerances and a coordinate-dependent floating-point allowance.
 export const NEXT_CONTACT_DISTANCE_MM = 1e-7;
 export interface UntilNextCutInput {
   /** Borrowed progressive owner, already associated with its exact route by the caller. */
@@ -51,6 +53,16 @@ function finiteBounds(shape: Pick<Shape3D, 'boundingBox'>): [Vec3, Vec3] {
     }
     return [[...a] as Vec3, [...b] as Vec3];
   }, undefined, 'UntilNext bounds inspection or release failed.');
+}
+function forwardQueryBounds(shape: Shape3D): [Vec3, Vec3] {
+  return withNativeOwners(owners => {
+    const box = owners.own(createConservativeBodyBounds(shape)), low = owners.own(box.CornerMin()), high = owners.own(box.CornerMax());
+    const a: Vec3 = [low.X(), low.Y(), low.Z()], b: Vec3 = [high.X(), high.Y(), high.Z()];
+    if (![...a, ...b].every(Number.isFinite) || a.some((value, axis) => value > b[axis])) {
+      throw new Error('The native UntilNext query needs finite conservative bounds.');
+    }
+    return [a, b];
+  }, undefined, 'UntilNext conservative query bounds or release failed.');
 }
 function hasTopology(raw: RawShape, kinds: readonly (typeof TOPOLOGY)[number][], avoidSolids = false): boolean {
   return withNativeOwners(owners => {
@@ -161,20 +173,29 @@ function resolveUntilNextMaterial(input: UntilNextCutInput, operation: 'add' | '
         // malformed upstream factory that constructed an SDK wrapper alias.
         fresh.own(value); supplied.add(value); suppliedHandles.add(handle); return value;
       }, value => [value], 'UntilNext prism ownership/registration or release failed.');
-      const bounds = finiteBounds(target), projections: number[] = [];
+      const bounds = forwardQueryBounds(target), ownerTolerance = maximumNativeShapeTolerance(target), projections: number[] = [];
       for (const x of [bounds[0][0], bounds[1][0]]) for (const y of [bounds[0][1], bounds[1][1]]) for (const z of [bounds[0][2], bounds[1][2]]) {
         projections.push((x - origin[0]) * direction[0] + (y - origin[1]) * direction[1] + (z - origin[2]) * direction[2]);
       }
       const maximum = Math.max(...projections), length = Math.max(1, maximum + Math.max(1, Math.abs(maximum) * .01));
       if (!Number.isFinite(length) || length > 10_000_000) throw new Error('The native forward query exceeds the finite UntilNext extent.');
-      // Bounds enclose the query only. Actual Common and, for empty results,
-      // native separation establish the classification.
+      // Conservative bounds enclose the query only. Actual Common and, for
+      // empty results, native separation establish the classification.
       const prism = owners.own(makePrism(length)); validatePositiveClosedTool(prism);
+      const prismTolerance = maximumNativeShapeTolerance(prism), prismBounds = finiteBounds(prism);
+      const coordinateScale = Math.max(1, length, ...origin.map(Math.abs), ...bounds.flat().map(Math.abs), ...prismBounds.flat().map(Math.abs));
+      const separationGuard = NEXT_CONTACT_DISTANCE_MM + ownerTolerance + prismTolerance + 32 * Number.EPSILON * coordinateScale;
+      if (!Number.isFinite(separationGuard) || separationGuard < NEXT_CONTACT_DISTANCE_MM) {
+        throw new Error('The native UntilNext separation guard must be finite and nonnegative.');
+      }
       const intersection = common(target, prism, owners), observed = inspect(intersection);
       if (observed.kind === 'contact') return { kind: 'contact-or-near', evidence: 'lower-dimensional-common' };
       if (observed.kind === 'empty') {
         const distance = separation(target, prism);
-        return distance > NEXT_CONTACT_DISTANCE_MM
+        // An empty Common alone does not prove clearance outside either
+        // operand's native tolerance. Keep that uncertain band distinct from
+        // a separated miss, including a floating-point coordinate allowance.
+        return distance > separationGuard
           ? { kind: 'empty-forward', topologyFreeCompound: true, distanceMm: distance }
           : { kind: 'contact-or-near', evidence: 'empty-common-within-resolution', distanceMm: distance };
       }

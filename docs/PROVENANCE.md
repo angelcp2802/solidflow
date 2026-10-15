@@ -1749,3 +1749,187 @@ This private local harness is not yet a tracked dedicated CI command. Its
 [recorded validation](VALIDATION.md#entity-all-profile-composition--local-evidence-2026-10-15)
 does not extend earlier primitive UI evidence or native assertions to those
 unobserved cases.
+
+## UntilNext saved declaration fixtures
+
+The eight cases in
+[featureRecipes.until-next.test.ts](../src/model/featureRecipes.until-next.test.ts)
+are original, synthetic declaration fixtures. Their source and two target
+profiles are 8-by-8 rectangles centered at `(4,4)`, `(24,4)` and `(44,4)`, with
+declared extrusion depths 5, 9 and 13 mm. The source circle has radius 1 mm;
+the separate annular entity declaration uses concentric circles of radii 2 and
+1 mm at sketch offset 1 mm. The only canonical instance translates by `(20,0,0)` mm. These dimensions
+are input declarations, not measured native geometry.
+
+The expected source remains `source-owner@source-base`, while the source
+poststate is `source-owner@seed` and its selected destination is
+`owner-a@base-a`. The fixtures check these distinct identities, exact native
+requirements, unchanged editable input, selected additive intent, whole
+annular declaration retention and ALL's derived snapshot/routing syntax.
+A two-owner snapshot is supplied to pure extraction; this does not attest the
+complete native catalog. Other cases reject substituting a destination base
+for the source base and combining unilateral UntilNext with legacy symmetry,
+retain the independent additive-ALL gate, and distinguish UntilNext and
+ThroughAll preview fingerprints without rewriting the original extraction.
+
+The fixed UntilNext case added to
+[featureRecipes.entities.test.ts](../src/model/featureRecipes.entities.test.ts)
+uses that file's existing original circle declaration and +20X placement. It
+checks termination and placement without issuing solved geometry; the primitive
+adapter continues to reject an unsolved entity profile. The variation case
+remains separate and still requires its pending policy.
+
+No test in this declaration group constructs a native limit, solves a sketch,
+proves a miss, renders an editor or establishes material applicability.
+Executed results must be recorded separately in [VALIDATION](VALIDATION.md).
+
+## UntilNext native tolerance and failure fixtures
+
+The eight additional cases in
+[kernel.until-next-resolution.test.ts](../src/cad/kernel.until-next-resolution.test.ts)
+extend the original native classifier fixtures. The profile is a radius-one
+circle centered at `(5,5)` along +Z. Its forward prism has analytical volume
+`pi * length` and area `2*pi*(length+1)`; the target box is
+`[6+gap,0,0]..[16+gap,10,8]`, with volume 800 and area 520. The geometric
+side separation is exactly `gap`. Lengths are mm, volumes mm³ and areas mm².
+
+| Case | Owner maximum vertex tolerance | Prism maximum vertex tolerance | Geometric gap |
+| --- | --- | --- | --- |
+| Owner tolerance band | 0.001 | Unchanged native value | 0.0002 |
+| Prism tolerance band | Unchanged native value | 0.001 | 0.0002 |
+| Combined tolerance band | 0.0006 | 0.0006 | 0.0009 |
+| Separated control | 0.001 | 0.001 | 0.01 |
+
+The elevated-tolerance inputs are serialized from these newly constructed
+native boxes/prisms using the installed SDK's BRep V3 writer. Only the numeric
+tolerance fields immediately following `Ve` change. Restoring them recovers
+every original byte; native MaxTolerance, BRep validity and analytical metrics
+are checked after reading the edited original fixture. No external model,
+vendor fixture or mock bounding box supplies this geometry.
+
+The first three cases must not authorize `empty-forward`; a real native Common
+may itself report contact or material. A completed topology-free Common whose
+distance is above the old floor but below the combined tolerance guard is a
+stronger discriminator only when actually observed. Its branch and result
+must be recorded after execution rather than presumed from these inputs.
+The separated control requires actual native absence and its analytical gap.
+Volume/area tolerance is `1e-5`, bounds `1e-6`; separation uses `1e-8`, and the
+authored native tolerance metadata is checked within `1e-15`.
+
+Four causal failure cases inject a fault after a real tolerance query at the
+owner or prism, return a nonfinite observation after a real native query, or
+throw after actually releasing the conservative box. They require failure
+propagation and healthy borrowed geometry; the instrumented prism/box release
+is attempted once. These injected errors are test mechanisms, not naturally
+observed kernel failures or absence evidence. No native execution or general
+lifetime guarantee follows from authoring these cases.
+
+## Saved UntilNext native regeneration fixtures
+
+The 68 cases authored in
+[kernel.recipe-until-next.integration.test.ts](../src/cad/kernel.recipe-until-next.integration.test.ts)
+use original boxes, enclosed rectangular cavities and planar profiles. All
+lengths are mm, volumes mm³ and areas mm². No imported model, copied seed BRep
+delta or output of a termination helper supplies an expected result.
+
+The source hollow box is `[0,0,0]..[12,10,10]` minus
+`[2,2,3]..[10,8,7]`: volume 1008, area 888. The additive target instead has
+cavity ceiling 8: volume 960, area 916. ALL's second coincident-bounds owner
+has cavity `[2,2,5]..[10,8,8]`: volume 1056, area 860. Remote and behind owners
+are 12-by-10-by-10 boxes, volume 1200 and area 680.
+
+A radius-1.5 circle centered at `(6,5)` cuts to the first complete exit at z3,
+removing `27*pi/4`; the first target becomes `1008-27*pi/4`, area `888+9*pi/2`.
+The second ALL owner exits at z5: volume `1056-45*pi/4`, area `860+21*pi/2`.
+Add starts at z3 and enters the target roof at z8: volume `960+45*pi/4`,
+area `916+21*pi/2`. Its source roof is z7, so copying source depth would give
+a different target. Cartesian placement oracles are written independently:
+`(x+24,y,z)`, `(36-x,-y,z)`, `(36-x,y,z)`, `(x,y,30-z)` and
+`(18+z,y,18-x)`. Bounds map the eight original corners. Reflection about z15
+may also cut the original source in ALL; that case does not assert it unchanged.
+
+The authentic solved circle has nominal radius 0.75, driving radius 1.5 and a
+retained driven placeholder 999; measured radius must be 1.5. An underdefined
+variant retains two degrees of freedom. Editing the driving radius to 2 must
+give volume `1008-12*pi`, area `888+4*pi`, through save/reopen, undo and redo.
+Whole profiles also include an annulus with radii 2/1, two radius-one disks at
+`(4,5)`/`(8,5)`, and a D contour: rectangle `[3,4]..[7,6]` plus its right
+radius-one semicircle. Their areas are `3*pi`, `2*pi`, `8+pi/2`; perimeters
+are `6*pi`, `4*pi`, `10+pi`. Cuts use length 3, except the annulus starts at z1
+and exits z3. Its inner core remains connected through the original base.
+Adds use length 5. Area increments are `length*perimeter-2*profileArea`,
+except the internal-entry annular cut, whose increment is `2*perimeter`.
+
+Other cases advance the cavity floor from z3 to z5 (volume 1104, area 832),
+advance the source with a radius-0.25 one-mm blind hole, or reverse the physical
+ray from offset z10. Selected misses, tangent contact, partial closing faces,
+a later missing address and a later partial ALL owner must reject atomically.
+Native inventory tests retain unchanged refs, virtual body roles and revisions;
+staging rejects identity/checkpoint drift. A widened 48-by-10 source supports
+a no-op UntilNext parent followed by a material-changing blind child at the
+same address. Its remote target ends at volume `1200-pi`, area `680+2*pi`.
+
+Causal tests fail the validator of the actual completed tool, throw after
+actually releasing it, mutate source/revision after real probe cleanup, and
+reject a genuinely solved open contour. The open-contour component does not
+claim that its drawing produced a healthy historical seed solid. A further
+original query prism has vertex tolerances raised to 0.001 by the same
+reversible BRep field edit described above and a geometric gap 0.0002 from a
+later ALL owner. Each prism's native tolerance and analytical metrics are
+checked; real Common may detect contact/material. The test requires atomic
+rejection, without presuming which native branch demonstrates it.
+
+Native volume/area tolerance is `1e-5`, bounds `1e-6`; original 0.2-mm Common
+cubes compare volume 0.008 or zero within `1e-7`. Measured driven radius uses
+`1e-7`; edited native tolerance uses `1e-15`. The strict bridge's existing
+pending case is replaced by a real radius-one, length-eight tool (volume
+`8*pi`, area `18*pi`) against its original 10-by-10-by-8 box. Adding these
+fixtures records their origin and acceptance targets, not passing results or
+general platform support. Executed evidence belongs in [VALIDATION](VALIDATION.md).
+
+## Scripted saved UntilNext desktop fixtures
+
+The three original JSON documents pattern-until-next-cut-original.json,
+pattern-until-next-add-original.json and pattern-until-next-partial-original.json
+use only independently specified boxes, cavities and radius-one circles.
+Coordinates/lengths use mm; volume formulas use mm³ and area formulas use mm².
+No imported model or external application output supplies their expected geometry.
+
+CUT: S is [0,0,0]..[10,10,10]. Its UntilNext circle at (5,5,z0) removes 10π:
+S volume1000−10π, area600+18π. A is [20,0,0]..[30,10,8], with the original
+closed cavity [22,2,2]..[28,8,6]: volume656, area688. Copying the source cut
+removes both two-mm walls (4π), whereas regenerated Cut stops at the first
+complete exit z2 and removes only2π. A volumes are656−4π and656−2π;
+analytical areas688+4π and688+2π. B is [20,0,−10]..[30,10,−2],
+volume800/area520, and stays at B@create-B. In ALL, S is remote from the
+translated circle and B is behind it; neither is removed from the inventory.
+
+ADD: S has the same10×10×8 closed-cavity construction. Its circle starts atz2
+and UntilNext Add first enters the roof atz6, adding4π; S volume656+4π,
+area688+6π. A is [20,0,0]..[30,10,12] minus cavity
+[22,2,2]..[28,8,10]: volume912/area944. Geometry copying adds4π, a column
+joined only to the floor; regeneration adds8π and joins floor to roof.
+A volumes912+4π/912+8π and analytical areas944+8π/944+14π distinguish them.
+Only selected additive merge is exercised; additive ALL stays gated.
+
+PARTIAL: A is [20,0,0]..[25.5,10,8], volume440/area358 before the pattern.
+The translated radius-one circle is centered(25,5), overhanging x25.5.
+Its intersection area is2π/3+√3/4, so the original geometry-copy notch removes
+16π/3+2√3. Regeneration has positive forward material but no whole-profile
+closing face: the actual native NO_COMPLETE_FACE diagnostic must be visible
+and Apply stays disabled. Only the failed regeneration preview reports the
+pre-pattern A@create-A with volume440. The committed/autosaved original geometry
+document keeps A@ui-next-partial-P with volume440−16π/3−2√3 during rejection and
+after Cancel; both autosave reads must match the original geometry fixture.
+Cancel restores the rendered original geometry-copy document through React.
+
+The scripted workflow observes14 distinct actual worker builds if complete:
+seven CUT phases, four ADD phases, PARTIAL geometry/rejection/cancel.
+It checks volumes at1e−5 and bounds at1e−6, exact source/creator refs, unchanged
+source prefixes and saved intent. Selected cut, cut ALL and selected Add each
+use Apply, real preload/IPC Save As and reopen (six opens, three saves total).
+The partial error is expected; other feature/worker/renderer/request errors fail.
+No result is implied by adding this regression. Native BRep validity, area and
+far-wall material probes belong to separately executed kernel tests; this UI
+command does not make those queries or claim human/native-dialog interaction,
+installed-package acceptance or general platform support.

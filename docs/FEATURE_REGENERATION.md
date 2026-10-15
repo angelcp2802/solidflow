@@ -4,7 +4,7 @@ Feature regeneration evaluates selected operations again at each instance
 against the current working target. The integrated initial path connects
 [recipe declarations](FEATURE_RECIPES.md), explicit-frame native construction,
 chronological evaluation and atomic body-catalog publication. It supports
-intrinsic rectangle/circle and real solved entity cuts and merge extrusions, blind/ThroughAll endings
+intrinsic rectangle/circle and real solved entity cuts and merge extrusions, blind/ThroughAll/UntilNext endings
 or an explicitly fixed principal-plane UpToSurface limit, selected targets
 and no variation. Dynamic ALL
 currently supports the intrinsic cut subset; additive ALL remains pending.
@@ -320,10 +320,10 @@ captured material delta as a regeneration substitute.
 This bridge is limited to the initial `mode:'regenerate'`,
 `geometryPattern:false` declaration subset: selected targets or cut-only ALL,
 no variation, intrinsic primitive or authentic real-solved entity profiles, owned cut/merge and
-blind/ThroughAll or explicit principal-plane/world UpToSurface termination.
+blind/ThroughAll/UntilNext or explicit principal-plane/world UpToSurface termination.
 Selected scope checks its exact saved target
 routes; ALL checks the attested derived target snapshot and scope routes.
-UntilNext and other UpToSurface reference declarations retain their pending gates,
+Other UpToSurface reference declarations retain their pending gates,
 even though the primitive constructor can build an explicitly resolved tool.
 The bridge itself accepts an extracted declaration; the saved parser and engine
 connect it through the explicit mode above.
@@ -387,7 +387,7 @@ separate readiness/exit diagnostics, retained failures and follow-up checks belo
 to their exact source records in [VALIDATION](VALIDATION.md).
 No complete feature or platform-support claim follows.
 
-Required continuation includes broader up-to-surface, offset, until-next and other
+Required continuation includes broader up-to-surface, offset and other
 end/start conditions; exact face/datum/instance correspondence; arbitrary and
 associative solved profiles; dependent sketches/planes/constraints; additive ALL,
 dynamic geometry scope and AUTO discovery with saved capture/follow policy;
@@ -461,13 +461,16 @@ working-island and genuinely empty-compound rules remain unchanged.
 complete material-entry component alongside the first-exit Cut component.
 Forward Common reports existing owner material, separately from tool volume and
 actual added/removed volume. A completed topology-free compound and completed
-native separation greater than `1e-7` mm establish an empty-forward observation.
+native separation beyond the contact floor, actual native tolerance envelopes
+and floating-point allowance establish an empty-forward observation. The
+current guard is specified in the UntilNext integration section below.
 Contact/near geometry and material lacking a complete whole-profile face remain
 distinct observations. Borrowed owners, repeated prism wrappers/handles and
 construction/query/cleanup failures cannot be silently treated as misses.
 The caller still owes the exact owner route, progressive revision, physical ray
-and selected/ALL applicability policy. These components do not activate
-UntilNext in saved pattern recipes or additive ALL.
+and selected/ALL applicability policy. These components alone do not activate
+saved pattern recipes or additive ALL; the UntilNext bridge and evaluator below
+provide the bounded saved integration.
 
 [countNativeFaceOccurrences](../src/cad/kernel.native-face-membership.ts) counts
 all native FACE occurrences sharing TShape and Location with a borrowed face;
@@ -528,7 +531,7 @@ Selected cut/merge and cut-only dynamic ALL retain existing route/lifecycle
 rules. Temporary tools use the closed positive-tool validator; historical
 sources, current targets and persistent results still require one valid solid.
 Associative/explicit support placement, varying constraints, native face/datum
-correspondence, UntilNext recipes, additive ALL, AUTO, nested regeneration and
+correspondence, additive ALL, AUTO, nested regeneration and
 broader lifecycle work remain incomplete. Their rejection is not implementation
 or reference parity. Existing commands/panel declarations can request this
 unchanged regenerate mode and receive real engine preview; no new UI interaction
@@ -583,3 +586,64 @@ BRep/closed-tool proofs and does not establish other interactive workflows.
 The [new fixture provenance](PROVENANCE.md#entity-all-absence-composition-fixtures)
 and [recorded validation](VALIDATION.md#entity-all-profile-composition--local-evidence-2026-10-15)
 separate this source from earlier V4 and primitive-only results.
+
+## Per-owner UntilNext regeneration
+
+The saved unilateral `untilNext` termination is evaluated again for each
+canonical instance and exact progressive owner. Its historical
+`endCondition.baseFeatureId` must still agree with the source's original owner
+input; the existing saved bindings express the distinct destination route.
+The source base is not rewritten to the target, and a scene aggregate or
+captured source tool is not substituted for that target. No new saved option,
+document version or inferred surface-reference policy is introduced.
+
+Selected cuts use the first complete material exit. Selected additive merge
+extrusions use the first complete material entry. Both consume the actual
+current owner after preceding operations and addresses. Whole-profile cap
+coverage is required, including holes and disconnected regions; a center ray,
+the nearest partial face or a separately chosen limit for each region is not
+enough. Native construction uses the shared primitive factory or the full
+authentic checkpoint-covered entity `result.profile`, with no second solve.
+Canonical reflection parity, signed direction and sketch offset apply once.
+
+`resolveRecipeInstanceUntilNext` returns a discriminated native observation:
+
+| Outcome | Native evidence and saved policy |
+| --- | --- |
+| `complete` | A validated owned tool reaches a complete whole-profile limit. Selected Cut, selected Add and cut ALL can apply it. Tool volume, existing forward material and actual material change remain separate quantities. |
+| `empty-forward` | Common completed with a non-null topology-free native compound and a completed separation query proves a distance beyond the conservative guard. Selected scope rejects; cut ALL can retain that owner as a no-op. |
+| `contact-or-near` | Lower-dimensional intersection or insufficient proven separation. Both scopes reject atomically; contact is not an absence certificate. |
+| `incomplete-limit` | Actual positive forward material exists, but no compatible complete limit was found. Both scopes reject atomically; there is no ThroughAll fallback. |
+
+The forward query is enclosed using conservative native bounds that account for
+vertex, edge and face tolerances. Those bounds only size the prism; the real
+Common and separation query establish absence. The separation guard includes
+the `1e-7 mm` contact floor, the actual maximum native tolerances of owner and
+query prism, and a `32 * Number.EPSILON * coordinateScale` allowance. Native
+query, construction, validation, registration or cleanup errors propagate;
+an exception, small volume or geometric box miss cannot become `empty-forward`.
+
+The strict `buildRecipeInstanceTool` API still returns an owned tool or throws.
+The evaluator uses the explicit resolution API for cut ALL and accepts only
+its proven separated miss as a no-op. That owner remains in the complete
+inventory, application budget, freshness proof and same-address virtual output,
+with unchanged local revision. Each active address and the complete pattern
+still need material change somewhere. Contact, incomplete limits, stale source
+epochs, changed owner revisions and late failures withhold all replacements.
+Persistent owners still require one valid closed solid; a temporary multiregion
+tool or progressive island state does not allocate additional body identities.
+
+The source and actual working-owner guards surround native construction and
+resolution, including the resolver's cleanup, and staging revalidates the
+document, source epoch and complete native catalog. The evaluator revision
+changes so an earlier preview cannot authorize this implementation's Apply.
+The saved syntax and exact source/target references survive serialization;
+reopening rebuilds the limit from the then-current model rather than a saved
+distance or cached native face.
+
+These are SolidFlow's explicit per-owner rules. General reference-application
+scope parity is unverified. Additive ALL, AUTO discovery, bilateral UntilNext,
+associative or varying profiles, broader start/end references and lifecycle
+policies remain required work. Authored tests and declared workflows are not
+executed results; the source-specific [validation record](VALIDATION.md) must
+establish the actual checked cases and tolerances before claiming a pass.

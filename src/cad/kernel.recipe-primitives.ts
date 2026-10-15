@@ -4,6 +4,7 @@ import { copyBodyShape } from './kernel.bodies';
 import { withNativeOwners, type NativeOwners } from './kernel.native-ownership';
 import { throughAllBossTool, throughAllTool, untilNextTool, upToSurfaceTool } from './kernel.extrusion-limits';
 import type { PlaneFrame, Vec3 } from './kernel.types';
+import { resolveUntilNextAdd, resolveUntilNextCut, type UntilNextCutResolution } from './kernel.until-next-resolution';
 
 /** Explicit-frame primitive construction: no document IDs, recipe graph or catalog publication. */
 export type PrimitiveProfile =
@@ -86,7 +87,11 @@ function finitePoint(value: Vec3, context: string): Vec3 { return vector(value, 
  * prototype validation boundary. Callers first use their strict recipe parser.
  * All native inputs are borrowed; the successfully returned tool is OWNED.
  */
-export function buildExplicitFramePrimitive(input: ExplicitFramePrimitiveInput): Shape3D {
+function explicitFramePrimitiveFactory(input: ExplicitFramePrimitiveInput): {
+  signedDepth: number; center: Vec3; ray: Vec3; termination: PrimitiveTermination;
+  target: Shape3D | undefined; limit: ResolvedPrimitiveLimit | undefined;
+  makePrism: (length: number, start?: number) => Shape3D;
+} {
   if (!input || (input.operation !== 'add' && input.operation !== 'subtract') || typeof input.validateTool !== 'function') {
     throw new Error('Primitive operation and an explicit native tool validator are required.');
   }
@@ -134,6 +139,28 @@ export function buildExplicitFramePrimitive(input: ExplicitFramePrimitiveInput):
       return result;
     }, result => [result], 'Explicit-frame prism construction or release failed.');
   };
+  return { signedDepth, center, ray, termination, target, limit, makePrism };
+}
+
+/** Native observations only; saved scope, currentness and miss policy belong to the bridge/evaluator. */
+export function resolveExplicitFrameUntilNext(input: ExplicitFramePrimitiveInput): UntilNextCutResolution {
+  const { termination, target, center, ray, makePrism } = explicitFramePrimitiveFactory(input);
+  if (termination.kind !== 'untilNext') throw new Error('UntilNext resolution requires its exact termination.');
+  return withNativeOwners<UntilNextCutResolution>(owners => {
+    const result = (input.operation === 'subtract' ? resolveUntilNextCut : resolveUntilNextAdd)({
+      workingTarget: target!, origin: center, direction: ray, makePrism,
+    });
+    if (result.kind === 'complete') {
+      owners.own(result.tool);
+      input.validateTool(result.tool);
+    }
+    return result;
+  }, result => result.kind === 'complete' ? [result.tool] : [], 'Explicit-frame UntilNext resolution or release failed.');
+}
+
+/** Strict construction API: a successfully returned tool is always owned and non-null. */
+export function buildExplicitFramePrimitive(input: ExplicitFramePrimitiveInput): Shape3D {
+  const { signedDepth, center, ray, termination, target, limit, makePrism } = explicitFramePrimitiveFactory(input);
   return withNativeOwners(owners => {
     let result: Shape3D;
     // Existing limit helpers include native operations on their target. Protect

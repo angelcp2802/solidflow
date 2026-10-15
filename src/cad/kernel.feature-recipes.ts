@@ -8,7 +8,7 @@ import {
   bodyBoolean, copyBodyShape, createConservativeBodyBounds, validateBodyShape, type NativeBodyCatalog,
   type NativeBodyReplacement, type NativeBodyStateUpdate, type NativeBodyTransaction,
 } from './kernel.bodies';
-import { buildRecipeInstanceTool } from './kernel.recipe-instance';
+import { buildRecipeInstanceTool, resolveRecipeInstanceUntilNext } from './kernel.recipe-instance';
 import { framePoint } from './kernel.frames';
 import { validatePositiveClosedTool } from './kernel.closed-tools';
 import { validateEntityRecipeProfileForAbsence, type EntityRecipeSolveInput } from './kernel.recipe-entities';
@@ -18,7 +18,7 @@ import { attestNativeRecipeScope, assertNativeRecipeScopeCurrent, type NativeRec
 import { checkpointSourceSketchSolves, assertSourceSketchSolvesCurrent,
   type SourceSketchSolveCheckpoint, type SourceSketchSolveRegistry } from './kernel.sketch-solves';
 
-export const RECIPE_EVALUATOR_REVISION = 'intrinsic-real-solved-profiles-all-forward-v5';
+export const RECIPE_EVALUATOR_REVISION = 'intrinsic-real-solved-profiles-until-next-v6';
 const compare = (a: string, b: string): number => a < b ? -1 : a > b ? 1 : 0;
 const tolerance = (volume: number): number => Math.max(1e-8, Math.abs(volume) * 1e-10);
 const sameRef = (a: Readonly<BodyReference>, b: Readonly<BodyReference>): boolean =>
@@ -343,27 +343,43 @@ export function evaluateFeatureRecipes(input: RecipeEvaluationInput): OwnedRecip
             const entitySource = sketchSolves ? { ...sketchSolves, features: input.features } : undefined;
             let changed = false;
             if (!allCutEntirelyBehindRay(closure, operation, transform.key, before, entitySource, assertWorkingCurrent)) {
-              const built = buildRecipeInstanceTool({ closure, featureId: operation.featureId,
+              const constructionInput = { closure, featureId: operation.featureId,
                 address: transform.key, targetBodyId: bodyId, workingTarget: before, assertWorkingCurrent, entitySource,
                 // Tools may contain several closed regions. Recipe/profile gates
                 // remain in the bridge; source/current/final owners still use validateSingle.
-                validateTool: validatePositiveClosedTool });
-              const tool = owners.own(built.tool);
-              assertWorkingCurrent();
-              const raw = owners.own(bodyBoolean(built.operation, before, tool));
-              assertWorkingCurrent();
-              const rawState = intermediate(raw);
-              const signedChange = built.operation === 'subtract' ? beforeState.volume - rawState.volume : rawState.volume - beforeState.volume;
-              if (signedChange < -tolerance(beforeState.volume)) throw new Error('A regenerated operation changed material with the wrong sign.');
-              changed = materialChanged(before, raw, owners);
-              if (changed) {
-                // Empty topology has no borrowed material to alias. Nonempty
-                // Boolean results are geometrically detached before tool retirement.
-                const next = rawState.empty ? raw : owners.own(copyBodyShape(raw));
-                if (next !== raw) release(owners, raw);
-                release(owners, tool); release(owners, before);
-                current.set(bodyId, next); revisions.set(bodyId, inputRevision + 1);
-              } else { release(owners, raw); release(owners, tool); }
+                validateTool: validatePositiveClosedTool };
+              const construction = operation.termination?.kind === 'untilNext' && closure.request.scope.mode === 'all'
+                ? (() => {
+                  const resolved = resolveRecipeInstanceUntilNext(constructionInput);
+                  if (resolved.kind === 'complete') return resolved;
+                  if (resolved.kind === 'empty-forward' && resolved.operation === 'subtract') return resolved;
+                  if (resolved.kind === 'incomplete-limit') throw resolved.error;
+                  if (resolved.kind === 'contact-or-near') throw new Error('No se puede resolver Hasta el siguiente en uno de los cuerpos: el perfil lo toca o está demasiado cerca.');
+                  throw new Error('ALL UntilNext needs a complete limit or a native-proven separated empty forward region.');
+                })()
+                : { kind: 'complete' as const, ...buildRecipeInstanceTool(constructionInput) };
+              if (construction.kind === 'complete') {
+                const tool = owners.own(construction.tool);
+                assertWorkingCurrent();
+                const raw = owners.own(bodyBoolean(construction.operation, before, tool));
+                assertWorkingCurrent();
+                const rawState = intermediate(raw);
+                const signedChange = construction.operation === 'subtract' ? beforeState.volume - rawState.volume : rawState.volume - beforeState.volume;
+                if (signedChange < -tolerance(beforeState.volume)) throw new Error('A regenerated operation changed material with the wrong sign.');
+                changed = materialChanged(before, raw, owners);
+                if (changed) {
+                  // Empty topology has no borrowed material to alias. Nonempty
+                  // Boolean results are geometrically detached before tool retirement.
+                  const next = rawState.empty ? raw : owners.own(copyBodyShape(raw));
+                  if (next !== raw) release(owners, raw);
+                  release(owners, tool); release(owners, before);
+                  current.set(bodyId, next); revisions.set(bodyId, inputRevision + 1);
+                } else { release(owners, raw); release(owners, tool); }
+              } else {
+                // The native resolver released its real validated probe/copy and
+                // confirmed separation. Keep this owner, revision and role in ALL.
+                assertWorkingCurrent();
+              }
             }
             for (const application of applications) {
               const output: RecipeVirtualOutput = Object.freeze({ sourcePoststate: frozenRef(application.sourcePoststate),

@@ -503,7 +503,6 @@ export function extractRecipeClosure(features: readonly Feature[], rawRequest: R
         if (feature.type === 'cut' && end.baseBody !== undefined) invalid('SOURCE_LIMIT_BASE', feature.id, 'endCondition.baseBody', 'Cut limits use their explicit owner scope, not a creation-only baseBody.');
         node.termination = end.kind === 'throughAll' ? { kind: 'throughAll', bothDirections: end.bothDirections, baseFeatureId: end.baseFeatureId }
           : { kind: 'untilNext', baseFeatureId: end.baseFeatureId };
-        if (end.kind === 'untilNext') pending('UNTIL_NEXT_PENDING', feature.id, 'endCondition', 'Per-owner next-boundary regeneration requires separate geometry evidence.');
       } else invalid('UNSUPPORTED_END_SCHEMA', feature.id, 'endCondition', 'Unknown end-condition schema; do not reinterpret it as blind or copied geometry.');
     }
     for (const [key, source] of selectedBindings) {

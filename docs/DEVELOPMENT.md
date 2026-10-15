@@ -46,6 +46,7 @@ npm start
 | `npm run build` | TypeScript checking and production compilation of UI, worker and WASM integration. |
 | `npm run test:desktop` | Real Electron production-loader smoke check after building, with a hidden window and isolated temporary user data. |
 | `npm run test:desktop:pattern-all` | Scripted production-renderer selected-to-ALL cut interaction, Apply, Save As and reopen, after building. |
+| `npm run test:desktop:pattern-until-next` | Scripted production-renderer UntilNext selected cut, cut ALL and selected additive merge, real rejection, Apply, Save As and reopen, after building. |
 | `npx --no-install vitest run --config vitest.config.ts src/sketch/extend.review.test.ts` | A focused sketch/CAD regression file using the public project configuration; replace the path with the relevant test. |
 
 The desktop smoke check loads the initial model, preload, worker and WASM and checks readiness and console errors. It does not click the editor's tools or launch the packaged installer. On a headless Linux machine, a display server is needed for Electron; CI can use `xvfb-run -a npm run test:desktop` after installing the required system libraries. Do not disable Electron's sandbox to make a check pass.
@@ -80,6 +81,20 @@ See the [original fixture](../src/cad/fixtures/pattern-all-original.json),
 human pointer/native-dialog interaction, other pattern families, stale-prefix
 Apply, general ownership lifecycle or platform support. Its complete 180-second deadline
 is separate from the unchanged standard smoke deadlines.
+
+The separate `test:desktop:pattern-until-next` command uses three original
+synthetic documents in one hidden, isolated child. It changes geometry copying
+to regeneration, checks selected cut and additive merge, changes cut scope to
+ALL with unchanged remote/behind owners, and observes a partial-profile
+rejection that keeps Apply blocked. Successful cases use real Apply,
+preload/IPC Save As and reopen. Dialog choices are restricted to test-owned
+paths; actual worker responses supply volume, bounds and exact owner refs.
+The existing budgets remain unchanged: 180 seconds for the parent,
+170 seconds for the child workflow and 35 seconds for each step.
+This command does not query native BRep, area or material probes through the UI,
+run installed packages, or establish general platform support. Its original
+fixture parameters and formulas belong in the provenance and validation record.
+No result is implied by adding the command; record actual source-specific runs.
 
 ## Find the right layer
 

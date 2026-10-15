@@ -14,6 +14,9 @@ const SCENARIOS = Object.freeze({
     test: 'production-renderer-selected-to-ALL', caption: 'ALL' }),
   'world-limit': Object.freeze({ fixture: 'pattern-world-limit-original.json', entry: 'desktop-pattern-world-limit.cjs',
     test: 'production-renderer-fixed-world-limit', caption: 'fixed world-limit' }),
+  'until-next': Object.freeze({ fixture: 'pattern-until-next-cut-original.json', entry: 'desktop-pattern-until-next.cjs',
+    test: 'production-renderer-until-next', caption: 'UntilNext',
+    additionalFixtures: Object.freeze({ add: 'pattern-until-next-add-original.json', reject: 'pattern-until-next-partial-original.json' }) }),
 });
 let activeScenario = SCENARIOS.all, started = false;
 const fixturePath = () => path.join(__dirname, '..', 'src', 'cad', 'fixtures', activeScenario.fixture);
@@ -76,6 +79,10 @@ async function launch() {
     for (const name of ['profile', 'session', 'logs', 'crashes']) await fsp.mkdir(path.join(temporary, name));
     await fsp.writeFile(path.join(temporary, '.test-owned.json'), JSON.stringify({ token }), { flag: 'wx' });
     await fsp.copyFile(fixturePath(), path.join(temporary, 'input.solidflow'), fs.constants.COPYFILE_EXCL);
+    for (const [name, fixture] of Object.entries(activeScenario.additionalFixtures ?? {})) {
+      await fsp.copyFile(path.join(__dirname, '..', 'src', 'cad', 'fixtures', fixture),
+        path.join(temporary, 'input-' + name + '.solidflow'), fs.constants.COPYFILE_EXCL);
+    }
     const environment = { ...process.env, SOLIDFLOW_PATTERN_UI_TEST_ROOT: root, SOLIDFLOW_PATTERN_UI_TEST_TEMP: temporary, SOLIDFLOW_PATTERN_UI_TEST_TOKEN: token };
     delete environment.ELECTRON_RUN_AS_NODE; delete environment.SOLIDFLOW_DEV_URL;
     const entry = path.join(__dirname, activeScenario.entry);
@@ -194,6 +201,16 @@ async function runInElectron() {
   app.setPath('crashDumps', path.join(owned, 'crashes')); app.setAppLogsPath(path.join(owned, 'logs'));
   const input = path.join(owned, 'input.solidflow'), output = path.join(owned, 'saved.solidflow');
   const expected = JSON.parse(fs.readFileSync(input, 'utf8')), expectedIds = expected.features.map(feature => feature.id);
+  const untilNext = activeScenario === SCENARIOS['until-next'];
+  const inputPaths = untilNext ? { cut: input, add: path.join(owned, 'input-add.solidflow'),
+    reject: path.join(owned, 'input-reject.solidflow') } : null;
+  const fixtures = untilNext ? Object.fromEntries(Object.entries(inputPaths).map(([name, file]) =>
+    [name, JSON.parse(fs.readFileSync(file, 'utf8'))])) : null;
+  const outputs = untilNext ? { cutSelected: path.join(owned, 'saved-cut-selected.solidflow'),
+    cutAll: path.join(owned, 'saved-cut-all.solidflow'), add: path.join(owned, 'saved-add-selected.solidflow') } : null;
+  const openPaths = untilNext ? [inputPaths.cut, outputs.cutSelected, outputs.cutAll,
+    inputPaths.add, outputs.add, inputPaths.reject] : [input, output];
+  const savePaths = untilNext ? [outputs.cutSelected, outputs.cutAll, outputs.add] : [output];
   const protocolResponses = [], consoleErrors = [], failedRequests = [], ipc = [], checks = [];
   let opens = 0, saves = 0, finished = false, window;
   const timeout = setTimeout(() => finish(new Error('The isolated UI workflow did not finish before its child deadline.')), TEST_MS - 10_000);
@@ -312,7 +329,11 @@ async function runInElectron() {
       savedContentSha256: digest(await fsp.readFile(output)), savedFeaturesSha256: digest(JSON.stringify(saved.features)) });
   }
   // The extra workflow is a fixed tracked module, never a caller/env-selected script.
-  const actualWorkflow = activeScenario === SCENARIOS['world-limit']
+  const actualWorkflow = untilNext
+    ? require('./desktop-pattern-until-next-flow.cjs')({ fixtures, outputs, inputPaths, evaluate, observe, waitFor, click, menu,
+      checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
+      initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
+    : activeScenario === SCENARIOS['world-limit']
     ? require('./desktop-pattern-world-limit-flow.cjs')({ expected, expectedIds, evaluate, observe, waitFor, click, menu, checks,
       protocolResponses, consoleErrors, failedRequests, ipc, input, output, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) }) : workflow;
@@ -373,12 +394,12 @@ async function runInElectron() {
   } });
   const testingDialog = new Proxy(electron.dialog, { get(target, member) {
     if (member === 'showOpenDialog') return async (_window, options) => {
-      check(options.title === 'Abrir pieza de SolidFlow' && ++opens <= 2, 'Unexpected native open dialog request.');
-      return { canceled: false, filePaths: [opens === 1 ? input : output] };
+      check(options.title === 'Abrir pieza de SolidFlow' && ++opens <= openPaths.length, 'Unexpected native open dialog request.');
+      return { canceled: false, filePaths: [openPaths[opens - 1]] };
     };
     if (member === 'showSaveDialog') return async (_window, options) => {
-      check(options.title === 'Guardar pieza' && ++saves === 1, 'Unexpected native save/export dialog request.');
-      return { canceled: false, filePath: output };
+      check(options.title === 'Guardar pieza' && ++saves <= savePaths.length, 'Unexpected native save/export dialog request.');
+      return { canceled: false, filePath: savePaths[saves - 1] };
     };
     if (member === 'showErrorBox') return (title, message) => finish(new Error(title + ': ' + message));
     const value = Reflect.get(target, member); return typeof value === 'function' ? () => fail('Unexpected native dialog method: ' + String(member)) : value;

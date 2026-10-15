@@ -1,9 +1,10 @@
 import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import initOpenCascade from 'replicad-opencascadejs';
-import { makeBox, measureShapeSurfaceProperties, measureShapeVolumeProperties, setOC, type Shape3D } from 'replicad';
+import { cast, getOC, makeBox, measureShapeSurfaceProperties, measureShapeVolumeProperties, setOC, type Shape3D } from 'replicad';
 import { beforeAll, expect, it, vi } from 'vitest';
 import { bodyBoolean, validateBodyShape } from './kernel.bodies';
+import * as bodyHelpers from './kernel.bodies';
 import { NextBoundaryUnavailableError } from './kernel.extrusion-limits';
 import * as nextLimits from './kernel.extrusion-limits';
 import { NativeCleanupError, withNativeOwners, type NativeOwners } from './kernel.native-ownership';
@@ -93,6 +94,118 @@ for (const row of [
   expect(result.kind).toBe(row.kind);
   if (result.kind === 'empty-forward') expect(Math.abs(result.distanceMm - row.gap)).toBeLessThan(1e-8);
   expectMetrics(target, 800, 520, [6 + row.gap, 0, 0], [16 + row.gap, 10, 8]);
+}), 60_000);
+
+function elevatedOriginalVertexTolerance(shape: Shape3D, tolerance: number): Shape3D {
+  return withNativeOwners(owners => {
+    const oc = getOC(), serialized = oc.BRepToolsWrapper.Write(shape.wrapped);
+    expect(serialized).toContain('CASCADE Topology V3');
+    const rows = serialized.split('\n'), edited = [...rows], fields = rows.flatMap((row, index) => row === 'Ve' ? [index + 1] : []);
+    expect(fields.length).toBeGreaterThan(0);
+    for (const index of fields) {
+      expect(Number.isFinite(Number(rows[index])) && Number(rows[index]) >= 0 && Number(rows[index]) < tolerance).toBe(true);
+      edited[index] = String(tolerance);
+    }
+    const restored = [...edited]; for (const index of fields) restored[index] = rows[index];
+    expect(restored.join('\n')).toBe(serialized); // every non-tolerance byte remains original
+    const raw = owners.own(oc.BRepToolsWrapper.Read(edited.join('\n'))), result = owners.own(cast(raw)).asShape3D();
+    expect(Math.abs(oc.BRep_Tool.MaxTolerance(result.wrapped, oc.TopAbs_ShapeEnum.TopAbs_VERTEX) - tolerance)).toBeLessThan(1e-15);
+    validator(result);
+    return result;
+  }, result => [result], 'Original UntilNext elevated vertex-tolerance construction or release failed.');
+}
+
+for (const row of [
+  { name: 'owner tolerance', ownerTolerance: .001, prismTolerance: 0, gap: .0002, separated: false },
+  { name: 'prism tolerance', ownerTolerance: 0, prismTolerance: .001, gap: .0002, separated: false },
+  { name: 'sum of both tolerances', ownerTolerance: .0006, prismTolerance: .0006, gap: .0009, separated: false },
+  { name: 'separated elevated-tolerance control', ownerTolerance: .001, prismTolerance: .001, gap: .01, separated: true },
+] as const) it('requires native clearance beyond ' + row.name + ', gap=' + row.gap, () => withNativeOwners(owners => {
+  const min: Vec3 = [6 + row.gap, 0, 0], max: Vec3 = [16 + row.gap, 10, 8];
+  const original = owners.own(makeBox(min, max));
+  const target = row.ownerTolerance ? owners.own(elevatedOriginalVertexTolerance(original, row.ownerTolerance)) : original;
+  const realFactory = factory(xy), actualPrismTolerances: number[] = [];
+  const makePrism = (length: number, start = 0): Shape3D => withNativeOwners(local => {
+    const ordinary = local.own(realFactory(length, start));
+    const prism = row.prismTolerance ? local.own(elevatedOriginalVertexTolerance(ordinary, row.prismTolerance)) : ordinary;
+    const actual = getOC().BRep_Tool.MaxTolerance(prism.wrapped, getOC().TopAbs_ShapeEnum.TopAbs_VERTEX);
+    actualPrismTolerances.push(actual);
+    if (row.prismTolerance) expect(Math.abs(actual - row.prismTolerance)).toBeLessThan(1e-15);
+    expectMetrics(prism, Math.PI * length, 2 * Math.PI * (length + 1), [4, 4, start], [6, 6, start + length]);
+    return prism;
+  }, prism => [prism]);
+  const result = resolveOwned({ workingTarget: target, origin: xy.origin, direction: [0, 0, 1], makePrism }, owners);
+  expect(actualPrismTolerances.length).toBeGreaterThan(0);
+  if (row.separated) {
+    expect(result.kind).toBe('empty-forward');
+    if (result.kind !== 'empty-forward') throw new Error('The independently separated control did not produce an empty-forward observation.');
+    expect(Math.abs(result.distanceMm - row.gap)).toBeLessThan(1e-8);
+  } else {
+    // A tolerance-aware native Common may itself produce contact or material.
+    // Do not fabricate an empty Common to make this a guard discriminator.
+    expect(result.kind).not.toBe('empty-forward');
+    if (result.kind === 'contact-or-near' && result.evidence === 'empty-common-within-resolution') {
+      expect(result.distanceMm).toBeDefined();
+      expect(Math.abs(result.distanceMm! - row.gap)).toBeLessThan(1e-8);
+      expect(result.distanceMm!).toBeGreaterThan(1e-7);
+      expect(result.distanceMm!).toBeLessThan(row.ownerTolerance + row.prismTolerance);
+    }
+  }
+  expectMetrics(target, 800, 520, min, max); expectMetrics(original, 800, 520, min, max);
+}), 60_000);
+
+for (const atPrism of [false, true]) it('preserves a real ' + (atPrism ? 'prism' : 'owner') + ' tolerance-query failure without returning an absence', () => withNativeOwners(owners => {
+  const target = owners.own(makeBox([20, 0, 0], [30, 10, 8])), primary = new Error('Original UntilNext tolerance-query fault');
+  const realTolerance = bodyHelpers.maximumNativeShapeTolerance, realFactory = factory(xy);
+  let received: Shape3D | undefined, release: ReturnType<typeof vi.fn> | undefined;
+  const makePrism = (length: number, start = 0): Shape3D => withNativeOwners(local => {
+    const prism = local.own(realFactory(length, start)), handle = prism.wrapped, rawDelete = handle.delete.bind(handle);
+    release = vi.fn(() => rawDelete()); Object.defineProperty(handle, 'delete', { configurable: true, value: release });
+    received = prism; return prism;
+  }, prism => [prism]);
+  const query = vi.spyOn(bodyHelpers, 'maximumNativeShapeTolerance').mockImplementation(shape => {
+    const value = realTolerance(shape);
+    if (!atPrism || shape === received) throw primary;
+    return value;
+  });
+  let error: unknown;
+  try { error = captured(() => resolveOwned({ workingTarget: target, origin: xy.origin, direction: [0, 0, 1], makePrism }, owners)); }
+  finally { query.mockRestore(); }
+  expect(error).toBe(primary);
+  if (atPrism) expect(release).toHaveBeenCalledTimes(1); else expect(received).toBeUndefined();
+  expectMetrics(target, 800, 520, [20, 0, 0], [30, 10, 8]);
+}), 60_000);
+
+it('rejects an invalid native tolerance observation after a real query instead of classifying an absence', () => withNativeOwners(owners => {
+  const target = owners.own(makeBox([20, 0, 0], [30, 10, 8])), oc = getOC();
+  const realTolerance = oc.BRep_Tool.MaxTolerance.bind(oc.BRep_Tool);
+  let observed = 0;
+  const query = vi.spyOn(oc.BRep_Tool, 'MaxTolerance').mockImplementation((shape, kind) => {
+    const value = realTolerance(shape, kind); observed++;
+    return kind === oc.TopAbs_ShapeEnum.TopAbs_VERTEX ? NaN : value;
+  });
+  let error: unknown;
+  try { error = captured(() => resolveOwned({ workingTarget: target, origin: xy.origin, direction: [0, 0, 1], makePrism: factory(xy) }, owners)); }
+  finally { query.mockRestore(); }
+  expect(observed).toBeGreaterThan(0); expect(error).toBeInstanceOf(Error);
+  expect((error as Error).message).toContain('Native shape tolerances must be finite and non-negative');
+  expectMetrics(target, 800, 520, [20, 0, 0], [30, 10, 8]);
+}), 60_000);
+
+it('preserves conservative query-bounds release failure before any miss can be delivered', () => withNativeOwners(owners => {
+  const target = owners.own(makeBox([20, 0, 0], [30, 10, 8])), cleanup = new Error('Original UntilNext conservative-bounds release fault');
+  const realBounds = bodyHelpers.createConservativeBodyBounds;
+  let release: ReturnType<typeof vi.fn> | undefined;
+  const bounds = vi.spyOn(bodyHelpers, 'createConservativeBodyBounds').mockImplementation(shape => withNativeOwners(local => {
+    const box = local.own(realBounds(shape)), rawDelete = box.delete.bind(box);
+    release = vi.fn(() => { rawDelete(); throw cleanup; });
+    Object.defineProperty(box, 'delete', { configurable: true, value: release }); return box;
+  }, box => [box]));
+  let error: unknown;
+  try { error = captured(() => resolveOwned({ workingTarget: target, origin: xy.origin, direction: [0, 0, 1], makePrism: factory(xy) }, owners)); }
+  finally { bounds.mockRestore(); }
+  expect(error).toBeInstanceOf(NativeCleanupError); expect(errorTree(error)).toContain(cleanup); expect(release).toHaveBeenCalledTimes(1);
+  expectMetrics(target, 800, 520, [20, 0, 0], [30, 10, 8]);
 }), 60_000);
 
 const placements: { name: string; frame: PlaneFrame; sign: number; min: Vec3; max: Vec3; innerMin: Vec3; innerMax: Vec3; ray: Vec3; end: number }[] = [

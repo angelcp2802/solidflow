@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "id": "ui-next-add-original-document",
+  "name": "Original isolated UntilNext add interaction",
+  "units": "mm",
+  "createdAt": "2026-10-15T00:00:00.000Z",
+  "updatedAt": "2026-10-15T00:00:00.000Z",
+  "features": [
+    {"id":"profile-S","type":"sketch","name":"Original S box profile","suppressed":false,"plane":"XY","offset":0.0,"profile":{"kind":"rectangle","center":[5.0,5.0],"width":10.0,"height":10.0}},
+    {"id":"create-S","type":"extrude","name":"UntilNext add source S","suppressed":false,"sketchId":"profile-S","depth":8.0,"symmetric":false,"bodyOperation":{"mode":"new","bodyId":"S"}},
+    {"id":"cavity-profile-S","type":"sketch","name":"Original S cavity profile","suppressed":false,"plane":"XY","offset":2.0,"profile":{"kind":"rectangle","center":[5.0,5.0],"width":6.0,"height":6.0}},
+    {"id":"cavity-S","type":"cut","name":"Original S cavity","suppressed":false,"sketchId":"cavity-profile-S","depth":4.0,"symmetric":false,"bodyScope":[{"bodyId":"S","sourceFeatureId":"create-S"}]},
+    {"id":"seed-profile","type":"sketch","name":"Original radius-one add circle","suppressed":false,"plane":"XY","offset":2.0,"profile":{"kind":"circle","center":[5.0,5.0],"radius":1.0}},
+    {"id":"seed-add","type":"extrude","name":"Original UntilNext add seed","suppressed":false,"sketchId":"seed-profile","depth":1,"symmetric":false,"bodyOperation":{"mode":"merge","target":{"bodyId":"S","sourceFeatureId":"cavity-S"}},"endCondition":{"kind":"untilNext","baseFeatureId":"cavity-S"}},
+    {"id":"profile-A","type":"sketch","name":"Original A box profile","suppressed":false,"plane":"XY","offset":0.0,"profile":{"kind":"rectangle","center":[25.0,5.0],"width":10.0,"height":10.0}},
+    {"id":"create-A","type":"extrude","name":"UntilNext add target A","suppressed":false,"sketchId":"profile-A","depth":12.0,"symmetric":false,"bodyOperation":{"mode":"new","bodyId":"A"}},
+    {"id":"cavity-profile-A","type":"sketch","name":"Original A cavity profile","suppressed":false,"plane":"XY","offset":2.0,"profile":{"kind":"rectangle","center":[25.0,5.0],"width":6.0,"height":6.0}},
+    {"id":"cavity-A","type":"cut","name":"Original A cavity","suppressed":false,"sketchId":"cavity-profile-A","depth":8.0,"symmetric":false,"bodyScope":[{"bodyId":"A","sourceFeatureId":"create-A"}]},
+    {"id":"ui-next-add-P","type":"linearPattern","name":"UI UntilNext add pattern original","suppressed":false,"baseFeatureId":"cavity-A","source":{"mode":"features","geometryPattern":true,"featureIds":["seed-add"]},"first":{"direction":[1,0,0],"spacing":20,"count":2},"second":null,"secondSeedOnly":false,"skipped":[],"featurePattern":{"mode":"geometry","targets":[{"bodyId":"A","sourceFeatureId":"cavity-A"}],"bindings":[{"source":{"bodyId":"S","sourceFeatureId":"seed-add"},"targetBodyIds":["A"]}]}}
+  ]
+}

@@ -4,7 +4,8 @@ import type { IntrinsicRecipeExtrusionPlacement } from '../model/featureRecipes'
 import { entityProfileSolid } from './kernel.profiles';
 import { copyBodyShape, maximumNativeShapeTolerance } from './kernel.bodies';
 import { withNativeOwners } from './kernel.native-ownership';
-import { throughAllBossTool, throughAllTool, upToSurfaceTool } from './kernel.extrusion-limits';
+import { throughAllBossTool, throughAllTool, untilNextTool, upToSurfaceTool } from './kernel.extrusion-limits';
+import { resolveUntilNextAdd, resolveUntilNextCut, type UntilNextCutResolution } from './kernel.until-next-resolution';
 import type { PrimitiveTermination } from './kernel.recipe-primitives';
 import { readCheckpointSourceSketchSolve, type SourceSketchSolveCheckpoint,
   type SourceSketchSolveRegistry } from './kernel.sketch-solves';
@@ -84,19 +85,41 @@ export function validateEntityRecipeProfileForAbsence(input: EntityRecipeProfile
   return tolerance;
 }
 
+/** Native observations from the full authentic solved profile; no saved miss policy is inferred here. */
+export function resolveEntityRecipeUntilNext(input: EntityRecipeToolInput): UntilNextCutResolution {
+  if (input.termination.kind !== 'untilNext') throw new Error('Entity UntilNext resolution requires its exact termination.');
+  const { makePrism, ray } = entityRecipePrismFactory(input);
+  return withNativeOwners<UntilNextCutResolution>(owners => {
+    const result = (input.operation === 'subtract' ? resolveUntilNextCut : resolveUntilNextAdd)({
+      workingTarget: input.workingTarget, origin: input.placement.frame.origin, direction: ray, makePrism,
+    });
+    if (result.kind === 'complete') {
+      owners.own(result.tool);
+      input.validateTool(result.tool);
+    }
+    // The resolver has already released its target copy, probe and inspection
+    // resources. A release-time mutation cannot authorize either a tool or miss.
+    input.assertWorkingCurrent();
+    readCheckpointSourceSketchSolve(input.source.registry, input.source.checkpoint,
+      input.source.features, input.placement.sketchId);
+    return result;
+  }, result => result.kind === 'complete' ? [result.tool] : [], 'Entity UntilNext resolution or release failed.');
+}
+
 /** Real solved entities, freshly constructed native material; no seed BRep/delta copying. */
 export function buildEntityRecipeTool(input: EntityRecipeToolInput): Shape3D {
   const { source, placement, termination } = input;
   const { makePrism, ray } = entityRecipePrismFactory(input);
-  if (termination.kind === 'untilNext') throw new Error('Saved UntilNext entity recipes remain pending.');
   const depth = placement.signedDepth, frame = placement.frame;
   return withNativeOwners(owners => {
-    const target = termination.kind === 'throughAll' ? owners.own(copyBodyShape(input.workingTarget)) : undefined;
+    const target = termination.kind === 'throughAll' || termination.kind === 'untilNext'
+      ? owners.own(copyBodyShape(input.workingTarget)) : undefined;
     let tool: Shape3D;
     if (termination.kind === 'blind') tool = owners.own(makePrism(Math.abs(depth), termination.symmetric ? -Math.abs(depth) / 2 : 0));
     else if (termination.kind === 'throughAll') tool = owners.own(input.operation === 'add'
       ? throughAllBossTool(target!, frame.origin, ray, termination.bothDirections, makePrism)
       : throughAllTool(target!, frame.origin, ray, termination.bothDirections, makePrism));
+    else if (termination.kind === 'untilNext') tool = owners.own(untilNextTool(target!, frame.origin, ray, makePrism, input.operation === 'subtract'));
     else if (termination.kind === 'upToSurface') tool = owners.own(upToSurfaceTool(termination.limit, frame.origin, ray, makePrism));
     else throw new Error('Unknown entity recipe termination.');
     input.validateTool(tool);

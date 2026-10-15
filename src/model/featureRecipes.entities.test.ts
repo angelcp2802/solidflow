@@ -51,13 +51,21 @@ it('retains associative sketch/plane diagnostics for a saved datum support', () 
   expect(closure.diagnostics.map(item => item.code)).toEqual(expect.arrayContaining(['ASSOCIATIVE_SKETCH_PENDING', 'ASSOCIATIVE_PLANE_PENDING', 'SOLVED_PROFILE_PENDING']));
   expect(() => requireInitialRecipeDeclaration(closure)).toThrow();
 });
-it('retains variation and saved UntilNext diagnostics rather than treating them as fixed replay', () => {
+it('retains variation diagnostics rather than treating varied entities as fixed replay', () => {
   const { features, request } = fixture();
   request.variation = { kind: 'dimensions', values: [{ address: '1,0', featureId: 'seed', parameter: 'depth', value: 2 }] };
   expect(extractRecipeClosure(features, request).diagnostics.map(item => item.code)).toEqual(expect.arrayContaining(['VARIATION_PENDING', 'SOLVED_PROFILE_PENDING']));
-  request.variation = { kind: 'none' }; const seed = features[3]; if (seed.type !== 'cut') throw new Error('Original cut missing.');
+});
+it('extracts fixed UntilNext entity intent without issuing native solve or boundary authority', () => {
+  const { features, request } = fixture();
+  const seed = features[3]; if (seed.type !== 'cut') throw new Error('Original cut missing.');
   seed.endCondition = { kind: 'untilNext', baseFeatureId: 'create-S' };
-  expect(extractRecipeClosure(features, request).diagnostics.map(item => item.code)).toContain('UNTIL_NEXT_PENDING');
+  const closure = requireInitialRecipeDeclaration(extractRecipeClosure(features, request));
+  expect(closure.operations[0].termination).toEqual({ kind: 'untilNext', baseFeatureId: 'create-S' });
+  const placement = intrinsicProfileInstancePlacement(closure, 'seed', '1,0');
+  expect(placement.frame.origin).toEqual([20, 0, 0]);
+  expect(Object.hasOwn(placement, 'profile')).toBe(false);
+  expect(() => fixedProfileInstanceInput(closure, 'seed', '1,0')).toThrow('unsolved entity');
 });
 it('retains additive ALL, AUTO and nested-operation gates', () => {
   const { features, request } = fixture();

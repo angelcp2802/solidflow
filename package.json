@@ -15,6 +15,7 @@
     "test:desktop": "node scripts/desktop-smoke.cjs",
     "test:desktop:pattern-all": "node scripts/desktop-pattern-all.cjs",
     "test:desktop:pattern-world-limit": "node scripts/desktop-pattern-world-limit.cjs",
+    "test:desktop:pattern-until-next": "node scripts/desktop-pattern-until-next.cjs",
     "test:unit": "vitest run --config vitest.config.ts",
     "test:ipc": "node --test scripts/desktop-security.node.cjs scripts/desktop-ui-source.node.cjs",
     "package:win": "npm run build && electron-builder --win portable --publish never",

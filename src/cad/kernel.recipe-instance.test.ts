@@ -108,15 +108,18 @@ it('rejects an unbound target instead of using arbitrary current geometry', () =
     workingTarget: current, validateTool: validator })).toThrow('exact extracted target');
   expect(validator).not.toHaveBeenCalled(); metrics(current, 800, 520, [[20, 0, 0], [30, 10, 8]]);
 }), 60_000);
-it('retains pending end-condition gates rather than silently copying or treating them as blind', () => withNativeOwners(owners => {
+it('constructs saved UntilNext from the actual current owner rather than the source depth', () => withNativeOwners(owners => {
   const input = declarations('linearPattern', { key: '1,0', translation: [20, 0, 0] }, [20, 0, 0], [30, 10, 8]), effect = input.features[3];
   if (effect.type !== 'cut') throw new Error('Original cut fixture missing.');
   effect.endCondition = { kind: 'untilNext', baseFeatureId: a.sourceFeatureId };
   const closure = extractRecipeClosure(input.features, input.request), current = owners.own(makeBox([20, 0, 0], [30, 10, 8])), validator = vi.fn(validate);
-  expect(closure.diagnostics.some(item => item.code === 'UNTIL_NEXT_PENDING')).toBe(true);
-  expect(() => buildRecipeInstanceTool({ closure, featureId: 'effect', address: '1,0', targetBodyId: target.bodyId,
-    workingTarget: current, validateTool: validator })).toThrow();
-  expect(validator).not.toHaveBeenCalled();
+  expect(closure.diagnostics).toEqual([]);
+  const built = buildRecipeInstanceTool({ closure, featureId: 'effect', address: '1,0', targetBodyId: target.bodyId,
+    workingTarget: current, validateTool: validator }), tool = owners.own(built.tool);
+  expect(built.operation).toBe('subtract'); expect(validator).toHaveBeenCalled();
+  metrics(tool, 8 * Math.PI, 18 * Math.PI, [[24, 4, 0], [26, 6, 8]]);
+  metrics(owners.own(bodyBoolean('subtract', current, tool)), 800 - 8 * Math.PI, 520 + 14 * Math.PI, [[20, 0, 0], [30, 10, 8]]);
+  metrics(current, 800, 520, [[20, 0, 0], [30, 10, 8]]);
 }), 60_000);
 it('propagates received native tool release failure as fatal with the original validator cause', () => withNativeOwners(owners => {
   const input = declarations('linearPattern', { key: '1,0', translation: [20, 0, 0] }, [20, 0, 0], [30, 10, 8]),
