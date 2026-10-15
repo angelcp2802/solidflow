@@ -1,9 +1,49 @@
 # Project status and review queue
 
-Snapshot: 2026-10-15, 11:48 UTC. This is a dated review index. The default branch
-is the published source baseline; open pull requests are unmerged proposals.
-Refresh their state, base/head and commit-specific Actions results before an
-integration decision.
+Latest reconciliation: 2026-10-15, 13:38 UTC. The default branch remains
+`43c7573c688b35a0bb70a0206416fff17ae298cd` (application version 0.19.0).
+Open pull requests are unmerged proposals; refresh their actual base/head and
+commit-specific checks before an integration decision.
+
+## Current queue
+
+Exactly two pull requests were open at reconciliation:
+
+| Pull request | State and exact head | Review status |
+| --- | --- | --- |
+| [#44](https://github.com/angelcp2802/solidflow/pull/44) | Ready for review; `e59799a7d929bd0fe8a85d60d508dab5501d7701`, based on current `main` | Single integration proposal combining the reviewed CAD stack through #43, #33 governance and the public process-isolation configuration. Six required checks passed on this head. It remains unmerged. |
+| [#35](https://github.com/angelcp2802/solidflow/pull/35) | Draft; `0a0ab22a0cd0b6295b9ff7c5761398b1ae457a4a`, based on current `main` | Separate desktop outcome/cleanup proposal. Its macOS crash remains unresolved; it is not included in #44. |
+
+The thirteen superseded proposals #27, #29, #31, #33, #34, #36, #37, #38,
+#39, #40, #41, #42 and #43 are closed. Their exact heads are ancestors of #44;
+closure did not merge them into `main` or delete their branches, discussions,
+check histories or retained failures. Review the combined change in #44 rather
+than reopening duplicate integration lanes. Keep one active integration
+proposal while that review is pending.
+
+### Local UntilNext increment
+
+The focused local branch `codex/saved-until-next-regeneration` adds actual
+per-owner UntilNext resolution for selected Cut/Add and cut ALL. Tested source
+`12c5ecbeae1f5ec1782cbd008b3871fb352603c0` passed 477 focused tests,
+2,492 full unit/CAD tests, 32 IPC tests, build and all four desktop commands on
+Windows x64. The new scripted desktop workflow covers preview/Apply/save/reopen
+and rejected-edit preservation. Its
+[source-specific validation](VALIDATION.md#saved-untilnext-regeneration--2026-10-15)
+retains the earlier failed attempts, geometric tolerances and interaction limits.
+This increment has no additional published PR and is not part of #44's checked
+head. It does not inherit #44's hosted platform or security results.
+
+Assemblies, technical drawings, sheet metal, simulation, broader interoperability
+and the remaining recipe/reference/lifecycle policies are still required work.
+Neither this local increment nor the integration proposal completes the CAD
+application or establishes general platform support.
+
+## Historical review index — 2026-10-15, 11:48 UTC
+
+The sections below retain the earlier queue, original heads and evidence as a
+dated historical index. Their fourteen-proposal counts, planned integration and
+individual ready/draft states describe 11:48 UTC, not the current queue above.
 
 This queue records fourteen open, unmerged proposals observed before the planned
 integration proposal below: eight ready for review

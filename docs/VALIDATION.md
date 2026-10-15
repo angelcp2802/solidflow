@@ -2445,3 +2445,132 @@ Earlier entity UI evidence, Node 24.11.1/threads results and other-platform CI
 results remain separate. This local pass does not establish the hosted abort's
 cause or resolution, resolve the historical #35 macOS failure, close security
 findings or establish release readiness.
+
+## Saved UntilNext regeneration — 2026-10-15
+
+The complete local Windows x64 sequence ran on clean source
+`12c5ecbeae1f5ec1782cbd008b3871fb352603c0`, from 13:32:14 to 13:34:53 UTC,
+using portable Node 24.21.0, bundled npm 11.19.0 and the versioned Vitest
+`forks` configuration. All 412 tracked inputs, 15 selected dependency files,
+runtime and controller were captured before and after every command. Seven
+compiled files and TypeScript build info were replaced only by the successful
+build and remained fixed through the four desktop commands.
+
+| Command | Actual result on that source |
+| --- | --- |
+| `npm run test:unit -- <25 focused files>` | PASS: 477/477 tests in 25/25 files, 46.92 s. The selection included all six recipe declaration files, the model pattern tests, native recipe/instance/scope/cache tests, both UntilNext components, extrusion-limit ownership and body/feature pattern regressions. |
+| `npm test` | PASS: 2,492/2,492 tests in 140/140 files, 68.42 s; 32/32 IPC/security/literal tests, with no skipped or cancelled cases. |
+| `npm run build` | PASS: TypeScript and 1,985 Vite modules, built in 1.20 s. Existing `node:module` externalization and large-chunk warnings remained. |
+| `npm run test:desktop` | PASS: initial model readiness, two canvases, original preload and actual production worker/WASM responses. |
+| `npm run test:desktop:pattern-all` | PASS: existing primitive selected-to-ALL workflow, real Apply, Save As and reopen; 16 body observations. |
+| `npm run test:desktop:pattern-world-limit` | PASS: existing fixed-plane workflow and missing-policy rejection, real Apply, Save As and reopen. |
+| `npm run test:desktop:pattern-until-next` | PASS: selected Cut, cut ALL, selected Add and partial-profile rejection/cancel; 14 distinct actual worker builds, six opens and three saves. |
+
+The focused command passed these exact paths after `npm run test:unit --`:
+
+```text
+src/model/featureRecipes.test.ts
+src/model/featureRecipes.boundaries.test.ts
+src/model/featureRecipes.inputs.test.ts
+src/model/featureRecipes.regression.test.ts
+src/model/featureRecipes.entities.test.ts
+src/model/featureRecipes.until-next.test.ts
+src/model/patterns.test.ts
+src/cad/kernel.feature-recipes.test.ts
+src/cad/kernel.feature-recipes.integration.test.ts
+src/cad/kernel.recipe-all.integration.test.ts
+src/cad/kernel.recipe-entities.integration.test.ts
+src/cad/kernel.recipe-world-limit.integration.test.ts
+src/cad/kernel.recipe-until-next.integration.test.ts
+src/cad/kernel.recipe-instance.test.ts
+src/cad/kernel.recipe-primitives.test.ts
+src/cad/kernel.recipe-primitives.ownership.test.ts
+src/cad/kernel.recipe-cache-ownership.test.ts
+src/cad/kernel.recipe-scopes.native.test.ts
+src/cad/kernel.until-next-resolution.test.ts
+src/cad/kernel.until-next-add-resolution.test.ts
+src/cad/kernel.extrusion-limits.test.ts
+src/cad/kernel.extrusion-limits.ownership.test.ts
+src/cad/kernel.patterns.test.ts
+src/cad/kernel.feature-patterns.test.ts
+src/cad/kernel.body-patterns.test.ts
+```
+
+Every command on this final source ran once, with exit/close 0 and both streams
+drained. No pool/worker-count/time-limit override or runtime flag was added.
+Runtime selection only prefixed the child PATH; the global/parent runtime
+configuration was unchanged. Desktop stderr was empty, and no renderer console
+errors or failed requests were recorded. The pattern harnesses reported awaited
+inner Electron close and deletion of their owned temporary profiles. The standard
+smoke does not independently instrument the inner close or every descendant.
+
+The 85 additional unit/CAD cases comprise 68 saved/native integration cases,
+eight native tolerance/failure cases and nine declaration cases. Native
+integration checks use independently specified Cartesian transforms and hollow
+boxes with different first complete limits. They cover selected Cut/Add and
+cut ALL, real solved circles, annuli, disconnected disks and line/arc profiles,
+driving-radius edits, save/reopen, undo/redo, exact historical source and current
+target states, negative rays, complete inventories and no-op parent/child roles.
+Selected/contact/incomplete and late-address/owner failures must preserve
+predecessors; source/checkpoint/revision drift and actual cleanup faults cannot
+authorize publication. The injected fatal-cleanup case discards the engine
+catalog; it does not promise a usable catalog after that fatal error.
+
+Native assertions require valid BRep and one final persistent solid, volume/area
+within `1e-5`, bounds within `1e-6 mm`, original Common probes within `1e-7 mm³`
+and measured driving radius within `1e-7 mm`. Reversible original BRep tolerance
+edits check native values within `1e-15`. The near-owner cases reject, but their
+passing assertions do not identify whether Common or the later separation guard
+provided the decisive observation. No stronger branch-specific claim follows.
+The genuinely solved open-profile component does not claim a healthy historical
+seed solid. Detailed originals and formulas are in
+[fixture provenance](PROVENANCE.md#saved-untilnext-native-regeneration-fixtures).
+
+The new desktop workflow supplies 35 independent body observations, with
+maximum volume error `3.41e-13 mm³` and bounds error `3.20e-14 mm`, against
+tolerances `1e-5 mm³` and `1e-6 mm`. It
+distinguishes copied geometry from regenerated limits: target Cut volume changes
+from `656-4*pi` to `656-2*pi`, while target Add changes from `912+4*pi` to
+`912+8*pi`. Remote/behind owners keep their exact refs and remain in cut ALL.
+Actual previews keep Apply disabled until their worker response; successful
+cases use React Apply and the real preload/IPC save/reopen bridge. File-dialog
+choices are substituted with test-owned paths. Production context isolation,
+sandbox, web security and the original preload remain enabled; Node integration
+and webview tags remain disabled, with worker and WASM protocol responses 200.
+
+The partial-profile preview reports only the expected error:
+`Ninguna superficie siguiente del cuerpo intercepta todo el perfil.` Its
+pre-pattern target is `A@create-A`, volume 440. The committed/autosaved original
+geometry document instead retains `A@ui-next-partial-P`, volume
+`440-16*pi/3-2*sqrt(3)`, during rejection and after Cancel. Both complete autosave
+feature lists match the original fixture, and Cancel restores its rendered
+geometry. Source-prefix hashes, exact refs, creator refs and saved selected/ALL
+intent were checked; ALL saves no derived target list.
+
+The existing ALL and world workflows retain their separate original fixtures.
+Their maximum volume errors were `2.27e-13 mm³` and zero, with bounds errors zero,
+against `1e-5/1e-6` tolerances. UI assertions observe worker volume/bounds/refs;
+they do not query native BRep, solid count, area or Common probes through the UI.
+No human pointer/native-dialog interaction, installed-package acceptance,
+export interoperability, macOS/Linux execution, broader policy parity or
+release readiness is established by this local sequence. The configured new
+CI step is not an executed hosted result; earlier #44 checks cover its earlier
+source, not this increment. Additive ALL, AUTO, associative/varying profiles,
+broader start/end references and lifecycle policies remain incomplete.
+
+### Retained attempts before the final source
+
+- On `09c59d1829b54cc08d1d76a515be1c3af0e1ba94`, the focused run ended with
+  475 PASS and two assertion failures out of 477 tests. The wrong-base fixture
+  encountered the separate forward-dependency gate before its intended owner
+  mismatch; the native tolerance test expected different wording from the actual
+  ALL contact diagnostic. The latter failure occurred before its final atomicity
+  assertions. Exit/close were 1 and the sequence stopped without later commands.
+- On `f8fa44729531c9d26b134ba678432025181921e2`, the corrected focused run passed
+  477/477, and `npm test` passed 2,492/2,492 plus 32 IPC tests. Build then failed
+  with six TypeScript narrowing errors in the new integration test; Vite and
+  desktop commands did not execute. Only TypeScript build info changed.
+- The final correction adds explicit regeneration-mode guards in that test.
+  Production geometry and the remaining test assertions are unchanged. Each
+  earlier source and failure record remains separate; later passing results do
+  not erase these failures or explain historical process crashes/security findings.

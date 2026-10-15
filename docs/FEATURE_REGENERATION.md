@@ -647,3 +647,7 @@ associative or varying profiles, broader start/end references and lifecycle
 policies remain required work. Authored tests and declared workflows are not
 executed results; the source-specific [validation record](VALIDATION.md) must
 establish the actual checked cases and tolerances before claiming a pass.
+
+The [Windows local validation](VALIDATION.md#saved-untilnext-regeneration--2026-10-15)
+records the native and scripted desktop cases executed for this increment,
+including retained failures and unverified platform/interaction boundaries.
