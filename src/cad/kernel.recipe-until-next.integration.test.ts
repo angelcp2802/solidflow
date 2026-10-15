@@ -184,8 +184,10 @@ for (const row of rows) for (const variant of ['primitive', 'circle'] as const)
     metrics(engine, C, 1200, 680, [[60, 0, 0], [72, 10, 10]]);
     metrics(engine, D, 1200, 680, mappedBox(row, [0, 0, -12], [12, 10, -2]));
     expect(result.bodies).toHaveLength(5); expect(() => catalog(engine).resolve(output('C'))).toThrow(); expect(() => catalog(engine).resolve(output('D'))).toThrow();
-    expect(Object.hasOwn((saved.features.at(-1) as RepetitionFeature).featurePattern, 'targets')).toBe(false);
-    expect((saved.features.at(-1) as RepetitionFeature).featurePattern).toEqual(operation.featurePattern);
+    const declaration = (saved.features.at(-1) as RepetitionFeature).featurePattern;
+    if (declaration?.mode !== 'regenerate' || declaration.scope !== 'all') throw new Error('Original saved ALL declaration missing.');
+    expect(Object.hasOwn(declaration, 'targets')).toBe(false);
+    expect(declaration).toEqual(operation.featurePattern);
   }), 60_000);
 
 for (const variant of ['annulus', 'disks', 'd'] as const) for (const mode of ['cut', 'add'] as const)
@@ -236,7 +238,7 @@ it('resolves the next wall from the current owner advanced before the pattern', 
       profile: { kind: 'rectangle', center: [30, 5], width: 8, height: 6 } },
     { id: 'raise-floor', name: 'Original A current owner advance', type: 'extrude', suppressed: false, sketchId: 'raise-floor-profile',
       depth: 2, symmetric: false, bodyOperation: { mode: 'merge', target: A } }]);
-  if (operation.featurePattern?.scope !== 'selected') throw new Error('Original selected pattern missing.');
+  if (operation.featurePattern?.mode !== 'regenerate' || operation.featurePattern.scope !== 'selected') throw new Error('Original selected pattern missing.');
   operation.baseFeatureId = 'raise-floor'; operation.featurePattern.targets = [{ bodyId: 'A', sourceFeatureId: 'raise-floor' }];
   healthy(engine, parseDocument(serializeDocument(addFeature(advanced, operation))));
   metrics(engine, output(), 1104 - 45 * Math.PI / 4, 832 + 21 * Math.PI / 2, [[24, 0, 0], [36, 10, 10]]);
@@ -282,7 +284,7 @@ for (const variant of ['primitive', 'circle'] as const) for (const kind of ['mis
     const { value, operation } = fixture(rows[0], variant), minX = kind === 'miss' ? 60 : kind === 'contact' ? 31.5 : 30;
     const target: BodyReference = { bodyId: 'E', sourceFeatureId: 'create-E' };
     const before = document([...value.features, ...box('create-E', 'E', [minX, 0, 0], [minX + 12, 10, 10])]);
-    if (operation.featurePattern?.scope !== 'selected') throw new Error('Original selected declaration missing.');
+    if (operation.featurePattern?.mode !== 'regenerate' || operation.featurePattern.scope !== 'selected') throw new Error('Original selected declaration missing.');
     operation.baseFeatureId = 'create-E'; operation.featurePattern.targets = [target]; operation.featurePattern.bindings[0].targetBodyIds = ['E'];
     const saved = parseDocument(serializeDocument(addFeature(before, operation))), serialized = serializeDocument(saved), result = engine.build(saved.features);
     expect(result.featureErrors.map(e => e.id)).toEqual(['next-pattern']);
@@ -307,7 +309,9 @@ function directEvaluation(engine: CadEngine, value: Document, operation: Repetit
   value.features.forEach((f, i) => session.observeFeature(f, i));
   const sketch = value.features.find(f => f.id === 'next-profile') as SketchFeature;
   if (sketch.profile.kind === 'entities') session.solveAndStage(sketch, value.features.indexOf(sketch), () => {});
-  const all = operation.featurePattern?.scope === 'all', targets = all ? catalog(engine).entries().map(e => ({ ...e.ref })) : [A], source = catalog(engine).resolve(S);
+  const declaration = operation.featurePattern;
+  if (declaration?.mode !== 'regenerate') throw new Error('Original regeneration declaration missing.');
+  const all = declaration.scope === 'all', targets = all ? catalog(engine).entries().map(e => ({ ...e.ref })) : [A], source = catalog(engine).resolve(S);
   const request: RegenerationRequest = { mode: 'regenerate', geometryPattern: false, patternId: operation.id, patternKind: operation.type,
     beforeFeatureIndex: value.features.length, sourceFeatureIds: ['next-seed'], plan: patternPlan(operation),
     scope: all ? { mode: 'all', reevaluateAt: 'patternInput' } : { mode: 'selected', targets: [A] }, targetSnapshot: targets,
@@ -535,7 +539,7 @@ it('keeps a native UntilNext no-op parent role available to a material-changing 
     { id: 'child', name: 'Original exact-state child cut', type: 'cut', suppressed: false, sketchId: 'child-profile', depth: 1, symmetric: false, bodyScope: [S] }]);
   const child: BodyReference = { bodyId: 'S', sourceFeatureId: 'child' };
   operation.baseFeatureId = 'child'; operation.source = { mode: 'features', geometryPattern: false, featureIds: ['next-seed', 'child'] };
-  if (operation.featurePattern?.scope !== 'all') throw new Error('Original ALL declaration expected.');
+  if (operation.featurePattern?.mode !== 'regenerate' || operation.featurePattern.scope !== 'all') throw new Error('Original ALL declaration expected.');
   operation.featurePattern.bindings.push({ source: child, targetBodyIds: 'scope' });
   const original = recipes.evaluateFeatureRecipes; let virtual: recipes.RecipeEvaluationAttestation['virtualOutputs'] | undefined;
   const evaluator = vi.spyOn(recipes, 'evaluateFeatureRecipes').mockImplementation(input => {
