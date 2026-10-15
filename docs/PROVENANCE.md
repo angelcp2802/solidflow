@@ -1562,3 +1562,190 @@ exact local Windows correction snapshot, including these 15 new cases. Their
 is separate from the definitions above; counts overlap with the full suite.
 These cases do not establish general contact classification, new terminations,
 entity-profile support, platform support or native leak freedom.
+
+## Intrinsic solved-entity recipe fixtures
+
+All coordinates, constraints, geometry and expectations in the three new
+entity recipe/checkpoint/declaration test files were authored for this project.
+They use millimeters and existing distributable Node/OpenCascade dependencies;
+no vendor models, binaries, screenshots or extracted source are fixture inputs.
+There were 18 native engine cases, five source/checkpoint cases and four pure
+declaration cases in the original 27-case proposal. They are retained in the
+composed source and its [recorded execution](VALIDATION.md#entity-all-profile-composition--local-evidence-2026-10-15).
+
+The asymmetric D contour contains three lines and one CCW semicircle centered
+at (6,5), radius r=2, joined to a four-mm-wide rectangle at x=2..6,
+y=5-r..5+r. Points are fixed and a driven radius nominal999 is measured fresh.
+Its area is 8r+pi*r^2/2=16+2pi and perimeter 8+2r+pi*r=12+2pi.
+A 10x10x4 source ThroughAll cut leaves V336-8pi, A376+4pi.
+The actual target is 10x10x8: V672-16pi, A584+12pi. Bounds remain the
+target box. Linear, circular and mirror features use the real pattern generator.
+The mirror's positive local y and asymmetric curved side expose an incorrect
+normal/parity or winding repair. Cartesian probe coordinates are independent
+of the generator. For edited r=1, area8+pi/2 and perimeter10+pi give target
+V736-4pi and A584+7pi. Save/reopen, upstream edit, undo and redo rebuild it.
+
+The circle fixture saves radius1, fixes center(5,5), drives radius2 and stores
+a driven nominal999. Its actual result must have r within 1e-7 mm of2 and
+fresh measurement2. The source leaves V400-16pi,A360+8pi; the eight-mm
+target leaves V800-32pi,A520+24pi. A raw-radius1 fallback gives the wrong
+target V800-8pi. Without center fixes the actual underdefined two translational
+degrees of freedom remain visible; no unique-solution claim is made.
+
+Selected merge fixtures add a height2 annulus R2/R1 on a target top at z8,
+giving V800+6pi,A520+12pi,zmax10, or two disjoint radius1 regions,
+giving V800+4pi,A520+8pi,zmax10. The latter native tool has multiple regions
+but the merged persistent target stays one solid. The center hole/gap remains
+empty above the original top and material stays present below it.
+
+The symmetric depth2 D cut around target z4 leaves V768-4pi,A576+8pi;
+probes at z2/4/6 distinguish offset from mid-plane start. Both-direction
+ThroughAll starts at that mapped interior plane and must reach both box ends.
+The explicit world XY end-plane fixture starts at mapped z8 and cuts to z0;
+it keeps V672-16pi,A584+12pi rather than transforming the limit with Q.
+
+An additive ThroughAll fixture has a 10x10x4 source with enclosed 8x8x2
+cavity and a 10x10x8 target with enclosed 8x8x4 cavity. A radius1 cylinder
+fills only the cavity up to actual body exits: source V272+2pi,A552+2pi;
+target V544+4pi,A776+6pi. Ceiling, floor and side material belong to one
+connected owner before and after the merge. The existing end helper is used.
+
+Coincident distinct native owners test explicit selected routing. A later
+nonintersecting address rejects atomically without publishing an earlier
+candidate. A wide30x10x8 target accepts two addresses with actual working
+revisions0->1->2: V2144-32pi,A1368+24pi. Editing the real source before
+staging rejects and preserves V2400,A1240 at its original owner reference.
+Missing/copied readers reject before target cloning; checkpoint tests cover
+foreign/forged/omitted handles, prefix edits, revocation and failed real solves.
+Model tests preserve associative, variation, UntilNext, additive ALL, AUTO and
+nested-operation diagnostics without treating those rejections as completion.
+
+Native checks use BRep validity, one persistent solid, mass/area absolute1e-5,
+bounds1e-6 mm and 0.2-mm common-volume probes with tolerance1e-7 mm^3
+(expected0 or0.008). Raw radius checks use absolute1e-7 mm. Original values
+are mathematical oracles; expected geometry never comes from the builder under
+test. The linked source-specific native execution is not a human UI check,
+export round trip or general platform-support result.
+
+## Entity ALL absence composition fixtures
+
+These additions are original synthetic millimeter fixtures for the composed
+entity/source-checkpoint and forward-material path. They use the current V4
+fixtures and public dependencies, without private models or extracted source.
+The 27 original V4 cases and all earlier failure/evidence records remain
+separate. The composed source adds 52 cases over its primitive-only base:
+41 entity integration, five source/checkpoint, four declaration and two native
+scope/tolerance cases. Their bounded local execution is recorded in VALIDATION;
+the original proposal and earlier V4 evidence are not retroactively relabeled.
+
+A circle saves r1, drives r2 and retains driven nominal999; the actual native
+profile must contain radius2 and the real solve measures2, with one engine
+source solve. A is `[20,0,0]..[30,10,8]`, B `[20,0,-10]..[30,10,-2]` and the
+actual linear instance translates +20X with physical ray +Z. A becomes
+V800-32pi,A520+24pi; B keeps V800,A520 and its predecessor ref/metadata. The
+native component also checks the complete S/A/B inventory and B's real body
+role with unchanged revision, then commits the proposal and checks metadata.
+
+The actual Y90 rotation about `(15,0,0)` maps center `(5,5,0)` to `(15,5,10)`,
+ray +X. A is `[15,0,5]..[23,10,15]`, B `[5,0,5]..[13,10,15]`; S also lies
+behind in this rotation. Reflection across Z10 maps the center to `(5,5,20)`,
+ray -Z; A `[0,0,12]..[10,10,20]`, B `[0,0,22]..[10,10,30]`. Source offset4,
+depth -1 and actual translation `(20,0,4)` place the instance plane at Z8 with
+ray -Z; A `[20,0,0]..[30,10,8]`, B `[20,0,10]..[30,10,18]`. Each A has the
+same eight-mm r2 through-hole formula, while B remains its V800,A520 box.
+Independent Cartesian Common probes distinguish the removed channel and B's
+preserved material. Saved ALL contains no target inventory snapshot.
+
+The asymmetric D reuses the original line/arc geometry and formulas above.
+Two disjoint radius1 regions produce a valid closed compound cutting tool and
+one connected perforated owner: V800-16pi,A520+28pi for height8. An annulus is
+validated only as a direct native witness; no single persistent owner is
+claimed for an annular through cut that would disconnect an interior core.
+A genuine registry-issued solved open line must fail native contour closure.
+This is a direct constructor rejection fixture, not a forged healthy seed BRep.
+
+Selected behind-owner and near/contact maxima -0.5e-6/0/+0.5e-6 retain the
+original ThroughAll rejection and must not call the witness validator.
+Bilateral ALL actually cuts B. Complete-address no-op remains rejected.
+Causal project-level adapters observe the actual received witness/native box;
+they inject construction/release faults and source/working revision drift on
+successful deletion, with one native delete attempt and no earlier publication.
+The existing two ALL bounds-fault cases now delegate the real conservative-box
+factory and adapt only the box for the actual detached current B owner. They do
+not replace SDK global methods or invent a bounds result. AddOptimal includes
+native BRep tolerances and a further global max-tolerance enlargement. A direct original 2x3x4 box case queries actual
+vertex/edge/face MaxTolerance and requires the conservative native envelope to
+extend more than half that positive tolerance below Z0 and above Z4; this
+distinguishes tolerance inclusion from an exact-only envelope.
+
+Two higher-tolerance discriminators serialize only newly constructed original
+native geometry through BRepToolsWrapper.Write, require CASCADE Topology V3,
+edit only the first field after each Ve record to0.001, and reread with the real
+SDK. The [published OCCT format implementation](https://github.com/Open-Cascade-SAS/OCCT/blob/V7_8_1/src/BRepTools/BRepTools_ShapeSet.cxx)
+identifies that field as vertex tolerance; this fixed source tag is not an
+assertion of the installed SDK's OCCT version. Restoring those fields must
+recover every original byte; runtime native MaxTolerance must report0.001 and
+validity/mass checks must pass. No fake box or caller-supplied scalar stands in
+for these genuine native tolerance changes. These tests ran with the composed
+source recorded in VALIDATION, distinct from earlier private SDK exploration.
+
+The owner-envelope case is a 10x10x8 box at
+`[20,0,-8.0002]..[30,10,-0.0002]`, still V800/A520/one valid solid. Exact
+geometry is behind Z0, but the globally enlarged factory box must cross Z0;
+all six extrema must expand by at least0.001-1e-9 mm. This detects dropping the
+global enlargement even when AddOptimal(true) includes a smaller face tolerance.
+The witness case uses a normal-tolerance owner at those same coordinates and
+the authentic solved r2 circle prism. Only the actual witness's native vertex
+tolerance is elevated; V4pi/A12pi for length1 and real closed-tool validity must
+remain intact. Its detached maximum0.001 exceeds the0.0002 owner separation,
+so the helper must return to the ordinary B tool route and retain the original
+ThroughAll rejection with no earlier A publication. Native tolerance-query
+failure also propagates after a real query and releases the received witness
+once; it cannot authorize a no-op.
+
+A later entity rectangular slot uses original fixed corners `(1,1)`, `(2,1)`,
+`(2,3)`, `(1,3)` and the real +4X/+8X pattern. Source10x4x2 leaves V76,A144.
+A starts as 8x4x4 plus a 6x2x2 attached tail: V152,A208. The first slot leaves
+the actual still-connected working A at V144,A228; the second cuts the full
+tail section and must reject a split persistently. A/source/B predecessor
+geometry, saved bytes and export rejection are checked after the failure.
+
+Tolerances remain volume/area absolute1e-5, bounds1e-6 mm, 0.2-mm cube Common
+volume1e-7 mm^3 and actual radius/driven comparison1e-7 mm. Native validity,
+closed positive tool solids and final one-solid owners remain mandatory.
+These native fixtures alone do not establish entity UI interaction, other support or
+variation policies, export round trips, all platforms or general CAD parity.
+
+## Scripted entity ALL UI fixture
+
+The separate local UI case uses an original synthetic JSON document and six
+private harness/input copies. The circle is at local (5,5) on XY/Z0, saves
+radius1, drives radius2 and preserves driven nominal999. S is the 10x10x4
+source with its unilateral ThroughAll seed cut; A is
+`[20,0,0]..[30,10,8]`, B is `[20,0,-10]..[30,10,-2]`. The original fixture
+SHA-256 is `81e0180cee6b9792798ebcd3ace65c28bb849dd9936be92ca34297570f9216f4`.
+The linear pattern translates +20X. Geometry mode copies the four-mm source
+contribution; selected regeneration then cuts A's actual eight-mm height,
+followed by dynamic ALL. Independent expected volumes are S400-16pi,
+A800-16pi for geometry and A800-32pi for regeneration, with B800 unchanged.
+
+One actual scripted React/property-panel run observed five worker phases:
+geometry, selected-regenerate preview, ALL preview, committed ALL and reopened
+ALL. Each contains S/A/B volume/bounds/ref observations, 15 total. B retains
+exact `B@create-B` and creator `create-B` in all five, without a saved ALL
+target snapshot. The saved nominal radius1, driving2 and driven999 stay intact.
+The actual response's source-sketch visual has 96 tessellated endpoints per
+phase on the radius2 circle at (5,5), Z0; this is solved-display evidence, not
+a full solver-result/token/status/DOF or driven-annotation measurement.
+
+Volume tolerance is 1e-5 mm^3, bounds and displayed endpoint tolerances are
+1e-6 mm. Actual worker/preload/IPC responses were observed; native file-dialog
+paths were substituted with test-owned choices. The inner Electron close and
+owned temporary cleanup were reported by the reviewed harness, with outer
+exit/close 0 and drained streams. No direct UI BRep/solid-count/area/Common
+query, human pointer/native-dialog interaction, other pattern families,
+support/variation/correspondence policy or platform support is established.
+This private local harness is not yet a tracked dedicated CI command. Its
+[recorded validation](VALIDATION.md#entity-all-profile-composition--local-evidence-2026-10-15)
+does not extend earlier primitive UI evidence or native assertions to those
+unobserved cases.

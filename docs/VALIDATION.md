@@ -2293,3 +2293,96 @@ additive ALL, AUTO, variation, nested recipes and full ownership lifecycle
 remain pending. This local Windows checkpoint supplies no new macOS/Linux,
 independent interoperability, installer/signing/notarization or release result.
 It neither clears existing security findings nor authorizes binary publication.
+
+## Entity ALL profile composition — local evidence, 2026-10-15
+
+Windows x64 / Node 24.11.1 executed the reviewed composition over
+`746be89089f5167271b21a3f69b7e3156711f68c`, with 13 uncommitted changed paths.
+The source freeze contained 344 regular source/configuration/documentation
+inputs, SHA-256 `51f56dee033b6668acf34837086ba002c75ad96da2e437121e6027698ac920fe`.
+The exact evaluator SHA-256 was
+`70c4bcb1179bcdf4d90ac2e130e54f4cf583cca67d3afa00538f547de8c02e1f`;
+the entity constructor was
+`b7c324645c6af8e1e61aad6be083beb74fae64fc039549383e450c4b3cc1dd72`,
+and body/tolerance helpers
+`7a0048ca29f302a4b75b0d557c13f56909b672a222fb2c95c90ceef2b890ed02`.
+These executed bytes are separate from this later evidence-only documentation
+proposal. Existing own dependencies were reused without reinstall or lock
+change; 15 selected dependency pins were recorded separately.
+
+| Command | Actual bounded result |
+| --- | --- |
+| Complete scope/ALL/entity/checkpoint/declaration files, public config | PASS: 93/93 in 5/5 files, 9.14s; no filtered skips. |
+| `npm test` | PASS: 2407/2407 in 138/138 files, 20.89s unit phase, then 32/32 IPC/security/JavaScript-literal checks. |
+| `npm run build` | PASS: TypeScript and Vite; Vite transformed 1985 modules and its build completed in 786ms, with existing externalization/chunk warnings retained. |
+| `npm run test:desktop` | PASS: production loader/preload, 2 canvases and real worker/WASM responses; 0 console/request errors. |
+| `npm run test:desktop:pattern-all` | PASS: existing primitive selected-to-ALL preview/Apply/save/reopen regression. |
+| `npm run test:desktop:pattern-world-limit` | PASS: existing primitive geometry/missing-policy/world preview/Apply/save/reopen regression. |
+
+All six commands ran once sequentially, without pool/budget/environment
+overrides or retries; exit/close 0 and pipe drain were observed. Source 344,
+selected dependencies 15, runner and npm CLI stayed unchanged per invocation.
+Build generated and froze seven compiled outputs; the output inventory changed
+only during build. TypeScript build info also changed during build and stayed
+stable afterwards. The seven outputs stayed frozen through all three desktop
+commands. Both scripted
+UI regressions observed actual preload/IPC, 2 opens/1 save, child close and guarded
+temporary-data cleanup, with no console errors or failed requests.
+
+The 52 additions comprise 41 entity integration, 5 source/checkpoint, 4 declaration
+and 2 scope/tolerance cases. They cover authentic solved coordinates and driven
+measurements, canonical rotation/reflection/offset, closed profile witnesses,
+full inventory/no-op role/current checks, original selected/bilateral/near-band
+routes and late atomicity. Genuine native Ve-tolerance owner/witness fixtures
+discriminate global bounds enlargement and witness-tolerance separation;
+construction/query/release/stale failures do not authorize no-ops. Geometric
+oracles retain volume/area 1e-5, bounds 1e-6 mm, Common 1e-7 mm^3 and radius/driven
+1e-7 mm, with native validity/closed tools/final single-solid checks. The global
+envelope fixture additionally requires all six expansions to be at least
+0.001-1e-9 mm.
+
+The two dedicated desktop workflows above use existing primitive fixtures.
+A separate original circular-entity linear workflow ran once on the same
+Windows host, using the actual production renderer/preload/worker. It passed
+geometry, selected-regenerate preview, ALL preview, committed ALL and reopened
+ALL: request IDs 3/5/6/7/8 and serials 2/4/5/6/7. Both selected and ALL Apply
+were observed disabled while their actual previews were pending. The saved
+ALL intent has no target snapshot; nominal radius1, driving2 and driven999
+remain unchanged.
+
+The five phases supply 15 independent body observations. Maximum absolute
+volume error was 1.5689920473960228e-9 mm^3 against tolerance 1e-5; bounds checks
+used tolerance 1e-6 mm. B retained exact `B@create-B`, creator `create-B`, volume
+800.0000000000002 and bounds `[20,0,-10]..[30,10,-2]` identically in all five.
+The actual source-sketch visual response contains 96 radius2 tessellated
+endpoints per phase around (5,5), Z0; maximum radius error was
+1.5604628700316425e-11 mm with endpoint tolerance 1e-6 mm and actual Z0.
+These are response/display observations, not a full solver result, native
+attestation token, status/DOF or fresh driven-annotation measurement.
+
+This UI capture froze a broader 404 project-input map, canonical SHA-256
+`10cf96137350447165512e82781d55d0a4ffd076b89c1ab62c810c86d6c9c16f`,
+83 recorded Electron package files and a separate Node 24.11.1 binary identity,
+plus the same seven compiled outputs. Those scopes differ from the six-command
+344-input/15-selected-dependency maps above. Pre/post guards passed, stderr
+was empty and the real protocol responses included worker/WASM 200. Two opens
+and one save completed through the real IPC bridge. The reviewed harness
+reported awaited inner Electron close and owned temporary cleanup; outer
+exit/close 0 and stream drain were directly captured. This does not instrument
+every descendant process. The private harness is not yet a tracked dedicated
+CI command; its [original fixture provenance](PROVENANCE.md#scripted-entity-all-ui-fixture)
+and limits remain separate from the public primitive workflows.
+
+This evidence does not establish direct UI BRep validity/solid count, area or
+Common queries, human pointer/native-dialog interaction,
+general support/variation/reference parity, export interoperability, macOS/Linux
+support, packaging/signing/notarization or release readiness.
+
+The original V4 source/checkpoint/declaration fixtures, the original #38 error
+reproduction and all historical failures remain separate. Primitive-only
+correction results earlier in this record retain their original exact source and bounded scope.
+The [regeneration contract](FEATURE_REGENERATION.md#entity-all-absence-requires-native-profile-evidence)
+and [fixture provenance](PROVENANCE.md#entity-all-absence-composition-fixtures)
+describe the implementation and its remaining limits. Original security findings,
+the #35 macOS failure and unvalidated platform/UI claims are not resolved by
+this proposal.

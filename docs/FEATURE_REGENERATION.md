@@ -4,10 +4,13 @@ Feature regeneration evaluates selected operations again at each instance
 against the current working target. The integrated initial path connects
 [recipe declarations](FEATURE_RECIPES.md), explicit-frame native construction,
 chronological evaluation and atomic body-catalog publication. It supports
-intrinsic rectangle/circle cuts and merge extrusions, blind/ThroughAll endings
+intrinsic rectangle/circle and real solved entity cuts and merge extrusions, blind/ThroughAll endings
 or an explicitly fixed principal-plane UpToSurface limit, selected targets
 and no variation. Dynamic ALL
 currently supports the intrinsic cut subset; additive ALL remains pending.
+The entity composition has bounded local native/full/build evidence and one
+original circular-entity linear selected-to-ALL UI workflow recorded below.
+That single Windows interaction does not establish the broader UI scope.
 [Geometry contribution patterns](FEATURE_PATTERNS.md) keep their separate
 signed-material-copy contract. This initial path does not complete the full
 feature-pattern goal. Source-specific results belong in [VALIDATION](VALIDATION.md).
@@ -309,14 +312,14 @@ export interoperability.
 `buildRecipeInstanceTool` in [kernel.recipe-instance.ts](../src/cad/kernel.recipe-instance.ts)
 connects an extracted fixed-profile recipe to real native tool construction.
 It accepts the exact active canonical address and target body ID, obtains its
-frame/depth only from `fixedProfileInstanceInput`, checks the operation's route
+frame/depth from the intrinsic placement adapter (with the primitive compatibility adapter retained), checks the operation's route
 to the exact extracted target state, and returns an owned add/subtract tool.
 It accepts no arbitrary caller transform or source frame and never uses a
 captured material delta as a regeneration substitute.
 
 This bridge is limited to the initial `mode:'regenerate'`,
 `geometryPattern:false` declaration subset: selected targets or cut-only ALL,
-no variation, intrinsic rectangle/circle profiles, owned cut/merge and
+no variation, intrinsic primitive or authentic real-solved entity profiles, owned cut/merge and
 blind/ThroughAll or explicit principal-plane/world UpToSurface termination.
 Selected scope checks its exact saved target
 routes; ALL checks the attested derived target snapshot and scope routes.
@@ -434,8 +437,8 @@ allocation and rechecks it before staging.
 
 This is evidence of the actual solve, historical definitions and resolved
 frame/support metadata. The retained support object is not a native face/body
-ownership witness. Entity recipes remain gated until native materialization,
-support correspondence and their model/bridge/UI contracts are implemented.
+ownership witness. Associative entity recipes remain gated; the separate
+intrinsic entity increment below does not need a native support association.
 `entityProfileSolid` materializes an already supplied profile without a hidden
 second solve. Its received edges, wires, faces, containment vertices, directions
 and region solids now use the shared ownership scope. Nested transfers and the
@@ -480,6 +483,103 @@ cannot replace that work.
 The [original component fixtures](PROVENANCE.md#source-solve-and-native-component-fixtures)
 add 90 cases. Exact-source executions are recorded in
 [VALIDATION](VALIDATION.md#source-solve-and-native-component-composition--2026-10-15).
-These foundations do not enable general entity/associative profiles, saved
+These foundations alone do not enable the separate intrinsic entity increment, associative profiles, saved
 UntilNext, transformed or instance references, additive ALL, AUTO, variation,
 nested regeneration or the complete creation/split/consumption/lifecycle scope.
+
+## Intrinsic entity-profile regeneration increment
+
+The native entity route accepts unchanged local entity sketches without a
+saved support and with variation none. Model eligibility does not issue a
+solve or native certificate. The primitive compatibility adapter still rejects
+entity declarations; the placement adapter returns only the exact sketch ID,
+source frame, canonical instance frame/ray and signed depth.
+
+The evaluator obtains a real build-issued source checkpoint before cloning a
+target. The entity constructor reads only an authentic handle included in that
+checkpoint through the registry's private reader map. It reads the full actual
+solve result, including fresh driven measurements in result.drivenValues, and
+constructs native geometry from result.profile. Nominal driven values remain
+profile metadata; saved nominal coordinates/radii are not a substitute. Underdefined solutions
+retain their actual status and degrees of freedom. A failed solve, copied
+reader, forged/foreign checkpoint, uncovered source, prefix edit or revoked
+epoch cannot supply geometry. Returned views are detached from the issuer.
+
+For this fixed intrinsic case local constraints are invariant under the rigid
+canonical Q. Source solving occurs at the original historical engine step;
+entityProfileSolid constructs a fresh native contour/region tool without another
+solve for each address/current owner. It handles line/arc/circle contours and
+even/odd holes and regions. The evaluator's guard closes over the actual
+working shape and local input revision, not a caller-declared revision token.
+Source/current checks surround construction and Boolean evaluation, and staging
+rechecks the complete closure, source epoch and actual catalog/history objects.
+
+The existing transformedExtrusionFrame applies mirror parity once:
+X'=QX, N'=det(Q)QN and depth'=det(Q)depth. Local coordinates, arc orientation
+and winding are unchanged, so the physical ray remains Q(source ray). Resolved
+frame origin includes sketch offset once; finite prism start translation is
+applied once along that ray. ThroughAll uses the current detached owner's
+extent/exit, and an explicitly chosen principal world limit stays in document
+coordinates. Blind, symmetric blind, one/both-direction ThroughAll and the
+existing principal/world UpToSurface path retain their saved syntax. No new
+document version, user-visible native handle or hidden support is introduced.
+
+Selected cut/merge and cut-only dynamic ALL retain existing route/lifecycle
+rules. Temporary tools use the closed positive-tool validator; historical
+sources, current targets and persistent results still require one valid solid.
+Associative/explicit support placement, varying constraints, native face/datum
+correspondence, UntilNext recipes, additive ALL, AUTO, nested regeneration and
+broader lifecycle work remain incomplete. Their rejection is not implementation
+or reference parity. Existing commands/panel declarations can request this
+unchanged regenerate mode and receive real engine preview; no new UI interaction
+or stale-Apply coverage is claimed from that source wiring alone.
+
+The 27 original entity/source/declaration cases and 25 composition/tolerance
+additions ran in the complete affected files and full suite on the exact source
+recorded in [VALIDATION](VALIDATION.md#entity-all-profile-composition--local-evidence-2026-10-15).
+That evidence includes native construction, source checkpoints, actual owner
+state and tolerance failure paths. A separate scripted production-renderer
+entity case covers geometry, selected-regenerate preview, ALL preview, Apply,
+save and reopen with a behind-plane B. The existing primitive ALL/world desktop
+workflows retain their own fixtures and evidence boundaries.
+
+### Entity ALL absence requires native profile evidence
+
+For cut-only ALL with unilateral ThroughAll, a current owner entirely behind
+the physical ray can remain unchanged. A conservative native box including
+BRep tolerances is queried through `createConservativeBodyBounds`, using
+`BRepBndLib.AddOptimal(shape, box, false, true)` and a further
+`box.Enlarge(maximumNativeShapeTolerance(shape))`. The detached maximum queries
+all native vertex/edge/face tolerances and rejects nonfinite or negative values;
+global enlargement covers subshapes not individually represented by the
+initial box algorithm. The SDK's tolerance-excluding bounding-box getter is
+not an absence certificate. Eight finite ordered corners must first have
+maximum projection below `-(1e-6 + 32*Number.EPSILON*arithmeticScale)`.
+Contact, near-plane, general misses and inconclusive envelopes retain the
+ordinary native route. No owner is removed from ALL inventory or budgets.
+
+For an entity this box is only a candidate. The shared entity-prism factory
+reads the full authentic checkpoint-covered `result.profile`, verifies the
+source frame/depth and constructs a native witness of length `abs(signedDepth)`
+at the canonical frame origin along its physical ray. The ordinary tool builder
+uses that same factory. The witness must pass `validatePositiveClosedTool` and
+be released successfully, with source epoch and actual owner/revision guards
+before/after construction and after cleanup, before a no-op is accepted. It is
+never Boolean-applied or published. Only after cleanup and those checks does
+the witness procedure return its detached actual maximum native tolerance.
+Final separation must also exceed `witnessTolerance * length(physicalRay)`;
+if that wider guard is inconclusive the original native route remains active.
+Raw JSON, nominal driven values, healthy
+solve status or a caught native exception cannot replace that evidence.
+
+The common virtual output still carries the real body role and unchanged local
+revision for that owner. Per-address/global no-material rejection, final
+single-solid validation, complete inventory freshness and atomic staging remain
+in force. Selected scope, bilateral ThroughAll and other endings keep their
+original paths. There is no nullable tool, new saved syntax, hidden solve,
+additive ALL or associative/varying profile policy in this increment. Its one
+scripted circular-entity linear UI case is recorded separately from native
+BRep/closed-tool proofs and does not establish other interactive workflows.
+The [new fixture provenance](PROVENANCE.md#entity-all-absence-composition-fixtures)
+and [recorded validation](VALIDATION.md#entity-all-profile-composition--local-evidence-2026-10-15)
+separate this source from earlier V4 and primitive-only results.

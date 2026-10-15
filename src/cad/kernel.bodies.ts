@@ -1,10 +1,32 @@
 import { cast, getOC, makeCompound, type Shape3D } from 'replicad';
 import type { BodyReference, CombineFeature } from './kernel.types';
 import { advanceLineage } from './kernel.naming';
+import { withNativeOwners } from './kernel.native-ownership';
 
 const MAX_BODIES = 256;
 const OWNED_TRANSFER = Symbol('validated-body-transfer');
 type NativeOwner = { delete(): void };
+
+/** Detached numeric query only; it issues no ownership or material authority. */
+export function maximumNativeShapeTolerance(shape: Shape3D): number {
+  const oc = getOC(), values = (['VERTEX', 'EDGE', 'FACE'] as const).map(kind =>
+    oc.BRep_Tool.MaxTolerance(shape.wrapped, oc.TopAbs_ShapeEnum[`TopAbs_${kind}`]));
+  if (values.some(value => !Number.isFinite(value) || value < 0)) throw new Error('Native shape tolerances must be finite and non-negative.');
+  return Math.max(...values);
+}
+
+/** OWNED native envelope including BRep tolerances; no owner identity or absence authority. */
+export function createConservativeBodyBounds(shape: Shape3D) {
+  return withNativeOwners(owners => {
+    const oc = getOC(), box = owners.own(new oc.Bnd_Box());
+    oc.BRepBndLib.AddOptimal(shape.wrapped, box, false, true);
+    // AddOptimal can omit vertices already represented by edges/faces. A
+    // global native-tolerance enlargement conservatively covers those too.
+    box.Enlarge(maximumNativeShapeTolerance(shape));
+    if (box.IsVoid() || box.IsOpen()) throw new Error('Conservative body bounds must be finite and closed.');
+    return box;
+  }, box => [box], 'Conservative body bounds construction or release failed.');
+}
 
 /** Saved identity and current state; none of these fields is derived from solid enumeration. */
 export interface NativeBodyMetadata {

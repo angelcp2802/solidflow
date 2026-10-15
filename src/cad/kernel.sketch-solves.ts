@@ -60,6 +60,7 @@ export interface SourceSketchSolveView {
 const readers = new WeakMap<object, {
   checkpoint(current: readonly Feature[], sourceIds: readonly string[]): SourceSketchSolveCheckpoint;
   assertCheckpoint(proof: SourceSketchSolveCheckpoint, current: readonly Feature[]): void;
+  readCheckpointSource(proof: SourceSketchSolveCheckpoint, current: readonly Feature[], sourceId: string): SourceSketchSolveView;
 }>();
 
 export function checkpointSourceSketchSolves(registry: SourceSketchSolveRegistry,
@@ -73,6 +74,14 @@ export function assertSourceSketchSolvesCurrent(registry: SourceSketchSolveRegis
   const issued = readers.get(registry);
   if (!issued) throw new Error('Source sketch solve reader was not issued by the real-solve registry.');
   issued.assertCheckpoint(checkpoint, current);
+}
+
+/** Read only a handle actually covered by this current build-issued checkpoint. */
+export function readCheckpointSourceSketchSolve(registry: SourceSketchSolveRegistry,
+  checkpoint: SourceSketchSolveCheckpoint, current: readonly Feature[], sourceId: string): SourceSketchSolveView {
+  const issued = readers.get(registry);
+  if (!issued) throw new Error('Source sketch solve reader was not issued by the real-solve registry.');
+  return issued.readCheckpointSource(checkpoint, current, sourceId);
 }
 
 // Canonical strings, not a hash alone, are the authority for definition equality.
@@ -300,7 +309,13 @@ export function createSourceSketchSolveRegistry(features: readonly Feature[], co
   // engine reconstruction closure, never in saved inputs or evaluation DTOs.
   const reader = Object.freeze({ handleFor: controller.handleFor, read: controller.read,
     checkpoint: controller.checkpoint, assertCheckpoint: controller.assertCheckpoint });
-  readers.set(reader, { checkpoint: controller.checkpoint, assertCheckpoint: controller.assertCheckpoint });
+  readers.set(reader, { checkpoint: controller.checkpoint, assertCheckpoint: controller.assertCheckpoint,
+    readCheckpointSource(proof, current, sourceId) {
+      controller.assertCheckpoint(proof, current);
+      const handle = published.get(sourceId);
+      if (!handle || !checkpoints.get(proof)?.includes(handle)) throw new Error('The source solve is not included in this checkpoint.');
+      return structuredClone(requireRecord(handle, current).view);
+    } });
   return Object.freeze({ ...controller, reader });
 }
 export type SourceSketchSolveRegistry = ReturnType<typeof createSourceSketchSolveRegistry>['reader'];

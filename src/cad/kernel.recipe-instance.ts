@@ -1,8 +1,9 @@
 import type { Shape3D } from 'replicad';
-import { fixedProfileInstanceInput, requireInitialRecipeDeclaration, type RecipeClosure } from '../model/featureRecipes';
+import { fixedProfileInstanceInput, intrinsicProfileInstancePlacement, requireInitialRecipeDeclaration, type RecipeClosure } from '../model/featureRecipes';
 import { withNativeOwners } from './kernel.native-ownership';
 import { buildExplicitFramePrimitive, type PrimitiveTermination } from './kernel.recipe-primitives';
 import { principalPlaneFrame } from './kernel.frames';
+import { buildEntityRecipeTool, type EntityRecipeSolveInput } from './kernel.recipe-entities';
 
 export interface RecipeInstanceToolInput {
   /** Trusted extractor output; the evaluator extracts from the current parsed document. */
@@ -14,6 +15,9 @@ export interface RecipeInstanceToolInput {
   /** Borrowed current detached owner, already native-attested by the evaluator. */
   readonly workingTarget: Shape3D;
   readonly validateTool: (tool: Shape3D) => void;
+  readonly entitySource?: EntityRecipeSolveInput;
+  /** Evaluator closure over the actual working owner/revision and source epoch. */
+  readonly assertWorkingCurrent?: () => void;
 }
 export interface OwnedRecipeInstanceTool {
   readonly operation: 'add' | 'subtract';
@@ -44,9 +48,7 @@ export function buildRecipeInstanceTool(input: RecipeInstanceToolInput): OwnedRe
     throw new Error('The operation must route to this exact extracted target state.');
   }
   if (!input.workingTarget) throw new Error('The recipe instance needs its current native working owner.');
-  const resolved = fixedProfileInstanceInput(closure, input.featureId, input.address);
-  const profile = resolved.profile;
-  if (profile.kind !== 'rectangle' && profile.kind !== 'circle') throw new Error('A solved recipe profile is not implemented by this bridge.');
+  const resolved = intrinsicProfileInstancePlacement(closure, input.featureId, input.address);
   const end = resolved.termination;
   if (end.kind !== 'blind' && end.kind !== 'throughAll'
       && !(end.kind === 'upToSurface' && end.target.kind === 'principal' && end.policy.placement === 'world')) {
@@ -66,6 +68,15 @@ export function buildRecipeInstanceTool(input: RecipeInstanceToolInput): OwnedRe
     // principal plane remains in document coordinates, rather than following Q.
     termination = { kind: 'upToSurface', limit: { frame: principalPlaneFrame(end.target.plane) } };
   } else throw new Error('The exact principal-plane end reference is not resolved.');
+  const sketch = closure.definitions.find(item => item.feature.id === resolved.sketchId)?.feature;
+  if (sketch?.type === 'sketch' && sketch.profile.kind === 'entities') {
+    if (!input.entitySource || !input.assertWorkingCurrent) throw new Error('Entity recipes require a current real-solve checkpoint and working-owner guard.');
+    return { operation, tool: buildEntityRecipeTool({ source: input.entitySource, placement: resolved,
+      termination, operation, workingTarget: input.workingTarget, validateTool: input.validateTool,
+      assertWorkingCurrent: input.assertWorkingCurrent }) };
+  }
+  const profile = fixedProfileInstanceInput(closure, input.featureId, input.address).profile;
+  if (profile.kind !== 'rectangle' && profile.kind !== 'circle') throw new Error('Unknown intrinsic recipe profile.');
   return withNativeOwners(owners => ({ operation, tool: owners.own(buildExplicitFramePrimitive({
     profile, frame: resolved.frame, signedDepth: resolved.signedDepth,
     termination, operation, workingTarget: input.workingTarget, validateTool: input.validateTool,

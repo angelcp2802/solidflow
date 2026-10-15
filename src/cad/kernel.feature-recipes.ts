@@ -1,23 +1,24 @@
 import { getOC, measureShapeVolumeProperties, type Shape3D } from 'replicad';
-import type { BodyReference, Feature } from './kernel.types';
+import type { BodyReference, Feature, Vec3 } from './kernel.types';
 import {
-  exactStateKey, extractRecipeClosure, fixedProfileInstanceInput, requireInitialRecipeDeclaration,
-  type RegenerationRequest, type RecipeClosure, type RecipeOperation, type RecipeOwnerApplication,
+  exactStateKey, extractRecipeClosure, fixedProfileInstanceInput, intrinsicProfileInstancePlacement, requireInitialRecipeDeclaration,
+  type IntrinsicRecipeExtrusionPlacement, type RegenerationRequest, type RecipeClosure, type RecipeOperation, type RecipeOwnerApplication,
 } from '../model/featureRecipes';
 import {
-  bodyBoolean, copyBodyShape, validateBodyShape, type NativeBodyCatalog,
+  bodyBoolean, copyBodyShape, createConservativeBodyBounds, validateBodyShape, type NativeBodyCatalog,
   type NativeBodyReplacement, type NativeBodyStateUpdate, type NativeBodyTransaction,
 } from './kernel.bodies';
 import { buildRecipeInstanceTool } from './kernel.recipe-instance';
 import { framePoint } from './kernel.frames';
 import { validatePositiveClosedTool } from './kernel.closed-tools';
+import { validateEntityRecipeProfileForAbsence, type EntityRecipeSolveInput } from './kernel.recipe-entities';
 import { isNativeCleanupFailure, NativeCleanupError, withNativeOwners, type NativeOwner, type NativeOwners } from './kernel.native-ownership';
 import { attestNativeRecipeScope, assertNativeRecipeScopeCurrent, type NativeRecipeScopeAttestation } from './kernel.recipe-scopes';
 
 import { checkpointSourceSketchSolves, assertSourceSketchSolvesCurrent,
   type SourceSketchSolveCheckpoint, type SourceSketchSolveRegistry } from './kernel.sketch-solves';
 
-export const RECIPE_EVALUATOR_REVISION = 'fixed-intrinsic-world-limit-all-forward-v4';
+export const RECIPE_EVALUATOR_REVISION = 'intrinsic-real-solved-profiles-all-forward-v5';
 const compare = (a: string, b: string): number => a < b ? -1 : a > b ? 1 : 0;
 const tolerance = (volume: number): number => Math.max(1e-8, Math.abs(volume) * 1e-10);
 const sameRef = (a: Readonly<BodyReference>, b: Readonly<BodyReference>): boolean =>
@@ -111,27 +112,43 @@ function finiteBounds(shape: Shape3D): void {
  * it never chooses ownership, proves a general miss or turns native errors into no-ops.
  */
 function allCutEntirelyBehindRay(closure: RecipeClosure, operation: RecipeOperation,
-  address: string, shape: Shape3D): boolean {
+  address: string, shape: Shape3D, entitySource: EntityRecipeSolveInput | undefined,
+  assertWorkingCurrent: () => void): boolean {
   if (closure.request.scope.mode !== 'all' || operation.type !== 'cut'
     || operation.termination?.kind !== 'throughAll' || operation.termination.bothDirections) return false;
   const sketch = closure.definitions.find(definition => definition.feature.id === operation.sketchId)?.feature;
-  // Future entity recipes must still reach their real solve/profile/tool path.
-  // This intrinsic absence proof cannot bypass their profile validation.
-  if (sketch?.type !== 'sketch' || (sketch.profile.kind !== 'rectangle' && sketch.profile.kind !== 'circle')) return false;
-  const resolved = fixedProfileInstanceInput(closure, operation.featureId, address);
-  if (resolved.profile.kind !== 'rectangle' && resolved.profile.kind !== 'circle') return false;
-  const profile = resolved.profile;
-  const parameter = (value: number): boolean => Number.isFinite(value) && value >= .01 && value <= 100_000;
-  // Do not let a behind-owner shortcut hide primitive parameter rejection.
-  // Inconclusive/invalid inputs still go through the unchanged builder validator.
-  if (!Array.isArray(profile.center) || profile.center.length !== 2 || ![0, 1].every(axis => Object.hasOwn(profile.center, axis)
-      && Number.isFinite(profile.center[axis]) && Math.abs(profile.center[axis]) <= 1_000_000)
-    || !parameter(Math.abs(resolved.signedDepth)) || (profile.kind === 'circle' ? !parameter(profile.radius)
-      : !parameter(profile.width) || !parameter(profile.height))) return false;
-  const origin = framePoint(resolved.frame, profile.center[0], profile.center[1]), ray = resolved.ray;
+  if (sketch?.type !== 'sketch') return false;
+  let entityPlacement: Readonly<IntrinsicRecipeExtrusionPlacement> | undefined;
+  let origin: Vec3, ray: Vec3;
+  if (sketch.profile.kind === 'entities') {
+    if (!entitySource) throw new Error('Entity absence requires the engine real-solve checkpoint.');
+    const placement = intrinsicProfileInstancePlacement(closure, operation.featureId, address);
+    entityPlacement = placement;
+    origin = placement.frame.origin;
+    // Use the same physical ray as the native prism factory; parity and offset
+    // were already applied exactly once by the canonical placement adapter.
+    ray = placement.frame.normal.map(value => Math.sign(placement.signedDepth) * value) as Vec3;
+  } else {
+    if (sketch.profile.kind !== 'rectangle' && sketch.profile.kind !== 'circle') return false;
+    const resolved = fixedProfileInstanceInput(closure, operation.featureId, address);
+    if (resolved.profile.kind !== 'rectangle' && resolved.profile.kind !== 'circle') return false;
+    const profile = resolved.profile;
+    const parameter = (value: number): boolean => Number.isFinite(value) && value >= .01 && value <= 100_000;
+    // Do not let a behind-owner shortcut hide primitive parameter rejection.
+    // Inconclusive/invalid inputs still go through the unchanged builder validator.
+    if (!Array.isArray(profile.center) || profile.center.length !== 2 || ![0, 1].every(axis => Object.hasOwn(profile.center, axis)
+        && Number.isFinite(profile.center[axis]) && Math.abs(profile.center[axis]) <= 1_000_000)
+      || !parameter(Math.abs(resolved.signedDepth)) || (profile.kind === 'circle' ? !parameter(profile.radius)
+        : !parameter(profile.width) || !parameter(profile.height))) return false;
+    origin = framePoint(resolved.frame, profile.center[0], profile.center[1]); ray = resolved.ray;
+  }
   if (!origin.every(Number.isFinite) || !ray.every(Number.isFinite)) throw new Error('Recipe ray placement must be finite.');
-  return withNativeOwners(owners => {
-    const bounds = owners.own(shape.boundingBox).bounds;
+  const projection = withNativeOwners(owners => {
+    // The SDK getter excludes BRep tolerances. Absence needs the conservative
+    // native envelope including those tolerances, not only exact geometry.
+    const box = owners.own(createConservativeBodyBounds(shape));
+    const low = owners.own(box.CornerMin()), high = owners.own(box.CornerMax());
+    const bounds = [[low.X(), low.Y(), low.Z()], [high.X(), high.Y(), high.Z()]];
     if (!Array.isArray(bounds) || bounds.length !== 2 || ![0, 1].every(side => Object.hasOwn(bounds, side)
       && Array.isArray(bounds[side]) && bounds[side].length === 3 && [0, 1, 2].every(axis =>
         Object.hasOwn(bounds[side], axis) && Number.isFinite(bounds[side][axis])))
@@ -153,8 +170,24 @@ function allCutEntirelyBehindRay(closure: RecipeClosure, operation: RecipeOperat
     // Contact, near-plane and inconclusive boxes retain the original native path.
     const guard = 1e-6 + 32 * Number.EPSILON * arithmeticScale;
     if (!Number.isFinite(guard)) throw new Error('Recipe absence-proof guard must remain finite.');
-    return maximum < -guard;
+    return { maximum, guard };
   }, undefined, 'Recipe forward-material bounds inspection or release failed.');
+  if (projection.maximum >= -projection.guard) return false;
+  assertWorkingCurrent();
+  let witnessTolerance = 0;
+  if (entityPlacement) {
+    // AABB separation alone cannot authorize skipping an entity's native
+    // validation. Read its real checkpoint/profile, construct the shared
+    // positive closed witness and release it successfully before returning.
+    witnessTolerance = validateEntityRecipeProfileForAbsence({ source: entitySource!, placement: entityPlacement,
+      validateTool: validatePositiveClosedTool, assertWorkingCurrent });
+  }
+  assertWorkingCurrent();
+  const rayLength = Math.hypot(...ray), guard = projection.guard + witnessTolerance * rayLength;
+  if (!Number.isFinite(rayLength) || rayLength <= 0 || !Number.isFinite(guard)) throw new Error('Recipe witness-tolerance separation must remain finite.');
+  // A real witness with a wider native tolerance makes the proof inconclusive;
+  // it does not turn an uncertain owner into a no-op or a caught miss.
+  return projection.maximum < -guard;
 }
 
 function validateSingle(shape: Shape3D): void { validateBodyShape(shape); finiteBounds(shape); }
@@ -262,10 +295,12 @@ export function evaluateFeatureRecipes(input: RecipeEvaluationInput): OwnedRecip
     if (closure.request.scope.mode === 'auto' || closure.request.variation.kind !== 'none') {
       throw new Error('Automatic discovery and variation require their pending native recipe policies.');
     }
-    // Entity gates remain above this boundary. Opening them later also requires
-    // native profile/tool support; a successful solve is not material proof.
-    const entitySketchIds = closure.definitions.flatMap(({ feature }) =>
-      feature.type === 'sketch' && feature.profile.kind === 'entities' ? [feature.id] : []);
+    // Entity declarations still need current build-issued solves before any
+    // native clone or absence decision; their native profiles are validated below.
+    const entitySketchIds = [...new Set(closure.operations.flatMap(operation => {
+      const sketch = closure.definitions.find(item => item.feature.id === operation.sketchId)?.feature;
+      return sketch?.type === 'sketch' && sketch.profile.kind === 'entities' ? [sketch.id] : [];
+    }))];
     if (entitySketchIds.length && !input.sourceSketchSolves) throw new Error('Entity recipes require the engine real-solve registry.');
     const sketchSolves = input.sourceSketchSolves ? { registry: input.sourceSketchSolves,
       checkpoint: checkpointSourceSketchSolves(input.sourceSketchSolves, input.features, entitySketchIds) } : undefined;
@@ -293,23 +328,31 @@ export function evaluateFeatureRecipes(input: RecipeEvaluationInput): OwnedRecip
           for (const bodyId of [...groups.keys()].sort(compare)) {
             const applications = groups.get(bodyId)!;
             for (const application of applications) assertParent(application, bodyId, transform.key, outputs);
-            const before = current.get(bodyId)!;
+            const before = current.get(bodyId)!, inputRevision = revisions.get(bodyId)!;
+            const assertWorkingCurrent = () => {
+              if (current.get(bodyId) !== before || revisions.get(bodyId) !== inputRevision) throw new Error('The recipe working owner/revision changed during tool construction.');
+              if (sketchSolves) assertSourceSketchSolvesCurrent(sketchSolves.registry, sketchSolves.checkpoint, input.features);
+            };
+            assertWorkingCurrent();
             const beforeState = intermediate(before);
             if (beforeState.empty && operation.termination?.kind !== 'blind' && operation.termination?.kind !== 'upToSurface') {
               throw new Error('A dynamic end condition on an empty working owner needs a separate extent policy.');
             }
             // Equivalent fixed intrinsic bindings share one event/target tool.
             // Every source was attested above and every route counted by extraction.
-            const inputRevision = revisions.get(bodyId)!;
+            const entitySource = sketchSolves ? { ...sketchSolves, features: input.features } : undefined;
             let changed = false;
-            if (!allCutEntirelyBehindRay(closure, operation, transform.key, before)) {
+            if (!allCutEntirelyBehindRay(closure, operation, transform.key, before, entitySource, assertWorkingCurrent)) {
               const built = buildRecipeInstanceTool({ closure, featureId: operation.featureId,
-                address: transform.key, targetBodyId: bodyId, workingTarget: before,
+                address: transform.key, targetBodyId: bodyId, workingTarget: before, assertWorkingCurrent, entitySource,
                 // Tools may contain several closed regions. Recipe/profile gates
                 // remain in the bridge; source/current/final owners still use validateSingle.
                 validateTool: validatePositiveClosedTool });
               const tool = owners.own(built.tool);
-              const raw = owners.own(bodyBoolean(built.operation, before, tool)), rawState = intermediate(raw);
+              assertWorkingCurrent();
+              const raw = owners.own(bodyBoolean(built.operation, before, tool));
+              assertWorkingCurrent();
+              const rawState = intermediate(raw);
               const signedChange = built.operation === 'subtract' ? beforeState.volume - rawState.volume : rawState.volume - beforeState.volume;
               if (signedChange < -tolerance(beforeState.volume)) throw new Error('A regenerated operation changed material with the wrong sign.');
               changed = materialChanged(before, raw, owners);
@@ -343,6 +386,7 @@ export function evaluateFeatureRecipes(input: RecipeEvaluationInput): OwnedRecip
         }
       }
       if (!replacements.length) throw new Error('The final recipe pattern changes no selected owner material.');
+      if (sketchSolves) assertSourceSketchSolvesCurrent(sketchSolves.registry, sketchSolves.checkpoint, input.features);
       const attestation: RecipeEvaluationAttestation = Object.freeze({ evaluatorRevision: RECIPE_EVALUATOR_REVISION,
         patternId: closure.request.patternId, recipeFingerprintInput: closure.fingerprintInput,
         sources: Object.freeze(snapshots.sources.map(item => Object.freeze({ ref: item.ref, lineage: item.lineage }))),

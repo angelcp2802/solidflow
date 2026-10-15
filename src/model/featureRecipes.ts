@@ -476,7 +476,11 @@ export function extractRecipeClosure(features: readonly Feature[], rawRequest: R
     if (sketch.type !== 'sketch') invalid('WRONG_SKETCH_INPUT', feature.id, 'sketchId', 'Operation input must be an exact sketch declaration.');
     inspectSupport(sketch.id);
     if (!sketch.profile || typeof sketch.profile !== 'object') invalid('PROFILE_DECLARATION', sketch.id, 'profile', 'Expected a parsed profile declaration.');
-    if (sketch.profile.kind === 'entities') pending('SOLVED_PROFILE_PENDING', sketch.id, 'profile', 'Fixed solved-entity profiles need a source-solve attestation; varying constraints need an instance solve.');
+    if (sketch.profile.kind === 'entities') {
+      // Declaration eligibility is not native authority. The evaluator must
+      // obtain a current build-issued source solve before any native clone.
+      if (sketch.support || request.variation.kind !== 'none') pending('SOLVED_PROFILE_PENDING', sketch.id, 'profile', 'Associative or varying entity profiles need their instance solve contract.');
+    }
     else if (sketch.profile.kind !== 'rectangle' && sketch.profile.kind !== 'circle') invalid('PROFILE_DECLARATION', sketch.id, 'profile', 'Unknown profile declaration.');
     if (!Number.isFinite(feature.depth) || Math.abs(feature.depth) < .01 || Math.abs(feature.depth) > 100_000 || typeof feature.symmetric !== 'boolean') invalid('EXTRUSION_PARAMETERS', feature.id, 'depth', 'Expected finite signed depth and an explicit symmetric flag.');
     const end = feature.endCondition;
@@ -686,7 +690,11 @@ export interface ResolvedRecipeExtrusionInput {
   signedDepth: number;
   termination: RecipeTermination;
 }
-export function fixedProfileInstanceInput(closure: RecipeClosure, featureId: string, address: string): Readonly<ResolvedRecipeExtrusionInput> {
+export interface IntrinsicRecipeExtrusionPlacement extends Omit<ResolvedRecipeExtrusionInput, 'profile'> {
+  sketchId: string; sourceFrame: PlaneFrame;
+}
+/** Placement only: this adapter never turns saved entity coordinates into a solved profile. */
+export function intrinsicProfileInstancePlacement(closure: RecipeClosure, featureId: string, address: string): Readonly<IntrinsicRecipeExtrusionPlacement> {
   requireInitialRecipeDeclaration(closure);
   const transform = closure.request.plan.transforms.find(item => item.key === address);
   if (!transform) invalid('INACTIVE_INSTANCE', closure.request.patternId, 'address', 'Instance must be active in the exact extracted transform plan.');
@@ -694,10 +702,19 @@ export function fixedProfileInstanceInput(closure: RecipeClosure, featureId: str
   const feature = closure.definitions.find(definition => definition.feature.id === featureId)?.feature;
   if (!node?.termination || !feature || (feature.type !== 'extrude' && feature.type !== 'cut')) invalid('OPERATION_RECIPE_PENDING', featureId, 'type', 'Expected an eligible extracted extrusion operation.');
   const sketch = closure.definitions.find(definition => definition.feature.id === feature.sketchId)?.feature;
-  if (!sketch || sketch.type !== 'sketch' || sketch.support || sketch.profile.kind === 'entities') invalid('FIXED_PROFILE_INPUT', featureId, 'sketchId', 'This adapter is limited to intrinsic fixed rectangle/circle placement; associative/entity solves remain pending.');
+  if (!sketch || sketch.type !== 'sketch' || sketch.support || closure.request.variation.kind !== 'none') invalid('FIXED_PROFILE_INPUT', featureId, 'sketchId', 'Intrinsic unchanged local sketch coordinates are required; associative/varying solves remain pending.');
   if (!Number.isFinite(sketch.offset) || !['XY', 'XZ', 'YZ'].includes(sketch.plane)) invalid('FIXED_PROFILE_INPUT', sketch.id, 'plane', 'Intrinsic source plane and offset must be valid.');
-  const mapped = transformedExtrusionFrame(principalPlaneFrame(sketch.plane, sketch.offset), feature.depth, transform);
+  const sourceFrame = principalPlaneFrame(sketch.plane, sketch.offset);
+  const mapped = transformedExtrusionFrame(sourceFrame, feature.depth, transform);
   const termination = node.termination.kind === 'blind' ? { ...node.termination, signedDepth: mapped.signedDepth } : node.termination;
-  return freezeTree({ sourceFeatureId: featureId, profile: boundedClone(sketch.profile, sketch.id, { remaining: RECIPE_LIMITS.jsonNodes }),
+  return freezeTree({ sourceFeatureId: featureId, sketchId: sketch.id, sourceFrame,
     frame: mapped.frame, ray: mapped.ray, signedDepth: mapped.signedDepth, termination });
+}
+/** Primitive compatibility adapter; entity geometry is available only through its real-solve reader. */
+export function fixedProfileInstanceInput(closure: RecipeClosure, featureId: string, address: string): Readonly<ResolvedRecipeExtrusionInput> {
+  const placement = intrinsicProfileInstancePlacement(closure, featureId, address);
+  const sketch = closure.definitions.find(definition => definition.feature.id === placement.sketchId)?.feature;
+  if (!sketch || sketch.type !== 'sketch' || sketch.profile.kind === 'entities') invalid('FIXED_PROFILE_INPUT', featureId, 'sketchId', 'The primitive adapter cannot consume an unsolved entity declaration.');
+  return freezeTree({ sourceFeatureId: featureId, profile: boundedClone(sketch.profile, sketch.id, { remaining: RECIPE_LIMITS.jsonNodes }),
+    frame: placement.frame, ray: placement.ray, signedDepth: placement.signedDepth, termination: placement.termination });
 }

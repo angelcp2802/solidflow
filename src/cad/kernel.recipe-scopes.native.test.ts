@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import initOpenCascade from 'replicad-opencascadejs';
-import { makeBox, makeCylinder, measureShapeSurfaceProperties, measureShapeVolumeProperties, setOC, type Shape3D } from 'replicad';
+import { cast, getOC, makeBox, makeCylinder, measureShapeSurfaceProperties, measureShapeVolumeProperties, setOC, type Shape3D } from 'replicad';
 import { beforeAll, expect, it, vi } from 'vitest';
 import type { BodyReference, Feature, Vec3 } from './kernel.types';
 import { exactStateKey, extractRecipeClosure, RecipeClosureError, requireInitialRecipeDeclaration,
@@ -466,35 +466,68 @@ it('keeps the original native rejection for a bounding box in the unilateral tol
   expect(setup.catalog.resolve(b).ref).toEqual(b);
 }), 60_000);
 
+it('includes the real native subshape tolerance in a conservative original box envelope', () => fixture(owners => {
+  const shape = box(owners, [0, 0, 0], [2, 3, 4]), oc = getOC();
+  const tolerance = Math.max(...(['VERTEX', 'EDGE', 'FACE'] as const).map(kind =>
+    oc.BRep_Tool.MaxTolerance(shape.wrapped, oc.TopAbs_ShapeEnum[`TopAbs_${kind}`])));
+  expect(Number.isFinite(tolerance) && tolerance > 0).toBe(true);
+  const bounds = owners.own(bodyHelpers.createConservativeBodyBounds(shape));
+  const low = owners.own(bounds.CornerMin()), high = owners.own(bounds.CornerMax());
+  expect(low.Z()).toBeLessThan(-tolerance * .5); expect(high.Z()).toBeGreaterThan(4 + tolerance * .5);
+  // These inequalities distinguish tolerance inclusion from an exact-only
+  // envelope; no artificially elevated tolerance or general setter is assumed.
+}), 60_000);
+
+it('globally encloses a real high-tolerance nested vertex even when exact geometry is behind', () => fixture(owners => {
+  const original = box(owners, [20, 0, -8.0002], [30, 10, -.0002]), oc = getOC();
+  const serialized = oc.BRepToolsWrapper.Write(original.wrapped); expect(serialized).toContain('CASCADE Topology V3');
+  const rows = serialized.split('\n'), edited = [...rows], fields = rows.flatMap((row, index) => row === 'Ve' ? [index + 1] : []);
+  expect(fields).toHaveLength(8);
+  for (const index of fields) { expect(Number(rows[index])).toBe(1e-7); edited[index] = '0.001'; }
+  const restored = [...edited]; for (const index of fields) restored[index] = rows[index];
+  expect(restored.join('\n')).toBe(serialized); // only original vertex-tolerance fields changed
+  const raw = owners.own(oc.BRepToolsWrapper.Read(edited.join('\n'))), elevated = owners.own(cast(raw)).asShape3D();
+  metrics(elevated, 800, 520, [20, 0, -8.0002], [30, 10, -.0002], owners);
+  expect(Math.abs(oc.BRep_Tool.MaxTolerance(elevated.wrapped, oc.TopAbs_ShapeEnum.TopAbs_VERTEX) - .001)).toBeLessThan(1e-15);
+  const geometry = owners.own(new oc.Bnd_Box()); oc.BRepBndLib.AddOptimal(elevated.wrapped, geometry, false, false);
+  const gLow = owners.own(geometry.CornerMin()), gHigh = owners.own(geometry.CornerMax()); expect(gHigh.Z()).toBeLessThan(0);
+  const conservative = owners.own(bodyHelpers.createConservativeBodyBounds(elevated));
+  const low = owners.own(conservative.CornerMin()), high = owners.own(conservative.CornerMax()); expect(high.Z()).toBeGreaterThan(0);
+  const lowerExpansion = [gLow.X() - low.X(), gLow.Y() - low.Y(), gLow.Z() - low.Z()],
+    upperExpansion = [high.X() - gHigh.X(), high.Y() - gHigh.Y(), high.Z() - gHigh.Z()];
+  for (const expansion of [...lowerExpansion, ...upperExpansion]) expect(expansion).toBeGreaterThanOrEqual(.001 - 1e-9);
+}), 60_000);
+
 it.each(['query', 'release'] as const)('propagates the behind-owner absence-proof bounds %s failure before publication', fault => fixture(owners => {
-  const setup = behindFixture(owners), originalCopy = bodyHelpers.copyBodyShape, primary = new Error('Original absence-proof bounds ' + fault);
+  const setup = behindFixture(owners), originalCopy = bodyHelpers.copyBodyShape,
+    originalBounds = bodyHelpers.createConservativeBodyBounds, primary = new Error('Original absence-proof bounds ' + fault);
   const borrowedB = setup.catalog.resolve(b).shape;
-  let behindCopies = 0, queries = 0, injected = false;
+  let behindCopies = 0, currentB: Shape3D | undefined, injected = false, releases = 0;
   vi.spyOn(bodyHelpers, 'copyBodyShape').mockImplementation(shape => {
-    const behind = shape === borrowedB;
     const candidate = originalCopy(shape);
+    // Capture the actual second detached B copy, not a caller-created box or
+    // a global SDK prototype. The first is the initial comparison snapshot.
+    if (shape === borrowedB && ++behindCopies === 2) currentB = candidate;
+    return candidate;
+  });
+  vi.spyOn(bodyHelpers, 'createConservativeBodyBounds').mockImplementation(shape => {
+    const box = originalBounds(shape), rawDelete = box.delete.bind(box);
     try {
-      // Second target copy is the evaluator's current B owner; the first is its
-      // initial comparison snapshot. Only this received instance is adapted.
-      if (behind && ++behindCopies === 2) {
-        const prototype = Object.getPrototypeOf(candidate);
-        Object.defineProperty(candidate, 'boundingBox', { configurable: true, get() {
-          if (++queries !== 2) return Reflect.get(prototype, 'boundingBox', candidate);
-          injected = true;
-          if (fault === 'query') throw primary;
-          const box = Reflect.get(prototype, 'boundingBox', candidate), rawDelete = box.delete.bind(box);
-          Object.defineProperty(box, 'delete', { configurable: true, value: () => { rawDelete(); throw primary; } });
-          return box;
+      if (shape === currentB) {
+        injected = true;
+        if (fault === 'query') Object.defineProperty(box, 'CornerMin', { configurable: true, value: () => { throw primary; } });
+        Object.defineProperty(box, 'delete', { configurable: true, value: () => {
+          releases++; rawDelete(); if (fault === 'release') throw primary;
         } });
       }
-      return candidate;
+      return box;
     } catch (error) {
-      try { candidate.delete(); } catch (cleanup) { throw new AggregateError([error, cleanup], 'Observed native copy release failed.', { cause: error }); }
+      try { rawDelete(); } catch (cleanup) { throw new AggregateError([error, cleanup], 'Observed native bounds release failed.', { cause: error }); }
       throw error;
     }
   });
   let caught: unknown; try { owners.evaluation(evaluateFeatureRecipes(setup)); } catch (error) { caught = error; }
-  vi.restoreAllMocks(); expect(injected).toBe(true);
+  vi.restoreAllMocks(); expect(injected).toBe(true); expect(releases).toBe(1);
   if (fault === 'query') expect(caught).toBe(primary);
   else { expect(caught).toBeInstanceOf(NativeCleanupError); expect((caught as NativeCleanupError).cause).toBe(primary); }
   metrics(setup.catalog.resolve(a).shape, 800, 520, rows[0].min, rows[0].max, owners);
