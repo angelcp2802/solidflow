@@ -8,6 +8,10 @@ updates:
       time: "09:00"
       timezone: Europe/Madrid
     open-pull-requests-limit: 5
+    # Migrate the Node runtime and its type definitions together.
+    ignore:
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     groups:
       minor-and-patch:
         update-types: [minor, patch]

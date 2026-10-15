@@ -12,6 +12,10 @@ parts of a complete CAD system remain on the [roadmap](docs/ROADMAP.md).
 [Security](https://github.com/angelcp2802/solidflow/actions/workflows/security.yml) ·
 [Contribute](CONTRIBUTING.md) · [Guía en español](docs/QUICKSTART.es.md)
 
+The [project status and review queue](docs/PROJECT_STATUS.md) separates the
+default branch from proposed work, records pull request dependencies and links
+the acceptance work that remains open.
+
 ## Try it from source
 
 Install Node.js 24 and Git, then run:
