@@ -9,8 +9,12 @@ import {
   type NativeBodyReplacement, type NativeBodyStateUpdate, type NativeBodyTransaction,
 } from './kernel.bodies';
 import { buildRecipeInstanceTool } from './kernel.recipe-instance';
+import { validatePositiveClosedTool } from './kernel.closed-tools';
 import { isNativeCleanupFailure, NativeCleanupError, withNativeOwners, type NativeOwner, type NativeOwners } from './kernel.native-ownership';
 import { attestNativeRecipeScope, assertNativeRecipeScopeCurrent, type NativeRecipeScopeAttestation } from './kernel.recipe-scopes';
+
+import { checkpointSourceSketchSolves, assertSourceSketchSolvesCurrent,
+  type SourceSketchSolveCheckpoint, type SourceSketchSolveRegistry } from './kernel.sketch-solves';
 
 export const RECIPE_EVALUATOR_REVISION = 'fixed-intrinsic-world-limit-v3';
 const compare = (a: string, b: string): number => a < b ? -1 : a > b ? 1 : 0;
@@ -33,6 +37,8 @@ export interface RecipeEvaluationInput {
   readonly request: RegenerationRequest;
   readonly catalog: NativeBodyCatalog;
   readonly historicalStates: ReadonlyMap<string, NativeRecipeSourceState>;
+  /** Build-local real-solve capability; never saved or supplied in a worker DTO. */
+  readonly sourceSketchSolves?: SourceSketchSolveRegistry;
 }
 export interface RecipeVirtualOutput {
   readonly sourcePoststate: Readonly<BodyReference>;
@@ -69,6 +75,7 @@ interface EvaluationProof {
   sources: NativeSnapshot[];
   targets: NativeSnapshot[];
   scope: NativeRecipeScopeAttestation;
+  sketchSolves?: { registry: SourceSketchSolveRegistry; checkpoint: SourceSketchSolveCheckpoint };
 }
 const evaluations = new WeakMap<OwnedRecipeEvaluation, EvaluationProof>();
 
@@ -201,6 +208,13 @@ export function evaluateFeatureRecipes(input: RecipeEvaluationInput): OwnedRecip
     if (closure.request.scope.mode === 'auto' || closure.request.variation.kind !== 'none') {
       throw new Error('Automatic discovery and variation require their pending native recipe policies.');
     }
+    // Entity gates remain above this boundary. Opening them later also requires
+    // native profile/tool support; a successful solve is not material proof.
+    const entitySketchIds = closure.definitions.flatMap(({ feature }) =>
+      feature.type === 'sketch' && feature.profile.kind === 'entities' ? [feature.id] : []);
+    if (entitySketchIds.length && !input.sourceSketchSolves) throw new Error('Entity recipes require the engine real-solve registry.');
+    const sketchSolves = input.sourceSketchSolves ? { registry: input.sourceSketchSolves,
+      checkpoint: checkpointSourceSketchSolves(input.sourceSketchSolves, input.features, entitySketchIds) } : undefined;
     const scope = attestNativeRecipeScope(closure.request.scope, closure.request.targetSnapshot, input.catalog);
     // All native requirements resolve before the first target clone or tool.
     const snapshots = preflight(input, closure);
@@ -234,7 +248,9 @@ export function evaluateFeatureRecipes(input: RecipeEvaluationInput): OwnedRecip
             // Every source was attested above and every route counted by extraction.
             const built = buildRecipeInstanceTool({ closure, featureId: operation.featureId,
               address: transform.key, targetBodyId: bodyId, workingTarget: before,
-              validateTool: validateSingle });
+              // Tools may contain several closed regions. Recipe/profile gates
+              // remain in the bridge; source/current/final owners still use validateSingle.
+              validateTool: validatePositiveClosedTool });
             const tool = owners.own(built.tool);
             const raw = owners.own(bodyBoolean(built.operation, before, tool)), rawState = intermediate(raw);
             const signedChange = built.operation === 'subtract' ? beforeState.volume - rawState.volume : rawState.volume - beforeState.volume;
@@ -275,7 +291,7 @@ export function evaluateFeatureRecipes(input: RecipeEvaluationInput): OwnedRecip
         targets: Object.freeze(snapshots.targets.map(item => Object.freeze({ ref: item.ref, lineage: item.lineage }))),
         virtualOutputs: Object.freeze([...outputs.values()]) });
       const proof: EvaluationProof = { active: true, patternId: closure.request.patternId, fingerprintInput: closure.fingerprintInput,
-        catalog: input.catalog, history: input.historicalStates, ...snapshots, scope };
+        catalog: input.catalog, history: input.historicalStates, ...snapshots, scope, sketchSolves };
       const result: OwnedRecipeEvaluation = Object.freeze({ replacements: Object.freeze(replacements), attestation,
         dispose() {
           if (!proof.active) return;
@@ -308,7 +324,7 @@ export function recipeEvaluationEventAffectedBodyIds(evaluation: OwnedRecipeEval
  * the engine's existing staged-cache/adopt boundary; this function never commits.
  */
 export function stageFeatureRecipeEvaluation(evaluation: OwnedRecipeEvaluation, catalog: NativeBodyCatalog,
-  update: NativeBodyStateUpdate, current: Pick<RecipeEvaluationInput, 'features' | 'request'>): NativeBodyTransaction {
+  update: NativeBodyStateUpdate, current: Pick<RecipeEvaluationInput, 'features' | 'request' | 'sourceSketchSolves'>): NativeBodyTransaction {
   const proof = evaluations.get(evaluation);
   if (!proof || !proof.active) throw new Error('Recipe evaluation is forged, already staged or disposed.');
   let transaction: NativeBodyTransaction | undefined, primary: { error: unknown } | undefined;
@@ -319,6 +335,10 @@ export function stageFeatureRecipeEvaluation(evaluation: OwnedRecipeEvaluation, 
       throw new Error('The recipe document or declaration changed after native evaluation.');
     }
     if (proof.catalog !== catalog || update.sourceFeatureId !== proof.patternId) throw new Error('The recipe proposal belongs to another catalog or pattern.');
+    if (proof.sketchSolves) {
+      if (current.sourceSketchSolves !== proof.sketchSolves.registry) throw new Error('The recipe source-solve epoch changed after evaluation.');
+      assertSourceSketchSolvesCurrent(proof.sketchSolves.registry, proof.sketchSolves.checkpoint, current.features);
+    }
     assertNativeRecipeScopeCurrent(proof.scope, fresh.request.scope, fresh.request.targetSnapshot, catalog);
     for (const snapshot of proof.targets) {
       const actual = catalog.resolve(snapshot.ref);

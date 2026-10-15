@@ -28,7 +28,7 @@ import { createEdgeCatalog, pickableEdges, resolveEdgeReferences } from './kerne
 import { advanceLineage } from './kernel.naming';
 import { entityProfileSolid, entityProfileStructure, entityRevolutionSide, solveEntityProfile } from './kernel.profiles';
 import { sketchVisual } from './kernel.sketch-visual';
-import { createFaceCatalog, pickableFaces, resolveFaceReference, resolveSelectedFaces, type FaceCatalog, type FaceDescriptor } from './kernel.faces';
+import { createFaceCatalog, pickableFaces, resolveSelectedFaces, type FaceCatalog, type FaceDescriptor } from './kernel.faces';
 import { clonePlaneFrame, framePoint, frameYDirection, offsetPlaneFrame, principalPlaneFrame } from './kernel.frames';
 import { loftSolid, sweepSolid } from './kernel.sweep-loft';
 import { geometryDelta, isRepetition, patternPlan, repetitionSolid, type FeatureGeometry } from './kernel.patterns';
@@ -37,6 +37,7 @@ import { throughAllBossTool, throughAllTool, untilNextTool, upToSurfaceTool } fr
 import { isNativeCleanupFailure, NativeCleanupError, NativeOwners } from './kernel.native-ownership';
 import { evaluateFeatureRecipes, stageFeatureRecipeEvaluation, type NativeRecipeSourceState } from './kernel.feature-recipes';
 import type { RegenerationRequest } from '../model/featureRecipes';
+import { createSourceSketchSolveRegistry, resolveSourceSketchSupport } from './kernel.sketch-solves';
 import { resolveNativeRecipeScope } from './kernel.recipe-scopes';
 import { holePositionStructure, holeSolid } from './kernel.holes';
 import { importStepSolid } from './kernel.step';
@@ -50,7 +51,7 @@ import { MAX_FEATURE_PATTERN_CONTRIBUTIONS, featurePatternApplications, featureP
 import { FeatureContributionReleaseError, featureContributionKey, featurePatternReplacements, ownedGeometryDelta, type OwnedFeatureGeometry } from './kernel.feature-patterns';
 import {
   createSemanticFaceCatalog, createSemanticEdgeCatalog, preparePrismReferencesV2,
-  pickableSemanticFaces, pickableSemanticEdges, resolveSemanticFaceReference,
+  pickableSemanticFaces, pickableSemanticEdges,
   resolveSemanticSelectedFaces, resolveSemanticEdgeReferences,
   type PrismReferences, type SemanticFaceCatalog, type SemanticFaceDescriptor,
 } from './kernel.semantic-catalogs';
@@ -556,30 +557,16 @@ export class CadEngine {
         }
       }
     };
-    const resolveSupport = (support: PlaneSupport): { frame: PlaneFrame; lineage: string } | null => {
-      if (support.kind === 'principal') return { frame: principalPlaneFrame(support.plane),
-        lineage: advanceLineage('', ['principal', support.plane]) };
-      if (support.kind === 'plane') {
-        if (!planeFeatureIds.has(support.planeId)) throw new Error('No se encuentra un plano de referencia anterior para este soporte.');
-        if (unavailableFeatureIds.has(support.planeId)) return null;
-        const plane = planes.get(support.planeId);
-        if (!plane) throw new Error('El plano de soporte no está disponible o no es anterior a esta operación.');
-        return { frame: clonePlaneFrame(plane.frame), lineage: plane.lineage };
-      }
-      if (!solidFeatureIds.has(support.face.sourceFeatureId)) {
-        throw new Error('La cara de soporte debe pertenecer a una operación sólida anterior. Recupera la selección de la cara.');
-      }
-      if (unavailableFeatureIds.has(support.face.sourceFeatureId)) return null;
-      const source = historicalFaces.get(support.face.sourceFeatureId);
-      if (!source) throw new Error('No se encuentra la geometría de la operación que contiene la cara de soporte. Recupera la selección de la cara.');
-      return { frame: source.semantic ? resolveSemanticFaceReference(source, support.face, support.face.sourceFeatureId)
-        : resolveFaceReference(source, support.face, support.face.sourceFeatureId),
-        lineage: advanceLineage(source.lineage, ['face', support.face.sourceFeatureId, support.face.key]) };
-    };
+    const sketchSupportContext = { planeFeatureIds, solidFeatureIds, unavailableFeatureIds, planes, historicalFaces };
+    const resolveSupport = (support: PlaneSupport) => resolveSourceSketchSupport(sketchSupportContext, support);
+    const sourceSketchSolveSession = createSourceSketchSolveRegistry(features, sketchSupportContext);
+    const sourceSketchSolves = sourceSketchSolveSession.reader;
 
     return withPrismOwners(prismOwners, () => {
     let reconstructionFailed = false, reconstructionError: unknown;
+    let featureIndex = -1;
     try { for (const feature of features) {
+      featureIndex++;
       featureBodyCommitted = false;
       let tool: Shape3D | null = null;
       let candidate: Shape3D | null = null;
@@ -605,6 +592,7 @@ export class CadEngine {
           if (seenBodyIds.size > MAX_CREATED_BODY_IDS) throw new Error('El documento supera 65536 identidades de cuerpo guardadas, incluidas las retiradas.');
         }
         if (feature.type !== 'sketch' && feature.type !== 'plane' && !bodyAware) legacySolidSeen = true;
+        sourceSketchSolveSession.observeFeature(feature, featureIndex);
         if (feature.type === 'plane') {
           planeFeatureIds.add(feature.id);
           if (feature.suppressed) { unavailableFeatureIds.add(feature.id); continue; }
@@ -625,6 +613,19 @@ export class CadEngine {
         if (feature.type === 'sketch') {
           sketches.set(feature.id, feature);
           if (feature.suppressed) { unavailableFeatureIds.add(feature.id); continue; }
+          if (feature.profile.kind === 'entities') {
+            const accepted = sourceSketchSolveSession.solveAndStage(feature, featureIndex, (resolved, frame, supportLineage, visual) => {
+              sketches.set(feature.id, resolved);
+              sketchFrames.set(feature.id, frame);
+              if (supportLineage !== null) sketchSupportLineages.set(feature.id, supportLineage);
+              result.sketches!.push(visual);
+            });
+            if (accepted.kind === 'support-unavailable') {
+              unavailableFeatureIds.add(feature.id);
+              result.warnings.push(`${feature.name}: omitida porque su soporte está suprimido o no está disponible.`);
+            }
+            continue;
+          }
           const support = feature.support ? resolveSupport(feature.support) : null;
           if (feature.support && !support) {
             unavailableFeatureIds.add(feature.id);
@@ -745,7 +746,7 @@ export class CadEngine {
             bindings: operation.bindings.map(binding => ({ source: binding.source, targets: binding.targetBodyIds })),
             referencePolicies: operation.referencePolicies, variation: operation.variation,
           };
-          const evaluation = evaluateFeatureRecipes({ features, request, catalog: bodyCatalog, historicalStates: historicalRecipeStates });
+          const evaluation = evaluateFeatureRecipes({ features, request, catalog: bodyCatalog, historicalStates: historicalRecipeStates, sourceSketchSolves });
           let nextLineage: string;
           try {
             const proof = evaluation.attestation;
@@ -760,7 +761,7 @@ export class CadEngine {
           // Stage consumes all evaluator candidates before returning its owned proposal.
           // The existing adoption boundary prepares every cache before one transfer.
           const transaction = stageFeatureRecipeEvaluation(evaluation, bodyCatalog,
-            { sourceFeatureId: feature.id, lineage: nextLineage }, { features, request });
+            { sourceFeatureId: feature.id, lineage: nextLineage }, { features, request, sourceSketchSolves });
           adoptBodyTransaction(transaction);
           sourceFeatureId = feature.id; lineage = nextLineage; semantic = undefined;
           rememberReferencedSource(beforeForRecord);
@@ -1239,6 +1240,7 @@ export class CadEngine {
       }
     } } catch (error) { reconstructionFailed = true; reconstructionError = error; throw error; }
     finally {
+      sourceSketchSolveSession.revoke();
       const failures: unknown[] = [];
       const releases = [
         ...[...historicalDeltas.values()].map(record => () => record.delta?.dispose()),

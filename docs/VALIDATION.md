@@ -2112,3 +2112,120 @@ references, variation, additive ALL/AUTO, nested recipes and ownership lifecycle
 remain required, together with independent interoperability and general desktop
 and platform validation. Individual syntax, IPC, build and earlier focused
 passes remain recorded without promotion to a complete-suite or release pass.
+
+## Source-solve and native component composition — 2026-10-15
+
+This local Windows x64 checkpoint combines thirteen CAD source/test paths on
+base `7cec5c8d2a2378e49ab76158764e59728aba0a67`. That base identifies the
+inherited entry-loader source; it is not a commit identity for the tested
+working changes. The source table below identifies those changes exactly.
+Node was 24.11.1, npm 11.6.2 and Vitest 5.0.3. Commands retained the project
+configuration, existing budgets and pool, with one invocation per check and
+no retries or environment overrides supplied by these validation runners.
+
+The additions are 90 cases: ownership 18, real solves/raw admission 19,
+Add entry 14, closed tools 21 and native face occurrences 18. The 109-case
+focused run includes the inherited 19 Cut-resolution cases. Reporter totals
+below are actual results; the per-file partition is fixture inventory rather
+than separately printed passing totals.
+
+| Command / scope | Actual result |
+| --- | --- |
+| Focused seven-file invocation below | Exit 0, 109/109 cases and 7/7 files; Vitest 1.58 s; stderr empty. |
+| `npm run build` (`tsc -b && vite build`) | Product command exit 0, TypeScript and Vite 8.3.4 passed, 1,985 modules, Vite 1.24 s. Browser externalization of `node:module` and chunk-size warnings remain. |
+| Required `npm test` | Exit 0: 2,340/2,340 unit/CAD cases in 135/135 files, Vitest 27.46 s, followed by 32/32 IPC checks with no skips/cancellations; stderr empty. |
+| `npm run test:desktop` | Exit 0: initial renderer, preload, worker and WASM readiness; Electron exit and successful guarded temporary cleanup. The unchanged standard launcher does not instrument Electron's inner close event. |
+| `npm run test:desktop:pattern-all` | Exit 0: four distinct selected/preview/committed/reopened worker phases, actual Apply, Save As/reopen, observed Electron child close and deletion of the isolated test profile. |
+| `npm run test:desktop:pattern-world-limit` | Exit 0: geometry/preview-world/committed-world/reopened-world worker phases, expected missing-policy rejection, actual Apply, Save As/reopen, observed child close and isolated-profile deletion. |
+
+The focused command was:
+
+```sh
+node node_modules/vitest/vitest.mjs run --config vitest.config.ts src/cad/kernel.sketch-solves.test.ts src/cad/kernel.sketch-solves.raw.test.ts src/cad/kernel.profiles.ownership.test.ts src/cad/kernel.until-next-add-resolution.test.ts src/cad/kernel.closed-tools.test.ts src/cad/kernel.until-next-resolution.test.ts src/cad/kernel.native-face-membership.test.ts
+```
+
+Execution invoked the installed Vitest CLI directly through Node with those
+`run --config` and seven file arguments. No filter, pool or budget override
+was used. The npm checks used the installed npm CLI and the unchanged package
+scripts. Their parent processes exited/closed normally and output streams were
+drained; that outer observation is separate from inner Electron lifecycle.
+
+### Inventory guard and retained earlier failures
+
+The focused run preserved all 340 recorded project inputs. Building added the
+normal ignored `tsconfig.tsbuildinfo`; its original evidence controller exited
+1 because its strict no-new-files guard compared 340 with 341. The actual build
+child exited 0 and all original 340 hashes were unchanged. The guard failure
+is retained, not presented as a successful controller run or rerun. Subsequent
+test/desktop guards explicitly distinguish 340 project inputs from that one
+separately pinned generated file. The three desktop runs also preserved seven
+production-output files and eleven selected dependency pins. These inventories
+do not cover the complete transitive dependency tree or general process-tree
+termination. No generated build output is part of this source proposal.
+
+An earlier combined source-solve/ownership run on the recorded preceding
+snapshot produced 36 passed and one failed of 37 cases. Its radius was
+`1.9999999999843956` against an incorrectly exact expected 2. The test now uses
+the independent absolute `1e-7` mm bound documented in provenance, retaining
+entity identity/type and the remaining full-result assertions. The solver was
+not rounded or changed to satisfy that assertion. Assertions after the earlier
+failure were not executed in that case; the later combined run supplies their
+passing evidence on the corrected test source.
+
+The earlier entry-loader run associated with the #40 source retained 2,114
+passed and 136 test timeouts of 2,250 cases, separate 32-case IPC/build passes,
+standard desktop cleanup `EBUSY`, an incomplete ALL deadline and fixed-plane
+initial-readiness failure. Those source-specific failures, the older records
+above and donor results remain separate. This composition's successful checks
+do not identify the cause of those timeouts, explain the cleanup/startup failures
+or convert an earlier failed command into a pass.
+
+### Exact changed source inputs
+
+All paths in this table are under `src/cad/`. The 340-input project inventory
+remained unchanged during the executions, apart from the separately identified
+generated file after build.
+
+| File | SHA-256 |
+| --- | --- |
+| `kernel.engine.ts` | `3f27d764163471c6de95369ff2daddcbd75481d8584956ac2da86bfeb61e4d55` |
+| `kernel.profiles.ts` | `5c6253c3f2ec4b324286bcbe4790d70e571b018f0b74fbd90a2af743bb00793c` |
+| `kernel.feature-recipes.ts` | `8933771d648c7e020fb0dd1ddcd7607be3d525f73f57ce3be9a75a8e046acebd` |
+| `kernel.sketch-solves.ts` | `206fad0f1aa770f40f4c8087e3626ef0d0867d309e6cf6cb2852503494f24c3d` |
+| `kernel.sketch-solves.test.ts` | `4afb0037575b288d642e69d3db9f78eee4d9207ecff2941983e094deae9b199f` |
+| `kernel.sketch-solves.raw.test.ts` | `7124af57ccc09e7c08b713cb6a3ad466cbc2e73fcc8912a106b0b6fc6c80b945` |
+| `kernel.profiles.ownership.test.ts` | `67bb75b4e66f77b23e544e08c46076fe499f68cd30adba7d614389c5ae91a058` |
+| `kernel.until-next-resolution.ts` | `fc399dc46eff1d1315dadae5d37f747968c0826b457785cebfa1156a04d55097` |
+| `kernel.until-next-add-resolution.test.ts` | `e3dc3dcc9ac09810a541bd6278c769a7d1cb41249ea596a0d53c6ed1c10f047f` |
+| `kernel.closed-tools.ts` | `d3c736cf54c5f675ff4d76fdd6d13f688d71da472f0c0a6a9902a49b537c9d64` |
+| `kernel.closed-tools.test.ts` | `05039b9aa9f3b15c23bddc1d7b7c693dc281403cb5d7dbcda6d474a9df5e1334` |
+| `kernel.native-face-membership.ts` | `1e61d83141c760d5e3c22ca089329cebd86cd403ec9fb388175a53e2fa112b17` |
+| `kernel.native-face-membership.test.ts` | `476347f5cfe7280e8573a8616207c0974829e2c025c6c0c3c7791d2a875cc70b` |
+
+### Retained output identities and evidence boundary
+
+| Output | SHA-256 |
+| --- | --- |
+| Focused stdout | `da2cd41a4febbbc57852f31f017c3aaa9be0f90650866570154d7b71edeca04e` |
+| Build stdout | `3e00dd753468b79d2abed3cafa822a3bc2719f0404d0b18f9239866cdf69eddf` |
+| Build warning stderr | `a86e1daf71b0aa0b8153b600aba8937ac5059913521e0673e8b60050412e36a4` |
+| Required test stdout | `e6380c2d80523bfb3a730ab90c4ecb6e6f4fbbd0137fd645e44e45dfb052feaf` |
+| Standard desktop stdout | `7fe706fbb2502d4b93da2c38ef7eb600dca1654411ba12ef7b2e8acf47742dfd` |
+| ALL workflow stdout | `2cd4d980ab098c3428fb77735de79ca7cc631abee2cd12093492f6e54fb4f208` |
+| Fixed-plane workflow stdout | `15632570395f494989002d06cf8076a7d3ef9bfc50419132c10efc44a73cd999` |
+
+The two UI workflows use scripted DOM events and test-owned native-dialog
+choices. They check exact body/source identities, analytical volume within
+`1e-5` mm³ and bounds within `1e-6` mm. Their four healthy phases retain the
+actual production worker/WASM, and report no console errors or failed requests.
+UI runs do not measure surface area or interior/exterior Common probes; those
+belong to the distinct native fixtures in
+[PROVENANCE](PROVENANCE.md#source-solve-and-native-component-fixtures).
+
+The real-solve registry does not certify native face/body ownership. Add-entry,
+closed-tool and membership tests remain component foundations; saved UntilNext,
+general solved/associative profiles, datum/face/instance correspondence,
+additive ALL, AUTO, variation, nested recipes and full ownership lifecycle
+remain pending. This local Windows checkpoint supplies no new macOS/Linux,
+independent interoperability, installer/signing/notarization or release result.
+It neither clears existing security findings nor authorizes binary publication.

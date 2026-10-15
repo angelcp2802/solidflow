@@ -1,12 +1,14 @@
 import {
-  addHolesInFace, assembleWire, basicFaceExtrusion, getOC, makeCircle, makeCompound,
+  addHolesInFace, assembleWire, basicFaceExtrusion, Compound, getOC, makeCircle,
   makeFace, makeLine, makeThreePointArc, makeVertex, measureDistanceBetween,
   revolution, Vector, type Edge, type Face, type Shape3D, type Wire,
 } from 'replicad';
 import { solveSketch } from '../sketch/solver';
-import type { EntityProfile } from '../sketch/types';
+import type { EntityProfile, SketchSolveResult } from '../sketch/types';
+import type { TopoDS_Compound } from 'replicad-opencascadejs';
 import type { Plane, PlaneFrame, Vec3 } from './kernel.types';
 import { framePoint, frameYDirection } from './kernel.frames';
+import { withNativeOwners } from './kernel.native-ownership';
 
 export type Point2 = [number, number];
 type Line = { id: string; type: 'line'; start: Point2; end: Point2; nodes: [number, number] };
@@ -30,8 +32,13 @@ export function onSketchPlane(plane: Plane, u: number, v: number, offset: number
   return [offset, u, v];
 }
 
+/** Preserve the real solve result; failed geometry remains explicitly failed. */
+export function solveEntityProfileResult(profile: EntityProfile): SketchSolveResult {
+  return solveSketch(profile);
+}
+
 export function solveEntityProfile(profile: EntityProfile): EntityProfile {
-  const solved = solveSketch(profile);
+  const solved = solveEntityProfileResult(profile);
   if (solved.status !== 'underdefined' && solved.status !== 'fullyDefined') {
     throw new Error(`No se puede resolver el croquis (${solved.status}): ${solved.message}`);
   }
@@ -268,49 +275,59 @@ export function entityProfileSolid(profile: EntityProfile, plane: Plane, offset:
   if (operation.type === 'revolve') entityRevolutionSide(profile);
   const toWorld = (point: Point2) => frame ? framePoint(frame, point[0], point[1]) : onSketchPlane(plane, point[0], point[1], offset);
   const normal: Vec3 = frame?.normal ?? (plane === 'XY' ? [0, 0, 1] : plane === 'XZ' ? [0, -1, 0] : [1, 0, 0]);
-  const wires: Wire[] = [], faces: Face[] = [], solids: Shape3D[] = [];
-  try {
+  return withNativeOwners(owners => {
+    const wires: Wire[] = [], faces: Face[] = [], solids: Shape3D[] = [];
     for (const contour of contours) {
-      const edges: Edge[] = [];
-      try {
+      // Transfer wire/face together only after their edges/analyzer release succeeds.
+      const built = withNativeOwners(contourOwners => {
+        const edges: Edge[] = [];
         for (const { curve, reverse } of contour.curves) {
-          if (curve.type === 'line') edges.push(makeLine(toWorld(reverse ? curve.end : curve.start), toWorld(reverse ? curve.start : curve.end)));
-          else if (curve.type === 'circle') edges.push(makeCircle(curve.radius, toWorld(curve.center), normal));
-          else edges.push(makeThreePointArc(toWorld(reverse ? curve.end : curve.start),
-            toWorld(circlePoint(curve, curve.angle + curve.sweep / 2)), toWorld(reverse ? curve.start : curve.end)));
+          if (curve.type === 'line') edges.push(contourOwners.own(makeLine(toWorld(reverse ? curve.end : curve.start), toWorld(reverse ? curve.start : curve.end))));
+          else if (curve.type === 'circle') edges.push(contourOwners.own(makeCircle(curve.radius, toWorld(curve.center), normal)));
+          else edges.push(contourOwners.own(makeThreePointArc(toWorld(reverse ? curve.end : curve.start),
+            toWorld(circlePoint(curve, curve.angle + curve.sweep / 2)), toWorld(reverse ? curve.start : curve.end))));
         }
-        const wire = assembleWire(edges);
-        wires.push(wire);
-        const face = makeFace(wire);
-        faces.push(face);
-        const analyzer = new (getOC().BRepCheck_Analyzer)(face.wrapped, true, false, false);
-        try { if (!analyzer.IsValid()) throw new Error('Un contorno no forma una cara plana válida. Revisa sus intersecciones y cierre.'); }
-        finally { analyzer.delete(); }
-      } finally { edges.forEach((edge) => edge.delete()); }
+        const wire = contourOwners.own(assembleWire(edges));
+        const face = contourOwners.own(makeFace(wire));
+        const analyzer = contourOwners.own(new (getOC().BRepCheck_Analyzer)(face.wrapped, true, false, false));
+        if (!analyzer.IsValid()) throw new Error('Un contorno no forma una cara plana válida. Revisa sus intersecciones y cierre.');
+        return { wire, face };
+      }, result => [result.wire, result.face], 'Entity contour construction or release failed.');
+      owners.ownAll([built.wire, built.face]);
+      wires.push(built.wire);
+      faces.push(built.face);
     }
-    const containers = contours.map((contour, index) => {
-      const vertex = makeVertex(toWorld(contour.curves[0].curve.start));
-      try { return faces.flatMap((face, candidate) => candidate !== index && measureDistanceBetween(vertex, face) <= JOIN_TOLERANCE ? [candidate] : []); }
-      finally { vertex.delete(); }
-    });
+    const containers = contours.map((contour, index) => withNativeOwners(vertexOwners => {
+      const vertex = vertexOwners.own(makeVertex(toWorld(contour.curves[0].curve.start)));
+      return faces.flatMap((face, candidate) => candidate !== index && measureDistanceBetween(vertex, face) <= JOIN_TOLERANCE ? [candidate] : []);
+    }, undefined, 'Entity contour containment or release failed.'));
     for (let index = 0; index < contours.length; index++) {
       const depth = containers[index].length;
       if (depth % 2) continue;
       const holes = wires.filter((_, hole) => containers[hole].length === depth + 1 && containers[hole].includes(index));
-      const face = holes.length ? addHolesInFace(faces[index], holes) : faces[index].clone();
-      try {
+      // Retain the result until its temporary face/direction have been released.
+      const solid = withNativeOwners(regionOwners => {
+        const face = regionOwners.own(holes.length ? addHolesInFace(faces[index], holes) : faces[index].clone());
         if (operation.type === 'extrude') {
-          const direction = new Vector(normal.map((value) => value * operation.depth) as Vec3);
-          try { solids.push(basicFaceExtrusion(face, direction)); } finally { direction.delete(); }
-        } else {
-          solids.push(revolution(face, frame?.origin ?? onSketchPlane(plane, 0, 0, offset),
-            frame ? frameYDirection(frame) : plane === 'XY' ? [0, 1, 0] : [0, 0, 1], operation.angle));
+          const direction = regionOwners.own(new Vector(normal.map((value) => value * operation.depth) as Vec3));
+          return regionOwners.own(basicFaceExtrusion(face, direction));
         }
-      } finally { face.delete(); }
+        return regionOwners.own(revolution(face, frame?.origin ?? onSketchPlane(plane, 0, 0, offset),
+          frame ? frameYDirection(frame) : plane === 'XY' ? [0, 1, 0] : [0, 0, 1], operation.angle));
+      }, result => [result], 'Entity region construction or release failed.');
+      solids.push(owners.own(solid));
     }
-    if (solids.length === 1) return solids.pop()!;
-    return makeCompound(solids).asShape3D();
-  } finally {
-    solids.forEach((solid) => solid.delete()); faces.forEach((face) => face.delete()); wires.forEach((wire) => wire.delete());
-  }
+    if (solids.length === 1) return solids[0];
+    // makeCompound consumes its inputs. Build the same compound without consuming
+    // these arena-owned solids, and keep exactly one owner of its raw embind object.
+    const oc = getOC(), builder = owners.own(new oc.TopoDS_Builder());
+    let nativeCompound: TopoDS_Compound | undefined, adopted = false;
+    owners.own({ delete: () => { if (!adopted) nativeCompound?.delete(); } });
+    nativeCompound = new oc.TopoDS_Compound();
+    builder.MakeCompound(nativeCompound);
+    for (const solid of solids) builder.Add(nativeCompound, solid.wrapped);
+    const compound = new Compound(nativeCompound);
+    adopted = true; // Plain disarm before fallible wrapper registration.
+    return owners.own(compound).asShape3D();
+  }, result => [result], 'Entity profile construction or release failed.');
 }

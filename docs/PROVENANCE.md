@@ -1380,3 +1380,144 @@ isolated Save As/reopen and exact refs/IDs. UI metrics cover volume and bounds,
 not surface area. Its authored flow is unexecuted until source-specific evidence
 appears in [VALIDATION.md](VALIDATION.md); it does not establish broader
 interaction, interoperability or platform support.
+
+## Source-solve and native component fixtures
+
+These 90 additional cases are original synthetic constructions authored for
+this project: 18 entity-profile ownership, 15 source-solve registry, four raw
+engine admission, 14 additive UntilNext, 21 positive closed-tool and 18 native
+face-occurrence cases. Inputs are generated in memory from coordinates,
+constraints, boxes, cylinders and raw native compounds using the declared
+dependencies. No imported/private model, external application output or vendor
+binary supplies a fixture or expected geometry. Lengths use mm, area mm² and
+volume mm³. Written case partitions describe inventory; actual aggregate runs
+belong in [VALIDATION](VALIDATION.md#source-solve-and-native-component-composition--2026-10-15).
+The focused 109-case invocation also includes the existing 19 Cut-classification
+cases described above; those 19 are not new cases in this composition.
+
+### Entity-profile received-resource ownership
+
+[kernel.profiles.ownership.test.ts](../src/cad/kernel.profiles.ownership.test.ts)
+constructs one or two radius-one circular contours centered at `(3,0)` and
+`(9,0)`, extruded 4 mm. Each cylinder has `V=4π` and
+`A=2πr(r+h)=10π`. With frame origin `(4,5,6)`, X `(1,0,0)` and normal
+`(0,0,1)`, bounds are `(6,4,6)` to `(8,6,10)` for one region, or to `(14,6,10)`
+for two. The deliberately supplied legacy offset 999 must not be reapplied
+when an explicit frame is present. BRep validity and individual solid counts
+are checked; volume/area tolerance is `1e-5`, bounds `1e-6` mm.
+
+Faults operate on actual received wrappers and their project ownership scopes:
+second-contour construction with two earlier release failures; registration
+before/after insertion for extrusion, revolution, contour transfer and compound
+wrapper; completed-result retirement after cleanup failure; a throwing compound
+type assertion; extrusion input access; raw compound construction/adoption and
+native Add failure. Distinct wires, their bounds and transfer counts identify
+the second contour rather than counting registration calls as new geometry.
+Actual native deletion precedes cleanup sentinels. Checks preserve primary/error
+identity and one release attempt for each received owner, including the raw
+compound's single adoption owner. An unrelated caller-owned `10×8×3` box remains
+outside those scopes, with V240 and unchanged bounds. These cases do not prove
+SDK-internal allocation safety or total leak freedom.
+
+### Real solves, historical prefixes and raw engine admission
+
+[kernel.sketch-solves.test.ts](../src/cad/kernel.sketch-solves.test.ts) starts a
+circle at radius 1 with center `(3,0)`, fixes that center and drives radius to
+2. The independent radius bound is `abs(r-2) <= 1e-7` mm. A driven radius with
+nominal value 999 must measure 2 freshly; the fully defined result has zero
+degrees of freedom. Removing the center fixation leaves two free translations;
+adding a conflicting center fixation must retain an actual failed solve and
+publish no fallback success. Tests check the full result and its actual
+visual/maps, not an injected success status.
+
+Other cases cover suppressed/unavailable sources, failure after visual/map
+staging, detached returned views, source/earlier-prefix edits, later-definition
+separation, forged/cross-build handles and checkpoints, copied reader methods,
+revocation and mutations during staging. An XZ datum offset 5 plus sketch offset
+3 has independent frame origin `(0,-8,0)`, X `(1,0,0)`, normal `(0,-1,0)`;
+changed or unavailable datum state invalidates its witness. This checks metadata
+freshness, not native face-to-owner association or associative instance replay.
+
+The four [raw engine cases](../src/cad/kernel.sketch-solves.raw.test.ts) call the
+actual sketch-only engine without initializing native CAD. Rejected pattern
+getters and ignored suppressed-sketch getters stay unread; noncloneable ignored
+extras preserve ordinary rendering while withholding certification for that
+prefix. An ordinary throwing getter remains local and prevents later
+reconstruction. Rendered points satisfy `(x-3)²+y²=4` within `1e-6` mm² and z=0.
+
+### Additive first entry versus subtractive exit
+
+[kernel.until-next-add-resolution.test.ts](../src/cad/kernel.until-next-add-resolution.test.ts)
+uses a `10×10×8` box minus an enclosed `6×6×4` cavity: V656 and A688.
+A radius-one ray starts at the cavity floor z2. Add reaches the first complete
+entry at z6, producing a height-4 tool V4π/A10π and final
+V`656+4π`/A`688+6π`. Cut reaches the exit z8, producing V6π/A14π;
+only the roof is removed, giving final V`656-2π`/A`688+2π`.
+The forward Common is V2π in both cases. Copying a height-2 tool instead gives
+V`656+2π`/A`688+4π`, exposing the difference from regeneration.
+
+Four supplied placements cover +20X translation, a half-turn frame, reflected
+normal/depth parity and a negative physical Z ray. These are supplied-frame
+component cases, not tests of an actual pattern plan. A foreign box earlier on
+the same ray stays borrowed and does not supply a limit. Probes distinguish the
+near/deep cavity, roof and material outside the profile. A remote target proves
+separation 14 mm; gaps `0`, `1e-9` and `1e-5` mm distinguish contact/near from a
+completed miss at the component's `1e-7` mm resolution. A partial roof at
+x≤5.5 has forward volume `4π/3 + √3/2` and no complete profile cap.
+Borrowed-prism rejection, original construction failures, query cleanup after
+miss/incomplete observations and retirement of a completed tool preserve their
+causal and ownership boundaries.
+
+### Positive closed temporary tools
+
+[kernel.closed-tools.test.ts](../src/cad/kernel.closed-tools.test.ts) starts with
+an annulus R2/r1/height3: `V=π(4-1)3=9π`,
+`A=2π(4-1)+2π(2+1)3=24π`. Adding a separate `2×2×2` box gives
+V`8+9π`/A`24+24π` and two tool regions, while persistent-owner validation still
+rejects two solids. Reversed parent/child orientations exercise accumulated
+native orientation; repeated occurrences remain two natively even when SDK
+solid enumeration deduplicates them. Overlapping `2×3×4` boxes at x0..2 and
+x1..3 reject as a compound, while their native union has V36/A66. Two touching
+`2³` cubes are permitted as a two-region tool (V16/A48); their union has A40.
+Loose faces/edges, an empty compound, inverted material and a five-face open
+box shell reject without consuming healthy borrowed inputs.
+
+Two radius-one columns through a `12×6×8` owner produce a height-8 tool
+V16π/A36π and final V`576-16π`/A`432+28π`. Two columns with different cap
+heights must not become an invented complete exit: the connected target has
+V168/A236 and forward material V2.5π. Two additive regions from z2 to z6 in
+the enclosed cavity produce V8π/A20π, with final V`656+8π`/A`688+12π`;
+the intervening cavity remains empty. Query faults exercise masses 0, -1, NaN
+and Infinity after the real native query, an original mass-query error,
+analyzer release and a loose-topology primary followed by release failure.
+
+For these Add/closed-tool fixtures, volume and area use tolerance `1e-5` in
+their respective units and bounds `1e-6` mm. Independent interior/exterior
+probes use 0.2 mm cubes, expected common volume 0.008 or zero mm³, tolerance
+`1e-7` mm³. Expected material is specified analytically, not calculated with
+the classifier or validator being tested.
+
+### Native face occurrences and retained clone lifetime
+
+[kernel.native-face-membership.test.ts](../src/cad/kernel.native-face-membership.test.ts)
+creates a fresh `12×8×4` box, V384 and
+`A=2(12×8+12×4+8×4)=352`; its bottom face has A96 and bounds
+`(0,0,0)` to `(12,8,0)`. Bounds select that fixture face only; the membership
+helper never uses geometry to infer identity. A fresh coincident box and an
+explicit geometric copy share metrics but not the original face's TShape.
+Real clone wrappers retain membership; reversed orientation remains `IsSame`
+but differs in `IsEqual`. A single +20X transform with `copyGeom=false` retains
+TShape while changing Location, with moved bounds `(20,0,0)` to `(32,8,4)`.
+Its actual moved face occurrence supplies the fixture; equal matrices from
+separate transforms are not assumed to create equal location datum chains.
+
+Native compounds exercise repeated occurrences and actual empty topology.
+After every original body/face wrapper is retired, retained clones still undergo
+BRep, solid-count, mass, area, bounds and interior/exterior probe checks.
+Tolerances are `1e-5` for mass/area, `1e-6` mm for bounds and `1e-7` mm³ for
+the 0.2 mm probes centered at `(6,4,2)` and `(13,4,2)`.
+Other cases reject null/non-FACE operands and preserve actual More, post-match
+Next and IsSame failures, matched-Current/final-Explorer cleanup failures, and
+registration failures before/after insertion with both cleanup errors. Numeric
+success cannot escape a failed traversal or release. These eighteen cases
+establish neither a historical support issuer nor same-instance correspondence.

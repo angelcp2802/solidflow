@@ -389,3 +389,77 @@ symbolic, SSR and programmatic engine tests. Its [fixture provenance](PROVENANCE
 and [actual results](VALIDATION.md) define the evidence boundary. Circular/mirror
 interaction, picking, stale-prefix rejection, binding edits, undo/redo, AUTO,
 additive ALL and the broader recipe/lifecycle requirements remain open.
+
+## Real source solves and native component foundations
+
+The source-solve registry in
+[kernel.sketch-solves.ts](../src/cad/kernel.sketch-solves.ts) records the actual
+entity-sketch solve performed at its historical engine step. The full
+`SketchSolveResult` is retained, including status, degrees of freedom, residual,
+conflicts, iteration count and fresh driven measurements. A failed solve
+publishes neither fallback geometry nor a success handle. Underdefined results
+remain underdefined; retaining them does not establish a unique solution.
+
+Definitions are admitted inside the existing per-feature guards without
+invoking raw accessors. Certification requires a representable, unchanged
+historical prefix. An otherwise usable raw sketch with a noncloneable ignored
+extra can still render normally, but receives no certificate; a later source
+cannot certify a prefix containing that unrepresentable definition. Publication
+follows successful visual/map staging and a second prefix/support check.
+Returned views are detached copies. Private WeakMaps bind handles, checkpoints
+and the actual reader to one build; copied reader methods, forged/cross-build
+handles, edits and revocation cannot supply authority. Reconstruction finally
+revokes the session. Evaluation checks its source-solve checkpoint before target
+allocation and rechecks it before staging.
+
+This is evidence of the actual solve, historical definitions and resolved
+frame/support metadata. The retained support object is not a native face/body
+ownership witness. Entity recipes remain gated until native materialization,
+support correspondence and their model/bridge/UI contracts are implemented.
+`entityProfileSolid` materializes an already supplied profile without a hidden
+second solve. Its received edges, wires, faces, containment vertices, directions
+and region solids now use the shared ownership scope. Nested transfers and the
+non-consuming native compound assembly retain results until sibling cleanup
+succeeds; raw compound adoption has one deletion owner. A cleanup error
+withholds and retires the candidate while preserving primary causes. This
+does not cover allocations lost inside an SDK factory before it returns.
+
+[validatePositiveClosedTool](../src/cad/kernel.closed-tools.ts) inspects borrowed
+temporary tools non-destructively. A tool needs valid BRep, finite bounds and
+one or more closed, strictly positive finite-volume solid occurrences. Repeated
+native occurrences, inverted/invalid/open solids and loose topology reject.
+Completed native Common distinguishes interior overlap from permitted boundary
+contact; query failures cannot become proof of separation. The evaluator uses
+this validator only for tools. Historical sources, current targets and final
+persistent owners still require one valid closed solid. Existing temporary
+working-island and genuinely empty-compound rules remain unchanged.
+
+[resolveUntilNextAdd](../src/cad/kernel.until-next-resolution.ts) adds the first
+complete material-entry component alongside the first-exit Cut component.
+Forward Common reports existing owner material, separately from tool volume and
+actual added/removed volume. A completed topology-free compound and completed
+native separation greater than `1e-7` mm establish an empty-forward observation.
+Contact/near geometry and material lacking a complete whole-profile face remain
+distinct observations. Borrowed owners, repeated prism wrappers/handles and
+construction/query/cleanup failures cannot be silently treated as misses.
+The caller still owes the exact owner route, progressive revision, physical ray
+and selected/ALL applicability policy. These components do not activate
+UntilNext in saved pattern recipes or additive ALL.
+
+[countNativeFaceOccurrences](../src/cad/kernel.native-face-membership.ts) counts
+all native FACE occurrences sharing TShape and Location with a borrowed face;
+orientation is deliberately excluded by `IsSame`. It rejects null/non-FACE
+operands, owns only the query objects and withholds the count if traversal,
+registration or cleanup fails. The query accepts non-null shape containers and
+is not a body validator. A count is not a historical owner certificate, epoch,
+lineage or same-instance parent-output correspondence. Build-local issuance,
+safe retained lifetimes, datum chains and rechecks before allocation/publication
+remain required; keys, normals, bounds, proximity and transformed old faces
+cannot replace that work.
+
+The [original component fixtures](PROVENANCE.md#source-solve-and-native-component-fixtures)
+add 90 cases. Exact-source executions are recorded in
+[VALIDATION](VALIDATION.md#source-solve-and-native-component-composition--2026-10-15).
+These foundations do not enable general entity/associative profiles, saved
+UntilNext, transformed or instance references, additive ALL, AUTO, variation,
+nested regeneration or the complete creation/split/consumption/lifecycle scope.

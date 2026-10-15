@@ -1,5 +1,6 @@
 import { cast, getOC, type Shape3D } from 'replicad';
 import { copyBodyShape, validateBodyShape } from './kernel.bodies';
+import { validatePositiveClosedTool } from './kernel.closed-tools';
 import { NextBoundaryUnavailableError, untilNextTool } from './kernel.extrusion-limits';
 import { withNativeOwners, type NativeOwners } from './kernel.native-ownership';
 import type { Vec3 } from './kernel.types';
@@ -12,9 +13,11 @@ export interface UntilNextCutInput {
   readonly origin: Vec3;
   /** Unit physical extrusion ray, including signed reflection/depth exactly once. */
   readonly direction: Vec3;
-  /** Returns one fresh owned positive prism along that physical ray. */
+  /** Returns one fresh owned positive closed prism, possibly with several regions, along that physical ray. */
   readonly makePrism: (length: number, start?: number) => Shape3D;
 }
+export type UntilNextAddInput = UntilNextCutInput;
+/** Forward Common observes existing owner material, not tool or changed volume. */
 export interface ForwardMaterialEvidence {
   readonly solidCount: number;
   readonly volumeMm3: number;
@@ -25,6 +28,8 @@ export type UntilNextCutResolution =
   | { readonly kind: 'empty-forward'; readonly topologyFreeCompound: true; readonly distanceMm: number }
   | { readonly kind: 'contact-or-near'; readonly evidence: 'lower-dimensional-common' | 'empty-common-within-resolution'; readonly distanceMm?: number }
   | { readonly kind: 'incomplete-limit'; readonly forward: ForwardMaterialEvidence; readonly reason: NextBoundaryUnavailableError['reason']; readonly error: NextBoundaryUnavailableError };
+
+export type UntilNextAddResolution = UntilNextCutResolution;
 
 // Common is allowed to return lower-dimensional topology, not only Shape3D.
 type RawShape = Parameters<typeof cast>[0];
@@ -126,7 +131,7 @@ function separation(body: Shape3D, prism: Shape3D): number {
  * The caller owns only a successful `complete.tool`; all other wrappers remain
  * local. Native/Boolean/cleanup errors escape unchanged or with retained cause.
  */
-export function resolveUntilNextCut(input: UntilNextCutInput): UntilNextCutResolution {
+function resolveUntilNextMaterial(input: UntilNextCutInput, operation: 'add' | 'subtract'): UntilNextCutResolution {
   const origin = vector(input.origin, 'UntilNext origin'), direction = vector(input.direction, 'UntilNext physical ray');
   if (Math.abs(Math.hypot(...direction) - 1) > 1e-8 || typeof input.makePrism !== 'function') {
     throw new Error('UntilNext requires a unit physical ray and a real prism factory.');
@@ -164,7 +169,7 @@ export function resolveUntilNextCut(input: UntilNextCutInput): UntilNextCutResol
       if (!Number.isFinite(length) || length > 10_000_000) throw new Error('The native forward query exceeds the finite UntilNext extent.');
       // Bounds enclose the query only. Actual Common and, for empty results,
       // native separation establish the classification.
-      const prism = owners.own(makePrism(length)); validateBodyShape(prism); finiteBounds(prism);
+      const prism = owners.own(makePrism(length)); validatePositiveClosedTool(prism);
       const intersection = common(target, prism, owners), observed = inspect(intersection);
       if (observed.kind === 'contact') return { kind: 'contact-or-near', evidence: 'lower-dimensional-common' };
       if (observed.kind === 'empty') {
@@ -176,8 +181,8 @@ export function resolveUntilNextCut(input: UntilNextCutInput): UntilNextCutResol
       // Only the ordinary full-cap helper's explicitly typed exhaustion is
       // converted below, AFTER this scope's cleanup. No broad error-as-miss.
       forward = observed.evidence;
-      const tool = owners.own(untilNextTool(target, origin, direction, makePrism, true));
-      validateBodyShape(tool); finiteBounds(tool);
+      const tool = owners.own(untilNextTool(target, origin, direction, makePrism, operation === 'subtract'));
+      validatePositiveClosedTool(tool);
       return { kind: 'complete', tool, forward: observed.evidence };
     }, result => result.kind === 'complete' ? [result.tool] : [], 'UntilNext classification or owned-resource release failed.');
   } catch (error) {
@@ -186,4 +191,14 @@ export function resolveUntilNextCut(input: UntilNextCutInput): UntilNextCutResol
     if (error instanceof NextBoundaryUnavailableError && forward) return { kind: 'incomplete-limit', forward, reason: error.reason, error };
     throw error;
   }
+}
+
+/** First complete material exit along the caller-resolved physical ray. */
+export function resolveUntilNextCut(input: UntilNextCutInput): UntilNextCutResolution {
+  return resolveUntilNextMaterial(input, 'subtract');
+}
+
+/** First complete material entry; selected-owner merge/effect checks stay with the caller. */
+export function resolveUntilNextAdd(input: UntilNextAddInput): UntilNextAddResolution {
+  return resolveUntilNextMaterial(input, 'add');
 }
