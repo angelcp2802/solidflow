@@ -1,14 +1,14 @@
 # Project status and review queue
 
-Snapshot: 2026-10-15, 09:40 UTC. This is a dated review index. The default branch
+Snapshot: 2026-10-15, 10:22 UTC. This is a dated review index. The default branch
 is the published source baseline; open pull requests are unmerged proposals.
 Refresh their state, base/head and commit-specific Actions results before an
 integration decision.
 
-This queue records twelve open, unmerged proposals: eight ready for review
-(#27, #29, #31, #33, #34, #36, #37 and #39) and four drafts
-(#35, #38, #40 and #41).
-The CAD dependency order is #27 → #29 → #31 → #34 → #36 → #37 → #38 → #39 → #40 → #41.
+This queue records thirteen open, unmerged proposals: eight ready for review
+(#27, #29, #31, #33, #34, #36, #37 and #39) and five drafts
+(#35, #38, #40, #41 and #42).
+The CAD dependency order is #27 → #29 → #31 → #34 → #36 → #37 → #38 → #39 → #40 → #41 → #42.
 [#33](https://github.com/angelcp2802/solidflow/pull/33) and
 [#35](https://github.com/angelcp2802/solidflow/pull/35) are parallel main-based
 lanes. Ready-for-review is a PR state, not approval or integration; the ready
@@ -33,28 +33,30 @@ with dependencies that determine their review and integration order:
 | 4 | [#34](https://github.com/angelcp2802/solidflow/pull/34), ready for review | #31 | Owned linear/circular pattern and mirror instances, historical sources and targeted merge. | Persistent instance outputs, source history and target routes. |
 | 5 | [#36](https://github.com/angelcp2802/solidflow/pull/36), ready for review | #34 | Selected historical feature-geometry contributions routed to current owners. | Contribution ownership, exact source/target bindings and inherited security triage. |
 | 6 | [#37](https://github.com/angelcp2802/solidflow/pull/37), ready for review | #36 | Initial selected per-instance intrinsic rectangle/circle cut and merge regeneration with blind/ThroughAll endings. | Rebuilt tools versus geometry copying, historical provenance and late-failure atomicity. |
-| 7 | [#38](https://github.com/angelcp2802/solidflow/pull/38), draft | #37 | Cut-only dynamic ALL over the complete current catalog, with no saved derived target snapshot. | Confirmed behind-plane ThroughAll/ALL rejection needs a focused correction; retain inventory, lifecycle and interaction review. |
+| 7 | [#38](https://github.com/angelcp2802/solidflow/pull/38), draft | #37 | Cut-only dynamic ALL over the complete current catalog, with no saved derived target snapshot. | Confirmed behind-plane ThroughAll/ALL rejection is unchanged on this head; correction proposed in #42. Retain inventory, lifecycle and interaction review. |
 | 8 | [#39](https://github.com/angelcp2802/solidflow/pull/39), ready for review | #38 | Typed native UntilNext forward classification and tool ownership foundation. | Component evidence and owner boundaries; saved recipe/bridge/scope policies remain inactive. |
 | 9 | [#40](https://github.com/angelcp2802/solidflow/pull/40), draft; head `7cec5c8d` | #39 | Explicit fixed-world principal-plane UpToSurface policy, property-panel preview/Apply and saved reopening. | Bounded source review completed; hold for prerequisite #38 and retain distinct hosted/local evidence. |
-| 10 | [#41](https://github.com/angelcp2802/solidflow/pull/41), draft; head `372e2524` | #40 | Historical real-solve registry and native Add-entry, closed-tool and face-occurrence foundations. | Bounded source review completed; hold for prerequisite #38, with a separate nonblocking provenance-link correction pending. |
+| 10 | [#41](https://github.com/angelcp2802/solidflow/pull/41), draft; head `372e2524` | #40 | Historical real-solve registry and native Add-entry, closed-tool and face-occurrence foundations. | Bounded source review completed; hold for prerequisite #38. The separate nonblocking provenance-link correction is proposed only in #42. |
+| 11 | [#42](https://github.com/angelcp2802/solidflow/pull/42), draft; head `746be890` | #41 | Conservative behind-plane no-op for intrinsic ALL cuts with unilateral ThroughAll; complete inventory and virtual roles retained. | Bounded source and local raw-evidence review completed; local checks and six hosted checks passed. #40 and #41 remain draft prerequisites. |
 
 Review from the earliest unmerged prerequisite against its actual base. A child
 contains unmerged ancestors; its checks do not mean those ancestors landed on
 `main`. Refresh affected bases and run their required checks after a parent
 changes. Do not skip draft prerequisites because a later child is ready for review.
-Bounded source reviews of #40 and #41 are complete. The confirmed #38 case keeps
-#38 and those dependent proposals in draft; #41 also has a nonblocking
-documentation-link correction pending. Review completion does not expand the
-recorded validation scope or change a PR's state automatically.
+Bounded source reviews of #40 and #41 are complete, along with the source
+and local raw-evidence reviews of #42. The confirmed #38 case is unchanged on its original head; its
+focused correction and the nonblocking provenance-link repair are proposed
+separately in #42. These dependent proposals remain in draft. Review completion
+does not expand the recorded validation scope or change a PR's state automatically.
 Contributions normally start from `main`; coordinate work on an existing
 increment rather than duplicating its branch.
 
 | Parallel lane | State and base | Review purpose |
 | --- | --- | --- |
-| [#33](https://github.com/angelcp2802/solidflow/pull/33) | Ready for review, `main`; head `79d746f6` before this documentation follow-up | Project index, review queue and matching Node type-update policy. Its main-based checks do not exercise the stacked CAD suites. |
+| [#33](https://github.com/angelcp2802/solidflow/pull/33) | Ready for review, `main`; head `33a7d843` before this status follow-up | Project index, review queue and matching Node type-update policy. Its main-based checks do not exercise the stacked CAD suites. |
 | [#35](https://github.com/angelcp2802/solidflow/pull/35) | Draft, `main`; head `0a0ab22a` | Desktop outcome/cleanup diagnostics and normal quit after readiness. Review its separate macOS crash and retained local failures. |
 
-All twelve proposals remain unmerged. This index records PR state and evidence,
+All thirteen proposals remain unmerged. This index records PR state and evidence,
 not contributor approval or authorization to merge.
 
 [#24](https://github.com/angelcp2802/solidflow/pull/24) and
@@ -165,8 +167,9 @@ remain required; programmatic and SSR checks do not establish real interaction.
 At this snapshot, #38 remains draft because one local reproduction on source
 `06cfdd5c` confirms an ALL/ThroughAll rejection: adding owner B wholly behind
 the sketch start plane (z=−10..−2) aborts the pattern even when positive-side
-owner A is valid. A focused correction is pending. This records that particular
-review finding, not a cause proven for the historical CI or local deadline
+owner A is valid. A focused correction is proposed separately in #42; #38's
+source is unchanged. This records that particular review finding, not a cause
+proven for the historical CI or local deadline
 failures below; their original evidence remains intact.
 
 The latest [#38](https://github.com/angelcp2802/solidflow/pull/38) source
@@ -426,7 +429,8 @@ recorded scopes; the standard launcher does not observe its inner Electron
 close event. Six hosted checks also passed for this head.
 
 One inherited provenance link still points to a nonexistent planned-workflow
-heading. Its nonblocking documentation correction is pending; the existing
+heading. Its nonblocking correction is proposed only in #42; #40 and #41 retain
+their original heads. The existing
 [production-renderer workflow and recorded evidence](https://github.com/angelcp2802/solidflow/blob/372e25245f1aecff8ac4b61c83ad702038fb32c1/docs/FEATURE_WORLD_LIMIT_FIXTURES.md#production-renderer-workflow-and-recorded-evidence)
 is the intended destination. This link issue is separate from #38's CAD finding.
 
@@ -436,11 +440,41 @@ saved UntilNext, variation, additive ALL, AUTO, nesting and broader ownership
 lifecycle remain required work. These passes do not erase the older failures,
 resolve the newly confirmed #38 case or establish general platform support.
 
+### ALL unilateral forward-material correction #42
+
+[#42](https://github.com/angelcp2802/solidflow/pull/42), head
+[`746be890`](https://github.com/angelcp2802/solidflow/commit/746be89089f5167271b21a3f69b7e3156711f68c),
+is based on #41 at `372e2524` and remains draft. Independent source and local raw
+validation reviews completed for the bounded correction: an intrinsic ALL cut
+with unilateral ThroughAll can retain a wholly behind-plane owner as an
+unchanged virtual output after a conservative native-bounds proof. Complete
+owner inventory, stale-state checks and budgets remain in force. Selected and
+bilateral behavior are unchanged; this does not activate entity-profile ALL.
+
+The [source-specific ledger](https://github.com/angelcp2802/solidflow/blob/746be89089f5167271b21a3f69b7e3156711f68c/docs/VALIDATION.md#all-unilateral-forward-material-correction-2026-10-15)
+records 15 new regressions (13 component and two engine cases), included in a
+41/41 focused pass and the local Windows full pass of 2,355/2,355 unit/CAD cases
+plus 32/32 IPC checks. Build, standard desktop smoke and the existing ALL UI
+workflow passed once with no overrides or retries. That UI workflow checks
+preview, Apply, Save As/reopen and actual child close/temporary-data cleanup;
+its existing fixture does not exercise the new behind-plane case. The standard
+launcher does not instrument its inner Electron close event. The new
+component/engine cases provide the behind-plane evidence.
+
+The [CI run](https://github.com/angelcp2802/solidflow/actions/runs/38718588646)
+and [security run](https://github.com/angelcp2802/solidflow/actions/runs/38718588535)
+record six successful checks for this head, observed on 2026-10-15 at 10:20 UTC.
+These outcomes do not establish general three-platform support or
+clear existing dependency/CodeQL findings. Original #38 remains unchanged and
+draft, #40/#41 remain draft prerequisites, and the inherited provenance anchor
+is repaired only in #42. This proposal does not erase previous failures or
+authorize integration, signing or release.
+
 ## Parallel desktop diagnostics proposal
 
 [#35](https://github.com/angelcp2802/solidflow/pull/35) addresses
 [#30](https://github.com/angelcp2802/solidflow/issues/30) on `main`, independently
-of the ten-proposal CAD stack above. It preserves the primary launch outcome
+of the eleven-proposal CAD stack above. It preserves the primary launch outcome
 alongside cleanup errors and retains isolated temporary data when the owned
 child's close was not observed. It is draft and unmerged; #30 remains open.
 
@@ -521,7 +555,7 @@ has passing checks:
 | STEP import | [#12](https://github.com/angelcp2802/solidflow/issues/12) | Native file-dialog/editor workflows and independent interoperability. |
 | Sketch offsets | [#14](https://github.com/angelcp2802/solidflow/issues/14), [#20](https://github.com/angelcp2802/solidflow/issues/20) | Broader offset acceptance and interaction for disconnected components already present in the baseline. |
 | Persistent references | [#21](https://github.com/angelcp2802/solidflow/issues/21) | Review #27 and expand beyond its bounded semantic-reference family. |
-| Body management | [#26](https://github.com/angelcp2802/solidflow/issues/26) | Review #29/#31/#34/#36/#37/#38/#39/#40/#41; full feature regeneration/varying sketches, additive ALL and dynamic geometry/automatic scope, broader nested/dependent ownership, lifecycle, legacy adoption and real interaction/reference coverage. |
+| Body management | [#26](https://github.com/angelcp2802/solidflow/issues/26) | Review #29/#31/#34/#36/#37/#38/#39/#40/#41/#42; full feature regeneration/varying sketches, additive ALL and dynamic geometry/automatic scope, broader nested/dependent ownership, lifecycle, legacy adoption and real interaction/reference coverage. |
 
 Assemblies, technical drawings, sheet metal, simulation and broader import and
 manufacturing workflows remain part of the [roadmap](ROADMAP.md). This queue
