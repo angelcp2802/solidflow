@@ -26,7 +26,7 @@
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "three": "0.186.1",
-    "lucide-react": "1.55.0",
+    "lucide-react": "1.56.0",
     "replicad": "1.1.0",
     "replicad-opencascadejs": "1.1.0"
   },
@@ -40,7 +40,7 @@
     "electron-builder": "^26.0.12",
     "typescript": "7.0.2",
     "vite": "8.3.4",
-    "vitest": "5.0.3"
+    "vitest": "5.0.4"
   },
   "build": {
     "appId": "com.solidflow.desktop",
