@@ -21,6 +21,23 @@ can be exported as STEP and STL. [STEP import](STEP_IMPORT.md) adds one closed
 solid as an owned base for downstream operations. Each operation has explicit
 limitations.
 
+## Work in review
+
+Use the dated [project status and review queue](PROJECT_STATUS.md) for the
+default-branch baseline, open proposal states, dependency order and planned
+integration. Refresh each proposal's actual base/head and checks before an
+integration decision. The [body-management](BODY_MANAGEMENT.md),
+[body-pattern](BODY_PATTERNS.md) and [feature-regeneration](FEATURE_REGENERATION.md)
+contracts describe the proposed ownership, scope and regeneration boundaries;
+unmerged work does not establish a completed capability on the default branch.
+
+Commit-specific results, historical failures, security findings and remaining
+acceptance work are retained in the review queue and
+[validation record](VALIDATION.md), including links to each historical source.
+Keep focused geometry, saved documents, scripted editor interaction, desktop
+lifecycle and platform jobs distinct. Passing checks do not explain earlier
+failures, establish general platform support or authorize binary publication.
+
 ## Next priorities
 
 1. Make Windows, macOS and Linux builds reproducible and verify real interaction

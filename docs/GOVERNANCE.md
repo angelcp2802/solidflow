@@ -18,30 +18,45 @@ Document-format changes need a migration or compatibility plan. Kernel and solve
 
 ## Merging and releasing
 
-The normal merge policy is a pull request with at least one approving review from another contributor with review authority, plus the required passing checks. The review covers correctness, scope, compatibility and user-visible limits; successful CI does not replace it or the manual validation a change requires.
+The normal merge policy is a pull request with a recorded review and all six
+required passing checks. Record correctness, scope, compatibility, validation
+and known user-visible limits in the pull request. Successful CI does not
+replace that review or the manual validation a change requires.
 
-While the project has a single maintainer, that maintainer may use an administrator bypass if the repository's actual rules permit it. This is an explicit exception, not an independent approval. The pull request must record why the exception was needed, the checks performed and known limits; configured checks must pass. Bypass must not be used to conceal failed checks or dismiss an unresolved security issue. As additional maintainers join, the independent-review rule should become the routine path. GitHub rule enforcement and available bypass permissions must be checked in repository settings rather than inferred from this document.
+While the project has a single maintainer, GitHub requires zero approving
+reviews. The maintainer can use the normal pull-request path after recording
+the review and satisfying every required check; self-approval and administrator
+bypass are not needed. An independent contributor's review remains preferred
+when available. A ready-for-review state is not an approval or merge decision.
 
-### Enforced repository configuration — 2026-10-11
+As the review team grows, requiring at least one independent approval should be
+proposed explicitly. Any change to that policy or its GitHub enforcement needs
+repository-owner approval and a recorded decision; it must not happen silently
+as part of a feature or automation change. Inspect the actual repository rules
+before merging rather than inferring enforcement from this document.
+
+### Observed repository configuration — 2026-10-15
 
 Two active rulesets target the default branch, currently `main`:
 
 - [Review main](https://github.com/angelcp2802/solidflow/settings/rules/24886026)
-  requires a pull request, one approval, dismissal of stale approvals and
-  resolved review conversations. Repository administrators have a bypass for
-  pull requests only, subject to the recorded single-maintainer exception above.
+  requires a pull request with zero required approving reviews. Dismissal of
+  stale approvals and resolution of review conversations remain enabled. This
+  supports the recorded single-maintainer review path above without bypass.
 - [Protect main checks](https://github.com/angelcp2802/solidflow/settings/rules/24886149)
   has no bypass actors. It blocks branch deletion and force pushes, requires
   linear history and an up-to-date tested branch, and requires six checks:
   `Desktop (win-x64, Node 24)`, `Desktop (mac-arm64, Node 24)`,
   `Desktop (linux-x64, Node 24)`, `Dependency audit (high/critical)`,
   `CodeQL (JavaScript/TypeScript)` from GitHub Actions, plus the separate
-  `CodeQL` result from GitHub Advanced Security. The review exception does not
-  bypass these checks.
+  `CodeQL` result from GitHub Advanced Security. The zero-approval review
+  setting does not bypass or weaken these checks.
 
-Only squash merging is enabled. These are observed repository settings, not
-settings provisioned by the source checkout; administrators should verify them
-after changing rules or workflows. A fork needs its own repository configuration.
+Repository settings allow squash merging only; merge commits and rebase merging
+are disabled. Automatic branch deletion after merge is enabled and auto-merge
+is disabled. These are observed repository settings, not settings provisioned
+by the source checkout; administrators should verify them after changing rules
+or workflows. A fork needs its own repository configuration.
 
 Releases should identify their source revision, changes, supported artifacts and known limits. Binary artifacts need hashes and an accurate signing status. Platform build checks, interactive runtime checks and packaged-application checks must be distinguished. CI output is not automatically an endorsed release, and an unexecuted package must not be described as tested.
 

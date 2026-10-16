@@ -1,14 +1,14 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { createHash } from 'node:crypto';
-import { afterAll, afterEach, beforeAll, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, expect, it, vi } from 'vitest';
 import initOpenCascade from 'replicad-opencascadejs';
 import { getOC, importSTEP, setOC, sketchCircle, type Shape3D } from 'replicad';
 import { CadEngine } from './kernel.engine';
 import type { CadResult, ExtrudeFeature, Feature, SketchFeature } from './kernel.types';
 import { createExtrudeEndExample } from '../examples/extrude-end-conditions';
 import { parseDocument, serializeDocument } from '../model/document';
-import { throughAllBossTool, untilNextTool } from './kernel.extrusion-limits';
+import { throughAllBossTool, untilNextTool, upToSurfaceTool } from './kernel.extrusion-limits';
 
 const engine=new CadEngine();
 beforeAll(async()=>setOC(await initOpenCascade({wasmBinary:await readFile(createRequire(import.meta.url).resolve('replicad-opencascadejs/wasm')),print:()=>undefined})),60_000);
@@ -137,7 +137,7 @@ it('distinguishes the first and last exits of one toroidal face without using bo
  const next=untilNextTool(torus,[-30,0,0],[1,0,0],make,true),all=throughAllBossTool(torus,[-30,0,0],[1,0,0],false,make);
  try{const first=preciseMetrics(next),last=preciseMetrics(all);expect(first.valid&&last.valid).toBe(true);expect(first.bounds[3]).toBeCloseTo(-Math.sqrt(96),4);expect(last.bounds[3]).toBeCloseTo(20,5);expect(last.volume).toBeGreaterThan(first.volume);}
  finally{next.delete();all.delete();torus.delete();}
-});
+},30_000);
 it('rebinds a target face after changing its parent depth and propagates target suppression',()=>{
  const features=box(),face=good(features).faces!.find(face=>face.frame?.normal[2]===1)!.ref;
  const rest:Feature[]=[sketch('profile',70),{...extrude('up','profile',-1),endCondition:{kind:'upToSurface',target:{kind:'face',face}}}];
@@ -181,6 +181,63 @@ function pinVolume(radius:number):number{
  for(let i=0;i<=n;i++){const angle=i*step,value=4*radius*radius*Math.cos(angle)**2*(30-Math.sqrt(400-radius*radius*Math.sin(angle)**2));sum+=value*(i===0||i===n?1:i%2?4:2);}
  return sum*step/3;
 }
+it.each([false, true])('protects a shared cylindrical limit face when native splitting fails=%s', failAfterBuild => {
+  const owners: { delete(): void }[] = [];
+  const own = <T extends { delete(): void }>(value: T): T => { owners.push(value); return value; };
+  let failed = false, operationError: unknown;
+  try {
+    // Original cylinder: R20, length100 along -Y, centre section (x0,z30).
+    const cylinderSketch = sketchCircle(20, { plane: 'XZ', origin: [0, 50, 30] });
+    let cylinder: Shape3D;
+    try { cylinder = own(cylinderSketch.extrude(100)); } finally { cylinderSketch.delete(); }
+    const faces = cylinder.faces; faces.forEach(own);
+    const curved = faces.filter(face => face.geomType === 'CYLINDRE');
+    expect(curved).toHaveLength(1);
+    const target = curved[0], alias = own(target.clone());
+    expect(alias.isSame(target)).toBe(true);
+    const originalEdges = target.edges; originalEdges.forEach(own);
+    const expectedBounds = [-20, -50, 10, 20, 50, 50];
+    const expectCylinder = () => {
+      const actual = preciseMetrics(cylinder);
+      expect(actual.valid).toBe(true); expect(actual.solids).toBe(1);
+      expect(Math.abs(actual.volume - 40_000 * Math.PI)).toBeLessThan(5e-6);
+      expect(Math.abs(actual.area - 4_800 * Math.PI)).toBeLessThan(5e-6);
+      actual.bounds.forEach((value, index) => expect(Math.abs(value - expectedBounds[index])).toBeLessThan(5e-6));
+    };
+    expectCylinder();
+    const oc = getOC(), nativeBuild = oc.BRepAlgoAPI_Splitter.prototype.Build;
+    let builds = 0;
+    vi.spyOn(oc.BRepAlgoAPI_Splitter.prototype, 'Build').mockImplementation(function(this: InstanceType<typeof oc.BRepAlgoAPI_Splitter>, ...args) {
+      expect(this.NonDestructive()).toBe(true);
+      builds++; nativeBuild.apply(this, args);
+      if (failAfterBuild) throw new Error('Injected failure after native surface split.');
+    });
+    const make = (length: number, start = 0) => {
+      const profile = sketchCircle(5, { plane: 'XY', origin: [0, 0, start] });
+      try { return profile.extrude(length); } finally { profile.delete(); }
+    };
+    const operation = () => upToSurfaceTool({ face: alias }, [0, 0, 0], [0, 0, 1], make);
+    if (failAfterBuild) expect(operation).toThrow('Injected failure after native surface split.');
+    else {
+      const limited = own(operation()), actual = preciseMetrics(limited);
+      expect(actual.valid).toBe(true); expect(actual.solids).toBe(1);
+      expect(Math.abs(actual.volume - pinVolume(5))).toBeLessThan(5e-6);
+      const bounds = [-5, -5, 0, 5, 5, 30 - Math.sqrt(375)];
+      actual.bounds.forEach((value, index) => expect(Math.abs(value - bounds[index])).toBeLessThan(5e-6));
+    }
+    expect(builds).toBe(1);
+    expectCylinder(); expect(alias.isSame(target)).toBe(true);
+    const retainedEdges = alias.edges; retainedEdges.forEach(own);
+    expect(retainedEdges).toHaveLength(originalEdges.length);
+    for (const edge of originalEdges) expect(retainedEdges.filter(retained => retained.isSame(edge))).toHaveLength(1);
+  } catch (error) { failed = true; operationError = error; throw error; }
+  finally {
+    vi.restoreAllMocks();
+    const failures: unknown[] = [];
+    for (const owner of owners.reverse()) try { owner.delete(); } catch (error) { failures.push(error); }
+    if (failures.length) throw new AggregateError(failed ? [operationError, ...failures] : failures, 'Shared curved limit regression release failed.');
+  }
+}, 60_000);
 const uiCases=[
  {name:'Placa con corte por todo',height:12,kind:'throughAll',both:false,radius:8,volume:(4800-64*Math.PI)*12,bounds:[-40,-30,0,40,30,12],step:false},
  {name:'Placa por todo 35 mm',height:35,kind:'throughAll',both:false,radius:8,volume:(4800-64*Math.PI)*35,bounds:[-40,-30,0,40,30,35],step:false},

@@ -9,7 +9,7 @@ and selection overlays. A mesh is a visualization, not the modeling authority.
 | `electron/` | Main process, constrained preload bridge, file dialogs and local recovery |
 | `src/App.tsx`, `src/components/` | Command flow, property panels, sketch interaction and viewport |
 | `src/model/` | Serializable documents, validation, migration and dependencies |
-| `src/sketch/` | Pure 2D geometry, local constraint solver, trim and extend |
+| `src/sketch/` | 2D geometry, local constraint solver, trim and extend |
 | `src/cad/` | Worker transport, BRep reconstruction, feature operations and references |
 | `src/examples/`, `examples/` | Synthetic examples and saved editable documents |
 | `src/cad/fixtures/solidflow-ui/` | Versioned inputs from SolidFlow UI and regression baselines |

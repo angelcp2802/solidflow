@@ -2,24 +2,43 @@ import {
   ArrowDown,
   ArrowUp,
   ChevronDown,
+  Eye,
+  MousePointer2,
   Plus,
   RotateCw,
   Trash2,
 } from "lucide-react";
 import type {
   Feature,
+  BodyReference,
   LoftFeature,
   LoftSection,
+  PickableBody,
   SketchFeature,
   SweepFeature,
 } from "../cad/kernel.types";
 import { initialLoftSection, resolvedSweepPath } from "../model/advancedInputs";
+import { BodyList } from './BodyManagementPanel';
+import { setBodyOperationDraft } from '../model/bodyCommands';
+
+interface BodyEditor {
+  bodies: readonly PickableBody[];
+  selection: readonly BodyReference[];
+  outputBodyId: string;
+  existing: boolean;
+  picking: boolean;
+  loading: boolean;
+  onSelection: (selection: BodyReference[]) => void;
+  onPicking: (picking: boolean) => void;
+  message?: string;
+}
 
 interface Props {
   feature: SweepFeature | LoftFeature;
   sketches: SketchFeature[];
   onChange: (patch: Partial<Feature>) => void;
   onError: (message: string) => void;
+  bodyEditor?: BodyEditor;
 }
 
 export default function SweepLoftPanel({
@@ -27,6 +46,7 @@ export default function SweepLoftPanel({
   sketches,
   onChange,
   onError,
+  bodyEditor,
 }: Props) {
   const options = (current: string) => (
     <>
@@ -320,6 +340,29 @@ export default function SweepLoftPanel({
         <h3>
           <ChevronDown size={12} /> Resultado
         </h3>
+        {feature.bodyOperation ? <>
+          <label>Resultado del cuerpo
+            <select aria-label="Resultado del cuerpo" value={feature.bodyOperation.mode} disabled={!bodyEditor || bodyEditor.existing || bodyEditor.loading} onChange={event => {
+              if (!bodyEditor) return;
+              onChange(setBodyOperationDraft(feature, event.target.value === 'new'
+                ? { mode: 'new', bodyId: bodyEditor.outputBodyId }
+                : { mode: 'merge', target: bodyEditor.selection[0] ?? { bodyId: '', sourceFeatureId: '' } }));
+            }}>
+              <option value="new">Crear cuerpo separado</option>
+              <option value="merge">Añadir material a un cuerpo</option>
+            </select>
+          </label>
+          {feature.bodyOperation.mode === 'merge' && <>
+            <p className="muted-small">Selecciona el cuerpo que recibirá el material.</p>
+            <BodyList bodies={bodyEditor?.bodies ?? []} selection={bodyEditor?.selection ?? [feature.bodyOperation.target]}
+              onSelection={bodyEditor?.onSelection ?? (() => undefined)} single disabled={!bodyEditor || bodyEditor.loading} />
+            <button type="button" className={`outline-button ${bodyEditor?.picking ? 'active' : ''}`} disabled={!bodyEditor || bodyEditor.loading} onClick={() => bodyEditor?.onPicking(!bodyEditor.picking)}>
+              <MousePointer2 size={14} /> Seleccionar cuerpo en el visor
+            </button>
+          </>}
+          <button type="button" className="outline-button" disabled={!bodyEditor || bodyEditor.loading} onClick={() => bodyEditor?.onPicking(false)}><Eye size={14} /> Ver vista previa</button>
+          {bodyEditor?.message && <p role="status" className="muted-small">{bodyEditor.message}</p>}
+        </> : <>
         <label className="check-option">
           <input
             type="checkbox"
@@ -332,6 +375,7 @@ export default function SweepLoftPanel({
           Desactívalo para conservar la operación como cuerpo separado. Las
           referencias a los croquis se mantienen al editar sus cotas.
         </p>
+        </>}
       </div>
     </>
   );

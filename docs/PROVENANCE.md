@@ -1,5 +1,421 @@
 # Public fixture provenance
 
+## Scoped feature geometry contribution fixtures
+
+The 22 cases declared in `src/cad/kernel.feature-patterns.test.ts` are original
+inline fixtures authored for this project, in millimeters. They use Cartesian
+rectangles/extrusions, cylindrical cuts, explicit planes and closed offsets.
+Documents, native tools and probes are generated in memory from tracked source
+and declared dependencies; no imported model or binary fixture supplies an
+expected result. The formulas below are independent of contribution capture,
+the pattern planner and replay. These descriptions record written assertions,
+not executed passes; actual commands and outcomes belong in
+[VALIDATION](VALIDATION.md).
+
+The [scoped feature contract](FEATURE_PATTERNS.md) distinguishes exact
+historical source contributions from current target references. The fixtures
+allocate no new body IDs in a feature repetition. Only finally changed targets
+advance to the pattern's state. Geometric result cases check per-body BRep
+validity, closed shells and solid count, with absolute volume/area tolerance
+`1e-5` in mm³/mm² and bounds
+tolerance `1e-6` mm. Material probes are cubes of side 0.2 mm, with expected
+intersection volume 0 or 0.008 mm³ at absolute tolerance `1e-7`. The explicit
+empty-topology checks use `1e-10` volume comparisons; the topology and injected
+failure cases have their own stated assertions. Each new native case and
+initialization has a 60-second budget; a budget is not an accuracy guarantee or
+a recorded result.
+
+### Coincident owners and low-region hole copying
+
+A and B are distinct coincident boxes
+`[-50,50]×[-35,35]×[0,12]`, each V84000/A18080. Only A initially has an R3
+through-cut centered at (20,20). Translation (-40,0,0), rotation +90° about Z,
+and reflection in YZ each place one extra cut at (-20,20), in three separate
+cases. For n disjoint radius-r through-holes,
+`V=84000−12πr²n` and `A=18080+(24πr−2πr²)n`.
+Thus A with two R3 holes has V84000−216π/A18080+108π, while B stays uncut.
+A radius edit to 4 gives V84000−384π/A18080+128π. The linear case includes
+serialization/reopening and undo/redo. Body references and serializable picking
+data are checked separately from these geometric formulas.
+
+Three further cases distinguish a copied *actual* hole contribution from
+per-instance end-condition evaluation. The linear/mirror terrace is
+`[0,30]×[0,10]×[0,4]` plus `[15,30]×[0,10]×[4,8]`, V1800/A1120.
+The circular terrace is `[-20,20]²×[0,4]` plus `[0,20]²×[4,8]`,
+V8000/A4160. An R1 through-all hole starts at z=0 in the +Z direction at
+(5,5), or (10,-10) for circular, and actually removes only four millimeters
+of material. Translation +20X, reflection across X15, or rotation +90°Z
+moves that four-millimeter contribution into the tall region, at (25,5) or
+(10,10). The two holes remove 8π volume and add 14π area: the original through
+hole adds 6π and the copied blind cavity adds 8π. A regenerated through hole
+would instead remove 12π total and add 20π area. Probes at z=6 require the
+copied location to retain its roof. These cases specify geometry copying,
+not implemented regeneration.
+
+### Ordered mixed effects, equal-volume changes and one nested recipe
+
+The ordered fixture begins with `[-16,16]²×[0,4]`, V4096/A2560.
+R removes `[7,9]×[3,5]×[2,4]`; later F adds the same XY footprint over
+z=3..6. Its final cell has a 2×2×1 enclosed cavity at z=2..3 and a 2×2×2
+boss at z=4..6, changing volume by +4 and area by +32. Selecting R,F or F,R
+must still replay the historical R→F order. The independent cell centers are:
+
+| Repetition | Centers including the original | Final V/A |
+| --- | --- | --- |
+| Linear, two extra copies at −8X and −16X | (8,4), (0,4), (-8,4) | 4108 / 2656 |
+| Circular, four equally spaced quarter turns | (8,4), (-4,8), (-8,-4), (4,-8) | 4112 / 2688 |
+| YZ reflection | (8,4), (-8,4) | 4104 / 2624 |
+
+All bounds remain x,y=[-16,16], z=[0,6], with one solid. Probes distinguish the
+boss, enclosed cavity and restored z=3..4 material.
+
+A separate three-case family has zero net volume change with different material
+locations. The linear base is `[0,40]×[0,12]×[0,4]`, V1920/A1376.
+A 2×2×4 boss over X4..6/Y5..7 adds 16 volume/+32 area; a through-notch over
+X8..10/Y5..7 removes 16 volume/+24 area. One +20X copy gives V1920/A1488.
+For circular/mirror cases the base is `[-20,20]²×[0,4]`, V6400/A3840;
+the boss is X7..9/Y3..5/Z4..8 and the notch X7..9/Y7..9/Z0..4.
+Four quarter-turn cells give V6400/A4064; two reflected cells give
+V6400/A3952. All these bounds reach z=8. Positive boss and negative notch
+probes ensure equal volume cannot be accepted as proof of no change.
+
+The one nested fixture first copies R→F by +6Y, then mirrors *only that inner
+pattern's net contribution* in YZ. Final centers are (8,4), (8,10), (-8,10):
+V4108/A2656, with no boss at (-8,4). This is a bounded selected-scope
+linear-then-mirror recipe, not evidence for every nested transform, owner,
+scope, dependent-feature remapping or regenerated recipe.
+
+### No-op scopes and late atomic rejection
+
+The no-op fixture starts with `[0,20]×[0,10]×[0,4]`, V800/A640.
+Two R1 through-cuts at (5,5) and (15,5) give V800−8π/A640+12π.
+The selected distant body `[40,42]×[0,2]²` does not change; a separate last
+producer creates `[50,51]×[0,1]²`. Both retain their earlier exact refs and
+picking data. The latter producer is the pattern's aggregate predecessor,
+separate from the historical cut source. A later reference to the distant
+body's potential-but-unmaterialized pattern state must fail rather than use
+its latest actual state.
+
+The stepped rejection family starts from
+`[0,14]×[0,4]×[0,2]` plus `[0,L]×[0,4]×[2,4]`.
+Before a groove, V=112+8L and A=200+4L. With L=8, removing
+X1..2/Y0..4/Z0..2 leaves V168/A244, still bridged above the groove.
+Linear +4X and +8X copies first produce valid V160/A256, then sever the thin
+tail at X9..10. The complete repetition must reject and retain V168/A244.
+
+Reflection across X4 places the groove at X6..7. The L=8 owner remains bridged,
+but a second L=4 owner (V144/A216) splits. The circular case rotates the
+independent historical groove +90°Z into X-4..0/Y1..2/Z0..2. Its vertical
+targets have L=8 (V176/A232) and L=0.5 (V116/A202); the latter splits.
+Each case checks unchanged preceding targets and exact references after the
+late failure, with failed-model export blocked.
+
+### Combine, same-event ordering and empty intermediates
+
+The subtractive Combine fixture uses A=`[0,20]×[0,4]²`, V320/A352, and a
+consumed tool `[2,3]×[-1,5]×[0,2]`. Its actual removed target region ends at
+Y4, giving V312/A364. Copying that contribution +6X gives V304/A376.
+An independently owned `[8,9]×[4.25,4.75]×[0,2]` box, V1/A7, lies only
+in the tool's overshoot and must remain unchanged. Tool consumption cannot
+be replayed as additional negative material.
+
+A direct native replay fixture supplies two owner records for the same event.
+One changes `[0,1]×[0,2]²` to `[0,3]×[0,2]²` (added X1..3); the other
+changes `[0,2]×[0,2]²` to `[0,1]×[0,2]²` (removed X1..2).
+Both route a +10X copy into T=`[11,12]×[0,2]²`.
+All event removals before all additions yield `[11,13]×[0,2]²`, V8/A24,
+for either binding order. Applying the first owner's addition before the
+second owner's removal would incorrectly leave X12..13, V4/A16.
+The source records and expected box formulas are original; this isolated
+event test does not claim a complete model-level mixed producer recipe.
+
+A closed outward unit shell starts from a 10×6×4 box. Planar intersection
+offsets give an outer 12×8×6 box, so the wall has
+V=576−240=336 and A=432+248=680. Copying its signed contribution +20X into
+the original box at X20..30 removes the entire target before adding the
+wall. Final bounds are (19,-1,-1)..(31,7,5), with one solid and stable target
+identity. Cavity and wall probes distinguish the two regions.
+
+A separate actual-topology fixture subtracts a 2×2×2 box from itself and
+compares that empty compound with a compound containing the box's z=0 face.
+Both have zero measured volume; only the compound without topology is an
+admissible empty intermediate. This is local replay policy. Failed/null
+builders and final empty or multiple-solid owners are not accepted.
+
+### Cache-publication failure and evidence limits
+
+The twenty-second case cuts both coincident plate owners and requests both
+exact output contributions, routed only to A. A finishes with two R3 holes;
+B retains its single original hole and current reference. A selective failure
+is then injected *after* the second staged cache insertion. The case requires
+zero commits of the affected transaction, the original error as cause,
+unchanged document bytes, blocked export and one release attempt for each
+observed prior owner, candidate owner, captured delta and candidate aggregate.
+
+The previous aggregate is not separately watched and the previous historical
+contribution cache is empty in this fixture. Its disposal counts therefore do
+not prove those additional paths or native leak freedom. It is causal failure
+evidence, not a heap measurement.
+
+### Owned history cleanup fixtures
+
+Three original inline cases in
+[`kernel.body-workflow.test.ts`](../src/cad/kernel.body-workflow.test.ts)
+exercise the owned history lifecycle and an undeclared catalog repetition.
+They reuse the project's boxes A=`[0,10]×[0,6]×[0,4]` and
+B=`[20,30]×[0,6]×[0,4]`. Each starts at V240/A248. A +10X geometry copy
+routed to its own current owner gives bounds X0..20 and X20..40 respectively,
+each V480/A448 and one closed solid. These per-owner formulas are independent
+of the replay; the compound's two owners must not be replaced by an inferred
+physical union.
+
+The first history contribution is captured and registered before the second
+capture is instrumented. The second uses the real native validator and a
+separate native copy. One case throws a capture error and then throws a release
+error after actually deleting that copy; the other retains its valid copy
+through real replay/commit and throws during final history cleanup. Assertions
+require the original error objects in order, one observed copy-delete attempt,
+one disposal per registered contribution, unchanged document bytes and blocked
+export. The undeclared case requires unchanged preceding bodies and no legacy
+aggregate history capture. These are distinct failure stages; no preassembled
+aggregate error supplies an expected result.
+
+The observations do not count every native wrapper or the previous aggregate,
+measure a heap or establish general leak freedom. Like the other fixture
+descriptions, they define assertions; recorded commands and outcomes belong in
+[VALIDATION](VALIDATION.md).
+
+These 22 feature-contribution definitions do not establish execution results, real editor
+interaction, independent interoperability, general face/edge naming or native
+coverage of every producer. Per-instance regeneration/varying sketches,
+dynamic all-body scope, saved automatic scope, broader nested/dependent
+recipes and ownership lifecycle work remain required by the full goal.
+
+## Explicit body repetition fixtures
+
+The inputs in `kernel.body-patterns.test.ts` are original inline Cartesian
+fixtures, in millimeters. They use rectangles, extrusions and exact saved body
+references; no imported private model, external application geometry or native
+solid ordering supplies an expected result. The model/command tests use original
+synthetic records and symbolic healthy-preview receipts, not native geometry.
+The component tests are server-rendered controls, not real editor interaction.
+
+For a box of side lengths x,y,z, V=xyz and A=2(xy+xz+yz). Seed A occupies
+X1..3/Y2..5/Z0..4 (V24/A52); a targeted extension raises its current height to
+Z6 (V36/A72). Seed B is X5..6/Y−7..−5/Z1..4 (V6/A22). Unselected U occupies
+X30..35/Y−6..−4/Z1..4 (V30/A62). A 3×2 grid with X10/Y8 spacing, omitting (2,1),
+creates four copies of each selected seed. The eight copies plus current A, B
+and U have eleven solids: historical seed scope gives V192/A452; current scope
+gives V240/A532. Both aggregates have bounds (1,−7,0) to (35,13,6). Per-copy
+positions are written explicitly in the test, independently of the planner.
+
+For circular copies, S is X4..6/Y1..4/Z0..2 (V12/A32), with axis Z through
+(1,−2,0). Positive quarter turns give bounds (−5,1,0)..(−2,3,2),
+(−4,−8,0)..(−2,−5,2), and (4,−7,0)..(7,−5,2). The seed and these three copies
+have V48/A128. Adding U gives V78/A190 and five solids; reversing direction and
+omitting index 2 gives V66/A158 and four solids. Reflection across X5 follows
+x'=10−x, regardless of the plane normal sign: A maps to X7..9/Y2..5/Z0..4 and B
+to X4..5/Y−7..−5/Z1..4. Seeds, copies and U give V90/A210 and five solids.
+
+For new versus merge, S is X0..2/Y0..3/Z0..4 and T is X3..5/Y0..3/Z0..4,
+each V24/A52. A copy translated X4 occupies X4..6 and remains V24/A52 when
+separate; union with T is X3..6 (V36/A66). A face-tangent X5 copy gives the
+target X3..7 (V48/A80). A second X8 copy is disconnected and must reject the
+whole merge without changing T's original V24/A52. A different bridge fixture
+uses unit seed X0..1 and target X3..4, both Y0..1/Z0..1: the first copy X1..2
+is disconnected, the second X2..3 bridges it, and the final target is X1..4,
+V3/A14. Circular 180-degree and principal-YZ mirror merge cases independently
+produce a V36/A66 target; the seed and U remain unchanged.
+
+Same-identity merge cases use current A at height 6 as the target and translate
+its selected current or historical seed by X2. A current height-6 copy produces
+a 4×3×6 box, V72/A108. A historical height-4 copy gives V36+24=60 and
+A72+52−2*(3*4)=100, with bounds (1,2,0) to (5,5,6). With unchanged B and U the
+aggregates are V108/A192 or V96/A184, respectively, each with three solids.
+The output follows the current target's creation chain, not the copied snapshot.
+
+A nested pattern selects only B's saved output X15..16/Y−7..−5/Z1..4 and copies
+it by Y20 to X15..16/Y13..15/Z1..4. Cutting this output with a radius-1/4,
+height-3 through-hole removes 3π/16 volume; two removed disks total π/8 area and
+the cylindrical wall adds 3π/2, for net area +11π/8. The other five entries stay
+unchanged. Coincident new-copy, consumed historical source, stale-current
+rejection, skip/unskip, committed retirement, undo/redo and reopen cases use
+the same original box records and persisted slot bindings.
+
+Native validity, closed shells and exact solid counts are checked alongside
+per-body volume/area (absolute tolerance 5e−6) and bounds (5e−7 mm). Mesh counts
+and serializable picking metadata are separate checks. New native cases and
+initialization use 60-second budgets. The new saved-ID-boundary stress case
+also has a 60-second budget while checking all 65,536 IDs and one-over-limit
+rejection; its initial default-5-second timeout remains in the validation record.
+Existing test budgets are unchanged. STEP
+export/reimport reconstructs the committed snapshot in the same kernel and
+checks analytical geometry; it does not prove independent interoperability or
+opaque-ID preservation. The [body-pattern contract](BODY_PATTERNS.md) separates
+the independent identity design from observed feature behavior. Executed results
+are recorded separately in [VALIDATION](VALIDATION.md).
+
+## Explicit sweep and loft body fixtures
+
+The inputs in `kernel.body-sweep-loft.test.ts` are original inline Cartesian
+millimeter fixtures. A sweep translates an XY circular section along a
+straight world-Z path saved in an XZ sketch. A loft uses two parallel XY
+circles, explicit local seams, and `ruled:true`; no imported model or external
+application supplies the geometry or expected values.
+
+The first explicit producer creates an R2, height-4 cylinder at Z=0..4:
+volume 16π mm³, area 24π mm² and bounds (-2,-2,0) to (2,2,4).
+Editing the sweep's profile to R3 gives volume 36π and area 42π.
+Editing only the loft's upper radius to R3 gives a height-4 conical frustum:
+volume 76π/3 and area (13+5sqrt(17))π, with radial bounds ±3.
+These follow V=πr²h, A=2πr(r+h), and the frustum formulas
+V=πh(r0²+r0r1+r1²)/3 and
+A=π(r0²+r1²)+π(r0+r1)sqrt(h²+(r1-r0)²).
+
+The scoped workflow starts with cylinder A at Z=0..4 and an independent
+10×6×4 box B from (20,0,0) to (30,6,4), of volume 240 and area 248.
+An R2 producer at Z=4..8 touches A. New-body mode retains A, B and the new
+cylinder as three entries, with aggregate volume 240+32π and area 248+48π.
+Merge into A produces two entries with the same aggregate volume and bounds,
+but area 248+40π. Solid count and exposed contact area therefore distinguish
+explicit creation from an unintended fusion; aggregate volume alone cannot.
+
+Changing the upper sweep profile to R3 makes A a stepped pair of cylinders:
+volume 52π and area 58π, including the exposed radius-2-to-3 step at Z=4.
+The corresponding loft edit makes A a lower R2 cylinder plus the R2-to-R3
+frustum: volume 124π/3 and area (29+5sqrt(17))π. Both have bounds
+(-3,-3,0) to (3,3,8). A radius-1 axial through cut, placed on A's saved
+body-owned top face and scoped only to A, removes 8π and adds net 14π
+of surface area. Distant B retains its reference, creating feature, geometry
+and face/edge picking keys through these edits and document-history states.
+
+Rejection cases select disconnected B while the tool actually touches A,
+retain an obsolete A reference after an explicit height-6 modification,
+retain a consumed A after a coaxial-cylinder union, and suppress either input
+of each producer. The consuming union creates one R2, height-8 result with
+volume 32π and area 40π; its new body identity must not replace a saved A
+operand. These cases require atomic rejection and block export of the errored
+document. Existing absent-field sweep/loft regressions retain the legacy
+`merge` behavior; the new fixtures exercise explicit body operations.
+At the worker/kernel boundary, raw features with contradictory `merge` and
+`bodyOperation` fields, unknown modes, null/undefined operation values or an
+array in place of the operation must also reject without passing through
+document validation first. Structurally loadable, absent-field legacy sweep/loft records
+must reject in an already active catalog for either merge flag, preserving the
+previous body geometry and picking rather than inventing output ownership.
+
+Two additional raw declaration matrices, one per producer, reuse the strict
+body-operation guard shared with extrusion and revolution. Each submits 19
+malformed own declarations, five declarations with inherited required fields
+and two defined inherited `bodyOperation` values, without geometry inputs.
+The `merge` flag is consistent with the supplied mode so it cannot mask an
+invalid operation shape. These cases require the declaration error and an
+empty result before input lookup; they are separate from the 20 geometric
+and workflow cases above. Own properties, prototypes and inherited values
+are checked separately because structured cloning drops prototypes. They do
+not establish behavior for arbitrary getters, proxies or other exotic objects.
+
+Native volume, area and bounds comparisons use absolute tolerance 5e-6;
+planar picking-frame selection uses 5e-7. Display meshes are not precision
+oracles. Fresh STEP imports check BRep validity, closed shells, solid count
+and an unordered multiset of analytical per-solid metrics. That geometric
+comparison does not assign or recover document IDs from STEP. Saved IDs,
+exact body/source references, reopening and undo/redo are checked separately.
+The STEP round trip uses the same kernel and does not establish independent
+interoperability, real editor interaction or general sweep/loft naming.
+Written fixtures are acceptance cases, not executed validation results.
+
+## Raw body-operation boundary fixtures
+
+`src/cad/kernel.body-operation-boundary.test.ts` uses original inline Cartesian
+coordinates in millimeters. The baseline square is centered at `(0,0)` on XY
+at z=-5 with width and height 10; an explicit depth-10 extrusion creates body A
+with bounds `(-5,-5,-5)` to `(5,5,5)`, volume 1000 mm³ and area 600 mm².
+The contained extrusion uses a centered 2×2 square at z=-1 and depth 2, giving
+the cube `[-1,1]^3` (volume 8). The contained revolution rotates the XY
+rectangle centered at `(1,0)`, width 2 and height 4, through 360° around the
+local Y axis; its cylinder has radius 2, length 4, volume `16π`, and bounds
+`(-2,-2,-2)` to `(2,2,2)`.
+
+Raw `CadEngine.build` inputs intentionally bypass saved-document parsing.
+Unknown modes must reject without advancing A's exact body/source reference;
+valid merge controls keep A's analytical geometry and advance its source.
+Rejection cases retain A's own face and edge picking descriptors and block
+both STEP and STL export from the current errored engine state.
+Each unknown-mode case also supplies that declaration through a prototype,
+checks its defined inherited value separately from the feature's own properties,
+and requires rejection with the same retained A state. This bounded case does
+not establish behavior for arbitrary getters, proxies or exotic objects.
+Malformed operation objects are also submitted without an available sketch to
+check that declaration rejection precedes geometry construction. Separate
+absence controls retain the legacy route. Native baseline/result checks use
+BRep validity, one solid, adaptive volume, surface area and bounds with
+absolute tolerance `5e-6`; legacy controls check result volume and bounds.
+The file is authored for this project without external models or binaries.
+These definitions describe test expectations, not an executed pass or general
+platform coverage.
+
+## Explicit body management fixtures
+
+The original inputs in kernel.bodies.test.ts, kernel.body-workflow.test.ts and
+model/bodyReferences.test.ts are authored Cartesian coordinates in millimeters,
+not imported models. The body workflow uses A from (0,0,0) to (10,6,4) and B
+from (5,0,0) to (15,6,4), or B translated to (20,0,0) for selective cutting.
+The coordinates, analytical volume/area/bounds, shifted-B variants and proposed
+identity/retention policies are recorded in [BODY_MANAGEMENT.md](BODY_MANAGEMENT.md).
+
+Native comparisons use absolute tolerance 5e-6 for volume, area and bounds.
+Face orientation/coordinate selection uses 5e-7; display meshes are not a native
+precision oracle. A radius-1 through hole removes 4π mm³ and adds net 6π mm²
+to each selected 10×6×4 body. A cut selecting distant B while the tool crosses A
+must reject; checking aggregate mass alone would not establish target scope.
+The extending-boss fixture uses a tool from (8,0,0) to (14,6,4), explicitly
+merged into A. The result is a 14×6×4 box with volume 336 mm³ and area
+328 mm²; with unchanged distant B the aggregate has volume 576 mm³ and area
+576 mm². A disconnected tool from (40,0,0) to (50,6,4) must reject.
+The geometric multi-body failure fixture processes A first and distant B
+second with the same radius-1 tool: failure on B must retain both original
+bodies, including A, and block export of the errored document.
+The scoped chamfer selects the vertical A edge at X=10,Y=6,Z=0..4 and uses
+equal face distances of 1 mm. It removes a right-triangular prism of volume
+2 mm³; A's resulting surface area is 239+4sqrt(2) mm². Distant B is unchanged.
+The radius-1 fillet of that same edge has volume 236+π mm³ and surface area
+238+5π/2 mm². The inward thickness-1 shell removes the top face and leaves
+an 8×4×3 cavity: A has volume 144 mm³ and surface area 320 mm².
+For the four-wall 5-degree draft about the bottom XY plane, let t=tan(5°).
+Its section is (10-2Zt)×(6-2Zt), so A's volume is 240-256t+(256/3)t² and
+surface area 120-128t+64t²+(128-64t)/cos(5°). These cases retain A's original
+bounds and distant B, and check their fresh committed STEP aggregate.
+The new-body limit fixture uses overlapping A with Z=-4..10 and B with Z=0..4.
+A radius-1 profile at (7,3,-2) references B explicitly: ThroughAll ends at
+Z=4 (height 6), UntilNext at Z=0 (height 2). The tool's volume is hπ and
+surface area (2h+2)π; retained A and B contribute 1080 mm³ and 816 mm².
+Redirecting an earlier channel cut from A to B must not redirect a saved
+body-limit reference with the same source feature ID.
+The invalid two-solid replacement is constructed from clones transferred to
+the compound builder. The original caller-owned candidates are measured
+again after rejection; fixture preparation must not consume those originals.
+
+The tests also exercise exact saved current-state references, retained operands,
+historical per-body face support, document round trips, undo/redo, suppressed
+supports, cleanup failure and a post-transfer metadata failure. Fault
+injections test failure reporting, history-delta release and ownership after a state transfer; they
+do not establish general leak freedom. Fresh STEP exports are reimported with the same
+OpenCascade implementation. This checks the declared geometric cases, not
+independent interoperability, parametric-history/ID transport through STEP or
+complete multi-body CAD coverage. Written tests are not executed results; see
+[VALIDATION.md](VALIDATION.md) for commands and source-specific outcomes.
+
+The shared curved-limit regression in kernel.extrusion-limits.test.ts uses an
+original radius-20, length-100 cylinder along Y, centered at X=0 and Z=30.
+Its expected volume is 40000π mm³, surface area 4800π mm², and bounds
+(-20,-50,10) to (20,50,50). A radius-5 circular tool starts at Z=0 and ends
+on the cylinder's lower surface Z=30-sqrt(400-X²). The existing Simpson
+quadrature oracle integrates that analytical height over the circular profile.
+The success and injected post-Build failure cases check the original shared
+target's mass, surface, bounds and topology identity; they do not prove general
+absence of native mutation. Geometry and bounds comparisons use 5e-6.
+
 Public regression inputs under `src/cad/fixtures/solidflow-ui/` are synthetic
 SolidFlow documents and STEP exports made for this project. Its README records
 the origin, original names, byte counts and SHA-256 hashes of each input. The
@@ -10,6 +426,20 @@ The files under `examples/` are synthetic editable demonstrations, not customer
 models. Do not add confidential designs, credentials, personal paths or vendor
 binaries. New fixtures must identify how they were made and how a reviewer can
 check them. Do not relabel third-party output as an original project output.
+
+The generated-identity regressions author an open Cartesian corner from
+`(0,0)` to `(10,0)` and `(0,10)`, with a construction mirror axis at x=20,
+in millimeters. Offset, mirror, fillet and chamfer proposals use those inline
+profiles; identity comparisons retain every geometry and constraint field and
+replace only newly created IDs with test roles. A separate offset lifecycle
+uses an anchored `(0,0)→(10,0)` source: right offsets at 2 and 3 mm have
+independent expected endpoint heights y=-2 and y=-3. It exercises sketch
+deletion/recreation, document serialization and the real document-history
+class, without a CAD runtime or imported file. The allocator's injected UUID
+is a synthetic identity fixture, not a credential or external model. Existing
+saved CAD fixtures and their hashes are unchanged. See the
+[identity contract](SKETCH_IDENTITY.md); these checks do not establish solid
+face/edge continuity or real editor interaction.
 
 The source factories under `src/examples/` generate synthetic documents from
 the parameters in their code; they are separate from saved UI captures.
@@ -139,3 +569,1367 @@ exercise shared equations, explicit point repositioning, construction flags,
 parsing, capacity rejection and document/history cleanup. Cleanup and driven
 mobility are explicit local policies; these synthetic fixtures do not claim
 another application's solver or lifecycle behavior.
+
+The experimental semantic-reference regressions are authored inline in
+`src/cad/kernel.provenance.test.ts`,
+`src/cad/kernel.semantic-references.test.ts` and
+`src/cad/kernel.semantic-catalogs.test.ts`. They use original Cartesian
+coordinates in millimeters and symbolic identity inputs, with no imported
+model, saved interaction capture or new binary fixture. The
+[semantic-reference contract](SEMANTIC_REFERENCES.md) separates the verified
+primitive roles, compatibility policy and remaining integration evidence.
+
+The producer tests construct a 50×20 rectangle from `(-10,-10)` to `(40,10)`,
+with circular holes centered at `(0,0)` and `(20,0)` and extrusion depth 4.
+Their radius pairs are authored arithmetically as `R+d`: source radii 2 and 5
+with distance 1 or 1.5, then source radii 2.25 and 5 with distance 1.5.
+These inputs do not themselves invoke an offset planner or establish shared
+solver behavior. Separate cases exchange radii `3,6` to `6,3`, and extrude
+the `3,6` pair to depth −4. Independent expectations are
+`S=1000−π(rA²+rB²)`, `P=140+2π(rA+rB)`, `V=|depth|S` and
+`A=2S+|depth|P`. Written BRep/solid-count assertions accompany absolute
+`5e-6` volume, area and bounding-coordinate tolerances in their respective
+units. Hole-target bounds use `5e-6` mm; cap-origin and support-frame parity
+assertions use `5e-7` mm for positions and `5e-7` for direction components.
+
+A placed producer case supplies origin `(7,-4,9)`, local X direction
+`(0,1,0)` and normal `(0,0,1)`, with radii `3,6` and `3.5,6.5`.
+That explicit frame overrides the nominal principal-plane offset 100.
+The authored world bounds are `(-3,-14,9)` to `(17,36,13)`; support origins
+are the world origin projected onto the cap planes, `(0,0,9)` and `(0,0,13)`.
+A D-shaped-hole case replaces the radius-3 circle under the same entity ID
+with a counterclockwise upper semicircle from `(3,0)` to `(-3,0)` and its
+closing diameter. With the other radius-6 hole, the independent expected
+volume is `4(1000−4.5π−36π)` mm³, checked at absolute `5e-6` alongside BRep
+validity. This case does not assert a D-shaped-hole surface-area oracle.
+
+The native catalog tests reuse the 50×20×4 plate with initial radii `3,6`.
+Edits use `(rA,rB,centerAX)` values `(3.5,6.5,0)`, `(7,2,0)` and
+`(3.5,6.5,-1)`, retaining the second center at `(20,0)`. Circular rim bounds
+use absolute `5e-7` mm; cap origin `(0,0,4)` and normal `(0,0,1)` use exact
+tuple assertions. These cases specify versioned resolution, legacy aliases,
+duplicate-selection rejection, replaced-source rejection and copied
+historical frames. Injected history/release errors exercise wrapper ownership
+paths; disposal call counts are not proof of native leak freedom.
+
+The pure identity tests start from the same rectangle with radii `3,5` and
+include an affine edit `x→2x+123`, `y→3y−57`: the resulting 100×60 rectangle
+contains holes of radii `16,14`, reversing their size order. Other inline
+inputs cover source types, connectivity, explicit coincident relations,
+history, offset branches and symbolic split/merge ambiguity. SHA-256
+expectations use a separately written canonical payload and Node's crypto
+implementation. Symbolic target tokens and structural validation establish
+neither native correspondence, geometric nesting nor BRep validity.
+
+The separate `src/cad/kernel.semantic-catalogs.limits.test.ts` uses synthetic
+targets whose `isSame` compares object identity. Its four cases specify the
+existing document-selection limits: 257 distinct edges are accepted, 4097
+edges are rejected, 256 faces are accepted and 257 faces are rejected. These
+are API compatibility fixtures, with no native shapes, coordinates or WASM
+initialization, and provide no geometric evidence.
+
+These regression files are programmatic definitions, not execution
+results or independent-kernel interoperability evidence. The native cases
+use the project's locked OCCT runtime. Engine/parser/UI integration and
+downstream reconstruction have their own regression definitions and validation
+requirements; no pass is inferred from these fixture descriptions.
+
+The integration's `src/cad/kernel.semantic-context.test.ts` is pure input
+validation using an original unit square with four saved corner and line IDs.
+It includes 1,000 unrelated reference planes, dependency chains with 254 or
+255 planes, continuous placement/depth edits and discrete orientation branches.
+These inputs test the relevant history closure, not native geometry or support
+for a document beyond its existing feature limit. The model tests in
+`src/model/document.semantic-references.test.ts` use an original 10×6 sketch,
+a depth-4 extrusion and literal symbolic keys. They exercise parsing, exact
+selection bounds and detached history without asserting CAD validity.
+`src/cad/selection.references.test.ts` uses plain symbolic picking entries,
+including duplicate aliases. Those definitions test directional matching and
+selection state, not rendered geometry, pointer interaction or native identity.
+
+The original `src/cad/kernel.semantic-face-operations.test.ts` fixtures are in
+millimeters. An open-top inward shell starts from `[0,w]×[0,6]×[0,4]`, with
+`w=10` then `12` and thickness 1. Independent cavity subtraction gives
+`V=24w−12(w−2)` and summing exterior, interior and lip faces gives
+`A=12w+8(w+6)+6(w+2)`. Bounds remain `(0,0,0)` to `(w,6,4)`.
+
+The face-operation plate uses the earlier 50×20×4 boundary and hole pairs
+`(rA,rB)=(3,6),(3.5,6.5),(6,3)`; center A moves from `(0,0)` to `(-1,0)`
+while B remains `(20,0)`. Only hole A is tapered by 5 degrees from the
+principal XY plane at z=0. With `rEnd=rA+4tan(5°)`, independent frustum
+subtraction gives `V=4000−(4π/3)(rA²+rA*rEnd+rEnd²)−4πrB²`. The surface
+expectation is `A=2000−π(rA²+rEnd²+2rB²)+560`
+`+π(rA+rEnd)hypot(4,rEnd−rA)+8πrB`. Written native assertions check valid
+BRep, one solid and absolute `5e-6` volume/area/bounding-coordinate errors.
+Further cases use the same box/plate for legacy compatibility, unavailable or
+foreign references, native alias duplicates and injected construction/release
+failures. They specify ownership behavior rather than proving leak freedom.
+
+The original `src/cad/kernel.semantic-engine.test.ts` defines 14 engine cases;
+these are written assertions, with no execution result inferred here. Its base
+fixture is the 50×20 rectangle from `(-10,-10)` to `(40,10)`, extruded from
+z=0 to z=4. Source circles are centered at `(0,0)` and `(20,0)`, initially
+with radii 2 and 5. Unlike the producer-only inputs above, this fixture invokes
+`planSketchOffset` and `solveOffsetApplication`: outward distance 1, chain
+selection enabled, one side, no caps, source construction geometry and added
+dimensions. The resulting two material circles have radii 3 and 6, with two
+offset relations, one shared-distance family and one driving distance. The
+four rectangle corners and both source centers are fixed, with driving source
+radius dimensions. Center A is its own saved point, initially at `(0,0)`;
+editing it does not move the immutable sketch origin.
+
+The successive `(distance,sourceRadiusA,sourceRadiusB,centerAX,centerBX)` inputs
+are `(1,2,5,0,20)`, `(1.5,2,5,0,20)`, `(1.5,2.25,5,0,20)`,
+`(1.5,2.25,5,-1,21)` and `(1,6,1,-1,20)`. Both centers retain y=0.
+Expected image radii are independently
+`rA=sourceRadiusA+distance` and `rB=sourceRadiusB+distance`; the last edit
+exchanges their size order to `7,2`. These are edits of the original saved
+entities and relations, without replanning or allocating replacement IDs.
+For `S=1000−π(rA²+rB²)` and `P=140+2π(rA+rB)`, the solid expectations are
+`V=4S` mm³ and `A=2S+4P` mm². Overall bounds remain `(-10,-10,0)` to
+`(40,10,4)`.
+
+The selected end rim of hole A is identified by current display coordinates
+on `(x−centerAX)²+y²=rA²`, z=4; the second end rim is checked against
+`(x−centerBX)²+y²=rB²`, z=4. Their analytical extents are
+`(centerAX−rA,-rA,4)` to `(centerAX+rA,rA,4)` and
+`(centerBX−rB,-rB,4)` to `(centerBX+rB,rB,4)`. The written engine assertions
+check radial distance and z. The installed Replicad 1.1.0 edge mesh extractor
+reads its native line buffer through `Float32Array`; the display comparison
+therefore adds a per-coordinate half-ULP rounding bound, combined in XY with
+the Euclidean norm. It is not an exact native-coordinate oracle. Fresh STEP
+checks in the continuity and command-recreation cases separately enumerate
+closed native circles and evaluate eight curve parameters `i/8`, `i=0..7`,
+requiring exactly one rim per expected center/radius/z at absolute `5e-7` mm
+radial and z error. Edges, curves and evaluated vectors have explicit local
+ownership. The end-cap support frame is exactly origin `(0,0,4)`,
+X direction `(1,0,0)` and normal `(0,0,1)`; its analytical outer bounds are
+`(-10,-10,4)` to `(40,10,4)`. The cap check uses that frame, stable reference
+and overall solid bounds, not a separate cap-mesh extent oracle. Catalog
+assertions expect eight primary v2 faces and 18 edges: 12 primary v2 rims
+with legacy aliases and six unclaimed legacy vertical/seam edges. Saved
+references and all sketch point/entity/constraint IDs are checked through
+serialization, reopening, undo and redo.
+
+Two further cases create an active selected hole-A top-rim fillet or chamfer
+once, of size `q=0.25`, then retain that exact saved reference through the same
+five parameter sets. Each edited document is serialized and reopened with the
+finish active; undo and redo also reconstruct and export the active finish,
+checking both states against their complete volume, area and bounds oracles.
+Independent revolution of the
+removed section gives chamfer volume removal
+`π(rA*q²+q³/3)` and surface change
+`π[(2√2−4)rA*q+(√2−1)q²]`. For the fillet the removed cross-sectional area
+is `q²(1−π/4)` and its radial first moment is `q³(5/6−π/4)`. Consequently,
+the removed volume is
+`π[rA*q²(2−π/2)+q³(5/3−π/2)]`, including the exterior factor π; the surface
+change is `(π²−4π)rA*q+(π²−3π)q²`. Bounds remain those of the unmodified
+plate. These volume and area oracles are measured on freshly reconstructed
+STEP BReps, rather than inferred from the result's mesh or volume field.
+
+The historical-support case places a 4×4 boss centered at `(30,0)` on the
+original cap z=4 and extrudes it to z=8. A radius-1 cut starts on the principal
+XY plane at z=8 and uses negative direction with `upToSurface` targeting the
+saved original cap reference. Independent expectations are
+`V=4S+64−4π`, `A=2S+4P+64+8π`, and bounds `(-10,-10,0)` to `(40,10,8)`.
+It checks the initial, source-radius-edited, both-centers-moved and
+radius-order-exchanged inputs, including document/history reconstruction.
+Undo returns to the moved-centers state and redo restores the exchanged-radii
+state; both rebuild and fresh STEP checks use full volume, area and bounds
+oracles. The resulting Boolean body must
+use its own legacy picking identity, without inheriting prism v2 metadata.
+
+Discrete-change cases keep valid bare geometry while rejecting the old rim:
+depth −4 has z bounds `[-4,0]`, symmetric depth 4 has bounds `[-2,2]`, an
+identical recreated circle has a new saved entity ID, and a circle is replaced
+by a counterclockwise upper semicircle `(3,0)→(-3,0)` plus its diameter.
+For that D-shaped hole, with the other radius-6 hole, independent section and
+perimeter are `S=1000−π(9/2+36)` and `P=140+3π+6+12π`; expected volume and
+area are `4S` and `2S+4P`, with unchanged plate bounds. Further cases specify
+suppression, size-zero finish rejection with retained valid prism picking,
+a thrown primitive `Shape` read without legacy reconstruction, and a thrown
+`Generated` read that preserves valid legacy geometry but rejects stored v2.
+
+The final case uses two separate radius-1 disks centered at `(0,0)` and
+`(5,0)`, each extruded 4 mm. It expects legacy references, two valid solids,
+`V=8π`, `A=20π`, bounds `(-1,-1,0)` to `(6,1,4)`, and the explicit warning
+`La pieza contiene 2 sólidos separados.` This is not a single-solid import
+fixture.
+
+An additional command-lifecycle case starts from the two actual offset images,
+stores inactive hole-A rim and cap references, deletes image A with
+`removeSelection`, and recreates it from source circle A using
+`planSketchOffset` and `solveOffsetApplication` at distance 1.5. It checks that
+the old image ID disappears, the recreated image receives a different ID, and
+image B retains its identity. Deletion removes the shared-distance family and
+the former A driver; recreation adds only a new A distance driver 1.5. B keeps
+its undriven offset relation and its current separation 1, checked by geometry.
+Thus this case changes
+both identity and constraint structure, rather than isolating identity alone.
+The earlier same-geometry/new-ID case remains that separate control. New hole
+radii are 3.5 and 6 at centers `(0,0)` and `(20,0)`, giving independent
+`V=4000−193π`, `A=2560−20.5π`, and the unchanged outer bounds. The old rim
+finish and old cap support are activated separately and must reject while
+preserving the last valid body and blocking export of the errored model. The
+valid recreated document is reopened and freshly reconstructed through STEP.
+
+Written sketch coordinate/radius and native rim checks use absolute `5e-7` mm;
+displayed rim coordinates additionally allow the stated Float32 rounding bound. Solved
+sketches require maximum residual at most `1e-7`. CAD volume, area and bounds
+comparisons use absolute `5e-6` in their respective units. Fresh STEP checks
+request native volume integration parameter `1e-10`, BRep validity and the
+declared solid count; that parameter is not a general accuracy guarantee.
+The writer and reader share the project's OCCT runtime. These definitions
+establish neither an executed pass, independent interoperability nor platform
+support, and consume no external models, private artifacts or binary fixtures.
+
+## Explicit-frame recipe primitive fixtures
+
+The fixtures in [kernel.recipe-primitives.test.ts](../src/cad/kernel.recipe-primitives.test.ts)
+are original Cartesian boxes, circles, cylinders and explicit frame transforms
+authored for the [primitive construction proposal](FEATURE_REGENERATION.md).
+They use no external models or binary fixtures. Expected geometry is not
+rebuilt through the builder or termination helper under test. The definitions
+below describe 17 written cases, not an executed result; source-specific
+results and limitations belong in [VALIDATION](VALIDATION.md).
+
+The three transformation cases start from a box `[0,10]²×[0,4]` and a radius-1
+ThroughAll cut centered at `(5,5)`, with physical direction +Z. Its source result
+has `V=400−4π`, `A=360+6π`. The current destination is height 8. Regeneration
+must give `V=800−8π`, `A=520+14π`, whereas an independent blind 4-unit cylinder
+control gives `V=800−4π`, `A=520+8π`. In the latter pocket, one removed exterior
+disk and one new interior disk cancel; the 8π area increment is its cylinder
+wall. A 0.2-edge probe centered at destination z=6 distinguishes the results.
+The shallow cylinder is a control, not an implementation of delta copying.
+
+The explicit destination frames are: translation +20X, with origin `(20,0,0)`,
+X=+X and N=+Z; reflection in X=15, with origin `(30,0,0)`, X=−X, signed N=−Z
+and signed depth −1; and a half-turn about Z through `(15,0,0)`, with origin
+`(30,0,0)`, X=−X and N=+Z. Translation/reflection destinations are
+`[20,30]×[0,10]×[0,8]` and probe `(25,5,6)`; the rotated destination is
+`[20,30]×[−10,0]×[0,8]` and probe `(25,−5,6)`. These frames test the native
+input convention, not a complete transform/recipe integration.
+
+Four blind cases use origin `(7,11,13)`, local X=world Y, normal=world X,
+rectangle center `(2,3)`, width 4, height 6 and depth ±5, with/without symmetry.
+World profile center is `(7,13,16)`, `V=120`, `A=148`, Y bounds `[11,15]` and
+Z bounds `[13,19]`. Non-symmetric X bounds are `[7,12]` or `[2,7]`; symmetric
+bounds are `[4.5,9.5]` for either sign. These coordinates expose a duplicated
+center/offset or an incorrect signed start.
+
+Two owner cases separately provide `[0,10]²×[0,h]`, h=4 or 8, while an unrelated
+height-40 box exists elsewhere. After the radius-1 cut the result is
+`V=100h−hπ`, `A=200+40h+(2h−2)π`; the unrelated box stays `V=4000,A=1800`.
+Two direction cases use `[0,10]²×[−3,5]` and the same profile at z=0. A one-sided
+pocket has `V=800−5π,A=520+10π` and retains material at `(5,5,−2)`; the
+both-sided hole has `V=800−8π,A=520+14π` and removes it. Both remove `(5,5,4)`.
+
+UntilNext cutting on the height-8 box must produce the radius-1 tool from z=0
+to 8, `V=8π,A=18π`. Additive UntilNext against `[0,10]²×[4,8]` instead stops at
+entry z=4: tool `V=4π,A=10π`, fused body `V=400+4π,A=360+8π`, bounds z=`[0,8]`.
+UpToSurface uses `[0,4]²×[2,10]`, radius .5 at `(2,2)`, start frame z=2 and an
+explicit plane z=6: tool `V=π,A=4.5π`, cut body `V=128−π,A=160+4π`. This plane
+fixture does not attest a saved face reference's owner or correspondence.
+
+The additive ThroughAll fixture subtracts enclosed `[2,8]²×[2,6]` from
+`[0,10]²×[0,8]`, giving a closed hollow solid `V=656,A=688`. The radius-1 tool
+must end at actual exit z=8, with `V=8π,A=18π`, rather than a cutting margin.
+Filling the cavity's four-unit cylindrical segment gives `V=656+4π,A=688+6π`:
+the new interior wall contributes 8π and the two removed interior disks 2π.
+
+A first-validator failure case throws a synthetic primary on an actual blind tool
+and makes only that received native handle's delete throw after release. It
+requires one attempt, both errors and the retained primary cause. It patches
+no global/prototype. It does not exercise hidden helper allocations, Sketch
+child-release failures, native OOM or complete allocation safety. Existing SDK
+and termination-helper internal cleanup limits remain explicit in the contract.
+
+Proposed absolute tolerances are `1e-5` for volume/area, `1e-6` for bounds and
+`1e-7` for probe intersection volume (full cube 0.008). Nonempty tools/results
+must pass real BRep validity, one closed solid, positive finite volume and
+finite bounds. These numerical checks do not establish exported-file fidelity,
+interactive picking, saved owner/reference lifecycle or platform support.
+
+The two supplied-owner fixtures also inspect the actual radius-1 cutting tool:
+for h=4/8 and physical +Z, its one-unit enclosure margin ends at z=5/9,
+with volume `(h+1)π`, area `2(h+2)π` and bounds `(4,4,0)..(6,6,h+1)`.
+This distinguishes an overlong tool calculated from the unrelated height-40
+owner; it does not attest a complete evaluator's owner lookup. A separate
+seventeenth written case reaches the final validator after ThroughAll returns
+its actual native tool. Both callback stages first pass the real validator;
+the second then injects the primary, and that result's native handle is
+actually deleted before injecting the secondary cleanup error. The case
+requires ordered exact error identities, one delete attempt, no escaped result
+and an unchanged valid target. These are authored acceptance checks until
+source-specific execution is recorded in VALIDATION.
+
+## Feature recipe declaration fixtures
+
+The four inline suites `src/model/featureRecipes.test.ts`,
+`featureRecipes.inputs.test.ts`, `featureRecipes.boundaries.test.ts` and
+`featureRecipes.regression.test.ts` define 51 original synthetic pure cases
+(24+4+3+20). Their code and numerical/symbolic inputs were authored for this
+project under its license. They contain no imported CAD model, external asset,
+binary fixture or reference-application measurement. Generation is the literal
+inline feature/request definitions, ordinary JavaScript objects and arrays,
+and explicitly bounded string repetition in the tests.
+
+The closure fixture declares a 10×10 rectangle centered at(5,5) on XY at z0,
+an explicit source extrusion of depth 4, and a circle of radius1 centered at(5,5)
+for a source cut. A target rectangle is centered at(25,5), with the same sides
+and depth. A translation of 20 along X maps the source coordinates to that
+target. These are declarations only: no native extrusion/cut is performed by
+the tests. A coincident second source owner has a different symbolic body ID;
+its exact state must remain distinct. Other cases add an earlier2×2 boss
+declaration, unrelated sketches, late planes, suppressed ancestry and alternate
+target routes to distinguish dependency closure from replay and native state
+availability. Potential output references are not measured solids.
+
+Frame expectations come from Cartesian reflection/rotation, independently of
+the helper under test. Reflection in YZ maps origin(3,2,1) to(−3,2,1), local
+X to−X and, with sketch parity, normal to−Z; depth 4 becomes−4 while the
+physical extrusion ray stays+Z. Local point(2,4) therefore maps from(5,6,1)
+to(−5,6,1). A positive quarter turn around(2,3,0) maps(5,3,0) to(2,6,0).
+A 450-degree Z rotation around(2,3,4) maps(4,3,5) to(2,5,5) and direction
+(2,0,1) to(0,2,1), while retaining the saved transform rather than changing
+its declaration. Axis-aligned expectations are exact where stated; rotation
+scalars use `toBeCloseTo(...,12)`. These numerical tolerances do not apply to
+unexecuted BReps.
+
+Input-envelope cases use an oversized property name, twenty 60,000-character
+property names, combined 600,000-character keys/values, escaped null characters
+and surrogate-pair keys. The bound counts UTF-16 code units. Other inputs use
+`Number.MAX_VALUE`, ordinary descriptor getters, hidden/symbol fields,
+array subclasses and explicit missing/stale instance parent-route selectors.
+Expected results are rejection codes/error types or preserved exact data,
+never an expected shape generated by another CAD operation. Getter counters
+check that rejection precedes invoking an accessor. Successful expected
+rejections do not establish geometric or native availability.
+
+This fixture family supplies no native solids, volumes, areas, bounds, export
+or application-interaction evidence. It documents the declaration/frame layer
+in [FEATURE_RECIPES](FEATURE_RECIPES.md); the full per-instance evaluator,
+end-condition and ownership/persistence matrix remains required. Execution
+claims belong to the actual source-specific validation record, separately from
+the fixture descriptions.
+
+## Recipe bridge and native ownership fixtures
+
+The additional recipe/ownership fixtures are original synthetic constructions
+and causal failures authored for the [native recipe bridge](FEATURE_REGENERATION.md#per-instance-native-recipe-bridge).
+They use no external models. Their written count is 24: ten ownership-protocol
+cases, eight native bridge cases, four native helper failure cases and two
+native engine-boundary cases. These are separate from the earlier 51 pure
+declaration cases and 17 primitive cases. Written definitions do not establish
+an execution result; actual source-specific checks belong in [VALIDATION](VALIDATION.md).
+
+The three transformed bridge cases extract a recipe from a source declaration
+`[0,10]²×[0,4]` with a radius-1 ThroughAll cut centered at `(5,5)`. They construct
+the current height-8 target independently with native `makeBox`. Translation
++20X, half-turn about Z through `(15,0,0)` and reflection in X=15 use canonical
+addresses `1,0`, `1` and `mirror`. Translation/reflection target bounds are
+`(20,0,0)..(30,10,8)`; the rotated target is `(20,−10,0)..(30,0,8)`.
+The actual cutting tool has current-owner height 8 plus one-unit enclosure
+margin: `V=9π`, `A=20π`, bounds `(24,4,0)..(26,6,9)` or the corresponding
+Y interval `[−6,−4]`. The cut result is `V=800−8π,A=520+14π`. The material probe
+at `(25,5,6)` or `(25,−5,6)` has zero overlap. These cases exercise model frame
+resolution and native construction, not a complete catalog's historical source
+attestation or a saved false-mode document.
+
+A blind merge case uses a 2×2 profile at z=4, centered `(5,5)`, depth 2 and
+translation +20X. Its actual tool has `V=8,A=24`, bounds `(24,4,4)..(26,6,6)`;
+merging into `[20,30]×[0,10]×[0,4]` gives `V=408,A=376`, bounds z=`[0,6]`.
+No fake intrinsic support or saved datum is introduced. Three rejection cases
+retain inactive-address, unbound-target and pending UntilNext boundaries before
+the validator is called. The eighth case injects a validator primary and an
+owned native-handle release error, retaining both and their identity through
+the bridge while the borrowed current target stays healthy.
+
+Bridge volume/area tolerance is absolute `1e-5`, bounds `1e-6`, and probe
+intersection volume `1e-7` for a cube of volume 0.008. Nonempty tools and bodies
+must pass real native BRep validity, one closed solid, positive finite volume
+and finite bounds. Expected metrics use Cartesian box/cylinder formulas;
+expected geometry is never constructed through the helper under test.
+
+The ten [ownership protocol cases](../src/cad/kernel.native-ownership.test.ts)
+use original JavaScript owners and error sentinels. They require delayed result
+transfer, reverse cleanup without early stopping, exact primary identity,
+result release after sibling failure, earlier acquisition cleanup, no repeated
+delete, rejection of unowned/released transfer, nested failure propagation,
+duplicate handles, and registration failure both after insertion and before
+insertion with a duplicate and a later owner. Registration faults replace only
+one scope's Map instance method; no global/prototype/SDK mutation is used.
+These cases do not establish native allocation safety or OOM behavior.
+
+The four [native helper failure cases](../src/cad/kernel.extrusion-limits.ownership.test.ts)
+construct actual radius-1 blind prisms and/or an actual `[0,10]²×[0,8]` target.
+They inject a later `faces` acquisition failure after UntilNext owns its prism;
+a cut failure after additive ThroughAll receives its real native intersection;
+a final-prism factory failure after UpToSurface receives its probe; and a
+prism release failure after a successful UpToSurface split. Received-instance
+delete faults call the real deleter before throwing. The assertions require
+one attempt, retained primary/cleanup errors and healthy borrowed target where
+applicable. Exact candidate-result release is additionally checked by the
+protocol cases and ownership control-flow review; unseen SDK allocations and
+sequential child-release failures are not measured by these fixtures.
+
+The two [engine boundary cases](../src/cad/kernel.native-cleanup-boundary.test.ts)
+first build an actual legacy 10×10×8 box. A throwing helper module fault returns
+no fake geometry: a NativeCleanupError must escape with its identity and leave
+no retained engine shape/catalog, while an ordinary geometry Error remains a
+feature error with the previous box volume 800 and bounds `(0,0,0)..(10,10,8)`
+within `1e-6`. The helper namespace spy is restored; no SDK/native prototype is
+patched. These are call-site classification checks, separate from actual
+native helper cleanup faults. None establishes all-scope parity, a complete
+DAG, document/reference lifecycle, interaction, export or platform support.
+
+## Primitive constructor registration failure fixtures
+
+Two further original native cases in
+[kernel.recipe-primitives.ownership.test.ts](../src/cad/kernel.recipe-primitives.ownership.test.ts)
+exercise shared ownership when an actual received SDK Sketch cannot be
+registered. They are separate from the preceding 17 primitive cases and the
+24 bridge/ownership cases. Written counts are not execution results; actual
+source-specific validation belongs in [VALIDATION](VALIDATION.md).
+
+Each constructs a native 10×10×4 current target, radius-1 intrinsic circular
+profile centered at `(5,5)`, explicit XY frame and positive ThroughAll direction.
+The actual SDK Sketch factory and its deleter remain real. A project ownership
+scope's Map instance throws either before insertion or after its real insertion
+of that received Sketch. Its captured release calls the real Sketch deleter
+before a second synthetic cleanup error. No SDK/native prototype, global Map,
+fake support, saved identity or geometric return is patched.
+
+Both cases require the registration primary to remain the AggregateError cause,
+the exact primary and cleanup objects in order, one captured release attempt,
+no tool validation/returned tool, and a healthy borrowed target. The unchanged
+target has one valid closed native solid, volume 400 within absolute `1e-5`,
+and bounds `(0,0,0)..(10,10,4)` within `1e-6`. A defensive fixture owner also
+releases an unexpected returned tool if the injection fails to activate.
+
+The original 17 geometry/validator expectations stay unchanged and need rerun
+on the refactored source; these two cases do not substitute for them. The shared
+scope can release only wrappers actually received. Allocations lost inside SDK
+or copy/Boolean factories before return, sequential native child-release
+failures and native OOM remain outside the measured boundary. No complete
+leak-freedom, platform, interaction, lifecycle or regeneration-parity claim is
+made by these cases.
+
+## Chronological recipe evaluator fixtures
+
+The 21 cases in `src/cad/kernel.feature-recipes.test.ts` are original synthetic
+Cartesian models authored for this project. They use intrinsic rectangle/circle
+profiles, boxes and cylinders created by the declared kernel dependencies. No private
+model, external CAD fixture or copied expected boundary representation is required.
+Lengths are millimetres; angular transform inputs are degrees. Source poststates are
+constructed independently from the declared source operations so the evaluator receives
+real exact historical native states. Expected results are mathematical constants and
+point classifications, never expected geometry generated by the evaluator.
+
+The 21 expanded component cases cover:
+
+| Family | Cases | Independent result or causal observation |
+| --- | ---: | --- |
+| Taller-target through-all, linear/circular/mirror | 3 | A 10×10×8 target with a radius-one through hole has V=800−8π, A=520+14π. The independent seed is 10×10×4 with V=400−4π, A=360+6π. A probe at z=6 is void only when the operation regenerates through the taller target. |
+| Selected no-op parent and per-address child | 2 | A 12×8×4 base plus one 2×2×2 boss has V392, A368. Radius-.5 depth-two holes remove π/2 and add 2π area each. One hole gives V392−π/2/A368+2π; two bosses/holes give V400−π/A384+4π. The unchanged first parent still provides its exact same-address semantic role. |
+| Updated-owner dynamic termination | 1 | A 10×10×4 base with a 2×2×4 boss has V416, A392. The radius-.5 through hole traverses height eight, giving V416−2π, A392+7.5π. The independently observed construction tool extends to z=9, with V9π/4, A9.5π. |
+| Missing address, stale target, and every-source attestation | 3 | Exact-key fault injection cannot borrow another address; an old current target rejects before building tools; one missing same-event historical owner rejects before grouping. Previous target geometry and identity remain unchanged. |
+| Routed unchanged owner | 1 | The remote 12×8×4 owner remains V384, A352 at its old exact reference; no target@pattern state is invented for it. |
+| Late final split | 1 | An 8×4×4 box with a 6×4×2 tail has V176, A232. One bottom-through slot gives V168, A244; an earlier copied slot gives V160, A256. The later tail-cut split rejects the final result atomically. |
+| Temporary islands and later bridge | 1 | The intermediate pair of 4×6×4 boxes has V192, A256. Adding the original bridge gives XZ area38 and perimeter36, extruded six along Y: V228, A292; bounds [30,0,0]–[40,6,5]. Only the final one-solid result is publishable. |
+| Empty then restored material | 1 | Removing the complete 10×10×4 target yields genuine topology-free empty material; a later blind 10×10×6 tool restores V600, A440. A zero-volume sheet is not an empty-state oracle. |
+| Equal-volume relocation and cancellation | 2 | Removing one 2×2×1 pocket and adding a separate 2×2×1 boss retains V240 but changes area from248 to264, bounds and point membership. Adding then removing the identical boss is a complete no-op and rejects. |
+| Current-definition freshness | 1 | Changing the parent depth after evaluation, with unchanged native IDs, rejects staging and releases candidates. |
+| Equivalent converging historical routes | 1 | Two exact poststates of the same fixed intrinsic event route to one target. Both sources and virtual roles are attested; only one actual event/target tool is applied, yielding V160, A256. |
+| Ownership and error preservation | 4 | Candidate release before commit; first disposal-registration failure with two real candidates; a fatal actual source-cleanup error appearing before staging; and a late real final-split error plus candidate cleanup failure. Every case preserves the previous catalog. |
+
+Every successful geometric case checks valid BRep, one final solid, volume, area and
+bounds. Target/source point probes distinguish selected configurations. Metric tolerance
+is 1e-5 mm³/mm², bounds tolerance 1e-6 mm and probe-volume tolerance 1e-7 mm³. Runtime
+initialization and each native test use 60 seconds; authored budgets are not execution
+results. Tests use detached native source/target shapes and release received native
+wrappers; causal release tests count attempts, not all native heap allocations.
+
+These are component tests. By themselves they do not establish saved-parser/engine
+integration, worker/editor preview/application, save/reopen, undo/redo, selection,
+complete face correspondence, dynamic all/auto scopes, varying sketches, nested recipes,
+lifecycle outputs or parity with another application's regeneration. The separate engine
+fixture family below has its own boundary. Actual execution belongs in the validation
+record after it occurs.
+
+## Saved regeneration engine fixtures
+
+The 18 cases in `src/cad/kernel.feature-recipes.integration.test.ts` are original
+synthetic millimetre fixtures for the explicit saved regeneration declaration. They use
+project-native rectangle/circle features, separate owned prisms, exact source/target
+references and a datum plane; no external CAD asset or private model is required.
+Expected geometry is given by box/cylinder formulas and Cartesian point probes rather
+than reconstructed expected BReps.
+
+Six cases compare geometry copy and actual regeneration for a radius-one through-all
+source cut through a 10×10×4 seed, applied to a distinct 10×10×8 target. Linear +20X,
+circular 180° about Z through(15,0,0), and reflection in X15 place the target hole at
+the stated analytical center. Geometry copy yields V800−4π/A520+8π, leaving material at
+z6; regenerated through-all yields V800−8π/A520+14π, void at z6. A coincident unselected
+body remains V800/A520 at its original exact identity. Both paths remove material at z2.
+The seed remains V400−4π/A360+6π.
+
+The twelve remaining cases cover an older exact source after a later cut and after
+consumption by Combine; stale current targets; a routed no-op owner; complete no-op
+rejection; a downstream consumer of an unavailable potential no-op state; source edit,
+serialization/reopen and undo/redo; late tail splitting with atomic rejection; false
+without an explicit declaration; a pending creation-output identity diagnostic;
+chronological multi-feature parent→through-all construction; and a no-op parent with a
+real blind child. Their independent constants include later-cut source
+V400−5π/A360+9.5π, combined prism V480−4π/A416+6π, edited radius-two target
+V800−32π/A520+24π, and parent-updated target V416−2π/A392+7.5π. The radius-.5/depth-two
+no-op-parent child removes π/2, giving V392−π/2/A368+2π.
+
+Successful cases check native BRep validity, one final closed solid, volume, area,
+bounds and exact owner references. Selected cases check original creators, body counts,
+renderer metadata and material probes. Rejections preserve all predecessor bodies and
+block export. Metric tolerance is 1e-5 mm³/mm², coordinate tolerance 1e-6 mm,
+probe-volume tolerance 1e-7 mm³. Initialization and each native case retain a 60-second
+budget. Written cases are not execution results.
+
+These fixtures exercise saved-parser/engine integration separately from the standalone
+recipe evaluator. Their actual source-specific execution belongs in
+[VALIDATION](VALIDATION.md). They do not establish browser/Electron interaction,
+picking, worker preview freshness, exported-file interoperability, complete face/offset
+correspondence, dynamic all/auto scopes, varying sketches, nested recipes or
+new/consumed/split recipe output identities. Those remain required work; pending
+rejection is not parity evidence.
+
+## Saved calculation-method model and rendered fixtures
+
+The 28 cases in `src/model/featurePatternSavedModes.test.ts` use original
+symbolic millimetre records: two independently created owners, an earlier
+merge extrusion and a later blind cut on one owner. Linear, circular and
+mirror variants retain both historical source states separately from the
+current target states. No native geometry is constructed by this file.
+Cases check strict geometry/true and regenerate/false pairing, serialization,
+undeclared false rejection, unknown or inherited/decorated declarations,
+unchanged identities and detached routing through method changes. A method
+change invalidates the earlier command plan and requires a fresh preview
+receipt. The supplied `healthy` flag is a symbolic input to the command
+attestation boundary, not proof of native preview health.
+
+The nine cases in `src/components/PatternPanel.savedModes.test.tsx` render
+original symbolic histories with `renderToStaticMarkup`. They check the saved
+method selected for each family, historical seed labels separately from current
+target labels, enabled/disabled states, an unavailable target retained for
+repair, and legacy presentation. Edit callbacks throw if rendering invokes
+them; inputs must remain unchanged. These cases execute no UI event and prove
+neither interaction, native availability nor worker preview/Apply behavior.
+Actual execution results belong in [VALIDATION](VALIDATION.md).
+
+## Recipe-cache capture and registration fault fixtures
+
+The three cases in `src/cad/kernel.recipe-cache-ownership.test.ts` use original
+10×10×4 and 10×10×8 boxes, separated by +20 mm X. Two disjoint radius-one,
+depth-one blind pockets at local (3,5) and (7,5) leave exact source volumes
+400−π and 400−2π mm³. The second cut explicitly follows the first exact owner
+state. Copy-input volumes use absolute tolerance 1e-5 mm³; this file asserts
+lifecycle/error behavior rather than the area of a successful pattern result.
+
+One case throws an ordinary sentinel at the project's exact-source copy call.
+The actual evaluator must retain that cause, reject the consuming pattern
+before constructing a tool, and leave the healthy predecessor bodies and
+serialized input unchanged. No fake native shape is returned.
+
+Two cases use real native copies and a real ownership-scope subclass. Only that
+scope's private Map instance has an own registration fault, before or after
+inserting the second received copy. Its instance delete calls the real native
+delete and then throws a separate cleanup sentinel. The first historical copy
+has already transferred to the old cache. Each old/fresh copy must receive one
+delete attempt; the fatal aggregate must retain the exact primary and cleanup
+causes, skip evaluator/tool calls, and clear the failed engine state. Neither
+an SDK/class prototype nor global Map is patched. Initialization and each
+native case use a 60-second budget.
+
+These are project call-site fault discriminators. They do not inject failure
+into the engine's closure-local cache publication Maps or post-adoption prior
+catalog release, and do not prove native OOM, factory-internal reclamation or
+total leak freedom. The public source-order review and those unexecuted
+boundaries remain separate from the actual three-case execution record.
+
+## Dynamic ALL model and rendered fixtures
+
+The 17 cases in `src/model/featurePatternAllScope.test.ts` and seven cases in
+`src/components/PatternPanel.allScope.test.tsx` use original symbolic body and
+feature records. No native geometry, external model, application export or
+private asset is required. Linear, circular and mirror records pair explicit
+regeneration with geometryPattern false, exact historical source refs and scope
+routes rather than a saved current-target snapshot.
+
+The model cases check saved round trips, strict declaration shape/parity,
+detached scope edits, explicitly chosen target routes, unchanged identities,
+seed pruning without inferred bindings, selected/dynamic/application budgets,
+fresh command attestation after inventory or current-state changes, and
+contextual potential output refs retained for repair. A symbolic healthy flag
+exercises command attestation only; it supplies no native availability proof.
+
+SSR checks the initial ALL scope/method and an explicit switch to selected,
+historical labels, a paginated
+current ALL catalog with at most 64 visible names, loading states, pending
+additive scope prose and absence of automatic scope or target checkboxes for ALL.
+Callbacks throw if render edits any input. An original 8192-slot history has
+8191 retired slots and one active slot; ordinary ALL choices stay bounded while
+an exact selected retired ref remains visible as unavailable repair data.
+These assertions execute no UI event and prove neither interaction nor native
+materialization. Four existing selected-fixture files retain their original
+oracles and case counts; their type narrowings do not broaden what they test.
+
+## Dynamic ALL creator-deletion fixtures
+
+`src/model/featurePatternAllDeletion.test.ts` defines four original symbolic
+ownership graphs. Source S and its historical cut precede independently created
+B and C, an ALL pattern P based on C, an exact B@P consumer and its child, and
+an independent C@P repair consumer. Each of B's creator and its profile is
+deleted with B active or suppressed.
+
+Expected deletion removes B's creator, its exact and transitive consumers, and
+the requested profile when applicable. P, its exact historical seed, C and the
+unchanged C@P repair ref remain. Creation association is queried against the
+original context and memoized by exact ref; unresolved association adds no
+invented dependency. The fixture checks immutability and saved round trips,
+without claiming that a potential P poststate exists natively. No geometric
+identity substitution or dependency on every ALL inventory member is introduced.
+
+Together with the 18 native scope and eight saved-engine cases below, these
+files add 54 authored cases at distinct boundaries. Counts describe fixture
+inventory, not executed passes. Additive ALL, dynamic geometry scope, AUTO,
+dependent/varying recipes and broader output lifecycles remain required work.
+
+## Native dynamic recipe-scope fixtures
+
+The inputs proposed in `src/cad/kernel.recipe-scopes.native.test.ts` are original
+analytical millimeter fixtures constructed from boxes, radius-one cylinders,
+intrinsic rectangle/circle sketches and explicit body references. No external
+CAD model, application export, proprietary source, binary or private asset is
+required. The eighteen authored cases describe a native scope/evaluator boundary;
+their presence alone is not a recorded validation result.
+
+A historical 10-by-10-by-4 source has a radius-one through opening at (5,5).
+Linear translation by +20X, a 180-degree Z rotation about (15,0,0), and reflection
+in X=15 route its recipe to independent coincident 10-by-10-by-8 owners. The
+expected per-owner volume is 800-8pi and surface area is 520+14pi. Circular
+placement has bounds [20,-10,0] to [30,0,8]; linear/mirror bounds are [20,0,0] to
+[30,10,8]. The exact historical source stays 400-4pi/360+6pi, while a remote
+10-by-10-by-8 owner stays 800/520 with its old state reference.
+
+An earlier extension of the same A identity to height10 yields 1000-10pi and
+600+18pi. A newly inserted coincident D at height12 yields 1200-12pi and
+680+22pi. These expectations follow V=100h-pi*h and A=200+40h+(2h-2)pi and
+distinguish fresh ALL membership/current refs from a persisted selected list.
+Each owner must remain one valid closed solid; original creation identity and
+unmodified exact references are asserted separately from geometry.
+
+The file also proposes cropped/extra/stale snapshots, forged proofs and native
+shape-identity drift, exact historical capture failures before target copies or
+tool construction,
+35-owner real evaluation, and a 512-route declaration versus a 513-route rejection
+before target copies or tools. The 512 positive check is declaration/membership
+coverage, not execution of 512 material operations. The shape-drift case uses a
+real deep copy of an unchanged owner to require stage rejection and exactly one
+release of each retained candidate without modifying borrowed catalog geometry.
+
+Selected scope retains real positive and cancellation discriminators. A
+2-by-2-by-2 attached boss changes a 10-by-10-by-4 box from 400/360 to 408/376.
+ALL positive applicability must instead report its explicit pending diagnostic
+before tool construction. A selected through removal followed by a fill has
+genuine per-event effects on both owners while only an originally pocketed owner
+changes finally: a 2-by-2-by-2 bottom pocket has 392/376 and is restored to
+400/360; a 30-by-10-by-4 neighbor returns to 1200/920 and retains its old exact
+state. This does not establish ALL addition or AUTO capture behavior.
+
+Authored tolerances are 1e-5 for volume/area, 1e-6 for bounds, and 1e-7 for cube
+intersection volume. A 0.2-sided cube has expected material volume 0.008 or zero
+at the stated interior probes. Metric expectations are independent formulas;
+the tested kernel supplies only observed geometry. Record actual executions
+separately before claiming that any proposed case passed. Saved dynamic grammar,
+property-panel interaction, automatic capture, varying/dependent recipes and
+broader lifecycle behavior require their own evidence.
+
+## Saved ALL engine acceptance fixtures
+
+`src/cad/kernel.recipe-all.integration.test.ts` defines eight original cases
+using the saved ALL regeneration declaration through CadEngine. It is separate
+from component-native, symbolic-command and server-rendered presentation tests.
+No external CAD model or binary is used.
+
+Units are mm. A 10×10×4 source has a unit-radius ThroughAll hole at (5,5).
+Two independently owned coincident 10×10×8 targets receive a +20 X copy,
+a 180-degree Z rotation about (15,0,0), or reflection in X=15. A remote
+10×10×8 owner remains at X=50..60. For a target height h and radius r,
+independent formulas are V=100h−πr²h and
+A=200+40h−2πr²+2πrh. Baseline aggregate volume, counting both distinct
+coincident owners, is 2800−20π. Current-state/membership edits extend A to
+height10 and insert D of height12; aggregate volume becomes 4200−34π.
+The ALL intent remains unchanged and saves neither targets nor a snapshot.
+
+An R2 source edit is saved/reopened and exercised through undo/redo. Source
+V/A becomes400−16π/360+8π; each height8 target becomes800−32π/520+24π.
+A later remote cut explicitly referencing the no-op C@pattern state must stay
+loadable for repair but fail native construction/export, preserving earlier
+owners. This is an exact-reference rejection, not a missing-body fallback.
+
+Checks require valid BRep, one solid per owner, independent per-owner volume
+and surface area within1e-5, bounds within1e-6, saved opaque refs/creator IDs
+and a .2³ material probe within1e-7 volume. Fixtures release metric/probe
+wrappers and dispose their engines. Case and initialization budgets are60s.
+These checks do not prove native leak absence, real pointer/worker preview/Apply,
+general ownership lifecycle, independent interoperability or platform support.
+
+## Instrumented dynamic ALL desktop fixture
+
+`scripts/desktop-pattern-all.cjs` loads the original synthetic document in
+`src/cad/fixtures/pattern-all-original.json`. The fixture was authored from
+rectangles, one circle and explicit feature/body identities. It contains no
+imported model, external application output or personal filesystem path. Lengths
+are millimeters; volumes are cubic millimeters.
+
+The source S is a 10×10×4 box with a radius-one ThroughAll cut centered at (5,5).
+A and B are independently owned coincident 10×10×8 boxes in X=20…30, Y=0…10,
+Z=0…8. C is a remote 10×10×8 box in X=50…60. A two-position linear pattern moves
+the cut 20 mm along X and initially selects A only. Its source binding is exactly
+S at `seed-cut`; C is the global predecessor.
+
+Independent expected volumes are S=400−4π, A=800−8π, selected B=800 and C=800.
+After changing to dynamic ALL, both A and B have volume 800−8π; S and C retain
+their old exact states. Bounds stay equal to the original boxes. The authored
+checks use volume tolerance 10⁻⁵ and coordinate tolerance 10⁻⁶, compare exact
+body/source/creator identities at four worker phases, and verify the saved and
+reopened ALL declaration has a scope route and no persisted target snapshot.
+
+This is an instrumented production-renderer regression using scripted DOM
+events. It retains the real worker/WASM and restricted preload/file IPC, while
+keeping its fresh window hidden and choosing only test-owned temporary paths
+for native dialogs. It observes Apply disabled before the ALL preview response,
+then performs Apply, Save As and reopen. Initial readiness and individual steps
+retain 35-second limits; the separate complete workflow has a 180-second parent
+deadline. The standard desktop smoke deadlines are unchanged.
+
+Authored assertions are not passing evidence. The actual command, source,
+platform and outcome belong in the validation ledger. This one linear cut
+workflow does not establish general GUI interaction, native-dialog behavior,
+other pattern families, platform support or broader recipe/lifecycle coverage.
+
+## Per-owner UntilNext classification fixtures
+
+The 19 cases in
+[`src/cad/kernel.until-next-resolution.test.ts`](../src/cad/kernel.until-next-resolution.test.ts)
+are original synthetic inputs created for this project from boxes, circles and
+rectangular cavities. The test constructs them in memory using the declared
+dependencies; no external CAD document, binary fixture or private model supplies
+an input or expected result. Lengths are millimeters, areas mm² and volumes mm³.
+
+The procedure builds each target independently, creates a fresh radius-one prism
+in an explicit frame, classifies its actual forward intersection, and checks any
+complete tool and resulting cut. Expected values come from elementary geometry,
+not a second call to the classifier or its limit helper. The geometric cases are:
+
+| Cases | Original construction and independent oracle |
+| --- | --- |
+| 1 remote miss | The circle is centered at `(5,5)` along +Z. Target `[20,30]×[0,10]×[0,8]` has V800/A520; separation is `20−(5+1)=14`. |
+| 3 contact boundaries | The same circle reaches x6. Boxes beginning at x `6+g`, for `g=0,10⁻⁹,10⁻⁵`, have exact separation g and unchanged V800/A520. `10⁻⁷` is the classifier's explicit contact/near distance resolution. |
+| 4 first-wall placements | Outer `10×10×8` minus an enclosed `6×6×4` cavity at z2..6 gives V656/A688. Translated, half-turn and two reflected frames exercise physical ray parity. Both walls intersect the enclosing query, V4π; the first-wall tool has V2π/A6π. Its cut gives V`656−2π`/A`688+2π`, and a far-wall probe retains material. |
+| 1 partial face then complete exit | The radius-one circle centered at x7.5 crosses the cavity edge x8. Circle area inside the cavity footprint is `Ai=2π/3+√3/4`. Tool height8 gives V8π/A18π. Removed material is `8π−4Ai=16π/3−√3`; final V is `656−16π/3+√3` and A is `688+22π/3−9√3/2`. |
+| 1 incomplete overhang | Target `[0,5.5]×[0,10]×[0,8]` has V440/A358. Actual forward material is `8Ai=16π/3+2√3`, but no target face closes the entire circular profile. |
+| 1 temporary-island owner | Removing slab x4..6 through `10×10×8` leaves two `4×10×8` islands, combined V640/A608. A circle centered at `(2,5)` gives a height8 tool. The cut keeps two solids with V`640−8π`/A`608+14π`; the remote island's interior probe stays material. |
+
+For the partial-cavity area, new cylindrical wall contributes `32π/3`. Remove
+two exterior disks `2π`, two cavity horizontal patches `2Ai`, and an inner
+vertical patch `4√3`. The net area change is therefore
+`32π/3−2π−2Ai−4√3=22π/3−9√3/2`.
+
+Volume and area tolerances are `10⁻⁵`; bounds use `10⁻⁶`. Material probes compare
+the intersection of a `0.2³` cube with the analytically expected occupied or
+empty interior, using volume tolerance `10⁻⁷`. Tests check valid BRep, relevant
+solid counts, bounds and unchanged borrowed targets rather than volume alone.
+
+Eight further causal cases cover original factory errors, cleanup errors after
+a miss/incomplete limit or after a complete tool has been built, repeated
+wrappers, and distinct JavaScript facades exposing a borrowed or repeated native
+handle. They preserve sentinel errors and check observed release attempts and
+borrowed-owner geometry. These assertions do not establish general garbage
+collector or upstream factory lifetime safety.
+
+This is native component coverage, not a saved recipe or pattern interaction
+fixture. A completed empty Common plus native separation is distinct from
+contact or material without a complete limit. No selected/ALL no-hit policy,
+source-base remapping, additive scope, AUTO, associative references, variation,
+nested lifecycle, independent interoperability or platform support follows from
+these cases. Written fixture counts are not passing results; exact-source
+execution belongs in [VALIDATION.md](VALIDATION.md).
+
+## Fixed principal-plane recipe fixtures
+
+The [fixed-plane fixture guide](FEATURE_WORLD_LIMIT_FIXTURES.md) records original
+analytical constructions for 18 model cases, four rendered-control cases and
+eleven native cases. Written counts and expectations are not execution results;
+the guide separates native volume/area/probe tolerances from UI evidence.
+
+The original seven-feature
+[pattern-world-limit-original.json](../src/cad/fixtures/pattern-world-limit-original.json)
+uses two 2×2×16 mm boxes, a radius-0.5 circular cut and displacement [3,0,4].
+The [planned production-renderer workflow](FEATURE_WORLD_LIMIT_FIXTURES.md#production-renderer-workflow-and-recorded-evidence)
+distinguishes copied and fixed-plane regenerated cavities. It records four
+healthy worker phases plus the expected missing-policy rejection, actual Apply,
+isolated Save As/reopen and exact refs/IDs. UI metrics cover volume and bounds,
+not surface area. Its authored flow is unexecuted until source-specific evidence
+appears in [VALIDATION.md](VALIDATION.md); it does not establish broader
+interaction, interoperability or platform support.
+
+## Source-solve and native component fixtures
+
+These 90 additional cases are original synthetic constructions authored for
+this project: 18 entity-profile ownership, 15 source-solve registry, four raw
+engine admission, 14 additive UntilNext, 21 positive closed-tool and 18 native
+face-occurrence cases. Inputs are generated in memory from coordinates,
+constraints, boxes, cylinders and raw native compounds using the declared
+dependencies. No imported/private model, external application output or vendor
+binary supplies a fixture or expected geometry. Lengths use mm, area mm² and
+volume mm³. Written case partitions describe inventory; actual aggregate runs
+belong in [VALIDATION](VALIDATION.md#source-solve-and-native-component-composition--2026-10-15).
+The focused 109-case invocation also includes the existing 19 Cut-classification
+cases described above; those 19 are not new cases in this composition.
+
+### Entity-profile received-resource ownership
+
+[kernel.profiles.ownership.test.ts](../src/cad/kernel.profiles.ownership.test.ts)
+constructs one or two radius-one circular contours centered at `(3,0)` and
+`(9,0)`, extruded 4 mm. Each cylinder has `V=4π` and
+`A=2πr(r+h)=10π`. With frame origin `(4,5,6)`, X `(1,0,0)` and normal
+`(0,0,1)`, bounds are `(6,4,6)` to `(8,6,10)` for one region, or to `(14,6,10)`
+for two. The deliberately supplied legacy offset 999 must not be reapplied
+when an explicit frame is present. BRep validity and individual solid counts
+are checked; volume/area tolerance is `1e-5`, bounds `1e-6` mm.
+
+Faults operate on actual received wrappers and their project ownership scopes:
+second-contour construction with two earlier release failures; registration
+before/after insertion for extrusion, revolution, contour transfer and compound
+wrapper; completed-result retirement after cleanup failure; a throwing compound
+type assertion; extrusion input access; raw compound construction/adoption and
+native Add failure. Distinct wires, their bounds and transfer counts identify
+the second contour rather than counting registration calls as new geometry.
+Actual native deletion precedes cleanup sentinels. Checks preserve primary/error
+identity and one release attempt for each received owner, including the raw
+compound's single adoption owner. An unrelated caller-owned `10×8×3` box remains
+outside those scopes, with V240 and unchanged bounds. These cases do not prove
+SDK-internal allocation safety or total leak freedom.
+
+### Real solves, historical prefixes and raw engine admission
+
+[kernel.sketch-solves.test.ts](../src/cad/kernel.sketch-solves.test.ts) starts a
+circle at radius 1 with center `(3,0)`, fixes that center and drives radius to
+2. The independent radius bound is `abs(r-2) <= 1e-7` mm. A driven radius with
+nominal value 999 must measure 2 freshly; the fully defined result has zero
+degrees of freedom. Removing the center fixation leaves two free translations;
+adding a conflicting center fixation must retain an actual failed solve and
+publish no fallback success. Tests check the full result and its actual
+visual/maps, not an injected success status.
+
+Other cases cover suppressed/unavailable sources, failure after visual/map
+staging, detached returned views, source/earlier-prefix edits, later-definition
+separation, forged/cross-build handles and checkpoints, copied reader methods,
+revocation and mutations during staging. An XZ datum offset 5 plus sketch offset
+3 has independent frame origin `(0,-8,0)`, X `(1,0,0)`, normal `(0,-1,0)`;
+changed or unavailable datum state invalidates its witness. This checks metadata
+freshness, not native face-to-owner association or associative instance replay.
+
+The four [raw engine cases](../src/cad/kernel.sketch-solves.raw.test.ts) call the
+actual sketch-only engine without initializing native CAD. Rejected pattern
+getters and ignored suppressed-sketch getters stay unread; noncloneable ignored
+extras preserve ordinary rendering while withholding certification for that
+prefix. An ordinary throwing getter remains local and prevents later
+reconstruction. Rendered points satisfy `(x-3)²+y²=4` within `1e-6` mm² and z=0.
+
+### Additive first entry versus subtractive exit
+
+[kernel.until-next-add-resolution.test.ts](../src/cad/kernel.until-next-add-resolution.test.ts)
+uses a `10×10×8` box minus an enclosed `6×6×4` cavity: V656 and A688.
+A radius-one ray starts at the cavity floor z2. Add reaches the first complete
+entry at z6, producing a height-4 tool V4π/A10π and final
+V`656+4π`/A`688+6π`. Cut reaches the exit z8, producing V6π/A14π;
+only the roof is removed, giving final V`656-2π`/A`688+2π`.
+The forward Common is V2π in both cases. Copying a height-2 tool instead gives
+V`656+2π`/A`688+4π`, exposing the difference from regeneration.
+
+Four supplied placements cover +20X translation, a half-turn frame, reflected
+normal/depth parity and a negative physical Z ray. These are supplied-frame
+component cases, not tests of an actual pattern plan. A foreign box earlier on
+the same ray stays borrowed and does not supply a limit. Probes distinguish the
+near/deep cavity, roof and material outside the profile. A remote target proves
+separation 14 mm; gaps `0`, `1e-9` and `1e-5` mm distinguish contact/near from a
+completed miss at the component's `1e-7` mm resolution. A partial roof at
+x≤5.5 has forward volume `4π/3 + √3/2` and no complete profile cap.
+Borrowed-prism rejection, original construction failures, query cleanup after
+miss/incomplete observations and retirement of a completed tool preserve their
+causal and ownership boundaries.
+
+### Positive closed temporary tools
+
+[kernel.closed-tools.test.ts](../src/cad/kernel.closed-tools.test.ts) starts with
+an annulus R2/r1/height3: `V=π(4-1)3=9π`,
+`A=2π(4-1)+2π(2+1)3=24π`. Adding a separate `2×2×2` box gives
+V`8+9π`/A`24+24π` and two tool regions, while persistent-owner validation still
+rejects two solids. Reversed parent/child orientations exercise accumulated
+native orientation; repeated occurrences remain two natively even when SDK
+solid enumeration deduplicates them. Overlapping `2×3×4` boxes at x0..2 and
+x1..3 reject as a compound, while their native union has V36/A66. Two touching
+`2³` cubes are permitted as a two-region tool (V16/A48); their union has A40.
+Loose faces/edges, an empty compound, inverted material and a five-face open
+box shell reject without consuming healthy borrowed inputs.
+
+Two radius-one columns through a `12×6×8` owner produce a height-8 tool
+V16π/A36π and final V`576-16π`/A`432+28π`. Two columns with different cap
+heights must not become an invented complete exit: the connected target has
+V168/A236 and forward material V2.5π. Two additive regions from z2 to z6 in
+the enclosed cavity produce V8π/A20π, with final V`656+8π`/A`688+12π`;
+the intervening cavity remains empty. Query faults exercise masses 0, -1, NaN
+and Infinity after the real native query, an original mass-query error,
+analyzer release and a loose-topology primary followed by release failure.
+
+For these Add/closed-tool fixtures, volume and area use tolerance `1e-5` in
+their respective units and bounds `1e-6` mm. Independent interior/exterior
+probes use 0.2 mm cubes, expected common volume 0.008 or zero mm³, tolerance
+`1e-7` mm³. Expected material is specified analytically, not calculated with
+the classifier or validator being tested.
+
+### Native face occurrences and retained clone lifetime
+
+[kernel.native-face-membership.test.ts](../src/cad/kernel.native-face-membership.test.ts)
+creates a fresh `12×8×4` box, V384 and
+`A=2(12×8+12×4+8×4)=352`; its bottom face has A96 and bounds
+`(0,0,0)` to `(12,8,0)`. Bounds select that fixture face only; the membership
+helper never uses geometry to infer identity. A fresh coincident box and an
+explicit geometric copy share metrics but not the original face's TShape.
+Real clone wrappers retain membership; reversed orientation remains `IsSame`
+but differs in `IsEqual`. A single +20X transform with `copyGeom=false` retains
+TShape while changing Location, with moved bounds `(20,0,0)` to `(32,8,4)`.
+Its actual moved face occurrence supplies the fixture; equal matrices from
+separate transforms are not assumed to create equal location datum chains.
+
+Native compounds exercise repeated occurrences and actual empty topology.
+After every original body/face wrapper is retired, retained clones still undergo
+BRep, solid-count, mass, area, bounds and interior/exterior probe checks.
+Tolerances are `1e-5` for mass/area, `1e-6` mm for bounds and `1e-7` mm³ for
+the 0.2 mm probes centered at `(6,4,2)` and `(13,4,2)`.
+Other cases reject null/non-FACE operands and preserve actual More, post-match
+Next and IsSame failures, matched-Current/final-Explorer cleanup failures, and
+registration failures before/after insertion with both cleanup errors. Numeric
+success cannot escape a failed traversal or release. These eighteen cases
+establish neither a historical support issuer nor same-instance correspondence.
+
+## ALL unilateral forward-material fixtures
+
+Thirteen additional component cases in `kernel.recipe-scopes.native.test.ts` and
+two saved-engine cases in `kernel.recipe-all.integration.test.ts` are original
+synthetic millimetre fixtures. Written cases are not execution results.
+
+The source is the existing 10×10×4 box with a radius-one through hole. A forward
+10×10×8 target must become V800−8π/A520+14π. A distinct behind-plane 10×10×8
+owner stays V800/A520 at its exact creation state, with a same-address virtual
+no-op role and unchanged metadata. Cartesian variants use: +20X placement with
++Z ray and behind bounds [20,0,−10]..[30,10,−2]; a 90-degree +Y rotation about
+(15,0,0) with +X ray, forward bounds [15,0,5]..[23,10,15] and behind bounds
+[5,0,5]..[13,10,15]; reflection across Z10 with −Z physical ray, forward bounds
+[0,0,12]..[10,10,20] and behind bounds [0,0,22]..[10,10,30]. Independent interior
+probe centers are (25,5,6), (19,5,10) and (5,5,16).
+
+Other component cases require bilateral ThroughAll to cut the negative-Z
+owner, selected unilateral behavior to retain its original rejection, a
+classified no-op owner’s shape-identity drift to reject staging and release
+the retained candidate once, and complete no-op ALL to remain rejected. The
+remaining component cases retain explicit primitive parameter rejection for
+three deliberately invalid evaluator declarations (zero radius/width and an
+out-of-range center), the original native error in the near-plane tolerance
+band, and real received-owner bounds query/release failures without publication.
+engine success case uses saved parsing/reopen and independent body metrics.
+The late-failure case uses a 10×4×2 source with a 1×2 through slot (V76/A144)
+and a separate 8×4×4 target plus 6×2×2 tail (V152/A208). The first +4X slot
+gives a healthy V144/A228 target; the +8X slot cuts the tail across its full
+width and height, producing a later split that must
+reject atomically while the behind-plane owner stays V800/A520.
+
+Metric tolerances are 1e-5 mm³/mm², bounds 1e-6 mm and 0.2-cube common volumes
+1e-7 mm³. Expected geometry uses box/cylinder formulas and Cartesian points,
+not the absence classifier. No external asset, binary or private model is
+used. The complete two affected files subsequently passed 41/41 cases on the
+exact local Windows correction snapshot, including these 15 new cases. Their
+[source-specific execution record](VALIDATION.md#all-unilateral-forward-material-correction-2026-10-15)
+is separate from the definitions above; counts overlap with the full suite.
+These cases do not establish general contact classification, new terminations,
+entity-profile support, platform support or native leak freedom.
+
+## Intrinsic solved-entity recipe fixtures
+
+All coordinates, constraints, geometry and expectations in the three new
+entity recipe/checkpoint/declaration test files were authored for this project.
+They use millimeters and existing distributable Node/OpenCascade dependencies;
+no vendor models, binaries, screenshots or extracted source are fixture inputs.
+There were 18 native engine cases, five source/checkpoint cases and four pure
+declaration cases in the original 27-case proposal. They are retained in the
+composed source and its [recorded execution](VALIDATION.md#entity-all-profile-composition--local-evidence-2026-10-15).
+
+The asymmetric D contour contains three lines and one CCW semicircle centered
+at (6,5), radius r=2, joined to a four-mm-wide rectangle at x=2..6,
+y=5-r..5+r. Points are fixed and a driven radius nominal999 is measured fresh.
+Its area is 8r+pi*r^2/2=16+2pi and perimeter 8+2r+pi*r=12+2pi.
+A 10x10x4 source ThroughAll cut leaves V336-8pi, A376+4pi.
+The actual target is 10x10x8: V672-16pi, A584+12pi. Bounds remain the
+target box. Linear, circular and mirror features use the real pattern generator.
+The mirror's positive local y and asymmetric curved side expose an incorrect
+normal/parity or winding repair. Cartesian probe coordinates are independent
+of the generator. For edited r=1, area8+pi/2 and perimeter10+pi give target
+V736-4pi and A584+7pi. Save/reopen, upstream edit, undo and redo rebuild it.
+
+The circle fixture saves radius1, fixes center(5,5), drives radius2 and stores
+a driven nominal999. Its actual result must have r within 1e-7 mm of2 and
+fresh measurement2. The source leaves V400-16pi,A360+8pi; the eight-mm
+target leaves V800-32pi,A520+24pi. A raw-radius1 fallback gives the wrong
+target V800-8pi. Without center fixes the actual underdefined two translational
+degrees of freedom remain visible; no unique-solution claim is made.
+
+Selected merge fixtures add a height2 annulus R2/R1 on a target top at z8,
+giving V800+6pi,A520+12pi,zmax10, or two disjoint radius1 regions,
+giving V800+4pi,A520+8pi,zmax10. The latter native tool has multiple regions
+but the merged persistent target stays one solid. The center hole/gap remains
+empty above the original top and material stays present below it.
+
+The symmetric depth2 D cut around target z4 leaves V768-4pi,A576+8pi;
+probes at z2/4/6 distinguish offset from mid-plane start. Both-direction
+ThroughAll starts at that mapped interior plane and must reach both box ends.
+The explicit world XY end-plane fixture starts at mapped z8 and cuts to z0;
+it keeps V672-16pi,A584+12pi rather than transforming the limit with Q.
+
+An additive ThroughAll fixture has a 10x10x4 source with enclosed 8x8x2
+cavity and a 10x10x8 target with enclosed 8x8x4 cavity. A radius1 cylinder
+fills only the cavity up to actual body exits: source V272+2pi,A552+2pi;
+target V544+4pi,A776+6pi. Ceiling, floor and side material belong to one
+connected owner before and after the merge. The existing end helper is used.
+
+Coincident distinct native owners test explicit selected routing. A later
+nonintersecting address rejects atomically without publishing an earlier
+candidate. A wide30x10x8 target accepts two addresses with actual working
+revisions0->1->2: V2144-32pi,A1368+24pi. Editing the real source before
+staging rejects and preserves V2400,A1240 at its original owner reference.
+Missing/copied readers reject before target cloning; checkpoint tests cover
+foreign/forged/omitted handles, prefix edits, revocation and failed real solves.
+Model tests preserve associative, variation, UntilNext, additive ALL, AUTO and
+nested-operation diagnostics without treating those rejections as completion.
+
+Native checks use BRep validity, one persistent solid, mass/area absolute1e-5,
+bounds1e-6 mm and 0.2-mm common-volume probes with tolerance1e-7 mm^3
+(expected0 or0.008). Raw radius checks use absolute1e-7 mm. Original values
+are mathematical oracles; expected geometry never comes from the builder under
+test. The linked source-specific native execution is not a human UI check,
+export round trip or general platform-support result.
+
+## Entity ALL absence composition fixtures
+
+These additions are original synthetic millimeter fixtures for the composed
+entity/source-checkpoint and forward-material path. They use the current V4
+fixtures and public dependencies, without private models or extracted source.
+The 27 original V4 cases and all earlier failure/evidence records remain
+separate. The composed source adds 52 cases over its primitive-only base:
+41 entity integration, five source/checkpoint, four declaration and two native
+scope/tolerance cases. Their bounded local execution is recorded in VALIDATION;
+the original proposal and earlier V4 evidence are not retroactively relabeled.
+
+A circle saves r1, drives r2 and retains driven nominal999; the actual native
+profile must contain radius2 and the real solve measures2, with one engine
+source solve. A is `[20,0,0]..[30,10,8]`, B `[20,0,-10]..[30,10,-2]` and the
+actual linear instance translates +20X with physical ray +Z. A becomes
+V800-32pi,A520+24pi; B keeps V800,A520 and its predecessor ref/metadata. The
+native component also checks the complete S/A/B inventory and B's real body
+role with unchanged revision, then commits the proposal and checks metadata.
+
+The actual Y90 rotation about `(15,0,0)` maps center `(5,5,0)` to `(15,5,10)`,
+ray +X. A is `[15,0,5]..[23,10,15]`, B `[5,0,5]..[13,10,15]`; S also lies
+behind in this rotation. Reflection across Z10 maps the center to `(5,5,20)`,
+ray -Z; A `[0,0,12]..[10,10,20]`, B `[0,0,22]..[10,10,30]`. Source offset4,
+depth -1 and actual translation `(20,0,4)` place the instance plane at Z8 with
+ray -Z; A `[20,0,0]..[30,10,8]`, B `[20,0,10]..[30,10,18]`. Each A has the
+same eight-mm r2 through-hole formula, while B remains its V800,A520 box.
+Independent Cartesian Common probes distinguish the removed channel and B's
+preserved material. Saved ALL contains no target inventory snapshot.
+
+The asymmetric D reuses the original line/arc geometry and formulas above.
+Two disjoint radius1 regions produce a valid closed compound cutting tool and
+one connected perforated owner: V800-16pi,A520+28pi for height8. An annulus is
+validated only as a direct native witness; no single persistent owner is
+claimed for an annular through cut that would disconnect an interior core.
+A genuine registry-issued solved open line must fail native contour closure.
+This is a direct constructor rejection fixture, not a forged healthy seed BRep.
+
+Selected behind-owner and near/contact maxima -0.5e-6/0/+0.5e-6 retain the
+original ThroughAll rejection and must not call the witness validator.
+Bilateral ALL actually cuts B. Complete-address no-op remains rejected.
+Causal project-level adapters observe the actual received witness/native box;
+they inject construction/release faults and source/working revision drift on
+successful deletion, with one native delete attempt and no earlier publication.
+The existing two ALL bounds-fault cases now delegate the real conservative-box
+factory and adapt only the box for the actual detached current B owner. They do
+not replace SDK global methods or invent a bounds result. AddOptimal includes
+native BRep tolerances and a further global max-tolerance enlargement. A direct original 2x3x4 box case queries actual
+vertex/edge/face MaxTolerance and requires the conservative native envelope to
+extend more than half that positive tolerance below Z0 and above Z4; this
+distinguishes tolerance inclusion from an exact-only envelope.
+
+Two higher-tolerance discriminators serialize only newly constructed original
+native geometry through BRepToolsWrapper.Write, require CASCADE Topology V3,
+edit only the first field after each Ve record to0.001, and reread with the real
+SDK. The [published OCCT format implementation](https://github.com/Open-Cascade-SAS/OCCT/blob/V7_8_1/src/BRepTools/BRepTools_ShapeSet.cxx)
+identifies that field as vertex tolerance; this fixed source tag is not an
+assertion of the installed SDK's OCCT version. Restoring those fields must
+recover every original byte; runtime native MaxTolerance must report0.001 and
+validity/mass checks must pass. No fake box or caller-supplied scalar stands in
+for these genuine native tolerance changes. These tests ran with the composed
+source recorded in VALIDATION, distinct from earlier private SDK exploration.
+
+The owner-envelope case is a 10x10x8 box at
+`[20,0,-8.0002]..[30,10,-0.0002]`, still V800/A520/one valid solid. Exact
+geometry is behind Z0, but the globally enlarged factory box must cross Z0;
+all six extrema must expand by at least0.001-1e-9 mm. This detects dropping the
+global enlargement even when AddOptimal(true) includes a smaller face tolerance.
+The witness case uses a normal-tolerance owner at those same coordinates and
+the authentic solved r2 circle prism. Only the actual witness's native vertex
+tolerance is elevated; V4pi/A12pi for length1 and real closed-tool validity must
+remain intact. Its detached maximum0.001 exceeds the0.0002 owner separation,
+so the helper must return to the ordinary B tool route and retain the original
+ThroughAll rejection with no earlier A publication. Native tolerance-query
+failure also propagates after a real query and releases the received witness
+once; it cannot authorize a no-op.
+
+A later entity rectangular slot uses original fixed corners `(1,1)`, `(2,1)`,
+`(2,3)`, `(1,3)` and the real +4X/+8X pattern. Source10x4x2 leaves V76,A144.
+A starts as 8x4x4 plus a 6x2x2 attached tail: V152,A208. The first slot leaves
+the actual still-connected working A at V144,A228; the second cuts the full
+tail section and must reject a split persistently. A/source/B predecessor
+geometry, saved bytes and export rejection are checked after the failure.
+
+Tolerances remain volume/area absolute1e-5, bounds1e-6 mm, 0.2-mm cube Common
+volume1e-7 mm^3 and actual radius/driven comparison1e-7 mm. Native validity,
+closed positive tool solids and final one-solid owners remain mandatory.
+These native fixtures alone do not establish entity UI interaction, other support or
+variation policies, export round trips, all platforms or general CAD parity.
+
+## Scripted entity ALL UI fixture
+
+The separate local UI case uses an original synthetic JSON document and six
+private harness/input copies. The circle is at local (5,5) on XY/Z0, saves
+radius1, drives radius2 and preserves driven nominal999. S is the 10x10x4
+source with its unilateral ThroughAll seed cut; A is
+`[20,0,0]..[30,10,8]`, B is `[20,0,-10]..[30,10,-2]`. The original fixture
+SHA-256 is `81e0180cee6b9792798ebcd3ace65c28bb849dd9936be92ca34297570f9216f4`.
+The linear pattern translates +20X. Geometry mode copies the four-mm source
+contribution; selected regeneration then cuts A's actual eight-mm height,
+followed by dynamic ALL. Independent expected volumes are S400-16pi,
+A800-16pi for geometry and A800-32pi for regeneration, with B800 unchanged.
+
+One actual scripted React/property-panel run observed five worker phases:
+geometry, selected-regenerate preview, ALL preview, committed ALL and reopened
+ALL. Each contains S/A/B volume/bounds/ref observations, 15 total. B retains
+exact `B@create-B` and creator `create-B` in all five, without a saved ALL
+target snapshot. The saved nominal radius1, driving2 and driven999 stay intact.
+The actual response's source-sketch visual has 96 tessellated endpoints per
+phase on the radius2 circle at (5,5), Z0; this is solved-display evidence, not
+a full solver-result/token/status/DOF or driven-annotation measurement.
+
+Volume tolerance is 1e-5 mm^3, bounds and displayed endpoint tolerances are
+1e-6 mm. Actual worker/preload/IPC responses were observed; native file-dialog
+paths were substituted with test-owned choices. The inner Electron close and
+owned temporary cleanup were reported by the reviewed harness, with outer
+exit/close 0 and drained streams. No direct UI BRep/solid-count/area/Common
+query, human pointer/native-dialog interaction, other pattern families,
+support/variation/correspondence policy or platform support is established.
+This private local harness is not yet a tracked dedicated CI command. Its
+[recorded validation](VALIDATION.md#entity-all-profile-composition--local-evidence-2026-10-15)
+does not extend earlier primitive UI evidence or native assertions to those
+unobserved cases.
+
+## UntilNext saved declaration fixtures
+
+The eight cases in
+[featureRecipes.until-next.test.ts](../src/model/featureRecipes.until-next.test.ts)
+are original, synthetic declaration fixtures. Their source and two target
+profiles are 8-by-8 rectangles centered at `(4,4)`, `(24,4)` and `(44,4)`, with
+declared extrusion depths 5, 9 and 13 mm. The source circle has radius 1 mm;
+the separate annular entity declaration uses concentric circles of radii 2 and
+1 mm at sketch offset 1 mm. The only canonical instance translates by `(20,0,0)` mm. These dimensions
+are input declarations, not measured native geometry.
+
+The expected source remains `source-owner@source-base`, while the source
+poststate is `source-owner@seed` and its selected destination is
+`owner-a@base-a`. The fixtures check these distinct identities, exact native
+requirements, unchanged editable input, selected additive intent, whole
+annular declaration retention and ALL's derived snapshot/routing syntax.
+A two-owner snapshot is supplied to pure extraction; this does not attest the
+complete native catalog. Other cases reject substituting a destination base
+for the source base and combining unilateral UntilNext with legacy symmetry,
+retain the independent additive-ALL gate, and distinguish UntilNext and
+ThroughAll preview fingerprints without rewriting the original extraction.
+
+The fixed UntilNext case added to
+[featureRecipes.entities.test.ts](../src/model/featureRecipes.entities.test.ts)
+uses that file's existing original circle declaration and +20X placement. It
+checks termination and placement without issuing solved geometry; the primitive
+adapter continues to reject an unsolved entity profile. The variation case
+remains separate and still requires its pending policy.
+
+No test in this declaration group constructs a native limit, solves a sketch,
+proves a miss, renders an editor or establishes material applicability.
+Executed results must be recorded separately in [VALIDATION](VALIDATION.md).
+
+## UntilNext native tolerance and failure fixtures
+
+The eight additional cases in
+[kernel.until-next-resolution.test.ts](../src/cad/kernel.until-next-resolution.test.ts)
+extend the original native classifier fixtures. The profile is a radius-one
+circle centered at `(5,5)` along +Z. Its forward prism has analytical volume
+`pi * length` and area `2*pi*(length+1)`; the target box is
+`[6+gap,0,0]..[16+gap,10,8]`, with volume 800 and area 520. The geometric
+side separation is exactly `gap`. Lengths are mm, volumes mm³ and areas mm².
+
+| Case | Owner maximum vertex tolerance | Prism maximum vertex tolerance | Geometric gap |
+| --- | --- | --- | --- |
+| Owner tolerance band | 0.001 | Unchanged native value | 0.0002 |
+| Prism tolerance band | Unchanged native value | 0.001 | 0.0002 |
+| Combined tolerance band | 0.0006 | 0.0006 | 0.0009 |
+| Separated control | 0.001 | 0.001 | 0.01 |
+
+The elevated-tolerance inputs are serialized from these newly constructed
+native boxes/prisms using the installed SDK's BRep V3 writer. Only the numeric
+tolerance fields immediately following `Ve` change. Restoring them recovers
+every original byte; native MaxTolerance, BRep validity and analytical metrics
+are checked after reading the edited original fixture. No external model,
+vendor fixture or mock bounding box supplies this geometry.
+
+The first three cases must not authorize `empty-forward`; a real native Common
+may itself report contact or material. A completed topology-free Common whose
+distance is above the old floor but below the combined tolerance guard is a
+stronger discriminator only when actually observed. Its branch and result
+must be recorded after execution rather than presumed from these inputs.
+The separated control requires actual native absence and its analytical gap.
+Volume/area tolerance is `1e-5`, bounds `1e-6`; separation uses `1e-8`, and the
+authored native tolerance metadata is checked within `1e-15`.
+
+Four causal failure cases inject a fault after a real tolerance query at the
+owner or prism, return a nonfinite observation after a real native query, or
+throw after actually releasing the conservative box. They require failure
+propagation and healthy borrowed geometry; the instrumented prism/box release
+is attempted once. These injected errors are test mechanisms, not naturally
+observed kernel failures or absence evidence. No native execution or general
+lifetime guarantee follows from authoring these cases.
+
+## Saved UntilNext native regeneration fixtures
+
+The 68 cases authored in
+[kernel.recipe-until-next.integration.test.ts](../src/cad/kernel.recipe-until-next.integration.test.ts)
+use original boxes, enclosed rectangular cavities and planar profiles. All
+lengths are mm, volumes mm³ and areas mm². No imported model, copied seed BRep
+delta or output of a termination helper supplies an expected result.
+
+The source hollow box is `[0,0,0]..[12,10,10]` minus
+`[2,2,3]..[10,8,7]`: volume 1008, area 888. The additive target instead has
+cavity ceiling 8: volume 960, area 916. ALL's second coincident-bounds owner
+has cavity `[2,2,5]..[10,8,8]`: volume 1056, area 860. Remote and behind owners
+are 12-by-10-by-10 boxes, volume 1200 and area 680.
+
+A radius-1.5 circle centered at `(6,5)` cuts to the first complete exit at z3,
+removing `27*pi/4`; the first target becomes `1008-27*pi/4`, area `888+9*pi/2`.
+The second ALL owner exits at z5: volume `1056-45*pi/4`, area `860+21*pi/2`.
+Add starts at z3 and enters the target roof at z8: volume `960+45*pi/4`,
+area `916+21*pi/2`. Its source roof is z7, so copying source depth would give
+a different target. Cartesian placement oracles are written independently:
+`(x+24,y,z)`, `(36-x,-y,z)`, `(36-x,y,z)`, `(x,y,30-z)` and
+`(18+z,y,18-x)`. Bounds map the eight original corners. Reflection about z15
+may also cut the original source in ALL; that case does not assert it unchanged.
+
+The authentic solved circle has nominal radius 0.75, driving radius 1.5 and a
+retained driven placeholder 999; measured radius must be 1.5. An underdefined
+variant retains two degrees of freedom. Editing the driving radius to 2 must
+give volume `1008-12*pi`, area `888+4*pi`, through save/reopen, undo and redo.
+Whole profiles also include an annulus with radii 2/1, two radius-one disks at
+`(4,5)`/`(8,5)`, and a D contour: rectangle `[3,4]..[7,6]` plus its right
+radius-one semicircle. Their areas are `3*pi`, `2*pi`, `8+pi/2`; perimeters
+are `6*pi`, `4*pi`, `10+pi`. Cuts use length 3, except the annulus starts at z1
+and exits z3. Its inner core remains connected through the original base.
+Adds use length 5. Area increments are `length*perimeter-2*profileArea`,
+except the internal-entry annular cut, whose increment is `2*perimeter`.
+
+Other cases advance the cavity floor from z3 to z5 (volume 1104, area 832),
+advance the source with a radius-0.25 one-mm blind hole, or reverse the physical
+ray from offset z10. Selected misses, tangent contact, partial closing faces,
+a later missing address and a later partial ALL owner must reject atomically.
+Native inventory tests retain unchanged refs, virtual body roles and revisions;
+staging rejects identity/checkpoint drift. A widened 48-by-10 source supports
+a no-op UntilNext parent followed by a material-changing blind child at the
+same address. Its remote target ends at volume `1200-pi`, area `680+2*pi`.
+
+Causal tests fail the validator of the actual completed tool, throw after
+actually releasing it, mutate source/revision after real probe cleanup, and
+reject a genuinely solved open contour. The open-contour component does not
+claim that its drawing produced a healthy historical seed solid. A further
+original query prism has vertex tolerances raised to 0.001 by the same
+reversible BRep field edit described above and a geometric gap 0.0002 from a
+later ALL owner. Each prism's native tolerance and analytical metrics are
+checked; real Common may detect contact/material. The test requires atomic
+rejection, without presuming which native branch demonstrates it.
+
+Native volume/area tolerance is `1e-5`, bounds `1e-6`; original 0.2-mm Common
+cubes compare volume 0.008 or zero within `1e-7`. Measured driven radius uses
+`1e-7`; edited native tolerance uses `1e-15`. The strict bridge's existing
+pending case is replaced by a real radius-one, length-eight tool (volume
+`8*pi`, area `18*pi`) against its original 10-by-10-by-8 box. Adding these
+fixtures records their origin and acceptance targets, not passing results or
+general platform support. Executed evidence belongs in [VALIDATION](VALIDATION.md).
+
+## Scripted saved UntilNext desktop fixtures
+
+The three original JSON documents pattern-until-next-cut-original.json,
+pattern-until-next-add-original.json and pattern-until-next-partial-original.json
+use only independently specified boxes, cavities and radius-one circles.
+Coordinates/lengths use mm; volume formulas use mm³ and area formulas use mm².
+No imported model or external application output supplies their expected geometry.
+
+CUT: S is [0,0,0]..[10,10,10]. Its UntilNext circle at (5,5,z0) removes 10π:
+S volume1000−10π, area600+18π. A is [20,0,0]..[30,10,8], with the original
+closed cavity [22,2,2]..[28,8,6]: volume656, area688. Copying the source cut
+removes both two-mm walls (4π), whereas regenerated Cut stops at the first
+complete exit z2 and removes only2π. A volumes are656−4π and656−2π;
+analytical areas688+4π and688+2π. B is [20,0,−10]..[30,10,−2],
+volume800/area520, and stays at B@create-B. In ALL, S is remote from the
+translated circle and B is behind it; neither is removed from the inventory.
+
+ADD: S has the same10×10×8 closed-cavity construction. Its circle starts atz2
+and UntilNext Add first enters the roof atz6, adding4π; S volume656+4π,
+area688+6π. A is [20,0,0]..[30,10,12] minus cavity
+[22,2,2]..[28,8,10]: volume912/area944. Geometry copying adds4π, a column
+joined only to the floor; regeneration adds8π and joins floor to roof.
+A volumes912+4π/912+8π and analytical areas944+8π/944+14π distinguish them.
+Only selected additive merge is exercised; additive ALL stays gated.
+
+PARTIAL: A is [20,0,0]..[25.5,10,8], volume440/area358 before the pattern.
+The translated radius-one circle is centered(25,5), overhanging x25.5.
+Its intersection area is2π/3+√3/4, so the original geometry-copy notch removes
+16π/3+2√3. Regeneration has positive forward material but no whole-profile
+closing face: the actual native NO_COMPLETE_FACE diagnostic must be visible
+and Apply stays disabled. Only the failed regeneration preview reports the
+pre-pattern A@create-A with volume440. The committed/autosaved original geometry
+document keeps A@ui-next-partial-P with volume440−16π/3−2√3 during rejection and
+after Cancel; both autosave reads must match the original geometry fixture.
+Cancel restores the rendered original geometry-copy document through React.
+
+The scripted workflow observes14 distinct actual worker builds if complete:
+seven CUT phases, four ADD phases, PARTIAL geometry/rejection/cancel.
+It checks volumes at1e−5 and bounds at1e−6, exact source/creator refs, unchanged
+source prefixes and saved intent. Selected cut, cut ALL and selected Add each
+use Apply, real preload/IPC Save As and reopen (six opens, three saves total).
+The partial error is expected; other feature/worker/renderer/request errors fail.
+No result is implied by adding this regression. Native BRep validity, area and
+far-wall material probes belong to separately executed kernel tests; this UI
+command does not make those queries or claim human/native-dialog interaction,
+installed-package acceptance or general platform support.

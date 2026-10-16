@@ -1,5 +1,1098 @@
 # Validation
 
+## ALL unilateral forward-material correction (2026-10-15)
+
+Local Windows x64 / Node 24.11.1 validated the reviewed correction over
+`372e25245f1aecff8ac4b61c83ad702038fb32c1`, with six uncommitted changed paths.
+The executed production evaluator SHA-256 was
+`e44df29ad431b5a65530e157864d136e9120950087937c3b38603139d7be25f1`.
+The frozen map contained 340 regular source/configuration/documentation files,
+SHA-256 `7ca711850a45c41fd0491838e6bd42ff03b719b2b2d19e8fff051d1c328281ff`.
+Dependency pins and generated outputs were recorded separately. One own-checkout
+`npm ci` and official Electron 44.7.0 lazy initialization preceded the checks.
+
+| Command | Actual result |
+| --- | --- |
+| Complete native-scope and saved-ALL engine files, public config | PASS: 41/41 cases in 2/2 files, including all 15 new cases; no filtered skips, 7.15 seconds. |
+| `npm test` | PASS: 2,355/2,355 unit/CAD cases in 135/135 files, 20.67-second unit phase, followed by 32/32 security/IPC and JavaScript-literal checks. |
+| `npm run build` | PASS: TypeScript and Vite, 1,985 modules; existing externalization/chunk warnings retained. |
+| `npm run test:desktop` | PASS: production loader, preload bridge, two canvases and actual worker/WASM responses; no console errors or failed requests. |
+| `npm run test:desktop:pattern-all` | PASS: existing selected/preview/committed/reopened workflow, Apply, native-bridge Save As/reopen, observed child close and guarded temporary-data cleanup. |
+
+Every command ran once, sequentially, without pool, timeout or environment
+overrides or retries. Exit/close zero and output-pipe drain were observed.
+Source and selected dependency hashes stayed equal before/after each command.
+Build generated seven compiled outputs and TypeScript build info; those outputs
+then stayed unchanged through both desktop checks. This subsequent evidence-only
+documentation update is separate from the frozen bytes actually executed.
+
+The 13 component and two engine regressions cover the forward A cut and unchanged
+behind-plane B, physical rotation/reflection/offset, full inventory/virtual-role
+freshness, selected/bilateral behavior, invalid primitive inputs, the near-plane
+band, bounds query/release failures and a late split without partial publication.
+[Provenance](PROVENANCE.md#all-unilateral-forward-material-fixtures) gives independent
+formulas/probes: metric tolerance 1e-5 mm³/mm², bounds 1e-6 mm and probe volume
+1e-7 mm³. Counts overlap with the full suite.
+
+The existing scripted linear-cut UI regression used distinct worker requests
+3/5/6/7, retained S/A/B/C refs and analytical volumes/bounds, completed two opens
+and one save, and preserved ALL intent without a target snapshot. It does not
+exercise the new behind-plane case in the editor; that evidence comes from the
+component/engine cases. No pointer/native-dialog, circular/mirror UI or general
+lifecycle/interoperability claim follows.
+
+The earlier one-case discriminator on original #38 source `06cfdd5c` passed by
+requiring its actual unilateral ThroughAll error and unchanged predecessor A/B.
+That confirms the old failure/atomic rejection, not desired corrected behavior.
+Original #38 source, Draft/P2 record and local/hosted history remain separate;
+no hosted check for this correction is recorded here.
+
+Independent static review rejected private V1's rotated/mirror fixtures because
+a reused helper fixed native A's upper Z at 8 while the new definitions/oracles
+required other bounds. V2 explicitly constructs A/B from their row bounds,
+without changing production or analytical oracles. V1 was never applied or
+executed; this was a static fixture failure. The actual checks above used V2.
+
+`npm ci` still reported eight moderate dependency entries; no audit fix was
+applied. Original #38's three medium CodeQL alerts remain pending triage. Earlier
+timeouts/incomplete interactions and #35's separate macOS failure remain in
+their own historical records. This is not a zero-vulnerability finding.
+
+The correction is limited to intrinsic ALL cuts with unilateral ThroughAll.
+Entity-profile composition still requires its real solve/profile/closed-tool
+proof and separate validation. Additive ALL, AUTO, other end conditions, general
+contact classification, platform support, leak freedom and release readiness
+are not established by this run.
+
+## Instrumented production-renderer ALL workflow — 2026-10-14
+
+Runtime source
+[`f65d6f1b8ee1feeb3ca37432fb8668fbbd8e6c79`](https://github.com/angelcp2802/solidflow/commit/f65d6f1b8ee1feeb3ca37432fb8668fbbd8e6c79)
+follows `a271abb1409b0aea873aa187c0c07a613e001db2` on draft #38's
+`4a2cee2c1d20222bbeab709c8594ad49292faeb9` checkpoint. The underlying dynamic
+recipe source is based on draft #37 at
+`682fba8e3eccb616f4fe442e04c44033bd2682d4`. This increment adds the reproducible
+public `npm run test:desktop:pattern-all` command and original JSON fixture,
+with separate CI steps after the standard smoke and before packaging. It does
+not expand the supported recipe grammar or complete the full feature goal.
+
+Final local Windows x64 / Node 24.11.1 results for these exact 279
+runtime/configuration inputs are:
+
+| Command | Recorded result |
+| --- | --- |
+| `npm test` | Exit 0; 2,198 unit/CAD cases passed in 125 files, 55.70 seconds for the unit phase, followed by all 11 IPC-security checks without failures/cancellations/skips. Complete invocation: 67.719 seconds. |
+| `npm run build` | Exit 0; TypeScript and production build passed, 1,985 modules transformed. Complete invocation: 16.469 seconds. |
+| `npm run test:desktop` | Exit 0; standard initial-model readiness check passed, actual child close/code-zero was observed and isolated temporary-data cleanup succeeded. Complete invocation: 19.478 seconds. |
+| `npm run test:desktop:pattern-all` | Exit 0; the scripted selected-A→ALL workflow, actual worker preview, Apply, Save As and reopen passed; actual child close/code-zero and guarded temporary-data cleanup succeeded. Complete invocation: 29.305 seconds. |
+| The same public pattern command with test-owned Windows junctions in `TEMP`/`TMP` | Exit 0; the inner workflow passed in 29.279 seconds with unchanged source/assets, child close/code-zero and inner cleanup. The outer check also unlinked its owned junction and deleted its owned container. This checks that Windows alias scenario only. |
+
+Before/after maps for the final commands match all 279 committed runtime inputs
+byte for byte. The renderer assets stayed unchanged during each recorded run.
+The public pattern script's SHA-256 is
+`d7419d617ed5e594cf6382c8c269e9adfe277cefdde41b5240b279b10273c3c7`.
+The original fixture is 2,962 bytes, SHA-256
+`06540f537c83a14aad45d46aac26d8f894354b5cfbb2a9f52fc25c383eca7b17`;
+its parameters and analytical expectations are documented in
+[fixture provenance](PROVENANCE.md#instrumented-dynamic-all-desktop-fixture).
+The source correction creates its profile beneath the canonical system temporary
+root and checks parent/child ownership in that same namespace. It keeps the
+existing prefix/token/containment guards.
+The successful junction case does not establish arbitrary filesystem aliases,
+general cleanup guarantees or another platform's behavior.
+
+The public interaction check launches a fresh hidden production-loader child.
+It drives the real React controls with scripted DOM events and observes the
+real production worker/WASM. Four distinct actual worker requests were checked:
+selected input `3`, ALL preview `6`, committed ALL `7` and reopened ALL `8`.
+For source S the independent volume is `400−4π`; A is `800−8π`; B is `800`
+under selected-A and `800−8π` under ALL; remote C remains `800`. Per-owner
+volumes use absolute `1e−5` mm³ and bounds `1e−6` mm. Exact body/source/creator
+identities are checked at all four phases. The saved/reopened declaration keeps
+its exact historical source and scope route, with no persisted target snapshot.
+Apply was observed disabled before the actual ALL preview response, then the
+real Apply generated a separate committed build. The unchanged source/target
+prefix, actual saved file and reopened worker input were compared.
+
+File operations use the existing restricted preload/IPC. Native dialog choices
+are substituted with only test-owned temporary paths; no native-dialog or human
+pointer interaction is claimed. The original main/preload sources remain
+unchanged. CDP observation is initialized on a preceding owned blank page, so
+the original preload executes on that page and again on the production page.
+The instrumentation supplies neither CAD responses nor React/document state.
+The complete 180-second interaction deadline is separate from the unchanged
+standard smoke deadlines; the instrumented child has a 170-second deadline and
+initial readiness/individual steps retain 35-second limits.
+
+Earlier private prototypes remain separate, with their failures retained:
+
+- Version 3 failed before production navigation because it assumed the Electron
+  last-preferences getter returned a preload path. That harness assumption was
+  corrected; source/assets were unchanged. Failure log SHA-256:
+  `a67856fee5639fea668dcc2a6f7324beb0e8f775f1ac6ccd0e0fbfda3ab9ea7f`.
+- Version 4 reached its 170-second child and 180-second parent deadlines before
+  production navigation. It made no file-IPC calls or protocol requests, did not
+  reach the CAD interaction, did not observe child close and retained its owned
+  temporary directory. This was not a successful tool check or proof of child
+  termination. Failure log SHA-256:
+  `1ffdbd856e39cbdba7871e72d97a1b7a195eec7474a7e4ed9f74da1b7a1f2e40`.
+- Version 5 initialized observation on its own blank page before production
+  navigation and passed a separate local run in 56.633 seconds on the earlier
+  `4a2cee2c1d20222bbeab709c8594ad49292faeb9` source with 277 runtime inputs,
+  observed child close/code-zero and successful temporary cleanup. That private
+  prototype pass was not validation of the later public script. The public
+  source-specific results are the rows above; no deadline or CAD oracle was
+  relaxed to obtain them.
+
+The workflow is configured to run the new public command on Windows 2025 x64,
+Ubuntu 24.04 x64 with Xvfb and macOS 15 arm64. No hosted execution of this new
+head is recorded here yet. Earlier three-OS success does not validate a command
+added later. This one scripted linear-cut workflow does not establish circular
+or mirror editor interaction, picking, stale-prefix rejection, general binding
+editing, undo/redo, native-dialog behavior, exported-file interoperability,
+complete shutdown/allocation safety or platform support. Other end/start
+conditions, dependent references, AUTO/additive ALL, variation, nested recipes
+and complete creation/split/consumption lifecycles remain required work.
+
+The separate #35 local unit timeout and hosted macOS bus error are neither
+reproduced nor resolved by these results. Standard smoke, scripted tool
+interaction, unit/IPC checks and crash diagnostics keep their distinct evidence
+boundaries. The earlier validation history below is retained in full.
+
+
+## Dynamic current-body cut regeneration — 2026-10-14
+
+Runtime source
+[`d2f9904edc394af067f1874af856aaf96239ed4f`](https://github.com/angelcp2802/solidflow/commit/d2f9904edc394af067f1874af856aaf96239ed4f)
+is based on draft #37 at `682fba8e3eccb616f4fe442e04c44033bd2682d4`.
+It enables the explicit saved `regenerate`/false ALL declaration for the initial
+intrinsic rectangle/circle cut recipes with blind/ThroughAll endings. Every
+rebuild resolves complete current native membership at the pattern-input
+boundary; the document saves dynamic intent and exact historical sources,
+without current target refs or an inventory snapshot. Only changed owners
+receive a pattern poststate. Geometry/true copying retains selected targets.
+
+The source adds 54 original cases: 17 symbolic model/command, seven SSR,
+18 component-native, eight saved-engine and four contextual-deletion cases.
+The deletion correction removes exact consumers of an owner whose creation
+is deleted, including refs through ALL, while preserving the dynamic pattern
+and unrelated repair refs. It does not make the pattern depend on each member.
+
+Final local Windows x64 / Node 24.11.1 results for these exact 277
+runtime/configuration inputs are:
+
+| Command | Recorded result |
+| --- | --- |
+| `npm test` | Exit 0; 2,198 passed in 125 files, 56.15 seconds for the unit phase, followed by all 11 IPC-security checks without failures/cancellations/skips. |
+| `npm run build` | Exit 0; TypeScript and production build passed, 1,985 modules transformed. Existing externalization and large-chunk warnings remain. |
+| `npm run test:desktop` | Exit 0; initial-model readiness, two canvases, preload bridge, worker/WASM responses and zero recorded console errors/failed requests; actual child close and isolated temporary-data cleanup succeeded. The complete validation invocation took 24.112 seconds. |
+
+The complete before/after maps for each final command are identical and match
+all 277 committed Git-tree inputs byte for byte. No environment override was
+recorded. The final build updated the renderer after the contextual-deletion
+source change; it is not described as an unchanged rebuild. Desktop used all
+seven exact final compiled outputs, which stayed unchanged during its run.
+
+The smoke entry point carries the same success-only `app.quit()` correction
+as [draft #35](https://github.com/angelcp2802/solidflow/pull/35); failures retain
+`app.exit(code)`, and readiness/exit deadlines and cleanup retries are unchanged.
+The separate launcher-diagnostics helper and its 20 additional Node cases are
+not included here. This source's 11 IPC checks are not the 31-case #35 suite.
+The #35 local unit timeout and hosted macOS bus error remain separate results.
+
+Before the final source, build, native18 and engine8 passed on 276 inputs.
+Those focused passes are not substituted for the later 277-input full suite.
+The first saved-model/SSR selection on 277 inputs failed three presentation
+assertions, with 113 passed of 116: an old exact sentence ended in a period
+where the new explanatory clause used a comma. The expectation was updated to
+the complete intended sentence; calculation, route, selection and immutability
+assertions remained intact. The corrected seven-file selection passed all 116
+cases, and the final complete suite above includes them. Original failure
+evidence is retained; no test budget or geometry assertion was changed.
+
+Native checks cover all three placements, independently owned coincident
+destinations, remote no-op owners, full-inventory freshness and stale/forged
+proof rejection. One case actually evaluates 35 current owners, including
+33 changed destinations; this does not prove native evaluation at the256-owner
+limit. The positive512 boundary checks declaration/native membership rather
+than512 Booleans;513 applications reject before target copies/tools. The
+selected-target limit remains32, dynamic membership256 and applications512,
+with independent closure/cache limits. Metric/probe tolerances and original
+parameters are recorded in [fixture provenance](PROVENANCE.md).
+
+Additive ALL applicability and AUTO discovery/capture remain explicit pending
+capabilities. Their rejection is not parity or completed support. Selected
+additions remain supported within the preceding contract. Other end/start
+conditions, dependent references, varying sketches/dimensions, nested recipes,
+full ownership lifecycle, real property-panel/worker preview/Apply interaction
+and independent export interoperability remain required. SSR is not real
+interaction; initial-model smoke does not exercise these tools or prove general
+shutdown, native-leak absence, signing, releases or platform support. No hosted
+result for this new source is inferred from the older revisions below.
+
+
+## Saved feature recipe regeneration — local source checkpoint (2026-10-14)
+
+Source commit [97def5ae](https://github.com/angelcp2802/solidflow/commit/97def5ae2ab0b3e15fc007f560cecd465b9c138d)
+connects strict saved declarations, explicit-frame tools, chronological native
+evaluation and staged body/catalog/cache adoption. The branch changes 36 paths
+from base [d0173137](https://github.com/angelcp2802/solidflow/commit/d01731374b08b3031f5b54e6012dfaf8aa54c6c4).
+The final validation map has 271 runtime inputs. Their bytes were checked against
+the committed Git tree; the map SHA-256 is
+`5e80aa6bf96658a88c83e722962f0f6a1bfd637abb92ebae18694f181adc76c1`.
+Dependencies and the lockfile are unchanged. This documentation update does not
+change those runtime inputs.
+
+### Implemented and checked scope
+
+Explicit feature patterns can choose geometry copying or regeneration. Initial
+regeneration accepts selected exact current targets and historical source
+poststates, intrinsic rectangle/circle cut or merge operations, blind/ThroughAll
+endings, no reference policies and no variation. Actual tools rebuild against
+progressive working owners in canonical instance and saved feature order.
+Selected parents have same-address semantic roles even when their material is
+unchanged. Changed final owners publish atomically; unchanged owners retain their
+old references. Geometry copying remains a separate method, with no fallback for
+failed regeneration.
+
+The [fixture provenance](PROVENANCE.md#chronological-recipe-evaluator-fixtures)
+and [regeneration contract](FEATURE_REGENERATION.md) give the exact dimensions,
+formulas, tolerances and limits. Standalone evaluator and saved-engine geometric
+cases check BRep validity, final solid count, volume, area and bounds; selected
+cases add independent material
+probes. Metric tolerance is 1e-5 mm³/mm², coordinate tolerance 1e-6 mm and probe
+volume tolerance 1e-7 mm³. These tolerances do not establish general robustness.
+
+### Final required commands
+
+Local Windows x64, Node 24.11.1, TypeScript 7.0.2, Vitest 5.0.3 and
+Replicad/OpenCascade packages 1.1.0:
+
+| Command | Actual result on the final 271-input snapshot |
+| --- | --- |
+| `npm test` | PASS: 2,144 tests in 120 files, no filtered skips, followed by 11/11 IPC checks. The unit phase reported 52.18 seconds. |
+| `npm run build` | PASS: TypeScript and Vite, 1,985 modules. Existing dependency externalization and large-chunk warnings remain. |
+| `npm run test:desktop` | FAIL: initial-model readiness passed, including the production protocol, preload bridge, two canvases, worker and WASM; no console errors or failed requests were reported. The launcher still exceeded its 45-second exit deadline. This is not an overall desktop pass. |
+
+All three commands retained unchanged before/after runtime maps. They also
+retained equal hashes for all seven compiled outputs before/after execution,
+and the build reproduced the same assets. The critical output hashes are:
+
+| Output | SHA-256 |
+| --- | --- |
+| Renderer | `819f7f37210d6f01c007d7dd1d68ce61577bb6e3176a4f38f268a1954f4c05b8` |
+| Worker | `ea1109463085ae99611fea3dab78924caaf7fdf0566eb73c40d7081b1e800799` |
+| WASM | `4c9f22e9f3828dca6f3c95405934cdbe624e593c35266f47f392ab337478dbde` |
+
+### Focused evidence and retained failures
+
+Focused invocations passed 75 bridge/received-ownership/end-condition cases in
+six files, 21 standalone evaluator cases, 19 primitive/registration cases, 18
+saved-engine integration cases, 37 model/command/static-rendering cases, and
+three actual native cache-capture/registration fault cases. Counts overlap and
+must not be added as independent coverage. The final full suite includes the
+corrected source and tests.
+
+The engine cases distinguish copying a height-four removal from regenerating a
+ThroughAll cut through a height-eight target for linear, circular and mirror
+placements. They also exercise exact older sources after later modification
+and Combine consumption, stale current targets, no-op ownership, late atomic
+rejection, source edits, save/reopen and undo/redo. The evaluator additionally
+checks temporary islands/empty working material, restoration, equal-volume
+spatial changes, dependent operations, freshness and retained-candidate cleanup.
+These programmatic cases do not prove real editor picking or worker preview/Apply.
+
+Two initial builds failed TypeScript checking: a profile narrowing lost across
+a callback, and a test mock's broad callable annotation. Stable local aliases
+fixed the annotations without weakening geometric assertions. The 19-case
+primitive invocation preceded its test-only typing correction; the final build
+and full suite include that correction.
+
+The first evaluator run passed 19 cases and failed two volume expectations.
+The original analytical oracle had counted a radius-.5, depth-two pocket as π
+rather than π/2. Correct expectations are 392−π/2 for one pocket and 400−π for
+two. Production geometry, area/bounds/probe expectations and tolerances were
+unchanged; the corrected 21-case run passed.
+
+An earlier full run on 268 inputs passed 2,103/2,104 tests and 116/117 files,
+with one 5-second timeout in the curved-corner offset-history shell case
+(reported duration 5,187 ms). Its chained IPC phase did not run. A direct
+unchanged-case run at the original deadline passed one case with 34 filtered
+skips; that was not a full-file pass. The case performs several native rebuilds
+and STEP round trips and now has an explicit bounded 30-second budget. Its
+geometry, expected results, algorithms and assertions are unchanged. The final
+full run passed. The observations do not establish the cause of the earlier
+timeout or a performance guarantee.
+
+The first integrated desktop invocation failed its 35-second readiness deadline
+and then its 45-second launcher deadline; it logged HTML/CSS/JS responses but no
+worker/WASM response. Later private diagnostics reached readiness and still
+failed the exit deadline. One observed an exit event with code zero at 47.465
+seconds, after the watchdog deadline; this remains a failed run. A minimal
+same-version Electron control without a BrowserWindow or project code exited
+zero in 5.158 seconds. A separate private comparison changed only successful
+termination from `app.exit` to `app.quit`, keeping the readiness oracle and
+deadlines: it reached readiness and actual exit/close zero at 16.103 seconds,
+before the watchdog. These bounded observations support further shutdown
+investigation, not a general cause or a pass for the unchanged public harness.
+The earlier diagnostics captured source maps; full compiled-output hash capture
+was added for the final required commands above.
+
+The standard final desktop run still fails. The separate
+[desktop diagnostic PR](https://github.com/angelcp2802/solidflow/pull/35) must
+retain its own source and validation; results from this CAD branch cannot be
+transferred to it.
+
+### Log identities
+
+These hashes identify retained local command output; no local artifact or
+private model is required by the public tests.
+
+| Observation | Log SHA-256 |
+| --- | --- |
+| Final full suite and IPC | `463c6e8bb7d4166caf17a83ecb46d07472cf4f168a68228c3a038048fcb316c0` |
+| Final build | `ce825ca011f382a2d901e59b83d8cb3367fd165e8ba4c0cd65a77bfa0290afbd` |
+| Final standard desktop failure | `236acb7d106737ec62a946ec88f22f69810eff3cd8ef8ac242781593d8ed87f8` |
+| Saved engine 18-case pass | `bf0254c20604cc3c53bebd7ce3862684453fdea44c53b8b4c3370d1551bc4574` |
+| Model/commands/SSR 37-case pass | `d0c7ffdca88046cf003514a23cd8bc5e5c40aa0693aa547b0bca66491c9d9b7c` |
+| Native cache faults three-case pass | `d4820ba0cf15f6919fd2abde020b90016ee9a6dd33759fdb3cdec05d625656fa` |
+| First evaluator oracle failure | `03ad7579ca9833849cd7b7e899fbd27ef1eaa69f1bb06b65e9a1b21386ec7bbd` |
+| Corrected evaluator pass | `3267288c817ffb7cdfecae7d524675874caa8479e5371e253b13fc6c2eb39b6d` |
+| Earlier full-suite shell timeout | `3b5962be713e0811f3c885527e44dd8043f7f3edb76384bd5d68c214162a80f5` |
+| Private forced-exit diagnostic failure | `1f5166f695ccd90f3f4e2eaf20d17e680781c53ea235372abedb5b2c907179e2` |
+| Private graceful-exit comparison | `6b6b379d7cfb139926aa799a9f4a29c47d5ac5ae66c541647cb716c1f160c91f` |
+
+### Required continuation
+
+The 28 model/command cases use symbolic healthy receipts and the nine SSR cases
+execute no events. Native cache faults count received-copy delete attempts;
+closure-local cache-Map publication and post-adoption prior-catalog release
+remain outside those injected cases. Legacy validator cleanup attribution,
+SDK-internal allocation and total native leak freedom remain unproved.
+
+Other end/start conditions, exact face/datum/instance correspondence, arbitrary
+and associative solved profiles, dependent sketches/planes/constraints, all/auto
+scope, variation/equations, nested recipes and creation/split/consumption ledgers
+remain required. Complete preview/Apply, suppression/rollback, picking, document
+lifecycle and independent interoperability also remain open. This checkpoint
+does not complete the CAD goal or establish platform support. New hosted checks
+must be inspected on this branch's actual head; no earlier three-platform pass
+is attributed to this source. Binary publication remains gated by
+[issue #5](https://github.com/angelcp2802/solidflow/issues/5).
+
+
+## Feature recipe components — local source checkpoint (2026-10-14)
+
+Source commit [`ecc7dd3c`](https://github.com/angelcp2802/solidflow/commit/ecc7dd3c85d0b05264eab2f4ae47db11d23ec8c3)
+adds bounded recipe declarations and explicit-frame native circle/rectangle
+construction, with original inline fixtures and contracts. It changes 13 paths
+from `d0173137`; the runtime validation map contains 258 inputs. These are
+components of per-instance regeneration. The saved grammar, editor and engine
+still do not enable `geometryPattern:false`; no copied-delta fallback is added.
+
+### Executed checks
+
+Local Windows x64, Node 24.11.1, TypeScript 7.0.2, Vitest 5.0.3,
+Replicad/OpenCascade packages 1.1.0:
+
+- `npm run build` passed TypeScript and Vite, 1,985 modules. Existing browser
+  externalization/chunk-size warnings remain.
+- The final `npm test` passed **2,039 tests in 110 files**, with no filtered
+  skips, followed by **11/11 IPC checks**. The unit phase reported 54.66 seconds.
+- Focused declaration runs passed **51/51** in four files (3.95 seconds);
+  explicit-frame native runs passed **17/17** in one file (5.10 seconds).
+  They preceded the test-budget-only correction below; all seven new files
+  remained byte-identical and all 68 cases also passed in the final full run.
+- Separate IPC passed 11/11. Before that test-budget-only correction,
+  `npm run test:desktop` passed the initial model, production protocol,
+  preload bridge, worker and WASM readiness, with no console errors or failed
+  requests. Production inputs remained identical. This is an initial-model
+  smoke result, not editor interaction or recipe evaluation through the worker.
+
+The native fixtures check actual BRep validity, one closed solid, finite
+positive volume, surface area, bounds and independently placed material
+probes. Volume/area tolerance is `1e-5`, coordinate tolerance `1e-6` and
+probe-volume tolerance `1e-7` (full cube 0.008 mm³). Three placements contrast
+an actual height-8 regenerated ThroughAll cut with a height-4 blind control.
+Two owner cases also measure the tool itself to distinguish a wrong height-40
+aggregate. Signed/symmetric non-XY frames, UntilNext cut/boss, an explicit
+UpToSurface plane, hollow-body ThroughAll and two causal validator/release
+failures have their exact fixture scope in [PROVENANCE](PROVENANCE.md#explicit-frame-recipe-primitive-fixtures).
+The two failure cases preserve original error identities and one received-handle
+delete attempt; they do not establish hidden-allocation or child-release safety.
+
+### Retained earlier outcomes and one native test budget
+
+Before the correction, the full run reported **2,038 passed / one failed** out
+of 2,039 tests in 110 files (65.71 seconds). The existing toroidal-limit case
+timed out at its default 5,000 ms; its reporter duration was 7,205 ms. A direct
+single-case repeat also timed out at 5,000 ms (reported 5,325 ms), with 33 other
+cases filtered out. Neither run reported an assertion failure.
+
+An initial shell-quoted focus command selected no test: 608 filtered skips
+across 36 files. Its exit zero is **not** a validation pass. A corrected direct
+argument-array invocation produced the single-case failure above.
+
+A diagnostic invocation of the exact toroidal case, with CLI
+`--testTimeout 60000` and unchanged tracked source, then passed its original
+validity, `−sqrt(96)`/20 exit-bound and volume-order assertions: one passed,
+33 filtered skips; 12.73 seconds for the complete focused run. This supports
+a specific bounded runtime budget, not a performance or root-cause claim.
+Only that test now has an explicit **30,000 ms** budget. No production limit
+algorithm, numerical oracle, global timeout or skipped-case policy changed.
+The final full/build results above apply to this corrected source snapshot.
+The two earlier failures and diagnostic override remain part of the evidence.
+
+Sealed decoded process-log SHA-256 values:
+
+| Scope | SHA-256 |
+| --- | --- |
+| Final build | `d7097a2b5c5ca0472a149bd96fcaf128c05be32b8a39fa70c8264aa673279314` |
+| Final full + chained IPC | `26231079d5b4351b63074027cadca63e3a3764612143b51dfd157c8a0895bd81` |
+| Focused pure 51 | `fb42ece057b3cf6da431cc27c110842414c9991ab128b69b2be2737ccf54ba2e` |
+| Focused native 17 | `afe46c2968a675d0224a32033b3998fa0f2dd2e441d47c64de6c371ad350bd84` |
+| Earlier full failure | `2df587a126584a255aa13d6dab84b8a1562adfbd2775310f2ce168221d0cf06c` |
+| Direct 5-second focus failure | `d5fc2d813cc06ed40e8857291e9294b9bb6b70f8ce9d5f3e5cf84e56b993c37d` |
+| No selected test | `2f6b82de5e73e937c6cb12c5c791e6397cf6b8534742a8cdb03888ddf135f07e` |
+| Diagnostic CLI 60-second budget | `1d7577262146e6d1d49b466b269e9c2f10b5951e670f62fe1aca671dd03f3c38` |
+| Separate IPC | `91298921d0035b1ad13e45f5c1975889c89fbaf132fd461b275fb8cc052b82ff` |
+| Initial-model desktop | `998d7b16cfc16b2250c5aa8fc6ba2b090a70d2f82974219fa0d88eac9e01b893` |
+
+### Remaining required work
+
+Source snapshots stayed unchanged during each recorded command. Relative file
+links in the 13 changed source/contract paths were checked (49 links); the
+public-content scan and whitespace check passed. There is no hosted CI claim
+for this source checkpoint yet. Earlier hosted checks belong to their recorded
+heads and do not validate these added components.
+
+Actual selected recipe-DAG evaluation, exact historical/current native
+attestation, same-instance virtual parent roles, updated working targets,
+atomic catalog/cache publication, no-op identities, persisted grammar,
+preview/Apply, picking and document lifecycle remain required. So do arbitrary
+and dependent profiles, associative planes/faces, all/auto scope, varying
+sketches/dimensions/equations, nested recipes and creation/split/consumption/
+Combine ledgers. See [FEATURE_RECIPES](FEATURE_RECIPES.md) and
+[FEATURE_REGENERATION](FEATURE_REGENERATION.md). These Windows cases do not
+establish complete feature coverage, general platform support, independent
+export interoperability, leak freedom, signing, installers or release readiness.
+
+## Scoped feature contributions — hosted result for the published head, 2026-10-14
+
+[Draft PR #36](https://github.com/angelcp2802/solidflow/pull/36) remains open
+and unmerged, based on #34 at `601788c60807cdeb0ae644f7c7a88617d159f065`.
+Its runtime source is `c10d31f6f76613ceffba76a348c0ba3909048c56`; published
+documentation head `ae4498810de64ab46a9398145ea37d8c1f6b00dc` changes only
+this validation document and retains the same 251 runtime inputs.
+
+[CI 38495555168](https://github.com/angelcp2802/solidflow/actions/runs/38495555168)
+and [Security 38495555227](https://github.com/angelcp2802/solidflow/actions/runs/38495555227)
+completed successfully on their first attempts, with six successful checks
+for that exact published head. Every configured desktop job checked out
+merge `2ae4f0db2dfc365be7c0de0117b86538c910a95f`, whose parents are the
+stated #34 base and published head. Its tree
+`9b5a3df566e2988d288301ef4e2a389903a58632` equals the published-head tree.
+
+| Configured job | Node | Unit/CAD | Native feature patterns | IPC | Build modules |
+| --- | --- | --- | --- | --- | --- |
+| Windows 2025 x64 | 24.21.0 | 1,971 passed / 105 files | 22 passed | 11 passed | 1,985 |
+| Ubuntu 24.04 x64 | 24.21.0 | 1,971 passed / 105 files | 22 passed | 11 passed | 1,985 |
+| macOS 15 arm64 | 24.20.0 | 1,971 passed / 105 files | 22 passed | 11 passed | 1,985 |
+
+The logs use npm 11.19.0 and Vitest 5.0.3. The unit/CAD summaries contain no
+skipped tests; the IPC summaries report zero failures, cancellations or skips.
+Each job passed the isolated initial-model production Electron smoke,
+including the application protocol, preload bridge and worker/WASM loading;
+the reports record WASM loaded, no console errors and no failed requests.
+Linux used Xvfb. Each packaging command completed with `--publish never`.
+Packaging is not independent evidence of signing, notarization, installer use
+or release readiness.
+
+The configured JavaScript/TypeScript CodeQL analysis and its result check
+passed. The `npm audit --audit-level=high` job passed while retaining eight
+moderate findings. These finite checks do not establish complete security.
+
+The local runtime-source full result remains 1,877 passed / 94 timed-out
+tests: 82 at 5 seconds and 12 at 60 seconds. Hosted success does not explain
+those deadlines or replace the earlier local failures and separate checks.
+Every previous ledger entry below remains in its original source scope,
+including wording that described hosted checks as pending when recorded.
+
+These are programmatic, rendered-component and initial-loader checks.
+They do not establish real pattern-editor interaction, independent target
+fidelity or interoperability, general platform support, native leak freedom,
+or the full body-management goal. Per-instance recipe regeneration, varying
+sketches, dynamic and automatic scopes, broader nested/dependent patterns
+and ownership lifecycle behavior remain required. The
+[contract](FEATURE_PATTERNS.md) and [original fixture provenance](PROVENANCE.md)
+retain those boundaries.
+
+## Scoped feature contributions — source-specific results, 2026-10-14
+
+This draft continues explicit body ownership from #34 at
+`601788c60807cdeb0ae644f7c7a88617d159f065`. Its runtime source is
+`c10d31f6f76613ceffba76a348c0ba3909048c56`; it has not merged into the default branch.
+The [feature-pattern contract](FEATURE_PATTERNS.md) defines exact historical
+contribution bindings and current target routes. [Provenance](PROVENANCE.md)
+records original coordinates, analytical expectations and tolerances. The
+earlier ledger below retains each earlier run's source scope and outcome.
+
+### Local checks on the current runtime source
+
+These commands ran on Windows x64 with Node 24.11.1. Each completed command
+recorded the same 251 source/configuration inputs before and after execution,
+without environment overrides. Results apply to the command's actual scope;
+separate passing checks do not make the full command pass.
+
+- `npm run build`: PASS, TypeScript checking and 1,985 production modules;
+  Vite duration 1 min 43 s. Log SHA-256:
+  `85b1030444747edc9d2eb409c9d0d692355c474151ab3a75f9dd319bdee4d7f7`.
+- Three selected native cleanup cases: PASS, with 30 other tests explicitly
+  filtered out of a 33-case file, 136.14 s. The direct Vitest invocation used
+  `src/cad/kernel.body-workflow.test.ts`,
+  `--testNamePattern 'registered owned history|undeclared feature pattern'`,
+  `--pool=threads --maxWorkers=1`. It checks real contribution capture and
+  retained-copy disposal in two failure stages and original error ordering:
+  capture failure permits no pattern commit; retained-history cleanup failure
+  follows one real pattern commit. A separate case rejects an undeclared
+  feature pattern. It does
+  not establish a full-file pass or general native leak freedom. Log SHA-256:
+  `f84e2f9cd441f3223c012cdd90bb198c5cd7864ae6b661241c6fdb5704be1bf3`.
+- Full `npm test`: exit 1, 1,877 passed and 94 failed out of 1,971 tests;
+  84 passed and 21 failed out of 105 files, 759.99 s. Complete classification
+  of 74 reported failure groups accounts for all 94 failed-test headers:
+  82 test timeouts at 5 seconds and 12 at 60 seconds. No assertion failure,
+  other failed-case diagnostic, worker-termination warning or unhandled-error
+  candidate was found in this log. The native feature-pattern file reported
+  18 passed and four failed out of 22; its four failures are included in
+  those timeouts. A timeout does not prove its remaining geometric assertions
+  ran. The unit phase failed and the chained IPC phase was not entered.
+  Log SHA-256:
+  `1c5b891dd2275d4174fd4679728b41490ca70652c7fa4038f88eb1256efc5d2f`.
+- Separate `npm run test:ipc`: PASS, all 11 cases, zero failures,
+  cancellations or skips, 1,519.6067 ms. Log SHA-256:
+  `4a96ea44168a3a816ce4798c1b2c0bd638ace397e1008052e8585464f995af33`.
+- `npm run test:desktop`: PASS for the isolated initial-model production
+  loader. The report recorded the application protocol, preload bridge,
+  worker and WASM readiness, no console errors and no failed requests.
+  It did not click pattern-editor controls or launch an installer.
+  Log SHA-256:
+  `998d7b16cfc16b2250c5aa8fc6ba2b090a70d2f82974219fa0d88eac9e01b893`.
+
+### Earlier checks on the preceding uncommitted snapshot
+
+The earlier snapshot also had 251 runtime inputs. The only runtime file
+changed subsequently was `src/cad/kernel.body-workflow.test.ts`: two obsolete
+aggregate-capture cleanup fixtures were replaced by two causally reachable owned
+history fixtures, and a separate undeclared-pattern rejection case was added.
+Production source was unchanged. These earlier outcomes keep their original
+scope and are not relabeled as checks on the current test snapshot.
+
+- Focused model and server-rendered panels: 69 passed in four files,
+  98.12 s, with `--pool=threads --maxWorkers=1`. This comprises 51 new model
+  cases and 18 rendered-panel cases; rendered markup is not real interaction.
+  Log SHA-256:
+  `1826aa7a11fe08ed39c67dc04b9438333d65b56d0e83bb588d6ea5cac7cc6640`.
+- Earlier `npm run build`: PASS, TypeScript and 1,985 modules.
+  Log SHA-256:
+  `32ea094e6f5910ea5cd318e621568f17ce8f5b907585ff14481019ceeef63b75`.
+- Focused native feature patterns: 17 passed and five test timeouts out of
+  22 cases, 1,055.99 s, with `--pool=threads --maxWorkers=1`.
+  Log SHA-256:
+  `ca888bc1800ea80f7e349d9d2c1d93e0d270b65636682dbd881b82e72e32582a`.
+- First full `npm test`: exit 1, 1,788 passed and 182 failed out of
+  1,970 cases; 85 passed and 20 failed out of 105 files, 1,718.13 s.
+  All 121 reported failure groups were classified: 180 test timeouts
+  (161 at 5 seconds, one at 15 seconds and 18 at 60 seconds), plus the two
+  obsolete cleanup-fixture assertions described above. No other failed-case
+  diagnostic, worker-termination warning or unhandled-error candidate was
+  found. The native feature-pattern file reported 12 passed and ten timeouts
+  out of 22. IPC was not entered after the unit failure. Log SHA-256:
+  `783fe331aa4d40bbcdd2df7cc675388b912b27999ba6ad8a861d8a69f64d01db`.
+
+### Hosted checks and remaining scope
+
+Hosted checks for this runtime source are pending; successful parent-branch
+checks do not validate this increment. No broad platform-support claim follows
+from the local build or initial-model smoke result.
+
+Real pattern-editor interaction, wider export/interoperability evidence,
+per-instance recipe regeneration, varying sketches, dynamic scope, automatic
+target selection, general nested/dependent patterns and lifecycle behavior
+remain required. The complete body-management and CAD roadmap stays open.
+The current results do not explain why local deadlines were exceeded or
+resolve earlier diagnostics, and do not establish general resource/leak
+freedom, installer use, signing or release readiness.
+
+## Explicit body patterns — source-specific results, 2026-10-13
+
+[Draft PR #34](https://github.com/angelcp2802/solidflow/pull/34) proposes explicit
+body ownership for linear/circular patterns and mirror. The runtime source for
+this snapshot is `60014c4ad37c955741a0fc1d0c4541fdece69754`, based on #31 at
+`92a8747f421e69fc44daa1d83d287e3e82ef9fb1`. This draft and its prerequisites
+have not merged into the default branch. The [contract](BODY_PATTERNS.md) and
+[provenance](PROVENANCE.md) define the bounded behavior, original analytical
+fixtures, units and tolerances. The earlier ledger below remains unchanged and
+retains each earlier run's original source scope and outcome.
+
+### Local results on this runtime source
+
+Local commands used Windows x64 and Node 24.11.1. Each completed command listed
+below recorded all 243 runtime source/configuration inputs unchanged before/after,
+with no environment overrides. Each command's result has its own scope; a
+separate passing check does not turn the failed full command into a pass.
+
+- `npm run build`: PASS, TypeScript checking and 1,982 production modules,
+  Vite 1 min 13 s. Log SHA-256:
+  `c8523044f4ffcd99606c43cf296b98b7fed547b637bd8971ae5dffd0f84d6553`.
+- `npm run test:unit -- src/cad/kernel.body-patterns.test.ts -t boundary`:
+  PASS, five selected cases in one file, with 18 explicitly filtered skips,
+  138.87 s, Vitest 5.0.3. This covers the raw-declaration matrices and
+  current/historical same-seed target merges; it does not validate all 23
+  native cases or resolve earlier native timeouts. Log SHA-256:
+  `eae38c7ac98eea721c69fd4acf4b350e91f4c28fb8b01b79b06ac7c5067273af`.
+- Full `npm test`: exit 1, 1,719 passed and 169 failed out of 1,888 tests in
+  101 files (84 passed, 17 failed), 1,165.13 s. Classification of the 119
+  reported failure groups accounted for all 169 failed-test headers across
+  the 17 failed files: 159 timeouts at 5 seconds, one existing case at
+  20 seconds and nine cases at 60 seconds. The latter comprise five new
+  body-pattern cases and four semantic cases. The body-pattern native file
+  reported 18 passed and five failed out of 23 cases. The log separately
+  reported three worker-termination warnings; their cause and relationship
+  to the failed cases are unproved.
+  Source verification remained unchanged and no environment override was
+  recorded. Log SHA-256:
+  `90fecaa37791b5f727ca23adb0d0f250b68253b23b21e8a908260c82f6a8dd0b`.
+- Subsequent standalone `npm run test:ipc`: PASS, all 11 tests, zero
+  failures, cancellations or skips, 7,101.0144 ms. All 243 recorded inputs
+  remained unchanged, with no environment overrides. This separate result
+  does not change the failed full-suite result. Log SHA-256:
+  `f7e1b6fad9d93f0319b1c099855948ea3e3ae3c5a08d653656fdb4f7b398e70e`.
+- Local `npm run test:desktop`: exit 1 with the explicit outer 45-second
+  timeout, `Electron no terminó en 45 segundos.` No readiness or smoke-PASS
+  report was emitted. This invocation emitted no `EBUSY` or cleanup error;
+  the cause of noncompletion remains unknown. It establishes no local
+  initial-model readiness, WASM-load or console/request result. All 243
+  recorded inputs remained unchanged, with no environment overrides.
+  Log SHA-256:
+  `fa05e82de7b754093f31e260d304429c367676ad14e4398d2684468fdd45519a`.
+
+### Hosted results
+
+All six checks for source `60014c4ad37c955741a0fc1d0c4541fdece69754` succeeded in
+[CI](https://github.com/angelcp2802/solidflow/actions/runs/38459447247) and
+[security analysis](https://github.com/angelcp2802/solidflow/actions/runs/38459447114).
+The tested merge was `59ce40031465f931d62f75197452e5cb18c35924`, with parents
+`92a8747f421e69fc44daa1d83d287e3e82ef9fb1` and
+`60014c4ad37c955741a0fc1d0c4541fdece69754`; its tree matched the runtime head.
+
+| Hosted platform | Node | Unit/CAD result | Body-pattern native cases | Vitest duration |
+| --- | --- | --- | --- | --- |
+| Windows x64 | 24.21.0 | 1,888 passed in 101 files | 23 passed | 47.14 s |
+| Linux x64 | 24.21.0 | 1,888 passed in 101 files | 23 passed | 58.38 s |
+| macOS arm64 | 24.20.0 | 1,888 passed in 101 files | 23 passed | 70.18 s |
+
+Each job used npm 11.19.0 and Vitest 5.0.3 and passed the 1,982-module
+production build, all 11 IPC tests, the isolated initial-model Electron smoke
+check and unsigned packaging with `--publish never`. The smoke reports recorded
+WASM loaded, no console errors and no failed requests. CodeQL succeeded; the
+dependency audit passed its high/critical gate while retaining eight moderate
+findings.
+
+These hosted results do not explain the local failures, worker warnings or
+earlier unresolved diagnostics. They establish the listed automated checks on
+the tested source and platforms, without proving general platform support,
+native resource/leak behavior, real editor interaction, installer use or
+independent interoperability. Same-kernel exchange round trips do not prove
+opaque identity/history preservation in exchange files. Feature-delta replay
+in the body catalog, legacy adoption, wider interaction/reference coverage and
+the remaining CAD modules stay open; this increment does not complete the body
+management goal. Earlier failures and release restrictions retain their
+original scope.
+
+## Explicit body patterns — initial local evidence, 2026-10-13
+
+This proposed increment branches from `92a8747f421e69fc44daa1d83d287e3e82ef9fb1`;
+it is not merged into the default branch. The [contract](BODY_PATTERNS.md) covers
+linear/circular patterns and mirror with exact current/historical body seeds,
+saved instance identities, committed retirement and one atomic new-body or
+targeted-merge transaction. [PROVENANCE](PROVENANCE.md) gives the original
+analytical coordinates, formulas, units and tolerances. Earlier evidence below
+retains its original source scope and does not validate this increment.
+
+The following are recording-time snapshots on Windows x64 with Node 24.11.1
+and Vitest 5.0.3. Every completed command below recorded 243 runtime input
+hashes unchanged before/after, with no recorded environment overrides.
+Different snapshots include the corrections described here; a pass on an
+earlier snapshot is not a pass on every later file. No local run was filtered
+unless explicitly stated.
+
+- Initial `npm run build`: exit 1, TS2339 in the residual legacy repetition
+  branch after adding the source union. A defensive residual-mode guard fixed
+  that type error. Log SHA-256
+  `d763d9d614f5b096d5fe3d9ea58662cb74b9bc89ade4ec5d7be3485d9bf027dc`.
+- A subsequent pre-selector-refinement `npm run build`: PASS, 1,982 modules,
+  Vite 55.56 s. The later indexed historical selector and final raw pre-scans
+  were not yet present in this build. Log SHA-256
+  `e27c56d48389806d98bb8550f163513eb25b411eeaabdf1db868ae689f35ec65`.
+- Initial focused pure command over `bodyPatterns`, `bodyPatternCommands`,
+  `PatternPanel.bodies`, and the existing `patterns`, `bodyReferences`,
+  `bodyCommands`, `bodySweepLoft`, `BodyManagementPanel` files: 158 passed and
+  two failed out of 160, across eight files, 74.38 s. One new circular-panel
+  assertion counted the equal-spacing checkbox outside the seed list; it now
+  counts only seed controls. The new 65,536-saved-ID boundary case exceeded
+  the default 5 s budget (reported 23.237 s). Its full-size threshold and
+  one-over-limit rejection remain unchanged; that new stress case now has an
+  explicit 60 s budget. Existing public test budgets were not changed.
+  Log SHA-256
+  `12738b14521a177f3e501eb995283ac81fb0ad228eba6ea0debec84d60c8d5d1`.
+- Corrected focused pure command over the same eight files: PASS, all 160
+  cases, 54.62 s, no skips. This includes 31 new model cases, 19 new command
+  cases and nine rendered-control cases, including an 8,192-slot history
+  ledger with bounded displayed choices. These are programmatic/model and
+  server-rendered component checks, not real pointer/keyboard interaction.
+  Log SHA-256
+  `ffb92a7bfb8b61564ff41ea68d08904bcbcb2df41a71405af583072a15a19755`.
+- Initial `npm run test:unit -- src/cad/kernel.body-patterns.test.ts`: exit 1,
+  15 passed and six failed out of 21, one file, 678.63 s. Three raw-declaration
+  matrices exposed an uncaught `source:null` TypeError in the numerical-mode
+  pre-scan before the per-feature error boundary. Three other cases exceeded
+  60 s: the current two-seed skipped grid, nested historical output and its
+  selective cut, and history/reopen/retired-domain reconstruction. No geometric
+  assertion failure was reported for those timed-out cases, but their outcomes
+  remain unproved by this run. Log SHA-256
+  `503524f1622ae20cd60d8a6c1b8bdf0e097b7d48bece11207143799279276df8`.
+
+After that native run, the numerical-mode scan was changed to inspect field
+presence without walking raw operands. Optional source, face-support and
+surface-target pre-scans now leave malformed payloads for their per-feature
+rejection instead of throwing globally. A static review of the current plain
+payload paths found no additional pre-loop escape in the new repetitions;
+this is not arbitrary getter/proxy coverage or a native leak proof.
+Two same-seed merge cases were added to distinguish the current target's
+creation chain from a copied historical state. The current native file has
+23 cases. At this initial snapshot, the focused correction, final build,
+full `npm test`, desktop smoke and hosted platform checks were still pending;
+their results must be recorded separately before requesting review.
+
+Subsequent focused correction on the current 243-input source:
+`npm run test:unit -- src/cad/kernel.body-patterns.test.ts -t boundary` PASS,
+five cases in one file, with 18 explicitly filtered skips, 138.87 s. This covers
+the three raw-declaration matrices (including attributed null/missing mirror
+face-support pre-scans) and current/historical same-seed target merges.
+It does not rerun or resolve the three earlier native timeouts. Inputs were
+unchanged before/after; no environment override was recorded. Log SHA-256
+`eae38c7ac98eea721c69fd4acf4b350e91f4c28fb8b01b79b06ac7c5067273af`.
+
+The native oracles use closed BReps, solid counts, per-body volume/area within
+5e−6 and bounds within 5e−7 mm. New native cases and initialization retain
+60 s budgets. STEP export reconstructs the committed snapshot in a fresh
+engine and reimports with the same kernel; it does not prove independent
+interoperability or preservation of opaque IDs in exchange files. Geometry
+tests and rendered controls do not establish general platform support or full
+editor acceptance. Feature-delta replay in a body catalog, legacy adoption,
+broader interaction/reference coverage and the other CAD modules remain open.
+
+## Shared body-operation guard integration — 2026-10-13
+
+This integration combines the body correction at
+`b12c71b8a947e80ec3a24f3f32702f42b37d5456` with the sweep/loft proposal at
+`395b4f8af28a7ec14732b350d4e372cddec77db4`. Extrude, revolve, sweep and loft
+now share the strict raw declaration guard. Sweep/loft `merge`, `ruled` and
+mode-consistency checks remain intact; the saved-document grammar is unchanged.
+The runtime source for the results in this snapshot is
+`e326878527bae42b259e9eb54fa643e31f682ccf`.
+
+Local checks used Windows x64, Node 24.11.1 and the public configuration:
+
+- `npm run build` passed TypeScript and the 1980-module production build
+  (Vite 54.90 seconds), with all 236 recorded source/configuration inputs
+  unchanged. Log SHA-256:
+  `41de68d186e3c6819d311a42eb6d6222605be43f2d623feba82b6595fd8cceab`.
+- `npm run test:unit -- src/cad/kernel.body-sweep-loft.test.ts -t strict`
+  passed the two selected declaration-matrix cases in 71.90 seconds
+  (Vitest 5.0.3), with all 236 recorded inputs unchanged. The explicit filter
+  skipped the 20 earlier cases; this invocation does not revalidate them.
+  Each selected case submits 26 malformed declarations before geometry input
+  lookup. Log SHA-256:
+  `2c6084638d4e078a078181005e76bd5319590b166ae830d60556fc04e3369943`.
+- Full `npm test` exited 1: 1722 passed and 84 failed of 1806 tests in
+  97 files (81 passed, 16 failed), in 492.11 seconds. All 84 failures were
+  timeouts: 81 at unchanged 5000 ms budgets and three at unchanged 60000 ms
+  budgets in the semantic-engine file. No assertion, hook failure, unhandled
+  error, segmentation fault or OOM was reported. All 236 recorded inputs were
+  unchanged. The cause remains unproven. The reporter omits individual passing
+  file lines; it reports the global counts and failed files. This failed
+  command stopped before IPC. Log SHA-256:
+  `0a0b832904c120f319145bb6a14f8bd0a5b5e6a27dd2c45e55002f4e34d27b09`.
+- Subsequent standalone `npm run test:ipc` passed all 11 tests with no
+  failures, cancellations or skips, in 14117.6802 ms, with all 236 recorded
+  inputs unchanged. This separate result does not turn the failed full command
+  into a pass. Log SHA-256:
+  `33dfb8c4cae7ef04cb0f77481e38263e4c99c36144c552672399ba5d22703d4f`.
+- Local `npm run test:desktop` exited 1 with `EBUSY` while deleting the
+  temporary profile's `DIPS-wal` file. All 236 recorded inputs were unchanged.
+  The log emitted neither a readiness report nor a timeout diagnostic, so this
+  invocation establishes neither initial-model readiness nor the primary cause.
+  Cleanup diagnostics are tracked in
+  [issue #30](https://github.com/angelcp2802/solidflow/issues/30). Log SHA-256:
+  `47e7d6abaaa98583da9fd371d5891844231e8b4b3807bb8e391c1ba618869076`.
+
+The new focused cases use 60-second budgets; all existing budgets remain
+unchanged. The source-specific snapshots below preserve earlier passing and
+failed runs.
+
+[PR #31](https://github.com/angelcp2802/solidflow/pull/31) passed all six hosted
+checks in [CI](https://github.com/angelcp2802/solidflow/actions/runs/38395235144)
+and [security analysis](https://github.com/angelcp2802/solidflow/actions/runs/38395235457).
+The head was `e326878527bae42b259e9eb54fa643e31f682ccf`, the base was
+`b12c71b8a947e80ec3a24f3f32702f42b37d5456`, and the tested merge was
+`3207e883e674223844f28e62061ecfdad53bc931`.
+
+| Hosted platform | Node | Unit/CAD result | Vitest duration |
+| --- | --- | --- | --- |
+| Windows x64 | 24.21.0 | 1806 passed in 97 files | 36.41 s |
+| Linux x64 | 24.21.0 | 1806 passed in 97 files | 55.52 s |
+| macOS arm64 | 24.20.0 | 1806 passed in 97 files | 69.76 s |
+
+Each job used npm 11.19.0 and Vitest 5.0.3 and passed the eight raw extrusion/
+revolution boundary cases, all 22 sweep/loft cases, 29 catalog cases, 32 body
+workflow cases, 11 IPC tests, the 1980-module build, initial-model Electron
+smoke and unsigned packaging with `--publish never`. The smoke reports recorded
+WASM loaded, no console errors and no failed requests. CodeQL succeeded; the
+audit passed its high/critical gate while retaining eight moderate findings.
+These checks do not explain the local timeouts or the earlier Linux exit 139
+tracked in #28. Real editor interaction, independent interoperability,
+installer use and complete platform support remain outside this evidence.
+
+## Explicit sweep/loft body development snapshot — 2026-10-13
+
+The development branch `feat/body-sweep-loft` extends the body work from
+commit `be9415d8a9070f30b8ea3895094a80a7eb934348`. The implementation is
+commit `6d38ddd93b1542cdd046b6d43d2773a40113119b`. Sweep and loft can
+persist one new output or one exact merge target; legacy absent-field records
+retain their aggregate behavior. This extension does not complete the
+body-management checklist or define pattern/mirror instance ownership.
+
+Local checks use Windows x64, Node 24.11.1 and Vitest 5.0.3, with unchanged
+public worker settings, time budgets and geometry tolerances:
+
+- `npm run build` passed TypeScript and the 1980-module production build.
+  All 235 recorded source/configuration inputs were unchanged during the run.
+  Log SHA-256: `d257978bdd70bd8644d48897e4499db9a4bdfc3179b5fed23c483ad2b49fa325`.
+- The focused pure suite passed 104 tests in eight files in 64.01 seconds,
+  with all 235 recorded inputs unchanged. It includes 36 additional
+  model/command/SSR cases and the earlier body, selection and panel checks.
+  SSR does not establish actual editor interaction or native geometry.
+  Log SHA-256: `686250740a93dd0f4c4f7298fcd1fec0067653b9db4837c291a467a0d1444dbf`.
+- Focused native validation exited 1: 114 passed and five failed of 119 tests
+  in four files (two passed, two failed), in 817.14 seconds, with all 235
+  recorded inputs unchanged. The new sweep/loft file passed 16 and failed four
+  of its 20 cases; its merged-edit/cut/history and malformed-raw-payload cases
+  for both producers timed out at their unchanged 60000 ms budgets. An older
+  saved R5 sweep case timed out at its unchanged 5000 ms budget. The existing
+  catalog and body-workflow files passed all 29 and 32 cases, respectively.
+  No assertion or crash was reported, but the run is failed and its timeout
+  cause remains unproven.
+  Log SHA-256: `bd926814f697181d165176a91965fc1040be3db4c220fb32804d8030d98940d3`.
+- Full `npm test` exited 1: 1651 passed and 145 failed of 1796 tests in
+  96 files (77 passed, 19 failed), in 727.24 seconds. All 145 failures were
+  timeouts: 142 at 5000 ms, one at 15000 ms and two at 60000 ms. No assertion,
+  hook timeout, unhandled error, segmentation fault or OOM was reported. All
+  235 recorded inputs were unchanged. The reporter only lists failed files;
+  individual passing-file lines are unavailable in this local full log.
+  This failed command stopped before IPC. Its timeout cause remains unproven.
+  Log SHA-256: `488c5adfb5d5464b3f6d0d1480272f698f5d22c51a2dc19b4a42f8d525f1c682`.
+- Subsequent standalone `npm run test:ipc` passed 11 tests with no failures,
+  cancellations or skips, in 27872.0406 ms, with all 235 recorded inputs
+  unchanged. This separate result does not turn the failed full command into
+  a pass. Log SHA-256: `f4d46537894c8179d77104bde034983f123b7a30eb2d74de2dad9a177c210ff7`.
+- Local `npm run test:desktop` exited 1 with the outer 45-second timeout and
+  no readiness report. All 235 recorded inputs were unchanged. The cause
+  remains unknown. This invocation did not emit the cleanup `EBUSY` diagnostic
+  recorded for the earlier body source below.
+  Log SHA-256: `fa05e82de7b754093f31e260d304429c367676ad14e4398d2684468fdd45519a`.
+
+[Draft PR #31](https://github.com/angelcp2802/solidflow/pull/31) passed all six
+hosted checks in [CI](https://github.com/angelcp2802/solidflow/actions/runs/38381232261)
+and [security analysis](https://github.com/angelcp2802/solidflow/actions/runs/38381232318).
+The head was `c416bced832806fec427a9dadd8328fbd04cfaf6`, the base was
+`be9415d8a9070f30b8ea3895094a80a7eb934348`, and the tested merge was
+`8e623584ffcf8623fcf8ca6fbee799cc531601c1`.
+
+| Hosted platform | Node | Unit/CAD result | Vitest duration |
+| --- | --- | --- | --- |
+| Windows x64 | 24.21.0 | 1796 passed in 96 files | 55.65 s |
+| Linux x64 | 24.21.0 | 1796 passed in 96 files | 34.44 s |
+| macOS arm64 | 24.20.0 | 1796 passed in 96 files | 83.29 s |
+
+Each job used npm 11.19.0 and Vitest 5.0.3, passed the new sweep/loft file's
+20 cases, the 29 catalog cases and 32 body-workflow cases, all 11 IPC tests,
+the 1980-module build, initial-model production Electron smoke and unsigned
+packaging with `--publish never`. Each smoke recorded WASM loaded, no console
+errors and no failed requests. CodeQL passed; the audit passed its high/critical
+gate while retaining eight moderate findings. These checks do not explain the
+local failures, establish real tool interaction or prove complete platform
+support. They do not resolve the earlier unexplained Linux crash in #28.
+
+The original analytical fixtures and their limits are described in
+[PROVENANCE.md](PROVENANCE.md#explicit-sweep-and-loft-body-fixtures).
+Native volume, area and bounds comparisons use absolute tolerance 5e-6;
+planar picking-frame selection uses 5e-7. Same-kernel STEP checks do not prove
+independent interoperability or transport parametric history/body identity.
+
+```sh
+npm run test:unit -- src/model/bodySweepLoft.test.ts src/model/bodyReferences.test.ts src/model/bodyCommands.test.ts src/components/SweepLoftPanel.bodies.test.tsx src/components/BodyManagementPanel.test.tsx src/cad/body-selection.test.ts src/components/Viewport.bodies.test.ts src/components/ExtrudePanel.body-limit.test.ts
+npm run test:unit -- src/cad/kernel.body-sweep-loft.test.ts src/cad/kernel.sweep-loft.test.ts src/cad/kernel.bodies.test.ts src/cad/kernel.body-workflow.test.ts
+```
+
+The body integration snapshot further below covers its stated earlier source,
+before this sweep/loft extension.
+
+## Raw body-operation rejection review — 2026-10-13
+
+This snapshot covers commit `b12c71b8a947e80ec3a24f3f32702f42b37d5456`
+on the body branch, before integration with the sweep/loft extension.
+
+The correction for [issue #32](https://github.com/angelcp2802/solidflow/issues/32)
+rejects malformed extrusion/revolution body-operation declarations before
+constructing tools or staging catalog changes. Ordinary absent
+fields retain the legacy path; defined inherited declarations reject.
+The saved-document parser already rejected unknown modes. This change closes
+the separately reproduced raw `CadEngine.build` fallthrough.
+
+Local checks used Windows x64, Node 24.11.1 and the public configuration:
+
+- `npm run build` passed TypeScript and the production build (1980 modules;
+  Vite 57.08 seconds). All 233 recorded source/configuration inputs were
+  unchanged. Log SHA-256:
+  `ccfcd5a8bf32e20a7a9d5cbe1c7a36e434b7fba2449cd25f8e29fecd46b0b144`.
+- `npm run test:unit -- src/cad/kernel.body-operation-boundary.test.ts`
+  passed all eight cases in one file, with no skipped cases, in 99.28 seconds
+  (Vitest 5.0.3). Its 233 recorded inputs were unchanged. Log SHA-256:
+  `9b95603ccb8f96b3084f0a1844913340510c5de82e0d4b66dcdf309543d947bb`.
+
+These cases cover own and defined inherited unknown-mode rejection, unchanged
+exact A references and face/edge descriptors, valid BRep/solid count, analytical
+volume/area/bounds, blocked STEP/STL export, valid merge controls, 22 malformed
+declarations per operation type, and ordinary absent-field legacy geometry.
+The [fixture provenance](PROVENANCE.md) states coordinates and tolerances.
+The new cases and their initialization use 60-second budgets; existing budgets
+were unchanged. This is focused programmatic evidence, not a new full
+suite pass, real interaction, independent interoperability or platform support.
+Full checks for the current proposal are tracked in
+[PR #29](https://github.com/angelcp2802/solidflow/pull/29); the earlier full-suite
+and desktop failures below remain evidence for their stated source.
+
+## Body integration development snapshot — 2026-10-13
+
+The body work is on `feat/body-catalog-combine`, based on the reference
+integration in PR #27. The original body source is commit
+`2ebc22e6b971972c133e74edd5a9fd93a84e5394` in
+[draft PR #29](https://github.com/angelcp2802/solidflow/pull/29).
+The final build, full-suite, standalone IPC, desktop and hosted results below
+cover this source; earlier focused runs and their corrections are retained
+separately.
+Local checks used Windows x64, Node 24.11.1 and Vitest 5.0.3. They do not
+establish platform support or complete the body-management checklist in
+[issue #26](https://github.com/angelcp2802/solidflow/issues/26).
+
+- `npm run build`: passed TypeScript and the production build (1980 modules).
+  All 232 recorded source/configuration inputs were unchanged during the run.
+  The final build includes the test-fixture correction and three additional
+  scoped-finish tests described below; the earlier successful build preceded
+  those test-only edits.
+- The document/command/SSR/display-selection suite passed 68 tests in six
+  files, with no skipped cases, in 34.39 seconds. It covers parsing and
+  dependencies, command invalidation, selection namespaces, display occlusion,
+  panels and body-limit transitions. It is not real application interaction.
+- The first focused CAD/selection run passed 142 and failed 22 of 164 tests
+  in ten files (eight passed, two failed), in 657.38 seconds. Its 232 recorded
+  inputs were unchanged. All 29 engine body-workflow cases passed, including
+  analytical geometry, current body references, failure atomicity, save/reopen,
+  history and fresh same-kernel STEP checks. The two new shared-curved-target
+  cases and four semantic-limit cases also passed.
+- Of those 22 failures, 21 were unchanged 5000 ms budgets in existing
+  extrusion-limit tests. The remaining assertion received "This object has
+  been deleted" instead of the expected solid-count rejection. Investigation
+  confirmed that the test's compound builder consumed the borrowed candidate
+  wrappers before the assertion. The fixture now transfers clones and checks
+  both originals again after rejection. The subsequent catalog-only run passed
+  all 29 tests in 93.38 seconds, with its 232 recorded inputs unchanged.
+- Three additional scoped-finish cases for fillet, shell and draft passed
+  in 149.64 seconds; the 29 earlier cases were skipped by the explicit
+  `-t scoped.*finish` filter. This run retained all 232 recorded inputs
+  unchanged and checked analytical geometry plus fresh same-kernel STEP.
+  The current engine workflow file contains 32 cases.
+- Full `npm test` exited 1: 1680 passed and 60 failed of 1740 tests in
+  93 files (77 passed, 16 failed), in 616.76 seconds. All 60 reported failures
+  were timeouts: 56 at unchanged 5000 ms budgets and four at unchanged
+  60000 ms budgets. No assertion, crash or hook failure was reported in this
+  run. Its 232 recorded inputs were unchanged. The cause remains unproven;
+  these results do not establish that the affected behavior is defect-free.
+  The command stopped before IPC because its scripts are joined by `&&`.
+- A subsequent standalone `npm run test:ipc` passed all 11 tests, with no
+  failed, cancelled or skipped tests, in 22495.8097 ms. Its 232 recorded
+  inputs were unchanged. This separate result does not turn the failed
+  `npm test` invocation into a pass.
+- The local `npm run test:desktop` exited 1 with an `EBUSY` error while
+  removing the temporary profile's `DIPS` file. Its 232 recorded inputs
+  were unchanged. The log emitted no readiness result or timeout diagnostic,
+  so it does not establish whether the initial model became ready or why
+  the profile file remained locked. This invocation is not a passing smoke
+  check.
+
+Hosted checks for this body source passed in
+[desktop CI](https://github.com/angelcp2802/solidflow/actions/runs/38353551009)
+and [security analysis](https://github.com/angelcp2802/solidflow/actions/runs/38353551184),
+with all six required checks successful. The pull-request head was
+`2ebc22e6b971972c133e74edd5a9fd93a84e5394`, the base was
+`ac7e21fd66cdfc197057a8995ff3dc5d494d4717`, and the checked-out merge commit
+was `5af2989c26c2c7a7700d80f0bc1e6f4f1e6c3d1e`.
+
+| Hosted platform | Node | Unit/CAD result | Vitest duration |
+| --- | --- | --- | --- |
+| Windows x64 | 24.21.0 | 1740 passed in 93 files | 40.27 s |
+| Linux x64 | 24.21.0 | 1740 passed in 93 files | 30.17 s |
+| macOS arm64 | 24.20.0 | 1740 passed in 93 files | 45.06 s |
+
+All three jobs used npm 11.19.0 and Vitest 5.0.3. Each passed the 32 engine
+body-workflow cases and 29 native catalog cases, all 11 IPC tests, the
+1980-module production build, the Electron smoke check and unsigned packaging
+with `--publish never`. The smoke reports recorded WASM loaded, no console
+errors and no failed requests. These are executed checks for this source;
+they do not validate interactive body editing, installer use or complete
+platform support. CodeQL succeeded. The dependency audit passed its
+high/critical gate while retaining eight moderate findings; a passing gate
+does not mean an empty audit.
+
+Retained local log SHA-256 digests identify the final runs without publishing
+local artifacts:
+
+| Local command | Log SHA-256 |
+| --- | --- |
+| `npm run build` | `61c14da9d122605a5c985e152315c8f2ed2b2cc8d12f06e917e909cb31dd8e9c` |
+| `npm test` | `fae871f7ce2aa731d7900854a3c6e43470207224ec87e7842fa821cd44ae5e64` |
+| `npm run test:ipc` | `60532b93499999706a0d950b46d0d910a0593476c190d07d08fcc0a2c28dbaa9` |
+| `npm run test:desktop` | `592f47bc30a0dd581deadbee7f442d48a27b3a7eecedecf30df9cddc2dc3fc7b` |
+
+The focused suites can be reproduced without private artifacts:
+
+```sh
+npm run test:unit -- src/model/bodyReferences.test.ts src/model/bodyCommands.test.ts src/cad/body-selection.test.ts src/components/BodyManagementPanel.test.tsx src/components/Viewport.bodies.test.ts src/components/ExtrudePanel.body-limit.test.ts
+npm run test:unit -- src/cad/kernel.bodies.test.ts src/cad/kernel.body-workflow.test.ts src/cad/kernel.extrusion-limits.test.ts src/cad/kernel.semantic-catalogs.limits.test.ts src/model/bodyReferences.test.ts src/model/bodyCommands.test.ts src/cad/body-selection.test.ts src/components/BodyManagementPanel.test.tsx src/components/Viewport.bodies.test.ts src/components/ExtrudePanel.body-limit.test.ts
+```
+
+Native body geometry uses absolute 5e-6 volume/area/bounds comparisons and
+5e-7 face-coordinate selection where stated. STEP reimport uses the same
+kernel; these cases do not establish independent interoperability or transport
+of parametric history/body IDs through STEP. The initial catalog policy rejects
+empty, disconnected or split outputs requiring undeclared body identities.
+At that earlier source, sweep, loft and repetition producers still needed
+explicit body-output ownership.
+
+## Evidence scope
+
 The public repository uses a self-contained suite. Claims are limited to the
 cases checked, with the tolerances recorded in each test.
 
@@ -26,6 +1119,219 @@ Development packages are unsigned. Successful packaging does not establish
 successful installation, notarization or all interactive workflows on that OS.
 The project does not yet have exhaustive topology, numerical robustness,
 accessibility, performance or platform coverage.
+
+## Semantic reference integration — 2026-10-13 (in progress)
+
+This branch combines the generated-sketch identity prerequisite with the prism
+reference modules, then connects the engine, document parser and UI selection
+aliases. Newly written context, persistence, consumer and selection tests are
+tracked separately from their execution. The results below distinguish passing
+hosted checks from failed local complete-suite and desktop runs. Interactive
+editor workflows have not been checked for this integration source.
+
+On Windows x64 (10.0.26200), Node 24.11.1, npm 11.6.2 and Vitest 5.0.3, a
+focused invocation of the installed Vitest entrypoint passed all 44 cases in
+three files, exiting 0 in 52.13 seconds of Vitest time:
+
+- `src/cad/kernel.semantic-context.test.ts`: 17 pure ancestry/context cases.
+- `src/model/document.semantic-references.test.ts`: 13 document cases.
+- `src/cad/selection.references.test.ts`: 14 symbolic DTO-selection cases.
+
+The invocation used `run --config vitest.config.ts`, those three file paths
+and `--pool=threads`. No worker-count or timeout overrides were added to the
+command or configuration. The recorded `CI`, `NODE_OPTIONS`,
+`UV_THREADPOOL_SIZE` and Vitest environment variables were absent; this was
+not an exhaustive inventory of environment variables.
+Eleven recorded files had identical hashes before and
+after the run. These checks do not initialize WASM, build native geometry or
+execute editor events. Later edits to the native fixtures are not validated
+by this pure run.
+
+The first integration `npm run build` exited 1 with two TS2339 diagnostics in
+`kernel.semantic-context.ts`: the dependency-selection expression did not
+explicitly narrow its final branch to a sketch before accessing `support`.
+The source now checks `feature.type === 'sketch'` in that branch. The repeat
+`npm run build` exited 0, passing TypeScript and the production Vite build,
+with the existing `node:module` externalization and large-chunk warnings.
+All 219 recorded inputs were unchanged during each build. The earlier
+44-case pure run precedes the correction; the later focused run also exercised
+the affected context cases.
+
+The separate `npm run test:ipc` check also exited 0: all 11 checks passed,
+with zero failures, cancellations or skips (30,496.674 ms reported by Node's
+test runner). This is an IPC result, not a completed `npm test` or desktop
+loader result for the integration source.
+
+At integration commit `42840c0e3b77d33d896e009edd402c4271531edb`, the focused
+`npm run test:unit -- src/cad/kernel.semantic-engine.test.ts
+src/cad/kernel.semantic-face-operations.test.ts
+src/cad/kernel.semantic-context.test.ts` run exited 1: 29 cases passed and
+7 failed in 556.15 seconds, across two failed files and one passed file.
+All 219 recorded inputs remained unchanged. Four failures occurred while
+constructing the rectangular face-operation fixture, before its assertions:
+the producer unconditionally copied a face and checked `IsDone()` even when
+there were no holes to add. One engine assertion found no displayed rim for
+the other hole. The fillet and historical support/up-to-surface cases each
+reported the existing 60,000 ms timeout locally. These are distinct diagnostics;
+the construction error does not explain the timeout results.
+
+Hosted [CI run 38335538773](https://github.com/angelcp2802/solidflow/actions/runs/38335538773)
+for that exact head completed with 1,521 passed and 87 failed portable cases
+on each of Windows x64, Linux x64 and macOS arm64 (17 failed and 68 passed
+files). All three builds passed; their IPC, Electron smoke and packaging
+steps were skipped after the portable failures. The hosted logs reproduce the
+four fixture construction errors and the missing-rim assertion, but contain
+no timeout diagnostics. The other hosted failures require revalidation after
+the producer correction, rather than an assumption that they share its cause.
+[Security run 38335538770](https://github.com/angelcp2802/solidflow/actions/runs/38335538770)
+passed CodeQL and the configured high/critical audit gate. Eight moderate
+dependency findings remain visible through the packaging-tool dependency
+chain; passing that gate does not mean an empty audit report.
+
+The subsequent correction reuses the already validated exterior face when
+there are no holes and retains face repair, BRep validity and correspondence
+checks. Partial fixture setup is now covered by cleanup. A new engine case
+uses actual deletion and offset recreation, in addition to the existing
+same-geometry identity replacement case. These edits need their own results;
+the preceding 36-case run does not validate the changed source.
+
+The displayed-rim helper now allows the installed mesh extractor's bounded
+Float32 coordinate rounding, while new fresh-STEP checks evaluate eight
+parameters on each closed native hole circle at unchanged absolute `5e-7` mm
+radial/z tolerance. This distinguishes display coordinates from native geometry;
+the old failure log does not contain coordinates from which to measure its
+exact error. The local build after these changes passed TypeScript and Vite
+(1,976 modules, 1 minute 26 seconds reported by Vite), with all 219 recorded
+inputs unchanged and the existing warnings. This precedes a final finite-value
+guard in that test helper; final-source results are recorded separately below.
+
+### Corrected integration source `5f5bc3c`
+
+At commit `5f5bc3c8a73f84396fdbe331e36a136c2daa1ff2`, the final local
+`npm run build` exited 0 after the finite-value guard, passing TypeScript and
+Vite (1,976 modules, 1 minute 18 seconds reported by Vite), with the existing
+externalization and large-chunk warnings. All 219 recorded inputs were unchanged.
+The local `npm run test:desktop` exited 1 with the sole diagnostic
+`Electron no terminó en 45 segundos.` Its 219 recorded inputs were also
+unchanged. The failing loader stage and underlying cause are not established;
+this is not a local smoke pass.
+
+A separate instrumented desktop diagnostic also exited 1 with all 219 recorded
+inputs unchanged. It retained the 45/35/25-second budgets, sandbox, hidden window
+and isolated user data, but used a private instrumented entrypoint. Recorded
+elapsed stages reached application readiness at 4.659 seconds, window creation
+at 8.377 seconds, the HTML response at 11.003 seconds, JS/CSS responses at
+20.805 seconds, DOM/load at 23.264 seconds, the worker response at 25.523 seconds
+and the WASM response at 29.778 seconds. These responses had HTTP status 200.
+The outer 45-second deadline fired at 47.489 seconds; the child later exited
+with SIGTERM at 60.458 seconds. No post-inspection, completion, inner 35-second
+timeout or initial-model readiness event was recorded before termination.
+These observations do not establish kernel compilation time, the blocking
+stage or the cause of the original smoke failure, and are not a passing smoke.
+
+On Windows x64 with Node 24.11.1, npm 11.6.2 and Vitest 5.0.3, the full
+local `npm test` exited 1: 1,547 passed and 62 failed portable cases out of
+1,609, across 17 failed and 68 passed files (85 total). Vitest reported
+792.96 seconds. The command and configuration used the project defaults,
+without worker-count or timeout overrides, and all 219 recorded inputs stayed
+unchanged. IPC did not execute because the unit phase failed in
+`npm run test:unit && npm run test:ipc`.
+
+Exhaustive classification of that local log distinguishes these diagnostics:
+
+| Failed cases | Diagnostic |
+| --- | --- |
+| 57 | Vitest timeout at 5,000 ms |
+| 1 | Vitest timeout at 15,000 ms in the 8 MiB STEP-source boundary case |
+| 3 | Vitest timeout at 60,000 ms in semantic-engine continuity/history, hole fillet and historical support/up-to-surface cases |
+| 1 | The connected 128-point solver case expected `fullyDefined` but received `notConverged`, with the solver's calculation-time-limit message |
+
+The solver assertion is distinct from a Vitest timeout. This classification
+does not establish the cause of either diagnostic. Of the 37 affected cases
+(14 semantic-engine, six semantic face-operation and 17 semantic-context),
+34 passed locally and the three engine cases above timed out. No geometric
+assertion, timeout budget or production solver tolerance was relaxed.
+
+Hosted [CI run 38338860064](https://github.com/angelcp2802/solidflow/actions/runs/38338860064)
+checked that same source. Its actual platform results are:
+
+| Platform | Portable and IPC results | Build, initial-model smoke and unsigned packaging |
+| --- | --- | --- |
+| Windows x64, Node 24.21.0 | 1,609 portable cases in 85 files and 11 IPC checks passed | Passed |
+| macOS arm64, Node 24.20.0 | 1,609 portable cases in 85 files and 11 IPC checks passed | Passed |
+| Linux x64, Node 24.21.0, first attempt | Process exited 139 with `Segmentation fault (core dumped)`; no final suite summary or IPC run | Build passed; smoke and packaging skipped |
+| Linux x64, Node 24.21.0, one controlled repeat | 1,609 portable cases in 85 files and 11 IPC checks passed | Passed, with Xvfb for smoke |
+
+The first Linux [job 115105089584](https://github.com/angelcp2802/solidflow/actions/runs/38338860064/job/115105089584)
+reported 1,059 passing cases in 41 files before the crash; these are partial
+counts. The complete log contains no native or Node backtrace, assertion,
+timeout, out-of-memory or worker-error diagnostic identifying its cause.
+The last reported test does not identify the crashing component. The single
+[repeat, job 115108175082](https://github.com/angelcp2802/solidflow/actions/runs/38338860064/job/115108175082),
+used the same head, configuration, Ubuntu 24.04.5 runner image, Node 24.21.0,
+npm 11.19.0 and Vitest 5.0.3, and passed. This does not explain or resolve the
+first crash. Windows and macOS were not rerun. Their logs and the Linux repeat
+explicitly passed all 37 affected cases, including the actual offset-image
+deletion/recreation case: only the recreated image has the new 1.5 mm driver;
+the other offset remains free.
+
+All six hosted checks for this head finished successfully after that repeat.
+[Security run 38338859971](https://github.com/angelcp2802/solidflow/actions/runs/38338859971)
+passed CodeQL and the configured high/critical audit gate; eight moderate
+dependency findings remained visible. These hosted results do not replace the
+failed local checks, establish the crash's cause or prove complete platform
+and interactive-workflow coverage. Packaging is without publication, and
+binary upload remains gated by issue #5.
+
+The earlier opt-in module source
+`52508a0214ad7b36b5e1b18df797c34d20400ad1` has separate evidence. Its local
+build passed, as did 42 focused tests in four files. Hosted CI for that exact
+head passed 1,534 portable tests and 11 IPC tests on each of Windows x64,
+Linux x64 and macOS arm64, along with build, initial-model Electron smoke and
+packaging without publication. Those runs do not validate this later activation.
+
+On Windows x64, Node 24.11.1 and npm 11.6.2, that module source's full local
+`npm test` exited 1 after 843.14 seconds, using the project runner defaults with
+`VITEST_MAX_WORKERS` unset. It reported 1,420 passed and 114 failed tests
+(1,534 total), in 15 failed and 63 passed files (78 total). Exhaustive log
+classification assigned all 114 failures to timeout diagnostics: 108 at
+5,000 ms, five at 30,000 ms and one at 60,000 ms. No assertion failures or
+additional worker/unhandled-error diagnostics were found in that log. IPC did
+not run because the unit phase failed. This is a failed check; its underlying
+cause is not established by the timeout classification or hosted passes.
+
+A separate, single-test reproduction on that same module source selected
+`builds a simple with exact volume and a flat blind bottom` in
+`src/cad/kernel.holes.test.ts`. With runner defaults and the existing budgets
+unchanged, it exited 1: the one selected test timed out at 5,000 ms and 34
+unselected tests were filtered out. Vitest reported 104.77 seconds overall;
+the selected case was reported at 27,250 ms. This establishes that a local
+timeout also occurred outside a full-suite run. It does not identify its cause
+or establish a concurrency, geometry or runtime regression.
+
+The same module source's local desktop smoke exited 1 at its 45-second outer
+deadline without a completion report. The failing stage and cause were not
+established. Initial-model smoke, packaging and programmatic STEP round trips
+do not establish full platform support, interaction coverage or independent
+CAD interoperability. Binary publication remains gated by issue #5.
+
+## Generated sketch identity prerequisite — 2026-10-13
+
+On Windows x64, source head `857838149858d6eb926d223ead2ccdc5b881d0fd`,
+Node 24.11.1 and npm 11.6.2, `npm test` with `VITEST_MAX_WORKERS=1`
+exited 1 after 4,219.39 seconds. The portable phase reported 1,381 passed
+and 122 failed tests (1,503 total), across 15 failed and 61 passed files
+(76 total). All 122 reported failures were test timeouts: 121 at 5,000 ms
+and one at 15,000 ms. IPC did not execute because the unit phase failed in
+`npm run test:unit && npm run test:ipc`. Test selection, assertions and
+existing timeout budgets were unchanged. The underlying cause has not been
+established.
+
+All six hosted checks passed on that same source head, recorded separately
+in [PR #24](https://github.com/angelcp2802/solidflow/pull/24). Their platform
+results do not change this failed local result or establish exhaustive
+platform or interactive-workflow coverage. Subsequent heads require their
+own checks before merge.
 
 ## Disconnected sketch offsets — 2026-10-12
 
@@ -601,3 +1907,670 @@ general overlap resolution and broader robustness remain open in
 requires its own hosted checks before merge; earlier platform results are
 separate. Binary upload remains disabled under
 [issue #5](https://github.com/angelcp2802/solidflow/issues/5).
+
+
+## UntilNext resolution foundation — 2026-10-14
+
+These local Windows x64 / Node 24.11.1 commands tested a frozen four-file
+candidate based on `4f9d8a195bd62c462518bcf9530809466bffecda`. That is historical
+run identity, not the current branch HEAD. They do not activate a saved end
+condition or establish pattern-scope compatibility. Checked source identifiers:
+
+| File | SHA-256 |
+| --- | --- |
+| `src/cad/kernel.extrusion-limits.ts` | `6f9a2b6475fcb61f181391112d49df2c7b72c28e0e81906ff64061357aa174e6` |
+| `src/cad/kernel.until-next-resolution.ts` | `c85e0bbff7a38333f13d6459064208c76a90fb2120196b7a809a8197001b8293` |
+| `src/cad/kernel.until-next-resolution.test.ts` | `5745ea031c899f9b485ede04f4346f8bb6eb6839e4c81731a5c91f52ea0f63bd` |
+| `docs/PROVENANCE.md` | `a1521e7e0d9bdeb0aef3babf3f954fbc0f2b8e5d19958a2a812e8e122b5ebcdd` |
+
+After these runs, the isolated branch was fast-forwarded to
+`06cfdd5cdccb5dac930d7d8c5b30c2300549b6a7`. The incoming change contains only
+two native path-resolution calls in `scripts/desktop-pattern-all.cjs`;
+the four candidate hashes above remain unchanged. The local run results do
+not establish a full-check pass for that later combined source.
+
+The focused command
+`node node_modules/vitest/vitest.mjs run src/cad/kernel.until-next-resolution.test.ts --config vitest.config.ts --maxWorkers=1`
+passed all 19 cases in one file: 119.26 seconds reported by Vitest and
+359.369746 seconds for the outer invocation. Before/after hashes match all
+three CAD/test sources. The 11 geometric and eight causal cases use actual
+native boxes, circles, cavities, tools and Boolean results. Independent
+expectations are recorded in
+[fixture provenance](PROVENANCE.md#per-owner-untilnext-classification-fixtures).
+
+Coverage distinguishes separated empty forward intersection, tangent/near
+contact, material without a complete limit, first complete walls, a partial
+face followed by a complete exit, and closed temporary islands. Volume tolerance
+is `1e-5 mm³`, area `1e-5 mm²`, and bounds `1e-6 mm`. The `0.2 mm`-side cube
+probe uses volume tolerance `1e-7 mm³`; contact/near resolution is `1e-7 mm`.
+Four supplied frames check physical-ray parity, not actual pattern transforms
+or evaluator routes. Causal cases preserve factory/cleanup errors, release a
+completed tool after later query cleanup failure, reject borrowed/repeated
+wrappers and raw handles exposed through distinct Proxy facades, and check
+release attempts and healthy borrowed geometry. General GC, upstream allocation
+and native-lifetime safety are not established.
+
+The production build passed, transforming 1,985 modules; four guarded files
+remained unchanged. Literal `npm.cmd test` failed: 2,006 passed, 176 failed and
+35 skipped of 2,217 cases; 101 passed and 25 failed of 126 files; 1,222.90
+seconds for the unit phase. All 176 test failures were timeouts: 140 at 5 seconds,
+six at 30 seconds and 30 at 60 seconds. A separate 60-second face-operations hook
+timeout caused 35 skips, and one worker-termination warning was recorded. Chained
+IPC was not entered. Head, status, lockfile, configuration and four-file maps
+matched. Log SHA-256:
+`8b527cd508f70cdbc55020f3bf99663e7b7f25f1273b77fc7b318df65c61e709`;
+classification SHA-256:
+`58890ec7334bab502de4728862c438a4d93450ac7ea6affcb46c7debb5776044`.
+The full reporter does not establish an individual 19-case file pass; focused
+evidence remains separate.
+
+Retain the earlier malformed-launch unit result: 2,135 passed and 82 failed of
+2,217 cases in 126 files, all 82 failures test timeouts; chained IPC did not run.
+Separate IPC passed 11 checks. Standard desktop failed its 45-second deadline
+without readiness or confirmed-close proof.
+
+The whole-unit `--maxWorkers=2` comparison is `ABORTED_PARTIAL`: at least 70
+observed failed tests across four completed file reports, one taking 1,031.101
+seconds. Its recorded outer interval was 12:09:44–12:39:56 UTC. Only the owned
+Vitest PID 19660 was terminated after ownership revalidation; exit −1 was
+revalidated. No full-suite summary was produced. Four-source, lockfile and
+configuration-file hashes matched afterward. Configuration bytes stayed fixed,
+but the runtime worker ceiling changed; includes, timeouts, isolation, filters,
+cache settings and tolerances were unchanged. Log SHA-256:
+`273f8e5d14352bf8102fae462aba0233071d260bbe01ff28c0b1e270af8a415f`;
+post-abort receipt SHA-256:
+`3e7cdac4c713926f9d76d84fec9f20f15cbd3916c25045891e58027ae08aa0fd`.
+No complete comparison, causal diagnosis, original-tree reconstruction or normal
+worker/native cleanup is claimed.
+
+Required work includes saved-recipe/bridge integration, exact historical/current
+owner attestation, progressive same-instance parents/children and real circular/
+mirror paths. Global-part versus per-owner UntilNext, remote/partial/contact
+behavior and selected/ALL activation remain unresolved. Additive ALL, AUTO,
+other end conditions, associative references, variation, nested lifecycle and
+independent interoperability remain required; this does not narrow the goal
+or establish platform support. These results do not satisfy the full validation
+gate; the individual build, IPC and focused passes remain recorded.
+
+
+## Fixed principal-plane regeneration — local evidence, 2026-10-14
+
+These successive local Windows snapshots test explicit saved `world` intent
+for a principal-plane UpToSurface end condition. They do not complete the
+regeneration roadmap. The earlier ledger above retains its original source
+and outcome; no earlier pass is transferred to this increment.
+
+The first native/full/build record contains 18 source, configuration and
+documentation input hashes; the corrected pure selection contains 19; the
+later UI build and desktop records each contain 26. Each recorded before/after
+list matches exactly. These are scoped input lists, not whole-tree manifests.
+The native test file is unchanged across these snapshots, with SHA-256
+`02f81533918ee2e9aec698853e1519d4e26a81c2a3959d809f0eb7698b99660f`.
+The [original fixtures](FEATURE_WORLD_LIMIT_FIXTURES.md) give analytical
+coordinates, formulas and tolerances.
+
+### First native, full-suite and build checkpoint
+
+| Check | Actual outcome |
+| --- | --- |
+| Focused `src/cad/kernel.recipe-world-limit.integration.test.ts` | Exit 0, 11/11 cases in one file; Vitest 474.37 s, outer invocation 553.617 s. |
+| Full `npm test` | Exit 1, 2,114 passed and 136 failed of 2,250 cases in 129 files (105 passed, 24 failed); Vitest 2,087.37 s, outer invocation 2,364.248 s. Chained IPC was not entered. |
+| Subsequent `npm run build` | Exit 1 during TypeScript checking, before the production build; outer invocation 220.256 s. |
+
+The complete failure accounting identifies 133 test timeouts: 86 at unchanged
+5,000 ms budgets and 47 at unchanged 60,000 ms budgets. The other three failures
+are saved-method SSR assertions for linear, circular and mirror controls in
+`PatternPanel.savedModes.test.tsx`. No additional error class, hook timeout,
+unhandled error, crash or worker-termination diagnostic was found in these logs.
+The timeout cause remains unknown. The native world-limit file itself passed
+four and timed out seven of its 11 cases in this full run. Its separate 11/11
+focused pass does not replace those failures or make the full invocation pass.
+
+The failed build reported TS2339 when a cloned selected operation's
+`referencePolicies` was read without preserving its regenerate-mode narrowing,
+and TS2345 in the malformed-policy parameter table. The later correction
+narrows the cloned operation before that read and passes each complete policies
+array as one named test-row value. The three SSR expectations were updated to
+the complete explanatory sentence including the fixed principal-plane option.
+These corrections do not establish a later complete-suite pass.
+
+An earlier initial pure selection reported 22 passing cases. Five malformed-
+policy `it.each` rows were arrays that the runner spread into positional
+arguments; that pass did not exercise the five intended whole-array rejection
+inputs. The later correction uses named `{kind, policies}` rows so each complete
+array reaches the assertion. The corrected 31/31 selection below is the relevant
+evidence for that repaired matrix; the initial 22-case pass is retained without
+crediting rejection coverage it did not establish.
+
+### Corrected pure selection and later UI build
+
+The corrected selection of `featurePatternWorldLimit.test.ts`,
+`FeaturePatternWorldLimit.test.tsx` and `PatternPanel.savedModes.test.tsx`
+passed all 31 cases in three files, exit 0, Vitest 36.53 s and outer invocation
+108.614 s. This is model/command and server-rendered markup evidence, without
+native CAD or editor events. Its corrected source identities include:
+
+| File | SHA-256 |
+| --- | --- |
+| `src/model/featurePatternCommands.ts` | `f834e18660f0105c26e06e7f32896616126a4ffa8ce89644f5ca8468feabc6ee` |
+| `src/model/featurePatternWorldLimit.test.ts` | `a1e5ac6634067a9c025e32d813806b549815f5de5919a323229aa9c068d13b41` |
+| `src/components/PatternPanel.savedModes.test.tsx` | `8f9b4b044635327d798d975933dc58eb9bb9e5cf541c1f743736306ed9ebe1bb` |
+
+After adding the public world-limit workflow and factoring the ALL launcher,
+`npm run build` passed TypeScript and the production build, transforming 1,985
+modules; outer invocation 236.006 s, Vite reported 1 min 3 s. Dependency
+externalization and large-chunk warnings remain. Separate syntax checks exited
+0 for `desktop-pattern-all.cjs`, `desktop-pattern-world-limit.cjs` and
+`desktop-pattern-world-limit-flow.cjs`; parsing does not execute a workflow.
+The later successful build does not change the earlier failed build or full
+suite, and the full suite/IPC were not rerun on this 26-input snapshot.
+
+### Separate production-loader results after that build
+
+| Command | Actual outcome |
+| --- | --- |
+| `npm run test:desktop` | Exit 1, cleanup reported `EBUSY` on a file in its owned temporary profile. No readiness/PASS report or confirmed child close was emitted. Outer invocation 150.245 s; neither initial readiness nor the primary cause is established. |
+| `npm run test:desktop:pattern-all` | Exit 1, exceeded its 180,000 ms interaction deadline with child close unobserved. The launcher reported retaining its owned profile; filesystem presence, process-tree closure and cleanup were not independently established. Outer invocation 269.244 s. |
+| `npm run test:desktop:pattern-world-limit` | Exit 0, workflow PASS, actual child close observed and isolated temporary profile deleted. Outer invocation 223.782 s. |
+
+The world-limit interaction uses scripted DOM events and the real production
+worker/WASM. It recorded four healthy requests: initial geometry `3`, explicit
+world-policy preview `8`, committed Apply `9` and reopened result `10`.
+Request `7` separately rejected missing saved policy while Apply remained
+blocked; it is not a healthy phase. Source S remains `64−3π/2` mm³. Target A
+changes from copied `64−3π/2` to regenerated `64−π/2` mm³. All four phases
+check exact body/source/creator identities and bounds, using absolute volume
+tolerance `1e-5 mm³` and coordinate tolerance `1e-6 mm`. This UI path does
+not report surface area or material probes; those belong to the separate
+native cases and tolerances in the fixture guide.
+
+The run completed restricted preload/IPC open, Save As and reopen operations.
+The saved and reopened declaration retains the explicit policy and routes.
+Native dialog choices were substituted with isolated test-owned paths; no human
+pointer or native-dialog interaction is claimed. The report recorded production
+security settings, no console errors and no failed requests. Its original JSON
+fixture has SHA-256
+`b87673e59da0637dc9b29912ed665a6c7efc3d33ccdfd703fb3d9b757afefbbd`.
+The successful wrapper, flow and shared launcher identities are respectively
+`6b4316a92addb43627f61f7dfd9428e717d3eb8b2fa90748afd274b91ccb79b8`,
+`0cdcd63b825d7738a1b1475d423addaa9e101f173e18afde8094f49aff3f3340`
+and `631b2941551ae306cd547b06ffdf3f44271df35c996e365f962af4ebae4467af`.
+Any subsequent launcher/observation hardening requires new validation; this
+pass does not validate later harness bytes or resolve the separate ALL failure.
+
+### Retained log identities and limits
+
+| Observation | Log SHA-256 |
+| --- | --- |
+| Focused native 11-case pass | `6ef39e3e96a66f36efbf9d939ab33a90b1c028c769abc3349fa36efeaa74d10a` |
+| First full-suite stdout | `735e5e420f55db79556c4175cdea5369543234d99b6341abd4b19304dbc0919c` |
+| First full-suite stderr | `0599c2a800be52280130c8f365fe1ce29aeb7b409cb44416288a7e18de04b88f` |
+| First TypeScript build failure | `dbf7f0cb86f3ffa2a95d9a48d25d9188d60f0175b729f3bcbad5c70c946ac0fa` |
+| Corrected pure 31-case pass | `8f04ab390f98448b6998a20d7a4ca5f687e56a99fbdeb7ed96ae7caee7c0341f` |
+| Later production build stdout | `21e4dbcc1bbe09c493c7f985afb817b324d0824df4de331495d5c44ed982e3e0` |
+| Standard desktop failure stderr | `fcef3ade04074a86585d10932e9370af20e2ba37a22d51d561b4c91fa6a3f8ae` |
+| Factored ALL failure stderr | `fc736244545bb1c35f06c562bddd610a256760a31fa62f93959feb1e260758f1` |
+| World-limit workflow and close/cleanup report | `93764d01e9b6dc34fad56d3ae034d989dc0056c852cfc30911b77e0f13886fb9` |
+
+The full-suite failure remains unresolved by these focused/build/UI passes.
+This one selected linear workflow does not validate circular/mirror editor
+interaction, ALL end-reference choices, general entity profiles, dependent
+datum/face remapping, UntilNext policy, AUTO, additive ALL, variation, nested
+recipes or complete ownership lifecycle. It establishes neither independent
+interoperability nor general shutdown/allocation safety, signing, releases or
+platform support. No hosted result or future harness result is inferred.
+
+
+## Source-string hardening — later local checkpoint, 2026-10-14
+
+This later dirty Windows snapshot includes the source-string serialization
+hardening used by the ALL and fixed-world-limit interaction launchers. It is a
+separate checkpoint from the earlier complete world-limit workflow pass above.
+The recorded checkout HEAD `0629b3a733b8d98cec586fbe6e79d2265cadda37` is the branch
+base, not an exact commit identity for the tested dirty source. All 31 selected
+before/after input hashes match. That selected list is partial; it does not
+establish an unchanged complete runtime tree. Node/npm versions and the full
+inherited environment were not captured in this record.
+
+| Check | Actual outcome |
+| --- | --- |
+| Five script syntax checks | All exited 0. Parsing alone does not execute the interaction or CAD workflows. |
+| Separate `npm run test:ipc` | Exit 0, 32/32 cases; Node reported 27,873.6418 ms. This includes the source-literal regressions and is separate from chained IPC. |
+| `npm run build` | Exit 0, TypeScript and production build, 1,985 modules. Dependency externalization and large-chunk warnings remain. |
+| `npm run test:desktop` | Exit 1 after the 45-second launcher deadline; no readiness/PASS or confirmed child-close outcome was established. |
+| `npm run test:desktop:pattern-all` | Exit 1 after the 180-second interaction deadline; child close was unobserved and the launcher reported retaining the isolated profile. Its filesystem presence was not independently checked. |
+| `npm run test:desktop:pattern-world-limit` | The functional worker workflow reached its four healthy phases, expected missing-policy rejection, Apply, Save As and reopen. The parent command nevertheless exited 1 after its 180-second deadline, with child close unobserved and the launcher reporting retention of the isolated profile. Its filesystem presence was not independently checked. This is not a complete desktop-command pass. |
+| Required `npm test` | Exit 1: 2,123 passed, 127 failed of 2,250 cases; 107 passed and 22 failed of 129 files. Vitest reported 1,744.11 s. Failed units prevented chained IPC from entering. |
+
+The complete full-suite accounting reconciles all 127 failed-case headers with
+96 emitted error groups. Every failed case has a literal test-timeout diagnostic:
+99 at 5,000 ms, one at 20,000 ms, one at 30,000 ms and 26 at 60,000 ms. No
+assertion, hook-failure, unhandled/uncaught error, native-crash or worker-termination
+warning was emitted in the retained full-suite logs. A printed `afterAll` line
+is a source excerpt. These observations do not establish a timeout cause or
+prove the timed-out geometry correct.
+
+The failure-only reporter does not provide individual passing counts for the
+world-limit native file or the three earlier focused model/SSR files. Their
+absence from failure output is not a new focused pass. The earlier 11-case
+native and corrected 31-case model/SSR results retain their own source scopes.
+
+The WORLD functional assertions are narrower than process lifecycle evidence.
+The later parent failure does not erase the earlier close/cleanup pass on its
+different launcher bytes, and the earlier pass does not validate this later
+parent's shutdown. Confirmed process-tree closure and cleanup are not inferred
+from successful worker assertions. The syntax/IPC passes do not establish that
+hosted CodeQL alerts or dependency-audit findings have been resolved; CodeQL was
+not rerun by this local checkpoint.
+
+| Retained identity | SHA-256 |
+| --- | --- |
+| Check record | `6d36025adc96966b1527ed90fd5545f4d8589f2fabee07f0c4f7138089d9e4f1` |
+| Full-suite stdout | `62f76d7c57ca7085d915973e2a20618e2395eb1511377350c0fd7499c220dd86` |
+| Full-suite stderr | `bd3c683b79ce222634068f2a1cf5398a4009084897f54c7c2968ec6bcb272348` |
+
+The fixture scope and tolerances remain those in
+[FEATURE_WORLD_LIMIT_FIXTURES](FEATURE_WORLD_LIMIT_FIXTURES.md). These results do
+not satisfy the full validation gate. Broader profiles/supports, end conditions,
+references, variation, additive ALL/AUTO, nested recipes and ownership lifecycle
+remain required, together with independent interoperability and general desktop
+and platform validation. Individual syntax, IPC, build and earlier focused
+passes remain recorded without promotion to a complete-suite or release pass.
+
+## Source-solve and native component composition — 2026-10-15
+
+This local Windows x64 checkpoint combines thirteen CAD source/test paths on
+base `7cec5c8d2a2378e49ab76158764e59728aba0a67`. That base identifies the
+inherited entry-loader source; it is not a commit identity for the tested
+working changes. The source table below identifies those changes exactly.
+Node was 24.11.1, npm 11.6.2 and Vitest 5.0.3. Commands retained the project
+configuration, existing budgets and pool, with one invocation per check and
+no retries or environment overrides supplied by these validation runners.
+
+The additions are 90 cases: ownership 18, real solves/raw admission 19,
+Add entry 14, closed tools 21 and native face occurrences 18. The 109-case
+focused run includes the inherited 19 Cut-resolution cases. Reporter totals
+below are actual results; the per-file partition is fixture inventory rather
+than separately printed passing totals.
+
+| Command / scope | Actual result |
+| --- | --- |
+| Focused seven-file invocation below | Exit 0, 109/109 cases and 7/7 files; Vitest 1.58 s; stderr empty. |
+| `npm run build` (`tsc -b && vite build`) | Product command exit 0, TypeScript and Vite 8.3.4 passed, 1,985 modules, Vite 1.24 s. Browser externalization of `node:module` and chunk-size warnings remain. |
+| Required `npm test` | Exit 0: 2,340/2,340 unit/CAD cases in 135/135 files, Vitest 27.46 s, followed by 32/32 IPC checks with no skips/cancellations; stderr empty. |
+| `npm run test:desktop` | Exit 0: initial renderer, preload, worker and WASM readiness; Electron exit and successful guarded temporary cleanup. The unchanged standard launcher does not instrument Electron's inner close event. |
+| `npm run test:desktop:pattern-all` | Exit 0: four distinct selected/preview/committed/reopened worker phases, actual Apply, Save As/reopen, observed Electron child close and deletion of the isolated test profile. |
+| `npm run test:desktop:pattern-world-limit` | Exit 0: geometry/preview-world/committed-world/reopened-world worker phases, expected missing-policy rejection, actual Apply, Save As/reopen, observed child close and isolated-profile deletion. |
+
+The focused command was:
+
+```sh
+node node_modules/vitest/vitest.mjs run --config vitest.config.ts src/cad/kernel.sketch-solves.test.ts src/cad/kernel.sketch-solves.raw.test.ts src/cad/kernel.profiles.ownership.test.ts src/cad/kernel.until-next-add-resolution.test.ts src/cad/kernel.closed-tools.test.ts src/cad/kernel.until-next-resolution.test.ts src/cad/kernel.native-face-membership.test.ts
+```
+
+Execution invoked the installed Vitest CLI directly through Node with those
+`run --config` and seven file arguments. No filter, pool or budget override
+was used. The npm checks used the installed npm CLI and the unchanged package
+scripts. Their parent processes exited/closed normally and output streams were
+drained; that outer observation is separate from inner Electron lifecycle.
+
+### Inventory guard and retained earlier failures
+
+The focused run preserved all 340 recorded project inputs. Building added the
+normal ignored `tsconfig.tsbuildinfo`; its original evidence controller exited
+1 because its strict no-new-files guard compared 340 with 341. The actual build
+child exited 0 and all original 340 hashes were unchanged. The guard failure
+is retained, not presented as a successful controller run or rerun. Subsequent
+test/desktop guards explicitly distinguish 340 project inputs from that one
+separately pinned generated file. The three desktop runs also preserved seven
+production-output files and eleven selected dependency pins. These inventories
+do not cover the complete transitive dependency tree or general process-tree
+termination. No generated build output is part of this source proposal.
+
+An earlier combined source-solve/ownership run on the recorded preceding
+snapshot produced 36 passed and one failed of 37 cases. Its radius was
+`1.9999999999843956` against an incorrectly exact expected 2. The test now uses
+the independent absolute `1e-7` mm bound documented in provenance, retaining
+entity identity/type and the remaining full-result assertions. The solver was
+not rounded or changed to satisfy that assertion. Assertions after the earlier
+failure were not executed in that case; the later combined run supplies their
+passing evidence on the corrected test source.
+
+The earlier entry-loader run associated with the #40 source retained 2,114
+passed and 136 test timeouts of 2,250 cases, separate 32-case IPC/build passes,
+standard desktop cleanup `EBUSY`, an incomplete ALL deadline and fixed-plane
+initial-readiness failure. Those source-specific failures, the older records
+above and donor results remain separate. This composition's successful checks
+do not identify the cause of those timeouts, explain the cleanup/startup failures
+or convert an earlier failed command into a pass.
+
+### Exact changed source inputs
+
+All paths in this table are under `src/cad/`. The 340-input project inventory
+remained unchanged during the executions, apart from the separately identified
+generated file after build.
+
+| File | SHA-256 |
+| --- | --- |
+| `kernel.engine.ts` | `3f27d764163471c6de95369ff2daddcbd75481d8584956ac2da86bfeb61e4d55` |
+| `kernel.profiles.ts` | `5c6253c3f2ec4b324286bcbe4790d70e571b018f0b74fbd90a2af743bb00793c` |
+| `kernel.feature-recipes.ts` | `8933771d648c7e020fb0dd1ddcd7607be3d525f73f57ce3be9a75a8e046acebd` |
+| `kernel.sketch-solves.ts` | `206fad0f1aa770f40f4c8087e3626ef0d0867d309e6cf6cb2852503494f24c3d` |
+| `kernel.sketch-solves.test.ts` | `4afb0037575b288d642e69d3db9f78eee4d9207ecff2941983e094deae9b199f` |
+| `kernel.sketch-solves.raw.test.ts` | `7124af57ccc09e7c08b713cb6a3ad466cbc2e73fcc8912a106b0b6fc6c80b945` |
+| `kernel.profiles.ownership.test.ts` | `67bb75b4e66f77b23e544e08c46076fe499f68cd30adba7d614389c5ae91a058` |
+| `kernel.until-next-resolution.ts` | `fc399dc46eff1d1315dadae5d37f747968c0826b457785cebfa1156a04d55097` |
+| `kernel.until-next-add-resolution.test.ts` | `e3dc3dcc9ac09810a541bd6278c769a7d1cb41249ea596a0d53c6ed1c10f047f` |
+| `kernel.closed-tools.ts` | `d3c736cf54c5f675ff4d76fdd6d13f688d71da472f0c0a6a9902a49b537c9d64` |
+| `kernel.closed-tools.test.ts` | `05039b9aa9f3b15c23bddc1d7b7c693dc281403cb5d7dbcda6d474a9df5e1334` |
+| `kernel.native-face-membership.ts` | `1e61d83141c760d5e3c22ca089329cebd86cd403ec9fb388175a53e2fa112b17` |
+| `kernel.native-face-membership.test.ts` | `476347f5cfe7280e8573a8616207c0974829e2c025c6c0c3c7791d2a875cc70b` |
+
+### Retained output identities and evidence boundary
+
+| Output | SHA-256 |
+| --- | --- |
+| Focused stdout | `da2cd41a4febbbc57852f31f017c3aaa9be0f90650866570154d7b71edeca04e` |
+| Build stdout | `3e00dd753468b79d2abed3cafa822a3bc2719f0404d0b18f9239866cdf69eddf` |
+| Build warning stderr | `a86e1daf71b0aa0b8153b600aba8937ac5059913521e0673e8b60050412e36a4` |
+| Required test stdout | `e6380c2d80523bfb3a730ab90c4ecb6e6f4fbbd0137fd645e44e45dfb052feaf` |
+| Standard desktop stdout | `7fe706fbb2502d4b93da2c38ef7eb600dca1654411ba12ef7b2e8acf47742dfd` |
+| ALL workflow stdout | `2cd4d980ab098c3428fb77735de79ca7cc631abee2cd12093492f6e54fb4f208` |
+| Fixed-plane workflow stdout | `15632570395f494989002d06cf8076a7d3ef9bfc50419132c10efc44a73cd999` |
+
+The two UI workflows use scripted DOM events and test-owned native-dialog
+choices. They check exact body/source identities, analytical volume within
+`1e-5` mm³ and bounds within `1e-6` mm. Their four healthy phases retain the
+actual production worker/WASM, and report no console errors or failed requests.
+UI runs do not measure surface area or interior/exterior Common probes; those
+belong to the distinct native fixtures in
+[PROVENANCE](PROVENANCE.md#source-solve-and-native-component-fixtures).
+
+The real-solve registry does not certify native face/body ownership. Add-entry,
+closed-tool and membership tests remain component foundations; saved UntilNext,
+general solved/associative profiles, datum/face/instance correspondence,
+additive ALL, AUTO, variation, nested recipes and full ownership lifecycle
+remain pending. This local Windows checkpoint supplies no new macOS/Linux,
+independent interoperability, installer/signing/notarization or release result.
+It neither clears existing security findings nor authorizes binary publication.
+
+## Entity ALL profile composition — local evidence, 2026-10-15
+
+Windows x64 / Node 24.11.1 executed the reviewed composition over
+`746be89089f5167271b21a3f69b7e3156711f68c`, with 13 uncommitted changed paths.
+The source freeze contained 344 regular source/configuration/documentation
+inputs, SHA-256 `51f56dee033b6668acf34837086ba002c75ad96da2e437121e6027698ac920fe`.
+The exact evaluator SHA-256 was
+`70c4bcb1179bcdf4d90ac2e130e54f4cf583cca67d3afa00538f547de8c02e1f`;
+the entity constructor was
+`b7c324645c6af8e1e61aad6be083beb74fae64fc039549383e450c4b3cc1dd72`,
+and body/tolerance helpers
+`7a0048ca29f302a4b75b0d557c13f56909b672a222fb2c95c90ceef2b890ed02`.
+These executed bytes are separate from this later evidence-only documentation
+proposal. Existing own dependencies were reused without reinstall or lock
+change; 15 selected dependency pins were recorded separately.
+
+| Command | Actual bounded result |
+| --- | --- |
+| Complete scope/ALL/entity/checkpoint/declaration files, public config | PASS: 93/93 in 5/5 files, 9.14s; no filtered skips. |
+| `npm test` | PASS: 2407/2407 in 138/138 files, 20.89s unit phase, then 32/32 IPC/security/JavaScript-literal checks. |
+| `npm run build` | PASS: TypeScript and Vite; Vite transformed 1985 modules and its build completed in 786ms, with existing externalization/chunk warnings retained. |
+| `npm run test:desktop` | PASS: production loader/preload, 2 canvases and real worker/WASM responses; 0 console/request errors. |
+| `npm run test:desktop:pattern-all` | PASS: existing primitive selected-to-ALL preview/Apply/save/reopen regression. |
+| `npm run test:desktop:pattern-world-limit` | PASS: existing primitive geometry/missing-policy/world preview/Apply/save/reopen regression. |
+
+All six commands ran once sequentially, without pool/budget/environment
+overrides or retries; exit/close 0 and pipe drain were observed. Source 344,
+selected dependencies 15, runner and npm CLI stayed unchanged per invocation.
+Build generated and froze seven compiled outputs; the output inventory changed
+only during build. TypeScript build info also changed during build and stayed
+stable afterwards. The seven outputs stayed frozen through all three desktop
+commands. Both scripted
+UI regressions observed actual preload/IPC, 2 opens/1 save, child close and guarded
+temporary-data cleanup, with no console errors or failed requests.
+
+The 52 additions comprise 41 entity integration, 5 source/checkpoint, 4 declaration
+and 2 scope/tolerance cases. They cover authentic solved coordinates and driven
+measurements, canonical rotation/reflection/offset, closed profile witnesses,
+full inventory/no-op role/current checks, original selected/bilateral/near-band
+routes and late atomicity. Genuine native Ve-tolerance owner/witness fixtures
+discriminate global bounds enlargement and witness-tolerance separation;
+construction/query/release/stale failures do not authorize no-ops. Geometric
+oracles retain volume/area 1e-5, bounds 1e-6 mm, Common 1e-7 mm^3 and radius/driven
+1e-7 mm, with native validity/closed tools/final single-solid checks. The global
+envelope fixture additionally requires all six expansions to be at least
+0.001-1e-9 mm.
+
+The two dedicated desktop workflows above use existing primitive fixtures.
+A separate original circular-entity linear workflow ran once on the same
+Windows host, using the actual production renderer/preload/worker. It passed
+geometry, selected-regenerate preview, ALL preview, committed ALL and reopened
+ALL: request IDs 3/5/6/7/8 and serials 2/4/5/6/7. Both selected and ALL Apply
+were observed disabled while their actual previews were pending. The saved
+ALL intent has no target snapshot; nominal radius1, driving2 and driven999
+remain unchanged.
+
+The five phases supply 15 independent body observations. Maximum absolute
+volume error was 1.5689920473960228e-9 mm^3 against tolerance 1e-5; bounds checks
+used tolerance 1e-6 mm. B retained exact `B@create-B`, creator `create-B`, volume
+800.0000000000002 and bounds `[20,0,-10]..[30,10,-2]` identically in all five.
+The actual source-sketch visual response contains 96 radius2 tessellated
+endpoints per phase around (5,5), Z0; maximum radius error was
+1.5604628700316425e-11 mm with endpoint tolerance 1e-6 mm and actual Z0.
+These are response/display observations, not a full solver result, native
+attestation token, status/DOF or fresh driven-annotation measurement.
+
+This UI capture froze a broader 404 project-input map, canonical SHA-256
+`10cf96137350447165512e82781d55d0a4ffd076b89c1ab62c810c86d6c9c16f`,
+83 recorded Electron package files and a separate Node 24.11.1 binary identity,
+plus the same seven compiled outputs. Those scopes differ from the six-command
+344-input/15-selected-dependency maps above. Pre/post guards passed, stderr
+was empty and the real protocol responses included worker/WASM 200. Two opens
+and one save completed through the real IPC bridge. The reviewed harness
+reported awaited inner Electron close and owned temporary cleanup; outer
+exit/close 0 and stream drain were directly captured. This does not instrument
+every descendant process. The private harness is not yet a tracked dedicated
+CI command; its [original fixture provenance](PROVENANCE.md#scripted-entity-all-ui-fixture)
+and limits remain separate from the public primitive workflows.
+
+This evidence does not establish direct UI BRep validity/solid count, area or
+Common queries, human pointer/native-dialog interaction,
+general support/variation/reference parity, export interoperability, macOS/Linux
+support, packaging/signing/notarization or release readiness.
+
+The original V4 source/checkpoint/declaration fixtures, the original #38 error
+reproduction and all historical failures remain separate. Primitive-only
+correction results earlier in this record retain their original exact source and bounded scope.
+The [regeneration contract](FEATURE_REGENERATION.md#entity-all-absence-requires-native-profile-evidence)
+and [fixture provenance](PROVENANCE.md#entity-all-absence-composition-fixtures)
+describe the implementation and its remaining limits. Original security findings,
+the #35 macOS failure and unvalidated platform/UI claims are not resolved by
+this proposal.
+
+## Windows CI failure and process-isolation validation — 2026-10-15
+
+PR #43's Windows job on Node 24.21.0 checked out merge
+`afa556219c235fdfee7eb5bf70f0ec5b66450e6c` for head
+`dbdcc9af872079f41384a306783f6e67a5d87728`. Build completed, but the unit
+process aborted with the V8 CHECK `jit_page_->allocations_.erase(addr) == 1`
+and exit 1. It supplied no final unit summary; IPC/desktop/package steps did not
+run. Completed rows are not a full-suite pass. No CAD assertion or timeout
+was reported as the terminal cause.
+
+An [upstream Node report](https://github.com/nodejs/node/issues/66366) describes
+the same assertion signature with Node 24.21.0/WASM worker lifecycle. This is a
+matching report, not a demonstrated explanation of this Windows failure.
+The integration configuration selects Vitest `forks`, which uses separate
+child processes instead of worker threads according to the
+[official pool documentation](https://vitest.dev/config/pool.html). Test-file
+isolation stays enabled; include/exclude rules, assertions, timeouts and the
+default parallel worker-count policy stay unchanged.
+
+A separate, single local Windows x64 baseline retained `threads` on clean
+`dbdcc9af872079f41384a306783f6e67a5d87728`, using the official portable Node
+24.21.0 and bundled npm 11.19.0: `npm test` passed 2,407 tests in 138 files
+(20.36 s) plus all 32 IPC tests. This did not reproduce the hosted abort or
+recreate the hosted runner's complete environment; it does not identify the cause.
+
+One local Windows x64 integration sequence then ran on clean
+`dbadd4f522bca88b5ff365880821e1f6c781da7b`, with the same portable runtime and
+the reviewed public `forks` configuration. CAD source, Electron/scripts,
+package and lockfile bytes remained those of #43. The eight changed paths were
+configuration, documentation and dependency-update policy. The complete 405
+tracked inputs and 15 selected dependency files were captured with matching
+before/after snapshots across all five commands. The Node executable SHA-256 was
+`ba4e6d110e8c1592a1ecd390f6b05f3da124b13871a5be62b341a07a853c6c32`.
+
+| Command | Actual result on that source |
+| --- | --- |
+| `npm test` | PASS: 2,407/2,407 tests in 138/138 files, 32.15 s; 32/32 IPC tests. |
+| `npm run build` | PASS: TypeScript check and 1,985 Vite modules; Vite built in 806 ms. Existing `node:module` externalization and large-chunk warnings remained. |
+| `npm run test:desktop` | PASS: production readiness, two canvases, original preload and worker/WASM responses. |
+| `npm run test:desktop:pattern-all` | PASS: original selected-to-ALL primitive workflow, Apply, Save As and reopen. |
+| `npm run test:desktop:pattern-world-limit` | PASS: original fixed-plane primitive workflow, explicit world policy and missing-policy rejection, Apply, Save As and reopen. |
+
+Each command ran once, with exit/close 0 and both streams drained. No retry or
+CLI pool override was used; no runtime flags were added, and worker-count policy
+and timeouts were unchanged. Portable runtime selection only prefixed the child environment's PATH;
+the parent/global runtime configuration was unchanged. Seven compiled outputs
+and TypeScript build info were inventoried before and after build; their hashes
+were identical in this sequence and remained fixed through the desktop checks.
+
+The ALL and world checks used volume tolerance 1e-5 and bounds tolerance 1e-6.
+Their real IPC flows substituted test-owned paths for native dialog choices;
+they reported inner child close and temporary cleanup, with no console errors
+or failed requests. These are the existing primitive workflows, not a new
+entity-profile UI run, export/interoperability check or general platform claim.
+Earlier entity UI evidence, Node 24.11.1/threads results and other-platform CI
+results remain separate. This local pass does not establish the hosted abort's
+cause or resolution, resolve the historical #35 macOS failure, close security
+findings or establish release readiness.
+
+## Saved UntilNext regeneration — 2026-10-15
+
+The complete local Windows x64 sequence ran on clean source
+`12c5ecbeae1f5ec1782cbd008b3871fb352603c0`, from 13:32:14 to 13:34:53 UTC,
+using portable Node 24.21.0, bundled npm 11.19.0 and the versioned Vitest
+`forks` configuration. All 412 tracked inputs, 15 selected dependency files,
+runtime and controller were captured before and after every command. Seven
+compiled files and TypeScript build info were replaced only by the successful
+build and remained fixed through the four desktop commands.
+
+| Command | Actual result on that source |
+| --- | --- |
+| `npm run test:unit -- <25 focused files>` | PASS: 477/477 tests in 25/25 files, 46.92 s. The selection included all six recipe declaration files, the model pattern tests, native recipe/instance/scope/cache tests, both UntilNext components, extrusion-limit ownership and body/feature pattern regressions. |
+| `npm test` | PASS: 2,492/2,492 tests in 140/140 files, 68.42 s; 32/32 IPC/security/literal tests, with no skipped or cancelled cases. |
+| `npm run build` | PASS: TypeScript and 1,985 Vite modules, built in 1.20 s. Existing `node:module` externalization and large-chunk warnings remained. |
+| `npm run test:desktop` | PASS: initial model readiness, two canvases, original preload and actual production worker/WASM responses. |
+| `npm run test:desktop:pattern-all` | PASS: existing primitive selected-to-ALL workflow, real Apply, Save As and reopen; 16 body observations. |
+| `npm run test:desktop:pattern-world-limit` | PASS: existing fixed-plane workflow and missing-policy rejection, real Apply, Save As and reopen. |
+| `npm run test:desktop:pattern-until-next` | PASS: selected Cut, cut ALL, selected Add and partial-profile rejection/cancel; 14 distinct actual worker builds, six opens and three saves. |
+
+The focused command passed these exact paths after `npm run test:unit --`:
+
+```text
+src/model/featureRecipes.test.ts
+src/model/featureRecipes.boundaries.test.ts
+src/model/featureRecipes.inputs.test.ts
+src/model/featureRecipes.regression.test.ts
+src/model/featureRecipes.entities.test.ts
+src/model/featureRecipes.until-next.test.ts
+src/model/patterns.test.ts
+src/cad/kernel.feature-recipes.test.ts
+src/cad/kernel.feature-recipes.integration.test.ts
+src/cad/kernel.recipe-all.integration.test.ts
+src/cad/kernel.recipe-entities.integration.test.ts
+src/cad/kernel.recipe-world-limit.integration.test.ts
+src/cad/kernel.recipe-until-next.integration.test.ts
+src/cad/kernel.recipe-instance.test.ts
+src/cad/kernel.recipe-primitives.test.ts
+src/cad/kernel.recipe-primitives.ownership.test.ts
+src/cad/kernel.recipe-cache-ownership.test.ts
+src/cad/kernel.recipe-scopes.native.test.ts
+src/cad/kernel.until-next-resolution.test.ts
+src/cad/kernel.until-next-add-resolution.test.ts
+src/cad/kernel.extrusion-limits.test.ts
+src/cad/kernel.extrusion-limits.ownership.test.ts
+src/cad/kernel.patterns.test.ts
+src/cad/kernel.feature-patterns.test.ts
+src/cad/kernel.body-patterns.test.ts
+```
+
+Every command on this final source ran once, with exit/close 0 and both streams
+drained. No pool/worker-count/time-limit override or runtime flag was added.
+Runtime selection only prefixed the child PATH; the global/parent runtime
+configuration was unchanged. Desktop stderr was empty, and no renderer console
+errors or failed requests were recorded. The pattern harnesses reported awaited
+inner Electron close and deletion of their owned temporary profiles. The standard
+smoke does not independently instrument the inner close or every descendant.
+
+The 85 additional unit/CAD cases comprise 68 saved/native integration cases,
+eight native tolerance/failure cases and nine declaration cases. Native
+integration checks use independently specified Cartesian transforms and hollow
+boxes with different first complete limits. They cover selected Cut/Add and
+cut ALL, real solved circles, annuli, disconnected disks and line/arc profiles,
+driving-radius edits, save/reopen, undo/redo, exact historical source and current
+target states, negative rays, complete inventories and no-op parent/child roles.
+Selected/contact/incomplete and late-address/owner failures must preserve
+predecessors; source/checkpoint/revision drift and actual cleanup faults cannot
+authorize publication. The injected fatal-cleanup case discards the engine
+catalog; it does not promise a usable catalog after that fatal error.
+
+Native assertions require valid BRep and one final persistent solid, volume/area
+within `1e-5`, bounds within `1e-6 mm`, original Common probes within `1e-7 mm³`
+and measured driving radius within `1e-7 mm`. Reversible original BRep tolerance
+edits check native values within `1e-15`. The near-owner cases reject, but their
+passing assertions do not identify whether Common or the later separation guard
+provided the decisive observation. No stronger branch-specific claim follows.
+The genuinely solved open-profile component does not claim a healthy historical
+seed solid. Detailed originals and formulas are in
+[fixture provenance](PROVENANCE.md#saved-untilnext-native-regeneration-fixtures).
+
+The new desktop workflow supplies 35 independent body observations, with
+maximum volume error `3.41e-13 mm³` and bounds error `3.20e-14 mm`, against
+tolerances `1e-5 mm³` and `1e-6 mm`. It
+distinguishes copied geometry from regenerated limits: target Cut volume changes
+from `656-4*pi` to `656-2*pi`, while target Add changes from `912+4*pi` to
+`912+8*pi`. Remote/behind owners keep their exact refs and remain in cut ALL.
+Actual previews keep Apply disabled until their worker response; successful
+cases use React Apply and the real preload/IPC save/reopen bridge. File-dialog
+choices are substituted with test-owned paths. Production context isolation,
+sandbox, web security and the original preload remain enabled; Node integration
+and webview tags remain disabled, with worker and WASM protocol responses 200.
+
+The partial-profile preview reports only the expected error:
+`Ninguna superficie siguiente del cuerpo intercepta todo el perfil.` Its
+pre-pattern target is `A@create-A`, volume 440. The committed/autosaved original
+geometry document instead retains `A@ui-next-partial-P`, volume
+`440-16*pi/3-2*sqrt(3)`, during rejection and after Cancel. Both complete autosave
+feature lists match the original fixture, and Cancel restores its rendered
+geometry. Source-prefix hashes, exact refs, creator refs and saved selected/ALL
+intent were checked; ALL saves no derived target list.
+
+The existing ALL and world workflows retain their separate original fixtures.
+Their maximum volume errors were `2.27e-13 mm³` and zero, with bounds errors zero,
+against `1e-5/1e-6` tolerances. UI assertions observe worker volume/bounds/refs;
+they do not query native BRep, solid count, area or Common probes through the UI.
+No human pointer/native-dialog interaction, installed-package acceptance,
+export interoperability, macOS/Linux execution, broader policy parity or
+release readiness is established by this local sequence. The configured new
+CI step is not an executed hosted result; earlier #44 checks cover its earlier
+source, not this increment. Additive ALL, AUTO, associative/varying profiles,
+broader start/end references and lifecycle policies remain incomplete.
+
+### Retained attempts before the final source
+
+- On `09c59d1829b54cc08d1d76a515be1c3af0e1ba94`, the focused run ended with
+  475 PASS and two assertion failures out of 477 tests. The wrong-base fixture
+  encountered the separate forward-dependency gate before its intended owner
+  mismatch; the native tolerance test expected different wording from the actual
+  ALL contact diagnostic. The latter failure occurred before its final atomicity
+  assertions. Exit/close were 1 and the sequence stopped without later commands.
+- On `f8fa44729531c9d26b134ba678432025181921e2`, the corrected focused run passed
+  477/477, and `npm test` passed 2,492/2,492 plus 32 IPC tests. Build then failed
+  with six TypeScript narrowing errors in the new integration test; Vite and
+  desktop commands did not execute. Only TypeScript build info changed.
+- The final correction adds explicit regeneration-mode guards in that test.
+  Production geometry and the remaining test assertions are unchanged. Each
+  earlier source and failure record remains separate; later passing results do
+  not erase these failures or explain historical process crashes/security findings.

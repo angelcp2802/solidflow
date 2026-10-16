@@ -53,7 +53,10 @@ function runInElectron() {
     finished = true;
     clearTimeout(timer);
     console.log(JSON.stringify({ status: code === 0 ? 'PASS' : 'FAIL', detail, consoleErrors, failedRequests, loadedAssets, protocolResponses }, null, 2));
-    app.exit(code);
+    // Successful readiness uses the normal window shutdown path.
+    // A cancelled quit still fails at the Node launcher's existing deadline.
+    if (code === 0) app.quit();
+    else app.exit(code);
   }
   app.whenReady().then(() => {
     electron.session.defaultSession.webRequest.onCompleted({ urls: ['solidflow://*/*'] }, (details) => {

@@ -1,10 +1,46 @@
 import { asDir, Face, getOC, makePln, measureShapeVolumeProperties, type Shape3D } from 'replicad';
 import { createFaceCatalog, resolveSelectedFaces } from './kernel.faces';
+import {
+  createSemanticFaceCatalog, resolveSemanticSelectedFaces, type PrismReferences,
+} from './kernel.semantic-catalogs';
 import type { DraftFeature, PlaneFrame, ShellFeature } from './kernel.types';
 import { castOwnedNativeShape, castOwnedNativeSolid } from './kernel.native';
 
 type ValidateSolid = (shape: Shape3D) => number;
 const NATIVE_TOLERANCE = 1e-6;
+
+type OwnedResource = { delete(): void } | { dispose(): void };
+type OperationFailure = { error: unknown };
+
+function releaseOwned(resources: readonly (OwnedResource | null)[], attempted: Set<OwnedResource>): unknown[] {
+  const errors: unknown[] = [];
+  for (const resource of resources) {
+    if (!resource || attempted.has(resource)) continue;
+    attempted.add(resource);
+    try {
+      if ('dispose' in resource) resource.dispose();
+      else resource.delete();
+    } catch (error) { errors.push(error); }
+  }
+  return errors;
+}
+
+/** Transfer the candidate only after all temporary owners have released successfully. */
+function completeFaceOperation(
+  candidate: Shape3D | null, resources: readonly (OwnedResource | null)[], failure?: OperationFailure,
+): Shape3D {
+  const attempted = new Set<OwnedResource>();
+  const errors = releaseOwned(resources, attempted);
+  if (!candidate && !failure) failure = { error: new Error('La operación no produce un sólido.') };
+  if (failure || errors.length) {
+    errors.push(...releaseOwned([candidate], attempted));
+    if (!errors.length) throw failure!.error;
+    const all = failure ? [failure.error, ...errors] : errors;
+    throw new AggregateError(all, 'Native face operation or release failed: ' +
+      all.map(error => error instanceof Error ? error.message : String(error)).join('; '));
+  }
+  return candidate!;
+}
 
 function volume(shape: Shape3D): number {
   const properties = measureShapeVolumeProperties(shape);
@@ -124,16 +160,24 @@ function nativeCurvedOpenings(body: Shape3D, faces: Face[], thickness: number, i
   } finally { candidate?.delete(); offset?.delete(); builder.delete(); solids.forEach((solid) => solid.delete()); }
 }
 
-export function shellSolid(body: Shape3D, feature: ShellFeature, lineage: string, validate: ValidateSolid): Shape3D {
+export function shellSolid(
+  body: Shape3D, feature: ShellFeature, lineage: string, validate: ValidateSolid, semantic?: PrismReferences,
+): Shape3D {
   if (!Number.isFinite(feature.thickness) || feature.thickness < .01 || feature.thickness > 100_000) {
     throw new Error('El espesor debe estar entre 0,01 y 100.000 mm.');
   }
   if (feature.direction !== 'inward' && feature.direction !== 'outward') throw new Error('Dirección de vaciado no compatible.');
   singleSolid(body);
-  const catalog = createFaceCatalog(body, feature.baseFeatureId, lineage);
+  // Preserve the legacy factory/resolver and its diagnostics when no v2 witness is supplied.
+  const semanticCatalog = semantic ? createSemanticFaceCatalog(body, feature.baseFeatureId, lineage, semantic) : null;
+  const legacyCatalog = semanticCatalog ? null : createFaceCatalog(body, feature.baseFeatureId, lineage);
+  const catalog = semanticCatalog ?? legacyCatalog!;
   let candidate: Shape3D | null = null, offset: Shape3D | null = null;
+  let failure: OperationFailure | undefined;
   try {
-    const faces = resolveSelectedFaces(catalog, feature.removedFaces, feature.baseFeatureId);
+    const faces = semanticCatalog
+      ? resolveSemanticSelectedFaces(semanticCatalog, feature.removedFaces, feature.baseFeatureId)
+      : resolveSelectedFaces(legacyCatalog!, feature.removedFaces, feature.baseFeatureId);
     if (faces.length === catalog.entries.length) throw new Error('El vaciado necesita conservar al menos una cara como pared.');
     const inward = feature.direction === 'inward', signedThickness = inward ? -feature.thickness : feature.thickness;
     const baseVolume = volume(body), tolerance = Math.max(1e-6, baseVolume * 1e-9);
@@ -180,11 +224,11 @@ export function shellSolid(body: Shape3D, feature: ShellFeature, lineage: string
         } finally { filledCore?.delete(); core.delete(); }
       }
     }
-    const result = candidate; candidate = null; return result;
   } catch (error) {
-    if (error instanceof Error) throw error;
-    throw new Error('OpenCascade no pudo construir el vaciado. Reduce el espesor o cambia las caras eliminadas.');
-  } finally { candidate?.delete(); offset?.delete(); catalog.dispose(); }
+    failure = { error: error instanceof Error ? error
+      : Object.assign(new Error('OpenCascade no pudo construir el vaciado. Reduce el espesor o cambia las caras eliminadas.'), { cause: error }) };
+  }
+  return completeFaceOperation(candidate, [offset, catalog], failure);
 }
 
 function topology(shape: Shape3D): [number, number] {
@@ -193,18 +237,31 @@ function topology(shape: Shape3D): [number, number] {
   finally { faces.forEach((face) => face.delete()); edges.forEach((edge) => edge.delete()); }
 }
 
-export function draftSolid(body: Shape3D, feature: DraftFeature, frame: PlaneFrame, lineage: string, validate: ValidateSolid): Shape3D {
+export function draftSolid(
+  body: Shape3D, feature: DraftFeature, frame: PlaneFrame, lineage: string, validate: ValidateSolid, semantic?: PrismReferences,
+): Shape3D {
   if (!Number.isFinite(feature.angle) || feature.angle < .01 || feature.angle > 89.9) throw new Error('El ángulo debe estar entre 0,01° y 89,9°.');
   if (typeof feature.reversed !== 'boolean' || feature.propagation !== 'tangent') {
     throw new Error('El desmoldeo requiere un sentido válido y propagación tangente.');
   }
   if (!feature.faces.length) throw new Error('Selecciona al menos una cara para desmoldear.');
   singleSolid(body);
-  const catalog = createFaceCatalog(body, feature.baseFeatureId, lineage), oc = getOC();
-  const builder = new oc.BRepOffsetAPI_DraftAngle(body.wrapped), plane = makePln(frame.origin, frame.normal), direction = asDir(frame.normal);
+  const oc = getOC();
+  const semanticCatalog = semantic ? createSemanticFaceCatalog(body, feature.baseFeatureId, lineage, semantic) : null;
+  const legacyCatalog = semanticCatalog ? null : createFaceCatalog(body, feature.baseFeatureId, lineage);
+  const catalog = semanticCatalog ?? legacyCatalog!;
+  let builder: InstanceType<typeof oc.BRepOffsetAPI_DraftAngle> | null = null;
+  let plane: ReturnType<typeof makePln> | null = null, direction: ReturnType<typeof asDir> | null = null;
   let candidate: Shape3D | null = null;
+  let added: Shape3D | null = null, removed: Shape3D | null = null;
+  let failure: OperationFailure | undefined;
   try {
-    const faces = resolveSelectedFaces(catalog, feature.faces, feature.baseFeatureId);
+    const faces = semanticCatalog
+      ? resolveSemanticSelectedFaces(semanticCatalog, feature.faces, feature.baseFeatureId)
+      : resolveSelectedFaces(legacyCatalog!, feature.faces, feature.baseFeatureId);
+    builder = new oc.BRepOffsetAPI_DraftAngle(body.wrapped);
+    plane = makePln(frame.origin, frame.normal);
+    direction = asDir(frame.normal);
     const radians = feature.angle * Math.PI / 180 * (feature.reversed ? -1 : 1);
     for (const face of faces) {
       if (!['PLANE', 'CYLINDRE', 'CONE'].includes(face.geomType)) {
@@ -223,15 +280,14 @@ export function draftSolid(body: Shape3D, feature: DraftFeature, frame: PlaneFra
     if (JSON.stringify(topology(candidate)) !== JSON.stringify(topology(body))) {
       throw new Error('El desmoldeo altera la topología del sólido. Reduce el ángulo o cambia el plano neutro.');
     }
-    const added = candidate.cut(body), removed = body.cut(candidate);
-    try {
-      if (Math.abs(volume(added)) + Math.abs(volume(removed)) <= Math.max(1e-8, volume(body) * 1e-10)) {
-        throw new Error('El desmoldeo no modifica el sólido. Revisa las caras y el plano neutro.');
-      }
-    } finally { added.delete(); removed.delete(); }
-    const result = candidate; candidate = null; return result;
+    added = candidate.cut(body);
+    removed = body.cut(candidate);
+    if (Math.abs(volume(added)) + Math.abs(volume(removed)) <= Math.max(1e-8, volume(body) * 1e-10)) {
+      throw new Error('El desmoldeo no modifica el sólido. Revisa las caras y el plano neutro.');
+    }
   } catch (error) {
-    if (error instanceof Error) throw error;
-    throw new Error('OpenCascade no pudo construir el desmoldeo. Reduce el ángulo o cambia las caras y el plano neutro.');
-  } finally { candidate?.delete(); builder.delete(); plane.delete(); direction.delete(); catalog.dispose(); }
+    failure = { error: error instanceof Error ? error
+      : Object.assign(new Error('OpenCascade no pudo construir el desmoldeo. Reduce el ángulo o cambia las caras y el plano neutro.'), { cause: error }) };
+  }
+  return completeFaceOperation(candidate, [added, removed, builder, plane, direction, catalog], failure);
 }

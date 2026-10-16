@@ -189,14 +189,16 @@ it("rebuilds a selected outer-corner fillet after common-distance and source-rad
   }
 }, 60_000);
 
-it("requires reselecting a resized hole edge instead of silently rebinding its saved fillet", () => {
+it("requires reselecting a resized hole edge saved with a v1 reference instead of silently rebinding its fillet", () => {
   const result = apply(plate(2, 5), { distance: 1 }), base = extrude(result), first = engine.build(base.features);
   expect(first.featureErrors).toEqual([]);
   const rim = first.edges.filter(edge => edge.lines.length > 6 && edge.lines.every((x, index) => index % 3 !== 0 ||
     Math.abs(Math.hypot(x, edge.lines[index + 1]) - 3) < coordinateTolerance && Math.abs(edge.lines[index + 2] - 4) < coordinateTolerance));
   expect(rim).toHaveLength(1);
+  const legacy = rim[0].aliases?.find(reference => reference.key.startsWith('edge-v1|')) ?? rim[0].ref;
+  expect(legacy.key).toMatch(/^edge-v1\|/);
   const finished = addFeature(base, { id: "hole-rim-fillet", name: "Hole rim R0.25", type: "fillet", baseFeatureId: solidId,
-    size: 0.25, selection: { mode: "selected", edges: [rim[0].ref] }, suppressed: false });
+    size: 0.25, selection: { mode: "selected", edges: [legacy] }, suppressed: false });
   expect(engine.build(finished.features).featureErrors).toEqual([]);
   const changed = edit(parseDocument(serializeDocument(finished)), distanceId(result), 1.5), before = serializeDocument(changed);
   const stale = engine.build(changed.features);

@@ -1,3 +1,5 @@
+import type { FeaturePatternOperation } from '../model/featurePatterns';
+
 /** Coordinates and lengths are millimetres; angles are degrees. */
 export type Plane = 'XY' | 'XZ' | 'YZ';
 export type Vec3 = [number, number, number];
@@ -13,6 +15,16 @@ export interface FaceReference {
   sourceFeatureId: string;
   key: string;
 }
+
+/** Exact modeled body state; never a native solid index or geometric signature. */
+export interface BodyReference {
+  bodyId: string;
+  sourceFeatureId: string;
+}
+
+export type BodyOperation =
+  | { mode: 'new'; bodyId: string }
+  | { mode: 'merge'; target: BodyReference };
 
 export type SketchSupport =
   | { kind: 'plane'; planeId: string }
@@ -55,12 +67,11 @@ export interface ReferencePlaneFeature extends FeatureBase {
 
 /** Geometric termination; absence preserves the legacy signed blind/mid-plane definition. */
 export type ExtrudeEndCondition =
-  | { kind: 'throughAll'; baseFeatureId: string; bothDirections: boolean }
-  | { kind: 'untilNext'; baseFeatureId: string }
+  | { kind: 'throughAll'; baseFeatureId: string; bothDirections: boolean; baseBody?: BodyReference }
+  | { kind: 'untilNext'; baseFeatureId: string; baseBody?: BodyReference }
   | { kind: 'upToSurface'; target: PlaneSupport };
 
-export interface ExtrudeFeature extends FeatureBase {
-  type: 'extrude' | 'cut';
+interface ExtrudeDefinition extends FeatureBase {
   sketchId: string;
   /** Signed blind length; with a geometric end condition only its sign selects direction. */
   depth: number;
@@ -69,12 +80,25 @@ export interface ExtrudeFeature extends FeatureBase {
   endCondition?: ExtrudeEndCondition;
 }
 
+/** Absence of body fields retains the legacy aggregate operation. */
+export type ExtrudeFeature = ExtrudeDefinition & (
+  | { type: 'extrude'; bodyOperation?: BodyOperation }
+  | { type: 'cut'; bodyScope?: BodyReference[] }
+);
+export type CutFeature = Extract<ExtrudeFeature, { type: 'cut' }>;
+
 export interface RevolveFeature extends FeatureBase {
   type: 'revolve';
   sketchId: string;
   /** Revolves around the sketch plane's local Y axis through its origin. */
   angle: number;
+  bodyOperation?: BodyOperation;
 }
+
+export type CombineFeature = FeatureBase & (
+  | { type: 'combine'; operation: 'add' | 'common'; operands: BodyReference[]; resultBodyId: string; keepTools: boolean }
+  | { type: 'combine'; operation: 'subtract'; target: BodyReference; tools: BodyReference[]; keepTools: boolean }
+);
 
 /** Hole centres in the support's local coordinates, with stable editable identity. */
 export interface HolePosition {
@@ -104,6 +128,7 @@ export interface HoleFeature extends FeatureBase {
   /** Blind depth explicitly measures to the drill shoulder or to its tip. */
   endCondition: HoleEndCondition;
   head: HoleHead;
+  bodyScope?: BodyReference[];
 }
 
 /** Explicit ordered traversal, independent of the sketch entity array order. */
@@ -120,6 +145,8 @@ export interface SweepFeature extends FeatureBase {
   /** Follow the path without additional twist. */
   orientation: 'followPath';
   merge: boolean;
+  /** When present, merge must match the explicit operation mode. */
+  bodyOperation?: BodyOperation;
 }
 
 export interface LoftSection {
@@ -134,17 +161,38 @@ export interface LoftFeature extends FeatureBase {
   sections: LoftSection[];
   ruled: boolean;
   merge: boolean;
+  /** When present, merge must match the explicit operation mode. */
+  bodyOperation?: BodyOperation;
 }
 
-/** Exact geometry of selected historical features, or a single complete historical body. */
+/** Selected feature operations or explicitly referenced historical/current bodies. */
 export type PatternSource =
-  | { mode: 'features'; geometryPattern: true; featureIds: string[] }
-  | { mode: 'body'; sourceFeatureId: string };
+  | { mode: 'features'; geometryPattern: boolean; featureIds: string[] }
+  | { mode: 'body'; sourceFeatureId: string }
+  | { mode: 'bodies'; scope: 'current' | 'historical'; bodies: BodyReference[] };
+
+/** A saved command output slot, never a position in native solid enumeration. */
+export interface BodyPatternInstance {
+  seedBodyId: string;
+  /** Canonical grid address, circular index, or the literal "mirror". */
+  address: string;
+  bodyId: string;
+  /** Retired slots reserve their identity permanently; undo restores the old record. */
+  retired: boolean;
+}
+
+export type BodyPatternOperation =
+  | { mode: 'new'; instances: BodyPatternInstance[] }
+  | { mode: 'merge'; target: BodyReference };
 
 interface RepetitionBase extends FeatureBase {
   /** The immediately preceding active solid operation at creation. */
   baseFeatureId: string;
   source: PatternSource;
+  /** Required with source.mode=bodies; absence preserves the aggregate legacy path. */
+  bodyPattern?: BodyPatternOperation;
+  /** Explicit selected targets and exact historical contributions; allocates no bodies. */
+  featurePattern?: FeaturePatternOperation;
 }
 
 export interface LinearPatternDirection {
@@ -203,6 +251,7 @@ export interface EdgeFinishFeature extends FeatureBase {
   selection: EdgeSelection;
   /** The immediately preceding active solid operation when the selection was made. */
   baseFeatureId: string;
+  bodyScope?: BodyReference;
 }
 
 export interface ShellFeature extends FeatureBase {
@@ -212,6 +261,7 @@ export interface ShellFeature extends FeatureBase {
   direction: 'inward' | 'outward';
   /** Empty removes no faces and creates a closed cavity. */
   removedFaces: FaceReference[];
+  bodyScope?: BodyReference;
 }
 
 export interface DraftFeature extends FeatureBase {
@@ -225,14 +275,32 @@ export interface DraftFeature extends FeatureBase {
   faces: FaceReference[];
   /** The native builder also modifies tangent-connected faces. */
   propagation: 'tangent';
+  bodyScope?: BodyReference;
 }
 
 export type FaceOperationFeature = ShellFeature | DraftFeature;
 
-export type Feature = ImportedSolidFeature | SketchFeature | ReferencePlaneFeature | ExtrudeFeature | RevolveFeature | HoleFeature | SweepFeature | LoftFeature | EdgeFinishFeature | RepetitionFeature | FaceOperationFeature;
+export type Feature = ImportedSolidFeature | SketchFeature | ReferencePlaneFeature | ExtrudeFeature | RevolveFeature | CombineFeature | HoleFeature | SweepFeature | LoftFeature | EdgeFinishFeature | RepetitionFeature | FaceOperationFeature;
+
+/** Serializable display/picking metadata; identity comes from saved producers. */
+export interface PickableBody {
+  ref: BodyReference;
+  createdByFeatureId: string;
+  name: string;
+  vertices: number[];
+  normals: number[];
+  triangles: number[];
+  edgeLines: number[];
+  edges: PickableEdge[];
+  faces: PickableFace[];
+  volume: number;
+  bounds: { min: Vec3; max: Vec3 };
+}
 
 export interface PickableFace {
   ref: FaceReference;
+  /** UI-only legacy aliases; saved selections keep their original reference. */
+  aliases?: readonly FaceReference[];
   /** Null for curved faces: they cannot support a planar sketch. */
   frame: PlaneFrame | null;
   /** A face-local display mesh; triangle picking never persists an index. */
@@ -247,6 +315,8 @@ export interface ReferencePlaneVisual {
 
 export interface PickableEdge {
   ref: EdgeReference;
+  /** UI-only legacy aliases; never persisted inside an EdgeReference. */
+  aliases?: readonly EdgeReference[];
   /** Consecutive endpoint pairs for the individual B-rep edge. */
   lines: number[];
 }
@@ -266,6 +336,9 @@ export interface SketchVisual {
 }
 
 export interface CadResult {
+  bodies?: PickableBody[];
+  /** False/absent retains the legacy aggregate scene. */
+  bodyCatalogActive?: boolean;
   /** Resolved placement frames, including an edited hole still awaiting centres. */
   holes?: { id: string; frame: PlaneFrame }[];
   faces?: PickableFace[];

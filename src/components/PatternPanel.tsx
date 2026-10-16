@@ -9,6 +9,10 @@ import type {
   Vec3,
 } from "../cad/kernel.types";
 import { supportLabel } from "./PlaneSupportPanel";
+import BodyPatternPanel, { type BodyPatternEditor } from "./BodyPatternPanel";
+import FeaturePatternPanel from "./FeaturePatternPanel";
+import { withFeaturePatternMode, withFeaturePatternScope, withFeaturePatternSeeds } from "../model/featurePatternCommands";
+import { isAllFeaturePattern } from "../model/featurePatterns";
 
 interface Props {
   feature: RepetitionFeature;
@@ -18,6 +22,8 @@ interface Props {
   onPickFace: () => void;
   pickingFace: boolean;
   canPickFace: boolean;
+  bodyEditor?: BodyPatternEditor;
+  onSourceKindChange?: (mode: 'bodies' | 'features') => void;
 }
 
 function ValueField({
@@ -162,16 +168,20 @@ export default function PatternPanel({
   onPickFace,
   pickingFace,
   canPickFace,
+  bodyEditor,
+  onSourceKindChange,
 }: Props) {
   const solids = features.filter(
     (candidate) => candidate.type !== "sketch" && candidate.type !== "plane",
   );
-  const setSource = (source: PatternSource) =>
-    onChange(
-      feature.type === "mirror" && source.mode === "features"
-        ? { source, mergeBodies: false }
-        : { source },
-    );
+  const setSource = (incoming: PatternSource) => {
+    const source: PatternSource = feature.featurePattern && incoming.mode === 'features'
+      ? { ...incoming, geometryPattern: feature.featurePattern.mode === 'geometry' } : incoming;
+    const scoped = feature.featurePattern && source.mode === 'features'
+      ? withFeaturePatternSeeds(feature, source.featureIds) : null;
+    onChange({ source, ...(scoped ? { featurePattern: scoped.featurePattern } : {}),
+      ...(feature.type === 'mirror' && source.mode === 'features' ? { mergeBodies: false } : {}) });
+  };
   const checkedIds =
     feature.source.mode === "features" ? feature.source.featureIds : [];
   const firstAvailable =
@@ -199,11 +209,44 @@ export default function PatternPanel({
   }
   return (
     <>
-      <div className="property-section">
+      {bodyEditor && onSourceKindChange && <div className="property-section">
+        <h3>Elementos de la repetición</h3>
+        <select aria-label="Tipo de repetición en cuerpos" value={feature.source.mode === 'bodies' ? 'bodies' : 'features'}
+          disabled={bodyEditor.existing || bodyEditor.loading}
+          onChange={event => onSourceKindChange(event.target.value as 'bodies' | 'features')}>
+          <option value="bodies">Cuerpos completos</option>
+          <option value="features">Operaciones</option>
+        </select>
+      </div>}
+      {feature.source.mode === 'features' && feature.featurePattern && <div className="property-section">
+        <h3>Método de repetición</h3>
+        <select aria-label="Método de repetición de operaciones" value={feature.featurePattern.mode}
+          disabled={bodyEditor?.loading}
+          onChange={event => {
+            const next = withFeaturePatternMode(feature, event.target.value === 'regenerate' ? 'regenerate' : 'geometry');
+            onChange({ source: next.source, featurePattern: next.featurePattern });
+          }}>
+          <option value="geometry" disabled={isAllFeaturePattern(feature.featurePattern)}>Copiar geometría</option>
+          <option value="regenerate">Recalcular operaciones</option>
+        </select>
+        {feature.featurePattern.mode === 'regenerate' && <>
+          <label className="number-field"><span>Alcance de los cuerpos</span>
+            <select aria-label="Alcance de los cuerpos de la repetición" value={feature.featurePattern.scope} disabled={bodyEditor?.loading}
+              onChange={event => {
+                const next = withFeaturePatternScope(feature, event.target.value === 'all' ? 'all' : 'selected');
+                onChange({ featurePattern: next.featurePattern });
+              }}>
+              <option value="selected">Cuerpos seleccionados</option><option value="all">Todos los cuerpos actuales</option>
+            </select>
+          </label>
+          <p className="muted-small">Cada instancia se recalcula sobre sus cuerpos destino, con croquis rectangulares o circulares sin soporte y finales por profundidad, por todo o hasta un plano principal fijo. Para copiar geometría, elige primero cuerpos seleccionados.</p>
+        </>}
+      </div>}
+      {feature.source.mode === 'bodies' ? (bodyEditor && <BodyPatternPanel feature={feature} features={features} editor={bodyEditor} onChange={onChange} />) : <div className="property-section">
         <h3>
           <ChevronDown size={12} /> Elementos a repetir
         </h3>
-        <select
+        {!feature.featurePattern && <select
           aria-label="Tipo de elementos a repetir"
           value={feature.source.mode}
           onChange={(event) => {
@@ -224,9 +267,9 @@ export default function PatternPanel({
               });
           }}
         >
-          <option value="features">Operaciones · geometría</option>
+          <option value="features">Operaciones</option>
           <option value="body">Cuerpo completo</option>
-        </select>
+        </select>}
         {feature.source.mode === "features" ? (
           <>
             <div
@@ -325,7 +368,8 @@ export default function PatternPanel({
             </p>
           </>
         )}
-      </div>
+      </div>}
+      {feature.featurePattern && bodyEditor && <FeaturePatternPanel feature={feature} features={features} editor={bodyEditor} onChange={onChange} />}
       {feature.type === "linearPattern" ? (
         <>
           <div className="property-section">

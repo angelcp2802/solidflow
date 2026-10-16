@@ -4,7 +4,6 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
   workflow_dispatch:
 
 # Fork pull requests run unprivileged code without repository secrets.
@@ -86,6 +85,30 @@ jobs:
       - name: Smoke test the production loader in Electron (Windows/macOS)
         if: runner.os != 'Linux'
         run: npm run test:desktop
+
+      - name: Test selected-to-ALL pattern interaction (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:pattern-all
+
+      - name: Test selected-to-ALL pattern interaction (Windows/macOS)
+        if: runner.os != 'Linux'
+        run: npm run test:desktop:pattern-all
+
+      - name: Test explicit fixed-plane pattern choice (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:pattern-world-limit
+
+      - name: Test explicit fixed-plane pattern choice (Windows/macOS)
+        if: runner.os != 'Linux'
+        run: npm run test:desktop:pattern-world-limit
+
+      - name: Test saved UntilNext regeneration (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:pattern-until-next
+
+      - name: Test saved UntilNext regeneration (Windows/macOS)
+        if: runner.os != 'Linux'
+        run: npm run test:desktop:pattern-until-next
 
       - name: Package for the current operating system
         # Build was already checked above. Use the local locked builder, with no

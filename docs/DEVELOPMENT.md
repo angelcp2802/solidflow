@@ -2,6 +2,20 @@
 
 Use Node.js 24 and npm. Dependency versions are recorded in `package-lock.json`; install them with `npm ci`. Git is needed for the contribution workflow. Windows is the platform with the current local desktop evidence; macOS and Linux are targets whose build and runtime results must be recorded separately.
 
+## Choose a branch and runtime
+
+Start ordinary contributions from `main`. The [project status and review queue](PROJECT_STATUS.md)
+lists dependent draft increments and their intended bases; review a stacked
+change against that base rather than treating its prerequisites as merged.
+Consult the selected branch's own contracts and validation record for behavior
+that is still proposed.
+
+Node runtime major migrations should update `engines`, the CI runtime, this
+guide and matching `@types/node` together in a focused proposal. While Node 24
+is the documented target, Dependabot is configured to ignore semver-major
+`@types/node` version proposals. Other configured update rules and the security
+workflows remain in place; report and review audit findings separately.
+
 ## Run locally
 
 From the repository root:
@@ -31,13 +45,56 @@ npm start
 | `npm run test:ipc` | The desktop-security suite without opening a desktop window. |
 | `npm run build` | TypeScript checking and production compilation of UI, worker and WASM integration. |
 | `npm run test:desktop` | Real Electron production-loader smoke check after building, with a hidden window and isolated temporary user data. |
-| `npx --no-install vitest run src/sketch/extend.review.test.ts --pool=threads` | A focused sketch/CAD regression file; replace the path with the relevant test. |
+| `npm run test:desktop:pattern-all` | Scripted production-renderer selected-to-ALL cut interaction, Apply, Save As and reopen, after building. |
+| `npm run test:desktop:pattern-until-next` | Scripted production-renderer UntilNext selected cut, cut ALL and selected additive merge, real rejection, Apply, Save As and reopen, after building. |
+| `npx --no-install vitest run --config vitest.config.ts src/sketch/extend.review.test.ts` | A focused sketch/CAD regression file using the public project configuration; replace the path with the relevant test. |
 
 The desktop smoke check loads the initial model, preload, worker and WASM and checks readiness and console errors. It does not click the editor's tools or launch the packaged installer. On a headless Linux machine, a display server is needed for Electron; CI can use `xvfb-run -a npm run test:desktop` after installing the required system libraries. Do not disable Electron's sandbox to make a check pass.
 
 Run focused tests while developing, then the checks relevant to the complete change. The [CI workflow](../.github/workflows/ci.yml) is configured for Node 24 on Windows 2025 x64, Ubuntu 24.04 x64 and macOS 15 arm64: install, build, unit tests, IPC tests, Electron smoke check and packaging. Linux uses Xvfb. A configured job is not an executed result; check Actions for the actual commit and platform before claiming a pass.
 
 CI packages have no signing or notarization credentials and are built with `--publish never`. Binary upload is disabled until the CAD library's complete corresponding-source bundle is verified. They are not automatically published releases. Local packaging commands are `npm run package:win`, `npm run package:mac` and `npm run package:linux`; use the command appropriate to the host. Packaging success does not prove interactive operation, signing or acceptance by the platform's application controls. Current evidence and its limits belong in [VALIDATION.md](VALIDATION.md).
+
+Pull-request CI and security checks run for every target branch, including
+stacked pull requests based on a feature branch. The workflow-dispatch entry
+points can also validate a published branch explicitly. Inspect the actual
+head and run results before reporting a pass.
+
+## Pattern interaction regression
+
+After building, run `npm run test:desktop:pattern-all`. On headless Linux,
+use `xvfb-run -a npm run test:desktop:pattern-all` with the same Electron libraries
+and sandbox helper as the standard smoke. CI is configured to run this command on each
+platform before packaging; inspect the actual run before reporting a pass.
+
+The command starts its own hidden production-loader child and isolated temporary
+profile. Scripted DOM events edit the original selected-A pattern to dynamic ALL,
+wait for the actual worker preview, Apply, Save As and reopen the saved output.
+It checks per-owner geometry, exact refs and saved intent. Native file-dialog
+choices are substituted with test-owned paths. A blank bootstrap initializes CDP
+before the production page; the original preload also runs on that blank page.
+This instrumentation does not supply CAD responses or replace document state.
+
+See the [original fixture](../src/cad/fixtures/pattern-all-original.json),
+[fixture provenance](PROVENANCE.md#instrumented-dynamic-all-desktop-fixture) and
+[recorded validation](VALIDATION.md). The one linear cut workflow does not prove
+human pointer/native-dialog interaction, other pattern families, stale-prefix
+Apply, general ownership lifecycle or platform support. Its complete 180-second deadline
+is separate from the unchanged standard smoke deadlines.
+
+The separate `test:desktop:pattern-until-next` command uses three original
+synthetic documents in one hidden, isolated child. It changes geometry copying
+to regeneration, checks selected cut and additive merge, changes cut scope to
+ALL with unchanged remote/behind owners, and observes a partial-profile
+rejection that keeps Apply blocked. Successful cases use real Apply,
+preload/IPC Save As and reopen. Dialog choices are restricted to test-owned
+paths; actual worker responses supply volume, bounds and exact owner refs.
+The existing budgets remain unchanged: 180 seconds for the parent,
+170 seconds for the child workflow and 35 seconds for each step.
+This command does not query native BRep, area or material probes through the UI,
+run installed packages, or establish general platform support. Its original
+fixture parameters and formulas belong in the provenance and validation record.
+No result is implied by adding the command; record actual source-specific runs.
 
 ## Find the right layer
 
@@ -52,13 +109,56 @@ CI packages have no signing or notarization credentials and are built with `--pu
 
 Keep geometry out of presentation-only mockups. A new tool should change the saved model through the editing layer and rebuild through the public CAD engine. In sketch trim/extend, preview and commit consume the solved geometry being displayed; they do not run a hidden solve. Driven values come from the solver result, not from a retained nominal value. Read the relevant contract before changing those rules.
 
+Generated sketch IDs are opaque saved identities. Read the [identity contract](SKETCH_IDENTITY.md) before changing creation, preview/application or deletion behavior; a new creation and an edit of an existing object have different identity requirements.
+
 Lengths use millimeters. State angular units explicitly: the sketch's directed angular dimensions use degrees, while geometric calculations may use radians. Persisted point-on-line and point-on-circle relations use complete supports; a finite hit test is a separate requirement. Useful starting points are [sketch types](../src/sketch/types.ts), the [solver](../src/sketch/solver.ts), [trim](../src/sketch/trim.ts), [extend](../src/sketch/extend.ts) and their adjacent regression tests.
+
+Read the [semantic CAD reference contract](SEMANTIC_REFERENCES.md) before changing extrusion provenance, v2 reference identity, document acceptance or selection aliases. This branch integrates verified references for the first eligible finite entity-profile extrusion and retains conservative v1 behavior for saved references and unsupported correspondence. Original regression inputs and analytical expectations are recorded in [fixture provenance](PROVENANCE.md); written tests and source-level ownership reasoning are not executed validation results.
+
+The proposed [body management contract](BODY_MANAGEMENT.md) covers persistent body identity, explicit creation and Combine, selective cuts, history, export and the complete implementation checklist for issue #26. Its analytical fixtures are acceptance targets, not recorded passes.
+
+The [scoped feature geometry contract](FEATURE_PATTERNS.md) distinguishes exact
+per-owner contributions, potential historical states and native availability.
+Its signed material copying is separate from the initial saved per-instance
+regeneration path. Geometry/true keeps selected targets. Varying sketches,
+additive ALL, dynamic geometry scope, AUTO discovery and broader recipes remain
+required work.
+
+The [feature recipe declaration layer](FEATURE_RECIPES.md) documents the pure
+closure/frame API. The [regeneration contract](FEATURE_REGENERATION.md) connects
+explicit-frame tool construction, chronological evaluation and the saved
+selected or cut-only ALL scope. The initial native path accepts intrinsic
+rectangle/circle cuts or selected merge extrusions with blind/ThroughAll endings
+or an explicit fixed principal-plane UpToSurface limit, and no variation.
+The bounded saved policy names the seed and end-condition locator; it is never
+inferred from geometry. ALL resolves the complete current native
+catalog on each rebuild; it does not save a target snapshot. Limits remain
+32 selected targets, 256 dynamic owners and 512 active owner applications, with
+separate closure/history envelopes. Geometry copy/true and regeneration/false have distinct saved
+declarations; legacy false without the explicit mode still rejects.
+
+The 51 pure declaration, 21 evaluator and 18 saved engine cases have different
+boundaries. Exact source capture, current-target checks, ordered operations,
+atomic owner publication and programmatic save/reopen/history checks do not
+establish real property-panel interaction or worker preview/Apply behavior.
+Check the actual source-specific [validation](VALIDATION.md) before extending
+an earlier component or desktop-smoke result to later integrated source.
+
+The dynamic ALL increment adds 54 authored cases across 17 model/command, seven
+SSR, 18 native scope/evaluator, eight saved-engine and four contextual deletion
+cases. Counts are fixture inventory, not passing results. ALL retains exact
+historical sources and native current-target proofs; only changed owners advance.
+An exact consumer through ALL still depends on its body's creator, while ALL
+itself is not a saved inventory dependency. Additive ALL and AUTO remain explicit
+pending capabilities. Their full contract and evidence boundaries are in
+[FEATURE_REGENERATION](FEATURE_REGENERATION.md#dynamic-all-scope) and
+[PROVENANCE](PROVENANCE.md#dynamic-all-model-and-rendered-fixtures).
 
 ## Test geometry and persistence
 
 Prefer small analytical fixtures with a known result. For example, a closed 10×6 rectangle extruded 4 mm should have volume 240 mm³; the test should also establish valid BRep and the expected number of solids. For affected references, edit an earlier feature, rebuild dependent features and serialize/reopen the document. Test failure paths for atomic behavior when the command can reject a change.
 
-OpenCascade/WASM tests use thread isolation and initialize their runtime before constructing shapes. Dispose engines and release owned native objects after use. Avoid sharing mutable kernel state across test files or weakening validity checks to accommodate a failing fixture.
+OpenCascade/WASM tests use the public Vitest `forks` pool: isolated child processes with a fresh worker per test file under Vitest's enabled isolation default. Initialize the runtime before constructing shapes, dispose engines and release owned native objects after use. Keep focused checks on the project configuration. The worker-count policy, test selection and timeouts remain unchanged; avoid sharing mutable kernel state across test files or weakening validity checks to accommodate a failing fixture.
 
 Distinguish these evidence types in reports: numerical unit/integration tests, server-rendered components, browser or Electron interaction and exported-file checks. Record the exact files and commands used. Public CI must be self-contained: it uses tracked source, declared dependencies and synthetic fixtures that the project can distribute. A new fixture needs documented provenance, generation steps, parameters, units and tolerances. Do not invent a source or an expected result to fill a gap in evidence.
 

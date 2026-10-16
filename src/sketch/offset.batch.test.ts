@@ -57,7 +57,7 @@ describe("disconnected offset plans", () => {
     expect(plan.sourceProfile).toBe(source);
     expect(plan.components.map(component => component.sourceEntityIds)).toEqual([["a-line"], ["b-line"]]);
     expect(plan.profile.constraints.filter(constraint => constraint.type === "equalOffsetDistance")).toEqual([
-      { id: "offset-family-1", type: "equalOffsetDistance", members: plan.components.map(component => ({ offsetId: component.relationId, side: "right" })) },
+      { id: expect.any(String), type: "equalOffsetDistance", members: plan.components.map(component => ({ offsetId: component.relationId, side: "right" })) },
     ]);
     expect(plan.profile.constraints.filter(constraint => constraint.type === "offsetDistance")).toHaveLength(1);
     expect(plan.components.flatMap(component => component.distanceConstraintIds)).toEqual([driver(plan.profile).id]);

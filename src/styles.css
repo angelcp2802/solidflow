@@ -1935,3 +1935,15 @@ button,
 .pattern-vector-components input { width: 100%; min-width: 0; padding: 4px; border: 1px solid #c4d1db; color: #294b62; }
 .pattern-instance-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; max-height: 150px; overflow: auto; margin: 9px 0; }
 .pattern-instance-grid label { display: flex; align-items: center; gap: 4px; font-size: 11px; }
+.body-list { display: grid; gap: 5px; max-height: 230px; overflow: auto; margin: 8px 0; }
+.body-row { display: flex; align-items: center; gap: 7px; padding: 7px; border: 1px solid #d8e3ec; border-radius: 4px; background: #f8fbfe; }
+.body-row.selected { background: #fff2d9; border-color: #dda651; }
+.body-row input { width: auto; flex: 0 0 auto; }
+.body-row span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.body-row small { display: block; color: #61778a; font-size: 10px; margin-top: 3px; }
+.body-row.unavailable { border-color: #d3a26c; background: #fff8ee; }
+.body-row button { border: 0; background: transparent; color: #846242; cursor: pointer; }
+.body-operation-panel > label { display: block; margin-bottom: 10px; }
+.body-operation-panel select { display: block; width: 100%; margin-top: 5px; }
+.body-operation-panel .outline-button { margin-top: 8px; }
+.body-operand-order { margin: 8px 0; padding-left: 24px; font-size: 11px; color: #47657e; }

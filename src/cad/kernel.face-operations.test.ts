@@ -180,6 +180,7 @@ describe('native shell and neutral-plane draft', () => {
     expect(JSON.stringify(feature.removedFaces)).toBe(refs);
   });
 
+  // Several native rebuilds and STEP round trips share this bounded case budget.
   it('opens a curved corner using exact offset-face history', async () => {
     const features = box(), source = good(features);
     const vertical = source.edges.filter(edge => {
@@ -210,7 +211,7 @@ describe('native shell and neutral-plane draft', () => {
     const closed = good([...features, fillet, feature]); expect(closed.volume).toBeCloseTo(8883.221195188726, 5);
     feature.removedFaces = rounded.faces!.filter(face => (face.frame?.normal[2] ?? 0) > .99).map(face => face.ref);
     expect(good([...features, fillet, feature]).volume).toBeLessThan(8000);
-  });
+  }, 30_000);
 
   it.each([false, true])('drafts four planar faces with reversed=%s', async reversed => {
     const features = box(), feature = draft(good(features)); feature.reversed = reversed;

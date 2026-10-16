@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { canonicalCreatedIdentities } from "./identity.test-helpers";
 import type {
   EntityProfile,
   SketchConstraint,
@@ -593,7 +594,7 @@ describe("sketch chamfer associativity and atomic plans", () => {
     expect(solved.degreesOfFreedom).toBe(0);
   });
 
-  it("does not solve stale inputs, allocate UUIDs or mutate frozen input", () => {
+  it("keeps frozen stale geometry unchanged while allocating fresh proposal identities without solving", () => {
     const input = definedCorner();
     setValue(input, "original-first-length", 80);
     input.points.forEach(Object.freeze);
@@ -607,9 +608,13 @@ describe("sketch chamfer associativity and atomic plans", () => {
     try {
       const a = changed(input, { mode: "equal", distance: 5 }),
         b = changed(input, { mode: "equal", distance: 5 });
-      expect(a).toEqual(b);
-      expect(uuid).not.toHaveBeenCalled();
+      expect(a.chamferEntityId).not.toBe(b.chamferEntityId);
+      expect(a.affectedEntityIds).toEqual(b.affectedEntityIds);
+      expect(a.convertedConstraintIds).toEqual(b.convertedConstraintIds);
+      expect(uuid).toHaveBeenCalledTimes(2);
+      expect(canonicalCreatedIdentities(a.profile, input)).toEqual(canonicalCreatedIdentities(b.profile, input));
       expectXY(getPoint(a.profile, "a"), 40, 0);
+      expectXY(getPoint(b.profile, "a"), 40, 0);
       expect(getPoint(a.profile, "a")).not.toBe(input.points[0]);
     } finally {
       uuid.mockRestore();

@@ -21,6 +21,29 @@ interface Props {
   onPickFace: () => void;
 }
 
+/** Draft transition only; a missing explicit body limit remains invalid. */
+export function extrudeModePatch(feature: ExtrudeFeature, value: string, baseFeatureId: string | null, preferredTarget: PlaneSupport): Partial<ExtrudeFeature> | null {
+  const end = feature.endCondition
+  const rememberedDepth = Number.isFinite(feature.depth) && Math.abs(feature.depth) >= 0.01 && Math.abs(feature.depth) <= 100_000
+    ? feature.depth : feature.depth < 0 ? -20 : 20
+  if (value === 'blind' || value === 'mid') return { endCondition: undefined, symmetric: value === 'mid' }
+  if (value === 'upToSurface') return {
+    endCondition: { kind: 'upToSurface', target: end?.kind === 'upToSurface' ? end.target : preferredTarget },
+    symmetric: false, depth: rememberedDepth,
+  }
+  if (!['throughAll', 'throughAllBoth', 'untilNext'].includes(value)) return null
+  const explicitBody = feature.type === 'extrude' && feature.bodyOperation?.mode === 'new'
+  const baseBody = explicitBody && end && 'baseFeatureId' in end ? end.baseBody : undefined
+  if (!explicitBody && !baseFeatureId) return null
+  const base = explicitBody ? baseBody?.sourceFeatureId ?? '' : baseFeatureId!
+  const reference = baseBody ? { baseBody: { ...baseBody } } : {}
+  return {
+    endCondition: value === 'untilNext' ? { kind: 'untilNext', baseFeatureId: base, ...reference }
+      : { kind: 'throughAll', baseFeatureId: base, bothDirections: value === 'throughAllBoth', ...reference },
+    symmetric: false, depth: rememberedDepth,
+  }
+}
+
 export default function ExtrudePanel({
   feature,
   features,
@@ -40,6 +63,7 @@ export default function ExtrudePanel({
       ? "throughAllBoth"
       : (end?.kind ?? (feature.symmetric ? "mid" : "blind"));
   const target = end?.kind === "upToSurface" ? end.target : null;
+  const explicitBodyLimit = feature.type === 'extrude' && feature.bodyOperation?.mode === 'new';
   const targetValue =
     target?.kind === "principal"
       ? `principal:${target.plane}`
@@ -47,39 +71,8 @@ export default function ExtrudePanel({
         ? `plane:${target.planeId}`
         : "face";
   const changeMode = (value: string) => {
-    const rememberedDepth =
-      Number.isFinite(feature.depth) &&
-      Math.abs(feature.depth) >= 0.01 &&
-      Math.abs(feature.depth) <= 100_000
-        ? feature.depth
-        : feature.depth < 0
-          ? -20
-          : 20;
-    if (value === "blind" || value === "mid") {
-      onChange({ endCondition: undefined, symmetric: value === "mid" });
-    } else if (value === "upToSurface") {
-      onChange({
-        endCondition: {
-          kind: "upToSurface",
-          target: target ?? preferredTarget,
-        },
-        symmetric: false,
-        depth: rememberedDepth,
-      });
-    } else if (baseFeatureId) {
-      onChange({
-        endCondition:
-          value === "untilNext"
-            ? { kind: "untilNext", baseFeatureId }
-            : {
-                kind: "throughAll",
-                baseFeatureId,
-                bothDirections: value === "throughAllBoth",
-              },
-        symmetric: false,
-        depth: rememberedDepth,
-      });
-    }
+    const patch = extrudeModePatch(feature, value, baseFeatureId, preferredTarget);
+    if (patch) onChange(patch);
   };
   return (
     <>
@@ -94,13 +87,13 @@ export default function ExtrudePanel({
         >
           <option value="blind">Hasta profundidad específica</option>
           <option value="mid">Plano medio</option>
-          <option value="throughAll" disabled={!baseFeatureId || loading}>
+          <option value="throughAll" disabled={(!baseFeatureId && !explicitBodyLimit) || loading}>
             Por todo
           </option>
-          <option value="throughAllBoth" disabled={!baseFeatureId || loading}>
+          <option value="throughAllBoth" disabled={(!baseFeatureId && !explicitBodyLimit) || loading}>
             Por todo · ambos sentidos
           </option>
-          <option value="untilNext" disabled={!baseFeatureId || loading}>
+          <option value="untilNext" disabled={(!baseFeatureId && !explicitBodyLimit) || loading}>
             Hasta siguiente
           </option>
           <option value="upToSurface">Hasta superficie</option>
@@ -155,7 +148,7 @@ export default function ExtrudePanel({
                 "Referencia perdida"}
               .
             </p>
-            {baseFeatureId && baseFeatureId !== end.baseFeatureId && (
+            {!explicitBodyLimit && baseFeatureId && baseFeatureId !== end.baseFeatureId && (
               <button
                 className="outline-button"
                 disabled={loading}

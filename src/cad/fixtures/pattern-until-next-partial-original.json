@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "id": "ui-next-partial-original-document",
+  "name": "Original isolated UntilNext partial rejection",
+  "units": "mm",
+  "createdAt": "2026-10-15T00:00:00.000Z",
+  "updatedAt": "2026-10-15T00:00:00.000Z",
+  "features": [
+    {"id":"profile-S","type":"sketch","name":"Original S box profile","suppressed":false,"plane":"XY","offset":0.0,"profile":{"kind":"rectangle","center":[5.0,5.0],"width":10.0,"height":10.0}},
+    {"id":"create-S","type":"extrude","name":"UntilNext partial source S","suppressed":false,"sketchId":"profile-S","depth":10.0,"symmetric":false,"bodyOperation":{"mode":"new","bodyId":"S"}},
+    {"id":"seed-profile","type":"sketch","name":"Original radius-one cut circle","suppressed":false,"plane":"XY","offset":0.0,"profile":{"kind":"circle","center":[5.0,5.0],"radius":1.0}},
+    {"id":"seed-cut","type":"cut","name":"Original UntilNext cut seed","suppressed":false,"sketchId":"seed-profile","depth":1,"symmetric":false,"bodyScope":[{"bodyId":"S","sourceFeatureId":"create-S"}],"endCondition":{"kind":"untilNext","baseFeatureId":"create-S"}},
+    {"id":"profile-A","type":"sketch","name":"Original partial A box profile","suppressed":false,"plane":"XY","offset":0.0,"profile":{"kind":"rectangle","center":[22.75,5.0],"width":5.5,"height":10.0}},
+    {"id":"create-A","type":"extrude","name":"UntilNext partial target A","suppressed":false,"sketchId":"profile-A","depth":8.0,"symmetric":false,"bodyOperation":{"mode":"new","bodyId":"A"}},
+    {"id":"ui-next-partial-P","type":"linearPattern","name":"UI UntilNext partial pattern original","suppressed":false,"baseFeatureId":"create-A","source":{"mode":"features","geometryPattern":true,"featureIds":["seed-cut"]},"first":{"direction":[1,0,0],"spacing":20,"count":2},"second":null,"secondSeedOnly":false,"skipped":[],"featurePattern":{"mode":"geometry","targets":[{"bodyId":"A","sourceFeatureId":"create-A"}],"bindings":[{"source":{"bodyId":"S","sourceFeatureId":"seed-cut"},"targetBodyIds":["A"]}]}}
+  ]
+}

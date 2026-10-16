@@ -1,13 +1,16 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { LineSegments2 } from "three/addons/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/addons/lines/LineSegmentsGeometry.js";
 import { LineMaterial } from "three/addons/lines/LineMaterial.js";
-import type { CadResult, EdgeReference, FaceReference, PickableFace, PlaneFrame } from "../cad/kernel.types";
+import type { BodyReference, CadResult, EdgeReference, FaceReference, PickableFace, PlaneFrame } from "../cad/kernel.types";
+import { sameBodyReference } from "../model/bodyCommands";
+import { createEdgeSelectionIndex, createFaceSelectionIndex, referenceIdentity } from "../cad/selection.references";
 
 interface PickableVisual {
   ref: EdgeReference;
+  aliases?: readonly EdgeReference[];
   object: THREE.LineSegments;
   highlight?: LineSegments2;
 }
@@ -18,6 +21,7 @@ interface SketchVisualObjects {
 }
 
 interface FaceVisualObject { face: PickableFace; object: THREE.Mesh }
+interface BodyVisualObject { ref: BodyReference; object: THREE.Mesh }
 interface PlaneVisualObject { id: string; object: THREE.Mesh; border?: THREE.LineSegments; normal?: THREE.ArrowHelper }
 
 function screenRay(camera: THREE.OrthographicCamera | THREE.PerspectiveCamera, pointer: { x: number; y: number }, viewport: { width: number; height: number }): THREE.Raycaster | null {
@@ -30,13 +34,34 @@ function screenRay(camera: THREE.OrthographicCamera | THREE.PerspectiveCamera, p
 }
 
 /** Pick actual triangles on the frontmost face, including unsupported curved faces. */
-export function pickVisibleFace(camera: THREE.OrthographicCamera | THREE.PerspectiveCamera, faces: FaceVisualObject[], pointer: { x: number; y: number }, viewport: { width: number; height: number }): PickableFace | null {
+export function pickVisibleFace(camera: THREE.OrthographicCamera | THREE.PerspectiveCamera, faces: FaceVisualObject[], pointer: { x: number; y: number }, viewport: { width: number; height: number }, body: THREE.Mesh | null = null): PickableFace | null {
   const ray = screenRay(camera, pointer, viewport);
   if (!ray) return null;
   faces.forEach(face => face.object.updateMatrixWorld());
   const byObject = new Map(faces.map(face => [face.object, face.face]));
   const hit = ray.intersectObjects(faces.map(face => face.object), false)[0];
+  if (!hit) return null;
+  body?.updateMatrixWorld();
+  const surface = body ? ray.intersectObject(body, false)[0] : undefined;
+  if (surface && surface.distance < hit.distance - Math.max(1e-5, hit.distance * 1e-7)) return null;
   return hit ? byObject.get(hit.object as THREE.Mesh) ?? null : null;
+}
+
+/** Frontmost body triangles; coincident hits on different bodies are ambiguous. */
+export function pickVisibleBody(camera: THREE.OrthographicCamera | THREE.PerspectiveCamera, bodies: BodyVisualObject[], pointer: { x: number; y: number }, viewport: { width: number; height: number }): BodyReference | null {
+  const ray = screenRay(camera, pointer, viewport);
+  if (!ray) return null;
+  bodies.forEach(body => body.object.updateMatrixWorld());
+  const hits = ray.intersectObjects(bodies.map(body => body.object), false);
+  if (!hits.length) return null;
+  const nearest = hits[0].distance, tolerance = Math.max(1e-5, nearest * 1e-7);
+  const references = new Map<string, BodyReference>();
+  for (const hit of hits) {
+    if (hit.distance > nearest + tolerance) break;
+    const reference = bodies.find(body => body.object === hit.object)?.ref;
+    if (reference) references.set(JSON.stringify([reference.bodyId, reference.sourceFeatureId]), reference);
+  }
+  return references.size === 1 ? { ...references.values().next().value! } : null;
 }
 
 /** Hidden planes and planes behind opaque material cannot receive a click. */
@@ -59,7 +84,7 @@ function planeCorners(frame: PlaneFrame, span: number): number[] {
   return [[-1, -1], [1, -1], [1, 1], [-1, 1]].flatMap(([u, v]) => origin.clone().addScaledVector(x, u * span / 2).addScaledVector(y, v * span / 2).toArray());
 }
 
-const edgeIdentity = (ref: EdgeReference) => JSON.stringify([ref.sourceFeatureId, ref.key]);
+const edgeIdentity = referenceIdentity;
 
 /** Pixel-sized picking, followed by a face-depth test at the actual edge point. */
 export function pickVisibleEdge(
@@ -118,6 +143,8 @@ interface Props {
   grid: boolean;
   selected: boolean;
   onSelect: () => void;
+  selectedBodies?: readonly BodyReference[];
+  onSelectBody?: (reference: BodyReference) => void;
   selectionMode?: "body" | "edge" | "face";
   selectedEdges?: EdgeReference[];
   onSelectEdge?: (ref: EdgeReference) => void;
@@ -137,6 +164,8 @@ export default function Viewport({
   grid,
   selected,
   onSelect,
+  selectedBodies = [],
+  onSelectBody,
   selectionMode = "body",
   selectedEdges = [],
   onSelectEdge,
@@ -161,6 +190,7 @@ export default function Viewport({
     planeGroup: THREE.Group;
     sketches: SketchVisualObjects[];
     body: THREE.Mesh | null;
+    bodies: BodyVisualObject[];
     edges: PickableVisual[];
     faces: FaceVisualObject[];
     planes: PlaneVisualObject[];
@@ -170,8 +200,10 @@ export default function Viewport({
     grid: THREE.GridHelper;
     fit: () => void;
   } | null>(null);
-  const interaction = useRef({ onSelect, onSelectEdge, selectionMode, selectedEdges, visibleSketchIds, selectedSketchId, selectedFace, selectedFaces, onSelectFace, selectedPlaneId, showPlanes, onSelectPlane });
-  interaction.current = { onSelect, onSelectEdge, selectionMode, selectedEdges, visibleSketchIds, selectedSketchId, selectedFace, selectedFaces, onSelectFace, selectedPlaneId, showPlanes, onSelectPlane };
+  const edgeReferences = useMemo(() => createEdgeSelectionIndex(model?.edges ?? []), [model]);
+  const faceReferences = useMemo(() => createFaceSelectionIndex(model?.faces ?? []), [model]);
+  const interaction = useRef({ onSelect, onSelectBody, selectedBodies, onSelectEdge, selectionMode, selectedEdges, visibleSketchIds, selectedSketchId, selectedFace, selectedFaces, onSelectFace, selectedPlaneId, showPlanes, onSelectPlane, edgeReferences, faceReferences });
+  interaction.current = { onSelect, onSelectBody, selectedBodies, onSelectEdge, selectionMode, selectedEdges, visibleSketchIds, selectedSketchId, selectedFace, selectedFaces, onSelectFace, selectedPlaneId, showPlanes, onSelectPlane, edgeReferences, faceReferences };
   useEffect(() => {
     const el = host.current!;
     const scene = new THREE.Scene();
@@ -256,6 +288,7 @@ export default function Viewport({
       planeGroup,
       sketches: [],
       body: null,
+      bodies: [],
       edges: [],
       faces: [],
       planes: [],
@@ -410,7 +443,11 @@ export default function Viewport({
     let hoveredFace: string | null = null;
     let hoveredPlane: string | null = null;
     const updateHighlights = () => {
-      const selectedKeys = new Set(interaction.current.selectedEdges.map(edgeIdentity));
+      context.current?.bodies.forEach(body => {
+        const material = body.object.material as THREE.MeshBasicMaterial;
+        material.opacity = interaction.current.selectedBodies.some(reference => sameBodyReference(reference, body.ref)) ? .36 : 0;
+      });
+      const selectedKeys = interaction.current.edgeReferences.selectedKeys(interaction.current.selectedEdges);
       if (interaction.current.selectionMode !== 'edge' || !context.current?.edges.some((edge) => edgeIdentity(edge.ref) === hovered)) hovered = null;
       context.current?.edges.forEach((edge) => {
         if (!edge.highlight) return;
@@ -422,8 +459,10 @@ export default function Viewport({
         edge.highlight.material.linewidth = isSelected ? 3.3 : 2.8;
       });
       if (interaction.current.selectionMode !== 'face') hoveredFace = null;
-      const selectedFaceKeys = new Set(interaction.current.selectedFaces.map(edgeIdentity));
-      if (interaction.current.selectedFace) selectedFaceKeys.add(edgeIdentity(interaction.current.selectedFace));
+      const selectedFaces = interaction.current.selectedFace
+        ? [...interaction.current.selectedFaces, interaction.current.selectedFace]
+        : interaction.current.selectedFaces;
+      const selectedFaceKeys = interaction.current.faceReferences.selectedKeys(selectedFaces);
       context.current?.faces.forEach(face => {
         const key = edgeIdentity(face.face.ref);
         const isSelected = selectedFaceKeys.has(key);
@@ -443,7 +482,7 @@ export default function Viewport({
       if (!current?.body) return null;
       return pickVisibleEdge(camera, current.body, current.edges, { x, y }, { width: el.clientWidth, height: el.clientHeight });
     };
-    const pickFace = (x: number, y: number) => pickVisibleFace(camera, context.current?.faces ?? [], { x, y }, { width: el.clientWidth, height: el.clientHeight });
+    const pickFace = (x: number, y: number) => pickVisibleFace(camera, context.current?.faces ?? [], { x, y }, { width: el.clientWidth, height: el.clientHeight }, context.current?.body ?? null);
     const pickPlane = (x: number, y: number) => interaction.current.onSelectPlane ? pickVisiblePlane(camera, context.current?.body ?? null, context.current?.planes ?? [], { x, y }, { width: el.clientWidth, height: el.clientHeight }) : null;
     const pointerDown = (e: PointerEvent) => {
       down = [e.clientX, e.clientY];
@@ -495,6 +534,11 @@ export default function Viewport({
       }
       const planeId = pickPlane(hoverPointer.x, hoverPointer.y);
       if (planeId) { interaction.current.onSelectPlane?.(planeId); return; }
+      if (interaction.current.onSelectBody && context.current?.bodies.length) {
+        const reference = pickVisibleBody(camera, context.current.bodies, hoverPointer, { width: el.clientWidth, height: el.clientHeight });
+        if (reference) interaction.current.onSelectBody(reference);
+        return;
+      }
       const ray = new THREE.Raycaster();
       ray.setFromCamera(
         new THREE.Vector2(
@@ -560,6 +604,7 @@ export default function Viewport({
     if (!c) return;
     const previouslyEmpty = c.group.children.length === 0;
     c.body = null;
+    c.bodies = [];
     c.edges = [];
     for (const child of [...c.group.children]) {
       c.group.remove(child);
@@ -597,6 +642,15 @@ export default function Viewport({
     });
     c.body = new THREE.Mesh(geometry, mat);
     c.group.add(c.body);
+    if (model.bodyCatalogActive) for (const body of model.bodies ?? []) {
+      const bodyGeometry = new THREE.BufferGeometry();
+      bodyGeometry.setAttribute("position", new THREE.Float32BufferAttribute(body.vertices, 3));
+      bodyGeometry.setIndex(body.triangles);
+      const material = new THREE.MeshBasicMaterial({ color: 0xe58b23, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
+      const object = new THREE.Mesh(bodyGeometry, material);
+      c.group.add(object);
+      c.bodies.push({ ref: { ...body.ref }, object });
+    }
     if (model.edges?.length) {
       for (const edge of model.edges) {
         if (edge.lines.length < 6) continue;
@@ -618,7 +672,7 @@ export default function Viewport({
         highlight.visible = false;
         highlight.renderOrder = 2;
         c.group.add(object, highlight);
-        c.edges.push({ ref: edge.ref, object, highlight });
+        c.edges.push({ ref: edge.ref, aliases: edge.aliases, object, highlight });
       }
     } else if (display === "edges" && model.edgeLines.length) {
       const edges = new THREE.BufferGeometry();
@@ -736,7 +790,7 @@ export default function Viewport({
   }, [visibleSketchIds, selectedSketchId]);
   useEffect(() => {
     context.current?.updateHighlights();
-  }, [selectedEdges, selectedFace, selectedFaces, selectionMode]);
+  }, [selectedBodies, selectedEdges, selectedFace, selectedFaces, selectionMode]);
   useEffect(() => {
     context.current?.updatePlanes();
     context.current?.updateHighlights();
