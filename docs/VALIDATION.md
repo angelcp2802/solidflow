@@ -1,5 +1,61 @@
 # Validation
 
+## Core part and assembly workflows — 2026-10-23
+
+The increment after `22ca701`, tracked in issue #55, prioritizes sequential
+part modeling, current body selection, middle-button navigation and basic
+configured assembly picking. It adds no saved format or privileged IPC route.
+
+Windows x64 / Node 24.11.1 focused execution:
+
+- `kernel.part-sequence.test.ts`: **2 native cases passed**, 3.14 s. Five
+  prefixes independently check one explicit body, volumes 960/944/928/976/984
+  mm³ and literal bounds; STEP export/reimport checks valid BRep, one solid,
+  area 848 mm² and volume 984 mm³. Edited dimensions produce 1216 mm³,
+  928 mm² and upper Z=10. History and saved parsing retain the result.
+  Volume/area tolerance is 1e-5; coordinate tolerance is 1e-6 mm.
+- `test:desktop:part-sequence`: **39 checks / 9 geometry phases passed**.
+  The original first sketch is edited/accepted, then actual upper commands
+  and left properties create two cuts and two merged bosses. Undo/Redo,
+  native Save As and reopening pass (2 Open dialogs / 1 Save dialog).
+  The exact saved bytes and presented-frame capture were verified before
+  test-profile cleanup. Zero renderer console/resource errors; child closure
+  and isolated-profile removal confirmed.
+- `test:desktop:assembly`: **527 checks passed**, with its existing actual
+  pointer interactions, native movement/relations, source changes and file
+  persistence (15 Open / 4 Save / 4 CSV dialogs). No console/resource errors;
+  child closure and cleanup confirmed.
+- `test:desktop:assembly-configured-relations`: **61 checks passed**,
+  including the existing 23 measured geometry phases, private preview/Apply,
+  history and persistence (2 Open / 2 Save dialogs). No console/resource
+  errors; child closure and cleanup confirmed.
+- Installed OrbitControls events and picking helpers passed their focused
+  pure/SSR tests. These are separate from native or rendered pointer evidence.
+
+Final literal `npm test` passes **9,298 cases in 392 files**, 577.88 s,
+then **83 IPC/security checks**, zero failures and two explicit Windows skips,
+1,512.6674 ms. `npm run build` and actual `npm run test:desktop` pass.
+All **1,025 non-Markdown source/test/CI inputs** remain unchanged through final
+acceptance. The build retains the existing chunk-size warning. Parsed CI
+inventory confirms all 106 existing renderer run steps remain unchanged and
+only the two platform-specific part-sequence steps are added; the Desktop and
+configured relation jobs are identical. Hosted acceptance is separate.
+
+The part renderer starts with prepared sketches; it does not draw all sketches
+or exercise the new example-menu entry. Automatic support-face merge/cut defaults
+remain pure-helper covered. Newly configured face/LINE viewport nominations have
+pure/SSR coverage, separate from the existing configured form renderer flow.
+Compact toolbar appearance has not been visually accepted at every window size.
+See [workflow limits](CORE_WORKFLOWS.md) and
+[fixture provenance](PROVENANCE.md#sequential-part-original).
+
+Earlier harness attempts were rejected because the original isolated document's
+replacement prompt was unhandled, the next command preceded the completed
+sketch rebuild, and the title capture expected no application-name suffix.
+The final workflow handles the real prompt, waits for the fresh native build
+and checks the actual clean title. No application solver assertion, tolerance
+or test deadline was weakened.
+
 ## Configured compound authoring and validation scheduling — 2026-10-23
 
 The increment after `ce5604e`, tracked in issues #52 and #53, adds controlled

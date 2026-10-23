@@ -1,5 +1,23 @@
 # Public fixture provenance
 
+## Sequential part original
+
+`src/cad/fixtures/part-sequence-original.json` and
+`src/examples/part-sequence.ts` are original GPL-3.0-only project geometry:
+one 20 × 12 × 4 mm base at the origin, two disjoint 2 × 2 mm cuts centered at
+(−6,0) and (6,0), a 4 × 4 × 3 mm boss at Z=4 and a 2 × 2 × 2 mm cap at Z=7.
+The fixture contains the base and four unused XY sketches; the completed factory
+interleaves every sketch and operation. No external model or topology key is used.
+
+Volumes after each operation: 960, 944, 928, 976, 984 mm³. Final area is
+736 + 48 + 48 + 16 = 848 mm²; bounds [−10,−6,0] to [10,6,9] mm.
+The edited analytical case changes base/cut depth to 5 and boss/cap support
+offsets to 5/8: volume 1216 mm³, area 928 mm², upper Z=10.
+Native tests check BRep validity, one solid, volume/area within 1e-5 and
+coordinates within 1e-6 mm, including exported STEP reimport. Renderer tests
+author separate operations through the real UI, using the prepared sketches.
+See [the walkthrough](CORE_WORKFLOWS.md) for interaction and coverage limits.
+
 ## Original configured compound authoring
 
 `scripts/desktop-assembly-configured-compound-original.cjs` embeds unchanged part

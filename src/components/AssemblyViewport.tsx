@@ -1,3 +1,4 @@
+import { configureCadNavigation, createCadSelectionGesture } from './cadNavigation'
 import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
@@ -177,6 +178,8 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
     const helper = transform.getHelper(); world.add(proxy, helper); transform.enabled = false
     transform.setSize(.9)
     const controls = new OrbitControls(camera, renderer.domElement); controls.enableDamping = true; controls.screenSpacePanning = true
+    configureCadNavigation(controls)
+    const selectionGesture = createCadSelectionGesture()
     let acceptedGesture = false, dragConsumed = false
     const cancelDrag = (notify = true) => {
       const wasAccepted = acceptedGesture; acceptedGesture = false
@@ -208,7 +211,7 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
     }
     const axisChanged = () => setDragAxis(transform.axis)
     const keyDown = (event: KeyboardEvent) => { if (event.key === 'Escape' && acceptedGesture) { event.preventDefault(); cancelDrag() } }
-    const pointerCancel = () => cancelDrag()
+    const pointerCancel = () => { selectionGesture.cancel(); cancelDrag() }
     transform.addEventListener('mouseDown', dragStart); transform.addEventListener('objectChange', dragTarget)
     transform.addEventListener('mouseUp', dragEnd); transform.addEventListener('axis-changed', axisChanged)
     window.addEventListener('keydown', keyDown); window.addEventListener('blur', pointerCancel); renderer.domElement.addEventListener('pointercancel', pointerCancel)
@@ -262,23 +265,24 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
     const size = () => ({ width: element.clientWidth, height: element.clientHeight })
     const resize = new ResizeObserver(() => { renderer.setSize(element.clientWidth, element.clientHeight); const aspect = Math.max(element.clientWidth, 1) / Math.max(element.clientHeight, 1); camera.right = camera.top * aspect; camera.left = -camera.right; camera.updateProjectionMatrix(); context.current?.highlight() })
     resize.observe(element)
-    let down = [0, 0]
     const point = (event: PointerEvent) => { const rect = element.getBoundingClientRect(); return { x: event.clientX - rect.left, y: event.clientY - rect.top } }
-    const pointerDown = (event: PointerEvent) => { down = [event.clientX, event.clientY]; dragConsumed = false }
+    const pointerDown = (event: PointerEvent) => { selectionGesture.down(event); dragConsumed = false }
     const pointerMove = (event: PointerEvent) => {
+      selectionGesture.move(event)
       const current = context.current
       hovered = current && !input.current.disabled && assemblyReferencePickMode(input.current) === 'face' && !event.buttons ? (() => { const face = pickAssemblyFace(camera, current.bodies, current.faces, point(event), size()); return face ? assemblyFaceKey(face) : null })() : null
       hoveredEdge = current && !input.current.disabled && assemblyReferencePickMode(input.current) === 'edge' && !event.buttons ? (() => { const edge = pickAssemblyEdge(camera, current.bodies, current.edges, point(event), size()); return edge ? assemblyEdgeKey(edge) : null })() : null
       hoveredVertex = current && !input.current.disabled && assemblyReferencePickMode(input.current) === 'vertex' && !event.buttons ? (() => { const vertex = pickAssemblyVertex(camera, current.bodies, point(event), size()); return vertex ? assemblyVertexKey(vertex) : null })() : null
-      renderer.domElement.style.cursor = acceptedGesture ? 'grabbing' : input.current.disabled ? 'wait' : transform.axis ? 'move' : assemblyReferencePickMode(input.current) !== null ? (hovered || hoveredEdge || hoveredVertex ? 'pointer' : 'crosshair') : 'grab'; highlight()
+      renderer.domElement.style.cursor = acceptedGesture ? 'grabbing' : input.current.disabled ? 'wait' : transform.axis ? 'move' : assemblyReferencePickMode(input.current) !== null ? (hovered || hoveredEdge || hoveredVertex ? 'pointer' : 'crosshair') : event.buttons === 4 ? 'grabbing' : 'default'; highlight()
     }
     const pointerLeave = () => { clearHover(); highlight() }
     controls.addEventListener('start', pointerLeave)
     window.addEventListener('blur', pointerLeave); renderer.domElement.addEventListener('pointercancel', pointerLeave)
     const pointerUp = (event: PointerEvent) => {
       const current = context.current
+      const select = selectionGesture.up(event)
       if (dragConsumed) { dragConsumed = false; return }
-      if (!current || input.current.disabled || event.button !== 0 || Math.hypot(event.clientX - down[0], event.clientY - down[1]) > 4) return
+      if (!current || input.current.disabled || !select) return
       const mode = assemblyReferencePickMode(input.current)
       if (mode === 'conflict') return
       if (mode === 'vertex') input.current.onVertex?.(pickAssemblyVertex(camera, current.bodies, point(event), size()))

@@ -1,5 +1,10 @@
 # Development guide
 
+The [core workflow walkthrough](CORE_WORKFLOWS.md) prioritizes successive cuts,
+additive extrusions, consistent mouse navigation and basic assembly selection.
+After building, `npm run test:desktop:part-sequence` exercises its original
+prepared-sketch workflow through the production renderer and real file IPC.
+
 The [configured compound authoring contract](ASSEMBLY_CONFIGURED_COMPOUND_AUTHORING.md)
 connects profile-center, material LINE and circular-path forms to the existing
 private configured declaration preview. After building, the fixed aggregate

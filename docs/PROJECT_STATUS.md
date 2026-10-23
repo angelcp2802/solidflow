@@ -1,5 +1,27 @@
 # Project status and review queue
 
+### Core workflow priority
+
+[Issue #55](https://github.com/angelcp2802/solidflow/issues/55) prioritizes
+successive part operations and basic assembly authoring before further advanced
+configured motion. See the [workflow and exact remaining gaps](CORE_WORKFLOWS.md).
+The local increment adds current-body defaults, a sequential original example,
+consistent middle-button navigation, configured component/general-role picking
+and wrapping assembly commands. Origin-axis references and configured structural
+insertion remain required work. Exact execution is recorded in VALIDATION.md;
+the same draft PR #49 remains the review target.
+
+The local final suite passes 9,298 cases in 392 files plus 83 IPC checks
+(two explicit Windows skips), build and actual Electron smoke. The part
+sequence renderer passes 39 checks / 9 geometry phases; standard assembly
+passes 527 checks and configured relations 61. These bounded Windows results
+do not establish the remaining origin-axis or configured insertion scope.
+
+The previous hosted run 40019394430 at `fbdb38d` finished with all three configured
+relation jobs passing. The Mac symmetry-line repair and Windows/Mac standard
+assembly persistence renderer jobs failed; the required Desktop jobs correctly
+failed their dependency gate. This is not a complete three-platform pass.
+
 ### Configured compound authoring and validation scheduling
 
 The increment after `ce5604e`, tracked in

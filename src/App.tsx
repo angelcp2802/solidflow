@@ -129,6 +129,8 @@ import {
   createMirrorExample,
 } from "./examples/patterns";
 import { featureSketchIds } from "./model/featureInputs";
+import { initialPartTargets } from "./model/partWorkflow";
+import { createPartSequenceDocument } from "./examples/part-sequence";
 import { importStructuralStep } from "./model/structuralStepImport";
 import { importStepPart, type StepFile } from "./model/stepImport";
 import { MAX_STEP_BYTES } from "./model/stepSource";
@@ -848,6 +850,9 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
   const loadConstrainedDemo = async () => {
     if (await canReplace()) reset(createConstrainedPlateDocument());
   };
+  const loadPartSequenceDemo = async () => {
+    if (await canReplace()) reset(createPartSequenceDocument());
+  };
   const loadSketchRelationsDemo = async (
     kind: "angle" | "tangent" | "driven",
   ) => {
@@ -1376,6 +1381,10 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
   };
   const startFeature = (type: "extrude" | "cut" | "revolve") => {
     if (!requireFinishedEdit()) return;
+    if (busy || !previewCurrent || !model || model.featureErrors.length) {
+      notify("Espera a que la pieza se reconstruya sin errores antes de añadir la operación.");
+      return;
+    }
     setPickingEndFace(false);
     setPickingSupport(false);
     setSelectionMode("body");
@@ -1386,7 +1395,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
       [...doc.features]
         .reverse()
         .find((f) => f.type === "sketch" && !f.suppressed);
-    if (!sketch) {
+    if (!sketch || sketch.type !== "sketch") {
       notify("Crea o selecciona un croquis antes de añadir la operación.");
       return;
     }
@@ -1398,15 +1407,17 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     };
     const explicitBodies = model?.bodyCatalogActive === true || !doc.features.some(feature => feature.type !== "sketch" && feature.type !== "plane" && !isBodyCommandFeature(feature));
     bodyOutputId.current = crypto.randomUUID();
-    setBodySelection(type === "cut" && explicitBodies ? bodySelection.map(ref => ({ ...ref })) : []);
-    setBodyPicking(type === "cut" && explicitBodies);
+    const targets = explicitBodies ? initialPartTargets(model.bodies ?? [], bodySelection, sketch) : [];
+    const mergeTarget = type === "extrude" && sketch.support?.kind === "face" && targets.length === 1 ? targets[0] : null;
+    setBodySelection(type === "cut" || mergeTarget ? targets : []);
+    setBodyPicking(type === "cut" && explicitBodies && !targets.length);
     if (type === "revolve") setEditing({ ...base, type, angle: 360,
       ...(explicitBodies ? { bodyOperation: { mode: "new", bodyId: bodyOutputId.current } } : {}) });
     else if (type === "cut") setEditing({ ...base, type,
       depth: sketch.type === "sketch" && sketch.support ? -20 : 20, symmetric: false,
-      ...(explicitBodies ? { bodyScope: bodySelection.map(ref => ({ ...ref })) } : {}) });
+      ...(explicitBodies ? { bodyScope: targets } : {}) });
     else setEditing({ ...base, type, depth: 20, symmetric: false,
-      ...(explicitBodies ? { bodyOperation: { mode: "new", bodyId: bodyOutputId.current } } : {}) });
+      ...(explicitBodies ? { bodyOperation: mergeTarget ? { mode: "merge", target: mergeTarget } : { mode: "new", bodyId: bodyOutputId.current } } : {}) });
     setTab("Operaciones");
     setError("");
   };
@@ -2266,6 +2277,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                         ["Exportar STEP", "", () => exportFile("step")],
                         ["Exportar STL", "", () => exportFile("stl")],
                         ["Abrir pieza de ejemplo", "", loadDemo],
+                        ["Ejemplo: cortes y salientes sucesivos", "", loadPartSequenceDemo],
                       ]
                     : name === "Editar"
                       ? [
@@ -3967,8 +3979,8 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
               "Dibuja entidades · Ctrl: selección múltiple · Cotas y relaciones en el panel"
             ) : (
               <>
-                Arrastrar: girar <b>·</b> Rueda: zoom <b>·</b> Botón central:
-                desplazar
+                Clic: seleccionar <b>·</b> Rueda: zoom <b>·</b> Rueda pulsada: girar
+                <b>·</b> Mayús + rueda pulsada: desplazar
               </>
             )}
           </div>
@@ -4068,6 +4080,11 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                 </button>
                 <button className="outline-button" onClick={newDoc}>
                   <Plus size={15} /> Pieza vacía
+                </button>
+                <button className="library-card" onClick={loadPartSequenceDemo}>
+                  <Layers size={36} />
+                  <strong>Cortes y salientes sucesivos</strong>
+                  <span>Base y cuatro croquis preparados: dos cortes de 4 mm y salientes de 3 y 2 mm. Selecciona cada croquis en el árbol y añade su operación desde el menú superior. En los salientes, elige añadir material al cuerpo en las propiedades.</span>
                 </button>
                 <button className="library-card" onClick={loadConstrainedDemo}>
                   <Ruler size={36} />
