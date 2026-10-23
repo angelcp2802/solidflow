@@ -76,6 +76,11 @@ const content = JSON.stringify({ version: 1, features: [], name: 'Test' });
 const assembly = { version: 2, kind: 'assembly', id: 'original-ipc-assembly', revision: 'r1', name: 'Original assembly', units: 'mm',
   definitions: [], occurrences: [], mates: [], createdAt: '2026-10-15T00:00:00.000Z', updatedAt: '2026-10-15T00:00:00.000Z' };
 const assemblyContent = JSON.stringify(assembly);
+// Original empty configured envelope: transport syntax, no geometry authority.
+const configuredAssembly = { version: 3, kind: 'configured-assembly', source: assembly, catalog: [{
+  definition: { id: assembly.id, revision: assembly.revision },
+  configurations: [{ id: 'original-variant', name: 'Original variant', occurrences: [], mates: [] }],
+}], rootConfiguration: 'original-variant' };
 
 test('packaged application ignores development URLs and keeps renderer isolation', async (t) => {
   const { window } = await harness(t);
@@ -209,6 +214,44 @@ test('opening v2 grants the selected document without granting a neighbouring pa
   assert.equal(state.lastOpenDialog.title, 'Abrir documento de SolidFlow');
   assert.equal(await handlers.get('document:save')(event, { content: assemblyContent, filePath: opened.path }), opened.path);
   await assert.rejects(handlers.get('document:save')(event, { content: assemblyContent, filePath: path.join(temporary, 'other.solidflow') }), /Guardar como/);
+});
+
+test('configured Save As and reopen preserve exact v3 bytes, cancellation and only the chosen document grant', async (t) => {
+  const { handlers, event, temporary, dialogQueue, state } = await harness(t), save = handlers.get('document:save');
+  const selected = path.join(temporary, 'configured.solidflow'), bytes = JSON.stringify(configuredAssembly);
+  await assert.rejects(save(event, { content: bytes, filePath: selected }), /Guardar como/);
+  dialogQueue.push({ canceled: true });
+  assert.equal(await save(event, { content: bytes, name: assembly.name }), null);
+  assert.deepEqual(await fs.readdir(temporary), []);
+  dialogQueue.push({ canceled: false, filePath: selected });
+  assert.equal(await save(event, { content: bytes, name: assembly.name }), selected);
+  assert.equal(state.lastDialog.title, 'Guardar ensamblaje configurado');
+  assert.equal(await fs.readFile(selected, 'utf8'), bytes);
+  dialogQueue.push({ canceled: false, filePaths: [selected] });
+  const reopened = await handlers.get('document:open')(event);
+  assert.equal(reopened.content, bytes); assert.equal(reopened.path, await fs.realpath(selected));
+  assert.equal(await save(event, { content: bytes, filePath: reopened.path }), reopened.path);
+  await assert.rejects(save(event, { content: bytes, filePath: path.join(temporary, 'other.solidflow') }), /Guardar como/);
+  assert.deepEqual(await fs.readdir(temporary), ['configured.solidflow']);
+});
+
+test('configured transport rejects malformed wrappers, nested versions, catalog bounds and persisted authority before dialogs', async (t) => {
+  const { handlers, event, temporary, state } = await harness(t), save = handlers.get('document:save');
+  const variant = configuredAssembly.catalog[0].configurations[0], owner = configuredAssembly.catalog[0];
+  const invalid = [
+    { ...configuredAssembly, kind: 'assembly' }, { ...configuredAssembly, version: 4 },
+    { ...configuredAssembly, generation: 3 }, { ...configuredAssembly, token: 'not-authority' },
+    { ...configuredAssembly, source: configuredAssembly }, { ...configuredAssembly, source: { ...assembly, version: 1 } },
+    { ...configuredAssembly, catalog: {} }, { ...configuredAssembly, catalog: Array(514).fill(owner) },
+    { ...configuredAssembly, rootConfiguration: 1 }, { ...configuredAssembly, rootConfiguration: 'x\u0000y' },
+    { ...configuredAssembly, catalog: [{ ...owner, configurations: Array(65).fill(variant) }] },
+    { ...configuredAssembly, catalog: [{ ...owner, definition: { ...owner.definition, filePath: 'ungranted.solidflow' } }] },
+    { ...configuredAssembly, catalog: [{ ...owner, configurations: [{ ...variant, id: '' }] }] },
+    { ...configuredAssembly, catalog: [{ ...owner, configurations: [{ ...variant, name: 'x'.repeat(201) }] }] },
+    { ...configuredAssembly, catalog: [{ ...owner, configurations: [{ ...variant, occurrences: Array(4097).fill({}) }] }] },
+  ];
+  for (const document of invalid) await assert.rejects(save(event, { content: JSON.stringify(document) }), /SolidFlow no válido/);
+  assert.equal(state.dialogCalls, 0); assert.deepEqual(await fs.readdir(temporary), []);
 });
 
 test('v2 envelope rejects malformed metadata, hybrid fields and unbounded arrays before dialogs or writes', async (t) => {

@@ -1,6 +1,7 @@
 import { measureShapeSurfaceProperties, measureShapeVolumeProperties } from 'replicad'
 import { assemblyDefinitionKey, expandAssemblyParts, validateAssemblyDocument, type AssemblyDocument,
-  type AssemblyComponentReference } from '../model/assemblyDocument'
+  type AssemblyComponentReference, type ExpandedPartOccurrence } from '../model/assemblyDocument'
+import { validateDocument } from '../model/document'
 import { rigidRotationMatrix, transformRigidDirection, transformRigidPoint, validateRigidPose, type RigidPose } from '../model/rigidPose'
 import { CadEngine } from './kernel.engine'
 import { placeAssemblyShape, validateAssemblyShape } from './kernel.assembly-placements'
@@ -92,6 +93,14 @@ function sceneBodySources(result: CadResult, engine: CadEngine, admitVertices: (
  */
 export function buildAssemblyScene(input: AssemblyDocument): AssemblyScene {
   const document = validateAssemblyDocument(input), occurrences = expandAssemblyParts(document)
+  return buildAssemblySceneFromOccurrences(occurrences)
+}
+
+type ReadonlyData<T> = T extends object ? { readonly [K in keyof T]: ReadonlyData<T[K]> } : T
+/** @internal Native display construction shared by the two validated expansion
+ * boundaries. An inventory or its display metadata grants no reference/Apply
+ * authority. Callers must own and validate the full declaration context. */
+export function buildAssemblySceneFromOccurrences(occurrences: readonly ReadonlyData<ExpandedPartOccurrence>[]): AssemblyScene {
   return withNativeOwners<AssemblyScene>(owners => {
     const prototypes = new Map<string, Prototype>(), bodies: AssemblySceneBody[] = [], warnings: string[] = []
     let prototypeEntries = 0, expandedEntries = 0, faceReferences = 0, edgeReferences = 0, numbers = 0, prototypeVertexPoints = 0, expandedVertexPoints = 0
@@ -111,7 +120,7 @@ export function buildAssemblyScene(input: AssemblyDocument): AssemblyScene {
       let prototype = prototypes.get(identity)
       if (!prototype) {
         const engine = new CadEngine(); owners.own({ delete: () => engine.dispose() })
-        const result = engine.build(definition.document.features)
+        const result = engine.build(validateDocument(definition.document).features)
         prototype = { engine, bodies: sceneBodySources(result, engine, count => {
           if (count > MAX_ASSEMBLY_SCENE_VERTEX_POINTS - prototypeVertexPoints) {
             warnings.push('Se omitió un catálogo opcional de vértices del prototipo por presupuesto.'); return false

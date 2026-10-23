@@ -165,8 +165,11 @@ import {
   type Document,
 } from "./model/document";
 import AssemblyWorkspace from "./components/AssemblyWorkspace";
+import ConfiguredAssemblyWorkspace from "./components/ConfiguredAssemblyWorkspace";
 import { createEmptyAssembly } from "./examples/assembly";
-import { MAX_ASSEMBLY_BYTES, parseCadDocument, serializeCadDocument, validateCadDocument, type AssemblyDocument, type CadDocument } from "./model/assemblyDocument";
+import { MAX_ASSEMBLY_BYTES, type AssemblyDocument } from "./model/assemblyDocument";
+import { parseCadDocument, serializeCadDocument, validateCadDocument, type CadDocument } from "./model/cadDocument";
+import type { AssemblyConfiguredDocument } from "./model/assemblyConfiguredDocument";
 import { readCadRecovery, writeCadRecovery } from "./model/cadRecovery";
 
 const planeNames: Record<Plane, string> = {
@@ -346,9 +349,12 @@ export default function App() {
     const serialized = serializeCadDocument(document);
     setSession(previous => ({ document, path, saved: saved === undefined ? undefined : serialized, epoch: previous.epoch + 1 }));
   };
-  return session.document.version === 2 ? (
+  return session.document.version === 3 ? (
+    <ConfiguredAssemblyWorkspace key={session.epoch} initialDocument={session.document} initialPath={session.path}
+      initialSaved={session.saved} skipInitialRecoveryWrite={session.skipInitialRecoveryWrite} onOpenDocument={replaceDocument} />
+  ) : session.document.version === 2 ? (
     <AssemblyWorkspace key={session.epoch} initialDocument={session.document} initialPath={session.path}
-      initialSaved={session.saved} onOpenPart={replaceDocument} />
+      initialSaved={session.saved} onOpenPart={replaceDocument} onOpenConfigured={replaceDocument} />
   ) : (
     <PartWorkspace key={session.epoch} initialDocument={session.document} initialPath={session.path}
       initialSaved={session.saved} skipInitialRecoveryWrite={session.skipInitialRecoveryWrite} onOpenAssembly={replaceDocument} />
@@ -360,7 +366,7 @@ interface PartWorkspaceProps {
   initialPath?: string;
   initialSaved?: string;
   skipInitialRecoveryWrite?: boolean;
-  onOpenAssembly: (document: AssemblyDocument, path?: string, saved?: string) => void;
+  onOpenAssembly: (document: AssemblyDocument | AssemblyConfiguredDocument, path?: string, saved?: string) => void;
 }
 function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitialRecoveryWrite = false, onOpenAssembly }: PartWorkspaceProps) {
   const [doc, setDoc] = useState<Document>(() => validateDocument(initialDocument));
@@ -827,7 +833,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     const next = parseCadDocument(content);
     const saved = serializeCadDocument(next);
     if (!isReplacementCurrent(source)) throw new Error("El documento cambió durante la apertura. Vuelve a abrir el archivo.");
-    if (next.version === 2) onOpenAssembly(next, path, saved);
+    if (next.version === 2 || next.version === 3) onOpenAssembly(next, path, saved);
     else reset(next, path, true);
   };
   const newAssembly = async () => {

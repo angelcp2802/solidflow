@@ -462,6 +462,14 @@ jobs:
         if: runner.os != 'Linux'
         run: npm run test:desktop:assembly-angle-measurement
 
+      - name: Test persisted configured assembly workflow (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-configurations
+
+      - name: Test persisted configured assembly workflow (Windows/macOS)
+        if: runner.os != 'Linux'
+        run: npm run test:desktop:assembly-configurations
+
       - name: Package for the current operating system
         # Build was already checked above. Use the local locked builder, with no
         # registry fallback, GitHub release upload, signing secret or notarizing.

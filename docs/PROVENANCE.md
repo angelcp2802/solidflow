@@ -1,5 +1,42 @@
 # Public fixture provenance
 
+## Original persisted configuration contexts
+
+The v3 parser/history/recovery tests reuse the independently authored A/B prism
+declarations from `src/model/assemblyConfigurationCore.test-utils.ts`. A is
+x=[0,2], y=[0,3], z=[0,4], with V=24 mm³ and A=52 mm²; B is x=[0,1],
+y=[0,2], z=[0,5], with V=10 and A=34. Two rigid uses of their S assembly
+therefore total V=68 and A=172. Pure mechanical capture declarations use
+explicitly un-attested topology labels and establish syntax/preservation only.
+
+`src/cad/kernel.assembly-configuration-scene.test.ts` builds actual placed
+native geometry from effective selected inventory, with literal proper-rotation
+bounds and active/hidden/suppressed variants. The separate worker-session file
+adds an original named child lock from B.X4 to3 and a parent lock from X30 to20,
+retaining the parent's +90° Z placement. Its literal final bounds are left/A
+[0,0,0]–[2,3,4], left/B [3,0,0]–[4,2,5], right/A [17,0,0]–[20,2,4],
+right/B [18,3,0]–[20,4,5]. Bounds use 1e-6 mm; volume/area use 1e-5.
+No face ordinal, fabricated worker reply or copied private native proof supplies
+these expected values. Fault cases call actual native work before withholding
+publication, and separately check draining release/currentness/token policy.
+
+The production-renderer recipe in
+`scripts/desktop-assembly-configurations-original.cjs` is another original
+declaration of those same prism dimensions, +90° Z/right-X30 placement and
+Base/compact/single variants. Its authored signed principal-plane distance
+requires the child's B.X=10. The UI edits a named B.X4 to6, then the actual
+configured worker solves it to10. Right/B bounds are [28,6,0]–[30,7,5]
+after authoring and [28,10,0]–[30,11,5] after solve; right/A remains
+[27,0,0]–[30,2,4]. The flow checks original source and dormant declarations,
+all four independent placed solids, whole-context history/recovery and actual
+file IPC. The final saved root selection is both-compact. Native mass/geometry
+cases, scripted rendered observations and file-grant tests are distinct evidence.
+
+These recipes contain no imported vendor model, private source, machine path,
+native handle or authoritative cached mesh. They are project-authored under
+GPL-3.0-only. See [the persistence contract](ASSEMBLY_CONFIGURATIONS_PERSISTENCE.md)
+and [executed validation](VALIDATION.md) for current outcomes and remaining scope.
+
 ## Original selected-state solve transactions
 
 `assemblyConfigurationWriteback.test.ts` reuses the independently authored A/B/S

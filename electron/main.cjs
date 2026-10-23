@@ -180,6 +180,33 @@ function isSavedDocumentEnvelope(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   // Retain the existing v1 transport contract.
   if (value.version === 1) return Array.isArray(value.features);
+  if (value.version === 3) {
+    const fields = ['version', 'kind', 'source', 'catalog', 'rootConfiguration'];
+    if (value.kind !== 'configured-assembly' || Object.keys(value).length !== fields.length ||
+        fields.some(key => !Object.hasOwn(value, key)) || Object.keys(value).some(key => !fields.includes(key)) ||
+        value.source?.version !== 2 || !isSavedDocumentEnvelope(value.source) ||
+        !Array.isArray(value.catalog) || value.catalog.length > 513 ||
+        !(value.rootConfiguration === null || typeof value.rootConfiguration === 'string' && value.rootConfiguration.trim().length > 0 &&
+          value.rootConfiguration.length <= 128 && !/[\x00-\x1f\x7f]/.test(value.rootConfiguration))) return false;
+    let variants = 0, overrides = 0;
+    return value.catalog.every(owner => {
+      if (!owner || typeof owner !== 'object' || Array.isArray(owner) ||
+          Object.keys(owner).length !== 2 || !Object.hasOwn(owner, 'definition') || !Object.hasOwn(owner, 'configurations') ||
+          !owner.definition || typeof owner.definition !== 'object' || Array.isArray(owner.definition) ||
+          Object.keys(owner.definition).length !== 2 || !Object.hasOwn(owner.definition, 'id') || !Object.hasOwn(owner.definition, 'revision') ||
+          ![owner.definition.id, owner.definition.revision].every(text => typeof text === 'string' && text.trim() && text.length <= 128 && !/[\x00-\x1f\x7f]/.test(text)) ||
+          !Array.isArray(owner.configurations) || owner.configurations.length > 64) return false;
+      return owner.configurations.every(configuration => {
+        if (!configuration || typeof configuration !== 'object' || Array.isArray(configuration) || ++variants > 512 ||
+            Object.keys(configuration).length !== 4 || !['id', 'name', 'occurrences', 'mates'].every(key => Object.hasOwn(configuration, key)) ||
+            typeof configuration.id !== 'string' || !configuration.id.trim() || configuration.id.length > 128 || /[\x00-\x1f\x7f]/.test(configuration.id) ||
+            typeof configuration.name !== 'string' || !configuration.name.trim() || configuration.name.length > 200 || /[\x00-\x1f\x7f]/.test(configuration.name) ||
+            !Array.isArray(configuration.occurrences) || !Array.isArray(configuration.mates)) return false;
+        overrides += configuration.occurrences.length + configuration.mates.length;
+        return overrides <= 4096;
+      });
+    });
+  }
   const fields = ['version', 'kind', 'id', 'revision', 'name', 'units', 'definitions', 'occurrences', 'mates', 'createdAt', 'updatedAt'];
   if (value.version !== 2 || value.kind !== 'assembly' || value.units !== 'mm' ||
       Object.keys(value).length !== fields.length || fields.some(key => !Object.hasOwn(value, key)) ||
@@ -291,7 +318,7 @@ handleFileOperation('document:save', async (event, payload) => {
     if (!target) throw new Error('Utiliza Guardar como para elegir la ubicación del documento.');
   } else {
     const result = await dialog.showSaveDialog(mainWindow, {
-      title: parsed.version === 2 ? 'Guardar ensamblaje' : 'Guardar pieza', defaultPath: suggestedPath(name, 'solidflow'), filters: [{ name: 'Documento SolidFlow', extensions: ['solidflow'] }],
+      title: parsed.version === 3 ? 'Guardar ensamblaje configurado' : parsed.version === 2 ? 'Guardar ensamblaje' : 'Guardar pieza', defaultPath: suggestedPath(name, 'solidflow'), filters: [{ name: 'Documento SolidFlow', extensions: ['solidflow'] }],
     });
     if (result.canceled || !result.filePath) return null;
     assertSender(event);

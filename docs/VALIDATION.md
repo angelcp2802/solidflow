@@ -1,5 +1,75 @@
 # Validation
 
+## Persisted configuration worker/editor integration — 2026-10-23
+
+Local `codex/assembly-configuration-persistence` follows `8d9a756`. This connects
+strict version-3 source/catalog/root-selection files to actual effective native
+scenes, private configured worker previews and atomic Apply, a variant/state
+editor, complete history/recovery and restricted file Save As/Save/reopen.
+Generation and private capabilities are runtime-only. Legacy consumers cannot
+silently unwrap a configured file to its base source.
+
+There are 130 added unit/CAD cases: 19 format, nine version dispatcher, 16
+history, 21 native scene, 18 native session/dispatcher, 19 pure transport,
+22 pure/SSR editor and six recovery cases. Two added Node cases exercise actual
+temporary-file v3 IPC and malformed-envelope rejection. Pure fake-worker and
+un-attested capture syntax cases do not establish native geometry or authority.
+
+Actual final results on Windows x64, Node 24.11.1:
+
+| Command | Actual result |
+| --- | --- |
+| `npm test` | PASS, 374 files / 8998 unit/CAD cases in 383.53 seconds. IPC/security/source: 67 passed, zero failed, one inherited Windows file-symlink permission skip, 1288.4115 ms. |
+| `npm run build` | PASS, TypeScript/Vite, 2079 modules, final Vite 1.00 seconds. Existing browser-externalization and large-chunk warnings remain. |
+| `npm run test:desktop` | PASS, actual production-loader Electron/worker/WASM baseline, zero recorded console errors or failed requests. This baseline is separate from the configured walkthrough. |
+| `npm run test:desktop:assembly-configurations` | PASS, 14 recorded native-geometry/lifecycle phases and 40 recorded workflow milestones. Actual configured worker, real restricted file IPC, two test-owned Open dialogs, two Save As dialogs and three Save calls. Child close and isolated-profile removal confirmed; zero recorded console errors or failed requests. |
+| `npm run test:desktop:assembly` | PASS, the existing rigid assembly renderer flow with 527 recorded workflow checks/milestones, real worker/file IPC, zero recorded console errors or failed requests, confirmed child close and isolated-profile removal. This is a regression of that original flow, not all other assembly controls. |
+| Native/editor focus | PASS, initial scene/session/editor focus: 60 cases in 8.72 seconds. Final session/dispatcher focus including malformed cancellation: 18 cases in 8.66 seconds. The final full run above executes all of them. |
+
+All 964 tracked production/test/config inputs were frozen and verified unchanged
+for the final complete suite and build/baseline; digest
+`662ae1ed220ac8741c57b140c7494a7c7f71b8383a8eba99c42119cb913991de`.
+The configured walkthrough passed on these same inputs before that final full
+run. Markdown documentation is excluded from this input digest.
+
+The first full run passed 8997 cases in 386.70 seconds, before static review
+found that a missing targeted-discard token invoked the internal discard-all
+operation. The dispatcher now requires an own nonempty bounded string without
+reading accessors. A real native preview survives omitted/undefined/null/empty/
+numeric/oversized/accessor tokens and an unrelated valid token, then applies
+successfully; the final full run includes this regression. Internal session
+disposal retains its explicit discard-all behavior.
+
+The first configured renderer attempt failed its test oracle's comparison of
+JSON property order. Its original fixture and normalized production context had
+the same complete data. The oracle now parses both signatures and compares
+canonical data independently of key order; no geometry, worker admission or
+product currentness guard changed. The second attempt passes. Failed logs were
+retained separately; no tolerance or timeout was increased.
+
+The original A2×3×4 and B1×2×5 prisms appear twice under a proper quarter turn.
+Four actual solids have total volume 68 mm³ and area 172 mm². Per-body literal
+bounds use 1e-6 mm; volume/area use 1e-5 in their corresponding units. Native
+session cases solve a shared child then its parent; renderer cases independently
+check named B X4 → authored X6 → relation-solved X10, Cancel/retry/Apply, complete
+Undo/Redo, canceled Save As, successful Save As, normal Save without another
+dialog, selected-root reopening and a fresh no-op solve. Source and dormant
+state data remain intact. Query/release/reentry/token failures are separate
+native controls. See [provenance](PROVENANCE.md#original-persisted-configuration-contexts).
+
+The renderer flow does not exercise every variant creation, visibility,
+suppression or rotation control, human native dialogs, a worker restart or an
+installed package. It does not establish configured all-family mechanics,
+capture/repair, relation parameter authoring, flexible instances, configured
+BOM/interference/export/source/import consumers or other-platform support.
+
+Hosted results remain separate: the earlier PR head `2ce9273` passed build,
+unit/CAD, IPC and Electron smoke on Windows x64, Linux x64 and macOS ARM64, but
+its CI failed later directed-angle/distance-interval renderer workflows, leaving
+subsequent steps skipped. Its Security workflow passed while its separate
+CodeQL check reported nine alerts (eight high, one medium). Those alerts and
+the renderer failures remain open for investigation, not accepted as green.
+
 ## Selected rigid configuration solve transactions — 2026-10-23
 
 Local `codex/assembly-configuration-solve` follows `6bd90f5`. The standalone

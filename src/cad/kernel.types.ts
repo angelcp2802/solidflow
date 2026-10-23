@@ -374,6 +374,7 @@ export interface CadResult {
 export type CadExportFormat = 'step' | 'stl';
 
 export type KernelRequest = import('./kernel.assembly-types').AssemblyKernelRequest
+  | import('./kernel.assembly-configuration-session').ConfiguredAssemblyKernelRequest
   | import('./kernel.assembly-types').AssemblyDirectedAngleKernelRequest
   | { id: number; action: 'insert-assembly-step'; current: import('../model/assemblyDocument').AssemblyDocument; source: StepSource; scope?: import('../model/assemblyDocument').AssemblyDefinitionReference }
   | { id: number; action: 'import-assembly-step'; source: StepSource }
@@ -384,6 +385,9 @@ export type KernelRequest = import('./kernel.assembly-types').AssemblyKernelRequ
   | { id: number; action: 'export'; format: CadExportFormat; features?: Feature[] };
 
 export type KernelValue = import('../model/assemblyDocument').AssemblyDocument | CadResult | Blob | null | import('./kernel.assembly-types').AssemblyScene
+  | import('./kernel.assembly-configuration-scene').ConfiguredAssemblyScene
+  | import('./kernel.assembly-configuration-session').ConfiguredAssemblyPreviewReply
+  | import('./kernel.assembly-configuration-session').ConfiguredAssemblyAppliedReply
   | import('./kernel.assembly-types').AssemblyPreviewReply | import('./kernel.assembly-types').AssemblyAppliedReply
   | import('./kernel.assembly-source-updates').AssemblySourceUpdateReview
   | import('./kernel.assembly-replacement').AssemblyReplacementReview

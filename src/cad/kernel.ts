@@ -14,6 +14,10 @@ import type { AssemblyPartReplacementRequest } from '../model/assemblyReplacemen
 import type { AssemblyReplacementReview, AssemblyReplacementDecisions } from './kernel.assembly-replacement';
 import type { AssemblyDocumentUpdateReview, AssemblyDocumentUpdateDecisions } from './kernel.assembly-document-update-types';
 import { validateAssemblyDirectedAngleRequest, type AssemblyDirectedAngleRequest, type AssemblyDirectedAngleReport } from '../model/assemblyDirectedAngle';
+import { captureConfiguredAssemblyWorkerContext, captureConfiguredAssemblySolveOptions, type ConfiguredAssemblyWorkerContext } from './kernel.assembly-configuration-context';
+import type { ConfiguredAssemblyPreviewReply, ConfiguredAssemblyAppliedReply } from './kernel.assembly-configuration-session';
+import type { ConfiguredAssemblyScene } from './kernel.assembly-configuration-scene';
+import type { ConfiguredAssemblySolveOptions } from './kernel.assembly-configuration-solve';
 
 let worker: Worker | null = null;
 let nextId = 0;
@@ -104,6 +108,34 @@ async function assemblyRequest<T extends AssemblyScene | AssemblyPreviewReply | 
 }
 export function buildAssembly(document: AssemblyDocument): Promise<AssemblyScene> {
   return assemblyRequest({ action: 'build-assembly', document });
+}
+/** Capture complete configured declarations before initialization can yield.
+ * Native handles never cross this worker boundary; only its opaque token does. */
+export async function buildConfiguredAssembly(current: ConfiguredAssemblyWorkerContext): Promise<ConfiguredAssemblyScene> {
+  const owned = captureConfiguredAssemblyWorkerContext(current), epoch = generation;
+  await initKernel();
+  if (epoch !== generation) throw Error('El motor CAD se ha cerrado.');
+  return request<ConfiguredAssemblyScene>({ action: 'build-configured-assembly', current: owned });
+}
+export async function previewConfiguredAssembly(current: ConfiguredAssemblyWorkerContext, options: ConfiguredAssemblySolveOptions = {}): Promise<ConfiguredAssemblyPreviewReply> {
+  const owned = captureConfiguredAssemblyWorkerContext(current), policy = captureConfiguredAssemblySolveOptions(options), epoch = generation;
+  await initKernel();
+  if (epoch !== generation) throw Error('El motor CAD se ha cerrado.');
+  return request<ConfiguredAssemblyPreviewReply>({ action: 'preview-configured-assembly', current: owned, options: policy });
+}
+export async function applyConfiguredAssembly(current: ConfiguredAssemblyWorkerContext, token: string): Promise<ConfiguredAssemblyAppliedReply> {
+  const owned = captureConfiguredAssemblyWorkerContext(current), epoch = generation;
+  if (typeof token !== 'string' || !token || token.length > 128) throw Error('Configured preview token is invalid.');
+  await initKernel();
+  if (epoch !== generation) throw Error('El motor CAD se ha cerrado.');
+  return request<ConfiguredAssemblyAppliedReply>({ action: 'apply-configured-assembly', current: owned, token });
+}
+export async function discardConfiguredAssembly(token: string): Promise<null> {
+  if (typeof token !== 'string' || !token || token.length > 128) throw Error('Configured preview token is invalid.');
+  const epoch = generation;
+  await initKernel();
+  if (epoch !== generation) throw Error('El motor CAD se ha cerrado.');
+  return request<null>({ action: 'discard-configured-assembly', token });
 }
 /** Flat geometry from the detached committed snapshot; never a display preview. */
 export async function exportAssemblyCad(document: AssemblyDocument, format: CadExportFormat): Promise<Blob> {

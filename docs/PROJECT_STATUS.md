@@ -1,5 +1,34 @@
 # Project status and review queue
 
+### Integration draft and persisted configuration editor
+
+[PR #49](https://github.com/angelcp2802/solidflow/pull/49) collects the rigid
+assembly prototype in one draft. The new persisted configuration increment
+follows local `8d9a756`: complete strict v3 source/catalog/root-selection files,
+actual effective native scenes, private configured worker previews and atomic
+Apply, root/child state editing, complete history/recovery and Save As/Save/reopen.
+Legacy dependent consumers reject this format instead of returning base results.
+
+The final local Windows x64 run passes 8998 unit/CAD cases in 374 files,
+67 security/source checks with one inherited permission skip, production build
+and the real Electron baseline. The original configured production-renderer
+walkthrough passes 14 geometry/lifecycle phases with actual worker/file IPC,
+child close and temporary-profile cleanup. See the [contract](ASSEMBLY_CONFIGURATIONS_PERSISTENCE.md),
+[demo instructions](DEMO_ASSEMBLIES.md) and [validation record](VALIDATION.md#persisted-configuration-workereditor-integration--2026-10-23).
+
+The draft is not ready to merge or release. Hosted checks on its earlier
+`2ce9273` head failed directed-angle stops on Linux and distance intervals on
+Windows/macOS; nine CodeQL alerts also require review. Passing build/unit/CAD/
+IPC/smoke stages on those systems do not validate skipped later workflows or
+platform support. The configured increment requires its own hosted results.
+
+Remaining assembly work includes configured relation/capture/repair and source
+lifecycle, dependent BOM/interference/export/import, parameter/part-feature
+variants and flexible instances. This walkthrough does not close issue #45's
+complete assembly/demo scope. The entries below retain the historical local
+bases and validation of their own increments; earlier unpublished/next-step
+statements are historical, not the current publication status.
+
 ### Local selected rigid configuration solve transactions
 
 The local `codex/assembly-configuration-solve` increment follows `6bd90f5`.

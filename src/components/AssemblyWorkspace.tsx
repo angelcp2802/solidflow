@@ -77,12 +77,15 @@ import AssemblyTranslationPanel, { assemblyTranslationMatches } from './Assembly
 import AssemblyDragProjectionPanel, { assemblyDragProjectionMatches, type AssemblyDragProjection } from './AssemblyDragProjectionPanel'
 import AssemblyViewport, { assemblyBodyKey, assemblyFaceKey, assemblyEdgeKey } from './AssemblyViewport'
 import './assembly.css'
+import { parseCadDocument as parseSavedCadDocument } from '../model/cadDocument'
+import { createAssemblyConfiguredDocument, type AssemblyConfiguredDocument } from '../model/assemblyConfiguredDocument'
 
 export interface AssemblyWorkspaceProps {
   initialDocument: AssemblyDocument
   initialPath?: string
   initialSaved?: string
   onOpenPart: (document: Document, path?: string, saved?: string) => void
+  onOpenConfigured?: (document: AssemblyConfiguredDocument, path?: string, saved?: string) => void
 }
 type AssemblyNode = AssemblyDocument | EmbeddedAssemblyDefinition
 export interface AssemblyTreeRow {
@@ -272,7 +275,7 @@ function downloadBomCsv(content: string, name: string): void {
   link.href = url; link.download = name + '.csv'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 2000)
 }
 
-export default function AssemblyWorkspace({ initialDocument, initialPath, initialSaved, onOpenPart }: AssemblyWorkspaceProps) {
+export default function AssemblyWorkspace({ initialDocument, initialPath, initialSaved, onOpenPart, onOpenConfigured }: AssemblyWorkspaceProps) {
   const history = useRef<AssemblyDocumentHistory | null>(null); history.current ??= new AssemblyDocumentHistory(initialDocument)
   const [committed, setCommitted] = useState(() => validateAssemblyDocument(initialDocument)), [path, setPath] = useState(initialPath)
   const [saved, setSaved] = useState(initialSaved ?? ''), [scene, setScene] = useState<AssemblyScene | null>(null), [busy, setBusy] = useState(true), [cancelable, setCancelable] = useState(false)
@@ -928,6 +931,13 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     finally { if (mounted.current && id === generation.current) { operation.current = false; setBusy(false); setCancelable(false) } }
   }
   const readContent = async (content: string, purpose: AssemblyFilePurpose, filePath?: string, source?: AssemblyDefinitionReference, replacement?: AssemblyReplacementSelection, insertionScope?: AssemblyDefinitionReference, sourceKind?: 'part' | 'assembly') => {
+    if (purpose === 'open') {
+      const saved = parseSavedCadDocument(content)
+      if (saved.version === 3) {
+        if (!onOpenConfigured) throw Error('Este espacio no puede abrir ensamblajes configurados.')
+        invalidate(); onOpenConfigured(saved, filePath, content); return
+      }
+    }
     const document = parseCadDocument(content)
     if (purpose === 'replace-component') {
       if (document.version !== 1 || !replacement) throw new Error('La sustitución necesita un documento de pieza y una instancia seleccionada actual.')
@@ -1811,6 +1821,11 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
       <button disabled={editingBlocked || replaceDialog} onClick={() => void open('open')}><FolderOpen size={19} />Abrir</button>
       <button disabled={editingBlocked || !!draft} onClick={() => void save()}><Save size={19} />Guardar</button><button disabled={editingBlocked || !!draft} onClick={() => void save(true)}>Guardar como</button>
       <button aria-label="Crear revisión del ensamblaje" disabled={editingBlocked || !!draft || replaceDialog} onClick={openRootRevision}>Crear revisión…</button>
+      {onOpenConfigured && <button aria-label="Crear configuraciones del ensamblaje" disabled={editingBlocked || !!draft || !!preview || replaceDialog} onClick={() => {
+        if (operation.current || hasStaging() || currentPreview.current || replaceDialog) return
+        try { const configured = createAssemblyConfiguredDocument(current.current); invalidate(); onOpenConfigured(configured, path) }
+        catch (reason) { notify((reason as Error).message, true) }
+      }}>Configuraciones…</button>}
       <i /><button aria-label="Deshacer ensamblaje" disabled={editingBlocked || !history.current.canUndo} onClick={() => undo()}><Undo2 size={19} /></button><button aria-label="Rehacer ensamblaje" disabled={editingBlocked || !history.current.canRedo} onClick={() => undo(true)}><Redo2 size={19} /></button>
       <i /><button disabled={editingBlocked || replaceDialog} onClick={() => void open('insert')}><Plus size={19} />Importar componente</button>
       <button disabled={editingBlocked || replaceDialog} onClick={() => void (async () => { if (await mayReplace()) replace(createAssemblyExample()) })()}>Placa y dos pasadores</button>

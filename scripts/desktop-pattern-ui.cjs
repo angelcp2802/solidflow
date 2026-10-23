@@ -12,6 +12,8 @@ const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 const SCENARIOS = Object.freeze({
   all: Object.freeze({ fixture: 'pattern-all-original.json', entry: 'desktop-pattern-all.cjs',
     test: 'production-renderer-selected-to-ALL', caption: 'ALL' }),
+  'assembly-configurations': Object.freeze({ originalRecipe: 'desktop-assembly-configurations-original.cjs', entry: 'desktop-assembly-configurations.cjs',
+    test: 'production-renderer-assembly-configurations', caption: 'saved configured assembly states' }),
   'imported-bodies': Object.freeze({ originalRecipe: 'desktop-imported-bodies-flow.cjs', entry: 'desktop-imported-bodies.cjs',
     test: 'production-renderer-imported-bodies', caption: 'autonomous imported STEP bodies' }),
   'assembly-step': Object.freeze({ originalRecipe: 'desktop-assembly-step-flow.cjs', entry: 'desktop-assembly-step.cjs',
@@ -182,7 +184,10 @@ async function launch() {
   try {
     for (const name of ['profile', 'session', 'logs', 'crashes']) await fsp.mkdir(path.join(temporary, name));
     await fsp.writeFile(path.join(temporary, '.test-owned.json'), JSON.stringify({ token }), { flag: 'wx' });
-    if (activeScenario === SCENARIOS['imported-bodies']) {
+    if (activeScenario === SCENARIOS['assembly-configurations']) {
+      const original = require('./desktop-assembly-configurations-original.cjs')();
+      await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(original), { flag: 'wx' });
+    } else if (activeScenario === SCENARIOS['imported-bodies']) {
       const original = require('./desktop-imported-bodies-flow.cjs').createOriginalDocument(root);
       await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(original), { flag: 'wx' });
     } else if ([SCENARIOS['assembly-step'], SCENARIOS['assembly-step-insertion']].includes(activeScenario)) {
@@ -259,7 +264,7 @@ async function launch() {
     });
     report = JSON.parse(await fsp.readFile(path.join(temporary, 'workflow-result.json'), 'utf8'));
     check(report.workflowStatus === 'PASS', 'The child did not record a successful complete UI workflow.');
-    if ([SCENARIOS.assembly, SCENARIOS['assembly-import'], SCENARIOS['assembly-linked-source'], SCENARIOS['assembly-source-revision'], SCENARIOS['assembly-interference-multibody'], SCENARIOS['assembly-interference-grouping'], SCENARIOS['assembly-interference-grouping-multibody'], SCENARIOS['assembly-interference-grouping-scope'], SCENARIOS['assembly-screw'], SCENARIOS['assembly-rack-pinion'], SCENARIOS['assembly-export'], SCENARIOS['assembly-direction'], SCENARIOS['assembly-angle-measurement'], SCENARIOS['assembly-directed-angle'], SCENARIOS['assembly-tangent'], SCENARIOS['assembly-cylinder-tangent'], SCENARIOS['assembly-sphere-tangent'], SCENARIOS['assembly-limit-distance'], SCENARIOS['assembly-limit-angle'], SCENARIOS['assembly-width'], SCENARIOS['assembly-line-path'], SCENARIOS['assembly-circular-path'], SCENARIOS['assembly-hinge'], SCENARIOS['assembly-hinge-picking'], SCENARIOS['assembly-hinge-repair'], SCENARIOS['assembly-hinge-limits'], SCENARIOS['assembly-hinge-limits-repair'], SCENARIOS['assembly-hinge-limits-picking'], SCENARIOS['assembly-profile-center'], SCENARIOS['assembly-symmetry'], SCENARIOS['assembly-symmetry-line-repair'], SCENARIOS['assembly-symmetry-plane-repair'], SCENARIOS['assembly-symmetry-sphere-repair'], SCENARIOS['assembly-symmetry-cylinder-repair'], SCENARIOS['assembly-symmetry-axisline-repair'], SCENARIOS['assembly-symmetry-repair'], SCENARIOS['assembly-symmetry-picking'], SCENARIOS['assembly-symmetry-nested-selected'], SCENARIOS['assembly-symmetry-nested-source'], SCENARIOS['assembly-replacement']].includes(activeScenario) && process.env.SOLIDFLOW_UI_CAPTURE === '1') {
+    if ([SCENARIOS['assembly-configurations'], SCENARIOS.assembly, SCENARIOS['assembly-import'], SCENARIOS['assembly-linked-source'], SCENARIOS['assembly-source-revision'], SCENARIOS['assembly-interference-multibody'], SCENARIOS['assembly-interference-grouping'], SCENARIOS['assembly-interference-grouping-multibody'], SCENARIOS['assembly-interference-grouping-scope'], SCENARIOS['assembly-screw'], SCENARIOS['assembly-rack-pinion'], SCENARIOS['assembly-export'], SCENARIOS['assembly-direction'], SCENARIOS['assembly-angle-measurement'], SCENARIOS['assembly-directed-angle'], SCENARIOS['assembly-tangent'], SCENARIOS['assembly-cylinder-tangent'], SCENARIOS['assembly-sphere-tangent'], SCENARIOS['assembly-limit-distance'], SCENARIOS['assembly-limit-angle'], SCENARIOS['assembly-width'], SCENARIOS['assembly-line-path'], SCENARIOS['assembly-circular-path'], SCENARIOS['assembly-hinge'], SCENARIOS['assembly-hinge-picking'], SCENARIOS['assembly-hinge-repair'], SCENARIOS['assembly-hinge-limits'], SCENARIOS['assembly-hinge-limits-repair'], SCENARIOS['assembly-hinge-limits-picking'], SCENARIOS['assembly-profile-center'], SCENARIOS['assembly-symmetry'], SCENARIOS['assembly-symmetry-line-repair'], SCENARIOS['assembly-symmetry-plane-repair'], SCENARIOS['assembly-symmetry-sphere-repair'], SCENARIOS['assembly-symmetry-cylinder-repair'], SCENARIOS['assembly-symmetry-axisline-repair'], SCENARIOS['assembly-symmetry-repair'], SCENARIOS['assembly-symmetry-picking'], SCENARIOS['assembly-symmetry-nested-selected'], SCENARIOS['assembly-symmetry-nested-source'], SCENARIOS['assembly-replacement']].includes(activeScenario) && process.env.SOLIDFLOW_UI_CAPTURE === '1') {
       check(report.captures?.length === 1 && report.captures[0].name === 'assembly-final.png', 'Expected one test-owned assembly capture.');
       const png = await fsp.readFile(path.join(temporary, 'assembly-final.png'));
       check(png.length <= 10 * 1024 * 1024 && digest(png) === report.captures[0].sha256, 'Assembly capture bytes changed.');
@@ -300,7 +305,7 @@ async function launch() {
 
 // Runs before any app bundle. This only observes/forwards the real Worker API;
 // no CAD response, React state, document or IPC result is supplied by the test.
-function installWorkerObserver(importedBodyDetails = false, structuralStep = false, structuralInsertion = false) {
+function installWorkerObserver(importedBodyDetails = false, structuralStep = false, structuralInsertion = false, configurations = false) {
   const NativeWorker = globalThis.Worker;
   const observations = { serial: 0, eventSerial: 0, builds: [], ui: [], assemblies: [], assemblyUi: [], workerErrors: [] };
   const copy = value => JSON.parse(JSON.stringify(value));
@@ -323,7 +328,7 @@ function installWorkerObserver(importedBodyDetails = false, structuralStep = fal
     area: scene.area, solidCount: scene.solidCount, prototypeCount: scene.prototypeCount,
     bounds: copy(scene.bounds), visibleBounds: copy(scene.visibleBounds), warnings: copy(scene.warnings),
     bodies: scene.bodies.map(body => ({ component: copy(body.component), body: copy(body.body), name: body.name,
-      visible: body.visible, worldPose: copy(body.worldPose), volume: body.volume, area: body.area,
+      visible: body.visible, worldPose: copy(body.worldPose), ...(configurations ? { configurationAncestry: copy(body.configurationAncestry) } : {}), volume: body.volume, area: body.area,
       solidCount: body.solidCount, bounds: copy(body.bounds), ...(structuralStep || structuralInsertion ? { meshAreaMm2: meshArea(body.vertices, body.triangles) } : {}), faces: body.faces.map(face => ({
         selection: copy(face.selection), support: copy(face.support), worldSupport: copy(face.worldSupport),
         ...(face.sphereSurface ? { sphereSurface: copy(face.sphereSurface) } : {}),
@@ -379,6 +384,7 @@ function installWorkerObserver(importedBodyDetails = false, structuralStep = fal
       }
     }
   }).observe(document, { subtree: true, childList: true, attributes: true, attributeFilter: ['disabled'] });
+  function compactConfigured(value) { return { kind: value.kind, context: copy(value.context), scene: compactScene(value.scene), referenceDiagnostics: copy(value.referenceDiagnostics) }; }
   globalThis.Worker = new Proxy(NativeWorker, { construct(Target, args, newTarget) {
     const worker = Reflect.construct(Target, args, newTarget), send = worker.postMessage, pending = new Map();
     worker.postMessage = function(message, ...rest) {
@@ -387,7 +393,8 @@ function installWorkerObserver(importedBodyDetails = false, structuralStep = fal
         if (observations.builds.length >= 256) observations.workerErrors.push('Observer build envelope exceeded256.');
         else { observations.builds.push(record); pending.set(message.id, record); }
       }
-      if ((structuralStep && ['import-assembly-step', 'export-assembly-step'].includes(message?.action))
+      if ((configurations && ['build-configured-assembly', 'preview-configured-assembly', 'apply-configured-assembly', 'discard-configured-assembly'].includes(message?.action))
+        || (structuralStep && ['import-assembly-step', 'export-assembly-step'].includes(message?.action))
         || (structuralInsertion && ['insert-assembly-step', 'export-assembly-step'].includes(message?.action)) || ['build-assembly', 'preview-assembly', 'preview-assembly-root-revision', 'apply-assembly', 'discard-assembly',
         'lock-assembly-rotation', 'lock-assembly-components', 'capture-assembly-gear', 'capture-assembly-screw', 'capture-assembly-rack-pinion', 'review-assembly-part-update', 'preview-assembly-part-update', 'discard-assembly-part-update',
         'review-assembly-part-replacement', 'preview-assembly-part-replacement', 'discard-assembly-part-replacement',
@@ -414,6 +421,11 @@ function installWorkerObserver(importedBodyDetails = false, structuralStep = fal
         const value = event.data.value;
         record.response = { ok: true, value: value === null ? null : value instanceof Blob ? { size: value.size, type: value.type }
           : (structuralStep && record.action === 'import-assembly-step') || (structuralInsertion && record.action === 'insert-assembly-step') ? copy(value)
+          : configurations && value.kind === 'configured-assembly-scene' ? compactConfigured(value)
+          : configurations && ['configured-assembly-preview', 'configured-assembly-applied'].includes(value.kind) ? {
+            kind: value.kind, generation: value.generation, candidateGeneration: value.candidateGeneration, document: copy(value.document),
+            scene: compactConfigured(value.scene), ...(value.states ? { states: copy(value.states) } : {}), ...(value.verification ? { verification: copy(value.verification) } : {}), changed: value.changed,
+            hasToken: typeof value.token === 'string' && value.token.length > 0 }
           : value.kind === 'assembly-scene' ? compactScene(value)
           : value.kind === 'assembly-interference-report' ? compactAnalysis(value)
           : record.action === 'measure-assembly-directed-angle' ? copy(value)
@@ -474,6 +486,7 @@ async function runInElectron() {
   const gearOutput = path.join(owned, 'saved-gear.solidflow');
   const expected = JSON.parse(fs.readFileSync(input, 'utf8')), expectedIds = expected.features?.map(feature => feature.id);
   const untilNext = activeScenario === SCENARIOS['until-next'];
+  const configurations = activeScenario === SCENARIOS['assembly-configurations'];
   const importedBodies = activeScenario === SCENARIOS['imported-bodies'];
   const structuralStep = activeScenario === SCENARIOS['assembly-step'];
   const structuralInsertion = activeScenario === SCENARIOS['assembly-step-insertion'];
@@ -610,7 +623,7 @@ async function runInElectron() {
       repairFiles.replacementPart, repairFiles.replacementPart, repairFiles.replacementSaved]
     : symmetryPicking ? [input, ...Array(6).fill(output)]
     : symmetry ? [input, ...Array(5).fill(output)] : [input, output];
-  const savePaths = untilNext ? [outputs.cutSelected, outputs.cutAll, outputs.add] : assembly ? [output, projectionOutput, translationOutput, gearOutput]
+  const savePaths = configurations ? [null, output] : untilNext ? [outputs.cutSelected, outputs.cutAll, outputs.add] : assembly ? [output, projectionOutput, translationOutput, gearOutput]
     : assemblyImport ? [importBaselinePath, output]
     : sourceRevision ? [null, output]
     : linkedSource ? [output, linkedSourceFiles.assemblyOutput]
@@ -673,10 +686,14 @@ async function runInElectron() {
     });
   };
   const capture = async (expectedCapture = expected, widthPreview = false) => {
-    if ((!sourceRevision && !linkedSource && !assembly && !assemblyImport && !interferenceMultibody && !interferenceGrouping && !interferenceGroupingMultibody && !interferenceGroupingScope && !screw && !rackPinion && !assemblyExport && !direction && !angleMeasurement && !directedAngle && !tangent && !cylinderTangent && !sphereTangent && !limitDistance && !limitAngle && !width && !linePath && !circularPath && !hinge && !hingeLimits && !hingePicking && !hingeLimitsPicking && !hingeRepair && !profileCenter && !symmetry && !symmetryRepair && !symmetrySurfaceRepair && !symmetryPicking && !symmetryNestedRepair && !replacement) || process.env.SOLIDFLOW_UI_CAPTURE !== '1') return;
+    if ((!configurations && !sourceRevision && !linkedSource && !assembly && !assemblyImport && !interferenceMultibody && !interferenceGrouping && !interferenceGroupingMultibody && !interferenceGroupingScope && !screw && !rackPinion && !assemblyExport && !direction && !angleMeasurement && !directedAngle && !tangent && !cylinderTangent && !sphereTangent && !limitDistance && !limitAngle && !width && !linePath && !circularPath && !hinge && !hingeLimits && !hingePicking && !hingeLimitsPicking && !hingeRepair && !profileCenter && !symmetry && !symmetryRepair && !symmetrySurfaceRepair && !symmetryPicking && !symmetryNestedRepair && !replacement) || process.env.SOLIDFLOW_UI_CAPTURE !== '1') return;
     check(!widthPreview || width, 'Preview capture is restricted to the fixed Width scenario.');
     check(captures.length === 0 && !window.isVisible(), 'Expected one hidden test-owned capture.');
-    const confirmed = () => evaluate(`(() => {
+    const confirmed = () => configurations
+      ? evaluate(`(() => document.querySelector('.configured-assembly-workspace')?.getAttribute('aria-busy') === 'false'
+        && document.querySelector('.configured-assembly-workspace header strong')?.textContent === ${encodeJavaScriptString('SolidFlow · ' + expectedCapture.source?.name)}
+        && [...document.querySelectorAll('.configured-assembly-workspace button')].some(b => b.textContent.trim() === 'Aplicar configuración' && b.disabled))()` )
+      : evaluate(`(() => {
       const save = [...document.querySelectorAll('.assembly-toolbar button')].find(button => button.textContent.trim() === 'Guardar');
       return document.querySelector('.assembly-app')?.getAttribute('aria-busy') === 'false'
         && document.querySelector('.assembly-header > strong')?.textContent === ${encodeJavaScriptString(expectedCapture.name + (widthPreview ? ' *' : ''))}
@@ -713,7 +730,7 @@ async function runInElectron() {
     check(await confirmed(), 'The confirmed assembly changed while capturing the presented page.');
     await fsp.writeFile(path.join(owned, 'assembly-final.png'), png, { flag: 'wx' });
     captures.push({ name: 'assembly-final.png', bytes: png.length, sha256: digest(png), width: size.width, height: size.height,
-      phase: widthPreview ? 'reopened/fresh-width-preview-unapplied' : 'committed/analysis-or-reopen', confirmedDocumentId: expectedCapture.id, presentationObserved: true });
+      phase: widthPreview ? 'reopened/fresh-width-preview-unapplied' : 'committed/analysis-or-reopen', confirmedDocumentId: configurations ? expectedCapture.source.id : expectedCapture.id, presentationObserved: true });
   };
   const observe = () => evaluate('globalThis.__solidflowUiTestObservation.snapshot()');
   async function waitFor(description, inspect, budget = STEP_MS) {
@@ -817,7 +834,9 @@ async function runInElectron() {
       savedContentSha256: digest(await fsp.readFile(output)), savedFeaturesSha256: digest(JSON.stringify(saved.features)) });
   }
   // The extra workflow is a fixed tracked module, never a caller/env-selected script.
-  const actualWorkflow = importedBodies
+  const actualWorkflow = configurations
+    ? require('./desktop-assembly-configurations-flow.cjs')({ expected, input, output, evaluate, observe, waitFor, click, capture, checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
+    : importedBodies
     ? require('./desktop-imported-bodies-flow.cjs')({ expected, input, output, evaluate, observe, waitFor, click, menu,
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
@@ -1023,7 +1042,7 @@ async function runInElectron() {
         await super.loadURL('about:blank');
         this.webContents.debugger.attach('1.3');
         await this.webContents.debugger.sendCommand('Page.enable');
-        await this.webContents.debugger.sendCommand('Page.addScriptToEvaluateOnNewDocument', { source: '(' + installWorkerObserver.toString() + ')(' + (importedBodies ? 'true' : 'false') + ',' + (structuralStep ? 'true' : 'false') + ',' + (structuralInsertion ? 'true' : 'false') + ');' });
+        await this.webContents.debugger.sendCommand('Page.addScriptToEvaluateOnNewDocument', { source: '(' + installWorkerObserver.toString() + ')(' + (importedBodies ? 'true' : 'false') + ',' + (structuralStep ? 'true' : 'false') + ',' + (structuralInsertion ? 'true' : 'false') + ',' + (configurations ? 'true' : 'false') + ');' });
         checks.push('test-owned blank target initialized before CDP observation');
       })();
       await this.instrumentation;
@@ -1051,9 +1070,9 @@ async function runInElectron() {
         observation.geometry = { name: payload.name, format: payload.format, bytes: payload.data.byteLength,
           sha256: digest(Buffer.from(payload.data.buffer, payload.data.byteOffset, payload.data.byteLength)) };
       }
-      if (sourceRevision && channel === 'document:save') observation.documentWrite = { name: payload?.name, hasPath: typeof payload?.filePath === 'string', sha256: typeof payload?.content === 'string' ? digest(payload.content) : null };
+      if ((sourceRevision || configurations) && channel === 'document:save') observation.documentWrite = { name: payload?.name, hasPath: typeof payload?.filePath === 'string', ...(configurations ? { filePath: payload?.filePath } : {}), sha256: typeof payload?.content === 'string' ? digest(payload.content) : null };
       const result = await handler(event, payload); observation.completed = true;
-      if (sourceRevision && channel === 'document:save') observation.documentWrite.chosen = result !== null;
+      if ((sourceRevision || configurations) && channel === 'document:save') observation.documentWrite.chosen = result !== null;
       if ((linkedSource || sourceRevision) && ['source:choose', 'source:read'].includes(channel) && result) observation.source = { name: result.name, sha256: result.sha256, hasGrant: typeof result.grantId === 'string', noPath: !Object.hasOwn(result, 'path') };
       return result;
     });
@@ -1095,8 +1114,8 @@ async function runInElectron() {
         return csvExports === 1 ? { canceled: true } : { canceled: false, filePath: bomCsvOutputs[csvExports - 2] };
       }
       if (structuralStep || structuralInsertion) check(path.basename(options.defaultPath) === (structuralInsertion ? 'Original structural insertion parent.solidflow' : 'Conjunto _Árbol_ Ω.solidflow'), 'Structural Save As uses the literal sanitized original name.');
-      check(options.title === (structuralInsertion || structuralStep || assembly || assemblyImport || assemblySourceUpdate || linkedSource || sourceRevision || screw || rackPinion || assemblyExport || direction || angleMeasurement || directedAngle || tangent || cylinderTangent || sphereTangent || limitDistance || limitAngle || width || linePath || circularPath || hinge || hingeLimits || hingePicking || hingeLimitsPicking || hingeRepair || profileCenter || symmetry || symmetryRepair || symmetrySurfaceRepair || symmetryPicking || symmetryNestedRepair || replacement ? 'Guardar ensamblaje' : 'Guardar pieza') && ++saves <= savePaths.length, 'Unexpected native save/export dialog request.');
-      if (sourceRevision && savePaths[saves - 1] === null) return { canceled: true };
+      check(options.title === (configurations ? 'Guardar ensamblaje configurado' : structuralInsertion || structuralStep || assembly || assemblyImport || assemblySourceUpdate || linkedSource || sourceRevision || screw || rackPinion || assemblyExport || direction || angleMeasurement || directedAngle || tangent || cylinderTangent || sphereTangent || limitDistance || limitAngle || width || linePath || circularPath || hinge || hingeLimits || hingePicking || hingeLimitsPicking || hingeRepair || profileCenter || symmetry || symmetryRepair || symmetrySurfaceRepair || symmetryPicking || symmetryNestedRepair || replacement ? 'Guardar ensamblaje' : 'Guardar pieza') && ++saves <= savePaths.length, 'Unexpected native save/export dialog request.');
+      if ((sourceRevision || configurations) && savePaths[saves - 1] === null) return { canceled: true };
       return { canceled: false, filePath: savePaths[saves - 1] };
     };
     if (member === 'showErrorBox') return (title, message) => finish(new Error(title + ': ' + message));

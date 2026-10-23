@@ -20,6 +20,7 @@
     "test:desktop:pattern-world-limit": "node scripts/desktop-pattern-world-limit.cjs",
     "test:desktop:pattern-until-next": "node scripts/desktop-pattern-until-next.cjs",
     "test:desktop:assembly": "node scripts/desktop-assembly.cjs",
+    "test:desktop:assembly-configurations": "node scripts/desktop-assembly-configurations.cjs",
     "test:desktop:assembly-import": "node scripts/desktop-assembly-import.cjs",
     "test:desktop:assembly-source-update": "node scripts/desktop-assembly-source-update.cjs",
     "test:desktop:assembly-interference-grouping-scope": "node scripts/desktop-assembly-interference-grouping-scope.cjs",

@@ -1,4 +1,4 @@
-import { parseCadDocument, serializeCadDocument, type CadDocument } from './assemblyDocument'
+import { parseCadDocument, serializeCadDocument, type CadDocument } from './cadDocument'
 
 export const CAD_RECOVERY_KEY = 'solidflow.autosave'
 export interface CadRecoveryStorage { getItem(key: string): string | null; setItem(key: string, value: string): void }

@@ -4,6 +4,9 @@ import { importAssemblyStepStructureNative } from './kernel.assembly-step-import
 import { exportAssemblyStepStructureNative } from './kernel.assembly-step-export'
 import { CadEngine } from './kernel.engine'
 import { AssemblyWorkerSession } from './kernel.assembly-session'
+import { ConfiguredAssemblyWorkerSession } from './kernel.assembly-configuration-session'
+import { captureConfiguredAssemblyWorkerContext } from './kernel.assembly-configuration-context'
+import { validateConfiguredAssemblySolvePolicy } from './kernel.assembly-configuration-solve'
 import { exportAssemblyCadNative } from './kernel.assembly-export'
 import { measureAssemblyDirectedAngleNative } from './kernel.assembly-angle-measurement'
 import type { KernelRequest, KernelValue } from './kernel.types'
@@ -12,9 +15,22 @@ import type { KernelRequest, KernelValue } from './kernel.types'
 export class KernelDispatcher {
   #part = new CadEngine()
   #assembly = new AssemblyWorkerSession()
+  #configured = new ConfiguredAssemblyWorkerSession()
   handle(request: KernelRequest): KernelValue {
     switch (request.action) {
       case 'init': return null
+      case 'build-configured-assembly': return this.#configured.build(request.current)
+      case 'preview-configured-assembly':
+        captureConfiguredAssemblyWorkerContext(request.current)
+        validateConfiguredAssemblySolvePolicy(request.options)
+        this.#part.dispose(); this.#assembly.discard()
+        return this.#configured.preview(request.current, request.options)
+      case 'apply-configured-assembly': return this.#configured.apply(request.current, request.token)
+      case 'discard-configured-assembly': {
+        const token = Object.getOwnPropertyDescriptor(request, 'token')
+        if (!token || !('value' in token) || typeof token.value !== 'string' || !token.value || token.value.length > 128) throw Error('Configured preview token is invalid.')
+        this.#configured.discard(token.value); return null
+      }
       // Standalone structural exchange never consumes workspace capabilities.
       case 'import-assembly-step': {
         const document = importAssemblyStepStructureNative(request.source)
@@ -28,7 +44,7 @@ export class KernelDispatcher {
         return candidate
       }
       case 'export-assembly-step': return exportAssemblyStepStructureNative(request.document)
-      case 'build': this.#assembly.discard(); return this.#part.build(request.features)
+      case 'build': this.#configured.discard(); this.#assembly.discard(); return this.#part.build(request.features)
       case 'export': this.#assembly.discard(); return this.#part.export(request.format, request.features)
       // A committed export owns independent engines and placements. It does not
       // replace either workspace or consume a pending assembly capability.
@@ -59,11 +75,11 @@ export class KernelDispatcher {
       case 'capture-assembly-gear':
       case 'capture-assembly-screw':
       case 'capture-assembly-rack-pinion':
-        this.#part.dispose(); return this.#assembly.handle(request)
+        this.#configured.discard(); this.#part.dispose(); return this.#assembly.handle(request)
       default: throw new Error('Solicitud del motor CAD no admitida.')
     }
   }
   dispose(): void {
-    this.#assembly.discard(); this.#part.dispose()
+    this.#configured.discard(); this.#assembly.discard(); this.#part.dispose()
   }
 }

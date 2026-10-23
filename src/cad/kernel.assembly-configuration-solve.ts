@@ -77,6 +77,9 @@ function policy(input: ConfiguredAssemblySolveOptions) {
   if (!probe.poses) throw Error('Invalid configured solver policy: ' + probe.evidence.diagnostics.join('; '))
   return { bands, solver }
 }
+/** Pure policy preflight for a worker mode transition. An invalid request must
+ * not dispose the currently owned workspace before admission has succeeded. */
+export function validateConfiguredAssemblySolvePolicy(input: ConfiguredAssemblySolveOptions = {}): void { policy(input) }
 function withSnapshot<T>(input: AssemblyConfigurationGeometryInput, run: (snapshot: AssemblyConfigurationGeometrySnapshot) => T): T {
   const snapshot = new AssemblyConfigurationGeometrySnapshot(input)
   let primary: { error: unknown } | undefined, result!: T

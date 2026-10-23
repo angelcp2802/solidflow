@@ -1,5 +1,11 @@
 # Development guide
 
+The [persisted configuration integration](ASSEMBLY_CONFIGURATIONS_PERSISTENCE.md)
+uses a strict v3 envelope around a v2 source and named-state catalog, an actual
+effective native scene and private configured worker capabilities. Keep the
+complete context together through history, recovery and file operations. Legacy
+source/BOM/export routes must not silently unwrap it to a base assembly.
+
 The standalone [selected-state transaction](ASSEMBLY_CONFIGURATIONS_SOLVE.md)
 stages child solves before parents, isolates named inheritance on base writes,
 preserves complete captures and gates all placed uses before atomic publication.
@@ -86,6 +92,7 @@ npm start
 | `npm run test:desktop:pattern-all` | Scripted production-renderer selected-to-ALL cut interaction, Apply, Save As and reopen, after building. |
 | `npm run test:desktop:pattern-until-next` | Scripted production-renderer UntilNext selected cut, cut ALL and selected additive merge, real rejection, Apply, Save As and reopen, after building. |
 | `npm run test:desktop:assembly` | Scripted production-renderer rigid assembly relations, authenticated Apply, source revision/repair, constrained numeric movement, read-only interference/clearance, rejection preservation, Save As and reopen, after building. |
+| `npm run test:desktop:assembly-configurations` | Production-renderer selected root/child states, named placement editing, real configured Solve/Cancel/retry/Apply, complete history/recovery and Save As/normal Save/reopen. Run after building; original reused prisms and test-owned dialogs. Record actual execution separately from platform support. |
 | `npm run test:desktop:assembly-import` | Scripted production-renderer assembly import and reuse, transformed native bounds, local-frame mate solve, incompatible-content rejection, history, Save As and reopening. Run after building; no external-format interchange or human-dialog claim. |
 | `npm run test:desktop:assembly-source-update` | Scripted production-renderer all-use subassembly source update, explicit renamed-descendant plane repairs, review/preview cancellation, rejection, Apply/history, parent save identity and saved reopening. Run after building; original fixed-prism case with real worker/file IPC and test-owned dialogs. |
 | `npm run test:desktop:assembly-linked-source` | Production-renderer explicit link/reload for original parts and reused rigid subassemblies, unchanged bytes, changed-cache review, Cancel/Apply/history, source-byte preservation and offline saved reopening. Run after building; native source selections are test-owned dialog substitutions. Configured cases do not imply an executed result or another platform. |

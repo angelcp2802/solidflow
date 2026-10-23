@@ -1,11 +1,20 @@
 # Roadmap
 
+The [persisted configuration integration](ASSEMBLY_CONFIGURATIONS_PERSISTENCE.md)
+connects complete v3 source/catalog/selection files to effective native scenes,
+private worker previews and atomic Apply, state editing, history, recovery and
+save/reopen. The [prototype walkthrough](DEMO_ASSEMBLIES.md) is a bounded route
+through these controls. Configuration-aware consumers, relation editing and
+capture/repair, parameter/part-feature variants and flexible instances remain
+open; this is not the complete assembly/demo gate.
+
 The standalone [selected-state solve transaction](ASSEMBLY_CONFIGURATIONS_SOLVE.md)
 now connects child-before-parent execution, staged pose/winding writeback and
 fresh per-instance geometry gating with a private single-use Apply boundary.
 Named inheritance is isolated on base writes; shared child-state propagation
-remains explicit. Saved/editor transport and lifecycle, parameter/part-feature
-variants, native capture/repair and flexible instances remain required.
+remains explicit. The persisted integration above supplies its first saved/editor
+lifecycle. Parameter/part-feature variants, native capture/repair and flexible
+instances remain required.
 
 The [configured physical gate](ASSEMBLY_CONFIGURATIONS_VERIFICATION.md) adds
 standalone independent measurements and fresh verification for every placed
