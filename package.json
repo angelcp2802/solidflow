@@ -13,6 +13,7 @@
     "test": "npm run test:unit && npm run test:ipc",
     "package": "npm run build && electron-builder --publish never",
     "test:desktop": "node scripts/desktop-smoke.cjs",
+    "test:desktop:part-fresh-sketch": "node scripts/desktop-part-fresh-sketch.cjs",
     "test:desktop:part-sequence": "node scripts/desktop-part-sequence.cjs",
     "test:desktop:assembly-origin-axes": "node scripts/desktop-assembly-origin-axes.cjs",
     "test:desktop:assembly-configured-origin-axes": "node scripts/desktop-assembly-configured-origin-axes.cjs",

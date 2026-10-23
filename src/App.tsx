@@ -2641,14 +2641,15 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                   label="Seleccionar"
                   large
                   onClick={() => selectSketchTool("select")}
-                  active={sketchTool === "select"}
+                  active={editing?.type === "sketch" && sketchTool === "select"}
+                  disabled={editing?.type !== "sketch"}
                 />
                 <Command
                   icon={Minus}
                   label="Línea"
                   large
                   onClick={() => selectSketchTool("line")}
-                  active={sketchTool === "line"}
+                  active={editing?.type === "sketch" && sketchTool === "line"}
                   disabled={!!editing && editing.type !== "sketch"}
                 />
                 <Command
@@ -2671,7 +2672,8 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                       setSketchTool("rectangle");
                     } else selectSketchTool("rectangle");
                   }}
-                  active={sketchTool === "rectangle"}
+                  active={editing?.type === "sketch" && sketchTool === "rectangle"}
+                  disabled={!!editing && editing.type !== "sketch"}
                 />
                 <Command
                   icon={Circle}
@@ -2692,14 +2694,15 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                       setSketchTool("circle");
                     } else selectSketchTool("circle");
                   }}
-                  active={sketchTool === "circle"}
+                  active={editing?.type === "sketch" && sketchTool === "circle"}
+                  disabled={!!editing && editing.type !== "sketch"}
                 />
                 <Command
                   icon={Spline}
                   label="Arco de centro"
                   large
                   onClick={() => selectSketchTool("arc")}
-                  active={sketchTool === "arc"}
+                  active={editing?.type === "sketch" && sketchTool === "arc"}
                   disabled={!!editing && editing.type !== "sketch"}
                 />
               </div>
@@ -2709,7 +2712,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                   label="Recortar entidades"
                   large
                   onClick={() => selectSketchTool("trim")}
-                  active={sketchTool === "trim"}
+                  active={editing?.type === "sketch" && sketchTool === "trim"}
                   disabled={editing?.type !== "sketch"}
                 />
                 <Command
@@ -2717,7 +2720,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                   label="Extender entidades"
                   large
                   onClick={() => selectSketchTool("extend")}
-                  active={sketchTool === "extend"}
+                  active={editing?.type === "sketch" && sketchTool === "extend"}
                   disabled={editing?.type !== "sketch"}
                 />
                 <Command
@@ -2725,7 +2728,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                   label="Chaflán de croquis"
                   large
                   onClick={() => selectSketchTool("chamfer")}
-                  active={sketchTool === "chamfer"}
+                  active={editing?.type === "sketch" && sketchTool === "chamfer"}
                   disabled={editing?.type !== "sketch"}
                 />
                 <Command
@@ -2733,14 +2736,14 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                   label="Redondeo de croquis"
                   large
                   onClick={() => selectSketchTool("fillet")}
-                  active={sketchTool === "fillet"}
+                  active={editing?.type === "sketch" && sketchTool === "fillet"}
                   disabled={editing?.type !== "sketch"}
                 />
                 <Command icon={FlipHorizontal2} label="Simetría de croquis" large
-                  onClick={() => selectSketchTool("mirror")} active={sketchTool === "mirror"}
+                  onClick={() => selectSketchTool("mirror")} active={editing?.type === "sketch" && sketchTool === "mirror"}
                   disabled={editing?.type !== "sketch"} />
                 <Command icon={CopyPlus} label="Equidistancia de entidades" large
-                  onClick={() => selectSketchTool("offset")} active={sketchTool === "offset"}
+                  onClick={() => selectSketchTool("offset")} active={editing?.type === "sketch" && sketchTool === "offset"}
                   disabled={editing?.type !== "sketch"} />
                 <Command
                   icon={Component}

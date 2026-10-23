@@ -35,6 +35,44 @@ The final result is one solid with area 848 mm² and bounds [−10, −6, 0] to
 [10, 6, 9] mm. This analytical example does not establish arbitrary sequence
 or topology-reference coverage.
 
+## Fresh sketches on current faces
+
+The separate `npm run test:desktop:part-fresh-sketch` workflow starts with only
+an original 20 × 12 × 4 mm base, without prepared downstream sketches. Build
+first. Its tracked recipe is `scripts/desktop-part-fresh-sketch-original.cjs`;
+the interaction is in `scripts/desktop-part-fresh-sketch-flow.cjs`.
+
+1. Enable **Seleccionar caras** and select the base's upper face at Z = 4 mm.
+   Choose **Crear croquis en cara**, then **Croquis → Rectángulo**, and draw
+   a centered 4 × 4 mm rectangle.
+   Wait for the supported sketch view to settle before drawing; inspect its
+   support in the left properties, then choose **Salir del croquis**.
+2. Choose **Saliente/Base extruido**, set depth **3 mm**, and inspect the
+   current-body merge default before accepting.
+3. Enable face selection again and select the new upper face at Z = 7 mm.
+   Draw a fresh centered 2 × 2 mm rectangle, exit the sketch, and choose
+   **Corte extruido** with depth **−3 mm**. Inspect the current-body target
+   and accept. The pocket floor is Z = 4 mm.
+4. Undo/redo the cut, save and reopen. Both sketches should retain their face
+   supports and drawn points, with one final solid.
+
+The independent volumes are 960, 1008 and 996 mm³; areas are 736, 784 and
+808 mm². Final bounds are [−10, −6, 0] to [10, 6, 7] mm. The renderer scenario
+uses pointer events for face selection and drawing, with visible SVG calibration;
+its mesh-area checks are separate from native BRep evidence in
+`src/cad/kernel.part-fresh-sketch.test.ts`. This bounded case does not establish
+arbitrary face orientations, topology changes or general sketch interaction.
+
+Drawing commands can start a fresh sketch directly. Their blue active state
+appears only while editing a sketch; **Seleccionar** requires an open sketch,
+and **Cota inteligente** requires an editable multientity profile. Compact
+operation commands occupy two rows with additional columns; the command area
+scrolls horizontally when needed so labels remain available.
+
+The command and checks above describe the configured workflow, not a passing
+run. Consult [validation](VALIDATION.md) for actual execution and
+[provenance](PROVENANCE.md#fresh-support-face-original) for analytical tolerances.
+
 ## Mouse controls
 
 | Input | Action |

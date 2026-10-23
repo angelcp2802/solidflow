@@ -1,5 +1,25 @@
 # Project status and review queue
 
+### Fresh face sketches and interface review
+
+The next focused increment in [issue #55](https://github.com/angelcp2802/solidflow/issues/55)
+checks actual pointer-created sketches on two successive native faces, automatic
+merge/cut destinations, history and saved reopening. It fixes falsely active
+sketch tools and clipped rows in the part-operation ribbon. The original
+production renderer passes 39 checks / eight geometry phases; two native cases
+also check reconstruction and upstream editing. See [core workflows](CORE_WORKFLOWS.md)
+and [validation](VALIDATION.md) for exact tolerances and execution boundaries.
+The visible piece review also identifies long sidebar scrolling and faint
+reference/helper text. Full assembly-interface and compact-window acceptance
+remain open in the same draft PR #49.
+
+Hosted component snapshot `14ef731` ends with 11 successful jobs and four failures
+in [CI 40030417412](https://github.com/angelcp2802/solidflow/actions/runs/40030417412).
+The macOS six-role hinge stops source/replacement repair step fails; the three
+dependent Desktop gates fail and later checks skip. The failing application
+operation and cause are not established by the job status. Security40030417631
+passes. No gate or deadline is relaxed to bypass these results.
+
 ### Configured component authoring
 
 The next increment in [issue #55](https://github.com/angelcp2802/solidflow/issues/55)

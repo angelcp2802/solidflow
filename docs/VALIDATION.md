@@ -1,5 +1,68 @@
 # Validation
 
+## Fresh support-face sketches and ribbon review — 2026-10-24
+
+The increment after `c175b5f`, tracked in issue #55, exercises two freshly
+drawn sketches on actual selected faces, automatic merge/cut body destinations,
+history and saved reopening. It also corrects sketch-tool active/disabled
+states and vertically clipped operation commands. The ribbon uses two rows,
+additional columns and horizontal scrolling when needed.
+
+Windows x64 / Node 24.11.1 focused execution:
+
+- `kernel.part-fresh-sketch.test.ts`: **two native cases pass** in 2.94 s.
+  Original base, boss and pocket volumes are 960/1008/996 mm³; areas are
+  736/784/808 mm². STEP reimport checks valid BRep and one solid. Saved native
+  references survive reconstruction, history, repeated construction and an
+  upstream base-depth edit to 5 mm (volume 1236, area 872, maximum Z=8).
+  Bounds use 1e-6 mm and volume/area 1e-5.
+- `test:desktop:part-fresh-sketch`: **39 checks / eight geometry phases pass**.
+  Actual CDP pointer events select both faces and draw both entity rectangles.
+  The original input contains only the base sketch and extrusion. The test
+  leaves automatic body destinations unchanged, then checks Undo/Redo and
+  native Save As/reopen through test-owned dialogs. Literal volume tolerance is
+  1e-5 mm³, planar mesh area 1e-4 mm² and bounds 1e-6 mm. Saved pointer targets
+  are independently checked at 1e-9 mm after the editor's 0.001 mm snap.
+  No console/resource errors; child close and temporary-profile cleanup pass.
+- The same renderer checks neutral/active sketch-tool states and verifies that
+  stacked commands fit vertically inside the ribbon. Its final 1544×941 capture
+  was visually inspected: all operation rows and labels are visible. Minimum
+  window width and general responsive behavior are not established by this case.
+
+Initial harness attempts exposed a disabled-control title selector, a React
+commit wait and SVG `getBBox()` Float32 rounding (12.000001008845558 for the
+12 mm displayed envelope). Those test-specific issues were corrected before
+the passing run. The envelope calibration now admits an explicit Float32 pixel
+budget, capped below 0.0001 mm; saved-point and native geometry tolerances remain
+unchanged. No geometric application change was required for this sequence.
+
+A separate visible Windows UI review exercised wheel zoom, face/edge selection,
+a temporary face rectangle, a 30 mm length dimension and Cancel. The dimension
+reduced displayed local freedom from four to three. Existing document edits
+were preserved. This is interaction evidence, not native metrology. Physical
+middle-button dragging, assembly authoring and other platforms were not tested
+in that manual review. Long sidebar scrolling, faint references/helper text
+and context-dependent disabled labels remain usability follow-ups.
+
+Final literal `npm test` passes **9,349 cases / 399 files** in 614.71 s, then
+**83 IPC/security checks**, zero failures and two explicit Windows skips
+(1,586.1638 ms). Final `npm run build`, actual Electron production-loader /
+worker / WASM smoke, and the existing `test:desktop:part-sequence` regression
+pass. Build retains the existing externalized-module and chunk-size warnings.
+All 1,044 frozen non-Markdown source/test/configuration files stayed unchanged
+through the complete suite and final checks. Documentation-only updates followed.
+
+Parsed CI comparison retains every prior job and step after excluding exactly
+the two new fixed fresh-sketch renderer steps. All 78 prior npm scripts remain.
+No timeout, gate, permission, sandbox or pinned action changes.
+
+Hosted predecessor `14ef731`: [CI 40030417412](https://github.com/angelcp2802/solidflow/actions/runs/40030417412)
+ends with 11 successful jobs and four failures. The macOS hinge-symmetry batch
+fails at step 82, six-role hinge stops source/replacement repair; three dependent
+Desktop gates fail and their later checks skip. This identifies the failing
+step, not the application-level cause. [Security 40030417631](https://github.com/angelcp2802/solidflow/actions/runs/40030417631)
+passes. These results do not establish new-head or full platform acceptance.
+
 ## Configured component authoring — 2026-10-23
 
 The increment after `20f9ea5`, tracked in issue #55, adds configured component

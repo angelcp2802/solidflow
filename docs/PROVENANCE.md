@@ -7183,3 +7183,44 @@ or remaining limits belong in [validation](VALIDATION.md). The original case
 does not prove arbitrary AP242 compatibility, another CAD kernel, human native
 dialogs, browser fallback, installed packages, general platform support or the
 complete assembly demo.
+
+## Fresh support face original
+
+The original analytical recipe in `scripts/desktop-part-fresh-sketch-original.cjs`
+and native cases in `src/cad/kernel.part-fresh-sketch.test.ts` were authored for
+this project under its GPL-3.0 license. They use no external CAD model, vendor
+asset or proprietary source. The renderer input contains only a centered
+20 × 12 mm XY rectangle and its 4 mm extrusion; downstream sketches are absent.
+
+The workflow creates a centered 4 × 4 mm rectangle on the current Z = 4 mm
+face, merges a 3 mm boss, then creates a centered 2 × 2 mm rectangle on the
+new Z = 7 mm face and cuts with depth −3 mm. The pocket ends at Z = 4 mm.
+The independent volume calculation is 20×12×4 = 960, then +4×4×3 = 1008,
+then −2×2×3 = 996 mm³. The base area is
+2×(20×12 + 20×4 + 12×4) = 736 mm². The boss adds its lateral area
+4×4×3 = 48 mm²: the removed contact patch and new top patch cancel.
+The pocket likewise adds 4×2×3 = 24 mm², giving areas 784 and 808 mm².
+Bounds remain [−10, −6, 0] to [10, 6, 4] for the base and
+[−10, −6, 0] to [10, 6, 7] after both operations.
+
+Native checks use absolute 1e-6 mm length and 1e-5 physical-property bands
+in their respective units. Renderer worker volume uses 1e-5 mm³, bounds
+1e-6 mm, and independently summed planar mesh area 1e-4 mm². Mesh area
+is not a native BRep-area measurement. The sketch's existing 0.001 mm snap
+is retained; saved points are compared to the intended snapped pointer targets
+under 1e-9 mm, separately from geometric properties.
+
+`desktop-part-fresh-sketch-flow.cjs` uses actual pointer events to pick support
+faces and draw the two rectangles. Rendered SVG origin, grid and projected
+reference bounds calibrate screen coordinates. SVG Float32 pixel bounds admit
+a bounded calibration budget derived from coordinate magnitude and scale,
+required to remain below 0.0001 mm. This calibration allowance does not relax
+saved-point or native tolerances. Screenshots document appearance only; neither
+they nor Float32 display coordinates provide geometry authority. History and
+file reopening compare the retained sketch supports, points and destinations.
+
+These are tracked definitions and intended checks, not passing renderer or
+full-suite claims. Executed results belong in [validation](VALIDATION.md).
+Coverage is limited to this centered planar sequence; it does not establish
+arbitrary support orientation, changing topology, general interactive sketch
+coverage or platform support.
