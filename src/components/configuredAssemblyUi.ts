@@ -5,6 +5,8 @@ import { composeRigidPoses, validateRigidPose, type RigidPose } from '../model/r
 import { rotationExp } from '../model/assemblyKinematics'
 import type { ConfiguredAssemblyScene } from '../cad/kernel.assembly-configuration-scene'
 import type { AssemblyScene } from '../cad/kernel.assembly-types'
+import type { ConfiguredAssemblyBomMember, ConfiguredAssemblyBomReport, ConfiguredAssemblyBomOptions } from '../model/assemblyConfiguredBom'
+import { serializeConfiguredAssemblyBomCsv } from '../model/assemblyConfiguredBomCsv'
 type Mutable<T> = T extends object ? { -readonly [K in keyof T]: Mutable<T[K]> } : T
 /** A detached mutable display copy; this never invokes a legacy CAD producer. */
 export function configuredUiDisplayScene(scene: ConfiguredAssemblyScene): AssemblyScene {
@@ -73,6 +75,58 @@ export function configuredUiTicket(document: AssemblyConfiguredDocument, generat
 }
 export function configuredUiTicketMatches(ticket: ConfiguredUiTicket, current: ConfiguredUiTicket): boolean {
   return ticket.serialized === current.serialized && ticket.generation === current.generation && ticket.scope === current.scope && ticket.path === current.path && ticket.occurrence === current.occurrence
+}
+export interface ConfiguredBomUiTicket { context: ConfiguredUiTicket; view: string; revision: number }
+/** The local revision also rejects close/reopen and option away/back callbacks. */
+export function configuredBomUiTicket(context: ConfiguredUiTicket, open: boolean, revision: number, options: ConfiguredAssemblyBomOptions): ConfiguredBomUiTicket {
+  return { context: { ...context }, view: JSON.stringify({ open, options }), revision }
+}
+export function configuredBomUiTicketMatches(before: ConfiguredBomUiTicket, after: ConfiguredBomUiTicket): boolean {
+  return configuredUiTicketMatches(before.context, after.context) && before.view === after.view && before.revision === after.revision
+}
+export function configuredBomUiSelectedPath(report: ConfiguredAssemblyBomReport | null, serialized: string,
+  selection: { serialized: string; member: ConfiguredAssemblyBomMember } | null): string[] {
+  if (!report || !selection || selection.serialized !== serialized) return []
+  const expected = JSON.stringify(selection.member)
+  const member = report.rows.flatMap(row => row.members).find(value => JSON.stringify(value) === expected)
+  return member ? [...member.component.occurrencePath] : []
+}
+export interface ConfiguredCsvDownloadEnvironment {
+  createObjectURL: (blob: Blob) => string
+  revokeObjectURL: (url: string) => void
+  createLink: () => { href: string; download: string; click: () => void }
+  schedule: (callback: () => void, milliseconds: number) => void
+}
+/** Browser-only alternative to the desktop CSV bridge; owns its exact bytes. */
+export function downloadConfiguredBomCsv(bytes: Uint8Array, name: string, environment: ConfiguredCsvDownloadEnvironment = {
+  createObjectURL: blob => URL.createObjectURL(blob), revokeObjectURL: url => URL.revokeObjectURL(url),
+  createLink: () => window.document.createElement('a'), schedule: (callback, milliseconds) => { setTimeout(callback, milliseconds) },
+}): void {
+  if (!(bytes instanceof Uint8Array) || !bytes.byteLength || bytes.byteLength > 20 * 1024 * 1024) throw Error('El CSV está vacío o supera 20 MiB.')
+  const url = environment.createObjectURL(new Blob([bytes.slice().buffer], { type: 'text/csv;charset=utf-8' }))
+  try {
+    const link = environment.createLink(); link.href = url; link.download = name + '.csv'; link.click()
+    environment.schedule(() => environment.revokeObjectURL(url), 2000)
+  } catch (reason) { environment.revokeObjectURL(url); throw reason }
+}
+export async function runConfiguredBomCsvExport(document: AssemblyConfiguredDocument, options: ConfiguredAssemblyBomOptions, io: {
+  isCurrent: () => boolean
+  write?: (bytes: Uint8Array, name: string) => Promise<string | null>
+  download: (bytes: Uint8Array, name: string) => void
+}): Promise<'stale' | 'cancelled' | 'exported'> {
+  // Serialize this complete committed context before the first await. A report
+  // or display scene is deliberately not an accepted input.
+  const bytes = new TextEncoder().encode(serializeConfiguredAssemblyBomCsv(document, options)), name = document.source.name + '-materiales-configurados'
+  if (!io.isCurrent()) return 'stale'
+  if (io.write) {
+    // The dialog/write cannot be canceled by closing the table. Its caller
+    // retains the shared file-operation gate until this promise settles.
+    const target = await io.write(bytes, name)
+    if (!io.isCurrent()) return 'stale'
+    return target === null ? 'cancelled' : 'exported'
+  }
+  io.download(bytes, name)
+  return io.isCurrent() ? 'exported' : 'stale'
 }
 export function configuredUiSceneMatches(scene: ConfiguredAssemblyScene, document: AssemblyConfiguredDocument, generation: number): boolean {
   const checked = validateAssemblyConfiguredDocument(document), context = scene?.context

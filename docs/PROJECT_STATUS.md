@@ -1,5 +1,33 @@
 # Project status and review queue
 
+### Configured quantities, CSV and reproducible demo
+
+The increment after `c234b61` adds a committed-v3 BOM with variant-aware rows,
+three modes, independent assembly range/member highlighting and restricted CSV
+export. Counts follow effective suppression/visibility and retain complete
+root paths/state ancestry. They certify no material, mass or solved relations.
+
+Final Windows x64 validation passes 9068 unit/CAD cases in 379 files and 79
+security/source cases, with two explicit Windows skips. Build, actual Electron
+smoke, the configured renderer's 80 milestones/13 BOM phases and the existing
+527-milestone rigid renderer pass. CSV cancel, real filesystem error and actual
+root/scoped writes preserve the document. See the [contract](ASSEMBLY_CONFIGURED_BOM.md),
+[demo](DEMO_ASSEMBLIES.md#configured-quantities-and-csv) and
+[validation](VALIDATION.md#configured-bom-csv-and-workflow-diagnostics--2026-10-23).
+
+This remains the same [draft PR #49](https://github.com/angelcp2802/solidflow/pull/49),
+not a merge or release. Earlier snapshot `893ec01` passed Linux distance and
+directed-stop steps but subsequently failed symmetry repair; Windows failed
+IPC security and macOS remained in unit/CAD checks at inspection. Its separate
+CodeQL count fell from nine to two alerts. This increment removes only the
+redundant FIFO test read and adds bounded primary-failure annotations; it must
+receive its own hosted acceptance. No check or query is suppressed.
+
+Configured relation/capture/repair, source lifecycle, interference/geometric
+export/import, parameter/part-feature variants, flexible instances and the
+complete assembly/demo gate remain open. Historical entries below retain their
+own source-specific results and publication context.
+
 ### Prototype hardening and reproduced renderer failure
 
 The follow-up on `f167be2` replaces seven caller-named object-write paths with

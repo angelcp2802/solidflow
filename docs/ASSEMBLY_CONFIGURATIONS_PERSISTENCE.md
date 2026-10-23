@@ -117,10 +117,14 @@ test; configured CI is not an executed platform result.
 
 Still required: complete configured relation authoring/parameter editing,
 native mechanical capture and repair, all-family motion/drag/source lifecycle,
-configuration-aware BOM/interference/export and project import, parameter and
+configuration-aware interference/geometric export and project import, parameter and
 part-feature variants, and flexible instances. Incompatible legacy consumers
 continue rejecting v3. The configured view labels its unavailable operations;
 it must not substitute base-state results for the selected configuration.
 Suppressing a component used by an active relation can leave that relation
 unavailable. This view cannot yet repair or suppress the relation; restore the
 component before solving that state again.
+
+The [configured declaration BOM](ASSEMBLY_CONFIGURED_BOM.md) is now a separate
+committed-context consumer with variant grouping, explicit scope and CSV export.
+It grants no native geometry, relation satisfaction or Apply authority.

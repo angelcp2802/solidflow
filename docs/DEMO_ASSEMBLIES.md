@@ -41,11 +41,38 @@ every authoring control. Suppressing a related component may make its relation
 unavailable. Restore that component before solving; relation repair is not yet
 available in this view.
 
+## Configured quantities and CSV
+
+With the same original document, open **Lista de materiales**. Its root range
+is independent of the editing scope. These counts come from effective piece
+occurrences, not native body count or mass.
+
+1. Choose **Both compact** and **Primer nivel**: one S.compact row has quantity
+   two. **Con jerarquía** adds A and B rows, each with total two and one per parent.
+2. Choose **Right compact**: first level separates S.Base and S.compact. The
+   hierarchical view retains their distinct state ancestry. **Solo piezas**
+   still gives A twice and B twice.
+3. Choose **Right single**: A remains twice and B once because right/B is
+   suppressed. Do not solve this state while its active relation needs the
+   suppressed component; the table does not certify relation satisfaction.
+4. Return to **Both compact**. Choose the table's `right` range and **Solo piezas**:
+   A and B each occur once. Selecting an exact member highlights it without
+   changing the editing scope or making hidden components visible.
+5. Press **Exportar CSV**. Open the resulting UTF-8 CSV to inspect definition
+   identity, variant, quantities, full root-relative paths and state ancestry.
+   Text cells intentionally carry an initial apostrophe. Canceling the dialog
+   preserves the document, saved filepath and history.
+
+The scripted workflow also checks hidden-ancestor filtering, a real export
+filesystem error and closing the table while an actual write is underway. Its
+dialogs use only isolated test-owned paths. See the [BOM contract](ASSEMBLY_CONFIGURED_BOM.md)
+and [actual validation](VALIDATION.md) for boundaries and executed results.
+
 ## Scope
 
 The ordinary rigid assembly workspace and configured workspace have different
 available controls. The configured view currently lacks relation creation and
-repair, interactive constrained dragging, configured BOM/interference/export,
+repair, interactive constrained dragging, configured interference/geometric export,
 part-feature variants and flexible instances. A passing walkthrough does not
 establish arbitrary model compatibility, complete mechanical motion, installed
 packaging or Windows/macOS/Linux support.

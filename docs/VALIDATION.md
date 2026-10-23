@@ -1,5 +1,73 @@
 # Validation
 
+## Configured BOM, CSV and workflow diagnostics — 2026-10-23
+
+Local `codex/configured-assembly-bom` follows `c234b61`. The complete committed
+v3 context now supplies a declaration BOM and CSV with effective variants,
+explicit root-relative scopes and independent member highlighting. This is a
+new consumer, not native mass/material or relation-satisfaction evidence.
+See the [contract](ASSEMBLY_CONFIGURED_BOM.md) and original
+[provenance](PROVENANCE.md#original-configured-bom-and-csv-cases).
+
+Actual final Windows x64 / Node 24.11.1 results:
+
+| Command | Actual result |
+| --- | --- |
+| `npm test` | PASS, 379 files / 9068 unit/CAD cases in 381.64 seconds; 79 IPC/security/source checks passed, zero failed, two skipped, 1522.4233 ms. Skips remain Windows file-symlink permission and POSIX-only real FIFO. |
+| `npm run build` | PASS, TypeScript and production build, 2083 modules. Existing browser-externalization and large-chunk warnings remain. |
+| `npm run test:desktop` | PASS, real production Electron and independent production worker/WASM recovery probe; zero recorded console/resource failures. |
+| `npm run test:desktop:assembly-configurations` | PASS, 80 recorded milestones, 13 BOM table phases and 15 native geometry/lifecycle phases. Real worker, controls and restricted file IPC, three Open/two Save As/four CSV dialogs, confirmed child close/profile removal; zero recorded renderer console/resource failures. |
+| `npm run test:desktop:assembly` | PASS, 527 existing milestones including the separate v2 BOM/CSV flow, confirmed child close/profile removal; zero recorded renderer console/resource failures. |
+
+All 977 tracked non-Markdown production/test/config inputs retained digest
+`d68fd07305f115d72b5d58d97055cbc03ae4e17bdf31c056fffbab60317baaa8`
+through the complete suite, final build, smoke and both final renderer runs.
+
+The 23 new pure BOM/CSV cases cover exact-state grouping, three-level ancestry,
+suppression/reactivation, inherited visibility, nested scopes with full root
+paths, multibody one-unit counts, detached ownership, dormant validation,
+hostile option getters, Unicode and bounded output. Fifteen new UI/SSR/controller
+cases cover the independent panel, ticket invalidation and export outcomes.
+They also pass within the full run; they do not establish native geometry.
+
+The configured renderer checks Base versus compact grouping, mixed versus
+equal child ancestry, active suppression, hidden-ancestor filtering and exact
+member selection without changing edit scope/history/recovery. Native checks
+retain the original prism bounds at 1e-6 mm and mass properties at 1e-5 in
+corresponding units: four solids / 68 mm³ / 172 mm², or three / 58 / 138 after
+suppressing right/B. The suppressed-reference state is not claimed as a solve.
+
+Actual CSV export covers cancellation, a real atomic-rename filesystem failure
+against an owned directory, a successful captured write after the panel closes,
+and a scoped successful write. Independent literal rows and a separate quoted
+CSV parser check UTF-8 BOM, CRLF, fourteen columns, text apostrophes, quantities,
+selectors, full paths and ancestry. Disk bytes equal IPC bytes. Root hierarchical
+CSV is 2134 bytes, SHA-256 `59ff51923b36dda7ba7264fd4044176e8995e983bccfd00490af52f19f3de5a3`;
+right-scoped parts CSV is 998 bytes, SHA-256
+`b1868e6cc9237826dbac959bb1c6e1ea34373a2da3bd3844036fc8e9e9511d04`.
+Input and saved document bytes remain unchanged. An initial renderer run failed
+because its test helper passed a boolean to a string-only JavaScript encoder;
+the corrected helper passes an explicit string. No product bypass or deadline
+change was used. The final run also produced an actual read-only PNG capture;
+it is not a video or a human-dialog/installed-package test.
+
+Nine new Node diagnostic cases pass in the full IPC suite. CI failure messages
+are bounded, escaped and stripped of absolute paths/URLs; the actual child
+primary failure is annotated before its unchanged failure JSON and exit.
+The only FIFO-test deletion removes a redundant unprotected read after the
+real protected request already verifies the exact restored bytes in all three
+channels. No production file policy, query or branch check is relaxed.
+
+Hosted acceptance remains open. Previous snapshot `893ec01` reached passing
+Linux distance and directed-stop workflows, then failed material-vertex symmetry
+repair; Windows failed its IPC-security step, and macOS was still executing its
+unit/CAD step when inspected. Exact hosted assertions were unavailable through
+the connector; their causes are not inferred from local passes. That snapshot's
+separate CodeQL check had two alerts, down from nine: the redundant FIFO read
+and the documented private-worker origin warning. The current snapshot needs
+fresh hosted results. The existing moderate Dependabot alert is not dismissed.
+Complete assemblies, installed packages and platform support remain unaccepted.
+
 ## Prototype hardening and renderer contracts — 2026-10-23
 
 Local `codex/assembly-prototype-hardening` follows `f167be2`. Seven strict model

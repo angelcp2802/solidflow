@@ -9,6 +9,7 @@ const { createRequire } = require('node:module');
 const { randomUUID, createHash } = require('node:crypto');
 const { spawn } = require('node:child_process');
 const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
+const { emitDesktopCiFailure, markDesktopCiFailureReported } = require('./desktop-ci-diagnostics.cjs');
 const SCENARIOS = Object.freeze({
   all: Object.freeze({ fixture: 'pattern-all-original.json', entry: 'desktop-pattern-all.cjs',
     test: 'production-renderer-selected-to-ALL', caption: 'ALL' }),
@@ -270,7 +271,18 @@ async function launch() {
       check(png.length <= 10 * 1024 * 1024 && digest(png) === report.captures[0].sha256, 'Assembly capture bytes changed.');
       report.captureImage = { ...report.captures[0], base64: png.toString('base64') };
     }
-  } catch (error) { primary ??= error; }
+  } catch (error) {
+    primary ??= error;
+    // A completed child's FAIL evidence means finish already emitted its
+    // primary assertion. Keep the parent close/teardown error unchanged, but
+    // do not replace that annotation with a less useful generic exit message.
+    if (closed) {
+      try {
+        const childReport = JSON.parse(await fsp.readFile(path.join(temporary, 'workflow-result.json'), 'utf8'));
+        if (childReport.workflowStatus === 'FAIL' && typeof childReport.error?.message === 'string') markDesktopCiFailureReported(primary);
+      } catch { /* Missing child evidence requires the outer failure fallback. */ }
+    }
+  }
   finally {
     clearTimeout(timer);
     if (child && !closed && !(spawnError && !spawned && !child.pid)) {
@@ -593,6 +605,9 @@ async function runInElectron() {
   const bomPath = assembly ? path.join(owned, 'input-bom.solidflow') : null;
   const bomFixture = assembly ? JSON.parse(fs.readFileSync(bomPath, 'utf8')) : null;
   const bomCsvOutputs = assembly ? ['parts', 'top', 'indented'].map(name => path.join(owned, 'bom-' + name + '.csv')) : [];
+  const configuredBomCsvOutputs = configurations ? ['failure-directory', 'root', 'scoped'].map(name => path.join(owned, 'configured-bom-' + name + '.csv')) : [];
+  if (configurations) fs.mkdirSync(configuredBomCsvOutputs[0]);
+  const configuredCsvBarrier = { pending: false, release: null };
   const assemblyExportFormats = assemblyExport ? ['step', 'step', 'stl', 'step', 'stl', 'step', 'stl'] : [];
   const assemblyExportOutputs = assemblyExportFormats.map((format, index) => path.join(owned, 'assembly-export-' + (index + 1) + '.' + format));
   const inputPaths = untilNext ? { cut: input, add: path.join(owned, 'input-add.solidflow'),
@@ -622,7 +637,7 @@ async function runInElectron() {
     : symmetryRepair ? [input, repairFiles.updatedPart, repairFiles.updatedPart, repairFiles.updatedSaved, repairFiles.baselineSaved,
       repairFiles.replacementPart, repairFiles.replacementPart, repairFiles.replacementSaved]
     : symmetryPicking ? [input, ...Array(6).fill(output)]
-    : symmetry ? [input, ...Array(5).fill(output)] : [input, output];
+    : symmetry ? [input, ...Array(5).fill(output)] : configurations ? [input, output, output] : [input, output];
   const savePaths = configurations ? [null, output] : untilNext ? [outputs.cutSelected, outputs.cutAll, outputs.add] : assembly ? [output, projectionOutput, translationOutput, gearOutput]
     : assemblyImport ? [importBaselinePath, output]
     : sourceRevision ? [null, output]
@@ -647,10 +662,11 @@ async function runInElectron() {
   function finish(error) {
     if (finished) return;
     finished = true; clearTimeout(timeout);
+    if (error) emitDesktopCiFailure(error);
     const report = { workflowStatus: error ? 'FAIL' : 'PASS', checks, protocolResponses, consoleErrors, failedRequests, captures,
       dialogSubstitutions: { opens, saves, csvExports, ...(linkedSource || sourceRevision ? { sourceOpens } : {}), ...(assemblyExport || structuralStep || structuralInsertion ? { geometryExports } : {}), ...(structuralStep || structuralInsertion ? { stepImports } : {}) }, ipc, ...(error ? { error: describeError(error) } : {}) };
     try { fs.writeFileSync(path.join(owned, 'workflow-result.json'), JSON.stringify(report, null, 2)); }
-    catch (writeError) { console.error(new AggregateError(error ? [error, writeError] : [writeError], 'Workflow evidence could not be written.', { cause: error ?? writeError })); process.exitCode = 1; }
+    catch (writeError) { if (!error) emitDesktopCiFailure(writeError); console.error(new AggregateError(error ? [error, writeError] : [writeError], 'Workflow evidence could not be written.', { cause: error ?? writeError })); process.exitCode = 1; }
     if (error) { console.error(error); process.exitCode = 1; }
     const encoded = JSON.stringify({ test: activeScenario.test, ...report });
     if (error || process.exitCode === 1) {
@@ -835,7 +851,7 @@ async function runInElectron() {
   }
   // The extra workflow is a fixed tracked module, never a caller/env-selected script.
   const actualWorkflow = configurations
-    ? require('./desktop-assembly-configurations-flow.cjs')({ expected, input, output, evaluate, observe, waitFor, click, capture, checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
+    ? require('./desktop-assembly-configurations-flow.cjs')({ expected, input, output, bomCsvOutputs: configuredBomCsvOutputs, csvBarrier: configuredCsvBarrier, evaluate, observe, waitFor, click, capture, checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : importedBodies
     ? require('./desktop-imported-bodies-flow.cjs')({ expected, input, output, evaluate, observe, waitFor, click, menu,
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
@@ -1071,7 +1087,9 @@ async function runInElectron() {
           sha256: digest(Buffer.from(payload.data.buffer, payload.data.byteOffset, payload.data.byteLength)) };
       }
       if ((sourceRevision || configurations) && channel === 'document:save') observation.documentWrite = { name: payload?.name, hasPath: typeof payload?.filePath === 'string', ...(configurations ? { filePath: payload?.filePath } : {}), sha256: typeof payload?.content === 'string' ? digest(payload.content) : null };
-      const result = await handler(event, payload); observation.completed = true;
+      let result;
+      try { result = await handler(event, payload); observation.completed = true; }
+      catch (error) { if (configurations && observation.csv) observation.failed = true; throw error; }
       if ((sourceRevision || configurations) && channel === 'document:save') observation.documentWrite.chosen = result !== null;
       if ((linkedSource || sourceRevision) && ['source:choose', 'source:read'].includes(channel) && result) observation.source = { name: result.name, sha256: result.sha256, hasGrant: typeof result.grantId === 'string', noPath: !Object.hasOwn(result, 'path') };
       return result;
@@ -1108,9 +1126,17 @@ async function runInElectron() {
           'Unexpected flat geometry export native-dialog policy.');
         return geometryExports === 1 ? { canceled: true } : { canceled: false, filePath: assemblyExportOutputs[geometryExports - 1] };
       }
-      if (assembly && options.title === 'Exportar lista de materiales') {
+      if ((assembly || configurations) && options.title === 'Exportar lista de materiales') {
         check(++csvExports <= 4 && options.filters?.length === 1 && options.filters[0].extensions?.length === 1
           && options.filters[0].extensions[0] === 'csv', 'Unexpected CSV export native-dialog policy.');
+        if (configurations) {
+          check(path.basename(options.defaultPath) === 'Original configured prisms-materiales-configurados.csv', 'Exact configured CSV default name.');
+          if (csvExports === 3) {
+            await new Promise(resolve => { configuredCsvBarrier.release = resolve; configuredCsvBarrier.pending = true; });
+            configuredCsvBarrier.pending = false;
+          }
+          return csvExports === 1 ? { canceled: true } : { canceled: false, filePath: configuredBomCsvOutputs[csvExports - 2] };
+        }
         return csvExports === 1 ? { canceled: true } : { canceled: false, filePath: bomCsvOutputs[csvExports - 2] };
       }
       if (structuralStep || structuralInsertion) check(path.basename(options.defaultPath) === (structuralInsertion ? 'Original structural insertion parent.solidflow' : 'Conjunto _Árbol_ Ω.solidflow'), 'Structural Save As uses the literal sanitized original name.');
@@ -1142,7 +1168,7 @@ async function runInElectron() {
 function runScenario(name) {
   check(!started && typeof name === 'string' && Object.hasOwn(SCENARIOS, name), 'Expected one statically allowlisted test scenario.');
   started = true; activeScenario = SCENARIOS[name];
-  if (process.versions.electron) return runInElectron().catch(error => { console.error(error); process.exitCode = 1; require('electron').app.quit(); });
-  return launch().catch(error => { console.error(error); process.exitCode = error?.launcherExitCode ?? error?.cause?.launcherExitCode ?? 1; });
+  if (process.versions.electron) return runInElectron().catch(error => { emitDesktopCiFailure(error); console.error(error); process.exitCode = 1; require('electron').app.quit(); });
+  return launch().catch(error => { emitDesktopCiFailure(error); console.error(error); process.exitCode = error?.launcherExitCode ?? error?.cause?.launcherExitCode ?? 1; });
 }
 module.exports = Object.freeze({ runScenario });

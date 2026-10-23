@@ -1,5 +1,34 @@
 # Public fixture provenance
 
+## Original configured BOM and CSV cases
+
+`assemblyConfiguredBom.test.ts` and `assemblyConfiguredBomCsv.test.ts` reuse the
+tracked original declaration fixture in `assemblyConfigurationCore.test-utils.ts`:
+A is a 2×3×4 mm prism and B a 1×2×5 mm prism, used by S twice under a root
+with an original quarter-turn placement. Base places B at X10, compact at X4,
+and single suppresses B. BOM expectations are independent occurrence counts:
+mixed and both-compact contain two A and two B units; single-right contains
+two A and one B. Distinct Base/compact assembly rows, repeated equal states,
+nested full paths and inherited hidden/suppressed filters are authored directly.
+
+Additional original declarations exercise equal names with different IDs or
+revisions, a two-body part still counted as one unit, unavailable relation
+references, stored source-link metadata and dormant variants. These are data
+inventory cases, not native material or solver evidence. The known prism mass
+formulas belong to the separate native fixture checks, not the BOM oracle.
+
+CSV cases use an independently authored quoted-record reader and literal
+headers, paths and ancestry. Synthetic text covers formula-like prefixes,
+quotes, line breaks, Unicode, invalid text and a bounded nested expansion that
+exceeds the encoded output budget. No private document or external model
+supplies an expected row or CSV byte sequence. The panel/export tests use
+original detached reports and controlled browser/file callbacks; they do not
+substitute for an executed production renderer or native file dialog.
+
+These fixtures are project-authored under GPL-3.0-only. See the
+[configured BOM contract](ASSEMBLY_CONFIGURED_BOM.md) and the validation ledger
+for the distinction between declarations, UI tests and executed acceptance.
+
 ## Original worker recovery and read-race cases
 
 The production worker recovery probe in `scripts/desktop-smoke.cjs` authors a

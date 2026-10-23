@@ -8,8 +8,10 @@ import { AssemblyConfiguredDocumentHistory } from '../model/assemblyConfiguredHi
 import { validateAssemblyConfiguredDocument, parseAssemblyConfiguredDocument, serializeAssemblyConfiguredDocument, type AssemblyConfiguredDocument } from '../model/assemblyConfiguredDocument'
 import { parseCadDocument, type CadDocument } from '../model/cadDocument'
 import { CAD_RECOVERY_KEY } from '../model/cadRecovery'
-import { createConfiguredUiRootVariant, createConfiguredUiScopeVariant, configuredUiPose, editConfiguredUiOccurrence, configuredUiTicket, configuredUiTicketMatches, configuredUiSceneMatches, configuredUiDisplayScene } from './configuredAssemblyUi'
+import { buildConfiguredAssemblyBom, type ConfiguredAssemblyBomOptions, type ConfiguredAssemblyBomMember } from '../model/assemblyConfiguredBom'
+import { createConfiguredUiRootVariant, createConfiguredUiScopeVariant, configuredUiPose, editConfiguredUiOccurrence, configuredUiTicket, configuredUiTicketMatches, configuredUiSceneMatches, configuredUiDisplayScene, configuredBomUiTicket, configuredBomUiTicketMatches, configuredBomUiSelectedPath, downloadConfiguredBomCsv, runConfiguredBomCsvExport } from './configuredAssemblyUi'
 import AssemblyViewport from './AssemblyViewport'
+import ConfiguredAssemblyBomPanel from './ConfiguredAssemblyBomPanel'
 import './assembly.css'
 import './configured-assembly.css'
 
@@ -34,6 +36,9 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
   const [rotationAxis, setRotationAxis] = useState<'X' | 'Y' | 'Z'>('Z'), [rotationDegrees, setRotationDegrees] = useState('0')
   const [view, setView] = useState<{ name: 'iso' | 'front' | 'top' | 'fit'; stamp: number }>({ name: 'iso', stamp: 0 })
   const [discardDialog, setDiscardDialog] = useState(false), answer = useRef<((allow: boolean) => void) | null>(null)
+  const [bomOpen, setBomOpen] = useState(false), [bomOptions, setBomOptions] = useState<ConfiguredAssemblyBomOptions>({ mode: 'parts-only', includeHidden: true, scopePath: [] })
+  const [bomSelection, setBomSelection] = useState<{ serialized: string; member: ConfiguredAssemblyBomMember } | null>(null)
+  const bomView = useRef({ open: bomOpen, options: bomOptions, revision: 0 }), bomToggle = useRef<HTMLButtonElement>(null)
   const dialog = useRef<HTMLDivElement>(null)
   const current = useRef(document), epoch = useRef(generation), scopeRef = useRef(scope), occurrenceRef = useRef(occurrenceId), pathRef = useRef(path), mounted = useRef(false)
   const pending = useRef(preview), operation = useRef(false), skipRecovery = useRef(skipInitialRecoveryWrite)
@@ -46,8 +51,17 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
   const selectedScope = evaluation.scopes.find(row => JSON.stringify(row.path) === scope) ?? evaluation.scopes[0]
   const selected = selectedScope.occurrences.find(row => row.id === occurrenceId)
   const rootVariants = document.catalog.find(row => assemblyDefinitionKey(row.definition) === assemblyDefinitionKey(document.source))?.configurations ?? []
+  const bom = useMemo(() => {
+    if (!bomOpen) return { report: null, error: undefined }
+    try { return { report: buildConfiguredAssemblyBom(document, bomOptions), error: undefined } }
+    catch (reason) { return { report: null, error: reason instanceof Error ? reason.message : 'Lista de materiales no disponible.' } }
+  }, [document, bomOpen, bomOptions])
+  const bomSelectedPath = configuredBomUiSelectedPath(bom.report, serialized, bomSelection)
   const ticket = () => configuredUiTicket(current.current, epoch.current, scopeRef.current, pathRef.current, occurrenceRef.current)
   const fresh = (value: ReturnType<typeof ticket>) => mounted.current && configuredUiTicketMatches(value, ticket())
+  const bomTicket = () => configuredBomUiTicket(ticket(), bomView.current.open, bomView.current.revision, bomView.current.options)
+  const renderedBomTicket = configuredBomUiTicket(renderedTicket, bomOpen, bomView.current.revision, bomOptions)
+  const freshBom = (value: ReturnType<typeof bomTicket>) => mounted.current && configuredBomUiTicketMatches(value, bomTicket())
   const release = (token: string) => { void discardConfiguredAssembly(token).catch(() => undefined) }
   const begin = (kind: NonNullable<typeof operationKind.current>) => { operation.current = true; operationKind.current = kind; setBusy(true); setCancelable(kind === 'build' || kind === 'solve') }
   const finish = () => { operation.current = false; operationKind.current = null; setBusy(false); setCancelable(false) }
@@ -160,6 +174,26 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
     revoke(0, reservedEpoch); setFailure(null); current.current = value; skipRecovery.current = false; setDocument(value)
   }
   const changeScope = (value: string) => { if (!fresh(renderedTicket) || operation.current || pending.current || !evaluation.scopes.some(row => JSON.stringify(row.path) === value)) return; revoke(); setFailure(null); scopeRef.current = value; occurrenceRef.current = ''; setScope(value); setOccurrenceId('') }
+  const changeBomView = (open: boolean, options = bomView.current.options) => {
+    if (!freshBom(renderedBomTicket)) return
+    if (bomView.current.revision >= Number.MAX_SAFE_INTEGER) { error(Error('Vuelve a abrir el ensamblaje para continuar con la lista de materiales.')); return }
+    bomView.current = { open, options: structuredClone(options), revision: bomView.current.revision + 1 }
+    setBomOpen(open); setBomOptions(bomView.current.options); setBomSelection(null)
+    if (!open) bomToggle.current?.focus()
+  }
+  const exportBom = async () => {
+    if (!freshBom(renderedBomTicket) || !bomView.current.open || operation.current || pending.current || !bom.report) return
+    const captured = bomTicket(), snapshot = parseAssemblyConfiguredDocument(captured.context.serialized), options = structuredClone(bomView.current.options)
+    setFailure(null); begin('file'); setMessage('Exportando lista de materiales CSV…')
+    try {
+      const outcome = await runConfiguredBomCsvExport(snapshot, options, {
+        isCurrent: () => freshBom(captured), write: window.solidflow ? (bytes, name) => window.solidflow!.exportDocument(bytes, name, 'csv') : undefined,
+        download: downloadConfiguredBomCsv,
+      })
+      if (freshBom(captured)) setMessage(outcome === 'cancelled' ? 'Exportación CSV cancelada.' : 'Lista de materiales configurada exportada como CSV.')
+    } catch (reason) { if (freshBom(captured)) error(reason) }
+    finally { if (mounted.current && epoch.current === captured.context.generation && operationKind.current === 'file') finish() }
+  }
   const displayScene = useMemo(() => scene ? configuredUiDisplayScene(scene) : null, [scene])
   const blocked = busy || !!preview
   return <div className="configured-assembly-workspace" aria-label="Ensamblaje configurado" aria-busy={busy}>
@@ -168,6 +202,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
       <button onClick={() => void open()} disabled={blocked}>Abrir</button><button onClick={() => void save(false)} disabled={blocked}>Guardar</button><button onClick={() => void save(true)} disabled={blocked}>Guardar como</button>
       <button onClick={() => undo(false)} disabled={blocked || !history.current.canUndo}>Deshacer</button><button onClick={() => undo(true)} disabled={blocked || !history.current.canRedo}>Rehacer</button>
       <button onClick={() => void solve()} disabled={blocked || !scene}>Resolver configuración</button><button onClick={() => void apply()} disabled={busy || !preview}>Aplicar configuración</button>
+      <button ref={bomToggle} aria-label="Lista de materiales configurada" aria-controls="configured-assembly-bom-panel" aria-pressed={bomOpen} disabled={busy} onClick={() => changeBomView(!bomOpen)}>Lista de materiales</button>
       <button onClick={() => { if (!fresh(renderedTicket) || operationKind.current !== 'build' && operationKind.current !== 'solve' && (operation.current || !pending.current)) return; revoke(); setFailure(null); setMessage('Vista previa cancelada. Se conserva el documento confirmado.') }} disabled={!cancelable && (!preview || busy)}>Cancelar</button>
     </nav>
     <div className="configured-assembly-layout"><aside>
@@ -189,11 +224,16 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
         {evaluation.scopes.some(row => JSON.stringify(row.path) === JSON.stringify([...selectedScope.path, selected.id])) && <label>Configuración hija<select aria-label="Configuración hija de la ocurrencia" disabled={blocked || selectedScope.configuration === null} value={evaluation.scopes.find(row => JSON.stringify(row.path) === JSON.stringify([...selectedScope.path, selected.id]))?.configuration ?? ''} onChange={event => edit({ configuration: event.target.value || null })}><option value="">Base</option>{document.catalog.find(row => assemblyDefinitionKey(row.definition) === assemblyDefinitionKey(selected.definition))?.configurations.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}</select>{selectedScope.configuration === null && <small>Crea primero una configuración del padre para elegir una variante hija.</small>}</label>}
       </section>}
       <h2>Piezas efectivas</h2><ul>{evaluation.parts.map(part => <li key={JSON.stringify(part.path)}>{part.path.join(' / ')}{part.suppressed ? ' · suprimida' : part.visible ? '' : ' · oculta'}</li>)}</ul>
-    </aside><main><nav aria-label="Vistas del ensamblaje configurado">{([['iso', 'Isométrica'], ['front', 'Frontal'], ['top', 'Superior'], ['fit', 'Ajustar']] as const).map(([name, label]) => <button key={name} disabled={busy} onClick={() => setView(old => ({ name, stamp: old.stamp + 1 }))}>{label}</button>)}</nav><div className="configured-assembly-view"><AssemblyViewport scene={displayScene} disabled={busy} view={view} onComponent={() => undefined} onFace={() => undefined} /></div>
+    </aside><main><nav aria-label="Vistas del ensamblaje configurado">{([['iso', 'Isométrica'], ['front', 'Frontal'], ['top', 'Superior'], ['fit', 'Ajustar']] as const).map(([name, label]) => <button key={name} disabled={busy} onClick={() => setView(old => ({ name, stamp: old.stamp + 1 }))}>{label}</button>)}</nav><div className="configured-assembly-view"><AssemblyViewport scene={displayScene} disabled={busy} view={view} selectedPath={preview ? [] : bomSelectedPath} onComponent={() => undefined} onFace={() => undefined} /></div>
       {preview && <p role="status">Vista previa verificada · todavía sin aplicar. {preview.states.length} estados resueltos; {preview.verification.reports.length} relaciones comprobadas.</p>}
       {scene && <p aria-label="Totales de configuración">{scene.scene.solidCount} sólidos · {scene.scene.volume.toFixed(3)} mm³ · {scene.scene.area.toFixed(3)} mm²</p>}
-      <p className="configured-assembly-limit">Edición de estados, selección de variantes y resolución. La creación y reparación de relaciones, exportación y movimiento interactivo aún no están disponibles en esta vista.</p>
-    </main></div>{failure && <p className="configured-assembly-error" role="alert">{failure}</p>}<footer role="status">{message}</footer>
+      <p className="configured-assembly-limit">Edición de estados, selección de variantes, resolución y lista de materiales CSV. La creación y reparación de relaciones, exportación de geometría y movimiento interactivo aún no están disponibles en esta vista.</p>
+    </main></div>{bomOpen && <ConfiguredAssemblyBomPanel report={bom.report} error={bom.error} options={bomOptions} disabled={blocked} selectedPath={bomSelectedPath}
+      rootConfigurationLabel={document.rootConfiguration === null ? 'Base' : `${rootVariants.find(value => value.id === document.rootConfiguration)?.name ?? document.rootConfiguration} · ${JSON.stringify(document.rootConfiguration)}`}
+      scopes={evaluation.scopes.map(value => ({ path: value.path, label: `${value.path.join(' / ') || 'Todo el ensamblaje'} · ${value.configuration ?? 'Base'}` }))}
+      onOptionsChange={options => { if (!freshBom(renderedBomTicket) || operation.current || pending.current) return; changeBomView(true, options) }}
+      onSelect={member => { if (!freshBom(renderedBomTicket) || operation.current || pending.current || !bom.report) return; const match = configuredBomUiSelectedPath(bom.report, serialized, { serialized, member }); if (match.length) setBomSelection({ serialized, member: structuredClone(member) }) }}
+      onExport={() => void exportBom()} onClose={() => changeBomView(false)} />}{failure && <p className="configured-assembly-error" role="alert">{failure}</p>}<footer role="status">{message}</footer>
     {discardDialog && <div ref={dialog} role="dialog" aria-modal="true" aria-label="Cambios del ensamblaje configurado"><p>Hay cambios sin guardar. ¿Abrir otro documento?</p><button onClick={() => { if (!fresh(renderedTicket)) return; const resolve = answer.current; answer.current = null; setDiscardDialog(false); resolve?.(false) }}>Cancelar apertura</button><button onClick={() => { if (!fresh(renderedTicket)) return; const resolve = answer.current; answer.current = null; setDiscardDialog(false); resolve?.(true) }}>Continuar sin guardar</button></div>}
   </div>
 }
