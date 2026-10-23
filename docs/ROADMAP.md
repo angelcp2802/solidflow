@@ -1,5 +1,34 @@
 # Roadmap
 
+The [persisted configuration integration](ASSEMBLY_CONFIGURATIONS_PERSISTENCE.md)
+connects complete v3 source/catalog/selection files to effective native scenes,
+private worker previews and atomic Apply, state editing, history, recovery and
+save/reopen. The [prototype walkthrough](DEMO_ASSEMBLIES.md) is a bounded route
+through these controls. The [relation editing increment](ASSEMBLY_CONFIGURED_RELATION_EDITING.md)
+adds state-specific declarations and graphical private previews. Configuration-aware
+consumers, complete relation/capture/repair, parameter/part-feature variants and flexible instances remain
+open; this is not the complete assembly/demo gate.
+
+The standalone [selected-state solve transaction](ASSEMBLY_CONFIGURATIONS_SOLVE.md)
+now connects child-before-parent execution, staged pose/winding writeback and
+fresh per-instance geometry gating with a private single-use Apply boundary.
+Named inheritance is isolated on base writes; shared child-state propagation
+remains explicit. The persisted integration above supplies its first saved/editor
+lifecycle. Parameter/part-feature variants, native capture/repair and flexible
+instances remain required.
+
+The [configured physical gate](ASSEMBLY_CONFIGURATIONS_VERIFICATION.md) adds
+standalone independent measurements and fresh verification for every placed
+use of the current relation inventory. The [selected-state scope prerequisite](ASSEMBLY_CONFIGURATIONS_SCOPE.md)
+supplies a reusable rigid-state dependency plan and closed local numerical
+adapters. The transaction above connects their standalone execution and atomic
+writeback; native capture lifecycle and saved/editor integration remain open.
+
+The [capture/winding prerequisite](ASSEMBLY_CONFIGURATIONS_STATE.md) adds strict
+state keys and actual named core capture overlays. It does not implement the
+remaining variant solve/writeback transaction, relation-parameter/part-feature
+variants, saved/editor lifecycle or flexible instances.
+
 SolidFlow is an early-stage parametric CAD application. This roadmap describes
 work to do, not completed support or promised delivery dates.
 
@@ -39,6 +68,49 @@ lifecycle and platform jobs distinct. Passing checks do not explain earlier
 failures, establish general platform support or authorize binary publication.
 
 ## Next priorities
+
+The [native structural STEP prerequisite](ASSEMBLY_STEP_STRUCTURE.md) preserves
+an explicit AP242 product/instance graph and autonomous saved bases for
+single-solid and [explicit multibody products](IMPORTED_BODIES.md). Structural
+editor/worker commands are described in the separate
+[editor integration](ASSEMBLY_STEP_EDITOR.md), including direct component
+insertion into a captured parent scope. Broader interchange acceptance
+remains open; flat geometry stays an explicit export choice. This does not close the full
+assembly-demo gate.
+
+The [rigid configuration evaluation core](ASSEMBLY_CONFIGURATIONS_CORE.md)
+is a standalone declaration prerequisite. Configuration-aware native references,
+variant-specific solving/writeback, saved/editor lifecycle, every graph
+consumer and flexible instances still require integration and acceptance.
+The separate [native context](ASSEMBLY_CONFIGURATIONS_NATIVE.md) currently
+admits the existing frame/geometry/surface/profile/bounded-path query purposes
+with a complete configuration lifetime. The separate
+[effective relation inventory](ASSEMBLY_CONFIGURATIONS_RELATIONS.md) adds
+selected declarations and native role aggregates. The standalone
+[numerical and physical bridge](ASSEMBLY_CONFIGURATIONS_NUMERIC.md) adds
+detached constraints and bounded independent support measurements. Production
+variant-specific solve/writeback, native capture/winding transactions and editor integration
+remain open; these prerequisites do not complete production configurations.
+
+The [revolute hinge prerequisite](ASSEMBLY_HINGE_CORE.md) adds a bounded
+unlimited numerical family and independent current-native measurements. The
+[saved hinge integration](ASSEMBLY_HINGE.md) adds four-role intent, worker/editor
+preview/Apply and repair. The [optional stop extension](ASSEMBLY_HINGE_STOPS.md)
+adds six-role saved intent and independent interval verification, with a bounded
+local-Z pointer stop/release workflow. Broader interval/selection policies and
+full assembly acceptance remain open; these controls alone do not close them.
+
+The local [numerical circular-path layer](ASSEMBLY_CIRCULAR_PATH_NUMERIC.md)
+extends the material-arc prerequisite with explicit domains, changing-tangent
+orientation and constrained movement. The separate
+[current-native bridge](ASSEMBLY_CIRCULAR_PATH_NATIVE.md) now derives inputs and
+independently verifies poses against the stored analytic Float64 model, with
+separate center/radius/frame/sweep arithmetic and disclosed topology tolerances.
+The [saved circular-path family](ASSEMBLY_CIRCULAR_PATH.md) connects explicit
+intent, repair, worker/editor preview/Apply and saved reopening for open arcs.
+External circular policies, complete-circle origins, multi-edge continuity,
+broader interaction/repair and complete assembly/demo acceptance remain open.
+Numerical/CAD and bounded renderer cases do not establish other-platform support.
 
 1. Make Windows, macOS and Linux builds reproducible and verify real interaction
    on each platform; add signing and notarization before stable releases.

@@ -1,0 +1,382 @@
+{
+  "version": 2,
+  "kind": "assembly",
+  "id": "assembly-rack-pinion-original",
+  "revision": "r1",
+  "name": "Cremallera y piñón originales",
+  "units": "mm",
+  "createdAt": "2026-10-16T00:00:00.000Z",
+  "updatedAt": "2026-10-16T00:00:00.000Z",
+  "definitions": [
+    {
+      "kind": "part",
+      "id": "rack-ground",
+      "revision": "r1",
+      "document": {
+        "version": 1,
+        "id": "rack-ground",
+        "name": "Soporte original del piñón",
+        "units": "mm",
+        "createdAt": "2026-10-16T00:00:00.000Z",
+        "updatedAt": "2026-10-16T00:00:00.000Z",
+        "features": [
+          {
+            "id": "profile",
+            "name": "Perfil original",
+            "type": "sketch",
+            "plane": "XY",
+            "offset": 0,
+            "suppressed": false,
+            "profile": {
+              "kind": "rectangle",
+              "center": [
+                0,
+                0
+              ],
+              "width": 40,
+              "height": 30
+            }
+          },
+          {
+            "id": "base",
+            "name": "Extrusión original",
+            "type": "extrude",
+            "sketchId": "profile",
+            "depth": 4,
+            "symmetric": false,
+            "suppressed": false,
+            "bodyOperation": {
+              "mode": "new",
+              "bodyId": "rack-ground-body"
+            }
+          },
+          {
+            "id": "hole-profile",
+            "name": "Perfil del taladro",
+            "type": "sketch",
+            "plane": "XY",
+            "offset": 0,
+            "suppressed": false,
+            "profile": {
+              "kind": "circle",
+              "center": [
+                0,
+                0
+              ],
+              "radius": 3
+            }
+          },
+          {
+            "id": "hole",
+            "name": "Taladro pasante",
+            "type": "cut",
+            "sketchId": "hole-profile",
+            "depth": 4,
+            "symmetric": false,
+            "suppressed": false,
+            "bodyScope": [
+              {
+                "bodyId": "rack-ground-body",
+                "sourceFeatureId": "base"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "kind": "part",
+      "id": "rack-pinion",
+      "revision": "r1",
+      "document": {
+        "version": 1,
+        "id": "rack-pinion",
+        "name": "Piñón original con marcador",
+        "units": "mm",
+        "createdAt": "2026-10-16T00:00:00.000Z",
+        "updatedAt": "2026-10-16T00:00:00.000Z",
+        "features": [
+          {
+            "id": "profile",
+            "name": "Perfil original",
+            "type": "sketch",
+            "plane": "XY",
+            "offset": 0,
+            "suppressed": false,
+            "profile": {
+              "kind": "circle",
+              "center": [
+                0,
+                0
+              ],
+              "radius": 2
+            }
+          },
+          {
+            "id": "base",
+            "name": "Extrusión original",
+            "type": "extrude",
+            "sketchId": "profile",
+            "depth": 30,
+            "symmetric": false,
+            "suppressed": false,
+            "bodyOperation": {
+              "mode": "new",
+              "bodyId": "rack-pinion-body"
+            }
+          },
+          {
+            "id": "hole-profile",
+            "name": "Perfil del taladro",
+            "type": "sketch",
+            "plane": "XY",
+            "offset": 0,
+            "suppressed": false,
+            "profile": {
+              "kind": "circle",
+              "center": [
+                1,
+                0
+              ],
+              "radius": 0.25
+            }
+          },
+          {
+            "id": "hole",
+            "name": "Taladro pasante",
+            "type": "cut",
+            "sketchId": "hole-profile",
+            "depth": 30,
+            "symmetric": false,
+            "suppressed": false,
+            "bodyScope": [
+              {
+                "bodyId": "rack-pinion-body",
+                "sourceFeatureId": "base"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "kind": "part",
+      "id": "rack-slider",
+      "revision": "r1",
+      "document": {
+        "version": 1,
+        "id": "rack-slider",
+        "name": "Cremallera prismática original",
+        "units": "mm",
+        "createdAt": "2026-10-16T00:00:00.000Z",
+        "updatedAt": "2026-10-16T00:00:00.000Z",
+        "features": [
+          {
+            "id": "profile",
+            "name": "Perfil original",
+            "type": "sketch",
+            "plane": "XY",
+            "offset": 0,
+            "suppressed": false,
+            "profile": {
+              "kind": "rectangle",
+              "center": [
+                0,
+                0
+              ],
+              "width": 10,
+              "height": 10
+            }
+          },
+          {
+            "id": "base",
+            "name": "Extrusión original",
+            "type": "extrude",
+            "sketchId": "profile",
+            "depth": 60,
+            "symmetric": false,
+            "suppressed": false,
+            "bodyOperation": {
+              "mode": "new",
+              "bodyId": "rack-slider-body"
+            }
+          },
+          {
+            "id": "hole-profile",
+            "name": "Perfil del taladro",
+            "type": "sketch",
+            "plane": "XY",
+            "offset": 0,
+            "suppressed": false,
+            "profile": {
+              "kind": "circle",
+              "center": [
+                0,
+                0
+              ],
+              "radius": 2.5
+            }
+          },
+          {
+            "id": "hole",
+            "name": "Taladro pasante",
+            "type": "cut",
+            "sketchId": "hole-profile",
+            "depth": 60,
+            "symmetric": false,
+            "suppressed": false,
+            "bodyScope": [
+              {
+                "bodyId": "rack-slider-body",
+                "sourceFeatureId": "base"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "kind": "part",
+      "id": "rack-guide",
+      "revision": "r1",
+      "document": {
+        "version": 1,
+        "id": "rack-guide",
+        "name": "Guía cilíndrica original",
+        "units": "mm",
+        "createdAt": "2026-10-16T00:00:00.000Z",
+        "updatedAt": "2026-10-16T00:00:00.000Z",
+        "features": [
+          {
+            "id": "profile",
+            "name": "Perfil original",
+            "type": "sketch",
+            "plane": "XY",
+            "offset": 0,
+            "suppressed": false,
+            "profile": {
+              "kind": "circle",
+              "center": [
+                0,
+                0
+              ],
+              "radius": 2
+            }
+          },
+          {
+            "id": "base",
+            "name": "Extrusión original",
+            "type": "extrude",
+            "sketchId": "profile",
+            "depth": 80,
+            "symmetric": false,
+            "suppressed": false,
+            "bodyOperation": {
+              "mode": "new",
+              "bodyId": "rack-guide-body"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "occurrences": [
+    {
+      "id": "ground",
+      "name": "Soporte fijo del piñón",
+      "definition": {
+        "id": "rack-ground",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": true,
+      "visible": true,
+      "suppressed": false
+    },
+    {
+      "id": "pinion",
+      "name": "Piñón giratorio",
+      "definition": {
+        "id": "rack-pinion",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          0,
+          0,
+          -8
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": false,
+      "visible": true,
+      "suppressed": false
+    },
+    {
+      "id": "rack",
+      "name": "Cremallera deslizante",
+      "definition": {
+        "id": "rack-slider",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          -10,
+          10,
+          10
+        ],
+        "rotation": [
+          0,
+          0.7071067811865476,
+          0,
+          0.7071067811865476
+        ]
+      },
+      "fixed": false,
+      "visible": true,
+      "suppressed": false
+    },
+    {
+      "id": "guide",
+      "name": "Guía fija de la cremallera",
+      "definition": {
+        "id": "rack-guide",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          -40,
+          10,
+          10
+        ],
+        "rotation": [
+          0,
+          0.7071067811865476,
+          0,
+          0.7071067811865476
+        ]
+      },
+      "fixed": true,
+      "visible": true,
+      "suppressed": false
+    }
+  ],
+  "mates": []
+}

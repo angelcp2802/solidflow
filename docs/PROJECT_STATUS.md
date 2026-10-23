@@ -1,6 +1,1475 @@
 # Project status and review queue
 
-Latest reconciliation: 2026-10-15, 13:38 UTC. The default branch remains
+### Configured material picking and feedback
+
+The next focused increment in [issue #55](https://github.com/angelcp2802/solidflow/issues/55)
+checks real component, face and LINE pointer selection in an original named
+assembly state, including Cancel/retry/Apply, Undo/Redo and saved reopening.
+The production renderer passes 59 checkpoints / 12 geometry phases; the native
+case checks literal placement and unchanged Base/dormant states. Selected
+references now retain highlights, and the active picking instruction sits
+beside the viewport. See [core workflows](CORE_WORKFLOWS.md),
+[provenance](PROVENANCE.md#configured-material-pointer-original) and
+[validation](VALIDATION.md). The long sidebar, compact layouts and complete
+assembly-demo acceptance remain open in the same draft PR #49.
+
+Final Windows acceptance passes 9,353 cases / 400 files, 83 IPC/security checks
+(two explicit skips), build and actual Electron smoke. All 1,048 frozen
+non-Markdown inputs remain unchanged. These local results do not establish
+the open hosted or cross-platform acceptance.
+
+Hosted predecessor `6ba3fb7` fails macOS nested symmetry selected
+replacement/reactivation; its application-level cause remains unknown.
+Security CodeQL passes but dependency audit reports one high Electron advisory
+GHSA-jr5w-w6x2-84p9. Electron dependency remediation is outstanding. These hosted
+failures are not waived by the local pointer workflow.
+
+### Fresh face sketches and interface review
+
+The next focused increment in [issue #55](https://github.com/angelcp2802/solidflow/issues/55)
+checks actual pointer-created sketches on two successive native faces, automatic
+merge/cut destinations, history and saved reopening. It fixes falsely active
+sketch tools and clipped rows in the part-operation ribbon. The original
+production renderer passes 39 checks / eight geometry phases; two native cases
+also check reconstruction and upstream editing. See [core workflows](CORE_WORKFLOWS.md)
+and [validation](VALIDATION.md) for exact tolerances and execution boundaries.
+The visible piece review also identifies long sidebar scrolling and faint
+reference/helper text. Full assembly-interface and compact-window acceptance
+remain open in the same draft PR #49.
+
+Hosted component snapshot `14ef731` ends with 11 successful jobs and four failures
+in [CI 40030417412](https://github.com/angelcp2802/solidflow/actions/runs/40030417412).
+The macOS six-role hinge stops source/replacement repair step fails; the three
+dependent Desktop gates fail and later checks skip. The failing application
+operation and cause are not established by the job status. Security40030417631
+passes. No gate or deadline is relaxed to bypass these results.
+
+### Configured component authoring
+
+The next increment in [issue #55](https://github.com/angelcp2802/solidflow/issues/55)
+adds configured import, registered reuse and parent-relative fixed/floating
+authoring through private native previews. A v3 import retains its complete
+catalog and selected child state. Named insertion affects every use of that
+state and stays suppressed in Base. See the [contract](ASSEMBLY_CONFIGURED_COMPONENT_AUTHORING.md)
+and [validation](VALIDATION.md) for exact cases and remaining limits. This stays
+in draft PR #49; complete assembly-demo and release acceptance remain open.
+
+Hosted origin-axis snapshot `25fbe30` ended with 11 jobs passing and four
+failures in [CI 40027664551](https://github.com/angelcp2802/solidflow/actions/runs/40027664551).
+The root failure is macOS material vertex symmetry source/replacement repair;
+the other three failures are dependent Desktop gates, with later checks skipped.
+Security run 40027664312 passed. The generic renderer annotation does not identify
+the failed operation or establish a cause. Earlier security findings remain
+separate from workflow execution.
+
+### Origin-axis relation authoring
+
+[Issue #55](https://github.com/angelcp2802/solidflow/issues/55) now includes
+explicit root/component X/Y/Z origin references in standard and configured
+assemblies. The [contract](ASSEMBLY_ORIGIN_AXES.md) separates analytic line
+geometry, concentric free motion and material-only capture. Original renderer
+workflows create concentric and angular relations, Cancel/retry/Apply, undo/redo
+and save/reopen through real controls. Source-specific execution is recorded in
+[VALIDATION.md](VALIDATION.md). The following configured-component increment
+addresses insertion and fixed-state authoring; origin-axis rotation locking
+and displayed-axis picking remain unfinished.
+
+The final Windows suite passes 9,319 cases across 395 files, 83 IPC/security
+checks (two explicit skips), build and actual Electron smoke. Nine focused native
+cases and the standard/configured origin-axis renderers pass; these are bounded
+cases, not full family or platform acceptance.
+
+The preceding hosted run [40024383011](https://github.com/angelcp2802/solidflow/actions/runs/40024383011)
+at `f6f1400` failed in macOS nested symmetry selected replacement/reactivation.
+Eleven jobs passed; the failing renderer and its three dependent Desktop gates
+did not. Their downstream unit/build/smoke/package steps were skipped. Security
+run 40024382969 passed. A generic renderer-script annotation did not identify
+the failed application operation, so no specific cause or cross-platform fix
+is claimed.
+
+### Core workflow priority
+
+[Issue #55](https://github.com/angelcp2802/solidflow/issues/55) prioritizes
+successive part operations and basic assembly authoring before further advanced
+configured motion. See the [workflow and exact remaining gaps](CORE_WORKFLOWS.md).
+The local increment adds current-body defaults, a sequential original example,
+consistent middle-button navigation, configured component/general-role picking
+and wrapping assembly commands. Origin-axis references are addressed by the
+following increment; configured structural insertion is addressed above.
+Exact execution is recorded in VALIDATION.md;
+the same draft PR #49 remains the review target.
+
+The local final suite passes 9,298 cases in 392 files plus 83 IPC checks
+(two explicit Windows skips), build and actual Electron smoke. The part
+sequence renderer passes 39 checks / 9 geometry phases; standard assembly
+passes 527 checks and configured relations 61. These bounded Windows results
+do not establish the remaining origin-axis or configured insertion scope.
+
+The previous hosted run 40019394430 at `fbdb38d` finished with all three configured
+relation jobs passing. The Mac symmetry-line repair and Windows/Mac standard
+assembly persistence renderer jobs failed; the required Desktop jobs correctly
+failed their dependency gate. This is not a complete three-platform pass.
+
+### Configured compound authoring and validation scheduling
+
+The increment after `ce5604e`, tracked in
+[issue #52](https://github.com/angelcp2802/solidflow/issues/52), adds controlled
+configured forms for profile-center, material LINE and circular-path relations.
+Complete compound references and parameters use the existing private declaration
+preview/Apply route. Named edits propagate to shared selected states; Base edits
+preserve previous named declarations. Draft changes retain the complete context,
+and stale callbacks cannot replace a newer intent. No new format or native
+capture authority comes from a choice list or detached report.
+
+Current Windows evidence includes 36 focused native authoring cases and four
+production-renderer workflows: rectangle 74 milestones / 23 geometry phases,
+circular profile 72 / 23, LINE 74 / 23 and circular path 84 / 25. All pass,
+including saved-form restoration and actual committed-state captures. The
+final complete suite passes 9,277 cases in 388 files, then 83 IPC/security checks
+with two explicit Windows skips. Build and actual Electron smoke pass, alongside
+the existing configured relation/mechanical flows. All 1,014 code/test/CI inputs
+remain unchanged through final acceptance. See the
+[contract](ASSEMBLY_CONFIGURED_COMPOUND_AUTHORING.md),
+[human walkthrough](DEMO_ASSEMBLIES.md#author-profiles-and-material-paths-in-a-configured-state)
+and source-specific [validation](VALIDATION.md) before making acceptance claims.
+
+[Issue #53](https://github.com/angelcp2802/solidflow/issues/53) separates 51
+renderer commands into three fixed batches per OS while retaining smoke,
+unit/CAD, IPC and packaging in the original required Desktop checks. Those checks
+fail unless every renderer/configured dependency succeeds. Parsed workflow and
+exact command parity pass locally; hosted acceptance of the new split is open.
+The suite now caps isolated native worker concurrency without changing deadlines.
+
+The same Draft PR #49 remains the review target. Complete configuration
+authoring, configured source/reference repair, interactive constrained movement,
+flexible instances and the full assembly/demo/release scope remain open. This
+increment establishes no general external-application equivalence or platform
+support. [Issue #54](https://github.com/angelcp2802/solidflow/issues/54) tracks the
+next constrained-movement/projection integration, with all relation families,
+shared state, signed mechanical continuity and actual interaction evidence.
+
+### Save completion and renderer readiness
+
+The follow-up to `d99e1eb` addresses a controlled ordering risk in source-update
+and configured mechanical acceptance. Written bytes do not prove that the
+renderer has received the native Save result and finished its clean/busy state.
+The exact old source-update flow fails naturally with real bytes already written
+and controls still disabled. The corrected fences release the held real return
+and observe clean file identity, controls and recovery before proceeding.
+No application geometry or file semantics change. See [validation](VALIDATION.md)
+and [provenance](PROVENANCE.md#controlled-native-save-completion-ordering).
+
+Final Windows validation passes 9,204 unit/CAD cases in 385 files, 83 IPC/security
+checks with two explicit skips, build and actual Electron smoke. The ordinary
+and controlled source-update cases pass 50 milestones / 10 geometry phases each;
+all five configured mechanical cases pass 55 milestones / 18 phases each.
+
+The Save correction itself adds no compound form. The following configured
+authoring block, tracked in [issue #52](https://github.com/angelcp2802/solidflow/issues/52),
+is described in the current section above with its own implementation and
+validation boundary. Full assembly/demo acceptance stays open.
+
+### Configured native mechanical capture
+
+The increment after `0f37957`, tracked in [issue #51](https://github.com/angelcp2802/solidflow/issues/51),
+adds a separate configured native producer and graphical form for lock, locked
+concentric, gear, screw and rack-pinion. Strict intents carry references and
+parameters; native captures stay private until final solve, all-placement
+verification and scene delivery succeed. Ordinary edits retain their captures;
+explicit recapture removes the old declaration first and establishes a new neutral.
+
+The same Draft PR #49 remains the review target. Windows validation passes
+18 focused native cases and five renderer workflows, each with 49 milestones
+and 18 geometry phases. Final `npm test` passes 9,204 cases in 385 files and
+83 IPC/security checks with two explicit Windows skips; build and actual
+Electron smoke pass. The bounded lifecycle includes capture/edit/recapture,
+exact state isolation, history, recovery and file reopening. See the
+[contract](ASSEMBLY_CONFIGURED_MECHANICAL_CAPTURE.md), [demo](DEMO_ASSEMBLIES.md#capture-a-mechanical-relation-in-one-state)
+and source-specific [validation](VALIDATION.md) for actual execution. Complete
+assembly demo, release and platform acceptance remain open.
+
+### Compact interval pointer regression
+
+The increment after `ad36143` reproduces the hosted pointer assertion locally
+using the exact previous interval flow in a fixed 1040×700 hidden window.
+All six upper handle nominees are covered by toolbar buttons in that case.
+Checking the actual canvas hit target, waiting for hover publication and trying
+both handle halves completes the same physical workflow. The ordinary-size
+case remains separate.
+
+The same follow-up removes repeated declaration-validator construction for
+named states inheriting Base. Their exact state keys and complete capture
+checks remain separate; explicit named relation lists keep their own validators.
+The unchanged 4096-state case and new mixed-family forward/reverse batches
+guard admission, isolation and the existing limits.
+
+Local compact and ordinary runs pass 252 and 251 milestones respectively,
+each with 38 phases, four actual gestures and actual save/reopen. Physical
+targets, calibration, tolerances and deadlines remain unchanged. See the
+[validation record](VALIDATION.md#compact-interval-pointer-acquisition--2026-10-23)
+and [provenance](PROVENANCE.md#original-compact-interval-pointer-regression).
+The same draft PR #49 collects the correction and requires its own hosted results.
+Final Windows checks pass 9133 unit/CAD cases in 382 files, 83 IPC/security
+checks with two explicit skips, build and actual Electron smoke. The configured
+relation demo also passes its 61 milestones on the final code.
+Full assembly acceptance remains open; [issue #51](https://github.com/angelcp2802/solidflow/issues/51)
+tracks the next native capture integration for all five configured mechanical families.
+
+### Configured relation editing and repeatable prototype demo
+
+The increment after `d495192`, tracked in [issue #50](https://github.com/angelcp2802/solidflow/issues/50),
+adds complete named relation lists, exact-state add/replace/remove/suppression
+and graphical private native previews. Base edits preserve previous named
+declarations. Drafts do not alter history or recovery; Apply authenticates the
+original context and publishes one complete v3 snapshot.
+
+Windows validation passes 9131 unit/CAD cases in 382 files and 83 IPC/security
+checks with two explicit skips, build and actual Electron smoke. The new
+production-renderer demo passes 61 milestones and 23 geometry phases through
+editing, Cancel/Apply, shared variants, history and actual save/reopen. Existing
+configured/BOM and rigid renderer workflows also pass their 80 and 527 milestones.
+See the
+[contract](ASSEMBLY_CONFIGURED_RELATION_EDITING.md), [walkthrough](DEMO_ASSEMBLIES.md#edit-a-relation-in-one-state)
+and [validation](VALIDATION.md#configured-relation-editing-and-private-intent-previews--2026-10-23).
+
+The same [draft PR #49](https://github.com/angelcp2802/solidflow/pull/49) collects
+the work. Preceding head `f2a1c91` completed Linux CI and packaging; Windows
+and macOS failed an existing pointer-handle acquisition assertion after passing unit/CAD
+and IPC. Hosted results for this increment remain required. Mechanical capture,
+profile/path forms, native repair/source lifecycle, further configured consumers,
+flexible instances and the full assembly/release gate remain open.
+
+### Reproduced CI test failures and symmetry repair acceptance
+
+The increment after `ce6871f` corrects the private source-stage protocol in the
+point, surface and nested symmetry renderer tests. All eight affected workflows
+now pass locally, retaining exact review/base/proposal bindings and unchanged
+native oracles. It also fixes file-fault hooks that missed canonical paths:
+the current Windows/macOS hosted logs exposed matching rejection failures,
+reproduced locally using only a Windows path-case alias. The actual FIFO hook
+uses the same canonical-target preparation. Production security remains intact.
+
+Final Windows evidence: 9068 unit/CAD cases in 379 files, 81 IPC/security/source
+passes with two explicit skips, build and actual Electron smoke. An auxiliary
+Ubuntu/WSL Node18 run passes four selected filesystem cases, including real
+three-channel FIFO rejection under a temporary-directory symlink. This does not
+establish Node24/Linux/macOS desktop support. See the
+[validation ledger](VALIDATION.md#canonical-fault-injection-and-private-symmetry-repair--2026-10-23)
+and [hardening contract](PROTOTYPE_HARDENING.md#ci-failure-diagnostics).
+
+The same [draft PR #49](https://github.com/angelcp2802/solidflow/pull/49) retains
+the integration. Its earlier `8e2a185` Security and separate CodeQL checks pass,
+with one medium alert still reported. Fresh hosted results are required for
+the corrected tests; no check/query is disabled. Full assembly and release
+acceptance remain open.
+
+### Configured quantities, CSV and reproducible demo
+
+The increment after `c234b61` adds a committed-v3 BOM with variant-aware rows,
+three modes, independent assembly range/member highlighting and restricted CSV
+export. Counts follow effective suppression/visibility and retain complete
+root paths/state ancestry. They certify no material, mass or solved relations.
+
+Final Windows x64 validation passes 9068 unit/CAD cases in 379 files and 79
+security/source cases, with two explicit Windows skips. Build, actual Electron
+smoke, the configured renderer's 80 milestones/13 BOM phases and the existing
+527-milestone rigid renderer pass. CSV cancel, real filesystem error and actual
+root/scoped writes preserve the document. See the [contract](ASSEMBLY_CONFIGURED_BOM.md),
+[demo](DEMO_ASSEMBLIES.md#configured-quantities-and-csv) and
+[validation](VALIDATION.md#configured-bom-csv-and-workflow-diagnostics--2026-10-23).
+
+This remains the same [draft PR #49](https://github.com/angelcp2802/solidflow/pull/49),
+not a merge or release. Earlier snapshot `893ec01` passed Linux distance and
+directed-stop steps but subsequently failed symmetry repair; Windows failed
+IPC security and macOS remained in unit/CAD checks at inspection. Its separate
+CodeQL count fell from nine to two alerts. This increment removes only the
+redundant FIFO test read and adds bounded primary-failure annotations; it must
+receive its own hosted acceptance. No check or query is suppressed.
+
+Configured relation/capture/repair, source lifecycle, interference/geometric
+export/import, parameter/part-feature variants, flexible instances and the
+complete assembly/demo gate remain open. Historical entries below retain their
+own source-specific results and publication context.
+
+### Prototype hardening and reproduced renderer failure
+
+The follow-up on `f167be2` replaces seven caller-named object-write paths with
+strict Map/literal admission, admits actual file descriptors before reading,
+and prevents malformed worker messages or response failures from poisoning the
+native command queue. A production worker probe demonstrates ordered rejection
+followed by reconstruction of an original prism. The directed-guide renderer
+test now follows the private part-update command and its rejection contract;
+pointer expectations follow actual DOM input rather than an ideal double.
+
+Local Windows x64 validation passes 9030 unit/CAD cases in 376 files and
+70 security/source checks, with two explicit Windows skips. Build and real
+desktop smoke pass. Directed-angle/source-repair, distance, configured and basic
+assembly renderer runs pass with child closure and isolated-profile cleanup.
+See the [hardening contract](PROTOTYPE_HARDENING.md),
+[provenance](PROVENANCE.md#original-worker-recovery-and-read-race-cases) and
+[validation](VALIDATION.md#prototype-hardening-and-renderer-contracts--2026-10-23).
+
+This updates the same [draft PR #49](https://github.com/angelcp2802/solidflow/pull/49).
+Hosted acceptance remains open. Its earlier `85a33b6` CI failed basic assembly
+on macOS, distance intervals on Windows and directed stops on Linux; unavailable
+full logs prevent attributing every hosted failure to the local reproduction.
+That head's separate CodeQL check still reported nine alerts. No query or
+branch check has been suppressed. The assembly milestone and release remain
+incomplete; these are validation and input corrections, not new CAD coverage.
+
+### Integration draft and persisted configuration editor
+
+[PR #49](https://github.com/angelcp2802/solidflow/pull/49) collects the rigid
+assembly prototype in one draft. The new persisted configuration increment
+follows local `8d9a756`: complete strict v3 source/catalog/root-selection files,
+actual effective native scenes, private configured worker previews and atomic
+Apply, root/child state editing, complete history/recovery and Save As/Save/reopen.
+Legacy dependent consumers reject this format instead of returning base results.
+
+The final local Windows x64 run passes 8998 unit/CAD cases in 374 files,
+67 security/source checks with one inherited permission skip, production build
+and the real Electron baseline. The original configured production-renderer
+walkthrough passes 14 geometry/lifecycle phases with actual worker/file IPC,
+child close and temporary-profile cleanup. See the [contract](ASSEMBLY_CONFIGURATIONS_PERSISTENCE.md),
+[demo instructions](DEMO_ASSEMBLIES.md) and [validation record](VALIDATION.md#persisted-configuration-workereditor-integration--2026-10-23).
+
+The draft is not ready to merge or release. Hosted checks on its earlier
+`2ce9273` head failed directed-angle stops on Linux and distance intervals on
+Windows/macOS; nine CodeQL alerts also require review. Passing build/unit/CAD/
+IPC/smoke stages on those systems do not validate skipped later workflows or
+platform support. The configured increment requires its own hosted results.
+
+Remaining assembly work includes configured relation/capture/repair and source
+lifecycle, dependent BOM/interference/export/import, parameter/part-feature
+variants and flexible instances. This walkthrough does not close issue #45's
+complete assembly/demo scope. The entries below retain the historical local
+bases and validation of their own increments; earlier unpublished/next-step
+statements are historical, not the current publication status.
+
+### Local selected rigid configuration solve transactions
+
+The local `codex/assembly-configuration-solve` increment follows `6bd90f5`.
+One owning transaction now solves selected intrinsic states child before parent,
+stages exact poses/winding and verifies every actual placed use independently
+before private atomic publication. Named/base writeback retains complete captures
+and explicitly isolates inherited named values. Shared child states retain
+normal propagation. Every Apply attempt consumes its private complete-baseline
+preparation; failure cannot publish partial child staging.
+
+All 41 new cases pass: 16 native integration, 16 pure writeback and nine pure
+policy cases. The complete Windows run passes 8868 unit/CAD cases, 65 security/
+source checks with one inherited permission skip, build and the unchanged
+Electron baseline. The prior 172 configured native cases are unchanged.
+
+See the [contract](ASSEMBLY_CONFIGURATIONS_SOLVE.md),
+[provenance](PROVENANCE.md#original-selected-state-solve-transactions) and
+[actual validation](VALIDATION.md#selected-rigid-configuration-solve-transactions--2026-10-23).
+
+Next are persisted configuration envelopes and complete worker/session/editor
+integration, including effective scenes, private previews, history, recovery,
+save/reopen and dependent consumers. Native capture/repair, parameter/part-feature
+variants, flexible instances and the complete assembly/demo gate remain open.
+The transaction is standalone, local and unpublished.
+
+### Local independent configured geometry verification
+
+The local `codex/assembly-configuration-verification` increment follows
+`857897b`. Independent physical checks now cover the nineteen binary families,
+centered Width and five Symmetry purposes. A fresh-candidate verifier combines
+them with existing advanced/hinge checks at every actual placed scope, retaining
+exact state identity, native purposes, original-chain error and unavailable
+passive winding. Fatal query/currentness/release failure withholds the report.
+
+Forty-eight new native and fifteen pure cases pass in the complete Windows
+run: 8827 unit/CAD cases, 65 security/source checks with one inherited permission
+skip, build and the unchanged Electron baseline. The previous 124 native cases
+remain intact except four imports. Earlier test-oracle and new integration
+deadline failures are recorded with their actual corrections.
+
+See the [contract](ASSEMBLY_CONFIGURATIONS_VERIFICATION.md),
+[provenance](PROVENANCE.md#original-configured-physical-verification) and
+[actual validation](VALIDATION.md#independent-configured-geometry-verification--2026-10-23).
+
+Next is selected-state solve execution, child-before-parent staging and atomic
+state writeback with capture/winding preservation and fresh final geometry
+gating. Base inheritance and shared child-state effects require an explicit
+transaction policy. Saved/editor lifecycle, parameter/part-feature variants,
+flexible instances, dependent consumers and the complete assembly/demo gate
+remain open. This increment is local and unpublished.
+
+### Local configured numerical scopes and state planning
+
+The local `codex/assembly-configuration-scope` increment follows `a0843c8`.
+Every current relation family can now project genuine configured references
+into an exact declaring scope's immediate numerical children while preserving
+their physical root owners. A separate pure planner groups exact intrinsic
+states, retains all placed instances and orders children before parents.
+An optional length convergence target tightens variable groups without changing
+fixed/public/native acceptance bands or solver iteration budgets.
+
+Twenty-six new pure and 56 new native cases pass. Full Windows checks pass
+8764 unit/CAD cases, 65 security/source checks with one inherited permission
+skip, build and the unchanged Electron baseline. All 875 production/test/config
+inputs retain the recorded acceptance digest. Earlier native failures and the
+first complete run's combined-relation timeout are recorded with corrections.
+
+See the [contract](ASSEMBLY_CONFIGURATIONS_SCOPE.md),
+[provenance](PROVENANCE.md#original-configured-numerical-scope-and-state-planning)
+and [actual validation](VALIDATION.md#configured-numerical-scopes-and-state-planning--2026-10-23).
+
+Next is a complete configured numerical transaction: stage child-state results
+before parents, preserve mechanical continuity, reconstruct fresh native
+geometry, verify every placed instance and write back exact states atomically.
+General binary/width/symmetry final physical checks and conditioning still need
+integration. Native capture/repair, parameter/part-feature variants, saved/editor
+lifecycle, all dependent consumers and flexible instances remain required.
+The complete assembly/demo gate stays open. This increment is local and
+unpublished.
+
+### Local configuration capture and winding declarations
+
+The local `codex/assembly-configuration-state` increment follows `2923574`.
+Complete mechanical capture records now have exact source-tuple, configuration
+and mate keys. Named entries materialize into the actual core catalog and
+effective native/numerical declarations, preserving source references,
+parameters and other states. The combined state envelope retains its 4096-entry
+and 20 MiB limits. These are authored declarations; they do not authenticate
+historical capture or authorize native recapture.
+
+Fifty-two new pure and three new native cases pass. Full Windows checks pass
+8682 unit/CAD cases, 65 security/source checks with one inherited permission
+skip, build and the unchanged Electron baseline. All 872 production/test/config
+inputs retain the recorded acceptance digest. The first complete attempt's two
+boundary timeouts and the validation-cost correction are recorded explicitly.
+
+See the [contract](ASSEMBLY_CONFIGURATIONS_STATE.md),
+[provenance](PROVENANCE.md#original-configuration-capture-and-winding-declarations)
+and [actual validation](VALIDATION.md#configuration-capture-and-winding-declarations--2026-10-23).
+
+Next are selected-state dependency order and closed numerical scope projection,
+general configured final verification and atomic state-specific solve/writeback.
+Native capture/repair and winding continuity, relation-parameter/part-feature
+variants, saved/editor lifecycle and all dependent consumers still need
+integration. Flexible instances and the complete assembly/demo gate remain
+open. This increment is local and unpublished.
+
+### Local effective configuration numerical bridges
+
+The local `codex/assembly-configuration-numeric` increment follows `6ef1a85`.
+All current configured relation families now have detached numerical adapters
+using actual effective descendant frames below their full-root rigid owners.
+Hinges, profile centers and material LINE/circular paths also have independent
+physical support measurements. Original placement-chain budgets, distinct
+native purposes, structural hinge axiality and finite projected-phase errors
+remain explicit. Saved v2 syntax and production worker/editor/Apply are unchanged.
+
+Sixty-five new native cases pass, including six standalone solve experiments
+followed by fresh native reconstruction and independent measurement. Free
+circular interior, Follow/UP, explicit finite/support-circle domains and
+undefined center phase have separate executed controls. Full Windows checks
+pass 8,627 unit/CAD cases, 65 security/source checks with one inherited permission
+skip, build and the unchanged Electron baseline. All 869 production/test/config
+inputs retain the recorded acceptance digest. See the
+[contract](ASSEMBLY_CONFIGURATIONS_NUMERIC.md),
+[provenance](PROVENANCE.md#original-configured-numerical-bridges) and
+[actual validation](VALIDATION.md#effective-configuration-numerical-bridges--2026-10-23).
+
+Next are selected-state scope projection, general configured final verification
+and variant-specific capture/winding and parameter storage, followed by
+transactional solve/writeback and saved/editor integration. State must be keyed
+by exact source tuple plus selected configuration, preserving base and every
+unselected state. All dependent consumers, independently solved flexible
+instances and the full assembly/demo gate remain open. This increment is local
+and unpublished; these programmatic checks do not establish configured UI,
+installed-package or another-platform acceptance.
+
+### Local effective configured relation references
+
+The local `codex/assembly-configuration-relations` increment follows `0f00119`.
+A pure inventory now uses effective scope states and mate suppression rather
+than the base declarations. The configured native session resolves all current
+saved families into separate private aggregates, including passive mechanical
+state in active scopes. Declaration diagnostics remain repairable; native
+processing failures revoke the session and withhold the whole result.
+
+Forty-six new pure and thirty-nine new native cases pass. The combined binary
+case retains all nineteen families and 38 aggregates. Width, symmetry, profiles,
+material paths and hinges have their own ordered purpose checks. All 56 prior
+configured native regressions remain unchanged. Full Windows checks pass 8,562
+unit/CAD cases, 65 security/source checks with one inherited permission skip,
+build and the unchanged desktop baseline. Source freezes cover all 864
+production/test/config inputs, including the documented final EOF-only cleanup.
+See the
+[contract](ASSEMBLY_CONFIGURATIONS_RELATIONS.md),
+[provenance](PROVENANCE.md#original-configured-relation-inventories) and
+[actual validation](VALIDATION.md#effective-configured-relation-references--2026-10-23),
+including the earlier timeout and the retained correction.
+
+Next are authenticated configured physical measurements and numerical bridges
+for every family, followed by variant-keyed solve/writeback and capture/winding
+storage. Saved/direct-base selectors, all source/repair/BOM/export/editor
+consumers and independently solved flexible instances remain required. The
+full assembly/demo gate stays open. This remains local and unpublished;
+configured CI is not executed platform evidence.
+
+### Local configured native query purposes
+
+The local `codex/assembly-configuration-purposes` increment follows `8d6d70c`.
+The separate configured session now queries the existing component frames,
+geometry/directions, cylinder/sphere surfaces, bounded profiles and paths with
+distinct purposes and complete current-input checks. Observation helpers and
+metadata grant no private proof authority. Saved syntax and production
+worker/editor commands are unchanged.
+
+Thirty-eight new native cases and eighteen unchanged context regressions pass.
+Independent original geometry checks cover 3D variants, purpose/incidence,
+precision refusal, full owners and proof lifetime. Full Windows checks pass
+8,477 unit/CAD cases, 65 security/source cases with one inherited permission
+skip, build and the unchanged production-loader desktop smoke. All 860 frozen
+production/test/config inputs remain unchanged. See the
+[contract](ASSEMBLY_CONFIGURATIONS_NATIVE.md),
+[provenance](PROVENANCE.md#original-configured-native-purpose-fixtures) and
+[actual validation](VALIDATION.md#configured-native-query-purposes--2026-10-23).
+
+The next boundary is effective active/passive relation inventories and
+authenticated configured measurement aggregates, then numerical adaptation and
+variant-specific solve/writeback. Saved/editor lifecycle, direct base selectors,
+every graph consumer and flexible instances still require integration. The
+full assembly/demo scope remains open. This stays local and unpublished;
+configured CI is not executed platform evidence.
+
+### Local configured native plane/point context
+
+The local `codex/assembly-configuration-native` increment follows `7501844`.
+A separate native session resolves effective plane/point references with full
+occurrence ownership and a private proof registry. Source, catalog, selected
+state and controller generation participate in every currentness check.
+Native processing and context changes cannot publish a stale return; legacy
+assertions remain separate.
+
+Eighteen original native cases pass, including actual transformed material,
+same-state reuse, null scopes, hidden/suppressed/activated branches, stale and
+cross-legacy proofs, reentry, cleanup and the real expanded-body budget.
+Full Windows checks pass 8,439 unit/CAD cases, 65 security/source cases with one
+inherited permission skip, build and the unchanged desktop baseline smoke.
+The 858 frozen production/test/config inputs remain unchanged. See the
+[contract](ASSEMBLY_CONFIGURATIONS_NATIVE.md),
+[provenance](PROVENANCE.md#original-configured-native-reference-fixtures) and
+[actual validation](VALIDATION.md#native-rigid-configuration-reference-context--2026-10-23).
+
+Remaining native purposes, effective relation inventories, variant-specific
+solve/writeback, saved/editor lifecycle and every graph consumer still need
+integration. Flexible instances and the complete assembly/demo scope remain
+open. This stays local and unpublished; configured CI is not execution.
+
+### Local rigid configuration evaluation core
+
+The local `codex/assembly-configuration-core` increment follows `dd34a75`.
+It adds a strict separate catalog and owned evaluation of named rigid states,
+including independent selections on reused subassemblies and ordered reference
+availability diagnostics. It does not add configuration fields to saved v2
+documents or expose a configuration editor. Source/base identity and selected
+variant identity remain separate.
+
+Eighteen pure cases and four original native-placement cases pass. Independent
+boxes check four-body V68/A172 and right-only suppression to three-body
+V58/A138, including same-variant reuse and a common 3D gauge. Full Windows
+checks pass 8,421 unit/CAD cases, 65 security/source cases with one inherited
+permission skip, build and the unchanged production desktop smoke. All 856
+frozen production/test/config inputs remain unchanged. See the
+[contract](ASSEMBLY_CONFIGURATIONS_CORE.md),
+[provenance](PROVENANCE.md#original-rigid-configuration-evaluation-fixtures) and
+[actual validation](VALIDATION.md#rigid-configuration-evaluation-core--2026-10-23).
+
+The next integration must bind native proof/currentness to the complete
+source, catalog and selected state, then solve and write back by variant without
+overwriting base or another configuration. Saved syntax, base occurrence
+selectors, source/repair/BOM/export consumers, editor lifecycle, flexible
+instances and the complete assembly/demo gate remain open. This stays local
+and unpublished; configured CI is not an executed platform result.
+
+### Local structural STEP component insertion
+
+The local `codex/assembly-step-insertion` increment follows `2a2ff76` and adds
+**Insertar STEP estructurado** to the assembly workspace. Native source
+admission, composition and full candidate preparation precede one ordinary
+parent edit. The parent keeps its identity, saved path and baseline. Exact
+history, accepted-source reuse and autonomous saved reopening have actual
+production-renderer evidence with original geometry and restricted file IPC.
+
+The 53-step renderer checks nine bodies after insertion and seventeen after
+reuse, retaining separate coincident bodies in the real structured export.
+Shared-scope insertion is separately checked under two native instances.
+See the [contract](ASSEMBLY_STEP_EDITOR.md#insert-into-the-current-assembly),
+[provenance](PROVENANCE.md#original-structural-step-insertion-workflows) and
+[actual validation](VALIDATION.md#structural-step-component-insertion--2026-10-23).
+Windows checks pass 8,399 unit/CAD cases, 65 security/source cases with one
+inherited permission skip, build, desktop smoke and both affected import
+regressions. All 852 frozen production/test/config inputs remain unchanged.
+This stays local and unpublished; configured CI is not a hosted result.
+Missing assembly families, configuration/flexible behavior, broader interchange
+and the complete assembly/demo scope remain open.
+
+### Local structural STEP editor interchange
+
+The local `codex/assembly-step-editor` increment follows `6fe3b6d`, which
+preserves multibody product boundaries on top of the `b19a3bc` native structural
+prerequisite. Explicit commands now import an autonomous new unsaved assembly
+from either workspace and export committed product/instance structure alongside
+the separate flat formats. Independent native scene preparation precedes the
+replacement decision; cancellation and rejection retain the current workspace.
+
+The original reused eight-solid case passes the actual production renderer,
+including both workspace imports, restricted file IPC, source-independent saved
+reopening and two real structural exports with fresh native geometry checks.
+See the [contract](ASSEMBLY_STEP_EDITOR.md),
+[provenance](PROVENANCE.md#original-structural-step-editor-workflow) and
+[source-specific validation](VALIDATION.md#structural-step-editor-interchange--2026-10-23).
+This increment stays local and unpublished. Final Windows checks pass 8,383
+unit/CAD cases, 65 IPC/security/source cases with one inherited permission skip,
+build, production desktop smoke and both affected renderer regressions. The
+847 frozen production/test/config inputs remain unchanged. Exact acceptance
+belongs in validation; configured CI is not execution.
+Broader neutral representations, independent interoperability and the complete
+assembly/demo scope remain open.
+
+### Local limited-hinge pointer acceptance
+
+The local `codex/assembly-hinge-limits-pointer` increment follows `6dea4f2`.
+It adds an original production workflow for six actual face selections, angular
+edit reselection, bounded wrong-purpose/hidden/canceled input controls and
+local-Z stop projection with inward release. Trusted DOM input and actual
+posted targets supply the pointer expectation; independent native material
+geometry and the signed guide verify the result. The saved/native product
+implementation is unchanged in this focused acceptance increment.
+
+The original symmetric-arc case passes 124 recorded checks: eight pointer hits,
+four negative interactions and five rotation gestures. It checks ready
+Cancel/retry, Apply/history and saved reopening. Exact source-specific commands
+and limits belong in [validation](VALIDATION.md). Broader axis/interval/camera
+combinations, external policies and the complete assembly/demo gate remain
+open. This increment stays local; configured CI is not an executed platform
+result.
+
+Final Windows checks pass 8,232 unit/CAD cases, 65 IPC/security cases with one
+inherited permission-limited symlink skip, build and production desktop smoke.
+The existing unlimited pointer and limited dropdown regressions also pass.
+All 827 frozen source/runtime/config files remain unchanged; actual validation
+and evidence limits are linked above.
+
+### Local optional hinge angular stops
+
+The local `codex/assembly-hinge-limits-integration` increment follows `118798c`.
+It connects the existing six-role numerical/native primitive to strict optional
+saved stops, current worker verification, editor authoring and source/replacement
+repair. The old unlimited four-role document form remains intact. The
+[contract](ASSEMBLY_HINGE_STOPS.md) and
+[provenance](PROVENANCE.md#original-saved-six-role-hinge-workflows) distinguish
+declaration, native proof, scripted interaction and remaining acceptance.
+
+This focused increment stays local and unpublished. Actual source-specific
+checks belong in [validation](VALIDATION.md). Angular-role pointer selection,
+pointer projection at both stops, externally evidenced angular policies and
+the complete assembly/demo gate remain separate requirements. Configured
+multi-platform CI is not an executed platform result.
+
+Final Windows checks pass 8,232 unit/CAD cases, 65 IPC/security cases with one
+inherited permission-limited symlink skip, build and production desktop smoke.
+The two new renderer workflows pass 90/twelve and 164/thirty recorded
+checks/phases; the three existing unlimited hinge workflows also pass. Their
+actual cases and evidence limits remain in validation.
+
+### Local assembly source revision authoring
+
+The local `codex/assembly-source-revisions` increment follows `b9caade`.
+It adds an explicit root revision action, complete valid reference rekeying,
+private worker/native preview and Apply, with Save remaining a separate action.
+This fills the authoring gap for changed linked v2 sources. Exact native
+candidate equality prevents incidental pose/capture changes during revision
+creation; ordinary Solve/Apply must precede authoring when needed.
+See the [contract](ASSEMBLY_SOURCE_REVISIONS.md),
+[provenance](PROVENANCE.md#assembly-source-revision-fixtures) and
+[actual checks](VALIDATION.md#assembly-source-revision-authoring--2026-10-23).
+
+Automatic dependency revisions, multi-document recovery and the wider
+assembly/demo scope remain open. The increment stays local and unpublished;
+configured multi-platform CI is not a runtime result.
+
+Final Windows x64 checks pass 8,039 unit/CAD cases, 65 IPC/security cases with
+one inherited permission-limited file-symlink skip, build and desktop smoke.
+The new actual-source authoring renderer passes 63 recorded checks/17 phases;
+existing linked-source and source-update workflows pass 113/30 and 41/10.
+A presented final frame was inspected. Exact cases and limits remain in
+validation; these results do not close the full assembly/demo scope.
+
+### Local explicit linked source files
+
+The local `codex/assembly-linked-sources` increment follows `dd51e88`. It adds
+optional embedded source descriptors, separate read-only file capabilities and
+explicit review/reload for parts and rigid subassemblies. The embedded cache
+remains self-contained; source contents and accepted byte digest are applied
+together after fresh native verification. Reopening requires native file
+selection again. See the [contract](ASSEMBLY_LINKED_SOURCES.md) and
+[actual validation](VALIDATION.md#explicit-linked-source-files--2026-10-22).
+
+Automatic reload, source writeback, multi-document recovery, structural
+interchange, remaining Width modes and the full assembly/demo gate remain open.
+This increment stays local and unpublished; no other-platform or hosted CI
+result follows from the local tests.
+
+Final Windows x64 checks pass 8,016 unit/CAD cases, 65 IPC/security checks
+with one permission-limited symlink skip, production build, desktop smoke,
+the new 113-check/30-phase linked-source renderer workflow and the existing
+41-check/10-phase source-update workflow. A separate presented-frame capture
+was inspected. Limits and actual case tolerances remain in validation.
+
+### Local saved material circular-path lifecycle
+
+The local `codex/assembly-circular-path-lifecycle` increment follows `382c6b1`.
+It connects explicit saved circular intent to current material references,
+scoped numerical owners, fresh independent final checks, private worker Apply,
+source repair and editor lifecycle. LINE and circular selections have identical
+compound syntax; purpose now follows the saved family and role throughout
+catalogs, keys and native repair. Positive native circular-origin metadata
+nominates complete edge/endpoint choices without granting proof authority.
+See the [contract](ASSEMBLY_CIRCULAR_PATH.md),
+[original provenance](PROVENANCE.md#saved-circular-path-lifecycle-fixtures) and
+[actual checks](VALIDATION.md#saved-material-circular-path-lifecycle--2026-10-22).
+
+Free trim/support-circle domains are explicit SolidFlow intent, with finite
+material distance and optional component-axis Follow/projected planar UP.
+External circular policies, closed-circle material origins, chained curves,
+broader interaction and the complete assembly/demo gate remain open. The
+increment stays local and unpublished; configured CI is not an executed
+other-platform result.
+
+Final Windows x64 checks pass 7,977 unit/CAD cases, 50 IPC/security checks,
+production build, desktop smoke, the new 62-check / 8-phase circular renderer
+workflow and the existing 201-check / 70-phase LINE workflow. Four new files
+add 52 original cases. An earlier final-source run hit three existing 5-second
+test limits; focused reproduction and the complete unchanged repeat pass.
+Those failures and their unproven cause remain in the validation record.
+
+### Local current-native circular-path bridge
+
+The local `codex/assembly-circular-path-native` increment follows `f8ea7ff`.
+It derives numerical circular constraints from current material point/arc/UP
+proofs and independently verifies candidate poses with fresh native queries.
+The declared `current-native-analytic-float64` reference model separates
+center/radius/frame/sweep and D1 arithmetic from disclosed topology tolerances.
+Original placement chains and actual root rigid owners remain authoritative,
+including scoped/reused selections. See the
+[contract](ASSEMBLY_CIRCULAR_PATH_NATIVE.md) and
+[original provenance](PROVENANCE.md#current-native-circular-path-resolution-fixtures).
+
+The native regression matrix includes fixed start/mid/end, both origins,
+Free Follow/UP, nested poses and local material-point projection. It does not
+add a saved curved-path declaration, editor/worker command, source repair or
+Apply/history/reopening lifecycle. External domain policies, closed-circle
+origins, chained paths, remaining Width modes and the complete assembly/demo
+gate remain open. This increment stays local and unpublished. Source-specific
+results belong in [validation](VALIDATION.md#current-native-circular-path-bridge--2026-10-22).
+
+Final Windows x64 checks pass 7,925 unit/CAD cases, 50 IPC/security checks,
+production build and desktop smoke. The five new test files add 67 original
+cases; the production-loader smoke is separate from native geometry checks.
+No circular renderer workflow, hosted-CI result or other-platform execution is
+claimed.
+
+### Local numerical circular-path solver
+
+The local `codex/assembly-circular-path-numeric` increment follows `f1547fc`.
+It adds explicit numerical trim/support-circle domains, fixed material distance,
+changing-tangent Follow/UP and constrained target projection with actual owner
+incidence. Both finite ends remain inequalities, independent of bilateral rank.
+Separate mandatory position/radius/frame/sweep errors gate acceptance. See the
+[contract](ASSEMBLY_CIRCULAR_PATH_NUMERIC.md) and original
+[provenance](PROVENANCE.md#numerical-circular-path-fixtures).
+
+The native CAD experiment uses manually declared original recipe data and
+re-queries transformed material geometry after numerical solving. It is not a
+production native admission adapter. Saved curved-path declarations, source
+repair, justified native error budgets, editor/worker integration and lifecycle
+remain open. Complete-circle origins, chained paths, external policies, remaining
+Width modes and the complete assembly/demo gate are also pending. This increment
+stays local and unpublished. Current source-specific check results belong in
+[validation](VALIDATION.md#numerical-circular-path-solving--2026-10-22).
+
+Final Windows x64 checks pass 7,858 unit/CAD cases, 50 IPC/security checks,
+production build and desktop smoke. The five new test files contain 81 original
+cases; actual native recipe experiments, mathematical derivatives and the
+production-loader smoke have separate scopes. No circular renderer workflow,
+hosted-CI result or other-platform execution is claimed.
+
+### Local current material circular-arc origin
+
+The local `codex/assembly-material-arc-path` increment follows `9aa1007` with
+explicit material endpoints and directed finite queries on open circular
+trims. Current native edge/vertex incidence, separate private snapshot proof,
+original placement budgets and owned cleanup are required. Both endpoints,
+major trims, a trim crossing `2*pi` and reused nested placements have original
+regressions. See the [contract](ASSEMBLY_MATERIAL_ARC_PATH.md),
+[provenance](PROVENANCE.md#material-circular-arc-origin-fixtures) and
+[actual checks](VALIDATION.md#current-material-circular-arc-origin--2026-10-22).
+
+Windows x64 checks pass 7,777 unit/CAD cases, 50 IPC/security checks, production
+build and desktop smoke. This is a
+geometry/reference prerequisite; saved curved-path declarations, free coordinate
+policy, simultaneous solver, orientation and editor lifecycle remain open.
+It does not extend the LINE mate into a circular or chained path. Full-circle
+seams, remaining Width modes and the complete assembly/demo gate are also
+pending. The increment stays local and unpublished, with no new other-platform,
+installer, hosted-CI or reference-application policy claim.
+
+### Local material LINE projected planar UP
+
+The local `codex/assembly-line-path-roll` increment follows `4ab0b09` and adds
+explicit material-plane UP to component-axis Follow. The three references keep
+their actual rigid owners through solving, native final verification and
+compound repair. Independent reversal and saved intent survive editor history
+and reopening. Old Free/Free and Follow/free-roll declarations keep their
+previous saved shape. See the [contract](ASSEMBLY_LINE_PATH.md),
+[original provenance](PROVENANCE.md#line-path-planar-up-equation-and-native-fixtures)
+and [actual checks](VALIDATION.md#material-line-projected-planar-up--2026-10-22).
+
+Windows x64 checks pass 7,738 unit/CAD cases, 50 IPC/security checks, production
+build, desktop smoke and the expanded 201-check / 70-phase renderer workflow.
+The renderer includes a guide-only movable component and saved UP editing;
+the native matrix checks all 24 distinct axis/sign combinations. These are
+bounded cases, not general convergence or platform support. UP without Follow,
+linear UP guides, circular/chained paths, Width modes beyond centered and the
+complete assembly/demo gate remain open. This increment stays local and
+unpublished. Earlier entries retain their historical scope.
+
+### Local material LINE component-axis Follow
+
+The local `codex/assembly-line-path-follow` increment follows `5df6902` and adds
+optional explicit component-axis Follow to the saved LINE mate. X/Y/Z and its
+own reversal are separate from the position mode and reversal; roll stays free.
+The old Free/Free form reopens unchanged. Fresh native angular verification,
+uncertainty admission, private Apply and the existing compound references remain
+required. See the [contract](ASSEMBLY_LINE_PATH.md),
+[provenance](PROVENANCE.md#material-line-path-fixtures) and
+[actual checks](VALIDATION.md#material-line-component-axis-follow--2026-10-22).
+
+Windows x64 checks pass 7,646 unit/CAD cases, 50 IPC/security checks, build,
+production-loader smoke and the expanded 133-check / 49-phase renderer workflow.
+Controlled roll, circular/chained paths, broader interaction and full
+assembly/demo acceptance remain open. This increment remains local and
+unpublished; configured CI and other-platform support have no new execution
+result. Earlier entries retain their historical scope.
+
+### Local saved material LINE path lifecycle
+
+The local `codex/assembly-line-path-lifecycle` increment follows `5291987` and
+adds a saved material point / LINE edge / material-start relation. Free position
+retains axial sliding on the underlying straight support; Distance and Percentage
+lock explicit inclusive coordinates with reversal. Current native incidence and
+actual length gate preview; fresh final verification and private worker authority
+gate Apply. Compound path repair, scoped references, history and reopening retain
+the explicit intent. See the [contract](ASSEMBLY_LINE_PATH.md),
+[original fixture provenance](PROVENANCE.md#material-line-path-fixtures) and
+[actual validation](VALIDATION.md#saved-material-line-path-lifecycle--2026-10-22).
+
+Windows x64 checks pass 7,612 unit/CAD cases, 50 IPC/security checks, build,
+production-loader smoke and the dedicated 98-check / 34-phase renderer workflow.
+The renderer covers original dropdown authoring and saved lifecycle; source
+repair and nested scopes have separate unit/native evidence. This is one
+straight-edge family with free pitch/yaw and roll. Circular/chained paths,
+non-Free orientation and full assembly/demo acceptance remain open. The branch
+remains local and unpublished; configured CI and other-platform support have no
+new execution result. Earlier entries below describe their own historical scope.
+
+### Local current bounded path curves
+
+The local `codex/assembly-path-native-foundation` increment follows `f36c018`
+with current finite LINE and circular-arc observations, directed arc-length
+evaluation and separate native snapshot proofs. Native trim parameters, explicit
+sense, endpoints and an observed circular seam stay distinct from a normalized
+fraction or persisted path origin. Composed world precision must fit the
+requested bands; copied or old LINE proofs cannot authenticate these queries.
+See the [contract](ASSEMBLY_PATH_CURVES.md),
+[original fixtures](PROVENANCE.md#bounded-path-curve-fixtures) and
+[validation](VALIDATION.md#current-bounded-path-curves--2026-10-22).
+
+Windows x64 checks pass 7,532 unit/CAD tests, 50 IPC/security checks, build and
+production-loader smoke. This is a geometry/reference prerequisite. Saved Path
+relations, the free-path solver coordinate, multiple-edge continuity, persistent
+origin/repair policy, pitch/yaw/roll semantics and editor acceptance remain open.
+No Path authoring UI or complete assembly/demo acceptance is claimed. Work
+remains local and unpublished; other-platform execution is not established.
+
+### Local saved profile-center lifecycle
+
+The local `codex/assembly-profile-center-lifecycle` increment follows `e1bcae8`
+and connects current bounded-profile proofs to the assembly solver, saved v2
+declarations, authenticated previews, editor controls, history and reopening.
+The admitted saved families are two complete circular faces with free spin,
+or two rectangular faces with explicit boundary edges, senses and quarter turns.
+Signed offset belongs to the first normal. Fresh native queries independently
+check the final physical targets before granting Apply.
+
+Compound face/edge/sense references participate in source updates, selected/all
+replacement and subassembly updates; repairs stay explicit and atomic. See the
+[lifecycle contract](ASSEMBLY_PROFILE_CENTER_MATES.md),
+[original fixtures](PROVENANCE.md#saved-profile-center-lifecycle-fixtures) and
+[actual validation](VALIDATION.md#saved-profile-center-lifecycle--2026-10-22).
+Windows x64 checks pass 7,508 unit/CAD cases, 50 IPC/security checks, build,
+production-loader smoke, the dedicated 27-phase profile workflow and the
+existing assembly renderer regression. These results cover the recorded cases.
+This is local, unpublished work. Pointer selection, circular roll locking,
+automatic rectangular correspondence, complete native orientation compatibility,
+continuous translation-path admission and full assembly/demo acceptance remain
+open. Windows checks do not establish macOS or Linux operation.
+
+### Local profile material directions and physical verification
+
+The local `codex/assembly-profile-material-axis` increment follows `b6f606e`
+with an explicit native rectangle face/boundary-edge/sense purpose, separate
+private witnesses and independent physical target evaluation. The engine checks
+both identities and actual boundary membership together. Squares retain the
+explicit chosen side; circles retain no material axis. See the
+[contract](ASSEMBLY_PROFILE_MATERIAL_AXES.md) and [validation](VALIDATION.md).
+
+This observation/measurement layer grants no saved-mate or Apply authority of
+its own. Its later [lifecycle integration](ASSEMBLY_PROFILE_CENTER_MATES.md)
+supplies a bounded saved-family policy and solver/editor adapter. Both increments
+stay local and unpublished; neither is full demo acceptance.
+
+### Local numerical profile-center solve
+
+The local `codex/assembly-profile-center-solver` increment follows `4cafa14`
+with a dedicated two-profile numerical family, signed first-normal offset,
+normal alignment and explicit rectangular quarter turns. Complete moving-frame
+derivatives, mandatory uncertainty budgets and physical norm checks feed the
+existing bounded solver. See the [contract](ASSEMBLY_PROFILE_CENTER_SOLVER.md)
+and [validation](VALIDATION.md) for actual checked cases.
+
+The later [saved lifecycle](ASSEMBLY_PROFILE_CENTER_MATES.md) supplies current
+native-reference admission, authoring and persistence separately. The numerical
+API alone grants none of that authority. These increments remain local and
+unpublished; they are not complete demo acceptance.
+
+### Local reusable assembly import
+
+The local `codex/assembly-subassembly-import` increment follows `3fccb16` and
+adds v2 assembly sources to **Importar componente**. Composition preserves
+root metadata, dependency definitions, local occurrence paths and mate roles.
+Identical exact definitions are reused, while conflicting payloads, cycles and
+budget overflows reject atomically. The parent's document/file identity is
+retained. A file ticket captures the insertion scope and rejects stale replies.
+
+The [import contract](ASSEMBLY_COMPONENT_IMPORT.md) separates declaration
+composition, native scene building, mate solve and editor history/file evidence.
+The original fixed-plane multibody fixture checks an imported group's rotated
+and translated bounds, reuse and declaring-frame relations. Windows x64 checks
+passed 7,243 unit/CAD cases, 50 IPC/security checks, build, smoke, the general
+assembly workflow and the extended import/save/inspection workflow. Actual
+scope and tolerances belong in [validation](VALIDATION.md). External-format structural
+interchange, linked sources, configurations, flexible assemblies, remaining
+Width modes and full assembly/demo acceptance remain open. This increment
+remains local and unpublished.
+
+### Local grouping with selection and exclusions
+
+The local `codex/assembly-grouping-scope` increment follows `ceb02e9` and
+combines grouping with all three inspection scopes and exact exclusions.
+Group identity remains the first segment of each original full occurrence
+path. Partial selection never creates a new group root; excluding one leaf
+does not exclude its whole root group. The existing pair predicate, saved
+documents, solver and native geometric operations are unchanged.
+
+The [grouping contract](ASSEMBLY_INTERFERENCE_GROUPING.md) and new original
+four-leaf multibody fixture define the policy and independent geometric
+oracles. Windows x64 validation passed 7,217 unit/CAD cases, 50 IPC/security
+checks, build, smoke, the new nine-report workflow and three existing
+interference workflows. Consult [validation](VALIDATION.md) for tolerances and
+actual source-specific scope.
+This increment supersedes the scope restrictions described for the earlier
+local grouping increments below. Union volumes, flexible assemblies,
+continuous collision and the complete assembly/demo requirements remain open.
+The change remains local and unpublished.
+
+### Local grouping with internal bodies
+
+The local `codex/assembly-grouping-multibody` increment follows `e31e313` and
+admits internal-body inclusion alongside complete-root grouping. Grouping
+omits pairs sharing a root occurrence while both booleans retain their requested
+values. Turning grouping off restores the internal pairs. Saved documents,
+history, solver and native geometric operations are unchanged.
+
+The [grouping contract](ASSEMBLY_INTERFERENCE_GROUPING.md) and original reused
+two-body fixture distinguish original pair identities from geometric unions.
+The dedicated production-renderer case checks six, four and six restored pairs;
+consult [validation](VALIDATION.md) for actual source-specific results. Selected
+scopes and exclusions were not admitted by this earlier increment. The later
+local grouping-scope increment above extends them. Continuous collision and the
+complete assembly demo remain required work. This increment remains local and unpublished.
+
+### Local root-subassembly grouping
+
+The local `codex/assembly-interference-grouping` increment follows `f49ddb6e`
+and adds an optional [root-only grouping policy](ASSEMBLY_INTERFERENCE_GROUPING.md)
+to static body-pair inspection. It preserves full leaf/body identities and
+distinguishes reused occurrences. Default inspection remains ungrouped.
+The original production-renderer case checks fifteen, nine and restored-fifteen
+pairs; consult [validation](VALIDATION.md) for actual execution results.
+
+Grouping with selected scopes or exclusions rejected in that source; the
+later local grouping-scope increment above extends them. Union volumes, continuous collision and the
+complete assembly demo remain required work. This local increment is not a
+published or merged release.
+
+### Local within-component interference inspection
+
+The local `codex/assembly-interference-within-component` follow-up to
+`ecf622e` adds an explicit temporary option to inspect distinct bodies of a
+multibody part. Omission retains the previous different-component policy.
+All and among-selected scopes can include internal pairs; selected-against-rest
+still requires a pair crossing the component selection. Geometry, saved
+declarations and history remain read-only.
+
+The [scope contract](ASSEMBLY_INTERFERENCE_SCOPE.md) and original
+[fixtures](PROVENANCE.md#within-component-interference-fixtures) define
+the accepted policy and geometric oracles. A dedicated production-renderer
+command is configured alongside the portable checks; configured CI does not
+establish an executed platform pass. Actual source-specific results belong in
+[validation](VALIDATION.md). The increment remains local and unpublished.
+Further grouping combinations, union volumes, continuous collision and the full
+assembly/demo requirements remain open.
+
+### Local ordered plane placement primitive
+
+The local `codex/assembly-width-placement` follow-up to `23fadaa` adds
+four original ordered plane/ray intersections, signed scalar measurements,
+complete moving-anchor derivatives and repeated/null owner handling. Its
+open transversal chart has explicit direction/extent signs and precision
+diagnostics. It adds no saved Width mode, native reference authority, solver
+constraint or editor capability.
+
+Source `5d1b2f5220f4c1d67f859140adc4b160261a5ab6` passed 7,160 unit/CAD
+cases in 266 files, 50 IPC/security checks, build and production-loader smoke
+on Windows x64. The [validation record](VALIDATION.md#ordered-plane-placement-primitive--2026-10-22)
+and [contract](ASSEMBLY_PLANE_PLACEMENT.md) distinguish the 18 new numerical
+cases from native CAD, persistence and editor acceptance. This local increment
+remains unpublished; remaining Width modes, the 32 geometry/mode questions and
+complete assembly/demo requirements remain open.
+
+### Local directional and surface symmetry repair
+
+The local `codex/assembly-symmetry-surface-repair` follow-up to `f91034d`
+adds original LINE, plane, sphere, cylinder and explicit face-axis line-purpose
+repair fixtures and separate production-renderer workflows. Source update and
+all-occurrence replacement retain partial-role rejection, ready Cancel/retry,
+authenticated Apply, history, saved reopening and fresh native verification.
+The unchanged mirror has a separate prototype and is checked independently.
+
+Source `dbf971befb0aae86b9d5917bc777619e8bb397ed` passed 7,142 unit/CAD
+cases in 265 files, 50 IPC/security checks, build, smoke, all five new workflows
+and both existing nested point-repair workflows on Windows x64. The
+[validation record](VALIDATION.md#directional-and-surface-symmetry-repair--2026-10-22)
+retains actual geometric bands, generic unequal-radius rejection, the
+unequal-radius axis-purpose acceptance control and timeout history. Other-family
+nested repair, broader correspondence/datums/contact and full assembly/demo
+acceptance remain separate. This increment remains local and unpublished.
+
+### Local reused nested point-symmetry repair
+
+The local `codex/assembly-symmetry-nested-repair` follow-up to `bd86ac5`
+adds actual point-repair evidence under two reused assembly ancestors. Selected
+replacement isolates one leaf with two ancestor revisions and source-only
+repair. Shared-source update repairs all three saved roles once without forks.
+Both separate production-renderer cases retain ready Cancel/retry, authenticated
+Apply, exact history/reopening and a separate suppressed-copy reactivation.
+Production CAD, document syntax and editor code are unchanged.
+
+Source `84a1ee778a32a1051b80efed4247edbc73c1d689` passed 7,142 unit/CAD
+cases in 265 files, 50 IPC/security checks, build, real Electron smoke, both
+new nested cases and existing root point-repair, selected/all replacement and
+general assembly regressions on Windows x64. The
+[validation record](VALIDATION.md#reused-nested-point-symmetry-repair--2026-10-22)
+retains exact scope/role counts, native reflected-point/material oracles,
+wrong-decision/token-revocation coverage, visual limits and integrity of
+737 source/seven production files.
+
+This is one point family with the specified reused/suppressed expansions, not
+all nested repair or nested viewport picking. Other-family repair, general
+naming/datums/contact and remaining Width modes/geometry retain their separate
+requirements. This increment is unpublished; configured CI is not an executed
+other-platform result, and the complete assembly demo remains pending.
+
+### Local symmetry viewport reference selection
+
+The local `codex/assembly-symmetry-viewport-selection` follow-up to `016a85e`
+adds role-specific model picking for all five symmetry families and explicit
+cylinder-face line-axis purpose. Material vertices use F64 camera projection,
+conservative display occlusion/ambiguity and current-identity markers. Current
+document/scope/generation/role tickets reject stale intent; native worker
+verification and authenticated Apply remain the sole publication authority.
+
+Source `35e9cc19ba358821e92aad7594cc3d2a387618ba` passed the complete
+7,140-case suite in 264 files, 50 IPC/security checks, build, real Electron
+smoke, the new six-case/24-pointer workflow and existing symmetry, point repair,
+Width, rack/pinion and general assembly renderer regressions on Windows x64.
+The [validation record](VALIDATION.md#symmetry-viewport-reference-selection--2026-10-22)
+retains native bands, independent material/reflection oracles, the semantic
+reference-order fix, frame-wait/deadline history, visual limits and integrity
+of 728 source/seven production files.
+
+This supplies actual selection evidence for the six original root cases;
+nested/suppressed picking and other-family/nested repair remain separate work.
+Approximate display visibility, unit perspective geometry and configured CI
+establish no native visibility, product perspective mode, dense-scene capacity
+or other-platform result. General naming/datums, contact, remaining Width/full
+assemblies and the complete demo remain open. This increment is unpublished.
+
+### Local material-point symmetry repair interaction
+
+The local `codex/assembly-symmetry-repair-ui` follow-up to `af96d8a` adds a
+production-renderer acceptance workflow for explicit source/target material
+vertices and a native mirror face on three root owners. A shared-source update
+and all-occurrence replacement check incomplete repair rejection/blocking,
+ready Cancel/retry, authenticated Apply, exact history and saved reopening.
+Original prism fixtures and direct reflected-point/material oracles remain
+separate from worker report metadata. Production CAD and unit cases are unchanged.
+
+Source `b9aa23d9c842ae285dc10d456100037f0e22d0ea` passed the complete
+7,115-case suite in 262 files, 50 IPC/security checks, build, real Electron
+smoke, the new point-repair workflow and existing five-family symmetry and
+selected/all replacement regressions on Windows x64. The
+[validation record](VALIDATION.md#material-point-symmetry-source-and-replacement-repair--2026-10-22)
+records actual phase counts, partial-repair behavior, native tolerances,
+final visual limits and integrity of 721 source/seven production files.
+
+This supplies Electron repair evidence for this point-family root-owner case.
+Other families and nested/suppressed repair, viewport vertex picking, broader
+datum/reference producers, general persistent naming and contact-path acceptance
+remain open. This increment is local and unpublished; configured CI establishes
+no other-platform result. Full symmetry, remaining Width/assemblies and the
+complete demo remain pending.
+
+### Local saved/native three-reference symmetry
+
+The local `codex/assembly-symmetry-native-documents` follow-up to `dad11a3`
+adds strict saved source/target/mirror declarations for point, line, plane,
+sphere and cylinder symmetry. Current native references, explicit per-trial
+uncertainty and fresh independent physical checks gate the authenticated
+preview. Source/replacement repair retains all three roles and exact material
+vertices. The editor supports dropdown authoring/editing and saved reopening;
+copied scene/report metadata grants no native or Apply authority.
+
+Source `8dad94313406859fb7c581cc540668dcc682d91b` passed the complete
+7,115-case suite in 262 files, 50 IPC/security checks, build, real Electron
+smoke, five-family symmetry author/edit/history/reopen and existing general
+assembly, Width and replacement renderer workflows on Windows x64. The
+[validation record](VALIDATION.md#saved-native-three-reference-symmetry--2026-10-22)
+records actual tolerances, uncertainty correction, free-pose oracle correction,
+startup/capture fixes, final visual review and integrity of 716 source/seven
+production files. These are local results; configured CI is not execution.
+
+The [saved symmetry contract](ASSEMBLY_SYMMETRY.md) keeps support symmetry
+separate from whole-component mirroring and finite contact. Electron symmetry
+repair, viewport vertex picking, broader datum/reference producers, general
+persistent naming and contact-path acceptance remain open. Native and helper/SSR
+repair cases do not complete those editor requirements. This increment is
+unpublished; full symmetry, remaining Width/assemblies and the complete demo
+remain pending.
+
+### Local independent native symmetry measurement
+
+The local `codex/assembly-native-symmetry-measurement` follow-up to `19c9cc5`
+adds strict standalone selection syntax and read-only native physical
+measurement for point, line, plane, sphere and cylinder symmetry. Source,
+target and mirror retain three actual roles and current snapshot authority.
+Physical norm, angle and radius reports remain separate from constraint rows,
+saved declarations and Apply authorization. Explicit first-order uncertainty
+admission retains native tolerance and original placement-chain magnitudes;
+it claims no physical angular metrology or formal error certificate.
+
+Source `b6e216d05b080e6f8e4889149e292854ddacf223` passed 53 new cases in
+three files, the complete 6,997-case suite in 255 files, 50 IPC/security checks,
+build, real Electron smoke and existing assembly/Width renderer regressions on
+Windows x64. The [validation record](VALIDATION.md#independent-native-symmetry-measurement--2026-10-21)
+records actual tolerances, fresh three-role observations, precision/failure
+rejection and source integrity. Existing renderer regressions establish no
+symmetry picking, editor or history workflow.
+
+Saved symmetry declarations and solver integration, repair/replacement,
+preview/Apply/Cancel, editor selection and saved reopening remain required.
+This prerequisite is local and unpublished. Full symmetry, remaining Width and
+assembly requirements and the complete assembly demo remain pending.
+
+### Local native vertex reference prerequisite
+
+The local `codex/assembly-native-vertex-references` follow-up to `c870ac2`
+adds conservative material-vertex identity from exact current primary face/edge
+incidence, fresh native point/tolerance queries and separate snapshot point
+authority. Explicit body identities and exact legacy aggregates remain distinct;
+copied display/reference DTOs cannot recover private live-document-bound proof.
+Optional vertex-catalog bounds do not invalidate otherwise usable body geometry.
+
+Source `de852009641ce12c73192f5c02fb1c0fca5cea5d` passed 38 new cases in six
+new files, the complete 6,944-case suite in 252 files, 50 IPC/security checks,
+build, real Electron smoke and existing assembly/Width renderer regressions on
+Windows x64. The [validation record](VALIDATION.md#native-vertex-reference-prerequisite--2026-10-21)
+retains the restored budget-message compatibility checks, optional-capability
+correction, exact limits and renderer scope. No viewport vertex selection or
+symmetry interaction is established by those existing renderer workflows.
+
+The [vertex contract](ASSEMBLY_VERTEX_REFERENCES.md) limits durability to the
+verified current incidence and lineage; it claims no general vertex-v2 naming.
+Saved point/symmetry mates, all five symmetry families' native/application
+integration, uncertainty propagation, editor, history and source repair remain
+required. This prerequisite is local and unpublished. Full symmetry, remaining
+Width and assembly requirements and the complete assembly demo remain pending.
+
+### Local numerical three-owner symmetry solver
+
+The local `codex/assembly-symmetry-solver` follow-up to `a0c415e` integrates
+all five numerical support families: point, line, plane, sphere and cylinder.
+Source, target and mirror retain their actual moving, shared or fixed owners.
+Target-local position and reflected-source normal charts include their full
+derivatives; physical norm/angle checks, ownership-aware orientation seeds and
+local projection remain separate from rank evidence and native authority.
+
+Source `c518558` passed 31 new numerical cases, the complete 6,906-case suite
+in 246 files, 50 IPC/security checks, build, real Electron smoke and existing
+assembly/Width renderer regressions on Windows x64. The
+[validation record](VALIDATION.md#numerical-three-owner-symmetry-solver--2026-10-21)
+retains the initial line/cylinder rank failure, chart correction, final checks
+and renderer limits. Those renderer runs establish no symmetry interaction.
+The [contract](ASSEMBLY_SYMMETRY_GEOMETRY.md#numerical-solver-integration)
+keeps native witnesses and uncertainty propagation, saved three-role mates,
+serialization, repair, editor/history and application acceptance pending.
+This increment is local and unpublished. Full symmetry, remaining Width and
+assembly requirements and the complete assembly demo remain pending.
+
+### Local numerical symmetry geometry
+
+The local `codex/assembly-symmetry-geometry` follow-up to `5b880cb` adds
+original reflection/comparison for five analytic entity families about a third
+plane. Source, target and mirror keep their actual owner roles, including
+repeated and fixed owners. Moving-plane derivatives, the attached source
+frame, explicit direction branches and radius/precision diagnostics are
+separate from native support authority.
+
+Source `0ca380f` passed 34 new numerical cases, the complete 6,875-case suite
+in 245 files, 50 IPC/security checks, build and real Electron smoke on Windows
+x64. The [validation record](VALIDATION.md#three-owner-analytic-symmetry-geometry--2026-10-21)
+records exact tolerances and the unchanged production output: this mathematical
+module is not a new usable command. All five families still need native
+references, strict saved three-role declarations, solver/projection integration,
+fresh independent checks, repair and editor/history acceptance described in
+the [contract](ASSEMBLY_SYMMETRY_GEOMETRY.md). This increment is local and
+unpublished. Full symmetry, the remaining Width and assembly requirements and
+the complete assembly demo remain pending.
+
+### Local centered-width viewport selection
+
+The local `codex/assembly-width-viewport-selection` follow-up to `9e162b4`
+adds a model-picking button for each of the four ordered plane roles, advances
+to the next empty role and permits reselection while editing. Current visible
+scene entries and document/scope/generation tickets keep stale display data
+out of the proposal; native preview and Apply authority remain separate.
+
+Source `d083c72` passed 6,841 cases in 244 files, 50 IPC/security checks,
+build, real Electron smoke and the Width renderer workflow with 80 recorded
+checks on Windows x64. Four actual face clicks author the relation and one
+same-face editing click closes its active role. Contact-stop, rejection,
+history and Save As/reopen remain checked. The
+[validation record](VALIDATION.md#centered-width-viewport-selection--2026-10-21)
+separates the visible positive-X/sum case from failed hidden-window orbit
+experiments and prior signed-plane cases. This increment is unpublished.
+Other modes, general eligibility and interaction, all 32 geometry/mode
+questions and complete assembly acceptance remain required. The full assembly
+demo is not ready.
+
+### Local centered-width translation until contact
+
+The local `codex/assembly-width-contact-translation` follow-up to `49f4424`
+admits centered four-plane Width in the existing straight, constant-rotation
+contact-stop operation. Fresh native endpoint snapshots preserve the four local
+supports, anchors, source identities, tolerances and world rotations. The
+explicit affine-offset argument and existing conservative distance tracer
+keep that admission separate from general rotation or exact contact claims.
+
+Final source `4ca5503` passed 6,830 cases in 244 files, 50 IPC/security checks,
+build, real Electron smoke and the extended Width renderer workflow with
+72 recorded checks on Windows x64. Actual controls exercise stopped preview,
+Cancel, Apply and Undo alongside the existing edit/save/reopen sequence.
+The [validation record](VALIDATION.md#centered-width-rectilinear-contact-stop--2026-10-21)
+retains the failed free-position assertion, corrected fixture, numerical bands
+and visual limits. This increment is unpublished. Other modes, cylinder/axis
+behavior, all 32 geometry/mode acceptance questions and the full assembly demo
+remain required. No full assembly requirement is newly completed.
+
+### Local centered-width movement and geometric repair evidence
+
+The local `codex/assembly-width-motion-evidence` follow-up to `ce3c567`
+checks native strict movement versus local target projection, all three
+actual rotation station candidates, real source widening with four repaired
+faces, and a wider selected replacement whose independent result is X=-1 mm.
+Four free oblique owners retain their common rigid gauge and verified local
+rank. This adds seven tests and strengthens an existing one; runtime code,
+saved format and solver policy are unchanged.
+
+Source `65b803f` passed 6,817 cases in 243 files, 50 IPC/security checks,
+build and real Electron smoke on Windows x64. The
+[validation record](VALIDATION.md#centered-width-movement-and-geometric-repair--2026-10-21)
+separates these native/numerical cases from prior renderer evidence. This
+increment is unpublished. Contact-stop still rejects Width here; other modes,
+cylinder/axis behavior, broader acceptance and the complete assembly demo
+remain required. No full assembly requirement is newly completed.
+
+### Local saved and native centered width
+
+The local `codex/assembly-width-centered-documents` branch connects four
+original plane references to strict saved declarations, grouped repair, native
+resolution and independent physical final checks. The editor offers four
+plane selectors, explicit bisectors/alignment and a current verified report.
+Preview/Apply, cancellation, history and reopening retain the grouped intent.
+The [contract](ASSEMBLY_WIDTH.md) keeps this Centered plane subset separate
+from the complete Width requirement.
+
+Final source `01a9a22` passed 6,810 unit/CAD cases, 50 IPC/security checks,
+build, smoke, the new Width desktop workflow (46 recorded checks) and the
+existing assembly desktop workflow (526 recorded checks). The
+[validation record](VALIDATION.md#saved-and-native-centered-width--2026-10-21)
+retains the failed capture assumption, actual tolerances and visual limits.
+This local Windows x64 increment is unpublished. Other modes, cylinder/axis
+tab behavior, general branch/flip policies and remaining lifecycle/movement
+acceptance stay required. The full 32-question matrix and assembly demo gate
+remain open; no full assembly requirement is newly completed.
+
+### Local numerical centered-width solver
+
+The local `codex/assembly-width-centered-solver` follow-up integrates four
+original plane supports into a separate numerical constraint. It preserves
+all four owners in the solve graph, accumulates repeated ownership, checks
+the actual bisector angle and anchored offset, and supports generic local
+target projection. Plane placement stays in the normalized solve frame.
+The [contract](ASSEMBLY_WIDTH_GEOMETRY.md#numerical-centered-solver) separates
+this capability from a saved Width relation and native reference authority.
+
+Implementation `cfbb679` passed 24 new numerical cases, the full 6,778-case
+unit/CAD suite, 50 IPC/security checks, build, production-loader smoke and
+the existing assembly desktop workflow (526 recorded checks) on Windows x64.
+The [validation record](VALIDATION.md#numerical-centered-width-solver--2026-10-21)
+retains the initial overstrict pose assertion and the exact evidence limits.
+Saved schema/native binding, other modes, source repair, history and actual
+Width editor interaction remain required. All 32 geometry/mode questions
+remain open to complete acceptance. This increment is local and unpublished,
+does not complete an assembly requirement and does not open the demo gate.
+
+### Local ordered plane-bisector geometry
+
+The local `codex/assembly-width-geometry` follow-up adds original numerical
+geometry for two ordered plane groups, retaining all four references and
+their owner derivatives. Repeated owners accumulate; fixed-frame references
+add no owner columns. Its anchored comparison includes the moving reference
+frame so a common rigid motion has no artificial effect away from a solution.
+The [contract](ASSEMBLY_WIDTH_GEOMETRY.md) separates this building block from
+the complete width relation and retains all 32 geometry/mode questions.
+
+Implementation `19119df` passed 26 original numerical geometry cases, the full
+6,754-case unit/CAD suite, 50 IPC/security checks and build on Windows x64.
+The [validation record](VALIDATION.md#ordered-plane-bisector-geometry--2026-10-21)
+states tolerances and separates this numerical result from native and editor
+coverage. Saved Width declarations, native resolution, mode/branch admission,
+all-owner solving and lifecycle/editor integration remain required. This
+local increment is unpublished and does not open the assembly demo gate.
+
+### Local saved-mate endpoint inventory
+
+The local `codex/assembly-mate-endpoints` follow-up centralizes saved reference
+enumeration and lookup for source updating and component replacement. It
+preserves fixed-scope null carriers and uses the worker's pending inventory to
+bound replacement repairs. The saved format and geometric equations are
+unchanged. A new native regression replaces all three owners of a directed stop
+with taller original drilled prisms and explicitly repairs its two caps and
+LINE guide, including rejection, history and serialized reopening.
+
+Source `d3e51c0` passed 6,728 unit/CAD cases, 50 IPC/security checks, build,
+production-loader smoke, the composed directed-stop desktop workflow
+(309 checks / 58 phases) and component replacement (86 checks / 19 phases).
+The [validation record](VALIDATION.md#shared-saved-mate-endpoint-inventory--2026-10-21)
+separates the added native case from existing desktop coverage. This result is
+local Windows x64 evidence and unpublished. Width and other multi-reference
+relations still require their geometry, native resolution, solver and editor
+implementation; no assembly requirement is newly completed and the complete
+demo gate remains closed.
+
+### Local directed-stop shared-guide repair
+
+The local `codex/assembly-directed-guide-repair` follow-up verifies actual
+shared-source updating of a directed stop with two native top caps and an
+explicit LINE guide. It rejects missing repairs, accepts three explicit
+current references, cancels a ready proposal, retries with a new revision,
+then applies, undoes/redoes and saves/reopens. The guide field now explains
+rechecking the three directions and arc instead of unrelated capture.
+Source `4bdbd6a` passed build, smoke and the composed desktop workflow:
+309 checks / 58 phases, retaining the six earlier pointer drags.
+The full suite passed 6,727 unit/CAD cases and 50 IPC/security checks.
+No new unit/CAD cases were added.
+The [validation record](VALIDATION.md#directed-circular-stop-shared-guide-source-repair--2026-10-21)
+retains both failed harness assumptions and precise geometric limits.
+This local, unpublished Windows x64 result establishes one manual source
+repair case; it does not complete a requirement, general guide/replacement
+coverage, width/symmetry relations or the full assembly/demo gate.
+
+### Local directed circular stop pointer follow-up
+
+The dependent local `codex/assembly-directed-angle-gestures` branch adds six
+actual hidden Chromium rotation gestures to the existing original fixture:
+both stops, inward release, zero crossing, Cancel/Apply, history and Save
+As/reopen. Harness source `0973da7` passed build, production-loader smoke and
+the expanded desktop workflow (220 checks / 43 phases / six drags).
+The full suite passed 6,727 unit/CAD cases and 50 IPC/security checks. This
+increment adds no product behavior or unit/CAD cases. The
+[validation record](VALIDATION.md#directed-circular-stop-pointer-projection--2026-10-21)
+separates ideal-input precision from output accuracy against the actual
+posted input and retains both failed oracle attempts. Results remain local
+Windows x64 evidence and unpublished. No assembly requirement is newly
+completed; broader guide/editor and mechanism cases and the complete
+assembly/demo gate remain open.
+
+### Local directed circular stops
+
+The dependent local `codex/assembly-directed-angle-stops` branch adds an
+inclusive directed arc with two directions and an explicit guide. The
+[contract](ASSEMBLY_DIRECTED_ANGLE_STOPS.md) defines crossing zero, scalar equal
+stops, full circles, strict sampled motion, projection and finite-precision
+rejections. Existing principal-angle files keep their original meaning.
+Native reconstruction, authenticated authoring/editing, guide repair and
+history/persistence are connected. Production source `769e000` passed 6,727
+unit/CAD cases and 50 IPC/security checks. Final source `5bd217d` changes only
+the desktop test's placement oracle; it passed build and five Electron
+commands with identical production bundles. The
+[validation record](VALIDATION.md#directed-circular-angle-stops--2026-10-21)
+distinguishes exact sources, failures and coverage boundaries. This increment
+is local and unpublished. At that increment, Width, symmetry and
+path/profile-center relations still required their later integrations.
+Accumulated-turn stops and broader assembly acceptance remain open; this does
+not open the complete assembly demo gate. Later entries above record the
+bounded Width, symmetry and profile-center implementations.
+
+### Local directed angular measurement
+
+The dependent local `codex/assembly-directed-angle-measurement` branch adds a
+read-only circular measurement from two current directions and an explicit
+guide. Its [contract](ASSEMBLY_DIRECTED_ANGLE_MEASUREMENT.md) separates projected
+measurement from saved principal-angle bounds and future directed rotation
+stops. Native references and a separate worker operation feed three selectors;
+the report does not change a document, add history or grant Apply authority.
+Source `dc746b473eb069076483174f1878e348800320a8` passed 6,527 unit/CAD cases,
+50 IPC/security checks, build and the standard, directed-measurement and
+principal-angle desktop workflows on Windows x64. The
+[validation record](VALIDATION.md#directed-angular-measurement--2026-10-21)
+retains failed attempts, tolerances and interaction limits. This increment
+remains unpublished; configured CI is not hosted execution. It does not
+complete an assembly requirement or open the full assembly demo gate.
+
+Latest reconciliation: 2026-10-15, 14:46 UTC. The default branch remains
 `43c7573c688b35a0bb70a0206416fff17ae298cd` (application version 0.19.0).
 Open pull requests are unmerged proposals; refresh their actual base/head and
 commit-specific checks before an integration decision.
@@ -11,7 +1480,7 @@ Exactly two pull requests were open at reconciliation:
 
 | Pull request | State and exact head | Review status |
 | --- | --- | --- |
-| [#44](https://github.com/angelcp2802/solidflow/pull/44) | Ready for review; `e59799a7d929bd0fe8a85d60d508dab5501d7701`, based on current `main` | Single integration proposal combining the reviewed CAD stack through #43, #33 governance and the public process-isolation configuration. Six required checks passed on this head. It remains unmerged. |
+| [#44](https://github.com/angelcp2802/solidflow/pull/44) | Ready for review; `80f595f8ce58326b678ef0a6864f67fe41eedb3e`, based on current `main` | Single integration proposal combining the reviewed CAD stack, governance, public process isolation and saved UntilNext regeneration. Six required checks passed on this head. It remains unmerged. |
 | [#35](https://github.com/angelcp2802/solidflow/pull/35) | Draft; `0a0ab22a0cd0b6295b9ff7c5761398b1ae457a4a`, based on current `main` | Separate desktop outcome/cleanup proposal. Its macOS crash remains unresolved; it is not included in #44. |
 
 The thirteen superseded proposals #27, #29, #31, #33, #34, #36, #37, #38,
@@ -21,7 +1490,7 @@ check histories or retained failures. Review the combined change in #44 rather
 than reopening duplicate integration lanes. Keep one active integration
 proposal while that review is pending.
 
-### Local UntilNext increment
+### Published UntilNext increment
 
 The focused local branch `codex/saved-until-next-regeneration` adds actual
 per-owner UntilNext resolution for selected Cut/Add and cut ALL. Tested source
@@ -31,13 +1500,444 @@ Windows x64. The new scripted desktop workflow covers preview/Apply/save/reopen
 and rejected-edit preservation. Its
 [source-specific validation](VALIDATION.md#saved-untilnext-regeneration--2026-10-15)
 retains the earlier failed attempts, geometric tolerances and interaction limits.
-This increment has no additional published PR and is not part of #44's checked
-head. It does not inherit #44's hosted platform or security results.
+This increment was subsequently published in #44 at `80f595f8`; the final
+commit only updates documentation relative to the locally tested source above.
+Six checks passed on that exact published head. The
+[desktop CI run](https://github.com/angelcp2802/solidflow/actions/runs/38745801092)
+passed its configured Windows x64, macOS arm64 and Linux x64 jobs; the
+[security run](https://github.com/angelcp2802/solidflow/actions/runs/38745800946)
+passed CodeQL and the high/critical audit threshold. The audit still reports
+eight moderate dependency entries. Successful configured cases and packaging
+do not establish general platform support or an installed, signed release.
 
-Assemblies, technical drawings, sheet metal, simulation, broader interoperability
+### Local assembly foundation
+
+The focused `codex/assembly-document-graph` branch starts from `80f595f8` for
+[issue #45](https://github.com/angelcp2802/solidflow/issues/45). It proposes
+embedded assembly definitions, reusable occurrences, rigid poses, repairable
+scoped references and an independently owned native body-placement helper.
+The [contract](ASSEMBLIES.md) separates graph, native references, local mate
+solving and editor integration. Validation belongs to its own source-specific
+record; #44's checks do not validate this new local code. No extra assembly PR
+has been opened. The early foundations kept the Assembly entry disabled.
+
+Local source `fdf0746a28124aae1c9276c9f93c6709b2ddcb3d` passed 148 new focused
+tests, 2,640 full unit/CAD tests, 32 IPC checks, build and standard desktop smoke
+on Windows x64. Its [validation record](VALIDATION.md#assembly-graph-and-rigid-placement-foundation--2026-10-15)
+retains the first TypeScript failure and limits these results to document,
+placement and existing desktop smoke behavior. That tested source did not
+implement mate solving or assembly interaction.
+
+The later local native-reference/numerical increment is validated at
+`b17853909a2f86129f94a97c2c8295b5ff4f9496`: 294 focused tests, 2,786 full
+unit/CAD tests, 32 IPC checks, build and all four existing desktop commands
+passed on Windows x64. It adds authenticated native plane/cylinder sessions,
+complete-document freshness, face cleanup guards and direct numerical SVD.
+Its [source-specific record](VALIDATION.md#native-assembly-references-and-numerical-foundation--2026-10-15)
+retains failed attempts and separates part UI regression from actual assembly
+interaction. That tested source did not implement simultaneous mate solving.
+The subsequent local rigid solver, authenticated preview/Apply and bounded
+editing/history increment is validated at
+`9173605598a6af23d86d1627b7e8f81b211ddcd7`: 495 focused tests, 2,987 full
+unit/CAD tests, 32 IPC checks, build and standard desktop smoke passed on Windows
+x64. Its [source-specific record](VALIDATION.md#rigid-assembly-solver-and-atomic-history--2026-10-15)
+retains the gauge-rank correction and earlier TypeScript failure. Original
+plate/two-pin cases, local DOF/conflict evidence and explicit source repair
+were separate from the then-disabled editor, without assembly-worker/file
+routing or additional PR/new hosted/platform evidence.
+
+The local workspace increment is validated at
+`18cd892846ebf7db9ecde3d0884fe26b91860794`: 595 focused tests, 3,087 full unit/CAD
+tests, 41 IPC/security checks, build and all five desktop commands passed on
+Windows x64. It connects a separate rigid assembly workspace, native scene/worker
+authority, committed recovery and v2 file IPC. The original scripted renderer
+case creates four face relations, captures one spin lock, performs six Apply
+operations, saves/reopens and rejects a contradictory offset without changing
+the committed file. Its [source-specific record](VALIDATION.md#rigid-assembly-workspace-and-document-routing--2026-10-15)
+separates native geometry, transport, scripted interaction, close callbacks and
+visual review. Flexible instances, automatic source correspondence, motion,
+interference and structural exports remain outside this initial editor path.
+The branch remains local and unpublished, with no additional PR, new hosted CI
+or macOS/Linux result. Issue #45 retains the full acceptance scope.
+
+The dependent local `codex/assembly-source-updates` branch adds shared part
+revision review and explicit reference repair. Source
+`685d7cd9389c52fd19650d397718e1c4e0e7417a` passed 672 focused tests, 3,164 full
+unit/CAD tests, 41 IPC/security checks, build and all five desktop commands on
+Windows x64. Native correspondence is limited to the exact verified finite
+entity-prism semantic family; ordinal faces require explicit selection. The
+scripted desktop case updates both pins from radius 2 to 2.5, cancels/reviews,
+rejects unrepaired references, repairs four actual faces, applies, undoes/redoes
+one transaction and saves/reopens. Its [validation record](VALIDATION.md#assembly-part-source-revisions-and-reference-repair--2026-10-15)
+retains the free-motion test-oracle correction and separates native support,
+UI, transport and file evidence. The branch remains unpublished; broad automatic
+correspondence, external linked-source recovery and the remaining issue #45
+modules are still required. No additional PR or hosted/platform result is claimed.
+
+The dependent local `codex/assembly-interference` branch adds static native
+body-pair interference and clearance inspection. Source
+`f76baed853d5b6225d278f1020f24314dc4d020f` passed 750 focused tests, 3,242 full
+unit/CAD tests, 41 IPC/security checks, build and all five desktop commands on
+Windows x64. The scripted assembly workflow preserves its earlier relations,
+source revision/repair and file steps, then checks two 0.5 mm clearances, a
+narrower threshold and one original two-box Common volume of 12 mm3. Reports
+are read-only and contain no Apply authority. Its [validation record](VALIDATION.md#assembly-native-interference-and-clearance--2026-10-15)
+retains the first script-encoding failure and distinguishes native geometry,
+rendering, transport and scripted controls. This branch remains local and
+unpublished. Continuous collision, intra-component body pairs, subassembly
+grouping, flexible motion and the remaining issue #45 scope are still required;
+no new PR, hosted CI, installed-package or platform result is claimed.
+
+The dependent local `codex/assembly-constrained-movement` branch adds numeric
+component movement checked against the active saved relations. Source
+`da7abd8323a7ea67577a02409c5f079417c87b39` passed 830 focused tests, 3,322 full
+unit/CAD tests, 41 IPC/security checks, build and all five desktop commands on
+Windows x64. A selected component has a temporary solve anchor; Apply saves its
+verified pose without adding a fixed flag or lock. The scripted case rotates
+the revised right pin locally by 90 degrees, cancels/applies, restores natural
+one-DOF mobility, undoes/redoes, saves/reopens and rejects a lateral target.
+Its [source-specific record](VALIDATION.md#constrained-assembly-component-movement--2026-10-15)
+separates actual native material probes, SSR/transport, scripted controls and
+the final collision capture. This branch remains local and unpublished;
+pointer dragging, continuous paths/collision stopping, flexible instances and
+the remaining issue #45 scope are still required. No new hosted/platform or
+installed-package result is claimed.
+
+The dependent local `codex/assembly-pointer-drag` branch adds actual viewport
+pointer input with native world-target verification. Source
+`f6af53ba9c923cbc5cd992133255c3403593c9db` passed 901 focused tests, 3,393 full
+unit/CAD tests, 41 IPC/security checks, build and all five desktop commands on
+Windows x64. A nested selection drives its root rigid occurrence; shared local
+definitions remain unchanged by that world movement. The scripted pointer case
+checks rotation, Cancel/Apply, single Undo/Redo, save/reopen and rejection of
+incompatible X translation. Its [validation record](VALIDATION.md#constrained-world-and-pointer-assembly-movement--2026-10-15)
+separates native rigid-group geometry, controlled stream lifecycle, actual
+Chromium pointer input and the inspected top-view manipulator capture. It remains
+local and unpublished, without new PR/hosted CI or installed/macOS/Linux result.
+Trajectory projection, continuous collision stopping, flexible subassemblies,
+advanced mates, BOM/configurations and the remaining issue #45 scope are open.
+
+The dependent local `codex/assembly-constrained-drag` branch projects pointer
+intent onto the saved mechanism's available motion, with position/orientation
+priorities and pointer deviation separated from hard relation errors. Source
+`7b967be60a5de86a8e038199bb6be09850e1af01` passed 1,002 focused tests, 3,494 full
+unit/CAD tests, 41 IPC/security checks, build and all five desktop commands on
+Windows x64. Native slider, offset-hinge, nested-scope and coupled-group cases
+retain their natural DOF without a pointer anchor. Actual diagonal XZ pointer
+input slides the revised pin only along its axis; Cancel/Apply, Undo/Redo,
+separate Save As/reopen and unchanged original-file restoration pass. The
+[execution record](VALIDATION.md#local-constrained-assembly-drag-projection--2026-10-15)
+retains the TypeScript test-construction failure and the three hinge convergence
+failures that led to sufficient-descent selection. This branch remains local
+and unpublished. Discrete local projection does not establish warm-start path
+continuity, a global nearest placement, collision stopping or complete assemblies;
+flexible instances and the remaining issue #45 scope are still required.
+
+The dependent local `codex/assembly-translation-contact-stop` branch adds the
+separate **Trasladar hasta contacto** command. It checks native distances along
+straight constant-rotation translation, including obstacles between clear
+endpoints, and retains a measured numerical safety gap. Source
+`52b9f0fe9bdc1d0099b9ab2526b6b16ee616e93d` passed 1,108 focused tests, 3,600 full
+unit/CAD tests, 41 security/IPC checks, build and all five desktop commands on
+Windows x64. The new real renderer workflow checks stopped and clear targets,
+requested clearance, Cancel, Apply, one Undo/Redo, separate Save As/reopen and
+a rejected near-contact continuation. The [execution record](VALIDATION.md#rectilinear-assembly-translation-with-contact-stop--2026-10-15)
+retains an unproven tight-deflection expectation and a TypeScript observation
+test failure, alongside the final passing evidence. No production tolerance,
+dependency, worker-pool or deadline was changed to pass them. This remains
+local and unpublished. Rotary/curved paths, motion from initial contact,
+pointer collision stopping, flexible instances, advanced mates, BOM and the
+remaining complete assembly/CAD scope are still open.
+
+The dependent local `codex/assembly-bom` branch adds three declaration-based
+bill-of-materials views, exact revision/context quantities, full-path member
+selection and bounded CSV export of the confirmed document. Source
+`5d1abdf45d11dd8107aba82f56f4ff6b36c2a1a4` passed 1,214 focused tests, 3,706 full
+unit/CAD tests, 50 security/IPC checks, build and all five desktop commands on
+Windows x64. The real renderer checks reused/hidden/suppressed occurrences and
+two revisions with equal names, one cancelled native export and three exact
+CSV files, without editing the document/history or requesting another CAD build.
+The [execution record](VALIDATION.md#assembly-bill-of-materials-and-csv--2026-10-16)
+retains the initial TypeScript test-factory failure. The [BOM contract](ASSEMBLY_BOM.md)
+separates declaration counts and literal-text CSV from native geometry, material
+and mass. This remains local and unpublished. Configurations, custom purchasing
+metadata, promoted child policies, drawing-attached tables and the remaining
+complete assembly/CAD scope still require implementation and evidence.
+
+The dependent local `codex/assembly-gear-mate` branch adds a native angular
+gear coupling with an explicit carrier, positive real ratio, direction, phase
+and saved lifted angles. Tested source
+`59607bb75ba31b16d341df91e91a6f85b72f4e45` passed 1,319 focused cases, 3,811 full
+unit/CAD cases, 50 security/IPC checks, build and all five desktop commands on
+Windows x64. The new real-renderer stage captures two actual cylinders,
+checks linked spins including a follower beyond a half turn, Cancel/history,
+parameter editing, suppression/reactivation, Chromium input and native
+save/reopen. The [execution record](VALIDATION.md#gear-relations-and-lifted-angular-state--2026-10-16)
+retains the build/scope failures and corrected fixture convention. The
+[gear contract](ASSEMBLY_GEARS.md) separates native-axis signs, saved branches,
+inactive unavailable references and quaternion targets from unrestricted winding
+drivers. This remains local and unpublished. Continuous multi-turn gestures,
+explicit winding intent, other mechanical mates, flexible assemblies and the
+remaining complete CAD scope still require implementation and evidence.
+
+The dependent local `codex/assembly-angular-drive` branch adds explicit signed
+numeric rotation with whole turns, bounded verified stations and one final
+authenticated preview/history transaction. Tested source
+`070403b11c66f9cfae9be9c50b95915f08069f79` passed 1,445 focused cases,
+3,937 full unit/CAD cases, 50 security/IPC checks, build and all five desktop
+commands on Windows x64. The real renderer verifies +720 degrees, Cancel,
+repeat/Apply, one Undo/Redo, input reset, native save/reopen and rejection of
+an incompatible full X turn. The [execution record](VALIDATION.md#explicit-numeric-angular-motion--2026-10-16)
+retains the typing, native memory and 2:1 precision failures, alongside their
+repairs and the unchanged public tolerances. The [motion contract](ASSEMBLY_MOTION.md)
+separates explicit winding, internal numerical refinement and sampled station
+checks from continuous feasibility or collision prevention. This remains local
+and unpublished; continuous multi-turn gestures, rotary collision stopping,
+other mechanical mates, flexible assemblies and the remaining full CAD scope
+still require implementation and evidence. No new PR or hosted/platform result
+is claimed.
+
+Complete assemblies, technical drawings, sheet metal, simulation, broader interoperability
 and the remaining recipe/reference/lifecycle policies are still required work.
 Neither this local increment nor the integration proposal completes the CAD
 application or establishes general platform support.
+
+The dependent local `codex/assembly-screw-mate` branch adds native coaxial screw
+capture, positive mm-per-turn lead with reciprocal input and reverse, relative
+lifted rotation, component-origin travel, editing/suppression, history and
+version-2 persistence. Source `1fb63fb44688599b02a9d7635f4979a28470fa30`
+passed 1,556 focused cases, 4,048 full unit/CAD cases, 50 IPC/security cases,
+build and all six desktop commands on Windows x64. Its original renderer flow
+checks +720-degree Cancel/repeat/Apply, one Undo/Redo, translation-driven spin,
+parameter changes and native Save As/reopen. A subsequent test-only increment,
+`a98fae3c6cf05ee4e8354a35f3e4762218d90001`, adds a simultaneous gear/screw
+mechanism and passed all 35 native screw cases, 4,049 full unit/CAD cases,
+50 IPC/security cases, build and standard desktop smoke. All eight production
+file hashes remain identical to the six-command desktop run; only the native
+test file changed between the tested sources. The
+[validation record](VALIDATION.md#screw-relations-and-combined-mechanisms--2026-10-16)
+retains the first type-check failure and separates actual native, numerical,
+rendered, file and visual evidence. The [contract](ASSEMBLY_SCREWS.md) distinguishes
+coaxial alignment from reverse, component-origin travel from arbitrary cylinder
+origins, and millimeter error from angular accuracy. This remains local and
+unpublished, with no new PR/hosted CI/macOS/Linux execution or installed release.
+Other mechanical mates, flexible instances, continuous collision, full assembly
+acceptance and the remaining complete CAD scope are still required work.
+
+The dependent local `codex/assembly-rack-pinion` branch adds native
+pinion-cylinder coupling to an exact rack LINE edge or cylinder axis, with
+native-radius defaults, diameter/travel overrides, signed winding and explicit
+edge picking/repair. Its [contract](ASSEMBLY_RACK_PINION.md) and original fixture
+retain separate guide constraints and do not imply teeth or contact physics.
+Source `c0ba5c21d90c6727f24ee64dcd4b303682c1f9b4` passed build, 1,797 focused
+cases in 64 files, 4,264 full unit/CAD cases in 201 files, 50 IPC/security cases
+and all seven desktop commands on Windows x64. The rack renderer flow passed
+27 phases, eleven Apply operations, one actual Chromium edge-pointer selection
+and Save As/reopen. Native reference-only rebuilds retain full geometric
+reconstruction while omitting final visual tessellation; final scene construction
+still precedes preview/Apply authority. The
+[validation record](VALIDATION.md#rack-and-pinion-relations-and-native-reference-rebuilds--2026-10-16)
+retains the earlier timeouts and test-oracle failures, exact source and physical
+limits. No deadline, station count or production tolerance was relaxed.
+The grouped assembly PR description is prepared locally but has not been
+published; no new remote state, hosted CI or platform result is claimed.
+Flexible instances, configurations, remaining mate/reference families,
+linked-source recovery, continuous collision and structural interchange remain
+required. Full assembly acceptance and the user's demo gate are not complete.
+
+The dependent local `codex/assembly-flat-export` branch adds
+committed assembly geometry export as flat STEP and binary STL. Its
+[contract](ASSEMBLY_EXPORT.md) includes hidden active components, excludes
+suppressed branches, applies full nested placements once and preserves
+coincident solids without Fuse. Geometry export does not preserve hierarchy,
+definition reuse, mates or editable history. Source
+`05d39819f57024b4c849cff878791d266e3ee1a0` passed build, 1,883 focused cases in
+67 files, 4,350 full unit/CAD cases in 204 files, 50 IPC/security cases and all
+eight desktop commands on Windows x64, with zero drift across 562 source inputs.
+The export workflow passed cancellation, six independently checked STEP/STL
+files, rename, Undo/Redo and Save As/reopen. Its original seven-solid fixture
+checks nested placements, hidden and suppressed branches and coincident copies;
+a separate native case checks two solids within one legacy body entry. See the
+[validation record](VALIDATION.md#flat-assembly-geometry-export--2026-10-16) for
+tolerances and retained failures. This is local, unpublished evidence; structural
+STEP, broader interoperability, installed packages and macOS/Linux execution
+remain unverified. The complete assembly scope and demo gate remain open.
+
+The dependent local `codex/assembly-direction-mates` increment adds
+explicit parallel and perpendicular relations for the currently admitted planes,
+cylinder axes and native LINE edges. Its
+[contract](ASSEMBLY_DIRECTION_MATES.md) distinguishes mixed plane/direction
+semantics, signed collinear branches and direction-only freedom from coincidence
+or concentricity. Source `a7d99eafc101ca0bd9f8e87949a2116f98b04b88` passed all
+twelve local commands on Windows x64: build, 2,171 focused cases, 4,638 full
+unit/CAD cases, 50 IPC/security cases and all nine desktop commands. Every
+command preserved all 572 public source inputs. The new desktop workflow
+recorded 36 phases, thirteen Apply actions, one actual LINE pointer selection
+and Save As/reopen. The [validation record](VALIDATION.md#parallel-and-perpendicular-assembly-relations--2026-10-16)
+retains the first build failure, the preceding passing source and a separate
+editor-state correction identified by static review. These bounded results
+remain local and unpublished; complete assembly acceptance and the demo gate
+remain open.
+
+The dependent local `codex/assembly-tangent-plane-cylinder` increment implements
+the [plane/cylindrical-surface tangent contract](ASSEMBLY_TANGENT_MATES.md).
+It uses a distinct surface purpose, explicit plane-oriented side and separate
+native support-normal evidence. Its two equations constrain infinite supports,
+without claiming finite trimmed-face contact or absence of body overlap. Source
+`f4cd14ab9952a17498b79e44c974e847b7b2816c` passed all thirteen local commands
+on Windows x64: build, 2,427 focused cases, 4,894 full unit/CAD cases,
+50 IPC/security cases and all ten desktop commands. Every command preserved
+all 583 public source inputs. The new workflow recorded 24 phases, seven Apply
+actions, one actual cylindrical-face pointer selection and Save As/reopen.
+The [validation record](VALIDATION.md#plane-and-cylindrical-surface-tangency--2026-10-16)
+retains three preceding failed attempts and a separate passing workflow probe.
+These results remain local and unpublished. Other tangent pairs and complete
+assembly acceptance remain required; the demo gate stays closed.
+
+The dependent local `codex/assembly-cylinder-tangent` increment implements
+the [cylinder surface tangency contract](ASSEMBLY_CYLINDER_TANGENCY.md): separate
+regular nonparallel and explicitly parallel families, exact surface references,
+external/internal branch and declared larger-radius role. Infinite support
+relations do not establish finite contact, containment, rolling or absence of
+solid overlap. Corrected source `e5c541482fde781f9ca059734b41cf07ec7eb6dd`
+passed all fourteen local commands on Windows x64: build, 2,777 focused cases
+in 77 files, 5,244 full unit/CAD cases in 214 files, 50 IPC/security cases and
+all eleven desktop commands. Every command preserved all 594 source inputs.
+The new workflow completed both original documents, 52 registered phases,
+sixteen authenticated Apply actions, two native-face pointer selections and
+two Save As/reopen cycles. Registered phases exclude ordinary committed-scene
+rebuilds that Cancel can initiate.
+
+An earlier full attempt failed its final workflow on numerical rank uncertainty
+when adding a compatible parallel relation. The correction refines only
+certified singular modes under existing budgets and must certify the complete
+fresh Jacobian before accepting poses. The [validation record](VALIDATION.md#cylinder-surface-tangency--2026-10-16)
+preserves that failure, its diagnostic probe and the corrected preflight/full
+results. These results remain local and unpublished. Other tangent surfaces,
+cylindrical degenerations/transitions, full assembly acceptance and the demo
+remain pending; the preceding plane/cylinder evidence retains its exact source.
+
+The dependent local `codex/assembly-sphere-source` branch validates one original
+saved semicircle/Revolve sphere before adding spherical mates. Source
+`d39f096f02c6e76057dff789a9b57d92a87c7908` passed build and `npm test` on
+Windows x64: 5,245 unit/CAD cases in 215 files and 50 IPC/security cases, with
+597 source inputs unchanged. Its native gate checks actual spherical surface
+classification, independent geometry, exact reference/render catalogs and
+seam/pole behavior after reopening. Two earlier failed probes exposed an
+unsupported empty-mesh-buffer assumption; the corrected test checks exact
+native degeneration and original pole coordinates. Production and existing
+tests are unchanged from the preceding cylinder increment. This adds no
+spherical mate/reference API or new desktop interaction evidence. Complete
+tangent and assembly acceptance, and the demo, remain pending.
+
+The dependent local `codex/assembly-sphere-tangent` increment adds
+the [spherical support tangency proposal](ASSEMBLY_SPHERE_TANGENCY.md): distinct
+plane/sphere, sphere/sphere and cylinder/sphere declarations with exact spherical
+purpose, fresh native witnesses, side/radius roles and a dedicated picker.
+Windows source `712a85babc418f708fb4e82c5dc926c31adf6719` passed all fifteen
+commands: build, 3,287 focused and 5,754 full unit/CAD cases, 50 IPC checks and
+twelve desktop commands. The 509 new model/native/component cases overlap those
+suite counts. The three original renderer cases complete 72 registered
+operations, 21 authenticated Applies, three actual sphere pointers and nine
+file-IPC calls, including history and fresh reopen. Eight captures have private
+source-specific QA. [Validation](VALIDATION.md#spherical-support-tangency--2026-10-16-utc)
+retains the earlier build/type and exact-native-coordinate test failures,
+precision-domain fixes, tolerances and limits. This remains local and unpublished.
+Complete supports and normal agreement do not claim finite contact, rolling,
+general containment/non-interference, other tangent surfaces or platform
+support. Full assemblies and the demo remain open.
+
+The dependent local `codex/assembly-limit-distance` branch starts from
+`4e6e2a80db390d79d922f90050dbe6420f614e1c` for the
+[signed plane-distance interval proposal](ASSEMBLY_LIMIT_DISTANCE.md).
+Windows x64 source `b8b4976c88053c76e32f3292256fe92e2489a1d9` passed all
+sixteen local commands: build, 3,537 focused cases in 86 files, 6,004 full
+unit/CAD cases in 223 files, 50 IPC/security cases and thirteen desktop
+commands. All 622 source inputs remained unchanged. The 250 new model,
+native and component cases overlap those suite counts. This implements
+bounded inclusive signed intervals, bilateral plane alignment, unilateral
+boundary release and constrained target projection.
+
+The original two-box renderer workflow completed 38 registered phases, eleven
+authenticated Applies, four pick/drag gestures and one separately recorded
+wheel view adjustment, with Save As/reopen and three file-IPC calls. For its
+isolated fixed/free plane pair, bilateral rank two and four local bilateral
+DOF remain distinct from boundary lineality three and target deviation.
+The [validation record](VALIDATION.md#signed-plane-distance-intervals--2026-10-19-utc)
+preserves the two preceding failed validation attempts, failed and successful
+separate workflow preflights, exact tolerances and private visual-review limits.
+These results remain local and unpublished. At that increment, limit angles,
+width, symmetry and profile-centre still required their later integrations;
+those bounded implementations are recorded above. Path and remaining advanced
+scope still require acceptance. No finite
+contact, general mechanism, installed-package or other-platform acceptance is
+claimed; the complete assembly/demo gate remains closed.
+
+The dependent local branch `codex/assembly-limit-angle` started at
+`20ccaf873f1847dc737dbf155c1476cc750226b7` for the
+[principal direction-angle interval proposal](ASSEMBLY_LIMIT_ANGLE.md).
+It adds explicit 0–180° bounds, regular and endpoint strata,
+constrained restoration/projection, fresh native direction measurements and
+the editor/file workflow. Its original two-box fixture has repeatable
+generation. Earlier cumulative native failures and partial validation remain
+recorded in [VALIDATION.md](VALIDATION.md).
+
+The dependent local `codex/native-validation-context` branch scopes native
+checkers to finite final-catalog and assembly validation calls, retaining
+borrowed shapes until checker retirement. Windows x64 source
+`5f5e1eb790f295685fc261ab9c276c75f17590c1` passed build, 110 focused cases,
+all 6393 unit/CAD cases in 228 files, 50 IPC checks and all fourteen public
+desktop commands. This includes the complete 119-case angular file and the
+principal-angle renderer, movement, history and saved-file workflow. One later
+capture-enabled angular run at documentation-only head `680237a` also passed;
+its final reopened viewport received bounded visual review. Controls below
+the captured fold, human native dialogs and installed packages were not
+visually validated by that capture.
+
+These results remain local and unpublished. They establish neither a general
+native-memory fix nor a performance improvement. Directed circular intervals,
+signed winding stops and the other advanced families remain required work;
+existing principal-angle files retain their 0–180° meaning. Earlier distance
+evidence keeps its own exact source. The complete assembly/demo gate remains
+closed, with no new hosted or other-platform result claimed.
+
+## Assembly inspection selection — local source, 2026-10-20
+
+The dependent local `codex/assembly-interference-scope` source `fa14a84` adds
+explicit component/subassembly selection and exclusions to static native
+interference inspection. It distinguishes selected-only pairs from pairs
+crossing to the rest, validates full occurrence paths and exact revisions, and
+reports the evaluated scope. Reused instances stay distinct and exclusions
+take priority. Inspection and its options leave the committed model unchanged.
+
+Windows x64 passed build, all 6419 unit/CAD cases and 50 IPC cases, production
+desktop readiness and the complete assembly renderer workflow with the new
+scope controls. The [validation record](VALIDATION.md#assembly-interference-selection-and-exclusions--2026-10-20)
+states the analytical fixtures, tolerances and the limited final-frame visual
+review. This source remains local and unpublished. It does not establish other
+platforms, installation, automatic grouping, within-part analysis, union volumes
+or continuous collision detection. The complete assembly/demo gate stays closed.
+
+## Part replacement — local source, 2026-10-20
+
+The dependent local `codex/assembly-component-replacement` source adds
+different-ID embedded part replacement. Selected mode isolates one expanded
+instance through copied ancestor revisions; all mode changes every use of the
+exact source revision. Native catalogs support explicit reference repair, and
+affected mechanical coordinates require native recapture or explicit removal.
+The [contract](ASSEMBLY_COMPONENT_REPLACEMENT.md) keeps one authenticated Apply,
+complete Undo/Redo and unchanged original part sources reviewable.
+
+Implementation `b59d97b` passed build; `dd6c989`, with identical production
+source plus CI/development documentation, passed all 6460 unit/CAD/component
+cases, 50 IPC checks, production readiness, the new 86-check replacement desktop
+workflow and the existing 526-check assembly workflow on Windows x64. The
+[validation record](VALIDATION.md#part-replacement-and-explicit-reattachment--2026-10-20)
+separates native cases, scripted interaction, failure evidence and the limited
+final-frame review. This is partial replacement acceptance: subassemblies,
+linked sources, configurations, reusable attachment mapping and broader cases
+remain open. These results remain local and unpublished; complete assembly/demo,
+installation and other-platform acceptance are still pending.
 
 ## Historical review index — 2026-10-15, 11:48 UTC
 

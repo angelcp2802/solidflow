@@ -20,6 +20,7 @@ export interface Document {
 export type SolidDocument = Document
 
 const MAX_FEATURES = 2000
+const MAX_IMPORTED_BODIES_DOCUMENT_BYTES = 20 * 1024 * 1024
 const MAX_DIMENSION = 100_000
 const MAX_COORDINATE = 1_000_000
 const MIN_DIMENSION = 0.01
@@ -523,8 +524,49 @@ function edgeSelection(value: unknown, baseFeatureId: string, path: string): Edg
   return { mode: 'selected', edges }
 }
 
+/** Check the entire new import payload before hashing any individual source. */
+function preflightImportedBodies(source: Record<string, unknown>, path: string): void {
+  const dataRecord = (value: unknown, fields: string[], location: string): Record<string, unknown> => {
+    const record = object(value, location)
+    if (Object.getPrototypeOf(record) !== Object.prototype && Object.getPrototypeOf(record) !== null) fail(location, 'objeto de datos no válido')
+    if (Reflect.ownKeys(record).length !== fields.length) fail(location, 'campos de datos no válidos')
+    for (const field of fields) {
+      const descriptor = Object.getOwnPropertyDescriptor(record, field)
+      if (!descriptor?.enumerable || !('value' in descriptor)) fail(location + '.' + field, 'se esperaba un campo de datos propio')
+    }
+    return record
+  }
+  dataRecord(source, ['id', 'name', 'type', 'suppressed', 'bodies'], path)
+  const bodies = boundedArray(source.bodies, path + '.bodies', 1, MAX_BODY_OPERANDS)
+  if (Object.getPrototypeOf(bodies) !== Array.prototype || Reflect.ownKeys(bodies).length !== bodies.length + 1) fail(path + '.bodies', 'lista de datos densa no válida')
+  let encodedBytes = 0
+  for (let index = 0; index < bodies.length; index++) {
+    const descriptor = Object.getOwnPropertyDescriptor(bodies, String(index))
+    if (!descriptor?.enumerable || !('value' in descriptor)) fail(path + '.bodies', 'lista de datos densa no válida')
+    const location = `${path}.bodies[${index}]`
+    const body = dataRecord(descriptor.value, ['bodyId', 'source'], location)
+    const step = dataRecord(body.source, ['format', 'encoding', 'data', 'sha256'], location + '.source')
+    if (typeof step.data !== 'string') fail(location + '.source.data', 'se esperaba base64')
+    encodedBytes += step.data.length
+    if (encodedBytes > MAX_IMPORTED_BODIES_DOCUMENT_BYTES) fail(path, 'las fuentes importadas superan 20 MiB')
+  }
+}
+
+/** Detached strict declaration for direct kernel callers; no native authority. */
+export function validateImportedBodiesFeature(value: unknown, path = 'Cuerpos importados'): Extract<Feature, { type: 'importedBodies' }> {
+  const source = object(value, path)
+  preflightImportedBodies(source, path)
+  if (source.type !== 'importedBodies') fail(path + '.type', 'se esperaba importedBodies')
+  const parsed = feature(source, path)
+  if (parsed.type !== 'importedBodies') fail(path + '.type', 'se esperaba importedBodies')
+  return parsed
+}
+
 function feature(value: unknown, path: string): Feature {
   const source = object(value, path)
+  const typeDescriptor = Object.getOwnPropertyDescriptor(source, 'type')
+  if (!typeDescriptor || !('value' in typeDescriptor)) fail(path + '.type', 'se esperaba un campo de datos propio')
+  if (typeDescriptor?.value === 'importedBodies') preflightImportedBodies(source, path)
   const baseKeys = ['id', 'name', 'type', 'suppressed']
   const base = {
     id: string(source.id, `${path}.id`, 128),
@@ -534,6 +576,18 @@ function feature(value: unknown, path: string): Feature {
   if (source.type === 'importedSolid') {
     keys(source, [...baseKeys, 'source'], path)
     return { ...base, type: 'importedSolid', source: validateStepSource(source.source, `${path}.source`) }
+  }
+  if (source.type === 'importedBodies') {
+    keys(source, [...baseKeys, 'bodies'], path)
+    const bodies = boundedArray(source.bodies, path + '.bodies', 1, MAX_BODY_OPERANDS)
+    const ids = new Set<string>()
+    return { ...base, type: 'importedBodies', bodies: bodies.map((value, index) => {
+      const location = `${path}.bodies[${index}]`, body = object(value, location)
+      const bodyId = entityIdentifier(body.bodyId, location + '.bodyId')
+      if (ids.has(bodyId)) fail(location + '.bodyId', 'identificador de cuerpo duplicado')
+      ids.add(bodyId)
+      return { bodyId, source: validateStepSource(body.source, location + '.source') }
+    }) }
   }
   if (source.type === 'sketch') {
     keys(source, [...baseKeys, 'plane', 'offset', 'profile'], path, ['support'])
@@ -742,7 +796,7 @@ export function validateDocument(value: unknown): Document {
     // their existing syntax when no explicit body state is created or modified.
     if (bodyIds.length || bodyRefs.length) entityIdentifier(parsed.id, `${path}.id`)
     for (const bodyId of bodyIds) {
-      if (createdBodies.has(bodyId)) fail(`${path}.${parsed.type === 'combine' ? 'resultBodyId' : 'bodyPattern' in parsed ? 'bodyPattern.instances' : 'bodyOperation.bodyId'}`, 'identificador de cuerpo creado duplicado')
+      if (createdBodies.has(bodyId)) fail(`${path}.${parsed.type === 'importedBodies' ? 'bodies' : parsed.type === 'combine' ? 'resultBodyId' : 'bodyPattern' in parsed ? 'bodyPattern.instances' : 'bodyOperation.bodyId'}`, 'identificador de cuerpo creado duplicado')
       createdBodies.add(bodyId)
       if (createdBodies.size > MAX_CREATED_BODY_IDS) fail(path, 'el documento supera 65536 identificadores de cuerpo creados, incluidos los retirados')
     }
@@ -754,7 +808,7 @@ export function validateDocument(value: unknown): Document {
         fail(`${location}.bodyId`, 'el cuerpo no pertenece a la salida explícita de esa operación')
       }
     })
-    if (parsed.type === 'importedSolid') {
+    if (parsed.type === 'importedSolid' || parsed.type === 'importedBodies') {
       if (seenImport) fail(`${path}.type`, 'solo se admite un sólido importado')
       if (seenSolid) fail(`${path}.type`, 'el sólido importado debe ser la primera operación sólida, incluso con operaciones suprimidas')
       seenImport = true
@@ -803,10 +857,14 @@ export function validateDocument(value: unknown): Document {
   const createdAt = timestamp(source.createdAt, 'Documento.createdAt')
   const updatedAt = timestamp(source.updatedAt, 'Documento.updatedAt')
   if (updatedAt < createdAt) fail('Documento.updatedAt', 'anterior a la fecha de creación')
-  return {
+  const result: Document = {
     version: 1, id: string(source.id, 'Documento.id', 128), name: string(source.name, 'Documento.name'),
     units: 'mm', features, createdAt, updatedAt,
   }
+  if (features.some(feature => feature.type === 'importedBodies') && new TextEncoder().encode(JSON.stringify(result, null, 2)).byteLength > MAX_IMPORTED_BODIES_DOCUMENT_BYTES) {
+    fail('Documento', 'el documento serializado supera 20 MiB')
+  }
+  return result
 }
 
 export function createDocument(name = 'Pieza sin título'): Document {

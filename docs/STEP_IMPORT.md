@@ -27,6 +27,12 @@ filesystem-path field does not anonymize the imported content.
 
 ## Acceptance and limits
 
+The existing menu below remains the legacy one-solid route. The separate
+[explicit imported-body base](IMPORTED_BODIES.md) supports saved multibody
+parts produced by the separate [structural assembly command](ASSEMBLY_STEP_EDITOR.md). It stores one autonomous
+closed-solid source per explicit body and does not broaden this menu's admission
+or infer a part's original feature history.
+
 The initial import contract accepts exactly one valid, positive-volume closed
 solid without extra free shells, faces, wires, edges or vertices. Open surfaces,
 multiple solids, incomplete transfers and corrupt files are rejected with a

@@ -129,10 +129,13 @@ import {
   createMirrorExample,
 } from "./examples/patterns";
 import { featureSketchIds } from "./model/featureInputs";
+import { initialPartTargets } from "./model/partWorkflow";
+import { createPartSequenceDocument } from "./examples/part-sequence";
+import { importStructuralStep } from "./model/structuralStepImport";
 import { importStepPart, type StepFile } from "./model/stepImport";
 import { MAX_STEP_BYTES } from "./model/stepSource";
 import { initialLoftSection, resolvedSweepPath } from "./model/advancedInputs";
-import { buildModel, exportCad, initKernel } from "./cad/kernel";
+import { buildModel, exportCad, initKernel, importAssemblyStep } from "./cad/kernel";
 import type {
   Feature,
   SketchFeature,
@@ -155,7 +158,7 @@ import type {
 import {
   createDemoDocument,
   createDocument,
-  parseDocument,
+  validateDocument,
   serializeDocument,
   addFeature,
   updateFeature,
@@ -163,6 +166,13 @@ import {
   DocumentHistory,
   type Document,
 } from "./model/document";
+import AssemblyWorkspace from "./components/AssemblyWorkspace";
+import ConfiguredAssemblyWorkspace from "./components/ConfiguredAssemblyWorkspace";
+import { createEmptyAssembly } from "./examples/assembly";
+import { MAX_ASSEMBLY_BYTES, type AssemblyDocument } from "./model/assemblyDocument";
+import { parseCadDocument, serializeCadDocument, validateCadDocument, type CadDocument } from "./model/cadDocument";
+import type { AssemblyConfiguredDocument } from "./model/assemblyConfiguredDocument";
+import { readCadRecovery, writeCadRecovery } from "./model/cadRecovery";
 
 const planeNames: Record<Plane, string> = {
   XY: "Alzado",
@@ -186,6 +196,7 @@ const labels: Record<string, string> = {
   draft: "Desmoldeo",
   hole: "Taladro",
   importedSolid: "Sólido importado STEP",
+  importedBodies: "Cuerpos importados STEP",
   combine: "Combinar",
 };
 const featureIcons: Record<string, LucideIcon> = {
@@ -205,6 +216,7 @@ const featureIcons: Record<string, LucideIcon> = {
   draft: Cone,
   hole: Crosshair,
   importedSolid: FolderOpen,
+  importedBodies: FolderOpen,
   combine: Component,
 };
 function isFaceOperation(
@@ -222,14 +234,23 @@ function isRepetition(feature: Feature | null): feature is RepetitionFeature {
 function isEdgeFinish(feature: Feature | null): feature is EdgeFinishFeature {
   return feature?.type === "fillet" || feature?.type === "chamfer";
 }
-function initialDocument() {
+interface DocumentSession {
+  document: CadDocument;
+  path?: string;
+  saved?: string;
+  epoch: number;
+  skipInitialRecoveryWrite?: boolean;
+}
+function initialDocumentSession(): DocumentSession {
   try {
-    const saved = localStorage.getItem("solidflow.autosave");
-    if (saved) return parseDocument(saved);
+    const recovery = readCadRecovery(localStorage);
+    if (recovery.status === "recovered") return { document: recovery.document, epoch: 0 };
+    return { document: createDemoDocument(), epoch: 0, skipInitialRecoveryWrite: recovery.status !== "missing" };
   } catch {
-    /* Invalid recovery data does not replace a valid document. */
+    // Accessing localStorage itself can fail. Preserve existing recovery bytes
+    // until the user explicitly changes or replaces the fallback document.
+    return { document: createDemoDocument(), epoch: 0, skipInitialRecoveryWrite: true };
   }
-  return createDemoDocument();
 }
 function download(blob: Blob, name: string) {
   const link = document.createElement("a");
@@ -324,7 +345,33 @@ function NumberField({
 }
 
 export default function App() {
-  const [doc, setDoc] = useState<Document>(initialDocument);
+  const [session, setSession] = useState<DocumentSession>(initialDocumentSession);
+  const replaceDocument = (value: CadDocument, path?: string, saved?: string) => {
+    const document = validateCadDocument(value);
+    const serialized = serializeCadDocument(document);
+    setSession(previous => ({ document, path, saved: saved === undefined ? undefined : serialized, epoch: previous.epoch + 1 }));
+  };
+  return session.document.version === 3 ? (
+    <ConfiguredAssemblyWorkspace key={session.epoch} initialDocument={session.document} initialPath={session.path}
+      initialSaved={session.saved} skipInitialRecoveryWrite={session.skipInitialRecoveryWrite} onOpenDocument={replaceDocument} />
+  ) : session.document.version === 2 ? (
+    <AssemblyWorkspace key={session.epoch} initialDocument={session.document} initialPath={session.path}
+      initialSaved={session.saved} onOpenPart={replaceDocument} onOpenConfigured={replaceDocument} />
+  ) : (
+    <PartWorkspace key={session.epoch} initialDocument={session.document} initialPath={session.path}
+      initialSaved={session.saved} skipInitialRecoveryWrite={session.skipInitialRecoveryWrite} onOpenAssembly={replaceDocument} />
+  );
+}
+
+interface PartWorkspaceProps {
+  initialDocument: Document;
+  initialPath?: string;
+  initialSaved?: string;
+  skipInitialRecoveryWrite?: boolean;
+  onOpenAssembly: (document: AssemblyDocument | AssemblyConfiguredDocument, path?: string, saved?: string) => void;
+}
+function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitialRecoveryWrite = false, onOpenAssembly }: PartWorkspaceProps) {
+  const [doc, setDoc] = useState<Document>(() => validateDocument(initialDocument));
   const history = useRef<DocumentHistory | null>(null);
   if (!history.current) history.current = new DocumentHistory(doc);
   const [model, setModel] = useState<CadResult | null>(null),
@@ -387,18 +434,30 @@ export default function App() {
     [showHelp, setShowHelp] = useState(false),
     [rename, setRename] = useState(false),
     [discardOpen, setDiscardOpen] = useState(false);
-  const [filePath, setFilePath] = useState<string | undefined>(),
-    [saved, setSaved] = useState(""),
+  const [filePath, setFilePath] = useState<string | undefined>(initialPath),
+    [saved, setSaved] = useState(initialSaved ?? ""),
     [exporting, setExporting] = useState(false),
     [importing, setImporting] = useState(false),
     [treeOpen, setTreeOpen] = useState(true);
   const fileInput = useRef<HTMLInputElement>(null);
   const stepInput = useRef<HTMLInputElement>(null);
+  const structuralInput = useRef<HTMLInputElement>(null);
+  const structuralRead = useRef<{resolve:(file:StepFile|null)=>void;reject:(error:unknown)=>void}|null>(null);
+  useEffect(() => {
+    const input = structuralInput.current;
+    const cancel = () => { const pending = structuralRead.current; structuralRead.current = null; pending?.resolve(null); };
+    input?.addEventListener('cancel', cancel);
+    return () => { input?.removeEventListener('cancel', cancel); cancel(); };
+  }, []);
   const fileOperation = useRef(false);
   const discardDecision = useRef<((accepted: boolean) => void) | null>(null);
   const discardDialog = useRef<HTMLDivElement>(null);
   const docRef = useRef(doc);
   const editingRef = useRef(editing);
+  const documentEpoch = useRef(0);
+  const mounted = useRef(true);
+  type ReplacementSource = { document: Document; editing: Feature | null; epoch: number };
+  const browserOpenSource = useRef<ReplacementSource | null>(null);
   editingRef.current = editing;
   docRef.current = doc;
   const selectedFeature = doc.features.find((f) => f.id === selected);
@@ -532,6 +591,7 @@ export default function App() {
       ? ""
       : error;
   const serializedDocument = useMemo(() => serializeDocument(doc), [doc]);
+  const preservedRecovery = useRef<string | null>(skipInitialRecoveryWrite ? serializedDocument : null);
   const dirty = serializedDocument !== saved || editing !== null;
   const previewCurrent = builtFeatures === effectiveFeatures;
   const editingResolved =
@@ -687,14 +747,16 @@ export default function App() {
     setEdgeSelection([]);
   }, [doc.features]);
   useEffect(() => {
+    if (preservedRecovery.current === serializedDocument) return;
+    preservedRecovery.current = null;
     try {
-      localStorage.setItem("solidflow.autosave", serializedDocument);
+      writeCadRecovery(localStorage, doc);
     } catch {
       notify(
         "No se pudo guardar la recuperación local. Guarda la pieza en un archivo.",
       );
     }
-  }, [serializedDocument]);
+  }, [doc, serializedDocument]);
   useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(() => setToast(""), 4500);
@@ -710,14 +772,22 @@ export default function App() {
     };
   }, [discardOpen]);
   useEffect(
-    () => () => {
-      const resolve = discardDecision.current;
-      discardDecision.current = null;
-      resolve?.(false);
+    () => {
+      mounted.current = true;
+      return () => {
+        mounted.current = false;
+        browserOpenSource.current = null;
+        const resolve = discardDecision.current;
+        discardDecision.current = null;
+        resolve?.(false);
+      };
     },
     [],
   );
   const reset = (next: Document, path?: string, markSaved = false) => {
+    documentEpoch.current++;
+    preservedRecovery.current = null;
+    browserOpenSource.current = null;
     setPickingEndFace(false);
     setHoleSection("type");
     setSelectedHolePosition(null);
@@ -758,11 +828,30 @@ export default function App() {
   const newDoc = async () => {
     if (await canReplace()) reset(createDocument("Pieza1"));
   };
+  const replacementSource = (): ReplacementSource => ({ document: docRef.current, editing: editingRef.current, epoch: documentEpoch.current });
+  const isReplacementCurrent = (source: ReplacementSource) => mounted.current && source.epoch === documentEpoch.current &&
+    source.document === docRef.current && source.editing === editingRef.current;
+  const openReplacement = (content: string, path: string | undefined, source: ReplacementSource) => {
+    const next = parseCadDocument(content);
+    const saved = serializeCadDocument(next);
+    if (!isReplacementCurrent(source)) throw new Error("El documento cambió durante la apertura. Vuelve a abrir el archivo.");
+    if (next.version === 2 || next.version === 3) onOpenAssembly(next, path, saved);
+    else reset(next, path, true);
+  };
+  const newAssembly = async () => {
+    const source = replacementSource();
+    if (!(await canReplace()) || !isReplacementCurrent(source)) return;
+    try { onOpenAssembly(createEmptyAssembly()); }
+    catch (reason) { notify((reason as Error).message, true); }
+  };
   const loadDemo = async () => {
     if (await canReplace()) reset(createDemoDocument());
   };
   const loadConstrainedDemo = async () => {
     if (await canReplace()) reset(createConstrainedPlateDocument());
+  };
+  const loadPartSequenceDemo = async () => {
+    if (await canReplace()) reset(createPartSequenceDocument());
   };
   const loadSketchRelationsDemo = async (
     kind: "angle" | "tangent" | "driven",
@@ -897,6 +986,7 @@ export default function App() {
     }
     fileOperation.current = true;
     const snapshot = serializedDocument;
+    const epoch = documentEpoch.current;
     try {
       if (window.solidflow) {
         const path = await window.solidflow.saveDocument(
@@ -905,30 +995,36 @@ export default function App() {
           saveAs ? undefined : filePath,
         );
         if (!path) return;
-        if (docRef.current.id === doc.id) setFilePath(path);
+        if (!mounted.current || documentEpoch.current !== epoch) return;
+        setFilePath(path);
       } else
         download(
           new Blob([snapshot], { type: "application/json" }),
           doc.name + ".solidflow",
         );
-      if (docRef.current.id === doc.id) setSaved(snapshot);
+      if (!mounted.current || documentEpoch.current !== epoch) return;
+      setSaved(snapshot);
       notify("Pieza guardada");
     } catch (e) {
-      notify((e as Error).message, true);
+      if (mounted.current) notify((e as Error).message, true);
     } finally {
       fileOperation.current = false;
     }
   };
   const openDoc = async () => {
-    if (!(await canReplace())) return;
+    const source = replacementSource();
+    if (!(await canReplace()) || !isReplacementCurrent(source)) return;
     fileOperation.current = true;
     try {
       if (window.solidflow) {
         const file = await window.solidflow.openDocument();
-        if (file) reset(parseDocument(file.content), file.path, true);
-      } else fileInput.current?.click();
+        if (file) openReplacement(file.content, file.path, source);
+      } else {
+        browserOpenSource.current = source;
+        fileInput.current?.click();
+      }
     } catch (e) {
-      notify((e as Error).message, true);
+      if (mounted.current) notify((e as Error).message, true);
     } finally {
       fileOperation.current = false;
     }
@@ -961,6 +1057,20 @@ export default function App() {
       setImporting(false);
       fileOperation.current = false;
     }
+  };
+  const selectStructuralStep = async () => {
+    if (!requireFinishedEdit() || fileOperation.current || !ready) return;
+    const epoch = documentEpoch.current, original = serializeDocument(docRef.current), editing = editingRef.current;
+    const fresh = () => mounted.current && documentEpoch.current === epoch && editingRef.current === editing && serializeDocument(docRef.current) === original;
+    fileOperation.current = true; setImporting(true);
+    try {
+      const result = await importStructuralStep({ fresh, prepare: importAssemblyStep,
+        read: window.solidflow ? () => window.solidflow!.importStep() : () => new Promise<StepFile|null>((resolve,reject) => { structuralRead.current={resolve,reject}; structuralInput.current?.click(); }),
+        confirm: () => canReplace(true), commit: next => onOpenAssembly(next),
+      });
+      if (fresh() && result === 'stale') notify('La pieza cambió durante la importación estructural.');
+    } catch(reason) { if(fresh()) notify((reason as Error).message,true); }
+    finally { if(mounted.current && documentEpoch.current===epoch) {fileOperation.current=false;setImporting(false);} }
   };
   const selectStep = () => {
     if (!requireFinishedEdit()) return;
@@ -1271,6 +1381,10 @@ export default function App() {
   };
   const startFeature = (type: "extrude" | "cut" | "revolve") => {
     if (!requireFinishedEdit()) return;
+    if (busy || !previewCurrent || !model || model.featureErrors.length) {
+      notify("Espera a que la pieza se reconstruya sin errores antes de añadir la operación.");
+      return;
+    }
     setPickingEndFace(false);
     setPickingSupport(false);
     setSelectionMode("body");
@@ -1281,7 +1395,7 @@ export default function App() {
       [...doc.features]
         .reverse()
         .find((f) => f.type === "sketch" && !f.suppressed);
-    if (!sketch) {
+    if (!sketch || sketch.type !== "sketch") {
       notify("Crea o selecciona un croquis antes de añadir la operación.");
       return;
     }
@@ -1293,15 +1407,17 @@ export default function App() {
     };
     const explicitBodies = model?.bodyCatalogActive === true || !doc.features.some(feature => feature.type !== "sketch" && feature.type !== "plane" && !isBodyCommandFeature(feature));
     bodyOutputId.current = crypto.randomUUID();
-    setBodySelection(type === "cut" && explicitBodies ? bodySelection.map(ref => ({ ...ref })) : []);
-    setBodyPicking(type === "cut" && explicitBodies);
+    const targets = explicitBodies ? initialPartTargets(model.bodies ?? [], bodySelection, sketch) : [];
+    const mergeTarget = type === "extrude" && sketch.support?.kind === "face" && targets.length === 1 ? targets[0] : null;
+    setBodySelection(type === "cut" || mergeTarget ? targets : []);
+    setBodyPicking(type === "cut" && explicitBodies && !targets.length);
     if (type === "revolve") setEditing({ ...base, type, angle: 360,
       ...(explicitBodies ? { bodyOperation: { mode: "new", bodyId: bodyOutputId.current } } : {}) });
     else if (type === "cut") setEditing({ ...base, type,
       depth: sketch.type === "sketch" && sketch.support ? -20 : 20, symmetric: false,
-      ...(explicitBodies ? { bodyScope: bodySelection.map(ref => ({ ...ref })) } : {}) });
+      ...(explicitBodies ? { bodyScope: targets } : {}) });
     else setEditing({ ...base, type, depth: 20, symmetric: false,
-      ...(explicitBodies ? { bodyOperation: { mode: "new", bodyId: bodyOutputId.current } } : {}) });
+      ...(explicitBodies ? { bodyOperation: mergeTarget ? { mode: "merge", target: mergeTarget } : { mode: "new", bodyId: bodyOutputId.current } } : {}) });
     setTab("Operaciones");
     setError("");
   };
@@ -2086,14 +2202,19 @@ export default function App() {
         accept=".solidflow"
         hidden
         onChange={async (e) => {
-          const f = e.target.files?.[0];
-          if (f)
-            try {
-              reset(parseDocument(await f.text()), undefined, true);
-            } catch (err) {
-              notify((err as Error).message, true);
-            }
-          e.target.value = "";
+          const input = e.currentTarget;
+          const f = input.files?.[0], source = browserOpenSource.current;
+          browserOpenSource.current = null;
+          input.value = "";
+          if (!f || !source || !isReplacementCurrent(source)) return;
+          if (fileOperation.current) { notify("Espera a que termine la operación de archivo actual."); return; }
+          fileOperation.current = true;
+          try {
+            if (f.size > MAX_ASSEMBLY_BYTES) throw new Error("El documento supera los 20 MB admitidos.");
+            openReplacement(await f.text(), undefined, source);
+          } catch (err) {
+            if (mounted.current) notify((err as Error).message, true);
+          } finally { fileOperation.current = false; }
         }}
       />
       <input
@@ -2110,6 +2231,11 @@ export default function App() {
           });
         }}
       />
+      <input ref={structuralInput} type="file" accept=".step,.stp" hidden onChange={e=>{
+        const file=e.target.files?.[0], pending=structuralRead.current; e.target.value='';structuralRead.current=null;if(!pending)return;
+        if(!file){pending.resolve(null);return;} if(file.size>MAX_STEP_BYTES){pending.reject(Error('El STEP supera los 8 MB admitidos.'));return;}
+        void file.arrayBuffer().then(data=>pending.resolve({name:file.name,data:new Uint8Array(data)}),pending.reject);
+      }} />
       <header className="menubar">
         <div className="brand">
           <div className="brand-mark">
@@ -2145,11 +2271,13 @@ export default function App() {
                         ["Nueva pieza", "Ctrl+N", newDoc],
                         ["Abrir…", "Ctrl+O", openDoc],
                         ["Importar STEP…", "", selectStep],
+                        ["Importar STEP estructurado…", "", () => void selectStructuralStep()],
                         ["Guardar", "Ctrl+S", () => saveDoc()],
                         ["Guardar como…", "Ctrl+Mayús+S", () => saveDoc(true)],
                         ["Exportar STEP", "", () => exportFile("step")],
                         ["Exportar STL", "", () => exportFile("stl")],
                         ["Abrir pieza de ejemplo", "", loadDemo],
+                        ["Ejemplo: cortes y salientes sucesivos", "", loadPartSequenceDemo],
                       ]
                     : name === "Editar"
                       ? [
@@ -2513,14 +2641,15 @@ export default function App() {
                   label="Seleccionar"
                   large
                   onClick={() => selectSketchTool("select")}
-                  active={sketchTool === "select"}
+                  active={editing?.type === "sketch" && sketchTool === "select"}
+                  disabled={editing?.type !== "sketch"}
                 />
                 <Command
                   icon={Minus}
                   label="Línea"
                   large
                   onClick={() => selectSketchTool("line")}
-                  active={sketchTool === "line"}
+                  active={editing?.type === "sketch" && sketchTool === "line"}
                   disabled={!!editing && editing.type !== "sketch"}
                 />
                 <Command
@@ -2543,7 +2672,8 @@ export default function App() {
                       setSketchTool("rectangle");
                     } else selectSketchTool("rectangle");
                   }}
-                  active={sketchTool === "rectangle"}
+                  active={editing?.type === "sketch" && sketchTool === "rectangle"}
+                  disabled={!!editing && editing.type !== "sketch"}
                 />
                 <Command
                   icon={Circle}
@@ -2564,14 +2694,15 @@ export default function App() {
                       setSketchTool("circle");
                     } else selectSketchTool("circle");
                   }}
-                  active={sketchTool === "circle"}
+                  active={editing?.type === "sketch" && sketchTool === "circle"}
+                  disabled={!!editing && editing.type !== "sketch"}
                 />
                 <Command
                   icon={Spline}
                   label="Arco de centro"
                   large
                   onClick={() => selectSketchTool("arc")}
-                  active={sketchTool === "arc"}
+                  active={editing?.type === "sketch" && sketchTool === "arc"}
                   disabled={!!editing && editing.type !== "sketch"}
                 />
               </div>
@@ -2581,7 +2712,7 @@ export default function App() {
                   label="Recortar entidades"
                   large
                   onClick={() => selectSketchTool("trim")}
-                  active={sketchTool === "trim"}
+                  active={editing?.type === "sketch" && sketchTool === "trim"}
                   disabled={editing?.type !== "sketch"}
                 />
                 <Command
@@ -2589,7 +2720,7 @@ export default function App() {
                   label="Extender entidades"
                   large
                   onClick={() => selectSketchTool("extend")}
-                  active={sketchTool === "extend"}
+                  active={editing?.type === "sketch" && sketchTool === "extend"}
                   disabled={editing?.type !== "sketch"}
                 />
                 <Command
@@ -2597,7 +2728,7 @@ export default function App() {
                   label="Chaflán de croquis"
                   large
                   onClick={() => selectSketchTool("chamfer")}
-                  active={sketchTool === "chamfer"}
+                  active={editing?.type === "sketch" && sketchTool === "chamfer"}
                   disabled={editing?.type !== "sketch"}
                 />
                 <Command
@@ -2605,14 +2736,14 @@ export default function App() {
                   label="Redondeo de croquis"
                   large
                   onClick={() => selectSketchTool("fillet")}
-                  active={sketchTool === "fillet"}
+                  active={editing?.type === "sketch" && sketchTool === "fillet"}
                   disabled={editing?.type !== "sketch"}
                 />
                 <Command icon={FlipHorizontal2} label="Simetría de croquis" large
-                  onClick={() => selectSketchTool("mirror")} active={sketchTool === "mirror"}
+                  onClick={() => selectSketchTool("mirror")} active={editing?.type === "sketch" && sketchTool === "mirror"}
                   disabled={editing?.type !== "sketch"} />
                 <Command icon={CopyPlus} label="Equidistancia de entidades" large
-                  onClick={() => selectSketchTool("offset")} active={sketchTool === "offset"}
+                  onClick={() => selectSketchTool("offset")} active={editing?.type === "sketch" && sketchTool === "offset"}
                   disabled={editing?.type !== "sketch"} />
                 <Command
                   icon={Component}
@@ -2731,7 +2862,7 @@ export default function App() {
           <button disabled title="Módulo pendiente">
             Chapa metálica
           </button>
-          <button disabled title="Módulo pendiente">
+          <button onClick={() => void newAssembly()} title="Crear un ensamblaje">
             Ensamblaje
           </button>
           <div />
@@ -3120,10 +3251,10 @@ export default function App() {
                 />
               ) : editing.type === "combine" ? (
                 <p className="muted-small">Revisa la selección y el resultado antes de aceptar. Cancelar conserva todos los cuerpos de origen.</p>
-              ) : editing.type === "importedSolid" ? (
+              ) : editing.type === "importedSolid" || editing.type === "importedBodies" ? (
                 <div className="property-section">
                   <h3><ChevronDown size={12} /> Geometría base</h3>
-                  <p className="muted-small">El sólido STEP está guardado dentro de esta pieza. Selecciona sus caras o aristas para añadir croquis, taladros y operaciones.</p>
+                  <p className="muted-small">{editing.type === "importedBodies" ? `${editing.bodies.length} cuerpos STEP están guardados dentro de esta pieza con identidades separadas. Selecciona un cuerpo exacto para las operaciones posteriores.` : 'El sólido STEP está guardado dentro de esta pieza. Selecciona sus caras o aristas para añadir croquis, taladros y operaciones.'}</p>
                   <p className="muted-small">La importación conserva la geometría; no reconstruye el historial de diseño original. Las nuevas operaciones aparecen en el árbol y siguen siendo editables.</p>
                 </div>
               ) : editing.type === "sweep" || editing.type === "loft" ? (
@@ -3851,8 +3982,8 @@ export default function App() {
               "Dibuja entidades · Ctrl: selección múltiple · Cotas y relaciones en el panel"
             ) : (
               <>
-                Arrastrar: girar <b>·</b> Rueda: zoom <b>·</b> Botón central:
-                desplazar
+                Clic: seleccionar <b>·</b> Rueda: zoom <b>·</b> Rueda pulsada: girar
+                <b>·</b> Mayús + rueda pulsada: desplazar
               </>
             )}
           </div>
@@ -3952,6 +4083,11 @@ export default function App() {
                 </button>
                 <button className="outline-button" onClick={newDoc}>
                   <Plus size={15} /> Pieza vacía
+                </button>
+                <button className="library-card" onClick={loadPartSequenceDemo}>
+                  <Layers size={36} />
+                  <strong>Cortes y salientes sucesivos</strong>
+                  <span>Base y cuatro croquis preparados: dos cortes de 4 mm y salientes de 3 y 2 mm. Selecciona cada croquis en el árbol y añade su operación desde el menú superior. En los salientes, elige añadir material al cuerpo en las propiedades.</span>
                 </button>
                 <button className="library-card" onClick={loadConstrainedDemo}>
                   <Ruler size={36} />
@@ -4221,7 +4357,7 @@ export default function App() {
       {(exporting || (importing && !discardOpen)) && (
         <div className="toast">
           <Loader2 size={17} className="spin" />
-          {importing ? "Preparando sólido STEP…" : "Exportando geometría…"}
+          {importing ? "Preparando importación STEP…" : "Exportando geometría…"}
         </div>
       )}
       {showHelp && (

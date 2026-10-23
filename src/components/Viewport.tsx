@@ -1,3 +1,4 @@
+import { configureCadNavigation, createCadSelectionGesture } from "./cadNavigation";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
@@ -226,11 +227,7 @@ export default function Viewport({
     controls.enableDamping = true;
     controls.dampingFactor = 0.12;
     controls.screenSpacePanning = true;
-    controls.mouseButtons = {
-      LEFT: THREE.MOUSE.ROTATE,
-      MIDDLE: THREE.MOUSE.PAN,
-      RIGHT: THREE.MOUSE.ROTATE,
-    };
+    configureCadNavigation(controls);
     scene.add(new THREE.HemisphereLight(0xf5f9ff, 0x657b92, 2.5));
     const key = new THREE.DirectionalLight(0xffffff, 3);
     key.position.set(-120, 250, 160);
@@ -436,7 +433,7 @@ export default function Viewport({
       context.current?.sketches.forEach((sketch) => sketch.objects.forEach((object) => object.material.resolution.set(el.clientWidth, el.clientHeight)));
     });
     resize.observe(el);
-    let down = [0, 0];
+    const selectionGesture = createCadSelectionGesture();
     let hoverPointer: { x: number; y: number } | null = null;
     let hoverDirty = false;
     let hovered: string | null = null;
@@ -485,12 +482,13 @@ export default function Viewport({
     const pickFace = (x: number, y: number) => pickVisibleFace(camera, context.current?.faces ?? [], { x, y }, { width: el.clientWidth, height: el.clientHeight }, context.current?.body ?? null);
     const pickPlane = (x: number, y: number) => interaction.current.onSelectPlane ? pickVisiblePlane(camera, context.current?.body ?? null, context.current?.planes ?? [], { x, y }, { width: el.clientWidth, height: el.clientHeight }) : null;
     const pointerDown = (e: PointerEvent) => {
-      down = [e.clientX, e.clientY];
+      selectionGesture.down(e);
       hovered = null;
       hoveredFace = null; hoveredPlane = null;
       updateHighlights();
     };
     const pointerMove = (e: PointerEvent) => {
+      selectionGesture.move(e);
       if (e.buttons) {
         hoverPointer = null;
         hovered = null;
@@ -509,11 +507,7 @@ export default function Viewport({
       updateHighlights();
     };
     const pointerUp = (e: PointerEvent) => {
-      if (
-        e.button !== 0 ||
-        Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 4
-      )
-        return;
+      if (!selectionGesture.up(e)) return;
       const rect = el.getBoundingClientRect();
       hoverPointer = { x: e.clientX - rect.left, y: e.clientY - rect.top };
       hoverDirty = true;
@@ -552,6 +546,8 @@ export default function Viewport({
     };
     const cameraChanged = () => { hoverDirty = true; };
     controls.addEventListener('change', cameraChanged);
+    renderer.domElement.addEventListener("pointercancel", selectionGesture.cancel);
+    window.addEventListener("blur", selectionGesture.cancel);
     renderer.domElement.addEventListener("pointerdown", pointerDown);
     renderer.domElement.addEventListener("pointerup", pointerUp);
     renderer.domElement.addEventListener("pointermove", pointerMove);
@@ -578,6 +574,8 @@ export default function Viewport({
     return () => {
       resize.disconnect();
       renderer.setAnimationLoop(null);
+      renderer.domElement.removeEventListener("pointercancel", selectionGesture.cancel);
+      window.removeEventListener("blur", selectionGesture.cancel);
       renderer.domElement.removeEventListener("pointerdown", pointerDown);
       renderer.domElement.removeEventListener("pointerup", pointerUp);
       renderer.domElement.removeEventListener("pointermove", pointerMove);

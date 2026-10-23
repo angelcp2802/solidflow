@@ -1,5 +1,4405 @@
 # Validation
 
+## Configured material selection feedback — 2026-10-24
+
+The increment after `f984b71`, tracked in issue #55, preserves selected general
+face/LINE highlights and shows the active role, scope, state and cancellation
+beside the viewport. Display marks are resolved against current visible
+identities and compatible purposes; no solver, file format or IPC grants change.
+
+Focused Windows x64 / Node 24.11.1 results:
+
+- Seven pure/SSR picking cases pass, including stale, hidden, ambiguous and
+  out-of-scope references, property-order independence and incompatible purpose.
+- One original native case passes in 3.23 s overall. Two 4 mm cubes retain
+  128 mm³, 192 mm² and two solids. Explicit origin-plane X/Y restraints leave
+  B's Z free; B-top to A-top signed distance +2 moves B from Z=6 to Z=2.
+  Matching LINE parallelism preserves that placement. Native material identities,
+  Cancel/Apply, history, save/reopen and unchanged Base/dormant states are checked.
+  Bounds/placement tolerance is 1e-6 mm; volume/area is 1e-5.
+- The final renderer passes 59 checkpoints / 12 geometric phases with eight
+  actual pointer gestures for component and material-role selection. Real
+  worker/private preview, Cancel/retry/Apply, Undo/Redo and native file IPC run
+  with test-owned dialog paths. No console/resource errors; child/profile cleanup
+  passes. Form controls are scripted; native constraints are independently checked.
+  The final 1544×941 capture was visually inspected: both saved distance faces
+  remain highlighted with the relation editor open. Highlight pixels are visual
+  evidence, separate from native geometry and the pure reference guards.
+
+Fixture development first exposed a mismatched part identity, an incorrect
+signed-distance expectation and valid drift in unconstrained X. The original
+fixture was corrected with explicit origin constraints and ordered roles;
+no solver behavior or tolerance was weakened. A subsequent screenshot attempt
+left its relation editor open and failed the existing teardown deadline. The
+flow now closes that editor explicitly after capture and the final run observes
+child exit and profile cleanup. No dialog gate or deadline was relaxed.
+
+The configured panel remains long and visually separate from the part ribbon.
+Compact-window review, specialized mechanical/compound pointer roles, displayed
+origin-axis picking and complete assembly-demo/platform acceptance remain open.
+
+Final literal `npm test` passes **9,353 cases / 400 files** in 568.43 s, then
+**83 IPC/security checks**, zero failures and two explicit Windows skips
+(1,513.3477 ms). Final `npm run build` and actual Electron production-loader /
+worker / WASM smoke pass. The existing configured-relation renderer regression
+also passes 61 checkpoints with no console/resource errors and confirmed child
+exit/profile cleanup. Existing externalized-module and bundle-size warnings
+remain. All 1,048 frozen non-Markdown inputs stayed unchanged through those
+checks; documentation-only updates followed.
+
+Parsed CI comparison preserves every prior job and step after removing exactly
+the two new fixed configured-pointer steps. All 79 prior npm scripts remain
+unchanged. No deadlines, gates, permissions, sandbox settings or action pins
+were weakened.
+
+Hosted predecessor `6ba3fb7` ends with 11 successful jobs and four failures in
+[CI 40033316529](https://github.com/angelcp2802/solidflow/actions/runs/40033316529).
+The macOS nested symmetry selected replacement/reactivation step 97 fails,
+followed by three dependent Desktop gates; their later checks skip. Job status
+does not establish the application-level cause, and dedicated log retrieval
+failed at transport. In
+[Security 40033316553](https://github.com/angelcp2802/solidflow/actions/runs/40033316553),
+CodeQL passes and dependency audit fails. Local `npm audit --json` reports one
+high Electron 44.7.0 advisory, GHSA-jr5w-w6x2-84p9, with 44.9.3 offered as a
+non-major fix. Dependency remediation is outstanding; no finding is dismissed.
+
+## Fresh support-face sketches and ribbon review — 2026-10-24
+
+The increment after `c175b5f`, tracked in issue #55, exercises two freshly
+drawn sketches on actual selected faces, automatic merge/cut body destinations,
+history and saved reopening. It also corrects sketch-tool active/disabled
+states and vertically clipped operation commands. The ribbon uses two rows,
+additional columns and horizontal scrolling when needed.
+
+Windows x64 / Node 24.11.1 focused execution:
+
+- `kernel.part-fresh-sketch.test.ts`: **two native cases pass** in 2.94 s.
+  Original base, boss and pocket volumes are 960/1008/996 mm³; areas are
+  736/784/808 mm². STEP reimport checks valid BRep and one solid. Saved native
+  references survive reconstruction, history, repeated construction and an
+  upstream base-depth edit to 5 mm (volume 1236, area 872, maximum Z=8).
+  Bounds use 1e-6 mm and volume/area 1e-5.
+- `test:desktop:part-fresh-sketch`: **39 checks / eight geometry phases pass**.
+  Actual CDP pointer events select both faces and draw both entity rectangles.
+  The original input contains only the base sketch and extrusion. The test
+  leaves automatic body destinations unchanged, then checks Undo/Redo and
+  native Save As/reopen through test-owned dialogs. Literal volume tolerance is
+  1e-5 mm³, planar mesh area 1e-4 mm² and bounds 1e-6 mm. Saved pointer targets
+  are independently checked at 1e-9 mm after the editor's 0.001 mm snap.
+  No console/resource errors; child close and temporary-profile cleanup pass.
+- The same renderer checks neutral/active sketch-tool states and verifies that
+  stacked commands fit vertically inside the ribbon. Its final 1544×941 capture
+  was visually inspected: all operation rows and labels are visible. Minimum
+  window width and general responsive behavior are not established by this case.
+
+Initial harness attempts exposed a disabled-control title selector, a React
+commit wait and SVG `getBBox()` Float32 rounding (12.000001008845558 for the
+12 mm displayed envelope). Those test-specific issues were corrected before
+the passing run. The envelope calibration now admits an explicit Float32 pixel
+budget, capped below 0.0001 mm; saved-point and native geometry tolerances remain
+unchanged. No geometric application change was required for this sequence.
+
+A separate visible Windows UI review exercised wheel zoom, face/edge selection,
+a temporary face rectangle, a 30 mm length dimension and Cancel. The dimension
+reduced displayed local freedom from four to three. Existing document edits
+were preserved. This is interaction evidence, not native metrology. Physical
+middle-button dragging, assembly authoring and other platforms were not tested
+in that manual review. Long sidebar scrolling, faint references/helper text
+and context-dependent disabled labels remain usability follow-ups.
+
+Final literal `npm test` passes **9,349 cases / 399 files** in 614.71 s, then
+**83 IPC/security checks**, zero failures and two explicit Windows skips
+(1,586.1638 ms). Final `npm run build`, actual Electron production-loader /
+worker / WASM smoke, and the existing `test:desktop:part-sequence` regression
+pass. Build retains the existing externalized-module and chunk-size warnings.
+All 1,044 frozen non-Markdown source/test/configuration files stayed unchanged
+through the complete suite and final checks. Documentation-only updates followed.
+
+Parsed CI comparison retains every prior job and step after excluding exactly
+the two new fixed fresh-sketch renderer steps. All 78 prior npm scripts remain.
+No timeout, gate, permission, sandbox or pinned action changes.
+
+Hosted predecessor `14ef731`: [CI 40030417412](https://github.com/angelcp2802/solidflow/actions/runs/40030417412)
+ends with 11 successful jobs and four failures. The macOS hinge-symmetry batch
+fails at step 82, six-role hinge stops source/replacement repair; three dependent
+Desktop gates fail and their later checks skip. This identifies the failing
+step, not the application-level cause. [Security 40030417631](https://github.com/angelcp2802/solidflow/actions/runs/40030417631)
+passes. These results do not establish new-head or full platform acceptance.
+
+## Configured component authoring — 2026-10-23
+
+The increment after `20f9ea5`, tracked in issue #55, adds configured component
+import, registered reuse and fixed/floating overrides. Complete v3 source,
+catalog and selected state remain together through private preview/Apply,
+history and file operations. A named child cannot be silently flattened when
+the parent is Base. The saved v3 override admits `fixed`; older readers reject
+that unknown field. No privileged IPC or file-grant policy changes.
+
+Windows x64 / Node 24.11.1 focused execution:
+
+- `kernel.assembly-configuration-occurrence-edit.test.ts`: **11 native cases
+  pass**, 6.94 s. Covers v1/v2/v3 import, translated/rotated original bounds,
+  selected shared-state reuse, exact identity through one-use Apply, original
+  baseline retention, stale/consumed tokens, Cancel, scene failure/reentry,
+  history and file round trips. Floating B moves from X=4 to the required X=10;
+  fixing B at X=4 rejects that same distance without publication. Literal
+  coordinates use 1e-6 mm, volume/area 1e-5.
+- The new production renderer passes **55 checks / 18 geometry phases** using
+  real controls/worker/file IPC with test-owned dialog paths. Two shared A
+  uses receive the imported v3 `shifted` state, then a reused anchor; final
+  totals are six solids, volume 116 mm³ and area 276 mm². Switching to B restores
+  the two original visible solids. Import picker Cancel, preview Cancel/retry,
+  fixed override, canceled floating proposal, Undo/Redo, canceled Save As and
+  exact complete saved reopening pass. Five Open dialogs and two Save dialogs
+  are expected. No console/resource errors; child close and profile cleanup
+  are confirmed.
+- Supporting pure runs: model group 133 cases/7 files (10 new authoring cases),
+  UI group 26 cases/2 files, transport/queue 42 cases/2 files. These overlapping
+  supporting runs are not summed as unique coverage. Initial build passes
+  with the existing externalized-module/chunk-size warnings.
+
+Final literal `npm test` passes **9,347 cases across 398 files** in 582.25 s,
+followed by **83 IPC/security passes**, zero failures and two explicit Windows
+skips (1,494.9662ms). Final `npm run build` and `npm run test:desktop` pass;
+the latter uses the actual Electron production loader, worker and WASM. Build
+retains the existing warnings. Application, model, UI and unit-test inputs
+remained frozen. One test-harness capture-export allowlist entry was corrected
+after the first successful renderer run so its verified saved demo/PNG bytes
+could be returned; the final renderer rerun checks that separate packaging path.
+The final component renderer rerun passes with the same 55 checks/18 geometry
+phases and verified saved/PNG hashes. Existing configured-relation and persisted
+configuration renderers also pass, with 61 and 80 checks respectively; both have
+zero console/resource errors and confirmed child/profile cleanup.
+
+Renderer scope is specifically named-state v3 import and part reuse; native
+cases cover additional formats. DOM-generated control events are separate from
+physical pointer picking. Fixed/floating physical movement is checked in the
+native distance case, not inferred from the renderer's unchanged shape. No
+flexible-instance, arbitrary source compatibility or full platform coverage is
+claimed. Repeated identical v3 import with saved captures is not a dedicated
+case, though retained captures and divergent catalog collisions are tested.
+
+The workflow adds two fixed platform-specific component renderer steps to the
+existing persistence batch. Parsed YAML comparison preserves every prior job
+and step; all 77 prior npm scripts remain. No timeout, gate, sandbox, permission
+or pinned action is relaxed.
+
+Preceding hosted snapshot `25fbe30`: [CI40027664551](https://github.com/angelcp2802/solidflow/actions/runs/40027664551)
+has 11 passing jobs and four failures. The macOS material vertex symmetry repair
+step fails with a generic script-execution annotation; three dependent Desktop
+gates fail and later checks skip. The annotation does not establish the failed
+application operation or cause. Security40027664312 passes; unresolved security
+findings are separate from workflow execution.
+
+## Origin-axis relation authoring — 2026-10-23
+
+The increment after `40718aa`, tracked in issue #55, adds explicit root/component
+X/Y/Z datum lines to standard and configured references. The saved union grows
+inside v2/v3; old readers reject the unknown kind. Material mechanical roles,
+native authority and private Apply gates remain distinct. No IPC operation or
+file privilege is added.
+
+Windows x64 / Node 24.11.1 focused execution:
+
+- `kernel.assembly-principal-axis.test.ts`: **9 native cases pass**, 2.16 s.
+  Root XYZ and nested component datums retain full placement chains; stale,
+  suppressed and copied witnesses reject. Direction cases exercise parallel,
+  perpendicular and angle. Line/line and material-cylinder/line concentricity
+  retain rank 4 / two local degrees of freedom, saved identities and native
+  validity. An original cylinder has volume 32π mm³, area 40π mm² and height
+  8 mm. Native geometric bounds use `BRepBndLib.AddOptimal` without triangulation;
+  coordinate tolerance is 1e-6 mm and volume/area tolerance is 1e-5. Literal
+  deliberate slide/spin cases distinguish principal +Z from native material −Z.
+  Configured witnesses retain ancestry/error budgets; fresh verified publication
+  consumes its private handle once.
+- `test:desktop:assembly-origin-axes`: **25 checks / 9 geometry phases pass**.
+  Actual standard controls create a root/moving Z concentric relation and a
+  30-degree X-axis angle. Cancel/retry/Apply, exact history and native Save As/
+  reopen pass, with 2 Open dialogs and 1 Save dialog. The ordinary solver reports
+  two free coordinates after concentricity and one after the angular relation.
+- `test:desktop:assembly-configured-origin-axes`: **29 checks / 9 geometry
+  phases pass**, including the same forms, preview lifecycle, history, canceled
+  Save As and saved reopening (2 Open / 2 Save dialogs). The named `demo` state
+  changes while the complete Base and dormant state remain unchanged. Every
+  placed active relation has an accepted native measurement.
+- Both renderers check original two-prism volume 48 mm³, area 104 mm², actual
+  poses and independent trigonometric bounds at 1e-5 mm. Unconstrained axial
+  positions are not required to remain at their initial value. Console/resource
+  errors are zero; child closure/profile cleanup and exact saved/captured
+  content hashes are confirmed. Axis selection uses real form controls, not
+  actual viewport axis picking.
+- New model cases pass (9 tests); the UI's focused pure/SSR group passes 247
+  tests across 9 files. Separate supporting runs overlap these suites and are
+  not added together as unique coverage. Build passes with existing warnings.
+- Existing production-renderer regressions also pass on the final build:
+  `test:desktop:assembly-direction` **169 checks**, and
+  `test:desktop:assembly-configured-relations` **61 checks**. Both report zero
+  console/resource errors and confirmed child closure/profile cleanup. Their
+  actual Open/Save counts are 2/1 and 2/2 respectively.
+
+Final literal `npm test` passes **9,319 cases in 395 files**, 580.52 s, followed
+by **83 IPC/security passes**, zero failures and two explicit Windows skips,
+1,607.8045 ms. Final `npm run build` and actual `npm run test:desktop` pass.
+All **1,032 non-Markdown source/test/CI inputs** remain unchanged during this
+acceptance. A parsed YAML comparison preserves the entire prior workflow after
+removing exactly four new platform-specific origin-axis renderer steps; all 75
+prior package scripts are unchanged. Required dependency gates, timeouts,
+permissions, sandbox settings and pinned actions are retained. Hosted acceptance
+is separate from this Windows evidence.
+
+The first joint build exposed test fixtures that assumed every concentric
+reference was a material face; their guards now assert that actual fixture type.
+Native acceptance then caught a real configured role-classification bug:
+`principal-axis.axis` was mistaken for a compound profile. Discriminated compound
+guards fix that route. Initial oracles also incorrectly constrained free axial
+translation and assumed a material cylinder's signed axis was +Z. The corrected
+cases explicitly measure its −Z direction and validate literal compatible
+rotations/bounds, without increasing tolerance. The first renderer attempt
+rejected a boolean passed to the string-only source encoder; controlled JSON
+argument decoding fixes the harness without changing application behavior.
+
+Origin-axis rotation locking, configured structural insertion/fixed authoring,
+direct displayed-axis picking and a complete assembly demo remain unaccepted.
+The focused renderer cases do not establish every angular-limit combination,
+source lifecycle interaction or platform. See [contract](ASSEMBLY_ORIGIN_AXES.md)
+and [fixture provenance](PROVENANCE.md#original-origin-axis-relation-examples).
+
+## Core part and assembly workflows — 2026-10-23
+
+The increment after `22ca701`, tracked in issue #55, prioritizes sequential
+part modeling, current body selection, middle-button navigation and basic
+configured assembly picking. It adds no saved format or privileged IPC route.
+
+Windows x64 / Node 24.11.1 focused execution:
+
+- `kernel.part-sequence.test.ts`: **2 native cases passed**, 3.14 s. Five
+  prefixes independently check one explicit body, volumes 960/944/928/976/984
+  mm³ and literal bounds; STEP export/reimport checks valid BRep, one solid,
+  area 848 mm² and volume 984 mm³. Edited dimensions produce 1216 mm³,
+  928 mm² and upper Z=10. History and saved parsing retain the result.
+  Volume/area tolerance is 1e-5; coordinate tolerance is 1e-6 mm.
+- `test:desktop:part-sequence`: **39 checks / 9 geometry phases passed**.
+  The original first sketch is edited/accepted, then actual upper commands
+  and left properties create two cuts and two merged bosses. Undo/Redo,
+  native Save As and reopening pass (2 Open dialogs / 1 Save dialog).
+  The exact saved bytes and presented-frame capture were verified before
+  test-profile cleanup. Zero renderer console/resource errors; child closure
+  and isolated-profile removal confirmed.
+- `test:desktop:assembly`: **527 checks passed**, with its existing actual
+  pointer interactions, native movement/relations, source changes and file
+  persistence (15 Open / 4 Save / 4 CSV dialogs). No console/resource errors;
+  child closure and cleanup confirmed.
+- `test:desktop:assembly-configured-relations`: **61 checks passed**,
+  including the existing 23 measured geometry phases, private preview/Apply,
+  history and persistence (2 Open / 2 Save dialogs). No console/resource
+  errors; child closure and cleanup confirmed.
+- Installed OrbitControls events and picking helpers passed their focused
+  pure/SSR tests. These are separate from native or rendered pointer evidence.
+
+Final literal `npm test` passes **9,298 cases in 392 files**, 577.88 s,
+then **83 IPC/security checks**, zero failures and two explicit Windows skips,
+1,512.6674 ms. `npm run build` and actual `npm run test:desktop` pass.
+All **1,025 non-Markdown source/test/CI inputs** remain unchanged through final
+acceptance. The build retains the existing chunk-size warning. Parsed CI
+inventory confirms all 106 existing renderer run steps remain unchanged and
+only the two platform-specific part-sequence steps are added; the Desktop and
+configured relation jobs are identical. Hosted acceptance is separate.
+
+The part renderer starts with prepared sketches; it does not draw all sketches
+or exercise the new example-menu entry. Automatic support-face merge/cut defaults
+remain pure-helper covered. Newly configured face/LINE viewport nominations have
+pure/SSR coverage, separate from the existing configured form renderer flow.
+Compact toolbar appearance has not been visually accepted at every window size.
+See [workflow limits](CORE_WORKFLOWS.md) and
+[fixture provenance](PROVENANCE.md#sequential-part-original).
+
+Earlier harness attempts were rejected because the original isolated document's
+replacement prompt was unhandled, the next command preceded the completed
+sketch rebuild, and the title capture expected no application-name suffix.
+The final workflow handles the real prompt, waits for the fresh native build
+and checks the actual clean title. No application solver assertion, tolerance
+or test deadline was weakened.
+
+## Configured compound authoring and validation scheduling — 2026-10-23
+
+The increment after `ce5604e`, tracked in issues #52 and #53, adds controlled
+configured profile-center, material LINE and circular-path forms. These use the
+existing private declaration preview/Apply transaction and strict v3 file
+context. No new native capture authority, saved format or file grant is added.
+
+Windows x64 / Node 24.11.1 focused evidence:
+
+- The final focused native acceptance file passes **36 cases**, 27.12 s. It exercises all
+  three families, circular Free profiles, complete compound references, literal
+  material bounds/directions, shared proper frames, private Cancel/retry/Apply,
+  saved reconstruction, parameter replacement, explicit circular Free domains,
+  Base/dormant isolation, nonincident material origins/edges, purpose mismatch,
+  singular and finite uncertain UP, unavailable source/body tuples, closed-circle
+  rejection, depth-two noncommuting placements, stale/DTO/token rejection and
+  native final-scene/cleanup faults.
+- Four actual production-renderer cases pass: rectangle **74 milestones / 23
+  geometry phases**, circle **72 / 23**, LINE **74 / 23**, circular path **84 /
+  25**. These exercise real current DOM choices, native preview and restricted
+  file IPC, Cancel/retry/Apply, parameter editing, atomic face/axis or edge/origin
+  reselection, suppression/reactivation/removal, history, shared/Base isolation,
+  exact recovery, canceled Save As, actual pending Save completion, normal Save
+  and reopening with fresh native verification. The saved form then restores its
+  complete current selections/parameters without native mutation or history
+  changes, is captured if requested and closes without committing a draft.
+  All close their isolated child,
+  clean their profile and record zero console/resource errors. No elapsed
+  renderer duration is inferred from file timestamps.
+- Initial build and actual production Electron smoke pass, with existing build
+  warnings. Pure UI/choice checks remain separate from native proof.
+
+The first rectangle renderer attempt rejected a test expectation that demanded
+passive reports for a suppressed profile constraint. Only captured mechanical
+winding has passive observations; a suppressed compound constraint is inactive.
+The corrected oracle requires exactly the active placed compound keys and zero
+reports for the suppressed/removed declaration. Geometry, native verification,
+deadlines and tolerances were not changed.
+
+The added native coverage initially passes 34/36, then 35/36, because test
+nominations incorrectly treated world display lines as local geometry,
+checked a Float32 display radius as native metrology and expected a displayable
+closed seam vertex. These failures precede their intended preview assertions.
+The corrected arc nomination uses actual local native endpoint identities. The
+closed-circle case uses the original lower-pocket derivative described in
+provenance, with real material vertices, and requires the exact closed-circle
+diagnostic rather than accepting a missing/incidence error. All 36 then pass;
+no production geometry, solver band or native authority rule changes.
+
+The first complete suite on this increment finishes **9,262 passed / 3 failed
+of 9,265 cases in 388 files**, 458.08 s. All three failures are unchanged hinge
+cases exceeding the existing 5,000 ms deadline. The same three cases pass a
+single-worker diagnostic run in 9.97 s (179 other cases explicitly filtered
+out); this is not a complete-suite pass. The installed default permits 15 fork
+workers on this 16-thread host; an observation during the run shows four native
+workers around 1.9–2.0 GiB each and only about 2.1 GiB free system memory.
+This is evidence of resource pressure, not proof of a new geometric defect or
+the exact cause of every timeout. The public suite now caps concurrent isolated
+forks at four or fewer, preserving every case, assertion and deadline.
+
+With the concurrency cap, the complete 9,265-case/388-file suite passes in
+534.10 s, followed by 83 IPC/security checks, zero failures and two explicit
+Windows skips (1,557.2861 ms). Build, actual Electron smoke, configured relation
+editing (61 milestones / 23 phases) and all five configured mechanical flows
+(55 / 18 each) also pass. That source precedes the twelve additional native
+cases and reopened-form assertions above; final complete-suite/build/smoke
+acceptance for those additions now passes: **9,277 unit/CAD/UI cases in 388
+files**, 578.74 s, then **83 IPC/security checks**, zero failures and two
+explicit Windows skips, 1,528.6441 ms. Final build and actual Electron smoke
+pass, with existing build warnings. All **1,014 non-Markdown code/test/CI
+inputs** remain unchanged through the final focused native cases, four renderer
+workflows, complete suite, build and smoke. The four captured images show the
+actual saved/reopened unmodified forms; they are separate from physical proof.
+
+The CI split preserves all 52 original desktop commands: smoke remains in the
+three original Desktop jobs, and 51 renderer commands move into three disjoint
+batches of 17 on each OS. An independent before/after inventory and parsed YAML
+audit pass 285 checks. Executing the actual dependency guard for all 16 pairs
+of success/failure/canceled/skipped results permits only success/success. The
+Desktop check names, original command strings, per-scenario deadlines, 35/35/20
+minute job limits, action pins, sandbox and read-only/no-publish policy remain.
+This is local workflow validation, not a hosted run or platform acceptance.
+
+For published Save-readiness snapshot `de378ab`, the separate five-family
+configured jobs pass on Windows, Linux and macOS and Security succeeds. All
+three general desktop jobs end canceled around 35 minutes, without a failing
+test step. They are not accepted complete runs. The new split requires its own
+hosted results; complete assembly/demo/release acceptance remains open.
+
+The [contract](ASSEMBLY_CONFIGURED_COMPOUND_AUTHORING.md),
+[provenance](PROVENANCE.md#original-configured-compound-authoring) and
+[walkthrough](DEMO_ASSEMBLIES.md#author-profiles-and-material-paths-in-a-configured-state)
+retain the exact dimensions, tolerances and boundaries. Two circular Free
+domains are exercised at the same interior material point; that does not test
+their different behavior outside the trim or establish an external policy.
+
+## Native Save completion and renderer readiness — 2026-10-23
+
+Local `codex/save-completion-readiness` follows accepted `d99e1eb`. This is a
+renderer acceptance correction; application geometry, saved declarations,
+production file permissions and native Save results are unchanged.
+
+The ordinary original source-update case first passes unchanged: 41 milestones
+and 10 native geometry phases. A controlled test then runs the exact old tracked
+flow (SHA-256 `3805d545ade6befe8bf9f8a401a4ef601b817795f9600c07d05d5c816207f129`)
+under one withheld real Save return. Its actual 5,365-byte baseline file exists
+and matches request/read-back SHA-256
+`6b30f6f6f4a3892f3887195ec5c6886bc6262777a5915f111a363ce8a4c8b88a`.
+The original flow fails naturally with Electron's generic script-execution
+error. The bounded pre-interaction snapshot records native completion true,
+IPC return still withheld, `aria-busy=true` and Open/Save disabled.
+
+The corrected flow under the same final harness and production inputs passes
+50 milestones / 10 geometry phases. It releases the unchanged return, then
+observes actual clean header/path, enabled Open/Save, disabled Apply and complete
+recovery. Separate fences follow baseline Save As, normal Save and final Save As.
+The ordinary command also passes 50 milestones / 10 phases. This establishes a
+possible ordering race; it does not prove the cause of a historical macOS failure.
+
+Final Windows x64 / Node 24.11.1 checks on frozen code:
+
+- `npm test`: **9,204 unit/CAD cases in 385 files passed**, 380.92 s; **83
+  IPC/security/source checks passed**, zero failed and two explicit Windows
+  skips, 1,528.9458 ms. The diagnostic regression also checks that a pending
+  test-owned Save is released while the original fatal error remains FAIL.
+- `npm run build` and actual `npm run test:desktop`: passed; existing build
+  warnings remain.
+- All five configured mechanical renderer commands pass **55 milestones / 18
+  geometry phases each**. Each withholds its first successful actual Save As
+  return after verifying written bytes, then separately observes actual clean
+  controls after release. Normal Save also reaches the complete-context fence.
+  Geometry, Cancel/retry/Apply, history, Base/shared isolation and reopening
+  assertions remain unchanged.
+- Configured relation editing passes its existing **61 milestones / 23 phases**.
+- Every successful renderer records zero console/resource errors, confirmed
+  child closure and isolated-profile cleanup. All **1,002 non-Markdown
+  code/test/CI inputs** remain byte-identical through final acceptance.
+
+The held return is selected by a fixed scenario/channel/ordinal and its actual
+granted path inside the owned profile. It adds no timeout or automatic retry and
+substitutes no document, worker result or application state. The IPC-return flag
+means the main-process return was released; actual React readiness is a separate
+DOM observation. The [original provenance](PROVENANCE.md#controlled-native-save-completion-ordering)
+retains geometry, file and platform boundaries.
+
+For preceding published `54e825f`, the separate configured mechanical job
+completes successfully on Windows x64, Linux x64 and macOS arm64, and Security
+succeeds. Its larger desktop jobs are still running at this acceptance point.
+Those results establish the five bounded workflows on that earlier source,
+not the newly strengthened Save case or general platform support. Complete
+assembly/demo and release acceptance remain open; configured compound authoring
+is planned in [issue #52](https://github.com/angelcp2802/solidflow/issues/52).
+
+## Configured native mechanical capture — 2026-10-23
+
+Local `codex/configured-mechanical-capture` follows accepted `0f37957` and
+addresses the five families in issue #51 inside the same Draft PR #49.
+The worker accepts strict references/parameters, produces fresh captures from
+the actual configured context and keeps the original baseline separate from
+the privately prepared proposal. Retain and explicit recapture are distinct.
+The ordinary declaration-edit guard remains in place.
+
+Windows x64 / Node 24.11.1 results on frozen code:
+
+- Focused new native file: **18 cases passed**, 25.24 s. These include all five
+  add/retain/recapture/reopen cases, literal capture data, Base/dormant isolation,
+  shared/nested proper-frame uses, scope/explicit carrier, nonzero weighted gear
+  phase, preserved whole-turn branches, fixed concentric/screw rejection,
+  original-baseline token rules and real scene/currentness/release faults.
+- Each of the five production-renderer commands passed **49 milestones and 18
+  geometry phases**. Lock 8.97 s, locked concentric 9.71 s, gear 11.31 s, screw
+  9.98 s and rack 9.46 s. Actual DOM controls, production worker and restricted file IPC
+  exercise Cancel/retry/Apply, capture retention, explicit recapture, exact
+  full-context history/recovery, Base/shared states, Save As cancellation,
+  normal Save and fresh saved reopening. Each records zero renderer/resource
+  errors, confirmed child closure and isolated-profile cleanup.
+- The preceding configured relation renderer also passes **61 milestones / 23
+  geometry phases** on this code, 9.94 s.
+- TypeScript/production build and actual Electron production-loader smoke pass.
+  The build retains its existing warnings.
+- The final literal `npm test` passes **9,204 unit/CAD cases in 385 files**
+  in 389.39 s, then **83
+  IPC/security/source checks**, zero failed and two explicit Windows skips.
+  Its IPC phase takes 1,579.761 ms.
+- All 1,001 non-Markdown code/test/CI inputs remain byte-identical throughout
+  the frozen acceptance sequence. Original dimensions and separate tolerances
+  are in [provenance](PROVENANCE.md#original-configured-mechanical-capture).
+
+The first focused run passed 14/16 and rejected two incorrect identity-quaternion
+expectations after unlocked concentric alignment. Such alignment deliberately
+leaves axial spin free. The corrected oracle independently multiplies actual
+physical component quaternions, checks native cylinder directions, axis centres
+and literal material bounds in both proper parent frames, and adds two already
+aligned cases that do require identity. No production capture, solver tolerance
+or deadline was changed to satisfy these expectations. The first full shell
+wrapper also expanded a scalar command argument into extra positional letters;
+all 9,204 and 83 cases nevertheless ran and passed. Final acceptance repeats
+the literal `npm test` without that wrapper and passes the same complete inventory.
+
+The five renderer fixtures are neutral lifecycle examples; their success does
+not establish general mechanical motion or automatic topology correspondence.
+The separate native nonzero-phase/whole-turn cases retain their own scope.
+The optional gear PNG is an actual hidden `capturePage` image of the clean
+saved/reopened state; it is not native geometry or human-interaction proof.
+No external model, privileged file grant, product state or worker reply is injected.
+
+Hosted evidence for the **preceding** published head `ab546ad` is separate:
+Security succeeds; Windows x64 and Linux x64 complete their configured CI and
+packaging. macOS arm64 fails the assembly source-update renderer with primary
+annotation “Script failed to execute, this normally means an error was thrown.
+Check the renderer console for the error.” Job-log retrieval returned HTTP 502;
+the underlying DOM/renderer cause is not established. These outcomes do not
+validate the newer mechanical code or general platform support. New-head CI
+and installed packaging remain pending. Existing CodeQL/Dependabot findings
+are not suppressed. Complete assembly demo and release acceptance remain open.
+
+## Compact interval pointer acquisition — 2026-10-23
+
+Local `codex/interval-pointer-acquisition` follows accepted `ad36143`. The
+interval renderer now checks the actual canvas hit target, waits for hover
+publication and considers both real Z-handle halves. A separate fixed
+1040×700 scenario preserves the ordinary-size workflow and uses the same
+original fixture, production worker, restricted file IPC and physical oracles.
+
+A controlled before/after run used that same compact harness and unchanged
+production assets. The exact preceding flow from `ad36143` failed during
+inward release with `Actual front-view Z manipulator handle absent.`, matching
+the primary hosted Windows/macOS annotation on `f2a1c91`. The corrected flow
+completed 252 milestones, 38 recorded phases and four actual gestures.
+
+The compact run recorded a real 1040×700 window, 1024×661 content and 524×515
+canvas. During inward release, all six upper nominees hit toolbar buttons.
+The seventh nominee, on the lower half, hit the canvas and published axis Z
+after a real pointer move and two animation frames. Three bounded acquisitions
+retained trusted input observations without observer overflow. This establishes
+the obstruction and correction for the local compact case; hosted runs need
+their own evidence before attributing their exact viewport/cause.
+
+The final ordinary-size run also passes: 251 milestones, the same 38 phases
+and four gestures, with a 989×803 canvas. Both runs recorded zero console or
+resource errors, successful saved reopening/fresh verification, confirmed child
+closure and owned temporary-profile cleanup. The first attempted patch run
+failed before its first Z probe because an object reached the primitive-string
+JavaScript-source encoder; encoding the owned point as a JSON string corrected
+that caller while retaining the strict encoder boundary.
+
+The first full suite on this harness increment completed 9130 cases and failed
+one existing 4096-state admission case at the unchanged 5000 ms timeout
+(5506 ms observed; suite 382.22 seconds). The declaration validator was being
+rebuilt for each inherited variant. Sharing only the Base declaration factory
+within the same validated operation removes that repeated work; explicit named
+lists retain separate factories, state identities and complete per-entry checks.
+Two forward/reverse mixed-family batches guard that distinction. The focused
+95-case pure run passes, with the unchanged 4096 case at 628 ms and unchanged
+20 MiB case at 1563 ms. No timeout, cap or required case was weakened.
+
+The literal physical targets, independent posted-input calibration, signed
+interval equations, geometric bands and 180/170/35-second deadlines remain
+unchanged. The two original solids retain V=4920 mm³/A=3144 mm². The workflow
+still requires actual native plane picking, pointer-down Apply blocking, three
+trusted held-pointer moves per Z gesture, real posted requests, numerical and
+fresh native result checks, Cancel/Apply/history and Save As/reopen.
+
+The pointer-only code/test/CI inputs were frozen before the first full run: 987 non-Markdown files,
+SHA-256 `5ce8f440ef94f2b0ceecf64bc61fe0a3b7df02c4308151d2a7a981821987198e`.
+The controlled old-flow input has a separate receipt; it was restored to the
+reviewed corrected file before final validation. Source, report and runtime
+artifacts stay separate. See [provenance](PROVENANCE.md#original-compact-interval-pointer-regression).
+
+After the declaration-origin correction and its two regression cases, the
+final 987-file non-Markdown inputs were frozen separately, SHA-256
+`dd3bbf4e56b9a4e745fb8da2e309e3e5fd302ad53d2fe31fe267eef92678391c`.
+Build, Electron and renderer checks are repeated against that final input set.
+
+Final Windows x64 / Node 24.11.1 results:
+
+| Command | Actual result |
+| --- | --- |
+| `npm test` | PASS, 382 files / 9133 unit/CAD cases, 381.26 seconds. IPC/security/source: 83 passed, zero failed, two skipped, 1569.905 ms. The inherited Windows symlink-permission and POSIX-only FIFO skips remain explicit. |
+| `npm run build` | PASS, TypeScript and production compilation; existing externalization and chunk-size warnings remain. |
+| `npm run test:desktop` | PASS, actual Electron production loader and production worker/WASM malformed-input/recovery baseline after building. |
+| `npm run test:desktop:assembly-limit-distance` | PASS, 251 milestones / 38 phases / four actual gestures on final code. |
+| `npm run test:desktop:assembly-limit-distance-compact` | PASS, 252 milestones / 38 phases / four actual gestures on final code; the inward upper nominees hit buttons and the lower nominee acquires the actual canvas Z handle. |
+| `npm run test:desktop:assembly-configured-relations` | PASS, 61 milestones / 23 geometry phases on final code, retaining configured preview/Apply/history/recovery/files. |
+
+All three final renderer cases record zero console/resource errors, confirmed
+child closure and owned-profile cleanup. The 987-file input digest remained
+unchanged through acceptance. The preceding published head `ab5a80e` independently
+repeated the same original handle assertion in its Windows CI job; this new
+increment requires its own hosted checks before that platform result is accepted.
+
+CI is configured to run both sizes on its existing three-platform matrix.
+Executed local Windows cases establish no general platform support or complete
+assembly/demo acceptance. Configured native mechanical capture remains tracked
+for all five blocked families in [issue #51](https://github.com/angelcp2802/solidflow/issues/51).
+
+## Configured relation editing and private intent previews — 2026-10-23
+
+Local `codex/configured-relation-editing` follows accepted `d495192` and addresses
+[issue #50](https://github.com/angelcp2802/solidflow/issues/50) in the same draft
+PR #49. Named states may own complete relation lists; Base declaration edits
+preserve previously inherited named values. The worker privately prepares the
+proposal while authenticating Apply against the original full context.
+
+Actual Windows x64 / Node 24.11.1 checks:
+
+| Command | Actual result |
+| --- | --- |
+| `npm test` | PASS, 382 files / 9131 unit/CAD cases, 384.45 seconds. Node IPC/security/source: 83 passed, zero failed, two skipped, 1831.1815 ms. Skips remain Windows file-symlink permission and POSIX-only FIFO. |
+| `npm run build` | PASS, TypeScript and production compilation, including a final build after the IPC correction. Existing browser-externalization and large-chunk warnings remain. |
+| `npm run test:desktop` | PASS after the final main-process correction, actual Electron production loader and production worker/WASM malformed-input/recovery probe. |
+| `npx vitest run src/cad/kernel.assembly-configuration-relation-edit.test.ts` | PASS, seven actual native cases, 4.23 seconds; subsequently included in the passing full suite. |
+| `npm run test:desktop:assembly-configured-relations` | PASS, 61 milestones / 23 recorded geometry phases. Actual production worker and restricted file IPC; zero recorded renderer/resource errors, confirmed child closure and owned-profile cleanup. |
+| `npm run test:desktop:assembly-configurations` | PASS, existing 80-milestone configured editor/BOM/CSV workflow on the final increment. Zero recorded renderer/resource errors, confirmed child closure and owned-profile cleanup. |
+| `npm run test:desktop:assembly` | PASS, existing 527-milestone rigid assembly workflow on the final increment. Zero recorded renderer/resource errors, confirmed child closure and owned-profile cleanup. |
+
+The new renderer case edits compact distance10 to6 with Cancel/retry/Apply,
+checks whole-context Undo/Redo and shared both-compact propagation, adds an
+original compatible A-to-scope distance zero, then suppresses/removes it. A
+Base edit to8 preserves compact6 and dormant Single10, and Undo restores the
+complete previous snapshot. Canceled Save As, successful Save As, normal Save,
+saved reopening and ordinary fresh Solve/Cancel retain exact declarations,
+recovery, file identity and bytes. Exact placed verification sets contain two
+or four distinct scope/tuple/selector/relation keys, with physical measurement
+metadata checked independently of numerical solver rows.
+
+Literal independent bounds use 1e-6 mm; body and total volume/area use 1e-5 in
+their respective units. Four native solids retain 68 mm³ and 172 mm². The final
+optional hidden capture observes the clean reopened compact6 state and actual
+presented frame; a screenshot grants no native authority. Dialog paths belong
+only to the test. See [provenance](PROVENANCE.md#original-configured-relation-editing).
+
+The first renderer run reached Save As and failed: main's old exact-four-field
+catalog gate rejected `mateDeclarations`. The correction admits only that
+optional array and counts its rows in the existing global 4096-row envelope.
+New real IPC cases retain exact old/new/empty-list bytes and reject malformed,
+unknown or aggregate-excess input before dialogs. No file privilege, sender,
+path grant, parser limit, solver tolerance or workflow deadline was relaxed.
+
+Final code/test/CI inputs were frozen before the full run: 986 non-Markdown
+files, including new untracked source files, SHA-256
+`718f18156fe681574da934800b5f7ad5e14599813e0a74eb29e45c46632bd5a0`.
+Subsequent documentation edits are separate; local runtime output stays ignored.
+
+Hosted evidence for the preceding published head `f2a1c91` is separate:
+[Linux job](https://github.com/angelcp2802/solidflow/actions/runs/39988239970/job/120532939032)
+completed successfully, including packaging. Windows and macOS passed unit/CAD,
+IPC and earlier renderer steps but failed the signed-distance pointer case with
+`Actual front-view Z manipulator handle absent.` This annotation does not
+establish a CAD defect or its exact cause. Read-only inspection found immediate
+hover-state reads and one-sided handle probing; no proposed remedy is counted
+as executed validation. This increment needs its own hosted results. Security
+checks on the preceding head pass with one medium CodeQL alert still open.
+
+Pure family-preservation cases and graphical controls do not establish native
+authoring acceptance for every family. New lock/gear/screw/rack-pinion and
+rotation-locked concentric capture remains gated; profile/path forms, complete
+native repair/source lifecycle, configured geometric consumers, flexible
+instances, installed packaging and complete assembly/demo acceptance remain
+open. These cases do not establish general platform support.
+
+## Canonical fault injection and private symmetry repair — 2026-10-23
+
+Local `codex/assembly-hosted-validation` follows `ce6871f`. The source-repair
+renderer tests now observe the private stage command and exact context. File
+fault hooks target the actual canonical path, while requests keep the selected
+alias. A separate Node reporter retains ordinary output and annotates failed
+leaf assertions in CI. Production CAD, file policies and deadlines are unchanged.
+
+Final Windows x64 / Node 24.11.1 checks:
+
+| Command | Actual result |
+| --- | --- |
+| `npm test` | PASS, 379 files / 9068 unit/CAD cases, 385.45 seconds. Node IPC/security/source: 81 passed, zero failed, two skipped, 1543.7073 ms. Skips are the inherited Windows file-symlink permission case and POSIX-only FIFO. |
+| `npm run build` | PASS, TypeScript and production compilation. Existing browser-externalization and large-chunk warnings remain. |
+| `npm run test:desktop` | PASS, actual Electron production loader and independent production worker/WASM recovery probe, with no recorded console/resource errors. |
+| `npm run test:ipc`, with uppercase Windows `TEMP`/`TMP` | PASS, 81 passed / two skipped, 1548.0385 ms. |
+
+All eight actual renderer workflows passed with real native worker/file IPC,
+confirmed child closure/profile removal and zero recorded console/resource errors:
+
+| `test:desktop:assembly-symmetry` suffix | Recorded milestones | Recorded phases |
+| --- | ---: | ---: |
+| `-repair` | 105 | 22 |
+| `-line-repair` | 96 | 21 |
+| `-plane-repair` | 96 | 21 |
+| `-sphere-repair` | 104 | 24 |
+| `-cylinder-repair` | 105 | 24 |
+| `-axisline-repair` | 132 | 31 |
+| `-nested-selected` | 60 | 13 |
+| `-nested-source` | 69 | 14 |
+
+The three renderer scripts retain identical bytes from these runs through final
+acceptance. Two Node-only test files changed afterward: owned temporary cleanup
+and canonical fault selection. All 979 tracked non-Markdown inputs retained
+final digest `6684edb719650ad34612c01690b6e5eecd6bb4d7a4507e11f18f15cc6f10d7c7`
+through the last full suite, build and smoke. Earlier full suites also passed;
+only the last result above represents the final Node test source.
+
+The unchanged point workflow first reproduced a 35-second timeout awaiting
+`preview-assembly`. Current source review instead sends
+`preview-assembly-part-update`. Fixed tests bind its exact private review ID,
+committed base and independently reconstructed repair proposal. The only
+permitted error is the literal pending-reference RPC failure with no value or
+capability; recovery and the editable stage remain intact. All other responses
+still require success. Root/touched-scope editing timestamps are checked and
+normalized under the existing private-stage contract; source data, poses and
+all other declarations compare completely. Native purpose, uncertainty,
+independent geometry and per-case tolerances are unchanged. These are dropdown
+workflows with owned dialogs, not viewport-picking or human-dialog evidence.
+
+Hosted Windows job `120514299380` and macOS job `120514299323` on `8e2a185`
+reported three identical `Missing expected rejection` assertions in the new
+descriptor/open cases; macOS also reported it inside the real FIFO child.
+The fault hooks compared a selected spelling to the canonical path that main
+actually opens. Changing only Windows temporary-path casing reproduced all
+three failures locally. Capturing the actual canonical target before arming,
+while keeping a distinct verified alias in Windows requests, restores the
+intended fault. Zero-read/one-close, exact flags, no unsafe retry and recovery
+checks remain. No new skip or production exception was added. The exact spelling
+of the hosted aliases was not logged; no specific 8.3/junction cause is claimed.
+
+Auxiliary Ubuntu/WSL x64 evidence used the already installed Node 18.19.1:
+four selected descriptor/open/FIFO cases passed, with 47 other cases filtered
+out by name. `TMPDIR` was an original owned directory symlink to a real sibling
+directory, so the selected and canonical prefixes differed. The real FIFO test
+ran all three read channels without a writer under its existing killable-child
+deadlines. This is actual Linux filesystem evidence on that runtime; it is not
+Node 24, macOS, the complete Linux IPC suite or desktop/platform acceptance.
+
+Two new Node reporter cases use actual subprocess pass/skip and nested failed
+assertion outcomes, checking exit status, ordinary spec output and one escaped
+leaf annotation. Hostile getters, command text, synthetic paths and output
+bounds are separate in-memory controls. Annotations never change outcomes.
+
+Security on `8e2a185` passed, including the separate CodeQL check with one medium
+alert remaining. No alert/query was dismissed or suppressed. Its Windows/macOS
+IPC failures above require a fresh hosted run of this correction; Linux had not
+completed all later workflows at inspection. The earlier long Linux job log
+still exceeded the connector's transport boundary, so its exact assertion is
+not inferred. The moderate Dependabot alert and complete assembly/release scope
+remain open.
+
+## Configured BOM, CSV and workflow diagnostics — 2026-10-23
+
+Local `codex/configured-assembly-bom` follows `c234b61`. The complete committed
+v3 context now supplies a declaration BOM and CSV with effective variants,
+explicit root-relative scopes and independent member highlighting. This is a
+new consumer, not native mass/material or relation-satisfaction evidence.
+See the [contract](ASSEMBLY_CONFIGURED_BOM.md) and original
+[provenance](PROVENANCE.md#original-configured-bom-and-csv-cases).
+
+Actual final Windows x64 / Node 24.11.1 results:
+
+| Command | Actual result |
+| --- | --- |
+| `npm test` | PASS, 379 files / 9068 unit/CAD cases in 381.64 seconds; 79 IPC/security/source checks passed, zero failed, two skipped, 1522.4233 ms. Skips remain Windows file-symlink permission and POSIX-only real FIFO. |
+| `npm run build` | PASS, TypeScript and production build, 2083 modules. Existing browser-externalization and large-chunk warnings remain. |
+| `npm run test:desktop` | PASS, real production Electron and independent production worker/WASM recovery probe; zero recorded console/resource failures. |
+| `npm run test:desktop:assembly-configurations` | PASS, 80 recorded milestones, 13 BOM table phases and 15 native geometry/lifecycle phases. Real worker, controls and restricted file IPC, three Open/two Save As/four CSV dialogs, confirmed child close/profile removal; zero recorded renderer console/resource failures. |
+| `npm run test:desktop:assembly` | PASS, 527 existing milestones including the separate v2 BOM/CSV flow, confirmed child close/profile removal; zero recorded renderer console/resource failures. |
+
+All 977 tracked non-Markdown production/test/config inputs retained digest
+`d68fd07305f115d72b5d58d97055cbc03ae4e17bdf31c056fffbab60317baaa8`
+through the complete suite, final build, smoke and both final renderer runs.
+
+The 23 new pure BOM/CSV cases cover exact-state grouping, three-level ancestry,
+suppression/reactivation, inherited visibility, nested scopes with full root
+paths, multibody one-unit counts, detached ownership, dormant validation,
+hostile option getters, Unicode and bounded output. Fifteen new UI/SSR/controller
+cases cover the independent panel, ticket invalidation and export outcomes.
+They also pass within the full run; they do not establish native geometry.
+
+The configured renderer checks Base versus compact grouping, mixed versus
+equal child ancestry, active suppression, hidden-ancestor filtering and exact
+member selection without changing edit scope/history/recovery. Native checks
+retain the original prism bounds at 1e-6 mm and mass properties at 1e-5 in
+corresponding units: four solids / 68 mm³ / 172 mm², or three / 58 / 138 after
+suppressing right/B. The suppressed-reference state is not claimed as a solve.
+
+Actual CSV export covers cancellation, a real atomic-rename filesystem failure
+against an owned directory, a successful captured write after the panel closes,
+and a scoped successful write. Independent literal rows and a separate quoted
+CSV parser check UTF-8 BOM, CRLF, fourteen columns, text apostrophes, quantities,
+selectors, full paths and ancestry. Disk bytes equal IPC bytes. Root hierarchical
+CSV is 2134 bytes, SHA-256 `59ff51923b36dda7ba7264fd4044176e8995e983bccfd00490af52f19f3de5a3`;
+right-scoped parts CSV is 998 bytes, SHA-256
+`b1868e6cc9237826dbac959bb1c6e1ea34373a2da3bd3844036fc8e9e9511d04`.
+Input and saved document bytes remain unchanged. An initial renderer run failed
+because its test helper passed a boolean to a string-only JavaScript encoder;
+the corrected helper passes an explicit string. No product bypass or deadline
+change was used. The final run also produced an actual read-only PNG capture;
+it is not a video or a human-dialog/installed-package test.
+
+Nine new Node diagnostic cases pass in the full IPC suite. CI failure messages
+are bounded, escaped and stripped of absolute paths/URLs; the actual child
+primary failure is annotated before its unchanged failure JSON and exit.
+The only FIFO-test deletion removes a redundant unprotected read after the
+real protected request already verifies the exact restored bytes in all three
+channels. No production file policy, query or branch check is relaxed.
+
+Hosted acceptance remains open. Previous snapshot `893ec01` reached passing
+Linux distance and directed-stop workflows, then failed material-vertex symmetry
+repair; Windows failed its IPC-security step, and macOS was still executing its
+unit/CAD step when inspected. Exact hosted assertions were unavailable through
+the connector; their causes are not inferred from local passes. That snapshot's
+separate CodeQL check had two alerts, down from nine: the redundant FIFO read
+and the documented private-worker origin warning. The current snapshot needs
+fresh hosted results. The existing moderate Dependabot alert is not dismissed.
+Complete assemblies, installed packages and platform support remain unaccepted.
+
+## Prototype hardening and renderer contracts — 2026-10-23
+
+Local `codex/assembly-prototype-hardening` follows `f167be2`. Seven strict model
+admission paths now avoid caller-named object writes. Bounded document, STEP
+and linked-source reads admit the actual descriptor before reading bytes and
+compare descriptor/path state throughout. A transport envelope and contained
+worker queue preserve ordered processing after malformed input or failures.
+See the [contract](PROTOTYPE_HARDENING.md) for exact scope and remaining review.
+
+Actual final local results on Windows x64, Node 24.11.1:
+
+| Command | Actual result |
+| --- | --- |
+| `npm test` | PASS, 376 files / 9030 unit/CAD cases in 380.95 seconds. IPC/security/source: 70 passed, zero failed, two skipped, 1518.0246 ms. Skips are the inherited Windows file-symlink permission case and the POSIX-only real-FIFO case. |
+| `npm run build` | PASS, TypeScript/Vite production build. Existing browser-externalization and large-chunk warnings remain. |
+| `npm run test:desktop` | PASS, actual production loader plus an independent actual production worker/WASM queue-recovery probe. Zero recorded console errors or failed requests. |
+| `npm run test:desktop:assembly-directed-angle` | PASS, 309 recorded milestones, 43 circular-stop phases/six pointer drags and 15 explicit-guide source-repair phases. Actual worker/file IPC, zero recorded console/request errors, child close and isolated-profile removal confirmed. |
+| `npm run test:desktop:assembly-limit-distance` | PASS, 251 recorded milestones / 38 phases. Actual DOM input, native worker/file IPC, zero recorded console/request errors, child close and isolated-profile removal confirmed. |
+| `npm run test:desktop:assembly-configurations` | PASS, 40 recorded milestones / 14 native-geometry/lifecycle phases. Actual selected states, private worker previews, history/recovery/files; zero recorded console/request errors and confirmed child close/profile removal. |
+| `npm run test:desktop:assembly` | PASS, existing 527 recorded checks/milestones. Real worker/file IPC, zero recorded console/request errors, confirmed child close and isolated-profile removal. |
+
+All 968 tracked non-Markdown production/test/config inputs retain the final
+freeze digest `06f88428ac0258ff017b0ea0aba8d110b525d017c0ca41529d49c26f89219bc8`
+through the final complete suite, build and smoke. All four final renderer
+workflows also passed on those inputs. Documentation is excluded from the digest.
+
+Seventeen new pure own-data cases cover the seven public admission APIs,
+dangerous own keys, zero getter execution, hidden/symbolic/inherited/hooks,
+null-prototype data and absence versus explicit `undefined`. Their focus passed
+277 cases across eight files in 1.29 seconds, including existing domain cases.
+Fifteen new pure worker cases passed in 232 ms: exact action/field unions,
+safe correlation, capture before await, serial delivery, initialization retry
+semantics, handler failures and real structured-clone failure/fallback. They
+are transport tests, not native geometry evidence. Both sets execute in the
+complete run above.
+
+Four new Node cases exercise wrong actual descriptors, nonregular observations,
+protected-open failure without an unsafe retry and a POSIX FIFO race. Portable
+cases check zero bytes read, one close, unchanged source bytes and a usable
+operation gate afterward. The real FIFO test runs three file channels in
+killable children on POSIX; it was **not executed on Windows**. Its code and the
+Windows cases do not establish Linux/macOS runtime behavior. Existing rename,
+growth, canonical-path, grant/sender/release, BOM/hash and size controls remain.
+
+The production worker probe sends null, an unknown action, a missing required
+payload and a null build payload, followed by a valid original prism build.
+It receives ordered correlated failures for ids 101–103 and native volume
+24 mm³ with literal bounds (0,0,0)–(2,3,4) for id 104, at 1e-6 in corresponding
+units. Replies record trusted dedicated-worker events, null source, no transferred
+ports and empty origin. This is one actual worker reconstruction, not a general
+origin-authentication, BRep-validity, malformed-input or platform certificate.
+
+The unchanged pre-fix distance workflow passed locally; its hosted failure's
+exact assertion was unavailable. The pre-fix directed workflow reproduced a
+35-second wait for `preview-assembly` during private source repair. After fixing
+the observed action, it correctly exposed the command's correlated error for
+unrepaired references, while the old test expected a generic rejected preview.
+The final test observes `preview-assembly-part-update`, binds the private review
+id, requires that exact failure without a value, then verifies manual repair,
+Apply/history and saved reopening. Both earlier failures remain recorded; no
+product bypass, geometry band or deadline was changed to obtain PASS.
+
+Pointer oracles independently predict the third posted input from actual DOM
+coordinates and two sampled intentions, then clamp the actual input to literal
+Tz [12,32] or local-X [-30,60] intervals. The expected angular state survives
+Apply/reopening without reading solved output. Existing 1e-6 mm/radian physical
+pose bands, 1e-5 degree circular checks and case-specific BRep/bounds tolerances
+remain unchanged. Fixtures and limits retain their original provenance.
+
+Hosted acceptance is separate. Earlier head `85a33b6` failed macOS basic
+assembly, Windows distance and Linux directed-stop renderer steps; full logs
+were unavailable through the connector and no browser was enabled. Its Security
+workflow passed while a separate CodeQL check reported nine alerts. New source
+analysis must confirm the current result; no query was suppressed or alert
+dismissed here. Read-only `npm audit --json` reported zero vulnerabilities for
+both the current and main lock, which does not dismiss GitHub's separately
+reported, still-unidentified moderate Dependabot alert. Full assembly coverage,
+installed packaging, platform support and release acceptance remain open.
+
+## Persisted configuration worker/editor integration — 2026-10-23
+
+Local `codex/assembly-configuration-persistence` follows `8d9a756`. This connects
+strict version-3 source/catalog/root-selection files to actual effective native
+scenes, private configured worker previews and atomic Apply, a variant/state
+editor, complete history/recovery and restricted file Save As/Save/reopen.
+Generation and private capabilities are runtime-only. Legacy consumers cannot
+silently unwrap a configured file to its base source.
+
+There are 130 added unit/CAD cases: 19 format, nine version dispatcher, 16
+history, 21 native scene, 18 native session/dispatcher, 19 pure transport,
+22 pure/SSR editor and six recovery cases. Two added Node cases exercise actual
+temporary-file v3 IPC and malformed-envelope rejection. Pure fake-worker and
+un-attested capture syntax cases do not establish native geometry or authority.
+
+Actual final results on Windows x64, Node 24.11.1:
+
+| Command | Actual result |
+| --- | --- |
+| `npm test` | PASS, 374 files / 8998 unit/CAD cases in 383.53 seconds. IPC/security/source: 67 passed, zero failed, one inherited Windows file-symlink permission skip, 1288.4115 ms. |
+| `npm run build` | PASS, TypeScript/Vite, 2079 modules, final Vite 1.00 seconds. Existing browser-externalization and large-chunk warnings remain. |
+| `npm run test:desktop` | PASS, actual production-loader Electron/worker/WASM baseline, zero recorded console errors or failed requests. This baseline is separate from the configured walkthrough. |
+| `npm run test:desktop:assembly-configurations` | PASS, 14 recorded native-geometry/lifecycle phases and 40 recorded workflow milestones. Actual configured worker, real restricted file IPC, two test-owned Open dialogs, two Save As dialogs and three Save calls. Child close and isolated-profile removal confirmed; zero recorded console errors or failed requests. |
+| `npm run test:desktop:assembly` | PASS, the existing rigid assembly renderer flow with 527 recorded workflow checks/milestones, real worker/file IPC, zero recorded console errors or failed requests, confirmed child close and isolated-profile removal. This is a regression of that original flow, not all other assembly controls. |
+| Native/editor focus | PASS, initial scene/session/editor focus: 60 cases in 8.72 seconds. Final session/dispatcher focus including malformed cancellation: 18 cases in 8.66 seconds. The final full run above executes all of them. |
+
+All 964 tracked production/test/config inputs were frozen and verified unchanged
+for the final complete suite and build/baseline; digest
+`662ae1ed220ac8741c57b140c7494a7c7f71b8383a8eba99c42119cb913991de`.
+The configured walkthrough passed on these same inputs before that final full
+run. Markdown documentation is excluded from this input digest.
+
+The first full run passed 8997 cases in 386.70 seconds, before static review
+found that a missing targeted-discard token invoked the internal discard-all
+operation. The dispatcher now requires an own nonempty bounded string without
+reading accessors. A real native preview survives omitted/undefined/null/empty/
+numeric/oversized/accessor tokens and an unrelated valid token, then applies
+successfully; the final full run includes this regression. Internal session
+disposal retains its explicit discard-all behavior.
+
+The first configured renderer attempt failed its test oracle's comparison of
+JSON property order. Its original fixture and normalized production context had
+the same complete data. The oracle now parses both signatures and compares
+canonical data independently of key order; no geometry, worker admission or
+product currentness guard changed. The second attempt passes. Failed logs were
+retained separately; no tolerance or timeout was increased.
+
+The original A2×3×4 and B1×2×5 prisms appear twice under a proper quarter turn.
+Four actual solids have total volume 68 mm³ and area 172 mm². Per-body literal
+bounds use 1e-6 mm; volume/area use 1e-5 in their corresponding units. Native
+session cases solve a shared child then its parent; renderer cases independently
+check named B X4 → authored X6 → relation-solved X10, Cancel/retry/Apply, complete
+Undo/Redo, canceled Save As, successful Save As, normal Save without another
+dialog, selected-root reopening and a fresh no-op solve. Source and dormant
+state data remain intact. Query/release/reentry/token failures are separate
+native controls. See [provenance](PROVENANCE.md#original-persisted-configuration-contexts).
+
+The renderer flow does not exercise every variant creation, visibility,
+suppression or rotation control, human native dialogs, a worker restart or an
+installed package. It does not establish configured all-family mechanics,
+capture/repair, relation parameter authoring, flexible instances, configured
+BOM/interference/export/source/import consumers or other-platform support.
+
+Hosted results remain separate: the earlier PR head `2ce9273` passed build,
+unit/CAD, IPC and Electron smoke on Windows x64, Linux x64 and macOS ARM64, but
+its CI failed later directed-angle/distance-interval renderer workflows, leaving
+subsequent steps skipped. Its Security workflow passed while its separate
+CodeQL check reported nine alerts (eight high, one medium). Those alerts and
+the renderer failures remain open for investigation, not accepted as green.
+
+## Selected rigid configuration solve transactions — 2026-10-23
+
+Local `codex/assembly-configuration-solve` follows `6bd90f5`. The standalone
+transaction solves exact selected states child before parent, stages poses and
+lifted winding, and gates every actual placed use with fresh native geometry.
+Base writes isolate named inherited values under existing caps; shared child
+states retain explicit propagation. A private preparation applies exactly once
+against the complete original baseline. It does not add saved/editor transport.
+
+Sixteen native integration cases use the original A/B prisms and R2 cylinder.
+The positive hierarchical case stages one shared compact child, then its parent,
+and independently rebuilds all four placed BReps: one valid solid each, summed
+volume 68 mm³ and area 172 mm², with literal final bounds. Active/passive gear
+cases retain complete turns, neutral data and distinct phase; a genuine far
+carrier checks angular purpose. Failure controls include four stale context
+fields, copied/private handles, later fixed parent, distant second instance,
+real query reentry, native release, executable policy, overflow and stale winding.
+Sixteen pure writeback cases cover exact outputs/fixed bodies, named/base/dormant
+inheritance, gear/screw/rack captures and unchanged override caps. Nine empty-
+assembly policy cases cover authority and options without native shape claims.
+
+Actual final local results on Windows x64:
+
+| Command | Actual result |
+| --- | --- |
+| `npm test` | PASS, 367 files / 8868 unit/CAD cases in 416.49 seconds. IPC/security/source: 65 passed, zero failed, one inherited Windows file-symlink permission skip, 1253.2185 ms. |
+| `npm run build` | PASS, TypeScript/Vite, 2070 modules, final Vite 1.00 seconds. Existing browser-externalization and large-chunk warnings remain. |
+| `npm run test:desktop` | PASS, actual unchanged production-loader worker/WASM baseline, zero console errors or failed requests. This does not exercise configured controls, persistence or the transaction through the production worker/editor. |
+| Native/pure focus | PASS, all 41 new cases / three files in 6.26 seconds. The prior 172 configured native cases are unchanged and execute in the complete run above. |
+
+All 887 production/test/config inputs were frozen and verified unchanged for
+the focus, complete suite, initial build and desktop check; digest
+`b75335df80a5a8c8fec10664576f100ab3c8c8280823f25b483bbe2c45f05506`.
+Staged whitespace checking then found one extra blank line at the end of the
+new writeback module. Removing only that final blank line was verified against
+the tested Git blob; every other input is identical. Build and actual desktop
+were rerun on the final formatting, digest
+`381c5500e63ecebd147bece3f68572bb806935b501c4d02da300724d5b77e2c6`.
+The full suite was not repeated for this nonsemantic EOF normalization.
+
+Static peer review found that active gear conditioning incorrectly consumed
+positional origins although its equation is angular. The configured builder
+and conditioning now retain angular/native identity guards without irrelevant
+position/radius budgets; the far active/passive explicit-carrier case passes.
+Another positional relation on that owner retains positional admission.
+An early pure fixture used principal planes for a gear and correctly failed
+the saved axis syntax; only that declaration-only fixture was corrected to
+explicit UNATTESTED axis locators. No native or final full run failed here.
+
+The positive experiments explicitly request working targets 5e-7 mm and 1e-9
+radians; public native acceptance remains 1e-6 mm / 1e-8 radians. The transaction
+has no hidden refinement fraction or extra solver retry budget. Actual initial
+lifted coordinates must match authored anchors; no trajectory is inferred after
+an internal child rotation or stale capture. These tests are not exhaustive
+all-family solve, arbitrary nonidentity-neutral/moving-carrier or motion coverage.
+The 20 MiB preparation/review envelope and existing declaration/native limits
+still reject atomically. See the [contract](ASSEMBLY_CONFIGURATIONS_SOLVE.md) and
+[original provenance](PROVENANCE.md#original-selected-state-solve-transactions).
+
+Saved versioning, worker/editor/history/recovery, native capture/repair,
+parameter/part-feature variants, dependent consumers, flexible instances and
+the complete assembly/demo gate remain open. This is a local unpublished
+prerequisite; a passing Windows baseline does not establish platform support.
+
+## Independent configured geometry verification — 2026-10-23
+
+Local `codex/assembly-configuration-verification` follows `857897b`. Independent
+physical measurements now cover the nineteen binary families, centered Width
+and five Symmetry purposes. A fresh-candidate gate combines them with existing
+profile/path/hinge measurements at every actual placed scope. This does not
+execute configured solves, perform atomic writeback or add saved/editor support.
+
+Forty-eight added native cases reuse five unchanged original recipes. The
+nineteen-family matrix checks both placed instances with literal coordinates,
+including intended failures. Four Width branch combinations and a singular
+branch, five literal and five positive Symmetry cases, both-sided band overlap,
+far/cancelled-chain purpose, strict sub-topology bands and passive multi-turn
+mechanical anchors are covered. Fresh verification covers 62 unique placed
+keys, immutable finite reports, unavailable passive diagnostics, substituted
+public methods, later native D1 reentry and five-prototype cleanup failure.
+Fifteen pure cases cover strict options and structural native-provider rejection.
+The previous 124 native cases remain identical except four imports.
+
+Actual final local results on Windows x64:
+
+| Command | Actual result |
+| --- | --- |
+| `npm test` | PASS, 364 files / 8827 unit/CAD cases in 414.02 seconds. IPC/security/source: 65 passed, zero failed, one inherited Windows file-symlink permission skip, 1230.5372 ms. All 172 configured numerical/physical cases execute in this complete run. |
+| `npm run build` | PASS, TypeScript/Vite, 2070 modules, Vite 995 ms. Existing browser-externalization and large-chunk warnings remain. |
+| `npm run test:desktop` | PASS, actual unchanged production-loader worker/WASM baseline, zero console errors or failed requests. This does not exercise configured authoring, solve/writeback or new editor controls. |
+| Final targeted perpendicular control | PASS, one case in 4.53 seconds, including aligned rejection and fresh opposed acceptance in both placed scopes. The other 171 cases were intentionally filtered only in this focus; the complete run above executes them. |
+
+All 881 production/test/config inputs were frozen and verified unchanged for
+the final focus, complete suite, build and desktop check; digest
+`9c1682adb61bc03d6fc31b99fa4720655bfbd3478077e846efce3142a9ef4821`.
+
+Earlier runs are retained as failures. The first native focus passed 182 and
+failed 29 in 82.72 seconds: 28 new metadata assertions compared normalized
+quaternions exactly across a one-ULP difference, and the new synchronous
+62-report integration case took 14840 ms against the default five-second
+deadline. The quaternion oracle now uses a 1e-15 arithmetic band, retaining exact
+scope identity, paths and translation. Only that new integration case has an
+explicit 60-second deadline; the previous 124 cases and global defaults are
+unchanged. Duplicate context recaptures were removed because the captured native
+aggregate assertion already checks the full context before and after every
+privately registered ordered child identity. Entry/exit and final-inventory
+authentication remain; no input-identity cache or proof shortcut was introduced.
+
+The second focus passed 225 and failed one in 74.71 seconds. Direct native
+diagnosis showed the original cylinder axis `(0,0,-1)` versus the plane normal
+`(0,0,1)`, where the new test had assumed equal signs. The corrected literal
+expects principal angle pi and failure for aligned mixed plane/axis intent;
+the same test also checks fresh opposed intent succeeds. No production geometry
+formula or acceptance band changed for that correction.
+
+Coverage is limited to the [original constructions](PROVENANCE.md#original-configured-physical-verification)
+and the [measurement contract](ASSEMBLY_CONFIGURATIONS_VERIFICATION.md).
+The active mechanical matrix uses identity neutral frames and zero anchors;
+passive controls use simple authored multi-turn anchors. Internal tangency,
+unequal-radius branches, all material senses/alignments, arbitrary moving
+carriers and nonidentity neutral frames are not newly established. Width is
+centered only. These conservative Float64 estimates are not perturbation-certified
+interval metrology. Full configurations, flexible instances, persistence/editor
+lifecycle, remaining assembly families and the complete demo gate stay open.
+
+## Configured numerical scopes and state planning — 2026-10-23
+
+Local `codex/assembly-configuration-scope` follows `a0843c8`. Closed numerical
+scopes retain the actual full-root native owner, tuple, ancestry and complete
+context while projecting immediate local children. Every current relation
+family and auxiliary role uses that projection. A pure exact-state planner
+groups reusable rigid states, preserves every placed use and orders children
+before parents. Neither layer implements a configured solve/writeback
+transaction or saved/editor support.
+
+Ten new pure planning cases use the original A/B graph and a literal nested G
+wrapper. Fifty-six new native cases extend the same five unchanged original
+recipes and 31 relation declarations. They cover both selected instances,
+root equivalence, all ordered roles, null/static frames, local hinge incidence,
+deep noncommuting frames, original far/cancelled-chain error, copied/foreign/
+revoked scopes, exact declaration namespaces, executable paths and intrinsic
+session authentication even with overridden public methods. Six cases perform
+actual standalone scoped solves, stage only a test-owned named occurrence pose,
+advance generation, rebuild fresh native geometry and independently measure
+four/six-role hinges, both profiles, LINE and a fixed arc. Native acceptance
+remains 1e-6 mm / 1e-8 radians; literal oracles and provenance are
+[recorded separately](PROVENANCE.md#original-configured-numerical-scope-and-state-planning).
+
+Actual final local results on Windows x64:
+
+| Command | Actual result |
+| --- | --- |
+| `npm test` | PASS, 363 files / 8764 unit/CAD cases in 418.17 seconds. IPC/security/source: 65 passed, zero failed, one inherited Windows file-symlink permission skip, 1210.481 ms. |
+| `npm run build` | PASS, TypeScript/Vite, 2070 modules, Vite 978 ms. Existing browser-externalization and large-chunk warnings remain. |
+| `npm run test:desktop` | PASS, actual unchanged production-loader worker/WASM baseline, zero console errors or failed requests. It does not exercise configured authoring, local scope controls or a configured solve transaction. |
+| Final native focus | PASS, 163 cases / two files in 57.30 seconds. |
+
+All 875 production/test/config inputs were frozen and verified unchanged for
+the final native focus, complete suite, build and desktop check; digest
+`5906fdfb8bb7167b107d9f022baea67355aa429fb364804efc31b09aa560b4a8`.
+
+The first native focus passed 116 cases before the six solve experiments and
+the intrinsic-session regression were added. The extended focus passed 119
+and failed four. Two failures detected shared test-input pose records between
+named variants: replacing only the selected array/row corrected test-owned
+staging without changing fixtures or preservation assertions. Two hinge
+experiments passed the numerical checks at a 7.9904099115e-7 mm residual, then
+correctly failed fresh native acceptance with its larger four-role error
+envelope. A separate six-case diagnostic retained both refusals.
+
+The correction adds an optional `lengthRefinementTolerance`, parallel to the
+existing angular refinement option. Only variable groups use the tighter
+working target; fixed constraints, public admission and initial mechanical
+state keep public bands. Default behavior and iteration/trial/seed budgets
+are unchanged. Thirteen new pure cases check actual refinement, default/equal
+equivalence, public fixed-relation acceptance/rejection, strict option admission
+and active/passive multi-turn gear preservation. Their 25-case focus passed in
+637 ms. The six native experiments then passed in 8.25 seconds using a working
+length target of 5e-7 mm while fresh native acceptance remained 1e-6 mm /
+1e-8 radians. This explicit working fraction is not a general margin guarantee.
+Earlier failures and diagnostic receipts remain retained privately.
+
+The first complete run passed 8759 cases and failed the unchanged combined
+nineteen-binary configured relation case at 5091 ms against its existing
+5000 ms deadline; IPC was not entered. Currentness repeatedly rebuilt the full
+expanded core evaluation although its signature contains only normalized
+declarations and generation. The correction factors the identical declaration
+parser out of the evaluator. Construction still checks the complete expanded
+tree; every currentness check still reparses source, catalog, dormant selectors,
+captures and byte bounds and compares the same complete signature. An equal
+signature denotes the already admitted deterministic expansion; a difference
+revokes the session. No case, timeout, fixture, capacity, pool or pre/post native
+check was weakened. The failed complete attempt and its source freeze remain
+retained separately.
+
+Three additional pure controls compare normalized declaration fields and strict
+admission with the full evaluator, including finite declarations whose world
+composition overflows. Their 21-case core focus passed in 1.78 seconds. An
+additional native control verifies that construction still rejects overflow
+before native allocation and that changed contexts revoke before a query,
+without revival after restoring the original JSON. The final two-file native
+focus passed all 163 cases in 57.30 seconds on the corrected source.
+
+These are bounded numerical/native prerequisites. A complete configured
+transaction still needs child-state staging, complete family conditioning and
+final physical verification at every placed instance, atomic pose/capture
+writeback and capture/repair continuity. Saved/base selectors, parameter and
+part-feature variants, history/editor lifecycle, source/repair/BOM/export
+consumers and independently solved flexible instances remain open. The complete
+assembly demo, installed packages and other platforms are not established.
+
+## Configuration capture and winding declarations — 2026-10-23
+
+Local `codex/assembly-configuration-state` follows `2923574`. It adds strict,
+owned mechanical capture/winding declarations keyed by source id/revision,
+configuration (including distinct null/base) and mate id. Named entries feed
+the actual core catalog and its effective mates; they preserve source
+references, parameters, other variants and the native four-field input.
+Changing a selected capture changes the normalized catalog signature and
+revokes old native witnesses. Base sidecar entries cannot be materialized into
+named variants. Saved v2 syntax and production worker/editor/Apply remain
+unchanged.
+
+Fifty-two new pure cases cover all five supported mechanical capture families,
+multi-turn literals, precedence, exact source/variant identity, dormant and
+suppressed declarations, immutable ownership, strict executable/nested input
+rejection and atomic update/materialization. Boundary cases admit exactly 4096
+distinct states, reject the 4097th new key and enforce the combined source,
+catalog and state 20 MiB pretty-JSON envelope when the separate inputs fit.
+Opaque original zero bytes exercise byte admission only; they are not valid
+STEP geometry. Three additional native cases reuse the five unchanged original
+recipes to check selected capture values through real aggregates/adapters,
+capture-only currentness invalidation and dormant rejection before native
+allocation. They do not establish solvability or historical recapture.
+See [provenance](PROVENANCE.md#original-configuration-capture-and-winding-declarations).
+
+Actual final local results on Windows x64:
+
+| Command | Actual result |
+| --- | --- |
+| `npm test` | PASS, 362 files / 8682 unit/CAD cases in 415.76 seconds. IPC/security/source: 65 passed, zero failed, one inherited Windows file-symlink permission skip, 1280.7474 ms. |
+| `npm run build` | PASS, TypeScript/Vite, 2070 modules, Vite 1.03 seconds. Existing browser-externalization and large-chunk warnings remain. |
+| `npm run test:desktop` | PASS, actual unchanged production-loader worker/WASM baseline, zero console errors or failed requests. It does not exercise configured authoring or capture editing. |
+| Optimized pure focus | PASS, 52 unchanged cases / one file in 3.05 seconds. |
+
+All 872 production/test/config inputs were frozen and verified unchanged for
+the final complete suite, build and desktop check; digest
+`d002cfaf884c7ba5e96dfe041d2c9b2403cd69954365a3368e183fcc08b88738`.
+An earlier two-file native focus passed 72 cases in 28.09 seconds before the
+pure validation-cost correction. The final complete suite includes these
+native cases again on the final frozen source.
+
+The first complete run passed 8680 cases and failed the two boundary cases at
+5220 ms and 5062 ms against their unchanged 5000 ms deadlines; IPC was not
+entered. The correction retains one privately owned validated source mate per
+exact source tuple/mate within an operation. Every selected configuration and
+every complete capture still passes its strict checks; combined byte admission
+and dormant validation remain intact. The optimized pure focus passed all 52
+unchanged cases in 3.05 seconds, including the boundary cases at 645 ms and
+1570 ms. No case, fixture workload, timeout, limit, pool or test configuration
+was changed to obtain this result. Both full attempts and source freezes are
+retained privately.
+
+These checks concern authored state and native data flow. Selected-state scope
+projection and dependency order, complete configured final verification,
+state-specific solve/writeback, native capture/repair and winding continuity,
+relation-parameter and part-feature variants, saved/editor lifecycle and every
+dependent consumer still require integration. Flexible instances, the complete
+assembly demo, installed packages and other-platform acceptance remain open.
+
+## Effective configuration numerical bridges — 2026-10-23
+
+Local `codex/assembly-configuration-numeric` follows `6ef1a85`. It maps the
+current privately authenticated configured relations to detached numerical
+constraints. Effective descendant frames are recomposed below the full-root
+rigid owner, without an inverse-world subtraction or fabricated base document.
+Original placement magnitude/depth remain in purpose-specific error budgets.
+The new hinge and advanced adapters also measure physical native support values
+independently of numerical residual rows. Legacy adapters, saved v2 syntax,
+production worker/editor commands and Apply registries are unchanged.
+
+Sixty-five new native cases reuse five unchanged original feature recipes.
+Thirty-one declarations cover every existing saved family in two selected
+rigid states. Six standalone numerical experiments solve four/six-role hinges,
+both profile centers, LINE and a fixed circular path between actual root
+owners. Each experiment authors only a test-owned candidate catalog pose,
+advances generation, reconstructs fresh native geometry and independently
+remeasures the material values. This does not implement production writeback.
+
+Controls include literal effective coordinates; a `0.25` mm local offset below
+a rounded `1e16` mm root placement; retained `+1e14`/`-1e14` mm cancellation
+terms; null declaring carriers; detached-copy isolation; copied, foreign,
+legacy, disposed and changed complete-context rejection; invalid/executable
+bands; radial axial-plane rejection; six-role projected angular observability,
+wrapped phase margins, explicit full-circle intent and insufficient remaining
+precision near an axial band. Fixed circular measurement invokes actual native
+D1 evaluation; reentry changes generation after the real query and revokes the
+result. Free circular cases separately measure an interior tangent with UP,
+outside-trim versus supporting-circle intent and undefined center phase, with
+finite or explicit-null reports. The independent literal band is at most
+`1e-10`; numerical/physical acceptance uses `1e-6` mm and `1e-8` radians.
+See [provenance](PROVENANCE.md#original-configured-numerical-bridges).
+
+Actual local results on Windows x64:
+
+| Command | Actual result |
+| --- | --- |
+| `npm test` | PASS, 361 files / 8,627 unit/CAD cases in 410.30 seconds. IPC/security/source: 65 passed, zero failed, one inherited Windows file-symlink permission skip, 1,239.223 ms. |
+| `npm run build` | PASS, TypeScript/Vite, 2,070 modules, Vite 994 ms. Existing browser-externalization and large-chunk warnings remain. |
+| `npm run test:desktop` | PASS, actual unchanged production-loader worker/WASM baseline, zero console errors or failed requests. It does not exercise configured authoring or the new standalone adapters. |
+| Final new native focus | PASS, 65 cases / one file, 28.27 seconds. |
+
+All 869 production/test/config inputs were frozen and verified unchanged for
+the final complete suite, build and desktop check; digest
+`0abdf7890ce3a63791c1353dc3ae4cf414a8cf921198758686b6baa7376c7fa0`.
+Earlier native focuses passed 54, then 59 cases; an integrated four-file run
+passed 156 cases including 95 unchanged configured regressions. The first
+complete run passed 8,623 cases in 414.96 seconds. Independent review then found
+that the new Free circular measurement branch had no executed control; four
+meaningful native cases were added and the complete suite was repeated.
+No production change, tolerance, deadline, capacity, pool or old case was
+weakened to obtain the final result. A trailing-blank-line cleanup preceded
+both complete runs. Private receipts retain the earlier checks separately.
+
+This is bounded programmatic evidence for detached adapters and support
+measurements. General configured final verification/conditioning, selected-state
+scope projection, variant capture/winding and parameter storage, transactional
+solve/writeback, saved/direct-base selectors, source/repair/BOM/export/editor
+consumers and flexible instances still need integration. The complete assembly
+demo, installers and other-platform acceptance remain open. See the
+[contract](ASSEMBLY_CONFIGURATIONS_NUMERIC.md).
+
+## Effective configured relation references — 2026-10-23
+
+Local `codex/assembly-configuration-relations` follows `0f00119`. It adds an
+owned pure inventory over effective scopes, occurrence states and mate
+suppression, then separate current-native relation aggregates. The class
+derives its own inventory; caller-created inspection/observation data cannot
+issue a private aggregate. Source, catalog, root selector and generation remain
+part of all public currentness checks. Saved v2 syntax, production worker/editor
+commands and the legacy solver registry are unchanged.
+
+Forty-six new pure cases cover every currently saved family, full effective
+chains/ancestry, null/repeated/compound roles, visibility/suppression,
+producer/body diagnostics and executable dormant input. Thirty-nine new native
+cases use five unchanged original recipes. Thirty-one positive declarations
+are each resolved under base and selected 3D placements, including the combined
+nineteen-binary-family case with 38 aggregates, centered width, five symmetry
+forms, both profiles, LINE/circular paths with UP and four/six-role hinges.
+Exact fixtures, literal coordinates and the 1e-10 point/normal band are in
+[provenance](PROVENANCE.md#original-configured-relation-inventories).
+
+Passive gear/screw/rack inspection uses effective equation suppression in
+active scopes and excludes suppressed namespaces. Missing declarations return
+unavailable data without native issuance; a current native-purpose failure
+revokes the entire session. Tests also cover global active preflight, strict
+boolean filtering, clones/foreign/legacy/helper objects, complete-input
+mismatches, empty/unavailable-only postchecks, reentry, later-query failure and
+cleanup of all five owned prototypes exactly once. Root-declared hinges reject
+foreign axial/angular owners after four/six actual role queries. The radial
+control deliberately proves inventory admission without qualified rotation or
+satisfaction; that qualification remains a physical/numerical bridge.
+
+Actual final local results on Windows x64, Node 24.11.1 and npm 11.6.2:
+
+| Command | Actual result |
+| --- | --- |
+| `npm test` | PASS, 360 files / 8,562 unit/CAD cases in 407.32 seconds; IPC/security/source checks: 65 passed, zero failed, one inherited file-symlink permission skip, 1,228.3837 ms. |
+| `npm run build` | PASS, TypeScript/Vite, 2,070 modules, final Vite 1.01 seconds. Existing browser externalization and large-chunk warnings remain. |
+| `npm run test:desktop` | PASS, unchanged production-loader worker/WASM baseline, zero console errors or failed requests. It does not exercise these standalone relation aggregates. |
+| Final integrated focus | PASS, four files / 141 cases in 11.01 seconds: 46 pure, 39 new native and 56 unchanged configured native regressions. |
+
+All 864 production/test/config inputs were frozen and verified unchanged for
+the final focus, build, complete suite and desktop check. Early pure attempts
+corrected invalid declaration recipes, a test typo and one missing type import.
+Their receipts distinguish a transcription from redirected original logs. The
+first native preflight stopped in setup because a plane/axis perpendicular
+declaration needed aligned/opposed intent; only its test recipe was corrected.
+
+The first complete run passed 8,561 cases and failed the combined 38-aggregate
+case at 5,557 ms against its existing 5,000 ms deadline; IPC was not entered.
+The final correction removes repeated full-document evaluation for each
+already frozen private child during atomic aggregate authentication. Exact
+private ownership remains checked, complete context checks still bracket
+aggregate assertion, and all public/native pre/postchecks remain in place.
+No case, scene, native tolerance, resource cap, worker pool, test configuration
+or deadline was reduced or widened. Both complete attempts and source freezes
+are retained separately. Passing this bounded case is not a large-assembly
+performance or another-platform claim.
+
+The final Git whitespace check then removed two additional terminal CRLF
+sequences from the new pure model module. A byte comparison confirms that only
+those four trailing bytes changed. The final formatted source passed its 46
+pure cases again in 570 ms, build and desktop smoke; both source freezes are
+retained. No executable source changed after the complete passing suite.
+
+The [effective relation contract](ASSEMBLY_CONFIGURATIONS_RELATIONS.md) remains
+a prerequisite. Native reference admission does not prove physical relation
+satisfaction, a numerical solution or Apply authority. Configured independent
+measurement/numerical bridges, variant-specific solving/writeback and mechanical
+capture/winding storage, saved/direct-base selectors, all graph/editor consumers
+and flexible instances still need integration. The full assembly/demo scope
+remains open. This stays local and unpublished; no external runtime parity,
+hosted execution, installed-package or other-platform acceptance is claimed.
+
+## Configured native query purposes — 2026-10-23
+
+Local `codex/assembly-configuration-purposes` follows `8d6d70c`. It extends the
+separate configured session to the existing component, generic support,
+direction, cylinder/sphere surface, bounded profile and path query purposes.
+All twelve added witness kinds have their own configured purpose and use the
+same private session registry. The advanced observation helper grants no
+authority; the complete source/catalog/selector/generation postcheck precedes
+private issuance. Saved syntax, legacy snapshots, worker/editor commands and
+configured relation solving are unchanged.
+
+Thirty-eight new real native cases pass alongside the eighteen unchanged
+plane/point context regressions. Original prism, disk, sector and sphere cases
+check literal 3D placements, component/null scopes and full root ownership.
+Profiles and rectangle-axis senses, LINE material origins, circular material
+reversal, generic LINE/circle queries and fresh coordinate evaluations are
+separate cases. The [provenance](PROVENANCE.md#original-configured-native-purpose-fixtures)
+records independent coordinates, topology nomination, native D1 sign checks
+and exact bands. Metadata and a source probe never grant configured proof.
+
+Every added kind rejects cloned, foreign, disposed, legacy and stale-generation
+proofs. Separate advanced checks reject changed source/catalog/selector,
+reentrant context changes, wrong purpose and nonincident selections. Executable
+preflight data do not reach native queries. Bounded post-query/cleanup faults
+preserve both errors and release the owned prototype once. Cancelling large
+translations retain a 2e16 mm chain: all five path query/evaluation purposes
+refuse unchanged default precision bands. Profile-axis world uncertainty is
+retained separately from local extraction, without claiming pair admission.
+
+Actual final local results on Windows x64, Node 24.11.1 and npm 11.6.2:
+
+| Command | Actual result |
+| --- | --- |
+| `npm test` | PASS, 358 files / 8,477 unit/CAD cases in 354.70 seconds; IPC/security/source checks: 65 passed, zero failed, one inherited file-symlink permission skip, 1,229.3499 ms. |
+| `npm run build` | PASS, TypeScript/Vite, 2,070 modules, Vite 1.02 seconds. Existing browser externalization and large-chunk warnings remain. |
+| `npm run test:desktop` | PASS, unchanged production-loader worker/WASM baseline, zero console errors or failed requests. It does not exercise these standalone configured queries. |
+| Focused native purposes and context regressions | PASS, two files / 56 cases in 4.31 seconds; the same source is included in the full suite. |
+
+All 860 production/test/config inputs were frozen and verified unchanged for
+the build, complete suite and desktop check. The first focal passed 55 cases
+and failed one exact arithmetic equality: independent `sqrt(1400)+2` and the
+chain's `hypot(10,20,30)+2` differed by approximately 7e-15 mm. The test now
+checks that scalar within 1e-12 mm and depth exactly two. Production code and
+native geometry bands did not change for that correction. No native inventory
+cap, uncertainty band, IPC policy or desktop deadline widened.
+
+The [configured native contract](ASSEMBLY_CONFIGURATIONS_NATIVE.md) remains a
+prerequisite. Existing query purposes are available in this separate session;
+effective active/passive relation inventories, authenticated measurement
+aggregates, variant-specific solve/writeback, saved syntax, direct base selectors
+and source/repair/BOM/export/editor consumers still require integration.
+Flexible instances and the complete assembly/demo scope remain open. This
+stays local and unpublished. No external runtime parity, hosted execution,
+installed-package or other-platform acceptance is claimed.
+
+## Native rigid-configuration reference context — 2026-10-23
+
+Local `codex/assembly-configuration-native` follows `7501844`. A separate
+native session validates the complete source/catalog/root-selector/controller
+generation input and rebuilds effective active part prototypes. Private
+configured plane/point witnesses use their own lifetime registry. Current
+input is checked before and after native processing; mismatches revoke the
+session permanently. Legacy snapshots, saved v2 parsing, worker requests and
+editor commands remain unchanged.
+
+Eighteen original native cases pass. They check all eight B corners and six
+distinct planar faces under base/compact placements, explicit scope/null
+frames, actual root owners, same-state reuse, hidden material, right-only
+suppression and activation from a suppressed base. Coordinates and directions
+are compared to independent quarter-turn rules at 1e-9 for these prisms.
+Foreign/cloned/disposed and cross-legacy proofs reject. Reentrant constructor
+and native-return changes withhold output. Source, catalog, selector and
+generation mismatches are checked separately. The controller must advance its
+generation on changes, including history not observed between library calls.
+
+The effective right-part chain retains 34 mm/depth two. A separate cancelling
+chain retains 2e16 mm despite a zero final origin; no precision-admission claim
+follows. A real two-body prototype under 4,096 valid occurrences rejects the
+8,192 expanded-body count at the existing native cap. Partial rebuild, query
+and cleanup faults preserve errors and release every context-owned prototype
+once. Original geometry and exact evidence boundaries are in
+[provenance](PROVENANCE.md#original-configured-native-reference-fixtures).
+
+Actual final local results on Windows x64, Node 24.11.1 and npm 11.6.2:
+
+| Command | Actual result |
+| --- | --- |
+| `npm test` | PASS, 357 files / 8,439 unit/CAD cases in 353.91 seconds; IPC/security/source checks: 65 passed, zero failed, one inherited file-symlink permission skip, 1,209.8482 ms. |
+| `npm run build` | PASS, TypeScript/Vite, 2,070 modules, Vite 999 ms. Existing browser externalization and large-chunk warnings remain. |
+| `npm run test:desktop` | PASS, unchanged production-loader worker/WASM baseline, zero console errors or failed requests. It does not exercise this standalone configured session. |
+| Focused configured native cases | PASS, one file / 18 cases in 2.11 seconds; the same frozen cases are also included in the full suite. |
+
+All 858 production/test/config inputs were frozen and verified unchanged for
+these checks. The first focal passed fifteen cases and failed three cleanup
+assertions because their spies combined the engine's internal rebuild reset
+with the context's final release. The corrected tests separate those phases
+and still require exactly one context release per prototype. The body-budget
+case also verifies the real two-body rebuild and the specific expanded-body
+rejection. Production code did not change for that correction. No existing
+native inventory cap, uncertainty band, IPC policy or desktop deadline widened.
+
+The [native context contract](ASSEMBLY_CONFIGURATIONS_NATIVE.md) remains a
+prerequisite. Only original prism plane/point and declared-frame cases are
+executed here; other configured native purposes and purpose-specific precision
+admission remain open. Effective relation inventories, variant-specific
+solve/writeback, saved fields, all source/repair/BOM/export/editor consumers
+and flexible instances still need integration. This stays local and
+unpublished. No hosted execution, external parity, installed-package,
+other-platform or complete assembly/demo acceptance is claimed.
+
+## Rigid configuration evaluation core — 2026-10-23
+
+Local `codex/assembly-configuration-core` follows `dd34a75`. A separate strict
+catalog evaluates named rigid assembly states per occurrence without changing
+saved v2 syntax or the production editor. Source revisions, base declarations
+and other named states remain distinct. The owned frozen result records
+effective scopes, full part paths, configuration ancestry and ordered
+component-availability diagnostics. It grants no native reference or Apply
+authority. Direct selectors on base occurrences still require integration;
+this catalog selects nested variants through explicit named parent states.
+
+Eighteen pure cases cover base/variant isolation, post-evaluation input mutation,
+shared-state freezing, proper transformed frames, hidden/suppressed declarations,
+repeated/null roles and precise unavailable references. Dormant selectors,
+executable or malformed data and declaration bounds are checked. The 64-per-owner,
+512-total and 4,096-override admission cases include accepted and rejected inputs;
+root plus 512 dormant assembly owners is separate from the variant count. A
+storage-only probe verifies combined source/catalog rejection above 20 MiB while
+the individual inputs fit. Its generated zero bytes do not prove STEP geometry.
+
+Four native cases build the original A/B part BReps and place them by evaluated
+poses. They check one-to-one full paths, valid closed solids, native volume/area
+and independent bounds for base/compact, right-only suppression, same-variant
+reuse and a proper common 3D gauge. Totals are four solids V=68 mm³/A=172 mm²,
+or three solids V=58/A=138 with only right B suppressed. The
+[provenance](PROVENANCE.md#original-rigid-configuration-evaluation-fixtures)
+records literal geometry, exact gauge and 1e-6 mm / 1e-5 mm³/mm² bands.
+These tests do not create a substitute current document or solve configured
+mates through the production snapshot/session.
+
+Actual final local results on Windows x64, Node 24.11.1 and npm 11.6.2:
+
+| Command | Actual result |
+| --- | --- |
+| `npm test` | PASS, 356 files / 8,421 unit/CAD cases in 355.43 seconds; IPC/security/source checks: 65 passed, zero failed, one inherited file-symlink permission skip, 1,231.3909 ms. |
+| `npm run build` | PASS, TypeScript/Vite, 2,070 modules, Vite 1.00 second. Existing browser externalization and large-chunk warnings remain. |
+| `npm run test:desktop` | PASS, unchanged production-loader worker/WASM baseline, zero console errors or failed requests. This smoke does not exercise the standalone configuration core. |
+| Focused native configuration cases | PASS, one file / four cases in 1.73 seconds; the same frozen cases are also included in the full suite. |
+
+The 856 production/test/config inputs were frozen and verified unchanged for
+these checks. An early pure preflight exposed a fixture helper copying a full
+definition where an exact ID/revision tuple was required. That fixture was
+corrected before acceptance. Review also corrected repeated traversal when
+freezing shared definitions. No existing native uncertainty band, graph budget,
+worker/IPC policy or desktop deadline was widened.
+
+The [standalone contract](ASSEMBLY_CONFIGURATIONS_CORE.md) is a prerequisite.
+Configuration-aware native currentness, scoped solver writeback, saved fields,
+every source/repair/BOM/export traversal and actual editor lifecycle still need
+integration. Flexible per-instance solving and part configurations are separate
+requirements. This stays local and unpublished; no hosted CI execution,
+external behavior parity, installer, other-platform support or complete
+assembly/demo acceptance is claimed.
+
+## Structural STEP component insertion — 2026-10-23
+
+Local `codex/assembly-step-insertion` follows `2a2ff76`. The explicit insertion
+command prepares an autonomous structural source, composes it into the captured
+parent scope and independently builds the entire native candidate before one
+ordinary history edit. Parent identity, saved path and saved baseline remain.
+The new native cases also check a shared assembly definition under two real
+instances, malformed input and injected scene failure without consuming the
+prior part shape or pending single-use assembly preview.
+
+The actual production-renderer workflow passes 53 recorded steps and ten
+phases: nine native scene builds and one malformed-source rejection. It checks
+file-dialog cancellation, exact parent/source retention, insertion, two
+Undo/Redo pairs, reuse of the accepted component without another neutral read,
+Save As and fresh saved reopening after removing the STEP input. One insertion
+has nine separate solids, V=376 mm³/A=592 mm²; cached reuse has seventeen,
+V=512/A=936. Both actual exports are read afresh by the native kernel. The final
+85,158-byte output has eight products and seventeen valid placed solids,
+including both coincident source occurrences. Literal bounds, native mass/area
+and separate planar mesh area are checked with the
+[fixture-specific bands](PROVENANCE.md#original-structural-step-insertion-workflows).
+
+Actual final local results on Windows x64, Node 24.11.1 and npm 11.6.2:
+
+| Command | Actual result |
+| --- | --- |
+| `npm test` | PASS, 354 files / 8,399 unit/CAD cases in 355.94 seconds; IPC/security/source checks: 65 passed, zero failed, one inherited file-symlink permission skip, 1,233.961 ms. |
+| `npm run build` | PASS, TypeScript/Vite, 2,070 modules, Vite 993 ms. Existing browser externalization and large-chunk warnings remain. |
+| `npm run test:desktop` | PASS, actual production-loader worker/WASM smoke, zero console errors or failed requests. |
+| `npm run test:desktop:assembly-step-insertion` | PASS, 53 recorded steps; three Open, one Save As, three STEP read dialogs and two actual exports. Normal child close and isolated temporary cleanup. |
+| `npm run test:desktop:assembly-step` | PASS, existing 45-step structural import/export workflow, normal child close and isolated cleanup. |
+| `npm run test:desktop:assembly-import` | PASS, existing 49-step component import/reuse workflow; five Open and two Save As dialogs, normal child close and isolated cleanup. |
+
+The 852 production/test/config inputs were frozen and verified unchanged for
+these checks. Worker policy, byte/scene budgets, physical tolerances, sandbox
+and 180/170/35-second renderer deadlines remain unchanged. CI is configured;
+no hosted execution or public release is implied. This increment stays local
+and unpublished.
+
+The renderer covers root-scope insertion; shared-scope placement is separate
+native evidence. Stale transactions have pure tests, rather than a scripted
+scope-change renderer case. Test-owned native dialog substitutions are not
+human-dialog evidence. The disk graph uses the project's structural parser
+with literal graph expectations and separate native geometry checks, not a
+second EXPRESS implementation. Browser fallback, broader STEP representations,
+independent interoperability, installers and other platforms remain unverified
+by these cases. The complete assembly/demo gate remains open.
+
+## Structural STEP editor interchange — 2026-10-23
+
+Local `codex/assembly-step-editor` follows `6fe3b6d`. Separate structural
+import/export worker routes connect the bounded native profile to explicit
+editor commands. Import prepares autonomous sources and a complete independent
+native scene before replacement confirmation. Neither structural command
+consumes the current part shape or a private assembly preview/review. Import
+starts a new unsaved document in either workspace; flat STEP, STL and the old
+single-solid import keep their previous routes.
+
+The actual production-renderer workflow passes 45 recorded steps, including
+four native scene build phases and one explicit malformed-import rejection.
+Both workspace imports, file-dialog cancellation, Save As/reopening and a
+second structural export use the real worker and restricted IPC with test-owned
+dialog selections. The source neutral file is removed before saved reopening.
+Exact embedded bases/SHA/body assignments remain in the saved v2 document.
+
+Both actual disk exports contain six products, six usage relationships and
+four prototype solid entities, including one two-body P product reused in the
+nested graph. A fresh native reader checks eight valid placed solids,
+V=136 mm³, BRep A=344 mm² and eight independent literal bounds. The production
+scene's native properties and the separate planar mesh area agree within the
+declared 1e-6 bands. Equal display names do not merge the P/Q products.
+Formulas, source provenance and quaternion bands are in
+[provenance](PROVENANCE.md#original-structural-step-editor-workflow).
+
+Actual final local results on Windows x64, Node 24.11.1 and npm 11.6.2:
+
+| Command | Actual result |
+| --- | --- |
+| `npm test` | PASS, 352 files / 8,383 unit/CAD cases in 353.92 seconds; IPC/security/source checks: 65 passed, zero failed, one inherited file-symlink permission skip, 1,249.5562 ms. |
+| `npm run build` | PASS, TypeScript/Vite, 2,069 modules, Vite 1.00 second. Existing browser externalization and large-chunk warnings remain. |
+| `npm run test:desktop` | PASS, actual production-loader worker/WASM smoke, zero console errors or failed requests. |
+| `npm run test:desktop:assembly-step` | PASS, 45 recorded steps; three Open, one Save As, four STEP import dialogs and three export dialogs. Zero worker/console/resource errors; normal child close and isolated temporary cleanup. |
+| `npm run test:desktop:assembly-export` | PASS, existing 72-step flat STEP/STL workflow; two Open, one Save As and seven export dialogs, normal child close and isolated cleanup. |
+| `npm run test:desktop:imported-bodies` | PASS, existing 35-step owned-base workflow; two Open and one Save As, normal child close and isolated cleanup. |
+
+Earlier renderer attempts exposed three test-harness assumptions: quotes in the
+suggested filename must be sanitized, installed TypeScript 7 has no legacy
+`transpileModule` API, and Vite's single library format returns a one-element
+output array. Those attempts are failures, not acceptance results. The final
+fixed reader bundle uses the directly declared Vite dependency, exactly four
+pure source modules and one autonomous CommonJS chunk in test-owned storage.
+It loads no selected-file code. No geometry band, worker policy, sandbox,
+file privilege or 180/170/35-second harness budget was widened.
+
+The final 847 production/test/config inputs were frozen and verified unchanged
+for these checks.
+Configured CI includes the new command; no hosted result, browser fallback,
+human native-dialog operation, independent CAD interoperability, installer or
+other-platform support is claimed. Broader STEP representations and the full
+assembly/demo gate remain open.
+
+The disk-graph inspection reuses the public pure structural parser, with a
+literal expected product/usage graph and separate fresh native solid checks.
+It is not a second EXPRESS implementation. Discard-confirmation cancellation
+and stale completions have pure transaction coverage; the renderer case does
+not execute those paths. A scene-only preparation failure is injected in the
+native dispatcher regression and preserves the prior part and single-use
+preview capability; the renderer case does not inject a scene failure.
+
+## Multibody STEP products and explicit saved body bases — 2026-10-23
+
+Local `codex/assembly-step-multibody` follows `b19a3bc`. A STEP product with
+several closed solids can remain one part definition, using the additive
+[explicit imported-body base](IMPORTED_BODIES.md). The structural reader now
+classifies products by their actual solid items and usage relationships, rather
+than assuming every ordinary shape representation is an assembly.
+
+The original two-body P writes one product with two associated MSB entities,
+inside the same six-product reused/nested graph. Saved import, fresh native
+rebuild and a second structural export/import retain eight placed solids with
+independent V=136/A=344 and literal bounds. Native metre/inch derivatives check
+every autonomous source and its local geometry as well as world placements.
+Hidden/suppressed, coincident ownership and second-transfer rejection cases are
+separate checks. Formulas and bands are in
+[provenance](PROVENANCE.md#original-multibody-step-bases).
+
+Forty-three added unit/CAD cases comprise 11 saved-schema cases, one final UTF-8
+file-size boundary, 14 native base/downstream/ownership cases, seven structural
+native round-trip cases and ten added structural parser cases. The older
+multibody rejection case now checks one product with separate saved bodies.
+Selected cuts/copies, suppression/history and exact reference inspection are
+checked programmatically. Changing A's source rejects its old selection while
+B's original face/edge/vertex references and native geometry remain valid.
+
+The new production-renderer command opens one original v1 base from two tracked
+STEP fixtures through normal restricted IPC. Its 35 recorded steps include
+11 actual worker build phases, read-only information/Cancel, suppression and
+reactivation with Undo/Redo, fresh rebuild, Save As and reopening. Each body
+retains V=240 and its literal native bounds. Planar mesh area 248 is summed from
+actual worker triangles; it is not reported as a native BRep-area DTO. The
+test-owned input directory has no standalone source STEP file. Both source byte
+streams, digests and body assignments remain exact after saved reopening.
+
+Actual final local results on Windows x64, Node 24.11.1 and npm 11.6.2:
+
+| Command | Actual result |
+| --- | --- |
+| `npm test` | PASS, 351 files / 8,367 unit/CAD cases in 352.82 seconds; IPC/security/source checks: 65 passed, zero failed, one inherited file-symlink permission skip, 1,238.4686 ms. |
+| `npm run build` | PASS, TypeScript/Vite, 2,068 modules, Vite 970 ms. Existing browser externalization and large-chunk warnings remain. |
+| `npm run test:desktop` | PASS, existing production-loader worker/WASM smoke, zero console errors or failed requests. |
+| `npm run test:desktop:imported-bodies` | PASS, actual worker/body/save-reopen workflow; two Open/one Save As, zero worker/console/resource errors, normal child close and isolated temporary cleanup. |
+| `npm run test:desktop:pattern-all` | PASS, existing selected-to-ALL production-renderer regression after the shared observer change; normal child close and isolated cleanup. |
+
+The final 843 production/test/config inputs were frozen and verified unchanged.
+Extra body/mesh observation is enabled only for the statically allowlisted new
+scenario; previous scenarios keep their existing normalized response shape.
+No worker policy, physical band or 180/170/35-second harness budget was widened.
+CI includes the new command for its configured target jobs; no hosted run or
+other-platform pass is claimed by this local execution.
+
+The existing single-solid STEP menu remains unchanged. There is no structural
+assembly import/export menu or worker command yet, and no imported base feature
+regeneration recipe is granted. These original MSB cases do not establish
+arbitrary STEP interoperability, human native-dialog/viewport-picking behavior,
+installed-package support or the complete assembly/demo scope.
+
+## Native structural STEP and autonomous saved bases — 2026-10-23
+
+Local `codex/assembly-step-structure` follows `b9dac59`. The
+[native structural prerequisite](ASSEMBLY_STEP_STRUCTURE.md) adds standalone
+AP242 product/usage export, an explicit bounded graph reader and saved v2
+import for single-solid products. Existing worker/editor export remains flat;
+no new editor, dialog, Apply or source-update route is added.
+
+Ninety-two added cases comprise 24 Part 21 syntax cases, 38 structural graph
+cases, 11 native export/ownership cases, 10 native saved-import cases, eight
+shared part-import ownership cases and one unit-association regression. Original
+fixtures preserve two nested reused groups, three part definitions including
+same-name/equal-geometry P/Q, six local-to-world placements, quoted Unicode
+names and declared units. Independent boxes, V/A and assertion bands are in
+[provenance](PROVENANCE.md#original-structural-step-prerequisite).
+
+Native checks cover generated mm/m/inch inputs, autonomous millimetre bases,
+fresh rebuild after v2 serialization and a second structural export/import.
+Two imports of identical source bytes at controlled distinct dates use fresh
+revision namespaces and compose into twelve saved/reopened expanded leaves
+without an exact-tuple content conflict. Parser placeholders supply no BRep
+authority; native transfers and fresh shape checks are separate.
+
+Selected fault cases withhold results after transfer/query/native-release or
+virtual-file failures, drain received owners and preserve foreign occupied
+paths. A public smart-document test checks native references 1→2→1 and the
+surviving original document through public APIs. The shared part reader now
+retains its result until all other cleanup succeeds; aggregate release failures
+remain fatal. These are selected failures, not exhaustive allocation-site proof.
+
+Actual final local results on Windows x64, Node 24.11.1 and npm 11.6.2:
+
+| Command | Actual result |
+| --- | --- |
+| `npm test` | PASS, 347 files / 8,324 unit/CAD cases in 348.62 seconds; IPC/security/source checks: 65 passed, zero failed, one inherited file-symlink permission skip, 1,271.2852 ms. |
+| `npm run build` | PASS, TypeScript/Vite, 2,068 modules, Vite 1.09 seconds. Existing browser externalization and large-chunk warnings remain. |
+| `npm run test:desktop` | PASS, existing production-loader worker/WASM smoke, zero console errors or failed requests. |
+
+The final 836 production/test input files were frozen for these commands; their
+source-specific hashes were verified unchanged. No test selection, worker
+policy, harness deadline or physical band was widened. The desktop smoke loads
+the existing application; it does not exercise the standalone structural APIs
+through editor controls, because that route is not present.
+
+Multibody product import rejects atomically. Preserving multibody export
+product boundaries needs separate acceptance; constructing an unfused compound
+alone does not establish it. No arbitrary AP242 interoperability, imported mate
+history, original application-ID recovery, real file-IPC structural workflow,
+installed-package, hosted CI, macOS/Linux or complete assembly/demo acceptance
+is claimed. Public checks require no private artifact or external application.
+
+## Limited hinge pointer selection and stop release — 2026-10-23
+
+Local `codex/assembly-hinge-limits-pointer` follows `6dea4f2`. The
+[saved six-role hinge](ASSEMBLY_HINGE_STOPS.md) already exposes angular picking
+and local projection. This increment adds a real production-renderer workflow
+that executes those paths with original H4 leaves; it changes no saved/native
+product code. Inputs, independent material oracles and the separation between
+pointer target accuracy and native acceptance are recorded in
+[provenance](PROVENANCE.md#original-limited-hinge-pointer-selection-and-stops).
+
+Actual Windows x64 results use Node 24.11.1 and npm 11.6.2:
+
+| Command/check | Actual result |
+| --- | --- |
+| `npm test` | PASS, 8,232 unit/CAD cases in 342 files; unit phase 352.34 seconds. IPC/security: 65 pass, zero failures, one inherited file-symlink permission skip. |
+| `npm run build` | PASS, TypeScript/Vite, 2,068 modules; final Vite phase 968 ms. Existing browser-externalization and large-chunk warnings remain. |
+| `npm run test:desktop` | PASS, actual production loader/preload/worker/WASM readiness, zero console errors or failed requests. |
+| `npm run test:desktop:assembly-hinge-limits-picking` | PASS, 124 recorded checks, eight pointer hits, four negative interactions and five actual local-Z rotation gestures; two Open and one Save As substitutions. |
+| `npm run test:desktop:assembly-hinge-picking` | PASS, 72 recorded checks and six phases, existing unlimited four-role pointer regression. |
+| `npm run test:desktop:assembly-hinge-limits` | PASS, 90 recorded checks and twelve phases, existing six-role dropdown/strict-motion lifecycle. |
+
+Six actual CDP face clicks select the ordered axis/cap/angular pairs. A staged
+LINE is restored to the cylinder before authoring, and an eighth current face
+hit reselects an emptied angular role during editing. The exact complete
+references and other five fields must match. Negative controls reject a plane
+for an axis, a cylinder for an angular plane, a canceled armed release and a
+hidden material pixel without a native request or committed recovery change.
+
+The frontal local-Z gesture stage calibrates two trusted DOM clientX positions
+against their actual posted request poses, then sends a third input. Every
+gesture retains exactly three actual worker requests from its confirmed base.
+No solved pose or native report supplies calibration or expected clamping.
+Actual final posted physical yaws were +60.000026938 degrees twice,
++9.999972289, −60.000006458 and −9.999997708. Independently clamping the posted
+intent to literal [−30,30] degrees yields +30 twice, the actual +10-near target,
+−30 and the actual −10-near target. Those small input differences stay separate
+from the unchanged 1e-8-rad native acceptance band.
+
+Native material corners, independent transformed bounds, per-body/aggregate
+volume and area, current world normals and the actual signed cylinder guide
+check those outputs. With this negative-Z guide, the positive physical stop is
+the directed minimum and the negative physical stop is the directed maximum.
+Both inward gestures report interior activity. Apply stays blocked while held;
+the preview preserves committed recovery, Cancel revokes it, and the repeated
+upper gesture is applied through the ordinary private capability. Undo/Redo
+recovers the exact graph. Source cache, six roles and start330/sweep60 remain
+exact through Save As/reopen and a fresh native solve.
+
+The final committed/reopened frame was captured and inspected. The original
+input and saved bytes remain unchanged by later previews/reopening. The child
+reports zero console/resource failures, actual close and isolated cleanup.
+The two renderer regressions also report close/cleanup and zero resource or
+console failures. All 827 frozen source/runtime/config files remain unchanged;
+the new pointer receipt's eight production input hashes match the final build.
+These are actual CDP inputs in the hidden test-owned production window and
+restricted real file IPC with test-owned dialog substitutions; they are not
+manual mouse/dialog evidence.
+
+The unchanged parent/child/step budgets are 180/170/35 seconds. No requested
+band, solver budget or sandbox setting was widened. One original symmetric arc,
+local Z and fixed original camera/visibility arrangements do not establish all
+intervals/references/cameras, continuous contact/collision freedom, external
+angular policies, installed-package behavior, other-platform support or full
+assembly/demo acceptance. Configured multi-platform CI records no hosted pass.
+
+## Saved six-role hinge angular stops — 2026-10-23
+
+Local `codex/assembly-hinge-limits-integration` follows `118798c`. The
+[optional saved extension](ASSEMBLY_HINGE_STOPS.md) connects six current proofs
+and independent interval measurement to strict saved intent, editor controls,
+worker preview/Apply and repair. The absent-stop four-role shape is preserved.
+There are 28 new cases: nine model lifecycle, ten saved native and nine UI/repair
+panel cases. Inputs, independent formulas and tolerances are recorded in
+[provenance](PROVENANCE.md#original-saved-six-role-hinge-workflows).
+
+Actual Windows x64 results use Node 24.11.1 and npm 11.6.2:
+
+| Command/check | Actual result |
+| --- | --- |
+| Focused saved/native hinge regression | PASS, 52 cases in three files, including ten new saved-stop cases. |
+| Focused model declaration/lifecycle | PASS, 16 cases in two files. |
+| Focused UI/ticket/repair panels | PASS, 93 cases in six files. |
+| `npm test` | PASS, 8,232 unit/CAD cases in 342 files; unit phase 352.95 seconds. IPC/security: 65 pass, zero failures, one inherited file-symlink permission skip. |
+| `npm run build` | PASS, TypeScript/Vite, 2,068 modules; final Vite phase 977 ms. Existing browser-externalization and large-chunk warnings remain. |
+| `npm run test:desktop` | PASS, actual production loader/preload/worker/WASM readiness, zero console errors or failed requests. |
+| `npm run test:desktop:assembly-hinge-limits` | PASS, 90 recorded checks and twelve phases, two Open and one Save As substitutions. |
+| `npm run test:desktop:assembly-hinge-limits-repair` | PASS, 164 recorded checks and thirty phases, eleven Open and four Save As substitutions. |
+| `npm run test:desktop:assembly-hinge` | PASS, 69 recorded checks and ten phases, existing unlimited lifecycle. |
+| `npm run test:desktop:assembly-hinge-picking` | PASS, 72 recorded checks and six phases, existing four-role pointer selection. |
+| `npm run test:desktop:assembly-hinge-repair` | PASS, 141 recorded checks and thirty phases, existing four-role source/replacement repair. |
+
+The new lifecycle uses actual controls to reject a material angular face whose
+normal projects onto the hinge axis, then authors six valid current roles with
+explicit start330/sweep60 degrees. It checks Cancel/retry, edited reselection,
+history, physical +20 and −20 degree poses across zero, and atomic rejection of
+a request to +40 degrees. Native material corners, mass/area/bounds, the actual
+signed material guide and error-charged reports are independent checks. It also
+checks suppression/deletion, saved bytes and a fresh solve after reopening.
+
+The repair workflow exercises all six shared-source roles, three selected
+replacement roles and all six total-replacement roles. Five-of-six source
+repair produces the actual private worker rejection; incomplete replacement
+controls remain blocked. Ready Cancel/retry uses fresh review/revision identities.
+The complete arc, mate ID, unaffected references, saved graphs and original
+bytes survive Apply, Undo/Redo and reopening. H5/H5 and H4/H6 share aggregate
+mass, so per-body and full identity checks remain necessary.
+
+All five renderer workflows report zero console/resource failures, actual
+child close and isolated temporary cleanup. The two new final frames were
+captured and inspected. Every one of the 824 frozen source/runtime/config
+files remained byte-unchanged across final acceptance. The eight production
+input hashes in both new renderer receipts still match the final build.
+Subsequent changes record results in documentation only; no deadline, solver
+iteration, numerical band or sandbox setting was widened.
+
+These are scripted dropdown/strict-motion and file-IPC cases using original
+models and test-owned native-dialog substitutions. The existing unlimited
+pointer regression does not prove the two new angular-role pointer selections.
+Limited-hinge pointer projection at both stops, inward pointer release,
+externally evidenced angular policies, continuous collision/contact,
+installed-package operation, other-platform support and full assembly/demo
+acceptance remain separate work. CI configuration records no hosted result.
+
+## Standalone native six-role hinge verification — 2026-10-23
+
+Local `codex/assembly-hinge-limits-native` follows `0dea49f`. The
+[standalone bridge](ASSEMBLY_HINGE_STOPS_NATIVE.md) authenticates all six current
+references, builds detached numerical intent and independently measures both
+the physical hinge and explicit directed interval. Its separate validator does
+not expand the existing saved unlimited-hinge parser or grant a worker/editing
+capability.
+
+There are 35 new cases: seven strict standalone-request and 28 native cases.
+The native matrix checks both physical endpoints/interior, restoration,
+outward clamping and inward release against literal material vertices,
+mass/area/bounds and independent native prototype BRep/solid checks. Proper
+common rotation, oblique projected normals, different descendants, reused
+owners and a selected nested context have separate observations. Exact inputs,
+actual signed cylinder guide and bands are in
+[provenance](PROVENANCE.md#original-native-six-role-hinge-controls).
+
+Windows x64 results use Node 24.11.1 and npm 11.6.2:
+
+| Command/check | Actual result |
+| --- | --- |
+| Focused native/declaration regression | PASS, 48 cases in three files, 10.06 seconds, including thirteen existing native hinge cases. |
+| `npm test` | PASS, 8,204 unit/CAD cases in 339 files; unit phase 349.31 seconds. IPC/security: 65 pass, zero failures, one inherited file-symlink permission skip. |
+| `npm run build` | PASS, TypeScript/Vite, 2,067 modules; Vite phase 985 ms. Existing browser-externalization and large-chunk warnings. |
+| `npm run test:desktop` | PASS, actual production loader/preload/worker/WASM readiness, zero console errors or failed requests. |
+| `npm run test:desktop:assembly-hinge` | PASS, 69 checks and ten phases in 8.09 seconds, exercising the existing unlimited saved family. |
+
+The saved-hinge desktop regression completes two Open and one Save As file IPC
+operations, observes child close and isolated temporary cleanup, and reports
+zero console/resource failures. This run has no new capture or human-dialog
+claim. Its unlimited-family result is separate from the new standalone native
+stop tests. All 816 frozen source/runtime/config files remain byte-unchanged
+across final acceptance; subsequent edits record results in documentation only.
+
+Fresh final measurement performs exactly six current face queries, followed by
+all six lifetime/document assertions. A failed sixth query, an injected cleanup
+failure after real disposal, reentrant mutation at its return, copied/disposed/foreign
+proofs and coincident geometry from the wrong owner cannot publish a six-role
+authority. Malformed angular datums, null roles, purposes and executable data
+reject before queries. Measurement failures have one public-wrapper owner of
+cleanup; ordered primary and cleanup errors remain visible.
+
+The original four-role physical measurement body is unchanged after line-ending
+normalization; only composition, exported policy validation and failure-cleanup
+ownership were refactored. The new phase measurement uses raw projected dot/
+triple products and its own retained error disk, without the numerical phase
+helper, rows or solver state. Literal trigonometry and native material queries,
+not two implementations of a formula alone, establish the physical expectations.
+Equal/full arcs, the opposite-centre cut, lost radian conversion, unobservable
+cap normals, a near-band axial gap and large cancelling declarations have
+distinct controls. Defaults remain 1e-6 mm and 1e-8 rad; no budget was increased.
+
+This evidence is support-only. It does not establish saved six-role intent,
+worker preview/Apply, editor/picking, source/replacement repair, suppression,
+history/reopening, sampled stop movement, trimmed contact or external angular
+policy. Hosted CI, other platforms and full assembly/demo acceptance remain open.
+
+## Six-role numerical hinge angular stops — 2026-10-23
+
+Local `codex/assembly-hinge-limits-core` follows `d8aebf8`. The
+[numerical extension](ASSEMBLY_HINGE_STOPS_NUMERIC.md) adds two explicit co-owned
+angular planes and a directed interval to the hinge equations. The saved/native
+hinge remains unlimited. No reference-application origin, sign or range policy
+is inferred from this explicit mathematical coordinate.
+
+There are 48 new cases: seven strict-declaration/incidence, 25 phase geometry
+and sixteen numerical solver/projection cases. Independent rays and normalized
+gear arithmetic, nine ambient-direction and twelve actual owner-column finite
+differences at two step sizes, finite direction cones, both stops and inward
+release have separate checks. A regular bilateral rank of five remains distinct
+from an active-cone rank of six; the latter does not mean a permanently locked
+joint. Physical bands remain 1e-6 mm and 1e-8 rad. Derivative comparison bands
+and deliberately looser helper error-control inputs are separate quantities.
+Original inputs and exact expectations are in
+[provenance](PROVENANCE.md#original-numerical-hinge-angular-stops).
+
+A declaration test initially exposed acceptance of a custom array prototype;
+the shared strict copier now rejects it. The first combined focal run also
+failed a connected-gear expectation because its fixture declared an unnormalized
+80-degree phase. The corrected literal phase is 40 degrees under weights 1 and
+1/2, so a moving angle of 30 degrees implies a follower angle of 20 degrees.
+That correction changed the fixture, not the solver or acceptance band.
+
+Windows x64 results use Node 24.11.1 and npm 11.6.2:
+
+| Command/check | Actual result |
+| --- | --- |
+| Focused numerical/declaration regression | PASS, 154 cases in five files, 880 ms, including the existing unlimited hinge and directed-angle suites. |
+| `npm test` | PASS, 8,169 unit/CAD cases in 337 files; unit phase 350.07 seconds. IPC/security: 65 pass, zero failures, one inherited file-symlink permission skip. |
+| `npm run build` | PASS, TypeScript/Vite, 2,067 modules; Vite phase 1.02 seconds. Existing browser-externalization and large-chunk warnings. |
+| `npm run test:desktop` | PASS, production loader/preload/worker/WASM readiness, zero console errors or failed requests. |
+| `npm run test:desktop:assembly-hinge` | PASS, 69 checks and ten phases in 8.22 seconds; regression of the existing unlimited saved hinge. |
+
+The existing hinge renderer run completes two Open and one Save As file IPC
+operations, with child close, isolated temporary cleanup and zero console/
+resource failures. Those smoke and saved-hinge results cover the existing
+native path; they do not authenticate the new six-role numerical extension.
+No new visual capture or human-dialog claim is made. All 811 frozen source/
+runtime/config files remain byte-unchanged across final acceptance; only
+documentation records were edited afterward.
+
+The new cases check zero/full arcs, signed guide reversal versus opposed axis
+alignment, descendant frames, common gauge, repeated/null owners, fixed
+infeasibility, an exhausted restoration budget, opposite-centre ambiguity,
+unobservable cap normals and a direction cone that consumes the remaining
+near-bound acceptance band. Nominal gradients and conservative acceptance
+errors have different roles; no derivative of the error envelope is claimed.
+No iteration, trial, physical tolerance or deadline budget was increased.
+
+These numerical cases are not native topology authentication or saved/editor
+stop interaction. Six fresh native proofs, independent final joint metrology,
+externally evidenced angular policy, saved/repair integration, private Apply,
+authoring/picking, suppression/history/reopening and sampled movement through
+both stops remain required. Hosted CI, other platforms and complete assembly/
+demo acceptance remain open.
+
+## Hinge picking, repair and station refinement — 2026-10-23
+
+Local `codex/assembly-hinge-interaction` follows `16e8834`. Hinge choices now
+show distinguishing local geometry before their owner labels and retain the
+complete label as a tooltip. Active hinges publish their scoped generic check
+after fresh independent native verification; suppressed hinges publish none.
+
+Station solving now separates public acceptance of immutable relations from
+tighter convergence of variable groups. A literal 4e-9-rad fixed tilt remains
+inside the public 1e-8-rad band through two rotation stations, with and without
+an unrelated free component; a 2e-8-rad tilt still rejects atomically. Separate
+variable groups retain refinement, including the existing gear/screw/rack
+winding regressions. No iteration, trial, deadline or physical acceptance band
+was increased. The optional refinement target rejects invalid or executable
+fields before private target selection; an explicit finer target is preserved.
+
+A pre-final full run failed three native gear/screw/rack cases. Those failures
+exposed the need to retain refinement of separate variable groups while
+preserving public admission of fixed relations. The final split above replaces
+that interim policy; the failed run remains distinct from final acceptance.
+
+The increment adds 25 cases: eight choice-label, twelve numerical refinement
+and five native saved-hinge cases. Existing panel assertions also check complete
+tooltip labels. Original H4/H5/H6 fixtures have independent per-body volume,
+area, material-point and placed-bound expectations documented in
+[provenance](PROVENANCE.md#original-hinge-picking-and-h4h5h6-repair-controls).
+
+Windows x64 results use Node 24.11.1 and npm 11.6.2:
+
+| Command/check | Actual result |
+| --- | --- |
+| `npm test` | PASS, 8,121 unit/CAD cases in 334 files; unit phase 342.44 seconds. IPC/security: 65 pass, zero failures, one inherited file-symlink permission skip. |
+| `npm run build` | PASS, TypeScript/Vite, 2,067 modules; Vite phase 980 ms. Existing browser-externalization and large-chunk warnings. |
+| `npm run test:desktop` | PASS, actual production loader/preload/worker/WASM readiness, zero console errors or failed requests. |
+| `npm run test:desktop:assembly-hinge` | PASS, 69 checks and ten phases in 8.13 seconds. |
+| `npm run test:desktop:assembly-hinge-picking` | PASS, 72 checks and six phases in 41.60 seconds; six actual CDP pointer transitions and three bounded negative cases. |
+| `npm run test:desktop:assembly-hinge-repair` | PASS, 141 checks and 30 phases in 13.44 seconds. |
+| `npm run test:desktop:assembly` | PASS, 527 checks in 124.11 seconds, including source repair, movement, gear winding, history and reopening. |
+
+Picking starts with separated, rotated leaves. It stages a LINE axis, authors
+the four face roles and clears/reselects the moving axis through an actual
+empty-to-current pointer transition. Wrong-purpose, hidden-material and
+explicitly cancelled gestures reject in their checked scenarios. The staged
+LINE choice is restored to a cylindrical face before authoring; this renderer
+run does not prove a saved LINE-axis hinge. Preview Cancel/retry, Apply,
+Undo/Redo, actual numeric rotation, independent eccentric-corner/bounds checks,
+Save As/reopening and fresh native verification pass. Two Open and one Save As
+substitutions complete all three file IPC operations.
+
+Repair separately checks a shared source update, selected replacement and
+all-use replacement. Each affected role requires an explicit current choice;
+the other two selected-replacement roles retain their exact declarations.
+Incomplete source repair rejects with the exact domain error and no Apply
+capability. Ready Cancel/retry obtains fresh private review identities before
+Apply; history, per-body geometry, saving and fresh reopened solving pass.
+Eleven Open and four Save As substitutions complete all fifteen file IPC
+operations. H5/H5 and H4/H6 share aggregate mass, so aggregate totals alone do
+not satisfy these checks.
+
+The general assembly harness now uses the current private source-review API.
+Its sole expected RPC rejection is matched to the exact review, request,
+current/proposed document hashes and incomplete-repair error; any other failed
+request still fails. All 26 file/export IPC operations complete. Each of these
+renderer runs observes child close and isolated temporary cleanup, with zero
+console errors or failed resource requests.
+
+Final 1544x941 picking and repair captures were inspected. The picking capture
+shows distinct cap coordinates and all four controls; the repair capture shows
+the reopened final scene, not an active repair dialog. Tooltip behavior is
+asserted in rendered markup, not established by those captures. Scripted CDP
+input and substituted test-owned file dialogs do not establish human-dialog,
+arbitrary-camera, keyboard/focus or continuous-contact behavior. Hosted CI,
+other platforms, angular hinge stops, other Width policies, flexible/configured
+occurrences and complete assembly/demo acceptance remain open.
+All 807 frozen source/runtime/config files remain byte-unchanged across final
+acceptance; the subsequent edits record these results in documentation only.
+
+## Saved unlimited hinge integration — 2026-10-23
+
+Local `codex/assembly-hinge-mates` follows `f53b166`. The
+[saved contract](ASSEMBLY_HINGE.md) connects four-role intent, current native
+resolution, independent final verification, private worker preview/Apply and
+editor authoring. Source/replacement/root-revision visitors preserve all four
+roles, including dormant declarations; syntax does not authenticate stale
+locators or grant geometric satisfaction.
+
+The increment adds 29 cases: eleven model lifecycle, nine native saved-mate and
+nine UI/selection-ticket cases. They cover saved round trips, active/dormant
+source rekeying, selected/all replacement, reused/renamed descendants, actual
+scope incidence, DTO mutation, cancellation, single-use Apply, physical spin and
+fresh native verification. Numerical oblique-axis coverage remains separate
+from the checked native fixture matrix. Independent oracles and tolerances
+follow the [original drilled-leaf provenance](PROVENANCE.md#original-two-leaf-unlimited-hinge-control).
+
+Review corrected full-reference equality that depended on object field order,
+late pointer callbacks that could fill a newer slot, and mutable document or
+generation changes before a replacement render. Selection/submission now checks
+the exact rendered intent and current live refs; no detached UI report acquires
+native authority. The UI tests exercise controlled elements/SSR and ticket
+logic, not pointer interaction or native file dialogs.
+
+Windows x64 results use Node 24.11.1 and npm 11.6.2:
+
+| Command/check | Actual result |
+| --- | --- |
+| `npm test` | PASS, 8,096 unit/CAD cases in 332 files; unit phase 348.03 seconds. IPC/security: 65 pass, zero failures, one inherited file-symlink permission skip. |
+| `npm run build` | PASS on final product source, TypeScript/Vite, 2,066 modules, Vite phase 988 ms. Existing browser-externalization and large-chunk warnings. |
+| `npm run test:desktop` | PASS, actual production loader/preload/worker/WASM readiness, zero console errors or failed requests. |
+| `npm run test:desktop:assembly-hinge` | PASS on final product source, 69 recorded checks and ten phases in 9.49 seconds; actual renderer, worker and file IPC. |
+
+The renderer starts from the original mate-free public JSON, fills the four
+dropdown roles, rejects an actual radial-plane selection, and checks ready
+Cancel/retry/Apply. It edits/reselects, preserves history, drives a literal
+90-degree Z spin through the actual movement controls and independently checks
+the eccentric material corner, bounds and mass. After removing the temporary
+movement anchor, a fresh solve retains regular rank five/one relative spin.
+Suppression/deletion and Undo, Save As/reopen and a fresh native solve pass.
+Two Open and one Save As dialogs are test-owned substitutions; all three file
+IPC operations complete. Child close and guarded isolated temporary cleanup
+are observed, with zero renderer/resource errors.
+
+A final 1544x941 capture was inspected with all four role controls, alignment,
+name and edit actions visible. This is scripted dropdown interaction, not
+executed viewport picking, human-dialog, keyboard/focus or general mechanism
+evidence. All 797 frozen source/runtime/config files remain byte-unchanged
+across final acceptance; no post-test product cleanup followed it.
+Configured CI is not an executed hosted result. Other platforms, installers,
+angular stops, broader selection policies and complete assembly/demo acceptance
+remain open.
+
+## Revolute hinge numerical/native prerequisite — 2026-10-23
+
+Local `codex/assembly-hinge-core` follows `10a7d94`. The
+[bounded contract](ASSEMBLY_HINGE_CORE.md) adds four-role unlimited numerical
+constraints, current-native reference resolution and independent physical
+measurement. It adds no saved hinge family, editor/worker command, source
+repair, new Apply lifecycle or angular travel limits.
+
+The increment adds 28 cases: 14 numerical, 13 native/control and one independent
+native precision regression. Original drilled leaves establish literal V/A,
+bounds and an eccentric material corner before and after a 90-degree spin.
+The checked regular case has rank five and one relative rotational mode;
+floating both roots adds six common rigid modes. Different descendant roles,
+actual LINE axes, a rotated context, repeated root incidence and current proof
+lifetime have separate cases. Selecting a nested context preserves its actual
+root owner rather than inventing independently moving children.
+
+Negative cases include radial or 5e-9-rad oblique planes, copied/stale/disposed
+authority, a failed fourth native query, large cancelling placements and
+nominal fits whose retained uncertainty cannot fit the requested band. Review
+also reproduced and corrected a nonunit constructed perpendicular for the
+valid local axis [0.6,0,0.8], and prevented an explicit uncertainty declaration
+from erasing its support's linear tolerance. Finite differences perturb all
+twelve columns at two step sizes; they are numerical evidence, not native
+metrology. Native mass and position bands follow [provenance](PROVENANCE.md#original-two-leaf-unlimited-hinge-control).
+
+Windows x64 results use Node 24.11.1 and npm 11.6.2:
+
+| Command/check | Actual result |
+| --- | --- |
+| `npm test` | PASS, 8,067 unit/CAD cases in 328 files; unit phase 346.68 seconds. IPC/security: 65 pass, zero failures, one inherited file-symlink permission skip. |
+| Final focused numerical regression | PASS, 14 cases after removal of one trailing space; no semantic source change. |
+| `npm run build` | PASS, TypeScript/Vite, 2,063 modules, Vite phase 984 ms. Existing browser-externalization and large-chunk warnings. |
+| `npm run test:desktop` | PASS, actual production loader/preload/worker/WASM readiness; zero console errors or failed requests. |
+
+The existing concentric/coincident control exercises actual native motion and
+private Apply; the new hinge family receives a standalone numerical solve and
+fresh independent native candidate measurement. That control does not establish
+a saved hinge workflow or new renderer interaction. The 778-file source/runtime
+freeze remained unchanged during the full suite; only the stated trailing-space
+cleanup followed it, before the focused check, build and desktop smoke.
+No hosted CI, reference-runtime measurement, other-platform runtime, installer,
+complete hinge/editor integration or full assembly/demo result is claimed.
+
+## Assembly source revision authoring — 2026-10-23
+
+Local `codex/assembly-source-revisions` follows `b9caade`. The
+[contract](ASSEMBLY_SOURCE_REVISIONS.md) adds explicit root revision authoring
+without changing ordinary edit/Save semantics. Model validation covers complete
+current/dormant reference rekeying, stale purpose preservation, collisions,
+history and the unchanged saved-byte budget. Native preview constructs the
+proposal privately and withholds any candidate that also changes poses or
+captured coordinate data. Dormant/suppressed declarations receive syntax
+validation, without a native satisfaction claim.
+
+Focused Windows x64 results pass the seven new native lifecycle cases and
+three current native gear/screw/rack root-revision cases. These cover private
+DTO mutation, current-base authority, cancellation, publication failure,
+consumed tokens and initially unsatisfied placements that must first use
+ordinary Solve/Apply. Independent prism V/A/bound/plane and existing mechanical
+fixture formulas use the bands recorded in provenance. Six model and six new
+UI cases also pass. The increment adds 23 cases: six model, seven native
+capability/lifecycle, three mechanical capture, six UI and one transport.
+
+Final Windows x64 results use Node 24.11.1 and npm 11.6.2:
+
+| Command/check | Actual result |
+| --- | --- |
+| `npm test` | PASS, 8,039 unit/CAD cases in 325 files; unit phase 362.22 seconds. IPC/security: 65 pass, zero failures, one inherited file-symlink permission skip; real directory-junction retarget case passes. |
+| `npm run build` | PASS, TypeScript/Vite, 2,063 modules; first Vite phase 986 ms, final EOF-only cleanup rebuild 955 ms, all seven production assets byte-identical. Existing browser-externalization and large-chunk warnings. |
+| `npm run test:desktop` | PASS, production loader/preload/actual worker/WASM readiness, zero console errors or failed resource requests. |
+| `npm run test:desktop:assembly-source-revision` | PASS with optional visual capture, 63 recorded checks and 17 phases. Actual source edit/motion, root revision, Save and parent linked review run through production controls/worker/file IPC. |
+| `npm run test:desktop:assembly-linked-source` | PASS, existing v1/v2 link/reload regression, 113 recorded checks and 30 phases. |
+| `npm run test:desktop:assembly-source-update` | PASS, existing descendant-repair/source-update regression, 41 recorded checks and 10 phases. |
+
+The new renderer starts with original r0 documents, releases and moves child
+`m` +1 mm in X through actual controls, applies that motion, then creates the
+new root revision. Same-label rejection precedes RPC; dialog and ready-preview
+Cancel preserve history/file state. Revision Apply/Undo/Redo retain exact
+snapshots. Canceled Save As preserves dirty state, original bytes and source
+file identity; normal Save writes the actual authored source to its independently
+granted path. The parent then reads that exact file and applies its new revision
+to both uses, without relabelling the unchanged material tuple.
+
+Source/parent V/A/bounds follow the independent provenance formulas. The
+accepted byte digest is computed from the real saved file. Parent review
+Cancel/retry, private Solve/Apply, history, Save As/reopen and exact rebind pass.
+Three Open substitutions, two Save As dialogs (one canceled) and three source
+choices are checked. There is no forced `source:read`: opening the source in
+this single workspace replaces the parent's runtime bindings, so the parent
+explicitly selects the file again. The existing linked-source regression
+separately exercises explicit source reads.
+
+All three renderer workflows report zero renderer/worker/resource errors,
+observe child close and delete only guarded isolated temporary profiles. A
+hidden presented 1544x941 final frame was inspected; its new toolbar action
+and linked parent are visible. This is not modal keyboard/focus interaction,
+mechanical capture renderer coverage or human native-dialog evidence. The
+664-file product freeze stayed unchanged throughout the test runs. A trailing
+blank line was removed afterward; exact trimmed-source comparison and the
+final build confirm an EOF-only edit and seven byte-identical production assets.
+No hosted
+CI, other-platform runtime, installer or full assembly/demo result is claimed.
+
+## Explicit linked source files — 2026-10-22
+
+Local `codex/assembly-linked-sources` follows `dd51e88`. The
+[contract](ASSEMBLY_LINKED_SOURCES.md) covers data-only embedded descriptors,
+separate read-only native file grants, explicit reload/review and private
+cache/digest Apply for parts and reused rigid subassemblies. No hosted result,
+other-platform runtime, watcher, writeback or full assembly/demo completion is
+claimed.
+
+Focused Windows x64 checks currently pass 54 cases in the new native/model
+files plus the transport regression. Ten native cases check independently
+specified prism V/A/bounds at absolute 1e-6 bands, private DTO mutation,
+named current endpoint repair, cancellation/stale base, history and offline
+saved reopening. A temporary scoped-root promotion initially copied an
+embedded-only descriptor; the focused subassembly case caught it, and the
+corrected scoped conversion and rerun pass.
+
+The IPC suite passes 65 cases, with one file-symlink case omitted because the
+Windows test account cannot create it. A real directory-junction retarget
+case passes separately. The tests cover unauthorized senders/frames, forged
+grants, source selection without write permission, exact byte digest changes,
+atomic replacement between reads, stable bounded reads, invalid UTF-8, initial
+BOM, sanitized errors, cancellation and release during an active read/dialog.
+An original concurrency review found that a release behind the file-operation
+mutex could leak a grant; immediate authenticated release and its regressions
+pass. This is not a result for every file system or operating system.
+
+Final Windows x64 checks use Node 24.11.1 and npm 11.6.2:
+
+| Command/check | Actual result |
+| --- | --- |
+| `npm test` | PASS, 8,016 unit/CAD cases in 322 files, 389.57-second unit phase; 65 IPC/security checks pass, one file-symlink case skipped as described above, zero failures. |
+| `npm run build` | PASS, TypeScript/Vite, 2,060 modules; Vite 1.36 seconds, existing browser-externalization and chunk-size warnings. |
+| `npm run test:desktop` | PASS, production loader, preload, actual worker/WASM readiness, zero console errors or failed resource requests. |
+| `npm run test:desktop:assembly-linked-source` | PASS, 113 recorded checks and 30 phases across v1 parts and reused v2 subassemblies, actual worker/read-only file IPC and test-owned dialogs; four Open substitutions, two Save As, nine source choices and six explicit source reads. |
+| `npm run test:desktop:assembly-source-update` | PASS, existing production-renderer descendant-repair/source-update regression, 41 recorded checks and 10 phases. |
+| Optional linked-source visual capture | PASS, unchanged code/workflow, hidden 1544x941 presented frame inspected. The file controls are visible beside the original two placed prisms; this is separate from geometry/interaction evidence. |
+
+The increment adds 39 unit/CAD cases: strict model/propagation (14), private
+native lifecycle (10), UI metadata/binding/tickets (14) and transport (one).
+The linked renderer checks unchanged bytes without history, attachment
+Cancel/Apply, changed source review/Cancel/retry, exact private Solve/Apply,
+Undo/Redo, detach Cancel/Apply, Save As, reopening without read authority and
+explicit exact-file rebind. Changed same-revision v2 input rejects before
+native review. Actual accepted file-byte digests and unchanged parent/source
+bytes are checked separately from opaque model-test metadata. Its two-prism
+volume/area bands are 1e-5 mm³/mm² and independent bounds use 1e-6 mm.
+Native test fixture bands remain 1e-6 as specified in provenance.
+
+Both renderer workflows report zero renderer/worker/resource errors, observe
+child close and delete only their guarded isolated temporary profiles. The
+optional capture repeats the same workflow to inspect appearance; it does not
+add native cases. Product sources remained unchanged from the full-suite
+freeze through these checks. Configured multi-platform CI has not executed
+this local increment; no installer, signing or other-platform result is claimed.
+
+## Saved material circular-path lifecycle — 2026-10-22
+
+Checked local `codex/assembly-circular-path-lifecycle`, following `382c6b1`.
+The [saved contract](ASSEMBLY_CIRCULAR_PATH.md) adds explicit circular intent,
+compound material roles, scoped numerical adaptation, independent fresh native
+final verification, private worker preview/Apply, source repair and editor
+lifecycle. LINE and arc selection shapes are identical; saved family/role now
+select the purpose in keys, catalogs and native repair.
+
+Windows x64 checks use Node 24.11.1 and npm 11.6.2:
+
+| Command/check | Actual result |
+| --- | --- |
+| `npm test` | PASS on unchanged final source, 7,977 unit/CAD cases in 319 files; 417.37-second unit phase, followed by 50 IPC/security checks with zero failures. Earlier timeout-only failures are retained below. |
+| `npm run build` | PASS, TypeScript/Vite, 2,056 modules; final Vite build 1.10 seconds, existing browser-externalization and chunk-size warnings. |
+| `npm run test:desktop` | PASS, actual production-loader/worker/WASM readiness, zero console errors and failed resource requests. |
+| `npm run test:desktop:assembly-circular-path` | PASS, 62 recorded checks and 8 phases, real production controls/worker/file IPC; two test-owned Open substitutions and one Save As. Child close observed and isolated temporary profile deleted. |
+| `npm run test:desktop:assembly-line-path` | PASS, existing production-renderer LINE regression, 201 recorded checks and 70 phases, zero console errors/failed resources; child close observed and isolated profile deleted. |
+
+The increment adds 52 cases in four files: saved model lifecycle (17), native
+solve/worker/movement (20), native repair/catalogs (8), and panel/proposal/report
+behavior (7). Focused runs also retain LINE/profile regressions. Model cases
+cover strict saved parsing, atomic compound roles, actual family purpose,
+suppression/history/reopening, dormant/reused sources, selected/all replacement
+and renamed nested v2 boundaries. Numerical geometry and original fixture
+provenance remain separate from model-only opaque syntax keys.
+
+Native cases consume current issued analytic Float64 budgets, solve the saved
+family, then freshly verify its actual material point, arc and changing
+tangent. Fixed start/mid/end are checked from both material origins; Free
+trim/support-circle, Follow, third-owner UP with both signs, scoped/reused and
+shared rigid owners retain their actual incidence. Shared-root references do
+not invent child freedom. Local projection activates an endpoint and returns
+inward; anchored movement and sampled rotation stations require fresh reports.
+The continuous translation-until-contact operation rejects this family.
+
+Worker tests alter detached reports/documents and try consumed, stale,
+cancelled and forged tokens. The private candidate remains authoritative.
+An injected final native-query fault withholds publication and revokes an older
+capability. Conflicting coordinates and an exterior actual-trim request reject
+atomically. Native repair examples preserve the original sector geometry while
+changing source identity or descendant names; current point/path/UP decisions
+remain explicit, including suppressed declarations. Both LINE-to-circle and
+circle-to-LINE substitutions, nonendpoint origins and incomplete decisions
+reject. This is not automatic general topology correspondence.
+
+The circular renderer authors through actual dropdowns using positive native
+edge/endpoint candidates. It checks Free trim with Follow X and UP Y against
+the fixed roof normal, ready Cancel/retry, Apply, edit-distance rejection at
+`4 mm > pi mm`, fixed `pi/2 mm` Cancel/retry/Apply, Undo/Redo, suppression and
+deletion with Undo, Save As/reopen and a fresh worker solve. Actual native
+vertex differences independently check the component bases; literal circle
+coordinates and continuous quarter-sector extrema check the placed geometry.
+Input and saved output byte hashes remain unchanged after reopening.
+
+The original radius-2 sector retains V=`4*pi mm3`, A=`6*pi+16 mm2` per solid;
+two occurrences retain one prototype. Physical bands are `1e-6 mm` /
+`1e-8 rad`; V/A comparisons use `1e-5 mm3` / `1e-5 mm2`, renderer bounds
+`1e-6 mm` and basis/direction comparisons `1e-8`. The renderer's moving vertex
+`(5,-2,0)` differs from the native solver fixture's `(3,-2,4)`; both use the
+literal upper quarter arc. See [provenance](PROVENANCE.md#saved-circular-path-lifecycle-fixtures).
+
+Visual review of the first successful renderer capture found an opaque edge
+key in the arc label. The final source displays an ordinal and rounded origin
+coordinates, retaining the exact opaque selection value. A 7,977-case
+prefinal full-suite run started before that display-only correction and passed;
+it is not final-source acceptance. A new build, renderer run and full-suite check
+use the final source. The final capture shows
+the blue assembly workspace, selected circular origin, distance and Follow
+controls. UP controls require scrolling; the capture alone does not establish
+their interaction or geometry, which the scripted workflow checks separately.
+
+The first final-source full run passed 7,974 cases but timed out at the unchanged
+5-second limit in three existing cases: unsupported pattern-seed rejection,
+inclined face-supported cutting, and profile-axis proof substitution rejection.
+All 89 cases in those three files then passed together in 8.35 seconds using
+the same public configuration. The timeout cause is not established by that
+focused pass. The complete repeat passed all 7,977 cases and 50 IPC/security
+checks without changing source, timeouts, worker policy, isolation or geometric
+checks. This does not establish the timeout cause; the failed run remains recorded.
+
+Thirty-four implementation, test, script/configuration and original-fixture
+files remained unchanged through final checks. Public inputs are tracked original recipes
+and declared dependencies. CI is configured for the new command on each
+target; no hosted-CI execution, other-platform result, human native-dialog
+interaction, viewport picking, installed package, external circular policy,
+continuous collision proof or complete assembly/demo acceptance is claimed.
+
+## Current native circular-path bridge — 2026-10-22
+
+Checked local `codex/assembly-circular-path-native`, following `f8ea7ff`.
+The [native contract](ASSEMBLY_CIRCULAR_PATH_NATIVE.md) derives numerical
+constraints from current material references and independently verifies poses
+with fresh queries. Its declared `current-native-analytic-float64` model keeps
+topology tolerances separate from center/radius/frame/sweep and native D1
+arithmetic. It adds no saved circular mate, worker/editor command or Apply
+lifecycle. The numerical and saved LINE families retain their separate scopes.
+
+Final Windows x64 checks use Node 24.11.1 and npm 11.6.2:
+
+| Command/check | Actual result |
+| --- | --- |
+| `npm test` | PASS, 7,925 unit/CAD cases in 315 files; 396.91-second unit phase, followed by 50 IPC/security checks with zero failures. |
+| `npm run build` | PASS, TypeScript/Vite, 2,053 modules; 4.97-second Vite build, with existing browser-externalization and chunk-size warnings. |
+| `npm run test:desktop` | PASS, actual production-loader/worker/WASM readiness, zero console errors and failed resource requests. |
+
+The increment adds 67 cases in five test files: strict query syntax (6),
+native analytic arithmetic (15), independent measurement (22), world
+composition (6), and issued resolution/solve/projection (18). Focused runs
+passed before the full check. Existing bounded-path and material-arc cases
+remain part of the public suite; worker counts, isolation, timeouts and
+admission tolerances are unchanged.
+
+The resolution matrix consumes actual issued native budgets, then solves and
+freshly measures the resulting BRep. It covers both material origins, fixed
+start/mid/end, Free Follow, a third material UP guide and its reversal, nested
+point frames and reused scopes without inventing child freedom. Local target
+projection uses the selected material-point frame, moves to a finite endpoint
+and back into the interior, and independently checks native point/basis data.
+It prescribes neither a unique Free pose nor a global nearest-point result.
+
+The unchanged original sector has V=`4*pi mm3` and A=`6*pi+16 mm2` per solid.
+Independent Cartesian points, tangents, native vertex differences, fixed
+bounds and material properties remain separate from solver residuals. Physical
+admission uses `1e-6 mm` / `1e-8 rad`; curve/frame comparisons normally use
+`1e-10`, bounds `1e-6 mm` and V/A `1e-5 mm3` / `1e-5 mm2`. Actual reconstructed
+native endpoint metrics are retained even when they differ from analytic pi by
+an ULP. See [provenance](PROVENANCE.md#current-native-circular-path-resolution-fixtures).
+
+Arithmetic controls retain raw normalization defects, separate center allowance
+from evaluated D1 point allowance, reject changed/incoherent circles and refuse
+defects that fit topology tolerance but exceed analytic arithmetic. The builder
+normalizes a requested large phase; its actual interval is checked. A separate
+pure subtraction test at `1e13` is not native large-phase coverage. Noncommuting
+Rx90/Rz90 world placements have literal Cartesian frame and bounds oracles.
+Original `+1e16/-1e16 mm` chains retain their `2e16 mm` magnitude at depth two;
+an explicit `1e5 mm` linear inspection band exposes the budget, while a separate
+default-band query rejects. Radius/sweep and direction budgets stay invariant
+under translation.
+
+Copied/wrong-purpose/stale/disposed proofs, executable preflight data, partial
+native failure, reentrant document changes, exhausted world/evaluation budgets
+and a candidate displaced 0.01 mm out of plane have rejection controls. The
+independent verifier distinguishes geometric failure from unresolved precision,
+including radial-axis, complement-cut and near-band cases, without nonfinite
+DTOs or fabricated directions. Changing topology-inclusive envelopes does not
+relabel them as calibrated point/radius/phase metrology.
+
+Twelve implementation, test and original-fixture files remained unchanged
+through final checks. Public tests use tracked original recipes and public dependencies only.
+No reference-application policy, circular renderer workflow, saved lifecycle,
+hosted CI, installed package, other-platform execution or complete assembly
+demo is established by these results.
+
+## Numerical circular-path solving — 2026-10-22
+
+Checked local `codex/assembly-circular-path-numeric`, following `f1547fc`.
+The [numerical contract](ASSEMBLY_CIRCULAR_PATH_NUMERIC.md) adds explicit
+trim/support-circle domains, fixed material distance, moving-tangent Follow/UP,
+actual owner incidence, finite uncertainty and constrained target projection.
+It adds no saved mate, production native admission adapter, worker/editor
+command or Apply lifecycle. The saved LINE family remains separate.
+
+Final Windows x64 checks used Node 24.11.1 and npm 11.6.2:
+
+| Command/check | Actual result |
+| --- | --- |
+| `npm test` | PASS, 7,858 unit/CAD cases in 310 files; 420.77-second unit phase, followed by 50 IPC/security checks with zero failures. |
+| `npm run build` | PASS, TypeScript/Vite, 2,053 modules; existing browser-externalization and chunk-size warnings remain. |
+| `npm run test:desktop` | PASS, actual production-loader/worker/WASM readiness, zero console errors and failed resource requests. |
+
+The increment adds 81 cases across five files. Independent mathematical cases
+cover minor/major arcs, both endpoints, complement cut and radial axis charts,
+fixed coordinates, all 18 owner columns at two finite-difference steps, common
+rigid gauge, repeated/null owners, changing-phase Follow/UP and a guide-only
+moving role. Physical norms and finite position/radius/frame/sweep error
+envelopes remain distinct from scalar equations. Perturbation controls check
+both trim margins. Pure geometry tests additionally check scaled lengths at
+`1e-200` and `1e200`; this is not a general extreme-scale solver guarantee.
+
+Actual-owner chart initialization is checked with either point or path free,
+an offset material point and exact Follow antipodes. Shared-owner and
+guide-only radial refusals do not invent motion. Capacity checks accept 64
+redundant trim constraints and reject 65, charging both inequalities while
+retaining bilateral rank two. Constrained movement activates each finite end
+and releases it toward an inward target. Fixed geometric contradictions and
+precision failures retain different certificates/publication behavior.
+
+Review found that separately dividing radius and endpoint distance could put
+an exact physical endpoint outside the normalized trim. The final bridge uses
+the already validated physical fraction for scaling and charges its arithmetic
+change. Quarter/major endpoints at scales `1e-6` and `1e6`, a radius-0.2 /
+sweep-0.1 case at scale 3, and a one-ULP interior coordinate pass. A one-ULP
+exterior coordinate still rejects. A prefinal 7,851-case pass preceded this
+correction; the final results above use the corrected source.
+
+Eight CAD experiments reuse the original sector fixture. Numerical inputs and
+`1e-12 mm` / `1e-12 rad` budgets are manually declared from its independent
+recipe, not certified native metrology. After solving, new BRep queries check
+the actual placed point, arc and component direction at distances zero,
+`pi/2` and `pi`, independent Follow reversal, endpoint projection and distinct
+support-circle/trim behavior. Material V=`4*pi mm3`, A=`6*pi+16 mm2` per solid,
+two-solid totals, prototype reuse and fixed-sector bounds are checked. Position/
+direction admission bands are `1e-6 mm` / `1e-8 rad`; curve/vector comparisons
+normally use `1e-10`, bounds `1e-6 mm`, and volume/area `1e-5 mm3` / `1e-5 mm2`.
+The actual native endpoint parameter is used when the reconstructed metric
+length is one ULP below analytic pi; neither the observer domain nor oracle is
+clamped. See [provenance](PROVENANCE.md#numerical-circular-path-fixtures).
+
+Thirteen implementation, test and original fixture files remained unchanged
+through final checks. Public tests require only tracked original recipes and
+public dependencies. No reference application, vendor binary or private model
+is required. Native radius/whole-frame/sweep admission, saved intent/repairs,
+worker/editor authoring and history/reopening remain unimplemented. Complete
+circles, chained curves, external policies, general convergence, installers,
+hosted CI, other-platform support and complete assembly/demo acceptance are
+not established by these results. The increment remains local and unpublished.
+
+## Current material circular-arc origin — 2026-10-22
+
+Checked local `codex/assembly-material-arc-path`, following `9aa1007`.
+The [material arc contract](ASSEMBLY_MATERIAL_ARC_PATH.md) adds current joint
+edge/endpoint authentication and finite directed evaluation for open circular
+trims. This is a geometry/reference prerequisite, not a saved curved-path mate,
+solver, editor or worker command. The prior saved LINE family remains separate.
+
+Actual Windows x64 checks used Node 24.11.1 and npm 11.6.2:
+
+| Command/check | Actual result |
+| --- | --- |
+| `npm test` | PASS, 7,777 unit/CAD cases in 305 files; 398.99-second unit phase, followed by 50 IPC/security checks with zero failures. |
+| `npm run build` | PASS, TypeScript/Vite, 2,053 modules; existing browser-externalization and chunk-size warnings remain. |
+| `npm run test:desktop` | PASS, actual production-loader/worker/WASM readiness, zero console errors and failed resource requests. |
+
+Direct native edge cases check both actual material endpoints, independent
+topology reversal, a major trim `[pi/4,7*pi/4]` and a quarter trim crossing
+`2*pi` as `[7*pi/4,9*pi/4]`. The latter keeps its native interval without modulo
+and evaluates its half-length point at `(5,-2,5)` with opposite directed Y
+tangents from its two origins. Same-coordinate foreign vertices, nonincident
+vertices, LINE/ellipse/full-circle inputs, ambiguous native parameters, invalid
+coordinate fields and native query/release failures are rejection controls.
+
+The original sector fixture has radius 2 mm, center `(3,-2)`, depth 4 mm and
+independent per-solid V=`4*pi mm3`, A=`6*pi+16 mm2` with identity bounds
+`(3,-2,0)..(5,0,4)`. Its material top arc joins `(5,-2,4)` to `(3,0,4)`.
+At half length, the literal point is `(3+sqrt(2),-2+sqrt(2),4)` and the first
+origin's tangent is `(-1/sqrt(2),1/sqrt(2),0)`. Curve-coordinate and vector
+comparisons normally use `1e-10`; material bounds use `1e-6 mm`, and volume/area
+use `1e-5 mm3` / `1e-5 mm2`. These comparison tolerances are distinct from
+default physical admission bands `1e-6 mm` and `1e-8 rad`.
+
+Snapshot cases check explicit and legacy bodies, reused occurrences, proper
+noncommuting 3D placements, exact source/body/producer identity, current proof
+purpose, copied/stale/foreign/disposed rejection and query-failure cleanup.
+Cancelled `+1e16/-1e16 mm` placements retain their original arithmetic magnitude
+and reject default resolution; a separately requested wide linear band does
+not widen the angular band. Three precision controls forward actual native
+geometry and raise only explicit evaluation uncertainty. They check that
+interior point/tangent budgets are retained and can reject after composition
+even when the local budget fits. These are numerical controls, not calibrated
+angular metrology or a formal interval certificate.
+
+The increment adds 39 unit/CAD cases. Nine implementation, test and fixture
+files remained unchanged through the final build and both test commands.
+The tests use tracked original recipes and public dependencies. No private
+research, installed reference application, vendor binary or external CAD file
+is needed by the public suite. Recipe provenance is recorded
+[separately](PROVENANCE.md#material-circular-arc-origin-fixtures).
+
+No new renderer command or interaction is claimed. Saved curved-path intent,
+free coordinate/domain policy, simultaneous solving, Follow/UP along changing
+tangents, source repair and editor lifecycle still require integration.
+Complete-circle seam/direction and multi-edge continuity remain open, as do
+general convergence, reference-application policy, installers, hosted CI,
+other-platform runtime and the full assembly/demo gate. This increment remains
+local and unpublished; previous entries retain their historical scope.
+
+## Material LINE projected planar UP — 2026-10-22
+
+Checked local `codex/assembly-line-path-roll`, following `4ab0b09`.
+The [LINE contract](ASSEMBLY_LINE_PATH.md) now admits an explicit material
+planar UP guide with Follow and a distinct canonical component axis. UP aligns
+projected directions, rather than the unprojected face normal. Position,
+Follow and UP each retain their own reversal. Existing Free/Free and
+Follow/free-roll saved declarations remain unchanged.
+
+Actual Windows x64 checks used Node 24.11.1 and npm 11.6.2:
+
+| Command/check | Actual result |
+| --- | --- |
+| `npm test` | PASS, 7,738 unit/CAD cases in 301 files; 395.96-second unit phase, followed by 50 IPC/security checks with zero failures. |
+| `npm run build` | PASS, TypeScript/Vite, 2,053 modules; existing browser-externalization and chunk-size warnings remain. |
+| `npm run test:desktop` | PASS, actual production-loader/worker/WASM readiness, zero console errors and failed resource requests. |
+| `npm run test:desktop:assembly-line-path` with `SOLIDFLOW_UI_CAPTURE=1` | PASS on run 2: 201 checks and 70 phases, two Open requests and one Save As through test-owned dialogs; zero console/resource errors. |
+
+The native matrix checks all six distinct Follow/UP axis pairs and both signs
+for each axis, for 24 combinations. Literal material directions and independent
+projected-angle measurements supply the targets. Separate cases cover a
+guide-only movable component, shared ownership, reused nested scopes, current
+third-reference proof, query-failure cleanup, explicit source/replacement repair,
+report tampering, saved intent and fresh solve. A distant direction-only guide
+does not add a positional condition; the same owner's positional participation
+elsewhere keeps the precision guard. In the checked regular guide-only case,
+rank is one and local DOF five; this is not a universal count.
+
+Numerical cases check all three owner derivatives through independent finite
+differences, shared-owner columns, a common rigid gauge and signed chart starts.
+UP admission requires its measured residual plus finite projection-cone error
+to fit the requested angular band. Near-band rejection controls retain that
+band. An initially singular guide rejects even when a different path pose could
+make it regular. Only an initially unusable component UP projection with a
+regular guide and unsatisfied Follow can use the bounded actual-owner Follow
+initialization. No arbitrary guide frame is substituted.
+
+Declaration/lifecycle controls retain all three roles through suppression,
+deletion, history, source revision, selected/all replacement and renamed nested
+descendants. The renderer retains the earlier Free/Distance/Percentage and
+Follow cases, then exercises UP cancellation, Apply, axes/signs, draft-axis
+collision, Free-Follow rejection, edit/history, only-guide movement and saved
+reopening. It also exercises the strict normalized guide comparison that fixes
+the first run's property-order mismatch between scene and parsed references.
+Every locator field and the current-scene ticket remain required.
+
+Default physical bands remain `1e-6 mm` and `1e-8 rad`; the original three
+prisms total V=288 mm3 / A=384 mm2, checked at `1e-5 mm3` / `1e-5 mm2`.
+The 28 implementation, test, fixture and renderer files in the source manifest
+remained unchanged for the final build, desktop checks and complete test run.
+The committed reopened geometry capture was inspected with Follow, selected
+material guide, UP axis and reversal visible in an unchanged edit draft;
+Apply was disabled and no ready geometry preview was captured.
+
+These are original synthetic dropdown workflows and bounded geometric cases.
+UP without Follow, linear UP guides, generalized singular reconstruction,
+circular/chained paths, viewport picking, human file dialogs, general
+convergence, continuous collision, installers, hosted CI and other-platform
+support remain unestablished. The full assembly/demo gate stays open. This
+increment remains local and unpublished; earlier entries retain their
+historical scope. Fixture recipes are recorded in
+[provenance](PROVENANCE.md#line-path-planar-up-equation-and-native-fixtures).
+
+## Material LINE component-axis Follow — 2026-10-22
+
+Checked local `codex/assembly-line-path-follow`, following `5df6902`.
+The [LINE contract](ASSEMBLY_LINE_PATH.md) now retains the original Free/Free
+saved form and optionally follows an explicit canonical X/Y/Z axis of the point
+component. Follow has a separate reversal flag from position. Roll remains free.
+
+Actual Windows x64 checks used Node 24.11.1 and npm 11.6.2:
+
+| Command/check | Actual result |
+| --- | --- |
+| `npm test` | PASS, 7,646 unit/CAD cases in 298 files; 404.77-second unit phase, followed by 50 IPC/security checks with zero failures. |
+| `npm run build` | PASS, TypeScript/Vite, 2,053 modules; existing browser-externalization and chunk-size warnings remain. |
+| `npm run test:desktop` | PASS, actual production-loader/worker/WASM readiness, zero console errors and failed resource requests. |
+| `npm run test:desktop:assembly-line-path` with `SOLIDFLOW_UI_CAPTURE=1` | PASS on the first Follow run: 133 checks and 49 recorded phases, two Open requests and one Save As through test-owned file dialogs; zero console/resource errors. |
+
+The increment adds 34 unit/CAD cases. Numerical cases check signed alignment,
+geodesic angular residuals and moving-frame derivatives for both owners, using
+independent central differences at two step sizes. They cover antipodal starts,
+either moving owner, nonidentity point frames, common rigid gauge, same-owner
+incompatibility, malformed/accessor input and angular precision rejection.
+Regular original cases with a fixed path owner have rank four / two local DOF
+for Free position plus Follow, or rank five / one local DOF for a fixed coordinate
+plus Follow. These are checked cases, not universal degree-of-freedom claims.
+
+Fresh native cases check all three selected component axes with both signs,
+literal material point targets, a nested Rx90 point frame and a moving path with
+the point owner fixed. An independent final `atan2` measurement distinguishes a
+wrong selected axis even when positional error is zero. Combined point-frame and
+LINE angular uncertainty can reject an exact physical alignment; no band is
+enlarged. Free reports a null angular residual. Private Apply rejects DTO edits,
+and fixed Follow survives Cancel, Apply, Undo/Redo, save/reopen and fresh solve.
+
+The renderer retains every previous Free/Distance/Percentage assertion and adds
+Follow X Cancel/retry/Apply/history, Y and Z selection, independent Follow X
+reversal, suppression/deletion/history, and saved reopening with Follow retained.
+Actual native material vertex differences supply component-axis directions;
+literal +Y/-Y targets and the selected material point supply independent
+expectations. No exact roll pose is prescribed. Default physical bands remain
+`1e-6 mm` and `1e-8 rad`; V=192 mm3 / A=256 mm2 use `1e-5 mm3` / `1e-5 mm2`.
+
+The fifteen implementation, fixture-independent test and flow files in the
+source manifest remained unchanged from build through check completion. The
+committed reopened geometry capture was inspected; the new controls are below
+the fold, so this is not visual layout evidence for that panel. No viewport
+picking, human file-dialog, controlled-roll, circular/chained-path, general
+convergence, continuous-collision, package, hosted-CI or other-platform support
+claim follows. The complete assembly/demo gate remains open and this branch
+remains local and unpublished.
+
+## Saved material LINE path lifecycle — 2026-10-22
+
+Checked local `codex/assembly-line-path-lifecycle`, following `5291987`.
+The [material LINE mate](ASSEMBLY_LINE_PATH.md) connects current native point,
+edge and material-start proofs to the rigid solver, saved version-2 document,
+explicit compound repairs and editor lifecycle. Free axial sliding is separate
+from Distance/Percentage locks and from the finite curve-query domain.
+
+Actual Windows x64 checks used Node 24.11.1 and npm 11.6.2:
+
+| Command/check | Actual result |
+| --- | --- |
+| `npm test` | PASS, 7,612 unit/CAD cases in 297 files; 415.01-second unit phase, followed by 50 IPC/security checks with zero failures. |
+| `npm run build` | PASS, TypeScript/Vite, 2,053 modules; existing browser-externalization and chunk-size warnings remain. |
+| `npm run test:desktop` | PASS, actual production-loader/worker/WASM readiness, zero console errors and failed resource requests. |
+| `npm run test:desktop:assembly-line-path` with `SOLIDFLOW_UI_CAPTURE=1` | PASS on run 3: 98 checks and 34 recorded phases, two Open requests and one Save As through test-owned file dialogs; zero console/resource errors. |
+
+The 80 new unit/CAD cases cover exact material endpoint identity and native trim
+parameters, separate current snapshot authority, strict saved syntax and scoped
+visitors, numerical LINE equations, native final verification, compound repair
+and rendered editor controls. Direct tests include a shifted 100..105 native
+parameter interval, topology reversal, nonincident or same-coordinate foreign
+vertices, legacy/explicit bodies, repeated/nested scopes and stale/copied proof
+rejection. Free LINE retains a point beyond its finite trim. Fixed-coordinate
+cases check both senses, inclusive distance boundaries and rejection beyond the
+actual native length. Same-owner freedom and literal points under noncommuting
+nested frames are checked separately from a universal rank claim.
+
+Review found and corrected the length-uncertainty coefficient for reverse
+distance and reverse percentage, and display handling of a signed coordinate
+residual. Native regression cases keep physical residual zero while conservative
+length uncertainty alone prevents publication; no acceptance band is enlarged.
+Private preview/history tests reject copied Apply capabilities and mutated DTOs.
+A final native-query fault withholds a new preview. Projected drag and sampled
+motion retain fresh LINE reports; no swept-motion guarantee follows.
+
+The dedicated renderer uses the [original reused-prism fixture](PROVENANCE.md#material-line-path-fixtures).
+It checks nonincident-origin rejection; Free Cancel/retry/Apply and history;
+Distance 7 rejection on actual length 6; Distance 1 and Percentage 25 with both
+reverse states; edit cancellation; suppression/reactivation; deletion/Undo;
+Save As/reopen; and fresh saved native resolution followed by Cancel. Literal
+material point targets and V=192 mm3 / A=256 mm2 totals are independent of the
+production equations. Default physical admission is `1e-6 mm` / `1e-8 rad`;
+volume and area comparisons use `1e-5 mm3` / `1e-5 mm2`. The hidden capture was
+inspected for the committed reopened geometry; the mate panel is below the fold
+in that capture, so it is not visual proof of that panel's layout.
+
+Renderer run 1 exposed boolean arguments passed to a string-only source encoder
+in the new test script. Run 2 exposed its assumption that an optional empty
+report array and a suppressed/deleted summary would always be present. Only the
+new flow script changed for those failures; actual active native report, private
+Apply, exact document and recovery assertions remain. Source manifests separate
+those script corrections from the unchanged production implementation. The final
+49-file manifest stayed unchanged through completion of the checks before this
+validation/status documentation was added.
+
+Source-update/nested/suppressed repair evidence is unit/native evidence, not a
+new source-repair renderer workflow. Point/edge/start authoring uses dropdowns;
+viewport picking and human file dialogs are untested here. Circular/chained paths,
+non-Free orientation, general convergence, external-format compatibility, installed
+packages, hosted CI, macOS/Linux runtime and the complete assembly demo remain
+open. This increment is local and unpublished.
+
+## Current bounded path curves — 2026-10-22
+
+Checked local `codex/assembly-path-native-foundation`, following `f36c018`.
+The [bounded-curve contract](ASSEMBLY_PATH_CURVES.md) adds current LINE/circular
+trim observations and fresh point/tangent evaluation from a raw native parameter
+or directed arc length. A separate snapshot purpose binds these observations to
+the exact active body, source and occurrence placement. It neither creates a
+saved Path mate nor changes the rigid solver or editor commands.
+
+Actual Windows x64 checks used Node 24.11.1 and npm 11.6.2:
+
+| Command/check | Actual result |
+| --- | --- |
+| `npm test` | PASS, 7,532 unit/CAD cases in 290 files; 414.50-second unit phase, followed by 50 IPC/security checks with zero failures. |
+| `npm run build` | PASS, TypeScript/Vite; final Vite build 4.82 seconds. Existing browser-externalization and chunk-size warnings remain. |
+| `npm run test:desktop` | PASS, actual production-loader/worker/WASM readiness; zero console errors and failed resource requests. This smoke does not invoke a Path authoring command. |
+| Source review | The initial world-composition precision finding was fixed before the full run. Requested bands now also gate composed world position, length and tangent estimates before proof publication. |
+
+The suite includes 14 new direct native-curve cases and 10 new current-reference
+cases. The [original analytical recipes](PROVENANCE.md#bounded-path-curve-fixtures)
+check directed 3-4-5 and oblique lines, explicit reversal, circular arcs and a
+full circle whose native seam starts at `pi/4`. Literal coordinates and tangent
+directions supply independent expectations. Native evaluations reject an
+out-of-trim parameter or length, malformed/accessor data, unsupported curve
+families, insufficient numerical resolution and inconsistent native point,
+speed or tangent observations. Borrowed native edges survive failure; temporary
+object release failures prevent successful publication.
+
+Snapshot cases cover explicit and legacy bodies, circular geometry under nested
+noncommuting rotations, repeated source occurrences, exact producer/body
+identity, suppressed/obsolete selections and fresh query counts. Copied,
+cross-session, stale and cross-purpose witnesses reject. Reentrant mutation or
+disposal and a native cleanup failure withhold proof and retire the snapshot.
+Malformed preflight data leaves the borrowed session available. A cancelling
+`1e16 mm` placement chain rejects at default bands; an explicitly wider band
+retains the original `2e16 mm` chain magnitude and nonzero world error estimate.
+
+Ordinary independent coordinate assertions use `1e-10 mm`; native numerical
+admission defaults to `1e-6 mm` and `1e-8 rad`, with its reported topology and
+arithmetic estimates. These are different checks. No topology-tolerance ratio
+is certified physical angular metrology, and the estimates are not a formal
+worst-case interval proof. The six changed/new source and test files were
+recorded in a manifest during the full run and remained unchanged through its
+completion.
+
+Native parameters, directed arc length and an eventual percentage mode remain
+separate concepts. Current sorted edge keys do not authenticate persistent
+direction or a rebuilt circle's seam. Multiple-edge continuity, additional curve
+families, a vertex/path residual, free-path scalar/domain integration, saved
+roles and origin repair, pitch/yaw/roll choices, worker/editor authoring and full
+Path acceptance remain required work. No native application experiment, human
+interaction, package/release or macOS/Linux operation is established by this
+public test suite. This local increment does not open the complete assembly
+demo gate and remains unpublished.
+
+## Saved profile-center lifecycle — 2026-10-22
+
+Checked local `codex/assembly-profile-center-lifecycle`, following `e1bcae8`.
+The [saved-family contract](ASSEMBLY_PROFILE_CENTER_MATES.md) connects current
+profile proofs, native solving, independent final measurements, authenticated
+Apply and the editor. Its admitted saved families are circle/circle with free
+spin and rectangle/rectangle with explicit material edges, senses and quarter
+turns. The [fixtures](PROVENANCE.md#saved-profile-center-lifecycle-fixtures) are
+original analytical recipes; no external application or local research file is
+a public-test dependency.
+
+Actual Windows x64 checks used Node 24.11.1 and npm 11.6.2:
+
+| Command/check | Actual result |
+| --- | --- |
+| Dedicated native solve integration file | PASS, 18 cases; 5.56-second focused Vitest duration. |
+| `npm test` | PASS, 7,508 unit/CAD cases in 288 files; 396.78-second unit phase, followed by 50 IPC/security checks with zero failures. |
+| `npm run build` | PASS, TypeScript/Vite; 2,049 transformed modules and 3.85-second final Vite build. Existing browser-externalization and chunk-size warnings remain. |
+| `npm run test:desktop` | PASS, actual production loader, worker and WASM; zero console errors or failed resource requests. |
+| `npm run test:desktop:assembly-profile-center` | PASS on the third attempt; 27 recorded lifecycle phases and 81 top-level check entries, two Open and one Save As substitutions, zero console errors or failed resource requests. Child closure and isolated-profile cleanup confirmed. |
+| `npm run test:desktop:assembly` | PASS, existing production-renderer regression workflow; 526 check entries, zero console errors or failed resource requests. |
+| Independent source reviews | No remaining blocking finding in model purposes, compound repair, native admission, numerical precision or report/capability transport. |
+
+The 18 native integration cases check all four rectangular quarter turns with
+aligned and opposed normals, literal material bases/translations and native
+volume, area and bounds. An anchored circle retains rank five and one local spin
+freedom; the original oriented rectangles give rank six. Reused nested scopes
+retain their distinct placed geometry, and a satisfied same-owner relation
+retains common rigid freedom. These are local results for the checked cases.
+Other cases exercise authenticated Apply/history/parse/re-solve, mutated report
+DTOs, copied/consumed capabilities, atomic conflict and incidence rejection,
+independent final-query failure, sampled circular motion and constrained drag.
+Default physical bands are `1e-6 mm` and `1e-8 rad`; native bounds use `1e-6 mm`
+and volume/area use `1e-5` in their corresponding units.
+
+The renderer workflow uses actual production controls, worker replies and file
+IPC, with dropdown authoring and test-owned dialog paths. It independently pins
+ordered owner roles, circle offset `2 mm`, rectangle quarter turn `1`, both
+material senses `+1`, and rectangular offsets `2`, `-1` and `3 mm` at the relevant
+phases. It checks literal material properties/bounds and fresh native residuals,
+preview Cancel/retry, a same-body nonincident bottom-edge rejection, Apply,
+face reselection clearing the old edge, edit Cancel/Apply, one-step Undo/Redo,
+suppression/reactivation, deletion, Save As/reopen and a fresh solve after
+reopening. Bounds and material properties use `1e-5`; residual bands remain
+`1e-6 mm` and `1e-8 rad`. Cancel checks the exact committed recovery document and
+cleared report/Apply state, without a separate viewport-mesh readback claim.
+
+The first desktop attempt incorrectly required the root modification timestamp
+to remain identical across Apply. The corrected oracle compares every other
+field exactly, including nested timestamps, and checks the existing monotonic
+root-timestamp contract. It also pins typed parameters explicitly, preventing a
+self-consistent but unintended saved value from passing. The second attempt
+reached Save As but the harness's exact dialog-title predicate omitted this new
+scenario. Adding it to the existing assembly-title branch fixed the test-owned
+queue; production IPC, sandbox, tolerances and deadlines were unchanged. The
+third attempt completed the full workflow. A captured actual final reopened
+scene was visually inspected; it is separate from geometric proof.
+The final build's production files and Electron inputs have identical hashes to
+those used by the successful desktop run. The 33 changed/new source, fixture,
+test, harness and CI files were pinned before the final full-suite run and
+remained unchanged.
+
+The initial full-suite run passed 7,507 cases and failed one obsolete assertion
+that the broad mate-witness dispatcher rejected every profile. That dispatcher
+now deliberately accepts this dedicated saved family. The updated regression
+preserves old binary-purpose rejection and adds copied-proof, forged-purpose
+and old-reference-parser rejections; its focused 13 cases pass. An earlier native
+fixture assumed a unique translation for an off-origin circle despite its free
+spin. The final cases separately check an origin-centered circle's translation
+and an off-origin circle's physical center/bounds; no production tolerance or
+free-spin equation was changed.
+
+Model tests cover complete face/edge/sense decisions, selected/all replacement
+plans, repeated scopes and dormant/suppressed reference inventory. Native repair
+tests cover fresh compound proofs, selected replacement, renamed descendants
+and bounded candidate enumeration. Rendered repair panels have focused regressions;
+this desktop command does not perform source/replacement repair or viewport
+profile picking. It does not establish circular roll locking, automatic square
+correspondence, external default/arrow/enum equivalence, continuous path contact,
+global convergence or complete assembly-demo readiness. Continuous translation
+admission remains excluded. No package/release, macOS or Linux execution is
+claimed. This increment remains local and unpublished.
+
+## Current profile material directions and physical checks — 2026-10-22
+
+Checked local `codex/assembly-profile-material-axis`, following `b6f606e`.
+The [material-axis contract](ASSEMBLY_PROFILE_MATERIAL_AXES.md) binds an explicit
+rectangle face, native boundary LINE and parameter sense in one current engine
+query. Separate private witnesses retain original placement arithmetic. A fresh
+physical checker evaluates full center norms, normal angles and explicit
+rectangular quarter-turn targets independently of the numerical row helper.
+See the [original fixtures](PROVENANCE.md#current-profile-material-axis-fixtures).
+
+Actual Windows x64 results used Node 24.11.1 and npm 11.6.2:
+
+| Command/check | Actual result |
+| --- | --- |
+| Four focused new test files | PASS, 43 cases; 7.21-second Vitest duration. |
+| Axis extractor plus existing bounded-profile tests | PASS, 34 cases in two files; 538 ms focused duration. |
+| `npm test` | PASS, 7,454 unit/CAD cases in 284 files; 406.32-second unit phase, followed by 50 IPC/security checks with zero failures. |
+| `npm run build` | PASS, TypeScript/Vite; 2,046 transformed modules and 4.46-second Vite build. Existing browser-externalization and chunk-size warnings remain. |
+| `npm run test:desktop` | PASS, production-loader smoke with WASM ready, zero console errors and zero failed resource requests. |
+| Independent source review | No blocking finding in the joint query, exact incidence, purpose separation, composition precision, final reentrant checks or cleanup. |
+
+The extractor cases exercise four sides and both senses, squares, native edge
+orientation reversal, an oblique direction, a geometrically identical foreign
+edge, circles, explicit precision rejection and simultaneous query/release
+faults. An early positive fixture failure showed that native wire assembly had
+replaced some initially constructed edges. Tests now select actual face-owned
+edges against unique literal endpoint pairs; production `IsSame` admission was
+not relaxed.
+
+The independent snapshot oracle reads native D1 from a separate original body
+copy and compares centers/directions against literal noncommuting transforms.
+Cases cover reused/nested occurrences, explicit short-side choice, stale source,
+copied/cross-purpose/cross-session witnesses, malformed preflight and cancelled
+`2e16 mm` placement magnitudes. The default exact-LINE cases fit `1e-6 mm` and
+`1e-8 rad`; explicit `1e-16 rad` fails closed. Those angular estimates remain
+first-order arithmetic/observational budgets, not certified linear-tolerance
+conversions or metrology intervals.
+
+The independent physical checker covers the full norm rejection boundary, all
+four explicit quarter targets, sense reversal, squares and mathematical free
+mixed pairs. A nested three-dimensional case independently expects `sqrt(906)`
+mm separation and `pi/2` normal angle. A numerical `precisionLimit` retains the
+snapshot and omits `satisfied`; valid native query failures close it, including
+cleanup aggregation. Every report rechecks both live proofs. Free mixed checks
+retain `compatibilityAuthority:false`.
+
+Production source and the four new test files were pinned before the full
+checks and remained unchanged. The smoke covers loading, not profile authoring.
+No new saved mate syntax, native-to-solver adapter, worker/editor command,
+Apply/history, repair or reopening was added. No package/release or macOS/Linux
+execution is claimed. This increment remains local and unpublished and does
+not complete the assembly demo.
+
+## Numerical profile-center solver — 2026-10-22
+
+Checked local `codex/assembly-profile-center-solver`, following `4cafa14`.
+The [dedicated numerical family](ASSEMBLY_PROFILE_CENTER_SOLVER.md) adds signed
+first-normal center offset, explicit aligned/opposed normals and optional
+rectangular quarter turns. New inputs are separate profile declarations with
+mandatory uncertainty budgets; they grant no native reference, saved-mate or
+editor authority. The [original fixtures](PROVENANCE.md#numerical-profile-center-solver-fixtures)
+contain independent literal coordinates and finite-difference checks.
+
+Actual Windows x64 results used Node 24.11.1 and npm 11.6.2:
+
+| Command/check | Actual result |
+| --- | --- |
+| Focused pure geometry file | PASS, 21 cases; 254 ms test duration. |
+| Focused equations and existing width/symmetry files | PASS, 73 cases, including 10 new profile cases. |
+| Focused profile solver file | PASS, 36 cases; 627 ms test duration. |
+| `npm test` | PASS, 7,411 unit/CAD cases in 280 files; 392.49-second unit phase, followed by 50 IPC/security checks with zero failures. |
+| `npm run build` | PASS, TypeScript/Vite; 2,046 transformed modules and 3.50-second Vite build. Existing browser-externalization and chunk-size warnings remain. |
+| `npm run test:desktop` | PASS, production-loader smoke with WASM ready, zero console errors and zero failed resource requests. |
+| Independent source review | No remaining blocking finding in numerical copying, seeds, physical admission or atomic publication. The observed outer `id/type` getter gap was fixed and has zero-invocation regressions. |
+
+The anchored circular case reaches literal center `[1,2,5] mm`, rank five and
+one local spin freedom. Explicit rectangular cases cover all four quarter
+turns with aligned and opposed normals, positive/negative offset signs, a
+nonzero rotated endpoint frame and first-owner inverse odd-quarter seeds.
+Those accepted rectangular cases give rank six and no local freedom. Two free
+owners retain their common gauge; a satisfied repeated-owner relation has rank
+zero. These are local results for the declared configurations, not unconditional
+rank, global convergence or native freedom claims.
+
+Pure derivatives are checked off solution at two finite-difference steps for
+twelve formal columns, including the moving first frame and normal offset arm.
+Bridge cases use scales 1, 10 and 1000. Physical norm/angle checks remain separate
+from component rows. Antipodal normal/roll starts restore only through bounded
+seeding; disabling seeds and iterations withholds poses. Conflicting offsets,
+unresolved precision, missing/oversized uncertainty and malformed declarations
+also withhold poses without changing input data. Six/nine-row capacity controls
+retain the existing 256-row ceiling.
+
+Production source and the three new test files stayed frozen during the full
+checks; the retained source snapshot matches the final files. The smoke checks application loading;
+it exercises no profile authoring UI. Native reference-to-constraint admission,
+authenticated rectangular axes, saved declarations, worker/editor authoring,
+Apply/history, repairs and reopening remain required integration work. No new
+native application interaction, package, release or macOS/Linux execution was
+performed for this increment. The change remains local and unpublished.
+
+## Reusable assembly document import — 2026-10-22
+
+Checked local `codex/assembly-subassembly-import` follows `3fccb16`.
+**Importar componente** accepts v1 parts and v2 assemblies while preserving the
+open parent. The new declaration composition retains source root metadata,
+dependencies and local mate roles, reuses identical exact definitions, and
+rejects conflicting payloads or invalid final graphs. File tickets capture the
+insertion scope and reject stale document/generation/scope responses. See the
+[import contract](ASSEMBLY_COMPONENT_IMPORT.md) and
+[original fixtures](PROVENANCE.md#reusable-assembly-import-fixtures).
+
+Actual Windows x64 results used Node 24.11.1 and npm 11.6.2:
+
+| Command/check | Actual result |
+| --- | --- |
+| Focused import/document/editing files | PASS, 247 cases in three files, including 21 import cases; 5.02-second Vitest duration. |
+| Focused workspace file | PASS, 65 cases; 1.48-second Vitest duration. |
+| `npm test` | PASS, 7,243 unit/CAD cases in 268 files, 378.33-second unit phase, followed by 50 IPC/security checks with zero failures. |
+| `npm run build` | PASS on the third run, TypeScript/Vite; Vite reports 949 ms. Existing externalization and chunk-size warnings remain. |
+| `npm run test:desktop` | PASS, production-loader smoke with worker/WASM readiness. |
+| `npm run test:desktop:assembly-import` with `SOLIDFLOW_UI_CAPTURE=1` | PASS on runs two through four. The final run adds ordinary Save to the parent path and imported-instance interference grouping to the complete lifecycle. |
+| `npm run test:desktop:assembly` | PASS, existing general assembly workflow, 526 recorded entries and no renderer/asset errors. |
+
+The first two build attempts exposed the CAD test helper's mutable parameter
+type at a read-only preview boundary. The final helper accepts the read-only
+snapshot and validates a detached mutable copy for scene construction. No
+production geometry, assertion or tolerance was weakened. The first desktop
+run reached Save As after passing import/movement/reuse/history assertions, then
+failed because the new test scenario was absent from the harness's exact
+assembly-save-title branch. Registering that scenario restored the existing
+title/path checks. The second run passed with the same production bundle and
+unchanged deadlines.
+
+The original source S contains one fixed identity-placed two-body M and a local
+XY coincidence with S's own null declaring frame. The first root is moved to
+Rz90 degrees plus `[10,20,30]` mm; the second remains at identity. Four valid
+placed solids retain exact body/producer keys, sum V96 mm3/A208 mm2 and use one
+part prototype. The transformed A/B bounds are `[7,20,30]..[10,22,34]` and
+`[7,21,30]..[10,23,34]` mm. Volume/area use 1e-5, bounds/placement and basis
+action use 1e-6 absolute bands. These are body multiplicities, not a union.
+
+Actual solves after first import, movement, reuse and reopening produce zero
+length and angle residuals for each imported local-plane check. The shared S
+scope has zero local DOF. After reuse and saved reopening the parent retains
+12 local DOF for its two free roots; movement's temporary anchor is not a saved
+fixed declaration. Solve/Cancel retains the committed poses and revokes Apply.
+
+The incompatible test-owned source keeps the same ID/revision and changes its
+name. Its import rejects before a worker request; recovery, history and Apply
+state remain unchanged. The successful flow also checks distinct occurrence
+IDs, exact reused dependency/root contents, Undo/Redo, saved graph equality and
+unchanged input/source/saved bytes. An initial Save As establishes the parent
+filepath; ordinary Save after import writes the imported graph there without
+another dialog and leaves the source bytes and parent filename intact. A final
+Save As preserves that earlier parent file. Five Open requests and three save
+IPC calls complete, with two Save As dialogs. Child closure and temporary-profile
+deletion are recorded. No renderer console or asset
+request error was recorded. Compact phase records retain actual native metrics,
+world poses, complete identities and solve residuals.
+
+Two actual inspections after reopening retain the imported leaf/body paths.
+With internal inclusion on, the ungrouped report has six candidates, two native
+Commons of V12 mm3 and four bounds-excluded cross-root pairs. The moved and
+identity Common bounds match the literal fixture intersections. Grouping
+retains four distinct cross-root candidates, all bounds-excluded, with no hits.
+Changing grouping revokes the prior report without an automatic worker request.
+Both inspections preserve recovery/history/files and keep Apply disabled.
+
+Root reviewed the final 1544 by 941 capture. It shows the blue workspace,
+**Importar componente**, two imported S/M trees with fixed child markers, two
+separated placed groups, the saved filename and Apply disabled. Mate results
+are below the captured panel portion, so the PNG does not establish their
+appearance. Worker results and numerical/native assertions are separate
+evidence from this visual review.
+
+The unit fixtures also cover dormant dependencies, exact tuple/kind/revision
+conflicts, object-key order, shared-scope insertion, cycles, hierarchy and byte
+limits, detached data, role preservation and history/serialization. The long
+point/width keys in those syntax fixtures are not native entity evidence.
+Browser fallback ticket admission has unit coverage; interactive browser
+selection and picker cancellation were not exercised by the fixed desktop queue.
+
+Production source, fixtures and unit tests stayed frozen during the full suite.
+The test-only save-title registration was corrected during that run and then
+exercised successfully against the same production bundle. Later standalone
+workflow extensions added ordinary parent Save and imported-instance inspection;
+both passed against that unchanged bundle. Documentation was completed afterward.
+CI includes the new command with unchanged sandbox and
+deadlines; configured jobs do not establish hosted results. No installed-package,
+macOS/Linux, external-format structural interchange, linked-source,
+configuration, flexible-assembly or full assembly/demo result is claimed.
+The increment remains local and unpublished.
+
+## Grouping with selected and excluded components — 2026-10-22
+
+Checked local `codex/assembly-grouping-scope` follows `ceb02e9`. It admits
+grouping alongside all three inspection scopes and exact exclusions. Group
+identity remains each leaf's original document-root occurrence; selecting a
+descendant never creates a new group root. The existing kernel pair predicate,
+saved declarations, solver and geometric operations are unchanged. See the
+[contract](ASSEMBLY_INTERFERENCE_GROUPING.md) and
+[fixture provenance](PROVENANCE.md#grouping-with-selected-and-excluded-fixtures).
+The earlier grouping restrictions recorded below describe those earlier sources.
+
+Actual Windows x64 results used Node 24.11.1 and npm 11.6.2:
+
+| Command/check | Actual result |
+| --- | --- |
+| Focused model/native files | PASS, 106 cases in two files, 18.18-second Vitest duration. |
+| Focused panel/workspace files | PASS, 93 cases in two files, 4.90-second Vitest duration. |
+| `npm test` | PASS, 7,217 unit/CAD cases in 266 files, 378.86-second unit phase, followed by 50 IPC/security checks with zero failures. |
+| `npm run build` | PASS, TypeScript/Vite; Vite reports 967 ms. Existing externalization and chunk-size warnings remain. |
+| `npm run test:desktop` | PASS, production-loader smoke with worker/WASM readiness. |
+| `npm run test:desktop:assembly-interference-grouping-scope` with `SOLIDFLOW_UI_CAPTURE=1` | PASS on the first run, nine actual native inspections through production controls. |
+| `npm run test:desktop:assembly-interference-grouping` | PASS, fifteen/nine/restored-fifteen pairs. |
+| `npm run test:desktop:assembly-interference-grouping-multibody` | PASS, six/four/restored-six pairs with internal inclusion retained. |
+| `npm run test:desktop:assembly-interference-multibody` | PASS, existing six-report sequence 0, 1, 0, 1, 0, 1. |
+
+The new desktop fixture has four multibody leaves under two reused root groups,
+eight placed valid solids, one prototype and identity poses. Each source solid
+measures V24 mm3/A52 mm2. With internal inclusion true, all inspection produces
+28 pairs, sum 480 mm3, and grouped inspection 16 pairs, sum 288 mm3. Selecting
+the two leaves within one root produces zero grouped pairs and six ungrouped
+pairs, sum 96 mm3. Excluding the second selected leaf gives one internal Common
+of 12 mm3 ungrouped and zero grouped pairs. A mixed parent/leaf selection, a
+single leaf against the rest, and all with one leaf excluded each produce eight
+grouped pairs, sum 144 mm3. These are pair multiplicities, not material unions.
+
+Reports retain exact leaf/body references and analytical Common mesh bounds.
+Volume/area use 1e-5, distance/mesh bounds 1e-6 mm and pair sums 1e-4 mm3 absolute
+tolerances. The workflow checks actual requested/evaluated options, both positive
+and empty scopes, and report/highlight invalidation without automatic worker
+requests. Input bytes, history and committed recovery remain unchanged; one
+Open, zero Save and no Apply authority are observed. The four renderer workflows
+record child closure, temporary-profile deletion and no console/asset-request
+errors. The first focused panel run failed a test-only aria-label regex; it was
+corrected before the final focused and full-suite runs, without a product change.
+
+Unit cases separately check explicit original leaf/body pair lists, overlapping
+ancestor/descendant selection, exclusion priority, selected/rest membership in
+both original groups, inherited hidden/suppressed ancestry, stale references
+before native allocation and the unchanged body cap. Placed source solids pass
+closed-solid validation with unchanged pre/post mass, area and bounds in the
+parameterized group/scope cases.
+
+Root reviewed the final 1544 by 941 capture: the blue workspace shows both nested
+groups, all four leaf entries and an overlap overlay. Internal-body inclusion is
+checked. Grouping, scope lists and the report table are below the captured part
+of the side panel, so the PNG does not establish their appearance or both-body
+colour rendering. The scripted controls and worker reports provide separate
+evidence; no human pointer/native-dialog result is claimed.
+
+Production source, fixture, scripts and unit tests stayed frozen during the
+full-suite run; documentation was completed afterward. The general assembly
+workflow was not rerun. CI includes the new command with unchanged deadlines;
+configured CI does not establish a hosted result. No installed-package,
+macOS/Linux, importer-equivalence, union, flexible-assembly or continuous-collision
+result is claimed. The increment remains local and unpublished. Complete
+assembly/demo acceptance remains open.
+
+## Grouping with internal-body inclusion — 2026-10-22
+
+Checked local `codex/assembly-grouping-multibody` follows source `e31e313`.
+It admits both transient inspection booleans and keeps their values explicit.
+Grouping omits pairs sharing a root occurrence even when internal-body inclusion
+is requested. Turning grouping off restores internal pairs. The kernel pair
+predicate, saved documents, solver and native geometric operations are unchanged.
+The [contract](ASSEMBLY_INTERFERENCE_GROUPING.md) and
+[original fixture provenance](PROVENANCE.md#grouping-with-internal-body-fixtures)
+define this policy. Grouping with selected scopes or exclusions still rejects.
+
+Actual Windows x64 results used Node 24.11.1 and npm 11.6.2:
+
+| Command/check | Actual result |
+| --- | --- |
+| Focused model/native files | PASS, 88 cases in two files, 13.18-second Vitest duration. |
+| Focused panel/workspace files | PASS, 88 cases in two files, 1.46-second Vitest duration. |
+| `npm test` | PASS, 7,194 unit/CAD cases in 266 files, 385.37-second unit phase, then 50 IPC/security checks with zero failures. |
+| `npm run build` | PASS, TypeScript/Vite; Vite reports 3.31 seconds. Existing externalization and chunk-size warnings remain. |
+| `npm run test:desktop` | PASS, production-loader smoke with worker/WASM readiness. |
+| `npm run test:desktop:assembly-interference-grouping-multibody` with `SOLIDFLOW_UI_CAPTURE=1` | PASS on the third run, three actual native inspections; six/four/restored-six pairs, with internal inclusion true throughout. |
+| `npm run test:desktop:assembly-interference-grouping` | PASS, existing fifteen/nine/restored-fifteen case, with its internal-body control now available when grouped. |
+| `npm run test:desktop:assembly-interference-multibody` | PASS, existing six-report sequence 0, 1, 0, 1, 0, 1. |
+
+The first two new renderer runs failed an incorrect expected warning count.
+The diagnostic second run recorded four bodies, four solids, one part prototype
+and the actual separate-solid warning. The workflow now requires that
+exact single warning in the scene and each report. It retains all original
+geometry, identity, count and tolerance oracles. No production correction,
+deadline increase or geometric tolerance change was made for this failure.
+
+The original nested fixture contains two root occurrences of `G={S={M}}`.
+Its four placed source solids each measure 24 mm3 and 52 mm2, with literal
+source bounds. The grouped cross-root Common matrix is `[[24,12],[12,24]]`
+mm3. Pair sums are 96/72/96 mm3; these are not a material union. Reports retain
+exact leaf/body identities, Common meshes and restored pair IDs. The flow checks
+report/highlight invalidation, both requested and evaluated booleans, scope
+controls, unchanged file bytes/recovery/history, one Open and zero Save requests.
+Volume/area use 1e-5, distance/mesh bounds 1e-6 mm and pair sums 1e-4 absolute
+tolerances. The three successful renderer workflows recorded child closure and temporary-profile
+deletion, with no console or asset-request errors.
+
+Root visually reviewed the final 1544 by 941 capture: a blue assembly view shows
+both nested occurrence trees, an overlap overlay and internal-body inclusion
+checked. Grouping is off in this final restored phase; its checkbox and result
+table are below the captured portion of the side panel. Scripted controls,
+worker geometry and viewport pair IDs do not establish human pointer/native
+dialogs or both-body colour rendering.
+
+Production source and unit tests remained frozen through the full suite and
+build. The new renderer script's warning oracle was corrected during validation
+and then executed successfully against the same production bundle; documentation
+was completed afterward. The general assembly workflow was not rerun for this
+increment. CI is configured for the new command with unchanged deadlines.
+No hosted CI, installed package, macOS/Linux, union volume, continuous collision
+or general importer result is claimed. The increment remains local and
+unpublished; the complete assembly/demo scope remains open.
+
+## Root-subassembly interference grouping — 2026-10-22
+
+Checked local `codex/assembly-interference-grouping` follows source
+`f49ddb6e88c2ac543919961216a24b3533829ed1`. It adds a transient grouping option
+for complete-root inspection, the corresponding pair predicate and editor
+control, and an original reusable nested fixture. The
+[contract](ASSEMBLY_INTERFERENCE_GROUPING.md) and
+[fixture provenance](PROVENANCE.md#root-subassembly-grouping-fixtures) specify
+the admitted scope and independent geometric oracles. Saved documents and the
+mate solver are unchanged. Selected/excluded scopes and simultaneous internal
+body inspection reject when grouping is enabled.
+
+Actual Windows x64 results used Node 24.11.1 and npm 11.6.2:
+
+| Command/check | Actual result |
+| --- | --- |
+| Focused model/native files | PASS, 85 cases in two files; 11.58-second Vitest duration. |
+| Focused panel/workspace files | PASS, 87 cases in two files; 1.42-second Vitest duration. |
+| `npm test` | PASS, 7,190 unit/CAD cases in 266 files, 379.42-second unit phase, then 50 IPC/security checks with zero failures. |
+| `npm run build` | PASS, TypeScript/Vite, 3.608 seconds overall. Existing browser-externalization and chunk-size warnings remain. |
+| `npm run test:desktop` | PASS, production-loader smoke with worker/WASM readiness; no console or asset-request errors. |
+| `npm run test:desktop:assembly-interference-grouping` with `SOLIDFLOW_UI_CAPTURE=1` | PASS, three actual native inspections through production controls. |
+| `npm run test:desktop:assembly-interference-multibody` | PASS, six actual inspections; pair counts remain 0, 1, 0, 1, 0, 1 with grouping disabled. |
+| `npm run test:desktop:assembly` | PASS, existing general assembly workflow with no console or asset-request errors. |
+
+The grouping workflow opens the original fixture containing two root occurrences
+of `G={S={A,B},C}`. Six valid placed solids use three prototypes. It checks fifteen ungrouped
+pairs, nine cross-group pairs and the same fifteen pairs after disabling the
+option. Grouped pair volumes follow the literal 3-by-3 matrix with rows
+`[96,24,48]`, `[24,96,72]`, `[48,72,96]` mm3, sum 576 mm3. Ungrouped pair volumes
+sum to 864 mm3. These are pairwise sums, not the union volume. Each pair retains
+its original two leaf/body identities and analytically predicted Common bounds.
+Volume/area use 1e-5, bounds/distance 1e-6 mm and volume sums 1e-4 absolute
+tolerances.
+
+Changing grouping removes the report and viewport pair selection. The flow
+checks the incompatible controls, accepted policy, unchanged source bytes,
+recovery and history, one Open request and zero Save requests. The grouping,
+multibody and general assembly runs observe child closure and isolated-profile deletion with
+no console or request errors. Root visually reviewed the 1544 by 941 capture:
+the blue assembly view contains the nested occurrence tree and red overlap
+overlay; the grouping checkbox and result table are below the captured portion
+of the side panel. Scripted controls and viewport pair IDs do not establish
+human pointer/native-dialog interaction or both-body colour rendering.
+
+Production source, tests, scripts, fixture and CI configuration were frozen
+for these commands; documentation was completed afterward. CI is configured
+for the new command with unchanged deadlines. No hosted CI, installed package,
+macOS/Linux result, continuous collision, union grouping or general importer
+coverage is claimed. This increment remains local and unpublished; the complete
+assembly/demo requirements remain open.
+
+## Within-component interference inspection — 2026-10-22
+
+Checked source `72e18822007851f3088156492ff9f7bc025cd0a9` on local
+`codex/assembly-interference-within-component` follows `ecf622e`. It adds
+the explicit temporary internal-body option, native pair admission, editor
+controls and a dedicated production-renderer workflow. Saved documents and
+the mate solver are unchanged. The [scope contract](ASSEMBLY_INTERFERENCE_SCOPE.md)
+and [original fixture provenance](PROVENANCE.md#within-component-interference-fixtures)
+define its policy and independent geometric oracles.
+
+Actual Windows x64 results used Node 24.11.1 and npm 11.6.2:
+
+| Command/check | Actual result |
+| --- | --- |
+| Focused model / native / panel+workspace / viewport files | PASS, 25 / 51 / 84 / 24 cases respectively. Sixteen new cases are distributed across five existing files. |
+| `npm test` | PASS, 7,178 unit/CAD cases in 266 files, 379.14-second unit phase, then 50 IPC/security checks with zero failures; 381.3595492 seconds overall. |
+| `npm run build` | PASS, TypeScript/Vite, 3.3406513 seconds overall. Existing browser-externalization and chunk-size warnings remain. |
+| `npm run test:desktop` | PASS, production-loader smoke, 1.7569514 seconds. |
+| `npm run test:desktop:assembly-interference-multibody` with `SOLIDFLOW_UI_CAPTURE=1` | PASS, 4.3730424 seconds; six actual native inspections through production controls. |
+| `npm run test:desktop:assembly` | PASS, existing general assembly workflow, 146.2998034 seconds. |
+
+The acceptance manifest verified 651 source, script, fixture and configuration
+files unchanged from its capture through the complete suite's completion.
+Both renderer runs recorded
+the same eight production input hashes, observed child closure and temporary
+profile deletion, with no console or asset-request errors. Their 47 and 526
+recorded entries include wait labels and structured records, not that many
+independent assertions. The new workflow contains 45 wait labels, one security
+record and one record holding its six native reports.
+
+The original two-body desktop input independently measures 24 mm3 and 52 mm2
+per body. Enabling the option reports one Common solid of 12 mm3, with bounds
+[1,0,0]..[2,3,4]. Disabling it revokes the report and selection and returns zero
+internal candidates. Among-selected admits the pair; selected-against-rest
+retains zero internal pairs. Restoring all-components preserves the exact pair
+identity. The workflow checks unchanged file bytes and recovery, with
+Undo/Redo/Apply disabled, using one Open and zero Save requests. Volume/area use 1e-5,
+length/mesh bounds 1e-6 absolute tolerances. Native unit cases separately check
+overlap, contact, clearance, distant bounds exclusion, reused nested identities,
+whole-leaf filters and unchanged valid placed BRep material.
+
+The root visually reviewed the 1544 by 941 capture: a blue assembly view shows
+the two-body scene with its red intersection overlay and checked option. The
+table is below the captured portion of the side panel. Scripted selection
+observes the viewport's pair ID and exact native references; it does not inspect
+both body colours or meshes. A separate unit case checks exact body selection.
+
+This is static body-pair inspection, not union volume, automatic subassembly
+grouping, continuous collision or legacy-aggregate decomposition. No human
+pointer/native-dialog interaction, installed package, hosted CI or macOS/Linux
+execution is claimed. CI is configured for the new fixed command with unchanged
+deadlines. The increment remains local and unpublished; the full assembly/demo
+requirements remain open.
+
+## Centered width tilt controls — 2026-10-22
+
+Checked source `2d74a097391b619af8a4b365a00d5a64918f3e9b` on local
+`codex/assembly-width-centered-tilt` follows `17fd8cd`. It adds two original
+numerical regression cases and their [provenance](PROVENANCE.md#original-numerical-centered-width-solver-cases).
+No production solver, saved document, editor, IPC or worker implementation
+changed in this increment.
+
+Actual Windows x64 results used Node 24.11.1 and npm 11.6.2:
+
+| Command/check | Actual result |
+| --- | --- |
+| Focused centered-width solver file | PASS, 32 cases, 1.16-second Vitest duration. |
+| `npm test` | PASS, 7,162 unit/CAD cases in 266 files, 382.55-second unit phase, then 50 IPC/security checks with zero failures; 384.8239277 seconds overall. |
+| `npm run build` | PASS, TypeScript/Vite and 2,043 transformed modules, 3.762024 seconds overall. Existing browser-externalization and chunk-size warnings remain. |
+
+The reviewed test and provenance file hashes stayed unchanged through these
+commands and the source commit. This validation entry was added afterward.
+No desktop interaction or smoke command was rerun for this test-only change.
+
+Literal rotation matrices at `pi/12 rad` check the original rational plane
+normals and an explicit `(0,7,-3) mm` translation. Both pair-intersection axes
+tilt by 15 degrees. The X rotation preserves the coincident difference
+bisector plane and satisfies the initial constraint; the Y rotation has an
+independently predicted angular and signed-offset defect. Oracles use `1e-12`
+absolute error; problem bands remain `1e-6 mm` and `1e-8 rad`.
+
+These cases protect the numerical centered-plane contract from an accidental
+parallel-axis requirement. They neither require a free-owner solve to fail
+nor prescribe its repaired pose. They add no native reference, other Width
+mode, four-owner admission, renderer, hosted CI or other-platform evidence.
+The focused increment remains local and unpublished; the complete assembly
+and demo requirements remain open.
+
+## Ordered plane placement primitive — 2026-10-22
+
+Checked source `5d1b2f5220f4c1d67f859140adc4b160261a5ab6` on local
+`codex/assembly-width-placement` adds a pure four-plane measurement helper,
+18 original numerical cases and its [contract](ASSEMBLY_PLANE_PLACEMENT.md).
+The ray origin and direction move with the first original support; all four
+formal six-column derivatives remain available, and repeated physical owners
+accumulate while null contributes no physical columns. This increment adds
+no saved relation, native mode, solver constraint, editor option or capability.
+
+Actual Windows x64 results used Node 24.11.1 and npm 11.6.2:
+
+| Command/check | Actual result |
+| --- | --- |
+| Focused placement file | PASS, 18 cases, 527 ms Vitest duration. |
+| `npm test` | PASS, 7,160 unit/CAD cases in 266 files, 382.71-second unit phase, then 50 IPC/security checks with zero failures. |
+| `npm run build` | PASS, 3.5245582 seconds overall, TypeScript/Vite and 2,043 transformed modules. Existing externalization and chunk-size warnings remain. |
+| `npm run test:desktop` | PASS, 1.7278385 seconds overall, production-loader smoke with worker/WASM readiness and no reported console or asset-request errors. |
+
+The module and test hashes stayed equal to the reviewed source after these
+commands. Acceptance documentation was completed afterward. The smoke does not exercise
+this unused mathematical helper through the editor or establish an assembly
+interaction, native dialog, installed package, hosted CI or other-platform pass.
+
+Independent rational equations check parameters `[0,22/3,10/3,7/2]` and
+the ordered parallel example `[0,18,5,2]`. Analytical derivatives are compared
+with central finite differences at steps `1e-5` and `2e-6`, to `2e-7` absolute
+error. Cases include all four sign combinations, a moving anchor, independent,
+repeated and null owners, oblique frames and fixed world scales 2 and 7.
+Common rigid gauge cancellation away from a proposed target uses `2e-13`;
+finite common-motion scalar invariance uses `3e-14`. The tests also check
+parameterization, normal-equation reversal, declared uncertainty, unresolved
+quotients, normalization loss and malformed-data rejection without getters.
+The test's explicit bands govern each case; these are not a metrology claim.
+
+Ordered distances remain distinct from physical envelope clearance. The open
+transversal chart imposes no parallelism or containment. Its first-order error
+estimates are not interval certificates and cannot widen requested bands.
+Width mode admission and the complete assembly/demo requirements remain open.
+The increment and private validation receipts remain unpublished.
+
+## Directional and surface symmetry repair — 2026-10-22
+
+Checked source `dbf971befb0aae86b9d5917bc777619e8bb397ed`, a local follow-up to `f91034d`, adds fifteen original fixtures and five dedicated production-renderer repair workflows. Their scope is material LINE edges, planar faces, complete spherical and cylindrical surfaces, and an explicit cylinder-face line-axis purpose control. The axis case is not a sixth symmetry family. Together with earlier point repair, these cases exercise the five supported entity families; they do not establish arbitrary correspondence or every repair configuration. The increment remains local and unpublished.
+
+Windows x64 validation produced:
+
+| Command/check | Actual result |
+| --- | --- |
+| `npm test` | PASS, 7,142 unit/CAD cases in 265 files, 379.05-second unit phase, followed by 50 IPC/security checks; 381.3012167 seconds overall. |
+| `npm run build` | PASS, 3.8027202 seconds overall. Existing browser-externalization and chunk-size warnings remain. |
+| `npm run test:desktop` | PASS, production-loader smoke, 1.6149293 seconds. |
+| `npm run test:desktop:assembly-symmetry-line-repair` | PASS, 7.37 seconds; 96 recorded entries. |
+| `npm run test:desktop:assembly-symmetry-plane-repair` | PASS, 7.27 seconds; 96 recorded entries. |
+| `npm run test:desktop:assembly-symmetry-sphere-repair` | PASS, 11.28 seconds; 104 recorded entries. |
+| `npm run test:desktop:assembly-symmetry-cylinder-repair` | PASS, 7.37 seconds; 105 recorded entries. |
+| `npm run test:desktop:assembly-symmetry-axisline-repair` | PASS, 12.38 seconds; 132 recorded entries. |
+| `npm run test:desktop:assembly-symmetry-nested-selected` / `npm run test:desktop:assembly-symmetry-nested-source` | PASS, 9.77/9.00 seconds; 60/67 recorded entries. |
+
+All 763 source files and seven production output files remained unchanged through acceptance, verified at 00:07:43 UTC on October 22 before this documentation edit. All seven dedicated renderer runs observed child closure and temporary-profile deletion, without console or asset-request errors.
+
+The root and a second agent visually reviewed the 1544 by 941 axis-line capture. It shows the blue committed, reopened scene, three tree owners, two cylinders and a partly occluded mirror. No repair panel or pointer gesture is visible; it supplies no pointer-interaction proof.
+
+Entries include wait labels and structured records, not that many independent assertions. The five new workflows record 7/7/7/7/10 native report instances; the two nested regressions record fourteen each. Instances do not count every native query. Elapsed times are execution receipts, not performance benchmarks. CI adds fixed Linux and Windows/macOS command steps; configured CI is not executed macOS/Linux evidence.
+
+Each new assembly shares an entity prototype between source and target and keeps a separate, unchanged mirror prototype. Exactly two saved usages and two relation roles require repair. The native mirror face still receives fresh verification. Repairing only source records an actual reference rejection in these final runs; the workflow can distinguish that from a disabled source Resolve control. Replacement Resolve remains disabled while target repair is pending. Neither outcome grants Apply authority.
+
+Both source update and all-occurrence replacement retain ready-preview Cancel, distinct review/revision retry, authenticated Apply, exact Undo/Redo, owned Save As, exact reopening and fresh native verification cancelled afterward. Original inputs and committed saved bytes are checked. Line/plane cases use seven Open and three Save requests; radial cases use eight/three. The axis-purpose control additionally accepts and reopens a selected unequal-radius replacement before returning to the updated baseline and testing all-occurrence replacement: eleven Open/four Save requests.
+
+Selected source replacement leaves sphere/cylinder radii 4/3 mm, independently measuring target-minus-source radius -1 mm. The actual response is generic numeric rejection with `invalidInput` and no capability. This is not a detailed diagnostic proving the complete causal path. Fresh all-occurrence replacement gives radii 4/4 and succeeds. Face-axis line purpose accepts unequal material radii and reports no radius condition.
+
+Independent analytic volume, area and actual-pose finite bounds check prisms, full-revolution spheres and extruded cylinders. Reflection, transverse line distance, plane normal distance, physical angle and radius checks verify selected supports. Requested bands remain 1e-6 mm and 1e-8 rad; material comparisons use their declared per-body and total bands. No unique free translation/quaternion, finite contact, or metrological uncertainty guarantee is asserted.
+
+The first complete run passed 7,140 cases but two existing nested cases exceeded their five-second defaults. The unchanged focused pair passed. Their explicit per-test budget is now fifteen seconds; assertions, tolerances and production behavior were not changed. The final complete run passes both. This timing accommodation is recorded rather than described as a production geometry fix.
+
+Broader other-family nested repair, mirror-changing scenarios, general naming/correspondence, datums and contact retain separate requirements. These dropdown workflows provide no viewport-repair gesture evidence or universal platform claim.
+
+
+## Reused nested point-symmetry repair — 2026-10-22
+
+Checked source `84a1ee778a32a1051b80efed4247edbc73c1d689` on local
+`codex/assembly-symmetry-nested-repair` follows `bd86ac5`. This increment
+adds three original fixtures, a native selected-clone regression and two
+production-renderer acceptance workflows. It changes no production CAD, solver,
+saved-document or editor implementation. Windows x64 produced:
+
+| Command/check | Actual result |
+| --- | --- |
+| `npm test` | PASS, 7,142 unit/CAD cases in 265 files, 329.43-second unit phase, then 50 IPC/security checks with zero failures; 331.59 seconds overall. Two new native cases separate selected-clone geometry/isolation from rejected-decision/token lifecycle. |
+| `npm run build` | PASS, TypeScript/Vite, 2043 modules, 3.36 seconds overall. Existing browser externalization and chunk-size warnings remain. |
+| `npm run test:desktop` | PASS, real production-loader smoke, 1.70 seconds. |
+| `npm run test:desktop:assembly-symmetry-nested-selected` with `SOLIDFLOW_UI_CAPTURE=1` | PASS, 11.44 seconds, 60 recorded entries: 58 wait labels and two structured records, not 60 independent assertions. |
+| `npm run test:desktop:assembly-symmetry-nested-source` | PASS, 8.44 seconds, 67 recorded entries: 65 wait labels and two structured records. |
+| `npm run test:desktop:assembly-symmetry-repair` | PASS, existing root-owner point repair, 105 recorded entries, 6.80 seconds. |
+| `npm run test:desktop:assembly-replacement` | PASS, existing selected/all replacement, 86 recorded entries, 7.95 seconds. |
+| `npm run test:desktop:assembly` | PASS, existing general assembly regression, 526 recorded entries, 118.27 seconds. |
+
+All 737 tracked files and 7 production output files remained unchanged
+through acceptance, verified at 23:28:49 UTC on October 21 before these
+documentation edits. All five dedicated renderer runs observed child closure
+and temporary-profile deletion, with no console or asset-request errors.
+Final renderer runs followed the complete unit suite; these elapsed times are
+execution receipts, not performance benchmarks. Configured Linux/macOS CI has
+not been executed here.
+
+The [original nested fixtures](PROVENANCE.md#original-reused-nested-point-symmetry-repair-fixtures)
+use one part through two reused assembly ancestors. Two root expansions are
+active and a third starts suppressed. The inner frame has a literal 90-degree
+Z rotation and translation `(3,5,2) mm`; roots lie at X=-40,40,120 mm.
+Source/target material vertices and the native left planar mirror face are
+chosen from actual current catalogs. The saved point declaration belongs once
+to the shared inner scope with relative role paths, not to a fake root mate.
+
+Selected replacement addresses `left/inner/source`. Both reviews produce
+exactly two same-ID ancestor revision forks, one changed leaf and one pending
+source role in the cloned inner scope. Target and mirror references retain
+their purpose and require fresh native verification. The right/sleeping root
+references and original shared ancestor declarations remain exact. A pending
+source keeps the replacement Resolve control disabled. After explicit repair,
+the ready preview is cancelled, saved baseline bytes remain exact, and a fresh
+review ID precedes repair and authenticated Apply. The independent native test
+also rejects original-scope, foreign-owner and old-part revision decisions,
+checks that failed preview revokes a prior candidate, retries successfully and
+rejects token reuse. Its session releases owned candidates in a finally block.
+
+Shared-source update affects three saved part-use declarations and repairs
+source, target and mirror once in their shared inner scope. Six active leaves
+and nine eventual leaves are not additional saved uses. No ancestor is forked.
+Repairing only source and target issues an actual request, and the worker
+rejects it as a reference failure without a capability; this is not reported
+as a disabled-button result. Repairing the mirror yields a verified preview
+that is cancelled. The retry uses a distinct revision and excludes the old
+source choice before all three repairs and actual Apply.
+
+Each workflow performs three Apply operations: authoring, replacement/update
+and the verified solve after reactivation. One operation Undo/Redo pair checks
+exact complete documents. The third copy is reactivated through the actual
+suppression control as a separate document transaction. It retains original
+geometry after selected replacement and updated geometry after shared update.
+Each case uses five Open and three Save As requests through test-owned paths;
+the operation and reactivated documents reopen exactly, receive fresh native
+verification and cancel that verification. The initial saved baseline remains
+checked after cancellation but is not separately reopened. Original fixture
+bytes remain unchanged. No native key, repair response or geometry is injected.
+
+Independent reflection uses `(x,y,z)->(T+3-y,5+x,2+z)` and local mirror X=0.
+The left selected target point is `(-43,11,6) mm` at baseline,
+`(-43,7,10) mm` after selected replacement and `(-43,9,8) mm` after shared
+update. The unselected right point stays `(37,11,6) mm` in the selected case;
+the reactivated point is `(117,11,6) mm` or `(117,9,8) mm` respectively.
+Native vertices, not component origins or mesh points, supply measured values.
+Proper quaternion composition, four basis points and all eight transformed
+prism corners independently check current world poses and finite bounds.
+The free targets have no prescribed complete translation or quaternion.
+
+Six active solids have baseline volume/area 576 mm³/768 mm², selected-case
+864 mm³/960 mm² or shared-case 1296 mm³/1296 mm². Reactivation gives nine
+solids: 1152 mm³/1344 mm² or 1944 mm³/1944 mm². The selected case has two
+prototypes; the shared case has one. Selected-point and per-body property/bound
+comparisons use `1e-6` in their stated units, totals `1e-5`; proper rotations
+and pose-chain basis checks have their own `1e-10` bands. These checks prove
+support reflection/material reconstruction, not finite contact or clearance.
+
+The selected/shared receipts record 13/14 phases and 14 native report instances
+each. All 28 recorded instances are admitted and satisfied. Maximum position
+defects are `2.023899e-10 mm` and `4.710654e-9 mm`; estimated position
+uncertainty maxima are `4.001237e-7 mm` and `4.001239e-7 mm`. The unchanged
+requested position band is `1e-6 mm`. Point angle/radius fields remain null;
+this supplies no angular measurement. Fresh reports retain all three fully
+scoped owner paths and one report per active expansion, including the newly
+reactivated copy. These are recorded report instances, not all native queries.
+Apply consumes its private verified candidate without rerunning independent
+symmetry measurement; metadata and copied reports grant no authority.
+
+The one hidden 1544 by 941 capture was visually reviewed. It shows three active
+groups, the larger replaced source in the left group and its forked tree
+revisions in the blue workspace. It shows the clean committed scene after
+reopening, with ordinary utility controls; no active repair panel or pointer
+gesture is visible. Interaction evidence comes from the actual scripted
+controls. Initial development preflights passed in 8.92 and 8.40 seconds without
+capture. The first full unit run passed 7,140 cases but its one new combined
+case reached the unchanged five-second default timeout, reporting 6.10 seconds.
+The final test file separates independent geometry/isolation and transactional
+authority contracts, each with its own fresh native fixture and session. One
+fresh snapshot per document resolves both target oracles instead of duplicating
+reconstruction; all original checks remain. A refactor preflight also exposed
+an extra test assumption that Apply preserves the exact timestamp. Apply owns
+updatedAt; the final check requires a valid timestamp and exact remaining
+payload. No production failure was inferred from that assertion. The two final
+focused cases passed in 4.72 seconds overall before this frozen-source run.
+No test deadline, worker policy, tolerance or production geometry was changed.
+
+This closes two specified point-family workflows with two reused ancestors and
+one suppressed-copy reactivation. It does not establish other-family repair,
+arbitrary nesting/configurations, nested viewport selection, general naming or
+datums, correspondence, contact paths, human dialogs or platform support.
+The increment is local and unpublished. Other symmetry requirements, all
+remaining Width/assembly work and the complete demo remain open.
+
+## Symmetry viewport reference selection — 2026-10-22
+
+Checked source `35e9cc19ba358821e92aad7594cc3d2a387618ba` on local
+`codex/assembly-symmetry-viewport-selection` follows `016a85e`. This increment
+adds role-specific selection in the model for all five symmetry families and
+explicit cylinder-face line-axis purpose, plus conservative material-vertex
+display picking. It changes editor/viewport intent, not saved syntax, solver
+bands or native/Apply authority. Windows x64 produced:
+
+| Command/check | Actual result |
+| --- | --- |
+| `npm test` | PASS, 7,140 unit/CAD cases in 264 files, 344.24-second unit phase, then 50 IPC/security checks with zero failures; 347.35 seconds overall. This increment adds 25 cases in two files: 17 display-vertex and eight symmetry-selection cases. |
+| `npm run build` | PASS, TypeScript/Vite, 2,043 modules, 4.15 seconds overall. Existing browser externalization and chunk-size warnings remain. |
+| `npm run test:desktop` | PASS, real production-loader smoke, 19.61 seconds. |
+| `npm run test:desktop:assembly-symmetry-picking` with `SOLIDFLOW_UI_CAPTURE=1` | PASS, six original cases, 24 actual pointer hits, 122.57 seconds; 229 recorded entries: 227 wait labels and two structured records, not 229 independent assertions. |
+| `npm run test:desktop:assembly-symmetry-repair` | PASS, existing root-owner point repair workflow, 105 recorded entries, 37.03 seconds. |
+| `npm run test:desktop:assembly-symmetry` | PASS, existing five-family dropdown author/edit/history/reopen, 172 recorded entries and 40 admitted native report instances, 62.99 seconds. |
+| `npm run test:desktop:assembly-width` | PASS, existing Width regression, 80 recorded entries and five actual face-pointer selections, 23.54 seconds. |
+| `npm run test:desktop:assembly-rack-pinion` | PASS, existing rack/pinion regression, 149 recorded entries, 38.04 seconds. |
+| `npm run test:desktop:assembly` | PASS, existing general assembly regression, 526 recorded entries, 119.25 seconds. |
+
+All 728 tracked files and 7 production output files remained unchanged
+through acceptance, verified at 23:02:20 UTC on October 21 before these
+documentation edits. All six dedicated renderer runs observed child closure
+and temporary-profile deletion, with no console or asset-request errors.
+Some regression runs overlapped unit execution; elapsed times are execution
+receipts, not performance benchmarks. Configured Linux/macOS CI has not been
+executed here, and no platform/package claim follows from these Windows runs.
+
+The [original six-case fixture](PROVENANCE.md#original-symmetry-viewport-selection-fixture)
+contains 18 solids and three prototypes: 12 prisms, two spheres and four
+cylinders. Independent total volume is `1152+256*pi/3 mm³`; area is
+`1536+128*pi mm²`. Every mirror is a real native planar face at world
+`x=4 mm`, giving literal reflection `x'=8-x`. Prism corners, native
+sphere/cylinder supports, proper rotations and analytic bounds provide
+independent material checks; full free target poses are not prescribed.
+Support reflection does not establish whole-component mirroring or contact.
+
+The actual hidden production canvas receives 18 author-role pointer selections
+and six fixed-source reselections while editing. The six cases are point,
+LINE edge, plane, sphere, cylinder surface and explicit cylinder-face line axis.
+The last is saved as line purpose, with no radius constraint. Each hit checks
+the exact current native dropdown reference, preserves the other roles and
+committed recovery, completes the armed role, and issues no CAD request itself.
+Literal isometric projection uses actual viewport size and scene bounds; it
+does not call the production picking helper, inspect a solved pose for screen
+calibration, or inject a reference/worker response. Explicit role cancellation
+and arming while component drag is active check mutually exclusive intent.
+
+All six author proposals reach a verified preview and actual authenticated
+Apply, followed by six Undo/Redo pairs. Each edit reselects the same source,
+changes a name, verifies its proposal and cancels it. Seven Open and six Save As
+requests use test-owned dialog paths. Every saved reopening retains exact
+three-role intent and undergoes fresh native verification that is cancelled.
+Original and saved bytes remain checked. The two recorded native phases per
+case contain 42 report instances, all admitted and satisfied; this is not a
+count of every native query made during editing.
+
+Maximum recorded position defect is `8.961836e-7 mm`, angle
+`1.662501e-9 rad`, and radius difference zero. Separate estimated uncertainty
+maxima are `4.000499e-7 mm` for position, `2.557954e-13 rad` for angle and
+`2.000003e-7 mm` for radius. Requested bands remain `1e-6 mm` and
+`1e-8 rad`; neither uncertainty nor display slack widens them. Apply commits
+its private verified candidate and does not independently rerun symmetry
+measurement. First-order estimates are not physical angular metrology.
+
+The 25 new unit cases check F64 camera projection and clip rejection, CSS-pixel
+selection/ties, current full identities, poisoned duplicate rejection,
+occlusion and marker-resource release, and document/scope/generation/role
+ticket invalidation. They also reproduce a real property-order bug: equivalent
+face references were incorrectly treated as retained choices by raw JSON
+string comparison. Complete semantic reference equality fixes that mismatch
+without relaxing kind, purpose, owner, revision, body, producer or locator.
+These unit cases are display/intent evidence, not native proof or actual
+nested-pointer race acceptance.
+
+The one hidden 1544 by 941 capture is pixel-identical to the reviewed successful
+preflight capture. It shows all six groups, highlighted cylinder/mirror faces,
+the blue workspace and current cylinder editor in a clean committed scene.
+It does not show a live verified preview or a point-marker interaction.
+Actual pointer evidence comes from the flow's recorded input and exact checks.
+
+Development preflights first exposed omitted pointer-scenario admission, then
+the semantic reference-order bug. A third completed the five families and 22
+hits before the unchanged 170-second child deadline in the sixth case. The
+flow now uses the same two camera animation frames as the existing Width case
+and takes diagnostic state immediately instead of waiting two extra frames.
+Final observed camera barriers are 1,194–1,994 ms and complete hit cycles
+2,250–3,292 ms. All 24 hits, six complete lifecycles, geometric checks and
+180/170/35-second deadlines remain. The corrected preflight passed in 124.17
+seconds before the frozen-source acceptance above; no solver tolerance changed.
+
+This closes six specified isometric root-scope picking cases. Display mesh
+occlusion remains approximate: coarse/large-coordinate tessellation or meshes
+before the camera near plane may conservatively hide a drawable native point.
+It is not native visibility. Perspective unit geometry is not a new product
+camera mode, and the 65,536-entry bound is not a responsiveness benchmark.
+Actual nested/suppressed picking, other-family and nested repair, broader
+datum/reference producers, general persistent naming and symmetry contact
+remain open. This increment is local and unpublished. Remaining Width/full
+assemblies, cross-platform validation and the complete demo remain pending.
+
+## Material-point symmetry source and replacement repair — 2026-10-22
+
+Checked source `b9aa23d9c842ae285dc10d456100037f0e22d0ea` on local
+`codex/assembly-symmetry-repair-ui` follows `af96d8a`. This increment adds
+three original fixtures and a dedicated production-renderer acceptance case;
+it changes no production CAD implementation or unit-test cases. It exercises
+the existing material-point repair controls with three actual root owners.
+Windows x64, Node 24.11.1 and npm 11.6.2 produced:
+
+| Command/check | Actual result |
+| --- | --- |
+| `npm test` | PASS, unchanged 7,115 unit/CAD cases in 262 files, 339.65-second unit phase, then 50 IPC/security checks with zero failures; 342.79 seconds overall. |
+| `npm run build` | PASS, TypeScript/Vite, 2,041 modules, 68.38 seconds overall. Existing browser externalization and chunk-size warnings remain. Concurrent unit execution makes this timing unsuitable as a performance benchmark. |
+| `npm run test:desktop` | PASS, real production-loader smoke, 24.65 seconds. |
+| `npm run test:desktop:assembly-symmetry-repair` with `SOLIDFLOW_UI_CAPTURE=1` | PASS, 9.59 seconds, 105 recorded entries: 103 wait labels and two structured records, not 105 independent assertions. |
+| `npm run test:desktop:assembly-symmetry` | PASS, existing five-family author/edit/history/reopen regression, 172 recorded entries and 40 admitted native report instances, 47.22 seconds; no capture. |
+| `npm run test:desktop:assembly-replacement` | PASS, existing selected/all replacement regression, 86 recorded entries, 8.70 seconds. |
+
+All 721 tracked files and seven production output files remained unchanged
+through acceptance, verified at 22:25:08 UTC on October 21 before these
+documentation edits. All three dedicated renderer runs observed child closure
+and temporary-profile deletion, with no renderer console or asset-request
+errors. The configured Linux/macOS CI commands have not been executed here.
+The earlier general assembly and Width results remain tied to their own source
+in the preceding [saved/native symmetry record](#saved-native-three-reference-symmetry--2026-10-22).
+
+The [original point-repair fixture](PROVENANCE.md#original-desktop-point-symmetry-repair-fixture)
+uses three occurrences of one 4 by 6 by 4 mm prism. Its selected material
+source and target vertices and native planar mirror face all require explicit
+repair when the common source changes. The changed source is 6 by 6 by 6 mm;
+the all-occurrence replacement is a separate 8 by 6 by 8 mm part. Independent
+total volumes are 288, 648 and 1152 mm³; areas are 384, 648 and 960 mm².
+Fresh native scenes check three solids, per-body properties and finite bounds
+from all eight corners transformed by the actual proper pose. Source and mirror
+poses stay exact. The selected target point is checked against literal reflected
+world positions `(6,6,4)`, `(4,6,6)` and `(2,6,8) mm`; its full translation and
+free rotation are not prescribed. Bounds and support checks imply no collision
+or finite-contact guarantee.
+
+The executed flow records 22 phases. It authors one point mate, applies it and
+saves a baseline. Both source-update reviews and both all-replacement reviews
+expose exactly three pending roles: source vertex, target vertex and mirror
+face. With only the vertices repaired, source update allows a solve request
+and the actual worker rejects it as a reference failure without a capability.
+Replacement instead leaves Resolve disabled until the mirror is repaired.
+These are distinct checks, not two reported worker rejections.
+
+Each operation reaches a ready preview, cancels it, starts a fresh review and
+explicitly repairs all three roles again. The script checks a distinct source
+revision or replacement review ID after retry and excludes an old source choice;
+the compact phase receipt retains document hashes and role status rather than
+the raw review IDs. Actual Apply preserves its authenticated candidate. Three
+Apply operations include authoring, then two Undo/Redo pairs verify exact
+before/after documents. Eight Open and three Save As requests complete through
+test-owned dialog paths. Three saved reopenings retain exact intent, and two
+fresh native verifications are cancelled. Four preview cancellations preserve
+the committed document and original/saved bytes remain checked.
+
+All seven recorded native point reports are admitted and satisfied. Maximum
+position defect is `2.173461e-7 mm`; maximum estimated position uncertainty is
+`4.000059e-7 mm`, within the unchanged requested `1e-6 mm` band. Uncertainty
+does not widen that band. The one hidden 1544 by 941 capture was visually
+reviewed: it shows the final committed three-body scene, the target's permitted
+rotation and the blue workspace after replacement/reopening. Interaction
+evidence comes from the actual scripted controls; this final capture does not
+show an active repair panel. The same case first passed a development preflight
+in 8.43 seconds. No test deadline, solver tolerance or production geometry was
+changed to obtain the final result.
+
+This closes one point-family, three-root-owner repair workflow. Other-family,
+nested/suppressed and broader replacement interaction remain separate acceptance
+work, as do viewport vertex picking, general persistent naming/datums and
+symmetry translation-until-contact. Local results establish neither human file
+dialogs nor Linux/macOS support. This increment is unpublished. Full symmetry,
+remaining Width/assemblies and the complete assembly demo remain open.
+
+## Saved native three-reference symmetry — 2026-10-22
+
+Checked source `8dad94313406859fb7c581cc540668dcc682d91b` on local
+`codex/assembly-symmetry-native-documents` follows `dad11a3`. The feature commit
+`8e86075` adds saved three-role symmetry, native solve/projection integration,
+explicit uncertainty, exact repair and dropdown editing for point, line, plane,
+sphere and cylinder supports. The final source also corrects optional capture
+admission in the test harness. Windows x64, Node 24.11.1 and npm 11.6.2 produced:
+
+| Command/check | Actual result |
+| --- | --- |
+| `npm test` | PASS, 7,115 unit/CAD cases in 262 files, 371.38-second unit phase, then 50 IPC/security checks with zero failures; 373.83 seconds overall. This increment adds 118 cases: 112 in seven new files and six in two existing component files. |
+| `npm run build` | PASS, TypeScript/Vite, 2,041 modules, 3.57 seconds overall. Existing browser externalization and chunk-size warnings remain. |
+| `npm run test:desktop` | PASS, real production-loader smoke, 1.56 seconds. |
+| `npm run test:desktop:assembly-symmetry` with `SOLIDFLOW_UI_CAPTURE=1` | PASS, five native support families, 51.98 seconds; 173 recorded entries including 171 wait labels and two structured records, not 173 independent assertions. |
+| `npm run test:desktop:assembly` | PASS, existing general assembly regression, 526 recorded entries, 139.53 seconds. |
+| `npm run test:desktop:assembly-width` | PASS, existing Width regression, 80 recorded entries and five actual face-pointer selections, 45.53 seconds. |
+| `npm run test:desktop:assembly-replacement` | PASS, existing selected/all replacement regression, 86 recorded entries, 30.81 seconds. This case does not exercise the new point-repair editor. |
+
+All 716 tracked files and seven production output files remained unchanged
+through acceptance, verified at 22:11:52 UTC on October 21 before these
+documentation edits. The four dedicated renderer runs observed child closure
+and temporary-profile deletion, with no renderer console or asset-request
+errors. The production-loader smoke and configured CI are separate evidence;
+these are local Windows results, not hosted or other-platform passes.
+
+The [original fixtures and independent oracles](PROVENANCE.md#original-savednative-symmetry-integration-cases)
+cover strict saved syntax, all three endpoint roles, explicit uncertainty,
+native repair, optional vertex metadata, actual native solving and UI intent.
+Native tests exercise five initially offset families, three moving owners,
+repeated owners, mirror-only movement, an explicit fixed-scope mirror, a proper
+nested frame and cylinder-derived line-axis purpose. Independent world support
+reflection, projection, `atan2` and radius differences are checked separately
+from the numerical evaluator. Fresh scenes check valid native solids and
+analytic volumes. Radius mismatch, cancelled original placement chains, later
+native-query failure, tampered DTOs, strict movement versus local projection,
+Cancel/Apply and programmatic history/reopening retain their own assertions.
+
+The new renderer case uses 15 original occurrences and three prototypes. It
+authors each family through three current dropdown references and performs
+five Apply, five Undo and five Redo operations. Editing removes/reselects a
+role, changes a name, and cancels the proposal; three directional branch edits
+also produce verified ready proposals that are cancelled. Thirteen preview
+cancellations preserve the committed document. Six Open and five Save As
+operations complete through test-owned dialog paths, with fresh native
+verification after each saved reopening. All 40 recorded native report instances
+are admitted and satisfied: maximum position defect `1.997603e-7 mm`, maximum
+angle `1.224702e-16 rad`, and radius difference zero. Requested bands remain
+`1e-6 mm` and `1e-8 rad`; support uncertainty does not enlarge them.
+
+The renderer independently checks total volume `1056+160*pi/3 mm³`, area
+`1408+80*pi mm²`, 15 solids and finite per-body bounds. Fixed/nonparticipating
+poses remain exact. Free target rotations are proper, but are not required to
+stay at identity; rotated prism corners and analytic sphere/cylinder extents
+provide the material bounds. The one hidden 1544 by 941 capture was visually
+reviewed: the five groups, blue workspace, relation list and three-role cylinder
+editor are visible. It shows a clean committed scene during editing, not a live
+verified preview, and supplies no additional geometry or pointer-picking proof.
+
+During development, an overly loose triangle bound rejected directional native
+cases at the unchanged default bands. Reflection and orthogonal projectors have
+operator norm one for point error; structured bounds and independent perturbation
+tests corrected this without changing tolerances or solver budgets. An explicit
+face-axis line also drops irrelevant cylinder-radius uncertainty. A proposed
+extreme-radius native fixture exceeded existing parser limits and was removed;
+it supplies no native extreme-radius evidence. Initial test-only failures passed
+a whole mate into strict selection syntax, assumed an internal preview scene,
+or counted engine-reset disposal; those harness assumptions were corrected.
+
+The first Electron preflight reached its unchanged 180-second deadline because
+the entrypoint did not start its workflow; splitting entry and factory fixed
+startup. The next incorrectly required a free point owner's rotation to remain
+identity. Independent support and rotated-solid checks replaced that assertion
+without changing production geometry or tolerances. A later capture-enabled run
+completed the operations but failed because the child capture helper omitted
+the scenario. The final source fixes that admission and reruns all checks above;
+deadlines remain 180/170/35 seconds. An earlier full suite also passed, but only
+the final source and integrity checks above support this acceptance record.
+
+Native source/replacement repair and helper/SSR candidate tests are distinct
+from Electron symmetry-repair interaction, which remains pending. Dropdowns do
+not establish viewport vertex picking, general persistent naming/datums or all
+eligible configurations. Apply consumes a private single-use capability for the
+exact base and commits the verified candidate; it does not rerun independent
+symmetry measurement. First-order uncertainty is not angular metrology or a
+formal interval certificate. Symmetry translation-until-contact still rejects
+pending its own path proof. This increment is local and unpublished; full
+symmetry acceptance, remaining Width/assemblies, platform validation and the
+complete assembly demo remain open.
+
+## Independent native symmetry measurement — 2026-10-21
+
+Checked source `b6e216d05b080e6f8e4889149e292854ddacf223` on local
+`codex/assembly-native-symmetry-measurement` follows `19c9cc5`. It adds
+strict standalone three-role selection syntax and independent read-only native
+measurement for point, line, plane, sphere and cylinder symmetry. It does not
+add a saved symmetry mate, solver adapter or application command. Windows x64,
+Node 24.11.1 and npm 11.6.2 produced:
+
+| Command/check | Actual result |
+| --- | --- |
+| Final focused measurement/reference regression group | PASS, 82 cases in five files, 2.13 seconds. |
+| `npm test` | PASS, 6,997 unit/CAD cases in 255 files, 385.00-second unit phase, followed by 50 IPC/security checks with zero failures; 387.43 seconds overall. This increment adds 53 cases in three files: nine selection-syntax, 15 physical-measurement and 29 native integration cases. |
+| `npm run build` | PASS, TypeScript/Vite, 2,039 modules, 4.89 seconds overall. Existing externalization/chunk-size warnings remain. |
+| `npm run test:desktop` | PASS, real production-loader smoke, 9.86 seconds. |
+| `npm run test:desktop:assembly` | PASS, existing assembly regression, 526 recorded checks, 171.35 seconds. |
+| `npm run test:desktop:assembly-width` | PASS, existing Width regression, 80 recorded checks and five actual pointer selections, 24.56 seconds; zero captures. |
+
+All 704 tracked files and seven production output files remained unchanged
+through acceptance, verified at 20:25:21 UTC before these documentation edits.
+Both dedicated renderer runs closed their child process and deleted their
+temporary document. They exercise existing assembly and Width workflows and
+provide no symmetry editor, picking or history interaction evidence.
+
+The [original measurement oracles](PROVENANCE.md#original-native-symmetry-measurement-cases)
+use a rational oblique mirror, literal reflection matrix and independent
+physical projections/angles. Native cases observe actual box vertices and LINE
+edges, opposite planar faces, revolved sphere surfaces and cylinder surfaces
+about a third actual owner's plane. Explicit cylinder-derived line-axis purpose
+stays separate from full cylindrical-surface purpose. The default comparison
+bands are `1e-6 mm` and `1e-8 rad`; native literal measurements are checked
+within `1e-9` in their physical units. Radius-2 to radius-3 surfaces report a
+signed +1 mm difference. Separate cases check a one-mm position defect,
+15-degree cylinder tilt and a coaxial opposed pi branch.
+
+All five families retain shared source/target owner identity; other cases retain
+actual nested scope paths, exact legacy versus explicit bodies and current
+document/source identity. Two measurements perform four fresh point queries and
+two fresh mirror queries. Reports remain detached metadata: neither a copied
+report nor valid selection syntax supplies private live snapshot or Apply
+authority. A later native-query failure, release failure or reentrant disposal
+cannot publish a partial report and closes the measurement snapshot. Invalid
+policy/scope accessors reject before native observation, preserving the existing
+input guards.
+
+Original placement-chain magnitudes remain part of error admission after
+composition, including cancelled source and rotated mirror chains. A finite
+`+/-1e308 mm` pose chain whose accumulated magnitude overflows returns
+`precisionLimit` while leaving its native geometry/session usable. Subnormal
+and finite-overflow physical cases also reject unsupported precision. Linear
+native support tolerance and mirror lever-arm/projection effects enter explicit
+first-order uncertainty estimates; those estimates never enlarge the requested
+comparison bands. They establish neither measured physical angular metrology
+nor a formal worst-case error certificate.
+
+This local, unpublished prerequisite supplies independent read-only native
+measurement for all five purposes and three roles. Its support-only report
+establishes neither a whole-component mirror nor finite contact. Saved
+declarations and solver integration, repair/replacement, editor selection, preview/Apply/Cancel,
+history/reopening and complete application acceptance remain required. No
+symmetry UI or full assembly requirement is completed by the renderer
+regressions above. Remaining Width, complete assemblies, hosted CI and other
+platforms remain pending; the full assembly demo gate stays closed.
+
+## Native vertex reference prerequisite — 2026-10-21
+
+Checked source `de852009641ce12c73192f5c02fb1c0fca5cea5d` on local
+`codex/assembly-native-vertex-references` follows `c870ac2`. It adds
+conservative native vertex-incidence references, fresh point/tolerance queries,
+standalone strict reference parsing and separate snapshot-issued point proof.
+It adds no saved point/symmetry mate, vertex-selection UI or editor command.
+Windows x64, Node 24.11.1 and npm 11.6.2 produced:
+
+| Command/check | Actual result |
+| --- | --- |
+| Final focused native/reference regression group | PASS, 62 cases in eight files, 3.38 seconds. |
+| `npm test` | PASS, 6,944 unit/CAD cases in 252 files, 375.10-second unit phase, followed by 50 IPC/security checks with zero failures; 377.52 seconds overall. This increment adds 38 cases in six new files. |
+| `npm run build` | PASS, TypeScript/Vite, 2,039 modules, 5.12 seconds overall. Existing externalization/chunk-size warnings remain. |
+| `npm run test:desktop` | PASS, real production-loader smoke, 11.88 seconds. |
+| `npm run test:desktop:assembly` | PASS, existing assembly regression, 526 recorded checks, 162.27 seconds. |
+| `npm run test:desktop:assembly-width` | PASS, existing Width regression, 80 recorded checks and five actual pointer hits, 24.61 seconds; no captures. |
+
+All 697 tracked files and seven production output files remained unchanged
+through acceptance, verified at 20:04:51 UTC before these documentation edits.
+Both dedicated renderer runs closed their child process and deleted their
+temporary document. These existing workflows supply regression evidence;
+they establish no viewport vertex selection, saved point mate or symmetry UI.
+
+The [original fixtures](PROVENANCE.md#original-native-vertex-reference-cases)
+include a 4 by 6 by 4 mm prism with eight native vertices, volume 96 mm³,
+area 128 mm² and independently enumerated corners. Exact current primary
+face/edge incidence, native membership and unique correspondence determine
+vertex eligibility; coordinates and display meshes do not resolve ambiguity.
+Reordered catalogs, one original dimension edit, foreign/incomplete catalogs,
+closed/degenerate seam restrictions and release failures are checked. The
+dimension-edit case is conditional conservative correspondence, not general
+persistent vertex naming or a new semantic vertex-v2 producer.
+
+Legacy and explicit-body engine/snapshot cases retain source identity,
+occurrence paths, proper nested/reused placements, fresh native point/tolerance
+queries and private live-document-bound proof. Copied, foreign, stale, disposed,
+wrong-purpose and reentrantly disposed point authority reject. Cardinality
+injection admits exactly 65536 prototype vertex references and rejects 65537
+before snapshot publication, then checks that native inspection is unavailable
+after cleanup. It does not construct 65536 independent native vertices or
+benchmark assembly capacity.
+
+During development, the existing reference regression initially passed 12 of
+14 cases; a combined budget error message broke two existing assertions.
+The original body/face/edge condition and message were restored, with a separate
+vertex-budget check; the tests were not relaxed. An additional capacity
+correction keeps a valid original 256-sided prism, with 258 faces and 512
+vertices, usable: after native membership checks the optional vertex catalog
+records unresolved vertices without selectable entries rather than failing the
+body for exceeding its 256-face capability bound. Native membership/query/release
+failures still fail.
+
+The [contract](ASSEMBLY_VERTEX_REFERENCES.md) separates material vertices from
+explicit datum points, sphere centres and directional supports. Native point
+proof does not extend the old mate witness union. Saved symmetry's five-family
+declarations, independent physical verification and uncertainty propagation,
+point picking, editor/history, source repair/replacement and application
+acceptance remain required. This increment is local and unpublished. Full
+symmetry, remaining Width and assembly requirements, hosted CI and other
+platforms remain pending; the complete assembly demo gate stays closed.
+
+## Numerical three-owner symmetry solver — 2026-10-21
+
+Checked source `c5185580fd6a4d7d221cc7b61330038a06f9df0e` on local
+`codex/assembly-symmetry-solver` follows `a0c415e`. It integrates numerical
+point, line, plane, sphere and cylinder symmetry with three original endpoint
+roles, simultaneous solving, physical checks and local target projection.
+It adds no native reference, saved mate, serialization or editor command.
+Windows x64, Node 24.11.1 and npm 11.6.2 produced:
+
+| Command/check | Actual result |
+| --- | --- |
+| Final focused numerical regression group | PASS, 776 cases in six files, 1.38 seconds. |
+| `npm test` | PASS, 6,906 unit/CAD cases in 246 files, 366.69-second unit phase, followed by 50 IPC/security checks; 369.03 seconds overall. This increment adds 31 cases. |
+| `npm run build` | PASS, TypeScript/Vite, 2,038 modules, 8.42 seconds overall. Existing externalization/chunk-size warnings remain. |
+| `npm run test:desktop` | PASS, real production-loader smoke, 24.71 seconds. |
+| `npm run test:desktop:assembly` | PASS, existing assembly renderer regression, 526 recorded checks, 171.19 seconds. |
+| `npm run test:desktop:assembly-width` | PASS, existing Width renderer regression, 80 recorded checks and five actual viewport hits, 25.10 seconds; no capture in this run. |
+
+All 688 tracked files and seven production output files remained unchanged
+through acceptance, verified before these documentation updates. This is a
+through-run integrity check, not a claim that the new outputs equal an earlier
+build. The renderer flows exercise existing assembly and Width behavior.
+They do not exercise symmetry in the editor, native supports or saved documents.
+
+The first development run passed 63 of 65 symmetry geometry/solver cases.
+Translated line and cylinder targets returned `rankUncertain`. The correction
+uses a constant target-local position projector and reflected-source normal
+chart, including all moving-frame and mirror derivatives. It changed neither
+SVD policy, thresholds, comparison bands nor the failing fixtures' tolerances.
+The same 65 cases then passed in two subsequent runs, including explicit
+repaired-rank and antipodal ownership checks. This failed development result
+is distinct from the final accepted source above.
+
+The [original numerical cases](PROVENANCE.md#original-numerical-symmetry-solver-cases)
+check all five families, three moving owners, shared/null/fixed ownership,
+mirror-only correction, six common gauge directions, exact antipodal seeds,
+physical angle/norm reports, local projection, distant conditioned offsets
+and atomic precision rejection. All free derivative columns use two actual
+left-retraction step sizes, `2e-6` and `7e-7`, with component error at most
+`7e-7*max(1,abs(finiteDifference))`. Checked regular examples have local rank
+3 for point/sphere/plane and 4 for line/cylinder; these are specific complete
+systems, not global rank or convergence guarantees.
+
+The [contract](ASSEMBLY_SYMMETRY_GEOMETRY.md#numerical-solver-integration)
+distinguishes geodesic radian rows from the mathematical normal chord,
+physical acceptance from component rows, and support comparison bands from
+propagated native uncertainty. Native point/vertex and other purpose-specific
+witnesses, strict three-role persistence, independent native verification,
+source repair/replacement, editor interaction and application lifecycle remain
+required. This increment is local and unpublished. Full symmetry, remaining
+Width acceptance, complete assemblies, hosted CI and other platforms remain
+pending; the full assembly demo gate stays closed.
+
+## Three-owner analytic symmetry geometry — 2026-10-21
+
+Checked source `0ca380f19fb987b36b66201ff5dd5c3c00b48534` on local
+`codex/assembly-symmetry-geometry` follows `5b880cb`. It adds original
+numerical reflection/comparison for point, line, plane, sphere and cylinder
+supports about a third plane, retaining three formal owner roles. It adds
+neither a saved mate nor native reference, solver or editor integration.
+Windows x64, Node 24.11.1 and npm 11.6.2 produced:
+
+| Command/check | Actual result |
+| --- | --- |
+| Development focused symmetry geometry file | PASS, 34 cases, 439 ms. |
+| `npm test` | PASS, 6,875 unit/CAD cases in 245 files, 355.61-second unit phase, followed by 50 IPC/security checks; 358.07 seconds overall. This increment adds 34 cases. |
+| `npm run build` | PASS, TypeScript/Vite, 2,038 modules, 6.55 seconds overall. Existing externalization/chunk-size warnings remain. |
+| `npm run test:desktop` | PASS, real production-loader smoke, 17.05 seconds while the full suite was active. |
+
+All 687 tracked files and seven production output files remained unchanged
+through acceptance. The seven production outputs are byte-identical to the
+prior Width viewport build: the new mathematical module is not yet connected
+to a production command. The smoke checks the existing loader, worker and
+initial model; it supplies no symmetry interaction evidence. Dedicated
+assembly renderer workflows were not rerun, and no new native geometry,
+solver, saved-document, pointer or platform result is claimed.
+
+The [original rational fixtures](PROVENANCE.md#original-numerical-symmetry-support-cases)
+use a literal reflection matrix and independent point, projection, chord and
+physical-angle values. Exact satisfied cases cover all five families, with
+different valid parameter points on matching lines/cylinders and planes.
+Already normalized inputs agree with world inputs at a nonunit scale;
+normalized small offsets remain separate from unrecoverable world rounding.
+Explicit branches report angles zero and pi without treating a normal chord
+as radians. Radius compatibility, admitted/excessive uncertainty and malformed
+or unrepresentable inputs retain distinct outcomes.
+
+For every family, actual left-retraction finite differences check all free
+columns at two step sizes across distinct source/target/mirror owners, shared
+source/target ownership, a fixed target and all roles sharing one owner. The
+oblique source frame moves with its owner. Literal source-frame defects,
+common rigid gauge away from the solution, mirror-normal reversal and
+tangential mirror reparameterization are checked. The derivative tolerance is
+`5e-7 * max(1, largest absolute finite-difference component)` at steps `2e-6`
+and `7e-7`; value, gauge and null-sum tolerances are recorded in provenance.
+
+These cases validate the numerical formulas and first-order derivative/error
+policy within the checked inputs. They do not certify global convergence,
+rank/DOF, native radius or reference identity, finite contact or metrology.
+The [contract](ASSEMBLY_SYMMETRY_GEOMETRY.md) retains complete native point,
+line/axis, plane, sphere and cylinder references, strict three-role persistence,
+all-owner solve/projection, independent physical verification, repair, editor
+interaction and lifecycle acceptance as required work. This increment is local
+and unpublished. Full symmetry, all remaining Width acceptance, complete
+assemblies, hosted CI and other platforms remain pending; the full assembly
+demo gate stays closed.
+
+## Centered-width viewport selection — 2026-10-21
+
+Checked source `d083c72a57c8751629988d5c45758c097b67f4ab` on local
+`codex/assembly-width-viewport-selection` follows `9e162b4`. It adds four
+role-specific model-picking controls, current-scene reference resolution,
+selection tickets and editing reselection. The saved format, CAD solver,
+native tolerances and worker authority are unchanged. Windows x64, Node
+24.11.1 and npm 11.6.2 produced:
+
+| Command/check | Actual result |
+| --- | --- |
+| Focused Width panel and assembly workspace files | PASS, 73 cases in two files, 1.26 seconds. |
+| `npm test` | PASS, 6,841 unit/CAD cases in 244 files, 359.02-second unit phase, followed by 50 IPC/security checks; 361.52 seconds overall. This increment adds 11 cases. |
+| `npm run build` | PASS, TypeScript/Vite, 2,038 modules, 6.74 seconds overall. Existing externalization/chunk-size warnings remain. |
+| `npm run test:desktop` | PASS, real production-loader smoke, 13.58 seconds while the full suite was active. |
+| `npm run test:desktop:assembly-width` | PASS, 50.74 seconds with a capture while the full suite and smoke were active; 80 recorded checks and five actual viewport face hits. |
+
+All 684 tracked files and seven production output files remained unchanged
+through acceptance. The test harness only admits Width to the existing
+hidden-window pointer helper and passes that helper to its fixed workflow.
+Its finite-coordinate/event/button checks, sandbox, preload, IPC permissions,
+background-throttling default and deadlines remain unchanged. The broader
+assembly renderer flow was not rerun for this increment.
+
+Eight new panel cases inspect controlled elements, SSR and callback routing;
+three workspace helper cases use symbolic scene DTOs. They distinguish a
+unique current visible plane from stale, hidden, ambiguous, wrongly purposed
+or out-of-scope entries, including reused definitions on distinct occurrence
+paths. These unit cases do not establish native geometry or actual pointer
+interaction.
+
+The separate renderer workflow uses four actual CDP mouse hits on visible
+positive-X faces of the [original prisms](PROVENANCE.md#original-centered-width-desktop-fixture).
+Their literal plane positions are `[-4,8,2,2] mm`; explicit sum/sum aligned
+branches give both bisectors X=2 mm. The tab supports coincide as infinite
+planes on distinct owners. Original local interior points, source poses and
+the ordinary isometric preset determine pixels independently; expected face
+identities are checked against the actual native scene. Each hit updates only
+its role, performs no worker operation and preserves committed recovery.
+Auto-advance completes all four roles. A fifth hit reselects the same tab face
+while editing and must close the armed picker, establishing more than an
+unchanged dropdown value. All four new picker buttons and the existing fields
+are checked disabled during current previews.
+
+Five distinct ready previews, contact-stop Cancel/Apply/Undo, two rejected
+edits, four ordered saved references and Save As/reopen remain verified. Both
+contact previews retain the prior literal gap `4-6f mm`, 33 distance queries
+and fraction `0.6666663983997173`; native bands remain separate from exact
+geometric contact. Two substituted Open choices and one Save complete three
+real file IPC calls. No console errors or failed requests were recorded;
+child close and temporary-profile removal were observed.
+
+Three earlier hidden-window camera-orbit preflights failed: two reached the
+existing child deadline and one exhausted the existing frame-step budget.
+They supply no orbit-assisted or mixed-sign pointer-selection evidence. The
+final case selects four directly visible faces; prior native and historical
+renderer difference/difference cases remain separate. The final 1544-by-941
+image shows all four selectors and disabled pick buttons, four separated
+prisms and highlighted positive-X faces after contact Undo and reopening.
+It captures an unapplied fresh preview at Z=8, not the stopped contact state;
+the native report lies below the viewport.
+
+This increment is local and unpublished. Arbitrary camera/geometry selection,
+finite tab eligibility, other Width modes, cylinder/axis behavior, hosted CI
+and other platforms remain unverified. The complete 32-question geometry/mode
+acceptance remains open. Full assembly acceptance is still required; the
+complete assembly demo gate remains closed.
+
+## Centered-width rectilinear contact-stop — 2026-10-21
+
+Runtime implementation `b60e3db3b4b1250e54e4f132dc002b8dd185fd14` admits
+centered four-plane Width in the existing constant-rotation translation-until-
+contact operation. Final checked source
+`4ca5503170b7303d767aa588d1e5ff2f1a7f720d` on local
+`codex/assembly-width-contact-translation` corrects only the contact fixture
+and its provenance afterward. It follows `49f4424`. Windows x64, Node 24.11.1
+and npm 11.6.2 produced:
+
+| Command/check | Actual result |
+| --- | --- |
+| Development focused Width and existing translation-preview files | PASS, 66 cases in five files, 11.45 seconds before the final fixture correction. These files are included in the final full suite. |
+| `npm test` | PASS, 6,830 unit/CAD cases in 244 files, 357.55-second unit phase, followed by 50 IPC/security checks; 359.96 seconds overall. This increment adds 13 cases. |
+| `npm run build` | PASS, TypeScript/Vite, 2,038 modules, 5.99 seconds. Existing externalization/chunk-size warnings remain. |
+| `npm run test:desktop` | PASS, real production-loader smoke, 16.25 seconds while the full suite was active. |
+| `npm run test:desktop:assembly-width` | PASS, 8.47 seconds; 72 recorded checks, five distinct ready preview serials including two contact previews, and the two existing rejected edits. |
+
+All 684 tracked files and seven production output files remained unchanged
+through acceptance. No privileged bridge, solver tolerance, tracer distance
+policy, query budget or deadline changed. The broader assembly renderer flow
+was not rerun; existing translation-preview regressions and the full unit
+suite remain separate from the extended Width renderer case.
+
+The [contract](ASSEMBLY_WIDTH.md#rectilinear-contact-stop) gives the explicit
+constant-rotation argument: selected normals stay constant and the actual
+anchored offset is affine. Native endpoint snapshots additionally authenticate
+all four original local supports, anchor points, tolerances and world rotations.
+Three controlled provider faults reject before tracing without publishing a
+capability. Two original numerical paths check a nonzero accepted normal
+defect and its changing anchor term, directly and under a rational common
+frame, at `1e-13/1e-12 mm` tolerances.
+
+The [native contact fixtures](PROVENANCE.md#original-centered-width-rectilinear-contact-stop-cases)
+check the literal gap `4-6f mm`, default and `.25 mm` clearance, a rational
+oblique frame, a clear destination, refusal and authenticated history/reopening.
+Rebuilt boxes retain valid BRep, one solid each, volume 96 and area 128.
+Actual D1 planes, literal transformed corners and reported native distance
+check the gap independently. The geometric contact reference uses `5e-6 mm`
+to include the numerical band; positions/bounds use `1e-6 mm`, metrics `1e-5`
+and native direction checks `1e-8`.
+
+The actual renderer requests absolute `(0,0,2) mm` from centered Z=8 mm.
+Both contact previews stop at fraction `0.6666663983997173`, with 33 distance
+queries, Z=`4.000001609601696 mm`, gap and native distance about
+`1.609601696e-6 mm`, above the `1.200001819e-6 mm` safety band. Cancel keeps
+the confirmed document; fresh Apply consumes the actual stopped candidate and
+one Undo restores the exact Z=8 document. Four saved references, reports,
+edits, Save As/reopen and a final fresh preview remain verified. Two test-owned
+Open choices and one Save use three completed real file IPC calls. No console
+errors or failed requests were recorded; child close and temporary-profile
+removal were observed. These are numerical geometry and scripted renderer
+results, not physical metrology or exact first-contact-time certification.
+
+The first renderer attempt failed before contact: it assumed free Z stayed
+exactly 8 mm when centering an initial X=3 placement, but a valid solution had
+Z=`7.998896121756474 mm`. The corrected contact fixture starts already centered
+to isolate the independent gap. No product tolerance was relaxed; native
+X=3-to-zero solve cases remain separate. The final 1544-by-941 image shows
+four separated prisms and all four loaded plane selectors after contact Undo
+and reopening. It does not capture the stopped state, and the complete native
+report extends below the viewport. The desktop scalar quaternion check is not
+a `1e-8 rad` full-body orientation bound; the physical bisector-angle check
+and exact native path-rotation continuity are distinct evidence.
+
+This local increment is unpublished. Other Width modes, cylindrical/axis tab
+eligibility, general branch policies, changing-rotation collision stopping,
+complete assembly acceptance, hosted CI and other platforms remain unverified.
+The 32 geometry/mode questions and complete assembly demo gate remain open.
+
+## Centered-width movement and geometric repair — 2026-10-21
+
+Local source `65b803fd05159613d296ddb6ebef462433fe1171` on
+`codex/assembly-width-motion-evidence` follows `ce3c567`. It adds seven cases
+and strengthens an existing replacement case without changing runtime source,
+the saved format, dependencies, solver policy or tolerances. Windows x64,
+Node 24.11.1 and npm 11.6.2 produced:
+
+| Command/check | Actual result |
+| --- | --- |
+| Focused numerical Width, native Width and native movement files | PASS, 44 cases in three files, 7.93 seconds. |
+| `npm test` | PASS, 6,817 unit/CAD cases in 243 files, 358.05-second unit phase, followed by 50 IPC/security checks; 360.39 seconds overall. |
+| `npm run build` | PASS, TypeScript/Vite, 2,038 modules, 5.54 seconds. Existing externalization and chunk-size warnings remain. |
+| `npm run test:desktop` | PASS, real production-loader smoke, 25.17 seconds while the full unit run was active. |
+
+All 683 tracked files remained unchanged through these checks. The existing
+assembly and Width renderer workflows were not rerun for this test-only
+increment; their earlier source-specific results remain separate below.
+
+The [original fixtures](PROVENANCE.md#original-native-centered-width-movement-cases)
+check strict movement rejection, native local projection to `(0,7,-3) mm`
+from a requested `(6,7,-3) mm` with `Rx(.2)`, worker Cancel/Apply, history and
+reopening. Each of three actual native-verified rotation station candidates
+is independently reconstructed and measured at `Rx(.8i)` and translation
+`(0,2i,-i) mm`, for `i=1..3`. BRep validity, one solid, volume 96, area 128,
+literal Rx corner bounds and oriented surface D1 X planes are checked.
+The separate contact-stop request still rejects specifically because this
+source does not admit Width's rectilinear trajectory.
+
+Actual source widening from 4 to 6 mm requires all four current face repairs;
+all old references reject. A subsequent selected replacement widens only the
+fourth box to 8 mm and independently requires X translation `-1 mm`.
+The native oracle checks metrics `V=24w`, `A=20w+48`, literal transformed
+corners and actual D1 planes. Metric tolerances are `1e-5`, position/bounds
+and plane offsets `1e-6 mm`, and angles `1e-8 rad`.
+
+Four free oblique-owner cases use an original rational common frame and
+independent plane equations. The accepted `1e-9 rad` perturbation initially
+has an ambiguous numerical rank range `[3,4]`; the existing certified
+refinement resolves `[3,3]` in one iteration. A `.08 rad` perturbation also
+solves with rank three. Common rigid gauge and local fourth-owner projection
+pass in these finite samples; no solver bug or global-rank guarantee follows.
+
+These results remain local and unpublished. They add numerical/native
+evidence, not human pointer interaction, continuous collision assurance,
+new Width modes, hosted CI or other platform support. The complete 32-case
+geometry/mode acceptance and the assembly demo gate remain open.
+
+## Saved and native centered width — 2026-10-21
+
+Production source `b22f94d` adds strict saved four-plane declarations, grouped
+repair, native resolution/final measurement, worker reports and editor controls.
+Final checked source `01a9a22ec9742c4c587769eed577280c6b846ff7` includes two
+subsequent desktop-harness capture corrections. Windows x64, Node 24.11.1 and
+npm 11.6.2 produced these results:
+
+| Command/check | Actual result |
+| --- | --- |
+| Focused model/native Width files | PASS, 27 cases: 14 declaration/lifecycle and 13 native CAD cases, 5.67 seconds. |
+| Focused Width panel and existing Workspace files | PASS, 62 cases, including existing Workspace coverage. This increment adds 32 unit/CAD/UI cases overall. |
+| `npm test` | PASS, 6,810 cases in 242 files; 352.20-second unit/CAD phase, followed by 50 IPC/security checks; 354.38 seconds overall. |
+| `npm run build` | PASS, TypeScript/Vite, 2,038 modules; 32.11 seconds while the unit run was active. Outputs match the initial production build. Existing externalization/chunk-size warnings remain. |
+| `npm run test:desktop` | PASS, production-loader smoke, 1.63 seconds. |
+| `npm run test:desktop:assembly-width` | PASS, final capture run, 5.81 seconds; 46 recorded checks, three ready previews and two rejected edits. |
+| `npm run test:desktop:assembly` | PASS, existing production-renderer assembly workflow, 526 recorded checks, 138.02 seconds. |
+
+The [original fixtures](PROVENANCE.md) cover four distinct references, a
+fourth-only free owner, repeated owners, a rotated parent scope, strict
+data-only tuples, stale/suppressed references, shared declarations, source
+repair and all-instance replacement. Reconstructed BReps have valid solid
+topology. Original box metrics are 96 mm³ / 128 mm² per part; separate
+triangular prisms have volumes 48/48 mm³ and areas 96/88 mm². Actual D1
+surface normals and independently transformed vertices check the resulting
+bisectors and bounds without calling the solver's plane-bisector helper.
+Metric tolerances are `1e-5`, positions/bounds `1e-6 mm`, and angles `1e-8 rad`.
+Direct physical-helper calls reject invalid tolerances without invalidating
+their real snapshot witnesses.
+
+The dedicated desktop case opens a tracked original unmated four-prism
+assembly and authors centered Width from four current native plane choices.
+Difference/difference branches and aligned bisectors give an independently
+known fourth-owner correction from X=3 to X=0 mm. Actual controls and worker
+replies verify preview/Apply, Undo/Redo, two rejected edits preserving committed
+data, a ready edit cancelled, Save As/reopen and a fresh unapplied solve with
+all four saved references loaded from the current choices. The report uses
+physical angle/offset and explicitly states infinite-plane support scope.
+Desktop scene metrics and bounds use `1e-5`; the known position correction
+uses `1e-6 mm` and orientation/angle checks use `1e-8 rad`. Those scene DTO
+checks are separate from the native tests' explicit BRep-validity queries.
+
+Two test-owned Open choices and one Save choice use the real restricted file
+IPC; all three complete. Both final desktop workflows report no console
+errors or failed requests, observed child close and isolated profile removal.
+The standard smoke remains separate. These are scripted renderer interactions,
+not human viewport picking or human native-dialog evidence.
+
+The first Width desktop attempt reached the reopened verified preview, then
+failed its capture guard: it expected a clean title although an unapplied
+preview correctly displays a dirty marker. Only that harness guard changed.
+The second run passed, but its image showed unrelated sidebar sections.
+The final run uses actual scrolling and restored reference selections. Its
+1544-by-941 image shows all four plane controls, branch/alignment choices and
+visible face highlights. The report extends below the viewport; its complete
+visual layout is not established by this image. Worker and DOM report checks
+are separate evidence. No product tolerance or deadline changed for capture.
+
+The final suite and desktop checks ran once on the final source. The optional
+Width capture alone used `SOLIDFLOW_UI_CAPTURE=1`. A complete 682-file UTF-8
+inventory remained unchanged through acceptance, as did production outputs.
+An initial private inventory attempt mishandled Git-quoted non-ASCII names;
+it was replaced without source changes or a test restart. The subsequent
+documentation has no runtime change. CI configuration parses and includes the
+new command for each target; no hosted execution is claimed.
+
+This establishes the [centered plane-group contract](ASSEMBLY_WIDTH.md) in
+these cases. Free/Dimension/Percent, cylindrical-surface and standalone-axis
+tab behavior, general branch/flip eligibility, broader lifecycle/movement
+cases, global convergence, finite contact and continuous collision remain
+required. The complete 32 geometry/mode questions and full assembly demo gate
+remain open. These results are local and unpublished, establish no other
+platform or installed-package support, and complete no full assembly requirement.
+
+## Numerical centered-width solver — 2026-10-21
+
+Implementation `cfbb67949377fc698cf158ef02a244705bbc851a` on local
+`codex/assembly-width-centered-solver` follows `0b2fabc`. It adds a numerical
+four-plane centered constraint, exhaustive numerical endpoint incidence,
+physical angle/offset reporting and generic local target projection. No
+saved Width schema, native resolver or Width editor command is added.
+Windows x64, Node 24.11.1 and npm 11.6.2 produced these actual results:
+
+| Command | Actual result |
+| --- | --- |
+| Focused public-config `assemblyWidthSolver.test.ts` and `assemblyPlaneBisectors.test.ts` | PASS, 50 cases in two files: 24 new solver cases and 26 existing geometry cases; 0.636-second reported run. |
+| `npm test` | PASS, 6,778 cases in 239 files; 353.37-second unit/CAD run, followed by 50 IPC/security checks; 355.53 seconds overall. |
+| `npm run build` | PASS, TypeScript/Vite, 2,037 modules; 3.07 seconds overall. Existing browser-externalization and chunk-size warnings remain. |
+| `npm run test:desktop` | PASS, production-loader smoke; 1.63 seconds, no console errors or failed requests. |
+| `npm run test:desktop:assembly` | PASS, the existing production-renderer assembly workflow; 526 recorded checks, 143.04 seconds, no console errors or failed requests. Child close and isolated profile removal were observed. |
+
+The [original numerical fixtures](PROVENANCE.md#original-numerical-centered-width-solver-cases)
+include fourth-only free ownership, four distinct free owners, repeated and
+null fixed references, nested frames, two intersecting plane pairs and a
+half-millimeter defect at a common `1e16 mm` origin. Regular Cartesian
+configurations have rank three; their DOF counts are not a universal Width
+rank claim. Intersecting pairs use independent rational-normal bisectors and
+preserve their original opening dot products. Physical angle is checked with
+an independent `atan2` measurement rather than a chord length.
+
+Analytic derivatives use actual normalized left retractions at `2e-6` and
+`7e-7`, to `5e-7*max(1,abs(expected))` per entry. Separate angular samples
+straddle the `1e-4` chord-series threshold, with finite differences at `2e-8`
+and `7e-9`; one sample inside and one outside the antipodal chart boundary
+check evaluation and diagnosis, not global convergence. Literal evaluation
+checks use `1e-10 mm` or `1e-10 rad`; final projected/solved position checks
+use the stated `1e-6 mm` problem band. Details and narrower per-case checks
+are retained in the test and provenance record.
+
+The first 19-case focused attempt passed 18 cases. Its nested-frame final
+pose assertion demanded `1e-8 mm` despite the problem's `1e-6 mm` length
+tolerance; actual deviation was `3.9952e-7 mm`. Only that assertion changed
+to the declared band, without changing the solver or its tolerances. The
+independent initial `2 mm` defect check already passed. Five further cases
+were then added before the final focused and complete runs. Existing binary
+test factories received explicit binary types to retain their original
+meaning under the expanded numerical union.
+
+Final commands ran once on the committed implementation without pool, timeout
+or environment overrides. Source pins stayed unchanged. The desktop assembly
+workflow exercises existing controls, actual worker results and test-owned
+file dialogs, including saved reopening. It does not author Width through
+the editor. The subsequent evidence documentation has no runtime change.
+
+These are local numerical and existing desktop regression results. All-fixed
+Width measurements are directly evaluable but are not free-group reports.
+Other Width modes, cylinders/axes, native binding and final native checks,
+source repair/replacement, saved Width lifecycle, actual Width interaction,
+global convergence, continuous motion, hosted CI and macOS/Linux execution
+remain outside this result. The complete 32 geometry/mode acceptance questions
+and assembly demo gate remain open. No publication or newly completed assembly
+requirement is claimed.
+
+## Ordered plane-bisector geometry — 2026-10-21
+
+The independent numerical implementation is committed as `19119df7cff8e23ad8de68fa8e162662e694ac16`
+on local `codex/assembly-width-geometry`, following `e26c97a`. Windows x64,
+Node 24.11.1 and npm 11.6.2 produced these results:
+
+| Command | Actual result |
+| --- | --- |
+| Focused public-config `assemblyPlaneBisectors.test.ts` | PASS: 26/26 original numerical cases, 0.60-second reported run. |
+| `npm test` | PASS: 6,754/6,754 unit/CAD cases in 238/238 files, followed by 50/50 IPC/security checks; 354.38 seconds overall. |
+| `npm run build` | PASS: TypeScript and Vite, 2,037 modules; 3.01 seconds overall. Existing browser-externalization and chunk-size warnings remain. |
+
+The [original rational inputs](PROVENANCE.md#original-numerical-plane-bisector-geometry)
+check plane normals/offsets and anchored comparison defects against literal
+expectations to absolute `1e-11`. Analytic derivatives use actual normalized
+left retractions at steps `2e-6` and `7e-7`; tolerances are
+`3e-7*max(1,abs(expected))` for individual bisectors and `4e-7*max(1,abs(expected))`
+for comparison. Four distinct owners, shared owners, fixed-frame references,
+an oblique attached frame and common rigid gauges on/off the zero set are
+covered. Precision cases include cancellation, supplied input uncertainty,
+lost normalization and finite accumulated derivatives.
+
+Static review identified missing normalization and owner-accumulation guards;
+these were corrected before the recorded final runs. The full suite and build
+ran once on the final implementation without pool, timeout or environment
+overrides. The later validation/status documentation adds no runtime change.
+
+This is infinite-plane numerical evidence under the
+[geometry contract](ASSEMBLY_WIDTH_GEOMETRY.md). It does not establish native
+reference binding, saved Width mates, solver rank/DOF or projection, source
+repair, editor interaction or another platform. No new desktop workflow ran
+for this pure numerical increment; Electron, IPC and worker/WASM integration
+are unchanged. The 32 geometry/mode questions and full assembly demo gate
+remain open. These results are local and unpublished.
+
 ## ALL unilateral forward-material correction (2026-10-15)
 
 Local Windows x64 / Node 24.11.1 validated the reviewed correction over
@@ -2574,3 +6974,3504 @@ broader start/end references and lifecycle policies remain incomplete.
   Production geometry and the remaining test assertions are unchanged. Each
   earlier source and failure record remains separate; later passing results do
   not erase these failures or explain historical process crashes/security findings.
+
+## Assembly graph and rigid placement foundation — 2026-10-15
+
+Locally tested source is `fdf0746a28124aae1c9276c9f93c6709b2ddcb3d` on
+`codex/assembly-document-graph`, based on `80f595f8ce58326b678ef0a6864f67fe41eedb3e`.
+The [assembly contract](ASSEMBLIES.md) and
+[original fixture provenance](PROVENANCE.md#assembly-graph-rigid-pose-and-native-placement-fixtures)
+separate document declarations, native placement and the still absent solver/editor.
+This branch has no assembly PR or hosted CI result. #44's checks cover its
+published head, not these new local modules.
+
+The final sequential run on Windows x64 used Node 24.21.0 and npm 11.19.0,
+with the portable runtime added only to child-process PATH. The public Vitest
+configuration and `forks` pool were unchanged; no command-line worker-count or
+deadline overrides, dependency changes, rebuild stubs or geometry response
+substitutes were used. New native cases declare 60-second initialization and
+per-case ceilings. Existing installed dependencies were reused; this was not a fresh
+`npm ci` checkout. The 421 tracked/new source files were byte-pinned before the
+run and unchanged after every command; those pins also matched the source commit.
+
+| Command | Actual result |
+| --- | --- |
+| `npx --no-install vitest run --config vitest.config.ts` with the four new test files | 148/148 PASS in four files, 2.96 seconds. |
+| `npm test` | 2,640/2,640 unit/CAD tests in 144 files, 71.86 seconds; 32/32 IPC/security tests, zero skipped/cancelled IPC cases. |
+| `npm run build` | TypeScript and Vite PASS; 1,985 modules, 789 ms Vite phase. Existing browser externalization and large-chunk warnings remain. |
+| `npm run test:desktop` | PASS; hidden production page ready, worker/WASM requests 200, empty renderer console-errors and failed-requests arrays. |
+
+The new inventory is 43 pose, 64 document graph, 18 structural reference and
+23 native placement cases. Graph tests cover reusable paths and revisions,
+detached round trips, version-1 serialization compatibility, strict JSON,
+repairable stale declarations and rejection boundaries. Exercised limits include
+4,096 occurrences, hierarchy depth 32, 4,096 expanded mates, 20,000 stored part
+features and actual UTF-8 byte overflow. This is not exhaustive evidence for
+every combination of graph and generic JSON resource limits.
+
+Native tests build original plate/pin BReps and place copies using declared
+poses. They check validity, closed-solid cardinality, independent body/face
+topology, volume/area within `1e-5`, bounds within `1e-6` and material Common
+probes within `1e-8`. They check original source material, independent instance
+lifetime and native operation/cleanup error propagation. Pose Cartesian oracles
+use `1e-12`; the accepted input quaternion norm tolerance is `1e-10`.
+These tolerances are assertion bounds, not reported maximum observed errors.
+
+The first attempt passed the same 148 focused tests and all 2,640 unit/CAD plus
+32 IPC tests, then stopped at TypeScript TS7022 for the inspector's occurrence
+inference. Vite and desktop did not run in that attempt. The correction adds an
+explicit `AssemblyOccurrence | undefined` annotation; the final sequence above
+was rerun against that corrected source. Earlier logs and source pins are
+retained separately and are not replaced by the passing result.
+
+The desktop smoke exercises the existing initial part workflow. It does not
+exercise these unwired assembly modules, actual assembly editing/save/reopen,
+native file dialogs, mates, DOF/conflict detection, motion, shared-source updates,
+interference or assembly import/export. No assembly checks ran on macOS/Linux,
+in installed packages or in hosted CI. No signing, release or general platform
+support is established. The Assembly ribbon entry remains disabled.
+
+## Native assembly references and numerical foundation — 2026-10-15
+
+Validated local source: `b17853909a2f86129f94a97c2c8295b5ff4f9496` on
+`codex/assembly-document-graph`, after the earlier document/placement foundation.
+The [current contract](ASSEMBLIES.md#native-reference-sessions) and
+[original fixtures](PROVENANCE.md#assembly-analytic-reference-and-numerical-fixtures)
+separate authenticated native references, numerical SVD and the still absent
+simultaneous assembly solver/editor. This increment has not opened another PR
+or published a release; no new hosted/platform result is claimed.
+
+The sequential Windows x64 run was 15:34:37–15:36:08 UTC, Node 24.21.0 and
+npm 11.19.0, using a portable runtime only in child-process PATH. The unchanged
+public Vitest configuration uses `forks`; no command-line pool, worker-count or
+deadline overrides were supplied. Native tests declare 60-second initialization
+and per-case ceilings. Dependencies were reused without changes, not installed
+from a fresh `npm ci` checkout. All 428 tracked source files were byte-pinned
+before the run and unchanged after each of its seven commands.
+
+| Command | Actual result |
+| --- | --- |
+| Focused `npx --no-install vitest run --config vitest.config.ts` with eight assembly/ownership files | 294/294 PASS, 3.49 seconds. |
+| `npm test` | 2,786/2,786 unit/CAD tests in 148 files, 63.78 seconds; 32/32 IPC/security tests, zero skipped/cancelled IPC cases. |
+| `npm run build` | TypeScript/Vite PASS, 1,985 modules, 772 ms Vite phase. Browser externalization and large-chunk warnings remain. |
+| `npm run test:desktop` | PASS for the existing initial part, actual production worker and WASM. |
+| `npm run test:desktop:pattern-all` | PASS for the existing selected-to-ALL part interaction. |
+| `npm run test:desktop:pattern-world-limit` | PASS for the existing explicit world-plane part interaction. |
+| `npm run test:desktop:pattern-until-next` | PASS for existing selected Cut/Add, cut ALL and rejected partial-profile preservation. |
+
+The new 146 cases comprise 34 analytic support, 19 native snapshot, 14 face
+ownership and 79 numerical cases. Native tests query real planes/cylinders and
+face tolerances, including an actual eccentric bore, proper native placements,
+current explicit/legacy body states and semantic v2 references after prism
+producer cleanup. They check complete-document freshness with unchanged revision
+labels, frozen/clone/cross-session proof boundaries, native epoch drift,
+disposal/failure revocation, a later actual failed cut and expanded body-entry
+admission. Ownership tests use independent Cartesian descriptor hashes and
+causal faults on received real native objects, preserving primary/cleanup causes.
+The factory/consumer checks do not prove upstream SDK allocations returned no
+wrapper; admission limits are not peak-memory/build-time limits.
+
+Numerical tests check independent rational spectra and least-squares/damped
+solutions, wide/null directions, uncertainty, extreme scales, exhaustion,
+dimension limits and exact zero with relative-only tolerance. `certified` is
+reported Float64 evidence, not formal interval proof. Numerical rank is not
+physical DOF or a mate conflict certificate. Coordinates/tolerances and exact
+geometric formulas are in the fixture provenance; no maximum observed error or
+coverage beyond those exercised cases is implied.
+
+Retained attempts: source `ad6715fd1c7c21c2db2b66fbdac1d2f4d2d4bae7` stopped
+after 293/294 focused passes because the first snapshot fixture imposed a nominal
+positive parametric cylinder-axis sign. Source `5fea36b7fe347fc8ea9fb3425d2e440dc154d89c`
+checks the physical axis line and independent Cartesian Z90 map while retaining
+the native parameter sign; 294 focused and all 2,786 unit/CAD plus 32 IPC cases
+passed. Build then stopped at TS4104 in the deliberately invalid frozen-array
+mutation test, so Vite/desktop did not run on that attempt. The final source adds
+an explicit unchecked cast for that runtime rejection test and reruns all seven
+commands. Production geometry/numerical code is identical across these three
+sources; earlier logs and exact commits remain retained.
+
+The four desktop commands exercise existing part workflows after the shared
+kernel changes. They do not exercise assembly documents, a simultaneous 3D
+solver, actual assembly preview/Apply/save/reopen, physical DOF/conflicts, shared
+source updates, motion, interference, structural exports or the assembly editor.
+No new checks ran on macOS/Linux, in installed packages or in hosted CI. The
+Assembly entry remains disabled and the full issue #45 checklist remains open.
+
+## Rigid assembly solver and atomic history — 2026-10-15
+
+Local source `9173605598a6af23d86d1627b7e8f81b211ddcd7` on
+`codex/assembly-document-graph` passed sequential validation on Windows x64,
+Node 24.21.0 and npm 11.19.0, from 16:19:57 to 16:21:17 UTC. The unchanged
+public Vitest forks configuration was used without pool, worker or CLI timeout
+overrides. All 439 tracked source hashes remained unchanged after each command.
+The final validation/status documentation only was updated afterward. No
+dependency, lockfile, workflow, runtime installation or security policy changed.
+
+| Executed command | Result and boundary |
+| --- | --- |
+| Focused `npx --no-install vitest run --config vitest.config.ts` with thirteen assembly/ownership test files | 495/495 PASS in 13 files, 9.66 seconds. |
+| `npm test` | 2,987/2,987 unit/CAD tests in 153 files, 62.52 seconds; 32/32 IPC/security tests, zero skipped/cancelled IPC cases. |
+| `npm run build` | TypeScript/Vite PASS, 1,985 modules, 782 ms Vite phase. Existing browser externalization and large-chunk warnings remain. |
+| `npm run test:desktop` | PASS for the existing initial part, production worker and WASM; no console errors or failed requests. |
+
+The 201 new cases comprise 40 SE(3) kinematics, 56 analytic equations, 45
+simultaneous solver, 48 editing/history and 12 native integration cases. Numeric
+support fixtures alone confer no native authority. Analytic equations compare
+every free-column block with centered finite differences at two step sizes.
+Both-floating and off-manifold fixtures check all six common rigid gauge
+directions, finite common-transform invariance and accepted nonzero-residual
+ranks. Direct SVD, combined constraints, nullspace evidence, rank uncertainty,
+capacity, native-expanded tolerances and bounded chart initialization have
+separate cases. Inconsistency claims require the tested fixed-relation or exact
+duplicate-offset certificates; general nonconvergence is not called a conflict.
+
+Native integration builds original plate and eccentric-pin parts through public
+features, selects actual current BRep faces and solves from displaced/tilted
+initial poses. It checks 12 free DOF becoming two spins, then one after a fresh
+left Z90 concentric spin-lock capture. Separately owned placed solids are valid
+and single-solid; native volumes/areas, bounds and eccentric-bore Common probes
+match independent formulas. V/A tolerance is 1e-5, bounds/translation 1e-6 and
+probe volume 1e-7. Angular tolerance is 1e-8 rad; actual per-mate length tolerance
+is explicitly max(1e-6 mm, both native face tolerances summed). Full formulas,
+initial inputs and other numerical tolerances are recorded in [provenance](PROVENANCE.md#rigid-assembly-solver-and-editing-fixtures).
+
+Programmatic preview/Apply, undo/redo, serialization and fresh native reopen
+preserve the saved identities. Forged, stale, consumed and discarded capabilities
+reject. The 1 mm offset contradiction publishes no candidate/history changes.
+An r2 shared radius-2.5 source updates both pins only after explicit actual-face
+repair; stale r1 endpoints reject. Reused rigid subassemblies solve internal free
+children before parent relations, keep child fixed state local and reject an
+internal fixed contradiction atomically. Native release failure prevents preview
+publication. Coordinate-resolution rejection is a conservative Float64 policy,
+not formal interval proof or a general accuracy certification.
+
+Retained attempts: source `fc15682` passed 480/482 focused cases. One equation
+oracle incorrectly required bitwise equality between hypot(2,3) and sqrt(13);
+the floating-owner solve exposed rank uncertainty. Independent mathematical
+review also identified an artificial rank pivot at an already accepted nonzero
+concentric offset. Correction `6a8ae2b` expresses vector residuals in the second
+endpoint's frame, including its frame derivative, and adds gauge regressions
+without relaxing SVD thresholds or physical tolerances. Its 495 focused and all
+2,987 unit/CAD plus 32 IPC cases passed; build stopped at TS2322 on optional
+angle-fixture data. The final source narrows that test value before assignment
+and reruns all four commands successfully. Production code is identical between
+the latter two sources. Earlier commits, receipts and logs remain retained.
+
+The standard desktop test covers the existing part bootstrap, not assembly
+interaction. The assembly editor, assembly-worker/IPC routing, actual app
+assembly save/reopen, automatic face correspondence, flexible child instances,
+interference/clearance, motion and structural exports remain unimplemented.
+No new hosted CI, macOS/Linux, installed-package or human/native-dialog result
+is claimed. The full issue #45 checklist remains open and the local assembly
+increment is unpublished; #44's checks still concern its separate exact head.
+
+## Rigid assembly workspace and document routing — 2026-10-15
+
+Local source `18cd892846ebf7db9ecde3d0884fe26b91860794` on
+`codex/assembly-document-graph` passed sequential validation on Windows x64,
+Node 24.21.0 and npm 11.19.0, from 17:24:12 to 17:26:20 UTC. All 460 tracked
+input hashes remained unchanged after each of eight commands. The unchanged
+public Vitest forks configuration was used without pool, worker-count or CLI
+timeout overrides. Existing dependencies were reused; this was not a fresh
+`npm ci` installation. Only validation/status/provenance documentation changed
+afterward. No push, PR, merge, release, installer run or new hosted/platform
+result is implied.
+
+| Executed command | Actual result and boundary |
+| --- | --- |
+| `npm run build` | TypeScript/Vite PASS, 1,995 modules, 856 ms Vite phase. Existing browser externalization and large-chunk warnings remain. |
+| Focused `npx --no-install vitest run --config vitest.config.ts` with the 22 files below | 595/595 PASS in 22 files, 25.24 seconds. |
+| `npm test` | 3,087/3,087 unit/CAD tests in 162 files, 66.68 seconds; 41/41 Node IPC/security cases, zero failures. |
+| `npm run test:desktop` | PASS for the existing initial part, production worker and WASM. |
+| `npm run test:desktop:pattern-all` | PASS for the existing selected-to-ALL part workflow. |
+| `npm run test:desktop:pattern-world-limit` | PASS for the existing explicit world-plane part workflow. |
+| `npm run test:desktop:pattern-until-next` | PASS for existing selected Cut/Add, cut ALL and rejected partial-profile preservation. |
+| `npm run test:desktop:assembly` | PASS for the original rigid assembly workflow, actual worker replies and preload/IPC; six Apply operations, two opens and one Save As. No console errors or failed requests; owned child close and isolated-profile cleanup observed. |
+
+The focused selection was:
+
+```sh
+npx --no-install vitest run --config vitest.config.ts \
+  src/model/rigidPose.test.ts src/model/assemblyDocument.test.ts \
+  src/model/assemblyReferences.test.ts src/cad/kernel.assembly-placements.test.ts \
+  src/cad/kernel.assembly-supports.test.ts src/cad/kernel.assembly-snapshot.test.ts \
+  src/cad/kernel.faces-ownership.test.ts src/model/assemblyLeastSquares.test.ts \
+  src/model/assemblyKinematics.test.ts src/model/assemblyMateEquations.test.ts \
+  src/model/assemblySolver.test.ts src/model/assemblyEditing.test.ts \
+  src/cad/kernel.assembly-solve.test.ts src/cad/kernel.assembly-copy.test.ts \
+  src/cad/kernel.assembly-shape.test.ts src/cad/kernel.assembly-scene.test.ts \
+  src/cad/kernel.assembly-session.test.ts src/cad/kernel.assembly-transport.test.ts \
+  src/cad/kernel.dispatcher.test.ts src/model/cadRecovery.test.ts \
+  src/components/AssemblyViewport.test.ts src/components/AssemblyWorkspace.test.tsx
+```
+
+The 100 new unit/CAD cases comprise 14 native owned-copy, 14 aggregate-shape,
+13 scene, 14 worker-session, eight controlled-Worker transport, two native
+cross-mode dispatcher, 13 recovery and 22 SSR/pure UI/Three selection cases.
+Native scenes keep repeated and nested components separate, verify independent
+volume/area/bounds and face transforms, and cover hidden, suppressed, empty,
+multibody and legacy aggregate sources. Actual concave-face mesh picking and
+causal native copy/query/mesh/cleanup failures have separate cases. Admission
+caps are not peak-memory or build-time guarantees. Transport/SSR tests alone
+confer no native geometry or preview authority.
+
+Worker-session cases exercise complete committed-base freshness, authentic
+one-use previews, forged/stale/replaced/discarded token rejection, full-component
+and spin-lock capture followed by a fresh solve, and failed Apply preservation.
+Late assembly discard and unknown actions preserve a subsequently built native
+part for its existing cached STL API; this is not assembly structural export.
+Recovery cases distinguish committed data from drafts and preserve invalid
+startup bytes until a valid document change. The nine additional Node security
+cases cover v2 file-envelope admission and native dirty-window close callbacks.
+Only explicit numeric close choice 1 overrides unload prevention; cancellation,
+stale/destroyed windows and dialog errors keep it blocked. These callback cases
+do not establish human native-close-dialog interaction or successful autosave.
+
+The scripted assembly case starts with displaced original plate/two-pin inputs,
+then chooses actual native faces through rendered reference controls. It checks
+DOF 12, then 8/7/3/2 after four relations, and 1 after fresh left spin-lock capture.
+Successful previews cannot change committed recovery before authenticated Apply.
+Actual Save As and reopen retain source/occurrence/mate identities, poses and
+scoped face/body references. Cancel discards its capability and restores the
+confirmed scene. A 1 mm identical-plane offset contradiction has the expected
+certificate, no Apply authority and no change to the saved file or recovery.
+Worker scene volume/area, bounds, physical check tolerances and pose expectations
+use the independent formulas recorded in [fixture provenance](PROVENANCE.md#rigid-assembly-workspace-scene-and-file-fixtures).
+No direct native BRep-validity or material-probe claim is made through this UI
+observer, which neither supplies worker results nor replaces React state.
+
+Optional `SOLIDFLOW_UI_CAPTURE=1` was enabled locally for this final run. After
+reopen, the harness checks the clean committed DOM, waits for renderer frames
+and a presentation with the existing step deadline, and captures without showing
+the window. It checks the same DOM after presentation and capture. The inspected
+1544×941 PNG (345,504 bytes) shows the saved plate/two-pin scene, component tree,
+four retained relations, left spin lock, enabled editing controls and disabled
+Apply with no pending preview or dirty marker. This establishes only the captured
+layout/state at that resolution; geometry and scripted interaction have their
+separate evidence above. Capture is disabled by default in CI and retained only
+as an ignored local artifact.
+
+Earlier workspace source `ba3524da66c951014f5a4adf90ab4c11e3e6ae2c` passed all
+eight commands at 17:05:36–17:07:38 UTC, including 595 focused, 3,087 full and
+37 Node cases. Source `7c108d8dd3646bd209db38e3c058fdc70aa45e00` added the four
+close-callback cases and optional capture, then passed all eight commands at
+17:13:47–17:15:53 UTC, with 41 Node cases. That first PNG retained an earlier
+preview compositor frame despite the observed clean reopened DOM; it does not
+prove the final visible state or invalidate the functional passes. The final
+source changes only capture synchronization/metadata relative to that run and
+reruns all eight commands. Earlier commits, receipts and logs remain retained.
+
+CI now configures the assembly desktop command on each target, but no new hosted
+run has executed this local branch. Human pointer/native-dialog interaction,
+installed packages, macOS/Linux, flexible instances, automatic correspondence,
+linked-source recovery, motion, interference/clearance, configurations/BOM,
+broader mates and structural import/export remain unverified or unimplemented.
+The full issue #45 checklist stays open; this increment does not finish the
+assembly module or the CAD application and remains separate from #44.
+
+## Assembly part-source revisions and reference repair — 2026-10-15
+
+Local source `685d7cd9389c52fd19650d397718e1c4e0e7417a` on
+`codex/assembly-source-updates`, based on the preceding local assembly workspace,
+passed sequential validation on Windows x64, Node 24.21.0 and npm 11.19.0, from
+17:59:18 to 18:01:27 UTC. All 468 tracked input hashes remained unchanged after
+each command. The public Vitest forks configuration, worker policy, deadlines,
+dependencies and lockfile were unchanged, with no CLI pool/worker/timeout
+overrides. Existing dependencies were reused, not freshly installed with
+`npm ci`. Only validation/status/provenance documentation changed afterward.
+
+| Executed command | Actual result and scope |
+| --- | --- |
+| `npm run build` | TypeScript/Vite PASS, 1,997 modules, 768 ms Vite phase; existing browser externalization/large-chunk warnings remain. |
+| Focused `npx --no-install vitest run --config vitest.config.ts` | 672/672 PASS in 25 files, 24.54 seconds: the preceding 22-file selection plus `src/model/assemblySourceUpdates.test.ts`, `src/cad/kernel.assembly-source-updates.test.ts` and `src/components/AssemblySourceUpdatePanel.test.tsx`. |
+| `npm test` | 3,164/3,164 unit/CAD cases in 165 files, 65.72 seconds; 41/41 Node IPC/security cases, zero failures. |
+| `npm run test:desktop` | PASS for the existing initial part, production worker and WASM. |
+| `npm run test:desktop:pattern-all` | PASS for the existing selected-to-ALL part workflow. |
+| `npm run test:desktop:pattern-world-limit` | PASS for the existing explicit world-plane part workflow. |
+| `npm run test:desktop:pattern-until-next` | PASS for existing selected Cut/Add, cut ALL and rejected partial-profile preservation. |
+| `npm run test:desktop:assembly` | PASS for the original 18 phases and eight source-update phases; seven authenticated Apply operations, five native opens, two save IPC operations and one Save As dialog. No console/request/worker failures; child close and isolated-profile cleanup observed. |
+
+The 77 added cases comprise 35 pure source-plan/repair declarations, 20 native
+source-review cases, 19 SSR/pure UI cases, one controlled-Worker transport case
+and two actual worker-session cases. Plans redirect every exact source-tuple
+declaration, including dormant/suppressed/shared uses, while retaining earlier
+revisions, identities, poses, roles and unrelated mates. Invalid/executable data,
+collisions, graph limits and already-broken path identities reject or remain for
+repair. Controlled transport and SSR do not establish native association.
+
+Native review builds real old/new face catalogs and retains association only
+for the verified exact primary semantic-v2 finite entity-prism family, matching
+discrete origin/history, exact body/face/support and all actual scope expansions.
+V1 ordinal keys, aliases, forged digests, changed origins, missing/unsupported
+faces and absent native expansions do not become correspondence. Retained
+component/principal identity is structural only. Review issues no Apply token;
+successful and failed reviews revoke an older worker preview. Fresh solve/Apply
+still authenticates the complete proposal. Native failures preserve causal query/
+cleanup evidence and prevent publication. These cases do not prove general
+topological naming or automated linked-file updates.
+
+Independent native geometry includes radius-2 to radius-2.5 eccentric pins,
+actual material probes and finite semantic circle extrusions. A depth-12 to
+depth-16 endcap edit retains its verified role but changes actual support: the
+staged cap lies at world Z4, and a fresh solve moves the component from Z-12 to
+Z-16. The plane-only case retains three DOF; its free X/Y and spin are not assumed
+unique. Native body/aggregate bounds use independent cylinder formulas at the
+resulting saved free translation. Parameters, formulas and tolerances are in
+[provenance](PROVENANCE.md#assembly-part-source-revision-and-repair-fixtures).
+
+The production-renderer extension reads the revised original v1 part through
+the existing bridge, reviews and cancels without changing committed file/recovery,
+then reads it again. An unrepaired solve rejects with no Apply authority and
+keeps the panel editable. Four manual selections use actual revised faces on
+their original local occurrences. The fresh solution retains the four mate IDs,
+left spin lock, rank 11 and one DOF. Apply updates recovery only after successful
+worker authentication. One Undo restores the complete old revision/reference
+document; Redo restores the exact revised document. Regular Save reuses its
+existing file grant. Reopen rebuilds the actual saved bytes with two active
+prototypes, three separate solids and three embedded definitions: the plate,
+prior pin revision and revised pin.
+V/A tolerance is 1e-5, bounds/translation 1e-6 and orientation-dot error 1e-8.
+The observed total V=5040.33183799962 mm³ and A=3490.143760293278 mm² agree with
+4800+153*pi/2 and 2960+675*pi/4. UI DTO metrics, native BRep/probe tests and
+scripted control/file interactions remain separate evidence types.
+
+Local optional visual capture observes the clean reopened DOM, renderer frames
+and presentation before capture, with the window kept hidden. The inspected
+1544×941 PNG (348,855 bytes) shows the revised pin geometry, saved file, retained
+relations and enabled editing controls without a dirty marker or pending Apply.
+It establishes the captured layout only, not geometry, human interaction or the
+uncaptured source-panel appearance. The ignored PNG is not published; CI capture
+remains disabled by default.
+
+Retained attempts: source `62b7cf25e88a075368549ee720692a62045bd7ab` passed build
+but focused tests stopped at 671/672. Its depth-edit oracle incorrectly required
+aggregate Xmax=12 despite three free DOF; the observed in-plane drift was
+0.006118488050262272 mm. The correction changes only that test and provenance:
+check the constrained Z/normal and analytical body/union bounds using the saved
+free X/Y, keeping all physical tolerances and the solver unchanged. Source
+`5f2a5db189c9bb91d2057e3ed6400ac4fa673e6f` then passed all eight commands at
+17:56:02–17:58:11 UTC. A subsequent read-only review identified a possible harness
+race: main IPC completion precedes React's clean saved controls. The final source
+adds explicit committed-recovery and clean-renderer barriers, with unchanged
+budgets, then passes all eight commands above. No product code changed after
+the initial source. Earlier commits, receipts, logs and visual output are retained.
+
+This branch is local and unpublished, with no new PR, push, merge, release,
+hosted CI or installed-package run. Human pointer/native-dialog operation,
+macOS/Linux, broad correspondence, external source watching/recovery, flexible
+assemblies, interference/motion, configurations/BOM and structural import/export
+remain unverified or unimplemented. Issue #45 and the full CAD objective stay open.
+
+## Assembly native interference and clearance — 2026-10-15
+
+Local tested source `f76baed853d5b6225d278f1020f24314dc4d020f` on
+`codex/assembly-interference`, based on the preceding local source-update
+increment, passed sequential validation on Windows x64 at 18:43:53–18:46:12 UTC.
+Node 24.21.0 and npm 11.19.0 used the unchanged public Vitest `forks`
+configuration, worker policy, test selection rules and desktop deadlines. No
+dependency install, lock/config change or pool override occurred.
+All 476 tracked source/fixture pins remained unchanged through each command;
+the subsequent execution record/status/link edits are documentation only.
+
+| Command | Actual result |
+| --- | --- |
+| `npm run build` | PASS; TypeScript and production build, 1,998 transformed modules, Vite build 1.13 seconds. |
+| Focused `npx --no-install vitest run --config vitest.config.ts` | 750/750 PASS in 28 files, 31.72 seconds: the preceding 25-file selection plus `src/model/assemblyInterference.test.ts`, `src/cad/kernel.assembly-interference.test.ts` and `src/components/AssemblyInterferencePanel.test.tsx`. |
+| `npm test` | 3,242/3,242 unit/CAD tests PASS in 168 files, 66.64 seconds, followed by 41/41 IPC/security checks PASS. |
+| `npm run test:desktop` | PASS for the existing hidden production-loader smoke case. |
+| `npm run test:desktop:pattern-all` | PASS for its existing selected-to-ALL workflow. |
+| `npm run test:desktop:pattern-world-limit` | PASS for its existing world-limit workflow. |
+| `npm run test:desktop:pattern-until-next` | PASS for its existing UntilNext workflows. |
+| `npm run test:desktop:assembly` | PASS for the earlier 18 assembly phases, eight source-update phases and three new native inspections; seven authenticated Apply operations, six native opens, two save IPC operations and one Save As dialog. No console/request/worker errors; owned child close and isolated-profile cleanup observed. |
+
+The 78 added cases separate 16 pure option/identity cases, 32 native cases,
+27 UI/SSR/Three cases and three integration cases (two native worker-session
+authority cases and one controlled-Worker correlation case). The pure model and
+controlled transport cases do not supply native geometry. SSR and Three buffer,
+selection and ray tests are separate from actual Electron controls and WebGL
+presentation. Their original parameters and analytical oracles are recorded in
+[provenance](PROVENANCE.md#assembly-native-interference-and-clearance-fixtures);
+the behavior and resource boundaries are in the [assembly contract](ASSEMBLIES.md#native-interference-and-clearance-inspection).
+
+Native tests rebuild source prototypes and independently placed BReps, use
+completed non-destructive Common operations, validate closed positive Common
+solids and query the actual minimum-distance tool/owned points. They check box
+overlap V320, Z90 overlap V240, containment V16, face/edge/point contacts,
+0.5 mm clearance and diagonal distance 1 from gaps (0.6,0.8). Native-tested gaps
+(0.8,0.8) exceed threshold 1 even though neither axis alone excludes them. A
+2 mm bounds-excluded pair has no exact-distance observation. These checks do
+not substitute AABB distance for native distance or display meshes for solids.
+
+Positive intersections of 1e-7 and 8e-11 mm3 remain reported small-overlap
+collisions under the default volume threshold; the latter is below the separate
+source-body volume floor. Native scalar/point/mesh comparisons generally use
+1e-6, the solved plate/pin gap uses 1e-5 and tiny volumes use relative 1e-5 of
+their analytical value. Per-pair length bands include actual native tolerances;
+the distance tool receives that band through its real deflection setter. A
+tolerance-qualified contact does not prove exact touching, and native numeric
+observations/deflection settings are not certified global error intervals.
+
+Other native cases distinguish repeated/nested occurrence identities, explicit
+multibody states and whole null-identity legacy aggregates; include/exclude
+hidden components; exclude suppression and same-leaf internal body pairs; and
+rebuild changed content under the same opaque source revision. Empty scenes are
+explicit, while a real failed source cut withholds the report. Body admission
+rejects 257 occurrences before placement/pair work. Mesh-budget rejection follows
+real meshing; it does not establish a peak-memory/time bound. Actual received
+native tools/points/owners exercise incomplete/nonfinite/inconsistent results,
+causal operation-plus-cleanup failure and seal revocation. A failure withholds
+the whole report, never an accepted partial or empty collision result.
+
+The scripted production assembly workflow first repeats its existing relations,
+source revision/repair, undo/redo and Save/reopen steps with actual worker replies
+and preload/IPC. The three new inspections then observe:
+
+- Revised plate/two-pin geometry at clearance 1: three body/component entries,
+  three eligible pairs, two native-tested pairs, one bounds-excluded pin pair,
+  and two clearance rows. Distances are 0.49999999978153725 and
+  0.4999999996873173 mm, with zero positive Common volume and no material mesh.
+  Actual closest points have radial distances 3/2.5 from the corresponding hole
+  axes and separation 0.5, each within 1e-6 of the independent oracle.
+- Changing clearance to 0.25 removes the previous report/selection, then the new
+  native report returns no rows while retaining two tested/one excluded pairs.
+  The saved revised assembly and committed recovery remain unchanged; Apply
+  stays disabled. Each accepted panel is tied to the actual reply's analysis ID.
+- The tracked original two-box document opens through the real file bridge.
+  Both scoped component paths, exact source revision and explicit body states
+  remain intact. One native-tested pair reports overlap, one Common solid,
+  V=12 mm3 and distance zero. Its actual solid mesh has 24 vertices/normals and
+  12 triangles, with bounds [1,0,0]..[2,3,4] within 1e-6; volume tolerance is
+  1e-5. Pair selection reaches the report and viewport without injected state,
+  reports, geometry or solved poses. No additional save occurs.
+
+Reports contain no Apply token. Successful and rejected worker-session
+inspections revoke older preview capabilities and preserve the serialized base.
+The UI implements generation/source/options guards; the scripted stage checks
+option invalidation and rendered reply IDs, while late-response rejection and
+in-flight analysis Cancel remain code-reviewed paths without new interaction
+coverage. Hidden non-pickable witnesses, contacts and small-positive overlays
+have separate unit or native cases. The new scripted desktop stage does not
+exercise hidden participants, contact or small-overlap interaction. It does not
+prove human pointer/native-dialog operation, full native BRep queries through
+the renderer or continuous collision/motion.
+
+Optional local capture followed actual final collision selection, unchanged
+committed controls, renderer frames and presentation while the window stayed
+hidden. The inspected 1544×941 PNG (349,852 bytes), SHA-256
+`a0edce0c4f6bb292329653fa92f2ea26a3d16d954e912503d0e88b321aab7111`,
+shows the two translucent blue bodies, red intersection, selected V12 row and
+blocked Apply. It establishes that captured layout only; native geometry comes
+from the separate observations above. The ignored image is not published, and
+CI capture remains disabled by default.
+
+Retained first attempt: source `05002a159142289e8acc84738215985a1102edbf`
+passed build, 750 focused tests, 3,242 full tests, 41 IPC/security checks and the
+four preceding desktop commands at 18:40:43–18:42:55 UTC. The assembly script
+failed after its first native inspection completed because it passed a list of
+row IDs to a bridge that accepts primitive strings only:
+`TypeError: Expected a primitive string for JavaScript source.` No complete new
+desktop result or capture is claimed for that attempt. The correction encodes
+that read-only expected-ID list as a primitive JSON string and decodes it inside
+the observer function. It changes only the script, preserving the string encoder,
+all assertions, application/native code, public configuration and deadlines.
+The corrected source passes all eight commands above. Both receipts, all sixteen
+command logs, source pins and the failed attempt are retained privately.
+
+This branch remains local and unpublished, with no push, PR creation, merge,
+release, new hosted CI, installed-package run or macOS/Linux result. Continuous
+collision, internal multibody/subassembly grouping policies, flexible assemblies,
+broader correspondence/linked sources, motion, configurations/BOM and structural
+import/export remain required. Issue #45 and the complete CAD objective stay open.
+
+## Constrained assembly component movement — 2026-10-15
+
+Local source `da7abd8323a7ea67577a02409c5f079417c87b39` on
+`codex/assembly-constrained-movement`, based on the preceding local interference
+increment, passed sequential validation on Windows x64 at 19:21:06–19:23:31 UTC.
+Node 24.21.0/npm 11.19.0, the public Vitest `forks` policy, worker counts,
+configuration, lockfile and all existing desktop deadlines were unchanged.
+No dependency install or pool override occurred. All 482 tracked pins remained
+unchanged throughout the eight commands; subsequent status/result/link edits
+are documentation only.
+
+| Command | Actual result |
+| --- | --- |
+| `npm run build` | PASS; TypeScript and production compilation, 1,999 transformed modules, Vite build 762 ms. |
+| Focused `npx --no-install vitest run --config vitest.config.ts` | 830/830 PASS in 31 files, 33.67 seconds: the preceding 28-file selection plus `src/model/assemblyMovement.test.ts`, `src/cad/kernel.assembly-movement.test.ts` and `src/components/AssemblyMovementPanel.test.tsx`. |
+| `npm test` | 3,322/3,322 unit/CAD tests PASS in 171 files, 67.14 seconds, followed by 41/41 IPC/security checks PASS. |
+| `npm run test:desktop` | PASS for the existing hidden production-loader smoke case. |
+| `npm run test:desktop:pattern-all` | PASS for its existing selected-to-ALL workflow. |
+| `npm run test:desktop:pattern-world-limit` | PASS for its existing world-limit workflow. |
+| `npm run test:desktop:pattern-until-next` | PASS for its existing UntilNext workflows. |
+| `npm run test:desktop:assembly` | PASS: 18 original phases, eight source-update phases, ten movement phases and three interference inspections. Eight authenticated Apply operations, seven opens, three save IPC operations and one Save As dialog; no console/request/worker failures. Owned child close and isolated-profile cleanup observed. |
+
+The 80 additional cases separate 27 pure declaration/identity/history cases,
+24 native cases, 24 panel helper/SSR plus two workspace SSR cases, two actual
+worker-session cases and one controlled-Worker correlation case. Their original
+fixtures and independent expectations are in [provenance](PROVENANCE.md#constrained-assembly-movement-fixtures).
+The [movement contract](ASSEMBLIES.md#movement-with-rigid-relations)
+keeps the version-2 schema intact and distinguishes a complete root occurrence
+path from the absolute local pose in its containing definition. Model/SSR and
+controlled transport results do not manufacture native geometry or authority.
+
+Native cases first solve the original plate/two-pin mates with actual plane and
+cylinder references, fix the right pin and use an accepted identity movement to
+establish the left pin's before-spin frame. A left Z90 target then preserves
+valid one-solid BReps, V=189*pi/4, A=495*pi/8 and bounds
+(-12,-2,-8)..(-8,2,4). Actual side-0.1 cube Commons at (-9,0,-2) and (-10,1,-2)
+exchange void/material: before the former has volume zero and the latter 0.001;
+afterward the latter has zero and the former 0.001. Plate hole/material probes,
+plate V/A/bounds and the other anchored occurrence are checked independently.
+Volume/area tolerance is 1e-5, pose/bounds 1e-6, orientation 1e-8 and probe
+volume 1e-7. These are the checked fixtures/tolerances, not global accuracy claims.
+
+Other native cases reject lateral, tilted-axis and axial-offset targets, respect
+freshly captured spin/full locks and reject a saved fixed component even for a
+no-op request. They check original-base, one-use and clone/discard/source-drift
+authority; detached immutable intent; q/-q and an unconstrained half-turn; whole
+history undo/redo and v2 reopening without a saved anchor. A linked pair with
+relative translation (5,0,0), identity, follows A=(10,20,30), Z90 to B=(10,25,30),
+Z90. Its natural undriven freedom is six, separate from the driven zero-DOF case.
+
+Shared local targets under fixed parents preserve the parent poses, solve only
+the exact source revision and verify both real active native expansions. A third
+suppressed expansion appears in affected paths but supplies no native scene body.
+Original local target (4,5,0), Z90 gives world translations (34,5,0) and (-5,44,0),
+with actual bounds, mass and bore/material probes. Moving the parent itself is
+a separate rigid-occurrence case after the internal child solve; this does not
+implement flexible per-instance subassemblies.
+
+Actual source reconstruction and cleanup failures withhold movement authority.
+Faults adapt real returned numeric results to test the final independent target
+check: two .8e-6 translation deviations individually fit the default scalar band
+but their Euclidean norm exceeds 1e-6, and an angular drift exceeds 1e-8.
+Neither receives an accepted preview. These control-flow faults are not claims
+that the unmodified numerical solver produced those drifts. Target tolerance
+checks use the requested policy (defaults 1e-6 mm and 1e-8 rad) without relaxation;
+native face tolerance bands on saved mates remain separately explicit.
+
+The scripted production workflow retains the earlier source revision/repair and
+native file sequence, then selects the actual revised R2.5 right pin. It enters
+a local incremental Z90 through the rendered numeric controls and checks the
+actual request against the independent Hamilton product q*Z90. The eccentric
+bore's world support origin agrees with the prior local Y basis plus translation,
+within 1e-6. Sources, fixed/visible/suppressed roles, exact occurrence/body/revision
+identities and saved mate declarations remain intact. Native worker scene DTOs
+retain three solids, V=5040.33183799962 and A=3490.143760293278, matching the
+independent revised formulas at 1e-5, with bounds (-20,-15,-8)..(20,15,4) at 1e-6.
+
+The ten new phases observe:
+
+1. A successful movement preview followed by actual capability discard on Cancel,
+   preserving committed recovery and saved bytes. The previously confirmed scene
+   is restored; no new native build or measurement is claimed for Cancel.
+2. Another real movement preview and authenticated Apply. The temporary right
+   anchor gives zero local DOF and rank six in its reduced solve space; its target
+   residuals are zero mm and approximately 1.62e-27 rad. No fixed flag or mate is
+   saved for that driver.
+3. A normal fresh Solve of the applied document returns one local DOF and rank
+   eleven in the undriven space, with no movement/temporary-anchor metadata.
+   Cancel discards that verification capability and restores the confirmed
+   movement without creating a history state.
+4. One Undo restores the complete source-updated document before movement; Redo
+   restores the exact applied target. Actual Save and reopen preserve it through
+   preload/IPC, with a clean-renderer barrier before the next file operation.
+5. Local target X=11 with zero additional rotation is rejected as `numeric` /
+   `inconsistent`, with a `fixedConstraint` certificate. The input intent remains
+   visible, Apply stays blocked, and the saved file and recovery remain unchanged.
+
+The subsequent three interference inspections still pass for the moved assembly:
+two half-millimeter clearances, no rows at threshold 0.25, then the original box
+Common V12/distance zero with mesh bounds [1,0,0]..[2,3,4]. The movement save's
+bytes equal the read-only inspections' unchanged source bytes. All observations
+come from actual worker replies; the harness injects no state, native results,
+poses or geometry. Native material probes remain separate unit evidence, not
+queries performed through the UI. The actual numeric-target workflow does not
+exercise in-flight movement Cancel, late-response rejection or pointer dragging.
+
+Optional local capture followed final two-box collision selection and actual
+selection of the floating box, with the window kept hidden. The inspected
+1544×941 PNG (371,001 bytes), SHA-256
+`a6353c9922e57bce4a4ff72b4cb052ae5fbf6512dc98fb383561e0038091dced`,
+shows the red intersection, selected row and component, and the visible upper
+movement panel/local XYZ controls. The sidebar scrolls; this single image does
+not show all movement controls or the earlier pin-motion preview. It establishes
+captured layout only. The ignored PNG is not published and CI capture remains
+disabled by default. One attempt ran; all eight retained command logs have
+verified hashes and no source-pin drift.
+
+This branch remains local and unpublished, without push, PR creation, merge,
+release, new hosted CI, installed-package or macOS/Linux execution. Real pointer
+dragging, trajectory projection, collision stopping, broader mate families,
+flexible assemblies, configurations/BOM and structural import/export remain
+required. Issue #45 and the complete CAD objective stay open.
+
+## Constrained world and pointer assembly movement — 2026-10-15
+
+Local source `f6af53ba9c923cbc5cd992133255c3403593c9db`, on
+`codex/assembly-pointer-drag`, passed sequential validation on Windows x64 at
+19:56:31–19:59:33 UTC. Node 24.21.0, npm 11.19.0 and the unchanged public
+`forks` configuration were used; no dependency, lockfile, pool or deadline
+override was applied. All 488 tracked source hashes remained stable throughout
+the eight commands. Later changes in this increment update documentation only.
+
+| Check | Executed result |
+| --- | --- |
+| `npm run build` | PASS; TypeScript and production compilation, 2,003 modules, 796 ms Vite build. Existing externalized-module/chunk-size warnings remain. |
+| Focused `npx --no-install vitest run --config vitest.config.ts` | 901/901 PASS in 34 files, 40.97 seconds: the preceding 31-file selection plus `src/model/assemblyDrag.test.ts`, `src/cad/kernel.assembly-drag.test.ts` and `src/components/assemblyDragSession.test.ts`. |
+| `npm test` | 3,393/3,393 unit/CAD cases in 174 files, 69.98 seconds; 41/41 IPC/security cases. |
+| `npm run test:desktop` | PASS for the existing production-loader smoke. |
+| `npm run test:desktop:pattern-all` | PASS for the existing ALL workflow. |
+| `npm run test:desktop:pattern-world-limit` | PASS for the existing fixed-world-limit workflow. |
+| `npm run test:desktop:pattern-until-next` | PASS for the existing UntilNext workflow. |
+| `npm run test:desktop:assembly` | PASS: 18 original phases, eight source-update phases, ten numeric-movement phases, eight pointer phases and three interference inspections. Nine authenticated Apply operations, eight opens, four Save IPC operations and one Save As dialog; all IPC completed, no console/request/worker failures, owned child close and isolated-profile cleanup observed. |
+
+The 71 new cases comprise 27 pure graph/world-frame cases, 22 native movement
+cases, 19 controller/UI cases, one viewport intent-frame case and two actual
+worker-session/transport cases. Symbolic controller replies establish scheduling
+and cancellation behavior only; SSR and transport tests are not CAD geometry or
+pointer execution. Fixture origins and independent formulas are in
+[provenance](PROVENANCE.md#constrained-world-and-pointer-movement-fixtures);
+world/local semantics and capability boundaries are in the
+[assembly contract](ASSEMBLIES.md#constrained-pointer-movement).
+
+### Native world movement
+
+The native cases rebuild original feature-based BReps and check validity, solid
+counts, volume/area, bounds and independent material probes. An actual mated pin
+is driven to Z90, swapping void/material at (-9,0,-2) and (-10,1,-2) using 0.1 mm
+cube/Common probes. Each pin has V189pi/4 and A495pi/8, with 1e-5 scalar tolerance;
+probe volume tolerance is 1e-7, bounds/position 1e-6, default target angle 1e-8 rad.
+
+A fixed child Rx90 at local (2,3,4) and fixed sibling at (-2,1,0) belong to
+floating root A; fixed root B reuses the same definition. Requested selected
+WORLD Z90 at (10,20,30) independently implies owner mapping
+(x,y,z) to (-z,x,-y), translation (14,18,33), and sibling origin (14,16,32).
+Four actual solids remain, V189pi and A495pi/2. Selected and sibling native
+bounds/material probes pass; B and shared declarations are unchanged. A separate
+initially unsolved child-plane case begins at local Z6, solves that relation
+first, then recomputes the relative frame and retains the requested world target.
+Its free X/Y/spin coordinates are not claimed unique.
+
+Fixed root rejection differs from a locally fixed child's allowed rigid-group
+movement. Tests also cover incompatible lateral/tilted/locked-spin targets,
+stale/suppressed/missing identities, q versus minus q, explicit target policies,
+single-use original-base authority, Undo/Redo/reopen, returned-pose drift and
+native source/release failures. Temporary root anchors are not saved; a fresh
+normal solve of the reopened free rigid group reports six local DOF.
+
+### Actual scripted pointer and file workflow
+
+The hidden owned Electron window uses actual Chromium mouse input. The harness
+observes hover-axis labels, then presses the real Z ring, sends three moves and
+releases. No Three object, React state, solver pose, native result or authority
+is injected. Each of the two rotation gestures and one rejected X gesture
+produced three recorded world-target requests in this run. The controller's
+one-in-flight/one-latest scheduling and late cancellation are separately tested
+with controlled lifecycle replies; the desktop case does not establish a large
+burst, in-flight Cancel or late-response UI cancellation.
+
+The two final rotation replies have actual quaternion approximately
+(4.859e-12, 6.058e-12, 0.6256796157, 0.7800801359), unchanged translation near
+(10,0,-8), and world target residuals zero mm/zero rad. This is the manipulator's
+actual nonzero target; no exact cursor angle is asserted. An explicit Cartesian
+quaternion matrix independently predicts the eccentric-bore native support.
+The native scene retains three solids, V5040.33183799962, A3490.143760293278,
+and bounds (-20,-15,-8)..(20,15,4), within the recorded 1e-5 scalar / 1e-6
+coordinate tolerances. Fixed plate and other pin placements remain unchanged.
+
+Cancel discards the verified token and preserves committed recovery and saved
+bytes. The second final reply enables authenticated Apply; one Undo restores the
+entire previous document, Redo restores that result, native Save writes it and
+Open reconstructs the same document. Actual X-handle movement requests final
+X11.32204287157 and rejects as `numeric` / `inconsistent`, with Apply blocked and
+the saved/recovery data unchanged. Subsequent interference checks still observe
+two 0.5 mm clearances, no rows at threshold 0.25, and the original two-box Common
+V12 with mesh bounds (1,0,0)..(2,3,4). Dialog file destinations remain test-owned
+substitutions, not human native-dialog operation.
+
+Optional capture is now taken after the pointer result is saved/reopened and
+the rotation manipulator is selected in top view. The manually inspected
+1544×941 PNG, 355,305 bytes, SHA-256
+`68debfa43249bc329b599e7effa108b40155076bf81999b3e652af9f95dc66d6`,
+shows the selected right pin, blue workspace, visible rotation rings, mode
+buttons and upper numeric movement panel. Sidebars scroll, so this image does
+not show every control or the earlier gesture. It proves captured layout only;
+the ignored PNG is not published and CI capture is off by default. One attempt
+ran, all eight log hashes verified and no source hash drift was observed.
+
+This branch remains local and unpublished: no push, new PR, merge, release,
+hosted CI, installed package or macOS/Linux execution. Discrete verified targets
+do not establish trajectory projection, swept-path safety, collision stopping,
+flexible per-instance motion, advanced mate families, configurations/BOM,
+structural import/export or complete assembly support. Issue #45 and the full
+CAD objective remain open.
+
+## Local constrained assembly drag projection — 2026-10-15
+
+Local source `7b967be60a5de86a8e038199bb6be09850e1af01`, on
+`codex/assembly-constrained-drag`, passed sequential validation on Windows x64 at
+20:37:04–20:40:20 UTC. Node 24.21.0 and npm 11.19.0 used the unchanged public
+`forks` configuration. All 496 source hashes stayed stable during the eight
+commands. No dependency, lockfile, pool, worker or deadline override was used;
+later changes in this increment update documentation only.
+
+| Check | Executed result |
+| --- | --- |
+| `npm run build` | PASS; TypeScript and production compilation, 2,004 modules, 761 ms Vite build. Existing externalized-module/chunk-size warnings remain. |
+| Focused `npx --no-install vitest run --config vitest.config.ts` | 1,002/1,002 PASS in 38 files, 39.98 seconds: the preceding 34-file selection plus `src/model/assemblyProjectionIntent.test.ts`, `src/model/assemblyProjection.test.ts`, `src/cad/kernel.assembly-projection.test.ts` and `src/components/AssemblyDragProjectionPanel.test.tsx`. |
+| `npm test` | 3,494/3,494 unit/CAD cases in 178 files, 74.32 seconds; 41/41 IPC/security cases. |
+| `npm run test:desktop` | PASS for the existing production-loader smoke. |
+| `npm run test:desktop:pattern-all` | PASS for the existing ALL workflow. |
+| `npm run test:desktop:pattern-world-limit` | PASS for the existing fixed-world-limit workflow. |
+| `npm run test:desktop:pattern-until-next` | PASS for the existing UntilNext workflow. |
+| `npm run test:desktop:assembly` | PASS: 18 original phases, eight source-update phases, ten numeric-movement phases, eight updated pointer phases, nine new slider-projection phases and three interference inspections. Ten authenticated Apply operations, ten opens, five Save IPC operations and two Save As dialogs; all IPC completed, no console/request/worker failures, owned child close and isolated-profile cleanup observed. |
+
+The 101 new cases comprise 17 intent-boundary cases, 35 pure projection cases,
+27 native projection cases, 20 UI/SSR binding/presentation cases and two actual
+worker-session/transport cases. The previously tested coalescing controller
+remains unchanged. Pure, SSR and controlled transport checks do not establish
+native geometry or human pointer operation. Original fixture generation,
+parameters, independent formulas and tolerances are recorded in
+[provenance](PROVENANCE.md#constrained-drag-projection-fixtures), with behavior
+and resource boundaries in the [contract](ASSEMBLIES.md#constrained-pointer-movement).
+
+### Retained failures and correction
+
+Three attempts ran, with all logs/receipts retained and stable source hashes
+within each attempt. Source `3ec3975bc013ba57c100c41c0c8156266ebfdd45` stopped at
+TypeScript TS2790: a malformed-input test deleted a required tuple slot directly.
+`Reflect.deleteProperty` preserves the intended sparse-array test construction.
+No unit or desktop check ran on that first source.
+
+Source `e50bfcc67b65c3bae9e9f1b005c33c8be3c89e9a` built, then passed 998 of 1,001
+focused cases in 41.04 seconds. The pure offset hinge, its native counterpart
+and an initially unsolved child-scope hinge exhausted the projection iteration
+budget. For a unit circle directed toward (0,2), the full GN step is
+2cos(theta); near pi/2 it almost reflects the error while making an arbitrarily
+small cost improvement. Accepting any decrease converged too slowly.
+
+The corrected source requires Armijo 0.1 sufficient decrease against the
+predicted first-order reduction of the actual clipped/backtracked step. Every
+secondary acceptance retains the best primary cost within a fixed roundoff
+band; secondary improvement cannot bypass insufficient primary progress.
+The same geometric expectations and default 80-iteration/16-trial budgets remain;
+one stricter eight-iteration hinge case was added. Requested mate tolerances and
+stationarity policy were not relaxed. All eight commands passed on the final
+tested source; no later production-code drift is claimed equivalent to it.
+
+### Numerical and independent native evidence
+
+The pointer uses an explicitly separate soft objective. Translation prioritizes
+selected world position, rotation prioritizes orientation; native saved mates
+remain mandatory. Checked hard-Jacobian nullspaces supply the available motion.
+Normal scope rank/DOF never includes a pointer anchor. Bounded finite secondary
+cost-tie probes handle the unit-circle centre case, where all positions have
+equal primary cost. A conditioned pure case retains a unit local offset near
+origin (1e16,0,0); it does not establish native accuracy at that physical scale,
+which the native adapter's coordinate-resolution policy rejects.
+
+Actual native cases establish:
+
+- A concentric slider with an authenticated spin lock projects requested
+  (13,4,z+5) onto (10,0,z+5), preserving one axial DOF and reporting pointer
+  distance 5. Removing the spin lock retains two DOF and also reaches secondary
+  Z90, with native eccentric-bore/material probes. The same off-axis target
+  remains rejected by both strict movement APIs.
+- A fixed payload at local (1,0,0) belongs to a floating rigid owner whose native
+  cylinder/cap mates leave Z spin. Position target (0,2,0) projects to
+  (0,1,0)/Z90, distance 1. Rotation priority retains requested Z90 while moving
+  the selected origin, reporting distance sqrt(2). The initially unsolved child
+  case solves its plane first and derives the circle radius from that genuinely
+  solved child frame; its underdetermined X/Y coordinates are not assumed nominal.
+- A free relative-lock pair moves together and retains six natural local DOF.
+  Source/history/reopen, suppressed/fixed identity, source build/release
+  failure and actual numerical-output corruption cases withhold unauthorized
+  publication. No-op or blocked movement grants no capability.
+
+Placed R2 pins remain BRep-valid, one solid each, V189pi/4 and A495pi/8 within
+1e-5. Bounds/positions use 1e-6, target angles 1e-8 and 0.1 mm cube/Common
+probe volumes 1e-7 around zero or 0.001. These separate native measurements do
+not become UI material queries, collision-free mechanism proof or a material
+union across overlapping component occurrences.
+The unreachable hinge's expected quarter-turn basis/error comparisons use
+1e-6; the 1e-8 angular policy applies to hard checks, native/numerical frame
+agreement and reachable requested orientation. No optimizer error bound is
+inferred from those hard tolerances.
+
+### Actual pointer projection and persistence
+
+The earlier Z-ring gestures now use the projection action, preserve natural
+one-DOF mobility and still pass Cancel/Apply/Undo/Redo/save/reopen. Purely lateral
+X input has no effective movement and is rejected without asserting that the
+saved hard mates themselves conflict.
+
+The new workflow uses the actual right-cap suppression checkbox, then a real
+front-view XZ manipulator press, three diagonal moves and release. Each of two
+gestures generated three observed projection requests. Final requested pose is
+approximately (11.32204287157,0,-6.67795712843); native resolved pose is
+(10.00000000013,0,-6.67795712843). Pointer position deviation is
+1.32204287144 mm and angular deviation 1.616e-27 rad. All active hard checks pass
+their own tolerances, natural root DOF remains two, and no anchor is present.
+The actual rendered preview panel shows pointer deviation separately from hard
+relation checks. Native totals remain V5040.33183799962/A3490.143760293278;
+bounds are (-20,-15,-8)..(20,15,5.32204287161), within the independent recorded
+1e-5 scalar / 1e-6 coordinate comparisons.
+
+Cancel revokes its capability and restores the cap-suppressed committed scene.
+That confirmed scene supplies the camera fit; a discarded displaced preview
+does not supply its bounds. Apply commits the final verified candidate once;
+one Undo/Redo restores each whole document. Save As writes a separate isolated
+file, reopen reconstructs it, then Open restores the unchanged original file.
+The later three static interference inspections still pass. The observer never
+sets React/Three state, projected poses, native results or authority; native
+dialog destinations remain test-owned substitutions.
+
+The inspected 1544×941 capture, 390,368 bytes, SHA-256
+`55c86a87bd8ec9f71a4c7e6a7e7ed6704431c058c76eb84bc998656e829f44db`,
+shows the saved/reopened slider in front view, selected right pin protruding
+above the plate, XZ manipulator, mode buttons and upper numeric panel. Sidebars
+scroll; no projection witness persists after reopening, so this image does not
+show the earlier deviation panel or prove the gesture/geometry. Its ignored PNG
+is not published and CI capture remains off by default.
+
+This is local discrete projection from the original committed base per target.
+It does not prove a global nearest placement, warm-start branch/path continuity,
+swept-path safety, collision stopping, flexible instances or general mechanisms.
+In-flight/late cancellation remains controlled lifecycle evidence rather than a
+new desktop interaction claim. No push, PR creation, merge, release, hosted CI,
+installed package or macOS/Linux execution occurred. Full assemblies and the
+complete CAD objective remain open.
+
+## Rectilinear assembly translation with contact stop — 2026-10-15
+
+Local Windows x64 / approved portable Node 24.21.0 validated source
+`52b9f0fe9bdc1d0099b9ab2526b6b16ee616e93d` on
+`codex/assembly-translation-contact-stop`. The eight sequential commands ran
+from 21:17:20.761 through 21:20:53.845 UTC. All 505 source/configuration/document
+pins remained equal after every command; complete command logs and receipts
+are retained privately. Runtime, package lock, public `forks` configuration,
+worker policy, test deadlines and native sandbox settings were unchanged.
+No dependencies were installed or hosted actions triggered.
+
+| Command | Executed result |
+| --- | --- |
+| `npm run build` | PASS: TypeScript and Vite, 2,006 modules, 789 ms Vite phase; existing externalization/chunk warnings retained. |
+| Focused public-config Vitest run, 42 assembly/translation/projection/movement/source/native ownership/worker/UI files | PASS: 1,108/1,108 cases, 44.39 seconds. |
+| `npm test` | PASS: 3,600/3,600 unit/CAD cases in 182 files, 80.81-second unit phase, followed by 41/41 security/IPC checks. |
+| `npm run test:desktop` | PASS: hidden isolated production loader, real preload/worker/WASM, owned child close and profile cleanup. |
+| `npm run test:desktop:pattern-all` | PASS: existing selected-to-ALL workflow and file round trip. |
+| `npm run test:desktop:pattern-world-limit` | PASS: existing fixed world-limit workflow and file round trip. |
+| `npm run test:desktop:pattern-until-next` | PASS: existing UntilNext selected/ALL/additive/rejection workflows. |
+| `npm run test:desktop:assembly` | PASS: prior assembly/source/numeric/pointer/projection/interference stages plus the 13 new translation phases; 11 Apply operations, 12 Open dialogs, 3 Save As dialogs and 6 save IPC calls in total, all IPC completed, no console/request/worker failures. |
+
+The new 106 cases comprise 31 pure declaration/interpolation cases, 35 actual
+native trace cases, nine native preview/history/worker authority cases,
+30 pure-helper/SSR panel cases and one controlled worker-transport case.
+SSR/transport DTOs do not provide native geometry or real interaction evidence.
+The desktop workflow is a separate production-renderer/control/file-IPC result.
+
+### Retained failures and review corrections
+
+Initial source `dac30a1a3d882accfbefed3958c4787bacb3fcc6` built successfully but
+passed 1,106 of 1,107 focused cases. The sole failure expected successful
+translation with requested distance deflection 1e-8. The actual native minimum
+distance and closest-point separation disagreed beyond that requested tolerance;
+the production guard correctly withheld the result. This authored PASS
+expectation had no earlier executed evidence. It was replaced by a positive
+default 1e-6 observation and a separate tight 1e-8 rejection regression. The latter
+delegates actual native Value/X/Y/Z reads and releases, verifies the observed
+disagreement exceeds 1e-8 and checks release of each query and its two received
+points. The observer supplies no native distances or point coordinates and
+never changes the requested tolerance.
+This records the observed limit of that original fixture/runtime, without
+asserting a general native precision limit or enlarging the production policy.
+
+The observation test at `8aa0c3e` then failed TypeScript checking: an indexed
+point-reader was still typed unknown. `52b9f0f` retains the narrowed X/Y/Z
+functions in a typed object. All production code is unchanged across those two
+test fixes; all eight checks passed on the final source. Both failed attempts
+and their original logs remain retained rather than being represented as passes.
+
+Independent source review also caught two issues before the first run. The
+restored constant-rotation endpoint now receives a fresh requested-pose check;
+a small accepted angular difference on a long arm cannot silently move that
+endpoint outside its length tolerance. Native tracing also includes large local
+ancestor/prototype coordinates in precision admission, uses the actual
+interpolated declaration placement at every query and reserves the rounding
+margin for both ends of each advance. Tests distinguish small world bounds
+from large cancelling local arithmetic. No budget or tolerance was weakened.
+Scripted Cancel and Save As transitions wait for confirmed rendered controls
+before the next action, separately from observing their IPC/worker replies.
+
+### Native geometry, motion and saved result
+
+The original tracked slider fixture has a 4 mm cube (V64/A96), a fixed
+0.5 by 8 by 8 mm obstacle at X10 (V32/A144), and two perpendicular plane mates
+leaving X translation. Native preview tests replace one endpoint with the
+actual current BRep bottom face. Both the initial and requested X20 endpoint
+are BRep-clear, but the straight path crosses the obstacle. Exact geometric
+contact would be X7.75. The new native trace stops with a positive guarded gap;
+it does not just inspect those endpoints. Other native cases cover relative
+two-body motion, reused/nested scopes, multiple bodies, source-content changes,
+hidden/suppressed leaves, initial contact, query budgets and causal cleanup.
+Their original formulas and tolerances are in [provenance](PROVENANCE.md#rectilinear-translation-stop-fixtures).
+
+The real renderer requested X20 and received slider X7.749998006397167,
+fraction 0.38749990031985837, after 11 distance queries. Measured separation was
+1.9936028330391764e-6 mm against band 1.2000029558578034e-6 mm. Requested
+clearance 0.25 produced X7.499998031997167, fraction 0.37499990159985835,
+separation 0.2500019680028327 mm, after 11 queries. A clear target X-5 completed
+at fraction 1 after two queries. The independent stop-location comparisons use
+1e-5 mm; scene V95.99999999999997/A240 use 1e-7. Both saved mate checks pass and
+natural root DOF remains one without a temporary driver anchor.
+
+Three Cancel operations leave the original file/recovery unchanged. The final
+default-stop Apply commits once; one Undo/Redo restores the complete documents.
+Separate Save As and actual Open reconstruct the stopped pose. A further X20
+request from that near-contact state rejects for no movement above tolerance,
+without an Apply token or changed saved bytes. Requested/resolved positions
+were observed separately in the actual rendered preview panel. The observer
+only copies requests/replies and delegates the original worker send operation;
+native dialog choices remain test-owned paths. No CAD responses or document
+states are injected.
+
+The manually inspected 1544×941 capture is 383,755 bytes, SHA-256
+`f8d20a470df7fed8a5b2d0e28c4fea9f6951fc6b6088a8fc3cd2b440c3bb5479`.
+It shows the saved/reopened cube beside the thin obstacle in front view,
+selected component, blue workspace and existing manipulator. The new translation
+panel lies below the sidebar fold and its transient preview witness is cleared;
+the screenshot does not prove the earlier panel, numerical gap or trajectory.
+The private PNG is not published and CI capture remains off by default.
+
+These results establish the checked numerical rectilinear cases only. Native
+distance deflection/guards are not certified error intervals or exact physical
+first-contact times. Initially contacting relative pairs reject; invariant
+equal-displacement pairs can retain existing overlap and are counted separately.
+Rotary/curved trajectories, sliding from initial contact, pointer collision
+stopping, flexible assemblies, mechanical mates and the remaining full CAD
+scope are required work. No push, PR, merge, release, installed-package or
+macOS/Linux execution occurred; the goal remains incomplete.
+
+## Assembly bill of materials and CSV — 2026-10-16
+
+Local Windows x64 / approved portable Node 24.21.0 validated source
+`5d1abdf45d11dd8107aba82f56f4ff6b36c2a1a4` on `codex/assembly-bom` from
+09:16:35.399 through 09:20:49.681 UTC. All 514 source/configuration/document
+pins stayed equal after every command. Complete receipts/logs remain private;
+runtime, lockfile, public `forks` configuration, worker policy, deadlines and
+native sandbox settings were unchanged. No dependencies were installed.
+
+| Command | Executed result |
+| --- | --- |
+| `npm run build` | PASS: TypeScript and Vite, 2,009 modules, 997 ms Vite phase; existing externalization/chunk warnings retained. |
+| Focused public-config Vitest run, 45 assembly/BOM/CSV/native/worker/UI files | PASS: 1,214/1,214 cases, 53.69 seconds. |
+| `npm test` | PASS: 3,706/3,706 unit/CAD cases in 185 files, 106.49-second unit phase, followed by 50/50 security/IPC checks. |
+| `npm run test:desktop` | PASS: hidden isolated production loader, actual preload/worker/WASM and owned child/profile cleanup. |
+| `npm run test:desktop:pattern-all` | PASS: existing selected-to-ALL workflow and file round trip. |
+| `npm run test:desktop:pattern-world-limit` | PASS: existing fixed world-limit workflow and file round trip. |
+| `npm run test:desktop:pattern-until-next` | PASS: existing UntilNext selected/ALL/additive/rejection workflows. |
+| `npm run test:desktop:assembly` | PASS: all prior assembly stages plus the nine recorded BOM phases; 11 Apply operations, 13 Open dialogs, three document Save As dialogs, six save IPC calls, four CSV export dialogs/IPC calls (one cancellation and three files); all IPC completed, no console/request/worker failures. |
+
+The 106 new unit/SSR/transport cases comprise 69 pure declaration BOM cases,
+24 CSV cases, 12 pure-helper/SSR panel cases and one initial-workspace SSR case.
+Nine additional main-process security cases exercise actual temporary file
+writes with substituted Electron transport/dialog surfaces. These are separate
+from the real production-renderer/native file-bridge workflow. Neither SSR
+nor declaration quantities authenticate BRep, solved mates, material or mass.
+
+### Retained failure and source review
+
+Initial source `b4e8fd0` failed the build with TS7024 in two malformed-option
+test factories. Generic contextual inference needed an explicit
+`Array<[string, () => unknown]>` annotation. `5d1abdf` adds that annotation;
+the test values and all production behavior remain unchanged. The failed
+build log is retained separately, and no unexecuted later command from that
+attempt is described as a pass. The final source passed all eight commands.
+
+Independent source review checked tuple/context grouping, inherited pruning,
+detached DTOs, CSV byte admission and export freshness. It also caught an array
+argument passed to the existing string-only scripted-page encoder before
+execution. The corrected workflow sends a JSON string and parses it within the
+DOM callback; the restricted encoder was not broadened. Mode/filter/export
+transitions wait for actual rendered state separately from IPC completion.
+
+### Executed table and export evidence
+
+The original tracked fixture contains two active G occurrences, one hidden,
+each with two P(r1) and one Q. A third G is suppressed; P(r2) is at root and
+another source is unused. The two P revisions deliberately share their name.
+The actual table reports these exact independent results:
+
+| View/filter | Actual quantities |
+| --- | --- |
+| Parts only, hidden included | P(r1)4, Q2, P(r2)1; per-parent quantity not applicable (displayed as —). |
+| Parts only, hidden excluded | P(r1)2, Q1, P(r2)1. |
+| Top level, hidden excluded | G1, P(r2)1. |
+| Indented, hidden included | G per-parent2/total2; P(r1)2/4; Q1/2; root P(r2)1/1. |
+
+Choosing member `["g-b","p-b"]` selects only that exact reused hidden tree
+occurrence. Filtering it out does not invent another selected member; restoring
+the filter retains the original full-path selection. Hidden geometry is not
+made visible. Closing/reopening the table, changing views/filters and exporting
+leave original bytes, committed recovery and history unchanged, with no extra
+CAD requests or Apply capability.
+
+Actual opening reconstructs seven active solids and three part revisions,
+V367.99999999999994 mm3 / A560 mm2, compared with independent box formulas
+V368/A560 within 1e-7. These scene observations are separate from declaration
+counts and do not make native validity a prerequisite for BOM reporting.
+No new real renderer workflow after a failed native build was exercised.
+
+One cancelled native CSV export writes no output. Three actual native files
+match independently declared UTF-8 BOM, quoted comma/CRLF records and the exact
+text-marker policy:
+
+| File contents | Bytes | SHA-256 |
+| --- | --- | --- |
+| Parts only, hidden included | 433 | `83c0aa66fc4edf1ed7f1ebf82ba8884c1d9770ebfb30715d408613f9371982ad` |
+| Top level, hidden excluded | 282 | `744ca0838d1de4b8e3974e8e8ebb788f3a53b1bc0fd17b7ac81c86d2915a2f81` |
+| Indented, hidden included | 535 | `e706f8900dd34fe10a365abb22cdcb6f46a09abccb269802f1cdf0743b329c20` |
+
+Raw display names include Unicode, quotes, a comma and `=SUM(1,2)`. Every text
+data column receives exactly one apostrophe only in CSV, while positive numeric
+quantities have none. Pure cases check original apostrophes, numeric-looking
+IDs, leading whitespace, escaping, invalid exported Unicode and complete-output
+20 MiB rejection. Main-process cases retain exact byte-view snapshots before a
+pending dialog, enforce strict UTF-8/size/extension/sender/main-frame policy and
+do not grant document-save paths. This is not a claim about execution or later
+manipulation in an arbitrary spreadsheet program. Browser CSV download code was
+not separately exercised by this desktop run.
+
+The manually inspected 1544×941 capture is 265,164 bytes, SHA-256
+`23dff4db7987201c5a7f485d7d53a4c59904045e12fcbe8f0c31f937b2346224`.
+It shows the blue workspace, four visible boxes, the selected hidden tree
+member and the complete four-row hierarchy table with separate revisions and
+per-parent/total quantities. The screenshot proves presentation only; actual
+bytes and control/state observations above supply their own evidence. The
+private PNG is not published, and capture remains disabled by default in CI.
+
+These results cover the original declaration/table/CSV cases executed. They
+do not establish configuration-aware purchasing BOM, material/mass, custom
+exclude/promote policies, drawing-attached tables or complete assemblies. No
+push, PR, merge, release, hosted CI, installed-package or macOS/Linux execution
+occurred. Full CAD scope and the remaining assembly requirements stay open.
+
+## Gear relations and lifted angular state — 2026-10-16
+
+Local Windows x64 / approved portable Node 24.21.0 validated source
+`59607bb75ba31b16d341df91e91a6f85b72f4e45` on `codex/assembly-gear-mate` from
+10:17:21.819 through 10:25:39.993 UTC. All 521 source/configuration/document pins
+stayed equal after every command. Complete receipts and logs remain private.
+Runtime, lockfile, public `forks` configuration, worker policy, deadlines and
+sandbox were unchanged; no dependencies were installed.
+
+| Command | Executed result |
+| --- | --- |
+| `npm run build` | PASS: TypeScript and Vite, 2,011 modules, 862 ms Vite phase; existing externalization/chunk warnings retained. |
+| Focused public-config Vitest run, 48 assembly/gear/BOM/native/worker/UI files | PASS: 1,319/1,319 cases, 146.69 seconds. |
+| `npm test` | PASS: 3,811/3,811 unit/CAD cases in 188 files, 219.01-second unit phase, then 50/50 security/IPC checks. |
+| `npm run test:desktop` | PASS: hidden isolated production loader, actual preload/worker/WASM and owned child/profile cleanup. |
+| `npm run test:desktop:pattern-all` | PASS: existing selected-to-ALL workflow and file round trip. |
+| `npm run test:desktop:pattern-world-limit` | PASS: existing fixed world-limit workflow and file round trip. |
+| `npm run test:desktop:pattern-until-next` | PASS: existing UntilNext selected/ALL/additive/rejection workflows. |
+| `npm run test:desktop:assembly` | PASS: all previous stages and 21 recorded gear phases, 24 actual Apply requests, 15 Open dialogs, four document Save As dialogs, seven save IPC calls and four CSV export dialogs/IPC calls; all observed IPC/worker requests completed, no console/request/worker errors. |
+
+The 105 new cases comprise 47 pure model/numerical/reference/history cases,
+37 native integration cases, 20 UI helper/SSR cases and one worker-transport
+case. Numerical, native ownership, failure injection, SSR and mocked transport
+are distinct evidence types. None substitutes for the separately executed real
+production-renderer and native-file workflow.
+
+### Retained failures and corrections
+
+Initial `5ee168c` failed TypeScript checking: an internal `Map` of derived
+angles crossed the renderer scope-report type, and a closure lost the gear
+discriminant. `c302ea4` keeps that map inside numerical results, publishes
+derived angles in the document and retains the narrowed mate locally. Its build
+passed, but focused execution had 1,287 passes and 32 failures. Thirty-one
+native setup failures came from the gear capture's root default: it supplied
+the complete document to the strict `{id, revision}` scope edit interface.
+The remaining pure test had reversed two stored relative-rotation locks.
+
+`59607bb` fixes the production default without forcing callers to provide a
+scope, strengthens invalid-reference rejection assertions and corrects only
+the two fixture lock declarations. Desired spins and tolerances remain intact.
+A retained two-file diagnostic on this source passed build and 84/84 model/native
+cases in 126.68 seconds before the complete eight-command run above. Earlier
+attempts retain their actual logs; later unexecuted commands are not passes.
+
+Independent design/source review also addressed original-base-only lifting, carrier/gauge
+dependence, half-turn ambiguity and inactive broken references blocking a
+stationary solve. The final implementation carries state only across accepted
+trials, bounds swing/twist continuation and preserves old coordinates/sources
+when references become unavailable. Both already-unavailable and newly
+unavailable transitions are checked. Cleanup failures remain fatal. The native
+cases exercise stationary suppression, unrelated movement, rejected related
+movement/source/repair changes and rejected corrupted numerical state.
+
+### Native and document evidence
+
+The original tracked plate/two-pin source supplies two actual cylindrical axes
+and eccentric native bore markers. The pin component frames have positive Z
+orientation, while the selected native cylinder axes are directed -Z. Retained
+actual scene evidence established that sign before execution; production axes
+and tolerances were not changed to match a test expectation.
+
+The original bearing/stop setup has two spin DOF; a gear equation leaves one.
+Native cases cover an explicit component carrier and a null scope carrier,
+including two reused subassembly occurrences with distinct parent rotations
+after an actual lifted movement. Fresh checks run for both expanded namespaces.
+Successive accepted transactions preserve multiple lifted turns through
+serialization/reopening. A quaternion target alone still does not encode a
+requested number of turns. The new carrier witnesses retain complete-document
+freshness and reject clones; renderer edits cannot provide new neutral/lift
+state or silently retarget components. Source repair needs actual directed-axis
+continuity. These cases do not establish unrestricted winding input or all
+mechanical/source-update policies.
+
+### Executed renderer and file evidence
+
+The final desktop stage reopens the untouched original fixture and creates its
+four bearing/stop relations through actual controls. Native capture adds a 1:2
+opposed relation with the plate as carrier. A +60-degree component/world Z
+input produces a -30-degree follower. Cancel preserves committed recovery;
+Apply is one history transaction, verified with Undo/Redo. Editing to 2:1 at
+neutral gives +120/-240 physical spins. Saved native-axis coordinates are
+-120/+240 degrees, so the follower's saved branch differs from its principal
+-120-degree native angle. Suppression permits an independent +90-degree
+component spin, tracks the corresponding -90-degree native coordinate change
+and reactivation restores the equation without resetting the zero frames.
+
+Actual Chromium Z-ring input produces independent eccentric-marker deltas
+`-0.1788928956653924` and `0.3577857913307814` radians, satisfying the -2 follower
+ratio within 1e-8. The bounded stream emits three observed projection requests;
+Save/Apply stay blocked during the gesture. The edited same-direction 1:2
+relation and 15-degree follower offset retain exact identity, references and
+neutral rotations. The editor rejects a zero ratio without requesting CAD;
+an incompatible lateral bearing displacement receives no capability. Every
+ready preview includes exactly the active mate checks and their root IDs.
+
+Native geometry retains three solids/two prototypes, volume
+`4800 + 45*pi/2` mm3 and area `2960 + 543*pi/4` mm2, checked within 1e-5.
+Bearing centers/bounds use 1e-6; axes/angular comparisons use 1e-8. Actual native
+eccentric support vectors, explicit sine/cosine and the scalar ratio provide
+independent expectations. No product rotation helper computes those expected
+marker positions. Save As writes the authenticated document, reopen preserves
+parameters/branches and a fresh native solve reports one DOF. The final Cancel
+retains exact saved bytes and the original input is unchanged.
+
+The manually inspected 1544x941 PNG is 240,694 bytes, SHA-256
+`8329a958c8e9f93cf52f37f05c3a5c264b6762cf8f6b94be0f0e2a1049ad1615`.
+It shows the reopened blue workspace, plate/two pins, the saved gear filename,
+the gear type selector and the still-open declaration BOM with plate quantity 1
+and reused pin quantity 2. It does not show every gear parameter or prove motion,
+native geometry or file bytes. The private PNG is not published; CI capture
+remains disabled by default.
+
+These checked cases do not establish tooth/contact simulation, unrestricted
+winding drivers, continuous multi-turn pointer branch following, general
+rotary collision stopping, other mechanical mates or complete assemblies.
+No push, PR, merge, release, hosted CI, installed-package or macOS/Linux
+execution occurred. The full CAD goal remains incomplete.
+
+## Explicit numeric angular motion — 2026-10-16
+
+Tested source `070403b11c66f9cfae9be9c50b95915f08069f79` on the local
+`codex/assembly-angular-drive` branch. The complete run executed on Windows x64
+with Node 24.21.0/npm 11.19.0 from 11:40:44.322 to 11:52:18.557 UTC. All 527
+tracked/source pins remained unchanged across its eight commands; retained
+log hashes were verified. The subsequent reconciliation edits documentation.
+
+| Executed command | Result |
+| --- | --- |
+| `npm run build` | PASS; TypeScript and 2,012 production modules, Vite 878 ms. |
+| Focused public Vitest command, 51 model/native/ownership/transport/UI files | PASS; 1,445 cases, 248.19 seconds. |
+| `npm test` | PASS; 3,937 unit/CAD cases in 191 files, 294.67 seconds; 50/50 security/IPC checks. |
+| `npm run test:desktop` | PASS. |
+| `npm run test:desktop:pattern-all` | PASS. |
+| `npm run test:desktop:pattern-world-limit` | PASS. |
+| `npm run test:desktop:pattern-until-next` | PASS. |
+| `npm run test:desktop:assembly` | PASS, including the complete explicit-winding extension. |
+
+The increment adds 126 cases: 53 pure motion plans/measurements, 41 UI intent
+and symbolic display/binding cases, 18 native cases, one transport case and
+13 native topology/descriptor ownership cases. These categories retain their
+distinct evidence boundaries. Public dependency versions, process pool,
+worker/solver budgets, test deadlines and sandbox policy were unchanged.
+
+### Retained failures and repairs
+
+The first source `6efc5d7` failed TypeScript inference for a recursively resolved
+occurrence. `a63748e` adds its explicit type; build passed, but the focused run
+had 1,429 passes and one native failure. The last reused nested +720-degree case
+reported `memory access out of bounds` at station 5/12 after the preceding
+cases. That same case passed alone on identical source/configuration: one pass,
+52 filtered cases, 22.26 seconds. An isolated pass did not resolve the combined
+failure.
+
+Inspection found unreleased raw topology visitor handles and hidden curve/sample
+allocations in descriptor queries. The project now explicitly owns each native
+Current handle, including duplicates, and the separate returned downcasts,
+curve adaptors, sample points and center points. First-occurrence ordering,
+sample arithmetic and the independent Cartesian face-key oracle are preserved.
+New success/failure cases observe actual native releases and withholding of
+results after cleanup failure. This fixes the inspected ownership paths; it
+does not prove every allocation inside dependencies or a general CAD memory
+bound. The new helper's initial source `9946305` had a separate generic Shape
+type error, corrected using the existing shape union.
+
+Source `bfd5970` passed build, all 1,443 then-existing focused cases, 3,935 full
+cases, 50 IPC checks and four desktop commands. Its assembly workflow failed
+the existing 2:1 follower comparison. The failed isolated child also encountered
+a dirty-fixture close prompt and reached the unchanged parent deadline; close
+was not confirmed by that run. Its test-owned profile/evidence was retained,
+with process absence checked before moving it into ignored local artifacts.
+
+The test-only `983afc4` diagnostic retains actual completed gear phases and
+numeric comparison values. A token-checked hidden failure child writes evidence
+synchronously and exits with code 1, preserving failure status without prompting
+to save its synthetic fixture. The 80.025-second diagnostic observed code-1
+child closure and measured follower `4.188790187670509` versus
+`4.1887902047863905` rad: error about -1.71e-8. The exact driver and 2:1 weighted
+equation gave a permitted residual about -8.56e-9. The discrepancy concerned
+convergence precision, not a lost angular branch.
+
+The final source refines only explicit stations' numerical angular convergence
+to one tenth of the requested tolerance, after public-tolerance continuation.
+Final native checks, driver/winding witnesses and the existing 1e-8 comparisons
+remain unchanged. Internal scope evidence reports its actual 1e-9 tolerance.
+An unrepresentable refinement rejects before native reconstruction. No desired
+angle, phase, solver budget or test tolerance was changed to accommodate the
+failure. The combined focused/full runs and complete renderer flow then passed
+on the final source above. All earlier attempts/logs remain retained.
+
+### Executed geometry, history and files
+
+The original plate/two-pin mechanism retains three solids/two prototypes,
+volume `4800 + 45*pi/2` mm3 and area `2960 + 543*pi/4` mm2 within 1e-5.
+Native eccentric support markers, explicit sine/cosine and scalar ratios supply
+independent angular expectations; centers/bounds use 1e-6 and angles 1e-8.
+The new native precision case starts with independently declared 0.5/0.24-rad
+component spins and verifies a 2:1 +120-degree input and +240-degree lifted
+follower about the actual selected -Z axis. Reused nested occurrences, negative
+turns, unavailable references, capability identity, source drift and fatal
+later-station cleanup retain separate native cases.
+
+The actual numeric controls request +720 component-local Z degrees at the end
+of the same-direction 1:2/15-degree-offset gear workflow. Both previews report
+twelve verified stations, requested/evaluated driver winding `4*pi` and residual
+within 1e-8. Saved native gear increments are `-4*pi` and `-2*pi`; the physical
+eccentric markers return to their preceding positions. Cancel preserves the
+confirmed document and entered 720. Apply resets the incremental input despite
+matching endpoint orientations. One Undo restores the entire previous state;
+one Redo restores the full-turn state. A 360-degree local X request rejects its
+incompatible intermediate bearing placement with no capability or partial
+commit. Save As/reopen and a fresh undriven solve preserve the lifted values.
+
+The gear extension records 28 phases. Across the complete assembly workflow,
+25 actual Apply requests, 15 Open dialogs, four Save As dialogs, seven save IPC
+calls and four CSV dialog requests complete. No renderer/request/worker error
+was reported. The final owned child closed and its isolated temporary profile
+was deleted. File-dialog paths were substituted only with owned test paths;
+native worker responses supplied all accepted geometry, states and authority.
+
+The fresh manually inspected 1544x941 PNG is 240,694 bytes, SHA-256
+`8329a958c8e9f93cf52f37f05c3a5c264b6762cf8f6b94be0f0e2a1049ad1615`.
+It shows the reopened blue workspace, plate/two pins and the still-open BOM.
+Its identical physical endpoint appearance matches the earlier gear capture;
+the screenshot does not display or prove the accumulated winding. Actual
+rendered requested/evaluated/station labels were checked during preview.
+The PNG and runtime artifacts remain private and unpublished.
+
+This establishes bounded station checks and the cases above on Windows x64.
+It does not establish continuous feasibility, collision-free rotary paths,
+continuous multi-turn pointer gestures, tooth/contact physics, flexible
+assemblies, arbitrary-ratio absolute follower accuracy, a complete CAD product,
+installed-package interaction or general platform support. No push, new PR,
+merge, release, hosted CI or macOS/Linux execution occurred. The full goal
+remains incomplete.
+
+## Screw relations and combined mechanisms — 2026-10-16
+
+The local `codex/assembly-screw-mate` increment adds a native mechanical screw
+relation with coaxiality, mm-per-turn lead, reverse, authenticated relative
+zeros, lifted rotation and component-origin travel. Its independent mathematical
+and saved-data contract is in [ASSEMBLY_SCREWS](ASSEMBLY_SCREWS.md); the public
+fixture and deterministic generator are described in
+[provenance](PROVENANCE.md#original-screw-mechanism). Neither cylinder radius nor
+its arbitrary axial parameter origin supplies pitch or saved phase.
+
+The first source, `ebb8344`, failed build with TS2322 in an existing numerical
+test helper: its type excluded gear but inadvertently admitted the new screw
+family into a lock-only fallback. No subsequent command ran. `1fb63fb` corrects
+that test-family exclusion without changing production equations or tolerances.
+The failed log and exact source remain retained.
+
+Source `1fb63fb44688599b02a9d7635f4979a28470fa30` passed the complete nine-command
+local sequence from 12:28:45 to 12:41:45 UTC on Windows x64 / Node 24.21.0:
+
+| Command | Actual result and scope |
+| --- | --- |
+| `npm run build` | TypeScript and production build passed; 2,014 modules transformed. |
+| Focused public Vitest run, 54 complete assembly/model/native/UI files | 1,556/1,556 cases, 54/54 files, 264.14 seconds. |
+| `npm test` | 4,048/4,048 unit/CAD cases in 194 files, 316.81 seconds, followed by 50/50 IPC/security cases. |
+| `npm run test:desktop` | Initial-model production-loader smoke passed; it does not exercise screw controls. |
+| `npm run test:desktop:pattern-all` | Existing selected/ALL workflow passed. |
+| `npm run test:desktop:pattern-world-limit` | Existing explicit fixed-plane choice passed. |
+| `npm run test:desktop:pattern-until-next` | Existing saved UntilNext workflow passed. |
+| `npm run test:desktop:assembly` | Existing assembly, source update, movement, pointer projection, inspection, BOM and gear workflow passed. |
+| `npm run test:desktop:assembly-screw` | New actual renderer screw capture/movement/history/file workflow passed. |
+
+The increment initially added 111 cases: 43 model, 33 UI, 34 native and one
+transport case. The final test-only source
+`a98fae3c6cf05ee4e8354a35f3e4762218d90001` adds one combined gear/screw regression.
+It passed build, the complete 35/35-case native screw file in 193.30 seconds,
+`npm test` with 4,049/4,049 cases in 194 files in 344.46 seconds plus 50/50 IPC
+cases, and standard desktop smoke from 12:43:16 to 12:52:22 UTC. Only that native
+test file differs between the tested sources. The eight production Electron,
+preload, HTML and asset hashes are byte-identical to the nine-command run, so
+the interaction results above retain their exact production-byte boundary;
+the five scripted interaction commands were not repeated for this test-only
+change. Standard desktop smoke was repeated as recorded above.
+
+Every command used the unchanged public Vitest configuration, lockfile and
+approved Node runtime. All 537 tracked inputs were hash-pinned across each
+command. No dependency install, worker-pool override, changed solver/station
+budget, enlarged deadline or relaxed production tolerance was used.
+
+Pure cases cover the analytical Jacobian by independent finite differences,
+common rigid gauge, rank 5/one relative DOF, both handedness signs, opposed axes,
+nonzero neutral attitudes, accepted/rejected continuation, passive states,
+separate owner groups, projection, precision rejection and v2 round trips.
+They do not confer native geometry authority. Native cases separately cover
+actual axis alignment before capture, opposed/fixed-conflict captures, a common
+translation by `(1e6,-2e6,3e6)` mm, source/intent detachment, forged/stale/cloned
+capabilities, unavailable passive states, directed-axis repair, fatal cleanup,
+reused rotated scopes, multiple turns and fresh native checks.
+
+The three-solid analytical fixture has native sum volume `5400+357*pi/8` and
+area `3400+1331*pi/8`, checked within 1e-5. Scripted controls create shaft
+bearing/axial-stop and slider-guide/rotation-lock relations, then capture the
+screw without a separate user concentric mate. The actual renderer checks
+natural DOF 8→7→3→2→1. Two +720-degree previews each report twelve verified
+stations and evaluated driver winding `4*pi` within 1e-8 rad. With lead 2 and
+reverse false, saved relative angle becomes `-4*pi` and slider origin moves from
+z10 to z14 within 1e-6 mm. Cancel preserves recovery and the entered 720 degrees;
+repeat/Apply resets the increment to 0; one Undo/Redo restores the complete coupled state.
+Moving the nonrotating slider another +1 mm drives a half-turn, compared within
+1e-5 rad as a length-derived follower bound. Its actual eccentric native bore
+also agrees with the stored orientation. A lateral shaft target rejects without
+Apply or a partial committed change. Lead/reverse editing, suppression/passive
+movement/reactivation and native Save As/reopen/fresh solve pass.
+
+That renderer flow records 27 phases and eleven actual Apply requests, with two
+Open dialogs, one Save As and one save IPC. The child reports no renderer,
+request or worker errors, closes, and its isolated owned profile is deleted.
+Dialogs select only test-owned paths. Native replies supply all geometry,
+states and one-use authority; no accepted pose or relation is injected.
+
+The additional native mixed mechanism reuses one support and one shaft at x50,
+giving five solids and three prototypes, volume `10200+507*pi/4` and area
+`6360+1261*pi/4` within 1e-5. A 2:1 opposed gear and the lead 2 screw act together.
+The shaft's +720-degree drive produces saved screw angle `-4*pi`, gear angles
+`-4*pi`/`8*pi` within 1e-8 rad and slider z14 within 1e-6 mm, with natural DOF 1
+and directed DOF 0. The native follower bore returns to `(51,0)` within 1e-6 mm.
+This marker proves the physical endpoint only; the authenticated continuation
+and saved values establish the lifted branches. Single-use Apply, unchanged
+source metadata and serialize/reopen/fresh undriven solve preserve both states.
+
+The manually reviewed 1544x941 screenshot shows the reopened blue workspace,
+three original components and the screw capture panel. It does not show the
+saved winding, all scrolled controls or prove collision freedom. The PNG and
+runtime artifacts remain private. Numerical/scene metrics, real scripted
+controls, file IPC and visual inspection are distinct evidence types.
+
+These results cover the stated original cases and tolerances on Windows x64.
+They do not establish thread/contact physics, arbitrary-lead absolute follower
+accuracy, continuous collision-free paths, flexible assemblies, other mechanical
+mates, installed-package interaction, general platform support or a complete
+CAD application. CI is configured for the new command, but no push, new PR,
+merge, release, hosted CI or macOS/Linux execution occurred. The full goal
+remains incomplete.
+
+## Rack and pinion relations and native reference rebuilds — 2026-10-16
+
+The local `codex/assembly-rack-pinion` proposal adds an actual cylindrical
+pinion coupled to an exact native rack LINE edge or cylindrical axis. Its
+[contract](ASSEMBLY_RACK_PINION.md) defines the scalar equation, eccentric-axis
+travel, native-radius defaults, explicit conversion and preserved winding.
+The [original fixture provenance](PROVENANCE.md) records independent analytical
+geometry and the combined screw/gear/rack case. The dedicated scripted renderer
+command and the complete final sequence passed as recorded below.
+
+The following source-pinned attempts used Windows x64, Node 24.21.0,
+npm 11.19.0 and the unchanged public Vitest configuration and lockfile.
+Every completed command reported zero source drift. Failures stopped their
+sequence before subsequent commands; none establishes a completed acceptance
+run for this proposal.
+
+| Tested source | Actual result |
+| --- | --- |
+| `eb0e868` | Build failed with TS errors: the native curve `Line()` result was typed unknown. No tests ran. |
+| `5230d54` | Build passed. The 59-file focused run reported 208 failed, 1,447 passed and 73 skipped of 1,728 cases. The WASM binding rejected `GeomAdaptor_TransformedCurve.Line` because `gp_Lin` was unbound; two other assertions used exact floating-point equality for physical neutral travel. |
+| `d13bda2` | Bound native `D1` supplies the LINE derivative instead of unbound `gp_Lin`; physical assertions use the stated tolerance. Build and 1,730 focused cases passed. Full unit/CAD reported 4,220 passed and two 60-second timeouts of 4,222 cases in 199 files (365.71 seconds): screw reverse=false two-turn motion and rack LINE two-turn motion/reconstruction. IPC and desktop were not entered. |
+| `e85a2ef` | Build passed. The 62-file focused run passed 1,764 cases and failed one catalog-count assertion of 1,765 (304.78 seconds). The export spy did not observe a direct factory call inside its own module. No full or desktop command ran. |
+| `5df83fb2e047826851a9b9bbc7519b38c9465152` | Corrects only that observer through actual native ownership contexts. Build passed; all 1,765 focused cases in 62 files passed (338.32 seconds). Full unit/CAD reported 4,230 passed and two 60-second timeouts of 4,232 cases in 199 files (363.98 seconds). Screw reverse=false took 63,007 ms; rack LINE motion/reconstruction took 73,186 ms. IPC and desktop were not entered. |
+
+The `5df83fb` sequence ran from 14:19:59 to 14:31:48 UTC. Its 549 tracked/public
+source inputs were hash-pinned after each command. No dependency installation,
+worker-pool override, changed solver/station budget, enlarged deadline or relaxed
+production tolerance was used. Earlier completed screw results remain evidence
+for their own source revisions, not a passing result for this rack head.
+
+The focused pass includes actual native line/cylinder capture, twelve-station
+two-turn motion, save/reopen, unavailable-state preservation, explicit repairs,
+eccentric pinion geometry and the combined original seven-solid mechanism.
+Its original four-solid fixture has sum volume `10800+217*pi/8` and area
+`5560+6115*pi/8`, checked within 1e-5. The combined five-prototype mechanism has
+sum volume `16200+287*pi/4` and area `8960+3723*pi/4`, within 1e-5. Those focused
+results do not erase the full-suite timeouts or supply renderer interaction,
+packaged execution, general platform support or release readiness.
+
+Source `e85a2ef` removes observed duplicate edge-catalog construction, but the
+following `5df83fb` full run still timed out. That change alone did not resolve
+the observed failures. The follow-up below retains fresh native support
+extraction, exact identities, independent reconstruction and complete ownership
+cleanup while reducing repeated work.
+
+### Native reference rebuilds and retained desktop failures
+
+`1784286` retains one owned face catalog per immutable native engine generation
+and exact body/source state. Renderer references, aliases and all three
+face-frame vectors are detached; every support query still reads the actual
+native surface. Normal `geomType` queries already released their Surface through
+the SDK. Explicit ownership additionally handles a failing `GetType` query and
+avoids repeating the same type query three times per face.
+
+Production source `475b8763954246a7e58380ae2188a340caf66235` adds a reference-only
+rebuild route for assembly snapshots. It shares complete native feature
+reconstruction and validation with rendering, but omits final visual
+tessellation and DTO construction. Empty/legacy/explicit inventories contain
+detached canonical identities; aliases do not inflate admission counts. Each
+snapshot still rebuilds independent engines. Native support checks, station
+counts, before/after/final verification, producer cleanup and generation
+revocation remain required. The worker must construct the full rendered scene
+successfully before publishing its final token or applied reply. A reference
+inventory alone grants no renderer Apply authority.
+
+The two improvements add 32 cases relative to `5df83fb`: 18 face-catalog
+lifecycle cases and 14 reference-only rebuild cases. They cover
+identity/alias/frame detachment, fresh radius/support queries, reentrant
+generations, actual native queries followed by injected failure,
+cleanup/producer failures, empty and partial-error states, independent
+snapshots, admission and final-scene failure. Admission-limit cases inject
+cardinality rather than construct 65,536 native entities. These are distinct
+from rendered interaction and do not establish peak native memory/time bounds.
+
+| Source / retained attempt | Executed result and correction boundary |
+| --- | --- |
+| `475b876` / complete sequence | Build, 1,797 focused cases in 64 files, 4,264 full unit/CAD cases plus 50 IPC/security cases, and the six predecessor desktop commands passed. The rack command failed immediately after its actual open/build reply: exact serialized equality between scene and saved poses rejected the rack quaternion. No rack workflow phase was recorded; this was not a complete ten-command pass. |
+| `2087468` / standalone diagnostic | Preserved the failing comparator and observed actual rack rotation `[0,0.7071067811865475,0,0.7071067811865475]` versus saved `[0,0.7071067811865476,0,0.7071067811865476]`, with translation `[-10,10,10]` unchanged. Declaration validation preserves accepted values; world composition normalizes its computation copy. The follow-up compares physical rotation with a stable sign-invariant angular metric at 1e-8 rad, and translation separately at 1e-12 mm. No production pose behavior changed. This diagnostic has a retained log, not a complete source-pinned sequence receipt. |
+| `f87e066` / rack probe | The physical pose check advanced to conversion, then failed because the expected diameter was incorrectly `6/pi` (the radius) after entering travel 12 mm/revolution. Since `L=pi*D`, the diameter is `12/pi`. `8d9be77` corrects this oracle; the input, UI conversion and production tolerance are unchanged. |
+| `8d9be77`, then diagnostic `9fe3ed9` / rack probes | Both reached 23 recorded phases and failed the reactivation check that substituted global rack X for the actual native travel. The shortcut gave 17.841921716755323 mm versus 17.84192044633008 mm coupled travel. Actual current native supports gave equation residual `4.446669877e-7` mm, within the unchanged 1e-6 mm tolerance. The retained edit checks belonged to the earlier edit candidate and do not describe reactivation. |
+| `7dc8f7dcd798f29b02073eda02bfb4ab2e257572` / rack-only probe | Uses the selected current native rack direction, canonicalized in its local frame, and the pinion's actual native axis point projected nearest its component origin. The independent physical equation replaces the global-X shortcut. All 27 phases passed: eleven authenticated Apply operations, one actual Chromium edge-pointer gesture, two Open dialogs, one document Save As and no CSV dialogs. No console or failed-request errors; owned child close and isolated-profile deletion observed. This was a rack-only probe, not a complete-suite result. |
+| `c0ba5c21d90c6727f24ee64dcd4b303682c1f9b4` / final sequence | Only the rack test script differs from `475b876`; production code is unchanged. It strengthens the guide attitude assertion to a physical 1e-8-rad metric and associates diagnostics after the ready guard. All ten commands below passed with zero source drift. |
+
+The earlier full-suite screw and LINE two-turn timeouts passed within their
+unchanged budgets on `475b876` and the final source. Retain the earlier failures
+and distinguish this observed result from a general performance guarantee.
+No dependency install, worker-pool override, solver/station-budget change,
+enlarged deadline or relaxed production tolerance was part of these corrections.
+
+### Final exact-source result
+
+Tested source: `c0ba5c21d90c6727f24ee64dcd4b303682c1f9b4`; Windows x64,
+Node 24.21.0, npm 11.19.0. The sequence ran from 15:35:35.960 to 15:46:46.263 UTC
+on 2026-10-16. All 551 tracked/public inputs were hash-pinned and unchanged after
+each command. The log hashes and earlier failed attempts remain retained.
+
+| Command | Actual final result and scope |
+| --- | --- |
+| `npm run build` | TypeScript and production build passed; 2,016 modules transformed. |
+| Focused public-config Vitest, 64 complete files | 1,797/1,797 cases, 64/64 files, 190.02 seconds. |
+| `npm test` | 4,264/4,264 unit/CAD cases in 201 files, 262.31 seconds, followed by 50/50 IPC/security cases. |
+| `npm run test:desktop` | Initial-model production-loader smoke passed. |
+| `npm run test:desktop:pattern-all` | Existing selected/ALL workflow passed. |
+| `npm run test:desktop:pattern-world-limit` | Existing explicit fixed-plane choice passed. |
+| `npm run test:desktop:pattern-until-next` | Existing saved UntilNext workflow passed. |
+| `npm run test:desktop:assembly` | Existing assembly, source update, movement, pointer projection, inspection, BOM and gear workflow passed. |
+| `npm run test:desktop:assembly-screw` | Native screw capture, movement, history and file workflow passed. |
+| `npm run test:desktop:assembly-rack-pinion` | Native rack capture, edge-pointer selection, bidirectional drive, history and file workflow passed. |
+
+The final source has 215 added cases relative to the previous screw baseline:
+63 model, 48 UI and 104 CAD/native/transport cases. This authored inventory is
+separate from the aggregate executed counts above. The final six scripted
+workflows reported completed IPC, no console errors or failed requests,
+observed owned-child closure and deletion of their isolated temporary profiles.
+
+### Physical and interaction boundary
+
+The original four-part source has independent sum volume `10800+217*pi/8` mm3
+and area `5560+6115*pi/8` mm2, checked within absolute 1e-5 in their respective
+units. Native bounds use 1e-5 mm; marker and end-plane positions and scalar
+coupling use 1e-6 mm. Native axis direction components use a dimensionless
+1e-8 bound; guide and scene/saved physical rotations use 1e-8 rad, rather than
+exact quaternion serialization. Fixed declared poses remain checked separately.
+Native pinion radius 2 gives default diameter 4 and travel `4*pi`; explicit
+travel 12 gives diameter `12/pi`. Defaults are empty/white, overrides yellow,
+and clearing the override restores native defaults.
+
+Pointer selection changes the intended exact native LINE reference without
+solving or discarding the bound preview. Subsequent native capture consumes the
+fresh preview token and returns a solved candidate. Pinion +720 degrees is
+checked through twelve verified stations: saved native angle `-4*pi`, rack displacement `-8*pi`
+mm. Cancel retains input, Apply resets it, and one Undo/Redo restores the whole
+transaction. Rack translation `+2*pi` mm drives a half turn, checked within
+1e-5 rad because the coupling has a length tolerance. Parameter/reverse edits
+preserve IDs and captured zeros; suppression/passive movement/reactivation,
+rejected lateral movement, Save As/reopen and a fresh solve are separate steps.
+Native eccentric markers, end planes and bounds corroborate physical placement;
+endpoint images alone cannot establish winding.
+
+The final rack workflow records 27 phases and eleven actual Apply requests,
+with one real Chromium pointer gesture selecting the native LINE edge, two
+Open dialogs, one Save As and no CSV dialogs. The final private 1544x941 PNG is
+365,276 bytes, SHA-256
+`4059d5af281b5c2cd2412c345a6f052be28f3ff257ed6b43c8695953222ef28e`.
+Its bytes match the manually inspected rack probe image: blue workspace,
+four component entries, top-view mechanism, saved document and clean state
+with Apply disabled. Lower parameter/mate controls need scrolling. This is
+presentation evidence, not proof of all controls, winding, BRep or collision.
+The PNG and local runtime artifacts remain private and unpublished.
+
+Other controls use scripted DOM events. Dialog destinations are restricted to
+test-owned files through the real preload/IPC; worker instrumentation observes
+and forwards actual messages without supplying CAD results, React state or
+document geometry. This workflow does not execute source-edge repair through
+the UI, human native dialogs, installed packages, tooth contact, swept
+collision, continuous pointer winding, flexible assemblies, configurations,
+broader references/mates or structural assembly interchange. No new hosted,
+macOS/Linux, GitHub write, merge or release result is claimed. Full assembly
+acceptance, the user's demo gate and the complete CAD objective remain open.
+
+## Flat assembly geometry export — 2026-10-16
+
+The dependent local `codex/assembly-flat-export` increment implements
+the [flat geometry export contract](ASSEMBLY_EXPORT.md). It exports actual native
+geometry at committed placements in STEP and binary STL, independently of
+scene meshes and pending previews. Hidden active components are included;
+suppressed branches are excluded. No hierarchy/reuse/mate round trip, structural
+STEP, installed-package interaction or platform result is implied.
+
+The attempts below retain the failures preceding the final complete passing
+sequence on `05d39819f57024b4c849cff878791d266e3ee1a0`. Earlier rack results
+belong to their recorded source; they are not reassigned to this changed source.
+The full assembly scope and demo gate remain open.
+
+The first source-pinned attempt on `0a98aa34effea8a954afbcf3e7f398622b23feb1`
+failed `npm run build` during TypeScript checking: the new native test had one
+unannotated file-name parameter (TS7006) and five implicit `this` uses in four
+mock implementation functions (TS2683). No focused/full test, IPC or desktop
+command ran. All 562 public inputs remained unchanged during that command;
+the failed receipt/log is retained. The follow-up adds only explicit test-helper
+types, without changing production behavior, configuration or tolerances.
+
+Source `c273231fbdf8357ed499feaa176220dc9b0877b7` then passed build (2,018
+modules transformed), but its 67-file focused run reported 1,844 passed and
+38 failed of 1,882 cases, with 65 files passed and two failed in 190.71 seconds.
+The native filesystem does not expose `FS.analyzePath`. The export cleanup
+called that unavailable method, withheld the Blob and left virtual temporary
+files in that isolated test runtime. Subsequent no-file assertions failed in
+cascade; 36 native-export cases and the two new dispatcher cases failed.
+No full `npm test`, IPC or desktop command ran. All 562 source inputs stayed
+unchanged. The correction uses the supported root-directory `FS.readdir`
+membership query before unlink in production, the fresh native test reader and
+the authored desktop reader. Query/unlink failures remain fatal; no catch-all,
+truncated output, relaxed tolerance or changed budget is introduced.
+
+Source `897289cfbbe202635f47dfa787909c54fac91db1` passed build, all 1,882
+focused cases in 67 files (188.48 seconds), `npm test` with 4,349/4,349 cases in
+204 files (245.21 seconds) plus 50/50 IPC/security cases, and the seven preceding
+desktop commands. The final assembly-export command failed its combined initial
+scene assertion before recording a geometry phase or issuing an export. It
+recorded one Open and no Save/export dialogs, with no console/request error.
+All eleven commands ran and every step had zero source drift, but the sequence
+was not a complete pass. The follow-up records actual scene counts/warnings
+before that unchanged assertion rather than inferring its cause.
+
+Production source `897289c` still supplies the unchanged production bytes for a
+separate export-only diagnostic probe at `a70cb35a8e55199bcb221661a9c1c8c67f8ca9b3`.
+Only tests, the harness and documentation differ. The probe observed exactly
+seven solids, seven body entries and two prototypes, including three hidden
+bodies. Its sole warning was `flat-explicit: La pieza contiene 2 sólidos separados.`
+The no-warning oracle was wrong for this deliberate explicit multibody fixture.
+The correction requires that exact warning list while preserving every count,
+geometry, source, file and tolerance check; it does not suppress unexpected warnings
+or change production geometry. The failed probe and source hashes remain retained.
+
+The additional original native legacy-aggregate case checks a distinct writer
+boundary: two solids in one `null` body entry, not two explicit entries or two
+occurrences. Its analytical provenance is recorded separately; the new total
+is 86 authored cases (41 native, 39 UI, four transport and two dispatcher).
+This addition is included in the final focused and full passing runs below.
+
+The export-only probe on `f1b40283cee14975dd453269b970825bf4355367` passed the
+initial scene checks, one cancelled STEP dialog, one actual STEP read through
+a separate native runtime and one independently decoded binary STL. It then
+timed out at the unchanged 35-second step limit waiting for a build after its
+scripted occurrence rename. No build followed serial 5; no console/request
+error was reported. The follow-up dispatches the DOM `focusout` event consumed
+by the actual React rename handler instead of depending on focus/blur in a
+hidden window, and records that event's observations. No committed state or
+worker reply is injected, and no production edit or deadline change is implied.
+The partial probe is not a complete desktop or full-suite result.
+
+The export-only probe on `05d39819f57024b4c849cff878791d266e3ee1a0` then passed
+the complete workflow. Its five geometry/history/reopen phases recorded seven
+export requests: one cancelled STEP and six written files, split equally between
+STEP and STL. It used two Open dialogs and one Save, with all ten file IPC calls
+completed and no console/request errors. This probe alone is not a full-suite
+result; the later sequence below repeats the export workflow after all preceding
+checks on the same exact source.
+
+The final Windows x64 sequence ran from 16:51:00.932 to 17:01:25.887 UTC on
+2026-10-16. All eleven commands returned zero, with no changes across 562 public
+source inputs after any command:
+
+| Command | Executed result |
+| --- | --- |
+| `npm run build` | PASS; TypeScript and production build, 2,018 modules, 820 ms bundling. |
+| Focused Vitest run with the public configuration | PASS; 1,883/1,883 cases in 67 files, 180.20 seconds. |
+| `npm test` | PASS; 4,350/4,350 unit/CAD cases in 204 files, 238.12 seconds, plus 50/50 IPC/security cases. |
+| `npm run test:desktop` | PASS. |
+| `npm run test:desktop:pattern-all` | PASS. |
+| `npm run test:desktop:pattern-world-limit` | PASS. |
+| `npm run test:desktop:pattern-until-next` | PASS. |
+| `npm run test:desktop:assembly` | PASS. |
+| `npm run test:desktop:assembly-screw` | PASS. |
+| `npm run test:desktop:assembly-rack-pinion` | PASS; 27 phases, eleven Apply actions and one actual Chromium native-edge pointer selection. |
+| `npm run test:desktop:assembly-export` | PASS; five phases, seven requests and six emitted geometry files. |
+
+The focused selection contains the 64 preceding assembly/native/worker/UI files
+plus the new native export, UI export boundary and export panel files. The
+increment's 86 cases comprise 41 native export cases, 39 symbolic/SSR UI cases,
+four transport cases and two native dispatcher cases. They are included in the
+executed totals above; SSR/transport results are not BRep or human interaction
+evidence. Dispatcher cases preserve pending preview authority and the separate
+cached part across rejected and successful assembly exports. The production
+export source remains `897289cfbbe202635f47dfa787909c54fac91db1`; subsequent
+pre-validation commits change tests, the desktop harness and documentation only.
+
+The tracked original box fixture contains seven placed solids with total volume
+780 mm³, area 892 mm² and bounds `[6,-2,-8]` to `[53,11,5]` mm. Three bodies belong
+to a hidden reused subassembly, suppressed branches are absent, and two solids
+occupy the same box without fusion. For each of the three STEP outputs, a fresh
+separate native reader checks valid closed BRep, seven solids, millimeter units
+and per-box volume, area and bounds against analytical coordinates at `1e-6`.
+For each of the three STL outputs, an independent binary decoder checks 84
+outward facets, 4,284 bytes, per-box face counts and multiplicity, normals,
+winding, volume, area and bounds at `1e-6`. These exact box expectations do not
+establish general tessellation accuracy or interoperability with another CAD.
+
+The separate native legacy-aggregate case has two disjoint solids in one `null`
+body entry, transformed by `Rz(90°)` and translation `[10,20,30]` mm. STEP retains
+two valid solids with total volume 246 mm³ and area 270 mm² at `1e-5`; the STL
+decoder checks 24 facets, 1,284 bytes and per-box geometry at `1e-6`. A separate
+cylinder case compares STEP with analytic volume `48π` mm³ and area `56π` mm²;
+its STL volume uses a distinct 1 mm³ approximation tolerance. Fixture parameters,
+generation and provenance are recorded in [PROVENANCE](PROVENANCE.md).
+
+The export renderer checks committed-source/history/recovery/path/dirty state
+before and after cancellation and every export, then renames a component,
+performs Undo/Redo, exports the committed unsaved state, saves and reopens.
+Actual worker results and restricted file IPC supply geometry and bytes; native
+dialog choices use test-owned paths. No Apply or CSV export is substituted for
+the geometry export. All seven scripted workflows reported completed IPC,
+zero console/request errors, observed child closure and deletion of their
+isolated temporary profiles. Four hidden internal PNG captures have verified
+hashes; images remain private and are not geometric evidence or the user's demo.
+
+No test deadline, worker pool, station count, solver/geometry tolerance,
+dependency, lockfile or sandbox policy changed to obtain these passes. At the
+recorded flat-export documentation head `1d9deec2447a2b46b48a723c9480e639c7eb3ce8`,
+only `PROJECT_STATUS.md` and this validation record differ from the tested source.
+The sequence does not establish structural STEP, general assembly acceptance,
+browser downloads, human native-dialog operation, installed-package execution,
+macOS/Linux support, hosted CI, publication or release readiness. The full
+assembly scope and the user's demo gate remain open.
+
+## Parallel and perpendicular assembly relations — 2026-10-16
+
+The dependent local `codex/assembly-direction-mates` increment adds
+the [direction relation contract](ASSEMBLY_DIRECTION_MATES.md) against original
+plane, cylinder-axis and native LINE supports. It distinguishes the mixed
+plane/direction meaning from plane/plane and direction/direction, with explicit
+collinear alignment and null orthogonal alignment. The attempts below distinguish
+authored declarations and configured workflows from executed source-specific
+results. The complete assembly scope and demo gate remain open.
+
+The increment adds 288 cases: 197 model/numerical cases (50 direction
+classification, 19 strict document, 55 equation/Jacobian and 73 solver cases),
+63 native cases (27 declared support/branch combinations and 36 integration
+cases), and 28 UI/SSR cases (25 panel/boundary and three workspace cases).
+All are included in the focused and full passing runs below. Model and SSR
+cases remain separate from native geometry and real renderer interaction.
+
+The earlier flat-export sequence and its documentation-only head retain their
+recorded exact source. They do not establish this increment's numerical/native,
+editor or persistence acceptance. The complete assembly scope and the user's
+demo gate remain open.
+
+The first source-pinned attempt on `e8f2539f0981af9dc3026b982278e7c7b57382e2`
+failed `npm run build` during TypeScript checking. Two native test expressions
+spread a helper declared to return the entire `AssemblyMate` union, so their
+generic geometry references could not satisfy unrelated concentric variants
+(TS2322). No focused/full unit, IPC or desktop command ran. All 572 source
+inputs remained unchanged during the failed command; its receipt and log are
+retained. The correction narrows only the test helper's declared return to the
+two direction-mate variants, without casts or changes to production behavior,
+fixtures, solver tolerances or budgets.
+
+Source `4cae21bca52da7ca7b2ccdb77027667a2da56dbd` then passed all twelve
+commands on Windows x64 from 17:39:39.409 to 17:50:46.496 UTC on 2026-10-16,
+with zero drift across 572 public inputs. Build transformed 2,020 modules;
+the focused run passed 2,171/2,171 cases in 70 files (194.57 seconds), and
+`npm test` passed 4,638/4,638 cases in 207 files (249.60 seconds) plus 50/50
+IPC/security cases. All nine desktop commands passed: standard smoke, the
+three pattern workflows, assembly, screw, rack-and-pinion, flat export and
+the new direction workflow. The latter recorded 36 phases, thirteen Apply
+operations, one actual Chromium LINE pointer, two Open dialogs and one Save As.
+Its three file IPC calls completed, with no console/request errors. All owned
+children closed and their isolated profiles were deleted. Five private PNG
+captures have verified hashes; the four preceding workflow images are identical
+to their earlier flat-export captures. This is bounded local evidence, not full
+assembly acceptance or a demo.
+
+After that source was frozen, static code review identified an editor navigation
+defect outside the recorded direction workflow: entering gear, screw or rack
+editing from a direction edit did not clear `editingDirectionId`. The direction
+panel disappeared while unrelated family choices remained disabled. Source
+`a7d99eafc101ca0bd9f8e87949a2116f98b04b88` clears that state in those three
+existing editor-entry callbacks;
+it does not change geometry, saved data, fixtures, solver equations or tolerances.
+This transition was identified by code review, not a new executed DOM regression.
+The passing sequence above belongs to `4cae21b`. The final sequence below
+validates the corrected source, without claiming a newly automated DOM
+regression for that specific cross-editor transition.
+
+The final Windows x64 sequence ran from 17:53:57.238 to 18:05:17.490 UTC on
+2026-10-16 against `a7d99eafc101ca0bd9f8e87949a2116f98b04b88`. All twelve
+commands returned zero; every command preserved all 572 public source inputs:
+
+| Command | Executed result |
+| --- | --- |
+| `npm run build` | PASS; TypeScript and production build, 2,020 modules, 856 ms bundling. |
+| Focused Vitest run with the public configuration | PASS; 2,171/2,171 cases in 70 files, 196.33 seconds. |
+| `npm test` | PASS; 4,638/4,638 unit/CAD cases in 207 files, 257.49 seconds, plus 50/50 IPC/security cases. |
+| `npm run test:desktop` | PASS. |
+| `npm run test:desktop:pattern-all` | PASS. |
+| `npm run test:desktop:pattern-world-limit` | PASS. |
+| `npm run test:desktop:pattern-until-next` | PASS. |
+| `npm run test:desktop:assembly` | PASS. |
+| `npm run test:desktop:assembly-screw` | PASS. |
+| `npm run test:desktop:assembly-rack-pinion` | PASS; 27 phases, eleven Apply actions and one actual native-edge pointer selection. |
+| `npm run test:desktop:assembly-export` | PASS; seven requests and six written geometry files. |
+| `npm run test:desktop:assembly-direction` | PASS; 36 phases, thirteen Apply actions and one actual native LINE pointer selection. |
+
+The focused selection extends the preceding 67 files with the new direction
+helper, native direction and panel files. The production native/model source
+remains `e8f2539f0981af9dc3026b982278e7c7b57382e2`; `4cae21b` changes a test
+helper declaration and documentation, and `a7d99eaf` supplies the three UI
+callback corrections and their history. Only `PROJECT_STATUS.md` and this
+record change after the final tested source.
+
+Native direction cases execute nine ordered support pairs for each of the two
+families: plane, cylinder-derived axis and exact LINE. The nine collinear pairs
+each have aligned/opposed branches; the nine orthogonal pairs require null
+alignment, giving 27 native support/branch combinations. Mixed plane/direction
+pairs invert the normal/axis objective. Strict version-2 parsing rejects inert
+alignment and unknown fields; preceding angle semantics are unchanged. Adding
+new relation types does not establish compatibility with older readers.
+
+The 36 additional native integration cases cover fresh support queries,
+fixed/floating ownership and rank, source update/repair, hidden and suppressed
+reused occurrences, history and authenticated Apply, final-query/cleanup
+failures, straight translation with constant local rotations and an obstacle,
+and a compatible regular gear combination. Existing active/passive mechanical
+groups retain their no-reseed policy: singular combinations may reject with
+no accepted poses or lifted state. These cases do not establish general
+gear/screw/rack compatibility or global mobility. Collinear/orthogonal local
+ranks are two/one; one fixed component leaves four/five DOF, while two free
+components leave ten/eleven including six gauge freedoms.
+
+The original tracked fixture is independently generated and byte-identical to
+its generator output. It reuses two 10 by 6 by 4 mm prisms with a radius-1 mm
+through-bore at `(2,0)`. Fresh native geometry has two valid solids, volume
+`480−8π mm³` and area `496+12π mm²`. The initial fixed identity placement and
+free `Rx(30°)` placement at `(20,10,6)` yield bounds `[-5,-3,0]` to
+`[25,10+1.5√3,7.5+2√3]` mm. Native checks use volume/area tolerance `1e-5`,
+bounds `1e-6 mm` and direction-angle tolerance `1e-8 rad`. Source repair to
+radius 1.25 uses the general bore formulas, with provenance in
+[PROVENANCE](PROVENANCE.md). Direction constraints do not fix component
+origins: accepted free translations are checked against an independent
+rigid-transform formula, while only the grounded occurrence must stay fixed.
+
+The production-renderer direction workflow records four builds, nineteen
+previews and thirteen Apply phases. It exercises selection, Cancel/repeat,
+Undo/Redo, parallel/perpendicular editing, signed branches, suppression,
+reactivation, deletion, a contradictory rejected preview and Save As/reopen.
+The rejection preserves committed state. Two Open dialogs and one Save As
+complete all three restricted file IPC calls; no CSV export substitutes for
+document persistence. Independent renderer geometry uses angle tolerance
+`1e-6 rad` and volume/area/bounds `1e-5`; scene/saved translation comparisons
+use `1e-12 mm`. These tolerances and checks are distinct from native solver
+acceptance. Dialogs and profiles are test-owned, not human native-dialog
+interaction.
+
+All eight scripted desktop reports have completed IPC, zero console/request
+errors, observed child closure and deleted isolated profiles. Five private
+PNG captures have verified hashes. Visual review covers the captured viewport
+and visible controls; direction parameters below the captured fold are not
+visually certified. Images are not geometric proof or the user's demo.
+
+No dependency, lockfile, runtime, worker pool, deadline, station count or solver
+or geometric tolerance changed to obtain these results. All three main
+attempts and their logs remain retained, including the first failure. The
+configured ninth desktop command has not run in hosted CI. These results do
+not establish general assembly acceptance, installed-package behavior,
+macOS/Linux support, publication or release readiness. The complete assembly
+scope and demo gate remain open.
+
+## Plane and cylindrical-surface tangency — 2026-10-16
+
+The dependent local `codex/assembly-tangent-plane-cylinder` increment implements
+the [tangent contract](ASSEMBLY_TANGENT_MATES.md): one plane and
+one exact cylindrical surface, both endpoint orders and plane-oriented sides,
+strict surface-purpose references and fresh native support-normal evidence.
+The equations apply to infinite supports. Finite trimmed-face contact, solid
+interference and the other tangent families remain separate required work.
+
+The final source-specific local sequence below passed build, unit/CAD, IPC and
+desktop checks. The preceding direction run retains its own tested source;
+it does not validate this changed code. The full assembly scope and the user's
+demo gate remain open.
+
+The authored tangent inventory is 256 cases: 143 model cases (29 helper,
+28 schema, seven reference inspection, six source repair, 32 equation/Jacobian
+and 41 solver), 68 native cases (32 surface extraction/ownership and 36
+integration), and 45 UI/SSR cases (34 panel/helpers, four workspace and seven
+source repair). All 256 passed in the final focused and full runs. The fixed
+production workflow executed 24 phases: four builds, thirteen previews including one
+numeric rejection, and seven Apply operations, plus one actual cylindrical-face
+pointer selection, two Open dialogs and one Save As. Its final saved record
+is a positive-side tangent with the roller surface first and ground plane
+second. The results below distinguish numerical, native and renderer evidence.
+
+The first source-pinned attempt on `3232cf67d2c0712c09e334d63c27a6c8e8007aa7`
+ran from 18:37:43.334 to 18:37:45.585 UTC on 2026-10-16 and failed TypeScript
+checking in `npm run build`. Four errors were reported: the native scene spy
+used generic `Shape` without its type argument; the source-repair selector
+needed an explicit face/surface-reference union; an existing legacy test helper
+did not exclude the new surface purpose; and a negative repair test spread a
+surface declaration while assigning an old axis/plane discriminator. No
+focused/full unit, IPC or desktop command ran. All 583 source inputs stayed
+unchanged; the failed receipt and log are retained.
+
+The correction uses the existing `AnyShape` spy receiver type, an explicit
+selector annotation, a narrowed legacy test guard and a deliberately typed
+old-purpose replacement for the negative repair case. No cast, changed
+expectation, production geometric behavior, fixture, tolerance or budget is
+introduced. The next attempt below records validation of that correction.
+
+Source `23684061ba56ae167ecac1f3b6501b06fca0ff3b` then ran from 18:39:27.124
+to 18:43:02.790 UTC on 2026-10-16. Build passed with 2,022 modules and
+1.16-second bundling. The focused run reported 2,425 passed and two failed
+of 2,427 cases in 74 files (209.28 seconds): both placed-cylinder extraction
+cases were rejected by `validateRigidPose` before placement. Their test-case
+object included the independent expected `center` and `axis` alongside the
+actual rotation/translation. The strict pose parser correctly requires exactly
+those two pose fields. No full `npm test`, IPC or desktop command ran; all
+583 public inputs stayed unchanged after each command.
+
+The follow-up passes only the test's rotation/translation to the existing
+placement API and retains center/axis as independent D1 oracles. Production
+code, expected coordinates, tolerances and budgets are unchanged. Both failed
+attempts remain retained; the next attempt records the corrected source's
+validation sequence.
+
+Source `5e677e168b43afea93063a5bbb7328407c74f0b0` ran the complete thirteen-
+command sequence from 18:44:03.652 to 18:55:49.554 UTC on 2026-10-16. The
+first twelve commands passed: build (2,022 modules, 836 ms), focused
+2,427/2,427 cases in 74 files (209.62 seconds), full 4,894/4,894 cases in
+211 files (262.67 seconds), 50/50 IPC/security cases and all nine preceding
+desktop commands. Every command preserved all 583 public source inputs.
+The final tangent desktop command failed, so this is not a complete pass.
+
+That workflow recorded the original Open/build phase, then threw a JavaScript
+`TypeError` before its first pointer gesture or preview. The observer's compact
+face record retains selection and analytical supports but omits mesh arrays;
+the new script incorrectly read `selected.vertices.length`. The follow-up
+records actual worker face vertex/triangle counts in the observer and requires
+positive integer counts before the same real pointer operation. It does not
+inject geometry or selection, remove the mesh-presence check, or change
+production code, coordinates, tolerances or deadlines. A separate native GPU
+stderr diagnostic is retained in the failed log; its cause is not inferred
+from the primary script error. Source `f4cd14ab9952a17498b79e44c974e847b7b2816c`
+contains that observer/workflow correction and its failure history.
+
+A separate tangent-only probe on `f4cd14a` passed from 19:00:10.735 to
+19:00:20.234 UTC on 2026-10-16. It used the preceding production build with
+only the two test-script changes and validation history allowed by its source
+guard. It recorded all 24 phases, seven Apply actions, one real face pointer,
+three completed file IPC calls and no console/request errors; its child closed
+and isolated profile was deleted. The selected original cylindrical face had
+212 vertices and 210 triangles in the actual worker response. The probe kept
+all 583 source inputs unchanged. It was a single-command diagnostic result,
+not a substitute for the fresh full sequence below.
+
+The final Windows x64 sequence ran from 19:03:09.764 to 19:15:10.495 UTC on
+2026-10-16 against `f4cd14ab9952a17498b79e44c974e847b7b2816c`. All thirteen
+commands returned zero; every command preserved all 583 public source inputs:
+
+| Command | Executed result |
+| --- | --- |
+| `npm run build` | PASS; TypeScript and production build, 2,022 modules, 1.05-second bundling. |
+| Focused Vitest run with the public configuration | PASS; 2,427/2,427 cases in 74 files, 216.69 seconds. |
+| `npm test` | PASS; 4,894/4,894 unit/CAD cases in 211 files, 268.24 seconds, plus 50/50 IPC/security cases. |
+| `npm run test:desktop` | PASS. |
+| `npm run test:desktop:pattern-all` | PASS. |
+| `npm run test:desktop:pattern-world-limit` | PASS. |
+| `npm run test:desktop:pattern-until-next` | PASS. |
+| `npm run test:desktop:assembly` | PASS. |
+| `npm run test:desktop:assembly-screw` | PASS. |
+| `npm run test:desktop:assembly-rack-pinion` | PASS; 27 phases, eleven Apply actions and one actual native-edge pointer selection. |
+| `npm run test:desktop:assembly-export` | PASS; seven requests and six written geometry files. |
+| `npm run test:desktop:assembly-direction` | PASS; 36 phases, thirteen Apply actions and one actual native LINE pointer selection. |
+| `npm run test:desktop:assembly-tangent` | PASS; 24 phases, seven Apply actions and one actual cylindrical-face pointer selection. |
+
+The focused selection extends the preceding 70 files with tangent helpers,
+surface extraction, native integration and panel tests. Geometric production
+behavior belongs to `3232cf6`; `2368406` adds one UI type annotation and test
+type corrections, `5e677e1` corrects the placed test argument, and `f4cd14a`
+changes only the test observer/workflow and validation history. Only
+`PROJECT_STATUS.md` and this record change after the final tested source.
+
+The saved relation has a distinct `cylinder-surface` purpose and an explicit
+positive/negative side relative to the oriented plane normal in either endpoint
+order. Old axis references are not converted to surface intent. Strict parsing,
+source repair and native witness checks retain exact component/body/face/source
+identity. The two regular equations have local rank two: one fixed occurrence
+leaves four DOF; two free occurrences leave ten including six gauge freedoms.
+Free component origins may move under the solver's rigid update. Only the
+grounded occurrence must remain fixed; a particular Z coordinate is not a
+general tangency oracle. Singular starts can reject honestly under the existing
+bounded policy, and active/passive mechanical groups retain their no-reseed
+policy and saved winding.
+
+The 32 extraction cases check actual outer and bore surfaces, reversed face
+orientation, indirect native frames against D1 normals, rigid placements,
+invalid analytical data and cleanup/primary-error paths. All seven acquired
+native objects are released without deleting the borrowed face. The 36 native
+integration cases cover both sides and endpoint orders, principal planes,
+fixed/floating/same-owner rank and conflicts, purpose/source forgery, history,
+authenticated Apply, source update/repair, hidden/suppressed occurrences,
+shared nested placements and withholding authority after final-query, mesh or
+cleanup failures. Each solved support report is rebuilt from fresh native
+supports and distinguishes same/opposed material normals without saving a
+renderer-authoritative result.
+
+Native movement cases admit straight translation only for the explicitly
+proved plane/cylinder pair with constant local rotation, including a clear path
+and an obstacle. This does not admit future tangent families automatically.
+The angular case checks two bounded stations, not continuous collision. One
+new compatible guided gear/winding combination is checked natively; pure-model
+gear, screw and rack cases do not establish all three families' new native
+compatibility. Separate disjoint finite parts and material-overlap cases show
+why infinite-support tangency is not finite contact or non-interference.
+
+The original tracked fixture is byte-identical to its independent generator
+output. It contains a centered 40 by 30 by 4 mm fixed prism and a radius-2 mm,
+height-12 mm free cylinder, initially rotated `Ry(90°)` and translated to
+`(-6,0,10)` mm. The two valid solids have total volume `4800+48π mm³`, area
+`2960+56π mm²` and initial bounds `[-20,-15,0]` to `[20,15,12]` mm. For an
+accepted cylinder placement, exact coordinate bounds come from its two cap
+centers and radial extent `2√(1−a_i²)` along each world axis; rotating local
+bounding-box corners is not the oracle. Derived bore, eccentric and obstacle
+fixtures and their analytical formulas are documented in
+[PROVENANCE](PROVENANCE.md).
+
+Native checks use volume/area tolerance `1e-5`, bounds and signed support
+distance `1e-6 mm`, and angle `1e-8 rad`. Extraction checks use radius
+`1e-9 mm` and oriented D1 radial normals `1e-9` dimensionless. Independent
+renderer checks use angle `1e-6 rad`, signed distance `1e-6 mm` and
+volume/area/bounds `1e-5`; scene/saved translations and fixed-ground quaternion
+components use `1e-12` in their respective millimeter/dimensionless units,
+while scene/saved physical rotation angle uses `1e-8 rad`. These are separate
+checks with separate tolerances, not one shared solver acceptance threshold.
+
+The production-renderer workflow exercises plane-first and surface-first
+selection, positive/negative side edits, Cancel/repeat, Undo/Redo,
+suppression/reactivation, deletion and a contradictory rejected preview that
+preserves committed state. Its thirteen previews include twelve ready results
+and one numerical rejection. Seven Apply operations use actual worker tokens.
+The original face pointer operates on the actual native mesh; no solver reply,
+selection or document state is injected. Rename, Save As and reopening retain
+one active positive-side mate, roller surface first and ground plane second.
+Two Open dialogs and one Save As complete all three restricted file IPC calls;
+no CSV export substitutes for document persistence. Paths and dialogs are
+test-owned, not human native-dialog interaction.
+
+All nine scripted desktop reports have completed IPC, zero console/request
+errors, observed child closure and deleted isolated profiles. Six private PNG
+captures have verified hashes. Visual review covers only the captured viewport
+and visible controls; tangent parameters and the support-normal report below
+the captured fold are not visually certified. Images are not geometric proof
+or the user's demo.
+
+No dependency, lockfile, runtime, worker pool, deadline, station count or solver
+or geometric tolerance changed to obtain these results. All four main attempts
+and their 29 logs, plus the one-command probe and its log, remain retained.
+The configured tenth desktop command has not run in hosted CI. This evidence
+does not establish other tangent pairs, finite trimmed contact, rolling,
+general mechanical compatibility, complete assemblies, installed packages,
+macOS/Linux execution, publication or release readiness. The full assembly
+scope and demo gate remain open.
+
+## Cylinder surface tangency — 2026-10-16
+
+The dependent local `codex/assembly-cylinder-tangent` increment is implementing
+the [cylinder surface contract](ASSEMBLY_CYLINDER_TANGENCY.md). The nonparallel
+and added-parallelism families have distinct saved intent, equations and regular
+ranks. Both use exact current surface-purpose references and explicit
+external/internal radius roles. Plane/cylinder records retain their previous
+type and side semantics.
+
+No changed-source build, numerical/native suite, IPC or desktop result is
+claimed yet. The preceding plane/cylinder source-specific pass does not validate
+these edits. Original fixture generation, authored cases and the configured
+`npm run test:desktop:assembly-cylinder-tangent` command are not executed passes.
+Finite contact, containment, rolling, cylindrical degenerations/transitions and
+other tangent families remain separate required work. The full assembly scope
+and user's demo gate remain open.
+
+The initial authored inventory is 325 cases: 200 model cases (44 branch/radius/normal
+helpers, 26 schema, 59 equation/Jacobian, 59 solver, six reference inspection and
+six source repair), 82 native integration cases and 43 UI/SSR cases (34
+cylinder-panel/helpers, four workspace, four source repair and one named
+plane/cylinder summary). These are written cases, not recorded passes.
+
+The fixed renderer workflow records two original unmated fixture cases. The
+nonparallel case has 24 phases (four builds, thirteen previews and seven Apply);
+the parallel case has 28 (four builds, fifteen previews and nine Apply), including
+creating/deleting a compatible direction relation and real cross-editor
+navigation. Together they target 52 recorded phases, 26 ready previews, two
+numeric rejections, sixteen Apply operations, two actual native-face pointer
+selections, four Open dialogs and two Save As operations. These recorded phases
+do not enumerate every worker request: Cancel may initiate the ordinary
+committed-scene reconstruction. Final intent in both cases is internal, with
+the larger moving surface first and fixed surface second, then rename and
+Save As/reopen. No executed workflow result is implied.
+
+The first source-pinned sequence on `6b5a62aac8f401d7a9817fa7d674939997efbbf6`
+ran from 19:46:19.596 to 19:58:40.323 UTC on 2026-10-16. The first thirteen
+commands passed: build (2,024 modules, 862 ms bundling), focused 2,752/2,752
+cases in 77 files (210.16 seconds), full 5,219/5,219 in 214 files (273.31
+seconds), 50/50 IPC/security cases and all ten preceding desktop commands.
+All fourteen commands preserved all 594 public source inputs. The final new
+cylinder desktop workflow failed; this sequence is not a complete pass.
+
+The nonparallel fixture completed its 24 recorded phases, seven Apply actions,
+one actual face pointer and Save As/reopen. The parallel fixture reached twenty
+recorded phases, six Apply actions and its actual pointer, then failed the
+ready-preview assertion while creating the temporary direction relation. Three
+Open dialogs, one Save As and all four file IPC calls up to that point completed.
+The assertion ran before recording the failed worker reply, so the retained
+report does not establish that reply's exact rejection reason. The follow-up
+adds failure-only diagnostic recording of that actual reply before the same
+assertion. It does not change product behavior, controls, expectations,
+geometry, tolerances or deadlines. Diagnosis and corrected full validation
+remain pending; the failed receipt and all fourteen logs are retained.
+
+A separate single-command diagnostic probe on
+`fcd73a4714b005b2eb838b5f73ba9266e9d87dcf` reproduced the failure using the
+unchanged `6b5a62a` production build. Its only source differences were the
+failure recorder and this validation history. The actual reply rejects with
+`rankUncertain`: rank range `[3,4]`, DOF range `[2,3]`, and a fourth singular
+value approximately `6.3839e-10`, despite both physical checks being satisfied
+(maximum length residual `9.2178e-9 mm`, angle `9.0282e-10 rad`). It performs
+zero iterations/trials. The existing internal cylinder relation and the new
+aligned direction use opposite endpoint orders, so their equivalent zero
+conditions have different moving-frame derivatives at that small nonzero
+residual. The diagnostic confirms numerical rank uncertainty, not an opposed
+axis branch or a failed native-surface lookup. A bounded solver refinement and
+independent regressions are being prepared; no corrected pass is claimed yet.
+
+That diagnostic ran from 20:03:07.358 to 20:03:22.369 UTC on 2026-10-16 and
+preserved all 594 inputs. Its single failed command and complete reply remain
+retained separately from the main sequence.
+
+The correction adds twenty model solver regressions and five fresh native
+regressions, bringing the authored inventory to 350 (220 model, 87 native,
+43 UI/SSR). The original 325 passed on `6b5a62a`; that result does not validate
+the changed solver. New cases cover both reference orders and axis reversal,
+floating gauge, certified/uncertified factors, exhausted budgets, exact zero
+residual, preservation of active/passive lifted state and rollback when an
+independent physical check fails. Native cases reproduce the actual retained
+pose, validate fresh geometry/refs, Apply and reopen, and retain honest
+`rankUncertain` rejection with zero iterations. Corrected execution is pending.
+
+The corrected native suite also strengthens the initial mechanical checks:
+fresh reopening must preserve complete saved mate declarations exactly, and
+the singular-chart rollback cases must retain zero initial gear winding. The
+initial run compared normalized declarations and winding within `1e-8 rad`,
+and compared rollback with captured initial winding. Its pass does not imply
+that these stronger assertions have passed on the corrected source.
+
+### Corrected cylinder tangency validation
+
+Corrected production/test source
+`e5c541482fde781f9ca059734b41cf07ec7eb6dd` retains the initial cylinder
+implementation from `6b5a62a` and adds the bounded certified-subspace residual
+refinement. Diagnostic-only source `fcd73a4` added no production behavior.
+The changed solver does not alter equations, rank thresholds, physical
+tolerances, solver budgets, motion stations or mechanical no-reseed rules.
+All 350 newly authored cases (220 model, 87 native, 43 UI/SSR) are included in
+the corrected focused and full suites, including the stronger exact native
+history assertions described above.
+
+First, a separate three-command preflight ran from 20:22:48.209 to
+20:24:06.134 UTC on 2026-10-16. Build, 325 cases in two complete solver/native
+test files, and `npm run test:desktop:assembly-cylinder-tangent` passed with
+zero drift across 594 inputs. Those 325 executed cases include older tests;
+they are a different inventory from the initial 325 newly authored cases.
+This probe did not replace the complete sequence below.
+
+The complete corrected sequence ran from 20:24:35.701 to 20:36:58.405 UTC on
+2026-10-16, Windows x64, Node 24.21.0/npm 11.19.0. All fourteen commands
+passed and every command retained all 594 source hashes:
+
+- `npm run build`: 2,024 modules, 860 ms.
+- Focused Vitest with the public configuration: 2,777/2,777 cases in
+  77 complete assembly/native/worker/UI files, 210.85 seconds.
+- `npm test`: 5,244/5,244 unit/CAD cases in 214 files, 272.93 seconds, then
+  50/50 IPC/security cases with no failures, skips or cancellations.
+- Eleven desktop commands, each through `npm run`: `test:desktop`,
+  `test:desktop:pattern-all`, `test:desktop:pattern-world-limit`,
+  `test:desktop:pattern-until-next`, `test:desktop:assembly`,
+  `test:desktop:assembly-screw`, `test:desktop:assembly-rack-pinion`,
+  `test:desktop:assembly-export`, `test:desktop:assembly-direction`,
+  `test:desktop:assembly-tangent` and
+  `test:desktop:assembly-cylinder-tangent`.
+
+The ten scripted desktop reports have no console errors or failed requests,
+completed their recorded IPC, observed their owned child closing and removed
+their isolated temporary profiles. Seven private captures are retained; no
+user demo, installed package or user document was opened for these checks.
+The standard smoke is separate from the ten scripted workflows.
+
+Private visual QA verified the seven final capture identities and dimensions
+(`1544×941`). Five reuse earlier visual QA only after exact byte/hash and
+metadata comparison; the changed plane/cylinder capture and final cylinder
+capture were inspected directly. No visible clipping or blocking layout fault
+was found. Parameters, relation rows and reports below the captured viewport
+are not visually certified. Occlusion in the internal cylinder arrangement
+is not evidence of finite contact or containment.
+
+The new cylinder workflow exercised two original saved documents. Nonparallel
+axes recorded 24 phases (four builds, thirteen previews, seven Apply actions);
+parallel axes recorded 28 (four builds, fifteen previews, nine Apply actions).
+Together these are 52 explicitly registered phases, including two deliberate
+rejections and two actual native-face pointer selections. They are not a count
+of every worker request: Cancel can initiate an ordinary committed-scene
+reconstruction outside that recorder. Four Open operations and two Save As
+operations completed six file IPC calls. Both final documents retain one active
+internal relation, larger first, with the exact moving-surface then fixed-surface
+order. The parallel case also creates/deletes a compatible direction relation
+and checks editor navigation without an unintended CAD request.
+
+Ready phases retain two solids/two prototypes and independently expected
+`V=138π mm³`, `A=134π mm²`, exact surface intent, fresh final native normal
+reports and accepted physical support equations. Renderer metric/bound checks
+use `1e-5` in their respective units, distance `1e-6 mm` and parallel angle
+`1e-6 rad`; grounded pose and scene/saved-translation checks use `1e-12`, and
+physical quaternion-angle comparison uses `1e-8 rad`. Positive actual vertex
+and triangle counts accompany the original pointer witnesses. Save/reopen and
+a fresh solve are checked separately from the final parallel capture.
+
+Native regressions independently check fresh BRep validity/cardinality,
+`V/A` within `1e-5`, placed bounds/distance within `1e-6 mm`, parallel angle
+within `1e-8 rad`, and radius/oriented differential normals within `1e-8`
+using `D1(0.73,4)`. The retained near-satisfied pose now refines to certified
+rank 3/DOF 3 with both endpoint orders; zero iteration budget still rejects
+`rankUncertain` without an Apply token. Original compatible mixed examples
+combine nonparallel cylinder tangency with gear/rack, and parallel tangency with
+screw, requesting +720 degrees through twelve unchanged bounded stations and
+checking Apply/reopen. These are three sampled examples, not general mechanism
+compatibility or continuous contact/collision evidence.
+
+The first failed full sequence, failed diagnostic reply, successful preflight,
+complete corrected logs, source freezes and fixture-generation identities are
+retained separately. No dependency installation, global runtime/configuration,
+lockfile, test-pool, deadline or tolerance change was made. These local results
+do not establish hosted CI, installed/package operation, macOS/Linux support,
+structural interoperability or a release. Finite trimmed contact, containment,
+rolling, non-interference, cylindrical singular strata/transitions and other
+tangent surfaces remain required. Full assembly acceptance and the user's demo
+gate remain open.
+
+## Persisted sphere source gate — 2026-10-16
+
+Local branch `codex/assembly-sphere-source` starts from the closed bounded
+cylinder increment at `38e2bf2b3574fd6c079f3e94f3c9d7d21270277c`. One authored
+native case and an original generated saved Revolve fixture require actual
+spherical classification, independent BRep/metrics, exact reference-only and
+rendered catalogs, and seam/pole behavior. Two generator runs produced identical
+canonical JSON with the original declaration; native construction, build and tests have not run on this
+changed source yet. Prior cylinder results do not transfer automatically.
+No spherical mate API, full tangent acceptance or demo pass is claimed.
+
+The first two-command probe on `f9130a474369d0970c15263b6cf76dca505ce683`
+passed build and failed its single native gate. Reference-only and rendered
+catalog construction completed, but three edge DTOs had nonempty line arrays
+where the proposed gate expected only the meridian seam to have them. Native
+spherical classification/mass/seam queries were later in the test and were
+not entered; this result does not yet establish a native spherical surface.
+A diagnostic-only test change moves those independent native queries before
+the same assertion and records bounded actual edge segment data. Production,
+fixture, expectations and tolerances remain unchanged pending diagnosis.
+
+The diagnostic probe on `0eda538a6714c5f80bf93a9929dbc8f6878e3c4b` also
+passed build and retained all 597 inputs, then failed the same line-array
+assertion. This time both independently copied native shapes passed actual
+`GeomAbs_Sphere`, BRep/cardinality, mass/bounds/centre/radius, periodicity,
+oriented `D1`, one meridian seam and two native-degenerated pole checks before
+that assertion. The two pole DTOs each contain endpoints at `(0,±3,0)` within
+approximately `3.8e-17 mm`, separated by approximately `4.5e-32 mm`.
+The existing DTO allows consecutive XYZ pairs and does not require empty
+arrays for collapsed edges. Nonempty data therefore did not establish a
+visible false edge. A test-only correction will correlate exact references
+with native degeneration and check all endpoints against the original poles
+and zero extent, retaining the independent sphere/seam geometry checks.
+Old support-inspector rejection assertions follow that gate and have not yet
+executed. Production remains unchanged; no complete suite pass is claimed.
+
+The corrected authored gate retains all native and persistence expectations
+and observes the actual borrowed edge catalog before the real mesher runs.
+Exact references correlate each DTO with native degeneration/vertex data.
+It requires both original poles, all collapsed endpoints/segments within
+`1e-8 mm`, and one nondegenerate meridian with genuine extension and rendered
+radius within the existing `1e-6 mm` mesh check. Segment counts are not fixed.
+This corrects an unsupported empty-array assumption; production and geometric
+tolerances are unchanged. Execution on the corrected test remains pending.
+
+### Corrected persisted sphere gate validation
+
+Source `d39f096f02c6e76057dff789a9b57d92a87c7908` passed the corrected
+two-command probe (build and the one native gate). The formerly unentered
+assertions now confirm that old plane/cylinder and cylinder-surface inspectors
+still reject the spherical face using their existing unsupported-purpose
+errors. The gate introduces no new production support/reference API.
+
+The complete required source-only sequence on that source ran from
+20:51:00.932 to 20:55:31.815 UTC on 2026-10-16, Windows x64, Node 24.21.0/
+npm 11.19.0. Both commands passed with zero drift across all 597 inputs:
+
+- `npm run build`: 2,024 modules, 826 ms.
+- `npm test`: 5,245/5,245 unit/CAD cases in 215 files, 265.48 seconds,
+  followed by 50/50 IPC/security cases with no failures, skips or cancellations.
+
+The original saved semidisc/Revolve is parsed, serialized and reopened without
+declaration changes. Two independent engines reconstruct its explicit body;
+the reference-only route makes no body/edge tessellation calls, while the
+rendered route returns finite actual mesh data and matching exact references.
+Independently owned body copies verify valid closed BRep, one solid, one actual
+native spherical face, centre/centre of mass at zero, radius 3 mm,
+`V=36π mm³`, `A=36π mm²`, bounds `[-3,-3,-3]..[3,3,3]`, native periodicity,
+oriented differential normal and the original seam/poles. Native degeneration
+is observed before the real edge mesher and correlated by exact reference.
+Both collapsed DTOs stay at their respective original poles; the meridian has
+genuine extension. Metrics and mesh/native tolerances are those in
+[provenance](PROVENANCE.md#original-persisted-sphere-construction-gate).
+
+The two failed probes and successful corrected probe retain separate source
+receipts/logs. An input comparison against the preceding tested cylinder
+source finds exactly six differences: three documentation files and the new
+test, original fixture and generator. All 591 other existing inputs, including
+production and existing tests, match. No Electron, IPC, worker or WASM
+integration code changed, so desktop workflows were not repeated for this
+test-only increment. The preceding cylinder desktop results remain evidence
+for their exact `e5c5414` source; no new sphere editor/pointer or installed-app
+result is claimed here.
+
+This is one original full-sphere construction/topology case. Spherical mate
+intent, dedicated fresh source witnesses, sphere picking, cavities/patches and
+broader native/platform coverage remain separate work. No dependency, global
+runtime, configuration, lockfile, pool, deadline, tolerance or production
+change was made. Full tangent/assembly acceptance, release and demo remain open.
+
+## Spherical support tangency — 2026-10-16 UTC
+
+Local Windows x64 / Node 24.21.0 validated source
+`712a85babc418f708fb4e82c5dc926c31adf6719` on
+`codex/assembly-sphere-tangent`, based on the audited original sphere-source
+increment at `716f14aaf6b328f42d7b9b18617e2ade820941c1`. The final sequence ran
+21:53:47.918–22:07:30.435 UTC with 610 public source/configuration/documentation
+inputs unchanged before/after every command. This subsequent evidence-only
+documentation update is separate from the source actually executed.
+
+| Command | Actual result |
+| --- | --- |
+| `npm run build` | PASS: TypeScript and Vite, 2,026 modules, 986 ms production compilation; existing externalization/chunk warnings retained. |
+| Complete 82-file assembly/native/worker/UI selection, public Vitest configuration | PASS: 3,287/3,287 cases in 82/82 files, 230.41 seconds. Includes the unchanged original saved-sphere gate. |
+| `npm test` | PASS: 5,754/5,754 cases in 219/219 files, 290.42-second unit phase, then 50/50 security/IPC and JavaScript-source checks. |
+| `npm run test:desktop` | PASS: real production loader, preload, worker and WASM. |
+| `npm run test:desktop:pattern-all` | PASS: existing selected-to-ALL workflow and file round trip. |
+| `npm run test:desktop:pattern-world-limit` | PASS: existing world-limit workflow. |
+| `npm run test:desktop:pattern-until-next` | PASS: existing selected/ALL/rejection workflows and file round trips. |
+| `npm run test:desktop:assembly` | PASS: existing assembly workflow, native relations, movement, source update/repair, analysis, history and file IPC. |
+| `npm run test:desktop:assembly-screw` | PASS: existing screw workflow and saved state. |
+| `npm run test:desktop:assembly-rack-pinion` | PASS: existing rack/pinion workflow and actual edge pointer. |
+| `npm run test:desktop:assembly-export` | PASS: existing geometry-only STEP/STL workflow and independent emitted-file checks. |
+| `npm run test:desktop:assembly-direction` | PASS: existing parallel/perpendicular workflow. |
+| `npm run test:desktop:assembly-tangent` | PASS: existing plane/cylinder support tangency workflow. |
+| `npm run test:desktop:assembly-cylinder-tangent` | PASS: existing two-cylinder-family workflow. |
+| `npm run test:desktop:assembly-sphere-tangent` | PASS: three original plane/sphere, sphere/sphere and cylinder/sphere workflows. |
+
+The 509 new authored cases comprise 297 model, 144 native (33 extractor and
+111 integration) and 68 component cases. They overlap the focused and full
+counts above. Numerical checks cover both orders, signed side/internal radius
+roles, derivatives and common rigid gauge, regular rank, singular/precision
+rejection, source intent and atomic mechanical state. Independent native
+evidence covers fresh exact purpose/identity, BRep/solids, V/A/bounds, eccentric
+centres, actual `D1` normals, specific spherical cavities/cylindrical bores,
+off-face support equality, material overlap and additional surface crossings.
+The three mixed gear/screw/rack cases verify +720 degrees over twelve stations;
+active/passive singular cases preserve rollback. Stations are sampled evidence.
+Query/release, paired-source, epoch, mesh, session and Apply failure cases
+withhold authority. [Provenance](PROVENANCE.md#original-spherical-tangency-fixtures)
+records original construction parameters, independent formulas and tolerances.
+
+The new actual production-renderer workflow records 24 operations per family:
+four builds, thirteen previews (twelve ready, one numeric rejection) and seven
+authenticated Applies. Across the three cases this is 72 registered operations,
+36 ready previews, three numeric rejections, 21 Applies and three actual
+sphere-face pointer gestures away from poles/meridian. Six Opens and three
+Save As actions complete nine real restricted file-IPC calls. Edit/close family
+locking, Cancel, Undo/Redo, parameter changes, suppression/reactivation,
+deletion, reversed endpoint order and fresh reopened Resolve/Cancel are checked.
+Final intent is moving sphere first: positive plane side, or internal branch
+with explicitly larger first endpoint for sphere/sphere and cylinder/sphere.
+Ordinary rebuilds after Cancel are outside this registered count. The workflow
+does not exercise source repair through desktop controls; native/component
+repair tests provide separate evidence. DOM controls, actual mesh pointer input,
+test-owned dialog choices and fresh worker responses are distinct mechanisms.
+
+All eleven scripted workflows report successful child close and guarded
+temporary-profile deletion, completed file IPC and no renderer/request errors.
+Eight final private captures passed byte/hash/PNG checks. Five exactly match
+the immutable preceding cylinder validation's image bytes and dimensions;
+their previous visual QA is reused with its original limits. The three changed
+or new plane/cylinder, cylinder/cylinder and cylinder/sphere images were actually
+viewed at 1544×941. Geometry, component rows and committed-state controls are
+visible without a blocking visual defect. Controls below the sidebar fold are
+not visually certified. Captures remain private and are not a demo or native
+geometry proof.
+
+Retained failures precede this final pass. Initial source
+`e74f3a7204ca6994e2a12ff8d88f03bc04cccf7c` stopped at build with TS7022 on the
+new occurrence-chain local variable; no other command ran. An explicit existing
+`AssemblyOccurrence | undefined` annotation fixed inference without changing
+behavior. Source `c0aeceed3c2b16794be644cf0db0777f7600475f` then passed build
+but its focused run had 3,286 passes and one failure: a new display-intent test
+incorrectly required a native centre coordinate to be exactly zero, while the
+actual coordinate was `−2.220446049250313e−16 mm`. The corrected test checks
+the local/world centre vector norm within the already declared `1e-8 mm`
+native point tolerance, retaining exact DTO fields/radius and source/authority
+assertions. No production rounding clamp or solver-tolerance change was made.
+Preparations, source manifests and all eighteen logs across the three attempts
+are retained separately; only the last attempt establishes the full pass.
+
+Before execution, independent static review also found two false-pass risks:
+cancellation of a local unit offset near `1e16`, and underflow of normalized
+coordinates/error bounds in an exact dyadic case. New-family-only original-term
+composition bounds and conservative normal-number admission close those cases;
+their independent numerical regressions pass. A private native witness bound
+retains original chain magnitudes/depth before pose composition. The nested
+large-chain test may reject first under the old child-scope precision guard;
+no previously executed native false pass is claimed. The
+[contract](ASSEMBLY_SPHERE_TANGENCY.md) records this bounded arithmetic domain.
+
+Three original unmated fixture generations were repeated with identical
+canonical bytes and matching draft declarations; this generation check is
+separate from the executed native/renderer evidence. The preceding original
+saved-sphere gate remains unchanged at SHA-256
+`40bcc2faae1400ca3f6dba36d2c0702fe3564eade7adb82b78bc0c9163f9d430`.
+Existing plane/cylinder support and saved mate semantics remain strict; spheres
+use separate current witnesses and display purpose, never a fabricated axis.
+No dependency, global runtime, configuration, lockfile, pool, deadline,
+solver tolerance or motion station policy changed. New CI commands are
+configured, not executed hosted results for this source. Installed packages,
+macOS/Linux interaction, arbitrary patches/mechanisms, finite trimmed contact,
+rolling, general containment/non-interference and structural interchange are
+not established. Full tangent/assembly acceptance, release and demo remain open.
+
+## Signed plane-distance intervals — 2026-10-19 UTC
+
+Local Windows x64 source `b8b4976c88053c76e32f3292256fe92e2489a1d9`, on
+`codex/assembly-limit-distance`, passed the complete sixteen-command sequence
+from 09:00:35.963 to 09:12:05.705 UTC. Its base is the spherical-tangency
+documentation head `4e6e2a80db390d79d922f90050dbe6420f614e1c`.
+All 622 public source inputs stayed unchanged through every command. The
+approved local Node 24.21.0 runtime and existing public Vitest configuration
+were retained.
+
+| Command | Actual result on this source |
+| --- | --- |
+| `npm run build` | PASS: TypeScript and production build, 2,028 modules, 1.17 seconds bundling. |
+| Complete 86-file assembly/native/worker/UI selection, public Vitest configuration | PASS: 3,537/3,537 cases in 86/86 files, 166.67 seconds. Includes the unchanged original saved-sphere gate. |
+| `npm test` | PASS: 6,004/6,004 unit/CAD cases in 223/223 files, 207.03 seconds; all 50 security/IPC checks pass. |
+| `npm run test:desktop` | PASS: hidden production-loader, worker and WASM readiness. |
+| `npm run test:desktop:pattern-all` | PASS: existing selected-to-ALL workflow. |
+| `npm run test:desktop:pattern-world-limit` | PASS: existing fixed world-limit workflow. |
+| `npm run test:desktop:pattern-until-next` | PASS: existing UntilNext workflow. |
+| `npm run test:desktop:assembly` | PASS: existing assembly workflow. |
+| `npm run test:desktop:assembly-screw` | PASS: existing screw workflow. |
+| `npm run test:desktop:assembly-rack-pinion` | PASS: existing rack-and-pinion workflow. |
+| `npm run test:desktop:assembly-export` | PASS: existing flat geometry export workflow. |
+| `npm run test:desktop:assembly-direction` | PASS: existing direction-relation workflow. |
+| `npm run test:desktop:assembly-tangent` | PASS: existing plane/cylinder support-tangency workflow. |
+| `npm run test:desktop:assembly-cylinder-tangent` | PASS: existing cylinder support-tangency workflows. |
+| `npm run test:desktop:assembly-sphere-tangent` | PASS: existing spherical support-tangency workflows. |
+| `npm run test:desktop:assembly-limit-distance` | PASS: original signed plane-distance interval workflow. |
+
+The thirteen desktop commands include twelve scripted renderer workflows and
+the standard loader smoke. The 250 newly authored cases comprise 113
+numerical/model, 91 native CAD and 46 component cases; they overlap the focused
+and full suite totals and must not be added to them. Their evidence covers
+strict plane purposes, signed bounds and reversal, equal bounds, derivatives
+and common rigid gauge, feasibility restoration, active-bound release,
+lexicographic projection, source repair, reused scopes and native authority.
+Native and numerical cases also check active/passive gear, screw and rack
+state, sampled full turns, rejection and rollback. These are bounded examples,
+not acceptance of arbitrary mechanisms.
+
+The original fixed 40×30×4 and moving 10×6×2 boxes have independently declared
+total volume 4,920 mm³ and area 3,144 mm². With moving top first and fixed top
+second, identity rotations and moving translation Z, the signed support
+coordinate is `q=Z-2`. Native checks reconstruct actual BRep, cardinality,
+mass/bounds and selected material probes. Fresh D1 surface points and oriented
+normals supply the independently measured signed coordinate and angular
+agreement; display data is not native authority. The isolated fixed/free pair
+retains bilateral rank two and four local bilateral DOF at both boundaries.
+Its boundary lineality is three, separately reported from the bilateral rank;
+neither proximity nor a working set is a general cone-dimension certificate.
+
+The new renderer case recorded 38 phases: six builds, sixteen mate previews
+(fourteen ready and two rejected), two strict-movement rejections, three final
+drag projections and eleven authenticated Apply actions. Ordinary committed
+scene rebuilds after Cancel and intermediate drag-stream requests are outside
+that registered count. Four pick/drag gestures comprise one actual native
+plane-face selection and three world-Z drags. Two Opens, one Save As and three
+completed restricted file-IPC calls cover the test-owned original/output
+files. Authoring/edit cancellation, repeat, suppression/reactivation, deletion,
+one-step Undo/Redo and a fresh native solve after reopen preserve saved intent.
+
+The strict Z42/Z2 destinations reject for the original `[10,30]` interval.
+The pointer target Z42 instead projects to Z32 with a separately reported
+10 mm pointer deviation; a later Z22 target releases the boundary inward.
+Changing the aligned top/top relation to opposed without reseeding rejects
+its antipodal chart. That rejection is not evidence of antipodal convergence.
+Separate authoring with the actual moving bottom face supplies opposed native
+normals successfully. The final saved mate explicitly reverses the top-plane
+references: fixed first, moving second, aligned, interval `[-30,-10]`, named
+`Intervalo entre planos guardado`. Bounds and signs are not inferred or
+rewritten automatically.
+
+Each drag uses three actual held-pointer moves. Two received DOM client
+coordinates and their posted request poses calibrate the third input to the
+unchanged literal target. A passive observer supplies input evidence only;
+projected CAD results, camera and manipulator state are not injected. One
+actual pixel-mode wheel event before the inward drag adjusts the front view,
+recorded separately from the four pick/drag gestures. Observed Float32
+coordinate metadata is explanatory, not an assumed precision guarantee. The
+original final target, projection and pointer-deviation assertions decide
+acceptance. The [fixture provenance](PROVENANCE.md#original-signed-plane-distance-interval-fixture)
+retains its original declaration and repeatable generation separately from
+these executed results.
+
+Original native box volume/area checks use absolute `1e-5` tolerances; placed-box
+bounds and signed coordinates use `1e-6 mm`. Actual native D1-normal angular
+agreement uses `atan2` at `1e-8 rad`. Renderer box bounds and volume/area use
+`1e-5`, signed coordinate/range and requested/projected world positions use
+`1e-6 mm`, and its
+independent plane orientation check uses `1e-6 rad`. Scene/saved physical
+rotation uses `1e-8 rad`; scene/saved translations and the fixed pose use
+`1e-12`. These separate observations do not establish a universal geometric
+error bound or identical angular and dimensional precision.
+
+Nine private PNG captures have source-specific visual review. Five are
+byte-identical to previously reviewed captures and retain their earlier
+limits; four changed/new images were actually viewed at their original
+1544×941 size. No visible blocking viewport defect was found. Interval controls
+below the fold are not visually certified. These images are private QA,
+not a demo, native geometry proof or human native-dialog test.
+
+### Retained interval failures and separate preflights
+
+The first local source `1ad76e2b0c66df9e01dcc8e82a0a6de07ab2c760` compiled,
+then its focused 86-file run recorded 3,529 passing and six failing cases in
+154.40 seconds. Five new derivative tests distinguished positive and negative
+zero; their correction retains exact numeric equality. The sixth rejected a
+feasible rack projection. A separate instrumented numeric diagnostic of that
+exact source observed an angular residual `9.813077866773593e-18` introduced
+from a zero primary cost by the lifted secondary step. It was diagnostic
+evidence, not a test pass. The revised coordinates preserve the selected angular
+variables structurally; the original case and two order/frame regressions
+remain. The full suite, IPC and desktop commands were not reached in that failed
+attempt.
+
+The model correction on `28c618aa2f6953e46cd00521df62b2ea7b752d51` compiled
+and passed 3,537 focused cases in 86 files (161.99 seconds), then 6,004 cases
+in 223 files (188.68 seconds) and all 50 security/IPC checks. The twelve existing
+desktop commands passed. Its last, new interval workflow failed because the
+first drag posted target Z `41.999998949216916` rather than literal 42 within
+the unchanged `1e-6 mm` target assertion. The full sixteen-command sequence
+therefore did not pass. The subsequent flow-only correction calibrated actual
+pointer input from two posted request targets; projected geometry, literal
+oracles and tolerances stayed unchanged. Its separate preflight follows.
+
+A separate single-command preflight of the flow-only source
+`d403f47146560f53a9853b70cb7334162a315514` reused the byte-identical compiled
+application from `28c618a`. It passed both upper-bound drags, then failed at the
+inward target: requested Z `22.000001206331493` versus literal 22 at the same
+`1e-6 mm` assertion, after 17 registered phases. Its raw input-calibration
+record and failed result remain separate from complete validation. The next
+test-only amendment observes received DOM client coordinates and adds a real
+view-wheel zoom before that inward drag. It changes no compiled CAD/UI source,
+literal geometric expectations or tolerances.
+
+Source `b8b4976` then passed a separate single-command interval preflight using
+the verified byte-identical compiled application from `28c618a`. That passing
+preflight is distinct from the complete sixteen-command run above, which
+rebuilt and tested `b8b4976` itself. All preceding failures, source manifests,
+logs and input-calibration records remain retained; a later pass does not
+change their outcomes.
+
+No dependency, global runtime, configuration, lockfile, pool, deadline,
+solver tolerance or motion-station policy changed. The original saved-sphere
+gate remains unchanged. This local increment is unpublished and has no new
+hosted CI, installed-package, macOS or Linux execution result. Relations apply
+to complete plane supports, not finite contact, collision stopping or a
+continuous path guarantee. Limit angles, width, symmetry, path, profile-centre
+and the remaining advanced families still require implementation and evidence.
+Full assembly acceptance, release and the user's demo remain closed; this
+execution record does not assert completion of the separate boundary audit.
+
+## Principal direction-angle intervals in progress — 2026-10-19
+
+Local `codex/assembly-limit-angle` starts at distance-interval documentation
+head `20ccaf873f1847dc737dbf155c1476cc750226b7`. The
+[proposal](ASSEMBLY_LIMIT_ANGLE.md) declares a principal direction angle in
+0–180 degrees, with explicit inclusive bounds and separate singular endpoint
+geometry. The original rotated two-box input has repeatable generation and
+independently declared corner/normal expectations. That generation evidence
+is not a native, solver, worker or renderer pass. Changed source still needs
+source-specific build, full tests, IPC and desktop checks. The frozen author
+inventories now contain 303 new cases: 113 numerical/model, 125 native CAD and
+65 component cases. The separately authored renderer workflow has 46
+registered phases and six pick/rotation gestures; these inventories imply no
+execution or passing result. Previous recorded
+results remain tied to their exact sources; full assemblies and demo remain
+unaccepted.
+
+The first exact source `7e91c99b43fd7b6f18fbc29341e268be572d7a38` failed
+`npm run build` with three TypeScript errors in the new tests: a raw native
+edge lacked the Replicad `Edge` wrapper expected by support inspection, and
+two plane fixture spreads used a broader support-union annotation. All 633
+source inputs remained unchanged. Focused/full tests, IPC and desktop commands
+were not reached. The test-only correction uses the existing owned native
+reversal/wrapper pattern and a precise plane-support annotation. Geometry,
+assertions, tolerances, budgets and authored counts are unchanged. The failed
+build receipt/log is retained; the corrected source still needs the complete
+validation sequence and has no passing result yet.
+
+The corrected source `5d38889440c3a9ea2eb1734112ff0ed5a062cc74`
+passed compilation but its focused 89-file run had 3,828 passing cases and six
+failures. All six were late in the new 119-case native interval file, with a
+WASM memory-access error during part reconstruction. The first affected
+sampled screw rollback failed at station 2 rather than its expected station 3;
+later cases could not rebuild their inputs. Full tests, IPC and all fourteen
+desktop commands were not reached. A fresh process running that entire native
+file alone reproduced 113 passes and the same six failures.
+
+A separate private diagnostic delegated native memory growth unchanged and
+observed the WASM buffer growing to 4,281,401,344 bytes before the same failures.
+It changed no tracked source, public configuration, capacity, pool, deadlines,
+tolerances or station policy and does not count as a passing validation run.
+Source review found a concrete retained-resource path: convenience solid
+traversal released its downcast wrappers but left each raw explorer result
+allocated, retaining native topology. The correction uses the existing owned
+topology enumeration in body/aggregate validation and CAD rebuild solid counts.
+Aggregate staging also owns its native compound builder and raw compound
+separately from the returned downcast wrapper, preserving the same child order
+and separate-solid semantics.
+Six additional integration cases observe actual native raw-result releases
+through repeated validation, genuine multi-solid rejection and both rendered
+and assembly-reference rebuilds, including failed compound staging. The
+correction and these cases still require
+execution; no successful full sequence or resolved-failure claim is made here.
+
+The subsequent whole-file heap diagnostic of exact source
+`129cc71bee7b145305a713927f0d5f3931ec696c` still had 113 passes and the same
+six native failures, with a maximum observed buffer of 4,281,401,344 bytes.
+All 633 tracked source inputs remained pinned. Those ownership corrections
+alone did not resolve the observed failure. No full tests, IPC or desktop
+pass is inferred. The next bounded correction owns the intermediate native
+face and raw prism result used by ordinary rectangle/circle extrusion, keeping
+the existing sketch wire, direction normalization, native prism flags and
+outer sketch cleanup. It does not change the motion-station or memory policy.
+The allocation observer also checks the actual native face, vector and prism
+releases. Its new failure case observes successful native prism construction
+and then rejects the completion query before requesting a raw result, checking
+input preservation and withheld current-body authority. These source assertions
+are still pending execution.
+
+Source `5b5c6003ee8dc92833d452aa9b75064e5dc3d1c5` passed compilation and
+3,834 focused cases in 89 files, with six late native interval failures still
+present. All six new allocation cases passed, including the primitive failure
+case; these passes do not resolve the cumulative native failure. All 633 source
+inputs stayed pinned. Full tests, IPC and desktop commands were not reached.
+
+A separate selected-tail diagnostic ran eight cases in a fresh process: six
+sampled rollback cases passed, two curved cases failed and 111 cases were
+skipped. Both curved cases reached the fresh-solve persistence check after
+their native geometry checks, differing only by one ULP in a recomputed gear
+angle. The assertion had conflated exact parsing with a new solved preview.
+Its correction requires exact parsed mate declarations and unchanged serialized
+input after solving; the newly computed angles must retain the same lifted
+branch within the existing 1e-8 rad tolerance, and every other mate field must
+match exactly. Original geometry, metrics, rank, pivot and report assertions,
+case counts and tolerances remain unchanged. This selected diagnostic is not
+a whole-file or full-suite pass, and the corrected assertion still needs
+execution. The cumulative native failure remains under investigation.
+
+The corrected exact source `2e4fb2990c084cb36648ffcee27ab401bb400d75`
+then passed all eight selected tail cases, with 111 skipped, in a fresh process.
+A subsequent whole-file diagnostic with bounded weak registry observations
+still had 113 passes and six late native failures. All 633 source inputs and
+the inspected dependency bindings remained unchanged. The observed buffer again
+reached 4,281,401,344 bytes. The bounded sample contained native handles still
+marked as not deleted, including face-normal query objects; no cleanup callback
+had been observed at the last recorded growth. Sampling, omitted registrations
+and weak-reference observation effects prevent treating this as a global
+allocation census or attributing a share of native bytes to those objects.
+
+The next local correction owns the exact point, vector and face-normal query
+temporaries and the exact surface-point query temporaries used by planar face
+catalog frames. It retains both distinct UV midpoint expressions, query order,
+native orientation behavior, frame normalization, naming descriptors and planar
+admission. This concrete lifetime path still requires execution against the
+complete workload; it does not assert that the cumulative failure is resolved.
+
+On source `d6b92c4ad4363c1a403f11d705aec02f33987177`, the build passed and
+the complete 89-file focused selection had 3845 passes and six failures in
+224.09 seconds, with all 633 source inputs unchanged. All eleven added frame
+cases passed within the 31-case face-ownership file. The angular file still
+had 113 passes and six late failures: the first screw rollback encountered a
+native memory-access failure at station two before the expected third-station
+interval rejection, and five subsequent cases could not reconstruct in the
+same native module. The frame correction therefore does not resolve the
+cumulative fault. No new heap-size measurement was taken on this source.
+The full npm test command, IPC checks and all fourteen desktop commands were
+not reached. Earlier failed attempts and separate diagnostics remain retained.
+
+The next source correction targets ordinary rectangle/circle sketch
+construction, where SDK convenience paths leave native plane transforms,
+line builders and intermediate geometry without deterministic release. Its
+scope is the existing primitive factory shared by extrusion and revolution;
+entity profiles and other operation builders remain separate. It must retain
+native transform arithmetic, normalization stages, wire order, circular seam
+convention and saved reference compatibility. This source work implies no
+executed pass or causal attribution of the previous native allocation growth.
+
+## 2026-10-19: final catalog validation context, partial result
+
+Source `448e76167acd721ded99c612470d5ab2749805dc` adds one synchronous
+serial/inexact analyzer for the final catalog entry/aggregate batch. Borrowed
+inputs outlive the context, which closes before transaction transfer. The
+[original fixtures and tolerances](PROVENANCE.md#original-native-validation-context-fixtures)
+cover real invalid topology, reset/retirement faults and source preservation.
+This is a finite-batch lifetime change, not an accepted cumulative-memory fix.
+
+These local commands used Windows x64, Node 24.21.0 and npm 11.19.0, with the
+public Vitest configuration, test selection policy and deadlines unchanged:
+
+| Command or selection | Actual result |
+| --- | --- |
+| `vitest run --config vitest.config.ts` selecting `kernel.native-validation.test.ts`, `kernel.bodies.test.ts` and `kernel.native-topology.test.ts` | 3 files, 74 passes, including 32 new context cases. |
+| `npm run build` | Passed TypeScript and production compilation; existing browser-externalization and bundle-size warnings remained. |
+| `npm run test:desktop` after that build | Passed initial-model production-loader readiness, worker/WASM loading and absence of reported console/request errors. |
+| `npm test` | Not accepted. A native `remainder by zero` error was recorded in the curved-gear angular case with `antiparallel=false`. After approximately 993 seconds without completion, the verified owned fork was cancelled. The resulting worker-exit error is an intentional cancellation, not evidence of a spontaneous crash. |
+| Complete `kernel.assembly-limit-angle.test.ts`, with the verbose reporter | 118 passes and 1 failure out of 119, in 253.98 seconds. The last curved-gear case, `antiparallel=true`, reported `null function or function signature mismatch`. This invocation selected only that file but overlapped the full run; its duration is not an isolated-machine benchmark. |
+| Only the two curved-gear cases in a subsequent fresh process | 2 passes, 117 skipped, in 8.87 seconds. This does not replace the complete 119-case result. |
+| Separate `npm run test:ipc` | 50 passes. The earlier `npm test` pipeline had not reached IPC. |
+
+The cancelled full-run summary reported 227 passing files out of 228, and
+6383 passing tests plus one failed test out of 6385. One remaining test state
+was not reported; it is not counted as passed or skipped. None of these
+partial counts establishes a full-suite pass. The fresh two-case result and
+the late whole-file failures are consistent with history-sensitive native
+behavior, but do not establish its allocation, corruption or ownership cause.
+No heap-growth observation was installed for these runs. Broader desktop
+assembly interaction, full acceptance and other platforms remain pending.
+
+## 2026-10-19: assembly validation context, bounded successful run
+
+Source `5f5e1eb790f295685fc261ab9c276c75f17590c1` also scopes one checker
+to an assembly aggregate and its held child solids. Aggregate validation still
+precedes child discovery; positive volume, cardinality, shell closure, loose
+topology and finite-bounds gates remain in place. The checker retires before
+the outer arena releases any received child. Native query/protocol faults now
+propagate as fatal aggregates containing the original error; ordinary false
+validity remains a geometry rejection. The actual copy-fault tests retain
+candidate release, revoked copying and fresh-rebuild recovery requirements.
+
+The following local Windows x64 checks used Node 24.21.0, npm 11.19.0 and the
+unchanged public configuration, station policies, tolerances and deadlines:
+
+| Check | Actual result |
+| --- | --- |
+| `npm test` | 228 files and all 6393 unit/CAD tests passed in 354.68 seconds, followed by all 50 IPC checks. This includes the complete 119-case angular file. |
+| Focused native-validation, body, topology, assembly-copy and assembly-shape files | All 110 cases passed on the corrected source. |
+| `npm run build` | TypeScript and production compilation passed, with the existing externalization and bundle-size warnings. |
+| `npm run test:desktop` | Initial-model production-loader, worker/WASM readiness and reported console/request checks passed. |
+| Thirteen additional production desktop commands | All passed, completing 14 desktop commands with the smoke check. |
+
+The additional commands were `pattern-all`, `pattern-world-limit`,
+`pattern-until-next`, `assembly`, `assembly-screw`, `assembly-rack-pinion`,
+`assembly-export`, `assembly-direction`, `assembly-tangent`,
+`assembly-cylinder-tangent`, `assembly-sphere-tangent`,
+`assembly-limit-distance` and `assembly-limit-angle`, each under the
+`npm run test:desktop:` prefix. They ran sequentially with the existing hidden,
+isolated production-loader harness, real worker replies and test-owned file
+dialog paths. These are scripted renderer/IPC workflows, not evidence of human
+pointer/native-dialog interaction, installed packages or other platforms.
+
+An earlier build rejected a missing generic argument in a test observation
+field with TS2314. That field was corrected to its existing `NativeOwner`
+interface before the successful build, focused rerun and full run; native
+operations and assertions were unchanged. Earlier failed attempts remain
+retained, including the separate partial result above.
+
+This source completes the previously failing workload in one full local run.
+No heap-growth observer or general session/memory benchmark was used. Resetting
+and checking the entire aggregate after each child adds repeated work whose
+scaling is unmeasured. Fewer constructors alone does not prove lower memory
+use, improved performance or general resolution of native allocation faults.
+Complete assembly readiness and source-specific visual acceptance remain
+separate gates.
+
+### Bounded final angular viewport review
+
+A subsequent capture-enabled `npm run test:desktop:assembly-limit-angle` run
+passed at documentation-only head `680237a`. Its production inputs matched the
+preceding tested source. The existing workflow completed all 46 registered
+phases, 15 authenticated Applies and six pick/drag gestures, with completed
+open/save/open IPC, no reported console/request errors, observed child close
+and guarded temporary-profile cleanup.
+
+The final clean reopened assembly was captured after renderer-frame and
+presentation barriers. The inspected 1544×941 PNG showed both components,
+the rendered solid geometry, toolbar and right panel without an observed
+blocking visual defect. Angular editing controls below the visible fold were
+not inspected in this image. This one final frame does not establish every
+intermediate preview, human pointer/native-dialog operation, installation or
+other-platform acceptance. Raw local captures and receipts remain private.
+
+## Assembly interference selection and exclusions — 2026-10-20
+
+The local dependent `codex/assembly-interference-scope` source
+`fa14a8487e34649a0e7ce75b7f9059fbfd966fd2`, based on `0628b27`, adds the
+[occurrence-scope contract](ASSEMBLY_INTERFERENCE_SCOPE.md). The commands below
+ran on that exact clean source on Windows x64 with Node 24.21.0 and the pinned
+dependencies. No test configuration, native tolerance, budget or heap option
+was relaxed.
+
+| Executed command | Actual result |
+| --- | --- |
+| `npm run build` | PASS: TypeScript and production UI/worker/WASM build. Existing external-module and bundle-size warnings remain. |
+| `npm test` | PASS: all 6419 unit/CAD cases in 228 files, 291.91 s; then all 50 IPC/security/source-encoding cases. |
+| `npm run test:desktop` | PASS: production main/preload/renderer/worker/WASM readiness, with no reported console or request errors. |
+| `npm run test:desktop:assembly` | PASS: complete scripted assembly workflow including the new scope controls; 115.78 s, 526 recorded checks, observed child close and guarded temporary-profile deletion. |
+
+The manually enumerated native four-box tests check all six pairs, the single
+selected A/C pair and four crossing pairs. They query real Common volumes,
+native distances and closest-point separation with the independent dimensions
+and tolerances in [PROVENANCE](PROVENANCE.md#assembly-interference-selection-fixtures).
+Additional native/model cases cover reused subassembly expansions, exact nested
+exclusions, suppressed and hidden ancestors, empty parts, stale path/revision
+rejection before native construction, and exclusion before body admission.
+Existing validity, cleanup/fault and tiny-positive-overlap cases remain in the
+same passing complete files. Worker/session and SSR tests separately cover
+request correlation, obsolete references, no Apply authority and duplicate
+display-name disambiguation.
+
+The production workflow opens the original synthetic derivative through its
+ordinary file route and uses actual scope/list controls. On four boxes it
+observed candidate counts 6 for all, 1 among the two root selections, 4 crossing
+from those roots to the nested group, 3 after one exact nested exclusion, 2 for
+one selected nested parent with its reused sibling excluded, and 0 when the
+selected descendant is itself excluded. Excluded and bounds-discarded pairs
+are not counted as native-tested. Scope edits remove the old report and overlay;
+the input file, previously saved output and committed recovery remain unchanged.
+The run also retains the existing source-update, movement, save/reopen and BOM
+workflow checks. All eight production main/preload/asset identities matched
+before and after both desktop commands.
+
+An earlier build caught TS7022 in a recursive local declaration; the fix was an
+explicit existing `AssemblyOccurrence | undefined` annotation. Its failed log
+is retained. The earlier 186-case focused integration run preceded the final
+obsolete-label text correction; it is not substituted for the exact-source full
+run above. Static independent review found and closed ambiguous current/stale
+choice labels by displaying the complete JSON occurrence path.
+
+One 1544×941 captured final assembly frame received direct and independent
+visual review: the three components, viewport, toolbar and two-row BOM were
+legible without an observed blocking defect in that frame. The new scope/list
+controls are below the visible fold and were not visually inspected in this
+capture. Their scripted interaction evidence is separate from visual QA.
+This does not establish human pointer/native-dialog interaction, arbitrary
+window sizes, installed packages, hosted CI, macOS/Linux execution, general
+performance or complete assembly readiness. Automatic group omission,
+within-part body pairs, union volumes, configurations and continuous collision
+detection remain open. The full assembly/demo gate remains closed. Raw logs,
+capture and source-specific receipts remain private; no new PR or remote
+publication is claimed.
+
+## Part replacement and explicit reattachment — 2026-10-20
+
+The local dependent `codex/assembly-component-replacement` implementation is
+`b59d97bcf58e3ac2d08fdb396ad3b2b7db10eea3`. It adds the
+[part replacement contract](ASSEMBLY_COMPONENT_REPLACEMENT.md). The later
+`dd6c98959b398b1859dc574949d3a76e5abd3fca` only adds CI steps and development
+documentation; its production source is identical to the built implementation.
+The complete tests and desktop commands below ran at that clean later head on
+Windows x64, using Node 24.21.0, npm 11.19.0 and the unchanged public test
+configuration, native tolerances, budgets and deadlines.
+
+| Executed command | Actual result |
+| --- | --- |
+| `npm run build` at `b59d97b` | PASS: TypeScript and production compilation, 2032 modules. Existing external-module and bundle-size warnings remain. |
+| `npm test` at `dd6c989` | PASS: all 6460 unit/CAD/component cases in 231 files, 299.32 s; then all 50 IPC/security/source-encoding cases. |
+| `npm run test:desktop` | PASS: production main/preload/renderer/worker/WASM readiness; no reported console or request errors. |
+| `npm run test:desktop:assembly-replacement` | PASS: 86 recorded checks, 19 recorded transaction phases, 9.51 s; observed child close and guarded isolated-profile deletion. |
+| `npm run test:desktop:assembly` | PASS: complete existing assembly renderer workflow, 526 recorded checks, 116.96 s; observed child close and guarded isolated-profile deletion. |
+
+The new model/native files check different-ID part substitution, exact source
+tuples, a single expanded instance through two levels of reused ancestors, and
+all stored uses without ancestor copying. Selected mode retains the original
+definitions; all mode deliberately changes the matching occurrence declarations.
+Both preserve original embedded part contents. Cases include dormant/suppressed
+uses, stale references and paths, occupied target tuples, budgets and private
+review/preview/Apply identity. The native tests use the independent cylinder
+volume/area and noncommuting-transform bounds in
+[PROVENANCE](PROVENANCE.md#assembly-part-replacement-fixtures).
+
+Native gear, screw and rack/pinion cases exercise actual mechanical recapture,
+original relation IDs and explicit parameters, unavailable-coordinate rejection
+and explicit removal. A same-ID ancestral carrier with an obsolete revision
+requires fresh capture. Real engine fault adapters raise after meshing and
+release in the replacement catalog and final publication after gear recapture:
+both causes survive, the affected release is attempted once, old capabilities
+are revoked, the committed input stays intact and a clean retry succeeds.
+These adapters do not establish recovery from arbitrary process crashes.
+
+The new desktop workflow opens original synthetic two-level shared assemblies
+through normal file IPC. Each leaf contains a cylinder and a separate prism.
+It obtains face/LINE references from actual native catalogs before authoring a
+test-owned input and
+captures a gear through production controls. Replacement requires explicit
+top-plane, LINE and cylindrical-axis repair plus gear recapture. The run checks
+cancel of a completed review, fresh review identity, selected/all proposals,
+one authenticated Apply per replacement, one complete Undo/Redo transaction,
+committed recovery, Save As and exact reopen. Seven file opens and two saves
+complete through the preload/IPC bridge with test-owned dialog paths. Original
+inputs and the earlier selected output remain byte-identical after the later
+all-use operation. No model state, native reply or Apply token is injected.
+The independent volume, area, bounds and rotation tolerances remain those in the
+fixture provenance. All eight main/preload/production-asset identities match
+across the three desktop commands, with no reported console/request failures.
+
+Earlier evidence is retained: the first build rejected two inferred recursive
+types with TS7022, corrected by explicit existing type annotations. A native
+stale-carrier regression initially passed 13 of 14 cases and exposed a missing
+recapture requirement; the corrected policy and expanded cleanup cases are in
+the complete passing suite above. Static review also corrected the UI recovery
+after failed Apply so an expired review is cleared before the confirmed scene
+is restored. That UI failure path was reviewed statically, not fault-injected
+in Electron. The desktop cancel case covers a completed review, not an in-flight
+late-response cancellation race.
+
+One final reopened 1544×941 frame received direct and independent visual review.
+It shows four solids as two cylinder/prism pairs, the nested component tree and
+blue interface without an observed blocking render defect. Three part advisories
+remain; the visible notice describes the two separate solids in a part. The
+replacement staging panel is closed, so this frame does not visually establish
+intermediate repair/recapture controls or dimensions.
+
+This remains part-to-part replacement of embedded version-1 sources. Subassembly
+replacement, linked sources, configurations and a general reusable attachment
+map remain required work. Manual endpoint repair does not establish automatic
+geometric correspondence. The renderer case covers a gear; screw/rack evidence
+is from separate native cases. Configured CI steps are not executed hosted
+results. No human pointer/native-dialog, installed-package, macOS/Linux or general
+performance acceptance is claimed. The complete assembly/demo gate remains
+closed. Source and private evidence remain local, without a new PR or publication.
+
+## Directed angular measurement — 2026-10-21
+
+Validated source: `dc746b473eb069076483174f1878e348800320a8`, on the local
+`codex/assembly-directed-angle-measurement` branch, Windows x64 with Node
+24.21.0 and npm 11.19.0. This is the read-only explicit-guide measurement
+contract in [ASSEMBLY_DIRECTED_ANGLE_MEASUREMENT.md](ASSEMBLY_DIRECTED_ANGLE_MEASUREMENT.md).
+It does not implement a directed limit mate or change principal-angle bounds.
+
+| Command | Actual result on this source |
+| --- | --- |
+| `npm run build` | PASS; TypeScript and Vite, 2,034 modules. Existing module-externalization and large-bundle warnings remain. |
+| `npm test` | PASS; 234 unit/CAD files, 6,527 cases in 330.08 seconds, followed by 50 IPC/security/source-encoding checks. |
+| `npm run test:desktop` | PASS; production-loader smoke, 1.363 seconds. |
+| `npm run test:desktop:assembly-angle-measurement` | PASS; 47 recorded checks, six successful measurements and one geometric rejection, 5.036 seconds. |
+| `npm run test:desktop:assembly-limit-angle` | PASS; existing principal-angle workflow, 291 recorded checks and 46 phases, 44.437 seconds. |
+
+The three desktop runs used identical hashed production inputs throughout.
+Both scripted workflows recorded child closure and deletion of their isolated
+profiles. Each opened two documents and performed one Save As. The measurement
+workflow performed no Apply, retained exact recovery/history state and reopened
+the unchanged saved document. The standard smoke tests initial loader readiness;
+it does not exercise the measurement controls.
+
+The increment adds 67 cases: 34 numerical/request-boundary, 13 native, 18
+panel/catalog/report and two worker-transport cases. Original independent
+vectors, source geometry, rotations and tolerances are recorded in
+[PROVENANCE.md](PROVENANCE.md#directed-angular-measurement-fixtures).
+Native cases distinguish 240 degrees from the principal 120 degrees using
+actual plane/LINE/cylinder supports. They exercise a moving guide, oblique and
+small resolvable projections, two reused noncommuting nested scopes, stale and
+suppressed references, preserved authentic Apply authority and the active part
+engine. Controlled cleanup faults delegate real release before failing; both
+primary-plus-cleanup and cleanup-only failures withhold a report and permit a
+clean subsequent query.
+
+The real production-renderer controls measure 30, 330 and 210 degrees on the
+original drilled-prism fixture, reject a direction parallel to its guide,
+clear obsolete display on selection/reopening and block measurement during an
+authenticated authoring preview. The original fixture bytes are preserved.
+The renderer and worker reported no console, worker or request errors on the
+successful runs. Dialog choices are restricted to test-owned files; there is
+no injected document, React state, geometric response or Apply token.
+
+The final 1544-by-941 capture was inspected. It shows the two drilled prisms,
+three distinguishable reference selections, a 30-degree result and disabled
+Apply. The first visual pass found that long body names obscured the selected
+face number. Labels now lead with the face/edge number and direction kind,
+with the full label in a tooltip; the build and desktop checks were rerun on
+the exact source above. The capture validates that final frame only.
+
+Earlier evidence is retained: the first build caught incorrectly parameterized
+vector test rows, which were rewritten as object cases and rerun. Three early
+desktop attempts exposed harness errors: an incorrect preload property name,
+a numeric argument passed to the string-only JavaScript encoder, and a missing
+assembly Save As scenario allowlist entry. Those were fixed in the harness;
+the successful final runs above supersede those failed attempts.
+
+Late completion rejection is covered by the exact ticket helper used by the
+handler and by source review. Cancelling a measurement while the worker is
+still running was not exercised through Electron; preview cancellation is a
+different tested interaction. No automatic guide selection, accumulated-turn
+coordinate, angular stop, continuous motion, general native accuracy guarantee,
+installed package, signed release or additional platform acceptance is claimed.
+The CI workflow now includes the new command for all configured target jobs;
+no hosted execution is implied. This increment is local and unpublished, and
+full assembly/demo acceptance remains open.
+
+## Directed circular angle stops — 2026-10-21
+
+Production/model/test source `769e0004bf29b924a0d26b9609cfa606d136c98d`
+implements the [explicit-guide circular stop contract](ASSEMBLY_DIRECTED_ANGLE_STOPS.md)
+on `codex/assembly-directed-angle-stops`. Final source
+`5bd217da0491366f77f76f878c70d76bf9b14964` differs only in
+`scripts/desktop-assembly-directed-angle-flow.cjs`: its placement oracle was
+corrected after the first Electron attempt. No product, model, unit test,
+security test, dependency or build input changed between these commits.
+Both builds emitted identical production bundles. Results below are local
+Windows x64, Node 24.21.0 and npm 11.19.0; a later documentation commit is
+separate from these executed sources.
+
+| Command | Executed source and result |
+| --- | --- |
+| `npm test` | `769e000`: PASS, 237 files / 6,727 unit/CAD cases in 308.45 seconds, then 50 IPC/security/source-encoding checks. |
+| `npm run build` | Both sources: PASS, TypeScript and Vite, 2,036 modules; final outputs identical. Existing module-externalization and bundle-size warnings remain. |
+| `npm run test:desktop:assembly-directed-angle` | `5bd217d`: PASS, 152 recorded checks / 30 phases, 11.455 seconds for the recorded command. |
+| `npm run test:desktop` | `5bd217d`: PASS, production-loader smoke, 1.543 seconds. |
+| `npm run test:desktop:assembly-limit-angle` | `5bd217d`: PASS, 291 recorded checks / 46 phases, 44.675 seconds. |
+| `npm run test:desktop:assembly-angle-measurement` | `5bd217d`: PASS, 47 recorded checks / seven measurement/rejection phases, 5.255 seconds. |
+| `npm run test:desktop:assembly-replacement` | `5bd217d`: PASS, 86 recorded checks / 19 phases, 9.394 seconds. |
+
+Tracked source hashes stayed unchanged during each command. Production bundle
+hashes remained unchanged through all desktop runs and the final build. The
+four scripted workflows confirmed child closure and removal of their isolated
+profiles. The full unit suite was not repeated for the harness-only correction;
+the changed oracle was exercised by its actual Electron workflow.
+
+The increment adds 200 cases: 92 model/solver, 60 native and 48 panel/workspace/
+reference-label cases. The numerical cases cover circular membership, both
+endpoints, zero crossing, reversed directions, all direction-purpose triples,
+movable-guide derivatives/incidence, equal/full arcs, near-full precision,
+nonconvergence without a global conflict certificate, source/replacement/history
+and active/passive mechanical charts. The last mechanical combinations are
+numerical evidence, not new native gear/screw/rack mechanism acceptance.
+
+Native cases rebuild actual references and independently check selected BReps,
+solid counts, volume/area, transformed-corner bounds and oriented surface
+normals. They cover all 27 ordered plane/cylinder/LINE triples, current guide
+motion and a guide-only restoration, wrapped strict movement, projected stops
+and inward release, an invalid full excursion, a valid full-circle turn,
+suppression/reactivation, authenticated Apply, stale capabilities, reopening,
+rotated reused scopes, manual LINE-guide source repair and plane/LINE-guide
+replacement. The complete independent BRep oracle runs on specified cases,
+not separately on every one of the 27 triples. Units, formulas and tolerances
+are recorded in [PROVENANCE.md](PROVENANCE.md#directed-circular-stop-fixtures).
+A controlled final-query failure withholds the candidate after real native
+construction; it is not an operating-system crash test.
+
+The new production-renderer workflow authors 330-degree start plus 60-degree
+sweep from current native top normals about explicit +X. It rejects +5 degrees
+at the upper endpoint, returns through 0 to the lower endpoint, rejects another
+outward request, then advances 330 to 350 to 10 degrees. A +360-degree request
+rejects despite returning to the same final orientation. Suppression permits
+50 degrees; reactivation restores 30 degrees, and a subsequent inward request
+reaches 10. Editing changes the arc to 330+90 while retaining identity and all
+three references. Ten authenticated Apply operations, Cancel, Undo/Redo and
+two Open/one Save As preserve exact intended state. A fresh solve after reopening
+checks the saved relation again. Recorded phases comprise ten Apply, five build,
+nine motion and six preview operations; ordinary Cancel rebuilds are not counted.
+No document, React state, solver reply or Apply token is injected. File dialog
+choices are limited to test-owned paths.
+
+The first desktop attempt reached reactivation, then failed an incorrect harness
+expectation that a direction-only stop would preserve the initial free origin.
+The corrected oracle verifies the accepted scene against current saved poses,
+independent transformed corners and aggregate bounds. Strict movement still
+requires its explicitly requested destination position. An independent read-only
+review accepted this correction; no positional rows or weaker angular tolerance
+were introduced. A focused native guide-only case had earlier exposed the same
+invalid positional assumption and was corrected before the full suite. These
+failed expectations are retained separately from passing production behavior.
+
+One 1544-by-941 final reopened capture was inspected. It shows two drilled
+prisms and the blue assembly interface without an observed blocking overlap.
+The sidebar is at the measurement/export section; this frame does not visually
+establish the new stop authoring panel or its intermediate states. Their control
+interaction is established by the scripted workflow and rendered-component cases,
+which are separate evidence from a screenshot.
+
+At this source, pointer projection interaction for this family remained
+untested; the follow-up below covers one original local-X case. Other limits
+include guide repair/replacement through the editor, broader mixed native
+mechanisms, accumulated-turn stops, inferred guide selection and continuous
+path/collision guarantees. Local numerical branch-cut/precision rejection is
+not global infeasibility. Configured Linux/macOS CI steps are not hosted passes;
+no installed-package, signing, additional-platform or release acceptance is
+claimed. No new PR or publication was performed. Full assembly/demo acceptance
+remains open.
+
+## Directed circular stop pointer projection — 2026-10-21
+
+Source `0973da7971717fa1ee2b7870fda58d61ecda7788` on local
+`codex/assembly-directed-angle-gestures` extends the desktop harness only.
+It adds no product behavior, unit/CAD cases or
+dependencies and changes no production tolerance. Results are local Windows
+x64, Node 24.21.0 and npm 11.19.0; earlier results retain their source scope.
+
+| Command | Actual result on this source |
+| --- | --- |
+| `npm test` | PASS, 237 files / 6,727 unit/CAD cases in 296.84 seconds, followed by 50 IPC/security/source-encoding checks; 298.969 seconds for the complete command. |
+| `npm run build` | PASS, 3.089 seconds, TypeScript/Vite and 2,036 modules; identical production bundles. Existing externalization and bundle-size warnings remain. |
+| `npm run test:desktop:assembly-directed-angle` | PASS, 46.803 seconds, 220 recorded checks / 43 phases / six pointer drags. |
+| `npm run test:desktop` | PASS, production-loader smoke, 1.567 seconds. |
+
+After the existing numeric flow edits the arc to 330+90, actual hidden
+Chromium rotation gestures request 90 degrees and project to 60 (Cancel,
+then repeat/Apply and Undo/Redo), return inward to 40, request -40 and
+project to -30, return inward to -10, then cross zero toward 10. The 43
+phases comprise 15 Apply, seven build, nine motion, six preview and six final
+projection operations. Each gesture has three actual held moves: two
+trusted DOM client points and their posted poses calibrate the third input.
+All observed down/move/up events are trusted. Intermediate stream requests
+and ordinary Cancel rebuilds are outside the phase count. Strict numeric
+outward/full-turn rejection, suppression/reactivation and file checks remain.
+
+Input and output accuracy are separate. The posted quaternion must match
+its ideal target within `1e-6 rad` before output is examined. Independent
+clamping of that posted local-X angle to literal [-30,60] supplies expected
+projection; the candidate's solved pose supplies neither calibration nor
+expectation.
+Report, native cap yz azimuth and displayed angle must match this expectation
+within `1e-5 degrees`; endpoint expectations remain exactly 60 and -30.
+Resolved quaternions retain their ideal-target `1e-6 rad` check. Hard margins,
+activity, original analytical volume/area, independent transformed-corner
+bounds and authenticated Apply remain checked. The moving normal agrees
+with independent rotation of original +Z by the saved quaternion within
+`1e-8` per component. Pointer position/angular deviation use `1e-6 mm` and
+`1e-6 rad`; displayed angular deviation agrees within `1e-9 rad`.
+
+The maximum observed literal-input quaternion error was about `3.934e-7 rad`.
+The final posted/resolved angle was 9.999988957595093 degrees, with native
+cap azimuth 9.999988957595065 degrees and zero projection angular residual.
+The request-derived expectation survives exact Save As/reopen and fresh
+native verification; it is not replaced by the solved value.
+
+Tracked source and production bundle hashes stayed unchanged during every
+final command. The scripted child closed and its isolated profile was removed.
+The final build matched the bundles used by the preceding pointer run; no
+product, dependency or build input changed through either harness correction.
+
+Two failed attempts remain recorded. Source `4b3e484` failed an ideal-normal
+component check on the inward 40-degree gesture: actual y
+-0.6427875024102602 versus ideal -0.6427876096865393 at tolerance `1e-7`.
+Its preceding quaternion and circular-angle checks passed. The correction
+authenticates that normal against independently rotated saved geometry at
+`1e-8` and retains the final event if a subsequent oracle fails. Source
+`3bbfae9` then failed at zero crossing: posted and resolved quaternions were
+identical at 9.999988957595093 degrees, with zero projection residual and an
+identical native report. The ideal 10-degree difference exceeded `1e-5
+degrees` but was only `1.92726322937e-7 rad`. The final correction replaces
+that stricter end-to-end ideal-angle check with the separate input/output
+checks above; it is not an unchanged assertion or product tolerance change.
+
+One final 1544-by-941 capture shows both prisms in Front view and the blue
+interface without an observed blocking overlap. Export, measurement and
+interference sections occupy the sidebar; stop-authoring and projection
+panels are outside the frame. Scripted control checks are separate evidence.
+The unchanged deadlines remain 35 seconds per step, 170 seconds for the child
+and 180 seconds overall.
+
+This original pure local-X case does not establish human pointer/native
+dialogs, arbitrary orientations, guide repair/replacement in the editor,
+broader mechanisms, continuous path/collision guarantees, accumulated turns,
+installed packages, hosted CI or macOS/Linux execution. Raw receipts,
+captures and both failures remain private. This increment is local and
+unpublished, completes no assembly requirement and does not open the complete
+assembly/demo gate.
+
+## Directed circular stop shared-guide source repair — 2026-10-21
+
+Source `4bdbd6afdd07868114dfce6e59143ad8e1cebea9` on local
+`codex/assembly-directed-guide-repair` extends the directed-stop command
+with a fixed three-reference source-update case
+in the same hidden child. The product change is limited to guide-repair
+guidance: directed stops now describe rechecking all three directions and
+the allowed arc, while mechanical references retain their capture guidance.
+No new unit/CAD cases are added. Results below are local Windows x64, Node
+24.21.0 and npm 11.19.0.
+
+| Command | Actual result on this source |
+| --- | --- |
+| `npm test` | PASS, 237 files / 6,727 unit/CAD cases in 299.95 seconds, followed by 50 IPC/security/source-encoding checks; 302.032 seconds for the complete command. |
+| `npm run build` | PASS, 3.177 seconds, TypeScript/Vite and 2,036 modules; outputs identical to the earlier `06d7d7` build containing the guidance change. Existing externalization and bundle-size warnings remain. |
+| `npm run test:desktop:assembly-directed-angle` | PASS, 52.921 seconds, 309 recorded checks / 58 phases, including all six existing pointer drags. |
+| `npm run test:desktop` | PASS, production-loader smoke, 1.641 seconds. |
+
+The existing 43-phase pointer workflow remains intact. The new case adds
+15 phases: four builds, seven previews, two Apply operations and two source
+reviews. Across both cases there are 17 authenticated Applies, six Open
+dialogs, two Save dialogs and nine completed restricted file-IPC calls
+(including three saves). The final Save reuses its granted path. The child
+closed successfully and its isolated profile was removed. Budgets remain
+35 seconds per step, 170 seconds for the child and 180 seconds overall.
+One final capture belongs to the repaired three-component document; the
+first case retains its own file and dialog checks before the second starts.
+
+Tracked source hashes stayed unchanged during every command. Production
+bundles changed once for the guide-repair wording in `06d7d7f`; they remained
+identical through both harness corrections and the final build and checks.
+
+The new original fixture has three occurrences of one drilled prism:
+ground at identity, moving at Rx(-10), and a fixed guide at Ry(90). Actual
+controls author a 330+60 circular stop from two native top caps and the
+guide's native local +Z LINE, which points along world +X. Fresh native
+verification reports 350 degrees. Both extrusion depth and through-hole
+length change from 4 to 5 mm in an actual opened source document. Review
+requires explicit repair of first, second and guide references, grants no
+Apply authority and keeps the confirmed file/recovery unchanged.
+
+Solve rejects with all three references pending. After the two cap repairs
+it rejects again with only the guide pending. Explicit current-LINE repair
+allows a fresh ready preview. Cancel clears that stage, Apply and its report.
+An explicitly requested fresh Solve then verifies the unchanged original
+r1 geometry and angle; that verification is cancelled too. A second review
+creates a distinct revision, all three references are repaired again, and
+Solve/Apply, one Undo/Redo, Save/reopen and a fresh native verification pass.
+The old embedded r1 remains unchanged; all three uses and repaired references
+point to the accepted new revision. The rendered guide field asserts the
+new three-directions/arc wording and absence of unrelated capture guidance.
+
+Independent expectations are volume/area `720-12*pi` / `744+18*pi` before
+and `900-15*pi` / `840+24*pi` after, to absolute `1e-5`. Literal placed
+bounds and independently transformed corners use `1e-5 mm`; intended
+positions use `1e-7 mm`, intended and native/saved full rotations
+`1e-8 rad`, native/saved positions `1e-12 mm`, directions `1e-8` per
+component and circular angle `1e-7 degrees`. Geometry DTOs and actual native
+catalog supports are observed; this is not a separate desktop BRep-validity
+query. Original pointer-case precision and scope remain as previously recorded.
+
+Two failed harness attempts are retained. At `06d7d7`, authoring, Apply,
+Save and the first source review completed, then the status helper passed an
+array to the primitive-string encoder. The call site now serializes the
+side list explicitly and parses it in the page; the encoder is unchanged.
+At `f1cd3a9`, both rejection cases, three repairs, a ready preview and
+Cancel were reached, but the harness waited for an unsolicited build.
+Cancel can restore the confirmed scene from cache. The correction observes
+restored controls/file/recovery and explicitly requests the independent
+fresh r1 verification described above. Both corrections change only the
+harness; no geometric tolerance, product cancellation or deadline was changed.
+
+The inspected final 1544-by-941 capture shows three prisms in Front view,
+the blue interface and a tree listing three components/new revision, without
+an observed blocking overlap. The source-update panel is closed; the sidebar
+shows export, measurement and interference sections. Intermediate repair
+states and the new copy layout are not visually established by that frame;
+their scripted DOM checks are separate evidence.
+
+This is one original shared-source update with manual plane/LINE repair,
+not automatic correspondence, general guide repair or part replacement.
+Other direction families, broader mixed mechanisms, width/symmetry relations,
+continuous paths, human native dialogs, installed packages, hosted CI and
+macOS/Linux execution remain outside this result. Private captures, receipts
+and failures are retained locally. No publication, newly completed assembly
+requirement or complete assembly/demo acceptance is claimed.
+
+## Shared saved-mate endpoint inventory — 2026-10-21
+
+Source `d3e51c0053b23ce97226581d73dfac5659b6fe9a` on local
+`codex/assembly-mate-endpoints` centralizes saved mate-reference enumeration
+and lookup for source updating and component replacement. The exhaustive
+family switch preserves the explicit null fixed-scope carrier separately
+from an absent role. Replacement decisions are bounded by the worker-owned
+pending inventory. Existing strict data validation, exact locators, saved
+format, native authentication and geometric equations remain unchanged.
+
+One original native integration case is added. All three occurrences of a
+directed-stop fixture receive a different embedded part identity with both
+prism and through-bore depth changed from 4 to 5 mm. Review lists first,
+second and LINE-guide references. Missing guide repair rejects; a fourth
+decision exceeds the actual pending inventory and rejects without invoking
+its accessors. Exactly three actual catalog references permit a fresh Solve
+and authenticated Apply. Original source and mate identity, all repaired
+references, feasible placements, Undo/Redo and serialized reopening followed
+by another Solve are checked.
+
+Independent expectations are three solids, total volume `900-15*pi`, total
+area `840+24*pi` (absolute `1e-5`) and a 350-degree native directed angle
+inside arc 330+60 (`1e-7 degrees`). Each separately rebuilt placed BRep is
+valid and contains one solid. Its eight transformed corners check bounds to
+`1e-6 mm`, and oriented D1 normals check top-cap direction. Feasible saved
+translations remain within `1e-8 mm`; sign-corrected quaternion chord gives
+the full physical rotation difference within `1e-8 rad`. Provenance and the
+depth-dependent formulas are recorded in [PROVENANCE.md](PROVENANCE.md).
+
+Actual results on this source use Windows x64, Node 24.21.0 and npm 11.19.0:
+
+| Command | Actual result |
+| --- | --- |
+| `npm test` | PASS, 237 files / 6,728 unit/CAD cases in 315.12 seconds, followed by 50 IPC/security/source-encoding checks; 317.643 seconds for the complete command. |
+| `npm run build` | PASS, 6.434 seconds, TypeScript/Vite and 2,037 modules. Existing externalization and bundle-size warnings remain. |
+| `npm run test:desktop` | PASS, production-loader smoke, 17.356 seconds. |
+| `npm run test:desktop:assembly-directed-angle` | PASS, 55.115 seconds, 309 checks / 58 phases, retaining six pointer drags and the shared-source three-reference repair workflow. |
+| `npm run test:desktop:assembly-replacement` | PASS, 9.434 seconds, 86 checks / 19 phases in the existing component-replacement workflow. |
+
+A focused four-file run at initial source `9493c0d` passed 150 cases before
+review strengthened the new full-quaternion oracle. No failing attempt was
+observed. The final full suite includes that stronger check. The build's
+production outputs match the initial build; tracked source hashes stayed
+unchanged during every command, and production outputs stayed unchanged
+during all final acceptance checks. Both desktop control workflows closed
+their child and removed their isolated profile. Their existing deadlines,
+geometric tolerances and interaction scopes were not expanded.
+
+The added all-instance case is native integration evidence, separate from
+the existing desktop interactions. This change does not migrate numerical
+or resolved native constraints to grouped endpoints or implement width,
+symmetry or other multi-reference relations. Broader assembly mechanisms,
+continuous paths, human native dialogs, installed packages, hosted CI and
+macOS/Linux execution remain outside this result. Private receipts and
+captures remain local. This increment is unpublished, promotes no assembly
+requirement and does not open the complete assembly/demo gate.
+
+## All-use subassembly source revisions and explicit descendant repair
+
+This local increment is based on `3fe9923` and adds a complete embedded assembly
+source-update route. An incoming v2 document must retain the selected source ID
+and declare a different revision. The model merges the complete normalized
+registry, reuses only exact tuple/content matches, retains old definitions and
+retargets only occurrence addresses recorded before importing. Shared,
+suppressed and dormant declarations are included. A conflicting dependency that
+would alias a host scope being rewritten rejects. Existing graph, feature and
+pretty UTF-8 document limits remain in force.
+
+Affected mate roles are found by traversing their full old path through the
+source boundary, including when the terminal part tuple stays unchanged. All
+affected roles require explicit current descendant choices or explicit mate
+removal. The private worker retains the source plan and native catalog; mutable
+review/scene replies, renderer candidates and repaired flags confer no Apply
+authority. Captured relations require explicit recapture/removal, with an
+additional release option for concentric spin locks. The source-local catalog
+includes suppressed descendants in a separate inspection copy; it is not a
+claim of solved inactive placements or dormant relations.
+
+The 41 new public cases comprise 14 declaration, 15 native/session, ten rendered
+panel and two transport cases. Native cases check two copies of an original
+2×3×4 mm prism (`V=24`, `A=52`) updated to 3×3×4 mm (`V=36`, `A=66`), with inner
+Rz90 and translation `(1,2,3)` and outer X translations -10/+20 mm. Updated
+bounds are `[-12,2,3]..[-9,5,7]` and `[18,2,3]..[21,5,7] mm`. The pair totals
+`V=72 mm³`, `A=132 mm²`; a separate old-source occurrence remains unchanged.
+Volume and area bands are `1e-5`, and bounds use `1e-6 mm`. Other cases include
+an ancestor-only placement change with unchanged terminal tuple, renamed-child
+repair, all four saved centered-Width roles, declaring null frames, suppressed
+references, actual component-lock recapture and actual suppressed-concentric
+spin recapture with restored suppression. Source query and release faults
+withhold the entire review and invalidate an older capability.
+
+The dedicated production-renderer workflow uses the two tracked original
+source-update fixtures. Two source uses change to a new part revision and a
+renamed child, while a direct old part remains unchanged. Independent total
+material expectations are `V=72/A=156` before and `V=96/A=184` after, in cubic
+and square millimeters, with the same bands above. The workflow selects two
+explicit principal-plane repairs and checks four fresh physical relations in
+the root and expanded source scopes. Review Cancel/retry, ready-preview
+Cancel/retry, Apply, one Undo/Redo, parent normal Save, Save As/reopen and a fresh
+solve all execute through production controls and the real worker. Wrong source
+identity rejects without altering the committed recovery. Five Open and two
+Save As dialogs use test-owned paths; native dialog pointer operation is not
+tested. The first attempt stopped at an incorrect test-harness Save-dialog
+classification; correcting that scenario allowlist produced the passing rerun.
+No production dialog permission or geometry tolerance was relaxed.
+
+Actual results on Windows x64, Node 24.11.1 and npm 11.6.2:
+
+| Command | Actual result |
+| --- | --- |
+| `npm test` | PASS, 271 files / 7,284 unit/CAD cases in 427.60 seconds, then 50 IPC/security/source-encoding checks. |
+| `npm run build` | PASS, TypeScript/Vite, 2,046 modules. Existing externalization and large-bundle warnings remain. |
+| `npm run test:desktop` | PASS, original production-loader worker/WASM smoke. |
+| `npm run test:desktop:assembly-source-update` | PASS, 41 recorded checks, five Open/two Save As dialogs and the original renamed-child workflow described above. |
+| `npm run test:desktop:assembly` | PASS, existing 526-check assembly workflow, including the separate part-source path. |
+| `npm run test:desktop:assembly-import` | PASS, existing 49-check reusable-import workflow. |
+| `npm run test:desktop:assembly-replacement` | PASS, existing 86-check part-replacement workflow. |
+
+The four scripted assembly workflows reported no renderer console errors or
+failed asset requests, observed child closure and removed their isolated
+profiles. Their deadlines and native geometric bands were unchanged. CI is
+configured to run the new workflow on its existing target matrix; hosted CI,
+macOS/Linux execution, human file dialogs and installed-package operation were
+not executed here.
+
+The renderer's fixed-prism case does not prove arbitrary topology matching,
+all captured mechanical families or dormant-scope recapture. Gear/screw/rack
+recapture uses the existing native capture APIs, but this increment's added
+native recapture cases exercise component and concentric locks. Authoring new
+source revisions, automatic disk linkage, selected-instance subassembly
+replacement, configurations and the complete assembly/demo gate remain
+separate capabilities. Local research and acceptance receipts are not public
+fixtures and are not required by CI.
+
+## Bounded profile observations and ordered center measurements — 2026-10-22
+
+The [profile-center prerequisite](ASSEMBLY_PROFILE_CENTERS.md) adds standalone
+native recognition of one complete planar rectangle or disk and an independent
+ordered center/normal measurement. It changes no saved schema, reference
+authority, assembly solver, worker command or editor flow.
+
+Thirty new cases comprise 17 native extraction/integration cases and 13 pure
+measurement cases. The native fixtures use literal 6×4 mm rectangle corners,
+a rational oblique rectangle with reversed orientation, an original radius-2 mm
+disk and explicit rectangle/disk center measurements. Rejections cover holes,
+partial caps, ellipses, rounded boundaries, nonrectangular polygons, nonplanar
+surfaces, excessive coordinate/shape uncertainty and invalid bands. A read-only
+fault fixture raises the queried seam-vertex tolerance to `2e-6 mm`: the default
+`1e-6 mm` band rejects, while an explicit larger band retains that uncertainty.
+Native query and release faults reject publication and preserve the borrowed
+face. This is not exhaustive failure-site coverage.
+
+Independent Cartesian expectations and tolerances are recorded in
+[provenance](PROVENANCE.md#bounded-profile-center-fixtures). The pure cases cover
+the literal 5-12-13 displacement triangle, nonparallel role reversal, opposed
+normals, signed rational-normal displacement, proper coordinate permutation,
+small resolved angles, first-normal uncertainty and large-coordinate cancellation.
+An `ok` numerical report grants neither mate satisfaction nor current-reference
+authority. A measured circle carries no roll axis; rectangle boundary traversal
+does not select a semantic orientation branch.
+
+Actual local results on Windows x64, Node 24.11.1 and npm 11.6.2:
+
+| Command | Actual result |
+| --- | --- |
+| `npm test` | PASS, 273 files / 7,314 unit/CAD cases in 367.68 seconds, followed by 50 IPC/security/source-encoding checks. |
+| `npm run build` | PASS, TypeScript/Vite, 2,046 modules. Existing externalization and large-bundle warnings remain. |
+| `npm run test:desktop` | PASS, existing production-loader smoke with worker/WASM ready and no console errors or failed asset requests. |
+
+The new native behavior is exercised by the programmatic tests. The desktop
+smoke does not exercise a profile-center command: none is added or loaded by
+the editor in this increment. No new native reference snapshot, motion/solve,
+source repair, authoring, Cancel/Apply/history, saved reopening, installed-package,
+hosted CI, macOS or Linux result is claimed. Oblique/reversed disk cases and the
+complete assembly-demo gate remain separate work. Public tests require no
+private model, application binary or local research artifact.
+
+## Current native profile references and pair measurement — 2026-10-22
+
+The [current-profile reference layer](ASSEMBLY_PROFILE_REFERENCES.md) adds an
+exact current face/body query, separate private profile witnesses in the native
+assembly snapshot and a fresh read-only ordered pair measurement. Its strict
+selection syntax grants no geometric authority. The engine retains existing
+catalog/inspection-epoch guards; the snapshot checks the complete document
+signature again after native queries and before issuing its frozen witness.
+
+Thirty added cases comprise three pure selection-parser cases, nine native
+snapshot cases, five independent native pair-measurement cases and thirteen
+adversarial identity/lifetime cases. Original prism/disk fixtures exercise reused
+definitions, legacy/explicit body identity, a real two-body part, scoped nested
+placements, transformed rectangle corners/axes, circular centers without a roll
+axis, same-role queries and mixed-shape measurement without relationship
+admission. Copies, foreign snapshots, stale contents under the same revision,
+wrong bodies, suppressed ancestors, reentrant document mutation and native query
+or cleanup failures withhold the affected result. Malformed preflight input and
+valid-shaped unavailable native identity have separate lifetime checks.
+
+Independent coordinate expectations are recorded in
+[provenance](PROVENANCE.md#current-profile-reference-fixtures). A scoped Rz90/Rx90
+prism/disk case measures literal delta `(-4,-23,-17) mm`, axial -17, transverse
+norm `sqrt(545)` and center distance `sqrt(834) mm`, with both normal angles π/2.
+Coordinate assertions use `1e-10 mm`. First-order precision admission separately
+retains original chain magnitudes, local-center lever arms and explicit bands.
+Cancelling large placements cannot erase uncertainty: world DTO error and local
+extraction error remain distinct, and the pair calculation uses local data plus
+private placement arithmetic. No requested tolerance or existing coordinate
+limit was widened to admit a fixture.
+
+Actual local results on Windows x64, Node 24.11.1 and npm 11.6.2:
+
+| Command | Actual result |
+| --- | --- |
+| `npm test` | PASS, 277 files / 7,344 unit/CAD cases in 402.31 seconds, followed by 50 IPC/security/source-encoding checks. |
+| `npm run build` | PASS, TypeScript/Vite, 2,046 modules. Existing externalization and large-bundle warnings remain. |
+| `npm run test:desktop` | PASS, existing production-loader worker/WASM smoke, no console errors or failed asset requests. |
+
+These new behaviors are exercised programmatically; the desktop smoke does not
+invoke a profile measurement command. No worker/editor route or saved profile
+mate is added. Offset/flip/roll policy, compatibility admission, numerical solve,
+Apply/history, source repair and saved reopening remain separate integration.
+No installed-package, hosted CI, macOS/Linux or complete assembly-demo result
+is claimed. Public tests use no external application or private artifact.
