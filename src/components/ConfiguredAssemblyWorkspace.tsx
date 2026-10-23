@@ -15,10 +15,10 @@ import { CAD_RECOVERY_KEY } from '../model/cadRecovery'
 import { buildConfiguredAssemblyBom, type ConfiguredAssemblyBomOptions, type ConfiguredAssemblyBomMember } from '../model/assemblyConfiguredBom'
 import { createConfiguredUiRootVariant, createConfiguredUiScopeVariant, configuredUiPose, editConfiguredUiOccurrence, configuredUiTicket, configuredUiTicketMatches, configuredUiSceneMatches, configuredUiDisplayScene, configuredBomUiTicket, configuredBomUiTicketMatches, configuredBomUiSelectedPath, downloadConfiguredBomCsv, runConfiguredBomCsvExport, configuredMateUiTicketMatches, configuredMateUiPreviewMatches, configuredMechanicalUiPreviewMatches } from './configuredAssemblyUi'
 import AssemblyViewport from './AssemblyViewport'
-import { configuredComponentPick, configuredMatePickChoice, type ConfiguredMatePick } from './configuredAssemblyPicking'
+import { configuredComponentPick, configuredMatePickChoice, configuredMateHighlights, type ConfiguredMatePick } from './configuredAssemblyPicking'
 import type { AssemblySceneFace, AssemblySceneEdge } from '../cad/kernel.assembly-types'
 import ConfiguredAssemblyBomPanel from './ConfiguredAssemblyBomPanel'
-import ConfiguredAssemblyMatePanel, { configuredMateUiDraft, configuredMateUiChoices, configuredMateUiProposal, configuredMateEditUnavailable, type ConfiguredMateDraft } from './ConfiguredAssemblyMatePanel'
+import ConfiguredAssemblyMatePanel, { configuredMateUiDraft, configuredMateUiRoleLabels, configuredMateUiChoices, configuredMateUiProposal, configuredMateEditUnavailable, type ConfiguredMateDraft } from './ConfiguredAssemblyMatePanel'
 import ConfiguredAssemblyMechanicalPanel, { configuredMechanicalDraft, configuredMechanicalChoices, configuredMechanicalIntent, configuredMechanicalMate, type ConfiguredMechanicalDraft } from './ConfiguredAssemblyMechanicalPanel'
 import ConfiguredAssemblyCompoundPanel, { configuredCompoundUiDraft, configuredCompoundUiProposal, configuredCompoundMate, type ConfiguredCompoundDraft } from './ConfiguredAssemblyCompoundPanel'
 import { configuredCompoundUiChoices, type ConfiguredCompoundUiChoices } from './configuredCompoundUiChoices'
@@ -319,6 +319,8 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
   }
   const displayScene = useMemo(() => scene ? configuredUiDisplayScene(scene) : null, [scene])
   const blocked = busy || !!preview
+  const generalDraft = mateDraft && !('mechanical' in mateDraft) && !('compound' in mateDraft) ? mateDraft : null
+  const mateHighlights = useMemo(() => configuredMateHighlights(!blocked && scene && configuredUiSceneMatches(scene, document, generation) ? displayScene : null, selectedScope.path, generalDraft, mateChoices.values), [blocked, scene, document, generation, displayScene, selectedScope.path, generalDraft, mateChoices.values])
   return <div className="configured-assembly-workspace" aria-label="Ensamblaje configurado" aria-busy={busy}>
     <header><strong>SolidFlow · {document.source.name}{dirty ? ' *' : ''}</strong><span title={path}>{path?.split(/[\\/]/).at(-1) ?? 'Sin guardar'}</span></header>
     <nav aria-label="Archivo del ensamblaje configurado">
@@ -379,7 +381,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
       {compoundChoices.error && <p role="alert">{compoundChoices.error}</p>}
       {mateChoices.error && <p role="alert">{mateChoices.error}</p>}
       <h2>Piezas efectivas</h2><ul>{evaluation.parts.map(part => <li key={JSON.stringify(part.path)}>{part.path.join(' / ')}{part.suppressed ? ' · suprimida' : part.visible ? '' : ' · oculta'}</li>)}</ul>
-    </aside><main><nav aria-label="Vistas del ensamblaje configurado">{([['iso', 'Isométrica'], ['front', 'Frontal'], ['top', 'Superior'], ['fit', 'Ajustar']] as const).map(([name, label]) => <button key={name} disabled={busy} onClick={() => setView(old => ({ name, stamp: old.stamp + 1 }))}>{label}</button>)}</nav><div className="configured-assembly-view"><AssemblyViewport scene={displayScene} disabled={busy} view={view} selectedPath={preview ? [] : bomSelectedPath.length ? bomSelectedPath : selected ? [...selectedScope.path, selected.id] : []} pickingFaces={!blocked && matePick?.kind === 'face'} pickingEdges={!blocked && matePick?.kind === 'edge'} onFace={pickMate} onEdge={pickMate} onComponent={component => {
+    </aside><main><nav aria-label="Vistas del ensamblaje configurado">{([['iso', 'Isométrica'], ['front', 'Frontal'], ['top', 'Superior'], ['fit', 'Ajustar']] as const).map(([name, label]) => <button key={name} disabled={busy} onClick={() => setView(old => ({ name, stamp: old.stamp + 1 }))}>{label}</button>)}</nav>{matePick && generalDraft && !blocked && <p role="status" aria-label="Selección de referencia en vista configurada">Selecciona {configuredMateUiRoleLabels(generalDraft)[matePick.slot]}: {matePick.kind === 'face' ? 'una cara compatible' : 'una arista LINE'} · Ámbito: {selectedScope.path.join(' / ') || 'Raíz'} · Estado: {selectedScope.configuration ?? 'Base'}. <button type="button" onClick={stopMatePick}>Cancelar selección en vista</button></p>}<div className="configured-assembly-view"><AssemblyViewport selectedFaces={mateHighlights.faces} selectedEdges={mateHighlights.edges} scene={displayScene} disabled={busy} view={view} selectedPath={preview ? [] : bomSelectedPath.length ? bomSelectedPath : selected ? [...selectedScope.path, selected.id] : []} pickingFaces={!blocked && matePick?.kind === 'face'} pickingEdges={!blocked && matePick?.kind === 'edge'} onFace={pickMate} onEdge={pickMate} onComponent={component => {
         if (!fresh(renderedTicket) || operation.current || pending.current || mateDraftRef.current || !scene || !configuredUiSceneMatches(scene, current.current, epoch.current)) return
         const id = configuredComponentPick(displayScene, component, selectedScope.path)
         if (!id || !selectedScope.occurrences.some(row => row.id === id && !row.suppressed)) return

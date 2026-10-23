@@ -18,6 +18,7 @@
     "test:desktop:assembly-origin-axes": "node scripts/desktop-assembly-origin-axes.cjs",
     "test:desktop:assembly-configured-origin-axes": "node scripts/desktop-assembly-configured-origin-axes.cjs",
     "test:desktop:assembly-configured-components": "node scripts/desktop-assembly-configured-components.cjs",
+    "test:desktop:assembly-configured-picking": "node scripts/desktop-assembly-configured-picking.cjs",
     "test:desktop:pattern-all": "node scripts/desktop-pattern-all.cjs",
     "test:desktop:imported-bodies": "node scripts/desktop-imported-bodies.cjs",
     "test:desktop:assembly-step": "node scripts/desktop-assembly-step.cjs",

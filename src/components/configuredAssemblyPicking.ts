@@ -5,6 +5,33 @@ import { configuredMateUiRoleChoices, configuredMateUiRoleLabels, type Configure
 
 export interface ConfiguredMatePick { slot: number; kind: 'face' | 'edge' }
 
+/** Display highlights only: resolve each saved role through the same current
+ * visible catalog and scoped role checks as a pointer nomination. */
+export function configuredMateHighlights(scene: AssemblyScene | null, scope: readonly string[],
+  draft: ConfiguredMateDraft | null, choices: readonly ConfiguredMateUiChoice[]): { faces: AssemblySceneFace[]; edges: AssemblySceneEdge[] } {
+  const faces: AssemblySceneFace[] = [], edges: AssemblySceneEdge[] = []
+  if (!scene || !draft) return { faces, edges }
+  draft.references.forEach((reference, slot) => {
+    if (!reference || (reference.kind !== 'face' && reference.kind !== 'edge') || !reference.component) return
+    const pick = { slot, kind: reference.kind }
+    const worldComponent = { ...reference.component, occurrencePath: [...scope, ...reference.component.occurrencePath] }
+    const material = reference.kind === 'face' ? reference.face : reference.edge
+    const key = JSON.stringify([assemblyComponentKey(worldComponent), reference.body ? [reference.body.bodyId, reference.body.sourceFeatureId] : null, material.sourceFeatureId, material.key])
+    const matches = (reference.kind === 'face'
+      ? scene.bodies.filter(body => body.visible).flatMap(body => body.faces).filter(hit => assemblyFaceKey(hit) === key)
+      : scene.bodies.filter(body => body.visible).flatMap(body => body.edges ?? []).filter(hit => assemblyEdgeKey(hit) === key))
+    if (matches.length !== 1) return
+    const hit = matches[0]
+    const choice = configuredMatePickChoice(scene, scope, draft, choices, pick, hit)
+    // The nomination has authenticated component/body/material identity; its
+    // purpose must also match, independently of saved object property order.
+    if (!choice || choice.reference.kind !== reference.kind || !('support' in choice.reference) || choice.reference.support !== reference.support) return
+    if ('face' in hit.selection) { const face = hit as AssemblySceneFace; if (!faces.includes(face)) faces.push(face) }
+    else { const edge = hit as AssemblySceneEdge; if (!edges.includes(edge)) edges.push(edge) }
+  })
+  return { faces, edges }
+}
+
 /** Display nomination only. The native preview retains all authentication. */
 export function configuredComponentPick(scene: AssemblyScene | null, component: AssemblyComponentReference | null, scope: readonly string[]): string | null {
   if (!scene || !component || component.occurrencePath.length <= scope.length || !scope.every((id, i) => component.occurrencePath[i] === id)) return null

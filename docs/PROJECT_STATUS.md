@@ -1,5 +1,29 @@
 # Project status and review queue
 
+### Configured material picking and feedback
+
+The next focused increment in [issue #55](https://github.com/angelcp2802/solidflow/issues/55)
+checks real component, face and LINE pointer selection in an original named
+assembly state, including Cancel/retry/Apply, Undo/Redo and saved reopening.
+The production renderer passes 59 checkpoints / 12 geometry phases; the native
+case checks literal placement and unchanged Base/dormant states. Selected
+references now retain highlights, and the active picking instruction sits
+beside the viewport. See [core workflows](CORE_WORKFLOWS.md),
+[provenance](PROVENANCE.md#configured-material-pointer-original) and
+[validation](VALIDATION.md). The long sidebar, compact layouts and complete
+assembly-demo acceptance remain open in the same draft PR #49.
+
+Final Windows acceptance passes 9,353 cases / 400 files, 83 IPC/security checks
+(two explicit skips), build and actual Electron smoke. All 1,048 frozen
+non-Markdown inputs remain unchanged. These local results do not establish
+the open hosted or cross-platform acceptance.
+
+Hosted predecessor `6ba3fb7` fails macOS nested symmetry selected
+replacement/reactivation; its application-level cause remains unknown.
+Security CodeQL passes but dependency audit reports one high Electron advisory
+GHSA-jr5w-w6x2-84p9. Electron dependency remediation is outstanding. These hosted
+failures are not waived by the local pointer workflow.
+
 ### Fresh face sketches and interface review
 
 The next focused increment in [issue #55](https://github.com/angelcp2802/solidflow/issues/55)

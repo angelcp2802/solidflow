@@ -1,5 +1,68 @@
 # Validation
 
+## Configured material selection feedback — 2026-10-24
+
+The increment after `f984b71`, tracked in issue #55, preserves selected general
+face/LINE highlights and shows the active role, scope, state and cancellation
+beside the viewport. Display marks are resolved against current visible
+identities and compatible purposes; no solver, file format or IPC grants change.
+
+Focused Windows x64 / Node 24.11.1 results:
+
+- Seven pure/SSR picking cases pass, including stale, hidden, ambiguous and
+  out-of-scope references, property-order independence and incompatible purpose.
+- One original native case passes in 3.23 s overall. Two 4 mm cubes retain
+  128 mm³, 192 mm² and two solids. Explicit origin-plane X/Y restraints leave
+  B's Z free; B-top to A-top signed distance +2 moves B from Z=6 to Z=2.
+  Matching LINE parallelism preserves that placement. Native material identities,
+  Cancel/Apply, history, save/reopen and unchanged Base/dormant states are checked.
+  Bounds/placement tolerance is 1e-6 mm; volume/area is 1e-5.
+- The final renderer passes 59 checkpoints / 12 geometric phases with eight
+  actual pointer gestures for component and material-role selection. Real
+  worker/private preview, Cancel/retry/Apply, Undo/Redo and native file IPC run
+  with test-owned dialog paths. No console/resource errors; child/profile cleanup
+  passes. Form controls are scripted; native constraints are independently checked.
+  The final 1544×941 capture was visually inspected: both saved distance faces
+  remain highlighted with the relation editor open. Highlight pixels are visual
+  evidence, separate from native geometry and the pure reference guards.
+
+Fixture development first exposed a mismatched part identity, an incorrect
+signed-distance expectation and valid drift in unconstrained X. The original
+fixture was corrected with explicit origin constraints and ordered roles;
+no solver behavior or tolerance was weakened. A subsequent screenshot attempt
+left its relation editor open and failed the existing teardown deadline. The
+flow now closes that editor explicitly after capture and the final run observes
+child exit and profile cleanup. No dialog gate or deadline was relaxed.
+
+The configured panel remains long and visually separate from the part ribbon.
+Compact-window review, specialized mechanical/compound pointer roles, displayed
+origin-axis picking and complete assembly-demo/platform acceptance remain open.
+
+Final literal `npm test` passes **9,353 cases / 400 files** in 568.43 s, then
+**83 IPC/security checks**, zero failures and two explicit Windows skips
+(1,513.3477 ms). Final `npm run build` and actual Electron production-loader /
+worker / WASM smoke pass. The existing configured-relation renderer regression
+also passes 61 checkpoints with no console/resource errors and confirmed child
+exit/profile cleanup. Existing externalized-module and bundle-size warnings
+remain. All 1,048 frozen non-Markdown inputs stayed unchanged through those
+checks; documentation-only updates followed.
+
+Parsed CI comparison preserves every prior job and step after removing exactly
+the two new fixed configured-pointer steps. All 79 prior npm scripts remain
+unchanged. No deadlines, gates, permissions, sandbox settings or action pins
+were weakened.
+
+Hosted predecessor `6ba3fb7` ends with 11 successful jobs and four failures in
+[CI 40033316529](https://github.com/angelcp2802/solidflow/actions/runs/40033316529).
+The macOS nested symmetry selected replacement/reactivation step 97 fails,
+followed by three dependent Desktop gates; their later checks skip. Job status
+does not establish the application-level cause, and dedicated log retrieval
+failed at transport. In
+[Security 40033316553](https://github.com/angelcp2802/solidflow/actions/runs/40033316553),
+CodeQL passes and dependency audit fails. Local `npm audit --json` reports one
+high Electron 44.7.0 advisory, GHSA-jr5w-w6x2-84p9, with 44.9.3 offered as a
+non-major fix. Dependency remediation is outstanding; no finding is dismissed.
+
 ## Fresh support-face sketches and ribbon review — 2026-10-24
 
 The increment after `c175b5f`, tracked in issue #55, exercises two freshly

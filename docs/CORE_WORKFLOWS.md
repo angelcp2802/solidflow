@@ -95,6 +95,23 @@ Its general relation form now has explicit role buttons to select a current
 face or LINE edge. Clicking a visible configured component selects its
 immediate owner in the current scope.
 
+General face/LINE relation references retain their highlight after selection.
+While a role is being picked, an instruction beside the viewport identifies
+the reference, scope and state, with a cancellation button. Highlights resolve
+only against current visible geometry and compatible role choices; they are
+display feedback, not native verification or permission to apply a relation.
+
+After building, `npm run test:desktop:assembly-configured-picking` exercises
+actual component/face/LINE pointer selection on two original 4 mm cubes.
+Explicit B-to-root YZ/XZ distances constrain X=8 and Y=0 while leaving Z free.
+Select the top face of B first, then A, and set signed distance +2 mm. The
+verified placement moves B from Z=6 to Z=2; reversing the references reverses
+the signed convention. The workflow also authors parallel top LINE edges,
+checks Cancel/retry/Apply, history and full v3 save/reopen. See
+[provenance](PROVENANCE.md#configured-material-pointer-original) and
+[validation](VALIDATION.md) for exact coverage; this is not general assembly
+or platform acceptance.
+
 Origin X/Y/Z axes now have explicit persisted references, scoped native line
 resolution and direction/concentric authoring; see the [origin-axis contract](ASSEMBLY_ORIGIN_AXES.md)
 and its source-specific validation. Concentric rotation locking with origin

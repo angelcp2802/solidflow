@@ -1,5 +1,12 @@
 # Development guide
 
+After building, `npm run test:desktop:assembly-configured-picking` checks actual
+component and general face/LINE role selection in an original configured
+assembly, with preview, history and real file IPC. See
+[core workflows](CORE_WORKFLOWS.md) for the signed-distance example and current
+UI feedback. This fixed command uses the existing isolated hidden harness;
+configured CI does not establish a platform pass.
+
 The [configured component authoring contract](ASSEMBLY_CONFIGURED_COMPONENT_AUTHORING.md)
 covers insertion, registered reuse and parent-relative fixed/floating state.
 After building, run `npm run test:desktop:assembly-configured-components` for

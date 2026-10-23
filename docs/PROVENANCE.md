@@ -1,5 +1,31 @@
 # Public fixture provenance
 
+## Configured material pointer original
+
+`scripts/desktop-assembly-configured-picking-original.cjs` constructs two
+original 4×4×4 mm cubes, sharing one part definition. A is fixed at (−8,0,0);
+B begins floating at (8,0,6). Two explicit B-to-root principal-plane distances,
+YZ=8 and XZ=0 mm with aligned normals, constrain X/Y and orientation while
+leaving Z free. No external model, topology keys or prepared material relations
+are imported. The selected named state `demo` initially inherits Base.
+
+The renderer selects B's +Z top face, then A's, and authors signed distance
++2 mm. B moves to Z=2; the opposite reference order has the opposite sign.
+Matching top-front X-directed native LINE edges then receive a parallel relation.
+Every cube independently has volume 64 mm³, area 96 mm² and one solid. Totals
+remain 128 mm³/192 mm²/two solids. A bounds are [−10,−2,0]..[−6,2,4]; final B
+bounds are [6,−2,2]..[10,2,6]. Bounds/placement use 1e-6 mm and volume/area 1e-5.
+The native case also checks preserved Base/dormant states, current identities,
+unsatisfied measurement, one-use previews, history and serialized reopening.
+
+Actual CDP events select components and material roles. Calibration uses the
+literal envelope and the public Superior camera convention, after the role
+instruction has changed the viewport height. Form controls and native-dialog
+paths are scripted in the hidden test-owned window; no solver response, camera
+state or document is injected. A final screenshot displays the saved relation's
+editor for visual highlight review. It is not geometric measurement or proof of
+general nested, hidden, suppressed or cross-platform picking behavior.
+
 ## Original configured component authoring
 
 `scripts/desktop-assembly-configured-components-original.cjs` independently

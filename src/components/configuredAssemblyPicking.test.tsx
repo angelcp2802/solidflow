@@ -2,7 +2,7 @@ import { expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import type { AssemblyScene, AssemblySceneFace, AssemblySceneEdge } from '../cad/kernel.assembly-types'
 import { identityRigidPose } from '../model/rigidPose'
-import { configuredComponentPick, configuredMatePickChoice } from './configuredAssemblyPicking'
+import { configuredComponentPick, configuredMatePickChoice, configuredMateHighlights } from './configuredAssemblyPicking'
 import ConfiguredAssemblyMatePanel, { configuredMateUiDraft, type ConfiguredMateUiChoice } from './ConfiguredAssemblyMatePanel'
 
 // Original symbolic display catalog: tests nomination, not native geometry.
@@ -61,4 +61,44 @@ it('renders explicit role picking, cancellation and principal-plane guidance wit
   expect(html).toContain('Seleccionar Referencia 1 por cara en vista configurada')
   expect(html).toContain('Cancelar selección en vista'); expect(html).toContain('planos XY, XZ e YZ')
   expect(html).not.toContain('Elegir arista LINE en vista'); expect(callback).not.toHaveBeenCalled()
+})
+
+it('highlights only current compatible draft roles in their declaring scope', () => {
+  const { scene, face, edge, choices } = fixture(), draft = configuredMateUiDraft('mate')
+  draft.type = 'parallel'; draft.references = choices.map(choice => structuredClone(choice.reference))
+  const highlights = configuredMateHighlights(scene, ['group'], draft, choices)
+  expect(highlights.faces).toEqual([face]); expect(highlights.faces[0]).toBe(face)
+  expect(highlights.edges).toEqual([edge]); expect(highlights.edges[0]).toBe(edge)
+  expect(configuredMateHighlights(scene, [], draft, choices)).toEqual({ faces: [], edges: [] })
+  expect(configuredMateHighlights(null, ['group'], draft, choices)).toEqual({ faces: [], edges: [] })
+  draft.type = 'coincident'
+  expect(configuredMateHighlights(scene, ['group'], draft, choices).edges).toEqual([])
+})
+
+it('does not highlight retained stale, hidden or ambiguous draft references', () => {
+  const { scene, face, choices } = fixture(), draft = configuredMateUiDraft('mate')
+  draft.references = [structuredClone(choices[0].reference), null]
+  expect(configuredMateHighlights(scene, ['group'], draft, []).faces).toEqual([])
+  scene.bodies[0].faces.push(face)
+  expect(configuredMateHighlights(scene, ['group'], draft, choices).faces).toEqual([])
+  scene.bodies[0].faces.pop(); scene.bodies[0].visible = false
+  expect(configuredMateHighlights(scene, ['group'], draft, choices).faces).toEqual([])
+  scene.bodies[0].visible = true
+  draft.references[0]!.component!.definition.revision = 'obsolete'
+  expect(configuredMateHighlights(scene, ['group'], draft, choices).faces).toEqual([])
+})
+
+it('matches reordered saved properties structurally while preserving reference purpose', () => {
+  const { scene, face, edge, choices } = fixture(), draft = configuredMateUiDraft('mate')
+  draft.type = 'parallel'
+  draft.references = [
+    { support: 'plane', face: { key: 'face-1', sourceFeatureId: 'extrude' }, body: null,
+      component: { definition: { revision: 'r1', id: 'part' }, occurrencePath: ['part'] }, kind: 'face' },
+    { edge: { key: 'edge-1', sourceFeatureId: 'extrude' }, support: 'line', body: null,
+      component: { definition: { revision: 'r1', id: 'part' }, occurrencePath: ['part'] }, kind: 'edge' },
+  ]
+  expect(JSON.stringify(draft.references[0])).not.toBe(JSON.stringify(choices[0].reference))
+  expect(configuredMateHighlights(scene, ['group'], draft, choices)).toEqual({ faces: [face], edges: [edge] })
+  draft.references[0] = { kind: 'face', component: { occurrencePath: ['part'], definition: { id: 'part', revision: 'r1' } }, body: null, face: face.selection.face, support: 'axis' }
+  expect(configuredMateHighlights(scene, ['group'], draft, choices)).toEqual({ faces: [], edges: [edge] })
 })
