@@ -1,5 +1,101 @@
 # Validation
 
+## Configured compound authoring and validation scheduling — 2026-10-23
+
+The increment after `ce5604e`, tracked in issues #52 and #53, adds controlled
+configured profile-center, material LINE and circular-path forms. These use the
+existing private declaration preview/Apply transaction and strict v3 file
+context. No new native capture authority, saved format or file grant is added.
+
+Windows x64 / Node 24.11.1 focused evidence:
+
+- The final focused native acceptance file passes **36 cases**, 27.12 s. It exercises all
+  three families, circular Free profiles, complete compound references, literal
+  material bounds/directions, shared proper frames, private Cancel/retry/Apply,
+  saved reconstruction, parameter replacement, explicit circular Free domains,
+  Base/dormant isolation, nonincident material origins/edges, purpose mismatch,
+  singular and finite uncertain UP, unavailable source/body tuples, closed-circle
+  rejection, depth-two noncommuting placements, stale/DTO/token rejection and
+  native final-scene/cleanup faults.
+- Four actual production-renderer cases pass: rectangle **74 milestones / 23
+  geometry phases**, circle **72 / 23**, LINE **74 / 23**, circular path **84 /
+  25**. These exercise real current DOM choices, native preview and restricted
+  file IPC, Cancel/retry/Apply, parameter editing, atomic face/axis or edge/origin
+  reselection, suppression/reactivation/removal, history, shared/Base isolation,
+  exact recovery, canceled Save As, actual pending Save completion, normal Save
+  and reopening with fresh native verification. The saved form then restores its
+  complete current selections/parameters without native mutation or history
+  changes, is captured if requested and closes without committing a draft.
+  All close their isolated child,
+  clean their profile and record zero console/resource errors. No elapsed
+  renderer duration is inferred from file timestamps.
+- Initial build and actual production Electron smoke pass, with existing build
+  warnings. Pure UI/choice checks remain separate from native proof.
+
+The first rectangle renderer attempt rejected a test expectation that demanded
+passive reports for a suppressed profile constraint. Only captured mechanical
+winding has passive observations; a suppressed compound constraint is inactive.
+The corrected oracle requires exactly the active placed compound keys and zero
+reports for the suppressed/removed declaration. Geometry, native verification,
+deadlines and tolerances were not changed.
+
+The added native coverage initially passes 34/36, then 35/36, because test
+nominations incorrectly treated world display lines as local geometry,
+checked a Float32 display radius as native metrology and expected a displayable
+closed seam vertex. These failures precede their intended preview assertions.
+The corrected arc nomination uses actual local native endpoint identities. The
+closed-circle case uses the original lower-pocket derivative described in
+provenance, with real material vertices, and requires the exact closed-circle
+diagnostic rather than accepting a missing/incidence error. All 36 then pass;
+no production geometry, solver band or native authority rule changes.
+
+The first complete suite on this increment finishes **9,262 passed / 3 failed
+of 9,265 cases in 388 files**, 458.08 s. All three failures are unchanged hinge
+cases exceeding the existing 5,000 ms deadline. The same three cases pass a
+single-worker diagnostic run in 9.97 s (179 other cases explicitly filtered
+out); this is not a complete-suite pass. The installed default permits 15 fork
+workers on this 16-thread host; an observation during the run shows four native
+workers around 1.9–2.0 GiB each and only about 2.1 GiB free system memory.
+This is evidence of resource pressure, not proof of a new geometric defect or
+the exact cause of every timeout. The public suite now caps concurrent isolated
+forks at four or fewer, preserving every case, assertion and deadline.
+
+With the concurrency cap, the complete 9,265-case/388-file suite passes in
+534.10 s, followed by 83 IPC/security checks, zero failures and two explicit
+Windows skips (1,557.2861 ms). Build, actual Electron smoke, configured relation
+editing (61 milestones / 23 phases) and all five configured mechanical flows
+(55 / 18 each) also pass. That source precedes the twelve additional native
+cases and reopened-form assertions above; final complete-suite/build/smoke
+acceptance for those additions now passes: **9,277 unit/CAD/UI cases in 388
+files**, 578.74 s, then **83 IPC/security checks**, zero failures and two
+explicit Windows skips, 1,528.6441 ms. Final build and actual Electron smoke
+pass, with existing build warnings. All **1,014 non-Markdown code/test/CI
+inputs** remain unchanged through the final focused native cases, four renderer
+workflows, complete suite, build and smoke. The four captured images show the
+actual saved/reopened unmodified forms; they are separate from physical proof.
+
+The CI split preserves all 52 original desktop commands: smoke remains in the
+three original Desktop jobs, and 51 renderer commands move into three disjoint
+batches of 17 on each OS. An independent before/after inventory and parsed YAML
+audit pass 285 checks. Executing the actual dependency guard for all 16 pairs
+of success/failure/canceled/skipped results permits only success/success. The
+Desktop check names, original command strings, per-scenario deadlines, 35/35/20
+minute job limits, action pins, sandbox and read-only/no-publish policy remain.
+This is local workflow validation, not a hosted run or platform acceptance.
+
+For published Save-readiness snapshot `de378ab`, the separate five-family
+configured jobs pass on Windows, Linux and macOS and Security succeeds. All
+three general desktop jobs end canceled around 35 minutes, without a failing
+test step. They are not accepted complete runs. The new split requires its own
+hosted results; complete assembly/demo/release acceptance remains open.
+
+The [contract](ASSEMBLY_CONFIGURED_COMPOUND_AUTHORING.md),
+[provenance](PROVENANCE.md#original-configured-compound-authoring) and
+[walkthrough](DEMO_ASSEMBLIES.md#author-profiles-and-material-paths-in-a-configured-state)
+retain the exact dimensions, tolerances and boundaries. Two circular Free
+domains are exercised at the same interior material point; that does not test
+their different behavior outside the trim or establish an external policy.
+
 ## Native Save completion and renderer readiness — 2026-10-23
 
 Local `codex/save-completion-readiness` follows accepted `d99e1eb`. This is a

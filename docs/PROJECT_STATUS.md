@@ -1,5 +1,43 @@
 # Project status and review queue
 
+### Configured compound authoring and validation scheduling
+
+The increment after `ce5604e`, tracked in
+[issue #52](https://github.com/angelcp2802/solidflow/issues/52), adds controlled
+configured forms for profile-center, material LINE and circular-path relations.
+Complete compound references and parameters use the existing private declaration
+preview/Apply route. Named edits propagate to shared selected states; Base edits
+preserve previous named declarations. Draft changes retain the complete context,
+and stale callbacks cannot replace a newer intent. No new format or native
+capture authority comes from a choice list or detached report.
+
+Current Windows evidence includes 36 focused native authoring cases and four
+production-renderer workflows: rectangle 74 milestones / 23 geometry phases,
+circular profile 72 / 23, LINE 74 / 23 and circular path 84 / 25. All pass,
+including saved-form restoration and actual committed-state captures. The
+final complete suite passes 9,277 cases in 388 files, then 83 IPC/security checks
+with two explicit Windows skips. Build and actual Electron smoke pass, alongside
+the existing configured relation/mechanical flows. All 1,014 code/test/CI inputs
+remain unchanged through final acceptance. See the
+[contract](ASSEMBLY_CONFIGURED_COMPOUND_AUTHORING.md),
+[human walkthrough](DEMO_ASSEMBLIES.md#author-profiles-and-material-paths-in-a-configured-state)
+and source-specific [validation](VALIDATION.md) before making acceptance claims.
+
+[Issue #53](https://github.com/angelcp2802/solidflow/issues/53) separates 51
+renderer commands into three fixed batches per OS while retaining smoke,
+unit/CAD, IPC and packaging in the original required Desktop checks. Those checks
+fail unless every renderer/configured dependency succeeds. Parsed workflow and
+exact command parity pass locally; hosted acceptance of the new split is open.
+The suite now caps isolated native worker concurrency without changing deadlines.
+
+The same Draft PR #49 remains the review target. Complete configuration
+authoring, configured source/reference repair, interactive constrained movement,
+flexible instances and the full assembly/demo/release scope remain open. This
+increment establishes no general external-application equivalence or platform
+support. [Issue #54](https://github.com/angelcp2802/solidflow/issues/54) tracks the
+next constrained-movement/projection integration, with all relation families,
+shared state, signed mechanical continuity and actual interaction evidence.
+
 ### Save completion and renderer readiness
 
 The follow-up to `d99e1eb` addresses a controlled ordering risk in source-update
@@ -16,11 +54,10 @@ checks with two explicit skips, build and actual Electron smoke. The ordinary
 and controlled source-update cases pass 50 milestones / 10 geometry phases each;
 all five configured mechanical cases pass 55 milestones / 18 phases each.
 
-The next configured authoring block is tracked in
-[issue #52](https://github.com/angelcp2802/solidflow/issues/52): controlled compound
-forms for profile-center and material LINE/circular paths, with genuine private
-native preview/Apply and independent full-lifecycle evidence. This is planned,
-not implemented by the Save correction. Full assembly/demo acceptance stays open.
+The Save correction itself adds no compound form. The following configured
+authoring block, tracked in [issue #52](https://github.com/angelcp2802/solidflow/issues/52),
+is described in the current section above with its own implementation and
+validation boundary. Full assembly/demo acceptance stays open.
 
 ### Configured native mechanical capture
 

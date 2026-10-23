@@ -17,6 +17,10 @@ const SCENARIOS = Object.freeze({
     test: 'production-renderer-assembly-configurations', caption: 'saved configured assembly states' }),
   'assembly-configured-relations': Object.freeze({ originalRecipe: 'desktop-assembly-configurations-original.cjs', entry: 'desktop-assembly-configured-relations.cjs',
     test: 'production-renderer-assembly-configured-relations', caption: 'configured relation authoring' }),
+  'assembly-configured-profile-center': Object.freeze({ compoundFamily: 'profile-center', profileKind: 'rectangle', originalRecipe: 'desktop-assembly-configured-compound-original.cjs', entry: 'desktop-assembly-configured-profile-center.cjs', test: 'production-renderer-configured-profile-center', caption: 'configured rectangle profile centers' }),
+  'assembly-configured-profile-circle': Object.freeze({ compoundFamily: 'profile-center', profileKind: 'circle', originalRecipe: 'desktop-assembly-configured-compound-original.cjs', entry: 'desktop-assembly-configured-profile-circle.cjs', test: 'production-renderer-configured-profile-circle', caption: 'configured free circle profile centers' }),
+  'assembly-configured-line-path': Object.freeze({ compoundFamily: 'line-path', originalRecipe: 'desktop-assembly-configured-compound-original.cjs', entry: 'desktop-assembly-configured-line-path.cjs', test: 'production-renderer-configured-line-path', caption: 'configured material LINE path' }),
+  'assembly-configured-circular-path': Object.freeze({ compoundFamily: 'circular-path', originalRecipe: 'desktop-assembly-configured-compound-original.cjs', entry: 'desktop-assembly-configured-circular-path.cjs', test: 'production-renderer-configured-circular-path', caption: 'configured material circular path' }),
   'assembly-configured-lock': Object.freeze({ mechanicalFamily: 'lock', originalRecipe: 'desktop-assembly-configured-mechanical-original.cjs', entry: 'desktop-assembly-configured-lock.cjs', test: 'production-renderer-configured-lock', caption: 'configured native lock' }),
   'assembly-configured-concentric': Object.freeze({ mechanicalFamily: 'concentric', originalRecipe: 'desktop-assembly-configured-mechanical-original.cjs', entry: 'desktop-assembly-configured-concentric.cjs', test: 'production-renderer-configured-concentric', caption: 'configured native concentric rotation lock' }),
   'assembly-configured-gear': Object.freeze({ mechanicalFamily: 'gear', originalRecipe: 'desktop-assembly-configured-mechanical-original.cjs', entry: 'desktop-assembly-configured-gear.cjs', test: 'production-renderer-configured-gear', caption: 'configured native gear' }),
@@ -197,7 +201,10 @@ async function launch() {
   try {
     for (const name of ['profile', 'session', 'logs', 'crashes']) await fsp.mkdir(path.join(temporary, name));
     await fsp.writeFile(path.join(temporary, '.test-owned.json'), JSON.stringify({ token }), { flag: 'wx' });
-    if (activeScenario.mechanicalFamily) {
+    if (activeScenario.compoundFamily) {
+      const original = require('./desktop-assembly-configured-compound-original.cjs')(activeScenario.compoundFamily, activeScenario.profileKind);
+      await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(original), { flag: 'wx' });
+    } else if (activeScenario.mechanicalFamily) {
       const original = require('./desktop-assembly-configured-mechanical-original.cjs')(activeScenario.mechanicalFamily);
       await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(original), { flag: 'wx' });
     } else if ([SCENARIOS['assembly-configurations'], SCENARIOS['assembly-configured-relations']].includes(activeScenario)) {
@@ -280,7 +287,7 @@ async function launch() {
     });
     report = JSON.parse(await fsp.readFile(path.join(temporary, 'workflow-result.json'), 'utf8'));
     check(report.workflowStatus === 'PASS', 'The child did not record a successful complete UI workflow.');
-    if ((activeScenario.mechanicalFamily || [SCENARIOS['assembly-configurations'], SCENARIOS['assembly-configured-relations'], SCENARIOS.assembly, SCENARIOS['assembly-import'], SCENARIOS['assembly-linked-source'], SCENARIOS['assembly-source-revision'], SCENARIOS['assembly-interference-multibody'], SCENARIOS['assembly-interference-grouping'], SCENARIOS['assembly-interference-grouping-multibody'], SCENARIOS['assembly-interference-grouping-scope'], SCENARIOS['assembly-screw'], SCENARIOS['assembly-rack-pinion'], SCENARIOS['assembly-export'], SCENARIOS['assembly-direction'], SCENARIOS['assembly-angle-measurement'], SCENARIOS['assembly-directed-angle'], SCENARIOS['assembly-tangent'], SCENARIOS['assembly-cylinder-tangent'], SCENARIOS['assembly-sphere-tangent'], SCENARIOS['assembly-limit-distance'], SCENARIOS['assembly-limit-distance-compact'], SCENARIOS['assembly-limit-angle'], SCENARIOS['assembly-width'], SCENARIOS['assembly-line-path'], SCENARIOS['assembly-circular-path'], SCENARIOS['assembly-hinge'], SCENARIOS['assembly-hinge-picking'], SCENARIOS['assembly-hinge-repair'], SCENARIOS['assembly-hinge-limits'], SCENARIOS['assembly-hinge-limits-repair'], SCENARIOS['assembly-hinge-limits-picking'], SCENARIOS['assembly-profile-center'], SCENARIOS['assembly-symmetry'], SCENARIOS['assembly-symmetry-line-repair'], SCENARIOS['assembly-symmetry-plane-repair'], SCENARIOS['assembly-symmetry-sphere-repair'], SCENARIOS['assembly-symmetry-cylinder-repair'], SCENARIOS['assembly-symmetry-axisline-repair'], SCENARIOS['assembly-symmetry-repair'], SCENARIOS['assembly-symmetry-picking'], SCENARIOS['assembly-symmetry-nested-selected'], SCENARIOS['assembly-symmetry-nested-source'], SCENARIOS['assembly-replacement']].includes(activeScenario)) && process.env.SOLIDFLOW_UI_CAPTURE === '1') {
+    if ((activeScenario.mechanicalFamily || activeScenario.compoundFamily || [SCENARIOS['assembly-configurations'], SCENARIOS['assembly-configured-relations'], SCENARIOS.assembly, SCENARIOS['assembly-import'], SCENARIOS['assembly-linked-source'], SCENARIOS['assembly-source-revision'], SCENARIOS['assembly-interference-multibody'], SCENARIOS['assembly-interference-grouping'], SCENARIOS['assembly-interference-grouping-multibody'], SCENARIOS['assembly-interference-grouping-scope'], SCENARIOS['assembly-screw'], SCENARIOS['assembly-rack-pinion'], SCENARIOS['assembly-export'], SCENARIOS['assembly-direction'], SCENARIOS['assembly-angle-measurement'], SCENARIOS['assembly-directed-angle'], SCENARIOS['assembly-tangent'], SCENARIOS['assembly-cylinder-tangent'], SCENARIOS['assembly-sphere-tangent'], SCENARIOS['assembly-limit-distance'], SCENARIOS['assembly-limit-distance-compact'], SCENARIOS['assembly-limit-angle'], SCENARIOS['assembly-width'], SCENARIOS['assembly-line-path'], SCENARIOS['assembly-circular-path'], SCENARIOS['assembly-hinge'], SCENARIOS['assembly-hinge-picking'], SCENARIOS['assembly-hinge-repair'], SCENARIOS['assembly-hinge-limits'], SCENARIOS['assembly-hinge-limits-repair'], SCENARIOS['assembly-hinge-limits-picking'], SCENARIOS['assembly-profile-center'], SCENARIOS['assembly-symmetry'], SCENARIOS['assembly-symmetry-line-repair'], SCENARIOS['assembly-symmetry-plane-repair'], SCENARIOS['assembly-symmetry-sphere-repair'], SCENARIOS['assembly-symmetry-cylinder-repair'], SCENARIOS['assembly-symmetry-axisline-repair'], SCENARIOS['assembly-symmetry-repair'], SCENARIOS['assembly-symmetry-picking'], SCENARIOS['assembly-symmetry-nested-selected'], SCENARIOS['assembly-symmetry-nested-source'], SCENARIOS['assembly-replacement']].includes(activeScenario)) && process.env.SOLIDFLOW_UI_CAPTURE === '1') {
       check(report.captures?.length === 1 && report.captures[0].name === 'assembly-final.png', 'Expected one test-owned assembly capture.');
       const png = await fsp.readFile(path.join(temporary, 'assembly-final.png'));
       check(png.length <= 10 * 1024 * 1024 && digest(png) === report.captures[0].sha256, 'Assembly capture bytes changed.');
@@ -515,7 +522,8 @@ async function runInElectron() {
   const untilNext = activeScenario === SCENARIOS['until-next'];
   const configuredRelations = activeScenario === SCENARIOS['assembly-configured-relations'];
   const configuredMechanical = activeScenario.mechanicalFamily;
-  const configurations = activeScenario === SCENARIOS['assembly-configurations'] || configuredRelations || !!configuredMechanical;
+  const configuredCompound = activeScenario.compoundFamily;
+  const configurations = activeScenario === SCENARIOS['assembly-configurations'] || configuredRelations || !!configuredMechanical || !!configuredCompound;
   const importedBodies = activeScenario === SCENARIOS['imported-bodies'];
   const structuralStep = activeScenario === SCENARIOS['assembly-step'];
   const structuralInsertion = activeScenario === SCENARIOS['assembly-step-insertion'];
@@ -656,7 +664,7 @@ async function runInElectron() {
     : symmetryRepair ? [input, repairFiles.updatedPart, repairFiles.updatedPart, repairFiles.updatedSaved, repairFiles.baselineSaved,
       repairFiles.replacementPart, repairFiles.replacementPart, repairFiles.replacementSaved]
     : symmetryPicking ? [input, ...Array(6).fill(output)]
-    : symmetry ? [input, ...Array(5).fill(output)] : configuredRelations || configuredMechanical ? [input, output] : configurations ? [input, output, output] : [input, output];
+    : symmetry ? [input, ...Array(5).fill(output)] : configuredRelations || configuredMechanical || configuredCompound ? [input, output] : configurations ? [input, output, output] : [input, output];
   const savePaths = configurations ? [null, output] : untilNext ? [outputs.cutSelected, outputs.cutAll, outputs.add] : assembly ? [output, projectionOutput, translationOutput, gearOutput]
     : assemblyImport ? [importBaselinePath, output]
     : sourceRevision ? [null, output]
@@ -678,7 +686,7 @@ async function runInElectron() {
   const protocolResponses = [], consoleErrors = [], failedRequests = [], ipc = [], checks = [], captures = [];
   // One statically selected successful Save per owned child. The real main
   // handler writes/validates the file; only its unchanged return is withheld.
-  const saveCompletion = { enabled: sourceUpdateSavePending || !!configuredMechanical, ordinal: configuredMechanical ? 2 : 1,
+  const saveCompletion = { enabled: sourceUpdateSavePending || !!configuredMechanical || !!configuredCompound, ordinal: configuredMechanical || configuredCompound ? 2 : 1,
     armed: false, pending: false, releasedBy: null, nativeReady: null, ready: null, release: null, observation: null, samples: [] };
   function releaseSaveCompletion(by) {
     if (!saveCompletion.pending) return;
@@ -917,7 +925,9 @@ async function runInElectron() {
       savedContentSha256: digest(await fsp.readFile(output)), savedFeaturesSha256: digest(JSON.stringify(saved.features)) });
   }
   // The extra workflow is a fixed tracked module, never a caller/env-selected script.
-  const actualWorkflow = configuredMechanical
+  const actualWorkflow = configuredCompound
+    ? require('./desktop-assembly-configured-compound-flow.cjs')({ family: configuredCompound, profileKind: activeScenario.profileKind, expected, input, output, evaluate, observe, waitFor, click, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, completePendingSave, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
+    : configuredMechanical
     ? require('./desktop-assembly-configured-mechanical-flow.cjs')({ family: configuredMechanical, expected, input, output, evaluate, observe, waitFor, click, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, completePendingSave, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : configuredRelations
     ? require('./desktop-assembly-configured-relations-flow.cjs')({ expected, input, output, evaluate, observe, waitFor, click, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })

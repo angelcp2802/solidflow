@@ -1,5 +1,15 @@
 # Development guide
 
+The [configured compound authoring contract](ASSEMBLY_CONFIGURED_COMPOUND_AUTHORING.md)
+connects profile-center, material LINE and circular-path forms to the existing
+private configured declaration preview. After building, the fixed aggregate
+`npm run test:desktop:assembly-configured-compound` runs rectangle profiles,
+free circular profiles, LINE and circular material-path workflows sequentially.
+Keep their current compound identities and independent geometric oracles separate
+from syntax nominees, copied reports and Apply authority. The Configured relation
+authoring CI job configures this aggregate and the five mechanical cases on
+three operating systems; this listing is not an execution or support claim.
+
 The [configured mechanical capture contract](ASSEMBLY_CONFIGURED_MECHANICAL_CAPTURE.md)
 separates references/parameters from native capture authority for all five
 mechanical families. Run `npm run test:desktop:assembly-configured-mechanical`
@@ -56,6 +66,12 @@ capture authority separate. Base sidecar entries cannot be materialized as
 named overrides; saved/editor variant solve/writeback remains a separate integration.
 
 Use Node.js 24 and npm. Dependency versions are recorded in `package-lock.json`; install them with `npm ci`. Git is needed for the contribution workflow. Windows is the platform with the current local desktop evidence; macOS and Linux are targets whose build and runtime results must be recorded separately.
+
+The public Vitest suite retains isolated fork workers and each test's existing
+deadline. Concurrent workers are capped at four (or one fewer than the available
+CPU count, with a minimum of one), because individual CAD workers can own large
+native/WASM heaps. A targeted filtered run is diagnostic evidence, not a
+replacement for the complete `npm test` acceptance.
 
 ## Choose a branch and runtime
 
@@ -174,6 +190,16 @@ execution and visual limits in validation rather than inferring a pass here.
 The desktop smoke check loads the initial model, preload, worker and WASM and checks readiness and console errors. It does not click the editor's tools or launch the packaged installer. On a headless Linux machine, a display server is needed for Electron; CI can use `xvfb-run -a npm run test:desktop` after installing the required system libraries. Do not disable Electron's sandbox to make a check pass.
 
 Run focused tests while developing, then the checks relevant to the complete change. The [CI workflow](../.github/workflows/ci.yml) is configured for Node 24 on Windows 2025 x64, Ubuntu 24.04 x64 and macOS 15 arm64: install, build, unit tests, IPC tests, Electron smoke check and packaging. Linux uses Xvfb. A configured job is not an executed result; check Actions for the actual commit and platform before claiming a pass.
+
+The 51 longer renderer commands run in three fixed batches of 17 per operating
+system, separately from unit/CAD and packaging. The configured mechanical and
+compound workflows retain their separate job. The original Desktop check names
+depend on every renderer and configured job: after pinned Node setup, an
+unconditional result guard fails unless both dependencies succeeded. A skipped
+or canceled dependency cannot satisfy that guard. Existing 35-minute general
+job and 20-minute configured job limits, scenario deadlines, sandbox settings
+and no-publish packaging remain unchanged. This split is tracked in issue #53;
+command-inventory parity does not replace hosted execution.
 
 CI packages have no signing or notarization credentials and are built with `--publish never`. Binary upload is disabled until the CAD library's complete corresponding-source bundle is verified. They are not automatically published releases. Local packaging commands are `npm run package:win`, `npm run package:mac` and `npm run package:linux`; use the command appropriate to the host. Packaging success does not prove interactive operation, signing or acceptance by the platform's application controls. Current evidence and its limits belong in [VALIDATION.md](VALIDATION.md).
 

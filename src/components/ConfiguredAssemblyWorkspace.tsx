@@ -16,11 +16,13 @@ import AssemblyViewport from './AssemblyViewport'
 import ConfiguredAssemblyBomPanel from './ConfiguredAssemblyBomPanel'
 import ConfiguredAssemblyMatePanel, { configuredMateUiDraft, configuredMateUiChoices, configuredMateUiProposal, configuredMateEditUnavailable, type ConfiguredMateDraft } from './ConfiguredAssemblyMatePanel'
 import ConfiguredAssemblyMechanicalPanel, { configuredMechanicalDraft, configuredMechanicalChoices, configuredMechanicalIntent, configuredMechanicalMate, type ConfiguredMechanicalDraft } from './ConfiguredAssemblyMechanicalPanel'
+import ConfiguredAssemblyCompoundPanel, { configuredCompoundUiDraft, configuredCompoundUiProposal, configuredCompoundMate, type ConfiguredCompoundDraft } from './ConfiguredAssemblyCompoundPanel'
+import { configuredCompoundUiChoices, type ConfiguredCompoundUiChoices } from './configuredCompoundUiChoices'
 import './assembly.css'
 import './configured-assembly.css'
 
 let controllerEpoch = 0
-type RelationDraft = ConfiguredMateDraft | ConfiguredMechanicalDraft
+type RelationDraft = ConfiguredMateDraft | ConfiguredMechanicalDraft | ConfiguredCompoundDraft
 function nextEpoch(minimum = 0) { controllerEpoch = Math.max(controllerEpoch, minimum); if (controllerEpoch >= Number.MAX_SAFE_INTEGER) throw Error('Vuelve a abrir la aplicación para continuar.'); return ++controllerEpoch }
 export interface ConfiguredAssemblyWorkspaceProps {
   initialDocument: AssemblyConfiguredDocument
@@ -65,6 +67,13 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
     try { return { values: configuredMechanicalChoices(document, preview ? committedSceneRef.current : scene, generation, selectedScope.path.map(String)), error: undefined } }
     catch (reason) { return { values: { geometry: [], components: [] }, error: reason instanceof Error ? reason.message : 'No se pudieron preparar los componentes actuales.' } }
   }, [document, scene, preview, generation, scope])
+  const compoundEditing = !!mateDraft && 'compound' in mateDraft
+  const compoundChoices = useMemo(() => {
+    const empty: ConfiguredCompoundUiChoices = { profileFaces: [], profileEdges: [], points: [], lineEdges: [], circularPaths: [], guides: [] }
+    if (!compoundEditing) return { values: empty, error: undefined }
+    try { return { values: configuredCompoundUiChoices(document, preview ? committedSceneRef.current : scene, generation, selectedScope.path.map(String)), error: undefined } }
+    catch (reason) { return { values: empty, error: reason instanceof Error ? reason.message : 'No se pudieron preparar las referencias compuestas actuales.' } }
+  }, [document, scene, preview, generation, scope, compoundEditing])
   const mechanicalTarget = { scopePath: [...selectedScope.path], definition: { ...selectedScope.definition }, configuration: selectedScope.configuration }
   let mechanicalError: string | undefined
   if (mateDraft && 'mechanical' in mateDraft) {
@@ -234,14 +243,15 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
     } catch (reason) { if (isCurrent()) error(reason) }
     finally { if (fresh(captured.context) && operationKind.current === 'solve') finish() }
   }
-  const openRelationEditor = (mate?: AssemblyMate, mechanical = false) => {
+  const openRelationEditor = (mate?: AssemblyMate, mechanical = false, compound = false) => {
     if (!freshMate() || operation.current || pending.current || mateDraftRef.current || !scene || selectedScope.suppressed) return
-    try { const id = mate?.id ?? crypto.randomUUID(); setRelationDraft(mate && configuredMechanicalMate(mate) ? configuredMechanicalDraft(id, mate) : mechanical ? configuredMechanicalDraft(id) : configuredMateUiDraft(id, mate)); setFailure(null) } catch (reason) { error(reason) }
+    try { const id = mate?.id ?? crypto.randomUUID(); setRelationDraft(mate && configuredCompoundMate(mate) ? configuredCompoundUiDraft(id, mate) : mate && configuredMechanicalMate(mate) ? configuredMechanicalDraft(id, mate) : compound ? configuredCompoundUiDraft(id) : mechanical ? configuredMechanicalDraft(id) : configuredMateUiDraft(id, mate)); setFailure(null) } catch (reason) { error(reason) }
   }
   const previewDraft = () => {
     if (!freshMate() || operation.current || pending.current || !mateDraftRef.current) return
     try { const draft = mateDraftRef.current
       if ('mechanical' in draft) void previewMechanical(configuredMechanicalIntent(draft, mechanicalChoices.values, mechanicalTarget))
+      else if ('compound' in draft) { const mate = configuredCompoundUiProposal(draft, compoundChoices.values); void previewRelation(relationTarget(draft.editing ? { kind: 'replace', mateId: draft.id, mate } : { kind: 'add', mate })) }
       else { const mate = configuredMateUiProposal(draft, mateChoices.values); void previewRelation(relationTarget(draft.editing ? { kind: 'replace', mateId: draft.id, mate } : { kind: 'add', mate })) }
     }
     catch (reason) { error(reason) }
@@ -299,22 +309,27 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
         <p>{selectedScope.configuration === null ? 'Las ediciones de Base conservan los estados efectivos de las configuraciones nombradas.' : `Se edita la configuración ${selectedScope.configuration}. Todos sus usos comparten las relaciones.`}</p>
         <button disabled={blocked || !!mateDraft || !scene || selectedScope.suppressed} onClick={() => openRelationEditor()}>Nueva relación configurada</button>
         <button disabled={blocked || !!mateDraft || !scene || selectedScope.suppressed} onClick={() => openRelationEditor(undefined, true)}>Nueva relación mecánica configurada</button>
+        <button disabled={blocked || !!mateDraft || !scene || selectedScope.suppressed} onClick={() => openRelationEditor(undefined, false, true)}>Nueva relación compuesta configurada</button>
         {!effectiveMates.length && <p>No hay relaciones declaradas en este estado.</p>}
-        <ul>{effectiveMates.map(mate => { const unavailable = configuredMechanicalMate(mate) ? null : configuredMateEditUnavailable(mate); return <li key={mate.id} data-configured-mate-id={mate.id} data-configured-mate-type={mate.type} data-configured-mate-suppressed={String(mate.suppressed)}>
+        <ul>{effectiveMates.map(mate => { const unavailable = configuredMechanicalMate(mate) || configuredCompoundMate(mate) ? null : configuredMateEditUnavailable(mate); return <li key={mate.id} data-configured-mate-id={mate.id} data-configured-mate-type={mate.type} data-configured-mate-suppressed={String(mate.suppressed)}>
           <strong>{mate.name}</strong><small>{mate.type}{mate.suppressed ? ' · suprimida' : ''}{mate.type === 'distance' ? ` · ${mate.distance} mm` : ''}{mate.type === 'angle' ? ` · ${mate.angle}°` : ''}</small>
           <button aria-label={`Editar relación configurada ${mate.name}`} title={unavailable ?? 'Editar referencias y parámetros'} disabled={blocked || !!mateDraft || !!unavailable || !scene || selectedScope.suppressed} onClick={() => openRelationEditor(mate)}>Editar</button>
           <button aria-label={`${mate.suppressed ? 'Activar' : 'Suprimir'} relación configurada ${mate.name}`} disabled={blocked || !!mateDraft || !scene || selectedScope.suppressed} onClick={() => { if (freshMate()) void previewRelation(relationTarget({ kind: 'suppression', mateId: mate.id, suppressed: !mate.suppressed })) }}>{mate.suppressed ? 'Activar' : 'Suprimir'}</button>
           <button aria-label={`Eliminar relación configurada ${mate.name}`} disabled={blocked || !!mateDraft || !scene || selectedScope.suppressed} onClick={() => { if (freshMate()) void previewRelation(relationTarget({ kind: 'remove', mateId: mate.id })) }}>Eliminar</button>
           {unavailable && <small>{unavailable}</small>}
         </li> })}</ul>
-        <p>Los formularios de perfiles y trayectos aún no están disponibles aquí.</p>
+        <p>Los perfiles y trayectos requieren todas sus referencias materiales actuales; se verifican antes de aplicar.</p>
       </section>
-      {mateDraft && !('mechanical' in mateDraft) && <ConfiguredAssemblyMatePanel draft={mateDraft} choices={mateChoices.values} disabled={blocked || !scene || selectedScope.suppressed}
+      {mateDraft && !('mechanical' in mateDraft) && !('compound' in mateDraft) && <ConfiguredAssemblyMatePanel draft={mateDraft} choices={mateChoices.values} disabled={blocked || !scene || selectedScope.suppressed}
         onChange={draft => { if (!freshMate() || operation.current || pending.current) return; try { setRelationDraft(structuredClone(draft)); setFailure(null) } catch (reason) { error(reason) } }}
         onPreview={previewDraft} onClose={() => { if (!freshMate() || operation.current || pending.current) return; try { setRelationDraft(null); setFailure(null) } catch (reason) { error(reason) } }} />}
       {mateDraft && 'mechanical' in mateDraft && <ConfiguredAssemblyMechanicalPanel draft={mateDraft} choices={mechanicalChoices.values} target={mechanicalTarget} error={mechanicalError ?? mechanicalChoices.error} disabled={blocked || !scene || selectedScope.suppressed}
         onChange={draft => { if (!freshMate() || operation.current || pending.current) return; try { setRelationDraft(structuredClone(draft)); setFailure(null) } catch (reason) { error(reason) } }}
         onPreview={previewDraft} onClose={() => { if (!freshMate() || operation.current || pending.current) return; try { setRelationDraft(null); setFailure(null) } catch (reason) { error(reason) } }} />}
+      {mateDraft && 'compound' in mateDraft && <ConfiguredAssemblyCompoundPanel draft={mateDraft} choices={compoundChoices.values} disabled={blocked || !scene || selectedScope.suppressed}
+        onChange={draft => { if (!freshMate() || operation.current || pending.current) return; try { setRelationDraft(structuredClone(draft)); setFailure(null) } catch (reason) { error(reason) } }}
+        onPreview={previewDraft} onClose={() => { if (!freshMate() || operation.current || pending.current) return; try { setRelationDraft(null); setFailure(null) } catch (reason) { error(reason) } }} />}
+      {compoundChoices.error && <p role="alert">{compoundChoices.error}</p>}
       {mateChoices.error && <p role="alert">{mateChoices.error}</p>}
       <h2>Piezas efectivas</h2><ul>{evaluation.parts.map(part => <li key={JSON.stringify(part.path)}>{part.path.join(' / ')}{part.suppressed ? ' · suprimida' : part.visible ? '' : ' · oculta'}</li>)}</ul>
     </aside><main><nav aria-label="Vistas del ensamblaje configurado">{([['iso', 'Isométrica'], ['front', 'Frontal'], ['top', 'Superior'], ['fit', 'Ajustar']] as const).map(([name, label]) => <button key={name} disabled={busy} onClick={() => setView(old => ({ name, stamp: old.stamp + 1 }))}>{label}</button>)}</nav><div className="configured-assembly-view"><AssemblyViewport scene={displayScene} disabled={busy} view={view} selectedPath={preview ? [] : bomSelectedPath} onComponent={() => undefined} onFace={() => undefined} /></div>

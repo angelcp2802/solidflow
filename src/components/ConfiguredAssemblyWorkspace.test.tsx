@@ -19,7 +19,7 @@ it('renders the actual configured format and bounded controls without triggering
   const document = fixture(), html = renderToStaticMarkup(<ConfiguredAssemblyWorkspace initialDocument={document} initialSaved={serializeAssemblyConfiguredDocument(document)} onOpenDocument={() => undefined} />)
   for (const text of ['Ensamblaje configurado', 'Configuración raíz', 'Crear configuración basada en Base', 'Resolver configuración', 'Aplicar configuración', 'Piezas efectivas', 'left / a', 'right / b']) expect(html).toContain(text)
   expect(html).not.toContain(document.source.name + ' *'); expect(html).toContain('aún no están disponibles'); expect(buildConfiguredAssembly).not.toHaveBeenCalled()
-  expect(html).toContain('Nueva relación mecánica configurada'); expect(html).not.toContain('las nuevas capturas mecánicas')
+  expect(html).toContain('Nueva relación mecánica configurada'); expect(html).toContain('Nueva relación compuesta configurada'); expect(html).not.toContain('las nuevas capturas mecánicas')
 })
 
 it('starts a genuinely empty root variant from Base instead of copying the selected child configuration', () => {

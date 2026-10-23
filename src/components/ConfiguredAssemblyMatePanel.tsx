@@ -23,7 +23,8 @@ export interface ConfiguredMateDraft {
 }
 export function configuredMateEditUnavailable(mate: AssemblyMate): string | null {
   if (['lock', 'gear', 'screw', 'rack-pinion'].includes(mate.type) || mate.type === 'concentric' && mate.rotationLock !== null) return 'Usa el formulario de relaciones mecánicas para conservar o volver a capturar este estado.'
-  if (!Object.hasOwn(families, mate.type)) return 'El formulario de referencias compuestas de esta familia todavía no está integrado en esta vista. Puedes suprimir o eliminar la relación.'
+  if (mate.type === 'profile-center' || mate.type === 'line-path' || mate.type === 'circular-path') return 'Usa el formulario de relaciones compuestas para seleccionar sus referencias materiales y parámetros.'
+  if (!Object.hasOwn(families, mate.type)) return 'Esta familia no está disponible en este formulario.'
   return null
 }
 export function configuredMateUiDraft(id: string, mate?: AssemblyMate): ConfiguredMateDraft {

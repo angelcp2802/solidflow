@@ -19,6 +19,8 @@ jobs:
   desktop:
     name: Desktop (${{ matrix.platform }}-${{ matrix.arch }}, Node 24)
     runs-on: ${{ matrix.os }}
+    needs: [renderer, configured-mechanical]
+    if: ${{ always() }}
     timeout-minutes: 35
     strategy:
       fail-fast: false
@@ -49,6 +51,12 @@ jobs:
           node-version: "24"
           # Start from the lockfile without sharing caches across fork builds.
           package-manager-cache: false
+
+      - name: Require every renderer validation job
+        env:
+          RENDERER_RESULT: ${{ needs.renderer.result }}
+          CONFIGURED_RESULT: ${{ needs.configured-mechanical.result }}
+        run: node -e "for(const key of ['RENDERER_RESULT','CONFIGURED_RESULT']){if(process.env[key]!=='success'){console.error(key+'='+process.env[key]);process.exit(1)}}"
 
       - name: Install locked dependencies
         run: npm ci --no-audit --no-fund
@@ -86,414 +94,6 @@ jobs:
         if: runner.os != 'Linux'
         run: npm run test:desktop
 
-      - name: Test explicit imported body persistence (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:imported-bodies
-
-      - name: Test explicit imported body persistence (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:imported-bodies
-
-      - name: Test structural assembly STEP editor interchange (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-step
-
-      - name: Test structural assembly STEP editor interchange (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-step
-
-      - name: Test structural STEP component insertion (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-step-insertion
-
-      - name: Test structural STEP component insertion (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-step-insertion
-
-      - name: Test selected-to-ALL pattern interaction (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:pattern-all
-
-      - name: Test selected-to-ALL pattern interaction (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:pattern-all
-
-      - name: Test explicit fixed-plane pattern choice (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:pattern-world-limit
-
-      - name: Test explicit fixed-plane pattern choice (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:pattern-world-limit
-
-      - name: Test saved UntilNext regeneration (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:pattern-until-next
-
-      - name: Test saved UntilNext regeneration (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:pattern-until-next
-
-      - name: Test rigid assembly preview, Apply and persistence (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly
-
-      - name: Test rigid assembly preview, Apply and persistence (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly
-
-      - name: Test optional within-component interference inspection (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-interference-multibody
-
-      - name: Test optional within-component interference inspection (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-interference-multibody
-
-      - name: Test root-subassembly interference grouping (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-interference-grouping
-
-      - name: Test root-subassembly interference grouping (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-interference-grouping
-
-      - name: Test reusable assembly document import (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-import
-
-      - name: Test reusable assembly document import (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-import
-
-      - name: Test assembly source updates and descendant repair (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-source-update
-
-      - name: Test assembly source updates and descendant repair (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-source-update
-
-      - name: Test source update after withheld real Save completion (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-source-update-save-pending
-
-      - name: Test source update after withheld real Save completion (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-source-update-save-pending
-
-      - name: Test explicit linked source reload and private Apply (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-linked-source
-
-      - name: Test explicit linked source reload and private Apply (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-linked-source
-
-      - name: Test authored assembly source revisions and parent review (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-source-revision
-
-      - name: Test authored assembly source revisions and parent review (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-source-revision
-
-      - name: Test grouped interference selection and exclusions (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-interference-grouping-scope
-
-      - name: Test grouped interference selection and exclusions (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-interference-grouping-scope
-
-      - name: Test grouping precedence with internal bodies (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-interference-grouping-multibody
-
-      - name: Test grouping precedence with internal bodies (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-interference-grouping-multibody
-
-      - name: Test screw coupling and persistence (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-screw
-
-      - name: Test screw coupling and persistence (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-screw
-
-      - name: Test rack and pinion coupling and native edge selection (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-rack-pinion
-
-      - name: Test rack and pinion coupling and native edge selection (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-rack-pinion
-
-      - name: Test flat assembly STEP and STL export (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-export
-
-      - name: Test flat assembly STEP and STL export (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-export
-
-      - name: Test parallel and perpendicular assembly relations (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-direction
-
-      - name: Test parallel and perpendicular assembly relations (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-direction
-
-      - name: Test plane and cylinder assembly tangency (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-tangent
-
-      - name: Test plane and cylinder assembly tangency (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-tangent
-
-      - name: Test cylinder support tangency variants (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-cylinder-tangent
-
-      - name: Test cylinder support tangency variants (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-cylinder-tangent
-
-      - name: Test spherical support tangency families (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-sphere-tangent
-
-      - name: Test spherical support tangency families (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-sphere-tangent
-
-      - name: Test signed plane distance intervals (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-limit-distance
-
-      - name: Test signed plane distance intervals (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-limit-distance
-
-      - name: Test compact signed plane distance interval pointer acquisition (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-limit-distance-compact
-
-      - name: Test compact signed plane distance interval pointer acquisition (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-limit-distance-compact
-
-      - name: Test principal direction-angle intervals (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-limit-angle
-
-      - name: Test directed circular angle stops (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-directed-angle
-
-      - name: Test directed circular angle stops (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-directed-angle
-
-      - name: Test principal direction-angle intervals (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-limit-angle
-
-      - name: Test explicit material LINE path lifecycle (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-line-path
-
-      - name: Test explicit material LINE path lifecycle (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-line-path
-
-      - name: Test explicit material circular path lifecycle (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-circular-path
-
-      - name: Test explicit material circular path lifecycle (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-circular-path
-
-      - name: Test bounded profile-center lifecycle (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-profile-center
-
-      - name: Test unlimited four-role hinge lifecycle (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-hinge
-
-      - name: Test unlimited four-role hinge lifecycle (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-hinge
-
-      - name: Test hinge viewport selection (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-hinge-picking
-
-      - name: Test hinge viewport selection (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-hinge-picking
-
-      - name: Test four-role hinge source and replacement repair (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-hinge-repair
-
-      - name: Test four-role hinge source and replacement repair (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-hinge-repair
-
-      - name: Test six-role hinge angular stops lifecycle (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-hinge-limits
-
-      - name: Test six-role hinge angular stops lifecycle (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-hinge-limits
-
-      - name: Test six-role hinge stops source and replacement repair (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-hinge-limits-repair
-
-      - name: Test six-role hinge stops source and replacement repair (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-hinge-limits-repair
-
-      - name: Test six-role hinge selection and stop projection (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-hinge-limits-picking
-
-      - name: Test six-role hinge selection and stop projection (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-hinge-limits-picking
-
-      - name: Test bounded profile-center lifecycle (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-profile-center
-
-      - name: Test centered width with four plane references (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-width
-
-      - name: Test centered width with four plane references (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-width
-
-      - name: Test native symmetry authoring with three references (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-symmetry
-
-      - name: Test native symmetry authoring with three references (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-symmetry
-
-      - name: Test material vertex symmetry source and replacement repair (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-symmetry-repair
-
-      - name: Test material vertex symmetry source and replacement repair (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-symmetry-repair
-
-      - name: Test symmetry viewport selection and material vertices (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-symmetry-picking
-
-      - name: Test symmetry viewport selection and material vertices (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-symmetry-picking
-
-      - name: Test nested symmetry selected replacement and reactivation (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-symmetry-nested-selected
-
-      - name: Test nested symmetry selected replacement and reactivation (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-symmetry-nested-selected
-
-      - name: Test nested symmetry shared-source repair and reactivation (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-symmetry-nested-source
-
-      - name: Test nested symmetry shared-source repair and reactivation (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-symmetry-nested-source
-
-      - name: Test symmetry line source and replacement repair (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-symmetry-line-repair
-
-      - name: Test symmetry line source and replacement repair (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-symmetry-line-repair
-
-      - name: Test symmetry plane source and replacement repair (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-symmetry-plane-repair
-
-      - name: Test symmetry plane source and replacement repair (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-symmetry-plane-repair
-
-      - name: Test symmetry sphere source and replacement repair (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-symmetry-sphere-repair
-
-      - name: Test symmetry sphere source and replacement repair (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-symmetry-sphere-repair
-
-      - name: Test symmetry cylinder source and replacement repair (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-symmetry-cylinder-repair
-
-      - name: Test symmetry cylinder source and replacement repair (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-symmetry-cylinder-repair
-
-      - name: Test symmetry axisline source and replacement repair (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-symmetry-axisline-repair
-
-      - name: Test symmetry axisline source and replacement repair (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-symmetry-axisline-repair
-
-      - name: Test scoped part replacement and explicit reference repair (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-replacement
-
-      - name: Test scoped part replacement and explicit reference repair (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-replacement
-
-      - name: Test read-only directed angular measurements (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-angle-measurement
-
-      - name: Test read-only directed angular measurements (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-angle-measurement
-
-      - name: Test persisted configured assembly workflow (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-configurations
-
-      - name: Test persisted configured assembly workflow (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-configurations
-
-      - name: Test configured relation authoring (Linux)
-        if: runner.os == 'Linux'
-        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-configured-relations
-
-      - name: Test configured relation authoring (Windows/macOS)
-        if: runner.os != 'Linux'
-        run: npm run test:desktop:assembly-configured-relations
-
       - name: Package for the current operating system
         # Build was already checked above. Use the local locked builder, with no
         # registry fallback, GitHub release upload, signing secret or notarizing.
@@ -502,8 +102,464 @@ jobs:
       # Validate packaging without distributing binaries until the full
       # corresponding-source bundle for the CAD toolchain is verified.
 
+  renderer:
+    name: Renderer (${{ matrix.os }}, ${{ matrix.batch }}, Node 24)
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2025, macos-15, ubuntu-24.04]
+        batch: [persistence, relations, hinge-symmetry]
+    env:
+      CI: "true"
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+    steps:
+      - name: Check out the merge being tested
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          # Start from the lockfile without sharing caches across fork builds.
+          package-manager-cache: false
+
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck and build
+        run: npm run build
+
+      - name: Install the Linux virtual display and Electron libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y xvfb xauth libasound2t64 libgbm1 libgtk-3-0t64 libnss3
+
+      - name: Configure the Linux sandbox helper
+        if: runner.os == 'Linux'
+        # Electron downloads its binary on first require. Keep Chromium's
+        # sandbox enabled by installing the helper's required owner and mode.
+        run: |
+          node -e "require('electron')"
+          sudo chown root:root node_modules/electron/dist/chrome-sandbox
+          sudo chmod 4755 node_modules/electron/dist/chrome-sandbox
+          test "$(stat -c '%u:%g:%a' node_modules/electron/dist/chrome-sandbox)" = "0:0:4755"
+
+      - name: Test explicit imported body persistence (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:imported-bodies
+
+      - name: Test explicit imported body persistence (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:imported-bodies
+
+      - name: Test structural assembly STEP editor interchange (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-step
+
+      - name: Test structural assembly STEP editor interchange (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-step
+
+      - name: Test structural STEP component insertion (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-step-insertion
+
+      - name: Test structural STEP component insertion (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-step-insertion
+
+      - name: Test selected-to-ALL pattern interaction (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:pattern-all
+
+      - name: Test selected-to-ALL pattern interaction (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:pattern-all
+
+      - name: Test explicit fixed-plane pattern choice (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:pattern-world-limit
+
+      - name: Test explicit fixed-plane pattern choice (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:pattern-world-limit
+
+      - name: Test saved UntilNext regeneration (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:pattern-until-next
+
+      - name: Test saved UntilNext regeneration (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:pattern-until-next
+
+      - name: Test rigid assembly preview, Apply and persistence (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly
+
+      - name: Test rigid assembly preview, Apply and persistence (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly
+
+      - name: Test optional within-component interference inspection (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-interference-multibody
+
+      - name: Test optional within-component interference inspection (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-interference-multibody
+
+      - name: Test root-subassembly interference grouping (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-interference-grouping
+
+      - name: Test root-subassembly interference grouping (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-interference-grouping
+
+      - name: Test reusable assembly document import (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-import
+
+      - name: Test reusable assembly document import (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-import
+
+      - name: Test assembly source updates and descendant repair (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-source-update
+
+      - name: Test assembly source updates and descendant repair (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-source-update
+
+      - name: Test source update after withheld real Save completion (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-source-update-save-pending
+
+      - name: Test source update after withheld real Save completion (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-source-update-save-pending
+
+      - name: Test explicit linked source reload and private Apply (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-linked-source
+
+      - name: Test explicit linked source reload and private Apply (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-linked-source
+
+      - name: Test authored assembly source revisions and parent review (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-source-revision
+
+      - name: Test authored assembly source revisions and parent review (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-source-revision
+
+      - name: Test grouped interference selection and exclusions (Linux)
+        if: matrix.batch == 'relations' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-interference-grouping-scope
+
+      - name: Test grouped interference selection and exclusions (Windows/macOS)
+        if: matrix.batch == 'relations' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-interference-grouping-scope
+
+      - name: Test grouping precedence with internal bodies (Linux)
+        if: matrix.batch == 'relations' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-interference-grouping-multibody
+
+      - name: Test grouping precedence with internal bodies (Windows/macOS)
+        if: matrix.batch == 'relations' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-interference-grouping-multibody
+
+      - name: Test screw coupling and persistence (Linux)
+        if: matrix.batch == 'relations' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-screw
+
+      - name: Test screw coupling and persistence (Windows/macOS)
+        if: matrix.batch == 'relations' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-screw
+
+      - name: Test rack and pinion coupling and native edge selection (Linux)
+        if: matrix.batch == 'relations' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-rack-pinion
+
+      - name: Test rack and pinion coupling and native edge selection (Windows/macOS)
+        if: matrix.batch == 'relations' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-rack-pinion
+
+      - name: Test flat assembly STEP and STL export (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-export
+
+      - name: Test flat assembly STEP and STL export (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-export
+
+      - name: Test parallel and perpendicular assembly relations (Linux)
+        if: matrix.batch == 'relations' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-direction
+
+      - name: Test parallel and perpendicular assembly relations (Windows/macOS)
+        if: matrix.batch == 'relations' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-direction
+
+      - name: Test plane and cylinder assembly tangency (Linux)
+        if: matrix.batch == 'relations' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-tangent
+
+      - name: Test plane and cylinder assembly tangency (Windows/macOS)
+        if: matrix.batch == 'relations' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-tangent
+
+      - name: Test cylinder support tangency variants (Linux)
+        if: matrix.batch == 'relations' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-cylinder-tangent
+
+      - name: Test cylinder support tangency variants (Windows/macOS)
+        if: matrix.batch == 'relations' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-cylinder-tangent
+
+      - name: Test spherical support tangency families (Linux)
+        if: matrix.batch == 'relations' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-sphere-tangent
+
+      - name: Test spherical support tangency families (Windows/macOS)
+        if: matrix.batch == 'relations' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-sphere-tangent
+
+      - name: Test signed plane distance intervals (Linux)
+        if: matrix.batch == 'relations' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-limit-distance
+
+      - name: Test signed plane distance intervals (Windows/macOS)
+        if: matrix.batch == 'relations' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-limit-distance
+
+      - name: Test compact signed plane distance interval pointer acquisition (Linux)
+        if: matrix.batch == 'relations' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-limit-distance-compact
+
+      - name: Test compact signed plane distance interval pointer acquisition (Windows/macOS)
+        if: matrix.batch == 'relations' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-limit-distance-compact
+
+      - name: Test principal direction-angle intervals (Linux)
+        if: matrix.batch == 'relations' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-limit-angle
+
+      - name: Test directed circular angle stops (Linux)
+        if: matrix.batch == 'relations' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-directed-angle
+
+      - name: Test directed circular angle stops (Windows/macOS)
+        if: matrix.batch == 'relations' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-directed-angle
+
+      - name: Test principal direction-angle intervals (Windows/macOS)
+        if: matrix.batch == 'relations' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-limit-angle
+
+      - name: Test explicit material LINE path lifecycle (Linux)
+        if: matrix.batch == 'relations' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-line-path
+
+      - name: Test explicit material LINE path lifecycle (Windows/macOS)
+        if: matrix.batch == 'relations' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-line-path
+
+      - name: Test explicit material circular path lifecycle (Linux)
+        if: matrix.batch == 'relations' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-circular-path
+
+      - name: Test explicit material circular path lifecycle (Windows/macOS)
+        if: matrix.batch == 'relations' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-circular-path
+
+      - name: Test bounded profile-center lifecycle (Linux)
+        if: matrix.batch == 'relations' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-profile-center
+
+      - name: Test unlimited four-role hinge lifecycle (Linux)
+        if: matrix.batch == 'hinge-symmetry' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-hinge
+
+      - name: Test unlimited four-role hinge lifecycle (Windows/macOS)
+        if: matrix.batch == 'hinge-symmetry' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-hinge
+
+      - name: Test hinge viewport selection (Linux)
+        if: matrix.batch == 'hinge-symmetry' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-hinge-picking
+
+      - name: Test hinge viewport selection (Windows/macOS)
+        if: matrix.batch == 'hinge-symmetry' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-hinge-picking
+
+      - name: Test four-role hinge source and replacement repair (Linux)
+        if: matrix.batch == 'hinge-symmetry' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-hinge-repair
+
+      - name: Test four-role hinge source and replacement repair (Windows/macOS)
+        if: matrix.batch == 'hinge-symmetry' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-hinge-repair
+
+      - name: Test six-role hinge angular stops lifecycle (Linux)
+        if: matrix.batch == 'hinge-symmetry' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-hinge-limits
+
+      - name: Test six-role hinge angular stops lifecycle (Windows/macOS)
+        if: matrix.batch == 'hinge-symmetry' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-hinge-limits
+
+      - name: Test six-role hinge stops source and replacement repair (Linux)
+        if: matrix.batch == 'hinge-symmetry' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-hinge-limits-repair
+
+      - name: Test six-role hinge stops source and replacement repair (Windows/macOS)
+        if: matrix.batch == 'hinge-symmetry' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-hinge-limits-repair
+
+      - name: Test six-role hinge selection and stop projection (Linux)
+        if: matrix.batch == 'hinge-symmetry' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-hinge-limits-picking
+
+      - name: Test six-role hinge selection and stop projection (Windows/macOS)
+        if: matrix.batch == 'hinge-symmetry' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-hinge-limits-picking
+
+      - name: Test bounded profile-center lifecycle (Windows/macOS)
+        if: matrix.batch == 'relations' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-profile-center
+
+      - name: Test centered width with four plane references (Linux)
+        if: matrix.batch == 'relations' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-width
+
+      - name: Test centered width with four plane references (Windows/macOS)
+        if: matrix.batch == 'relations' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-width
+
+      - name: Test native symmetry authoring with three references (Linux)
+        if: matrix.batch == 'hinge-symmetry' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-symmetry
+
+      - name: Test native symmetry authoring with three references (Windows/macOS)
+        if: matrix.batch == 'hinge-symmetry' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-symmetry
+
+      - name: Test material vertex symmetry source and replacement repair (Linux)
+        if: matrix.batch == 'hinge-symmetry' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-symmetry-repair
+
+      - name: Test material vertex symmetry source and replacement repair (Windows/macOS)
+        if: matrix.batch == 'hinge-symmetry' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-symmetry-repair
+
+      - name: Test symmetry viewport selection and material vertices (Linux)
+        if: matrix.batch == 'hinge-symmetry' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-symmetry-picking
+
+      - name: Test symmetry viewport selection and material vertices (Windows/macOS)
+        if: matrix.batch == 'hinge-symmetry' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-symmetry-picking
+
+      - name: Test nested symmetry selected replacement and reactivation (Linux)
+        if: matrix.batch == 'hinge-symmetry' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-symmetry-nested-selected
+
+      - name: Test nested symmetry selected replacement and reactivation (Windows/macOS)
+        if: matrix.batch == 'hinge-symmetry' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-symmetry-nested-selected
+
+      - name: Test nested symmetry shared-source repair and reactivation (Linux)
+        if: matrix.batch == 'hinge-symmetry' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-symmetry-nested-source
+
+      - name: Test nested symmetry shared-source repair and reactivation (Windows/macOS)
+        if: matrix.batch == 'hinge-symmetry' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-symmetry-nested-source
+
+      - name: Test symmetry line source and replacement repair (Linux)
+        if: matrix.batch == 'hinge-symmetry' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-symmetry-line-repair
+
+      - name: Test symmetry line source and replacement repair (Windows/macOS)
+        if: matrix.batch == 'hinge-symmetry' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-symmetry-line-repair
+
+      - name: Test symmetry plane source and replacement repair (Linux)
+        if: matrix.batch == 'hinge-symmetry' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-symmetry-plane-repair
+
+      - name: Test symmetry plane source and replacement repair (Windows/macOS)
+        if: matrix.batch == 'hinge-symmetry' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-symmetry-plane-repair
+
+      - name: Test symmetry sphere source and replacement repair (Linux)
+        if: matrix.batch == 'hinge-symmetry' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-symmetry-sphere-repair
+
+      - name: Test symmetry sphere source and replacement repair (Windows/macOS)
+        if: matrix.batch == 'hinge-symmetry' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-symmetry-sphere-repair
+
+      - name: Test symmetry cylinder source and replacement repair (Linux)
+        if: matrix.batch == 'hinge-symmetry' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-symmetry-cylinder-repair
+
+      - name: Test symmetry cylinder source and replacement repair (Windows/macOS)
+        if: matrix.batch == 'hinge-symmetry' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-symmetry-cylinder-repair
+
+      - name: Test symmetry axisline source and replacement repair (Linux)
+        if: matrix.batch == 'hinge-symmetry' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-symmetry-axisline-repair
+
+      - name: Test symmetry axisline source and replacement repair (Windows/macOS)
+        if: matrix.batch == 'hinge-symmetry' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-symmetry-axisline-repair
+
+      - name: Test scoped part replacement and explicit reference repair (Linux)
+        if: matrix.batch == 'hinge-symmetry' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-replacement
+
+      - name: Test scoped part replacement and explicit reference repair (Windows/macOS)
+        if: matrix.batch == 'hinge-symmetry' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-replacement
+
+      - name: Test read-only directed angular measurements (Linux)
+        if: matrix.batch == 'relations' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-angle-measurement
+
+      - name: Test read-only directed angular measurements (Windows/macOS)
+        if: matrix.batch == 'relations' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-angle-measurement
+
+      - name: Test persisted configured assembly workflow (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-configurations
+
+      - name: Test persisted configured assembly workflow (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-configurations
+
+      - name: Test configured relation authoring (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-configured-relations
+
+      - name: Test configured relation authoring (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-configured-relations
+
+
   configured-mechanical:
-    name: Configured mechanical (${{ matrix.os }}, Node 24)
+    name: Configured relation authoring (${{ matrix.os }}, Node 24)
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     strategy:
@@ -545,3 +601,9 @@ jobs:
       - name: Test configured native capture for all five families (Windows/macOS)
         if: runner.os != 'Linux'
         run: npm run test:desktop:assembly-configured-mechanical
+      - name: Test configured profile and material-path authoring (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-configured-compound
+      - name: Test configured profile and material-path authoring (Windows/macOS)
+        if: runner.os != 'Linux'
+        run: npm run test:desktop:assembly-configured-compound

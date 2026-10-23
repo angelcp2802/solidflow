@@ -1,5 +1,101 @@
 # Public fixture provenance
 
+## Original configured compound authoring
+
+`scripts/desktop-assembly-configured-compound-original.cjs` embeds unchanged part
+definitions from the tracked originals: `assembly-profile-center-original.json`
+(6×4×3 rectangle or radius-2/height-3 disk), `assembly-line-path-original.json`
+(4×6×4 prism), and `assembly-material-arc-original.json` (radius-2 quarter-sector,
+height 4). It creates only new original occurrence/state declarations. There is
+no external asset, topology key, authored relation, measured capture or private
+reference-model data in the generated starting document.
+
+Two proper rigid placements reuse the same `compound-S` definition: left is
+identity, right is Rz90 followed by root translation [30,0,0]. Each contains
+fixed A and free B. Base B translations are [8,4,5] for profiles, [12,4,2] for
+LINE and [9,4,2] for the sector; compact uses [6,2,4], [10,4,2] and [7,3,1]
+respectively. A separate dormant state retains [15,5,3]. Root states select
+compact in both uses or only the right one. The source geometry remains original
+project-authored GPL-3.0-only data.
+
+Independent per-part volume/area are 72/108 for the rectangle, 12π/20π for the
+disk, 96/128 for the LINE prism and 4π/(6π+16) for the sector, in mm³/mm². Four
+placed solids give totals 288/432, 48π/80π, 384/512 and 16π/(24π+64), respectively.
+Mass checks use 1e-5 in the corresponding units; bounds use 1e-6 mm and the
+separate component-axis checks use 1e-8. Expected values come from original
+dimensions and explicit proper rotations, not numerical residual rows.
+
+The authored native rectangle case aligns normals with signed offset 2 mm and
+one material quarter turn; local B bounds are [-2,-3,2]..[2,3,5]. The circular
+profile case uses the same offset without prescribing an unobservable spin.
+The LINE starts at [-2,-3,4] toward +Y: coordinate 1 gives point [-2,-2,4]; its
+selected B material point is [-2,3,0], with Follow Y and material UP Z. For the
+sector, the original upper circle center is [3,-2,4], radius 2 and trim length π.
+Distance π/2 from [5,-2,4] gives [3+√2,-2+√2,4] and tangent
+[-√(1/2),√(1/2),0]. Follow X and UP Z give independently derived rotated material
+bounds. The reused right placement applies the stated Rz90/translation to these
+same original targets. Current native metadata nominates actual locators; these
+coordinates never substitute for native identity or incidence.
+
+The additive native cases use these original parts or the explicit derivative
+below. Six unavailable-reference
+cases independently change the first profile/path source revision or body ID
+for each of the three families; they must withhold a proposal and preserve the
+input. The closed-circle rejection adds an original centered 1×1 square sketch
+at XY Z0 and a 1 mm cut into the R2/height-3 cylinder. The lower pocket supplies
+real material corners at [±0.5,±0.5,0], while the upper circle remains closed at
+Z3. Independent per-part volume/area become 12π−1 mm³ and 20π+4 mm². The point
+and origin use actual same-body pocket vertices. The preview must report the
+exact closed-circle diagnostic before testing endpoint incidence; a missing or
+nonincident reference error cannot satisfy that assertion. No displayable seam
+vertex is fabricated. A closed edge must not become an open material arc merely
+because coordinate zero is requested. WORLD Float32 display lines
+nominate the upper edge at the original identity placement; they are not local
+curve coordinates or radius metrology. Analytic dimensions and current native
+point observations remain separate.
+
+Two projected-UP cases add an actual fixed third occurrence of the original
+part to each reused scope. Its translation is [20,30,40], with proper
+`Rx(h)`, where `h = -π/2 + ε`. The original roof normal [0,0,1] becomes
+`n=[0,-sin(h),cos(h)]`; the relevant material tangent is +Y. The projected
+normal length is therefore `abs(cos(h))`. At ε=1e-10 it is finite and nonzero,
+but the native directional error cannot retain the requested angular band.
+A separate ε=0.2 control has projection above 0.19 and is written to require
+the actual roll residual plus its error to fit 1e-8 rad. The guide's displaced
+plane origin adds no positional equation. These are current-native tests with
+real guide owners, not zero-vector or manually certified uncertainty fixtures.
+
+Three nested cases wrap S in a new original G definition. G's `inner` occurrence
+uses `Rx90` then translation [5,-7,2]; the outer right occurrence still uses
+`Rz90` then [30,0,0]. For a source-local box `[lo,hi]`, the independent inner
+bounds are `[lo.x+5,-hi.z-7,lo.y+2]` through
+`[hi.x+5,-lo.z-7,hi.y+2]`. Right's bounds then apply the explicit outer quarter
+turn: `[30-innerMax.y,innerMin.x,innerMin.z]` through
+`[30-innerMin.y,innerMax.x,innerMax.z]`. Proper rotations preserve the existing
+four-body volume/area totals. The cases require exact `left/inner/a,b` and
+`right/inner/a,b` paths, shared placed-relation keys and ancestry
+`both-compact → wrapped → compact`, while Base source and dormant state remain
+unchanged through private Apply and saved reopen. No world-inverse cancellation
+or flexible child freedom supplies these expectations.
+
+The four fixed renderer workflows are written to operate real controlled forms,
+the production worker and test-owned file dialogs. The native-session cases
+exercise private declaration previews and fresh physical checks; pure UI cases
+use explicitly un-attested symbolic references only for syntax and ticket tests.
+None injects a native result, solver response, application document or Apply token.
+The configured job lists all four commands alongside the five mechanical cases;
+that configuration is not an execution result. Consult [validation](VALIDATION.md)
+for actual runs. See the [configured compound contract](ASSEMBLY_CONFIGURED_COMPOUND_AUTHORING.md)
+for the scope and remaining limits.
+
+Their optional final capture is placed after saved reopen, fresh solve/Cancel
+and reopening the actual compound editor without changing fields. The flow is
+written to check restored current selections and parameters, unchanged native
+request serial/history availability and unchanged saved bytes, then close the
+draft. This is a committed-state form capture, not a new preview or proof of
+unscripted selection. Whether these additive cases and captures executed belongs
+in validation; their presence in source records no new passing result.
+
 ## Controlled native-save completion ordering
 
 The fixed `assembly-source-update-save-pending` scenario reuses the complete
