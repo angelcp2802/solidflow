@@ -72,7 +72,11 @@ function context(document:AssemblyDocument,catalog:AssemblyConfigurationCatalog)
     if(configuration!==null&&!variant)fail('configuración inexistente.')
     // Validate selector existence before every cache hit. The cache is local to
     // this fully validated invocation and never identifies caller-owned input.
-    const key=JSON.stringify([owner.id,owner.revision,configuration,mateId]),previous=cache.get(key)
+    // The validator owns a declaration, not the sidecar's state identity.
+    // Named states inheriting Base share that same validated declaration;
+    // an explicit named list retains its own family/parameters/references.
+    const declarationConfiguration=variant?.mateDeclarations===undefined?null:configuration
+    const key=JSON.stringify([owner.id,owner.revision,declarationConfiguration,mateId]),previous=cache.get(key)
     if(previous)return previous
     const source=(variant?.mateDeclarations??node.mates).find(mate=>mate.id===mateId)
     if(!source)fail('relación mecánica ausente.')

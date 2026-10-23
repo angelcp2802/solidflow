@@ -58,7 +58,8 @@ Authored mechanical capture data is not a fresh capture producer. Add/replace
 for lock, gear, screw, rack-pinion and concentric with rotation lock currently
 reject at this worker boundary. Suppression/removal of an existing captured
 relation remains available. Complete configured mechanical capture and repair
-still require their own native integration and evidence.
+still require their own native integration and evidence, tracked for all five
+families in [issue #51](https://github.com/angelcp2802/solidflow/issues/51).
 
 ## Editor and evidence boundary
 

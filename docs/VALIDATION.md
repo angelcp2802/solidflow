@@ -1,5 +1,85 @@
 # Validation
 
+## Compact interval pointer acquisition — 2026-10-23
+
+Local `codex/interval-pointer-acquisition` follows accepted `ad36143`. The
+interval renderer now checks the actual canvas hit target, waits for hover
+publication and considers both real Z-handle halves. A separate fixed
+1040×700 scenario preserves the ordinary-size workflow and uses the same
+original fixture, production worker, restricted file IPC and physical oracles.
+
+A controlled before/after run used that same compact harness and unchanged
+production assets. The exact preceding flow from `ad36143` failed during
+inward release with `Actual front-view Z manipulator handle absent.`, matching
+the primary hosted Windows/macOS annotation on `f2a1c91`. The corrected flow
+completed 252 milestones, 38 recorded phases and four actual gestures.
+
+The compact run recorded a real 1040×700 window, 1024×661 content and 524×515
+canvas. During inward release, all six upper nominees hit toolbar buttons.
+The seventh nominee, on the lower half, hit the canvas and published axis Z
+after a real pointer move and two animation frames. Three bounded acquisitions
+retained trusted input observations without observer overflow. This establishes
+the obstruction and correction for the local compact case; hosted runs need
+their own evidence before attributing their exact viewport/cause.
+
+The final ordinary-size run also passes: 251 milestones, the same 38 phases
+and four gestures, with a 989×803 canvas. Both runs recorded zero console or
+resource errors, successful saved reopening/fresh verification, confirmed child
+closure and owned temporary-profile cleanup. The first attempted patch run
+failed before its first Z probe because an object reached the primitive-string
+JavaScript-source encoder; encoding the owned point as a JSON string corrected
+that caller while retaining the strict encoder boundary.
+
+The first full suite on this harness increment completed 9130 cases and failed
+one existing 4096-state admission case at the unchanged 5000 ms timeout
+(5506 ms observed; suite 382.22 seconds). The declaration validator was being
+rebuilt for each inherited variant. Sharing only the Base declaration factory
+within the same validated operation removes that repeated work; explicit named
+lists retain separate factories, state identities and complete per-entry checks.
+Two forward/reverse mixed-family batches guard that distinction. The focused
+95-case pure run passes, with the unchanged 4096 case at 628 ms and unchanged
+20 MiB case at 1563 ms. No timeout, cap or required case was weakened.
+
+The literal physical targets, independent posted-input calibration, signed
+interval equations, geometric bands and 180/170/35-second deadlines remain
+unchanged. The two original solids retain V=4920 mm³/A=3144 mm². The workflow
+still requires actual native plane picking, pointer-down Apply blocking, three
+trusted held-pointer moves per Z gesture, real posted requests, numerical and
+fresh native result checks, Cancel/Apply/history and Save As/reopen.
+
+The pointer-only code/test/CI inputs were frozen before the first full run: 987 non-Markdown files,
+SHA-256 `5ce8f440ef94f2b0ceecf64bc61fe0a3b7df02c4308151d2a7a981821987198e`.
+The controlled old-flow input has a separate receipt; it was restored to the
+reviewed corrected file before final validation. Source, report and runtime
+artifacts stay separate. See [provenance](PROVENANCE.md#original-compact-interval-pointer-regression).
+
+After the declaration-origin correction and its two regression cases, the
+final 987-file non-Markdown inputs were frozen separately, SHA-256
+`dd3bbf4e56b9a4e745fb8da2e309e3e5fd302ad53d2fe31fe267eef92678391c`.
+Build, Electron and renderer checks are repeated against that final input set.
+
+Final Windows x64 / Node 24.11.1 results:
+
+| Command | Actual result |
+| --- | --- |
+| `npm test` | PASS, 382 files / 9133 unit/CAD cases, 381.26 seconds. IPC/security/source: 83 passed, zero failed, two skipped, 1569.905 ms. The inherited Windows symlink-permission and POSIX-only FIFO skips remain explicit. |
+| `npm run build` | PASS, TypeScript and production compilation; existing externalization and chunk-size warnings remain. |
+| `npm run test:desktop` | PASS, actual Electron production loader and production worker/WASM malformed-input/recovery baseline after building. |
+| `npm run test:desktop:assembly-limit-distance` | PASS, 251 milestones / 38 phases / four actual gestures on final code. |
+| `npm run test:desktop:assembly-limit-distance-compact` | PASS, 252 milestones / 38 phases / four actual gestures on final code; the inward upper nominees hit buttons and the lower nominee acquires the actual canvas Z handle. |
+| `npm run test:desktop:assembly-configured-relations` | PASS, 61 milestones / 23 geometry phases on final code, retaining configured preview/Apply/history/recovery/files. |
+
+All three final renderer cases record zero console/resource errors, confirmed
+child closure and owned-profile cleanup. The 987-file input digest remained
+unchanged through acceptance. The preceding published head `ab5a80e` independently
+repeated the same original handle assertion in its Windows CI job; this new
+increment requires its own hosted checks before that platform result is accepted.
+
+CI is configured to run both sizes on its existing three-platform matrix.
+Executed local Windows cases establish no general platform support or complete
+assembly/demo acceptance. Configured native mechanical capture remains tracked
+for all five blocked families in [issue #51](https://github.com/angelcp2802/solidflow/issues/51).
+
 ## Configured relation editing and private intent previews — 2026-10-23
 
 Local `codex/configured-relation-editing` follows accepted `d495192` and addresses

@@ -6,7 +6,7 @@ const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 // Independent box geometry and signed plane equations do not use product helpers.
 module.exports = function limitDistanceWorkflow(context) {
   const { expected, input, output, evaluate, observe, waitFor, click, capture, pointer, wheel, checks,
-    protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs, dialogCounts } = context;
+    protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs, dialogCounts, compactViewport = false } = context;
   const APPLY = 'button[aria-label="Aplicar ensamblaje"]', CANCEL = 'button[aria-label="Cancelar vista previa del ensamblaje"]';
   const TYPE = 'select[aria-label="Tipo de relación"]', NAME = 'input[aria-label="Nombre de la relación"]';
   const MIN = 'input[aria-label="Distancia mínima entre planos en mm"]', MAX = 'input[aria-label="Distancia máxima entre planos en mm"]';
@@ -228,7 +228,33 @@ module.exports = function limitDistanceWorkflow(context) {
     const bounds = base.scene.visibleBounds, old = occurrence(base.document, 'moving').pose, center = bounds.min.map((value, i) => (value + bounds.max[i]) / 2), span = Math.hypot(...bounds.max.map((value, i) => value - bounds.min[i])), pixels = rect.height / (1.3 * span) * viewZoom;
     const origin = { x: rect.x + rect.width / 2 + (old.translation[0] - center[0]) * pixels, y: rect.y + rect.height / 2 - (old.translation[2] - center[2]) * pixels };
     let point;
-    for (const offset of [.08, .10, .06, .12, .14, .04]) { const candidate = { x: origin.x, y: origin.y - rect.height * offset }; await pointer('mouseMoved', candidate); if (await page(selector => document.querySelector(selector)?.getAttribute('data-drag-axis'), VIEW) === 'Z') { point = candidate; break; } }
+    // Both halves are real Z handles. A toolbar can cover the upper half;
+    // nominee coordinates and a queued CDP acknowledgement are not a hover.
+    const acquisition = { label, rect, origin, probes: [] };
+    (evidence.pointerAcquisition ??= []).push(acquisition);
+    check(evidence.pointerAcquisition.length <= 3, 'Bounded interval handle-acquisition inventory.');
+    for (const sign of [-1, 1]) {
+      for (const offset of [.08, .10, .06, .12, .14, .04]) {
+        const candidate = { x: origin.x, y: origin.y + sign * rect.height * offset };
+        const sample = () => page((selector, pointJson) => {
+          const candidate = JSON.parse(pointJson);
+          const canvas = document.querySelector(selector + ' canvas'), hit = document.elementFromPoint(candidate.x, candidate.y);
+          return { onCanvas: !!canvas && hit === canvas, axis: document.querySelector(selector)?.getAttribute('data-drag-axis') ?? null,
+            hitTarget: hit ? { tag: hit.tagName, classes: String(hit.className).slice(0, 160), ariaLabel: hit.getAttribute('aria-label')?.slice(0, 160) ?? null } : null };
+        }, VIEW, JSON.stringify(candidate));
+        const initial = await sample(), probe = { point: candidate, sign, offset, initial, dispatched: false, observed: null };
+        acquisition.probes.push(probe);
+        if (!initial.onCanvas) continue;
+        await pointer('mouseMoved', candidate); probe.dispatched = true;
+        await page(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+        probe.observed = await sample();
+        if (probe.observed.onCanvas && probe.observed.axis === 'Z') { point = candidate; break; }
+      }
+      if (point) break;
+    }
+    // Retain bounded real-input/DOM observations even when acquisition fails.
+    acquisition.input = await page(() => window.__solidflowLimitInputObservation.snapshot());
+    acquisition.acquired = !!point;
     check(!!point, 'Actual front-view Z manipulator handle absent.'); const before = await observe(), recoveryBefore = await page(() => localStorage.getItem('solidflow.autosave'));
     await pointer('mousePressed', point, 1); await waitFor('pointer-down blocks Apply', () => page(apply => document.querySelector('.assembly-app')?.getAttribute('aria-busy') === 'true' && document.querySelector(apply)?.disabled === true, APPLY));
     // Calibrate the held Z handle from actual POSTED pointer targets. The
@@ -336,6 +362,8 @@ module.exports = function limitDistanceWorkflow(context) {
     await button('Isométrica', '.assembly-view-tools'); await capture(committed.document);
     const final = await observe(), counts = dialogCounts(); check(phases.length === 38 && phases.filter(value => value.action === 'apply-assembly').length === 11 && gestures.length === 4
       && evidence.viewInputs?.length === 1 && evidence.viewInputs[0].label === 'projection/inward-release', 'Unexpected interval workflow coverage/counts.');
+    check(evidence.pointerAcquisition.length === 3 && canonical(evidence.pointerAcquisition.map(value => value.label)) === canonical(['projection/upper-cancel', 'projection/upper', 'projection/inward-release']) && evidence.pointerAcquisition.every(value => value.acquired && !value.input.overflow && value.probes.length <= 12), 'Every bounded interval gesture acquired its actual Z handle.');
+    check(!compactViewport || evidence.pointerAcquisition.every(value => value.rect.width < 800 && value.rect.height < 650), 'The compact scenario must exercise an actual smaller canvas.');
     check(counts.opens === 2 && counts.saves === 1 && counts.csvExports === 0 && ipc.length === 3 && ipc.every(value => value.completed), 'Unexpected actual file IPC/dialog sequence.'); check(!consoleErrors.length && !failedRequests.length && !final.workerErrors.length, 'Actual renderer/worker failure.');
     check(protocolResponses.some(value => /kernel\.worker-[\w-]+\.js$/.test(value.url) && value.status === 200) && protocolResponses.some(value => value.url.endsWith('.wasm') && value.status === 200), 'Actual worker/WASM load absent.');
     check(digest(await fsp.readFile(input)) === digest(originalBytes) && digest(await fsp.readFile(output)) === digest(savedBytes), 'Original or saved bytes changed after reopen.');

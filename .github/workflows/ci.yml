@@ -270,6 +270,14 @@ jobs:
         if: runner.os != 'Linux'
         run: npm run test:desktop:assembly-limit-distance
 
+      - name: Test compact signed plane distance interval pointer acquisition (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-limit-distance-compact
+
+      - name: Test compact signed plane distance interval pointer acquisition (Windows/macOS)
+        if: runner.os != 'Linux'
+        run: npm run test:desktop:assembly-limit-distance-compact
+
       - name: Test principal direction-angle intervals (Linux)
         if: runner.os == 'Linux'
         run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-limit-angle

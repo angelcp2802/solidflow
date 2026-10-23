@@ -66,16 +66,20 @@ mutate the base mate or authenticate how the values were obtained.
 
 A closed batch validator may retain its own validated, frozen source mate.
 State processing caches that validator only within one operation and by the
-exact source tuple and mate ID. Every capture still passes the complete nested
-syntax parser, and every selected configuration is checked even on a cache hit.
+exact source tuple, declaration origin and mate ID. A named state inheriting
+Base shares Base's declaration validator; an explicit named relation list has
+its own configuration key. The sidecar state key still includes its selected
+configuration. Every capture passes the complete nested syntax parser, and
+every selected configuration is checked even on a declaration-validator cache hit.
 No caller-owned input or native proof is cached across operations.
 
 ## Pure state operations and the core bridge
 
 `validateAssemblyConfigurationState(document, catalog, state)` returns a
 validated owned, deeply frozen sidecar. `effectiveAssemblyConfigurationMate`
-returns the complete selected mechanical declaration: source parameters and
-references, effective mate suppression, and capture data for the exact state.
+returns the complete selected mechanical declaration: parameters and references
+from that state's explicit relation list or inherited Base, effective mate
+suppression, and capture data for the exact state.
 An explicit sidecar entry takes precedence over that named variant's existing
 capture; an absent sidecar entry uses its existing named capture, then the
 source declaration. This inheritance never means that a variant was freshly

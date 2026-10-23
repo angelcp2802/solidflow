@@ -38,6 +38,7 @@
     "test:desktop:assembly-cylinder-tangent": "node scripts/desktop-assembly-cylinder-tangent.cjs",
     "test:desktop:assembly-sphere-tangent": "node scripts/desktop-assembly-sphere-tangent.cjs",
     "test:desktop:assembly-limit-distance": "node scripts/desktop-assembly-limit-distance.cjs",
+    "test:desktop:assembly-limit-distance-compact": "node scripts/desktop-assembly-limit-distance-compact.cjs",
     "test:desktop:assembly-profile-center": "node scripts/desktop-assembly-profile-center.cjs",
     "test:desktop:assembly-width": "node scripts/desktop-assembly-width.cjs",
     "test:desktop:assembly-symmetry": "node scripts/desktop-assembly-symmetry.cjs",

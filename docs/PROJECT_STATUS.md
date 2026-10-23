@@ -1,5 +1,32 @@
 # Project status and review queue
 
+### Compact interval pointer regression
+
+The increment after `ad36143` reproduces the hosted pointer assertion locally
+using the exact previous interval flow in a fixed 1040×700 hidden window.
+All six upper handle nominees are covered by toolbar buttons in that case.
+Checking the actual canvas hit target, waiting for hover publication and trying
+both handle halves completes the same physical workflow. The ordinary-size
+case remains separate.
+
+The same follow-up removes repeated declaration-validator construction for
+named states inheriting Base. Their exact state keys and complete capture
+checks remain separate; explicit named relation lists keep their own validators.
+The unchanged 4096-state case and new mixed-family forward/reverse batches
+guard admission, isolation and the existing limits.
+
+Local compact and ordinary runs pass 252 and 251 milestones respectively,
+each with 38 phases, four actual gestures and actual save/reopen. Physical
+targets, calibration, tolerances and deadlines remain unchanged. See the
+[validation record](VALIDATION.md#compact-interval-pointer-acquisition--2026-10-23)
+and [provenance](PROVENANCE.md#original-compact-interval-pointer-regression).
+The same draft PR #49 collects the correction and requires its own hosted results.
+Final Windows checks pass 9133 unit/CAD cases in 382 files, 83 IPC/security
+checks with two explicit skips, build and actual Electron smoke. The configured
+relation demo also passes its 61 milestones on the final code.
+Full assembly acceptance remains open; [issue #51](https://github.com/angelcp2802/solidflow/issues/51)
+tracks the next native capture integration for all five configured mechanical families.
+
 ### Configured relation editing and repeatable prototype demo
 
 The increment after `d495192`, tracked in [issue #50](https://github.com/angelcp2802/solidflow/issues/50),

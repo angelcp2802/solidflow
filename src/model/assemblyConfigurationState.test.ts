@@ -154,6 +154,30 @@ it('does not alias equal mate IDs across root, source revisions or case-distinct
   expect(effective(f, states, 'gear', 'Compact')).toMatchObject({ phase: 14 })
 })
 
+it.each(['forward', 'reverse'])('keeps inherited Base and explicit named declaration families separate in a %s sidecar batch', order => {
+  const f = fixture(), s = node(f.document), own = f.catalog[1].configurations.find(row => row.id === 'single')!
+  const original = s.mates.find(mate => mate.id === ids.concentric)!, gear = structuredClone(s.mates.find(mate => mate.type === 'gear')!)
+  if (original.type !== 'concentric' || gear.type !== 'gear') throw Error('Original concentric and gear declarations required')
+  gear.id = ids.concentric; gear.name = 'Original explicit named gear'; gear.ratio = { numerator: 5, denominator: 7 }
+  own.mateDeclarations = s.mates.map(mate => structuredClone(mate.id === ids.concentric ? gear : mate))
+  const states: AssemblyConfigurationStateCatalog = [
+    { definition: { ...owner }, configuration: null, mateId: ids.concentric, state: { type: 'concentric', rotationLock: [1, 0, 0, 0] } },
+    { definition: { ...owner }, configuration: 'compact', mateId: ids.concentric, state: { type: 'concentric', rotationLock: null } },
+    { definition: { ...owner }, configuration: 'single', mateId: ids.concentric, state: capture('gear', 2) },
+  ]
+  if (order === 'reverse') states.reverse()
+  const before = JSON.stringify({ ...f, states }), checked = validateAssemblyConfigurationState(f.document, f.catalog, states)
+  expect(checked.map(tuple)).toEqual(states.map(tuple)); expect(checked).toEqual(states)
+  const base = effectiveAssemblyConfigurationMate(f.document, f.catalog, checked, owner, null, ids.concentric)
+  const inherited = effectiveAssemblyConfigurationMate(f.document, f.catalog, checked, owner, 'compact', ids.concentric)
+  const named = effectiveAssemblyConfigurationMate(f.document, f.catalog, checked, owner, 'single', ids.concentric)
+  expect(base).toEqual({ ...original, rotationLock: [1, 0, 0, 0] })
+  expect(inherited).toEqual({ ...original, rotationLock: null })
+  expect(named).toEqual({ ...gear, ...capture('gear', 2) })
+  expect(named).toMatchObject({ ratio: { numerator: 5, denominator: 7 }, name: 'Original explicit named gear' })
+  expect(JSON.stringify({ ...f, states })).toBe(before)
+})
+
 it('updates only the exact state key, preserving order, all other entries and source/catalog bytes', () => {
   const f = fixture(), initial = [entry('gear', null), entry('gear', 'compact'), entry('gear', 'single'), entry('concentric')], before = JSON.stringify({ ...f, initial })
   const changed = updateAssemblyConfigurationState(f.document, f.catalog, initial, entry('gear', 'compact', 7))

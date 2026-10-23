@@ -71,6 +71,8 @@ const SCENARIOS = Object.freeze({
     additionalFixtures: Object.freeze({ sphereSphere: 'assembly-sphere-sphere-tangent-original.json', cylinderSphere: 'assembly-cylinder-sphere-tangent-original.json' }) }),
   'assembly-limit-distance': Object.freeze({ fixture: 'assembly-limit-distance-original.json', entry: 'desktop-assembly-limit-distance.cjs',
     test: 'production-renderer-assembly-limit-distance', caption: 'assembly signed plane distance interval' }),
+  'assembly-limit-distance-compact': Object.freeze({ fixture: 'assembly-limit-distance-original.json', entry: 'desktop-assembly-limit-distance-compact.cjs',
+    test: 'production-renderer-assembly-limit-distance-compact', caption: 'assembly signed plane distance interval at fixed compact size' }),
   'assembly-hinge': Object.freeze({ fixture: 'assembly-hinge-original.json', entry: 'desktop-assembly-hinge.cjs',
     test: 'production-renderer-assembly-hinge', caption: 'assembly unlimited four-role hinge lifecycle' }),
   'assembly-hinge-limits': Object.freeze({ fixture: 'assembly-hinge-original.json', entry: 'desktop-assembly-hinge-limits.cjs',
@@ -267,7 +269,7 @@ async function launch() {
     });
     report = JSON.parse(await fsp.readFile(path.join(temporary, 'workflow-result.json'), 'utf8'));
     check(report.workflowStatus === 'PASS', 'The child did not record a successful complete UI workflow.');
-    if ([SCENARIOS['assembly-configurations'], SCENARIOS['assembly-configured-relations'], SCENARIOS.assembly, SCENARIOS['assembly-import'], SCENARIOS['assembly-linked-source'], SCENARIOS['assembly-source-revision'], SCENARIOS['assembly-interference-multibody'], SCENARIOS['assembly-interference-grouping'], SCENARIOS['assembly-interference-grouping-multibody'], SCENARIOS['assembly-interference-grouping-scope'], SCENARIOS['assembly-screw'], SCENARIOS['assembly-rack-pinion'], SCENARIOS['assembly-export'], SCENARIOS['assembly-direction'], SCENARIOS['assembly-angle-measurement'], SCENARIOS['assembly-directed-angle'], SCENARIOS['assembly-tangent'], SCENARIOS['assembly-cylinder-tangent'], SCENARIOS['assembly-sphere-tangent'], SCENARIOS['assembly-limit-distance'], SCENARIOS['assembly-limit-angle'], SCENARIOS['assembly-width'], SCENARIOS['assembly-line-path'], SCENARIOS['assembly-circular-path'], SCENARIOS['assembly-hinge'], SCENARIOS['assembly-hinge-picking'], SCENARIOS['assembly-hinge-repair'], SCENARIOS['assembly-hinge-limits'], SCENARIOS['assembly-hinge-limits-repair'], SCENARIOS['assembly-hinge-limits-picking'], SCENARIOS['assembly-profile-center'], SCENARIOS['assembly-symmetry'], SCENARIOS['assembly-symmetry-line-repair'], SCENARIOS['assembly-symmetry-plane-repair'], SCENARIOS['assembly-symmetry-sphere-repair'], SCENARIOS['assembly-symmetry-cylinder-repair'], SCENARIOS['assembly-symmetry-axisline-repair'], SCENARIOS['assembly-symmetry-repair'], SCENARIOS['assembly-symmetry-picking'], SCENARIOS['assembly-symmetry-nested-selected'], SCENARIOS['assembly-symmetry-nested-source'], SCENARIOS['assembly-replacement']].includes(activeScenario) && process.env.SOLIDFLOW_UI_CAPTURE === '1') {
+    if ([SCENARIOS['assembly-configurations'], SCENARIOS['assembly-configured-relations'], SCENARIOS.assembly, SCENARIOS['assembly-import'], SCENARIOS['assembly-linked-source'], SCENARIOS['assembly-source-revision'], SCENARIOS['assembly-interference-multibody'], SCENARIOS['assembly-interference-grouping'], SCENARIOS['assembly-interference-grouping-multibody'], SCENARIOS['assembly-interference-grouping-scope'], SCENARIOS['assembly-screw'], SCENARIOS['assembly-rack-pinion'], SCENARIOS['assembly-export'], SCENARIOS['assembly-direction'], SCENARIOS['assembly-angle-measurement'], SCENARIOS['assembly-directed-angle'], SCENARIOS['assembly-tangent'], SCENARIOS['assembly-cylinder-tangent'], SCENARIOS['assembly-sphere-tangent'], SCENARIOS['assembly-limit-distance'], SCENARIOS['assembly-limit-distance-compact'], SCENARIOS['assembly-limit-angle'], SCENARIOS['assembly-width'], SCENARIOS['assembly-line-path'], SCENARIOS['assembly-circular-path'], SCENARIOS['assembly-hinge'], SCENARIOS['assembly-hinge-picking'], SCENARIOS['assembly-hinge-repair'], SCENARIOS['assembly-hinge-limits'], SCENARIOS['assembly-hinge-limits-repair'], SCENARIOS['assembly-hinge-limits-picking'], SCENARIOS['assembly-profile-center'], SCENARIOS['assembly-symmetry'], SCENARIOS['assembly-symmetry-line-repair'], SCENARIOS['assembly-symmetry-plane-repair'], SCENARIOS['assembly-symmetry-sphere-repair'], SCENARIOS['assembly-symmetry-cylinder-repair'], SCENARIOS['assembly-symmetry-axisline-repair'], SCENARIOS['assembly-symmetry-repair'], SCENARIOS['assembly-symmetry-picking'], SCENARIOS['assembly-symmetry-nested-selected'], SCENARIOS['assembly-symmetry-nested-source'], SCENARIOS['assembly-replacement']].includes(activeScenario) && process.env.SOLIDFLOW_UI_CAPTURE === '1') {
       check(report.captures?.length === 1 && report.captures[0].name === 'assembly-final.png', 'Expected one test-owned assembly capture.');
       const png = await fsp.readFile(path.join(temporary, 'assembly-final.png'));
       check(png.length <= 10 * 1024 * 1024 && digest(png) === report.captures[0].sha256, 'Assembly capture bytes changed.');
@@ -544,7 +546,8 @@ async function runInElectron() {
     [name, JSON.parse(fs.readFileSync(file, 'utf8'))])) : null;
   const cylinderTangentOutputs = cylinderTangent ? { skew: output, parallel: path.join(owned, 'saved-parallel.solidflow') } : null;
   const sphereTangent = activeScenario === SCENARIOS['assembly-sphere-tangent'];
-  const limitDistance = activeScenario === SCENARIOS['assembly-limit-distance'];
+  const limitDistanceCompact = activeScenario === SCENARIOS['assembly-limit-distance-compact'];
+  const limitDistance = activeScenario === SCENARIOS['assembly-limit-distance'] || limitDistanceCompact;
   const hinge = activeScenario === SCENARIOS['assembly-hinge'];
   const hingePicking = activeScenario === SCENARIOS['assembly-hinge-picking'];
   const hingeLimitsPicking = activeScenario === SCENARIOS['assembly-hinge-limits-picking'];
@@ -964,7 +967,7 @@ async function runInElectron() {
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : limitDistance
     ? require('./desktop-assembly-limit-distance-flow.cjs')({ expected, input, output,
-      evaluate, observe, waitFor, click, capture, pointer, wheel, checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
+      evaluate, observe, waitFor, click, capture, pointer, wheel, checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest, compactViewport: limitDistanceCompact,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : sphereTangent
     ? require('./desktop-assembly-sphere-tangent-flow.cjs')({ expected, input, output, sphereTangentFixtures, sphereTangentInputs, sphereTangentOutputs,
@@ -1033,12 +1036,16 @@ async function runInElectron() {
   check(typeof actualWorkflow === 'function', 'Expected the statically selected test workflow.');
   class HiddenWindow extends electron.BrowserWindow {
     constructor(options) {
-      super({ ...options, show: false }); check(!window, 'Unexpected second test application window.'); window = this;
+      super({ ...options, ...(limitDistanceCompact ? { width: 1040, height: 700 } : {}), show: false }); check(!window, 'Unexpected second test application window.'); window = this;
+      if (limitDistanceCompact) {
+        check(options.minWidth === 1040 && options.minHeight === 700, 'Compact scenario must use the unchanged production minimum window size.');
+        checks.push({ compactViewport: { requestedWindow: { width: 1040, height: 700 }, actualBounds: this.getBounds(), actualContentSize: this.getContentSize() } });
+      }
       const preferences = this.webContents.getLastWebPreferences();
       check(preferences.contextIsolation && !preferences.nodeIntegration && preferences.sandbox && preferences.webSecurity && !preferences.webviewTag,
         'The actual production security preferences changed.');
       // Electron44 SaveLastPreferences omits the preload path. Check the exact
-      // original constructor input, unmodified super options and empty session
+      // original constructor security input, unchanged security options and empty session
       // preload registry; the workflow separately requires the real bridge/IPC.
       const originalPreload = options?.webPreferences?.preload;
       check(typeof originalPreload === 'string' && path.isAbsolute(originalPreload)

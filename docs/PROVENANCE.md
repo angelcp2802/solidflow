@@ -1,5 +1,37 @@
 # Public fixture provenance
 
+## Original compact interval pointer regression
+
+The related `assemblyConfigurationState.test.ts` maximum-size case retains its
+original 64 inherited variants ×64 mechanical relations, admitting 4096 state
+entries and rejecting the 4097th atomically. New forward/reverse batches give
+one relation ID a Base concentric declaration, an inherited concentric state
+and an explicit named gear declaration with ratio 5/7. They check complete
+independent captures, parameters and input preservation. These original pure
+declarations distinguish sharing a Base validator from sharing state identity;
+they establish no native mechanical capture.
+
+`desktop-assembly-limit-distance-compact.cjs` reuses the existing original
+`assembly-limit-distance-original.json` and complete production interval flow.
+Only its test-owned hidden window constructor uses the existing production
+minimum size, 1040×700; actual native bounds/content size and canvas rectangles
+are recorded separately. The ordinary-size command remains a separate case.
+No caller-supplied viewport, source file or script is accepted.
+
+Handle acquisition tries the same six offsets on both real Z-handle halves.
+Each nominee must hit the actual canvas under `elementFromPoint`; after a real
+CDP move, two animation frames precede reading the published hover axis.
+Bounded observations retain coordinates, hit target, axis, dispatch and actual
+trusted input data even on failure. They nominate a handle, never a solved pose.
+
+The independent physical destinations, posted-input affine calibration,
+signed-plane equations, volume/area/bounds bands and 180/170/35-second
+parent/child/step deadlines are unchanged. The same four actual gestures,
+38 recorded phases and restricted Save As/reopen lifecycle remain required.
+No product transform, application state or worker reply is injected. Runtime
+results and the controlled before/after comparison belong in
+[validation](VALIDATION.md); a fixed compact test is not general platform support.
+
 ## Original configured relation editing
 
 The pure `assemblyConfiguredMateEditing.test.ts` cases reuse the project-authored
