@@ -24,8 +24,9 @@ export function assemblyDirectedAngleChoices(scene: AssemblyScene | null, scopeP
   }
   const datums = (component: AssemblyComponentReference | null, label: string) => {
     for (const plane of ['XY', 'XZ', 'YZ'] as Plane[]) add({ kind: 'principal-plane', component, plane }, `Normal ${plane} · ${label}`)
+    for (const axis of ['X', 'Y', 'Z'] as const) add({ kind: 'principal-axis', component, axis }, `Eje de origen ${axis} · ${label}`)
   }
-  datums(null, 'Ámbito actual')
+  datums(null, scopePath.length ? 'Ámbito actual' : 'Raíz')
   for (const row of components) if (row.visible && !row.suppressed && inside(row.path, scopePath)) {
     datums({ occurrencePath: row.path.slice(scopePath.length), definition: { ...row.occurrence.definition } }, `${row.occurrence.name} · ${row.path.join(' / ')}`)
   }
@@ -56,7 +57,7 @@ export function assemblyDirectedAngleUiRequest(scopePath: readonly string[], sel
   return { scopePath: [...scopePath], first: validateAssemblyGeometryReference(endpoints[0]), second: validateAssemblyGeometryReference(endpoints[1]), guide: validateAssemblyGeometryReference(endpoints[2]) }
 }
 function kind(reference: AssemblyGeometryReference): AssemblyDirectedAngleReport['firstKind'] {
-  return reference.kind === 'principal-plane' || reference.kind === 'face' && reference.support === 'plane' ? 'plane' : reference.kind === 'edge' ? 'line' : 'cylinder'
+  return reference.kind === 'principal-plane' || reference.kind === 'face' && reference.support === 'plane' ? 'plane' : reference.kind === 'edge' || reference.kind === 'principal-axis' ? 'line' : 'cylinder'
 }
 /** Display consistency only. A serialized report is never native or Apply authority. */
 export function assemblyDirectedAngleUiReport(request: AssemblyDirectedAngleRequest, report: AssemblyDirectedAngleReport): AssemblyDirectedAngleReport | null {

@@ -1467,6 +1467,7 @@ export function captureAssemblyConcentricRotationLock(preview: AssemblySolvePrev
   const value = authority(preview, current), candidate = validateAssemblyDocument(value.candidate), target = node(candidate, scope)
   const mate = target.mates.find(item => item.id === mateId)
   if (!mate || mate.type !== 'concentric' || mate.suppressed) throw new Error('Selecciona una relación concéntrica activa.')
+  if (mate.first.kind === 'principal-axis' || mate.second.kind === 'principal-axis') throw new Error('El bloqueo de giro con ejes de origen no está disponible. Conserva la relación concéntrica con giro libre.')
   const scoped = scopedDocument(candidate, scope)
   withSnapshot(scoped, snapshot => {
     const resolved = snapshot.resolveActiveMates(scoped).find(item => item.scopePath.length === 0 && item.mate.id === mateId)

@@ -23,7 +23,7 @@ export function assemblyLimitAngleUiReady(first: AssemblyGeometryReference | nul
   try { assemblyLimitAngleUiProposal(first, second, fields); return true } catch { return false }
 }
 function referenceKind(reference: AssemblyGeometryReference): 'plane' | 'cylinder' | 'line' {
-  return reference.kind === 'principal-plane' || reference.kind === 'face' && reference.support === 'plane' ? 'plane' : reference.kind === 'edge' ? 'line' : 'cylinder'
+  return reference.kind === 'principal-plane' || reference.kind === 'face' && reference.support === 'plane' ? 'plane' : reference.kind === 'edge' || reference.kind === 'principal-axis' ? 'line' : 'cylinder'
 }
 const vector = (value: readonly number[]) => Array.isArray(value) && value.length === 3 && value.every(Number.isFinite) && Math.abs(Math.hypot(...value) - 1) <= 1e-10
 function directionAngle(a: readonly number[], b: readonly number[]): number {

@@ -551,7 +551,7 @@ it('continues a native gear lift with a redundant direction relation and no char
   const base = gearBase(), session = new AssemblyWorkerSession()
   try {
     const first = base.mates.find(mate => mate.id === 'left-axis'), second = base.mates.find(mate => mate.id === 'right-axis')
-    if (first?.type !== 'concentric' || second?.type !== 'concentric') throw new Error('Actual bearing endpoints required')
+    if (first?.type !== 'concentric' || second?.type !== 'concentric' || first.first.kind !== 'face' || second.first.kind !== 'face') throw new Error('Actual bearing endpoints required')
     const initial = ready(session.prepare(base)), captured = ready(session.captureGear(base, initial.token, { first: first.first, second: second.first,
       carrier: { occurrencePath: ['plate'], definition: { ...base.occurrences.find(value => value.id === 'plate')!.definition } }, ratio: { numerator: 1, denominator: 2 }, direction: 'opposed', name: 'Original direction plus gear' }))
     let document = session.apply(base, captured.token).document
@@ -575,7 +575,7 @@ it.each([false, true])('preserves active/passive native winding at a singular or
   const base = gearBase(), session = new AssemblyWorkerSession()
   try {
     const first = base.mates.find(mate => mate.id === 'left-axis'), second = base.mates.find(mate => mate.id === 'right-axis')
-    if (first?.type !== 'concentric' || second?.type !== 'concentric') throw new Error('Actual original bearing axes required')
+    if (first?.type !== 'concentric' || second?.type !== 'concentric' || first.first.kind !== 'face' || second.first.kind !== 'face') throw new Error('Actual original bearing axes required')
     const initial = ready(session.prepare(base)), capture = ready(session.captureGear(base, initial.token, { first: first.first, second: second.first,
       carrier: { occurrencePath: ['plate'], definition: { ...base.occurrences.find(value => value.id === 'plate')!.definition } }, ratio: { numerator: 1, denominator: 2 }, direction: 'opposed', name: 'Original singular direction plus gear' }))
     let document = session.apply(base, capture.token).document

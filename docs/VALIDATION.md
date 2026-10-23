@@ -1,5 +1,78 @@
 # Validation
 
+## Origin-axis relation authoring — 2026-10-23
+
+The increment after `40718aa`, tracked in issue #55, adds explicit root/component
+X/Y/Z datum lines to standard and configured references. The saved union grows
+inside v2/v3; old readers reject the unknown kind. Material mechanical roles,
+native authority and private Apply gates remain distinct. No IPC operation or
+file privilege is added.
+
+Windows x64 / Node 24.11.1 focused execution:
+
+- `kernel.assembly-principal-axis.test.ts`: **9 native cases pass**, 2.16 s.
+  Root XYZ and nested component datums retain full placement chains; stale,
+  suppressed and copied witnesses reject. Direction cases exercise parallel,
+  perpendicular and angle. Line/line and material-cylinder/line concentricity
+  retain rank 4 / two local degrees of freedom, saved identities and native
+  validity. An original cylinder has volume 32π mm³, area 40π mm² and height
+  8 mm. Native geometric bounds use `BRepBndLib.AddOptimal` without triangulation;
+  coordinate tolerance is 1e-6 mm and volume/area tolerance is 1e-5. Literal
+  deliberate slide/spin cases distinguish principal +Z from native material −Z.
+  Configured witnesses retain ancestry/error budgets; fresh verified publication
+  consumes its private handle once.
+- `test:desktop:assembly-origin-axes`: **25 checks / 9 geometry phases pass**.
+  Actual standard controls create a root/moving Z concentric relation and a
+  30-degree X-axis angle. Cancel/retry/Apply, exact history and native Save As/
+  reopen pass, with 2 Open dialogs and 1 Save dialog. The ordinary solver reports
+  two free coordinates after concentricity and one after the angular relation.
+- `test:desktop:assembly-configured-origin-axes`: **29 checks / 9 geometry
+  phases pass**, including the same forms, preview lifecycle, history, canceled
+  Save As and saved reopening (2 Open / 2 Save dialogs). The named `demo` state
+  changes while the complete Base and dormant state remain unchanged. Every
+  placed active relation has an accepted native measurement.
+- Both renderers check original two-prism volume 48 mm³, area 104 mm², actual
+  poses and independent trigonometric bounds at 1e-5 mm. Unconstrained axial
+  positions are not required to remain at their initial value. Console/resource
+  errors are zero; child closure/profile cleanup and exact saved/captured
+  content hashes are confirmed. Axis selection uses real form controls, not
+  actual viewport axis picking.
+- New model cases pass (9 tests); the UI's focused pure/SSR group passes 247
+  tests across 9 files. Separate supporting runs overlap these suites and are
+  not added together as unique coverage. Build passes with existing warnings.
+- Existing production-renderer regressions also pass on the final build:
+  `test:desktop:assembly-direction` **169 checks**, and
+  `test:desktop:assembly-configured-relations` **61 checks**. Both report zero
+  console/resource errors and confirmed child closure/profile cleanup. Their
+  actual Open/Save counts are 2/1 and 2/2 respectively.
+
+Final literal `npm test` passes **9,319 cases in 395 files**, 580.52 s, followed
+by **83 IPC/security passes**, zero failures and two explicit Windows skips,
+1,607.8045 ms. Final `npm run build` and actual `npm run test:desktop` pass.
+All **1,032 non-Markdown source/test/CI inputs** remain unchanged during this
+acceptance. A parsed YAML comparison preserves the entire prior workflow after
+removing exactly four new platform-specific origin-axis renderer steps; all 75
+prior package scripts are unchanged. Required dependency gates, timeouts,
+permissions, sandbox settings and pinned actions are retained. Hosted acceptance
+is separate from this Windows evidence.
+
+The first joint build exposed test fixtures that assumed every concentric
+reference was a material face; their guards now assert that actual fixture type.
+Native acceptance then caught a real configured role-classification bug:
+`principal-axis.axis` was mistaken for a compound profile. Discriminated compound
+guards fix that route. Initial oracles also incorrectly constrained free axial
+translation and assumed a material cylinder's signed axis was +Z. The corrected
+cases explicitly measure its −Z direction and validate literal compatible
+rotations/bounds, without increasing tolerance. The first renderer attempt
+rejected a boolean passed to the string-only source encoder; controlled JSON
+argument decoding fixes the harness without changing application behavior.
+
+Origin-axis rotation locking, configured structural insertion/fixed authoring,
+direct displayed-axis picking and a complete assembly demo remain unaccepted.
+The focused renderer cases do not establish every angular-limit combination,
+source lifecycle interaction or platform. See [contract](ASSEMBLY_ORIGIN_AXES.md)
+and [fixture provenance](PROVENANCE.md#original-origin-axis-relation-examples).
+
 ## Core part and assembly workflows — 2026-10-23
 
 The increment after `22ca701`, tracked in issue #55, prioritizes sequential

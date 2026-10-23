@@ -149,6 +149,22 @@ jobs:
           sudo chmod 4755 node_modules/electron/dist/chrome-sandbox
           test "$(stat -c '%u:%g:%a' node_modules/electron/dist/chrome-sandbox)" = "0:0:4755"
 
+      - name: Test origin axis relations (Linux)
+        if: matrix.batch == 'relations' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-origin-axes
+
+      - name: Test origin axis relations (Windows/macOS)
+        if: matrix.batch == 'relations' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-origin-axes
+
+      - name: Test configured origin axis relations (Linux)
+        if: matrix.batch == 'relations' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-configured-origin-axes
+
+      - name: Test configured origin axis relations (Windows/macOS)
+        if: matrix.batch == 'relations' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-configured-origin-axes
+
       - name: Test successive part operations (Linux)
         if: matrix.batch == 'persistence' && runner.os == 'Linux'
         run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:part-sequence

@@ -40,7 +40,7 @@ function face(path = ['left']): AssemblyFaceReference & { support: 'plane' } {
 function planeMate(id: string, first: AssemblyGeometryReference = face()): AssemblyMate {
   // The common fixture uses only planes. The complete validator below remains
   // the authority rather than an unchecked cast becoming a fixture shortcut.
-  if (first.kind === 'edge' || first.kind === 'face' && first.support !== 'plane') throw new Error('Expected an original plane declaration')
+  if (first.kind === 'principal-axis' || first.kind === 'edge' || first.kind === 'face' && first.support !== 'plane') throw new Error('Expected an original plane declaration')
   return { id, name: 'Same mate display name', suppressed: false, type: 'coincident', alignment: 'aligned',
     first: first.kind === 'face' ? { ...first, support: 'plane' } : first,
     second: { kind: 'principal-plane', component: null, plane: 'XY' } }
@@ -269,6 +269,7 @@ it('repairs the second side of a concentric mate without losing its captured qua
     rotationLock: [0, 0, Math.SQRT1_2, Math.SQRT1_2], first: { ...face(), support: 'axis' }, second: { ...face(['right']), support: 'axis' } }
   const plan = prepareAssemblyPartUpdate(input, source, part(), 'r2'), original = binaryMate(plan.document.mates[0])
   if (original.type !== 'concentric') throw new Error('Expected original concentric mate')
+  if (original.second.kind !== 'face') throw new Error('Expected original cylindrical face endpoint')
   const repaired = { ...rebind(original.second), support: 'axis' as const }
   const next = repairAssemblyEndpoint(plan.document, { ...planeLocator, side: 'second' }, repaired)
   expect(next.mates[0]).toEqual({ ...original, second: repaired })

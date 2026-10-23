@@ -1,5 +1,22 @@
 # Public fixture provenance
 
+## Original origin-axis relation examples
+
+`scripts/desktop-assembly-origin-axes-original.cjs` independently constructs two
+rectangular prisms from a 2 × 3 mm XY profile extruded 4 mm. Each has volume
+24 mm³ and area 52 mm². The fixed occurrence is translated −15 mm along X; the
+moving occurrence begins at [20, 10, 6] mm with a 20-degree Z rotation. The
+configured envelope adds empty named `demo` and `untouched` states. There are no
+external model bytes or vendor geometry. The corresponding renderer creates
+the relations through the application's controls.
+
+`src/cad/kernel.assembly-principal-axis.test.ts` independently constructs a
+radius-2 mm circle extruded 8 mm: volume 32π mm³, area 40π mm². Literal nested
+coordinate frames, unit axes and deliberately authored slide/spin cases supply
+the reference oracles. Geometric BRep bounds exclude triangulation, use 1e-6 mm
+coordinate tolerance, and keep unconstrained axial placement separate from
+radial constraints. See [validation](VALIDATION.md) for executed evidence.
+
 ## Sequential part original
 
 `src/cad/fixtures/part-sequence-original.json` and

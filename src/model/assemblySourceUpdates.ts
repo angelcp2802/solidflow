@@ -107,7 +107,7 @@ export function prepareAssemblyPartUpdate(input: AssemblyDocument, source: Assem
 }
 function support(endpoint: Endpoint, mate: AssemblyMate, side: AssemblyMateEndpointSide): 'component' | 'plane' | 'axis' | 'line' | 'cylinder-surface' | 'sphere-surface' | 'point' | 'profile-free' | 'profile-rectangle' | 'line-path' | 'circular-path' {
   return isAssemblyPathEndpoint(endpoint) ? assemblyMatePathKind(mate, side) ?? fail('propósito de trayecto desconocido.') : isAssemblyProfileCenterEndpoint(endpoint) ? endpoint.axis === null ? 'profile-free' : 'profile-rectangle'
-    : 'occurrencePath' in endpoint ? 'component' : endpoint.kind === 'principal-plane' ? 'plane' : endpoint.support
+    : 'occurrencePath' in endpoint ? 'component' : endpoint.kind === 'principal-plane' ? 'plane' : endpoint.kind === 'principal-axis' ? 'axis' : endpoint.support
 }
 
 /** Explicit syntax repair. Current native support and mate satisfaction need Solve. */

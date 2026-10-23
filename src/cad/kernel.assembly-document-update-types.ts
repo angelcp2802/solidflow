@@ -47,7 +47,7 @@ export function assemblyDocumentUpdateEndpointPathKind(document: AssemblyDocumen
 function purpose(reference: AssemblyMateEndpointReference, pathKind: PathKind | null): string {
   if (isAssemblyProfileCenterEndpoint(reference)) return reference.axis === null ? 'profile-circle' : 'profile-rectangle'
   if (isAssemblyPathEndpoint(reference)) { if(!pathKind)throw Error('Compound path purpose requires its saved family and role.');return pathKind }
-  return 'occurrencePath' in reference ? 'component' : reference.kind === 'principal-plane' ? 'principal-plane' : reference.kind + ':' + reference.support
+  return 'occurrencePath' in reference ? 'component' : reference.kind === 'principal-plane' ? 'principal-plane' : reference.kind === 'principal-axis' ? 'principal-axis' : reference.kind + ':' + reference.support
 }
 export function assemblyDocumentUpdateReferenceKey(reference: AssemblyMateEndpointReference, pathKind: PathKind | null = 'line-path'): string {
   const component = owner(reference), identity = component && [component.occurrencePath, key(component.definition)]
@@ -55,6 +55,7 @@ export function assemblyDocumentUpdateReferenceKey(reference: AssemblyMateEndpoi
   if (isAssemblyPathEndpoint(reference)) { if(!pathKind)throw Error('Compound path key requires an explicit family.');return JSON.stringify([pathKind, identity, reference.body && [reference.body.bodyId, reference.body.sourceFeatureId], reference.edge.sourceFeatureId, reference.edge.key, reference.startVertex.sourceFeatureId, reference.startVertex.key]) }
   if ('occurrencePath' in reference) return JSON.stringify(['component', identity])
   if (reference.kind === 'principal-plane') return JSON.stringify([reference.kind, identity, reference.plane])
+  if (reference.kind === 'principal-axis') return JSON.stringify([reference.kind, identity, reference.axis])
   const native = reference.kind === 'face' ? reference.face : reference.kind === 'edge' ? reference.edge : reference.vertex
   return JSON.stringify([reference.kind, reference.support, identity, reference.body && [reference.body.bodyId, reference.body.sourceFeatureId], native.sourceFeatureId, native.key])
 }
@@ -147,11 +148,12 @@ export function assemblyDocumentUpdateChoices(review: AssemblyDocumentUpdateRevi
     for (const choice of pathKind==='circular-path'?assemblyCircularPathCatalogChoices(review.replacementCatalog):assemblyLinePathCatalogChoices(review.replacementCatalog)) add(choice.reference, choice.label)
   } else if (isAssemblyProfileCenterEndpoint(original)) {
     for (const choice of assemblyProfileCenterCatalogChoices(review.replacementCatalog, original.axis !== null)) add(choice.reference, choice.label)
-  } else if ('occurrencePath' in original || original.kind === 'principal-plane') {
+  } else if ('occurrencePath' in original || original.kind === 'principal-plane' || original.kind === 'principal-axis') {
     for (const component of review.components) {
       const reference = { occurrencePath: [...component.path], definition: { ...component.definition } }
       const label = (component.path.join(' / ') || 'Marco del subensamblaje') + ' · ' + component.name
       if ('occurrencePath' in original) add(reference, label)
+      else if (original.kind === 'principal-axis') for (const axis of ['X', 'Y', 'Z'] as const) add({ kind: 'principal-axis', component: reference, axis }, label + ' · Eje ' + axis)
       else for (const plane of ['XY', 'XZ', 'YZ'] as const) add({ kind: 'principal-plane', component: reference, plane }, label + ' · ' + plane)
     }
   } else for (const body of review.replacementCatalog.bodies) {

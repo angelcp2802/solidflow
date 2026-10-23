@@ -66,7 +66,7 @@ export function assemblyMatePathKind(mate: AssemblyMate, side: AssemblyMateEndpo
 
 /** A profile role is one complete face/optional-edge/sense selection. */
 export function isAssemblyProfileCenterEndpoint(reference: AssemblyMateEndpointReference): reference is AssemblyProfileCenterSelection {
-  return 'axis' in reference
+  return !('kind' in reference) && 'axis' in reference
 }
 export function assemblyMateEndpointComponent(reference: AssemblyMateEndpointReference): AssemblyComponentReference | null {
   return isAssemblyProfileCenterEndpoint(reference) ? reference.face.component : 'occurrencePath' in reference ? reference : reference.component

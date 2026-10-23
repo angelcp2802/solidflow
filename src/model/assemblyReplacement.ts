@@ -189,7 +189,7 @@ export function prepareAssemblyPartReplacement(input: AssemblyDocument, supplied
     }
     if (!desired) continue
     const desiredComponent = { occurrencePath: [...desiredPath], definition: ref(desired) }
-    const retainFrame = !isAssemblyProfileCenterEndpoint(endpoint) && !isAssemblyPathEndpoint(endpoint) && (!('kind' in endpoint) || endpoint.kind === 'principal-plane') && resolved.complete && key(resolved.definition) === key(component.definition)
+    const retainFrame = !isAssemblyProfileCenterEndpoint(endpoint) && !isAssemblyPathEndpoint(endpoint) && (!('kind' in endpoint) || endpoint.kind === 'principal-plane' || endpoint.kind === 'principal-axis') && resolved.complete && key(resolved.definition) === key(component.definition)
     const locator = { scope: ref(context.scope), mateId: mate.id, side }, originalLocator = { ...locator, scope: ref(context.node) }
     endpoints.push({ originalLocator, locator, endpoint: structuredClone(endpoint), desiredComponent, retainFrame })
     if (retainFrame) {

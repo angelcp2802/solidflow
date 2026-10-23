@@ -1,5 +1,30 @@
 # Project status and review queue
 
+### Origin-axis relation authoring
+
+[Issue #55](https://github.com/angelcp2802/solidflow/issues/55) now includes
+explicit root/component X/Y/Z origin references in standard and configured
+assemblies. The [contract](ASSEMBLY_ORIGIN_AXES.md) separates analytic line
+geometry, concentric free motion and material-only capture. Original renderer
+workflows create concentric and angular relations, Cancel/retry/Apply, undo/redo
+and save/reopen through real controls. Source-specific execution is recorded in
+[VALIDATION.md](VALIDATION.md). Configured insertion and fixed-state authoring
+remain the next basic workflow priority; origin-axis rotation locking and
+displayed-axis picking are also unfinished.
+
+The final Windows suite passes 9,319 cases across 395 files, 83 IPC/security
+checks (two explicit skips), build and actual Electron smoke. Nine focused native
+cases and the standard/configured origin-axis renderers pass; these are bounded
+cases, not full family or platform acceptance.
+
+The preceding hosted run [40024383011](https://github.com/angelcp2802/solidflow/actions/runs/40024383011)
+at `f6f1400` failed in macOS nested symmetry selected replacement/reactivation.
+Eleven jobs passed; the failing renderer and its three dependent Desktop gates
+did not. Their downstream unit/build/smoke/package steps were skipped. Security
+run 40024382969 passed. A generic renderer-script annotation did not identify
+the failed application operation, so no specific cause or cross-platform fix
+is claimed.
+
 ### Core workflow priority
 
 [Issue #55](https://github.com/angelcp2802/solidflow/issues/55) prioritizes
@@ -7,8 +32,9 @@ successive part operations and basic assembly authoring before further advanced
 configured motion. See the [workflow and exact remaining gaps](CORE_WORKFLOWS.md).
 The local increment adds current-body defaults, a sequential original example,
 consistent middle-button navigation, configured component/general-role picking
-and wrapping assembly commands. Origin-axis references and configured structural
-insertion remain required work. Exact execution is recorded in VALIDATION.md;
+and wrapping assembly commands. Origin-axis references are addressed by the
+following increment; configured structural insertion remains required work.
+Exact execution is recorded in VALIDATION.md;
 the same draft PR #49 remains the review target.
 
 The local final suite passes 9,298 cases in 392 files plus 83 IPC checks

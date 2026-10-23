@@ -23,13 +23,13 @@ const distance = (): AssemblyMate => validateAssemblyMate({ id: 'distance', name
 
 it('nominates scope-relative principal references from the selected effective state without a fake v2 document', () => {
   const document = fixture(), before = serializeAssemblyConfiguredDocument(document), choices = configuredMateUiChoices(document, scene(document), 7, ['right'])
-  expect(choices).toHaveLength(9); expect(choices.filter(row => row.reference.component === null)).toHaveLength(3)
+  expect(choices).toHaveLength(18); expect(choices.filter(row => row.reference.component === null)).toHaveLength(6)
   expect(choices.some(row => row.key === JSON.stringify(principal('b')))).toBe(true)
   expect(choices.every(row => !row.reference.component || row.reference.component.occurrencePath.length === 1 && ['a', 'b'].includes(row.reference.component.occurrencePath[0]))).toBe(true)
   expect(configuredMateUiChoices(document, scene(document), 8, ['right'])).toEqual([])
   expect(configuredMateUiChoices(document, scene(document), 7, ['missing'])).toEqual([])
   document.rootConfiguration = 'single-right'
-  expect(configuredMateUiChoices(document, scene(document), 7, ['right'])).toHaveLength(6)
+  expect(configuredMateUiChoices(document, scene(document), 7, ['right'])).toHaveLength(12)
   expect(serializeAssemblyConfiguredDocument({ ...document, rootConfiguration: 'mixed' })).toBe(before)
 })
 

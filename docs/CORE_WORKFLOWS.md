@@ -57,9 +57,10 @@ Its general relation form now has explicit role buttons to select a current
 face or LINE edge. Clicking a visible configured component selects its
 immediate owner in the current scope.
 
-Origin X/Y/Z axes still need persisted references, current geometric resolution,
-solver/verification and lifecycle support. They are not supplied by relabeling
-plane normals. Configured component insertion/fixed-state editing and direct
+Origin X/Y/Z axes now have explicit persisted references, scoped native line
+resolution and direction/concentric authoring; see the [origin-axis contract](ASSEMBLY_ORIGIN_AXES.md)
+and its source-specific validation. Concentric rotation locking with origin
+axes remains unsupported. Configured component insertion/fixed-state editing and direct
 viewport picking for specialized compound/mechanical forms remain open. Assemble
 the initial component structure in the standard workspace before selecting
 configurations. These limits remain part of the required work.

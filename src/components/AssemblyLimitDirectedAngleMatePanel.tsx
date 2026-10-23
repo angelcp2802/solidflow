@@ -23,7 +23,7 @@ export function assemblyLimitDirectedAngleUiEdit(mate: AssemblyLimitDirectedAngl
   return { ...assemblyLimitDirectedAngleUiProposal(first, second, guide, fields), suppressed: mate.suppressed }
 }
 function referenceKind(reference: AssemblyGeometryReference): 'plane' | 'cylinder' | 'line' {
-  return reference.kind === 'principal-plane' || reference.kind === 'face' && reference.support === 'plane' ? 'plane' : reference.kind === 'edge' ? 'line' : 'cylinder'
+  return reference.kind === 'principal-plane' || reference.kind === 'face' && reference.support === 'plane' ? 'plane' : reference.kind === 'edge' || reference.kind === 'principal-axis' ? 'line' : 'cylinder'
 }
 const modulo = (value: number, period: number) => ((value % period) + period) % period
 /** Consistent display only. Reports never authorize Apply or supply saved poses. */

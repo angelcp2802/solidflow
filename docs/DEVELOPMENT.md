@@ -1,5 +1,12 @@
 # Development guide
 
+The [origin-axis contract](ASSEMBLY_ORIGIN_AXES.md) covers explicit root/component
+X/Y/Z line references and their native relation lifecycle. After building, run
+`npm run test:desktop:assembly-origin-axes` and
+`npm run test:desktop:assembly-configured-origin-axes` for the original form,
+preview, history and file-persistence workflows. Keep free axial/spin coordinates
+separate from constrained coordinates, and preserve material-only capture rules.
+
 The [core workflow walkthrough](CORE_WORKFLOWS.md) prioritizes successive cuts,
 additive extrusions, consistent mouse navigation and basic assembly selection.
 After building, `npm run test:desktop:part-sequence` exercises its original

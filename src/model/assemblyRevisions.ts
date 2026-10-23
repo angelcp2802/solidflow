@@ -25,7 +25,7 @@ export function createAssemblyRootRevision(input: AssemblyDocument, revision: st
           terminal = occurrence ? registry.get(assemblyDefinitionKey(occurrence.definition)) : undefined
           if (!terminal) break
         }
-        if (terminal && ('occurrencePath' in reference || 'kind' in reference && reference.kind === 'principal-plane') && assemblyDefinitionKey(terminal) === oldKey) target.mates[index] = withAssemblyMateEndpoint(target.mates[index], side,
+        if (terminal && ('occurrencePath' in reference || 'kind' in reference && (reference.kind === 'principal-plane' || reference.kind === 'principal-axis')) && assemblyDefinitionKey(terminal) === oldKey) target.mates[index] = withAssemblyMateEndpoint(target.mates[index], side,
           withAssemblyMateEndpointComponent(reference, { ...owner, definition: { ...nextRef } }))
       }
     })

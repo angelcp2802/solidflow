@@ -37,22 +37,22 @@ function props(): AssemblyDirectedAnglePanelProps {
 }
 it('offers scope/component datums and only current supported visible face/LINE choices with relative identities', () => {
   const input = scene(), before = JSON.stringify(input), rows = components(), choices = assemblyDirectedAngleChoices(input, ['group'], rows)
-  expect(choices).toHaveLength(9)
+  expect(choices).toHaveLength(15)
   expect(choices.filter(choice => choice.reference.kind === 'principal-plane')).toHaveLength(6)
   expect(choices.filter(choice => choice.reference.kind === 'face')).toHaveLength(2)
   expect(choices.filter(choice => choice.reference.kind === 'edge')).toHaveLength(1)
   for (const choice of choices) if (choice.reference.component) expect(choice.reference.component.occurrencePath).toEqual(['moving'])
-  choices[3].reference.component!.definition.revision = 'changed'; expect(rows[0].occurrence.definition.revision).toBe('r1'); expect(JSON.stringify(input)).toBe(before)
+  choices.find(choice => choice.reference.component)!.reference.component!.definition.revision = 'changed'; expect(rows[0].occurrence.definition.revision).toBe('r1'); expect(JSON.stringify(input)).toBe(before)
 })
 it('excludes hidden, suppressed and out-of-scope components while retaining scope datums', () => {
   const input = scene(); input.bodies[0].visible = false
-  expect(assemblyDirectedAngleChoices(input, ['group'], [{ ...components()[0], visible: false }])).toHaveLength(3)
-  expect(assemblyDirectedAngleChoices(null, ['group'], [{ ...components()[0], suppressed: true }])).toHaveLength(3)
-  expect(assemblyDirectedAngleChoices(scene(), ['other'], components())).toHaveLength(3)
+  expect(assemblyDirectedAngleChoices(input, ['group'], [{ ...components()[0], visible: false }])).toHaveLength(6)
+  expect(assemblyDirectedAngleChoices(null, ['group'], [{ ...components()[0], suppressed: true }])).toHaveLength(6)
+  expect(assemblyDirectedAngleChoices(scene(), ['other'], components())).toHaveLength(6)
 })
 it('deduplicates exact references and never identifies choices by their labels', () => {
   const input = scene(); input.bodies.push(structuredClone(input.bodies[0])); const choices = assemblyDirectedAngleChoices(input, ['group'], [...components(), ...components()])
-  expect(choices).toHaveLength(9); expect(new Set(choices.map(value => value.key)).size).toBe(9)
+  expect(choices).toHaveLength(15); expect(new Set(choices.map(value => value.key)).size).toBe(15)
   const p = props(), value = assemblyDirectedAngleUiRequest(p.scopePath, p.selection, p.choices)
   expect(value).toEqual(request()); value!.second.component!.definition.revision = 'other'; expect(p.choices.some(choice => choice.reference.component?.definition.revision === 'other')).toBe(false)
   expect(assemblyDirectedAngleUiRequest(p.scopePath, ['', ...p.selection.slice(1)] as [string, string, string], p.choices)).toBeNull()
@@ -64,7 +64,7 @@ it('distinguishes same-named bodies within one component without changing refere
   second.faces.forEach(face => { face.selection.body = secondBody })
   second.edges!.forEach(edge => { edge.selection.body = secondBody })
   input.bodies.push(second)
-  const choices = assemblyDirectedAngleChoices(input, ['group'], components()).filter(choice => choice.reference.kind !== 'principal-plane')
+  const choices = assemblyDirectedAngleChoices(input, ['group'], components()).filter(choice => choice.reference.kind !== 'principal-plane' && choice.reference.kind !== 'principal-axis')
   expect(choices).toHaveLength(6); expect(new Set(choices.map(choice => choice.label)).size).toBe(6)
   expect(choices.slice(0, 3).every(choice => choice.label.includes('cuerpo 1 · Original part'))).toBe(true)
   expect(choices.slice(3).every(choice => choice.label.includes('cuerpo 2 · Original part'))).toBe(true)

@@ -33,7 +33,7 @@ interface EndpointBase {
 }
 type EndpointData = EndpointBase & (
   | { kind: 'component'; origin: 'component' }
-  | { kind: 'support'; origin: 'native-face' | 'native-edge' | 'principal-plane'; localSupport: AssemblyNativeSupport; worldSupport: AssemblyNativeSupport }
+  | { kind: 'support'; origin: 'native-face' | 'native-edge' | 'principal-plane' | 'principal-axis'; localSupport: AssemblyNativeSupport; worldSupport: AssemblyNativeSupport }
   | { kind: 'cylinder-surface'; origin: 'native-cylinder-surface'; localSupport: AssemblyNativeCylinderSurfaceSupport; worldSupport: AssemblyNativeCylinderSurfaceSupport }
   | { kind: 'sphere-surface'; origin: 'native-sphere-surface'; localSupport: AssemblyNativeSphereSurfaceSupport; worldSupport: AssemblyNativeSphereSurfaceSupport }
 )
@@ -337,11 +337,14 @@ export class AssemblyGeometrySnapshot {
         axis: transformRigidDirection(placement.pose, localSupport.axis), xDirection: transformRigidDirection(placement.pose, localSupport.xDirection) };
       return this.#issue({ ...base, kind: 'cylinder-surface', origin: 'native-cylinder-surface', localSupport, worldSupport: worldSurface });
     }
-    let localSupport: AssemblyNativeSupport, origin: 'native-face' | 'native-edge' | 'principal-plane'
+    let localSupport: AssemblyNativeSupport, origin: 'native-face' | 'native-edge' | 'principal-plane' | 'principal-axis'
     if (reference.kind === 'principal-plane') {
       const frame = principalPlaneFrame(reference.plane)
       localSupport = { kind: 'plane', point: frame.origin, normal: frame.normal, xDirection: frame.xDirection, tolerance: 0 }
       origin = 'principal-plane'
+    } else if (reference.kind === 'principal-axis') {
+      localSupport = { kind: 'line', point: [0, 0, 0], axis: reference.axis === 'X' ? [1, 0, 0] : reference.axis === 'Y' ? [0, 1, 0] : [0, 0, 1], tolerance: 0 }
+      origin = 'principal-axis'
     } else if (reference.kind === 'edge') {
       if (placement.definition.kind !== 'part') throw new Error('La arista seleccionada necesita una definición de pieza.')
       const state = this.#parts.get(assemblyDefinitionKey(placement.definition))

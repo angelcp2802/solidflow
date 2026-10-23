@@ -375,6 +375,7 @@ it.each(directionPairs)('round-trips all three directed declarations for %s/%s i
   expect(parsed).toEqual(input); expect(parsed.version).toBe(2); expect(JSON.stringify(input)).toBe(before);
   const cloned = binaryMate(parsed.mates[0]);
   if (cloned.type !== 'parallel' && cloned.type !== 'perpendicular') throw new Error('Original direction mate missing');
+  if (cloned.first.kind === 'principal-axis') throw new Error('Original direction fixture has no principal axis');
   if (cloned.first.kind === 'principal-plane') cloned.first.plane = 'YZ';
   else cloned.first.component.occurrencePath[0] = 'changed';
   expect(JSON.stringify(input)).toBe(before);

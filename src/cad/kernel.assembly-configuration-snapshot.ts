@@ -1,5 +1,5 @@
 import {inspectAssemblyConfigurationMateReferences,type AssemblyConfigurationMateInspection} from '../model/assemblyConfigurationReferences'
-import {assemblyMateEndpoints,type AssemblyMateEndpointEntry,type AssemblyMateEndpointReference} from '../model/assemblyMateEndpoints'
+import {assemblyMateEndpoints,isAssemblyProfileCenterEndpoint,isAssemblyPathEndpoint,type AssemblyMateEndpointEntry,type AssemblyMateEndpointReference} from '../model/assemblyMateEndpoints'
 import {
  buildConfiguredRelationObservation,configuredResolvedMateWitnesses,
  type ConfiguredResolvedMate,type ConfiguredResolvedBinaryMate,type ConfiguredUnavailableMate,
@@ -61,8 +61,8 @@ export type ConfiguredPointWitness=ReadonlyData<ConfiguredBase & {
   kind:'configured-point';origin:'native-vertex';localSupport:AssemblyNativePointSupport;worldSupport:AssemblyNativePointSupport
 }>
 export type ConfiguredComponentWitness=ReadonlyData<ConfiguredBase & {kind:'configured-component';origin:'component'}>
-export type ConfiguredGeometryWitness=ReadonlyData<ConfiguredBase & {kind:'configured-support';origin:'native-face'|'native-edge'|'principal-plane';localSupport:AssemblyNativeSupport;worldSupport:AssemblyNativeSupport}>
-export type ConfiguredDirectionWitness=ReadonlyData<ConfiguredBase & {kind:'configured-direction';origin:'native-face'|'native-edge'|'principal-plane';localSupport:AssemblyNativeSupport;worldSupport:AssemblyNativeSupport}>
+export type ConfiguredGeometryWitness=ReadonlyData<ConfiguredBase & {kind:'configured-support';origin:'native-face'|'native-edge'|'principal-plane'|'principal-axis';localSupport:AssemblyNativeSupport;worldSupport:AssemblyNativeSupport}>
+export type ConfiguredDirectionWitness=ReadonlyData<ConfiguredBase & {kind:'configured-direction';origin:'native-face'|'native-edge'|'principal-plane'|'principal-axis';localSupport:AssemblyNativeSupport;worldSupport:AssemblyNativeSupport}>
 export type ConfiguredCylinderSurfaceWitness=ReadonlyData<ConfiguredBase & {kind:'configured-cylinder-surface';origin:'native-cylinder-surface';localSupport:AssemblyNativeCylinderSurfaceSupport;worldSupport:AssemblyNativeCylinderSurfaceSupport}>
 export type ConfiguredSphereSurfaceWitness=ReadonlyData<ConfiguredBase & {kind:'configured-sphere-surface';origin:'native-sphere-surface';localSupport:AssemblyNativeSphereSurfaceSupport;worldSupport:AssemblyNativeSphereSurfaceSupport}>
 export interface AssemblyConfigurationEdgeSelection {component:AssemblyComponentReference;body:BodyReference|null;edge:EdgeReference}
@@ -263,14 +263,16 @@ export class AssemblyConfigurationGeometrySnapshot {
   }
   #geometry(input:AssemblyConfigurationGeometryInput,parsed:AssemblyGeometryReference,scopePath:readonly string[],directionOnly:boolean):ConfiguredGeometryWitness|ConfiguredDirectionWitness{
     const {base,placement}=this.#component(scopePath,parsed.component)
-    if(parsed.kind!=='principal-plane'&&placement.definition.kind!=='part')throw Error('La geometría configurada seleccionada requiere una pieza.')
-    const state=parsed.kind==='principal-plane'?undefined:this.#parts.get(assemblyDefinitionKey(placement.definition))
-    if(parsed.kind!=='principal-plane'&&!state)throw Error('La pieza configurada no tiene geometría nativa actual.')
+    if(parsed.kind!=='principal-plane'&&parsed.kind!=='principal-axis'&&placement.definition.kind!=='part')throw Error('La geometría configurada seleccionada requiere una pieza.')
+    const state=parsed.kind==='principal-plane'||parsed.kind==='principal-axis'?undefined:this.#parts.get(assemblyDefinitionKey(placement.definition))
+    if(parsed.kind!=='principal-plane'&&parsed.kind!=='principal-axis'&&!state)throw Error('La pieza configurada no tiene geometría nativa actual.')
     try{
-      let localSupport:AssemblyNativeSupport,origin:'native-face'|'native-edge'|'principal-plane'
+      let localSupport:AssemblyNativeSupport,origin:'native-face'|'native-edge'|'principal-plane'|'principal-axis'
       if(parsed.kind==='principal-plane'){
         const frame=principalPlaneFrame(parsed.plane)
         localSupport={kind:'plane',point:frame.origin,normal:frame.normal,xDirection:frame.xDirection,tolerance:0};origin='principal-plane'
+      }else if(parsed.kind==='principal-axis'){
+        localSupport={kind:'line',point:[0,0,0],axis:parsed.axis==='X'?[1,0,0]:parsed.axis==='Y'?[0,1,0]:[0,0,1],tolerance:0};origin='principal-axis'
       }else if(parsed.kind==='edge'){
         localSupport=state!.engine.inspectCurrentEdgeSupport(parsed.edge,parsed.body);origin='native-edge'
       }else{
@@ -400,7 +402,7 @@ export class AssemblyConfigurationGeometrySnapshot {
   #relationGeometry(input:AssemblyConfigurationGeometryInput,reference:AssemblyMateEndpointReference|null,scope:readonly string[],directionOnly=false):AssemblyConfigurationWitness{
     if(reference===null)return this.resolveComponentReference(input,null,scope)
     if('occurrencePath'in reference)return this.resolveComponentReference(input,reference,scope)
-    if('axis'in reference||'startVertex'in reference)throw Error('A compound configured role needs its explicit profile or path family.')
+    if(isAssemblyProfileCenterEndpoint(reference)||isAssemblyPathEndpoint(reference))throw Error('A compound configured role needs its explicit profile or path family.')
     if(reference.kind==='vertex')return this.resolveVertexReference(input,reference,scope)
     if(reference.kind==='face'&&reference.support==='cylinder-surface')return this.resolveCylinderSurfaceReference(input,validateAssemblyCylinderSurfaceReference(reference),scope)
     if(reference.kind==='face'&&reference.support==='sphere-surface')return this.resolveSphereSurfaceReference(input,validateAssemblySphereSurfaceReference(reference),scope)

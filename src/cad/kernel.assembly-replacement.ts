@@ -56,13 +56,14 @@ function component(reference: AssemblyReplacementReference): AssemblyComponentRe
 function family(reference: AssemblyReplacementReference, pathKind: 'line-path'|'circular-path'|null): string {
   if (isAssemblyProfileCenterEndpoint(reference)) return reference.axis === null ? 'profile-circle' : 'profile-rectangle'
   if (isAssemblyPathEndpoint(reference)) {if(!pathKind)throw Error('Compound repair requires its saved path purpose.');return pathKind}
-  return 'occurrencePath' in reference ? 'component' : reference.kind === 'principal-plane' ? 'plane' : reference.support
+  return 'occurrencePath' in reference ? 'component' : reference.kind === 'principal-plane' ? 'plane' : reference.kind === 'principal-axis' ? 'principal-axis' : reference.support
 }
 function referenceKey(reference: AssemblyReplacementReference): string {
   if (isAssemblyProfileCenterEndpoint(reference) || isAssemblyPathEndpoint(reference)) return assemblyDocumentUpdateReferenceKey(reference)
   const owner = component(reference), identity = owner && [owner.occurrencePath, owner.definition.id, owner.definition.revision]
   if (!('kind' in reference)) return JSON.stringify(['component', identity])
   if (reference.kind === 'principal-plane') return JSON.stringify([reference.kind, identity, reference.plane])
+  if (reference.kind === 'principal-axis') return JSON.stringify([reference.kind, identity, reference.axis])
   const native = reference.kind === 'vertex' ? reference.vertex : reference.kind === 'face' ? reference.face : reference.edge
   return JSON.stringify([reference.kind, identity, reference.body && [reference.body.bodyId, reference.body.sourceFeatureId], native.sourceFeatureId, native.key, reference.support])
 }
@@ -188,7 +189,7 @@ function compatibleCatalogReference(review: AssemblyReplacementReview, endpoint:
   }
   const originalKind = 'kind' in endpoint.endpoint ? endpoint.endpoint.kind : 'component'
   if (originalKind !== ('kind' in reference ? reference.kind : 'component')) return false
-  if (!('kind' in reference) || reference.kind === 'principal-plane') return true
+  if (!('kind' in reference) || reference.kind === 'principal-plane' || reference.kind === 'principal-axis') return true
   if (reference.kind === 'vertex') {
     // Scene triangle vertices confer no topology/point authority. Rebuild the
     // exact replacement privately and query the current native vertex instead.

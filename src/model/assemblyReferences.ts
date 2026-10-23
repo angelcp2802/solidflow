@@ -139,7 +139,7 @@ export function inspectAssemblyMateReferences(input: AssemblyDocument): Assembly
     if (assemblyDefinitionKey(node) !== assemblyDefinitionKey(component.definition)) problem('STALE_DEFINITION', path)
     if (suppressed) problem('SUPPRESSED_COMPONENT', path)
     // Do not reinterpret stale face IDs against a different part definition.
-    if (diagnostics.some(value => value.code === 'STALE_DEFINITION') || !('kind' in reference) || reference.kind === 'principal-plane') {
+    if (diagnostics.some(value => value.code === 'STALE_DEFINITION') || !('kind' in reference) || reference.kind === 'principal-plane' || reference.kind === 'principal-axis') {
       return { candidate, diagnostics }
     }
     if (node.kind !== 'part') {

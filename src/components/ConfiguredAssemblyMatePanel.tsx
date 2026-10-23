@@ -53,7 +53,7 @@ function normalizedReference(reference: ConfiguredMateUiReference): ConfiguredMa
 const referenceKey = (reference: ConfiguredMateUiReference) => JSON.stringify(normalizedReference(reference))
 const plane = (r: ConfiguredMateUiReference) => r.kind === 'principal-plane' || r.kind === 'face' && r.support === 'plane'
 const axis = (r: ConfiguredMateUiReference) => r.kind === 'face' && r.support === 'axis'
-const direction = (r: ConfiguredMateUiReference) => plane(r) || axis(r) || r.kind === 'edge'
+const direction = (r: ConfiguredMateUiReference) => plane(r) || axis(r) || r.kind === 'edge' || r.kind === 'principal-axis'
 const cylinder = (r: ConfiguredMateUiReference) => r.kind === 'face' && r.support === 'cylinder-surface'
 const sphere = (r: ConfiguredMateUiReference) => r.kind === 'face' && r.support === 'sphere-surface'
 export function configuredMateUiRoleLabels(draft: ConfiguredMateDraft): string[] {
@@ -65,7 +65,7 @@ export function configuredMateUiRoleChoices(draft: ConfiguredMateDraft, slot: nu
   return choices.filter(({ reference: r }) => {
     if (draft.type === 'hinge') return slot < 2 ? axis(r) || r.kind === 'edge' : slot < 4 ? plane(r) : r.kind === 'face' && r.support === 'plane'
     if (draft.type === 'width' || ['coincident', 'distance', 'limit-distance'].includes(draft.type)) return plane(r)
-    if (draft.type === 'concentric') return axis(r)
+    if (draft.type === 'concentric') return axis(r) || r.kind === 'principal-axis'
     if (draft.type === 'symmetry') return slot === 2 ? plane(r) : draft.entityKind === 'point' ? r.kind === 'vertex' : draft.entityKind === 'line' ? axis(r) || r.kind === 'edge' : draft.entityKind === 'plane' ? plane(r) : draft.entityKind === 'sphere' ? sphere(r) : cylinder(r)
     if (draft.type === 'tangent') return plane(r) || cylinder(r)
     if (draft.type === 'plane-sphere-tangent') return plane(r) || sphere(r)
@@ -85,6 +85,7 @@ export function configuredMateUiChoices(document: AssemblyConfiguredDocument, sc
   const nodes = [...evaluation.scopes.filter(row => !row.suppressed && inside(row.path)).map(row => ({ path: row.path, definition: row.definition })),
     ...evaluation.parts.filter(row => !row.suppressed && inside(row.path)).map(row => ({ path: row.path, definition: row.definition }))]
   for (const node of [null, ...nodes]) for (const planeName of ['XY', 'XZ', 'YZ'] as const) add({ kind: 'principal-plane', component: node ? { occurrencePath: node.path.slice(scopePath.length), definition: { id: node.definition.id, revision: node.definition.revision } } : null, plane: planeName }, `${node ? node.path.slice(scopePath.length).join(' / ') : 'Ámbito actual'} · plano principal ${planeName}`)
+  for (const node of [null, ...nodes]) for (const axisName of ['X', 'Y', 'Z'] as const) add({ kind: 'principal-axis', component: node ? { occurrencePath: node.path.slice(scopePath.length), definition: { id: node.definition.id, revision: node.definition.revision } } : null, axis: axisName }, `${node ? node.path.slice(scopePath.length).join(' / ') : scopePath.length ? 'Ámbito actual' : 'Raíz'} · eje de origen ${axisName}`)
   for (const body of configuredUiDisplayScene(scene).bodies) {
     if (!body.visible || !inside(body.component.occurrencePath)) continue
     const component = { occurrencePath: body.component.occurrencePath.slice(scopePath.length), definition: { ...body.component.definition } }, label = component.occurrencePath.join(' / ') + ' · ' + body.name

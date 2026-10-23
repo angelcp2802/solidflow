@@ -67,7 +67,7 @@ function table(document: AssemblyDocument): Map<string, AssemblyDefinition> {
 function component(endpoint: Endpoint): AssemblyComponentReference | null {
   return assemblyMateEndpointComponent(endpoint)
 }
-function permitsAssembly(endpoint: Endpoint): boolean { return !isAssemblyProfileCenterEndpoint(endpoint) && !isAssemblyPathEndpoint(endpoint) && ('occurrencePath' in endpoint || endpoint.kind === 'principal-plane') }
+function permitsAssembly(endpoint: Endpoint): boolean { return !isAssemblyProfileCenterEndpoint(endpoint) && !isAssemblyPathEndpoint(endpoint) && ('occurrencePath' in endpoint || endpoint.kind === 'principal-plane' || endpoint.kind === 'principal-axis') }
 interface Trace { terminal?: AssemblyDefinition; boundary?: string[]; stalePath: boolean }
 function trace(node: Node, path: string[], definitions: Map<string, AssemblyDefinition>, source: AssemblyDefinitionReference): Trace {
   let current: AssemblyDefinition = node, boundary: string[] | undefined

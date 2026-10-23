@@ -40,6 +40,10 @@ export function assemblyReplacementChoices(review: AssemblyReplacementReview, en
     })
   }
   if ('occurrencePath' in original) return [{ key: JSON.stringify(component), label: `Marco del componente · ${JSON.stringify(component.occurrencePath)}`, reference: component }]
+  if (original.kind === 'principal-axis') {
+    const reference = { ...structuredClone(original), component }
+    return [{ key: JSON.stringify(reference), label: `Eje de origen ${reference.axis} del componente · ${JSON.stringify(component.occurrencePath)}`, reference }]
+  }
   if (original.kind === 'principal-plane') {
     const reference = { ...structuredClone(original), component }
     return [{ key: JSON.stringify(reference), label: `Plano ${reference.plane} del componente · ${JSON.stringify(component.occurrencePath)}`, reference }]

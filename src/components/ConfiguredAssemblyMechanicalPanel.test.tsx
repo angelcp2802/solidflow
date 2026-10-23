@@ -110,7 +110,10 @@ it.each(families)('compares the complete %s authored intent independently from g
   ]) expect(configuredMechanicalUiPreviewMatches(document, changed)).toBe(false)
   const bodyChanged = structuredClone(intent)
   if (bodyChanged.change.spec.type === 'lock') bodyChanged.change.spec.first.definition.revision = 'stale'
-  else bodyChanged.change.spec.first.body = { sourceFeatureId: 'solid', bodyId: 'other-body' }
+  else {
+    if (bodyChanged.change.spec.first.kind !== 'face' || bodyChanged.change.spec.first.support !== 'axis') throw Error('Original material cylinder axis required')
+    bodyChanged.change.spec.first.body = { sourceFeatureId: 'solid', bodyId: 'other-body' }
+  }
   expect(configuredMechanicalUiPreviewMatches(document, bodyChanged)).toBe(false)
   // This is declared UI data, not evidence of capture or Apply. A native
   // producer may generate different valid captures without changing intent.

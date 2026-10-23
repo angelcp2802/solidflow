@@ -35,6 +35,7 @@ function field(value: AssemblyGeometryReference, name: string): unknown {
 export function assemblyDirectionReferenceKind(reference: AssemblyGeometryReference): AssemblyDirectionSupportKind {
   const kind = field(reference, 'kind')
   if (kind === 'principal-plane') return 'plane'
+  if (kind === 'principal-axis') return 'line'
   const support = field(reference, 'support')
   if (kind === 'face' && support === 'plane') return 'plane'
   if (kind === 'face' && support === 'axis') return 'cylinder'

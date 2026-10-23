@@ -70,6 +70,12 @@ export interface AssemblyEdgeReference {
   edge: EdgeReference
   support: 'line'
 }
+/** Analytic datum line through the declaring frame's origin; no material radius. */
+export interface AssemblyPrincipalAxisReference {
+  kind: 'principal-axis'
+  component: AssemblyComponentReference | null
+  axis: 'X' | 'Y' | 'Z'
+}
 /** Point purpose is separate from directional references and explicit datums. */
 export interface AssemblyVertexReference {
   kind: 'vertex'
@@ -79,9 +85,10 @@ export interface AssemblyVertexReference {
   vertex: VertexReference
   support: 'point'
 }
-export type AssemblyGeometryReference = AssemblyFaceReference | AssemblyPrincipalPlaneReference | AssemblyEdgeReference
+export type AssemblyGeometryReference = AssemblyFaceReference | AssemblyPrincipalPlaneReference | AssemblyPrincipalAxisReference | AssemblyEdgeReference
 export type AssemblyPlaneReference = AssemblyPrincipalPlaneReference | (AssemblyFaceReference & { support: 'plane' })
 export type AssemblyAxisReference = AssemblyFaceReference & { support: 'axis' }
+export type AssemblyConcentricReference = AssemblyAxisReference | AssemblyPrincipalAxisReference
 export type AssemblyRackReference = AssemblyAxisReference | AssemblyEdgeReference
 /** Explicit surface intent. Existing axis and generic geometry references stay unchanged. */
 export type AssemblyCylinderSurfaceReference = Omit<AssemblyFaceReference, 'support'> & { support: 'cylinder-surface' }
@@ -112,7 +119,7 @@ export type AssemblyBinaryMate =
   | AssemblyLimitDistanceMate
   | AssemblyCylinderTangentMate
   | AssemblySphereTangentMate
-  | (AssemblyMateBase & { type: 'concentric'; first: AssemblyAxisReference; second: AssemblyAxisReference;
+  | (AssemblyMateBase & { type: 'concentric'; first: AssemblyConcentricReference; second: AssemblyConcentricReference;
       alignment: 'aligned' | 'opposed'; rotationLock: Quaternion | null })
   | (AssemblyMateBase & { type: 'coincident'; first: AssemblyPlaneReference; second: AssemblyPlaneReference;
       alignment: 'aligned' | 'opposed' })
@@ -306,6 +313,11 @@ function componentReference(value: unknown, path: string): AssemblyComponentRefe
 function geometryReference(value: unknown, path: string): AssemblyGeometryReference {
   if (!value || typeof value !== 'object') fail(path, 'referencia geométrica no válida')
   const kind = (value as Record<string, unknown>).kind
+  if (kind === 'principal-axis') {
+    const source = record(value, path, ['kind', 'component', 'axis'])
+    if (!['X', 'Y', 'Z'].includes(source.axis as string)) fail(path + '.axis', 'eje principal desconocido')
+    return { kind, component: source.component === null ? null : componentReference(source.component, path + '.component'), axis: source.axis as 'X' | 'Y' | 'Z' }
+  }
   if (kind === 'principal-plane') {
     const source = record(value, path, ['kind', 'component', 'plane'])
     if (!['XY', 'XZ', 'YZ'].includes(source.plane as string)) fail(path + '.plane', 'plano principal desconocido')
@@ -530,9 +542,17 @@ function mate(value: unknown, path: string): AssemblyMate {
     ...validateAssemblyGearData({ ratio: source.ratio, direction: source.direction, neutralRotations: source.neutralRotations, angles: source.angles, phase: source.phase }) }
   if (type === 'lock') return { ...common, type, first: componentReference(source.first, path + '.first'),
     second: componentReference(source.second, path + '.second'), relativePose: validateRigidPose(source.relativePose, path + '.relativePose') }
-  if (type === 'concentric') return { ...common, type, first: axisReference(source.first, path + '.first'),
-    second: axisReference(source.second, path + '.second'), alignment: alignment(source.alignment, path + '.alignment'),
-    rotationLock: source.rotationLock === null ? null : validateRigidPose({ translation: [0, 0, 0], rotation: source.rotationLock }, path + '.rotationLock').rotation }
+  if (type === 'concentric') {
+    const concentric = (value: unknown, endpointPath: string): AssemblyConcentricReference => {
+      const ref = geometryReference(value, endpointPath)
+      return ref.kind === 'principal-axis' ? ref : axisReference(value, endpointPath)
+    }
+    const first = concentric(source.first, path + '.first'), second = concentric(source.second, path + '.second')
+    if (source.rotationLock !== null && (first.kind === 'principal-axis' || second.kind === 'principal-axis'))
+      fail(path + '.rotationLock', 'el bloqueo de giro requiere dos ejes de caras cilíndricas; los ejes principales sólo admiten giro libre')
+    return { ...common, type, first, second, alignment: alignment(source.alignment, path + '.alignment'),
+      rotationLock: source.rotationLock === null ? null : validateRigidPose({ translation: [0, 0, 0], rotation: source.rotationLock }, path + '.rotationLock').rotation }
+  }
   if (type === 'limit-distance') return { ...common, type, first: planeReference(source.first, path + '.first'), second: planeReference(source.second, path + '.second'),
     alignment: alignment(source.alignment, path + '.alignment'), limits: validateAssemblyLimitDistanceLimits(source.limits) }
   if (type === 'coincident' || type === 'distance') {

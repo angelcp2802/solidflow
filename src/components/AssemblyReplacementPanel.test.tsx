@@ -1,3 +1,4 @@
+import { isAssemblyProfileCenterEndpoint } from '../model/assemblyMateEndpoints'
 import { expect, it } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import AssemblyReplacementPanel, { assemblyReplacementChoices, assemblyReplacementPending, replacementEndpointKey } from './AssemblyReplacementPanel'
@@ -31,8 +32,8 @@ it('repairs a profile role atomically with an explicit current face, LINE and ei
   expect(choices).toHaveLength(2)
   for(const [i,sense]of [1,-1].entries())expect(choices[i].reference).toEqual({face:{component:endpoint.desiredComponent,body:body.body,face:face.selection.face},axis:{edge:body.edges[0].selection.edge,sense}})
   expect(choices[0].key).not.toBe(choices[1].key);expect(review).toEqual(before)
-  const reference=choices[0].reference;if(!('axis'in reference))throw Error('Compound role required')
-  reference.face.component.occurrencePath[0]='changed';reference.axis!.sense=-1;expect(review).toEqual(before)
+  const reference=choices[0].reference;if(!isAssemblyProfileCenterEndpoint(reference) || !reference.axis)throw Error('Material profile axis required')
+  reference.face.component.occurrencePath[0]='changed';reference.axis.sense=-1;expect(review).toEqual(before)
   endpoint.endpoint={...endpoint.endpoint,axis:null};expect(assemblyReplacementChoices(review,endpoint)).toHaveLength(1)
 })
 function pointReplacement():AssemblyReplacementReview{

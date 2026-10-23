@@ -79,7 +79,7 @@ function gear(document: AssemblyDocument): Extract<AssemblyMate, { type: 'gear' 
 }
 function request(document: AssemblyDocument, ratio = { numerator: 1, denominator: 2 }): AssemblyGearCaptureRequest {
   const first = document.mates.find(value => value.id === 'left-axis'), second = document.mates.find(value => value.id === 'right-axis')
-  if (first?.type !== 'concentric' || second?.type !== 'concentric') throw new Error('Original bearing references missing')
+  if (first?.type !== 'concentric' || second?.type !== 'concentric' || first.first.kind !== 'face' || second.first.kind !== 'face') throw new Error('Original bearing references missing')
   return { first: structuredClone(first.first), second: structuredClone(second.first), carrier: { occurrencePath: ['plate'], definition: { id: 'example-plate', revision: 'r1' } },
     ratio, direction: 'opposed', name: 'Original captured gear' }
 }
