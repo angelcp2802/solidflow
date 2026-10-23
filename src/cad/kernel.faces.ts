@@ -1,7 +1,9 @@
-import { measureShapeSurfaceProperties, type Face, type Shape3D } from 'replicad';
+import { getOC, measureShapeSurfaceProperties, type Face, type Shape3D } from 'replicad';
 import type { FaceReference, PickableFace, PlaneFrame, Vec3 } from './kernel.types';
 import { clonePlaneFrame, planarFaceFrame } from './kernel.frames';
 import { namingDigest } from './kernel.naming';
+import { withNativeOwners } from './kernel.native-ownership';
+import { ownedNativeTopology } from './kernel.native-topology';
 
 export interface FaceDescriptor { ref: FaceReference; frame: PlaneFrame | null }
 export interface FaceCatalog {
@@ -17,53 +19,80 @@ function histogram(types: string[]): [string, number][] {
   return [...counts].sort(([a], [b]) => compareText(a, b));
 }
 
+/** Preserve the SDK's two sampling maps without its GC-only native temporaries. */
+function ownedPlanarCatalogFrame(face: Face): PlaneFrame {
+  return withNativeOwners(owners => {
+    const oc = getOC(), raw = face.wrapped;
+    const normalBounds = oc.BRepTools.UVBounds(raw, 0, 0, 0, 0);
+    const normalPoint = owners.own(new oc.gp_Pnt()), normal = owners.own(new oc.gp_Vec()),
+      normalQuery = owners.own(new oc.BRepGProp_Face(raw, false));
+    normalQuery.Normal(.5 * (normalBounds.UMin + normalBounds.UMax),
+      .5 * (normalBounds.VMin + normalBounds.VMax), normalPoint, normal);
+    const outward: Vec3 = [normal.X(), normal.Y(), normal.Z()];
+    const pointBounds = oc.BRepTools.UVBounds(raw, 0, 0, 0, 0);
+    const surface = owners.own(new oc.BRepAdaptor_Surface(raw, false)), point = owners.own(new oc.gp_Pnt());
+    surface.D0(.5 * (pointBounds.UMax - pointBounds.UMin) + pointBounds.UMin,
+      .5 * (pointBounds.VMax - pointBounds.VMin) + pointBounds.VMin, point);
+    return planarFaceFrame([point.X(), point.Y(), point.Z()], outward);
+  }, undefined, 'Native face frame query or release failed.');
+}
+
 /** No enumeration indices or native hashes persist. Rebinding requires one exact key. */
 export function createFaceCatalog(shape: Shape3D, sourceFeatureId: string, lineage = ''): FaceCatalog {
-  const faces = shape.faces, allEdges = shape.edges, solids = shape.solids;
-  const box = shape.boundingBox;
-  try {
+  return withNativeOwners(owners => {
+    // Enumeration transfers every returned wrapper. Adopt the complete array
+    // before a later enumeration or descriptor query can fail; shape stays borrowed.
+    const faces = ownedNativeTopology(shape, 'face'); owners.ownAll(faces);
+    const allEdges = ownedNativeTopology(shape, 'edge'); owners.ownAll(allEdges);
+    const solids = ownedNativeTopology(shape, 'solid'); owners.ownAll(solids);
+    const box = owners.own(shape.boundingBox);
     const [minimum, maximum] = box.bounds;
     const spans = maximum.map((value, axis) => value - minimum[axis]);
     const normalize = (point: Vec3) => point.map((value, axis) => round((value - minimum[axis]) / (spans[axis] || 1)));
+    const faceTypes = faces.map(face => withNativeOwners(typeOwners => typeOwners.own(face.surface).surfaceType,
+      undefined, 'Native face type query or release failed.'));
     const topology = [faces.length, allEdges.length, solids.length,
-      histogram(faces.map((face) => face.geomType)), histogram(allEdges.map((edge) => edge.geomType))];
-    const entries = faces.map((face) => {
-      const faceBox = face.boundingBox;
-      const properties = measureShapeSurfaceProperties(face);
-      const edges = face.edges, wires = face.wires;
-      try {
-        let frame: PlaneFrame | null = null;
-        if (face.geomType === 'PLANE') {
-          const normal = face.normalAt(), point = face.pointOnSurface(.5, .5);
-          try { frame = planarFaceFrame(point.toTuple(), normal.toTuple()); }
-          finally { normal.delete(); point.delete(); }
-        }
-        const boundary = edges.map((edge) => {
-          const edgeBox = edge.boundingBox;
-          try {
-            const parameters = edge.isClosed ? [0, .125, .25, .375, .5, .625, .75, .875]
-              : edge.geomType === 'LINE' ? [0, .5, 1] : [0, .25, .5, .75, 1];
-            const samples = parameters.map((parameter) => {
-              const point = edge.pointAt(parameter);
-              try { return normalize(point.toTuple()); } finally { point.delete(); }
-            });
-            return [edge.geomType, edge.isClosed, edgeBox.bounds.map(normalize), sorted(samples)];
-          } finally { edgeBox.delete(); }
-        });
-        const descriptor = [lineage, topology, face.geomType, frame?.normal.map(round) ?? null, frame?.xDirection.map(round) ?? null,
-          faceBox.bounds.map(normalize), normalize(properties.centerOfMass), wires.length, sorted(boundary)];
-        return { face, frame, ref: { sourceFeatureId, key: 'face-v1|' + namingDigest(JSON.stringify(descriptor)) } };
-      } finally {
-        faceBox.delete(); properties.delete(); edges.forEach((edge) => edge.delete()); wires.forEach((wire) => wire.delete());
+      histogram(faceTypes), histogram(allEdges.map((edge) => withNativeOwners(curveOwners => {
+        // Edge convenience getters allocate hidden adaptors with GC-only lifetimes.
+        const curve = curveOwners.own(edge.curve);
+        return curve.curveType;
+      }, undefined, 'Native face topology edge query or release failed.')))];
+    const entries = faces.map((face, index) => withNativeOwners(faceOwners => {
+      const faceBox = faceOwners.own(face.boundingBox);
+      const properties = faceOwners.own(measureShapeSurfaceProperties(face));
+      const edges = ownedNativeTopology(face, 'edge'); faceOwners.ownAll(edges);
+      const wires = ownedNativeTopology(face, 'wire'); faceOwners.ownAll(wires);
+      let frame: PlaneFrame | null = null;
+      if (faceTypes[index] === 'PLANE') {
+        frame = ownedPlanarCatalogFrame(face);
       }
-    });
-    return { entries, dispose: () => faces.forEach((face) => face.delete()) };
-  } catch (error) {
-    faces.forEach((face) => face.delete());
-    throw error;
-  } finally {
-    box.delete(); allEdges.forEach((edge) => edge.delete()); solids.forEach((solid) => solid.delete());
-  }
+      const boundary = edges.map((edge) => withNativeOwners(edgeOwners => {
+        const edgeBox = edgeOwners.own(edge.boundingBox);
+        const curve = edgeOwners.own(edge.curve), curveType = curve.curveType, closed = curve.isClosed;
+        const parameters = closed ? [0, .125, .25, .375, .5, .625, .75, .875]
+          : curveType === 'LINE' ? [0, .5, 1] : [0, .25, .5, .75, 1];
+        const samples = parameters.map((parameter) => withNativeOwners(pointOwners => {
+          // Keep the exact upstream parameter map without its hidden gp_Pnt/XYZ clones.
+          const first = curve.wrapped.FirstParameter();
+          const point = pointOwners.own(curve.wrapped.Value(first + (curve.wrapped.LastParameter() - first) * parameter));
+          return normalize([point.X(), point.Y(), point.Z()]);
+        }, undefined, 'Native face edge sample query or release failed.'));
+        return [curveType, closed, edgeBox.bounds.map(normalize), sorted(samples)];
+      }, undefined, 'Native face boundary query or release failed.'));
+      // Own the actual gp_Pnt instead of deferring its release through centerOfMass.
+      const center = faceOwners.own(properties.wrapped.CentreOfMass());
+      const centerCoordinates: Vec3 = [center.X(), center.Y(), center.Z()];
+      const descriptor = [lineage, topology, faceTypes[index], frame?.normal.map(round) ?? null, frame?.xDirection.map(round) ?? null,
+        faceBox.bounds.map(normalize), normalize(centerCoordinates), wires.length, sorted(boundary)];
+      return { face, frame, ref: { sourceFeatureId, key: 'face-v1|' + namingDigest(JSON.stringify(descriptor)) } };
+    }, undefined, 'Native face descriptor query or release failed.'));
+    let disposed = false;
+    return { entries, dispose: () => {
+      if (disposed) return;
+      disposed = true;
+      withNativeOwners(disposeOwners => { disposeOwners.ownAll(faces); }, undefined, 'Native face catalog release failed.');
+    } };
+  }, catalog => catalog.entries.map(entry => entry.face), 'Native face catalog construction or release failed.');
 }
 
 /** Historical catalogs may contain only copied keys/frames, never live native objects. */
@@ -96,12 +125,21 @@ export function resolveSelectedFaces(catalog: FaceCatalog, references: FaceRefer
   });
 }
 
+/** Borrow an owned current catalog; metadata never aliases its native identities or frames. */
+export function pickableFacesFromCatalog(catalog: {
+  readonly entries: readonly { face: Face; frame: PlaneFrame | null; ref: FaceReference; aliases?: readonly FaceReference[] }[];
+}): PickableFace[] {
+  return catalog.entries.map(({ face, frame, ref, aliases }) => {
+    const mesh = face.mesh({ tolerance: .05, angularTolerance: .12 });
+    return { ref: { ...ref }, ...(aliases ? { aliases: aliases.map(alias => ({ ...alias })) } : {}),
+      frame: frame ? clonePlaneFrame(frame) : null, vertices: mesh.vertices, triangles: mesh.triangles };
+  });
+}
+
 export function pickableFaces(shape: Shape3D, sourceFeatureId: string, lineage = ''): PickableFace[] {
-  const catalog = createFaceCatalog(shape, sourceFeatureId, lineage);
-  try {
-    return catalog.entries.map(({ face, frame, ref }) => {
-      const mesh = face.mesh({ tolerance: .05, angularTolerance: .12 });
-      return { ref, frame, vertices: mesh.vertices, triangles: mesh.triangles };
-    });
-  } finally { catalog.dispose(); }
+  return withNativeOwners(owners => {
+    const catalog = createFaceCatalog(shape, sourceFeatureId, lineage);
+    owners.own({ delete: () => catalog.dispose() });
+    return pickableFacesFromCatalog(catalog);
+  }, undefined, 'Native pickable faces query or release failed.');
 }

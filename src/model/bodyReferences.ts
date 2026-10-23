@@ -38,6 +38,7 @@ export function featureCurrentBodyReferences(feature: Feature): BodyReference[] 
 
 /** IDs allocated by this command, including when the feature is suppressed. */
 export function createdBodyIds(feature: Feature): string[] {
+  if (feature.type === 'importedBodies') return feature.bodies.map(body => body.bodyId)
   if ((feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror') && feature.bodyPattern?.mode === 'new') {
     return feature.bodyPattern.instances.map(instance => instance.bodyId)
   }

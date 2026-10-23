@@ -1,10 +1,10 @@
 import initOpenCascade from 'replicad-opencascadejs';
 import wasmUrl from 'replicad-opencascadejs/wasm?url';
 import { setOC } from 'replicad';
-import { CadEngine } from './kernel.engine';
+import { KernelDispatcher } from './kernel.dispatcher';
 import type { KernelRequest, KernelResponse } from './kernel.types';
 
-const engine = new CadEngine();
+const dispatcher = new KernelDispatcher();
 let initialized: Promise<void> | null = null;
 
 function initialize(): Promise<void> {
@@ -16,7 +16,8 @@ function initialize(): Promise<void> {
   return initialized;
 }
 
-// Serialize builds and exports so an export always follows the latest queued rebuild.
+// Serialize native commands. A committed export reconstructs its explicit
+// snapshot independently of preceding display builds or assembly previews.
 let queue: Promise<void> = Promise.resolve();
 self.onmessage = (event: MessageEvent<KernelRequest>) => {
   const request = event.data;
@@ -24,9 +25,7 @@ self.onmessage = (event: MessageEvent<KernelRequest>) => {
     let response: KernelResponse;
     try {
       await initialize();
-      const value = request.action === 'build'
-        ? engine.build(request.features)
-        : request.action === 'export' ? engine.export(request.format, request.features) : null;
+      const value = dispatcher.handle(request);
       response = { id: request.id, ok: true, value };
     } catch (error) {
       response = {

@@ -1,13 +1,16 @@
+import { validateImportedBodiesFeature } from '../model/document';
+import { observeAssemblyArcPath, evaluateAssemblyArcPath, type AssemblyArcPathCurve, type AssemblyArcPathEvaluation } from './kernel.assembly-arc-path';
+import { observeAssemblyLinePath, type AssemblyLinePathCurve } from './kernel.assembly-line-path';
 import {
   getOC,
+  cast,
   makeCompound,
   measureShapeVolumeProperties,
-  sketchCircle,
-  sketchRectangle,
-  Plane as ReplicadPlane,
   type Shape3D,
   type Sketch,
   type Edge,
+  type Vertex,
+  type Face,
 } from 'replicad';
 import type {
   CadExportFormat,
@@ -15,6 +18,8 @@ import type {
   Feature,
   EdgeFinishFeature,
   FaceReference,
+  EdgeReference,
+  VertexReference,
   BodyReference,
   ExtrudeFeature,
   Plane,
@@ -24,17 +29,24 @@ import type {
   RevolveFeature,
   Vec3,
 } from './kernel.types';
-import { createEdgeCatalog, pickableEdges, resolveEdgeReferences } from './kernel.edges';
+import { createEdgeCatalog, pickableEdges, pickableEdgesFromCatalog, resolveEdgeReferences, type EdgeCatalog } from './kernel.edges';
 import { advanceLineage } from './kernel.naming';
 import { entityProfileSolid, entityProfileStructure, entityRevolutionSide, solveEntityProfile } from './kernel.profiles';
 import { sketchVisual } from './kernel.sketch-visual';
-import { createFaceCatalog, pickableFaces, resolveSelectedFaces, type FaceCatalog, type FaceDescriptor } from './kernel.faces';
-import { clonePlaneFrame, framePoint, frameYDirection, offsetPlaneFrame, principalPlaneFrame } from './kernel.frames';
+import { createFaceCatalog, pickableFaces, pickableFacesFromCatalog, resolveSelectedFaces, type FaceCatalog, type FaceDescriptor } from './kernel.faces';
+import { clonePlaneFrame, frameYDirection, offsetPlaneFrame, principalPlaneFrame } from './kernel.frames';
+import { makeOwnedPrimitiveSketch } from './kernel.primitive-sketch';
 import { loftSolid, sweepSolid } from './kernel.sweep-loft';
 import { geometryDelta, isRepetition, patternPlan, repetitionSolid, type FeatureGeometry } from './kernel.patterns';
 import { draftSolid, shellSolid } from './kernel.face-operations';
 import { throughAllBossTool, throughAllTool, untilNextTool, upToSurfaceTool } from './kernel.extrusion-limits';
-import { isNativeCleanupFailure, NativeCleanupError, NativeOwners } from './kernel.native-ownership';
+import { isNativeCleanupFailure, NativeCleanupError, NativeOwners, withNativeOwners } from './kernel.native-ownership';
+import { extractAssemblyFaceSupport, extractAssemblyDirectionFaceSupport, extractAssemblyCylinderSurfaceSupport, extractAssemblySphereSurfaceSupport, extractAssemblyEdgeSupport, extractAssemblyVertexSupport, UnsupportedAssemblyCurveError, type AssemblyNativeFaceSupport, type AssemblyNativeCylinderSurfaceSupport, type AssemblyNativeSphereSurfaceSupport, type AssemblyNativeLineSupport, type AssemblyNativePointSupport } from './kernel.assembly-supports';
+import { extractAssemblyProfileSupport, extractAssemblyRectangleAxisSupport, type AssemblyNativeProfileSupport, type AssemblyNativeRectangleAxisSupport } from './kernel.assembly-profile-supports';
+import { observeAssemblyPathCurve, evaluateAssemblyPathCurve, type AssemblyPathCurveObservation, type AssemblyPathCurveEvaluation, type AssemblyPathCurveCoordinate, type AssemblyPathCurveBands } from './kernel.assembly-path-curves';
+import { validateAssemblyShape } from './kernel.assembly-placements';
+import { ownedNativeTopology } from './kernel.native-topology';
+import { createVertexCatalog, pickableVerticesFromCatalog, resolveVertexReference, type VertexCatalog } from './kernel.vertices';
 import { evaluateFeatureRecipes, stageFeatureRecipeEvaluation, type NativeRecipeSourceState } from './kernel.feature-recipes';
 import type { RegenerationRequest } from '../model/featureRecipes';
 import { createSourceSketchSolveRegistry, resolveSourceSketchSupport } from './kernel.sketch-solves';
@@ -53,7 +65,7 @@ import {
   createSemanticFaceCatalog, createSemanticEdgeCatalog, preparePrismReferencesV2,
   pickableSemanticFaces, pickableSemanticEdges,
   resolveSemanticSelectedFaces, resolveSemanticEdgeReferences,
-  type PrismReferences, type SemanticFaceCatalog, type SemanticFaceDescriptor,
+  type PrismReferences, type SemanticFaceCatalog, type SemanticEdgeCatalog, type SemanticFaceDescriptor,
 } from './kernel.semantic-catalogs';
 
 const MESH_OPTIONS = { tolerance: 0.05, angularTolerance: 0.12 };
@@ -61,6 +73,16 @@ const MIN_LENGTH = 0.01;
 const MAX_LENGTH = 100_000;
 class BodyStateReleaseError extends AggregateError {}
 class BodyStatePublicationError extends Error {}
+
+type AssemblyReferenceShapeInventory =
+  | { kind: 'empty' }
+  | { kind: 'legacy'; faces: FaceReference[]; edges: EdgeReference[]; vertexRefs: VertexReference[] }
+  | { kind: 'explicit'; bodies: { ref: BodyReference; faces: FaceReference[]; edges: EdgeReference[]; vertexRefs: VertexReference[] }[] };
+/** Native current topology only; no tessellation or renderer DTO is implied. */
+export type AssemblyReferenceInventory = AssemblyReferenceShapeInventory & {
+  featureErrors: CadResult['featureErrors'];
+  warnings: string[];
+};
 
 /** Raw worker callers must obey the same body-operation shape as saved documents. */
 function validateBodyOperationDeclaration(feature: Extract<Feature, { type: 'extrude' | 'revolve' | 'sweep' | 'loft' }>): void {
@@ -119,20 +141,7 @@ function validateSketch(feature: SketchFeature): SketchFeature {
 }
 
 function makeSketch(feature: SketchFeature, offset = feature.offset, frame?: PlaneFrame): Sketch {
-  const { profile, plane } = feature;
-  if (profile.kind === 'entities') throw new Error('El croquis multientidad requiere construir sus contornos.');
-  if (frame) {
-    const nativePlane = new ReplicadPlane(framePoint(frame, profile.center[0], profile.center[1]), frame.xDirection, frame.normal);
-    try {
-      return profile.kind === 'rectangle' ? sketchRectangle(profile.width, profile.height, { plane: nativePlane })
-        : sketchCircle(profile.radius, { plane: nativePlane });
-    } finally { nativePlane.delete(); }
-  }
-  const origin = onPlane(plane, profile.center[0], profile.center[1], offset);
-  const config = { plane, origin };
-  return profile.kind === 'rectangle'
-    ? sketchRectangle(profile.width, profile.height, config)
-    : sketchCircle(profile.radius, config);
+  return makeOwnedPrimitiveSketch(feature, offset, frame);
 }
 
 function shapeVolume(shape: Shape3D): number {
@@ -160,9 +169,27 @@ function validateNativeSolid(shape: Shape3D): number {
 }
 
 function requireSingleSolid(shape: Shape3D, message: string): void {
-  const solids = shape.solids;
+  const solids = ownedNativeTopology(shape, 'solid');
   try { if (solids.length !== 1) throw new Error(message); }
   finally { solids.forEach((solid) => solid.delete()); }
+}
+
+/** Borrow the existing primitive sketch; retain only the completed solid. */
+function extrudePrimitiveSketch(sketch: Sketch, depth: number): Shape3D {
+  return withNativeOwners(owners => {
+    const oc = getOC(), faceMaker = owners.own(new oc.BRepBuilderAPI_MakeFace(sketch.wire.wrapped, false));
+    if (!faceMaker.IsDone()) throw new Error('Failed to build the face. Your wire might be non planar.');
+    const face = owners.own(faceMaker.Face()), vector = owners.own(new oc.gp_Vec(...sketch.defaultDirection.toTuple()));
+    // Match the SDK's normalize-then-multiply arithmetic without temporary
+    // Replicad Vector/XYZ wrappers or consuming the borrowed sketch direction.
+    vector.Normalize(); vector.Multiply(depth);
+    const prism = owners.own(new oc.BRepPrimAPI_MakePrism(face, vector, false, true));
+    if (!prism.IsDone()) throw new Error('OpenCascade no ha completado la extrusión.');
+    const raw = owners.own(prism.Shape()), result = owners.own(cast(raw));
+    // cast owns a separate downcast wrapper; the raw result remains owned too.
+    if (result.wrapped.ShapeType() !== oc.TopAbs_ShapeEnum.TopAbs_SOLID) throw new Error('La extrusión no produce un sólido.');
+    return result.asShape3D();
+  }, result => [result], 'Primitive extrusion construction or release failed.');
 }
 
 function featureSolid(feature: ExtrudeFeature | RevolveFeature, sketchFeature: SketchFeature, resolvedFrame: PlaneFrame, validateDepth = true): Shape3D {
@@ -204,7 +231,7 @@ function featureSolid(feature: ExtrudeFeature | RevolveFeature, sketchFeature: S
   }
   const sketch = makeSketch(sketchFeature, startOffset, startFrame);
   try {
-    return sketch.extrude(feature.depth);
+    return extrudePrimitiveSketch(sketch, feature.depth);
   } finally {
     sketch.delete();
   }
@@ -313,20 +340,397 @@ export class CadEngine {
   private shape: Shape3D | null = null;
   private bodyCatalog: NativeBodyCatalog | null = null;
   private hasErrors = false;
+  private inspectionReady = false;
+  private inspectionEpoch = 0;
+  private finalState: { sourceFeatureId: string; lineage: string } | null = null;
+  private finalSemanticFaces: SemanticFaceCatalog | null = null;
+  private finalSemanticEdges: SemanticEdgeCatalog | null = null;
+  private currentFaceCatalogs = new Map<string, FaceCatalog>();
+  private currentEdgeCatalogs = new Map<string, EdgeCatalog>();
+  private currentVertexCatalogs = new Map<string, VertexCatalog>();
+
+  private retainCurrentVertexCatalog(shape: Shape3D, sourceFeatureId: string, lineage: string, identity: string,
+    faces: readonly { face: Face; ref: FaceReference }[], edges: readonly { edge: Edge; ref: EdgeReference }[]): VertexCatalog {
+    const existing = this.currentVertexCatalogs.get(identity);
+    if (existing) return existing;
+    return withNativeOwners(owners => {
+      const catalog = createVertexCatalog(shape, sourceFeatureId, lineage, faces, edges), lease = owners.own({ delete: () => catalog.dispose() });
+      this.currentVertexCatalogs.set(identity, catalog);
+      return { catalog, lease };
+    }, value => [value.lease], 'Current vertex catalog construction or release failed.').catalog;
+  }
+
+  private retainCurrentFaceCatalog(shape: Shape3D, sourceFeatureId: string, lineage: string, identity: string): FaceCatalog {
+    const existing = this.currentFaceCatalogs.get(identity);
+    if (existing) return existing;
+    return withNativeOwners(owners => {
+      const catalog = createFaceCatalog(shape, sourceFeatureId, lineage), lease = owners.own({ delete: () => catalog.dispose() });
+      this.currentFaceCatalogs.set(identity, catalog);
+      return { catalog, lease };
+    }, value => [value.lease], 'Current face catalog construction or release failed.').catalog;
+  }
+
+  /** Build-time ownership only; inspection stays sealed until producer cleanup succeeds. */
+  private retainCurrentEdgeCatalog(shape: Shape3D, sourceFeatureId: string, lineage: string, identity: string): EdgeCatalog {
+    const existing = this.currentEdgeCatalogs.get(identity);
+    if (existing) return existing;
+    return withNativeOwners(owners => {
+      const catalog = createEdgeCatalog(shape, sourceFeatureId, lineage), lease = owners.own({ delete: () => catalog.dispose() });
+      this.currentEdgeCatalogs.set(identity, catalog);
+      return { catalog, lease };
+    }, value => [value.lease], 'Current edge catalog construction or release failed.').catalog;
+  }
 
   dispose(): void {
     const shape = this.shape;
     const catalog = this.bodyCatalog;
+    const faces = this.finalSemanticFaces;
+    const edges = this.finalSemanticEdges;
+    const currentFaces = [...this.currentFaceCatalogs.values()]; this.currentFaceCatalogs.clear();
+    const currentEdges = [...this.currentEdgeCatalogs.values()]; this.currentEdgeCatalogs.clear();
+    const currentVertices = [...this.currentVertexCatalogs.values()]; this.currentVertexCatalogs.clear();
+    this.inspectionReady = false;
+    this.inspectionEpoch++;
+    this.finalState = null;
+    this.finalSemanticFaces = null;
+    this.finalSemanticEdges = null;
     this.shape = null;
     this.bodyCatalog = null;
     this.hasErrors = false;
     const failures: unknown[] = [];
+    for (const current of currentVertices.reverse()) { try { current.dispose(); } catch (error) { failures.push(error); } }
+    try { faces?.dispose(); } catch (error) { failures.push(error); }
+    try { edges?.dispose(); } catch (error) { failures.push(error); }
+    for (const current of currentFaces.reverse()) { try { current.dispose(); } catch (error) { failures.push(error); } }
+    for (const current of currentEdges.reverse()) { try { current.dispose(); } catch (error) { failures.push(error); } }
     try { shape?.delete(); } catch (error) { failures.push(error); }
     try { catalog?.dispose(); } catch (error) { failures.push(error); }
     if (failures.length) throw new AggregateError(failures, 'Native engine release failed.');
   }
 
+  /** Numeric analytic geometry only. Native faces never escape this adapter. */
+  inspectCurrentFaceSupport(reference: FaceReference, bodyReference: BodyReference | null): AssemblyNativeFaceSupport {
+    return this.inspectCurrentFaceValue(reference, bodyReference, extractAssemblyFaceSupport);
+  }
+
+  /** Fresh bounded-profile measurement, distinct from the directional plane purpose. */
+  inspectCurrentProfileSupport(reference: FaceReference, bodyReference: BodyReference | null,
+    bands?: { lengthToleranceMm?: number; angleToleranceRad?: number }): AssemblyNativeProfileSupport {
+    return this.inspectCurrentFaceValue(reference, bodyReference, face => extractAssemblyProfileSupport(face, bands));
+  }
+
+  /** One current body/catalog epoch binds BOTH identities and exact incidence.
+   * Separate face and LINE observations cannot authenticate a profile axis. */
+  inspectCurrentProfileAxisSupport(faceReference: FaceReference, edgeReference: EdgeReference, bodyReference: BodyReference | null,
+    sense: 1 | -1, bands?: { lengthToleranceMm?: number; angleToleranceRad?: number }): AssemblyNativeRectangleAxisSupport {
+    if (faceReference.sourceFeatureId !== edgeReference.sourceFeatureId) throw new Error('La cara y la arista de perfil pertenecen a estados distintos.');
+    return this.inspectCurrentFaceValue(faceReference, bodyReference, face => {
+      const entry = bodyReference === null ? null : this.bodyCatalog!.resolve(bodyReference);
+      const sourceFeatureId = entry?.ref.sourceFeatureId ?? this.finalState!.sourceFeatureId;
+      if (sourceFeatureId !== edgeReference.sourceFeatureId) throw new Error('La arista de perfil no pertenece al estado final vigente.');
+      if (bodyReference === null && this.finalSemanticEdges) {
+        const edge = resolveSemanticEdgeReferences(this.finalSemanticEdges, [edgeReference], sourceFeatureId)[0];
+        return extractAssemblyRectangleAxisSupport(face, edge, sense, bands);
+      }
+      return withNativeOwners(owners => {
+        const identity = entry ? JSON.stringify(entry.ref) : JSON.stringify(['legacy', sourceFeatureId, this.finalState!.lineage]);
+        const retained = this.currentEdgeCatalogs.get(identity);
+        const catalog = retained ?? createEdgeCatalog(entry?.shape ?? this.shape!, sourceFeatureId, entry?.lineage ?? this.finalState!.lineage);
+        if (!retained) owners.own({ delete: () => catalog.dispose() });
+        const edge = resolveEdgeReferences(catalog, [edgeReference], sourceFeatureId)[0];
+        return extractAssemblyRectangleAxisSupport(face, edge, sense, bands);
+      }, undefined, 'Current profile face/edge inspection or release failed.');
+    });
+  }
+
+  /** Exact current direction purpose; a plane is remeasured from oriented D1. */
+  inspectCurrentDirectionFaceSupport(reference: FaceReference, bodyReference: BodyReference | null): AssemblyNativeFaceSupport {
+    return this.inspectCurrentFaceValue(reference, bodyReference, extractAssemblyDirectionFaceSupport);
+  }
+
+  /** Fresh explicit surface-purpose observation; never substitutes for a derived axis. */
+  inspectCurrentCylinderSurfaceSupport(reference: FaceReference, bodyReference: BodyReference | null): AssemblyNativeCylinderSurfaceSupport {
+    return this.inspectCurrentFaceValue(reference, bodyReference, extractAssemblyCylinderSurfaceSupport);
+  }
+
+  /** Fresh spherical purpose; no parameter axis is exposed to older mate families. */
+  inspectCurrentSphereSurfaceSupport(reference: FaceReference, bodyReference: BodyReference | null): AssemblyNativeSphereSurfaceSupport {
+    return this.inspectCurrentFaceValue(reference, bodyReference, extractAssemblySphereSurfaceSupport);
+  }
+
+  private inspectCurrentFaceValue<T>(reference: FaceReference, bodyReference: BodyReference | null, read: (face: Face) => T): T {
+    if (!this.inspectionReady || this.hasErrors || !this.shape || !this.finalState) {
+      throw new Error('La pieza necesita una reconstrucción completa y vigente antes de resolver sus caras.');
+    }
+    const epoch = this.inspectionEpoch, shape = this.shape, catalog = this.bodyCatalog;
+    let support: T;
+    if (bodyReference !== null) {
+      if (!catalog) throw new Error('La pieza antigua no tiene un catálogo explícito de cuerpos.');
+      const entry = catalog.resolve(bodyReference);
+      if (reference.sourceFeatureId !== entry.ref.sourceFeatureId) throw new Error('La cara y el cuerpo pertenecen a estados distintos.');
+      const faces = this.currentFaceCatalogs.get(JSON.stringify(entry.ref));
+      if (!faces) throw new Error('La reconstrucción no publicó el catálogo de caras del cuerpo actual.');
+      support = read(resolveSelectedFaces(faces, [reference], entry.ref.sourceFeatureId)[0]);
+    } else {
+      if (catalog) throw new Error('Selecciona el cuerpo explícito; el agregado no sustituye su identidad.');
+      if (reference.sourceFeatureId !== this.finalState.sourceFeatureId) throw new Error('La cara no pertenece al estado final vigente de la pieza.');
+      if (this.finalSemanticFaces) {
+        support = read(resolveSemanticSelectedFaces(this.finalSemanticFaces, [reference], this.finalState.sourceFeatureId)[0]);
+      } else {
+        const faces = this.currentFaceCatalogs.get(JSON.stringify(['legacy', this.finalState.sourceFeatureId, this.finalState.lineage]));
+        if (!faces) throw new Error('La reconstrucción no publicó el catálogo de caras del estado actual.');
+        support = read(resolveSelectedFaces(faces, [reference], this.finalState.sourceFeatureId)[0]);
+      }
+    }
+    if (!this.inspectionReady || epoch !== this.inspectionEpoch || shape !== this.shape || catalog !== this.bodyCatalog) {
+      throw new Error('La geometría cambió mientras se resolvía la referencia de cara.');
+    }
+    return support;
+  }
+
+  /** Exact current body/edge identity and analytic LINE data; no native handle escapes. */
+  inspectCurrentEdgeSupport(reference: EdgeReference, bodyReference: BodyReference | null): AssemblyNativeLineSupport {
+    if (!this.inspectionReady || this.hasErrors || !this.shape || !this.finalState) throw new Error('La pieza necesita una reconstrucción completa y vigente antes de resolver sus aristas.');
+    const epoch = this.inspectionEpoch, shape = this.shape, catalog = this.bodyCatalog;
+    const inspect = (source: Shape3D, sourceFeatureId: string, lineage: string, identity: string): AssemblyNativeLineSupport => {
+      const queried = withNativeOwners(owners => {
+        const retained = this.currentEdgeCatalogs.get(identity), edges = retained ?? createEdgeCatalog(source, sourceFeatureId, lineage);
+        const lease = retained ? undefined : owners.own({ delete: () => edges.dispose() });
+        const edge = resolveEdgeReferences(edges, [reference], sourceFeatureId)[0];
+        let support: AssemblyNativeLineSupport | undefined, unsupported: UnsupportedAssemblyCurveError | undefined;
+        try { support = extractAssemblyEdgeSupport(edge); }
+        catch (error) { if (!(error instanceof UnsupportedAssemblyCurveError)) throw error; unsupported = error; }
+        if (!this.inspectionReady || epoch !== this.inspectionEpoch || shape !== this.shape || catalog !== this.bodyCatalog) throw new Error('La geometría cambió mientras se resolvía la referencia de arista.');
+        // A clean unsupported analytic classification still authenticates this
+        // exact current catalog. Every later edge query extracts native data again.
+        return { support, unsupported, edges, lease };
+      }, result => result.lease ? [result.lease] : [], 'Current edge inspection or release failed.');
+      withNativeOwners(owners => {
+        if (queried.lease) owners.own(queried.lease);
+        if (!this.inspectionReady || epoch !== this.inspectionEpoch || shape !== this.shape || catalog !== this.bodyCatalog) throw new Error('La geometría cambió mientras se resolvía la referencia de arista.');
+        // A reentrant current query may already own another catalog. Only the
+        // engine receives the transferred lease, after query cleanup succeeded.
+        const publish = queried.lease && !this.currentEdgeCatalogs.has(identity);
+        if (publish) this.currentEdgeCatalogs.set(identity, queried.edges);
+        return publish ? queried.lease : undefined;
+      }, lease => lease ? [lease] : [], 'Current edge catalog publication or release failed.');
+      if (queried.unsupported) throw queried.unsupported;
+      return queried.support!;
+    };
+    let support: AssemblyNativeLineSupport;
+    if (bodyReference !== null) {
+      if (!catalog) throw new Error('La pieza antigua no tiene un catálogo explícito de cuerpos.');
+      const entry = catalog.resolve(bodyReference);
+      if (reference.sourceFeatureId !== entry.ref.sourceFeatureId) throw new Error('La arista y el cuerpo pertenecen a estados distintos.');
+      support = inspect(entry.shape, entry.ref.sourceFeatureId, entry.lineage, JSON.stringify(entry.ref));
+    } else {
+      if (catalog) throw new Error('Selecciona el cuerpo explícito; el agregado no sustituye su identidad.');
+      if (reference.sourceFeatureId !== this.finalState.sourceFeatureId) throw new Error('La arista no pertenece al estado final vigente de la pieza.');
+      support = this.finalSemanticEdges
+        ? extractAssemblyEdgeSupport(resolveSemanticEdgeReferences(this.finalSemanticEdges, [reference], this.finalState.sourceFeatureId)[0])
+        : inspect(shape, this.finalState.sourceFeatureId, this.finalState.lineage, JSON.stringify(['legacy', this.finalState.sourceFeatureId, this.finalState.lineage]));
+    }
+    if (!this.inspectionReady || epoch !== this.inspectionEpoch || shape !== this.shape || catalog !== this.bodyCatalog) throw new Error('La geometría cambió mientras se resolvía la referencia de arista.');
+    return support;
+  }
+
+  /** Fresh finite native curve purpose. Infinite LINE observations do not
+   * establish the trim domain, length, endpoints or circular seam. */
+  inspectCurrentPathCurve(reference: EdgeReference, bodyReference: BodyReference | null, sense: 1 | -1,
+    bands?: AssemblyPathCurveBands): AssemblyPathCurveObservation {
+    return this.inspectCurrentPathEdgeValue(reference, bodyReference, edge => observeAssemblyPathCurve(edge, sense, bands));
+  }
+
+  inspectCurrentPathEvaluation(reference: EdgeReference, bodyReference: BodyReference | null, sense: 1 | -1,
+    coordinate: AssemblyPathCurveCoordinate, bands?: AssemblyPathCurveBands): AssemblyPathCurveEvaluation {
+    return this.inspectCurrentPathEdgeValue(reference, bodyReference, edge => evaluateAssemblyPathCurve(edge, sense, coordinate, bands));
+  }
+
+  /** Current native display candidates only. Exact endpoint identity is queried,
+   * but the consumer must still obtain a fresh purpose-specific arc witness. */
+  inspectCurrentArcPathOrigins(reference: EdgeReference, bodyReference: BodyReference | null): VertexReference[] {
+    const entry = bodyReference === null ? null : this.bodyCatalog?.resolve(bodyReference);
+    const source = entry?.ref.sourceFeatureId ?? this.finalState?.sourceFeatureId;
+    const identity = entry ? JSON.stringify(entry.ref) : JSON.stringify(['legacy', source, this.finalState?.lineage]);
+    const vertices = this.currentVertexCatalogs.get(identity);
+    return this.inspectCurrentPathEdgeValue(reference, bodyReference, edge => withNativeOwners(owners => {
+      if (!vertices) throw new Error('Current material vertex catalog unavailable.');
+      vertices.assertAlive();
+      const oc = getOC(), curve = owners.own(new oc.BRepAdaptor_Curve(edge.wrapped));
+      if (curve.GetType() !== oc.GeomAbs_CurveType.GeomAbs_Circle || oc.BRep_Tool.IsClosed(edge.wrapped) || oc.BRep_Tool.Degenerated(edge.wrapped)) return [];
+      const first = curve.FirstParameter(), last = curve.LastParameter(), span = last - first;
+      if (![first,last,span].every(Number.isFinite) || span <= 0 || span >= 2*Math.PI) return [];
+      const explorer = owners.own(new oc.TopExp_Explorer(edge.wrapped,oc.TopAbs_ShapeEnum.TopAbs_VERTEX,oc.TopAbs_ShapeEnum.TopAbs_SHAPE));
+      const endpoints: ReturnType<typeof explorer.Current>[] = [];
+      while(explorer.More()) { if(endpoints.length >= 2)return []; endpoints.push(owners.own(explorer.Current())); explorer.Next(); }
+      if(endpoints.length !== 2 || endpoints[0].IsSame(endpoints[1]))return [];
+      const parameters = endpoints.map(vertex => oc.BRep_Tool.Parameter(owners.own(oc.TopoDS.Vertex(vertex)),edge.wrapped));
+      if(!((parameters[0]===first&&parameters[1]===last)||(parameters[1]===first&&parameters[0]===last)))return [];
+      const result: VertexReference[] = [];
+      for(const endpoint of endpoints) {
+        const matches = vertices.entries.filter(item => item.vertex.wrapped.IsSame(endpoint));
+        if(matches.length !== 1)return [];
+        result.push({...matches[0].ref});
+      }
+      if(vertices !== this.currentVertexCatalogs.get(identity))throw new Error('Material vertex catalog changed during origin query.');
+      vertices.assertAlive();return result;
+    },undefined,'Current circular origin catalog or release failed.'));
+  }
+
+  private inspectCurrentPathEdgeValue<T>(reference: EdgeReference, bodyReference: BodyReference | null, read: (edge: Edge) => T): T {
+    if (!this.inspectionReady || this.hasErrors || !this.shape || !this.finalState) throw new Error('Reconstruye la pieza antes de medir su trayecto.');
+    const epoch = this.inspectionEpoch, shape = this.shape, catalog = this.bodyCatalog;
+    const current = () => {
+      if (!this.inspectionReady || epoch !== this.inspectionEpoch || shape !== this.shape || catalog !== this.bodyCatalog) throw new Error('La geometría cambió durante la consulta del trayecto.');
+    };
+    try {
+      let result: T;
+      if (bodyReference === null && this.finalSemanticEdges) {
+        if (catalog || reference.sourceFeatureId !== this.finalState.sourceFeatureId) throw new Error('Selecciona el cuerpo y productor exactos del trayecto.');
+        result = read(resolveSemanticEdgeReferences(this.finalSemanticEdges, [reference], this.finalState.sourceFeatureId)[0]);
+      } else {
+        const entry = bodyReference === null ? null : catalog?.resolve(bodyReference);
+        if (bodyReference !== null && !entry || bodyReference === null && catalog) throw new Error('El trayecto requiere la identidad explícita de su cuerpo actual.');
+        const sourceFeatureId = entry?.ref.sourceFeatureId ?? this.finalState.sourceFeatureId;
+        if (reference.sourceFeatureId !== sourceFeatureId) throw new Error('La arista del trayecto pertenece a otro productor.');
+        const identity = entry ? JSON.stringify(entry.ref) : JSON.stringify(['legacy', sourceFeatureId, this.finalState.lineage]);
+        result = withNativeOwners(owners => {
+          const retained = this.currentEdgeCatalogs.get(identity), edges = retained ?? createEdgeCatalog(entry?.shape ?? shape, sourceFeatureId, entry?.lineage ?? this.finalState!.lineage);
+          if (!retained) owners.own({ delete: () => edges.dispose() });
+          const value = read(resolveEdgeReferences(edges, [reference], sourceFeatureId)[0]);
+          current();
+          return value;
+        }, undefined, 'Current bounded path inspection or release failed.');
+      }
+      current();
+      return result;
+    } catch (error) {
+      if (isNativeCleanupFailure(error)) { this.inspectionReady = false; this.inspectionEpoch++; }
+      throw error;
+    }
+  }
+
+  /** Joint current same-body material origin; no coordinate or old LINE alias. */
+  inspectCurrentLinePath(reference: EdgeReference, startVertex: VertexReference, bodyReference: BodyReference | null,
+    bands?: AssemblyPathCurveBands): AssemblyLinePathCurve {
+    if (!this.inspectionReady || this.hasErrors || !this.shape || !this.finalState) throw new Error('Rebuild the current material line body first.');
+    const epoch = this.inspectionEpoch, shape = this.shape, catalog = this.bodyCatalog;
+    const entry = bodyReference === null ? null : catalog?.resolve(bodyReference);
+    if (bodyReference !== null && !entry || bodyReference === null && catalog) throw new Error('Exact material line body required.');
+    const source = entry?.ref.sourceFeatureId ?? this.finalState.sourceFeatureId;
+    if (reference.sourceFeatureId !== source || startVertex.sourceFeatureId !== source) throw new Error('Material origin and edge must share the current producer.');
+    const identity = entry ? JSON.stringify(entry.ref) : JSON.stringify(['legacy',source,this.finalState.lineage]);
+    const vertices = this.currentVertexCatalogs.get(identity);
+    if (!vertices) throw new Error('Current material vertex catalog unavailable.');
+    const current = () => { if (!this.inspectionReady || epoch !== this.inspectionEpoch || shape !== this.shape || catalog !== this.bodyCatalog || vertices !== this.currentVertexCatalogs.get(identity)) throw new Error('Material line geometry changed during query.'); vertices.assertAlive(); };
+    try {
+      const result = this.inspectCurrentPathEdgeValue(reference,bodyReference,edge => {
+        const vertex = resolveVertexReference(vertices,startVertex,source);
+        const curve = observeAssemblyLinePath(edge,vertex,bands); current(); return curve;
+      });
+      current(); return result;
+    } catch (error) { if (isNativeCleanupFailure(error)) { this.inspectionReady=false; this.inspectionEpoch++; } throw error; }
+  }
+
+  /** Joint current topology proof, separate from LINE and finite observer purposes. */
+  inspectCurrentArcPath(reference:EdgeReference,startVertex:VertexReference,bodyReference:BodyReference|null,bands?:AssemblyPathCurveBands):AssemblyArcPathCurve{
+    return this.inspectCurrentArcPathValue(reference,startVertex,bodyReference,(edge,vertex)=>observeAssemblyArcPath(edge,vertex,bands));
+  }
+  inspectCurrentArcPathEvaluation(reference:EdgeReference,startVertex:VertexReference,bodyReference:BodyReference|null,coordinate:AssemblyPathCurveCoordinate,bands?:AssemblyPathCurveBands):AssemblyArcPathEvaluation{
+    return this.inspectCurrentArcPathValue(reference,startVertex,bodyReference,(edge,vertex)=>evaluateAssemblyArcPath(edge,vertex,coordinate,bands));
+  }
+  private inspectCurrentArcPathValue<T>(reference: EdgeReference, startVertex: VertexReference, bodyReference: BodyReference | null,
+    read: (edge: Edge, vertex: Vertex) => T): T {
+    if (!this.inspectionReady || this.hasErrors || !this.shape || !this.finalState) throw new Error('Rebuild the current material arc body first.');
+    const epoch = this.inspectionEpoch, shape = this.shape, catalog = this.bodyCatalog;
+    const entry = bodyReference === null ? null : catalog?.resolve(bodyReference);
+    if (bodyReference !== null && !entry || bodyReference === null && catalog) throw new Error('Exact material arc body required.');
+    const source = entry?.ref.sourceFeatureId ?? this.finalState.sourceFeatureId;
+    if (reference.sourceFeatureId !== source || startVertex.sourceFeatureId !== source) throw new Error('Material origin and edge must share the current producer.');
+    const identity = entry ? JSON.stringify(entry.ref) : JSON.stringify(['legacy',source,this.finalState.lineage]);
+    const vertices = this.currentVertexCatalogs.get(identity);
+    if (!vertices) throw new Error('Current material vertex catalog unavailable.');
+    const current = () => { if (!this.inspectionReady || epoch !== this.inspectionEpoch || shape !== this.shape || catalog !== this.bodyCatalog || vertices !== this.currentVertexCatalogs.get(identity)) throw new Error('Material arc geometry changed during query.'); vertices.assertAlive(); };
+    try {
+      const result = this.inspectCurrentPathEdgeValue(reference,bodyReference,edge => {
+        const vertex = resolveVertexReference(vertices,startVertex,source);
+        const value = read(edge,vertex); current(); return value;
+      });
+      current(); return result;
+    } catch (error) { if (isNativeCleanupFailure(error)) { this.inspectionReady=false; this.inspectionEpoch++; } throw error; }
+  }
+
+  /** Exact current material vertex. A point has neither an axis nor native authority outside this query. */
+  inspectCurrentVertexSupport(reference: VertexReference, bodyReference: BodyReference | null): AssemblyNativePointSupport {
+    if (!this.inspectionReady || this.hasErrors || !this.shape || !this.finalState) throw new Error('La pieza necesita una reconstrucción completa y vigente antes de resolver sus vértices.');
+    const epoch = this.inspectionEpoch, shape = this.shape, bodyCatalog = this.bodyCatalog;
+    let identity: string, sourceFeatureId: string;
+    if (bodyReference !== null) {
+      if (!bodyCatalog) throw new Error('La pieza antigua no tiene un catálogo explícito de cuerpos.');
+      const entry = bodyCatalog.resolve(bodyReference);
+      sourceFeatureId = entry.ref.sourceFeatureId; identity = JSON.stringify(entry.ref);
+    } else {
+      if (bodyCatalog) throw new Error('Selecciona el cuerpo explícito; el agregado no sustituye su identidad.');
+      sourceFeatureId = this.finalState.sourceFeatureId;
+      identity = JSON.stringify(['legacy', sourceFeatureId, this.finalState.lineage]);
+    }
+    const vertices = this.currentVertexCatalogs.get(identity);
+    if (!vertices) throw new Error('La reconstrucción no publicó el catálogo de vértices del cuerpo actual.');
+    try {
+      const vertex = resolveVertexReference(vertices, reference, sourceFeatureId), support = extractAssemblyVertexSupport(vertex);
+      if (!this.inspectionReady || epoch !== this.inspectionEpoch || shape !== this.shape || bodyCatalog !== this.bodyCatalog
+        || vertices !== this.currentVertexCatalogs.get(identity)) throw new Error('La geometría cambió mientras se resolvía la referencia de vértice.');
+      vertices.assertAlive();
+      return support;
+    } catch (error) {
+      if (isNativeCleanupFailure(error)) { this.inspectionReady = false; this.inspectionEpoch++; }
+      throw error;
+    }
+  }
+
+  /** OWNED independent copy of an exact current body, or the complete legacy aggregate. */
+  copyCurrentBodyShape(reference: BodyReference | null): Shape3D {
+    if (!this.inspectionReady || this.hasErrors || !this.shape || !this.finalState) {
+      throw new Error('La pieza necesita una reconstrucción completa y vigente antes de copiar sus cuerpos.');
+    }
+    const epoch = this.inspectionEpoch, shape = this.shape, catalog = this.bodyCatalog;
+    if (reference === null && catalog) throw new Error('Selecciona el cuerpo explícito; el agregado no sustituye su identidad.');
+    if (reference !== null && !catalog) throw new Error('La pieza antigua no tiene un catálogo explícito de cuerpos.');
+    const source = reference === null ? shape : catalog!.resolve(reference).shape, sourceRaw = source.wrapped;
+    const current = (): void => {
+      if (!this.inspectionReady || epoch !== this.inspectionEpoch || shape !== this.shape || catalog !== this.bodyCatalog) {
+        throw new Error('La geometría cambió mientras se copiaba el cuerpo.');
+      }
+    };
+    try {
+      return withNativeOwners(owners => {
+        const sourceCount = validateAssemblyShape(source); current();
+        const copy = copyBodyShape(source);
+        if (copy === source || copy.wrapped === sourceRaw) throw new Error('La copia no puede reutilizar el propietario nativo prestado.');
+        owners.own(copy); current();
+        if (copy.wrapped.IsPartner(sourceRaw)) throw new Error('La copia conserva topología compartida con el cuerpo original.');
+        if (validateAssemblyShape(copy) !== sourceCount) throw new Error('La copia no conserva todos los sólidos del agregado.');
+        current();
+        return copy;
+      }, result => [result], 'Current body copy or release failed.');
+    } catch (error) {
+      this.inspectionReady = false; this.inspectionEpoch++;
+      throw error;
+    }
+  }
+
   build(features: Feature[]): CadResult {
+    return this.rebuild(features, 'render');
+  }
+
+  /** Internal assembly route: the complete native rebuild without visual meshing. */
+  rebuildForAssemblyReferences(features: Feature[]): AssemblyReferenceInventory {
+    return this.rebuild(features, 'assembly-references');
+  }
+
+  private rebuild(features: Feature[], mode: 'render'): CadResult;
+  private rebuild(features: Feature[], mode: 'assembly-references'): AssemblyReferenceInventory;
+  private rebuild(features: Feature[], mode: 'render' | 'assembly-references'): CadResult | AssemblyReferenceInventory {
     this.dispose();
     // This scan chooses numerical precision, not operand validity. Do not walk
     // raw reference arrays before the per-feature declaration boundary.
@@ -562,7 +966,7 @@ export class CadEngine {
     const sourceSketchSolveSession = createSourceSketchSolveRegistry(features, sketchSupportContext);
     const sourceSketchSolves = sourceSketchSolveSession.reader;
 
-    return withPrismOwners(prismOwners, () => {
+    const built = withPrismOwners<CadResult | AssemblyReferenceInventory>(prismOwners, () => {
     let reconstructionFailed = false, reconstructionError: unknown;
     let featureIndex = -1;
     try { for (const feature of features) {
@@ -576,6 +980,7 @@ export class CadEngine {
       let featureFailed = false, featureError: unknown;
       let bodyAware = false;
       try {
+        const importedBase = Object.getOwnPropertyDescriptor(feature, 'type')?.value === 'importedBodies' ? validateImportedBodiesFeature(feature) : undefined;
         if (isRepetition(feature)) {
           if (repetitionDeclarationErrors.has(feature)) throw repetitionDeclarationErrors.get(feature);
           validateBodyPatternDeclaration(feature); validateFeaturePatternDeclaration(feature);
@@ -583,10 +988,10 @@ export class CadEngine {
         if (feature.type === 'extrude' || feature.type === 'revolve' || feature.type === 'sweep' || feature.type === 'loft') {
           validateBodyOperationDeclaration(feature);
         }
-        bodyAware = createdBodyIds(feature).length > 0 || featureBodyReferences(feature).length > 0;
+        bodyAware = createdBodyIds(importedBase ?? feature).length > 0 || featureBodyReferences(feature).length > 0;
         if (seenIds.has(feature.id)) throw new Error('El identificador de esta operación está duplicado.');
         seenIds.add(feature.id);
-        for (const id of createdBodyIds(feature)) {
+        for (const id of createdBodyIds(importedBase ?? feature)) {
           if (seenBodyIds.has(id)) throw new Error('El identificador de un cuerpo creado está duplicado, incluso entre operaciones suprimidas.');
           seenBodyIds.add(id);
           if (seenBodyIds.size > MAX_CREATED_BODY_IDS) throw new Error('El documento supera 65536 identidades de cuerpo guardadas, incluidas las retiradas.');
@@ -638,6 +1043,30 @@ export class CadEngine {
           sketchFrames.set(feature.id, frame);
           if (support) sketchSupportLineages.set(feature.id, support.lineage);
           result.sketches!.push(sketchVisual(resolved, frame));
+          continue;
+        }
+        if (importedBase) {
+          if (solidFeatureIds.size || body || bodyCatalog) throw new Error('La base STEP de cuerpos debe ser la primera y unica base importada, incluso con operaciones suprimidas.');
+          solidFeatureIds.add(importedBase.id);
+          if (importedBase.suppressed) { unavailableFeatureIds.add(importedBase.id); continue; }
+          // Every source is independently one closed solid. No enumeration of
+          // an aggregate, geometric matching or union invents body identities.
+          const nextLineage = advanceLineage('', [importedBase.id, 'importedBodies',
+            importedBase.bodies.map(item => [item.bodyId, item.source.sha256])]);
+          withNativeOwners(owners => {
+            const catalog = new NativeBodyCatalog(); owners.own({ delete: () => catalog.dispose() });
+            // Resolve all sources before staging anything. stageNewMany copies
+            // its borrowed inputs and publishes one validated transaction only.
+            const additions = importedBase.bodies.map(item => ({
+              metadata: { ref: { bodyId: item.bodyId, sourceFeatureId: importedBase.id },
+                createdByFeatureId: importedBase.id, name: importedBase.name + ' / ' + item.bodyId,
+                lineage: advanceLineage('', [importedBase.id, 'importedBodies', item.bodyId, item.source.sha256]) },
+              shape: owners.own(importStepSolid(item.source)),
+            }));
+            adoptBodyTransaction(catalog.stageNewMany(additions));
+          }, undefined, 'Imported body base operation or temporary source release failed.');
+          sourceFeatureId = importedBase.id; lineage = nextLineage; semantic = undefined;
+          rememberReferencedSource(null);
           continue;
         }
         if (feature.type === 'importedSolid') {
@@ -1258,31 +1687,94 @@ export class CadEngine {
     this.shape = body;
     this.bodyCatalog = bodyCatalog;
     result.bodyCatalogActive = bodyCatalog !== null;
+    const inventory = (value: AssemblyReferenceShapeInventory): AssemblyReferenceInventory => ({ ...value,
+      featureErrors: result.featureErrors.map(error => ({ ...error })), warnings: [...result.warnings] });
+    let references: AssemblyReferenceShapeInventory | undefined;
     if (bodyCatalog) {
-      result.bodies = bodyCatalog.entries().map(entry => {
+      if (mode === 'assembly-references') {
+        references = { kind: 'explicit', bodies: bodyCatalog.entries().map(entry => {
+          const identity = JSON.stringify(entry.ref);
+          const faces = this.retainCurrentFaceCatalog(entry.shape, entry.ref.sourceFeatureId, entry.lineage, identity);
+          const edges = this.retainCurrentEdgeCatalog(entry.shape, entry.ref.sourceFeatureId, entry.lineage, identity);
+          const points = this.retainCurrentVertexCatalog(entry.shape, entry.ref.sourceFeatureId, entry.lineage, identity, faces.entries, edges.entries);
+          return { ref: { ...entry.ref }, faces: faces.entries.map(value => ({ ...value.ref })), edges: edges.entries.map(value => ({ ...value.ref })),
+            vertexRefs: points.entries.map(value => ({ ...value.ref })) };
+        }) };
+      } else result.bodies = bodyCatalog.entries().map(entry => {
         const mesh = entry.shape.mesh(MESH_OPTIONS), box = entry.shape.boundingBox;
         try {
           const [min, max] = box.bounds;
+          const edges = this.retainCurrentEdgeCatalog(entry.shape, entry.ref.sourceFeatureId, entry.lineage, JSON.stringify(entry.ref));
+          const faces = this.retainCurrentFaceCatalog(entry.shape, entry.ref.sourceFeatureId, entry.lineage, JSON.stringify(entry.ref));
+          const points = this.retainCurrentVertexCatalog(entry.shape, entry.ref.sourceFeatureId, entry.lineage, JSON.stringify(entry.ref), faces.entries, edges.entries);
           return { ref: { ...entry.ref }, createdByFeatureId: entry.createdByFeatureId, name: entry.name,
             vertices: mesh.vertices, normals: mesh.normals, triangles: mesh.triangles,
             edgeLines: entry.shape.meshEdges(MESH_OPTIONS).lines,
-            edges: pickableEdges(entry.shape, entry.ref.sourceFeatureId, entry.lineage),
-            faces: pickableFaces(entry.shape, entry.ref.sourceFeatureId, entry.lineage),
+            edges: pickableEdgesFromCatalog(edges),
+            faces: pickableFacesFromCatalog(faces),
+            vertexPoints: pickableVerticesFromCatalog(points),
             volume: measuredVolume(entry.shape), bounds: { min, max } };
         } finally { box.delete(); }
       });
     }
     this.hasErrors = result.featureErrors.length > 0;
-    if (!body) return result;
+    if (!body) return mode === 'render' ? result : inventory({ kind: 'empty' });
+      this.finalState = { sourceFeatureId, lineage };
+      // Semantic binding targets belong to prism producers that retire below.
+      // This catalog owns fresh body-face wrappers and remains usable afterward.
+      if (!bodyCatalog && semantic && !this.hasErrors) this.finalSemanticFaces = createSemanticFaceCatalog(body, sourceFeatureId, lineage, semantic);
+      if (!bodyCatalog && semantic && !this.hasErrors) this.finalSemanticEdges = createSemanticEdgeCatalog(body, sourceFeatureId, lineage, semantic);
+      const legacyPoints = !bodyCatalog ? withNativeOwners(owners => {
+        const identity = JSON.stringify(['legacy', sourceFeatureId, lineage]);
+        const faces = this.finalSemanticFaces ?? (semantic ? createSemanticFaceCatalog(body!, sourceFeatureId, lineage, semantic)
+          : this.retainCurrentFaceCatalog(body!, sourceFeatureId, lineage, identity));
+        if (semantic && !this.finalSemanticFaces) owners.own({ delete: () => faces.dispose() });
+        const edges = this.finalSemanticEdges ?? (semantic ? createSemanticEdgeCatalog(body!, sourceFeatureId, lineage, semantic)
+          : this.retainCurrentEdgeCatalog(body!, sourceFeatureId, lineage, identity));
+        if (semantic && !this.finalSemanticEdges) owners.own({ delete: () => edges.dispose() });
+        return this.retainCurrentVertexCatalog(body!, sourceFeatureId, lineage, identity, faces.entries, edges.entries);
+      }, undefined, 'Legacy vertex incidence construction or temporary catalog release failed.') : null;
+      if (mode === 'assembly-references') {
+        if (!bodyCatalog) {
+          if (this.finalSemanticFaces && this.finalSemanticEdges) {
+            references = { kind: 'legacy', faces: this.finalSemanticFaces.entries.map(value => ({ ...value.ref })),
+              edges: this.finalSemanticEdges.entries.map(value => ({ ...value.ref })), vertexRefs: legacyPoints!.entries.map(value => ({ ...value.ref })) };
+          } else if (semantic) {
+            // Failed later features still report the same last valid semantic
+            // picking as render build, without enabling native inspection.
+            references = withNativeOwners(owners => {
+              const faces = createSemanticFaceCatalog(body!, sourceFeatureId, lineage, semantic);
+              owners.own({ delete: () => faces.dispose() });
+              const edges = createSemanticEdgeCatalog(body!, sourceFeatureId, lineage, semantic);
+              owners.own({ delete: () => edges.dispose() });
+              return { kind: 'legacy' as const, faces: faces.entries.map(value => ({ ...value.ref })), edges: edges.entries.map(value => ({ ...value.ref })),
+                vertexRefs: legacyPoints!.entries.map(value => ({ ...value.ref })) };
+            }, undefined, 'Assembly reference inventory or temporary catalog release failed.');
+          } else {
+            const identity = JSON.stringify(['legacy', sourceFeatureId, lineage]);
+            const faces = this.retainCurrentFaceCatalog(body, sourceFeatureId, lineage, identity);
+            const edges = this.retainCurrentEdgeCatalog(body, sourceFeatureId, lineage, identity);
+            references = { kind: 'legacy', faces: faces.entries.map(value => ({ ...value.ref })), edges: edges.entries.map(value => ({ ...value.ref })),
+              vertexRefs: legacyPoints!.entries.map(value => ({ ...value.ref })) };
+          }
+        }
+      } else {
       const mesh = body.mesh(MESH_OPTIONS);
       result.vertices = mesh.vertices;
       result.normals = mesh.normals;
       result.triangles = mesh.triangles;
       result.edgeLines = body.meshEdges(MESH_OPTIONS).lines;
-      result.edges = semantic ? pickableSemanticEdges(body, sourceFeatureId, lineage, semantic)
-        : pickableEdges(body, sourceFeatureId, lineage);
-      result.faces = semantic ? pickableSemanticFaces(body, sourceFeatureId, lineage, semantic)
-        : pickableFaces(body, sourceFeatureId, lineage);
+      if (legacyPoints) result.vertexPoints = pickableVerticesFromCatalog(legacyPoints);
+      result.edges = this.finalSemanticEdges ? pickableEdgesFromCatalog(this.finalSemanticEdges)
+        : semantic ? pickableSemanticEdges(body, sourceFeatureId, lineage, semantic)
+          : bodyCatalog ? pickableEdges(body, sourceFeatureId, lineage)
+            : pickableEdgesFromCatalog(this.retainCurrentEdgeCatalog(body, sourceFeatureId, lineage,
+              JSON.stringify(['legacy', sourceFeatureId, lineage])));
+      result.faces = this.finalSemanticFaces ? pickableFacesFromCatalog(this.finalSemanticFaces)
+        : semantic ? pickableSemanticFaces(body, sourceFeatureId, lineage, semantic)
+          : bodyCatalog ? pickableFaces(body, sourceFeatureId, lineage)
+            : pickableFacesFromCatalog(this.retainCurrentFaceCatalog(body, sourceFeatureId, lineage,
+              JSON.stringify(['legacy', sourceFeatureId, lineage])));
       result.volume = currentVolume;
       const box = body.boundingBox;
       try {
@@ -1291,23 +1783,44 @@ export class CadEngine {
       } finally {
         box.delete();
       }
-      const solids = body.solids;
+      }
+      const solids = ownedNativeTopology(body, 'solid');
       if (solids.length > 1) result.warnings.push(`La pieza contiene ${solids.length} sólidos separados.`);
       solids.forEach((solid) => solid.delete());
-      return result;
+      if (mode === 'render') return result;
+      if (!references) throw new Error('La reconstrucción nativa no publicó su inventario de referencias.');
+      return inventory(references);
     }, () => {
       const failedBody = body;
       const failedCatalog = bodyCatalog;
+      const failedFaces = this.finalSemanticFaces;
+      const failedEdges = this.finalSemanticEdges;
+      const failedCurrentFaces = [...this.currentFaceCatalogs.values()]; this.currentFaceCatalogs.clear();
+      const failedCurrentEdges = [...this.currentEdgeCatalogs.values()]; this.currentEdgeCatalogs.clear();
+      const failedCurrentVertices = [...this.currentVertexCatalogs.values()]; this.currentVertexCatalogs.clear();
+      this.finalSemanticFaces = null;
+      this.finalSemanticEdges = null;
+      this.finalState = null;
+      this.inspectionReady = false;
       body = null;
       bodyCatalog = null;
       this.shape = null;
       this.bodyCatalog = null;
       this.hasErrors = false;
       const failures: unknown[] = [];
+      for (const vertices of failedCurrentVertices.reverse()) { try { vertices.dispose(); } catch (error) { failures.push(error); } }
+      try { failedFaces?.dispose(); } catch (error) { failures.push(error); }
+      try { failedEdges?.dispose(); } catch (error) { failures.push(error); }
+      for (const faces of failedCurrentFaces.reverse()) { try { faces.dispose(); } catch (error) { failures.push(error); } }
+      for (const edges of failedCurrentEdges.reverse()) { try { edges.dispose(); } catch (error) { failures.push(error); } }
       try { failedBody?.delete(); } catch (error) { failures.push(error); }
       try { failedCatalog?.dispose(); } catch (error) { failures.push(error); }
       if (failures.length) throw new AggregateError(failures, 'Failed body state release failed.');
     });
+    // Seal only after producer cleanup completes; failure paths cannot inspect
+    // a partly published shape or retain stale analytic reference authority.
+    this.inspectionReady = !this.hasErrors;
+    return built;
   }
 
   export(format: CadExportFormat, features?: Feature[]): Blob {

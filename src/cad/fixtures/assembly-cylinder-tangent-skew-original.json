@@ -1,0 +1,151 @@
+{
+  "version": 2,
+  "kind": "assembly",
+  "id": "assembly-cylinder-tangent-skew-original",
+  "revision": "r1",
+  "name": "Tangencia original de cilindros con ejes no paralelos",
+  "units": "mm",
+  "createdAt": "2026-10-16T00:00:00.000Z",
+  "updatedAt": "2026-10-16T00:00:00.000Z",
+  "definitions": [
+    {
+      "kind": "part",
+      "id": "cylinder-tangent-fixed",
+      "revision": "r1",
+      "document": {
+        "version": 1,
+        "id": "cylinder-tangent-fixed",
+        "name": "Cilindro original R2 por 12",
+        "units": "mm",
+        "createdAt": "2026-10-16T00:00:00.000Z",
+        "updatedAt": "2026-10-16T00:00:00.000Z",
+        "features": [
+          {
+            "id": "profile",
+            "name": "Círculo original",
+            "type": "sketch",
+            "plane": "XY",
+            "offset": 0,
+            "suppressed": false,
+            "profile": {
+              "kind": "circle",
+              "center": [
+                0,
+                0
+              ],
+              "radius": 2
+            }
+          },
+          {
+            "id": "fixed-body-solid",
+            "name": "Cilindro original",
+            "type": "extrude",
+            "sketchId": "profile",
+            "depth": 12,
+            "symmetric": false,
+            "suppressed": false,
+            "bodyOperation": {
+              "mode": "new",
+              "bodyId": "fixed-body"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "part",
+      "id": "cylinder-tangent-moving",
+      "revision": "r1",
+      "document": {
+        "version": 1,
+        "id": "cylinder-tangent-moving",
+        "name": "Cilindro original R3 por 10",
+        "units": "mm",
+        "createdAt": "2026-10-16T00:00:00.000Z",
+        "updatedAt": "2026-10-16T00:00:00.000Z",
+        "features": [
+          {
+            "id": "profile",
+            "name": "Círculo original",
+            "type": "sketch",
+            "plane": "XY",
+            "offset": 0,
+            "suppressed": false,
+            "profile": {
+              "kind": "circle",
+              "center": [
+                0,
+                0
+              ],
+              "radius": 3
+            }
+          },
+          {
+            "id": "moving-body-solid",
+            "name": "Cilindro original",
+            "type": "extrude",
+            "sketchId": "profile",
+            "depth": 10,
+            "symmetric": false,
+            "suppressed": false,
+            "bodyOperation": {
+              "mode": "new",
+              "bodyId": "moving-body"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "occurrences": [
+    {
+      "id": "fixed",
+      "name": "fixed",
+      "definition": {
+        "id": "cylinder-tangent-fixed",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          0,
+          0,
+          -6
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": true,
+      "visible": true,
+      "suppressed": false
+    },
+    {
+      "id": "moving",
+      "name": "moving",
+      "definition": {
+        "id": "cylinder-tangent-moving",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          7,
+          -5,
+          0
+        ],
+        "rotation": [
+          -0.7071067811865476,
+          0,
+          0,
+          0.7071067811865476
+        ]
+      },
+      "fixed": false,
+      "visible": true,
+      "suppressed": false
+    }
+  ],
+  "mates": []
+}

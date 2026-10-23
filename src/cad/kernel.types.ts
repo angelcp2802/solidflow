@@ -15,6 +15,8 @@ export interface FaceReference {
   sourceFeatureId: string;
   key: string;
 }
+/** Exact current native vertex incidence; never a mesh vertex index. */
+export interface VertexReference { sourceFeatureId: string; key: string }
 
 /** Exact modeled body state; never a native solid index or geometric signature. */
 export interface BodyReference {
@@ -45,6 +47,12 @@ interface FeatureBase {
 export interface ImportedSolidFeature extends FeatureBase {
   type: 'importedSolid';
   source: StepSource;
+}
+
+/** Explicit persistent identities; each source reconstructs one closed solid. */
+export interface ImportedBodiesFeature extends FeatureBase {
+  type: 'importedBodies';
+  bodies: { bodyId: string; source: StepSource }[];
 }
 
 export interface SketchFeature extends FeatureBase {
@@ -280,7 +288,7 @@ export interface DraftFeature extends FeatureBase {
 
 export type FaceOperationFeature = ShellFeature | DraftFeature;
 
-export type Feature = ImportedSolidFeature | SketchFeature | ReferencePlaneFeature | ExtrudeFeature | RevolveFeature | CombineFeature | HoleFeature | SweepFeature | LoftFeature | EdgeFinishFeature | RepetitionFeature | FaceOperationFeature;
+export type Feature = ImportedSolidFeature | ImportedBodiesFeature | SketchFeature | ReferencePlaneFeature | ExtrudeFeature | RevolveFeature | CombineFeature | HoleFeature | SweepFeature | LoftFeature | EdgeFinishFeature | RepetitionFeature | FaceOperationFeature;
 
 /** Serializable display/picking metadata; identity comes from saved producers. */
 export interface PickableBody {
@@ -293,6 +301,7 @@ export interface PickableBody {
   edgeLines: number[];
   edges: PickableEdge[];
   faces: PickableFace[];
+  vertexPoints?: PickableVertex[];
   volume: number;
   bounds: { min: Vec3; max: Vec3 };
 }
@@ -320,6 +329,8 @@ export interface PickableEdge {
   /** Consecutive endpoint pairs for the individual B-rep edge. */
   lines: number[];
 }
+/** Display measurement only; fresh native inspection supplies solve authority. */
+export interface PickableVertex { ref: VertexReference; point: Vec3 }
 
 export interface FeatureError {
   id: string;
@@ -336,6 +347,7 @@ export interface SketchVisual {
 }
 
 export interface CadResult {
+  vertexPoints?: PickableVertex[];
   bodies?: PickableBody[];
   /** False/absent retains the legacy aggregate scene. */
   bodyCatalogActive?: boolean;
@@ -361,11 +373,23 @@ export interface CadResult {
 
 export type CadExportFormat = 'step' | 'stl';
 
-export type KernelRequest =
+export type KernelRequest = import('./kernel.assembly-types').AssemblyKernelRequest
+  | import('./kernel.assembly-types').AssemblyDirectedAngleKernelRequest
+  | { id: number; action: 'insert-assembly-step'; current: import('../model/assemblyDocument').AssemblyDocument; source: StepSource; scope?: import('../model/assemblyDocument').AssemblyDefinitionReference }
+  | { id: number; action: 'import-assembly-step'; source: StepSource }
+  | { id: number; action: 'export-assembly-step'; document: import('../model/assemblyDocument').AssemblyDocument }
   | { id: number; action: 'init' }
   | { id: number; action: 'build'; features: Feature[] }
+  | { id: number; action: 'export-assembly'; document: import('../model/assemblyDocument').AssemblyDocument; format: CadExportFormat }
   | { id: number; action: 'export'; format: CadExportFormat; features?: Feature[] };
 
+export type KernelValue = import('../model/assemblyDocument').AssemblyDocument | CadResult | Blob | null | import('./kernel.assembly-types').AssemblyScene
+  | import('./kernel.assembly-types').AssemblyPreviewReply | import('./kernel.assembly-types').AssemblyAppliedReply
+  | import('./kernel.assembly-source-updates').AssemblySourceUpdateReview
+  | import('./kernel.assembly-replacement').AssemblyReplacementReview
+  | import('./kernel.assembly-document-update-types').AssemblyDocumentUpdateReview
+  | import('../model/assemblyInterference').AssemblyInterferenceReport
+  | import('../model/assemblyDirectedAngle').AssemblyDirectedAngleReport
 export type KernelResponse =
-  | { id: number; ok: true; value: CadResult | Blob | null }
+  | { id: number; ok: true; value: KernelValue }
   | { id: number; ok: false; error: string };

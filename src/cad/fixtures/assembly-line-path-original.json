@@ -1,0 +1,108 @@
+{
+  "version": 2,
+  "kind": "assembly",
+  "id": "assembly-line-path-original",
+  "revision": "r1",
+  "name": "Original explicit LINE and point",
+  "units": "mm",
+  "createdAt": "2026-10-22T00:00:00.000Z",
+  "updatedAt": "2026-10-22T00:00:00.000Z",
+  "definitions": [
+    {
+      "kind": "part",
+      "id": "original-line-prism",
+      "revision": "r1",
+      "document": {
+        "version": 1,
+        "id": "original-line-prism",
+        "name": "Original 4x6x4 prism",
+        "units": "mm",
+        "createdAt": "2026-10-22T00:00:00.000Z",
+        "updatedAt": "2026-10-22T00:00:00.000Z",
+        "features": [
+          {
+            "id": "profile",
+            "name": "Original 4x6 rectangle",
+            "type": "sketch",
+            "plane": "XY",
+            "offset": 0,
+            "suppressed": false,
+            "profile": {
+              "kind": "rectangle",
+              "center": [
+                0,
+                0
+              ],
+              "width": 4,
+              "height": 6
+            }
+          },
+          {
+            "id": "solid",
+            "name": "Original4mm extrusion",
+            "type": "extrude",
+            "sketchId": "profile",
+            "depth": 4,
+            "symmetric": false,
+            "suppressed": false,
+            "bodyOperation": {
+              "mode": "new",
+              "bodyId": "body"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "occurrences": [
+    {
+      "id": "path-fixed",
+      "name": "Original fixed path",
+      "definition": {
+        "id": "original-line-prism",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": true,
+      "suppressed": false,
+      "visible": true
+    },
+    {
+      "id": "point-free",
+      "name": "Original free point",
+      "definition": {
+        "id": "original-line-prism",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          12,
+          4,
+          2
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": false,
+      "suppressed": false,
+      "visible": true
+    }
+  ],
+  "mates": []
+}

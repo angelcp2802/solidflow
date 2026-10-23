@@ -1,0 +1,14 @@
+{
+  "version": 1, "id": "example-pin", "name": "Original revised eccentric pin", "units": "mm",
+  "createdAt": "2026-10-15T00:00:00.000Z", "updatedAt": "2026-10-15T01:00:00.000Z",
+  "features": [
+    { "id": "profile", "name": "Original revised outer circle", "type": "sketch", "plane": "XY", "offset": 0, "suppressed": false,
+      "profile": { "kind": "circle", "center": [0, 0], "radius": 2.5 } },
+    { "id": "base", "name": "Original pin solid", "type": "extrude", "sketchId": "profile", "depth": 12, "symmetric": false, "suppressed": false,
+      "bodyOperation": { "mode": "new", "bodyId": "pin-body" } },
+    { "id": "bore-profile", "name": "Original eccentric bore", "type": "sketch", "plane": "XY", "offset": 0, "suppressed": false,
+      "profile": { "kind": "circle", "center": [1, 0], "radius": 0.25 } },
+    { "id": "bore", "name": "Original eccentric through cut", "type": "cut", "sketchId": "bore-profile", "depth": 12, "symmetric": false, "suppressed": false,
+      "bodyScope": [{ "bodyId": "pin-body", "sourceFeatureId": "base" }] }
+  ]
+}
