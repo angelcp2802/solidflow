@@ -16,6 +16,7 @@ export interface AssemblyConfigurationOccurrenceOverride {
   pose?: RigidPose
   suppressed?: boolean
   visible?: boolean
+  fixed?: boolean
   configuration?: string | null
 }
 export interface AssemblyConfigurationDefinition {
@@ -140,13 +141,14 @@ function parseAssemblyConfigurationDeclarations(document:AssemblyDocument,inputC
       const declaredMates = mateDeclarations ?? node.mates
       const occurrences = array(value.occurrences, MAX_ASSEMBLY_CONFIGURATION_OVERRIDES).map(raw => {
         if (++overrideCount > MAX_ASSEMBLY_CONFIGURATION_OVERRIDES) fail('se superan 4096 sustituciones.')
-        const item = record(raw, ['occurrenceId'], ['pose', 'suppressed', 'visible', 'configuration'])
+        const item = record(raw, ['occurrenceId'], ['pose', 'suppressed', 'visible', 'fixed', 'configuration'])
         const occurrenceId = text(item.occurrenceId)
         if (!node.occurrences.some(o => o.id === occurrenceId)) fail('sustitución de ocurrencia ajena al propietario.')
         const result: AssemblyConfigurationOccurrenceOverride = { occurrenceId }
         if (Object.hasOwn(item, 'pose')) result.pose = pose(item.pose)
         if (Object.hasOwn(item, 'suppressed')) result.suppressed = boolean(item.suppressed)
         if (Object.hasOwn(item, 'visible')) result.visible = boolean(item.visible)
+        if (Object.hasOwn(item, 'fixed')) result.fixed = boolean(item.fixed)
         if (Object.hasOwn(item, 'configuration')) result.configuration = item.configuration === null ? null : text(item.configuration)
         return result
       })
@@ -225,6 +227,7 @@ export function evaluateAssemblyConfiguration(
       const override = variant?.occurrences.find(o => o.occurrenceId === original.id)
       return { ...structuredClone(original), ...(override?.pose ? { pose: structuredClone(override.pose) } : {}),
         ...(override?.suppressed === undefined ? {} : { suppressed: override.suppressed }),
+        ...(override?.fixed === undefined ? {} : { fixed: override.fixed }),
         ...(override?.visible === undefined ? {} : { visible: override.visible }) }
     })
     const mates = (variant?.mateDeclarations ?? node.mates).map(original => {

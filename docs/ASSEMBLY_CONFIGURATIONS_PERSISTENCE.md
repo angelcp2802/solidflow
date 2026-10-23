@@ -26,6 +26,13 @@ selected root state is persisted so reopening reconstructs the selected state.
 There is no second capture sidecar, duplicated root metadata, native handle,
 authoritative cached scene, token, file grant or persisted runtime generation.
 
+Named occurrence overrides also admit a strict optional `fixed` boolean. It is
+effective relative to the parent and inherits Base when absent. Earlier v3
+readers that do not recognize this field reject it. The [component authoring
+extension](ASSEMBLY_CONFIGURED_COMPONENT_AUTHORING.md) composes v1/v2/v3 inputs
+into the complete envelope through its own verified preview; legacy import
+routes retain their existing admission and never silently unwrap a v3 file.
+
 `assemblyConfiguredDocument.ts` checks own JSON data, UTF-8 size, density,
 complexity and exact fields before Core graph/effective-placement validation.
 The final canonical envelope also has its own 20 MiB bound, including wrapper

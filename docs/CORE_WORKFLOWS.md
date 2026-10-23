@@ -60,10 +60,13 @@ immediate owner in the current scope.
 Origin X/Y/Z axes now have explicit persisted references, scoped native line
 resolution and direction/concentric authoring; see the [origin-axis contract](ASSEMBLY_ORIGIN_AXES.md)
 and its source-specific validation. Concentric rotation locking with origin
-axes remains unsupported. Configured component insertion/fixed-state editing and direct
-viewport picking for specialized compound/mechanical forms remain open. Assemble
-the initial component structure in the standard workspace before selecting
-configurations. These limits remain part of the required work.
+axes remains unsupported. The configured workspace now supports component
+import, registered reuse and fixed/floating authoring through private previews;
+see the [component contract](ASSEMBLY_CONFIGURED_COMPONENT_AUTHORING.md).
+Named insertion activates the new occurrence in the selected shared state while
+Base remains suppressed. Direct viewport picking for specialized compound and
+mechanical forms, flexible instances and complete assembly demo acceptance
+remain required work.
 
 ## Validation entry points
 

@@ -146,7 +146,7 @@ it('rejects unknown/executable/undefined/sparse/custom-prototype catalog and raw
 it('rejects wrong owners, missing direct IDs, invalid names/booleans/poses and unknown root selectors', () => {
   const {document,catalog}=fixture()
   for(const definition of [{id:'configuration-A',revision:'r1'},{id:'configuration-S',revision:'old'}])expect(()=>evaluateAssemblyConfiguration(document,[{...catalog[0],definition}])).toThrow()
-  for(const override of [{occurrenceId:'absent'},{occurrenceId:'right',fixed:true},{occurrenceId:'right',visible:0},{occurrenceId:'right',configuration:undefined},{occurrenceId:'right',pose:{translation:[0,0,0],rotation:[0,0,0,0]}}])expect(()=>evaluateAssemblyConfiguration(document,[{...catalog[0],configurations:[{id:'v',name:'V',occurrences:[override],mates:[]}]}])).toThrow()
+  for(const override of [{occurrenceId:'absent'},{occurrenceId:'right',fixed:0},{occurrenceId:'right',locked:true},{occurrenceId:'right',visible:0},{occurrenceId:'right',configuration:undefined},{occurrenceId:'right',pose:{translation:[0,0,0],rotation:[0,0,0,0]}}])expect(()=>evaluateAssemblyConfiguration(document,[{...catalog[0],configurations:[{id:'v',name:'V',occurrences:[override],mates:[]}]}])).toThrow()
   expect(()=>evaluateAssemblyConfiguration(document,catalog,'unknown')).toThrow()
   expect(()=>evaluateAssemblyConfiguration(document,[{...catalog[0],configurations:[{id:'bad\nname',name:'Bad',occurrences:[],mates:[]}]}])).toThrow()
 })

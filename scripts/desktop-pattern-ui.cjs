@@ -11,6 +11,8 @@ const { spawn } = require('node:child_process');
 const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 const { emitDesktopCiFailure, markDesktopCiFailureReported } = require('./desktop-ci-diagnostics.cjs');
 const SCENARIOS = Object.freeze({
+  'assembly-configured-components': Object.freeze({ originalRecipe: 'desktop-assembly-configured-components-original.cjs', entry: 'desktop-assembly-configured-components.cjs',
+    test: 'production-renderer-configured-components', caption: 'configured component insertion, reuse and fixing' }),
   'assembly-origin-axes': Object.freeze({ originAxes: 'standard', originalRecipe: 'desktop-assembly-origin-axes-original.cjs', entry: 'desktop-assembly-origin-axes.cjs',
     test: 'production-renderer-origin-axes', caption: 'origin axis relations' }),
   'assembly-configured-origin-axes': Object.freeze({ originAxes: 'configured', originalRecipe: 'desktop-assembly-origin-axes-original.cjs', entry: 'desktop-assembly-configured-origin-axes.cjs',
@@ -207,7 +209,10 @@ async function launch() {
   try {
     for (const name of ['profile', 'session', 'logs', 'crashes']) await fsp.mkdir(path.join(temporary, name));
     await fsp.writeFile(path.join(temporary, '.test-owned.json'), JSON.stringify({ token }), { flag: 'wx' });
-    if (activeScenario.compoundFamily) {
+    if (activeScenario === SCENARIOS['assembly-configured-components']) {
+      for (const [name, value] of Object.entries(require('./desktop-assembly-configured-components-original.cjs')()))
+        await fsp.writeFile(path.join(temporary, name + '.solidflow'), JSON.stringify(value), { flag: 'wx' });
+    } else if (activeScenario.compoundFamily) {
       const original = require('./desktop-assembly-configured-compound-original.cjs')(activeScenario.compoundFamily, activeScenario.profileKind);
       await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(original), { flag: 'wx' });
     } else if (activeScenario.mechanicalFamily) {
@@ -296,16 +301,16 @@ async function launch() {
     });
     report = JSON.parse(await fsp.readFile(path.join(temporary, 'workflow-result.json'), 'utf8'));
     check(report.workflowStatus === 'PASS', 'The child did not record a successful complete UI workflow.');
-    if ((activeScenario.originAxes || activeScenario === SCENARIOS['part-sequence'] || activeScenario.mechanicalFamily || activeScenario.compoundFamily || [SCENARIOS['assembly-configurations'], SCENARIOS['assembly-configured-relations'], SCENARIOS.assembly, SCENARIOS['assembly-import'], SCENARIOS['assembly-linked-source'], SCENARIOS['assembly-source-revision'], SCENARIOS['assembly-interference-multibody'], SCENARIOS['assembly-interference-grouping'], SCENARIOS['assembly-interference-grouping-multibody'], SCENARIOS['assembly-interference-grouping-scope'], SCENARIOS['assembly-screw'], SCENARIOS['assembly-rack-pinion'], SCENARIOS['assembly-export'], SCENARIOS['assembly-direction'], SCENARIOS['assembly-angle-measurement'], SCENARIOS['assembly-directed-angle'], SCENARIOS['assembly-tangent'], SCENARIOS['assembly-cylinder-tangent'], SCENARIOS['assembly-sphere-tangent'], SCENARIOS['assembly-limit-distance'], SCENARIOS['assembly-limit-distance-compact'], SCENARIOS['assembly-limit-angle'], SCENARIOS['assembly-width'], SCENARIOS['assembly-line-path'], SCENARIOS['assembly-circular-path'], SCENARIOS['assembly-hinge'], SCENARIOS['assembly-hinge-picking'], SCENARIOS['assembly-hinge-repair'], SCENARIOS['assembly-hinge-limits'], SCENARIOS['assembly-hinge-limits-repair'], SCENARIOS['assembly-hinge-limits-picking'], SCENARIOS['assembly-profile-center'], SCENARIOS['assembly-symmetry'], SCENARIOS['assembly-symmetry-line-repair'], SCENARIOS['assembly-symmetry-plane-repair'], SCENARIOS['assembly-symmetry-sphere-repair'], SCENARIOS['assembly-symmetry-cylinder-repair'], SCENARIOS['assembly-symmetry-axisline-repair'], SCENARIOS['assembly-symmetry-repair'], SCENARIOS['assembly-symmetry-picking'], SCENARIOS['assembly-symmetry-nested-selected'], SCENARIOS['assembly-symmetry-nested-source'], SCENARIOS['assembly-replacement']].includes(activeScenario)) && process.env.SOLIDFLOW_UI_CAPTURE === '1') {
+    if ((activeScenario.originAxes || activeScenario === SCENARIOS['assembly-configured-components'] || activeScenario === SCENARIOS['part-sequence'] || activeScenario.mechanicalFamily || activeScenario.compoundFamily || [SCENARIOS['assembly-configurations'], SCENARIOS['assembly-configured-relations'], SCENARIOS.assembly, SCENARIOS['assembly-import'], SCENARIOS['assembly-linked-source'], SCENARIOS['assembly-source-revision'], SCENARIOS['assembly-interference-multibody'], SCENARIOS['assembly-interference-grouping'], SCENARIOS['assembly-interference-grouping-multibody'], SCENARIOS['assembly-interference-grouping-scope'], SCENARIOS['assembly-screw'], SCENARIOS['assembly-rack-pinion'], SCENARIOS['assembly-export'], SCENARIOS['assembly-direction'], SCENARIOS['assembly-angle-measurement'], SCENARIOS['assembly-directed-angle'], SCENARIOS['assembly-tangent'], SCENARIOS['assembly-cylinder-tangent'], SCENARIOS['assembly-sphere-tangent'], SCENARIOS['assembly-limit-distance'], SCENARIOS['assembly-limit-distance-compact'], SCENARIOS['assembly-limit-angle'], SCENARIOS['assembly-width'], SCENARIOS['assembly-line-path'], SCENARIOS['assembly-circular-path'], SCENARIOS['assembly-hinge'], SCENARIOS['assembly-hinge-picking'], SCENARIOS['assembly-hinge-repair'], SCENARIOS['assembly-hinge-limits'], SCENARIOS['assembly-hinge-limits-repair'], SCENARIOS['assembly-hinge-limits-picking'], SCENARIOS['assembly-profile-center'], SCENARIOS['assembly-symmetry'], SCENARIOS['assembly-symmetry-line-repair'], SCENARIOS['assembly-symmetry-plane-repair'], SCENARIOS['assembly-symmetry-sphere-repair'], SCENARIOS['assembly-symmetry-cylinder-repair'], SCENARIOS['assembly-symmetry-axisline-repair'], SCENARIOS['assembly-symmetry-repair'], SCENARIOS['assembly-symmetry-picking'], SCENARIOS['assembly-symmetry-nested-selected'], SCENARIOS['assembly-symmetry-nested-source'], SCENARIOS['assembly-replacement']].includes(activeScenario)) && process.env.SOLIDFLOW_UI_CAPTURE === '1') {
       check(report.captures?.length === 1 && report.captures[0].name === 'assembly-final.png', 'Expected one test-owned assembly capture.');
       const png = await fsp.readFile(path.join(temporary, 'assembly-final.png'));
       check(png.length <= 10 * 1024 * 1024 && digest(png) === report.captures[0].sha256, 'Assembly capture bytes changed.');
       report.captureImage = { ...report.captures[0], base64: png.toString('base64') };
-      if (activeScenario === SCENARIOS['part-sequence'] || activeScenario.originAxes) {
+      if (activeScenario === SCENARIOS['part-sequence'] || activeScenario.originAxes || activeScenario === SCENARIOS['assembly-configured-components']) {
         const bytes = await fsp.readFile(path.join(temporary, 'saved.solidflow'));
         const proof = report.checks.find(item => item && typeof item === 'object' && item.savedSha256);
         check(bytes.length <= 1024 * 1024 && proof?.savedSha256 === digest(bytes), 'The original demo must retain the exact verified native Save bytes.');
-        report.demoDocument = { name: activeScenario.originAxes ? 'relaciones-ejes-origen.solidflow' : 'secuencia-operaciones.solidflow', sha256: digest(bytes), content: bytes.toString('utf8') };
+        report.demoDocument = { name: activeScenario === SCENARIOS['assembly-configured-components'] ? 'componentes-configurados.solidflow' : activeScenario.originAxes ? 'relaciones-ejes-origen.solidflow' : 'secuencia-operaciones.solidflow', sha256: digest(bytes), content: bytes.toString('utf8') };
       }
     }
   } catch (error) {
@@ -442,7 +447,7 @@ function installWorkerObserver(importedBodyDetails = false, structuralStep = fal
         if (observations.builds.length >= 256) observations.workerErrors.push('Observer build envelope exceeded256.');
         else { observations.builds.push(record); pending.set(message.id, record); }
       }
-      if ((configurations && ['build-configured-assembly', 'preview-configured-assembly', 'preview-configured-assembly-relation-edit', 'preview-configured-assembly-mechanical-edit', 'apply-configured-assembly', 'discard-configured-assembly'].includes(message?.action))
+      if ((configurations && ['build-configured-assembly', 'preview-configured-assembly', 'preview-configured-assembly-relation-edit', 'preview-configured-assembly-mechanical-edit', 'preview-configured-assembly-occurrence-edit', 'apply-configured-assembly', 'discard-configured-assembly'].includes(message?.action))
         || (structuralStep && ['import-assembly-step', 'export-assembly-step'].includes(message?.action))
         || (structuralInsertion && ['insert-assembly-step', 'export-assembly-step'].includes(message?.action)) || ['build-assembly', 'preview-assembly', 'preview-assembly-root-revision', 'apply-assembly', 'discard-assembly',
         'lock-assembly-rotation', 'lock-assembly-components', 'capture-assembly-gear', 'capture-assembly-screw', 'capture-assembly-rack-pinion', 'review-assembly-part-update', 'preview-assembly-part-update', 'discard-assembly-part-update',
@@ -538,9 +543,10 @@ async function runInElectron() {
   const partSequence = activeScenario === SCENARIOS['part-sequence'];
   const originAxes = activeScenario.originAxes;
   const configuredRelations = activeScenario === SCENARIOS['assembly-configured-relations'];
+  const configuredComponents = activeScenario === SCENARIOS['assembly-configured-components'];
   const configuredMechanical = activeScenario.mechanicalFamily;
   const configuredCompound = activeScenario.compoundFamily;
-  const configurations = activeScenario === SCENARIOS['assembly-configurations'] || configuredRelations || !!configuredMechanical || !!configuredCompound || originAxes === 'configured';
+  const configurations = activeScenario === SCENARIOS['assembly-configurations'] || configuredRelations || configuredComponents || !!configuredMechanical || !!configuredCompound || originAxes === 'configured';
   const importedBodies = activeScenario === SCENARIOS['imported-bodies'];
   const structuralStep = activeScenario === SCENARIOS['assembly-step'];
   const structuralInsertion = activeScenario === SCENARIOS['assembly-step-insertion'];
@@ -660,7 +666,7 @@ async function runInElectron() {
     [name, JSON.parse(fs.readFileSync(file, 'utf8'))])) : null;
   const outputs = untilNext ? { cutSelected: path.join(owned, 'saved-cut-selected.solidflow'),
     cutAll: path.join(owned, 'saved-cut-all.solidflow'), add: path.join(owned, 'saved-add-selected.solidflow') } : null;
-  const openPaths = structuralInsertion ? [input, insertionFiles.parent, output] : structuralStep ? [input, structuralFiles.part, output] : untilNext ? [inputPaths.cut, outputs.cutSelected, outputs.cutAll,
+  const openPaths = configuredComponents ? [input, null, path.join(owned, 'incoming.solidflow'), path.join(owned, 'incoming.solidflow'), output] : structuralInsertion ? [input, insertionFiles.parent, output] : structuralStep ? [input, structuralFiles.part, output] : untilNext ? [inputPaths.cut, outputs.cutSelected, outputs.cutAll,
     inputPaths.add, outputs.add, inputPaths.reject] : assembly ? [input, output, partUpdatePath, partUpdatePath, output, output, output, projectionOutput, output, interferencePath, translationPath, translationOutput, bomPath, input, gearOutput]
     : assemblyImport ? [input, importSourcePath, importRejectedPath, importSourcePath, output]
     : sourceRevision ? [input, sourceRevisionFiles.parent, output]
@@ -954,6 +960,8 @@ async function runInElectron() {
     ? require('./desktop-assembly-configured-compound-flow.cjs')({ family: configuredCompound, profileKind: activeScenario.profileKind, expected, input, output, evaluate, observe, waitFor, click, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, completePendingSave, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : configuredMechanical
     ? require('./desktop-assembly-configured-mechanical-flow.cjs')({ family: configuredMechanical, expected, input, output, evaluate, observe, waitFor, click, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, completePendingSave, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
+    : configuredComponents
+    ? require('./desktop-assembly-configured-components-flow.cjs')({ expected, input, output, evaluate, observe, waitFor, click, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
     : configuredRelations
     ? require('./desktop-assembly-configured-relations-flow.cjs')({ expected, input, output, evaluate, observe, waitFor, click, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : configurations
@@ -1237,6 +1245,7 @@ async function runInElectron() {
         return { canceled: false, filePaths: [sourceChoosePaths[sourceOpens - 1]] };
       }
       check(options.title === 'Abrir documento de SolidFlow' && ++opens <= openPaths.length, 'Unexpected native open dialog request.');
+      if (configuredComponents && openPaths[opens - 1] === null) return { canceled: true, filePaths: [] };
       return { canceled: false, filePaths: [openPaths[opens - 1]] };
     };
     if (member === 'showSaveDialog') return async (_window, options) => {

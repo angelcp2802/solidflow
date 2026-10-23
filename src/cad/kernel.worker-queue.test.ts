@@ -19,6 +19,15 @@ function fixture(overrides: Partial<KernelWorkerQueueOperations> = {}) {
 }
 
 describe('dedicated worker transport envelope and serial failure containment', () => {
+  it('requires occurrence intent and rejects replacement authority on its dedicated envelope', async () => {
+    const f = fixture(), current = { document: 'payload checked by dispatcher', generation: 1 }, edit = { change: 'payload checked by dispatcher' };
+    await f.receive({ id: 1, action: 'preview-configured-assembly-occurrence-edit', current });
+    await f.receive({ id: 2, action: 'preview-configured-assembly-occurrence-edit', current, edit, token: 'not-an-authoring-field' });
+    await f.receive({ id: 3, action: 'preview-configured-assembly-occurrence-edit', current, edit });
+    expect(f.replies.map(reply => reply.ok)).toEqual([false, false, true]);
+    expect(f.operations.handle).toHaveBeenCalledTimes(1);
+    expect(f.operations.handle).toHaveBeenCalledWith({ id: 3, action: 'preview-configured-assembly-occurrence-edit', current, edit });
+  });
   it('discards null and uncorrelatable IDs without initialization or replies, then processes id zero', async () => {
     const f = fixture();
     for (const value of [null, undefined, false, 'init', {}, { action: 'init' },

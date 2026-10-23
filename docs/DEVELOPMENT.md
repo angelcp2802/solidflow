@@ -1,5 +1,11 @@
 # Development guide
 
+The [configured component authoring contract](ASSEMBLY_CONFIGURED_COMPONENT_AUTHORING.md)
+covers insertion, registered reuse and parent-relative fixed/floating state.
+After building, run `npm run test:desktop:assembly-configured-components` for
+its original shared-state import, preview/history and file-persistence workflow.
+Keep the complete v3 catalog and selected imported state; never flatten them.
+
 The [origin-axis contract](ASSEMBLY_ORIGIN_AXES.md) covers explicit root/component
 X/Y/Z line references and their native relation lifecycle. After building, run
 `npm run test:desktop:assembly-origin-axes` and

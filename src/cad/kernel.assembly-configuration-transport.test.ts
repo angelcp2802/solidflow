@@ -1,7 +1,8 @@
+import type { AssemblyConfiguredOccurrenceEdit } from '../model/assemblyConfiguredOccurrenceEditing'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { assemblyConfigurationCoreFixture } from '../model/assemblyConfigurationCore.test-utils'
 import { createAssemblyConfiguredDocument } from '../model/assemblyConfiguredDocument'
-import { buildConfiguredAssembly, previewConfiguredAssembly, previewConfiguredAssemblyRelationEdit, previewConfiguredAssemblyMechanicalEdit, applyConfiguredAssembly, discardConfiguredAssembly, disposeKernel, initKernel } from './kernel'
+import { buildConfiguredAssembly, previewConfiguredAssembly, previewConfiguredAssemblyRelationEdit, previewConfiguredAssemblyOccurrenceEdit, previewConfiguredAssemblyMechanicalEdit, applyConfiguredAssembly, discardConfiguredAssembly, disposeKernel, initKernel } from './kernel'
 import type { AssemblyConfiguredMechanicalEdit } from '../model/assemblyConfiguredMechanicalEditing'
 import type { AssemblyConfiguredMateEdit } from '../model/assemblyConfiguredMateEditing'
 import type { ConfiguredAssemblyWorkerContext } from './kernel.assembly-configuration-context'
@@ -34,6 +35,29 @@ async function initialized() {
  const initializing = initKernel(), worker = ControlledConfiguredWorker.instances[0]
  expect(worker.messages[0].action).toBe('init'); worker.reply(0); await initializing; return worker
 }
+function occurrenceEdit(current: ConfiguredAssemblyWorkerContext): AssemblyConfiguredOccurrenceEdit {
+ return { scopePath: [], definition: { id: current.document.source.id, revision: current.document.source.revision }, configuration: current.document.rootConfiguration,
+  change: { kind: 'reuse', definition: { id: 'configuration-A', revision: 'r1' }, configuration: null, name: 'Original reusable part', pose: { translation: [50, 0, 0], rotation: [0, 0, 0, 1] }, fixed: true } }
+}
+it('captures occurrence intent and original context before init without accepting caller candidates', async () => {
+ const current = context(), edit = occurrenceEdit(current), baseline = structuredClone(current), intent = structuredClone(edit), options = { solver: { maxIterations: 4 } }
+ const pending = previewConfiguredAssemblyOccurrenceEdit(current, edit, options), worker = ControlledConfiguredWorker.instances[0]
+ edit.scopePath.push('later'); current.generation++; options.solver.maxIterations = 99
+ if (edit.change.kind === 'reuse') { edit.change.pose.translation[0] = 999; edit.change.name = 'Changed after dispatch' }
+ worker.reply(0); await initKernel()
+ expect(worker.messages[1]).toMatchObject({ action: 'preview-configured-assembly-occurrence-edit', current: baseline, edit: intent, options: { solver: { maxIterations: 4 } } })
+ expect(worker.messages[1]).not.toHaveProperty('candidate'); expect(worker.messages[1]).not.toHaveProperty('token')
+ worker.reply(1, preview(baseline, 'occurrence-token')); expect((await pending).token).toBe('occurrence-token')
+})
+it('rejects occurrence getters, unknown intent fields and worker restart before posting', async () => {
+ const current = context(), bad = occurrenceEdit(current); let reads = 0
+ Object.defineProperty(bad, 'change', { enumerable: true, get() { reads++; return {} } })
+ await expect(previewConfiguredAssemblyOccurrenceEdit(current, bad)).rejects.toThrow(); expect(reads).toBe(0)
+ const extra = occurrenceEdit(current); Object.assign(extra, { candidate: current.document })
+ await expect(previewConfiguredAssemblyOccurrenceEdit(current, extra)).rejects.toThrow(); expect(ControlledConfiguredWorker.instances).toHaveLength(0)
+ const pending = previewConfiguredAssemblyOccurrenceEdit(current, occurrenceEdit(current)), rejected = expect(pending).rejects.toThrow()
+ disposeKernel(); await rejected
+})
 function relationEdit(current: ConfiguredAssemblyWorkerContext): AssemblyConfiguredMateEdit {
  return { scopePath: [], definition: { id: current.document.source.id, revision: current.document.source.revision }, configuration: current.document.rootConfiguration,
   change: { kind: 'remove', mateId: 'original-declaration' } }

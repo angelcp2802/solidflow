@@ -1,5 +1,70 @@
 # Validation
 
+## Configured component authoring — 2026-10-23
+
+The increment after `20f9ea5`, tracked in issue #55, adds configured component
+import, registered reuse and fixed/floating overrides. Complete v3 source,
+catalog and selected state remain together through private preview/Apply,
+history and file operations. A named child cannot be silently flattened when
+the parent is Base. The saved v3 override admits `fixed`; older readers reject
+that unknown field. No privileged IPC or file-grant policy changes.
+
+Windows x64 / Node 24.11.1 focused execution:
+
+- `kernel.assembly-configuration-occurrence-edit.test.ts`: **11 native cases
+  pass**, 6.94 s. Covers v1/v2/v3 import, translated/rotated original bounds,
+  selected shared-state reuse, exact identity through one-use Apply, original
+  baseline retention, stale/consumed tokens, Cancel, scene failure/reentry,
+  history and file round trips. Floating B moves from X=4 to the required X=10;
+  fixing B at X=4 rejects that same distance without publication. Literal
+  coordinates use 1e-6 mm, volume/area 1e-5.
+- The new production renderer passes **55 checks / 18 geometry phases** using
+  real controls/worker/file IPC with test-owned dialog paths. Two shared A
+  uses receive the imported v3 `shifted` state, then a reused anchor; final
+  totals are six solids, volume 116 mm³ and area 276 mm². Switching to B restores
+  the two original visible solids. Import picker Cancel, preview Cancel/retry,
+  fixed override, canceled floating proposal, Undo/Redo, canceled Save As and
+  exact complete saved reopening pass. Five Open dialogs and two Save dialogs
+  are expected. No console/resource errors; child close and profile cleanup
+  are confirmed.
+- Supporting pure runs: model group 133 cases/7 files (10 new authoring cases),
+  UI group 26 cases/2 files, transport/queue 42 cases/2 files. These overlapping
+  supporting runs are not summed as unique coverage. Initial build passes
+  with the existing externalized-module/chunk-size warnings.
+
+Final literal `npm test` passes **9,347 cases across 398 files** in 582.25 s,
+followed by **83 IPC/security passes**, zero failures and two explicit Windows
+skips (1,494.9662ms). Final `npm run build` and `npm run test:desktop` pass;
+the latter uses the actual Electron production loader, worker and WASM. Build
+retains the existing warnings. Application, model, UI and unit-test inputs
+remained frozen. One test-harness capture-export allowlist entry was corrected
+after the first successful renderer run so its verified saved demo/PNG bytes
+could be returned; the final renderer rerun checks that separate packaging path.
+The final component renderer rerun passes with the same 55 checks/18 geometry
+phases and verified saved/PNG hashes. Existing configured-relation and persisted
+configuration renderers also pass, with 61 and 80 checks respectively; both have
+zero console/resource errors and confirmed child/profile cleanup.
+
+Renderer scope is specifically named-state v3 import and part reuse; native
+cases cover additional formats. DOM-generated control events are separate from
+physical pointer picking. Fixed/floating physical movement is checked in the
+native distance case, not inferred from the renderer's unchanged shape. No
+flexible-instance, arbitrary source compatibility or full platform coverage is
+claimed. Repeated identical v3 import with saved captures is not a dedicated
+case, though retained captures and divergent catalog collisions are tested.
+
+The workflow adds two fixed platform-specific component renderer steps to the
+existing persistence batch. Parsed YAML comparison preserves every prior job
+and step; all 77 prior npm scripts remain. No timeout, gate, sandbox, permission
+or pinned action is relaxed.
+
+Preceding hosted snapshot `25fbe30`: [CI40027664551](https://github.com/angelcp2802/solidflow/actions/runs/40027664551)
+has 11 passing jobs and four failures. The macOS material vertex symmetry repair
+step fails with a generic script-execution annotation; three dependent Desktop
+gates fail and later checks skip. The annotation does not establish the failed
+application operation or cause. Security40027664312 passes; unresolved security
+findings are separate from workflow execution.
+
 ## Origin-axis relation authoring — 2026-10-23
 
 The increment after `40718aa`, tracked in issue #55, adds explicit root/component

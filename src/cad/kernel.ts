@@ -1,3 +1,4 @@
+import { validateAssemblyConfiguredOccurrenceEdit, type AssemblyConfiguredOccurrenceEdit } from '../model/assemblyConfiguredOccurrenceEditing';
 import { validateStepSource, type StepSource } from '../model/stepSource';
 import type { CadExportFormat, CadResult, Feature, KernelRequest, KernelResponse, KernelValue } from './kernel.types';
 import { serializeAssemblyDocument, validateAssemblyDocument, type AssemblyComponentReference, type AssemblyDefinitionReference, type AssemblyDocument, type AssemblySourceLink } from '../model/assemblyDocument';
@@ -124,6 +125,14 @@ export async function previewConfiguredAssembly(current: ConfiguredAssemblyWorke
   await initKernel();
   if (epoch !== generation) throw Error('El motor CAD se ha cerrado.');
   return request<ConfiguredAssemblyPreviewReply>({ action: 'preview-configured-assembly', current: owned, options: policy });
+}
+export async function previewConfiguredAssemblyOccurrenceEdit(current: ConfiguredAssemblyWorkerContext, edit: AssemblyConfiguredOccurrenceEdit,
+  options: ConfiguredAssemblySolveOptions = {}): Promise<ConfiguredAssemblyPreviewReply> {
+  const owned = captureConfiguredAssemblyWorkerContext(current), intent = validateAssemblyConfiguredOccurrenceEdit(edit),
+    policy = captureConfiguredAssemblySolveOptions(options), epoch = generation;
+  await initKernel();
+  if (epoch !== generation) throw Error('El motor CAD se ha cerrado.');
+  return request<ConfiguredAssemblyPreviewReply>({ action: 'preview-configured-assembly-occurrence-edit', current: owned, edit: intent, options: policy });
 }
 export async function previewConfiguredAssemblyRelationEdit(current: ConfiguredAssemblyWorkerContext, edit: AssemblyConfiguredMateEdit,
   options: ConfiguredAssemblySolveOptions = {}): Promise<ConfiguredAssemblyPreviewReply> {

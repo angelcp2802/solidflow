@@ -1,5 +1,7 @@
+import ConfiguredAssemblyOccurrencePanel, { initialConfiguredOccurrenceFields, configuredOccurrenceUiIntent, configuredOccurrenceImportIntent, configuredOccurrenceReuseIntent } from './ConfiguredAssemblyOccurrencePanel'
+import type { AssemblyConfiguredOccurrenceEdit } from '../model/assemblyConfiguredOccurrenceEditing'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { buildConfiguredAssembly, previewConfiguredAssembly, previewConfiguredAssemblyRelationEdit, previewConfiguredAssemblyMechanicalEdit, applyConfiguredAssembly, discardConfiguredAssembly } from '../cad/kernel'
+import { buildConfiguredAssembly, previewConfiguredAssembly, previewConfiguredAssemblyRelationEdit, previewConfiguredAssemblyMechanicalEdit, previewConfiguredAssemblyOccurrenceEdit, applyConfiguredAssembly, discardConfiguredAssembly } from '../cad/kernel'
 import type { ConfiguredAssemblyPreviewReply } from '../cad/kernel.assembly-configuration-session'
 import type { ConfiguredAssemblyScene } from '../cad/kernel.assembly-configuration-scene'
 import { evaluateAssemblyConfiguration } from '../model/assemblyConfigurationCore'
@@ -44,6 +46,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
   const [occurrenceId, setOccurrenceId] = useState(''), [variantName, setVariantName] = useState(''), [scopeVariantName, setScopeVariantName] = useState(''), [pose, setPose] = useState(['0', '0', '0'])
   const [rotationAxis, setRotationAxis] = useState<'X' | 'Y' | 'Z'>('Z'), [rotationDegrees, setRotationDegrees] = useState('0')
   const [mateDraft, setMateDraft] = useState<RelationDraft | null>(null), mateDraftRef = useRef(mateDraft), mateRevision = useRef(0), sceneRef = useRef(scene), committedSceneRef = useRef<ConfiguredAssemblyScene | null>(null)
+  const [occurrenceFields, setOccurrenceFields] = useState(initialConfiguredOccurrenceFields)
   const [matePick, setMatePick] = useState<ConfiguredMatePick | null>(null), matePickRef = useRef(matePick)
   const stopMatePick = () => { matePickRef.current = null; setMatePick(null) }
   const [view, setView] = useState<{ name: 'iso' | 'front' | 'top' | 'fit'; stamp: number }>({ name: 'iso', stamp: 0 })
@@ -288,6 +291,32 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
     const references = [...mateDraft.references]; references[matePick.slot] = choice.reference
     setRelationDraft({ ...mateDraft, references }); setFailure(null); setMessage('Referencia seleccionada. Completa el formulario y verifica la vista previa antes de aplicar.')
   }
+  const previewOccurrence = async (importFile = false, fixed?: boolean) => {
+    if (!fresh(renderedTicket) || operation.current || pending.current || mateDraftRef.current || !scene || selectedScope.suppressed) return
+    if (importFile && !window.solidflow) { setMessage('Abre la aplicación de escritorio para importar un componente.'); return }
+    const captured = ticket(), fields = structuredClone(occurrenceFields), scopePath = [...selectedScope.path]
+    setFailure(null); begin(importFile ? 'file' : 'solve')
+    try {
+      let intent: AssemblyConfiguredOccurrenceEdit
+      if (importFile) {
+        const file = await window.solidflow!.openDocument()
+        if (!fresh(captured)) return
+        if (!file) { setMessage('Importación cancelada. Se conserva el documento confirmado.'); return }
+        intent = configuredOccurrenceImportIntent(current.current, scopePath, fields, file.content)
+        begin('solve')
+      } else if (fixed !== undefined) {
+        if (!selected || selected.suppressed) throw Error('Selecciona una ocurrencia activa actual.')
+        intent = configuredOccurrenceUiIntent(current.current, scopePath, { kind: 'set-fixed', occurrenceId: selected.id, fixed })
+      } else intent = configuredOccurrenceReuseIntent(current.current, scopePath, fields)
+      const reply = await previewConfiguredAssemblyOccurrenceEdit({ document: current.current, generation: captured.generation }, intent)
+      if (!fresh(captured)) { release(reply.token); return }
+      if (reply.kind !== 'configured-assembly-preview' || reply.generation !== captured.generation || !reply.verification.accepted || !configuredUiSceneMatches(reply.scene, reply.document, reply.candidateGeneration)) {
+        release(reply.token); throw Error('La vista previa del componente no corresponde al contexto actual.')
+      }
+      pending.current = reply; setPreview(reply); setScene(reply.scene); setMessage('Componente verificado. Revisa la vista previa y pulsa Aplicar configuración o Cancelar.')
+    } catch (reason) { if (fresh(captured)) error(reason) }
+    finally { if (fresh(captured)) finish() }
+  }
   const displayScene = useMemo(() => scene ? configuredUiDisplayScene(scene) : null, [scene])
   const blocked = busy || !!preview
   return <div className="configured-assembly-workspace" aria-label="Ensamblaje configurado" aria-busy={busy}>
@@ -310,7 +339,12 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
       <h2>Estado efectivo</h2><label>Ámbito<select aria-label="Ámbito de configuración" disabled={blocked} value={scope} onChange={event => changeScope(event.target.value)}>{evaluation.scopes.map(row => <option key={JSON.stringify(row.path)} value={JSON.stringify(row.path)}>{row.path.join(' / ') || 'Raíz'} · {row.configuration ?? 'Base'}{row.suppressed ? ' · suprimido' : ''}</option>)}</select></label>
       {scope !== '[]' && <section aria-label="Crear configuración del ámbito"><label>Nueva configuración del ámbito<input aria-label="Nombre de nueva configuración del ámbito" disabled={blocked} value={scopeVariantName} onChange={event => { if (fresh(renderedTicket)) setScopeVariantName(event.target.value) }} /></label><button disabled={blocked || !scopeVariantName.trim()} onClick={() => { if (!fresh(renderedTicket) || operation.current || pending.current) return; try { commit(createConfiguredUiScopeVariant(current.current, JSON.parse(scopeRef.current), scopeVariantName)); setScopeVariantName(''); occurrenceRef.current = ''; setOccurrenceId('') } catch (reason) { error(reason) } }}>Crear configuración del ámbito basada en Base</button><small>Se selecciona para este uso en la configuración activa del padre. Los usos que comparten ese estado del padre también cambian.</small></section>}
       <label>Ocurrencia<select aria-label="Ocurrencia configurada" disabled={blocked} value={occurrenceId} onChange={event => { if (!fresh(renderedTicket) || operation.current || pending.current) return; setBomSelection(null); occurrenceRef.current = event.target.value; setOccurrenceId(event.target.value) }}><option value="">Selecciona una ocurrencia</option>{selectedScope.occurrences.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}</select></label>
+      <ConfiguredAssemblyOccurrencePanel document={document} scopePath={selectedScope.path} configuration={selectedScope.configuration} fields={occurrenceFields} disabled={blocked || !!mateDraft || !scene || selectedScope.suppressed}
+        onChange={fields => { if (!fresh(renderedTicket) || operation.current || pending.current || mateDraftRef.current) return; if (mateRevision.current >= Number.MAX_SAFE_INTEGER) { error(Error('Vuelve a abrir el documento para continuar.')); return }; mateRevision.current++; setOccurrenceFields(fields) }}
+        onImport={() => void previewOccurrence(true)} onReuse={() => void previewOccurrence()} />
       {selected && <section aria-label="Editar estado de ocurrencia"><p>{selectedScope.configuration === null ? 'Editando Base: los estados que heredan estos valores también cambian.' : 'Editando sólo la configuración ' + selectedScope.configuration + '. Los usos de esta misma variante comparten el cambio.'}</p>
+        <p>{selected.fixed ? 'Componente fijado respecto al padre.' : 'Componente libre respecto al padre.'} {selectedScope.configuration === null ? 'Fijar o liberar en Base afecta a los estados que heredan ese valor.' : 'Fijar o liberar afecta a todos los usos de esta misma definición y estado.'}</p>
+        <button disabled={blocked || !!mateDraft || !scene || selectedScope.suppressed || selected.suppressed} onClick={() => void previewOccurrence(false, !selected.fixed)}>{selected.fixed ? 'Vista previa de liberar componente' : 'Vista previa de fijar componente'}</button>
         <fieldset disabled={blocked || !!mateDraft}><legend>Traslación local (mm)</legend>{['X', 'Y', 'Z'].map((axis, i) => <label key={axis}>{axis}<input aria-label={'Posición configurada ' + axis} type="number" step="any" value={pose[i]} onChange={event => { if (fresh(renderedTicket)) setPose(values => values.map((v, index) => index === i ? event.target.value : v)) }} /></label>)}</fieldset>
         <label>Eje local de giro<select aria-label="Eje local de giro configurado" disabled={blocked || !!mateDraft} value={rotationAxis} onChange={event => { if (fresh(renderedTicket)) setRotationAxis(event.target.value as 'X' | 'Y' | 'Z') }}>{(['X', 'Y', 'Z'] as const).map(axis => <option key={axis} value={axis}>{axis}</option>)}</select></label><label>Giro incremental (grados)<input aria-label="Giro incremental configurado en grados" type="number" step="any" disabled={blocked || !!mateDraft} value={rotationDegrees} onChange={event => { if (fresh(renderedTicket)) setRotationDegrees(event.target.value) }} /></label>
         <button disabled={blocked || !!mateDraft || pose.some(v => !v.trim()) || !rotationDegrees.trim()} onClick={() => { if (!fresh(renderedTicket) || operation.current || pending.current) return; try { edit({ pose: configuredUiPose(selected.pose, pose.map(Number), rotationAxis, Number(rotationDegrees)) }) } catch (reason) { error(reason) } }}>Actualizar posición del estado</button>

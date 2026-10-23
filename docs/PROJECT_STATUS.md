@@ -1,5 +1,23 @@
 # Project status and review queue
 
+### Configured component authoring
+
+The next increment in [issue #55](https://github.com/angelcp2802/solidflow/issues/55)
+adds configured import, registered reuse and parent-relative fixed/floating
+authoring through private native previews. A v3 import retains its complete
+catalog and selected child state. Named insertion affects every use of that
+state and stays suppressed in Base. See the [contract](ASSEMBLY_CONFIGURED_COMPONENT_AUTHORING.md)
+and [validation](VALIDATION.md) for exact cases and remaining limits. This stays
+in draft PR #49; complete assembly-demo and release acceptance remain open.
+
+Hosted origin-axis snapshot `25fbe30` ended with 11 jobs passing and four
+failures in [CI 40027664551](https://github.com/angelcp2802/solidflow/actions/runs/40027664551).
+The root failure is macOS material vertex symmetry source/replacement repair;
+the other three failures are dependent Desktop gates, with later checks skipped.
+Security run 40027664312 passed. The generic renderer annotation does not identify
+the failed operation or establish a cause. Earlier security findings remain
+separate from workflow execution.
+
 ### Origin-axis relation authoring
 
 [Issue #55](https://github.com/angelcp2802/solidflow/issues/55) now includes
@@ -8,9 +26,9 @@ assemblies. The [contract](ASSEMBLY_ORIGIN_AXES.md) separates analytic line
 geometry, concentric free motion and material-only capture. Original renderer
 workflows create concentric and angular relations, Cancel/retry/Apply, undo/redo
 and save/reopen through real controls. Source-specific execution is recorded in
-[VALIDATION.md](VALIDATION.md). Configured insertion and fixed-state authoring
-remain the next basic workflow priority; origin-axis rotation locking and
-displayed-axis picking are also unfinished.
+[VALIDATION.md](VALIDATION.md). The following configured-component increment
+addresses insertion and fixed-state authoring; origin-axis rotation locking
+and displayed-axis picking remain unfinished.
 
 The final Windows suite passes 9,319 cases across 395 files, 83 IPC/security
 checks (two explicit skips), build and actual Electron smoke. Nine focused native
@@ -33,7 +51,7 @@ configured motion. See the [workflow and exact remaining gaps](CORE_WORKFLOWS.md
 The local increment adds current-body defaults, a sequential original example,
 consistent middle-button navigation, configured component/general-role picking
 and wrapping assembly commands. Origin-axis references are addressed by the
-following increment; configured structural insertion remains required work.
+following increment; configured structural insertion is addressed above.
 Exact execution is recorded in VALIDATION.md;
 the same draft PR #49 remains the review target.
 

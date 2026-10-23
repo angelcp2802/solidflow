@@ -1,3 +1,4 @@
+import { applyAssemblyConfiguredOccurrenceEdit, validateAssemblyConfiguredOccurrenceEdit } from '../model/assemblyConfiguredOccurrenceEditing'
 import { insertAssemblyDocument } from '../model/assemblyImport'
 import { applyAssemblyConfiguredMateEdit } from '../model/assemblyConfiguredMateEditing'
 import { inspectAssemblyConfiguredMechanicalEdit } from '../model/assemblyConfiguredMechanicalEditing'
@@ -28,6 +29,16 @@ export class KernelDispatcher {
         this.#part.dispose(); this.#assembly.discard()
         return this.#configured.preview(request.current, request.options)
       case 'apply-configured-assembly': return this.#configured.apply(request.current, request.token)
+      case 'preview-configured-assembly-occurrence-edit': {
+        const current = captureConfiguredAssemblyWorkerContext(request.current)
+        const edit = validateAssemblyConfiguredOccurrenceEdit(request.edit)
+        validateConfiguredAssemblySolvePolicy(request.options)
+        // Semantic preflight before releasing unrelated native capabilities.
+        // The session creates and retains its own proposal; Apply never repeats allocation.
+        applyAssemblyConfiguredOccurrenceEdit(current.document, edit)
+        this.#part.dispose(); this.#assembly.discard()
+        return this.#configured.previewOccurrenceEdit(request.current, request.edit, request.options)
+      }
       case 'preview-configured-assembly-relation-edit': {
         const current = captureConfiguredAssemblyWorkerContext(request.current)
         const edit = captureConfiguredAssemblyRelationEdit(request.edit)

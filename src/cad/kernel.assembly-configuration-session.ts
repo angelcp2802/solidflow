@@ -1,3 +1,4 @@
+import { applyAssemblyConfiguredOccurrenceEdit, validateAssemblyConfiguredOccurrenceEdit, type AssemblyConfiguredOccurrenceEdit } from '../model/assemblyConfiguredOccurrenceEditing'
 import { MAX_ASSEMBLY_BYTES } from '../model/assemblyDocument'
 import { applyAssemblyConfiguredMateEdit, validateAssemblyConfiguredMateEdit, type AssemblyConfiguredMateEdit } from '../model/assemblyConfiguredMateEditing'
 import { inspectAssemblyConfiguredMechanicalEdit, type AssemblyConfiguredMechanicalEdit } from '../model/assemblyConfiguredMechanicalEditing'
@@ -30,6 +31,7 @@ export interface ConfiguredAssemblyAppliedReply {
 export type ConfiguredAssemblyKernelRequest =
   | { id: number; action: 'build-configured-assembly'; current: ConfiguredAssemblyWorkerContext }
   | { id: number; action: 'preview-configured-assembly'; current: ConfiguredAssemblyWorkerContext; options?: ConfiguredAssemblySolveOptions }
+  | { id: number; action: 'preview-configured-assembly-occurrence-edit'; current: ConfiguredAssemblyWorkerContext; edit: AssemblyConfiguredOccurrenceEdit; options?: ConfiguredAssemblySolveOptions }
   | { id: number; action: 'preview-configured-assembly-relation-edit'; current: ConfiguredAssemblyWorkerContext; edit: AssemblyConfiguredMateEdit; options?: ConfiguredAssemblySolveOptions }
   | { id: number; action: 'preview-configured-assembly-mechanical-edit'; current: ConfiguredAssemblyWorkerContext; intent: AssemblyConfiguredMechanicalEdit; options?: ConfiguredAssemblySolveOptions }
   | { id: number; action: 'apply-configured-assembly'; current: ConfiguredAssemblyWorkerContext; token: string }
@@ -82,6 +84,13 @@ export class ConfiguredAssemblyWorkerSession {
     const intent = captureConfiguredAssemblyRelationEdit(edit)
     validateConfiguredAssemblySolvePolicy(options)
     const proposed = { document: applyAssemblyConfiguredMateEdit(owned.document, intent), generation: owned.generation }
+    return this.#prepare(current, owned, proposed, baseline, options)
+  }
+  previewOccurrenceEdit(current: ConfiguredAssemblyWorkerContext, edit: AssemblyConfiguredOccurrenceEdit, options: ConfiguredAssemblySolveOptions = {}): ConfiguredAssemblyPreviewReply {
+    const owned = captureConfiguredAssemblyWorkerContext(current), baseline = signature(owned)
+    const intent = validateAssemblyConfiguredOccurrenceEdit(edit)
+    validateConfiguredAssemblySolvePolicy(options)
+    const proposed = { document: applyAssemblyConfiguredOccurrenceEdit(owned.document, intent), generation: owned.generation }
     return this.#prepare(current, owned, proposed, baseline, options)
   }
   previewMechanicalEdit(current: ConfiguredAssemblyWorkerContext, intent: AssemblyConfiguredMechanicalEdit, options: ConfiguredAssemblySolveOptions = {}): ConfiguredAssemblyPreviewReply {

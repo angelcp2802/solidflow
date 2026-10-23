@@ -1,5 +1,24 @@
 # Public fixture provenance
 
+## Original configured component authoring
+
+`scripts/desktop-assembly-configured-components-original.cjs` independently
+constructs a 2×3×4 mm anchor and a 1×2×5 mm pin. Each starts at the coordinate
+origin: analytical volumes are 24/10 mm³ and areas 52/34 mm². The parent places
+the shared subassembly at X=0 and X=20. Named states A/B initially inherit its
+single anchor. An original imported v3 assembly has a named pin translation of
+X=3, inserted at X=5; its placed pin starts at X=8 or X=28. Reusing the anchor
+at Y=8 gives six final solids, volume116 mm³ and area276 mm². No external model
+bytes, personal files or captured geometry contribute to this fixture.
+
+The native occurrence-edit tests reuse the tracked original configuration
+fixture. Their independent literal bounds distinguish the rotated right use,
+X=4 versus required X=10 movement, fixed-position rejection, full imported
+catalogs and source-preserving publication. Coordinate tolerance is 1e-6 mm;
+volume/area tolerance is 1e-5. See [validation](VALIDATION.md) for actual runs
+and the [component contract](ASSEMBLY_CONFIGURED_COMPONENT_AUTHORING.md) for
+the boundary between declarations, native verification and scripted controls.
+
 ## Original origin-axis relation examples
 
 `scripts/desktop-assembly-origin-axes-original.cjs` independently constructs two
