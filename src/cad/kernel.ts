@@ -15,6 +15,7 @@ import type { AssemblyReplacementReview, AssemblyReplacementDecisions } from './
 import type { AssemblyDocumentUpdateReview, AssemblyDocumentUpdateDecisions } from './kernel.assembly-document-update-types';
 import { validateAssemblyDirectedAngleRequest, type AssemblyDirectedAngleRequest, type AssemblyDirectedAngleReport } from '../model/assemblyDirectedAngle';
 import { captureConfiguredAssemblyWorkerContext, captureConfiguredAssemblySolveOptions, type ConfiguredAssemblyWorkerContext } from './kernel.assembly-configuration-context';
+import { validateAssemblyConfiguredMateEdit, type AssemblyConfiguredMateEdit } from '../model/assemblyConfiguredMateEditing';
 import type { ConfiguredAssemblyPreviewReply, ConfiguredAssemblyAppliedReply } from './kernel.assembly-configuration-session';
 import type { ConfiguredAssemblyScene } from './kernel.assembly-configuration-scene';
 import type { ConfiguredAssemblySolveOptions } from './kernel.assembly-configuration-solve';
@@ -122,6 +123,14 @@ export async function previewConfiguredAssembly(current: ConfiguredAssemblyWorke
   await initKernel();
   if (epoch !== generation) throw Error('El motor CAD se ha cerrado.');
   return request<ConfiguredAssemblyPreviewReply>({ action: 'preview-configured-assembly', current: owned, options: policy });
+}
+export async function previewConfiguredAssemblyRelationEdit(current: ConfiguredAssemblyWorkerContext, edit: AssemblyConfiguredMateEdit,
+  options: ConfiguredAssemblySolveOptions = {}): Promise<ConfiguredAssemblyPreviewReply> {
+  const owned = captureConfiguredAssemblyWorkerContext(current), intent = validateAssemblyConfiguredMateEdit(edit),
+    policy = captureConfiguredAssemblySolveOptions(options), epoch = generation;
+  await initKernel();
+  if (epoch !== generation) throw Error('El motor CAD se ha cerrado.');
+  return request<ConfiguredAssemblyPreviewReply>({ action: 'preview-configured-assembly-relation-edit', current: owned, edit: intent, options: policy });
 }
 export async function applyConfiguredAssembly(current: ConfiguredAssemblyWorkerContext, token: string): Promise<ConfiguredAssemblyAppliedReply> {
   const owned = captureConfiguredAssemblyWorkerContext(current), epoch = generation;

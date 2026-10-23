@@ -1,4 +1,5 @@
 import { MAX_ASSEMBLY_BYTES } from '../model/assemblyDocument'
+import { applyAssemblyConfiguredMateEdit, validateAssemblyConfiguredMateEdit, type AssemblyConfiguredMateEdit } from '../model/assemblyConfiguredMateEditing'
 import { assemblyConfiguredGeometryInput, validateAssemblyConfiguredDocument, serializeAssemblyConfiguredDocument,
   type AssemblyConfiguredDocument } from '../model/assemblyConfiguredDocument'
 import { applyPreparedConfiguredAssemblySolve, prepareConfiguredAssemblySolve, validateConfiguredAssemblySolvePolicy,
@@ -27,6 +28,7 @@ export interface ConfiguredAssemblyAppliedReply {
 export type ConfiguredAssemblyKernelRequest =
   | { id: number; action: 'build-configured-assembly'; current: ConfiguredAssemblyWorkerContext }
   | { id: number; action: 'preview-configured-assembly'; current: ConfiguredAssemblyWorkerContext; options?: ConfiguredAssemblySolveOptions }
+  | { id: number; action: 'preview-configured-assembly-relation-edit'; current: ConfiguredAssemblyWorkerContext; edit: AssemblyConfiguredMateEdit; options?: ConfiguredAssemblySolveOptions }
   | { id: number; action: 'apply-configured-assembly'; current: ConfiguredAssemblyWorkerContext; token: string }
   | { id: number; action: 'discard-configured-assembly'; token: string }
 
@@ -43,6 +45,18 @@ interface Pending {
   handle: ConfiguredAssemblySolvePreparation
   candidate: string
   generation: number
+  preparedInput: ReturnType<typeof assemblyConfiguredGeometryInput>
+}
+
+/** Copied capture fields are declarations, never fresh configured producers. */
+export function captureConfiguredAssemblyRelationEdit(edit: unknown): AssemblyConfiguredMateEdit {
+  const owned = validateAssemblyConfiguredMateEdit(edit)
+  if (owned.change.kind === 'add' || owned.change.kind === 'replace') {
+    const mate = owned.change.mate
+    if (mate.type === 'lock' || mate.type === 'gear' || mate.type === 'screw' || mate.type === 'rack-pinion'
+      || (mate.type === 'concentric' && mate.rotationLock !== null)) throw Error('This relation requires a fresh configured capture producer before authoring.')
+  }
+  return owned
 }
 
 /** No native object outlives a call. The genuine in-process preparation stays
@@ -58,8 +72,20 @@ export class ConfiguredAssemblyWorkerSession {
   preview(current: ConfiguredAssemblyWorkerContext, options: ConfiguredAssemblySolveOptions = {}): ConfiguredAssemblyPreviewReply {
     const owned = captureConfiguredAssemblyWorkerContext(current), baseline = signature(owned)
     validateConfiguredAssemblySolvePolicy(options)
+    return this.#prepare(current, owned, owned, baseline, options)
+  }
+  previewEdit(current: ConfiguredAssemblyWorkerContext, edit: AssemblyConfiguredMateEdit, options: ConfiguredAssemblySolveOptions = {}): ConfiguredAssemblyPreviewReply {
+    const owned = captureConfiguredAssemblyWorkerContext(current), baseline = signature(owned)
+    const intent = captureConfiguredAssemblyRelationEdit(edit)
+    validateConfiguredAssemblySolvePolicy(options)
+    const proposed = { document: applyAssemblyConfiguredMateEdit(owned.document, intent), generation: owned.generation }
+    return this.#prepare(current, owned, proposed, baseline, options)
+  }
+  #prepare(current: ConfiguredAssemblyWorkerContext, owned: ConfiguredAssemblyWorkerContext, proposed: ConfiguredAssemblyWorkerContext,
+    baseline: string, options: ConfiguredAssemblySolveOptions): ConfiguredAssemblyPreviewReply {
     this.#pending = null
-    const handle = prepareConfiguredAssemblySolve(assemblyConfiguredGeometryInput(owned.document, owned.generation), options)
+    const preparedInput = assemblyConfiguredGeometryInput(proposed.document, proposed.generation)
+    const handle = prepareConfiguredAssemblySolve(preparedInput, options)
     const candidate = validateAssemblyConfiguredDocument({ version: 3, kind: 'configured-assembly', source: handle.candidate.document,
       catalog: handle.candidate.catalog, rootConfiguration: handle.candidate.rootConfiguration })
     const nextGeneration = Math.max(handle.candidate.generation, owned.generation + 1)
@@ -71,7 +97,7 @@ export class ConfiguredAssemblyWorkerSession {
     const result: ConfiguredAssemblyPreviewReply = { kind: 'configured-assembly-preview', token, generation: owned.generation,
       candidateGeneration: nextGeneration, document: candidate, scene, states: structuredClone(handle.states), verification: structuredClone(handle.verification),
       changed: serialized !== serializeAssemblyConfiguredDocument(owned.document) }
-    this.#pending = { token, baseline, handle, candidate: serialized, generation: nextGeneration }
+    this.#pending = { token, baseline, handle, candidate: serialized, generation: nextGeneration, preparedInput }
     return result
   }
   apply(current: ConfiguredAssemblyWorkerContext, token: string): ConfiguredAssemblyAppliedReply {
@@ -82,7 +108,7 @@ export class ConfiguredAssemblyWorkerSession {
     this.#pending = null
     const owned = captureConfiguredAssemblyWorkerContext(current), baseline = signature(owned)
     if (baseline !== pending.baseline) throw Error('Configured Apply requires its exact complete baseline.')
-    const applied = applyPreparedConfiguredAssemblySolve(assemblyConfiguredGeometryInput(owned.document, owned.generation), pending.handle)
+    const applied = applyPreparedConfiguredAssemblySolve(pending.preparedInput, pending.handle)
     const document = validateAssemblyConfiguredDocument({ version: 3, kind: 'configured-assembly', source: applied.document,
       catalog: applied.catalog, rootConfiguration: applied.rootConfiguration })
     if (serializeAssemblyConfiguredDocument(document) !== pending.candidate) throw Error('Configured private candidate changed before Apply.')

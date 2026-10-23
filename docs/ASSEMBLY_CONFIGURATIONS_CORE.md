@@ -7,8 +7,9 @@ does not establish current native reference availability or solvability.
 
 `validateAssemblyConfigurationDeclarations` shares the evaluator's source,
 catalog, dormant-selector, capture and byte-envelope parser. It returns only
-owned normalized declarations. It does not expand occurrences, admit expanded
-budgets, compute availability diagnostics or grant native authority. Consumers
+owned normalized declarations. It counts effective relation budgets for all
+intrinsic states, but does not expand occurrence placements, compute availability
+diagnostics or grant native authority. Consumers
 that need a complete evaluated graph must still call the full evaluator.
 
 This standalone model layer evaluates named states of an existing assembly
@@ -32,6 +33,11 @@ Each configuration has an ID, name and two explicit override arrays:
 | Occurrence override | Exact direct `occurrenceId`; optional `pose`, `suppressed`, `visible`, child assembly `configuration`. |
 | Mate override | Exact direct `mateId`, explicit `suppressed` boolean and optional complete mechanical `capture`. |
 
+The optional `mateDeclarations` list replaces Base's entire relation list for
+that named state; absence inherits Base and `[]` declares no relations. Mate
+overrides address the resulting list. See the [editing contract](ASSEMBLY_CONFIGURED_RELATION_EDITING.md)
+for exact-state changes and Base isolation.
+
 Omitting a selector, or using null, means the existing base state. Named
 variants inherit directly from base declarations, without chains of variant
 inheritance. A configuration may select a named variant on a direct child
@@ -46,8 +52,8 @@ a flexible instance. Two uses of the same selected state share its local
 declaration, while their complete placement and reference paths stay distinct.
 
 Named mate captures use the strict [capture/winding contract](ASSEMBLY_CONFIGURATIONS_STATE.md).
-Only concentric/lock/gear/screw/rack-pinion capture fields are overridden; all
-authored references and parameters remain source declarations. Core evaluation
+Only concentric/lock/gear/screw/rack-pinion capture fields use capture overrides;
+references and parameters belong to the selected declaration list. Core evaluation
 applies the selected capture before exposing effective mates. These are
 authored values, without historical recapture or native satisfaction authority.
 
@@ -60,7 +66,9 @@ All declared variants are checked, including unselected ones. Child selectors
 must name a variant at the exact referenced assembly tuple.
 
 There may be at most 64 configurations per owner, 512 across the catalog and
-4,096 occurrence/mate overrides in total. The combined owned source, catalog
+4,096 occurrence/mate override and explicit relation-declaration rows in total.
+Effective expanded relation counts are also capped at 4,096 in every intrinsic
+state, including dormant variants and repeated uses. The combined owned source, catalog
 and root selector must fit 20 MiB of UTF-8 JSON with two-space indentation.
 Existing source
 definition, depth, feature and expanded declaration budgets remain in force;

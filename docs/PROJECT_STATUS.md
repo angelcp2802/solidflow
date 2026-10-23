@@ -1,5 +1,29 @@
 # Project status and review queue
 
+### Configured relation editing and repeatable prototype demo
+
+The increment after `d495192`, tracked in [issue #50](https://github.com/angelcp2802/solidflow/issues/50),
+adds complete named relation lists, exact-state add/replace/remove/suppression
+and graphical private native previews. Base edits preserve previous named
+declarations. Drafts do not alter history or recovery; Apply authenticates the
+original context and publishes one complete v3 snapshot.
+
+Windows validation passes 9131 unit/CAD cases in 382 files and 83 IPC/security
+checks with two explicit skips, build and actual Electron smoke. The new
+production-renderer demo passes 61 milestones and 23 geometry phases through
+editing, Cancel/Apply, shared variants, history and actual save/reopen. Existing
+configured/BOM and rigid renderer workflows also pass their 80 and 527 milestones.
+See the
+[contract](ASSEMBLY_CONFIGURED_RELATION_EDITING.md), [walkthrough](DEMO_ASSEMBLIES.md#edit-a-relation-in-one-state)
+and [validation](VALIDATION.md#configured-relation-editing-and-private-intent-previews--2026-10-23).
+
+The same [draft PR #49](https://github.com/angelcp2802/solidflow/pull/49) collects
+the work. Preceding head `f2a1c91` completed Linux CI and packaging; Windows
+and macOS failed an existing pointer-handle acquisition assertion after passing unit/CAD
+and IPC. Hosted results for this increment remain required. Mechanical capture,
+profile/path forms, native repair/source lifecycle, further configured consumers,
+flexible instances and the full assembly/release gate remain open.
+
 ### Reproduced CI test failures and symmetry repair acceptance
 
 The increment after `ce6871f` corrects the private source-stage protocol in the

@@ -68,12 +68,13 @@ function context(document:AssemblyDocument,catalog:AssemblyConfigurationCatalog)
     const node=nodes.get(assemblyDefinitionKey(owner))
     if(!node||node.kind!=='assembly')fail('propietario ausente, antiguo o no ensamblaje.')
     const variants=evaluation.catalog.find(row=>assemblyDefinitionKey(row.definition)===assemblyDefinitionKey(owner))
-    if(configuration!==null&&!variants?.configurations.some(row=>row.id===configuration))fail('configuración inexistente.')
+    const variant=configuration===null?undefined:variants?.configurations.find(row=>row.id===configuration)
+    if(configuration!==null&&!variant)fail('configuración inexistente.')
     // Validate selector existence before every cache hit. The cache is local to
     // this fully validated invocation and never identifies caller-owned input.
-    const key=JSON.stringify([owner.id,owner.revision,mateId]),previous=cache.get(key)
+    const key=JSON.stringify([owner.id,owner.revision,configuration,mateId]),previous=cache.get(key)
     if(previous)return previous
-    const source=node.mates.find(mate=>mate.id===mateId)
+    const source=(variant?.mateDeclarations??node.mates).find(mate=>mate.id===mateId)
     if(!source)fail('relación mecánica ausente.')
     type Mutable<T> = T extends object ? {-readonly [K in keyof T]:Mutable<T[K]>}:T
     const mate=structuredClone(source) as Mutable<typeof source>

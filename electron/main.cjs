@@ -220,11 +220,14 @@ function isSavedDocumentEnvelope(value) {
           !Array.isArray(owner.configurations) || owner.configurations.length > 64) return false;
       return owner.configurations.every(configuration => {
         if (!configuration || typeof configuration !== 'object' || Array.isArray(configuration) || ++variants > 512 ||
-            Object.keys(configuration).length !== 4 || !['id', 'name', 'occurrences', 'mates'].every(key => Object.hasOwn(configuration, key)) ||
+            Object.keys(configuration).length !== (Object.hasOwn(configuration, 'mateDeclarations') ? 5 : 4) ||
+            !['id', 'name', 'occurrences', 'mates'].every(key => Object.hasOwn(configuration, key)) ||
+            Object.keys(configuration).some(key => !['id', 'name', 'occurrences', 'mates', 'mateDeclarations'].includes(key)) ||
             typeof configuration.id !== 'string' || !configuration.id.trim() || configuration.id.length > 128 || /[\x00-\x1f\x7f]/.test(configuration.id) ||
             typeof configuration.name !== 'string' || !configuration.name.trim() || configuration.name.length > 200 || /[\x00-\x1f\x7f]/.test(configuration.name) ||
-            !Array.isArray(configuration.occurrences) || !Array.isArray(configuration.mates)) return false;
-        overrides += configuration.occurrences.length + configuration.mates.length;
+            !Array.isArray(configuration.occurrences) || !Array.isArray(configuration.mates) ||
+            (Object.hasOwn(configuration, 'mateDeclarations') && (!Array.isArray(configuration.mateDeclarations) || configuration.mateDeclarations.length > 4096))) return false;
+        overrides += configuration.occurrences.length + configuration.mates.length + (configuration.mateDeclarations?.length ?? 0);
         return overrides <= 4096;
       });
     });

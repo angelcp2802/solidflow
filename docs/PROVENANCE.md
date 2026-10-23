@@ -1,6 +1,51 @@
 # Public fixture provenance
 
+## Original configured relation editing
+
+The pure `assemblyConfiguredMateEditing.test.ts` cases reuse the project-authored
+A/B/S graph and original un-attested topology labels for syntax and state
+isolation. All current binary and compound declarations, named captures, dormant
+states, exact replacement IDs, getters, budgets and explicit empty lists are
+data-only evidence. No authored capture or topology key is a native attestation.
+
+`kernel.assembly-configuration-relation-edit.test.ts` uses the original A2×3×4
+and B1×2×5 prisms, including two uses of S.compact. Its new coincident XY planes
+require no geometric displacement. Native totals remain four solids, volume
+68 mm³ and area 172 mm² with absolute 1e-5 bands. Existing lock declarations in
+suppression/removal cases exercise preservation, not a fresh capture producer.
+Actual scene/query faults and reentrant generation changes withhold publication;
+detached preview mutation and proposal-as-baseline attempts grant no Apply.
+
+The separate `desktop-assembly-configured-relations-flow.cjs` reuses the original
+`desktop-assembly-configurations-original.cjs` recipe. Editing the compact
+principal YZ distance from 10 to 6 mm gives right/B bounds [28,6,0]–[30,7,5]
+under the literal proper map `(x,y,z) -> (30-y,x,z)`. Left Base/B remains
+[10,0,0]–[11,2,5]. Selecting both-compact puts left/B at [6,0,0]–[7,2,5]
+while retaining right/B at local X6. Adding an A-to-scope YZ distance zero is
+compatible with fixed A; suppression and deletion change no mass or bounds.
+A Base distance edit to 8 gives left/B [8,0,0]–[9,2,5], preserves compact6
+and materializes dormant Single's old distance10. Undo restores the whole
+previous context. No product edit helper calculates these expected coordinates.
+
+Four one-to-one placed solids retain V=68/A=172; body/total volume and area use
+1e-5 bands and literal bounds use 1e-6 mm. Ordinary DOM controls send actual
+worker intents; private preview/Apply, history, recovery and saved reopening use
+the production route. Only isolated test-owned native-dialog paths are substituted.
+No worker reply, React callback, committed state or cached mesh is injected.
+The hidden parent/child/step budgets remain 180/170/35 seconds. These original
+GPL-3.0-only cases contain no private models, vendor source or binaries. Their
+presence and configured CI commands do not establish executed results; see
+[validation](VALIDATION.md) for actual outcomes and platform limits.
+
 ## Original Node CI reporter cases
+
+The configured transport cases in `desktop-security.node.cjs` use original
+small declarations to save/reopen a v3 catalog with absent, populated and empty
+`mateDeclarations`. Save As, Open and normal Save retain exact submitted bytes.
+Non-array values, unknown catalog fields, per-list overflow and aggregate
+overflow within/across variants must reject before any dialog. These are actual
+restricted file-IPC tests with owned temporary files; main admits a bounded
+envelope and does not attest the contained relation or native geometry.
 
 `scripts/desktop-node-ci-reporter.node.cjs` creates a small original temporary
 Node fixture: one pass and one skip, followed by a nested assertion comparing

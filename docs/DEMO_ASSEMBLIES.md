@@ -68,11 +68,42 @@ filesystem error and closing the table while an actual write is underway. Its
 dialogs use only isolated test-owned paths. See the [BOM contract](ASSEMBLY_CONFIGURED_BOM.md)
 and [actual validation](VALIDATION.md) for boundaries and executed results.
 
+## Edit a relation in one state
+
+Use a fresh copy of the original document generated above. Keep **Right compact**
+selected and choose the `right` scope in **Ámbito de configuración**.
+
+1. In **Relaciones del estado**, edit **Original signed X distance**. Set
+   **Distancia de relación configurada en mm** to 6. This draft changes no saved
+   or committed value.
+2. Press **Vista previa de relación configurada**. The actual native solve puts
+   right/B at local X6, while left Base/B remains at X10. The viewport still
+   contains four solids, volume 68 mm³ and area 172 mm².
+3. Press **Cancelar**: right/B returns to its committed X4 placement. The form
+   retains the draft. Preview again, then **Aplicar configuración** to commit.
+4. Try **Deshacer/Rehacer**. Choose **Both compact** to see both uses of the
+   same compact state at local X6. These uses share an intrinsic state.
+5. Choose the `right` scope again. **Nueva relación configurada** can add a
+   distance zero between `a`'s principal YZ plane and the scope's principal YZ
+   plane. Name it, preview and Apply. Its **Suprimir** and **Eliminar** actions
+   also require preview/Apply. Neither changes the original prisms' geometry.
+6. Use **Guardar como**, then reopen the file. Both the named relation list and
+   its selected root state persist. **Resolver configuración** freshly checks
+   the reopened state; Cancel preserves its committed declarations.
+
+`npm run test:desktop:assembly-configured-relations` executes this bounded path
+in the isolated production renderer and also checks Base-edit isolation,
+history, recovery, canceled Save As and normal Save. Its dialogs use test-owned
+paths. Read the [editing contract](ASSEMBLY_CONFIGURED_RELATION_EDITING.md) and
+[validation record](VALIDATION.md) for the actual executed results.
+
 ## Scope
 
 The ordinary rigid assembly workspace and configured workspace have different
-available controls. The configured view currently lacks relation creation and
-repair, interactive constrained dragging, configured interference/geometric export,
+available controls. The configured view offers graphical relation creation/editing
+for the families listed in its form, plus suppression/removal. New mechanical
+captures, profile/path compound forms and reference repair remain unavailable
+there, alongside interactive constrained dragging, configured interference/geometric export,
 part-feature variants and flexible instances. A passing walkthrough does not
 establish arbitrary model compatibility, complete mechanical motion, installed
 packaging or Windows/macOS/Linux support.

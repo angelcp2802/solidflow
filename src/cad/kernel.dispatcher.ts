@@ -1,10 +1,11 @@
 import { insertAssemblyDocument } from '../model/assemblyImport'
+import { applyAssemblyConfiguredMateEdit } from '../model/assemblyConfiguredMateEditing'
 import { buildAssemblyScene } from './kernel.assembly-scene'
 import { importAssemblyStepStructureNative } from './kernel.assembly-step-import'
 import { exportAssemblyStepStructureNative } from './kernel.assembly-step-export'
 import { CadEngine } from './kernel.engine'
 import { AssemblyWorkerSession } from './kernel.assembly-session'
-import { ConfiguredAssemblyWorkerSession } from './kernel.assembly-configuration-session'
+import { ConfiguredAssemblyWorkerSession, captureConfiguredAssemblyRelationEdit } from './kernel.assembly-configuration-session'
 import { captureConfiguredAssemblyWorkerContext } from './kernel.assembly-configuration-context'
 import { validateConfiguredAssemblySolvePolicy } from './kernel.assembly-configuration-solve'
 import { exportAssemblyCadNative } from './kernel.assembly-export'
@@ -26,6 +27,14 @@ export class KernelDispatcher {
         this.#part.dispose(); this.#assembly.discard()
         return this.#configured.preview(request.current, request.options)
       case 'apply-configured-assembly': return this.#configured.apply(request.current, request.token)
+      case 'preview-configured-assembly-relation-edit': {
+        const current = captureConfiguredAssemblyWorkerContext(request.current)
+        const edit = captureConfiguredAssemblyRelationEdit(request.edit)
+        validateConfiguredAssemblySolvePolicy(request.options)
+        applyAssemblyConfiguredMateEdit(current.document, edit)
+        this.#part.dispose(); this.#assembly.discard()
+        return this.#configured.previewEdit(request.current, request.edit, request.options)
+      }
       case 'discard-configured-assembly': {
         const token = Object.getOwnPropertyDescriptor(request, 'token')
         if (!token || !('value' in token) || typeof token.value !== 'string' || !token.value || token.value.length > 128) throw Error('Configured preview token is invalid.')

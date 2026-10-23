@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { assemblyConfigurationCoreFixture } from '../model/assemblyConfigurationCore.test-utils'
 import { createAssemblyConfiguredDocument } from '../model/assemblyConfiguredDocument'
-import { buildConfiguredAssembly, previewConfiguredAssembly, applyConfiguredAssembly, discardConfiguredAssembly, disposeKernel, initKernel } from './kernel'
+import { buildConfiguredAssembly, previewConfiguredAssembly, previewConfiguredAssemblyRelationEdit, applyConfiguredAssembly, discardConfiguredAssembly, disposeKernel, initKernel } from './kernel'
+import type { AssemblyConfiguredMateEdit } from '../model/assemblyConfiguredMateEditing'
 import type { ConfiguredAssemblyWorkerContext } from './kernel.assembly-configuration-context'
 import type { ConfiguredAssemblyScene } from './kernel.assembly-configuration-scene'
 import type { ConfiguredAssemblyPreviewReply, ConfiguredAssemblyAppliedReply } from './kernel.assembly-configuration-session'
@@ -32,6 +33,27 @@ async function initialized() {
  const initializing = initKernel(), worker = ControlledConfiguredWorker.instances[0]
  expect(worker.messages[0].action).toBe('init'); worker.reply(0); await initializing; return worker
 }
+function relationEdit(current: ConfiguredAssemblyWorkerContext): AssemblyConfiguredMateEdit {
+ return { scopePath: [], definition: { id: current.document.source.id, revision: current.document.source.revision }, configuration: current.document.rootConfiguration,
+  change: { kind: 'remove', mateId: 'original-declaration' } }
+}
+it('captures relation-edit intent and complete baseline before init; preview DTO grants no extra commands', async () => {
+ const current = context(), edit = relationEdit(current), options = { solver: { maxIterations: 4 } }
+ const baseline = structuredClone(current), intent = structuredClone(edit)
+ const pending = previewConfiguredAssemblyRelationEdit(current, edit, options), worker = ControlledConfiguredWorker.instances[0]
+ edit.scopePath.push('later'); edit.definition.revision = 'later'; current.generation++; options.solver.maxIterations = 99
+ worker.reply(0); await initKernel()
+ expect(worker.messages[1]).toMatchObject({ action: 'preview-configured-assembly-relation-edit', current: baseline, edit: intent, options: { solver: { maxIterations: 4 } } })
+ worker.reply(1, preview(baseline, 'edit-token')); expect((await pending).token).toBe('edit-token')
+ expect(worker.messages).toHaveLength(2)
+})
+it('rejects executable edit data before init and rejects restart during edit initialization', async () => {
+ const current = context(), edit = relationEdit(current); let reads = 0
+ Object.defineProperty(edit, 'change', { enumerable: true, get() { reads++; return {} } })
+ await expect(previewConfiguredAssemblyRelationEdit(current, edit)).rejects.toThrow(); expect(reads).toBe(0); expect(ControlledConfiguredWorker.instances).toHaveLength(0)
+ const pending = previewConfiguredAssemblyRelationEdit(current, relationEdit(current))
+ const rejected = expect(pending).rejects.toThrow(); disposeKernel(); await rejected
+})
 function scene(current: ConfiguredAssemblyWorkerContext, id: string): ConfiguredAssemblyScene {
  return { kind: 'configured-assembly-scene', context: { generation: current.generation,
   root: { id: current.document.source.id, revision: current.document.source.revision }, rootConfiguration: current.document.rootConfiguration,

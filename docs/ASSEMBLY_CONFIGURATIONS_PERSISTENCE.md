@@ -19,7 +19,9 @@ The new saved format is an explicit envelope, not extra fields on a v2 source:
 ```
 
 The source owns identity, revisions, definitions, base poses and base captures.
-The catalog owns named overrides and complete named mechanical captures. The
+The catalog owns named overrides, optional complete named relation declaration
+lists and complete named mechanical captures. See the [relation editing extension](ASSEMBLY_CONFIGURED_RELATION_EDITING.md)
+for absent/inherited versus explicitly empty lists. The
 selected root state is persisted so reopening reconstructs the selected state.
 There is no second capture sidecar, duplicated root metadata, native handle,
 authoritative cached scene, token, file grant or persisted runtime generation.
@@ -77,8 +79,9 @@ The editor selects Base or a named root, creates variants based on Base,
 edits effective occurrence state, selects child configurations in named parent
 states and invokes the real configured worker Solve/Cancel/Apply pipeline.
 Shared intrinsic states propagate to all their selected users; this is not
-independent flexible-instance behavior. Authoring Base changes inherited values;
-the solver's separate base-writeback isolation policy remains documented in
+independent flexible-instance behavior. Occurrence authoring in Base changes
+inherited values. Relation declaration edits instead preserve previous named
+effective lists before changing Base; the solver's separate isolation policy is in
 the transaction contract.
 
 Complete source/catalog/root-selector snapshots move together through bounded
@@ -122,8 +125,9 @@ part-feature variants, and flexible instances. Incompatible legacy consumers
 continue rejecting v3. The configured view labels its unavailable operations;
 it must not substitute base-state results for the selected configuration.
 Suppressing a component used by an active relation can leave that relation
-unavailable. This view cannot yet repair or suppress the relation; restore the
-component before solving that state again.
+unavailable. The relation list can explicitly suppress or remove it using a
+verified preview; native reference repair remains unavailable. Restore the
+component or explicitly change the relation before solving that state again.
 
 The [configured declaration BOM](ASSEMBLY_CONFIGURED_BOM.md) is now a separate
 committed-context consumer with variant grouping, explicit scope and CSV export.

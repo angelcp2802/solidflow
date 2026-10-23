@@ -1,17 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { buildConfiguredAssembly, previewConfiguredAssembly, applyConfiguredAssembly, discardConfiguredAssembly } from '../cad/kernel'
+import { buildConfiguredAssembly, previewConfiguredAssembly, previewConfiguredAssemblyRelationEdit, applyConfiguredAssembly, discardConfiguredAssembly } from '../cad/kernel'
 import type { ConfiguredAssemblyPreviewReply } from '../cad/kernel.assembly-configuration-session'
 import type { ConfiguredAssemblyScene } from '../cad/kernel.assembly-configuration-scene'
 import { evaluateAssemblyConfiguration } from '../model/assemblyConfigurationCore'
-import { assemblyDefinitionKey } from '../model/assemblyDocument'
+import { assemblyDefinitionKey, validateAssemblyMate, type AssemblyMate } from '../model/assemblyDocument'
+import { validateAssemblyConfiguredMateEdit, type AssemblyConfiguredMateEdit } from '../model/assemblyConfiguredMateEditing'
 import { AssemblyConfiguredDocumentHistory } from '../model/assemblyConfiguredHistory'
 import { validateAssemblyConfiguredDocument, parseAssemblyConfiguredDocument, serializeAssemblyConfiguredDocument, type AssemblyConfiguredDocument } from '../model/assemblyConfiguredDocument'
 import { parseCadDocument, type CadDocument } from '../model/cadDocument'
 import { CAD_RECOVERY_KEY } from '../model/cadRecovery'
 import { buildConfiguredAssemblyBom, type ConfiguredAssemblyBomOptions, type ConfiguredAssemblyBomMember } from '../model/assemblyConfiguredBom'
-import { createConfiguredUiRootVariant, createConfiguredUiScopeVariant, configuredUiPose, editConfiguredUiOccurrence, configuredUiTicket, configuredUiTicketMatches, configuredUiSceneMatches, configuredUiDisplayScene, configuredBomUiTicket, configuredBomUiTicketMatches, configuredBomUiSelectedPath, downloadConfiguredBomCsv, runConfiguredBomCsvExport } from './configuredAssemblyUi'
+import { createConfiguredUiRootVariant, createConfiguredUiScopeVariant, configuredUiPose, editConfiguredUiOccurrence, configuredUiTicket, configuredUiTicketMatches, configuredUiSceneMatches, configuredUiDisplayScene, configuredBomUiTicket, configuredBomUiTicketMatches, configuredBomUiSelectedPath, downloadConfiguredBomCsv, runConfiguredBomCsvExport, configuredMateUiTicketMatches, configuredMateUiPreviewMatches } from './configuredAssemblyUi'
 import AssemblyViewport from './AssemblyViewport'
 import ConfiguredAssemblyBomPanel from './ConfiguredAssemblyBomPanel'
+import ConfiguredAssemblyMatePanel, { configuredMateUiDraft, configuredMateUiChoices, configuredMateUiProposal, configuredMateEditUnavailable, type ConfiguredMateDraft } from './ConfiguredAssemblyMatePanel'
 import './assembly.css'
 import './configured-assembly.css'
 
@@ -34,6 +36,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
   const [message, setMessage] = useState('Preparando el ensamblaje…'), [scope, setScope] = useState('[]')
   const [occurrenceId, setOccurrenceId] = useState(''), [variantName, setVariantName] = useState(''), [scopeVariantName, setScopeVariantName] = useState(''), [pose, setPose] = useState(['0', '0', '0'])
   const [rotationAxis, setRotationAxis] = useState<'X' | 'Y' | 'Z'>('Z'), [rotationDegrees, setRotationDegrees] = useState('0')
+  const [mateDraft, setMateDraft] = useState<ConfiguredMateDraft | null>(null), mateDraftRef = useRef(mateDraft), mateRevision = useRef(0), sceneRef = useRef(scene), committedSceneRef = useRef<ConfiguredAssemblyScene | null>(null)
   const [view, setView] = useState<{ name: 'iso' | 'front' | 'top' | 'fit'; stamp: number }>({ name: 'iso', stamp: 0 })
   const [discardDialog, setDiscardDialog] = useState(false), answer = useRef<((allow: boolean) => void) | null>(null)
   const [bomOpen, setBomOpen] = useState(false), [bomOptions, setBomOptions] = useState<ConfiguredAssemblyBomOptions>({ mode: 'parts-only', includeHidden: true, scopePath: [] })
@@ -43,13 +46,18 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
   const current = useRef(document), epoch = useRef(generation), scopeRef = useRef(scope), occurrenceRef = useRef(occurrenceId), pathRef = useRef(path), mounted = useRef(false)
   const pending = useRef(preview), operation = useRef(false), skipRecovery = useRef(skipInitialRecoveryWrite)
   const operationKind = useRef<'build' | 'solve' | 'apply' | 'file' | null>(null), dirtyRef = useRef(false)
-  current.current = document; pending.current = preview; pathRef.current = path
+  current.current = document; pending.current = preview; pathRef.current = path; sceneRef.current = scene
   const serialized = useMemo(() => serializeAssemblyConfiguredDocument(document), [document]), dirty = serialized !== saved
-  const renderedTicket = { serialized, generation, scope, path, occurrence: occurrenceId }
+  const renderedTicket = { serialized, generation, scope, path, occurrence: occurrenceId, draftRevision: mateRevision.current }
   dirtyRef.current = dirty
   const evaluation = useMemo(() => evaluateAssemblyConfiguration(document.source, document.catalog, document.rootConfiguration), [document])
   const selectedScope = evaluation.scopes.find(row => JSON.stringify(row.path) === scope) ?? evaluation.scopes[0]
   const selected = selectedScope.occurrences.find(row => row.id === occurrenceId)
+  const effectiveMates = selectedScope.mates.map(value => validateAssemblyMate(value))
+  const mateChoices = useMemo(() => {
+    try { return { values: configuredMateUiChoices(document, preview ? committedSceneRef.current : scene, generation, selectedScope.path.map(String)), error: undefined } }
+    catch (reason) { return { values: [], error: reason instanceof Error ? reason.message : 'No se pudieron preparar las referencias actuales.' } }
+  }, [document, scene, preview, generation, scope])
   const rootVariants = document.catalog.find(row => assemblyDefinitionKey(row.definition) === assemblyDefinitionKey(document.source))?.configurations ?? []
   const bom = useMemo(() => {
     if (!bomOpen) return { report: null, error: undefined }
@@ -57,8 +65,15 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
     catch (reason) { return { report: null, error: reason instanceof Error ? reason.message : 'Lista de materiales no disponible.' } }
   }, [document, bomOpen, bomOptions])
   const bomSelectedPath = configuredBomUiSelectedPath(bom.report, serialized, bomSelection)
-  const ticket = () => configuredUiTicket(current.current, epoch.current, scopeRef.current, pathRef.current, occurrenceRef.current)
+  const ticket = () => configuredUiTicket(current.current, epoch.current, scopeRef.current, pathRef.current, occurrenceRef.current, mateRevision.current)
   const fresh = (value: ReturnType<typeof ticket>) => mounted.current && configuredUiTicketMatches(value, ticket())
+  const mateTicket = () => ({ context: ticket(), revision: mateRevision.current, draft: JSON.stringify(mateDraftRef.current), sceneId: sceneRef.current?.scene.sceneId ?? null })
+  const renderedMateTicket = { context: renderedTicket, revision: mateRevision.current, draft: JSON.stringify(mateDraft), sceneId: scene?.scene.sceneId ?? null }
+  const freshMate = () => mounted.current && configuredMateUiTicketMatches(renderedMateTicket, mateTicket())
+  const setRelationDraft = (value: ConfiguredMateDraft | null) => {
+    if (mateRevision.current >= Number.MAX_SAFE_INTEGER) throw Error('Vuelve a abrir el ensamblaje para continuar editando relaciones.')
+    mateRevision.current++; mateDraftRef.current = value; setMateDraft(value)
+  }
   const bomTicket = () => configuredBomUiTicket(ticket(), bomView.current.open, bomView.current.revision, bomView.current.options)
   const renderedBomTicket = configuredBomUiTicket(renderedTicket, bomOpen, bomView.current.revision, bomOptions)
   const freshBom = (value: ReturnType<typeof bomTicket>) => mounted.current && configuredBomUiTicketMatches(value, bomTicket())
@@ -66,12 +81,13 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
   const begin = (kind: NonNullable<typeof operationKind.current>) => { operation.current = true; operationKind.current = kind; setBusy(true); setCancelable(kind === 'build' || kind === 'solve') }
   const finish = () => { operation.current = false; operationKind.current = null; setBusy(false); setCancelable(false) }
   const error = (reason: unknown) => { const text = reason instanceof Error ? reason.message : String(reason); setFailure(text); setMessage(text) }
-  const revoke = (minimum = 0, reservedEpoch?: number) => {
+  const revoke = (minimum = 0, reservedEpoch?: number, keepMateDraft = false) => {
     const next = reservedEpoch ?? nextEpoch(minimum)
     if (pending.current) release(pending.current.token)
     pending.current = null; setPreview(null); finish()
+    if (!keepMateDraft) { mateDraftRef.current = null; setMateDraft(null) }
     answer.current?.(false); answer.current = null; setDiscardDialog(false)
-    epoch.current = next; setGeneration(next); setScene(null)
+    epoch.current = next; setGeneration(next); committedSceneRef.current = null; setScene(null)
   }
   const commit = (next: AssemblyConfiguredDocument, minimum = 0) => {
     const checked = validateAssemblyConfiguredDocument(next), reservedEpoch = nextEpoch(minimum)
@@ -79,7 +95,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
     revoke(0, reservedEpoch); setFailure(null); current.current = owned; skipRecovery.current = false; setDocument(owned)
   }
   const edit = (change: Parameters<typeof editConfiguredUiOccurrence>[3]) => {
-    if (!fresh(renderedTicket) || operation.current || pending.current || !selected) return
+    if (!fresh(renderedTicket) || operation.current || pending.current || mateDraftRef.current || !selected) return
     setFailure(null)
     try { commit(editConfiguredUiOccurrence(current.current, JSON.parse(scopeRef.current), selected.id, change)); setMessage('Estado actualizado. Resuelve para comprobar sus relaciones.') }
     catch (reason) { error(reason) }
@@ -93,7 +109,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
     void buildConfiguredAssembly({ document: current.current, generation: captured.generation }).then(value => {
       if (!fresh(captured)) return
       if (!configuredUiSceneMatches(value, current.current, captured.generation)) throw Error('La escena no corresponde a la configuración actual.')
-      setScene(value); setMessage(value.referenceDiagnostics.length ? 'Hay referencias que necesitan reparación. La geometría disponible se conserva.' : 'Configuración lista.')
+      committedSceneRef.current = value; setScene(value); setMessage(value.referenceDiagnostics.length ? 'Hay referencias que necesitan reparación. La geometría disponible se conserva.' : 'Configuración lista.')
     }).catch(reason => { if (fresh(captured)) { setScene(null); error(reason) } }).finally(() => { if (fresh(captured)) finish() })
   }, [serialized, generation])
   useEffect(() => {
@@ -101,7 +117,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
     try { localStorage.setItem(CAD_RECOVERY_KEY, serialized) } catch { error(Error('No se pudo guardar la recuperación local. Guarda el archivo.')) }
   }, [serialized])
   useEffect(() => { if (selected) { setPose(selected.pose.translation.map(String)); setRotationDegrees('0') } }, [serialized, scope, occurrenceId])
-  useEffect(() => { const leave = (event: BeforeUnloadEvent) => { if (dirtyRef.current || pending.current) { event.preventDefault(); event.returnValue = '' } }; window.addEventListener('beforeunload', leave); return () => window.removeEventListener('beforeunload', leave) }, [])
+  useEffect(() => { const leave = (event: BeforeUnloadEvent) => { if (dirtyRef.current || pending.current || mateDraftRef.current) { event.preventDefault(); event.returnValue = '' } }; window.addEventListener('beforeunload', leave); return () => window.removeEventListener('beforeunload', leave) }, [])
   useEffect(() => {
     if (!discardDialog || !dialog.current) return
     const node = dialog.current, previous = window.document.activeElement
@@ -116,7 +132,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
     return () => { node.removeEventListener('keydown', key); if (previous instanceof HTMLElement && previous.isConnected) previous.focus() }
   }, [discardDialog])
   const solve = async () => {
-    if (!fresh(renderedTicket) || operation.current || pending.current || !scene) return
+    if (!fresh(renderedTicket) || operation.current || pending.current || mateDraftRef.current || !scene) return
     const captured = ticket(); setFailure(null); begin('solve'); setMessage('Resolviendo todos los estados utilizados…')
     try {
       const reply = await previewConfiguredAssembly({ document: current.current, generation: captured.generation })
@@ -142,7 +158,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
     finally { if (fresh(captured)) finish() }
   }
   const save = async (saveAs: boolean) => {
-    if (!fresh(renderedTicket) || operation.current || pending.current) return false
+    if (!fresh(renderedTicket) || operation.current || pending.current || mateDraftRef.current) return false
     if (!window.solidflow) { setMessage('Abre la aplicación de escritorio para guardar en un archivo.'); return false }
     const captured = ticket(), content = captured.serialized; setFailure(null); begin('file')
     try {
@@ -154,7 +170,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
     finally { if (mounted.current && epoch.current === captured.generation) finish() }
   }
   const open = async () => {
-    if (!fresh(renderedTicket) || operation.current || pending.current || !window.solidflow) return
+    if (!fresh(renderedTicket) || operation.current || pending.current || mateDraftRef.current || !window.solidflow) return
     const captured = ticket(); setFailure(null); begin('file')
     try {
       if (captured.serialized !== saved) {
@@ -169,11 +185,36 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
     finally { if (fresh(captured)) finish() }
   }
   const undo = (redo: boolean) => {
-    if (!fresh(renderedTicket) || operation.current || pending.current) return
+    if (!fresh(renderedTicket) || operation.current || pending.current || mateDraftRef.current) return
     const reservedEpoch = nextEpoch(), value = redo ? history.current!.redo() : history.current!.undo()
     revoke(0, reservedEpoch); setFailure(null); current.current = value; skipRecovery.current = false; setDocument(value)
   }
   const changeScope = (value: string) => { if (!fresh(renderedTicket) || operation.current || pending.current || !evaluation.scopes.some(row => JSON.stringify(row.path) === value)) return; revoke(); setFailure(null); scopeRef.current = value; occurrenceRef.current = ''; setScope(value); setOccurrenceId('') }
+  const relationTarget = (change: AssemblyConfiguredMateEdit['change']) => validateAssemblyConfiguredMateEdit({ scopePath: [...selectedScope.path], definition: { ...selectedScope.definition }, configuration: selectedScope.configuration, change })
+  const previewRelation = async (intent: AssemblyConfiguredMateEdit) => {
+    if (!freshMate() || operation.current || pending.current || !scene || selectedScope.suppressed) return
+    let edit: AssemblyConfiguredMateEdit
+    try { edit = validateAssemblyConfiguredMateEdit(intent) } catch (reason) { error(reason); return }
+    const captured = mateTicket(), isCurrent = () => mounted.current && configuredMateUiTicketMatches(captured, mateTicket())
+    setFailure(null); begin('solve'); setMessage('Verificando la edición de la relación en todos sus usos…')
+    try {
+      const reply = await previewConfiguredAssemblyRelationEdit({ document: current.current, generation: captured.context.generation }, edit)
+      if (!isCurrent()) { release(reply.token); return }
+      if (reply.kind !== 'configured-assembly-preview' || reply.generation !== captured.context.generation || !reply.verification.accepted
+        || !configuredUiSceneMatches(reply.scene, reply.document, reply.candidateGeneration) || !configuredMateUiPreviewMatches(reply.document, edit)) { release(reply.token); throw Error('La vista previa no conserva la edición de relación solicitada.') }
+      pending.current = reply; setPreview(reply); setScene(reply.scene); setMessage('Edición verificada. Revisa la vista previa y pulsa Aplicar o Cancelar.')
+    } catch (reason) { if (isCurrent()) error(reason) }
+    finally { if (fresh(captured.context) && operationKind.current === 'solve') finish() }
+  }
+  const openRelationEditor = (mate?: AssemblyMate) => {
+    if (!freshMate() || operation.current || pending.current || mateDraftRef.current || !scene || selectedScope.suppressed) return
+    try { setRelationDraft(configuredMateUiDraft(mate?.id ?? crypto.randomUUID(), mate)); setFailure(null) } catch (reason) { error(reason) }
+  }
+  const previewDraft = () => {
+    if (!freshMate() || operation.current || pending.current || !mateDraftRef.current) return
+    try { const draft = mateDraftRef.current, mate = configuredMateUiProposal(draft, mateChoices.values); void previewRelation(relationTarget(draft.editing ? { kind: 'replace', mateId: draft.id, mate } : { kind: 'add', mate })) }
+    catch (reason) { error(reason) }
+  }
   const changeBomView = (open: boolean, options = bomView.current.options) => {
     if (!freshBom(renderedBomTicket)) return
     if (bomView.current.revision >= Number.MAX_SAFE_INTEGER) { error(Error('Vuelve a abrir el ensamblaje para continuar con la lista de materiales.')); return }
@@ -182,7 +223,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
     if (!open) bomToggle.current?.focus()
   }
   const exportBom = async () => {
-    if (!freshBom(renderedBomTicket) || !bomView.current.open || operation.current || pending.current || !bom.report) return
+    if (!freshBom(renderedBomTicket) || !bomView.current.open || operation.current || pending.current || mateDraftRef.current || !bom.report) return
     const captured = bomTicket(), snapshot = parseAssemblyConfiguredDocument(captured.context.serialized), options = structuredClone(bomView.current.options)
     setFailure(null); begin('file'); setMessage('Exportando lista de materiales CSV…')
     try {
@@ -199,11 +240,11 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
   return <div className="configured-assembly-workspace" aria-label="Ensamblaje configurado" aria-busy={busy}>
     <header><strong>SolidFlow · {document.source.name}{dirty ? ' *' : ''}</strong><span title={path}>{path?.split(/[\\/]/).at(-1) ?? 'Sin guardar'}</span></header>
     <nav aria-label="Archivo del ensamblaje configurado">
-      <button onClick={() => void open()} disabled={blocked}>Abrir</button><button onClick={() => void save(false)} disabled={blocked}>Guardar</button><button onClick={() => void save(true)} disabled={blocked}>Guardar como</button>
-      <button onClick={() => undo(false)} disabled={blocked || !history.current.canUndo}>Deshacer</button><button onClick={() => undo(true)} disabled={blocked || !history.current.canRedo}>Rehacer</button>
-      <button onClick={() => void solve()} disabled={blocked || !scene}>Resolver configuración</button><button onClick={() => void apply()} disabled={busy || !preview}>Aplicar configuración</button>
+      <button onClick={() => void open()} disabled={blocked || !!mateDraft}>Abrir</button><button onClick={() => void save(false)} disabled={blocked || !!mateDraft}>Guardar</button><button onClick={() => void save(true)} disabled={blocked || !!mateDraft}>Guardar como</button>
+      <button onClick={() => undo(false)} disabled={blocked || !!mateDraft || !history.current.canUndo}>Deshacer</button><button onClick={() => undo(true)} disabled={blocked || !!mateDraft || !history.current.canRedo}>Rehacer</button>
+      <button onClick={() => void solve()} disabled={blocked || !!mateDraft || !scene}>Resolver configuración</button><button onClick={() => void apply()} disabled={busy || !preview}>Aplicar configuración</button>
       <button ref={bomToggle} aria-label="Lista de materiales configurada" aria-controls="configured-assembly-bom-panel" aria-pressed={bomOpen} disabled={busy} onClick={() => changeBomView(!bomOpen)}>Lista de materiales</button>
-      <button onClick={() => { if (!fresh(renderedTicket) || operationKind.current !== 'build' && operationKind.current !== 'solve' && (operation.current || !pending.current)) return; revoke(); setFailure(null); setMessage('Vista previa cancelada. Se conserva el documento confirmado.') }} disabled={!cancelable && (!preview || busy)}>Cancelar</button>
+      <button onClick={() => { if (!fresh(renderedTicket) || operationKind.current !== 'build' && operationKind.current !== 'solve' && (operation.current || !pending.current)) return; revoke(0, undefined, !!mateDraftRef.current); setFailure(null); setMessage('Vista previa cancelada. Se conserva el documento confirmado.') }} disabled={!cancelable && (!preview || busy)}>Cancelar</button>
     </nav>
     <div className="configured-assembly-layout"><aside>
       <h2>Configuraciones</h2><label>Configuración raíz<select aria-label="Configuración raíz" disabled={blocked} value={document.rootConfiguration ?? ''} onChange={event => {
@@ -217,22 +258,39 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
       {scope !== '[]' && <section aria-label="Crear configuración del ámbito"><label>Nueva configuración del ámbito<input aria-label="Nombre de nueva configuración del ámbito" disabled={blocked} value={scopeVariantName} onChange={event => { if (fresh(renderedTicket)) setScopeVariantName(event.target.value) }} /></label><button disabled={blocked || !scopeVariantName.trim()} onClick={() => { if (!fresh(renderedTicket) || operation.current || pending.current) return; try { commit(createConfiguredUiScopeVariant(current.current, JSON.parse(scopeRef.current), scopeVariantName)); setScopeVariantName(''); occurrenceRef.current = ''; setOccurrenceId('') } catch (reason) { error(reason) } }}>Crear configuración del ámbito basada en Base</button><small>Se selecciona para este uso en la configuración activa del padre. Los usos que comparten ese estado del padre también cambian.</small></section>}
       <label>Ocurrencia<select aria-label="Ocurrencia configurada" disabled={blocked} value={occurrenceId} onChange={event => { if (!fresh(renderedTicket) || operation.current || pending.current) return; occurrenceRef.current = event.target.value; setOccurrenceId(event.target.value) }}><option value="">Selecciona una ocurrencia</option>{selectedScope.occurrences.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}</select></label>
       {selected && <section aria-label="Editar estado de ocurrencia"><p>{selectedScope.configuration === null ? 'Editando Base: los estados que heredan estos valores también cambian.' : 'Editando sólo la configuración ' + selectedScope.configuration + '. Los usos de esta misma variante comparten el cambio.'}</p>
-        <fieldset disabled={blocked}><legend>Traslación local (mm)</legend>{['X', 'Y', 'Z'].map((axis, i) => <label key={axis}>{axis}<input aria-label={'Posición configurada ' + axis} type="number" step="any" value={pose[i]} onChange={event => { if (fresh(renderedTicket)) setPose(values => values.map((v, index) => index === i ? event.target.value : v)) }} /></label>)}</fieldset>
-        <label>Eje local de giro<select aria-label="Eje local de giro configurado" disabled={blocked} value={rotationAxis} onChange={event => { if (fresh(renderedTicket)) setRotationAxis(event.target.value as 'X' | 'Y' | 'Z') }}>{(['X', 'Y', 'Z'] as const).map(axis => <option key={axis} value={axis}>{axis}</option>)}</select></label><label>Giro incremental (grados)<input aria-label="Giro incremental configurado en grados" type="number" step="any" disabled={blocked} value={rotationDegrees} onChange={event => { if (fresh(renderedTicket)) setRotationDegrees(event.target.value) }} /></label>
-        <button disabled={blocked || pose.some(v => !v.trim()) || !rotationDegrees.trim()} onClick={() => { if (!fresh(renderedTicket) || operation.current || pending.current) return; try { edit({ pose: configuredUiPose(selected.pose, pose.map(Number), rotationAxis, Number(rotationDegrees)) }) } catch (reason) { error(reason) } }}>Actualizar posición del estado</button>
-        <label><input type="checkbox" aria-label="Ocurrencia configurada visible" disabled={blocked} checked={selected.visible} onChange={event => edit({ visible: event.target.checked })} />Visible</label><label><input type="checkbox" aria-label="Ocurrencia configurada suprimida" disabled={blocked} checked={selected.suppressed} onChange={event => edit({ suppressed: event.target.checked })} />Suprimida</label>
-        {evaluation.scopes.some(row => JSON.stringify(row.path) === JSON.stringify([...selectedScope.path, selected.id])) && <label>Configuración hija<select aria-label="Configuración hija de la ocurrencia" disabled={blocked || selectedScope.configuration === null} value={evaluation.scopes.find(row => JSON.stringify(row.path) === JSON.stringify([...selectedScope.path, selected.id]))?.configuration ?? ''} onChange={event => edit({ configuration: event.target.value || null })}><option value="">Base</option>{document.catalog.find(row => assemblyDefinitionKey(row.definition) === assemblyDefinitionKey(selected.definition))?.configurations.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}</select>{selectedScope.configuration === null && <small>Crea primero una configuración del padre para elegir una variante hija.</small>}</label>}
+        <fieldset disabled={blocked || !!mateDraft}><legend>Traslación local (mm)</legend>{['X', 'Y', 'Z'].map((axis, i) => <label key={axis}>{axis}<input aria-label={'Posición configurada ' + axis} type="number" step="any" value={pose[i]} onChange={event => { if (fresh(renderedTicket)) setPose(values => values.map((v, index) => index === i ? event.target.value : v)) }} /></label>)}</fieldset>
+        <label>Eje local de giro<select aria-label="Eje local de giro configurado" disabled={blocked || !!mateDraft} value={rotationAxis} onChange={event => { if (fresh(renderedTicket)) setRotationAxis(event.target.value as 'X' | 'Y' | 'Z') }}>{(['X', 'Y', 'Z'] as const).map(axis => <option key={axis} value={axis}>{axis}</option>)}</select></label><label>Giro incremental (grados)<input aria-label="Giro incremental configurado en grados" type="number" step="any" disabled={blocked || !!mateDraft} value={rotationDegrees} onChange={event => { if (fresh(renderedTicket)) setRotationDegrees(event.target.value) }} /></label>
+        <button disabled={blocked || !!mateDraft || pose.some(v => !v.trim()) || !rotationDegrees.trim()} onClick={() => { if (!fresh(renderedTicket) || operation.current || pending.current) return; try { edit({ pose: configuredUiPose(selected.pose, pose.map(Number), rotationAxis, Number(rotationDegrees)) }) } catch (reason) { error(reason) } }}>Actualizar posición del estado</button>
+        <label><input type="checkbox" aria-label="Ocurrencia configurada visible" disabled={blocked || !!mateDraft} checked={selected.visible} onChange={event => edit({ visible: event.target.checked })} />Visible</label><label><input type="checkbox" aria-label="Ocurrencia configurada suprimida" disabled={blocked || !!mateDraft} checked={selected.suppressed} onChange={event => edit({ suppressed: event.target.checked })} />Suprimida</label>
+        {evaluation.scopes.some(row => JSON.stringify(row.path) === JSON.stringify([...selectedScope.path, selected.id])) && <label>Configuración hija<select aria-label="Configuración hija de la ocurrencia" disabled={blocked || !!mateDraft || selectedScope.configuration === null} value={evaluation.scopes.find(row => JSON.stringify(row.path) === JSON.stringify([...selectedScope.path, selected.id]))?.configuration ?? ''} onChange={event => edit({ configuration: event.target.value || null })}><option value="">Base</option>{document.catalog.find(row => assemblyDefinitionKey(row.definition) === assemblyDefinitionKey(selected.definition))?.configurations.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}</select>{selectedScope.configuration === null && <small>Crea primero una configuración del padre para elegir una variante hija.</small>}</label>}
       </section>}
+      <section className="configured-mate-list" role="region" aria-label="Relaciones del estado configurado"><h2>Relaciones del estado</h2>
+        <p>{selectedScope.configuration === null ? 'Las ediciones de Base conservan los estados efectivos de las configuraciones nombradas.' : `Se edita la configuración ${selectedScope.configuration}. Todos sus usos comparten las relaciones.`}</p>
+        <button disabled={blocked || !!mateDraft || !scene || selectedScope.suppressed} onClick={() => openRelationEditor()}>Nueva relación configurada</button>
+        {!effectiveMates.length && <p>No hay relaciones declaradas en este estado.</p>}
+        <ul>{effectiveMates.map(mate => { const unavailable = configuredMateEditUnavailable(mate); return <li key={mate.id} data-configured-mate-id={mate.id} data-configured-mate-type={mate.type} data-configured-mate-suppressed={String(mate.suppressed)}>
+          <strong>{mate.name}</strong><small>{mate.type}{mate.suppressed ? ' · suprimida' : ''}{mate.type === 'distance' ? ` · ${mate.distance} mm` : ''}{mate.type === 'angle' ? ` · ${mate.angle}°` : ''}</small>
+          <button aria-label={`Editar relación configurada ${mate.name}`} title={unavailable ?? 'Editar referencias y parámetros'} disabled={blocked || !!mateDraft || !!unavailable || !scene || selectedScope.suppressed} onClick={() => openRelationEditor(mate)}>Editar</button>
+          <button aria-label={`${mate.suppressed ? 'Activar' : 'Suprimir'} relación configurada ${mate.name}`} disabled={blocked || !!mateDraft || !scene || selectedScope.suppressed} onClick={() => { if (freshMate()) void previewRelation(relationTarget({ kind: 'suppression', mateId: mate.id, suppressed: !mate.suppressed })) }}>{mate.suppressed ? 'Activar' : 'Suprimir'}</button>
+          <button aria-label={`Eliminar relación configurada ${mate.name}`} disabled={blocked || !!mateDraft || !scene || selectedScope.suppressed} onClick={() => { if (freshMate()) void previewRelation(relationTarget({ kind: 'remove', mateId: mate.id })) }}>Eliminar</button>
+          {unavailable && <small>{unavailable}</small>}
+        </li> })}</ul>
+        <p>Las capturas mecánicas nuevas y los formularios de perfiles y trayectos aún no están disponibles aquí.</p>
+      </section>
+      {mateDraft && <ConfiguredAssemblyMatePanel draft={mateDraft} choices={mateChoices.values} disabled={blocked || !scene || selectedScope.suppressed}
+        onChange={draft => { if (!freshMate() || operation.current || pending.current) return; try { setRelationDraft(structuredClone(draft)); setFailure(null) } catch (reason) { error(reason) } }}
+        onPreview={previewDraft} onClose={() => { if (!freshMate() || operation.current || pending.current) return; try { setRelationDraft(null); setFailure(null) } catch (reason) { error(reason) } }} />}
+      {mateChoices.error && <p role="alert">{mateChoices.error}</p>}
       <h2>Piezas efectivas</h2><ul>{evaluation.parts.map(part => <li key={JSON.stringify(part.path)}>{part.path.join(' / ')}{part.suppressed ? ' · suprimida' : part.visible ? '' : ' · oculta'}</li>)}</ul>
     </aside><main><nav aria-label="Vistas del ensamblaje configurado">{([['iso', 'Isométrica'], ['front', 'Frontal'], ['top', 'Superior'], ['fit', 'Ajustar']] as const).map(([name, label]) => <button key={name} disabled={busy} onClick={() => setView(old => ({ name, stamp: old.stamp + 1 }))}>{label}</button>)}</nav><div className="configured-assembly-view"><AssemblyViewport scene={displayScene} disabled={busy} view={view} selectedPath={preview ? [] : bomSelectedPath} onComponent={() => undefined} onFace={() => undefined} /></div>
       {preview && <p role="status">Vista previa verificada · todavía sin aplicar. {preview.states.length} estados resueltos; {preview.verification.reports.length} relaciones comprobadas.</p>}
       {scene && <p aria-label="Totales de configuración">{scene.scene.solidCount} sólidos · {scene.scene.volume.toFixed(3)} mm³ · {scene.scene.area.toFixed(3)} mm²</p>}
-      <p className="configured-assembly-limit">Edición de estados, selección de variantes, resolución y lista de materiales CSV. La creación y reparación de relaciones, exportación de geometría y movimiento interactivo aún no están disponibles en esta vista.</p>
-    </main></div>{bomOpen && <ConfiguredAssemblyBomPanel report={bom.report} error={bom.error} options={bomOptions} disabled={blocked} selectedPath={bomSelectedPath}
+      <p className="configured-assembly-limit">Edición de estados y relaciones con vista previa verificada, variantes y lista de materiales CSV. La reparación de orígenes, las nuevas capturas mecánicas, la exportación de geometría y el movimiento interactivo aún no están disponibles en esta vista.</p>
+    </main></div>{bomOpen && <ConfiguredAssemblyBomPanel report={bom.report} error={bom.error} options={bomOptions} disabled={blocked || !!mateDraft} selectedPath={bomSelectedPath}
       rootConfigurationLabel={document.rootConfiguration === null ? 'Base' : `${rootVariants.find(value => value.id === document.rootConfiguration)?.name ?? document.rootConfiguration} · ${JSON.stringify(document.rootConfiguration)}`}
       scopes={evaluation.scopes.map(value => ({ path: value.path, label: `${value.path.join(' / ') || 'Todo el ensamblaje'} · ${value.configuration ?? 'Base'}` }))}
-      onOptionsChange={options => { if (!freshBom(renderedBomTicket) || operation.current || pending.current) return; changeBomView(true, options) }}
-      onSelect={member => { if (!freshBom(renderedBomTicket) || operation.current || pending.current || !bom.report) return; const match = configuredBomUiSelectedPath(bom.report, serialized, { serialized, member }); if (match.length) setBomSelection({ serialized, member: structuredClone(member) }) }}
+      onOptionsChange={options => { if (!freshBom(renderedBomTicket) || operation.current || pending.current || mateDraftRef.current) return; changeBomView(true, options) }}
+      onSelect={member => { if (!freshBom(renderedBomTicket) || operation.current || pending.current || mateDraftRef.current || !bom.report) return; const match = configuredBomUiSelectedPath(bom.report, serialized, { serialized, member }); if (match.length) setBomSelection({ serialized, member: structuredClone(member) }) }}
       onExport={() => void exportBom()} onClose={() => changeBomView(false)} />}{failure && <p className="configured-assembly-error" role="alert">{failure}</p>}<footer role="status">{message}</footer>
     {discardDialog && <div ref={dialog} role="dialog" aria-modal="true" aria-label="Cambios del ensamblaje configurado"><p>Hay cambios sin guardar. ¿Abrir otro documento?</p><button onClick={() => { if (!fresh(renderedTicket)) return; const resolve = answer.current; answer.current = null; setDiscardDialog(false); resolve?.(false) }}>Cancelar apertura</button><button onClick={() => { if (!fresh(renderedTicket)) return; const resolve = answer.current; answer.current = null; setDiscardDialog(false); resolve?.(true) }}>Continuar sin guardar</button></div>}
   </div>

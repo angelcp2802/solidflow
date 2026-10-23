@@ -256,6 +256,44 @@ test('configured transport rejects malformed wrappers, nested versions, catalog 
   assert.equal(state.dialogCalls, 0); assert.deepEqual(await fs.readdir(temporary), []);
 });
 
+test('configured relation declarations and explicit empty lists survive real Save As, reopen and normal Save byte-for-byte', async t => {
+  const h=await harness(t),save=h.handlers.get('document:save');
+  const declaration={id:'original-scope-distance',name:'Original scope distance',type:'distance',suppressed:false,
+    first:{kind:'principal-plane',component:null,plane:'YZ'},second:{kind:'principal-plane',component:null,plane:'YZ'},alignment:'aligned',distance:0};
+  for(const [label,declarations] of [['inherited',undefined],['declared',[declaration]],['empty',[]]]){
+    const document=structuredClone(configuredAssembly),variant=document.catalog[0].configurations[0];
+    if(declarations!==undefined)variant.mateDeclarations=declarations;
+    const bytes=JSON.stringify(document,null,2)+'\n',selected=path.join(h.temporary,label+'.solidflow');
+    h.dialogQueue.push({canceled:false,filePath:selected});
+    assert.equal(await save(h.event,{content:bytes,name:assembly.name}),selected);
+    assert.equal(h.state.lastDialog.title,'Guardar ensamblaje configurado');assert.equal(await fs.readFile(selected,'utf8'),bytes);
+    h.dialogQueue.push({canceled:false,filePaths:[selected]});
+    const reopened=await h.handlers.get('document:open')(h.event);
+    assert.equal(reopened.content,bytes);assert.equal(reopened.path,await fs.realpath(selected));
+    assert.equal(await save(h.event,{content:bytes,filePath:reopened.path}),reopened.path);
+    assert.equal(await fs.readFile(selected,'utf8'),bytes);
+    const actual=JSON.parse(reopened.content).catalog[0].configurations[0];
+    assert.equal(Object.hasOwn(actual,'mateDeclarations'),declarations!==undefined);
+    if(declarations!==undefined)assert.deepEqual(actual.mateDeclarations,declarations);
+  }
+  assert.equal(h.state.dialogCalls,6);
+});
+
+test('configured declaration lists reject malformed fields and aggregate row overflow before dialogs',async t=>{
+  const h=await harness(t),save=h.handlers.get('document:save');
+  const invalid=[null,{},'not an array',false,Array(4097).fill({})].map(mateDeclarations=>({mateDeclarations}));
+  invalid.push({mateDeclarations:[],unknownConfigurationField:true},
+    {mateDeclarations:[{}],occurrences:Array(4096).fill({})},
+    {mateDeclarations:Array(4096).fill({}),mates:[{}]});
+  for(const fields of invalid){const document=structuredClone(configuredAssembly);Object.assign(document.catalog[0].configurations[0],fields);
+    await assert.rejects(save(h.event,{content:JSON.stringify(document)}),/SolidFlow no válido/);}
+  const distributed=structuredClone(configuredAssembly),first=distributed.catalog[0].configurations[0];
+  first.mateDeclarations=Array(2048).fill({});
+  distributed.catalog[0].configurations.push({...first,id:'second-original-variant',mateDeclarations:Array(2049).fill({})});
+  await assert.rejects(save(h.event,{content:JSON.stringify(distributed)}),/SolidFlow no válido/);
+  assert.equal(h.state.dialogCalls,0);assert.deepEqual(await fs.readdir(h.temporary),[]);
+});
+
 test('v2 envelope rejects malformed metadata, hybrid fields and unbounded arrays before dialogs or writes', async (t) => {
   const { handlers, event, temporary, state } = await harness(t), save = handlers.get('document:save');
   const invalid = [

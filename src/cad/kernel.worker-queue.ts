@@ -21,6 +21,7 @@ const fields = {
   'export-assembly': { document: 'required', format: 'required' },
   'build-configured-assembly': { current: 'required' },
   'preview-configured-assembly': { current: 'required', options: 'optional' },
+  'preview-configured-assembly-relation-edit': { current: 'required', edit: 'required', options: 'optional' },
   'apply-configured-assembly': { current: 'required', token: 'required' },
   'discard-configured-assembly': { token: 'required' },
   'build-assembly': { document: 'required' },

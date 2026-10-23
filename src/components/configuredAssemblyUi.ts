@@ -7,6 +7,8 @@ import type { ConfiguredAssemblyScene } from '../cad/kernel.assembly-configurati
 import type { AssemblyScene } from '../cad/kernel.assembly-types'
 import type { ConfiguredAssemblyBomMember, ConfiguredAssemblyBomReport, ConfiguredAssemblyBomOptions } from '../model/assemblyConfiguredBom'
 import { serializeConfiguredAssemblyBomCsv } from '../model/assemblyConfiguredBomCsv'
+import { validateAssemblyMate } from '../model/assemblyDocument'
+import type { AssemblyConfiguredMateEdit } from '../model/assemblyConfiguredMateEditing'
 type Mutable<T> = T extends object ? { -readonly [K in keyof T]: Mutable<T[K]> } : T
 /** A detached mutable display copy; this never invokes a legacy CAD producer. */
 export function configuredUiDisplayScene(scene: ConfiguredAssemblyScene): AssemblyScene {
@@ -69,12 +71,28 @@ export function editConfiguredUiOccurrence(document: AssemblyConfiguredDocument,
   }
   return validateAssemblyConfiguredDocument(next)
 }
-export interface ConfiguredUiTicket { serialized: string; generation: number; scope: string; path?: string; occurrence?: string }
-export function configuredUiTicket(document: AssemblyConfiguredDocument, generation: number, scope: string, path?: string, occurrence?: string): ConfiguredUiTicket {
-  return { serialized: serializeAssemblyConfiguredDocument(document), generation, scope, path, occurrence }
+export interface ConfiguredUiTicket { serialized: string; generation: number; scope: string; path?: string; occurrence?: string; draftRevision?: number }
+export function configuredUiTicket(document: AssemblyConfiguredDocument, generation: number, scope: string, path?: string, occurrence?: string, draftRevision?: number): ConfiguredUiTicket {
+  return { serialized: serializeAssemblyConfiguredDocument(document), generation, scope, path, occurrence, draftRevision }
 }
 export function configuredUiTicketMatches(ticket: ConfiguredUiTicket, current: ConfiguredUiTicket): boolean {
-  return ticket.serialized === current.serialized && ticket.generation === current.generation && ticket.scope === current.scope && ticket.path === current.path && ticket.occurrence === current.occurrence
+  return ticket.serialized === current.serialized && ticket.generation === current.generation && ticket.scope === current.scope && ticket.path === current.path && ticket.occurrence === current.occurrence && ticket.draftRevision === current.draftRevision
+}
+export interface ConfiguredMateUiTicket { context: ConfiguredUiTicket; revision: number; draft: string; sceneId: string | null }
+export function configuredMateUiTicketMatches(before: ConfiguredMateUiTicket, after: ConfiguredMateUiTicket): boolean {
+  return configuredUiTicketMatches(before.context, after.context) && before.revision === after.revision && before.draft === after.draft && before.sceneId === after.sceneId
+}
+/** Display consistency only. The private worker token remains Apply authority. */
+export function configuredMateUiPreviewMatches(document: AssemblyConfiguredDocument, edit: AssemblyConfiguredMateEdit): boolean {
+  try {
+    const evaluation = evaluateAssemblyConfiguration(document.source, document.catalog, document.rootConfiguration)
+    const scope = evaluation.scopes.find(value => JSON.stringify(value.path) === JSON.stringify(edit.scopePath))
+    if (!scope || assemblyDefinitionKey(scope.definition) !== assemblyDefinitionKey(edit.definition) || scope.configuration !== edit.configuration) return false
+    const change = edit.change, id = change.kind === 'add' ? change.mate.id : change.mateId, mates = scope.mates.filter(value => value.id === id)
+    if (change.kind === 'remove') return mates.length === 0
+    if (mates.length !== 1) return false
+    return change.kind === 'suppression' ? mates[0].suppressed === change.suppressed : JSON.stringify(validateAssemblyMate(mates[0])) === JSON.stringify(validateAssemblyMate(change.mate))
+  } catch { return false }
 }
 export interface ConfiguredBomUiTicket { context: ConfiguredUiTicket; view: string; revision: number }
 /** The local revision also rejects close/reopen and option away/back callbacks. */

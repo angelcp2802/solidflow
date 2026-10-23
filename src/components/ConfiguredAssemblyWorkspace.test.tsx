@@ -10,7 +10,7 @@ import type { ConfiguredAssemblyScene } from '../cad/kernel.assembly-configurati
 import ConfiguredAssemblyWorkspace from './ConfiguredAssemblyWorkspace'
 import { buildConfiguredAssembly } from '../cad/kernel'
 
-vi.mock('../cad/kernel', () => ({ buildConfiguredAssembly: vi.fn(), previewConfiguredAssembly: vi.fn(), applyConfiguredAssembly: vi.fn(), discardConfiguredAssembly: vi.fn() }))
+vi.mock('../cad/kernel', () => ({ buildConfiguredAssembly: vi.fn(), previewConfiguredAssembly: vi.fn(), previewConfiguredAssemblyRelationEdit: vi.fn(), applyConfiguredAssembly: vi.fn(), discardConfiguredAssembly: vi.fn() }))
 function fixture() { const { document, catalog } = assemblyConfigurationCoreFixture(); return createAssemblyConfiguredDocument(document, catalog, 'mixed') }
 const effective = (document: ReturnType<typeof fixture>) => evaluateAssemblyConfiguration(document.source, document.catalog, document.rootConfiguration)
 const scope = (document: ReturnType<typeof fixture>, owner: string) => effective(document).scopes.find(row => row.path.join('/') === owner)!

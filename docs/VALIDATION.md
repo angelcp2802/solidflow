@@ -1,5 +1,70 @@
 # Validation
 
+## Configured relation editing and private intent previews — 2026-10-23
+
+Local `codex/configured-relation-editing` follows accepted `d495192` and addresses
+[issue #50](https://github.com/angelcp2802/solidflow/issues/50) in the same draft
+PR #49. Named states may own complete relation lists; Base declaration edits
+preserve previously inherited named values. The worker privately prepares the
+proposal while authenticating Apply against the original full context.
+
+Actual Windows x64 / Node 24.11.1 checks:
+
+| Command | Actual result |
+| --- | --- |
+| `npm test` | PASS, 382 files / 9131 unit/CAD cases, 384.45 seconds. Node IPC/security/source: 83 passed, zero failed, two skipped, 1831.1815 ms. Skips remain Windows file-symlink permission and POSIX-only FIFO. |
+| `npm run build` | PASS, TypeScript and production compilation, including a final build after the IPC correction. Existing browser-externalization and large-chunk warnings remain. |
+| `npm run test:desktop` | PASS after the final main-process correction, actual Electron production loader and production worker/WASM malformed-input/recovery probe. |
+| `npx vitest run src/cad/kernel.assembly-configuration-relation-edit.test.ts` | PASS, seven actual native cases, 4.23 seconds; subsequently included in the passing full suite. |
+| `npm run test:desktop:assembly-configured-relations` | PASS, 61 milestones / 23 recorded geometry phases. Actual production worker and restricted file IPC; zero recorded renderer/resource errors, confirmed child closure and owned-profile cleanup. |
+| `npm run test:desktop:assembly-configurations` | PASS, existing 80-milestone configured editor/BOM/CSV workflow on the final increment. Zero recorded renderer/resource errors, confirmed child closure and owned-profile cleanup. |
+| `npm run test:desktop:assembly` | PASS, existing 527-milestone rigid assembly workflow on the final increment. Zero recorded renderer/resource errors, confirmed child closure and owned-profile cleanup. |
+
+The new renderer case edits compact distance10 to6 with Cancel/retry/Apply,
+checks whole-context Undo/Redo and shared both-compact propagation, adds an
+original compatible A-to-scope distance zero, then suppresses/removes it. A
+Base edit to8 preserves compact6 and dormant Single10, and Undo restores the
+complete previous snapshot. Canceled Save As, successful Save As, normal Save,
+saved reopening and ordinary fresh Solve/Cancel retain exact declarations,
+recovery, file identity and bytes. Exact placed verification sets contain two
+or four distinct scope/tuple/selector/relation keys, with physical measurement
+metadata checked independently of numerical solver rows.
+
+Literal independent bounds use 1e-6 mm; body and total volume/area use 1e-5 in
+their respective units. Four native solids retain 68 mm³ and 172 mm². The final
+optional hidden capture observes the clean reopened compact6 state and actual
+presented frame; a screenshot grants no native authority. Dialog paths belong
+only to the test. See [provenance](PROVENANCE.md#original-configured-relation-editing).
+
+The first renderer run reached Save As and failed: main's old exact-four-field
+catalog gate rejected `mateDeclarations`. The correction admits only that
+optional array and counts its rows in the existing global 4096-row envelope.
+New real IPC cases retain exact old/new/empty-list bytes and reject malformed,
+unknown or aggregate-excess input before dialogs. No file privilege, sender,
+path grant, parser limit, solver tolerance or workflow deadline was relaxed.
+
+Final code/test/CI inputs were frozen before the full run: 986 non-Markdown
+files, including new untracked source files, SHA-256
+`718f18156fe681574da934800b5f7ad5e14599813e0a74eb29e45c46632bd5a0`.
+Subsequent documentation edits are separate; local runtime output stays ignored.
+
+Hosted evidence for the preceding published head `f2a1c91` is separate:
+[Linux job](https://github.com/angelcp2802/solidflow/actions/runs/39988239970/job/120532939032)
+completed successfully, including packaging. Windows and macOS passed unit/CAD,
+IPC and earlier renderer steps but failed the signed-distance pointer case with
+`Actual front-view Z manipulator handle absent.` This annotation does not
+establish a CAD defect or its exact cause. Read-only inspection found immediate
+hover-state reads and one-sided handle probing; no proposed remedy is counted
+as executed validation. This increment needs its own hosted results. Security
+checks on the preceding head pass with one medium CodeQL alert still open.
+
+Pure family-preservation cases and graphical controls do not establish native
+authoring acceptance for every family. New lock/gear/screw/rack-pinion and
+rotation-locked concentric capture remains gated; profile/path forms, complete
+native repair/source lifecycle, configured geometric consumers, flexible
+instances, installed packaging and complete assembly/demo acceptance remain
+open. These cases do not establish general platform support.
+
 ## Canonical fault injection and private symmetry repair — 2026-10-23
 
 Local `codex/assembly-hosted-validation` follows `ce6871f`. The source-repair

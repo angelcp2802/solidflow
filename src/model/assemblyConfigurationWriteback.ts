@@ -109,7 +109,7 @@ export function stageAssemblyConfigurationSolveState(document:AssemblyDocument,c
           else variant.occurrences.push({occurrenceId:occurrence.id,pose:structuredClone(occurrence.pose)})
         }
       }
-      for(const mate of node.mates) {
+      for(const mate of variant.mateDeclarations===undefined?node.mates:[]) {
         const replacement=changes.get(mate.id)
         if(!replacement || equal(capture(mate),replacement)) continue
         const existing=variant.mates.find(row=>row.mateId===mate.id)

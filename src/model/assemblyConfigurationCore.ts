@@ -1,5 +1,5 @@
 import {
-  assemblyDefinitionKey, validateAssemblyDocument, MAX_ASSEMBLY_BYTES, MAX_ASSEMBLY_OCCURRENCES,
+  assemblyDefinitionKey, validateAssemblyDocument, validateAssemblyMate, MAX_ASSEMBLY_BYTES, MAX_ASSEMBLY_OCCURRENCES, MAX_ASSEMBLY_MATES,
   type AssemblyDocument, type AssemblyDefinitionReference, type AssemblyOccurrence,
   type AssemblyMate, type ExpandedPartOccurrence, type EmbeddedAssemblyDefinition,
 } from './assemblyDocument'
@@ -23,6 +23,8 @@ export interface AssemblyConfigurationDefinition {
   name: string
   occurrences: AssemblyConfigurationOccurrenceOverride[]
   mates: { mateId: string; suppressed: boolean; capture?: AssemblyConfigurationCapture }[]
+  /** Absent inherits Base; an explicit empty list declares no relations. */
+  mateDeclarations?: AssemblyMate[]
 }
 export type AssemblyConfigurationCatalog = {
   definition: AssemblyDefinitionReference
@@ -127,8 +129,15 @@ function parseAssemblyConfigurationDeclarations(document:AssemblyDocument,inputC
     const variants = new Map<string, AssemblyConfigurationDefinition>(); configurations.set(key, variants)
     const declared = array(owner.configurations, MAX_ASSEMBLY_CONFIGURATIONS_PER_OWNER).map(raw => {
       if (++variantCount > MAX_ASSEMBLY_CONFIGURATIONS) fail('se superan 512 configuraciones.')
-      const value = record(raw, ['id', 'name', 'occurrences', 'mates']), id = text(value.id), name = text(value.name, 200)
+      const value = record(raw, ['id', 'name', 'occurrences', 'mates'], ['mateDeclarations']), id = text(value.id), name = text(value.name, 200)
       if (variants.has(id)) fail('identificador de configuración duplicado.')
+      const mateDeclarations = Object.hasOwn(value, 'mateDeclarations')
+        ? array(value.mateDeclarations, MAX_ASSEMBLY_MATES).map(item => {
+          if (++overrideCount > MAX_ASSEMBLY_CONFIGURATION_OVERRIDES) fail('se superan 4096 sustituciones.')
+          return validateAssemblyMate(item)
+        }) : undefined
+      if (mateDeclarations && new Set(mateDeclarations.map(mate => mate.id)).size !== mateDeclarations.length) fail('declaración de relación duplicada.')
+      const declaredMates = mateDeclarations ?? node.mates
       const occurrences = array(value.occurrences, MAX_ASSEMBLY_CONFIGURATION_OVERRIDES).map(raw => {
         if (++overrideCount > MAX_ASSEMBLY_CONFIGURATION_OVERRIDES) fail('se superan 4096 sustituciones.')
         const item = record(raw, ['occurrenceId'], ['pose', 'suppressed', 'visible', 'configuration'])
@@ -145,13 +154,13 @@ function parseAssemblyConfigurationDeclarations(document:AssemblyDocument,inputC
       const mates = array(value.mates, MAX_ASSEMBLY_CONFIGURATION_OVERRIDES).map(raw => {
         if (++overrideCount > MAX_ASSEMBLY_CONFIGURATION_OVERRIDES) fail('se superan 4096 sustituciones.')
         const item = record(raw, ['mateId', 'suppressed'], ['capture']), mateId = text(item.mateId)
-        const original=node.mates.find(m => m.id === mateId)
+        const original=declaredMates.find(m => m.id === mateId)
         if (!original) fail('sustitución de relación ajena al propietario.')
         return { mateId, suppressed: boolean(item.suppressed),
           ...(Object.hasOwn(item,'capture')?{capture:validateAssemblyConfigurationCapture(original!,item.capture)}:{}) }
       })
       if (new Set(mates.map(m => m.mateId)).size !== mates.length) fail('sustitución de relación duplicada.')
-      const result = { id, name, occurrences, mates }; variants.set(id, result); return result
+      const result = { id, name, occurrences, mates, ...(mateDeclarations === undefined ? {} : {mateDeclarations}) }; variants.set(id, result); return result
     })
     return { definition, configurations: declared }
   })
@@ -166,6 +175,25 @@ function parseAssemblyConfigurationDeclarations(document:AssemblyDocument,inputC
     }
   }
   if (rootConfiguration !== null && !configurations.get(assemblyDefinitionKey(source))?.has(rootConfiguration)) fail('configuración raíz inexistente.')
+  // Count effective declarations even in dormant or suppressed states. Reuse
+  // counts by intrinsic state; repeated occurrences still contribute per use.
+  const mateCounts = new Map<string, number>()
+  function expandedMateCount(node: ScopeNode, selector: string|null): number {
+    const key=JSON.stringify([node.id,node.revision,selector]),cached=mateCounts.get(key)
+    if(cached!==undefined)return cached
+    const variant=selector===null?undefined:configurations.get(assemblyDefinitionKey(node))?.get(selector)
+    let count=(variant?.mateDeclarations??node.mates).length
+    for(const occurrence of node.occurrences){
+      const child=nodes.get(assemblyDefinitionKey(occurrence.definition))!
+      if(child.kind==='assembly')count+=expandedMateCount(child,variant?.occurrences.find(row=>row.occurrenceId===occurrence.id)?.configuration??null)
+      if(count>MAX_ASSEMBLY_MATES)fail('se supera el presupuesto de relaciones expandidas.')
+    }
+    mateCounts.set(key,count);return count
+  }
+  for(const node of nodes.values())if(node.kind==='assembly'){
+    expandedMateCount(node,null)
+    for(const id of configurations.get(assemblyDefinitionKey(node))?.keys()??[])expandedMateCount(node,id)
+  }
   if (new TextEncoder().encode(JSON.stringify({ source, catalog, rootConfiguration }, null, 2)).byteLength > MAX_ASSEMBLY_BYTES) fail('el origen y el catálogo superan 20 MiB.')
 
   return {source,catalog,rootConfiguration,nodes,configurations}
@@ -189,7 +217,7 @@ export function evaluateAssemblyConfiguration(
   rootConfiguration=parsed.rootConfiguration
   const scopes: AssemblyConfigurationScope[] = [], parts: (ExpandedPartOccurrence & { configurationAncestry: AssemblyConfigurationAncestry[] })[] = []
   const byPath = new Map<string, AssemblyConfigurationScope>()
-  let expanded = 0
+  let expanded = 0, expandedMates = 0
   function walk(node: ScopeNode, selector: string | null, path: string[], worldPose: RigidPose,
     chain: AssemblyOccurrence[], ancestry: AssemblyConfigurationAncestry[], suppressed: boolean, visible: boolean): void {
     const variant = selector === null ? undefined : configurations.get(assemblyDefinitionKey(node))!.get(selector)!
@@ -199,11 +227,12 @@ export function evaluateAssemblyConfiguration(
         ...(override?.suppressed === undefined ? {} : { suppressed: override.suppressed }),
         ...(override?.visible === undefined ? {} : { visible: override.visible }) }
     })
-    const mates = node.mates.map(original => {
+    const mates = (variant?.mateDeclarations ?? node.mates).map(original => {
       const override=variant?.mates.find(m=>m.mateId===original.id)
       return { ...(override?.capture?applyAssemblyConfigurationCapture(original,override.capture):structuredClone(original)),
         suppressed: override?.suppressed ?? original.suppressed }
     })
+    if ((expandedMates += mates.length) > MAX_ASSEMBLY_MATES) fail('se supera el presupuesto de relaciones expandidas.')
     const identity = { path: [...path], definition: { id: node.id, revision: node.revision }, configuration: selector }
     const scope = { ...identity, occurrences, mates, worldPose, suppressed, visible }
     scopes.push(scope); byPath.set(JSON.stringify(path), scope)

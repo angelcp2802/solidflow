@@ -1,5 +1,12 @@
 # Development guide
 
+The [configured relation editing contract](ASSEMBLY_CONFIGURED_RELATION_EDITING.md)
+adds exact-state declaration lists and private intent previews. Preserve the
+original baseline separately from the prepared proposal, materialize named
+inheritance before Base edits and keep capture-sensitive authoring gated until
+an actual configured native producer exists. New fixture and renderer evidence
+must remain separate from general family or platform coverage.
+
 The [configured BOM contract](ASSEMBLY_CONFIGURED_BOM.md) counts effective v3
 occurrences with selected state, complete ancestry and root-relative member
 paths. Keep its declaration-only report and literal-text CSV separate from
@@ -104,6 +111,7 @@ npm start
 | `npm run test:desktop:pattern-until-next` | Scripted production-renderer UntilNext selected cut, cut ALL and selected additive merge, real rejection, Apply, Save As and reopen, after building. |
 | `npm run test:desktop:assembly` | Scripted production-renderer rigid assembly relations, authenticated Apply, source revision/repair, constrained numeric movement, read-only interference/clearance, rejection preservation, Save As and reopen, after building. |
 | `npm run test:desktop:assembly-configurations` | Production-renderer selected root/child states, named placement editing, real configured Solve/Cancel/retry/Apply, complete history/recovery and Save As/normal Save/reopen. Also exercises committed configured BOM modes/ranges/members, visibility/suppression and actual CSV cancel/error/write through restricted file IPC. Run after building; original reused prisms and test-owned dialogs. Record actual execution separately from platform support. |
+| `npm run test:desktop:assembly-configured-relations` | Production-renderer named relation parameter editing, private Cancel/retry/Apply, shared selected-state propagation, add/suppress/remove, Base isolation, full history/recovery and actual Save As/Save/reopen. Run after building; original reused prisms, literal geometry and exact placed verification identities with test-owned dialogs. |
 | `npm run test:desktop:assembly-import` | Scripted production-renderer assembly import and reuse, transformed native bounds, local-frame mate solve, incompatible-content rejection, history, Save As and reopening. Run after building; no external-format interchange or human-dialog claim. |
 | `npm run test:desktop:assembly-source-update` | Scripted production-renderer all-use subassembly source update, explicit renamed-descendant plane repairs, review/preview cancellation, rejection, Apply/history, parent save identity and saved reopening. Run after building; original fixed-prism case with real worker/file IPC and test-owned dialogs. |
 | `npm run test:desktop:assembly-linked-source` | Production-renderer explicit link/reload for original parts and reused rigid subassemblies, unchanged bytes, changed-cache review, Cancel/Apply/history, source-byte preservation and offline saved reopening. Run after building; native source selections are test-owned dialog substitutions. Configured cases do not imply an executed result or another platform. |

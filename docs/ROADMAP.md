@@ -4,8 +4,9 @@ The [persisted configuration integration](ASSEMBLY_CONFIGURATIONS_PERSISTENCE.md
 connects complete v3 source/catalog/selection files to effective native scenes,
 private worker previews and atomic Apply, state editing, history, recovery and
 save/reopen. The [prototype walkthrough](DEMO_ASSEMBLIES.md) is a bounded route
-through these controls. Configuration-aware consumers, relation editing and
-capture/repair, parameter/part-feature variants and flexible instances remain
+through these controls. The [relation editing increment](ASSEMBLY_CONFIGURED_RELATION_EDITING.md)
+adds state-specific declarations and graphical private previews. Configuration-aware
+consumers, complete relation/capture/repair, parameter/part-feature variants and flexible instances remain
 open; this is not the complete assembly/demo gate.
 
 The standalone [selected-state solve transaction](ASSEMBLY_CONFIGURATIONS_SOLVE.md)
