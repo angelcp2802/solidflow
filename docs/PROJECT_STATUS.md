@@ -1,5 +1,29 @@
 # Project status and review queue
 
+### Reproduced CI test failures and symmetry repair acceptance
+
+The increment after `ce6871f` corrects the private source-stage protocol in the
+point, surface and nested symmetry renderer tests. All eight affected workflows
+now pass locally, retaining exact review/base/proposal bindings and unchanged
+native oracles. It also fixes file-fault hooks that missed canonical paths:
+the current Windows/macOS hosted logs exposed matching rejection failures,
+reproduced locally using only a Windows path-case alias. The actual FIFO hook
+uses the same canonical-target preparation. Production security remains intact.
+
+Final Windows evidence: 9068 unit/CAD cases in 379 files, 81 IPC/security/source
+passes with two explicit skips, build and actual Electron smoke. An auxiliary
+Ubuntu/WSL Node18 run passes four selected filesystem cases, including real
+three-channel FIFO rejection under a temporary-directory symlink. This does not
+establish Node24/Linux/macOS desktop support. See the
+[validation ledger](VALIDATION.md#canonical-fault-injection-and-private-symmetry-repair--2026-10-23)
+and [hardening contract](PROTOTYPE_HARDENING.md#ci-failure-diagnostics).
+
+The same [draft PR #49](https://github.com/angelcp2802/solidflow/pull/49) retains
+the integration. Its earlier `8e2a185` Security and separate CodeQL checks pass,
+with one medium alert still reported. Fresh hosted results are required for
+the corrected tests; no check/query is disabled. Full assembly and release
+acceptance remain open.
+
 ### Configured quantities, CSV and reproducible demo
 
 The increment after `c234b61` adds a committed-v3 BOM with variant-aware rows,

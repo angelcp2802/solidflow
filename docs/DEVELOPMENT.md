@@ -94,7 +94,7 @@ npm start
 | --- | --- |
 | `npm test` | The public unit/CAD suite and desktop-security checks from a fresh checkout. |
 | `npm run test:unit` | Unit and CAD regressions that can run from a fresh public checkout. |
-| `npm run test:ipc` | The desktop-security suite without opening a desktop window. |
+| `npm run test:ipc` | The desktop-security suite without opening a desktop window. Retains Node's spec output and adds bounded failed-leaf annotations only in GitHub Actions; it never overrides test outcomes. |
 | `npm run build` | TypeScript checking and production compilation of UI, worker and WASM integration. |
 | `npm run test:desktop` | Real Electron production-loader smoke check after building, with a hidden window and isolated temporary user data. |
 | `npm run test:desktop:imported-bodies` | Configured production-renderer opening of an original v1 explicit STEP body base, real worker/body identity checks, suppression/history and Save As/reopen through restricted file IPC. Run after building; test-owned dialogs and planar mesh-area checks are separate from native BRep unit evidence. |

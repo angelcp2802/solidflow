@@ -43,6 +43,12 @@ file channel in a killable child with a fixed deadline, preventing an old
 blocking `open` from hanging the test runner. A Windows skip supplies no POSIX
 runtime evidence. No fixture uses a private model or external application.
 
+Fault hooks capture the actual canonical owned path before arming. Windows
+dialog requests deliberately use a verified uppercase alias of the same file;
+the mock matches the canonical path that main opens. The alias must not turn
+an intended negative case into an uninjected successful read. This changes test
+admission, not file-opening or identity policy in production.
+
 ## Worker queue
 
 A malformed message could fail again while reading `request.id` in the error
@@ -90,3 +96,17 @@ angular state remains attached to the test event through Apply and reopening.
 Native tolerances, physical-check thresholds and test deadlines are unchanged.
 Correcting this assumption does not by itself identify a hosted failure whose
 full log was unavailable. See the ledger for the specific local reproduction.
+
+## CI failure diagnostics
+
+The shared renderer harness annotates the original child failure before exit.
+The Node IPC suite retains the built-in `spec` reporter and adds a separate
+`TestsStream` reporter for failed leaf tests. It puts the original own assertion
+cause and test name into the same bounded diagnostic formatter, ignores parent
+subtest aggregates and leaves Node's exit status, pass/fail/skip and ordinary
+output intact. Annotations are emitted only for `GITHUB_ACTIONS=true`.
+
+Messages are limited to 4096 encoded bytes, escape workflow-command controls
+and redact absolute paths/URLs. Descriptor reads avoid invoking arbitrary
+error/name getters. These annotations improve observability; they neither
+convert failures into passes nor identify an unobserved hosted cause.

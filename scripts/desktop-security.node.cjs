@@ -592,11 +592,21 @@ test('linked source decodes an optional UTF8 BOM but hashes every original byte 
   await fs.writeFile(selected,Buffer.from([0xef,0xbb,0xbf,0xc3,0x28]));await assert.rejects(h.handlers.get('source:read')(h.event,a.grantId),/fuente/);
 });
 
+// Main opens the real canonical path. Keep a distinct dialog path on Windows
+// so fault injection cannot silently miss an equivalent case/temporary alias.
+// This prepares owned fixtures before arming faults; it does no IO in a hook.
+async function readFaultSelection(raw){
+  const canonicalSelected=await fs.realpath(raw),selected=process.platform==='win32'?raw.toUpperCase():raw;
+  if(process.platform==='win32')assert.notEqual(selected,canonicalSelected,'Exercise a distinct Windows case alias');
+  assert.equal(await fs.realpath(selected),canonicalSelected,'Selected alias resolves to the exact owned file');
+  return {selected,canonicalSelected};
+}
+
 test('descriptor-first reads reject a different actual file before reading bytes and drain the real handle',async t=>{
   for(const channel of ['source:read','document:open','document:import-step']){
-    let armed=false,selected,neighbour,reads=0,closed=0;
+    let armed=false,selected,canonicalSelected,neighbour,reads=0,closed=0;
     const fileSystem={...fs,open:async(file,flags,...args)=>{
-      if(!armed || file!==selected)return fs.open(file,flags,...args);
+      if(!armed || file!==canonicalSelected)return fs.open(file,flags,...args);
       assert.equal(typeof flags,'number');
       if(process.platform==='win32')assert.equal(flags,fsConstants.O_RDONLY);
       else{assert.ok(flags&fsConstants.O_NOFOLLOW);assert.ok(flags&fsConstants.O_NONBLOCK);}
@@ -607,6 +617,7 @@ test('descriptor-first reads reject a different actual file before reading bytes
     selected=path.join(h.temporary,'selected.'+extension);neighbour=path.join(h.temporary,'different.'+extension);
     const selectedBytes=Buffer.from(content),otherBytes=Buffer.from('different original bytes');
     await fs.writeFile(selected,selectedBytes);await fs.writeFile(neighbour,otherBytes);
+    ({selected,canonicalSelected}=await readFaultSelection(selected));
     const grant=channel==='source:read'?await chooseSource(h,selected):null;
     const request=()=>{if(channel!=='source:read')h.dialogQueue.push({canceled:false,filePaths:[selected]});return h.handlers.get(channel)(h.event,grant?.grantId);};
     armed=true;
@@ -622,15 +633,15 @@ test('descriptor admission rejects nonregular handles before pathname admission 
   // Portable fault injection over a real owned file descriptor. The actual
   // kernel FIFO/open behavior is a separate POSIX-only child test below.
   for(const channel of ['source:read','document:open','document:import-step']){
-    let armed=false,selected,reads=0,closed=0,pathStats=0;
-    const fileSystem={...fs,lstat:async(...args)=>{if(armed && args[0]===selected)pathStats++;return fs.lstat(...args);},open:async(...args)=>{
+    let armed=false,selected,canonicalSelected,reads=0,closed=0,pathStats=0;
+    const fileSystem={...fs,lstat:async(...args)=>{if(armed && args[0]===canonicalSelected)pathStats++;return fs.lstat(...args);},open:async(...args)=>{
       const handle=await fs.open(...args);
-      if(!armed || args[0]!==selected)return handle;
+      if(!armed || args[0]!==canonicalSelected)return handle;
       return {stat:async options=>{const actual=await handle.stat(options);return {...actual,isFile:()=>false};},
         read:async(...params)=>{reads++;return handle.read(...params);},close:async()=>{closed++;await handle.close();}};
     }};
     const h=await harness(t,{fileSystem});selected=path.join(h.temporary,'nonregular-observation.'+(channel==='document:import-step'?'step':'solidflow'));
-    await fs.writeFile(selected,content);const grant=channel==='source:read'?await chooseSource(h,selected):null;
+    await fs.writeFile(selected,content);({selected,canonicalSelected}=await readFaultSelection(selected));const grant=channel==='source:read'?await chooseSource(h,selected):null;
     const request=()=>{if(channel!=='source:read')h.dialogQueue.push({canceled:false,filePaths:[selected]});return h.handlers.get(channel)(h.event,grant?.grantId);};
     armed=true;await assert.rejects(request());assert.equal(reads,0);assert.equal(closed,1);assert.equal(pathStats,0);
     armed=false;await request();assert.equal(await fs.readFile(selected,'utf8'),content);
@@ -638,12 +649,13 @@ test('descriptor admission rejects nonregular handles before pathname admission 
 });
 
 test('protected open failure is not retried with an unprotected flag or promoted to a read capability',async t=>{
-  let fail=false,attempts=0,selected;
+  let fail=false,attempts=0,selected,canonicalSelected;
   const fileSystem={...fs,open:async(...args)=>{
-    if(fail && args[0]===selected){attempts++;const error=new Error('Original ELOOP '+selected);error.code='ELOOP';throw error;}
+    if(fail && args[0]===canonicalSelected){attempts++;const error=new Error('Original ELOOP '+selected);error.code='ELOOP';throw error;}
     return fs.open(...args);
   }};
   const h=await harness(t,{fileSystem});selected=path.join(h.temporary,'nofollow.solidflow');await fs.writeFile(selected,content);
+  ({selected,canonicalSelected}=await readFaultSelection(selected));
   fail=true;await assert.rejects(chooseSource(h,selected),error=>/fuente/.test(error.message)&&!error.message.includes(h.temporary));assert.equal(attempts,1);
   fail=false;const grant=await chooseSource(h,selected);assert.equal(grant.content,content);
   fail=true;await assert.rejects(h.handlers.get('source:read')(h.event,grant.grantId),/fuente/);assert.equal(attempts,2);
@@ -656,9 +668,9 @@ const FIFO_TEST_NAME='POSIX FIFO replacement during protected open rejects witho
 test(FIFO_TEST_NAME,{skip:process.platform==='win32'?'POSIX FIFO/open flags are not exercised on Windows':false},async t=>{
   const channel=process.env.SOLIDFLOW_FIFO_READ_CHILD;
   if(channel==='source:read'||channel==='document:open'||channel==='document:import-step'){
-    let armed=false,selected,backup,reads=0,closed=0;
+    let armed=false,selected,canonicalSelected,backup,reads=0,closed=0;
     const fileSystem={...fs,open:async(...args)=>{
-      if(!armed||args[0]!==selected)return fs.open(...args);
+      if(!armed||args[0]!==canonicalSelected)return fs.open(...args);
       armed=false;await fs.rename(selected,backup);
       await new Promise((resolve,reject)=>execFile('mkfifo',[selected],{timeout:1500},error=>error?reject(error):resolve()));
       const handle=await fs.open(...args);
@@ -666,6 +678,7 @@ test(FIFO_TEST_NAME,{skip:process.platform==='win32'?'POSIX FIFO/open flags are 
     }};
     const h=await harness(t,{fileSystem});selected=path.join(h.temporary,'actual-fifo-race.'+(channel==='document:import-step'?'step':'solidflow'));backup=path.join(h.temporary,'original-backup');
     await fs.writeFile(selected,content);
+    ({selected,canonicalSelected}=await readFaultSelection(selected));
     const grant=channel==='source:read'?await chooseSource(h,selected):null;
     const request=()=>{if(channel!=='source:read')h.dialogQueue.push({canceled:false,filePaths:[selected]});return h.handlers.get(channel)(h.event,grant?.grantId);};
     armed=true;await assert.rejects(request());assert.equal(reads,0);assert.equal(closed,1);assert.equal((await fs.lstat(selected)).isFIFO(),true);

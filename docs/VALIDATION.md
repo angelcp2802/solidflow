@@ -1,5 +1,87 @@
 # Validation
 
+## Canonical fault injection and private symmetry repair — 2026-10-23
+
+Local `codex/assembly-hosted-validation` follows `ce6871f`. The source-repair
+renderer tests now observe the private stage command and exact context. File
+fault hooks target the actual canonical path, while requests keep the selected
+alias. A separate Node reporter retains ordinary output and annotates failed
+leaf assertions in CI. Production CAD, file policies and deadlines are unchanged.
+
+Final Windows x64 / Node 24.11.1 checks:
+
+| Command | Actual result |
+| --- | --- |
+| `npm test` | PASS, 379 files / 9068 unit/CAD cases, 385.45 seconds. Node IPC/security/source: 81 passed, zero failed, two skipped, 1543.7073 ms. Skips are the inherited Windows file-symlink permission case and POSIX-only FIFO. |
+| `npm run build` | PASS, TypeScript and production compilation. Existing browser-externalization and large-chunk warnings remain. |
+| `npm run test:desktop` | PASS, actual Electron production loader and independent production worker/WASM recovery probe, with no recorded console/resource errors. |
+| `npm run test:ipc`, with uppercase Windows `TEMP`/`TMP` | PASS, 81 passed / two skipped, 1548.0385 ms. |
+
+All eight actual renderer workflows passed with real native worker/file IPC,
+confirmed child closure/profile removal and zero recorded console/resource errors:
+
+| `test:desktop:assembly-symmetry` suffix | Recorded milestones | Recorded phases |
+| --- | ---: | ---: |
+| `-repair` | 105 | 22 |
+| `-line-repair` | 96 | 21 |
+| `-plane-repair` | 96 | 21 |
+| `-sphere-repair` | 104 | 24 |
+| `-cylinder-repair` | 105 | 24 |
+| `-axisline-repair` | 132 | 31 |
+| `-nested-selected` | 60 | 13 |
+| `-nested-source` | 69 | 14 |
+
+The three renderer scripts retain identical bytes from these runs through final
+acceptance. Two Node-only test files changed afterward: owned temporary cleanup
+and canonical fault selection. All 979 tracked non-Markdown inputs retained
+final digest `6684edb719650ad34612c01690b6e5eecd6bb4d7a4507e11f18f15cc6f10d7c7`
+through the last full suite, build and smoke. Earlier full suites also passed;
+only the last result above represents the final Node test source.
+
+The unchanged point workflow first reproduced a 35-second timeout awaiting
+`preview-assembly`. Current source review instead sends
+`preview-assembly-part-update`. Fixed tests bind its exact private review ID,
+committed base and independently reconstructed repair proposal. The only
+permitted error is the literal pending-reference RPC failure with no value or
+capability; recovery and the editable stage remain intact. All other responses
+still require success. Root/touched-scope editing timestamps are checked and
+normalized under the existing private-stage contract; source data, poses and
+all other declarations compare completely. Native purpose, uncertainty,
+independent geometry and per-case tolerances are unchanged. These are dropdown
+workflows with owned dialogs, not viewport-picking or human-dialog evidence.
+
+Hosted Windows job `120514299380` and macOS job `120514299323` on `8e2a185`
+reported three identical `Missing expected rejection` assertions in the new
+descriptor/open cases; macOS also reported it inside the real FIFO child.
+The fault hooks compared a selected spelling to the canonical path that main
+actually opens. Changing only Windows temporary-path casing reproduced all
+three failures locally. Capturing the actual canonical target before arming,
+while keeping a distinct verified alias in Windows requests, restores the
+intended fault. Zero-read/one-close, exact flags, no unsafe retry and recovery
+checks remain. No new skip or production exception was added. The exact spelling
+of the hosted aliases was not logged; no specific 8.3/junction cause is claimed.
+
+Auxiliary Ubuntu/WSL x64 evidence used the already installed Node 18.19.1:
+four selected descriptor/open/FIFO cases passed, with 47 other cases filtered
+out by name. `TMPDIR` was an original owned directory symlink to a real sibling
+directory, so the selected and canonical prefixes differed. The real FIFO test
+ran all three read channels without a writer under its existing killable-child
+deadlines. This is actual Linux filesystem evidence on that runtime; it is not
+Node 24, macOS, the complete Linux IPC suite or desktop/platform acceptance.
+
+Two new Node reporter cases use actual subprocess pass/skip and nested failed
+assertion outcomes, checking exit status, ordinary spec output and one escaped
+leaf annotation. Hostile getters, command text, synthetic paths and output
+bounds are separate in-memory controls. Annotations never change outcomes.
+
+Security on `8e2a185` passed, including the separate CodeQL check with one medium
+alert remaining. No alert/query was dismissed or suppressed. Its Windows/macOS
+IPC failures above require a fresh hosted run of this correction; Linux had not
+completed all later workflows at inspection. The earlier long Linux job log
+still exceeded the connector's transport boundary, so its exact assertion is
+not inferred. The moderate Dependabot alert and complete assembly/release scope
+remain open.
+
 ## Configured BOM, CSV and workflow diagnostics — 2026-10-23
 
 Local `codex/configured-assembly-bom` follows `c234b61`. The complete committed

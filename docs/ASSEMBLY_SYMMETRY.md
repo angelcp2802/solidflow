@@ -124,6 +124,16 @@ before publication. These limits are not performance or capacity benchmarks.
 
 ## Remaining scope and acceptance
 
+Source-repair renderer acceptance follows the private
+`preview-assembly-part-update` request and its exact `reviewId`, committed base
+and staged proposal. A missing role produces that command's exact correlated
+error, with no result or Apply capability; it is not a generic rejected
+assembly preview. The editable review, recovery and saved bytes must survive.
+Only explicit scope/mate/side repairs may differ from the reviewed source plan;
+editing timestamps are checked separately. Selected replacement retains its
+separate private review and command. These protocol checks do not relax the
+independent point/angle/radius, uncertainty or material-geometry oracles.
+
 All five families remain in the acceptance scope, including native geometry,
 repair/replacement and actual editor lifecycle evidence. A configured renderer
 workflow or a numerical case is not completion. Source-specific viewport

@@ -1,5 +1,34 @@
 # Public fixture provenance
 
+## Original Node CI reporter cases
+
+`scripts/desktop-node-ci-reporter.node.cjs` creates a small original temporary
+Node fixture: one pass and one skip, followed by a nested assertion comparing
+literal 17 and 23. Actual child processes verify success/failure exit codes,
+ordinary `spec` output and exactly one leaf-failure annotation. A local run
+without the CI flag still fails but emits no annotation. In-memory error records
+add deliberately hostile own getters, cyclic/bounded causes, workflow-command
+text, synthetic paths and long Unicode names/messages; no private file data or
+credentials are used. Cleanup verifies the exact owned temporary directory.
+These are reporter and transport tests, not CAD or platform evidence.
+
+The three descriptor/open-failure cases in `desktop-security.node.cjs` use
+original owned files and capture their actual canonical path before arming a
+fault. Windows requests deliberately retain a distinct uppercase path alias;
+an independent `realpath` check confirms it names the same file. Hooks match
+the canonical path actually opened by the main process, rather than silently
+missing the fault because a dialog path has different spelling. These cases
+retain zero-read/one-close, exact flags, no unsafe open retry and subsequent
+usable file-gate checks. Case-alias execution does not establish new 8.3-path
+or junction coverage; the existing real-link cases have separate provenance.
+
+The POSIX FIFO child captures its canonical target by the same preparation
+before arming, while retaining the original path for replacement and restoration.
+An auxiliary local Linux run places `TMPDIR` at an owned directory symlink to
+a real sibling directory, then runs the four selected descriptor/open/FIFO
+cases. The wrapper changes no product source or expected result. Runtime and
+filtered-case limits belong in the validation ledger.
+
 ## Original configured BOM and CSV cases
 
 `assemblyConfiguredBom.test.ts` and `assemblyConfiguredBomCsv.test.ts` reuse the

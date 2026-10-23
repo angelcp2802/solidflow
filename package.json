@@ -52,7 +52,7 @@
     "test:desktop:assembly-limit-angle": "node scripts/desktop-assembly-limit-angle.cjs",
     "test:desktop:assembly-replacement": "node scripts/desktop-assembly-replacement.cjs",
     "test:unit": "vitest run --config vitest.config.ts",
-    "test:ipc": "node --test scripts/desktop-security.node.cjs scripts/desktop-ui-source.node.cjs scripts/desktop-ci-diagnostics.node.cjs",
+    "test:ipc": "node --test --test-reporter=spec --test-reporter=./scripts/desktop-node-ci-reporter.cjs --test-reporter-destination=stdout --test-reporter-destination=stdout scripts/desktop-security.node.cjs scripts/desktop-ui-source.node.cjs scripts/desktop-ci-diagnostics.node.cjs scripts/desktop-node-ci-reporter.node.cjs",
     "package:win": "npm run build && electron-builder --win portable --publish never",
     "package:mac": "npm run build && electron-builder --mac zip --publish never",
     "package:linux": "npm run build && electron-builder --linux AppImage tar.gz --publish never",
