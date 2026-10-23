@@ -1,5 +1,31 @@
 # Project status and review queue
 
+### Prototype hardening and reproduced renderer failure
+
+The follow-up on `f167be2` replaces seven caller-named object-write paths with
+strict Map/literal admission, admits actual file descriptors before reading,
+and prevents malformed worker messages or response failures from poisoning the
+native command queue. A production worker probe demonstrates ordered rejection
+followed by reconstruction of an original prism. The directed-guide renderer
+test now follows the private part-update command and its rejection contract;
+pointer expectations follow actual DOM input rather than an ideal double.
+
+Local Windows x64 validation passes 9030 unit/CAD cases in 376 files and
+70 security/source checks, with two explicit Windows skips. Build and real
+desktop smoke pass. Directed-angle/source-repair, distance, configured and basic
+assembly renderer runs pass with child closure and isolated-profile cleanup.
+See the [hardening contract](PROTOTYPE_HARDENING.md),
+[provenance](PROVENANCE.md#original-worker-recovery-and-read-race-cases) and
+[validation](VALIDATION.md#prototype-hardening-and-renderer-contracts--2026-10-23).
+
+This updates the same [draft PR #49](https://github.com/angelcp2802/solidflow/pull/49).
+Hosted acceptance remains open. Its earlier `85a33b6` CI failed basic assembly
+on macOS, distance intervals on Windows and directed stops on Linux; unavailable
+full logs prevent attributing every hosted failure to the local reproduction.
+That head's separate CodeQL check still reported nine alerts. No query or
+branch check has been suppressed. The assembly milestone and release remain
+incomplete; these are validation and input corrections, not new CAD coverage.
+
 ### Integration draft and persisted configuration editor
 
 [PR #49](https://github.com/angelcp2802/solidflow/pull/49) collects the rigid

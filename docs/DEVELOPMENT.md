@@ -1,5 +1,10 @@
 # Development guide
 
+The [prototype hardening contract](PROTOTYPE_HARDENING.md) covers own-data
+records, descriptor-first bounded reads, worker queue recovery and current
+renderer oracles. The desktop baseline now includes an independent production
+worker malformed-input/recovery probe; record it separately from UI controls.
+
 The [persisted configuration integration](ASSEMBLY_CONFIGURATIONS_PERSISTENCE.md)
 uses a strict v3 envelope around a v2 source and named-state catalog, an actual
 effective native scene and private configured worker capabilities. Keep the

@@ -1,5 +1,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
+const { constants: fsConstants } = require('node:fs');
+const { execFile, spawn } = require('node:child_process');
 const os = require('node:os');
 const path = require('node:path');
 const vm = require('node:vm');
@@ -588,4 +590,105 @@ test('linked source release remains available during an unrelated pending native
 test('linked source decodes an optional UTF8 BOM but hashes every original byte and keeps malformed UTF8 strict',async t=>{
   const h=await harness(t),selected=path.join(h.temporary,'bom.solidflow'),bytes=Buffer.concat([Buffer.from([0xef,0xbb,0xbf]),Buffer.from(content)]);await fs.writeFile(selected,bytes);const a=await chooseSource(h,selected);assert.equal(a.content,content);assert.equal(JSON.parse(a.content).version,1);assert.equal(a.sha256,sourceDigest(bytes));assert.notEqual(a.sha256,sourceDigest(Buffer.from(a.content)));
   await fs.writeFile(selected,Buffer.from([0xef,0xbb,0xbf,0xc3,0x28]));await assert.rejects(h.handlers.get('source:read')(h.event,a.grantId),/fuente/);
+});
+
+test('descriptor-first reads reject a different actual file before reading bytes and drain the real handle',async t=>{
+  for(const channel of ['source:read','document:open','document:import-step']){
+    let armed=false,selected,neighbour,reads=0,closed=0;
+    const fileSystem={...fs,open:async(file,flags,...args)=>{
+      if(!armed || file!==selected)return fs.open(file,flags,...args);
+      assert.equal(typeof flags,'number');
+      if(process.platform==='win32')assert.equal(flags,fsConstants.O_RDONLY);
+      else{assert.ok(flags&fsConstants.O_NOFOLLOW);assert.ok(flags&fsConstants.O_NONBLOCK);}
+      const handle=await fs.open(neighbour,flags,...args);
+      return {stat:options=>handle.stat(options),read:async(...params)=>{reads++;return handle.read(...params);},close:async()=>{closed++;await handle.close();}};
+    }};
+    const h=await harness(t,{fileSystem}),extension=channel==='document:import-step'?'step':'solidflow';
+    selected=path.join(h.temporary,'selected.'+extension);neighbour=path.join(h.temporary,'different.'+extension);
+    const selectedBytes=Buffer.from(content),otherBytes=Buffer.from('different original bytes');
+    await fs.writeFile(selected,selectedBytes);await fs.writeFile(neighbour,otherBytes);
+    const grant=channel==='source:read'?await chooseSource(h,selected):null;
+    const request=()=>{if(channel!=='source:read')h.dialogQueue.push({canceled:false,filePaths:[selected]});return h.handlers.get(channel)(h.event,grant?.grantId);};
+    armed=true;
+    await assert.rejects(request());assert.equal(reads,0);assert.equal(closed,1);
+    assert.deepEqual(await fs.readFile(selected),selectedBytes);assert.deepEqual(await fs.readFile(neighbour),otherBytes);
+    if(extension==='solidflow')await assert.rejects(h.handlers.get('document:save')(h.event,{content,filePath:selected}),/Guardar como/);
+    armed=false;const actual=await request();
+    if(channel==='document:import-step')assert.deepEqual(Buffer.from(actual.data),selectedBytes);else assert.equal(actual.content,content);
+  }
+});
+
+test('descriptor admission rejects nonregular handles before pathname admission or reading and leaves the file gate usable',async t=>{
+  // Portable fault injection over a real owned file descriptor. The actual
+  // kernel FIFO/open behavior is a separate POSIX-only child test below.
+  for(const channel of ['source:read','document:open','document:import-step']){
+    let armed=false,selected,reads=0,closed=0,pathStats=0;
+    const fileSystem={...fs,lstat:async(...args)=>{if(armed && args[0]===selected)pathStats++;return fs.lstat(...args);},open:async(...args)=>{
+      const handle=await fs.open(...args);
+      if(!armed || args[0]!==selected)return handle;
+      return {stat:async options=>{const actual=await handle.stat(options);return {...actual,isFile:()=>false};},
+        read:async(...params)=>{reads++;return handle.read(...params);},close:async()=>{closed++;await handle.close();}};
+    }};
+    const h=await harness(t,{fileSystem});selected=path.join(h.temporary,'nonregular-observation.'+(channel==='document:import-step'?'step':'solidflow'));
+    await fs.writeFile(selected,content);const grant=channel==='source:read'?await chooseSource(h,selected):null;
+    const request=()=>{if(channel!=='source:read')h.dialogQueue.push({canceled:false,filePaths:[selected]});return h.handlers.get(channel)(h.event,grant?.grantId);};
+    armed=true;await assert.rejects(request());assert.equal(reads,0);assert.equal(closed,1);assert.equal(pathStats,0);
+    armed=false;await request();assert.equal(await fs.readFile(selected,'utf8'),content);
+  }
+});
+
+test('protected open failure is not retried with an unprotected flag or promoted to a read capability',async t=>{
+  let fail=false,attempts=0,selected;
+  const fileSystem={...fs,open:async(...args)=>{
+    if(fail && args[0]===selected){attempts++;const error=new Error('Original ELOOP '+selected);error.code='ELOOP';throw error;}
+    return fs.open(...args);
+  }};
+  const h=await harness(t,{fileSystem});selected=path.join(h.temporary,'nofollow.solidflow');await fs.writeFile(selected,content);
+  fail=true;await assert.rejects(chooseSource(h,selected),error=>/fuente/.test(error.message)&&!error.message.includes(h.temporary));assert.equal(attempts,1);
+  fail=false;const grant=await chooseSource(h,selected);assert.equal(grant.content,content);
+  fail=true;await assert.rejects(h.handlers.get('source:read')(h.event,grant.grantId),/fuente/);assert.equal(attempts,2);
+  assert.equal(await fs.readFile(selected,'utf8'),content);
+});
+
+// The actual POSIX race is isolated in a killable Node process: a timed-out
+// promise cannot cancel libuv's blocking open and would leave the test hanging.
+const FIFO_TEST_NAME='POSIX FIFO replacement during protected open rejects without a writer';
+test(FIFO_TEST_NAME,{skip:process.platform==='win32'?'POSIX FIFO/open flags are not exercised on Windows':false},async t=>{
+  const channel=process.env.SOLIDFLOW_FIFO_READ_CHILD;
+  if(channel==='source:read'||channel==='document:open'||channel==='document:import-step'){
+    let armed=false,selected,backup,reads=0,closed=0;
+    const fileSystem={...fs,open:async(...args)=>{
+      if(!armed||args[0]!==selected)return fs.open(...args);
+      armed=false;await fs.rename(selected,backup);
+      await new Promise((resolve,reject)=>execFile('mkfifo',[selected],{timeout:1500},error=>error?reject(error):resolve()));
+      const handle=await fs.open(...args);
+      return {stat:options=>handle.stat(options),read:async(...params)=>{reads++;return handle.read(...params);},close:async()=>{closed++;await handle.close();}};
+    }};
+    const h=await harness(t,{fileSystem});selected=path.join(h.temporary,'actual-fifo-race.'+(channel==='document:import-step'?'step':'solidflow'));backup=path.join(h.temporary,'original-backup');
+    await fs.writeFile(selected,content);
+    const grant=channel==='source:read'?await chooseSource(h,selected):null;
+    const request=()=>{if(channel!=='source:read')h.dialogQueue.push({canceled:false,filePaths:[selected]});return h.handlers.get(channel)(h.event,grant?.grantId);};
+    armed=true;await assert.rejects(request());assert.equal(reads,0);assert.equal(closed,1);assert.equal((await fs.lstat(selected)).isFIFO(),true);
+    await fs.unlink(selected);await fs.rename(backup,selected);const restored=await request();
+    if(channel==='document:import-step')assert.equal(Buffer.from(restored.data).toString('utf8'),content);else assert.equal(restored.content,content);
+    assert.equal(await fs.readFile(selected,'utf8'),content);return;
+  }
+  try{await new Promise((resolve,reject)=>execFile('mkfifo',['--help'],{timeout:1500},error=>error?.code==='ENOENT'?reject(error):resolve()));}
+  catch(error){if(error.code==='ENOENT'){t.skip('mkfifo is not installed; no POSIX runtime result');return;}throw error;}
+  const owned=await fs.mkdtemp(path.join(os.tmpdir(),'solidflow-ipc-fifo-parent-'));
+  t.after(async()=>{assert.ok(path.resolve(owned).startsWith(path.resolve(os.tmpdir())+path.sep));assert.ok(path.basename(owned).startsWith('solidflow-ipc-fifo-parent-'));await fs.rm(owned,{recursive:true,force:true});});
+  for(const target of ['source:read','document:open','document:import-step']){
+    const result=await new Promise((resolve,reject)=>{
+      const environment={...process.env,TMPDIR:owned,SOLIDFLOW_FIFO_READ_CHILD:target};
+      delete environment.NODE_TEST_CONTEXT;
+      const child=spawn(process.execPath,['--test','--test-name-pattern','^'+FIFO_TEST_NAME+'$',__filename],{cwd:ROOT,env:environment,stdio:['ignore','pipe','pipe']});
+      let stdout='',stderr='',failure;
+      const deadline=setTimeout(()=>{failure=Error('Protected '+target+' blocked on a FIFO without a writer.');child.kill('SIGKILL');},5000);
+      child.stdout.on('data',bytes=>{stdout+=bytes;if(stdout.length>1024*1024){failure=Error('FIFO child output exceeded its bound.');child.kill('SIGKILL');}});
+      child.stderr.on('data',bytes=>{stderr+=bytes;if(stderr.length>1024*1024){failure=Error('FIFO child error output exceeded its bound.');child.kill('SIGKILL');}});
+      child.once('error',error=>{failure=error;});
+      child.once('close',(code,signal)=>{clearTimeout(deadline);if(failure)reject(failure);else resolve({code,signal,stdout,stderr});});
+    });
+    assert.equal(result.code,0,'Actual POSIX '+target+' race failed: '+result.stdout+'\n'+result.stderr);assert.equal(result.signal,null);
+  }
 });

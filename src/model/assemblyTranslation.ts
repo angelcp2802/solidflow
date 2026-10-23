@@ -1,3 +1,4 @@
+import { captureOwnDataRecord } from './ownDataRecord'
 import type { Vec3 } from '../cad/kernel.types'
 import { assemblyDefinitionKey, validateAssemblyDocument, type AssemblyComponentReference,
   type AssemblyDocument, type EmbeddedAssemblyDefinition } from './assemblyDocument'
@@ -44,19 +45,8 @@ export interface AssemblyTranslationPath {
 }
 type Scope = AssemblyDocument | EmbeddedAssemblyDefinition
 function fail(message: string): never { throw new Error('Trayectoria de traslación: ' + message) }
-function record(value: unknown, allowed: readonly string[], required: readonly string[] = []): Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)
-    || ![Object.prototype, null].includes(Object.getPrototypeOf(value))) fail('se esperaba un objeto de datos simple.')
-  const result: Record<string, unknown> = Object.create(null)
-  for (const key of Reflect.ownKeys(value)) {
-    const field = Object.getOwnPropertyDescriptor(value, key)!
-    if (typeof key !== 'string' || !allowed.includes(key) || !field.enumerable || !('value' in field)) {
-      fail('solo se admiten los campos de datos enumerables declarados, sin accesores.')
-    }
-    result[key] = field.value
-  }
-  if (required.some(key => !Object.hasOwn(result, key))) fail('faltan campos obligatorios.')
-  return result
+function record(value: unknown, allowed: readonly string[], required: readonly string[] = []): ReadonlyMap<string, unknown> {
+  return captureOwnDataRecord(value, allowed, required, 'Trayectoria de traslación')
 }
 function finite(value: unknown, name: string): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) fail(name + ' debe ser finito.')
@@ -80,16 +70,16 @@ function shapeWithoutPoses(document: AssemblyDocument): string {
 /** Strict detached syntax only. Selection resolution belongs to the native caller. */
 export function validateAssemblyTranslationRequest(value: unknown): AssemblyTranslationRequest {
   const source = record(value, ['component', 'translation'], ['component', 'translation'])
-  const move = validateAssemblyMoveIntent({ component: source.component,
-    pose: { translation: source.translation, rotation: [0, 0, 0, 1] } })
+  const move = validateAssemblyMoveIntent({ component: source.get('component'),
+    pose: { translation: source.get('translation'), rotation: [0, 0, 0, 1] } })
   return { component: move.component, translation: move.pose.translation }
 }
 export function validateAssemblyTranslationStopOptions(input?: Partial<AssemblyTranslationStopOptions>): AssemblyTranslationStopOptions {
-  const source = input === undefined ? Object.create(null) as Record<string, unknown>
+  const source = input === undefined ? new Map<string, unknown>()
     : record(input, ['clearance', 'lengthTolerance', 'maxQueries'])
-  const clearance = finite(Object.hasOwn(source, 'clearance') ? source.clearance : 0, 'La holgura')
-  const lengthTolerance = finite(Object.hasOwn(source, 'lengthTolerance') ? source.lengthTolerance : 1e-6, 'La tolerancia')
-  const maxQueries = finite(Object.hasOwn(source, 'maxQueries') ? source.maxQueries : 1024, 'El presupuesto de consultas')
+  const clearance = finite(source.has('clearance') ? source.get('clearance') : 0, 'La holgura')
+  const lengthTolerance = finite(source.has('lengthTolerance') ? source.get('lengthTolerance') : 1e-6, 'La tolerancia')
+  const maxQueries = finite(source.has('maxQueries') ? source.get('maxQueries') : 1024, 'El presupuesto de consultas')
   if (clearance < 0 || lengthTolerance <= 0 || !Number.isFinite(clearance + lengthTolerance)) {
     fail('la holgura debe ser no negativa, la tolerancia positiva y su suma finita.')
   }

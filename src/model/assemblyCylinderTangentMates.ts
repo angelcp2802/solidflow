@@ -4,14 +4,15 @@ export type AssemblyCylinderTangentBranch = { kind: 'external' } | { kind: 'inte
 /** Intent only: native surface purpose/radii are supplied by the CAD boundary. */
 export function validateAssemblyCylinderTangentBranch(input: unknown): AssemblyCylinderTangentBranch {
   if (!input || typeof input !== 'object' || Array.isArray(input) || ![Object.prototype, null].includes(Object.getPrototypeOf(input))) throw new Error('Cylinder tangency branch must be plain data.')
-  const source: Record<string, unknown> = Object.create(null)
-  for (const key of Reflect.ownKeys(input)) {
+  const keys = Reflect.ownKeys(input)
+  for (const key of keys) {
     const field = Object.getOwnPropertyDescriptor(input, key)!
-    if (typeof key !== 'string' || !field.enumerable || !('value' in field)) throw new Error('Cylinder tangency branch fields must be own data.')
-    source[key] = field.value
+    if (typeof key !== 'string' || !['kind', 'larger'].includes(key) || !field.enumerable || !('value' in field)) throw new Error('Cylinder tangency branch fields must be declared own data.')
   }
-  if (source.kind === 'external' && Object.keys(source).length === 1) return { kind: 'external' }
-  if (source.kind === 'internal' && Object.keys(source).length === 2 && (source.larger === 'first' || source.larger === 'second')) return { kind: 'internal', larger: source.larger }
+  const kind = Object.getOwnPropertyDescriptor(input, 'kind')?.value
+  if (kind === 'external' && keys.length === 1) return { kind: 'external' }
+  const larger = Object.getOwnPropertyDescriptor(input, 'larger')?.value
+  if (kind === 'internal' && keys.length === 2 && (larger === 'first' || larger === 'second')) return { kind: 'internal', larger }
   throw new Error('Cylinder tangency requires external or internal with an explicit larger-radius endpoint.')
 }
 function positive(value: number): number {

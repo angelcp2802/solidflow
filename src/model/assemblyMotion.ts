@@ -1,3 +1,4 @@
+import { captureOwnDataRecord } from './ownDataRecord'
 import type { Vec3 } from '../cad/kernel.types'
 import { assemblyDefinitionKey, validateAssemblyDocument, type AssemblyComponentReference,
   type AssemblyDefinition, type AssemblyDefinitionReference, type AssemblyDocument, type AssemblyOccurrence } from './assemblyDocument'
@@ -31,17 +32,8 @@ export interface AssemblyComponentMotionPlan {
   atStation(index: number): AssemblyComponentMove
 }
 function fail(message: string): never { throw new Error('Movimiento angular de componente: ' + message) }
-function record(input: unknown, keys: readonly string[]): Record<string, unknown> {
-  if (!input || typeof input !== 'object' || Array.isArray(input)
-    || ![Object.prototype, null].includes(Object.getPrototypeOf(input))) fail('se esperaba un objeto de datos simple.')
-  const output: Record<string, unknown> = Object.create(null)
-  for (const key of Reflect.ownKeys(input)) {
-    const field = Object.getOwnPropertyDescriptor(input, key)!
-    if (typeof key !== 'string' || !keys.includes(key) || !field.enumerable || !('value' in field)) fail('solo se admiten los campos de datos enumerables declarados, sin accesores.')
-    output[key] = field.value
-  }
-  if (keys.some(key => !Object.hasOwn(output, key))) fail('faltan campos obligatorios.')
-  return output
+function record(input: unknown, keys: readonly string[]): ReadonlyMap<string, unknown> {
+  return captureOwnDataRecord(input, keys, keys, 'Movimiento angular de componente')
 }
 function axis(value: unknown): 0 | 1 | 2 {
   if (value !== 0 && value !== 1 && value !== 2) fail('el eje local debe ser 0, 1 o 2.')
@@ -67,11 +59,11 @@ function requestCopy(value: AssemblyComponentMotion): AssemblyComponentMotion {
 }
 /** Strict intent data only; graph resolution and native checks are separate. */
 export function validateAssemblyComponentMotion(input: unknown): AssemblyComponentMotion {
-  const source = record(input, ['component', 'translation', 'rotation']), rotation = record(source.rotation, ['axis', 'angle'])
-  const localAxis = axis(rotation.axis), angle = rotation.angle as number
+  const source = record(input, ['component', 'translation', 'rotation']), rotation = record(source.get('rotation'), ['axis', 'angle'])
+  const localAxis = axis(rotation.get('axis')), angle = rotation.get('angle') as number
   stations(angle) // Reject an excessive/underflowed request before trigonometry.
-  const checked = validateAssemblyMoveIntent({ component: source.component,
-    pose: { translation: source.translation, rotation: [0, 0, 0, 1] } })
+  const checked = validateAssemblyMoveIntent({ component: source.get('component'),
+    pose: { translation: source.get('translation'), rotation: [0, 0, 0, 1] } })
   return { component: checked.component, translation: vector(checked.pose.translation, 'El destino local'), rotation: { axis: localAxis, angle } }
 }
 

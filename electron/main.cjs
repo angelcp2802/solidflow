@@ -1,5 +1,6 @@
 const { app, BrowserWindow, ipcMain, dialog, protocol, net } = require('electron');
 const fs = require('node:fs/promises');
+const { constants: fsConstants } = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { randomUUID, createHash } = require('node:crypto');
@@ -94,20 +95,37 @@ async function atomicWrite(target, data) {
   }
 }
 
+function readOnlySnapshotFlags() {
+  if (process.platform === 'win32') return fsConstants.O_RDONLY;
+  // A regular-file pathname can be replaced by a symlink or FIFO before open.
+  // Descriptor admission cannot protect an open that has already blocked.
+  // Never retry without these protections when the platform rejects a flag.
+  if (!Number.isInteger(fsConstants.O_NOFOLLOW) || !Number.isInteger(fsConstants.O_NONBLOCK)
+    || fsConstants.O_NOFOLLOW === 0 || fsConstants.O_NONBLOCK === 0) throw new Error('La plataforma no admite una lectura protegida de archivos.');
+  return fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW | fsConstants.O_NONBLOCK;
+}
+function regularReadSnapshot(stat, limit) {
+  return stat.isFile() && stat.ino > 0n && stat.size >= 0n && stat.size <= BigInt(limit);
+}
 async function readBoundedFile(filePath, limit, description) {
-  const handle = await fs.open(filePath, 'r');
+  const handle = await fs.open(filePath, readOnlySnapshotFlags());
   try {
-    const stat = await handle.stat();
-    if (!stat.isFile() || stat.size > limit) throw new Error(description);
+    const stat = await handle.stat({ bigint: true });
+    if (!regularReadSnapshot(stat, limit)) throw new Error(description);
+    const before = await fs.lstat(filePath, { bigint: true });
+    if (!before.isFile() || before.isSymbolicLink() || !sameSourceState(stat, before)
+      || pathKey(await fs.realpath(filePath)) !== pathKey(filePath)) throw new Error('El archivo cambió antes de la lectura. Vuelve a abrirlo.');
     // Bound the read even if a different process grows the file after stat.
-    const bytes = Buffer.alloc(stat.size + 1);
+    const bytes = Buffer.alloc(Number(stat.size) + 1);
     let length = 0;
     while (length < bytes.length) {
       const result = await handle.read(bytes, length, bytes.length - length, null);
       if (!result.bytesRead) break;
       length += result.bytesRead;
     }
-    if (length !== stat.size) throw new Error('El archivo cambió durante la lectura. Vuelve a abrirlo.');
+    const after = await handle.stat({ bigint: true }), current = await fs.lstat(filePath, { bigint: true });
+    if (length !== Number(stat.size) || !sameSourceState(stat, after) || !current.isFile() || current.isSymbolicLink()
+      || !sameSourceState(after, current) || pathKey(await fs.realpath(filePath)) !== pathKey(filePath)) throw new Error('El archivo cambió durante la lectura. Vuelve a abrirlo.');
     return bytes.subarray(0, length);
   } finally { await handle.close(); }
 }
@@ -133,11 +151,15 @@ async function readSourceGrant(event, grantId, grant) {
     assertSender(event);
     const canonical = await fs.realpath(grant.selectedPath);
     if (pathKey(canonical) !== pathKey(grant.canonicalPath) || pathKey(await fs.realpath(grant.canonicalPath)) !== pathKey(grant.canonicalPath)) throw new Error('Source path changed.');
-    const before = await fs.lstat(grant.canonicalPath, { bigint: true });
-    if (!before.isFile() || before.isSymbolicLink() || before.ino <= 0n || before.size > BigInt(MAX_DOCUMENT_BYTES)) throw new Error('Source is not a bounded regular file.');
-    handle = await fs.open(grant.canonicalPath, 'r');
+    // The descriptor is the first file-type authority. O_NONBLOCK prevents a
+    // substituted FIFO from blocking before fstat can reject it on POSIX.
+    handle = await fs.open(grant.canonicalPath, readOnlySnapshotFlags());
     const opened = await handle.stat({ bigint: true });
-    if (!opened.isFile() || !sameSourceState(before, opened)) throw new Error('Source changed before read.');
+    if (!regularReadSnapshot(opened, MAX_DOCUMENT_BYTES)) throw new Error('Source is not a bounded regular file.');
+    const before = await fs.lstat(grant.canonicalPath, { bigint: true });
+    if (!before.isFile() || before.isSymbolicLink() || !sameSourceState(before, opened)
+      || pathKey(await fs.realpath(grant.selectedPath)) !== pathKey(grant.canonicalPath)
+      || pathKey(await fs.realpath(grant.canonicalPath)) !== pathKey(grant.canonicalPath)) throw new Error('Source changed before read.');
     const bytes = Buffer.alloc(Number(opened.size) + 1);
     let length = 0;
     while (length < bytes.length) {

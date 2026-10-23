@@ -35,10 +35,12 @@ module.exports = async function directedGuideWorkflow(context) {
     const matches = options.filter(value => value && canonical(JSON.parse(value)) === canonical(reference));
     check(matches.length === 1, 'Exact current reference option missing or ambiguous.'); await control(selector, matches[0]);
   }
-  async function response(serial, action) {
+  async function response(serial, action, expectReferenceFailure = false) {
     return waitFor('guide repair actual ' + action, async () => { const state = await observe(), values = state.assemblies.filter(item => item.serial > serial && item.action === action && item.response);
       check(!state.workerErrors.length && values.length <= 1, 'Guide repair worker error or duplicate operation.'); if (!values.length) return false;
-      check(values[0].response.ok, values[0].response.error || 'Guide repair operation failed.'); return values[0]; });
+      const reply = values[0].response;
+      if (expectReferenceFailure) check(reply.ok === false && reply.error === 'Quedan referencias de la pieza pendientes de reparación.' && !Object.hasOwn(reply, 'value'), 'Unrepaired private source stage did not return its exact correlated failure.');
+      else check(reply.ok, reply.error || 'Guide repair operation failed.'); return values[0]; });
   }
   async function recovery(document) {
     await waitFor('guide repair exact recovery', async () => canonical(JSON.parse(await page(() => localStorage.getItem('solidflow.autosave')))) === canonical(document));
@@ -171,12 +173,12 @@ module.exports = async function directedGuideWorkflow(context) {
     await click('button[aria-label="Reparar referencia ' + label + '"]'); repaired[side] = ref; await statuses(repaired); await unchanged('manual ' + side + ' repair');
   }
   async function solveUpdate(reviewed, repaired, accepted) {
-    const before = await observe(); await click(SOLVE); const event = await response(before.serial, 'preview-assembly'); evidence.pendingEvent = event;
-    check(canonical(event.current) === canonical(saved), 'Source solve lost committed base.'); updateDocument(event.proposed, reviewed.revision, repaired);
+    const before = await observe(); await click(SOLVE); const event = await response(before.serial, 'preview-assembly-part-update', !accepted); evidence.pendingEvent = event;
+    check(event.reviewId === reviewed.response.value.reviewId && canonical(event.current) === canonical(saved), 'Source solve lost its private review identity or committed base.'); updateDocument(event.proposed, reviewed.revision, repaired);
     if (accepted) { const value = ready(event, 5, reviewed.revision); updateDocument(value.document, reviewed.revision, repaired);
       await waitFor('repaired Apply enabled', () => page(selector => document.querySelector(selector)?.disabled === false, APPLY)); }
-    else { const value = event.response.value;
-      check(value.status === 'rejected' && value.reason === 'reference' && !value.hasToken && !value.limitDirectedAngles, 'Unrepaired source was given geometry authority.');
+    else {
+      check(event.response.ok === false && !Object.hasOwn(event.response, 'value'), 'Unrepaired source was given geometry authority.');
       await idle(); check(await page((panel, apply, summary) => !!document.querySelector(panel) && document.querySelector(apply)?.disabled === true && !document.querySelector(summary), PANEL, APPLY, SUMMARY), 'Rejected update lost editable stage or exposed stale Apply/report.'); }
     await statuses(repaired); await unchanged('source solve'); delete evidence.pendingEvent;
     record(accepted ? 'source/ready' : Object.keys(repaired).length ? 'source/rejected-guide-pending' : 'source/rejected-all-pending', event); return event;

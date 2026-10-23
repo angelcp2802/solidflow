@@ -1,3 +1,4 @@
+import { captureOwnDataRecord } from './ownDataRecord'
 import { assemblyDefinitionKey, assemblyOccurrencePathKey, validateAssemblyDocument, validateCadDocument, MAX_ASSEMBLY_DEPTH,
   type AssemblyComponentReference, type AssemblyDefinition, type AssemblyDefinitionReference, type AssemblyDocument,
   type AssemblyOccurrence, type EmbeddedAssemblyDefinition } from './assemblyDocument'
@@ -45,17 +46,8 @@ const nodeKey = (scope: AssemblyDefinitionReference, occurrenceId: string) => JS
 const samePath = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((id, i) => b[i] === id)
 const prefix = (a: readonly string[], b: readonly string[]) => a.length <= b.length && a.every((id, i) => b[i] === id)
 function fail(message: string): never { throw new Error('Reemplazo de componente: ' + message) }
-function record(input: unknown, names: readonly string[]): Record<string, unknown> {
-  if (!input || typeof input !== 'object' || Array.isArray(input)
-    || ![Object.prototype, null].includes(Object.getPrototypeOf(input))) fail('se esperaba un objeto de datos simple.')
-  const result: Record<string, unknown> = Object.create(null)
-  for (const name of Reflect.ownKeys(input)) {
-    const field = Object.getOwnPropertyDescriptor(input, name)!
-    if (typeof name !== 'string' || !names.includes(name) || !field.enumerable || !('value' in field)) fail('campos desconocidos o no declarados como datos.')
-    result[name] = field.value
-  }
-  if (names.some(name => !Object.hasOwn(result, name))) fail('faltan campos obligatorios.')
-  return result
+function record(input: unknown, names: readonly string[]): ReadonlyMap<string, unknown> {
+  return captureOwnDataRecord(input, names, names, 'Reemplazo de componente')
 }
 function identifier(input: unknown): string {
   if (typeof input !== 'string' || !input.trim() || input.length > 128 || /[\x00-\x1f\x7f]/.test(input)) fail('identificador no válido.')
@@ -63,13 +55,13 @@ function identifier(input: unknown): string {
 }
 function definitionReference(input: unknown): AssemblyDefinitionReference {
   const value = record(input, ['id', 'revision'])
-  return { id: identifier(value.id), revision: identifier(value.revision) }
+  return { id: identifier(value.get('id')), revision: identifier(value.get('revision')) }
 }
 function componentReference(input: unknown): AssemblyComponentReference {
   const value = record(input, ['occurrencePath', 'definition'])
-  const occurrencePath = JSON.parse(assemblyOccurrencePathKey(value.occurrencePath as string[])) as string[]
+  const occurrencePath = JSON.parse(assemblyOccurrencePathKey(value.get('occurrencePath') as string[])) as string[]
   if (!occurrencePath.length) fail('selecciona una ruta de componente no vacía.')
-  return { occurrencePath, definition: definitionReference(value.definition) }
+  return { occurrencePath, definition: definitionReference(value.get('definition')) }
 }
 function revisions(input: unknown): string[] {
   if (!Array.isArray(input) || Object.getPrototypeOf(input) !== Array.prototype || input.length >= MAX_ASSEMBLY_DEPTH) fail('lista de revisiones de ancestros no válida.')
@@ -83,12 +75,13 @@ function revisions(input: unknown): string[] {
 }
 function request(input: AssemblyPartReplacementRequest): AssemblyPartReplacementRequest {
   const value = record(input, ['component', 'mode', 'part', 'revision', 'ancestorRevisions'])
-  if (value.mode !== 'selected' && value.mode !== 'all') fail('modo de reemplazo desconocido.')
-  const component = componentReference(value.component), ancestorRevisions = revisions(value.ancestorRevisions)
-  if (ancestorRevisions.length !== (value.mode === 'selected' ? component.occurrencePath.length - 1 : 0)) fail('el número de revisiones debe coincidir con los ancestros seleccionados.')
-  const part = validateCadDocument(value.part)
+  const mode = value.get('mode')
+  if (mode !== 'selected' && mode !== 'all') fail('modo de reemplazo desconocido.')
+  const component = componentReference(value.get('component')), ancestorRevisions = revisions(value.get('ancestorRevisions'))
+  if (ancestorRevisions.length !== (mode === 'selected' ? component.occurrencePath.length - 1 : 0)) fail('el número de revisiones debe coincidir con los ancestros seleccionados.')
+  const part = validateCadDocument(value.get('part'))
   if (part.version !== 1) fail('el reemplazo debe ser un documento de pieza.')
-  return { component, mode: value.mode, part, revision: identifier(value.revision), ancestorRevisions }
+  return { component, mode, part, revision: identifier(value.get('revision')), ancestorRevisions }
 }
 function nodes(document: AssemblyDocument): Node[] {
   return [document, ...document.definitions.filter((value): value is EmbeddedAssemblyDefinition => value.kind === 'assembly')]

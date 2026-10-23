@@ -1,5 +1,84 @@
 # Validation
 
+## Prototype hardening and renderer contracts — 2026-10-23
+
+Local `codex/assembly-prototype-hardening` follows `f167be2`. Seven strict model
+admission paths now avoid caller-named object writes. Bounded document, STEP
+and linked-source reads admit the actual descriptor before reading bytes and
+compare descriptor/path state throughout. A transport envelope and contained
+worker queue preserve ordered processing after malformed input or failures.
+See the [contract](PROTOTYPE_HARDENING.md) for exact scope and remaining review.
+
+Actual final local results on Windows x64, Node 24.11.1:
+
+| Command | Actual result |
+| --- | --- |
+| `npm test` | PASS, 376 files / 9030 unit/CAD cases in 380.95 seconds. IPC/security/source: 70 passed, zero failed, two skipped, 1518.0246 ms. Skips are the inherited Windows file-symlink permission case and the POSIX-only real-FIFO case. |
+| `npm run build` | PASS, TypeScript/Vite production build. Existing browser-externalization and large-chunk warnings remain. |
+| `npm run test:desktop` | PASS, actual production loader plus an independent actual production worker/WASM queue-recovery probe. Zero recorded console errors or failed requests. |
+| `npm run test:desktop:assembly-directed-angle` | PASS, 309 recorded milestones, 43 circular-stop phases/six pointer drags and 15 explicit-guide source-repair phases. Actual worker/file IPC, zero recorded console/request errors, child close and isolated-profile removal confirmed. |
+| `npm run test:desktop:assembly-limit-distance` | PASS, 251 recorded milestones / 38 phases. Actual DOM input, native worker/file IPC, zero recorded console/request errors, child close and isolated-profile removal confirmed. |
+| `npm run test:desktop:assembly-configurations` | PASS, 40 recorded milestones / 14 native-geometry/lifecycle phases. Actual selected states, private worker previews, history/recovery/files; zero recorded console/request errors and confirmed child close/profile removal. |
+| `npm run test:desktop:assembly` | PASS, existing 527 recorded checks/milestones. Real worker/file IPC, zero recorded console/request errors, confirmed child close and isolated-profile removal. |
+
+All 968 tracked non-Markdown production/test/config inputs retain the final
+freeze digest `06f88428ac0258ff017b0ea0aba8d110b525d017c0ca41529d49c26f89219bc8`
+through the final complete suite, build and smoke. All four final renderer
+workflows also passed on those inputs. Documentation is excluded from the digest.
+
+Seventeen new pure own-data cases cover the seven public admission APIs,
+dangerous own keys, zero getter execution, hidden/symbolic/inherited/hooks,
+null-prototype data and absence versus explicit `undefined`. Their focus passed
+277 cases across eight files in 1.29 seconds, including existing domain cases.
+Fifteen new pure worker cases passed in 232 ms: exact action/field unions,
+safe correlation, capture before await, serial delivery, initialization retry
+semantics, handler failures and real structured-clone failure/fallback. They
+are transport tests, not native geometry evidence. Both sets execute in the
+complete run above.
+
+Four new Node cases exercise wrong actual descriptors, nonregular observations,
+protected-open failure without an unsafe retry and a POSIX FIFO race. Portable
+cases check zero bytes read, one close, unchanged source bytes and a usable
+operation gate afterward. The real FIFO test runs three file channels in
+killable children on POSIX; it was **not executed on Windows**. Its code and the
+Windows cases do not establish Linux/macOS runtime behavior. Existing rename,
+growth, canonical-path, grant/sender/release, BOM/hash and size controls remain.
+
+The production worker probe sends null, an unknown action, a missing required
+payload and a null build payload, followed by a valid original prism build.
+It receives ordered correlated failures for ids 101–103 and native volume
+24 mm³ with literal bounds (0,0,0)–(2,3,4) for id 104, at 1e-6 in corresponding
+units. Replies record trusted dedicated-worker events, null source, no transferred
+ports and empty origin. This is one actual worker reconstruction, not a general
+origin-authentication, BRep-validity, malformed-input or platform certificate.
+
+The unchanged pre-fix distance workflow passed locally; its hosted failure's
+exact assertion was unavailable. The pre-fix directed workflow reproduced a
+35-second wait for `preview-assembly` during private source repair. After fixing
+the observed action, it correctly exposed the command's correlated error for
+unrepaired references, while the old test expected a generic rejected preview.
+The final test observes `preview-assembly-part-update`, binds the private review
+id, requires that exact failure without a value, then verifies manual repair,
+Apply/history and saved reopening. Both earlier failures remain recorded; no
+product bypass, geometry band or deadline was changed to obtain PASS.
+
+Pointer oracles independently predict the third posted input from actual DOM
+coordinates and two sampled intentions, then clamp the actual input to literal
+Tz [12,32] or local-X [-30,60] intervals. The expected angular state survives
+Apply/reopening without reading solved output. Existing 1e-6 mm/radian physical
+pose bands, 1e-5 degree circular checks and case-specific BRep/bounds tolerances
+remain unchanged. Fixtures and limits retain their original provenance.
+
+Hosted acceptance is separate. Earlier head `85a33b6` failed macOS basic
+assembly, Windows distance and Linux directed-stop renderer steps; full logs
+were unavailable through the connector and no browser was enabled. Its Security
+workflow passed while a separate CodeQL check reported nine alerts. New source
+analysis must confirm the current result; no query was suppressed or alert
+dismissed here. Read-only `npm audit --json` reported zero vulnerabilities for
+both the current and main lock, which does not dismiss GitHub's separately
+reported, still-unidentified moderate Dependabot alert. Full assembly coverage,
+installed packaging, platform support and release acceptance remain open.
+
 ## Persisted configuration worker/editor integration — 2026-10-23
 
 Local `codex/assembly-configuration-persistence` follows `8d9a756`. This connects

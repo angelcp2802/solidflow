@@ -13,7 +13,7 @@ module.exports = function directedAngleWorkflow(context) {
   const CREATE = 'button[aria-label="Vista previa del nuevo límite dirigido"]', EDIT = 'button[aria-label="Vista previa del límite dirigido editado"]';
   const SUMMARY = '[aria-label="Límites dirigidos verificados"]', VIEW = '[aria-label="Visor 3D del ensamblaje"]';
   const labels = ['Primera dirección del límite', 'Segunda dirección del límite', 'Eje guía del límite'];
-  const phases = [], gestures = [], evidence = { scenario: 'original-directed-circular-stops', phases, gestures }; checks.push(evidence);
+  const phases = [], gestures = [], pointerExpectations = new WeakMap(), evidence = { scenario: 'original-directed-circular-stops', phases, gestures }; checks.push(evidence);
   const page = (fn, ...args) => evaluate('(' + fn.toString() + ')(' + args.map(encodeJavaScriptString).join(',') + ')');
   const near = (actual, wanted, tolerance, label) => check(Number.isFinite(actual) && Math.abs(actual - wanted) <= tolerance,
     label + '; actual=' + actual + ', expected=' + wanted + ', tolerance=' + tolerance);
@@ -100,7 +100,7 @@ module.exports = function directedAngleWorkflow(context) {
     const before = await observe(); await click(APPLY); const applied = await response(before.serial, 'apply-assembly'), value = applied.response.value;
     check(value.kind === 'assembly-applied' && applied.hasToken, 'Actual Apply capability absent.');
     const { updatedAt: _a, ...a } = event.response.value.document, { updatedAt: _b, ...b } = value.document;
-    check(canonical(a) === canonical(b), 'Apply changed authenticated candidate.'); geometry(value.scene, value.document, degrees);
+    check(canonical(a) === canonical(b), 'Apply changed authenticated candidate.'); geometry(value.scene, value.document, pointerExpectations.get(event) ?? degrees);
     await recovery(value.document, label); record(label + '/apply', applied); return value;
   }
   async function cancel(base, label) {
@@ -198,24 +198,27 @@ module.exports = function directedAngleWorkflow(context) {
       const input = await page(() => window.__solidflowDirectedInputObservation.snapshot()), held = input.events.filter(event => event.type === 'pointermove' && event.buttons === 1), actualInput = held.at(-1);
       check(!input.overflow && held.length === 3 && actualInput?.isTrusted && actualInput.pointerId === a.inputEvent.pointerId, 'Final directed target was not the third actual held move.');
       calibration.finalClientPoint = { x: actualInput.clientX, y: actualInput.clientY }; calibration.finalInputEvent = actualInput;
+      check(actualInput.clientY === finalPoint.y || actualInput.clientY === Math.fround(finalPoint.y), 'Issued angular input must arrive unchanged or as its exact float32 coordinate.');
       await pointer('mouseReleased', finalPoint); await waitFor('actual directed projection reply', async () => (await observe()).assemblies.some(value => value.serial > before.serial && value.action === 'project-assembly-component' && value.response)); await idle();
       const requests = (await observe()).assemblies.filter(value => value.serial > before.serial && value.action === 'project-assembly-component');
       check(requests.length === 3 && samples.every((sample, index) => sample.workerSerial === requests[index].serial)
         && requests.every(value => value.response?.ok && canonical(value.current) === canonical(base.document)), 'Directed angular stream lost its three actual inputs/base.');
       const event = requests.at(-1);
       evidence.pendingPointerEvent = { label, event };
-      const requested = event.drag.pose, requestedQuaternionErrorRadians = physicalXError(requested, targetDegrees), requestedDegrees = xDegrees(requested);
+      const expectedPostedDegrees = b.requestedDegrees + slope * (actualInput.clientY - b.clientPoint.y);
+      const requested = event.drag.pose, requestedQuaternionErrorRadians = physicalXError(requested, expectedPostedDegrees), requestedDegrees = xDegrees(requested);
       near(requestedQuaternionErrorRadians, 0, 1e-6, 'Literal requested physical quaternion error rad');
-      near(requestedDegrees * Math.PI / 180, targetDegrees * Math.PI / 180, 1e-6, 'Literal actual requested local-X angle rad');
-      check(canonical(base.document.mates[0].arc) === canonical({ start: 330, sweep: 90 }), 'Pointer oracle requires the literal [-30,60] arc.');
+      near(requestedDegrees * Math.PI / 180, expectedPostedDegrees * Math.PI / 180, 1e-6, 'Independent affine mapping of actual DOM angular input rad');
+      check(canonical(base.document.mates[0].arc) === canonical({ start: 330, sweep: 90 }) && wantedDegrees === Math.max(-30, Math.min(60, targetDegrees)), 'Pointer oracle requires the literal [-30,60] arc.');
       // Finite DOM coordinates quantize the input. Project the bounded actual
       // posted intention onto the literal arc, without reading solved output.
       const inputExpectedDegrees = Math.max(-30, Math.min(60, requestedDegrees)), inputExpectedCircularDegrees = circularDegrees(inputExpectedDegrees);
       calibration.finalRequest = { workerSerial: event.serial, requestedPose: requested }; Object.assign(evidence.pendingPointerCalibration, calibration);
-      const result = ready(event, circularDegrees(wantedDegrees), activity, true, inputExpectedCircularDegrees), resolved = moving(result.document).pose, witness = result.projection;
-      const resolvedQuaternionErrorRadians = physicalXError(resolved, wantedDegrees);
+      const result = ready(event, inputExpectedDegrees, activity, true, inputExpectedCircularDegrees), resolved = moving(result.document).pose, witness = result.projection;
+      pointerExpectations.set(event, inputExpectedDegrees);
+      const resolvedQuaternionErrorRadians = physicalXError(resolved, inputExpectedDegrees);
       near(resolvedQuaternionErrorRadians, 0, 1e-6, 'Projected physical quaternion error rad');
-      near(xDegrees(resolved) * Math.PI / 180, wantedDegrees * Math.PI / 180, 1e-6, 'Independent directed projection local-X pose rad');
+      near(xDegrees(resolved) * Math.PI / 180, inputExpectedDegrees * Math.PI / 180, 1e-6, 'Independent directed projection local-X pose rad');
       vector(requested.translation, old.translation, 1e-6, 'Pointer rotation preserves requested origin'); vector(resolved.translation, old.translation, 1e-6, 'Directed projection secondary position');
       check(event.drag.mode === 'rotate' && witness?.temporaryAnchor === false && witness.evidence.localOnly === true && !result.motion && !result.movement, 'Projected directed rotation replaced by strict motion.');
       near(witness.positionResidual, 0, 1e-6, 'Secondary position residual'); near(witness.angleResidual, Math.abs(requestedDegrees - inputExpectedDegrees) * Math.PI / 180, 1e-6, 'Pointer deviation separate from circular bounds');
@@ -232,7 +235,7 @@ module.exports = function directedAngleWorkflow(context) {
       near(Number(positionText[1]), witness.positionResidual, 1e-6, 'Displayed pointer position deviation mm');
       near(Number(angleText[1]), witness.angleResidual, 1e-9, 'Displayed pointer angular deviation rad'); near(Number(displayed.angle), inputExpectedCircularDegrees, 1e-5, 'Displayed circular limit angle degrees');
       gestures.push({ kind: 'local-X-directed-stop-projection', label, axis: 'X', down: point, hoverInputs, moves, targetDegrees, wantedDegrees,
-        circularWantedDegrees: circularDegrees(wantedDegrees), requestedDegrees, inputExpectedDegrees, inputExpectedCircularDegrees,
+        circularWantedDegrees: circularDegrees(wantedDegrees), expectedPostedDegrees, requestedDegrees, inputExpectedDegrees, inputExpectedCircularDegrees,
         requestedQuaternionErrorRadians, resolvedQuaternionErrorRadians, nativeAngleDegrees,
         pointerAngularResidualRadians: witness.angleResidual, workerSerials: requests.map(value => value.serial), calibration, displayed });
       delete evidence.pendingPointerCalibration; delete evidence.pendingPointerEvent; record(label + '/preview', event); return event;
@@ -324,10 +327,10 @@ module.exports = function directedAngleWorkflow(context) {
     await waitFor('actual directed stop saved', async () => { if (dialogCounts().saves !== 1) return false;
       try { return canonical(JSON.parse(await fsp.readFile(output, 'utf8'))) === canonical(committed.document); } catch (error) { if (error.code === 'ENOENT') return false; throw error; } });
     await idle(); before = await observe(); await button('Abrir', '.assembly-toolbar'); event = await response(before.serial, 'build-assembly');
-    check(canonical(event.document) === canonical(committed.document), 'Saved/reopened circular intent changed.'); geometry(event.response.value, event.document, 10); await recovery(committed.document, 'reopen'); record('reopen', event);
+    check(canonical(event.document) === canonical(committed.document), 'Saved/reopened circular intent changed.'); geometry(event.response.value, event.document, savedExpectedCircularDegrees); await recovery(committed.document, 'reopen'); record('reopen', event);
     check(await page(() => document.querySelector('button[aria-label="Deshacer ensamblaje"]')?.disabled === true
       && document.querySelector('button[aria-label="Rehacer ensamblaje"]')?.disabled === true), 'Reopening retained unrelated history.');
-    before = await observe(); await click('button[aria-label="Resolver ensamblaje"]'); event = await response(before.serial, 'preview-assembly'); ready(event, 10, 'interior', true, savedExpectedCircularDegrees); record('reopen/fresh native verification', event);
+    before = await observe(); await click('button[aria-label="Resolver ensamblaje"]'); event = await response(before.serial, 'preview-assembly'); ready(event, savedExpectedCircularDegrees, 'interior', true, savedExpectedCircularDegrees); record('reopen/fresh native verification', event);
     await waitFor('fresh report rendered', () => page(selector => !!document.querySelector(selector), SUMMARY)); await cancel(committed, 'final read-only verification');
     if (captureAtEnd) await capture(committed.document);
     const state = await observe(); check(dialogCounts().opens === 2 && dialogCounts().saves === 1 && ipc.every(value => value.completed), 'Unexpected or incomplete dialogs.');
@@ -336,7 +339,7 @@ module.exports = function directedAngleWorkflow(context) {
       && protocolResponses.some(value => value.url.endsWith('.wasm') && value.status === 200), 'Production worker/WASM absent.');
     check(digest(await fsp.readFile(input)) === digest(originalBytes), 'Original fixture bytes changed.');
     Object.assign(evidence, { savedSha256: digest(await fsp.readFile(output)),
-      independentOracles: 'Original drilled prisms V480-8pi,A496+12pi at1e-5; local-X quaternions at1e-6rad; top+Z to Rx(theta)+Z about+X=theta modulo360 at1e-5deg; initial330+60arc. Atomic outward/full-turn rejection, inward release, suppression/reactivation, history, exact save/reopen. Six trusted local-X pointer drags on edited330+90arc:90projects60(cancel/repeat),40inward,-40projects-30,-10inward,10crosseszero. Actual posted input and resolved quaternion versus ideal targets1e-6rad; report/native cap yz azimuth/display versus actual posted input independently clamped to[-30,60] at1e-5deg, with the input-derived expectation retained through reopen. Pointer deviation1e-6rad; secondaryposition1e-6mm; displayed deviation1e-9rad.',
+      independentOracles: 'Original drilled prisms V480-8pi,A496+12pi at1e-5; local-X quaternions at1e-6rad; top+Z to Rx(theta)+Z about+X=theta modulo360 at1e-5deg; initial330+60arc. Atomic outward/full-turn rejection, inward release, suppression/reactivation, history, exact save/reopen. Six trusted local-X pointer drags on edited330+90arc:90projects60(cancel/repeat),40inward,-40projects-30,-10inward,10crosseszero. Actual DOM coordinate is issued double or exact float32; two observed input samples predict the posted target1e-6rad. Resolved quaternion independently clamps actual posted intention1e-6rad; report/native cap yz azimuth/display versus actual posted input independently clamped to[-30,60] at1e-5deg, with the input-derived expectation retained through reopen. Pointer deviation1e-6rad; secondaryposition1e-6mm; displayed deviation1e-9rad.',
       limits: 'Hidden CDP pointer gestures and actual worker; input calibrated from actual DOM coordinates and posted intents only, never solved CAD feedback. Test-owned file dialogs. No human pointer/native-dialog, arbitrary orientation/guide gesture, continuous path, accumulated-turn stop, packaging or general platform support claim.' });
   };
 };

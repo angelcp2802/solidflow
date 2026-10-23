@@ -1,3 +1,4 @@
+import { captureOwnDataRecord } from './ownDataRecord'
 import { assemblyDefinitionKey, assemblyOccurrencePathKey, validateAssemblyDocument, MAX_ASSEMBLY_OCCURRENCES,
   type AssemblyComponentReference, type AssemblyDocument, type AssemblyDefinition, type AssemblyOccurrence, type EmbeddedAssemblyDefinition } from './assemblyDocument'
 import type { BodyReference, Vec3 } from '../cad/kernel.types'
@@ -73,20 +74,8 @@ export interface AssemblyInterferenceReport {
   warnings: string[]
 }
 function fail(message: string): never { throw new Error('Análisis de ensamblaje: ' + message) }
-function record(value: unknown, allowed: readonly string[], required: readonly string[] = []): Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) fail('se esperaba un objeto de datos.')
-  const prototype = Object.getPrototypeOf(value)
-  if (prototype !== Object.prototype && prototype !== null) fail('prototipo no válido.')
-  const result: Record<string, unknown> = Object.create(null)
-  for (const key of Reflect.ownKeys(value)) {
-    const descriptor = Object.getOwnPropertyDescriptor(value, key)!
-    if (typeof key !== 'string' || !allowed.includes(key) || !descriptor.enumerable || !('value' in descriptor)) {
-      fail('solo se admiten los campos de datos enumerables declarados.')
-    }
-    result[key] = descriptor.value
-  }
-  if (required.some(key => !Object.hasOwn(result, key))) fail('faltan campos obligatorios.')
-  return result
+function record(value: unknown, allowed: readonly string[], required: readonly string[] = []): ReadonlyMap<string, unknown> {
+  return captureOwnDataRecord(value, allowed, required, 'Análisis de ensamblaje')
 }
 function finite(value: unknown, name: string): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) fail(name + ' debe ser un número finito.')
@@ -98,10 +87,10 @@ function identifier(value: unknown): string {
 }
 function componentReference(input: unknown): AssemblyComponentReference {
   const source = record(input, ['occurrencePath', 'definition'], ['occurrencePath', 'definition'])
-  const path = JSON.parse(assemblyOccurrencePathKey(source.occurrencePath as string[])) as string[]
+  const path = JSON.parse(assemblyOccurrencePathKey(source.get('occurrencePath') as string[])) as string[]
   if (!path.length) fail('el ámbito necesita una ruta de ocurrencia no vacía.')
-  const definition = record(source.definition, ['id', 'revision'], ['id', 'revision'])
-  return { occurrencePath: path, definition: { id: identifier(definition.id), revision: identifier(definition.revision) } }
+  const definition = record(source.get('definition'), ['id', 'revision'], ['id', 'revision'])
+  return { occurrencePath: path, definition: { id: identifier(definition.get('id')), revision: identifier(definition.get('revision')) } }
 }
 function componentList(input: unknown): AssemblyComponentReference[] {
   if (!Array.isArray(input) || Object.getPrototypeOf(input) !== Array.prototype || input.length > MAX_ASSEMBLY_OCCURRENCES) {
@@ -123,30 +112,31 @@ function componentList(input: unknown): AssemblyComponentReference[] {
 }
 function scope(input: unknown): AssemblyInterferenceScope {
   const source = record(input, ['mode', 'selected', 'excluded'], ['mode', 'selected', 'excluded'])
-  if (source.mode !== 'all' && source.mode !== 'among-selected' && source.mode !== 'selected-against-rest') fail('modo de ámbito desconocido.')
-  const selected = componentList(source.selected), excluded = componentList(source.excluded)
-  if (source.mode === 'all' ? selected.length !== 0 : selected.length === 0) {
-    fail(source.mode === 'all' ? 'el modo todos requiere una selección vacía.' : 'el modo requiere al menos un componente seleccionado.')
+  const mode = source.get('mode')
+  if (mode !== 'all' && mode !== 'among-selected' && mode !== 'selected-against-rest') fail('modo de ámbito desconocido.')
+  const selected = componentList(source.get('selected')), excluded = componentList(source.get('excluded'))
+  if (mode === 'all' ? selected.length !== 0 : selected.length === 0) {
+    fail(mode === 'all' ? 'el modo todos requiere una selección vacía.' : 'el modo requiere al menos un componente seleccionado.')
   }
-  return { mode: source.mode, selected, excluded }
+  return { mode, selected, excluded }
 }
 
 /** Syntax/options only. Native bounds, distances, intersections and cleanup are separate. */
 export function validateAssemblyInterferenceOptions(input?: Partial<AssemblyInterferenceOptions>): AssemblyInterferenceOptions {
-  const source = input === undefined ? Object.create(null) as Record<string, unknown>
+  const source = input === undefined ? new Map<string, unknown>()
     : record(input, ['clearance', 'lengthTolerance', 'volumeTolerance', 'includeHidden', 'includeWithinComponent', 'treatSubassembliesAsComponents', 'scope'])
-  const clearance = finite(Object.hasOwn(source, 'clearance') ? source.clearance : 1, 'La holgura')
-  const lengthTolerance = finite(Object.hasOwn(source, 'lengthTolerance') ? source.lengthTolerance : 1e-6, 'La tolerancia de longitud')
-  const volumeTolerance = finite(Object.hasOwn(source, 'volumeTolerance') ? source.volumeTolerance : 1e-6, 'La tolerancia de volumen')
-  const includeHidden = Object.hasOwn(source, 'includeHidden') ? source.includeHidden : true
-  const includeWithinComponent = Object.hasOwn(source, 'includeWithinComponent') ? source.includeWithinComponent : false
-  const treatSubassembliesAsComponents = Object.hasOwn(source, 'treatSubassembliesAsComponents') ? source.treatSubassembliesAsComponents : false
+  const clearance = finite(source.has('clearance') ? source.get('clearance') : 1, 'La holgura')
+  const lengthTolerance = finite(source.has('lengthTolerance') ? source.get('lengthTolerance') : 1e-6, 'La tolerancia de longitud')
+  const volumeTolerance = finite(source.has('volumeTolerance') ? source.get('volumeTolerance') : 1e-6, 'La tolerancia de volumen')
+  const includeHidden = source.has('includeHidden') ? source.get('includeHidden') : true
+  const includeWithinComponent = source.has('includeWithinComponent') ? source.get('includeWithinComponent') : false
+  const treatSubassembliesAsComponents = source.has('treatSubassembliesAsComponents') ? source.get('treatSubassembliesAsComponents') : false
   if (clearance < 0 || lengthTolerance <= 0 || volumeTolerance < 0) fail('la holgura y tolerancia de volumen deben ser no negativas; la tolerancia de longitud debe ser positiva.')
   if (typeof includeHidden !== 'boolean') fail('la inclusión de cuerpos ocultos debe ser verdadera o falsa.')
   if (typeof includeWithinComponent !== 'boolean') fail('la inclusión de cuerpos de una misma pieza debe ser verdadera o falsa.')
   if (typeof treatSubassembliesAsComponents !== 'boolean') fail('la agrupación de subensamblajes debe ser verdadera o falsa.')
   if (!Number.isFinite(clearance + lengthTolerance)) fail('la suma de holgura y tolerancia excede el intervalo finito.')
-  const suppliedScope = Object.hasOwn(source, 'scope') ? scope(source.scope) : undefined
+  const suppliedScope = source.has('scope') ? scope(source.get('scope')) : undefined
   return { clearance, lengthTolerance, volumeTolerance, includeHidden, includeWithinComponent, treatSubassembliesAsComponents,
     ...(suppliedScope ? { scope: suppliedScope } : {}) }
 }
@@ -194,15 +184,15 @@ export function resolveAssemblyInterferenceScope(input: AssemblyDocument, suppli
 /** Scoped identity only. Names and this JSON key cannot attest a current native body. */
 export function assemblyAnalysisBodyKey(body: AssemblyAnalysisBody): string {
   const fields = ['component', 'body', 'componentName', 'bodyName']
-  const source = record(body, fields, fields), component = record(source.component, ['occurrencePath', 'definition'], ['occurrencePath', 'definition'])
-  const path = assemblyOccurrencePathKey(component.occurrencePath as readonly string[])
+  const source = record(body, fields, fields), component = record(source.get('component'), ['occurrencePath', 'definition'], ['occurrencePath', 'definition'])
+  const path = assemblyOccurrencePathKey(component.get('occurrencePath') as readonly string[])
   if (path === '[]') fail('la identidad necesita una ruta de ocurrencia no vacía.')
-  const definition = record(component.definition, ['id', 'revision'], ['id', 'revision'])
-  if (typeof source.componentName !== 'string' || typeof source.bodyName !== 'string') fail('los nombres deben ser texto.')
+  const definition = record(component.get('definition'), ['id', 'revision'], ['id', 'revision'])
+  if (typeof source.get('componentName') !== 'string' || typeof source.get('bodyName') !== 'string') fail('los nombres deben ser texto.')
   let owner: [string, string] | null = null
-  if (source.body !== null) {
-    const explicit = record(source.body, ['bodyId', 'sourceFeatureId'], ['bodyId', 'sourceFeatureId'])
-    owner = [identifier(explicit.bodyId), identifier(explicit.sourceFeatureId)]
+  if (source.get('body') !== null) {
+    const explicit = record(source.get('body'), ['bodyId', 'sourceFeatureId'], ['bodyId', 'sourceFeatureId'])
+    owner = [identifier(explicit.get('bodyId')), identifier(explicit.get('sourceFeatureId'))]
   }
-  return JSON.stringify([JSON.parse(path), identifier(definition.id), identifier(definition.revision), owner])
+  return JSON.stringify([JSON.parse(path), identifier(definition.get('id')), identifier(definition.get('revision')), owner])
 }

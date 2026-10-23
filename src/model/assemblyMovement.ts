@@ -1,3 +1,4 @@
+import { captureOwnDataRecord } from './ownDataRecord'
 import { assemblyDefinitionKey, assemblyOccurrencePathKey, validateAssemblyDocument,
   type AssemblyComponentReference, type AssemblyDefinition, type AssemblyDefinitionReference,
   type AssemblyDocument } from './assemblyDocument'
@@ -22,20 +23,8 @@ export interface AssemblyComponentMovePlan {
 }
 
 function fail(message: string): never { throw new Error('Movimiento de componente: ' + message) }
-function record(value: unknown, fields: readonly string[]): Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) fail('se esperaba un objeto de datos.')
-  const prototype = Object.getPrototypeOf(value)
-  if (prototype !== Object.prototype && prototype !== null) fail('prototipo no válido.')
-  const result: Record<string, unknown> = Object.create(null)
-  for (const field of Reflect.ownKeys(value)) {
-    const descriptor = Object.getOwnPropertyDescriptor(value, field)!
-    if (typeof field !== 'string' || !fields.includes(field) || !descriptor.enumerable || !('value' in descriptor)) {
-      fail('solo se admiten los campos de datos enumerables declarados.')
-    }
-    result[field] = descriptor.value
-  }
-  if (fields.some(field => !Object.hasOwn(result, field))) fail('faltan campos obligatorios.')
-  return result
+function record(value: unknown, fields: readonly string[]): ReadonlyMap<string, unknown> {
+  return captureOwnDataRecord(value, fields, fields, 'Movimiento de componente')
 }
 function identifier(value: unknown): string {
   if (typeof value !== 'string' || !value.trim() || value.length > 128 || /[\x00-\x1f\x7f]/.test(value)) fail('identificador no válido.')
@@ -43,18 +32,18 @@ function identifier(value: unknown): string {
 }
 /** Strict detached syntax only; the pose's reference frame is supplied by its caller. */
 export function validateAssemblyMoveIntent(value: unknown): AssemblyComponentMove {
-  const move = record(value, ['component', 'pose']), component = record(move.component, ['occurrencePath', 'definition'])
+  const move = record(value, ['component', 'pose']), component = record(move.get('component'), ['occurrencePath', 'definition'])
   // The shared path boundary checks dense plain arrays, descriptors, identifiers
   // and the graph depth cap without invoking user accessors or serializers.
-  const path = assemblyOccurrencePathKey(component.occurrencePath as readonly string[])
+  const path = assemblyOccurrencePathKey(component.get('occurrencePath') as readonly string[])
   if (path === '[]') fail('la ruta completa de ocurrencia no puede estar vacía.')
-  const definition = record(component.definition, ['id', 'revision']), pose = record(move.pose, ['translation', 'rotation'])
+  const definition = record(component.get('definition'), ['id', 'revision']), pose = record(move.get('pose'), ['translation', 'rotation'])
   for (const field of ['translation', 'rotation']) {
-    if (!Array.isArray(pose[field]) || Object.getPrototypeOf(pose[field]) !== Array.prototype) fail('las coordenadas deben ser listas de datos sin otro prototipo.')
+    if (!Array.isArray(pose.get(field)) || Object.getPrototypeOf(pose.get(field)) !== Array.prototype) fail('las coordenadas deben ser listas de datos sin otro prototipo.')
   }
   return { component: { occurrencePath: JSON.parse(path) as string[],
-    definition: { id: identifier(definition.id), revision: identifier(definition.revision) } },
-  pose: validateRigidPose(pose, 'Movimiento.pose') }
+    definition: { id: identifier(definition.get('id')), revision: identifier(definition.get('revision')) } },
+  pose: validateRigidPose({ translation: pose.get('translation'), rotation: pose.get('rotation') }, 'Movimiento.pose') }
 }
 
 /**

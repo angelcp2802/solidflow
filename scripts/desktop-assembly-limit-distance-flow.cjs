@@ -267,6 +267,7 @@ module.exports = function limitDistanceWorkflow(context) {
     check(!observed.overflow && held.length === 3 && actualInput?.isTrusted && actualInput.pointerType === 'mouse'
       && actualInput.pointerId === first.inputEvent.pointerId && actualInput.timeStamp >= second.inputEvent.timeStamp, 'Final pointer input was not the third actual held move.');
     calibration.finalClientPoint = { x: actualInput.clientX, y: actualInput.clientY }; calibration.finalInputEvent = actualInput;
+    check(actualInput.clientY === finalPoint.y || actualInput.clientY === Math.fround(finalPoint.y), 'Issued Z input must arrive unchanged or as its exact float32 coordinate.');
     calibration.clientYIsFloat32 = Number.isFinite(actualInput.clientY) && Math.fround(actualInput.clientY) === actualInput.clientY;
     calibration.clientYFloat32Spacing = calibration.clientYIsFloat32 && actualInput.clientY !== 0 ? 2 ** (Math.floor(Math.log2(Math.abs(actualInput.clientY))) - 23) : null;
     calibration.worldHalfFloat32Step = calibration.clientYFloat32Spacing === null ? null : Math.abs(slope) * calibration.clientYFloat32Spacing / 2;
@@ -280,12 +281,19 @@ module.exports = function limitDistanceWorkflow(context) {
     calibration.finalRequest = { workerSerial: event.serial, requestedPose: requested };
     evidence.pendingPointerCalibration.finalRequest = calibration.finalRequest;
     check(event.drag.mode === 'translate' && canonical(event.drag.component) === canonical({ occurrencePath: ['moving'], definition: occurrence(expected, 'moving').definition }) && witness?.temporaryAnchor === false && witness.evidence.localOnly === true && !result.motion && !result.movement, 'Projection was replaced by a strict anchor.');
-    near(requested.translation, [old.translation[0], old.translation[1], targetZ], 1e-6, 'Actual Z pointer target'); near(actual.translation, [old.translation[0], old.translation[1], wantedZ], 1e-6, 'Independent interval projection');
-    close(witness.positionResidual, Math.abs(targetZ - wantedZ), 1e-6, 'Pointer deviation separated from hard constraint'); close(witness.angleResidual, 0, 1e-8, 'Projection secondary rotation');
+    const expectedPostedZ = second.requestedPose.translation[2] + slope * (actualInput.clientY - second.clientPoint.y);
+    near(requested.translation, [old.translation[0], old.translation[1], expectedPostedZ], 1e-6, 'Independent affine mapping of actual DOM Z input');
+    // The original top planes have q=Tz+2-4. Clamp the actual posted intention,
+    // independently of the solved pose; issued doubles need not survive DOM input.
+    check(base.document.mates.length === 1 && canonical(base.document.mates[0].limits) === canonical({ minimum: 10, maximum: 30 })
+      && wantedZ === Math.max(12, Math.min(32, targetZ)), 'Pointer oracle requires the original literal top-plane interval.');
+    const inputExpectedZ = Math.max(12, Math.min(32, requested.translation[2]));
+    near(actual.translation, [old.translation[0], old.translation[1], inputExpectedZ], 1e-6, 'Independent interval projection of actual posted input');
+    close(witness.positionResidual, Math.abs(requested.translation[2] - inputExpectedZ), 1e-6, 'Pointer deviation separated from hard constraint'); close(witness.angleResidual, 0, 1e-8, 'Projection secondary rotation');
     check(result.limitDistances[0].activity === activity && canonical(result.document.mates) === canonical(base.document.mates) && canonical(result.document.definitions) === canonical(base.document.definitions), 'Projection edited limits/sources or reported wrong proximity.');
     check(await page(() => localStorage.getItem('solidflow.autosave')) === recoveryBefore, 'Projected preview changed committed recovery.');
     await waitFor('projection deviation and hard checks rendered', () => page(() => { const panel = document.querySelector('[aria-label="Proyección del arrastre"]'); return panel?.textContent.includes('Desviación del puntero') && panel.textContent.includes('Comprobación de relaciones'); }));
-    gestures.push({ kind: 'world-Z-projection', label, axis: 'Z', down: point, moves, targetZ, wantedZ, workerSerials: requests.map(value => value.serial),
+    gestures.push({ kind: 'world-Z-projection', label, axis: 'Z', down: point, moves, targetZ, wantedZ, expectedPostedZ, inputExpectedZ, workerSerials: requests.map(value => value.serial),
       calibration }); delete evidence.pendingPointerCalibration; await readyUi(event); record(label + '/preview', event); return event;
     } finally {
       const input = await page(() => window.__solidflowLimitInputObservation?.stop() ?? null);
@@ -332,7 +340,7 @@ module.exports = function limitDistanceWorkflow(context) {
     check(protocolResponses.some(value => /kernel\.worker-[\w-]+\.js$/.test(value.url) && value.status === 200) && protocolResponses.some(value => value.url.endsWith('.wasm') && value.status === 200), 'Actual worker/WASM load absent.');
     check(digest(await fsp.readFile(input)) === digest(originalBytes) && digest(await fsp.readFile(output)) === digest(savedBytes), 'Original or saved bytes changed after reopen.');
     Object.assign(evidence, { savedSha256: digest(savedBytes), finalDocument: committed.document,
-      independentOracles: 'Original fixed40x30x4 V4800/A2960,moving10x6x2 V120/A184,total4920/3144; placed eight-corner box bounds/V/A1e-5; fixedpose and scene/savedtranslations1e-12,physicalscene/savedangle1e-8; actual n2 dot(P1-P2) signed inclusive range1e-6mm/orientation1e-6rad. Initial top/topq20 range10..30; strict Tz42/Tz2 rejected, actualZpointerTz42 projects32 with10mm pointer deviation; inwardTz22 releases boundary. Bilateralrank2/DOF4 even boundary, suppressed/deletedrank0/DOF6. Opposed actualmovingbottom vsfixedtop, no antipodal reseed; reversedtops explicit[-30,-10].',
+      independentOracles: 'Original fixed40x30x4 V4800/A2960,moving10x6x2 V120/A184,total4920/3144; placed eight-corner box bounds/V/A1e-5; fixedpose and scene/savedtranslations1e-12,physicalscene/savedangle1e-8; actual n2 dot(P1-P2) signed inclusive range1e-6mm/orientation1e-6rad. Initial top/topq20 range10..30; strict Tz42/Tz2 rejected, issuedZpointerTz42 projects32; actual DOM double-or-float32 and affine postedinput1e-6mm, literal clampTz[12,32] and deviation use actual posted intention1e-6mm; nominal inwardTz22 releases boundary. Bilateralrank2/DOF4 even boundary, suppressed/deletedrank0/DOF6. Opposed actualmovingbottom vsfixedtop, no antipodal reseed; reversedtops explicit[-30,-10].',
       limits: 'Only two infinite plane supports,original fixed/free2boxfixture. Actual nativefacepointer and Zmanipulator/scriptedcontrols,test-owneddialogs, no state/workerreplyinjection. Geometric bound proximity is not a working-set or fullydefined certificate; no general cone/KKT, finitecontact, anglelimit, arbitrary mechanisms, human dialogs,installedpackage orplatform support.' });
   };
 };

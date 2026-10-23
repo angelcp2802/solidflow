@@ -1,5 +1,28 @@
 # Public fixture provenance
 
+## Original worker recovery and read-race cases
+
+The production worker recovery probe in `scripts/desktop-smoke.cjs` authors a
+rectangle on XY centered at (1, 1.5), width 2 and height 3, then extrudes it by
+4 mm. Its independent expected volume is 24 mm³ and bounds are (0,0,0) to
+(2,3,4), with a 1e-6 band in the corresponding units. This is an original
+synthetic construction, not imported CAD. It proves one native reconstruction
+after malformed transport/payload messages, not arbitrary geometry validity.
+
+`ownDataRecord.test.ts` and `kernel.worker-queue.test.ts` use original artificial
+intent records, envelopes and callback faults. Their transport/type evidence
+does not certify native geometry. Descriptor-read tests use original strings
+and actual files created in isolated temporary directories. Their wrong-file,
+nonregular and POSIX FIFO replacement controls contain no private document or
+vendor source. The POSIX child case is conditional; its presence is not evidence
+that it ran on Windows.
+
+The directed-angle and distance renderer fixes retain their existing original
+prism fixtures. Independent input expectations come from actual DOM coordinates
+and literal interval arithmetic, never from a solved pose. Source-repair tests
+still select current native reference identities explicitly. These additions
+are project-authored contributions under the repository's GPL-3.0-only license.
+
 ## Original persisted configuration contexts
 
 The v3 parser/history/recovery tests reuse the independently authored A/B prism

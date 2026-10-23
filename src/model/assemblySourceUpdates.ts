@@ -1,3 +1,4 @@
+import { captureOwnDataRecord } from './ownDataRecord'
 import {validateAssemblySourceLink,type AssemblySourceLink} from './assemblySourceLink'
 import { assemblyDefinitionKey, validateAssemblyDocument, validateCadDocument, type AssemblyComponentReference,
   type AssemblyDefinition, type AssemblyDefinitionReference, type AssemblyDocument,
@@ -27,20 +28,8 @@ export interface AssemblySourceUpdatePlan {
 type Node = AssemblyDocument | EmbeddedAssemblyDefinition
 const key = assemblyDefinitionKey
 function fail(message: string): never { throw new Error('Actualización de origen: ' + message) }
-function record(value: unknown, fields: readonly string[]): Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) fail('se esperaba un objeto de datos.')
-  const prototype = Object.getPrototypeOf(value)
-  if (prototype !== Object.prototype && prototype !== null) fail('prototipo no válido.')
-  const result: Record<string, unknown> = Object.create(null)
-  for (const field of Reflect.ownKeys(value)) {
-    const descriptor = Object.getOwnPropertyDescriptor(value, field)!
-    if (typeof field !== 'string' || !fields.includes(field) || !descriptor.enumerable || !('value' in descriptor)) {
-      fail('campos obligatorios o desconocidos; solo se admiten datos enumerables.')
-    }
-    result[field] = descriptor.value
-  }
-  if (fields.some(field => !Object.hasOwn(result, field))) fail('faltan campos obligatorios.')
-  return result
+function record(value: unknown, fields: readonly string[]): ReadonlyMap<string, unknown> {
+  return captureOwnDataRecord(value, fields, fields, 'Actualización de origen')
 }
 function identifier(value: unknown): string {
   if (typeof value !== 'string' || !value.trim() || value.length > 128 || /[\x00-\x1f\x7f]/.test(value)) fail('identificador no válido.')
@@ -48,7 +37,7 @@ function identifier(value: unknown): string {
 }
 function reference(value: unknown): AssemblyDefinitionReference {
   const data = record(value, ['id', 'revision'])
-  return { id: identifier(data.id), revision: identifier(data.revision) }
+  return { id: identifier(data.get('id')), revision: identifier(data.get('revision')) }
 }
 function nodes(document: AssemblyDocument): Node[] {
   return [document, ...document.definitions.filter((value): value is EmbeddedAssemblyDefinition => value.kind === 'assembly')]
@@ -124,9 +113,10 @@ function support(endpoint: Endpoint, mate: AssemblyMate, side: AssemblyMateEndpo
 /** Explicit syntax repair. Current native support and mate satisfaction need Solve. */
 export function repairAssemblyEndpoint(input: AssemblyDocument, locator: AssemblyMateEndpointLocator, endpoint: Endpoint): AssemblyDocument {
   const document = validateAssemblyDocument(input), address = record(locator, ['scope', 'mateId', 'side'])
-  const scope = reference(address.scope), mateId = identifier(address.mateId)
-  if (!isAssemblyMateEndpointSide(address.side)) fail('extremo de relación desconocido.')
-  const side = address.side, node = scopeNode(document, scope), original = node.mates.find(value => value.id === mateId)
+  const scope = reference(address.get('scope')), mateId = identifier(address.get('mateId'))
+  const side = address.get('side')
+  if (!isAssemblyMateEndpointSide(side)) fail('extremo de relación desconocido.')
+  const node = scopeNode(document, scope), original = node.mates.find(value => value.id === mateId)
   if (!original) fail('la relación ya no existe en el ámbito indicado.')
   const originalEndpoint = assemblyMateEndpoint(original, side)?.reference
   if (!originalEndpoint) fail('el extremo no identifica una referencia actual de la relación.')

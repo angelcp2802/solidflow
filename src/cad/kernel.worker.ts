@@ -2,7 +2,7 @@ import initOpenCascade from 'replicad-opencascadejs';
 import wasmUrl from 'replicad-opencascadejs/wasm?url';
 import { setOC } from 'replicad';
 import { KernelDispatcher } from './kernel.dispatcher';
-import type { KernelRequest, KernelResponse } from './kernel.types';
+import { createKernelWorkerQueue } from './kernel.worker-queue';
 
 const dispatcher = new KernelDispatcher();
 let initialized: Promise<void> | null = null;
@@ -18,22 +18,6 @@ function initialize(): Promise<void> {
 
 // Serialize native commands. A committed export reconstructs its explicit
 // snapshot independently of preceding display builds or assembly previews.
-let queue: Promise<void> = Promise.resolve();
-self.onmessage = (event: MessageEvent<KernelRequest>) => {
-  const request = event.data;
-  queue = queue.then(async () => {
-    let response: KernelResponse;
-    try {
-      await initialize();
-      const value = dispatcher.handle(request);
-      response = { id: request.id, ok: true, value };
-    } catch (error) {
-      response = {
-        id: request.id,
-        ok: false,
-        error: error instanceof Error ? error.message : 'No se pudo inicializar o ejecutar el motor CAD.',
-      };
-    }
-    self.postMessage(response);
-  });
-};
+const queue = createKernelWorkerQueue({ initialize, handle: request => dispatcher.handle(request),
+  postMessage: response => self.postMessage(response) });
+self.onmessage = (event: MessageEvent<unknown>) => { void queue.receive(event.data); };
