@@ -23,9 +23,11 @@ when the normal replacement dialog asks. The original example contains a
    Double-click an earlier feature to edit it; dependent sketches and depths
    must still describe the intended geometry.
 
-Cuts default to the sole current body. With several bodies and no unique
-selection, choose the targets explicitly. An extrusion from a currently resolved
-support face defaults to adding to that face's body. An unselected principal-plane
+Cuts default to the sole current body when no bodies are explicitly selected.
+With several bodies and no unique selection or resolved support-face owner,
+choose the targets explicitly. Without an explicit body selection, an extrusion
+from a currently resolved support face defaults to adding to that face's body.
+An explicit current body selection takes priority. An unselected principal-plane
 extrusion retains the explicit new-body option.
 
 Expected volumes are 960, 944, 928, 976 and 984 mm³ after the five operations.
