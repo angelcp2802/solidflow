@@ -30,6 +30,7 @@
     "test:desktop:assembly-configured-rack-pinion": "node scripts/desktop-assembly-configured-rack-pinion.cjs",
     "test:desktop:assembly-import": "node scripts/desktop-assembly-import.cjs",
     "test:desktop:assembly-source-update": "node scripts/desktop-assembly-source-update.cjs",
+    "test:desktop:assembly-source-update-save-pending": "node scripts/desktop-assembly-source-update-save-pending.cjs",
     "test:desktop:assembly-interference-grouping-scope": "node scripts/desktop-assembly-interference-grouping-scope.cjs",
     "test:desktop:assembly-interference-grouping-multibody": "node scripts/desktop-assembly-interference-grouping-multibody.cjs",
     "test:desktop:assembly-interference-grouping": "node scripts/desktop-assembly-interference-grouping.cjs",

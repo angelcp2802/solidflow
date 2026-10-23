@@ -1,5 +1,62 @@
 # Validation
 
+## Native Save completion and renderer readiness — 2026-10-23
+
+Local `codex/save-completion-readiness` follows accepted `d99e1eb`. This is a
+renderer acceptance correction; application geometry, saved declarations,
+production file permissions and native Save results are unchanged.
+
+The ordinary original source-update case first passes unchanged: 41 milestones
+and 10 native geometry phases. A controlled test then runs the exact old tracked
+flow (SHA-256 `3805d545ade6befe8bf9f8a401a4ef601b817795f9600c07d05d5c816207f129`)
+under one withheld real Save return. Its actual 5,365-byte baseline file exists
+and matches request/read-back SHA-256
+`6b30f6f6f4a3892f3887195ec5c6886bc6262777a5915f111a363ce8a4c8b88a`.
+The original flow fails naturally with Electron's generic script-execution
+error. The bounded pre-interaction snapshot records native completion true,
+IPC return still withheld, `aria-busy=true` and Open/Save disabled.
+
+The corrected flow under the same final harness and production inputs passes
+50 milestones / 10 geometry phases. It releases the unchanged return, then
+observes actual clean header/path, enabled Open/Save, disabled Apply and complete
+recovery. Separate fences follow baseline Save As, normal Save and final Save As.
+The ordinary command also passes 50 milestones / 10 phases. This establishes a
+possible ordering race; it does not prove the cause of a historical macOS failure.
+
+Final Windows x64 / Node 24.11.1 checks on frozen code:
+
+- `npm test`: **9,204 unit/CAD cases in 385 files passed**, 380.92 s; **83
+  IPC/security/source checks passed**, zero failed and two explicit Windows
+  skips, 1,528.9458 ms. The diagnostic regression also checks that a pending
+  test-owned Save is released while the original fatal error remains FAIL.
+- `npm run build` and actual `npm run test:desktop`: passed; existing build
+  warnings remain.
+- All five configured mechanical renderer commands pass **55 milestones / 18
+  geometry phases each**. Each withholds its first successful actual Save As
+  return after verifying written bytes, then separately observes actual clean
+  controls after release. Normal Save also reaches the complete-context fence.
+  Geometry, Cancel/retry/Apply, history, Base/shared isolation and reopening
+  assertions remain unchanged.
+- Configured relation editing passes its existing **61 milestones / 23 phases**.
+- Every successful renderer records zero console/resource errors, confirmed
+  child closure and isolated-profile cleanup. All **1,002 non-Markdown
+  code/test/CI inputs** remain byte-identical through final acceptance.
+
+The held return is selected by a fixed scenario/channel/ordinal and its actual
+granted path inside the owned profile. It adds no timeout or automatic retry and
+substitutes no document, worker result or application state. The IPC-return flag
+means the main-process return was released; actual React readiness is a separate
+DOM observation. The [original provenance](PROVENANCE.md#controlled-native-save-completion-ordering)
+retains geometry, file and platform boundaries.
+
+For preceding published `54e825f`, the separate configured mechanical job
+completes successfully on Windows x64, Linux x64 and macOS arm64, and Security
+succeeds. Its larger desktop jobs are still running at this acceptance point.
+Those results establish the five bounded workflows on that earlier source,
+not the newly strengthened Save case or general platform support. Complete
+assembly/demo and release acceptance remain open; configured compound authoring
+is planned in [issue #52](https://github.com/angelcp2802/solidflow/issues/52).
+
 ## Configured native mechanical capture — 2026-10-23
 
 Local `codex/configured-mechanical-capture` follows accepted `0f37957` and

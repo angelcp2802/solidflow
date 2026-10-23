@@ -84,7 +84,7 @@ test('same primary is annotated once, with no PASS representation or error mutat
   assert.deepEqual(Object.getOwnPropertyDescriptors(original), before);
 });
 
-test('actual child finish emits before app.exit while retaining FAIL JSON and exit code', () => {
+test('actual child finish releases a pending Save and emits before app.exit while retaining the primary failure', () => {
   const source = fs.readFileSync(path.join(__dirname, 'desktop-pattern-ui.cjs'), 'utf8');
   const start = source.indexOf('  function finish(error) {'), end = source.indexOf('  const evaluate =', start);
   assert.ok(start > 0 && end > start);
@@ -92,6 +92,8 @@ test('actual child finish emits before app.exit while retaining FAIL JSON and ex
   const context = vm.createContext({ finished: false, timeout: null, clearTimeout() {}, checks: [], protocolResponses: [], consoleErrors: [], failedRequests: [], captures: [], ipc: [],
     opens: 0, saves: 0, csvExports: 0, geometryExports: 0, sourceOpens: 0, stepImports: 0,
     linkedSource: false, sourceRevision: false, assemblyExport: false, structuralStep: false, structuralInsertion: false,
+    saveCompletion: { enabled: true, ordinal: 1, armed: true, pending: true, samples: [] },
+    releaseSaveCompletion(by) { context.saveCompletion.pending=false;context.saveCompletion.releasedBy=by;events.push(['release',by]); },
     owned: '/original-owned-test', activeScenario: { test: 'original-diagnostic-integration' },
     path, describeError: value => ({ name: value.name, message: value.message }),
     emitDesktopCiFailure(value) { events.push(['annotation', value.message]); },
@@ -101,6 +103,6 @@ test('actual child finish emits before app.exit while retaining FAIL JSON and ex
   });
   vm.runInContext(source.slice(start, end) + '\nfinish(error);', context);
   assert.equal(writes[0].workflowStatus, 'FAIL'); assert.equal(writes[0].error.message, error.message);
-  assert.deepEqual(events, [['annotation', error.message], ['json', 'FAIL'], ['exit', 1]]);
+  assert.deepEqual(events, [['release', 'cleanup'], ['annotation', error.message], ['json', 'FAIL'], ['exit', 1]]);
   assert.equal(context.process.exitCode, 1);
 });

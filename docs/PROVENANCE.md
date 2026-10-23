@@ -1,5 +1,37 @@
 # Public fixture provenance
 
+## Controlled native-save completion ordering
+
+The fixed `assembly-source-update-save-pending` scenario reuses the complete
+[original subassembly prisms](#embedded-subassembly-source-update-prisms),
+dialog queues, native worker and physical assertions of the ordinary source
+update. It changes no part, relation, declaration, solver output or file bytes.
+One statically selected `document:save` return is withheld after the real main
+handler has validated permissions and written its actual selected file. The
+harness checks the returned path stays inside its owned profile and matches the
+fixed Save queue; read-back SHA-256 must match the actual request. No additional
+file permission is granted.
+
+Before the next evaluation, the test records only bounded actual DOM readiness:
+busy flag, header/file label and enabled/disabled controls. Replaying the exact
+old tracked flow under this ordering naturally fails while the real baseline
+file already exists. The corrected flow releases the unchanged result and
+waits for clean actual controls and exact recovery. Cleanup releases only this
+test-owned pending return and preserves the primary failure. This reproduction
+establishes the ordering risk, not the cause of an earlier macOS CI failure.
+
+The five configured mechanical cases apply the same one-return barrier to their
+first successful Save As (after the separately canceled dialog). Both successful
+Save As and normal Save require clean header/path and Open/Save availability,
+disabled Apply and complete v3 recovery before another operation. Snapshot
+nominees and the IPC-return marker supply no native or React authority.
+
+All scenarios remain hidden and isolated. Existing 180/170/35-second parent,
+child and step deadlines, sandbox, production inputs, geometry tolerances,
+file grants and original assertions are unchanged. Native, renderer, actual
+file bytes and diagnostic cleanup remain separate evidence. Read
+[actual validation](VALIDATION.md) before inferring execution or platform support.
+
 ## Original configured mechanical capture
 
 `scripts/desktop-assembly-configured-mechanical-original.cjs` creates only public

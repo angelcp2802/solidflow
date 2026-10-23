@@ -5,7 +5,7 @@ const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 // Five fixed commands share original dimensions and independent coordinate
 // oracles. Only actual DOM controls, production worker and file IPC are used.
 module.exports = function configuredMechanicalWorkflow(c) {
-  const { family, expected, input, output, evaluate, observe, waitFor, click, capture, check, canonical, digest,
+  const { family, expected, input, output, evaluate, observe, waitFor, click, capture, check, checks, canonical, digest, completePendingSave,
     ipc, dialogCounts, consoleErrors, failedRequests, initialReadyMs } = c;
   const ROOT = '.configured-assembly-workspace', NAV = '[aria-label="Archivo del ensamblaje configurado"]';
   const FORM = '[aria-label="Editar relación mecánica del estado"]', ACTION = 'preview-configured-assembly-mechanical-edit', phases = [];
@@ -29,6 +29,19 @@ module.exports = function configuredMechanicalWorkflow(c) {
     const raw = await page(() => localStorage.getItem('solidflow.autosave'));
     return raw && canonical(JSON.parse(raw)) === canonical(doc) && await page(root => document.querySelector(root)?.getAttribute('aria-busy') === 'false', ROOT);
   }); }
+  async function savedReady(doc,label) {
+    await completePendingSave();
+    const ready=await waitFor(label+' clean configured saved controls',()=>page((name,file,nav)=>{
+      const root=document.querySelector('.configured-assembly-workspace'),header=root?.querySelector('header');
+      const rows=[...document.querySelectorAll(nav+' button')],one=text=>rows.filter(b=>b.textContent.trim()===text);
+      const open=one('Abrir'),save=one('Guardar'),apply=one('Aplicar configuración');
+      if(root?.getAttribute('aria-busy')!=='false'||header?.querySelector('strong')?.textContent!=='SolidFlow · '+name
+        ||header?.querySelector('span')?.getAttribute('title')!==file||open.length!==1||open[0].disabled
+        ||save.length!==1||save[0].disabled||apply.length!==1||!apply[0].disabled)return false;
+      return {busy:'false',header:header.querySelector('strong').textContent,file:header.querySelector('span').textContent,openEnabled:true,saveEnabled:true,applyDisabled:true};
+    },doc.source.name,output,NAV));
+    await recovery(doc);checks.push({savedRendererReady:{label,...ready}});
+  }
   const near = (actual, wanted, tolerance, label) => check(Number.isFinite(actual) && Math.abs(actual - wanted) <= tolerance, label + ': ' + actual + ' / ' + wanted);
   const variants = doc => doc.catalog.find(r => r.definition.id === 'mechanical-S').configurations;
   const compact = doc => variants(doc).find(v => v.id === 'compact');
@@ -148,9 +161,11 @@ module.exports = function configuredMechanicalWorkflow(c) {
     await button('Guardar como', NAV); await waitFor('canceled Save As', () => ipc.filter(x => x.channel === 'document:save' && x.completed).length === 1);
     check(dialogCounts().saves === 1 && await page(root => document.querySelector(root + ' header')?.textContent, ROOT) === headerBefore, 'Canceled Save As preserves current identity and dirty presentation'); await recovery(current);
     await button('Guardar como', NAV); await waitFor('actual complete-context Save As', async () => { try { return ipc.filter(x => x.channel === 'document:save' && x.completed).length === 2 && canonical(JSON.parse(await fs.readFile(output, 'utf8'))) === canonical(current); } catch (e) { if (e.code === 'ENOENT') return false; throw e; } });
+    await savedReady(current,'Configured Save As');
     before = await observe(); await control('Configuración raíz', 'both-compact'); row = await response(before.serial, 'build-configured-assembly'); current = row.current.document; geometry(row.response.value, current, true, 'shared-again'); await recovery(current);
     await button('Guardar', NAV); await waitFor('ordinary actual Save', async () => ipc.filter(x => x.channel === 'document:save' && x.completed).length === 3 && canonical(JSON.parse(await fs.readFile(output, 'utf8'))) === canonical(current));
     const saved = await fs.readFile(output), last = ipc.filter(x => x.channel === 'document:save' && x.completed).at(-1); check(last.documentWrite.hasPath && last.documentWrite.filePath === output && last.documentWrite.sha256 === digest(saved) && dialogCounts().saves === 2, 'Ordinary Save uses exact granted path and bytes');
+    await savedReady(current,'Configured normal Save');
     before = await observe(); await button('Abrir', NAV); row = await response(before.serial, 'build-configured-assembly'); check(canonical(row.current.document) === canonical(current), 'Actual saved full-context reopening'); geometry(row.response.value, current, true, 'reopened'); captureOracle(current, row.response.value); await recovery(current);
     before = await observe(); await button('Resolver configuración', NAV); row = await response(before.serial, 'preview-configured-assembly'); check(canonical(row.response.value.document) === canonical(current), 'Reopened native solve preserves exact saved captures'); verified(row.response.value, current); geometry(row.response.value.scene, current, true, 'fresh-reopened-solve');
     before = await observe(); await button('Cancelar', NAV); await response(before.serial, 'discard-configured-assembly'); row = await response(before.serial, 'build-configured-assembly'); geometry(row.response.value, current, true, 'final-cancel'); await recovery(current);

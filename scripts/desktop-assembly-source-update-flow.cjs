@@ -3,7 +3,7 @@ const fs = require('node:fs/promises');
 const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 module.exports = function assemblySourceUpdateWorkflow(context) {
   const { expected, input, output, files, evaluate, observe, waitFor, click, checks, ipc, consoleErrors, failedRequests,
-    check, canonical, digest, initialReadyMs, dialogCounts } = context;
+    check, canonical, digest, completePendingSave, initialReadyMs, dialogCounts } = context;
   const phases = [], APPLY='button[aria-label="Aplicar ensamblaje"]', CANCEL='button[aria-label="Cancelar vista previa del ensamblaje"]';
   const PANEL='[role="region"][aria-label="Actualizar origen de subensamblaje"]';
   const SOLVE='button[aria-label="Resolver actualización de subensamblaje"]', DISCARD='button[aria-label="Cancelar actualización de subensamblaje"]';
@@ -28,6 +28,20 @@ module.exports = function assemblySourceUpdateWorkflow(context) {
     const raw=await page(()=>localStorage.getItem('solidflow.autosave'));
     return await page(()=>document.querySelector('.assembly-app')?.getAttribute('aria-busy')==='false')&&raw&&canonical(JSON.parse(raw))===canonical(doc);
   }); }
+  async function savedReady(doc,file,label) {
+    // A real file write precedes delivery of its IPC result and React's saved
+    // and busy continuation. The controlled scenario releases that result here.
+    await completePendingSave();
+    const ready=await waitFor(label+' clean saved controls',()=>page((name,leaf,panel,apply)=>{
+      const toolbar=[...document.querySelectorAll('.assembly-toolbar button')];
+      const open=toolbar.filter(b=>b.textContent.trim()==='Abrir'),save=toolbar.filter(b=>b.textContent.trim()==='Guardar');
+      const busy=document.querySelector('.assembly-app')?.getAttribute('aria-busy'),header=document.querySelector('.assembly-header > strong')?.textContent,file=document.querySelector('.assembly-file')?.textContent;
+      if(busy!=='false'||header!==name||file!==leaf||document.querySelector(panel)||document.querySelector(apply)?.disabled!==true
+        ||open.length!==1||open[0].disabled||save.length!==1||save[0].disabled)return false;
+      return {busy,header,file,openEnabled:true,saveEnabled:true,applyDisabled:true};
+    },doc.name,file.split(/[\\/]/).pop(),PANEL,APPLY));
+    await recovery(doc,label);checks.push({savedRendererReady:{label,...ready}});
+  }
   function geometry(scene,updated) {
     check(scene.solidCount===3&&scene.bodies.length===3&&scene.prototypeCount===(updated?2:1),'Exact source/outside native counts');
     near(scene.volume,updated?96:72,1e-5,'Independent material volume');near(scene.area,updated?184:156,1e-5,'Independent material area');
@@ -95,6 +109,7 @@ module.exports = function assemblySourceUpdateWorkflow(context) {
     check(canonical(event.document)===canonical(expected),'Actual original source-update Open');geometry(event.response.value,false);await recovery(expected,'Open');
     await button('Guardar como','.assembly-toolbar');await waitFor('baseline parent Save As',async()=>{try{return dialogCounts().saves===1&&canonical(JSON.parse(await fs.readFile(files.baseline,'utf8')))===canonical(expected);}catch(err){if(err.code==='ENOENT')return false;throw err;}});
     const parentName=files.baseline.split(/[\\/]/).pop();
+    await savedReady(expected,files.baseline,'Baseline Save As');
     const first=await review(expected);await click(DISCARD);await recovery(expected,'Discard source review');
     await waitFor('source review closed without Apply',()=>page((panel,apply)=>!document.querySelector(panel)&&document.querySelector(apply)?.disabled===true,PANEL,APPLY));
     const second=await review(expected);check(second.response.value.reviewId!==first.response.value.reviewId,'Discarded review is not reused');await repair();
@@ -108,12 +123,14 @@ module.exports = function assemblySourceUpdateWorkflow(context) {
     before=await observe();await click('button[aria-label="Rehacer ensamblaje"]');event=await response(before.serial,'build-assembly');
     check(canonical(event.document)===canonical(applied),'One Redo restores exact repaired source graph');geometry(event.response.value,true);await recovery(applied,'Redo');
     await button('Guardar','.assembly-toolbar');await waitFor('normal Save still writes parent only',async()=>canonical(JSON.parse(await fs.readFile(files.baseline,'utf8')))===canonical(applied));
+    await savedReady(applied,files.baseline,'Normal Save');
     check(dialogCounts().saves===1&&(await fs.readFile(files.source)).equals(sourceBytes),'Source file unchanged and parent Save uses no new dialog');
     await selectLeft();before=await observe();await click('button[aria-label="Actualizar subensamblaje"]');
     const rejected=await waitFor('wrong source identity rejects atomically',async()=>{const state=await observe();return state.assemblies.find(x=>x.serial>before.serial&&x.action==='review-assembly-document-update'&&x.response?.ok===false);});
     check(rejected.response.error.includes('identidad'),'Wrong-source rejection reason');await recovery(applied,'Rejected source');
     check(await page(sel=>document.querySelector(sel)?.disabled===true,APPLY),'Rejected source has no Apply');
     await button('Guardar como','.assembly-toolbar');await waitFor('updated Save As',async()=>{try{return dialogCounts().saves===2&&canonical(JSON.parse(await fs.readFile(output,'utf8')))===canonical(applied);}catch(err){if(err.code==='ENOENT')return false;throw err;}});
+    await savedReady(applied,output,'Updated Save As');
     before=await observe();await button('Abrir','.assembly-toolbar');event=await response(before.serial,'build-assembly');check(canonical(event.document)===canonical(applied),'Exact saved source/repaired paths reopen');geometry(event.response.value,true);await recovery(applied,'Reopen');
     before=await observe();await click('button[aria-label="Resolver ensamblaje"]');event=await response(before.serial,'preview-assembly');
     check(event.response.value.status==='ready'&&event.response.value.checks.length===4&&event.response.value.checks.every(x=>x.satisfied),'Reopened graph freshly solves all four relations');

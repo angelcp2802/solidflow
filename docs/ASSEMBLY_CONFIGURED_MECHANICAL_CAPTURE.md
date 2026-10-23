@@ -49,3 +49,9 @@ Their bounded neutral capture/edit/recapture lifecycle does not establish genera
 mechanical motion, automatic topology correspondence, flexible instances,
 arbitrary-model compatibility, installed packaging or platform support. See
 [fixture provenance](PROVENANCE.md#original-configured-mechanical-capture).
+
+Each fixed renderer case also withholds its first successful real Save As result
+after the actual file has been written and its digest checked. The test releases
+the unchanged return, then waits for actual clean header/path, enabled Open/Save,
+disabled Apply and complete recovery. Normal Save uses the same readiness fence.
+The IPC-return marker alone is not a claim that React has completed its update.

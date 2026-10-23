@@ -1,5 +1,27 @@
 # Project status and review queue
 
+### Save completion and renderer readiness
+
+The follow-up to `d99e1eb` addresses a controlled ordering risk in source-update
+and configured mechanical acceptance. Written bytes do not prove that the
+renderer has received the native Save result and finished its clean/busy state.
+The exact old source-update flow fails naturally with real bytes already written
+and controls still disabled. The corrected fences release the held real return
+and observe clean file identity, controls and recovery before proceeding.
+No application geometry or file semantics change. See [validation](VALIDATION.md)
+and [provenance](PROVENANCE.md#controlled-native-save-completion-ordering).
+
+Final Windows validation passes 9,204 unit/CAD cases in 385 files, 83 IPC/security
+checks with two explicit skips, build and actual Electron smoke. The ordinary
+and controlled source-update cases pass 50 milestones / 10 geometry phases each;
+all five configured mechanical cases pass 55 milestones / 18 phases each.
+
+The next configured authoring block is tracked in
+[issue #52](https://github.com/angelcp2802/solidflow/issues/52): controlled compound
+forms for profile-center and material LINE/circular paths, with genuine private
+native preview/Apply and independent full-lifecycle evidence. This is planned,
+not implemented by the Save correction. Full assembly/demo acceptance stays open.
+
 ### Configured native mechanical capture
 
 The increment after `0f37957`, tracked in [issue #51](https://github.com/angelcp2802/solidflow/issues/51),

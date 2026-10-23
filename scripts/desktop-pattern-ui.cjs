@@ -46,6 +46,9 @@ const SCENARIOS = Object.freeze({
   'assembly-source-update': Object.freeze({ fixture: 'assembly-source-update-original.json', entry: 'desktop-assembly-source-update.cjs',
     test: 'production-renderer-assembly-source-update', caption: 'assembly source revision and descendant repair',
     additionalFixtures: Object.freeze({ incoming: 'assembly-source-update-incoming-original.json' }) }),
+  'assembly-source-update-save-pending': Object.freeze({ fixture: 'assembly-source-update-original.json', entry: 'desktop-assembly-source-update-save-pending.cjs',
+    test: 'production-renderer-assembly-source-update-save-pending', caption: 'source update after withheld native Save completion',
+    additionalFixtures: Object.freeze({ incoming: 'assembly-source-update-incoming-original.json' }) }),
   'assembly-interference-grouping-scope': Object.freeze({ fixture: 'assembly-interference-grouping-scope-original.json', entry: 'desktop-assembly-interference-grouping-scope.cjs',
     test: 'production-renderer-assembly-interference-grouping-scope', caption: 'assembly grouped selection and exclusions' }),
   'assembly-interference-grouping-multibody': Object.freeze({ fixture: 'assembly-interference-grouping-multibody-original.json', entry: 'desktop-assembly-interference-grouping-multibody.cjs',
@@ -533,7 +536,8 @@ async function runInElectron() {
   const linkedSourceOriginal = linkedSource ? require('./desktop-assembly-linked-source-original.cjs')() : null;
   const linkedSourceFiles = linkedSource ? { part: path.join(owned, 'linked-part.solidflow'), assembly: path.join(owned, 'linked-subassembly.solidflow'),
     assemblyParent: path.join(owned, 'linked-v2-parent.solidflow'), partOutput: output, assemblyOutput: path.join(owned, 'linked-v2-saved.solidflow') } : null;
-  const assemblySourceUpdate = activeScenario === SCENARIOS['assembly-source-update'];
+  const sourceUpdateSavePending = activeScenario === SCENARIOS['assembly-source-update-save-pending'];
+  const assemblySourceUpdate = activeScenario === SCENARIOS['assembly-source-update'] || sourceUpdateSavePending;
   const documentUpdateFiles = assemblySourceUpdate ? { source: path.join(owned, 'input-incoming.solidflow'),
     baseline: path.join(owned, 'source-update-baseline.solidflow'), rejected: path.join(owned, 'source-update-rejected.solidflow') } : null;
   const interferenceMultibody = activeScenario === SCENARIOS['assembly-interference-multibody'];
@@ -672,14 +676,53 @@ async function runInElectron() {
   const structuredExportPaths = structuralInsertion ? [insertionFiles.exported, insertionFiles.reexported] : structuralStep ? [structuralFiles.canceled, structuralFiles.exported, structuralFiles.reexported] : [];
   let sourceOpens = 0, stepImports = 0;
   const protocolResponses = [], consoleErrors = [], failedRequests = [], ipc = [], checks = [], captures = [];
+  // One statically selected successful Save per owned child. The real main
+  // handler writes/validates the file; only its unchanged return is withheld.
+  const saveCompletion = { enabled: sourceUpdateSavePending || !!configuredMechanical, ordinal: configuredMechanical ? 2 : 1,
+    armed: false, pending: false, releasedBy: null, nativeReady: null, ready: null, release: null, observation: null, samples: [] };
+  function releaseSaveCompletion(by) {
+    if (!saveCompletion.pending) return;
+    saveCompletion.pending = false; saveCompletion.releasedBy = by;
+    const resolve = saveCompletion.release; saveCompletion.release = null; resolve();
+  }
+  async function samplePendingSave(phase) {
+    check(saveCompletion.pending && saveCompletion.samples.length < 4 && !window.isVisible(), 'Bounded owned pending-save sample.');
+    const snapshot = await window.webContents.executeJavaScript(`(() => {
+      const configured = !!document.querySelector('.configured-assembly-workspace');
+      const root = document.querySelector(configured ? '.configured-assembly-workspace' : '.assembly-app');
+      const toolbar = document.querySelector(configured ? '[aria-label="Archivo del ensamblaje configurado"]' : '.assembly-toolbar');
+      const button = text => { const rows = [...(toolbar?.querySelectorAll('button') ?? [])].filter(b => b.textContent.trim() === text); return { count: rows.length, disabled: rows.length === 1 ? rows[0].disabled : null }; };
+      const update = document.querySelector('button[aria-label="Actualizar subensamblaje"]');
+      return { configured, busy: root?.getAttribute('aria-busy') ?? null,
+        header: (document.querySelector(configured ? '.configured-assembly-workspace header' : '.assembly-header')?.textContent ?? '').slice(0, 300),
+        file: (document.querySelector('.assembly-file')?.textContent ?? '').slice(0, 100),
+        open: button('Abrir'), save: button('Guardar'), update: { present: !!update, disabled: update?.disabled ?? null } };
+    })()`, false);
+    const sample = { phase, ordinal: saveCompletion.ordinal, nativeCompleted: saveCompletion.observation.completed,
+      ipcReturnReleased: saveCompletion.observation.ipcReturnReleased, ...snapshot };
+    saveCompletion.samples.push(sample); return sample;
+  }
+  const completePendingSave = async () => {
+    if (!saveCompletion.enabled || !saveCompletion.armed || saveCompletion.releasedBy) return;
+    await saveCompletion.nativeReady;
+    check(saveCompletion.pending, 'Expected the selected native Save return to remain withheld.');
+    await samplePendingSave('saved-controls-fence'); releaseSaveCompletion('saved-controls-fence');
+  };
   let opens = 0, saves = 0, csvExports = 0, geometryExports = 0, finished = false, window;
   const timeout = setTimeout(() => finish(new Error('The isolated UI workflow did not finish before its child deadline.')), TEST_MS - 10_000);
   function finish(error) {
     if (finished) return;
+    if (!error && saveCompletion.enabled && (!saveCompletion.armed || saveCompletion.pending
+      || saveCompletion.releasedBy !== 'saved-controls-fence' || saveCompletion.observation?.ipcReturnReleased !== true)) {
+      error = new Error('The selected real Save did not complete its pending-return acceptance.');
+    }
+    releaseSaveCompletion('cleanup');
     finished = true; clearTimeout(timeout);
     if (error) emitDesktopCiFailure(error);
     const report = { workflowStatus: error ? 'FAIL' : 'PASS', checks, protocolResponses, consoleErrors, failedRequests, captures,
-      dialogSubstitutions: { opens, saves, csvExports, ...(linkedSource || sourceRevision ? { sourceOpens } : {}), ...(assemblyExport || structuralStep || structuralInsertion ? { geometryExports } : {}), ...(structuralStep || structuralInsertion ? { stepImports } : {}) }, ipc, ...(error ? { error: describeError(error) } : {}) };
+      dialogSubstitutions: { opens, saves, csvExports, ...(linkedSource || sourceRevision ? { sourceOpens } : {}), ...(assemblyExport || structuralStep || structuralInsertion ? { geometryExports } : {}), ...(structuralStep || structuralInsertion ? { stepImports } : {}) }, ipc,
+      ...(saveCompletion.enabled ? { saveCompletion: { ordinal: saveCompletion.ordinal, armed: saveCompletion.armed, releasedBy: saveCompletion.releasedBy, samples: saveCompletion.samples } } : {}),
+      ...(error ? { error: describeError(error) } : {}) };
     try { fs.writeFileSync(path.join(owned, 'workflow-result.json'), JSON.stringify(report, null, 2)); }
     catch (writeError) { if (!error) emitDesktopCiFailure(writeError); console.error(new AggregateError(error ? [error, writeError] : [writeError], 'Workflow evidence could not be written.', { cause: error ?? writeError })); process.exitCode = 1; }
     if (error) { console.error(error); process.exitCode = 1; }
@@ -695,7 +738,16 @@ async function runInElectron() {
     // Successful workflow still requires the parent to observe close/code0.
     app.quit();
   }
-  const evaluate = source => window.webContents.executeJavaScript(source, false);
+  const evaluate = async source => {
+    // Capture the request's initial state: clicking Save itself must not consume
+    // a gate that its subsequent IPC call will create.
+    const pendingAtStart = saveCompletion.enabled && saveCompletion.armed && !saveCompletion.releasedBy;
+    if (pendingAtStart) {
+      await saveCompletion.nativeReady;
+      if (saveCompletion.pending && !saveCompletion.samples.some(s => s.phase === 'before-next-evaluation')) await samplePendingSave('before-next-evaluation');
+    }
+    return window.webContents.executeJavaScript(source, false);
+  };
   const pointer = async (type, point, buttons = 0) => {
     check((assembly || rackPinion || direction || tangent || cylinderTangent || sphereTangent || limitDistance || limitAngle || directedAngle || width || symmetryPicking || hingePicking || hingeLimitsPicking) && !window.isVisible() && window.webContents.debugger.isAttached()
       && ['mouseMoved', 'mousePressed', 'mouseReleased'].includes(type)
@@ -866,7 +918,7 @@ async function runInElectron() {
   }
   // The extra workflow is a fixed tracked module, never a caller/env-selected script.
   const actualWorkflow = configuredMechanical
-    ? require('./desktop-assembly-configured-mechanical-flow.cjs')({ family: configuredMechanical, expected, input, output, evaluate, observe, waitFor, click, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
+    ? require('./desktop-assembly-configured-mechanical-flow.cjs')({ family: configuredMechanical, expected, input, output, evaluate, observe, waitFor, click, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, completePendingSave, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : configuredRelations
     ? require('./desktop-assembly-configured-relations-flow.cjs')({ expected, input, output, evaluate, observe, waitFor, click, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : configurations
@@ -1014,7 +1066,7 @@ async function runInElectron() {
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : assemblySourceUpdate
     ? require('./desktop-assembly-source-update-flow.cjs')({ expected, input, output, files: documentUpdateFiles,
-      evaluate, observe, waitFor, click, checks, ipc, consoleErrors, failedRequests, check, canonical, digest,
+      evaluate, observe, waitFor, click, checks, ipc, consoleErrors, failedRequests, check, canonical, digest, completePendingSave,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : interferenceGroupingScope
     ? require('./desktop-assembly-interference-grouping-scope-flow.cjs')({ expected, input, evaluate, observe, waitFor, click, capture,
@@ -1109,11 +1161,29 @@ async function runInElectron() {
         observation.geometry = { name: payload.name, format: payload.format, bytes: payload.data.byteLength,
           sha256: digest(Buffer.from(payload.data.buffer, payload.data.byteOffset, payload.data.byteLength)) };
       }
-      if ((sourceRevision || configurations) && channel === 'document:save') observation.documentWrite = { name: payload?.name, hasPath: typeof payload?.filePath === 'string', ...(configurations ? { filePath: payload?.filePath } : {}), sha256: typeof payload?.content === 'string' ? digest(payload.content) : null };
+      if ((sourceRevision || configurations || assemblySourceUpdate) && channel === 'document:save') observation.documentWrite = { name: payload?.name, hasPath: typeof payload?.filePath === 'string', ...(configurations || assemblySourceUpdate ? { filePath: payload?.filePath } : {}), sha256: typeof payload?.content === 'string' ? digest(payload.content) : null };
+      const selectedSave = saveCompletion.enabled && channel === 'document:save'
+        && ipc.filter(row => row.channel === 'document:save').length === saveCompletion.ordinal;
+      if (selectedSave) {
+        check(!saveCompletion.armed, 'Only one fixed native Save completion may be withheld.');
+        saveCompletion.armed = true; saveCompletion.observation = observation; observation.ipcReturnReleased = false;
+        saveCompletion.nativeReady = new Promise(resolve => { saveCompletion.ready = resolve; });
+      }
       let result;
       try { result = await handler(event, payload); observation.completed = true; }
-      catch (error) { if (configurations && observation.csv) observation.failed = true; throw error; }
-      if ((sourceRevision || configurations) && channel === 'document:save') observation.documentWrite.chosen = result !== null;
+      catch (error) { if (configurations && observation.csv) observation.failed = true; if (selectedSave) saveCompletion.ready(); throw error; }
+      if ((sourceRevision || configurations || assemblySourceUpdate) && channel === 'document:save') observation.documentWrite.chosen = result !== null;
+      if (selectedSave) {
+        try {
+          check(typeof result === 'string' && under(owned, result) && savePaths.includes(result), 'Selected Save must return its actual test-owned granted path.');
+          const written = await fsp.readFile(result);
+          check(digest(written) === observation.documentWrite.sha256, 'Selected native Save bytes must match its actual request.');
+          observation.actualWrite = { name: path.basename(result), bytes: written.length, sha256: digest(written) };
+          saveCompletion.pending = true;
+          const held = new Promise(resolve => { saveCompletion.release = resolve; });
+          saveCompletion.ready(); await held; observation.ipcReturnReleased = true;
+        } catch (error) { saveCompletion.ready(); throw error; }
+      }
       if ((linkedSource || sourceRevision) && ['source:choose', 'source:read'].includes(channel) && result) observation.source = { name: result.name, sha256: result.sha256, hasGrant: typeof result.grantId === 'string', noPath: !Object.hasOwn(result, 'path') };
       return result;
     });

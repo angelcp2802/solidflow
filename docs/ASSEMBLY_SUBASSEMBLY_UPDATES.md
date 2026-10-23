@@ -165,5 +165,12 @@ path, automatic external link, scene, review ID or native witness is saved.
 fixed-prism fixture through production controls, the real worker and restricted
 file IPC. Test-owned dialog paths are separate from human dialog interaction.
 Actual cases, tolerances and execution results belong in [validation](VALIDATION.md).
+The separate `test:desktop:assembly-source-update-save-pending` command withholds
+one real successful Save return after verifying its written bytes. The flow
+releases that return before waiting for clean actual header/path, enabled file
+controls, no Apply capability and exact committed recovery. The ordinary flow
+uses the same readiness checks after both Save As operations and normal Save.
+The controlled ordering establishes a possible race; it does not identify a
+historical hosted failure's cause or change application file semantics.
 This increment does not establish selected-instance subassembly replacement,
 configuration support, a complete assembly demo or general platform acceptance.
