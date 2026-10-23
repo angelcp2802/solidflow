@@ -10,7 +10,7 @@ import type { ConfiguredAssemblyScene } from '../cad/kernel.assembly-configurati
 import ConfiguredAssemblyWorkspace from './ConfiguredAssemblyWorkspace'
 import { buildConfiguredAssembly } from '../cad/kernel'
 
-vi.mock('../cad/kernel', () => ({ buildConfiguredAssembly: vi.fn(), previewConfiguredAssembly: vi.fn(), previewConfiguredAssemblyRelationEdit: vi.fn(), applyConfiguredAssembly: vi.fn(), discardConfiguredAssembly: vi.fn() }))
+vi.mock('../cad/kernel', () => ({ buildConfiguredAssembly: vi.fn(), previewConfiguredAssembly: vi.fn(), previewConfiguredAssemblyRelationEdit: vi.fn(), previewConfiguredAssemblyMechanicalEdit: vi.fn(), applyConfiguredAssembly: vi.fn(), discardConfiguredAssembly: vi.fn() }))
 function fixture() { const { document, catalog } = assemblyConfigurationCoreFixture(); return createAssemblyConfiguredDocument(document, catalog, 'mixed') }
 const effective = (document: ReturnType<typeof fixture>) => evaluateAssemblyConfiguration(document.source, document.catalog, document.rootConfiguration)
 const scope = (document: ReturnType<typeof fixture>, owner: string) => effective(document).scopes.find(row => row.path.join('/') === owner)!
@@ -19,6 +19,7 @@ it('renders the actual configured format and bounded controls without triggering
   const document = fixture(), html = renderToStaticMarkup(<ConfiguredAssemblyWorkspace initialDocument={document} initialSaved={serializeAssemblyConfiguredDocument(document)} onOpenDocument={() => undefined} />)
   for (const text of ['Ensamblaje configurado', 'Configuración raíz', 'Crear configuración basada en Base', 'Resolver configuración', 'Aplicar configuración', 'Piezas efectivas', 'left / a', 'right / b']) expect(html).toContain(text)
   expect(html).not.toContain(document.source.name + ' *'); expect(html).toContain('aún no están disponibles'); expect(buildConfiguredAssembly).not.toHaveBeenCalled()
+  expect(html).toContain('Nueva relación mecánica configurada'); expect(html).not.toContain('las nuevas capturas mecánicas')
 })
 
 it('starts a genuinely empty root variant from Base instead of copying the selected child configuration', () => {

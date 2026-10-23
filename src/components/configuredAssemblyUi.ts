@@ -9,6 +9,7 @@ import type { ConfiguredAssemblyBomMember, ConfiguredAssemblyBomReport, Configur
 import { serializeConfiguredAssemblyBomCsv } from '../model/assemblyConfiguredBomCsv'
 import { validateAssemblyMate } from '../model/assemblyDocument'
 import type { AssemblyConfiguredMateEdit } from '../model/assemblyConfiguredMateEditing'
+import { validateAssemblyConfiguredMechanicalEdit, configuredMechanicalMateSpec, type AssemblyConfiguredMechanicalEdit } from '../model/assemblyConfiguredMechanicalEditing'
 type Mutable<T> = T extends object ? { -readonly [K in keyof T]: Mutable<T[K]> } : T
 /** A detached mutable display copy; this never invokes a legacy CAD producer. */
 export function configuredUiDisplayScene(scene: ConfiguredAssemblyScene): AssemblyScene {
@@ -92,6 +93,18 @@ export function configuredMateUiPreviewMatches(document: AssemblyConfiguredDocum
     if (change.kind === 'remove') return mates.length === 0
     if (mates.length !== 1) return false
     return change.kind === 'suppression' ? mates[0].suppressed === change.suppressed : JSON.stringify(validateAssemblyMate(mates[0])) === JSON.stringify(validateAssemblyMate(change.mate))
+  } catch { return false }
+}
+/** Authored intent consistency only. Generated captures and private Apply
+ * authority belong to the worker, never to this display comparison. */
+export function configuredMechanicalUiPreviewMatches(document: AssemblyConfiguredDocument, intent: AssemblyConfiguredMechanicalEdit): boolean {
+  try {
+    const edit = validateAssemblyConfiguredMechanicalEdit(intent), evaluation = evaluateAssemblyConfiguration(document.source, document.catalog, document.rootConfiguration)
+    const scope = evaluation.scopes.find(value => JSON.stringify(value.path) === JSON.stringify(edit.scopePath))
+    if (!scope || assemblyDefinitionKey(scope.definition) !== assemblyDefinitionKey(edit.definition) || scope.configuration !== edit.configuration) return false
+    const spec = edit.change.spec, mates = scope.mates.filter(value => value.id === spec.id)
+    if (mates.length === 1 && mates[0].type === 'concentric' && mates[0].rotationLock === null) return false
+    return mates.length === 1 && JSON.stringify(configuredMechanicalMateSpec(validateAssemblyMate(mates[0]))) === JSON.stringify(spec)
   } catch { return false }
 }
 export interface ConfiguredBomUiTicket { context: ConfiguredUiTicket; view: string; revision: number }

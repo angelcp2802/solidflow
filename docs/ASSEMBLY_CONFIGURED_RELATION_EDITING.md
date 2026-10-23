@@ -55,11 +55,12 @@ currentness check precede publication. Invalid pure intent/target admission does
 not revoke an unrelated admitted preview; failures during native replacement do.
 
 Authored mechanical capture data is not a fresh capture producer. Add/replace
-for lock, gear, screw, rack-pinion and concentric with rotation lock currently
-reject at this worker boundary. Suppression/removal of an existing captured
-relation remains available. Complete configured mechanical capture and repair
-still require their own native integration and evidence, tracked for all five
-families in [issue #51](https://github.com/angelcp2802/solidflow/issues/51).
+for lock, gear, screw, rack-pinion and concentric with rotation lock reject at
+this ordinary declaration-edit boundary. The separate
+[configured native mechanical route](ASSEMBLY_CONFIGURED_MECHANICAL_CAPTURE.md)
+accepts only references and parameters, produces captures privately and performs
+its own native solve/verification. Suppression/removal of existing captured
+relations remains available through ordinary declaration editing.
 
 ## Editor and evidence boundary
 

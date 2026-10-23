@@ -1,5 +1,38 @@
 # Public fixture provenance
 
+## Original configured mechanical capture
+
+`scripts/desktop-assembly-configured-mechanical-original.cjs` creates only public
+analytical primitives in millimetres: A is a cylinder of radius 2 and height 4,
+B has radius 1 and height 3, and rack is a 2×3×4 rectangular prism. Their respective
+volumes are 16π, 3π and 24 mm³; areas are 24π, 8π and 52 mm². Two reused rigid
+scopes yield six solids, volume 38π+48 and area 64π+104. The right scope is a proper
+90-degree Z rotation translated 30 mm along root X. Base places B at X8, compact
+at X6, and dormant at X12. The fixture contains no authored captured relation,
+external model, binary, personal path or recovered vendor data.
+
+The five fixed renderer commands author each family through actual configured
+component/cylinder/LINE nominees. Lock captures translation[6,0,0]; locked
+concentric and screw align B's axis to X0 before capture. Gear uses the explicit
+third rack component as carrier. The rack renderer selects the local material
+X edge at y=z=0, with zero initial axial travel. The separate native test uses
+a Y edge and its own nonzero literal travel oracle. The prism's independent
+local rectangle is [0,2]×[0,3], placed at y8, and its root-rotated bounds are
+computed from those dimensions rather than the proposed document's pose.
+
+Renderer bounds use 1e-6 mm, native volume/area 1e-5 in their respective units;
+neutral quaternion and travel checks retain their separately stated tolerances.
+The test observes real worker requests/replies, complete exact-state declarations,
+placed verification keys, recovery, history and test-owned Open/Save IPC. Cancel
+and retain/recapture are distinct. No worker result, solver response, React state
+or privileged arbitrary file grant is injected. Each child keeps the original
+180/170/35-second parent/child/step deadlines and isolated profile.
+
+These neutral lifecycle fixtures do not establish arbitrary nonzero frame/phase
+behavior, general mechanical motion, topology correspondence or platform support.
+Native, pure, UI and file assertions remain separate. Actual executed source and
+results belong in [validation](VALIDATION.md); configuring CI records no pass.
+
 ## Original compact interval pointer regression
 
 The related `assemblyConfigurationState.test.ts` maximum-size case retains its

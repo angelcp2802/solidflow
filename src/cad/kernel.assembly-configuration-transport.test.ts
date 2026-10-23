@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { assemblyConfigurationCoreFixture } from '../model/assemblyConfigurationCore.test-utils'
 import { createAssemblyConfiguredDocument } from '../model/assemblyConfiguredDocument'
-import { buildConfiguredAssembly, previewConfiguredAssembly, previewConfiguredAssemblyRelationEdit, applyConfiguredAssembly, discardConfiguredAssembly, disposeKernel, initKernel } from './kernel'
+import { buildConfiguredAssembly, previewConfiguredAssembly, previewConfiguredAssemblyRelationEdit, previewConfiguredAssemblyMechanicalEdit, applyConfiguredAssembly, discardConfiguredAssembly, disposeKernel, initKernel } from './kernel'
+import type { AssemblyConfiguredMechanicalEdit } from '../model/assemblyConfiguredMechanicalEditing'
 import type { AssemblyConfiguredMateEdit } from '../model/assemblyConfiguredMateEditing'
 import type { ConfiguredAssemblyWorkerContext } from './kernel.assembly-configuration-context'
 import type { ConfiguredAssemblyScene } from './kernel.assembly-configuration-scene'
@@ -37,6 +38,32 @@ function relationEdit(current: ConfiguredAssemblyWorkerContext): AssemblyConfigu
  return { scopePath: [], definition: { id: current.document.source.id, revision: current.document.source.revision }, configuration: current.document.rootConfiguration,
   change: { kind: 'remove', mateId: 'original-declaration' } }
 }
+function mechanicalEdit(current: ConfiguredAssemblyWorkerContext): AssemblyConfiguredMechanicalEdit {
+ return { scopePath: [], definition: { id: current.document.source.id, revision: current.document.source.revision }, configuration: current.document.rootConfiguration,
+  change: { kind: 'add', spec: { id: 'original-lock', name: 'Original mechanical transport', type: 'lock', suppressed: false,
+   first: { occurrencePath: ['left'], definition: { id: 'configuration-S', revision: 's-r1' } },
+   second: { occurrencePath: ['right'], definition: { id: 'configuration-S', revision: 's-r1' } } } } }
+}
+it('captures mechanical intent without neutral data and options before init, retaining original context', async () => {
+ const current = context(), intent = mechanicalEdit(current), original = structuredClone(intent), baseline = structuredClone(current), options = { solver: { maxIterations: 3 } }
+ const pending = previewConfiguredAssemblyMechanicalEdit(current, intent, options), worker = ControlledConfiguredWorker.instances[0]
+ intent.scopePath.push('later'); intent.change.spec.name = 'Later'; current.document.rootConfiguration = null; options.solver.maxIterations = 99
+ worker.reply(0); await initKernel()
+ expect(worker.messages[1]).toMatchObject({ action: 'preview-configured-assembly-mechanical-edit', current: baseline, intent: original, options: { solver: { maxIterations: 3 } } })
+ expect(worker.messages[1]).not.toHaveProperty('capture'); expect(worker.messages[1]).not.toHaveProperty('candidate')
+ worker.reply(1, preview(baseline, 'mechanical-token')); expect((await pending).token).toBe('mechanical-token')
+})
+it('rejects supplied neutral data and mechanical getters before creating a worker', async () => {
+ const current = context(), intent = mechanicalEdit(current); let reads = 0
+ const bad = structuredClone(intent); Object.assign(bad.change.spec, { relativePose: { translation: [0,0,0], rotation: [0,0,0,1] } })
+ await expect(previewConfiguredAssemblyMechanicalEdit(current, bad)).rejects.toThrow()
+ Object.defineProperty(intent.change, 'spec', { enumerable: true, get() { reads++; return {} } })
+ await expect(previewConfiguredAssemblyMechanicalEdit(current, intent)).rejects.toThrow(); expect(reads).toBe(0); expect(ControlledConfiguredWorker.instances).toHaveLength(0)
+})
+it('rejects a mechanical request waiting for a restarted worker generation', async () => {
+ const current = context(), pending = previewConfiguredAssemblyMechanicalEdit(current, mechanicalEdit(current))
+ const rejected = expect(pending).rejects.toThrow(); disposeKernel(); await rejected
+})
 it('captures relation-edit intent and complete baseline before init; preview DTO grants no extra commands', async () => {
  const current = context(), edit = relationEdit(current), options = { solver: { maxIterations: 4 } }
  const baseline = structuredClone(current), intent = structuredClone(edit)

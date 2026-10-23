@@ -1,5 +1,24 @@
 # Project status and review queue
 
+### Configured native mechanical capture
+
+The increment after `0f37957`, tracked in [issue #51](https://github.com/angelcp2802/solidflow/issues/51),
+adds a separate configured native producer and graphical form for lock, locked
+concentric, gear, screw and rack-pinion. Strict intents carry references and
+parameters; native captures stay private until final solve, all-placement
+verification and scene delivery succeed. Ordinary edits retain their captures;
+explicit recapture removes the old declaration first and establishes a new neutral.
+
+The same Draft PR #49 remains the review target. Windows validation passes
+18 focused native cases and five renderer workflows, each with 49 milestones
+and 18 geometry phases. Final `npm test` passes 9,204 cases in 385 files and
+83 IPC/security checks with two explicit Windows skips; build and actual
+Electron smoke pass. The bounded lifecycle includes capture/edit/recapture,
+exact state isolation, history, recovery and file reopening. See the
+[contract](ASSEMBLY_CONFIGURED_MECHANICAL_CAPTURE.md), [demo](DEMO_ASSEMBLIES.md#capture-a-mechanical-relation-in-one-state)
+and source-specific [validation](VALIDATION.md) for actual execution. Complete
+assembly demo, release and platform acceptance remain open.
+
 ### Compact interval pointer regression
 
 The increment after `ad36143` reproduces the hosted pointer assertion locally

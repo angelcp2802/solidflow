@@ -1,5 +1,68 @@
 # Validation
 
+## Configured native mechanical capture — 2026-10-23
+
+Local `codex/configured-mechanical-capture` follows accepted `0f37957` and
+addresses the five families in issue #51 inside the same Draft PR #49.
+The worker accepts strict references/parameters, produces fresh captures from
+the actual configured context and keeps the original baseline separate from
+the privately prepared proposal. Retain and explicit recapture are distinct.
+The ordinary declaration-edit guard remains in place.
+
+Windows x64 / Node 24.11.1 results on frozen code:
+
+- Focused new native file: **18 cases passed**, 25.24 s. These include all five
+  add/retain/recapture/reopen cases, literal capture data, Base/dormant isolation,
+  shared/nested proper-frame uses, scope/explicit carrier, nonzero weighted gear
+  phase, preserved whole-turn branches, fixed concentric/screw rejection,
+  original-baseline token rules and real scene/currentness/release faults.
+- Each of the five production-renderer commands passed **49 milestones and 18
+  geometry phases**. Lock 8.97 s, locked concentric 9.71 s, gear 11.31 s, screw
+  9.98 s and rack 9.46 s. Actual DOM controls, production worker and restricted file IPC
+  exercise Cancel/retry/Apply, capture retention, explicit recapture, exact
+  full-context history/recovery, Base/shared states, Save As cancellation,
+  normal Save and fresh saved reopening. Each records zero renderer/resource
+  errors, confirmed child closure and isolated-profile cleanup.
+- The preceding configured relation renderer also passes **61 milestones / 23
+  geometry phases** on this code, 9.94 s.
+- TypeScript/production build and actual Electron production-loader smoke pass.
+  The build retains its existing warnings.
+- The final literal `npm test` passes **9,204 unit/CAD cases in 385 files**
+  in 389.39 s, then **83
+  IPC/security/source checks**, zero failed and two explicit Windows skips.
+  Its IPC phase takes 1,579.761 ms.
+- All 1,001 non-Markdown code/test/CI inputs remain byte-identical throughout
+  the frozen acceptance sequence. Original dimensions and separate tolerances
+  are in [provenance](PROVENANCE.md#original-configured-mechanical-capture).
+
+The first focused run passed 14/16 and rejected two incorrect identity-quaternion
+expectations after unlocked concentric alignment. Such alignment deliberately
+leaves axial spin free. The corrected oracle independently multiplies actual
+physical component quaternions, checks native cylinder directions, axis centres
+and literal material bounds in both proper parent frames, and adds two already
+aligned cases that do require identity. No production capture, solver tolerance
+or deadline was changed to satisfy these expectations. The first full shell
+wrapper also expanded a scalar command argument into extra positional letters;
+all 9,204 and 83 cases nevertheless ran and passed. Final acceptance repeats
+the literal `npm test` without that wrapper and passes the same complete inventory.
+
+The five renderer fixtures are neutral lifecycle examples; their success does
+not establish general mechanical motion or automatic topology correspondence.
+The separate native nonzero-phase/whole-turn cases retain their own scope.
+The optional gear PNG is an actual hidden `capturePage` image of the clean
+saved/reopened state; it is not native geometry or human-interaction proof.
+No external model, privileged file grant, product state or worker reply is injected.
+
+Hosted evidence for the **preceding** published head `ab546ad` is separate:
+Security succeeds; Windows x64 and Linux x64 complete their configured CI and
+packaging. macOS arm64 fails the assembly source-update renderer with primary
+annotation “Script failed to execute, this normally means an error was thrown.
+Check the renderer console for the error.” Job-log retrieval returned HTTP 502;
+the underlying DOM/renderer cause is not established. These outcomes do not
+validate the newer mechanical code or general platform support. New-head CI
+and installed packaging remain pending. Existing CodeQL/Dependabot findings
+are not suppressed. Complete assembly demo and release acceptance remain open.
+
 ## Compact interval pointer acquisition — 2026-10-23
 
 Local `codex/interval-pointer-acquisition` follows accepted `ad36143`. The

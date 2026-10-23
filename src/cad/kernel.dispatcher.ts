@@ -1,5 +1,6 @@
 import { insertAssemblyDocument } from '../model/assemblyImport'
 import { applyAssemblyConfiguredMateEdit } from '../model/assemblyConfiguredMateEditing'
+import { inspectAssemblyConfiguredMechanicalEdit } from '../model/assemblyConfiguredMechanicalEditing'
 import { buildAssemblyScene } from './kernel.assembly-scene'
 import { importAssemblyStepStructureNative } from './kernel.assembly-step-import'
 import { exportAssemblyStepStructureNative } from './kernel.assembly-step-export'
@@ -34,6 +35,13 @@ export class KernelDispatcher {
         applyAssemblyConfiguredMateEdit(current.document, edit)
         this.#part.dispose(); this.#assembly.discard()
         return this.#configured.previewEdit(request.current, request.edit, request.options)
+      }
+      case 'preview-configured-assembly-mechanical-edit': {
+        const current = captureConfiguredAssemblyWorkerContext(request.current)
+        inspectAssemblyConfiguredMechanicalEdit(current.document, request.intent)
+        validateConfiguredAssemblySolvePolicy(request.options)
+        this.#part.dispose(); this.#assembly.discard()
+        return this.#configured.previewMechanicalEdit(request.current, request.intent, request.options)
       }
       case 'discard-configured-assembly': {
         const token = Object.getOwnPropertyDescriptor(request, 'token')

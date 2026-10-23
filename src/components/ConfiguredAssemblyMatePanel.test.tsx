@@ -63,14 +63,14 @@ it('keeps mixed plane/axis directional intent explicit and does not manufacture 
   expect(configuredMateUiProposal(draft, draft.references.map(ref => choice(ref!)))).toMatchObject({ type: 'concentric', rotationLock: null })
 })
 
-it.each(['lock', 'gear', 'screw', 'rack-pinion', 'concentric'] as const)('gates %s capture-dependent editing while retaining declarations for list actions', type => {
+it.each(['lock', 'gear', 'screw', 'rack-pinion', 'concentric'] as const)('routes %s capture-dependent editing to its dedicated form while preserving the generic form boundary', type => {
   const common = { id: 'captured', name: 'Original captured state', suppressed: false, type, first: axis('a'), second: axis('b') }
   const mate = validateAssemblyMate(type === 'lock' ? { ...common, first: axis('a').component, second: axis('b').component, relativePose: identityRigidPose() }
     : type === 'gear' ? { ...common, carrier: null, ratio: { numerator: 1, denominator: 1 }, direction: 'opposed', neutralRotations: { first: [0, 0, 0, 1], second: [0, 0, 0, 1] }, angles: { first: 0, second: 0 }, phase: 0 }
       : type === 'screw' ? { ...common, lead: 4, reverse: false, alignment: 'aligned', neutralRotation: [0, 0, 0, 1], neutralTravel: 0, angle: 0 }
         : type === 'rack-pinion' ? { ...common, conversion: { mode: 'diameter', override: null }, reverse: false, neutralRotation: [0, 0, 0, 1], neutralTravel: 0, angle: 0 }
           : { ...common, alignment: 'aligned', rotationLock: [0, 0, 0, 1] })
-  expect(configuredMateEditUnavailable(mate)).toMatch(/captura nativa/); expect(() => configuredMateUiDraft('unused', mate)).toThrow(/captura nativa/)
+  expect(configuredMateEditUnavailable(mate)).toMatch(/formulario de relaciones mecánicas/); expect(() => configuredMateUiDraft('unused', mate)).toThrow(/formulario de relaciones mecánicas/)
   expect(mate.id).toBe('captured'); expect(mate.suppressed).toBe(false)
 })
 

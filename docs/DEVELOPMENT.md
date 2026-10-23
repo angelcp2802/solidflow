@@ -1,10 +1,17 @@
 # Development guide
 
+The [configured mechanical capture contract](ASSEMBLY_CONFIGURED_MECHANICAL_CAPTURE.md)
+separates references/parameters from native capture authority for all five
+mechanical families. Run `npm run test:desktop:assembly-configured-mechanical`
+after building for the five bounded renderer workflows. Each also has a fixed
+`test:desktop:assembly-configured-<family>` command. CI configures a separate
+three-OS job; this listing is not an execution or platform-support claim.
+
 The [configured relation editing contract](ASSEMBLY_CONFIGURED_RELATION_EDITING.md)
 adds exact-state declaration lists and private intent previews. Preserve the
 original baseline separately from the prepared proposal, materialize named
-inheritance before Base edits and keep capture-sensitive authoring gated until
-an actual configured native producer exists. New fixture and renderer evidence
+inheritance before Base edits and keep caller-authored captures gated outside
+the separate configured native producer. New fixture and renderer evidence
 must remain separate from general family or platform coverage.
 
 The [configured BOM contract](ASSEMBLY_CONFIGURED_BOM.md) counts effective v3

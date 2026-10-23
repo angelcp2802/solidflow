@@ -1,5 +1,7 @@
 import { MAX_ASSEMBLY_BYTES } from '../model/assemblyDocument'
 import { applyAssemblyConfiguredMateEdit, validateAssemblyConfiguredMateEdit, type AssemblyConfiguredMateEdit } from '../model/assemblyConfiguredMateEditing'
+import { inspectAssemblyConfiguredMechanicalEdit, type AssemblyConfiguredMechanicalEdit } from '../model/assemblyConfiguredMechanicalEditing'
+import { prepareConfiguredAssemblyMechanicalProposal } from './kernel.assembly-configuration-mechanical-capture'
 import { assemblyConfiguredGeometryInput, validateAssemblyConfiguredDocument, serializeAssemblyConfiguredDocument,
   type AssemblyConfiguredDocument } from '../model/assemblyConfiguredDocument'
 import { applyPreparedConfiguredAssemblySolve, prepareConfiguredAssemblySolve, validateConfiguredAssemblySolvePolicy,
@@ -29,6 +31,7 @@ export type ConfiguredAssemblyKernelRequest =
   | { id: number; action: 'build-configured-assembly'; current: ConfiguredAssemblyWorkerContext }
   | { id: number; action: 'preview-configured-assembly'; current: ConfiguredAssemblyWorkerContext; options?: ConfiguredAssemblySolveOptions }
   | { id: number; action: 'preview-configured-assembly-relation-edit'; current: ConfiguredAssemblyWorkerContext; edit: AssemblyConfiguredMateEdit; options?: ConfiguredAssemblySolveOptions }
+  | { id: number; action: 'preview-configured-assembly-mechanical-edit'; current: ConfiguredAssemblyWorkerContext; intent: AssemblyConfiguredMechanicalEdit; options?: ConfiguredAssemblySolveOptions }
   | { id: number; action: 'apply-configured-assembly'; current: ConfiguredAssemblyWorkerContext; token: string }
   | { id: number; action: 'discard-configured-assembly'; token: string }
 
@@ -79,6 +82,15 @@ export class ConfiguredAssemblyWorkerSession {
     const intent = captureConfiguredAssemblyRelationEdit(edit)
     validateConfiguredAssemblySolvePolicy(options)
     const proposed = { document: applyAssemblyConfiguredMateEdit(owned.document, intent), generation: owned.generation }
+    return this.#prepare(current, owned, proposed, baseline, options)
+  }
+  previewMechanicalEdit(current: ConfiguredAssemblyWorkerContext, intent: AssemblyConfiguredMechanicalEdit, options: ConfiguredAssemblySolveOptions = {}): ConfiguredAssemblyPreviewReply {
+    const owned = captureConfiguredAssemblyWorkerContext(current), baseline = signature(owned)
+    const inspected = inspectAssemblyConfiguredMechanicalEdit(owned.document, intent)
+    validateConfiguredAssemblySolvePolicy(options)
+    this.#pending = null
+    const proposed = prepareConfiguredAssemblyMechanicalProposal(owned, inspected.edit, options)
+    if (signature(captureConfiguredAssemblyWorkerContext(current)) !== baseline) throw Error('Configured mechanical edit context changed during native work.')
     return this.#prepare(current, owned, proposed, baseline, options)
   }
   #prepare(current: ConfiguredAssemblyWorkerContext, owned: ConfiguredAssemblyWorkerContext, proposed: ConfiguredAssemblyWorkerContext,

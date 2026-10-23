@@ -97,13 +97,46 @@ history, recovery, canceled Save As and normal Save. Its dialogs use test-owned
 paths. Read the [editing contract](ASSEMBLY_CONFIGURED_RELATION_EDITING.md) and
 [validation record](VALIDATION.md) for the actual executed results.
 
+## Capture a mechanical relation in one state
+
+Generate an original mechanical document from its public dimensions:
+
+```sh
+node -e "const fs=require('node:fs'),path=require('node:path'),os=require('node:os');const dir=fs.mkdtempSync(path.join(os.tmpdir(),'solidflow-demo-'));const file=path.join(dir,'mechanical.solidflow');fs.writeFileSync(file,JSON.stringify(require('./scripts/desktop-assembly-configured-mechanical-original.cjs')('gear')));console.log(file)"
+npm start
+```
+
+The recipe accepts `lock`, `concentric`, `gear`, `screw` and `rack-pinion`.
+Each has two reused scopes with original R2/H4 and R1/H3 cylinders and a
+2×3×4 prism. Six solids have volume 38π+48 mm³ and area 64π+104 mm².
+
+1. Open the printed file. Select `right` in **Ámbito de configuración** and
+   press **Nueva relación mecánica configurada**.
+2. Choose the family and name it. Lock takes components `a` and `b`; concentric,
+   gear and screw take their current cylinder axes. Rack uses `a`'s axis and an
+   explicit material LINE from `rack`. Gear can use the scope or `rack` as carrier.
+3. Press **Vista previa de relación mecánica configurada**. Capture and final
+   verification run natively for both shared uses. Locked concentric and screw
+   align the current axes before capture. Try **Cancelar**, retry and Apply.
+4. Edit the relation. **Conservar captura y vueltas acumuladas** retains its
+   neutral while parameters change. Changed references require explicit
+   **Volver a capturar la posición actual**, which starts a new neutral.
+5. Try Undo/Redo. **Right compact** shows the untouched Base use alongside the
+   edited named use. Save As, reopen and solve again to verify persisted captures.
+
+`npm run test:desktop:assembly-configured-mechanical` runs five separate bounded
+production-renderer cases. Read the [capture contract](ASSEMBLY_CONFIGURED_MECHANICAL_CAPTURE.md)
+and [validation record](VALIDATION.md) for actual execution; configuring these
+commands does not establish a completed assembly demo or general motion coverage.
+
 ## Scope
 
 The ordinary rigid assembly workspace and configured workspace have different
 available controls. The configured view offers graphical relation creation/editing
 for the families listed in its form, plus suppression/removal. New mechanical
-captures, profile/path compound forms and reference repair remain unavailable
-there, alongside interactive constrained dragging, configured interference/geometric export,
+captures use the separate native form above. Profile/path compound forms and
+general reference repair remain unavailable there, alongside interactive
+constrained dragging, configured interference/geometric export,
 part-feature variants and flexible instances. A passing walkthrough does not
 establish arbitrary model compatibility, complete mechanical motion, installed
 packaging or Windows/macOS/Linux support.

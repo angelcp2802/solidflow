@@ -22,6 +22,7 @@ const fields = {
   'build-configured-assembly': { current: 'required' },
   'preview-configured-assembly': { current: 'required', options: 'optional' },
   'preview-configured-assembly-relation-edit': { current: 'required', edit: 'required', options: 'optional' },
+  'preview-configured-assembly-mechanical-edit': { current: 'required', intent: 'required', options: 'optional' },
   'apply-configured-assembly': { current: 'required', token: 'required' },
   'discard-configured-assembly': { token: 'required' },
   'build-assembly': { document: 'required' },

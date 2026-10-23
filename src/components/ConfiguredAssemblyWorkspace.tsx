@@ -1,23 +1,26 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { buildConfiguredAssembly, previewConfiguredAssembly, previewConfiguredAssemblyRelationEdit, applyConfiguredAssembly, discardConfiguredAssembly } from '../cad/kernel'
+import { buildConfiguredAssembly, previewConfiguredAssembly, previewConfiguredAssemblyRelationEdit, previewConfiguredAssemblyMechanicalEdit, applyConfiguredAssembly, discardConfiguredAssembly } from '../cad/kernel'
 import type { ConfiguredAssemblyPreviewReply } from '../cad/kernel.assembly-configuration-session'
 import type { ConfiguredAssemblyScene } from '../cad/kernel.assembly-configuration-scene'
 import { evaluateAssemblyConfiguration } from '../model/assemblyConfigurationCore'
 import { assemblyDefinitionKey, validateAssemblyMate, type AssemblyMate } from '../model/assemblyDocument'
 import { validateAssemblyConfiguredMateEdit, type AssemblyConfiguredMateEdit } from '../model/assemblyConfiguredMateEditing'
+import { inspectAssemblyConfiguredMechanicalEdit, validateAssemblyConfiguredMechanicalEdit, type AssemblyConfiguredMechanicalEdit } from '../model/assemblyConfiguredMechanicalEditing'
 import { AssemblyConfiguredDocumentHistory } from '../model/assemblyConfiguredHistory'
 import { validateAssemblyConfiguredDocument, parseAssemblyConfiguredDocument, serializeAssemblyConfiguredDocument, type AssemblyConfiguredDocument } from '../model/assemblyConfiguredDocument'
 import { parseCadDocument, type CadDocument } from '../model/cadDocument'
 import { CAD_RECOVERY_KEY } from '../model/cadRecovery'
 import { buildConfiguredAssemblyBom, type ConfiguredAssemblyBomOptions, type ConfiguredAssemblyBomMember } from '../model/assemblyConfiguredBom'
-import { createConfiguredUiRootVariant, createConfiguredUiScopeVariant, configuredUiPose, editConfiguredUiOccurrence, configuredUiTicket, configuredUiTicketMatches, configuredUiSceneMatches, configuredUiDisplayScene, configuredBomUiTicket, configuredBomUiTicketMatches, configuredBomUiSelectedPath, downloadConfiguredBomCsv, runConfiguredBomCsvExport, configuredMateUiTicketMatches, configuredMateUiPreviewMatches } from './configuredAssemblyUi'
+import { createConfiguredUiRootVariant, createConfiguredUiScopeVariant, configuredUiPose, editConfiguredUiOccurrence, configuredUiTicket, configuredUiTicketMatches, configuredUiSceneMatches, configuredUiDisplayScene, configuredBomUiTicket, configuredBomUiTicketMatches, configuredBomUiSelectedPath, downloadConfiguredBomCsv, runConfiguredBomCsvExport, configuredMateUiTicketMatches, configuredMateUiPreviewMatches, configuredMechanicalUiPreviewMatches } from './configuredAssemblyUi'
 import AssemblyViewport from './AssemblyViewport'
 import ConfiguredAssemblyBomPanel from './ConfiguredAssemblyBomPanel'
 import ConfiguredAssemblyMatePanel, { configuredMateUiDraft, configuredMateUiChoices, configuredMateUiProposal, configuredMateEditUnavailable, type ConfiguredMateDraft } from './ConfiguredAssemblyMatePanel'
+import ConfiguredAssemblyMechanicalPanel, { configuredMechanicalDraft, configuredMechanicalChoices, configuredMechanicalIntent, configuredMechanicalMate, type ConfiguredMechanicalDraft } from './ConfiguredAssemblyMechanicalPanel'
 import './assembly.css'
 import './configured-assembly.css'
 
 let controllerEpoch = 0
+type RelationDraft = ConfiguredMateDraft | ConfiguredMechanicalDraft
 function nextEpoch(minimum = 0) { controllerEpoch = Math.max(controllerEpoch, minimum); if (controllerEpoch >= Number.MAX_SAFE_INTEGER) throw Error('Vuelve a abrir la aplicación para continuar.'); return ++controllerEpoch }
 export interface ConfiguredAssemblyWorkspaceProps {
   initialDocument: AssemblyConfiguredDocument
@@ -36,7 +39,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
   const [message, setMessage] = useState('Preparando el ensamblaje…'), [scope, setScope] = useState('[]')
   const [occurrenceId, setOccurrenceId] = useState(''), [variantName, setVariantName] = useState(''), [scopeVariantName, setScopeVariantName] = useState(''), [pose, setPose] = useState(['0', '0', '0'])
   const [rotationAxis, setRotationAxis] = useState<'X' | 'Y' | 'Z'>('Z'), [rotationDegrees, setRotationDegrees] = useState('0')
-  const [mateDraft, setMateDraft] = useState<ConfiguredMateDraft | null>(null), mateDraftRef = useRef(mateDraft), mateRevision = useRef(0), sceneRef = useRef(scene), committedSceneRef = useRef<ConfiguredAssemblyScene | null>(null)
+  const [mateDraft, setMateDraft] = useState<RelationDraft | null>(null), mateDraftRef = useRef(mateDraft), mateRevision = useRef(0), sceneRef = useRef(scene), committedSceneRef = useRef<ConfiguredAssemblyScene | null>(null)
   const [view, setView] = useState<{ name: 'iso' | 'front' | 'top' | 'fit'; stamp: number }>({ name: 'iso', stamp: 0 })
   const [discardDialog, setDiscardDialog] = useState(false), answer = useRef<((allow: boolean) => void) | null>(null)
   const [bomOpen, setBomOpen] = useState(false), [bomOptions, setBomOptions] = useState<ConfiguredAssemblyBomOptions>({ mode: 'parts-only', includeHidden: true, scopePath: [] })
@@ -58,6 +61,16 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
     try { return { values: configuredMateUiChoices(document, preview ? committedSceneRef.current : scene, generation, selectedScope.path.map(String)), error: undefined } }
     catch (reason) { return { values: [], error: reason instanceof Error ? reason.message : 'No se pudieron preparar las referencias actuales.' } }
   }, [document, scene, preview, generation, scope])
+  const mechanicalChoices = useMemo(() => {
+    try { return { values: configuredMechanicalChoices(document, preview ? committedSceneRef.current : scene, generation, selectedScope.path.map(String)), error: undefined } }
+    catch (reason) { return { values: { geometry: [], components: [] }, error: reason instanceof Error ? reason.message : 'No se pudieron preparar los componentes actuales.' } }
+  }, [document, scene, preview, generation, scope])
+  const mechanicalTarget = { scopePath: [...selectedScope.path], definition: { ...selectedScope.definition }, configuration: selectedScope.configuration }
+  let mechanicalError: string | undefined
+  if (mateDraft && 'mechanical' in mateDraft) {
+    try { inspectAssemblyConfiguredMechanicalEdit(document, configuredMechanicalIntent(mateDraft, mechanicalChoices.values, mechanicalTarget)) }
+    catch (reason) { mechanicalError = reason instanceof Error ? reason.message : 'La edición mecánica no está disponible.' }
+  }
   const rootVariants = document.catalog.find(row => assemblyDefinitionKey(row.definition) === assemblyDefinitionKey(document.source))?.configurations ?? []
   const bom = useMemo(() => {
     if (!bomOpen) return { report: null, error: undefined }
@@ -70,7 +83,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
   const mateTicket = () => ({ context: ticket(), revision: mateRevision.current, draft: JSON.stringify(mateDraftRef.current), sceneId: sceneRef.current?.scene.sceneId ?? null })
   const renderedMateTicket = { context: renderedTicket, revision: mateRevision.current, draft: JSON.stringify(mateDraft), sceneId: scene?.scene.sceneId ?? null }
   const freshMate = () => mounted.current && configuredMateUiTicketMatches(renderedMateTicket, mateTicket())
-  const setRelationDraft = (value: ConfiguredMateDraft | null) => {
+  const setRelationDraft = (value: RelationDraft | null) => {
     if (mateRevision.current >= Number.MAX_SAFE_INTEGER) throw Error('Vuelve a abrir el ensamblaje para continuar editando relaciones.')
     mateRevision.current++; mateDraftRef.current = value; setMateDraft(value)
   }
@@ -206,13 +219,31 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
     } catch (reason) { if (isCurrent()) error(reason) }
     finally { if (fresh(captured.context) && operationKind.current === 'solve') finish() }
   }
-  const openRelationEditor = (mate?: AssemblyMate) => {
+  const previewMechanical = async (intent: AssemblyConfiguredMechanicalEdit) => {
+    if (!freshMate() || operation.current || pending.current || !scene || selectedScope.suppressed) return
+    let edit: AssemblyConfiguredMechanicalEdit
+    try { edit = validateAssemblyConfiguredMechanicalEdit(intent); inspectAssemblyConfiguredMechanicalEdit(current.current, edit) } catch (reason) { error(reason); return }
+    const captured = mateTicket(), isCurrent = () => mounted.current && configuredMateUiTicketMatches(captured, mateTicket())
+    setFailure(null); begin('solve'); setMessage('Verificando la captura mecánica en todos sus usos…')
+    try {
+      const reply = await previewConfiguredAssemblyMechanicalEdit({ document: current.current, generation: captured.context.generation }, edit)
+      if (!isCurrent()) { release(reply.token); return }
+      if (reply.kind !== 'configured-assembly-preview' || reply.generation !== captured.context.generation || !reply.verification.accepted
+        || !configuredUiSceneMatches(reply.scene, reply.document, reply.candidateGeneration) || !configuredMechanicalUiPreviewMatches(reply.document, edit)) { release(reply.token); throw Error('La vista previa no conserva la intención mecánica solicitada.') }
+      pending.current = reply; setPreview(reply); setScene(reply.scene); setMessage('Captura mecánica verificada. Revisa la vista previa y pulsa Aplicar o Cancelar.')
+    } catch (reason) { if (isCurrent()) error(reason) }
+    finally { if (fresh(captured.context) && operationKind.current === 'solve') finish() }
+  }
+  const openRelationEditor = (mate?: AssemblyMate, mechanical = false) => {
     if (!freshMate() || operation.current || pending.current || mateDraftRef.current || !scene || selectedScope.suppressed) return
-    try { setRelationDraft(configuredMateUiDraft(mate?.id ?? crypto.randomUUID(), mate)); setFailure(null) } catch (reason) { error(reason) }
+    try { const id = mate?.id ?? crypto.randomUUID(); setRelationDraft(mate && configuredMechanicalMate(mate) ? configuredMechanicalDraft(id, mate) : mechanical ? configuredMechanicalDraft(id) : configuredMateUiDraft(id, mate)); setFailure(null) } catch (reason) { error(reason) }
   }
   const previewDraft = () => {
     if (!freshMate() || operation.current || pending.current || !mateDraftRef.current) return
-    try { const draft = mateDraftRef.current, mate = configuredMateUiProposal(draft, mateChoices.values); void previewRelation(relationTarget(draft.editing ? { kind: 'replace', mateId: draft.id, mate } : { kind: 'add', mate })) }
+    try { const draft = mateDraftRef.current
+      if ('mechanical' in draft) void previewMechanical(configuredMechanicalIntent(draft, mechanicalChoices.values, mechanicalTarget))
+      else { const mate = configuredMateUiProposal(draft, mateChoices.values); void previewRelation(relationTarget(draft.editing ? { kind: 'replace', mateId: draft.id, mate } : { kind: 'add', mate })) }
+    }
     catch (reason) { error(reason) }
   }
   const changeBomView = (open: boolean, options = bomView.current.options) => {
@@ -267,17 +298,21 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
       <section className="configured-mate-list" role="region" aria-label="Relaciones del estado configurado"><h2>Relaciones del estado</h2>
         <p>{selectedScope.configuration === null ? 'Las ediciones de Base conservan los estados efectivos de las configuraciones nombradas.' : `Se edita la configuración ${selectedScope.configuration}. Todos sus usos comparten las relaciones.`}</p>
         <button disabled={blocked || !!mateDraft || !scene || selectedScope.suppressed} onClick={() => openRelationEditor()}>Nueva relación configurada</button>
+        <button disabled={blocked || !!mateDraft || !scene || selectedScope.suppressed} onClick={() => openRelationEditor(undefined, true)}>Nueva relación mecánica configurada</button>
         {!effectiveMates.length && <p>No hay relaciones declaradas en este estado.</p>}
-        <ul>{effectiveMates.map(mate => { const unavailable = configuredMateEditUnavailable(mate); return <li key={mate.id} data-configured-mate-id={mate.id} data-configured-mate-type={mate.type} data-configured-mate-suppressed={String(mate.suppressed)}>
+        <ul>{effectiveMates.map(mate => { const unavailable = configuredMechanicalMate(mate) ? null : configuredMateEditUnavailable(mate); return <li key={mate.id} data-configured-mate-id={mate.id} data-configured-mate-type={mate.type} data-configured-mate-suppressed={String(mate.suppressed)}>
           <strong>{mate.name}</strong><small>{mate.type}{mate.suppressed ? ' · suprimida' : ''}{mate.type === 'distance' ? ` · ${mate.distance} mm` : ''}{mate.type === 'angle' ? ` · ${mate.angle}°` : ''}</small>
           <button aria-label={`Editar relación configurada ${mate.name}`} title={unavailable ?? 'Editar referencias y parámetros'} disabled={blocked || !!mateDraft || !!unavailable || !scene || selectedScope.suppressed} onClick={() => openRelationEditor(mate)}>Editar</button>
           <button aria-label={`${mate.suppressed ? 'Activar' : 'Suprimir'} relación configurada ${mate.name}`} disabled={blocked || !!mateDraft || !scene || selectedScope.suppressed} onClick={() => { if (freshMate()) void previewRelation(relationTarget({ kind: 'suppression', mateId: mate.id, suppressed: !mate.suppressed })) }}>{mate.suppressed ? 'Activar' : 'Suprimir'}</button>
           <button aria-label={`Eliminar relación configurada ${mate.name}`} disabled={blocked || !!mateDraft || !scene || selectedScope.suppressed} onClick={() => { if (freshMate()) void previewRelation(relationTarget({ kind: 'remove', mateId: mate.id })) }}>Eliminar</button>
           {unavailable && <small>{unavailable}</small>}
         </li> })}</ul>
-        <p>Las capturas mecánicas nuevas y los formularios de perfiles y trayectos aún no están disponibles aquí.</p>
+        <p>Los formularios de perfiles y trayectos aún no están disponibles aquí.</p>
       </section>
-      {mateDraft && <ConfiguredAssemblyMatePanel draft={mateDraft} choices={mateChoices.values} disabled={blocked || !scene || selectedScope.suppressed}
+      {mateDraft && !('mechanical' in mateDraft) && <ConfiguredAssemblyMatePanel draft={mateDraft} choices={mateChoices.values} disabled={blocked || !scene || selectedScope.suppressed}
+        onChange={draft => { if (!freshMate() || operation.current || pending.current) return; try { setRelationDraft(structuredClone(draft)); setFailure(null) } catch (reason) { error(reason) } }}
+        onPreview={previewDraft} onClose={() => { if (!freshMate() || operation.current || pending.current) return; try { setRelationDraft(null); setFailure(null) } catch (reason) { error(reason) } }} />}
+      {mateDraft && 'mechanical' in mateDraft && <ConfiguredAssemblyMechanicalPanel draft={mateDraft} choices={mechanicalChoices.values} target={mechanicalTarget} error={mechanicalError ?? mechanicalChoices.error} disabled={blocked || !scene || selectedScope.suppressed}
         onChange={draft => { if (!freshMate() || operation.current || pending.current) return; try { setRelationDraft(structuredClone(draft)); setFailure(null) } catch (reason) { error(reason) } }}
         onPreview={previewDraft} onClose={() => { if (!freshMate() || operation.current || pending.current) return; try { setRelationDraft(null); setFailure(null) } catch (reason) { error(reason) } }} />}
       {mateChoices.error && <p role="alert">{mateChoices.error}</p>}
@@ -285,7 +320,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
     </aside><main><nav aria-label="Vistas del ensamblaje configurado">{([['iso', 'Isométrica'], ['front', 'Frontal'], ['top', 'Superior'], ['fit', 'Ajustar']] as const).map(([name, label]) => <button key={name} disabled={busy} onClick={() => setView(old => ({ name, stamp: old.stamp + 1 }))}>{label}</button>)}</nav><div className="configured-assembly-view"><AssemblyViewport scene={displayScene} disabled={busy} view={view} selectedPath={preview ? [] : bomSelectedPath} onComponent={() => undefined} onFace={() => undefined} /></div>
       {preview && <p role="status">Vista previa verificada · todavía sin aplicar. {preview.states.length} estados resueltos; {preview.verification.reports.length} relaciones comprobadas.</p>}
       {scene && <p aria-label="Totales de configuración">{scene.scene.solidCount} sólidos · {scene.scene.volume.toFixed(3)} mm³ · {scene.scene.area.toFixed(3)} mm²</p>}
-      <p className="configured-assembly-limit">Edición de estados y relaciones con vista previa verificada, variantes y lista de materiales CSV. La reparación de orígenes, las nuevas capturas mecánicas, la exportación de geometría y el movimiento interactivo aún no están disponibles en esta vista.</p>
+      <p className="configured-assembly-limit">Edición de estados y relaciones con captura mecánica verificada, variantes y lista de materiales CSV. La reparación de orígenes, la exportación de geometría y el movimiento interactivo aún no están disponibles en esta vista.</p>
     </main></div>{bomOpen && <ConfiguredAssemblyBomPanel report={bom.report} error={bom.error} options={bomOptions} disabled={blocked || !!mateDraft} selectedPath={bomSelectedPath}
       rootConfigurationLabel={document.rootConfiguration === null ? 'Base' : `${rootVariants.find(value => value.id === document.rootConfiguration)?.name ?? document.rootConfiguration} · ${JSON.stringify(document.rootConfiguration)}`}
       scopes={evaluation.scopes.map(value => ({ path: value.path, label: `${value.path.join(' / ') || 'Todo el ensamblaje'} · ${value.configuration ?? 'Base'}` }))}

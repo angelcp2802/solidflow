@@ -22,7 +22,7 @@ export interface ConfiguredMateDraft {
   entityKind: 'point' | 'line' | 'plane' | 'sphere' | 'cylinder'; side: 'positive' | 'negative'; branch: 'external' | 'first' | 'second'; widthBranch: 'sum' | 'difference'; tabBranch: 'sum' | 'difference'
 }
 export function configuredMateEditUnavailable(mate: AssemblyMate): string | null {
-  if (['lock', 'gear', 'screw', 'rack-pinion'].includes(mate.type) || mate.type === 'concentric' && mate.rotationLock !== null) return 'Esta edición requiere una nueva captura nativa configurada, todavía no disponible. Puedes suprimir o eliminar la relación.'
+  if (['lock', 'gear', 'screw', 'rack-pinion'].includes(mate.type) || mate.type === 'concentric' && mate.rotationLock !== null) return 'Usa el formulario de relaciones mecánicas para conservar o volver a capturar este estado.'
   if (!Object.hasOwn(families, mate.type)) return 'El formulario de referencias compuestas de esta familia todavía no está integrado en esta vista. Puedes suprimir o eliminar la relación.'
   return null
 }
