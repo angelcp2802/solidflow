@@ -55,6 +55,13 @@ configured envelope adds empty named `demo` and `untouched` states. There are no
 external model bytes or vendor geometry. The corresponding renderer creates
 the relations through the application's controls.
 
+Displayed-origin selection reuses that same renderer recipe without changing
+its solids, placements or native tolerances. `assemblyOriginPicking.test.ts`
+reuses `assemblyConfigurationCoreFixture` for scoped ownership, with literal
+translations/quaternions and orthographic/perspective camera coordinates for
+display projection, clipping and ambiguity checks. These mathematical display
+oracles are independently authored and do not supply native geometry results.
+
 `src/cad/kernel.assembly-principal-axis.test.ts` independently constructs a
 radius-2 mm circle extruded 8 mm: volume 32π mm³, area 40π mm². Literal nested
 coordinate frames, unit axes and deliberately authored slide/spin cases supply

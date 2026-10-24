@@ -62,6 +62,10 @@ it('renders the real assembly controls and keeps Apply blocked before an actual 
   const html = renderToStaticMarkup(<AssemblyWorkspace initialDocument={document} initialSaved={before} onOpenPart={() => undefined} />)
   expect(html).toContain('Componentes del ensamblaje'); expect(html).toContain('Pasador izquierdo'); expect(html).toContain('Pasador derecho')
   expect(html).toContain('Tipo de relación'); expect(html).toContain('Ámbito de las relaciones'); expect(html).toContain('Importar componente')
+  expect(html).toContain('aria-label="Orígenes visibles del ensamblaje"')
+  expect(html).toContain('Mostrar ejes'); expect(html).toContain('Mostrar planos')
+  expect(html).toContain('aria-label="Orígenes visibles de"')
+  expect(html).toMatch(/<button(?=[^>]*aria-label="Seleccionar orígenes")(?=[^>]*aria-pressed="false")(?=[^>]*disabled="")[^>]*>/)
   expect(html).toContain('aria-label="Crear revisión del ensamblaje"'); expect(html).toContain('Crear revisión…')
   expect(html).not.toContain('id="assembly-root-revision-title"')
   // SSR proves the initial navigation contract only; desktop flows exercise tabs.

@@ -107,7 +107,35 @@ its draft. Returning to it does not automatically rearm picking.
 Panels remain mounted to retain field values, but inactive panels are hidden.
 Renderer workflows navigate through the actual tabs before operating fields;
 scripted form controls remain distinct from pointer-validated interactions.
-The tree's origin labels are descriptive: displayed-axis picking remains open.
+The tree's origin labels remain descriptive. Visible origin references have
+separate controls and selectable overlays in the viewport.
+
+In a standard assembly, enable **Mostrar ejes** or **Mostrar planos** and choose
+**Ámbito actual**, **Componente seleccionado** or **Ambos** in **Orígenes visibles
+de**. Select the relation and its reference role, then press **Seleccionar
+origen**. The viewport instruction identifies the role being filled. In a
+configured assembly, select the component before opening the general relation
+editor. Under **Referencias de origen**, enable **Ejes** or **Planos**, choose
+**Mostrar origen de**, and press the button for the intended reference role.
+Only roles with a compatible current displayed reference can be armed.
+
+Click an axis line, a displayed plane, or its projected label to nominate the
+reference. Labels identify the axis or plane and its owner; they are also useful
+when a line is viewed end-on. If labels overlap, show only the scope or selected
+component before picking. A successful selection fills
+one role, highlights the reference and ends that picking action. Rearm selection
+for the next role. These overlays can be seen through solids: their finite
+display size is not the extent of the analytic reference. A plane or axis is
+distinct from a material face or edge and cannot supply a cylinder radius,
+material incidence or a mechanical capture.
+
+Hiding a reference or changing the displayed owner stops origin picking.
+Leaving the relation editor also stops it without discarding the draft.
+Hidden or suppressed owners, stale scene/context events and incompatible roles
+cannot supply a new reference. Visibility and highlighting do not verify a
+relation: generate its native preview, then use **Aplicar** to commit it or
+**Cancelar** to discard the preview. **Cancelar selección de origen** only ends
+the temporary picking action.
 
 The standard assembly workspace supports component import and repeated
 occurrences. Its relation references include assembly and component XY, XZ

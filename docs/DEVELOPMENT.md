@@ -9,6 +9,17 @@ case observes a stationary target before pressing; it does not retry a missed
 click or extend the existing deadlines. A panel-navigation pass is separate from
 native geometry, file persistence and platform acceptance.
 
+The hosted [CI run for `a709556`](https://github.com/angelcp2802/solidflow/actions/runs/40129262044)
+failed symmetry authoring on all three operating systems before its first
+preview: tab navigation called the pointer helper, whose scenario guard omitted
+that workflow. The failure was `Expected actual pointer input in the hidden
+test-owned assembly window.` The targeted guard correction passes the Windows
+symmetry renderer's 174 checkpoints, including five Save As/reopen pairs; see
+[validation](VALIDATION.md). It does not change solver checks or deadlines,
+and hosted recovery still requires new-head execution evidence. The same
+commit's [Security run](https://github.com/angelcp2802/solidflow/actions/runs/40129262048)
+passed. These results apply to that commit, not to the origin-selection changes.
+
 After building, `npm run test:desktop:assembly-configured-picking` checks actual
 component and general face/LINE role selection in an original configured
 assembly, with preview, history and real file IPC. See
@@ -34,6 +45,25 @@ X/Y/Z line references and their native relation lifecycle. After building, run
 `npm run test:desktop:assembly-configured-origin-axes` for the original form,
 preview, history and file-persistence workflows. Keep free axial/spin coordinates
 separate from constrained coordinates, and preserve material-only capture rules.
+
+Visible origin selection shares `assemblyOriginPicking.ts` for owner-relative
+identity, displayed placement, projected labels and axis/plane hit testing.
+The standard and configured adapters nominate existing compatible reference
+roles; they do not grant native verification or Apply authority. Keep visibility
+separate from material picking, reject stale display/context events, and stop
+temporary picking when the owner, visibility or active editor changes. Hidden or
+suppressed owners must not contribute selectable overlays. The user steps are
+in [core workflows](CORE_WORKFLOWS.md).
+
+The origin-axis renderer flows reuse the original two-prism recipe in
+`scripts/desktop-assembly-origin-axes-original.cjs`; see [provenance](PROVENANCE.md).
+Their visible-selection route uses actual pointer input for visibility, role
+and projected-label controls, while owner/type/value form changes remain
+scripted. Preserve the independent geometry, Cancel/retry, Apply, history and
+Save/reopen checks. A projected-label click is not evidence of a geometry hit
+on an axis line or plane surface. Report those routes separately, with the
+actual platform and execution results in [validation](VALIDATION.md); this
+description adds no new passing or platform-support claim.
 
 The [core workflow walkthrough](CORE_WORKFLOWS.md) prioritizes successive cuts,
 additive extrusions, consistent mouse navigation and basic assembly selection.

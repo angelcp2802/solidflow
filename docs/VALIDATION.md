@@ -1,5 +1,67 @@
 # Validation
 
+## Displayed assembly origin selection — 2026-10-24
+
+The increment after `e95b6c5`, tracked in #55, displays current root/component
+axes and planes in both assembly workspaces. Explicit origin-role selection
+accepts a compatible current label or geometric display witness. Visibility,
+owner, pane and scene changes invalidate picking. Reference identities remain
+scope-relative; the overlay uses effective global placements and never supplies
+material/native authority. Preview and Apply remain required.
+
+Windows x64 / Node 24.11.1 / actual Electron 44.9.3:
+
+- Literal `npm test` passes 9,376 unit/CAD cases across 403 files in
+  600.78 seconds, followed by 83 IPC/security passes and two explicit platform
+  skips. Production build and the actual loader/worker/WASM desktop smoke pass.
+  All 1,061 frozen non-Markdown inputs match the isolated runtime checkout;
+  the final comparison reports no differences.
+- Standard origin workflow: 90 checkpoints, 38 recorded gestures and nine
+  native geometry phases. Configured origin workflow: 121 checkpoints,
+  33 gestures and nine geometry phases. Each assigns six axes by actual CDP
+  label presses, rejects an incompatible plane and selects a compatible plane
+  transiently before replacing it with the intended axis. Leaving/returning to
+  the tree disarms selection and retains the draft. Parameter/owner controls
+  remain scripted; labels are checked for identity, visibility and stable
+  press/release positions. Neither run is arbitrary geometry-hit coverage.
+- Both original two-prism cases retain concentric Z then 30-degree X relations,
+  Cancel/retry, Apply, history and real file reopening. Totals remain 48 mm³
+  and 104 mm²; bounds use literal prism dimensions/trigonometry with 1e-5 mm
+  tolerance, volume/area 1e-5, and rotation checks 1e-6. Axial translation and
+  unconstrained spin are not mistaken for fixed coordinates. The configured
+  Base/dormant states remain unchanged. No fixture or solver changes.
+- The symmetry renderer passes 174 checkpoints, including the original five
+  families, preview/Apply, edit cancellation, history and five Save As/reopen
+  pairs. Its navigation guard now allows this existing test-owned scenario.
+  Hosted predecessor `a709556` failed at that guard on all three systems;
+  this Windows pass alone does not establish hosted recovery.
+- All three renderer runs report no console/resource errors and confirm child
+  exit and isolated-profile cleanup. Their final 1544×941 captures were
+  inspected; the configured capture is the reopened model/tree state.
+- Pure display tests cover effective nested placement, scope-relative owners,
+  hidden/suppressed/stale/ambiguous rejection, pixel thresholds, orthographic
+  and perspective near/far clipping, and exact label bindings. Role helpers
+  check current compatible form choices without inventing material references.
+- A separate visible session with the original plate/two-pin example checks
+  showing all root axes/planes, selecting the drawn root Z line into reference
+  1 of a concentric draft, its highlight and wheel zoom with that role retained.
+  After changing to coincident, a direct click inside the displayed YZ plane
+  replaces reference 1 with the root YZ plane and disarms picking.
+  No relation is committed in this manual case. Physical middle-button dragging
+  is not exercised.
+
+Initial configured runs exposed a target shift during a physical press:
+the origin instruction consumed 44 px of viewport height while the hidden
+renderer still held its preceding canvas size. The instruction now overlays
+the viewport; resize handling redraws geometry and labels together. The helper
+requires matching canvas/viewport dimensions and detects movement during the
+press without retrying the click or extending any deadline. The final full
+configured workflow passes with these checks.
+
+Overlapping labels may require displaying only the scope or selected owner.
+Rotation locking/capture for origin-axis concentricity, arbitrary visibility
+cases, installed packages and general cross-platform acceptance remain open.
+
 ## Grouped assembly commands and contextual manager — 2026-10-24
 
 The increment after `cdd36c2`, tracked in issue #55, replaces the two assembly

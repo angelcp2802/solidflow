@@ -12,6 +12,8 @@ import type { AssemblyInterferenceReport } from '../model/assemblyInterference'
 import type { AssemblyDragFrame } from '../model/assemblyDrag'
 import { identityRigidPose, validateRigidPose, type RigidPose } from '../model/rigidPose'
 import { assemblyReferencePickMode, assemblyVertexKey, pickAssemblyVertex, createAssemblyVertexMarkers, disposeAssemblyVertexMarkers } from './assemblyVertexPicking'
+import { assemblyOriginDisplayBinding, assemblyOriginExtent, assemblyOriginLabels, assemblyOriginReferenceKey, createAssemblyOriginOverlay, pickAssemblyOrigin, type AssemblyOriginDisplay, type AssemblyOriginReference } from './assemblyOriginPicking'
+import './assembly-origin-display.css'
 type AnalysisPair = AssemblyInterferenceReport['pairs'][number]
 
 /** Intent only: this empty proxy never owns or transforms a body mesh. */
@@ -147,6 +149,10 @@ export interface AssemblyViewportProps {
   selectedFaces?: readonly AssemblySceneFace[]
   selectedEdges?: readonly AssemblySceneEdge[]
   selectedVertices?: readonly AssemblySceneVertex[]
+  originReferences?: readonly AssemblyOriginDisplay[]
+  selectedOrigins?: readonly AssemblyOriginReference[]
+  pickingOrigins?: boolean
+  onOrigin?: (reference: AssemblyOriginReference | null) => void
   selectedAnalysisPair?: AnalysisPair | null
   pickingFaces?: boolean
   pickingEdges?: boolean
@@ -166,12 +172,15 @@ export interface AssemblyViewportProps {
 export default function AssemblyViewport(props: AssemblyViewportProps) {
   const host = useRef<HTMLDivElement>(null), input = useRef(props); input.current = props
   const [dragAxis, setDragAxis] = useState<string | null>(null)
+  const [originLabels, setOriginLabels] = useState<ReturnType<typeof assemblyOriginLabels>>([])
+  const originFrame = useRef('')
+  const originCatalog = (value: AssemblyViewportProps) => JSON.stringify([value.originReferences, value.scene?.visibleBounds])
   const context = useRef<{ group: THREE.Group; analysis: THREE.Group; markers: THREE.Group; clearHover: () => void; camera: THREE.OrthographicCamera; controls: OrbitControls; bodies: AssemblyPickBody[]; faces: AssemblyPickFace[]; edges: AssemblyPickEdge[]; fit: () => void; highlight: () => void; syncDrag: () => void } | null>(null)
   useEffect(() => {
-    const element = host.current!, world = new THREE.Scene(), group = new THREE.Group(), analysis = new THREE.Group(), markers = new THREE.Group()
+    const element = host.current!, world = new THREE.Scene(), group = new THREE.Group(), analysis = new THREE.Group(), markers = new THREE.Group(), origins = new THREE.Group()
     const camera = new THREE.OrthographicCamera(-80, 80, 60, -60, .01, 100000); camera.up.set(0, 0, 1); camera.position.set(100, -130, 100)
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); renderer.setClearColor(0xffffff, 0)
-    element.appendChild(renderer.domElement); world.add(group, analysis, markers)
+    element.appendChild(renderer.domElement); world.add(group, analysis, markers, origins)
     world.add(new THREE.HemisphereLight(0xffffff, 0x647e98, 2.4)); const light = new THREE.DirectionalLight(0xffffff, 2.5); light.position.set(70, -80, 120); world.add(light)
     // Register the manipulator first so it can claim a pointer before camera orbit.
     const transform = new TransformControls(camera, renderer.domElement), proxy = createAssemblyDragProxy(identityRigidPose())
@@ -233,10 +242,16 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
       camera.top = span * .65; camera.bottom = -camera.top; camera.right = camera.top * aspect; camera.left = -camera.right
       camera.near = Math.max(.001, span * .001); camera.far = span * 20; camera.zoom = 1; camera.updateProjectionMatrix(); controls.update()
     }
-    let hovered: string | null = null, hoveredEdge: string | null = null, hoveredVertex: string | null = null
-    const clearHover = () => { hovered = null; hoveredEdge = null; hoveredVertex = null }
+    let hovered: string | null = null, hoveredEdge: string | null = null, hoveredVertex: string | null = null, hoveredOrigin: string | null = null, originVisualSignature = '', labelSignature = '', displayedOriginCatalog = '', originPressCatalog = ''
+    const clearHover = () => { hovered = null; hoveredEdge = null; hoveredVertex = null; hoveredOrigin = null }
     const highlight = () => {
       const current = context.current; if (!current) return
+      const signature = JSON.stringify([input.current.originReferences, input.current.selectedOrigins, input.current.disabled ? null : hoveredOrigin, input.current.scene?.visibleBounds])
+      if (signature !== originVisualSignature) {
+        originVisualSignature = signature; disposeDisplay(origins); origins.clear()
+        origins.add(createAssemblyOriginOverlay(input.current.originReferences ?? [], assemblyOriginExtent(input.current.scene?.visibleBounds), input.current.selectedOrigins, input.current.disabled ? null : hoveredOrigin))
+        displayedOriginCatalog = originCatalog(input.current)
+      }
       disposeAssemblyVertexMarkers(markers)
       const nextMarkers = createAssemblyVertexMarkers(current.bodies, input.current.disabled ? [] : input.current.selectedVertices ?? [], input.current.disabled ? null : hoveredVertex)
       while (nextMarkers.children.length) markers.add(nextMarkers.children[0])
@@ -263,17 +278,34 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
     }
     context.current = { group, analysis, markers, clearHover, camera, controls, bodies: [], faces: [], edges: [], fit, highlight, syncDrag }
     const size = () => ({ width: element.clientWidth, height: element.clientHeight })
-    const resize = new ResizeObserver(() => { renderer.setSize(element.clientWidth, element.clientHeight); const aspect = Math.max(element.clientWidth, 1) / Math.max(element.clientHeight, 1); camera.right = camera.top * aspect; camera.left = -camera.right; camera.updateProjectionMatrix(); context.current?.highlight() })
+    const renderFrame = () => {
+      controls.update(); renderer.render(world, camera)
+      originFrame.current = displayedOriginCatalog
+      const labels = assemblyOriginLabels(camera, input.current.originReferences ?? [], assemblyOriginExtent(input.current.scene?.visibleBounds), { width: element.clientWidth, height: element.clientHeight }), signature = JSON.stringify(labels)
+      if (signature !== labelSignature) { labelSignature = signature; setOriginLabels(labels) }
+    }
+    const resize = new ResizeObserver(() => {
+      renderer.setSize(element.clientWidth, element.clientHeight)
+      const aspect = Math.max(element.clientWidth, 1) / Math.max(element.clientHeight, 1)
+      camera.right = camera.top * aspect; camera.left = -camera.right; camera.updateProjectionMatrix(); context.current?.highlight()
+      // A newly opened status/tool row changes the viewport. Its labels must
+      // follow that resize before the next pointer press, even in a hidden tab.
+      renderFrame()
+    })
     resize.observe(element)
     const point = (event: PointerEvent) => { const rect = element.getBoundingClientRect(); return { x: event.clientX - rect.left, y: event.clientY - rect.top } }
-    const pointerDown = (event: PointerEvent) => { selectionGesture.down(event); dragConsumed = false }
+    const pointerDown = (event: PointerEvent) => {
+      selectionGesture.down(event); dragConsumed = false
+      originPressCatalog = assemblyReferencePickMode(input.current) === 'origin' && originFrame.current === originCatalog(input.current) ? originFrame.current : ''
+    }
     const pointerMove = (event: PointerEvent) => {
       selectionGesture.move(event)
       const current = context.current
       hovered = current && !input.current.disabled && assemblyReferencePickMode(input.current) === 'face' && !event.buttons ? (() => { const face = pickAssemblyFace(camera, current.bodies, current.faces, point(event), size()); return face ? assemblyFaceKey(face) : null })() : null
       hoveredEdge = current && !input.current.disabled && assemblyReferencePickMode(input.current) === 'edge' && !event.buttons ? (() => { const edge = pickAssemblyEdge(camera, current.bodies, current.edges, point(event), size()); return edge ? assemblyEdgeKey(edge) : null })() : null
       hoveredVertex = current && !input.current.disabled && assemblyReferencePickMode(input.current) === 'vertex' && !event.buttons ? (() => { const vertex = pickAssemblyVertex(camera, current.bodies, point(event), size()); return vertex ? assemblyVertexKey(vertex) : null })() : null
-      renderer.domElement.style.cursor = acceptedGesture ? 'grabbing' : input.current.disabled ? 'wait' : transform.axis ? 'move' : assemblyReferencePickMode(input.current) !== null ? (hovered || hoveredEdge || hoveredVertex ? 'pointer' : 'crosshair') : event.buttons === 4 ? 'grabbing' : 'default'; highlight()
+      hoveredOrigin = current && !input.current.disabled && assemblyReferencePickMode(input.current) === 'origin' && originFrame.current === originCatalog(input.current) && !event.buttons ? (() => { const origin = pickAssemblyOrigin(camera, input.current.originReferences ?? [], assemblyOriginExtent(input.current.scene?.visibleBounds), point(event), size()); return origin ? assemblyOriginReferenceKey(origin) : null })() : null
+      renderer.domElement.style.cursor = acceptedGesture ? 'grabbing' : input.current.disabled ? 'wait' : transform.axis ? 'move' : assemblyReferencePickMode(input.current) !== null ? (hovered || hoveredEdge || hoveredVertex || hoveredOrigin ? 'pointer' : 'crosshair') : event.buttons === 4 ? 'grabbing' : 'default'; highlight()
     }
     const pointerLeave = () => { clearHover(); highlight() }
     controls.addEventListener('start', pointerLeave)
@@ -285,13 +317,19 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
       if (!current || input.current.disabled || !select) return
       const mode = assemblyReferencePickMode(input.current)
       if (mode === 'conflict') return
-      if (mode === 'vertex') input.current.onVertex?.(pickAssemblyVertex(camera, current.bodies, point(event), size()))
+      if (mode === 'origin') {
+        if (originPressCatalog === originFrame.current && originFrame.current === originCatalog(input.current)) input.current.onOrigin?.(pickAssemblyOrigin(camera, input.current.originReferences ?? [], assemblyOriginExtent(input.current.scene?.visibleBounds), point(event), size()))
+      }
+      else if (mode === 'vertex') input.current.onVertex?.(pickAssemblyVertex(camera, current.bodies, point(event), size()))
       else if (mode === 'edge') input.current.onEdge?.(pickAssemblyEdge(camera, current.bodies, current.edges, point(event), size()))
       else if (mode === 'face') input.current.onFace(pickAssemblyFace(camera, current.bodies, current.faces, point(event), size()))
       else input.current.onComponent(pickAssemblyComponent(camera, current.bodies, point(event), size()))
     }
     renderer.domElement.addEventListener('pointerdown', pointerDown, true); renderer.domElement.addEventListener('pointermove', pointerMove); renderer.domElement.addEventListener('pointerleave', pointerLeave); renderer.domElement.addEventListener('pointerup', pointerUp)
-    let frame = 0; const draw = () => { controls.update(); renderer.render(world, camera); frame = requestAnimationFrame(draw) }; draw()
+    let frame = 0; const draw = () => {
+      renderFrame()
+      frame = requestAnimationFrame(draw)
+    }; draw()
     return () => {
       cancelAnimationFrame(frame); resize.disconnect(); cancelDrag(); controls.removeEventListener('start', pointerLeave); controls.dispose()
       window.removeEventListener('blur', pointerLeave); renderer.domElement.removeEventListener('pointercancel', pointerLeave)
@@ -300,7 +338,7 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
       transform.removeEventListener('mouseUp', dragEnd); transform.removeEventListener('axis-changed', axisChanged); transform.dispose()
       window.removeEventListener('keydown', keyDown); window.removeEventListener('blur', pointerCancel); renderer.domElement.removeEventListener('pointercancel', pointerCancel)
       renderer.domElement.removeEventListener('pointerdown', pointerDown, true); renderer.domElement.removeEventListener('pointermove', pointerMove); renderer.domElement.removeEventListener('pointerleave', pointerLeave); renderer.domElement.removeEventListener('pointerup', pointerUp)
-      disposeDisplay(group); disposeDisplay(analysis)
+      disposeDisplay(group); disposeDisplay(analysis); disposeDisplay(origins)
       renderer.dispose(); renderer.domElement.remove(); context.current = null
     }
   }, [])
@@ -340,12 +378,20 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
     const pair = props.selectedAnalysisPair, keys = new Set(props.scene?.bodies.map(body => assemblyBodyKey(body.component, body.body)))
     if (pair && [pair.first, pair.second].every(value => keys.has(assemblyBodyKey(value.component, value.body)))) current.analysis.add(createAssemblyInterferenceOverlay(pair))
   }, [props.scene, props.selectedAnalysisPair])
-  useEffect(() => { context.current?.highlight() }, [props.selectedPath, props.selectedFaces, props.selectedEdges, props.selectedVertices])
-  useEffect(() => { context.current?.clearHover(); context.current?.highlight(); context.current?.syncDrag() }, [props.drag, props.disabled, props.pickingFaces, props.pickingEdges, props.pickingVertices])
+  useEffect(() => { context.current?.highlight() }, [props.selectedPath, props.selectedFaces, props.selectedEdges, props.selectedVertices, props.originReferences, props.selectedOrigins])
+  useEffect(() => { context.current?.clearHover(); context.current?.highlight(); context.current?.syncDrag() }, [props.drag, props.disabled, props.pickingFaces, props.pickingEdges, props.pickingVertices, props.pickingOrigins])
   useEffect(() => {
     const current = context.current; if (!current || !props.view) return
     if (props.view.name !== 'fit') { const direction = props.view.name === 'front' ? new THREE.Vector3(0, -1, 0) : props.view.name === 'top' ? new THREE.Vector3(0, -.0001, 1) : new THREE.Vector3(1, -1.3, 1); current.camera.position.copy(current.controls.target).addScaledVector(direction.normalize(), 100) }
     current.fit()
   }, [props.view])
-  return <div className="assembly-viewport" ref={host} aria-label="Visor 3D del ensamblaje" data-analysis-pair={props.selectedAnalysisPair?.id} data-drag-axis={dragAxis ?? ''} data-reference-picking={assemblyReferencePickMode(props) ?? ''}><span className="assembly-axis-label">X · Y · Z{props.drag && <output aria-label="Eje del manipulador"> · {dragAxis ?? 'Selecciona un eje'}</output>}</span></div>
+  return <div className="assembly-viewport" ref={host} aria-label="Visor 3D del ensamblaje" data-analysis-pair={props.selectedAnalysisPair?.id} data-drag-axis={dragAxis ?? ''} data-reference-picking={assemblyReferencePickMode(props) ?? ''}>
+    <div className="assembly-origin-labels" aria-label="Referencias de origen visibles">{originLabels.map(label => <button key={label.key} type="button"
+      className={(props.selectedOrigins ?? []).some(ref => assemblyOriginReferenceKey(ref) === label.key) ? 'selected' : ''}
+      style={{ left: label.x, top: label.y }} aria-label={`Seleccionar ${label.label}`} title={label.label} data-origin-key={label.key}
+      disabled={!!props.disabled || assemblyReferencePickMode(props) !== 'origin'} onClick={() => {
+        const value = input.current, matches = (value.originReferences ?? []).filter(entry => entry.key === label.key)
+          if (!value.disabled && assemblyReferencePickMode(value) === 'origin' && originFrame.current === originCatalog(value) && matches.length === 1 && assemblyOriginDisplayBinding(matches[0]) === label.binding) value.onOrigin?.(structuredClone(matches[0].reference))
+      }}>{label.label}</button>)}</div>
+    <span className="assembly-axis-label">X · Y · Z{props.drag && <output aria-label="Eje del manipulador"> · {dragAxis ?? 'Selecciona un eje'}</output>}</span></div>
 }

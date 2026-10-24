@@ -12,6 +12,25 @@ origen** entry in each reference list. Root and nested scope labels distinguish
 the coordinate systems. The controls nominate a reference; the native preview
 must still validate and solve it before Apply.
 
+Both workspaces also display selectable origin references. Enable axes or
+planes and choose the current scope, selected component or both. In the
+standard workspace, activate reference 1 or 2 and **Seleccionar origen**;
+in the configured relation editor, use the corresponding origin-role button.
+Click a projected label, axis line or finite plane witness. One accepted pick
+fills that role and disarms picking. Leaving the relation pane also disarms
+picking while retaining the draft. Incompatible kinds leave the role unchanged.
+
+The overlay uses the current effective global placement, while saved identity
+remains relative to the declaring scope. Hidden, suppressed, ambiguous or stale
+owners are excluded. Labels bind to their displayed owner and pose; geometry
+picking requires the currently rendered catalog. The overlay remains visible
+through material solids, with axis picking taking priority near an axis line.
+Coincident axis projections are ambiguous. Use a distinct label when reachable;
+if labels also overlap, show only the scope or selected component before picking.
+Plane rectangles and axis extents are display witnesses of infinite
+analytic references, not new material faces or edges. Changing visibility or
+selecting a reference does not solve or modify the committed document.
+
 Origin axes are available for parallel, perpendicular and angular relations,
 including the angular limit forms, and for concentricity with another origin
 axis or a cylindrical material axis. A concentric relation aligns two complete
@@ -58,10 +77,14 @@ case edits the named `demo` state while retaining the Base and dormant state.
 The workflows inspect private preview, Cancel/retry, Apply, history and actual
 file Save/reopen. Volume is 48 mm³ and area is 104 mm². Their bounds oracle uses
 literal prism dimensions and trigonometry; free axial displacement is not
-mistaken for a constrained value. They select axes through the real forms, not
-through viewport axis clicks. Execution results and exact limits belong in
+mistaken for a constrained value. Axis roles use actual pointer input on
+projected labels. The workflow also checks an incompatible plane, a compatible
+transient plane and leaving the relation editor with an armed role. Owner and
+relation parameters still use scripted form controls; this does not establish
+arbitrary geometry-hit or physical mouse navigation coverage. Execution
+results and exact limits belong in
 [VALIDATION.md](VALIDATION.md); these commands alone are not passing evidence.
 
-Configured structural insertion/fixed-state authoring, direct displayed-axis
-picking, origin-axis rotation capture and the complete assembly demo remain
-separate outstanding work.
+Origin-axis rotation capture and the complete assembly demo remain separate
+outstanding work. Displayed-reference picking does not extend the supported
+solver families or establish general visibility and platform coverage.

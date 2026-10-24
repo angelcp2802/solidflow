@@ -1,0 +1,5 @@
+.assembly-origin-labels { position: absolute; inset: 0; z-index: 3; overflow: hidden; pointer-events: none; }
+.assembly-origin-labels button { position: absolute; transform: translate(-50%, -100%); max-width: 170px; padding: 2px 5px; border: 1px solid #a9cee5; border-radius: 2px; background: #f4fbffeb; color: #166ba5; font-size: 11px; line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: auto; }
+.assembly-origin-labels button:disabled { opacity: .85; pointer-events: none; }
+.assembly-origin-labels button:not(:disabled):hover, .assembly-origin-labels button:focus-visible { color: #533400; border-color: #d9a74e; background: #fff2d6; }
+.assembly-origin-labels button.selected { color: #734300; border-color: #d59b33; background: #ffefcb; }

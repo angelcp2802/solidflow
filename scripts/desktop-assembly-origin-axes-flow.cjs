@@ -7,17 +7,134 @@ const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 module.exports = function originAxesWorkflow(c) {
   c = require('./desktop-assembly-navigation.cjs').withNavigation(c);
   const assemblyNavigation = c.assemblyNavigation;
-  const { configured, expected, input, output, evaluate, observe, waitFor, click, capture, checks,
+  const { configured, expected, input, output, evaluate, observe, waitFor, click, pointer, asideWheel, capture, checks,
     consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs, dialogCounts } = c;
   const ROOT = configured ? '.configured-assembly-workspace' : '.assembly-app';
   const NAV = configured ? ':is([aria-label="Archivo del ensamblaje configurado"],[aria-label="Comandos del ensamblaje configurado"])' : ':is(.assembly-toolbar, .assembly-quickbar)';
   const FORM = '[aria-label="Editar relación del estado"]';
   const BUILD = configured ? 'build-configured-assembly' : 'build-assembly';
-  const phases = [];
+  const phases = [], selectionGestures = [];
+  let checkedOriginNavigation = false;
   const page = (fn, ...args) => evaluate('(' + fn.toString() + ')(' + args.map(value => 'JSON.parse(' + encodeJavaScriptString(JSON.stringify(value)) + ')').join(',') + ')');
-  const navigation = configured ? require('./desktop-configured-navigation.cjs')({page,waitFor}) : null;
+  const navigation = configured ? require('./desktop-configured-navigation.cjs')({page,waitFor,actualControl}) : null;
   const near = (actual, wanted, tolerance, name) => check(Number.isFinite(actual) && Math.abs(actual - wanted) <= tolerance,
     name + ': actual=' + actual + ', expected=' + wanted);
+  async function actualControl(selector, text = null, allowAsideWheel = false) {
+    const inspect = () => page((selector, text) => {
+      const matches = [...document.querySelectorAll(selector)].filter(e => text === null || e.textContent.trim() === text);
+      if (matches.length !== 1 || matches[0].disabled || matches[0].closest('[hidden]')) throw Error('One visible enabled actual control required: ' + selector);
+      const e = matches[0], r = e.getBoundingClientRect(), aside = e.closest('[aria-label="Inspector del ensamblaje configurado"],.assembly-manager-panel'), a = aside?.getBoundingClientRect();
+      const top = Math.max(0, a ? a.top + aside.clientTop : 0), bottom = Math.min(innerHeight, a ? a.top + aside.clientTop + aside.clientHeight : innerHeight);
+      const x = r.x + r.width / 2, y = r.y + r.height / 2, hit = document.elementFromPoint(x, y);
+      const viewport = e.closest('.assembly-viewport'), canvas = viewport?.querySelector('canvas'), cr = canvas?.getBoundingClientRect();
+      const viewportReady = !viewport || !!cr && Math.abs(cr.width - viewport.clientWidth) < 1 && Math.abs(cr.height - viewport.clientHeight) < 1;
+      return { point: { x, y }, visible: r.width > 0 && r.height > 0 && r.left >= Math.max(0, a?.left ?? 0) && r.right <= Math.min(innerWidth, a?.right ?? innerWidth)
+        && r.top >= top && r.bottom <= bottom && !!hit && (hit === e || e.contains(hit)), aside: !!aside, scrollTop: aside?.scrollTop ?? 0,
+        delta: r.top < top ? -200 : 200, wheelPoint: aside ? { x: a.left + Math.min(100, a.width / 2), y: (top + bottom) / 2 } : null,
+        rect: { top: r.top, bottom: r.bottom }, clip: { top, bottom }, originKey: e.getAttribute('data-origin-key'), viewportReady };
+    }, selector, text);
+    const stationary = async () => {
+      let previous = null, stableSince = 0;
+      return waitFor('stationary actual origin selection target', async () => {
+        const next = await inspect(), key = JSON.stringify(next);
+        if (key !== previous) { previous = key; stableSince = Date.now(); return false; }
+        return next.viewportReady && Date.now() - stableSince >= 120 ? next : false;
+      });
+    };
+    let state = await stationary();
+    for (let step = 0; !state.visible && allowAsideWheel && state.aside && step < 24; step++) {
+      check(typeof asideWheel === 'function', 'Bounded actual inspector wheel available');
+      const old = state.scrollTop; await asideWheel(state.wheelPoint, state.delta);
+      await waitFor('actual origin inspector wheel movement', async () => { const next = await inspect(); return next.scrollTop !== old || next.visible; });
+      state = await stationary();
+    }
+    check(state.visible, 'Actual origin control is fully visible and unobscured: ' + JSON.stringify({ selector, text, ...state }));
+    await pointer('mouseMoved', state.point);
+    const hit = await inspect();
+    check(hit.visible && hit.scrollTop === state.scrollTop && hit.point.x === state.point.x && hit.point.y === state.point.y, 'Actual target remains stationary immediately before press');
+    await pointer('mousePressed', state.point, 1);
+    const pressed = await inspect();
+    check(pressed.visible && pressed.point.x === state.point.x && pressed.point.y === state.point.y, 'Actual origin control remains stationary while pressed: ' + JSON.stringify({ before: state, pressed }));
+    await pointer('mouseReleased', state.point, 0);
+    selectionGestures.push({ kind: 'control', selector, text, point: state.point, scrollTop: state.scrollTop, originKey: state.originKey });
+  }
+  const originMode = () => page(() => document.querySelector('[aria-label="Visor 3D del ensamblaje"]')?.getAttribute('data-reference-picking'));
+  async function references() {
+    return page(configured => [1, 2].map(slot => configured
+      ? document.querySelector('[aria-label="Referencia ' + slot + ' de relación configurada"]')?.value
+      : document.querySelector('[aria-label="Referencia ' + slot + ' de la relación"] span')?.textContent), configured);
+  }
+  async function selectMoving() {
+    if (navigation) await navigation.pane('model'); else await assemblyNavigation.panel('components');
+    await actualControl(configured ? 'button[aria-label="Seleccionar componente moving"]' : '.assembly-tree [role="treeitem"]', configured ? null : 'movingorigin-axis-prism · r1', true);
+    await waitFor('actual moving component selection', () => page(configured => configured
+      ? document.querySelector('button[aria-label="Seleccionar componente moving"]')?.getAttribute('aria-pressed') === 'true'
+      : [...document.querySelectorAll('.assembly-tree [role="treeitem"]')].some(e => e.getAttribute('aria-selected') === 'true' && e.textContent.trim() === 'movingorigin-axis-prism · r1'), configured));
+  }
+  async function showOrigins() {
+    for (const selector of configured ? ['[aria-label="Mostrar ejes de origen configurados"]', '[aria-label="Mostrar planos de origen configurados"]']
+      : ['.assembly-origin-tools label:nth-of-type(1) input', '.assembly-origin-tools label:nth-of-type(2) input']) {
+      if (!await page(selector => document.querySelector(selector)?.checked, selector)) await actualControl(selector, null, true);
+      check(await page(selector => document.querySelector(selector)?.checked === true, selector), 'Actual visibility checkbox enabled');
+    }
+  }
+  async function armOrigin(slot) {
+    if (configured) {
+      await navigation.pane('relation');
+      await actualControl('button[aria-label="Seleccionar Referencia ' + slot + ' por origen en vista configurada"]', null, true);
+    } else {
+      await assemblyNavigation.panel('relations');
+      await actualControl('button[aria-label="Referencia ' + slot + ' de la relación"]', null, true);
+      await actualControl('button[aria-label="Seleccionar orígenes"]');
+    }
+    await waitFor('actual origin role armed', async () => await originMode() === 'origin' && await page((configured, slot) => configured
+      ? document.querySelector('button[aria-label="Seleccionar Referencia ' + slot + ' por origen en vista configurada"]')?.getAttribute('aria-pressed') === 'true'
+      : document.querySelector('button[aria-label="Referencia ' + slot + ' de la relación"]')?.classList.contains('active'), configured, slot));
+  }
+  async function leaveArmedOrigin() {
+    const before = (await observe()).serial, original = await references();
+    await armOrigin(1);
+    if (navigation) await navigation.pane('model'); else await assemblyNavigation.panel('components');
+    await waitFor('leaving relations disarms origin selection', async () => await originMode() === '');
+    check(canonical(await references()) === canonical(original), 'Leaving relation preserves both authored references');
+    if (navigation) await navigation.pane('relation'); else await assemblyNavigation.panel('relations');
+    check(await originMode() === '' && canonical(await references()) === canonical(original), 'Returning restores the draft without rearming origin selection');
+    check((await observe()).serial === before, 'Origin navigation is display-only');
+    selectionGestures.push({ kind: 'leave-armed-origin', draftRetained: true, pickingStopped: true });
+  }
+  async function originLabel(slot, kind, value, owner, accepted = true) {
+    const before = (await observe()).serial, original = await references();
+    const label = 'Seleccionar ' + (kind === 'principal-axis' ? 'Eje ' : 'Plano ') + value + ' · ' + (owner ?? 'Raíz');
+    const wanted = { kind, component: owner ? { occurrencePath: [owner], definition: { id: 'origin-axis-prism', revision: 'r1' } } : null,
+      [kind === 'principal-axis' ? 'axis' : 'plane']: value };
+    const key = JSON.stringify([kind, owner ? [[owner], 'origin-axis-prism', 'r1'] : null, value]);
+    check(await page((label, key) => document.querySelector('button[aria-label="' + label + '"]')?.getAttribute('data-origin-key') === key, label, key), 'Projected label has exact literal scope/owner/datum identity');
+    await actualControl('button[aria-label="' + label + '"]');
+    checks.push({ originPress: { label, slot, intended: wanted, observed: await page((configured, label) => ({
+      roles: [1, 2].map(slot => configured ? document.querySelector('[aria-label="Referencia ' + slot + ' de relación configurada"]')?.value : document.querySelector('[aria-label="Referencia ' + slot + ' de la relación"] span')?.textContent),
+      mode: document.querySelector('[aria-label="Visor 3D del ensamblaje"]')?.getAttribute('data-reference-picking'),
+      status: document.querySelector('.configured-assembly-workspace footer,.assembly-status')?.textContent,
+      labelSelected: document.querySelector('button[aria-label="' + label + '"]')?.classList.contains('selected'),
+    }), configured, label) } });
+    if (accepted) {
+      await waitFor('actual origin assigned to intended role', () => page((configured, slot, wanted) => {
+        if (configured) { const value = document.querySelector('[aria-label="Referencia ' + slot + ' de relación configurada"]')?.value;
+          if (!value) return false; const ref = JSON.parse(value);
+          return ref.kind === wanted.kind && ref.axis === wanted.axis && ref.plane === wanted.plane
+            && (wanted.component ? JSON.stringify(ref.component?.occurrencePath) === JSON.stringify(wanted.component.occurrencePath)
+              && ref.component?.definition.id === wanted.component.definition.id && ref.component?.definition.revision === wanted.component.definition.revision : ref.component === null); }
+        const text = (wanted.component?.occurrencePath.join(' / ') ?? 'Ámbito actual') + ' · ' + (wanted.kind === 'principal-axis' ? 'Eje de origen ' + wanted.axis : wanted.plane);
+        return document.querySelector('[aria-label="Referencia ' + slot + ' de la relación"] span')?.textContent === text;
+      }, configured, slot, wanted));
+      await waitFor('origin selection ends after assigning one role', async () => await originMode() === '');
+      const after = await references(); check(after[slot === 1 ? 1 : 0] === original[slot === 1 ? 1 : 0], 'The other origin role remains unchanged');
+      check(await page(key => [...document.querySelectorAll('[data-origin-key]')].some(e => e.getAttribute('data-origin-key') === key && e.classList.contains('selected')), key), 'Accepted current origin is visibly highlighted');
+    } else {
+      check(canonical(await references()) === canonical(original) && await originMode() === 'origin', 'Incompatible visible plane is rejected without replacing a role or disarming the eligible axis pick');
+    }
+    check((await observe()).serial === before, 'Origin selection sends no worker solve');
+    selectionGestures.push({ kind: accepted ? 'origin-assigned' : 'origin-rejected', slot, reference: wanted });
+  }
   async function button(text, parent = ROOT) { await assemblyNavigation.button(text, parent);
     if (navigation) await navigation.reveal(parent + ' button', text);
     await page((text, parent) => { const matches = [...document.querySelectorAll(parent + ' button')].filter(e => e.textContent.trim() === text);
@@ -107,21 +224,23 @@ module.exports = function originAxesWorkflow(c) {
     if (configured && !await page(form => !!document.querySelector(form), FORM)) await button('Nueva relación configurada', '[aria-label="Relaciones del estado configurado"]');
     await control(configured ? 'Tipo de relación configurada' : 'Tipo de relación', type);
     await control(configured ? 'Nombre de relación configurada' : 'Nombre de la relación', stage === 1 ? 'Origin Z alignment' : 'Origin X 30 degrees');
+    await showOrigins();
+    const ownerLabel = configured ? 'Propietario de referencias de origen configuradas' : 'Orígenes visibles de';
+    await control(ownerLabel, 'both');
+    if (!checkedOriginNavigation) {
+      await leaveArmedOrigin();
+      await armOrigin(1); await originLabel(1, 'principal-plane', 'XY', 'moving', false);
+      checkedOriginNavigation = true;
+    }
+    if (stage === 2) {
+      // Angle already accepts plane directions. Exercise that existing role,
+      // then replace it with X before the unchanged geometric preview oracle.
+      await control(ownerLabel, 'selected'); await armOrigin(1);
+      await originLabel(1, 'principal-plane', 'XZ', 'moving');
+    }
     for (const [slot, owner] of [[1, 'moving'], [2, null]]) {
-      if (configured) {
-        const label = 'Referencia ' + slot + ' de relación configurada';
-        const value = await page((label, owner, axis) => { const e = document.querySelector('[aria-label="' + label + '"]');
-          const matches = [...e.options].filter(o => { try { const r = JSON.parse(o.value); return r.kind === 'principal-axis' && r.axis === axis
-            && (owner ? JSON.stringify(r.component?.occurrencePath) === JSON.stringify([owner]) && r.component.definition.id === 'origin-axis-prism' : r.component === null); } catch { return false; } });
-          if (matches.length !== 1) throw Error('One current exact origin-axis option required'); return matches[0].value;
-        }, label, owner, axis);
-        await control(label, value);
-      } else {
-        await click('button[aria-label="Referencia ' + slot + ' de la relación"]');
-        (await assemblyNavigation.panel('relations'), await page(() => { const d = [...document.querySelectorAll('details')].find(d => d.querySelector('summary')?.textContent === 'Usar un eje de origen'); if (!d) throw Error('Origin axis controls absent'); d.open = true; }));
-        await control('Componente del eje de origen', owner ? JSON.stringify([owner]) : 'scope');
-        await control('Eje de origen', axis); await button('Usar eje en referencia ' + slot);
-      }
+      await control(ownerLabel, owner ? 'selected' : 'scope');
+      await armOrigin(slot); await originLabel(slot, 'principal-axis', axis, owner);
     }
     if (stage === 2) await control(configured ? 'Ángulo de relación configurada en grados' : 'Ángulo de relación', '30');
   }
@@ -151,7 +270,7 @@ module.exports = function originAxesWorkflow(c) {
     await waitFor('owned replacement prompt', () => page(() => !!document.querySelector('[role="dialog"][aria-labelledby="discard-title"]')));
     await button('Continuar sin guardar', '[role="dialog"][aria-labelledby="discard-title"]');
     let row = await response(before.serial, BUILD); check(canonical(configured ? row.current.document : row.document) === canonical(expected), 'Actual original opened through file IPC');
-    geometry(row.response.value, expected, 0, 'initial'); await recovery(expected);
+    geometry(row.response.value, expected, 0, 'initial'); await recovery(expected); await selectMoving();
     await draft(1); const rejectedCommit = await preview(expected, 1); await recovery(expected);
     if (configured) await button('Cancelar', NAV); else await click('button[aria-label="Cancelar vista previa del ensamblaje"]');
     await recovery(expected); await draft(1); let proposed = await preview(expected, 1);
@@ -171,7 +290,9 @@ module.exports = function originAxesWorkflow(c) {
     check((await fs.readFile(input)).equals(sourceBytes) && (await fs.readFile(output)).equals(savedBytes), 'Input and saved bytes unchanged by reopen');
     check(dialogCounts().opens === 2 && dialogCounts().saves === (configured ? 2 : 1), 'Exact native Open/Save dialog count');
     check(!consoleErrors.length && !failedRequests.length, 'No console or resource failures');
-    checks.push({ scenario: configured ? 'configured-origin-axes' : 'origin-axes', phases, savedSha256: digest(savedBytes), sourceSha256: digest(sourceBytes) });
+    checks.push({ scenario: configured ? 'configured-origin-axes' : 'origin-axes', phases, selectionGestures,
+      selectionLimits: 'Actual CDP component, visibility, role and projected-origin label presses; owner/type/name/value form controls scripted and visible. One incompatible concentric plane rejected; one eligible angle plane replaced before preview. Existing geometry, history and file oracles unchanged.',
+      savedSha256: digest(savedBytes), sourceSha256: digest(sourceBytes) });
     await capture(current);
   };
 };

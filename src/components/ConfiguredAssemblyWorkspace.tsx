@@ -16,6 +16,8 @@ import { buildConfiguredAssemblyBom, type ConfiguredAssemblyBomOptions, type Con
 import { createConfiguredUiRootVariant, createConfiguredUiScopeVariant, configuredUiPose, editConfiguredUiOccurrence, configuredUiTicket, configuredUiTicketMatches, configuredUiSceneMatches, configuredUiDisplayScene, configuredBomUiTicket, configuredBomUiTicketMatches, configuredBomUiSelectedPath, downloadConfiguredBomCsv, runConfiguredBomCsvExport, configuredMateUiTicketMatches, configuredMateUiPreviewMatches, configuredMechanicalUiPreviewMatches } from './configuredAssemblyUi'
 import AssemblyViewport from './AssemblyViewport'
 import { configuredComponentPick, configuredMatePickChoice, configuredMateHighlights, type ConfiguredMatePick } from './configuredAssemblyPicking'
+import { buildAssemblyOriginDisplay, type AssemblyOriginReference } from './assemblyOriginPicking'
+import { configuredOriginHighlights, configuredOriginPickChoice } from './configuredAssemblyOriginPicking'
 import type { AssemblySceneFace, AssemblySceneEdge } from '../cad/kernel.assembly-types'
 import ConfiguredAssemblyBomPanel from './ConfiguredAssemblyBomPanel'
 import ConfiguredAssemblyMatePanel, { configuredMateUiDraft, configuredMateUiRoleLabels, configuredMateUiChoices, configuredMateUiProposal, configuredMateEditUnavailable, type ConfiguredMateDraft } from './ConfiguredAssemblyMatePanel'
@@ -78,8 +80,11 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
     }
   }, [mateDraft?.id])
   const [matePick, setMatePick] = useState<ConfiguredMatePick | null>(null), matePickRef = useRef(matePick)
-  const stopMatePick = () => { matePickRef.current = null; setMatePick(null) }
-  useEffect(() => { if (inspectorPane !== 'relation' && matePickRef.current) stopMatePick() }, [inspectorPane])
+  const [originPick, setOriginPick] = useState<{ slot: number } | null>(null), originPickRef = useRef(originPick)
+  const [originAxes, setOriginAxes] = useState(false), [originPlanes, setOriginPlanes] = useState(false)
+  const [originOwner, setOriginOwner] = useState<'scope' | 'selected' | 'both'>('scope')
+  const stopMatePick = () => { matePickRef.current = null; setMatePick(null); originPickRef.current = null; setOriginPick(null) }
+  useEffect(() => { if (inspectorPane !== 'relation' && (matePickRef.current || originPickRef.current)) stopMatePick() }, [inspectorPane])
   const [view, setView] = useState<{ name: 'iso' | 'front' | 'top' | 'fit'; stamp: number }>({ name: 'iso', stamp: 0 })
   const [discardDialog, setDiscardDialog] = useState(false), answer = useRef<((allow: boolean) => void) | null>(null)
   const [bomOpen, setBomOpen] = useState(false), [bomOptions, setBomOptions] = useState<ConfiguredAssemblyBomOptions>({ mode: 'parts-only', includeHidden: true, scopePath: [] })
@@ -316,7 +321,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
     finally { if (mounted.current && epoch.current === captured.context.generation && operationKind.current === 'file') finish() }
   }
   const pickMate = (hit: AssemblySceneFace | AssemblySceneEdge | null) => {
-    if (!freshMate() || operation.current || pending.current || !matePick || matePickRef.current !== matePick || !mateDraft || 'mechanical' in mateDraft || 'compound' in mateDraft || !scene || !configuredUiSceneMatches(scene, current.current, epoch.current)) return
+    if (!freshMate() || operation.current || pending.current || inspectorPane !== 'relation' || !matePick || matePickRef.current !== matePick || !mateDraft || 'mechanical' in mateDraft || 'compound' in mateDraft || !scene || !configuredUiSceneMatches(scene, current.current, epoch.current)) return
     const choice = configuredMatePickChoice(displayScene, selectedScope.path, mateDraft, mateChoices.values, matePick, hit)
     if (!choice) { setMessage('Selecciona una referencia visible compatible con este papel y ámbito.'); return }
     const references = [...mateDraft.references]; references[matePick.slot] = choice.reference
@@ -352,6 +357,21 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
   const blocked = busy || !!preview
   const generalDraft = mateDraft && !('mechanical' in mateDraft) && !('compound' in mateDraft) ? mateDraft : null
   const mateHighlights = useMemo(() => configuredMateHighlights(!blocked && scene && configuredUiSceneMatches(scene, document, generation) ? displayScene : null, selectedScope.path, generalDraft, mateChoices.values), [blocked, scene, document, generation, displayScene, selectedScope.path, generalDraft, mateChoices.values])
+  const originDisplay = useMemo(() => {
+    if (inspectorPane !== 'relation' || !generalDraft || blocked || !scene || !configuredUiSceneMatches(scene, document, generation)) return []
+    const kinds = { axes: originAxes, planes: originPlanes }
+    const own = originOwner !== 'selected' ? buildAssemblyOriginDisplay(evaluation, selectedScope.path, null, kinds) : []
+    const component = originOwner !== 'scope' && selected ? buildAssemblyOriginDisplay(evaluation, selectedScope.path, [...selectedScope.path, selected.id], kinds) : []
+    return [...own, ...component]
+  }, [inspectorPane, generalDraft, blocked, scene, document, generation, evaluation, selectedScope.path, selected, originOwner, originAxes, originPlanes])
+  const selectedOrigins = useMemo(() => configuredOriginHighlights(originDisplay, generalDraft, mateChoices.values), [originDisplay, generalDraft, mateChoices.values])
+  const pickOrigin = (reference: AssemblyOriginReference | null) => {
+    if (!freshMate() || operation.current || pending.current || inspectorPane !== 'relation' || !originPick || originPickRef.current !== originPick || !generalDraft || !scene || selectedScope.suppressed || !configuredUiSceneMatches(scene, current.current, epoch.current)) return
+    const choice = configuredOriginPickChoice(originDisplay, generalDraft, mateChoices.values, originPick.slot, reference)
+    if (!choice) { setMessage('Selecciona un origen visible compatible con esta referencia y el ámbito actual.'); return }
+    const references = [...generalDraft.references]; references[originPick.slot] = choice.reference
+    setRelationDraft({ ...generalDraft, references }); setFailure(null); setMessage('Referencia de origen seleccionada. Verifica la vista previa antes de aplicar.')
+  }
   return <div className="configured-assembly-workspace" aria-label="Ensamblaje configurado" aria-busy={busy}>
     <AssemblyShellHeader name={document.source.name} dirty={dirty} fileTitle={path} fileLabel={path?.split(/[\\/]/).at(-1) ?? 'Sin guardar'} mode="Ensamblaje configurado">
       <nav className="assembly-quickbar" aria-label="Archivo del ensamblaje configurado">
@@ -448,8 +468,24 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
           <span>{preview ? 'Vista previa verificada' : 'Selecciona referencias y verifica'}</span>
         </div>
               <div id="configured-relation-inspector" data-inspector-anchor="configured-property-heading" tabIndex={-1}>
+      {generalDraft && <section className="configured-origin-controls" aria-label="Referencias de origen configuradas">
+        <h3>Referencias de origen</h3>
+        <div className="configured-origin-visibility">
+          <label><input type="checkbox" aria-label="Mostrar ejes de origen configurados" checked={originAxes} disabled={blocked || !scene} onChange={event => { if (!freshMate() || operation.current || pending.current || inspectorPane !== 'relation') return; stopMatePick(); setOriginAxes(event.target.checked) }} />Ejes</label>
+          <label><input type="checkbox" aria-label="Mostrar planos de origen configurados" checked={originPlanes} disabled={blocked || !scene} onChange={event => { if (!freshMate() || operation.current || pending.current || inspectorPane !== 'relation') return; stopMatePick(); setOriginPlanes(event.target.checked) }} />Planos</label>
+        </div>
+        <label>Mostrar origen de<select aria-label="Propietario de referencias de origen configuradas" value={originOwner} disabled={blocked || !scene} onChange={event => { if (!freshMate() || operation.current || pending.current || inspectorPane !== 'relation') return; stopMatePick(); setOriginOwner(event.target.value as typeof originOwner) }}>
+          <option value="scope">Ámbito actual</option><option value="selected" disabled={!selected}>Componente seleccionado</option><option value="both" disabled={!selected}>Ambos</option>
+        </select></label>
+        <div className="configured-origin-roles">{configuredMateUiRoleLabels(generalDraft).map((label, slot) => <button key={slot} type="button" aria-label={`Seleccionar ${label} por origen en vista configurada`} aria-pressed={originPick?.slot === slot} disabled={blocked || !scene || !originDisplay.some(row => configuredOriginPickChoice(originDisplay, generalDraft, mateChoices.values, slot, row.reference))} onClick={() => {
+          if (!freshMate() || operation.current || pending.current || inspectorPane !== 'relation' || !scene || !configuredUiSceneMatches(scene, current.current, epoch.current)) return
+          if (!originDisplay.some(row => configuredOriginPickChoice(originDisplay, generalDraft, mateChoices.values, slot, row.reference))) return
+          stopMatePick(); const value = { slot }; originPickRef.current = value; setOriginPick(value)
+        }}>{label}</button>)}</div>
+        <small>Activa ejes o planos y elige la referencia que quieres seleccionar en la vista.</small>
+      </section>}
       {mateDraft && !('mechanical' in mateDraft) && !('compound' in mateDraft) && <ConfiguredAssemblyMatePanel draft={mateDraft} choices={mateChoices.values} disabled={blocked || !scene || selectedScope.suppressed}
-        picking={matePick} onStopPicking={stopMatePick} onPick={(slot, kind) => { if (!freshMate() || operation.current || pending.current) return; const value = { slot, kind }; matePickRef.current = value; setMatePick(value) }}
+        picking={matePick} onStopPicking={stopMatePick} onPick={(slot, kind) => { if (!freshMate() || operation.current || pending.current || inspectorPane !== 'relation') return; stopMatePick(); const value = { slot, kind }; matePickRef.current = value; setMatePick(value) }}
         onChange={draft => { if (!freshMate() || operation.current || pending.current) return; try { setRelationDraft(structuredClone(draft)); setFailure(null) } catch (reason) { error(reason) } }}
         onPreview={previewDraft} onClose={() => { if (!freshMate() || operation.current || pending.current) return; try { setRelationDraft(null); setFailure(null) } catch (reason) { error(reason) } }} />}
       {mateDraft && 'mechanical' in mateDraft && <ConfiguredAssemblyMechanicalPanel draft={mateDraft} choices={mechanicalChoices.values} target={mechanicalTarget} error={mechanicalError ?? mechanicalChoices.error} disabled={blocked || !scene || selectedScope.suppressed}
@@ -463,7 +499,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
       {mateChoices.error && <p role="alert">{mateChoices.error}</p>}
 
       </div>
-    </aside><main><nav aria-label="Vistas del ensamblaje configurado">{([['iso', 'Isométrica'], ['front', 'Frontal'], ['top', 'Superior'], ['fit', 'Ajustar']] as const).map(([name, label]) => <button key={name} disabled={busy} onClick={() => setView(old => ({ name, stamp: old.stamp + 1 }))}>{label}</button>)}</nav>{inspectorPane === 'relation' && matePick && generalDraft && !blocked && <p role="status" aria-label="Selección de referencia en vista configurada">Selecciona {configuredMateUiRoleLabels(generalDraft)[matePick.slot]}: {matePick.kind === 'face' ? 'una cara compatible' : 'una arista LINE'} · Ámbito: {selectedScope.path.join(' / ') || 'Raíz'} · Estado: {selectedScope.configuration ?? 'Base'}. <button type="button" onClick={stopMatePick}>Cancelar selección en vista</button></p>}<div className="configured-assembly-view"><AssemblyViewport selectedFaces={mateHighlights.faces} selectedEdges={mateHighlights.edges} scene={displayScene} disabled={busy} view={view} selectedPath={preview ? [] : bomSelectedPath.length ? bomSelectedPath : selected ? [...selectedScope.path, selected.id] : []} pickingFaces={inspectorPane === 'relation' && !blocked && matePick?.kind === 'face'} pickingEdges={inspectorPane === 'relation' && !blocked && matePick?.kind === 'edge'} onFace={pickMate} onEdge={pickMate} onComponent={component => {
+    </aside><main><nav aria-label="Vistas del ensamblaje configurado">{([['iso', 'Isométrica'], ['front', 'Frontal'], ['top', 'Superior'], ['fit', 'Ajustar']] as const).map(([name, label]) => <button key={name} disabled={busy} onClick={() => setView(old => ({ name, stamp: old.stamp + 1 }))}>{label}</button>)}</nav>{inspectorPane === 'relation' && matePick && generalDraft && !blocked && <p role="status" aria-label="Selección de referencia en vista configurada">Selecciona {configuredMateUiRoleLabels(generalDraft)[matePick.slot]}: {matePick.kind === 'face' ? 'una cara compatible' : 'una arista LINE'} · Ámbito: {selectedScope.path.join(' / ') || 'Raíz'} · Estado: {selectedScope.configuration ?? 'Base'}. <button type="button" onClick={stopMatePick}>Cancelar selección en vista</button></p>}{inspectorPane === 'relation' && originPick && generalDraft && !blocked && <p role="status" aria-label="Selección de origen en vista configurada">Selecciona {configuredMateUiRoleLabels(generalDraft)[originPick.slot]}: un eje o plano de origen visible compatible. <button type="button" onClick={stopMatePick}>Cancelar selección de origen</button></p>}<div className="configured-assembly-view"><AssemblyViewport originReferences={originDisplay} selectedOrigins={selectedOrigins} pickingOrigins={inspectorPane === 'relation' && !blocked && !!originPick} onOrigin={pickOrigin} selectedFaces={mateHighlights.faces} selectedEdges={mateHighlights.edges} scene={displayScene} disabled={busy} view={view} selectedPath={preview ? [] : bomSelectedPath.length ? bomSelectedPath : selected ? [...selectedScope.path, selected.id] : []} pickingFaces={inspectorPane === 'relation' && !blocked && matePick?.kind === 'face'} pickingEdges={inspectorPane === 'relation' && !blocked && matePick?.kind === 'edge'} onFace={pickMate} onEdge={pickMate} onComponent={component => {
         if (!fresh(renderedTicket) || operation.current || pending.current || mateDraftRef.current || !scene || !configuredUiSceneMatches(scene, current.current, epoch.current)) return
         const id = configuredComponentPick(displayScene, component, selectedScope.path)
         if (!id || !selectedScope.occurrences.some(row => row.id === id && !row.suppressed)) return

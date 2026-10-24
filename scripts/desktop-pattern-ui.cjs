@@ -793,7 +793,7 @@ async function runInElectron() {
     return window.webContents.executeJavaScript(source, false);
   };
   const pointer = async (type, point, buttons = 0) => {
-    check((freshSketch || configuredPicking || assembly || rackPinion || direction || tangent || cylinderTangent || sphereTangent || limitDistance || limitAngle || directedAngle || width || symmetryPicking || hingePicking || hingeLimitsPicking) && !window.isVisible() && window.webContents.debugger.isAttached()
+    check((originAxes || freshSketch || configuredPicking || assembly || rackPinion || direction || tangent || cylinderTangent || sphereTangent || limitDistance || limitAngle || directedAngle || width || symmetry || symmetryPicking || hingePicking || hingeLimitsPicking) && !window.isVisible() && window.webContents.debugger.isAttached()
       && ['mouseMoved', 'mousePressed', 'mouseReleased'].includes(type)
       && Number.isFinite(point.x) && Number.isFinite(point.y) && point.x >= 0 && point.y >= 0
       && [0, 1].includes(buttons), 'Expected actual pointer input in the hidden test-owned assembly window.');
@@ -813,11 +813,11 @@ async function runInElectron() {
     });
   };
   const asideWheel = async (point, deltaY) => {
-    check(configuredPicking && !window.isVisible() && window.webContents.debugger.isAttached()
+    check((configuredPicking || originAxes) && !window.isVisible() && window.webContents.debugger.isAttached()
       && Number.isFinite(point.x) && Number.isFinite(point.y) && point.x >= 0 && point.y >= 0
       && Number.isFinite(deltaY) && deltaY !== 0 && Math.abs(deltaY) <= 240,
-    'Expected bounded wheel input over the hidden configured inspector.');
-    check(await evaluate(`(() => { const a=document.querySelector('.configured-assembly-layout > aside');
+    'Expected bounded wheel input over the hidden assembly inspector.');
+    check(await evaluate(`(() => { const a=document.querySelector(${encodeJavaScriptString(originAxes === 'standard' ? '.assembly-layout > aside' : '.configured-assembly-layout > aside')});
       if(!a)return false; const r=a.getBoundingClientRect(),x=${point.x},y=${point.y};
       return x>r.left&&x<r.right&&y>r.top&&y<r.bottom&&x<innerWidth&&y<innerHeight&&a.contains(document.elementFromPoint(x,y)); })()`),
     'Inspector wheel target must be a currently visible inspector point.');
@@ -986,7 +986,7 @@ async function runInElectron() {
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
     : originAxes
-    ? require('./desktop-assembly-origin-axes-flow.cjs')({ configured: originAxes === 'configured', expected, input, output, evaluate, observe, waitFor, click, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
+    ? require('./desktop-assembly-origin-axes-flow.cjs')({ configured: originAxes === 'configured', expected, input, output, evaluate, observe, waitFor, click, pointer, asideWheel, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : configuredCompound
     ? require('./desktop-assembly-configured-compound-flow.cjs')({ family: configuredCompound, profileKind: activeScenario.profileKind, expected, input, output, evaluate, observe, waitFor, click, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, completePendingSave, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : configuredMechanical

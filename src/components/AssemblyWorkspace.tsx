@@ -76,6 +76,9 @@ import AssemblyMovementPanel, { assemblyMotionMatches } from './AssemblyMovement
 import AssemblyTranslationPanel, { assemblyTranslationMatches } from './AssemblyTranslationPanel'
 import AssemblyDragProjectionPanel, { assemblyDragProjectionMatches, type AssemblyDragProjection } from './AssemblyDragProjectionPanel'
 import AssemblyViewport, { assemblyBodyKey, assemblyFaceKey, assemblyEdgeKey } from './AssemblyViewport'
+import { evaluateAssemblyConfiguration } from '../model/assemblyConfigurationCore'
+import { buildAssemblyOriginDisplay, type AssemblyOriginReference } from './assemblyOriginPicking'
+import { standardAssemblyOriginKinds, standardAssemblyOriginPick, type StandardAssemblyOriginPickTicket } from './assemblyStandardOriginPicking'
 import { AssemblyShellHeader, AssemblyCommandGroup } from './AssemblyCommandManager'
 import './assembly.css'
 import { parseCadDocument as parseSavedCadDocument } from '../model/cadDocument'
@@ -314,7 +317,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   const [symmetryReferences,setSymmetryReferences]=useState<SymmetryUiReferences>([null,null,null]), [symmetryFamily,setSymmetryFamily]=useState<SymmetryUiFamily>('point'), [symmetryAlignment,setSymmetryAlignment]=useState<'aligned'|'opposed'|''>(''), [editingSymmetryId,setEditingSymmetryId]=useState<string|null>(null)
   const [symmetryPicking, setSymmetryPickingState] = useState<SymmetryPickTicket | null>(null), symmetryPickingRef = useRef<SymmetryPickTicket | null>(null)
   const setSymmetryPicking = (ticket: SymmetryPickTicket | null) => { symmetryPickingRef.current = ticket; setSymmetryPickingState(ticket) }
-  const clearSymmetryPicking = () => { setSymmetryPicking(null); setPickingFaces(false); setPickingLinearEdges(false) }
+  const clearSymmetryPicking = () => { stopOriginPicking(); setSymmetryPicking(null); setPickingFaces(false); setPickingLinearEdges(false) }
   const [hingeReferences, updateHingeReferences] = useState<HingeUiReferences>([null,null,null,null]), hingeReferencesRef = useRef(hingeReferences)
   const setHingeReferences = (refs: HingeUiReferences) => { hingeReferencesRef.current = refs; updateHingeReferences(refs) }
   const [editingHingeId, setEditingHingeId] = useState<string | null>(null), [hingeAlignment, setHingeAlignment] = useState<'aligned' | 'opposed' | ''>('')
@@ -328,6 +331,11 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   const [widthBranch,setWidthBranch] = useState<WidthUiBranch | ''>(''), [tabBranch,setTabBranch] = useState<WidthUiBranch | ''>(''), [widthAlignment,setWidthAlignment] = useState<'aligned'|'opposed'|''>('')
   const [references, setReferences] = useState<[AssemblyGeometryReference | null, AssemblyGeometryReference | null]>([null, null]), [endpointSlot, setEndpointSlot] = useState<0 | 1>(0)
   const [pickingFaces, setPickingFaces] = useState(false), [pickingLinearEdges, setPickingLinearEdges] = useState(false)
+  const [showOriginAxes, setShowOriginAxes] = useState(false), [showOriginPlanes, setShowOriginPlanes] = useState(false)
+  const [originOwner, setOriginOwner] = useState<'scope' | 'selected' | 'both'>('scope')
+  const [originPicking, setOriginPicking] = useState(false), originPickingRef = useRef(false)
+  const originPickContext = useRef<StandardAssemblyOriginPickTicket | null>(null)
+  const stopOriginPicking = () => { originPickingRef.current = false; originPickContext.current = null; setOriginPicking(false) }
   const [editingCircularPathId,setEditingCircularPathId]=useState<string|null>(null),[circularPathReset,setCircularPathReset]=useState(0)
   const circularPathContext=useRef<{signature:string;scope:string;generation:number;sceneId:string|null;family:string;epoch:number}|null>(null)
   const circularPathEpoch=useRef({key:'',value:0})
@@ -1644,6 +1652,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     const row = availableComponents.find(value => JSON.stringify(value.path) === datumComponent)
     const component = datumComponent === 'scope' ? null : row ? { occurrencePath: row.path.slice(scopePath.length), definition: { ...row.occurrence.definition } } : undefined
     if (component === undefined) { notify('El componente del plano ya no está disponible.', true); return }
+    stopOriginPicking()
     if (isLimitAngle) setLimitAngleReferences(values => { const next: typeof values = [...values]; next[endpointSlot] = { kind: 'principal-plane', component, plane: datumPlane }; return next })
     else if (isLimitDistance) setLimitReferences(values => { const next: typeof values = [...values]; next[endpointSlot] = { kind: 'principal-plane', component, plane: datumPlane }; return next })
     else if (mateType === 'plane-sphere-tangent') setSphereReferences(values => { const next: typeof values = [...values]; next[endpointSlot] = { kind: 'principal-plane', component, plane: datumPlane }; return next })
@@ -1656,6 +1665,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     const row = availableComponents.find(value => JSON.stringify(value.path) === datumComponent)
     const component = datumComponent === 'scope' ? null : row ? { occurrencePath: row.path.slice(scopePath.length), definition: { ...row.occurrence.definition } } : undefined
     if (component === undefined) { notify('El componente del eje ya no está disponible.', true); return }
+    stopOriginPicking()
     const reference = { kind: 'principal-axis' as const, component, axis: datumAxis }
     setPickingFaces(false); setPickingLinearEdges(false)
     if (isLimitAngle) setLimitAngleReferences(values => { const next: typeof values = [...values]; next[endpointSlot] = reference; return next })
@@ -1663,6 +1673,21 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     setEndpointSlot(endpointSlot === 0 ? 1 : 0)
   }
   const displayed = draft ?? documentUpdate?.review.document ?? sourceUpdate?.document ?? replacementReview?.review.document ?? committed
+  // A solved preview can move owners without changing the editable draft.
+  // Its overlays must use the document that produced that displayed scene.
+  const originDocument = preview?.reply.document ?? displayed
+  const originEvaluation = useMemo(() => {
+    if (!showOriginAxes && !showOriginPlanes) return null
+    try { return evaluateAssemblyConfiguration(originDocument, [], null) } catch { return null }
+  }, [originDocument, showOriginAxes, showOriginPlanes])
+  const originDisplays = useMemo(() => {
+    if (!originEvaluation || !scene || busy || sourceUpdate || documentUpdate || replacementReview || streamProjection) return []
+    if (preview ? scene !== preview.reply.scene : draft || sceneSignature.current !== serialized || confirmedScene.current?.scene !== scene) return []
+    const kinds = { axes: showOriginAxes, planes: showOriginPlanes }
+    const scopeOrigins = originOwner !== 'selected' ? buildAssemblyOriginDisplay(originEvaluation, scopePath, null, kinds) : []
+    const selectedOrigins = originOwner !== 'scope' && selectedPath.length ? buildAssemblyOriginDisplay(originEvaluation, scopePath, selectedPath, kinds) : []
+    return [...scopeOrigins, ...selectedOrigins]
+  }, [originEvaluation, scene, busy, sourceUpdate, documentUpdate, replacementReview, streamProjection, preview, draft, serialized, scopePath, selectedPath, originOwner, showOriginAxes, showOriginPlanes])
   const faceChoices = scene?.bodies.filter(body => body.visible).flatMap(body => body.faces).filter(face => isLimitDistance ? scopedAssemblyPlaneFace(face, scopePath) : isSphereTangent ? scopedAssemblySphereTangentFace(face, scopePath, mateType) : isCylinderTangent ? scopedAssemblyCylinderSurface(face, scopePath) : scopedAssemblyFace(face, scopePath)) ?? []
   const limitFaceMeshes = isLimitDistance ? faceChoices.filter(face => limitEndpoints.some(reference => reference && JSON.stringify(reference) === JSON.stringify(scopedAssemblyPlaneFace(face, scopePath)))) : []
   const edgeChoices = isDirection || isLimitAngle ? scene?.bodies.filter(body => body.visible).flatMap(body => body.edges ?? []).filter(edge => scopedAssemblyEdge(edge, scopePath)) ?? [] : []
@@ -1802,6 +1827,45 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   }
   const relationReferences = isLimitAngle ? limitAngleEndpoints : isLimitDistance ? limitEndpoints : isSphereTangent ? sphereEndpoints : isCylinderTangent ? cylinderEndpoints : isTangent ? tangentEndpoints : isDirection ? directionReferences : references
   const referenceBlocked = editingBlocked || !!preview || replaceDialog || standardPreviewFamily && referenceEditing
+  const originKinds = standardAssemblyOriginKinds(mateType)
+  const originBlocked = referenceBlocked || !!draft || dragActive || !!dragSession.current || sceneSignature.current !== serialized
+    || confirmedScene.current?.signature !== serialized || confirmedScene.current?.scene !== scene
+    || !originDisplays.some(value => value.reference.kind === 'principal-axis' ? originKinds.axes : originKinds.planes)
+  const activeOriginPicking = originPicking && managerTab === 'relations' && !originBlocked
+    && !pickingFaces && !pickingLinearEdges && !symmetryPicking && !hingePicking && !widthPicking && !rackPicking && dragMode === 'off'
+  const originTicket: StandardAssemblyOriginPickTicket = { signature: serialized, scope: JSON.stringify(scopePath), generation: generation.current,
+    sceneId: scene?.sceneId ?? null, family: mateType, slot: endpointSlot, armed: activeOriginPicking, blocked: originBlocked }
+  originPickContext.current = originTicket
+  const originRoleReferences = isHinge ? hingeReferences : isSymmetry ? symmetryReferences : isWidth ? widthReferences : originKinds.axes || originKinds.planes ? relationReferences : []
+  const selectedOriginReferences = originRoleReferences.filter((reference): reference is AssemblyOriginReference => !!reference && (reference.kind === 'principal-axis' || reference.kind === 'principal-plane'))
+  useEffect(() => { stopOriginPicking() }, [serialized, scopePath, selectedPath, mateType, endpointSlot, originOwner, showOriginAxes, showOriginPlanes, busy, preview, draft])
+  useEffect(() => {
+    if (pickingFaces || pickingLinearEdges || symmetryPicking || hingePicking || widthPicking || rackPicking || dragMode !== 'off') stopOriginPicking()
+  }, [pickingFaces, pickingLinearEdges, symmetryPicking, hingePicking, widthPicking, rackPicking, dragMode])
+  const beginOriginPick = () => {
+    if (originBlocked || operation.current || hasStaging() || currentPreview.current || !mounted.current) return
+    if (activeOriginPicking) { stopOriginPicking(); return }
+    openManager('relations')
+    clearSymmetryPicking(); setHingePicking(null); setWidthPicking(null); setRackPicking(null); setDragMode('off')
+    originPickingRef.current = true; setOriginPicking(true)
+  }
+  const pickOrigin = (incoming: AssemblyOriginReference | null) => {
+    if (!originPickingRef.current || managerTabRef.current !== 'relations' || !mounted.current || operation.current || hasStaging()
+      || currentPreview.current || replaceDialog || dragSession.current || dragging.current
+      || originTicket.signature !== serializeAssemblyDocument(current.current) || originTicket.generation !== generation.current
+      || originTicket.scope !== currentFileScope.current || originTicket.sceneId !== confirmedScene.current?.scene.sceneId
+      || confirmedScene.current?.signature !== originTicket.signature || sceneSignature.current !== originTicket.signature) return
+    const reference = standardAssemblyOriginPick(incoming, originDisplays, originTicket, originPickContext.current)
+    if (!reference) return
+    stopOriginPicking()
+    if (isLimitAngle) setLimitAngleReferences(values => { const next: typeof values = [...values]; next[endpointSlot] = reference; return next })
+    else if (reference.kind === 'principal-plane' && isLimitDistance) setLimitReferences(values => { const next: typeof values = [...values]; next[endpointSlot] = reference; return next })
+    else if (reference.kind === 'principal-plane' && isTangent) setTangentReferences(values => { const next: typeof values = [...values]; next[endpointSlot] = reference; return next })
+    else if (reference.kind === 'principal-plane' && mateType === 'plane-sphere-tangent') setSphereReferences(values => { const next: typeof values = [...values]; next[endpointSlot] = reference; return next })
+    else setReferences(values => { const next: typeof values = [...values]; next[endpointSlot] = reference; return next })
+    setEndpointSlot(endpointSlot === 0 ? 1 : 0)
+    notify('Origen seleccionado en referencia ' + (endpointSlot + 1) + '. Resuelve para verificar la relación.')
+  }
   const symmetryPickingBlocked = symmetryBlocked || dragActive || !!dragSession.current || sceneSignature.current !== serialized || confirmedScene.current?.signature !== serialized
   const activeSymmetryPick = currentSymmetryPick(symmetryPicking, { signature: serialized, scope: JSON.stringify(scopePath), generation: generation.current, sceneId: confirmedScene.current?.scene.sceneId ?? null, family: symmetryFamily, blocked: !isSymmetry || symmetryPickingBlocked }) ? symmetryPicking : null
   const toggleSymmetryPicking = (slot: SymmetryPickSlot, lineProducer: SymmetryPickTicket['lineProducer'] = null) => {
@@ -2113,7 +2177,20 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
         <div className="assembly-drag-tools"><button aria-label="Arrastrar posición" aria-pressed={dragMode === 'translate'} disabled={editingBlocked || !!draft || !!preview || replaceDialog || !eligibleDragFrame} onClick={() => { clearSymmetryPicking(); setDragMode('translate') }}>Arrastrar posición</button>
         <button aria-label="Arrastrar giro" aria-pressed={dragMode === 'rotate'} disabled={editingBlocked || !!draft || !!preview || replaceDialog || !eligibleDragFrame} onClick={() => { clearSymmetryPicking(); setDragMode('rotate') }}>Arrastrar giro</button>
         <button aria-label="Desactivar manipulador" disabled={!!dragSession.current || dragMode === 'off'} onClick={() => setDragMode('off')}>Desactivar manipulador</button></div></div>
+      <div className="assembly-origin-tools" role="group" aria-label="Orígenes visibles del ensamblaje">
+        <label><input type="checkbox" checked={showOriginAxes} onChange={event => { stopOriginPicking(); setShowOriginAxes(event.target.checked) }} />Mostrar ejes</label>
+        <label><input type="checkbox" checked={showOriginPlanes} onChange={event => { stopOriginPicking(); setShowOriginPlanes(event.target.checked) }} />Mostrar planos</label>
+        <select aria-label="Orígenes visibles de" value={originOwner} onChange={event => { stopOriginPicking(); setOriginOwner(event.target.value as typeof originOwner) }}>
+          <option value="scope">Ámbito actual</option><option value="selected">Componente seleccionado</option><option value="both">Ambos</option>
+        </select>
+        <button aria-label="Seleccionar orígenes" aria-pressed={activeOriginPicking} disabled={originBlocked} onClick={beginOriginPick}>
+          {activeOriginPicking ? 'Cancelar selección de origen' : 'Seleccionar origen'}
+        </button>
+        {activeOriginPicking && <span role="status">Referencia {endpointSlot + 1}: selecciona {originKinds.axes && originKinds.planes ? 'un eje o plano' : originKinds.axes ? 'un eje' : 'un plano'} visible</span>}
+        {originOwner !== 'scope' && !originDisplays.some(value => value.reference.component) && (showOriginAxes || showOriginPlanes) && <span>Selecciona un componente visible dentro del ámbito.</span>}
+      </div>
       <AssemblyViewport scene={scene} view={view} selectedPath={selectedPath} selectedFaces={rackSelectedFaces} selectedEdges={rackSelectedEdges} selectedAnalysisPair={selectedAnalysisPair}
+        originReferences={originDisplays} selectedOrigins={selectedOriginReferences} pickingOrigins={activeOriginPicking} onOrigin={pickOrigin}
         pickingFaces={isSymmetry ? !!activeSymmetryPick && activeSymmetryPick.producer !== 'vertex' && activeSymmetryPick.producer !== 'line-edge' : pickingFaces || !!rackPicking && rackPicking.kind !== 'rack-edge'} pickingEdges={isSymmetry ? activeSymmetryPick?.producer === 'line-edge' : pickingLinearEdges || rackPicking?.kind === 'rack-edge'} disabled={editingBlocked || replaceDialog || !!preview && !rackPicking}
         drag={dragMode !== 'off' && !activeSymmetryPick && !pickingFaces && !pickingLinearEdges && !sourceUpdate && !documentUpdate && !replacementReview && !preview && !draft && !replaceDialog && (dragAnchor.current ?? eligibleDragFrame)
           ? { frame: (dragAnchor.current ?? eligibleDragFrame)!, mode: dragMode, active: dragActive } : undefined}

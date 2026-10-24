@@ -11,9 +11,9 @@ export const assemblyVertexKey = (vertex: AssemblySceneVertex): string => JSON.s
 ])
 const finite3 = (value: readonly number[]) => value.length === 3 && value.every(Number.isFinite)
 
-export function assemblyReferencePickMode(value: { pickingVertices?: boolean; pickingEdges?: boolean; pickingFaces?: boolean }): 'vertex' | 'edge' | 'face' | 'conflict' | null {
-  if (Number(!!value.pickingVertices) + Number(!!value.pickingEdges) + Number(!!value.pickingFaces) > 1) return 'conflict'
-  return value.pickingVertices ? 'vertex' : value.pickingEdges ? 'edge' : value.pickingFaces ? 'face' : null
+export function assemblyReferencePickMode(value: { pickingVertices?: boolean; pickingEdges?: boolean; pickingFaces?: boolean; pickingOrigins?: boolean }): 'vertex' | 'edge' | 'face' | 'origin' | 'conflict' | null {
+  if (Number(!!value.pickingVertices) + Number(!!value.pickingEdges) + Number(!!value.pickingFaces) + Number(!!value.pickingOrigins) > 1) return 'conflict'
+  return value.pickingOrigins ? 'origin' : value.pickingVertices ? 'vertex' : value.pickingEdges ? 'edge' : value.pickingFaces ? 'face' : null
 }
 
 /** Bounded display markers rebind selection identities to the current catalog. */

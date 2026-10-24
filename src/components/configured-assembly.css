@@ -81,6 +81,17 @@
 .configured-property-actions span { font-size:10px; color:#677b8d; }
 .configured-mate-list { border-top:0; margin-top:0; padding-top:0; }
 .configured-mate-editor { padding:0; background:transparent; border:0; border-radius:0; }
+.configured-origin-controls { margin:8px 0 12px; padding:8px; border:1px solid #cad8e4; background:#f3f7fb; }
+.configured-origin-controls h3 { margin:0 0 5px; }
+.configured-origin-visibility,.configured-origin-roles { display:flex; flex-wrap:wrap; gap:6px; }
+.configured-origin-visibility label { margin:2px 8px 2px 0; }
+.configured-origin-controls label { margin:5px 0; }
+.configured-origin-roles button { flex:1; min-width:85px; }
+.configured-origin-roles button[aria-pressed=true] { background:#dcecf8; border-color:#87b6d7; }
+.configured-assembly-layout > main { position: relative; }
+.configured-assembly-layout > main > [aria-label="Selección de origen en vista configurada"] { position: absolute; z-index: 4; top: 44px; left: 12px; right: 12px; margin: 0; padding: 6px 8px; background: #f4faffed; border: 1px solid #c6d6e2; font-size: 11px; }
+.configured-origin-controls small { display:block; margin-top:5px; }
+.configured-assembly-workspace [aria-label="Selección de origen en vista configurada"] { margin:0; padding:7px 12px; background:#eaf3ff; color:#225b85; }
 .configured-assembly-workspace [aria-label="Selección de referencia en vista configurada"] { margin:0; padding:7px 12px; background:#eaf3ff; color:#225b85; }
 @media (max-width:1180px),(max-height:760px) {
   .configured-assembly-layout { grid-template-columns:270px minmax(0,1fr); }
