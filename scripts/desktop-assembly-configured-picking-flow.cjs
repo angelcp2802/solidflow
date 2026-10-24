@@ -2,11 +2,38 @@
 const fs=require('node:fs/promises');
 const {encodeJavaScriptString:quote}=require('./desktop-ui-source.cjs');
 module.exports=function configuredPicking(c){
- const {expected,input,output,evaluate,observe,waitFor,click,pointer,capture,checks,check,canonical,digest,ipc,dialogCounts,consoleErrors,failedRequests,initialReadyMs}=c;
+ const {expected,input,output,evaluate,observe,waitFor,click,pointer,asideWheel,capture,checks,check,canonical,digest,ipc,dialogCounts,consoleErrors,failedRequests,initialReadyMs}=c;
  const ROOT='.configured-assembly-workspace',NAV='[aria-label="Archivo del ensamblaje configurado"]',FORM='[aria-label="Editar relación del estado"]',ACTION='preview-configured-assembly-relation-edit',gestures=[],phases=[];
  const page=(fn,...args)=>evaluate('('+fn.toString()+')('+args.map(v=>'JSON.parse('+quote(JSON.stringify(v))+')').join(',')+')');
  const near=(a,b,t,label)=>check(Number.isFinite(a)&&Math.abs(a-b)<=t,label+': '+a+' expected '+b);
  async function button(text,parent=ROOT){await page((text,parent)=>{const a=[...document.querySelectorAll(parent+' button')].filter(b=>b.textContent.trim()===text);if(a.length!==1||a[0].disabled)throw Error('One enabled button required: '+text);a[0].click();},text,parent);}
+ async function actualControl(selector,text=null,allowAsideWheel=false){
+  const inspect=()=>page((selector,text)=>{
+   const matches=[...document.querySelectorAll(selector)].filter(e=>text===null||e.textContent.trim()===text);
+   if(matches.length!==1||matches[0].disabled)throw Error('One enabled actual control required: '+selector);
+   const e=matches[0],r=e.getBoundingClientRect(),aside=e.closest('[aria-label="Inspector del ensamblaje configurado"]'),container=aside??e.closest('nav'),a=container?.getBoundingClientRect();
+   const top=Math.max(0,a?a.top+container.clientTop:0),bottom=Math.min(innerHeight,a?a.top+container.clientTop+container.clientHeight:innerHeight);
+   const x=r.x+r.width/2,y=r.y+r.height/2,hit=document.elementFromPoint(x,y);
+   return {point:{x,y},visible:r.width>0&&r.height>0&&r.left>=Math.max(0,a?.left??0)&&r.right<=Math.min(innerWidth,a?.right??innerWidth)&&r.top>=top&&r.bottom<=bottom&&!!hit&&(hit===e||e.contains(hit)),
+    aside:!!aside,scrollTop:aside?.scrollTop??0,delta:r.top<top?-200:200,wheelPoint:aside?{x:a.left+Math.min(100,a.width/2),y:(top+bottom)/2}:null,rect:{top:r.top,bottom:r.bottom},clip:{top,bottom}};
+  },selector,text);
+  let state=await inspect();
+  for(let step=0;!state.visible&&allowAsideWheel&&state.aside&&step<24;step++){
+   check(typeof asideWheel==='function','Bounded actual inspector wheel required');const old=state.scrollTop;
+   await asideWheel(state.wheelPoint,state.delta);await waitFor('actual inspector wheel movement',async()=>{const next=await inspect();return next.scrollTop!==old||next.visible;});state=await inspect();
+  }
+  check(state.visible,'Control is physically visible and unobscured: '+JSON.stringify({selector,text,...state}));
+  await pointer('mouseMoved',state.point);await pointer('mousePressed',state.point,1);await pointer('mouseReleased',state.point,0);
+  gestures.push({kind:'control',selector,text,point:state.point,asideScrollTop:state.scrollTop});
+ }
+ async function revealedInspector(){
+  const result=await waitFor('application-owned inspector reveal and focus',()=>page(()=>{
+   const aside=document.querySelector('[aria-label="Inspector del ensamblaje configurado"]'),form=document.querySelector('#configured-relation-inspector'),field=form?.querySelector('input:not(:disabled),select:not(:disabled),button:not(:disabled)'),heading=form?.querySelector('h2,h3');
+   if(!aside||!field||!heading||document.activeElement!==field)return false;const a=aside.getBoundingClientRect(),r=field.getBoundingClientRect(),h=heading.getBoundingClientRect(),hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);
+   const visible=b=>b.width>0&&b.height>0&&b.top>=Math.max(0,a.top+aside.clientTop)&&b.bottom<=Math.min(innerHeight,a.top+aside.clientTop+aside.clientHeight)&&b.left>=a.left&&b.right<=a.right;
+   return visible(r)&&visible(h)&&(hit===field||field.contains(hit))?{scrollTop:aside.scrollTop,field:field.getAttribute('aria-label'),heading:heading.textContent,headingTop:h.top,top:r.top,bottom:r.bottom}:false;
+  }));gestures.push({kind:'application-inspector-reveal',...result});
+ }
  async function control(label,value){await page((label,value)=>{const e=document.querySelector('[aria-label="'+label+'"]');if(!e||e.disabled)throw Error('Enabled control required: '+label);Object.getOwnPropertyDescriptor(e instanceof HTMLSelectElement?HTMLSelectElement.prototype:HTMLInputElement.prototype,'value').set.call(e,value);e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));},label,value);}
  async function response(after,action){return waitFor('actual '+action,async()=>{const s=await observe();check(!s.workerErrors.length,'Worker transport healthy');const row=s.assemblies.filter(r=>r.serial>after&&r.action===action&&r.response).at(-1);if(!row)return false;check(row.response.ok,row.response.error||'Native request failed');return row;});}
  async function recovery(doc){await waitFor('exact confirmed v3 recovery',async()=>{const raw=await page(()=>localStorage.getItem('solidflow.autosave'));return raw&&canonical(JSON.parse(raw))===canonical(doc)&&await page(root=>document.querySelector(root)?.getAttribute('aria-busy')==='false',ROOT);});}
@@ -20,7 +47,7 @@ module.exports=function configuredPicking(c){
  }
  async function top(){await button('Superior','[aria-label="Vistas del ensamblaje configurado"]');await page(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));}
  async function point(world,z){
-  const r=await page(()=>{const r=document.querySelector('.configured-assembly-view canvas')?.getBoundingClientRect();if(!r||!r.width||!r.height)throw Error('Visible configured canvas required');return {x:r.x,y:r.y,width:r.width,height:r.height};});
+  const r=await page(()=>{const canvas=document.querySelector('.configured-assembly-view canvas'),r=canvas?.getBoundingClientRect();if(!r||!r.width||!r.height||r.left<0||r.right>innerWidth||r.top<0||r.bottom>innerHeight)throw Error('Entire configured canvas must remain visible');return {x:r.x,y:r.y,width:r.width,height:r.height};});
   // Literal original envelope and public top-view convention: up projects +Y,
   // camera direction (0,-0.0001,1). No camera state or selected geometry injection.
   const span=Math.hypot(20,4,z+4),pixels=r.height/(1.3*span),d=Math.hypot(1,.0001);
@@ -30,7 +57,7 @@ module.exports=function configuredPicking(c){
  async function component(id,z){await top();const before=(await observe()).serial,p=await press([id==='A'?-8:8,0,id==='A'?4:z+4],z);await waitFor('actual component '+id,()=>page(id=>document.querySelector('[aria-label="Ocurrencia configurada"]')?.value===id,id));check((await observe()).serial===before,'Component selection sends no worker solve');gestures.push({kind:'component',id,p});}
  async function pick(slot,kind,id,z,scene){
   const label='Seleccionar Referencia '+slot+' por '+(kind==='face'?'cara':'arista')+' en vista configurada';
-  await page(label=>{const b=document.querySelector('button[aria-label="'+label+'"]');if(!b||b.disabled)throw Error('Pick role unavailable');b.click();},label);
+  await actualControl('button[aria-label="'+label+'"]',null,true);
   await waitFor('actual role picking '+kind,()=>page(kind=>document.querySelector('[aria-label="Visor 3D del ensamblaje"]')?.getAttribute('data-reference-picking')===kind,kind));
   await waitFor('visible active role feedback',()=>page(slot=>{const e=document.querySelector('[aria-label="Selección de referencia en vista configurada"]');return e&&e.textContent.includes('Referencia '+slot);},slot));
   await top();const before=(await observe()).serial,p=await press([id==='A'?-8:8,kind==='face'?0:-2,id==='A'?4:z+4],z);
@@ -42,7 +69,7 @@ module.exports=function configuredPicking(c){
   else{check(support.kind==='line','Material LINE role');near(Math.abs(support.axis[0]),1,1e-8,'Picked X LINE');near(support.point[1],-2,1e-6,'Picked front LINE');near(support.point[2],id==='A'?4:z+4,1e-6,'Picked top LINE');}
   check((await observe()).serial===before,'Role selection sends no worker solve');gestures.push({kind,slot,id,p,reference:ref});return ref;
  }
- async function draft(type,name){await button('Nueva relación configurada','[aria-label="Relaciones del estado configurado"]');await control('Tipo de relación configurada',type);await control('Nombre de relación configurada',name);}
+ async function draft(type,name){await actualControl('[aria-label="Comandos del ensamblaje configurado"] button','Nueva relación');await revealedInspector();await control('Tipo de relación configurada',type);await control('Nombre de relación configurada',name);}
  async function preview(base,z,refs,type){const before=await observe();await button('Vista previa de relación configurada',FORM);const row=await response(before.serial,ACTION),v=row.response.value,m=row.edit.change.mate;check(canonical(row.current.document)===canonical(base)&&row.edit.configuration==='demo'&&row.edit.scopePath.length===0,'Exact named root preview context');check(row.edit.change.kind==='add'&&m.type===type&&canonical(m.first)===canonical(refs[0])&&canonical(m.second)===canonical(refs[1]),'Exact pointer-authored endpoints reach native');if(type==='distance')check(m.distance===2,'Literal signed distance two');check(v.kind==='configured-assembly-preview'&&v.hasToken&&v.verification.accepted&&v.verification.status==='verified','Verified private proposal');geometry(v.scene,v.document,z,'preview-'+type);await recovery(base);return v.document;}
  async function apply(doc,z){const before=await observe();await button('Aplicar configuración',NAV);const a=await response(before.serial,'apply-configured-assembly');check(canonical(a.response.value.document)===canonical(doc),'Apply exact full proposal');const b=await response(before.serial,'build-configured-assembly');const scene=geometry(b.response.value,doc,z,'apply');await recovery(doc);return scene;}
  async function history(label,doc,z){const before=await observe();await button(label,NAV);const row=await response(before.serial,'build-configured-assembly');check(canonical(row.current.document)===canonical(doc),'Exact full history');geometry(row.response.value,doc,z,label);await recovery(doc);}
@@ -58,10 +85,10 @@ module.exports=function configuredPicking(c){
   const saved=await fs.readFile(output);before=await observe();await button('Abrir',NAV);row=await response(before.serial,'build-configured-assembly');check(canonical(row.current.document)===canonical(current),'Reopen exact authored v3');geometry(row.response.value,current,2,'reopen');await recovery(current);await component('B',2);
   // Reopen the saved distance form for visual review of persistent face marks.
   // This display-only editor does not create a proposal or alter the saved file.
-  before=await observe();await click('button[aria-label="Editar relación configurada Pointer top distance"]');
+  before=await observe();await actualControl('[aria-label="Comandos del ensamblaje configurado"] button','Relaciones');await actualControl('button[aria-label="Editar relación configurada Pointer top distance"]',null,true);
   await waitFor('saved distance form ready',()=>page(form=>!!document.querySelector(form),FORM));
   await button('Isométrica','[aria-label="Vistas del ensamblaje configurado"]');
-  await page(form=>document.querySelector(form).scrollIntoView({block:'start'}),FORM);
+  await revealedInspector();
   await recovery(current);check((await observe()).serial===before.serial,'Opening saved references is display-only');
   check((await fs.readFile(input)).equals(inputBytes),'Original fixture unchanged');check(dialogCounts().opens===2&&dialogCounts().saves===2,'Exact original/reopen and canceled/successful Save dialogs');check(!consoleErrors.length&&!failedRequests.length,'Healthy renderer/resources');checks.push({savedSha256:digest(saved),originalSha256:digest(inputBytes),gestures,phases,limits:'Original two cubes, named root, top planar distance and X LINE parallel. Actual CDP geometry picks; form controls scripted. Final capture displays the reopened saved distance editor. No nested/suppressed picking or general platform claim.'});await capture(current);
   await button('Cerrar edición de relación configurada',FORM);

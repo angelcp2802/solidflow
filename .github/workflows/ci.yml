@@ -605,6 +605,14 @@ jobs:
         if: matrix.batch == 'persistence' && runner.os != 'Linux'
         run: npm run test:desktop:assembly-configured-picking
 
+      - name: Test compact configured command and pointer selection (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-configured-picking-compact
+
+      - name: Test compact configured command and pointer selection (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-configured-picking-compact
+
 
   configured-mechanical:
     name: Configured relation authoring (${{ matrix.os }}, Node 24)

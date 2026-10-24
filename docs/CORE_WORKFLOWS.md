@@ -95,6 +95,24 @@ Its general relation form now has explicit role buttons to select a current
 face or LINE edge. Clicking a visible configured component selects its
 immediate owner in the current scope.
 
+The configured workspace's upper command bar provides **Insertar componente**,
+**Reutilizar componente**, **Nueva relación**, **Relaciones** and
+**Configuraciones**. Insertion and reuse reveal their fields in the left
+inspector; New relation opens its actual editor. The other commands reveal the
+relation list or root configuration. Existing file actions, view controls and
+sidebar actions remain available. Opening an editor or explicitly selecting a
+component reveals the relevant inspector section and moves keyboard focus;
+typing, picking references and unrelated rebuilds do not repeatedly scroll it.
+Section headings and context remain visible, with a focusable heading fallback
+when a field is disabled. These shortcuts preserve the existing preview/Apply
+guards and selected scope.
+
+`npm run test:desktop:assembly-configured-picking-compact` runs the original
+pointer workflow at 1040 × 700, including upper-command access and inspector
+visibility/focus. Normal and compact cases have Windows execution evidence;
+see [validation](VALIDATION.md) for the exact runs. This bounded layout and
+two-cube workflow do not establish arbitrary screen-size or platform coverage.
+
 General face/LINE relation references retain their highlight after selection.
 While a role is being picked, an instruction beside the viewport identifies
 the reference, scope and state, with a cancellation button. Highlights resolve

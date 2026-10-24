@@ -149,3 +149,18 @@ it('binds scene display to complete normalized source/catalog/selector/generatio
   const display = configuredUiDisplayScene(scene); display.warnings.push('changed')
   expect(scene.scene.warnings).toEqual([]); expect(display).not.toBe(scene.scene)
 })
+
+it('exposes authoring shortcuts with mounted inspector targets and preserves separate file/view navigation', () => {
+  const document = fixture(), html = renderToStaticMarkup(<ConfiguredAssemblyWorkspace initialDocument={document} onOpenDocument={() => undefined} />)
+  for (const label of ['Comandos del ensamblaje configurado', 'Inspector del ensamblaje configurado', 'Archivo del ensamblaje configurado', 'Vistas del ensamblaje configurado']) expect(html).toContain('aria-label="' + label + '"')
+  for (const id of ['configured-component-name', 'configured-component-definition', 'configured-relation-inspector', 'configured-relations', 'configured-root-state']) {
+    expect(html).toContain('aria-controls="' + id + '"'); expect(html).toContain('id="' + id + '"')
+  }
+  for (const label of ['Insertar componente', 'Reutilizar componente', 'Nueva relación']) expect(html).toMatch(new RegExp('<button[^>]*disabled=""[^>]*>' + label + '</button>'))
+  for (const id of ['configured-component-heading', 'configured-reuse-heading', 'configured-root-heading']) {
+    expect(html).toContain(`data-inspector-anchor="${id}"`)
+    expect(html).toContain(`id="${id}" tabindex="-1"`)
+  }
+  expect(html).toContain('Importar componente configurado'); expect(html).toContain('Nueva relación configurada')
+  expect(buildConfiguredAssembly).not.toHaveBeenCalled()
+})

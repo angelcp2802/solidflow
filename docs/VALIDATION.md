@@ -1,5 +1,64 @@
 # Validation
 
+## Configured command access and compact interface — 2026-10-24
+
+The increment after `b87a351`, tracked in issue #55, adds upper commands for
+component insertion/reuse, a new relation, the relation list and configurations.
+Explicit actions reveal the corresponding inspector section and focus an
+enabled control, with a focusable heading fallback. The section heading and
+context stay above the control; typing and reference picking retain scroll.
+The original file/view controls and preview/Apply guards remain in place.
+
+Windows x64 / Node 24.11.1 targeted evidence:
+
+- Final acceptance passes all 9,354 unit/CAD cases across 400 files, 83
+  IPC/security cases (two explicit platform skips), production build and
+  the actual Electron 44.9.3 production-loader/worker smoke. All 1,049 frozen
+  non-Markdown inputs were checked against the isolated runtime checkout.
+- The 23 focused configured-workspace cases pass.
+- Normal and compact configured-pointer workflows pass 62 and 63 checkpoints,
+  respectively, each with 19 recorded gestures/reveals and 12 geometry phases.
+  Toolbar commands, role buttons and saved-relation editing use actual CDP
+  clicks after full-rectangle clipping and hit-target checks. The application
+  must reveal and focus the editor, with its heading and first enabled field
+  visible. Offscreen role buttons use bounded actual inspector wheel events;
+  the test does not assign scroll positions. Parameter controls remain scripted.
+- Both retain the original two-cube geometry, ordered signed-distance and LINE
+  references, Cancel/retry/Apply, history and real Save As/reopen. Bounds/pose
+  tolerance stays 1e-6 mm and volume/area 1e-5. No fixture or solver changes.
+- The inspected captures are 1544×941 and 1024×661 content pixels; the latter
+  belongs to the fixed 1040×700 production-minimum window. Both show the editor
+  heading and highlighted faces without clipping the canvas. The compact
+  inspector scrolls for its remaining fields. Both runs have no console or
+  resource errors and confirm child exit and isolated-profile cleanup.
+- A separate visible-session review checks the part Croquis tab, Ver menu,
+  frontal/isometric views, wheel zoom and left-click face highlighting with
+  contextual actions. No model operation was applied during that review.
+  Physical middle-button dragging was not exercised here.
+
+Electron is pinned to 44.9.3 for GHSA-jr5w-w6x2-84p9. A separate checkout and
+ordinary dependency installation ran these renderer checks on the actual
+44.9.3 executable (embedded Node 24.22.0 / Chromium 152.0.7977.167).
+`npm ci` passes and the initial audit reported zero vulnerabilities; no
+transitive package versions changed. A later audit on the same unchanged lock
+reports new findings in `undici` (high) and `fast-uri` (moderate), with compatible
+patch fixes available. Electron is absent from that newer finding list. The
+later audit supersedes the earlier zero count; dependency remediation remains
+open. This does not update an already-running application or establish
+installed-package or cross-platform acceptance.
+
+The latest preceding snapshot `2c2e993` finishes with 11 successful jobs and
+four failures in [CI 40036257727](https://github.com/angelcp2802/solidflow/actions/runs/40036257727).
+macOS symmetry LINE source/replacement repair fails at step 101, followed by
+the three dependent Desktop gates. The application-level cause remains unknown:
+one dedicated job-log request failed at transport. CodeQL passes and dependency
+audit fails in [Security 40036257524](https://github.com/angelcp2802/solidflow/actions/runs/40036257524).
+No hosted gate or finding is waived by the local runtime update.
+
+The sidebar still uses long technical reference labels and a different command
+presentation from the part ribbon. Specialized mechanical/compound picking,
+displayed origin-axis picking and full assembly-demo acceptance remain open.
+
 ## Configured material selection feedback — 2026-10-24
 
 The increment after `f984b71`, tracked in issue #55, preserves selected general

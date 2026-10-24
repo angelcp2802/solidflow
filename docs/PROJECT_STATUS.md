@@ -1,5 +1,24 @@
 # Project status and review queue
 
+### Configured command access and compact interface
+
+Upper commands now reveal the configured component, relation and configuration
+editors with their heading and first enabled field visible. Normal and fixed
+1040 × 700 pointer workflows pass 62 and 63 checkpoints, including the original
+signed-distance/LINE geometry, history and file reopening. See [validation](VALIDATION.md).
+
+Windows acceptance passes 9,354 unit/CAD cases / 400 files, 83 IPC/security
+cases (two platform skips), build and actual Electron 44.9.3 smoke. The runtime
+update resolves the preceding Electron advisory. A subsequent audit reports
+new undici (high) and fast-uri (moderate) findings; compatible patch remediation
+is pending. Hosted predecessor `2c2e993` still fails macOS symmetry LINE repair
+and the three dependent Desktop gates. CodeQL passes; dependency audit fails.
+
+The next interface increment in [issue #55](https://github.com/angelcp2802/solidflow/issues/55)
+reorganizes the assembly workspace into grouped upper commands and a contextual
+left manager. Complete assembly-demo and cross-platform acceptance remain open
+in draft PR #49.
+
 ### Configured material picking and feedback
 
 The next focused increment in [issue #55](https://github.com/angelcp2802/solidflow/issues/55)

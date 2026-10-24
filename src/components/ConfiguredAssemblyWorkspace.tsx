@@ -47,6 +47,20 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
   const [rotationAxis, setRotationAxis] = useState<'X' | 'Y' | 'Z'>('Z'), [rotationDegrees, setRotationDegrees] = useState('0')
   const [mateDraft, setMateDraft] = useState<RelationDraft | null>(null), mateDraftRef = useRef(mateDraft), mateRevision = useRef(0), sceneRef = useRef(scene), committedSceneRef = useRef<ConfiguredAssemblyScene | null>(null)
   const [occurrenceFields, setOccurrenceFields] = useState(initialConfiguredOccurrenceFields)
+  const inspector = useRef<HTMLElement>(null)
+  const [revealRequest, setRevealRequest] = useState<{ id: string } | null>(null)
+  const revealInspector = (id: string) => {
+    const aside = inspector.current, target = aside?.querySelector<HTMLElement>('#' + id)
+    if (!aside || !target) return
+    const anchor = target.dataset.inspectorAnchor ? aside.querySelector<HTMLElement>('#' + target.dataset.inspectorAnchor) ?? target : target
+    const field = target.matches('input:enabled, select:enabled, button:enabled') ? target : target.querySelector<HTMLElement>('input:enabled, select:enabled, button:enabled') ?? anchor
+    // Keep the section heading and its context visible independently of focus.
+    aside.scrollTop += anchor.getBoundingClientRect().top - aside.getBoundingClientRect().top - 12
+    field.focus({ preventScroll: true })
+  }
+  useEffect(() => { if (revealRequest) revealInspector(revealRequest.id) }, [revealRequest])
+  // A newly opened editor is revealed once; typing and picking keep their scroll position.
+  useEffect(() => { if (mateDraft?.id) revealInspector('configured-relation-inspector') }, [mateDraft?.id])
   const [matePick, setMatePick] = useState<ConfiguredMatePick | null>(null), matePickRef = useRef(matePick)
   const stopMatePick = () => { matePickRef.current = null; setMatePick(null) }
   const [view, setView] = useState<{ name: 'iso' | 'front' | 'top' | 'fit'; stamp: number }>({ name: 'iso', stamp: 0 })
@@ -330,8 +344,15 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
       <button ref={bomToggle} aria-label="Lista de materiales configurada" aria-controls="configured-assembly-bom-panel" aria-pressed={bomOpen} disabled={busy} onClick={() => changeBomView(!bomOpen)}>Lista de materiales</button>
       <button onClick={() => { if (!fresh(renderedTicket) || operationKind.current !== 'build' && operationKind.current !== 'solve' && (operation.current || !pending.current)) return; revoke(0, undefined, !!mateDraftRef.current); setFailure(null); setMessage('Vista previa cancelada. Se conserva el documento confirmado.') }} disabled={!cancelable && (!preview || busy)}>Cancelar</button>
     </nav>
-    <div className="configured-assembly-layout"><aside>
-      <h2>Configuraciones</h2><label>Configuración raíz<select aria-label="Configuración raíz" disabled={blocked} value={document.rootConfiguration ?? ''} onChange={event => {
+    <nav className="configured-command-bar" aria-label="Comandos del ensamblaje configurado">
+      <button aria-controls="configured-component-name" disabled={blocked || !!mateDraft || !scene || selectedScope.suppressed} onClick={() => { if (fresh(renderedTicket) && !operation.current && !pending.current) setRevealRequest({ id: 'configured-component-name' }) }}>Insertar componente</button>
+      <button aria-controls="configured-component-definition" disabled={blocked || !!mateDraft || !scene || selectedScope.suppressed} onClick={() => { if (fresh(renderedTicket) && !operation.current && !pending.current) setRevealRequest({ id: 'configured-component-definition' }) }}>Reutilizar componente</button>
+      <button aria-controls="configured-relation-inspector" disabled={blocked || !!mateDraft || !scene || selectedScope.suppressed} onClick={() => openRelationEditor()}>Nueva relación</button>
+      <button aria-controls="configured-relations" onClick={() => setRevealRequest({ id: 'configured-relations' })}>Relaciones</button>
+      <button aria-controls="configured-root-state" onClick={() => setRevealRequest({ id: 'configured-root-state' })}>Configuraciones</button>
+    </nav>
+    <div className="configured-assembly-layout"><aside ref={inspector} aria-label="Inspector del ensamblaje configurado">
+      <h2 id="configured-root-heading" tabIndex={-1}>Configuraciones</h2><label>Configuración raíz<select id="configured-root-state" data-inspector-anchor="configured-root-heading" aria-label="Configuración raíz" disabled={blocked} value={document.rootConfiguration ?? ''} onChange={event => {
         if (!fresh(renderedTicket) || operation.current || pending.current) return
         try { commit(validateAssemblyConfiguredDocument({ ...current.current, rootConfiguration: event.target.value || null })); scopeRef.current = '[]'; occurrenceRef.current = ''; setScope('[]'); setOccurrenceId('') } catch (reason) { error(reason) }
       }}><option value="">Base</option>{rootVariants.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}</select></label>
@@ -340,11 +361,11 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
       <p>La nueva configuración empieza en Base; no copia la variante seleccionada.</p>
       <h2>Estado efectivo</h2><label>Ámbito<select aria-label="Ámbito de configuración" disabled={blocked} value={scope} onChange={event => changeScope(event.target.value)}>{evaluation.scopes.map(row => <option key={JSON.stringify(row.path)} value={JSON.stringify(row.path)}>{row.path.join(' / ') || 'Raíz'} · {row.configuration ?? 'Base'}{row.suppressed ? ' · suprimido' : ''}</option>)}</select></label>
       {scope !== '[]' && <section aria-label="Crear configuración del ámbito"><label>Nueva configuración del ámbito<input aria-label="Nombre de nueva configuración del ámbito" disabled={blocked} value={scopeVariantName} onChange={event => { if (fresh(renderedTicket)) setScopeVariantName(event.target.value) }} /></label><button disabled={blocked || !scopeVariantName.trim()} onClick={() => { if (!fresh(renderedTicket) || operation.current || pending.current) return; try { commit(createConfiguredUiScopeVariant(current.current, JSON.parse(scopeRef.current), scopeVariantName)); setScopeVariantName(''); occurrenceRef.current = ''; setOccurrenceId('') } catch (reason) { error(reason) } }}>Crear configuración del ámbito basada en Base</button><small>Se selecciona para este uso en la configuración activa del padre. Los usos que comparten ese estado del padre también cambian.</small></section>}
-      <label>Ocurrencia<select aria-label="Ocurrencia configurada" disabled={blocked} value={occurrenceId} onChange={event => { if (!fresh(renderedTicket) || operation.current || pending.current) return; setBomSelection(null); occurrenceRef.current = event.target.value; setOccurrenceId(event.target.value) }}><option value="">Selecciona una ocurrencia</option>{selectedScope.occurrences.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}</select></label>
+      <label>Ocurrencia<select aria-label="Ocurrencia configurada" disabled={blocked} value={occurrenceId} onChange={event => { if (!fresh(renderedTicket) || operation.current || pending.current) return; setBomSelection(null); occurrenceRef.current = event.target.value; setOccurrenceId(event.target.value); if (event.target.value) setRevealRequest({ id: 'configured-occurrence-inspector' }) }}><option value="">Selecciona una ocurrencia</option>{selectedScope.occurrences.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}</select></label>
       <ConfiguredAssemblyOccurrencePanel document={document} scopePath={selectedScope.path} configuration={selectedScope.configuration} fields={occurrenceFields} disabled={blocked || !!mateDraft || !scene || selectedScope.suppressed}
         onChange={fields => { if (!fresh(renderedTicket) || operation.current || pending.current || mateDraftRef.current) return; if (mateRevision.current >= Number.MAX_SAFE_INTEGER) { error(Error('Vuelve a abrir el documento para continuar.')); return }; mateRevision.current++; setOccurrenceFields(fields) }}
         onImport={() => void previewOccurrence(true)} onReuse={() => void previewOccurrence()} />
-      {selected && <section aria-label="Editar estado de ocurrencia"><p>{selectedScope.configuration === null ? 'Editando Base: los estados que heredan estos valores también cambian.' : 'Editando sólo la configuración ' + selectedScope.configuration + '. Los usos de esta misma variante comparten el cambio.'}</p>
+      {selected && <section id="configured-occurrence-inspector" tabIndex={-1} aria-label="Editar estado de ocurrencia"><p>{selectedScope.configuration === null ? 'Editando Base: los estados que heredan estos valores también cambian.' : 'Editando sólo la configuración ' + selectedScope.configuration + '. Los usos de esta misma variante comparten el cambio.'}</p>
         <p>{selected.fixed ? 'Componente fijado respecto al padre.' : 'Componente libre respecto al padre.'} {selectedScope.configuration === null ? 'Fijar o liberar en Base afecta a los estados que heredan ese valor.' : 'Fijar o liberar afecta a todos los usos de esta misma definición y estado.'}</p>
         <button disabled={blocked || !!mateDraft || !scene || selectedScope.suppressed || selected.suppressed} onClick={() => void previewOccurrence(false, !selected.fixed)}>{selected.fixed ? 'Vista previa de liberar componente' : 'Vista previa de fijar componente'}</button>
         <fieldset disabled={blocked || !!mateDraft}><legend>Traslación local (mm)</legend>{['X', 'Y', 'Z'].map((axis, i) => <label key={axis}>{axis}<input aria-label={'Posición configurada ' + axis} type="number" step="any" value={pose[i]} onChange={event => { if (fresh(renderedTicket)) setPose(values => values.map((v, index) => index === i ? event.target.value : v)) }} /></label>)}</fieldset>
@@ -353,7 +374,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
         <label><input type="checkbox" aria-label="Ocurrencia configurada visible" disabled={blocked || !!mateDraft} checked={selected.visible} onChange={event => edit({ visible: event.target.checked })} />Visible</label><label><input type="checkbox" aria-label="Ocurrencia configurada suprimida" disabled={blocked || !!mateDraft} checked={selected.suppressed} onChange={event => edit({ suppressed: event.target.checked })} />Suprimida</label>
         {evaluation.scopes.some(row => JSON.stringify(row.path) === JSON.stringify([...selectedScope.path, selected.id])) && <label>Configuración hija<select aria-label="Configuración hija de la ocurrencia" disabled={blocked || !!mateDraft || selectedScope.configuration === null} value={evaluation.scopes.find(row => JSON.stringify(row.path) === JSON.stringify([...selectedScope.path, selected.id]))?.configuration ?? ''} onChange={event => edit({ configuration: event.target.value || null })}><option value="">Base</option>{document.catalog.find(row => assemblyDefinitionKey(row.definition) === assemblyDefinitionKey(selected.definition))?.configurations.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}</select>{selectedScope.configuration === null && <small>Crea primero una configuración del padre para elegir una variante hija.</small>}</label>}
       </section>}
-      <section className="configured-mate-list" role="region" aria-label="Relaciones del estado configurado"><h2>Relaciones del estado</h2>
+      <section id="configured-relations" tabIndex={-1} className="configured-mate-list" role="region" aria-label="Relaciones del estado configurado"><h2>Relaciones del estado</h2>
         <p>{selectedScope.configuration === null ? 'Las ediciones de Base conservan los estados efectivos de las configuraciones nombradas.' : `Se edita la configuración ${selectedScope.configuration}. Todos sus usos comparten las relaciones.`}</p>
         <button disabled={blocked || !!mateDraft || !scene || selectedScope.suppressed} onClick={() => openRelationEditor()}>Nueva relación configurada</button>
         <button disabled={blocked || !!mateDraft || !scene || selectedScope.suppressed} onClick={() => openRelationEditor(undefined, true)}>Nueva relación mecánica configurada</button>
@@ -368,6 +389,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
         </li> })}</ul>
         <p>Los perfiles y trayectos requieren todas sus referencias materiales actuales; se verifican antes de aplicar.</p>
       </section>
+      <div id="configured-relation-inspector" tabIndex={-1}>
       {mateDraft && !('mechanical' in mateDraft) && !('compound' in mateDraft) && <ConfiguredAssemblyMatePanel draft={mateDraft} choices={mateChoices.values} disabled={blocked || !scene || selectedScope.suppressed}
         picking={matePick} onStopPicking={stopMatePick} onPick={(slot, kind) => { if (!freshMate() || operation.current || pending.current) return; const value = { slot, kind }; matePickRef.current = value; setMatePick(value) }}
         onChange={draft => { if (!freshMate() || operation.current || pending.current) return; try { setRelationDraft(structuredClone(draft)); setFailure(null) } catch (reason) { error(reason) } }}
@@ -378,6 +400,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
       {mateDraft && 'compound' in mateDraft && <ConfiguredAssemblyCompoundPanel draft={mateDraft} choices={compoundChoices.values} disabled={blocked || !scene || selectedScope.suppressed}
         onChange={draft => { if (!freshMate() || operation.current || pending.current) return; try { setRelationDraft(structuredClone(draft)); setFailure(null) } catch (reason) { error(reason) } }}
         onPreview={previewDraft} onClose={() => { if (!freshMate() || operation.current || pending.current) return; try { setRelationDraft(null); setFailure(null) } catch (reason) { error(reason) } }} />}
+      </div>
       {compoundChoices.error && <p role="alert">{compoundChoices.error}</p>}
       {mateChoices.error && <p role="alert">{mateChoices.error}</p>}
       <h2>Piezas efectivas</h2><ul>{evaluation.parts.map(part => <li key={JSON.stringify(part.path)}>{part.path.join(' / ')}{part.suppressed ? ' · suprimida' : part.visible ? '' : ' · oculta'}</li>)}</ul>
@@ -385,7 +408,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
         if (!fresh(renderedTicket) || operation.current || pending.current || mateDraftRef.current || !scene || !configuredUiSceneMatches(scene, current.current, epoch.current)) return
         const id = configuredComponentPick(displayScene, component, selectedScope.path)
         if (!id || !selectedScope.occurrences.some(row => row.id === id && !row.suppressed)) return
-        occurrenceRef.current = id; setOccurrenceId(id); setBomSelection(null); setMessage('Componente seleccionado en el ámbito actual.')
+        occurrenceRef.current = id; setOccurrenceId(id); setBomSelection(null); setRevealRequest({ id: 'configured-occurrence-inspector' }); setMessage('Componente seleccionado en el ámbito actual.')
       }} /></div>
       {preview && <p role="status">Vista previa verificada · todavía sin aplicar. {preview.states.length} estados resueltos; {preview.verification.reports.length} relaciones comprobadas.</p>}
       {scene && <p aria-label="Totales de configuración">{scene.scene.solidCount} sólidos · {scene.scene.volume.toFixed(3)} mm³ · {scene.scene.area.toFixed(3)} mm²</p>}

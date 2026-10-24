@@ -7,6 +7,12 @@ assembly, with preview, history and real file IPC. See
 UI feedback. This fixed command uses the existing isolated hidden harness;
 configured CI does not establish a platform pass.
 
+Run `npm run test:desktop:assembly-configured-picking-compact` after building
+for the fixed 1040 × 700 variant. Both pointer workflows exercise upper-command
+access and application-owned left-inspector reveal/focus; the compact case also
+checks the available viewport layout. Current execution evidence is limited to
+the recorded Windows cases in [validation](VALIDATION.md).
+
 The [configured component authoring contract](ASSEMBLY_CONFIGURED_COMPONENT_AUTHORING.md)
 covers insertion, registered reuse and parent-relative fixed/floating state.
 After building, run `npm run test:desktop:assembly-configured-components` for
