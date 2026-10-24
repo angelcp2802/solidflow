@@ -5,7 +5,7 @@ const { encodeJavaScriptString: quote } = require('./desktop-ui-source.cjs');
 // Original analytical fixture, real top commands/left properties and worker.
 // No application state or worker responses are supplied by this workflow.
 module.exports = function partSequenceWorkflow(context) {
-  const { expected, input, output, evaluate, observe, waitFor, click, menu, capture,
+  const { expected, input, output, evaluate, observe, waitFor, click, menu, menuKey, capture,
     checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
     initialReadyMs, dialogCounts } = context;
   const APPLY = 'button[title="Aceptar operación"]';
@@ -42,6 +42,41 @@ module.exports = function partSequenceWorkflow(context) {
   }
   async function ready() {
     await waitFor('current operation can Apply',()=>evaluate(`!!document.querySelector(${quote(APPLY)}) && !document.querySelector(${quote(APPLY)}).disabled`));
+  }
+  async function retainedCutMenu() {
+    const snapshot=()=>evaluate(`(() => {
+      const panel=document.querySelector('.property-manager');
+      if(!panel)throw Error('Live cut properties required');
+      return {title:panel.querySelector('.property-title')?.textContent,
+        controls:[...panel.querySelectorAll('input,select')].map(e=>({tag:e.tagName,label:e.getAttribute('aria-label'),type:e.type,value:e.value,checked:e instanceof HTMLInputElement?e.checked:null})),
+        selectedBodies:[...panel.querySelectorAll('.body-operation-panel input[type="checkbox"]:checked')].map(e=>e.closest('label')?.textContent),
+        recovery:localStorage.getItem('solidflow.autosave')};
+    })()`);
+    const original=await snapshot(),before=await observe();
+    const open=async id=>{
+      // Opening retains the existing scripted command route; key input is CDP.
+      await click('[data-assembly-menu="'+id+'"]');
+      await waitFor('part menu opens with actual popup focus: '+id,()=>evaluate(`(() => {
+        const trigger=document.querySelector('[data-assembly-menu="${id}"]'),popup=document.querySelector('.part-main-menus [role="menu"]');
+        return trigger?.getAttribute('aria-expanded')==='true'&&popup?.contains(document.activeElement);
+      })()`));
+    };
+    const escape=async id=>{
+      await menuKey('Escape');
+      await waitFor('part menu Escape closes and restores trigger: '+id,()=>evaluate(`!document.querySelector('.part-main-menus [role="menu"]')&&document.activeElement===document.querySelector('[data-assembly-menu="${id}"]')`));
+    };
+    await open('view');await menuKey('ArrowDown');
+    await waitFor('part menu real Down focuses Front',()=>evaluate(`document.activeElement?.getAttribute('role')==='menuitem'&&document.activeElement.textContent.trim().startsWith('Frontal')`));
+    await escape('view');
+    check(canonical(await snapshot())===canonical(original),'Menu Escape preserves live cut depth, fields, body references and committed recovery');
+    await open('insert');
+    check(await evaluate(`['Saliente extruido','Corte extruido','Revolución'].every(label=>{
+      const matches=[...document.querySelectorAll('.part-main-menus .dropdown button')].filter(e=>e.textContent.trim()===label);
+      return matches.length===1&&matches[0].disabled;
+    })`),'Insert menu disables incompatible solid operations during the live cut draft');
+    await escape('insert');
+    check(canonical(await snapshot())===canonical(original)&&(await observe()).serial===before.serial,'Menu navigation preserves the cut draft without another native build');
+    records.push({phase:'live-cut-menu-keyboard',keys:['ArrowDown','Escape','Escape'],draftRetained:true,insertGuards:true,serial:before.serial});
   }
   return async () => {
     await waitFor('part file control ready',()=>evaluate(`document.querySelector('.statusbar')?.textContent.includes('Listo') && typeof window.solidflow?.openDocument==='function' && !!document.querySelector('button[aria-label="Abrir (Ctrl+O)"]')`),initialReadyMs);
@@ -80,7 +115,7 @@ module.exports = function partSequenceWorkflow(context) {
         if(!await evaluate(`document.querySelector('.body-operation-panel input[type="checkbox"]').checked`)) await click('.body-operation-panel input[type="checkbox"]');
         await evaluate(`(() => { const b=[...document.querySelectorAll('.body-operation-panel button')].find(b=>b.textContent.includes('Ver vista previa')); if(!b||b.disabled)throw Error('Preview control unavailable'); b.click(); })()`);
       }
-      await ready(); serial=(await observe()).serial; await click(APPLY);
+      await ready(); if(i===0)await retainedCutMenu(); serial=(await observe()).serial; await click(APPLY);
       await waitFor('operation committed to feature tree',()=>evaluate(`!document.querySelector('.property-manager')`));
       await built(serial,i+2,op.volume,op.height,'operation-'+(i+1));
     }

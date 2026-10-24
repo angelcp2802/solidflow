@@ -5,6 +5,32 @@ The current priority is a complete everyday modeling sequence, tracked in
 area selects the operation; the left feature tree selects or edits its inputs;
 the left property editor controls parameters and preview/accept/cancel.
 
+The part's top menus support arrow-key navigation, Enter, Tab and Escape.
+Escape closes a focused menu and returns focus to its trigger without cancelling
+the active sketch or operation. Unavailable actions remain disabled; closing a
+menu does not accept or discard a draft.
+
+## Continue directly from a new sketch
+
+While editing a new sketch, wait for a healthy, current preview, then choose
+**Operaciones → Saliente/Base extruido** or **Corte extruido**. Finish any active
+sketch chamfer, fillet, mirror or offset tool first. Editing an already saved
+sketch still requires accepting or cancelling that edit before starting another
+operation.
+
+The operation retains the new sketch as a draft and locks its profile selector.
+Inspect its parameters and body targets before accepting. **Cancel** returns to
+the same active sketch, preserving its geometry, support and sketch undo/redo;
+it does not add either feature to the document. Acceptance records the sketch
+followed by the solid operation. One document undo removes the operation while
+keeping its sketch; a second undo removes that sketch. Save and recovery use the
+accepted document, so finish the operation or return to and accept the sketch
+before saving it.
+
+The existing **Salir del croquis** route remains available. These instructions
+describe the interaction contract; executed cases and their limits are recorded
+in [validation](VALIDATION.md).
+
 ## Several cuts and additive extrusions
 
 Open **Archivo → Ejemplo: cortes y salientes sucesivos**. Save any current work
@@ -46,15 +72,19 @@ the interaction is in `scripts/desktop-part-fresh-sketch-flow.cjs`.
    Choose **Crear croquis en cara**, then **Croquis → Rectángulo**, and draw
    a centered 4 × 4 mm rectangle.
    Wait for the supported sketch view to settle before drawing; inspect its
-   support in the left properties, then choose **Salir del croquis**.
-2. Choose **Saliente/Base extruido**, set depth **3 mm**, and inspect the
-   current-body merge default before accepting.
+   support in the left properties and keep the sketch active.
+2. Choose **Operaciones → Saliente/Base extruido** directly from the ribbon,
+   set depth **3 mm**, and inspect the current-body merge default. Cancel back
+   to the same active sketch; use its local Undo and Redo to remove and restore
+   the drawn rectangle. Retry the extrusion and accept it.
 3. Enable face selection again and select the new upper face at Z = 7 mm.
-   Draw a fresh centered 2 × 2 mm rectangle, exit the sketch, and choose
-   **Corte extruido** with depth **−3 mm**. Inspect the current-body target
-   and accept. The pocket floor is Z = 4 mm.
-4. Undo/redo the cut, save and reopen. Both sketches should retain their face
-   supports and drawn points, with one final solid.
+   Draw a fresh centered 2 × 2 mm rectangle and, while it remains active, choose
+   **Insertar → Corte extruido** with depth **−3 mm**. Inspect the current-body
+   target, cancel back to the same sketch, then retry and accept. The pocket
+   floor is Z = 4 mm.
+4. Undo twice: first remove the cut, then its new sketch. Redo twice to restore
+   that sketch and the cut in order. Save and reopen. Both sketches should
+   retain their face supports and drawn points, with one final solid.
 
 The independent volumes are 960, 1008 and 996 mm³; areas are 736, 784 and
 808 mm². Final bounds are [−10, −6, 0] to [10, 6, 7] mm. The renderer scenario

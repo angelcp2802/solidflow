@@ -53,6 +53,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import Viewport, { type ViewName } from "./components/Viewport";
 import SketchCanvas from "./components/SketchCanvas";
+import AssemblyMenuBar, { type AssemblyMenuDefinition } from "./components/AssemblyMenuBar";
 import EntitySketchPanel from "./components/EntitySketchPanel";
 import SketchChamferPanel from "./components/SketchChamferPanel";
 import type { ChamferPlan } from "./sketch/chamfer";
@@ -402,6 +403,10 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
   const [selected, setSelected] = useState<string | null>(null),
     [editing, setEditing] = useState<Feature | null>(null),
     [plane, setPlane] = useState<Plane>("XY");
+  // A feature started from a new sketch is a reversible preview. The sketch
+  // stays out of recovery/history until acceptance and resumes on Cancel.
+  const [stagedSketch, setStagedSketch] = useState<SketchFeature | null>(null);
+  const operationDocument = useMemo(() => stagedSketch ? addFeature(doc, stagedSketch) : doc, [doc, stagedSketch]);
   const [tab, setTab] = useState("Operaciones"),
     [display, setDisplay] = useState<"shaded" | "edges" | "wire">("edges"),
     [grid, setGrid] = useState(false);
@@ -426,8 +431,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     name: "dimensions" | "relations";
     stamp: number;
   }>({ name: "dimensions", stamp: 0 });
-  const [menu, setMenu] = useState<string | null>(null),
-    [query, setQuery] = useState(""),
+  const [query, setQuery] = useState(""),
     [toast, setToast] = useState(""),
     [toastError, setToastError] = useState(false),
     [panel, setPanel] = useState<"design" | "properties" | null>(null),
@@ -514,31 +518,31 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
   const sourceFeatures = useMemo(() => {
     if (!editing || !["fillet", "chamfer", "mirror", "shell", "draft", "extrude", "cut", "hole", "revolve", "sweep", "loft", "combine"].includes(editing.type)
       && !isRepetition(editing)) return null;
-    const index = doc.features.findIndex(feature => feature.id === editing.id);
-    return doc.features.slice(0, index < 0 ? doc.features.length : index);
-  }, [doc.features, editing?.id, editing?.type]);
+    const index = operationDocument.features.findIndex(feature => feature.id === editing.id);
+    return operationDocument.features.slice(0, index < 0 ? operationDocument.features.length : index);
+  }, [operationDocument.features, editing?.id, editing?.type]);
   const bodyCommand = useMemo(() => {
     if (!editing || !isBodyCommandFeature(editing) || sourceLoading || !sourceModel || sourceBuiltFeatures !== sourceFeatures) return null;
     if (sourceModel.featureErrors.length) return { accepted: false as const, message: "Reconstruye los cuerpos de origen antes de continuar." };
-    return prepareBodyCommand({ document: doc, feature: editing, selection: bodySelection,
+    return prepareBodyCommand({ document: operationDocument, feature: editing, selection: bodySelection,
       catalog: { active: sourceModel.bodyCatalogActive === true, bodies: sourceModel.bodies ?? [] } });
-  }, [doc, editing, bodySelection, sourceModel, sourceLoading, sourceBuiltFeatures, sourceFeatures]);
+  }, [operationDocument, editing, bodySelection, sourceModel, sourceLoading, sourceBuiltFeatures, sourceFeatures]);
   const bodyPlan = bodyCommand?.accepted ? bodyCommand.plan : null;
   const effectiveFeatures = useMemo(() => {
     if (bodyPlan) return bodyPlan.previewFeatures;
     if (sourceFeatures && editing?.type === "extrude" && editing.bodyOperation?.mode === "new"
       && editing.endCondition && 'baseFeatureId' in editing.endCondition) return sourceFeatures;
-    if (!editing) return doc.features;
-    const index = doc.features.findIndex(
+    if (!editing) return operationDocument.features;
+    const index = operationDocument.features.findIndex(
       (feature) => feature.id === editing.id,
     );
     // Editing rolls the body back to this feature. Following operations rebuild
     // after acceptance and can report lost references without blocking the edit.
     return [
-      ...doc.features.slice(0, index < 0 ? doc.features.length : index),
+      ...operationDocument.features.slice(0, index < 0 ? operationDocument.features.length : index),
       editing,
     ];
-  }, [doc.features, editing, bodyPlan, sourceFeatures]);
+  }, [operationDocument.features, editing, bodyPlan, sourceFeatures]);
   const finishEditing = isEdgeFinish(editing) ? editing : null;
   const mirrorEditing = editing?.type === "mirror" ? editing : null;
   const faceEditing = isFaceOperation(editing) ? editing : null;
@@ -628,6 +632,11 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     (editing.type !== "sketch" || sketchTool !== "mirror" || !!mirrorPreview?.changed) &&
     (editing.type !== "sketch" || sketchTool !== "offset" || !!offsetPreview?.changed) &&
     model.featureErrors.length === 0;
+  const canContinueSketch = editing?.type === "sketch" && !editing.suppressed && canAccept && !pickingSupport
+    && !doc.features.some(feature => feature.id === editing.id)
+    && !["chamfer", "fillet", "mirror", "offset"].includes(sketchTool);
+  const canStartProfileFeature = (!editing || canContinueSketch) && ready && !busy && previewCurrent
+    && !!model && !error && model.featureErrors.length === 0 && !importing && !exporting;
   const canExport =
     !editing &&
     ready &&
@@ -795,6 +804,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     setModel(null);
     setBuiltFeatures(null);
     setEditing(null);
+    setStagedSketch(null);
     setSelected(null);
     setSelectionMode("body");
     setEdgeSelection([]);
@@ -1380,8 +1390,8 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     setError("");
   };
   const startFeature = (type: "extrude" | "cut" | "revolve") => {
-    if (!requireFinishedEdit()) return;
-    if (busy || !previewCurrent || !model || model.featureErrors.length) {
+    if (editing && !canContinueSketch) { requireFinishedEdit(); return; }
+    if (!canStartProfileFeature || !model) {
       notify("Espera a que la pieza se reconstruya sin errores antes de añadir la operación.");
       return;
     }
@@ -1391,6 +1401,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     setEdgeSelection([]);
     setFaceSelection(null);
     const sketch =
+      (canContinueSketch && editing?.type === "sketch" ? editing : undefined) ??
       (selectedSketch?.suppressed ? undefined : selectedSketch) ??
       [...doc.features]
         .reverse()
@@ -1398,6 +1409,13 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     if (!sketch || sketch.type !== "sketch") {
       notify("Crea o selecciona un croquis antes de añadir la operación.");
       return;
+    }
+    if (canContinueSketch) {
+      // Admission can reject document limits. Keep that failure in the command,
+      // before rendering the staged document or changing the current editor.
+      try { addFeature(doc, sketch); }
+      catch (reason) { notify((reason as Error).message, true); return; }
+      setStagedSketch(sketch);
     }
     const base = {
       id: crypto.randomUUID(),
@@ -1755,6 +1773,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
   };
   const acceptEdit = () => {
     if (!editing || !canAccept) return;
+    if (stagedSketch && (!("sketchId" in editing) || editing.sketchId !== stagedSketch.id)) return;
     if (editing.type === "sketch" && sketchTool === "chamfer") {
       if (chamferPreview) applySketchChamfer(chamferPreview);
       return;
@@ -1773,22 +1792,26 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     }
     try {
       const bodyApplication = isBodyCommandFeature(editing) && bodyPlan && sourceModel
-        ? applyBodyCommand(bodyPlan, { document: doc, feature: editing, selection: bodySelection,
+        ? applyBodyCommand(bodyPlan, { document: operationDocument, feature: editing, selection: bodySelection,
           catalog: { active: sourceModel.bodyCatalogActive === true, bodies: sourceModel.bodies ?? [] } },
           { features: builtFeatures, healthy: !busy && !error && !!model && model.featureErrors.length === 0 }) : null;
       if (isBodyCommandFeature(editing) && !bodyApplication?.accepted) throw new Error(bodyApplication && !bodyApplication.accepted ? bodyApplication.message : "Espera una vista previa válida de los cuerpos.");
-      const next = bodyApplication?.accepted ? bodyApplication.document : doc.features.some((f) => f.id === editing.id)
+      const next = bodyApplication?.accepted ? bodyApplication.document : operationDocument.features.some((f) => f.id === editing.id)
         ? updateFeature(
-            doc,
+            operationDocument,
             editing.id,
             editing.type === "sketch"
               ? { ...editing, support: editing.support }
               : editing,
           )
-        : addFeature(doc, editing);
+        : addFeature(operationDocument, editing);
+      // Acceptance records the sketch before the feature so Undo can remove
+      // only the solid operation, just as when exiting the sketch explicitly.
+      if (stagedSketch) history.current!.apply(operationDocument);
       apply(next);
       setSelected(editing.id);
       setEditing(null);
+      setStagedSketch(null);
       setBodyPicking(false);
       setBodySelection([]);
       setPickingSupport(false);
@@ -1805,13 +1828,14 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     setBodyPicking(false);
     setBodySelection([]);
     setPickingEndFace(false);
-    setEditing(null);
+    setEditing(stagedSketch);
+    setStagedSketch(null);
     setPickingSupport(false);
     setFaceSelection(null);
     setEdgeSelection([]);
     setSelectionMode("body");
     setError("");
-    setTab("Operaciones");
+    setTab(stagedSketch ? "Croquis" : "Operaciones");
   };
   const changeDraft = (patch: Partial<Feature>) => {
     if (!editing) return;
@@ -1966,6 +1990,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
   };
   useEffect(() => {
     const handle = (e: KeyboardEvent) => {
+      if (e.defaultPrevented) return;
       const input =
         e.target instanceof HTMLElement &&
         !!e.target.closest("input,textarea,select,[contenteditable='true']");
@@ -2024,7 +2049,6 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
             setSketchTool("select");
             setSketchSelection([]);
           } else cancelEdit();
-          setMenu(null);
         }
         if (e.key.toLowerCase() === "f") changeView("fit");
         if (e.key === "Delete") deleteSelected();
@@ -2054,9 +2078,9 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     .filter(
       (feature): feature is ReferencePlaneFeature => feature.type === "plane",
     );
-  const availableFeatures = doc.features.slice(
+  const availableFeatures = operationDocument.features.slice(
     0,
-    editingIndex < 0 ? doc.features.length : editingIndex,
+    editingIndex < 0 ? operationDocument.features.length : editingIndex,
   );
   const preferredEndPlane = availablePlanes
     .filter(
@@ -2135,8 +2159,8 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
   const sketches = doc.features.filter(
     (f): f is SketchFeature => f.type === "sketch",
   );
-  const availableSketches = doc.features
-    .slice(0, editingIndex < 0 ? doc.features.length : editingIndex)
+  const availableSketches = operationDocument.features
+    .slice(0, editingIndex < 0 ? operationDocument.features.length : editingIndex)
     .filter((feature): feature is SketchFeature => feature.type === "sketch");
   const consumedSketches = new Set(
     effectiveFeatures
@@ -2189,13 +2213,100 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
       </div>
     );
   };
+  const disabledMenuCommands: Record<string, boolean> = {
+    "Importar STEP…": !!editing || importing || exporting,
+    "Importar STEP estructurado…": !!editing || importing || exporting,
+    "Guardar": !!editing || importing || exporting, "Guardar como…": !!editing || importing || exporting,
+    "Exportar STEP": !canExport, "Exportar STL": !canExport,
+    "Deshacer": editing?.type === "sketch" ? !sketchPast.length : !!editing || !history.current.canUndo,
+    "Rehacer": editing?.type === "sketch" ? !sketchFuture.length : !!editing || !history.current.canRedo,
+    "Editar operación": !!editing || !selectedFeature, "Eliminar operación": !!editing || !selectedFeature,
+    "Cambiar nombre de pieza": !!editing,
+    "Croquis rectangular": !!editing, "Croquis circular": !!editing,
+    "Saliente extruido": !canStartProfileFeature, "Corte extruido": !canStartProfileFeature || !model?.vertices.length,
+    "Revolución": !canStartProfileFeature, "Asistente para taladro": !canExport,
+    "Barrido": !!editing, "Recubrir": !!editing, "Redondeo": !canExport, "Chaflán": !canExport,
+    "Vaciado": !canExport, "Desmoldeo": !canExport, "Plano de referencia": !!editing,
+    "Matriz lineal": !canExport, "Matriz circular": !canExport, "Simetría": !canExport,
+    "Reconstruir": !!editing || importing || exporting,
+  };
+  const partMenus: AssemblyMenuDefinition[] = ([
+    {
+      id: "file", label: "Archivo", items: [
+        ["Nueva pieza", "Ctrl+N", newDoc],
+        ["Abrir…", "Ctrl+O", openDoc],
+        ["Importar STEP…", "", selectStep],
+        ["Importar STEP estructurado…", "", () => void selectStructuralStep()],
+        ["Guardar", "Ctrl+S", () => saveDoc()],
+        ["Guardar como…", "Ctrl+Mayús+S", () => saveDoc(true)],
+        ["Exportar STEP", "", () => exportFile("step")],
+        ["Exportar STL", "", () => exportFile("stl")],
+        ["Abrir pieza de ejemplo", "", loadDemo],
+        ["Ejemplo: cortes y salientes sucesivos", "", loadPartSequenceDemo],
+      ],
+    },
+    {
+      id: "edit", label: "Editar", items: [
+        ["Deshacer", "Ctrl+Z", undo],
+        ["Rehacer", "Ctrl+Y", redo],
+        ["Editar operación", "", () => selectedFeature && editFeature(selectedFeature)],
+        ["Eliminar operación", "Supr", deleteSelected],
+        ["Cambiar nombre de pieza", "", () => {
+          if (requireFinishedEdit()) setRename(true);
+        }],
+      ],
+    },
+    {
+      id: "view", label: "Ver", items: [
+        ["Isométrica", "Ctrl+7", () => changeView("iso")],
+        ["Frontal", "Ctrl+1", () => changeView("front")],
+        ["Superior", "Ctrl+5", () => changeView("top")],
+        ["Ajustar a pantalla", "F", () => changeView("fit")],
+        ["Cuadrícula", "", () => setGrid(!grid)],
+        ["Planos de referencia", "", () => setShowPlanes(!showPlanes)],
+      ],
+    },
+    {
+      id: "insert", label: "Insertar", items: [
+        ["Croquis rectangular", "", () => startSketch()],
+        ["Croquis circular", "", () => startSketch("circle")],
+        ["Saliente extruido", "", () => startFeature("extrude")],
+        ["Corte extruido", "", () => startFeature("cut")],
+        ["Asistente para taladro", "", startHole],
+        ["Revolución", "", () => startFeature("revolve")],
+        ["Barrido", "", () => startAdvancedFeature("sweep")],
+        ["Recubrir", "", () => startAdvancedFeature("loft")],
+        ["Redondeo", "", () => startFinish("fillet")],
+        ["Chaflán", "", () => startFinish("chamfer")],
+        ["Vaciado", "", () => startFaceOperation("shell")],
+        ["Desmoldeo", "", () => startFaceOperation("draft")],
+        ["Plano de referencia", "", startPlane],
+        ["Matriz lineal", "", () => startRepetition("linearPattern")],
+        ["Matriz circular", "", () => startRepetition("circularPattern")],
+        ["Simetría", "", () => startRepetition("mirror")],
+      ],
+    },
+    {
+      id: "tools", label: "Herramientas", items: [
+        ["Propiedades físicas", "", () => setPanel("properties")],
+        ["Reconstruir", "", () => setDoc({ ...doc, features: [...doc.features] })],
+      ],
+    },
+    {
+      id: "help", label: "Ayuda", items: [
+        ["Ayuda y atajos", "", () => setShowHelp(true)],
+        ["Pieza de ejemplo", "", loadDemo],
+      ],
+    },
+  ] satisfies { id: string; label: string; items: [string, string, () => void][] }[])
+    .map(({ id, label, items }) => ({
+      id, label, items: items.map(([label, shortcut, onSelect], index) => ({
+        id: String(index), label, shortcut, onSelect, disabled: disabledMenuCommands[label],
+        ...(label === "Cuadrícula" ? { checked: grid } : label === "Planos de referencia" ? { checked: showPlanes } : {}),
+      })),
+    }));
   return (
-    <div
-      className="app-shell"
-      onClick={() => {
-        if (menu) setMenu(null);
-      }}
-    >
+    <div className="app-shell">
       <input
         ref={fileInput}
         type="file"
@@ -2245,165 +2356,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
             Solid<span>Flow</span>
           </strong>
         </div>
-        <nav>
-          {[
-            "Archivo",
-            "Editar",
-            "Ver",
-            "Insertar",
-            "Herramientas",
-            "Ayuda",
-          ].map((name) => (
-            <div className="menu-wrap" key={name}>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setMenu(menu === name ? null : name);
-                }}
-                className={menu === name ? "active" : ""}
-              >
-                {name}
-              </button>
-              {menu === name && (
-                <div className="dropdown" onClick={(e) => e.stopPropagation()}>
-                  {(name === "Archivo"
-                    ? [
-                        ["Nueva pieza", "Ctrl+N", newDoc],
-                        ["Abrir…", "Ctrl+O", openDoc],
-                        ["Importar STEP…", "", selectStep],
-                        ["Importar STEP estructurado…", "", () => void selectStructuralStep()],
-                        ["Guardar", "Ctrl+S", () => saveDoc()],
-                        ["Guardar como…", "Ctrl+Mayús+S", () => saveDoc(true)],
-                        ["Exportar STEP", "", () => exportFile("step")],
-                        ["Exportar STL", "", () => exportFile("stl")],
-                        ["Abrir pieza de ejemplo", "", loadDemo],
-                        ["Ejemplo: cortes y salientes sucesivos", "", loadPartSequenceDemo],
-                      ]
-                    : name === "Editar"
-                      ? [
-                          ["Deshacer", "Ctrl+Z", undo],
-                          ["Rehacer", "Ctrl+Y", redo],
-                          [
-                            "Editar operación",
-                            "",
-                            () =>
-                              selectedFeature && editFeature(selectedFeature),
-                          ],
-                          ["Eliminar operación", "Supr", deleteSelected],
-                          [
-                            "Cambiar nombre de pieza",
-                            "",
-                            () => {
-                              if (requireFinishedEdit()) setRename(true);
-                            },
-                          ],
-                        ]
-                      : name === "Ver"
-                        ? [
-                            ["Isométrica", "Ctrl+7", () => changeView("iso")],
-                            ["Frontal", "Ctrl+1", () => changeView("front")],
-                            ["Superior", "Ctrl+5", () => changeView("top")],
-                            [
-                              "Ajustar a pantalla",
-                              "F",
-                              () => changeView("fit"),
-                            ],
-                            ["Cuadrícula", "", () => setGrid(!grid)],
-                            [
-                              "Planos de referencia",
-                              "",
-                              () => setShowPlanes(!showPlanes),
-                            ],
-                          ]
-                        : name === "Insertar"
-                          ? [
-                              ["Croquis rectangular", "", () => startSketch()],
-                              [
-                                "Croquis circular",
-                                "",
-                                () => startSketch("circle"),
-                              ],
-                              [
-                                "Saliente extruido",
-                                "",
-                                () => startFeature("extrude"),
-                              ],
-                              ["Corte extruido", "", () => startFeature("cut")],
-                              ["Asistente para taladro", "", startHole],
-                              ["Revolución", "", () => startFeature("revolve")],
-                              [
-                                "Barrido",
-                                "",
-                                () => startAdvancedFeature("sweep"),
-                              ],
-                              [
-                                "Recubrir",
-                                "",
-                                () => startAdvancedFeature("loft"),
-                              ],
-                              ["Redondeo", "", () => startFinish("fillet")],
-                              ["Chaflán", "", () => startFinish("chamfer")],
-                              [
-                                "Vaciado",
-                                "",
-                                () => startFaceOperation("shell"),
-                              ],
-                              [
-                                "Desmoldeo",
-                                "",
-                                () => startFaceOperation("draft"),
-                              ],
-                              ["Plano de referencia", "", startPlane],
-                              [
-                                "Matriz lineal",
-                                "",
-                                () => startRepetition("linearPattern"),
-                              ],
-                              [
-                                "Matriz circular",
-                                "",
-                                () => startRepetition("circularPattern"),
-                              ],
-                              ["Simetría", "", () => startRepetition("mirror")],
-                            ]
-                          : name === "Herramientas"
-                            ? [
-                                [
-                                  "Propiedades físicas",
-                                  "",
-                                  () => setPanel("properties"),
-                                ],
-                                [
-                                  "Reconstruir",
-                                  "",
-                                  () =>
-                                    setDoc({
-                                      ...doc,
-                                      features: [...doc.features],
-                                    }),
-                                ],
-                              ]
-                            : [
-                                ["Ayuda y atajos", "", () => setShowHelp(true)],
-                                ["Pieza de ejemplo", "", loadDemo],
-                              ]
-                  ).map(([label, shortcut, action]) => (
-                    <button
-                      key={String(label)}
-                      onClick={() => {
-                        (action as () => void)();
-                        setMenu(null);
-                      }}
-                    >
-                      <span>{String(label)}</span>
-                      <kbd>{String(shortcut)}</kbd>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-        </nav>
+        <AssemblyMenuBar variant="part" menus={partMenus} />
         <div className="document-title">
           {doc.name}
           {dirty ? " *" : ""} — SolidFlow
@@ -2485,14 +2438,14 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                   label="Saliente/Base extruido"
                   large
                   onClick={() => startFeature("extrude")}
-                  disabled={!!editing}
+                  disabled={!canStartProfileFeature}
                 />
                 <Command
                   icon={RotateCw}
                   label="Revolución"
                   large
                   onClick={() => startFeature("revolve")}
-                  disabled={!!editing}
+                  disabled={!canStartProfileFeature}
                 />
                 <div className="command-stack">
                   <Command
@@ -2515,7 +2468,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                   label="Corte extruido"
                   large
                   onClick={() => startFeature("cut")}
-                  disabled={!!editing || !model?.vertices.length}
+                  disabled={!canStartProfileFeature || !model?.vertices.length}
                 />
                 <Command
                   icon={Crosshair}
@@ -3375,6 +3328,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                     </h3>
                     <select
                       aria-label="Croquis de la operación"
+                      disabled={!!stagedSketch}
                       value={"sketchId" in editing ? editing.sketchId : ""}
                       onChange={(e) =>
                         changeDraft({ sketchId: e.target.value })

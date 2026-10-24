@@ -79,10 +79,9 @@ module.exports = function freshSketchWorkflow(c) {
     check(calibration.scale >= 12, 'Visible sketch scale keeps intended corners outside origin snapping radius');
     await pointer('mouseMoved', calibration.points[0]); await pointer('mousePressed', calibration.points[0], 1);
     await pointer('mouseMoved', calibration.points[1], 1); await pointer('mouseReleased', calibration.points[1], 0);
-    await ready(); const serial = (await observe()).serial; await click(APPLY);
-    await waitFor('fresh sketch accepted', () => page(() => !document.querySelector('.property-manager')));
-    const row = await built(serial, count, volume, area, height, 'accepted-fresh-' + side);
-    await neutralSketchRibbon();
+    await ready();
+    const row = await built(0, count, volume, area, height, 'active-fresh-' + side);
+    check(await page(() => !!document.querySelector('svg[aria-label="Editor de croquis multientidad"]')), 'New drawn sketch remains active before direct feature command');
     const sketch = row.features.at(-1), p = sketch.profile;
     check(sketch.type === 'sketch' && sketch.support?.kind === 'face' && sketch.support.face.sourceFeatureId === sourceFeatureId && sketch.offset === 0, 'Fresh associative current face support, no offset workaround');
     check(p.kind === 'entities' && p.points.length === 4 && p.entities.length === 4 && p.entities.every(e=>e.type==='line'), 'Actual rectangle contains four drawn material points and lines');
@@ -100,11 +99,41 @@ module.exports = function freshSketchWorkflow(c) {
         commands:commands.map(e=>{const r=e.getBoundingClientRect();return {label:e.textContent.trim(),top:r.top,bottom:r.bottom};}) };
     }));
     check(ribbon.commands.every(r=>r.top>=ribbon.top-1 && r.bottom<=ribbon.top+ribbon.height+1), 'Stacked operation commands stay inside visible ribbon height: '+JSON.stringify(ribbon));
-    await click('button.command[title="' + (type === 'extrude' ? 'Saliente/Base extruido' : 'Corte extruido') + '"]');
+    const recovery = await page(() => localStorage.getItem('solidflow.autosave'));
+    const start = async () => {
+      await tab('Operaciones');
+      if (type === 'extrude') await click('button.command[title="Saliente/Base extruido"]');
+      else {
+        await click('[data-assembly-menu="insert"]');
+        await page(() => { const button = [...document.querySelectorAll('.dropdown button')].find(e => e.textContent.trim() === 'Corte extruido'); if (!button || button.disabled) throw Error('Direct cut menu unavailable'); button.click(); });
+      }
+    };
+    await start();
     await waitFor('automatic current body destination', () => page(type => {
       const selected = document.querySelectorAll('.body-operation-panel input[type="checkbox"]:checked');
       return selected.length === 1 && (type === 'cut' || document.querySelector('select[aria-label="Resultado del saliente"]')?.value === 'merge');
     }, type));
+    await page(value => { const e=document.querySelector('input[aria-label="Profundidad"]'); if(!e||e.disabled)throw Error('Depth field unavailable'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,String(value)); e.dispatchEvent(new Event('input',{bubbles:true})); }, type === 'cut' ? -3 : 3);
+    await ready();
+    check(await page(id => { const select = document.querySelector('select[aria-label="Croquis de la operación"]'); return select?.disabled && select.value === id; }, sketch.id), 'Direct operation retains its active sketch and prevents substituting a different profile');
+    check(await page(() => localStorage.getItem('solidflow.autosave')) === recovery, 'Feature preview does not prematurely save the new sketch');
+    const cancelSerial = (await observe()).serial;
+    await click('button[title="Cancelar operación"]');
+    await waitFor('Cancel resumes the same active sketch', () => page(() => !!document.querySelector('svg[aria-label="Editor de croquis multientidad"]') && document.querySelector('.ribbon-tabs .selected')?.textContent.trim() === 'Croquis'));
+    await ready();
+    const previous = type === 'extrude' ? [960,736,4] : [1008,784,7];
+    const restored = await built(cancelSerial,count-1,...previous,'cancel-'+type);
+    check(canonical(restored.features.at(-1)) === canonical(sketch), 'Cancel restores exact sketch entities, ID and associative support');
+    check(await page(() => localStorage.getItem('solidflow.autosave')) === recovery, 'Cancel preserves committed recovery');
+    if (type === 'extrude') {
+      await click('button[title="Deshacer (Ctrl+Z)"]');
+      await waitFor('restored sketch retains local drawing Undo', () => page(() => !!document.querySelector('svg[aria-label="Editor de croquis multientidad"]') && document.querySelectorAll('svg[aria-label="Editor de croquis multientidad"] [data-selection-kind="entity"]').length === 0));
+      const redoSerial = (await observe()).serial;
+      await click('button[title="Rehacer (Ctrl+Y)"]'); await ready();
+      const redrawn = await built(redoSerial,count-1,...previous,'local-redo-after-cancel');
+      check(canonical(redrawn.features.at(-1)) === canonical(sketch), 'Local Redo restores original material geometry after feature cancellation');
+    }
+    await start();
     await page(value => { const e=document.querySelector('input[aria-label="Profundidad"]'); if(!e||e.disabled)throw Error('Depth field unavailable'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,String(value)); e.dispatchEvent(new Event('input',{bubbles:true})); }, type === 'cut' ? -3 : 3);
     await ready(); const serial=(await observe()).serial; await click(APPLY);
     await waitFor('operation committed',()=>page(()=>!document.querySelector('.property-manager')));
@@ -126,6 +155,10 @@ module.exports = function freshSketchWorkflow(c) {
     const final=await operation('cut',cutSketch,6,996,808,7,boss.features.at(-1).id);
     serial=(await observe()).serial; await click('button[title="Deshacer (Ctrl+Z)"]');
     const undo=await built(serial,5,1008,784,7,'undo-cut'); check(canonical(undo.features)===canonical(final.features.slice(0,-1)),'Undo removes only actual cut');
+    serial=(await observe()).serial; await click('button[title="Deshacer (Ctrl+Z)"]');
+    const undoSketch=await built(serial,4,1008,784,7,'undo-cut-sketch'); check(canonical(undoSketch.features)===canonical(boss.features),'Second Undo removes only the new cut sketch');
+    serial=(await observe()).serial; await click('button[title="Rehacer (Ctrl+Y)"]');
+    const redoSketch=await built(serial,5,1008,784,7,'redo-cut-sketch'); check(canonical(redoSketch.features)===canonical(undo.features),'First Redo restores the exact supported sketch');
     serial=(await observe()).serial; await click('button[title="Rehacer (Ctrl+Y)"]');
     const redo=await built(serial,6,996,808,7,'redo-cut'); check(canonical(redo.features)===canonical(final.features),'Redo exact complete history');
     await menu('Guardar como…'); await waitFor('actual save complete',async()=>dialogCounts().saves===1&&ipc.some(e=>e.channel==='document:save'&&e.completed)&&await page(()=>!document.querySelector('.document-title')?.textContent.includes('*')));

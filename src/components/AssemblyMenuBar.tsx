@@ -3,6 +3,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent
 export interface AssemblyMenuAction {
   id: string
   label: string
+  shortcut?: string
   onSelect: () => void
   disabled?: boolean
   checked?: boolean
@@ -25,7 +26,7 @@ export function assemblyMenuFocusIndex(items: readonly Pick<AssemblyMenuAction, 
 }
 
 /** Only caller-owned commands are rendered. Closed menus have no hidden items. */
-export default function AssemblyMenuBar({ menus, label = 'Menú principal del ensamblaje' }: { menus: readonly AssemblyMenuDefinition[]; label?: string }) {
+export default function AssemblyMenuBar({ menus, label, variant = 'assembly' }: { menus: readonly AssemblyMenuDefinition[]; label?: string; variant?: 'assembly' | 'part' }) {
   const prefix = useId(), root = useRef<HTMLElement>(null), triggers = useRef(new Map<string, HTMLButtonElement>())
   const [open, setOpen] = useState<string | null>(null), openRef = useRef(open)
   const [focusRequest, setFocusRequest] = useState<{ id: string; index: number | null } | null>(null)
@@ -88,14 +89,14 @@ export default function AssemblyMenuBar({ menus, label = 'Menú principal del en
       if (next !== undefined) { event.preventDefault(); focusItem(menu.id, next) }
     }
   }
-  return <nav className="assembly-main-menus" ref={root} role="menubar" aria-label={label}>
-    {menus.map((menu, index) => <div className="assembly-menu-wrap" role="none" key={menu.id}>
+  return <nav className={variant === 'part' ? 'assembly-main-menus part-main-menus' : 'assembly-main-menus'} ref={root} role="menubar" aria-label={label ?? (variant === 'part' ? 'Menú principal de la pieza' : 'Menú principal del ensamblaje')}>
+    {menus.map((menu, index) => <div className={variant === 'part' ? 'assembly-menu-wrap menu-wrap' : 'assembly-menu-wrap'} role="none" key={menu.id}>
       <button type="button" role="menuitem" data-assembly-menu={menu.id} id={`${prefix}-${menu.id}-trigger`} aria-haspopup="menu" aria-expanded={open === menu.id}
         aria-controls={open === menu.id ? `${prefix}-${menu.id}-popup` : undefined} tabIndex={tabStop === index ? 0 : -1}
         ref={button => { if (button) triggers.current.set(menu.id, button); else triggers.current.delete(menu.id) }}
         onFocus={() => setTabStop(index)} onKeyDown={event => topKey(event, index)}
         onClick={() => { if (openRef.current === menu.id) close(true); else show(index) }}>{menu.label}</button>
-      {open === menu.id && <div id={`${prefix}-${menu.id}-popup`} className="assembly-menu-popup" role="menu" aria-labelledby={`${prefix}-${menu.id}-trigger`} tabIndex={-1}
+      {open === menu.id && <div id={`${prefix}-${menu.id}-popup`} className={variant === 'part' ? 'assembly-menu-popup dropdown' : 'assembly-menu-popup'} role="menu" aria-labelledby={`${prefix}-${menu.id}-trigger`} tabIndex={-1}
         onKeyDown={event => popupKey(event, menu, index)}>
         {menu.items.map((item, itemIndex) => <button type="button" key={item.id} data-menu-index={itemIndex} data-assembly-command={item.id} tabIndex={-1}
           role={item.checked === undefined ? 'menuitem' : 'menuitemcheckbox'} aria-checked={item.checked} disabled={item.disabled} aria-disabled={item.disabled || undefined}
@@ -103,7 +104,7 @@ export default function AssemblyMenuBar({ menus, label = 'Menú principal del en
             const actual = currentMenus.current.find(value => value.id === menu.id)?.items.find(value => value.id === item.id)
             if (!actual || actual.disabled || openRef.current !== menu.id) return
             close(true); actual.onSelect()
-          }}><span className="assembly-menu-check" aria-hidden="true">{item.checked ? '✓' : ''}</span><span>{item.label}</span></button>)}
+          }}><span className="assembly-menu-check" aria-hidden="true">{item.checked ? '✓' : ''}</span><span>{item.label}</span>{item.shortcut && <kbd className="assembly-menu-shortcut">{item.shortcut}</kbd>}</button>)}
       </div>}
     </div>)}
   </nav>

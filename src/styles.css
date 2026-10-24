@@ -232,6 +232,18 @@ button,
   color: #7a8791;
 }
 
+/* Shared keyboard menu with the existing part header and legacy selectors. */
+.menubar .part-main-menus > .menu-wrap { align-items: center; }
+.menubar .part-main-menus > .menu-wrap > button { color: #38576e; white-space: nowrap; }
+.menubar .part-main-menus > .menu-wrap > button[aria-expanded="true"] { background: #e3f0fa; border-color: #bed6e9; }
+.menubar .part-main-menus > .menu-wrap > button:focus-visible { outline: 2px solid #2385c8; outline-offset: -2px; }
+.menubar .part-main-menus .dropdown { top: 100%; min-width: 247px; padding: 5px; border-radius: 2px; z-index: 100; }
+.menubar .part-main-menus .dropdown > button { justify-content: flex-start; gap: 6px; min-height: 30px; height: auto; padding: 6px 10px; }
+.menubar .part-main-menus .dropdown > button:not(:disabled):hover,
+.menubar .part-main-menus .dropdown > button:not(:disabled):focus { background: #e3f0fa; color: #235579; outline: none; }
+.menubar .part-main-menus .dropdown > button:disabled { color: #8c9aa4; cursor: default; }
+.menubar .part-main-menus .assembly-menu-shortcut { margin-left: auto; padding-left: 18px; flex-shrink: 0; font-family: inherit; font-size: 10px; color: #7a8791; }
+
 .quickbar {
   display: flex;
   align-items: center;

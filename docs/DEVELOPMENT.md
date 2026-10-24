@@ -1,8 +1,25 @@
 # Development guide
 
-Assembly top-level menus use `AssemblyMenuBar.tsx`. Callers provide existing
+Part and assembly top-level menus use `AssemblyMenuBar.tsx`. Callers provide existing
 actions and their current guards; closed menus do not mount duplicate controls.
 Focus transfers after the menu commit, before a following keyboard action.
+Escape within the menu closes it and restores trigger focus without reaching
+the workspace's draft-cancellation handler. The part keyboard handler respects
+consumed events. Menu availability follows the current edit and history state.
+
+Starting a profile operation from a new active part sketch stages that sketch
+without accepting it. The operation's source build, body-command validation,
+preview and acceptance use the same `operationDocument`, including the staged
+sketch. Its profile selector is locked and acceptance requires that sketch ID.
+The persisted `doc`, serialized document and recovery remain unchanged during
+the preview. Cancel restores the sketch draft and its local undo/redo; document
+replacement clears staging. Acceptance validates the final document before
+recording two history entries, sketch then operation, with no intermediate
+document render or recovery write. Document Undo therefore removes the operation
+first, matching the explicit exit-sketch route. Existing sketch edits remain
+outside this shortcut. A stale or unhealthy preview and unfinished sketch
+chamfer, fillet, mirror or offset tools must not start the transition.
+
 The two origin-axis renderer flows also exercise actual menu pointer/keyboard
 input through `desktop-assembly-menu-controls.cjs`, including Escape, Tab,
 disabled history, tree/editor navigation and retained references. Keyboard

@@ -1,5 +1,58 @@
 # Validation
 
+## Part menus and active-sketch continuation — 2026-10-24
+
+The increment after `b147e3e` shares the top-level menu implementation with the
+part workspace and stages a new active sketch when starting a profile operation.
+Menu Escape preserves the draft. Cancelling the operation resumes that sketch;
+acceptance records the sketch and operation as separate document-history steps.
+
+Windows x64 / Node 24.11.1 / actual Electron 44.9.3:
+
+- Literal `npm test` passes 9,384 unit/CAD cases across 404 files in 609.37
+  seconds, followed by 83 IPC/security passes and two explicit platform skips.
+  The production build and actual loader/worker/WASM desktop smoke pass.
+  All 1,064 non-Markdown inputs match the isolated runtime checkout; no source
+  differences are reported. Application and harness source were frozen before
+  the full suite.
+- The final fresh-sketch renderer run passes 48 checkpoints and 13 geometry
+  phases. It draws new supported sketches, starts the extrusion from the ribbon
+  and the cut from **Insertar**, and checks Cancel/retry for both. Extrusion
+  cancellation also exercises local sketch Undo/Redo. The profile selector
+  remains locked, preview and Cancel preserve committed recovery, and acceptance
+  preserves exact sketch IDs, entities, support and current-body destinations.
+  Two document Undos remove the cut and its sketch separately; two Redos restore
+  them before real save/reopen checks. Face selection and drawing use pointer
+  input; operation controls and the cut menu command are scripted. The retained
+  final report summary confirms PASS, no console/resource errors, child exit and
+  isolated-profile cleanup. A final 1544×941 capture is retained separately.
+- The prepared-sketch sequence renderer passes 44 checkpoints and nine geometry
+  phases, with no console/resource errors and confirmed child exit/profile
+  cleanup. Its original successive cuts, additive extrusions, history and file
+  checks remain in place.
+- The standard assembly origin regression passes 130 checkpoints, 62 recorded
+  gestures and nine geometry phases, retaining its original selection, native
+  geometry, history and persistence checks.
+- A separate visible Windows session opens an existing original demo extrusion,
+  navigates **Ver → Down → Escape**, and confirms that the left properties and
+  12 mm depth remain. Cancelling the unchanged draft restores the original demo.
+
+The fresh-sketch workflow was repeated after the full suite to retain its complete
+text report separately from the earlier inspected PNG; both final runs pass the
+same 48 checkpoints and 13 phases. The first attempt used the wrong tab-state
+class in its harness assertion; correcting that selector did not change the
+application behavior or geometric oracle. Revolution uses the same source
+integration but has not been exercised by these renderer cases. These results
+do not establish arbitrary profile, reference, timing or platform coverage.
+
+Hosted predecessor `d276` has a successful
+[Security run](https://github.com/angelcp2802/solidflow/actions/runs/40133946282).
+Its [CI run](https://github.com/angelcp2802/solidflow/actions/runs/40133946277)
+passes eight of nine renderer jobs and all three configured-authoring jobs.
+Windows rigid assembly persistence exceeds its 170-second deadline; the Desktop
+prerequisite gate remains blocked. These hosted results do not establish complete
+acceptance of this later part-workflow increment.
+
 ## Assembly menus and origin-owner continuity — 2026-10-24
 
 The increment after `6e2e0b6` adds six functional top-level assembly menus and

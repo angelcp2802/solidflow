@@ -27,6 +27,21 @@ it('keeps named file identity in the header and existing quick access below the 
   expect(html.match(/>Guardar<\/button>/g)).toHaveLength(1)
 })
 
+it('retains legacy part menu trigger selectors and defers shortcuts until the menu opens', () => {
+  const action = vi.fn(), menus: AssemblyMenuDefinition[] = [
+    { id: 'file', label: 'Archivo', items: [{ id: 'save', label: 'Guardar', shortcut: 'Ctrl+S', onSelect: action }] },
+  ]
+  const html = renderToStaticMarkup(<AssemblyMenuBar menus={menus} variant="part" />)
+  expect(html).toContain('class="assembly-main-menus part-main-menus"')
+  expect(html).toContain('class="assembly-menu-wrap menu-wrap" role="none"><button')
+  expect(html).toContain('aria-label="Menú principal de la pieza"')
+  expect(html).toContain('aria-haspopup="menu" aria-expanded="false"')
+  expect(html).not.toContain('dropdown'); expect(html).not.toContain('Ctrl+S')
+  expect(html).not.toContain('data-assembly-command'); expect(action).not.toHaveBeenCalled()
+  const custom = renderToStaticMarkup(<AssemblyMenuBar menus={menus} variant="part" label="Comandos de la pieza" />)
+  expect(custom).toContain('aria-label="Comandos de la pieza"')
+})
+
 it('preserves the prior header arrangement when a caller has no menu definitions', () => {
   const html = renderToStaticMarkup(<AssemblyShellHeader name="Original legacy caller"><nav aria-label="File actions"><button>Abrir</button></nav></AssemblyShellHeader>)
   expect(html.indexOf('aria-label="File actions"')).toBeLessThan(html.indexOf('</header>'))
