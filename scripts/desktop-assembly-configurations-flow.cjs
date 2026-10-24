@@ -5,7 +5,7 @@ module.exports=function configurationsWorkflow(context){
  const {expected,input,output,evaluate,observe,waitFor,click,capture,check,canonical,digest,ipc,dialogCounts,consoleErrors,failedRequests,initialReadyMs}=context;
  const phases=[],ROOT='.configured-assembly-workspace',NAV=':is([aria-label="Archivo del ensamblaje configurado"],[aria-label="Comandos del ensamblaje configurado"])';
  const page=(fn,...args)=>evaluate('('+fn.toString()+')('+args.map(encodeJavaScriptString).join(',')+')');
- const navigation=require('./desktop-configured-navigation.cjs')({page,waitFor});
+ const navigation=require('./desktop-configured-navigation.cjs')({page,waitFor,pointer:context.pointer});
  const near=(actual,wanted,band,label)=>check(Number.isFinite(actual)&&Math.abs(actual-wanted)<=band,label+' actual='+actual+' expected='+wanted);
  const vec=(a,b,label)=>{check(Array.isArray(a)&&a.length===b.length,label+' shape');a.forEach((v,i)=>near(v,b[i],1e-6,label+'['+i+']'));};
  async function button(text,parent=NAV){ await navigation.reveal(parent+' button',text); await page((text,parent)=>{const rows=[...document.querySelectorAll(parent+' button')].filter(b=>b.textContent.trim()===text);if(rows.length!==1||rows[0].disabled)throw Error('One enabled button required: '+text);rows[0].click();},text,parent);}

@@ -465,8 +465,10 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
       </div>
       <div data-configured-pane="model" hidden={inspectorPane !== 'model'}>
         <ConfiguredAssemblyTree name={document.source.name} evaluation={evaluation} scope={scope} occurrenceId={occurrenceId} disabled={blocked || !!mateDraft}
+          active={inspectorPane === 'model'} resetKey={initialDocument}
           onScope={value => { if (value !== scope) changeScope(value); setRevealRequest({ id: 'configured-root-state' }) }}
           onOccurrence={(owner, id) => { if (!fresh(renderedTicket) || operation.current || pending.current || mateDraftRef.current) return; if (owner !== scope) changeScope(owner); occurrenceRef.current = id; setOccurrenceId(id); setBomSelection(null) }}
+          onProperties={() => { if (!fresh(renderedTicket) || operation.current || pending.current || mateDraftRef.current || !selected) return; setRevealRequest({ id: 'configured-occurrence-inspector' }) }}
           onRelations={() => setRevealRequest({ id: 'configured-relations' })} />
         <details className="configured-effective-parts"><summary>Piezas efectivas</summary><ul>{evaluation.parts.map(part => <li key={JSON.stringify(part.path)}>{part.path.join(' / ')}{part.suppressed ? ' · suprimida' : part.visible ? '' : ' · oculta'}</li>)}</ul>
 </details>

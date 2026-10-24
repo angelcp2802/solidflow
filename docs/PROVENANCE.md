@@ -1,5 +1,20 @@
 # Public fixture provenance
 
+## Assembly occurrence-tree navigation
+
+The shared navigation tests author a small presentation-only hierarchy with two
+owners of a reused definition, a deeper branch and a revised identity. Standard
+and configured component tests reuse the existing original assembly fixtures;
+static markup checks do not establish actual focus or geometric correctness.
+
+The renderer's bounded disclosure, selection, keyboard and explicit-properties
+scenario reuses the original standard and configured BOM assemblies. Their
+geometry, quantities, CSV records and saved-file oracles remain independently
+declared. Configured scope changes retain the existing native rebuild and the
+prior scope/occurrence is restored through controls before the BOM regression.
+No new CAD fixture, imported model, external image or copied implementation is
+introduced. Actual interaction results and limits belong in [validation](VALIDATION.md).
+
 ## Assembly command-tab navigation
 
 The shared ribbon tests author only tab values and inspect static accessible

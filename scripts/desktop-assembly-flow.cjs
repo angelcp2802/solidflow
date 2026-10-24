@@ -7,7 +7,7 @@ const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 module.exports = function assemblyWorkflow(context) {
   context = require('./desktop-assembly-navigation.cjs').withNavigation(context);
   const assemblyNavigation = context.assemblyNavigation;
-  const { expected, input, output, projectionOutput, partUpdatePath, updatedPart, interferencePath, interferenceFixture, translationPath, translationFixture, translationOutput, bomPath, bomFixture, bomCsvOutputs, gearOutput, evaluate, observe, waitFor, click, capture, pointer, checks,
+  const { expected, input, output, projectionOutput, partUpdatePath, updatedPart, interferencePath, interferenceFixture, translationPath, translationFixture, translationOutput, bomPath, bomFixture, bomCsvOutputs, gearOutput, evaluate, observe, waitFor, click, capture, pointer, menuKey, checks,
     protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
     initialReadyMs, dialogCounts } = context;
   const SOLVE = 'button[aria-label="Resolver ensamblaje"]';
@@ -331,7 +331,7 @@ module.exports = function assemblyWorkflow(context) {
       observe, waitFor, click, capture: async () => {}, button, control, page, idle, responseAfter,
       checks, ipc, check, canonical, digest, near, close, dialogCounts, consoleErrors, failedRequests });
     await require('./desktop-assembly-bom-flow.cjs')({ bomPath, bomFixture, bomCsvOutputs,
-      observe, waitFor, click, capture: async () => {}, button, control, page, idle, responseAfter,
+      observe, waitFor, click, pointer, menuKey, capture: async () => {}, button, control, page, idle, responseAfter,
       checks, ipc, check, canonical, digest, near, close, dialogCounts, consoleErrors, failedRequests });
     await require('./desktop-assembly-gear-flow.cjs')({ expected, input, gearOutput,
       observe, waitFor, click, capture, pointer, button, control, page, idle, responseAfter,

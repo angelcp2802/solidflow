@@ -13,8 +13,9 @@ const routes = {
 // Navigation is an application action, never a hidden-input or React-state write.
 // Picking supplies CDP actualControl; the other workflows retain scripted DOM
 // controls and must not be reported as human pointer interaction.
-module.exports = function configuredNavigation({ page, waitFor, actualControl }) {
+module.exports = function configuredNavigation({ page, waitFor, actualControl, pointer }) {
   const ribbon = require('./desktop-assembly-ribbon-navigation.cjs')({ configured: true, page, waitFor, actualControl });
+  const tree = require('./desktop-assembly-tree-navigation.cjs')({ page, waitFor, actualControl, pointer });
   async function pane(name) {
     const route = routes[name];
     if (!route) throw Error('Unknown configured inspector pane: ' + name);
@@ -33,13 +34,14 @@ module.exports = function configuredNavigation({ page, waitFor, actualControl })
     const owner = await page((selector, text) => {
       const rows = [...document.querySelectorAll(selector)].filter(e => !text || e.textContent.trim() === text);
       if (rows.length !== 1) throw Error('One mounted configured control required: ' + selector + ' ' + text);
-      return rows[0].closest('[data-configured-pane]')?.getAttribute('data-configured-pane') || '';
+      return { pane: rows[0].closest('[data-configured-pane]')?.getAttribute('data-configured-pane') || '', tree: !!rows[0].closest('[role="tree"]') };
     }, selector, text);
-    if (owner) await pane(owner);
+    if (owner.pane) await pane(owner.pane);
+    if (owner.tree) await tree.reveal(selector, text);
     await waitFor('configured control belongs to visible pane', () => page((selector, text) => {
       const rows = [...document.querySelectorAll(selector)].filter(e => !text || e.textContent.trim() === text);
       return rows.length === 1 && !rows[0].closest('[hidden]') && rows[0].getClientRects().length > 0;
     }, selector, text));
   }
-  return { pane, ribbon: ribbon.tab, reveal };
+  return { pane, ribbon: ribbon.tab, tree, reveal };
 };

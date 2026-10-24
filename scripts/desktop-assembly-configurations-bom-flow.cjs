@@ -19,6 +19,21 @@ module.exports=async function configuredBomWorkflow(c){
  function parseCsv(bytes){check(bytes.subarray(0,3).equals(Buffer.from([239,187,191])),'Actual CSV UTF-8 BOM');const text=new TextDecoder('utf-8',{fatal:true}).decode(bytes.subarray(3));let i=0,all=[];
   while(i<text.length){let row=[];for(;;){check(text[i++]==='"','Every CSV cell is quoted');let value='';for(;;){check(i<text.length,'Closed quoted field');const ch=text[i++];if(ch!=='"'){value+=ch;continue;}if(text[i]==='"'){value+='"';i++;continue;}break;}row.push(value);if(text[i]===','){i++;continue;}check(text.slice(i,i+2)==='\r\n','CSV uses complete CRLF records');i+=2;break;}all.push(row);}return all;}
  function assertCsv(bytes,configuration,scope,wanted){const all=parseCsv(bytes),headers=['Item','Type','Name','Definition ID','Revision','Configuration','Quantity per parent','Total quantity','Occurrence paths','Configuration ancestry','Root configuration','Scope path','Source link name','Source link SHA-256'];check(canonical(all[0])===canonical(headers),'Literal configured CSV headers');check(all.length===wanted.length+1,'Exact exported row count');const parsed=all.slice(1).map(row=>{check(row.length===14,'Exact fourteen fields');for(const index of [0,1,2,3,4,5,8,9,10,11,12,13])check(row[index].startsWith("'"),'Every exported text cell is apostrophe-prefixed');const plain=row.map((value,i)=>[6,7].includes(i)?value:value.slice(1));check(plain[10]===JSON.stringify(configuration)&&plain[11]===JSON.stringify(scope),'Captured root selector and full root scope in CSV');const members=JSON.parse(plain[8]),ancestries=JSON.parse(plain[9]);check(members.length===Number(plain[7])&&ancestries.length===members.length,'Each CSV quantity matches exact member paths/ancestries');members.forEach((path,i)=>{const ancestry=ancestries[i];check(ancestry.length===2&&canonical(ancestry[0])===canonical({path:[],definition:{id:'configuration-root',revision:'root-r1'},configuration})&&canonical(ancestry[1])===canonical({path:[path[0]],definition:{id:'configuration-S',revision:'s-r1'},configuration:'compact'}),'Literal full root/child state ancestry');});return [plain[3],JSON.parse(plain[5]),plain[6]===''?null:Number(plain[6]),Number(plain[7]),members];});check(canonical(parsed)===canonical(wanted),'Actual CSV rows, identities, quantities and ROOT paths match independent literals');return digest(bytes);}
+ const beforeTree=await snapshot();
+ check(typeof beforeTree.scope==='string'&&typeof beforeTree.occurrence==='string','Configured tree regression starts from explicit scope and occurrence controls');
+ await require('./desktop-assembly-tree-controls.cjs')({...c,configured:true});
+ if((await snapshot()).scope!==beforeTree.scope){
+  const beforeRestore=await observe();await control('Ámbito de configuración',beforeTree.scope);
+  const restored=await response(beforeRestore.serial,'build-configured-assembly');
+  check(canonical(restored.current.document)===canonical(JSON.parse(beforeTree.recovery)),'Restoring the prior tree scope rebuilds the exact committed document');
+  await recovery(savedDocument,'BOM tree scope restored');
+ }
+ if((await snapshot()).occurrence!==beforeTree.occurrence)await control('Ocurrencia configurada',beforeTree.occurrence);
+ await waitFor('BOM prior scope and occurrence restored through controls',()=>page((root,scope,occurrence)=>
+  document.querySelector(root)?.getAttribute('aria-busy')==='false'
+   &&document.querySelector('[aria-label="Ámbito de configuración"]')?.value===scope
+   &&document.querySelector('[aria-label="Ocurrencia configurada"]')?.value===occurrence,ROOT,beforeTree.scope,beforeTree.occurrence));
+ check(canonical(await snapshot())===canonical(beforeTree),'Tree regression restores the exact prior BOM scope, occurrence, recovery, history and saved identity');
  await click('button[aria-label="Lista de materiales configurada"]');await table('both compact parts',PARTS);
  const readOnly=await snapshot(),serial=(await observe()).serial;
  const bomState=()=>page(panel=>{const el=document.querySelector(panel);return el&&{rows:el.querySelector('tbody')?.textContent,controls:[...el.querySelectorAll('select,input')].map(control=>[control.getAttribute('aria-label'),control.value,control.checked??null])};},PANEL);

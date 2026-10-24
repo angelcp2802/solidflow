@@ -296,6 +296,14 @@ frames and freshly solves the resulting declaration, preserving solver policy.
 
 ## Workspace and files
 
+Component branches expand independently by full occurrence path. Collapsing a
+subassembly retains its selected descendant. Arrow keys navigate visible rows
+without selecting another component; Enter/Space activate the focused row.
+The explicit component-properties command focuses the existing inline controls
+while ordinary selection keeps the tree visible. This presentation state is not saved in the
+assembly document. Origin planes and axes are currently selected through the
+relation editor; actionable origin children in the component tree remain pending.
+
 The workspace has a component tree, names/poses/fixed/visible/suppressed controls,
 insertion of a chosen v1 part or v2 assembly, reuse of existing definitions and
 scoped mate declarations. [Component import](ASSEMBLY_COMPONENT_IMPORT.md)

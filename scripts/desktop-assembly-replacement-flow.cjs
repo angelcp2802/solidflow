@@ -131,9 +131,10 @@ module.exports = function replacementWorkflow(context) {
     await idle(name + ' Open completes'); await recovery(document, name); record(name, event); return event.response.value;
   }
   async function selectPart() {
+    await assemblyNavigation.reveal(await assemblyNavigation.tree.selector('data-assembly-tree-path', JSON.stringify(LEFT)));
     (await assemblyNavigation.panel('components'), await page(() => {
       const found = [...document.querySelectorAll('[role="treeitem"]')].filter(value => value.querySelector('span')?.firstChild?.textContent === 'Original replacement pin');
-      if (found.length !== 2 || found.some(value => value.disabled)) throw Error('Expected two actual reused pin tree rows.');
+      if (found.length !== 2 || found.some(value => value.disabled) || found[0].closest('[hidden]')) throw Error('Expected two actual reused pin tree rows and a visible left target.');
       found[0].click();
     }));
     await waitFor('exact selected pin replacement controls', () => page(() => !!document.querySelector('button[aria-label="Elegir pieza sustituta"]') && document.querySelector('input[aria-label="Nombre del componente"]')?.value === 'Original replacement pin'));

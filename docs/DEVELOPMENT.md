@@ -1,5 +1,32 @@
 # Development guide
 
+The assembly component trees share `assemblyTreeNavigation.ts` and
+`useAssemblyTreeNavigation.ts`. Keys identify the full occurrence path and exact
+definition revision, so reused subassemblies expand independently. The configured
+tree also identifies its configuration actions separately. Expansion and keyboard
+focus are presentation state; they are never serialized into the CAD document.
+Collapsed descendants remain mounted under hidden groups, retaining selection.
+New external selection, returning to the model pane or replacing the document
+reveals the selected ancestry; ordinary renders do not undo an explicit collapse.
+Removed or revised identities are pruned. Up/Down/Home/End move focus; Right opens
+or enters a branch and Left closes it or returns to its parent. Enter/Space use
+the row's existing activation. A disclosure returns focus to its owning row.
+
+Selecting a component keeps the model tree visible. The explicit component
+properties command focuses the standard workspace's existing inline controls
+or opens the configured occurrence inspector. Configured selection may
+still rebuild when its declaring scope changes; it must retain the fresh-build
+guard. Disclosure and keyboard focus themselves do not issue CAD requests.
+Origin references remain available through the existing relation editor; the
+component tree does not yet expose actionable origin planes or axes.
+
+`desktop-assembly-tree-navigation.cjs` discovers mounted ancestry and opens its
+real disclosure controls before a hidden target can be selected. It does not
+unhide nodes or write application state. The bounded tree-controls scenario uses
+the existing original reused BOM fixtures and actual pointer/keyboard input;
+its acceptance and subsequent persistence checks remain separate. See
+[validation](VALIDATION.md) for executed cases and limits.
+
 Part and assembly top-level menus use `AssemblyMenuBar.tsx`. Callers provide existing
 actions and their current guards; closed menus do not mount duplicate controls.
 Focus transfers after the menu commit, before a following keyboard action.

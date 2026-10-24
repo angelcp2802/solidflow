@@ -20,6 +20,7 @@ module.exports = async function bomWorkflow(context) {
   check(opened.response.value.solidCount === 7 && opened.response.value.bodies.length === 7 && opened.response.value.prototypeCount === 3,
     'Original active native leaves/revisions differ from the count fixture.');
   const start = await observe(), recovery = await page(() => localStorage.getItem('solidflow.autosave'));
+  await require('./desktop-assembly-tree-controls.cjs')({ ...context, navigation: assemblyNavigation });
   await click('button[aria-label="Lista de materiales"]');
   await waitFor('BOM drawer is actually rendered', () => page(selector => !!document.querySelector(selector), REGION));
   async function table(phase) {

@@ -20,6 +20,13 @@
 .assembly-tree-row small { display: block; font-size: 9px; opacity: .6; margin-top: 2px; }
 .assembly-tree-row.selected { background: #deedf9; color: #155b8d; box-shadow: inset 3px 0 #2486cc; }
 .assembly-tree-row.suppressed { color: #8795a1; font-style: italic; }
+.assembly-tree-entry[hidden], .assembly-tree-entry > [role="group"][hidden] { display: none; }
+.assembly-tree-row-wrap { position: relative; }
+.assembly-tree-toggle { position: absolute; z-index: 1; top: 50%; transform: translateY(-50%); display: flex; align-items: center; justify-content: center; width: 18px; height: 24px; min-height: 0; padding: 0; border: 0; border-radius: 2px; background: transparent; color: #607b8d; }
+.assembly-tree-toggle:hover:not(:disabled) { background: #d7eaf9; }
+.assembly-tree-toggle:focus-visible, .assembly-tree-row:focus-visible { outline: 2px solid #2385c8; outline-offset: -2px; }
+.assembly-tree-actions { display: flex; justify-content: flex-end; padding: 5px 9px; border-bottom: 1px solid #dce5ed; }
+.assembly-tree-actions > button { display: flex; align-items: center; gap: 5px; min-height: 26px; padding: 3px 7px; color: #326e9b; }
 .assembly-section { border-bottom: 1px solid #dce5ed; padding: 12px; }
 .assembly-section h2, .assembly-section h3 { display: flex; align-items: center; gap: 6px; margin: 0 0 11px; font-size: 12px; font-weight: 650; color: #32658d; }
 .assembly-section label { display: flex; flex-direction: column; gap: 5px; margin: 9px 0; color: #5c7284; font-size: 11px; }

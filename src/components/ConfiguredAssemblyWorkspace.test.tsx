@@ -38,6 +38,8 @@ it('renders the actual configured format and bounded controls without triggering
   for (const label of ['Insertar componente', 'Nueva relación', 'Lista de materiales', 'Aplicar configuración', 'Resolver configuración'])
     expect(ribbon.split('<span>' + label + '</span>')).toHaveLength(2)
   expect(html).toContain('aria-label="Mostrar árbol del ensamblaje" aria-pressed="true"')
+  expect(html).toContain('role="tree" aria-label="Componentes del ensamblaje configurado"')
+  expect(html).toMatch(/<button[^>]*aria-label="Propiedades del componente seleccionado"[^>]*disabled=""/)
 })
 
 it('starts a genuinely empty root variant from Base instead of copying the selected child configuration', () => {

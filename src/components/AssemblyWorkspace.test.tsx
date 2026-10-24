@@ -32,6 +32,15 @@ function widthPickScene(faces: AssemblySceneFace[], visible = true): AssemblySce
     name: 'Original display-only width pick body', visible, worldPose: identityRigidPose(), vertices: [], normals: [], triangles: [], edgeLines: [],
     faces, volume: 0, area: 0, solidCount: 0, bounds: { min: [0,0,0], max: [0,0,0] } }] }
 }
+function nestedTreeFixture(): AssemblyDocument {
+  const document = createAssemblyExample(), child = structuredClone(document.occurrences[1]); child.id = 'child'; child.fixed = true
+  document.definitions.push({ kind: 'assembly', id: 'sub', revision: 'r1', name: 'Original nested source', createdAt: document.createdAt, updatedAt: document.updatedAt, occurrences: [child], mates: [] })
+  document.occurrences = [{ ...structuredClone(document.occurrences[1]), id: 'a', definition: { id: 'sub', revision: 'r1' }, visible: false, fixed: false },
+    { ...structuredClone(document.occurrences[2]), id: 'b', definition: { id: 'sub', revision: 'r1' }, suppressed: true }]
+  return validateAssemblyDocument(document)
+}
+const treeAttribute = (tag: string, name: string) => tag.match(new RegExp('\\b' + name + '="([^"]*)"'))?.[1]
+  .replaceAll('&quot;', '"').replaceAll('&amp;', '&')
 it('takes Width intent from the actual visible scene entry rather than an incoming face payload', () => {
   const actual = face(['sub-a','pin'],'plane'), scene = widthPickScene([actual]), incoming = face(['sub-a','pin'],'cylinder')
   const before = JSON.stringify(scene), selected = scopedAssemblyWidthPick(scene,incoming,['sub-a'])
@@ -100,6 +109,7 @@ it('renders the real assembly controls and keeps Apply blocked before an actual 
   expect(html.match(/Importar componente/g)).toHaveLength(1)
   expect(html).toMatch(/<button(?=[^>]*disabled="")[^>]*>(?:(?!<\/button>)[\s\S])*Importar componente(?:<\/span>)?<\/button>/)
   expect(html).not.toContain('Importar pieza')
+  expect(html).toMatch(/<button(?=[^>]*aria-label="Propiedades del componente seleccionado")(?=[^>]*disabled="")[^>]*>/)
   expect(serializeAssemblyDocument(document)).toBe(before); expect(buildAssembly).not.toHaveBeenCalled(); expect(previewAssembly).not.toHaveBeenCalled()
 })
 it('offers principal angular limits as a distinct family without starting work or supplying a fresh measure', () => {
@@ -140,12 +150,52 @@ it('renders separate occurrence tree entries for a reused source and distinguish
   expect(assemblyTreeRows(document).filter(row => row.definition.id === 'example-pin').map(row => row.path)).toEqual([['left'], ['right']])
 })
 it('retains full nested occurrence paths and inherited visibility/suppression without a world-fixed shortcut', () => {
-  const document = createAssemblyExample(), child = structuredClone(document.occurrences[1]); child.id = 'child'; child.fixed = true
-  document.definitions.push({ kind: 'assembly', id: 'sub', revision: 'r1', name: 'Original nested source', createdAt: document.createdAt, updatedAt: document.updatedAt, occurrences: [child], mates: [] })
-  document.occurrences = [{ ...structuredClone(document.occurrences[1]), id: 'a', definition: { id: 'sub', revision: 'r1' }, visible: false, fixed: false },
-    { ...structuredClone(document.occurrences[2]), id: 'b', definition: { id: 'sub', revision: 'r1' }, suppressed: true }]
-  const rows = assemblyTreeRows(validateAssemblyDocument(document)), a = rows.find(row => row.path.join('/') === 'a/child')!, b = rows.find(row => row.path.join('/') === 'b/child')!
+  const rows = assemblyTreeRows(nestedTreeFixture()), a = rows.find(row => row.path.join('/') === 'a/child')!, b = rows.find(row => row.path.join('/') === 'b/child')!
   expect(a.visible).toBe(false); expect(a.occurrence.fixed).toBe(true); expect(a.parent).toEqual({ id: 'sub', revision: 'r1' }); expect(b.suppressed).toBe(true)
+})
+it('keeps reused descendants mounted under distinct closed branches without changing the complete occurrence catalog', () => {
+  const document = nestedTreeFixture(), before = serializeAssemblyDocument(document), onSelect = vi.fn()
+  const html = renderToStaticMarkup(<AssemblyComponentTree document={document} selectedPath={[]} onSelect={onSelect} />)
+  const rows = html.match(/<button(?=[^>]*role="treeitem")[^>]*>/g) ?? []
+  const disclosures = html.match(/<button(?=[^>]*data-assembly-tree-disclosure=)[^>]*>/g) ?? []
+  const groups = html.match(/<div(?=[^>]*role="group")[^>]*>/g) ?? []
+  expect(rows).toHaveLength(4); expect(disclosures).toHaveLength(2); expect(groups).toHaveLength(2)
+  expect(rows.map(row => JSON.parse(treeAttribute(row, 'data-assembly-tree-path')!))).toEqual([['a'], ['a', 'child'], ['b'], ['b', 'child']])
+  expect(new Set(rows.map(row => treeAttribute(row, 'data-assembly-tree-key'))).size).toBe(4)
+  expect(rows.filter(row => row.includes('tabindex="0"'))).toHaveLength(1)
+  for (const [index, rootIndex] of [0, 2].entries()) {
+    const parent = rows[rootIndex], child = rows[rootIndex + 1], key = treeAttribute(parent, 'data-assembly-tree-key')
+    expect(treeAttribute(parent, 'data-assembly-tree-parent')).toBe('')
+    expect(treeAttribute(child, 'data-assembly-tree-parent')).toBe(key)
+    expect(treeAttribute(disclosures[index], 'data-assembly-tree-disclosure')).toBe(key)
+    expect(treeAttribute(groups[index], 'data-assembly-tree-parent-key')).toBe(key)
+    expect(treeAttribute(parent, 'aria-controls')).toBe(treeAttribute(groups[index], 'id'))
+    expect(treeAttribute(parent, 'aria-owns')).toBe(treeAttribute(groups[index], 'id'))
+    expect(parent).toContain('aria-expanded="false"'); expect(groups[index]).toContain('hidden=""')
+    expect(child).toContain('aria-level="2"'); expect(child).not.toContain('aria-expanded=')
+  }
+  expect(assemblyTreeRows(document)).toHaveLength(4)
+  expect(serializeAssemblyDocument(document)).toBe(before); expect(onSelect).not.toHaveBeenCalled()
+})
+it('reveals only the selected reused occurrence ancestors and assigns that row the keyboard entry point', () => {
+  const document = nestedTreeFixture(), onSelect = vi.fn()
+  const html = renderToStaticMarkup(<AssemblyComponentTree document={document} selectedPath={['b', 'child']} onSelect={onSelect} />)
+  const rows = html.match(/<button(?=[^>]*role="treeitem")[^>]*>/g) ?? []
+  const groups = html.match(/<div(?=[^>]*role="group")[^>]*>/g) ?? []
+  expect(rows[0]).toContain('aria-expanded="false"'); expect(groups[0]).toContain('hidden=""')
+  expect(rows[2]).toContain('aria-expanded="true"'); expect(groups[1]).not.toContain('hidden=')
+  expect(rows[3]).toContain('aria-selected="true"'); expect(rows[3]).toContain('tabindex="0"')
+  expect(rows.slice(0, 3).every(row => row.includes('aria-selected="false"') && row.includes('tabindex="-1"'))).toBe(true)
+  expect(onSelect).not.toHaveBeenCalled()
+})
+it('keeps inactive tree navigation unfocusable and preserves the existing disabled selection guard', () => {
+  const document = nestedTreeFixture(), onSelect = vi.fn()
+  const inactive = renderToStaticMarkup(<AssemblyComponentTree document={document} selectedPath={['b', 'child']} onSelect={onSelect} active={false} />)
+  expect(inactive).not.toContain('tabindex="0"'); expect(inactive).not.toContain('aria-expanded="true"')
+  const blocked = renderToStaticMarkup(<AssemblyComponentTree document={document} selectedPath={[]} onSelect={onSelect} disabled />)
+  const controls = blocked.match(/<button\b[^>]*>/g) ?? []
+  expect(controls).toHaveLength(6); expect(controls.every(control => control.includes('disabled=""'))).toBe(true)
+  expect(blocked).not.toContain('tabindex="0"'); expect(onSelect).not.toHaveBeenCalled()
 })
 it('converts a displayed actual face to the declaring scope without losing exact body or definition state', () => {
   const original = face(), before = JSON.stringify(original), result = scopedAssemblyFace(original, ['sub-a'])

@@ -1,5 +1,74 @@
 # Validation
 
+## Assembly occurrence-tree navigation — 2026-10-25
+
+The increment after `4ae70d52` adds independent occurrence disclosure, retained
+selection, visible-row keyboard focus and explicit component-properties access.
+The configured tree retains configuration actions and its existing scope-change
+rebuild guard. Presentation state does not enter the saved CAD document.
+No solver, geometric tolerance or workflow deadline changes.
+
+Windows x64 / Node 24.11.1 / actual Electron 44.9.3:
+
+- Literal `npm test` passes 9,426 cases across 410 files in 610.87 seconds,
+  followed by 83 IPC/security cases and two explicit platform skips.
+- Production build and loader/worker/WASM desktop smoke pass. Application and
+  unit-test inputs stayed frozen; later changes only repair the renderer harness.
+- Standalone standard persistence/BOM passes 573 recorded checkpoints, including
+  five finalization timing records, with no console/resource errors and confirmed
+  isolated child/profile cleanup. Actual CDP tree disclosure, descendant selection,
+  keyboard focus and explicit Properties preserve native request serial and exact
+  recovery text. The original nested BOM geometry, quantities, CSV, manipulation,
+  relation, history and saved-document reopening checks remain.
+- Configured persistence/BOM passes 166 checkpoints with no console or resource
+  errors and confirmed isolated child/profile cleanup. Actual CDP interaction
+  covers two reused branches, retained descendant selection, independent
+  disclosure, Right/Left/Up/Down focus and explicit properties. Scope selection
+  retains its native rebuild; the original scope and occurrence are restored
+  through controls before the existing CSV/preview/history/file checks continue.
+- Standard/configured origin-axis regressions pass 156/262 checkpoints, retaining
+  the original-prism native oracles, reference assignment, preview, Cancel/retry,
+  Apply, history and real Save As/reopen checks. Both report no console/resource
+  errors and confirmed child/profile cleanup.
+- The 1040×700 configured pointer regression passes 203 checkpoints, including
+  component/face/LINE nomination, persistent confirmation, preview/history and
+  real file reopening. The original 128 mm³ volume and 192 mm² area oracles
+  retain 1e-5 tolerances and literal placement/bounds retain 1e-6 mm. No console
+  or resource errors; child/profile cleanup confirmed. Its 1024×661 capture was
+  inspected separately from the normal-size captures.
+- Nested selected/source symmetry repair and component replacement regressions
+  pass 68/77/98 checkpoints. Their scripted selection now opens actual ancestor
+  disclosures before activating the exact nested row. Existing native geometry,
+  repair scope, history and saved-file oracles are retained. All three report no
+  console/resource errors and confirmed child/profile cleanup; no capture was
+  requested for these additional regressions.
+- All 1,081 non-Markdown source inputs match the isolated runtime with zero
+  differences. The inspected final standard/configured captures are 1544×941.
+- A separate visible standard Windows demo on the original nested BOM fixture
+  confirms independent disclosure, retained viewport highlight while collapsed,
+  Right opening, Down focus without changing selection, and Properties focusing
+  the selected component's existing inline controls. No CAD edit or save is
+  claimed from that manual presentation check.
+
+The first standard renderer attempt stopped at checkpoint 307 because the new
+tree helper passed booleans to the deliberately string-only JavaScript argument
+encoder. The helper now transports textual mode/state values. The encoder,
+application, independent geometry oracles and deadlines remain unchanged.
+
+The preceding `c4ff07c` [CI](https://github.com/angelcp2802/solidflow/actions/runs/40139215488)
+and [Security](https://github.com/angelcp2802/solidflow/actions/runs/40139215494)
+completed successfully, including all three downstream Desktop jobs.
+The subsequent published ribbon head `6912158` fails rigid persistence on Windows
+and Linux in [CI](https://github.com/angelcp2802/solidflow/actions/runs/40142135802).
+Its other seven renderer jobs and all three configured-authoring jobs pass;
+Desktop jobs fail their prerequisite gate before validation. Dedicated failed-job
+logs were unavailable both before and after completion, so the exact assertion
+or timeout cause is not established. Its
+[Security](https://github.com/angelcp2802/solidflow/actions/runs/40142135871) passes.
+These hosted results do not establish acceptance of the new tree increment.
+Actionable origin-plane/axis children, arbitrary topology and general installed
+platform support remain outside this presentation evidence.
+
 ## Contextual assembly commands — 2026-10-25
 
 The increment after `2823142e` separates upper command-tab presentation from

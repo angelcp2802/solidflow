@@ -793,7 +793,7 @@ async function runInElectron() {
     return window.webContents.executeJavaScript(source, false);
   };
   const pointer = async (type, point, buttons = 0) => {
-    check((partSequence || originAxes || freshSketch || configuredPicking || assembly || rackPinion || direction || tangent || cylinderTangent || sphereTangent || limitDistance || limitAngle || directedAngle || width || symmetry || symmetryPicking || hingePicking || hingeLimitsPicking) && !window.isVisible() && window.webContents.debugger.isAttached()
+    check((partSequence || originAxes || freshSketch || configuredPicking || assembly || activeScenario === SCENARIOS['assembly-configurations'] || rackPinion || direction || tangent || cylinderTangent || sphereTangent || limitDistance || limitAngle || directedAngle || width || symmetry || symmetryPicking || hingePicking || hingeLimitsPicking) && !window.isVisible() && window.webContents.debugger.isAttached()
       && ['mouseMoved', 'mousePressed', 'mouseReleased'].includes(type)
       && Number.isFinite(point.x) && Number.isFinite(point.y) && point.x >= 0 && point.y >= 0
       && ([0, 1].includes(buttons) || partSequence && buttons === 2), 'Expected actual pointer input in the hidden test-owned CAD window.');
@@ -814,8 +814,8 @@ async function runInElectron() {
   };
   const menuKey = async key => {
     const codes = { Escape: 27, Tab: 9, ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, Home: 36, End: 35, Enter: 13, ...(partSequence ? { ContextMenu: 93 } : {}) };
-    check((originAxes || partSequence || configuredPicking) && !window.isVisible() && window.webContents.debugger.isAttached()
-      && Object.prototype.hasOwnProperty.call(codes, key), 'Expected bounded menu keyboard input in the hidden origin or part sequence workflow.');
+    check((originAxes || partSequence || configuredPicking || assembly || activeScenario === SCENARIOS['assembly-configurations']) && !window.isVisible() && window.webContents.debugger.isAttached()
+      && Object.prototype.hasOwnProperty.call(codes, key), 'Expected bounded keyboard input in the hidden allowlisted CAD workflow.');
     await window.webContents.debugger.sendCommand('Input.dispatchKeyEvent', { type: 'keyDown', key, code: key, windowsVirtualKeyCode: codes[key],
       ...(key === 'Enter' ? { text: '\r', unmodifiedText: '\r' } : {}) });
     await window.webContents.debugger.sendCommand('Input.dispatchKeyEvent', { type: 'keyUp', key, code: key, windowsVirtualKeyCode: codes[key] });
@@ -1006,7 +1006,7 @@ async function runInElectron() {
     : configuredRelations
     ? require('./desktop-assembly-configured-relations-flow.cjs')({ expected, input, output, evaluate, observe, waitFor, click, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : configurations
-    ? require('./desktop-assembly-configurations-flow.cjs')({ expected, input, output, bomCsvOutputs: configuredBomCsvOutputs, csvBarrier: configuredCsvBarrier, evaluate, observe, waitFor, click, capture, checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
+    ? require('./desktop-assembly-configurations-flow.cjs')({ expected, input, output, bomCsvOutputs: configuredBomCsvOutputs, csvBarrier: configuredCsvBarrier, evaluate, observe, waitFor, click, capture, pointer, menuKey, checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : importedBodies
     ? require('./desktop-imported-bodies-flow.cjs')({ expected, input, output, evaluate, observe, waitFor, click, menu,
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
@@ -1169,7 +1169,7 @@ async function runInElectron() {
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : assembly
-    ? require('./desktop-assembly-flow.cjs')({ expected, input, output, projectionOutput, partUpdatePath, updatedPart, interferencePath, interferenceFixture, translationPath, translationFixture, translationOutput, bomPath, bomFixture, bomCsvOutputs, gearOutput, evaluate, observe, waitFor, click, capture, pointer,
+    ? require('./desktop-assembly-flow.cjs')({ expected, input, output, projectionOutput, partUpdatePath, updatedPart, interferencePath, interferenceFixture, translationPath, translationFixture, translationOutput, bomPath, bomFixture, bomCsvOutputs, gearOutput, evaluate, observe, waitFor, click, capture, pointer, menuKey,
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : untilNext

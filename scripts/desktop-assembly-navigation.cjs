@@ -2,7 +2,8 @@
 const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 
 // Navigation through application controls only. This never sets React state,
-// unhides a panel, scrolls the DOM, changes intent, or supplies CAD results.
+// unhides a panel, changes intent, or supplies CAD results. Tree controls may
+// scroll their actual mounted target into view before interaction.
 function withNavigation(context) {
   if (context.assemblyNavigation) return context;
   // The mixed origin-axis fixture retains its separate configured navigator.
@@ -10,6 +11,7 @@ function withNavigation(context) {
   const page = context.page || ((fn, ...args) => context.evaluate('(' + fn.toString() + ')(' + args.map(value =>
     'JSON.parse(' + encodeJavaScriptString(JSON.stringify(value)) + ')').join(',') + ')'));
   const ribbon = require('./desktop-assembly-ribbon-navigation.cjs')({ configured: false, page, waitFor: context.waitFor, pointer: context.pointer });
+  const tree = require('./desktop-assembly-tree-navigation.cjs')({ page, waitFor: context.waitFor, pointer: context.pointer });
   async function panel(name) {
     const target = await page(name => {
       if (!document.querySelector('.assembly-classic-workspace')) return null;
@@ -41,16 +43,17 @@ function withNavigation(context) {
       const elements = [...document.querySelectorAll(selector)].filter(value => text === '' || value.textContent.trim() === text);
       if (elements.length !== 1) throw Error('Exact navigation target required: ' + selector + (text === '' ? '' : ' / ' + text));
       const panel = elements[0].closest('[role="tabpanel"][id^="assembly-panel-"]');
-      return panel?.id.slice('assembly-panel-'.length) ?? null;
+      return { panel: panel?.id.slice('assembly-panel-'.length) ?? null, tree: !!elements[0].closest('[role="tree"]') };
     }, selector, text);
-    if (owner) await panel(owner);
+    if (owner.panel) await panel(owner.panel);
+    if (owner.tree) await tree.reveal(selector, text);
     await page((selector, text) => {
       const elements = [...document.querySelectorAll(selector)].filter(value => text === '' || value.textContent.trim() === text);
       const element = elements[0];
       if (elements.length !== 1 || element.closest('[hidden]') || !element.getClientRects().length) throw Error('Action target remains hidden or in an inactive panel: ' + selector);
     }, selector, text);
   }
-  const assemblyNavigation = { panel, ribbon: ribbon.tab, reveal, button: (text, scope = '.assembly-app') => reveal(scope + ' button', text) };
+  const assemblyNavigation = { panel, ribbon: ribbon.tab, tree, reveal, button: (text, scope = '.assembly-app') => reveal(scope + ' button', text) };
   return { ...context, assemblyNavigation, ...(context.click ? { click: async selector => { await reveal(selector); return context.click(selector); } } : {}) };
 }
 module.exports = { withNavigation };

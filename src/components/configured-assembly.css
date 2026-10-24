@@ -61,14 +61,14 @@
 .configured-model-tree button>span,.configured-model-tree button>strong { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; }
 .configured-model-tree button>svg { flex:none; color:#4b80a5; }
 .configured-model-tree button.selected { background:#dcecfb; border-color:#93b8d8; }
-.configured-model-tree summary { display:flex; align-items:center; gap:3px; cursor:pointer; list-style:none; }
-.configured-model-tree summary::-webkit-details-marker { display:none; }
-.configured-model-tree details[open]>summary>svg:first-child { transform:rotate(90deg); }
-.configured-model-tree summary button { min-width:0; }
+.configured-tree-line { display:flex; align-items:center; min-width:0; }
+.configured-model-tree .configured-tree-row { flex:1; min-width:0; }
+.configured-model-tree .configured-tree-disclosure { flex:0 0 20px; width:20px; justify-content:center; padding:3px 1px; }
+.configured-tree-disclosure[aria-expanded=true]>svg { transform:rotate(90deg); }
+.configured-tree-disclosure-space { flex:0 0 20px; }
+.configured-model-tree button:focus-visible { outline:2px solid #287eb8; outline-offset:-2px; }
 .configured-model-tree .configured-tree-root { margin-bottom:2px; }
 .configured-model-tree .configured-tree-state { padding-left:23px; color:#65788a; font-size:11px; }
-.configured-tree-origin { padding:5px 4px 5px 18px; }
-.configured-tree-origin ul { color:#718394; padding:4px 0 0 28px; line-height:1.9; font-size:11px; }
 .configured-effective-parts { margin-top:14px; padding-top:10px; border-top:1px solid #d5dde4; color:#687a89; font-size:11px; }
 .configured-effective-parts summary { cursor:pointer; }
 .configured-effective-parts ul { padding-left:18px; line-height:1.8; }

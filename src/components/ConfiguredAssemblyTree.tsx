@@ -1,6 +1,36 @@
-import { Box, ChevronRight, CircleDot, EyeOff, Layers, Link2, LockKeyhole } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { Box, ChevronRight, EyeOff, Layers, Link2, LockKeyhole, Settings2 } from 'lucide-react'
+import { useId, useMemo, type ReactNode } from 'react'
 import type { AssemblyConfigurationEvaluation } from '../model/assemblyConfigurationCore'
+import { useAssemblyTreeNavigation } from './useAssemblyTreeNavigation'
+
+type Scope = AssemblyConfigurationEvaluation['scopes'][number]
+type TreeNode = { key: string; parentKey: string | null; path: string[] } & (
+  { kind: 'occurrence'; ownerPath: string[]; occurrence: Scope['occurrences'][number] }
+  | { kind: 'configuration'; scope: Scope }
+)
+
+export function configuredAssemblyTreeKey(kind: TreeNode['kind'], path: readonly string[], definition: { id: string; revision: string }): string {
+  return JSON.stringify([kind, path, definition.id, definition.revision])
+}
+
+/** Reused definitions keep separate occurrence and configuration action identities. */
+export function configuredAssemblyTreeNodes(evaluation: AssemblyConfigurationEvaluation): TreeNode[] {
+  const scopes = new Map(evaluation.scopes.map(scope => [JSON.stringify(scope.path), scope])), nodes: TreeNode[] = []
+  const visit = (path: readonly string[], parentKey: string | null) => {
+    const owner = scopes.get(JSON.stringify(path))
+    if (!owner) return
+    for (const occurrence of owner.occurrences) {
+      const childPath = [...path, occurrence.id], key = configuredAssemblyTreeKey('occurrence', childPath, occurrence.definition)
+      nodes.push({ key, parentKey, path: childPath, kind: 'occurrence', ownerPath: [...path], occurrence })
+      const child = scopes.get(JSON.stringify(childPath))
+      if (!child) continue
+      nodes.push({ key: configuredAssemblyTreeKey('configuration', childPath, child.definition), parentKey: key, path: childPath, kind: 'configuration', scope: child })
+      visit(childPath, key)
+    }
+  }
+  visit([], null)
+  return nodes
+}
 
 interface Props {
   name: string
@@ -8,38 +38,62 @@ interface Props {
   scope: string
   occurrenceId: string
   disabled: boolean
+  active: boolean
+  resetKey: unknown
   onScope: (scope: string) => void
   onOccurrence: (scope: string, id: string) => void
+  onProperties: () => void
   onRelations: () => void
 }
 
-/** The tree reflects effective occurrences and their actual selected child states. */
-export default function ConfiguredAssemblyTree({ name, evaluation, scope, occurrenceId, disabled, onScope, onOccurrence, onRelations }: Props) {
-  const renderScope = (path: readonly string[]): ReactNode => {
-    const owner = evaluation.scopes.find(row => JSON.stringify(row.path) === JSON.stringify(path))
-    if (!owner) return null
-    return <ul>{owner.occurrences.map(occurrence => {
-      const childPath = [...path, occurrence.id], ownerKey = JSON.stringify(path), childKey = JSON.stringify(childPath)
-      const child = evaluation.scopes.find(row => JSON.stringify(row.path) === childKey)
-      const row = <button type="button" disabled={disabled} className={scope === ownerKey && occurrenceId === occurrence.id ? 'selected' : ''}
-        aria-pressed={scope === ownerKey && occurrenceId === occurrence.id} aria-label={`Seleccionar componente ${occurrence.name}`}
-        title={`${childPath.join(' / ')} · ${occurrence.definition.id} · ${occurrence.definition.revision}`}
-        onClick={() => onOccurrence(ownerKey, occurrence.id)}>
-        {child ? <Layers size={15} /> : <Box size={15} />}<span>{occurrence.name}</span>
-        {occurrence.fixed && <LockKeyhole size={12} aria-label="Fijado" />}{!occurrence.visible && <EyeOff size={12} aria-label="Oculto" />}
-        {occurrence.suppressed && <small>Suprimido</small>}
-      </button>
-      return <li key={occurrence.id}>{child ? <details open><summary><ChevronRight size={12} />{row}</summary>
-        <button className="configured-tree-state" type="button" disabled={disabled} aria-pressed={scope === childKey} onClick={() => onScope(childKey)}><Layers size={13} />{child.configuration ?? 'Base'}</button>
-        {renderScope(childPath)}</details> : row}</li>
-    })}</ul>
+/** Disclosure and focus are presentation state; callers retain every CAD guard. */
+export default function ConfiguredAssemblyTree({ name, evaluation, scope, occurrenceId, disabled, active, resetKey, onScope, onOccurrence, onProperties, onRelations }: Props) {
+  const prefix = useId(), nodes = useMemo(() => configuredAssemblyTreeNodes(evaluation), [evaluation])
+  const selected = nodes.find(node => node.kind === 'occurrence' && JSON.stringify(node.ownerPath) === scope && node.occurrence.id === occurrenceId)
+  const selectedKey = selected?.key ?? (occurrenceId ? null : nodes.find(node => node.kind === 'configuration' && JSON.stringify(node.path) === scope)?.key ?? null)
+  const navigation = useAssemblyTreeNavigation({ nodes, selectedKey, resetKey, active, disabled })
+  const groupId = (key: string) => prefix + '-group-' + key.split('').map(char => char.charCodeAt(0).toString(16)).join('-')
+  const renderNode = (node: TreeNode): ReactNode => {
+    const children = nodes.filter(child => child.parentKey === node.key), expanded = navigation.isExpanded(node.key)
+    const occurrence = node.kind === 'occurrence' ? node.occurrence : null
+    const choose = () => {
+      if (disabled || !active || !navigation.isVisible(node.key)) return
+      if (node.kind === 'occurrence') onOccurrence(JSON.stringify(node.ownerPath), node.occurrence.id)
+      else onScope(JSON.stringify(node.path))
+    }
+    return <li key={node.key} role="none" hidden={!navigation.isVisible(node.key)}>
+      <div className="configured-tree-line">
+        {children.length ? <button type="button" className="configured-tree-disclosure" tabIndex={-1}
+          data-assembly-tree-disclosure={node.key} aria-label={`${expanded ? 'Contraer' : 'Expandir'} componente ${occurrence?.name ?? name}`}
+          aria-controls={groupId(node.key)} aria-expanded={expanded} disabled={disabled || !active}
+          onClick={() => navigation.toggle(node.key)}><ChevronRight size={13} aria-hidden="true" /></button>
+          : <span className="configured-tree-disclosure-space" aria-hidden="true" />}
+        <button type="button" role="treeitem" ref={element => navigation.register(node.key, element)}
+          className={node.key === selectedKey ? 'configured-tree-row selected' : 'configured-tree-row'}
+          data-assembly-tree-key={node.key} data-assembly-tree-parent={node.parentKey ?? ''}
+          aria-level={node.path.length + (node.kind === 'configuration' ? 1 : 0)} aria-selected={node.key === selectedKey}
+          aria-expanded={children.length ? expanded : undefined} aria-controls={children.length ? groupId(node.key) : undefined}
+          aria-owns={children.length ? groupId(node.key) : undefined}
+          aria-label={occurrence ? `Seleccionar componente ${occurrence.name}` : `Configuración de ${node.path.join(' / ')}`}
+          aria-pressed={node.kind === 'configuration' ? scope === JSON.stringify(node.path) : node.key === selectedKey}
+          title={occurrence ? `${node.path.join(' / ')} · ${occurrence.definition.id} · ${occurrence.definition.revision}` : undefined}
+          tabIndex={navigation.rowTabIndex(node.key)} disabled={disabled || !active}
+          onFocus={() => navigation.onFocus(node.key)} onKeyDown={event => navigation.onKeyDown(event, node.key)} onClick={choose}>
+          {node.kind === 'configuration' || children.length ? <Layers size={15} aria-hidden="true" /> : <Box size={15} aria-hidden="true" />}
+          <span>{node.kind === 'occurrence' ? node.occurrence.name : node.scope.configuration ?? 'Base'}</span>
+          {occurrence?.fixed && <LockKeyhole size={12} aria-label="Fijado" />}{occurrence && !occurrence.visible && <EyeOff size={12} aria-label="Oculto" />}
+          {occurrence?.suppressed && <small>Suprimido</small>}
+        </button>
+      </div>
+      {!!children.length && <ul role="group" id={groupId(node.key)} data-assembly-tree-parent-key={node.key} hidden={!expanded}>{children.map(renderNode)}</ul>}
+    </li>
   }
   return <section className="configured-model-tree" id="configured-model-tree" aria-label="Árbol del ensamblaje configurado" tabIndex={-1}>
     <h2>Ensamblaje</h2>
-    <button type="button" className="configured-tree-root" disabled={disabled} onClick={() => onScope('[]')}><Layers size={17} /><strong>{name}</strong></button>
-    <button type="button" className="configured-tree-state" disabled={disabled} onClick={() => onScope('[]')}><Layers size={14} />{evaluation.rootConfiguration ?? 'Base'}</button>
-    <details className="configured-tree-origin"><summary><ChevronRight size={12} /><CircleDot size={15} />Origen</summary><ul><li>Eje X</li><li>Eje Y</li><li>Eje Z</li></ul></details>
-    {renderScope([])}
+    <button type="button" className="configured-tree-root" disabled={disabled || !active} onClick={() => onScope('[]')}><Layers size={17} /><strong>{name}</strong></button>
+    <button type="button" className="configured-tree-state" disabled={disabled || !active} onClick={() => onScope('[]')}><Layers size={14} />{evaluation.rootConfiguration ?? 'Base'}</button>
+    <ul role="tree" aria-label="Componentes del ensamblaje configurado">{nodes.filter(node => node.parentKey === null).map(renderNode)}</ul>
+    <button type="button" aria-label="Propiedades del componente seleccionado" disabled={disabled || !active || !selected} onClick={onProperties}><Settings2 size={15} />Propiedades del componente</button>
     <button type="button" onClick={onRelations}><Link2 size={15} />Relaciones de posición</button>
   </section>
 }

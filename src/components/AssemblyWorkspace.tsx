@@ -19,8 +19,8 @@ import { validateAssemblyProfileFaceSelection } from '../model/assemblyProfileRe
 import { sameSymmetryReference, currentSymmetryPick, nextSymmetryPick, scopedAssemblySymmetryPick, symmetryPickForReference, symmetryPickProducer, type SymmetryPickTicket, type SymmetryPickSlot } from './assemblySymmetryPicking'
 import {assemblySymmetryUiProposal,assemblySymmetryUiReports,SYMMETRY_ROLE_LABELS,type SymmetryUiReferences,type SymmetryUiReference,type SymmetryUiFamily} from '../model/assemblySymmetryUi'
 import { AssemblyWidthMatePanel, AssemblyWidthSupportSummary, WIDTH_ROLE_LABELS, assemblyWidthUiReports, assemblyWidthUiProposal, type WidthUiReferences, type WidthUiSlot, type WidthUiBranch, type WidthPlaneChoice } from './AssemblyWidthMatePanel'
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { ArrowDownToLine, FileInput, GitBranch, Move3D, ScanLine, Settings2, Box, Check, CircleDot, Component, Eye, FilePlus2, FolderOpen, Layers, Link2, List, Loader2, LockKeyhole, Plus, Redo2, Save, Trash2, Undo2, X } from 'lucide-react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { ArrowDownToLine, ChevronDown, ChevronRight, FileInput, GitBranch, Move3D, ScanLine, Settings2, Box, Check, CircleDot, Component, Eye, FilePlus2, FolderOpen, Layers, Link2, List, Loader2, LockKeyhole, Plus, Redo2, Save, Trash2, Undo2, X } from 'lucide-react'
 import { applyAssemblyPreview, buildAssembly, captureAssemblyComponentLock, captureAssemblyGear, captureAssemblyRotationLock, captureAssemblyScrew, captureAssemblyRackPinion, discardAssemblyPreview, discardAssemblyPartReplacement, exportAssemblyCad, exportAssemblyStep, importAssemblyStep, insertAssemblyStep, inspectAssemblyInterferences, measureAssemblyDirectedAngle, moveAssemblyComponentMotion, projectAssemblyDrag, previewAssembly, previewAssemblyRootRevision, previewAssemblyPartReplacement, reviewAssemblyPartUpdate, reviewAssemblyPartReplacement, translateAssemblyUntilContact } from '../cad/kernel'
 import { assemblySceneFaceReference, assemblySceneCylinderSurfaceReference, assemblySceneSphereSurfaceReference, assemblySceneEdgeReference, type AssemblyGearCaptureRequest, type AssemblyScrewCaptureRequest, type AssemblyRackPinionCaptureRequest, type AssemblyPreviewReply, type AssemblyScene, type AssemblySceneFace, type AssemblySceneEdge, type AssemblySceneVertex } from '../cad/kernel.assembly-types'
 import type { AssemblyScopeSolveReport } from '../cad/kernel.assembly-solve'
@@ -81,6 +81,7 @@ import { buildAssemblyOriginDisplay, type AssemblyOriginReference } from './asse
 import { standardAssemblyOriginKinds, standardAssemblyOriginPick, type StandardAssemblyOriginPickTicket } from './assemblyStandardOriginPicking'
 import { AssemblyShellHeader, AssemblyCommandGroup, type AssemblyMenuDefinition } from './AssemblyCommandManager'
 import { AssemblyCommandTabs, type AssemblyCommandTab } from './AssemblyCommandTabs'
+import { useAssemblyTreeNavigation } from './useAssemblyTreeNavigation'
 import './assembly.css'
 import { parseCadDocument as parseSavedCadDocument } from '../model/cadDocument'
 import { createAssemblyConfiguredDocument, type AssemblyConfiguredDocument } from '../model/assemblyConfiguredDocument'
@@ -260,14 +261,45 @@ function referenceLabel(reference: AssemblyGeometryReference | AssemblyTangentRe
   const component = reference.component?.occurrencePath.join(' / ') ?? 'Ámbito actual'
   return reference.kind === 'principal-axis' ? `${component} · Eje de origen ${reference.axis}` : reference.kind === 'principal-plane' ? `${component} · ${reference.plane}` : reference.kind === 'edge' ? `${component} · Arista lineal · ${reference.edge.sourceFeatureId}` : `${component} · ${reference.support === 'axis' ? 'Cilindro' : reference.support === 'cylinder-surface' ? 'Superficie cilíndrica' : reference.support === 'sphere-surface' ? 'Superficie esférica' : 'Plano'} · ${reference.face.sourceFeatureId}`
 }
-export function AssemblyComponentTree({ document, selectedPath, onSelect, disabled = false }: { document: AssemblyDocument; selectedPath: readonly string[]; onSelect: (path: string[]) => void; disabled?: boolean }) {
+export function AssemblyComponentTree({ document, selectedPath, onSelect, disabled = false, active = true, resetKey = document.id }: {
+  document: AssemblyDocument; selectedPath: readonly string[]; onSelect: (path: string[]) => void; disabled?: boolean; active?: boolean; resetKey?: unknown
+}) {
+  const tree = useMemo(() => {
+    const rows = assemblyTreeRows(document)
+    const keys = new Map(rows.map(row => [JSON.stringify(row.path), JSON.stringify([row.path, row.definition.id, row.definition.revision])]))
+    return rows.map(row => ({ ...row, key: keys.get(JSON.stringify(row.path))!,
+      parentKey: keys.get(JSON.stringify(row.path.slice(0, -1))) ?? null }))
+  }, [document])
+  const navigation = useAssemblyTreeNavigation({ nodes: tree, selectedKey: tree.find(row => samePath(row.path, selectedPath))?.key ?? null,
+    resetKey, active, disabled })
+  const renderRows = (parentKey: string | null): ReactNode => tree.filter(row => row.parentKey === parentKey).map(row => {
+    const expandable = navigation.canExpand(row.key), expanded = navigation.isExpanded(row.key)
+    // The key is JSON, so URI encoding also accepts document IDs with lone surrogates.
+    const childrenId = `standard-assembly-tree-children-${encodeURIComponent(row.key)}`
+    return <div className="assembly-tree-entry" role="none" key={row.key} hidden={!navigation.isVisible(row.key)}>
+      <div className="assembly-tree-row-wrap" role="none">
+        {expandable && <button type="button" className="assembly-tree-toggle" data-assembly-tree-toggle={JSON.stringify(row.path)} data-assembly-tree-disclosure={row.key}
+          style={{ left: 7 + (row.path.length - 1) * 15 }} disabled={disabled} tabIndex={-1}
+          aria-label={`${expanded ? 'Plegar' : 'Desplegar'} ${row.occurrence.name}`} aria-expanded={expanded} aria-controls={childrenId}
+          onClick={() => navigation.toggle(row.key)}>{expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}</button>}
+        <button type="button" role="treeitem" aria-level={row.path.length} aria-selected={samePath(row.path, selectedPath)}
+          aria-expanded={expandable ? expanded : undefined} aria-controls={expandable ? childrenId : undefined}
+          aria-owns={expandable ? childrenId : undefined}
+          data-assembly-tree-path={JSON.stringify(row.path)}
+          data-assembly-tree-key={row.key} data-assembly-tree-parent={row.parentKey ?? ''}
+          className={`assembly-tree-row ${samePath(row.path, selectedPath) ? 'selected' : ''} ${row.suppressed ? 'suppressed' : ''}`}
+          style={{ paddingLeft: 28 + (row.path.length - 1) * 15 }} disabled={disabled} tabIndex={navigation.rowTabIndex(row.key)}
+          ref={element => navigation.register(row.key, element)} onFocus={() => navigation.onFocus(row.key)}
+          onKeyDown={event => navigation.onKeyDown(event, row.key)} onClick={() => onSelect(row.path)}>
+          {row.definition.kind === 'assembly' ? <Layers size={15} /> : <Box size={15} />}<span>{row.occurrence.name}<small>{row.definition.id} · {row.definition.revision}</small></span>
+          {row.occurrence.fixed && <LockKeyhole size={12} aria-label="Fijo respecto a su padre" />}{!row.visible && <Eye size={12} aria-label="Oculto" />}
+        </button>
+      </div>
+      {expandable && <div id={childrenId} role="group" data-assembly-tree-parent-key={row.key} hidden={!expanded}>{renderRows(row.key)}</div>}
+    </div>
+  })
   return <div className="assembly-tree" role="tree" aria-label="Componentes del ensamblaje">
-    {assemblyTreeRows(document).map(row => <button type="button" role="treeitem" aria-level={row.path.length} aria-selected={samePath(row.path, selectedPath)}
-      className={`assembly-tree-row ${samePath(row.path, selectedPath) ? 'selected' : ''} ${row.suppressed ? 'suppressed' : ''}`} key={JSON.stringify(row.path)}
-      style={{ paddingLeft: 10 + (row.path.length - 1) * 15 }} disabled={disabled} onClick={() => onSelect(row.path)}>
-      {row.definition.kind === 'assembly' ? <Layers size={15} /> : <Box size={15} />}<span>{row.occurrence.name}<small>{row.definition.id} · {row.definition.revision}</small></span>
-      {row.occurrence.fixed && <LockKeyhole size={12} aria-label="Fijo respecto a su padre" />}{!row.visible && <Eye size={12} aria-label="Oculto" />}
-    </button>)}
+    {renderRows(null)}
     {!document.occurrences.length && <p className="assembly-muted">Importa un componente para comenzar.</p>}
   </div>
 }
@@ -281,6 +313,7 @@ function downloadBomCsv(content: string, name: string): void {
 }
 
 export default function AssemblyWorkspace({ initialDocument, initialPath, initialSaved, onOpenPart, onOpenConfigured }: AssemblyWorkspaceProps) {
+  const [treeReset, setTreeReset] = useState(0)
   const [ribbonTab, setRibbonTab] = useState<AssemblyCommandTab>('assembly')
   const [managerTab, setManagerTab] = useState<'components' | 'relations' | 'evaluate'>('components')
   const managerTabRef = useRef(managerTab)
@@ -866,6 +899,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     return () => { window.removeEventListener('keydown', keyboard); if (previous instanceof HTMLElement && previous.isConnected) previous.focus() }
   }, [replaceDialog])
   const replace = (document: AssemblyDocument, filePath?: string, fileSaved?: string) => {
+    setTreeReset(value => value + 1)
     restoreBomFocus.current = false; setRibbonTab('assembly')
     linkedEpoch.current++; linkedTicket.current = null; linkedBindings.current.clear(); refreshLinked(v => v + 1)
     setEditingDirectionId(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null); setCylinderLarger(''); setSphereLarger('')
@@ -2034,7 +2068,10 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
         </nav>
         <div id="assembly-panel-components" role="tabpanel" aria-labelledby="assembly-tab-components" tabIndex={-1} hidden={managerTab !== 'components'} className="assembly-sidebar assembly-manager-panel">
 
-      <h2><Layers size={16} />Componentes</h2><AssemblyComponentTree document={committed} selectedPath={selectedPath} onSelect={value => { if (fileTicket.current?.purpose === 'update' || linkedTicket.current) generation.current++; setSelectedPath(value) }} disabled={editingBlocked} />
+      <h2><Layers size={16} />Componentes</h2>
+      <div className="assembly-tree-actions"><button type="button" aria-label="Propiedades del componente seleccionado" disabled={editingBlocked || !selected}
+        onClick={() => openManager('components', '[aria-label="Nombre del componente"]')}><Settings2 size={15} />Propiedades</button></div>
+      <AssemblyComponentTree document={committed} selectedPath={selectedPath} resetKey={treeReset} active={managerTab === 'components'} onSelect={value => { if (fileTicket.current?.purpose === 'update' || linkedTicket.current) generation.current++; setSelectedPath(value) }} disabled={editingBlocked} />
       <section className="assembly-section"><h3>Insertar origen reutilizable</h3><select aria-label="Origen del componente" value={sourceKey} disabled={editingBlocked} onChange={event => setSourceKey(event.target.value)}><option value="">Selecciona un origen</option>{committed.definitions.map(value => <option key={assemblyDefinitionKey(value)} value={assemblyDefinitionKey(value)}>{value.kind === 'part' ? value.document.name : value.name} · {value.revision}</option>)}</select>
         <button disabled={editingBlocked || !sourceKey} onClick={() => { const definition = committed.definitions.find(value => assemblyDefinitionKey(value) === sourceKey); if (definition) edit({ type: 'insert-occurrence', scope: scopeReference, occurrence: { name: definition.kind === 'part' ? definition.document.name : definition.name, definition: { id: definition.id, revision: definition.revision }, pose: identityRigidPose(), fixed: false, suppressed: false, visible: true } }) }}><Plus size={14} />Insertar otra ocurrencia</button></section>
       {selected && <section className="assembly-section" key={JSON.stringify(selected.path)}><h3>Componente seleccionado</h3><button aria-label={selected.definition.kind === 'part' ? 'Actualizar pieza' : 'Actualizar subensamblaje'} disabled={editingBlocked || !!preview} onClick={() => void open('update')}>{selected.definition.kind === 'part' ? 'Actualizar pieza' : 'Actualizar subensamblaje'}</button><label>Nombre<input aria-label="Nombre del componente" defaultValue={selected.occurrence.name} disabled={editingBlocked} onBlur={event => { if (event.target.value !== selected.occurrence.name) edit({ type: 'rename-occurrence', scope: selected.parent, occurrenceId: selected.occurrence.id, name: event.target.value }) }} /></label>
