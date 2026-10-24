@@ -7,7 +7,7 @@ const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 module.exports = function originAxesWorkflow(c) {
   c = require('./desktop-assembly-navigation.cjs').withNavigation(c);
   const assemblyNavigation = c.assemblyNavigation;
-  const { configured, expected, input, output, evaluate, observe, waitFor, click, pointer, asideWheel, capture, checks,
+  const { configured, expected, input, output, evaluate, observe, waitFor, click, pointer, menuKey, asideWheel, capture, checks,
     consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs, dialogCounts } = c;
   const ROOT = configured ? '.configured-assembly-workspace' : '.assembly-app';
   const NAV = configured ? ':is([aria-label="Archivo del ensamblaje configurado"],[aria-label="Comandos del ensamblaje configurado"])' : ':is(.assembly-toolbar, .assembly-quickbar)';
@@ -15,8 +15,10 @@ module.exports = function originAxesWorkflow(c) {
   const BUILD = configured ? 'build-configured-assembly' : 'build-assembly';
   const phases = [], selectionGestures = [];
   let checkedOriginNavigation = false;
+  let checkedOwnerContinuity = false;
   const page = (fn, ...args) => evaluate('(' + fn.toString() + ')(' + args.map(value => 'JSON.parse(' + encodeJavaScriptString(JSON.stringify(value)) + ')').join(',') + ')');
   const navigation = configured ? require('./desktop-configured-navigation.cjs')({page,waitFor,actualControl}) : null;
+  const menus = require('./desktop-assembly-menu-controls.cjs')({ configured, page, waitFor, actualControl, menuKey, observe, check, gestures: selectionGestures });
   const near = (actual, wanted, tolerance, name) => check(Number.isFinite(actual) && Math.abs(actual - wanted) <= tolerance,
     name + ': actual=' + actual + ', expected=' + wanted);
   async function actualControl(selector, text = null, allowAsideWheel = false) {
@@ -242,6 +244,36 @@ module.exports = function originAxesWorkflow(c) {
       await control(ownerLabel, owner ? 'selected' : 'scope');
       await armOrigin(slot); await originLabel(slot, 'principal-axis', axis, owner);
     }
+    if (configured && !checkedOwnerContinuity) {
+      const ownerControl = 'Componente de referencias de origen configuradas';
+      const ownerValue = async owner => page((label, owner) => {
+        const select = document.querySelector('[aria-label="' + label + '"]');
+        const values = [...(select?.options ?? [])].filter(option => {
+          if (!option.value || option.disabled) return false;
+          const value = JSON.parse(option.value);
+          return JSON.stringify(value[0]) === '[]' && JSON.stringify(value[1]?.occurrencePath) === JSON.stringify([owner])
+            && value[1]?.definition.id === 'origin-axis-prism' && value[1]?.definition.revision === 'r1';
+        });
+        if (values.length !== 1) throw Error('One current original owner option required: ' + owner);
+        return values[0].value;
+      }, ownerControl, owner);
+      const original = await references(), before = (await observe()).serial;
+      await control(ownerControl, await ownerValue('ground')); await armOrigin(2);
+      await control(ownerControl, await ownerValue('moving'));
+      await waitFor('owner change disarms the current origin nomination', async () => await originMode() === '');
+      check(canonical(await references()) === canonical(original), 'Changing the display owner while armed preserves both relation references');
+      await control(ownerControl, await ownerValue('ground')); await armOrigin(2); await originLabel(2, 'principal-axis', 'Z', 'ground');
+      const pair = await references();
+      check(JSON.parse(pair[0]).component.occurrencePath[0] === 'moving' && JSON.parse(pair[1]).component.occurrencePath[0] === 'ground', 'Two different component origins can occupy the two roles inside one editor');
+      await control(ownerControl, await ownerValue('moving'));
+      check(canonical(await references()) === canonical(pair) && await page(() => document.querySelector('[data-configured-pane="relation"]')?.hidden === false
+        && document.querySelector('button[aria-label="Seleccionar componente moving"]')?.getAttribute('aria-pressed') === 'true'), 'Owner changes retain the open draft and the original tree selection');
+      check((await observe()).serial === before, 'Changing origin owners does not solve or commit');
+      await control(ownerLabel, 'scope'); await armOrigin(2); await originLabel(2, 'principal-axis', 'Z', null);
+      check(canonical(await references()) === canonical(original), 'Restore the original root/component pair before the unchanged native oracle');
+      selectionGestures.push({ kind: 'configured-origin-owner-continuity', owners: ['moving', 'ground'], draftRetained: true, pickingStopped: true });
+      checkedOwnerContinuity = true;
+    }
     if (stage === 2) await control(configured ? 'Ángulo de relación configurada en grados' : 'Ángulo de relación', '30');
   }
   async function preview(baseline, stage) {
@@ -270,8 +302,8 @@ module.exports = function originAxesWorkflow(c) {
     await waitFor('owned replacement prompt', () => page(() => !!document.querySelector('[role="dialog"][aria-labelledby="discard-title"]')));
     await button('Continuar sin guardar', '[role="dialog"][aria-labelledby="discard-title"]');
     let row = await response(before.serial, BUILD); check(canonical(configured ? row.current.document : row.document) === canonical(expected), 'Actual original opened through file IPC');
-    geometry(row.response.value, expected, 0, 'initial'); await recovery(expected); await selectMoving();
-    await draft(1); const rejectedCommit = await preview(expected, 1); await recovery(expected);
+    geometry(row.response.value, expected, 0, 'initial'); await recovery(expected); await selectMoving(); await menus.initial();
+    await draft(1); await menus.retainedDraft(references, canonical); const rejectedCommit = await preview(expected, 1); await recovery(expected);
     if (configured) await button('Cancelar', NAV); else await click('button[aria-label="Cancelar vista previa del ensamblaje"]');
     await recovery(expected); await draft(1); let proposed = await preview(expected, 1);
     const intents = doc => declarations(doc).map(({ id, ...intent }) => intent);
@@ -291,7 +323,7 @@ module.exports = function originAxesWorkflow(c) {
     check(dialogCounts().opens === 2 && dialogCounts().saves === (configured ? 2 : 1), 'Exact native Open/Save dialog count');
     check(!consoleErrors.length && !failedRequests.length, 'No console or resource failures');
     checks.push({ scenario: configured ? 'configured-origin-axes' : 'origin-axes', phases, selectionGestures,
-      selectionLimits: 'Actual CDP component, visibility, role and projected-origin label presses; owner/type/name/value form controls scripted and visible. One incompatible concentric plane rejected; one eligible angle plane replaced before preview. Existing geometry, history and file oracles unchanged.',
+      selectionLimits: 'Actual CDP menu pointer/keyboard navigation, component, visibility, role and projected-origin label presses; owner/type/name/value form controls scripted and visible. Configured owner changes preserve the open draft and allow both component origins before restoring the root/component oracle. One incompatible concentric plane rejected; one eligible angle plane replaced before preview. Existing geometry, history and file oracles unchanged.',
       savedSha256: digest(savedBytes), sourceSha256: digest(sourceBytes) });
     await capture(current);
   };

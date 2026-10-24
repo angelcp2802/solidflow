@@ -20,6 +20,14 @@ Click a projected label, axis line or finite plane witness. One accepted pick
 fills that role and disarms picking. Leaving the relation pane also disarms
 picking while retaining the draft. Incompatible kinds leave the role unchanged.
 
+The configured editor's **Componente de origen** selector changes the displayed
+owner independently of the tree selection. Assign an origin from component A,
+choose component B, rearm the other role and select its origin. Both roles remain
+in the same draft. Only current visible owners inside the selected scope appear;
+paths distinguish nested occurrences. Owner changes disarm selection immediately,
+and a pick from the preceding owner/display cannot be replayed after returning.
+This selector does not move, solve, replace or change a component's state.
+
 The overlay uses the current effective global placement, while saved identity
 remains relative to the declaring scope. Hidden, suppressed, ambiguous or stale
 owners are excluded. Labels bind to their displayed owner and pose; geometry

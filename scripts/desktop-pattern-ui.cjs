@@ -812,6 +812,14 @@ async function runInElectron() {
       clickCount: 0, pointerType: 'mouse',
     });
   };
+  const menuKey = async key => {
+    const codes = { Escape: 27, Tab: 9, ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, Home: 36, End: 35, Enter: 13 };
+    check(originAxes && !window.isVisible() && window.webContents.debugger.isAttached()
+      && Object.prototype.hasOwnProperty.call(codes, key), 'Expected bounded menu keyboard input in the hidden origin workflow.');
+    await window.webContents.debugger.sendCommand('Input.dispatchKeyEvent', { type: 'keyDown', key, code: key, windowsVirtualKeyCode: codes[key],
+      ...(key === 'Enter' ? { text: '\r', unmodifiedText: '\r' } : {}) });
+    await window.webContents.debugger.sendCommand('Input.dispatchKeyEvent', { type: 'keyUp', key, code: key, windowsVirtualKeyCode: codes[key] });
+  };
   const asideWheel = async (point, deltaY) => {
     check((configuredPicking || originAxes) && !window.isVisible() && window.webContents.debugger.isAttached()
       && Number.isFinite(point.x) && Number.isFinite(point.y) && point.x >= 0 && point.y >= 0
@@ -986,7 +994,7 @@ async function runInElectron() {
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
     : originAxes
-    ? require('./desktop-assembly-origin-axes-flow.cjs')({ configured: originAxes === 'configured', expected, input, output, evaluate, observe, waitFor, click, pointer, asideWheel, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
+    ? require('./desktop-assembly-origin-axes-flow.cjs')({ configured: originAxes === 'configured', expected, input, output, evaluate, observe, waitFor, click, pointer, menuKey, asideWheel, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : configuredCompound
     ? require('./desktop-assembly-configured-compound-flow.cjs')({ family: configuredCompound, profileKind: activeScenario.profileKind, expected, input, output, evaluate, observe, waitFor, click, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, completePendingSave, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : configuredMechanical

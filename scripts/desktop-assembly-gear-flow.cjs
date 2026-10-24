@@ -337,12 +337,22 @@ module.exports = async function gearWorkflow(context) {
   record('gear/reopened-fresh-solve', event);
   before = await observe(); await click('button[aria-label="Cancelar vista previa del ensamblaje"]');
   await responseAfter(before.serial, 'discard-assembly'); await recovery(saved, 'final gear preview cancellation');
-  check((await fsp.readFile(input)).equals(originalBytes) && (await fsp.readFile(gearOutput)).equals(bytes), 'Gear workflow changed original input or cancelled saved bytes.');
+  const finalizationStarted = Date.now();
+  const finalStep = async (name, action) => {
+    const started = Date.now(), phase = { name, startedAt: new Date(started).toISOString(), elapsedMs: started - finalizationStarted, status: 'started' };
+    checks.push({ gearFinalization: phase });
+    try {
+      const value = await action(); phase.status = 'completed'; return value;
+    } catch (error) { phase.status = 'failed'; throw error; }
+    finally { phase.durationMs = Date.now() - started; }
+  };
+  check((await finalStep('read-original-input', () => fsp.readFile(input))).equals(originalBytes)
+    && (await finalStep('read-saved-gear', () => fsp.readFile(gearOutput))).equals(bytes), 'Gear workflow changed original input or cancelled saved bytes.');
   check(dialogCounts().opens === 15 && dialogCounts().saves === 4 && dialogCounts().csvExports === 4,
     'Unexpected gear native file-dialog count.');
-  check(!consoleErrors.length && !failedRequests.length && !(await observe()).workerErrors.length, 'Gear interaction reported console/request/worker failures.');
-  await capture(saved);
-  const observed = (await observe()).assemblies;
+  check(!consoleErrors.length && !failedRequests.length && !(await finalStep('observe-worker-errors', observe)).workerErrors.length, 'Gear interaction reported console/request/worker failures.');
+  await finalStep('capture-if-enabled', () => capture(saved));
+  const observed = (await finalStep('observe-final-assemblies', observe)).assemblies;
   const workerCounts = Object.fromEntries([...new Set(observed.map(value => value.action))].map(action => [action, observed.filter(value => value.action === action).length]));
   const sourceRejections = checks.flatMap(value => value && typeof value === 'object' && value.sourceUpdateInputSha256
     ? value.stages.filter(stage => stage.phase === 'source/rejected-unrepaired') : []);

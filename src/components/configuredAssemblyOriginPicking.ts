@@ -1,5 +1,28 @@
-import { assemblyOriginReferenceKey, type AssemblyOriginDisplay, type AssemblyOriginReference } from './assemblyOriginPicking'
+import { assemblyOriginDisplayBinding, assemblyOriginReferenceKey, buildAssemblyOriginDisplay, type AssemblyOriginDisplay, type AssemblyOriginReference } from './assemblyOriginPicking'
+import type { AssemblyConfigurationEvaluation } from '../model/assemblyConfigurationCore'
 import { configuredMateUiRoleChoices, configuredMateUiRoleLabels, type ConfiguredMateDraft, type ConfiguredMateUiChoice } from './ConfiguredAssemblyMatePanel'
+
+export interface ConfiguredOriginOwner { key: string; path: string[]; label: string; origins: AssemblyOriginDisplay[] }
+/** Owner keys bind the current scope and definition; labels never identify a component. */
+export function configuredOriginOwners(evaluation: AssemblyConfigurationEvaluation, scopePath: readonly string[]): ConfiguredOriginOwner[] {
+  return evaluation.scopes.flatMap(scope => scope.occurrences.flatMap(occurrence => {
+    const path = [...scope.path, occurrence.id]
+    const origins = buildAssemblyOriginDisplay(evaluation, scopePath, path, { axes: true, planes: true })
+    if (!origins.length) return []
+    return [{ key: JSON.stringify([scopePath, origins[0].reference.component]), path,
+      label: `${occurrence.name} · ${path.slice(scopePath.length).join(' / ')}`, origins }]
+  }))
+}
+
+export interface ConfiguredOriginPick { slot: number; catalog: string }
+export const configuredOriginCatalog = (display: readonly AssemblyOriginDisplay[]): string => JSON.stringify(display.map(assemblyOriginDisplayBinding))
+
+/** A disarmed/replaced pick cannot nominate even if the same owner is chosen again. */
+export function configuredOriginPickAssignment(pick: ConfiguredOriginPick | null, current: ConfiguredOriginPick | null,
+  display: readonly AssemblyOriginDisplay[], draft: ConfiguredMateDraft, choices: readonly ConfiguredMateUiChoice[], reference: AssemblyOriginReference | null): ConfiguredMateUiChoice | null {
+  if (!pick || pick !== current || pick.catalog !== configuredOriginCatalog(display)) return null
+  return configuredOriginPickChoice(display, draft, choices, pick.slot, reference)
+}
 
 /** A displayed origin nominates an existing, purpose-compatible form option.
  * Neither its placement nor its overlay grants native reference authority. */

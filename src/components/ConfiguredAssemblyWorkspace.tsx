@@ -17,7 +17,7 @@ import { createConfiguredUiRootVariant, createConfiguredUiScopeVariant, configur
 import AssemblyViewport from './AssemblyViewport'
 import { configuredComponentPick, configuredMatePickChoice, configuredMateHighlights, type ConfiguredMatePick } from './configuredAssemblyPicking'
 import { buildAssemblyOriginDisplay, type AssemblyOriginReference } from './assemblyOriginPicking'
-import { configuredOriginHighlights, configuredOriginPickChoice } from './configuredAssemblyOriginPicking'
+import { configuredOriginCatalog, configuredOriginHighlights, configuredOriginOwners, configuredOriginPickAssignment, configuredOriginPickChoice, type ConfiguredOriginPick } from './configuredAssemblyOriginPicking'
 import type { AssemblySceneFace, AssemblySceneEdge } from '../cad/kernel.assembly-types'
 import ConfiguredAssemblyBomPanel from './ConfiguredAssemblyBomPanel'
 import ConfiguredAssemblyMatePanel, { configuredMateUiDraft, configuredMateUiRoleLabels, configuredMateUiChoices, configuredMateUiProposal, configuredMateEditUnavailable, type ConfiguredMateDraft } from './ConfiguredAssemblyMatePanel'
@@ -25,7 +25,7 @@ import ConfiguredAssemblyMechanicalPanel, { configuredMechanicalDraft, configure
 import ConfiguredAssemblyCompoundPanel, { configuredCompoundUiDraft, configuredCompoundUiProposal, configuredCompoundMate, type ConfiguredCompoundDraft } from './ConfiguredAssemblyCompoundPanel'
 import { configuredCompoundUiChoices, type ConfiguredCompoundUiChoices } from './configuredCompoundUiChoices'
 import { Box, Check, Component, FolderOpen, Layers, Link2, List, Play, Redo2, Save, Undo2, X } from 'lucide-react'
-import { AssemblyShellHeader, AssemblyCommandGroup } from './AssemblyCommandManager'
+import { AssemblyShellHeader, AssemblyCommandGroup, type AssemblyMenuDefinition } from './AssemblyCommandManager'
 import ConfiguredAssemblyTree from './ConfiguredAssemblyTree'
 import './assembly.css'
 import './configured-assembly.css'
@@ -80,9 +80,10 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
     }
   }, [mateDraft?.id])
   const [matePick, setMatePick] = useState<ConfiguredMatePick | null>(null), matePickRef = useRef(matePick)
-  const [originPick, setOriginPick] = useState<{ slot: number } | null>(null), originPickRef = useRef(originPick)
+  const [originPick, setOriginPick] = useState<ConfiguredOriginPick | null>(null), originPickRef = useRef(originPick)
   const [originAxes, setOriginAxes] = useState(false), [originPlanes, setOriginPlanes] = useState(false)
   const [originOwner, setOriginOwner] = useState<'scope' | 'selected' | 'both'>('scope')
+  const [originComponent, setOriginComponent] = useState<string | null>(null)
   const stopMatePick = () => { matePickRef.current = null; setMatePick(null); originPickRef.current = null; setOriginPick(null) }
   useEffect(() => { if (inspectorPane !== 'relation' && (matePickRef.current || originPickRef.current)) stopMatePick() }, [inspectorPane])
   const [view, setView] = useState<{ name: 'iso' | 'front' | 'top' | 'fit'; stamp: number }>({ name: 'iso', stamp: 0 })
@@ -289,6 +290,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
   }
   const openRelationEditor = (mate?: AssemblyMate, mechanical = false, compound = false) => {
     if (!freshMate() || operation.current || pending.current || mateDraftRef.current || !scene || selectedScope.suppressed) return
+    setOriginComponent(null)
     try { const id = mate?.id ?? crypto.randomUUID(); setRelationDraft(mate && configuredCompoundMate(mate) ? configuredCompoundUiDraft(id, mate) : mate && configuredMechanicalMate(mate) ? configuredMechanicalDraft(id, mate) : compound ? configuredCompoundUiDraft(id) : mechanical ? configuredMechanicalDraft(id) : configuredMateUiDraft(id, mate)); setFailure(null) } catch (reason) { error(reason) }
   }
   const previewDraft = () => {
@@ -356,24 +358,60 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
   const displayScene = useMemo(() => scene ? configuredUiDisplayScene(scene) : null, [scene])
   const blocked = busy || !!preview
   const generalDraft = mateDraft && !('mechanical' in mateDraft) && !('compound' in mateDraft) ? mateDraft : null
+  const originOwners = useMemo(() => configuredOriginOwners(evaluation, selectedScope.path), [evaluation, selectedScope.path])
+  const originComponentKey = originComponent ?? originOwners.find(row => JSON.stringify(row.path) === JSON.stringify([...selectedScope.path, occurrenceId]))?.key ?? ''
+  const chosenOriginOwner = originOwners.find(row => row.key === originComponentKey)
   const mateHighlights = useMemo(() => configuredMateHighlights(!blocked && scene && configuredUiSceneMatches(scene, document, generation) ? displayScene : null, selectedScope.path, generalDraft, mateChoices.values), [blocked, scene, document, generation, displayScene, selectedScope.path, generalDraft, mateChoices.values])
   const originDisplay = useMemo(() => {
     if (inspectorPane !== 'relation' || !generalDraft || blocked || !scene || !configuredUiSceneMatches(scene, document, generation)) return []
     const kinds = { axes: originAxes, planes: originPlanes }
     const own = originOwner !== 'selected' ? buildAssemblyOriginDisplay(evaluation, selectedScope.path, null, kinds) : []
-    const component = originOwner !== 'scope' && selected ? buildAssemblyOriginDisplay(evaluation, selectedScope.path, [...selectedScope.path, selected.id], kinds) : []
+    const component = originOwner !== 'scope' && chosenOriginOwner ? chosenOriginOwner.origins.filter(row => row.reference.kind === 'principal-axis' ? kinds.axes : kinds.planes) : []
     return [...own, ...component]
-  }, [inspectorPane, generalDraft, blocked, scene, document, generation, evaluation, selectedScope.path, selected, originOwner, originAxes, originPlanes])
+  }, [inspectorPane, generalDraft, blocked, scene, document, generation, evaluation, selectedScope.path, chosenOriginOwner, originOwner, originAxes, originPlanes])
   const selectedOrigins = useMemo(() => configuredOriginHighlights(originDisplay, generalDraft, mateChoices.values), [originDisplay, generalDraft, mateChoices.values])
   const pickOrigin = (reference: AssemblyOriginReference | null) => {
     if (!freshMate() || operation.current || pending.current || inspectorPane !== 'relation' || !originPick || originPickRef.current !== originPick || !generalDraft || !scene || selectedScope.suppressed || !configuredUiSceneMatches(scene, current.current, epoch.current)) return
-    const choice = configuredOriginPickChoice(originDisplay, generalDraft, mateChoices.values, originPick.slot, reference)
+    const choice = configuredOriginPickAssignment(originPick, originPickRef.current, originDisplay, generalDraft, mateChoices.values, reference)
     if (!choice) { setMessage('Selecciona un origen visible compatible con esta referencia y el ámbito actual.'); return }
     const references = [...generalDraft.references]; references[originPick.slot] = choice.reference
     setRelationDraft({ ...generalDraft, references }); setFailure(null); setMessage('Referencia de origen seleccionada. Verifica la vista previa antes de aplicar.')
   }
+  const menuReveal = (id: string) => { if (fresh(renderedTicket) && !operation.current && !pending.current) setRevealRequest({ id }) }
+  const menuView = (name: typeof view.name) => { if (!operation.current && fresh(renderedTicket)) setView(old => ({ name, stamp: old.stamp + 1 })) }
+  const componentMenuBlocked = blocked || !!mateDraft || !scene || selectedScope.suppressed
+  const menus: AssemblyMenuDefinition[] = [
+    { id: 'file', label: 'Archivo', items: [
+      { id: 'open', label: 'Abrir…', disabled: blocked || !!mateDraft, onSelect: () => { void open() } },
+      { id: 'save', label: 'Guardar', disabled: blocked || !!mateDraft, onSelect: () => { void save(false) } },
+      { id: 'save-as', label: 'Guardar como…', disabled: blocked || !!mateDraft, onSelect: () => { void save(true) } },
+    ] },
+    { id: 'edit', label: 'Editar', items: [
+      { id: 'undo', label: 'Deshacer', disabled: blocked || !!mateDraft || !history.current.canUndo, onSelect: () => undo(false) },
+      { id: 'redo', label: 'Rehacer', disabled: blocked || !!mateDraft || !history.current.canRedo, onSelect: () => undo(true) },
+      { id: 'component-properties', label: 'Propiedades del componente', disabled: blocked || !selected, onSelect: () => menuReveal('configured-occurrence-inspector') },
+    ] },
+    { id: 'view', label: 'Ver', items: [
+      ...([['iso', 'Isométrica'], ['front', 'Frontal'], ['top', 'Superior'], ['fit', 'Ajustar a pantalla']] as const).map(([name, label]) => ({ id: 'view-' + name, label, disabled: busy, onSelect: () => menuView(name) })),
+      { id: 'show-tree', label: 'Árbol del ensamblaje', disabled: blocked, onSelect: () => menuReveal('configured-model-tree') },
+      { id: 'show-configurations', label: 'Configuraciones', disabled: blocked, onSelect: () => menuReveal('configured-root-state') },
+      { id: 'show-relations', label: 'Relaciones de posición', disabled: blocked, onSelect: () => menuReveal(mateDraft ? 'configured-relation-inspector' : 'configured-relations') },
+    ] },
+    { id: 'insert', label: 'Insertar', items: [
+      { id: 'insert-component', label: 'Insertar componente…', disabled: componentMenuBlocked, onSelect: () => menuReveal('configured-component-name') },
+      { id: 'reuse-component', label: 'Reutilizar componente…', disabled: componentMenuBlocked, onSelect: () => menuReveal('configured-component-definition') },
+      { id: 'insert-relation', label: 'Relación de posición…', disabled: componentMenuBlocked, onSelect: () => openRelationEditor() },
+    ] },
+    { id: 'tools', label: 'Herramientas', items: [
+      { id: 'solve', label: 'Resolver configuración', disabled: blocked || !!mateDraft || !scene, onSelect: () => { void solve() } },
+      { id: 'bom', label: 'Lista de materiales', disabled: busy, checked: bomOpen, onSelect: () => changeBomView(!bomOpen) },
+    ] },
+    { id: 'help', label: 'Ayuda', items: [
+      { id: 'viewport-controls', label: 'Controles del visor', onSelect: () => setMessage('Clic: seleccionar. Rueda: acercar o alejar. Rueda pulsada: girar. Mayús + rueda pulsada: desplazar. Para relacionar orígenes, abre una relación, elige el componente y activa su referencia.') },
+    ] },
+  ]
   return <div className="configured-assembly-workspace" aria-label="Ensamblaje configurado" aria-busy={busy}>
-    <AssemblyShellHeader name={document.source.name} dirty={dirty} fileTitle={path} fileLabel={path?.split(/[\\/]/).at(-1) ?? 'Sin guardar'} mode="Ensamblaje configurado">
+    <AssemblyShellHeader menus={menus} menuLabel="Menú del ensamblaje configurado" name={document.source.name} dirty={dirty} fileTitle={path} fileLabel={path?.split(/[\\/]/).at(-1) ?? 'Sin guardar'} mode="Ensamblaje configurado">
       <nav className="assembly-quickbar" aria-label="Archivo del ensamblaje configurado">
         <button onClick={() => void open()} disabled={blocked || !!mateDraft}><FolderOpen size={20} aria-hidden="true" /><span>Abrir</span></button><button onClick={() => void save(false)} disabled={blocked || !!mateDraft}><Save size={20} aria-hidden="true" /><span>Guardar</span></button><button onClick={() => void save(true)} disabled={blocked || !!mateDraft}><Save size={20} aria-hidden="true" /><span>Guardar como</span></button><button onClick={() => undo(false)} disabled={blocked || !!mateDraft || !history.current.canUndo}><Undo2 size={20} aria-hidden="true" /><span>Deshacer</span></button><button onClick={() => undo(true)} disabled={blocked || !!mateDraft || !history.current.canRedo}><Redo2 size={20} aria-hidden="true" /><span>Rehacer</span></button>
       </nav>
@@ -475,14 +513,20 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
           <label><input type="checkbox" aria-label="Mostrar planos de origen configurados" checked={originPlanes} disabled={blocked || !scene} onChange={event => { if (!freshMate() || operation.current || pending.current || inspectorPane !== 'relation') return; stopMatePick(); setOriginPlanes(event.target.checked) }} />Planos</label>
         </div>
         <label>Mostrar origen de<select aria-label="Propietario de referencias de origen configuradas" value={originOwner} disabled={blocked || !scene} onChange={event => { if (!freshMate() || operation.current || pending.current || inspectorPane !== 'relation') return; stopMatePick(); setOriginOwner(event.target.value as typeof originOwner) }}>
-          <option value="scope">Ámbito actual</option><option value="selected" disabled={!selected}>Componente seleccionado</option><option value="both" disabled={!selected}>Ambos</option>
+          <option value="scope">Ámbito actual</option><option value="selected" disabled={!chosenOriginOwner}>Componente elegido</option><option value="both" disabled={!chosenOriginOwner}>Ambos</option>
         </select></label>
+        <label>Componente de origen<select aria-label="Componente de referencias de origen configuradas" value={chosenOriginOwner?.key ?? ''} disabled={blocked || !scene || !originOwners.length} onChange={event => {
+          if (!freshMate() || operation.current || pending.current || inspectorPane !== 'relation' || !scene || !configuredUiSceneMatches(scene, current.current, epoch.current)) return
+          const owner = originOwners.find(row => row.key === event.target.value)
+          if (!owner) return
+          stopMatePick(); setOriginComponent(owner.key); setOriginOwner(value => value === 'scope' ? 'selected' : value)
+        }}><option value="" disabled>Elige un componente visible</option>{originOwners.map(owner => <option key={owner.key} value={owner.key}>{owner.label}</option>)}</select></label>
         <div className="configured-origin-roles">{configuredMateUiRoleLabels(generalDraft).map((label, slot) => <button key={slot} type="button" aria-label={`Seleccionar ${label} por origen en vista configurada`} aria-pressed={originPick?.slot === slot} disabled={blocked || !scene || !originDisplay.some(row => configuredOriginPickChoice(originDisplay, generalDraft, mateChoices.values, slot, row.reference))} onClick={() => {
           if (!freshMate() || operation.current || pending.current || inspectorPane !== 'relation' || !scene || !configuredUiSceneMatches(scene, current.current, epoch.current)) return
           if (!originDisplay.some(row => configuredOriginPickChoice(originDisplay, generalDraft, mateChoices.values, slot, row.reference))) return
-          stopMatePick(); const value = { slot }; originPickRef.current = value; setOriginPick(value)
+          stopMatePick(); const value = { slot, catalog: configuredOriginCatalog(originDisplay) }; originPickRef.current = value; setOriginPick(value)
         }}>{label}</button>)}</div>
-        <small>Activa ejes o planos y elige la referencia que quieres seleccionar en la vista.</small>
+        <small>Elige un componente y después la referencia que quieres seleccionar. Cambiar de componente conserva las referencias ya elegidas.</small>
       </section>}
       {mateDraft && !('mechanical' in mateDraft) && !('compound' in mateDraft) && <ConfiguredAssemblyMatePanel draft={mateDraft} choices={mateChoices.values} disabled={blocked || !scene || selectedScope.suppressed}
         picking={matePick} onStopPicking={stopMatePick} onPick={(slot, kind) => { if (!freshMate() || operation.current || pending.current || inspectorPane !== 'relation') return; stopMatePick(); const value = { slot, kind }; matePickRef.current = value; setMatePick(value) }}

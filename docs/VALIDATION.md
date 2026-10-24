@@ -1,5 +1,77 @@
 # Validation
 
+## Assembly menus and origin-owner continuity — 2026-10-24
+
+The increment after `6e2e0b6` adds six functional top-level assembly menus and
+lets the configured origin editor change its displayed component owner while
+retaining the relation draft. Menu actions reuse existing document operations
+and guards. Selecting an owner preserves assigned roles and disarms temporary
+picking; it does not commit a relation or change the declaring scope.
+
+Windows x64 / Node 24.11.1 / actual Electron 44.9.3:
+
+- Literal `npm test` passes 9,383 unit/CAD cases across 404 files in
+  607.53 seconds, followed by 83 IPC/security passes and two explicit platform
+  skips. The production build and actual loader/worker/WASM desktop smoke pass.
+  Application source was frozen before the full test run. Later harness changes
+  add finalization diagnostics, a symmetry viewport barrier and restoration of
+  the isometric view after menu checks. All 1,064 final non-Markdown inputs match
+  the isolated runtime checkout; the comparison reports no differences.
+- The standard origin run passes 130 checkpoints, 62 recorded gestures and nine
+  native geometry phases. The configured origin run passes 179 checkpoints,
+  64 gestures and nine phases. Both exercise six menus with actual CDP pointer
+  and keyboard input, including Escape, Tab, arrows, Enter, disabled history
+  actions and navigation that retains the draft. The configured case changes
+  between both component owners inside the editor, preserves the other role
+  and disarms picking before restoring the original root/component relation.
+  Owner/type/name/value controls remain scripted; origin selection uses actual
+  projected-label presses. These runs retain the original geometry, preview,
+  Cancel/retry, Apply, history and real file reopening checks.
+- The compact configured-pointer run passes 144 checkpoints and 12 native
+  phases. All three listed renderer runs report no console/resource errors and
+  confirm child exit and isolated-profile cleanup. Three normal/compact captures
+  were visually inspected; the recorded content sizes are 1544×941 and 1024×661.
+- A separate visible Windows session confirms **Ver → Frontal** using Down and
+  Enter, then restores the isometric view. Both view changes were visually
+  checked. This manual case executes no modeling command and makes no document
+  change; it does not establish broader menu or platform coverage.
+
+Initial menu attempts exposed focus timing between opening a menu and the next
+key. Focus now transfers in the layout effect; the fixed Enter transport also
+supplies its text event. The renderer restores isometric view after menu checks
+so a preceding view command does not leave the origin labels occluded. The
+final standard/configured origin runs above include those adjustments.
+
+The symmetry-picking rerun passes 255 checkpoints: six original cases,
+18 author role picks, six same-source edit reselects, 12 native verification
+phases and six Save As/reopen pairs. It reports no console/resource errors and
+confirms child exit/profile cleanup; no screenshot was requested. Earlier
+attempts projected while panel navigation reduced the canvas width from 1262
+to 1226 px, shifting the target 18 px. The harness now observes matching,
+stationary host/canvas rectangles before projecting and checks that they do not
+move before or during the press. It neither retries missed clicks nor changes
+the geometric oracle or deadlines.
+
+The rigid assembly persistence retry passes its 545 existing workflow checkpoints
+plus five finalization observations (550 report entries), with 15 opens, four
+saves and four CSV exports. It reports no console/resource errors and confirms
+child exit/profile cleanup; no screenshot was requested. Its final file reads
+and two full worker observations complete in 606 ms. The first attempt, while
+the full unit suite was also running, reached its final gear Cancel but exceeded
+the unchanged 170-second deadline. The retry ran without that concurrent suite.
+This pass does not establish a timing fix or resolve the hosted failure; the
+remaining deadline margin is narrow and the diagnostics retain exact phases.
+
+Hosted predecessor `0075cf9` has a successful
+[Security run](https://github.com/angelcp2802/solidflow/actions/runs/40131849385).
+Its [CI run](https://github.com/angelcp2802/solidflow/actions/runs/40131849382)
+fails rigid assembly persistence and symmetry viewport selection on Linux and
+Windows. All macOS renderer jobs, all three configured-authoring jobs and all
+three relations jobs pass. The Desktop jobs stop at the prerequisite renderer
+gate. These hosted stages do not identify the underlying assertion failures;
+the dedicated log requests were unavailable. They are not evidence of complete
+acceptance for this later increment, installed packages or other platforms.
+
 ## Displayed assembly origin selection — 2026-10-24
 
 The increment after `e95b6c5`, tracked in #55, displays current root/component

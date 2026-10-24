@@ -70,6 +70,22 @@ module.exports = function symmetryPickingWorkflow(context) {
   function nativeReports(value){check(Array.isArray(value.symmetries)&&value.symmetries.length===value.document.mates.length,'Fresh native report per symmetry');for(const r of value.symmetries){check(r.kind==='symmetry'&&r.status==='ok'&&r.satisfied&&r.supportOnly===true,'Admitted fresh native symmetry report');near(r.positionErrorMm,0,1e-6,'Native physical position');if(r.angleRadians!==null)near(r.angleRadians,0,1e-8,'Native physical angle');if(r.radiusDifferenceMm!==null)near(r.radiusDifferenceMm,0,1e-6,'Native radius');check(r.uncertainty.positionMm<=r.lengthTolerance&&(r.uncertainty.angleRad===null||r.uncertainty.angleRad<=r.angleTolerance)&&(r.uncertainty.radiusMm===null||r.uncertainty.radiusMm<=r.lengthTolerance),'Separate uncertainty admission');const m=value.document.mates.find(m=>m.id===r.mateId);check(!!m,'Report saved mate identity');independent(value.scene,m.source.component.occurrencePath[0].replace(/-source$/,''),m.alignment);}}
   function ready(event,solved){const v=event.response.value;check(v.status==='ready'&&v.hasToken,'Actual authenticated preview');check(v.checks.length===v.document.mates.length&&v.checks.every(c=>c.satisfied),'Actual numerical checks');nativeReports(v);geometry(v.scene,v.document,solved);return v;}
   async function frames(count){await page(raw=>new Promise((resolve,reject)=>{let n=Number(raw),frame;const timer=setTimeout(()=>{cancelAnimationFrame(frame);reject(Error('Viewport frame wait exceeded35second step budget'));},35000);const next=()=>{if(--n<=0){clearTimeout(timer);resolve()}else frame=requestAnimationFrame(next)};frame=requestAnimationFrame(next)}),String(count));}
+  const viewportLayout=()=>page(()=>{
+    const host=document.querySelector('[aria-label="Visor 3D del ensamblaje"]'),canvas=host?.querySelector('canvas');
+    if(!host||!canvas)throw Error('Actual symmetry viewport absent');
+    const rectOf=element=>{const r=element.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height}};
+    return {rect:rectOf(canvas),hostRect:rectOf(host),width:host.clientWidth,height:host.clientHeight};
+  });
+  async function stableViewport(){
+    let previous=null,stableSince=0;
+    return waitFor('stationary actual symmetry viewport',async()=>{
+      const layout=await viewportLayout(),key=JSON.stringify(layout);
+      if(key!==previous){previous=key;stableSince=Date.now();return false;}
+      const r=layout.rect,h=layout.hostRect;
+      return layout.width>0&&layout.height>0&&Math.abs(r.width-layout.width)<1&&Math.abs(r.height-layout.height)<1
+        &&Math.abs(r.x-h.x)<1&&Math.abs(r.y-h.y)<1&&Date.now()-stableSince>=120?layout:false;
+    });
+  }
   function picker(kind,index){return 'button[aria-label="Seleccionar '+roles[index]+(index<2&&(kind==='line'||kind==='axisline')?(kind==='line'?' como arista lineal':' como eje cilíndrico'):'')+' en el modelo"]';}
   async function pickRole(base,kind,index,ref,reselect){
     const startedMs=Date.now();
@@ -82,7 +98,9 @@ module.exports = function symmetryPickingWorkflow(context) {
     const id=kind+'-'+['source','target','mirror'][index],occ=base.document.occurrences.find(o=>o.id===id);
     check(canonical(occ.pose.rotation)===canonical([0,0,0,1]),'Literal pointer owner has initial proper identity rotation');
     const local=index===2||kind==='plane'?[4,.6,2]:kind==='point'?[4,0,4]:kind==='line'?[4,0,2]:kind==='sphere'?[2/Math.sqrt(3.69),-2.6/Math.sqrt(3.69),2/Math.sqrt(3.69)]:[2/Math.sqrt(2.69),-2.6/Math.sqrt(2.69),2];
-    const rect=await page(()=>{const r=document.querySelector('[aria-label="Visor 3D del ensamblaje"] canvas').getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height}}),bounds=base.scene.visibleBounds;
+    // Manager tabs change the host width before ResizeObserver updates the
+    // renderer's canvas. Project only after both describe the same stable area.
+    const layout=await stableViewport(),rect=layout.rect,bounds=base.scene.visibleBounds;
     const center=bounds.min.map((v,i)=>(v+bounds.max[i])/2),span=Math.max(1,Math.hypot(...bounds.max.map((v,i)=>v-bounds.min[i]))),pixels=rect.height/(1.3*span),worldPoint=local.map((v,i)=>v+occ.pose.translation[i]),r=worldPoint.map((v,i)=>v-center[i]);
     const point={x:rect.x+rect.width/2+(1.3*r[0]+r[1])/Math.sqrt(2.69)*pixels,y:rect.y+rect.height/2-(-r[0]+1.3*r[1]+2.69*r[2])/Math.sqrt(9.9261)*pixels};
     check(point.x>rect.x&&point.x<rect.x+rect.width&&point.y>rect.y&&point.y<rect.y+rect.height,'Literal native support point inside actual canvas');
@@ -90,9 +108,18 @@ module.exports = function symmetryPickingWorkflow(context) {
     const faceKey=index===2?JSON.stringify([JSON.stringify([ref.component.occurrencePath,ref.component.definition.id,ref.component.definition.revision]),ref.body?[ref.body.bodyId,ref.body.sourceFeatureId]:null,ref.face.sourceFeatureId,ref.face.key]):null;
     const matching=options.filter(o=>{if(o.disabled)return false;if(index===2)return o.value===faceKey;try{return canonical(JSON.parse(o.value))===canonical(ref)}catch{return false}});check(matching.length===1,'Exact actual native option for pointer intent');
     const previous=await page(rs=>JSON.parse(rs).map(role=>document.querySelector('select[aria-label="'+role+'"]')?.value),JSON.stringify(roles)),stored=await page(()=>localStorage.getItem('solidflow.autosave')),before=await observe();
-    await pointer('mouseMoved',point);await pointer('mousePressed',point,1);await pointer('mouseReleased',point);
-    const attempt=await page((s,picker)=>{const el=document.querySelector(s);return {actualSelectValue:el?.value??null,selectedText:el?.selectedOptions?.[0]?.textContent??null,armedButtonState:document.querySelector(picker)?.getAttribute('aria-pressed')??null,viewportPickMode:document.querySelector('[aria-label="Visor 3D del ensamblaje"]')?.getAttribute('data-reference-picking')??null,statusbarText:document.querySelector('.statusbar')?.textContent??null}},roleSelector,selector);
-    evidence.pointerAttempts.push({kind,index,reselect,viewBarrierElapsedMs:viewReadyMs-startedMs,elapsedBeforeWaitMs:Date.now()-startedMs,expectedOptionKey:matching[0].value,...attempt});
+    await pointer('mouseMoved',point);
+    check(canonical(await viewportLayout())===canonical(layout),'Symmetry viewport remains stationary immediately before press');
+    await pointer('mousePressed',point,1);
+    check(canonical(await viewportLayout())===canonical(layout),'Symmetry viewport remains stationary while pressed');
+    await pointer('mouseReleased',point);
+    const attempt=await page((s,picker,pointJson)=>{
+      const el=document.querySelector(s),host=document.querySelector('[aria-label="Visor 3D del ensamblaje"]'),canvas=host?.querySelector('canvas'),point=JSON.parse(pointJson),hit=document.elementFromPoint(point.x,point.y);
+      const rectOf=element=>{const r=element?.getBoundingClientRect();return r?{x:r.x,y:r.y,width:r.width,height:r.height}:null};
+      return {actualSelectValue:el?.value??null,selectedText:el?.selectedOptions?.[0]?.textContent??null,armedButtonState:document.querySelector(picker)?.getAttribute('aria-pressed')??null,viewportPickMode:host?.getAttribute('data-reference-picking')??null,statusbarText:document.querySelector('.assembly-status')?.textContent??null,
+        afterRelease:{canvasRect:rectOf(canvas),hostRect:rectOf(host),hostSize:host?{width:host.clientWidth,height:host.clientHeight}:null,canvasSize:canvas?{width:canvas.clientWidth,height:canvas.clientHeight,bufferWidth:canvas.width,bufferHeight:canvas.height}:null,cursor:canvas?getComputedStyle(canvas).cursor:null,hit:hit?{tag:hit.tagName,id:hit.id,className:hit.getAttribute('class'),ariaLabel:hit.getAttribute('aria-label'),isCanvas:hit===canvas}:null}};
+    },roleSelector,selector,JSON.stringify(point));
+    evidence.pointerAttempts.push({kind,index,reselect,viewBarrierElapsedMs:viewReadyMs-startedMs,elapsedBeforeWaitMs:Date.now()-startedMs,expectedOptionKey:matching[0].value,worldPoint,point,rect,sceneCenter:center,sceneSpan:span,pixelsPerMm:pixels,...attempt});
     await waitFor('actual native pointer '+kind+' '+roles[index],()=>page((s,v)=>document.querySelector(s)?.value===v,roleSelector,matching[0].value));
     await waitFor('completed native armed role '+kind+' '+roles[index],()=>page(s=>document.querySelector(s)?.getAttribute('aria-pressed')==='false',selector));
     const after=await page(rs=>JSON.parse(rs).map(role=>document.querySelector('select[aria-label="'+role+'"]')?.value),JSON.stringify(roles));for(let slot=0;slot<3;slot++)if(slot!==index)check(after[slot]===previous[slot],'Pointer preserves other symmetry roles');

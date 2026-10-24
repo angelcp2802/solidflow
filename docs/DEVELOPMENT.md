@@ -1,5 +1,18 @@
 # Development guide
 
+Assembly top-level menus use `AssemblyMenuBar.tsx`. Callers provide existing
+actions and their current guards; closed menus do not mount duplicate controls.
+Focus transfers after the menu commit, before a following keyboard action.
+The two origin-axis renderer flows also exercise actual menu pointer/keyboard
+input through `desktop-assembly-menu-controls.cjs`, including Escape, Tab,
+disabled history, tree/editor navigation and retained references. Keyboard
+transport is restricted to these hidden, test-owned windows and fixed keys.
+The configured flow additionally changes the displayed origin owner inside its
+current draft, transiently selecting both components before restoring the
+original root/component pair for the unchanged native oracle. Owner selection
+is scripted; origin-label selection uses actual CDP input. See
+[validation](VALIDATION.md) for executed cases and limits.
+
 Assembly renderer workflows use the application's contextual manager tabs.
 `desktop-assembly-navigation.cjs` and `desktop-configured-navigation.cjs` reveal
 the owning panel before a scripted control action; neither unhides DOM nodes nor
@@ -19,6 +32,16 @@ symmetry renderer's 174 checkpoints, including five Save As/reopen pairs; see
 and hosted recovery still requires new-head execution evidence. The same
 commit's [Security run](https://github.com/angelcp2802/solidflow/actions/runs/40129262048)
 passed. These results apply to that commit, not to the origin-selection changes.
+
+The later hosted [CI run for `0075cf9`](https://github.com/angelcp2802/solidflow/actions/runs/40131849382)
+fails rigid assembly persistence and symmetry viewport selection on Linux and
+Windows. All macOS renderer jobs, configured authoring on all three systems and
+the three relations jobs pass; Desktop jobs stop at the renderer prerequisite
+gate. Dedicated logs were unavailable, so the failed stages alone do not
+establish an assertion-level cause. Its
+[Security run](https://github.com/angelcp2802/solidflow/actions/runs/40131849385)
+passes both CodeQL and dependency audit. This is partial hosted evidence, not
+complete acceptance of that commit or the subsequent menu/owner increment.
 
 After building, `npm run test:desktop:assembly-configured-picking` checks actual
 component and general face/LINE role selection in an original configured

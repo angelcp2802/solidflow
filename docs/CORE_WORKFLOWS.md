@@ -89,7 +89,18 @@ movement uses its own tool. Sketch editing retains 2D middle-button pan.
 ## Assembly priorities and current limits
 
 Both assembly workspaces use a grouped upper ribbon and one contextual manager
-on the left. File and history actions stay in the header. In a standard assembly,
+on the left. **Archivo / Editar / Ver / Insertar / Herramientas / Ayuda** offer
+the existing actions for the current document, with quick file/history access
+immediately below. Unavailable actions retain their disabled state. Open a menu
+with a click or the arrow keys; arrows move between commands/menus, Escape
+closes it and restores its trigger, and Tab leaves the menu. Opening a menu does
+not discard a relation draft. The standard workspace uses **Ver → Árbol de
+componentes / Propiedades de relación**; the configured workspace uses
+**Ver → Árbol del ensamblaje / Relaciones de posición**. These commands switch
+the left manager while retaining its fields; leaving the editor disarms
+temporary reference picking.
+
+In a standard assembly,
 **Ensamblaje / Componentes** shows the tree, **Relaciones** opens relation
 properties and **Evaluar** opens measurement, interference and export controls.
 The upper commands route to those same panels. Applying a preview still requires
@@ -114,9 +125,15 @@ In a standard assembly, enable **Mostrar ejes** or **Mostrar planos** and choose
 **Ámbito actual**, **Componente seleccionado** or **Ambos** in **Orígenes visibles
 de**. Select the relation and its reference role, then press **Seleccionar
 origen**. The viewport instruction identifies the role being filled. In a
-configured assembly, select the component before opening the general relation
-editor. Under **Referencias de origen**, enable **Ejes** or **Planos**, choose
-**Mostrar origen de**, and press the button for the intended reference role.
+configured assembly, the tree selection initializes the owner when opening the
+general relation editor. Under **Referencias de origen**, enable **Ejes** or
+**Planos**, choose **Mostrar origen de**, and press the intended reference role.
+Use **Componente de origen** to choose another current visible component without
+leaving that editor. The selector includes eligible descendants of the current
+scope and displays their relative paths. Choosing an owner switches a scope-only
+display to that component; **Ambos** retains the scope alongside it. Existing
+roles and the tree selection stay unchanged. Changing owner disarms picking:
+rearm the intended role, select its origin, then choose the next owner/role.
 Only roles with a compatible current displayed reference can be armed.
 
 Click an axis line, a displayed plane, or its projected label to nominate the

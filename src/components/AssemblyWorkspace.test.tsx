@@ -62,6 +62,8 @@ it('renders the real assembly controls and keeps Apply blocked before an actual 
   const html = renderToStaticMarkup(<AssemblyWorkspace initialDocument={document} initialSaved={before} onOpenPart={() => undefined} />)
   expect(html).toContain('Componentes del ensamblaje'); expect(html).toContain('Pasador izquierdo'); expect(html).toContain('Pasador derecho')
   expect(html).toContain('Tipo de relación'); expect(html).toContain('Ámbito de las relaciones'); expect(html).toContain('Importar componente')
+  for (const id of ['file', 'edit', 'view', 'insert', 'tools', 'help']) expect(html).toContain('data-assembly-menu="' + id + '"')
+  expect(html).not.toContain('data-assembly-command=')
   expect(html).toContain('aria-label="Orígenes visibles del ensamblaje"')
   expect(html).toContain('Mostrar ejes'); expect(html).toContain('Mostrar planos')
   expect(html).toContain('aria-label="Orígenes visibles de"')

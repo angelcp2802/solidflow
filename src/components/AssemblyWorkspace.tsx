@@ -79,7 +79,7 @@ import AssemblyViewport, { assemblyBodyKey, assemblyFaceKey, assemblyEdgeKey } f
 import { evaluateAssemblyConfiguration } from '../model/assemblyConfigurationCore'
 import { buildAssemblyOriginDisplay, type AssemblyOriginReference } from './assemblyOriginPicking'
 import { standardAssemblyOriginKinds, standardAssemblyOriginPick, type StandardAssemblyOriginPickTicket } from './assemblyStandardOriginPicking'
-import { AssemblyShellHeader, AssemblyCommandGroup } from './AssemblyCommandManager'
+import { AssemblyShellHeader, AssemblyCommandGroup, type AssemblyMenuDefinition } from './AssemblyCommandManager'
 import './assembly.css'
 import { parseCadDocument as parseSavedCadDocument } from '../model/cadDocument'
 import { createAssemblyConfiguredDocument, type AssemblyConfiguredDocument } from '../model/assemblyConfiguredDocument'
@@ -1889,6 +1889,53 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   useEffect(() => {
     if (sourceUpdate || documentUpdate || replacementReview) { managerTabRef.current = 'relations'; setManagerTab('relations') }
   }, [sourceUpdate, documentUpdate, replacementReview])
+  const newAssembly = () => void (async () => { if (await mayReplace()) replace(createEmptyAssembly()) })()
+  const exampleAssembly = () => void (async () => { if (await mayReplace()) replace(createAssemblyExample()) })()
+  const menus: AssemblyMenuDefinition[] = [
+    { id: 'file', label: 'Archivo', items: [
+      { id: 'new', label: 'Nuevo ensamblaje', disabled: editingBlocked || replaceDialog, onSelect: newAssembly },
+      { id: 'open', label: 'Abrir…', disabled: editingBlocked || replaceDialog, onSelect: () => void open('open') },
+      { id: 'import-step', label: 'Importar STEP estructurado…', disabled: editingBlocked || !!draft || !!preview || replaceDialog, onSelect: () => void importStructural() },
+      { id: 'save', label: 'Guardar', disabled: editingBlocked || !!draft, onSelect: () => void save() },
+      { id: 'save-as', label: 'Guardar como…', disabled: editingBlocked || !!draft, onSelect: () => void save(true) },
+      { id: 'export', label: 'Exportar geometría…', onSelect: () => openManager('evaluate', '#assembly-export-tools') },
+    ] },
+    { id: 'edit', label: 'Editar', items: [
+      { id: 'undo', label: 'Deshacer', disabled: editingBlocked || !history.current.canUndo, onSelect: () => undo() },
+      { id: 'redo', label: 'Rehacer', disabled: editingBlocked || !history.current.canRedo, onSelect: () => undo(true) },
+      { id: 'component-properties', label: 'Propiedades del componente', disabled: !selected, onSelect: () => openManager('components', '[aria-label="Nombre del componente"]') },
+      { id: 'revision', label: 'Crear revisión…', disabled: editingBlocked || !!draft || replaceDialog, onSelect: openRootRevision },
+    ] },
+    { id: 'view', label: 'Ver', items: [
+      { id: 'view-iso', label: 'Isométrica', disabled: !!dragSession.current, onSelect: () => viewButton('iso') },
+      { id: 'view-front', label: 'Frontal', disabled: !!dragSession.current, onSelect: () => viewButton('front') },
+      { id: 'view-top', label: 'Superior', disabled: !!dragSession.current, onSelect: () => viewButton('top') },
+      { id: 'view-fit', label: 'Ajustar a pantalla', disabled: !!dragSession.current, onSelect: () => viewButton('fit') },
+      { id: 'show-tree', label: 'Árbol de componentes', onSelect: () => openManager('components') },
+      { id: 'show-relations', label: 'Propiedades de relación', onSelect: () => openManager('relations', '[aria-label="Tipo de relación"]') },
+      { id: 'show-axes', label: 'Ejes de origen', checked: showOriginAxes, onSelect: () => { stopOriginPicking(); setShowOriginAxes(value => !value) } },
+      { id: 'show-planes', label: 'Planos de origen', checked: showOriginPlanes, onSelect: () => { stopOriginPicking(); setShowOriginPlanes(value => !value) } },
+      { id: 'show-bom', label: 'Lista de materiales', checked: bomOpen, onSelect: () => setBomOpen(value => !value) },
+    ] },
+    { id: 'insert', label: 'Insertar', items: [
+      { id: 'insert-component', label: 'Componente desde archivo…', disabled: editingBlocked || replaceDialog, onSelect: () => void open('insert') },
+      { id: 'insert-step', label: 'STEP estructurado…', disabled: editingBlocked || !!draft || !!preview || replaceDialog, onSelect: () => void insertStructural() },
+      { id: 'insert-reuse', label: 'Otra ocurrencia de un origen…', onSelect: () => openManager('components', '[aria-label="Origen del componente"]') },
+      { id: 'insert-relation', label: 'Relación de posición…', onSelect: () => openManager('relations', '[aria-label="Tipo de relación"]') },
+    ] },
+    { id: 'tools', label: 'Herramientas', items: [
+      { id: 'solve', label: 'Resolver ensamblaje', disabled: busy || !!rootRevision, onSelect: () => void solve() },
+      { id: 'apply', label: 'Aplicar vista previa', disabled: !canApply, onSelect: () => void apply() },
+      { id: 'cancel-preview', label: 'Cancelar vista previa', disabled: busy ? !cancelable : !preview && !sourceUpdate && !documentUpdate && !replacementReview, onSelect: cancelToolbarPreview },
+      { id: 'interferences', label: 'Comprobar interferencias…', onSelect: () => openManager('evaluate', '.assembly-interference h2') },
+      { id: 'measure-angle', label: 'Medir ángulo dirigido…', onSelect: () => openManager('evaluate', 'section[aria-label="Medir ángulo dirigido"]') },
+    ] },
+    { id: 'help', label: 'Ayuda', items: [
+      { id: 'viewport-controls', label: 'Controles del visor', onSelect: () => notify('Clic: seleccionar. Rueda: acercar o alejar. Rueda pulsada: girar. Mayús + rueda pulsada: desplazar. Para relacionar orígenes, abre Relaciones, elige el componente y activa su referencia.') },
+      { id: 'examples', label: 'Documentos y ejemplos', onSelect: () => openManager('components', '.assembly-document-tools h3') },
+      { id: 'example-assembly', label: 'Ejemplo: placa y dos pasadores', disabled: editingBlocked || replaceDialog, onSelect: exampleAssembly },
+    ] },
+  ]
   return <div className="assembly-app assembly-classic-workspace" aria-busy={busy}>
     <input ref={fileInput} type="file" accept=".solidflow" hidden onChange={event => {
       const file = event.target.files?.[0], ticket = fileTicket.current; event.target.value = ''; fileTicket.current = null; if (!file || !ticket) return
@@ -1908,9 +1955,9 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
       if(!file){pending.resolve(null);return}if(file.size>MAX_STEP_BYTES){pending.reject(Error('El STEP supera los 8 MB admitidos.'));return}
       void file.arrayBuffer().then(data=>pending.resolve({name:file.name,data:new Uint8Array(data)}),pending.reject)
     }} />
-    <AssemblyShellHeader name={committed.name} dirty={dirty} fileTitle={path} fileLabel={path ? path.split(/[\\/]/).pop() : 'Sin guardar'}>
+    <AssemblyShellHeader menus={menus} name={committed.name} dirty={dirty} fileTitle={path} fileLabel={path ? path.split(/[\\/]/).pop() : 'Sin guardar'}>
       <nav className="assembly-quickbar" aria-label="Archivo e historial del ensamblaje">
-        <button disabled={editingBlocked || replaceDialog} onClick={() => void (async () => { if (await mayReplace()) replace(createEmptyAssembly()) })()}><FilePlus2 size={19} />Nuevo</button>
+        <button disabled={editingBlocked || replaceDialog} onClick={newAssembly}><FilePlus2 size={19} />Nuevo</button>
         <button disabled={editingBlocked || replaceDialog} onClick={() => void open('open')}><FolderOpen size={19} />Abrir</button>
         <button disabled={editingBlocked || !!draft} onClick={() => void save()}><Save size={19} />Guardar</button>
         <button disabled={editingBlocked || !!draft} onClick={() => void save(true)}>Guardar como</button>
@@ -2022,7 +2069,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
 
           <section className="assembly-section assembly-document-tools"><h3>Documentos y ejemplos</h3>
             <button aria-label="Importar STEP estructurado" disabled={editingBlocked || !!draft || !!preview || replaceDialog} onClick={()=>void importStructural()}><FileInput size={16} />Importar STEP estructurado</button>
-            <button disabled={editingBlocked || replaceDialog} onClick={() => void (async () => { if (await mayReplace()) replace(createAssemblyExample()) })()}>Placa y dos pasadores</button>
+            <button disabled={editingBlocked || replaceDialog} onClick={exampleAssembly}>Placa y dos pasadores</button>
           </section>
         </div>
         <div id="assembly-panel-relations" role="tabpanel" aria-labelledby="assembly-tab-relations" tabIndex={-1} hidden={managerTab !== 'relations'} className="assembly-properties assembly-manager-panel">
