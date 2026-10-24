@@ -3,10 +3,11 @@ const fs=require('node:fs/promises');
 const {encodeJavaScriptString:quote}=require('./desktop-ui-source.cjs');
 module.exports=function configuredPicking(c){
  const {expected,input,output,evaluate,observe,waitFor,click,pointer,asideWheel,capture,checks,check,canonical,digest,ipc,dialogCounts,consoleErrors,failedRequests,initialReadyMs}=c;
- const ROOT='.configured-assembly-workspace',NAV='[aria-label="Archivo del ensamblaje configurado"]',FORM='[aria-label="Editar relación del estado"]',ACTION='preview-configured-assembly-relation-edit',gestures=[],phases=[];
+ const ROOT='.configured-assembly-workspace',NAV=':is([aria-label="Archivo del ensamblaje configurado"],[aria-label="Comandos del ensamblaje configurado"])',FORM='[aria-label="Editar relación del estado"]',ACTION='preview-configured-assembly-relation-edit',gestures=[],phases=[];
  const page=(fn,...args)=>evaluate('('+fn.toString()+')('+args.map(v=>'JSON.parse('+quote(JSON.stringify(v))+')').join(',')+')');
+ const navigation=require('./desktop-configured-navigation.cjs')({page,waitFor,actualControl});
  const near=(a,b,t,label)=>check(Number.isFinite(a)&&Math.abs(a-b)<=t,label+': '+a+' expected '+b);
- async function button(text,parent=ROOT){await page((text,parent)=>{const a=[...document.querySelectorAll(parent+' button')].filter(b=>b.textContent.trim()===text);if(a.length!==1||a[0].disabled)throw Error('One enabled button required: '+text);a[0].click();},text,parent);}
+ async function button(text,parent=ROOT){ await navigation.reveal(parent+' button',text); await page((text,parent)=>{const a=[...document.querySelectorAll(parent+' button')].filter(b=>b.textContent.trim()===text);if(a.length!==1||a[0].disabled)throw Error('One enabled button required: '+text);a[0].click();},text,parent);}
  async function actualControl(selector,text=null,allowAsideWheel=false){
   const inspect=()=>page((selector,text)=>{
    const matches=[...document.querySelectorAll(selector)].filter(e=>text===null||e.textContent.trim()===text);
@@ -17,13 +18,27 @@ module.exports=function configuredPicking(c){
    return {point:{x,y},visible:r.width>0&&r.height>0&&r.left>=Math.max(0,a?.left??0)&&r.right<=Math.min(innerWidth,a?.right??innerWidth)&&r.top>=top&&r.bottom<=bottom&&!!hit&&(hit===e||e.contains(hit)),
     aside:!!aside,scrollTop:aside?.scrollTop??0,delta:r.top<top?-200:200,wheelPoint:aside?{x:a.left+Math.min(100,a.width/2),y:(top+bottom)/2}:null,rect:{top:r.top,bottom:r.bottom},clip:{top,bottom}};
   },selector,text);
-  let state=await inspect();
+  // CDP wheel dispatch resolves before compositor scrolling finishes. Requiring
+  // a quiet target prevents a later wheel frame from moving it after hit testing.
+  // This observes real layout only; it never writes scrollTop or retries a click.
+  const stationary=async()=>{
+   let previous=null,stableSince=0;
+   return waitFor('stationary actual inspector target',async()=>{
+    const next=await inspect(),key=JSON.stringify({point:next.point,scrollTop:next.scrollTop,rect:next.rect,visible:next.visible});
+    if(key!==previous){previous=key;stableSince=Date.now();return false;}
+    return Date.now()-stableSince>=120?next:false;
+   });
+  };
+  let state=await stationary();
   for(let step=0;!state.visible&&allowAsideWheel&&state.aside&&step<24;step++){
    check(typeof asideWheel==='function','Bounded actual inspector wheel required');const old=state.scrollTop;
-   await asideWheel(state.wheelPoint,state.delta);await waitFor('actual inspector wheel movement',async()=>{const next=await inspect();return next.scrollTop!==old||next.visible;});state=await inspect();
+   await asideWheel(state.wheelPoint,state.delta);await waitFor('actual inspector wheel movement',async()=>{const next=await inspect();return next.scrollTop!==old||next.visible;});state=await stationary();
   }
   check(state.visible,'Control is physically visible and unobscured: '+JSON.stringify({selector,text,...state}));
-  await pointer('mouseMoved',state.point);await pointer('mousePressed',state.point,1);await pointer('mouseReleased',state.point,0);
+  await pointer('mouseMoved',state.point);
+  const hit=await inspect();
+  check(hit.visible&&hit.scrollTop===state.scrollTop&&hit.point.x===state.point.x&&hit.point.y===state.point.y,'Actual pointer target remains unchanged immediately before press: '+JSON.stringify({selector,text,before:state,after:hit}));
+  await pointer('mousePressed',state.point,1);await pointer('mouseReleased',state.point,0);
   gestures.push({kind:'control',selector,text,point:state.point,asideScrollTop:state.scrollTop});
  }
  async function revealedInspector(){
@@ -34,7 +49,7 @@ module.exports=function configuredPicking(c){
    return visible(r)&&visible(h)&&(hit===field||field.contains(hit))?{scrollTop:aside.scrollTop,field:field.getAttribute('aria-label'),heading:heading.textContent,headingTop:h.top,top:r.top,bottom:r.bottom}:false;
   }));gestures.push({kind:'application-inspector-reveal',...result});
  }
- async function control(label,value){await page((label,value)=>{const e=document.querySelector('[aria-label="'+label+'"]');if(!e||e.disabled)throw Error('Enabled control required: '+label);Object.getOwnPropertyDescriptor(e instanceof HTMLSelectElement?HTMLSelectElement.prototype:HTMLInputElement.prototype,'value').set.call(e,value);e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));},label,value);}
+ async function control(label,value){ await navigation.reveal('[aria-label="'+label+'"]'); await page((label,value)=>{const e=document.querySelector('[aria-label="'+label+'"]');if(!e||e.disabled)throw Error('Enabled control required: '+label);Object.getOwnPropertyDescriptor(e instanceof HTMLSelectElement?HTMLSelectElement.prototype:HTMLInputElement.prototype,'value').set.call(e,value);e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));},label,value);}
  async function response(after,action){return waitFor('actual '+action,async()=>{const s=await observe();check(!s.workerErrors.length,'Worker transport healthy');const row=s.assemblies.filter(r=>r.serial>after&&r.action===action&&r.response).at(-1);if(!row)return false;check(row.response.ok,row.response.error||'Native request failed');return row;});}
  async function recovery(doc){await waitFor('exact confirmed v3 recovery',async()=>{const raw=await page(()=>localStorage.getItem('solidflow.autosave'));return raw&&canonical(JSON.parse(raw))===canonical(doc)&&await page(root=>document.querySelector(root)?.getAttribute('aria-busy')==='false',ROOT);});}
  function geometry(wrapper,doc,z,label){
@@ -54,7 +69,27 @@ module.exports=function configuredPicking(c){
   return {x:r.x+r.width/2+world[0]*pixels,y:r.y+r.height/2-(world[1]+.0001*(world[2]-(z+4)/2))/d*pixels};
  }
  async function press(world,z){const p=await point(world,z);await pointer('mouseMoved',p);await pointer('mousePressed',p,1);await pointer('mouseReleased',p,0);return p;}
- async function component(id,z){await top();const before=(await observe()).serial,p=await press([id==='A'?-8:8,0,id==='A'?4:z+4],z);await waitFor('actual component '+id,()=>page(id=>document.querySelector('[aria-label="Ocurrencia configurada"]')?.value===id,id));check((await observe()).serial===before,'Component selection sends no worker solve');gestures.push({kind:'component',id,p});}
+ async function component(id,z){await top();const before=(await observe()).serial,p=await press([id==='A'?-8:8,0,id==='A'?4:z+4],z);await waitFor('actual component '+id,()=>page(id=>document.querySelector('[aria-label="Ocurrencia configurada"]')?.value===id,id));check(await page(()=>{const pane=document.querySelector('[data-configured-pane="model"]');return pane&&!pane.hidden&&pane.querySelector('button[aria-pressed="true"]');}),'A component click selects its real tree row without replacing the model tree');
+  await navigation.pane('occurrence');
+  await waitFor('explicit component properties pane',()=>page(()=>{const pane=document.querySelector('[data-configured-pane="occurrence"]');return pane&&!pane.hidden&&pane.querySelector('#configured-occurrence-inspector');}));
+  await navigation.pane('model');
+  check((await observe()).serial===before,'Component selection and explicit properties navigation send no worker solve');gestures.push({kind:'component',id,p});}
+ async function leaveArmedRelation(z){
+  const before=(await observe()).serial;
+  const draftState=()=>page(()=>({name:document.querySelector('[aria-label="Nombre de relación configurada"]')?.value,type:document.querySelector('[aria-label="Tipo de relación configurada"]')?.value,references:[1,2].map(slot=>document.querySelector('[aria-label="Referencia '+slot+' de relación configurada"]')?.value),occurrence:document.querySelector('[aria-label="Ocurrencia configurada"]')?.value}));
+  const original=await draftState();
+  await actualControl('button[aria-label="Seleccionar Referencia 1 por cara en vista configurada"]',null,true);
+  await waitFor('role armed before leaving editor',()=>page(()=>document.querySelector('[aria-label="Visor 3D del ensamblaje"]')?.getAttribute('data-reference-picking')==='face'));
+  await navigation.pane('model');
+  await waitFor('leaving editor ends temporary picking',()=>page(()=>!document.querySelector('[aria-label="Selección de referencia en vista configurada"]')&&document.querySelector('[aria-label="Visor 3D del ensamblaje"]')?.getAttribute('data-reference-picking')===''));
+  await top();await press([8,0,z+4],z);
+  check(canonical(await draftState())===canonical(original),'Clicking model with a retained draft neither selects a component nor changes relation references');
+  await navigation.pane('relation');
+  check(canonical(await draftState())===canonical(original),'Explicit return restores the same authored relation draft');
+  check(await page(()=>document.querySelector('[aria-label="Visor 3D del ensamblaje"]')?.getAttribute('data-reference-picking')===''),'Returning to relation does not rearm a stale picking request');
+  check((await observe()).serial===before,'Leaving and returning to the draft sends no native request');
+  gestures.push({kind:'leave-armed-relation',draftRetained:true,pickingStopped:true});
+ }
  async function pick(slot,kind,id,z,scene){
   const label='Seleccionar Referencia '+slot+' por '+(kind==='face'?'cara':'arista')+' en vista configurada';
   await actualControl('button[aria-label="'+label+'"]',null,true);
@@ -77,7 +112,7 @@ module.exports=function configuredPicking(c){
   await waitFor('production startup',()=>page(()=>document.querySelector('.statusbar')?.textContent.includes('Listo')&&typeof window.solidflow?.openDocument==='function'),initialReadyMs);
   const inputBytes=await fs.readFile(input);let before=await observe();await click('button[aria-label="Abrir (Ctrl+O)"]');await waitFor('owned discard dialog',()=>page(()=>!!document.querySelector('[role="dialog"][aria-labelledby="discard-title"]')));await button('Continuar sin guardar','[role="dialog"][aria-labelledby="discard-title"]');let row=await response(before.serial,'build-configured-assembly');check(canonical(row.current.document)===canonical(expected),'Original full v3 imported');let scene=geometry(row.response.value,expected,6,'initial');await recovery(expected);
   await component('A',6);await component('B',6);
-  await draft('distance','Pointer top distance');const faces=[await pick(1,'face','B',6,scene),await pick(2,'face','A',6,scene)];await control('Distancia de relación configurada en mm','2');
+  await draft('distance','Pointer top distance');await leaveArmedRelation(6);const faces=[await pick(1,'face','B',6,scene),await pick(2,'face','A',6,scene)];await control('Distancia de relación configurada en mm','2');
   const staged=await preview(expected,2,faces,'distance');before=await observe();await button('Cancelar',NAV);await response(before.serial,'discard-configured-assembly');row=await response(before.serial,'build-configured-assembly');geometry(row.response.value,expected,6,'cancel');await recovery(expected);
   let current=await preview(expected,2,faces,'distance');check(canonical(current)===canonical(staged),'Cancel retry retains authored declaration');scene=await apply(current,2);await history('Deshacer',expected,6);await history('Rehacer',current,2);
   await component('B',2);await draft('parallel','Pointer top LINE parallel');const lines=[await pick(1,'edge','A',2,scene),await pick(2,'edge','B',2,scene)];const distanceDoc=current;current=await preview(current,2,lines,'parallel');scene=await apply(current,2);await history('Deshacer',distanceDoc,2);await history('Rehacer',current,2);

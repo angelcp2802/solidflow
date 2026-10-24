@@ -5,6 +5,8 @@ const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 // Fixed original shared-prism source-update case after the pointer workflow.
 // Files enter through actual Open; native catalogs supply reference identities.
 module.exports = async function directedGuideWorkflow(context) {
+  context = require('./desktop-assembly-navigation.cjs').withNavigation(context);
+  const assemblyNavigation = context.assemblyNavigation;
   const { expected, input, output, files, evaluate, observe, waitFor, click, capture, checks,
     ipc, check, canonical, digest, dialogCounts, consoleErrors, failedRequests } = context;
   const APPLY = 'button[aria-label="Aplicar ensamblaje"]', PANEL = '[role="region"][aria-label="Actualizar origen compartido"]';
@@ -19,11 +21,11 @@ module.exports = async function directedGuideWorkflow(context) {
   const rotate = (q, p) => { const t = cross(q.slice(0, 3), p).map(x => 2 * x), u = cross(q.slice(0, 3), t); return p.map((x, i) => x + q[3] * t[i] + u[i]); };
   const idle = () => waitFor('guide repair workspace idle', () => page(() => document.querySelector('.assembly-app')?.getAttribute('aria-busy') === 'false'));
   const record = (label, event) => phases.push({ label, ...event });
-  async function button(text) {
-    await page(text => { const found = [...document.querySelectorAll('.assembly-toolbar button')].filter(item => item.textContent.trim() === text);
+  async function button(text) { await assemblyNavigation.button(text, ':is(.assembly-toolbar, .assembly-quickbar)');
+    await page(text => { const found = [...document.querySelectorAll(':is(.assembly-toolbar, .assembly-quickbar) button')].filter(item => item.textContent.trim() === text);
       if (found.length !== 1 || found[0].disabled) throw Error('Enabled toolbar button absent: ' + text); found[0].click(); }, text);
   }
-  async function control(selector, value) {
+  async function control(selector, value) { await assemblyNavigation.reveal(selector);
     await page((selector, value) => { const item = document.querySelector(selector); if (!item || item.disabled) throw Error('Editable control absent: ' + selector);
       if (item instanceof HTMLSelectElement && ![...item.options].some(option => option.value === value && !option.disabled)) throw Error('Current option absent.');
       Object.getOwnPropertyDescriptor(item instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype, 'value').set.call(item, value);
@@ -147,8 +149,8 @@ module.exports = async function directedGuideWorkflow(context) {
     }, PANEL, JSON.stringify(Object.keys(repaired))));
   }
   async function openReview() {
-    await page(name => { const rows = [...document.querySelectorAll('.assembly-tree [role="treeitem"]')].filter(row => row.querySelector('span')?.firstChild?.textContent === name);
-      if (rows.length !== 1 || rows[0].disabled) throw Error('Exact original guide row absent.'); rows[0].click(); }, 'Original fixed guide');
+    (await assemblyNavigation.panel('components'), await page(name => { const rows = [...document.querySelectorAll('.assembly-tree [role="treeitem"]')].filter(row => row.querySelector('span')?.firstChild?.textContent === name);
+      if (rows.length !== 1 || rows[0].disabled) throw Error('Exact original guide row absent.'); rows[0].click(); }, 'Original fixed guide'));
     await waitFor('selected guide update enabled', () => page(() => document.querySelector('button[aria-label="Actualizar pieza"]')?.disabled === false));
     const before = await observe(); await click('button[aria-label="Actualizar pieza"]'); const event = await response(before.serial, 'review-assembly-part-update'), review = event.response.value;
     evidence.pendingEvent = event;

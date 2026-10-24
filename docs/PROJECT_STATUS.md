@@ -1,5 +1,36 @@
 # Project status and review queue
 
+### Grouped assembly commands and contextual left manager
+
+Both assembly workspaces now use a shared compact header, grouped upper commands
+and a contextual left manager. Components, relation editing and evaluation use
+the same sidebar area. Configured component selection keeps the tree visible;
+explicit properties and relation commands reveal their editor. Leaving relation
+editing stops viewport nomination without losing the draft. See
+[core workflows](CORE_WORKFLOWS.md) and [validation](VALIDATION.md).
+
+Windows renderer checks pass for the standard assembly, compact distance
+interval, configured normal/compact pointer selection, component authoring and
+relation editing. The actual Electron 44.9.3 smoke and production build pass.
+Full acceptance passes 9,354 unit/CAD cases across 400 files and 83 IPC/security
+cases, with two explicit platform skips. All 1,054 frozen non-Markdown inputs
+match the isolated runtime checkout. The fresh
+dependency audit reports zero vulnerabilities after compatible fast-uri/undici
+patches; this supersedes the preceding local findings below.
+
+Hosted predecessor `f376d99` stops macOS hinge source/replacement repair after
+Save As, before the exact ground-owner source-review request. Its log does not
+identify whether the control is missing, duplicated or disabled. The three
+dependent Desktop gates fail; CodeQL passes and the old-lock dependency audit
+fails. Cause-specific diagnosis and new-head hosted acceptance remain open in
+[issue #53](https://github.com/angelcp2802/solidflow/issues/53).
+
+Continue in draft PR #49 and
+[issue #55](https://github.com/angelcp2802/solidflow/issues/55): simplify reference
+labels, finish displayed-origin picking/rotation capture and specialized
+material picking, then accept the complete basic assembly demo. Current evidence
+does not establish cross-platform or release readiness.
+
 ### Configured command access and compact interface
 
 Upper commands now reveal the configured component, relation and configuration

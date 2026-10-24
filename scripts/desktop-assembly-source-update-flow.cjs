@@ -2,6 +2,8 @@
 const fs = require('node:fs/promises');
 const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 module.exports = function assemblySourceUpdateWorkflow(context) {
+  context = require('./desktop-assembly-navigation.cjs').withNavigation(context);
+  const assemblyNavigation = context.assemblyNavigation;
   const { expected, input, output, files, evaluate, observe, waitFor, click, checks, ipc, consoleErrors, failedRequests,
     check, canonical, digest, completePendingSave, initialReadyMs, dialogCounts } = context;
   const phases = [], APPLY='button[aria-label="Aplicar ensamblaje"]', CANCEL='button[aria-label="Cancelar vista previa del ensamblaje"]';
@@ -10,7 +12,7 @@ module.exports = function assemblySourceUpdateWorkflow(context) {
   const page=(fn,...args)=>evaluate('('+fn.toString()+')('+args.map(encodeJavaScriptString).join(',')+')');
   const near=(a,b,t,label)=>check(Number.isFinite(a)&&Math.abs(a-b)<t,label+' actual='+a+' expected='+b);
   const vector=(a,b,label)=>{check(Array.isArray(a)&&a.length===3,label+' shape');a.forEach((x,i)=>near(x,b[i],1e-6,label+'['+i+']'));};
-  async function button(text,parent='.assembly-app') { await page((text,parent)=>{
+  async function button(text,parent='.assembly-app') { await assemblyNavigation.button(text, parent); await page((text,parent)=>{
     const rows=[...document.querySelectorAll(parent+' button')].filter(x=>x.textContent.trim()===text);
     if(rows.length!==1||rows[0].disabled)throw Error('One enabled button required: '+text);rows[0].click();
   },text,parent); }
@@ -33,9 +35,9 @@ module.exports = function assemblySourceUpdateWorkflow(context) {
     // and busy continuation. The controlled scenario releases that result here.
     await completePendingSave();
     const ready=await waitFor(label+' clean saved controls',()=>page((name,leaf,panel,apply)=>{
-      const toolbar=[...document.querySelectorAll('.assembly-toolbar button')];
+      const toolbar=[...document.querySelectorAll(':is(.assembly-toolbar, .assembly-quickbar) button')];
       const open=toolbar.filter(b=>b.textContent.trim()==='Abrir'),save=toolbar.filter(b=>b.textContent.trim()==='Guardar');
-      const busy=document.querySelector('.assembly-app')?.getAttribute('aria-busy'),header=document.querySelector('.assembly-header > strong')?.textContent,file=document.querySelector('.assembly-file')?.textContent;
+      const busy=document.querySelector('.assembly-app')?.getAttribute('aria-busy'),header=document.querySelector('.assembly-shell-document > strong')?.textContent,file=document.querySelector('.assembly-shell-file')?.textContent;
       if(busy!=='false'||header!==name||file!==leaf||document.querySelector(panel)||document.querySelector(apply)?.disabled!==true
         ||open.length!==1||open[0].disabled||save.length!==1||save[0].disabled)return false;
       return {busy,header,file,openEnabled:true,saveEnabled:true,applyDisabled:true};
@@ -67,8 +69,8 @@ module.exports = function assemblySourceUpdateWorkflow(context) {
       'Explicit new descendant with unchanged declaring null frame');
   }
   async function selectLeft() {
-    await page(()=>{const rows=[...document.querySelectorAll('.assembly-tree [role="treeitem"]')].filter(x=>x.querySelector('span')?.firstChild?.textContent==='left');
-      if(rows.length!==1||rows[0].disabled)throw Error('Exact source root tree row');rows[0].click();});
+    (await assemblyNavigation.panel('components'), await page(()=>{const rows=[...document.querySelectorAll('.assembly-tree [role="treeitem"]')].filter(x=>x.querySelector('span')?.firstChild?.textContent==='left');
+      if(rows.length!==1||rows[0].disabled)throw Error('Exact source root tree row');rows[0].click();}));
     await waitFor('selected source container',()=>page(()=>document.querySelector('input[aria-label="Nombre del componente"]')?.value==='left'));
   }
   async function review(base) {
@@ -85,11 +87,11 @@ module.exports = function assemblySourceUpdateWorkflow(context) {
     check(await page(panel=>document.querySelectorAll(panel+' fieldset[data-assembly-endpoint]').length===2,PANEL),'Two actual pending endpoint fieldsets');
     // React commits each selected repair before the next control is operated.
     for(const id of ['root-left','root-right']) {
-      await page((panel,id)=>{const fields=[...document.querySelectorAll(panel+' fieldset[data-assembly-endpoint]')].filter(x=>x.getAttribute('data-assembly-endpoint').includes(id));
+      (await assemblyNavigation.panel('relations'), await page((panel,id)=>{const fields=[...document.querySelectorAll(panel+' fieldset[data-assembly-endpoint]')].filter(x=>x.getAttribute('data-assembly-endpoint').includes(id));
         if(fields.length!==1)throw Error('Unique pending role '+id);const select=fields[0].querySelector('select');
         const choices=[...select.options].filter(x=>x.textContent.includes('m-new')&&x.textContent.endsWith(' · XY'));
         if(select.disabled||choices.length!==1)throw Error('Unique explicit renamed descendant XY choice');
-        Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(select,choices[0].value);select.dispatchEvent(new Event('change',{bubbles:true}));},PANEL,id);
+        Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(select,choices[0].value);select.dispatchEvent(new Event('change',{bubbles:true}));},PANEL,id));
       await waitFor('repair accepted '+id,()=>page((panel,id)=>{const field=[...document.querySelectorAll(panel+' fieldset[data-assembly-endpoint]')].find(x=>x.getAttribute('data-assembly-endpoint').includes(id));return field?.getAttribute('data-endpoint-status')==='explicit-choice';},PANEL,id));
     }
     await waitFor('all references explicitly selected',()=>page(solve=>document.querySelector(solve)?.disabled===false,SOLVE));
@@ -107,7 +109,7 @@ module.exports = function assemblySourceUpdateWorkflow(context) {
     let before=await observe();await click('button[aria-label="Abrir (Ctrl+O)"]');await waitFor('initial discard dialog',()=>page(()=>!!document.querySelector('[role="dialog"][aria-labelledby="discard-title"]')));
     await button('Continuar sin guardar','[role="dialog"][aria-labelledby="discard-title"]');let event=await response(before.serial,'build-assembly');
     check(canonical(event.document)===canonical(expected),'Actual original source-update Open');geometry(event.response.value,false);await recovery(expected,'Open');
-    await button('Guardar como','.assembly-toolbar');await waitFor('baseline parent Save As',async()=>{try{return dialogCounts().saves===1&&canonical(JSON.parse(await fs.readFile(files.baseline,'utf8')))===canonical(expected);}catch(err){if(err.code==='ENOENT')return false;throw err;}});
+    await button('Guardar como',':is(.assembly-toolbar, .assembly-quickbar)');await waitFor('baseline parent Save As',async()=>{try{return dialogCounts().saves===1&&canonical(JSON.parse(await fs.readFile(files.baseline,'utf8')))===canonical(expected);}catch(err){if(err.code==='ENOENT')return false;throw err;}});
     const parentName=files.baseline.split(/[\\/]/).pop();
     await savedReady(expected,files.baseline,'Baseline Save As');
     const first=await review(expected);await click(DISCARD);await recovery(expected,'Discard source review');
@@ -117,21 +119,21 @@ module.exports = function assemblySourceUpdateWorkflow(context) {
     check(await page((panel,apply)=>!!document.querySelector(panel)&&document.querySelector(apply)?.disabled===true,PANEL,APPLY),'Ready Cancel retains decisions and revokes Apply');
     preview=await solved(expected);await click(APPLY);event=await response(preview.serial,'apply-assembly');
     const applied=event.response.value.document;intent(applied);geometry(event.response.value.scene,true);await recovery(applied,'Source Apply');
-    check(await page(name=>document.querySelector('.assembly-file')?.textContent===name,parentName),'Source update preserves parent filepath');
+    check(await page(name=>document.querySelector('.assembly-shell-file')?.textContent===name,parentName),'Source update preserves parent filepath');
     before=await observe();await click('button[aria-label="Deshacer ensamblaje"]');event=await response(before.serial,'build-assembly');
     check(canonical(event.document)===canonical(expected),'One Undo restores full original source graph');geometry(event.response.value,false);await recovery(expected,'Undo');
     before=await observe();await click('button[aria-label="Rehacer ensamblaje"]');event=await response(before.serial,'build-assembly');
     check(canonical(event.document)===canonical(applied),'One Redo restores exact repaired source graph');geometry(event.response.value,true);await recovery(applied,'Redo');
-    await button('Guardar','.assembly-toolbar');await waitFor('normal Save still writes parent only',async()=>canonical(JSON.parse(await fs.readFile(files.baseline,'utf8')))===canonical(applied));
+    await button('Guardar',':is(.assembly-toolbar, .assembly-quickbar)');await waitFor('normal Save still writes parent only',async()=>canonical(JSON.parse(await fs.readFile(files.baseline,'utf8')))===canonical(applied));
     await savedReady(applied,files.baseline,'Normal Save');
     check(dialogCounts().saves===1&&(await fs.readFile(files.source)).equals(sourceBytes),'Source file unchanged and parent Save uses no new dialog');
     await selectLeft();before=await observe();await click('button[aria-label="Actualizar subensamblaje"]');
     const rejected=await waitFor('wrong source identity rejects atomically',async()=>{const state=await observe();return state.assemblies.find(x=>x.serial>before.serial&&x.action==='review-assembly-document-update'&&x.response?.ok===false);});
     check(rejected.response.error.includes('identidad'),'Wrong-source rejection reason');await recovery(applied,'Rejected source');
     check(await page(sel=>document.querySelector(sel)?.disabled===true,APPLY),'Rejected source has no Apply');
-    await button('Guardar como','.assembly-toolbar');await waitFor('updated Save As',async()=>{try{return dialogCounts().saves===2&&canonical(JSON.parse(await fs.readFile(output,'utf8')))===canonical(applied);}catch(err){if(err.code==='ENOENT')return false;throw err;}});
+    await button('Guardar como',':is(.assembly-toolbar, .assembly-quickbar)');await waitFor('updated Save As',async()=>{try{return dialogCounts().saves===2&&canonical(JSON.parse(await fs.readFile(output,'utf8')))===canonical(applied);}catch(err){if(err.code==='ENOENT')return false;throw err;}});
     await savedReady(applied,output,'Updated Save As');
-    before=await observe();await button('Abrir','.assembly-toolbar');event=await response(before.serial,'build-assembly');check(canonical(event.document)===canonical(applied),'Exact saved source/repaired paths reopen');geometry(event.response.value,true);await recovery(applied,'Reopen');
+    before=await observe();await button('Abrir',':is(.assembly-toolbar, .assembly-quickbar)');event=await response(before.serial,'build-assembly');check(canonical(event.document)===canonical(applied),'Exact saved source/repaired paths reopen');geometry(event.response.value,true);await recovery(applied,'Reopen');
     before=await observe();await click('button[aria-label="Resolver ensamblaje"]');event=await response(before.serial,'preview-assembly');
     check(event.response.value.status==='ready'&&event.response.value.checks.length===4&&event.response.value.checks.every(x=>x.satisfied),'Reopened graph freshly solves all four relations');
     geometry(event.response.value.scene,true);await click(CANCEL);await recovery(applied,'Reopened solve Cancel');

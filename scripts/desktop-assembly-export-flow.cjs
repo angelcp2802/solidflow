@@ -6,6 +6,8 @@ const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 // Actual production worker/IPC bytes; all geometric expectations below are
 // analytical boxes, independent of the assembly exporter and its helpers.
 module.exports = function assemblyExportWorkflow(context) {
+  context = require('./desktop-assembly-navigation.cjs').withNavigation(context);
+  const assemblyNavigation = context.assemblyNavigation;
   const { expected, input, output, assemblyExportOutputs, evaluate, observe, waitFor, click, capture, checks,
     protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs, dialogCounts } = context;
   const STEP = 'button[aria-label="Exportar STEP plano del ensamblaje"]', STL = 'button[aria-label="Exportar STL del ensamblaje"]';
@@ -51,17 +53,17 @@ module.exports = function assemblyExportWorkflow(context) {
       && document.querySelector('button[aria-label="Exportar STEP plano del ensamblaje"]')?.disabled === false
       && document.querySelector('button[aria-label="Exportar STL del ensamblaje"]')?.disabled === false));
   }
-  async function button(label) {
+  async function button(label) { await assemblyNavigation.button(label, ':is(.assembly-toolbar, .assembly-quickbar)');
     await page(label => {
-      const matches = [...document.querySelectorAll('.assembly-toolbar button')].filter(value => value.textContent.trim() === label);
+      const matches = [...document.querySelectorAll(':is(.assembly-toolbar, .assembly-quickbar) button')].filter(value => value.textContent.trim() === label);
       if (matches.length !== 1 || matches[0].disabled) throw Error('Exact enabled assembly toolbar control absent: ' + label);
       matches[0].click();
     }, label);
   }
   async function committedUi() {
     return page(() => ({ recovery: localStorage.getItem('solidflow.autosave'),
-      title: document.querySelector('.assembly-header > strong')?.textContent,
-      file: document.querySelector('.assembly-file')?.textContent,
+      title: document.querySelector('.assembly-shell-document > strong')?.textContent,
+      file: document.querySelector('.assembly-shell-file')?.textContent,
       undoDisabled: document.querySelector('button[aria-label="Deshacer ensamblaje"]')?.disabled,
       redoDisabled: document.querySelector('button[aria-label="Rehacer ensamblaje"]')?.disabled,
       applyDisabled: document.querySelector('button[aria-label="Aplicar ensamblaje"]')?.disabled,
@@ -236,10 +238,10 @@ module.exports = function assemblyExportWorkflow(context) {
     const initial = await committedUi(); check(initial.file === 'input.solidflow' && initial.title === expected.name && initial.undoDisabled && initial.redoDisabled, 'Open did not establish clean document/path/history.');
     await exportCommitted('step', committed, 'original/canceled-step', true);
     await exportCommitted('step', committed, 'original/step'); await exportCommitted('stl', committed, 'original/stl');
-    await page(() => { const rows = [...document.querySelectorAll('[role="treeitem"]')].filter(row => row.getAttribute('aria-level') === '1' && row.querySelector('span')?.firstChild?.textContent === 'first'); if (rows.length !== 1 || rows[0].disabled) throw Error('Original first component absent.'); rows[0].click(); });
+    (await assemblyNavigation.panel('components'), await page(() => { const rows = [...document.querySelectorAll('[role="treeitem"]')].filter(row => row.getAttribute('aria-level') === '1' && row.querySelector('span')?.firstChild?.textContent === 'first'); if (rows.length !== 1 || rows[0].disabled) throw Error('Original first component absent.'); rows[0].click(); }));
     await waitFor('original component rename control', () => page(() => document.querySelector('input[aria-label="Nombre del componente"]')?.value === 'first'));
     before = await observe();
-    const renameInteraction = await page(() => {
+    const renameInteraction = (await assemblyNavigation.panel('components'), await page(() => {
       const input = document.querySelector('input[aria-label="Nombre del componente"]'); if (!input || input.disabled) throw Error('Rename control absent.');
       const focus = () => ({ value: document.querySelector('input[aria-label="Nombre del componente"]')?.value,
         hasFocus: document.hasFocus(), activeElement: { tag: document.activeElement?.tagName, label: document.activeElement?.getAttribute('aria-label') } });
@@ -252,7 +254,7 @@ module.exports = function assemblyExportWorkflow(context) {
         input.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
         return { before, after: focus(), focusout };
       } finally { input.removeEventListener('focusout', observed); }
-    });
+    }));
     checks.push({ flatExportRenameInteraction: renameInteraction });
     event = await responseAfter(before.serial, 'build-assembly'); const renamed = event.document;
     const expectedRename = JSON.parse(JSON.stringify(expected)); expectedRename.occurrences.find(value => value.id === 'first').name = 'Renamed committed export'; expectedRename.updatedAt = renamed.updatedAt;

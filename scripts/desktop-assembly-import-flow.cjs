@@ -2,17 +2,19 @@
 const fs = require('node:fs/promises');
 const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 module.exports = function assemblyImportWorkflow(context) {
+  context = require('./desktop-assembly-navigation.cjs').withNavigation(context);
+  const assemblyNavigation = context.assemblyNavigation;
   const { expected, input, output, baselinePath, sourcePath, rejectedPath, source, evaluate, observe, waitFor, click, capture, checks, ipc,
     check, canonical, digest, initialReadyMs, dialogCounts, consoleErrors, failedRequests } = context;
   const phases = [], APPLY='button[aria-label="Aplicar ensamblaje"]', CANCEL='button[aria-label="Cancelar vista previa del ensamblaje"]';
   const page=(fn,...args)=>evaluate('('+fn.toString()+')('+args.map(encodeJavaScriptString).join(',')+')');
   const close=(a,b,t,label)=>check(Number.isFinite(a)&&Math.abs(a-b)<t,label+' actual='+a+' expected='+b);
   const vector=(a,b,t,label)=>{check(Array.isArray(a)&&a.length===b.length,label+' shape');a.forEach((x,i)=>close(x,b[i],t,label+'['+i+']'));};
-  async function button(text,parent='.assembly-app') { await page((text,parent)=>{
+  async function button(text,parent='.assembly-app') { await assemblyNavigation.button(text, parent); await page((text,parent)=>{
     const rows=[...document.querySelectorAll(parent+' button')].filter(x=>x.textContent.trim()===text);
     if(rows.length!==1||rows[0].disabled)throw Error('One enabled button required: '+text);rows[0].click();
   },text,parent); }
-  async function control(selector,value) { await page((selector,value)=>{
+  async function control(selector,value) { await assemblyNavigation.reveal(selector); await page((selector,value)=>{
     const el=document.querySelector(selector);if(!el||el.disabled)throw Error('Editable control required: '+selector);
     const proto=el instanceof HTMLSelectElement?HTMLSelectElement.prototype:HTMLInputElement.prototype;
     Object.getOwnPropertyDescriptor(proto,'value').set.call(el,value);el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));
@@ -71,7 +73,7 @@ module.exports = function assemblyImportWorkflow(context) {
     await click(CANCEL);await recovery(doc,'Cancel no-op solve');check(await page(sel=>document.querySelector(sel)?.disabled===true,APPLY),'Cancelled solve revokes Apply');
   }
   async function imported(beforeDoc,count,moved) {
-    const before=await observe();await button('Importar componente','.assembly-toolbar');const event=await response(before.serial,'build-assembly');const doc=event.document;
+    const before=await observe();await button('Importar componente',':is(.assembly-toolbar, .assembly-quickbar)');const event=await response(before.serial,'build-assembly');const doc=event.document;
     intent(doc,count);geometry(event.response.value,doc,moved);check(doc.id===beforeDoc.id,'Import replaced parent root');await recovery(doc,'Import');return doc;
   }
   return async()=>{
@@ -83,18 +85,18 @@ module.exports = function assemblyImportWorkflow(context) {
     let e=await response(before.serial,'build-assembly');check(canonical(e.document)===canonical(expected),'Actual parent Open');await recovery(expected,'Open');
     // Establish an actual parent filepath before import, then exercise Save
     // without a dialog. Import must never redirect that path to its source.
-    await button('Guardar como','.assembly-toolbar');
+    await button('Guardar como',':is(.assembly-toolbar, .assembly-quickbar)');
     await waitFor('empty parent baseline Save As',async()=>{
       if(dialogCounts().saves!==1||ipc.filter(x=>x.channel==='document:save'&&x.completed).length!==1)return false;
       try{return canonical(JSON.parse(await fs.readFile(baselinePath,'utf8')))===canonical(expected);}catch(err){if(err.code==='ENOENT')return false;throw err;}
     });
     const baselineName=baselinePath.split(/[\\/]/).pop();
-    await waitFor('actual parent filename after baseline Save As',()=>page(name=>document.querySelector('.assembly-file')?.textContent===name,baselineName));
+    await waitFor('actual parent filename after baseline Save As',()=>page(name=>document.querySelector('.assembly-shell-file')?.textContent===name,baselineName));
     await recovery(expected,'Baseline Save As');
     phases.push({action:'baseline-parent-save-as',path:baselineName,documentSha256:digest(canonical(expected))});
     let doc=await imported(expected,1,false);const identityDoc=doc;
-    check(await page(name=>document.querySelector('.assembly-file')?.textContent===name,baselineName),'Import replaced parent filename with source');
-    await button('Guardar','.assembly-toolbar');
+    check(await page(name=>document.querySelector('.assembly-shell-file')?.textContent===name,baselineName),'Import replaced parent filename with source');
+    await button('Guardar',':is(.assembly-toolbar, .assembly-quickbar)');
     await waitFor('normal Save writes imported graph to baseline parent',async()=>{
       if(dialogCounts().saves!==1||ipc.filter(x=>x.channel==='document:save'&&x.completed).length!==2)return false;
       try{return canonical(JSON.parse(await fs.readFile(baselinePath,'utf8')))===canonical(identityDoc);}catch(err){if(err.code==='ENOENT')return false;throw err;}
@@ -102,10 +104,10 @@ module.exports = function assemblyImportWorkflow(context) {
     await recovery(identityDoc,'Normal parent Save');
     const baselineBytes=await fs.readFile(baselinePath);
     check((await fs.readFile(sourcePath)).equals(sourceBytes),'Normal Save overwrote imported source');
-    check(await page(name=>document.querySelector('.assembly-file')?.textContent===name,baselineName),'Normal Save lost parent filepath');
+    check(await page(name=>document.querySelector('.assembly-shell-file')?.textContent===name,baselineName),'Normal Save lost parent filepath');
     phases.push({action:'normal-save-parent-after-import',path:baselineName,sha256:digest(baselineBytes),saveDialogs:dialogCounts().saves});
     await fresh(doc,false);
-    await page(name=>{const rows=[...document.querySelectorAll('.assembly-tree [role="treeitem"]')].filter(r=>r.querySelector('span')?.firstChild?.textContent===name);if(rows.length!==1||rows[0].disabled)throw Error('Exact imported root tree row');rows[0].click();},doc.occurrences[0].name);
+    (await assemblyNavigation.panel('components'), await page(name=>{const rows=[...document.querySelectorAll('.assembly-tree [role="treeitem"]')].filter(r=>r.querySelector('span')?.firstChild?.textContent===name);if(rows.length!==1||rows[0].disabled)throw Error('Exact imported root tree row');rows[0].click();},doc.occurrences[0].name));
     await waitFor('root component selected',()=>page(name=>document.querySelector('input[aria-label="Nombre del componente"]')?.value===name,doc.occurrences[0].name));
     for(const [i,axis]of ['X','Y','Z'].entries())await control('input[aria-label="Destino local '+axis+' del componente"]',String([10,20,30][i]));
     await control('select[aria-label="Eje local del movimiento"]','2');await control('input[aria-label="Giro local del movimiento en grados"]','90');
@@ -116,7 +118,7 @@ module.exports = function assemblyImportWorkflow(context) {
     // before native build. This test-owned input is never a worker response.
     const recoveryBefore=await page(()=>localStorage.getItem('solidflow.autosave'));
     const historyBefore=await page(()=>['Deshacer ensamblaje','Rehacer ensamblaje','Aplicar ensamblaje'].map(label=>document.querySelector('button[aria-label="'+label+'"]')?.disabled));
-    before=await observe();await button('Importar componente','.assembly-toolbar');
+    before=await observe();await button('Importar componente',':is(.assembly-toolbar, .assembly-quickbar)');
     await waitFor('explicit conflicting-content rejection',()=>page(()=>document.querySelector('.assembly-status.error')?.textContent.includes('contenido distinto')));
     check((await observe()).serial===before.serial,'Rejected import allocated native worker geometry');
     check(await page(()=>localStorage.getItem('solidflow.autosave'))===recoveryBefore,'Rejected import changed committed recovery');
@@ -127,8 +129,8 @@ module.exports = function assemblyImportWorkflow(context) {
     before=await observe();await click('button[aria-label="Deshacer ensamblaje"]');e=await response(before.serial,'build-assembly');check(canonical(e.document)===canonical(movedDoc),'Undo restores one moved import');geometry(e.response.value,e.document,true);await recovery(movedDoc,'Undo');
     before=await observe();await click('button[aria-label="Rehacer ensamblaje"]');e=await response(before.serial,'build-assembly');check(canonical(e.document)===canonical(twice),'Redo restores both exact imports');geometry(e.response.value,e.document,true);await recovery(twice,'Redo');
     await fresh(twice,true);
-    await button('Guardar como','.assembly-toolbar');await waitFor('actual saved assembly',async()=>{if(dialogCounts().saves!==2||ipc.filter(x=>x.channel==='document:save'&&x.completed).length!==3)return false;try{return canonical(JSON.parse(await fs.readFile(output,'utf8')))===canonical(twice);}catch(err){if(err.code==='ENOENT')return false;throw err;}});const saved=await fs.readFile(output);
-    before=await observe();await button('Abrir','.assembly-toolbar');e=await response(before.serial,'build-assembly');check(canonical(e.document)===canonical(twice),'Exact Save/reopen graph');geometry(e.response.value,e.document,true);await recovery(twice,'Reopen');await fresh(twice,true);
+    await button('Guardar como',':is(.assembly-toolbar, .assembly-quickbar)');await waitFor('actual saved assembly',async()=>{if(dialogCounts().saves!==2||ipc.filter(x=>x.channel==='document:save'&&x.completed).length!==3)return false;try{return canonical(JSON.parse(await fs.readFile(output,'utf8')))===canonical(twice);}catch(err){if(err.code==='ENOENT')return false;throw err;}});const saved=await fs.readFile(output);
+    before=await observe();await button('Abrir',':is(.assembly-toolbar, .assembly-quickbar)');e=await response(before.serial,'build-assembly');check(canonical(e.document)===canonical(twice),'Exact Save/reopen graph');geometry(e.response.value,e.document,true);await recovery(twice,'Reopen');await fresh(twice,true);
     // Inspect the actual two imported containers. Root occurrence identity,
     // never their shared definition, determines grouping eligibility.
     const within='input[aria-label="Incluir cuerpos de una misma pieza"]',group='input[aria-label="Agrupar subensamblajes raíz"]';
@@ -178,7 +180,7 @@ module.exports = function assemblyImportWorkflow(context) {
     check((await observe()).serial===before.serial,'Grouping change automatically requested native inspection');
     const grouped=await inspectImported(true);check(grouped.analysisId!==ungrouped.analysisId,'Fresh grouped inspection authority');
     check((await fs.readFile(input)).equals(original)&&(await fs.readFile(sourcePath)).equals(sourceBytes)&&(await fs.readFile(output)).equals(saved)&&(await fs.readFile(baselinePath)).equals(baselineBytes),'Input/source/baseline/saved bytes unchanged');
-    await waitFor('final regular saved filename',()=>page(name=>document.querySelector('.assembly-file')?.textContent===name,output.split(/[\\/]/).pop()));
+    await waitFor('final regular saved filename',()=>page(name=>document.querySelector('.assembly-shell-file')?.textContent===name,output.split(/[\\/]/).pop()));
     check(dialogCounts().opens===5&&dialogCounts().saves===2&&dialogCounts().csvExports===0,'Exact five Open/two Save As dialogs queue');
     check(canonical(ipc.map(x=>x.channel))===canonical(['document:open','document:save','document:open','document:save','document:open','document:open','document:save','document:open'])&&ipc.every(x=>x.completed),'Only authorized file IPC');
     const final=await observe();check(!consoleErrors.length&&!failedRequests.length&&!final.workerErrors.length,'Renderer/worker errors');

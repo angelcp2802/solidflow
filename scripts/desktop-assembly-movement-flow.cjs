@@ -4,6 +4,8 @@ const fsp = require('node:fs/promises');
 // Actual controls, native worker replies and committed file IPC only. Targets
 // are user intent; no pose, report, geometry or accepted result is injected.
 module.exports = async function movementWorkflow(context) {
+  context = require('./desktop-assembly-navigation.cjs').withNavigation(context);
+  const assemblyNavigation = context.assemblyNavigation;
   const { output, observe, waitFor, click, button, control, page, idle, responseAfter, checks, ipc,
     check, canonical, digest, near, close, dialogCounts, consoleErrors, failedRequests } = context;
   const MOVE = 'button[aria-label="Vista previa del movimiento"]', APPLY = 'button[aria-label="Aplicar ensamblaje"]';
@@ -22,11 +24,11 @@ module.exports = async function movementWorkflow(context) {
     close(Math.abs(dot), 1, 1e-8, description);
   };
   async function selectRight() {
-    await page(name => {
+    (await assemblyNavigation.panel('components'), await page(name => {
       const rows = [...document.querySelectorAll('[role="treeitem"]')].filter(row => row.querySelector('span')?.firstChild?.textContent === name);
       if (rows.length !== 1 || rows[0].disabled) throw Error('Expected the actual right component tree control.');
       rows[0].click();
-    }, original.name);
+    }, original.name));
     await waitFor('right component movement panel reaches rendered controls', () => page(name =>
       document.querySelector('input[aria-label="Nombre del componente"]')?.value === name
       && !!document.querySelector('button[aria-label="Vista previa del movimiento"]'), original.name));
@@ -106,13 +108,13 @@ module.exports = async function movementWorkflow(context) {
   before = await observe(); await click('button[aria-label="Rehacer ensamblaje"]');
   const redo = await responseAfter(before.serial, 'build-assembly'); check(canonical(redo.document) === canonical(moved), 'Redo changed the authenticated movement.');
   assertMoved(redo.document, redo.response.value); await idle('movement Redo rebuild completes'); record('movement/redo', redo);
-  await button('Guardar', '.assembly-toolbar');
+  await button('Guardar', ':is(.assembly-toolbar, .assembly-quickbar)');
   await waitFor('movement native Save completes', () => ipc.filter(value => value.channel === 'document:save' && value.completed).length === 3);
   const movedBytes = await fsp.readFile(output); check(canonical(JSON.parse(movedBytes.toString('utf8'))) === canonical(moved), 'Movement save differs from the actual Apply/Redo document.');
   await waitFor('movement Save reaches clean rendered controls', () => page(name => document.querySelector('.assembly-app')?.getAttribute('aria-busy') === 'false'
-    && document.querySelector('.assembly-header > strong')?.textContent === name
-    && [...document.querySelectorAll('.assembly-toolbar button')].some(value => value.textContent.trim() === 'Abrir' && !value.disabled), moved.name));
-  before = await observe(); await button('Abrir', '.assembly-toolbar');
+    && document.querySelector('.assembly-shell-document > strong')?.textContent === name
+    && [...document.querySelectorAll(':is(.assembly-toolbar, .assembly-quickbar) button')].some(value => value.textContent.trim() === 'Abrir' && !value.disabled), moved.name));
+  before = await observe(); await button('Abrir', ':is(.assembly-toolbar, .assembly-quickbar)');
   const reopened = await responseAfter(before.serial, 'build-assembly'); check(canonical(reopened.document) === canonical(moved), 'Movement reopen changed saved poses/declarations.');
   assertMoved(reopened.document, reopened.response.value); await idle('moved assembly reopen completes'); record('movement/reopened', reopened);
   await selectRight(); await control(AXIS, '2'); await control(ANGLE, '0'); await control(X, '11');

@@ -4,6 +4,8 @@ const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 // Actual CDP geometry input only: no React callbacks, CAD responses, document
 // stores or capabilities are replaced. Original literal camera/solid oracles.
 module.exports = function hingePickingWorkflow(context) {
+  context = require('./desktop-assembly-navigation.cjs').withNavigation(context);
+  const assemblyNavigation = context.assemblyNavigation;
   const { expected, input, output, evaluate, observe, waitFor, click, capture, pointer, checks, ipc, check, canonical, digest,
     initialReadyMs, dialogCounts, consoleErrors, failedRequests, protocolResponses } = context;
   const roles = ['Eje A de bisagra', 'Eje B de bisagra', 'Plano axial A de bisagra', 'Plano axial B de bisagra'],
@@ -19,9 +21,9 @@ module.exports = function hingePickingWorkflow(context) {
   function rotate(q, p) { near(Math.hypot(...q), 1, 1e-10, 'Proper quaternion'); const n = Math.hypot(...q), v = q.slice(0, 3).map(x => x / n), w = q[3] / n,
     t = cross(v, p).map(x => 2 * x), c = cross(v, t); return p.map((x, i) => x + w * t[i] + c[i]); }
   const placed = (pose, point) => rotate(pose.rotation, point).map((v, i) => v + pose.translation[i]);
-  async function button(text, parent = '.assembly-app') { await page((text, parent) => { const list = [...document.querySelectorAll(parent + ' button')].filter(e => e.textContent.trim() === text);
+  async function button(text, parent = '.assembly-app') { await assemblyNavigation.button(text, parent); await page((text, parent) => { const list = [...document.querySelectorAll(parent + ' button')].filter(e => e.textContent.trim() === text);
     if (list.length !== 1 || list[0].disabled) throw Error('Exact enabled button ' + text); list[0].click(); }, text, parent); }
-  async function control(selector, value) { await page((selector, value) => { const e = document.querySelector(selector); if (!e || e.disabled) throw Error('Editable control ' + selector);
+  async function control(selector, value) { await assemblyNavigation.reveal(selector); await page((selector, value) => { const e = document.querySelector(selector); if (!e || e.disabled) throw Error('Editable control ' + selector);
     const proto = e instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype;
     if (e instanceof HTMLSelectElement && ![...e.options].some(o => o.value === value && !o.disabled)) throw Error('Actual option ' + value);
     Object.getOwnPropertyDescriptor(proto, 'value').set.call(e, value); e.dispatchEvent(new Event('input', { bubbles: true })); e.dispatchEvent(new Event('change', { bubbles: true }));
@@ -93,7 +95,7 @@ module.exports = function hingePickingWorkflow(context) {
     check((await observe()).serial === serial && await page(() => localStorage.getItem('solidflow.autosave')) === stored, 'Pointer selection does not perform CAD/history work');
     evidence.pointerHits.push({ slot, role: roles[slot], edge, reselect, reference, ...projected });
   }
-  async function selectMoving() { await page(() => { const list = [...document.querySelectorAll('.assembly-tree [role="treeitem"]')].filter(e => e.querySelector('span')?.firstChild?.textContent === 'moving'); if (list.length !== 1 || list[0].disabled) throw Error('Exact moving tree row'); list[0].click(); });
+  async function selectMoving() { (await assemblyNavigation.panel('components'), await page(() => { const list = [...document.querySelectorAll('.assembly-tree [role="treeitem"]')].filter(e => e.querySelector('span')?.firstChild?.textContent === 'moving'); if (list.length !== 1 || list[0].disabled) throw Error('Exact moving tree row'); list[0].click(); }));
     await waitFor('moving selected', () => page(() => document.querySelector('input[aria-label="Nombre del componente"]')?.value === 'moving')); }
   async function noIntentChange(label, beforeFields, serial, stored) { await frames(); check(canonical(await fields()) === canonical(beforeFields), label + ' preserves every current field');
     check((await observe()).serial === serial && await page(() => localStorage.getItem('solidflow.autosave')) === stored, label + ' no native/history mutation'); evidence.negatives.push({ label, fields: beforeFields }); }
@@ -134,7 +136,7 @@ module.exports = function hingePickingWorkflow(context) {
     await waitFor('picking explicitly canceled before release', () => page(() => document.querySelector('[aria-label="Visor 3D del ensamblaje"]')?.getAttribute('data-reference-picking') === ''));
     await pointer('mouseReleased', projected.point); await noIntentChange('canceled armed gesture late release', beforeFields, serial, stored);
     await selectMoving(); projected = await projection(base.scene, movingWall); before = await observe();
-    await page(() => { const list = [...document.querySelectorAll('label.assembly-check')].filter(e => e.textContent.trim() === 'Visible'); if (list.length !== 1) throw Error('Unique Visible checkbox'); const input = list[0].querySelector('input'); if (!input.checked || input.disabled) throw Error('Visible original moving leaf'); input.click(); });
+    (await assemblyNavigation.panel('components'), await page(() => { const list = [...document.querySelectorAll('label.assembly-check')].filter(e => e.textContent.trim() === 'Visible'); if (list.length !== 1) throw Error('Unique Visible checkbox'); const input = list[0].querySelector('input'); if (!input.checked || input.disabled) throw Error('Visible original moving leaf'); input.click(); }));
     event = await response(before.serial, 'build-assembly'); const hidden = event.document; check(body(event.response.value, 'moving').visible === false, 'Actual source visibility hides the moving native body'); await recovery(hidden, 'Hide moving'); await frames();
     await arm(1); beforeFields = await fields(); serial = (await observe()).serial; stored = await page(() => localStorage.getItem('solidflow.autosave')); await hit(projected.point);
     await noIntentChange('hidden source at retained material pixel', beforeFields, serial, stored); await click(picker(1)); base = await history('Deshacer', expected);
@@ -171,9 +173,9 @@ module.exports = function hingePickingWorkflow(context) {
       && [motion.requestedAngle, motion.evaluatedAngle, motion.windingResidual, motion.windingTolerance, motion.maxAngularStep].every(Number.isFinite)
       && Math.abs(motion.requestedAngle - deltaDegrees * Math.PI / 180) <= 1e-12 && motion.windingTolerance === 1e-8 && motion.windingResidual >= 0 && motion.windingResidual <= motion.windingTolerance && motion.maxAngularStep > 0, 'Actual verified discrete motion stations and requested winding');
     base = await apply(event, 'Material90 Apply', true); const accepted = base.document;
-    await button('Guardar como', '.assembly-toolbar'); await waitFor('actual original Save As', async () => { if (dialogCounts().saves !== 1 || !ipc.some(v => v.channel === 'document:save' && v.completed)) return false;
+    await button('Guardar como', ':is(.assembly-toolbar, .assembly-quickbar)'); await waitFor('actual original Save As', async () => { if (dialogCounts().saves !== 1 || !ipc.some(v => v.channel === 'document:save' && v.completed)) return false;
       try { return canonical(JSON.parse(await fs.readFile(output, 'utf8'))) === canonical(accepted); } catch (error) { if (error.code === 'ENOENT') return false; throw error; } }); const savedBytes = await fs.readFile(output);
-    before = await observe(); await button('Abrir', '.assembly-toolbar'); event = await response(before.serial, 'build-assembly'); check(canonical(event.document) === canonical(accepted), 'Exact pointer-authored hinge reopening'); base = { document: event.document, scene: event.response.value }; geometry(base.scene, base.document, true); await recovery(base.document, 'Reopen');
+    before = await observe(); await button('Abrir', ':is(.assembly-toolbar, .assembly-quickbar)'); event = await response(before.serial, 'build-assembly'); check(canonical(event.document) === canonical(accepted), 'Exact pointer-authored hinge reopening'); base = { document: event.document, scene: event.response.value }; geometry(base.scene, base.document, true); await recovery(base.document, 'Reopen');
     before = await observe(); await click('button[aria-label="Resolver ensamblaje"]'); event = await response(before.serial, 'preview-assembly'); ready(event, refs.references, 'Fresh reopened native hinge', false, true); await cancel(base);
     await click('button[aria-label="Editar bisagra ' + name + '"]'); await page(() => document.querySelector('.assembly-hinge-panel')?.scrollIntoView({ block: 'center' })); await capture(base.document); await button('Cancelar edición de bisagra'); await recovery(base.document, 'Final edit Cancel');
     check(evidence.pointerHits.length === 6 && evidence.pointerHits.filter(p => p.edge).length === 1 && evidence.pointerHits.filter(p => p.reselect).length === 1, 'Four author face picks, one staged LINE and one current face edit reselect');

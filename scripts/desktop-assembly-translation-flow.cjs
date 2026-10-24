@@ -5,19 +5,21 @@ const fsp = require('node:fs/promises');
 // Only actual controls supply intent; worker geometry/trace/capabilities remain
 // untouched. A clear final endpoint must not tunnel through the thin obstacle.
 module.exports = async function translationWorkflow(context) {
+  context = require('./desktop-assembly-navigation.cjs').withNavigation(context);
+  const assemblyNavigation = context.assemblyNavigation;
   const { translationPath, translationFixture, translationOutput, observe, waitFor, click, capture, button, control, page,
     idle, responseAfter, checks, ipc, check, canonical, digest, near, close, dialogCounts, consoleErrors, failedRequests } = context;
   const ACTION = 'translate-assembly-until-contact', PREVIEW = 'button[aria-label="Vista previa con parada"]', APPLY = 'button[aria-label="Aplicar ensamblaje"]';
   const phases = [], inputBytes = await fsp.readFile(translationPath);
   const record = (phase, event) => phases.push({ phase, serial: event.serial, action: event.action,
     current: event.current, translation: event.translation, stopOptions: event.stopOptions, document: event.document, response: event.response.value });
-  let before = await observe(); await button('Abrir', '.assembly-toolbar');
+  let before = await observe(); await button('Abrir', ':is(.assembly-toolbar, .assembly-quickbar)');
   const opened = await responseAfter(before.serial, 'build-assembly');
   check(canonical(opened.document) === canonical(translationFixture), 'Contact fixture did not open through actual file routing.');
   await idle('original contact slider opens'); record('translation/opened', opened);
   async function select() {
-    await page(() => { const rows = [...document.querySelectorAll('[role="treeitem"]')].filter(row => row.querySelector('span')?.firstChild?.textContent === 'Original moving slider');
-      if (rows.length !== 1 || rows[0].disabled) throw Error('Expected the actual slider tree row.'); rows[0].click(); });
+    (await assemblyNavigation.panel('components'), await page(() => { const rows = [...document.querySelectorAll('[role="treeitem"]')].filter(row => row.querySelector('span')?.firstChild?.textContent === 'Original moving slider');
+      if (rows.length !== 1 || rows[0].disabled) throw Error('Expected the actual slider tree row.'); rows[0].click(); }));
     await waitFor('contact slider reaches actual controls', () => page(selector => !!document.querySelector(selector) && !document.querySelector(selector).disabled, PREVIEW));
   }
   await select();
@@ -79,15 +81,15 @@ module.exports = async function translationWorkflow(context) {
   check(canonical(undo.document) === canonical(translationFixture), 'One Contact Undo failed to restore the complete source.'); await idle('contact Undo completes'); record('translation/undo', undo);
   before = await observe(); await click('button[aria-label="Rehacer ensamblaje"]'); const redo = await responseAfter(before.serial, 'build-assembly');
   check(canonical(redo.document) === canonical(moved), 'Contact Redo failed to restore stopped pose.'); await idle('contact Redo completes'); record('translation/redo', redo);
-  await button('Guardar como', '.assembly-toolbar'); await waitFor('contact native Save As completes', () => ipc.filter(value => value.channel === 'document:save' && value.completed).length === 6);
+  await button('Guardar como', ':is(.assembly-toolbar, .assembly-quickbar)'); await waitFor('contact native Save As completes', () => ipc.filter(value => value.channel === 'document:save' && value.completed).length === 6);
   const bytes = await fsp.readFile(translationOutput); check(canonical(JSON.parse(bytes.toString('utf8'))) === canonical(moved), 'Contact saved bytes differ from verified Apply.');
   await waitFor('contact Save As reaches clean committed controls', () => page(name => {
-    const save = [...document.querySelectorAll('.assembly-toolbar button')].find(value => value.textContent.trim() === 'Guardar');
+    const save = [...document.querySelectorAll(':is(.assembly-toolbar, .assembly-quickbar) button')].find(value => value.textContent.trim() === 'Guardar');
     return document.querySelector('.assembly-app')?.getAttribute('aria-busy') === 'false'
-      && document.querySelector('.assembly-header > strong')?.textContent === name && save?.disabled === false
+      && document.querySelector('.assembly-shell-document > strong')?.textContent === name && save?.disabled === false
       && document.querySelector('.assembly-canvas-label span')?.textContent === 'Componentes independientes · mm';
   }, moved.name));
-  before = await observe(); await button('Abrir', '.assembly-toolbar');
+  before = await observe(); await button('Abrir', ':is(.assembly-toolbar, .assembly-quickbar)');
   const reopened = await responseAfter(before.serial, 'build-assembly'); check(canonical(reopened.document) === canonical(moved), 'Contact reopen lost stopped placement.'); await idle('contact reopen completes'); record('translation/reopened', reopened);
   await select(); const failure = await preview(20, 0, moved, 'translation/no-effective-progress');
   check(failure.reply.status === 'rejected' && !failure.reply.hasToken && await page(selector => document.querySelector(selector)?.disabled === true, APPLY), 'Near-contact restart published an ineffective/unsafe Apply.');

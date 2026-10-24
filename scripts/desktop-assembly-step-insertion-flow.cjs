@@ -29,6 +29,8 @@ const BOXES = [
 const OUTSIDE = [[200, 0, 0], [210, 6, 4], 240, 248];
 
 module.exports = function structuralStepInsertionWorkflow(context) {
+  context = require('./desktop-assembly-navigation.cjs').withNavigation(context);
+  const assemblyNavigation = context.assemblyNavigation;
   const { expected, input, output, insertionFiles, evaluate, observe, waitFor, click, checks, check, canonical, digest, ipc,
     protocolResponses, consoleErrors, failedRequests, initialReadyMs, dialogCounts } = context;
   const original = createOriginalDocuments(), parent = original.parent, phases = [], exports = [];
@@ -95,8 +97,8 @@ module.exports = function structuralStepInsertionWorkflow(context) {
     check(remaining.every(g => g.count === 0), label + ': all independent box multiplicities retained without Fuse.'); near(meshArea, area, label + ' total planar mesh A');
     if (copies >= 0) { const uses = parentGraph(doc, copies); check(roots.get('outside') === 1 && uses.every(use => roots.get(use.id) === 8) && roots.size === copies + 1, label + ': every inserted root owns its own eight full-path bodies.'); }
   }
-  const pageState = () => page(() => ({ recovery: localStorage.getItem('solidflow.autosave'), title: document.querySelector('.assembly-header > strong')?.textContent,
-    file: document.querySelector('.assembly-file')?.textContent, undo: document.querySelector('button[aria-label="Deshacer ensamblaje"]')?.disabled,
+  const pageState = () => page(() => ({ recovery: localStorage.getItem('solidflow.autosave'), title: document.querySelector('.assembly-shell-document > strong')?.textContent,
+    file: document.querySelector('.assembly-shell-file')?.textContent, undo: document.querySelector('button[aria-label="Deshacer ensamblaje"]')?.disabled,
     redo: document.querySelector('button[aria-label="Rehacer ensamblaje"]')?.disabled, apply: document.querySelector('button[aria-label="Aplicar ensamblaje"]')?.disabled,
     cancel: document.querySelector('button[aria-label="Cancelar vista previa del ensamblaje"]')?.disabled }));
   async function idle(label) { await waitFor(label, () => page(() => document.querySelector('.assembly-app')?.getAttribute('aria-busy') === 'false'
@@ -109,7 +111,7 @@ module.exports = function structuralStepInsertionWorkflow(context) {
     await waitFor(label + ' exact recovery', async () => { const ui = await pageState(); return ui.recovery && canonical(JSON.parse(ui.recovery)) === canonical(event.document); });
     phases.push({ phase: label, serial: event.serial, documentSha256: digest(canonical(event.document)), scene: event.response.value }); return event.document;
   }
-  async function button(label) { await page(label => { const buttons = [...document.querySelectorAll('.assembly-toolbar button')].filter(b => b.textContent.trim() === label);
+  async function button(label) { await assemblyNavigation.button(label, ':is(.assembly-toolbar, .assembly-quickbar)'); await page(label => { const buttons = [...document.querySelectorAll(':is(.assembly-toolbar, .assembly-quickbar) button')].filter(b => b.textContent.trim() === label);
     if (buttons.length !== 1 || buttons[0].disabled) throw Error('Exact enabled toolbar button absent: ' + label); buttons[0].click(); }, label); }
   async function confirmInitialPart() {
     await waitFor('initial part discard confirmation', () => page(() => !!document.querySelector('[role="dialog"][aria-labelledby="discard-title"]')));
@@ -197,10 +199,10 @@ module.exports = function structuralStepInsertionWorkflow(context) {
     check(undone.redo === false && canonical({ ...undone, redo: clean.redo }) === canonical(clean), 'One Undo restores exact clean parent file/recovery state, with its single insertion available for Redo.');
     doc = await history('redo', once, 1, 'insert/Redo'); const firstUse = parentGraph(doc, 1)[0];
     const key = JSON.stringify([firstUse.definition.id, firstUse.definition.revision]);
-    await page(key => { const select = document.querySelector('select[aria-label="Origen del componente"]'); if (!select || select.disabled || ![...select.options].some(o => o.value === key)) throw Error('Exact accepted cached source tuple unavailable.');
-      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(select, key); select.dispatchEvent(new Event('input', { bubbles: true })); select.dispatchEvent(new Event('change', { bubbles: true })); }, key);
+    (await assemblyNavigation.panel('components'), await page(key => { const select = document.querySelector('select[aria-label="Origen del componente"]'); if (!select || select.disabled || ![...select.options].some(o => o.value === key)) throw Error('Exact accepted cached source tuple unavailable.');
+      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(select, key); select.dispatchEvent(new Event('input', { bubbles: true })); select.dispatchEvent(new Event('change', { bubbles: true })); }, key));
     const readCount = ipc.filter(e => e.channel === 'document:import-step').length; serial = (await observe()).serial;
-    await page(() => { const bs = [...document.querySelectorAll('.assembly-section button')].filter(b => b.textContent.trim() === 'Insertar otra ocurrencia'); if (bs.length !== 1 || bs[0].disabled) throw Error('Exact enabled cached-source insertion absent.'); bs[0].click(); });
+    (await assemblyNavigation.panel('components'), await page(() => { const bs = [...document.querySelectorAll('.assembly-section button')].filter(b => b.textContent.trim() === 'Insertar otra ocurrencia'); if (bs.length !== 1 || bs[0].disabled) throw Error('Exact enabled cached-source insertion absent.'); bs[0].click(); }));
     const twice = await builtAfter(serial, 2, 'cached-source/second-occurrence'); check(ipc.filter(e => e.channel === 'document:import-step').length === readCount && !(await observe()).assemblies.some(e => e.serial > serial && e.action === 'insert-assembly-step'), 'Second occurrence reuses accepted embedded source without any neutral file read/reimport.');
     check(canonical(twice.definitions) === canonical(once.definitions) && canonical(twice.occurrences.find(o => o.id === firstUse.id)) === canonical(firstUse), 'Second reuse preserves original accepted cache and first inserted occurrence exactly.');
     await history('undo', once, 1, 'second-occurrence/Undo'); doc = await history('redo', twice, 2, 'second-occurrence/Redo');

@@ -64,9 +64,16 @@ it('renders the real assembly controls and keeps Apply blocked before an actual 
   expect(html).toContain('Tipo de relación'); expect(html).toContain('Ámbito de las relaciones'); expect(html).toContain('Importar componente')
   expect(html).toContain('aria-label="Crear revisión del ensamblaje"'); expect(html).toContain('Crear revisión…')
   expect(html).not.toContain('id="assembly-root-revision-title"')
+  // SSR proves the initial navigation contract only; desktop flows exercise tabs.
+  expect(html).toMatch(/<button(?=[^>]*id="assembly-tab-components")(?=[^>]*aria-selected="true")(?=[^>]*aria-controls="assembly-panel-components")[^>]*>/)
+  expect(html).toMatch(/<div(?=[^>]*id="assembly-panel-components")(?![^>]* hidden=)[^>]*>/)
+  for (const panel of ['relations', 'evaluate']) {
+    expect(html).toContain('aria-controls="assembly-panel-' + panel + '"')
+    expect(html).toMatch(new RegExp('<div(?=[^>]*id="assembly-panel-' + panel + '")(?=[^>]*hidden="")[^>]*>'))
+  }
   expect(html).toMatch(/<button(?=[^>]*aria-label="Aplicar ensamblaje")(?=[^>]*disabled="")[^>]*>/); expect(html).toContain('Sin guardar')
   expect(html.match(/Importar componente/g)).toHaveLength(1)
-  expect(html).toMatch(/<button(?=[^>]*disabled="")[^>]*>(?:(?!<\/button>)[\s\S])*Importar componente<\/button>/)
+  expect(html).toMatch(/<button(?=[^>]*disabled="")[^>]*>(?:(?!<\/button>)[\s\S])*Importar componente(?:<\/span>)?<\/button>/)
   expect(html).not.toContain('Importar pieza')
   expect(serializeAssemblyDocument(document)).toBe(before); expect(buildAssembly).not.toHaveBeenCalled(); expect(previewAssembly).not.toHaveBeenCalled()
 })
@@ -200,7 +207,7 @@ it('shows one generic import action and retains the parent filename while the in
     initialPath="original-parent.solidflow" onOpenPart={() => undefined} />)
   expect(html).toContain('original-parent.solidflow'); expect(html).toContain('Importa un componente para comenzar.')
   expect(html.match(/Importar componente/g)).toHaveLength(1)
-  expect(html).toMatch(/<button(?=[^>]*disabled="")[^>]*>(?:(?!<\/button>)[\s\S])*Importar componente<\/button>/)
+  expect(html).toMatch(/<button(?=[^>]*disabled="")[^>]*>(?:(?!<\/button>)[\s\S])*Importar componente(?:<\/span>)?<\/button>/)
   expect(html).not.toContain('Importar pieza'); expect(html).not.toContain('Importar ensamblaje')
   expect(serializeAssemblyDocument(document)).toBe(saved)
 })

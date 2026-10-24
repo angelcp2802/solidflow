@@ -1,5 +1,14 @@
 # Development guide
 
+Assembly renderer workflows use the application's contextual manager tabs.
+`desktop-assembly-navigation.cjs` and `desktop-configured-navigation.cjs` reveal
+the owning panel before a scripted control action; neither unhides DOM nodes nor
+changes application state directly. Pointer workflows retain actual CDP input,
+hit testing and bounded wheel events. After a wheel event, the configured pointer
+case observes a stationary target before pressing; it does not retry a missed
+click or extend the existing deadlines. A panel-navigation pass is separate from
+native geometry, file persistence and platform acceptance.
+
 After building, `npm run test:desktop:assembly-configured-picking` checks actual
 component and general face/LINE role selection in an original configured
 assembly, with preview, history and real file IPC. See

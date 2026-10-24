@@ -5,6 +5,8 @@ const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 // Actual renderer controls, native plane picking and world-Z manipulator input.
 // Independent box geometry and signed plane equations do not use product helpers.
 module.exports = function limitDistanceWorkflow(context) {
+  context = require('./desktop-assembly-navigation.cjs').withNavigation(context);
+  const assemblyNavigation = context.assemblyNavigation;
   const { expected, input, output, evaluate, observe, waitFor, click, capture, pointer, wheel, checks,
     protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs, dialogCounts, compactViewport = false } = context;
   const APPLY = 'button[aria-label="Aplicar ensamblaje"]', CANCEL = 'button[aria-label="Cancelar vista previa del ensamblaje"]';
@@ -81,10 +83,10 @@ module.exports = function limitDistanceWorkflow(context) {
       check(values.length <= 1, 'Duplicate operation: ' + action); const event = values[0]; if (!event) return false; check(event.response.ok, event.response.error || 'Actual operation failed.'); return event;
     });
   }
-  async function button(text, scope = '.assembly-app') {
+  async function button(text, scope = '.assembly-app') { await assemblyNavigation.button(text, scope);
     await page((text, scope) => { const values = [...document.querySelectorAll(scope + ' button')].filter(value => value.textContent.trim() === text); if (values.length !== 1 || values[0].disabled) throw Error('Exact enabled control absent: ' + text); values[0].click(); }, text, scope);
   }
-  async function control(selector, value) {
+  async function control(selector, value) { await assemblyNavigation.reveal(selector);
     await page((selector, value) => { const element = document.querySelector(selector); if (!element || element.disabled) throw Error('Editable control absent: ' + selector);
       const prototype = element instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype;
       if (element instanceof HTMLSelectElement && ![...element.options].some(option => option.value === value && !option.disabled)) throw Error('Enabled option absent.');
@@ -178,7 +180,7 @@ module.exports = function limitDistanceWorkflow(context) {
     check(canonical(event.document) === canonical(document), 'History did not restore exactly one accepted state.'); relations(event.response.value, event.document); await recovery(document, label); record(label, event); return { document: event.document, scene: event.response.value };
   }
   async function selectMoving() {
-    await page(name => { const rows = [...document.querySelectorAll('[role="treeitem"]')].filter(row => row.querySelector('span')?.firstChild?.textContent === name); if (rows.length !== 1 || rows[0].disabled) throw Error('Original moving component control absent.'); rows[0].click(); }, occurrence(expected, 'moving').name);
+    (await assemblyNavigation.panel('components'), await page(name => { const rows = [...document.querySelectorAll('[role="treeitem"]')].filter(row => row.querySelector('span')?.firstChild?.textContent === name); if (rows.length !== 1 || rows[0].disabled) throw Error('Original moving component control absent.'); rows[0].click(); }, occurrence(expected, 'moving').name));
     await waitFor('moving component selected', () => page(name => document.querySelector('input[aria-label="Nombre del componente"]')?.value === name, occurrence(expected, 'moving').name));
   }
   async function strictOutside(base, z, label) {
@@ -355,8 +357,8 @@ module.exports = function limitDistanceWorkflow(context) {
     event = await remove(committed, 'remove-opposed'); committed = await apply(event, 'remove-opposed');
     event = await add(committed, 'Referencias invertidas con signo explícito', -30, -10, 'aligned', true); committed = await apply(event, 'reversed-signed-range');
     event = await edit(committed, 'Intervalo entre planos guardado', -30, -10); committed = await apply(event, 'renamed');
-    await button('Guardar como', '.assembly-toolbar'); await waitFor('actual Save As/file IPC', async () => { if (dialogCounts().saves !== 1 || !ipc.some(value => value.channel === 'document:save' && value.completed)) return false; try { return canonical(JSON.parse(await fsp.readFile(output, 'utf8'))) === canonical(committed.document); } catch (error) { if (error.code === 'ENOENT') return false; throw error; } });
-    await idle('saved interval idle'); const savedBytes = await fsp.readFile(output); before = await observe(); await button('Abrir', '.assembly-toolbar'); event = await responseAfter(before.serial, 'build-assembly'); check(canonical(event.document) === canonical(committed.document), 'Reopen changed exact saved interval/source/poses.'); relations(event.response.value, event.document); committed = { document: event.document, scene: event.response.value }; await recovery(committed.document, 'reopened'); record('reopen/committed', event);
+    await button('Guardar como', ':is(.assembly-toolbar, .assembly-quickbar)'); await waitFor('actual Save As/file IPC', async () => { if (dialogCounts().saves !== 1 || !ipc.some(value => value.channel === 'document:save' && value.completed)) return false; try { return canonical(JSON.parse(await fsp.readFile(output, 'utf8'))) === canonical(committed.document); } catch (error) { if (error.code === 'ENOENT') return false; throw error; } });
+    await idle('saved interval idle'); const savedBytes = await fsp.readFile(output); before = await observe(); await button('Abrir', ':is(.assembly-toolbar, .assembly-quickbar)'); event = await responseAfter(before.serial, 'build-assembly'); check(canonical(event.document) === canonical(committed.document), 'Reopen changed exact saved interval/source/poses.'); relations(event.response.value, event.document); committed = { document: event.document, scene: event.response.value }; await recovery(committed.document, 'reopened'); record('reopen/committed', event);
     await waitFor('reopen history reset', () => page(() => document.querySelector('button[aria-label="Deshacer ensamblaje"]')?.disabled === true && document.querySelector('button[aria-label="Rehacer ensamblaje"]')?.disabled === true));
     before = await observe(); await click('button[aria-label="Resolver ensamblaje"]'); event = await responseAfter(before.serial, 'preview-assembly'); ready(event, 1, 4); await readyUi(event); record('reopen/fresh-native', event); await cancel(committed, 'fresh solve cancelled');
     await button('Isométrica', '.assembly-view-tools'); await capture(committed.document);

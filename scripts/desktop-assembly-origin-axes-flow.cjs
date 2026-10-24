@@ -5,21 +5,26 @@ const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 // Real controls, worker previews and file IPC. Literal prism geometry and angle
 // formulas are independent of the application's reference/solver helpers.
 module.exports = function originAxesWorkflow(c) {
+  c = require('./desktop-assembly-navigation.cjs').withNavigation(c);
+  const assemblyNavigation = c.assemblyNavigation;
   const { configured, expected, input, output, evaluate, observe, waitFor, click, capture, checks,
     consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs, dialogCounts } = c;
   const ROOT = configured ? '.configured-assembly-workspace' : '.assembly-app';
-  const NAV = configured ? '[aria-label="Archivo del ensamblaje configurado"]' : '.assembly-toolbar';
+  const NAV = configured ? ':is([aria-label="Archivo del ensamblaje configurado"],[aria-label="Comandos del ensamblaje configurado"])' : ':is(.assembly-toolbar, .assembly-quickbar)';
   const FORM = '[aria-label="Editar relación del estado"]';
   const BUILD = configured ? 'build-configured-assembly' : 'build-assembly';
   const phases = [];
   const page = (fn, ...args) => evaluate('(' + fn.toString() + ')(' + args.map(value => 'JSON.parse(' + encodeJavaScriptString(JSON.stringify(value)) + ')').join(',') + ')');
+  const navigation = configured ? require('./desktop-configured-navigation.cjs')({page,waitFor}) : null;
   const near = (actual, wanted, tolerance, name) => check(Number.isFinite(actual) && Math.abs(actual - wanted) <= tolerance,
     name + ': actual=' + actual + ', expected=' + wanted);
-  async function button(text, parent = ROOT) {
+  async function button(text, parent = ROOT) { await assemblyNavigation.button(text, parent);
+    if (navigation) await navigation.reveal(parent + ' button', text);
     await page((text, parent) => { const matches = [...document.querySelectorAll(parent + ' button')].filter(e => e.textContent.trim() === text);
       if (matches.length !== 1 || matches[0].disabled) throw Error('One enabled button required: ' + text); matches[0].click(); }, text, parent);
   }
-  async function control(label, value) {
+  async function control(label, value) { await assemblyNavigation.reveal('[aria-label="' + label + '"]');
+    if (navigation) await navigation.reveal('[aria-label="' + label + '"]');
     await page((label, value) => { const e = document.querySelector('[aria-label="' + label + '"]');
       if (!e || e.disabled) throw Error('Enabled control required: ' + label);
       const p = e instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype;
@@ -113,7 +118,7 @@ module.exports = function originAxesWorkflow(c) {
         await control(label, value);
       } else {
         await click('button[aria-label="Referencia ' + slot + ' de la relación"]');
-        await page(() => { const d = [...document.querySelectorAll('details')].find(d => d.querySelector('summary')?.textContent === 'Usar un eje de origen'); if (!d) throw Error('Origin axis controls absent'); d.open = true; });
+        (await assemblyNavigation.panel('relations'), await page(() => { const d = [...document.querySelectorAll('details')].find(d => d.querySelector('summary')?.textContent === 'Usar un eje de origen'); if (!d) throw Error('Origin axis controls absent'); d.open = true; }));
         await control('Componente del eje de origen', owner ? JSON.stringify([owner]) : 'scope');
         await control('Eje de origen', axis); await button('Usar eje en referencia ' + slot);
       }

@@ -1,5 +1,83 @@
 # Validation
 
+## Grouped assembly commands and contextual manager — 2026-10-24
+
+The increment after `cdd36c2`, tracked in issue #55, replaces the two assembly
+sidebars with a contextual left manager and grouped upper commands. Both
+workspaces share the header/ribbon presentation and retain their own document
+actions and native preview guards. Configured selection keeps the component
+tree visible; an explicit command opens component properties. Leaving relation
+editing disarms viewport nomination while preserving its draft. Returning does
+not silently rearm picking. The displayed origin labels are descriptive; they
+do not claim axis picking.
+
+Windows x64 / Node 24.11.1, actual Electron 44.9.3:
+
+- Focused standard/configured workspace tests pass 67/23 cases.
+- The standard assembly renderer passes 545 checkpoints, including native
+  relation previews, history, file reopening and its final BOM capture.
+- The fixed 1040 × 700 standard distance-interval case passes 255 checkpoints,
+  four recorded gestures and 38 geometry phases. It retains signed bounds,
+  real handle acquisition, rejection, Cancel/Apply, history and reopening.
+  This run did not request a screenshot.
+- The final normal configured-pointer case passes 127 checkpoints, 31 recorded
+  gestures/reveals and 12 geometry phases. The compact case passes 134
+  checkpoints with the same gesture/geometry counts, including capture checks.
+  Extra checks cover tree/property navigation and disarming a pending role
+  before clicking the model in the tree pane. Parameters remain scripted.
+- Configured component-authoring and relation-editing renderers pass 94 and
+  110 checkpoints. All listed renderer runs report no console/resource errors
+  and confirm child exit and isolated-profile cleanup.
+- The standard 1544×941, configured 1544×941 and configured compact 1024×661
+  content captures were inspected. The sidebar scrolls for additional fields;
+  the editor heading and first field remain visible. The earlier normal
+  configured capture preceded the final stationary-pointer helper adjustment.
+- Literal `npm test` passes all 9,354 unit/CAD cases across 400 files in
+  589.39 seconds, followed by 83 IPC/security passes and two explicit platform
+  skips. Production build and actual loader/worker/WASM desktop smoke pass.
+  All 1,054 frozen non-Markdown inputs match the isolated runtime checkout.
+  A final blank-line whitespace cleanup produces the same named JS/CSS bundles.
+- A separate visible session of the final build checks left-click component
+  selection with matching tree/highlight, the upper relation command, choosing
+  the root X axis in a draft, tree/editor switching with that reference retained,
+  and wheel zoom. No relation was applied in this manual review. Physical
+  middle-button dragging was not exercised.
+
+The configured native case remains the original pair of 4 mm cubes: ordered
+B-top to A-top distance +2 places B at (8,0,2); LINE parallelism preserves that
+pose. Two solids, volume 128 mm³ and area 192 mm² remain unchanged. Bounds/pose
+tolerance stays 1e-6 mm and volume/area 1e-5. The standard interval retains its
+independent placed-box and signed-plane oracles. No solver, fixture, geometric
+tolerance, workflow deadline or security gate changes in this increment.
+
+An initial compact pointer run stopped after a wheel movement before the saved
+relation editor opened. The helper now observes a stationary, fully visible,
+hit-tested target before pressing, using its existing deadline; it does not
+retry missed clicks or assign scroll positions. An initial standard run stopped
+at an old header selector after saving; the selector now targets the document
+title rather than the brand. Both corrected workflows pass. Other scripted
+flows now reveal their owning panel through the application's navigation; this
+does not turn programmatic controls into physical-input evidence.
+
+Compatible lockfile-only patches update fast-uri to 3.1.9 and the two undici
+versions to 6.29.1/7.30.1. Fresh `npm ci` passes; the subsequent audit reports
+zero vulnerabilities. The actual Electron executable remains 44.9.3.
+
+Hosted predecessor `f376d99` fails macOS hinge source/replacement repair at
+[step 80](https://github.com/angelcp2802/solidflow/actions/runs/40127051830/job/120970617881#step:80:1).
+The log reaches the first Save As, then rejects the exact `ground` owner before
+requesting source review. It does not distinguish absent, duplicate or disabled
+controls; an availability race is a hypothesis, not an established cause.
+Three dependent Desktop gates fail. CodeQL passes and the dependency audit
+fails on the old lockfile in
+[Security 40127051849](https://github.com/angelcp2802/solidflow/actions/runs/40127051849).
+Local patch acceptance does not waive hosted checks.
+
+Long reference labels, displayed-origin picking/rotation capture, specialized
+mechanical/compound picking and complete demo acceptance remain open. These
+bounded Windows results do not establish general CAD, installed-package or
+cross-platform support.
+
 ## Configured command access and compact interface — 2026-10-24
 
 The increment after `b87a351`, tracked in issue #55, adds upper commands for

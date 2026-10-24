@@ -3,6 +3,8 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 module.exports = function linkedSourceWorkflow(context) {
+  context = require('./desktop-assembly-navigation.cjs').withNavigation(context);
+  const assemblyNavigation = context.assemblyNavigation;
   const { expected, input, files, original, evaluate, observe, waitFor, click, capture, checks, consoleErrors, failedRequests,
     ipc, check, canonical, digest, initialReadyMs, dialogCounts } = context;
   const phases = [], APPLY = 'button[aria-label="Aplicar ensamblaje"]', CANCEL = 'button[aria-label="Cancelar vista previa del ensamblaje"]';
@@ -14,7 +16,7 @@ module.exports = function linkedSourceWorkflow(context) {
   }).join(',') + ')');
   const near = (a, b, t, label) => check(Number.isFinite(a) && Math.abs(a - b) <= t, label + ': ' + a + ' expected ' + b);
   const vector = (a, b, label) => { check(Array.isArray(a) && a.length === 3, label + ' shape'); a.forEach((v, i) => near(v, b[i], 1e-6, label + '[' + i + ']')); };
-  async function button(text, parent = '.assembly-toolbar') { await page((text, parent) => {
+  async function button(text, parent = ':is(.assembly-toolbar, .assembly-quickbar)') { await assemblyNavigation.button(text, parent); await page((text, parent) => {
     const rows = [...document.querySelectorAll(parent + ' button')].filter(x => x.textContent.trim() === text);
     if (rows.length !== 1 || rows[0].disabled) throw Error('One enabled button: ' + text); rows[0].click();
   }, text, parent); }
@@ -33,8 +35,8 @@ module.exports = function linkedSourceWorkflow(context) {
   }); }
   async function idle() { await waitFor('idle committed controls', () => page(sel => document.querySelector('.assembly-app')?.getAttribute('aria-busy') === 'false' && document.querySelector(sel)?.disabled === true, APPLY)); }
   async function selectLeft() {
-    await page(() => { const rows = [...document.querySelectorAll('.assembly-tree [role="treeitem"]')].filter(x => x.querySelector('span')?.firstChild?.textContent === 'left');
-      if (rows.length !== 1 || rows[0].disabled) throw Error('Unique left source'); rows[0].click(); });
+    (await assemblyNavigation.panel('components'), await page(() => { const rows = [...document.querySelectorAll('.assembly-tree [role="treeitem"]')].filter(x => x.querySelector('span')?.firstChild?.textContent === 'left');
+      if (rows.length !== 1 || rows[0].disabled) throw Error('Unique left source'); rows[0].click(); }));
     await waitFor('selected exact source', () => page(() => document.querySelector('input[aria-label="Nombre del componente"]')?.value === 'left'));
   }
   function geometry(scene, updated, nested) {

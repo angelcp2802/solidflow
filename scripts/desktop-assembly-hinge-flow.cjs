@@ -4,6 +4,8 @@ const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 // Original drilled rectangular leaves. Production controls, native worker and
 // actual file IPC supply every document, geometric result and Apply capability.
 module.exports = function hingeWorkflow(context) {
+  context = require('./desktop-assembly-navigation.cjs').withNavigation(context);
+  const assemblyNavigation = context.assemblyNavigation;
   const { expected, input, output, evaluate, observe, waitFor, click, capture, checks, protocolResponses, consoleErrors, failedRequests,
     ipc, check, canonical, digest, initialReadyMs, dialogCounts } = context;
   const APPLY = 'button[aria-label="Aplicar ensamblaje"]', CANCEL = 'button[aria-label="Cancelar vista previa del ensamblaje"]',
@@ -17,11 +19,11 @@ module.exports = function hingeWorkflow(context) {
   }).join(',') + ')');
   const near = (actual, wanted, band, label) => check(Number.isFinite(actual) && Math.abs(actual - wanted) <= band, label + ': ' + actual + ' expected ' + wanted);
   const vector = (actual, wanted, band, label) => { check(Array.isArray(actual) && actual.length === wanted.length, label + ' shape'); actual.forEach((value, i) => near(value, wanted[i], band, label + '[' + i + ']')); };
-  async function button(text, parent = '.assembly-app') { await page((text, parent) => {
+  async function button(text, parent = '.assembly-app') { await assemblyNavigation.button(text, parent); await page((text, parent) => {
     const nodes = [...document.querySelectorAll(parent + ' button')].filter(node => node.textContent.trim() === text);
     if (nodes.length !== 1 || nodes[0].disabled) throw Error('Unique enabled button ' + text); nodes[0].click();
   }, text, parent); }
-  async function control(selector, value) {
+  async function control(selector, value) { await assemblyNavigation.reveal(selector);
     await page((selector, value) => { const element = document.querySelector(selector); if (!element || element.disabled) throw Error('Editable control ' + selector);
       const prototype = element instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype;
       if (element instanceof HTMLSelectElement && ![...element.options].some(option => option.value === value && !option.disabled)) throw Error('Current option ' + value);
@@ -148,7 +150,7 @@ module.exports = function hingeWorkflow(context) {
     event = await preview('Verificar edición de bisagra'); ready(event, 'Edit/reselection ready Cancel'); await cancel(base, 'Edit Cancel');
     event = await preview('Verificar edición de bisagra'); ready(event, 'Edit/reselection retry'); base = await apply(event, 'Edit Apply'); const edited = base.document;
     await history('Deshacer', originalMate, 'Edit Undo'); base = await history('Rehacer', edited, 'Edit Redo');
-    await page(() => { const rows = [...document.querySelectorAll('.assembly-tree [role="treeitem"]')].filter(row => row.querySelector('span')?.firstChild?.textContent === 'moving'); if (rows.length !== 1 || rows[0].disabled) throw Error('Exact moving leaf'); rows[0].click(); });
+    (await assemblyNavigation.panel('components'), await page(() => { const rows = [...document.querySelectorAll('.assembly-tree [role="treeitem"]')].filter(row => row.querySelector('span')?.firstChild?.textContent === 'moving'); if (rows.length !== 1 || rows[0].disabled) throw Error('Exact moving leaf'); rows[0].click(); }));
     await waitFor('selected moving leaf', () => page(() => document.querySelector('input[aria-label="Nombre del componente"]')?.value === 'moving'));
     await control('select[aria-label="Eje local del movimiento"]', '2');
     for (const [axis, value] of [['X', '0'], ['Y', '0'], ['Z', '4']]) await control('input[aria-label="Destino local ' + axis + ' del componente"]', value);
@@ -158,9 +160,9 @@ module.exports = function hingeWorkflow(context) {
     before = await observe(); await click('button[aria-label="Resolver ensamblaje"]'); event = await response(before.serial, 'preview-assembly'); ready(event, 'Unanchored physical spin remains free'); await cancel(base, 'Spin verify Cancel');
     before = await observe(); await click('input[aria-label="Activar ' + name + '"]'); event = await response(before.serial, 'preview-assembly'); ready(event, 'Suppressed ready', { suppressed: true }); base = await apply(event, 'Suppressed Apply'); base = await history('Deshacer', spun, 'Suppression Undo');
     before = await observe(); await click('button[aria-label="Eliminar ' + name + '"]'); event = await response(before.serial, 'preview-assembly'); ready(event, 'Deleted ready', { deleted: true }); base = await apply(event, 'Deleted Apply'); base = await history('Deshacer', spun, 'Delete Undo');
-    await button('Guardar como', '.assembly-toolbar'); await waitFor('actual Save As', async () => { if (dialogCounts().saves !== 1 || !ipc.some(value => value.channel === 'document:save' && value.completed)) return false;
+    await button('Guardar como', ':is(.assembly-toolbar, .assembly-quickbar)'); await waitFor('actual Save As', async () => { if (dialogCounts().saves !== 1 || !ipc.some(value => value.channel === 'document:save' && value.completed)) return false;
       try { return canonical(JSON.parse(await fs.readFile(output, 'utf8'))) === canonical(spun); } catch (error) { if (error.code === 'ENOENT') return false; throw error; } }); const savedBytes = await fs.readFile(output);
-    before = await observe(); await button('Abrir', '.assembly-toolbar'); event = await response(before.serial, 'build-assembly'); check(canonical(event.document) === canonical(spun), 'Saved four-role hinge reopens exactly');
+    before = await observe(); await button('Abrir', ':is(.assembly-toolbar, .assembly-quickbar)'); event = await response(before.serial, 'build-assembly'); check(canonical(event.document) === canonical(spun), 'Saved four-role hinge reopens exactly');
     base = { document: event.document, scene: event.response.value }; geometry(base.scene, base.document, 'Reopen'); await recovery(base.document, 'Reopen');
     before = await observe(); await click('button[aria-label="Resolver ensamblaje"]'); event = await response(before.serial, 'preview-assembly'); ready(event, 'Fresh saved native hinge solve'); await cancel(base, 'Fresh solve Cancel');
     await click('button[aria-label="Editar bisagra ' + name + '"]'); await page(panel => document.querySelector(panel)?.scrollIntoView({ block: 'center' }), PANEL); await capture(base.document);

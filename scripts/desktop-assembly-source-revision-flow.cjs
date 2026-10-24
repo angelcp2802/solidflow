@@ -3,6 +3,8 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 module.exports = function sourceRevisionWorkflow(context) {
+  context = require('./desktop-assembly-navigation.cjs').withNavigation(context);
+  const assemblyNavigation = context.assemblyNavigation;
   const { expected, input, files, original, evaluate, observe, waitFor, click, capture, checks, consoleErrors, failedRequests,
     ipc, check, canonical, digest, initialReadyMs, dialogCounts } = context;
   const phases = [], APPLY = 'button[aria-label="Aplicar ensamblaje"]', CANCEL = 'button[aria-label="Cancelar vista previa del ensamblaje"]',
@@ -13,11 +15,11 @@ module.exports = function sourceRevisionWorkflow(context) {
     const json = JSON.stringify(value); if (json === undefined) throw Error('Page arguments must be JSON data');
     return 'JSON.parse(' + encodeJavaScriptString(json) + ')';
   }).join(',') + ')');
-  async function button(text, parent = '.assembly-toolbar') { await page((text, parent) => {
+  async function button(text, parent = ':is(.assembly-toolbar, .assembly-quickbar)') { await assemblyNavigation.button(text, parent); await page((text, parent) => {
     const nodes = [...document.querySelectorAll(parent + ' button')].filter(x => x.textContent.trim() === text);
     if (nodes.length !== 1 || nodes[0].disabled) throw Error('Unique enabled control ' + text); nodes[0].click();
   }, text, parent); }
-  async function setInput(selector, value) { await page((selector, value) => {
+  async function setInput(selector, value) { await assemblyNavigation.reveal(selector); await page((selector, value) => {
     const input = document.querySelector(selector); if (!input || input.disabled) throw Error('Available input ' + selector);
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, value); input.dispatchEvent(new Event('input', { bubbles: true }));
   }, selector, value); await waitFor('input accepted ' + selector, () => page((selector, value) => document.querySelector(selector)?.value === value, selector, value)); }
@@ -55,8 +57,8 @@ module.exports = function sourceRevisionWorkflow(context) {
   async function apply(preview, parent, moved) { await click(APPLY); const event = await response(preview.serial, 'apply-assembly'), actual = event.response.value.document;
     const a = structuredClone(actual), p = structuredClone(preview.response.value.document); delete a.updatedAt; delete p.updatedAt;
     check(canonical(a) === canonical(p), 'Apply preserves exact private graph; history owns only updatedAt'); geometry(event.response.value.scene, parent, moved); await recovery(actual, 'Apply'); return actual; }
-  async function select(name) { await page(name => { const rows = [...document.querySelectorAll('.assembly-tree [role="treeitem"]')].filter(x => x.querySelector('span')?.firstChild?.textContent === name);
-    if (rows.length !== 1 || rows[0].disabled) throw Error('Exact tree component ' + name); rows[0].click(); }, name);
+  async function select(name) { (await assemblyNavigation.panel('components'), await page(name => { const rows = [...document.querySelectorAll('.assembly-tree [role="treeitem"]')].filter(x => x.querySelector('span')?.firstChild?.textContent === name);
+    if (rows.length !== 1 || rows[0].disabled) throw Error('Exact tree component ' + name); rows[0].click(); }, name));
     await waitFor('selected ' + name, () => page(name => document.querySelector('input[aria-label="Nombre del componente"]')?.value === name, name)); }
   async function revisionDialog(value) { await click(CREATE); await waitFor('root revision dialog', () => page(sel => !!document.querySelector(sel), MODAL));
     check(await page((id, rev) => document.querySelector('[aria-label="Identidad raíz de la revisión"]')?.textContent === id
@@ -73,8 +75,8 @@ module.exports = function sourceRevisionWorkflow(context) {
     await waitFor('production readiness', () => page(() => document.querySelector('.statusbar')?.textContent.includes('Listo') && typeof window.solidflow?.openDocument === 'function'), initialReadyMs);
     const originalSourceBytes = await fs.readFile(input), originalParentBytes = await fs.readFile(files.parent);
     let event = await open(expected, true); geometry(event.response.value, false, false); await select('m');
-    let before = await observe(); await page(() => { const rows = [...document.querySelectorAll('label.assembly-check')].filter(x => x.textContent.trim() === 'Fijo respecto a su padre');
-      if (rows.length !== 1) throw Error('Unique fixed control'); const input = rows[0].querySelector('input'); if (!input.checked || input.disabled) throw Error('Original child must be fixed'); input.click(); });
+    let before = await observe(); (await assemblyNavigation.panel('components'), await page(() => { const rows = [...document.querySelectorAll('label.assembly-check')].filter(x => x.textContent.trim() === 'Fijo respecto a su padre');
+      if (rows.length !== 1) throw Error('Unique fixed control'); const input = rows[0].querySelector('input'); if (!input.checked || input.disabled) throw Error('Original child must be fixed'); input.click(); }));
     event = await response(before.serial, 'build-assembly'); const unfixed = event.document; check(unfixed.occurrences.length === 1 && unfixed.occurrences[0].fixed === false, 'User explicitly frees original child');
     await recovery(unfixed, 'Unfix'); geometry(event.response.value, false, false); await setInput('input[aria-label="Destino local X del componente"]', '1');
     before = await observe(); await click('button[aria-label="Vista previa del movimiento"]'); let preview = await ready(before.serial, 'move-assembly-component-motion', unfixed, false, true);
@@ -94,12 +96,12 @@ module.exports = function sourceRevisionWorkflow(context) {
     await button('Guardar como'); await waitFor('Save As cancellation completed', async () => dialogCounts().saves === 1 && ipc.some(x => x.channel === 'document:save' && x.completed && x.documentWrite?.chosen === false)
       && await page(() => document.querySelector('.assembly-app')?.getAttribute('aria-busy') === 'false'));
     await recovery(authored, 'Save As Cancel'); check((await fs.readFile(input)).equals(originalSourceBytes), 'Cancelled Save As leaves source bytes intact');
-    check(await page(name => document.querySelector('.assembly-file')?.textContent === name && document.querySelector('.assembly-header > strong')?.textContent.endsWith(' *'), path.basename(input)), 'Cancelled Save As preserves source path and dirty authored revision');
+    check(await page(name => document.querySelector('.assembly-shell-file')?.textContent === name && document.querySelector('.assembly-shell-document > strong')?.textContent.endsWith(' *'), path.basename(input)), 'Cancelled Save As preserves source path and dirty authored revision');
     await button('Guardar'); await waitFor('normal source save actual authored graph', async () => canonical(JSON.parse(await fs.readFile(input, 'utf8'))) === canonical(authored)
       && ipc.filter(x => x.channel === 'document:save' && x.completed && x.documentWrite?.chosen === true).length === 1);
     const authoredBytes = await fs.readFile(input), saveCalls = ipc.filter(x => x.channel === 'document:save');
     check(saveCalls.length === 2 && saveCalls[1].documentWrite?.hasPath === true && saveCalls[1].documentWrite?.chosen === true && saveCalls[1].documentWrite.sha256 === digest(authoredBytes), 'Normal Save uses independently granted source pathname and exact authored bytes');
-    await waitFor('source clean after successful save', () => page(name => document.querySelector('.assembly-header > strong')?.textContent === name, authored.name));
+    await waitFor('source clean after successful save', () => page(name => document.querySelector('.assembly-shell-document > strong')?.textContent === name, authored.name));
     event = await open(original.assemblyParent, false); geometry(event.response.value, true, false); await select('left');
     before = await observe(); await click('button[aria-label="Vincular archivo de origen"]'); event = await response(before.serial, 'review-assembly-document-update');
     check(event.incoming.revision === authored.revision && canonical(event.incoming) === canonical(authored), 'Parent reads ACTUAL application-authored source, no prefabricated incoming revision');

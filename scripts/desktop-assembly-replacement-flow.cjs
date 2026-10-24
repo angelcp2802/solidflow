@@ -5,6 +5,8 @@ const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 // Original derived fixtures and actual production controls/worker/IPC only.
 // Cylinder R2->R2.5,H12 plus a separate 2x2x12 prism; no external CAD input.
 module.exports = function replacementWorkflow(context) {
+  context = require('./desktop-assembly-navigation.cjs').withNavigation(context);
+  const assemblyNavigation = context.assemblyNavigation;
   const { expected, input, output, replacementFiles, replacementPart, evaluate, observe, waitFor, click, capture,
     checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs, dialogCounts } = context;
   const APPLY = 'button[aria-label="Aplicar ensamblaje"]', SOLVE = 'button[aria-label="Resolver ensamblaje"]';
@@ -36,13 +38,13 @@ module.exports = function replacementWorkflow(context) {
     await waitFor(label, () => page(() => document.querySelector('.assembly-app')?.getAttribute('aria-busy') === 'false'
       && !document.querySelector('.assembly-spinner')));
   }
-  async function button(label, root = '.assembly-toolbar') {
+  async function button(label, root = ':is(.assembly-toolbar, .assembly-quickbar)') { await assemblyNavigation.button(label, root);
     await page((label, root) => {
       const values = [...document.querySelectorAll(root + ' button')].filter(value => value.textContent.trim() === label);
       if (values.length !== 1 || values[0].disabled) throw Error('Exact enabled button absent: ' + label); values[0].click();
     }, label, root);
   }
-  async function control(selector, value) {
+  async function control(selector, value) { await assemblyNavigation.reveal(selector);
     await page((selector, value) => {
       const element = document.querySelector(selector); if (!element || element.disabled) throw Error('Editable control absent: ' + selector);
       if (element instanceof HTMLSelectElement && ![...element.options].some(option => option.value === value)) throw Error('Exact option absent: ' + selector);
@@ -129,16 +131,16 @@ module.exports = function replacementWorkflow(context) {
     await idle(name + ' Open completes'); await recovery(document, name); record(name, event); return event.response.value;
   }
   async function selectPart() {
-    await page(() => {
+    (await assemblyNavigation.panel('components'), await page(() => {
       const found = [...document.querySelectorAll('[role="treeitem"]')].filter(value => value.querySelector('span')?.firstChild?.textContent === 'Original replacement pin');
       if (found.length !== 2 || found.some(value => value.disabled)) throw Error('Expected two actual reused pin tree rows.');
       found[0].click();
-    });
+    }));
     await waitFor('exact selected pin replacement controls', () => page(() => !!document.querySelector('button[aria-label="Elegir pieza sustituta"]') && document.querySelector('input[aria-label="Nombre del componente"]')?.value === 'Original replacement pin'));
-    await page(() => {
+    (await assemblyNavigation.panel('components'), await page(() => {
       const found = [...document.querySelectorAll('.assembly-sidebar details')].filter(value => value.querySelector('summary')?.textContent === 'Sustituir pieza');
       if (found.length !== 1) throw Error('Replacement disclosure absent.'); found[0].open = true;
-    });
+    }));
   }
   async function unchanged(document, files, label) {
     await recovery(document, label);

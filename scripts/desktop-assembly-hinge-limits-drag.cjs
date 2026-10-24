@@ -5,6 +5,8 @@ const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 // positions and their posted targets calibrate the final input; no solved pose
 // participates in that calibration or supplies the expected stop destination.
 module.exports = async function hingeLimitsDrag(context) {
+  context = require('./desktop-assembly-navigation.cjs').withNavigation(context);
+  const assemblyNavigation = context.assemblyNavigation;
   const { evaluate, observe, waitFor, click, pointer, checks, check, canonical, intent, callbacks } = context;
   const VIEW = '[aria-label="Visor 3D del ensamblaje"]', APPLY = 'button[aria-label="Aplicar ensamblaje"]', SUMMARY = '[aria-label="Bisagra verificada"]';
   const evidence = { scenario: 'original-hinge-limited-local-Z-pointer', gestures: [], phases: [] }; checks.push(evidence);
@@ -26,14 +28,14 @@ module.exports = async function hingeLimitsDrag(context) {
       Math.hypot(...pose.rotation.map((v, i) => v - wanted[i])), Math.hypot(...pose.rotation.map((v, i) => v + wanted[i])));
     return 4 * Math.asin(Math.min(1, chord / 2));
   }
-  async function button(text, scope = '.assembly-app') { await page((text, scope) => {
+  async function button(text, scope = '.assembly-app') { await assemblyNavigation.button(text, scope); await page((text, scope) => {
     const rows = [...document.querySelectorAll(scope + ' button')].filter(e => e.textContent.trim() === text);
     if (rows.length !== 1 || rows[0].disabled) throw Error('Exact enabled button ' + text); rows[0].click();
   }, text, scope); }
   async function idle() { await waitFor('hinge pointer released workspace idle', () => page(() => document.querySelector('.assembly-app')?.getAttribute('aria-busy') === 'false')); }
   async function selectMoving(base) {
-    await page(name => { const rows = [...document.querySelectorAll('.assembly-tree [role="treeitem"]')].filter(row => row.querySelector('span')?.firstChild?.textContent === name);
-      if (rows.length !== 1 || rows[0].disabled) throw Error('Exact original moving row'); rows[0].click(); }, moving(base.document).name);
+    (await assemblyNavigation.panel('components'), await page(name => { const rows = [...document.querySelectorAll('.assembly-tree [role="treeitem"]')].filter(row => row.querySelector('span')?.firstChild?.textContent === name);
+      if (rows.length !== 1 || rows[0].disabled) throw Error('Exact original moving row'); rows[0].click(); }, moving(base.document).name));
     await waitFor('original moving root selected', () => page(name => document.querySelector('input[aria-label="Nombre del componente"]')?.value === name, moving(base.document).name));
   }
   function savedIntent(document) {

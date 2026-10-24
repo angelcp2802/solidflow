@@ -6,6 +6,8 @@ const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 // Independent expectations are the original drilled prism, rotation formulas,
 // direction dot/cross products and the isolated fixed/free rank, not UI helpers.
 module.exports = function directionWorkflow(context) {
+  context = require('./desktop-assembly-navigation.cjs').withNavigation(context);
+  const assemblyNavigation = context.assemblyNavigation;
   const { expected, input, output, evaluate, observe, waitFor, click, capture, pointer, checks,
     protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs, dialogCounts } = context;
   const APPLY = 'button[aria-label="Aplicar ensamblaje"]', CANCEL = 'button[aria-label="Cancelar vista previa del ensamblaje"]';
@@ -103,11 +105,11 @@ module.exports = function directionWorkflow(context) {
       check(event.response.ok, event.response.error || 'Actual operation rejected.'); return event;
     });
   }
-  async function button(text, scope = '.assembly-app') {
+  async function button(text, scope = '.assembly-app') { await assemblyNavigation.button(text, scope);
     await page((text, scope) => { const values = [...document.querySelectorAll(scope + ' button')].filter(value => value.textContent.trim() === text);
       if (values.length !== 1 || values[0].disabled) throw Error('Exact enabled control absent: ' + text); values[0].click(); }, text, scope);
   }
-  async function control(selector, value) {
+  async function control(selector, value) { await assemblyNavigation.reveal(selector);
     await page((selector, value) => { const element = document.querySelector(selector); if (!element || element.disabled) throw Error('Editable control absent: ' + selector);
       const prototype = element instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype;
       if (element instanceof HTMLSelectElement && ![...element.options].some(option => option.value === value && !option.disabled)) throw Error('Enabled native option absent.');
@@ -240,13 +242,13 @@ module.exports = function directionWorkflow(context) {
     event = await remove(committed, 'axes-deleted'); committed = await apply(event, 'axes-deleted');
     event = await add(committed, 'Plano y eje paralelos', 'parallel', face(committed.scene, 'ground', 'plane'), face(committed.scene, 'moving', 'cylinder'), null, 5); committed = await apply(event, 'mixed-axis-parallel');
     event = await edit(committed, 'Plano y eje perpendicular', 'perpendicular', 'opposed', 4); committed = await apply(event, 'mixed-axis-perpendicular');
-    await button('Guardar como', '.assembly-toolbar');
+    await button('Guardar como', ':is(.assembly-toolbar, .assembly-quickbar)');
     await waitFor('actual Save As and file IPC', async () => {
       if (dialogCounts().saves !== 1 || !ipc.some(value => value.channel === 'document:save' && value.completed)) return false;
       try { return canonical(JSON.parse(await fsp.readFile(output, 'utf8'))) === canonical(committed.document); } catch (error) { if (error.code === 'ENOENT') return false; throw error; }
     });
     await idle('saved direction idle'); const savedBytes = await fsp.readFile(output);
-    before = await observe(); await button('Abrir', '.assembly-toolbar'); event = await responseAfter(before.serial, 'build-assembly');
+    before = await observe(); await button('Abrir', ':is(.assembly-toolbar, .assembly-quickbar)'); event = await responseAfter(before.serial, 'build-assembly');
     check(canonical(event.document) === canonical(committed.document), 'Reopen changed the relation graph or placements.'); relations(event.response.value, event.document);
     committed = { document: event.document, scene: event.response.value }; await recovery(committed.document, 'reopened'); record('reopen/committed', event);
     await waitFor('reopen resets history', () => page(() => document.querySelector('button[aria-label="Deshacer ensamblaje"]')?.disabled === true && document.querySelector('button[aria-label="Rehacer ensamblaje"]')?.disabled === true));

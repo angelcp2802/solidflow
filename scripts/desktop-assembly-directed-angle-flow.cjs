@@ -5,6 +5,8 @@ const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 // Original drilled prisms: actual DOM controls, worker, authenticated Apply and
 // restricted file IPC. No document/React-state/CAD-response injection.
 module.exports = function directedAngleWorkflow(context) {
+  context = require('./desktop-assembly-navigation.cjs').withNavigation(context);
+  const assemblyNavigation = context.assemblyNavigation;
   const { expected, input, output, evaluate, observe, waitFor, click, capture, pointer, checks,
     protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs, dialogCounts, captureAtEnd = true } = context;
   const APPLY = 'button[aria-label="Aplicar ensamblaje"]', CANCEL = 'button[aria-label="Cancelar vista previa del ensamblaje"]';
@@ -23,11 +25,11 @@ module.exports = function directedAngleWorkflow(context) {
   const idle = () => waitFor('directed angle workspace idle', () => page(() => document.querySelector('.assembly-app')?.getAttribute('aria-busy') === 'false'));
   const record = (label, event) => phases.push({ label, serial: event.serial, action: event.action,
     current: event.current, proposed: event.proposed, document: event.document, motion: event.motion, drag: event.drag, response: event.response });
-  async function button(text, scope = '.assembly-app') {
+  async function button(text, scope = '.assembly-app') { await assemblyNavigation.button(text, scope);
     await page((text, scope) => { const values = [...document.querySelectorAll(scope + ' button')].filter(value => value.textContent.trim() === text);
       if (values.length !== 1 || values[0].disabled) throw Error('Exact enabled button absent: ' + text); values[0].click(); }, text, scope);
   }
-  async function control(selector, value) {
+  async function control(selector, value) { await assemblyNavigation.reveal(selector);
     await page((selector, value) => { const element = document.querySelector(selector); if (!element || element.disabled) throw Error('Editable control absent: ' + selector);
       const prototype = element instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype;
       if (element instanceof HTMLSelectElement && ![...element.options].some(option => option.value === value && !option.disabled)) throw Error('Enabled option absent.');
@@ -119,8 +121,8 @@ module.exports = function directedAngleWorkflow(context) {
     return { document: event.document, scene: event.response.value };
   }
   async function selectMoving() {
-    await page(name => { const rows = [...document.querySelectorAll('[role="treeitem"]')].filter(row => row.querySelector('span')?.firstChild?.textContent === name);
-      if (rows.length !== 1 || rows[0].disabled) throw Error('Moving component row absent.'); rows[0].click(); }, moving(expected).name);
+    (await assemblyNavigation.panel('components'), await page(name => { const rows = [...document.querySelectorAll('[role="treeitem"]')].filter(row => row.querySelector('span')?.firstChild?.textContent === name);
+      if (rows.length !== 1 || rows[0].disabled) throw Error('Moving component row absent.'); rows[0].click(); }, moving(expected).name));
     await waitFor('moving component selected', () => page(name => document.querySelector('input[aria-label="Nombre del componente"]')?.value === name, moving(expected).name));
   }
   const circularDegrees = degrees => ((degrees % 360) + 360) % 360;
@@ -323,10 +325,10 @@ module.exports = function directedAngleWorkflow(context) {
     event = await drag(committed, -10, -10, 'interior', 'pointer/inward-from-lower'); committed = await apply(event, 'pointer inward from lower', 350);
     event = await drag(committed, 10, 10, 'interior', 'pointer/cross-zero'); committed = await apply(event, 'pointer cross zero', 10);
     const savedExpectedCircularDegrees = gestures.at(-1).inputExpectedCircularDegrees;
-    await button('Guardar como', '.assembly-toolbar');
+    await button('Guardar como', ':is(.assembly-toolbar, .assembly-quickbar)');
     await waitFor('actual directed stop saved', async () => { if (dialogCounts().saves !== 1) return false;
       try { return canonical(JSON.parse(await fsp.readFile(output, 'utf8'))) === canonical(committed.document); } catch (error) { if (error.code === 'ENOENT') return false; throw error; } });
-    await idle(); before = await observe(); await button('Abrir', '.assembly-toolbar'); event = await response(before.serial, 'build-assembly');
+    await idle(); before = await observe(); await button('Abrir', ':is(.assembly-toolbar, .assembly-quickbar)'); event = await response(before.serial, 'build-assembly');
     check(canonical(event.document) === canonical(committed.document), 'Saved/reopened circular intent changed.'); geometry(event.response.value, event.document, savedExpectedCircularDegrees); await recovery(committed.document, 'reopen'); record('reopen', event);
     check(await page(() => document.querySelector('button[aria-label="Deshacer ensamblaje"]')?.disabled === true
       && document.querySelector('button[aria-label="Rehacer ensamblaje"]')?.disabled === true), 'Reopening retained unrelated history.');

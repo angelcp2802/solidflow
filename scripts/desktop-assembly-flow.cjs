@@ -5,6 +5,8 @@ const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 // Scripted real controls and read-only observations; never seeds React state,
 // document contents, solver poses, IPC results or native-reference authority.
 module.exports = function assemblyWorkflow(context) {
+  context = require('./desktop-assembly-navigation.cjs').withNavigation(context);
+  const assemblyNavigation = context.assemblyNavigation;
   const { expected, input, output, projectionOutput, partUpdatePath, updatedPart, interferencePath, interferenceFixture, translationPath, translationFixture, translationOutput, bomPath, bomFixture, bomCsvOutputs, gearOutput, evaluate, observe, waitFor, click, capture, pointer, checks,
     protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
     initialReadyMs, dialogCounts } = context;
@@ -95,14 +97,14 @@ module.exports = function assemblyWorkflow(context) {
     face.selection.component.definition.id, face.selection.component.definition.revision]),
     face.selection.body ? [face.selection.body.bodyId, face.selection.body.sourceFeatureId] : null,
     face.selection.face.sourceFeatureId, face.selection.face.key]);
-  async function button(text, parent = '.assembly-app') {
+  async function button(text, parent = '.assembly-app') { await assemblyNavigation.button(text, parent);
     await page((text, parent) => {
       const buttons = [...document.querySelectorAll(parent + ' button')].filter(value => value.textContent.trim() === text);
       if (buttons.length !== 1 || buttons[0].disabled) throw Error('Expected one enabled assembly button: ' + text);
       buttons[0].click();
     }, text, parent);
   }
-  async function control(selector, value) {
+  async function control(selector, value) { await assemblyNavigation.reveal(selector);
     await page((selector, value) => {
       const input = document.querySelector(selector);
       if (!input || input.disabled) throw Error('Expected an editable assembly control: ' + selector);
@@ -114,10 +116,10 @@ module.exports = function assemblyWorkflow(context) {
     await waitFor('assembly control records ' + selector, () => page((selector, value) => document.querySelector(selector)?.value === value, selector, value));
   }
   async function chooseReference(slot, selectedFace) {
-    await page(slot => {
+    (await assemblyNavigation.panel('relations'), await page(slot => {
       const buttons = [...document.querySelectorAll('.assembly-endpoints button')].filter(value => value.querySelector('strong')?.textContent.trim() === 'Referencia ' + slot);
       if (buttons.length !== 1 || buttons[0].disabled) throw Error('Expected an enabled reference slot.'); buttons[0].click();
-    }, String(slot));
+    }, String(slot)));
     await control(FACE, faceKey(selectedFace));
     await button('Usar cara en referencia ' + slot);
     const selected = reference(selectedFace); selections.push({ slot, reference: selected, support: selectedFace.support });
@@ -247,20 +249,20 @@ module.exports = function assemblyWorkflow(context) {
       1, 1e-10, 'Fresh left-to-fixed-plate rotation capture');
     check(canonical(lockedReply.document.mates.slice(1)) === canonical(record.response.value.document.mates.slice(1)), 'Spin lock changed other mate declarations.');
     recordPhase('locked/1DOF', locked, lockedReply.scene); committed = await applyPreview(locked, 4, true, 'apply/locked');
-    await button('Guardar como', '.assembly-toolbar');
+    await button('Guardar como', ':is(.assembly-toolbar, .assembly-quickbar)');
     await waitFor('real assembly preload/IPC Save As completes', () => dialogCounts().saves === 1
       && ipc.filter(value => value.channel === 'document:save' && value.completed).length === 1);
     await waitFor('saved assembly is clean', () => page(name => {
-      const title = document.querySelector('.assembly-header strong')?.textContent;
+      const title = document.querySelector('.assembly-shell-document > strong')?.textContent;
       return typeof title === 'string' && title.includes(name) && !title.includes('*')
-        && document.querySelector('.assembly-file')?.textContent === 'saved.solidflow';
+        && document.querySelector('.assembly-shell-file')?.textContent === 'saved.solidflow';
     }, expected.name));
     const savedBytes = await fsp.readFile(output), saved = JSON.parse(savedBytes.toString('utf8'));
     assertDocument(saved, 4); check(canonical(saved) === canonical(committed.document), 'Actual saved assembly differs from authenticated Apply.');
     check(saved.mates.every((mate, index) => mate.id === relations[index].id
       && canonical(mate.first) === canonical(relations[index].first) && canonical(mate.second) === canonical(relations[index].second)),
       'Saved v2 lost occurrence-scoped exact body/face references.');
-    before = await observe(); await button('Abrir', '.assembly-toolbar');
+    before = await observe(); await button('Abrir', ':is(.assembly-toolbar, .assembly-quickbar)');
     const reopened = await responseAfter(before.serial, 'build-assembly'); assertScene(reopened.response.value, true, reopened.document);
     check(canonical(reopened.document) === canonical(saved), 'Reopened worker input differs from the actual saved v2 file.');
     await idle('reopened assembly is ready'); recordPhase('reopened/locked', reopened, reopened.response.value);

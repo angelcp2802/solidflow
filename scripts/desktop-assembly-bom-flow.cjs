@@ -4,12 +4,14 @@ const fsp = require('node:fs/promises');
 // Counts and CSV records are independently declared here for the original
 // tracked fixture. Only real DOM controls/native file IPC supply the result.
 module.exports = async function bomWorkflow(context) {
+  context = require('./desktop-assembly-navigation.cjs').withNavigation(context);
+  const assemblyNavigation = context.assemblyNavigation;
   const { bomPath, bomFixture, bomCsvOutputs, observe, waitFor, click, capture, button, control, page, idle, responseAfter,
     checks, ipc, check, canonical, digest, close, dialogCounts, consoleErrors, failedRequests } = context;
   const REGION = '[aria-label="Lista de materiales del ensamblaje"]', MODE = 'select[aria-label="Modo de lista de materiales"]';
   const HIDDEN = 'input[aria-label="Incluir componentes ocultos en la lista de materiales"]', EXPORT = 'button[aria-label="Exportar lista de materiales CSV"]';
   const original = await fsp.readFile(bomPath), phases = [];
-  let before = await observe(); await button('Abrir', '.assembly-toolbar');
+  let before = await observe(); await button('Abrir', ':is(.assembly-toolbar, .assembly-quickbar)');
   const opened = await responseAfter(before.serial, 'build-assembly');
   check(canonical(opened.document) === canonical(bomFixture), 'BOM fixture did not open through actual file routing.');
   await idle('original reusable BOM fixture opens');

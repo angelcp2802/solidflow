@@ -4,6 +4,8 @@ const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 
 // Scripted real production controls with read-only observations of native replies.
 module.exports = function groupingScopeInterferenceWorkflow(context) {
+  context = require('./desktop-assembly-navigation.cjs').withNavigation(context);
+  const assemblyNavigation = context.assemblyNavigation;
   const { expected, input, observe, waitFor, click, capture, evaluate, checks, ipc, check, canonical, digest,
     initialReadyMs, dialogCounts, consoleErrors, failedRequests } = context;
   const PANEL = '[role="region"][aria-label="Interferencias y holguras"]';
@@ -21,14 +23,14 @@ module.exports = function groupingScopeInterferenceWorkflow(context) {
     check(Array.isArray(actual) && actual.length === desired.length, message + ' dimensions');
     actual.forEach((value, index) => close(value, desired[index], tolerance, message + '[' + index + ']'));
   };
-  async function button(text, parent = '.assembly-app') {
+  async function button(text, parent = '.assembly-app') { await assemblyNavigation.button(text, parent);
     await page((text, parent) => {
       const buttons = [...document.querySelectorAll(parent + ' button')].filter(value => value.textContent.trim() === text);
       if (buttons.length !== 1 || buttons[0].disabled) throw Error('Expected one enabled assembly button: ' + text);
       buttons[0].click();
     }, text, parent);
   }
-  async function control(selector, value) {
+  async function control(selector, value) { await assemblyNavigation.reveal(selector);
     await page((selector, value) => {
       const input = document.querySelector(selector);
       if (!input || input.disabled) throw Error('Expected an editable assembly control: ' + selector);
@@ -95,12 +97,12 @@ module.exports = function groupingScopeInterferenceWorkflow(context) {
         && !document.querySelector('[aria-label="Visor 3D del ensamblaje"]')?.getAttribute('data-analysis-pair'), PANEL));
   }
   async function highlight(pair) {
-    await page((panel, id) => {
+    (await assemblyNavigation.panel('evaluate'), await page((panel, id) => {
       const rows = [...document.querySelectorAll(panel + ' [data-analysis-pair]')].filter(row => row.getAttribute('data-analysis-pair') === id);
       const buttons = rows[0] && [...rows[0].querySelectorAll('button')].filter(value => value.hasAttribute('aria-pressed'));
       if (rows.length !== 1 || buttons.length !== 1 || buttons[0].disabled) throw Error('Expected one actual report highlight control.');
       buttons[0].click();
-    }, PANEL, pair.id);
+    }, PANEL, pair.id));
     await waitFor('report pair is selected for native world overlay', () => page((panel, id) => {
       const row = [...document.querySelectorAll(panel + ' [data-analysis-pair]')].find(value => value.getAttribute('data-analysis-pair') === id);
       return !!row?.querySelector('button[aria-pressed="true"]')
@@ -178,13 +180,13 @@ module.exports = function groupingScopeInterferenceWorkflow(context) {
     async function components(selector, references) {
       const keys = references.map(value => JSON.stringify([value.occurrencePath, value.definition.id, value.definition.revision]));
       await change(async () => {
-        await page((selector, encoded) => {
+        (await assemblyNavigation.panel('evaluate'), await page((selector, encoded) => {
           const input = document.querySelector(selector), keys = JSON.parse(encoded);
           if (!(input instanceof HTMLSelectElement) || !input.multiple || input.disabled) throw Error('Editable scope multiselect required.');
           if (keys.some(key => ![...input.options].some(option => option.value === key))) throw Error('Exact current scope option missing.');
           for (const option of input.options) option.selected = keys.includes(option.value);
           input.dispatchEvent(new Event('change', { bubbles: true }));
-        }, selector, JSON.stringify(keys));
+        }, selector, JSON.stringify(keys)));
         await waitFor('exact selected component identities', () => page((selector, encoded) => {
           const input = document.querySelector(selector), keys = JSON.parse(encoded);
           return input instanceof HTMLSelectElement && [...input.selectedOptions].map(option => option.value).sort().join('\n') === keys.sort().join('\n');
@@ -238,7 +240,7 @@ module.exports = function groupingScopeInterferenceWorkflow(context) {
       if (latest) check(report.analysisId !== latest.analysisId, 'Stale report authority reused.');
       latest = report; if (report.pairs.length) await highlight(report.pairs[0]); await unchanged(); return report;
     }
-    await page(panel => { const detail = document.querySelector(panel + ' details'); if (!detail) throw Error('Scope disclosure missing.'); detail.open = true; }, PANEL);
+    (await assemblyNavigation.panel('evaluate'), await page(panel => { const detail = document.querySelector(panel + ' details'); if (!detail) throw Error('Scope disclosure missing.'); detail.open = true; }, PANEL));
     await toggle(WITHIN, true);
     const allFalse = await run(false, ALL, [], [], 28, 480);
     await toggle(GROUP, true);

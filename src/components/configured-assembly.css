@@ -1,4 +1,4 @@
-.configured-assembly-workspace{height:100vh;display:flex;flex-direction:column;background:#edf3f9;color:#173852;font:14px system-ui,sans-serif}.configured-assembly-workspace header{display:flex;justify-content:space-between;gap:1rem;padding:14px 20px;background:#17669d;color:white}.configured-assembly-workspace nav{display:flex;flex-wrap:wrap;gap:8px;padding:12px;background:white;border-bottom:1px solid #c9d6e3}.configured-assembly-workspace button,.configured-assembly-workspace select,.configured-assembly-workspace input{font:inherit;border:1px solid #afc5d8;border-radius:4px;padding:7px;background:white;color:#173852}.configured-assembly-workspace button:disabled{opacity:.5}.configured-assembly-layout{display:grid;grid-template-columns:340px minmax(0,1fr);flex:1;min-height:0}.configured-assembly-layout aside{overflow:auto;padding:16px;background:#fff;border-right:1px solid #c9d6e3}.configured-assembly-layout h2{font-size:15px;color:#17669d}.configured-assembly-layout label{display:block;margin:9px 0}.configured-assembly-layout select,.configured-assembly-layout input:not([type=checkbox]){width:100%;box-sizing:border-box}.configured-assembly-layout fieldset{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;border:1px solid #c9d6e3}.configured-assembly-layout main{min-width:0;display:flex;flex-direction:column;padding:12px}.configured-assembly-view{position:relative;flex:1;min-height:280px}.configured-assembly-view>div{height:100%;min-height:280px}.configured-assembly-workspace footer{padding:10px 16px;background:white;border-top:1px solid #c9d6e3}.configured-assembly-limit{font-size:12px;color:#536b7e}.configured-assembly-error{margin:0;padding:12px 16px;border:1px solid #bd4646;background:#fff1ef;color:#8d2222}.configured-assembly-workspace [role=dialog]{position:fixed;left:50%;top:35%;transform:translate(-50%,-50%);padding:24px;background:white;box-shadow:0 6px 40px #3458;border:1px solid #afc5d8;z-index:30}.configured-assembly-workspace [role=dialog] button{margin-right:10px}
+.configured-assembly-workspace{height:100vh;display:flex;flex-direction:column;background:#edf3f9;color:#173852;font:14px system-ui,sans-serif}.configured-assembly-workspace button,.configured-assembly-workspace select,.configured-assembly-workspace input{font:inherit;border:1px solid #afc5d8;border-radius:4px;padding:7px;background:white;color:#173852}.configured-assembly-workspace button:disabled{opacity:.5}.configured-assembly-layout{display:grid;grid-template-columns:340px minmax(0,1fr);flex:1;min-height:0}.configured-assembly-layout aside{overflow:auto;padding:16px;background:#fff;border-right:1px solid #c9d6e3}.configured-assembly-layout h2{font-size:15px;color:#17669d}.configured-assembly-layout label{display:block;margin:9px 0}.configured-assembly-layout select,.configured-assembly-layout input:not([type=checkbox]){width:100%;box-sizing:border-box}.configured-assembly-layout fieldset{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;border:1px solid #c9d6e3}.configured-assembly-layout main{min-width:0;display:flex;flex-direction:column;padding:12px}.configured-assembly-view{position:relative;flex:1;min-height:280px}.configured-assembly-view>div{height:100%;min-height:280px}.configured-assembly-workspace footer{padding:10px 16px;background:white;border-top:1px solid #c9d6e3}.configured-assembly-limit{font-size:12px;color:#536b7e}.configured-assembly-error{margin:0;padding:12px 16px;border:1px solid #bd4646;background:#fff1ef;color:#8d2222}.configured-assembly-workspace [role=dialog]{position:fixed;left:50%;top:35%;transform:translate(-50%,-50%);padding:24px;background:white;box-shadow:0 6px 40px #3458;border:1px solid #afc5d8;z-index:30}.configured-assembly-workspace [role=dialog] button{margin-right:10px}
 .configured-bom-panel{flex:0 1 auto;max-height:45vh;overflow:auto;background:white;border-top:2px solid #17669d;padding:12px 16px}.configured-bom-panel header{background:#e7f1f9;color:#173852;padding:8px 12px}.configured-bom-panel h2{margin:0;font-size:16px}.configured-bom-panel p{font-size:12px;margin:6px 0}.configured-bom-controls{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:10px 0}.configured-bom-controls label{display:flex;align-items:center;gap:6px}.configured-bom-table{overflow:auto}.configured-bom-table table{border-collapse:collapse;width:100%;font-size:12px}.configured-bom-table th,.configured-bom-table td{border:1px solid #d3e0eb;padding:7px;text-align:left;vertical-align:top}.configured-bom-table thead{background:#e7f1f9}.configured-bom-table small{display:block;overflow-wrap:anywhere;max-width:260px;margin-top:4px}.configured-bom-table select{max-width:340px}.configured-bom-table .selected{background:#d8edff}.configured-bom-panel [role=alert]{color:#8d2222}
 .configured-mate-list{border-top:1px solid #c9d6e3;margin-top:16px;padding-top:8px}.configured-mate-list ul{list-style:none;padding:0}.configured-mate-list li{padding:10px 0;border-bottom:1px solid #d3e0eb}.configured-mate-list small{display:block;color:#536b7e;margin:5px 0}.configured-mate-list button{margin:3px}.configured-mate-editor{padding:12px;background:#edf5fc;border:1px solid #b5ccdf;border-radius:5px}.configured-mate-editor button{margin:4px 4px 0 0}.configured-mate-editor p{font-size:12px}.configured-mate-editor select{max-width:100%}
 
@@ -9,8 +9,8 @@
 .configured-assembly-workspace [aria-label="Selección de referencia en vista configurada"] { margin: 6px 0; font-size: 12px; }
 @media (max-width: 1180px), (max-height: 760px) {
   .configured-assembly-workspace { font-size: 12px; }
-  .configured-assembly-workspace header { padding: 9px 16px; }
-  .configured-assembly-workspace nav { padding: 7px 10px; gap: 5px; }
+
+
   .configured-assembly-workspace button, .configured-assembly-workspace select, .configured-assembly-workspace input { padding: 5px; }
   .configured-assembly-layout { grid-template-columns: 300px minmax(0, 1fr); }
   .configured-assembly-layout aside { padding: 12px; }
@@ -18,4 +18,75 @@
   .configured-assembly-view, .configured-assembly-view > div { min-height: 180px; }
   .configured-assembly-limit { margin: 5px 0; font-size: 11px; }
   .configured-assembly-workspace footer { padding: 7px 12px; }
+}
+
+/* The inspector has real navigation: selecting a command replaces the tree
+   with its property pane while the existing authoring controls retain state. */
+.configured-assembly-workspace { background:#f2f4f7; color:#263746; font:12px system-ui,sans-serif; }
+.configured-assembly-workspace button,.configured-assembly-workspace select,.configured-assembly-workspace input { border-color:#b8c3ce; border-radius:3px; padding:6px; color:#263746; }
+.configured-assembly-workspace button { cursor:pointer; }
+.configured-assembly-workspace button:hover:not(:disabled) { background:#e9f2fb; border-color:#88add0; }
+.configured-assembly-workspace button:focus-visible,.configured-assembly-workspace select:focus-visible,.configured-assembly-workspace input:focus-visible { outline:2px solid #2877b4; outline-offset:1px; }
+.configured-assembly-workspace button:disabled { opacity:.45; cursor:default; }
+.configured-assembly-workspace [hidden] { display:none!important; }
+.configured-assembly-workspace .configured-command-bar { display:flex; align-items:stretch; gap:0; margin:0; padding:3px 8px 0; background:#f6f7f9; }
+.configured-command-bar button { display:flex; align-items:center; gap:5px; }
+.configured-command-bar button svg { flex:none; color:#2776ad; }
+.configured-command-bar .assembly-command-large { max-width:104px; }
+.configured-command-bar .assembly-command-large span { max-width:95px; }
+.configured-assembly-layout { grid-template-columns:285px minmax(0,1fr); }
+.configured-assembly-layout aside { min-width:0; padding:0 12px 14px; background:#fafbfc; border-right:1px solid #aebbc7; }
+.configured-assembly-layout h2 { font-size:13px; color:#29485f; margin:13px 0 9px; }
+.configured-assembly-layout h3 { font-size:12px; }
+.configured-assembly-layout aside p,.configured-assembly-layout aside small { font-size:11px; line-height:1.5; color:#5f6d79; }
+.configured-assembly-layout select,.configured-assembly-layout input:not([type=checkbox]) { margin-top:4px; }
+.configured-assembly-layout fieldset { grid-template-columns:repeat(3,minmax(0,1fr)); margin:12px 0; padding:7px; border-color:#cbd4dc; }
+.configured-assembly-layout main { position:relative; padding:0; }
+.configured-assembly-layout main>nav { display:flex; justify-content:center; gap:1px; padding:5px; background:#f4f6f8; border-bottom:1px solid #d7dee5; }
+.configured-assembly-layout main>nav button { padding:4px 12px; border-color:transparent; background:transparent; }
+.configured-assembly-view,.configured-assembly-view>div { min-height:180px; }
+.configured-assembly-layout main>p { margin:0; padding:5px 12px; font-size:11px; border-top:1px solid #d7dee5; background:#f6f8fa; }
+.configured-assembly-workspace>footer { padding:5px 12px; background:#e9edf1; border-top:1px solid #c4cdd5; font-size:11px; }
+.configured-assembly-limit { padding:4px 12px; font-size:11px; color:#63717c; background:#f6f8fa; }
+.configured-assembly-limit summary { cursor:pointer; }
+.configured-assembly-limit p { margin:5px 0; }
+.configured-inspector-tabs { display:flex; align-items:center; gap:2px; position:sticky; top:0; z-index:2; margin:0 -12px 10px; padding:4px 7px; min-height:31px; background:#f0f3f6; border-bottom:1px solid #c5cfd8; }
+.configured-inspector-tabs button { display:grid; place-items:center; width:30px; height:27px; border-color:transparent; background:transparent; }
+.configured-inspector-tabs button[aria-pressed=true] { background:#fff; border-color:#b7c8d8; color:#1d6a9f; }
+.configured-inspector-tabs span { margin-left:5px; font-size:11px; font-weight:600; }
+.configured-model-tree ul { list-style:none; padding-left:17px; margin:2px 0; }
+.configured-model-tree>ul { padding-left:7px; }
+.configured-model-tree li { margin:1px 0; }
+.configured-model-tree button { display:flex; align-items:center; gap:6px; width:100%; min-height:27px; border:1px solid transparent; padding:3px 4px; text-align:left; background:transparent; }
+.configured-model-tree button>span,.configured-model-tree button>strong { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; }
+.configured-model-tree button>svg { flex:none; color:#4b80a5; }
+.configured-model-tree button.selected { background:#dcecfb; border-color:#93b8d8; }
+.configured-model-tree summary { display:flex; align-items:center; gap:3px; cursor:pointer; list-style:none; }
+.configured-model-tree summary::-webkit-details-marker { display:none; }
+.configured-model-tree details[open]>summary>svg:first-child { transform:rotate(90deg); }
+.configured-model-tree summary button { min-width:0; }
+.configured-model-tree .configured-tree-root { margin-bottom:2px; }
+.configured-model-tree .configured-tree-state { padding-left:23px; color:#65788a; font-size:11px; }
+.configured-tree-origin { padding:5px 4px 5px 18px; }
+.configured-tree-origin ul { color:#718394; padding:4px 0 0 28px; line-height:1.9; font-size:11px; }
+.configured-effective-parts { margin-top:14px; padding-top:10px; border-top:1px solid #d5dde4; color:#687a89; font-size:11px; }
+.configured-effective-parts summary { cursor:pointer; }
+.configured-effective-parts ul { padding-left:18px; line-height:1.8; }
+.configured-property-context { display:flex; flex-direction:column; gap:4px; padding:2px 0 8px; border-bottom:1px solid #d0d9e2; }
+.configured-property-context strong { font-size:14px; }
+.configured-property-context span { font-size:11px; color:#667b8b; }
+.configured-property-actions { display:flex; align-items:center; gap:4px; padding:7px 0; }
+.configured-property-actions button { display:grid; place-items:center; padding:4px; border-color:transparent; background:transparent; color:#23834e; }
+.configured-property-actions button:nth-child(2) { color:#bb4b42; }
+.configured-property-actions span { font-size:10px; color:#677b8d; }
+.configured-mate-list { border-top:0; margin-top:0; padding-top:0; }
+.configured-mate-editor { padding:0; background:transparent; border:0; border-radius:0; }
+.configured-assembly-workspace [aria-label="Selección de referencia en vista configurada"] { margin:0; padding:7px 12px; background:#eaf3ff; color:#225b85; }
+@media (max-width:1180px),(max-height:760px) {
+  .configured-assembly-layout { grid-template-columns:270px minmax(0,1fr); }
+  .configured-assembly-workspace .configured-command-bar { padding:2px 5px 0; }
+  .configured-command-bar button { font-size:11px; }
+  .configured-command-bar .assembly-command-large { max-width:88px; }
+  .configured-assembly-layout aside { padding-right:10px; padding-left:10px; }
+  .configured-inspector-tabs { margin-left:-10px; margin-right:-10px; }
 }

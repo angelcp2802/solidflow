@@ -4,6 +4,8 @@ const fsp = require('node:fs/promises');
 // Real controls, native replies and isolated file IPC. The same original
 // plate/two-pin fixture is mounted afresh; no saved mate or pose is injected.
 module.exports = async function gearWorkflow(context) {
+  context = require('./desktop-assembly-navigation.cjs').withNavigation(context);
+  const assemblyNavigation = context.assemblyNavigation;
   const { expected, input, gearOutput, observe, waitFor, click, capture, pointer,
     button, control, page, idle, responseAfter, addRelation, face, faceKey, checks,
     ipc, check, canonical, digest, near, close, dialogCounts, consoleErrors, failedRequests } = context;
@@ -80,10 +82,10 @@ module.exports = async function gearWorkflow(context) {
   }
   async function select(id) {
     const name = expected.occurrences.find(value => value.id === id).name;
-    await page(name => {
+    (await assemblyNavigation.panel('components'), await page(name => {
       const rows = [...document.querySelectorAll('[role="treeitem"]')].filter(row => row.querySelector('span')?.firstChild?.textContent === name);
       if (rows.length !== 1 || rows[0].disabled) throw Error('Expected exact original shaft tree row.'); rows[0].click();
-    }, name);
+    }, name));
     await waitFor('selected shaft movement controls', () => page(name => document.querySelector('input[aria-label="Nombre del componente"]')?.value === name
       && !!document.querySelector('button[aria-label="Vista previa del movimiento"]'), name));
   }
@@ -135,7 +137,7 @@ module.exports = async function gearWorkflow(context) {
     record(name + '/preview', event); return apply(event, name);
   }
 
-  let before = await observe(); await button('Abrir', '.assembly-toolbar');
+  let before = await observe(); await button('Abrir', ':is(.assembly-toolbar, .assembly-quickbar)');
   let opened = await responseAfter(before.serial, 'build-assembly');
   check(canonical(opened.document) === canonical(expected), 'Gear scenario did not reopen the untouched original fixture.');
   await idle('original gear mechanism opens');
@@ -241,7 +243,7 @@ module.exports = async function gearWorkflow(context) {
   check(!!handle, 'Actual gear manipulator did not expose its Z ring.'); before = await observe();
   await pointer('mousePressed', handle, 1);
   await waitFor('gear gesture blocks file/Apply operations', () => page(selector => document.querySelector('.assembly-app')?.getAttribute('aria-busy') === 'true'
-    && document.querySelector(selector)?.disabled === true && [...document.querySelectorAll('.assembly-toolbar button')].find(value => value.textContent.trim() === 'Guardar')?.disabled === true, APPLY));
+    && document.querySelector(selector)?.disabled === true && [...document.querySelectorAll(':is(.assembly-toolbar, .assembly-quickbar) button')].find(value => value.textContent.trim() === 'Guardar')?.disabled === true, APPLY));
   const points = [];
   for (const fraction of [1 / 3, 2 / 3, 1]) {
     const angle = .3 * fraction, dx = handle.x - center.x, dy = handle.y - center.y;
@@ -322,11 +324,11 @@ module.exports = async function gearWorkflow(context) {
   await control('input[aria-label="Giro local del movimiento en grados"]', '0');
   const finalGear = gear(committed.document);
   close(.5 * finalGear.angles.first - finalGear.angles.second - finalGear.phase, 0, 1e-8, 'Edited signed weighted phase');
-  before = await observe(); await button('Guardar como', '.assembly-toolbar');
+  before = await observe(); await button('Guardar como', ':is(.assembly-toolbar, .assembly-quickbar)');
   await waitFor('actual gear file write completes', () => dialogCounts().saves === 4 && ipc.filter(value => value.channel === 'document:save' && value.completed).length === 7);
   await idle('gear Save As completes'); const bytes = await fsp.readFile(gearOutput), saved = JSON.parse(bytes.toString('utf8'));
   check(canonical(saved) === canonical(committed.document), 'Saved gear bytes differ from the authenticated committed result.');
-  before = await observe(); await button('Abrir', '.assembly-toolbar'); opened = await responseAfter(before.serial, 'build-assembly');
+  before = await observe(); await button('Abrir', ':is(.assembly-toolbar, .assembly-quickbar)'); opened = await responseAfter(before.serial, 'build-assembly');
   check(canonical(opened.document) === canonical(saved), 'Gear reopen lost ratio, neutral rotations, winding or references.');
   await idle('gear file reopens'); geometry(opened.response.value);
   before = await observe(); await click(SOLVE); event = await responseAfter(before.serial, 'preview-assembly'); result = ready(event, 5, 1);

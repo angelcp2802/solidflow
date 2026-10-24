@@ -151,3 +151,41 @@
 .assembly-modal > div { display: flex; justify-content: flex-end; gap: 5px; margin-top: 20px; }
 .assembly-modal button { border: 1px solid #c6d8e6; background: #edf6fc; padding: 7px 9px; color: #376d96; }
 @media (max-width:1200px) { .assembly-sidebar { flex-basis: 240px; } .assembly-properties { flex-basis: 260px; } .assembly-toolbar button { font-size: 10px; padding: 6px; } .assembly-view-tools { top: 7px; } }
+
+/* Classic assembly shell: one contextual left manager and the model viewport. */
+.assembly-classic-workspace { min-width: 760px; background: #eef1f4; }
+.assembly-classic-workspace .assembly-manager-sidebar { flex: 0 0 282px; width: 282px; min-width: 0; display: flex; flex-direction: column; overflow: hidden; background: #fff; border-right: 1px solid #b8c5cf; }
+.assembly-classic-workspace .assembly-manager-relations, .assembly-classic-workspace .assembly-manager-evaluate { flex-basis: 318px; width: 318px; }
+.assembly-manager-tabs { display: flex; align-items: stretch; flex: 0 0 34px; border-bottom: 1px solid #bfcdd8; background: #edf1f5; }
+.assembly-manager-tabs > button { display: flex; flex: 1; gap: 4px; align-items: center; justify-content: center; padding: 4px 3px; color: #60788a; font-size: 10px; border-radius: 0; border-right: 1px solid #d8e0e6; }
+.assembly-manager-tabs > button[aria-selected="true"] { background: #fff; color: #176ba1; box-shadow: inset 0 2px #2587c2; }
+.assembly-manager-tabs > button:focus-visible { outline: 2px solid #2385c8; outline-offset: -2px; }
+.assembly-classic-workspace .assembly-manager-panel { flex: 1 1 auto; width: auto; min-height: 0; overflow: auto; border: 0; background: #fbfcfd; scrollbar-width: thin; }
+.assembly-classic-workspace .assembly-manager-panel[hidden] { display: none; }
+.assembly-classic-workspace .assembly-sidebar > h2 { padding: 9px 11px; background: #f4f6f8; text-transform: none; letter-spacing: 0; font-size: 12px; font-weight: 600; }
+.assembly-classic-workspace .assembly-tree { max-height: none; padding: 5px 0 9px; }
+.assembly-classic-workspace .assembly-tree-row { min-height: 32px; padding-top: 5px; padding-bottom: 5px; gap: 6px; font-size: 11px; }
+.assembly-classic-workspace .assembly-tree-row small { font-size: 9px; margin-top: 1px; }
+.assembly-classic-workspace .assembly-section { padding: 10px 11px; }
+.assembly-classic-workspace .assembly-properties > .assembly-section:first-of-type > h2 { margin: -10px -11px 10px; padding: 10px 11px; color: #345b78; background: #edf2f6; border-bottom: 1px solid #d2dce4; }
+.assembly-classic-workspace .assembly-section label { margin: 8px 0; }
+.assembly-classic-workspace .assembly-section h3 { margin-bottom: 8px; }
+.assembly-classic-workspace .assembly-canvas { background: linear-gradient(#eef2f5, #fff 58%, #e7edf2); }
+.assembly-classic-workspace .assembly-view-tools { top: 9px; border-radius: 2px; box-shadow: 0 2px 5px #244a6c10; }
+.assembly-classic-workspace .assembly-canvas-label { top: 91px; left: 15px; }
+.assembly-classic-workspace .assembly-canvas-label strong { font-size: 11px; }
+.assembly-classic-workspace .assembly-canvas-label span { max-width: 460px; font-size: 10px; }
+.assembly-classic-workspace .assembly-status { flex-basis: 24px; background: #f1f4f7; }
+.assembly-classic-workspace .assembly-confirm-commands { margin-left: auto; }
+@media (max-width: 1100px) {
+  .assembly-classic-workspace .assembly-manager-sidebar { flex-basis: 260px; width: 260px; }
+  .assembly-classic-workspace .assembly-manager-relations, .assembly-classic-workspace .assembly-manager-evaluate { flex-basis: 302px; width: 302px; }
+  .assembly-classic-workspace .assembly-toolbar .assembly-command-group { padding-left: 4px; padding-right: 4px; }
+  .assembly-classic-workspace .assembly-command-manager .assembly-command-group button.assembly-command-large { width: 70px; }
+  .assembly-classic-workspace .assembly-command-manager .assembly-command-stack > button { font-size: 10px; padding-left: 3px; padding-right: 3px; gap: 3px; }
+}
+
+.assembly-property-confirmation { display: flex; gap: 5px; margin-bottom: 11px; padding-bottom: 9px; border-bottom: 1px solid #dce5ed; }
+.assembly-property-confirmation > button { display: flex; align-items: center; gap: 4px; min-height: 27px; padding: 3px 7px; border: 1px solid #c5d5e1; border-radius: 2px; color: #43758f; background: #f5f9fc; font-size: 11px; }
+.assembly-property-confirmation > button:first-child > svg { color: #37926a; }
+.assembly-property-confirmation > button:last-child > svg { color: #af6159; }

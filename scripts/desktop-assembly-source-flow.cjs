@@ -4,6 +4,8 @@ const fsp = require('node:fs/promises');
 // Extends the original assembled plate/two-pin workflow through real controls.
 // Test data and observations never replace renderer state or worker results.
 module.exports = async function sourceUpdateWorkflow(context) {
+  context = require('./desktop-assembly-navigation.cjs').withNavigation(context);
+  const assemblyNavigation = context.assemblyNavigation;
   const { expected, saved, savedBytes, output, partUpdatePath, updatedPart, observe, waitFor, click, capture,
     button, control, page, idle, responseAfter, recordPhase, checks, ipc, check, canonical, digest,
     near, close, dialogCounts, consoleErrors, failedRequests } = context;
@@ -97,12 +99,12 @@ module.exports = async function sourceUpdateWorkflow(context) {
       description + ': committed recovery changed.');
   }
   async function openReview() {
-    await page(() => {
+    (await assemblyNavigation.panel('components'), await page(() => {
       const items = [...document.querySelectorAll('.assembly-tree [role="treeitem"]')]
         .filter(item => item.querySelector('span')?.firstChild?.textContent === 'Original left pin');
       if (items.length !== 1 || items[0].disabled) throw Error('Expected the actual selectable left pin.');
       items[0].click();
-    });
+    }));
     const before = await observe(); await click(UPDATE);
     const event = await responseAfter(before.serial, 'review-assembly-part-update'), reply = event.response.value;
     check(canonical(event.current) === canonical(saved) && canonical(event.source) === canonical(source)
@@ -182,20 +184,20 @@ module.exports = async function sourceUpdateWorkflow(context) {
   const redone = await responseAfter(before.serial, 'build-assembly');
   check(canonical(redone.document) === canonical(updated), 'Redo did not restore exact revised identities/references.');
   assertScene(redone.response.value, revision); await idle('source Redo rebuild completes'); record('source/redo', redone, redone.response.value);
-  await button('Guardar', '.assembly-toolbar');
+  await button('Guardar', ':is(.assembly-toolbar, .assembly-quickbar)');
   await waitFor('updated source native Save completes', () => ipc.filter(value => value.channel === 'document:save' && value.completed).length === 2);
   const updatedBytes = await fsp.readFile(output), fromDisk = JSON.parse(updatedBytes.toString('utf8'));
   check(canonical(fromDisk) === canonical(updated), 'Actually saved update differs from authenticated Apply/Redo.');
   // Main-process IPC completion precedes the renderer's saved/busy state.
   // Wait for the actual clean controls instead of relying on file-read latency.
   await waitFor('updated source Save reaches clean renderer controls', () => page((panel, apply, name) => {
-    const toolbar = [...document.querySelectorAll('.assembly-toolbar button')];
+    const toolbar = [...document.querySelectorAll(':is(.assembly-toolbar, .assembly-quickbar) button')];
     const open = toolbar.find(value => value.textContent.trim() === 'Abrir'), save = toolbar.find(value => value.textContent.trim() === 'Guardar');
     return document.querySelector('.assembly-app')?.getAttribute('aria-busy') === 'false'
-      && document.querySelector('.assembly-header > strong')?.textContent === name && !document.querySelector(panel)
+      && document.querySelector('.assembly-shell-document > strong')?.textContent === name && !document.querySelector(panel)
       && !!open && !open.disabled && !!save && !save.disabled && document.querySelector(apply)?.disabled === true;
   }, PANEL, APPLY, saved.name));
-  before = await observe(); await button('Abrir', '.assembly-toolbar');
+  before = await observe(); await button('Abrir', ':is(.assembly-toolbar, .assembly-quickbar)');
   const reopened = await responseAfter(before.serial, 'build-assembly');
   check(canonical(reopened.document) === canonical(fromDisk), 'Updated source reopen differs from saved bytes.');
   assertDocument(reopened.document, revision, true); assertScene(reopened.response.value, revision);

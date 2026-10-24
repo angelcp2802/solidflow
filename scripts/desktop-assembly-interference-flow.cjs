@@ -4,6 +4,8 @@ const fsp = require('node:fs/promises');
 // Real production controls and read-only native worker observations. No model,
 // report, placement, mesh or solver response is injected into the application.
 module.exports = async function interferenceWorkflow(context) {
+  context = require('./desktop-assembly-navigation.cjs').withNavigation(context);
+  const assemblyNavigation = context.assemblyNavigation;
   const { interferencePath, interferenceFixture, output, observe, waitFor, click, capture, button, control, page, idle,
     responseAfter, checks, ipc, check, canonical, digest, near, close, dialogCounts, consoleErrors, failedRequests } = context;
   const PANEL = '[role="region"][aria-label="Interferencias y holguras"]';
@@ -52,25 +54,25 @@ module.exports = async function interferenceWorkflow(context) {
   }
   async function components(selector, references) {
     const keys = references.map(value => JSON.stringify([value.occurrencePath, value.definition.id, value.definition.revision]));
-    await page((selector, encoded) => {
+    (await assemblyNavigation.panel('evaluate'), await page((selector, encoded) => {
       const input = document.querySelector(selector), keys = JSON.parse(encoded);
       if (!(input instanceof HTMLSelectElement) || !input.multiple || input.disabled) throw Error('Expected an enabled scope multiselect.');
       if (keys.some(key => ![...input.options].some(option => option.value === key))) throw Error('Exact scope component option missing.');
       for (const option of input.options) option.selected = keys.includes(option.value);
       input.dispatchEvent(new Event('change', { bubbles: true }));
-    }, selector, JSON.stringify(keys));
+    }, selector, JSON.stringify(keys)));
     await waitFor('exact component scope selections reach the rendered controls', () => page((selector, encoded) => {
       const input = document.querySelector(selector), keys = JSON.parse(encoded);
       return input instanceof HTMLSelectElement && [...input.selectedOptions].map(option => option.value).sort().join('\n') === keys.sort().join('\n');
     }, selector, JSON.stringify(keys)));
   }
   async function highlight(pair) {
-    await page((panel, id) => {
+    (await assemblyNavigation.panel('evaluate'), await page((panel, id) => {
       const rows = [...document.querySelectorAll(panel + ' [data-analysis-pair]')].filter(row => row.getAttribute('data-analysis-pair') === id);
       const buttons = rows[0] && [...rows[0].querySelectorAll('button')].filter(value => value.hasAttribute('aria-pressed'));
       if (rows.length !== 1 || buttons.length !== 1 || buttons[0].disabled) throw Error('Expected one actual report highlight control.');
       buttons[0].click();
-    }, PANEL, pair.id);
+    }, PANEL, pair.id));
     await waitFor('report pair is selected for native world overlay', () => page((panel, id) => {
       const row = [...document.querySelectorAll(panel + ' [data-analysis-pair]')].find(value => value.getAttribute('data-analysis-pair') === id);
       return !!row?.querySelector('button[aria-pressed="true"]')
@@ -117,7 +119,7 @@ module.exports = async function interferenceWorkflow(context) {
     pose: { translation: [x, 0, 0], rotation: [0, 0, 0, 1] } });
   await fsp.writeFile(interferencePath, JSON.stringify(scopedFixture));
   const scopedInputBytes = await fsp.readFile(interferencePath);
-  const before = await observe(); await button('Abrir', '.assembly-toolbar');
+  const before = await observe(); await button('Abrir', ':is(.assembly-toolbar, .assembly-quickbar)');
   const opened = await responseAfter(before.serial, 'build-assembly');
   check(canonical(opened.document) === canonical(scopedFixture), 'Collision fixture did not pass through actual file-open/build routing.');
   await idle('original collision fixture opens');
@@ -146,7 +148,7 @@ module.exports = async function interferenceWorkflow(context) {
   near(nestedPair.intersectionMesh?.bounds.min, [21, 0, 0], 1e-6, 'Nested Common minimum.');
   near(nestedPair.intersectionMesh?.bounds.max, [22, 3, 4], 1e-6, 'Nested Common maximum.');
   await highlight(pair);
-  await page(panel => { const detail = document.querySelector(panel + ' details'); if (!detail) throw Error('Scope disclosure missing.'); detail.open = true; }, PANEL);
+  (await assemblyNavigation.panel('evaluate'), await page(panel => { const detail = document.querySelector(panel + ' details'); if (!detail) throw Error('Scope disclosure missing.'); detail.open = true; }, PANEL));
   const rootSelection = ['box-a', 'box-b'].map(id => ({ occurrencePath: [id], definition: { ...boxDefinition } }));
   await control(SCOPE, 'among-selected'); await cleared(); await components(SELECTED, rootSelection);
   const amongScope = { mode: 'among-selected', selected: rootSelection, excluded: [] };
@@ -193,11 +195,11 @@ module.exports = async function interferenceWorkflow(context) {
   check((await fsp.readFile(interferencePath)).equals(scopedInputBytes) && (await fsp.readFile(output)).equals(revisedBytes)
     && await page(() => localStorage.getItem('solidflow.autosave')) === scopedRecovery,
     'Scope edits changed committed assembly input or saved revised bytes.');
-  await page(name => {
+  (await assemblyNavigation.panel('components'), await page(name => {
     const rows = [...document.querySelectorAll('[role="treeitem"]')].filter(row => row.querySelector('span')?.firstChild?.textContent === name);
     if (rows.length !== 1 || rows[0].disabled) throw Error('Expected the actual collision component tree control.');
     rows[0].click();
-  }, 'Caja B');
+  }, 'Caja B'));
   await waitFor('collision component exposes its actual movement controls', () => page(() =>
     document.querySelector('input[aria-label="Nombre del componente"]')?.value === 'Caja B'
       && !!document.querySelector('[aria-label="Mover componente con relaciones"]')));

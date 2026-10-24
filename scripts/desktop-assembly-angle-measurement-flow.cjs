@@ -5,6 +5,8 @@ const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 // Original drilled-prism fixture at Rx(30). Uses actual DOM controls and worker
 // results; never supplies a CAD reply, model state, or React state to the app.
 module.exports = function angleMeasurementWorkflow(context) {
+  context = require('./desktop-assembly-navigation.cjs').withNavigation(context);
+  const assemblyNavigation = context.assemblyNavigation;
   const { expected, input, output, evaluate, observe, waitFor, click, capture, checks,
     protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs, dialogCounts } = context;
   const page = (fn, ...args) => evaluate('(' + fn.toString() + ')(' + args.map(encodeJavaScriptString).join(',') + ')');
@@ -13,7 +15,7 @@ module.exports = function angleMeasurementWorkflow(context) {
   const phases = [], evidence = { scenario: 'original-circular-angle-measurement', phases }; checks.push(evidence);
   const near = (a, b, tolerance, label) => check(Number.isFinite(a) && Math.abs(a - b) <= tolerance, label + ': ' + a + ' expected ' + b);
   const idle = () => waitFor('measurement workspace idle', () => page(() => document.querySelector('.assembly-app')?.getAttribute('aria-busy') === 'false'));
-  async function button(text, scope) {
+  async function button(text, scope) { await assemblyNavigation.button(text, scope);
     await page((text, scope) => { const buttons = [...document.querySelectorAll(scope + ' button')].filter(value => value.textContent.trim() === text);
       if (buttons.length !== 1 || buttons[0].disabled) throw Error('Exact enabled button absent: ' + text); buttons[0].click(); }, text, scope);
   }
@@ -28,8 +30,8 @@ module.exports = function angleMeasurementWorkflow(context) {
     const selector = 'select[aria-label="' + labels[slot] + '"]', values = await page(selector => [...document.querySelector(selector).options].map(value => value.value), selector);
     const matches = values.filter(value => value && canonical(JSON.parse(value)) === canonical(ref));
     check(matches.length === 1, 'Exact native/datum selection is missing.');
-    await page((selector, value) => { const element = document.querySelector(selector); if (!element || element.disabled) throw Error('Selection is disabled.');
-      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(element, value); element.dispatchEvent(new Event('change', { bubbles: true })); }, selector, matches[0]);
+    (await assemblyNavigation.panel('evaluate'), await page((selector, value) => { const element = document.querySelector(selector); if (!element || element.disabled) throw Error('Selection is disabled.');
+      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(element, value); element.dispatchEvent(new Event('change', { bubbles: true })); }, selector, matches[0]));
     await waitFor('selected current direction', () => page((selector, value) => document.querySelector(selector)?.value === value, selector, matches[0]));
     check(await page(selector => !document.querySelector(selector), RESULT), 'Changed selection retained an obsolete measurement.');
   }
@@ -82,12 +84,12 @@ module.exports = function angleMeasurementWorkflow(context) {
     check(event.response.value.status === 'ready' && event.response.value.hasToken, 'Expected real pending preview.'); await idle();
     check(await page(selector => document.querySelector(selector)?.disabled === true, MEASURE), 'Measurement remained enabled during staged preview.');
     await click('button[aria-label="Cancelar vista previa del ensamblaje"]'); await unchanged();
-    await button('Guardar como', '.assembly-toolbar');
+    await button('Guardar como', ':is(.assembly-toolbar, .assembly-quickbar)');
     await waitFor('actual read-only file saved', async () => {
       if (dialogCounts().saves !== 1) return false;
       try { return canonical(JSON.parse(await fsp.readFile(output, 'utf8'))) === canonical(expected); } catch (error) { if (error.code === 'ENOENT') return false; throw error; }
     });
-    await idle(); before = await observe(); await button('Abrir', '.assembly-toolbar'); event = await response(before.serial, 'build-assembly');
+    await idle(); before = await observe(); await button('Abrir', ':is(.assembly-toolbar, .assembly-quickbar)'); event = await response(before.serial, 'build-assembly');
     check(canonical(event.document) === canonical(expected), 'Measurement changed saved/reopened data.'); await unchanged();
     check(await page(selector => !document.querySelector(selector), RESULT), 'Reopening retained obsolete measurement.');
     await select(0, first); await select(1, second); await select(2, guide); await measure(30, ['plane', 'plane', 'plane']);

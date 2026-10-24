@@ -7,15 +7,16 @@ const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 module.exports = function configuredMechanicalWorkflow(c) {
   const { family, expected, input, output, evaluate, observe, waitFor, click, capture, check, checks, canonical, digest, completePendingSave,
     ipc, dialogCounts, consoleErrors, failedRequests, initialReadyMs } = c;
-  const ROOT = '.configured-assembly-workspace', NAV = '[aria-label="Archivo del ensamblaje configurado"]';
+  const ROOT = '.configured-assembly-workspace', NAV = ':is([aria-label="Archivo del ensamblaje configurado"],[aria-label="Comandos del ensamblaje configurado"])';
   const FORM = '[aria-label="Editar relación mecánica del estado"]', ACTION = 'preview-configured-assembly-mechanical-edit', phases = [];
   const page = (fn, ...args) => evaluate('(' + fn.toString() + ')(' + args.map(encodeJavaScriptString).join(',') + ')');
-  async function button(text, parent = ROOT) { await page((text, parent) => {
+ const navigation=require('./desktop-configured-navigation.cjs')({page,waitFor});
+  async function button(text, parent = ROOT) { await navigation.reveal(parent+' button',text); await page((text, parent) => {
     const found = [...document.querySelectorAll(parent + ' button')].filter(b => b.textContent.trim() === text);
     if (found.length !== 1 || found[0].disabled) throw Error('One enabled button required: ' + text); found[0].click();
   }, text, parent); }
-  async function aria(label) { await page(label => { const b = document.querySelector('button[aria-label="' + label + '"]'); if (!b || b.disabled) throw Error('Enabled button required: ' + label); b.click(); }, label); }
-  async function control(label, value) { await page((label, value) => {
+  async function aria(label) { await navigation.reveal('button[aria-label="'+label+'"]'); await page(label => { const b = document.querySelector('button[aria-label="' + label + '"]'); if (!b || b.disabled) throw Error('Enabled button required: ' + label); b.click(); }, label); }
+  async function control(label, value) { await navigation.reveal('[aria-label="'+label+'"]'); await page((label, value) => {
     const e = document.querySelector('[aria-label="' + label + '"]'); if (!e || e.disabled) throw Error('Enabled control required: ' + label);
     const p = e instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype;
     Object.getOwnPropertyDescriptor(p, 'value').set.call(e, value); e.dispatchEvent(new Event('input', { bubbles: true })); e.dispatchEvent(new Event('change', { bubbles: true }));
@@ -35,10 +36,10 @@ module.exports = function configuredMechanicalWorkflow(c) {
       const root=document.querySelector('.configured-assembly-workspace'),header=root?.querySelector('header');
       const rows=[...document.querySelectorAll(nav+' button')],one=text=>rows.filter(b=>b.textContent.trim()===text);
       const open=one('Abrir'),save=one('Guardar'),apply=one('Aplicar configuración');
-      if(root?.getAttribute('aria-busy')!=='false'||header?.querySelector('strong')?.textContent!=='SolidFlow · '+name
-        ||header?.querySelector('span')?.getAttribute('title')!==file||open.length!==1||open[0].disabled
+      if(root?.getAttribute('aria-busy')!=='false'||header?.querySelector('.assembly-shell-document > strong')?.textContent!==name
+        ||header?.querySelector('.assembly-shell-file')?.getAttribute('title')!==file||open.length!==1||open[0].disabled
         ||save.length!==1||save[0].disabled||apply.length!==1||!apply[0].disabled)return false;
-      return {busy:'false',header:header.querySelector('strong').textContent,file:header.querySelector('span').textContent,openEnabled:true,saveEnabled:true,applyDisabled:true};
+      return {busy:'false',header:header.querySelector('.assembly-shell-document > strong').textContent,file:header.querySelector('.assembly-shell-file').textContent,openEnabled:true,saveEnabled:true,applyDisabled:true};
     },doc.source.name,output,NAV));
     await recovery(doc);checks.push({savedRendererReady:{label,...ready}});
   }

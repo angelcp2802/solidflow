@@ -43,6 +43,8 @@ const BOXES = [
 ];
 
 module.exports = function structuralStepWorkflow(context) {
+  context = require('./desktop-assembly-navigation.cjs').withNavigation(context);
+  const assemblyNavigation = context.assemblyNavigation;
   const { expected, input, output, structuralFiles, evaluate, observe, waitFor, click, menu, checks, check, canonical, digest,
     ipc, protocolResponses, consoleErrors, failedRequests, initialReadyMs, dialogCounts } = context;
   const IMPORT = 'button[aria-label="Importar STEP estructurado"]', EXPORT = 'button[aria-label="Exportar STEP estructurado del ensamblaje"]';
@@ -95,8 +97,8 @@ module.exports = function structuralStepWorkflow(context) {
     check(remaining.length === 0, label + ' all eight independent placements present'); near(meshArea, 344, label + ' total planar mesh area');
     graphDocument(doc, doc.id !== expected.id);
   }
-  async function state() { return page(() => ({ recovery: localStorage.getItem('solidflow.autosave'), title: document.querySelector('.assembly-header > strong')?.textContent,
-    file: document.querySelector('.assembly-file')?.textContent, undo: document.querySelector('button[aria-label="Deshacer ensamblaje"]')?.disabled,
+  async function state() { return page(() => ({ recovery: localStorage.getItem('solidflow.autosave'), title: document.querySelector('.assembly-shell-document > strong')?.textContent,
+    file: document.querySelector('.assembly-shell-file')?.textContent, undo: document.querySelector('button[aria-label="Deshacer ensamblaje"]')?.disabled,
     redo: document.querySelector('button[aria-label="Rehacer ensamblaje"]')?.disabled, apply: document.querySelector('button[aria-label="Aplicar ensamblaje"]')?.disabled,
     cancel: document.querySelector('button[aria-label="Cancelar vista previa del ensamblaje"]')?.disabled })); }
   async function idle(label) { await waitFor(label, () => page(() => document.querySelector('.assembly-app')?.getAttribute('aria-busy') === 'false'
@@ -109,7 +111,7 @@ module.exports = function structuralStepWorkflow(context) {
     await idle(label); await waitFor(label + ' exact committed recovery', async () => { const ui = await state(); return ui.recovery && canonical(JSON.parse(ui.recovery)) === canonical(event.document); });
     phases.push({ phase: label, serial: event.serial, documentSha256: digest(canonical(event.document)), scene: event.response.value }); return event.document;
   }
-  async function button(label) { await page(label => { const bs = [...document.querySelectorAll('.assembly-toolbar button')].filter(b => b.textContent.trim() === label);
+  async function button(label) { await assemblyNavigation.button(label, ':is(.assembly-toolbar, .assembly-quickbar)'); await page(label => { const bs = [...document.querySelectorAll(':is(.assembly-toolbar, .assembly-quickbar) button')].filter(b => b.textContent.trim() === label);
     if (bs.length !== 1 || bs[0].disabled) throw Error('Exact enabled toolbar action missing: ' + label); bs[0].click(); }, label); }
   async function confirmReplacement(part = false) {
     await waitFor('actual discard confirmation', () => page(part => !!document.querySelector(part ? '[role="dialog"][aria-labelledby="discard-title"]' : '[role="dialog"][aria-label="Cambios sin guardar"]'), part));

@@ -5,6 +5,8 @@ const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 // Original parts, real production controls and read-only native/IPC observations.
 // No solver reply, saved relation or renderer document state is substituted.
 module.exports = function screwWorkflow(context) {
+  context = require('./desktop-assembly-navigation.cjs').withNavigation(context);
+  const assemblyNavigation = context.assemblyNavigation;
   const { expected, input, output, evaluate, observe, waitFor, click, capture, checks,
     protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs, dialogCounts } = context;
   const APPLY = 'button[aria-label="Aplicar ensamblaje"]', SOLVE = 'button[aria-label="Resolver ensamblaje"]';
@@ -82,13 +84,13 @@ module.exports = function screwWorkflow(context) {
     near(scene.bounds.max, [20, 15, Math.max(22, nut.pose.translation[2] + 6)], 1e-5, 'Mechanism maximum');
     return mate;
   }
-  async function button(text, parent = '.assembly-app') {
+  async function button(text, parent = '.assembly-app') { await assemblyNavigation.button(text, parent);
     await page((text, parent) => {
       const buttons = [...document.querySelectorAll(parent + ' button')].filter(value => value.textContent.trim() === text);
       if (buttons.length !== 1 || buttons[0].disabled) throw Error('Expected one enabled control: ' + text); buttons[0].click();
     }, text, parent);
   }
-  async function control(selector, value) {
+  async function control(selector, value) { await assemblyNavigation.reveal(selector);
     await page((selector, value) => {
       const input = document.querySelector(selector);
       if (!input || input.disabled) throw Error('Expected editable control: ' + selector);
@@ -131,10 +133,10 @@ module.exports = function screwWorkflow(context) {
   }
   async function add(name, type, first, second, count, dof, distance) {
     for (const [index, selected] of [first, second].entries()) {
-      await page(index => {
+      (await assemblyNavigation.panel('relations'), await page(index => {
         const buttons = [...document.querySelectorAll('.assembly-endpoints button')].filter(value => value.querySelector('strong')?.textContent.trim() === 'Referencia ' + (Number(index) + 1));
         if (buttons.length !== 1 || buttons[0].disabled) throw Error('Reference slot unavailable.'); buttons[0].click();
-      }, String(index));
+      }, String(index)));
       await control('select[aria-label="Cara de referencia"]', faceKey(selected)); await button('Usar cara en referencia ' + (index + 1));
     }
     await control('input[aria-label="Nombre de la relación"]', name);
@@ -156,10 +158,10 @@ module.exports = function screwWorkflow(context) {
   }
   async function select(id) {
     const name = expected.occurrences.find(value => value.id === id).name;
-    await page(name => {
+    (await assemblyNavigation.panel('components'), await page(name => {
       const rows = [...document.querySelectorAll('[role="treeitem"]')].filter(row => row.querySelector('span')?.firstChild?.textContent === name);
       if (rows.length !== 1 || rows[0].disabled) throw Error('Exact original component row unavailable.'); rows[0].click();
-    }, name);
+    }, name));
     await waitFor('selected ' + name, () => page(name => document.querySelector('input[aria-label="Nombre del componente"]')?.value === name, name));
   }
   async function move(base, id, degrees, finalZ, name) {
@@ -239,24 +241,24 @@ module.exports = function screwWorkflow(context) {
       && document.querySelector('input[aria-label="Avance del tornillo"]')?.disabled === false
       && Number(document.querySelector('input[aria-label="Avance del tornillo"]').value) === 2));
     await control('input[aria-label="Avance del tornillo"]', '4');
-    await page(() => document.querySelector('input[aria-label="Invertir avance del tornillo"]').click());
+    (await assemblyNavigation.panel('relations'), await page(() => document.querySelector('input[aria-label="Invertir avance del tornillo"]').click()));
     before = await observe(); await button('Vista previa del tornillo'); event = await responseAfter(before.serial, 'preview-assembly');
     result = ready(event, 4, 1); captured = mechanical(result.scene, result.document);
     check(captured.lead === 4 && captured.reverse && canonical(captured.neutralRotation) === canonical(screw(committed.document).neutralRotation)
       && captured.neutralTravel === screw(committed.document).neutralTravel && captured.id === screw(committed.document).id,
       'Parameter edit reset the captured identity or coordinate zero.');
     record('screw/edit-reverse-lead', event); committed = await apply(event, 'screw/edit');
-    before = await observe(); await page(() => document.querySelector('input[aria-label="Activar Tornillo original"]').click());
+    before = await observe(); (await assemblyNavigation.panel('relations'), await page(() => document.querySelector('input[aria-label="Activar Tornillo original"]').click()));
     event = await responseAfter(before.serial, 'preview-assembly'); result = ready(event, 4, 2); check(screw(result.document).suppressed, 'Suppression lost declaration.');
     record('screw/suppress', event); committed = await apply(event, 'screw/suppress');
     const z = committed.document.occurrences.find(value => value.id === 'nut').pose.translation[2];
     event = await move(committed, 'nut', 0, z + 1, 'screw/passive-translation'); committed = await apply(event, 'screw/passive');
-    before = await observe(); await page(() => document.querySelector('input[aria-label="Activar Tornillo original"]').click());
+    before = await observe(); (await assemblyNavigation.panel('relations'), await page(() => document.querySelector('input[aria-label="Activar Tornillo original"]').click()));
     event = await responseAfter(before.serial, 'preview-assembly'); result = ready(event, 4, 1); mechanical(result.scene, result.document);
     record('screw/reactivate', event); committed = await apply(event, 'screw/reactivate');
-    before = await observe(); await button('Guardar como', '.assembly-toolbar');
+    before = await observe(); await button('Guardar como', ':is(.assembly-toolbar, .assembly-quickbar)');
     await waitFor('native saved screw bytes', async () => { try { return canonical(JSON.parse(await fsp.readFile(output, 'utf8'))) === canonical(committed.document); } catch { return false; } });
-    await idle('saved mechanism idle'); await button('Abrir', '.assembly-toolbar'); event = await responseAfter(before.serial, 'build-assembly');
+    await idle('saved mechanism idle'); await button('Abrir', ':is(.assembly-toolbar, .assembly-quickbar)'); event = await responseAfter(before.serial, 'build-assembly');
     check(canonical(event.document) === canonical(committed.document), 'Save/reopen changed the lifted screw or poses.');
     mechanical(event.response.value, event.document); record('screw/reopen', event); await idle('reopened mechanism idle');
     const reopened = { document: event.document, scene: event.response.value }; event = await solve(reopened, 1); result = ready(event, 4, 1);

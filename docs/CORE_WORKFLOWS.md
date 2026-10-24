@@ -88,6 +88,27 @@ movement uses its own tool. Sketch editing retains 2D middle-button pan.
 
 ## Assembly priorities and current limits
 
+Both assembly workspaces use a grouped upper ribbon and one contextual manager
+on the left. File and history actions stay in the header. In a standard assembly,
+**Ensamblaje / Componentes** shows the tree, **Relaciones** opens relation
+properties and **Evaluar** opens measurement, interference and export controls.
+The upper commands route to those same panels. Applying a preview still requires
+the existing native verification; the check mark does not bypass it.
+
+In configured assemblies, selecting a component does not force its editor open.
+The model tree stays visible when selecting its components.
+Use **Propiedades del componente** in the left icon bar to edit it. **Insertar
+componente**, **Reutilizar componente**, **Nueva relación** and
+**Configuraciones** open their corresponding panels. **Relaciones** lists the
+current state's relations. Closing or applying a relation returns to the tree.
+Leaving a relation panel stops temporary viewport reference picking and preserves
+its draft. Returning to it does not automatically rearm picking.
+
+Panels remain mounted to retain field values, but inactive panels are hidden.
+Renderer workflows navigate through the actual tabs before operating fields;
+scripted form controls remain distinct from pointer-validated interactions.
+The tree's origin labels are descriptive: displayed-axis picking remains open.
+
 The standard assembly workspace supports component import and repeated
 occurrences. Its relation references include assembly and component XY, XZ
 and YZ principal planes. The configured workspace also offers those planes.
@@ -100,9 +121,10 @@ The configured workspace's upper command bar provides **Insertar componente**,
 **Configuraciones**. Insertion and reuse reveal their fields in the left
 inspector; New relation opens its actual editor. The other commands reveal the
 relation list or root configuration. Existing file actions, view controls and
-sidebar actions remain available. Opening an editor or explicitly selecting a
-component reveals the relevant inspector section and moves keyboard focus;
-typing, picking references and unrelated rebuilds do not repeatedly scroll it.
+sidebar actions remain available. Commands that open an editor reveal its
+inspector section and move keyboard focus. Selecting a component in the tree or
+viewport retains the current panel; **Propiedades del componente** opens its
+editor. Typing, picking references and unrelated rebuilds do not repeatedly scroll it.
 Section headings and context remain visible, with a focusable heading fallback
 when a field is disabled. These shortcuts preserve the existing preview/Apply
 guards and selected scope.

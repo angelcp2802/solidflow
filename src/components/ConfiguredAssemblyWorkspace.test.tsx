@@ -156,7 +156,11 @@ it('exposes authoring shortcuts with mounted inspector targets and preserves sep
   for (const id of ['configured-component-name', 'configured-component-definition', 'configured-relation-inspector', 'configured-relations', 'configured-root-state']) {
     expect(html).toContain('aria-controls="' + id + '"'); expect(html).toContain('id="' + id + '"')
   }
-  for (const label of ['Insertar componente', 'Reutilizar componente', 'Nueva relación']) expect(html).toMatch(new RegExp('<button[^>]*disabled=""[^>]*>' + label + '</button>'))
+  const buttons = html.match(/<button\b[^>]*>[\s\S]*?<\/button>/g) ?? []
+  for (const label of ['Insertar componente', 'Reutilizar componente', 'Nueva relación']) {
+    const button = buttons.find(value => value.includes('<span>' + label + '</span>'))
+    expect(button).toMatch(/<button[^>]*disabled=""/)
+  }
   for (const id of ['configured-component-heading', 'configured-reuse-heading', 'configured-root-heading']) {
     expect(html).toContain(`data-inspector-anchor="${id}"`)
     expect(html).toContain(`id="${id}" tabindex="-1"`)

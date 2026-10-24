@@ -436,7 +436,7 @@ function installWorkerObserver(importedBodyDetails = false, structuralStep = fal
     }
     const toolbar = document.querySelector('.assembly-toolbar');
     if (toolbar) {
-      const buttons = [...toolbar.querySelectorAll('button')], apply = buttons.find(button => button.textContent.trim() === 'Aplicar');
+      const buttons = [...document.querySelectorAll(':is(.assembly-toolbar, .assembly-quickbar) button')], apply = buttons.find(button => button.textContent.trim() === 'Aplicar');
       const sample = { applyDisabled: apply?.disabled ?? null,
         saveDisabled: buttons.find(button => button.textContent.trim() === 'Guardar')?.disabled ?? null,
         stepExportDisabled: document.querySelector('button[aria-label="Exportar STEP plano del ensamblaje"]')?.disabled ?? null,
@@ -735,11 +735,11 @@ async function runInElectron() {
       const configured = !!document.querySelector('.configured-assembly-workspace');
       const root = document.querySelector(configured ? '.configured-assembly-workspace' : '.assembly-app');
       const toolbar = document.querySelector(configured ? '[aria-label="Archivo del ensamblaje configurado"]' : '.assembly-toolbar');
-      const button = text => { const rows = [...(toolbar?.querySelectorAll('button') ?? [])].filter(b => b.textContent.trim() === text); return { count: rows.length, disabled: rows.length === 1 ? rows[0].disabled : null }; };
+      const button = text => { const rows = [...(configured ? toolbar?.querySelectorAll('button') ?? [] : document.querySelectorAll(':is(.assembly-toolbar, .assembly-quickbar) button'))].filter(b => b.textContent.trim() === text); return { count: rows.length, disabled: rows.length === 1 ? rows[0].disabled : null }; };
       const update = document.querySelector('button[aria-label="Actualizar subensamblaje"]');
       return { configured, busy: root?.getAttribute('aria-busy') ?? null,
-        header: (document.querySelector(configured ? '.configured-assembly-workspace header' : '.assembly-header')?.textContent ?? '').slice(0, 300),
-        file: (document.querySelector('.assembly-file')?.textContent ?? '').slice(0, 100),
+        header: (document.querySelector(configured ? '.configured-assembly-workspace header' : '.assembly-shell-header')?.textContent ?? '').slice(0, 300),
+        file: (document.querySelector('.assembly-shell-file')?.textContent ?? '').slice(0, 100),
         open: button('Abrir'), save: button('Guardar'), update: { present: !!update, disabled: update?.disabled ?? null } };
     })()`, false);
     const sample = { phase, ordinal: saveCompletion.ordinal, nativeCompleted: saveCompletion.observation.completed,
@@ -834,12 +834,12 @@ async function runInElectron() {
       ? evaluate(`(() => { const t=document.querySelector('.document-title')?.textContent ?? ''; return !document.querySelector('.property-manager') && t.includes(${encodeJavaScriptString(expectedCapture.name)}) && !t.includes('*') && document.querySelector('.statusbar')?.textContent.includes('Listo'); })()`)
       : configurations
       ? evaluate(`(() => document.querySelector('.configured-assembly-workspace')?.getAttribute('aria-busy') === 'false'
-        && document.querySelector('.configured-assembly-workspace header strong')?.textContent === ${encodeJavaScriptString('SolidFlow · ' + expectedCapture.source?.name)}
+        && document.querySelector('.configured-assembly-workspace .assembly-shell-document > strong')?.textContent === ${encodeJavaScriptString(expectedCapture.source?.name)}
         && [...document.querySelectorAll('.configured-assembly-workspace button')].some(b => b.textContent.trim() === 'Aplicar configuración' && b.disabled))()` )
       : evaluate(`(() => {
-      const save = [...document.querySelectorAll('.assembly-toolbar button')].find(button => button.textContent.trim() === 'Guardar');
+      const save = [...document.querySelectorAll(':is(.assembly-toolbar, .assembly-quickbar) button')].find(button => button.textContent.trim() === 'Guardar');
       return document.querySelector('.assembly-app')?.getAttribute('aria-busy') === 'false'
-        && document.querySelector('.assembly-header > strong')?.textContent === ${encodeJavaScriptString(expectedCapture.name + (widthPreview ? ' *' : ''))}
+        && document.querySelector('.assembly-shell-document > strong')?.textContent === ${encodeJavaScriptString(expectedCapture.name + (widthPreview ? ' *' : ''))}
         && (${widthPreview ? 'true' : 'false'}
           ? document.querySelector('.assembly-canvas-label span')?.textContent === 'Vista previa · todavía sin aplicar'
             && document.querySelector('button[aria-label="Aplicar ensamblaje"]')?.disabled === false
