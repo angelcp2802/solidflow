@@ -101,8 +101,24 @@ module.exports = async function bomWorkflow(context) {
     [text('1.2'), text('part'), text(small), text('bom-small'), text('r1'), '1', '2', paths(allQ)],
     [text('2'), text('part'), text(common), text('bom-part'), text('r2'), '1', '1', paths(p2)],
   ], bomCsvOutputs[2]);
+  const bomState = () => page(selector => {
+    const panel = document.querySelector(selector);
+    return panel && { rows: panel.querySelector('tbody')?.textContent,
+      controls: [...panel.querySelectorAll('select,input')].map(el => [el.getAttribute('aria-label'), el.value, el.checked ?? null]) };
+  }, REGION);
+  const beforeTab = await bomState();
+  await assemblyNavigation.ribbon('assembly');
+  check(canonical(await bomState()) === canonical(beforeTab), 'Changing ribbon tab retains the open BOM rows, mode, filter and member choices.');
   await click('button[aria-label="Cerrar lista de materiales"]');
   await waitFor('BOM drawer closes without changing CAD state', () => page(selector => !document.querySelector(selector), REGION));
+  await waitFor('BOM close reveals Evaluar and restores visible trigger focus', () => page(() => {
+    const tab = document.querySelector('[data-assembly-command-tab="evaluate"]'), panel = document.querySelector('[data-assembly-command-panel="evaluate"]');
+    const trigger = document.querySelector('button[aria-label="Lista de materiales"]'), rect = trigger?.getBoundingClientRect();
+    return tab?.getAttribute('aria-selected') === 'true' && panel?.hidden === false && trigger && !trigger.disabled
+      && document.activeElement === trigger && !!rect?.width && !!rect.height && !trigger.closest('[hidden]')
+      && trigger.contains(document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2));
+  }));
+  phases.push({ phase: 'bom/ribbon-change-close-focus', tab: 'evaluate', focusedControl: 'Lista de materiales' });
   await click('button[aria-label="Lista de materiales"]'); await waitFor('BOM drawer reopens', () => page(selector => !!document.querySelector(selector), REGION));
   const final = await observe();
   check(final.serial === start.serial && await page(() => localStorage.getItem('solidflow.autosave')) === recovery && (await fsp.readFile(bomPath)).equals(original),

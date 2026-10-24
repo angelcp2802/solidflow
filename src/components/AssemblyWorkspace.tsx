@@ -19,7 +19,7 @@ import { validateAssemblyProfileFaceSelection } from '../model/assemblyProfileRe
 import { sameSymmetryReference, currentSymmetryPick, nextSymmetryPick, scopedAssemblySymmetryPick, symmetryPickForReference, symmetryPickProducer, type SymmetryPickTicket, type SymmetryPickSlot } from './assemblySymmetryPicking'
 import {assemblySymmetryUiProposal,assemblySymmetryUiReports,SYMMETRY_ROLE_LABELS,type SymmetryUiReferences,type SymmetryUiReference,type SymmetryUiFamily} from '../model/assemblySymmetryUi'
 import { AssemblyWidthMatePanel, AssemblyWidthSupportSummary, WIDTH_ROLE_LABELS, assemblyWidthUiReports, assemblyWidthUiProposal, type WidthUiReferences, type WidthUiSlot, type WidthUiBranch, type WidthPlaneChoice } from './AssemblyWidthMatePanel'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { ArrowDownToLine, FileInput, GitBranch, Move3D, ScanLine, Settings2, Box, Check, CircleDot, Component, Eye, FilePlus2, FolderOpen, Layers, Link2, List, Loader2, LockKeyhole, Plus, Redo2, Save, Trash2, Undo2, X } from 'lucide-react'
 import { applyAssemblyPreview, buildAssembly, captureAssemblyComponentLock, captureAssemblyGear, captureAssemblyRotationLock, captureAssemblyScrew, captureAssemblyRackPinion, discardAssemblyPreview, discardAssemblyPartReplacement, exportAssemblyCad, exportAssemblyStep, importAssemblyStep, insertAssemblyStep, inspectAssemblyInterferences, measureAssemblyDirectedAngle, moveAssemblyComponentMotion, projectAssemblyDrag, previewAssembly, previewAssemblyRootRevision, previewAssemblyPartReplacement, reviewAssemblyPartUpdate, reviewAssemblyPartReplacement, translateAssemblyUntilContact } from '../cad/kernel'
 import { assemblySceneFaceReference, assemblySceneCylinderSurfaceReference, assemblySceneSphereSurfaceReference, assemblySceneEdgeReference, type AssemblyGearCaptureRequest, type AssemblyScrewCaptureRequest, type AssemblyRackPinionCaptureRequest, type AssemblyPreviewReply, type AssemblyScene, type AssemblySceneFace, type AssemblySceneEdge, type AssemblySceneVertex } from '../cad/kernel.assembly-types'
@@ -80,6 +80,7 @@ import { evaluateAssemblyConfiguration } from '../model/assemblyConfigurationCor
 import { buildAssemblyOriginDisplay, type AssemblyOriginReference } from './assemblyOriginPicking'
 import { standardAssemblyOriginKinds, standardAssemblyOriginPick, type StandardAssemblyOriginPickTicket } from './assemblyStandardOriginPicking'
 import { AssemblyShellHeader, AssemblyCommandGroup, type AssemblyMenuDefinition } from './AssemblyCommandManager'
+import { AssemblyCommandTabs, type AssemblyCommandTab } from './AssemblyCommandTabs'
 import './assembly.css'
 import { parseCadDocument as parseSavedCadDocument } from '../model/cadDocument'
 import { createAssemblyConfiguredDocument, type AssemblyConfiguredDocument } from '../model/assemblyConfiguredDocument'
@@ -280,6 +281,7 @@ function downloadBomCsv(content: string, name: string): void {
 }
 
 export default function AssemblyWorkspace({ initialDocument, initialPath, initialSaved, onOpenPart, onOpenConfigured }: AssemblyWorkspaceProps) {
+  const [ribbonTab, setRibbonTab] = useState<AssemblyCommandTab>('assembly')
   const [managerTab, setManagerTab] = useState<'components' | 'relations' | 'evaluate'>('components')
   const managerTabRef = useRef(managerTab)
   const manager = useRef<HTMLElement>(null)
@@ -310,6 +312,12 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   const [directedMeasurement, setDirectedMeasurement] = useState<{ report: AssemblyDirectedAngleReport; ticket: AssemblyDirectedAngleTicket } | null>(null), directedPending = useRef(false)
   const [bomOpen, setBomOpen] = useState(false), [bomOptions, setBomOptions] = useState<AssemblyBomOptions>({ mode: 'parts-only', includeHidden: true })
   const bomToggle = useRef<HTMLButtonElement>(null), currentBomOptions = useRef(bomOptions); currentBomOptions.current = bomOptions
+  const restoreBomFocus = useRef(false)
+  useLayoutEffect(() => {
+    if (!restoreBomFocus.current || bomOpen || ribbonTab !== 'evaluate') return
+    restoreBomFocus.current = false
+    bomToggle.current?.focus({ preventScroll: true })
+  }, [bomOpen, ribbonTab])
   const [analysisClearance, setAnalysisClearance] = useState('1'), [includeHidden, setIncludeHidden] = useState(true), [includeWithinComponent, setIncludeWithinComponent] = useState(false), [treatSubassembliesAsComponents, setTreatSubassembliesAsComponents] = useState(false), analysisPending = useRef(false)
   const [analysisScope, setAnalysisScope] = useState<AssemblyInterferenceScope>({ mode: 'all', selected: [], excluded: [] })
   const [message, setMessage] = useState('Preparando ensamblaje…'), [error, setError] = useState(false), [selectedPath, setSelectedPath] = useState<string[]>([])
@@ -858,6 +866,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     return () => { window.removeEventListener('keydown', keyboard); if (previous instanceof HTMLElement && previous.isConnected) previous.focus() }
   }, [replaceDialog])
   const replace = (document: AssemblyDocument, filePath?: string, fileSaved?: string) => {
+    restoreBomFocus.current = false; setRibbonTab('assembly')
     linkedEpoch.current++; linkedTicket.current = null; linkedBindings.current.clear(); refreshLinked(v => v + 1)
     setEditingDirectionId(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null); setCylinderLarger(''); setSphereLarger('')
     invalidate(); setLimitDirectedSelection(['', '', '']); confirmedScene.current = null; sceneSignature.current = ''; setScene(null); history.current!.reset(document); setCommitted(validateAssemblyDocument(document)); setPath(filePath); setSaved(fileSaved ?? ''); setSelectedPath([]); setScopePath([]); setSourceKey(''); setEditingGearId(null); setEditingScrewId(null); setEditingRackId(null); setRackKeys(['', ''])
@@ -1967,6 +1976,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     </AssemblyShellHeader>
     <div className="assembly-command-manager">
       <nav className="assembly-toolbar" aria-label="Herramientas de ensamblaje">
+        <div className="assembly-command-panel" data-assembly-command-panel="assembly" id="standard-command-panel-assembly" role="tabpanel" aria-labelledby="standard-command-tab-assembly" hidden={ribbonTab !== 'assembly'}>
         <AssemblyCommandGroup label="Componentes">
           <button className="assembly-command-large" disabled={editingBlocked || replaceDialog} onClick={() => void open('insert')}><Plus size={25} /><span>Importar componente</span></button>
           <div className="assembly-command-stack">
@@ -1976,17 +1986,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
         </AssemblyCommandGroup>
         <AssemblyCommandGroup label="Relaciones y movimiento">
           <button className="assembly-command-large" aria-label="Relación de ensamblaje" onClick={() => openManager('relations', '[aria-label="Tipo de relación"]')}><Link2 size={25} /><span>Relación</span></button>
-          <div className="assembly-command-stack">
-            <button aria-label="Mover componente" disabled={!selected} onClick={() => openManager('components', '.assembly-movement h3')}><Move3D size={17} />Mover componente</button>
-            <button aria-label="Relaciones del ámbito" onClick={() => openManager('relations', '#assembly-existing-relations')}><List size={17} />Relaciones del ámbito</button>
-          </div>
-        </AssemblyCommandGroup>
-        <AssemblyCommandGroup label="Evaluar">
-          <button className="assembly-command-large" aria-label="Evaluar ensamblaje" onClick={() => openManager('evaluate', '.assembly-interference h2')}><ScanLine size={25} /><span>Interferencias</span></button>
-          <div className="assembly-command-stack">
-            <button ref={bomToggle} aria-label="Lista de materiales" aria-pressed={bomOpen} aria-controls="assembly-bom-panel" onClick={() => setBomOpen(value => !value)}><List size={19} />Lista de materiales</button>
-            <button aria-label="Exportar geometría del ensamblaje" onClick={() => openManager('evaluate', '#assembly-export-tools')}><ArrowDownToLine size={17} />Exportar</button>
-          </div>
+          <button aria-label="Mover componente" disabled={!selected} onClick={() => openManager('components', '.assembly-movement h3')}><Move3D size={17} />Mover componente</button>
         </AssemblyCommandGroup>
         <AssemblyCommandGroup label="Documento">
           <div className="assembly-command-stack">
@@ -1998,6 +1998,23 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
       }}><Settings2 size={17} />Configuraciones…</button>}
           </div>
         </AssemblyCommandGroup>
+        </div>
+        <div className="assembly-command-panel" data-assembly-command-panel="relations" id="standard-command-panel-relations" role="tabpanel" aria-labelledby="standard-command-tab-relations" hidden={ribbonTab !== 'relations'}>
+        <AssemblyCommandGroup label="Relaciones">
+          <div className="assembly-command-stack">
+            <button aria-label="Relaciones del ámbito" onClick={() => openManager('relations', '#assembly-existing-relations')}><List size={17} />Relaciones del ámbito</button>
+          </div>
+        </AssemblyCommandGroup>
+        </div>
+        <div className="assembly-command-panel" data-assembly-command-panel="evaluate" id="standard-command-panel-evaluate" role="tabpanel" aria-labelledby="standard-command-tab-evaluate" hidden={ribbonTab !== 'evaluate'}>
+        <AssemblyCommandGroup label="Evaluar">
+          <button className="assembly-command-large" aria-label="Evaluar ensamblaje" onClick={() => openManager('evaluate', '.assembly-interference h2')}><ScanLine size={25} /><span>Interferencias</span></button>
+          <div className="assembly-command-stack">
+            <button ref={bomToggle} aria-label="Lista de materiales" aria-pressed={bomOpen} aria-controls="assembly-bom-panel" onClick={() => setBomOpen(value => !value)}><List size={19} />Lista de materiales</button>
+            <button aria-label="Exportar geometría del ensamblaje" onClick={() => openManager('evaluate', '#assembly-export-tools')}><ArrowDownToLine size={17} />Exportar</button>
+          </div>
+        </AssemblyCommandGroup>
+        </div>
         <AssemblyCommandGroup label="Confirmación" className="assembly-confirm-commands">
           <button className="assembly-primary assembly-command-large" aria-label="Resolver ensamblaje" disabled={busy || !!rootRevision} onClick={() => void solve()}><CircleDot size={25} />Resolver</button>
           <div className="assembly-command-stack">
@@ -2006,11 +2023,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
           </div>
         </AssemblyCommandGroup>
       </nav>
-      <nav className="assembly-command-tabs" aria-label="Áreas de trabajo del ensamblaje">
-        <button aria-pressed={managerTab === 'components'} onClick={() => openManager('components')}>Ensamblaje</button>
-        <button aria-pressed={managerTab === 'relations'} onClick={() => openManager('relations', '[aria-label="Tipo de relación"]')}>Relaciones</button>
-        <button aria-pressed={managerTab === 'evaluate'} onClick={() => openManager('evaluate')}>Evaluar</button>
-      </nav>
+      <AssemblyCommandTabs kind="standard" value={ribbonTab} onChange={setRibbonTab} />
     </div>
     <main className="assembly-layout">
       <aside ref={manager} className={`assembly-manager-sidebar assembly-manager-${managerTab}`} aria-label="Gestor del ensamblaje">
@@ -2251,7 +2264,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     {bomOpen && <AssemblyBomPanel report={bom.report} error={bom.error} options={bomOptions} selectedPath={selectedPath} disabled={bomBlocked}
       onOptionsChange={options => { if (!operation.current && !hasStaging() && !currentPreview.current && !draft && !replaceDialog) setBomOptions(options) }}
       onSelect={componentPath => { if (!operation.current && !hasStaging() && !currentPreview.current && !draft && !replaceDialog) { setPickingFaces(false); if (fileTicket.current?.purpose === 'update' || linkedTicket.current) generation.current++; setSelectedPath(componentPath) } }}
-      onExport={() => void exportBom()} onClose={() => { setBomOpen(false); bomToggle.current?.focus() }} />}
+      onExport={() => void exportBom()} onClose={() => { restoreBomFocus.current = true; setBomOpen(false); setRibbonTab('evaluate') }} />}
     <footer className={`assembly-status ${error ? 'error' : ''}`} role="status" aria-live="polite">{busy && <Loader2 size={14} className="assembly-spinner" />}<span>{message}</span>{scene && <small>{scene.solidCount} sólidos · {scene.prototypeCount} orígenes · {scene.volume.toLocaleString(undefined, { maximumFractionDigits: 3 })} mm³</small>}</footer>
     {rootRevision && <AssemblyRootRevisionDialog id={committed.id} currentRevision={committed.revision} revision={rootRevision.revision} error={rootRevision.error}
       onRevision={revision => setRootRevision(value => value && { ...value, revision, error: '' })} onPreview={() => void previewRootRevision()} onCancel={() => setRootRevision(null)} />}

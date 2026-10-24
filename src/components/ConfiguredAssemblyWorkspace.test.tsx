@@ -20,6 +20,24 @@ it('renders the actual configured format and bounded controls without triggering
   for (const text of ['Ensamblaje configurado', 'Configuración raíz', 'Crear configuración basada en Base', 'Resolver configuración', 'Aplicar configuración', 'Piezas efectivas', 'Importar componente configurado', 'Definición registrada configurada', 'Inserción X en mm', 'Inserción Y en mm', 'Inserción Z en mm', 'left / a', 'right / b']) expect(html).toContain(text)
   expect(html).not.toContain(document.source.name + ' *'); expect(html).toContain('aún no están disponibles'); expect(buildConfiguredAssembly).not.toHaveBeenCalled()
   expect(html).toContain('Nueva relación mecánica configurada'); expect(html).toContain('Nueva relación compuesta configurada'); expect(html).not.toContain('las nuevas capturas mecánicas')
+  for (const tab of ['assembly', 'relations', 'evaluate']) {
+    expect(html).toMatch(new RegExp('<button(?=[^>]*id="configured-command-tab-' + tab + '")(?=[^>]*role="tab")(?=[^>]*aria-controls="configured-command-panel-' + tab + '")(?=[^>]*aria-selected="' + (tab === 'assembly') + '")[^>]*>'))
+    expect(html).toMatch(new RegExp('<div(?=[^>]*id="configured-command-panel-' + tab + '")(?=[^>]*role="tabpanel")(?=[^>]*aria-labelledby="configured-command-tab-' + tab + '")' + (tab === 'assembly' ? '(?![^>]* hidden=)' : '(?=[^>]* hidden="")') + '[^>]*>'))
+  }
+  const ribbon = html.slice(html.indexOf('aria-label="Comandos del ensamblaje configurado"'), html.indexOf('aria-label="Inspector del ensamblaje configurado"'))
+  const assemblyCommands = ribbon.slice(0, ribbon.indexOf('data-configured-command-panel="relations"'))
+  const relationCommands = ribbon.slice(ribbon.indexOf('data-configured-command-panel="relations"'), ribbon.indexOf('data-configured-command-panel="evaluate"'))
+  const confirmationStart = ribbon.search(/<div[^>]*role="group" aria-label="Resultado"/)
+  expect(confirmationStart).toBeGreaterThan(ribbon.indexOf('data-configured-command-panel="evaluate"'))
+  const evaluationCommands = ribbon.slice(ribbon.indexOf('data-configured-command-panel="evaluate"'), confirmationStart)
+  expect(assemblyCommands).toContain('aria-controls="configured-component-name"'); expect(assemblyCommands).toContain('aria-controls="configured-root-state"')
+  expect(assemblyCommands).toContain('aria-controls="configured-relation-inspector"')
+  expect(relationCommands).not.toContain('aria-controls="configured-relation-inspector"'); expect(relationCommands).toContain('aria-controls="configured-relations"')
+  expect(evaluationCommands).toContain('aria-label="Lista de materiales configurada"')
+  for (const commands of [assemblyCommands, relationCommands, evaluationCommands]) expect(commands).not.toContain('Aplicar configuración')
+  for (const label of ['Insertar componente', 'Nueva relación', 'Lista de materiales', 'Aplicar configuración', 'Resolver configuración'])
+    expect(ribbon.split('<span>' + label + '</span>')).toHaveLength(2)
+  expect(html).toContain('aria-label="Mostrar árbol del ensamblaje" aria-pressed="true"')
 })
 
 it('starts a genuinely empty root variant from Base instead of copying the selected child configuration', () => {

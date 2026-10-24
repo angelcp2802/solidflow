@@ -9,6 +9,7 @@ function withNavigation(context) {
   if (context.configured) return { ...context, assemblyNavigation: { panel: async () => {}, reveal: async () => {}, button: async () => {} } };
   const page = context.page || ((fn, ...args) => context.evaluate('(' + fn.toString() + ')(' + args.map(value =>
     'JSON.parse(' + encodeJavaScriptString(JSON.stringify(value)) + ')').join(',') + ')'));
+  const ribbon = require('./desktop-assembly-ribbon-navigation.cjs')({ configured: false, page, waitFor: context.waitFor, pointer: context.pointer });
   async function panel(name) {
     const target = await page(name => {
       if (!document.querySelector('.assembly-classic-workspace')) return null;
@@ -35,6 +36,7 @@ function withNavigation(context) {
     }, name));
   }
   async function reveal(selector, text = '') {
+    await ribbon.reveal(selector, text);
     const owner = await page((selector, text) => {
       const elements = [...document.querySelectorAll(selector)].filter(value => text === '' || value.textContent.trim() === text);
       if (elements.length !== 1) throw Error('Exact navigation target required: ' + selector + (text === '' ? '' : ' / ' + text));
@@ -48,7 +50,7 @@ function withNavigation(context) {
       if (elements.length !== 1 || element.closest('[hidden]') || !element.getClientRects().length) throw Error('Action target remains hidden or in an inactive panel: ' + selector);
     }, selector, text);
   }
-  const assemblyNavigation = { panel, reveal, button: (text, scope = '.assembly-app') => reveal(scope + ' button', text) };
+  const assemblyNavigation = { panel, ribbon: ribbon.tab, reveal, button: (text, scope = '.assembly-app') => reveal(scope + ' button', text) };
   return { ...context, assemblyNavigation, ...(context.click ? { click: async selector => { await reveal(selector); return context.click(selector); } } : {}) };
 }
 module.exports = { withNavigation };

@@ -7,6 +7,17 @@ Escape within the menu closes it and restores trigger focus without reaching
 the workspace's draft-cancellation handler. The part keyboard handler respects
 consumed events. Menu availability follows the current edit and history state.
 
+`AssemblyCommandTabs.tsx` controls a separate `ribbonTab` in both assembly
+workspaces. Selecting Ensamblaje, Relaciones or Evaluar changes command visibility
+without navigating the inspector, altering a draft or disarming reference picking.
+Each command remains mounted once in its owned tab panel; inactive panels use
+`hidden`. Ensamblaje contains insertion and the primary relation command,
+Relaciones contains the relation list, and Evaluar contains the available analysis
+commands. Solve/Apply/Cancel remain outside the hidden panels with their existing
+guards. Left/Right wrap between tabs; Home/End select the first/last tab. Only the
+selected tab is in the Tab sequence. Closing BOM reveals Evaluar and restores
+focus after commit; document replacement resets the ribbon to Ensamblaje.
+
 Starting a profile operation from a new or saved unused part sketch stages it
 without accepting it. The operation's source build, body-command validation,
 preview and acceptance use the same `operationDocument`, including the staged

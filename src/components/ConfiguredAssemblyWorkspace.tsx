@@ -1,6 +1,6 @@
 import ConfiguredAssemblyOccurrencePanel, { initialConfiguredOccurrenceFields, configuredOccurrenceUiIntent, configuredOccurrenceImportIntent, configuredOccurrenceReuseIntent } from './ConfiguredAssemblyOccurrencePanel'
 import type { AssemblyConfiguredOccurrenceEdit } from '../model/assemblyConfiguredOccurrenceEditing'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { buildConfiguredAssembly, previewConfiguredAssembly, previewConfiguredAssemblyRelationEdit, previewConfiguredAssemblyMechanicalEdit, previewConfiguredAssemblyOccurrenceEdit, applyConfiguredAssembly, discardConfiguredAssembly } from '../cad/kernel'
 import type { ConfiguredAssemblyPreviewReply } from '../cad/kernel.assembly-configuration-session'
 import type { ConfiguredAssemblyScene } from '../cad/kernel.assembly-configuration-scene'
@@ -26,6 +26,7 @@ import ConfiguredAssemblyCompoundPanel, { configuredCompoundUiDraft, configuredC
 import { configuredCompoundUiChoices, type ConfiguredCompoundUiChoices } from './configuredCompoundUiChoices'
 import { Box, Check, Component, FolderOpen, Layers, Link2, List, Play, Redo2, Save, Undo2, X } from 'lucide-react'
 import { AssemblyShellHeader, AssemblyCommandGroup, type AssemblyMenuDefinition } from './AssemblyCommandManager'
+import { AssemblyCommandTabs, type AssemblyCommandTab } from './AssemblyCommandTabs'
 import ConfiguredAssemblyTree from './ConfiguredAssemblyTree'
 import './assembly.css'
 import './configured-assembly.css'
@@ -53,6 +54,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
   const [mateDraft, setMateDraft] = useState<RelationDraft | null>(null), mateDraftRef = useRef(mateDraft), mateRevision = useRef(0), sceneRef = useRef(scene), committedSceneRef = useRef<ConfiguredAssemblyScene | null>(null)
   const [occurrenceFields, setOccurrenceFields] = useState(initialConfiguredOccurrenceFields)
   const [inspectorPane, setInspectorPane] = useState<'model' | 'configuration' | 'components' | 'occurrence' | 'relations' | 'relation'>('model')
+  const [ribbonTab, setRibbonTab] = useState<AssemblyCommandTab>('assembly')
   const inspector = useRef<HTMLElement>(null)
   const [revealRequest, setRevealRequest] = useState<{ id: string } | null>(null)
   const revealInspector = (id: string) => {
@@ -91,6 +93,12 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
   const [bomOpen, setBomOpen] = useState(false), [bomOptions, setBomOptions] = useState<ConfiguredAssemblyBomOptions>({ mode: 'parts-only', includeHidden: true, scopePath: [] })
   const [bomSelection, setBomSelection] = useState<{ serialized: string; member: ConfiguredAssemblyBomMember } | null>(null)
   const bomView = useRef({ open: bomOpen, options: bomOptions, revision: 0 }), bomToggle = useRef<HTMLButtonElement>(null)
+  const restoreBomFocus = useRef(false)
+  useLayoutEffect(() => {
+    if (!restoreBomFocus.current || bomOpen || ribbonTab !== 'evaluate' || busy) return
+    restoreBomFocus.current = false
+    bomToggle.current?.focus()
+  }, [bomOpen, ribbonTab, busy])
   const dialog = useRef<HTMLDivElement>(null)
   const current = useRef(document), epoch = useRef(generation), scopeRef = useRef(scope), occurrenceRef = useRef(occurrenceId), pathRef = useRef(path), mounted = useRef(false)
   const pending = useRef(preview), operation = useRef(false), skipRecovery = useRef(skipInitialRecoveryWrite)
@@ -247,7 +255,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
       const file = await window.solidflow.openDocument()
       if (!fresh(captured) || !file) return
       const next = parseCadDocument(file.content)
-      revoke(); onOpenDocument(next, file.path, file.content)
+      revoke(); restoreBomFocus.current = false; setRibbonTab('assembly'); onOpenDocument(next, file.path, file.content)
     } catch (reason) { if (fresh(captured)) error(reason) }
     finally { if (fresh(captured)) finish() }
   }
@@ -307,7 +315,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
     if (bomView.current.revision >= Number.MAX_SAFE_INTEGER) { error(Error('Vuelve a abrir el ensamblaje para continuar con la lista de materiales.')); return }
     bomView.current = { open, options: structuredClone(options), revision: bomView.current.revision + 1 }
     setBomOpen(open); setBomOptions(bomView.current.options); setBomSelection(null)
-    if (!open) bomToggle.current?.focus()
+    if (!open) { restoreBomFocus.current = true; setRibbonTab('evaluate') }
   }
   const exportBom = async () => {
     if (!freshBom(renderedBomTicket) || !bomView.current.open || operation.current || pending.current || mateDraftRef.current || !bom.report) return
@@ -418,31 +426,41 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
     </AssemblyShellHeader>
     <div className="assembly-command-manager configured-command-manager">
       <nav className="configured-command-bar" aria-label="Comandos del ensamblaje configurado">
+        <div className="assembly-command-panel" data-configured-command-panel="assembly" id="configured-command-panel-assembly" role="tabpanel" aria-labelledby="configured-command-tab-assembly" hidden={ribbonTab !== 'assembly'}>
         <AssemblyCommandGroup label="Componentes">
           <button className="assembly-command-large" aria-controls="configured-component-name" disabled={blocked || !!mateDraft || !scene || selectedScope.suppressed} onClick={() => { if (fresh(renderedTicket) && !operation.current && !pending.current) setRevealRequest({ id: 'configured-component-name' }) }}><Box size={20} aria-hidden="true" /><span>Insertar componente</span></button>
-          <div className="assembly-command-stack"><button aria-controls="configured-component-definition" disabled={blocked || !!mateDraft || !scene || selectedScope.suppressed} onClick={() => { if (fresh(renderedTicket) && !operation.current && !pending.current) setRevealRequest({ id: 'configured-component-definition' }) }}><Component size={20} aria-hidden="true" /><span>Reutilizar componente</span></button><button aria-controls="configured-root-state" onClick={() => setRevealRequest({ id: 'configured-root-state' })}><Layers size={20} aria-hidden="true" /><span>Configuraciones</span></button></div>
+          <button aria-controls="configured-component-definition" disabled={blocked || !!mateDraft || !scene || selectedScope.suppressed} onClick={() => { if (fresh(renderedTicket) && !operation.current && !pending.current) setRevealRequest({ id: 'configured-component-definition' }) }}><Component size={20} aria-hidden="true" /><span>Reutilizar componente</span></button>
         </AssemblyCommandGroup>
-        <AssemblyCommandGroup label="Relaciones de posición">
+        <AssemblyCommandGroup label="Relación de posición">
           <button className="assembly-command-large" aria-controls="configured-relation-inspector" disabled={blocked || !!mateDraft || !scene || selectedScope.suppressed} onClick={() => openRelationEditor()}><Link2 size={20} aria-hidden="true" /><span>Nueva relación</span></button>
-          <div className="assembly-command-stack"><button aria-controls="configured-relations" onClick={() => setRevealRequest({ id: 'configured-relations' })}><List size={20} aria-hidden="true" /><span>Relaciones</span></button><button onClick={() => void solve()} disabled={blocked || !!mateDraft || !scene}><Play size={20} aria-hidden="true" /><span>Resolver configuración</span></button></div>
         </AssemblyCommandGroup>
-        <AssemblyCommandGroup label="Resultado">
+        <AssemblyCommandGroup label="Configuraciones">
+          <button className="assembly-command-large" aria-controls="configured-root-state" onClick={() => setRevealRequest({ id: 'configured-root-state' })}><Layers size={20} aria-hidden="true" /><span>Configuraciones</span></button>
+        </AssemblyCommandGroup>
+        </div>
+        <div className="assembly-command-panel" data-configured-command-panel="relations" id="configured-command-panel-relations" role="tabpanel" aria-labelledby="configured-command-tab-relations" hidden={ribbonTab !== 'relations'}>
+        <AssemblyCommandGroup label="Relaciones de posición">
+          <button aria-controls="configured-relations" onClick={() => setRevealRequest({ id: 'configured-relations' })}><List size={20} aria-hidden="true" /><span>Relaciones</span></button>
+        </AssemblyCommandGroup>
+        </div>
+        <div className="assembly-command-panel" data-configured-command-panel="evaluate" id="configured-command-panel-evaluate" role="tabpanel" aria-labelledby="configured-command-tab-evaluate" hidden={ribbonTab !== 'evaluate'}>
+        <AssemblyCommandGroup label="Evaluar">
+          <button className="assembly-command-large" ref={bomToggle} aria-label="Lista de materiales configurada" aria-controls="configured-assembly-bom-panel" aria-pressed={bomOpen} disabled={busy} onClick={() => changeBomView(!bomOpen)}><List size={20} aria-hidden="true" /><span>Lista de materiales</span></button>
+        </AssemblyCommandGroup>
+        </div>
+        <AssemblyCommandGroup label="Resultado" className="assembly-command-confirmation">
           <button className="assembly-command-large" onClick={() => void apply()} disabled={busy || !preview}><Check size={20} aria-hidden="true" /><span>Aplicar configuración</span></button>
-          <div className="assembly-command-stack"><button onClick={() => { if (!fresh(renderedTicket) || operationKind.current !== 'build' && operationKind.current !== 'solve' && (operation.current || !pending.current)) return; revoke(0, undefined, !!mateDraftRef.current); setFailure(null); setMessage('Vista previa cancelada. Se conserva el documento confirmado.') }} disabled={!cancelable && (!preview || busy)}><X size={20} aria-hidden="true" /><span>Cancelar</span></button><button ref={bomToggle} aria-label="Lista de materiales configurada" aria-controls="configured-assembly-bom-panel" aria-pressed={bomOpen} disabled={busy} onClick={() => changeBomView(!bomOpen)}><List size={20} aria-hidden="true" /><span>Lista de materiales</span></button></div>
+          <div className="assembly-command-stack"><button onClick={() => void solve()} disabled={blocked || !!mateDraft || !scene}><Play size={20} aria-hidden="true" /><span>Resolver configuración</span></button><button onClick={() => { if (!fresh(renderedTicket) || operationKind.current !== 'build' && operationKind.current !== 'solve' && (operation.current || !pending.current)) return; revoke(0, undefined, !!mateDraftRef.current); setFailure(null); setMessage('Vista previa cancelada. Se conserva el documento confirmado.') }} disabled={!cancelable && (!preview || busy)}><X size={20} aria-hidden="true" /><span>Cancelar</span></button></div>
         </AssemblyCommandGroup>
       </nav>
-      <nav className="assembly-command-tabs" aria-label="Pestañas del ensamblaje configurado">
-        <button aria-pressed={inspectorPane === 'model' || inspectorPane === 'occurrence'} onClick={() => setRevealRequest({ id: 'configured-model-tree' })}>Ensamblaje</button>
-        <button aria-pressed={inspectorPane === 'components'} onClick={() => setRevealRequest({ id: 'configured-component-name' })}>Componentes</button>
-        <button aria-pressed={inspectorPane === 'relation' || inspectorPane === 'relations'} onClick={() => setRevealRequest({ id: mateDraft ? 'configured-relation-inspector' : 'configured-relations' })}>Relaciones de posición</button>
-        <button aria-pressed={inspectorPane === 'configuration'} onClick={() => setRevealRequest({ id: 'configured-root-state' })}>Configuraciones</button>
-      </nav>
+      <AssemblyCommandTabs kind="configured" value={ribbonTab} onChange={setRibbonTab} />
     </div>
     <div className="configured-assembly-layout"><aside ref={inspector} aria-label="Inspector del ensamblaje configurado">
       <div className="configured-inspector-tabs" aria-label="Panel del ensamblaje">
         <button title="Árbol del ensamblaje" aria-label="Mostrar árbol del ensamblaje" aria-pressed={inspectorPane === 'model'} onClick={() => setRevealRequest({ id: 'configured-model-tree' })}><Layers size={17} /></button>
         <button title="Propiedades del componente" aria-label="Mostrar propiedades del componente" aria-pressed={inspectorPane === 'occurrence'} onClick={() => { setRevealRequest(null); setInspectorPane('occurrence') }}><Box size={17} /></button>
         <button title="Configuraciones" aria-label="Mostrar configuraciones" aria-pressed={inspectorPane === 'configuration'} onClick={() => setRevealRequest({ id: 'configured-root-state' })}><Component size={17} /></button>
+        <button title="Relación de posición" aria-label="Mostrar relación de posición" aria-pressed={inspectorPane === 'relation' || inspectorPane === 'relations'} onClick={() => setRevealRequest({ id: mateDraft ? 'configured-relation-inspector' : 'configured-relations' })}><Link2 size={17} /></button>
         <span>{inspectorPane === 'relation' ? 'Relación de posición' : inspectorPane === 'components' ? 'Componentes' : inspectorPane === 'configuration' ? 'Configuraciones' : inspectorPane === 'occurrence' ? 'Propiedades' : 'Modelo'}</span>
       </div>
       <div data-configured-pane="model" hidden={inspectorPane !== 'model'}>

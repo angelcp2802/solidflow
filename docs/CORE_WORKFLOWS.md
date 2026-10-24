@@ -153,11 +153,20 @@ componentes / Propiedades de relación**; the configured workspace uses
 the left manager while retaining its fields; leaving the editor disarms
 temporary reference picking.
 
-In a standard assembly,
-**Ensamblaje / Componentes** shows the tree, **Relaciones** opens relation
-properties and **Evaluar** opens measurement, interference and export controls.
-The upper commands route to those same panels. Applying a preview still requires
-the existing native verification; the check mark does not bypass it.
+The upper **Ensamblaje / Relaciones / Evaluar** tabs choose command groups
+independently of the left inspector. Changing tabs keeps its draft and active
+reference picking. **Ensamblaje** contains insertion and **Relación / Nueva
+relación**, plus movement and document tools in the standard workspace or
+configuration tools in the configured workspace. **Relaciones** offers the current
+relation list. **Evaluar** contains the material list in both workspaces, with
+interference and geometry export commands in the standard workspace.
+
+With a command tab focused, Left/Right select the previous/next tab and wrap;
+Home/End select the first/last. Tab leaves the selected tab. Solve, Apply and
+Cancel remain visible with their existing availability rules. Closing the
+material list reveals Evaluar and returns focus to its command. Use the left
+manager tabs or an explicit command to open an editor. Applying a preview still
+requires the existing native verification; the check mark does not bypass it.
 
 In configured assemblies, selecting a component does not force its editor open.
 The model tree stays visible when selecting its components.

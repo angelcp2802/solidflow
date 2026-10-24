@@ -1,5 +1,64 @@
 # Validation
 
+## Contextual assembly commands — 2026-10-25
+
+The increment after `2823142e` separates upper command-tab presentation from
+the standard manager and configured inspector. Ensamblaje retains component
+insertion and the primary relation action; Relaciones exposes the relation list;
+Evaluar exposes the existing analysis/BOM commands. Confirmation stays outside
+the hidden panels. No solver, geometric tolerance or workflow deadline changes.
+
+Windows x64 / Node 24.11.1 / actual Electron 44.9.3:
+
+- Literal `npm test` passes 9,406 unit/CAD cases across 408 files in 623.55
+  seconds, then 83 IPC/security cases with two explicit platform skips. The
+  application and unit-test inputs were frozen for this run; subsequent
+  harness-only BOM additions were exercised by their renderer workflows.
+- Final production build and loader/worker/WASM desktop smoke pass.
+- All 1,075 non-Markdown source inputs match the isolated runtime, with zero
+  differences. No local research or generated artifact is part of that source.
+- The standard and configured origin-axis renderers pass 156 and 262 checkpoints.
+  Actual CDP tab presses and Left/Right/Home/End keys preserve draft and verified
+  preview fields, references, inspector state, picking mode, confirmation guards,
+  recovery text and native request serial. Their previous original-prism geometry,
+  Cancel/retry, Apply, history and real Save As/reopen checks remain.
+- The 1040×700 configured pointer case passes 203 checkpoints. All confirmation
+  controls remain visible during tab navigation; the original component/face/LINE
+  pointer workflow retains its 128 mm³ volume and 192 mm² area oracles (1e-5),
+  literal placement/bounds checks (1e-6 mm), history and file reopening.
+- Configured persistence/BOM passes 140 checkpoints. Scripted tab changes preserve
+  the open BOM's rows/options; closing reveals Evaluar and focuses its visible,
+  hit-testable trigger. Existing pending CSV export checks remain separate.
+- Standalone rigid persistence/BOM passes 553 recorded checkpoints, including
+  five finalization timing records. Scripted BOM tab changes preserve rows/options
+  and closing returns to its visible, focused trigger; existing native geometry,
+  history, CSV and real saved-document reopening checks remain.
+- These renderer reports contain no console/resource errors and confirm isolated
+  child/profile cleanup. Static tab tests cover both workspace identities and
+  all selected values; they do not establish actual focus or CAD behavior.
+- Final captures at 1544×941 and 1024×661 were inspected. A separate visible
+  Windows demo confirms component selection, primary relation access, retained
+  inspector across tabs/Home and BOM open/tab-change/close. It applies no relation.
+
+The first configured origin run reached both tab-preservation phases but attempted
+to reuse the editor after Cancel before the committed scene finished rebuilding.
+Recovery equality and a transient idle flag were insufficient. The final harness
+waits for the later native build of the exact committed document and a visible,
+enabled editor, with bounded diagnostics. Application guards are unchanged.
+
+One rigid persistence run, concurrent with the full unit suite, reached 522
+checkpoints before its unchanged 170-second child deadline. The subsequent
+standalone run passes; concurrency is not established as the hosted failure's
+cause, and no deadline or acceptance check was relaxed.
+
+The predecessor `c4ff07c` passes all nine renderer and all three configured-authoring
+jobs in [CI](https://github.com/angelcp2802/solidflow/actions/runs/40139215488), including
+the previously failing Windows/macOS part-tree context route. Its three downstream
+Desktop jobs are still running at this observation. Its
+[Security](https://github.com/angelcp2802/solidflow/actions/runs/40139215494) passes.
+This is evidence for that predecessor, not hosted acceptance of this increment,
+arbitrary topology or installed-package/platform support.
+
 ## Collapsible part history and input navigation — 2026-10-25
 
 The increment after `d248d9df` adds operation disclosure, retained selection,

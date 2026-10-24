@@ -2,13 +2,15 @@
 const fs=require('node:fs/promises');
 const {encodeJavaScriptString:quote}=require('./desktop-ui-source.cjs');
 module.exports=function configuredPicking(c){
- const {expected,input,output,evaluate,observe,waitFor,click,pointer,asideWheel,capture,checks,check,canonical,digest,ipc,dialogCounts,consoleErrors,failedRequests,initialReadyMs}=c;
+ const {expected,input,output,evaluate,observe,waitFor,click,pointer,menuKey,asideWheel,capture,checks,check,canonical,digest,ipc,dialogCounts,consoleErrors,failedRequests,initialReadyMs}=c;
  const ROOT='.configured-assembly-workspace',NAV=':is([aria-label="Archivo del ensamblaje configurado"],[aria-label="Comandos del ensamblaje configurado"])',FORM='[aria-label="Editar relación del estado"]',ACTION='preview-configured-assembly-relation-edit',gestures=[],phases=[];
  const page=(fn,...args)=>evaluate('('+fn.toString()+')('+args.map(v=>'JSON.parse('+quote(JSON.stringify(v))+')').join(',')+')');
  const navigation=require('./desktop-configured-navigation.cjs')({page,waitFor,actualControl});
+ const ribbon=require('./desktop-assembly-ribbon-controls.cjs')({configured:true,page,waitFor,actualControl,menuKey,observe,check,canonical,gestures});
  const near=(a,b,t,label)=>check(Number.isFinite(a)&&Math.abs(a-b)<=t,label+': '+a+' expected '+b);
  async function button(text,parent=ROOT){ await navigation.reveal(parent+' button',text); await page((text,parent)=>{const a=[...document.querySelectorAll(parent+' button')].filter(b=>b.textContent.trim()===text);if(a.length!==1||a[0].disabled)throw Error('One enabled button required: '+text);a[0].click();},text,parent);}
  async function actualControl(selector,text=null,allowAsideWheel=false){
+  await navigation.reveal(selector,text??'');
   const inspect=()=>page((selector,text)=>{
    const matches=[...document.querySelectorAll(selector)].filter(e=>text===null||e.textContent.trim()===text);
    if(matches.length!==1||matches[0].disabled)throw Error('One enabled actual control required: '+selector);
@@ -113,7 +115,8 @@ module.exports=function configuredPicking(c){
   const inputBytes=await fs.readFile(input);let before=await observe();await click('button[aria-label="Abrir (Ctrl+O)"]');await waitFor('owned discard dialog',()=>page(()=>!!document.querySelector('[role="dialog"][aria-labelledby="discard-title"]')));await button('Continuar sin guardar','[role="dialog"][aria-labelledby="discard-title"]');let row=await response(before.serial,'build-configured-assembly');check(canonical(row.current.document)===canonical(expected),'Original full v3 imported');let scene=geometry(row.response.value,expected,6,'initial');await recovery(expected);
   await component('A',6);await component('B',6);
   await draft('distance','Pointer top distance');await leaveArmedRelation(6);const faces=[await pick(1,'face','B',6,scene),await pick(2,'face','A',6,scene)];await control('Distancia de relación configurada en mm','2');
-  const staged=await preview(expected,2,faces,'distance');before=await observe();await button('Cancelar',NAV);await response(before.serial,'discard-configured-assembly');row=await response(before.serial,'build-configured-assembly');geometry(row.response.value,expected,6,'cancel');await recovery(expected);
+  await ribbon.retained('relation-draft');
+  const staged=await preview(expected,2,faces,'distance');await ribbon.retained('verified-preview');before=await observe();await button('Cancelar',NAV);await response(before.serial,'discard-configured-assembly');row=await response(before.serial,'build-configured-assembly');geometry(row.response.value,expected,6,'cancel');await recovery(expected);
   let current=await preview(expected,2,faces,'distance');check(canonical(current)===canonical(staged),'Cancel retry retains authored declaration');scene=await apply(current,2);await history('Deshacer',expected,6);await history('Rehacer',current,2);
   await component('B',2);await draft('parallel','Pointer top LINE parallel');const lines=[await pick(1,'edge','A',2,scene),await pick(2,'edge','B',2,scene)];const distanceDoc=current;current=await preview(current,2,lines,'parallel');scene=await apply(current,2);await history('Deshacer',distanceDoc,2);await history('Rehacer',current,2);
   await button('Guardar como',NAV);await waitFor('canceled Save As',()=>ipc.filter(e=>e.channel==='document:save'&&e.completed).length===1);await recovery(current);await button('Guardar como',NAV);await waitFor('actual saved v3',async()=>{try{return ipc.filter(e=>e.channel==='document:save'&&e.completed).length===2&&canonical(JSON.parse(await fs.readFile(output,'utf8')))===canonical(current);}catch(e){if(e.code==='ENOENT')return false;throw e;}});
@@ -125,7 +128,7 @@ module.exports=function configuredPicking(c){
   await button('Isométrica','[aria-label="Vistas del ensamblaje configurado"]');
   await revealedInspector();
   await recovery(current);check((await observe()).serial===before.serial,'Opening saved references is display-only');
-  check((await fs.readFile(input)).equals(inputBytes),'Original fixture unchanged');check(dialogCounts().opens===2&&dialogCounts().saves===2,'Exact original/reopen and canceled/successful Save dialogs');check(!consoleErrors.length&&!failedRequests.length,'Healthy renderer/resources');checks.push({savedSha256:digest(saved),originalSha256:digest(inputBytes),gestures,phases,limits:'Original two cubes, named root, top planar distance and X LINE parallel. Actual CDP geometry picks; form controls scripted. Final capture displays the reopened saved distance editor. No nested/suppressed picking or general platform claim.'});await capture(current);
+  check((await fs.readFile(input)).equals(inputBytes),'Original fixture unchanged');check(dialogCounts().opens===2&&dialogCounts().saves===2,'Exact original/reopen and canceled/successful Save dialogs');check(!consoleErrors.length&&!failedRequests.length,'Healthy renderer/resources');checks.push({savedSha256:digest(saved),originalSha256:digest(inputBytes),gestures,phases,limits:'Original two cubes, named root, top planar distance and X LINE parallel. Actual CDP geometry picks and ribbon pointer/keyboard navigation; form controls scripted. Ribbon tabs retain draft and verified-preview fields, recovery, inspector state, confirmation guards and native request serial. Final capture displays the reopened saved distance editor. No nested/suppressed picking or general platform claim.'});await capture(current);
   await button('Cerrar edición de relación configurada',FORM);
   await waitFor('saved editor closed before owned window teardown',()=>page(form=>!document.querySelector(form),FORM));await recovery(current);
  };

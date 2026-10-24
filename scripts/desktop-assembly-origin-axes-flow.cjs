@@ -19,9 +19,11 @@ module.exports = function originAxesWorkflow(c) {
   const page = (fn, ...args) => evaluate('(' + fn.toString() + ')(' + args.map(value => 'JSON.parse(' + encodeJavaScriptString(JSON.stringify(value)) + ')').join(',') + ')');
   const navigation = configured ? require('./desktop-configured-navigation.cjs')({page,waitFor,actualControl}) : null;
   const menus = require('./desktop-assembly-menu-controls.cjs')({ configured, page, waitFor, actualControl, menuKey, observe, check, gestures: selectionGestures });
+  const ribbon = require('./desktop-assembly-ribbon-controls.cjs')({ configured, page, waitFor, actualControl, menuKey, observe, check, canonical, gestures: selectionGestures });
   const near = (actual, wanted, tolerance, name) => check(Number.isFinite(actual) && Math.abs(actual - wanted) <= tolerance,
     name + ': actual=' + actual + ', expected=' + wanted);
   async function actualControl(selector, text = null, allowAsideWheel = false) {
+    if (navigation) await navigation.reveal(selector, text ?? ''); else await assemblyNavigation.reveal(selector, text ?? '');
     const inspect = () => page((selector, text) => {
       const matches = [...document.querySelectorAll(selector)].filter(e => text === null || e.textContent.trim() === text);
       if (matches.length !== 1 || matches[0].disabled || matches[0].closest('[hidden]')) throw Error('One visible enabled actual control required: ' + selector);
@@ -303,8 +305,28 @@ module.exports = function originAxesWorkflow(c) {
     await button('Continuar sin guardar', '[role="dialog"][aria-labelledby="discard-title"]');
     let row = await response(before.serial, BUILD); check(canonical(configured ? row.current.document : row.document) === canonical(expected), 'Actual original opened through file IPC');
     geometry(row.response.value, expected, 0, 'initial'); await recovery(expected); await selectMoving(); await menus.initial();
-    await draft(1); await menus.retainedDraft(references, canonical); const rejectedCommit = await preview(expected, 1); await recovery(expected);
+    await draft(1); await menus.retainedDraft(references, canonical); await ribbon.retained('relation-draft');
+    const rejectedCommit = await preview(expected, 1); await recovery(expected); await ribbon.retained('verified-preview');
+    const cancelSerial = (await observe()).serial;
     if (configured) await button('Cancelar', NAV); else await click('button[aria-label="Cancelar vista previa del ensamblaje"]');
+    if (configured) {
+      // Cancel clears the preview scene before its committed-scene rebuild starts.
+      // Recovery equality plus a transient aria-busy=false is not editor readiness.
+      const restored = await response(cancelSerial, BUILD);
+      check(canonical(restored.current.document) === canonical(expected), 'Cancel rebuild uses the exact committed configured document');
+      const inspect = () => page(() => {
+        const fields = [...document.querySelectorAll('[aria-label="Tipo de relación configurada"]')];
+        const field = fields[0], pane = field?.closest('[data-configured-pane]');
+        return { count: fields.length, disabled: field?.disabled ?? null,
+          pane: pane?.getAttribute('data-configured-pane') ?? null, hidden: pane?.hidden ?? null,
+          visible: !!field && !field.closest('[hidden]') && field.getClientRects().length > 0,
+          busy: document.querySelector('.configured-assembly-workspace')?.getAttribute('aria-busy') ?? null };
+      });
+      await waitFor('Cancel rebuild restores the retained configured relation editor', async () => {
+        const state = await inspect();
+        return state.count === 1 && state.disabled === false && state.pane === 'relation' && state.hidden === false && state.visible && state.busy === 'false';
+      }).catch(async error => { error.message += '; retainedEditor=' + JSON.stringify(await inspect()); throw error; });
+    }
     await recovery(expected); await draft(1); let proposed = await preview(expected, 1);
     const intents = doc => declarations(doc).map(({ id, ...intent }) => intent);
     check(canonical(intents(proposed)) === canonical(intents(rejectedCommit)), 'Canceled draft preserves the same complete relation intent');
@@ -323,7 +345,7 @@ module.exports = function originAxesWorkflow(c) {
     check(dialogCounts().opens === 2 && dialogCounts().saves === (configured ? 2 : 1), 'Exact native Open/Save dialog count');
     check(!consoleErrors.length && !failedRequests.length, 'No console or resource failures');
     checks.push({ scenario: configured ? 'configured-origin-axes' : 'origin-axes', phases, selectionGestures,
-      selectionLimits: 'Actual CDP menu pointer/keyboard navigation, component, visibility, role and projected-origin label presses; owner/type/name/value form controls scripted and visible. Configured owner changes preserve the open draft and allow both component origins before restoring the root/component oracle. One incompatible concentric plane rejected; one eligible angle plane replaced before preview. Existing geometry, history and file oracles unchanged.',
+      selectionLimits: 'Actual CDP menu and ribbon pointer/keyboard navigation, component, visibility, role and projected-origin label presses; owner/type/name/value form controls scripted and visible. Ribbon tabs preserve draft and verified-preview fields, recovery, inspector state, confirmation guards and native request serial. Configured owner changes preserve the open draft and allow both component origins before restoring the root/component oracle. One incompatible concentric plane rejected; one eligible angle plane replaced before preview. Existing geometry, history and file oracles unchanged.',
       savedSha256: digest(savedBytes), sourceSha256: digest(sourceBytes) });
     await capture(current);
   };

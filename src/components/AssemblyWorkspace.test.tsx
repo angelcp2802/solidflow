@@ -71,6 +71,25 @@ it('renders the real assembly controls and keeps Apply blocked before an actual 
   expect(html).toContain('aria-label="Crear revisión del ensamblaje"'); expect(html).toContain('Crear revisión…')
   expect(html).not.toContain('id="assembly-root-revision-title"')
   // SSR proves the initial navigation contract only; desktop flows exercise tabs.
+  for (const tab of ['assembly', 'relations', 'evaluate']) {
+    expect(html).toMatch(new RegExp('<button(?=[^>]*id="standard-command-tab-' + tab + '")(?=[^>]*role="tab")(?=[^>]*aria-controls="standard-command-panel-' + tab + '")(?=[^>]*aria-selected="' + (tab === 'assembly') + '")[^>]*>'))
+    expect(html).toMatch(new RegExp('<div(?=[^>]*id="standard-command-panel-' + tab + '")(?=[^>]*role="tabpanel")(?=[^>]*aria-labelledby="standard-command-tab-' + tab + '")' + (tab === 'assembly' ? '(?![^>]* hidden=)' : '(?=[^>]* hidden="")') + '[^>]*>'))
+  }
+  const ribbon = html.slice(html.indexOf('aria-label="Herramientas de ensamblaje"'), html.indexOf('id="assembly-tab-components"'))
+  const assemblyCommands = ribbon.slice(0, ribbon.indexOf('data-assembly-command-panel="relations"'))
+  const relationCommands = ribbon.slice(ribbon.indexOf('data-assembly-command-panel="relations"'), ribbon.indexOf('data-assembly-command-panel="evaluate"'))
+  const confirmationStart = ribbon.search(/<div[^>]*role="group" aria-label="Confirmación"/)
+  expect(confirmationStart).toBeGreaterThan(ribbon.indexOf('data-assembly-command-panel="evaluate"'))
+  const evaluationCommands = ribbon.slice(ribbon.indexOf('data-assembly-command-panel="evaluate"'), confirmationStart)
+  expect(assemblyCommands).toContain('Importar componente'); expect(assemblyCommands).toContain('aria-label="Mover componente"')
+  expect(assemblyCommands).toContain('aria-label="Relaciones y movimiento"'); expect(assemblyCommands).toContain('aria-label="Relación de ensamblaje"')
+  expect(assemblyCommands).not.toContain('aria-label="Relaciones del ámbito"')
+  expect(relationCommands).toContain('aria-label="Relaciones del ámbito"'); expect(relationCommands).not.toContain('aria-label="Relación de ensamblaje"')
+  expect(relationCommands).not.toContain('aria-label="Mover componente"')
+  expect(evaluationCommands).toContain('aria-label="Lista de materiales"'); expect(evaluationCommands).toContain('aria-label="Exportar geometría del ensamblaje"')
+  for (const commands of [assemblyCommands, relationCommands, evaluationCommands]) expect(commands).not.toContain('aria-label="Aplicar ensamblaje"')
+  for (const label of ['Relación de ensamblaje', 'Relaciones del ámbito', 'Lista de materiales', 'Aplicar ensamblaje', 'Cancelar vista previa del ensamblaje'])
+    expect(ribbon.split('aria-label="' + label + '"')).toHaveLength(2)
   expect(html).toMatch(/<button(?=[^>]*id="assembly-tab-components")(?=[^>]*aria-selected="true")(?=[^>]*aria-controls="assembly-panel-components")[^>]*>/)
   expect(html).toMatch(/<div(?=[^>]*id="assembly-panel-components")(?![^>]* hidden=)[^>]*>/)
   for (const panel of ['relations', 'evaluate']) {

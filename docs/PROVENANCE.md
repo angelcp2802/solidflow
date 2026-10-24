@@ -1,5 +1,15 @@
 # Public fixture provenance
 
+## Assembly command-tab navigation
+
+The shared ribbon tests author only tab values and inspect static accessible
+ownership. Renderer navigation reuses the original origin-axis prisms and
+configured pointer cubes below. Actual CDP tab presses and fixed keyboard keys
+compare existing fields, inspector state, recovery and native request serial
+before and after navigation. BOM close/focus checks reuse the existing original
+BOM catalogs and use scripted controls. No new model or external asset is added;
+the existing independent geometry and file-persistence oracles are unchanged.
+
 ## Part feature-tree presentation
 
 `src/model/partFeatureTree.test.ts` authors small sketch, extrusion, sweep and

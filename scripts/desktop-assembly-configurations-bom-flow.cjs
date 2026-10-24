@@ -3,7 +3,8 @@ const fs=require('node:fs/promises');
 // Original prism dimensions and catalog selectors are literal oracles here.
 // No product BOM builder/CSV serializer computes this renderer's expectations.
 module.exports=async function configuredBomWorkflow(c){
- const {page,button,control,response,recovery,geometry,savedDocument,savedBytes,originalBytes,input,output,bomCsvOutputs,csvBarrier,observe,waitFor,click,check,canonical,digest,ipc,dialogCounts,checks}=c;
+ const {page,button,control,response,recovery,geometry,savedDocument,savedBytes,originalBytes,input,output,bomCsvOutputs,csvBarrier,observe,waitFor,click:rawClick,check,canonical,digest,ipc,dialogCounts,checks}=c;
+ async function click(selector){await c.navigation.reveal(selector);await rawClick(selector);}
  const ROOT='.configured-assembly-workspace',PANEL='[aria-label="Lista de materiales de la configuración"]',MODE='Modo de lista de materiales configurada',RANGE='Ámbito de lista de materiales configurada',HIDDEN='Incluir ocultos en lista de materiales configurada',EXPORT='Exportar lista de materiales configurada CSV';
  const bomPhases=[];
  const rows=()=>page(panel=>[...document.querySelectorAll(panel+' [data-configured-bom-row]')].map(el=>({definition:JSON.parse(el.dataset.bomDefinition),configuration:JSON.parse(el.dataset.bomConfiguration),total:Number(el.dataset.bomQuantityTotal),perParent:el.dataset.bomQuantityPerParent===''?null:Number(el.dataset.bomQuantityPerParent),selected:el.dataset.selectedMember??null,members:[...el.querySelectorAll('select option')].filter(o=>o.value).map(o=>JSON.parse(o.value))})),PANEL);
@@ -20,6 +21,20 @@ module.exports=async function configuredBomWorkflow(c){
  function assertCsv(bytes,configuration,scope,wanted){const all=parseCsv(bytes),headers=['Item','Type','Name','Definition ID','Revision','Configuration','Quantity per parent','Total quantity','Occurrence paths','Configuration ancestry','Root configuration','Scope path','Source link name','Source link SHA-256'];check(canonical(all[0])===canonical(headers),'Literal configured CSV headers');check(all.length===wanted.length+1,'Exact exported row count');const parsed=all.slice(1).map(row=>{check(row.length===14,'Exact fourteen fields');for(const index of [0,1,2,3,4,5,8,9,10,11,12,13])check(row[index].startsWith("'"),'Every exported text cell is apostrophe-prefixed');const plain=row.map((value,i)=>[6,7].includes(i)?value:value.slice(1));check(plain[10]===JSON.stringify(configuration)&&plain[11]===JSON.stringify(scope),'Captured root selector and full root scope in CSV');const members=JSON.parse(plain[8]),ancestries=JSON.parse(plain[9]);check(members.length===Number(plain[7])&&ancestries.length===members.length,'Each CSV quantity matches exact member paths/ancestries');members.forEach((path,i)=>{const ancestry=ancestries[i];check(ancestry.length===2&&canonical(ancestry[0])===canonical({path:[],definition:{id:'configuration-root',revision:'root-r1'},configuration})&&canonical(ancestry[1])===canonical({path:[path[0]],definition:{id:'configuration-S',revision:'s-r1'},configuration:'compact'}),'Literal full root/child state ancestry');});return [plain[3],JSON.parse(plain[5]),plain[6]===''?null:Number(plain[6]),Number(plain[7]),members];});check(canonical(parsed)===canonical(wanted),'Actual CSV rows, identities, quantities and ROOT paths match independent literals');return digest(bytes);}
  await click('button[aria-label="Lista de materiales configurada"]');await table('both compact parts',PARTS);
  const readOnly=await snapshot(),serial=(await observe()).serial;
+ const bomState=()=>page(panel=>{const el=document.querySelector(panel);return el&&{rows:el.querySelector('tbody')?.textContent,controls:[...el.querySelectorAll('select,input')].map(control=>[control.getAttribute('aria-label'),control.value,control.checked??null])};},PANEL);
+ const beforeTab=await bomState();await c.navigation.ribbon('assembly');
+ check(canonical(await bomState())===canonical(beforeTab),'Changing configured ribbon tab retains the open BOM rows, mode, range and member choices');
+ await click('button[aria-label="Cerrar lista de materiales configurada"]');
+ await waitFor('Configured BOM close reveals Evaluar and restores visible trigger focus',()=>page(panel=>{
+  const tab=document.querySelector('[data-configured-command-tab="evaluate"]'),commands=document.querySelector('[data-configured-command-panel="evaluate"]');
+  const trigger=document.querySelector('button[aria-label="Lista de materiales configurada"]'),rect=trigger?.getBoundingClientRect();
+  return !document.querySelector(panel)&&tab?.getAttribute('aria-selected')==='true'&&commands?.hidden===false&&trigger&&!trigger.disabled
+   &&document.activeElement===trigger&&!!rect?.width&&!!rect.height&&!trigger.closest('[hidden]')
+   &&trigger.contains(document.elementFromPoint(rect.left+rect.width/2,rect.top+rect.height/2));
+ },PANEL));
+ await unchanged(readOnly,serial,'Configured BOM ribbon change and idle close');
+ bomPhases.push({phase:'configured-bom/ribbon-change-close-focus',tab:'evaluate',focusedControl:'Lista de materiales configurada'});
+ await click('button[aria-label="Lista de materiales configurada"]');await table('both compact parts after focus return',PARTS);
  await control(MODE,'top-level');await table('both compact top',[['configuration-S','compact',2,2]]);
  await control(MODE,'indented');await table('both compact indented',[['configuration-S','compact',2,2],['configuration-A',null,1,2],['configuration-B',null,1,2]]);
  const bRow=(await rows()).find(r=>r.definition[0]==='configuration-B');check(canonical(bRow.members)===canonical([['left','b'],['right','b']]),'Exact independent ROOT members');
