@@ -1,5 +1,20 @@
 # Public fixture provenance
 
+## Part feature-tree presentation
+
+`src/model/partFeatureTree.test.ts` authors small sketch, extrusion, sweep and
+loft declarations for hierarchy, shared inputs, duplicate and unresolved
+references, filtering and occurrence identity. No imported model or external
+geometry supplies these cases; they make no geometric-validity claim.
+The identifier case constructs parser-accepted text with spaces, punctuation,
+Unicode and isolated UTF-16 surrogates and checks exact, distinct ARIA ID encoding.
+
+The tree-navigation renderer checks reuse the original sequential part below.
+They compare recovery text and worker build serial before and after disclosure,
+selection, keyboard navigation and filtering. Pointer targets are revealed with
+the DOM scroll API, then hit-tested before actual CDP input. Field changes remain
+scripted. The existing solid geometry, history and file oracles are unchanged.
+
 ## Configured material pointer original
 
 `scripts/desktop-assembly-configured-picking-original.cjs` constructs two

@@ -45,6 +45,32 @@ module.exports = function partSequenceWorkflow(context) {
   }
   const recovery = () => evaluate(`localStorage.getItem('solidflow.autosave')`);
   const contextSelector = id => '.tree-row[data-feature-id="'+id+'"]';
+  async function actualTreePress(selector, button = 1) {
+    await evaluate(`(() => {const matches=document.querySelectorAll(${quote(selector)});
+      if(matches.length!==1)throw Error('One tree pointer target required');
+      matches[0].scrollIntoView({block:'nearest',inline:'nearest'});})()`);
+    const inspect=()=>evaluate(`(() => {const matches=document.querySelectorAll(${quote(selector)});
+      if(matches.length!==1)throw Error('One tree pointer target required');const target=matches[0],r=target.getBoundingClientRect();
+      const point={x:r.left+r.width/2,y:r.top+r.height/2},hit=document.elementFromPoint(point.x,point.y);
+      let scroll=target.parentElement;while(scroll){const style=getComputedStyle(scroll);
+        if(/auto|scroll/.test(style.overflowY+' '+style.overflowX)&&(scroll.scrollHeight>scroll.clientHeight||scroll.scrollWidth>scroll.clientWidth))break;
+        scroll=scroll.parentElement;}
+      const sr=scroll?.getBoundingClientRect(),rect=box=>box?{left:box.left,top:box.top,width:box.width,height:box.height}:null;
+      return {point,rect:rect(r),viewport:{width:innerWidth,height:innerHeight},nearestScrollRect:rect(sr),scrollTop:scroll?.scrollTop??null,
+        hit:hit?{tag:hit.tagName,class:typeof hit.className==='string'?hit.className:hit.getAttribute('class')}:null,
+        visible:!target.closest('[hidden]')&&!target.disabled&&r.width>0&&r.height>0&&r.left>=0&&r.top>=0&&r.right<=innerWidth&&r.bottom<=innerHeight
+          &&(!sr||(r.left>=sr.left&&r.top>=sr.top&&r.right<=sr.right&&r.bottom<=sr.bottom))&&!!hit&&(hit===target||target.contains(hit))};})()`);
+    let previous=null,stableSince=0;
+    const state=await waitFor('stationary tree pointer target '+selector,async()=>{
+      const current=await inspect(),key=JSON.stringify(current);
+      if(key!==previous){previous=key;stableSince=Date.now();return false;}
+      return current.visible&&Date.now()-stableSince>=120?current:false;
+    }).catch(async error=>{error.message+='; treeTarget='+JSON.stringify(await inspect().catch(reason=>({error:reason.message})));throw error;});
+    await pointer('mouseMoved',state.point);
+    check(canonical(await inspect())===canonical(state),'Tree target remains visible and stationary immediately before the actual press');
+    await pointer('mousePressed',state.point,button);
+    await pointer('mouseReleased',state.point,button===2?2:0);
+  }
   async function contextOpen(id, keyboard) {
     const selector=contextSelector(id);
     if(keyboard) {
@@ -52,29 +78,50 @@ module.exports = function partSequenceWorkflow(context) {
         if(rows.length!==1||rows[0].closest('[hidden]'))throw Error('One visible context row required');
         const r=rows[0].getBoundingClientRect();if(!r.width||!r.height)throw Error('Context row has no layout');rows[0].focus(); })()`);
       await menuKey('ContextMenu');
-    } else {
-      const inspect=()=>evaluate(`(() => { const rows=document.querySelectorAll(${quote(selector)});
-        if(rows.length!==1)throw Error('One context row required');const row=rows[0],r=row.getBoundingClientRect();
-        const point={x:r.left+r.width/2,y:r.top+r.height/2},hit=document.elementFromPoint(point.x,point.y);
-        return {point,rect:{left:r.left,top:r.top,width:r.width,height:r.height},visible:!row.closest('[hidden]')&&r.width>0&&r.height>0
-          &&r.left>=0&&r.top>=0&&r.right<=innerWidth&&r.bottom<=innerHeight&&!!hit&&(hit===row||row.contains(hit))}; })()`);
-      let previous=null,stableSince=0;
-      const state=await waitFor('stationary context row '+id,async()=>{
-        const current=await inspect(),key=JSON.stringify(current);
-        if(key!==previous){previous=key;stableSince=Date.now();return false;}
-        return current.visible&&Date.now()-stableSince>=120?current:false;
-      });
-      await pointer('mouseMoved',state.point);
-      check(canonical(await inspect())===canonical(state),'Context row stays visible and stationary before the actual right press');
-      await pointer('mousePressed',state.point,2);
-      await pointer('mouseReleased',state.point,2);
-    }
+    } else await actualTreePress(selector,2);
     await waitFor('context menu focuses first edit action '+id,()=>evaluate(`(() => {
       const popup=document.querySelector('.part-feature-context-menu');return !!popup
         &&popup.contains(document.activeElement)&&document.activeElement?.getAttribute('data-part-context-action')==='edit-feature'
         &&!document.activeElement.disabled;
     })()`));
     records.push({phase:'context-menu-open',featureId:id,input:keyboard?'CDP ContextMenu after row focus':'CDP right press/release'});
+  }
+  async function treeNavigation() {
+    const parent='.tree-row[data-feature-id="seq-base"]',toggle='button[data-part-tree-toggle="seq-base"]';
+    const child='.tree-row[data-feature-id="seq-base-sketch"][data-parent-feature-id="seq-base"]';
+    const state=()=>evaluate(`(() => {const parent=document.querySelector(${quote(parent)}),toggle=document.querySelector(${quote(toggle)}),children=[...document.querySelectorAll(${quote(child)})];
+      const group=document.getElementById(toggle?.getAttribute('aria-controls')??'');
+      return {expanded:toggle?.getAttribute('aria-expanded'),childCount:children.length,childSelected:children.length===1&&children[0].classList.contains('selected'),
+        controlledGroup:!!group,groupHidden:group?.hidden,
+        parentSelected:!!parent?.classList.contains('selected'),focus:document.activeElement===parent?'parent':children.includes(document.activeElement)?'child':'other'};})()`);
+    const beforeRecovery=await recovery(),beforeSerial=(await observe()).serial;
+    await waitFor('Base disclosure initially collapsed',async()=>{const current=await state();return current.expanded==='false'&&current.childCount===0&&current.controlledGroup&&current.groupHidden;});
+    await actualTreePress(toggle);
+    await waitFor('Base disclosure exposes its nested profile',async()=>{const current=await state();return current.expanded==='true'&&current.childCount===1&&current.controlledGroup&&!current.groupHidden;});
+    await actualTreePress(child);
+    await waitFor('actual child row click selects Base profile',async()=>{const current=await state();return current.childSelected&&!current.parentSelected;});
+    await actualTreePress(toggle);
+    await waitFor('collapse unmounts nested profile without selecting parent',async()=>{const current=await state();return current.expanded==='false'&&current.childCount===0&&!current.parentSelected;});
+    check(await recovery()===beforeRecovery&&(await observe()).serial===beforeSerial,'Disclosure collapse preserves document recovery and native build serial');
+    await actualTreePress(toggle);
+    await waitFor('expansion restores the selected nested profile',async()=>{const current=await state();return current.expanded==='true'&&current.childCount===1&&current.childSelected&&!current.parentSelected;});
+    await actualTreePress(toggle);
+    await waitFor('Base closed before keyboard navigation',async()=>{const current=await state();return current.expanded==='false'&&current.childCount===0;});
+    await evaluate(`document.querySelector(${quote(parent)}).focus()`);
+    await menuKey('ArrowRight');
+    await waitFor('first Right expands while preserving parent focus and child selection',async()=>{const current=await state();return current.expanded==='true'&&current.childCount===1&&current.focus==='parent'&&current.childSelected&&!current.parentSelected;});
+    await menuKey('ArrowRight');
+    await waitFor('second Right focuses selected child',async()=>{const current=await state();return current.focus==='child'&&current.childSelected&&!current.parentSelected;});
+    await menuKey('ArrowLeft');
+    await waitFor('child Left returns parent focus without selecting parent',async()=>{const current=await state();return current.focus==='parent'&&current.childSelected&&!current.parentSelected;});
+    await menuKey('ArrowLeft');
+    await waitFor('parent Left closes without changing selection',async()=>{const current=await state();return current.focus==='parent'&&current.expanded==='false'&&current.childCount===0&&!current.parentSelected;});
+    await change('input[aria-label="Filtro del árbol"]','Base profile');
+    await waitFor('filter reveals matching child while retaining selection',async()=>{const current=await state();return current.expanded==='true'&&current.childCount===1&&current.childSelected&&!current.parentSelected;});
+    await change('input[aria-label="Filtro del árbol"]','');
+    await waitFor('clearing filter restores closed disclosure',async()=>{const current=await state();return current.expanded==='false'&&current.childCount===0&&!current.parentSelected;});
+    check(await recovery()===beforeRecovery&&(await observe()).serial===beforeSerial,'Pointer, keyboard and filter navigation preserve committed recovery and native geometry');
+    records.push({phase:'feature-tree-navigation',pointer:'CDP disclosure and child-row presses',keys:['ArrowRight','ArrowRight','ArrowLeft','ArrowLeft'],filter:'scripted visible input',selectionRetained:true,queryDoesNotPersistExpansion:true,serial:beforeSerial});
   }
   async function savedUnusedCancel() {
     const id='seq-cut-left-sketch',originalRecovery=await recovery();
@@ -164,6 +211,9 @@ module.exports = function partSequenceWorkflow(context) {
     check(await recovery()===beforeRecovery,'Editing a consumed sketch does not prematurely alter committed recovery');
     let serial=(await observe()).serial;await click(APPLY);
     await waitFor('consumed sketch accepted',()=>evaluate(`!document.querySelector('.property-manager')`));
+    await waitFor('context sketch edit reveals its owner and selects the nested profile on return',()=>evaluate(`document.querySelector('button[data-part-tree-toggle="seq-base"]')?.getAttribute('aria-expanded')==='true'
+      &&document.querySelectorAll('.tree-row[data-feature-id="seq-base-sketch"][data-parent-feature-id="seq-base"].selected').length===1
+      &&!document.querySelector('.tree-row[data-feature-id="seq-base"]')?.classList.contains('selected')`));
     const changed=await built(serial,5,1080,9,'consumed-sketch-rebuilt',22);
     const expectedFeatures=structuredClone(final.features);expectedFeatures.find(feature=>feature.id==='seq-base-sketch').profile.width=22;
     check(canonical(changed.features)===canonical(expectedFeatures),'Consumed sketch edit preserves all five solid operations, IDs, order and downstream references');
@@ -217,6 +267,7 @@ module.exports = function partSequenceWorkflow(context) {
     await waitFor('owned initial document replacement prompt',()=>evaluate(`!!document.querySelector('[role="dialog"][aria-labelledby="discard-title"]')`));
     await evaluate(`(() => { const b=document.querySelector('[role="dialog"][aria-labelledby="discard-title"] .primary-button'); if(!b||b.disabled||b.textContent.trim()!=='Continuar sin guardar')throw Error('Expected owned initial replacement'); b.click(); })()`);
     await built(serial,1,960,4,'original');
+    await treeNavigation();
     await savedUnusedCancel();
     // The first sketch is edited and accepted before starting a cut: this is
     // the previous lost-body-selection path, not a preauthored operation.

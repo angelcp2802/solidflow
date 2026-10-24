@@ -29,6 +29,21 @@ Each opening has a fresh request identity; actions identify the selected feature
 and each distinct sketch input. Pointer, context-menu key and Shift+F10 routes
 share the same guards. Escape is consumed before workspace keyboard handlers.
 
+`partFeatureTree.ts` derives root features and distinct sketch inputs without
+changing the document. Expansion belongs to the workspace, and filtering only
+forces the displayed branches open. Shared inputs have parent-specific occurrence
+keys. Disclosures are siblings of the actionable rows; collapsed groups retain
+their ARIA target but unmount their child rows. Focus navigation does not select
+a feature. Editing remembers the input occurrence, reveals its owner and returns
+focus after the tree remounts; document replacement clears this presentation state.
+
+The prepared part renderer exercises disclosure, selection retention, Right/Left
+navigation and temporary filtering before the existing geometry sequence. Tree
+pointer targets are scrolled into view through the DOM API, observed stationary
+and hit-tested before CDP press/release. A failure includes bounded rectangle,
+viewport, scrolling and hit-target diagnostics. Deadlines and geometry checks are
+unchanged; see [validation](VALIDATION.md) for executed and hosted results.
+
 The two origin-axis renderer flows also exercise actual menu pointer/keyboard
 input through `desktop-assembly-menu-controls.cjs`, including Escape, Tab,
 disabled history, tree/editor navigation and retained references. Keyboard

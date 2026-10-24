@@ -624,6 +624,50 @@ button,
 .tree-row.nested > svg:not(:first-child) {
   color: #708faa;
 }
+.part-tree-entry {
+  position: relative;
+}
+.part-tree-entry > .tree-row {
+  padding-left: 33px;
+}
+.part-tree-entry > .tree-row.nested {
+  padding-left: 52px;
+}
+.part-tree-entry > .tree-row > svg:first-child {
+  color: #4b7f9f;
+}
+.part-tree-entry > .tree-row.nested > svg:first-child {
+  color: #708faa;
+}
+.part-tree-toggle {
+  position: absolute;
+  z-index: 1;
+  left: 13px;
+  top: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  color: #607b8d;
+  cursor: pointer;
+}
+.part-tree-toggle:hover:not(:disabled) {
+  background: #d7eaf9;
+}
+.part-tree-toggle:disabled {
+  opacity: 1;
+  cursor: default;
+}
+.part-tree-toggle:focus-visible,
+.part-tree-entry > .tree-row:focus-visible {
+  outline: 2px solid #377fad;
+  outline-offset: -2px;
+}
 .tree-row.suppressed {
   color: #9aa4ac;
   font-style: italic;

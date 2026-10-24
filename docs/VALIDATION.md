@@ -1,5 +1,51 @@
 # Validation
 
+## Collapsible part history and input navigation — 2026-10-25
+
+The increment after `d248d9df` adds operation disclosure, retained selection,
+Right/Left focus navigation, temporary filter expansion and return to the
+requested sketch occurrence after editing. Shared inputs retain distinct tree
+occurrences. Presentation state does not enter the saved document. ARIA targets
+remain present while collapsed; their IDs safely represent every identifier
+accepted by the document parser, including isolated UTF-16 surrogates.
+
+Windows x64 / Node 24.11.1 / actual Electron 44.9.3:
+
+- Literal `npm test` passes 9,399 unit/CAD cases across 407 files in 620.73
+  seconds, then 83 IPC/security cases with two explicit platform skips. This
+  includes seven tree cases for shared/duplicate/missing inputs, filtering,
+  occurrence identity, owner reveal and parser-accepted identifier round trips.
+- Final production build and loader/worker/WASM desktop smoke pass. All 1,071
+  non-Markdown inputs match the isolated runtime, with zero differences.
+- Final prepared-sketch renderer passes 99 checkpoints and 21 geometry phases.
+  Actual CDP presses expand/collapse and select a child; Right/Left navigation
+  preserves selection. Scripted filtering reveals the child temporarily.
+  Recovery text and native build serial remain unchanged during navigation.
+  Collapsed and expanded disclosures retain their accessible target.
+- Context editing reveals the correct owner and selects its nested sketch on
+  return. The existing saved-unused Cancel/accept/Undo/Redo case and consumed
+  sketch rebuild retain all five operations and real Save As/reopen. The final
+  native volume remains 1080 mm³, with volume tolerance 1e-5 mm³ and bounds
+  tolerance 1e-6 mm; the independent oracles below are unchanged.
+- Final fresh-sketch regression passes 48 checkpoints and 13 geometry phases.
+  Both final renderer reports contain no console/resource errors and confirm
+  child exit and isolated-profile cleanup. The 1544×941 final sequence capture
+  was inspected. A separate visible demo confirms disclosure, selection and
+  return after cancelling an unchanged nested-sketch edit.
+
+Hosted predecessor `e16fac05` passes
+[Security](https://github.com/angelcp2802/solidflow/actions/runs/40137645569).
+Its [CI](https://github.com/angelcp2802/solidflow/actions/runs/40137645616) passes
+7/9 renderer jobs and 3/3 configured-authoring jobs. Windows and macOS time out
+waiting for the second stationary `seq-base` context target after Escape. The
+first opening and focus restoration pass; the logs contain no target rectangles
+or hit diagnostics, so the visibility cause remains unproved. Rigid persistence
+passes on Linux and is not executed in those two stopped jobs; dependent Desktop
+checks remain blocked. The updated harness scrolls the target into view, retains
+the hit/stability checks and reports bounded layout diagnostics on failure.
+No deadline, geometry tolerance or security gate changed. New-head hosted
+recovery, arbitrary topology and installed-package/platform support remain open.
+
 ## Feature-tree editing and saved unused sketches — 2026-10-25
 
 The increment after `c59ca064` adds guarded tree context commands for editing

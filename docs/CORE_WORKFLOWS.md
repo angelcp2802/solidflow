@@ -12,6 +12,16 @@ menu does not accept or discard a draft.
 
 ## Edit operations and their sketches from the tree
 
+Use the arrow beside an operation to show or hide its input sketches. Unused
+sketches stay at the root; a shared sketch can appear beneath each consuming
+operation. Collapsing a branch keeps the selection. The filter temporarily
+reveals matching branches; clearing it restores the previous expansion.
+
+With a row focused, Right opens its branch and then moves to its first child;
+Left returns to the parent or closes its branch. These keys move focus without
+changing the selected feature. Editing an input from an operation's context
+reveals that occurrence and returns to it when editing finishes.
+
 Right-click an operation in the feature tree to choose **Editar operación** or
 an explicitly named **Editar croquis** input. A sketch row offers its own edit
 command. For operations with several sketch inputs, each input is listed by

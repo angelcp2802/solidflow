@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   Box,
   FilePlus2,
@@ -131,6 +131,7 @@ import {
   createMirrorExample,
 } from "./examples/patterns";
 import { featureSketchIds } from "./model/featureInputs";
+import { buildPartFeatureTree, partTreeChildrenId, revealPartSketchOwners, treeOccurrenceKey } from "./model/partFeatureTree";
 import { initialPartTargets } from "./model/partWorkflow";
 import { canContinuePartSketch, stagePartSketch, unusedPartSketchPreview } from "./model/partSketchContinuation";
 import { createPartSequenceDocument } from "./examples/part-sequence";
@@ -408,7 +409,11 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
   // A feature started from a new or unused sketch is a reversible preview. The sketch
   // stays out of recovery/history until acceptance and resumes on Cancel.
   const [stagedSketch, setStagedSketch] = useState<SketchFeature | null>(null);
-  const [featureMenu, setFeatureMenu] = useState<{ requestId: string; featureId: string; point: { x: number; y: number }; origin: HTMLElement } | null>(null);
+  const [featureMenu, setFeatureMenu] = useState<{ requestId: string; featureId: string; parentId?: string; point: { x: number; y: number }; origin: HTMLElement } | null>(null);
+  const [expandedFeatureIds, setExpandedFeatureIds] = useState<ReadonlySet<string>>(() => new Set());
+  const treeElement = useRef<HTMLDivElement>(null);
+  const selectedTreeOccurrence = useRef<{ featureId: string; parentId?: string } | null>(null);
+  const editTreeReturn = useRef<{ featureId: string; parentId?: string } | null>(null);
   useEffect(() => { setFeatureMenu(null); }, [doc, editing]);
   const operationDocument = useMemo(() => stagedSketch ? stagePartSketch(doc, stagedSketch) : doc, [doc, stagedSketch]);
   const [tab, setTab] = useState("Operaciones"),
@@ -663,9 +668,45 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     notify("Acepta o cancela la operación en curso antes de continuar.");
     return false;
   };
-  const editFeature = (feature: Feature) => {
+  const focusTreeOccurrence = (featureId: string, parentId?: string) => {
+    const key = treeOccurrenceKey(featureId, parentId);
+    const target = Array.from(treeElement.current?.querySelectorAll<HTMLElement>(".tree-row[data-tree-occurrence]") ?? [])
+      .find(element => element.dataset.treeOccurrence === key);
+    target?.focus();
+    return !!target;
+  };
+  // The PropertyManager replaces the tree while editing. Restore the exact shared
+  // profile occurrence after its row mounts again, including an unused profile
+  // that acquired an owner when its staged operation was accepted.
+  useLayoutEffect(() => {
+    const destination = editTreeReturn.current;
+    if (editing || !destination) return;
+    const feature = doc.features.find(candidate => candidate.id === destination.featureId);
+    if (!feature) { editTreeReturn.current = null; return; }
+    const owners = feature.type === "sketch" ? revealPartSketchOwners(doc.features, feature.id, destination.parentId) : [];
+    const parentId = owners[0];
+    if (!treeOpen || query || owners.some(id => !expandedFeatureIds.has(id))) {
+      setTreeOpen(true);
+      setQuery("");
+      if (owners.some(id => !expandedFeatureIds.has(id)))
+        setExpandedFeatureIds(previous => new Set([...previous, ...owners]));
+      return;
+    }
+    if (focusTreeOccurrence(feature.id, parentId)) editTreeReturn.current = null;
+  });
+  const editFeature = (feature: Feature, preferredOwnerId?: string) => {
     setPickingEndFace(false);
     if (!requireFinishedEdit()) return;
+    const previousOccurrence = selectedTreeOccurrence.current;
+    const preferred = preferredOwnerId ?? (previousOccurrence?.featureId === feature.id ? previousOccurrence.parentId : undefined);
+    const owners = feature.type === "sketch" ? revealPartSketchOwners(doc.features, feature.id, preferred) : [];
+    const occurrence = { featureId: feature.id, parentId: owners[0] };
+    editTreeReturn.current = occurrence;
+    selectedTreeOccurrence.current = occurrence;
+    setSelected(feature.id);
+    setTreeOpen(true);
+    setQuery("");
+    if (owners.length) setExpandedFeatureIds(previous => new Set([...previous, ...owners]));
     setHoleSection("type");
     setSelectedHolePosition(
       feature.type === "hole" ? (feature.positions[0]?.id ?? null) : null,
@@ -805,6 +846,11 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     documentEpoch.current++;
     preservedRecovery.current = null;
     browserOpenSource.current = null;
+    editTreeReturn.current = null;
+    selectedTreeOccurrence.current = null;
+    setExpandedFeatureIds(new Set());
+    setQuery("");
+    setTreeOpen(true);
     setPickingEndFace(false);
     setHoleSection("type");
     setSelectedHolePosition(null);
@@ -2191,63 +2237,91 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
       visibleSketchIds.includes(sketch.id) &&
       (sketch.lines.length || sketch.constructionLines.length),
   );
-  const consumed = new Set(doc.features.flatMap(featureSketchIds));
+  const featureTree = buildPartFeatureTree(doc.features, expandedFeatureIds, query);
   const menuFeature = featureMenu ? doc.features.find(feature => feature.id === featureMenu.featureId) : undefined;
   const inputSketches = (feature: Feature) => [...new Set(featureSketchIds(feature))]
     .map(id => doc.features.find(candidate => candidate.id === id))
     .filter((candidate): candidate is SketchFeature => candidate?.type === "sketch");
   const selectedInputSketches = selectedFeature ? inputSketches(selectedFeature) : [];
-  const openFeatureMenu = (feature: Feature, origin: HTMLElement, point?: { x: number; y: number }) => {
+  const openFeatureMenu = (feature: Feature, origin: HTMLElement, point?: { x: number; y: number }, parentId?: string) => {
+    selectedTreeOccurrence.current = { featureId: feature.id, parentId };
     setSelected(feature.id);
     setFaceSelection(null);
     const bounds = origin.getBoundingClientRect();
-    setFeatureMenu({ requestId: crypto.randomUUID(), featureId: feature.id, origin, point: point ?? { x: bounds.left + 20, y: bounds.bottom } });
+    setFeatureMenu({ requestId: crypto.randomUUID(), featureId: feature.id, parentId, origin, point: point ?? { x: bounds.left + 20, y: bounds.bottom } });
   };
-  const row = (feature: Feature, nested = false) => {
+  const setFeatureExpanded = (featureId: string, expanded: boolean) => {
+    const group = featureTree.find(candidate => candidate.feature.id === featureId);
+    if (!group?.children.length || group.forcedOpen) return;
+    if (!expanded && document.activeElement instanceof HTMLElement
+      && document.activeElement.dataset.parentFeatureId === featureId) focusTreeOccurrence(featureId);
+    setExpandedFeatureIds(previous => {
+      const next = new Set(previous);
+      if (expanded) next.add(featureId); else next.delete(featureId);
+      return next;
+    });
+  };
+  const row = (feature: Feature, parentId?: string) => {
     const Icon = featureIcons[feature.type];
     const failed = model?.featureErrors.some((e) => e.id === feature.id);
+    const group = parentId === undefined ? featureTree.find(candidate => candidate.feature.id === feature.id) : undefined;
     return (
+      <div className="part-tree-entry" key={treeOccurrenceKey(feature.id, parentId)}>
+      {group && group.children.length > 0 && <button type="button" className="part-tree-toggle"
+        data-part-tree-toggle={feature.id} aria-expanded={group.expanded}
+        aria-label={`${group.expanded ? "Plegar" : "Desplegar"} ${feature.name}`}
+        aria-controls={partTreeChildrenId(feature.id)}
+        disabled={group.forcedOpen} title={group.forcedOpen ? "Los resultados del filtro permanecen desplegados" : undefined}
+        onClick={() => setFeatureExpanded(feature.id, !group.expanded)}>
+        {group.expanded ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+      </button>}
       <div
-        key={feature.id}
-        className={`tree-row ${nested ? "nested" : ""} ${selected === feature.id ? "selected" : ""} ${feature.suppressed ? "suppressed" : ""}`}
+        className={`tree-row ${parentId !== undefined ? "nested" : ""} ${selected === feature.id ? "selected" : ""} ${feature.suppressed ? "suppressed" : ""}`}
         data-feature-id={feature.id}
+        data-parent-feature-id={parentId}
+        data-tree-occurrence={treeOccurrenceKey(feature.id, parentId)}
         tabIndex={0}
         role="button"
         aria-label={feature.name}
         aria-haspopup="menu"
-        aria-expanded={featureMenu?.featureId === feature.id}
+        aria-expanded={featureMenu?.featureId === feature.id && featureMenu.parentId === parentId}
         onClick={() => {
+          selectedTreeOccurrence.current = { featureId: feature.id, parentId };
           setSelected(feature.id);
           setFaceSelection(null);
         }}
-        onDoubleClick={() => editFeature(feature)}
+        onDoubleClick={() => editFeature(feature, parentId)}
         onContextMenu={event => {
           event.preventDefault();
-          openFeatureMenu(feature, event.currentTarget, { x: event.clientX, y: event.clientY });
+          openFeatureMenu(feature, event.currentTarget, { x: event.clientX, y: event.clientY }, parentId);
         }}
         onKeyDown={event => {
           if (event.key === "ContextMenu" || event.shiftKey && event.key === "F10") {
-            event.preventDefault(); event.stopPropagation(); openFeatureMenu(feature, event.currentTarget);
+            event.preventDefault(); event.stopPropagation(); openFeatureMenu(feature, event.currentTarget, undefined, parentId);
+          } else if (event.key === "ArrowRight") {
+            event.preventDefault(); event.stopPropagation();
+            if (group?.children.length) {
+              if (!group.expanded) setFeatureExpanded(feature.id, true);
+              else focusTreeOccurrence(group.children[0].id, feature.id);
+            }
+          } else if (event.key === "ArrowLeft") {
+            event.preventDefault(); event.stopPropagation();
+            if (parentId !== undefined) focusTreeOccurrence(parentId);
+            else if (group?.expanded) setFeatureExpanded(feature.id, false);
           } else if (event.key === "Enter") {
-            event.preventDefault(); editFeature(feature);
+            event.preventDefault(); editFeature(feature, parentId);
           } else if (event.key === " ") {
+            selectedTreeOccurrence.current = { featureId: feature.id, parentId };
             event.preventDefault(); setSelected(feature.id); setFaceSelection(null);
           }
         }}
         title="Doble clic para editar · Botón derecho para opciones"
       >
-        <ChevronRight
-          size={11}
-          className={
-            feature.type === "sketch" || feature.type === "plane"
-              ? "invisible"
-              : ""
-          }
-        />
         <Icon size={16} />
         <span>{feature.name}</span>
         {failed && <AlertTriangle size={13} className="error-icon" />}
         {feature.suppressed && <Eye size={12} />}
+      </div>
       </div>
     );
   };
@@ -2288,7 +2362,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
         ["Deshacer", "Ctrl+Z", undo],
         ["Rehacer", "Ctrl+Y", redo],
         ["Editar operación", "", () => selectedFeature && editFeature(selectedFeature)],
-        ...selectedInputSketches.map((sketch): [string, string, () => void] => [selectedInputSketches.length === 1 ? "Editar croquis" : `Editar croquis: ${sketch.name}`, "", () => editFeature(sketch)]),
+        ...selectedInputSketches.map((sketch): [string, string, () => void] => [selectedInputSketches.length === 1 ? "Editar croquis" : `Editar croquis: ${sketch.name}`, "", () => editFeature(sketch, selectedFeature?.id)]),
         ["Eliminar operación", "Supr", deleteSelected],
         ["Cambiar nombre de pieza", "", () => {
           if (requireFinishedEdit()) setRename(true);
@@ -2351,9 +2425,9 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
         onClose={() => setFeatureMenu(null)}
         actions={[
           { id: "edit-feature", label: menuFeature.type === "sketch" ? "Editar croquis" : "Editar operación", icon: Pencil,
-            disabled: !!editing || importing || exporting, onSelect: () => editFeature(menuFeature) },
+            disabled: !!editing || importing || exporting, onSelect: () => editFeature(menuFeature, featureMenu.parentId) },
           ...inputSketches(menuFeature).map(sketch => ({ id: `edit-sketch-${sketch.id}`, label: `Editar croquis: ${sketch.name}`, icon: Square,
-            disabled: !!editing || importing || exporting, onSelect: () => editFeature(sketch) })),
+            disabled: !!editing || importing || exporting, onSelect: () => editFeature(sketch, menuFeature.id) })),
         ]} />}
       <input
         ref={fileInput}
@@ -3480,7 +3554,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                   </button>
                 )}
               </div>
-              <div className="tree">
+              <div className="tree" ref={treeElement}>
                 <div
                   className="tree-document"
                   onClick={() => setTreeOpen(!treeOpen)}
@@ -3531,28 +3605,14 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                       <span>Origen</span>
                     </div>
                     <div className="tree-divider" />
-                    {doc.features
-                      .filter((f) => f.type !== "sketch" || !consumed.has(f.id))
-                      .filter(
-                        (f) =>
-                          !query ||
-                          f.name.toLowerCase().includes(query.toLowerCase()) ||
-                          featureSketchIds(f).some((id) =>
-                            doc.features
-                              .find((s) => s.id === id)
-                              ?.name.toLowerCase()
-                              .includes(query.toLowerCase()),
-                          ),
-                      )
-                      .map((f) => (
-                        <div key={f.id}>
-                          {row(f)}
-                          {featureSketchIds(f)
-                            .map((id) => doc.features.find((s) => s.id === id))
-                            .filter((feature): feature is Feature => !!feature)
-                            .map((feature) => row(feature, true))}
-                        </div>
-                      ))}
+                    {featureTree.map(group => (
+                      <div key={group.feature.id}>
+                        {row(group.feature)}
+                        {group.children.length > 0 && <div id={partTreeChildrenId(group.feature.id)} hidden={!group.expanded}>
+                          {group.expanded && group.children.map(feature => row(feature, group.feature.id))}
+                        </div>}
+                      </div>
+                    ))}
                     <div className="rollback-bar">
                       <span />
                       <ChevronUp size={12} />

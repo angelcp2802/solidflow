@@ -1,5 +1,29 @@
 # Project status and review queue
 
+### Current increment: navigable part history
+
+The part tree now collapses each operation's input sketches, preserves selection
+when folded and temporarily reveals filtered matches. Contextual sketch editing
+returns to the requested owner, including shared inputs. Keyboard focus and
+model selection remain separate. The original sequential modeling and fresh
+face-supported workflows remain the acceptance cases; see
+[core workflows](CORE_WORKFLOWS.md) and [validation](VALIDATION.md).
+
+Continue in the existing draft PR #49 and issue #55. Next interface priorities
+are contextual assembly ribbon groups, consistent component-tree navigation
+and clearer selection modes. Complete assembly-demo acceptance, specialized
+picking and origin-axis rotation locking/capture remain open.
+
+Hosted predecessor `e16fac05` passes
+[Security](https://github.com/angelcp2802/solidflow/actions/runs/40137645569).
+Its [CI](https://github.com/angelcp2802/solidflow/actions/runs/40137645616) passes
+seven of nine renderer jobs and all three configured-authoring jobs. Windows
+and macOS stop at the second part-tree context opening after Escape; the logs
+do not establish its visibility cause. Rigid persistence passes on Linux and
+does not run on the two stopped jobs. Downstream Desktop acceptance is blocked.
+The new tree pointer helper reveals its target and reports bounded layout
+diagnostics; hosted recovery still requires new-head evidence in issue #53.
+
 ### Grouped assembly commands and contextual left manager
 
 Both assembly workspaces now use a shared compact header, grouped upper commands
