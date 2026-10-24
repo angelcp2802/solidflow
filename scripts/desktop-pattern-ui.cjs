@@ -793,12 +793,12 @@ async function runInElectron() {
     return window.webContents.executeJavaScript(source, false);
   };
   const pointer = async (type, point, buttons = 0) => {
-    check((originAxes || freshSketch || configuredPicking || assembly || rackPinion || direction || tangent || cylinderTangent || sphereTangent || limitDistance || limitAngle || directedAngle || width || symmetry || symmetryPicking || hingePicking || hingeLimitsPicking) && !window.isVisible() && window.webContents.debugger.isAttached()
+    check((partSequence || originAxes || freshSketch || configuredPicking || assembly || rackPinion || direction || tangent || cylinderTangent || sphereTangent || limitDistance || limitAngle || directedAngle || width || symmetry || symmetryPicking || hingePicking || hingeLimitsPicking) && !window.isVisible() && window.webContents.debugger.isAttached()
       && ['mouseMoved', 'mousePressed', 'mouseReleased'].includes(type)
       && Number.isFinite(point.x) && Number.isFinite(point.y) && point.x >= 0 && point.y >= 0
-      && [0, 1].includes(buttons), 'Expected actual pointer input in the hidden test-owned assembly window.');
+      && ([0, 1].includes(buttons) || partSequence && buttons === 2), 'Expected actual pointer input in the hidden test-owned CAD window.');
     await window.webContents.debugger.sendCommand('Input.dispatchMouseEvent', {
-      type, x: point.x, y: point.y, button: type === 'mouseMoved' && !buttons ? 'none' : 'left', buttons,
+      type, x: point.x, y: point.y, button: buttons === 2 ? 'right' : type === 'mouseMoved' && !buttons ? 'none' : 'left', buttons: type === 'mouseReleased' ? 0 : buttons,
       clickCount: type === 'mouseMoved' ? 0 : 1, pointerType: 'mouse',
     });
   };
@@ -813,7 +813,7 @@ async function runInElectron() {
     });
   };
   const menuKey = async key => {
-    const codes = { Escape: 27, Tab: 9, ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, Home: 36, End: 35, Enter: 13 };
+    const codes = { Escape: 27, Tab: 9, ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, Home: 36, End: 35, Enter: 13, ...(partSequence ? { ContextMenu: 93 } : {}) };
     check((originAxes || partSequence) && !window.isVisible() && window.webContents.debugger.isAttached()
       && Object.prototype.hasOwnProperty.call(codes, key), 'Expected bounded menu keyboard input in the hidden origin or part sequence workflow.');
     await window.webContents.debugger.sendCommand('Input.dispatchKeyEvent', { type: 'keyDown', key, code: key, windowsVirtualKeyCode: codes[key],
@@ -990,7 +990,7 @@ async function runInElectron() {
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
     : partSequence
-    ? require('./desktop-part-sequence-flow.cjs')({ expected, input, output, evaluate, observe, waitFor, click, menu, menuKey, capture,
+    ? require('./desktop-part-sequence-flow.cjs')({ expected, input, output, evaluate, observe, waitFor, click, menu, menuKey, pointer, capture,
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
     : originAxes

@@ -7,18 +7,27 @@ Escape within the menu closes it and restores trigger focus without reaching
 the workspace's draft-cancellation handler. The part keyboard handler respects
 consumed events. Menu availability follows the current edit and history state.
 
-Starting a profile operation from a new active part sketch stages that sketch
+Starting a profile operation from a new or saved unused part sketch stages it
 without accepting it. The operation's source build, body-command validation,
 preview and acceptance use the same `operationDocument`, including the staged
-sketch. Its profile selector is locked and acceptance requires that sketch ID.
+sketch. Saved sketches update in place; new sketches append. Its profile selector
+is locked and acceptance requires that sketch ID.
 The persisted `doc`, serialized document and recovery remain unchanged during
 the preview. Cancel restores the sketch draft and its local undo/redo; document
 replacement clears staging. Acceptance validates the final document before
-recording two history entries, sketch then operation, with no intermediate
-document render or recovery write. Document Undo therefore removes the operation
-first, matching the explicit exit-sketch route. Existing sketch edits remain
-outside this shortcut. A stale or unhealthy preview and unfinished sketch
+recording the sketch change then operation, with no intermediate document render
+or recovery write. An unchanged saved sketch retains the original document and
+does not add a redundant history entry. Document Undo removes the operation first,
+matching the explicit exit-sketch route. Saved unused sketch previews build the
+complete modified feature list before admission; any dependent feature, including
+a suppressed one, excludes the shortcut. Consumed sketch edits retain rollback.
+A stale or unhealthy preview and unfinished sketch
 chamfer, fillet, mirror or offset tools must not start the transition.
+
+`PartFeatureContextMenu` renders caller-owned tree editing actions in a portal.
+Each opening has a fresh request identity; actions identify the selected feature
+and each distinct sketch input. Pointer, context-menu key and Shift+F10 routes
+share the same guards. Escape is consumed before workspace keyboard handlers.
 
 The two origin-axis renderer flows also exercise actual menu pointer/keyboard
 input through `desktop-assembly-menu-controls.cjs`, including Escape, Tab,

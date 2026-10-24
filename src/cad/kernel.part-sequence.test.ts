@@ -4,7 +4,7 @@ import initOpenCascade from 'replicad-opencascadejs';
 import { getOC, importSTEP, isShape3D, measureShapeSurfaceProperties, setOC } from 'replicad';
 import { afterEach, beforeAll, expect, it } from 'vitest';
 import { createCompletedPartSequenceDocument, createPartSequenceDocument } from '../examples/part-sequence';
-import { DocumentHistory, parseDocument, serializeDocument, type Document } from '../model/document';
+import { DocumentHistory, parseDocument, serializeDocument, updateFeature, type Document } from '../model/document';
 import { CadEngine } from './kernel.engine';
 
 const engine = new CadEngine();
@@ -14,13 +14,13 @@ beforeAll(async () => setOC(await initOpenCascade({
 })), 60_000);
 afterEach(() => engine.dispose());
 
-function checkBuild(document: Document, volume: number, height: number) {
+function checkBuild(document: Document, volume: number, height: number, width = 20) {
   const result = engine.build(document.features);
   expect(result.featureErrors).toEqual([]);
   expect(result.bodyCatalogActive).toBe(true);
   expect(result.bodies).toHaveLength(1);
   expect(Math.abs(result.bodies![0].volume - volume)).toBeLessThan(volumeTolerance);
-  const expected = [[-10, -6, 0], [10, 6, height]];
+  const expected = [[-width / 2, -6, 0], [width / 2, 6, height]];
   [result.bodies![0].bounds.min, result.bodies![0].bounds.max].forEach((side, i) =>
     side.forEach((value, j) => expect(Math.abs(value - expected[i][j])).toBeLessThan(coordinateTolerance)));
   return result;
@@ -74,3 +74,18 @@ it('provides a valid starting body with four unused independent sketches for ren
   expect(document.features.filter(feature => feature.type === 'sketch')).toHaveLength(5);
   checkBuild(parseDocument(serializeDocument(document)), 960, 4);
 });
+
+it('rebuilds all downstream cuts and bosses after widening the consumed base sketch', async () => {
+  const original = createCompletedPartSequenceDocument();
+  const sketch = original.features[0];
+  if (sketch.type !== 'sketch' || sketch.profile.kind !== 'rectangle') throw Error('Expected original rectangular base sketch.');
+  const changed = updateFeature(original, sketch.id, { profile: { ...sketch.profile, width: 22 } });
+  expect(changed.features.slice(1)).toEqual(original.features.slice(1));
+  const history = new DocumentHistory(original);
+  history.apply(changed);
+  // Added base strip: 2*12*4=96 mm³. New exterior area: 2*2*(12+4)=64 mm².
+  checkBuild(parseDocument(serializeDocument(changed)), 1080, 9, 22);
+  await checkNativeExport(changed, 1080, 912);
+  checkBuild(history.undo(), 984, 9);
+  checkBuild(history.redo(), 1080, 9, 22);
+}, 60_000);

@@ -54,6 +54,7 @@ import type { LucideIcon } from "lucide-react";
 import Viewport, { type ViewName } from "./components/Viewport";
 import SketchCanvas from "./components/SketchCanvas";
 import AssemblyMenuBar, { type AssemblyMenuDefinition } from "./components/AssemblyMenuBar";
+import PartFeatureContextMenu from "./components/PartFeatureContextMenu";
 import EntitySketchPanel from "./components/EntitySketchPanel";
 import SketchChamferPanel from "./components/SketchChamferPanel";
 import type { ChamferPlan } from "./sketch/chamfer";
@@ -131,6 +132,7 @@ import {
 } from "./examples/patterns";
 import { featureSketchIds } from "./model/featureInputs";
 import { initialPartTargets } from "./model/partWorkflow";
+import { canContinuePartSketch, stagePartSketch, unusedPartSketchPreview } from "./model/partSketchContinuation";
 import { createPartSequenceDocument } from "./examples/part-sequence";
 import { importStructuralStep } from "./model/structuralStepImport";
 import { importStepPart, type StepFile } from "./model/stepImport";
@@ -403,10 +405,12 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
   const [selected, setSelected] = useState<string | null>(null),
     [editing, setEditing] = useState<Feature | null>(null),
     [plane, setPlane] = useState<Plane>("XY");
-  // A feature started from a new sketch is a reversible preview. The sketch
+  // A feature started from a new or unused sketch is a reversible preview. The sketch
   // stays out of recovery/history until acceptance and resumes on Cancel.
   const [stagedSketch, setStagedSketch] = useState<SketchFeature | null>(null);
-  const operationDocument = useMemo(() => stagedSketch ? addFeature(doc, stagedSketch) : doc, [doc, stagedSketch]);
+  const [featureMenu, setFeatureMenu] = useState<{ requestId: string; featureId: string; point: { x: number; y: number }; origin: HTMLElement } | null>(null);
+  useEffect(() => { setFeatureMenu(null); }, [doc, editing]);
+  const operationDocument = useMemo(() => stagedSketch ? stagePartSketch(doc, stagedSketch) : doc, [doc, stagedSketch]);
   const [tab, setTab] = useState("Operaciones"),
     [display, setDisplay] = useState<"shaded" | "edges" | "wire">("edges"),
     [grid, setGrid] = useState(false);
@@ -533,6 +537,10 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     if (sourceFeatures && editing?.type === "extrude" && editing.bodyOperation?.mode === "new"
       && editing.endCondition && 'baseFeatureId' in editing.endCondition) return sourceFeatures;
     if (!editing) return operationDocument.features;
+    if (editing.type === "sketch") {
+      const complete = unusedPartSketchPreview(operationDocument, editing);
+      if (complete) return complete;
+    }
     const index = operationDocument.features.findIndex(
       (feature) => feature.id === editing.id,
     );
@@ -633,7 +641,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     (editing.type !== "sketch" || sketchTool !== "offset" || !!offsetPreview?.changed) &&
     model.featureErrors.length === 0;
   const canContinueSketch = editing?.type === "sketch" && !editing.suppressed && canAccept && !pickingSupport
-    && !doc.features.some(feature => feature.id === editing.id)
+    && canContinuePartSketch(doc, editing)
     && !["chamfer", "fillet", "mirror", "offset"].includes(sketchTool);
   const canStartProfileFeature = (!editing || canContinueSketch) && ready && !busy && previewCurrent
     && !!model && !error && model.featureErrors.length === 0 && !importing && !exporting;
@@ -1413,7 +1421,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     if (canContinueSketch) {
       // Admission can reject document limits. Keep that failure in the command,
       // before rendering the staged document or changing the current editor.
-      try { addFeature(doc, sketch); }
+      try { stagePartSketch(doc, sketch); }
       catch (reason) { notify((reason as Error).message, true); return; }
       setStagedSketch(sketch);
     }
@@ -2184,6 +2192,17 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
       (sketch.lines.length || sketch.constructionLines.length),
   );
   const consumed = new Set(doc.features.flatMap(featureSketchIds));
+  const menuFeature = featureMenu ? doc.features.find(feature => feature.id === featureMenu.featureId) : undefined;
+  const inputSketches = (feature: Feature) => [...new Set(featureSketchIds(feature))]
+    .map(id => doc.features.find(candidate => candidate.id === id))
+    .filter((candidate): candidate is SketchFeature => candidate?.type === "sketch");
+  const selectedInputSketches = selectedFeature ? inputSketches(selectedFeature) : [];
+  const openFeatureMenu = (feature: Feature, origin: HTMLElement, point?: { x: number; y: number }) => {
+    setSelected(feature.id);
+    setFaceSelection(null);
+    const bounds = origin.getBoundingClientRect();
+    setFeatureMenu({ requestId: crypto.randomUUID(), featureId: feature.id, origin, point: point ?? { x: bounds.left + 20, y: bounds.bottom } });
+  };
   const row = (feature: Feature, nested = false) => {
     const Icon = featureIcons[feature.type];
     const failed = model?.featureErrors.some((e) => e.id === feature.id);
@@ -2191,12 +2210,31 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
       <div
         key={feature.id}
         className={`tree-row ${nested ? "nested" : ""} ${selected === feature.id ? "selected" : ""} ${feature.suppressed ? "suppressed" : ""}`}
+        data-feature-id={feature.id}
+        tabIndex={0}
+        role="button"
+        aria-label={feature.name}
+        aria-haspopup="menu"
+        aria-expanded={featureMenu?.featureId === feature.id}
         onClick={() => {
           setSelected(feature.id);
           setFaceSelection(null);
         }}
         onDoubleClick={() => editFeature(feature)}
-        title="Doble clic para editar"
+        onContextMenu={event => {
+          event.preventDefault();
+          openFeatureMenu(feature, event.currentTarget, { x: event.clientX, y: event.clientY });
+        }}
+        onKeyDown={event => {
+          if (event.key === "ContextMenu" || event.shiftKey && event.key === "F10") {
+            event.preventDefault(); event.stopPropagation(); openFeatureMenu(feature, event.currentTarget);
+          } else if (event.key === "Enter") {
+            event.preventDefault(); editFeature(feature);
+          } else if (event.key === " ") {
+            event.preventDefault(); setSelected(feature.id); setFaceSelection(null);
+          }
+        }}
+        title="Doble clic para editar · Botón derecho para opciones"
       >
         <ChevronRight
           size={11}
@@ -2250,6 +2288,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
         ["Deshacer", "Ctrl+Z", undo],
         ["Rehacer", "Ctrl+Y", redo],
         ["Editar operación", "", () => selectedFeature && editFeature(selectedFeature)],
+        ...selectedInputSketches.map((sketch): [string, string, () => void] => [selectedInputSketches.length === 1 ? "Editar croquis" : `Editar croquis: ${sketch.name}`, "", () => editFeature(sketch)]),
         ["Eliminar operación", "Supr", deleteSelected],
         ["Cambiar nombre de pieza", "", () => {
           if (requireFinishedEdit()) setRename(true);
@@ -2301,12 +2340,21 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
   ] satisfies { id: string; label: string; items: [string, string, () => void][] }[])
     .map(({ id, label, items }) => ({
       id, label, items: items.map(([label, shortcut, onSelect], index) => ({
-        id: String(index), label, shortcut, onSelect, disabled: disabledMenuCommands[label],
+        id: String(index), label, shortcut, onSelect, disabled: label.startsWith("Editar croquis") ? !!editing || importing || exporting : disabledMenuCommands[label],
         ...(label === "Cuadrícula" ? { checked: grid } : label === "Planos de referencia" ? { checked: showPlanes } : {}),
       })),
     }));
   return (
     <div className="app-shell">
+      {featureMenu && menuFeature && <PartFeatureContextMenu key={featureMenu.requestId}
+        featureName={menuFeature.name} point={featureMenu.point} restoreFocusElement={featureMenu.origin}
+        onClose={() => setFeatureMenu(null)}
+        actions={[
+          { id: "edit-feature", label: menuFeature.type === "sketch" ? "Editar croquis" : "Editar operación", icon: Pencil,
+            disabled: !!editing || importing || exporting, onSelect: () => editFeature(menuFeature) },
+          ...inputSketches(menuFeature).map(sketch => ({ id: `edit-sketch-${sketch.id}`, label: `Editar croquis: ${sketch.name}`, icon: Square,
+            disabled: !!editing || importing || exporting, onSelect: () => editFeature(sketch) })),
+        ]} />}
       <input
         ref={fileInput}
         type="file"

@@ -1,5 +1,62 @@
 # Validation
 
+## Feature-tree editing and saved unused sketches — 2026-10-25
+
+The increment after `c59ca064` adds guarded tree context commands for editing
+an operation and its explicitly named sketch inputs. Saved sketches without
+dependents can continue directly into a profile operation; their previews build
+the complete modified feature list. Consumed sketch editing retains rollback
+and disables new profile operations. No solver, tolerance or deadline changed.
+
+Windows x64 / Node 24.11.1 / actual Electron 44.9.3:
+
+- Literal `npm test` passes 9,392 unit/CAD cases across 406 files in 613.64
+  seconds, followed by 83 IPC/security passes and two explicit platform skips.
+  Application source was frozen for that run; later harness-only repairs and
+  additions were exercised by the final renderer run. All 1,069 non-Markdown
+  source inputs match the isolated runtime, with zero differences.
+- Production build and actual loader/worker/WASM desktop smoke pass.
+- The final prepared-sketch renderer passes 81 checkpoints and 21 geometry
+  phases. Actual right-button and context-menu-key input opens tree menus;
+  arrows/Enter choose the named input and Escape restores row focus. Parameter
+  changes and operation buttons remain scripted.
+- The saved unused profile changes from width 2 to 3 mm, starts a cut directly,
+  and retains its draft, IDs/order and original recovery through operation Cancel.
+  Cancelling the sketch restores the original document. A separate retry accepts
+  the 3×2×4 mm cut: volume 960−24=936 mm³. Two Undo/Redo steps independently
+  reverse/restore the sketch edit and cut, preserving exact feature identities.
+- After the original two cuts and two merged bosses, the consumed base sketch
+  changes from width 20 to 22 mm. All five solid operations and their references
+  remain; volume becomes 984+96=1080 mm³ and X bounds ±11 mm. Undo restores 984,
+  Redo restores 1080, and real Save As/reopen retains the complete edited history.
+  Volume tolerance is 1e-5 mm³ and bounds tolerance 1e-6 mm.
+- The separate native widened-base regression exports and reimports STEP,
+  checks BRep validity and one solid, and measures volume 1080 mm³ and area
+  912 mm² within 1e-5, with saved-document history and 1e-6 mm bounds checks.
+- The separate fresh-sketch regression passes 48 checkpoints and 13 geometry
+  phases with its previous pointer drawing, support selection, Cancel/history,
+  geometry and persistence checks intact. Both final renderer runs have no
+  console/resource errors and confirm child exit and isolated-profile cleanup.
+- The prepared sequence capture was inspected at 1544×941. A separate visible
+  Windows demo follows right-click → named sketch → edit, confirms disabled solid
+  commands for the consumed sketch, and cancels back to the unchanged plate.
+
+The first renderer assertion used the enabled tooltip text to find disabled
+commands; the second attempt added a mount barrier but retained that selector.
+The corrected assertion identifies visible labels and separately checks disabled
+state. Application guards and geometry were unchanged by those harness repairs.
+The final run additionally covers acceptance/history of a modified saved sketch.
+Revolution and arbitrary dependent topology are outside these renderer cases.
+
+The predecessor `7a5f997` passes
+[Security](https://github.com/angelcp2802/solidflow/actions/runs/40135898256).
+Its [CI](https://github.com/angelcp2802/solidflow/actions/runs/40135898213) passes
+eight of nine renderer jobs and all three configured-authoring jobs. Windows
+rigid persistence exceeds its existing child deadline; downstream Desktop tests
+do not run. The failed internal phase remains unknown because the log request
+failed. This increment does not claim to fix that hosted timing failure or
+establish installed-package or cross-platform support.
+
 ## Part menus and active-sketch continuation — 2026-10-24
 
 The increment after `b147e3e` shares the top-level menu implementation with the

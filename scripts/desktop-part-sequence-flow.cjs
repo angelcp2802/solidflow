@@ -5,7 +5,7 @@ const { encodeJavaScriptString: quote } = require('./desktop-ui-source.cjs');
 // Original analytical fixture, real top commands/left properties and worker.
 // No application state or worker responses are supplied by this workflow.
 module.exports = function partSequenceWorkflow(context) {
-  const { expected, input, output, evaluate, observe, waitFor, click, menu, menuKey, capture,
+  const { expected, input, output, evaluate, observe, waitFor, click, menu, menuKey, pointer, capture,
     checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
     initialReadyMs, dialogCounts } = context;
   const APPLY = 'button[title="Aceptar operación"]';
@@ -21,16 +21,16 @@ module.exports = function partSequenceWorkflow(context) {
       if(rows.length!==1) throw Error('Expected one feature tree row');
       ${edit ? "rows[0].dispatchEvent(new MouseEvent('dblclick',{bubbles:true}));" : 'rows[0].click();'} })()`);
   }
-  function geometry(record, volume, height) {
+  function geometry(record, volume, height, width = 20) {
     check(record.response.ok, record.response.error || 'Native build failed.');
     const value = record.response.value;
     check(value.featureErrors.length === 0 && value.bodyCatalogActive && value.bodies.length === 1, 'Expected one healthy explicit body.');
     const body = value.bodies[0];
     check(body.ref.bodyId === 'seq-body' && Math.abs(body.volume - volume) <= 1e-5, 'Independent sequential volume/identity.');
-    [[body.bounds.min, [-10,-6,0]], [body.bounds.max, [10,6,height]]].forEach(([actual,wanted]) =>
+    [[body.bounds.min, [-width/2,-6,0]], [body.bounds.max, [width/2,6,height]]].forEach(([actual,wanted]) =>
       wanted.forEach((x,i) => check(Math.abs(actual[i]-x) <= 1e-6, 'Independent sequential bounds.')));
   }
-  async function built(serial, operationCount, volume, height, phase) {
+  async function built(serial, operationCount, volume, height, phase, width = 20) {
     const record = await waitFor('native sequence ' + phase, async () => {
       const state = await observe(); check(!state.workerErrors.length, 'Worker observation error.');
       return state.builds.filter(r=>r.serial>serial && r.features.some(f=>f.id==='seq-base')
@@ -38,10 +38,142 @@ module.exports = function partSequenceWorkflow(context) {
         && r.response?.ok && r.response.value.featureErrors.length===0
         && r.response.value.bodies?.length===1 && Math.abs(r.response.value.bodies[0].volume-volume)<=1e-5).at(-1);
     }).catch(async error => { error.message += '; diagnostics=' + JSON.stringify(await observe()); throw error; });
-    geometry(record,volume,height); records.push({phase,serial:record.serial,volume,bounds:record.response.value.bodies[0].bounds}); return record;
+    geometry(record,volume,height,width); records.push({phase,serial:record.serial,volume,bounds:record.response.value.bodies[0].bounds}); return record;
   }
   async function ready() {
     await waitFor('current operation can Apply',()=>evaluate(`!!document.querySelector(${quote(APPLY)}) && !document.querySelector(${quote(APPLY)}).disabled`));
+  }
+  const recovery = () => evaluate(`localStorage.getItem('solidflow.autosave')`);
+  const contextSelector = id => '.tree-row[data-feature-id="'+id+'"]';
+  async function contextOpen(id, keyboard) {
+    const selector=contextSelector(id);
+    if(keyboard) {
+      await evaluate(`(() => { const rows=document.querySelectorAll(${quote(selector)});
+        if(rows.length!==1||rows[0].closest('[hidden]'))throw Error('One visible context row required');
+        const r=rows[0].getBoundingClientRect();if(!r.width||!r.height)throw Error('Context row has no layout');rows[0].focus(); })()`);
+      await menuKey('ContextMenu');
+    } else {
+      const inspect=()=>evaluate(`(() => { const rows=document.querySelectorAll(${quote(selector)});
+        if(rows.length!==1)throw Error('One context row required');const row=rows[0],r=row.getBoundingClientRect();
+        const point={x:r.left+r.width/2,y:r.top+r.height/2},hit=document.elementFromPoint(point.x,point.y);
+        return {point,rect:{left:r.left,top:r.top,width:r.width,height:r.height},visible:!row.closest('[hidden]')&&r.width>0&&r.height>0
+          &&r.left>=0&&r.top>=0&&r.right<=innerWidth&&r.bottom<=innerHeight&&!!hit&&(hit===row||row.contains(hit))}; })()`);
+      let previous=null,stableSince=0;
+      const state=await waitFor('stationary context row '+id,async()=>{
+        const current=await inspect(),key=JSON.stringify(current);
+        if(key!==previous){previous=key;stableSince=Date.now();return false;}
+        return current.visible&&Date.now()-stableSince>=120?current:false;
+      });
+      await pointer('mouseMoved',state.point);
+      check(canonical(await inspect())===canonical(state),'Context row stays visible and stationary before the actual right press');
+      await pointer('mousePressed',state.point,2);
+      await pointer('mouseReleased',state.point,2);
+    }
+    await waitFor('context menu focuses first edit action '+id,()=>evaluate(`(() => {
+      const popup=document.querySelector('.part-feature-context-menu');return !!popup
+        &&popup.contains(document.activeElement)&&document.activeElement?.getAttribute('data-part-context-action')==='edit-feature'
+        &&!document.activeElement.disabled;
+    })()`));
+    records.push({phase:'context-menu-open',featureId:id,input:keyboard?'CDP ContextMenu after row focus':'CDP right press/release'});
+  }
+  async function savedUnusedCancel() {
+    const id='seq-cut-left-sketch',originalRecovery=await recovery();
+    await contextOpen(id,true);await menuKey('Enter');await ready();
+    await change('input[aria-label="Anchura"]',3);await ready();
+    const before=(await observe()).builds.at(-1),draft=before.features.find(feature=>feature.id===id);
+    check(draft?.type==='sketch'&&draft.profile.width===3,'Saved unused sketch accepts the original width edit in its draft');
+    const draftFeatures=canonical(before.features);
+    await evaluate(`(() => {const button=[...document.querySelectorAll('.ribbon-tabs button')].find(e=>e.textContent.trim()==='Operaciones');if(!button)throw Error('Operations tab unavailable');button.click();})()`);
+    await click('button.command[title="Corte extruido"]');
+    await waitFor('saved unused sketch starts direct cut',()=>evaluate(`!!document.querySelector('input[aria-label="Profundidad"]')`));
+    await change('input[aria-label="Profundidad"]',4);await ready();
+    check(await evaluate(`(() => {const selector=document.querySelector('select[aria-label="Croquis de la operación"]');return selector?.disabled&&selector.value==='seq-cut-left-sketch';})()`),
+      'Saved unused direct cut locks the original sketch identity');
+    check(await recovery()===originalRecovery,'Saved unused sketch and cut previews preserve committed recovery');
+    let serial=(await observe()).serial;await click('button[title="Cancelar operación"]');
+    await waitFor('saved unused cut Cancel resumes width-three sketch',()=>evaluate(`document.querySelector('input[aria-label="Anchura"]')?.value==='3'
+      &&document.querySelector('.ribbon-tabs .selected')?.textContent.trim()==='Croquis'`));
+    await ready();const restored=await built(serial,1,960,4,'saved-unused-cancel-cut');
+    check(canonical(restored.features)===draftFeatures,'Cut Cancel restores the exact saved sketch draft, IDs and feature order');
+    check(await recovery()===originalRecovery,'Cut Cancel leaves original saved sketch recovery untouched');
+    serial=(await observe()).serial;await click('button[title="Cancelar operación"]');
+    await waitFor('saved sketch Cancel exits editing',()=>evaluate(`!document.querySelector('.property-manager')`));
+    const cancelled=await built(serial,1,960,4,'saved-unused-cancel-sketch');
+    check(canonical(cancelled.features)===canonical(expected.features),'Sketch Cancel restores width two and the exact original IDs/order');
+    check(await recovery()===originalRecovery,'Cancelling both drafts leaves the original recovery unchanged');
+
+    await contextOpen(id,true);await menuKey('Enter');await ready();
+    await change('input[aria-label="Anchura"]',3);await ready();
+    await evaluate(`(() => {const button=[...document.querySelectorAll('.ribbon-tabs button')].find(e=>e.textContent.trim()==='Operaciones');if(!button)throw Error('Operations tab unavailable');button.click();})()`);
+    await waitFor('saved unused acceptance route exposes direct cut',()=>evaluate(`document.querySelector('.ribbon-tabs .selected')?.textContent.trim()==='Operaciones'
+      &&!!document.querySelector('button.command[title="Corte extruido"]')&&!document.querySelector('button.command[title="Corte extruido"]').disabled`));
+    await click('button.command[title="Corte extruido"]');
+    await waitFor('saved unused acceptance cut properties',()=>evaluate(`!!document.querySelector('input[aria-label="Profundidad"]')`));
+    await change('input[aria-label="Profundidad"]',4);await ready();
+    serial=(await observe()).serial;await click(APPLY);
+    await waitFor('saved unused direct cut committed',()=>evaluate(`!document.querySelector('.property-manager')`));
+    const accepted=await built(serial,2,936,4,'saved-unused-accepted');
+    const editedFeatures=structuredClone(expected.features);editedFeatures.find(feature=>feature.id===id).profile.width=3;
+    const cut=accepted.features.at(-1);
+    check(canonical(accepted.features.slice(0,-1))===canonical(editedFeatures)
+      &&accepted.features.filter(feature=>feature.id===id).length===1
+      &&cut.type==='cut'&&cut.sketchId===id&&cut.depth===4&&!cut.symmetric
+      &&cut.bodyScope?.length===1&&cut.bodyScope[0].bodyId==='seq-body'&&cut.bodyScope[0].sourceFeatureId==='seq-base',
+      'Saved unused Apply updates the original sketch in order and appends one exact scoped cut');
+    serial=(await observe()).serial;await click('button[title="Deshacer (Ctrl+Z)"]');
+    const undoCut=await built(serial,1,960,4,'saved-unused-undo-cut');
+    check(canonical(undoCut.features)===canonical(editedFeatures),'First Undo removes only the new cut and retains saved sketch width three');
+    serial=(await observe()).serial;await click('button[title="Deshacer (Ctrl+Z)"]');
+    const undoEdit=await built(serial,1,960,4,'saved-unused-undo-edit');
+    check(canonical(undoEdit.features)===canonical(expected.features),'Second Undo restores original saved sketch width two and exact feature order');
+    serial=(await observe()).serial;await click('button[title="Rehacer (Ctrl+Y)"]');
+    const redoEdit=await built(serial,1,960,4,'saved-unused-redo-edit');
+    check(canonical(redoEdit.features)===canonical(editedFeatures),'First Redo restores only saved sketch width three');
+    serial=(await observe()).serial;await click('button[title="Rehacer (Ctrl+Y)"]');
+    const redoCut=await built(serial,2,936,4,'saved-unused-redo-cut');
+    check(canonical(redoCut.features)===canonical(accepted.features),'Second Redo restores the exact accepted cut and updated sketch');
+    serial=(await observe()).serial;await click('button[title="Deshacer (Ctrl+Z)"]');
+    const resetCut=await built(serial,1,960,4,'saved-unused-reset-cut');
+    check(canonical(resetCut.features)===canonical(editedFeatures),'Reset Undo retains the exact edited saved sketch');
+    serial=(await observe()).serial;await click('button[title="Deshacer (Ctrl+Z)"]');
+    const resetEdit=await built(serial,1,960,4,'saved-unused-reset-edit');
+    check(canonical(resetEdit.features)===canonical(expected.features),'Two final Undos restore the exact original document before the existing sequence');
+  }
+  async function consumedSketchEdit(final) {
+    const beforeRecovery=await recovery(),beforeSerial=(await observe()).serial;
+    await contextOpen('seq-base',false);await menuKey('Escape');
+    await waitFor('context Escape closes and restores Base row focus',()=>evaluate(`!document.querySelector('.part-feature-context-menu')
+      &&document.activeElement===document.querySelector('.tree-row[data-feature-id="seq-base"]')`));
+    check(await recovery()===beforeRecovery&&(await observe()).serial===beforeSerial,'Context Escape restores focus without document changes or rebuilding');
+    await contextOpen('seq-base',false);await menuKey('ArrowDown');
+    await waitFor('context Down chooses explicit Base profile edit',()=>evaluate(`document.activeElement?.getAttribute('data-part-context-action')==='edit-sketch-seq-base-sketch'&&!document.activeElement.disabled`));
+    await menuKey('Enter');await ready();
+    check(await evaluate(`document.querySelector('input[aria-label="Anchura"]')?.value==='20'`),'Consumed Base profile opens through its operation context');
+    await change('input[aria-label="Anchura"]',22);await ready();
+    await evaluate(`(() => {const button=[...document.querySelectorAll('.ribbon-tabs button')].find(e=>e.textContent.trim()==='Operaciones');if(!button)throw Error('Operations tab unavailable');button.click();})()`);
+    const solidCommands=()=>evaluate(`(() => {const titles=['Saliente/Base extruido','Corte extruido','Revolución'];return {
+      tab:document.querySelector('.ribbon-tabs .selected')?.textContent.trim(),
+      commands:[...document.querySelectorAll('button.command')].filter(e=>titles.includes(e.querySelector('span')?.textContent.trim()))
+        .map(e=>({title:e.querySelector('span').textContent.trim(),tooltip:e.title,disabled:e.disabled}))};})()`);
+    const commandState=await waitFor('consumed sketch operation tab and solid commands mounted',async()=>{
+      const state=await solidCommands();return state.tab==='Operaciones'&&state.commands.length===3
+        &&['Saliente/Base extruido','Corte extruido','Revolución'].every(title=>state.commands.filter(command=>command.title===title).length===1)?state:false;
+    });
+    check(commandState.commands.every(command=>command.disabled),
+      'Consumed sketch editing keeps all solid-start commands disabled; observed='+JSON.stringify(commandState));
+    check(await recovery()===beforeRecovery,'Editing a consumed sketch does not prematurely alter committed recovery');
+    let serial=(await observe()).serial;await click(APPLY);
+    await waitFor('consumed sketch accepted',()=>evaluate(`!document.querySelector('.property-manager')`));
+    const changed=await built(serial,5,1080,9,'consumed-sketch-rebuilt',22);
+    const expectedFeatures=structuredClone(final.features);expectedFeatures.find(feature=>feature.id==='seq-base-sketch').profile.width=22;
+    check(canonical(changed.features)===canonical(expectedFeatures),'Consumed sketch edit preserves all five solid operations, IDs, order and downstream references');
+    serial=(await observe()).serial;await click('button[title="Deshacer (Ctrl+Z)"]');
+    const undone=await built(serial,5,984,9,'undo-consumed-sketch');
+    check(canonical(undone.features)===canonical(final.features),'Undo restores the exact prior sketch and complete downstream history');
+    serial=(await observe()).serial;await click('button[title="Rehacer (Ctrl+Y)"]');
+    const redone=await built(serial,5,1080,9,'redo-consumed-sketch',22);
+    check(canonical(redone.features)===canonical(changed.features),'Redo restores the exact widened sketch and complete downstream history');
+    return redone;
   }
   async function retainedCutMenu() {
     const snapshot=()=>evaluate(`(() => {
@@ -85,6 +217,7 @@ module.exports = function partSequenceWorkflow(context) {
     await waitFor('owned initial document replacement prompt',()=>evaluate(`!!document.querySelector('[role="dialog"][aria-labelledby="discard-title"]')`));
     await evaluate(`(() => { const b=document.querySelector('[role="dialog"][aria-labelledby="discard-title"] .primary-button'); if(!b||b.disabled||b.textContent.trim()!=='Continuar sin guardar')throw Error('Expected owned initial replacement'); b.click(); })()`);
     await built(serial,1,960,4,'original');
+    await savedUnusedCancel();
     // The first sketch is edited and accepted before starting a cut: this is
     // the previous lost-body-selection path, not a preauthored operation.
     await row('Left cut profile',true);
@@ -122,21 +255,22 @@ module.exports = function partSequenceWorkflow(context) {
     serial=(await observe()).serial; await click('button[title="Deshacer (Ctrl+Z)"]');
     await built(serial,4,976,7,'undo');
     serial=(await observe()).serial; await click('button[title="Rehacer (Ctrl+Y)"]');
-    const final=await built(serial,5,984,9,'redo');
+    const originalFinal=await built(serial,5,984,9,'redo');
+    const final=await consumedSketchEdit(originalFinal);
     await menu('Guardar como…');
     await waitFor('native Save and clean title',async()=>dialogCounts().saves===1 && ipc.some(e=>e.channel==='document:save'&&e.completed)
       && await evaluate(`!document.querySelector('.document-title')?.textContent.includes('*')`));
     const saved=JSON.parse(await fsp.readFile(output,'utf8'));
     check(saved.id===expected.id && canonical(saved.features)===canonical(final.features),'Saved actual authored sequence.');
     serial=(await observe()).serial; await click('button[aria-label="Abrir (Ctrl+O)"]');
-    const reopened=await built(serial,5,984,9,'reopened');
+    const reopened=await built(serial,5,1080,9,'reopened',22);
     check(canonical(reopened.features)===canonical(saved.features),'Reopened actual saved sequence.');
     check(dialogCounts().opens===2&&dialogCounts().saves===1,'Owned original/save/reopen dialogs only.');
     check(!consoleErrors.length&&!failedRequests.length,'No renderer resource or console errors.');
     check(protocolResponses.some(p=>/kernel\.worker-[\w-]+\.js$/.test(p.url)&&p.status===200)
       && protocolResponses.some(p=>p.url.endsWith('.wasm')&&p.status===200),'Production worker and WASM observed.');
     checks.push({originalSha256:digest(await fsp.readFile(input)),savedSha256:digest(await fsp.readFile(output)),records,
-      independentOracles:'Volumes960,944,928,976,984 mm3; bounds1e-6mm, volume1e-5mm3. Native area/BRep checks are separate.'});
+      independentOracles:'Volumes 960,944,928,976,984 mm3; saved unused width-three cut removes 3*2*4=24 mm3, leaving 936 mm3. Widening the base from 20 to 22 mm adds 2*12*4=96 mm3, giving 1080 mm3 with X bounds ±11 mm. Bounds 1e-6 mm, volume 1e-5 mm3. Native area/BRep checks are separate.'});
     await capture(saved);
   };
 };

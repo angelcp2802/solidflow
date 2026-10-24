@@ -10,20 +10,33 @@ Escape closes a focused menu and returns focus to its trigger without cancelling
 the active sketch or operation. Unavailable actions remain disabled; closing a
 menu does not accept or discard a draft.
 
-## Continue directly from a new sketch
+## Edit operations and their sketches from the tree
 
-While editing a new sketch, wait for a healthy, current preview, then choose
+Right-click an operation in the feature tree to choose **Editar operación** or
+an explicitly named **Editar croquis** input. A sketch row offers its own edit
+command. For operations with several sketch inputs, each input is listed by
+name. The top **Editar** menu provides the same input choices for the selection.
+Focus a tree row and press the context-menu key or Shift+F10 to open its menu;
+arrows and Enter choose a command, and Escape returns focus without editing.
+
+Changing a consumed sketch rebuilds its downstream operations after acceptance.
+While that sketch is being edited, new extrusion, cut and revolution commands
+remain disabled. Inspect the rebuilt result after accepting an earlier edit.
+
+## Continue directly from a new or unused sketch
+
+While editing a new sketch or a saved sketch without dependents, wait for a
+healthy, current preview, then choose
 **Operaciones → Saliente/Base extruido** or **Corte extruido**. Finish any active
-sketch chamfer, fillet, mirror or offset tool first. Editing an already saved
-sketch still requires accepting or cancelling that edit before starting another
-operation.
+sketch chamfer, fillet, mirror or offset tool first.
 
-The operation retains the new sketch as a draft and locks its profile selector.
+The operation retains the sketch as a draft and locks its profile selector.
 Inspect its parameters and body targets before accepting. **Cancel** returns to
 the same active sketch, preserving its geometry, support and sketch undo/redo;
-it does not add either feature to the document. Acceptance records the sketch
+it does not commit either draft. Acceptance records the new or changed sketch
 followed by the solid operation. One document undo removes the operation while
-keeping its sketch; a second undo removes that sketch. Save and recovery use the
+keeping its sketch; a second undo reverses the sketch addition or edit. An
+unchanged saved sketch does not add a redundant edit step. Save and recovery use the
 accepted document, so finish the operation or return to and accept the sketch
 before saving it.
 

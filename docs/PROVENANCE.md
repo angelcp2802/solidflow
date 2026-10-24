@@ -82,6 +82,14 @@ Volumes after each operation: 960, 944, 928, 976, 984 mm³. Final area is
 736 + 48 + 48 + 16 = 848 mm²; bounds [−10,−6,0] to [10,6,9] mm.
 The edited analytical case changes base/cut depth to 5 and boss/cap support
 offsets to 5/8: volume 1216 mm³, area 928 mm², upper Z=10.
+The consumed-sketch variant widens only the base rectangle from 20 to 22 mm:
+the added strip contributes 2×12×4=96 mm³ and exterior area 2×2×(12+4)=64 mm².
+The complete result has volume 1080 mm³, area 912 mm² and X bounds ±11 mm;
+all downstream sketches, operation IDs and references remain unchanged. The
+renderer also edits an unused profile from width 2 to 3 mm before cancelling
+its staged cut and sketch. Its separate accepted retry cuts 3×2×4=24 mm³ from
+the 960 mm³ base, leaving 936 mm³, and checks separate sketch/operation Undo/Redo.
+No external geometry is used.
 Native tests check BRep validity, one solid, volume/area within 1e-5 and
 coordinates within 1e-6 mm, including exported STEP reimport. Renderer tests
 author separate operations through the real UI, using the prepared sketches.
