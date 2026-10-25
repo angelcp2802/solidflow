@@ -1,5 +1,31 @@
 # Development guide
 
+## Fillet and chamfer PropertyManagers — 2026-10-25
+
+Fillet and chamfer present edge selection, Radius or Distance, Bodies and Name
+in that DOM and keyboard order. The existing body and name editors remain
+single instances with their original callbacks. Density rules apply only to
+these two editors, retaining 28 px inputs and the sticky confirmation header.
+Current edge/body identities, selection versus preview mode, diagnostic text,
+Cancel and Apply guards are unchanged; no finishing mode or geometry is added.
+
+Eight SSR cases check the panel structure and control states. The new original
+two-prism renderer covers separate constant-radius fillet and equal-distance
+chamfer cases on one current edge of body A, with body B unchanged. Initial
+layout observations precede helper scrolling. Subsequent controls use actual
+pointer activation with scroll assistance; this does not establish that every
+control is initially visible. The workflow checks Cancel, Apply, Undo/Redo,
+Save/reopen and actual STEP export, with analytical geometry expectations.
+It does not cover all-edge selection, tangent propagation or chained finishes.
+Run it after building with `npm run test:desktop:part-finishing` (under Xvfb on
+headless Linux). CI configures this command in each platform's persistence job.
+The named local Windows build, finishing/sequence renderers, full suite and
+desktop smoke pass. Only an IPC test-context correction separates the selected
+renderer snapshot from the final full-suite/smoke snapshot; production and
+renderer inputs are unchanged. Hosted acceptance remains pending. Exact results
+and limits are in [validation](VALIDATION.md), with fixture and measurement
+boundaries in [provenance](PROVENANCE.md).
+
 ## Extrusion and cut PropertyManagers — 2026-10-25
 
 Extrusion and cut now present the selected profile, direction parameters and

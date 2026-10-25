@@ -3058,7 +3058,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
             </button>
           </div>
           {editing ? (
-            <div className={`property-manager${editing.type === "revolve" ? " property-manager-revolve" : editing.type === "extrude" || editing.type === "cut" ? " property-manager-extrude" : ""}`}>
+            <div className={`property-manager${editing.type === "revolve" ? " property-manager-revolve" : editing.type === "extrude" || editing.type === "cut" ? " property-manager-extrude" : isEdgeFinish(editing) ? " property-manager-finish" : ""}`}>
               <div className="property-manager-header">
                 <div className="property-title">
                   <span>{labels[editing.type]}</span>
@@ -3089,7 +3089,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                   </span>
                 </div>
               </div>
-              {editing.type !== "revolve" && editing.type !== "extrude" && editing.type !== "cut" && <>{operationNameEditor}{operationBodyEditor}</>}
+              {editing.type !== "revolve" && editing.type !== "extrude" && editing.type !== "cut" && !isEdgeFinish(editing) && <>{operationNameEditor}{operationBodyEditor}</>}
               {editing.type === "sketch" ? (
                 <>
                   {sketchTool === "offset" && entityProfile && <SketchOffsetPanel
@@ -3483,6 +3483,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                   }
                 />
               ) : isEdgeFinish(editing) ? (
+                <>
                 <EdgeFinishPanel
                   feature={editing}
                   onSize={(size) => changeDraft({ size })}
@@ -3495,6 +3496,9 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                   canPreview={canAccept}
                   loading={sourceLoading}
                 />
+                {operationBodyEditor}
+                {operationNameEditor}
+                </>
               ) : (
                 <>
                   <div className="property-section operation-profile-section">

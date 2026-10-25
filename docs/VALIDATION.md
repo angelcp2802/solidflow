@@ -1,5 +1,84 @@
 # Validation
 
+## Fillet and chamfer panel order — 2026-10-25
+
+This increment orders edge selection, Radius or Distance, Bodies and Name,
+with density rules scoped to fillet/chamfer and a sticky confirmation header.
+Eight SSR cases cover panel structure and control states. Geometry, document
+identity, body scope and preview/Apply guards are unchanged.
+
+The first finishing attempt stops at a fixture-warning assertion after 7.377 s.
+The second stops at file-menu label matching with shortcut text after 70.582 s,
+after the fillet case reaches Redo. Both corrections affect only the harness;
+production code is unchanged. Build 03 passes in 3.579 s. The following local
+Windows renderer runs use the same frozen 1,123-input source/runtime snapshot:
+
+| Workflow | Checkpoints | Total command elapsed |
+| --- | ---: | ---: |
+| Original two-body finishing | 102 | 162.899 s |
+| Successive parts regression | 149 | 60.439 s |
+
+Both pass with zero console, request and resource errors, confirmed child close
+and isolated-profile cleanup. The finishing command's 162.899 s is not an exact
+child-runtime measurement: it includes launch/startup. Its existing 170 s child
+deadline remains unchanged. The long command duration warrants caution, but
+these figures do not establish exact remaining child budget or hosted timing.
+
+The finishing workflow covers two separate original cases: radius-1 fillet and
+equal-distance-1 chamfer on one current edge of body A, with body B unchanged.
+Actual pointer selection precedes checking the observed edge reference; no
+reference is injected. Cancel/retry, Apply, Undo/Redo, Save/reopen and two STEP
+exports pass. Independent analytical volume/area/bounds expectations and
+measurement tolerances are recorded in [provenance](PROVENANCE.md#original-two-prism-finishing-cases).
+A separate reader in the same kernel family checks valid aggregate and per-solid
+BReps and exactly two solids; there is no additional closed-shell assertion or
+independent interoperability claim. The cases do not chain finishes or cover
+all-edge selection and tangent propagation.
+
+Initial panel observations precede helper scrolling. Later command activation
+uses actual pointer input with scroll assistance. A separate visible Windows
+check opens the saved chamfer by tree double-click at minimum size: edge
+selection precedes Distance, the distance-1 input fits near the bottom of the
+initial pane, and confirmation remains fixed. Changing the field to 2, then
+maximizing and choosing Preview, displays a larger chamfer. Cancel restores the
+ready document with displayed body volumes 238 and 240 mm3; reopening shows
+Distance 1 again. This manual check performs no Apply or Save and provides no
+independent numerical oracle for the distance-2 preview. Visual review covers
+these named states and the final renderer capture only. Bodies and Name may
+require inspector scrolling, and the compact ribbon still scrolls horizontally.
+
+Full-suite 01 fails after 552.708 s: all 9,710 tests across 423 files pass,
+but the IPC phase reports 82 passes, one failure and two skips. Its child-finish
+VM fixture lacks the new `partFinishing` flag and throws
+`ReferenceError: partFinishing is not defined`. The sole correction adds
+`partFinishing: false` to that test context in
+`scripts/desktop-ci-diagnostics.node.cjs`; the focused IPC rerun passes
+83 checks with two skips.
+
+Full `npm test` 02 passes 9,710 tests across 423 files, followed by 83 IPC
+checks and two skips, in 551.901 s. Desktop smoke 02 passes in 1.623 s with zero
+console, request and resource errors. These final runs use 1,123 inputs matching
+the final source/runtime snapshot. Selected acceptance 03 also uses 1,123 inputs,
+but its snapshot differs by exactly the IPC test fixture correction above.
+Production and renderer-harness inputs used by build03 and the two renderer03
+runs remain unchanged; the complete acceptance set is not claimed to share an
+identical snapshot.
+
+This completes the named local Windows acceptance, not a full renderer matrix,
+general platform support or hosted acceptance of this increment. Earlier dated
+sections below retain their historical source-state results.
+
+Parent `92e726c` has terminal [CI failure](https://github.com/angelcp2802/solidflow/actions/runs/40168924211):
+seven of nine renderer jobs and all three configured-authoring jobs pass.
+Windows persistence job 121095612615 and Ubuntu persistence job 121095612616
+fail the rigid assembly preview, Apply and persistence step. One log retrieval
+attempt per failed job returns `Transport closed`; no exact checkpoint or
+underlying cause is established. All three Desktop jobs fail
+`Require every renderer validation job` before packaging acceptance.
+[Security](https://github.com/angelcp2802/solidflow/actions/runs/40168924203)
+completes successfully. These are parent results, not hosted acceptance of
+the finishing-panel increment or its subsequent head.
+
 ## Extrusion and cut panel order — 2026-10-25
 
 This increment places profile and direction/destination parameters before

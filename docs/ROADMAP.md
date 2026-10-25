@@ -50,6 +50,12 @@ can be exported as STEP and STL. [STEP import](STEP_IMPORT.md) adds one closed
 solid as an owned base for downstream operations. Each operation has explicit
 limitations.
 
+Fillet and chamfer panel ordering now puts selection and size before Bodies
+and Name. The original two-prism renderer passes its separate single-edge cases
+in local Windows acceptance; all-edge selection, tangent propagation and broader
+finishing interaction remain outside that coverage. Hosted acceptance remains
+pending. Exact results and snapshot limits are tracked in [validation](VALIDATION.md).
+
 ## Work in review
 
 Use the dated [project status and review queue](PROJECT_STATUS.md) for the

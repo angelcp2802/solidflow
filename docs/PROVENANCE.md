@@ -1,5 +1,39 @@
 # Public fixture provenance
 
+## Original two-prism finishing cases
+
+`scripts/desktop-part-finishing-original.cjs` authors two separate rectangular
+prisms: A spans [0,0,0] to [10,6,4] mm; B is translated 20 mm along X and spans
+[20,0,0] to [30,6,4] mm. Each has volume 240 mm3 and area 248 mm2. The recipe
+contains two sketches and two explicit new-body extrusions, with no imported
+geometry or stored topology references. Its coordinates share the original
+analytical construction used by `kernel.body-workflow.test.ts`.
+
+`scripts/desktop-part-finishing-flow.cjs` starts each finish from that original
+input. A real pointer selects A's vertical edge at x=10, y=6; the current edge
+DTO is checked as a witness after selection, never injected into the UI. A
+radius-1 fillet removes a 1-by-1 corner minus its quarter circle over height 4,
+leaving volume 236+pi mm3 and area 238+2.5*pi mm2. A separate equal-distance-1
+chamfer removes a triangular prism, leaving volume 238 mm3 and area
+239+4*sqrt(2) mm2. Both retain A's original bounds. B retains volume 240 mm3,
+area 248 mm2 and its literal bounds; its observed body/edge data are also
+compared unchanged. These are two separate single-edge cases, not chained
+finishes, all-edge selection or tangent-propagation coverage.
+
+Worker volume and bounds, and exported-solid volume, area and bounds, use
+absolute tolerances of 5e-6 in their respective units. The literal native corner
+witness uses 5e-7 mm. A separate STEP reader checks millimetre units, complete
+root transfer, aggregate and per-solid BRep validity, and exactly two solids.
+It uses the same kernel family; this is not independent interoperability, and
+there is no separate closed-shell assertion.
+
+The workflow checks Cancel/retry, Apply, Undo/Redo, saved bytes, reopening and
+two actual STEP exports. File dialogs use isolated test-owned paths. Initial
+layout measurements precede helper scrolling; later pointer activation can use
+scroll assistance. The bounded local Windows results are recorded in
+[validation](VALIDATION.md#fillet-and-chamfer-panel-order--2026-10-25); they do
+not establish broader finishing coverage or general platform support.
+
 ## Extrusion and cut panel-order checks
 
 `scripts/desktop-part-extrude-layout.cjs` reads the existing production UI; it

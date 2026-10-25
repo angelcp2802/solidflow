@@ -2098,3 +2098,13 @@ button,
 .property-manager.property-manager-extrude .number-field input { height: 28px; }
 .property-manager.property-manager-extrude .text-input,
 .property-manager.property-manager-extrude .property-section select { min-height: 28px; }
+
+/* Finishing-only parameter density; edge lists and body diagnostics stay available. */
+.property-manager.property-manager-finish .property-section { padding: 0 10px 8px; }
+.property-manager.property-manager-finish .property-section h3 { height: 28px; margin: 0 0 5px; }
+.property-manager.property-manager-finish .muted-small { margin-top: 6px; }
+.property-manager.property-manager-finish .number-field { min-height: 34px; }
+.property-manager.property-manager-finish .number-field > div { height: 30px; }
+.property-manager.property-manager-finish .number-field input { height: 28px; }
+.property-manager.property-manager-finish .text-input,
+.property-manager.property-manager-finish .property-section select { min-height: 28px; }
