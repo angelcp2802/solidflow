@@ -302,6 +302,31 @@ module.exports = function basicAuthoringWorkflow(context) {
     definition = { ...event.document.occurrences[0].definition }; current = event.document; owners.base = current.occurrences[0].id;
     check(!current.occurrences[0].fixed && canonical(current.occurrences[0].pose) === canonical({ translation: [0, 0, 0], rotation: [0, 0, 0, 1] }), 'Import retains floating identity placement');
     geometry(event.response.value, current, 1, 'import'); await recovery(current); await insertedSelection(current, owners.base, 'import');
+    // Rejected blur edits must restore the committed text without creating a
+    // document/history entry or worker request. Tab uses actual CDP input.
+    const componentName = '[aria-label="Nombre del componente"]';
+    for (const rejected of [{ kind: 'empty', value: '' }, { kind: 'whitespace', value: '   ' }, { kind: 'over-limit', value: 'x'.repeat(201) }]) {
+      await actual(componentName);
+      const initial = { ui: await uiState(), observation: await observe(), counters: await observe.counters() };
+      await control(componentName, rejected.value);
+      check(await page(selector => document.activeElement === document.querySelector(selector), componentName), 'Rejected component name has focus before real Tab');
+      await menuKey('Tab');
+      const restored = await waitFor('rejected component name restored with visible error', () => page((selector, name) => {
+        const input = document.querySelector(selector), status = document.querySelector('.assembly-status');
+        return input && document.activeElement !== input && !input.disabled && !input.closest('[hidden]')
+          && input.checkVisibility({ visibilityProperty: true }) && input.value === name
+          && status?.classList.contains('error') && status.textContent.includes('texto no válido')
+          ? { name: input.value, error: status.textContent } : false;
+      }, componentName, occurrence(current, owners.base).name));
+      const final = { ui: await uiState(), observation: await observe(), counters: await observe.counters() };
+      check(canonical(final.observation) === canonical(initial.observation), 'Rejected component name preserves complete worker and UI observation history');
+      check(canonical(final.counters) === canonical(initial.counters), 'Rejected component name issues no worker request');
+      check(canonical(final.ui) === canonical(initial.ui), 'Rejected component name preserves recovery, selection, history controls and title');
+      check(canonical(JSON.parse(final.ui.recovery)) === canonical(current), 'Rejected component name preserves the complete committed document');
+      checks.push({ rejectedComponentName: { kind: rejected.kind, length: rejected.value.length, restoredName: restored.name,
+        error: restored.error, counters: final.counters, documentSha256: digest(canonical(current)) } });
+    }
+    await actual(componentName);
     const fixedIndex = await page(() => [...document.querySelectorAll('#assembly-panel-properties .assembly-check')].findIndex(e => e.textContent.trim() === 'Fijo respecto a su padre'));
     check(fixedIndex === 0, 'Explicit fixed control is the first component-state checkbox'); before = await serial();
     await control('[aria-label="Nombre del componente"]', 'Base');

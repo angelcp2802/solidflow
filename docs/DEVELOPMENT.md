@@ -33,6 +33,18 @@ with one pointer click and no intervening Tab or rebuild wait. File contents and
 reopening must contain the final name. See the latest validation entry for the
 executed snapshot and limits.
 
+A rejected component name restores the committed text on blur and retains the
+visible validation error. Empty text, whitespace-only text and names longer than
+200 characters remain invalid under the existing parser. Rejection does not
+commit a document/history change or submit worker work. The renderer prepares
+these values on the visible input and uses actual Tab to trigger blur, checking
+restored text, recovery, complete worker observations, counters and history
+controls. Valid name-to-Fixed and name-to-Save As routes remain in the same
+workflow. Build, the 215-checkpoint renderer, full suite and desktop smoke pass
+on the same 1,137-input snapshot; see [validation](VALIDATION.md) for the bounded
+results. The separate manual check of the earlier portable package does not
+validate this rejection fix.
+
 The insertion-continuity implementation passes the bounded local authoring,
 import and origin regressions. After importing
 or reusing a component, the transition selects the exact new occurrence

@@ -22,6 +22,9 @@ before starting an empty standard assembly.
    the name. Insertion itself leaves components free at
    identity pose; no first-component fixing or non-overlapping placement is
    assumed.
+   If the name is empty, contains only whitespace or exceeds 200 characters,
+   leaving the field shows an error and restores the committed name. Correct
+   the name before continuing; rejected text does not change the assembly model.
 3. Return to Components and use **Insertar otra ocurrencia** twice from the
    same reusable source. Name them **Guía** and **Seguidor**. Move Guía to X8 mm
    and Seguidor to X16 mm in Properties, leaving Y/Z zero and no rotation.
@@ -45,15 +48,22 @@ before starting an empty standard assembly.
 The original prism has volume 24 mm³ and area 52 mm²; three occurrences total
 72 mm³ and 156 mm² of per-solid area. The original recipe is
 `scripts/desktop-assembly-basic-authoring-original.cjs`; its automated route is
-`npm run test:desktop:assembly-basic-authoring` (199 checkpoints in the direct
-name/action run; the earlier run 07 had 189).
+`npm run test:desktop:assembly-basic-authoring` (215 checkpoints in the
+name-rejection run, with build, full suite and smoke passing on its same snapshot;
+the earlier direct name/action run had 199 and run 07 had 189).
 A separate manual Windows check reuses this saved original assembly, inserts
 one more occurrence with automatic Properties/name focus, and undoes it back
 to three solids. It does not manually repeat New/import/relations/Save/reopen.
+Another bounded manual check of the earlier `333c09b` portable opens the saved
+three-piece assembly, renames Base and toggles Fixed with one click, restores
+Fixed, then renames and uses one Save As click. Native reopening retains the
+name, three solids and 72 mm³; document comparison retains both relations,
+poses, definitions and fixed state. That package predates the rejection fix.
 Automated form assignment is scripted on visible controls, with actual pointer
 actions and Tab blur for other names; the two direct name/action checks use
 neither Tab nor an intervening rebuild wait. Later controls may use scroll
-assistance. This is distinct
+assistance. Empty, whitespace-only and 201-character rejection checks also use
+scripted field assignment followed by actual Tab blur. This is distinct
 from a manual walkthrough and does not cover configured/nested authoring,
 contact, collision or STEP export.
 See [provenance](PROVENANCE.md#original-three-piece-assembly-authoring-case) and

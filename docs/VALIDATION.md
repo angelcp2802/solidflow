@@ -1,5 +1,68 @@
 # Validation
 
+## Rejected component-name restoration — 2026-10-25
+
+A focused renderer diagnostic reproduced an invalid component name remaining
+visible after blur while the committed document retained its original name.
+The field now restores that committed text when the existing edit guard or
+parser rejects the edit. The validation error remains visible; accepted edits
+keep their existing path. There is no schema, CAD-rule or deadline change.
+
+The original three-piece authoring route checks empty, whitespace-only and
+201-character names. Field preparation is scripted; Tab blur is actual input.
+Each rejection restores the original name and error while preserving complete
+worker observations, request counters, recovery, selection, history controls
+and title. The frozen harness checks those equalities; the result summary does
+not retain separate history snapshots. Source review confirms parser rejection
+precedes the history commit. The same route retains name-to-Fixed and
+name-to-Save As, geometry, Cancel/Apply, Undo/Redo and file round-trip checks.
+
+Final local Windows x64, Node 24.11.1 and Electron 44.9.3 acceptance uses the
+same 1,137 matching non-Markdown source/runtime inputs:
+
+| Command | Result |
+| --- | --- |
+| `npm run build` | PASS, 4.689 s |
+| `npm run test:desktop:assembly-basic-authoring` | PASS, 215 checkpoints, 24.868 s |
+| `npm test` | PASS, 9,723 tests / 425 files; 91 IPC checks and 2 explicit skips; 549.416 s |
+| `npm run test:desktop` | PASS, 2.343 s |
+
+The renderer and smoke report zero console, request and resource errors. The
+renderer confirms child close and isolated-profile removal. Independent source
+and evidence reviews found no actionable issue. This establishes the recorded
+local cases, not manual typing of rejected values, every rejection/interaction
+combination, simultaneous worker activity at the action-handler instant or
+general platform support. Current-head hosted acceptance remains open.
+
+Earlier published review `333c09b` has terminal
+[CI](https://github.com/angelcp2802/solidflow/actions/runs/40206729147)
+failure: 7/9 renderer batches and 3/3 configured-authoring jobs pass. Windows
+rigid persistence reaches the 170,001 ms global child deadline waiting for the
+first 720-degree movement preview intended for Cancel; Cancel itself was not
+reached. Its recorded response wait is 4,639 ms, below the 35-second limit.
+Windows symmetry reaches the 170,015 ms global deadline after the Relations
+focus barrier at the start of its final axis-line family, before confirmed
+relation-type interaction. These annotations do not establish deadlock, the
+exact outstanding symmetry evaluation or dominant accumulated cost. Cumulative
+frame counts do not establish current liveness. All three Desktop jobs fail
+their required-renderer prerequisite; unit, smoke and packaging are skipped.
+The separate [Security workflow](https://github.com/angelcp2802/solidflow/actions/runs/40206729127)
+passes both jobs. These are parent results, not CI acceptance of this fix.
+
+A separate real Windows check used that earlier `333c09b` portable. Changing
+the plate extrusion from 12 to 10 mm retained four 10 mm holes; native save and
+reopening displayed 100 by 70 by 10 mm and 66.858 cm³. Document comparison found
+only extrusion depth and `updatedAt` changed. In the three-piece assembly,
+renaming Base followed by one Fixed click changed its state; Fixed was then
+restored. A subsequent name change followed by one Save As click and native
+reopening retained three solids and 72 mm³. Only the component name and
+`updatedAt` differed; both relations, poses, definitions and fixed state were
+unchanged. This uses actual window/dialog actions and visible field assignment,
+not instrumented proof that a worker remained pending. Plate volume is the
+rounded UI measurement, not a new BRep-validity query. The package predates the
+name-restoration fix and this manual check does not validate that fix, repeat
+assembly authoring or establish release acceptance.
+
 ## Component name followed by an action — 2026-10-25
 
 A focused renderer reproduction showed that typing a component name and clicking

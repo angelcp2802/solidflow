@@ -670,7 +670,11 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     setScopePath(value => { try { nodeAt(document, value); return value } catch { return [] } })
     return document
   }
-  const edit = (value: AssemblyEdit) => { if (activity.commandActive || hasStaging() || rootRevision) return; try { change(applyAssemblyEdit(current.current, value)) } catch (reason) { notify((reason as Error).message, true) } }
+  const edit = (value: AssemblyEdit): boolean => {
+    if (activity.commandActive || hasStaging() || rootRevision) return false
+    try { change(applyAssemblyEdit(current.current, value)); return true }
+    catch (reason) { notify((reason as Error).message, true); return false }
+  }
   const commitInsertion = (next: AssemblyDocument, navigation: AssemblyInsertionNavigation) => {
     const previous = current.current, document = change(next)
     if (navigation.epoch === insertionNavigationEpoch.current && JSON.stringify(navigation.scopePath) === currentFileScope.current)
@@ -2225,7 +2229,10 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
           </header>
           {!selected && <p className="assembly-component-manager-empty">Selecciona un componente en el árbol para ver sus propiedades.</p>}
       <fieldset className="assembly-component-properties" aria-label="Edición del componente seleccionado" hidden={!!selectedTreeOrigin} disabled={!!selectedTreeOrigin}>
-      {selected && <section className="assembly-section" key={JSON.stringify(selected.path)}><h3>Componente seleccionado</h3><button aria-label={selected.definition.kind === 'part' ? 'Actualizar pieza' : 'Actualizar subensamblaje'} disabled={editingBlocked || !!preview} onClick={() => void open('update')}>{selected.definition.kind === 'part' ? 'Actualizar pieza' : 'Actualizar subensamblaje'}</button><label>Nombre<input aria-label="Nombre del componente" defaultValue={selected.occurrence.name} disabled={documentEditingBlocked} onBlur={event => { if (event.target.value !== selected.occurrence.name) edit({ type: 'rename-occurrence', scope: selected.parent, occurrenceId: selected.occurrence.id, name: event.target.value }) }} /></label>
+      {selected && <section className="assembly-section" key={JSON.stringify(selected.path)}><h3>Componente seleccionado</h3><button aria-label={selected.definition.kind === 'part' ? 'Actualizar pieza' : 'Actualizar subensamblaje'} disabled={editingBlocked || !!preview} onClick={() => void open('update')}>{selected.definition.kind === 'part' ? 'Actualizar pieza' : 'Actualizar subensamblaje'}</button><label>Nombre<input aria-label="Nombre del componente" defaultValue={selected.occurrence.name} disabled={documentEditingBlocked} onBlur={event => {
+        if (event.currentTarget.value !== selected.occurrence.name && !edit({ type: 'rename-occurrence', scope: selected.parent, occurrenceId: selected.occurrence.id, name: event.currentTarget.value }))
+          event.currentTarget.value = selected.occurrence.name
+      }} /></label>
         {selected.definition.kind === 'part' && <details><summary>Sustituir pieza</summary>
           <label>Alcance<select aria-label="Alcance de sustitución" value={replacementMode} disabled={editingBlocked || !!preview || replaceDialog}
             onChange={event => setReplacementMode(event.currentTarget.value as AssemblyPartReplacementRequest['mode'])}>
