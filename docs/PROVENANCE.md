@@ -1,5 +1,33 @@
 # Public fixture provenance
 
+## Shared command-header regression reuse
+
+The shared header introduces no CAD fixture, imported model, stored topology
+reference or external visual asset. Its interaction checks reuse the
+project's original part and assembly recipes with their existing identities
+and independent geometry expectations. Body-catalogue, successive-part and
+revolution cases retain the provenance recorded below; rigid/configured
+persistence and compact configured picking retain their original recipes.
+Standard and configured origin-axis cases
+use `scripts/desktop-assembly-origin-axes-original.cjs`, whose original
+2-by-3-by-4 mm prism has analytical volume 24 mm3 and area 52 mm2.
+
+Header bounds, hit targets, keyboard focus and menu placement are presentation
+observations, not extra geometry or interoperability oracles. The first local
+catalogue run passes 42 checkpoints on the unchanged original long-name fixture;
+its header/tree measurements apply only to that content size and case. Reusing
+a passing fixture does not itself validate other header actions. The revolution
+follow-up opens the existing Info disclosure through actual input and checks
+unchanged geometry and document invariants; it adds no fixture, tolerance or
+CAD operation. Revolution, parts and rigid assembly pass on the final snapshot;
+the two changed harness inputs distinguish it from the retained selected 01
+catalogue and origin/picking results. Configured persistence, full-suite and
+smoke also pass on the final snapshot. Eight reviewed captures document
+presentation only; they add no geometric or persistence oracle. The local lower-edge check records an
+infeasible negative scroll offset before the Info disclosure and a feasible
+positive offset afterward, with all original assertions preserved. Exact
+results and limits belong in [validation](VALIDATION.md).
+
 ## Original body-catalogue presentation case
 
 `scripts/desktop-part-body-catalog-original.cjs` reuses the original finishing

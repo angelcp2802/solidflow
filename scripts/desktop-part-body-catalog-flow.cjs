@@ -138,6 +138,7 @@ module.exports = function bodyCatalogWorkflow(c) {
     await press('button[aria-label="Abrir (Ctrl+O)"]');
     await press('[role="dialog"][aria-labelledby="discard-title"] .primary-button');
     await built(boundary, 'opened');
+    await require('./desktop-command-header-layout.cjs')({ page, check, checks }, 'body-catalog-initial-before-reveal', 'part');
     const baseline = await invariant(), initial = await layout('initial-before-reveal');
     check(initial.insideTree && initial.rootBeforeFolder && initial.expanded === 'true' && !initial.hidden
       && initial.rows.length === 2 && initial.rows.every(r => r.height >= 28 && r.height <= 29 && !r.checked), 'Initially expanded compact catalog under document root with two 28px rows');

@@ -1,5 +1,122 @@
 # Validation
 
+## Shared command header — 2026-10-25
+
+This increment places brand, menus, quick actions, document identity and
+utilities in one shared 35 px row for parts and both assembly workspaces.
+It removes the separate quick-action row while retaining caller-owned commands,
+guards, menu behavior and file/dirty labels. The existing ribbon and inspector
+remain separate. Menus stay visible; auto-hide and pin/unpin are not implemented.
+The measured space change below is limited to one original part-tree case.
+
+The updated SSR assertion checks a single quick-access instance inside the
+header after the menus, with file identity retained. Renderer checks
+reuse original fixtures to exercise current menu and quick-action routes,
+focus, layout containment and unchanged document/geometry oracles. No new
+geometry fixture or tolerance is introduced by the header layout itself. The
+completed selected runs are body catalogue, successive parts, part revolution,
+standard/configured origin axes, compact configured picking, rigid assembly
+and configured assembly persistence. The earlier finishing run is not counted
+as a rerun of this header increment.
+Selected 01 uses a matching frozen 1,130-input source/runtime snapshot.
+Build passes in 5.627 s; catalogue passes 42 checkpoints in 61.131 s total command
+time, with zero console, request and resource errors, confirmed child close and
+isolated-profile cleanup. At 1024-by-661 content, its single header measures
+35 px high. All 14 controls measure 28 px, are fully contained and pass center
+hit tests without overlap; menus precede six quick actions. The document-title
+slot is 206.672 px wide with a full-title tooltip and ellipsis for 225 px scroll
+width. No header overflow is observed. The same original fixture's tree is
+293 px high versus 259 px in body-catalogue 04 at the same content size: a
+measured 34 px increase for this tree, not a generalized viewport-gain claim.
+The initial catalogue capture was reviewed. Other selected 01 passes are:
+
+| Workflow | Checkpoints | Total command elapsed |
+| --- | ---: | ---: |
+| Successive parts | 144 | 48.522 s |
+| Standard origin axes | 213 | 89.823 s |
+| Configured origin axes | 313 | 87.697 s |
+| Compact configured picking | 190 | 64.376 s |
+
+Each reports zero console, request and resource errors, confirmed child close
+and profile cleanup. Revolution 01 fails after 73.644 s and 151 records, after
+Save/reopen, waiting for a stationary unselected feature at the lower tree edge.
+Only two harness scripts then change: the revolution flow opens body Info by
+actual input with before/after geometry and exact invariants, and the shared
+tree helper retains the last inspection for failure diagnostics. Production,
+wait predicates, deadlines and tolerances do not change. Selected 01 and the
+final snapshot both contain 1,130 inputs, but differ in those two scripts; they
+are not identical snapshots. Build 02 passes in 3.811 s. The final-snapshot
+selected 02 results are:
+
+| Workflow | Checkpoints | Total command elapsed |
+| --- | ---: | ---: |
+| Part revolution | 180 | 49.734 s |
+| Successive parts | 144 | 48.617 s |
+| Rigid assembly | 645 | 167.722 s |
+| Configured assembly persistence | 195 | 30.258 s |
+
+All pass with zero console, request and resource errors and confirmed isolated
+profile cleanup. The rigid-assembly duration is total command time, not exact
+child runtime; the unchanged deadline and this local result do not establish
+CI headroom. Selected 02 completes with all five records passing, including
+build and four renderers. Catalogue,
+standard/configured origin-axis and compact configured checks remain accepted
+from selected 01 on the earlier harness snapshot, with production unchanged;
+parts is superseded by its affected rerun. Revolution 02 records why its local
+tree setup needed the real Info disclosure: before opening, tree height is
+293 px and target-bottom offset is 290 px, requiring impossible scrollTop=-3.
+The disclosure adds 44 px; target-bottom offset becomes 334 px and required
+scrollTop=41 is feasible. All original strict lower-edge assertions then pass.
+This diagnoses the local alignment setup, not an unobserved hosted failure.
+Full 01 passes in 516.919 s: 9,710 tests across 423 files, plus 83 IPC passes
+and two explicit skips. Desktop smoke passes in 1.592 s with zero console,
+request and resource errors. Build 02, selected 02, full 01 and smoke use the
+matching final 1,130-input source/runtime snapshot. The four retained selected
+01 renderers use the earlier snapshot with only the two documented harness
+inputs different; production is unchanged. These bounded local Windows results
+do not establish general platform support or hosted acceptance of the new head.
+
+A preparatory visible Windows check of the same production code, before the
+new harness copy, opens File by pointer and observes Tab focus on the New quick
+action. The requested window is 1197-by-700; its screenshot is 1183-by-693,
+which is not asserted to be the content size. A separate standard-assembly
+manual check passes on production build 01 using the original origin fixture
+seeded through isolated recovery. Electron metadata establishes a 1040-by-700
+window with 1024-by-661 content; all header actions are visible, pointer input
+opens File, and Tab visibly focuses the New quick action. A fresh maximized
+1920-by-1032 screenshot shows all header controls fitting and the full document
+title available by tooltip. The original two-prism fixture is unchanged. No
+CAD command, native Open, Save, Apply or export occurs. This is bounded header
+evidence, not complete assembly acceptance. Final visual review passes for
+eight retained captures: three catalogue states, two revolution states,
+standard/configured origin assemblies and compact configured picking. The
+header, ribbon, sidebar and viewport controls remain visually separated in
+those states; lower compact editor content still needs scrolling. Images do
+not establish callback guards, persistence or geometric correctness. Manual
+and visual review use unchanged production inputs across the harness update.
+Prior body-catalogue results below belong to the earlier source state and do
+not validate this changed header.
+
+The separate parent `6c2f7df`
+[CI run](https://github.com/angelcp2802/solidflow/actions/runs/40174099021) and
+[Security run](https://github.com/angelcp2802/solidflow/actions/runs/40174099010)
+are separate from this increment. Security passes; CI ends in failure with
+nine successful and six failed jobs. Three renderer jobs fail: Ubuntu
+persistence in the part revolution/STEP step at the lower-tree-edge wait after
+Save/reopen; Windows persistence at step 39, rigid assembly; and Windows hinge
+at step 105, symmetry viewport/material-vertex selection, with a child-deadline
+annotation. All three Desktop jobs fail their renderer gates, not packaging.
+The three configured-authoring and three relations jobs, Ubuntu/macOS hinge
+and macOS persistence pass.
+
+The Ubuntu saved-reopened geometry already matches volume 150*pi mm3 and bounds
+[-4,-5,-4] to [4,5,4] mm; no final tree inspection identifies which part of the
+conjunction failed. The Windows symmetry log request returned “Transport
+closed”, leaving its internal phase unknown. Windows rigid assembly also has
+an exact child-deadline annotation; its single log request returned “Transport
+closed”, with no internal phase or underlying cause available. Hosted
+acceptance of the new header head remains pending.
+
 ## Body catalogue layout — 2026-10-25
 
 This increment moves the compact body folder inside the part document tree,

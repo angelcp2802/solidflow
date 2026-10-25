@@ -66,6 +66,18 @@ pending. Large catalogues, broader selection workflows and cross-platform
 interaction are not established
 by this bounded layout increment; see [validation](VALIDATION.md).
 
+Parts and both assembly workspaces now share one command-header row, keeping
+menus, quick actions and document identity together above the ribbon. Build and
+the original catalogue, successive-parts, origin-axis and compact configured
+checks pass locally. Revolution and parts pass after the harness-only tree
+follow-up, and rigid/configured persistence also pass. Bounded manual header
+checks pass at minimum and maximized sizes, and eight retained captures pass
+visual review. Full-suite and smoke pass on the final snapshot; hosted
+acceptance of the new head remains pending. Lower compact editor content still
+requires scrolling. The measured 34 px tree-height
+increase is bounded to that case and content size. Menu auto-hide and pin/unpin
+remain open work, as does broader compact-width and platform acceptance.
+
 ## Work in review
 
 Use the dated [project status and review queue](PROJECT_STATUS.md) for the

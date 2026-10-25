@@ -293,6 +293,66 @@ module.exports = function partRevolutionWorkflow(context) {
     const reopened = await built(serial, row => row.features.length === originalCount + 2, 150 * Math.PI, fullBounds, 'saved-reopened', bodyId);
     check(canonical(reopened.features) === canonical(saved.features), 'Reopen retains explicit Y axis, reversed direction, both angles, profile IDs and current body references');
     await waitFor('reopened sleeve is idle', () => page(() => document.querySelector('.statusbar')?.textContent.includes('Listo')));
+    // Browse the real body's information before testing a lower-edge feature.
+    // A taller tree can otherwise make this particular row impossible to align
+    // with its bottom, even when scrollIntoView correctly reveals the row.
+    const currentBodies = reopened.response.value.bodies;
+    check(currentBodies.length === 1 && currentBodies[0].ref.bodyId === bodyId
+      && currentBodies[0].ref.sourceFeatureId === cut.id && currentBodies[0].createdByFeatureId === revolution.id,
+    'Information disclosure belongs to the unique current saved sleeve body');
+    const infoSelector = '.part-body-catalog .body-catalog-entry summary';
+    const inspectInfo = () => page(id => {
+      const entries = document.querySelectorAll('.part-body-catalog .body-catalog-entry');
+      const rows = [...document.querySelectorAll('.tree-row[data-feature-id]')].filter(e => e.dataset.featureId === id && !e.dataset.parentFeatureId);
+      if (entries.length !== 1 || rows.length !== 1) throw Error('One saved body and one root revolution required');
+      const entry = entries[0], detail = entry.querySelector('details'), content = entry.querySelector('.body-catalog-details-content');
+      const summary = entry.querySelector('summary'), row = rows[0], tree = row.closest('.tree');
+      if (!detail || !content || !summary || !tree) throw Error('Mounted body information and tree required');
+      const t = tree.getBoundingClientRect(), r = row.getBoundingClientRect(), d = content.getBoundingClientRect();
+      const rect = e => { const b = e.getBoundingClientRect(); return { x: b.x, y: b.y, width: b.width, height: b.height }; };
+      const targetBottomOffset = r.bottom - t.top + tree.scrollTop, requiredScrollTop = targetBottomOffset - t.height;
+      return { open: detail.open, name: content.querySelector('strong')?.textContent,
+        volume: content.querySelector('span')?.textContent, rootExpanded: document.querySelector('.tree-document')?.getAttribute('aria-expanded'),
+        folderExpanded: document.querySelector('.part-body-catalog-toggle')?.getAttribute('aria-expanded'),
+        viewport: { width: innerWidth, height: innerHeight }, tree: rect(tree), row: rect(row), summary: rect(summary), detail: rect(content),
+        scrollTop: tree.scrollTop, clientHeight: tree.clientHeight, scrollHeight: tree.scrollHeight,
+        lowerGap: t.bottom - r.bottom, targetBottomOffset, requiredScrollTop,
+        alignmentFeasible: tree.scrollHeight > tree.clientHeight && requiredScrollTop >= 0
+          && requiredScrollTop <= tree.scrollHeight - tree.clientHeight,
+        detailReadable: detail.open && d.height > 0 && d.top >= t.top && d.bottom <= t.bottom
+          && d.left >= 0 && d.right <= innerWidth && d.top >= 0 && d.bottom <= innerHeight
+          && [...content.children].every(e => { const b = e.getBoundingClientRect();
+            return b.left >= d.left && b.right <= d.right && b.top >= d.top && b.bottom <= d.bottom; }) };
+    }, revolution.id);
+    const browseSnapshot = async () => {
+      const observation = await observe();
+      return { serial: observation.serial, builds: digest(canonical(observation.builds)), workerErrors: observation.workerErrors,
+        ui: await page(() => ({ recovery: localStorage.getItem('solidflow.autosave'),
+          bodies: document.querySelector('.viewport-canvas')?.getAttribute('data-part-selected-bodies'),
+          selectedFeatures: [...document.querySelectorAll('.tree-row[data-feature-id].selected')].map(e => [e.dataset.featureId, e.dataset.parentFeatureId ?? null]),
+          history: ['Deshacer (Ctrl+Z)', 'Rehacer (Ctrl+Y)'].map(title => {
+            const buttons = [...document.querySelectorAll('button')].filter(e => e.title === title);
+            if (buttons.length !== 1) throw Error('One exact history action required');
+            return { title, disabled: buttons[0].disabled };
+          }) })) };
+    };
+    const beforeInfo = await inspectInfo(), beforeBrowsing = await browseSnapshot();
+    records.push({ phase: 'lower-edge-before-body-info', layout: beforeInfo });
+    check(beforeInfo.open === false && beforeInfo.name === revolution.name
+      && beforeInfo.rootExpanded === 'true' && beforeInfo.folderExpanded === 'true',
+    'Saved sleeve starts with its original named body information closed');
+    check(beforeBrowsing.workerErrors.length === 0 && beforeBrowsing.ui.recovery === await recovery()
+      && canonical(JSON.parse(beforeBrowsing.ui.recovery)) === canonical(saved), 'Information browsing starts from exact saved recovery');
+    await press(infoSelector);
+    const afterInfo = await waitFor('actual body information opens with readable name and volume', async () => {
+      const state = await inspectInfo(); return state.open && state.detailReadable ? state : false;
+    });
+    records.push({ phase: 'lower-edge-after-body-info', input: 'Actual CDP Info disclosure; no body selection or CAD action', layout: afterInfo });
+    check(afterInfo.name === revolution.name && afterInfo.volume === beforeInfo.volume && !!afterInfo.volume,
+      'Actual Info exposes the unchanged full body name and measured volume');
+    check(canonical(await browseSnapshot()) === canonical(beforeBrowsing),
+      'Body information preserves exact recovery, history, body/feature selection, worker serial and builds');
+    check(afterInfo.alignmentFeasible, 'Expanded body information permits the unchanged strict lower-edge setup: ' + JSON.stringify(afterInfo));
     await require('./desktop-part-tree-doubleclick-controls.cjs')({
       feature: revolution, saved, output, evaluate, observe, waitFor, pointer, press, ready, checks, check, canonical, digest,
       verifyOpened: async afterSerial => {

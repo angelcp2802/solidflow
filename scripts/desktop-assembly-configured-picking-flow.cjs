@@ -148,6 +148,7 @@ module.exports=function configuredPicking(c){
  return async()=>{
   await waitFor('production startup',()=>page(()=>document.querySelector('.statusbar')?.textContent.includes('Listo')&&typeof window.solidflow?.openDocument==='function'),initialReadyMs);
   const inputBytes=await fs.readFile(input);let before=await observe();await click('button[aria-label="Abrir (Ctrl+O)"]');await waitFor('owned discard dialog',()=>page(()=>!!document.querySelector('[role="dialog"][aria-labelledby="discard-title"]')));await button('Continuar sin guardar','[role="dialog"][aria-labelledby="discard-title"]');let row=await response(before.serial,'build-configured-assembly');check(canonical(row.current.document)===canonical(expected),'Original full v3 imported');let scene=geometry(row.response.value,expected,6,'initial');await recovery(expected);
+  await require('./desktop-command-header-layout.cjs')({page,check,checks}, 'configured-picking-initial-before-reveal', 'configured');
   await component('A',6);await component('B',6);
   await draft('distance','Pointer top distance');await leaveArmedRelation(6);const faces=[await pick(1,'face','B',6,scene),await pick(2,'face','A',6,scene)];await control('Distancia de relación configurada en mm','2');
   await ribbon.retained('relation-draft');

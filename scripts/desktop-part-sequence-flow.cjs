@@ -313,8 +313,11 @@ module.exports = function partSequenceWorkflow(context) {
       return matches.length===1&&matches[0].disabled;
     })`),'Insert menu disables incompatible solid operations during the live cut draft');
     await escape('insert');
+    await open('file');
+    await menuKey('Tab');
+    await waitFor('part menu Tab reaches quick actions in shared header',()=>evaluate(`!document.querySelector('.part-main-menus [role="menu"]')&&!!document.activeElement?.closest('.command-header .quick-actions')`));
     check(canonical(await snapshot())===canonical(original)&&(await observe()).serial===before.serial,'Menu navigation preserves the cut draft without another native build');
-    records.push({phase:'live-cut-menu-keyboard',keys:['ArrowDown','Escape','Escape'],draftRetained:true,insertGuards:true,serial:before.serial});
+    records.push({phase:'live-cut-menu-keyboard',keys:['ArrowDown','Escape','Escape','Tab'],draftRetained:true,insertGuards:true,serial:before.serial});
   }
   return async () => {
     await waitFor('part file control ready',()=>evaluate(`document.querySelector('.statusbar')?.textContent.includes('Listo') && typeof window.solidflow?.openDocument==='function' && !!document.querySelector('button[aria-label="Abrir (Ctrl+O)"]')`),initialReadyMs);
@@ -323,6 +326,7 @@ module.exports = function partSequenceWorkflow(context) {
     await waitFor('owned initial document replacement prompt',()=>evaluate(`!!document.querySelector('[role="dialog"][aria-labelledby="discard-title"]')`));
     await evaluate(`(() => { const b=document.querySelector('[role="dialog"][aria-labelledby="discard-title"] .primary-button'); if(!b||b.disabled||b.textContent.trim()!=='Continuar sin guardar')throw Error('Expected owned initial replacement'); b.click(); })()`);
     await built(serial,1,960,4,'original');
+    await require('./desktop-command-header-layout.cjs')({page,check,checks}, 'part-sequence-initial-before-reveal', 'part');
     await require('./desktop-part-selection-controls.cjs')(context);
     await treeNavigation();
     await savedUnusedCancel();

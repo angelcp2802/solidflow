@@ -1,5 +1,32 @@
 # Development guide
 
+## Shared command header — 2026-10-25
+
+Part, standard assembly and configured assembly now use a shared presentational
+`CommandHeader`: brand, menus, quick actions, document identity and utilities
+occupy one 35 px row above the existing command ribbon. The former separate
+quick-action row is removed. Part search remains the tree filter; assembly
+utilities identify the workspace. Compact assembly actions retain accessible
+text and titles even though their visible presentation is icon-only.
+
+Callers still own callbacks, enabled states, dirty/file identity and menu focus.
+No CAD action, reference, draft or document schema is added. Menu popups retain
+their existing keyboard handling and are not clipped by the shared header.
+The layout keeps menus visible; menu auto-hide and pin/unpin interaction remain
+open work. Build and the bounded body-catalogue renderer pass; the latter
+checks actual header containment and hit targets at compact width. Its measured
+34 px increase applies to that fixture's tree at unchanged content size, not
+all viewports. Parts, standard/configured origin-axis and compact configured
+picking checks also pass. After a harness-only follow-up to the revolution
+tree-layout wait, revolution, parts and rigid assembly pass on the final
+snapshot, followed by configured persistence. Production remains unchanged
+across that update. Bounded standard-assembly manual checks pass at minimum and
+maximized sizes, and eight retained captures pass bounded visual review.
+Lower compact editor content still requires scrolling. The full suite and
+desktop smoke pass on the final snapshot. Hosted acceptance of the new head
+remains pending; [validation](VALIDATION.md) distinguishes the two input
+snapshots and retained renderer results.
+
 ## Body catalogue in the part tree — 2026-10-25
 
 The browsing body catalogue sits inside the document tree, below Part

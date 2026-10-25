@@ -55,6 +55,7 @@ import Viewport, { type ViewName } from "./components/Viewport";
 import type { PartSelectionMode } from "./components/partSelection";
 import SketchCanvas from "./components/SketchCanvas";
 import AssemblyMenuBar, { type AssemblyMenuDefinition } from "./components/AssemblyMenuBar";
+import CommandHeader from "./components/CommandHeader";
 import PartFeatureContextMenu from "./components/PartFeatureContextMenu";
 import EntitySketchPanel from "./components/EntitySketchPanel";
 import SketchChamferPanel from "./components/SketchChamferPanel";
@@ -2563,30 +2564,21 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
         if(!file){pending.resolve(null);return;} if(file.size>MAX_STEP_BYTES){pending.reject(Error('El STEP supera los 8 MB admitidos.'));return;}
         void file.arrayBuffer().then(data=>pending.resolve({name:file.name,data:new Uint8Array(data)}),pending.reject);
       }} />
-      <header className="menubar">
-        <div className="brand">
-          <div className="brand-mark">
+      <CommandHeader className="menubar"
+        brand={<div className="brand" aria-label="SolidFlow">
+          <div className="brand-mark" aria-hidden="true">
             S<span>F</span>
           </div>
-          <strong>
+          <strong aria-hidden="true">
             Solid<span>Flow</span>
           </strong>
-        </div>
-        <AssemblyMenuBar variant="part" menus={partMenus} />
-        <div className="document-title">
+        </div>}
+        menus={<AssemblyMenuBar variant="part" menus={partMenus} />}
+        document={<div className="document-title" title={`${doc.name}${dirty ? " · Cambios sin guardar" : ""} — SolidFlow`}>
           {doc.name}
           {dirty ? " *" : ""} — SolidFlow
-        </div>
-        <button
-          className="help-top"
-          onClick={() => setShowHelp(true)}
-          title="Ayuda"
-        >
-          <HelpCircle size={17} />
-        </button>
-      </header>
-      <div className="quickbar">
-        <div className="quick-actions">
+        </div>}
+        quickActions={<div className="quick-actions">
           <IconButton
             icon={FilePlus2}
             title="Nueva pieza (Ctrl+N)"
@@ -2629,8 +2621,8 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
             title="Reconstruir pieza"
             onClick={() => setDoc({ ...doc, features: [...doc.features] })}
           />
-        </div>
-        <div className="command-search">
+        </div>}
+        utilities={<><div className="command-search">
           <Search size={14} />
           <input
             placeholder="Buscar en el árbol…"
@@ -2641,9 +2633,12 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
           <kbd>⌕</kbd>
         </div>
         <div className="workspace-tag">
-          <Box size={13} /> Pieza <ChevronDown size={11} />
+          <Box size={13} aria-hidden="true" /> Pieza
         </div>
-      </div>
+        <button className="help-top" onClick={() => setShowHelp(true)} title="Ayuda">
+          <HelpCircle size={17} />
+        </button></>}
+      />
       <section className="command-manager">
         <div className="commands">
           {tab === "Operaciones" ? (

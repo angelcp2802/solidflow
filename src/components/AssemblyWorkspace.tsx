@@ -21,7 +21,7 @@ import { sameSymmetryReference, currentSymmetryPick, nextSymmetryPick, scopedAss
 import {assemblySymmetryUiProposal,assemblySymmetryUiReports,SYMMETRY_ROLE_LABELS,type SymmetryUiReferences,type SymmetryUiReference,type SymmetryUiFamily} from '../model/assemblySymmetryUi'
 import { AssemblyWidthMatePanel, AssemblyWidthSupportSummary, WIDTH_ROLE_LABELS, assemblyWidthUiReports, assemblyWidthUiProposal, type WidthUiReferences, type WidthUiSlot, type WidthUiBranch, type WidthPlaneChoice } from './AssemblyWidthMatePanel'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { ArrowDownToLine, ChevronDown, ChevronRight, FileInput, GitBranch, Move3D, ScanLine, Settings2, Box, Check, CircleDot, Component, Eye, FilePlus2, FolderOpen, Layers, Link2, List, Loader2, LockKeyhole, Plus, Redo2, Save, Trash2, Undo2, X } from 'lucide-react'
+import { ArrowDownToLine, ChevronDown, ChevronRight, FileInput, GitBranch, Move3D, ScanLine, Settings2, Box, Check, CircleDot, Component, Eye, FilePlus2, FolderOpen, Layers, Link2, List, Loader2, LockKeyhole, Plus, Redo2, Save, SavePen, Trash2, Undo2, X } from 'lucide-react'
 import { applyAssemblyPreview, buildAssembly, captureAssemblyComponentLock, captureAssemblyGear, captureAssemblyRotationLock, captureAssemblyScrew, captureAssemblyRackPinion, discardAssemblyPreview, discardAssemblyPartReplacement, exportAssemblyCad, exportAssemblyStep, importAssemblyStep, insertAssemblyStep, inspectAssemblyInterferences, measureAssemblyDirectedAngle, moveAssemblyComponentMotion, projectAssemblyDrag, previewAssembly, previewAssemblyRootRevision, previewAssemblyPartReplacement, reviewAssemblyPartUpdate, reviewAssemblyPartReplacement, translateAssemblyUntilContact } from '../cad/kernel'
 import { assemblySceneFaceReference, assemblySceneCylinderSurfaceReference, assemblySceneSphereSurfaceReference, assemblySceneEdgeReference, type AssemblyGearCaptureRequest, type AssemblyScrewCaptureRequest, type AssemblyRackPinionCaptureRequest, type AssemblyPreviewReply, type AssemblyScene, type AssemblySceneFace, type AssemblySceneEdge, type AssemblySceneVertex } from '../cad/kernel.assembly-types'
 import type { AssemblyScopeSolveReport } from '../cad/kernel.assembly-solve'
@@ -2074,12 +2074,12 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     }} />
     <AssemblyShellHeader menus={menus} name={committed.name} dirty={dirty} fileTitle={path} fileLabel={path ? path.split(/[\\/]/).pop() : 'Sin guardar'}>
       <nav className="assembly-quickbar" aria-label="Archivo e historial del ensamblaje">
-        <button disabled={editingBlocked || replaceDialog} onClick={newAssembly}><FilePlus2 size={19} />Nuevo</button>
-        <button disabled={editingBlocked || replaceDialog} onClick={() => void open('open')}><FolderOpen size={19} />Abrir</button>
-        <button disabled={editingBlocked || !!draft} onClick={() => void save()}><Save size={19} />Guardar</button>
-        <button disabled={editingBlocked || !!draft} onClick={() => void save(true)}>Guardar como</button>
-        <button aria-label="Deshacer ensamblaje" disabled={editingBlocked || !history.current.canUndo} onClick={() => undo()}><Undo2 size={19} /></button>
-        <button aria-label="Rehacer ensamblaje" disabled={editingBlocked || !history.current.canRedo} onClick={() => undo(true)}><Redo2 size={19} /></button>
+        <button title="Nuevo" disabled={editingBlocked || replaceDialog} onClick={newAssembly}><FilePlus2 size={19} aria-hidden="true" /><span className="command-header-icon-label">Nuevo</span></button>
+        <button title="Abrir" disabled={editingBlocked || replaceDialog} onClick={() => void open('open')}><FolderOpen size={19} aria-hidden="true" /><span className="command-header-icon-label">Abrir</span></button>
+        <button title="Guardar" disabled={editingBlocked || !!draft} onClick={() => void save()}><Save size={19} aria-hidden="true" /><span className="command-header-icon-label">Guardar</span></button>
+        <button title="Guardar como" disabled={editingBlocked || !!draft} onClick={() => void save(true)}><SavePen size={19} aria-hidden="true" /><span className="command-header-icon-label">Guardar como</span></button>
+        <button title="Deshacer ensamblaje" aria-label="Deshacer ensamblaje" disabled={editingBlocked || !history.current.canUndo} onClick={() => undo()}><Undo2 size={19} aria-hidden="true" /></button>
+        <button title="Rehacer ensamblaje" aria-label="Rehacer ensamblaje" disabled={editingBlocked || !history.current.canRedo} onClick={() => undo(true)}><Redo2 size={19} aria-hidden="true" /></button>
       </nav>
     </AssemblyShellHeader>
     <div className="assembly-command-manager">

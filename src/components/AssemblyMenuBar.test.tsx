@@ -18,12 +18,15 @@ it('keeps a closed menubar accessible without mounting duplicate action buttons 
   expect(action).not.toHaveBeenCalled()
 })
 
-it('keeps named file identity in the header and existing quick access below the menus', () => {
+it('keeps one quick access inside the same header after the menus, retaining file identity', () => {
   const html = renderToStaticMarkup(<AssemblyShellHeader name="Original assembly" dirty fileLabel="original.solidflow"
     menus={[{ id: 'file', label: 'Archivo', items: [] }]}><nav aria-label="Existing file actions"><button>Guardar</button></nav></AssemblyShellHeader>)
   expect(html).toContain('<strong>Original assembly *</strong>')
   expect(html).toContain('original.solidflow')
-  expect(html.indexOf('</header>')).toBeLessThan(html.indexOf('aria-label="Existing file actions"'))
+  expect(html.indexOf('role="menubar"')).toBeLessThan(html.indexOf('aria-label="Existing file actions"'))
+  expect(html.indexOf('aria-label="Existing file actions"')).toBeLessThan(html.indexOf('</header>'))
+  expect(html.match(/<header\b/g)).toHaveLength(1)
+  expect(html).not.toContain('assembly-shell-quick-access')
   expect(html.match(/>Guardar<\/button>/g)).toHaveLength(1)
 })
 

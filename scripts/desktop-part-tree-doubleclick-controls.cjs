@@ -39,17 +39,25 @@ module.exports = async function partTreeDoubleClick(context) {
     const rect = value => ({ x: value.x, y: value.y, width: value.width, height: value.height });
     return { point, layout: { row: rect(r), tree: rect(t), strip: rect(a), scrollTop: tree.scrollTop, clientHeight: tree.clientHeight },
       lowerGap: t.bottom - r.bottom, scrollable: tree.scrollHeight > tree.clientHeight,
+      viewport: { width: innerWidth, height: innerHeight }, scrollHeight: tree.scrollHeight,
+      maxScrollTop: tree.scrollHeight - tree.clientHeight, targetBottomOffset: r.bottom - t.top + tree.scrollTop,
       visible: !row.closest('[hidden]') && r.width > 0 && r.height > 0 && r.top >= t.top && r.bottom <= t.bottom
         && t.top >= 0 && t.bottom <= innerHeight && r.left >= 0 && r.right <= innerWidth && !!hit && (hit === row || row.contains(hit)),
       selected: row.classList.contains('selected'), stripDisabled: [...tools.querySelectorAll('button')].map(button => button.disabled),
       hit: hit ? { tag: hit.tagName, class: typeof hit.className === 'string' ? hit.className : '' } : null };
   }, feature.id);
-  let previous, stationarySince = 0;
+  let previous, lastInspection, lastPredicates, stationarySince = 0;
   const initial = await waitFor('stationary unselected feature at lower tree edge', async () => {
-    const state = await inspect(), key = canonical(state);
+    const state = lastInspection = await inspect(), key = canonical(state);
     if (key !== previous) { previous = key; stationarySince = Date.now(); }
+    lastPredicates = { visible: state.visible, unselected: !state.selected, scrollable: state.scrollable,
+      gapInRange: state.lowerGap >= 0 && state.lowerGap <= 2, stableMs: Date.now() - stationarySince };
     return state.visible && !state.selected && state.scrollable && state.lowerGap >= 0 && state.lowerGap <= 2
       && Date.now() - stationarySince >= 120 ? state : false;
+  }).catch(error => {
+    const diagnostic = { lastInspection, predicates: lastPredicates };
+    checks.push({ partTreeLowerEdgeFailure: diagnostic });
+    error.message += '; lowerEdge=' + JSON.stringify(diagnostic); throw error;
   });
   await pointer('mouseMoved', initial.point);
   check(canonical(await inspect()) === canonical(initial), 'Lower-edge feature target is unchanged before the first click');
