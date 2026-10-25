@@ -22,7 +22,6 @@ import type {
   VertexReference,
   BodyReference,
   ExtrudeFeature,
-  Plane,
   PlaneFrame,
   PlaneSupport,
   SketchFeature,
@@ -34,8 +33,9 @@ import { advanceLineage } from './kernel.naming';
 import { entityProfileSolid, entityProfileStructure, entityRevolutionSide, solveEntityProfile } from './kernel.profiles';
 import { sketchVisual } from './kernel.sketch-visual';
 import { createFaceCatalog, pickableFaces, pickableFacesFromCatalog, resolveSelectedFaces, type FaceCatalog, type FaceDescriptor } from './kernel.faces';
-import { clonePlaneFrame, frameYDirection, offsetPlaneFrame, principalPlaneFrame } from './kernel.frames';
+import { clonePlaneFrame, offsetPlaneFrame, principalPlaneFrame } from './kernel.frames';
 import { makeOwnedPrimitiveSketch } from './kernel.primitive-sketch';
+import { resolveRevolutionAxis, revolutionRadialCoordinate } from './revolutionAxis';
 import { loftSolid, sweepSolid } from './kernel.sweep-loft';
 import { geometryDelta, isRepetition, patternPlan, repetitionSolid, type FeatureGeometry } from './kernel.patterns';
 import { draftSolid, shellSolid } from './kernel.face-operations';
@@ -102,13 +102,6 @@ function validateBodyOperationDeclaration(feature: Extract<Feature, { type: 'ext
       && identifier(target.bodyId) && identifier(target.sourceFeatureId)) return;
   }
   throw new Error('La operación explícita de cuerpo debe declarar un cuerpo nuevo válido o una referencia de cuerpo válida para añadir material.');
-}
-
-/** Matching Replicad's right-handed named sketch planes. */
-function onPlane(plane: Plane, u: number, v: number, offset: number): Vec3 {
-  if (plane === 'XY') return [u, v, offset];
-  if (plane === 'XZ') return [u, -offset, v];
-  return [offset, u, v];
 }
 
 function validateLength(value: number, name: string, signed = false): void {
@@ -199,22 +192,24 @@ function featureSolid(feature: ExtrudeFeature | RevolveFeature, sketchFeature: S
       throw new Error('El ángulo de revolución debe ser mayor que 0° y como máximo 360°.');
     }
     const { profile } = sketchFeature;
+    const axis = resolveRevolutionAxis(feature, sketchFeature, resolvedFrame);
     if (profile.kind === 'entities') {
-      return entityProfileSolid(profile, sketchFeature.plane, sketchFeature.offset, { type: 'revolve', angle: feature.angle }, frame);
+      return entityProfileSolid(profile, sketchFeature.plane, sketchFeature.offset, { type: 'revolve', angle: feature.angle, axis }, frame);
     }
-    const halfWidth = profile.kind === 'rectangle' ? profile.width / 2 : profile.radius;
-    if (Math.abs(profile.center[0]) < halfWidth - 1e-7) {
-      throw new Error('El perfil de revolución cruza el eje Y del croquis. Desplaza su centro hacia un lado del eje.');
+    const halfWidth = profile.kind === 'rectangle'
+      ? Math.abs(axis.radialDirection[0]) * profile.width / 2 + Math.abs(axis.radialDirection[1]) * profile.height / 2 : profile.radius;
+    const distance = revolutionRadialCoordinate(profile.center, axis);
+    if (Math.abs(distance) < halfWidth - 1e-7) {
+      throw new Error(`El perfil de revolución cruza ${axis.legacy ? 'el eje Y del croquis' : 'el eje seleccionado'}. Desplaza su centro hacia un lado del eje.`);
     }
     // A circle tangent to the axis creates a singular point; require a torus profile.
-    if (profile.kind === 'circle' && Math.abs(profile.center[0]) <= halfWidth + 1e-7) {
-      throw new Error('El círculo de revolución debe estar separado del eje Y del croquis.');
+    if (profile.kind === 'circle' && Math.abs(distance) <= halfWidth + 1e-7) {
+      throw new Error(`El círculo de revolución debe estar separado ${axis.legacy ? 'del eje Y del croquis' : 'del eje seleccionado'}.`);
     }
     const sketch = makeSketch(sketchFeature, sketchFeature.offset, frame);
     try {
-      const axis: Vec3 = frame ? frameYDirection(frame) : sketchFeature.plane === 'XY' ? [0, 1, 0] : [0, 0, 1];
-      return sketch.revolve(axis, {
-        origin: frame?.origin ?? onPlane(sketchFeature.plane, 0, 0, sketchFeature.offset),
+      return sketch.revolve(axis.direction, {
+        origin: axis.origin,
         angle: feature.angle,
       });
     } finally {
@@ -1574,9 +1569,10 @@ export class CadEngine {
         } else tool = featureSolid(feature, sketchFeature, sketchFrames.get(sketchFeature.id)!);
         if (feature.type === 'cut' && !body) throw new Error('Crea primero un sólido antes de aplicar un corte.');
         validateSolid(tool);
+        const revolutionAxis = feature.type === 'revolve' ? resolveRevolutionAxis(feature, sketchFeature, sketchFrames.get(sketchFeature.id)!) : undefined;
         const structure: unknown[] = [feature.id, feature.type, feature.sketchId, sketchFeature.plane, sketchFeature.profile.kind,
-          feature.type === 'revolve' ? ['local-Y', sketchFeature.profile.kind === 'entities'
-            ? entityRevolutionSide(sketchFeature.profile) : Math.sign(sketchFeature.profile.center[0]), feature.angle === 360]
+          feature.type === 'revolve' ? [revolutionAxis!.legacy ? 'local-Y' : revolutionAxis!.identity, sketchFeature.profile.kind === 'entities'
+            ? entityRevolutionSide(sketchFeature.profile, revolutionAxis) : Math.sign(revolutionRadialCoordinate(sketchFeature.profile.center, revolutionAxis!)), feature.angle === 360]
             : [feature.symmetric, Math.sign(feature.depth)]];
         // Keep the legacy descriptor byte-identical for existing saved edge references.
         if (sketchFeature.profile.kind === 'entities') structure.push(entityProfileStructure(sketchFeature.profile));

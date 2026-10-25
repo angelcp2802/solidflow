@@ -2,14 +2,23 @@
 
 ## Original revolution and bore sequence
 
-`scripts/desktop-part-revolution-original.cjs` authors two unused sketches in
+`scripts/desktop-part-revolution-original.cjs` authors three unused sketches in
 millimetres: an XY rectangle centered at (2,0), width 4 and height 8, and an XZ
-circle centered at (0,0), radius 1. There are no imported solids or downstream
+circle centered at (0,0), radius 1, plus an XY entity rectangle x=[3,7], y=[0,10]
+with a construction line from (3,-2) to (3,12). There are no imported solids or downstream
 operations in the input. The actual editor changes rectangle height to 10.
 Its local-Y half revolution has volume 80 pi and bounds (-4,-5,-4) to (4,5,0);
 the full revolution has volume 160 pi and bounds (-4,-5,-4) to (4,5,4).
 A symmetric 20 mm cut through the radius-1 circle leaves volume 150 pi and
 surface area 130 pi, with the same full-cylinder bounds.
+
+The entity rectangle's full local-Y annulus has volume 400 pi. Quarter turns
+about X or Y both have volume 100 pi but different literal bounds; reversal
+flips their Z interval. A reversed quarter turn about the construction line at
+x=3 has volume 40 pi and bounds (3,0,0) to (7,10,4). These axis previews are
+cancelled before the original sleeve sequence. Its final saved revolution
+explicitly selects Y with reversal; a full turn retains the cylinder/tube
+geometry. Construction-line persistence is checked separately by model tests.
 
 These literal formulas are independent of the worker's results. The workflow
 uses actual pointer activation; numerical fields use input/select setters and
@@ -18,8 +27,14 @@ actual STEP bytes through the existing restricted IPC. A separate native reader
 checks BRep validity, one solid, volume and area within 1e-5 and bounds within
 1e-6 mm. It does not reuse the application's native shapes. File dialogs are
 substituted with test-owned paths, so this is not manual native-dialog evidence.
-No vendor model, binary, artwork or implementation is included. Current local-Y
-revolution coverage does not establish arbitrary axes or the complete workbench.
+The native axis tests author additional cylinders, torus profiles and an oblique
+3-4-5-axis rectangle. That cylinder's center is (1,2,0), unit axis (.6,.8,0),
+length 10 and radius 4: volume 160 pi, area 112 pi and literal bounds
+(-5.2,-4.4,-4) to (7.2,8.4,4). Expected coordinates do not call the production
+axis resolver. A separate STEP import checks validity, solid count, volume,
+area and bounds; changed/rejected axes cannot reuse an older export.
+No external model, binary, artwork or implementation is included. These cases
+do not establish arbitrary axes, all profile topologies or a complete workbench.
 
 ## Ordinary part selection and origin-label placement
 

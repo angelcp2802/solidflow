@@ -10,22 +10,27 @@ The review remains unmerged; this is not release or complete-demo acceptance.
 The part interface now combines labelled operation groups, a persistent
 accept/cancel header, automatic face/edge browsing and a collapsible feature tree.
 The original sequence exercises multiple cuts and additive extrusions. A separate
-original revolution-and-bore workflow checks the currently supported local-Y
-revolution, downstream cut, history, saved reopening and independent STEP geometry.
+original revolution-and-bore workflow checks X/Y and same-sketch line axes,
+reverse direction, downstream cut, history, saved reopening and independent STEP
+geometry. Its property editor separates the axis reference from Direction 1;
+unavailable line references require an explicit replacement.
 Both assembly workspaces have contextual command tabs, component properties and
 origin-plane/axis tree selection. Configured picking instructions now reserve
 their own row instead of covering origin labels.
 
-The latest parent `6d0cc52` passes six of nine renderer jobs and all three
-configured-authoring jobs. Windows/macOS configured-origin hit checks and
-Windows rigid-persistence timing fail; the three downstream Desktop gates stop.
-Both Security jobs pass. The current increment corrects the covered labels and
-removes repeated persistence navigation, while preserving all acceptance commands
-and deadlines. See [validation](VALIDATION.md) for exact local results, retained
-failures and links; parent results do not establish current-head acceptance.
+Parent `05decd0` has persistence failures on the three hosted targets. Retrieved
+Windows/macOS logs stop at the original revolution workflow's off-screen height
+field; the Linux dedicated log is unavailable. The harness now reveals and
+hit-tests fields and uses the production minimum window size explicitly.
+The other six renderer jobs, three configured-authoring jobs and both Security
+jobs pass; the Desktop checks stop at their prerequisite gate.
+See [validation](VALIDATION.md) for exact
+local results, retained failures and hosted links; results from earlier commits
+do not establish current-head acceptance.
 
-Next functional priorities are selectable revolution axes and direction,
-origin-axis rotation capture, broader material/mechanical reference picking and
+Next functional priorities include external/viewport revolution-axis selection,
+two-direction/thin-wall and revolved-cut workflows, origin-axis rotation capture,
+broader material/mechanical reference picking and
 the complete basic assembly demo. Repeated/hosted persistence timing, remaining
 origin orientations and installed-package support also remain open. The sections
 below retain earlier snapshots; their "next" work and counts belong to their

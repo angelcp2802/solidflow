@@ -14,12 +14,32 @@ appears; current layout and identity checks remain required. Origin-label audits
 include the bounded actual hit element to make future covering elements visible
 in diagnostics, without relaxing containment, separation or center-hit checks.
 
+`RevolveFeature.axis` optionally selects a local X/Y axis or stable line entity
+ID in its existing `sketchId`; `reversed` changes axis direction while the angle
+stays positive. Absence retains local +Y and false without materializing fields
+on read/write. The strict parser rejects unsupported fields; older readers may
+reject new declarations. Same-sketch lines need no additional feature graph edge.
+The native resolver reads current solved endpoints and the resolved sketch frame,
+rejecting missing, ambiguous, nonfinite or degenerate axes. Radial profile checks
+include exact circular-arc extrema. Implicit Y with absent/false reversal keeps
+the historical lineage descriptor; explicit axes use a versioned declaration
+identity. Rebuilding after axis edits must never expose a prior valid export.
+
+`RevolvePanel` derives options from the operation's current staged source sketch,
+retains unavailable declarations visibly, and updates through the existing draft
+and preview freshness path. It does not grant Apply authority or change body plans.
+The original staged-sketch Cancel and acceptance transactions remain required.
+
 `test:desktop:part-revolution` uses a tracked original sketch recipe and the
-existing hidden production harness. It tests the current local-Y revolution and
-subsequent cut through actual controls, history, Save/reopen and one restricted
-STEP export. Its independent reader checks the exported solid. Numeric field
-setters and test-owned native-dialog paths are distinct from human typing/dialog
-operation. CI configuration for three systems is not executed platform evidence.
+existing hidden production harness at the production minimum 1040 by 700 window.
+It previews X/Y and a construction-line axis, reversed partial turns and exact
+Cancel, then tests a reversed explicit-Y revolution and subsequent cut through
+history, Save/reopen and one restricted STEP export. Its independent reader
+checks the exported solid. The harness reveals controls with DOM scrolling and
+requires unique visible enabled hit-tested targets before field changes; command
+activation remains actual pointer input. Field setters and test-owned native
+dialogs are distinct from human typing/dialog operation. CI configuration for
+three systems is not executed platform evidence.
 
 Ordinary part browsing uses `partSelection.ts` to share the edge/face/plane
 candidate policy between hover and activation. It reuses the existing visible

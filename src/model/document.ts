@@ -1,4 +1,4 @@
-import type { BodyOperation, BodyPatternOperation, BodyReference, EdgeReference, EdgeSelection, ExtrudeEndCondition, FaceReference, Feature, HoleEndCondition, HoleHead, HolePosition, LinearPatternDirection, LoftSection, PatternSource, Plane, PlaneSupport, Profile, RepetitionFeature, SketchSupport, SweepPathSegment, Vec3 } from '../cad/kernel.types'
+import type { BodyOperation, BodyPatternOperation, BodyReference, EdgeReference, EdgeSelection, ExtrudeEndCondition, FaceReference, Feature, HoleEndCondition, HoleHead, HolePosition, LinearPatternDirection, LoftSection, PatternSource, Plane, PlaneSupport, Profile, RepetitionFeature, RevolutionAxis, SketchSupport, SweepPathSegment, Vec3 } from '../cad/kernel.types'
 import { isEdgeReferenceKeyV2, isFaceReferenceKeyV2 } from '../cad/kernel.semantic-references'
 import { validateEntityProfile } from '../sketch/validation'
 import { featureDependencyIds, featureSketchIds } from './featureInputs'
@@ -562,6 +562,20 @@ export function validateImportedBodiesFeature(value: unknown, path = 'Cuerpos im
   return parsed
 }
 
+function revolutionAxis(value: unknown, path: string): RevolutionAxis {
+  const source = object(value, path)
+  if (source.kind === 'sketch-axis') {
+    keys(source, ['kind', 'axis'], path)
+    if (source.axis !== 'x' && source.axis !== 'y') fail(`${path}.axis`, 'se esperaba el eje local x o y')
+    return { kind: 'sketch-axis', axis: source.axis }
+  }
+  if (source.kind === 'sketch-line') {
+    keys(source, ['kind', 'entityId'], path)
+    return { kind: 'sketch-line', entityId: entityIdentifier(source.entityId, `${path}.entityId`) }
+  }
+  return fail(`${path}.kind`, 'eje de revolución desconocido')
+}
+
 function feature(value: unknown, path: string): Feature {
   const source = object(value, path)
   const typeDescriptor = Object.getOwnPropertyDescriptor(source, 'type')
@@ -643,9 +657,11 @@ function feature(value: unknown, path: string): Feature {
     }
   }
   if (source.type === 'revolve') {
-    keys(source, [...baseKeys, 'sketchId', 'angle'], path, ['bodyOperation'])
+    keys(source, [...baseKeys, 'sketchId', 'angle'], path, ['bodyOperation', 'axis', 'reversed'])
     const angle = number(source.angle, `${path}.angle`, Number.MIN_VALUE, 360)
     return { ...base, type: 'revolve', sketchId: string(source.sketchId, `${path}.sketchId`, 128), angle,
+      ...(Object.hasOwn(source, 'axis') ? { axis: revolutionAxis(source.axis, `${path}.axis`) } : {}),
+      ...(Object.hasOwn(source, 'reversed') ? { reversed: boolean(source.reversed, `${path}.reversed`) } : {}),
       ...(Object.hasOwn(source, 'bodyOperation') ? { bodyOperation: bodyOperation(source.bodyOperation, `${path}.bodyOperation`) } : {}) }
   }
   if (source.type === 'combine') {

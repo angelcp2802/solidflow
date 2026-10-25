@@ -9,6 +9,7 @@ import type { TopoDS_Compound } from 'replicad-opencascadejs';
 import type { Plane, PlaneFrame, Vec3 } from './kernel.types';
 import { framePoint, frameYDirection } from './kernel.frames';
 import { withNativeOwners } from './kernel.native-ownership';
+import { revolutionRadialCoordinate, type ResolvedRevolutionAxis } from './revolutionAxis';
 
 export type Point2 = [number, number];
 type Line = { id: string; type: 'line'; start: Point2; end: Point2; nodes: [number, number] };
@@ -246,33 +247,35 @@ export function makeContours(profile: EntityProfile): Contour[] {
   return contours;
 }
 
-function curveXBounds(curve: Curve): [number, number] {
-  const coordinates = [curve.start[0], curve.end[0]];
-  if (curve.type !== 'line') for (const angle of [0, Math.PI]) {
+function curveRadialBounds(curve: Curve, axis?: ResolvedRevolutionAxis): [number, number] {
+  const radial = (point: Point2) => axis ? revolutionRadialCoordinate(point, axis) : point[0];
+  const coordinates = [radial(curve.start), radial(curve.end)];
+  const extremum = axis ? Math.atan2(axis.radialDirection[1], axis.radialDirection[0]) : 0;
+  if (curve.type !== 'line') for (const angle of [extremum, extremum + Math.PI]) {
     const point = circlePoint(curve, angle);
-    if (onCircularArc(curve, point)) coordinates.push(point[0]);
+    if (onCircularArc(curve, point)) coordinates.push(radial(point));
   }
   return [Math.min(...coordinates), Math.max(...coordinates)];
 }
 
-export function entityRevolutionSide(profile: EntityProfile): number {
+export function entityRevolutionSide(profile: EntityProfile, axis?: ResolvedRevolutionAxis): number {
   const curves = makeContours(profile).flatMap((contour) => contour.curves.map(({ curve }) => curve));
-  const bounds = curves.map(curveXBounds);
+  const bounds = curves.map(curve => curveRadialBounds(curve, axis));
   const minimum = Math.min(...bounds.map(([min]) => min)), maximum = Math.max(...bounds.map(([, max]) => max));
   if (minimum < -JOIN_TOLERANCE && maximum > JOIN_TOLERANCE) {
-    throw new Error('El perfil de revolución cruza el eje Y del croquis. Sitúa todos los contornos a un lado del eje.');
+    throw new Error(`El perfil de revolución cruza ${!axis || axis.legacy ? 'el eje Y del croquis' : 'el eje seleccionado'}. Sitúa todos los contornos a un lado del eje.`);
   }
-  if (curves.some((curve) => curve.type === 'circle' && Math.abs(curve.center[0]) - curve.radius <= JOIN_TOLERANCE)) {
-    throw new Error('Un círculo de revolución debe estar separado del eje Y para evitar un punto singular.');
+  if (curves.some((curve) => curve.type === 'circle' && Math.abs(axis ? revolutionRadialCoordinate(curve.center, axis) : curve.center[0]) - curve.radius <= JOIN_TOLERANCE)) {
+    throw new Error(`Un círculo de revolución debe estar separado ${!axis || axis.legacy ? 'del eje Y' : 'del eje seleccionado'} para evitar un punto singular.`);
   }
   return minimum < -JOIN_TOLERANCE ? -1 : 1;
 }
 
 /** Closed contours use even/odd nesting: material, hole, island, hole, ... */
 export function entityProfileSolid(profile: EntityProfile, plane: Plane, offset: number,
-  operation: { type: 'extrude'; depth: number } | { type: 'revolve'; angle: number }, frame?: PlaneFrame): Shape3D {
+  operation: { type: 'extrude'; depth: number } | { type: 'revolve'; angle: number; axis?: ResolvedRevolutionAxis }, frame?: PlaneFrame): Shape3D {
   const contours = makeContours(profile);
-  if (operation.type === 'revolve') entityRevolutionSide(profile);
+  if (operation.type === 'revolve') entityRevolutionSide(profile, operation.axis);
   const toWorld = (point: Point2) => frame ? framePoint(frame, point[0], point[1]) : onSketchPlane(plane, point[0], point[1], offset);
   const normal: Vec3 = frame?.normal ?? (plane === 'XY' ? [0, 0, 1] : plane === 'XZ' ? [0, -1, 0] : [1, 0, 0]);
   return withNativeOwners(owners => {
@@ -312,8 +315,8 @@ export function entityProfileSolid(profile: EntityProfile, plane: Plane, offset:
           const direction = regionOwners.own(new Vector(normal.map((value) => value * operation.depth) as Vec3));
           return regionOwners.own(basicFaceExtrusion(face, direction));
         }
-        return regionOwners.own(revolution(face, frame?.origin ?? onSketchPlane(plane, 0, 0, offset),
-          frame ? frameYDirection(frame) : plane === 'XY' ? [0, 1, 0] : [0, 0, 1], operation.angle));
+        return regionOwners.own(revolution(face, operation.axis?.origin ?? frame?.origin ?? onSketchPlane(plane, 0, 0, offset),
+          operation.axis?.direction ?? (frame ? frameYDirection(frame) : plane === 'XY' ? [0, 1, 0] : [0, 0, 1]), operation.angle));
       }, result => [result], 'Entity region construction or release failed.');
       solids.push(owners.own(solid));
     }

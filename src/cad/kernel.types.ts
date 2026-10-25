@@ -95,11 +95,19 @@ export type ExtrudeFeature = ExtrudeDefinition & (
 );
 export type CutFeature = Extract<ExtrudeFeature, { type: 'cut' }>;
 
+export type RevolutionAxis =
+  | { kind: 'sketch-axis'; axis: 'x' | 'y' }
+  | { kind: 'sketch-line'; entityId: string };
+
 export interface RevolveFeature extends FeatureBase {
   type: 'revolve';
   sketchId: string;
-  /** Revolves around the sketch plane's local Y axis through its origin. */
+  /** Positive sweep in degrees, greater than zero and at most 360. */
   angle: number;
+  /** Absent preserves the sketch plane's local +Y axis through its origin. */
+  axis?: RevolutionAxis;
+  /** Absent preserves positive rotation about the selected directed axis. */
+  reversed?: boolean;
   bodyOperation?: BodyOperation;
 }
 

@@ -110,6 +110,7 @@ import { createdBodyIds, featureBodyReferences, featureCurrentBodyReferences } f
 import { reconcileBodyPatternDraft } from "./model/bodyPatterns";
 import { createEdgeSelectionIndex, createFaceSelectionIndex } from "./cad/selection.references";
 import ExtrudePanel from "./components/ExtrudePanel";
+import RevolvePanel from "./components/RevolvePanel";
 import HolePanel, { type HoleSection } from "./components/HolePanel";
 import HolePositionsCanvas from "./components/HolePositionsCanvas";
 import {
@@ -3499,21 +3500,16 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                     </select>
                   </div>
                   {editing.type === "revolve" ? (
-                    <div className="property-section">
-                      <h3>
-                        <ChevronDown size={12} /> Dirección 1
-                      </h3>
+                    <RevolvePanel feature={editing}
+                      sketch={availableSketches.find(sketch => sketch.id === editing.sketchId)}
+                      onChange={changeDraft}>
                       <NumberField
                         label="Ángulo"
                         value={editing.angle}
                         onChange={(angle) => changeDraft({ angle })}
                         unit="°"
                       />
-                      <p className="muted-small">
-                        Eje vertical Y del croquis. El perfil debe quedar a un
-                        lado del eje.
-                      </p>
-                    </div>
+                    </RevolvePanel>
                   ) : (
                     <ExtrudePanel
                       feature={editing}

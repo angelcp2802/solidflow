@@ -85,15 +85,23 @@ in [validation](VALIDATION.md).
 
 ## Revolution followed by a cut
 
-The current revolution uses the sketch's local Y axis and one positive angle
-up to 360 degrees. Place the closed profile on one side of that axis. While
-editing an unused sketch, choose **Operaciones → Revolución**, inspect the
-angle and preview, then accept. Cancelling returns to the edited sketch.
+While editing an unused sketch, choose **Operaciones → Revolución**. In the
+left **Eje de revolución** section, select the sketch's X or Y axis or a line
+from that same sketch. Construction lines may define the axis without adding
+material. A line's start-to-end order defines its positive direction. Place the
+closed profile on one side of the selected axis. In **Dirección 1**, set a
+positive angle up to 360 degrees and use **Invertir dirección** to reverse the
+turn. Inspect the preview, then accept. Cancelling returns to the edited sketch.
 Select another sketch to create a subsequent **Corte extruido** against the
 current body. Each accepted operation remains a separate history step.
 
-Selecting an arbitrary revolution axis, reverse direction, two directions,
-thin-wall revolution and revolved cuts remain pending. The renderer regression
+If a saved line no longer exists, the editor retains that missing reference and
+requires an explicit replacement; it does not switch to another axis. Older
+documents with no axis declaration retain their local-Y direction. Current
+documents with the new optional fields require a reader that understands them.
+
+Axes from another sketch, body edges or cylindrical faces, viewport axis picking,
+two directions, thin-wall revolution and revolved cuts remain pending. The renderer regression
 uses an original sleeve profile and axial bore; its formulas and evidence limits
 are documented in [provenance](PROVENANCE.md#original-revolution-and-bore-sequence)
 and [validation](VALIDATION.md).
@@ -337,9 +345,9 @@ volume, bounds, save/reopen and edited dimensions. After building, run
 `npm run test:desktop:part-sequence` for actual upper commands, left properties,
 separate operations, history and native file save/reopen. Its prepared sketches
 are fixture inputs; this test does not draw all five sketches interactively.
-`npm run test:desktop:part-revolution` separately exercises the current local-Y
-revolution, a later bore cut, history, native Save/reopen and independent STEP
-reimport from its two original unused sketches.
+`npm run test:desktop:part-revolution` separately exercises X/Y and construction
+line previews, reverse direction, a later bore cut, history, native Save/reopen
+and independent STEP reimport from its three original unused sketches.
 Mouse event tests exercise the installed OrbitControls implementation; pure
 selection/SSR cases are separate from real viewport click evidence.
 

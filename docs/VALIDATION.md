@@ -1,5 +1,78 @@
 # Validation
 
+## Selectable revolution axes and reverse direction — 2026-10-25
+
+Revolution now accepts a local X/Y axis or a stable line ID from its own sketch,
+plus an optional reversed direction. The axis is resolved from solved current
+points in the sketch's actual support frame. Invalid references fail explicitly;
+the editor retains their declarations for repair. Angle remains positive. Old
+documents without the fields retain the historical local-Y behavior and lineage;
+explicit new declarations require a reader that understands the extension.
+
+Focused tests verify strict parsing, absence-preserving legacy round trips,
+history, oriented finite line resolution, exact radial arc extrema, native
+X/Y and translated/oblique line solids, reversed support frames, a torus,
+changed-axis rebuilding and stale edge/export rejection. Native oracles use
+independent formulas and literal bounds with BRep validity, one solid, volume
+and area within 1e-5, and bounds within 1e-6 mm. Repeated builds on one engine
+test freshness; this does not claim an incremental shape cache implementation.
+
+The production renderer passes 104 checkpoints and 22 native phases in a
+1040 by 700 window (1024 by 661 content). Actual controls switch X/Y and a
+construction-line axis and reverse quarter/half turns. Equal-volume X/Y turns
+have different independent bounds. Cancel restores the original document or
+the exact modified sketch draft without committing recovery. Acceptance then
+creates a reversed explicit-Y full revolution and subsequent bore. Undo/Redo,
+Save/reopen and actual STEP export preserve exact feature/body declarations.
+The separate native STEP reader finds one valid solid: volume
+471.23889803846885 mm3, area 408.40704496669366 mm2, bounds (-4,-5,-4) to
+(4,5,4) mm. The run takes 34.176 seconds including capture and confirmed
+child/profile cleanup, with zero recorded console, request or resource errors.
+
+The renderer uses actual pointer presses, scripted visible numeric/select
+changes and test-owned native-dialog paths. DOM scrolling reveals targets;
+uniqueness, enabled state, viewport containment and center hit checks remain.
+Construction-line previews are cancelled; its persistence is covered by model
+tests, while the renderer persists explicit Y and reversed=true. No external
+axis, viewport axis picking, two-direction, thin-wall or revolved-cut acceptance
+is claimed. The final compact capture was visually inspected.
+
+A separate visible production demo checks the left editor with actual wheel,
+click and keyboard input: replace 360 with 90, inspect the settled partial
+preview, toggle Reverse, inspect the opposite preview and Cancel. The full
+bored cylinder and displayed 471.239 mm3 return without Apply or Save. UIA
+reports document focus for the number field; its selected text and visual focus
+establish the target. This manual check is separate from numeric geometry proof.
+An initially unselected tree row near the lower edge fails to open on double
+click while selection succeeds and the action strip shrinks the tree. Explicit
+Edit opens correctly. Layout change is the current hypothesis, pending a
+focused event/geometry regression and correction in a subsequent increment.
+
+Parent `05decd0` has persistence failures on all three targets in
+[CI](https://github.com/angelcp2802/solidflow/actions/runs/40155702773).
+Its other six renderer jobs and all three configured-authoring jobs pass.
+All three downstream Desktop jobs stop at their required-renderer gate before
+unit, smoke or packaging execution.
+Retrieved Windows/macOS logs stop when the original revolution script tries
+to edit the height field outside the visible window. The Linux dedicated log
+request returns `Transport closed`, so its precise assertion remains unknown.
+The current helper explicitly reveals and hit-tests each field, and this
+workflow now always uses the production minimum window size. All original
+commands, geometry checks and deadlines remain. Both parent
+[Security jobs](https://github.com/angelcp2802/solidflow/actions/runs/40155702736)
+pass. This local result does not establish new-head hosted/platform acceptance
+or resolve the separate historical rigid-persistence timing issue.
+
+Final local acceptance on Windows x64 / Node 24.11.1 / Electron 44.9.3:
+`npm test` passes 9,541 unit/CAD cases across 417 files (534.47 seconds), then
+83 IPC/security cases with two explicit platform skips. Production build and
+`npm run test:desktop` pass. Prepared sequential part modeling passes 118
+renderer checkpoints and fresh interactive sketches pass 48. All three selected
+renderer workflows report zero console, request or resource errors and confirmed
+child exit/profile cleanup. The 1,101 non-Markdown source inputs match the
+isolated runtime and remain frozen throughout acceptance. Other assembly renderer
+workflows were not rerun for this axis increment; prior results remain below.
+
 ## Grouped commands, visible confirmation and revolution workflow — 2026-10-25
 
 The part ribbon now labels six existing command groups. Direct command buttons
