@@ -7,7 +7,79 @@ with interaction priorities in [issue #55](https://github.com/angelcp2802/solidf
 and hosted acceptance in [issue #53](https://github.com/angelcp2802/solidflow/issues/53).
 The review remains unmerged; this is not release or complete-demo acceptance.
 
-The current increment adds two-direction and mid-plane revolution. Two sides
+The current increment prioritizes parameters in the left PropertyManager.
+Revolution now orders Profile, Axis, Direction 1, optional Direction 2, Bodies
+and Name. The configured general-relation editor orders Type/options,
+references, origin disclosure, parameters and Name, with a single title and
+Type/create versus Reference 1/saved-distance-edit focus. Standard guidance
+distinguishes selecting references, explicitly previewing and applying a current
+verified result; it is hidden during blocked editing or replacement dialogs.
+Existing error/status reporting and authority guards remain.
+
+Local acceptance is complete for the final snapshot recorded below; hosted
+acceptance of the current head remains pending. The first build passes in
+3.605 s, but the revolution renderer fails after 6.357 s because the first-angle
+field crosses the minimum
+viewport's lower edge. Removing its redundant axis label retains the associated
+select label and the original containment assertion. The second build passes in
+3.596 s with 1,118 matching frozen source/runtime inputs. Six selected local
+Windows renderers now pass: revolution, successive parts, fresh sketch, compact
+configured picking and standard/configured origin axes. They report zero console, request
+and resource errors and confirmed child/profile cleanup. At minimum window
+size, the first angle is visible without scrolling; reversal and Direction 2
+still require scrolling. Configured creation/editing records the intended focus,
+one title and closed unused origin controls. A maximized visible check shows all
+revolution controls without scrolling, a 60/90 preview and Cancel back to the
+bored cylinder. Configured creation shows the intended order and an expandable
+origin section without assigning or applying a relation. A fresh visible
+observation confirms editor closure back to the model tree, New relation
+enabled, configuration ready and two solids with displayed volume 128.000 mm3
+and area 192.000 mm2. These are UI-state observations. The first full suite
+fails after 547.772 s with
+9,697 passing and two failing cases across 422 files (420 passing, two failing).
+The two failures are configured UI text expectations; the follow-up changes
+only `configuredAssemblyPicking.test.tsx` and `originAxisAuthoring.test.tsx`.
+The focused rerun passes 10 cases across both files in 1.22 s. Of 1,118 inputs,
+1,116 remain identical to the renderer-02 snapshot; only these test files differ.
+Production, harness, fixtures, configuration and dependencies are unchanged,
+preserving the scope of the second build and six renderer passes without
+claiming identical complete snapshots. Full-suite run 02 passes 9,699 cases
+across 422 files, plus 83 IPC checks and two explicit skips, in 543.766 s.
+Desktop smoke passes in 1.573 s with zero recorded errors.
+
+A subsequent accessibility correction gives the existing configured workspace
+title heading semantics (`role="heading"`, `aria-level="2"`) without changing
+its element, ID or style. Its renderer assertion now checks that semantic
+heading. Only `ConfiguredAssemblyWorkspace.tsx` and
+`desktop-assembly-configured-picking-flow.cjs` differ from the full-suite-02
+snapshot; the other 1,116 inputs match. All 1,118 final source/runtime inputs
+match. The six renderer-02 passes and full-suite/smoke-02 results remain
+evidence for the earlier snapshot, not the complete corrected production state.
+Build 03 passes in 3.671 s. The post-correction configured picking renderer
+passes 191 checkpoints in 69.425 s, and configured origin axes passes 312 in
+85.407 s. Both report zero console, request and resource errors and confirmed
+child/profile cleanup. Full-suite 03 passes 9,699 cases across 422 files, plus
+83 IPC checks and two explicit skips, in 545.267 s. Desktop smoke 03 passes in
+1.644 s with zero console, request and resource errors. Build 03, both configured
+renderer-03 cases, full-suite 03 and smoke 03 share the exact final 1,118-input
+source/runtime snapshot. The four other renderer-02 cases and manual checks
+remain earlier-snapshot evidence, not final-snapshot reruns. Local acceptance
+is complete within this scope; this remains work in draft PR #49, not a complete
+renderer matrix, assembly/demo acceptance or overall interface fidelity.
+
+Parent `9ac5704` has terminal [CI failure](https://github.com/angelcp2802/solidflow/actions/runs/40163844307):
+seven of nine renderer jobs pass, covering relations and hinge/symmetry on all
+three systems and macOS persistence. Configured authoring passes on all three.
+Windows job 121080751269 and Ubuntu job 121080751250 fail the rigid assembly
+preview/Apply/persistence step. All three Desktop jobs stop at the
+`Require every renderer` gate before unit, smoke or packaging acceptance.
+One log retrieval attempt per failed job returns `Transport closed`, leaving
+the exact failure cause unestablished. [Security](https://github.com/angelcp2802/solidflow/actions/runs/40163844308)
+completes successfully. These parent results do not validate the current head;
+the completed local snapshot-specific acceptance is separate. Current-head
+hosted acceptance remains pending.
+
+The preceding increment added two-direction and mid-plane revolution. Two sides
 allow one zero angle while requiring a positive total no greater than 360
 degrees. Mid-plane interprets the angle as a total span and ignores the stored
 reverse choice while active. Legacy documents retain absent extent fields and
@@ -88,12 +160,9 @@ See [validation](VALIDATION.md) for exact
 local results, retained failures and hosted links; results from earlier commits
 do not establish current-head acceptance.
 
-Next priorities include current-head hosted acceptance and a parameter-first
-left property manager: relation references before naming and secondary text,
-with unambiguous guidance from selection to the explicit relation preview and
-then Apply. This interface work must preserve draft, scope and current-reference
-guards; it is not implemented by this documentation update. Other priorities
-include viewport/external revolution-axis selection,
+Next priorities include current-head hosted acceptance of the parameter-first
+PropertyManager increment. Further priorities include
+viewport/external revolution-axis selection,
 thin-wall and revolved-cut workflows, broader material/mechanical reference picking and
 the complete basic assembly demo. Repeated/hosted persistence timing, remaining
 origin orientations and installed-package support also remain open. The sections

@@ -567,7 +567,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
       </section>
 </div>
       <div data-configured-pane="relation" hidden={inspectorPane !== 'relation'}>
-        <div id="configured-property-heading" className="configured-property-context"><strong>{mateDraft?.editing ? 'Editar relación' : 'Nueva relación'}</strong><span>{selectedScope.path.join(' / ') || document.source.name} · {selectedScope.configuration ?? 'Base'}</span></div>
+        <div id="configured-property-heading" role="heading" aria-level={2} className="configured-property-context"><strong>{mateDraft?.editing ? 'Editar relación' : 'Nueva relación'}</strong><span>{selectedScope.path.join(' / ') || document.source.name} · {selectedScope.configuration ?? 'Base'}</span></div>
         <div className="configured-property-actions">
           <button title={preview ? 'Aplicar relación verificada' : 'Verifica la vista previa para aplicar'} aria-label="Aplicar relación verificada" disabled={busy || !preview} onClick={() => void apply()}><Check size={21} /></button>
           <button title={preview ? 'Cancelar vista previa de relación' : 'Cerrar relación'} aria-label={preview ? 'Cancelar vista previa de relación' : 'Cerrar relación'} disabled={busy} onClick={() => {
@@ -578,7 +578,8 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
           <span>{preview ? 'Vista previa verificada' : 'Selecciona referencias y verifica'}</span>
         </div>
               <div id="configured-relation-inspector" data-inspector-anchor="configured-property-heading" tabIndex={-1}>
-      {generalDraft && <ConfiguredOriginDisclosure axes={originAxes} planes={originPlanes} pick={originPick}
+      {mateDraft && !('mechanical' in mateDraft) && !('compound' in mateDraft) && <ConfiguredAssemblyMatePanel draft={mateDraft} choices={mateChoices.values} disabled={blocked || !scene || selectedScope.suppressed}
+        originControls={generalDraft && <ConfiguredOriginDisclosure axes={originAxes} planes={originPlanes} pick={originPick}
         activeRole={originPick ? configuredMateUiRoleLabels(generalDraft)[originPick.slot] : null} visibleCount={originDisplay.length}>
         <div className="configured-origin-visibility">
           <label><input type="checkbox" aria-label="Mostrar ejes de origen configurados" checked={originAxes} disabled={blocked || !scene} onChange={event => { if (!freshMate() || operation.current || pending.current || inspectorPane !== 'relation') return; stopMatePick(); setOriginAxes(event.target.checked) }} />Ejes</label>
@@ -600,7 +601,6 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
         }}>{label}</button>)}</div>
         <small>Elige un componente y después la referencia que quieres seleccionar. Cambiar de componente conserva las referencias ya elegidas.</small>
       </ConfiguredOriginDisclosure>}
-      {mateDraft && !('mechanical' in mateDraft) && !('compound' in mateDraft) && <ConfiguredAssemblyMatePanel draft={mateDraft} choices={mateChoices.values} disabled={blocked || !scene || selectedScope.suppressed}
         picking={matePick} onStopPicking={stopMatePick} onPick={(slot, kind) => { if (!freshMate() || operation.current || pending.current || inspectorPane !== 'relation') return; stopMatePick(); const value = { slot, kind }; matePickRef.current = value; setMatePick(value) }}
         onChange={draft => { if (!freshMate() || operation.current || pending.current) return; try { setRelationDraft(structuredClone(draft)); setFailure(null) } catch (reason) { error(reason) } }}
         onPreview={previewDraft} onClose={() => { if (!freshMate() || operation.current || pending.current) return; try { setRelationDraft(null); setFailure(null) } catch (reason) { error(reason) } }} />}

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { assemblyDefinitionKey, validateAssemblyMate, validateAssemblyGeometryReference, validateAssemblyVertexReference, validateAssemblyCylinderSurfaceReference, validateAssemblySphereSurfaceReference,
   type AssemblyMate, type AssemblyGeometryReference, type AssemblyVertexReference, type AssemblyCylinderSurfaceReference, type AssemblySphereSurfaceReference } from '../model/assemblyDocument'
 import { evaluateAssemblyConfiguration } from '../model/assemblyConfigurationCore'
@@ -100,7 +101,7 @@ export function configuredMateUiChoices(document: AssemblyConfiguredDocument, sc
 }
 export function configuredMateUiProposal(draft: ConfiguredMateDraft, choices: readonly ConfiguredMateUiChoice[]): AssemblyMate {
   const labels = configuredMateUiRoleLabels(draft), refs = labels.map((_, i) => {
-    const ref = draft.references[i]; if (!ref || configuredMateUiRoleChoices(draft, i, choices).filter(value => value.key === referenceKey(ref)).length !== 1) throw Error('Selecciona todas las referencias del catálogo actual.')
+    const ref = draft.references[i]; if (!ref || configuredMateUiRoleChoices(draft, i, choices).filter(value => value.key === referenceKey(ref)).length !== 1) throw Error(`Completa las referencias: selecciona una opción actual para ${configuredMateUiRoleLabels(draft)[i]}.`)
     return normalizedReference(ref)
   })
   const number = (value: string) => { if (!value.trim() || !Number.isFinite(Number(value))) throw Error('Escribe parámetros numéricos finitos.'); return Number(value) }
@@ -122,20 +123,19 @@ export function configuredMateUiProposal(draft: ConfiguredMateDraft, choices: re
   }
   return validateAssemblyMate(candidate)
 }
-export default function ConfiguredAssemblyMatePanel(props: { draft: ConfiguredMateDraft; choices: readonly ConfiguredMateUiChoice[]; disabled: boolean; onChange: (draft: ConfiguredMateDraft) => void; onPreview: () => void; onClose: () => void; picking?: { slot: number; kind: 'face' | 'edge' } | null; onPick?: (slot: number, kind: 'face' | 'edge') => void; onStopPicking?: () => void }) {
+export default function ConfiguredAssemblyMatePanel(props: { draft: ConfiguredMateDraft; choices: readonly ConfiguredMateUiChoice[]; disabled: boolean; onChange: (draft: ConfiguredMateDraft) => void; onPreview: () => void; onClose: () => void; picking?: { slot: number; kind: 'face' | 'edge' } | null; onPick?: (slot: number, kind: 'face' | 'edge') => void; onStopPicking?: () => void; originControls?: ReactNode }) {
   const { draft, disabled } = props, change = (values: Partial<ConfiguredMateDraft>) => { if (!disabled) props.onChange({ ...draft, ...values }) }
   let reason = ''; try { configuredMateUiProposal(draft, props.choices) } catch (error) { reason = error instanceof Error ? error.message : 'Completa las referencias y parámetros.' }
   const numeric = (label: string, key: 'value' | 'minimum' | 'maximum' | 'start' | 'sweep') => <label>{label}<input type="number" step="any" aria-label={label} value={draft[key]} disabled={disabled} onChange={e => change({ [key]: e.target.value })} /></label>
   return <section className="configured-mate-editor" role="region" aria-label="Editar relación del estado">
-    <h3>{draft.editing ? 'Editar relación' : 'Nueva relación'}</h3><p>Los cambios se conservan sólo al aplicar la vista previa verificada.</p>
     <label>Tipo<select aria-label="Tipo de relación configurada" value={draft.type} disabled={disabled || draft.editing} onChange={e => change({ ...configuredMateUiDraft(draft.id), type: e.target.value as ConfiguredEditableMateType, name: draft.name })}>{Object.entries(families).map(([value, name]) => <option key={value} value={value}>{name}</option>)}</select></label>
-    <label>Nombre<input aria-label="Nombre de relación configurada" value={draft.name} disabled={disabled} onChange={e => change({ name: e.target.value })} /></label>
     {draft.type === 'symmetry' && <label>Familia<select aria-label="Familia de simetría configurada" value={draft.entityKind} disabled={disabled} onChange={e => change({ entityKind: e.target.value as ConfiguredMateDraft['entityKind'], references: [null, null, null] })}>{['point', 'line', 'plane', 'sphere', 'cylinder'].map(kind => <option key={kind}>{kind}</option>)}</select></label>}
     {draft.type === 'hinge' && <label><input type="checkbox" aria-label="Limitar giro de bisagra configurada" checked={draft.limited} disabled={disabled} onChange={e => change({ limited: e.target.checked, references: draft.references.slice(0, 4), start: '', sweep: '' })} />Limitar giro</label>}
     {configuredMateUiRoleLabels(draft).map((label, slot) => { const list = configuredMateUiRoleChoices(draft, slot, props.choices), selected = draft.references[slot], key = selected ? referenceKey(selected) : '', found = list.some(value => value.key === key); return <div key={slot}><label>{label}<select aria-label={`${label} de relación configurada`} disabled={disabled} value={found ? key : selected ? 'retained' : ''} onChange={e => { const refs = [...draft.references]; refs[slot] = list.find(value => value.key === e.target.value)?.reference ?? null; change({ references: refs }) }}>
       <option value="">Selecciona una referencia actual</option>{selected && !found && <option value="retained">Referencia guardada · pendiente de reselección</option>}{list.map(value => <option key={value.key} value={value.key} title={value.label}>{value.label}</option>)}</select></label>{props.onPick && (['face', 'edge'] as const).map(kind => list.some(value => value.reference.kind === kind) && <button key={kind} type="button" disabled={disabled} aria-pressed={props.picking?.slot === slot && props.picking.kind === kind} aria-label={'Seleccionar ' + label + ' por ' + (kind === 'face' ? 'cara' : 'arista') + ' en vista configurada'} onClick={() => props.onPick?.(slot, kind)}>{kind === 'face' ? 'Elegir cara en vista' : 'Elegir arista LINE en vista'}</button>)}</div> })}
     {props.picking && <p role="status">Selecciona {configuredMateUiRoleLabels(draft)[props.picking.slot]}: {props.picking.kind === 'face' ? 'una cara compatible' : 'una arista LINE'} en la vista. <button type="button" disabled={disabled} onClick={props.onStopPicking}>Cancelar selección en vista</button></p>}
-    <p>Los planos XY, XZ e YZ del ámbito y de cada componente se eligen en las listas de referencias.</p>
+    {props.originControls}
+    <p>Elige planos o ejes de origen en las listas o activa su selección en vista.</p>
     {draft.type === 'distance' && numeric('Distancia de relación configurada en mm', 'value')}{draft.type === 'angle' && numeric('Ángulo de relación configurada en grados', 'value')}
     {(draft.type === 'limit-distance' || draft.type === 'limit-angle') && <>{numeric(`Mínimo de relación configurada en ${draft.type === 'limit-distance' ? 'mm' : 'grados'}`, 'minimum')}{numeric(`Máximo de relación configurada en ${draft.type === 'limit-distance' ? 'mm' : 'grados'}`, 'maximum')}</>}
     {(draft.type === 'limit-directed-angle' || draft.type === 'hinge' && draft.limited) && <>{numeric('Inicio de relación configurada en grados', 'start')}{numeric('Recorrido de relación configurada en grados', 'sweep')}</>}
@@ -143,6 +143,8 @@ export default function ConfiguredAssemblyMatePanel(props: { draft: ConfiguredMa
     {draft.type === 'width' && (['widthBranch', 'tabBranch'] as const).map(key => <label key={key}>{key === 'widthBranch' ? 'Bisector de anchura' : 'Bisector de pestaña'}<select aria-label={key === 'widthBranch' ? 'Bisector de anchura configurada' : 'Bisector de pestaña configurada'} value={draft[key]} disabled={disabled} onChange={e => change({ [key]: e.target.value })}><option value="sum">Suma</option><option value="difference">Diferencia</option></select></label>)}
     {(draft.type === 'tangent' || draft.type === 'plane-sphere-tangent') && <label>Lado<select aria-label="Lado de tangencia configurada" value={draft.side} disabled={disabled} onChange={e => change({ side: e.target.value as ConfiguredMateDraft['side'] })}><option value="positive">Positivo</option><option value="negative">Negativo</option></select></label>}
     {['skew-cylinder-tangent', 'parallel-cylinder-tangent', 'sphere-sphere-tangent', 'cylinder-sphere-tangent'].includes(draft.type) && <label>Rama<select aria-label="Rama de tangencia configurada" value={draft.branch} disabled={disabled} onChange={e => change({ branch: e.target.value as ConfiguredMateDraft['branch'] })}><option value="external">Externa</option><option value="first">Interna · radio mayor en referencia 1</option><option value="second">Interna · radio mayor en referencia 2</option></select></label>}
+    <label>Nombre<input aria-label="Nombre de relación configurada" value={draft.name} disabled={disabled} onChange={e => change({ name: e.target.value })} /></label>
+    <p>Verifica la vista previa y después pulsa Aplicar para confirmar la relación.</p>
     {reason && <p role="status">{reason}</p>}<button disabled={disabled || !!reason} onClick={props.onPreview}>Vista previa de relación configurada</button><button disabled={disabled} onClick={props.onClose}>Cerrar edición de relación configurada</button>
   </section>
 }

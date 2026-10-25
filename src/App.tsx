@@ -2459,6 +2459,37 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
         ...(label === "Cuadrícula" ? { checked: grid } : label === "Planos de referencia" ? { checked: showPlanes } : {}),
       })),
     }));
+  const operationNameEditor = editing && (
+    <div className="property-section operation-name-section">
+      <h3>
+        <ChevronDown size={12} /> Nombre
+      </h3>
+      <input
+        className="text-input"
+        aria-label="Nombre de operación"
+        value={editing.name}
+        onChange={(e) => changeDraft({ name: e.target.value })}
+      />
+    </div>
+  );
+  const operationBodyEditor = editing && isBodyCommandFeature(editing) && editing.type !== "sweep" && editing.type !== "loft" && !isRepetition(editing) && <BodyFeaturePanel
+    feature={editing} outputBodyId={bodyOutputId.current}
+    existing={doc.features.some(feature => feature.id === editing.id)}
+    bodies={sourceModel?.bodies ?? []} selection={bodySelection}
+    onSelection={chooseBodySelection}
+    disabled={sourceLoading || sourceBuiltFeatures !== sourceFeatures}
+    picking={bodyPicking} onPicking={setBodyPicking}
+    onFeature={feature => {
+      const separate = (feature.type === "extrude" || feature.type === "revolve") && feature.bodyOperation?.mode === "new";
+      const selection = separate ? [] : bodySelection;
+      if (separate) setBodySelection([]);
+      setEditing(withBodySelection(feature, selection));
+      setBodyPicking(feature.type === "combine" || (feature.type === "extrude" || feature.type === "revolve") && feature.bodyOperation?.mode === "merge");
+      setError("");
+    }}
+    message={bodyCommand && !bodyCommand.accepted ? bodyCommand.message : undefined}
+  />;
+
   return (
     <div className="app-shell">
       {featureMenu && menuFeature && <PartFeatureContextMenu key={featureMenu.requestId}
@@ -3027,7 +3058,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
             </button>
           </div>
           {editing ? (
-            <div className="property-manager">
+            <div className={`property-manager${editing.type === "revolve" ? " property-manager-revolve" : ""}`}>
               <div className="property-manager-header">
                 <div className="property-title">
                   <span>{labels[editing.type]}</span>
@@ -3058,34 +3089,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                   </span>
                 </div>
               </div>
-              <div className="property-section">
-                <h3>
-                  <ChevronDown size={12} /> Nombre
-                </h3>
-                <input
-                  className="text-input"
-                  aria-label="Nombre de operación"
-                  value={editing.name}
-                  onChange={(e) => changeDraft({ name: e.target.value })}
-                />
-              </div>
-              {isBodyCommandFeature(editing) && editing.type !== "sweep" && editing.type !== "loft" && !isRepetition(editing) && <BodyFeaturePanel
-                feature={editing} outputBodyId={bodyOutputId.current}
-                existing={doc.features.some(feature => feature.id === editing.id)}
-                bodies={sourceModel?.bodies ?? []} selection={bodySelection}
-                onSelection={chooseBodySelection}
-                disabled={sourceLoading || sourceBuiltFeatures !== sourceFeatures}
-                picking={bodyPicking} onPicking={setBodyPicking}
-                onFeature={feature => {
-                  const separate = (feature.type === "extrude" || feature.type === "revolve") && feature.bodyOperation?.mode === "new";
-                  const selection = separate ? [] : bodySelection;
-                  if (separate) setBodySelection([]);
-                  setEditing(withBodySelection(feature, selection));
-                  setBodyPicking(feature.type === "combine" || (feature.type === "extrude" || feature.type === "revolve") && feature.bodyOperation?.mode === "merge");
-                  setError("");
-                }}
-                message={bodyCommand && !bodyCommand.accepted ? bodyCommand.message : undefined}
-              />}
+              {editing.type !== "revolve" && <>{operationNameEditor}{operationBodyEditor}</>}
               {editing.type === "sketch" ? (
                 <>
                   {sketchTool === "offset" && entityProfile && <SketchOffsetPanel
@@ -3493,7 +3497,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                 />
               ) : (
                 <>
-                  <div className="property-section">
+                  <div className="property-section operation-profile-section">
                     <h3>
                       <ChevronDown size={12} /> Perfil seleccionado
                     </h3>
@@ -3513,16 +3517,20 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                     </select>
                   </div>
                   {editing.type === "revolve" ? (
-                    <RevolvePanel feature={editing}
-                      sketch={availableSketches.find(sketch => sketch.id === editing.sketchId)}
-                      onChange={changeDraft}>
-                      <NumberField
-                        label="Ángulo"
-                        value={editing.angle}
-                        onChange={(angle) => changeDraft({ angle })}
-                        unit="°"
-                      />
-                    </RevolvePanel>
+                    <>
+                      <RevolvePanel feature={editing}
+                        sketch={availableSketches.find(sketch => sketch.id === editing.sketchId)}
+                        onChange={changeDraft}>
+                        <NumberField
+                          label="Ángulo"
+                          value={editing.angle}
+                          onChange={(angle) => changeDraft({ angle })}
+                          unit="°"
+                        />
+                      </RevolvePanel>
+                      {operationBodyEditor}
+                      {operationNameEditor}
+                    </>
                   ) : (
                     <ExtrudePanel
                       feature={editing}

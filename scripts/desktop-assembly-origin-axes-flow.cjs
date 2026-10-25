@@ -271,6 +271,28 @@ module.exports = function originAxesWorkflow(c) {
     if (stage === 2) check(mates[1].type === 'angle' && mates[1].angle === 30, 'Saved 30 degree relation');
     geometry(v.scene, v.document, stage, 'preview-' + stage); return v.document;
   }
+  async function standardRelationGuidance(phase) {
+    if (configured) return;
+    const expected = phase === 'first-reference' ? 'Selecciona la referencia 2.'
+      : phase === 'complete-references' ? 'Revisa el nombre y los parámetros; pulsa «Vista previa de la nueva relación». Después de verificarla, podrás Aplicar.'
+      : 'Vista previa verificada. Revisa el resultado y pulsa Aplicar.';
+    const state = await waitFor('standard relation guidance ' + phase, async () => {
+      const actual = await page(() => {
+        const guides = [...document.querySelectorAll('[data-assembly-relation-guidance]')];
+        const apply = [...document.querySelectorAll('button[aria-label="Aplicar ensamblaje"]')];
+        const preview = [...document.querySelectorAll('#assembly-panel-relations button')].filter(button => button.textContent.trim() === 'Vista previa de la nueva relación');
+        const guide = guides[0];
+        return { count: guides.length, text: guide?.textContent, shown: !!guide && !guide.closest('[hidden]') && guide.getClientRects().length > 0,
+          applyCount: apply.length, applyDisabled: apply[0]?.disabled, previewCount: preview.length, previewDisabled: preview[0]?.disabled,
+          status: document.querySelector('.assembly-status')?.textContent };
+      });
+      return actual.count === 1 && actual.shown && actual.text === expected && actual.applyCount === 1
+        && actual.applyDisabled === (phase !== 'verified-preview') && actual.previewCount === 1
+        && actual.previewDisabled === (phase !== 'complete-references') ? actual : false;
+    });
+    check(phase === 'verified-preview' || state.status.includes(expected), 'Origin selection status agrees with the current role guidance');
+    selectionGestures.push({ kind: 'standard-relation-guidance', phase, ...state });
+  }
   async function draft(stage) {
     const type = stage === 1 ? 'concentric' : 'angle', axis = stage === 1 ? 'Z' : 'X';
     if (configured && !await page(form => !!document.querySelector(form), FORM)) await button('Nueva relación configurada', '[aria-label="Relaciones del estado configurado"]');
@@ -293,6 +315,7 @@ module.exports = function originAxesWorkflow(c) {
     for (const [slot, owner] of [[1, 'moving'], [2, null]]) {
       await control(ownerLabel, owner ? 'selected' : 'scope');
       await armOrigin(slot); await originLabel(slot, 'principal-axis', axis, owner);
+      if (!configured && stage === 1) await standardRelationGuidance(slot === 1 ? 'first-reference' : 'complete-references');
     }
     if (configured && !checkedOwnerContinuity) {
       const ownerControl = 'Componente de referencias de origen configuradas';
@@ -328,7 +351,10 @@ module.exports = function originAxesWorkflow(c) {
   }
   async function preview(baseline, stage) {
     const before = await observe(); await button(configured ? 'Vista previa de relación configurada' : 'Vista previa de la nueva relación', configured ? FORM : ROOT);
-    const row = await response(before.serial, configured ? 'preview-configured-assembly-relation-edit' : 'preview-assembly'); return ready(row, baseline, stage);
+    const row = await response(before.serial, configured ? 'preview-configured-assembly-relation-edit' : 'preview-assembly');
+    const proposed = ready(row, baseline, stage);
+    if (!configured) await standardRelationGuidance('verified-preview');
+    return proposed;
   }
   async function apply(proposed, stage) {
     await waitFor('Apply enabled', () => page((configured, nav) => configured

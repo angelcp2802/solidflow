@@ -98,6 +98,17 @@ in [validation](VALIDATION.md).
 
 ## Revolution followed by a cut
 
+The left editor orders **Perfil seleccionado**, **Eje de revolución**,
+**Dirección 1**, optional **Dirección 2**, **Cuerpos de la operación** and
+**Nombre**. Parameters come before body and naming controls; scroll to those
+controls when needed. The title and accept/cancel row remain visible while
+scrolling. At the minimum window size, **Invertir dirección** and **Dirección 2**
+still need scrolling. Local acceptance is complete within the scope of the
+latest [validation entry](VALIDATION.md); the part renderer and manual checks
+precede the final configured heading correction. A separate maximized-window
+check shows all these controls without scrolling; that result does not change
+the minimum-window limitation. Current-head hosted acceptance remains pending.
+
 While editing an unused sketch, choose **Operaciones → Revolución**. In the
 left **Eje de revolución** section, select the sketch's X or Y axis or a line
 from that same sketch. Construction lines may define the axis without adding
@@ -129,7 +140,8 @@ settings produce the same solid.
 Axes from another sketch, body edges or cylindrical faces, viewport axis picking,
 thin-wall revolution and revolved cuts remain pending. Two-direction and
 mid-plane modes have focused model/native/UI checks and a passing selected
-production renderer. The current increment also passes the local full suite
+production renderer from the preceding extent increment. That increment passed
+the local full suite
 (9,699 cases across 422 files, plus 83 IPC checks with two explicit skips) and
 desktop smoke. Current-head hosted acceptance remains pending.
 The renderer regression
@@ -224,13 +236,25 @@ movement uses its own tool. Sketch editing retains 2D middle-button pan.
 
 ## Assembly priorities and current limits
 
-The next interface priority is a parameter-first left property manager, with
-relation references before naming and secondary explanation. Both workspaces
-should clearly distinguish selecting references, verifying a new relation and
-applying its verified preview. This is planned interface work: current relation
-creation still requires its explicit preview action; the general Solve command
-must not be described as creating an unsubmitted relation. Draft, scope and
-current-reference guards remain requirements for that work.
+The current interface increment puts the configured general-relation form in
+this order: Type and family options, references, **Referencias de origen**,
+parameters, then Name. The workspace supplies one PropertyManager title with
+level-2 heading semantics. A new draft focuses Type; editing a saved distance
+relation focuses Reference 1 while Type stays disabled. Unused origin controls
+remain in their closed disclosure.
+The current compact picking renderer checks this order, focus and single title
+before extra scrolling. Final local acceptance includes both affected
+configured renderers, build, the full suite and desktop smoke on the same
+1,118-input snapshot. Earlier picking results belong to their recorded source
+states; current-head hosted acceptance remains pending.
+
+In the standard workspace, follow the guidance to select missing references,
+review parameters and run the explicit relation preview. Apply commits only a
+currently verified preview. The general Solve command does not create an
+unsubmitted relation. Guidance is hidden during blocked editing or a replacement
+dialog, while existing error/status messages remain. Draft, scope and
+current-reference guards are unchanged. This increment does not complete all
+assembly workflows or overall interface fidelity.
 
 Both assembly workspaces use a grouped upper ribbon and one contextual manager
 on the left. **Archivo / Editar / Ver / Insertar / Herramientas / Ayuda** offer

@@ -10,3 +10,15 @@
 .revolve-direction-toggle input { margin: 0; accent-color: #207fba; }
 .revolve-reverse:has(input:disabled) { color: #7b8c99; cursor: default; }
 .revolve-angle-error { margin: 0 12px 12px; }
+
+
+/* Parameter-first density is local to revolution; other editors retain their layout. */
+.property-manager.property-manager-revolve .property-section { padding: 0 10px 8px; }
+.property-manager.property-manager-revolve .property-section h3 { height: 28px; margin: 0 0 5px; }
+.property-manager.property-manager-revolve .operation-profile-section { padding-top: 7px; }
+.property-manager.property-manager-revolve .operation-profile-section h3 { height: 22px; margin-bottom: 4px; }
+.property-manager.property-manager-revolve .muted-small { margin-top: 6px; }
+.property-manager.property-manager-revolve .property-section > select { margin-bottom: 6px; }
+.property-manager.property-manager-revolve .revolve-axis-label { margin-bottom: 4px; }
+.property-manager.property-manager-revolve .number-field { min-height: 34px; }
+.property-manager.property-manager-revolve .revolve-reverse { margin-top: 6px; }

@@ -1,5 +1,128 @@
 # Validation
 
+## Parameter-first PropertyManagers — 2026-10-25
+
+This increment reorders the revolution editor to Profile, Axis, Direction 1,
+optional Direction 2, Bodies and Name, with local density rules and shorter
+guidance. Field sizes, the sticky confirmation header, current draft values,
+callbacks and preview/Apply guards remain in scope for regression checks. Other
+part-operation editors retain their existing ordering.
+
+The configured general-relation editor moves Type and family options before
+references, the origin disclosure, parameters and Name. It uses one workspace
+PropertyManager title. Creation focuses Type; saved distance editing focuses
+Reference 1 with Type disabled. Standard relation guidance now describes the
+real selection, preview and verified Apply sequence. These presentation changes
+do not expand supported relation families or alter geometry authority.
+
+Local acceptance is complete for the final snapshot described below; current-head
+hosted acceptance remains pending. The first build passes in
+3.605 s, but the revolution renderer fails after 6.357 s: the first-angle control
+is partially below the minimum viewport's 609 px lower boundary. The follow-up
+removes the duplicate axis label and uses the axis heading to label the existing
+select. The second build passes in 3.596 s. The containment assertion has not
+been weakened. Acceptance run 02 uses 1,118 matching frozen source/runtime
+inputs on local Windows with Node 24.11.1 and Electron 44.9.3. These six selected
+production renderers have completed successfully:
+
+| Workflow | Checkpoints | Elapsed |
+| --- | ---: | ---: |
+| Revolution and saved editing | 178 | 48.549 s |
+| Successive part operations | 118 | 32.286 s |
+| Fresh face-supported sketch | 48 | 16.234 s |
+| Compact configured face/LINE picking | 191 | 67.415 s |
+| Standard origin-axis workflow | 212 | 89.469 s |
+| Configured origin-axis workflow | 312 | 87.478 s |
+
+All six report zero console, request and resource errors, with confirmed child
+exit and isolated-profile cleanup. Original geometry, history, recovery and
+file oracles remain in place.
+
+At the minimum 1040 x 700 window, with 1024 x 661 content and initial inspector
+scroll position zero, Profile, Axis, end condition and first angle are visible.
+The first-angle bottom is 599.5 px, inside the 609 px lower clip boundary.
+Reversal and Direction 2 still require scrolling at this minimum size; this is
+not evidence that every parameter fits without scrolling.
+
+Configured picking records three initial application-owned reveals: creation,
+creation and saved distance editing. They focus Type, Type and Reference 1,
+respectively, at scroll position zero. Each has one PropertyManager title, no
+duplicate internal heading, and closed unused origin controls. DOM-order and
+focus measurements precede extra reveal; enabled, fully visible, stationary and
+unobscured interaction requirements remain intact.
+
+A separate visible check in a maximized Windows window opens the saved part
+operation by tree double-click. Profile, Axis, first angle 270 degrees, second
+angle 90 degrees, reversal, Bodies and Name are visible without scrolling.
+Changing the first angle to 60 through an accessibility value setter displays a
+60/90 sector with Accept enabled. Cancel returns to a fresh `Listo` state, the
+bored cylinder and displayed volume 471.239 mm3. This is visual and UI-state
+evidence, not a new numerical geometry oracle or human keyboard entry.
+
+In the maximized configured workspace, a new relation shows one title and Type
+focus, references before the closed origin disclosure, and parameters before
+Name. Expanding the disclosure exposes its visibility checkboxes, owner and
+component controls. No reference is assigned and no relation is applied in this
+manual check. A fresh visible observation confirms that closing the empty
+editor returns to the model tree, with New relation enabled and configuration
+ready. The display shows two solids, volume 128.000 mm3 and area 192.000 mm2;
+these displayed values are UI-state evidence, not an independent geometry
+measurement.
+
+The first full `npm test` run fails after 547.772 s: 9,697 cases pass and two
+fail across 422 files (420 passing, two failing). Both failures are text
+expectations in `configuredAssemblyPicking.test.tsx` and
+`originAxisAuthoring.test.tsx`: the former still expects the longer plane
+guidance, and the latter expects a catalog error instead of the current
+Reference 2 error. The follow-up changes only these two test expectations;
+production UI, harness, fixtures, configuration and dependencies remain
+unchanged. The focused rerun passes all 10 cases in the two files in 1.22 s.
+Of 1,118 compared source inputs, 1,116 match the renderer-02 snapshot exactly;
+only these two test files differ in the full-suite-02 snapshot. The
+successful second build and six renderer results above retain their original
+scope, but do not use the identical complete source snapshot as the corrected
+full suite. Full-suite run 02 passes in 543.766 s: 9,699 cases across 422 files,
+plus 83 IPC checks and two explicit skips. Desktop smoke passes in 1.573 s with
+zero recorded errors. These results describe the snapshot before the following
+heading correction.
+
+Static review then identifies that removing the form's duplicate heading left
+the workspace title without heading semantics. The follow-up adds
+`role="heading"` and `aria-level="2"` to the existing configured title, retaining
+its element, ID and style, and extends the configured-picking assertion to
+require that semantic heading. Exactly two files differ from the full-suite-02
+snapshot: `ConfiguredAssemblyWorkspace.tsx` and
+`desktop-assembly-configured-picking-flow.cjs`; the other 1,116 inputs are
+unchanged. All 1,118 final source/runtime inputs match. This includes a
+production accessibility change, not only test changes. Build 03 passes in
+3.671 s. Post-correction compact configured picking passes 191 checkpoints in
+69.425 s, and configured origin axes passes 312 checkpoints in 85.407 s. Both
+report zero console, request and resource errors, confirmed child exit and
+isolated-profile cleanup. Full-suite run 03 passes in 545.267 s: 9,699 cases
+across 422 files, plus 83 IPC checks and two explicit skips. Desktop smoke 03
+passes in 1.644 s with zero console, request and resource errors. Build 03,
+the two configured renderer-03 cases, full-suite 03 and smoke 03 share the same
+exact 1,118-input source/runtime snapshot, completing this local acceptance.
+The four other renderer-02 cases and the manual observations above remain
+evidence for the earlier snapshot; they were not rerun after the heading change.
+This is not a complete renderer matrix, complete assembly/demo acceptance or
+platform coverage. The dated sections below remain evidence for their
+respective earlier source states.
+
+Parent `9ac5704` finishes [CI](https://github.com/angelcp2802/solidflow/actions/runs/40163844307)
+with failure. Seven of nine renderer jobs pass: relations and hinge/symmetry on
+all three systems, plus macOS persistence. All three configured-authoring jobs
+pass. Windows job 121080751269 and Ubuntu job 121080751250 fail at
+`Test rigid assembly preview Apply persistence`. All three Desktop jobs fail
+the `Require every renderer` gate before unit, smoke and packaging acceptance.
+One dedicated log retrieval attempt for each failed persistence job returns
+`Transport closed`; the exact checkpoint, timeout or underlying cause is not
+established. [Security](https://github.com/angelcp2802/solidflow/actions/runs/40163844308)
+completes successfully. These are terminal results for the parent, not hosted
+validation of the current PropertyManager changes. Local snapshot-specific
+results, including completed local post-heading-correction acceptance, are
+recorded above. Current-head hosted acceptance remains pending.
+
 ## Two-direction and mid-plane revolution — 2026-10-25
 
 The optional saved extent distinguishes two independently entered angles from a

@@ -160,6 +160,7 @@ module.exports = function partRevolutionWorkflow(context) {
     await built(serial, row => row.features.at(-1).type === 'revolve' && row.features.at(-1).sketchId === 'axis-profile'
       && row.features.at(-1).angle === 360, 400 * Math.PI, { min: [-7, 0, -7], max: [7, 10, 7] }, 'entity-default-y');
     await ready();
+    await require('./desktop-part-parameter-layout.cjs')({ page, observe, recovery, check, canonical, records }, 'new-revolution-initial-layout', false);
     serial = (await observe()).serial; await change('input[aria-label="Ángulo"]', 90);
     await built(serial, row => row.features.at(-1).angle === 90, 100 * Math.PI,
       { min: [0, 0, -7], max: [7, 10, 0] }, 'entity-y-quarter');
@@ -300,6 +301,7 @@ module.exports = function partRevolutionWorkflow(context) {
         check(canonical(editing.features) === canonical(saved.features.slice(0, originalCount + 1)),
           'Double-click edits the exact saved revolution and its original upstream features');
         await extents.reopened(revolution);
+        await require('./desktop-part-parameter-layout.cjs')({ page, observe, recovery, check, canonical, records }, 'saved-revolution-initial-layout', true);
         await activeProfile(['sleeve-profile'], 'reopened-consumed-input');
         await profilePicture('consumed-sleeve');
         let changedSerial = (await observe()).serial;

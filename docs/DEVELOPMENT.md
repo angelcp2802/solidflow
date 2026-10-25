@@ -1,5 +1,43 @@
 # Development guide
 
+## Parameter-first PropertyManagers — 2026-10-25
+
+The revolution editor presents Profile, Axis, Direction 1, optional Direction 2,
+Bodies and Name in that DOM and keyboard order. Its density rules apply only to
+revolution: shorter guidance and tighter section spacing retain the existing
+28 px field boxes and sticky confirmation header. Name and body-operation
+controls reuse one copy of their existing callbacks. Other operation editors
+retain their ordering. The axis heading labels its select directly, avoiding a
+second label above the same field. Missing references and invalid-angle alerts
+remain explicit; the staged profile lock and preview/Apply guards are unchanged.
+
+The configured general-relation editor presents Type and family options,
+references, the origin disclosure, parameters, then Name. The workspace owns its
+single PropertyManager title with level-2 heading semantics; the embedded form
+does not repeat it. A new draft focuses Type. Reopening a saved distance
+relation focuses Reference 1 while Type
+remains disabled. Unused origin controls stay mounted inside their closed
+disclosure. Rearranging the form does not select references, rearm temporary
+viewport picking or commit a relation.
+
+Standard relation guidance follows the actual sequence: select the missing
+references, review parameters and request the relevant preview, then Apply only
+after current verification succeeds. Specialized relation families keep their
+own reference and parameter controls. Choosing references alone does not grant
+Apply authority. The guidance is hidden while editing is blocked or a replacement
+dialog is active; existing error/status reporting remains available.
+
+Selected renderer checks inspect initial layout before helper scrolling, retain
+full containment and hit-target requirements, and cover creation and saved
+editing separately. At minimum window size the first angle is initially visible,
+but reversal and Direction 2 still need scrolling. Final local acceptance passes
+build, both affected configured renderers, the full suite and desktop smoke on
+one matching 1,118-input source/runtime snapshot. Four other selected renderers
+and manual observations precede the configured heading correction; see the
+dated [validation record](VALIDATION.md) for that distinction. Current-head
+hosted acceptance remains pending. Historical results below belong to their
+recorded source states.
+
 `RevolveFeature.extent` optionally declares `{ kind: 'two-directions',
 secondAngle }` or `{ kind: 'mid-plane' }`. Absence retains the existing unilateral
 angle, strictly greater than zero and at most 360 degrees, without adding saved

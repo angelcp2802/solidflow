@@ -37,7 +37,7 @@ it('keeps configured datum choices out of material, plane-only and symmetry role
   expect(configuredMechanicalRoleChoices(locked, 1, { geometry: choices, components: [] })).toEqual(choices)
   draft.type = 'concentric'
   expect(configuredMateUiProposal(draft, choices)).toMatchObject({ first: root, second: child, rotationLock: null })
-  expect(() => configuredMateUiProposal(draft, [choices[0]])).toThrow(/catálogo/)
+  expect(() => configuredMateUiProposal(draft, [choices[0]])).toThrow('Completa las referencias: selecciona una opción actual para Referencia 2.')
   const html = renderToStaticMarkup(<ConfiguredAssemblyMatePanel draft={draft} choices={choices} disabled={false} onChange={() => {}} onPreview={() => {}} onClose={() => {}} />)
   expect(html).toContain('Eje de origen X'); expect(html).toContain('Eje de origen Z')
 })

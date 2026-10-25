@@ -45,31 +45,45 @@ module.exports=function configuredPicking(c){
  }
  async function revealedInspector(mode){
   if(mode!=='create'&&mode!=='edit')throw Error('Explicit inspector creation or editing mode required');
-  const expectedField=mode==='create'?'Tipo de relación configurada':'Nombre de relación configurada';
+  const expectedField=mode==='create'?'Tipo de relación configurada':'Referencia 1 de relación configurada';
   let result,last=null;
   try{
    result=await waitFor('application-owned inspector reveal and focus',async()=>{
     last=await page((expectedField,editing)=>{
-     const aside=document.querySelector('[aria-label="Inspector del ensamblaje configurado"]'),form=document.querySelector('#configured-relation-inspector'),field=form?.querySelector('[aria-label="'+expectedField+'"]'),heading=form?.querySelector('h2,h3'),type=form?.querySelector('[aria-label="Tipo de relación configurada"]');
+     const aside=document.querySelector('[aria-label="Inspector del ensamblaje configurado"]'),form=document.querySelector('#configured-relation-inspector'),pane=form?.closest('[data-configured-pane="relation"]'),field=form?.querySelector('[aria-label="'+expectedField+'"]'),heading=pane?.querySelector('#configured-property-heading'),type=form?.querySelector('[aria-label="Tipo de relación configurada"]');
      const rect=element=>{if(!element)return null;const r=element.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height};};
      const a=rect(aside),r=rect(field),h=rect(heading),hit=r?document.elementFromPoint((r.left+r.right)/2,(r.top+r.bottom)/2):null;
      const identity=element=>element?{tag:element.tagName,label:element.getAttribute('aria-label'),id:element.id}:null;
      const visible=b=>!!b&&!!a&&b.width>0&&b.height>0&&b.top>=Math.max(0,a.top+aside.clientTop)&&b.bottom<=Math.min(innerHeight,a.top+aside.clientTop+aside.clientHeight)&&b.left>=a.left&&b.right<=a.right;
+     const paneHeadings=[...pane?.querySelectorAll('h1,h2,h3,h4,h5,h6,[role="heading"]')??[]];
+     const uniqueLevelTwoHeading=paneHeadings.length===1&&paneHeadings[0]===heading&&heading?.id==='configured-property-heading'&&heading.getAttribute('role')==='heading'&&heading.getAttribute('aria-level')==='2';
      const origins=form?.querySelector('details[aria-label="Referencias de origen configuradas"]');
+     const reference1=form?.querySelector('[aria-label="Referencia 1 de relación configurada"]'),reference2=form?.querySelector('[aria-label="Referencia 2 de relación configurada"]'),parameter=form?.querySelector('[aria-label="Distancia de relación configurada en mm"]'),name=form?.querySelector('[aria-label="Nombre de relación configurada"]');
+     const ordered=[type,reference1,reference2,origins,parameter,name];
+     const editorOrder=ordered.map(element=>({label:element?.getAttribute('aria-label')??null,rect:rect(element)}));
+     const parameterFirst=ordered.every(Boolean)&&ordered.every((element,index)=>index===0||!!(ordered[index-1].compareDocumentPosition(element)&Node.DOCUMENT_POSITION_FOLLOWING));
      return {ready:!!field&&!field.matches(':disabled')&&!!type&&type.disabled===editing&&document.activeElement===field&&visible(r)&&visible(h)&&!!hit&&(hit===field||field.contains(hit)),
       expectedField,active:identity(document.activeElement),hit:identity(hit),fieldDisabled:field?.matches(':disabled')??null,typeDisabled:type?.disabled??null,
+      paneHeadingCount:paneHeadings.length,uniqueLevelTwoHeading,headingRole:heading?.getAttribute('role')??null,headingLevel:heading?.getAttribute('aria-level')??null,
+      editorOrder,parameterFirst,pmHeadingCount:pane?.querySelectorAll('#configured-property-heading').length??0,formHeadingCount:form?.querySelectorAll('h1,h2,h3,h4,h5,h6,[role="heading"]').length??0,
+      pmTitle:heading?.querySelector('strong')?.textContent?.trim()??null,
       originsOpen:origins?.open??null,formHidden:!!form?.closest('[hidden]'),scrollTop:aside?.scrollTop??null,fieldRect:r,headingRect:h,asideRect:a,
       field:field?.getAttribute('aria-label')??null,heading:heading?.textContent??null,headingTop:h?.top??null,top:r?.top??null,bottom:r?.bottom??null};
     },expectedField,mode==='edit');
     return last.ready?last:false;
    });
   }catch(error){checks.push({configuredInspectorRevealFailure:{mode,...last}});throw error;}
+  // Observe the application's initial reveal; no additional scrolling or focusing
+  // is performed to obtain this parameter-order and single-title evidence.
+  check(result.parameterFirst,'Configured relation DOM order is Type, both references, origin disclosure, Distance and Name before extra reveal: '+JSON.stringify({mode,order:result.editorOrder}));
+  check(result.pmHeadingCount===1&&result.uniqueLevelTwoHeading&&result.formHeadingCount===0&&result.pmTitle===(mode==='edit'?'Editar relación':'Nueva relación'),
+   'Configured relation has one application-owned level-2 PropertyManager heading without a duplicate editor heading: '+JSON.stringify({mode,pmHeadingCount:result.pmHeadingCount,paneHeadingCount:result.paneHeadingCount,headingRole:result.headingRole,headingLevel:result.headingLevel,formHeadingCount:result.formHeadingCount,pmTitle:result.pmTitle}));
   // This face/LINE workflow never requests origin visibility or picking, including
   // after reopen. Both new and saved editors therefore keep that section closed.
   check(await page(expectedField=>{const group=document.querySelector('details[aria-label="Referencias de origen configuradas"]');return !!group&&!group.open
    &&!!group.querySelector('[aria-label="Componente de referencias de origen configuradas"]')
    &&document.activeElement===document.querySelector('[aria-label="'+expectedField+'"]');},expectedField),
-  (mode==='create'?'New relation focuses Type':'Saved relation focuses Name with Type disabled')+' while unused origin controls remain mounted in a closed compact section');
+  (mode==='create'?'New relation focuses Type':'Saved distance relation focuses Reference 1 with Type disabled')+' while unused origin controls remain mounted in a closed compact section');
   gestures.push({kind:'application-inspector-reveal',mode,...result});
  }
  async function control(label,value){ await navigation.reveal('[aria-label="'+label+'"]'); await page((label,value)=>{const e=document.querySelector('[aria-label="'+label+'"]');if(!e||e.disabled)throw Error('Enabled control required: '+label);Object.getOwnPropertyDescriptor(e instanceof HTMLSelectElement?HTMLSelectElement.prototype:HTMLInputElement.prototype,'value').set.call(e,value);e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));},label,value);}

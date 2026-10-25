@@ -60,8 +60,7 @@ export default function RevolvePanel({ feature, sketch, onChange, children }: Pr
   const angleError = revolutionAngleError(feature)
   return <>
     <section className="property-section revolve-axis-section" aria-labelledby="revolution-axis-heading">
-      <h3 id="revolution-axis-heading"><Crosshair size={14} /> Eje de revolución</h3>
-      <label className="revolve-axis-label" htmlFor="revolution-axis">Referencia del croquis</label>
+      <h3 id="revolution-axis-heading"><Crosshair size={14} /> <label htmlFor="revolution-axis">Eje de revolución</label></h3>
       <select id="revolution-axis" aria-label="Eje de revolución" value={value}
         disabled={!currentSketch} aria-invalid={missing || !currentSketch}
         aria-describedby={`revolution-axis-guidance${missing || !currentSketch ? ' revolution-axis-error' : ''}`}
@@ -73,8 +72,7 @@ export default function RevolvePanel({ feature, sketch, onChange, children }: Pr
         {options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
       </select>
       <p id="revolution-axis-guidance" className="muted-small">
-        Elige X, Y o una línea del croquis{currentSketch ? ` «${currentSketch.name}»` : ''}.
-        Las líneas de construcción también pueden definir el eje. El perfil debe quedar a un lado del eje.
+        X, Y o una línea, incluida construcción. El perfil debe quedar a un lado del eje.
       </p>
       {(missing || !currentSketch) && <p id="revolution-axis-error" role="alert" className="revolve-axis-error">
         {!currentSketch ? 'El croquis seleccionado no está disponible.' : 'La línea guardada no está disponible en este croquis. Elige un eje explícitamente.'}
@@ -96,9 +94,9 @@ export default function RevolvePanel({ feature, sketch, onChange, children }: Pr
         <RotateCcw size={16} aria-hidden="true" /> <span>Invertir dirección</span>
       </label>
       <p className="muted-small">{midPlane
-        ? 'El ángulo es el total: la mitad a cada lado del plano del croquis. Invertir dirección no cambia este modo.'
-        : twoDirections ? 'Cada dirección gira a un lado del croquis. La suma debe ser mayor que 0° y no superar 360°.'
-          : 'Ángulo mayor que 0° y hasta 360°. Invertir cambia el sentido del giro y conserva el ángulo positivo.'}</p>
+        ? 'El ángulo es el total: la mitad a cada lado del plano del croquis.'
+        : twoDirections ? 'Ángulos no negativos. Suma mayor que 0° y hasta 360°.'
+          : 'Ángulo mayor que 0° y hasta 360°. Invertir cambia el sentido.'}</p>
     </section>
     {!midPlane && <section className="property-section revolve-direction-section" aria-labelledby="revolution-direction-two-heading">
       <h3 id="revolution-direction-two-heading"><label className="revolve-direction-toggle" htmlFor="revolution-direction-two">

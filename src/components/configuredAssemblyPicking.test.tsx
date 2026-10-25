@@ -59,7 +59,7 @@ it('renders explicit role picking, cancellation and principal-plane guidance wit
   const { choices } = fixture(), draft = configuredMateUiDraft('mate'), callback = vi.fn()
   const html = renderToStaticMarkup(<ConfiguredAssemblyMatePanel draft={draft} choices={choices} disabled={false} onChange={callback} onPreview={callback} onClose={callback} onPick={callback} onStopPicking={callback} picking={{ slot: 1, kind: 'face' }} />)
   expect(html).toContain('Seleccionar Referencia 1 por cara en vista configurada')
-  expect(html).toContain('Cancelar selección en vista'); expect(html).toContain('planos XY, XZ e YZ')
+  expect(html).toContain('Cancelar selección en vista'); expect(html).toContain('Elige planos o ejes de origen en las listas o activa su selección en vista.')
   expect(html).not.toContain('Elegir arista LINE en vista'); expect(callback).not.toHaveBeenCalled()
 })
 

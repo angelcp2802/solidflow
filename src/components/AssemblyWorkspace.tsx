@@ -1289,7 +1289,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
       if (!reference) { notify('Selecciona un plano o eje cilíndrico actual dentro del ámbito.', true); return }
       setPickingFaces(false); setPickingLinearEdges(false); setFaceChoice(assemblyFaceKey(actual!))
       setLimitAngleReferences(values => { const next: typeof values = [...values]; next[endpointSlot] = reference; return next })
-      setEndpointSlot(endpointSlot === 0 ? 1 : 0); notify('Dirección seleccionada. El ángulo principal se comprobará con la geometría actual.'); return
+      setEndpointSlot(endpointSlot === 0 ? 1 : 0); notify('Dirección seleccionada. ' + relationSelectionGuidance(endpointSlot)); return
     }
     if (isLimitDistance) {
       if (draft || replaceDialog) return
@@ -1298,7 +1298,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
       if (!reference) { notify('Selecciona una cara plana actual dentro del ámbito.', true); return }
       setPickingFaces(false); setPickingLinearEdges(false); setFaceChoice(assemblyFaceKey(actual!))
       setLimitReferences(values => { const next: typeof values = [...values]; next[endpointSlot] = reference; return next })
-      setEndpointSlot(endpointSlot === 0 ? 1 : 0); notify('Plano seleccionado. Introduce el intervalo firmado y resuelve.'); return
+      setEndpointSlot(endpointSlot === 0 ? 1 : 0); notify('Plano seleccionado. ' + relationSelectionGuidance(endpointSlot)); return
     }
     if (isSphereTangent) {
       if (draft || replaceDialog) return
@@ -1307,7 +1307,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
       if (!reference) { notify('Selecciona una superficie actual compatible con la familia de tangencia y dentro del ámbito.', true); return }
       setPickingFaces(false); setPickingLinearEdges(false); setFaceChoice(assemblyFaceKey(actual!)); setSphereLarger('')
       setSphereReferences(values => { const next: typeof values = [...values]; next[endpointSlot] = reference; return next })
-      setEndpointSlot(endpointSlot === 0 ? 1 : 0); notify('Superficie seleccionada. Resuelve para verificar la tangencia con los soportes actuales.'); return
+      setEndpointSlot(endpointSlot === 0 ? 1 : 0); notify('Superficie seleccionada. ' + relationSelectionGuidance(endpointSlot)); return
     }
     if (isCylinderTangent) {
       if (draft || replaceDialog) return
@@ -1316,7 +1316,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
       if (!reference) { notify('Selecciona una superficie cilíndrica actual dentro del ámbito.', true); return }
       setPickingFaces(false); setPickingLinearEdges(false); setFaceChoice(assemblyFaceKey(actual!)); setCylinderLarger('')
       setCylinderReferences(values => { const next: typeof values = [...values]; next[endpointSlot] = reference; return next })
-      setEndpointSlot(endpointSlot === 0 ? 1 : 0); notify('Superficie cilíndrica seleccionada. Elige la rama y resuelve para verificarla.'); return
+      setEndpointSlot(endpointSlot === 0 ? 1 : 0); notify('Superficie cilíndrica seleccionada. ' + relationSelectionGuidance(endpointSlot)); return
     }
     if (isTangent) {
       if (draft || replaceDialog) return
@@ -1326,13 +1326,13 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
       setPickingFaces(false); setPickingLinearEdges(false); setFaceChoice(assemblyFaceKey(actual!))
       setTangentReferences(values => { const next: typeof values = [...values]; next[endpointSlot] = reference; return next })
       setSelectedFaceMeshes(values => endpointSlot === 0 ? [actual!, ...values.slice(1)] : [...values.slice(0, 1), actual!])
-      setEndpointSlot(endpointSlot === 0 ? 1 : 0); notify('Superficie seleccionada. La tangencia se comprobará con los soportes nativos al resolver.'); return
+      setEndpointSlot(endpointSlot === 0 ? 1 : 0); notify('Superficie seleccionada. ' + relationSelectionGuidance(endpointSlot)); return
     }
     const reference = scopedAssemblyFace(face, scopePath)
     if (!reference) { notify('Selecciona una cara plana o cilíndrica dentro del ámbito actual.', true); return }
     setPickingLinearEdges(false)
     setReferences(values => { const next: typeof values = [...values]; next[endpointSlot] = reference; return next }); setSelectedFaceMeshes(values => endpointSlot === 0 ? [face, ...values.slice(1)] : [...values.slice(0, 1), face])
-    setEndpointSlot(endpointSlot === 0 ? 1 : 0); notify('Referencia seleccionada. El worker verificará su estado al resolver.')
+    setEndpointSlot(endpointSlot === 0 ? 1 : 0); notify('Referencia seleccionada. ' + relationSelectionGuidance(endpointSlot))
   }
   const pickDirectionEdge = (edge: AssemblySceneEdge | null) => {
     if (isHinge) { acceptHingePick(edge, 'line-edge', activeHingePick); return }
@@ -1345,7 +1345,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     setPickingFaces(false); setPickingLinearEdges(false); setEdgeChoice(assemblyEdgeKey(actual!))
     if (isLimitAngle) setLimitAngleReferences(values => { const next: typeof values = [...values]; next[endpointSlot] = reference; return next })
     else setReferences(values => { const next: typeof values = [...values]; next[endpointSlot] = reference; return next })
-    setEndpointSlot(endpointSlot === 0 ? 1 : 0); notify('Arista lineal seleccionada. La referencia se comprobará al resolver.')
+    setEndpointSlot(endpointSlot === 0 ? 1 : 0); notify('Arista lineal seleccionada. ' + relationSelectionGuidance(endpointSlot))
   }
   const editDirection = () => {
     if (!isDirection || !editingDirectionId || operation.current || hasStaging() || currentPreview.current || draft || replaceDialog) return
@@ -1745,6 +1745,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     else if (isTangent) setTangentReferences(values => { const next: typeof values = [...values]; next[endpointSlot] = { kind: 'principal-plane', component, plane: datumPlane }; return next })
     else setReferences(values => { const next: typeof values = [...values]; next[endpointSlot] = { kind: 'principal-plane', component, plane: datumPlane }; return next })
     setEndpointSlot(endpointSlot === 0 ? 1 : 0)
+    notify('Plano seleccionado. ' + relationSelectionGuidance(endpointSlot))
   }
   const useOriginAxis = () => {
     if (!['concentric', 'parallel', 'perpendicular', 'angle', 'limit-angle'].includes(mateType) || referenceBlocked || operation.current || hasStaging()) return
@@ -1757,6 +1758,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     if (isLimitAngle) setLimitAngleReferences(values => { const next: typeof values = [...values]; next[endpointSlot] = reference; return next })
     else setReferences(values => { const next: typeof values = [...values]; next[endpointSlot] = reference; return next })
     setEndpointSlot(endpointSlot === 0 ? 1 : 0)
+    notify('Eje seleccionado. ' + relationSelectionGuidance(endpointSlot))
   }
   const displayed = draft ?? documentUpdate?.review.document ?? sourceUpdate?.document ?? replacementReview?.review.document ?? committed
   // A solved preview can move owners without changing the editable draft.
@@ -1934,6 +1936,13 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     setPickingFaces(producer === 'face'); setPickingLinearEdges(producer === 'line-edge')
   }
   const relationReferences = isLimitAngle ? limitAngleEndpoints : isLimitDistance ? limitEndpoints : isSphereTangent ? sphereEndpoints : isCylinderTangent ? cylinderEndpoints : isTangent ? tangentEndpoints : isDirection ? directionReferences : references
+  const relationSelectionGuidance = (selectedSlot?: 0 | 1) => {
+    if (isHinge || isCircularPath || isLinePath || isProfile || isSymmetry || isWidth || isLimitDirectedAngle || mateType === 'gear' || mateType === 'screw' || mateType === 'rack-pinion') return 'Configura las referencias y los parámetros en el panel de la relación.'
+    const missing = relationReferences.flatMap((reference, index) => !reference && index !== selectedSlot ? [index + 1] : [])
+    if (missing.length) return 'Selecciona ' + (missing.length === 1 ? 'la referencia ' : 'las referencias ') + missing.join(' y ') + '.'
+    const action = referenceEditing ? 'Vista previa de los cambios' : isLimitAngle ? 'Vista previa del intervalo' : 'Vista previa de la nueva relación'
+    return 'Revisa el nombre y los parámetros; pulsa «' + action + '». Después de verificarla, podrás Aplicar.'
+  }
   const referenceBlocked = editingBlocked || !!preview || replaceDialog || standardPreviewFamily && referenceEditing
   const originKinds = standardAssemblyOriginKinds(mateType)
   const originBlocked = referenceBlocked || !!draft || dragActive || !!dragSession.current || sceneSignature.current !== serialized
@@ -1972,7 +1981,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     else if (reference.kind === 'principal-plane' && mateType === 'plane-sphere-tangent') setSphereReferences(values => { const next: typeof values = [...values]; next[endpointSlot] = reference; return next })
     else setReferences(values => { const next: typeof values = [...values]; next[endpointSlot] = reference; return next })
     setEndpointSlot(endpointSlot === 0 ? 1 : 0)
-    notify('Origen seleccionado en referencia ' + (endpointSlot + 1) + '. Resuelve para verificar la relación.')
+    notify('Origen seleccionado en referencia ' + (endpointSlot + 1) + '. ' + relationSelectionGuidance(endpointSlot))
   }
   const symmetryPickingBlocked = symmetryBlocked || dragActive || !!dragSession.current || sceneSignature.current !== serialized || confirmedScene.current?.signature !== serialized
   const activeSymmetryPick = currentSymmetryPick(symmetryPicking, { signature: serialized, scope: JSON.stringify(scopePath), generation: generation.current, sceneId: confirmedScene.current?.scene.sceneId ?? null, family: symmetryFamily, blocked: !isSymmetry || symmetryPickingBlocked }) ? symmetryPicking : null
@@ -2215,6 +2224,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
         <label>Relación<select aria-label="Tipo de relación" value={mateType} disabled={editingBlocked || replaceDialog || !!editingHinge || !!editingCircularPath || !!editingLinePath || !!editingProfile || !!editingSymmetry || !!editingWidth || standardPreviewFamily && !!preview || !!editingTangent || !!editingCylinderTangent || !!editingSphereTangent || !!editingLimitDistance || !!editingLimitAngle || !!editingLimitDirectedAngle} onChange={event => chooseMateType(event.target.value as typeof mateType)}><option value="hinge" disabled={referenceEditing}>Bisagra</option><option value="circular-path" disabled={referenceEditing}>Punto sobre trayecto circular</option><option value="line-path" disabled={referenceEditing}>Punto sobre trayecto LINE</option><option value="profile-center" disabled={referenceEditing}>Centro de perfiles acotados</option><option value="symmetry" disabled={referenceEditing}>Simetría · tres referencias</option><option value="width" disabled={referenceEditing}>Anchura centrada · cuatro planos</option><option value="concentric" disabled={referenceEditing}>Concéntrica</option><option value="coincident" disabled={referenceEditing}>Coincidente</option><option value="distance" disabled={referenceEditing}>Distancia firmada</option><option value="limit-distance" disabled={!!preview || referenceEditing}>Distancia con límites</option><option value="angle" disabled={referenceEditing}>Ángulo</option><option value="limit-angle" disabled={!!preview || referenceEditing}>Ángulo principal con límites</option><option value="limit-directed-angle" disabled={!!preview || referenceEditing}>Ángulo dirigido con límites</option><option value="parallel" disabled={!!preview || !!editingTangent || !!editingCylinderTangent || !!editingSphereTangent || !!editingLimitDistance || !!editingLimitAngle || !!editingLimitDirectedAngle}>Paralela</option><option value="perpendicular" disabled={!!preview || !!editingTangent || !!editingCylinderTangent || !!editingSphereTangent || !!editingLimitDistance || !!editingLimitAngle || !!editingLimitDirectedAngle}>Perpendicular</option><option value="tangent" disabled={!!preview || !!editingDirection || !!editingCylinderTangent || !!editingSphereTangent || !!editingLimitDistance || !!editingLimitAngle || !!editingLimitDirectedAngle}>Tangente plano–cilindro</option><option value="skew-cylinder-tangent" disabled={!!preview || !!editingDirection || !!editingTangent || !!editingSphereTangent || !!editingLimitDistance || !!editingLimitAngle || !!editingLimitDirectedAngle}>Tangente entre cilindros no paralelos</option><option value="parallel-cylinder-tangent" disabled={!!preview || !!editingDirection || !!editingTangent || !!editingSphereTangent || !!editingLimitDistance || !!editingLimitAngle || !!editingLimitDirectedAngle}>Tangente entre cilindros con paralelismo</option><option value="plane-sphere-tangent" disabled={!!preview || referenceEditing}>Tangente plano–esfera</option><option value="sphere-sphere-tangent" disabled={!!preview || referenceEditing}>Tangente esfera–esfera</option><option value="cylinder-sphere-tangent" disabled={!!preview || referenceEditing}>Tangente cilindro–esfera</option><option value="gear" disabled={referenceEditing}>Engranaje</option><option value="screw" disabled={referenceEditing}>Tornillo</option><option value="rack-pinion" disabled={referenceEditing}>Cremallera y piñón</option></select></label>
 <label>Ámbito<select aria-label="Ámbito de las relaciones" value={JSON.stringify(scopePath)} disabled={editingBlocked || !!preview} onChange={event => { if (operation.current || hasStaging() || currentPreview.current || replaceDialog) return; generation.current++; setScopePath(JSON.parse(event.target.value) as string[]); setReferences([null, null]); setWidthReferences([null,null,null,null]); setEditingWidthId(null); setTangentReferences([null, null]); setCylinderReferences([null, null]); setSphereReferences([null, null]); setLimitReferences([null, null]); setLimitAngleReferences([null, null]); setLimitDirectedSelection(['', '', '']); setCylinderLarger(''); setSphereLarger(''); setSelectedFaceMeshes([]); setComponentLock(['', '']); setEditingGearId(null); setEditingScrewId(null); setEditingRackId(null); setEditingDirectionId(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null); setRackKeys(['', '']); setRackPicking(null); setPickingLinearEdges(false); setEdgeChoice('') }}><option value="[]">{committed.name} · raíz</option>{rows.filter(row => row.definition.kind === 'assembly' && !row.suppressed).map(row => <option key={JSON.stringify(row.path)} value={JSON.stringify(row.path)}>{row.path.join(' / ')} · definición compartida</option>)}</select></label>
         {!isHinge && !isCircularPath && !isLinePath && !isProfile && !isSymmetry && !isWidth && mateType !== 'gear' && mateType !== 'screw' && mateType !== 'rack-pinion' && !isLimitDirectedAngle && <><div className="assembly-endpoints">{relationReferences.map((reference, index) => <button key={index} aria-label={`Referencia ${index + 1} de la relación`} disabled={referenceBlocked} className={endpointSlot === index ? 'active' : ''} onClick={() => { setDragMode('off'); setPickingLinearEdges(false); setEndpointSlot(index as 0 | 1); setPickingFaces(true) }}><strong>Referencia {index + 1}</strong><span>{referenceLabel(reference)}</span></button>)}</div>
+        {!editingBlocked && !replaceDialog && <p className="assembly-muted" data-assembly-relation-guidance="">{canApply ? 'Vista previa verificada. Revisa el resultado y pulsa Aplicar.' : preview ? 'Revisa el resultado de la vista previa; Aplicar requiere una verificación vigente.' : relationSelectionGuidance()}</p>}
         <label>Cara del ensamblaje<select aria-label="Cara de referencia" value={faceChoice} disabled={referenceBlocked} onChange={event => setFaceChoice(event.target.value)}><option value="">Selecciona una cara actual</option>{faceChoices.map(face => <option key={assemblyFaceKey(face)} value={assemblyFaceKey(face)}>{face.selection.component.occurrencePath.join(' / ')} · {face.sphereSurface ? `Superficie esférica R${face.sphereSurface.radius} · centro (${face.sphereSurface.center.map(value => Number(value.toPrecision(5))).join(', ')})` : <>{face.support?.kind === 'cylinder' ? `${isTangent || isCylinderTangent || isSphereTangent ? 'Superficie cilíndrica' : 'Cilindro'} R${face.support.radius}` : 'Plano'} · ({face.support?.point.map(value => Number(value.toPrecision(5))).join(', ')})</>}</option>)}</select></label>
         <button disabled={referenceBlocked || !faceChoices.some(face => assemblyFaceKey(face) === faceChoice)} onClick={() => { const face = faceChoices.find(value => assemblyFaceKey(value) === faceChoice); if (face) pickFace(face) }}>Usar cara en referencia {endpointSlot + 1}</button>
         {(isDirection || isLimitAngle) && <><label>Arista lineal del ensamblaje<select aria-label="Arista de referencia" value={edgeChoice} disabled={editingBlocked || !!preview || !!editingDirection || !!editingLimitAngle} onChange={event => setEdgeChoice(event.target.value)}><option value="">Selecciona una arista lineal actual</option>{edgeChoices.map(edge => <option key={assemblyEdgeKey(edge)} value={assemblyEdgeKey(edge)}>{edge.selection.component.occurrencePath.join(' / ')} · Arista lineal · {edge.selection.body?.bodyId ?? 'agregado'} · {edge.selection.edge.sourceFeatureId} · ({edge.support?.point.map(value => Number(value.toPrecision(5))).join(', ')})</option>)}</select></label><button disabled={editingBlocked || !!preview || !!editingDirection || !!editingLimitAngle || !edgeChoices.some(edge => assemblyEdgeKey(edge) === edgeChoice)} onClick={() => { const edge = edgeChoices.find(value => assemblyEdgeKey(value) === edgeChoice); if (edge) pickDirectionEdge(edge) }}>Usar arista en referencia {endpointSlot + 1}</button></>}
