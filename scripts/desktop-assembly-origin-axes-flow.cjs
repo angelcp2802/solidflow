@@ -81,7 +81,29 @@ module.exports = function originAxesWorkflow(c) {
     }
     await pointer('mouseMoved', state.point);
     const hit = await inspect();
-    check(hit.visible && hit.scrollTop === state.scrollTop && hit.point.x === state.point.x && hit.point.y === state.point.y, 'Actual target remains stationary immediately before press');
+    let pointerDiagnostic = null;
+    if (!(hit.visible && hit.scrollTop === state.scrollTop && hit.point.x === state.point.x && hit.point.y === state.point.y)) {
+      pointerDiagnostic = await page((selector, text, point) => {
+        const elements = [...document.querySelectorAll(selector)].filter(e => text === null || e.textContent.trim() === text), e = elements[0];
+        const describe = node => {
+          if (!node) return null;
+          const r = node.getBoundingClientRect(), s = getComputedStyle(node);
+          return { tag: node.tagName, id: node.id, className: node.getAttribute('class'), label: node.getAttribute('aria-label'),
+            rect: { left: r.left, right: r.right, top: r.top, bottom: r.bottom }, scrollTop: node.scrollTop, scrollLeft: node.scrollLeft,
+            clientHeight: node.clientHeight, scrollHeight: node.scrollHeight, clientWidth: node.clientWidth, scrollWidth: node.scrollWidth,
+            overflowX: s.overflowX, overflowY: s.overflowY, scrollBehavior: s.scrollBehavior, position: s.position, transform: s.transform,
+            transition: s.transition, hover: node.matches(':hover'), focus: node === document.activeElement };
+        };
+        const ancestors = []; for (let p = e?.parentElement; p && ancestors.length < 8; p = p.parentElement) ancestors.push(describe(p));
+        return { targetCount: elements.length, target: describe(e), focus: describe(document.activeElement), ancestors,
+          hitAtOriginalPoint: describe(document.elementFromPoint(point.x, point.y)),
+          originsOpen: document.querySelector('#assembly-relation-origins')?.open,
+          selectedPanel: document.querySelector('.assembly-manager-tabs [aria-selected="true"]')?.id };
+      }, selector, text, state.point);
+      selectionGestures.push({ kind: 'origin-target-moved-before-press', selector, text, before: state, after: hit, diagnostic: pointerDiagnostic });
+    }
+    check(hit.visible && hit.scrollTop === state.scrollTop && hit.point.x === state.point.x && hit.point.y === state.point.y,
+      'Actual target remains stationary immediately before press: ' + JSON.stringify({ selector, text, before: state, after: hit, diagnostic: pointerDiagnostic }));
     await pointer('mousePressed', state.point, 1);
     const pressed = await inspect();
     check(pressed.visible && pressed.point.x === state.point.x && pressed.point.y === state.point.y, 'Actual origin control remains stationary while pressed: ' + JSON.stringify({ before: state, pressed }));
@@ -115,7 +137,7 @@ module.exports = function originAxesWorkflow(c) {
     } else {
       await assemblyNavigation.panel('relations');
       await actualControl('button[aria-label="Referencia ' + slot + ' de la relación"]', null, true);
-      await actualControl('button[aria-label="Seleccionar orígenes"]');
+      await actualControl('button[aria-label="Seleccionar orígenes"]', null, true);
     }
     await waitFor('actual origin role armed', async () => await originMode() === 'origin' && await page((configured, slot) => configured
       ? document.querySelector('button[aria-label="Seleccionar Referencia ' + slot + ' por origen en vista configurada"]')?.getAttribute('aria-pressed') === 'true'
@@ -145,6 +167,41 @@ module.exports = function originAxesWorkflow(c) {
           && (await observe()).serial === before, 'Origin disclosure retains armed role, visibility, owner, references, recovery and native serial');
       }
       selectionGestures.push({kind: 'configured-origin-disclosure', states: ['collapsed-armed', 'reopened-armed'], retainedPicking: true});
+    } else {
+      const summary = '#assembly-relation-origins > summary[aria-label="Mostrar referencias de origen"]';
+      const snapshot = () => page(() => {
+        const pane = document.querySelector('#assembly-panel-relations'), group = document.querySelector('.assembly-origin-tools');
+        if (!pane || !group || !pane.contains(group)) throw Error('One origin group in the relation pane required');
+        return { recovery: localStorage.getItem('solidflow.autosave'),
+          controls: [...pane.querySelectorAll('input,select')].map(e => ({ label: e.getAttribute('aria-label'), value: e.value, checked: e instanceof HTMLInputElement ? e.checked : null, disabled: e.disabled })),
+          references: [1, 2].map(slot => { const e = pane.querySelector('[aria-label="Referencia ' + slot + ' de la relación"]'); return { text: e?.textContent, active: e?.classList.contains('active') }; }),
+          selection: [...document.querySelectorAll('.assembly-tree [aria-selected="true"]')].map(e => e.getAttribute('data-assembly-tree-key')),
+          history: ['Deshacer ensamblaje', 'Rehacer ensamblaje'].map(label => { const e = document.querySelector('button[aria-label="' + label + '"]'); if (!e) throw Error('Existing history control required'); return { label, disabled: e.disabled }; }),
+          mode: document.querySelector('[aria-label="Visor 3D del ensamblaje"]')?.getAttribute('data-reference-picking'),
+          armed: group.querySelector('button[aria-label="Seleccionar orígenes"]')?.getAttribute('aria-pressed') };
+      });
+      const retained = await snapshot(), native = await observe(), counters = await observe.counters();
+      check(retained.mode === 'origin' && retained.armed === 'true' && !native.workerErrors.length, 'Disclosure starts with an authenticated current origin role armed');
+      const assertRetained = async wanted => {
+        await waitFor('standard origin disclosure ' + wanted, () => page(wanted => {
+          const d = document.querySelector('#assembly-relation-origins'), s = d?.querySelector('summary');
+          return d?.open === wanted && document.activeElement === s;
+        }, wanted));
+        check(canonical(await snapshot()) === canonical(retained) && canonical(await references()) === canonical(original)
+          && canonical(await observe.counters()) === canonical(counters), 'Origin disclosure retains exact roles, controls, selection, recovery, history and worker counters');
+      };
+      // The actual summary click leaves native keyboard focus on that summary.
+      // No reveal helper runs between Enter presses, so it cannot reopen it.
+      await actualControl(summary, null, true); await assertRetained(false);
+      for (const wanted of [true, false, true]) {
+        check(await page(selector => document.activeElement === document.querySelector(selector), summary), 'Native Enter targets the focused origin summary');
+        await menuKey('Enter'); await assertRetained(wanted);
+      }
+      const after = await observe();
+      check(digest(canonical(after)) === digest(canonical(native)), 'Origin disclosure leaves the complete worker observation history unchanged');
+      selectionGestures.push({ kind: 'standard-origin-disclosure', input: 'Actual summary pointer press, then native Enter/Enter/Enter',
+        states: ['collapsed-armed', 'reopened-armed', 'collapsed-armed', 'reopened-armed'], retainedPicking: true, serial: native.serial,
+        recoverySha256: digest(retained.recovery), observationSha256: digest(canonical(native)) });
     }
     if (navigation) await navigation.pane('model'); else await assemblyNavigation.panel('components');
     await waitFor('leaving relations disarms origin selection', async () => await originMode() === '');
@@ -161,7 +218,45 @@ module.exports = function originAxesWorkflow(c) {
       [kind === 'principal-axis' ? 'axis' : 'plane']: value };
     const key = JSON.stringify([kind, owner ? [[owner], 'origin-axis-prism', 'r1'] : null, value]);
     check(await page((label, key) => document.querySelector('button[aria-label="' + label + '"]')?.getAttribute('data-origin-key') === key, label, key), 'Projected label has exact literal scope/owner/datum identity');
-    await actualControl('button[aria-label="' + label + '"]');
+    // Temporary passive DOM observation only. No React state, handler guards,
+    // native references or click delivery are supplied by this diagnostic.
+    await page(key => {
+      if (window.__solidflowOriginLabelEventProbe) throw Error('Previous origin event probe was not removed');
+      const probe = { events: [], dropped: 0, types: ['pointerdown', 'pointerup', 'click', 'pointercancel'] };
+      probe.label = [...document.querySelectorAll('button[data-origin-key]')].find(e => e.getAttribute('data-origin-key') === key);
+      if (!probe.label) throw Error('One current origin label required for event observation');
+      probe.listener = event => {
+        if (probe.events.length >= 16) { probe.dropped++; return; }
+        const label = [...document.querySelectorAll('button[data-origin-key]')].find(e => e.getAttribute('data-origin-key') === key);
+        const r = label?.getBoundingClientRect(), host = label?.closest('.assembly-viewport');
+        const identity = node => node instanceof Element ? { tag: node.tagName, id: node.id,
+          className: node.getAttribute('class')?.slice(0, 160) ?? null, key: node.closest('[data-origin-key]')?.getAttribute('data-origin-key') ?? null,
+          label: node.getAttribute('aria-label')?.slice(0, 160) ?? null } : { nodeName: node?.nodeName ?? null };
+        const current = event.currentTarget instanceof Element ? event.currentTarget : null, currentRect = current?.getBoundingClientRect(), currentHost = current?.closest('.assembly-viewport');
+        probe.events.push({ type: event.type, timeStamp: event.timeStamp, trusted: event.isTrusted, detail: event.detail,
+          target: identity(event.target), currentTarget: { ...identity(event.currentTarget), disabled: current?.disabled ?? null,
+            connected: event.currentTarget?.isConnected ?? null, rect: currentRect ? { left: currentRect.left, right: currentRect.right, top: currentRect.top, bottom: currentRect.bottom } : null,
+            host: currentHost ? { clientWidth: currentHost.clientWidth, clientHeight: currentHost.clientHeight } : null },
+          originalLabelConnected: probe.label.isConnected,
+          label: label ? { key: label.getAttribute('data-origin-key'), disabled: label.disabled, connected: label.isConnected,
+            rect: { left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height },
+            host: host ? { clientWidth: host.clientWidth, clientHeight: host.clientHeight } : null } : null });
+      };
+      window.__solidflowOriginLabelEventProbe = probe;
+      for (const type of probe.types) for (const target of [document, probe.label]) target.addEventListener(type, probe.listener, { capture: true, passive: true });
+    }, key);
+    try {
+      await actualControl('button[aria-label="' + label + '"]');
+    } finally {
+      const events = await page(() => {
+        const probe = window.__solidflowOriginLabelEventProbe;
+        if (!probe) throw Error('Origin event probe missing during cleanup');
+        for (const type of probe.types) for (const target of [document, probe.label]) target.removeEventListener(type, probe.listener, true);
+        delete window.__solidflowOriginLabelEventProbe;
+        return { events: probe.events, dropped: probe.dropped };
+      });
+      checks.push({ originLabelEvents: { label, key, slot, ...events } });
+    }
     checks.push({ originPress: { label, slot, intended: wanted, observed: await page((configured, label) => ({
       roles: [1, 2].map(slot => configured ? document.querySelector('[aria-label="Referencia ' + slot + ' de relación configurada"]')?.value : document.querySelector('[aria-label="Referencia ' + slot + ' de la relación"] span')?.textContent),
       mode: document.querySelector('[aria-label="Visor 3D del ensamblaje"]')?.getAttribute('data-reference-picking'),
@@ -194,6 +289,18 @@ module.exports = function originAxesWorkflow(c) {
   }
   async function control(label, value) { await assemblyNavigation.reveal('[aria-label="' + label + '"]');
     if (navigation) await navigation.reveal('[aria-label="' + label + '"]');
+    if (!configured && label === 'Orígenes visibles de') {
+      await page(label => document.querySelector('[aria-label="' + label + '"]').scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' }), label);
+      const target = await waitFor('visible current origin owner selector in Relations', () => page(label => {
+        const e = document.querySelector('[aria-label="' + label + '"]'), r = e?.getBoundingClientRect(), aside = e?.closest('aside'), a = aside?.getBoundingClientRect();
+        if (!e || !r || !a || e.disabled || e.closest('[hidden]') || !e.closest('#assembly-relation-origins')?.open) return false;
+        const x = r.left + r.width / 2, y = r.top + r.height / 2, hit = document.elementFromPoint(x, y);
+        return r.width > 0 && r.height >= 28 && r.left >= Math.max(0, a.left) && r.right <= Math.min(innerWidth, a.right)
+          && r.top >= Math.max(0, a.top + aside.clientTop) && r.bottom <= Math.min(innerHeight, a.top + aside.clientTop + aside.clientHeight)
+          && !!hit && (hit === e || e.contains(hit)) ? { left: r.left, right: r.right, top: r.top, bottom: r.bottom } : false;
+      }, label));
+      selectionGestures.push({ kind: 'origin-owner-visible-field', label, rect: target, input: 'Visible scripted select setter after DOM scrollIntoView; no keyboard typing claim' });
+    }
     await page((label, value) => { const e = document.querySelector('[aria-label="' + label + '"]');
       if (!e || e.disabled) throw Error('Enabled control required: ' + label);
       const p = e instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype;
@@ -296,6 +403,32 @@ module.exports = function originAxesWorkflow(c) {
   async function draft(stage) {
     const type = stage === 1 ? 'concentric' : 'angle', axis = stage === 1 ? 'Z' : 'X';
     if (configured && !await page(form => !!document.querySelector(form), FORM)) await button('Nueva relación configurada', '[aria-label="Relaciones del estado configurado"]');
+    if (!configured && !checkedOriginNavigation) {
+      await assemblyNavigation.panel('relations');
+      const layout = await page(() => {
+        const panes = document.querySelectorAll('#assembly-panel-relations'), disclosures = document.querySelectorAll('#assembly-relation-origins'), groups = document.querySelectorAll('.assembly-origin-tools');
+        const pane = panes[0], disclosure = disclosures[0], group = groups[0], summary = disclosure?.querySelector('summary');
+        const rect = e => { const r = e?.getBoundingClientRect(); return r ? { left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height } : null; };
+        const references = [1, 2].map(slot => pane?.querySelector('[aria-label="Referencia ' + slot + ' de la relación"]'));
+        return { viewport: { width: innerWidth, height: innerHeight }, paneCount: panes.length, disclosureCount: disclosures.length, groupCount: groups.length,
+          pane: rect(pane), summary: rect(summary), group: rect(group), open: disclosure?.open, paneHidden: pane?.hidden,
+          insideRelations: !!pane && !!group && pane.contains(group) && disclosure?.contains(group),
+          outsideRelations: [...groups].filter(e => !pane?.contains(e)).length,
+          afterReferences: references.every(e => e && !!(e.compareDocumentPosition(disclosure) & Node.DOCUMENT_POSITION_FOLLOWING)),
+          controls: [...(group?.querySelectorAll('input,select,button') ?? [])].map(e => {
+            if (typeof e.checkVisibility !== 'function') throw Error('Chromium Element.checkVisibility support required for closed origin disclosure evidence');
+            const r = e.getBoundingClientRect(), hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+            return { label: e.getAttribute('aria-label'), rect: rect(e), hasClientRects: !!e.getClientRects().length,
+              painted: e.checkVisibility({ contentVisibilityAuto: true, visibilityProperty: true, opacityProperty: true }),
+              ownHit: !!hit && (hit === e || e.contains(hit)), checked: e instanceof HTMLInputElement ? e.checked : null };
+          }), summaryLabel: summary?.getAttribute('aria-label') };
+      });
+      selectionGestures.push({ kind: 'standard-origin-inspector-initial-before-reveal', ...layout });
+      check(layout.paneCount === 1 && layout.disclosureCount === 1 && layout.groupCount === 1 && layout.insideRelations && layout.outsideRelations === 0
+        && layout.afterReferences && layout.paneHidden === false && layout.open === false && layout.summaryLabel === 'Mostrar referencias de origen',
+      'One initially closed origin disclosure follows the generic roles inside Relations, with no viewport duplicate: ' + JSON.stringify(layout));
+      check(layout.controls.length === 4 && layout.controls.every(e => !e.painted && !e.ownHit && e.checked !== true), 'Closed origin controls remain mounted, unpainted and unhittable with both visibility options off');
+    }
     await control(configured ? 'Tipo de relación configurada' : 'Tipo de relación', type);
     await control(configured ? 'Nombre de relación configurada' : 'Nombre de la relación', stage === 1 ? 'Origin Z alignment' : 'Origin X 30 degrees');
     await showOrigins();

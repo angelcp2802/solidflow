@@ -78,6 +78,16 @@ requires scrolling. The measured 34 px tree-height
 increase is bounded to that case and content size. Menu auto-hide and pin/unpin
 remain open work, as does broader compact-width and platform acceptance.
 
+Standard assembly origin controls now share a disclosure inside the Relations
+inspector, next to reference roles, with existing picking guards preserved.
+After navigation-wait and disclosure-state fixes, the compact standard origin
+renderer and the configured/rotation-lock regressions pass with strict ticket
+guards retained. Bounded manual first-reference assignment/folding and four
+final image reviews pass; full-suite and smoke also pass on the final snapshot.
+Current-head hosted acceptance remains pending. This layout adds no relation
+family, external reference type or new CAD behavior; broader panel and platform
+acceptance remains open.
+
 ## Work in review
 
 Use the dated [project status and review queue](PROJECT_STATUS.md) for the

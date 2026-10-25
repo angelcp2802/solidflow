@@ -1,5 +1,36 @@
 # Development guide
 
+## Standard assembly reference controls — 2026-10-25
+
+The standard assembly Relations inspector owns one origin-reference disclosure,
+`#assembly-relation-origins`, after the generic reference roles and guidance
+when present, and before the face controls. The previous viewport overlay is
+removed. Its existing axes/planes toggles, scope/selected-component/both owner
+selector and origin-picking action remain single instances with unchanged
+callbacks. The disclosure is present for all relation families; unsupported
+origin picking stays disabled under the existing type and freshness guards.
+
+The native `details`/`summary` control starts closed. Enabling axes or planes,
+or arming origin picking, opens it. Closing it preserves visibility settings,
+references and an armed picker; its summary shows the active role. Leaving
+Relations still disarms picking through the existing navigation path. Panel
+disclosure changes presentation state, not the CAD document or solve authority.
+
+Disclosure updates skip dispatch when the open value is already current. This
+addresses the ticket mismatch observed in runtime diagnostics; a parent-only
+render is the explanation inferred from source inspection, not an executed
+minimal reproduction. Ticket and freshness guards remain intact. The compact
+standard origin workflow now passes real pointer and Enter disclosure
+activation, retained reference/recovery/native
+observations and current origin selection. Configured layout and CAD algorithms
+are unchanged. Configured origin, rotation-lock and compact configured picking
+regressions also pass on the same final snapshot. A bounded Windows manual
+check assigns the first origin role and retains it through pointer/Enter
+folding; four final captures receive a separate bounded visual review. The
+full suite and smoke pass on the same final snapshot; current-head hosted
+acceptance remains pending. [Validation](VALIDATION.md) records exact scope,
+earlier failures, separate diagnostics and the final input snapshot.
+
 ## Shared command header — 2026-10-25
 
 Part, standard assembly and configured assembly now use a shared presentational

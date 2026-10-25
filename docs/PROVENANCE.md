@@ -1,5 +1,37 @@
 # Public fixture provenance
 
+## Assembly reference-panel regression reuse
+
+This presentation change introduces no geometry fixture or imported asset.
+The compact standard and configured origin cases retain
+`scripts/desktop-assembly-origin-axes-original.cjs`: original 2-by-3-by-4 mm
+prisms with analytical volume 24 mm3 and area 52 mm2, unchanged definition,
+occurrence and reference identities. Rotation-lock and compact configured
+picking regressions retain their existing original fixtures and oracles.
+
+The new disclosure checks use actual pointer and keyboard input on the
+application's existing controls. They observe layout, active role, reference
+values, recovery and native-request state without assigning hidden references
+or accepting extra geometry. Running the standard case at minimum size adds
+no numerical tolerance, geometry or platform guarantee. The first run passes
+the disclosure invariants but fails later before pointer press; the follow-up
+adds diagnostics only and records target motion in the second failing run.
+The navigation-frame wait adds no CAD fixture or geometric oracle. Run 03 passes
+the prior stability check but fails origin assignment; a bounded manual attempt
+on an original two-prism demo also leaves the role unassigned. No Apply, Save or
+geometry change is accepted in that manual check. After a disclosure-state
+update fix preserving the ticket guards, standard origin 04 passes 247 checks
+on the same original recipe. Separate temporary diagnostics are not treated as
+acceptance, and their instrumentation is removed before the run. Configured
+origin, rotation-lock and compact configured regressions also pass on that
+snapshot. Manual 04 uses an isolated recovery seed of the original two-prism
+fixture and assigns only the first origin reference; it performs no preview,
+Apply, Save or export. Four final images provide bounded presentation evidence,
+not geometric or interaction oracles. Build, all four selected renderers,
+full-suite and smoke pass on the same final 1,130-input source/runtime snapshot.
+Current-head hosted acceptance remains pending. Exact results and historical
+snapshots are recorded in [validation](VALIDATION.md).
+
 ## Shared command-header regression reuse
 
 The shared header introduces no CAD fixture, imported model, stored topology

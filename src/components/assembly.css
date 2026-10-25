@@ -201,11 +201,15 @@
 .assembly-property-confirmation > button:first-child > svg { color: #37926a; }
 .assembly-property-confirmation > button:last-child > svg { color: #af6159; }
 
-.assembly-origin-tools { position: absolute; z-index: 3; bottom: 12px; left: 12px; right: 12px; width: fit-content; max-width: calc(100% - 24px); display: flex; flex-wrap: wrap; align-items: center; gap: 7px; padding: 6px 8px; border: 1px solid #c6d6e2; border-radius: 3px; background: #fffffff2; color: #426780; font-size: 10px; }
-.assembly-origin-tools label { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
-.assembly-origin-tools input { margin: 0; accent-color: #187fbe; }
-.assembly-origin-tools select { max-width: 175px; min-height: 25px; border: 1px solid #bfd0dd; background: #fff; color: inherit; font-size: 10px; }
-.assembly-origin-tools button { padding: 5px 7px; border: 1px solid #c6d6e2; border-radius: 2px; color: #376d96; font-size: 10px; }
+.assembly-section details.assembly-origin-disclosure { margin: 9px 0; border: 1px solid #c6d6e2; border-radius: 3px; background: #f5f9fc; color: #426780; }
+.assembly-origin-disclosure > summary { min-height: 28px; box-sizing: border-box; margin: 0; padding: 6px 8px; color: #32658d; font-size: 11px; }
+.assembly-origin-disclosure > summary:focus-visible { outline: 2px solid #187fbe; outline-offset: -2px; }
+.assembly-origin-disclosure > summary > span { display: block; margin-top: 4px; font-size: 10px; font-weight: 400; }
+.assembly-origin-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; padding: 4px 8px 8px; color: #426780; font-size: 11px; }
+.assembly-classic-workspace .assembly-section .assembly-origin-tools label { display: flex; flex-direction: row; align-items: center; gap: 4px; min-height: 28px; margin: 0; white-space: nowrap; }
+.assembly-origin-tools input[type="checkbox"] { flex: 0 0 13px; width: 13px; min-height: 13px; height: 13px; margin: 0; padding: 0; accent-color: #187fbe; }
+.assembly-section .assembly-origin-tools select { flex-basis: 100%; width: 100%; min-height: 28px; margin: 0; border: 1px solid #bfd0dd; background: #fff; color: inherit; font-size: 11px; }
+.assembly-origin-tools button { width: 100%; min-height: 28px; padding: 5px 7px; border: 1px solid #c6d6e2; border-radius: 2px; background: #eff6fb; color: #376d96; font-size: 11px; }
 .assembly-origin-tools button[aria-pressed="true"] { background: #ddebfa; color: #166ea7; }
 .assembly-origin-tools > span { flex-basis: 100%; line-height: 1.4; }
 .assembly-component-properties { min-width: 0; margin: 0; padding: 0; border: 0; }

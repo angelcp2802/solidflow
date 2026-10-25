@@ -1,5 +1,109 @@
 # Validation
 
+## Standard assembly reference controls — 2026-10-25
+
+Origin display and picking controls move from the standard assembly viewport
+into one Relations-inspector disclosure after generic references/guidance and
+before face controls. Existing inputs and handlers remain single instances;
+unsupported relation families retain their origin-picking guards. Disclosure
+open/close preserves reference and picker state; leaving Relations retains its
+existing disarm behavior. This is an independent interface organization, not a
+claim about another application's panel placement.
+
+Selected acceptance reuses the original standard/configured origin fixtures,
+origin-axis rotation-lock workflow and compact configured picking regression.
+The standard origin case now runs at the existing minimum window size. Its
+checks include a unique initially closed disclosure inside Relations with no
+viewport duplicate, actual summary pointer and Enter input, and unchanged
+references, recovery and native observation while folding an armed selection.
+Original geometry, identity, preview/Apply, save/reopen and history assertions
+remain in force; no new tolerance or deadline is introduced.
+
+Build 01 passes in 3.673 s. Standard origin 01 fails after 62.260 s and 112
+checkpoints at the stationary-target check before pointer press, after returning
+through relation navigation. Initial disclosure ownership and the armed
+pointer/Enter sequence, including three Enter toggles and exact state invariants,
+have already passed. No cause is established for the later failure, and this
+partial run is not complete origin acceptance.
+
+The retained 01 snapshot and the next snapshot each contain 1,130 inputs.
+Production is unchanged; only the origin-flow harness adds before/after and
+ancestor observations for failure diagnostics. Predicates and deadlines remain
+unchanged. Build 02 passes in 3.687 s; origin 02 again fails at 112 checkpoints
+after 62.255 s. Its diagnostics observe panel scrollTop changing from 203 to
+115 and Reference 1's center moving from y=225.5 to y=313.5 after mouseMoved.
+Final focus is on Type of relation at top=196, the panel edge. These values
+establish target motion, not its cause. A harness follow-up waits for the
+application's scheduled navigation frame after tab activation, before revealing
+the target; production remains unchanged. Build 03 passes in 3.707 s. Origin 03
+passes the earlier stationary-target check but fails after 106.388 s and 124
+checkpoints, waiting for the visible moving-component Z axis to populate the
+intended reference role. The picker remains armed without the assignment.
+
+A bounded visible Windows check on build 03 reproduces the assignment failure
+using an original two-prism demo. The minimum-size attempt has a cropped capture
+and rejected input, so it establishes no compact interaction acceptance. After
+maximizing, the reference panel opens; axes are shown, selected-component owner
+chosen and origin picking armed. Actual Z-axis click and Enter both leave the
+references unselected and picking active. No Apply, Save or geometric change
+occurs. This manual result remains a failure for build 03.
+
+Separate temporary runtime diagnostics establish that the click reaches the
+viewport and passes its guards, and workspace freshness checks pass, but the
+captured ticket identity does not match. Static inspection of the installed
+React code suggests a mechanism: a same-value state dispatch can render the
+parent without committing the child. This is a source-level inference, not an
+executed minimal reproduction. The fix avoids dispatching an unchanged disclosure-open value,
+using a ref to compare it first; ticket and freshness guards are not relaxed.
+Temporary runtime instrumentation and built files are restored and hash-checked
+before acceptance.
+
+Final 04 has 1,130 matching source/runtime inputs. Relative to 03, only
+`AssemblyWorkspace.tsx` and the origin-flow event audit change. Build 04 passes
+in 3.650 s. All four selected 04 renderer workflows pass on that same final
+snapshot:
+
+| Workflow | Checkpoints | Total command elapsed |
+| --- | ---: | ---: |
+| Compact standard origin axes | 247 | 104.517 s |
+| Configured origin axes | 323 | 87.444 s |
+| Origin-axis rotation lock | 70 | 58.331 s |
+| Compact configured picking | 190 | 64.370 s |
+
+Each reports zero console, request and resource errors, confirmed child close
+and profile cleanup. Review of four final PNGs finds no visible blocking
+clipping or overlap in their captured states. Three show Components/Model,
+not the expanded relation editor; compact configured picking shows its title,
+reference controls and closed disclosure. These images alone do not validate
+the expanded standard group or interaction guards.
+
+Manual 04 passes on the final Windows build using the original two-prism
+fixture seeded in isolated recovery. Actual pointer input selects moving in
+the compact tree. After maximizing, a stable screenshot measures 1920 by 1032
+pixels, not asserted content size. Actual input opens Relations and the origin
+group, enables axes, chooses selected-component ownership and arms picking.
+Clicking moving's Z axis assigns Reference 1, advances the role to Reference 2
+and disarms picking. Summary click and native Enter close/reopen the group,
+retaining the reference and axis visibility with visible keyboard focus. No
+manual second reference, preview, Apply, Save, export or geometric edit occurs.
+This is bounded interaction evidence; renderer lifecycle assertions remain
+separate.
+
+Full 01 passes in 556.938 s: 9,710 tests across 423 files, plus 83 IPC passes
+and two explicit skips. Desktop smoke passes in 1.584 s with zero console,
+request and resource errors. All seven distinct commands—build, four selected
+renderers, full suite and smoke—pass on the exact final 04 snapshot of 1,130
+matching source/runtime inputs. Earlier diagnostic and failed snapshots are
+not substituted for that acceptance. Results remain bounded to the original
+cases and local Windows execution; current-head hosted acceptance is pending.
+
+Earlier shared-header and catalogue results below describe their own historical
+source states. For parent `fed7da8`, seven of nine renderer jobs and all three
+configured-authoring jobs pass; Ubuntu and Windows rigid-assembly jobs fail
+with child-deadline annotations. Their log requests return “Transport closed”,
+so no internal phase or cause is established. Security passes. These parent
+results do not establish hosted acceptance of the current increment.
+
 ## Shared command header — 2026-10-25
 
 This increment places brand, menus, quick actions, document identity and

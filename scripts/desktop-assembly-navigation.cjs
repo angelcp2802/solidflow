@@ -36,6 +36,14 @@ function withNavigation(context) {
       const tab = document.querySelector('#assembly-tab-' + name), panel = document.querySelector('#assembly-panel-' + name);
       return tab?.getAttribute('aria-selected') === 'true' && panel?.hidden === false && getComputedStyle(panel).display !== 'none';
     }, name));
+    // openManager schedules its scrollIntoView/focus in RAF after selecting the
+    // panel. Visible/selected alone can precede that scroll. Drain that real
+    // callback before any subsequent target reveal, wheel or coordinate sample.
+    await page(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(true)))));
+    await context.waitFor('assembly manager remains revealed after its focus frame: ' + name, () => page(name => {
+      const tab = document.querySelector('#assembly-tab-' + name), panel = document.querySelector('#assembly-panel-' + name);
+      return tab?.getAttribute('aria-selected') === 'true' && panel?.hidden === false && getComputedStyle(panel).display !== 'none';
+    }, name));
   }
   async function reveal(selector, text = '') {
     await ribbon.reveal(selector, text);
@@ -47,6 +55,43 @@ function withNavigation(context) {
     }, selector, text);
     if (owner.panel) await panel(owner.panel);
     if (owner.tree) await tree.reveal(selector, text);
+    const closedOrigins = await page((selector, text) => {
+      const elements = [...document.querySelectorAll(selector)].filter(value => text === '' || value.textContent.trim() === text);
+      const origins = elements[0]?.closest('#assembly-relation-origins');
+      return !!origins && !origins.open && !elements[0].closest('summary');
+    }, selector, text);
+    if (closedOrigins) {
+      if (!context.pointer) throw Error('Origin disclosure requires the real pointer transport');
+      await page(() => {
+        const summary = document.querySelector('#assembly-relation-origins > summary[aria-label="Mostrar referencias de origen"]');
+        if (!summary || summary.closest('[hidden]')) throw Error('Visible origin disclosure required');
+        summary.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
+      });
+      const inspect = () => page(() => {
+        const e = document.querySelector('#assembly-relation-origins > summary'), r = e?.getBoundingClientRect();
+        if (!e || !r) throw Error('Origin disclosure disappeared');
+        let left = 0, right = innerWidth, top = 0, bottom = innerHeight;
+        for (let p = e.parentElement; p; p = p.parentElement) {
+          const s = getComputedStyle(p), b = p.getBoundingClientRect();
+          if (/(auto|scroll|hidden|clip)/.test(s.overflowX)) { left = Math.max(left, b.left + p.clientLeft); right = Math.min(right, b.left + p.clientLeft + p.clientWidth); }
+          if (/(auto|scroll|hidden|clip)/.test(s.overflowY)) { top = Math.max(top, b.top + p.clientTop); bottom = Math.min(bottom, b.top + p.clientTop + p.clientHeight); }
+        }
+        const point = { x: r.left + r.width / 2, y: r.top + r.height / 2 }, hit = document.elementFromPoint(point.x, point.y);
+        return { point, rect: { left: r.left, right: r.right, top: r.top, bottom: r.bottom }, clip: { left, right, top, bottom },
+          visible: !e.closest('[hidden]') && r.width > 0 && r.height > 0 && r.left >= left && r.right <= right && r.top >= top && r.bottom <= bottom && !!hit && (hit === e || e.contains(hit)) };
+      });
+      let previous, since = 0;
+      const target = await context.waitFor('stationary origin disclosure summary', async () => {
+        const state = await inspect(), key = JSON.stringify(state);
+        if (key !== previous) { previous = key; since = Date.now(); }
+        return state.visible && Date.now() - since >= 120 ? state : false;
+      });
+      await context.pointer('mouseMoved', target.point);
+      if (JSON.stringify(await inspect()) !== JSON.stringify(target)) throw Error('Origin disclosure moved before activation');
+      await context.pointer('mousePressed', target.point, 1);
+      await context.pointer('mouseReleased', target.point, 0);
+      await context.waitFor('origin disclosure opens through its summary', () => page(() => document.querySelector('#assembly-relation-origins')?.open === true));
+    }
     await page((selector, text) => {
       const elements = [...document.querySelectorAll(selector)].filter(value => text === '' || value.textContent.trim() === text);
       const element = elements[0];
