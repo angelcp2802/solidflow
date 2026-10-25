@@ -1,5 +1,25 @@
 # Public fixture provenance
 
+## Ordinary part selection and origin-label placement
+
+The part-selection unit cases construct an original 8 by 8 planar display
+square, its upper boundary segment and a separate 9 by 9 occluding plane.
+Literal screen points distinguish a near-edge hit, face interior and empty
+background. These are display/picking cases, not native solid measurements.
+The renderer reuses `part-sequence-original.json`: its 20 by 12 by 4 base,
+front-view fit and observed canvas rectangle locate actual pointer targets.
+Native output and application picking helpers do not supply those targets.
+Selection checks retain exact recovery, worker request counts and history-control
+availability; the sequence's existing geometric and persistence oracles follow.
+
+Origin-label layout cases use authored pixel coordinates, distinct keys and
+bindings, coincident anchors, long names, viewport edges and insufficient area.
+They preserve the original projection tests. Standard/configured renderer checks
+reuse the existing two-prism origin fixture and inspect actual button rectangles,
+center hit targets and pairwise non-overlap before the original reference presses.
+No new CAD file, external artwork, binary or private model is included. These
+presentation cases do not establish arbitrary topology or platform support.
+
 ## Assembly component panes and origin disclosure
 
 This presentation increment reuses the original nested BOM and two-prism

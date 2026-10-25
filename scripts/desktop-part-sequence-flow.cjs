@@ -267,6 +267,7 @@ module.exports = function partSequenceWorkflow(context) {
     await waitFor('owned initial document replacement prompt',()=>evaluate(`!!document.querySelector('[role="dialog"][aria-labelledby="discard-title"]')`));
     await evaluate(`(() => { const b=document.querySelector('[role="dialog"][aria-labelledby="discard-title"] .primary-button'); if(!b||b.disabled||b.textContent.trim()!=='Continuar sin guardar')throw Error('Expected owned initial replacement'); b.click(); })()`);
     await built(serial,1,960,4,'original');
+    await require('./desktop-part-selection-controls.cjs')(context);
     await treeNavigation();
     await savedUnusedCancel();
     // The first sketch is edited and accepted before starting a cut: this is

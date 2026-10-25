@@ -39,7 +39,6 @@ import {
   Loader2,
   ChevronUp,
   CheckCircle2,
-  ScanLine,
   Triangle,
   Minus,
   Spline,
@@ -52,6 +51,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Viewport, { type ViewName } from "./components/Viewport";
+import type { PartSelectionMode } from "./components/partSelection";
 import SketchCanvas from "./components/SketchCanvas";
 import AssemblyMenuBar, { type AssemblyMenuDefinition } from "./components/AssemblyMenuBar";
 import PartFeatureContextMenu from "./components/PartFeatureContextMenu";
@@ -384,8 +384,8 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     [error, setError] = useState("");
   const [builtFeatures, setBuiltFeatures] = useState<Feature[] | null>(null);
   const [edgeSelection, setEdgeSelection] = useState<EdgeReference[]>([]);
-  const [selectionMode, setSelectionMode] = useState<"body" | "edge" | "face">(
-    "body",
+  const [selectionMode, setSelectionMode] = useState<PartSelectionMode>(
+    "auto",
   );
   const [faceSelection, setFaceSelection] = useState<PickableFace | null>(null);
   const [pickingSupport, setPickingSupport] = useState(false);
@@ -571,6 +571,9 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     extrudeEditing.endCondition?.kind === "upToSurface" &&
     pickingEndFace;
   const pickingHole = !!holeEditing && pickingSupport;
+  const viewportSelectionMode: PartSelectionMode = bodyPicking ? 'body'
+    : pickingSupport || pickingFaceOperation || pickingExtrude || pickingHole ? 'face'
+      : pickingFinish ? 'edge' : editing ? 'body' : selectionMode;
   const placingHoles =
     !!holeEditing && holeSection === "positions" && !pickingHole;
   const visibleBase =
@@ -723,7 +726,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     setEdgeSelection([]);
     setFaceSelection(null);
     setPickingSupport(false);
-    setSelectionMode("body");
+    setSelectionMode("auto");
     setTab(feature.type === "sketch" ? "Croquis" : "Operaciones");
     if (feature.type === "sketch") {
       setSketchTool("select");
@@ -860,7 +863,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     setEditing(null);
     setStagedSketch(null);
     setSelected(null);
-    setSelectionMode("body");
+    setSelectionMode("auto");
     setEdgeSelection([]);
     setFaceSelection(null);
     setPickingSupport(false);
@@ -1219,7 +1222,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
       return;
     }
     const support = selectedSupport();
-    setSelectionMode("body");
+    setSelectionMode("auto");
     setEdgeSelection([]);
     setFaceSelection(null);
     setPickingSupport(false);
@@ -1267,7 +1270,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
       reversed: false,
       suppressed: false,
     });
-    setSelectionMode("body");
+    setSelectionMode("auto");
     setFaceSelection(null);
     setPickingSupport(false);
     setEdgeSelection([]);
@@ -1355,6 +1358,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
       changeSupport({ kind: "face", face: currentFace.ref });
     } else {
       setFaceSelection(currentFace ?? null);
+      if (!editing) setBodySelection([]);
       setSelected(null);
       setEdgeSelection([]);
       if (currentFace && !currentFace.frame)
@@ -1436,7 +1440,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     }
     setBodySelection([]);
     setBodyPicking(false);
-    setSelectionMode("body");
+    setSelectionMode("auto");
     setFaceSelection(null);
     setEdgeSelection([]);
     setPickingSupport(false);
@@ -1451,7 +1455,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     }
     setPickingEndFace(false);
     setPickingSupport(false);
-    setSelectionMode("body");
+    setSelectionMode("auto");
     setEdgeSelection([]);
     setFaceSelection(null);
     const sketch =
@@ -1502,7 +1506,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     const feature: CombineFeature = { id: crypto.randomUUID(), type: "combine", name: `Combinar${doc.features.filter(item => item.type === "combine").length + 1}`,
       suppressed: false, operation: "add", operands: bodySelection.map(ref => ({ ...ref })), resultBodyId: bodyOutputId.current, keepTools: false };
     setEditing(feature); setBodyPicking(true); setPickingSupport(false); setPickingEndFace(false);
-    setFaceSelection(null); setEdgeSelection([]); setSelectionMode("body"); setTab("Operaciones"); setError("");
+    setFaceSelection(null); setEdgeSelection([]); setSelectionMode("auto"); setTab("Operaciones"); setError("");
   };
   const startRepetition = (type: RepetitionFeature["type"]) => {
     if (!requireFinishedEdit()) return;
@@ -1574,7 +1578,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
       setBodySelection(seeds); setBodyPicking(true);
     }
     setEditing(draft);
-    setSelectionMode("body");
+    setSelectionMode("auto");
     setFaceSelection(null);
     setPickingSupport(false);
     setEdgeSelection([]);
@@ -1627,7 +1631,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     );
     setFacePreview(false);
     setBodyPicking(false);
-    setSelectionMode("body");
+    setSelectionMode("auto");
     setFaceSelection(null);
     setPickingSupport(false);
     setEdgeSelection([]);
@@ -1677,7 +1681,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     setSelectedHolePosition(null);
     setPickingSupport(!selectedFace && !chosenPlane);
     setPickingEndFace(false);
-    setSelectionMode("body");
+    setSelectionMode("auto");
     setFaceSelection(null);
     setEdgeSelection([]);
     setSelected(null);
@@ -1721,7 +1725,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     });
     setFinishPreview(false);
     setBodyPicking(false);
-    setSelectionMode("body");
+    setSelectionMode("auto");
     setSelected(null);
     setTab("Operaciones");
     setError("");
@@ -1746,6 +1750,8 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
       const edges = modelEdgeSelection.toggle(edgeSelection, edge);
       if (!edges) return;
       setEdgeSelection(edges);
+      setFaceSelection(null);
+      if (!editing) setBodySelection([]);
       setSelected(null);
     }
   };
@@ -1872,7 +1878,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
       setPickingEndFace(false);
       setFaceSelection(null);
       setEdgeSelection([]);
-      setSelectionMode("body");
+      setSelectionMode("auto");
       setTab("Operaciones");
     } catch (e) {
       setError((e as Error).message);
@@ -1887,7 +1893,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     setPickingSupport(false);
     setFaceSelection(null);
     setEdgeSelection([]);
-    setSelectionMode("body");
+    setSelectionMode("auto");
     setError("");
     setTab(stagedSketch ? "Croquis" : "Operaciones");
   };
@@ -1935,6 +1941,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
       }
       setEditing(changed); setBodyPicking(true); setError("");
     }
+    if (!editing) { setFaceSelection(null); setEdgeSelection([]); setSelected(null); }
     setBodySelection(references.map(ref => ({ ...ref })));
   };
   const toggleBody = (reference: BodyReference) => {
@@ -1945,6 +1952,18 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     chooseBodySelection(bodySelection.some(ref => sameBodyReference(ref, reference))
       ? bodySelection.filter(ref => !sameBodyReference(ref, reference))
       : single ? [{ ...reference }] : [...bodySelection, { ...reference }]);
+  };
+  const clearBrowsingSelection = () => {
+    if (editing || busy || !previewCurrent) return;
+    setFaceSelection(null);
+    setEdgeSelection([]);
+    setBodySelection([]);
+    setSelected(null);
+  };
+  const changeSelectionMode = (mode: PartSelectionMode) => {
+    if (editing || busy || !previewCurrent) return;
+    clearBrowsingSelection();
+    setSelectionMode(mode);
   };
   const cancelActiveEdit = () => {
     if (editing?.type === "sketch" && (sketchTool === "chamfer" || sketchTool === "fillet" || sketchTool === "mirror" || sketchTool === "offset")) {
@@ -3734,35 +3753,20 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
               onClick={() => setGrid(!grid)}
             />
             <i />
-            <IconButton
-              icon={ScanLine}
-              title="Seleccionar aristas"
-              active={selectionMode === "edge" || pickingFinish}
-              disabled={!!editing}
-              onClick={() => {
-                setSelectionMode(selectionMode === "edge" ? "body" : "edge");
-                setEdgeSelection([]);
-                setSelected(null);
-                setFaceSelection(null);
-              }}
-            />
-            <IconButton
-              icon={MousePointer2}
-              title="Seleccionar caras"
-              active={
-                selectionMode === "face" ||
-                pickingSupport ||
-                pickingFaceOperation ||
-                pickingExtrude
-              }
-              disabled={!!editing}
-              onClick={() => {
-                setSelectionMode(selectionMode === "face" ? "body" : "face");
-                setFaceSelection(null);
-                setEdgeSelection([]);
-                setSelected(null);
-              }}
-            />
+            <div className="part-selection-controls" role="group" aria-label="Selección de pieza">
+              {([
+                ['auto', 'Auto', 'Selección automática'],
+                ['face', 'Caras', 'Seleccionar caras'],
+                ['edge', 'Aristas', 'Seleccionar aristas'],
+                ['body', 'Cuerpos', 'Seleccionar cuerpos'],
+              ] as const).map(([mode, label, title]) => <button key={mode}
+                type="button" title={title} aria-label={title} data-part-selection-mode={mode}
+                aria-pressed={viewportSelectionMode === mode} disabled={!!editing || busy || !previewCurrent}
+                onClick={() => changeSelectionMode(mode)}>{label}</button>)}
+              <button type="button" aria-label="Limpiar selección de pieza" title="Limpiar selección de pieza"
+                disabled={!!editing || busy || !previewCurrent || !faceSelection && !edgeSelection.length && !bodySelection.length && !selected}
+                onClick={clearBrowsingSelection}><X size={14} /></button>
+            </div>
             <IconButton
               icon={PanelTop}
               title="Mostrar planos de referencia"
@@ -3841,27 +3845,15 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                 !!selectedFeature &&
                 selectedFeature.type !== "sketch" &&
                 selectedFeature.type !== "plane" &&
-                selectionMode === "body" &&
+                (selectionMode === "auto" || selectionMode === "body") &&
                 !finishEditing &&
                 !faceEditing &&
                 !extrudeEditing &&
                 !holeEditing
               }
-              selectionMode={
-                bodyPicking ? "body" : pickingSupport ||
-                pickingFaceOperation ||
-                pickingExtrude ||
-                pickingHole
-                  ? "face"
-                  : pickingFinish
-                    ? "edge"
-                    : finishEditing ||
-                        faceEditing ||
-                        extrudeEditing ||
-                        holeEditing
-                      ? "body"
-                      : selectionMode
-              }
+              selectionMode={viewportSelectionMode}
+              selectionDisabled={!editing && (busy || !previewCurrent)}
+              onClearSelection={!editing ? clearBrowsingSelection : undefined}
               selectedEdges={selectedEdges}
               selectedBodies={bodySelection}
               onSelectBody={(!editing && !busy && previewCurrent || !!editing && bodyPicking && !sourceLoading && sourceBuiltFeatures === sourceFeatures) ? toggleBody : undefined}
@@ -3883,8 +3875,11 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
               showPlanes={showPlanes}
               onSelectPlane={(id) => {
                 if (!editing) {
+                  if (busy || !previewCurrent) return;
                   setSelected(id);
                   setFaceSelection(null);
+                  setEdgeSelection([]);
+                  setBodySelection([]);
                 }
               }}
               onSelect={() => {
@@ -3971,13 +3966,15 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                             ? "Vista previa del acabado"
                             : pickingSupport
                               ? "Selecciona una cara plana"
-                              : selectionMode === "face"
-                                ? faceSelection?.frame
-                                  ? "Cara plana seleccionada"
-                                  : "Selecciona una cara"
-                                : selectionMode === "edge"
-                                  ? `Selección de aristas · ${edgeSelection.length} seleccionadas`
-                                  : "Configuración predeterminada"}
+                              : selectionMode === "auto"
+                                ? faceSelection
+                                  ? faceSelection.frame ? "Cara plana seleccionada" : "Cara curva seleccionada"
+                                  : edgeSelection.length ? "Selección de aristas · " + edgeSelection.length + " seleccionadas" : "Selección automática · Caras y aristas"
+                                : selectionMode === "face"
+                                  ? faceSelection ? faceSelection.frame ? "Cara plana seleccionada" : "Cara curva seleccionada" : "Selecciona una cara"
+                                  : selectionMode === "edge"
+                                    ? "Selección de aristas · " + edgeSelection.length + " seleccionadas"
+                                    : "Selección de cuerpos · " + bodySelection.length + " seleccionados"}
             </span>
           </div>
           {editing && (

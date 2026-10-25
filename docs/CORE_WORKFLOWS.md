@@ -10,6 +10,29 @@ Escape closes a focused menu and returns focus to its trigger without cancelling
 the active sketch or operation. Unavailable actions remain disabled; closing a
 menu does not accept or discard a draft.
 
+## Select geometry in a part
+
+The viewport starts in **Auto**: a nearby visible edge takes priority over the
+face interior. Hover highlights the same candidate that a left click selects.
+Use **Caras**, **Aristas** or **Cuerpos** in the viewport toolbar to choose an
+explicit selection mode. Switching modes clears the previous browsing selection.
+Click empty background or **Limpiar selección de pieza** to clear it without
+changing the document or its history.
+
+While editing an operation, its reference fields own the selection mode and the
+browsing controls are disabled. Finish or cancel the operation before changing
+the ordinary filter. Wheel zoom and held-middle-button camera navigation keep
+their existing controls; a dragged or canceled gesture does not become a click.
+Assembly browsing continues to select components; an armed relation field owns
+its face, edge, vertex or origin selection instead.
+
+Visible assembly-origin labels are kept inside the viewport in separate boxes,
+with a line to their original geometric anchor when displaced. If the available
+area cannot fit them, **Referencias de origen** presents the complete set in a
+scrolling list. The full owner name remains available in the label's tooltip and
+accessible name. A label identifies the exact reference; it does not make an
+ambiguous geometric click choose an owner.
+
 ## Edit operations and their sketches from the tree
 
 Use the arrow beside an operation to show or hide its input sketches. Unused

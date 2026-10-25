@@ -1,5 +1,22 @@
 # Development guide
 
+Ordinary part browsing uses `partSelection.ts` to share the edge/face/plane
+candidate policy between hover and activation. It reuses the existing visible
+geometry pickers and their pixel thresholds, clipping and occlusion checks.
+Explicit body selection remains separate. Busy or stale browsing is disabled;
+operation-owned face, edge and body modes retain their own callbacks and guards.
+Clearing ordinary selection changes only local presentation state, never an
+operation draft, recovery or document history.
+
+`assemblyOriginLabelLayout.ts` lays out fixed CSS-pixel rectangles independently
+of `assemblyOriginLabels`' geometric projection. Key order resolves ties and a
+bounded fallback grid packs remaining space. Insufficient capacity moves the
+whole set to one scrolling list without dropping identities. Anchor coordinates,
+bindings and geometric picking remain unchanged. Layout is recomputed only when
+projected anchors or viewport dimensions change; a pointer press from an older
+layout cannot activate after a resize or layout change. Existing current-catalog,
+scope and reference-compatibility checks remain required.
+
 The assembly component trees share `assemblyTreeNavigation.ts` and
 `useAssemblyTreeNavigation.ts`. Keys identify the full occurrence path and exact
 definition revision, so reused subassemblies expand independently. The configured

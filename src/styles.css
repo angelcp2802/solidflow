@@ -1260,6 +1260,37 @@ button,
 .viewport-toolbar > svg {
   margin: 0 3px;
 }
+.part-selection-controls {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+.part-selection-controls button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 26px;
+  padding: 0 5px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: #3b5770;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.part-selection-controls button[aria-pressed="true"] {
+  border-color: #8cb5dc;
+  background: #dcecfb;
+  color: #174f83;
+}
+.part-selection-controls button:focus-visible {
+  outline: 2px solid #2174bb;
+  outline-offset: 1px;
+}
+.part-selection-controls button:disabled {
+  opacity: .45;
+  cursor: default;
+}
 .viewport-label {
   position: absolute;
   top: 17px;
@@ -1268,7 +1299,7 @@ button,
   display: flex;
   flex-direction: column;
   gap: 5px;
-  max-width: calc(50% - 190px);
+  max-width: calc(50% - 280px);
   color: #7890a2;
   pointer-events: none;
 }
@@ -1285,6 +1316,12 @@ button,
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+@media (max-width: 1200px) {
+  .viewport-label {
+    top: 50px;
+    max-width: calc(100% - 150px);
+  }
 }
 .canvas-confirm {
   position: absolute;

@@ -1,3 +1,4 @@
+import { pickPartReference, type PartSelectionMode } from "./partSelection";
 import { configureCadNavigation, createCadSelectionGesture } from "./cadNavigation";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
@@ -146,7 +147,9 @@ interface Props {
   onSelect: () => void;
   selectedBodies?: readonly BodyReference[];
   onSelectBody?: (reference: BodyReference) => void;
-  selectionMode?: "body" | "edge" | "face";
+  selectionMode?: PartSelectionMode;
+  selectionDisabled?: boolean;
+  onClearSelection?: () => void;
   selectedEdges?: EdgeReference[];
   onSelectEdge?: (ref: EdgeReference) => void;
   selectedFace?: FaceReference | null;
@@ -168,6 +171,8 @@ export default function Viewport({
   selectedBodies = [],
   onSelectBody,
   selectionMode = "body",
+  selectionDisabled = false,
+  onClearSelection,
   selectedEdges = [],
   onSelectEdge,
   selectedFace,
@@ -196,6 +201,7 @@ export default function Viewport({
     faces: FaceVisualObject[];
     planes: PlaneVisualObject[];
     updateHighlights: () => void;
+    refreshHover: () => void;
     updateSketches: (autoFit?: boolean) => void;
     updatePlanes: (autoFit?: boolean) => void;
     grid: THREE.GridHelper;
@@ -203,8 +209,8 @@ export default function Viewport({
   } | null>(null);
   const edgeReferences = useMemo(() => createEdgeSelectionIndex(model?.edges ?? []), [model]);
   const faceReferences = useMemo(() => createFaceSelectionIndex(model?.faces ?? []), [model]);
-  const interaction = useRef({ onSelect, onSelectBody, selectedBodies, onSelectEdge, selectionMode, selectedEdges, visibleSketchIds, selectedSketchId, selectedFace, selectedFaces, onSelectFace, selectedPlaneId, showPlanes, onSelectPlane, edgeReferences, faceReferences });
-  interaction.current = { onSelect, onSelectBody, selectedBodies, onSelectEdge, selectionMode, selectedEdges, visibleSketchIds, selectedSketchId, selectedFace, selectedFaces, onSelectFace, selectedPlaneId, showPlanes, onSelectPlane, edgeReferences, faceReferences };
+  const interaction = useRef({ onSelect, onClearSelection, selectionDisabled, onSelectBody, selectedBodies, onSelectEdge, selectionMode, selectedEdges, visibleSketchIds, selectedSketchId, selectedFace, selectedFaces, onSelectFace, selectedPlaneId, showPlanes, onSelectPlane, edgeReferences, faceReferences });
+  interaction.current = { onSelect, onClearSelection, selectionDisabled, onSelectBody, selectedBodies, onSelectEdge, selectionMode, selectedEdges, visibleSketchIds, selectedSketchId, selectedFace, selectedFaces, onSelectFace, selectedPlaneId, showPlanes, onSelectPlane, edgeReferences, faceReferences };
   useEffect(() => {
     const el = host.current!;
     const scene = new THREE.Scene();
@@ -289,7 +295,7 @@ export default function Viewport({
       edges: [],
       faces: [],
       planes: [],
-      updateHighlights: () => {},
+      updateHighlights: () => {}, refreshHover: () => {},
       updateSketches: () => {},
       updatePlanes: () => {},
       grid: floor,
@@ -439,13 +445,16 @@ export default function Viewport({
     let hovered: string | null = null;
     let hoveredFace: string | null = null;
     let hoveredPlane: string | null = null;
+    let hoveredBody: BodyReference | null = null;
     const updateHighlights = () => {
+      if (interaction.current.selectionDisabled) { hovered = null; hoveredFace = null; hoveredPlane = null; }
+      if (interaction.current.selectionDisabled || interaction.current.selectionMode !== 'body') hoveredBody = null;
       context.current?.bodies.forEach(body => {
         const material = body.object.material as THREE.MeshBasicMaterial;
-        material.opacity = interaction.current.selectedBodies.some(reference => sameBodyReference(reference, body.ref)) ? .36 : 0;
+        material.opacity = interaction.current.selectedBodies.some(reference => sameBodyReference(reference, body.ref)) ? .36 : hoveredBody && sameBodyReference(hoveredBody, body.ref) ? .18 : 0;
       });
       const selectedKeys = interaction.current.edgeReferences.selectedKeys(interaction.current.selectedEdges);
-      if (interaction.current.selectionMode !== 'edge' || !context.current?.edges.some((edge) => edgeIdentity(edge.ref) === hovered)) hovered = null;
+      if (!['auto', 'edge'].includes(interaction.current.selectionMode) || !context.current?.edges.some((edge) => edgeIdentity(edge.ref) === hovered)) hovered = null;
       context.current?.edges.forEach((edge) => {
         if (!edge.highlight) return;
         const key = edgeIdentity(edge.ref);
@@ -455,7 +464,7 @@ export default function Viewport({
         edge.highlight.material.color.setHex(isSelected ? 0xe58b23 : 0xffbd57);
         edge.highlight.material.linewidth = isSelected ? 3.3 : 2.8;
       });
-      if (interaction.current.selectionMode !== 'face') hoveredFace = null;
+      if (!['auto', 'face'].includes(interaction.current.selectionMode)) hoveredFace = null;
       const selectedFaces = interaction.current.selectedFace
         ? [...interaction.current.selectedFaces, interaction.current.selectedFace]
         : interaction.current.selectedFaces;
@@ -471,9 +480,12 @@ export default function Viewport({
       context.current?.planes.forEach(plane => {
         if (plane.border) (plane.border.material as THREE.LineBasicMaterial).color.setHex(plane.id === interaction.current.selectedPlaneId ? 0xe58b23 : plane.id === hoveredPlane ? 0xffbd57 : 0x3c8fcd);
       });
-      renderer.domElement.style.cursor = interaction.current.selectionMode === 'edge' ? (hovered ? 'pointer' : 'crosshair') : interaction.current.selectionMode === 'face' ? (hoveredFace || hoveredPlane ? 'pointer' : 'crosshair') : hoveredPlane ? 'pointer' : '';
+      const kind = interaction.current.selectionDisabled ? '' : hovered ? 'edge' : hoveredFace ? 'face' : hoveredPlane ? 'plane' : hoveredBody ? 'body' : '';
+      el.dataset.partHoverKind = kind;
+      renderer.domElement.style.cursor = interaction.current.selectionDisabled ? 'wait' : kind ? 'pointer' : interaction.current.selectionMode === 'auto' || interaction.current.selectionMode === 'body' ? '' : 'crosshair';
     };
     context.current.updateHighlights = updateHighlights;
+    context.current.refreshHover = () => { hoverDirty = true; };
     const pick = (x: number, y: number) => {
       const current = context.current;
       if (!current?.body) return null;
@@ -481,10 +493,14 @@ export default function Viewport({
     };
     const pickFace = (x: number, y: number) => pickVisibleFace(camera, context.current?.faces ?? [], { x, y }, { width: el.clientWidth, height: el.clientHeight }, context.current?.body ?? null);
     const pickPlane = (x: number, y: number) => interaction.current.onSelectPlane ? pickVisiblePlane(camera, context.current?.body ?? null, context.current?.planes ?? [], { x, y }, { width: el.clientWidth, height: el.clientHeight }) : null;
+    const pickReference = (mode: Exclude<PartSelectionMode, 'body'>, x: number, y: number) => pickPartReference(mode, {
+      edge: () => pick(x, y), face: () => pickFace(x, y), plane: () => pickPlane(x, y),
+    });
+    const pickBody = (x: number, y: number) => pickVisibleBody(camera, context.current?.bodies ?? [], { x, y }, { width: el.clientWidth, height: el.clientHeight });
     const pointerDown = (e: PointerEvent) => {
       selectionGesture.down(e);
       hovered = null;
-      hoveredFace = null; hoveredPlane = null;
+      hoveredFace = null; hoveredPlane = null; hoveredBody = null;
       updateHighlights();
     };
     const pointerMove = (e: PointerEvent) => {
@@ -492,7 +508,7 @@ export default function Viewport({
       if (e.buttons) {
         hoverPointer = null;
         hovered = null;
-        hoveredFace = null; hoveredPlane = null;
+        hoveredFace = null; hoveredPlane = null; hoveredBody = null;
         updateHighlights();
         return;
       }
@@ -503,34 +519,29 @@ export default function Viewport({
     const pointerLeave = () => {
       hoverPointer = null;
       hovered = null;
-      hoveredFace = null; hoveredPlane = null;
+      hoveredFace = null; hoveredPlane = null; hoveredBody = null;
       updateHighlights();
     };
     const pointerUp = (e: PointerEvent) => {
-      if (!selectionGesture.up(e)) return;
+      if (!selectionGesture.up(e) || interaction.current.selectionDisabled) return;
       const rect = el.getBoundingClientRect();
       hoverPointer = { x: e.clientX - rect.left, y: e.clientY - rect.top };
       hoverDirty = true;
-      if (interaction.current.selectionMode === 'edge') {
-        const ref = pick(hoverPointer.x, hoverPointer.y);
-        if (ref) interaction.current.onSelectEdge?.({ ...ref });
-        return;
-      }
-      if (interaction.current.selectionMode === 'face') {
-        const face = pickFace(hoverPointer.x, hoverPointer.y);
-        if (face) interaction.current.onSelectFace?.(face);
-        else {
-          const planeId = pickPlane(hoverPointer.x, hoverPointer.y);
-          if (planeId) interaction.current.onSelectPlane?.(planeId);
-          else interaction.current.onSelectFace?.(null);
-        }
+      if (interaction.current.selectionMode !== 'body') {
+        const candidate = pickReference(interaction.current.selectionMode, hoverPointer.x, hoverPointer.y);
+        if (candidate?.kind === 'edge') interaction.current.onSelectEdge?.({ ...candidate.reference });
+        else if (candidate?.kind === 'face') interaction.current.onSelectFace?.(candidate.face);
+        else if (candidate?.kind === 'plane') interaction.current.onSelectPlane?.(candidate.id);
+        else if (interaction.current.onClearSelection) interaction.current.onClearSelection();
+        else if (interaction.current.selectionMode === 'face') interaction.current.onSelectFace?.(null);
         return;
       }
       const planeId = pickPlane(hoverPointer.x, hoverPointer.y);
       if (planeId) { interaction.current.onSelectPlane?.(planeId); return; }
       if (interaction.current.onSelectBody && context.current?.bodies.length) {
-        const reference = pickVisibleBody(camera, context.current.bodies, hoverPointer, { width: el.clientWidth, height: el.clientHeight });
+        const reference = pickBody(hoverPointer.x, hoverPointer.y);
         if (reference) interaction.current.onSelectBody(reference);
+        else interaction.current.onClearSelection?.();
         return;
       }
       const ray = new THREE.Raycaster();
@@ -543,6 +554,7 @@ export default function Viewport({
       );
       const body = context.current?.body;
       if (body && ray.intersectObject(body, false).length) interaction.current.onSelect();
+      else interaction.current.onClearSelection?.();
     };
     const cameraChanged = () => { hoverDirty = true; };
     controls.addEventListener('change', cameraChanged);
@@ -556,17 +568,14 @@ export default function Viewport({
       controls.update();
       if (hoverDirty) {
         hoverDirty = false;
-        const ref = hoverPointer && interaction.current.selectionMode === 'edge' ? pick(hoverPointer.x, hoverPointer.y) : null;
-        const next = ref ? edgeIdentity(ref) : null;
-        const face = hoverPointer && interaction.current.selectionMode === 'face' ? pickFace(hoverPointer.x, hoverPointer.y) : null;
-        const nextFace = face ? edgeIdentity(face.ref) : null;
-        const nextPlane = hoverPointer && interaction.current.selectionMode !== 'edge' && !face ? pickPlane(hoverPointer.x, hoverPointer.y) : null;
-        if (next !== hovered || nextFace !== hoveredFace || nextPlane !== hoveredPlane) {
-          hovered = next;
-          hoveredFace = nextFace;
-          hoveredPlane = nextPlane;
-          updateHighlights();
-        }
+        const mode = interaction.current.selectionMode;
+        const pointer = interaction.current.selectionDisabled ? null : hoverPointer;
+        const candidate = pointer && mode !== 'body' ? pickReference(mode, pointer.x, pointer.y) : null;
+        hovered = candidate?.kind === 'edge' ? edgeIdentity(candidate.reference) : null;
+        hoveredFace = candidate?.kind === 'face' ? edgeIdentity(candidate.face.ref) : null;
+        hoveredPlane = candidate?.kind === 'plane' ? candidate.id : pointer && mode === 'body' ? pickPlane(pointer.x, pointer.y) : null;
+        hoveredBody = pointer && mode === 'body' && interaction.current.onSelectBody && !hoveredPlane ? pickBody(pointer.x, pointer.y) : null;
+        updateHighlights();
       }
       renderer.render(scene, camera);
       drawTriad();
@@ -629,7 +638,7 @@ export default function Viewport({
     );
     geometry.setIndex(model.triangles);
     const mat = new THREE.MeshStandardMaterial({
-      color: selected && selectionMode === 'body' ? 0x57a7ef : 0x8cabc3,
+      color: selected && (selectionMode === 'auto' || selectionMode === 'body') ? 0x57a7ef : 0x8cabc3,
       metalness: 0.38,
       roughness: 0.36,
       side: THREE.DoubleSide,
@@ -655,7 +664,7 @@ export default function Viewport({
         const edgeGeometry = new THREE.BufferGeometry();
         edgeGeometry.setAttribute('position', new THREE.Float32BufferAttribute(edge.lines, 3));
         const object = new THREE.LineSegments(edgeGeometry, new THREE.LineBasicMaterial({
-          color: selected && selectionMode === 'body' ? 0x145b97 : 0x253f53,
+          color: selected && (selectionMode === 'auto' || selectionMode === 'body') ? 0x145b97 : 0x253f53,
           transparent: true, opacity: 0.82,
         }));
         object.visible = display === 'edges' || selectionMode === 'edge';
@@ -789,6 +798,7 @@ export default function Viewport({
   useEffect(() => {
     context.current?.updateHighlights();
   }, [selectedBodies, selectedEdges, selectedFace, selectedFaces, selectionMode]);
+  useEffect(() => { context.current?.refreshHover(); }, [model, selectionMode, selectionDisabled]);
   useEffect(() => {
     context.current?.updatePlanes();
     context.current?.updateHighlights();
@@ -822,6 +832,10 @@ export default function Viewport({
       ref={host}
       className="viewport-canvas"
       aria-label="Vista 3D de la pieza"
+      data-part-selection-mode={selectionMode}
+      data-part-selected-face={selectedFace ? JSON.stringify(selectedFace) : ""}
+      data-part-selected-edges={JSON.stringify(selectedEdges)}
+      data-part-selected-bodies={JSON.stringify(selectedBodies)}
     />
   );
 }

@@ -53,6 +53,23 @@ module.exports = function originAxesWorkflow(c) {
       state = await stationary();
     }
     check(state.visible, 'Actual origin control is fully visible and unobscured: ' + JSON.stringify({ selector, text, ...state }));
+    if (state.originKey) {
+      const layout = await page(() => {
+        const viewport = document.querySelector('.assembly-viewport'), boundary = viewport.getBoundingClientRect();
+        const labels = [...viewport.querySelectorAll('button[data-origin-key]')].map(button => {
+          const r = button.getBoundingClientRect(), hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+          return { key: button.getAttribute('data-origin-key'), left: r.left, top: r.top, right: r.right, bottom: r.bottom,
+            inBounds: r.width > 0 && r.height > 0 && r.left >= boundary.left && r.right <= boundary.right && r.top >= boundary.top && r.bottom <= boundary.bottom,
+            ownHit: hit === button || button.contains(hit) };
+        });
+        return { labels, overflow: !!viewport.querySelector('.assembly-origin-overflow') };
+      });
+      check(layout.labels.length > 0 && !layout.overflow && layout.labels.every(row => row.inBounds && row.ownHit),
+        'Original origin fixture labels remain inside the viewport and individually hittable: ' + JSON.stringify(layout));
+      check(layout.labels.every((a, i) => layout.labels.slice(i + 1).every(b => a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top)),
+        'Distinct origin label rectangles do not overlap on the original fixture');
+      selectionGestures.push({ kind: 'origin-label-layout', labels: layout.labels });
+    }
     await pointer('mouseMoved', state.point);
     const hit = await inspect();
     check(hit.visible && hit.scrollTop === state.scrollTop && hit.point.x === state.point.x && hit.point.y === state.point.y, 'Actual target remains stationary immediately before press');

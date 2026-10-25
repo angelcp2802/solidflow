@@ -1,5 +1,5 @@
 import { configureCadNavigation, createCadSelectionGesture } from './cadNavigation'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { TransformControls } from 'three/addons/controls/TransformControls.js'
@@ -13,6 +13,7 @@ import type { AssemblyDragFrame } from '../model/assemblyDrag'
 import { identityRigidPose, validateRigidPose, type RigidPose } from '../model/rigidPose'
 import { assemblyReferencePickMode, assemblyVertexKey, pickAssemblyVertex, createAssemblyVertexMarkers, disposeAssemblyVertexMarkers } from './assemblyVertexPicking'
 import { assemblyOriginDisplayBinding, assemblyOriginExtent, assemblyOriginLabels, assemblyOriginReferenceKey, createAssemblyOriginOverlay, pickAssemblyOrigin, type AssemblyOriginDisplay, type AssemblyOriginReference } from './assemblyOriginPicking'
+import { layoutAssemblyOriginLabels, type AssemblyOriginLabelAnchor } from './assemblyOriginLabelLayout'
 import './assembly-origin-display.css'
 type AnalysisPair = AssemblyInterferenceReport['pairs'][number]
 
@@ -172,7 +173,8 @@ export interface AssemblyViewportProps {
 export default function AssemblyViewport(props: AssemblyViewportProps) {
   const host = useRef<HTMLDivElement>(null), input = useRef(props); input.current = props
   const [dragAxis, setDragAxis] = useState<string | null>(null)
-  const [originLabels, setOriginLabels] = useState<ReturnType<typeof assemblyOriginLabels>>([])
+  const [originLabelState, setOriginLabelState] = useState(() => ({ layout: layoutAssemblyOriginLabels([], { width: 0, height: 0 }), signature: '', width: 0, height: 0 }))
+  const originLabelFrame = useRef(''), originLabelPress = useRef<{ key: string; signature: string } | null>(null)
   const originFrame = useRef('')
   const originCatalog = (value: AssemblyViewportProps) => JSON.stringify([value.originReferences, value.scene?.visibleBounds])
   const context = useRef<{ group: THREE.Group; analysis: THREE.Group; markers: THREE.Group; clearHover: () => void; camera: THREE.OrthographicCamera; controls: OrbitControls; bodies: AssemblyPickBody[]; faces: AssemblyPickFace[]; edges: AssemblyPickEdge[]; fit: () => void; highlight: () => void; syncDrag: () => void } | null>(null)
@@ -281,8 +283,10 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
     const renderFrame = () => {
       controls.update(); renderer.render(world, camera)
       originFrame.current = displayedOriginCatalog
-      const labels = assemblyOriginLabels(camera, input.current.originReferences ?? [], assemblyOriginExtent(input.current.scene?.visibleBounds), { width: element.clientWidth, height: element.clientHeight }), signature = JSON.stringify(labels)
-      if (signature !== labelSignature) { labelSignature = signature; setOriginLabels(labels) }
+      const width = element.clientWidth, height = element.clientHeight
+      const labels = assemblyOriginLabels(camera, input.current.originReferences ?? [], assemblyOriginExtent(input.current.scene?.visibleBounds), { width, height }), signature = JSON.stringify([width, height, labels])
+      originLabelFrame.current = signature
+      if (signature !== labelSignature) { labelSignature = signature; setOriginLabelState({ layout: layoutAssemblyOriginLabels(labels, { width, height }), signature, width, height }) }
     }
     const resize = new ResizeObserver(() => {
       renderer.setSize(element.clientWidth, element.clientHeight)
@@ -385,13 +389,27 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
     if (props.view.name !== 'fit') { const direction = props.view.name === 'front' ? new THREE.Vector3(0, -1, 0) : props.view.name === 'top' ? new THREE.Vector3(0, -.0001, 1) : new THREE.Vector3(1, -1.3, 1); current.camera.position.copy(current.controls.target).addScaledVector(direction.normalize(), 100) }
     current.fit()
   }, [props.view])
-  return <div className="assembly-viewport" ref={host} aria-label="Visor 3D del ensamblaje" data-analysis-pair={props.selectedAnalysisPair?.id} data-drag-axis={dragAxis ?? ''} data-reference-picking={assemblyReferencePickMode(props) ?? ''}>
-    <div className="assembly-origin-labels" aria-label="Referencias de origen visibles">{originLabels.map(label => <button key={label.key} type="button"
+  const originButton = (label: AssemblyOriginLabelAnchor, style?: CSSProperties) => <button key={label.key} type="button"
       className={(props.selectedOrigins ?? []).some(ref => assemblyOriginReferenceKey(ref) === label.key) ? 'selected' : ''}
-      style={{ left: label.x, top: label.y }} aria-label={`Seleccionar ${label.label}`} title={label.label} data-origin-key={label.key}
-      disabled={!!props.disabled || assemblyReferencePickMode(props) !== 'origin'} onClick={() => {
+      style={style} aria-label={`Seleccionar ${label.label}`} title={label.label} data-origin-key={label.key}
+      disabled={!!props.disabled || !originLabelState.layout.usable || assemblyReferencePickMode(props) !== 'origin'}
+      onPointerDown={() => { originLabelPress.current = { key: label.key, signature: originLabelState.signature } }}
+      onPointerCancel={() => { originLabelPress.current = null }} onClick={event => {
+        const press = originLabelPress.current; originLabelPress.current = null
+        if (originLabelFrame.current !== originLabelState.signature || host.current?.clientWidth !== originLabelState.width || host.current?.clientHeight !== originLabelState.height
+          || event.detail > 0 && (press?.key !== label.key || press.signature !== originLabelState.signature)) return
         const value = input.current, matches = (value.originReferences ?? []).filter(entry => entry.key === label.key)
           if (!value.disabled && assemblyReferencePickMode(value) === 'origin' && originFrame.current === originCatalog(value) && matches.length === 1 && assemblyOriginDisplayBinding(matches[0]) === label.binding) value.onOrigin?.(structuredClone(matches[0].reference))
-      }}>{label.label}</button>)}</div>
+      }}>{label.label}</button>
+  return <div className="assembly-viewport" ref={host} aria-label="Visor 3D del ensamblaje" data-analysis-pair={props.selectedAnalysisPair?.id} data-drag-axis={dragAxis ?? ''} data-reference-picking={assemblyReferencePickMode(props) ?? ''}>
+    <div className="assembly-origin-labels" aria-label="Referencias de origen visibles">
+      <svg className="assembly-origin-leaders" aria-hidden="true">{originLabelState.layout.labels.map(label => <line key={label.key}
+        x1={label.x} y1={label.y} x2={Math.max(label.left, Math.min(label.left + label.width, label.x))} y2={Math.max(label.top, Math.min(label.top + label.height, label.y))} />)}</svg>
+      {originLabelState.layout.labels.map(label => originButton(label, { left: label.left, top: label.top, width: label.width, height: label.height }))}
+      {originLabelState.layout.overflow.length > 0 && <div className="assembly-origin-overflow" role="group" aria-label="Referencias de origen en lista" style={{ width: originLabelState.layout.width }}>
+        <span>Referencias de origen · {originLabelState.layout.overflow.length}</span>
+        {originLabelState.layout.overflow.map(label => originButton(label))}
+      </div>}
+    </div>
     <span className="assembly-axis-label">X · Y · Z{props.drag && <output aria-label="Eje del manipulador"> · {dragAxis ?? 'Selecciona un eje'}</output>}</span></div>
 }

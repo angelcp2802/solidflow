@@ -1,5 +1,82 @@
 # Validation
 
+## Part selection and separated origin labels — 2026-10-25
+
+Ordinary part browsing now defaults to automatic visible-edge/face selection.
+The same candidate policy drives hover and activation; explicit face, edge and
+body filters and a Clear command remain visible. A blank click clears ordinary
+selection. Busy/stale previews and operation-owned selection retain their guards.
+No picker threshold, geometry tolerance, solver, schema or deadline changes.
+
+Origin labels use a separate bounded rectangle layout, with leaders to their
+unchanged projected anchors. Insufficient room moves the complete set into one
+scrolling list. Current identity, scope, compatibility and fresh-layout guards
+remain required. Ten new pure cases cover selection precedence and layout,
+including coincident anchors, viewport edges, long names and insufficient space.
+
+Windows x64 / Node 24.11.1 / actual Electron 44.9.3: `npm test` passes 9,458
+unit/CAD cases across 413 files in 532.70 seconds, then 83 IPC/security passes
+and two explicit platform skips. Production build passes. The application and
+unit inputs stay frozen throughout acceptance.
+
+The first part renderer stops before its selection clicks because its new helper
+finds both the main and orientation canvases. The corrected selector requires
+one direct main canvas and excludes the existing orientation `role="img"`.
+This harness-only change follows the unit run; calibration, hit checks, native
+oracles and deadlines are unchanged. The failed log remains retained. The retry
+passes 118 checkpoints, including actual automatic face/edge hover and clicks,
+explicit body selection, blank/Clear commands and restored Auto/isometric state.
+Each browsing phase preserves exact recovery text, history availability and
+native request counts. Existing successive-operation, downstream reconstruction,
+Undo/Redo, native STEP reimport and saved-document checks follow unchanged.
+Its 21 geometric phases retain the earlier 1e-5 volume/area and 1e-6 mm bounds
+tolerances. Fresh interactive sketching also passes its existing 48 checkpoints.
+
+All eight selected production-renderer workflows pass with zero recorded console,
+request or resource errors and confirmed child exit/profile cleanup. Checkpoint
+totals include diagnostics, not just independent geometric cases:
+
+| Executed workflow | Recorded checkpoints |
+| --- | ---: |
+| Prepared part sequence / fresh sketches | 118 / 48 |
+| Imported bodies / selected-to-ALL pattern | 35 / 18 |
+| Standard / configured origin axes | 205 / 312 |
+| Configured picking / compact configured picking | 186 / 197 |
+
+`npm run test:desktop` also passes with the actual production loader, worker and
+WASM. All 1,090 non-Markdown source inputs match the isolated runtime after the
+harness repair. Each renderer verifies those frozen inputs before execution.
+
+Before each actual origin-label click, the renderer checks every current label
+rectangle for viewport containment, pairwise separation and its own center hit.
+The standard workflow records eight audits: once with twelve root/component
+labels and seven times with six. The configured workflow records ten audits:
+once with twelve and nine times with six, across root and both component owners.
+These exercise the two original two-prism fixtures in fitted/isometric views;
+they do not cover front/top views, overflow-list interaction or a resize between
+pointer press and release. Pure layout tests cover overflow capacity separately.
+
+A separate visible 1040 × 700 production-build check uses the original prepared
+part fixture. The complete selection toolbar fits, with the document label below
+it. Actual clicks select an automatic planar face, an explicit edge and body,
+then clear them; explicit face selection and blank-background clearing also work.
+The face exposes existing sketch/plane commands. Front view, wheel zoom and Fit
+respond without creating a selection. No held-middle-button drag, CAD edit,
+preview, Apply or file save is performed in this manual check. It ends with
+empty Auto selection and isometric view; the recovered fixture was already unsaved.
+The demo is then maximized and its settled layout inspected.
+
+Normal final part and standard-origin captures were inspected. The latter shows
+six separated root labels with no observed covered toolbar; leaders cross model
+geometry. The configured final capture shows Model after reopening with no origin
+labels, so its armed-label evidence comes from the actual hit/rectangle audits.
+The compact configured capture is 1024 × 661 within a 1040 × 700 window. Its
+saved-relation Name field is focused and reachable; lower references still need
+scrolling, with origins collapsed. Normal captures are 1544 × 941.
+Neither capture proves all orientations or reserves space against every floating
+tool. Broader picking, origin-axis rotation locking, revolution renderer coverage,
+installed-package support and complete assembly-demo acceptance remain open.
+
 ## Assembly Properties pane and compact origin disclosure — 2026-10-25
 
 The standard component editor now occupies one mounted Properties pane.
@@ -134,6 +211,19 @@ the configured build, smoke and packaging steps. Its
 passes dependency audit and CodeQL. These results belong to that head; this
 Properties/disclosure increment requires its own hosted execution. They do not
 establish installed-package or general platform support.
+
+The Properties/disclosure snapshot `33fe5e7` subsequently passes eight of nine
+renderer jobs and all three configured-authoring jobs in
+[CI](https://github.com/angelcp2802/solidflow/actions/runs/40152081818).
+Windows rigid assembly persistence fails. Its check annotation states that the
+isolated UI workflow did not finish before its child deadline; the annotation
+does not identify the internal phase or aggregate cause. The dedicated job-log
+request returned `Transport closed` and the artifact listing was empty. All three
+downstream Desktop jobs stop at their required-renderer gate, before unit,
+smoke or packaging execution. Both
+[Security jobs](https://github.com/angelcp2802/solidflow/actions/runs/40152081821)
+pass. The local persistence pass above therefore does not establish recurring
+deadline stability, and this hosted failure remains open in issue #53.
 
 ## Assembly origin-tree browsing — 2026-10-25
 
