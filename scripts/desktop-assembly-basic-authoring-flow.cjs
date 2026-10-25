@@ -162,6 +162,27 @@ module.exports = function basicAuthoringWorkflow(context) {
   async function built(before, count, phase) {
     const event = await response(before, 'build-assembly'); geometry(event.response.value, event.document, count, phase); await recovery(event.document); return event.document;
   }
+  async function builtNameAction(before, original, id, changes, count, phase) {
+    // Blur can start a name rebuild before the following explicit action starts
+    // its own rebuild. Accept the completed final intent, not the first reply.
+    const event = await waitFor('actual name and following action rebuild ' + phase, async () => {
+      const state = await observe.assemblyResponseAfter(before, 'build-assembly');
+      check(!state.workerErrors.length, 'No worker errors during name/action continuity');
+      if (!state.record) return false;
+      check(state.record.response.ok, state.record.response.error || 'Name/action rebuild rejected');
+      const owner = state.record.document?.occurrences.find(o => o.id === id);
+      return owner && Object.entries(changes).every(([key, value]) => owner[key] === value) ? state.record : false;
+    });
+    const expected = structuredClone(original);
+    Object.assign(occurrence(expected, id), changes);
+    check(Number.isFinite(Date.parse(event.document.updatedAt)) && Date.parse(event.document.updatedAt) > Date.parse(original.updatedAt),
+      'Name/action changes advance the document timestamp');
+    expected.updatedAt = event.document.updatedAt;
+    check(canonical(event.document) === canonical(expected), 'Name/action preserves every other document declaration');
+    geometry(event.response.value, event.document, count, phase); await recovery(event.document);
+    checks.push({ nameActionContinuity: { phase, afterSerial: before, completedSerial: event.serial, changes } });
+    return event.document;
+  }
   async function insertedSelection(doc, id, phase) {
     // This observation precedes navigation/scroll assistance: the application
     // itself must select the new identity, open Properties and focus its name.
@@ -280,11 +301,15 @@ module.exports = function basicAuthoringWorkflow(context) {
     check(event.document.occurrences.length === 1 && event.document.definitions.length === 1, 'One actual imported part');
     definition = { ...event.document.occurrences[0].definition }; current = event.document; owners.base = current.occurrences[0].id;
     check(!current.occurrences[0].fixed && canonical(current.occurrences[0].pose) === canonical({ translation: [0, 0, 0], rotation: [0, 0, 0, 1] }), 'Import retains floating identity placement');
-    geometry(event.response.value, current, 1, 'import'); await recovery(current); await insertedSelection(current, owners.base, 'import'); current = await rename(current, owners.base, 'Base');
+    geometry(event.response.value, current, 1, 'import'); await recovery(current); await insertedSelection(current, owners.base, 'import');
     const fixedIndex = await page(() => [...document.querySelectorAll('#assembly-panel-properties .assembly-check')].findIndex(e => e.textContent.trim() === 'Fijo respecto a su padre'));
     check(fixedIndex === 0, 'Explicit fixed control is the first component-state checkbox'); before = await serial();
+    await control('[aria-label="Nombre del componente"]', 'Base');
+    check(await page(() => document.activeElement === document.querySelector('[aria-label="Nombre del componente"]')),
+      'Name remains focused until the single explicit Fixed click');
     await actual('#assembly-panel-properties label.assembly-check', 'Fijo respecto a su padre');
-    current = await built(before, 1, 'fix-base'); check(occurrence(current, owners.base).fixed, 'Base fixed only by explicit control'); baselinePoses.base = structuredClone(occurrence(current, owners.base).pose);
+    current = await builtNameAction(before, current, owners.base, { name: 'Base', fixed: true }, 1, 'rename-and-fix-base');
+    check(occurrence(current, owners.base).fixed, 'Base fixed only by explicit control'); baselinePoses.base = structuredClone(occurrence(current, owners.base).pose);
     const canceledState = await uiState(), canceledNative = await observe();
     const observationSummary = state => ({ sha256: digest(canonical(state)), serial: state.serial,
       assemblyCount: state.assemblies.length, buildCount: state.builds.length, workerErrors: state.workerErrors });
@@ -380,7 +405,16 @@ module.exports = function basicAuthoringWorkflow(context) {
       before = await serial(); await actual('button' + attr('aria-label', label)); const restored = await built(before, 3, label);
       check(canonical(restored) === canonical(wanted), 'One history step restores complete authored assembly'); relationGeometry(restored);
     }
-    await button('Guardar como'); await waitFor('actual saved complete authored assembly', async () => { try { return ipc.filter(x => x.channel === 'document:save' && x.completed).length === 1 && canonical(JSON.parse(await fs.readFile(output, 'utf8'))) === canonical(current); } catch (e) { if (e.code === 'ENOENT') return false; throw e; } });
+    await select(owners.follower); await actual('[aria-label="Propiedades del componente seleccionado"]');
+    await actual('[aria-label="Nombre del componente"]'); before = await serial();
+    await control('[aria-label="Nombre del componente"]', 'Seguidor guardado');
+    check(await page(() => document.activeElement === document.querySelector('[aria-label="Nombre del componente"]')),
+      'Name remains focused until the single explicit Save As click');
+    // Reuse the workflow's one Save As: no Tab or blur/rebuild wait before click.
+    await button('Guardar como');
+    current = await builtNameAction(before, current, owners.follower, { name: 'Seguidor guardado' }, 3, 'rename-and-save-follower');
+    relationGeometry(current);
+    await waitFor('actual saved complete authored assembly', async () => { try { return ipc.filter(x => x.channel === 'document:save' && x.completed).length === 1 && canonical(JSON.parse(await fs.readFile(output, 'utf8'))) === canonical(current); } catch (e) { if (e.code === 'ENOENT') return false; throw e; } });
     // Main-process file completion precedes save()'s renderer setSaved/finally.
     // Observe that commit before invoking the next guarded file action.
     await recovery(current);

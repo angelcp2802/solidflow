@@ -6,8 +6,9 @@ or a release. See [validation](VALIDATION.md) for the exact executed cases.
 
 ## Standard three-piece authoring
 
-The bounded automated route passes final selected run 07; full-suite and desktop
-smoke also pass on the same final snapshot. This is not a complete assembly,
+The bounded automated route includes direct naming followed by a single Fixed
+or Save As click. See the latest validation entry for its source snapshot,
+full-suite and desktop-smoke results. This is not a complete assembly,
 platform or exact interaction-parity claim. Preserve any current unsaved work
 before starting an empty standard assembly.
 
@@ -17,7 +18,8 @@ before starting an empty standard assembly.
    current rebuild, the new occurrence is selected and Properties opens with
    focus on its name.
 2. Name the first instance **Base** and explicitly enable
-   **Fijo respecto a su padre**. Insertion itself leaves components free at
+   **Fijo respecto a su padre**. You can click this control directly after typing
+   the name. Insertion itself leaves components free at
    identity pose; no first-component fixing or non-overlapping placement is
    assumed.
 3. Return to Components and use **Insertar otra ocurrencia** twice from the
@@ -34,19 +36,24 @@ before starting an empty standard assembly.
    With these normals, the signed condition is dot(nGuía, pRoot-pGuía)=-10.
 5. Relate Seguidor's Z axis parallel and aligned to Base's Z axis. Edit that
    relation to perpendicular, preview, Cancel and inspect the retained committed
-   relation. Retry and Apply, then exercise Undo/Redo and Save/reopen. Solve
+   relation. Retry and Apply, then exercise Undo/Redo. In Properties rename
+   Seguidor to **Seguidor guardado** and click **Guardar como** directly; reopen
+   the saved file and verify that name. Solve
    freshly after reopening and Cancel. The relation leaves freedom in Seguidor,
    so a unique complete solved pose is not the expected result.
 
 The original prism has volume 24 mm³ and area 52 mm²; three occurrences total
 72 mm³ and 156 mm² of per-solid area. The original recipe is
 `scripts/desktop-assembly-basic-authoring-original.cjs`; its automated route is
-`npm run test:desktop:assembly-basic-authoring` (189 checkpoints in run 07).
+`npm run test:desktop:assembly-basic-authoring` (199 checkpoints in the direct
+name/action run; the earlier run 07 had 189).
 A separate manual Windows check reuses this saved original assembly, inserts
 one more occurrence with automatic Properties/name focus, and undoes it back
 to three solids. It does not manually repeat New/import/relations/Save/reopen.
 Automated form assignment is scripted on visible controls, with actual pointer
-actions and Tab blur; later controls may use scroll assistance. This is distinct
+actions and Tab blur for other names; the two direct name/action checks use
+neither Tab nor an intervening rebuild wait. Later controls may use scroll
+assistance. This is distinct
 from a manual walkthrough and does not cover configured/nested authoring,
 contact, collision or STEP export.
 See [provenance](PROVENANCE.md#original-three-piece-assembly-authoring-case) and

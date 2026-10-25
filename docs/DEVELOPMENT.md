@@ -22,6 +22,17 @@ See [validation](VALIDATION.md) for the executed source snapshot and limits.
 
 ## Basic standard assembly authoring — 2026-10-25
 
+Component naming commits on blur. Automatic scene rebuilding now owns activity
+separately from explicit commands: the next click on Fixed, Visible, Suppressed
+or Save can act on the committed document while that rebuild is pending. Both
+owners still block native selection, solving and Apply; each completion releases
+only its own activity, and stale build responses retain their generation checks.
+Staged source changes and root-revision editing continue to block these document
+actions. The renderer route explicitly checks name-to-Fixed and name-to-Save As
+with one pointer click and no intervening Tab or rebuild wait. File contents and
+reopening must contain the final name. See the latest validation entry for the
+executed snapshot and limits.
+
 The insertion-continuity implementation passes the bounded local authoring,
 import and origin regressions. After importing
 or reusing a component, the transition selects the exact new occurrence
@@ -40,7 +51,7 @@ then checks that cancelling another import retains panel, selection, recovery,
 history and complete worker observations; the two expected busy-state UI audit
 events are checked separately. After numeric placement, the route explicitly
 uses Ajustar before origin picking; movement does not auto-fit. Visible numeric/name/select fields are
-scripted; pointer actions and Tab-to-commit naming use actual input transport.
+scripted; pointer actions and remaining Tab-to-commit naming use actual input transport.
 Selected run 07 and bounded manual reuse/Undo and final image reviews pass.
 The complete suite and desktop smoke also pass on the same final 1,135-input
 snapshot. This establishes the recorded workflow, not exact behavioral parity

@@ -1,4 +1,5 @@
 import { CompactViewportToolbar, ViewportToolGroup, ViewportToolIcon } from './CompactViewportToolbar'
+import { createAssemblyActivity } from './assemblyActivity'
 import { insertAssemblyStepFile } from '../model/assemblyStepInsertion'
 import { importStructuralStep } from '../model/structuralStepImport'
 import { MAX_STEP_BYTES } from '../model/stepSource'
@@ -378,7 +379,9 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   }
   const history = useRef<AssemblyDocumentHistory | null>(null); history.current ??= new AssemblyDocumentHistory(initialDocument)
   const [committed, setCommitted] = useState(() => validateAssemblyDocument(initialDocument)), [path, setPath] = useState(initialPath)
-  const [saved, setSaved] = useState(initialSaved ?? ''), [scene, setScene] = useState<AssemblyScene | null>(null), [busy, setBusy] = useState(true), [cancelable, setCancelable] = useState(false)
+  const [saved, setSaved] = useState(initialSaved ?? ''), [scene, setScene] = useState<AssemblyScene | null>(null), [commandBusy, setBusy] = useState(false), [cancelable, setCancelable] = useState(false)
+  const [sceneBuilding, setSceneBuilding] = useState(true), [activity] = useState(createAssemblyActivity)
+  const busy = commandBusy || sceneBuilding
   const [preview, setPreview] = useState<AssemblyUiPreview | null>(null), [draft, setDraft] = useState<AssemblyDocument | null>(null), [reports, setReports] = useState<AssemblyScopeSolveReport[]>([])
   const [sourceUpdate, setSourceUpdate] = useState<AssemblyUiSourceUpdate | null>(null), currentUpdate = useRef(sourceUpdate); currentUpdate.current = sourceUpdate
   const [documentUpdate, setDocumentUpdate] = useState<AssemblyUiDocumentUpdate | null>(null), currentDocumentUpdate = useRef(documentUpdate); currentDocumentUpdate.current = documentUpdate
@@ -478,7 +481,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     input?.addEventListener('cancel', cancel)
     return () => { input?.removeEventListener('cancel', cancel); cancel() }
   },[])
-  const fileInput = useRef<HTMLInputElement>(null), fileTicket = useRef<AssemblyFileTicket | null>(null), generation = useRef(0), operation = useRef(false), mounted = useRef(true)
+  const fileInput = useRef<HTMLInputElement>(null), fileTicket = useRef<AssemblyFileTicket | null>(null), generation = useRef(0), operation = activity.operation, mounted = useRef(true)
   const linkedEpoch = useRef(0), linkedTicket = useRef<LinkedSourceTicket | null>(null), pendingLinked = useRef<PendingLinkedSource | null>(null)
   const linkedBindings = useRef(new AssemblyLinkedSourceBindings(grantId => { void window.solidflow?.releaseLinkedSource(grantId).catch(() => {}) }))
   const [, refreshLinked] = useState(0)
@@ -577,6 +580,9 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     ? { projection: preview.reply.projection, checks: preview.reply.checks }
     : streamProjection?.generation === generation.current && streamProjection.baseSignature === serialized ? streamProjection : null
   const editingBlocked = busy || !!sourceUpdate || !!documentUpdate || !!replacementReview || !!rootRevision
+  // Document-only actions may follow a name blur while its scene rebuild is pending.
+  // Native selection, solving and Apply still use the aggregate editingBlocked.
+  const documentEditingBlocked = commandBusy || !!sourceUpdate || !!documentUpdate || !!replacementReview || !!rootRevision
   const directedReport = directedMeasurement && !editingBlocked && !draft && !preview && !replaceDialog && sceneSignature.current === serialized
     && assemblyDirectedAngleReplyIsCurrent(directedMeasurement.ticket, { mounted: mounted.current, generation: generation.current, documentSignature: serialized, requestSignature: directedSignature }) ? directedMeasurement.report : null
   const bomBlocked = editingBlocked || !!draft || !!preview || replaceDialog
@@ -649,12 +655,12 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   useEffect(() => {
     if (hasStaging()) return
     if (sceneSignature.current === serialized) return
-    const id = ++generation.current; operation.current = true; setBusy(true)
+    const id = ++generation.current; activity.setRebuilding(true); setSceneBuilding(true)
     buildAssembly(committed).then(value => {
       if (!mounted.current || id !== generation.current) return
       sceneSignature.current = serialized; confirmedScene.current = { signature: serialized, scene: value }; setScene(value); notify(value.warnings.length ? value.warnings.join(' · ') : 'Ensamblaje listo. Selecciona componentes o crea relaciones.')
     }).catch(reason => { if (mounted.current && id === generation.current) { setScene(null); notify(reason instanceof Error ? reason.message : 'No se pudo reconstruir el ensamblaje.', true) } })
-      .finally(() => { if (mounted.current && id === generation.current) { operation.current = false; setBusy(false) } })
+      .finally(() => { if (mounted.current && id === generation.current) { activity.setRebuilding(false); setSceneBuilding(false) } })
   }, [committed, serialized, rebuild])
   useEffect(() => { try { writeCadRecovery(localStorage, committed) } catch { notify('No se pudo guardar la recuperación local. Guarda el ensamblaje en un archivo.', true) } }, [serialized])
   useEffect(() => { const leave = (event: BeforeUnloadEvent) => { if (dirtyRef.current) { event.preventDefault(); event.returnValue = '' } }; window.addEventListener('beforeunload', leave); return () => window.removeEventListener('beforeunload', leave) }, [])
@@ -664,7 +670,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     setScopePath(value => { try { nodeAt(document, value); return value } catch { return [] } })
     return document
   }
-  const edit = (value: AssemblyEdit) => { if (operation.current || hasStaging()) return; try { change(applyAssemblyEdit(current.current, value)) } catch (reason) { notify((reason as Error).message, true) } }
+  const edit = (value: AssemblyEdit) => { if (activity.commandActive || hasStaging() || rootRevision) return; try { change(applyAssemblyEdit(current.current, value)) } catch (reason) { notify((reason as Error).message, true) } }
   const commitInsertion = (next: AssemblyDocument, navigation: AssemblyInsertionNavigation) => {
     const previous = current.current, document = change(next)
     if (navigation.epoch === insertionNavigationEpoch.current && JSON.stringify(navigation.scopePath) === currentFileScope.current)
@@ -913,7 +919,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     finally { if (mounted.current && id === generation.current) { operation.current = false; setBusy(false) } }
   }
   const save = async (saveAs = false): Promise<boolean> => {
-    if (operation.current || draft || hasStaging()) return false
+    if (activity.commandActive || draft || hasStaging() || rootRevision) return false
     const snapshot = serializeAssemblyDocument(current.current), document = current.current; operation.current = true; setBusy(true)
     try {
       if (window.solidflow) { const target = await window.solidflow.saveDocument(snapshot, document.name, saveAs ? undefined : path); if (!target) return false; if (current.current === document) setPath(target) }
@@ -2068,8 +2074,8 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
       { id: 'new', label: 'Nuevo ensamblaje', disabled: editingBlocked || replaceDialog, onSelect: newAssembly },
       { id: 'open', label: 'Abrir…', disabled: editingBlocked || replaceDialog, onSelect: () => void open('open') },
       { id: 'import-step', label: 'Importar STEP estructurado…', disabled: editingBlocked || !!draft || !!preview || replaceDialog, onSelect: () => void importStructural() },
-      { id: 'save', label: 'Guardar', disabled: editingBlocked || !!draft, onSelect: () => void save() },
-      { id: 'save-as', label: 'Guardar como…', disabled: editingBlocked || !!draft, onSelect: () => void save(true) },
+      { id: 'save', label: 'Guardar', disabled: documentEditingBlocked || !!draft, onSelect: () => void save() },
+      { id: 'save-as', label: 'Guardar como…', disabled: documentEditingBlocked || !!draft, onSelect: () => void save(true) },
       { id: 'export', label: 'Exportar geometría…', onSelect: () => openManager('evaluate', '#assembly-export-tools') },
     ] },
     { id: 'edit', label: 'Editar', items: [
@@ -2131,8 +2137,8 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
       <nav className="assembly-quickbar" aria-label="Archivo e historial del ensamblaje">
         <button title="Nuevo" disabled={editingBlocked || replaceDialog} onClick={newAssembly}><FilePlus2 size={19} aria-hidden="true" /><span className="command-header-icon-label">Nuevo</span></button>
         <button title="Abrir" disabled={editingBlocked || replaceDialog} onClick={() => void open('open')}><FolderOpen size={19} aria-hidden="true" /><span className="command-header-icon-label">Abrir</span></button>
-        <button title="Guardar" disabled={editingBlocked || !!draft} onClick={() => void save()}><Save size={19} aria-hidden="true" /><span className="command-header-icon-label">Guardar</span></button>
-        <button title="Guardar como" disabled={editingBlocked || !!draft} onClick={() => void save(true)}><SavePen size={19} aria-hidden="true" /><span className="command-header-icon-label">Guardar como</span></button>
+        <button title="Guardar" disabled={documentEditingBlocked || !!draft} onClick={() => void save()}><Save size={19} aria-hidden="true" /><span className="command-header-icon-label">Guardar</span></button>
+        <button title="Guardar como" disabled={documentEditingBlocked || !!draft} onClick={() => void save(true)}><SavePen size={19} aria-hidden="true" /><span className="command-header-icon-label">Guardar como</span></button>
         <button title="Deshacer ensamblaje" aria-label="Deshacer ensamblaje" disabled={editingBlocked || !history.current.canUndo} onClick={() => undo()}><Undo2 size={19} aria-hidden="true" /></button>
         <button title="Rehacer ensamblaje" aria-label="Rehacer ensamblaje" disabled={editingBlocked || !history.current.canRedo} onClick={() => undo(true)}><Redo2 size={19} aria-hidden="true" /></button>
       </nav>
@@ -2219,7 +2225,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
           </header>
           {!selected && <p className="assembly-component-manager-empty">Selecciona un componente en el árbol para ver sus propiedades.</p>}
       <fieldset className="assembly-component-properties" aria-label="Edición del componente seleccionado" hidden={!!selectedTreeOrigin} disabled={!!selectedTreeOrigin}>
-      {selected && <section className="assembly-section" key={JSON.stringify(selected.path)}><h3>Componente seleccionado</h3><button aria-label={selected.definition.kind === 'part' ? 'Actualizar pieza' : 'Actualizar subensamblaje'} disabled={editingBlocked || !!preview} onClick={() => void open('update')}>{selected.definition.kind === 'part' ? 'Actualizar pieza' : 'Actualizar subensamblaje'}</button><label>Nombre<input aria-label="Nombre del componente" defaultValue={selected.occurrence.name} disabled={editingBlocked} onBlur={event => { if (event.target.value !== selected.occurrence.name) edit({ type: 'rename-occurrence', scope: selected.parent, occurrenceId: selected.occurrence.id, name: event.target.value }) }} /></label>
+      {selected && <section className="assembly-section" key={JSON.stringify(selected.path)}><h3>Componente seleccionado</h3><button aria-label={selected.definition.kind === 'part' ? 'Actualizar pieza' : 'Actualizar subensamblaje'} disabled={editingBlocked || !!preview} onClick={() => void open('update')}>{selected.definition.kind === 'part' ? 'Actualizar pieza' : 'Actualizar subensamblaje'}</button><label>Nombre<input aria-label="Nombre del componente" defaultValue={selected.occurrence.name} disabled={documentEditingBlocked} onBlur={event => { if (event.target.value !== selected.occurrence.name) edit({ type: 'rename-occurrence', scope: selected.parent, occurrenceId: selected.occurrence.id, name: event.target.value }) }} /></label>
         {selected.definition.kind === 'part' && <details><summary>Sustituir pieza</summary>
           <label>Alcance<select aria-label="Alcance de sustitución" value={replacementMode} disabled={editingBlocked || !!preview || replaceDialog}
             onChange={event => setReplacementMode(event.currentTarget.value as AssemblyPartReplacementRequest['mode'])}>
@@ -2238,7 +2244,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
           <p>Se conserva la posición declarada y se revisan las relaciones antes de Aplicar.</p>
         </details>}
         {selected.path.length > 1 && <p className="assembly-muted">El nombre, los estados y los controles de posición editan la definición compartida en todas sus instancias. La sustitución tiene su propio alcance.</p>}
-        {(['fixed', 'visible', 'suppressed'] as const).map(field => <label className="assembly-check" key={field}><input type="checkbox" checked={selected.occurrence[field]} disabled={editingBlocked} onChange={event => { const common = { scope: selected.parent, occurrenceId: selected.occurrence.id }; if (field === 'fixed') edit({ ...common, type: 'set-occurrence-fixed', fixed: event.target.checked }); else if (field === 'visible') edit({ ...common, type: 'set-occurrence-visible', visible: event.target.checked }); else edit({ ...common, type: 'set-occurrence-suppressed', suppressed: event.target.checked }) }} />{field === 'fixed' ? 'Fijo respecto a su padre' : field === 'visible' ? 'Visible' : 'Suprimido'}</label>)}
+        {(['fixed', 'visible', 'suppressed'] as const).map(field => <label className="assembly-check" key={field}><input type="checkbox" checked={selected.occurrence[field]} disabled={documentEditingBlocked} onChange={event => { const common = { scope: selected.parent, occurrenceId: selected.occurrence.id }; if (field === 'fixed') edit({ ...common, type: 'set-occurrence-fixed', fixed: event.target.checked }); else if (field === 'visible') edit({ ...common, type: 'set-occurrence-visible', visible: event.target.checked }); else edit({ ...common, type: 'set-occurrence-suppressed', suppressed: event.target.checked }) }} />{field === 'fixed' ? 'Fijo respecto a su padre' : field === 'visible' ? 'Visible' : 'Suprimido'}</label>)}
         <button className="assembly-danger" disabled={editingBlocked} onClick={() => edit({ type: 'delete-occurrence', scope: selected.parent, occurrenceId: selected.occurrence.id })}><Trash2 size={14} />Eliminar ocurrencia</button></section>}
       {selected && <AssemblyLinkedSourcePanel sourceLink={selected.definition.sourceLink} sourceKind={selected.definition.kind}
         connected={!!linkedBindings.current.get(linkedEpoch.current, selected.definition)}

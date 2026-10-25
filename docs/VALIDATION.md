@@ -1,5 +1,46 @@
 # Validation
 
+## Component name followed by an action — 2026-10-25
+
+A focused renderer reproduction showed that typing a component name and clicking
+Fixed once saved the name but lost the click: blur started a rebuild that disabled
+the checkbox before activation. Automatic rebuilding and explicit commands now
+own separate activity flags. Name and state edits and Save may continue during a
+rebuild; native operations retain the aggregate busy guard, current signatures
+and generation checks. Staged updates and root-revision editing remain blocked.
+Neither owner's completion can release the other. No document schema changes.
+
+The original three-prism authoring route now keeps Name focused and uses one
+actual pointer click on Fixed, then later on Save As, without Tab or an explicit
+rebuild wait between blur and action. Field assignment is scripted. It allows an
+intermediate rename rebuild but requires the final name/state and every other
+document declaration, native geometry, exact saved bytes and reopened document.
+The existing Cancel/Apply, Undo/Redo, complete worker replies and 3 Open/1 Save
+dialog counts remain. The renderer does not establish that the worker is still
+pending at the exact action-handler instant; separate activity-unit tests cover
+both completion orders and failures across controlled promises without claiming
+native or React integration.
+
+Final local Windows x64, Node 24.11.1 and Electron 44.9.3 acceptance uses the same
+1,137 matching non-Markdown source/runtime inputs:
+
+| Command | Result |
+| --- | --- |
+| `npm run build` | PASS, 4.105 s |
+| `npm run test:desktop:assembly-basic-authoring` | PASS, 199 checkpoints, 23.075 s |
+| `npm run test:desktop:assembly` | PASS, 684 checkpoints, 79.641 s |
+| `npm run test:desktop:assembly-source-update-save-pending` | PASS, 61 checkpoints, 5.328 s |
+| `npm test` | PASS, 9,723 tests / 425 files; 91 IPC checks and 2 explicit skips; 570.932 s |
+| `npm run test:desktop` | PASS, 1.770 s |
+
+All three renderers and desktop smoke report zero console, request and resource
+errors. Each renderer confirms child close, isolated-profile removal and stopped
+presentation observation. Six focused activity-unit cases also pass. Independent
+source and renderer-evidence reviews found no actionable issue. No manual typing,
+new package launch, complete assembly demo or platform acceptance is established.
+The completed parent hosted result below still has the Windows rigid deadline
+failure; this local correction does not establish hosted recovery.
+
 ## Renderer phase reporting and CAD runtime identity — 2026-10-25
 
 The deadline now includes bounded existing movement/step and response-poll
@@ -27,7 +68,7 @@ deadline callback, bounded scalar extraction/redaction and cleanup. Independent
 source review found no actionable issue in the three changed scripts. No new
 manual interaction, package launch or general performance gain is established.
 
-Latest completed hosted review `debe6ca`
+Earlier hosted review `debe6ca`
 [CI](https://github.com/angelcp2802/solidflow/actions/runs/40201628113) passes
 7/9 renderer batches and all three configured-authoring jobs. Windows rigid
 persistence times out at 170,003 ms with 649 checkpoints, after preparing the
@@ -42,7 +83,18 @@ The [Security workflow](https://github.com/angelcp2802/solidflow/actions/runs/40
 and separate CodeQL check pass on that hosted snapshot. CodeQL reports one
 medium dedicated-worker origin warning and no presentation-test HTML-stripping
 alerts. The worker warning remains under contextual review without suppression.
-The follow-up's new-head hosted acceptance remains pending.
+The follow-up `7a70b55` has now completed
+[CI](https://github.com/angelcp2802/solidflow/actions/runs/40203728914): 8/9
+renderer batches and all three configured-authoring jobs pass, including Windows
+symmetry. Windows rigid persistence still reaches the 170,000 ms child deadline.
+Its new annotation locates the first Undo after the second 720-degree Apply:
+that movement completed in 12,904 ms and Apply/angle reset passed; the pending
+Undo build has six response polls spanning 530 ms, serial 128 after 127, and zero
+worker errors. Thus the global workflow deadline expires before that operation's
+35-second wait limit. This does not establish a deadlock or identify the dominant
+accumulated cost. Every Desktop job stops at its required-renderer gate.
+The [Security workflow](https://github.com/angelcp2802/solidflow/actions/runs/40203728867)
+passes. Complete hosted acceptance remains open.
 
 The [CAD runtime identity record](CAD_RUNTIME_SOURCE.md) separately verifies
 the locked npm integrity, installed/packaged file hashes and five acquired source
