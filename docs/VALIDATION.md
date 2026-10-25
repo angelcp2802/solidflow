@@ -1,5 +1,98 @@
 # Validation
 
+## Two-direction and mid-plane revolution — 2026-10-25
+
+The optional saved extent distinguishes two independently entered angles from a
+mid-plane total angle. A two-direction side may be zero, but both values must be
+finite and nonnegative and their sum must be greater than zero and no more than
+360 degrees. Mid-plane and absent unilateral extent require a positive angle
+at most 360 degrees. Invalid declarations fail without clamping or fallback.
+Mid-plane ignores reversal for geometry and reference identity while preserving
+the saved reverse choice. Leaving Direction 2 or choosing mid-plane discards
+the second angle; returning to unilateral mode removes the extent field.
+
+Focused validation passes 67 core cases, 21 UI cases and 130 model/document
+cases in their respective selected groups, including legacy regressions. These
+are group totals, not counts of newly added cases or a complete-suite result.
+The production build passes in 3.562 s. All 1,117 frozen non-Markdown source
+inputs match the isolated runtime checkout. The first executions of all three
+selected production renderers pass on local Windows with Node 24.11.1 and
+Electron 44.9.3:
+
+| Workflow | Checkpoints | Elapsed |
+| --- | ---: | ---: |
+| Revolution, two-direction/mid-plane previews and saved editing | 178 | 48.633 s |
+| Successive part operations | 118 | 31.371 s |
+| Fresh face-supported sketch | 48 | 16.243 s |
+
+All three report zero console, request and resource errors, confirmed child exit
+and isolated-profile cleanup. Final local `npm test` passes in 546.082 s:
+9,699 unit/CAD cases across 422 files, plus 83 passing IPC checks and two
+explicit skips. `npm run test:desktop` passes in 1.599 s with zero console,
+request and resource errors. The same 1,117 frozen inputs cover the build,
+three selected renderers, full suite and desktop smoke. These local results do
+not establish a complete renderer/platform matrix or current-head hosted success.
+
+The revolution renderer checks a zero second side, asymmetric 60/30-degree
+previews in both senses, mid-plane total 90 degrees, return to an absent
+unilateral extent, rejection above 360 degrees and correction to 270/90.
+It preserves committed recovery across previews and rejection, then saves the
+reversed 270/90 full turn with its subsequent bore. History, reopening both
+angle controls and the independent STEP read pass. Mid-plane is previewed and
+cancelled; its persistence is covered by model tests, not this saved renderer
+case. Commands use actual Chromium pointer input; numeric/select changes remain
+scripted visible controls and native dialogs use test-owned paths. These three
+workflows are selected local evidence, not the full renderer/platform matrix.
+
+A separate isolated, visible production run on Windows opens the saved
+revolution by tree double-click and displays Direction 1 at 270 degrees,
+Direction 2 at 90 degrees and reversal enabled. Setting 60/30 through UI
+Automation produces a visible sector. Choosing mid-plane with total angle 60
+disables reversal, removes Direction 2 and shows a centered sector. Lateral
+Cancel restores the idle `Listo` state, the bored sleeve and the displayed
+471.239 mm3 volume. The demonstration remains open and maximized. This is one
+manual visual check using accessibility value setters, not human typing or an
+independent numerical geometry oracle.
+
+Original native cases use an asymmetric annular-sector profile with radius
+2 to 5 mm and axial coordinate 1 to 7 mm. A 60/30-degree interval has volume
+31.5 pi mm3 and surface area (31.5 pi + 36) mm2, with literal bounds that
+distinguish reversal and mid-plane placement. Cases also cover one zero side,
+360-degree closure without internal caps, local X, a transformed sketch support,
+a translated oblique same-sketch line, a nested hole and a circular profile.
+Exported STEP is read independently of the application's retained shape and
+checked for BRep validity, one solid, volume/area within 1e-5 and bounds within
+1e-6 mm. An explicit body ID survives a subsequent scoped bore.
+
+Document tests preserve legacy canonical bytes and absent defaults, exact new
+variants, body/sketch dependencies and Undo/Redo. Native reference tests retain
+legacy lineage, reject stale references after an extent-mode change, and keep
+mid-plane references unchanged when only the ignored reverse flag changes.
+Invalid extents disable native export and a valid rebuild restores the original
+case. These results do not establish every topology, axis or downstream feature.
+
+No reference application's live behavior was observed for this increment.
+Retained interface declarations provide vocabulary only; interval semantics and
+expected geometry are independent analytical design and tests. The bounded
+production interaction above does not establish reference-application parity.
+Broader manual appearance, current-head hosted acceptance and complete workbench
+fidelity remain separate acceptance boundaries.
+
+Parent `d4ff3dc` finishes [CI](https://github.com/angelcp2802/solidflow/actions/runs/40162168596)
+with seven of nine renderer jobs passing: relations and hinge/symmetry on all
+three systems, plus macOS persistence. All three configured-authoring jobs pass.
+Windows persistence job 121075819437 and Linux persistence job 121075819457 fail
+the rigid-assembly preview/Apply/persistence step. One log retrieval attempt for
+each returns `Transport closed`; no exact checkpoint, gear stage, remaining
+budget or latest worker response is available from those attempts. A repeated
+gear failure or a diagnostic-based remedy is therefore not established.
+All three Desktop jobs fail the required-renderer gate before unit, smoke and
+package acceptance. Both [Security jobs](https://github.com/angelcp2802/solidflow/actions/runs/40162168598)
+pass. Compared with `2b7dc1f` below, both previously failing Windows/macOS
+relations jobs now pass; persistence failures remain on Windows and Linux.
+That improvement does not validate the unpublished two-direction increment or
+establish a cause for the remaining failures.
+
 ## Compact assembly controls and current operation profiles — 2026-10-25
 
 Both assembly workspaces group their existing viewport commands in a compact

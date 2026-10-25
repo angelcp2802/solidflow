@@ -104,7 +104,12 @@ from that same sketch. Construction lines may define the axis without adding
 material. A line's start-to-end order defines its positive direction. Place the
 closed profile on one side of the selected axis. In **Dirección 1**, set a
 positive angle up to 360 degrees and use **Invertir dirección** to reverse the
-turn. Inspect the preview, then accept. Cancelling returns to the edited sketch.
+turn. Enable **Dirección 2** to add an angle on the opposite side of the profile.
+Both angles must be nonnegative and their sum must be greater than zero and no
+more than 360 degrees; either side can be zero. Alternatively choose **Plano
+medio** in **Condición final de revolución**: the entered angle is the total,
+split equally around the profile, and inversion is disabled for that mode.
+Inspect the preview, then accept. Cancelling returns to the edited sketch.
 Select another sketch to create a subsequent **Corte extruido** against the
 current body. Each accepted operation remains a separate history step.
 
@@ -113,8 +118,21 @@ requires an explicit replacement; it does not switch to another axis. Older
 documents with no axis declaration retain their local-Y direction. Current
 documents with the new optional fields require a reader that understands them.
 
+Disabling **Dirección 2** or switching to **Plano medio** discards the second
+angle. Returning to **Ángulo especificado** restores one-direction mode, keeping
+the first angle and the stored inversion choice. If that first angle is zero,
+enter a positive value before previewing the unilateral operation. Mid-plane
+ignores inversion while active; it does not erase the saved choice. Changing
+extent modes can require repair of downstream face/edge references, even if two
+settings produce the same solid.
+
 Axes from another sketch, body edges or cylindrical faces, viewport axis picking,
-two directions, thin-wall revolution and revolved cuts remain pending. The renderer regression
+thin-wall revolution and revolved cuts remain pending. Two-direction and
+mid-plane modes have focused model/native/UI checks and a passing selected
+production renderer. The current increment also passes the local full suite
+(9,699 cases across 422 files, plus 83 IPC checks with two explicit skips) and
+desktop smoke. Current-head hosted acceptance remains pending.
+The renderer regression
 uses an original sleeve profile and axial bore; its formulas and evidence limits
 are documented in [provenance](PROVENANCE.md#original-revolution-and-bore-sequence)
 and [validation](VALIDATION.md).
@@ -205,6 +223,14 @@ Canceled or dragged gestures do not select on release. Explicit component
 movement uses its own tool. Sketch editing retains 2D middle-button pan.
 
 ## Assembly priorities and current limits
+
+The next interface priority is a parameter-first left property manager, with
+relation references before naming and secondary explanation. Both workspaces
+should clearly distinguish selecting references, verifying a new relation and
+applying its verified preview. This is planned interface work: current relation
+creation still requires its explicit preview action; the general Solve command
+must not be described as creating an unsubmitted relation. Draft, scope and
+current-reference guards remain requirements for that work.
 
 Both assembly workspaces use a grouped upper ribbon and one contextual manager
 on the left. **Archivo / Editar / Ver / Insertar / Herramientas / Ayuda** offer

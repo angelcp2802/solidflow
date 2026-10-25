@@ -99,11 +99,17 @@ export type RevolutionAxis =
   | { kind: 'sketch-axis'; axis: 'x' | 'y' }
   | { kind: 'sketch-line'; entityId: string };
 
+export type RevolutionExtent =
+  | { kind: 'two-directions'; secondAngle: number }
+  | { kind: 'mid-plane' };
+
 export interface RevolveFeature extends FeatureBase {
   type: 'revolve';
   sketchId: string;
-  /** Positive sweep in degrees, greater than zero and at most 360. */
+  /** Degrees: first side for two directions, total for mid-plane; otherwise the legacy positive sweep. */
   angle: number;
+  /** Absent preserves the legacy one-direction declaration and reference lineage. */
+  extent?: RevolutionExtent;
   /** Absent preserves the sketch plane's local +Y axis through its origin. */
   axis?: RevolutionAxis;
   /** Absent preserves positive rotation about the selected directed axis. */

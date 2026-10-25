@@ -1,5 +1,31 @@
 # Public fixture provenance
 
+## Original two-direction and mid-plane revolution cases
+
+`src/cad/kernel.revolution-extent.test.ts` authors an annular-sector rectangle
+with radial coordinate 2 to 5 mm and axial Y coordinate 1 to 7 mm. No imported
+model, binary, artwork or external implementation contributes to the fixture.
+For a partial total angle theta in radians, volume is 63 theta mm3 and area is
+(63 theta + 36) mm2. Thus a 60/30-degree interval has V=31.5 pi and
+A=31.5 pi+36. With the local positive-Y convention, its bounds are
+(1,1,-5 sqrt(3)/2) to (5,7,2.5); reversal changes the Z interval to
+[-2.5,5 sqrt(3)/2]. Mid-plane total 90 degrees instead has bounds
+(sqrt(2),1,-5/sqrt(2)) to (5,7,5/sqrt(2)). A complete annulus has V=A=126 pi
+and bounds (-5,1,-5) to (5,7,5), without the partial interval's radial caps.
+
+Additional original recipes use a transformed support, a translated 3-4-5 line
+axis, a rectangular nested hole and a radius-1 circular profile centered at
+radial coordinate 4 and axial coordinate 3. An explicit annulus body followed
+by a radius-3 scoped bore has V=96 pi and A=128 pi. Expected formulas and literal
+bounds do not call the production extent resolver. A separate STEP read checks
+BRep validity, one solid, volume and area within 1e-5, and bounds within 1e-6 mm.
+The model fixture in `src/model/revolutionExtentDocument.test.ts` is likewise an
+original rectangle and declaration sequence for strict parsing, round trips,
+dependencies and history; it is not geometric evidence. UI fixtures exercise
+mode transitions and preserved inversion without claiming native geometry.
+Focused results, selected renderer passes and remaining acceptance are recorded in
+[validation](VALIDATION.md#two-direction-and-mid-plane-revolution--2026-10-25).
+
 ## Original principal-axis rotation capture
 
 `scripts/desktop-assembly-origin-axis-lock-original.cjs` reuses the tracked
@@ -39,6 +65,16 @@ x=3 has volume 40 pi and bounds (3,0,0) to (7,10,4). These axis previews are
 cancelled before the original sleeve sequence. Its final saved revolution
 explicitly selects Y with reversal; a full turn retains the cylinder/tube
 geometry. Construction-line persistence is checked separately by model tests.
+
+The two-direction extension reuses the staged sleeve rectangle x=[0,4],
+y=[-5,5]. A 60/30-degree total has V=40 pi and bounds
+(0,-5,-2 sqrt(3)) to (4,5,2); reversal changes Z to [-2,2 sqrt(3)].
+Mid-plane total 90 degrees has the same volume with Z spanning
+[-2 sqrt(2),2 sqrt(2)]. The persisted reversed 270/90 turn preserves the full
+cylinder and subsequent bore formulas above. These coordinates are authored
+analytically in `scripts/desktop-part-revolution-extents.cjs`; they do not use
+the production interval resolver. Mid-plane previews are not the saved final
+variant in this renderer case.
 
 These literal formulas are independent of the worker's results. The workflow
 uses actual pointer activation; numerical fields use input/select setters and

@@ -1,4 +1,4 @@
-import type { BodyOperation, BodyPatternOperation, BodyReference, EdgeReference, EdgeSelection, ExtrudeEndCondition, FaceReference, Feature, HoleEndCondition, HoleHead, HolePosition, LinearPatternDirection, LoftSection, PatternSource, Plane, PlaneSupport, Profile, RepetitionFeature, RevolutionAxis, SketchSupport, SweepPathSegment, Vec3 } from '../cad/kernel.types'
+import type { BodyOperation, BodyPatternOperation, BodyReference, EdgeReference, EdgeSelection, ExtrudeEndCondition, FaceReference, Feature, HoleEndCondition, HoleHead, HolePosition, LinearPatternDirection, LoftSection, PatternSource, Plane, PlaneSupport, Profile, RepetitionFeature, RevolutionAxis, RevolutionExtent, SketchSupport, SweepPathSegment, Vec3 } from '../cad/kernel.types'
 import { isEdgeReferenceKeyV2, isFaceReferenceKeyV2 } from '../cad/kernel.semantic-references'
 import { validateEntityProfile } from '../sketch/validation'
 import { featureDependencyIds, featureSketchIds } from './featureInputs'
@@ -576,6 +576,19 @@ function revolutionAxis(value: unknown, path: string): RevolutionAxis {
   return fail(`${path}.kind`, 'eje de revolución desconocido')
 }
 
+function revolutionExtent(value: unknown, path: string): RevolutionExtent {
+  const source = object(value, path)
+  if (source.kind === 'two-directions') {
+    keys(source, ['kind', 'secondAngle'], path)
+    return { kind: 'two-directions', secondAngle: number(source.secondAngle, `${path}.secondAngle`, 0, 360) }
+  }
+  if (source.kind === 'mid-plane') {
+    keys(source, ['kind'], path)
+    return { kind: 'mid-plane' }
+  }
+  return fail(`${path}.kind`, 'extensión de revolución desconocida')
+}
+
 function feature(value: unknown, path: string): Feature {
   const source = object(value, path)
   const typeDescriptor = Object.getOwnPropertyDescriptor(source, 'type')
@@ -657,11 +670,16 @@ function feature(value: unknown, path: string): Feature {
     }
   }
   if (source.type === 'revolve') {
-    keys(source, [...baseKeys, 'sketchId', 'angle'], path, ['bodyOperation', 'axis', 'reversed'])
-    const angle = number(source.angle, `${path}.angle`, Number.MIN_VALUE, 360)
+    keys(source, [...baseKeys, 'sketchId', 'angle'], path, ['bodyOperation', 'axis', 'reversed', 'extent'])
+    const extent = Object.hasOwn(source, 'extent') ? revolutionExtent(source.extent, `${path}.extent`) : undefined
+    const angle = number(source.angle, `${path}.angle`, extent?.kind === 'two-directions' ? 0 : Number.MIN_VALUE, 360)
+    if (extent?.kind === 'two-directions' && (angle + extent.secondAngle <= 0 || angle + extent.secondAngle > 360)) {
+      fail(`${path}.extent.secondAngle`, 'la suma de los dos ángulos debe ser mayor que 0 y no superar 360')
+    }
     return { ...base, type: 'revolve', sketchId: string(source.sketchId, `${path}.sketchId`, 128), angle,
       ...(Object.hasOwn(source, 'axis') ? { axis: revolutionAxis(source.axis, `${path}.axis`) } : {}),
       ...(Object.hasOwn(source, 'reversed') ? { reversed: boolean(source.reversed, `${path}.reversed`) } : {}),
+      ...(extent ? { extent } : {}),
       ...(Object.hasOwn(source, 'bodyOperation') ? { bodyOperation: bodyOperation(source.bodyOperation, `${path}.bodyOperation`) } : {}) }
   }
   if (source.type === 'combine') {

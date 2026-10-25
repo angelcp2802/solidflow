@@ -1,5 +1,34 @@
 # Development guide
 
+`RevolveFeature.extent` optionally declares `{ kind: 'two-directions',
+secondAngle }` or `{ kind: 'mid-plane' }`. Absence retains the existing unilateral
+angle, strictly greater than zero and at most 360 degrees, without adding saved
+defaults. Two-direction angles are each finite and nonnegative, with a strictly
+positive sum at most 360 degrees; either side may be zero. Mid-plane uses `angle`
+as the total span, strictly greater than zero and at most 360 degrees. Parsing
+rejects unknown fields, malformed variants and explicit undefined/null values;
+it never clamps angles. Document version 1 is unchanged, but older readers can
+reject the new field.
+
+The directed-axis interval is [-secondAngle, angle] for two directions and
+[-angle/2, angle/2] for mid-plane. One total revolution followed by its angular
+offset constructs the interval, including a zero side, rather than fusing two
+independent solids. Mid-plane ignores the stored reverse flag for geometry and
+reference identity without deleting it. Disabling Direction 2 or choosing
+mid-plane discards its second-angle value. Returning to a unilateral specified
+angle removes `extent` entirely and retains the stored reverse choice; a zero
+remaining first angle requires repair. The existing staged-sketch and
+preview/accept/cancel authority paths remain in use.
+
+Without `extent`, canonical document bytes and the existing lineage descriptor
+are preserved. New modes add a versioned extent descriptor and distinguish a
+full turn from a partial interval. Changing extent mode invalidates old semantic
+references even when the resulting geometry coincides; mid-plane reverse alone
+does not. Failed construction invalidates export rather than exposing an older
+valid shape. See [validation](VALIDATION.md) for the focused original cases,
+three passing selected renderers and completed local full-suite/desktop-smoke
+acceptance. Current-head hosted acceptance remains separate and pending.
+
 The assembly workspaces share a compact viewport toolbar. Existing view,
 selection and manipulation callbacks, accessible names and busy guards remain
 in place. Context labels stay below it, and configured picking instructions
@@ -77,8 +106,9 @@ include the bounded actual hit element to make future covering elements visible
 in diagnostics, without relaxing containment, separation or center-hit checks.
 
 `RevolveFeature.axis` optionally selects a local X/Y axis or stable line entity
-ID in its existing `sketchId`; `reversed` changes axis direction while the angle
-stays positive. Absence retains local +Y and false without materializing fields
+ID in its existing `sketchId`; `reversed` changes the directed-axis orientation
+except in mid-plane mode. Angle limits follow the extent contract above.
+Absent axis/reversal retains local +Y and false without materializing fields
 on read/write. The strict parser rejects unsupported fields; older readers may
 reject new declarations. Same-sketch lines need no additional feature graph edge.
 The native resolver reads current solved endpoints and the resolved sketch frame,

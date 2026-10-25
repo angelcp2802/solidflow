@@ -7,6 +7,26 @@ with interaction priorities in [issue #55](https://github.com/angelcp2802/solidf
 and hosted acceptance in [issue #53](https://github.com/angelcp2802/solidflow/issues/53).
 The review remains unmerged; this is not release or complete-demo acceptance.
 
+The current increment adds two-direction and mid-plane revolution. Two sides
+allow one zero angle while requiring a positive total no greater than 360
+degrees. Mid-plane interprets the angle as a total span and ignores the stored
+reverse choice while active. Legacy documents retain absent extent fields and
+their existing lineage; new modes require a reader that understands the optional
+field. Focused core/UI/model groups pass 67/21/130 cases and build passes in
+3.562 s, with 1,117 source/runtime inputs matching. The first selected local
+renderer executions pass: revolution 178 checkpoints in 48.633 s, successive
+parts 118 in 31.371 s and fresh sketch 48 in 16.243 s, with zero recorded errors
+and confirmed child/profile cleanup. A visible Windows check confirms the saved
+270/90 controls, a 60/30 sector, centered mid-plane total 60 with inversion
+disabled and Direction 2 hidden, and Cancel back to the bored sleeve. Its value
+changes use accessibility setters; it is not a numerical geometry oracle.
+Final local `npm test` passes in 546.082 s: 9,699 cases across 422 files,
+plus 83 IPC checks and two explicit skips. Desktop smoke passes in 1.599 s
+with zero console, request and resource errors. The same 1,117 frozen inputs
+cover the build, three selected renderers, full suite and smoke. Current-head
+hosted acceptance remains pending. The completed compact-interface results
+below belong to the preceding increment.
+
 The part interface now combines labelled operation groups, a persistent
 accept/cancel header, automatic face/edge browsing and a collapsible feature tree.
 The original sequence exercises multiple cuts and additive extrusions. A separate
@@ -33,7 +53,8 @@ Apply, history and saved reopening. The part selection-action strip now retains
 its height, with a compact-window pointer regression for lower-edge double-click
 editing and exact Cancel.
 
-Nine selected local Windows renderers pass for this increment, including compact
+Nine selected local Windows renderers pass for the preceding compact-interface
+increment, including compact
 configured picking, both origin-lock workflows, both free-origin workflows and
 the broad assembly sequence. Two presented operation-profile captures have been
 visually inspected, and a separate visible Windows demonstration checks opening
@@ -47,7 +68,15 @@ recorded errors. All 1,112 non-Markdown inputs match the isolated runtime. The
 earlier nine renderer passes precede that last layout change; the three targeted
 repetitions do not establish a complete final-layout renderer matrix.
 
-Parent `2b7dc1f` passes five of nine hosted renderer jobs, all three
+Parent `d4ff3dc` passes seven of nine hosted renderer jobs, all three
+configured-authoring jobs and both Security jobs. All relations and hinge/symmetry
+jobs pass, as does macOS persistence. Windows and Linux still fail rigid
+persistence; detailed log retrieval returns `Transport closed`, so the current
+gear stage and failure cause remain unknown. All three Desktop jobs stop at the
+required-renderer gate before unit/smoke/package acceptance. These results do not
+validate the current two-direction increment.
+
+The older `2b7dc1f` passes five of nine hosted renderer jobs, all three
 configured-authoring jobs and both Security jobs. Rigid persistence fails on
 Windows and Linux; origin-lock interaction fails on Windows and macOS. The macOS
 log shows the enabled lock command below the sidebar clip before any capture
@@ -59,9 +88,13 @@ See [validation](VALIDATION.md) for exact
 local results, retained failures and hosted links; results from earlier commits
 do not establish current-head acceptance.
 
-Next priorities include current-head hosted acceptance,
-viewport/external revolution-axis selection,
-two-direction/thin-wall and revolved-cut workflows, broader material/mechanical reference picking and
+Next priorities include current-head hosted acceptance and a parameter-first
+left property manager: relation references before naming and secondary text,
+with unambiguous guidance from selection to the explicit relation preview and
+then Apply. This interface work must preserve draft, scope and current-reference
+guards; it is not implemented by this documentation update. Other priorities
+include viewport/external revolution-axis selection,
+thin-wall and revolved-cut workflows, broader material/mechanical reference picking and
 the complete basic assembly demo. Repeated/hosted persistence timing, remaining
 origin orientations and installed-package support also remain open. The sections
 below retain earlier snapshots; their "next" work and counts belong to their

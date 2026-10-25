@@ -110,7 +110,7 @@ import { createdBodyIds, featureBodyReferences, featureCurrentBodyReferences } f
 import { reconcileBodyPatternDraft } from "./model/bodyPatterns";
 import { createEdgeSelectionIndex, createFaceSelectionIndex } from "./cad/selection.references";
 import ExtrudePanel from "./components/ExtrudePanel";
-import RevolvePanel from "./components/RevolvePanel";
+import RevolvePanel, { mergeRevolutionDraft } from "./components/RevolvePanel";
 import HolePanel, { type HoleSection } from "./components/HolePanel";
 import HolePositionsCanvas from "./components/HolePositionsCanvas";
 import {
@@ -160,6 +160,7 @@ import type {
   Vec3,
   BodyReference,
   CombineFeature,
+  RevolveFeature,
 } from "./cad/kernel.types";
 import {
   createDemoDocument,
@@ -1908,7 +1909,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
   };
   const changeDraft = (patch: Partial<Feature>) => {
     if (!editing) return;
-    const merged = { ...editing, ...patch } as Feature;
+    const merged = editing.type === "revolve" ? mergeRevolutionDraft(editing, patch as Partial<RevolveFeature>) : { ...editing, ...patch } as Feature;
     const ownedPattern = isRepetition(merged) && merged.source.mode === 'bodies' ? merged : null;
     const scopedPattern = isRepetition(merged) && merged.featurePattern ? merged : null;
     const selection = ownedPattern?.source.mode === 'bodies' ? ownedPattern.source.bodies

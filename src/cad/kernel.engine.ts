@@ -36,6 +36,7 @@ import { createFaceCatalog, pickableFaces, pickableFacesFromCatalog, resolveSele
 import { clonePlaneFrame, offsetPlaneFrame, principalPlaneFrame } from './kernel.frames';
 import { makeOwnedPrimitiveSketch } from './kernel.primitive-sketch';
 import { resolveRevolutionAxis, revolutionRadialCoordinate } from './revolutionAxis';
+import { resolveRevolutionExtent } from './revolutionExtent';
 import { loftSolid, sweepSolid } from './kernel.sweep-loft';
 import { geometryDelta, isRepetition, patternPlan, repetitionSolid, type FeatureGeometry } from './kernel.patterns';
 import { draftSolid, shellSolid } from './kernel.face-operations';
@@ -188,13 +189,12 @@ function extrudePrimitiveSketch(sketch: Sketch, depth: number): Shape3D {
 function featureSolid(feature: ExtrudeFeature | RevolveFeature, sketchFeature: SketchFeature, resolvedFrame: PlaneFrame, validateDepth = true): Shape3D {
   const frame = sketchFeature.support ? resolvedFrame : undefined;
   if (feature.type === 'revolve') {
-    if (!Number.isFinite(feature.angle) || feature.angle <= 0 || feature.angle > 360) {
-      throw new Error('El ángulo de revolución debe ser mayor que 0° y como máximo 360°.');
-    }
+    const extent = resolveRevolutionExtent(feature);
     const { profile } = sketchFeature;
-    const axis = resolveRevolutionAxis(feature, sketchFeature, resolvedFrame);
+    const axis = resolveRevolutionAxis({ ...feature, reversed: extent.reversed }, sketchFeature, resolvedFrame);
     if (profile.kind === 'entities') {
-      return entityProfileSolid(profile, sketchFeature.plane, sketchFeature.offset, { type: 'revolve', angle: feature.angle, axis }, frame);
+      return entityProfileSolid(profile, sketchFeature.plane, sketchFeature.offset,
+        { type: 'revolve', angle: extent.sweepAngle, axis, ...(extent.identity ? { startAngle: extent.startAngle } : {}) }, frame);
     }
     const halfWidth = profile.kind === 'rectangle'
       ? Math.abs(axis.radialDirection[0]) * profile.width / 2 + Math.abs(axis.radialDirection[1]) * profile.height / 2 : profile.radius;
@@ -207,6 +207,13 @@ function featureSolid(feature: ExtrudeFeature | RevolveFeature, sketchFeature: S
       throw new Error(`El círculo de revolución debe estar separado ${axis.legacy ? 'del eje Y del croquis' : 'del eje seleccionado'}.`);
     }
     const sketch = makeSketch(sketchFeature, sketchFeature.offset, frame);
+    if (extent.identity) return withNativeOwners(owners => {
+      owners.own(sketch);
+      const solid = owners.own(sketch.revolve(axis.direction, { origin: axis.origin, angle: extent.sweepAngle }));
+      // One continuous sweep, positioned around its exact solved world axis.
+      // No union seam or duplicated volume is introduced at the sketch plane.
+      return owners.own(extent.startAngle === 0 ? solid : solid.rotate(extent.startAngle, axis.origin, axis.direction));
+    }, result => [result], 'Revolution extent construction or release failed.');
     try {
       return sketch.revolve(axis.direction, {
         origin: axis.origin,
@@ -1569,12 +1576,14 @@ export class CadEngine {
         } else tool = featureSolid(feature, sketchFeature, sketchFrames.get(sketchFeature.id)!);
         if (feature.type === 'cut' && !body) throw new Error('Crea primero un sólido antes de aplicar un corte.');
         validateSolid(tool);
-        const revolutionAxis = feature.type === 'revolve' ? resolveRevolutionAxis(feature, sketchFeature, sketchFrames.get(sketchFeature.id)!) : undefined;
+        const revolutionExtent = feature.type === 'revolve' ? resolveRevolutionExtent(feature) : undefined;
+        const revolutionAxis = feature.type === 'revolve' ? resolveRevolutionAxis({ ...feature, reversed: revolutionExtent!.reversed }, sketchFeature, sketchFrames.get(sketchFeature.id)!) : undefined;
         const structure: unknown[] = [feature.id, feature.type, feature.sketchId, sketchFeature.plane, sketchFeature.profile.kind,
           feature.type === 'revolve' ? [revolutionAxis!.legacy ? 'local-Y' : revolutionAxis!.identity, sketchFeature.profile.kind === 'entities'
-            ? entityRevolutionSide(sketchFeature.profile, revolutionAxis) : Math.sign(revolutionRadialCoordinate(sketchFeature.profile.center, revolutionAxis!)), feature.angle === 360]
+            ? entityRevolutionSide(sketchFeature.profile, revolutionAxis) : Math.sign(revolutionRadialCoordinate(sketchFeature.profile.center, revolutionAxis!)), revolutionExtent!.sweepAngle === 360]
             : [feature.symmetric, Math.sign(feature.depth)]];
         // Keep the legacy descriptor byte-identical for existing saved edge references.
+        if (revolutionExtent?.identity) structure.push(revolutionExtent.identity);
         if (sketchFeature.profile.kind === 'entities') structure.push(entityProfileStructure(sketchFeature.profile));
         if (sketchFeature.support) structure.push(['support', sketchFeature.support.kind,
           sketchFeature.support.kind === 'plane' ? sketchFeature.support.planeId : sketchFeature.support.face.sourceFeatureId,

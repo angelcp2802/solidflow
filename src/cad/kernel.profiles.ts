@@ -273,7 +273,7 @@ export function entityRevolutionSide(profile: EntityProfile, axis?: ResolvedRevo
 
 /** Closed contours use even/odd nesting: material, hole, island, hole, ... */
 export function entityProfileSolid(profile: EntityProfile, plane: Plane, offset: number,
-  operation: { type: 'extrude'; depth: number } | { type: 'revolve'; angle: number; axis?: ResolvedRevolutionAxis }, frame?: PlaneFrame): Shape3D {
+  operation: { type: 'extrude'; depth: number } | { type: 'revolve'; angle: number; axis?: ResolvedRevolutionAxis; startAngle?: number }, frame?: PlaneFrame): Shape3D {
   const contours = makeContours(profile);
   if (operation.type === 'revolve') entityRevolutionSide(profile, operation.axis);
   const toWorld = (point: Point2) => frame ? framePoint(frame, point[0], point[1]) : onSketchPlane(plane, point[0], point[1], offset);
@@ -315,8 +315,10 @@ export function entityProfileSolid(profile: EntityProfile, plane: Plane, offset:
           const direction = regionOwners.own(new Vector(normal.map((value) => value * operation.depth) as Vec3));
           return regionOwners.own(basicFaceExtrusion(face, direction));
         }
-        return regionOwners.own(revolution(face, operation.axis?.origin ?? frame?.origin ?? onSketchPlane(plane, 0, 0, offset),
-          operation.axis?.direction ?? (frame ? frameYDirection(frame) : plane === 'XY' ? [0, 1, 0] : [0, 0, 1]), operation.angle));
+        const origin = operation.axis?.origin ?? frame?.origin ?? onSketchPlane(plane, 0, 0, offset);
+        const direction: Vec3 = operation.axis?.direction ?? (frame ? frameYDirection(frame) : plane === 'XY' ? [0, 1, 0] : [0, 0, 1]);
+        const solid = regionOwners.own(revolution(face, origin, direction, operation.angle));
+        return regionOwners.own(operation.startAngle ? solid.rotate(operation.startAngle, origin, direction) : solid);
       }, result => [result], 'Entity region construction or release failed.');
       solids.push(owners.own(solid));
     }

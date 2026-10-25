@@ -12,9 +12,9 @@ module.exports = function partRevolutionWorkflow(context) {
   const APPLY = 'button[title="Aceptar operación"]', CANCEL = 'button[title="Cancelar operación"]';
   const records = [], interactions = [];
   const evidence = { partRevolution: { records, interactions,
-    scope: 'Original X/Y/line axis previews and reversal -> Cancel -> saved unused sketch edit -> reversed local-Y revolution -> symmetric cylindrical bore cut -> history/save/reopen/STEP',
+    scope: 'Original X/Y/line axis previews and reversal -> staged asymmetric and mid-plane extents including invalid total/Cancel -> saved two-direction local-Y revolution -> symmetric cylindrical bore cut -> history/save/reopen/STEP',
     inputLimits: 'Pointer activation of actual visible controls; fields use native input/select setters and bubbling input/change events, not keyboard typing. DOM scrollIntoView reveals controls without altering application state. No worker result or geometric reference is injected.',
-    featureLimits: 'X/Y and same-sketch construction-line previews, reverse partial angle and explicit Y/reversed persistence. External axes, symmetric/two-direction and thin-wall revolution are not exercised or claimed.' } };
+    featureLimits: 'X/Y and same-sketch construction-line previews, two-direction and mid-plane partial angles, and explicit Y/reversed two-direction persistence. External axes and thin-wall revolution are not exercised or claimed.' } };
   checks.push(evidence);
   const page = (fn, ...args) => evaluate(`(${fn.toString()})(...JSON.parse(${quote(JSON.stringify(args))}))`);
   const recovery = () => page(() => localStorage.getItem('solidflow.autosave'));
@@ -153,6 +153,8 @@ module.exports = function partRevolutionWorkflow(context) {
     check(canonical(original.features) === canonical(expected.features), 'Actual opened profiles equal the original recipe');
     await waitFor('opened profiles are idle', () => page(() => document.querySelector('.statusbar')?.textContent.includes('Listo')));
     const originalRecovery = await recovery();
+    const extents = require('./desktop-part-revolution-extents.cjs')({ page, press, change, built, observe, ready,
+      recovery, originalRecovery, check, canonical, records, waitFor });
     await press('.tree-row[data-feature-id="axis-profile"]'); await tab('Operaciones');
     serial = (await observe()).serial; await press('button.command[title="Revolución"]');
     await built(serial, row => row.features.at(-1).type === 'revolve' && row.features.at(-1).sketchId === 'axis-profile'
@@ -216,6 +218,7 @@ module.exports = function partRevolutionWorkflow(context) {
     await built(serial, row => row.features.at(-1).angle === 180 && row.features.at(-1).reversed === true,
       80 * Math.PI, { min: [-4, -5, 0], max: [4, 5, 4] }, 'half-turn-reversed-preview');
     await ready(); check(await recovery() === originalRecovery, 'Reversed half-turn preserves staged sketch recovery');
+    await extents.staged();
     serial = (await observe()).serial; await press(CANCEL);
     await waitFor('revolution Cancel restores the live modified profile', () => page(() => document.querySelector('input[aria-label="Altura"]')?.value === '10'
       && document.querySelector('.ribbon-tabs .selected')?.textContent.trim() === 'Croquis'));
@@ -231,9 +234,11 @@ module.exports = function partRevolutionWorkflow(context) {
       160 * Math.PI, fullBounds, 'full-turn-preview');
     await ready(); await change(axisSelector, 'sketch-y'); await ready();
     serial = (await observe()).serial; await press(reverseSelector);
-    const preview = await built(serial, row => row.features.at(-1).axis?.kind === 'sketch-axis' && row.features.at(-1).axis.axis === 'y'
+    await built(serial, row => row.features.at(-1).axis?.kind === 'sketch-axis' && row.features.at(-1).axis.axis === 'y'
       && row.features.at(-1).reversed === true && row.features.at(-1).angle === 360,
       160 * Math.PI, fullBounds, 'explicit-y-reversed-full-turn-preview');
+    await ready();
+    const preview = await extents.persistentFull();
     const revolution = preview.features.at(-1), bodyId = revolution.bodyOperation?.bodyId;
     check(revolution.sketchId === 'sleeve-profile' && revolution.bodyOperation?.mode === 'new' && typeof bodyId === 'string' && !!bodyId,
       'Actual revolution draft creates one independently identified body from the staged profile');
@@ -285,7 +290,7 @@ module.exports = function partRevolutionWorkflow(context) {
     check(saved.id === expected.id && canonical(saved.features) === canonical(final.features), 'Saved bytes contain the actual authored revolution and subsequent cut');
     serial = (await observe()).serial; await press('button[aria-label="Abrir (Ctrl+O)"]');
     const reopened = await built(serial, row => row.features.length === originalCount + 2, 150 * Math.PI, fullBounds, 'saved-reopened', bodyId);
-    check(canonical(reopened.features) === canonical(saved.features), 'Reopen retains explicit Y axis, reversed direction, angle, profile IDs and current body references');
+    check(canonical(reopened.features) === canonical(saved.features), 'Reopen retains explicit Y axis, reversed direction, both angles, profile IDs and current body references');
     await waitFor('reopened sleeve is idle', () => page(() => document.querySelector('.statusbar')?.textContent.includes('Listo')));
     await require('./desktop-part-tree-doubleclick-controls.cjs')({
       feature: revolution, saved, output, evaluate, observe, waitFor, pointer, press, ready, checks, check, canonical, digest,
@@ -294,6 +299,7 @@ module.exports = function partRevolutionWorkflow(context) {
           && row.features.at(-1).id === revolution.id, 160 * Math.PI, fullBounds, 'tree-doubleclick-existing-revolution', bodyId);
         check(canonical(editing.features) === canonical(saved.features.slice(0, originalCount + 1)),
           'Double-click edits the exact saved revolution and its original upstream features');
+        await extents.reopened(revolution);
         await activeProfile(['sleeve-profile'], 'reopened-consumed-input');
         await profilePicture('consumed-sleeve');
         let changedSerial = (await observe()).serial;
@@ -329,7 +335,7 @@ module.exports = function partRevolutionWorkflow(context) {
       && protocolResponses.some(asset => asset.url.endsWith('.wasm') && asset.status === 200), 'Production worker and WASM actually loaded');
     Object.assign(evidence.partRevolution, { originalSha256: digest(await fsp.readFile(input)), savedSha256: digest(bytes), stepSha256: digest(step),
       bodyId, revolutionId: revolution.id, cutId: cut.id,
-      independentOracles: 'Entity rectangle x=[3,7],y=[0,10]: Y full annulus V400pi; quarter X/Y V100pi but different literal bounds, reversal flips Z; translated line x3 quarter V40pi. Sleeve rectangle x=[0,4],y=[-5,5]: half-turn V80pi with Z[-4,0], reversed Z[0,4]; full cylinder V160pi, bounds X/Z±4,Y±5. Symmetric R1 bore removes10pi, leaving V150pi; separate native STEP area130pi and one valid solid. Volume/area1e-5, bounds1e-6 mm.' });
+      independentOracles: 'Entity rectangle x=[3,7],y=[0,10]: Y full annulus V400pi; quarter X/Y V100pi but different literal bounds, reversal flips Z; translated line x3 quarter V40pi. Sleeve rectangle x=[0,4],y=[-5,5]: half-turn V80pi with Z[-4,0], reversed Z[0,4]; two60/30 V40pi with Z[-2sqrt3,2], reversed Z[-2,2sqrt3]; mid-plane total90 V40pi,Z±2sqrt2. Full270/90 cylinder V160pi, bounds X/Z±4,Y±5. Symmetric R1 bore removes10pi, leaving V150pi; separate native STEP area130pi and one valid solid. Volume/area1e-5, bounds1e-6 mm.' });
     // The isolated launcher verifies captured demo bytes against this common
     // top-level proof shared by the other part workflow reports.
     evidence.savedSha256 = evidence.partRevolution.savedSha256;
