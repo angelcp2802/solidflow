@@ -8,6 +8,7 @@ module.exports = function assemblyShortcutWorkflow(context) {
     check, checks, canonical, digest, ipc, dialogCounts, consoleErrors, failedRequests, initialReadyMs } = c;
   const ROOT = configured ? '.configured-assembly-workspace' : '.assembly-app';
   const NAV = configured ? '[aria-label="Comandos del ensamblaje configurado"]' : '.assembly-toolbar';
+  const NEW_DIALOG = '[role="dialog"][aria-labelledby="new-document-title"]';
   const serial = async () => (await observe.counters()).serial;
   const BUILD = configured ? 'build-configured-assembly' : 'build-assembly';
   const gestures = [], phases = [];
@@ -75,6 +76,53 @@ module.exports = function assemblyShortcutWorkflow(context) {
   const outside = () => actualControl(ROOT + ' button[title="Isométrica"]');
   const snapshot = async () => ({ native: await observe(), recovery: await page(() => localStorage.getItem('solidflow.autosave')), dialogs: dialogCounts(), ipc: structuredClone(ipc) });
   const stable = async (before, label) => check(canonical(await snapshot()) === canonical(before), label);
+  const originProjection = () => page(() => [...document.querySelectorAll('.assembly-origin-labels button[data-origin-key]')].map(element => {
+    const rect=element.getBoundingClientRect();return {key:element.dataset.originKey,rect:[rect.x,rect.y,rect.width,rect.height],selected:element.classList.contains('selected')};
+  }));
+  async function newDialogReady() {
+    await waitFor('exact New document selector owns focus',()=>page(selector=>{
+      const dialogs=document.querySelectorAll('[role="dialog"]'),dialog=document.querySelector(selector),part=dialog?.querySelector('[data-new-document-kind="part"]');
+      return dialogs.length===1&&!!dialog&&dialog.getAttribute('aria-modal')==='true'
+        &&dialog.querySelector('h2')?.textContent.trim()==='Nuevo documento'
+        &&dialog.querySelectorAll('[data-new-document-kind]').length===2
+        &&part?.textContent.trim()==='Pieza'&&!part.disabled&&document.activeElement===part
+        &&dialog.querySelector('[data-new-document-kind="assembly"]')?.textContent.trim()==='Ensamblaje';
+    },NEW_DIALOG));
+  }
+  async function newSelectorCancellation(current) {
+    // A real root-datum selection supplies a nonempty projection witness for
+    // blocked camera keys. No reference or camera state is injected.
+    const datum=await page(()=>{
+      const rows=[...document.querySelectorAll('[data-assembly-origin-tree-key]')].filter(element=>{
+        const reference=JSON.parse(element.dataset.assemblyOriginTreeReference);
+        return element.dataset.assemblyOriginTreeOwner==='[]'&&reference.kind==='principal-axis'&&reference.axis==='X'&&reference.component===null;
+      });
+      if(rows.length!==1)throw Error('One actual root X datum required for selector camera guard');
+      return {key:rows[0].dataset.assemblyOriginTreeKey,selector:'[data-assembly-origin-tree-key="'+CSS.escape(rows[0].dataset.assemblyOriginTreeKey)+'"]'};
+    });
+    const beforeSelection=await snapshot();await actualControl(datum.selector);
+    await waitFor('one current root X projection for New selector guard',async()=>{
+      const labels=await originProjection();return labels.length===1&&labels[0].key==='["principal-axis",null,"X"]'&&labels[0].rect[2]>0&&labels[0].rect[3]>0;
+    });
+    await stable(beforeSelection,'Root datum presentation selection does not change worker history, document or files');
+    for(const close of ['Escape','Cancelar']){
+      const before=await snapshot(),projection=await originProjection();await key('N');await newDialogReady();
+      await stable(before,'Opening New selector performs no file, history, document or worker action');
+      for(const command of ['N','O','S','ShiftS','Z','Y','1','5','7','F']){
+        await key(command);
+        if(['1','5','7','F'].includes(command))check(canonical(await originProjection())===canonical(projection),
+          'New selector blocks each view shortcut before a later key could restore the original projection: '+command);
+      }
+      await newDialogReady();await stable(before,'New selector blocks duplicate New, files and history without losing the original document');
+      check(canonical(await originProjection())===canonical(projection),'New selector blocks view shortcuts with a nonempty root-axis projection witness');
+      if(close==='Escape')await key('Escape');else await actualControl(NEW_DIALOG+' button','Cancelar');
+      await waitFor('New selector closes without replacement',()=>page(()=>!document.querySelector('[role="dialog"]')));
+      await recovery(current);await stable(before,'Cancel New selector retains exact document identity, worker history, recovery and file grants');
+      check(await page(key=>document.activeElement?.dataset.assemblyOriginTreeKey===key,datum.key),'Cancel New selector restores its original focused tree row');
+      check(canonical(await originProjection())===canonical(projection),'Cancel New selector retains the selected datum projection');
+      checks.push({newDocumentSelector:{configured,close,blockedKeys:['N','O','S','ShiftS','Z','Y','1','5','7','F'],projectionCount:projection.length,limits:'Projected root-axis invariance, not an exact camera matrix or external application parity oracle.'}});
+    }
+  }
   const modalAuthority = () => page(() => {
     const selectors={save:'.assembly-quickbar button[title="Guardar"]',apply:'button[aria-label="Aplicar ensamblaje"]',step:'button[aria-label="Exportar STEP plano del ensamblaje"]',stl:'button[aria-label="Exportar STL del ensamblaje"]'};
     const controls={};for(const [key,selector] of Object.entries(selectors)){const rows=document.querySelectorAll(selector);if(rows.length!==1)throw Error('One modal authority control required: '+key);controls[key]=rows[0].disabled;}
@@ -144,6 +192,7 @@ module.exports = function assemblyShortcutWorkflow(context) {
     let row=await response(before,BUILD), current=configured?row.current.document:row.document;
     check(canonical(current)===canonical(expected),'Keyboard Open loads exact original owned document'); geometry(row.response.value,'opened'); await recovery(current);
     await outside(); await key('ShiftS'); await saved(output,current,1);
+    await newSelectorCancellation(current);
     if(!configured){
       await actualControl(`[data-assembly-tree-path='["moving"]']`);
       await nativeTextUndo('input[aria-label="Nombre del componente"]');
@@ -164,7 +213,12 @@ module.exports = function assemblyShortcutWorkflow(context) {
       // A native text edit followed by pointer blur creates one dirty model step.
       await actualControl('input[aria-label="Nombre del componente"]');await key('A');await shortcutText('native undo probe');before=await serial();await outside();row=await response(before,BUILD);current=row.document;await recovery(current);
       for(const command of ['O','N']){
-        const state=await snapshot(),authorityBefore=await modalAuthority();await key(command);await waitFor('dirty document confirmation',()=>page(()=>!!document.querySelector('[role="dialog"]')));
+        const state=await snapshot(),authorityBefore=await modalAuthority();await key(command);
+        if(command==='N'){
+          await newDialogReady();await stable(state,'Dirty New waits for an explicit document kind without changing the original');
+          await actualControl(NEW_DIALOG+' [data-new-document-kind="assembly"]');
+        }
+        await waitFor('dirty document confirmation',()=>page(()=>!!document.querySelector('[role="dialog"][aria-label="Cambios sin guardar"]')));
         await key('O');await key('S');const opened=await snapshot(),authorityOpened=await modalAuthority();
         await key('Escape');await waitFor('Escape closes only replacement dialog',()=>page(()=>!document.querySelector('[role="dialog"]')));
         await recovery(current);await modalStable(state,opened,await snapshot(),authorityBefore,authorityOpened,await modalAuthority(),command);
@@ -173,7 +227,8 @@ module.exports = function assemblyShortcutWorkflow(context) {
     } else {
       await actualControl('[aria-label="Comandos del ensamblaje configurado"] button[aria-controls="configured-relation-inspector"]');
       await nativeTextUndo('input[aria-label="Nombre de relación configurada"]');
-      await outside();const state=await snapshot();for(const command of ['O','S','ShiftS','Z','Y'])await key(command);
+      await outside();const state=await snapshot();for(const command of ['N','O','S','ShiftS','Z','Y'])await key(command);
+      check(await page(()=>!document.querySelector('[role="dialog"]')),'Configured relation draft blocks New without opening a selector');
       await stable(state,'Configured retained relation draft blocks file and history shortcuts');
       await aria('Cerrar relación');await recovery(current);await outside();await key('S');await saved(output,current,2);
     }
@@ -201,16 +256,95 @@ module.exports = function assemblyShortcutWorkflow(context) {
       const e=configured?[...document.querySelectorAll('[aria-label="Comandos del ensamblaje configurado"] button')].find(e=>e.textContent.trim()==='Aplicar configuración'):document.querySelector('[aria-label="Aplicar ensamblaje"]');
       return document.querySelector(root)?.getAttribute('aria-busy')==='false'&&!!e&&!e.disabled;
     },configured,ROOT));
-    const candidateState=await snapshot();await key('S');await key('ShiftS');await stable(candidateState,'Preview disables Save shortcuts without consuming candidate authority');
+    const candidateState=await snapshot();await key('S');await key('ShiftS');await key('N');
+    check(await page(()=>!document.querySelector('[role="dialog"]')),'Unapplied preview blocks New selector');
+    await stable(candidateState,'Preview disables Save and New shortcuts without consuming candidate authority');
     before=await serial();await key('Escape');await response(before,configured?'discard-configured-assembly':'discard-assembly');await recovery(current);
     await waitFor('Escape revokes Apply capability',()=>page(configured=>{
       const e=configured?[...document.querySelectorAll('[aria-label="Comandos del ensamblaje configurado"] button')].find(e=>e.textContent.trim()==='Aplicar configuración'):document.querySelector('[aria-label="Aplicar ensamblaje"]');return !!e&&e.disabled;
     },configured));
+    // Cross workspace boundaries using the actual selector and existing discard
+    // dialogs. Preserve both owned files; only standard Save-and-continue may
+    // update the current SaveAs file, with the explicitly checked name change.
+    const outputBytes=await fs.readFile(output), shortcutBytes=await fs.readFile(shortcutOutput);
+    const savesBeforeNew=ipc.filter(v=>v.channel==='document:save'&&v.completed).length;
+    if(!configured){
+      await actualControl(`[data-assembly-tree-path='["moving"]']`);
+      await actualControl('input[aria-label="Nombre del componente"]');
+      await key('A');await shortcutText('Saved before New');before=await serial();await outside();
+      row=await response(before,BUILD);
+      const renamed=structuredClone(current);renamed.occurrences[1].name='Saved before New';renamed.updatedAt=row.document.updatedAt;
+      check(canonical(row.document)===canonical(renamed),'New Save-and-continue starts from exactly one component-name edit');
+      current=row.document;geometry(row.response.value,'before-new-save');await recovery(current);
+    }
+    before=await serial();await key('N');await newDialogReady();
+    await actualControl(NEW_DIALOG+' [data-new-document-kind="part"]');
+    if(!configured){
+      await waitFor('dirty assembly New requires Save-and-continue',()=>page(()=>!!document.querySelector('[role="dialog"][aria-label="Cambios sin guardar"]')));
+      await actualControl('[role="dialog"][aria-label="Cambios sin guardar"] button','Guardar y continuar');
+    }
+    const partBuild=await waitFor('one completed empty part build after New',async()=>{
+      const state=await observe();check(!state.workerErrors.length,'New part worker transport healthy');
+      const rows=state.builds.filter(value=>value.serial>before&&value.response);
+      check(rows.length<=1,'New creates exactly one part build');if(!rows.length)return false;
+      check(rows[0].response.ok,'New part native build succeeds');return rows[0];
+    });
+    check(canonical(partBuild.features)==='[]'&&partBuild.response.value.bodyCatalogActive===false
+      &&partBuild.response.value.bodies===undefined&&canonical(partBuild.response.value.featureErrors)==='[]'
+      &&canonical(partBuild.response.value.warnings)==='[]','New part builds an empty legacy feature list with no explicit bodies or errors');
+    const newPart=await waitFor('empty part workspace is ready with fresh recovery and history',()=>page(()=>{
+      if(!document.querySelector('.app-shell')||document.querySelector('.assembly-app,.configured-assembly-workspace,[role="dialog"]')
+        ||!document.querySelector('.statusbar')?.textContent.includes('Listo')
+        ||document.querySelector('button[title="Deshacer (Ctrl+Z)"]')?.disabled!==true
+        ||document.querySelector('button[title="Rehacer (Ctrl+Y)"]')?.disabled!==true)return false;
+      const raw=localStorage.getItem('solidflow.autosave');if(!raw)return false;
+      const doc=JSON.parse(raw);return doc.version===1&&doc.name==='Pieza1'&&Array.isArray(doc.features)&&doc.features.length===0?doc:false;
+    }));
+    const priorAssembly=configured?current.source:current;
+    const priorIds=new Set([priorAssembly.id,...priorAssembly.definitions.map(definition=>definition.document?.id).filter(Boolean)]);
+    check(typeof newPart.id==='string'&&newPart.id.length>0&&!priorIds.has(newPart.id)
+      &&Number.isFinite(Date.parse(newPart.createdAt))&&newPart.createdAt===newPart.updatedAt
+      &&canonical(newPart)===canonical({version:1,id:newPart.id,name:'Pieza1',units:'mm',features:[],createdAt:newPart.createdAt,updatedAt:newPart.createdAt}),
+    'New part has a distinct identity and only the empty document declaration');
+    await waitFor('New completes its exact save policy before another document command',async()=>
+      ipc.filter(v=>v.channel==='document:save'&&v.completed).length===savesBeforeNew+(configured?0:1)
+      &&canonical(JSON.parse(await fs.readFile(shortcutOutput,'utf8')))===canonical(current));
+    if(configured)check((await fs.readFile(shortcutOutput)).equals(shortcutBytes),'Configured New leaves saved file bytes intact');
+    check(dialogCounts().opens===3&&dialogCounts().saves===2,'New uses no additional file picker grant, including Save-and-continue');
+    before=await serial();await key('N');await newDialogReady();
+    await actualControl(NEW_DIALOG+' [data-new-document-kind="assembly"]');
+    await waitFor('unsaved empty part asks before replacement',()=>page(()=>!!document.querySelector('[role="dialog"][aria-labelledby="discard-title"]')));
+    await actualControl('[role="dialog"][aria-labelledby="discard-title"] button','Continuar sin guardar');
+    const emptyBuild=await response(before,'build-assembly'),empty=emptyBuild.document,emptyScene=emptyBuild.response.value;
+    check(typeof empty.id==='string'&&empty.id.length>0&&!priorIds.has(empty.id)&&empty.id!==newPart.id
+      &&Number.isFinite(Date.parse(empty.createdAt))&&empty.createdAt===empty.updatedAt
+      &&canonical(empty)===canonical({version:2,kind:'assembly',id:empty.id,revision:'r1',name:'Ensamblaje',units:'mm',createdAt:empty.createdAt,updatedAt:empty.createdAt,definitions:[],occurrences:[],mates:[]}),
+    'New from part creates a distinct empty standard assembly declaration');
+    check(emptyScene.kind==='assembly-scene'&&emptyScene.bodies.length===0&&emptyScene.solidCount===0&&emptyScene.prototypeCount===0
+      &&emptyScene.volume===0&&emptyScene.area===0&&emptyScene.bounds===null,'Empty assembly has independently zero bodies, volume, area and no bounds');
+    await waitFor('new standard assembly is idle, unsaved and has empty history',()=>page(expected=>{
+      const root=document.querySelector('.assembly-app'),raw=localStorage.getItem('solidflow.autosave');
+      return root?.getAttribute('aria-busy')==='false'&&!document.querySelector('.app-shell,.configured-assembly-workspace,[role="dialog"]')
+        &&root.querySelector('.assembly-shell-file')?.textContent==='Sin guardar'
+        &&root.querySelector('[aria-label="Deshacer ensamblaje"]')?.disabled===true
+        &&root.querySelector('[aria-label="Rehacer ensamblaje"]')?.disabled===true
+        &&raw&&JSON.stringify(JSON.parse(raw))===JSON.stringify(expected);
+    },empty));
+    before=await serial();await key('O');
+    await waitFor('unsaved empty assembly asks before reopening original',()=>page(()=>!!document.querySelector('[role="dialog"][aria-label="Cambios sin guardar"]')));
+    await actualControl('[role="dialog"][aria-label="Cambios sin guardar"] button','Continuar sin guardar');
+    row=await response(before,BUILD);
+    check(canonical(configured?row.current.document:row.document)===canonical(current),'Fourth Open restores the exact saved original after both workspace replacements');
+    geometry(row.response.value,'reopened-after-new');await recovery(current);
+    check((await fs.readFile(output)).equals(outputBytes),'New and reopen preserve the earlier Save file byte for byte');
+    check(ipc.filter(v=>v.channel==='document:save'&&v.completed).length===savesBeforeNew+(configured?0:1),'Only the declared standard Save-and-continue writes during New transitions');
+    checks.push({newDocumentCreation:{configured,partId:newPart.id,assemblyId:empty.id,partBuildSerial:partBuild.serial,assemblyBuildSerial:emptyBuild.serial,
+      saveAndContinue:!configured,limits:'Part path is not exposed by the renderer; fresh part identity, empty declaration/history and bounded file requests are checked, not an unobservable internal path. Empty part observer exposes feature declarations and explicit-body absence, not aggregate mesh metrics.'}});
     check((await fs.readFile(input)).equals(originalBytes),'Original fixture file never overwritten');
     check(canonical(JSON.parse(await fs.readFile(shortcutOutput,'utf8')))===canonical(current),'Final SaveAs bytes retained after reopen and Cancel');
-    check(dialogCounts().opens===3&&dialogCounts().saves===2,'Exactly bounded owned file picker grants');
+    check(dialogCounts().opens===4&&dialogCounts().saves===2,'Exactly four Open and two SaveAs owned file picker grants');
     const final=await observe();check(!final.workerErrors.length&&!consoleErrors.length&&!failedRequests.length,'No native or renderer errors');
-    checks.push({ scenario:configured?'configured-assembly-shortcuts':'assembly-shortcuts',phases,gestures,savedSha256:digest(await fs.readFile(shortcutOutput)),sourceSha256:digest(originalBytes),limits:'Actual CDP keydown/up and text key events; native file dialogs substituted only with owned paths. Standard New confirmation cancelled only. Configured New not available. No external native-window or cross-platform parity claim.' });
+    checks.push({ scenario:configured?'configured-assembly-shortcuts':'assembly-shortcuts',phases,gestures,savedSha256:digest(await fs.readFile(shortcutOutput)),sourceSha256:digest(originalBytes),limits:'Actual CDP keydown/up and text key events; native file dialogs substituted only with owned paths. Both New selectors cancel without replacement; standard dirty New chooses Assembly then cancels confirmation. Configured draft and both previews block New. Both create an empty part then an empty standard assembly and reopen the original; standard additionally saves its checked name edit through Save-and-continue. No external native-window or cross-platform parity claim.' });
     await capture(current);
   };
 };

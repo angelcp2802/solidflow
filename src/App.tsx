@@ -1,3 +1,4 @@
+import { requestNewDocument, useNewDocumentDialog } from './components/useNewDocumentDialog';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
@@ -387,6 +388,7 @@ interface PartWorkspaceProps {
   onOpenAssembly: (document: AssemblyDocument | AssemblyConfiguredDocument, path?: string, saved?: string) => void;
 }
 function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitialRecoveryWrite = false, onOpenAssembly }: PartWorkspaceProps) {
+  const newDocumentDialog = useNewDocumentDialog(), newDocumentRequest = useRef(false);
   const [doc, setDoc] = useState<Document>(() => validateDocument(initialDocument));
   const history = useRef<DocumentHistory | null>(null);
   if (!history.current) history.current = new DocumentHistory(doc);
@@ -929,8 +931,22 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
       setDiscardOpen(true);
     });
   };
+  const newDocumentBlocked = busy || !!editing || !!stagedSketch || importing || exporting || discardOpen;
+  const newDocumentUnsafe = busy || !!editing || !!stagedSketch || importing || exporting;
+  const newDocumentUnsafeRef = useRef(newDocumentUnsafe); newDocumentUnsafeRef.current = newDocumentUnsafe;
+  const newDocumentBlockedRef = useRef(newDocumentBlocked); newDocumentBlockedRef.current = newDocumentBlocked;
   const newDoc = async () => {
-    if (await canReplace()) reset(createDocument("Pieza1"));
+    if (newDocumentRequest.current || newDocumentBlockedRef.current || fileOperation.current || discardDecision.current) return;
+    newDocumentRequest.current = true;
+    const source = replacementSource();
+    const fresh = () => isReplacementCurrent(source) && !newDocumentUnsafeRef.current && !fileOperation.current;
+    try {
+      await requestNewDocument({ choose: newDocumentDialog.choose, current: fresh, confirm: () => canReplace(), create: kind => {
+        if (kind === 'part') reset(createDocument("Pieza1"));
+        else onOpenAssembly(createEmptyAssembly());
+      } });
+    } catch (reason) { if (mounted.current) notify((reason as Error).message, true); }
+    finally { newDocumentRequest.current = false; }
   };
   const replacementSource = (): ReplacementSource => ({ document: docRef.current, editing: editingRef.current, epoch: documentEpoch.current });
   const isReplacementCurrent = (source: ReplacementSource) => mounted.current && source.epoch === documentEpoch.current &&
@@ -943,10 +959,14 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     else reset(next, path, true);
   };
   const newAssembly = async () => {
+    if (newDocumentRequest.current || newDocumentBlockedRef.current || fileOperation.current || discardDecision.current) return;
+    newDocumentRequest.current = true;
     const source = replacementSource();
-    if (!(await canReplace()) || !isReplacementCurrent(source)) return;
-    try { onOpenAssembly(createEmptyAssembly()); }
-    catch (reason) { notify((reason as Error).message, true); }
+    try {
+      if (!(await canReplace()) || !isReplacementCurrent(source) || newDocumentUnsafeRef.current || fileOperation.current) return;
+      onOpenAssembly(createEmptyAssembly());
+    } catch (reason) { if (mounted.current) notify((reason as Error).message, true); }
+    finally { newDocumentRequest.current = false; }
   };
   const newAssemblyFromPart = () => {
     if (!requireFinishedEdit()) return;
@@ -2112,7 +2132,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
   };
   useEffect(() => {
     const handle = (e: KeyboardEvent) => {
-      if (e.defaultPrevented) return;
+      if (e.defaultPrevented || newDocumentDialog.pending()) return;
       const input =
         e.target instanceof HTMLElement &&
         !!e.target.closest("input,textarea,select,[contenteditable='true']");
@@ -2406,6 +2426,8 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     );
   };
   const disabledMenuCommands: Record<string, boolean> = {
+    "Nuevo…": newDocumentBlocked,
+    "Nuevo ensamblaje vacío": newDocumentBlocked,
     "Crear ensamblaje con esta pieza": !canCreateAssemblyFromPart,
     "Importar STEP…": !!editing || importing || exporting,
     "Importar STEP estructurado…": !!editing || importing || exporting,
@@ -2426,7 +2448,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
   const partMenus: AssemblyMenuDefinition[] = ([
     {
       id: "file", label: "Archivo", items: [
-        ["Nueva pieza", "Ctrl+N", newDoc],
+        ["Nuevo…", "Ctrl+N", newDoc],
         ["Nuevo ensamblaje vacío", "", newAssembly],
         ["Crear ensamblaje con esta pieza", "", newAssemblyFromPart],
         ["Abrir…", "Ctrl+O", openDoc],
@@ -2534,6 +2556,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
 
   return (
     <div className="app-shell">
+      {newDocumentDialog.dialog}
       {featureMenu && menuFeature && <PartFeatureContextMenu key={featureMenu.requestId}
         featureName={menuFeature.name} point={featureMenu.point} restoreFocusElement={featureMenu.origin}
         onClose={() => setFeatureMenu(null)}
@@ -2600,8 +2623,9 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
         quickActions={<div className="quick-actions">
           <IconButton
             icon={FilePlus2}
-            title="Nueva pieza (Ctrl+N)"
+            title="Nuevo… (Ctrl+N)"
             onClick={newDoc}
+            disabled={newDocumentBlocked}
           />
           <IconButton
             icon={FolderOpen}
@@ -3051,7 +3075,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
           <button disabled title="Módulo pendiente">
             Chapa metálica
           </button>
-          <button onClick={() => void newAssembly()} title="Crear un ensamblaje">
+          <button onClick={() => void newAssembly()} title="Crear un ensamblaje" disabled={newDocumentBlocked}>
             Ensamblaje
           </button>
           <button onClick={newAssemblyFromPart} disabled={!canCreateAssemblyFromPart}
@@ -4233,8 +4257,8 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                   <strong>Placa de montaje</strong>
                   <span>100 × 70 × 12 mm · 4 taladros</span>
                 </button>
-                <button className="outline-button" onClick={newDoc}>
-                  <Plus size={15} /> Pieza vacía
+                <button className="outline-button" onClick={newDoc} disabled={newDocumentBlocked}>
+                  <Plus size={15} /> Nuevo documento
                 </button>
                 <button className="library-card" onClick={loadPartSequenceDemo}>
                   <Layers size={36} />
@@ -4456,7 +4480,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
           {dirty ? " *" : ""}
           <span>●</span>
         </button>
-        <button title="Nueva pieza" onClick={newDoc}>
+        <button title="Nuevo documento" onClick={newDoc} disabled={newDocumentBlocked}>
           <Plus size={14} />
         </button>
         <div />

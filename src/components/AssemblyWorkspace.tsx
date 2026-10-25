@@ -1,3 +1,4 @@
+import { requestNewDocument, useNewDocumentDialog } from './useNewDocumentDialog'
 import { CompactViewportToolbar, ViewportToolGroup, ViewportToolIcon } from './CompactViewportToolbar'
 import { createAssemblyActivity } from './assemblyActivity'
 import { retainAssemblyDistanceEdit, resolveAssemblyDistanceEdit, assemblyDistanceUiEdit, type AssemblyDistanceEditTicket, type AssemblyDistanceMate } from './assemblyDistanceEdit'
@@ -36,7 +37,7 @@ import { assemblyDefinitionKey, MAX_ASSEMBLY_BYTES, parseCadDocument, serializeA
   type AssemblyAxisReference, type AssemblyComponentReference, type AssemblyDefinition, type AssemblyDefinitionReference, type AssemblyDocument,
   type AssemblyGeometryReference, type AssemblyTangentReference, type AssemblyCylinderSurfaceReference, type AssemblyCylinderTangentMate, type AssemblySphereTangentReference, type AssemblySphereTangentMate, type AssemblyLimitDistanceMate, type AssemblyLimitAngleMate, type AssemblyLimitDirectedAngleMate, type AssemblyMate, type AssemblyOccurrence, type AssemblyPlaneReference, type EmbeddedAssemblyDefinition } from '../model/assemblyDocument'
 import { applyAssemblyEdit, AssemblyDocumentHistory, type AssemblyEdit, type NewAssemblyMate } from '../model/assemblyEditing'
-import { validateDocument, type Document } from '../model/document'
+import { createDocument, validateDocument, type Document } from '../model/document'
 import { insertAssemblyDocument } from '../model/assemblyImport'
 import { identityRigidPose, type RigidPose } from '../model/rigidPose'
 import type { Plane } from '../cad/kernel.types'
@@ -359,6 +360,7 @@ function downloadBomCsv(content: string, name: string): void {
 }
 
 export default function AssemblyWorkspace({ initialDocument, initialPath, initialSaved, onOpenPart, onOpenConfigured }: AssemblyWorkspaceProps) {
+  const newDocumentDialog = useNewDocumentDialog(), newDocumentRequest = useRef(false)
   const [treeReset, setTreeReset] = useState(0)
   type ContextTarget = { point: { x: number; y: number }; element: HTMLElement; reset: number; signature: string; scope: string; generation: number }
     & ({ kind: 'component'; ticket: AssemblyComponentContextTarget } | { kind: 'origin'; ticket: AssemblyOriginTreeSelection } | { kind: 'background' })
@@ -2202,7 +2204,26 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   useEffect(() => {
     if (sourceUpdate || documentUpdate || replacementReview) { managerTabRef.current = 'relations'; setManagerTab('relations') }
   }, [sourceUpdate, documentUpdate, replacementReview])
-  const newAssembly = () => void (async () => { if (await mayReplace()) replace(createEmptyAssembly()) })()
+  const newDocumentBlocked = editingBlocked || !!draft || !!preview || referenceEditing
+  const newDocumentBlockedRef = useRef(newDocumentBlocked); newDocumentBlockedRef.current = newDocumentBlocked
+  const newDocumentEditorBlocked = !!rootRevision || referenceEditing || !!draft
+  const newDocumentEditorBlockedRef = useRef(newDocumentEditorBlocked); newDocumentEditorBlockedRef.current = newDocumentEditorBlocked
+  const newAssembly = () => void (async () => {
+    if (newDocumentRequest.current || newDocumentBlockedRef.current || operation.current || hasStaging() || replaceAnswer.current) return
+    newDocumentRequest.current = true
+    const source = current.current, id = generation.current, scope = currentFileScope.current
+    // Save-and-continue releases the authoritative operation ref before its
+    // queued busy=false render. Do not reject that completed save on stale UI busy.
+    const fresh = () => mounted.current && current.current === source && generation.current === id && currentFileScope.current === scope
+      && !newDocumentEditorBlockedRef.current && !operation.current && !hasStaging() && !currentPreview.current
+    try {
+      await requestNewDocument({ choose: newDocumentDialog.choose, current: fresh, confirm: () => mayReplace(), create: kind => {
+        if (kind === 'part') onOpenPart(createDocument('Pieza1'))
+        else replace(createEmptyAssembly())
+      } })
+    } catch (reason) { if (mounted.current) notify((reason as Error).message, true) }
+    finally { newDocumentRequest.current = false }
+  })()
   const exampleAssembly = () => void (async () => { if (await mayReplace()) replace(createAssemblyExample()) })()
   const contextBlocked = editingBlocked || !!draft || !!preview || replaceDialog || !!streamProjection || bomOpen
     || dragActive || !!dragSession.current || !!dragging.current || pickingFaces || pickingLinearEdges
@@ -2288,7 +2309,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     label: ['Isométrica', 'Frontal', 'Superior', 'Ajustar a pantalla'][index], onSelect: () => contextAction(() => viewButton(name)) }))
   const menus: AssemblyMenuDefinition[] = withAssemblyShortcutLabels([
     { id: 'file', label: 'Archivo', items: [
-      { id: 'new', label: 'Nuevo ensamblaje', disabled: editingBlocked || replaceDialog, onSelect: newAssembly },
+      { id: 'new', label: 'Nuevo…', disabled: newDocumentBlocked || replaceDialog, onSelect: newAssembly },
       { id: 'open', label: 'Abrir…', disabled: editingBlocked || replaceDialog, onSelect: () => void open('open') },
       { id: 'import-step', label: 'Importar STEP estructurado…', disabled: editingBlocked || !!draft || !!preview || replaceDialog, onSelect: () => void importStructural() },
       { id: 'save', label: 'Guardar', disabled: documentEditingBlocked || !!draft, onSelect: () => void save() },
@@ -2333,7 +2354,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   ])
   const shortcutPicking = originPicking || pickingFaces || pickingLinearEdges || !!symmetryPicking || !!hingePicking || !!widthPicking || !!rackPicking
   const shortcutCancel = menus.flatMap(menu => menu.items).find(item => item.id === 'cancel-preview')!
-  useAssemblyShortcuts({ root: '.assembly-classic-workspace', menus, modal: replaceDialog || !!replaceAnswer.current,
+  useAssemblyShortcuts({ root: '.assembly-classic-workspace', menus, modal: newDocumentDialog.isOpen || replaceDialog || !!replaceAnswer.current,
     beforeFile: (id, target) => {
       if (!(target instanceof HTMLInputElement) || target.getAttribute('aria-label') !== 'Nombre del componente') return true
       const typed = target.value, changed = typed !== selected?.occurrence.name
@@ -2376,7 +2397,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     }} />
     <AssemblyShellHeader menus={menus} name={committed.name} dirty={dirty} fileTitle={path} fileLabel={path ? path.split(/[\\/]/).pop() : 'Sin guardar'}>
       <nav className="assembly-quickbar" aria-label="Archivo e historial del ensamblaje">
-        <button title="Nuevo" disabled={editingBlocked || replaceDialog} onClick={newAssembly}><FilePlus2 size={19} aria-hidden="true" /><span className="command-header-icon-label">Nuevo</span></button>
+        <button title="Nuevo" disabled={newDocumentBlocked || replaceDialog} onClick={newAssembly}><FilePlus2 size={19} aria-hidden="true" /><span className="command-header-icon-label">Nuevo</span></button>
         <button title="Abrir" disabled={editingBlocked || replaceDialog} onClick={() => void open('open')}><FolderOpen size={19} aria-hidden="true" /><span className="command-header-icon-label">Abrir</span></button>
         <button title="Guardar" disabled={documentEditingBlocked || !!draft} onClick={() => void save()}><Save size={19} aria-hidden="true" /><span className="command-header-icon-label">Guardar</span></button>
         <button title="Guardar como" disabled={documentEditingBlocked || !!draft} onClick={() => void save(true)}><SavePen size={19} aria-hidden="true" /><span className="command-header-icon-label">Guardar como</span></button>
@@ -2734,6 +2755,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
       actions={contextActions} point={activeContext.point} restoreFocusElement={activeContext.element} onClose={() => setContextTarget(null)} />}
     {rootRevision && <AssemblyRootRevisionDialog id={committed.id} currentRevision={committed.revision} revision={rootRevision.revision} error={rootRevision.error}
       onRevision={revision => setRootRevision(value => value && { ...value, revision, error: '' })} onPreview={() => void previewRootRevision()} onCancel={() => setRootRevision(null)} />}
+    {newDocumentDialog.dialog}
     {replaceDialog && <div className="assembly-modal-backdrop"><div ref={replaceModal} className="assembly-modal" role="dialog" aria-modal="true" aria-label="Cambios sin guardar"><h2>Hay cambios sin guardar</h2><p>Guarda el ensamblaje antes de sustituirlo.</p>{draft && <p>Aplica o cancela la vista previa para guardar sus cambios.</p>}<div><button disabled={!!draft || busy} onClick={() => void save().then(success => { if (success) answerReplace(true) })}>Guardar y continuar</button><button onClick={() => answerReplace(true)}>Continuar sin guardar</button><button onClick={() => answerReplace(false)}>Cancelar</button></div></div></div>}
   </div>
 }

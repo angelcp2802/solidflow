@@ -205,6 +205,14 @@ jobs:
         if: matrix.batch == 'persistence' && runner.os != 'Linux'
         run: npm run test:desktop:assembly-configured-shortcuts
 
+      - name: Test part authoring from an empty document (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:part-from-empty
+
+      - name: Test part authoring from an empty document (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:part-from-empty
+
       - name: Test successive part operations (Linux)
         if: matrix.batch == 'persistence' && runner.os == 'Linux'
         run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:part-sequence

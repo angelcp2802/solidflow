@@ -1,3 +1,6 @@
+import { requestNewDocument, useNewDocumentDialog } from './useNewDocumentDialog'
+import { createDocument } from '../model/document'
+import { createEmptyAssembly } from '../examples/assembly'
 import { CompactViewportToolbar, ViewportToolGroup, ViewportToolIcon } from './CompactViewportToolbar'
 import ConfiguredAssemblyOccurrencePanel, { initialConfiguredOccurrenceFields, configuredOccurrenceUiIntent, configuredOccurrenceImportIntent, configuredOccurrenceReuseIntent } from './ConfiguredAssemblyOccurrencePanel'
 import type { AssemblyConfiguredOccurrenceEdit } from '../model/assemblyConfiguredOccurrenceEditing'
@@ -67,6 +70,7 @@ export interface ConfiguredAssemblyWorkspaceProps {
   skipInitialRecoveryWrite?: boolean
 }
 export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPath, initialSaved, onOpenDocument, skipInitialRecoveryWrite = false }: ConfiguredAssemblyWorkspaceProps) {
+  const newDocumentDialog = useNewDocumentDialog(), newDocumentRequest = useRef(false)
   const history = useRef<AssemblyConfiguredDocumentHistory | null>(null)
   if (!history.current) history.current = new AssemblyConfiguredDocumentHistory(initialDocument)
   const [document, setDocument] = useState(() => history.current!.current), [generation, setGeneration] = useState(nextEpoch)
@@ -282,6 +286,19 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
     } catch (reason) { if (fresh(captured)) error(reason); return false }
     finally { if (mounted.current && epoch.current === captured.generation) finish() }
   }
+  const newDocument = async () => {
+    if (newDocumentRequest.current || !fresh(renderedTicket) || operation.current || pending.current || mateDraftRef.current || answer.current) return
+    newDocumentRequest.current = true
+    const captured = ticket()
+    const stillCurrent = () => fresh(captured) && !operation.current && !pending.current && !mateDraftRef.current
+    try {
+      await requestNewDocument({ choose: newDocumentDialog.choose, current: stillCurrent,
+        confirm: () => dirtyRef.current ? new Promise<boolean>(resolve => { answer.current = resolve; setDiscardDialog(true) }) : Promise.resolve(true),
+        create: kind => onOpenDocument(kind === 'part' ? createDocument('Pieza1') : createEmptyAssembly()),
+      })
+    } catch (reason) { if (mounted.current) error(reason) }
+    finally { newDocumentRequest.current = false }
+  }
   const open = async () => {
     if (!fresh(renderedTicket) || operation.current || pending.current || mateDraftRef.current || !window.solidflow) return
     const captured = ticket(); setFailure(null); begin('file')
@@ -446,6 +463,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
   const cancelPreviewDisabled = !cancelable && (!preview || busy)
   const menus: AssemblyMenuDefinition[] = withAssemblyShortcutLabels([
     { id: 'file', label: 'Archivo', items: [
+      { id: 'new', label: 'Nuevo…', disabled: blocked || !!mateDraft || discardDialog, onSelect: () => { void newDocument() } },
       { id: 'open', label: 'Abrir…', disabled: blocked || !!mateDraft, onSelect: () => { void open() } },
       { id: 'save', label: 'Guardar', disabled: blocked || !!mateDraft, onSelect: () => { void save(false) } },
       { id: 'save-as', label: 'Guardar como…', disabled: blocked || !!mateDraft, onSelect: () => { void save(true) } },
@@ -474,7 +492,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
       { id: 'viewport-controls', label: 'Controles del visor', onSelect: () => setMessage('Clic: seleccionar. Rueda: acercar o alejar. Rueda pulsada: girar. Mayús + rueda pulsada: desplazar. Para relacionar orígenes, abre una relación, elige el componente y activa su referencia.') },
     ] },
   ])
-  useAssemblyShortcuts({ root: '.configured-assembly-workspace', menus, modal: discardDialog || !!answer.current,
+  useAssemblyShortcuts({ root: '.configured-assembly-workspace', menus, modal: newDocumentDialog.isOpen || discardDialog || !!answer.current,
     escape: matePick || originPick ? { disabled: blocked, onSelect: () => {
       if (operation.current || !fresh(renderedTicket)) return
       stopMatePick(); setMessage('Selección en vista cancelada. Se conservan las referencias y los campos de la relación.')
@@ -643,6 +661,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
       onOptionsChange={options => { if (!freshBom(renderedBomTicket) || operation.current || pending.current || mateDraftRef.current) return; changeBomView(true, options) }}
       onSelect={member => { if (!freshBom(renderedBomTicket) || operation.current || pending.current || mateDraftRef.current || !bom.report) return; const match = configuredBomUiSelectedPath(bom.report, serialized, { serialized, member }); if (match.length) { setTreeOriginSelection(null); setBomSelection({ serialized, member: structuredClone(member) }) } }}
       onExport={() => void exportBom()} onClose={() => changeBomView(false)} />}{failure && <p className="configured-assembly-error" role="alert">{failure}</p>}<footer role="status">{message}</footer>
-    {discardDialog && <div ref={dialog} role="dialog" aria-modal="true" aria-label="Cambios del ensamblaje configurado"><p>Hay cambios sin guardar. ¿Abrir otro documento?</p><button onClick={() => { if (!fresh(renderedTicket)) return; const resolve = answer.current; answer.current = null; setDiscardDialog(false); resolve?.(false) }}>Cancelar apertura</button><button onClick={() => { if (!fresh(renderedTicket)) return; const resolve = answer.current; answer.current = null; setDiscardDialog(false); resolve?.(true) }}>Continuar sin guardar</button></div>}
+    {newDocumentDialog.dialog}
+    {discardDialog && <div ref={dialog} role="dialog" aria-modal="true" aria-label="Cambios del ensamblaje configurado"><p>Hay cambios sin guardar. ¿Sustituir el documento actual?</p><button onClick={() => { if (!fresh(renderedTicket)) return; const resolve = answer.current; answer.current = null; setDiscardDialog(false); resolve?.(false) }}>Cancelar apertura</button><button onClick={() => { if (!fresh(renderedTicket)) return; const resolve = answer.current; answer.current = null; setDiscardDialog(false); resolve?.(true) }}>Continuar sin guardar</button></div>}
   </div>
 }

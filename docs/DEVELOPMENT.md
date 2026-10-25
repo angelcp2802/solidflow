@@ -1,13 +1,42 @@
 # Development guide
 
+## New document choice and authoring from empty — 2026-10-25
+
+New (`Nuevo…`, Ctrl+N) opens a shared Part/Assembly chooser in the part,
+standard assembly and configured assembly workspaces. Part creates an empty
+part; Assembly creates an empty standard assembly. This is document replacement,
+not insertion into the current model. The existing part-to-assembly copy command
+remains separate.
+
+Cancel or Escape closes the chooser without replacement. While it is open,
+keyboard and pointer ownership prevent background commands and repeated New
+requests from creating another replacement. A selected choice then uses the
+workspace's existing unsaved-change decision; cancelling that decision also
+preserves the current document. The request rechecks current document/session
+and operation state after both asynchronous boundaries. Busy work, active
+editors, staged changes, previews and pending file/replacement operations retain
+the workspace's existing guards: New does not accept or discard an active draft
+implicitly. A successful new document starts with its own identity and history.
+
+After building, run `npm run test:desktop:part-from-empty` for the fixed
+production-renderer route. It starts without an input fixture, checks chooser
+cancellation and creates four original rectangular sketches with pointer strokes,
+followed by extrusion, through-all cut, merged boss and blind pocket. Parameter
+fields use existing controls. It checks Undo/Redo and a single Save As/reopen;
+the only Open grant is the file just saved. The route runs in the persistence
+CI batch under the existing deadlines. See [provenance](PROVENANCE.md) for exact
+coordinates and tolerances and [validation](VALIDATION.md) for actual results.
+Its implementation does not itself establish passing execution, all three
+workspace interactions or platform support.
+
 ## Assembly keyboard commands — 2026-10-25
 
 Standard and configured workspaces register keyboard commands while mounted.
 They reuse the current menu callbacks and disabled predicates. Ctrl+O opens,
 Ctrl+S saves, Ctrl+Shift+S saves as, Ctrl+Z undoes, and Ctrl+Y redoes.
 Ctrl+Shift+Z is reserved for the still-unimplemented previous-view command;
-it does not redo document edits. Ctrl+N uses the standard workspace's existing New command; configured
-New is not provided. F fits the view; Ctrl+1, Ctrl+5 and Ctrl+7 select the
+it does not redo document edits. Ctrl+N now opens the shared Part/Assembly
+chooser in both assembly workspaces, as described above. F fits the view; Ctrl+1, Ctrl+5 and Ctrl+7 select the
 available front, top and isometric views. The matcher also recognizes Meta,
 but platform execution must be recorded separately.
 

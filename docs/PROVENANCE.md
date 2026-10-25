@@ -1,5 +1,40 @@
 # Public fixture provenance
 
+## Part authoring from an empty document
+
+`scripts/desktop-part-from-empty-flow.cjs` defines an original analytical
+construction for this project. It opens New, chooses Part and starts with an
+empty feature list; no input fixture, imported model or stored topology
+reference is supplied. Four rectangles are drawn with actual pointer strokes.
+Their opposite corners are in local XY coordinates, in millimetres:
+
+| Profile | Opposite corners | XY offset | Operation |
+| --- | --- | --- | --- |
+| Base | (-20,-15), (20,15) | 0 | Extrude +10 mm as a new body |
+| Through-hole | (-5,-5), (5,5) | 0 | One-direction through-all cut along +Z; retained depth parameter +20 mm |
+| Boss | (10,5), (18,13) | 10 | Extrude +3 mm, explicitly merge into the original body |
+| Pocket | (-16,-10), (-10,-6) | 10 | Blind cut -2 mm in the original body |
+
+The literal volume sequence is 12000, 11000, 11192 and 11144 mm3. Surface areas
+are 3800, 4000, 4096 and 4136 mm2: the through-hole removes two 100 mm2 faces
+and adds 400 mm2 of walls; the boss adds 32*3 mm2 of walls; the pocket adds
+20*2 mm2 of walls. Bounds remain [-20,-15,0] to [20,15,10] mm through the
+through-hole, then [-20,-15,0] to [20,15,13] mm. Absolute tolerances are
+1e-5 mm3 for volume, 1e-4 mm2 for area and 1e-6 mm per bound coordinate.
+Each of the four authored points must match one literal rectangle corner
+within strictly less than 1e-9 mm per coordinate.
+
+Pointer coordinates use the visible sketch origin and grid. Saved profile
+coordinates and analytical solid results check that calibration independently.
+Support, offset, depth and body destination parameters use scripted assignment
+to existing enabled controls. The route includes final-cut Undo/Redo, Save As
+and reopen, preserving document and feature identities. Its area evidence is
+planar mesh area, not an independent BRep-area measurement or STEP round trip.
+All supports are principal XY with explicit offsets; this case does not cover
+circle drawing or selecting a material face as sketch support. Execution
+results belong in [validation](VALIDATION.md); this entry records the recipe
+and intended checks, not a passing run.
+
 ## Assembly keyboard command cases
 
 The standard and configured shortcut scenarios reuse

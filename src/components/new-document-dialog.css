@@ -1,0 +1,13 @@
+.new-document-backdrop { position: fixed; inset: 0; z-index: 10000; display: grid; place-items: center; background: #132b454d; }
+.new-document-backdrop .new-document-dialog[role="dialog"] { position: relative; left: auto; top: auto; transform: none; z-index: auto; width: min(400px, calc(100vw - 32px)); padding: 20px; border: 1px solid #a5b9cc; border-radius: 6px; background: #fff; color: #19344d; box-shadow: 0 12px 42px #102a4050; font-size: 13px; }
+.new-document-dialog h2 { margin: 0 0 8px; font-size: 18px; }
+.new-document-dialog p { margin: 0 0 16px; color: #526679; }
+.new-document-options { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.new-document-options button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-height: 104px; border: 1px solid #9fb5ca; border-radius: 4px; background: #f4f8fc; color: #1765a5; cursor: pointer; }
+.new-document-dialog button:focus-visible { outline: 3px solid #1874c9; outline-offset: 2px; }
+.new-document-dialog button:hover { background: #e7f2fc; }
+.new-document-dialog footer { display: flex; justify-content: flex-end; margin-top: 18px; }
+.new-document-dialog footer button { min-height: 30px; padding: 4px 16px; border: 1px solid #9fb5ca; border-radius: 3px; background: #f5f8fb; color: #19344d; cursor: pointer; }
+
+.new-document-backdrop .new-document-dialog[role="dialog"] button { margin: 0; }
+.new-document-backdrop .new-document-dialog[role="dialog"] footer { padding: 0; background: transparent; border: 0; }

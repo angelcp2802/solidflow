@@ -1,5 +1,81 @@
 # Validation
 
+## New document choice and part authoring from empty — 2026-10-25
+
+Final local Windows acceptance 06 passes all seven command records against
+1,162 matching frozen source/runtime inputs. The production build passes in
+5.031 s; that build is retained from attempt 01 because subsequent corrections
+change only fixed renderer tests and their harness routes, with production and
+build inputs unchanged. Final renderer results are:
+
+| Route | Checkpoints | Command duration |
+| --- | ---: | ---: |
+| Part from empty | 63 | 8.366 s |
+| Standard assembly keyboard/New | 138 | 14.222 s |
+| Configured assembly keyboard/New | 103 | 10.610 s |
+| Successive part operations and part-to-assembly | 166 | 24.616 s |
+
+All four report zero console, request and resource errors, confirmed child
+closure and isolated-profile cleanup. The full suite passes 9,833 tests across
+432 files and 103 IPC tests with two explicit skips in 595.655 s. Desktop smoke
+passes in 2.015 s with zero console/request/resource errors. These are local
+Windows results under the unchanged harness deadlines, not platform guarantees.
+
+The from-empty route cancels New without changing recovery or complete worker
+history, then chooses Part and explicitly confirms replacement of the initial
+dirty document. It supplies no input fixture. Actual pointer strokes draw four
+original rectangles on principal XY at offsets 0, 0, 10 and 10 mm. Existing
+controls set parameters for a 40-by-30-by-10 mm base, a 10-by-10 through-hole,
+an 8-by-8-by-3 merged boss and a separate 6-by-4-by-2 blind pocket. The merge
+uses its explicit preview command before Apply. Expected volumes are
+12000/11000/11192/11144 mm3 within 1e-5 mm3; planar mesh areas are
+3800/4000/4096/4136 mm2 within 1e-4 mm2. Bounds are [-20,-15,0] to [20,15,10]
+mm for the first two solids and [-20,-15,0] to [20,15,13] mm thereafter,
+within 1e-6 mm per coordinate. Each authored rectangle corner is checked against
+its literal coordinates with error strictly below 1e-9 mm. The recipe and
+derivations are in [provenance](PROVENANCE.md).
+
+Final-cut Undo retains its sketch; Redo restores all eight ordered features.
+Save As and reopen preserve the document identity, exact feature declarations,
+body target and saved bytes. The route observes a healthy explicit single body;
+area is measured from its planar mesh, not by an independent BRep-area reader.
+It does not cover circle drawing, material-face sketch support or STEP exchange.
+Parameter assignment and test-owned file-dialog substitution are distinguished
+from pointer drawing and actual keyboard dispatch.
+
+The assembly routes now exercise the shared Part/Assembly chooser, replacing
+the previous increment's limited New coverage. They retain draft/preview
+guards, cancel without replacement, create an empty part and then an empty
+standard assembly, and reopen the original. Standard additionally checks dirty
+Save-and-continue with exact saved declarations. Attempts 01–03 exposed test
+ordering around source readiness and the explicit merge-preview requirement;
+04 reached a parent-side saved-demo hash mismatch, and 05 exposed a configured
+identity lookup against the wrong document level. Corrected tests wait for the
+enabled field, request preview, verify the actual Save As file and read IDs from
+the configured source. No production guard, tolerance or deadline was relaxed.
+
+A separate actual Windows-window walkthrough verifies New chooser navigation
+with Tab, Shift+Tab and Enter, plus dirty assembly Save-and-continue preserving
+all document fields exactly. It also pointer-draws one 40-by-30 mm rectangle on
+XY at offset 0, extrudes it 10 mm and saves it. This manual single-operation
+check is separate from the automated four-operation route above. Ctrl+O and the
+actual native file dialog also reopen the exact automated saved demonstration.
+After rebuilding, the window shows Ready, one solid, all four solid-operation
+tree entries, the central through-hole, upper-right boss and lower-left shallow
+pocket. This is a bounded reopen/visual check; the four operations were not all
+manually authored, and it does not establish general interaction parity.
+
+Hosted results for the preceding public head `3f28d999` remain unresolved:
+[CI](https://github.com/angelcp2802/solidflow/actions/runs/40234044876) passed
+7/9 renderer batches and 3/3 configured-authoring jobs. Windows rigid reached
+its global child deadline at 170.002 s while a gear motion response remained
+pending. macOS standard keyboard failed its wait for actual inserted text;
+the retained evidence does not distinguish transport, selection or focus as
+the cause. The three dependent Desktop jobs failed their renderer gate before
+build/unit/smoke/package. [Security](https://github.com/angelcp2802/solidflow/actions/runs/40234044893)
+passed. Current local acceptance does not resolve those failures; hosted
+validation of the new head remains pending.
+
 ## Assembly keyboard commands — 2026-10-25
 
 Both assembly workspaces dispatch existing file, history and view commands from
