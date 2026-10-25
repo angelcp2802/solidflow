@@ -1,5 +1,71 @@
 # Validation
 
+## Saved standard ordinary-angle editing — 2026-10-25
+
+Saved ordinary angles now offer name/value editing through the existing native
+preview/Apply path. The current document contract accepts finite principal
+angles from 0 to 180 degrees. Type and ordered references are read-only; there
+is no alignment control for this family. Editing retains mate ID, suppression
+and parent-definition scope. Cancel retains fields for retry. Apply, history,
+document/session or scope changes end the editor. No CAD rule or schema changed.
+
+The original three-prism route now adds a third relation from Guía Z to fixed
+Base Z at 30 degrees, after the existing signed-distance and perpendicular
+relations. It renames the angle and previews 60 degrees, cancels, then separately
+previews/cancels the 0- and 180-degree boundaries. A fresh 60-degree retry applies;
+one Undo restores the complete 30-degree document and Redo the edited document.
+Save/reopen and fresh solve retain all three relations. Blank, -1 and 181 inputs
+disable preview while preserving complete worker observations, counters,
+recovery and history controls.
+
+Every new geometric phase checks the existing -12 mm distance and +X normal,
+perpendicularity, original prism volume/area and eight-vertex bounds. The angle
+oracle independently rotates literal Z vectors and uses
+`atan2(norm(cross(ZGuía,ZBase)), dot(ZGuía,ZBase))` against the literal requested
+30/60/0/180 degrees within 1e-6 radians. It does not prescribe a unique pose or
+zero remaining freedom. Both other mate declarations remain exact. Cancel
+checks committed recovery, history controls, retained fields and revoked Apply;
+it does not independently measure the restored displayed scene. Shared scope,
+suppressed intent and stale tickets have separate pure tests.
+
+Local Windows x64, Node 24.11.1 and Electron 44.9.3 acceptance 01 uses the same
+1,144 matching non-Markdown source/runtime inputs for every command:
+
+| Command | Result |
+| --- | --- |
+| `npm run build` | PASS, 4.596 s |
+| `npm run test:desktop:assembly-basic-authoring` | PASS, 402 checkpoints, 43.900 s |
+| `npm run test:desktop:assembly-origin-axes` | PASS, 248 checkpoints, 25.152 s |
+| `npm test` | PASS, 9,785 tests / 428 files; 91 IPC checks and 2 explicit skips; 560.040 s |
+| `npm run test:desktop` | PASS, 2.361 s |
+
+Renderers and smoke report zero console/request/resource errors. Renderer
+children close, isolated profiles are removed and presentation observers stop.
+Independent source and retained-result reviews found no blocking defect in the
+checked scope. Visible form assignment is scripted; button/origin actions use
+actual input transport in a hidden production renderer with scroll assistance.
+
+Predecessor `bc0ec99` has terminal
+[CI](https://github.com/angelcp2802/solidflow/actions/runs/40220843076) failure:
+7/9 renderer batches and all 3 configured-authoring jobs pass. Windows rigid
+persistence reaches its 170,001 ms global deadline after the second 720-degree
+movement, Apply and Undo; its Redo response wait had lasted 425 ms. Windows
+symmetry reaches 170,072 ms after naming the final axis-line edit; the annotation
+does not establish whether its next preview was sent. All three Desktop jobs
+fail the required-renderer gate. The separate
+[Security workflow](https://github.com/angelcp2802/solidflow/actions/runs/40220843072)
+passes. These observations do not establish deadlock, dominant cost or recurring
+stability. Detailed-log fetches failed with a closed transport; no rerun or
+deadline change was used. These are predecessor results, not current-head
+acceptance.
+
+Boundary Apply/persistence, material-face angular editing, nested/configured
+renderer editing and exhaustive transitions are not established by this route.
+The 0-to-180-degree domain is the current model contract, not an external parity
+claim. The earlier portable/manual evidence predates the editor. Current-head
+hosted checks, updated packaged-demo acceptance and the complete objective
+remain open; no general platform or release acceptance follows from this run.
+
 ## Saved standard distance editing — 2026-10-25
 
 The saved standard distance editor changes name, signed distance and alignment

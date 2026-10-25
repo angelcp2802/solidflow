@@ -145,9 +145,22 @@ module.exports = function basicAuthoringWorkflow(context) {
     if (owners.base && baselinePoses.base) check(canonical(occurrence(doc, owners.base).pose) === canonical(baselinePoses.base) && occurrence(doc, owners.base).fixed === baseFixed, 'Base retains its exact pose and explicitly expected fixed state');
     phases.push({ phase, solids: count, volume: scene.volume, area: scene.area, documentSha256: digest(canonical(doc)), mates: doc.mates.map(m => ({ id: m.id, name: m.name, type: m.type })) });
   }
-  function relationGeometry(doc, expectedDistance, expectedAlignment = 'aligned') {
+  function relationGeometry(doc, expectedDistance, expectedAlignment = 'aligned', expectedAngle = null) {
     const plane = doc.mates.find(m => m.type === 'distance'), direction = doc.mates.find(m => m.name.startsWith('Follower to base'));
-    check(doc.mates.length <= 2 && (doc.mates.length === 0 || !!plane) && (doc.mates.length < 2 || !!direction), 'All authored relations accounted for by independent oracles');
+    const angles = doc.mates.filter(m => m.type === 'angle');
+    check(doc.mates.length <= 3 && (doc.mates.length === 0 || !!plane) && (doc.mates.length < 2 || !!direction)
+      && doc.mates.length === Number(!!plane) + Number(!!direction) + angles.length
+      && angles.length === (expectedAngle === null ? 0 : 1), 'All authored relations accounted for by independent oracles');
+    if (expectedAngle !== null) {
+      const angle = angles[0];
+      check([0, 30, 60, 180].includes(expectedAngle) && angle.angle === expectedAngle
+        && canonical(angle.first) === canonical(ref('principal-axis', owners.guide, 'Z'))
+        && canonical(angle.second) === canonical(ref('principal-axis', owners.base, 'Z')), 'Exact ordered Guide to Base principal angle intent');
+      const a = rotate(occurrence(doc, owners.guide).pose.rotation, [0, 0, 1]);
+      const b = rotate(occurrence(doc, owners.base).pose.rotation, [0, 0, 1]);
+      near(Math.atan2(Math.hypot(...cross(a, b)), dot(a, b)), expectedAngle * Math.PI / 180, 1e-6,
+        'Independent principal angle from rotated literal Z axes');
+    }
     if (plane) {
       check((expectedDistance === -10 || expectedDistance === -12) && plane.name === (expectedDistance === -10 ? 'Guide to root' : 'Guide to root edited')
         && plane.type === 'distance' && plane.distance === expectedDistance && plane.alignment === expectedAlignment
@@ -353,17 +366,17 @@ module.exports = function basicAuthoringWorkflow(context) {
     checks.push({ assemblyViewportContextNavigation: { background, keyboard, point: target.point, counters: await observe.counters(), documentSha256: digest(canonical(doc)) } });
     await select(selectedId);
   }
-  async function preview(doc, selector, text, phase, mateCount = doc.mates.length, expectedDistance = -12, expectedAlignment = 'aligned') {
+  async function preview(doc, selector, text, phase, mateCount = doc.mates.length, expectedDistance = -12, expectedAlignment = 'aligned', expectedAngle = null) {
     const before = await serial(); await actual(selector, text); const event = await response(before, 'preview-assembly'), value = event.response.value;
     check(canonical(event.current) === canonical(doc) && value.status === 'ready' && value.hasToken && value.checks.every(c => c.satisfied && c.lengthResidual <= c.lengthTolerance && c.angleResidual <= c.angleTolerance), 'Exact committed baseline and independently verified private preview');
     check(value.document.mates.length === mateCount && value.checks.length === mateCount && value.scopes.length === 1
       && value.scopes[0].result.localDOF > 0 && !value.scopes[0].temporaryAnchor, 'Exactly the authored relations are verified with remaining freedom and no temporary anchor');
-    geometry(value.scene, value.document, 3, phase); relationGeometry(value.document, expectedDistance, expectedAlignment); await recovery(doc); return value;
+    geometry(value.scene, value.document, 3, phase); relationGeometry(value.document, expectedDistance, expectedAlignment, expectedAngle); await recovery(doc); return value;
   }
-  async function apply(candidate, phase, expectedCount = 3, expectedDistance = -12) {
+  async function apply(candidate, phase, expectedCount = 3, expectedDistance = -12, expectedAngle = null) {
     const before = await serial(); await actual(APPLY); const event = await response(before, 'apply-assembly'), actualDoc = event.response.value.document;
     check(event.hasToken && event.response.value.kind === 'assembly-applied' && canonical(withoutStamp(actualDoc)) === canonical(withoutStamp(candidate.document)), 'Apply consumes authority for exactly the verified proposal');
-    geometry(event.response.value.scene, actualDoc, expectedCount, phase); relationGeometry(actualDoc, expectedDistance); await recovery(actualDoc); return actualDoc;
+    geometry(event.response.value.scene, actualDoc, expectedCount, phase); relationGeometry(actualDoc, expectedDistance, 'aligned', expectedAngle); await recovery(actualDoc); return actualDoc;
   }
   async function editSavedDistance(doc) {
     const original = doc.mates.find(mate => mate.name === 'Guide to root');
@@ -433,6 +446,82 @@ module.exports = function basicAuthoringWorkflow(context) {
     checks.push({ savedDistanceEdit: { mateId: original.id, initialDistance: -10, editedDistance: -12, opposedPreviewCanceled: true,
       originalReferences: [original.first, original.second], initialEditor, invalidEditor,
       committedSha256: digest(canonical(committed)) } });
+    return committed;
+  }
+  async function editSavedAngle(doc) {
+    const original = doc.mates.find(mate => mate.type === 'angle');
+    check(doc.mates.length === 3 && original?.name === 'Guide to base angle' && original.angle === 30,
+      'Angle edit begins with three saved relations and the literal 30 degree intent');
+    await actual('button' + attr('aria-label', 'Editar ángulo Guide to base angle'));
+    const valueSelector = '[aria-label="Ángulo de relación"]', previewSelector = '[aria-label="Vista previa del ángulo editado"]';
+    const editorState = () => page(() => {
+      const one = selector => { const nodes = [...document.querySelectorAll(selector)]; if (nodes.length !== 1) throw Error('Exact angle editor control required: ' + selector); return nodes[0]; };
+      const first = one('[aria-label="Referencia 1 de la relación"]'), second = one('[aria-label="Referencia 2 de la relación"]');
+      if (!first.textContent.trim() || !second.textContent.trim()) throw Error('Angle editor requires both named saved references');
+      return { type: one('[aria-label="Tipo de relación"]').value, typeDisabled: one('[aria-label="Tipo de relación"]').disabled,
+        name: one('[aria-label="Nombre de la relación"]').value, angle: one('[aria-label="Ángulo de relación"]').value,
+        first: { text: first.textContent, disabled: first.disabled }, second: { text: second.textContent, disabled: second.disabled },
+        previewDisabled: one('[aria-label="Vista previa del ángulo editado"]').disabled,
+        finishVisible: one('[aria-label="Terminar edición de ángulo"]').checkVisibility({ visibilityProperty: true }),
+        newCreationCount: [...document.querySelectorAll('#assembly-panel-relations button')].filter(button => button.textContent.trim() === 'Vista previa de la nueva relación').length };
+    });
+    const initialEditor = await waitFor('saved angle editor locks original ordered references', async () => {
+      const state = await editorState();
+      return state.type === 'angle' && state.typeDisabled && state.name === original.name && state.angle === '30'
+        && state.first.disabled && state.second.disabled && state.finishVisible && state.newCreationCount === 0 ? state : false;
+    });
+    const snapshot = async () => ({ ui: await uiState(), observation: await observe(), counters: await observe.counters() });
+    const summarize = state => ({ counters: state.counters, observationSha256: digest(canonical(state.observation)),
+      recoverySha256: digest(state.ui.recovery), undo: state.ui.undo, redo: state.ui.redo });
+    for (const input of ['', '-1', '181']) {
+      const before = await snapshot(); await control(valueSelector, input);
+      const editor = await waitFor('invalid angle cannot preview: ' + JSON.stringify(input), async () => {
+        const state = await editorState(); return state.angle === input && state.previewDisabled ? state : false;
+      });
+      const after = await snapshot();
+      checks.push({ rejectedAngleEdit: { input, editor, before: summarize(before), after: summarize(after) } });
+      check(canonical(after) === canonical(before), 'Rejected angle preserves full worker observations, counters, recovery and history');
+    }
+    await control(NAME, 'Guide to base angle edited'); await control(valueSelector, '60');
+    const beforePreview = await uiState();
+    const verifyIntent = (candidate, angle) => {
+      const expected = { ...structuredClone(original), name: 'Guide to base angle edited', angle };
+      check(canonical(candidate.document.mates) === canonical(doc.mates.map(mate => mate.id === original.id ? expected : mate)),
+        'Angle edit preserves ID, ordered endpoints, suppression and both other relations exactly');
+      check(canonical(candidate.document.definitions) === canonical(doc.definitions), 'Angle edit preserves definitions and root scope');
+    };
+    const cancel = async value => {
+      const before = await serial(); await actual(CANCEL); await response(before, 'discard-assembly'); await recovery(doc);
+      const restored = await uiState();
+      check(restored.recovery === beforePreview.recovery && restored.undo === beforePreview.undo && restored.redo === beforePreview.redo,
+        'Angle Cancel restores exact committed recovery and history availability');
+      await waitFor('angle Cancel retains intent and revokes Apply', async () => {
+        const state = await editorState();
+        return state.type === 'angle' && state.typeDisabled && state.name === 'Guide to base angle edited' && state.angle === String(value)
+          && canonical(state.first) === canonical(initialEditor.first) && canonical(state.second) === canonical(initialEditor.second)
+          && !state.previewDisabled && state.finishVisible && state.newCreationCount === 0
+          && await page(selector => document.querySelector(selector)?.disabled === true, APPLY);
+      });
+      relationGeometry(JSON.parse(restored.recovery), -12, 'aligned', 30);
+    };
+    let first;
+    for (const angle of [60, 0, 180]) {
+      await control(valueSelector, String(angle));
+      const candidate = await preview(doc, previewSelector, null, 'angle-edit-preview-' + angle, 3, -12, 'aligned', angle);
+      verifyIntent(candidate, angle); if (angle === 60) first = candidate;
+      await cancel(angle);
+    }
+    await control(valueSelector, '60');
+    const retry = await preview(doc, previewSelector, null, 'angle-edit-retry', 3, -12, 'aligned', 60);
+    verifyIntent(retry, 60); check(canonical(retry.document.mates) === canonical(first.document.mates), 'Angle retry retains original edited intent');
+    const committed = await apply(retry, 'angle-edit-apply', 3, -12, 60);
+    for (const [label, wanted, angle] of [['Deshacer ensamblaje', doc, 30], ['Rehacer ensamblaje', committed, 60]]) {
+      const before = await serial(); await actual('button' + attr('aria-label', label)); const restored = await built(before, 3, 'angle-edit-' + label);
+      check(canonical(restored) === canonical(wanted), 'One angle edit history step restores the whole authored document');
+      relationGeometry(restored, -12, 'aligned', angle);
+    }
+    checks.push({ savedAngleEdit: { mateId: original.id, initialAngle: 30, editedAngle: 60, boundaryPreviewsCanceled: [0, 180],
+      originalReferences: [original.first, original.second], initialEditor, committedSha256: digest(canonical(committed)) } });
     return committed;
   }
   async function move(doc, id, x, expectedCount) {
@@ -651,6 +740,15 @@ module.exports = function basicAuthoringWorkflow(context) {
       before = await serial(); await actual('button' + attr('aria-label', label)); const restored = await built(before, 3, label);
       check(canonical(restored) === canonical(wanted), 'One history step restores complete authored assembly'); relationGeometry(restored, -12);
     }
+    await control(TYPE, 'angle'); await control(NAME, 'Guide to base angle'); await control('[aria-label="Ángulo de relación"]', '30');
+    await origin(1, 'principal-axis', owners.guide, 'Z'); await origin(2, 'principal-axis', owners.base, 'Z');
+    const beforeAngle = current;
+    candidate = await preview(current, '#assembly-panel-relations button', 'Vista previa de la nueva relación', 'principal-angle-preview', 3, -12, 'aligned', 30);
+    check(canonical(candidate.document.mates.slice(0, 2)) === canonical(beforeAngle.mates)
+      && candidate.document.mates[2].name === 'Guide to base angle'
+      && !beforeAngle.mates.some(mate => mate.id === candidate.document.mates[2].id), 'Third relation adds one new angle ID while preserving both saved relations');
+    current = await apply(candidate, 'principal-angle-apply', 3, -12, 30);
+    current = await editSavedAngle(current);
     await select(owners.follower); await actual('[aria-label="Propiedades del componente seleccionado"]');
     await actual('[aria-label="Nombre del componente"]'); before = await serial();
     await control('[aria-label="Nombre del componente"]', 'Seguidor guardado');
@@ -659,7 +757,7 @@ module.exports = function basicAuthoringWorkflow(context) {
     // Reuse the workflow's one Save As: no Tab or blur/rebuild wait before click.
     await button('Guardar como');
     current = await builtNameAction(before, current, owners.follower, { name: 'Seguidor guardado' }, 3, 'rename-and-save-follower');
-    relationGeometry(current, -12);
+    relationGeometry(current, -12, 'aligned', 60);
     await waitFor('actual saved complete authored assembly', async () => { try { return ipc.filter(x => x.channel === 'document:save' && x.completed).length === 1 && canonical(JSON.parse(await fs.readFile(output, 'utf8'))) === canonical(current); } catch (e) { if (e.code === 'ENOENT') return false; throw e; } });
     // Main-process file completion precedes save()'s renderer setSaved/finally.
     // Observe that commit before invoking the next guarded file action.
@@ -672,8 +770,8 @@ module.exports = function basicAuthoringWorkflow(context) {
         && document.querySelector('.assembly-shell-file')?.textContent === filename;
     }, current.name, output.split(/[\\/]/).pop()));
     const saved = await fs.readFile(output); before = await serial(); await button('Abrir'); const reopened = await built(before, 3, 'saved-reopen');
-    check(canonical(reopened) === canonical(current), 'Save/reopen preserves created root, imported definition, three occurrences and both relations'); relationGeometry(reopened, -12);
-    candidate = await preview(current, '[aria-label="Resolver ensamblaje"]', null, 'reopened-solve');
+    check(canonical(reopened) === canonical(current), 'Save/reopen preserves created root, imported definition, three occurrences and all three relations'); relationGeometry(reopened, -12, 'aligned', 60);
+    candidate = await preview(current, '[aria-label="Resolver ensamblaje"]', null, 'reopened-solve', 3, -12, 'aligned', 60);
     check(canonical(candidate.document.mates) === canonical(current.mates), 'Fresh solve preserves saved declarations');
     before = await serial(); await actual(CANCEL); await response(before, 'discard-assembly'); await recovery(current);
     await waitFor('final committed renderer and complete worker responses', async () => {

@@ -1,5 +1,33 @@
 # Development guide
 
+## Saved ordinary angle editing — 2026-10-25
+
+The standard relation list offers **Editar ángulo** for a saved ordinary
+angle. Name and **Ángulo de relación** remain editable; Type and the two
+ordered geometry references are read-only. There is no alignment control.
+The current model uses the principal domain 0–180 degrees, including both
+endpoints. Blank, nonfinite or out-of-range input cannot submit an edited
+preview. This domain describes this application's model, not interaction or
+angle-convention parity with another application.
+
+**Vista previa del ángulo editado** updates the existing relation without
+changing its ID, ordered references, suppression or parent scope. Finish any
+other reference editor first. Cancel revokes the preview while retaining name
+and angle for retry; **Terminar edición de ángulo** leaves without committing.
+Apply, Undo/Redo, document replacement and scope changes clear the edit.
+Document/scope/session tickets reject stale editors, including byte-identical
+reopening; preview generation changes alone do not discard the fields.
+New relation creation and reference picking remain blocked during editing.
+The existing solver, preview freshness, history and file paths are unchanged.
+
+The original authoring route adds Guía Z first and Base Z second at 30 degrees,
+then edits the name and angle to 60. It previews and cancels 60, 0 and 180,
+retries 60 and applies, then checks Undo to 30 and Redo to 60 before saving and
+reopening all three relations. Cancel checks recovery, history controls,
+retained fields and revoked Apply; it does not independently measure the
+restored displayed scene. Existing portable/manual checks predate this editor.
+See [validation](VALIDATION.md) for executed snapshots and bounded results.
+
 ## Saved standard distance editing — 2026-10-25
 
 The standard relation list offers **Editar distancia** for a saved signed

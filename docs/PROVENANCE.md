@@ -23,6 +23,14 @@ while retaining its ID and ordered references. The opposed preview checks a
 negative X normal; both orientations use the same signed-distance formula.
 The original prism and geometric tolerances are unchanged. Seguidor Z and Base Z
 first use parallel alignment; the relation is then edited to perpendicular.
+The later ordinary-angle route adds Guía Z then Base Z as a third relation at
+30 degrees, edits it to 60 degrees and separately previews/cancels 0 and 180
+degrees. The distance retains Guía's +X normal, leaving rotation about X
+compatible with all four angular cases. Its independent principal-angle oracle
+uses `atan2(norm(cross(ZGuía,ZBase)), dot(ZGuía,ZBase))` against literal requested
+angles with tolerance 1e-6 radians. No complete rotation or free-position choice
+is prescribed. The final saved route retains the edited 60-degree relation and
+both preceding relations; endpoint previews do not establish endpoint persistence.
 
 Checks use absolute V/A tolerance 1e-5 in corresponding units. Bounds
 come from transforming the eight literal original vertices by each current

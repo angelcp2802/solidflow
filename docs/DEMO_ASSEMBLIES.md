@@ -56,11 +56,25 @@ before starting an empty standard assembly.
    and revoked Apply; it does not measure the restored displayed scene.
 6. Relate Seguidor's Z axis parallel and aligned to Base's Z axis. Edit that
    relation to perpendicular, preview, Cancel and inspect the retained committed
-   relation. Retry and Apply, then exercise Undo/Redo. In Properties rename
+   relation. Retry and Apply, then exercise Undo/Redo. The relation leaves
+   freedom in Seguidor, so a unique complete solved pose is not the expected result.
+7. Create an ordinary **Ángulo** relation using Guía Z as Reference 1 and
+   Base Z as Reference 2. Set 30 degrees, preview and Apply. Choose
+   **Editar ángulo** for the saved relation, change its name and set 60 degrees.
+   Type and the ordered references remain read-only; this angle has no
+   Orientation field. Use **Vista previa del ángulo editado**, then Cancel.
+   Preview 0 and 180 degrees separately and Cancel each; restore 60, retry and
+   Apply. Undo restores the saved 30-degree relation; Redo returns to the renamed
+   60-degree relation. **Terminar edición de ángulo** leaves without applying.
+   The current model accepts finite values from 0 to 180 degrees; this is not a
+   claim of another application's angle conventions. Cancel retains the editor
+   and committed recovery/history state and revokes Apply; the route does not
+   independently measure the restored displayed scene.
+8. In Properties rename
    Seguidor to **Seguidor guardado** and click **Guardar como** directly; reopen
-   the saved file and verify that name and the renamed -12 mm distance. Solve
-   freshly after reopening and Cancel. The relation leaves freedom in Seguidor,
-   so a unique complete solved pose is not the expected result.
+   the saved file and verify that name and all three relations: renamed -12 mm
+   distance, perpendicular relation and renamed 60-degree angle. Solve freshly
+   after reopening and Cancel.
 
 The original prism has volume 24 mm³ and area 52 mm²; three occurrences total
 72 mm³ and 156 mm² of per-solid area. The original recipe is
@@ -75,8 +89,8 @@ Another bounded manual check of the earlier `333c09b` portable opens the saved
 three-piece assembly, renames Base and toggles Fixed with one click, restores
 Fixed, then renames and uses one Save As click. Native reopening retains the
 name, three solids and 72 mm³; document comparison retains both relations,
-poses, definitions and fixed state. That package predates both the rejection
-fix and saved-distance editing; it does not validate either feature.
+poses, definitions and fixed state. That package predates the rejection fix
+and saved-distance/ordinary-angle editing; it does not validate those features.
 Automated form assignment is scripted on visible controls, with actual pointer
 actions and Tab blur for other names; the two direct name/action checks use
 neither Tab nor an intervening rebuild wait. Later controls may use scroll
