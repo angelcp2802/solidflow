@@ -129,7 +129,7 @@ module.exports = async function movementWorkflow(context) {
     'Rejected movement changed saved or committed recovery bytes.'); record('movement/rejected-lateral', rejected);
   check(dialogCounts().opens === 6 && dialogCounts().saves === 1 && ipc.filter(value => value.channel === 'document:save').length === 3
     && ipc.every(value => value.completed), 'Unexpected movement native file sequence.');
-  const observation = await observe(); check(!consoleErrors.length && !failedRequests.length && !observation.workerErrors.length, 'Movement renderer/worker failure.');
+  const observation = await observe.counters(); check(!consoleErrors.length && !failedRequests.length && !observation.workerErrorCount, 'Movement renderer/worker failure.');
   checks.push({ movementInputSha256: digest(bytes), movedSavedSha256: digest(movedBytes), movedDocument: moved, phases,
     independentOracles: 'q*Z90 explicit Hamilton product; eccentric-bore world point is prior local-Y basis plus translation; original R2.5 pin formulas V297pi/4,A627pi/8, totals V4800+153pi/2,A2960+675pi/4; V/A1e-5,local/world/bounds1e-6,orientationDot1e-8; lateralX11 incompatible with fixed plate concentric axis',
     evidenceLimits: 'Scripted numeric target controls, actual native worker reply DTOs/supports and secure Apply/Undo/Redo/Save/reopen only; temporary solve anchor not saved. No injected geometry/poses/results, UI BRep/probes, real pointer drag, path projection, continuous collision stopping, installed package or general platform claim.' });

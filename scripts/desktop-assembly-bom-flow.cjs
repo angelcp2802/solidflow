@@ -135,14 +135,14 @@ module.exports = async function bomWorkflow(context) {
   }));
   phases.push({ phase: 'bom/ribbon-change-close-focus', tab: 'evaluate', focusedControl: 'Lista de materiales' });
   await click('button[aria-label="Lista de materiales"]'); await waitFor('BOM drawer reopens', () => page(selector => !!document.querySelector(selector), REGION));
-  const final = await observe();
+  const final = await observe.counters();
   check(final.serial === start.serial && await page(() => localStorage.getItem('solidflow.autosave')) === recovery && (await fsp.readFile(bomPath)).equals(original),
     'BOM/filter/selection/export changed CAD requests, committed recovery or the source file.');
   check(await page(() => document.querySelector('button[aria-label="Deshacer ensamblaje"]')?.disabled === true
     && document.querySelector('button[aria-label="Aplicar ensamblaje"]')?.disabled === true), 'BOM created a history transaction or Apply capability.');
   check(dialogCounts().opens === 13 && dialogCounts().saves === 3 && dialogCounts().csvExports === 4
     && ipc.filter(value => value.channel === 'document:save').length === 6 && ipc.every(value => value.completed), 'Unexpected BOM native file sequence.');
-  check(!consoleErrors.length && !failedRequests.length && !final.workerErrors.length, 'BOM renderer/worker failure.');
+  check(!consoleErrors.length && !failedRequests.length && !final.workerErrorCount, 'BOM renderer/worker failure.');
   await button('Frontal', '.assembly-view-tools'); await capture(bomFixture);
   checks.push({ bomInputSha256: digest(original), phases, geometry: { volume: opened.response.value.volume, area: opened.response.value.area, solids: opened.response.value.solidCount },
     independentOracles: 'Two active G, one hidden; each2P(r1)+Q; third G suppressed, rootP(r2), unused source. FlatP1=4/Q2/P2=1; visible2/1/1; top-visibleG1/P2=1; indentedG2,P local2/total4,Q1/2,P2=1. Real nativeV368/A560/7solids/3prototypes; 3 exact UTF8BOM+RFC4180+textmarker CSV files and one native cancellation; unchanged document/history/recovery/noCADrequests.',

@@ -596,8 +596,9 @@ function installWorkerObserver(importedBodyDetails = false, structuralStep = fal
     },
     assemblyResponseAfter: (serial, action) => {
       const matching = observations.assemblies.filter(value => value.serial > serial && value.action === action);
+      const completed = matching.filter(value => value.response);
       return copy({ serial: observations.serial, assemblyCount: observations.assemblies.length, workerErrors: observations.workerErrors,
-        record: matching.filter(value => value.response).at(-1) ?? null,
+        record: completed.at(-1) ?? null, completedCount: completed.length,
         matching: matching.slice(-10).map(value => ({ serial: value.serial, hasResponse: !!value.response, ok: value.response?.ok ?? null })) });
     },
   }), configurable: false });
@@ -848,6 +849,7 @@ async function runInElectron() {
     presentation.captureBarriers++;
   }
   const childBudgetStarted = performance.now();
+  const workflowTiming = assembly ? require('./desktop-workflow-timing.cjs').createWorkflowTiming() : null;
   const timeout = setTimeout(() => {
     // Snapshot existing counters before finish stops presentation; no renderer
     // request or evidence-object serialization may delay deadline teardown.
@@ -873,15 +875,25 @@ async function runInElectron() {
         observedSerial: number(own(response, 'observedSerial')), reportedElapsedMs: number(own(response, 'elapsedMs')),
         lastReadMs: number(own(response, 'lastReadMs')), workerErrorCount: number(own(response, 'workerErrorCount')) } } : {}),
     };
+    const timing = workflowTiming?.snapshot();
+    const compactTiming = timing ? {
+      phase: timing.currentPhase,
+      // Fixed names and rounded scalar tuples keep the primary annotation small.
+      // Phase [name, ms, status]; category [name, calls, ms, active, pendingMs].
+      phases: Object.entries(timing.phases).map(([name, value]) => [name, Math.round(value.durationMs), value.status]),
+      categories: Object.entries(timing.categories).map(([name, value]) => [name, value.count, Math.round(value.totalMs), value.activeCount, Math.round(value.pendingMs)]),
+    } : null;
     finish(new Error('The isolated UI workflow did not finish before its child deadline.'
       + ` elapsedMs=${Math.round(performance.now() - childBudgetStarted)}; checks=${checks.length};`
       + ` frames=${presentation.frames}; captureBarriers=${presentation.captureBarriers};`
       + ` presentationActive=${presentation.active}; pendingPresentations=${presentationWaiters.size};`
+      + (compactTiming ? ` timing=${JSON.stringify(compactTiming)};` : '')
       + (Object.keys(progress).length ? ` progress=${JSON.stringify(progress)};` : '')
       + ` lastCompletedWait=${JSON.stringify(lastCompletedWait === undefined ? 'none' : lastCompletedWait.slice(0, 200))}`));
   }, TEST_MS - 10_000);
   function finish(error) {
     if (finished) return;
+    const timingSnapshot = workflowTiming?.snapshot();
     if (!error && saveCompletion.enabled && (!saveCompletion.armed || saveCompletion.pending
       || saveCompletion.releasedBy !== 'saved-controls-fence' || saveCompletion.observation?.ipcReturnReleased !== true)) {
       error = new Error('The selected real Save did not complete its pending-return acceptance.');
@@ -899,6 +911,7 @@ async function runInElectron() {
     settlePresentationWaiters(error || new Error('Workflow ended before the requested presentation.'));
     if (error) emitDesktopCiFailure(error);
     const report = { workflowStatus: error ? 'FAIL' : 'PASS', checks, protocolResponses, consoleErrors, failedRequests, captures,
+      ...(timingSnapshot ? { workflowTiming: timingSnapshot } : {}),
       ...(partRevolution ? { profileCaptures } : {}),
       dialogSubstitutions: { opens, saves, csvExports, ...(linkedSource || sourceRevision ? { sourceOpens } : {}), ...(partFinishing || partRevolution || assemblyExport || structuralStep || structuralInsertion ? { geometryExports } : {}), ...(structuralStep || structuralInsertion ? { stepImports } : {}) }, ipc,
       ...(saveCompletion.enabled ? { saveCompletion: { ordinal: saveCompletion.ordinal, armed: saveCompletion.armed, releasedBy: saveCompletion.releasedBy, samples: saveCompletion.samples } } : {}),
@@ -919,14 +932,17 @@ async function runInElectron() {
     app.quit();
   }
   const evaluate = async source => {
-    // Capture the request's initial state: clicking Save itself must not consume
-    // a gate that its subsequent IPC call will create.
-    const pendingAtStart = saveCompletion.enabled && saveCompletion.armed && !saveCompletion.releasedBy;
-    if (pendingAtStart) {
-      await saveCompletion.nativeReady;
-      if (saveCompletion.pending && !saveCompletion.samples.some(s => s.phase === 'before-next-evaluation')) await samplePendingSave('before-next-evaluation');
-    }
-    return window.webContents.executeJavaScript(source, false);
+    const endTiming = workflowTiming?.begin('evaluate');
+    try {
+      // Capture the request's initial state: clicking Save itself must not consume
+      // a gate that its subsequent IPC call will create.
+      const pendingAtStart = saveCompletion.enabled && saveCompletion.armed && !saveCompletion.releasedBy;
+      if (pendingAtStart) {
+        await saveCompletion.nativeReady;
+        if (saveCompletion.pending && !saveCompletion.samples.some(s => s.phase === 'before-next-evaluation')) await samplePendingSave('before-next-evaluation');
+      }
+      return await window.webContents.executeJavaScript(source, false);
+    } finally { endTiming?.(); }
   };
   const pointer = async (type, point, buttons = 0, clickCount = 1) => {
     check((basicAuthoring || partBodyCatalog || partFinishing || partRevolution || partSequence || originAxes || freshSketch || configuredPicking || assembly || activeScenario === SCENARIOS['assembly-configurations'] || rackPinion || direction || tangent || cylinderTangent || sphereTangent || limitDistance || limitAngle || directedAngle || width || symmetry || symmetryPicking || hingePicking || hingeLimitsPicking) && !window.isVisible() && window.webContents.debugger.isAttached()
@@ -935,10 +951,11 @@ async function runInElectron() {
       && ([0, 1].includes(buttons) || (partSequence || basicAuthoring) && buttons === 2)
       && (clickCount === 1 || clickCount === 2 && (partRevolution || partSequence || partBodyCatalog)
         && ['mousePressed', 'mouseReleased'].includes(type) && buttons !== 2), 'Expected actual pointer input in the hidden test-owned CAD window.');
-    await window.webContents.debugger.sendCommand('Input.dispatchMouseEvent', {
+    const endTiming = workflowTiming?.begin('pointer');
+    try { await window.webContents.debugger.sendCommand('Input.dispatchMouseEvent', {
       type, x: point.x, y: point.y, button: buttons === 2 ? 'right' : type === 'mouseMoved' && !buttons ? 'none' : 'left', buttons: type === 'mouseReleased' ? 0 : buttons,
       clickCount: type === 'mouseMoved' ? 0 : clickCount, pointerType: 'mouse',
-    });
+    }); } finally { endTiming?.(); }
   };
   const wheel = async (point, deltaY) => {
     check((limitDistance || freshSketch) && !window.isVisible() && window.webContents.debugger.isAttached()
@@ -1040,13 +1057,13 @@ async function runInElectron() {
     check(typeof action === 'string', 'Idle response projection audit requires a recorded assembly action.');
     const matching = full.assemblies.filter(value => value.serial > 0 && value.action === action);
     const expectedResponse = { serial: full.serial, assemblyCount: full.assemblies.length, workerErrors: full.workerErrors,
-      record: matching.filter(value => value.response).at(-1) ?? null,
+      record: matching.filter(value => value.response).at(-1) ?? null, completedCount: matching.filter(value => value.response).length,
       matching: matching.slice(-10).map(value => ({ serial: value.serial, hasResponse: !!value.response, ok: value.response?.ok ?? null })) };
     const responseStarted = performance.now(), projected = await observe.assemblyResponseAfter(0, action), responseReadMs = performance.now() - responseStarted;
     const responseParity = canonical(projected) === canonical(expectedResponse);
     const boundaryStarted = performance.now(), boundary = await observe.assemblyResponseAfter(full.serial, action), boundaryReadMs = performance.now() - boundaryStarted;
     const boundaryParity = canonical(boundary) === canonical({ serial: full.serial, assemblyCount: full.assemblies.length,
-      workerErrors: full.workerErrors, record: null, matching: [] });
+      workerErrors: full.workerErrors, record: null, completedCount: 0, matching: [] });
     const sizeStarted = performance.now(), fullSnapshotBytes = Buffer.byteLength(JSON.stringify(full)), counterBytes = Buffer.byteLength(JSON.stringify(counters)), responseBytes = Buffer.byteLength(JSON.stringify(projected)), boundaryBytes = Buffer.byteLength(JSON.stringify(boundary));
     checks.push({ assemblyObserverCountersAudit: { label, parity, expected, counters, fullReadMs, counterReadMs, fullSnapshotBytes, counterBytes,
       sizeMeasurementMs: performance.now() - sizeStarted,
@@ -1063,9 +1080,11 @@ async function runInElectron() {
   async function waitFor(description, inspect, budget = STEP_MS) {
     const started = Date.now(); let last;
     while (Date.now() - started < budget) {
-      last = await inspect();
+      const endInspect = workflowTiming?.begin('waitInspect');
+      try { last = await inspect(); } finally { endInspect?.(); }
       if (last) { checks.push(description); return last; }
-      await new Promise(resolve => setTimeout(resolve, 100));
+      const endSleep = workflowTiming?.begin('waitSleep');
+      try { await new Promise(resolve => setTimeout(resolve, 100)); } finally { endSleep?.(); }
     }
     throw new Error(`Timed out waiting for ${description}; last observation=${JSON.stringify(last)}.`);
   }
@@ -1370,7 +1389,7 @@ async function runInElectron() {
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : assembly
-    ? require('./desktop-assembly-flow.cjs')({ expected, input, output, projectionOutput, partUpdatePath, updatedPart, interferencePath, interferenceFixture, translationPath, translationFixture, translationOutput, bomPath, bomFixture, bomCsvOutputs, gearOutput, evaluate, observe, waitFor, click, capture, pointer, menuKey,
+    ? require('./desktop-assembly-flow.cjs')({ expected, input, output, projectionOutput, partUpdatePath, updatedPart, interferencePath, interferenceFixture, translationPath, translationFixture, translationOutput, bomPath, bomFixture, bomCsvOutputs, gearOutput, evaluate, observe, waitFor, click, capture, pointer, menuKey, workflowTiming,
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : untilNext

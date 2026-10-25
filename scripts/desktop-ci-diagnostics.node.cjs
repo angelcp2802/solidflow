@@ -84,12 +84,13 @@ test('same primary is annotated once, with no PASS representation or error mutat
   assert.deepEqual(Object.getOwnPropertyDescriptors(original), before);
 });
 
-function exerciseChildDeadline(checks) {
+function exerciseChildDeadline(checks, { timing = null } = {}) {
   const source = fs.readFileSync(path.join(__dirname, 'desktop-pattern-ui.cjs'), 'utf8');
   const start = source.indexOf('  const childBudgetStarted ='), end = source.indexOf('  function finish(error) {', start);
   assert.ok(start > 0 && end > start);
   let callback, delay, failure, now = 100;
-  const context = vm.createContext({ checks, TEST_MS: 180_000, performance: { now: () => now },
+  const context = vm.createContext({ checks, TEST_MS: 180_000, performance: { now: () => now }, assembly: !!timing,
+    require(name) { assert.equal(name, './desktop-workflow-timing.cjs'); return { createWorkflowTiming: () => timing }; },
     presentation: { active: true, frames: 123, captureBarriers: 2 }, presentationWaiters: new Set([1, 2, 3]),
     setTimeout(fn, milliseconds) { callback = fn; delay = milliseconds; }, finish(error) { failure = error; } });
   vm.runInContext(source.slice(start, end), context);
@@ -165,8 +166,65 @@ test('actual child deadline progress rejects invalid scalars, bounds strings and
   assert.doesNotMatch(exerciseChildDeadline([{ moveTimings: [] }, { assemblyResponseProgress: null }]).message, / progress=/);
 });
 
+test('actual deadline retains pending timing and scalar-only phase evidence without renderer reads', () => {
+  const { createWorkflowTiming } = require('./desktop-workflow-timing.cjs');
+  let now = 0, forbiddenCalls = 0;
+  const timing = createWorkflowTiming(() => now);
+  timing.enterPhase('authoring');
+  const completed = timing.begin('pointer'); now = 12; completed();
+  timing.enterPhase('gear');
+  const pendingInspect = timing.begin('waitInspect'), pendingEvaluate = timing.begin('evaluate');
+  now = 137;
+  const payload = Object.defineProperties({}, {
+    document: { get() { forbiddenCalls++; throw Error('No renderer/document inspection'); } },
+    toJSON: { value() { forbiddenCalls++; throw Error('No arbitrary evidence serialization'); } },
+  });
+  const error = exerciseChildDeadline(['last real checkpoint', payload], { timing });
+  const compact = JSON.parse(error.message.split(' timing=')[1].split(';')[0]);
+  assert.equal(compact.phase, 'gear');
+  assert.deepEqual(compact.categories.find(row => row[0] === 'evaluate'), ['evaluate', 1, 125, 1, 125]);
+  assert.deepEqual(compact.categories.find(row => row[0] === 'waitInspect'), ['waitInspect', 1, 125, 1, 125]);
+  assert.deepEqual(compact.categories.find(row => row[0] === 'pointer'), ['pointer', 1, 12, 0, 0]);
+  assert.equal(compact.phases.find(row => row[0] === 'gear')[1], 125);
+  assert.equal(forbiddenCalls, 0);
+  assert.ok(error.message.length < 2048, 'Primary message must not truncate before its pending operation');
+  const annotation = emit(error).lines[0];
+  assert.ok(Buffer.byteLength(annotation) <= 4096);
+  assert.match(annotation, /lastCompletedWait="last real checkpoint"/);
+  assert.doesNotMatch(annotation, /document|toJSON|undefined|NaN/);
+  const retained = error.message;
+  now = 500; pendingEvaluate(); pendingInspect(); timing.completePhase();
+  assert.equal(error.message, retained, 'Late completion must not rewrite the captured deadline');
+});
+
+test('actual deadline keeps every timing phase and existing progress within the primary-message limit', () => {
+  const { createWorkflowTiming } = require('./desktop-workflow-timing.cjs');
+  let now = 0;
+  const timing = createWorkflowTiming(() => now);
+  for (const phase of ['authoring', 'source', 'movement', 'drag', 'projection', 'interference', 'translation', 'bom', 'gear']) {
+    timing.enterPhase(phase); now += 10_000;
+  }
+  for (const category of ['evaluate', 'pointer', 'waitInspect', 'waitSleep', 'assemblyResponse']) {
+    const end = timing.begin(category); now += 1000; end(); timing.begin(category);
+  }
+  now = 170_000;
+  const error = exerciseChildDeadline([
+    { moveTimings: [{ name: 'x'.repeat(80), status: 'completed', elapsedMs: 12905, latestCounterSerial: 125, eventSerial: 126,
+      steps: [{ name: 'x'.repeat(80), status: 'completed', durationMs: 99999 }] }] },
+    { assemblyResponseProgress: { status: 'waiting-response', action: 'move-assembly-component-motion', afterSerial: 128,
+      polls: 99, observedSerial: 129, elapsedMs: 99999, lastReadMs: 999, workerErrorCount: 0 } },
+    'w'.repeat(200),
+  ], { timing });
+  assert.ok(error.message.length < 2048, 'All normal timing/progress fields must survive the formatter primary-message cap: ' + error.message.length);
+  const annotation = emit(error).lines[0];
+  assert.ok(Buffer.byteLength(annotation) <= 4096);
+  assert.match(annotation, /"assemblyResponse"/);
+  assert.match(annotation, /"afterSerial":128/);
+  assert.ok(annotation.includes('lastCompletedWait="' + 'w'.repeat(200) + '"'));
+});
+
 function exerciseChildFinish({ primary = new Error('Original child coordinate assertion'), active = true, frames = 1,
-  cleanupError = null, withWindow = true } = {}) {
+  cleanupError = null, withWindow = true, timing = null, duringCleanup = () => {} } = {}) {
   const source = fs.readFileSync(path.join(__dirname, 'desktop-pattern-ui.cjs'), 'utf8');
   const start = source.indexOf('  function finish(error) {'), end = source.indexOf('  const evaluate =', start);
   const settleStart = source.indexOf('  function settlePresentationWaiters(error) {');
@@ -177,13 +235,13 @@ function exerciseChildFinish({ primary = new Error('Original child coordinate as
     resolve() { throw Error('Failure must reject pending presentation'); },
     reject(error) { rejected.push(error); events.push(['presentation-reject', id]); },
   })) : []);
-  const context = vm.createContext({ finished: false, timeout: 'child-deadline', clearTimeout(id) { clearedTimers.push(id); },
+  const context = vm.createContext({ finished: false, workflowTiming: timing, timeout: 'child-deadline', clearTimeout(id) { clearedTimers.push(id); },
     checks: [], protocolResponses: [], consoleErrors: [], failedRequests: [], captures: [], ipc: [],
     opens: 0, saves: 0, csvExports: 0, geometryExports: 0, sourceOpens: 0, stepImports: 0,
     linkedSource: false, sourceRevision: false, partFinishing: false, partRevolution: false, assemblyExport: false, structuralStep: false, structuralInsertion: false,
     presentation: { active, stopped: false, frames, captureBarriers: 0 }, presentationWaiters,
     window: withWindow ? { isVisible: () => false, webContents: { isDestroyed: () => false,
-      endFrameSubscription() { events.push(['presentation-end']); if (cleanupError) throw cleanupError; } } } : undefined,
+      endFrameSubscription() { events.push(['presentation-end']); duringCleanup(); if (cleanupError) throw cleanupError; } } } : undefined,
     check(condition, message) { if (!condition) throw Error(message); },
     saveCompletion: { enabled: !!primary, ordinal: 1, armed: true, pending: !!primary, samples: [] },
     releaseSaveCompletion(by) { context.saveCompletion.pending=false;context.saveCompletion.releasedBy=by;events.push(['release',by]); },
@@ -242,4 +300,34 @@ test('failed presentation invariant still tears down the active subscription and
   assert.equal(rejected.length, 2); assert.ok(rejected.every(error => error.message === writes[0].error.message));
   assert.equal(context.presentationWaiters.size, 0);
   assert.equal(context.presentation.active, false); assert.equal(context.presentation.stopped, true);
+});
+
+test('actual finish retains a detached partial timing snapshot through cleanup and late completion', () => {
+  const { createWorkflowTiming } = require('./desktop-workflow-timing.cjs');
+  let now = 0;
+  const timing = createWorkflowTiming(() => now);
+  timing.enterPhase('authoring'); now = 40; timing.enterPhase('gear');
+  const endResponse = timing.begin('assemblyResponse'), endEvaluate = timing.begin('evaluate');
+  now = 65;
+  const original = new Error('Original native preview deadline');
+  const beforeFinish = timing.snapshot();
+  const { writes, rejected, events } = exerciseChildFinish({ primary: original, timing,
+    duringCleanup() { now = 90; endEvaluate(); } });
+  const retained = writes[0].workflowTiming;
+  assert.deepEqual(retained, beforeFinish);
+  assert.equal(retained.currentPhase, 'gear');
+  assert.equal(retained.phases.gear.status, 'pending');
+  assert.equal(retained.phases.gear.durationMs, 25);
+  assert.equal(retained.categories.evaluate.activeCount, 1);
+  assert.equal(retained.categories.evaluate.pendingMs, 25);
+  assert.equal(retained.categories.assemblyResponse.activeCount, 1);
+  assert.equal(timing.snapshot().categories.evaluate.activeCount, 0, 'Cleanup has already completed the live operation');
+  assert.equal(writes[0].error.message, original.message);
+  assert.ok(rejected.every(error => error === original));
+  assert.deepEqual(events.at(-1), ['exit', 1]);
+  const immutableReport = JSON.stringify(retained);
+  now = 100; endEvaluate(); endResponse(); timing.completePhase();
+  assert.equal(timing.snapshot().categories.evaluate.activeCount, 0);
+  assert.equal(JSON.stringify(retained), immutableReport);
+  assert.deepEqual(retained, beforeFinish, 'Both snapshots remain detached after late promise cleanup');
 });

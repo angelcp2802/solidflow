@@ -205,7 +205,7 @@ module.exports = async function interferenceWorkflow(context) {
       && !!document.querySelector('[aria-label="Mover componente con relaciones"]')));
   check(dialogCounts().opens === 10 && dialogCounts().saves === 2 && ipc.filter(event => event.channel === 'document:save').length === 5
     && ipc.every(event => event.completed), 'Read-only analysis unexpectedly wrote a document or changed the native file sequence.');
-  const final = await observe(); check(!consoleErrors.length && !failedRequests.length && !final.workerErrors.length, 'Interference renderer/worker failure.');
+  const final = await observe.counters(); check(!consoleErrors.length && !failedRequests.length && !final.workerErrorCount, 'Interference renderer/worker failure.');
   checks.push({ trackedInterferenceInputSha256: digest(trackedInterferenceBytes), interferenceInputSha256: digest(scopedInputBytes), unchangedRevisedFileSha256: digest(revisedBytes), phases,
     independentOracles: 'Plate holes R3/revised pinsR2.5: gap.5, native witnesses radial3/2.5; threshold.25 gives0hits; original boxes2x3x4 atx0/1/20/21: two CommonV12/boundsx1..2and21..22,y0..3,z0..4; all6pairs,amongroots1,crossroots4,oneexactnestedexclusion3,prefixcross2,excludedselecteddescendant0; V1e-5,length/meshbounds1e-6',
     evidenceLimits: 'Scripted real report controls and actual native worker DTOs/mesh extents; no state/report injection, human pointer/native-dialog interaction, continuous collision, installed package or general platform claim.' });

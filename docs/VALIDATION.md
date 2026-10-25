@@ -1,5 +1,64 @@
 # Validation
 
+## Rigid workflow observation and timing — 2026-10-25
+
+This increment changes acceptance diagnostics, not application behavior. The
+complete rigid session retains authoring, source updates, movement, drag,
+projection, interference, translation, BOM and gears in their original order,
+with the same actions, independent geometry/document oracles, polling intervals
+and child/parent deadlines. Source-update polling preserves the entire selected
+response, every worker error and exact completed cardinality while avoiding a
+copy of unrelated history. Scalar final checks use the existing counters.
+
+Passive timings report fixed categories and phases, including pending operations
+at a global deadline. Unit checks exercise the actual injected observer and
+deadline/finish bodies: more than ten matching records, pending and rejected
+responses, strict serial boundaries, duplicate counts, snapshot isolation,
+pending work through cleanup and bounded annotations without payload traversal.
+
+Local Windows x64 / Node 24.11.1 / Electron 44.9.3 acceptance uses 1,147 matching
+non-Markdown source/runtime inputs. Build passes in 4.644 s; the complete rigid
+renderer passes all 684 checkpoints in 76.896 s, with zero console, request or
+resource errors, child closure and isolated-profile cleanup. All nine phases
+complete with no pending timed operations. Full tests and desktop smoke are
+also successful: `npm test` passes 9,785 tests across 428 files, 103 IPC checks
+and two explicit skips in 557.680 s; `npm run test:desktop` passes in 2.357 s
+with zero console, request or resource errors. An independent retained-result
+review confirms the same ordered 656 textual checkpoints (normalizing generated
+UUIDs), 112 phase records, original fixture hashes, 26 completed IPC records and
+production inputs as the baseline. No validation loss was identified within
+those compared records.
+
+The same unchanged predecessor inputs passed the local baseline in 78.336 s.
+These single sequential runs are not a controlled performance comparison.
+In the instrumented run, the gear phase takes 36.778 s. Inclusive response
+waits total 53.305 s, evaluations 10.076 s and existing polling sleeps 62.394 s;
+these categories overlap and do not isolate native computation. Two idle
+projection audits retain exact response/error/count parity against a 6,208,522
+byte full snapshot while returning a 106,002 byte response projection.
+
+The preceding public review `77730de` has terminal
+[CI failure](https://github.com/angelcp2802/solidflow/actions/runs/40222129113):
+Windows rigid persistence reaches 170.002 s at 618 checkpoints while its current
+preview wait has lasted 843 ms. Eight of nine renderer batches and all three
+configured-authoring jobs pass; the three Desktop jobs fail their required
+renderer gate. [Security](https://github.com/angelcp2802/solidflow/actions/runs/40222128648)
+passes. This does not establish a deadlock or dominant cost. New-head hosted
+results and recurring stability remain pending. No tolerance, deadline or
+prerequisite was relaxed.
+
+A further bounded check on the existing private portable uses actual Windows
+pointer input on the saved original two-prism angle example. Right-clicking
+each visible solid retargets the fixed/free occurrence and its context menu.
+Properties opens the fixed occurrence's fields; Move on the free occurrence
+reveals its numeric controls. The fixed menu disables Move. Left-click selects
+the other solid; background context preserves it, and Escape closes the menu.
+Wheel zoom visibly changes framing and Fit restores a view of both solids.
+The final component tree is visible, Apply/Cancel and Undo/Redo remain disabled,
+and the saved file's hash is unchanged. These are visual/UI checks, not numerical
+camera/geometry measurements. State toggles, datum/face context, middle-button
+drag, configured scopes and complete-demo acceptance remain outside this case.
+
 ## Saved standard ordinary-angle editing — 2026-10-25
 
 Saved ordinary angles now offer name/value editing through the existing native

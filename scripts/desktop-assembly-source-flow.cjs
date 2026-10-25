@@ -28,10 +28,10 @@ module.exports = async function sourceUpdateWorkflow(context) {
   };
   async function stageResponse(serial, rejected = false) {
     return waitFor('actual private part-update preview', async () => {
-      const state = await observe(); check(!state.workerErrors.length, 'Observed a real assembly worker error.');
-      const matches = state.assemblies.filter(value => value.serial > serial && value.action === 'preview-assembly-part-update' && value.response);
-      check(matches.length <= 1, 'One actual private part-update preview.'); if (!matches.length) return false;
-      const event = matches[0]; check(rejected ? event.response.ok === false : event.response.ok === true, 'Expected exact private-stage response disposition.'); return event;
+      const state = await observe.assemblyResponseAfter(serial, 'preview-assembly-part-update');
+      check(!state.workerErrors.length, 'Observed a real assembly worker error.');
+      check(state.completedCount <= 1, 'One actual private part-update preview.'); if (!state.completedCount) return false;
+      const event = state.record; check(rejected ? event.response.ok === false : event.response.ok === true, 'Expected exact private-stage response disposition.'); return event;
     });
   }
   check(updatedPart.version === 1 && updatedPart.id === source.id
@@ -205,8 +205,8 @@ module.exports = async function sourceUpdateWorkflow(context) {
   check(dialogCounts().opens === 5 && dialogCounts().saves === 1
     && canonical(ipc.map(value => value.channel)) === canonical(['document:open', 'document:save', 'document:open',
       'document:open', 'document:open', 'document:save', 'document:open']) && ipc.every(value => value.completed), 'Unexpected source-update native file sequence.');
-  const observation = await observe();
-  check(!consoleErrors.length && !failedRequests.length && !observation.workerErrors.length, 'Source-update renderer/worker failure.');
+  const observation = await observe.counters();
+  check(!consoleErrors.length && !failedRequests.length && !observation.workerErrorCount, 'Source-update renderer/worker failure.');
   checks.push({ sourceUpdateInputSha256: digest(await fsp.readFile(partUpdatePath)), revisedSavedSha256: digest(updatedBytes),
     revisedDocument: fromDisk, stages, independentOracles: 'R2.5 pins V297pi/4,A627pi/8; totalV4800+153pi/2,A2960+675pi/4; V/A1e-5,bounds/translation1e-6,orientationDot1e-8; rank11/DOF1',
     evidenceLimits: 'Actual source-update controls, native review/solve/Apply, one-step Undo/Redo and preload/IPC only; explicit four-face repair. No general correspondence, native UI BRep/probes, human pointer/dialog, linked-file watcher, installed-package or platform claim.' });

@@ -7,6 +7,7 @@ const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 module.exports = function assemblyWorkflow(context) {
   context = require('./desktop-assembly-navigation.cjs').withNavigation(context);
   const assemblyNavigation = context.assemblyNavigation;
+  const workflowTiming = context.workflowTiming;
   const { expected, input, output, projectionOutput, partUpdatePath, updatedPart, interferencePath, interferenceFixture, translationPath, translationFixture, translationOutput, bomPath, bomFixture, bomCsvOutputs, gearOutput, evaluate, observe, waitFor, click, capture, pointer, menuKey, checks,
     protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
     initialReadyMs, dialogCounts } = context;
@@ -131,20 +132,23 @@ module.exports = function assemblyWorkflow(context) {
   const responseProgress = { status: 'not-started' };
   checks.push({ assemblyResponseProgress: responseProgress });
   async function responseAfter(serial, action) {
-    const started = Date.now();
-    Object.assign(responseProgress, { status: 'started', action, afterSerial: serial, startedAt: new Date(started).toISOString(), polls: 0, matching: [],
-      elapsedMs: null, lastReadMs: null, observedSerial: null, workerErrorCount: null });
-    return waitFor('actual worker ' + action, async () => {
-      responseProgress.status = 'reading-snapshot';
-      const readStarted = Date.now(), state = await observe.assemblyResponseAfter(serial, action);
-      Object.assign(responseProgress, { status: 'waiting-response', polls: responseProgress.polls + 1,
-        elapsedMs: Date.now() - started, lastReadMs: Date.now() - readStarted, observedSerial: state.serial, workerErrorCount: state.workerErrors.length,
-        matching: state.matching });
-      check(!state.workerErrors.length, 'Observed a real assembly worker error.');
-      const record = state.record;
-      if (record) responseProgress.status = 'response-observed';
-      if (!record) return false; check(record.response.ok, record.response.error || 'Assembly RPC failed.'); return record;
-    });
+    const endTiming = workflowTiming.begin('assemblyResponse');
+    try {
+      const started = Date.now();
+      Object.assign(responseProgress, { status: 'started', action, afterSerial: serial, startedAt: new Date(started).toISOString(), polls: 0, matching: [],
+        elapsedMs: null, lastReadMs: null, observedSerial: null, workerErrorCount: null });
+      return await waitFor('actual worker ' + action, async () => {
+        responseProgress.status = 'reading-snapshot';
+        const readStarted = Date.now(), state = await observe.assemblyResponseAfter(serial, action);
+        Object.assign(responseProgress, { status: 'waiting-response', polls: responseProgress.polls + 1,
+          elapsedMs: Date.now() - started, lastReadMs: Date.now() - readStarted, observedSerial: state.serial, workerErrorCount: state.workerErrors.length,
+          matching: state.matching });
+        check(!state.workerErrors.length, 'Observed a real assembly worker error.');
+        const record = state.record;
+        if (record) responseProgress.status = 'response-observed';
+        if (!record) return false; check(record.response.ok, record.response.error || 'Assembly RPC failed.'); return record;
+      });
+    } finally { endTiming(); }
   }
   function recordPhase(phase, record, scene) {
     phases.push({ phase, requestId: record.id, serial: record.serial, action: record.action,
@@ -221,6 +225,7 @@ module.exports = function assemblyWorkflow(context) {
     return applyPreview(record, count, count === 4);
   }
   return async function workflow() {
+    workflowTiming.enterPhase('authoring');
     assertDocument(expected, 0);
     check(canonical(expected.occurrences[1].pose.translation) === canonical([-4, 3, -2])
       && canonical(expected.occurrences[2].pose.translation) === canonical([14, -7, -1]), 'Fixture contains solved placements.');
@@ -326,27 +331,36 @@ module.exports = function assemblyWorkflow(context) {
       independentOracles: 'plate V4800-72pi/A2960+12pi; each pin V189pi/4/A495pi/8; sum V4800+45pi/2/A2960+543pi/4; metrics1e-5; final bounds/translation1e-6/axis1e-8; initial cylinder support bounds1e-5; DOF12→8→7→3→2→1',
       evidenceLimits: 'Scripted production-renderer controls, actual worker scene DTO metrics/supports/physical checks and real preload/IPC only. No native BRep validity/material probes, human pointer/native-dialog interaction, installed-package or general assembly/platform claim.',
       workerPhases: phases.slice(), assemblyUi: state.assemblyUi });
+    workflowTiming.enterPhase('source');
     await require('./desktop-assembly-source-flow.cjs')({ assemblyNavigation, expected, saved, savedBytes, output, partUpdatePath, updatedPart,
       evaluate, observe, waitFor, click, capture, button, control, page, idle, responseAfter, recordPhase,
       checks, ipc, check, canonical, digest, near, close, dialogCounts, protocolResponses, consoleErrors, failedRequests });
+    workflowTiming.enterPhase('movement');
     await require('./desktop-assembly-movement-flow.cjs')({ assemblyNavigation, output, observe, waitFor, click, button, control, page, idle, responseAfter,
       checks, ipc, check, canonical, digest, near, close, dialogCounts, consoleErrors, failedRequests });
+    workflowTiming.enterPhase('drag');
     await require('./desktop-assembly-drag-flow.cjs')({ assemblyNavigation, output, observe, waitFor, click, button, page, idle, responseAfter, pointer, capture,
       checks, ipc, check, canonical, digest, near, close, dialogCounts, consoleErrors, failedRequests });
+    workflowTiming.enterPhase('projection');
     await require('./desktop-assembly-projection-flow.cjs')({ assemblyNavigation, output, projectionOutput, observe, waitFor, click, button, page, idle, responseAfter, pointer, capture: async () => {},
       checks, ipc, check, canonical, digest, near, close, dialogCounts, consoleErrors, failedRequests });
+    workflowTiming.enterPhase('interference');
     await require('./desktop-assembly-interference-flow.cjs')({ assemblyNavigation, interferencePath, interferenceFixture, output,
       evaluate, observe, waitFor, click, capture, button, control, page, idle, responseAfter,
       checks, ipc, check, canonical, digest, near, close, dialogCounts, consoleErrors, failedRequests });
+    workflowTiming.enterPhase('translation');
     await require('./desktop-assembly-translation-flow.cjs')({ assemblyNavigation, translationPath, translationFixture, translationOutput,
       observe, waitFor, click, capture: async () => {}, button, control, page, idle, responseAfter,
       checks, ipc, check, canonical, digest, near, close, dialogCounts, consoleErrors, failedRequests });
+    workflowTiming.enterPhase('bom');
     await require('./desktop-assembly-bom-flow.cjs')({ assemblyNavigation, bomPath, bomFixture, bomCsvOutputs,
       observe, waitFor, click, pointer, menuKey, capture: async () => {}, button, control, page, idle, responseAfter,
       checks, ipc, check, canonical, digest, near, close, dialogCounts, consoleErrors, failedRequests });
+    workflowTiming.enterPhase('gear');
     await require('./desktop-assembly-gear-flow.cjs')({ assemblyNavigation, expected, input, gearOutput,
       observe, waitFor, click, capture, pointer, button, control, page, idle, responseAfter,
       addRelation, face, faceKey, checks, ipc, check, canonical, digest, near, close,
       dialogCounts, consoleErrors, failedRequests });
+    workflowTiming.completePhase();
   };
 };

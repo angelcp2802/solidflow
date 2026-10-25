@@ -96,7 +96,7 @@ module.exports = async function translationWorkflow(context) {
   check((await fsp.readFile(translationOutput)).equals(bytes) && (await fsp.readFile(translationPath)).equals(inputBytes), 'Rejected contact restart changed saved source.');
   await button('Frontal', '.assembly-view-tools'); await capture(moved);
   check(dialogCounts().opens === 12 && dialogCounts().saves === 3 && ipc.filter(value => value.channel === 'document:save').length === 6 && ipc.every(value => value.completed), 'Unexpected contact native file sequence.');
-  const final = await observe(); check(!consoleErrors.length && !failedRequests.length && !final.workerErrors.length, 'Contact renderer/worker failure.');
+  const final = await observe.counters(); check(!consoleErrors.length && !failedRequests.length && !final.workerErrorCount, 'Contact renderer/worker failure.');
   checks.push({ translationInputSha256: digest(inputBytes), translationSavedSha256: digest(bytes), phases,
     independentOracles: '4mm cubeV64/A96; .5x8x8obstacleV32/A144 atX10; exact geometric firstcontactX7.75; guarded stop slightly before within1e-5; clearance.25->X7.5; targetX20 is clear after traversing obstacle; clear targetX-5; two saved plane mates leave naturalDOF1; mm/volume/area bounds as asserted',
     evidenceLimits: 'Numerically guarded native-distance advancement for straight constant-rotation translation; actual DOM/native worker/Apply/file IPC, no injected poses/results. No certified distance interval, exact first-contact time, rotary/curved/flexible motion, pointer collision stopping, human gesture, installed package or platform generalization.' });

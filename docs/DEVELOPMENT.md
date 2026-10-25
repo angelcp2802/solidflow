@@ -1,5 +1,25 @@
 # Development guide
 
+## Rigid assembly workflow timing — 2026-10-25
+
+The rigid renderer test reports passive timings for authoring, source updates,
+movement, dragging, projection, interference, translation, BOM and gears.
+Fixed counters measure existing renderer evaluations, pointer dispatches,
+wait inspections, 100 ms sleeps and assembly response waits. A deadline captures
+pending operations synchronously, without another renderer request. Inclusive
+categories overlap: a response wait contains polling, sleeps and evaluations;
+these totals must not be added or interpreted as native solver time. Evaluation
+time includes any existing pending-Save barrier and transport scheduling.
+
+Source-update polling reads the completed response projection instead of the
+entire accumulated history. It retains the exact completed-match count, selected
+record and every worker error; more than one completed match still fails.
+Final checks that only need serial/error counts use the existing counters.
+The full history remains available for geometry and document oracles. Actions,
+poll cadence, deadlines, solver checks and tolerances are unchanged. Diagnostic
+unit tests run with `npm test`; validate the complete route with
+`npm run test:desktop:assembly` after building.
+
 ## Saved ordinary angle editing — 2026-10-25
 
 The standard relation list offers **Editar ángulo** for a saved ordinary
