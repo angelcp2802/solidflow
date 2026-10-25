@@ -151,6 +151,8 @@ export interface AssemblyViewportProps {
   selectedEdges?: readonly AssemblySceneEdge[]
   selectedVertices?: readonly AssemblySceneVertex[]
   originReferences?: readonly AssemblyOriginDisplay[]
+  /** Reserved presentation band for an owning workspace toolbar; witnesses stay unchanged. */
+  originLabelTopInset?: number
   selectedOrigins?: readonly AssemblyOriginReference[]
   pickingOrigins?: boolean
   onOrigin?: (reference: AssemblyOriginReference | null) => void
@@ -173,7 +175,7 @@ export interface AssemblyViewportProps {
 export default function AssemblyViewport(props: AssemblyViewportProps) {
   const host = useRef<HTMLDivElement>(null), input = useRef(props); input.current = props
   const [dragAxis, setDragAxis] = useState<string | null>(null)
-  const [originLabelState, setOriginLabelState] = useState(() => ({ layout: layoutAssemblyOriginLabels([], { width: 0, height: 0 }), signature: '', width: 0, height: 0 }))
+  const [originLabelState, setOriginLabelState] = useState(() => ({ layout: layoutAssemblyOriginLabels([], { width: 0, height: 0 }, { topInset: props.originLabelTopInset }), signature: '', width: 0, height: 0, topInset: props.originLabelTopInset ?? 0 }))
   const originLabelFrame = useRef(''), originLabelPress = useRef<{ key: string; signature: string } | null>(null)
   const originFrame = useRef('')
   const originCatalog = (value: AssemblyViewportProps) => JSON.stringify([value.originReferences, value.scene?.visibleBounds])
@@ -284,9 +286,10 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
       controls.update(); renderer.render(world, camera)
       originFrame.current = displayedOriginCatalog
       const width = element.clientWidth, height = element.clientHeight
-      const labels = assemblyOriginLabels(camera, input.current.originReferences ?? [], assemblyOriginExtent(input.current.scene?.visibleBounds), { width, height }), signature = JSON.stringify([width, height, labels])
+      const topInset = input.current.originLabelTopInset ?? 0
+      const labels = assemblyOriginLabels(camera, input.current.originReferences ?? [], assemblyOriginExtent(input.current.scene?.visibleBounds), { width, height }), signature = JSON.stringify([width, height, topInset, labels])
       originLabelFrame.current = signature
-      if (signature !== labelSignature) { labelSignature = signature; setOriginLabelState({ layout: layoutAssemblyOriginLabels(labels, { width, height }), signature, width, height }) }
+      if (signature !== labelSignature) { labelSignature = signature; setOriginLabelState({ layout: layoutAssemblyOriginLabels(labels, { width, height }, { topInset }), signature, width, height, topInset }) }
     }
     const resize = new ResizeObserver(() => {
       renderer.setSize(element.clientWidth, element.clientHeight)
@@ -392,11 +395,11 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
   const originButton = (label: AssemblyOriginLabelAnchor, style?: CSSProperties) => <button key={label.key} type="button"
       className={(props.selectedOrigins ?? []).some(ref => assemblyOriginReferenceKey(ref) === label.key) ? 'selected' : ''}
       style={style} aria-label={`Seleccionar ${label.label}`} title={label.label} data-origin-key={label.key}
-      disabled={!!props.disabled || !originLabelState.layout.usable || assemblyReferencePickMode(props) !== 'origin'}
+      disabled={!!props.disabled || originLabelState.topInset !== (props.originLabelTopInset ?? 0) || !originLabelState.layout.usable || assemblyReferencePickMode(props) !== 'origin'}
       onPointerDown={() => { originLabelPress.current = { key: label.key, signature: originLabelState.signature } }}
       onPointerCancel={() => { originLabelPress.current = null }} onClick={event => {
         const press = originLabelPress.current; originLabelPress.current = null
-        if (originLabelFrame.current !== originLabelState.signature || host.current?.clientWidth !== originLabelState.width || host.current?.clientHeight !== originLabelState.height
+        if (originLabelState.topInset !== (input.current.originLabelTopInset ?? 0) || originLabelFrame.current !== originLabelState.signature || host.current?.clientWidth !== originLabelState.width || host.current?.clientHeight !== originLabelState.height
           || event.detail > 0 && (press?.key !== label.key || press.signature !== originLabelState.signature)) return
         const value = input.current, matches = (value.originReferences ?? []).filter(entry => entry.key === label.key)
           if (!value.disabled && assemblyReferencePickMode(value) === 'origin' && originFrame.current === originCatalog(value) && matches.length === 1 && assemblyOriginDisplayBinding(matches[0]) === label.binding) value.onOrigin?.(structuredClone(matches[0].reference))
@@ -406,7 +409,7 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
       <svg className="assembly-origin-leaders" aria-hidden="true">{originLabelState.layout.labels.map(label => <line key={label.key}
         x1={label.x} y1={label.y} x2={Math.max(label.left, Math.min(label.left + label.width, label.x))} y2={Math.max(label.top, Math.min(label.top + label.height, label.y))} />)}</svg>
       {originLabelState.layout.labels.map(label => originButton(label, { left: label.left, top: label.top, width: label.width, height: label.height }))}
-      {originLabelState.layout.overflow.length > 0 && <div className="assembly-origin-overflow" role="group" aria-label="Referencias de origen en lista" style={{ width: originLabelState.layout.width }}>
+      {originLabelState.layout.overflow.length > 0 && <div className="assembly-origin-overflow" role="group" aria-label="Referencias de origen en lista" style={{ width: originLabelState.layout.width, top: originLabelState.topInset + 4, maxHeight: `calc(100% - ${originLabelState.topInset + 8}px)` }}>
         <span>Referencias de origen · {originLabelState.layout.overflow.length}</span>
         {originLabelState.layout.overflow.map(label => originButton(label))}
       </div>}

@@ -213,6 +213,22 @@ it('binds scene display to complete normalized source/catalog/selector/generatio
   expect(scene.scene.warnings).toEqual([]); expect(display).not.toBe(scene.scene)
 })
 
+it('keeps configured viewport commands inside the canvas with their exact accessible text', () => {
+  const html = renderToStaticMarkup(<ConfiguredAssemblyWorkspace initialDocument={fixture()} onOpenDocument={() => undefined} />)
+  const view = html.indexOf('<div class="configured-assembly-view">')
+  const nav = html.match(/<nav\b[^>]*aria-label="Vistas del ensamblaje configurado"[^>]*>([\s\S]*?)<\/nav>/)
+  expect(view).toBeGreaterThan(-1)
+  expect(nav).not.toBeNull()
+  expect(nav!.index).toBeGreaterThan(view)
+  const buttons = nav![1].match(/<button\b[^>]*>[\s\S]*?<\/button>/g) ?? []
+  expect(buttons.map(button => button.replace(/<[^>]*>/g, ''))).toEqual(['Isométrica', 'Frontal', 'Superior', 'Ajustar'])
+  for (const button of buttons) {
+    expect(button).toContain('class="compact-viewport-label"')
+    expect(button).toMatch(/<svg\b[^>]*aria-hidden="true"/)
+    expect(button).toMatch(/title="[^"]+"/)
+  }
+  expect(nav![1]).not.toContain('Arrastrar')
+})
 it('exposes authoring shortcuts with mounted inspector targets and preserves separate file/view navigation', () => {
   const document = fixture(), html = renderToStaticMarkup(<ConfiguredAssemblyWorkspace initialDocument={document} onOpenDocument={() => undefined} />)
   for (const label of ['Comandos del ensamblaje configurado', 'Inspector del ensamblaje configurado', 'Archivo del ensamblaje configurado', 'Vistas del ensamblaje configurado']) expect(html).toContain('aria-label="' + label + '"')

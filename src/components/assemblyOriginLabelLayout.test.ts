@@ -76,3 +76,57 @@ it('marks invalid sizes, witnesses and ambiguous keys unusable without inventing
     expect(result.usable).toBe(false); expect(result.labels).toEqual([]); expect(result.overflow).toHaveLength(entries.length)
   }
 })
+
+
+it('reserves the toolbar band without changing a top-center witness or default placement', () => {
+  const entry = anchor('top', 200, 12), size = { width: 400, height: 200 }
+  const original = layoutAssemblyOriginLabels([entry], size)
+  expect(original.labels[0]).toMatchObject({ left: 115, top: 4, width: 170, height: 22 })
+  // Literal toolbar rectangle x=140..260/y=9..41: the old box crosses it.
+  expect(original.labels[0].left < 260 && original.labels[0].left + 170 > 140
+    && original.labels[0].top < 41 && original.labels[0].top + 22 > 9).toBe(true)
+  const reserved = layoutAssemblyOriginLabels([entry], size, { topInset: 44 })
+  expect(reserved.labels[0]).toEqual({ ...entry, left: 115, top: 48, width: 170, height: 22 })
+  expect(reserved.overflow).toEqual([]); expect(reserved.usable).toBe(true)
+  expect(layoutAssemblyOriginLabels([entry], size, { topInset: 0 })).toEqual(original)
+})
+
+it('packs dense labels below the reserved band with stable identities and separated boxes', () => {
+  const entries = Array.from({ length: 10 }, (_, i) => anchor(String(i), 180, 12))
+  const size = { width: 360, height: 180 }, result = layoutAssemblyOriginLabels(entries, size, { topInset: 44 })
+  expect(result.labels).toHaveLength(10); expect(result.overflow).toEqual([])
+  checkBoxes(result, size.width, size.height)
+  expect(result.labels.every(row => row.top >= 48)).toBe(true)
+  expect(result.labels.map(({ key, binding, label, x, y }) => ({ key, binding, label, x, y }))).toEqual(entries)
+  expect(layoutAssemblyOriginLabels([...entries].reverse(), size, { topInset: 44 })).toEqual(result)
+})
+
+it('uses the complete overflow list when the toolbar reservation removes packing capacity', () => {
+  const entries = Array.from({ length: 12 }, (_, i) => anchor(String(i), 180, 12))
+  expect(layoutAssemblyOriginLabels(entries, { width: 360, height: 180 }).labels).toHaveLength(12)
+  const result = layoutAssemblyOriginLabels(entries, { width: 360, height: 180 }, { topInset: 44 })
+  expect(result.labels).toEqual([]); expect(result.overflow).toHaveLength(12)
+  expect(new Set(result.overflow.map(row => row.key))).toEqual(new Set(entries.map(row => row.key)))
+  expect(result.overflow.every(row => entries.includes(row))).toBe(true)
+  expect(result.usable).toBe(true)
+})
+
+it('rejects invalid presentation insets without granting usable label targets', () => {
+  const entry = anchor('one', 20, 20)
+  for (const topInset of [-1, NaN, Infinity]) {
+    const result = layoutAssemblyOriginLabels([entry], { width: 400, height: 200 }, { topInset })
+    expect(result.usable).toBe(false); expect(result.labels).toEqual([]); expect(result.overflow).toEqual([entry])
+  }
+})
+
+it('confines narrow labels below the toolbar and falls back at the exact vertical capacity boundary', () => {
+  const entries = [anchor('a', 50, 0), anchor('b', 50, 0)]
+  const result = layoutAssemblyOriginLabels(entries, { width: 100, height: 100 }, { topInset: 44 })
+  expect(result.labels.map(({ left, top, width, height }) => [left, top, width, height])).toEqual([[4, 48, 92, 22], [4, 74, 92, 22]])
+  expect(result.labels.map(({ x, y }) => [x, y])).toEqual([[50, 0], [50, 0]])
+  checkBoxes(result, 100, 100)
+  expect(result.overflow).toEqual([])
+  const confined = layoutAssemblyOriginLabels(entries, { width: 100, height: 99 }, { topInset: 44 })
+  expect(confined.labels).toEqual([]); expect(confined.overflow).toEqual(entries)
+  expect(confined.usable).toBe(true)
+})

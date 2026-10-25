@@ -6,7 +6,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { LineSegments2 } from "three/addons/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/addons/lines/LineSegmentsGeometry.js";
 import { LineMaterial } from "three/addons/lines/LineMaterial.js";
-import type { BodyReference, CadResult, EdgeReference, FaceReference, PickableFace, PlaneFrame } from "../cad/kernel.types";
+import type { BodyReference, CadResult, EdgeReference, FaceReference, PickableFace, PlaneFrame, SketchVisual } from "../cad/kernel.types";
 import { sameBodyReference } from "../model/bodyCommands";
 import { createEdgeSelectionIndex, createFaceSelectionIndex, referenceIdentity } from "../cad/selection.references";
 
@@ -160,6 +160,8 @@ interface Props {
   onSelectPlane?: (planeId: string) => void;
   visibleSketchIds?: string[];
   selectedSketchId?: string;
+  activeInputSketchIds?: readonly string[];
+  activeInputSketches?: readonly SketchVisual[];
 }
 export default function Viewport({
   model,
@@ -183,6 +185,8 @@ export default function Viewport({
   onSelectPlane,
   visibleSketchIds,
   selectedSketchId,
+  activeInputSketchIds,
+  activeInputSketches,
 }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const context = useRef<{
@@ -209,8 +213,14 @@ export default function Viewport({
   } | null>(null);
   const edgeReferences = useMemo(() => createEdgeSelectionIndex(model?.edges ?? []), [model]);
   const faceReferences = useMemo(() => createFaceSelectionIndex(model?.faces ?? []), [model]);
-  const interaction = useRef({ onSelect, onClearSelection, selectionDisabled, onSelectBody, selectedBodies, onSelectEdge, selectionMode, selectedEdges, visibleSketchIds, selectedSketchId, selectedFace, selectedFaces, onSelectFace, selectedPlaneId, showPlanes, onSelectPlane, edgeReferences, faceReferences });
-  interaction.current = { onSelect, onClearSelection, selectionDisabled, onSelectBody, selectedBodies, onSelectEdge, selectionMode, selectedEdges, visibleSketchIds, selectedSketchId, selectedFace, selectedFaces, onSelectFace, selectedPlaneId, showPlanes, onSelectPlane, edgeReferences, faceReferences };
+  const sketchVisuals = useMemo(() => {
+    // Remove stale copies even while a new input build is pending or invalid.
+    // Bodies and their pickers retain the displayed model.
+    const activeIds = new Set(activeInputSketchIds);
+    return [...(model?.sketches ?? []).filter(sketch => !activeIds.has(sketch.id)), ...(activeInputSketches ?? [])];
+  }, [model?.sketches, activeInputSketchIds, activeInputSketches]);
+  const interaction = useRef({ onSelect, onClearSelection, selectionDisabled, onSelectBody, selectedBodies, onSelectEdge, selectionMode, selectedEdges, visibleSketchIds, selectedSketchId, activeInputSketchIds, activeInputSketches, selectedFace, selectedFaces, onSelectFace, selectedPlaneId, showPlanes, onSelectPlane, edgeReferences, faceReferences });
+  interaction.current = { onSelect, onClearSelection, selectionDisabled, onSelectBody, selectedBodies, onSelectEdge, selectionMode, selectedEdges, visibleSketchIds, selectedSketchId, activeInputSketchIds, activeInputSketches, selectedFace, selectedFaces, onSelectFace, selectedPlaneId, showPlanes, onSelectPlane, edgeReferences, faceReferences };
   useEffect(() => {
     const el = host.current!;
     const scene = new THREE.Scene();
@@ -329,15 +339,17 @@ export default function Viewport({
       const visible = interaction.current.visibleSketchIds === undefined ? null : new Set(interaction.current.visibleSketchIds);
       for (const sketch of current.sketches) {
         const isSelected = sketch.id === interaction.current.selectedSketchId;
+        const isActiveInput = interaction.current.activeInputSketches?.some(input => input.id === sketch.id) === true;
         for (const object of sketch.objects) {
           const construction = object.userData.construction === true;
-          object.visible = isSelected || visible === null || visible.has(sketch.id);
-          object.material.color.setHex(isSelected ? 0xe58b23 : construction ? 0x5798cc : 0x1678cb);
-          object.material.linewidth = isSelected ? 2.5 : construction ? 1.3 : 1.8;
+          object.visible = isActiveInput || isSelected || visible === null || visible.has(sketch.id);
+          object.material.color.setHex(isActiveInput || isSelected ? 0xe58b23 : construction ? 0x5798cc : 0x1678cb);
+          object.material.linewidth = isActiveInput || isSelected ? 2.5 : construction ? 1.3 : 1.8;
           object.material.opacity = construction ? .72 : 1;
         }
       }
-      if (autoFit && !previouslyVisible && current.sketches.some((sketch) => sketch.objects.some((object) => object.visible))) fit();
+      // Revealing an editor input must not change the user's camera.
+      if (autoFit && !interaction.current.activeInputSketchIds?.length && !previouslyVisible && current.sketches.some((sketch) => sketch.objects.some((object) => object.visible))) fit();
     };
     const triad = document.createElement("canvas");
     const pixelRatio = Math.min(window.devicePixelRatio, 2);
@@ -769,7 +781,7 @@ export default function Viewport({
       object.material.dispose();
     }
     c.sketches = [];
-    for (const sketch of model?.sketches ?? []) {
+    for (const sketch of sketchVisuals) {
       const objects: LineSegments2[] = [];
       for (const [lines, construction] of [[sketch.lines, false], [sketch.constructionLines, true]] as const) {
         if (lines.length < 6) continue;
@@ -790,11 +802,11 @@ export default function Viewport({
       c.sketches.push({ id: sketch.id, objects });
     }
     c.updateSketches(false);
-    if (!previouslyVisible && c.sketches.some((sketch) => sketch.objects.some((object) => object.visible))) c.fit();
-  }, [model]);
+    if (!interaction.current.activeInputSketchIds?.length && !previouslyVisible && c.sketches.some((sketch) => sketch.objects.some((object) => object.visible))) c.fit();
+  }, [sketchVisuals]);
   useEffect(() => {
     context.current?.updateSketches();
-  }, [visibleSketchIds, selectedSketchId]);
+  }, [visibleSketchIds, selectedSketchId, activeInputSketches]);
   useEffect(() => {
     context.current?.updateHighlights();
   }, [selectedBodies, selectedEdges, selectedFace, selectedFaces, selectionMode]);
@@ -833,6 +845,7 @@ export default function Viewport({
       className="viewport-canvas"
       aria-label="Vista 3D de la pieza"
       data-part-selection-mode={selectionMode}
+      data-part-active-input-sketches={JSON.stringify(activeInputSketches?.map(sketch => sketch.id) ?? [])}
       data-part-selected-face={selectedFace ? JSON.stringify(selectedFace) : ""}
       data-part-selected-edges={JSON.stringify(selectedEdges)}
       data-part-selected-bodies={JSON.stringify(selectedBodies)}

@@ -6,7 +6,7 @@ const { encodeJavaScriptString: quote } = require('./desktop-ui-source.cjs');
 // Original analytical profiles exercise actual axis/direction controls as well
 // as the existing staged sketch, cut, history and file interchange workflow.
 module.exports = function partRevolutionWorkflow(context) {
-  const { expected, input, output, revolutionStepPath, evaluate, observe, waitFor, pointer, capture,
+  const { expected, input, output, revolutionStepPath, evaluate, observe, waitFor, pointer, capture, captureProfile,
     checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
     initialReadyMs, dialogCounts } = context;
   const APPLY = 'button[title="Aceptar operación"]', CANCEL = 'button[title="Cancelar operación"]';
@@ -100,6 +100,19 @@ module.exports = function partRevolutionWorkflow(context) {
       const button = document.querySelector(selector); return !!button && !button.disabled;
     }, APPLY));
   }
+  async function activeProfile(ids, phase) {
+    const actual = await waitFor('current operation profile display ' + phase, () => page(ids => {
+      const value = document.querySelector('.viewport-canvas')?.getAttribute('data-part-active-input-sketches');
+      return value === JSON.stringify(ids) ? { ids: JSON.parse(value) } : false;
+    }, ids));
+    check(canonical(actual.ids) === canonical(ids), 'Only the current resolved operation inputs are active: ' + phase);
+    records.push({ phase, activeInputSketchIds: actual.ids });
+  }
+  async function profilePicture(phase) {
+    await press('button[title="Vista frontal (Ctrl+1)"]');
+    await captureProfile(phase, 'sleeve-profile');
+    await press('button[title="Vista isométrica (Ctrl+7)"]');
+  }
   const profileHeight = record => record.features.find(feature => feature.id === 'sleeve-profile')?.profile?.height;
   async function built(afterSerial, predicate, volume, bounds, phase, bodyId) {
     const record = await waitFor('native revolution sequence ' + phase, async () => {
@@ -178,6 +191,13 @@ module.exports = function partRevolutionWorkflow(context) {
     await waitFor('existing unused rectangle editor', () => page(() => document.querySelector('input[aria-label="Altura"]')?.value === '8'));
     serial = (await observe()).serial; await change('input[aria-label="Altura"]', 10);
     const edited = await built(serial, row => row.features.length === originalCount && profileHeight(row) === 10, 0, null, 'edited-profile');
+    const sleeveLines = edited.response.value.sketches?.find(sketch => sketch.id === 'sleeve-profile')?.lines;
+    check(sleeveLines?.length === 24 && sleeveLines.every(Number.isFinite), 'Resolved staged rectangle has four finite segments');
+    const endpoints = Array.from({ length: 8 }, (_, i) => sleeveLines.slice(i * 3, i * 3 + 3));
+    check(endpoints.every(([x, y, z]) => [0, 4].some(v => Math.abs(x - v) < 1e-6)
+      && [-5, 5].some(v => Math.abs(y - v) < 1e-6) && Math.abs(z) < 1e-6),
+      'Resolved staged profile uses literal world corners X0/4 Y-5/5 Z0, not the previous height8');
+    records.push({ phase: 'staged-profile-resolved-coordinates', lines: sleeveLines, toleranceMm: 1e-6 });
     await ready();
     check(await recovery() === originalRecovery, 'Unaccepted profile edit preserves committed recovery');
     await tab('Operaciones');
@@ -190,6 +210,8 @@ module.exports = function partRevolutionWorkflow(context) {
     await built(serial, row => row.features.length === originalCount + 1 && row.features.at(-1).type === 'revolve' && row.features.at(-1).angle === 180,
       80 * Math.PI, halfBounds, 'half-turn-preview');
     await ready(); check(await recovery() === originalRecovery, 'Half-turn preview does not commit profile or solid');
+    await activeProfile(['sleeve-profile'], 'staged-half-turn');
+    await profilePicture('staged-sleeve');
     serial = (await observe()).serial; await press(reverseSelector);
     await built(serial, row => row.features.at(-1).angle === 180 && row.features.at(-1).reversed === true,
       80 * Math.PI, { min: [-4, -5, 0], max: [4, 5, 4] }, 'half-turn-reversed-preview');
@@ -200,6 +222,9 @@ module.exports = function partRevolutionWorkflow(context) {
     const restored = await built(serial, row => row.features.length === originalCount && profileHeight(row) === 10, 0, null, 'cancel-restores-profile');
     check(canonical(restored.features) === canonical(edited.features) && await recovery() === originalRecovery,
       'Cancel restores exact profile IDs/order/draft without altering committed recovery');
+    check(await page(() => !document.querySelector('.viewport-canvas') && !!document.querySelector('input[aria-label="Altura"]')
+      && document.querySelector('input[aria-label="Altura"]').value === '10'),
+      'Cancel unmounts the operation viewport and returns to the live height10 sketch editor');
     await ready(); await tab('Operaciones');
     serial = (await observe()).serial; await press('button.command[title="Revolución"]');
     await built(serial, row => row.features.length === originalCount + 1 && row.features.at(-1).type === 'revolve' && row.features.at(-1).angle === 360,
@@ -269,11 +294,24 @@ module.exports = function partRevolutionWorkflow(context) {
           && row.features.at(-1).id === revolution.id, 160 * Math.PI, fullBounds, 'tree-doubleclick-existing-revolution', bodyId);
         check(canonical(editing.features) === canonical(saved.features.slice(0, originalCount + 1)),
           'Double-click edits the exact saved revolution and its original upstream features');
+        await activeProfile(['sleeve-profile'], 'reopened-consumed-input');
+        await profilePicture('consumed-sleeve');
+        let changedSerial = (await observe()).serial;
+        await change('select[aria-label="Croquis de la operación"]', 'axis-profile');
+        await built(changedSerial, row => row.features.length === originalCount + 1 && row.features.at(-1).sketchId === 'axis-profile',
+          400 * Math.PI, { min: [-7, 0, -7], max: [7, 10, 7] }, 'changed-existing-profile', bodyId);
+        await ready(); await activeProfile(['axis-profile'], 'changed-existing-profile');
+        changedSerial = (await observe()).serial;
+        await change('select[aria-label="Croquis de la operación"]', 'sleeve-profile');
+        await built(changedSerial, row => row.features.length === originalCount + 1 && row.features.at(-1).sketchId === 'sleeve-profile',
+          160 * Math.PI, fullBounds, 'restored-existing-profile', bodyId);
+        await ready(); await activeProfile(['sleeve-profile'], 'restored-existing-profile');
       },
       verifyCancelled: async afterSerial => {
         const cancelled = await built(afterSerial, row => row.features.length === originalCount + 2,
           150 * Math.PI, fullBounds, 'tree-doubleclick-cancel', bodyId);
         check(canonical(cancelled.features) === canonical(saved.features), 'Double-click Cancel restores exact saved operation declarations');
+        await activeProfile([], 'existing-operation-cancel');
       },
     });
     const beforeExport = await recovery();

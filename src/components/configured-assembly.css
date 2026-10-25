@@ -42,8 +42,6 @@
 .configured-assembly-layout select,.configured-assembly-layout input:not([type=checkbox]) { margin-top:4px; }
 .configured-assembly-layout fieldset { grid-template-columns:repeat(3,minmax(0,1fr)); margin:12px 0; padding:7px; border-color:#cbd4dc; }
 .configured-assembly-layout main { position:relative; padding:0; }
-.configured-assembly-layout main>nav { display:flex; justify-content:center; gap:1px; padding:5px; background:#f4f6f8; border-bottom:1px solid #d7dee5; }
-.configured-assembly-layout main>nav button { padding:4px 12px; border-color:transparent; background:transparent; }
 .configured-assembly-view,.configured-assembly-view>div { min-height:180px; }
 .configured-assembly-layout main>p { margin:0; padding:5px 12px; font-size:11px; border-top:1px solid #d7dee5; background:#f6f8fa; }
 .configured-assembly-workspace>footer { padding:5px 12px; background:#e9edf1; border-top:1px solid #c4cdd5; font-size:11px; }

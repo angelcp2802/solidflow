@@ -324,6 +324,17 @@ async function launch() {
       const png = await fsp.readFile(path.join(temporary, 'assembly-final.png'));
       check(png.length <= 10 * 1024 * 1024 && digest(png) === report.captures[0].sha256, 'Assembly capture bytes changed.');
       report.captureImage = { ...report.captures[0], base64: png.toString('base64') };
+      if (activeScenario === SCENARIOS['part-revolution']) {
+        const names = ['part-profile-staged-sleeve.png', 'part-profile-consumed-sleeve.png'];
+        check(report.profileCaptures?.length === names.length && report.profileCaptures.every((item, i) => item.name === names[i]),
+          'Expected exactly the two original active-profile captures.');
+        report.profileCaptureImages = [];
+        for (const item of report.profileCaptures) {
+          const bytes = await fsp.readFile(path.join(temporary, item.name));
+          check(bytes.length <= 10 * 1024 * 1024 && digest(bytes) === item.sha256, 'Active-profile capture bytes changed.');
+          report.profileCaptureImages.push({ ...item, base64: bytes.toString('base64') });
+        }
+      }
       if (activeScenario.configuredPicking || activeScenario === SCENARIOS['part-fresh-sketch'] || activeScenario === SCENARIOS['part-sequence'] || activeScenario === SCENARIOS['part-revolution'] || activeScenario.originAxes || activeScenario === SCENARIOS['assembly-configured-components']) {
         const bytes = await fsp.readFile(path.join(temporary, 'saved.solidflow'));
         const proof = report.checks.find(item => item && typeof item === 'object' && item.savedSha256);
@@ -377,7 +388,7 @@ async function launch() {
 
 // Runs before any app bundle. This only observes/forwards the real Worker API;
 // no CAD response, React state, document or IPC result is supplied by the test.
-function installWorkerObserver(importedBodyDetails = false, structuralStep = false, structuralInsertion = false, configurations = false) {
+function installWorkerObserver(importedBodyDetails = false, structuralStep = false, structuralInsertion = false, configurations = false, profileDetails = false) {
   const NativeWorker = globalThis.Worker;
   const observations = { serial: 0, eventSerial: 0, builds: [], ui: [], assemblies: [], assemblyUi: [], workerErrors: [] };
   const copy = value => JSON.parse(JSON.stringify(value));
@@ -533,6 +544,7 @@ function installWorkerObserver(importedBodyDetails = false, structuralStep = fal
       else {
         const result = event.data.value;
         record.response = { ok: true, value: { bodyCatalogActive: result.bodyCatalogActive,
+          ...(profileDetails ? { sketches: copy(result.sketches) } : {}),
           ...(importedBodyDetails ? { volume: result.volume, bounds: copy(result.bounds), meshVertexCount: result.vertices.length / 3, meshTriangleCount: result.triangles.length / 3 } : {}),
           bodies: result.bodies?.map(body => ({ ref: copy(body.ref), createdByFeatureId: body.createdByFeatureId,
             volume: body.volume, bounds: copy(body.bounds), ...(importedBodyDetails ? { meshAreaMm2: meshArea(body.vertices, body.triangles),
@@ -547,6 +559,18 @@ function installWorkerObserver(importedBodyDetails = false, structuralStep = fal
     // Read-only projection before copying/transporting the accumulated native records.
     // The complete snapshot and retained observation history remain unchanged.
     counters: () => ({ serial: observations.serial, assemblyCount: observations.assemblies.length, workerErrorCount: observations.workerErrors.length }),
+    // Diagnostic only: no geometry/documents, no mutation or authority decision.
+    gearGestureProgress: serial => {
+      const matching = observations.assemblies.filter(value => value.serial > serial && value.action === 'project-assembly-component');
+      const completed = matching.filter(value => value.response).at(-1);
+      return { serial: observations.serial, assemblyCount: observations.assemblies.length,
+        workerErrorCount: observations.workerErrors.length, matchingCount: matching.length,
+        matching: matching.slice(-10).map(value => ({ serial: value.serial, hasResponse: !!value.response, ok: value.response?.ok ?? null })),
+        latestCompleted: completed ? { serial: completed.serial, ok: completed.response.ok } : null,
+        busy: document.querySelector('.assembly-app')?.getAttribute('aria-busy') ?? null,
+        applyDisabled: document.querySelector('button[aria-label="Aplicar ensamblaje"]')?.disabled ?? null,
+        dragAxis: document.querySelector('[aria-label="Visor 3D del ensamblaje"]')?.getAttribute('data-drag-axis') ?? null };
+    },
     assemblyResponseAfter: (serial, action) => {
       const matching = observations.assemblies.filter(value => value.serial > serial && value.action === action);
       return copy({ serial: observations.serial, assemblyCount: observations.assemblies.length, workerErrors: observations.workerErrors,
@@ -740,7 +764,7 @@ async function runInElectron() {
   const stepImportPaths = structuralInsertion ? [null, insertionFiles.malformed, insertionFiles.exported] : structuralStep ? [null, structuralFiles.malformed, structuralFiles.exported, structuralFiles.exported] : [];
   const structuredExportPaths = structuralInsertion ? [insertionFiles.exported, insertionFiles.reexported] : structuralStep ? [structuralFiles.canceled, structuralFiles.exported, structuralFiles.reexported] : [];
   let sourceOpens = 0, stepImports = 0;
-  const protocolResponses = [], consoleErrors = [], failedRequests = [], ipc = [], checks = [], captures = [];
+  const protocolResponses = [], consoleErrors = [], failedRequests = [], ipc = [], checks = [], captures = [], profileCaptures = [];
   // One statically selected successful Save per owned child. The real main
   // handler writes/validates the file; only its unchanged return is withheld.
   const saveCompletion = { enabled: sourceUpdateSavePending || !!configuredMechanical || !!configuredCompound, ordinal: configuredMechanical || configuredCompound ? 2 : 1,
@@ -774,6 +798,7 @@ async function runInElectron() {
     await samplePendingSave('saved-controls-fence'); releaseSaveCompletion('saved-controls-fence');
   };
   let opens = 0, saves = 0, csvExports = 0, geometryExports = 0, finished = false, window;
+  const childBudgetStarted = performance.now();
   const timeout = setTimeout(() => finish(new Error('The isolated UI workflow did not finish before its child deadline.')), TEST_MS - 10_000);
   function finish(error) {
     if (finished) return;
@@ -785,6 +810,7 @@ async function runInElectron() {
     finished = true; clearTimeout(timeout);
     if (error) emitDesktopCiFailure(error);
     const report = { workflowStatus: error ? 'FAIL' : 'PASS', checks, protocolResponses, consoleErrors, failedRequests, captures,
+      ...(partRevolution ? { profileCaptures } : {}),
       dialogSubstitutions: { opens, saves, csvExports, ...(linkedSource || sourceRevision ? { sourceOpens } : {}), ...(partRevolution || assemblyExport || structuralStep || structuralInsertion ? { geometryExports } : {}), ...(structuralStep || structuralInsertion ? { stepImports } : {}) }, ipc,
       ...(saveCompletion.enabled ? { saveCompletion: { ordinal: saveCompletion.ordinal, armed: saveCompletion.armed, releasedBy: saveCompletion.releasedBy, samples: saveCompletion.samples } } : {}),
       ...(error ? { error: describeError(error) } : {}) };
@@ -908,6 +934,10 @@ async function runInElectron() {
   };
   const observe = () => evaluate('globalThis.__solidflowUiTestObservation.snapshot()');
   observe.counters = () => evaluate('globalThis.__solidflowUiTestObservation.counters()');
+  // Read-only estimate from the existing timer registration; never changes its budget.
+  observe.childBudget = () => ({ childElapsedMs: performance.now() - childBudgetStarted,
+    childRemainingMs: TEST_MS - 10_000 - (performance.now() - childBudgetStarted) });
+  observe.gearGestureProgress = serial => evaluate(`globalThis.__solidflowUiTestObservation.gearGestureProgress(...JSON.parse(${encodeJavaScriptString(JSON.stringify([serial]))}))`);
   observe.assemblyResponseAfter = (serial, action) => evaluate(`globalThis.__solidflowUiTestObservation.assemblyResponseAfter(...JSON.parse(${encodeJavaScriptString(JSON.stringify([serial, action]))}))`);
   observe.auditCounters = async label => {
     // Called once at an already-observed idle helper boundary, never per poll.
@@ -1039,6 +1069,13 @@ async function runInElectron() {
       savedPattern: saved.features.at(-1),
       savedContentSha256: digest(await fsp.readFile(output)), savedFeaturesSha256: digest(JSON.stringify(saved.features)) });
   }
+  let activeProfileCapture;
+  const captureProfile = async (phase, sketchId) => {
+    if (process.env.SOLIDFLOW_UI_CAPTURE !== '1') return;
+    check(partRevolution, 'Active-profile captures are restricted to the original revolution scenario.');
+    activeProfileCapture ??= require('./desktop-part-active-profile-capture.cjs')({ window, evaluate, waitFor, check, owned, digest, captures: profileCaptures, STEP_MS });
+    return activeProfileCapture(phase, sketchId);
+  };
   // The extra workflow is a fixed tracked module, never a caller/env-selected script.
   const actualWorkflow = freshSketch
     ? require('./desktop-part-fresh-sketch-flow.cjs')({ expected, input, output, evaluate, observe, waitFor, click, pointer, wheel, menu, capture,
@@ -1050,6 +1087,7 @@ async function runInElectron() {
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
     : partRevolution
     ? require('./desktop-part-revolution-flow.cjs')({ expected, input, output, revolutionStepPath, evaluate, observe, waitFor, click, menu, pointer, capture,
+      captureProfile,
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, geometryExports }) })
     : originAxes
@@ -1276,7 +1314,7 @@ async function runInElectron() {
         await super.loadURL('about:blank');
         this.webContents.debugger.attach('1.3');
         await this.webContents.debugger.sendCommand('Page.enable');
-        await this.webContents.debugger.sendCommand('Page.addScriptToEvaluateOnNewDocument', { source: '(' + installWorkerObserver.toString() + ')(' + (importedBodies || freshSketch ? 'true' : 'false') + ',' + (structuralStep ? 'true' : 'false') + ',' + (structuralInsertion ? 'true' : 'false') + ',' + (configurations ? 'true' : 'false') + ');' });
+        await this.webContents.debugger.sendCommand('Page.addScriptToEvaluateOnNewDocument', { source: '(' + installWorkerObserver.toString() + ')(' + (importedBodies || freshSketch ? 'true' : 'false') + ',' + (structuralStep ? 'true' : 'false') + ',' + (structuralInsertion ? 'true' : 'false') + ',' + (configurations ? 'true' : 'false') + ',' + (partRevolution ? 'true' : 'false') + ');' });
         checks.push('test-owned blank target initialized before CDP observation');
       })();
       await this.instrumentation;

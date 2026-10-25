@@ -22,22 +22,28 @@ module.exports = function originAxisLockWorkflow(context) {
       const rows = [...document.querySelectorAll(selector)].filter(e => text === null || e.textContent.trim() === text);
       return rows.length === 1 && !rows[0].disabled && !rows[0].closest('[hidden]') && rows[0].getClientRects().length > 0;
     }, selector, text));
+    // The manager's real tab handler schedules focus/scroll in requestAnimationFrame.
+    // Let that reveal settle before scrolling this specific command into view.
+    await page(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(true)))));
     await page((selector, text) => {
       const rows = [...document.querySelectorAll(selector)].filter(e => text === null || e.textContent.trim() === text);
       if (rows.length !== 1 || rows[0].disabled || rows[0].closest('[hidden]')) throw Error('One visible enabled command required: ' + selector);
-      rows[0].scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      rows[0].scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
     }, selector, text);
     const inspect = () => page((selector, text) => {
       const rows = [...document.querySelectorAll(selector)].filter(e => text === null || e.textContent.trim() === text), e = rows[0], r = e?.getBoundingClientRect();
       const x = r?.left + r?.width / 2, y = r?.top + r?.height / 2;
-      const clip = { left: 0, top: 0, right: innerWidth, bottom: innerHeight };
+      const clip = { left: 0, top: 0, right: innerWidth, bottom: innerHeight }, scrollOwners = [];
       for (let parent = e?.parentElement; parent; parent = parent.parentElement) {
         const style = getComputedStyle(parent), rect = parent.getBoundingClientRect();
+        if (/(auto|scroll|hidden|clip)/.test(style.overflowX + ' ' + style.overflowY)) scrollOwners.push({
+          tag: parent.tagName, id: parent.id, className: parent.className, scrollTop: parent.scrollTop, scrollLeft: parent.scrollLeft,
+          clientHeight: parent.clientHeight, scrollHeight: parent.scrollHeight, clientWidth: parent.clientWidth, scrollWidth: parent.scrollWidth });
         if (/(auto|scroll|hidden|clip)/.test(style.overflowX)) { clip.left = Math.max(clip.left, rect.left + parent.clientLeft); clip.right = Math.min(clip.right, rect.left + parent.clientLeft + parent.clientWidth); }
         if (/(auto|scroll|hidden|clip)/.test(style.overflowY)) { clip.top = Math.max(clip.top, rect.top + parent.clientTop); clip.bottom = Math.min(clip.bottom, rect.top + parent.clientTop + parent.clientHeight); }
       }
       return { count: rows.length, enabled: !!e && !e.disabled, visible: !!e && !e.closest('[hidden]') && !!r.width && !!r.height,
-        rect: r ? [r.x, r.y, r.width, r.height] : null, clip, contained: !!r && r.left >= clip.left && r.top >= clip.top && r.right <= clip.right && r.bottom <= clip.bottom, x, y,
+        rect: r ? [r.x, r.y, r.width, r.height] : null, clip, scrollOwners, contained: !!r && r.left >= clip.left && r.top >= clip.top && r.right <= clip.right && r.bottom <= clip.bottom, x, y,
         hit: !!e && x >= 0 && y >= 0 && x < innerWidth && y < innerHeight && e.contains(document.elementFromPoint(x, y)) };
     }, selector, text);
     let previous = '', since = 0;
@@ -176,6 +182,7 @@ module.exports = function originAxisLockWorkflow(context) {
     let row = await response(before, BUILD);
     check(canonical(configured ? row.current.document : row.document) === canonical(expected), 'File IPC opens exact original free-axis assembly');
     geometry(row.response.value, expected, false, 'initial'); await recovery(expected);
+    await require('./desktop-compact-viewport-controls.cjs')({ configured, page, waitFor, actualControl, observe, check, checks, canonical });
     const originalRecovery = await page(() => localStorage.getItem('solidflow.autosave'));
     const first = await lockPreview(expected, false); await cancel(expected, false, 'capture-cancel');
     check(await page(() => localStorage.getItem('solidflow.autosave')) === originalRecovery, 'Capture Cancel preserves exact recovery bytes');

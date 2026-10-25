@@ -281,16 +281,46 @@ module.exports = async function gearWorkflow(context) {
     if (handle) break;
   }
   check(!!handle, 'Actual gear manipulator did not expose its Z ring.'); before = await observe.counters();
+  const gestureStarted = performance.now(), gestureProgress = { stage: 'starting', afterSerial: before.serial,
+    startedAt: new Date().toISOString(), stages: [], idlePolls: 0, lastIdle: null,
+    limits: 'Diagnostics only; latest 10 request summaries and error count, no geometry payloads. Existing final stream/error oracles remain authoritative.' };
+  evidence.gestureProgress = gestureProgress;
+  const gestureStage = stage => {
+    const sample = { stage, elapsedMs: performance.now() - gestureStarted, ...observe.childBudget() };
+    Object.assign(gestureProgress, sample); gestureProgress.stages.push(sample);
+  };
+  gestureStage('press-dispatch');
   await pointer('mousePressed', handle, 1);
+  gestureStage('press-complete');
+  gestureStage('busy-wait');
   await waitFor('gear gesture blocks file/Apply operations', () => page(selector => document.querySelector('.assembly-app')?.getAttribute('aria-busy') === 'true'
     && document.querySelector(selector)?.disabled === true && [...document.querySelectorAll(':is(.assembly-toolbar, .assembly-quickbar) button')].find(value => value.textContent.trim() === 'Guardar')?.disabled === true, APPLY));
+  gestureStage('busy-observed');
   const points = [];
   for (const fraction of [1 / 3, 2 / 3, 1]) {
     const angle = .3 * fraction, dx = handle.x - center.x, dy = handle.y - center.y;
     const point = { x: center.x + dx * Math.cos(angle) - dy * Math.sin(angle), y: center.y + dx * Math.sin(angle) + dy * Math.cos(angle) };
+    gestureStage('move-' + (points.length + 1) + '-dispatch');
     await pointer('mouseMoved', point, 1); points.push(point);
+    gestureStage('move-' + points.length + '-complete');
   }
-  await pointer('mouseReleased', points.at(-1), 0); await idle('gear gesture receives latest native projection');
+  gestureStage('release-dispatch');
+  await pointer('mouseReleased', points.at(-1), 0);
+  gestureStage('release-complete');
+  gestureStage('idle-wait');
+  // Same waitFor budget, cadence, description and exact busy=false predicate as idle().
+  // Replace its one renderer read with a bounded read; never append per-poll payloads.
+  await waitFor('gear gesture receives latest native projection', async () => {
+    gestureProgress.stage = 'idle-read';
+    const readStarted = performance.now();
+    gestureProgress.idleReadStartedMs = readStarted - gestureStarted;
+    const sample = await observe.gearGestureProgress(before.serial);
+    Object.assign(gestureProgress, { stage: 'idle-wait', elapsedMs: performance.now() - gestureStarted,
+      ...observe.childBudget(), idlePolls: gestureProgress.idlePolls + 1,
+      lastIdle: { ...sample, readMs: performance.now() - readStarted } });
+    return sample.busy === 'false';
+  });
+  gestureStage('idle-complete');
   const streamed = (await observe()).assemblies.filter(value => value.serial > before.serial && value.action === 'project-assembly-component');
   check(streamed.length >= 1 && streamed.length <= 3 && streamed.every(value => value.response?.ok && canonical(value.current) === canonical(committed.document)),
     'Gear gesture exceeded stream bounds or used another committed source.');

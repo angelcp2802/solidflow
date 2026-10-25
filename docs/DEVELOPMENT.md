@@ -1,5 +1,42 @@
 # Development guide
 
+The assembly workspaces share a compact viewport toolbar. Existing view,
+selection and manipulation callbacks, accessible names and busy guards remain
+in place. Context labels stay below it, and configured picking instructions
+retain their separate layout row. The original origin-lock renderer workflows
+inspect actual command containment and center hit targets, activate front and
+isometric views with pointer input, and check document/history/CAD-request
+invariants. Their command reveal waits for the manager's scheduled focus before
+scrolling the target; it still requires stationary, fully contained hit targets.
+Both workspace callers reserve a 44 px top band for the toolbar in origin-label
+layout. Boxes and the overflow list begin below that band; projected witness
+coordinates and reference bindings remain unchanged. The optional inset defaults
+to zero outside those workspaces, participates in the layout signature, and
+invalidates a press from a prior layout. The origin-picking renderer audits the
+actual visible labels against the toolbar bounds as well as their hit targets.
+
+While a part operation is edited, its current resolved source sketches are
+visible in orange even when ordinary browsing hides consumed sketches. The
+source includes an unaccepted staged sketch. Pending, mismatched or failed source
+builds provide no active overlay; stale displayed-model copies are removed for
+those input IDs. Suppressed sketches remain excluded. The overlay changes no
+selection, document, history or body/face/edge identity. Revealing it does not
+trigger a camera fit; the existing first-body fit still applies. Any source
+feature error conservatively hides all active inputs. Multiple sweep/loft inputs
+currently share the same highlight, without separate role colors.
+
+The original revolution renderer checks a staged height change, active input
+identity after reopening a consumed profile, selector changes, Cancel and the
+existing geometry/history/save/export oracles. Optional captures retain two
+presented editor states separately from the clean final-document capture.
+Screenshots require visual inspection; DOM input IDs are not pixel evidence.
+
+The standard assembly renderer records bounded gear-gesture dispatch/release
+stages and remaining time against its unchanged child deadline. Idle polling
+returns a bounded read-only projection with the latest matching request and
+response summaries, retaining the final full-history audit. These diagnostics
+do not by themselves establish a timeout cause or fix.
+
 Concentric rotation capture accepts current principal-axis references and
 material-cylinder axis references. Other mechanical families retain their
 existing material support requirements. The saved quaternion uses ordered full

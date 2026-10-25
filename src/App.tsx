@@ -2251,6 +2251,18 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
   );
   const selectedSketchId =
     selectedFeature?.type === "sketch" ? selectedFeature.id : undefined;
+  // Presentation only: operationDocument includes the staged sketch. Use its solved source input.
+  const activeInputSketchKey = JSON.stringify(editing && !editing.suppressed
+    ? [...new Set(featureSketchIds(editing))] : []);
+  // Keep display inputs stable when only an operation parameter or its name changes.
+  const activeInputSketchIds = useMemo(() => JSON.parse(activeInputSketchKey) as string[], [activeInputSketchKey]);
+  const activeInputSketches = useMemo(() => {
+    if (!activeInputSketchIds.length || !sourceFeatures || sourceLoading
+      || sourceBuiltFeatures !== sourceFeatures || !sourceModel || sourceModel.featureErrors.length) return [];
+    const eligible = new Set(sourceFeatures.filter(feature => feature.type === "sketch" && !feature.suppressed)
+      .map(feature => feature.id));
+    return (sourceModel.sketches ?? []).filter(sketch => eligible.has(sketch.id) && activeInputSketchIds.includes(sketch.id));
+  }, [activeInputSketchIds, sourceFeatures, sourceLoading, sourceBuiltFeatures, sourceModel]);
   const visibleSketchIds = sketches
     .filter(
       (sketch) =>
@@ -3873,6 +3885,8 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
               onSelectEdge={toggleEdge}
               visibleSketchIds={visibleSketchIds}
               selectedSketchId={selectedSketchId}
+              activeInputSketchIds={activeInputSketchIds}
+              activeInputSketches={activeInputSketches}
               selectedFace={faceSelection?.ref}
               selectedFaces={
                 pickingFaceOperation && !pickingSupport

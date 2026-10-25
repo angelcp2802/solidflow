@@ -11,6 +11,19 @@ horizontal scrolling. Direct command buttons do not display a dropdown arrow.
 While editing, the operation title and accept/cancel controls stay visible as
 the left property editor scrolls.
 
+An operation's current input sketches appear in orange while it is edited,
+including a consumed profile reopened from the feature tree. Starting an
+operation from an unaccepted sketch shows that current sketch. Cancel returns
+to the live sketch editor; cancelling an existing operation restores the committed
+downstream model. A pending or failed source reconstruction hides the active
+overlay until a current source is available. This highlight changes no saved
+sketch visibility or selection.
+
+Assembly view commands occupy one compact row centered above the model.
+Hover an icon for its command name. Standard assemblies retain the existing
+face-selection and move/rotate controls beside the view commands; availability
+still follows the current selection and editing state.
+
 The part's top menus support arrow-key navigation, Enter, Tab and Escape.
 Escape closes a focused menu and returns focus to its trigger without cancelling
 the active sketch or operation. Unavailable actions remain disabled; closing a

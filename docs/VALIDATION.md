@@ -1,5 +1,110 @@
 # Validation
 
+## Compact assembly controls and current operation profiles — 2026-10-25
+
+Both assembly workspaces group their existing viewport commands in a compact
+toolbar, retaining callbacks, accessible names and busy/selection guards. The
+part editor highlights its current resolved operation input in orange, including
+an unaccepted staged profile and a consumed sketch reopened through its owner.
+Pending, mismatched or failed source builds do not substitute a stale profile.
+The display changes no document, recovery, history, body lineage or reference
+identity, and revealing the profile does not itself fit the camera.
+
+The following selected production-renderer runs pass on Windows x64 with
+Node 24.11.1 and Electron 44.9.3, before the subsequent origin-label top-band
+change described below:
+
+| Workflow | Checkpoints | Elapsed |
+| --- | ---: | ---: |
+| Revolution, active profile and saved editing | 133 | 44.498 s |
+| Standard origin-axis rotation lock | 69 | 56.270 s |
+| Configured origin-axis rotation lock | 93 | 61.295 s |
+| Compact configured material picking | 197 | 76.447 s |
+| Successive part operations | 118 | 31.324 s |
+| Fresh face-supported sketch | 48 | 17.175 s |
+| Standard origin references | 205 | 89.454 s |
+| Configured origin references | 312 | 87.441 s |
+| Broad rigid assembly and persistence | 645 | 166.816 s |
+
+All nine records report zero console, request and resource errors, confirmed
+child exit and isolated-profile cleanup. Existing independent geometry, capture,
+Cancel/Apply, history and saved-reopening checks remain in their workflows.
+The revolution case retains its independent STEP round trip. Two separately
+presented profile images were manually reviewed: the orange current profile
+reflects the staged height of 10 mm, and the consumed input is visible while its
+saved operation is edited. These images establish those displayed states, not
+new native geometry or broader profile-family coverage. Multiple inputs still
+share one highlight color rather than distinct sweep/loft role colors.
+
+A separate visible Windows demonstration opens the saved revolution with an
+actual tree double-click, observes the orange input after reconstruction and
+switches to the front view with Ctrl+1. Lateral Cancel restores the bored sleeve,
+both operation rows and the displayed 471.239 mm3 volume. Ctrl+7 returns to the
+isometric view and wheel input zooms the model. The demonstration ends maximized
+and idle. This is manual visual evidence for one original fixture, separate from
+the renderer's numeric geometry checks; no pixel oracle or general platform
+claim follows from it.
+
+Command activation uses actual Chromium pointer input. Numeric/select field
+changes remain scripted on visible controls, scrolling reveals targets, and
+native file dialogs use isolated test-owned paths. The origin-lock command
+helper waits for the manager's scheduled focus before scrolling and still
+requires a stationary, fully contained center hit. The first profile-harness
+attempt incorrectly expected the 3D viewport immediately after returning to
+the sketch canvas. Only that test expectation was corrected; no application
+behavior, native oracle or deadline was changed to accept it.
+
+After these nine runs, origin-label placement in both assembly callers reserves
+a 44 px top band for the toolbar. The selected label identities, geometric
+anchors and picking guards remain unchanged. Twelve focused pure layout cases
+pass, and the rebuilt production bundle passes in 3.796 s. The targeted runs
+after that final layout change also pass:
+
+| Workflow after the top-band change | Checkpoints | Elapsed |
+| --- | ---: | ---: |
+| Standard origin references, repeated | 205 | 89.467 s |
+| Configured origin references, repeated | 312 | 87.455 s |
+| Compact standard distance interval | 259 | 48.410 s |
+
+All three report zero console, request and resource errors, confirmed child exit
+and isolated-profile cleanup. These targeted repetitions do not constitute the
+complete renderer matrix on the final layout. The earlier nine renderer passes
+retain their pre-top-band scope.
+
+Final `npm test` passes all 9,584 unit/CAD cases across 419 files in 542.27 s,
+followed by 83 IPC/security passes, zero failures and two explicit platform skips
+in 1.499 s. The complete command takes 545.271 s. Actual `npm run test:desktop`
+passes in 1.561 s with zero console, request or resource errors. All 1,112
+non-Markdown inputs match the isolated runtime checkout. These local results do
+not establish new-head hosted or installed-package acceptance.
+
+New read-only gear diagnostics retain dispatch/release/idle stages and the
+remaining budget without changing the 35 s step or 170 s child deadlines,
+event order, idle predicate or final full-history/geometry audits. In the local
+broad assembly pass, the gesture takes 3.726 s, records three projection
+responses at serials 127, 129 and 131, and completes after seven idle polls with
+27.157 s of child budget remaining. The entire launcher run takes 166.816 s;
+that separate total includes work outside the gesture and leaves little timing
+margin. One successful measurement establishes neither the hosted timeout cause
+nor stable performance or a fix.
+
+Parent `2b7dc1f` finishes [CI](https://github.com/angelcp2802/solidflow/actions/runs/40159614803)
+with five of nine renderer jobs and all three configured-authoring jobs passing.
+Windows and Linux persistence fail the rigid-assembly step. Windows and macOS
+relations fail the origin-axis rotation-capture step. The retrieved macOS log
+stops before the lock request: the enabled button has rectangle
+(225, 769.5, 26, 28) px while the sidebar clip ends at y=648; containment and
+center hit are false. Its report has no console or resource errors. The log
+does not show why the existing scroll operation failed to retain the target in
+view. Detailed Windows persistence logs were unavailable through the inspected
+connector paths, so a repeated gear checkpoint is not established for this head.
+The other two failed renderer steps likewise have no cause assigned from their
+names alone. All three Desktop jobs fail `Require every renderer validation job`
+before subsequent unit, smoke and package acceptance. Both
+[Security jobs](https://github.com/angelcp2802/solidflow/actions/runs/40159614769)
+pass. New-head hosted acceptance and repeated persistence timing remain open;
+the historical results below retain their original scope.
+
 ## Origin-axis rotation capture and stable part-tree editing — 2026-10-25
 
 Concentric rotation capture now admits current principal-axis lines alongside

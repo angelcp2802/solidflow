@@ -409,6 +409,23 @@ it('distinguishes interference choices with repeated display names using the com
   expect(html).toContain('aria-label="Componentes excluidos de interferencias"')
   expect(serializeAssemblyDocument(document)).toBe(before)
 })
+it('keeps the compact viewport command names unique and retains initial manipulation guards', () => {
+  const html = renderToStaticMarkup(<AssemblyWorkspace initialDocument={createAssemblyExample()} onOpenPart={() => undefined} />)
+  const nav = html.match(/<nav\b[^>]*aria-label="Controles del visor del ensamblaje"[^>]*>([\s\S]*?)<\/nav>/)?.[1]
+  expect(nav).toBeDefined()
+  const buttons = nav!.match(/<button\b[^>]*>[\s\S]*?<\/button>/g) ?? []
+  expect(buttons.map(button => button.replace(/<[^>]*>/g, ''))).toEqual([
+    'Isométrica', 'Frontal', 'Superior', 'Ajustar', 'Seleccionar caras',
+    'Arrastrar posición', 'Arrastrar giro', 'Desactivar manipulador',
+  ])
+  for (const button of buttons) {
+    expect(button).toContain('class="compact-viewport-label"')
+    expect(button).toMatch(/<svg\b[^>]*aria-hidden="true"/)
+    expect(button).toMatch(/title="[^"]+"/)
+  }
+  for (const button of buttons.slice(5)) expect(button).toMatch(/<button[^>]*disabled=""/)
+  expect(nav).toContain('class="compact-viewport-group assembly-drag-tools"')
+})
 it('does not start movement or expose a raw pose-write control during initial workspace rendering', () => {
   const document = createAssemblyExample(), before = serializeAssemblyDocument(document)
   const html = renderToStaticMarkup(<AssemblyWorkspace initialDocument={document} initialSaved={before} onOpenPart={() => undefined} />)

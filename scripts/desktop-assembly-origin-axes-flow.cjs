@@ -56,21 +56,28 @@ module.exports = function originAxesWorkflow(c) {
     if (state.originKey) {
       const layout = await page(() => {
         const viewport = document.querySelector('.assembly-viewport'), boundary = viewport.getBoundingClientRect();
+        const toolbars = [...viewport.parentElement.querySelectorAll(':scope > .compact-viewport-toolbar')];
+        const tr = toolbars.length === 1 ? toolbars[0].getBoundingClientRect() : null;
+        const toolbar = tr ? { left: tr.left, top: tr.top, right: tr.right, bottom: tr.bottom, width: tr.width, height: tr.height } : null;
         const labels = [...viewport.querySelectorAll('button[data-origin-key]')].map(button => {
           const r = button.getBoundingClientRect(), hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-          return { key: button.getAttribute('data-origin-key'), left: r.left, top: r.top, right: r.right, bottom: r.bottom,
+          return { key: button.getAttribute('data-origin-key'), left: r.left, top: r.top, right: r.right, bottom: r.bottom, relativeTop: r.top - boundary.top,
             inBounds: r.width > 0 && r.height > 0 && r.left >= boundary.left && r.right <= boundary.right && r.top >= boundary.top && r.bottom <= boundary.bottom,
             ownHit: hit === button || button.contains(hit), hitTarget: hit ? { tag: hit.tagName,
               role: hit.getAttribute('role'), label: hit.getAttribute('aria-label')?.slice(0, 160) ?? null,
               className: hit.getAttribute('class')?.slice(0, 160) ?? null } : null };
         });
-        return { labels, overflow: !!viewport.querySelector('.assembly-origin-overflow') };
+        return { labels, toolbar, toolbarCount: toolbars.length, overflow: !!viewport.querySelector('.assembly-origin-overflow') };
       });
       check(layout.labels.length > 0 && !layout.overflow && layout.labels.every(row => row.inBounds && row.ownHit),
         'Original origin fixture labels remain inside the viewport and individually hittable: ' + JSON.stringify(layout));
       check(layout.labels.every((a, i) => layout.labels.slice(i + 1).every(b => a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top)),
         'Distinct origin label rectangles do not overlap on the original fixture');
-      selectionGestures.push({ kind: 'origin-label-layout', labels: layout.labels });
+      check(layout.toolbarCount === 1 && layout.toolbar && layout.toolbar.width > 0 && layout.toolbar.height > 0
+        && layout.labels.every(row => row.relativeTop >= 48 && (row.right <= layout.toolbar.left || layout.toolbar.right <= row.left
+          || row.bottom <= layout.toolbar.top || layout.toolbar.bottom <= row.top)),
+        'Visible origin labels reserve the toolbar band and do not cover its actual rectangle: ' + JSON.stringify(layout));
+      selectionGestures.push({ kind: 'origin-label-layout', labels: layout.labels, toolbar: layout.toolbar });
     }
     await pointer('mouseMoved', state.point);
     const hit = await inspect();

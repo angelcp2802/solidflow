@@ -18,6 +18,12 @@ Both assembly workspaces have contextual command tabs, component properties and
 origin-plane/axis tree selection. Configured picking instructions now reserve
 their own row instead of covering origin labels.
 
+The assembly viewport now groups its existing view, selection and manipulation
+commands into a compact toolbar. Operation editing highlights the current resolved
+input profile in orange, including an unaccepted staged sketch and a previously
+consumed input. This is presentation state; it changes no document, history or
+reference identity. Pending or failed source builds do not display a stale input.
+
 Concentric relations can now capture rotation between current origin axes or
 an origin axis and a cylindrical face. The standard workspace captures from a
 verified preview; the configured workspace explicitly replaces its existing
@@ -27,19 +33,34 @@ Apply, history and saved reopening. The part selection-action strip now retains
 its height, with a compact-window pointer regression for lower-edge double-click
 editing and exact Cancel.
 
-Parent `0485d43` completes eight of nine hosted renderer jobs, all three
-configured-authoring jobs and both Security jobs. The revolution field failure
-from its predecessor is no longer the failing step. Windows persistence stops
-at the rigid-assembly child deadline during the gear-gesture sequence, with no
-recorded console error. This checkpoint alone does not establish the cause.
+Nine selected local Windows renderers pass for this increment, including compact
+configured picking, both origin-lock workflows, both free-origin workflows and
+the broad assembly sequence. Two presented operation-profile captures have been
+visually inspected, and a separate visible Windows demonstration checks opening
+the saved revolution, its orange input and lateral Cancel back to the bored
+sleeve. A subsequent change reserves the top 44 px for the viewport toolbar when
+placing origin labels. Its 12 focused layout cases, production build, repeated
+standard/configured origin renderers and compact standard distance workflow
+pass. Final acceptance also passes 9,584 unit/CAD cases in 419 files, 83 IPC/security
+cases with two explicit platform skips, and actual desktop smoke with zero
+recorded errors. All 1,112 non-Markdown inputs match the isolated runtime. The
+earlier nine renderer passes precede that last layout change; the three targeted
+repetitions do not establish a complete final-layout renderer matrix.
+
+Parent `2b7dc1f` passes five of nine hosted renderer jobs, all three
+configured-authoring jobs and both Security jobs. Rigid persistence fails on
+Windows and Linux; origin-lock interaction fails on Windows and macOS. The macOS
+log shows the enabled lock command below the sidebar clip before any capture
+request. Its exact visibility failure does not establish the other jobs' causes.
 All three Desktop checks stop at the prerequisite gate before unit/smoke/package
-steps; no installed-package or release acceptance is claimed.
+steps. Local gear-stage measurements preserve the original deadline and do not
+establish a timing fix. No installed-package or release acceptance is claimed.
 See [validation](VALIDATION.md) for exact
 local results, retained failures and hosted links; results from earlier commits
 do not establish current-head acceptance.
 
-Next priorities include compact assembly viewport controls, clearer active
-profiles when editing operations, viewport/external revolution-axis selection,
+Next priorities include current-head hosted acceptance,
+viewport/external revolution-axis selection,
 two-direction/thin-wall and revolved-cut workflows, broader material/mechanical reference picking and
 the complete basic assembly demo. Repeated/hosted persistence timing, remaining
 origin orientations and installed-package support also remain open. The sections

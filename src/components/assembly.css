@@ -183,7 +183,7 @@
 .assembly-classic-workspace .assembly-section h3 { margin-bottom: 8px; }
 .assembly-classic-workspace .assembly-canvas { background: linear-gradient(#eef2f5, #fff 58%, #e7edf2); }
 .assembly-classic-workspace .assembly-view-tools { top: 9px; border-radius: 2px; box-shadow: 0 2px 5px #244a6c10; }
-.assembly-classic-workspace .assembly-canvas-label { top: 91px; left: 15px; }
+.assembly-classic-workspace .assembly-canvas-label { top: 52px; left: 15px; }
 .assembly-classic-workspace .assembly-canvas-label strong { font-size: 11px; }
 .assembly-classic-workspace .assembly-canvas-label span { max-width: 460px; font-size: 10px; }
 .assembly-classic-workspace .assembly-status { flex-basis: 24px; background: #f1f4f7; }
