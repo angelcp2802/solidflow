@@ -1,5 +1,40 @@
 # Validation
 
+## Current part to independent assembly — 2026-10-25
+
+The explicit command copies the current committed part into a new unsaved
+assembly with one fixed occurrence at identity. It preserves feature/body
+identities without inheriting the source file path. Ordinary reuse remains
+floating. Seven new document tests cover detached snapshots, the original
+sequential body-reference chain, round trips, identity allocation and invalid
+input admission. These are document checks, not geometric observations.
+
+Local Windows x64 / Node 24.11.1 / Electron 44.9.3 acceptance uses 1,150 matching
+non-Markdown source/runtime inputs. `npm run build` passes in 5.795 s;
+`npm run test:desktop:part-sequence` passes 166 checkpoints in 24.549 s;
+`npm test` passes 9,792 tests in 429 files plus 103 IPC checks and two explicit
+skips in 561.109 s; desktop smoke passes in 1.890 s. The renderer reports zero
+console, request and resource errors, confirmed child closure and profile cleanup.
+
+The cumulative renderer retains all earlier cut/extrusion/sketch/history and
+part Save/reopen checks. During an active cut, both new commands are disabled;
+an actual disabled-menu click preserves recovery and worker observations.
+After saving and reopening the completed sequence, an accepted name change is
+left unsaved. The actual ribbon command preserves that current document in a
+new unsaved assembly. Reuse adds a second floating occurrence of the same
+definition. Native file IPC saves and reopens a separate assembly while the
+part file remains byte-for-byte unchanged. An independent retained-result
+review checks all three assembly phases, exact copied features and file hashes.
+
+The unchanged sequential part has independent V1080 mm³, A912 mm² and bounds
+[-11,-6,0] to [11,6,9] mm. Two coincident occurrences sum to V2160/A1824; they are
+not a fused union. Volume/area tolerance is 1e-5 and coordinate tolerance 1e-6.
+The unsaved change exercised is the name, not a geometry edit. Field values use
+scripted setters; command actions use actual pointer transport. This run adds
+no standalone BRep/export measurement, human acceptance, installed portable
+interaction or cross-platform claim. Prior hosted deadline failures below
+remain unresolved by this functional change.
+
 ## Rigid workflow observation and timing — 2026-10-25
 
 This increment changes acceptance diagnostics, not application behavior. The

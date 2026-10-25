@@ -10,6 +10,7 @@ module.exports = function partSequenceWorkflow(context) {
     initialReadyMs, dialogCounts } = context;
   const APPLY = 'button[title="Aceptar operación"]';
   const records = [];
+  const partToAssembly = require('./desktop-part-to-assembly-flow.cjs')(context);
   const page = (fn, ...args) => evaluate('(' + fn.toString() + ')(' + args.map(v => 'JSON.parse(' + quote(JSON.stringify(v)) + ')').join(',') + ')');
   const initialLayout = (phase, profileId, locked) => require('./desktop-part-extrude-layout.cjs')({ page, recovery, check, records }, phase, { profileId, locked });
   async function change(selector, value) {
@@ -314,6 +315,7 @@ module.exports = function partSequenceWorkflow(context) {
     })`),'Insert menu disables incompatible solid operations during the live cut draft');
     await escape('insert');
     await open('file');
+    await partToAssembly.draftGuard();
     await menuKey('Tab');
     await waitFor('part menu Tab reaches quick actions in shared header',()=>evaluate(`!document.querySelector('.part-main-menus [role="menu"]')&&!!document.activeElement?.closest('.command-header .quick-actions')`));
     check(canonical(await snapshot())===canonical(original)&&(await observe()).serial===before.serial,'Menu navigation preserves the cut draft without another native build');
@@ -396,5 +398,8 @@ module.exports = function partSequenceWorkflow(context) {
     checks.push({originalSha256:digest(await fsp.readFile(input)),savedSha256:digest(await fsp.readFile(output)),records,
       independentOracles:'Volumes 960,944,928,976,984 mm3; saved unused width-three cut removes 3*2*4=24 mm3, leaving 936 mm3. Widening the base from 20 to 22 mm adds 2*12*4=96 mm3, giving 1080 mm3 with X bounds ±11 mm. Bounds 1e-6 mm, volume 1e-5 mm3. Native area/BRep checks are separate.'});
     await capture(saved);
+    await partToAssembly.run(saved);
+    check(!consoleErrors.length && !failedRequests.length && protocolResponses.every(value => value.status >= 200 && value.status < 400),
+      'Part-to-assembly continuation has no renderer, request or production resource errors');
   };
 };

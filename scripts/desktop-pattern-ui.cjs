@@ -619,6 +619,7 @@ async function runInElectron() {
   const untilNext = activeScenario === SCENARIOS['until-next'];
   const freshSketch = activeScenario === SCENARIOS['part-fresh-sketch'];
   const partSequence = activeScenario === SCENARIOS['part-sequence'];
+  const partAssemblyOutput = partSequence ? path.join(owned, 'saved-sequence-assembly.solidflow') : null;
   const partRevolution = activeScenario === SCENARIOS['part-revolution'];
   const partFinishing = activeScenario === SCENARIOS['part-finishing'];
   const partBodyCatalog = activeScenario === SCENARIOS['part-body-catalog'];
@@ -753,7 +754,7 @@ async function runInElectron() {
     [name, JSON.parse(fs.readFileSync(file, 'utf8'))])) : null;
   const outputs = untilNext ? { cutSelected: path.join(owned, 'saved-cut-selected.solidflow'),
     cutAll: path.join(owned, 'saved-cut-all.solidflow'), add: path.join(owned, 'saved-add-selected.solidflow') } : null;
-  const openPaths = basicAuthoring ? [input, null, output] : partBodyCatalog ? [input, input] : partFinishing ? [input, finishingFiles.fillet, input, output] : configuredComponents ? [input, null, path.join(owned, 'incoming.solidflow'), path.join(owned, 'incoming.solidflow'), output] : structuralInsertion ? [input, insertionFiles.parent, output] : structuralStep ? [input, structuralFiles.part, output] : untilNext ? [inputPaths.cut, outputs.cutSelected, outputs.cutAll,
+  const openPaths = basicAuthoring ? [input, null, output] : partSequence ? [input, output, partAssemblyOutput] : partBodyCatalog ? [input, input] : partFinishing ? [input, finishingFiles.fillet, input, output] : configuredComponents ? [input, null, path.join(owned, 'incoming.solidflow'), path.join(owned, 'incoming.solidflow'), output] : structuralInsertion ? [input, insertionFiles.parent, output] : structuralStep ? [input, structuralFiles.part, output] : untilNext ? [inputPaths.cut, outputs.cutSelected, outputs.cutAll,
     inputPaths.add, outputs.add, inputPaths.reject] : assembly ? [input, output, partUpdatePath, partUpdatePath, output, output, output, projectionOutput, output, interferencePath, translationPath, translationOutput, bomPath, input, gearOutput]
     : assemblyImport ? [input, importSourcePath, importRejectedPath, importSourcePath, output]
     : sourceRevision ? [input, sourceRevisionFiles.parent, output]
@@ -775,7 +776,7 @@ async function runInElectron() {
       repairFiles.replacementPart, repairFiles.replacementPart, repairFiles.replacementSaved]
     : symmetryPicking ? [input, ...Array(6).fill(output)]
     : symmetry ? [input, ...Array(5).fill(output)] : configuredRelations || configuredPicking || configuredMechanical || configuredCompound ? [input, output] : configurations ? [input, output, output] : [input, output];
-  const savePaths = partBodyCatalog ? [] : partFinishing ? [finishingFiles.fillet, output] : configurations ? [null, output] : untilNext ? [outputs.cutSelected, outputs.cutAll, outputs.add] : assembly ? [output, projectionOutput, translationOutput, gearOutput]
+  const savePaths = partBodyCatalog ? [] : partSequence ? [output, partAssemblyOutput] : partFinishing ? [finishingFiles.fillet, output] : configurations ? [null, output] : untilNext ? [outputs.cutSelected, outputs.cutAll, outputs.add] : assembly ? [output, projectionOutput, translationOutput, gearOutput]
     : assemblyImport ? [importBaselinePath, output]
     : sourceRevision ? [null, output]
     : linkedSource ? [output, linkedSourceFiles.assemblyOutput]
@@ -1196,7 +1197,7 @@ async function runInElectron() {
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
     : partSequence
-    ? require('./desktop-part-sequence-flow.cjs')({ expected, input, output, evaluate, observe, waitFor, click, menu, menuKey, pointer, asideWheel, capture,
+    ? require('./desktop-part-sequence-flow.cjs')({ expected, input, output, partAssemblyOutput, evaluate, observe, waitFor, click, menu, menuKey, pointer, asideWheel, capture,
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
     : partRevolution
@@ -1569,7 +1570,7 @@ async function runInElectron() {
         return csvExports === 1 ? { canceled: true } : { canceled: false, filePath: bomCsvOutputs[csvExports - 2] };
       }
       if (structuralStep || structuralInsertion) check(path.basename(options.defaultPath) === (structuralInsertion ? 'Original structural insertion parent.solidflow' : 'Conjunto _Árbol_ Ω.solidflow'), 'Structural Save As uses the literal sanitized original name.');
-      check(options.title === (configurations ? 'Guardar ensamblaje configurado' : basicAuthoring || originAxes || structuralInsertion || structuralStep || assembly || assemblyImport || assemblySourceUpdate || linkedSource || sourceRevision || screw || rackPinion || assemblyExport || direction || angleMeasurement || directedAngle || tangent || cylinderTangent || sphereTangent || limitDistance || limitAngle || width || linePath || circularPath || hinge || hingeLimits || hingePicking || hingeLimitsPicking || hingeRepair || profileCenter || symmetry || symmetryRepair || symmetrySurfaceRepair || symmetryPicking || symmetryNestedRepair || replacement ? 'Guardar ensamblaje' : 'Guardar pieza') && ++saves <= savePaths.length, 'Unexpected native save/export dialog request.');
+      check(options.title === (partSequence ? saves === 0 ? 'Guardar pieza' : 'Guardar ensamblaje' : configurations ? 'Guardar ensamblaje configurado' : basicAuthoring || originAxes || structuralInsertion || structuralStep || assembly || assemblyImport || assemblySourceUpdate || linkedSource || sourceRevision || screw || rackPinion || assemblyExport || direction || angleMeasurement || directedAngle || tangent || cylinderTangent || sphereTangent || limitDistance || limitAngle || width || linePath || circularPath || hinge || hingeLimits || hingePicking || hingeLimitsPicking || hingeRepair || profileCenter || symmetry || symmetryRepair || symmetrySurfaceRepair || symmetryPicking || symmetryNestedRepair || replacement ? 'Guardar ensamblaje' : 'Guardar pieza') && ++saves <= savePaths.length, 'Unexpected native save/export dialog request.');
       if ((sourceRevision || configurations) && savePaths[saves - 1] === null) return { canceled: true };
       return { canceled: false, filePath: savePaths[saves - 1] };
     };

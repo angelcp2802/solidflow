@@ -177,6 +177,7 @@ import {
 import AssemblyWorkspace from "./components/AssemblyWorkspace";
 import ConfiguredAssemblyWorkspace from "./components/ConfiguredAssemblyWorkspace";
 import { createEmptyAssembly } from "./examples/assembly";
+import { createAssemblyFromPart } from "./model/assemblyFromPart";
 import { MAX_ASSEMBLY_BYTES, type AssemblyDocument } from "./model/assemblyDocument";
 import { parseCadDocument, serializeCadDocument, validateCadDocument, type CadDocument } from "./model/cadDocument";
 import type { AssemblyConfiguredDocument } from "./model/assemblyConfiguredDocument";
@@ -693,6 +694,9 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     !error &&
     !exporting &&
     !importing;
+  const canCreateAssemblyFromPart = !editing && !stagedSketch && ready && !busy
+    && previewCurrent && builtFeatures === doc.features && !!model?.vertices.length
+    && !error && model.featureErrors.length === 0 && !importing && !exporting && !discardOpen;
   const notify = (message: string, isError = false) => {
     setToast(message);
     setToastError(isError);
@@ -942,6 +946,18 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     const source = replacementSource();
     if (!(await canReplace()) || !isReplacementCurrent(source)) return;
     try { onOpenAssembly(createEmptyAssembly()); }
+    catch (reason) { notify((reason as Error).message, true); }
+  };
+  const newAssemblyFromPart = () => {
+    if (!requireFinishedEdit()) return;
+    if (fileOperation.current || discardDecision.current) {
+      notify("Termina la operación de archivo actual antes de crear el ensamblaje.");
+      return;
+    }
+    if (!mounted.current || !canCreateAssemblyFromPart || docRef.current !== doc || editingRef.current) return;
+    // Synchronous snapshot transfer: no pending editor, file read or stale build
+    // can replace the committed part. The new assembly owns its own Save path.
+    try { onOpenAssembly(createAssemblyFromPart(docRef.current)); }
     catch (reason) { notify((reason as Error).message, true); }
   };
   const loadDemo = async () => {
@@ -2390,6 +2406,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     );
   };
   const disabledMenuCommands: Record<string, boolean> = {
+    "Crear ensamblaje con esta pieza": !canCreateAssemblyFromPart,
     "Importar STEP…": !!editing || importing || exporting,
     "Importar STEP estructurado…": !!editing || importing || exporting,
     "Guardar": !!editing || importing || exporting, "Guardar como…": !!editing || importing || exporting,
@@ -2410,6 +2427,8 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     {
       id: "file", label: "Archivo", items: [
         ["Nueva pieza", "Ctrl+N", newDoc],
+        ["Nuevo ensamblaje vacío", "", newAssembly],
+        ["Crear ensamblaje con esta pieza", "", newAssemblyFromPart],
         ["Abrir…", "Ctrl+O", openDoc],
         ["Importar STEP…", "", selectStep],
         ["Importar STEP estructurado…", "", () => void selectStructuralStep()],
@@ -3034,6 +3053,11 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
           </button>
           <button onClick={() => void newAssembly()} title="Crear un ensamblaje">
             Ensamblaje
+          </button>
+          <button onClick={newAssemblyFromPart} disabled={!canCreateAssemblyFromPart}
+            aria-label="Crear ensamblaje con esta pieza"
+            title="Crear ensamblaje con esta pieza: copia independiente, fija en el origen. Incluye los cambios aceptados sin guardar.">
+            Con esta pieza
           </button>
           <div />
           <button

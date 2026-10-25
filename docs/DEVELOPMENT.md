@@ -1,5 +1,27 @@
 # Development guide
 
+## Create an assembly from the current part — 2026-10-25
+
+**Archivo → Crear ensamblaje con esta pieza**, also available as **Con esta
+pieza** in the ribbon, starts a new assembly containing an independent embedded
+copy of the current committed part. Accepted changes that have not been saved
+are included. The first occurrence is fixed at the common origin, with identity
+placement and no mates. Ordinary import and reusable-source insertion retain
+their existing floating default. **Nuevo ensamblaje vacío** remains separate.
+
+The command requires a healthy, current build of the complete committed part,
+with solid geometry and no active editor, staged sketch, pending file operation
+or replacement confirmation. It neither accepts nor cancels a draft. Transfer
+is synchronous and validates the embedded snapshot and assembly file-size
+limit before replacing the workspace. Failure leaves the part in place.
+
+The assembly starts unsaved with its own file identity. Creating or saving it
+does not write to the part's original file. The part's feature identities and
+declarations are preserved; its session Undo history and external file link are
+not transferred. Save the new assembly to retain the embedded copy. This is a
+document composition command, not a new geometry algorithm or a live source
+link. See [validation](VALIDATION.md) for the executed cases and limits.
+
 ## Rigid assembly workflow timing — 2026-10-25
 
 The rigid renderer test reports passive timings for authoring, source updates,
