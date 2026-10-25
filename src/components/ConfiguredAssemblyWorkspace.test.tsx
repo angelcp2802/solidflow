@@ -7,13 +7,40 @@ import { identityRigidPose } from '../model/rigidPose'
 import { AssemblyConfiguredDocumentHistory } from '../model/assemblyConfiguredHistory'
 import { createConfiguredUiRootVariant, createConfiguredUiScopeVariant, configuredUiPose, editConfiguredUiOccurrence, configuredUiTicket, configuredUiTicketMatches, configuredUiSceneMatches, configuredUiDisplayScene } from './configuredAssemblyUi'
 import type { ConfiguredAssemblyScene } from '../cad/kernel.assembly-configuration-scene'
-import ConfiguredAssemblyWorkspace from './ConfiguredAssemblyWorkspace'
+import ConfiguredAssemblyWorkspace, { ConfiguredOriginDisclosure } from './ConfiguredAssemblyWorkspace'
 import { buildConfiguredAssembly } from '../cad/kernel'
 
 vi.mock('../cad/kernel', () => ({ buildConfiguredAssembly: vi.fn(), previewConfiguredAssembly: vi.fn(), previewConfiguredAssemblyRelationEdit: vi.fn(), previewConfiguredAssemblyMechanicalEdit: vi.fn(), previewConfiguredAssemblyOccurrenceEdit: vi.fn(), applyConfiguredAssembly: vi.fn(), discardConfiguredAssembly: vi.fn() }))
 function fixture() { const { document, catalog } = assemblyConfigurationCoreFixture(); return createAssemblyConfiguredDocument(document, catalog, 'mixed') }
 const effective = (document: ReturnType<typeof fixture>) => evaluateAssemblyConfiguration(document.source, document.catalog, document.rootConfiguration)
 const scope = (document: ReturnType<typeof fixture>, owner: string) => effective(document).scopes.find(row => row.path.join('/') === owner)!
+
+it('keeps origin controls mounted in a compact native disclosure when visibility and picking are not requested', () => {
+  const html = renderToStaticMarkup(<ConfiguredOriginDisclosure axes={false} planes={false} pick={null} activeRole={null} visibleCount={0}>
+    <select aria-label="Original owner" defaultValue="second"><option value="first">First</option><option value="second">Second</option></select>
+    <button type="button" disabled aria-label="Original role">Reference 1</button>
+  </ConfiguredOriginDisclosure>)
+  expect(html).toMatch(/^<details[^>]*aria-label="Referencias de origen configuradas"[^>]*>/)
+  expect(html.match(/^<details[^>]*>/)?.[0]).not.toContain('open=')
+  expect(html).toContain('<summary aria-label="Mostrar referencias de origen configuradas">')
+  expect(html).toContain('Planos y ejes · 0 visibles')
+  expect(html).toContain('<option value="second" selected="">Second</option>')
+  expect(html).toContain('disabled="" aria-label="Original role"')
+  expect(buildConfiguredAssembly).not.toHaveBeenCalled()
+})
+
+it('opens origin controls for an explicit visibility or picking request and summarizes the current display', () => {
+  for (const request of [
+    { axes: true, planes: false, pick: null, activeRole: null, visibleCount: 3 },
+    { axes: false, planes: true, pick: null, activeRole: null, visibleCount: 6 },
+    { axes: false, planes: false, pick: { slot: 1, catalog: 'current display' }, activeRole: 'Referencia 2', visibleCount: 3 },
+  ]) {
+    const html = renderToStaticMarkup(<ConfiguredOriginDisclosure {...request}><input aria-label="Retained field" defaultValue="unchanged" /></ConfiguredOriginDisclosure>)
+    expect(html.match(/^<details[^>]*>/)?.[0]).toContain('open=""')
+    expect(html).toContain(request.activeRole ? 'Seleccionando Referencia 2' : `Planos y ejes · ${request.visibleCount} visibles`)
+    expect(html).toContain('aria-label="Retained field" value="unchanged"')
+  }
+})
 
 it('renders the actual configured format and bounded controls without triggering CAD during SSR', () => {
   const document = fixture(), html = renderToStaticMarkup(<ConfiguredAssemblyWorkspace initialDocument={document} initialSaved={serializeAssemblyConfiguredDocument(document)} onOpenDocument={() => undefined} />)

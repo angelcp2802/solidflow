@@ -241,7 +241,7 @@ module.exports = function assemblyExportWorkflow(context) {
     (await assemblyNavigation.panel('components'), await page(() => { const rows = [...document.querySelectorAll('[role="treeitem"]')].filter(row => row.getAttribute('aria-level') === '1' && row.querySelector('span')?.firstChild?.textContent === 'first'); if (rows.length !== 1 || rows[0].disabled) throw Error('Original first component absent.'); rows[0].click(); }));
     await waitFor('original component rename control', () => page(() => document.querySelector('input[aria-label="Nombre del componente"]')?.value === 'first'));
     before = await observe();
-    const renameInteraction = (await assemblyNavigation.panel('components'), await page(() => {
+    const renameInteraction = (await assemblyNavigation.panel('properties'), await page(() => {
       const input = document.querySelector('input[aria-label="Nombre del componente"]'); if (!input || input.disabled) throw Error('Rename control absent.');
       const focus = () => ({ value: document.querySelector('input[aria-label="Nombre del componente"]')?.value,
         hasFocus: document.hasFocus(), activeElement: { tag: document.activeElement?.tagName, label: document.activeElement?.getAttribute('aria-label') } });

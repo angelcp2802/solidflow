@@ -60,7 +60,7 @@ module.exports = async function movementWorkflow(context) {
   }
   async function preview(phase) {
     await control(AXIS, '2'); await control(ANGLE, '90');
-    const recovery = await page(() => localStorage.getItem('solidflow.autosave')), before = await observe();
+    const recovery = await page(() => localStorage.getItem('solidflow.autosave')), before = await observe.counters();
     await click(MOVE); const event = await responseAfter(before.serial, 'move-assembly-component-motion'), result = event.response.value;
     check(canonical(event.current) === canonical(base) && canonical(event.motion.component) === canonical({ occurrencePath: ['right'], definition: original.definition }), 'Movement targeted a stale base or another occurrence.');
     near(event.motion.translation, original.pose.translation, 1e-6, 'Actual requested local translation');
@@ -78,34 +78,34 @@ module.exports = async function movementWorkflow(context) {
     record(phase, event); return result;
   }
   await selectRight(); await preview('movement/preview-cancel');
-  let before = await observe(); await click('button[aria-label="Cancelar vista previa del ensamblaje"]');
+  let before = await observe.counters(); await click('button[aria-label="Cancelar vista previa del ensamblaje"]');
   const cancelled = await responseAfter(before.serial, 'discard-assembly');
   check(cancelled.hasToken && cancelled.response.value === null && (await fsp.readFile(output)).equals(bytes), 'Cancel did not discard the actual capability or changed saved bytes.');
   await idle('movement Cancel restores the previously confirmed scene');
   await waitFor('movement Cancel leaves committed recovery and Apply unchanged', async () => canonical(JSON.parse(await page(() => localStorage.getItem('solidflow.autosave')))) === canonical(base)
     && await page(apply => document.querySelector(apply)?.disabled === true && document.querySelector('.assembly-canvas-label span')?.textContent === 'Componentes independientes · mm', APPLY));
   record('movement/cancelled', cancelled);
-  await preview('movement/preview-apply'); before = await observe(); await click(APPLY);
+  await preview('movement/preview-apply'); before = await observe.counters(); await click(APPLY);
   const applied = await responseAfter(before.serial, 'apply-assembly'), moved = applied.response.value.document;
   assertMoved(moved, applied.response.value.scene); await idle('movement Apply completes');
   await waitFor('movement Apply reaches committed recovery', async () => canonical(JSON.parse(await page(() => localStorage.getItem('solidflow.autosave')))) === canonical(moved));
   record('movement/applied', applied);
-  before = await observe(); await click('button[aria-label="Resolver ensamblaje"]');
+  before = await observe.counters(); await click('button[aria-label="Resolver ensamblaje"]');
   const natural = await responseAfter(before.serial, 'preview-assembly'), naturalResult = natural.response.value;
   check(canonical(natural.current) === canonical(moved) && naturalResult.status === 'ready' && !naturalResult.movement
     && naturalResult.scopes.every(value => !value.temporaryAnchor)
     && naturalResult.scopes.find(value => value.definition.id === moved.id).result.localDOF === 1,
   'Releasing the movement driver did not restore the saved mechanism freedom.');
   assertMoved(naturalResult.document, naturalResult.scene); await idle('natural undriven relation preview completes'); record('movement/natural-preview', natural);
-  before = await observe(); await click('button[aria-label="Cancelar vista previa del ensamblaje"]');
+  before = await observe.counters(); await click('button[aria-label="Cancelar vista previa del ensamblaje"]');
   const released = await responseAfter(before.serial, 'discard-assembly'); check(released.hasToken && released.response.value === null, 'Cancel did not revoke the undriven preview capability.');
   await idle('natural check Cancel restores the previously confirmed movement scene');
   check(canonical(JSON.parse(await page(() => localStorage.getItem('solidflow.autosave')))) === canonical(moved), 'Cancel of the undriven check changed committed movement recovery.');
   record('movement/natural-cancelled', released);
-  before = await observe(); await click('button[aria-label="Deshacer ensamblaje"]');
+  before = await observe.counters(); await click('button[aria-label="Deshacer ensamblaje"]');
   const undo = await responseAfter(before.serial, 'build-assembly'); check(canonical(undo.document) === canonical(base), 'One Undo did not restore the complete pre-movement document.');
   await idle('movement Undo rebuild completes'); record('movement/undo', undo);
-  before = await observe(); await click('button[aria-label="Rehacer ensamblaje"]');
+  before = await observe.counters(); await click('button[aria-label="Rehacer ensamblaje"]');
   const redo = await responseAfter(before.serial, 'build-assembly'); check(canonical(redo.document) === canonical(moved), 'Redo changed the authenticated movement.');
   assertMoved(redo.document, redo.response.value); await idle('movement Redo rebuild completes'); record('movement/redo', redo);
   await button('Guardar', ':is(.assembly-toolbar, .assembly-quickbar)');
@@ -114,11 +114,11 @@ module.exports = async function movementWorkflow(context) {
   await waitFor('movement Save reaches clean rendered controls', () => page(name => document.querySelector('.assembly-app')?.getAttribute('aria-busy') === 'false'
     && document.querySelector('.assembly-shell-document > strong')?.textContent === name
     && [...document.querySelectorAll(':is(.assembly-toolbar, .assembly-quickbar) button')].some(value => value.textContent.trim() === 'Abrir' && !value.disabled), moved.name));
-  before = await observe(); await button('Abrir', ':is(.assembly-toolbar, .assembly-quickbar)');
+  before = await observe.counters(); await button('Abrir', ':is(.assembly-toolbar, .assembly-quickbar)');
   const reopened = await responseAfter(before.serial, 'build-assembly'); check(canonical(reopened.document) === canonical(moved), 'Movement reopen changed saved poses/declarations.');
   assertMoved(reopened.document, reopened.response.value); await idle('moved assembly reopen completes'); record('movement/reopened', reopened);
   await selectRight(); await control(AXIS, '2'); await control(ANGLE, '0'); await control(X, '11');
-  const recovery = await page(() => localStorage.getItem('solidflow.autosave')); before = await observe(); await click(MOVE);
+  const recovery = await page(() => localStorage.getItem('solidflow.autosave')); before = await observe.counters(); await click(MOVE);
   const rejected = await responseAfter(before.serial, 'move-assembly-component-motion');
   check(canonical(rejected.current) === canonical(moved) && rejected.motion.translation[0] === 11
     && rejected.response.value.status === 'rejected' && rejected.response.value.kind === 'assembly-preview', 'Prohibited lateral move was accepted or targeted another base.');

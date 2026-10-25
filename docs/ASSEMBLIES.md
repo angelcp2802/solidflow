@@ -299,8 +299,9 @@ frames and freshly solves the resulting declaration, preserving solver policy.
 Component branches expand independently by full occurrence path. Collapsing a
 subassembly retains its selected descendant. Arrow keys navigate visible rows
 without selecting another component; Enter/Space activate the focused row.
-The explicit component-properties command focuses the existing inline controls
-while ordinary selection keeps the tree visible. This presentation state is not
+The explicit component-properties command opens a separate Properties pane,
+while ordinary selection keeps the tree visible. The pane's Model button returns
+to the selected row, retaining unsubmitted movement fields. This presentation state is not
 saved in the assembly document. Principal planes and axes appear at the root and
 under each visible, unsuppressed component. Selecting one shows that datum in
 the viewport, retaining its highlight when the branch is closed. This browsing

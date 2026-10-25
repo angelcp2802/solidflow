@@ -11,7 +11,7 @@ module.exports = async function bomWorkflow(context) {
   const REGION = '[aria-label="Lista de materiales del ensamblaje"]', MODE = 'select[aria-label="Modo de lista de materiales"]';
   const HIDDEN = 'input[aria-label="Incluir componentes ocultos en la lista de materiales"]', EXPORT = 'button[aria-label="Exportar lista de materiales CSV"]';
   const original = await fsp.readFile(bomPath), phases = [];
-  let before = await observe(); await button('Abrir', ':is(.assembly-toolbar, .assembly-quickbar)');
+  let before = await observe.counters(); await button('Abrir', ':is(.assembly-toolbar, .assembly-quickbar)');
   const opened = await responseAfter(before.serial, 'build-assembly');
   check(canonical(opened.document) === canonical(bomFixture), 'BOM fixture did not open through actual file routing.');
   await idle('original reusable BOM fixture opens');
@@ -19,7 +19,7 @@ module.exports = async function bomWorkflow(context) {
   close(opened.response.value.area, 560, 1e-7, 'Original active native area 4x96+2x24+128');
   check(opened.response.value.solidCount === 7 && opened.response.value.bodies.length === 7 && opened.response.value.prototypeCount === 3,
     'Original active native leaves/revisions differ from the count fixture.');
-  const start = await observe(), recovery = await page(() => localStorage.getItem('solidflow.autosave'));
+  const start = await observe.counters(), recovery = await page(() => localStorage.getItem('solidflow.autosave'));
   await require('./desktop-assembly-tree-controls.cjs')({ ...context, navigation: assemblyNavigation });
   await click('button[aria-label="Lista de materiales"]');
   await waitFor('BOM drawer is actually rendered', () => page(selector => !!document.querySelector(selector), REGION));

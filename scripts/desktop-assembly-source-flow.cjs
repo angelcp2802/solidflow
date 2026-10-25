@@ -105,7 +105,7 @@ module.exports = async function sourceUpdateWorkflow(context) {
       if (items.length !== 1 || items[0].disabled) throw Error('Expected the actual selectable left pin.');
       items[0].click();
     }));
-    const before = await observe(); await click(UPDATE);
+    const before = await observe.counters(); await click(UPDATE);
     const event = await responseAfter(before.serial, 'review-assembly-part-update'), reply = event.response.value;
     check(canonical(event.current) === canonical(saved) && canonical(event.source) === canonical(source)
       && canonical(event.part) === canonical(updatedPart) && event.revision !== 'r1', 'Review bypassed the exact committed source/input.');
@@ -123,7 +123,7 @@ module.exports = async function sourceUpdateWorkflow(context) {
     await unchanged('Staged source review'); record('source/review', event, reply.scene); return event;
   }
 
-  const cancelled = await openReview(); let beforeCancel = await observe(); await click(CANCEL_UPDATE);
+  const cancelled = await openReview(); let beforeCancel = await observe.counters(); await click(CANCEL_UPDATE);
   const discarded = await responseAfter(beforeCancel.serial, 'discard-assembly-part-update');
   check(discarded.reviewId === cancelled.response.value.reviewId && !discarded.hasToken, 'Cancel discards the exact retained private source review.');
   await waitFor('source update Cancel restores confirmed controls', () => page((panel, apply) => !document.querySelector(panel)
@@ -131,7 +131,7 @@ module.exports = async function sourceUpdateWorkflow(context) {
   await unchanged('Cancelled source update');
   const reviewed = await openReview(), review = reviewed.response.value, revision = reviewed.revision;
   check(revision !== cancelled.revision && review.reviewId !== cancelled.response.value.reviewId, 'Canceled source revision or private review identity was reused.');
-  let before = await observe(); await click(SOLVE_UPDATE);
+  let before = await observe.counters(); await click(SOLVE_UPDATE);
   const broken = await stageResponse(before.serial, true);
   check(broken.reviewId === review.reviewId && canonical(broken.current) === canonical(saved)
     && canonical(broken.proposed) === canonical(review.document), 'Unrepaired preview bypassed the exact private review/base/proposal.');
@@ -153,7 +153,7 @@ module.exports = async function sourceUpdateWorkflow(context) {
     await control('select[aria-label="Cara de reparación ' + label + '"]', JSON.stringify(reference));
     await click('button[aria-label="Reparar referencia ' + label + '"]');
   }
-  before = await observe(); await click(SOLVE_UPDATE);
+  before = await observe.counters(); await click(SOLVE_UPDATE);
   const preview = await stageResponse(before.serial), reply = preview.response.value;
   check(preview.reviewId === review.reviewId && reply.status === 'ready' && reply.hasToken && canonical(preview.current) === canonical(saved), 'Repaired update has no fresh authenticated private review preview.');
   assertDocument(preview.proposed, revision, true);
@@ -164,7 +164,7 @@ module.exports = async function sourceUpdateWorkflow(context) {
       && value.lengthResidual <= value.lengthTolerance && value.angleResidual <= value.angleTolerance), 'Repaired source lost the actual physical solution/spin lock.');
   await unchanged('Ready source preview before Apply'); record('source/preview-repaired', preview, reply.scene);
   await waitFor('repaired source preview enables Apply', () => page(selector => document.querySelector(selector)?.disabled === false, APPLY));
-  before = await observe(); await click(APPLY);
+  before = await observe.counters(); await click(APPLY);
   const applied = await responseAfter(before.serial, 'apply-assembly');
   check(applied.response.value.kind === 'assembly-applied' && applied.hasToken, 'Source Apply did not consume a worker capability.');
   const updated = applied.response.value.document;
@@ -175,12 +175,12 @@ module.exports = async function sourceUpdateWorkflow(context) {
     return !!recovery && canonical(JSON.parse(recovery)) === canonical(updated);
   });
   record('source/applied', applied, applied.response.value.scene);
-  before = await observe(); await click('button[aria-label="Deshacer ensamblaje"]');
+  before = await observe.counters(); await click('button[aria-label="Deshacer ensamblaje"]');
   const undone = await responseAfter(before.serial, 'build-assembly');
   check(canonical(undone.document) === canonical(saved), 'One Undo did not restore the entire original source/ref transaction.');
   close(undone.response.value.volume, 4800 + 45 * Math.PI / 2, 1e-5, 'Undo restored original native volume.');
   await idle('source Undo rebuild completes'); record('source/undo', undone, undone.response.value);
-  before = await observe(); await click('button[aria-label="Rehacer ensamblaje"]');
+  before = await observe.counters(); await click('button[aria-label="Rehacer ensamblaje"]');
   const redone = await responseAfter(before.serial, 'build-assembly');
   check(canonical(redone.document) === canonical(updated), 'Redo did not restore exact revised identities/references.');
   assertScene(redone.response.value, revision); await idle('source Redo rebuild completes'); record('source/redo', redone, redone.response.value);
@@ -197,7 +197,7 @@ module.exports = async function sourceUpdateWorkflow(context) {
       && document.querySelector('.assembly-shell-document > strong')?.textContent === name && !document.querySelector(panel)
       && !!open && !open.disabled && !!save && !save.disabled && document.querySelector(apply)?.disabled === true;
   }, PANEL, APPLY, saved.name));
-  before = await observe(); await button('Abrir', ':is(.assembly-toolbar, .assembly-quickbar)');
+  before = await observe.counters(); await button('Abrir', ':is(.assembly-toolbar, .assembly-quickbar)');
   const reopened = await responseAfter(before.serial, 'build-assembly');
   check(canonical(reopened.document) === canonical(fromDisk), 'Updated source reopen differs from saved bytes.');
   assertDocument(reopened.document, revision, true); assertScene(reopened.response.value, revision);

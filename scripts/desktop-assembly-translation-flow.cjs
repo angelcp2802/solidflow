@@ -13,7 +13,7 @@ module.exports = async function translationWorkflow(context) {
   const phases = [], inputBytes = await fsp.readFile(translationPath);
   const record = (phase, event) => phases.push({ phase, serial: event.serial, action: event.action,
     current: event.current, translation: event.translation, stopOptions: event.stopOptions, document: event.document, response: event.response.value });
-  let before = await observe(); await button('Abrir', ':is(.assembly-toolbar, .assembly-quickbar)');
+  let before = await observe.counters(); await button('Abrir', ':is(.assembly-toolbar, .assembly-quickbar)');
   const opened = await responseAfter(before.serial, 'build-assembly');
   check(canonical(opened.document) === canonical(translationFixture), 'Contact fixture did not open through actual file routing.');
   await idle('original contact slider opens'); record('translation/opened', opened);
@@ -26,7 +26,7 @@ module.exports = async function translationWorkflow(context) {
   async function preview(x, clearance, base, phase) {
     for (const [axis, value] of [['X', x], ['Y', 0], ['Z', 0]]) await control(`input[aria-label="Destino global ${axis} hasta contacto"]`, String(value));
     await control('input[aria-label="Holgura hasta contacto"]', String(clearance));
-    const recovery = await page(() => localStorage.getItem('solidflow.autosave')), start = await observe();
+    const recovery = await page(() => localStorage.getItem('solidflow.autosave')), start = await observe.counters();
     await click(PREVIEW); const event = await responseAfter(start.serial, ACTION), reply = event.response.value;
     check(canonical(event.current) === canonical(base) && canonical(event.translation.component) === canonical({ occurrencePath: ['slider'], definition: base.occurrences[0].definition }), 'Contact request used stale base/selection.');
     near(event.translation.translation, [x, 0, 0], 1e-10, 'Actual absolute world translation intent');
@@ -57,7 +57,7 @@ module.exports = async function translationWorkflow(context) {
     } else check(trace.fraction === 1 && !trace.blockingPair, 'Clear path falsely reported a stop.');
   }
   async function cancel() {
-    const start = await observe(); await click('button[aria-label="Cancelar vista previa del ensamblaje"]');
+    const start = await observe.counters(); await click('button[aria-label="Cancelar vista previa del ensamblaje"]');
     const event = await responseAfter(start.serial, 'discard-assembly'); check(event.hasToken, 'Contact Cancel did not revoke the genuine capability.');
     await waitFor('contact Cancel restores confirmed controls', () => page(apply => document.querySelector(apply)?.disabled === true
       && document.querySelector('.assembly-canvas-label span')?.textContent === 'Componentes independientes · mm'
@@ -73,13 +73,13 @@ module.exports = async function translationWorkflow(context) {
   await cancel(); result = await preview(-5, 0, translationFixture, 'translation/clear-preview-cancel'); verify(result.reply, -5, 0, false); await cancel();
   result = await preview(20, .25, translationFixture, 'translation/clearance-preview-cancel'); verify(result.reply, 20, .25, true); await cancel();
   result = await preview(20, 0, translationFixture, 'translation/stopped-preview-apply'); verify(result.reply, 20, 0, true);
-  before = await observe(); await click(APPLY); const applied = await responseAfter(before.serial, 'apply-assembly'), moved = applied.response.value.document;
+  before = await observe.counters(); await click(APPLY); const applied = await responseAfter(before.serial, 'apply-assembly'), moved = applied.response.value.document;
   near(moved.occurrences[0].pose.translation, result.reply.document.occurrences[0].pose.translation, 1e-10, 'Contact Apply consumes actual stopped target');
   check(!Object.hasOwn(moved, 'translation') && canonical(moved.mates) === canonical(translationFixture.mates), 'Contact Apply persisted temporary diagnostics or changed mates.');
   await idle('contact Apply completes'); record('translation/applied', applied);
-  before = await observe(); await click('button[aria-label="Deshacer ensamblaje"]'); const undo = await responseAfter(before.serial, 'build-assembly');
+  before = await observe.counters(); await click('button[aria-label="Deshacer ensamblaje"]'); const undo = await responseAfter(before.serial, 'build-assembly');
   check(canonical(undo.document) === canonical(translationFixture), 'One Contact Undo failed to restore the complete source.'); await idle('contact Undo completes'); record('translation/undo', undo);
-  before = await observe(); await click('button[aria-label="Rehacer ensamblaje"]'); const redo = await responseAfter(before.serial, 'build-assembly');
+  before = await observe.counters(); await click('button[aria-label="Rehacer ensamblaje"]'); const redo = await responseAfter(before.serial, 'build-assembly');
   check(canonical(redo.document) === canonical(moved), 'Contact Redo failed to restore stopped pose.'); await idle('contact Redo completes'); record('translation/redo', redo);
   await button('Guardar como', ':is(.assembly-toolbar, .assembly-quickbar)'); await waitFor('contact native Save As completes', () => ipc.filter(value => value.channel === 'document:save' && value.completed).length === 6);
   const bytes = await fsp.readFile(translationOutput); check(canonical(JSON.parse(bytes.toString('utf8'))) === canonical(moved), 'Contact saved bytes differ from verified Apply.');
@@ -89,7 +89,7 @@ module.exports = async function translationWorkflow(context) {
       && document.querySelector('.assembly-shell-document > strong')?.textContent === name && save?.disabled === false
       && document.querySelector('.assembly-canvas-label span')?.textContent === 'Componentes independientes · mm';
   }, moved.name));
-  before = await observe(); await button('Abrir', ':is(.assembly-toolbar, .assembly-quickbar)');
+  before = await observe.counters(); await button('Abrir', ':is(.assembly-toolbar, .assembly-quickbar)');
   const reopened = await responseAfter(before.serial, 'build-assembly'); check(canonical(reopened.document) === canonical(moved), 'Contact reopen lost stopped placement.'); await idle('contact reopen completes'); record('translation/reopened', reopened);
   await select(); const failure = await preview(20, 0, moved, 'translation/no-effective-progress');
   check(failure.reply.status === 'rejected' && !failure.reply.hasToken && await page(selector => document.querySelector(selector)?.disabled === true, APPLY), 'Near-contact restart published an ineffective/unsafe Apply.');

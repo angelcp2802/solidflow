@@ -43,13 +43,34 @@ module.exports=function configuredPicking(c){
   await pointer('mousePressed',state.point,1);await pointer('mouseReleased',state.point,0);
   gestures.push({kind:'control',selector,text,point:state.point,asideScrollTop:state.scrollTop});
  }
- async function revealedInspector(){
-  const result=await waitFor('application-owned inspector reveal and focus',()=>page(()=>{
-   const aside=document.querySelector('[aria-label="Inspector del ensamblaje configurado"]'),form=document.querySelector('#configured-relation-inspector'),field=form?.querySelector('input:not(:disabled),select:not(:disabled),button:not(:disabled)'),heading=form?.querySelector('h2,h3');
-   if(!aside||!field||!heading||document.activeElement!==field)return false;const a=aside.getBoundingClientRect(),r=field.getBoundingClientRect(),h=heading.getBoundingClientRect(),hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);
-   const visible=b=>b.width>0&&b.height>0&&b.top>=Math.max(0,a.top+aside.clientTop)&&b.bottom<=Math.min(innerHeight,a.top+aside.clientTop+aside.clientHeight)&&b.left>=a.left&&b.right<=a.right;
-   return visible(r)&&visible(h)&&(hit===field||field.contains(hit))?{scrollTop:aside.scrollTop,field:field.getAttribute('aria-label'),heading:heading.textContent,headingTop:h.top,top:r.top,bottom:r.bottom}:false;
-  }));gestures.push({kind:'application-inspector-reveal',...result});
+ async function revealedInspector(mode){
+  if(mode!=='create'&&mode!=='edit')throw Error('Explicit inspector creation or editing mode required');
+  const expectedField=mode==='create'?'Tipo de relación configurada':'Nombre de relación configurada';
+  let result,last=null;
+  try{
+   result=await waitFor('application-owned inspector reveal and focus',async()=>{
+    last=await page((expectedField,editing)=>{
+     const aside=document.querySelector('[aria-label="Inspector del ensamblaje configurado"]'),form=document.querySelector('#configured-relation-inspector'),field=form?.querySelector('[aria-label="'+expectedField+'"]'),heading=form?.querySelector('h2,h3'),type=form?.querySelector('[aria-label="Tipo de relación configurada"]');
+     const rect=element=>{if(!element)return null;const r=element.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height};};
+     const a=rect(aside),r=rect(field),h=rect(heading),hit=r?document.elementFromPoint((r.left+r.right)/2,(r.top+r.bottom)/2):null;
+     const identity=element=>element?{tag:element.tagName,label:element.getAttribute('aria-label'),id:element.id}:null;
+     const visible=b=>!!b&&!!a&&b.width>0&&b.height>0&&b.top>=Math.max(0,a.top+aside.clientTop)&&b.bottom<=Math.min(innerHeight,a.top+aside.clientTop+aside.clientHeight)&&b.left>=a.left&&b.right<=a.right;
+     const origins=form?.querySelector('details[aria-label="Referencias de origen configuradas"]');
+     return {ready:!!field&&!field.matches(':disabled')&&!!type&&type.disabled===editing&&document.activeElement===field&&visible(r)&&visible(h)&&!!hit&&(hit===field||field.contains(hit)),
+      expectedField,active:identity(document.activeElement),hit:identity(hit),fieldDisabled:field?.matches(':disabled')??null,typeDisabled:type?.disabled??null,
+      originsOpen:origins?.open??null,formHidden:!!form?.closest('[hidden]'),scrollTop:aside?.scrollTop??null,fieldRect:r,headingRect:h,asideRect:a,
+      field:field?.getAttribute('aria-label')??null,heading:heading?.textContent??null,headingTop:h?.top??null,top:r?.top??null,bottom:r?.bottom??null};
+    },expectedField,mode==='edit');
+    return last.ready?last:false;
+   });
+  }catch(error){checks.push({configuredInspectorRevealFailure:{mode,...last}});throw error;}
+  // This face/LINE workflow never requests origin visibility or picking, including
+  // after reopen. Both new and saved editors therefore keep that section closed.
+  check(await page(expectedField=>{const group=document.querySelector('details[aria-label="Referencias de origen configuradas"]');return !!group&&!group.open
+   &&!!group.querySelector('[aria-label="Componente de referencias de origen configuradas"]')
+   &&document.activeElement===document.querySelector('[aria-label="'+expectedField+'"]');},expectedField),
+  (mode==='create'?'New relation focuses Type':'Saved relation focuses Name with Type disabled')+' while unused origin controls remain mounted in a closed compact section');
+  gestures.push({kind:'application-inspector-reveal',mode,...result});
  }
  async function control(label,value){ await navigation.reveal('[aria-label="'+label+'"]'); await page((label,value)=>{const e=document.querySelector('[aria-label="'+label+'"]');if(!e||e.disabled)throw Error('Enabled control required: '+label);Object.getOwnPropertyDescriptor(e instanceof HTMLSelectElement?HTMLSelectElement.prototype:HTMLInputElement.prototype,'value').set.call(e,value);e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));},label,value);}
  async function response(after,action){return waitFor('actual '+action,async()=>{const s=await observe();check(!s.workerErrors.length,'Worker transport healthy');const row=s.assemblies.filter(r=>r.serial>after&&r.action===action&&r.response).at(-1);if(!row)return false;check(row.response.ok,row.response.error||'Native request failed');return row;});}
@@ -106,7 +127,7 @@ module.exports=function configuredPicking(c){
   else{check(support.kind==='line','Material LINE role');near(Math.abs(support.axis[0]),1,1e-8,'Picked X LINE');near(support.point[1],-2,1e-6,'Picked front LINE');near(support.point[2],id==='A'?4:z+4,1e-6,'Picked top LINE');}
   check((await observe()).serial===before,'Role selection sends no worker solve');gestures.push({kind,slot,id,p,reference:ref});return ref;
  }
- async function draft(type,name){await actualControl('[aria-label="Comandos del ensamblaje configurado"] button','Nueva relación');await revealedInspector();await control('Tipo de relación configurada',type);await control('Nombre de relación configurada',name);}
+ async function draft(type,name){await actualControl('[aria-label="Comandos del ensamblaje configurado"] button','Nueva relación');await revealedInspector('create');await control('Tipo de relación configurada',type);await control('Nombre de relación configurada',name);}
  async function preview(base,z,refs,type){const before=await observe();await button('Vista previa de relación configurada',FORM);const row=await response(before.serial,ACTION),v=row.response.value,m=row.edit.change.mate;check(canonical(row.current.document)===canonical(base)&&row.edit.configuration==='demo'&&row.edit.scopePath.length===0,'Exact named root preview context');check(row.edit.change.kind==='add'&&m.type===type&&canonical(m.first)===canonical(refs[0])&&canonical(m.second)===canonical(refs[1]),'Exact pointer-authored endpoints reach native');if(type==='distance')check(m.distance===2,'Literal signed distance two');check(v.kind==='configured-assembly-preview'&&v.hasToken&&v.verification.accepted&&v.verification.status==='verified','Verified private proposal');geometry(v.scene,v.document,z,'preview-'+type);await recovery(base);return v.document;}
  async function apply(doc,z){const before=await observe();await button('Aplicar configuración',NAV);const a=await response(before.serial,'apply-configured-assembly');check(canonical(a.response.value.document)===canonical(doc),'Apply exact full proposal');const b=await response(before.serial,'build-configured-assembly');const scene=geometry(b.response.value,doc,z,'apply');await recovery(doc);return scene;}
  async function history(label,doc,z){const before=await observe();await button(label,NAV);const row=await response(before.serial,'build-configured-assembly');check(canonical(row.current.document)===canonical(doc),'Exact full history');geometry(row.response.value,doc,z,label);await recovery(doc);}
@@ -126,7 +147,7 @@ module.exports=function configuredPicking(c){
   before=await observe();await actualControl('[aria-label="Comandos del ensamblaje configurado"] button','Relaciones');await actualControl('button[aria-label="Editar relación configurada Pointer top distance"]',null,true);
   await waitFor('saved distance form ready',()=>page(form=>!!document.querySelector(form),FORM));
   await button('Isométrica','[aria-label="Vistas del ensamblaje configurado"]');
-  await revealedInspector();
+  await revealedInspector('edit');
   await recovery(current);check((await observe()).serial===before.serial,'Opening saved references is display-only');
   check((await fs.readFile(input)).equals(inputBytes),'Original fixture unchanged');check(dialogCounts().opens===2&&dialogCounts().saves===2,'Exact original/reopen and canceled/successful Save dialogs');check(!consoleErrors.length&&!failedRequests.length,'Healthy renderer/resources');checks.push({savedSha256:digest(saved),originalSha256:digest(inputBytes),gestures,phases,limits:'Original two cubes, named root, top planar distance and X LINE parallel. Actual CDP geometry picks and ribbon pointer/keyboard navigation; form controls scripted. Ribbon tabs retain draft and verified-preview fields, recovery, inspector state, confirmation guards and native request serial. Final capture displays the reopened saved distance editor. No nested/suppressed picking or general platform claim.'});await capture(current);
   await button('Cerrar edición de relación configurada',FORM);

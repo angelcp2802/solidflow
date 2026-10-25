@@ -38,6 +38,23 @@ module.exports = function configuredNavigation({ page, waitFor, actualControl, p
     }, selector, text);
     if (owner.pane) await pane(owner.pane);
     if (owner.tree) await tree.reveal(selector, text);
+    const closedOrigins = await page((selector, text) => {
+      const rows = [...document.querySelectorAll(selector)].filter(e => !text || e.textContent.trim() === text);
+      if (rows.length !== 1) throw Error('One mounted configured control required before disclosure');
+      const group = rows[0].closest('details[aria-label="Referencias de origen configuradas"]');
+      return !!group && !group.open && !group.querySelector(':scope > summary')?.contains(rows[0]);
+    }, selector, text);
+    if (closedOrigins) {
+      const summary = 'summary[aria-label="Mostrar referencias de origen configuradas"]';
+      if (actualControl) await actualControl(summary, null, true);
+      else await page(selector => {
+        const row = document.querySelector(selector);
+        if (!row || row.closest('[hidden]') || !row.getClientRects().length) throw Error('Visible origin disclosure required');
+        row.click();
+      }, summary);
+      await waitFor('configured origin controls disclosed through their summary', () => page(() =>
+        document.querySelector('details[aria-label="Referencias de origen configuradas"]')?.open === true));
+    }
     await waitFor('configured control belongs to visible pane', () => page((selector, text) => {
       const rows = [...document.querySelectorAll(selector)].filter(e => !text || e.textContent.trim() === text);
       return rows.length === 1 && !rows[0].closest('[hidden]') && rows[0].getClientRects().length > 0;

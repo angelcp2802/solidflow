@@ -128,10 +128,21 @@ module.exports = function assemblyWorkflow(context) {
   async function idle(description) {
     await waitFor(description, () => page(() => document.querySelector('.assembly-app')?.getAttribute('aria-busy') === 'false'));
   }
+  const responseProgress = { status: 'not-started' };
+  checks.push({ assemblyResponseProgress: responseProgress });
   async function responseAfter(serial, action) {
+    const started = Date.now();
+    Object.assign(responseProgress, { status: 'started', action, afterSerial: serial, startedAt: new Date(started).toISOString(), polls: 0, matching: [],
+      elapsedMs: null, lastReadMs: null, observedSerial: null, workerErrorCount: null });
     return waitFor('actual worker ' + action, async () => {
-      const state = await observe(); check(!state.workerErrors.length, 'Observed a real assembly worker error.');
-      const record = state.assemblies.filter(value => value.serial > serial && value.action === action && value.response).at(-1);
+      responseProgress.status = 'reading-snapshot';
+      const readStarted = Date.now(), state = await observe.assemblyResponseAfter(serial, action);
+      Object.assign(responseProgress, { status: 'waiting-response', polls: responseProgress.polls + 1,
+        elapsedMs: Date.now() - started, lastReadMs: Date.now() - readStarted, observedSerial: state.serial, workerErrorCount: state.workerErrors.length,
+        matching: state.matching });
+      check(!state.workerErrors.length, 'Observed a real assembly worker error.');
+      const record = state.record;
+      if (record) responseProgress.status = 'response-observed';
       if (!record) return false; check(record.response.ok, record.response.error || 'Assembly RPC failed.'); return record;
     });
   }
@@ -171,7 +182,7 @@ module.exports = function assemblyWorkflow(context) {
       const saved = await page(() => localStorage.getItem('solidflow.autosave'));
       return !!saved && canonical(JSON.parse(saved)) === canonical(record.current);
     });
-    const serial = (await observe()).serial; await click(APPLY);
+    const serial = (await observe.counters()).serial; await click(APPLY);
     const applied = await responseAfter(serial, 'apply-assembly'), reply = applied.response.value;
     check(reply.kind === 'assembly-applied' && applied.hasToken, 'Apply did not use the real worker capability.');
     assertDocument(reply.document, count); assertScene(reply.scene, final, reply.document);
@@ -194,7 +205,7 @@ module.exports = function assemblyWorkflow(context) {
     await control('select[aria-label="Tipo de relación"]', type);
     await control('select[aria-label="Orientación de la relación"]', alignment);
     if (distance !== undefined) await control('input[aria-label="Distancia firmada"]', String(distance));
-    const before = await observe(); await button('Vista previa de la nueva relación');
+    const before = await observe.counters(); await button('Vista previa de la nueva relación');
     const record = await responseAfter(before.serial, 'preview-assembly');
     check(record.current.mates.length === count - 1 && record.proposed.mates.length === count,
       'New mate bypassed the committed base/proposed preview boundary.');
@@ -218,13 +229,13 @@ module.exports = function assemblyWorkflow(context) {
       return text.includes('Listo') && text.includes('Sólido') && document.querySelectorAll('canvas').length > 0
         && typeof window.solidflow?.openDocument === 'function' && typeof window.require === 'undefined' && typeof window.process === 'undefined';
     }), initialReadyMs);
-    let before = await observe(); await click('button[aria-label="Abrir (Ctrl+O)"]');
+    let before = await observe.counters(); await click('button[aria-label="Abrir (Ctrl+O)"]');
     await waitFor('fresh isolated part asks before assembly replacement', () => page(() => !!document.querySelector('[role="dialog"][aria-labelledby="discard-title"]')));
     await button('Continuar sin guardar', '[role="dialog"][aria-labelledby="discard-title"]');
     let record = await responseAfter(before.serial, 'build-assembly'), scene = record.response.value;
     assertScene(scene, false, record.document); check(canonical(record.document) === canonical(expected), 'Opened assembly differs from original file.');
     await idle('opened assembly renderer is ready'); recordPhase('opened/unmated', record, scene);
-    before = await observe(); await click(SOLVE); record = await responseAfter(before.serial, 'preview-assembly');
+    before = await observe.counters(); await click(SOLVE); record = await responseAfter(before.serial, 'preview-assembly');
     assertPreview(record, 0, 12); recordPhase('unmated/12DOF', record, record.response.value.scene);
     let committed = await applyPreview(record, 0); scene = committed.scene;
     for (const [id, x, axisDof, capDof, count] of [['left', -10, 8, 7, 1], ['right', 10, 3, 2, 3]]) {
@@ -234,9 +245,9 @@ module.exports = function assemblyWorkflow(context) {
       committed = await addRelation(scene, 'Tope ' + id, 'coincident', face(scene, id, 'plane', 12), face(scene, 'plate', 'plane', 4), capDof, count + 1); scene = committed.scene;
     }
     assertScene(scene, true);
-    before = await observe(); await click(SOLVE); record = await responseAfter(before.serial, 'preview-assembly');
+    before = await observe.counters(); await click(SOLVE); record = await responseAfter(before.serial, 'preview-assembly');
     assertPreview(record, 4, 2); recordPhase('fresh/unlocked/2DOF', record, record.response.value.scene);
-    before = await observe(); await click('button[aria-label="Bloquear giro Eje left"]');
+    before = await observe.counters(); await click('button[aria-label="Bloquear giro Eje left"]');
     const locked = await responseAfter(before.serial, 'lock-assembly-rotation'), lockedReply = assertPreview(locked, 4, 1);
     check(locked.hasToken && locked.mateId === relations[0].id, 'Spin lock did not consume the exact fresh left mate preview.');
     const left = lockedReply.document.mates[0];
@@ -262,11 +273,11 @@ module.exports = function assemblyWorkflow(context) {
     check(saved.mates.every((mate, index) => mate.id === relations[index].id
       && canonical(mate.first) === canonical(relations[index].first) && canonical(mate.second) === canonical(relations[index].second)),
       'Saved v2 lost occurrence-scoped exact body/face references.');
-    before = await observe(); await button('Abrir', ':is(.assembly-toolbar, .assembly-quickbar)');
+    before = await observe.counters(); await button('Abrir', ':is(.assembly-toolbar, .assembly-quickbar)');
     const reopened = await responseAfter(before.serial, 'build-assembly'); assertScene(reopened.response.value, true, reopened.document);
     check(canonical(reopened.document) === canonical(saved), 'Reopened worker input differs from the actual saved v2 file.');
     await idle('reopened assembly is ready'); recordPhase('reopened/locked', reopened, reopened.response.value);
-    before = await observe(); await click(SOLVE); record = await responseAfter(before.serial, 'preview-assembly');
+    before = await observe.counters(); await click(SOLVE); record = await responseAfter(before.serial, 'preview-assembly');
     assertPreview(record, 4, 1); recordPhase('reopened/verified/1DOF', record, record.response.value.scene);
     await click('button[aria-label="Cancelar vista previa del ensamblaje"]');
     const cancelled = await responseAfter(record.serial, 'discard-assembly');

@@ -13,8 +13,15 @@ or enters a branch and Left closes it or returns to its parent. Enter/Space use
 the row's existing activation. A disclosure returns focus to its owning row.
 
 Selecting a component keeps the model tree visible. The explicit component
-properties command focuses the standard workspace's existing inline controls
-or opens the configured occurrence inspector. Configured selection may
+properties command opens a separate standard Properties pane or the configured
+occurrence inspector. The standard editor fieldset is mounted once in that pane;
+changing panes preserves its controlled and uncontrolled values. Its tab can
+show empty guidance without a selection; component commands still require a
+selected component. The Move command aligns the existing movement section below
+the sticky header so its fields are visible, even when the heading was already
+near the bottom of the pane. Individual control destinations retain minimal scrolling.
+Returning through the pane header reveals and focuses the selected tree row.
+Document replacement resets the standard manager to Model. Configured selection may
 still rebuild when its declaring scope changes; it must retain the fresh-build
 guard. Disclosure and keyboard focus themselves do not issue CAD requests.
 The component tree also exposes principal planes and axes for the document root
@@ -37,6 +44,15 @@ blocked. The configured model tree remains disabled during a relation draft.
 Armed origin roles retain the existing relation editor and its current display,
 ticket and compatibility checks. A point-origin producer is not added.
 
+The configured relation editor uses a native details/summary disclosure for
+origin references. Controls remain mounted when closed. Disclosure alone changes
+neither picking intent, owner nor assigned roles. A new explicit visibility or
+origin-picking request opens the section; ordinary rerenders do not undo a user's
+collapse. Inspector reveal chooses an enabled, rendered control outside closed
+details content so a new relation focuses its main form without opening origins.
+The renderer navigator reveals these controls through the actual summary before
+using them; it never assigns the details open state directly.
+
 `desktop-assembly-tree-navigation.cjs` discovers mounted ancestry and opens its
 real disclosure controls before a hidden target can be selected. It does not
 unhide nodes or write application state. The bounded tree-controls scenario uses
@@ -49,6 +65,19 @@ original origin-axis and reused BOM fixtures. It checks root/component plane
 and axis selection, retained highlight when collapsed, and exact recovery,
 history controls, owner/scope and native request invariants before restoring
 the original component. Existing relation and file-persistence oracles follow.
+
+Tree navigation and serial-only boundaries in the standard persistence workflow
+use the observer's request serial, assembly count and worker-error count through
+a read-only projection calculated in the renderer.
+Each helper's existing idle entry also compares those counters with a full
+snapshot and records payload sizes and read durations. A mismatch fails the
+workflow. Standard persistence response polling projects the last completed
+matching record, including failures, and all worker errors before transport.
+Its serial/action filters and ordering are unchanged. Idle audits compare the
+complete projected record against the full snapshot, plus an empty result after
+the current serial. Source-repair correlation, gesture streams and final error
+audits retain full snapshots; no observation is pruned. These measurements do
+not by themselves identify the cause of an earlier workflow deadline.
 
 Part and assembly top-level menus use `AssemblyMenuBar.tsx`. Callers provide existing
 actions and their current guards; closed menus do not mount duplicate controls.

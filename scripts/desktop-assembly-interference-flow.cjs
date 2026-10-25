@@ -17,7 +17,7 @@ module.exports = async function interferenceWorkflow(context) {
   const phases = [], revisedBytes = await fsp.readFile(output), revised = JSON.parse(revisedBytes.toString('utf8'));
   async function inspect(current, sourcePath, gap, scope = ALL) {
     const recovery = await page(() => localStorage.getItem('solidflow.autosave')), bytes = await fsp.readFile(sourcePath);
-    const before = await observe(); await click(CHECK);
+    const before = await observe.counters(); await click(CHECK);
     const event = await responseAfter(before.serial, 'inspect-assembly-interferences'), report = event.response.value;
     check(canonical(event.current) === canonical(current) && report.kind === 'assembly-interference-report'
       && report.hasToken === false && report.options.clearance === gap && report.options.includeHidden === true,
@@ -119,7 +119,7 @@ module.exports = async function interferenceWorkflow(context) {
     pose: { translation: [x, 0, 0], rotation: [0, 0, 0, 1] } });
   await fsp.writeFile(interferencePath, JSON.stringify(scopedFixture));
   const scopedInputBytes = await fsp.readFile(interferencePath);
-  const before = await observe(); await button('Abrir', ':is(.assembly-toolbar, .assembly-quickbar)');
+  const before = await observe.counters(); await button('Abrir', ':is(.assembly-toolbar, .assembly-quickbar)');
   const opened = await responseAfter(before.serial, 'build-assembly');
   check(canonical(opened.document) === canonical(scopedFixture), 'Collision fixture did not pass through actual file-open/build routing.');
   await idle('original collision fixture opens');

@@ -103,7 +103,7 @@ it('renders the real assembly controls and keeps Apply blocked before an actual 
     expect(ribbon.split('aria-label="' + label + '"')).toHaveLength(2)
   expect(html).toMatch(/<button(?=[^>]*id="assembly-tab-components")(?=[^>]*aria-selected="true")(?=[^>]*aria-controls="assembly-panel-components")[^>]*>/)
   expect(html).toMatch(/<div(?=[^>]*id="assembly-panel-components")(?![^>]* hidden=)[^>]*>/)
-  for (const panel of ['relations', 'evaluate']) {
+  for (const panel of ['properties', 'relations', 'evaluate']) {
     expect(html).toContain('aria-controls="assembly-panel-' + panel + '"')
     expect(html).toMatch(new RegExp('<div(?=[^>]*id="assembly-panel-' + panel + '")(?=[^>]*hidden="")[^>]*>'))
   }
@@ -112,6 +112,26 @@ it('renders the real assembly controls and keeps Apply blocked before an actual 
   expect(html).toMatch(/<button(?=[^>]*disabled="")[^>]*>(?:(?!<\/button>)[\s\S])*Importar componente(?:<\/span>)?<\/button>/)
   expect(html).not.toContain('Importar pieza')
   expect(html).toMatch(/<button(?=[^>]*aria-label="Propiedades del componente seleccionado")(?=[^>]*disabled="")[^>]*>/)
+  expect(serializeAssemblyDocument(document)).toBe(before); expect(buildAssembly).not.toHaveBeenCalled(); expect(previewAssembly).not.toHaveBeenCalled()
+})
+it('owns component editors in one mounted Properties pane and leaves the model tree separate', () => {
+  const document = createAssemblyExample(), before = serializeAssemblyDocument(document)
+  const html = renderToStaticMarkup(<AssemblyWorkspace initialDocument={document} initialSaved={before} onOpenPart={() => undefined} />)
+  const modelStart = html.indexOf('id="assembly-panel-components"'), propertiesStart = html.indexOf('id="assembly-panel-properties"')
+  const relationsStart = html.indexOf('id="assembly-panel-relations"')
+  expect(modelStart).toBeGreaterThan(-1); expect(propertiesStart).toBeGreaterThan(modelStart); expect(relationsStart).toBeGreaterThan(propertiesStart)
+  const model = html.slice(modelStart, propertiesStart), properties = html.slice(propertiesStart, relationsStart)
+  expect(model).toContain('aria-label="Componentes del ensamblaje"')
+  expect(model).toContain('aria-label="Propiedades del componente seleccionado"')
+  expect(model).toContain('aria-label="Origen del componente"')
+  expect(model).not.toContain('aria-label="Edición del componente seleccionado"')
+  expect(properties).toContain('aria-label="Edición del componente seleccionado"')
+  expect(properties).not.toContain('role="tree"')
+  expect(html.match(/aria-label="Edición del componente seleccionado"/g)).toHaveLength(1)
+  expect(properties).toContain('aria-label="Volver al árbol de componentes"')
+  expect(properties).toContain('Selecciona un componente en el árbol para ver sus propiedades.')
+  expect(html).toMatch(/<button(?=[^>]*id="assembly-tab-properties")(?=[^>]*aria-controls="assembly-panel-properties")(?=[^>]*aria-selected="false")(?=[^>]*disabled="")[^>]*>/)
+  expect(html).toMatch(/<div(?=[^>]*id="assembly-panel-properties")(?=[^>]*role="tabpanel")(?=[^>]*aria-labelledby="assembly-tab-properties")(?=[^>]*hidden="")[^>]*>/)
   expect(serializeAssemblyDocument(document)).toBe(before); expect(buildAssembly).not.toHaveBeenCalled(); expect(previewAssembly).not.toHaveBeenCalled()
 })
 it('offers principal angular limits as a distinct family without starting work or supplying a fresh measure', () => {

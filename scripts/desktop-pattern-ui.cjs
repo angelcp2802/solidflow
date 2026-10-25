@@ -534,7 +534,18 @@ function installWorkerObserver(importedBodyDetails = false, structuralStep = fal
     worker.addEventListener('error', event => observations.workerErrors.push(event.message || 'Worker error'));
     return worker;
   } });
-  Object.defineProperty(globalThis, '__solidflowUiTestObservation', { value: Object.freeze({ snapshot: () => copy(observations) }), configurable: false });
+  Object.defineProperty(globalThis, '__solidflowUiTestObservation', { value: Object.freeze({
+    snapshot: () => copy(observations),
+    // Read-only projection before copying/transporting the accumulated native records.
+    // The complete snapshot and retained observation history remain unchanged.
+    counters: () => ({ serial: observations.serial, assemblyCount: observations.assemblies.length, workerErrorCount: observations.workerErrors.length }),
+    assemblyResponseAfter: (serial, action) => {
+      const matching = observations.assemblies.filter(value => value.serial > serial && value.action === action);
+      return copy({ serial: observations.serial, assemblyCount: observations.assemblies.length, workerErrors: observations.workerErrors,
+        record: matching.filter(value => value.response).at(-1) ?? null,
+        matching: matching.slice(-10).map(value => ({ serial: value.serial, hasResponse: !!value.response, ok: value.response?.ok ?? null })) });
+    },
+  }), configurable: false });
 }
 async function runInElectron() {
   const electron = require('electron'), { app } = electron, root = applicationRoot(process.env.SOLIDFLOW_PATTERN_UI_TEST_ROOT);
@@ -884,6 +895,38 @@ async function runInElectron() {
       phase: widthPreview ? 'reopened/fresh-width-preview-unapplied' : 'committed/analysis-or-reopen', confirmedDocumentId: configurations ? expectedCapture.source.id : expectedCapture.id, presentationObserved: true });
   };
   const observe = () => evaluate('globalThis.__solidflowUiTestObservation.snapshot()');
+  observe.counters = () => evaluate('globalThis.__solidflowUiTestObservation.counters()');
+  observe.assemblyResponseAfter = (serial, action) => evaluate(`globalThis.__solidflowUiTestObservation.assemblyResponseAfter(...JSON.parse(${encodeJavaScriptString(JSON.stringify([serial, action]))}))`);
+  observe.auditCounters = async label => {
+    // Called once at an already-observed idle helper boundary, never per poll.
+    const started = performance.now(), full = await observe(), fullReadMs = performance.now() - started;
+    const counterStarted = performance.now(), counters = await observe.counters(), counterReadMs = performance.now() - counterStarted;
+    const expected = { serial: full.serial, assemblyCount: full.assemblies.length, workerErrorCount: full.workerErrors.length };
+    const parity = counters.serial === expected.serial && counters.assemblyCount === expected.assemblyCount && counters.workerErrorCount === expected.workerErrorCount;
+    const action = full.assemblies.at(-1)?.action;
+    check(typeof action === 'string', 'Idle response projection audit requires a recorded assembly action.');
+    const matching = full.assemblies.filter(value => value.serial > 0 && value.action === action);
+    const expectedResponse = { serial: full.serial, assemblyCount: full.assemblies.length, workerErrors: full.workerErrors,
+      record: matching.filter(value => value.response).at(-1) ?? null,
+      matching: matching.slice(-10).map(value => ({ serial: value.serial, hasResponse: !!value.response, ok: value.response?.ok ?? null })) };
+    const responseStarted = performance.now(), projected = await observe.assemblyResponseAfter(0, action), responseReadMs = performance.now() - responseStarted;
+    const responseParity = canonical(projected) === canonical(expectedResponse);
+    const boundaryStarted = performance.now(), boundary = await observe.assemblyResponseAfter(full.serial, action), boundaryReadMs = performance.now() - boundaryStarted;
+    const boundaryParity = canonical(boundary) === canonical({ serial: full.serial, assemblyCount: full.assemblies.length,
+      workerErrors: full.workerErrors, record: null, matching: [] });
+    const sizeStarted = performance.now(), fullSnapshotBytes = Buffer.byteLength(JSON.stringify(full)), counterBytes = Buffer.byteLength(JSON.stringify(counters)), responseBytes = Buffer.byteLength(JSON.stringify(projected)), boundaryBytes = Buffer.byteLength(JSON.stringify(boundary));
+    checks.push({ assemblyObserverCountersAudit: { label, parity, expected, counters, fullReadMs, counterReadMs, fullSnapshotBytes, counterBytes,
+      sizeMeasurementMs: performance.now() - sizeStarted,
+      evidenceLimits: 'One real idle comparison of full snapshot, counters and latest completed response projection, including exact record/errors/serial/count/matching parity. Main-process read durations include renderer/transport scheduling; JSON sizes are measured once after transport. No prior-timeout cause or aggregate savings inferred.' } });
+    checks.push({ assemblyObserverResponseAudit: { label, action, afterSerial: 0, parity: responseParity && boundaryParity,
+      responseParity, boundaryParity, fullReadMs, responseReadMs, boundaryReadMs, fullSnapshotBytes, responseBytes, boundaryBytes,
+      recordSerial: projected.record?.serial ?? null, expectedRecordSerial: expectedResponse.record?.serial ?? null, boundarySerial: full.serial,
+      evidenceLimits: 'Exact canonical parity against the existing idle full snapshot includes complete selected record and all worker errors. Strict boundary at full.serial must yield null record and empty matching summary. No native request, history pruning, deadline change or aggregate performance claim.' } });
+    check(parity, 'Idle counters exactly match the complete observer serial, assembly count and worker error count.');
+    check(responseParity, 'Idle response projection exactly matches the full record, worker errors, serial, assembly count and bounded matching summary.');
+    check(boundaryParity, 'Idle response projection after the full serial retains errors and counters with no matching response.');
+    return counters;
+  };
   async function waitFor(description, inspect, budget = STEP_MS) {
     const started = Date.now(); let last;
     while (Date.now() - started < budget) {

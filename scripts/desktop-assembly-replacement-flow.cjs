@@ -138,7 +138,7 @@ module.exports = function replacementWorkflow(context) {
       found[0].click();
     }));
     await waitFor('exact selected pin replacement controls', () => page(() => !!document.querySelector('button[aria-label="Elegir pieza sustituta"]') && document.querySelector('input[aria-label="Nombre del componente"]')?.value === 'Original replacement pin'));
-    (await assemblyNavigation.panel('components'), await page(() => {
+    (await assemblyNavigation.panel('properties'), await page(() => {
       const found = [...document.querySelectorAll('.assembly-sidebar details')].filter(value => value.querySelector('summary')?.textContent === 'Sustituir pieza');
       if (found.length !== 1) throw Error('Replacement disclosure absent.'); found[0].open = true;
     }));

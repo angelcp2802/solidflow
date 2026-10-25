@@ -55,7 +55,7 @@ module.exports = async function dragWorkflow(context) {
     throw Error('Actual manipulator hover did not expose the requested ' + axis + ' axis.');
   }
   async function gesture(document, mode) {
-    const { center, point } = await handle(document, mode, mode === 'rotate' ? 'Z' : 'X'), before = await observe();
+    const { center, point } = await handle(document, mode, mode === 'rotate' ? 'Z' : 'X'), before = await observe.counters();
     await pointer('mousePressed', point, 1);
     await waitFor('pointer-down blocks Apply and Save', () => page(apply => document.querySelector('.assembly-app')?.getAttribute('aria-busy') === 'true'
       && document.querySelector(apply)?.disabled === true && [...document.querySelectorAll(':is(.assembly-toolbar, .assembly-quickbar) button')].find(value => value.textContent.trim() === 'Guardar')?.disabled === true, APPLY));
@@ -102,22 +102,22 @@ module.exports = async function dragWorkflow(context) {
   }
   await selectRight(); const savedRecovery = await recovery(), first = assertReady(await gesture(base, 'rotate'), base);
   check((await fsp.readFile(output)).equals(bytes) && await recovery() === savedRecovery, 'Pointer preview changed saved/recovery state.');
-  let before = await observe(); await click('button[aria-label="Cancelar vista previa del ensamblaje"]');
+  let before = await observe.counters(); await click('button[aria-label="Cancelar vista previa del ensamblaje"]');
   const cancelled = await responseAfter(before.serial, 'discard-assembly'); await idle('pointer preview Cancel completes');
   check(cancelled.hasToken && (await fsp.readFile(output)).equals(bytes) && await recovery() === savedRecovery, 'Pointer Cancel failed capability/file/recovery atomicity.'); record('drag/cancelled', cancelled);
   check(first.scene.sceneId !== undefined, 'Pointer preview lacked a real display generation.');
   const latest = await gesture(base, 'rotate'), second = assertReady(latest, base);
-  before = await observe(); await click(APPLY); const applied = await responseAfter(before.serial, 'apply-assembly'), moved = applied.response.value.document;
+  before = await observe.counters(); await click(APPLY); const applied = await responseAfter(before.serial, 'apply-assembly'), moved = applied.response.value.document;
   check(canonical(moved.occurrences) === canonical(second.document.occurrences) && canonical(moved.mates) === canonical(base.mates), 'Apply differs from the final verified pointer destination.');
   await idle('pointer Apply completes'); record('drag/applied', applied);
-  before = await observe(); await click('button[aria-label="Deshacer ensamblaje"]'); const undo = await responseAfter(before.serial, 'build-assembly');
+  before = await observe.counters(); await click('button[aria-label="Deshacer ensamblaje"]'); const undo = await responseAfter(before.serial, 'build-assembly');
   check(canonical(undo.document) === canonical(base), 'Pointer gesture created more than one history entry.'); await idle('pointer Undo completes'); record('drag/undo', undo);
-  before = await observe(); await click('button[aria-label="Rehacer ensamblaje"]'); const redo = await responseAfter(before.serial, 'build-assembly');
+  before = await observe.counters(); await click('button[aria-label="Rehacer ensamblaje"]'); const redo = await responseAfter(before.serial, 'build-assembly');
   check(canonical(redo.document) === canonical(moved), 'Pointer Redo changed the actual applied document.'); await idle('pointer Redo completes'); record('drag/redo', redo);
   await button('Guardar', ':is(.assembly-toolbar, .assembly-quickbar)'); await waitFor('pointer native Save completes', () => ipc.filter(value => value.channel === 'document:save' && value.completed).length === 4);
   const movedBytes = await fsp.readFile(output); check(canonical(JSON.parse(movedBytes.toString('utf8'))) === canonical(moved), 'Pointer saved file differs from committed Apply.');
   await waitFor('pointer Save reaches clean controls', () => page(name => document.querySelector('.assembly-shell-document > strong')?.textContent === name && document.querySelector('.assembly-app')?.getAttribute('aria-busy') === 'false', moved.name));
-  before = await observe(); await button('Abrir', ':is(.assembly-toolbar, .assembly-quickbar)'); const reopened = await responseAfter(before.serial, 'build-assembly');
+  before = await observe.counters(); await button('Abrir', ':is(.assembly-toolbar, .assembly-quickbar)'); const reopened = await responseAfter(before.serial, 'build-assembly');
   check(canonical(reopened.document) === canonical(moved), 'Pointer reopen changed the actual saved document.'); await idle('pointer saved reopen completes'); record('drag/reopened', reopened);
   await selectRight();
   const movedRecovery = await recovery(), rejected = await gesture(moved, 'translate');

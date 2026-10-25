@@ -168,9 +168,16 @@ material list reveals Evaluar and returns focus to its command. Use the left
 manager tabs or an explicit command to open an editor. Applying a preview still
 requires the existing native verification; the check mark does not bypass it.
 
-In configured assemblies, selecting a component does not force its editor open.
-The model tree stays visible when selecting its components.
-Use **Propiedades del componente** in the left icon bar to edit it. **Insertar
+Selecting a component keeps the model tree visible in both assembly workspaces.
+In a standard assembly, use **Propiedades** in the left tabs, the tree action or
+**Editar → Propiedades del componente** to open its separate editor. **Mover
+componente** opens that pane at the movement fields. **Modelo** in its header
+returns to the selected row, retaining unsubmitted field values. With no selection,
+the Properties tab explains how to select a component; browsing an origin datum
+disables component Properties and Move until component selection is restored.
+
+In configured assemblies, use **Propiedades del componente** in the left icon
+bar to edit it. **Insertar
 componente**, **Reutilizar componente**, **Nueva relación** and
 **Configuraciones** open their corresponding panels. **Relaciones** lists the
 current state's relations. Closing or applying a relation returns to the tree.
@@ -192,7 +199,7 @@ In a standard assembly, enable **Mostrar ejes** or **Mostrar planos** and choose
 de**. Select the relation and its reference role, then press **Seleccionar
 origen**. The viewport instruction identifies the role being filled. In a
 configured assembly, the tree selection initializes the owner when opening the
-general relation editor. Under **Referencias de origen**, enable **Ejes** or
+general relation editor. Expand **Referencias de origen**, then enable **Ejes** or
 **Planos**, choose **Mostrar origen de**, and press the intended reference role.
 Use **Componente de origen** to choose another current visible component without
 leaving that editor. The selector includes eligible descendants of the current
@@ -201,6 +208,10 @@ display to that component; **Ambos** retains the scope alongside it. Existing
 roles and the tree selection stay unchanged. Changing owner disarms picking:
 rearm the intended role, select its origin, then choose the next owner/role.
 Only roles with a compatible current displayed reference can be armed.
+The origin section starts compact when visibility and picking are not requested.
+Its summary shows the displayed count or active role. Collapsing this section
+keeps the current owner, visible references and armed role; it does not cancel
+picking. Activating visibility or a new origin role opens the section again.
 
 Click an axis line, a displayed plane, or its projected label to nominate the
 reference. Labels identify the axis or plane and its owner; they are also useful

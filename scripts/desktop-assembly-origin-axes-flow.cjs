@@ -98,6 +98,28 @@ module.exports = function originAxesWorkflow(c) {
   async function leaveArmedOrigin() {
     const before = (await observe()).serial, original = await references();
     await armOrigin(1);
+    if (configured) {
+      const summary = 'summary[aria-label="Mostrar referencias de origen configuradas"]';
+      const disclosureState = () => page(() => {
+        const owner = document.querySelector('[aria-label="Componente de referencias de origen configuradas"]');
+        if (!owner) throw Error('Retained origin owner control required');
+        return { owner: owner.value,
+        visibility: ['Mostrar ejes de origen configurados', 'Mostrar planos de origen configurados'].map(label =>
+          document.querySelector('[aria-label="' + label + '"]')?.checked),
+        recovery: localStorage.getItem('solidflow.autosave'),
+        roles: [1, 2].map(slot => document.querySelector('button[aria-label="Seleccionar Referencia ' + slot + ' por origen en vista configurada"]')?.getAttribute('aria-pressed')),
+        mode: document.querySelector('[aria-label="Visor 3D del ensamblaje"]')?.getAttribute('data-reference-picking'),
+      }; });
+      const retained = await disclosureState();
+      for (const wanted of [false, true]) {
+        await actualControl(summary, null, true);
+        await waitFor('origin reference section disclosure ' + wanted, () => page(wanted =>
+          document.querySelector('details[aria-label="Referencias de origen configuradas"]')?.open === wanted, wanted));
+        check(canonical(await disclosureState()) === canonical(retained) && canonical(await references()) === canonical(original)
+          && (await observe()).serial === before, 'Origin disclosure retains armed role, visibility, owner, references, recovery and native serial');
+      }
+      selectionGestures.push({kind: 'configured-origin-disclosure', states: ['collapsed-armed', 'reopened-armed'], retainedPicking: true});
+    }
     if (navigation) await navigation.pane('model'); else await assemblyNavigation.panel('components');
     await waitFor('leaving relations disarms origin selection', async () => await originMode() === '');
     check(canonical(await references()) === canonical(original), 'Leaving relation preserves both authored references');

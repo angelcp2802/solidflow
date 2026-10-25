@@ -15,7 +15,7 @@ module.exports = async function projectionWorkflow(context) {
   const cap = caps[0], recovery = () => page(() => localStorage.getItem('solidflow.autosave'));
   const record = (phase, event) => phases.push({ phase, serial: event.serial, action: event.action, current: event.current, document: event.document,
     drag: event.drag, response: event.response.value });
-  let before = await observe();
+  let before = await observe.counters();
   (await assemblyNavigation.panel('relations'), await page(label => { const matches = [...document.querySelectorAll('input[type="checkbox"]')].filter(value => value.getAttribute('aria-label') === label);
     if (matches.length !== 1 || matches[0].disabled || !matches[0].checked) throw Error('Expected the enabled original cap control.'); matches[0].click(); }, 'Activar ' + cap.name));
   const suppressed = await responseAfter(before.serial, 'build-assembly'), base = suppressed.document;
@@ -46,7 +46,7 @@ module.exports = async function projectionWorkflow(context) {
     throw Error('Actual front-view manipulator did not expose the XZ plane.');
   }
   async function gesture() {
-    const point = await handle(base, suppressed.response.value), start = await observe(), savedRecovery = await recovery();
+    const point = await handle(base, suppressed.response.value), start = await observe.counters(), savedRecovery = await recovery();
     await pointer('mousePressed', point, 1);
     await waitFor('projected slider pointer-down blocks Apply', () => page(apply => document.querySelector('.assembly-app')?.getAttribute('aria-busy') === 'true' && document.querySelector(apply)?.disabled === true, APPLY));
     const targets = [];
@@ -74,23 +74,23 @@ module.exports = async function projectionWorkflow(context) {
     return event;
   }
   await selectRight(); const first = await gesture(); record('projection/preview-cancel', first);
-  before = await observe(); await click('button[aria-label="Cancelar vista previa del ensamblaje"]'); const cancelled = await responseAfter(before.serial, 'discard-assembly');
+  before = await observe.counters(); await click('button[aria-label="Cancelar vista previa del ensamblaje"]'); const cancelled = await responseAfter(before.serial, 'discard-assembly');
   check(cancelled.hasToken, 'Projection Cancel did not revoke its actual capability.'); await idle('projected slider Cancel completes'); record('projection/cancelled', cancelled);
-  const latest = await gesture(); record('projection/preview-apply', latest); before = await observe(); await click(APPLY);
+  const latest = await gesture(); record('projection/preview-apply', latest); before = await observe.counters(); await click(APPLY);
   const applied = await responseAfter(before.serial, 'apply-assembly'), moved = applied.response.value.document;
   check(canonical(moved.occurrences) === canonical(latest.response.value.document.occurrences) && canonical(moved.mates) === canonical(base.mates), 'Projection Apply differs from the verified candidate.');
   await idle('projected slider Apply completes'); record('projection/applied', applied);
-  before = await observe(); await click('button[aria-label="Deshacer ensamblaje"]'); const undo = await responseAfter(before.serial, 'build-assembly');
+  before = await observe.counters(); await click('button[aria-label="Deshacer ensamblaje"]'); const undo = await responseAfter(before.serial, 'build-assembly');
   check(canonical(undo.document) === canonical(base), 'One projected-motion Undo did not restore the entire cap-suppressed source.'); await idle('projected slider Undo completes'); record('projection/undo', undo);
-  before = await observe(); await click('button[aria-label="Rehacer ensamblaje"]'); const redo = await responseAfter(before.serial, 'build-assembly');
+  before = await observe.counters(); await click('button[aria-label="Rehacer ensamblaje"]'); const redo = await responseAfter(before.serial, 'build-assembly');
   check(canonical(redo.document) === canonical(moved), 'Projected-motion Redo changed the candidate.'); await idle('projected slider Redo completes'); record('projection/redo', redo);
   await button('Guardar como', ':is(.assembly-toolbar, .assembly-quickbar)'); await waitFor('projected slider native Save As completes', () => ipc.filter(value => value.channel === 'document:save' && value.completed).length === 5);
   const movedBytes = await fsp.readFile(projectionOutput); check(canonical(JSON.parse(movedBytes.toString('utf8'))) === canonical(moved) && (await fsp.readFile(output)).equals(bytes), 'Projection Save As changed the original or saved another candidate.');
   await waitFor('projected slider Save As reaches clean controls', () => page(name => document.querySelector('.assembly-shell-document > strong')?.textContent === name && document.querySelector('.assembly-app')?.getAttribute('aria-busy') === 'false', moved.name));
-  before = await observe(); await button('Abrir', ':is(.assembly-toolbar, .assembly-quickbar)'); const reopened = await responseAfter(before.serial, 'build-assembly');
+  before = await observe.counters(); await button('Abrir', ':is(.assembly-toolbar, .assembly-quickbar)'); const reopened = await responseAfter(before.serial, 'build-assembly');
   check(canonical(reopened.document) === canonical(moved) && !Object.hasOwn(reopened.document, 'projection'), 'Projected slider reopen lost saved state or persisted pointer diagnostics.'); await idle('projected slider reopen completes'); record('projection/reopened', reopened);
   await selectRight(); await handle(moved, reopened.response.value); await capture(moved);
-  before = await observe(); await button('Abrir', ':is(.assembly-toolbar, .assembly-quickbar)'); const restored = await responseAfter(before.serial, 'build-assembly');
+  before = await observe.counters(); await button('Abrir', ':is(.assembly-toolbar, .assembly-quickbar)'); const restored = await responseAfter(before.serial, 'build-assembly');
   check(canonical(restored.document) === canonical(original) && (await fsp.readFile(output)).equals(bytes), 'Original pre-slider assembly was not restored from its unchanged file.'); await idle('original assembly restored after projected Save As'); record('projection/original-restored', restored);
   check(dialogCounts().opens === 9 && dialogCounts().saves === 2 && ipc.filter(value => value.channel === 'document:save').length === 5 && ipc.every(value => value.completed), 'Unexpected projected slider native file sequence.');
   const final = await observe(); check(!consoleErrors.length && !failedRequests.length && !final.workerErrors.length, 'Projected slider renderer/worker failure.');

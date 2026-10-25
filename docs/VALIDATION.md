@@ -1,5 +1,140 @@
 # Validation
 
+## Assembly Properties pane and compact origin disclosure — 2026-10-25
+
+The standard component editor now occupies one mounted Properties pane.
+Component selection keeps the model tree visible; explicit Properties focuses
+the name, Move reveals its numeric controls, and Model returns to the selected
+occurrence. Pane navigation retains prepared fields. Datum browsing still
+disables component Properties and Move. Document replacement returns to Model.
+
+Configured origin references now use a native disclosure. A new relation focuses
+its main type field with origins closed; explicit visibility or picking requests
+open the section. Collapsing it retains the mounted controls, owner, assigned
+roles and armed picking. No solver, schema, tolerance or workflow deadline changes.
+
+Windows x64 / Node 24.11.1 / actual Electron 44.9.3: the final `npm test` passes
+9,448 unit/CAD cases across 411 files in 541.67 seconds, then 83 IPC/security
+passes and two explicit platform skips. The final production build passes.
+Application and unit-test inputs remained frozen for this run.
+
+The first compact renderer reached saved relation reopening but failed its focus
+assertion: it incorrectly required the Type selector, which is disabled while
+editing an existing relation. The harness now explicitly requires enabled Type
+for creation and enabled Name plus disabled Type for editing. The same visibility
+and hit checks remain, with bounded focus/rectangle diagnostics on failure.
+This harness-only repair followed the final unit run; application inputs did not
+change. The failed run did not record actual focus or confirmed final cleanup.
+
+The first standard persistence run reached 607 recorded checkpoints before its
+unchanged 170-second child deadline. Both new Move field-visibility checks and
+pane navigation had passed. The last retained completed request was the discard
+after a 720-degree movement; the following movement fields were prepared. That
+log does not locate the remaining delay within observation, interaction or native
+work, and does not establish a Properties failure or a snapshot root cause.
+
+A second run also reaches that boundary and expires, with 609 checkpoints; the
+two extra checkpoints are observer parity audits, not additional geometric
+progress. Both compare serial 96, 95 assembly request records and zero worker
+errors exactly. The full snapshots contain 6,723,854 bytes and take 123.660 and
+165.294 ms to read; the counter projections contain 53 bytes and take 0.600 and
+1.260 ms. These are two real idle measurements including transport/scheduling,
+not total savings or proof of the preceding deadline's cause. Neither failed
+run records confirmed final profile cleanup.
+
+The harness calculates counters in the renderer before copying or transporting
+history. Seventy serial-only reads in nine standard persistence modules use that
+projection. Standard response polling now projects the same last completed
+matching record and all worker errors before transport. Idle comparisons require
+exact canonical parity with the full record and an empty result after the current
+serial. Source-repair correlation, gesture streams, UI history and final audits
+retain full snapshots. No observations are pruned. This harness
+change follows the full unit run; application and unit-test inputs stay frozen.
+
+The serial-only retry also expires at 609 checkpoints. A following timed run
+reaches 618: the second 720-degree preview and Apply complete, and the final
+record identifies an Undo build request (serial 139) awaiting its response at
+the deadline. Its first snapshot read takes 256 ms. That observation locates
+the final wait; it does not establish a solver failure or the aggregate cost
+of earlier snapshots. The retained per-movement timings use existing actions
+and reads without adding CAD requests or extending deadlines.
+
+With response projection, standard persistence passes 645 recorded checkpoints
+in 160.134 seconds, including all five finalization records and confirmed
+child/profile cleanup. Both idle audits match the complete record and the empty
+serial boundary. The full snapshots contain 6,723,854 bytes; response projections
+contain 105,982 bytes and empty-boundary projections 78 bytes. The two full reads
+take 105.826/126.108 ms, response reads 3.316/3.385 ms and boundary reads
+0.212/0.194 ms. This is one passing local run with bounded read measurements,
+not proof of permanent deadline stability or an aggregate speedup.
+
+All 17 selected renderer workflows pass, with zero console, failed-request or
+resource errors and confirmed child exit/profile cleanup. Recorded checkpoints
+include diagnostic entries; they are not counts of independent geometry cases.
+
+| Executed workflow | Recorded checkpoints |
+| --- | ---: |
+| Standard / configured persistence and BOM | 645 / 195 |
+| Standard / configured origin axes | 205 / 312 |
+| Compact configured component/face/LINE picking | 197 |
+| Structured export | 77 |
+| Component replacement | 100 |
+| Source revision | 67 |
+| Line-path relation | 208 |
+| Hinge / hinge-limits repair | 150 / 173 |
+| Hinge / hinge-limits viewport picking | 79 / 130 |
+| Planar / spherical symmetry repair | 113 / 114 |
+| Nested selected / source symmetry repair | 70 / 79 |
+
+The production loader/worker/WASM `npm run test:desktop` smoke also passes.
+All 1,085 non-Markdown source inputs match the isolated runtime. The compact
+pass precedes the subsequent observer-only changes; its application inputs and
+executed navigation remain unchanged. The affected standard, configured and
+origin-tree helpers are rerun with final counter/response parity audits.
+
+Final standard/configured origin and configured persistence captures are
+1544 × 941. The compact workflow uses a 1040 × 700 window and a 1024 × 661
+content capture. All were inspected: the compact editor keeps origins closed
+and reveals Type/Name, while lower reference fields still require scrolling.
+The normal final captures show Model; the visible manual check below covers
+the standard Properties pane separately. Some origin labels still overlap.
+
+The standard renderer uses actual CDP input for Properties, Move and Model return.
+It checks retained fields/selection, focus, native serial and exact recovery text.
+A separate free-component case prepares an unsubmitted local-X value through the
+native input setter and bubbling input/change events, navigates with actual CDP
+input and restores the original value. That preparation is scripted form input,
+not keyboard typing or a movement preview. Disabled fields record a skip.
+Configured origin disclosure is exercised with actual summary clicks while
+picking is armed. Other helper routes that use DOM clicks remain scripted input.
+
+A visible production-build check uses the original nested BOM fixture in an
+isolated demo profile. It exposed a Move shortcut that left fields below the
+viewport when its heading was already visible. Aligning that section below the
+sticky header fixes the observed case; other destinations retain minimal scroll.
+The final visible check shows XYZ, axis, angle and preview controls, retains an
+actually typed X value through Model/Move navigation and restores the original
+value. Clicking another component in the viewport updates its open Properties
+and Model returns to its row; selecting root XZ disables Properties/Move.
+No CAD preview, Apply, drag, relation change or save was performed in this manual
+check. The recovered example was initially marked unsaved.
+
+These cases do not establish arbitrary assembly coverage, general keyboard
+parity, installed-package acceptance or complete assembly-demo acceptance.
+Captures and manual presentation checks remain separate from native geometry,
+saved-file and cleanup assertions. No new geometric coverage follows from pane
+navigation alone. Earlier intermediate builds and diagnostics are not the final
+acceptance set.
+
+The preceding origin-tree head `61e38c0` passes all nine renderer jobs, three
+configured-authoring jobs and three downstream Desktop jobs in
+[CI](https://github.com/angelcp2802/solidflow/actions/runs/40147134491), including
+the configured build, smoke and packaging steps. Its
+[Security](https://github.com/angelcp2802/solidflow/actions/runs/40147134490)
+passes dependency audit and CodeQL. These results belong to that head; this
+Properties/disclosure increment requires its own hosted execution. They do not
+establish installed-package or general platform support.
+
 ## Assembly origin-tree browsing — 2026-10-25
 
 The increment after `91c176ac` adds principal planes and axes to the root and

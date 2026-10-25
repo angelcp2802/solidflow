@@ -162,9 +162,10 @@
 /* Classic assembly shell: one contextual left manager and the model viewport. */
 .assembly-classic-workspace { min-width: 760px; background: #eef1f4; }
 .assembly-classic-workspace .assembly-manager-sidebar { flex: 0 0 282px; width: 282px; min-width: 0; display: flex; flex-direction: column; overflow: hidden; background: #fff; border-right: 1px solid #b8c5cf; }
-.assembly-classic-workspace .assembly-manager-relations, .assembly-classic-workspace .assembly-manager-evaluate { flex-basis: 318px; width: 318px; }
-.assembly-manager-tabs { display: flex; align-items: stretch; flex: 0 0 34px; border-bottom: 1px solid #bfcdd8; background: #edf1f5; }
-.assembly-manager-tabs > button { display: flex; flex: 1; gap: 4px; align-items: center; justify-content: center; padding: 4px 3px; color: #60788a; font-size: 10px; border-radius: 0; border-right: 1px solid #d8e0e6; }
+.assembly-classic-workspace .assembly-manager-properties, .assembly-classic-workspace .assembly-manager-relations, .assembly-classic-workspace .assembly-manager-evaluate { flex-basis: 318px; width: 318px; }
+.assembly-manager-tabs { display: flex; align-items: stretch; flex: 0 0 42px; border-bottom: 1px solid #bfcdd8; background: #edf1f5; }
+.assembly-manager-tabs > button { display: flex; flex: 1 1 0; min-width: 0; flex-direction: column; gap: 2px; align-items: center; justify-content: center; padding: 4px 2px; color: #60788a; font-size: 9px; border-radius: 0; border-right: 1px solid #d8e0e6; }
+.assembly-manager-tabs > button > span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .assembly-manager-tabs > button[aria-selected="true"] { background: #fff; color: #176ba1; box-shadow: inset 0 2px #2587c2; }
 .assembly-manager-tabs > button:focus-visible { outline: 2px solid #2385c8; outline-offset: -2px; }
 .assembly-classic-workspace .assembly-manager-panel { flex: 1 1 auto; width: auto; min-height: 0; overflow: auto; border: 0; background: #fbfcfd; scrollbar-width: thin; }
@@ -189,7 +190,7 @@
 .assembly-classic-workspace .assembly-confirm-commands { margin-left: auto; }
 @media (max-width: 1100px) {
   .assembly-classic-workspace .assembly-manager-sidebar { flex-basis: 260px; width: 260px; }
-  .assembly-classic-workspace .assembly-manager-relations, .assembly-classic-workspace .assembly-manager-evaluate { flex-basis: 302px; width: 302px; }
+  .assembly-classic-workspace .assembly-manager-properties, .assembly-classic-workspace .assembly-manager-relations, .assembly-classic-workspace .assembly-manager-evaluate { flex-basis: 302px; width: 302px; }
   .assembly-classic-workspace .assembly-toolbar .assembly-command-group { padding-left: 4px; padding-right: 4px; }
   .assembly-classic-workspace .assembly-command-manager .assembly-command-group button.assembly-command-large { width: 70px; }
   .assembly-classic-workspace .assembly-command-manager .assembly-command-stack > button { font-size: 10px; padding-left: 3px; padding-right: 3px; gap: 3px; }
@@ -208,3 +209,11 @@
 .assembly-origin-tools button[aria-pressed="true"] { background: #ddebfa; color: #166ea7; }
 .assembly-origin-tools > span { flex-basis: 100%; line-height: 1.4; }
 .assembly-component-properties { min-width: 0; margin: 0; padding: 0; border: 0; }
+.assembly-component-manager { scroll-padding-top: 64px; }
+.assembly-component-manager-header { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 8px; padding: 9px 11px; border-bottom: 1px solid #d2dce4; background: #edf2f6; }
+.assembly-component-manager-header > div { flex: 1; min-width: 0; }
+.assembly-component-manager-header h2 { margin: 0; font-size: 12px; font-weight: 600; color: #345b78; }
+.assembly-component-manager-header span { display: block; margin-top: 3px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 11px; color: #60788a; }
+.assembly-component-manager-header > button { display: flex; flex-shrink: 0; align-items: center; gap: 4px; padding: 5px; color: #326e9b; font-size: 10px; }
+.assembly-component-manager-header > button:focus-visible { outline: 2px solid #2385c8; outline-offset: -2px; }
+.assembly-component-manager-empty { margin: 0; padding: 14px 11px; font-size: 11px; line-height: 1.5; color: #60788a; }

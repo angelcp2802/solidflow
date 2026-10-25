@@ -353,18 +353,20 @@ function downloadBomCsv(content: string, name: string): void {
 export default function AssemblyWorkspace({ initialDocument, initialPath, initialSaved, onOpenPart, onOpenConfigured }: AssemblyWorkspaceProps) {
   const [treeReset, setTreeReset] = useState(0)
   const [ribbonTab, setRibbonTab] = useState<AssemblyCommandTab>('assembly')
-  const [managerTab, setManagerTab] = useState<'components' | 'relations' | 'evaluate'>('components')
+  const [managerTab, setManagerTab] = useState<'components' | 'properties' | 'relations' | 'evaluate'>('components')
   const managerTabRef = useRef(managerTab)
   const manager = useRef<HTMLElement>(null)
-  const openManager = (tab: 'components' | 'relations' | 'evaluate', selector?: string) => {
+  const openManager = (tab: 'components' | 'properties' | 'relations' | 'evaluate', selector?: string) => {
+    if (tab === 'properties' && (editingBlocked || selectedTreeOrigin || operation.current || hasStaging() || dragging.current || dragSession.current)) return
     managerTabRef.current = tab
     if (tab !== 'relations') {
       clearSymmetryPicking(); setHingePicking(null); setWidthPicking(null); setRackPicking(null)
     }
     setManagerTab(tab)
     requestAnimationFrame(() => {
+      if (managerTabRef.current !== tab) return
       const target = selector ? manager.current?.querySelector<HTMLElement>(selector) : manager.current?.querySelector<HTMLElement>('[role="tabpanel"]:not([hidden])')
-      target?.scrollIntoView({ block: 'nearest' })
+      target?.scrollIntoView({ block: selector === '.assembly-movement h3' ? 'start' : 'nearest' })
       if (target && !target.matches('button, input, select, textarea, [tabindex]')) target.tabIndex = -1
       target?.focus({ preventScroll: true })
     })
@@ -940,7 +942,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   }, [replaceDialog])
   const replace = (document: AssemblyDocument, filePath?: string, fileSaved?: string) => {
     setTreeReset(value => value + 1)
-    restoreBomFocus.current = false; setRibbonTab('assembly')
+    restoreBomFocus.current = false; setRibbonTab('assembly'); managerTabRef.current = 'components'; setManagerTab('components')
     linkedEpoch.current++; linkedTicket.current = null; linkedBindings.current.clear(); refreshLinked(v => v + 1)
     setEditingDirectionId(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null); setCylinderLarger(''); setSphereLarger('')
     invalidate(); setLimitDirectedSelection(['', '', '']); confirmedScene.current = null; sceneSignature.current = ''; setScene(null); history.current!.reset(document); setCommitted(validateAssemblyDocument(document)); setPath(filePath); setSaved(fileSaved ?? ''); setSelectedPath([]); setScopePath([]); setSourceKey(''); setEditingGearId(null); setEditingScrewId(null); setEditingRackId(null); setRackKeys(['', ''])
@@ -2008,7 +2010,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     { id: 'edit', label: 'Editar', items: [
       { id: 'undo', label: 'Deshacer', disabled: editingBlocked || !history.current.canUndo, onSelect: () => undo() },
       { id: 'redo', label: 'Rehacer', disabled: editingBlocked || !history.current.canRedo, onSelect: () => undo(true) },
-      { id: 'component-properties', label: 'Propiedades del componente', disabled: editingBlocked || !selected || !!selectedTreeOrigin, onSelect: () => openManager('components', '[aria-label="Nombre del componente"]') },
+      { id: 'component-properties', label: 'Propiedades del componente', disabled: editingBlocked || !selected || !!selectedTreeOrigin, onSelect: () => openManager('properties', '[aria-label="Nombre del componente"]') },
       { id: 'revision', label: 'Crear revisión…', disabled: editingBlocked || !!draft || replaceDialog, onSelect: openRootRevision },
     ] },
     { id: 'view', label: 'Ver', items: [
@@ -2082,7 +2084,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
         </AssemblyCommandGroup>
         <AssemblyCommandGroup label="Relaciones y movimiento">
           <button className="assembly-command-large" aria-label="Relación de ensamblaje" onClick={() => openManager('relations', '[aria-label="Tipo de relación"]')}><Link2 size={25} /><span>Relación</span></button>
-          <button aria-label="Mover componente" disabled={!selected || !!selectedTreeOrigin} onClick={() => openManager('components', '.assembly-movement h3')}><Move3D size={17} />Mover componente</button>
+          <button aria-label="Mover componente" disabled={editingBlocked || !selected || !!selectedTreeOrigin} onClick={() => openManager('properties', '.assembly-movement h3')}><Move3D size={17} />Mover componente</button>
         </AssemblyCommandGroup>
         <AssemblyCommandGroup label="Documento">
           <div className="assembly-command-stack">
@@ -2124,20 +2126,33 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     <main className="assembly-layout">
       <aside ref={manager} className={`assembly-manager-sidebar assembly-manager-${managerTab}`} aria-label="Gestor del ensamblaje">
         <nav className="assembly-manager-tabs" role="tablist" aria-label="Panel del ensamblaje">
-          <button id="assembly-tab-components" role="tab" aria-selected={managerTab === 'components'} aria-controls="assembly-panel-components" onClick={() => openManager('components')} title="Árbol de componentes"><Layers size={17} />Componentes</button>
-          <button id="assembly-tab-relations" role="tab" aria-selected={managerTab === 'relations'} aria-controls="assembly-panel-relations" onClick={() => openManager('relations', '[aria-label="Tipo de relación"]')} title="Propiedades de relación"><Link2 size={17} />Relaciones</button>
-          <button id="assembly-tab-evaluate" role="tab" aria-selected={managerTab === 'evaluate'} aria-controls="assembly-panel-evaluate" onClick={() => openManager('evaluate')} title="Evaluación del ensamblaje"><ScanLine size={17} />Evaluar</button>
+          <button id="assembly-tab-components" role="tab" aria-selected={managerTab === 'components'} aria-controls="assembly-panel-components" onClick={() => openManager('components')} title="Árbol de componentes"><Layers size={17} /><span>Componentes</span></button>
+          <button id="assembly-tab-properties" role="tab" aria-selected={managerTab === 'properties'} aria-controls="assembly-panel-properties" disabled={editingBlocked || !!selectedTreeOrigin} onClick={() => openManager('properties', selected ? '[aria-label="Nombre del componente"]' : undefined)} title="Propiedades del componente"><Settings2 size={17} /><span>Propiedades</span></button>
+          <button id="assembly-tab-relations" role="tab" aria-selected={managerTab === 'relations'} aria-controls="assembly-panel-relations" onClick={() => openManager('relations', '[aria-label="Tipo de relación"]')} title="Propiedades de relación"><Link2 size={17} /><span>Relaciones</span></button>
+          <button id="assembly-tab-evaluate" role="tab" aria-selected={managerTab === 'evaluate'} aria-controls="assembly-panel-evaluate" onClick={() => openManager('evaluate')} title="Evaluación del ensamblaje"><ScanLine size={17} /><span>Evaluar</span></button>
         </nav>
         <div id="assembly-panel-components" role="tabpanel" aria-labelledby="assembly-tab-components" tabIndex={-1} hidden={managerTab !== 'components'} className="assembly-sidebar assembly-manager-panel">
 
       <h2><Layers size={16} />Componentes</h2>
       <div className="assembly-tree-actions"><button type="button" aria-label="Propiedades del componente seleccionado" disabled={editingBlocked || !selected || !!selectedTreeOrigin}
-        onClick={() => openManager('components', '[aria-label="Nombre del componente"]')}><Settings2 size={15} />Propiedades</button></div>
+        onClick={() => openManager('properties', '[aria-label="Nombre del componente"]')}><Settings2 size={15} />Propiedades</button></div>
       <AssemblyComponentTree document={committed} selectedPath={selectedPath} resetKey={treeReset} active={managerTab === 'components'}
         originRows={treeOrigins} selectedOriginKey={selectedTreeOrigin?.treeKey} onOrigin={selectTreeOrigin} originDisabled={treeOriginBlocked}
         onSelect={value => { setTreeOriginSelection(null); if (fileTicket.current?.purpose === 'update' || linkedTicket.current) generation.current++; setSelectedPath(value) }} disabled={editingBlocked} />
       <section className="assembly-section"><h3>Insertar origen reutilizable</h3><select aria-label="Origen del componente" value={sourceKey} disabled={editingBlocked} onChange={event => setSourceKey(event.target.value)}><option value="">Selecciona un origen</option>{committed.definitions.map(value => <option key={assemblyDefinitionKey(value)} value={assemblyDefinitionKey(value)}>{value.kind === 'part' ? value.document.name : value.name} · {value.revision}</option>)}</select>
         <button disabled={editingBlocked || !sourceKey} onClick={() => { const definition = committed.definitions.find(value => assemblyDefinitionKey(value) === sourceKey); if (definition) edit({ type: 'insert-occurrence', scope: scopeReference, occurrence: { name: definition.kind === 'part' ? definition.document.name : definition.name, definition: { id: definition.id, revision: definition.revision }, pose: identityRigidPose(), fixed: false, suppressed: false, visible: true } }) }}><Plus size={14} />Insertar otra ocurrencia</button></section>
+
+          <section className="assembly-section assembly-document-tools"><h3>Documentos y ejemplos</h3>
+            <button aria-label="Importar STEP estructurado" disabled={editingBlocked || !!draft || !!preview || replaceDialog} onClick={()=>void importStructural()}><FileInput size={16} />Importar STEP estructurado</button>
+            <button disabled={editingBlocked || replaceDialog} onClick={exampleAssembly}>Placa y dos pasadores</button>
+          </section>
+        </div>
+        <div id="assembly-panel-properties" role="tabpanel" aria-labelledby="assembly-tab-properties" tabIndex={-1} hidden={managerTab !== 'properties'} className="assembly-sidebar assembly-properties assembly-manager-panel assembly-component-manager">
+          <header className="assembly-component-manager-header">
+            <div><h2>Propiedades del componente</h2>{selected && <span title={selected.path.join(' / ')}>{selected.occurrence.name}</span>}</div>
+            <button type="button" aria-label="Volver al árbol de componentes" onClick={() => openManager('components', selected ? '[data-assembly-tree-path][aria-selected="true"]' : undefined)}><Layers size={16} />Modelo</button>
+          </header>
+          {!selected && <p className="assembly-component-manager-empty">Selecciona un componente en el árbol para ver sus propiedades.</p>}
       <fieldset className="assembly-component-properties" aria-label="Edición del componente seleccionado" hidden={!!selectedTreeOrigin} disabled={!!selectedTreeOrigin}>
       {selected && <section className="assembly-section" key={JSON.stringify(selected.path)}><h3>Componente seleccionado</h3><button aria-label={selected.definition.kind === 'part' ? 'Actualizar pieza' : 'Actualizar subensamblaje'} disabled={editingBlocked || !!preview} onClick={() => void open('update')}>{selected.definition.kind === 'part' ? 'Actualizar pieza' : 'Actualizar subensamblaje'}</button><label>Nombre<input aria-label="Nombre del componente" defaultValue={selected.occurrence.name} disabled={editingBlocked} onBlur={event => { if (event.target.value !== selected.occurrence.name) edit({ type: 'rename-occurrence', scope: selected.parent, occurrenceId: selected.occurrence.id, name: event.target.value }) }} /></label>
         {selected.definition.kind === 'part' && <details><summary>Sustituir pieza</summary>
@@ -2183,10 +2198,6 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
         checks={preview?.reply.translation ? preview.reply.checks : undefined} onPreview={(request, options) => void translate(request, options)} />}
 
       </fieldset>
-          <section className="assembly-section assembly-document-tools"><h3>Documentos y ejemplos</h3>
-            <button aria-label="Importar STEP estructurado" disabled={editingBlocked || !!draft || !!preview || replaceDialog} onClick={()=>void importStructural()}><FileInput size={16} />Importar STEP estructurado</button>
-            <button disabled={editingBlocked || replaceDialog} onClick={exampleAssembly}>Placa y dos pasadores</button>
-          </section>
         </div>
         <div id="assembly-panel-relations" role="tabpanel" aria-labelledby="assembly-tab-relations" tabIndex={-1} hidden={managerTab !== 'relations'} className="assembly-properties assembly-manager-panel">
                 {displayedProjection && <AssemblyDragProjectionPanel projection={displayedProjection.projection} checks={displayedProjection.checks} pending={!!dragSession.current}

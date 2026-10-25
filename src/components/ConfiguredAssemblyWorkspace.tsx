@@ -1,6 +1,6 @@
 import ConfiguredAssemblyOccurrencePanel, { initialConfiguredOccurrenceFields, configuredOccurrenceUiIntent, configuredOccurrenceImportIntent, configuredOccurrenceReuseIntent } from './ConfiguredAssemblyOccurrencePanel'
 import type { AssemblyConfiguredOccurrenceEdit } from '../model/assemblyConfiguredOccurrenceEditing'
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { buildConfiguredAssembly, previewConfiguredAssembly, previewConfiguredAssemblyRelationEdit, previewConfiguredAssemblyMechanicalEdit, previewConfiguredAssemblyOccurrenceEdit, applyConfiguredAssembly, discardConfiguredAssembly } from '../cad/kernel'
 import type { ConfiguredAssemblyPreviewReply } from '../cad/kernel.assembly-configuration-session'
 import type { ConfiguredAssemblyScene } from '../cad/kernel.assembly-configuration-scene'
@@ -35,6 +35,28 @@ import './configured-assembly.css'
 let controllerEpoch = 0
 type RelationDraft = ConfiguredMateDraft | ConfiguredMechanicalDraft | ConfiguredCompoundDraft
 function nextEpoch(minimum = 0) { controllerEpoch = Math.max(controllerEpoch, minimum); if (controllerEpoch >= Number.MAX_SAFE_INTEGER) throw Error('Vuelve a abrir la aplicación para continuar.'); return ++controllerEpoch }
+
+/** Disclosure is local presentation state; changing it never changes picking intent. */
+export function ConfiguredOriginDisclosure({ axes, planes, pick, activeRole, visibleCount, children }: {
+  axes: boolean; planes: boolean; pick: ConfiguredOriginPick | null; activeRole: string | null; visibleCount: number; children: ReactNode
+}) {
+  const [open, setOpen] = useState(axes || planes || !!pick)
+  const previous = useRef({ axes, planes, pick })
+  useEffect(() => {
+    const old = previous.current
+    previous.current = { axes, planes, pick }
+    if (axes && !old.axes || planes && !old.planes || pick && pick !== old.pick) setOpen(true)
+  }, [axes, planes, pick])
+  return <details className="configured-origin-controls" aria-label="Referencias de origen configuradas" open={open}
+    onToggle={event => setOpen(event.currentTarget.open)}>
+    <summary aria-label="Mostrar referencias de origen configuradas">
+      <strong>Referencias de origen</strong>
+      <span>{activeRole ? `Seleccionando ${activeRole}` : `Planos y ejes · ${visibleCount} visibles`}</span>
+    </summary>
+    <div className="configured-origin-content">{children}</div>
+  </details>
+}
+
 export interface ConfiguredAssemblyWorkspaceProps {
   initialDocument: AssemblyConfiguredDocument
   initialPath?: string
@@ -62,7 +84,18 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
     const aside = inspector.current, target = aside?.querySelector<HTMLElement>('#' + id)
     if (!aside || !target || target.closest('[hidden]')) return
     const anchor = target.dataset.inspectorAnchor ? aside.querySelector<HTMLElement>('#' + target.dataset.inspectorAnchor) ?? target : target
-    const field = target.matches('input:enabled, select:enabled, button:enabled') ? target : target.querySelector<HTMLElement>('input:enabled, select:enabled, button:enabled') ?? anchor
+    const visible = (element: HTMLElement) => {
+      if (element.closest('[hidden]') || !element.getClientRects().length) return false
+      for (let closed = element.closest('details:not([open])'); closed; closed = closed.parentElement?.closest('details:not([open])') ?? null) {
+        const summary = [...closed.children].find(child => child.tagName === 'SUMMARY')
+        if (!summary?.contains(element)) return false
+      }
+      return true
+    }
+    const controls = 'input:enabled, select:enabled, button:enabled'
+    const field = target.matches(controls) && visible(target) ? target
+      : [...target.querySelectorAll<HTMLElement>(controls)].find(visible)
+        ?? [...target.querySelectorAll<HTMLElement>('summary')].find(visible) ?? anchor
     // Keep the section heading and its context visible independently of focus.
     const tabsHeight = aside.querySelector<HTMLElement>('.configured-inspector-tabs')?.offsetHeight ?? 0
     aside.scrollTop += anchor.getBoundingClientRect().top - aside.getBoundingClientRect().top - tabsHeight - 12
@@ -543,8 +576,8 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
           <span>{preview ? 'Vista previa verificada' : 'Selecciona referencias y verifica'}</span>
         </div>
               <div id="configured-relation-inspector" data-inspector-anchor="configured-property-heading" tabIndex={-1}>
-      {generalDraft && <section className="configured-origin-controls" aria-label="Referencias de origen configuradas">
-        <h3>Referencias de origen</h3>
+      {generalDraft && <ConfiguredOriginDisclosure axes={originAxes} planes={originPlanes} pick={originPick}
+        activeRole={originPick ? configuredMateUiRoleLabels(generalDraft)[originPick.slot] : null} visibleCount={originDisplay.length}>
         <div className="configured-origin-visibility">
           <label><input type="checkbox" aria-label="Mostrar ejes de origen configurados" checked={originAxes} disabled={blocked || !scene} onChange={event => { if (!freshMate() || operation.current || pending.current || inspectorPane !== 'relation') return; stopMatePick(); setOriginAxes(event.target.checked) }} />Ejes</label>
           <label><input type="checkbox" aria-label="Mostrar planos de origen configurados" checked={originPlanes} disabled={blocked || !scene} onChange={event => { if (!freshMate() || operation.current || pending.current || inspectorPane !== 'relation') return; stopMatePick(); setOriginPlanes(event.target.checked) }} />Planos</label>
@@ -564,7 +597,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
           stopMatePick(); const value = { slot, catalog: configuredOriginCatalog(originDisplay) }; originPickRef.current = value; setOriginPick(value)
         }}>{label}</button>)}</div>
         <small>Elige un componente y después la referencia que quieres seleccionar. Cambiar de componente conserva las referencias ya elegidas.</small>
-      </section>}
+      </ConfiguredOriginDisclosure>}
       {mateDraft && !('mechanical' in mateDraft) && !('compound' in mateDraft) && <ConfiguredAssemblyMatePanel draft={mateDraft} choices={mateChoices.values} disabled={blocked || !scene || selectedScope.suppressed}
         picking={matePick} onStopPicking={stopMatePick} onPick={(slot, kind) => { if (!freshMate() || operation.current || pending.current || inspectorPane !== 'relation') return; stopMatePick(); const value = { slot, kind }; matePickRef.current = value; setMatePick(value) }}
         onChange={draft => { if (!freshMate() || operation.current || pending.current) return; try { setRelationDraft(structuredClone(draft)); setFailure(null) } catch (reason) { error(reason) } }}

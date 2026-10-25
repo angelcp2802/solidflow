@@ -83,8 +83,12 @@
 .configured-property-actions span { font-size:10px; color:#677b8d; }
 .configured-mate-list { border-top:0; margin-top:0; padding-top:0; }
 .configured-mate-editor { padding:0; background:transparent; border:0; border-radius:0; }
-.configured-origin-controls { margin:8px 0 12px; padding:8px; border:1px solid #cad8e4; background:#f3f7fb; }
-.configured-origin-controls h3 { margin:0 0 5px; }
+.configured-origin-controls { margin:7px 0 10px; padding:0; border:1px solid #cad8e4; background:#f3f7fb; }
+.configured-origin-controls>summary { padding:7px 8px; cursor:pointer; font-size:11px; color:#29485f; }
+.configured-origin-controls>summary::marker { color:#557f9d; }
+.configured-origin-controls>summary:focus-visible { outline:2px solid #287eb8; outline-offset:-2px; }
+.configured-origin-controls>summary>span { display:block; margin:3px 0 0 13px; font-size:10px; color:#5f6d79; }
+.configured-origin-content { padding:0 8px 8px; }
 .configured-origin-visibility,.configured-origin-roles { display:flex; flex-wrap:wrap; gap:6px; }
 .configured-origin-visibility label { margin:2px 8px 2px 0; }
 .configured-origin-controls label { margin:5px 0; }

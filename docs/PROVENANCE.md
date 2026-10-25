@@ -1,5 +1,20 @@
 # Public fixture provenance
 
+## Assembly component panes and origin disclosure
+
+This presentation increment reuses the original nested BOM and two-prism
+origin-axis fixtures, without adding CAD files or geometric oracles. Standard
+pane navigation checks existing fields, full occurrence selection, native serial
+and exact recovery. The free-component case prepares one local-X form value with
+scripted input/change events, navigates with actual CDP pointer controls, then
+restores the original value without preview or CAD mutation. Guarded fixtures
+report that preparation as skipped rather than claiming draft-retention coverage.
+Configured origin disclosure checks retained owner, visibility, roles and draft
+while closing/reopening its actual summary. Static markup cases use synthetic
+form controls; they do not establish browser focus or runtime disclosure behavior.
+No external visual assets or implementation are included. Executed cases and
+their limits are recorded in [validation](VALIDATION.md).
+
 ## Assembly origin-tree browsing
 
 The pure catalog tests reuse `assemblyConfigurationCore.test-utils.ts` and its

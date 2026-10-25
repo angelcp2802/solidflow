@@ -75,7 +75,7 @@ module.exports = function sourceRevisionWorkflow(context) {
     await waitFor('production readiness', () => page(() => document.querySelector('.statusbar')?.textContent.includes('Listo') && typeof window.solidflow?.openDocument === 'function'), initialReadyMs);
     const originalSourceBytes = await fs.readFile(input), originalParentBytes = await fs.readFile(files.parent);
     let event = await open(expected, true); geometry(event.response.value, false, false); await select('m');
-    let before = await observe(); (await assemblyNavigation.panel('components'), await page(() => { const rows = [...document.querySelectorAll('label.assembly-check')].filter(x => x.textContent.trim() === 'Fijo respecto a su padre');
+    let before = await observe(); (await assemblyNavigation.panel('properties'), await page(() => { const rows = [...document.querySelectorAll('label.assembly-check')].filter(x => x.textContent.trim() === 'Fijo respecto a su padre');
       if (rows.length !== 1) throw Error('Unique fixed control'); const input = rows[0].querySelector('input'); if (!input.checked || input.disabled) throw Error('Original child must be fixed'); input.click(); }));
     event = await response(before.serial, 'build-assembly'); const unfixed = event.document; check(unfixed.occurrences.length === 1 && unfixed.occurrences[0].fixed === false, 'User explicitly frees original child');
     await recovery(unfixed, 'Unfix'); geometry(event.response.value, false, false); await setInput('input[aria-label="Destino local X del componente"]', '1');
