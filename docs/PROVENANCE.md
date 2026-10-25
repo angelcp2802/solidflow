@@ -1,5 +1,17 @@
 # Public fixture provenance
 
+## Assembly keyboard command cases
+
+The standard and configured shortcut scenarios reuse
+`scripts/desktop-assembly-origin-axis-lock-original.cjs` and its original
+2-by-3-by-4 mm prism definitions, placements and principal-axis relationship.
+No external CAD model, resource or stored topology reference is added.
+Keyboard actions exercise file commands, names, history, cancellation and
+camera controls; expected document identities and geometry come from the
+original recipe. Actual text input and native text undo are distinguished from
+scripted field assignment. Runtime results and their limits are recorded in
+[validation](VALIDATION.md).
+
 ## Original three-piece assembly authoring case
 
 The `scripts/desktop-assembly-basic-authoring-original.cjs`

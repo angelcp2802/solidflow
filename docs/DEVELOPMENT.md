@@ -1,5 +1,35 @@
 # Development guide
 
+## Assembly keyboard commands — 2026-10-25
+
+Standard and configured workspaces register keyboard commands while mounted.
+They reuse the current menu callbacks and disabled predicates. Ctrl+O opens,
+Ctrl+S saves, Ctrl+Shift+S saves as, Ctrl+Z undoes, and Ctrl+Y redoes.
+Ctrl+Shift+Z is reserved for the still-unimplemented previous-view command;
+it does not redo document edits. Ctrl+N uses the standard workspace's existing New command; configured
+New is not provided. F fits the view; Ctrl+1, Ctrl+5 and Ctrl+7 select the
+available front, top and isometric views. The matcher also recognizes Meta,
+but platform execution must be recorded separately.
+
+Text fields retain native Undo/Redo and unmodified typing. Composition, repeats
+and unsupported modifiers cannot repeatedly invoke application commands.
+Dialogs and open menus own their keyboard events. With no such owner and focus
+outside a field, Escape stops active reference picking first, retaining its
+references and fields; otherwise it invokes the available Cancel command.
+It does not automatically accept a relation or clear its fields.
+
+Saving from the standard component-name field crosses its existing blur
+validation before serialization. Invalid text is restored and the shortcut
+does not save it. Open/New after a changed name requires a fresh invocation
+once the rebuild finishes; no deferred command is queued. Other parameter
+fields retain their existing draft semantics and command guards.
+
+The two `test:desktop:assembly-shortcuts` and
+`test:desktop:assembly-configured-shortcuts` routes use original tracked prism
+recipes and actual keyboard transport. They run in the existing persistence CI
+batch. See [validation](VALIDATION.md) for the cases actually executed; configured
+CI alone establishes neither platform support nor complete shortcut parity.
+
 ## Edit saved coincidence and concentricity — 2026-10-25
 
 The standard relation list offers **Editar coincidencia** and **Editar

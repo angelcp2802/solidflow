@@ -1,5 +1,69 @@
 # Validation
 
+## Assembly keyboard commands — 2026-10-25
+
+Both assembly workspaces dispatch existing file, history and view commands from
+the keyboard, using the same command table as their visible menu hints. Native
+text undo stays in editable fields. Standard component-name Save crosses the
+existing synchronous blur validation; dialog ownership and picker-first Escape
+preserve current command guards. Ctrl+Y is Redo; Ctrl+Shift+Z remains unassigned
+until previous-view history exists. Save As uses this application's Ctrl+Shift+S
+convention. No document schema, solver or file-IPC capability is added.
+
+Local Windows x64 / Node 24.11.1 / Electron 44.9.3 acceptance uses 1,157 matching
+source/runtime inputs. Build passes in 4.725 s. Actual-key production routes
+pass 85 standard checkpoints in 9.171 s and 62 configured checkpoints in
+7.108 s, with zero console/request/resource errors, confirmed child closure
+and isolated-profile cleanup. The complete rigid renderer also passes its
+684 checkpoints in 91.321 s, with zero renderer/request errors and confirmed
+cleanup. The full suite passes 9,825 tests across 431 files plus 103 IPC tests
+with two skips in 601.845 s. Desktop smoke passes in 2.045 s with zero
+console/request/resource errors on the same snapshot.
+
+The standard route types text through key events, checks native field Undo,
+rejects a blank name without saving, then commits a valid name with Ctrl+S.
+Outside-field Undo/Redo restore exact assembly documents. Dirty Open and New
+show their existing confirmation; repeated Open and Save remain blocked, and
+Escape closes that dialog. Each modal produces exactly two observed export
+disable/restore records while preserving complete worker history, recovery and
+IPC. Both routes exercise Save As, cancelled Open, saved reopening and preview
+Save rejection followed by Escape. The configured route additionally checks
+native text Undo and file/history rejection while a relation draft is retained.
+
+Original prisms retain two solids, V48 mm³ and summed A104 mm², within 1e-5.
+Literal fixed and Rz30/Z6 moving bounds use 1e-6 mm. Saved IDs, definitions,
+placements and references are compared as complete documents. Standard Front
+changes three projected origin labels; the other view keys and configured
+camera checks establish document/worker invariance only, not exact orientation.
+Standard picker Escape disarms picking without changing the committed document.
+Populated-field retention remains a separate check. New acceptance is
+limited to cancelling its confirmation; configured New is unavailable.
+
+Initial attempts exposed two harness assumptions: a modal legitimately adds
+presentation-history records, and configured previews use kind/token evidence
+rather than the standard preview's status field. The corrected route explicitly
+checks those records and each preview contract; production inputs and successful
+build hashes remain unchanged. Automated file dialogs use test-owned paths;
+those routes do not establish external-window interaction. Menu/BOM precedence,
+unmount/rebind timing, other views and operating systems remain separate checks.
+
+A separate Windows portable walkthrough uses actual window keyboard input and
+native file dialogs on the previous original unlocked two-prism assembly.
+It verifies field-local Ctrl+Z, component-name Ctrl+S before leaving the field,
+document Ctrl+Z/Ctrl+Y with the restored names visible in the tree, Save As,
+Ctrl+O reopening and visible File-menu hints. The running ASAR matches the
+packaged candidate. Independent saved-file comparison finds only the intended
+occurrence name and updatedAt changed; definitions, poses and relations remain
+exact. Ctrl+S and Save As outputs are byte-identical. The reopened scene shows
+two solids and 48 mm³. This is bounded standard-workspace interaction, not a
+fresh geometry oracle, configured-window acceptance or general UI parity.
+
+The preceding public `5992da2` [CI](https://github.com/angelcp2802/solidflow/actions/runs/40231778264)
+passed 7/9 renderer batches and 3/3 configured-authoring jobs. Windows rigid
+and symmetry workflows reached their unchanged 170 s deadlines; the dependent
+Desktop gates failed. [Security](https://github.com/angelcp2802/solidflow/actions/runs/40231778283)
+passed. This keyboard increment does not fix or override those hosted failures.
+
 ## Saved plane/axis relations and rotation release — 2026-10-25
 
 Standard coincidence and concentricity now support name/orientation edits with

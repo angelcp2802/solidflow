@@ -88,6 +88,8 @@ import { evaluateAssemblyConfiguration } from '../model/assemblyConfigurationCor
 import { buildAssemblyOriginDisplay, type AssemblyOriginReference } from './assemblyOriginPicking'
 import { standardAssemblyOriginKinds, standardAssemblyOriginPick, type StandardAssemblyOriginPickTicket } from './assemblyStandardOriginPicking'
 import { AssemblyShellHeader, AssemblyCommandGroup, type AssemblyMenuDefinition } from './AssemblyCommandManager'
+import { useAssemblyShortcuts, withAssemblyShortcutLabels } from './useAssemblyShortcuts'
+import { flushSync } from 'react-dom'
 import { AssemblyCommandTabs, type AssemblyCommandTab } from './AssemblyCommandTabs'
 import { useAssemblyTreeNavigation } from './useAssemblyTreeNavigation'
 import AssemblyOriginIcon from './AssemblyOriginIcon'
@@ -2284,7 +2286,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
       onSelect: () => contextAction(() => { abandonInsertionSelection(); setTreeOriginSelection(null); setSelectedPath([...contextOrigin.ownerPath]) }) },
   ] : (['iso', 'front', 'top', 'fit'] as const).map((name, index) => ({ id: `view-${name}`,
     label: ['Isométrica', 'Frontal', 'Superior', 'Ajustar a pantalla'][index], onSelect: () => contextAction(() => viewButton(name)) }))
-  const menus: AssemblyMenuDefinition[] = [
+  const menus: AssemblyMenuDefinition[] = withAssemblyShortcutLabels([
     { id: 'file', label: 'Archivo', items: [
       { id: 'new', label: 'Nuevo ensamblaje', disabled: editingBlocked || replaceDialog, onSelect: newAssembly },
       { id: 'open', label: 'Abrir…', disabled: editingBlocked || replaceDialog, onSelect: () => void open('open') },
@@ -2328,7 +2330,31 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
       { id: 'examples', label: 'Documentos y ejemplos', onSelect: () => openManager('components', '.assembly-document-tools h3') },
       { id: 'example-assembly', label: 'Ejemplo: placa y dos pasadores', disabled: editingBlocked || replaceDialog, onSelect: exampleAssembly },
     ] },
-  ]
+  ])
+  const shortcutPicking = originPicking || pickingFaces || pickingLinearEdges || !!symmetryPicking || !!hingePicking || !!widthPicking || !!rackPicking
+  const shortcutCancel = menus.flatMap(menu => menu.items).find(item => item.id === 'cancel-preview')!
+  useAssemblyShortcuts({ root: '.assembly-classic-workspace', menus, modal: replaceDialog || !!replaceAnswer.current,
+    beforeFile: (id, target) => {
+      if (!(target instanceof HTMLInputElement) || target.getAttribute('aria-label') !== 'Nombre del componente') return true
+      const typed = target.value, changed = typed !== selected?.occurrence.name
+      // Pointer Save already crosses this same synchronous onBlur validation.
+      // Keyboard Save must serialize the accepted value, never a visible draft.
+      // This window listener is outside React's event boundary: finish the
+      // blur commit/render before Save reads current.current and dirty state.
+      flushSync(() => target.blur())
+      if (target.value !== typed) return false
+      if (changed && (id === 'open' || id === 'new')) {
+        notify('Nombre actualizado. Repite el comando cuando termine la reconstrucción.')
+        return false
+      }
+      return true
+    },
+    escape: shortcutPicking ? { disabled: editingBlocked || dragActive || !!dragSession.current, onSelect: () => {
+      if (operation.current || hasStaging() || dragActive || dragSession.current) return
+      clearSymmetryPicking(); setHingePicking(null); setWidthPicking(null); setRackPicking(null)
+      notify('Selección en vista cancelada. Se conservan las referencias y los campos de la relación.')
+    } } : shortcutCancel,
+  })
   return <div className="assembly-app assembly-classic-workspace" aria-busy={busy}>
     <input ref={fileInput} type="file" accept=".solidflow" hidden onChange={event => {
       const file = event.target.files?.[0], ticket = fileTicket.current; event.target.value = ''; fileTicket.current = null; if (!file || !ticket) return

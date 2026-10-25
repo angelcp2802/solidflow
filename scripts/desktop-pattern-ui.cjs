@@ -11,6 +11,8 @@ const { spawn } = require('node:child_process');
 const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 const { emitDesktopCiFailure, markDesktopCiFailureReported } = require('./desktop-ci-diagnostics.cjs');
 const SCENARIOS = Object.freeze({
+  'assembly-shortcuts': Object.freeze({ shortcuts: true, originAxes: 'standard', originalRecipe: 'desktop-assembly-origin-axis-lock-original.cjs', entry: 'desktop-assembly-shortcuts.cjs', test: 'production-renderer-assembly-shortcuts', caption: 'standard assembly physical keyboard commands' }),
+  'assembly-configured-shortcuts': Object.freeze({ shortcuts: true, originAxes: 'configured', originalRecipe: 'desktop-assembly-origin-axis-lock-original.cjs', entry: 'desktop-assembly-configured-shortcuts.cjs', test: 'production-renderer-configured-shortcuts', caption: 'configured assembly physical keyboard commands' }),
   'assembly-basic-authoring': Object.freeze({ originalRecipe: 'desktop-assembly-basic-authoring-original.cjs', entry: 'desktop-assembly-basic-authoring.cjs',
     test: 'production-renderer-assembly-basic-authoring', caption: 'new assembly, reusable parts and origin relation authoring' }),
   'assembly-configured-picking': Object.freeze({ configuredPicking: true, originalRecipe: 'desktop-assembly-configured-picking-original.cjs', entry: 'desktop-assembly-configured-picking.cjs',
@@ -625,6 +627,7 @@ async function runInElectron() {
   const partBodyCatalog = activeScenario === SCENARIOS['part-body-catalog'];
   const basicAuthoring = activeScenario === SCENARIOS['assembly-basic-authoring'];
   const originAxes = activeScenario.originAxes;
+  const shortcuts = !!activeScenario.shortcuts, shortcutOutput = shortcuts ? path.join(owned, 'saved-shortcuts-copy.solidflow') : null;
   const configuredRelations = activeScenario === SCENARIOS['assembly-configured-relations'];
   const configuredComponents = activeScenario === SCENARIOS['assembly-configured-components'];
   const configuredPicking = !!activeScenario.configuredPicking;
@@ -754,7 +757,7 @@ async function runInElectron() {
     [name, JSON.parse(fs.readFileSync(file, 'utf8'))])) : null;
   const outputs = untilNext ? { cutSelected: path.join(owned, 'saved-cut-selected.solidflow'),
     cutAll: path.join(owned, 'saved-cut-all.solidflow'), add: path.join(owned, 'saved-add-selected.solidflow') } : null;
-  const openPaths = basicAuthoring ? [input, null, output] : partSequence ? [input, output, partAssemblyOutput] : partBodyCatalog ? [input, input] : partFinishing ? [input, finishingFiles.fillet, input, output] : configuredComponents ? [input, null, path.join(owned, 'incoming.solidflow'), path.join(owned, 'incoming.solidflow'), output] : structuralInsertion ? [input, insertionFiles.parent, output] : structuralStep ? [input, structuralFiles.part, output] : untilNext ? [inputPaths.cut, outputs.cutSelected, outputs.cutAll,
+  const openPaths = shortcuts ? [input, null, shortcutOutput] : basicAuthoring ? [input, null, output] : partSequence ? [input, output, partAssemblyOutput] : partBodyCatalog ? [input, input] : partFinishing ? [input, finishingFiles.fillet, input, output] : configuredComponents ? [input, null, path.join(owned, 'incoming.solidflow'), path.join(owned, 'incoming.solidflow'), output] : structuralInsertion ? [input, insertionFiles.parent, output] : structuralStep ? [input, structuralFiles.part, output] : untilNext ? [inputPaths.cut, outputs.cutSelected, outputs.cutAll,
     inputPaths.add, outputs.add, inputPaths.reject] : assembly ? [input, output, partUpdatePath, partUpdatePath, output, output, output, projectionOutput, output, interferencePath, translationPath, translationOutput, bomPath, input, gearOutput]
     : assemblyImport ? [input, importSourcePath, importRejectedPath, importSourcePath, output]
     : sourceRevision ? [input, sourceRevisionFiles.parent, output]
@@ -776,7 +779,7 @@ async function runInElectron() {
       repairFiles.replacementPart, repairFiles.replacementPart, repairFiles.replacementSaved]
     : symmetryPicking ? [input, ...Array(6).fill(output)]
     : symmetry ? [input, ...Array(5).fill(output)] : configuredRelations || configuredPicking || configuredMechanical || configuredCompound ? [input, output] : configurations ? [input, output, output] : [input, output];
-  const savePaths = partBodyCatalog ? [] : partSequence ? [output, partAssemblyOutput] : partFinishing ? [finishingFiles.fillet, output] : configurations ? [null, output] : untilNext ? [outputs.cutSelected, outputs.cutAll, outputs.add] : assembly ? [output, projectionOutput, translationOutput, gearOutput]
+  const savePaths = shortcuts ? [output, shortcutOutput] : partBodyCatalog ? [] : partSequence ? [output, partAssemblyOutput] : partFinishing ? [finishingFiles.fillet, output] : configurations ? [null, output] : untilNext ? [outputs.cutSelected, outputs.cutAll, outputs.add] : assembly ? [output, projectionOutput, translationOutput, gearOutput]
     : assemblyImport ? [importBaselinePath, output]
     : sourceRevision ? [null, output]
     : linkedSource ? [output, linkedSourceFiles.assemblyOutput]
@@ -979,6 +982,38 @@ async function runInElectron() {
     await window.webContents.debugger.sendCommand('Input.dispatchKeyEvent', { ...event, type: 'keyDown',
       ...(key === 'Enter' ? { text: '\r', unmodifiedText: '\r' } : key === ' ' ? { text: ' ', unmodifiedText: ' ' } : {}) });
     await window.webContents.debugger.sendCommand('Input.dispatchKeyEvent', { ...event, type: 'keyUp' });
+  };
+  // Physical keyboard events only, scoped to the two owned shortcut scenarios.
+  const shortcutKey = async combo => {
+    const combos = { O: ['o',79], S: ['s',83], ShiftS: ['s',83], Z: ['z',90], Y: ['y',89], A: ['a',65], N: ['n',78], '1': ['1',49], '5': ['5',53], '7': ['7',55], F: ['f',70], Escape: ['Escape',27], Tab: ['Tab',9], Backspace: ['Backspace',8] };
+    check(shortcuts && !window.isVisible() && window.webContents.debugger.isAttached() && Object.hasOwn(combos,combo), 'Only fixed shortcut keys in owned hidden scenario');
+    const primary=!['F','Escape','Tab','Backspace'].includes(combo), shift=combo.startsWith('Shift'), mac=process.platform==='darwin';
+    const modifier=mac?{key:'Meta',code:'MetaLeft',windowsVirtualKeyCode:91}:{key:'Control',code:'ControlLeft',windowsVirtualKeyCode:17};
+    const flags=(primary?(mac?4:2):0)|(shift?8:0),[key,vk]=combos[combo];
+    const event={key:shift?key.toUpperCase():key,code:/^[a-z]$/.test(key)?'Key'+key.toUpperCase():/^[0-9]$/.test(key)?'Digit'+key:key,windowsVirtualKeyCode:vk,modifiers:flags};
+    let dispatchError;
+    try {
+      if(primary)await window.webContents.debugger.sendCommand('Input.dispatchKeyEvent',{...modifier,type:'rawKeyDown',modifiers:mac?4:2});
+      if(shift)await window.webContents.debugger.sendCommand('Input.dispatchKeyEvent',{key:'Shift',code:'ShiftLeft',windowsVirtualKeyCode:16,type:'rawKeyDown',modifiers:flags});
+      await window.webContents.debugger.sendCommand('Input.dispatchKeyEvent',{...event,type:'rawKeyDown'});
+    } catch (error) { dispatchError=error; }
+    // Attempt every release, even if the main event or another release failed.
+    const releases=[{...event,type:'keyUp'},
+      ...(shift?[{key:'Shift',code:'ShiftLeft',windowsVirtualKeyCode:16,type:'keyUp',modifiers:primary?(mac?4:2):0}]:[]),
+      ...(primary?[{...modifier,type:'keyUp',modifiers:0}]:[])];
+    for(const release of releases){
+      try{await window.webContents.debugger.sendCommand('Input.dispatchKeyEvent',release);}
+      catch(error){dispatchError ??= error;}
+    }
+    if(dispatchError)throw dispatchError;
+  };
+  const shortcutText = async value => {
+    check(shortcuts && !window.isVisible() && window.webContents.debugger.isAttached() && ['Keyboard renamed','native undo probe'].includes(value), 'Only fixed original text for native editing acceptance');
+    check(await evaluate(`(() => { const e=document.activeElement;return e instanceof HTMLInputElement&&!e.disabled&&!e.readOnly&&!e.closest('[hidden]')&&e.getClientRects().length>0; })()`), 'Actual enabled input must own text typing');
+    for(const key of value){const event={key,code:key===' '?'Space':'Key'+key.toUpperCase(),windowsVirtualKeyCode:key.toUpperCase().charCodeAt(0),modifiers:0};
+      try{await window.webContents.debugger.sendCommand('Input.dispatchKeyEvent',{...event,type:'keyDown',text:key,unmodifiedText:key});}
+      finally{await window.webContents.debugger.sendCommand('Input.dispatchKeyEvent',{...event,type:'keyUp'});}
+    }
   };
   const menuKey = async key => {
     const codes = { Escape: 27, Tab: 9, ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, Home: 36, End: 35, Enter: 13, ...((partSequence || basicAuthoring) ? { ContextMenu: 93 } : {}) };
@@ -1215,7 +1250,7 @@ async function runInElectron() {
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, geometryExports }) })
     : originAxes
-    ? require(activeScenario.originLock ? './desktop-assembly-origin-axis-lock-flow.cjs' : './desktop-assembly-origin-axes-flow.cjs')({ configured: originAxes === 'configured', expected, input, output, evaluate, observe, waitFor, click, pointer, menuKey, asideWheel, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
+    ? require(shortcuts ? './desktop-assembly-shortcuts-flow.cjs' : activeScenario.originLock ? './desktop-assembly-origin-axis-lock-flow.cjs' : './desktop-assembly-origin-axes-flow.cjs')({ configured: originAxes === 'configured', expected, input, output, shortcutOutput, shortcutKey, shortcutText, evaluate, observe, waitFor, click, pointer, menuKey, asideWheel, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : configuredCompound
     ? require('./desktop-assembly-configured-compound-flow.cjs')({ family: configuredCompound, profileKind: activeScenario.profileKind, expected, input, output, evaluate, observe, waitFor, click, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, completePendingSave, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : configuredMechanical
@@ -1525,7 +1560,7 @@ async function runInElectron() {
         return { canceled: false, filePaths: [sourceChoosePaths[sourceOpens - 1]] };
       }
       check(options.title === 'Abrir documento de SolidFlow' && ++opens <= openPaths.length, 'Unexpected native open dialog request.');
-      if ((configuredComponents || basicAuthoring) && openPaths[opens - 1] === null) return { canceled: true, filePaths: [] };
+      if ((configuredComponents || basicAuthoring || shortcuts) && openPaths[opens - 1] === null) return { canceled: true, filePaths: [] };
       return { canceled: false, filePaths: [openPaths[opens - 1]] };
     };
     if (member === 'showSaveDialog') return async (_window, options) => {

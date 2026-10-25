@@ -28,6 +28,7 @@ import ConfiguredAssemblyCompoundPanel, { configuredCompoundUiDraft, configuredC
 import { configuredCompoundUiChoices, type ConfiguredCompoundUiChoices } from './configuredCompoundUiChoices'
 import { Box, Check, Component, FolderOpen, Layers, Link2, List, Play, Redo2, Save, SavePen, Undo2, X } from 'lucide-react'
 import { AssemblyShellHeader, AssemblyCommandGroup, type AssemblyMenuDefinition } from './AssemblyCommandManager'
+import { useAssemblyShortcuts, withAssemblyShortcutLabels } from './useAssemblyShortcuts'
 import { AssemblyCommandTabs, type AssemblyCommandTab } from './AssemblyCommandTabs'
 import ConfiguredAssemblyTree from './ConfiguredAssemblyTree'
 import './assembly.css'
@@ -438,7 +439,12 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
   const menuReveal = (id: string) => { if (fresh(renderedTicket) && !operation.current && !pending.current) setRevealRequest({ id }) }
   const menuView = (name: typeof view.name) => { if (!operation.current && fresh(renderedTicket)) setView(old => ({ name, stamp: old.stamp + 1 })) }
   const componentMenuBlocked = blocked || !!mateDraft || !scene || selectedScope.suppressed
-  const menus: AssemblyMenuDefinition[] = [
+  const cancelPreview = () => {
+    if (!fresh(renderedTicket) || operationKind.current !== 'build' && operationKind.current !== 'solve' && (operation.current || !pending.current)) return
+    revoke(0, undefined, !!mateDraftRef.current); setFailure(null); setMessage('Vista previa cancelada. Se conserva el documento confirmado.')
+  }
+  const cancelPreviewDisabled = !cancelable && (!preview || busy)
+  const menus: AssemblyMenuDefinition[] = withAssemblyShortcutLabels([
     { id: 'file', label: 'Archivo', items: [
       { id: 'open', label: 'Abrir…', disabled: blocked || !!mateDraft, onSelect: () => { void open() } },
       { id: 'save', label: 'Guardar', disabled: blocked || !!mateDraft, onSelect: () => { void save(false) } },
@@ -467,7 +473,13 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
     { id: 'help', label: 'Ayuda', items: [
       { id: 'viewport-controls', label: 'Controles del visor', onSelect: () => setMessage('Clic: seleccionar. Rueda: acercar o alejar. Rueda pulsada: girar. Mayús + rueda pulsada: desplazar. Para relacionar orígenes, abre una relación, elige el componente y activa su referencia.') },
     ] },
-  ]
+  ])
+  useAssemblyShortcuts({ root: '.configured-assembly-workspace', menus, modal: discardDialog || !!answer.current,
+    escape: matePick || originPick ? { disabled: blocked, onSelect: () => {
+      if (operation.current || !fresh(renderedTicket)) return
+      stopMatePick(); setMessage('Selección en vista cancelada. Se conservan las referencias y los campos de la relación.')
+    } } : { disabled: cancelPreviewDisabled, onSelect: cancelPreview },
+  })
   return <div className="configured-assembly-workspace" aria-label="Ensamblaje configurado" aria-busy={busy}>
     <AssemblyShellHeader menus={menus} menuLabel="Menú del ensamblaje configurado" name={document.source.name} dirty={dirty} fileTitle={path} fileLabel={path?.split(/[\\/]/).at(-1) ?? 'Sin guardar'} mode="Ensamblaje configurado">
       <nav className="assembly-quickbar" aria-label="Archivo del ensamblaje configurado">
@@ -500,7 +512,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
         </div>
         <AssemblyCommandGroup label="Resultado" className="assembly-command-confirmation">
           <button className="assembly-command-large" onClick={() => void apply()} disabled={busy || !preview}><Check size={20} aria-hidden="true" /><span>Aplicar configuración</span></button>
-          <div className="assembly-command-stack"><button onClick={() => void solve()} disabled={blocked || !!mateDraft || !scene}><Play size={20} aria-hidden="true" /><span>Resolver configuración</span></button><button onClick={() => { if (!fresh(renderedTicket) || operationKind.current !== 'build' && operationKind.current !== 'solve' && (operation.current || !pending.current)) return; revoke(0, undefined, !!mateDraftRef.current); setFailure(null); setMessage('Vista previa cancelada. Se conserva el documento confirmado.') }} disabled={!cancelable && (!preview || busy)}><X size={20} aria-hidden="true" /><span>Cancelar</span></button></div>
+          <div className="assembly-command-stack"><button onClick={() => void solve()} disabled={blocked || !!mateDraft || !scene}><Play size={20} aria-hidden="true" /><span>Resolver configuración</span></button><button onClick={cancelPreview} disabled={cancelPreviewDisabled}><X size={20} aria-hidden="true" /><span>Cancelar</span></button></div>
         </AssemblyCommandGroup>
       </nav>
       <AssemblyCommandTabs kind="configured" value={ribbonTab} onChange={setRibbonTab} />
