@@ -80,6 +80,18 @@ is not established as a correct worker policy. No query suppression, blanket
 origin allowance or security-check disabling is part of this increment; actual
 CodeQL acceptance must be reported separately from this review.
 
+The check on review snapshot `58666b5` still reports that worker-origin warning.
+Source review confirms that the module retains the dedicated worker instance
+privately and constructs it from a fixed module URL. No window-message broker,
+shared-worker connection or externally supplied port is involved in that path.
+MessagePort delivery does not carry a window sender's authenticated origin;
+adding a window-origin comparison here is not an established repair. The alert
+remains a specific triage candidate, with no suppression or claimed hosted
+resolution. Three separate HTML-stripping alerts concern presentation tests;
+those tests now inspect the expected label span or direct button text without
+performing generic tag removal. Their exact-label and disabled-state checks
+remain required, and a new CodeQL result must confirm the analysis outcome.
+
 ## Renderer oracles
 
 The directed-guide source-repair workflow now observes

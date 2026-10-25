@@ -1,5 +1,39 @@
 # Validation
 
+## Deadline diagnostics and presentation assertions — 2026-10-25
+
+The child deadline now records existing elapsed time, evidence count,
+presentation counters and a bounded last completed wait before teardown. The
+same error goes through the existing redaction and annotation path. No renderer
+read, timeout increase, geometry change or acceptance shortcut is introduced.
+Three presentation tests inspect exact button content without generic HTML tag
+removal. A review caught an intermediate span-only assertion that allowed extra
+text; both assembly tests now require the complete expected button structure.
+
+Final local Windows x64, Node 24.11.1 and Electron 44.9.3 acceptance on 1,135
+matching non-Markdown source/runtime inputs: `npm run build` PASS (3.550 s),
+`npm test` PASS (9,717 tests / 424 files; 89 IPC checks and 2 explicit skips,
+443.351 s), and `npm run test:desktop` PASS (1.663 s, zero console, request and
+resource errors). Focused checks passed 110 presentation tests and 15 diagnostic
+tests, including execution of the actual timeout callback and preserved cleanup.
+
+The rigid renderer passed 684 checkpoints in 71.210 s and symmetry picking
+passed 269 in 71.276 s. Both reported zero console/request/resource errors and
+confirmed child close/profile removal. These runs precede the final refinement
+of the two assembly SSR test assertions; those are the only input differences.
+Application, harness and production-input hashes are unchanged. Their initial
+full-suite run was stopped for that review correction and is not accepted;
+the completed final suite above is separate. No new visual/manual test is claimed.
+
+Hosted review snapshot `58666b5` completed with 7/9 renderer jobs and all three
+configured-authoring jobs passing. Windows rigid persistence and symmetry picking
+hit their child deadlines; every Desktop job stopped at its renderer prerequisite.
+The Security workflow passed, while the separate CodeQL result reported three
+test HTML-stripping alerts and the dedicated-worker origin warning discussed in
+[prototype hardening](PROTOTYPE_HARDENING.md). The test changes and richer timeout
+diagnostics do not themselves establish hosted recovery or close that warning.
+New-head hosted acceptance remains pending.
+
 ## Prototype package notices — 2026-10-25
 
 The Electron version in the third-party notice and license manifest now matches

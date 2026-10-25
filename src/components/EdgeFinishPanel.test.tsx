@@ -18,7 +18,7 @@ const render = (draft: EdgeFinishFeature, { loading = false, canPreview = true, 
     loading={loading} canPreview={canPreview} preview={preview} />)
 const button = (markup: string, label: string) => {
   const matches = [...markup.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/g)]
-    .filter(match => match[2].replace(/<[^>]*>/g, '').trim() === label)
+    .filter(match => match[2].trim() === label)
   expect(matches).toHaveLength(1)
   return matches[0][1]
 }

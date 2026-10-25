@@ -414,7 +414,12 @@ it('keeps the compact viewport command names unique and retains initial manipula
   const nav = html.match(/<nav\b[^>]*aria-label="Controles del visor del ensamblaje"[^>]*>([\s\S]*?)<\/nav>/)?.[1]
   expect(nav).toBeDefined()
   const buttons = nav!.match(/<button\b[^>]*>[\s\S]*?<\/button>/g) ?? []
-  expect(buttons.map(button => button.replace(/<[^>]*>/g, ''))).toEqual([
+  expect(buttons.map(button => {
+    // Match the whole button: one text-free SVG, then its only text label.
+    const content = button.match(/^<button\b[^>]*><svg\b(?=[^>]*\baria-hidden="true")[^>]*>(?:<(path|circle|rect|line|polyline|polygon|ellipse)\b[^>]*><\/\1>)+<\/svg><span class="compact-viewport-label">([^<]*)<\/span><\/button>$/)
+    expect(content).not.toBeNull()
+    return content![2]
+  })).toEqual([
     'Isométrica', 'Frontal', 'Superior', 'Ajustar', 'Seleccionar caras',
     'Arrastrar posición', 'Arrastrar giro', 'Desactivar manipulador',
   ])

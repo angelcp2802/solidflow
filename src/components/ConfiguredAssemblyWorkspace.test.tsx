@@ -221,7 +221,12 @@ it('keeps configured viewport commands inside the canvas with their exact access
   expect(nav).not.toBeNull()
   expect(nav!.index).toBeGreaterThan(view)
   const buttons = nav![1].match(/<button\b[^>]*>[\s\S]*?<\/button>/g) ?? []
-  expect(buttons.map(button => button.replace(/<[^>]*>/g, ''))).toEqual(['Isométrica', 'Frontal', 'Superior', 'Ajustar'])
+  expect(buttons.map(button => {
+    // Match the whole button: one text-free SVG, then its only text label.
+    const content = button.match(/^<button\b[^>]*><svg\b(?=[^>]*\baria-hidden="true")[^>]*>(?:<(path|circle|rect|line|polyline|polygon|ellipse)\b[^>]*><\/\1>)+<\/svg><span class="compact-viewport-label">([^<]*)<\/span><\/button>$/)
+    expect(content).not.toBeNull()
+    return content![2]
+  })).toEqual(['Isométrica', 'Frontal', 'Superior', 'Ajustar'])
   for (const button of buttons) {
     expect(button).toContain('class="compact-viewport-label"')
     expect(button).toMatch(/<svg\b[^>]*aria-hidden="true"/)

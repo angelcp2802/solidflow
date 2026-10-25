@@ -84,6 +84,47 @@ test('same primary is annotated once, with no PASS representation or error mutat
   assert.deepEqual(Object.getOwnPropertyDescriptors(original), before);
 });
 
+function exerciseChildDeadline(checks) {
+  const source = fs.readFileSync(path.join(__dirname, 'desktop-pattern-ui.cjs'), 'utf8');
+  const start = source.indexOf('  const childBudgetStarted ='), end = source.indexOf('  function finish(error) {', start);
+  assert.ok(start > 0 && end > start);
+  let callback, delay, failure, now = 100;
+  const context = vm.createContext({ checks, TEST_MS: 180_000, performance: { now: () => now },
+    presentation: { active: true, frames: 123, captureBarriers: 2 }, presentationWaiters: new Set([1, 2, 3]),
+    setTimeout(fn, milliseconds) { callback = fn; delay = milliseconds; }, finish(error) { failure = error; } });
+  vm.runInContext(source.slice(start, end), context);
+  assert.equal(delay, 170_000); assert.equal(failure, undefined);
+  now = 170_100.6; callback();
+  assert.ok(failure); assert.equal(context.presentation.active, true);
+  assert.equal(context.presentationWaiters.size, 3);
+  return failure;
+}
+
+test('actual child deadline reports existing counters and the last completed wait before trailing object evidence', () => {
+  const trailing = { toJSON() { throw Error('Evidence must not be serialized'); } };
+  const error = exerciseChildDeadline(['earlier wait', 'last completed wait', trailing]);
+  assert.equal(error.message, 'The isolated UI workflow did not finish before its child deadline.'
+    + ' elapsedMs=170001; checks=3; frames=123; captureBarriers=2; presentationActive=true; pendingPresentations=3;'
+    + ' lastCompletedWait="last completed wait"');
+  assert.match(emit(error).lines[0], /lastCompletedWait="last completed wait"/);
+});
+
+test('actual child deadline handles no completed wait and bounds checkpoint text', () => {
+  for (const checks of [[], [{ phase: 'started' }]]) {
+    assert.match(exerciseChildDeadline(checks).message, /lastCompletedWait="none"$/);
+  }
+  const error = exerciseChildDeadline(['x'.repeat(1000)]);
+  assert.ok(error.message.endsWith('lastCompletedWait="' + 'x'.repeat(200) + '"'));
+});
+
+test('actual child deadline annotation redacts synthetic checkpoint paths through the existing formatter', () => {
+  const error = exerciseChildDeadline(['ENOENT: C:\\Users\\Original Person\\secret\\fixture.solidflow']);
+  const actual = emit(error);
+  assert.equal(actual.lines.length, 1);
+  assert.match(actual.lines[0], /elapsedMs=170001/); assert.match(actual.lines[0], /<path>/);
+  assert.doesNotMatch(actual.lines[0], /Original Person|fixture\.solidflow/);
+});
+
 function exerciseChildFinish({ primary = new Error('Original child coordinate assertion'), active = true, frames = 1,
   cleanupError = null, withWindow = true } = {}) {
   const source = fs.readFileSync(path.join(__dirname, 'desktop-pattern-ui.cjs'), 'utf8');

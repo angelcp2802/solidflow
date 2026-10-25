@@ -848,7 +848,16 @@ async function runInElectron() {
     presentation.captureBarriers++;
   }
   const childBudgetStarted = performance.now();
-  const timeout = setTimeout(() => finish(new Error('The isolated UI workflow did not finish before its child deadline.')), TEST_MS - 10_000);
+  const timeout = setTimeout(() => {
+    // Snapshot existing counters before finish stops presentation; no renderer
+    // request or evidence-object serialization may delay deadline teardown.
+    const lastCompletedWait = checks.findLast(value => typeof value === 'string');
+    finish(new Error('The isolated UI workflow did not finish before its child deadline.'
+      + ` elapsedMs=${Math.round(performance.now() - childBudgetStarted)}; checks=${checks.length};`
+      + ` frames=${presentation.frames}; captureBarriers=${presentation.captureBarriers};`
+      + ` presentationActive=${presentation.active}; pendingPresentations=${presentationWaiters.size};`
+      + ` lastCompletedWait=${JSON.stringify(lastCompletedWait === undefined ? 'none' : lastCompletedWait.slice(0, 200))}`));
+  }, TEST_MS - 10_000);
   function finish(error) {
     if (finished) return;
     if (!error && saveCompletion.enabled && (!saveCompletion.armed || saveCompletion.pending
