@@ -49,8 +49,22 @@ lines and leaves translation along the line and rotation about it free. The
 solver may choose a different value of a free coordinate while restoring the
 constraints. An added angular relation can constrain the remaining rotation.
 
-Rotation locking on a concentric relation with an origin axis is explicitly
-unsupported. Gear, screw, rack-pinion, hinge and material symmetry references
+**Bloquear giro** captures the current relative orientation of a verified
+concentric pair, including origin/origin and origin/cylinder references.
+In the standard workspace, resolve first and use the existing relation's lock
+action. In the configured workspace, its lock action opens the mechanical editor
+with the same relation identity, references and alignment, requiring recapture
+when no prior lock exists. Preview and Apply remain separate; Cancel retains the
+committed free relation. Axial translation remains free after locking rotation.
+
+The captured quaternion is inverse(first owner orientation) times second owner
+orientation. It uses complete owner frames, not an invented transverse direction
+on the analytic line. New origin captures require two distinct local rigid owners
+in their declaring scope; that scope's static frame is a valid endpoint. Current
+native reference witnesses, original placement-chain precision and final physical
+verification remain required before private Apply authority is issued.
+
+Gear, screw, rack-pinion, hinge and material symmetry references
 retain their existing material requirements. An origin axis has no cylinder
 radius, material surface, edge incidence or winding capture. Selecting it must
 never fabricate those properties.
@@ -67,7 +81,9 @@ Suppressed, stale or missing owners cannot produce a valid native reference.
 Existing documents retain their meaning. Documents using the new reference
 require a reader that supports it; older readers reject the unknown kind.
 The file version and existing strict validation are retained. No IPC operation
-or file privilege is added.
+or file privilege is added. A non-null `rotationLock` on a principal-axis
+concentric pair uses the existing quaternion field; older readers that only
+accept free origin concentricity may reject it.
 
 ## Repeatable original example
 
@@ -96,6 +112,10 @@ arbitrary geometry-hit or physical mouse navigation coverage. Execution
 results and exact limits belong in
 [VALIDATION.md](VALIDATION.md); these commands alone are not passing evidence.
 
-Origin-axis rotation capture and the complete assembly demo remain separate
-outstanding work. Displayed-reference picking does not extend the supported
-solver families or establish general visibility and platform coverage.
+The separate `test:desktop:assembly-origin-axis-lock` and
+`test:desktop:assembly-configured-origin-axis-lock` commands use the same original
+prisms with a pre-aligned free concentric pair and a literal 30-degree roll. They
+check capture, Cancel/retry, Apply, Undo/Redo, saved reopening and a fresh solve.
+Asymmetric material bounds and the ordered quaternion independently expose roll.
+The complete assembly demo remains outstanding. Displayed-reference picking does
+not establish general visibility or platform coverage.

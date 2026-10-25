@@ -272,8 +272,19 @@ component before picking. A successful selection fills
 one role, highlights the reference and ends that picking action. Rearm selection
 for the next role. These overlays can be seen through solids: their finite
 display size is not the extent of the analytic reference. A plane or axis is
-distinct from a material face or edge and cannot supply a cylinder radius,
-material incidence or a mechanical capture.
+distinct from a material face or edge and cannot supply a cylinder radius or
+material incidence. Principal axes can participate in concentric rotation
+capture; gear, screw and other material-based families retain their own support
+requirements.
+
+For a concentric relation between origin axes, or between an origin axis and a
+cylindrical face, **Bloquear giro** captures the current relative orientation.
+The components can still slide along the common axis. In a standard assembly,
+first resolve a valid preview, then use the relation's lock action and review the
+new preview before applying. In a configured assembly, **Bloquear giro** opens
+the mechanical editor for the existing relation, retaining its identity and
+references. Generate the capture preview and Apply or Cancel. A relation with no
+previous lock requires a fresh capture; there is no old orientation to retain.
 
 Hiding a reference or changing the displayed owner stops origin picking.
 Leaving the relation editor also stops it without discarding the draft.
@@ -328,8 +339,8 @@ or platform acceptance.
 
 Origin X/Y/Z axes now have explicit persisted references, scoped native line
 resolution and direction/concentric authoring; see the [origin-axis contract](ASSEMBLY_ORIGIN_AXES.md)
-and its source-specific validation. Concentric rotation locking with origin
-axes remains unsupported. The configured workspace now supports component
+and its source-specific validation, including concentric rotation capture with
+origin axes. The configured workspace now supports component
 import, registered reuse and fixed/floating authoring through private previews;
 see the [component contract](ASSEMBLY_CONFIGURED_COMPONENT_AUTHORING.md).
 Named insertion activates the new occurrence in the selected shared state while

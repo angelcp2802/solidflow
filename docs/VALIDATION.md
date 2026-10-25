@@ -1,5 +1,101 @@
 # Validation
 
+## Origin-axis rotation capture and stable part-tree editing — 2026-10-25
+
+Concentric rotation capture now admits current principal-axis lines alongside
+material-cylinder axes. The saved ordered quaternion fixes relative orientation
+and leaves axial travel free. Distinct local rigid owners, authenticated current
+witnesses, original-chain angular budgets, final physical checks and private
+preview/Apply capabilities remain required. Other mechanical families retain
+their material requirements. The existing v2/v3 fields are reused; older readers
+may reject an origin-axis concentric declaration with a non-null rotation lock.
+
+Original native cases use asymmetric 2 by 3 by 4 mm prisms with a literal
+30-degree roll: total volume 48 mm3, area 104 mm2, and independent placed bounds.
+They check ordered and mixed material/origin references, shared local scopes,
+proper parent gauges, nested chains, stale/forged/consumed authority and saved
+round trips. Native disturbed-spin cases restore the captured roll while
+retaining changed axial coordinates. Pure numerical cases check both quaternion
+signs, reversed endpoint order, differently directed local axes and common-frame
+freedom. Insufficient original-chain precision fails explicitly; zero topology
+tolerance on an origin axis does not imply exact placement arithmetic.
+
+Selected Windows x64 production-renderer runs use actual Electron 44.9.3 and
+Node 24.11.1. The new standard lock workflow passes 61 checkpoints in 18.118 s;
+the configured counterpart passes 83 in 19.139 s. Both check capture, Cancel/retry,
+Apply, Undo/Redo, Save/reopen and a fresh saved solve. Their independent quaternion
+oracle is (0,0,-sin(pi/12),cos(pi/12)), up to sign, within 1e-8. Prism volume,
+area and bounds use 1e-5; placement uses 1e-6 mm. Standard capture retries may
+advance only the root timestamp. Configured replacement preserves the complete
+source and inactive state. Axial freedom in these renderer cases is solver DOF
+evidence, not a demonstrated drag. Standard Cancel reuses its already checked
+confirmed scene; its two restoration phases are not fresh native measurements.
+
+The part action strip now remains mounted with disabled actions before selection.
+The revolution workflow passes 114 checkpoints and 24 native phases in 36.270 s,
+including real CDP click counts 1 then 2 at the same lower-edge tree point.
+At 1024 by 661 content size, the 24 px row stays at y=493 inside a 155 px tree
+before and after the first selection. The second press opens the correct saved
+operation; Cancel restores the complete document, history availability, recovery
+and saved bytes. This uses explicit Chromium click counts; it does not measure
+the operating system double-click threshold or face-summary layout transitions.
+The independent STEP round trip and original revolution/cut geometry still pass.
+
+A separate visible Windows run scrolls the compact tree with actual wheel input
+and opens the saved revolution with one actual Windows double-click. The editor
+shows its own profile, local Y axis, 360 degrees and checked reverse direction.
+Lateral Cancel restores the bore and displayed 471.239 mm3 volume. This is one
+observed double-click, not a general timing-threshold or platform guarantee.
+The isolated demo remains maximized. Its consumed profile is not yet highlighted
+as the active operation input; that visual improvement remains open.
+
+Existing standard/configured free-origin workflows pass 205/312 checkpoints in
+89.456/87.421 s. Configured material concentric capture passes 93 in 12.127 s.
+The broad standard assembly workflow passes 645 in 163.849 s. These selected
+renderers are joined by the successive-operation workflow (118 checkpoints,
+31.409 s) and fresh-sketch workflow (48 checkpoints, 16.262 s). All nine selected
+renderers record zero console, request or resource errors and confirmed child
+exit/profile cleanup. Final compact part and both lock captures were visually
+inspected. Commands use stationary, contained, hit-tested actual pointer presses;
+native file dialogs use isolated test-owned paths. No arbitrary topology or
+cross-platform acceptance follows from these local cases.
+
+The first new standard-lock harness attempt used an incorrect command label and
+failed before solving. Static follow-up also found an incorrect expectation of a
+new standard build after Cancel; the application legitimately reuses its confirmed
+scene. Both harness mistakes were corrected without changing application code,
+geometric tolerances or deadlines. The accepted build and revolution run share
+all application inputs with the final run; only the new lock harness changed.
+All 1,108 non-Markdown source inputs match the frozen runtime.
+
+The initial complete unit run passes 9,574 cases and fails two obsolete
+principal-axis expectations in one file: the prior tests still require rejecting
+the newly supported rotation lock. The test-only correction also removes a
+neighboring obsolete configured-spec rejection. Replacement assertions check
+ordered 30-degree rotation, rank 5/DOF 1, free axial displacement and recovery
+after a 60-degree spin; material restrictions remain. Application, build and
+renderer inputs are unchanged. The original failure log remains retained.
+
+The final `npm test` passes all 9,577 unit/CAD cases in 419 files (545.74 s),
+followed by 83 IPC/security passes and two explicit platform skips, with zero
+failures. The complete command takes 548.686 s. `npm run build` passes in
+3.734 s; `npm run test:desktop` passes the actual production loader, worker/WASM
+and initial-model readiness in 1.555 s, with zero recorded console, request or
+resource errors. All 1,108 frozen non-Markdown inputs still match after acceptance.
+The twelve accepted command records comprise build, the full suite, desktop
+smoke and the nine selected renderers above; they are not twelve independent
+platform validations.
+
+Parent review `0485d43` completes [CI](https://github.com/angelcp2802/solidflow/actions/runs/40156965743)
+with eight of nine renderer jobs and all three configured-authoring jobs passing.
+Windows persistence reaches the rigid-assembly child deadline; its last completed
+check is `gear gesture blocks file/Apply operations`, after gear reactivation and
+shaft selection. The retrieved log records no console error. The final checkpoint
+does not establish a root cause or a remedy. Both [Security jobs](https://github.com/angelcp2802/solidflow/actions/runs/40156965744)
+pass. All three Desktop jobs fail the required-renderer gate and skip subsequent
+unit, smoke and package steps. Local completion does not resolve hosted timing or
+establish release/installed-package support.
+
 ## Selectable revolution axes and reverse direction — 2026-10-25
 
 Revolution now accepts a local X/Y axis or a stable line ID from its own sketch,

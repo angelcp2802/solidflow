@@ -3682,38 +3682,39 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                   </button>
                 </div>
               )}
-              {selectedFeature && (
-                <div className="selection-tools">
-                  <span>{selectedFeature.name}</span>
-                  <div>
-                    <IconButton
-                      icon={Pencil}
-                      title="Editar operación"
-                      onClick={() => editFeature(selectedFeature)}
-                    />
-                    <IconButton
-                      icon={Eye}
-                      title={
-                        selectedFeature.suppressed
-                          ? "Activar operación"
-                          : "Suprimir operación"
-                      }
-                      onClick={() =>
-                        apply(
-                          updateFeature(doc, selectedFeature.id, {
-                            suppressed: !selectedFeature.suppressed,
-                          }),
-                        )
-                      }
-                    />
-                    <IconButton
-                      icon={Trash2}
-                      title="Eliminar operación"
-                      onClick={deleteSelected}
-                    />
-                  </div>
+              <div className="selection-tools" role="group" aria-label="Acciones de la operación seleccionada">
+                <span>{selectedFeature?.name ?? "Selecciona una operación"}</span>
+                <div>
+                  <IconButton
+                    icon={Pencil}
+                    title="Editar operación"
+                    disabled={!selectedFeature}
+                    onClick={() => { if (selectedFeature) editFeature(selectedFeature); }}
+                  />
+                  <IconButton
+                    icon={Eye}
+                    title={
+                      selectedFeature?.suppressed
+                        ? "Activar operación"
+                        : "Suprimir operación"
+                    }
+                    disabled={!selectedFeature}
+                    onClick={() => {
+                      if (selectedFeature) apply(
+                        updateFeature(doc, selectedFeature.id, {
+                          suppressed: !selectedFeature.suppressed,
+                        }),
+                      );
+                    }}
+                  />
+                  <IconButton
+                    icon={Trash2}
+                    title="Eliminar operación"
+                    disabled={!selectedFeature}
+                    onClick={() => { if (selectedFeature) deleteSelected(); }}
+                  />
                 </div>
-              )}
+              </div>
               <div className="manager-footer">
                 <span className="blue-dot" /> Configuración: Predeterminada
               </div>

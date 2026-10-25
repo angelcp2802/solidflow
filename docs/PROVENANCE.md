@@ -1,5 +1,25 @@
 # Public fixture provenance
 
+## Original principal-axis rotation capture
+
+`scripts/desktop-assembly-origin-axis-lock-original.cjs` reuses the tracked
+original 2 by 3 by 4 mm prism recipe. The fixed prism is translated to (-15,0,0).
+The moving prism starts at (0,0,6), rotated +30 degrees about Z, with a free
+concentric relation between its Z axis and the root Z axis. The configured case
+authors this relation only in the named `demo` state; Base and `untouched` remain
+separate. No imported geometry, model or implementation contributes to the recipe.
+
+Each prism has volume 24 mm3 and area 52 mm2. The moving XY bounds are
+(-1.5,0) to (sqrt(3),1+3*sqrt(3)/2); Z spans four millimetres. These asymmetric
+bounds expose roll that a circular cylinder cannot. The ordered captured
+quaternion is (0,0,-sin(pi/12),cos(pi/12)), up to sign. Capture removes spin
+while leaving axial travel free. Native tests additionally use original
+cylinders, distinct shared placements and nested wrappers, with independent
+literal orientation, area, volume and bounds checks. Pure numerical cases check
+reversed roles, both quaternion signs, differently directed local axes and
+floating common-frame freedom. These are bounded original cases, not universal
+assembly coverage. Renderer file dialogs use isolated test-owned paths.
+
 ## Original revolution and bore sequence
 
 `scripts/desktop-part-revolution-original.cjs` authors three unused sketches in

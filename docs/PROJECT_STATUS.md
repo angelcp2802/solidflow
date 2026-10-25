@@ -18,23 +18,45 @@ Both assembly workspaces have contextual command tabs, component properties and
 origin-plane/axis tree selection. Configured picking instructions now reserve
 their own row instead of covering origin labels.
 
-Parent `05decd0` has persistence failures on the three hosted targets. Retrieved
-Windows/macOS logs stop at the original revolution workflow's off-screen height
-field; the Linux dedicated log is unavailable. The harness now reveals and
-hit-tests fields and uses the production minimum window size explicitly.
-The other six renderer jobs, three configured-authoring jobs and both Security
-jobs pass; the Desktop checks stop at their prerequisite gate.
+Concentric relations can now capture rotation between current origin axes or
+an origin axis and a cylindrical face. The standard workspace captures from a
+verified preview; the configured workspace explicitly replaces its existing
+free relation while preserving its identity and ordered references. Axial travel
+remains free. Original asymmetric-prism renderer cases cover capture, Cancel,
+Apply, history and saved reopening. The part selection-action strip now retains
+its height, with a compact-window pointer regression for lower-edge double-click
+editing and exact Cancel.
+
+Parent `0485d43` completes eight of nine hosted renderer jobs, all three
+configured-authoring jobs and both Security jobs. The revolution field failure
+from its predecessor is no longer the failing step. Windows persistence stops
+at the rigid-assembly child deadline during the gear-gesture sequence, with no
+recorded console error. This checkpoint alone does not establish the cause.
+All three Desktop checks stop at the prerequisite gate before unit/smoke/package
+steps; no installed-package or release acceptance is claimed.
 See [validation](VALIDATION.md) for exact
 local results, retained failures and hosted links; results from earlier commits
 do not establish current-head acceptance.
 
-Next functional priorities include external/viewport revolution-axis selection,
-two-direction/thin-wall and revolved-cut workflows, origin-axis rotation capture,
-broader material/mechanical reference picking and
+Next priorities include compact assembly viewport controls, clearer active
+profiles when editing operations, viewport/external revolution-axis selection,
+two-direction/thin-wall and revolved-cut workflows, broader material/mechanical reference picking and
 the complete basic assembly demo. Repeated/hosted persistence timing, remaining
 origin orientations and installed-package support also remain open. The sections
 below retain earlier snapshots; their "next" work and counts belong to their
 recorded increment.
+
+### Open review queue — 2026-10-25
+
+| PR | Purpose | Reviewed status and next action |
+| --- | --- | --- |
+| [#49](https://github.com/angelcp2802/solidflow/pull/49) | Current CAD and interface work | Continue the same draft; local and hosted acceptance remain separately recorded. |
+| [#48](https://github.com/angelcp2802/solidflow/pull/48) | Pinned CodeQL action update | The two action references retain permissions and workflow behavior. Its own CI/Security pass; no blocking static defect identified. It is separate from application acceptance. |
+| [#47](https://github.com/angelcp2802/solidflow/pull/47) | Grouped dependency updates | Its older CI passes, but Electron 44.8.0 precedes this branch's 44.9.3 and its lockfile lacks the current fast-uri/undici patches. Regenerate pending React/react-dom, icon and test-runner updates against the accepted base; preserve current patches and run the current matrix. |
+| [#35](https://github.com/angelcp2802/solidflow/pull/35) | Smoke-launcher diagnostics | Draft and currently not mergeable. Normal successful quit is already present; primary-error preservation and confirmed-close-before-cleanup still need selective adaptation. The recorded macOS SIGBUS remains unexplained. |
+
+This queue review changes no dependency, approval, merge or release state.
+Passing checks on those older heads do not validate the current application.
 
 ### Historical increment: navigable part history
 

@@ -360,8 +360,18 @@ function onlyIntervalDirections(resolved: readonly ResolvedAssemblyMate[]): bool
   return resolved.some(item => item.mate.type === 'limit-angle' || item.mate.type === 'limit-directed-angle')
     && resolved.every(item => ['limit-angle', 'limit-directed-angle', 'angle', 'parallel', 'perpendicular'].includes(item.mate.type))
 }
+function originRotationRoundoff(item: ResolvedAssemblyMate, document: AssemblyDocument): number {
+  if (!isResolvedAssemblyBinaryMate(item) || item.mate.type !== 'concentric' || item.mate.rotationLock === null
+    || item.mate.first.kind !== 'principal-axis' && item.mate.second.kind !== 'principal-axis') return 0
+  return [item.first, item.second].reduce((error, witness) =>
+    error + 128 * Number.EPSILON * (assemblyEndpointPlacementArithmetic(witness, document).depth + 2), 0)
+}
 function conditioning(document: AssemblyDocument, resolved: readonly ResolvedAssemblyMate[], tolerance: number, angleTolerance = 1e-8,
   angularIntervalContext = false): { origin: Vec3; lengthScale: number } {
+  for (const item of resolved) {
+    const roundoff = originRotationRoundoff(item, document)
+    if (!Number.isFinite(roundoff) || roundoff > angleTolerance) throw new RangeError('El bloqueo de giro de origen excede la precisión angular de las cadenas originales.')
+  }
   for (const item of resolved) if (isResolvedAssemblyBinaryMate(item) && item.mate.type === 'limit-directed-angle') {
     if (!item.guide) throw new Error('Falta el eje guía nativo del tope circular.')
     measureAssemblyDirectedAngleWitnesses(document, [item.first, item.second, item.guide], angleTolerance)
@@ -792,6 +802,10 @@ function finalChecks(candidate: AssemblyDocument, options: ReturnType<typeof pol
       if (evaluation.diagnostics.length || !passive && (evaluation.checks.length !== 1 || !evaluation.checks[0].satisfied)) {
         if (evaluation.diagnostics.some(value => value.code === 'precisionLimit')) throw new RangeError('La verificación final de las referencias excede la precisión solicitada.')
         throw new Error('La verificación nativa final no satisface la relación «' + item.mate.name + '».')
+      }
+      const rotationRoundoff = originRotationRoundoff(item, candidate)
+      if (rotationRoundoff && evaluation.checks.some(check => check.angleResidual + rotationRoundoff > options.angleTolerance)) {
+        throw new RangeError('La medida final del bloqueo de giro de origen no conserva su banda angular.')
       }
       if (isResolvedAssemblyHingeMate(item)) {
         const request = { axis: item.mate.axis, axial: item.mate.axial, alignment: item.mate.alignment }
@@ -1467,13 +1481,31 @@ export function captureAssemblyConcentricRotationLock(preview: AssemblySolvePrev
   const value = authority(preview, current), candidate = validateAssemblyDocument(value.candidate), target = node(candidate, scope)
   const mate = target.mates.find(item => item.id === mateId)
   if (!mate || mate.type !== 'concentric' || mate.suppressed) throw new Error('Selecciona una relación concéntrica activa.')
-  if (mate.first.kind === 'principal-axis' || mate.second.kind === 'principal-axis') throw new Error('El bloqueo de giro con ejes de origen no está disponible. Conserva la relación concéntrica con giro libre.')
+  const originCapture = mate.first.kind === 'principal-axis' || mate.second.kind === 'principal-axis'
   const scoped = scopedDocument(candidate, scope)
   withSnapshot(scoped, snapshot => {
     const resolved = snapshot.resolveActiveMates(scoped).find(item => item.scopePath.length === 0 && item.mate.id === mateId)
     if (!resolved || !isResolvedAssemblyBinaryMate(resolved)) throw new Error('La relación concéntrica ya no tiene soportes vigentes.')
     snapshot.assertWitness(resolved.first, scoped); snapshot.assertWitness(resolved.second, scoped)
-    mate.rotationLock = composeRigidPoses(inverseRigidPose(poseCopy(resolved.first.declaredWorldPose)), poseCopy(resolved.second.declaredWorldPose)).rotation
+    if (originCapture && (resolved.first.componentPath[0] ?? null) === (resolved.second.componentPath[0] ?? null)) {
+      throw new Error('El bloqueo de giro de origen requiere dos propietarios rígidos distintos en el ámbito actual.')
+    }
+    let angularError = 0
+    for (const witness of [resolved.first, resolved.second]) {
+      if (witness.kind !== 'support' || !(witness.origin === 'principal-axis' && witness.localSupport.kind === 'line'
+        || witness.origin === 'native-face' && witness.localSupport.kind === 'cylinder')) {
+        throw new Error('El bloqueo concéntrico requiere ejes de origen o caras cilíndricas actuales.')
+      }
+      const arithmetic = assemblyEndpointPlacementArithmetic(witness, scoped)
+      angularError += 128 * Number.EPSILON * (arithmetic.depth + 2)
+    }
+    if (originCapture && (!Number.isFinite(angularError) || angularError > policy(value.options).angleTolerance)) {
+      throw new RangeError('La captura de giro no conserva la precisión angular de las cadenas originales.')
+    }
+    // The capture contains only orientation. Large common translations must
+    // not introduce cancellation or overflow into this relative quaternion.
+    const rotation = (pose: AssemblyReadonly<RigidPose>): RigidPose => ({ translation: [0, 0, 0], rotation: [...pose.rotation] })
+    mate.rotationLock = composeRigidPoses(inverseRigidPose(rotation(resolved.first.declaredWorldPose)), rotation(resolved.second.declaredWorldPose)).rotation
   })
   candidate.updatedAt = new Date(Math.max(Date.now(), Date.parse(current.updatedAt) + 1)).toISOString()
   return validateAssemblyDocument(candidate)

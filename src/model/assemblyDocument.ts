@@ -548,8 +548,6 @@ function mate(value: unknown, path: string): AssemblyMate {
       return ref.kind === 'principal-axis' ? ref : axisReference(value, endpointPath)
     }
     const first = concentric(source.first, path + '.first'), second = concentric(source.second, path + '.second')
-    if (source.rotationLock !== null && (first.kind === 'principal-axis' || second.kind === 'principal-axis'))
-      fail(path + '.rotationLock', 'el bloqueo de giro requiere dos ejes de caras cilíndricas; los ejes principales sólo admiten giro libre')
     return { ...common, type, first, second, alignment: alignment(source.alignment, path + '.alignment'),
       rotationLock: source.rotationLock === null ? null : validateRigidPose({ translation: [0, 0, 0], rotation: source.rotationLock }, path + '.rotationLock').rotation }
   }

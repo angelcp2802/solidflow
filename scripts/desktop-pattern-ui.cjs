@@ -21,6 +21,10 @@ const SCENARIOS = Object.freeze({
     test: 'production-renderer-origin-axes', caption: 'origin axis relations' }),
   'assembly-configured-origin-axes': Object.freeze({ originAxes: 'configured', originalRecipe: 'desktop-assembly-origin-axes-original.cjs', entry: 'desktop-assembly-configured-origin-axes.cjs',
     test: 'production-renderer-configured-origin-axes', caption: 'configured origin axis relations' }),
+  'assembly-origin-axis-lock': Object.freeze({ originAxes: 'standard', originLock: true, originalRecipe: 'desktop-assembly-origin-axis-lock-original.cjs', entry: 'desktop-assembly-origin-axis-lock.cjs',
+    test: 'production-renderer-origin-axis-lock', caption: 'origin axis rotation lock' }),
+  'assembly-configured-origin-axis-lock': Object.freeze({ originAxes: 'configured', originLock: true, originalRecipe: 'desktop-assembly-origin-axis-lock-original.cjs', entry: 'desktop-assembly-configured-origin-axis-lock.cjs',
+    test: 'production-renderer-configured-origin-axis-lock', caption: 'configured origin axis rotation lock' }),
   'part-fresh-sketch': Object.freeze({ originalRecipe: 'desktop-part-fresh-sketch-original.cjs', entry: 'desktop-part-fresh-sketch.cjs',
     test: 'production-renderer-part-fresh-sketch', caption: 'actual pointer face sketches and automatic body destinations' }),
   'part-sequence': Object.freeze({ fixture: 'part-sequence-original.json', entry: 'desktop-part-sequence.cjs',
@@ -233,7 +237,7 @@ async function launch() {
       const original = require('./desktop-assembly-configured-mechanical-original.cjs')(activeScenario.mechanicalFamily);
       await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(original), { flag: 'wx' });
     } else if (activeScenario.originAxes) {
-      const original = require('./desktop-assembly-origin-axes-original.cjs')(activeScenario.originAxes === 'configured');
+      const original = require('./' + activeScenario.originalRecipe)(activeScenario.originAxes === 'configured');
       await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(original), { flag: 'wx' });
     } else if ([SCENARIOS['assembly-configurations'], SCENARIOS['assembly-configured-relations']].includes(activeScenario)) {
       const original = require('./desktop-assembly-configurations-original.cjs')();
@@ -809,14 +813,16 @@ async function runInElectron() {
     }
     return window.webContents.executeJavaScript(source, false);
   };
-  const pointer = async (type, point, buttons = 0) => {
+  const pointer = async (type, point, buttons = 0, clickCount = 1) => {
     check((partRevolution || partSequence || originAxes || freshSketch || configuredPicking || assembly || activeScenario === SCENARIOS['assembly-configurations'] || rackPinion || direction || tangent || cylinderTangent || sphereTangent || limitDistance || limitAngle || directedAngle || width || symmetry || symmetryPicking || hingePicking || hingeLimitsPicking) && !window.isVisible() && window.webContents.debugger.isAttached()
       && ['mouseMoved', 'mousePressed', 'mouseReleased'].includes(type)
       && Number.isFinite(point.x) && Number.isFinite(point.y) && point.x >= 0 && point.y >= 0
-      && ([0, 1].includes(buttons) || partSequence && buttons === 2), 'Expected actual pointer input in the hidden test-owned CAD window.');
+      && ([0, 1].includes(buttons) || partSequence && buttons === 2)
+      && (clickCount === 1 || clickCount === 2 && (partRevolution || partSequence)
+        && ['mousePressed', 'mouseReleased'].includes(type) && buttons !== 2), 'Expected actual pointer input in the hidden test-owned CAD window.');
     await window.webContents.debugger.sendCommand('Input.dispatchMouseEvent', {
       type, x: point.x, y: point.y, button: buttons === 2 ? 'right' : type === 'mouseMoved' && !buttons ? 'none' : 'left', buttons: type === 'mouseReleased' ? 0 : buttons,
-      clickCount: type === 'mouseMoved' ? 0 : 1, pointerType: 'mouse',
+      clickCount: type === 'mouseMoved' ? 0 : clickCount, pointerType: 'mouse',
     });
   };
   const wheel = async (point, deltaY) => {
@@ -1047,7 +1053,7 @@ async function runInElectron() {
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, geometryExports }) })
     : originAxes
-    ? require('./desktop-assembly-origin-axes-flow.cjs')({ configured: originAxes === 'configured', expected, input, output, evaluate, observe, waitFor, click, pointer, menuKey, asideWheel, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
+    ? require(activeScenario.originLock ? './desktop-assembly-origin-axis-lock-flow.cjs' : './desktop-assembly-origin-axes-flow.cjs')({ configured: originAxes === 'configured', expected, input, output, evaluate, observe, waitFor, click, pointer, menuKey, asideWheel, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : configuredCompound
     ? require('./desktop-assembly-configured-compound-flow.cjs')({ family: configuredCompound, profileKind: activeScenario.profileKind, expected, input, output, evaluate, observe, waitFor, click, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, completePendingSave, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : configuredMechanical

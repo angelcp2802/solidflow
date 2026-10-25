@@ -133,3 +133,28 @@ it('rejects retained mechanical callbacks after capture policy, type, reference 
   expect(configuredMateUiTicketMatches(ticket, { ...ticket, sceneId: 'new-scene' })).toBe(false)
   expect(configuredMateUiTicketMatches(ticket, { ...ticket, context: { ...context, generation: 8 } })).toBe(false)
 })
+
+it('transitions an existing free origin concentric into recapture without inventing a saved lock', () => {
+  const first = validateAssemblyGeometryReference({ kind: 'principal-axis', component: component('a'), axis: 'Z' })
+  const second = validateAssemblyGeometryReference({ kind: 'principal-axis', component: null, axis: 'Z' })
+  const free = validateAssemblyMate({ id: 'free-origin', name: 'Original free origin', type: 'concentric', suppressed: false,
+    first, second, alignment: 'opposed', rotationLock: null })
+  if (free.type !== 'concentric') throw Error('Original concentric fixture required')
+  const original = JSON.stringify(free), document = withMate(free), draft = configuredMechanicalDraft('unused', free)
+  const currentChoices = { ...choices, geometry: [first, second, ...choices.geometry.map(row => row.reference)].map(reference => ({ reference, key: JSON.stringify(reference), label: 'Original current role' })) }
+  expect(draft).toMatchObject({ id: free.id, name: free.name, editing: true, alignment: 'opposed', references: [first, second], capture: 'recapture', retainAvailable: false })
+  const intent = configuredMechanicalIntent(draft, currentChoices, target)
+  expect(intent.change).toMatchObject({ kind: 'replace', mateId: free.id, capture: 'recapture', spec: { first, second, alignment: 'opposed' } })
+  expect(inspectAssemblyConfiguredMechanicalEdit(document, intent).existing).toEqual(free)
+  const html = renderToStaticMarkup(<ConfiguredAssemblyMechanicalPanel draft={draft} choices={currentChoices} target={target} disabled={false} onChange={() => {}} onPreview={() => {}} onClose={() => {}} />)
+  expect(html).toContain('<option value="retain" disabled="">')
+  expect(html).toContain('<option value="recapture" selected="">')
+  expect(html).toContain('El desplazamiento axial permanece libre.')
+  expect(() => configuredMechanicalIntent({ ...draft, capture: 'retain' }, currentChoices, target)).toThrow('no tiene una captura')
+  // The model must still reject a forged retain policy even if presentation data is changed.
+  expect(() => inspectAssemblyConfiguredMechanicalEdit(document, { ...intent, change: { ...intent.change, capture: 'retain' } })).toThrow('no rotation lock')
+  expect(JSON.stringify(free)).toBe(original)
+  for (const type of ['gear', 'screw', 'rack-pinion'] as const) {
+    expect(configuredMechanicalRoleChoices({ ...draft, type }, 0, currentChoices).some(row => 'kind' in row.reference && row.reference.kind === 'principal-axis')).toBe(false)
+  }
+})

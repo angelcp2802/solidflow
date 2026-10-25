@@ -63,7 +63,15 @@ function captureAt(snapshot: AssemblyConfigurationGeometrySnapshot, actual: Asse
     return composeRigidPoses(validateRigidPose(b.pose), validateRigidPose(e.frame))
   }
   const a = endpoint(first), b = endpoint(second), pa = pose(a), pb = pose(b)
-  if (spec.type !== 'lock' && (first.kind !== 'configured-support' || first.localSupport.kind !== 'cylinder'
+  if (spec.type === 'concentric') {
+    const exactAxis = (w: AssemblyConfigurationWitness, reference: typeof spec.first) => w.kind === 'configured-support'
+      && (reference.kind === 'principal-axis' ? w.origin === 'principal-axis' && w.localSupport.kind === 'line'
+        : reference.kind === 'face' && reference.support === 'axis' && w.origin === 'native-face' && w.localSupport.kind === 'cylinder')
+    if (!exactAxis(first, spec.first) || !exactAxis(second, spec.second)) throw Error('Concentric capture requires exact current principal axes or material cylinders.')
+    if ((spec.first.kind === 'principal-axis' || spec.second.kind === 'principal-axis') && a.bodyId === b.bodyId) {
+      throw Error('Origin rotation capture requires distinct local rigid owners, including the static declaring frame.')
+    }
+  } else if (spec.type !== 'lock' && (first.kind !== 'configured-support' || first.localSupport.kind !== 'cylinder'
     || second.kind !== 'configured-support' || (spec.type === 'rack-pinion' ? !['line', 'cylinder'].includes(second.localSupport.kind) : second.localSupport.kind !== 'cylinder'))) throw Error('Mechanical capture requires its exact current cylinder/LINE native purposes.')
   let carrier: RigidPose | undefined
   if (spec.type === 'gear') { const w = component.call(snapshot, actual, spec.carrier, path); issued.push(w); carrier = pose(endpoint(w)) }

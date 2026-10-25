@@ -1,5 +1,30 @@
 # Development guide
 
+Concentric rotation capture accepts current principal-axis references and
+material-cylinder axis references. Other mechanical families retain their
+existing material support requirements. The saved quaternion uses ordered full
+owner frames, inverse(first) times second; it fixes relative orientation while
+leaving axial travel free. New origin captures require distinct local rigid
+owners in the declaring scope, with the scope frame as a valid static endpoint.
+Native witnesses, original placement-chain precision, final physical checks
+and private preview/Apply authority remain required. No format version changes;
+older readers may reject principal-axis declarations with a non-null lock.
+
+The standard manager captures through its verified preview. The configured
+manager exposes an explicit Lock rotation action for an existing free concentric
+relation; replacement retains the relation ID, name, ordered roles and alignment.
+Its mechanical editor requires recapture when no saved lock exists. The renderer
+sends reference intent, never a captured quaternion. Named-state edits retain the
+source and inactive configurations. Original production-renderer commands are
+`test:desktop:assembly-origin-axis-lock` and
+`test:desktop:assembly-configured-origin-axis-lock`.
+
+The part tree reserves the selection-action strip even when no operation is
+selected. Its disabled actions retain their existing guards, preventing selection
+from shortening the scrollable tree between the two presses of a double click.
+The compact revolution renderer checks actual CDP click counts at the lower tree
+edge, unchanged row geometry and exact Cancel after reopening the saved operation.
+
 Part operation commands use labelled `CommandGroup` containers without changing
 their callback, order or availability. The fixed-height ribbon keeps horizontal
 overflow; group-specific icon and row sizing makes space for labels. Direct
@@ -265,7 +290,9 @@ X/Y/Z line references and their native relation lifecycle. After building, run
 `npm run test:desktop:assembly-origin-axes` and
 `npm run test:desktop:assembly-configured-origin-axes` for the original form,
 preview, history and file-persistence workflows. Keep free axial/spin coordinates
-separate from constrained coordinates, and preserve material-only capture rules.
+separate from constrained coordinates. Concentric origin capture is handled by
+the separate lock workflows; other mechanical families retain their material
+reference requirements.
 
 Visible origin selection shares `assemblyOriginPicking.ts` for owner-relative
 identity, displayed placement, projected labels and axis/plane hit testing.

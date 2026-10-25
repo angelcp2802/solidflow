@@ -17,7 +17,7 @@ export type ConfiguredMechanicalMate = Extract<AssemblyMate, { type: ConfiguredM
 export interface ConfiguredMechanicalDraft {
   mechanical: true; id: string; editing: boolean; type: ConfiguredMechanicalType; name: string; suppressed: boolean
   references: (ConfiguredMateUiChoice['reference'] | AssemblyComponentReference | null)[]
-  carrier: AssemblyComponentReference | null; capture: 'retain' | 'recapture'; alignment: 'aligned' | 'opposed'
+  carrier: AssemblyComponentReference | null; capture: 'retain' | 'recapture'; retainAvailable: boolean; alignment: 'aligned' | 'opposed'
   numerator: string; denominator: string; direction: 'same' | 'opposed'; phase: string
   lead: string; reverse: boolean; conversion: 'diameter' | 'travel'; override: string
 }
@@ -26,8 +26,9 @@ export function configuredMechanicalMate(mate: AssemblyMate): mate is Configured
   return mate.type === 'lock' || mate.type === 'gear' || mate.type === 'screw' || mate.type === 'rack-pinion' || mate.type === 'concentric' && mate.rotationLock !== null
 }
 export function configuredMechanicalDraft(id: string, mate?: ConfiguredMechanicalMate): ConfiguredMechanicalDraft {
+  const retainAvailable = !!mate && (mate.type !== 'concentric' || mate.rotationLock !== null)
   const draft: ConfiguredMechanicalDraft = { mechanical: true, id: mate?.id ?? id, editing: !!mate, type: mate?.type ?? 'lock', name: mate?.name ?? '', suppressed: mate?.suppressed ?? false,
-    references: mate ? [structuredClone(mate.first), structuredClone(mate.second)] : [null, null], carrier: null, capture: mate ? 'retain' : 'recapture', alignment: 'aligned',
+    references: mate ? [structuredClone(mate.first), structuredClone(mate.second)] : [null, null], carrier: null, capture: retainAvailable ? 'retain' : 'recapture', retainAvailable, alignment: 'aligned',
     numerator: '1', denominator: '1', direction: 'opposed', phase: '0', lead: '1', reverse: false, conversion: 'diameter', override: '' }
   if (mate?.type === 'gear') Object.assign(draft, { carrier: structuredClone(mate.carrier), numerator: String(mate.ratio.numerator), denominator: String(mate.ratio.denominator), direction: mate.direction, phase: String(mate.phase) })
   if (mate?.type === 'screw') Object.assign(draft, { lead: String(mate.lead), reverse: mate.reverse, alignment: mate.alignment })
@@ -51,10 +52,13 @@ export function configuredMechanicalChoices(document: AssemblyConfiguredDocument
 }
 export function configuredMechanicalRoleChoices(draft: ConfiguredMechanicalDraft, slot: number, choices: ConfiguredMechanicalChoices) {
   if (draft.type === 'lock') return choices.components
-  return choices.geometry.filter(({ reference }) => reference.kind === 'face' && reference.support === 'axis' || draft.type === 'rack-pinion' && slot === 1 && reference.kind === 'edge')
+  return choices.geometry.filter(({ reference }) => reference.kind === 'face' && reference.support === 'axis'
+    || draft.type === 'concentric' && reference.kind === 'principal-axis'
+    || draft.type === 'rack-pinion' && slot === 1 && reference.kind === 'edge')
 }
 export function configuredMechanicalIntent(draft: ConfiguredMechanicalDraft, choices: ConfiguredMechanicalChoices,
   target: Pick<AssemblyConfiguredMechanicalEdit, 'scopePath' | 'definition' | 'configuration'>): AssemblyConfiguredMechanicalEdit {
+  if (draft.editing && draft.capture === 'retain' && !draft.retainAvailable) throw Error('Esta relación no tiene una captura de giro que conservar. Vuelve a capturar.')
   const refs = [0, 1].map(slot => {
     const reference = draft.references[slot]
     if (!reference) throw Error('Selecciona las dos referencias mecánicas actuales.')
@@ -84,7 +88,11 @@ export default function ConfiguredAssemblyMechanicalPanel(props: { draft: Config
     <p>La captura y la solución se verifican en todos los usos antes de aplicar.</p>
     <label>Tipo<select aria-label="Tipo de relación mecánica configurada" value={draft.type} disabled={disabled || draft.editing} onChange={event => change({ ...configuredMechanicalDraft(draft.id), type: event.target.value as ConfiguredMechanicalType, name: draft.name })}>{Object.entries(families).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
     <label>Nombre<input aria-label="Nombre de relación mecánica configurada" value={draft.name} disabled={disabled} onChange={event => change({ name: event.target.value })} /></label>
-    {draft.editing && <><label>Captura<select aria-label="Captura mecánica configurada" value={draft.capture} disabled={disabled} onChange={event => change({ capture: event.target.value as ConfiguredMechanicalDraft['capture'] })}><option value="retain">Conservar captura y vueltas acumuladas</option><option value="recapture">Volver a capturar la posición actual</option></select></label><p>{draft.capture === 'retain' ? 'La edición conserva los ceros y las vueltas guardadas. Cambiar referencias requiere volver a capturar.' : 'La nueva captura establece ceros y vueltas desde la posición actual. No conserva las vueltas anteriores.'}</p></>}
+    {draft.editing && <><label>Captura<select aria-label="Captura mecánica configurada" value={draft.capture} disabled={disabled} onChange={event => {
+      if (event.target.value === 'recapture' || event.target.value === 'retain' && draft.retainAvailable) change({ capture: event.target.value })
+    }}><option value="retain" disabled={!draft.retainAvailable}>Conservar captura y vueltas acumuladas</option><option value="recapture">Volver a capturar la posición actual</option></select></label>
+      <p>{draft.type === 'concentric' ? draft.capture === 'retain' ? 'Conserva la orientación relativa capturada. Cambiar referencias requiere volver a capturar.' : 'Captura la orientación relativa después de alinear los ejes. El desplazamiento axial permanece libre.'
+        : draft.capture === 'retain' ? 'La edición conserva los ceros y las vueltas guardadas. Cambiar referencias requiere volver a capturar.' : 'La nueva captura establece ceros y vueltas desde la posición actual. No conserva las vueltas anteriores.'}</p></>}
     {[0, 1].map(slot => { const list = configuredMechanicalRoleChoices(draft, slot, props.choices), selected = draft.references[slot], key = selected ? JSON.stringify(selected) : '', found = list.some(row => row.key === key); return <label key={slot}>{draft.type === 'lock' ? 'Componente' : 'Eje'} {slot + 1}<select aria-label={`Referencia ${slot + 1} mecánica configurada`} value={found ? key : selected ? 'retained' : ''} disabled={disabled} onChange={event => { const references = [...draft.references]; references[slot] = list.find(row => row.key === event.target.value)?.reference ?? null; change({ references }) }}><option value="">Selecciona una referencia actual</option>{selected && !found && <option value="retained">Referencia guardada · pendiente de reselección</option>}{list.map(row => <option key={row.key} value={row.key} title={row.label}>{row.label}</option>)}</select></label> })}
     {draft.type === 'gear' && <><label>Portador<select aria-label="Portador mecánico configurado" value={draft.carrier === null ? 'scope' : props.choices.components.some(row => row.key === JSON.stringify(draft.carrier)) ? JSON.stringify(draft.carrier) : 'retained'} disabled={disabled} onChange={event => { if (event.target.value === 'scope') change({ carrier: null }); else { const row = props.choices.components.find(row => row.key === event.target.value); if (row) change({ carrier: row.reference }) } }}><option value="scope">Marco del ámbito</option>{draft.carrier && !props.choices.components.some(row => row.key === JSON.stringify(draft.carrier)) && <option value="retained">Portador guardado · pendiente de reselección</option>}{props.choices.components.map(row => <option key={row.key} value={row.key}>{row.label}</option>)}</select></label>{numeric('Numerador mecánico configurado', 'numerator')}{numeric('Denominador mecánico configurado', 'denominator')}<label>Sentido<select aria-label="Sentido de engranaje configurado" value={draft.direction} disabled={disabled} onChange={event => change({ direction: event.target.value as ConfiguredMechanicalDraft['direction'] })}><option value="opposed">Opuesto</option><option value="same">Mismo</option></select></label>{numeric('Fase ponderada de engranaje en radianes', 'phase')}<p>Fase ponderada de la relación; no es un ángulo geométrico ni se reduce a una vuelta.</p></>}
     {(draft.type === 'concentric' || draft.type === 'screw') && <label>Alineación<select aria-label="Alineación mecánica configurada" value={draft.alignment} disabled={disabled} onChange={event => change({ alignment: event.target.value as ConfiguredMechanicalDraft['alignment'] })}><option value="aligned">Alineada</option><option value="opposed">Opuesta</option></select></label>}

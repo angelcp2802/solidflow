@@ -165,6 +165,22 @@ jobs:
         if: matrix.batch == 'relations' && runner.os != 'Linux'
         run: npm run test:desktop:assembly-configured-origin-axes
 
+      - name: Test origin axis rotation capture (Linux)
+        if: matrix.batch == 'relations' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-origin-axis-lock
+
+      - name: Test origin axis rotation capture (Windows/macOS)
+        if: matrix.batch == 'relations' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-origin-axis-lock
+
+      - name: Test configured origin axis rotation capture (Linux)
+        if: matrix.batch == 'relations' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-configured-origin-axis-lock
+
+      - name: Test configured origin axis rotation capture (Windows/macOS)
+        if: matrix.batch == 'relations' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-configured-origin-axis-lock
+
       - name: Test successive part operations (Linux)
         if: matrix.batch == 'persistence' && runner.os == 'Linux'
         run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:part-sequence

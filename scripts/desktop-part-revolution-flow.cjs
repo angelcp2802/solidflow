@@ -262,6 +262,20 @@ module.exports = function partRevolutionWorkflow(context) {
     const reopened = await built(serial, row => row.features.length === originalCount + 2, 150 * Math.PI, fullBounds, 'saved-reopened', bodyId);
     check(canonical(reopened.features) === canonical(saved.features), 'Reopen retains explicit Y axis, reversed direction, angle, profile IDs and current body references');
     await waitFor('reopened sleeve is idle', () => page(() => document.querySelector('.statusbar')?.textContent.includes('Listo')));
+    await require('./desktop-part-tree-doubleclick-controls.cjs')({
+      feature: revolution, saved, output, evaluate, observe, waitFor, pointer, press, ready, checks, check, canonical, digest,
+      verifyOpened: async afterSerial => {
+        const editing = await built(afterSerial, row => row.features.length === originalCount + 1
+          && row.features.at(-1).id === revolution.id, 160 * Math.PI, fullBounds, 'tree-doubleclick-existing-revolution', bodyId);
+        check(canonical(editing.features) === canonical(saved.features.slice(0, originalCount + 1)),
+          'Double-click edits the exact saved revolution and its original upstream features');
+      },
+      verifyCancelled: async afterSerial => {
+        const cancelled = await built(afterSerial, row => row.features.length === originalCount + 2,
+          150 * Math.PI, fullBounds, 'tree-doubleclick-cancel', bodyId);
+        check(canonical(cancelled.features) === canonical(saved.features), 'Double-click Cancel restores exact saved operation declarations');
+      },
+    });
     const beforeExport = await recovery();
     await fileCommand('Exportar STEP');
     await waitFor('actual STEP export completes', () => dialogCounts().geometryExports === 1

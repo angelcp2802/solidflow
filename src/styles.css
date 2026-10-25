@@ -754,6 +754,8 @@ button,
 }
 .selection-tools > span {
   display: block;
+  min-height: 14px;
+  line-height: 14px;
   margin-bottom: 5px;
   font-size: 10px;
   color: #6a7f90;

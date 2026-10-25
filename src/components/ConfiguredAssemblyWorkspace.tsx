@@ -335,7 +335,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
   const openRelationEditor = (mate?: AssemblyMate, mechanical = false, compound = false) => {
     if (!freshMate() || operation.current || pending.current || mateDraftRef.current || !scene || selectedScope.suppressed) return
     setOriginComponent(null)
-    try { const id = mate?.id ?? crypto.randomUUID(); setRelationDraft(mate && configuredCompoundMate(mate) ? configuredCompoundUiDraft(id, mate) : mate && configuredMechanicalMate(mate) ? configuredMechanicalDraft(id, mate) : compound ? configuredCompoundUiDraft(id) : mechanical ? configuredMechanicalDraft(id) : configuredMateUiDraft(id, mate)); setFailure(null) } catch (reason) { error(reason) }
+    try { const id = mate?.id ?? crypto.randomUUID(); setRelationDraft(mate && configuredCompoundMate(mate) ? configuredCompoundUiDraft(id, mate) : mate && (mechanical && mate.type === 'concentric' || configuredMechanicalMate(mate)) ? configuredMechanicalDraft(id, mate) : compound ? configuredCompoundUiDraft(id) : mechanical ? configuredMechanicalDraft(id) : configuredMateUiDraft(id, mate)); setFailure(null) } catch (reason) { error(reason) }
   }
   const previewDraft = () => {
     if (!freshMate() || operation.current || pending.current || !mateDraftRef.current) return
@@ -557,6 +557,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
         <ul>{effectiveMates.map(mate => { const unavailable = configuredMechanicalMate(mate) || configuredCompoundMate(mate) ? null : configuredMateEditUnavailable(mate); return <li key={mate.id} data-configured-mate-id={mate.id} data-configured-mate-type={mate.type} data-configured-mate-suppressed={String(mate.suppressed)}>
           <strong>{mate.name}</strong><small>{mate.type}{mate.suppressed ? ' · suprimida' : ''}{mate.type === 'distance' ? ` · ${mate.distance} mm` : ''}{mate.type === 'angle' ? ` · ${mate.angle}°` : ''}</small>
           <button aria-label={`Editar relación configurada ${mate.name}`} title={unavailable ?? 'Editar referencias y parámetros'} disabled={blocked || !!mateDraft || !!unavailable || !scene || selectedScope.suppressed} onClick={() => openRelationEditor(mate)}>Editar</button>
+          {mate.type === 'concentric' && mate.rotationLock === null && <button aria-label={`Bloquear giro de relación configurada ${mate.name}`} disabled={blocked || !!mateDraft || !scene || selectedScope.suppressed} onClick={() => openRelationEditor(mate, true)}>Bloquear giro</button>}
           <button aria-label={`${mate.suppressed ? 'Activar' : 'Suprimir'} relación configurada ${mate.name}`} disabled={blocked || !!mateDraft || !scene || selectedScope.suppressed} onClick={() => { if (freshMate()) void previewRelation(relationTarget({ kind: 'suppression', mateId: mate.id, suppressed: !mate.suppressed })) }}>{mate.suppressed ? 'Activar' : 'Suprimir'}</button>
           <button aria-label={`Eliminar relación configurada ${mate.name}`} disabled={blocked || !!mateDraft || !scene || selectedScope.suppressed} onClick={() => { if (freshMate()) void previewRelation(relationTarget({ kind: 'remove', mateId: mate.id })) }}>Eliminar</button>
           {unavailable && <small>{unavailable}</small>}

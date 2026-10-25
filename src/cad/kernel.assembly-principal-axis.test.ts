@@ -13,6 +13,8 @@ import { buildAssemblyScene } from './kernel.assembly-scene'
 import { CadEngine } from './kernel.engine'
 import { withNativeOwners } from './kernel.native-ownership'
 import { placeAssemblyShape, validateAssemblyShape } from './kernel.assembly-placements'
+import { AssemblyWorkerSession } from './kernel.assembly-session'
+import { AssemblyDocumentHistory } from '../model/assemblyEditing'
 
 beforeAll(async () => setOC(await initOpenCascade({ wasmBinary: await readFile(createRequire(import.meta.url).resolve('replicad-opencascadejs/wasm')), print: () => undefined, printErr: () => undefined })), 60_000)
 const stamp = '2026-10-23T00:00:00.000Z'
@@ -58,6 +60,168 @@ function concentric(document: AssemblyDocument, material: boolean) {
     first: material ? materialAxis(document) : axis('Z', { occurrencePath: ['pin'], definition: { ...document.occurrences[0].definition } }), second: axis('Z') }]
   return validateAssemblyDocument(document)
 }
+
+// Original non-axisymmetric 2 x 3 x 4 prisms. Each V24/A52; pair V48/A104.
+function prisms(component = false, reversedRoles = false): AssemblyDocument {
+  const input = cylinder(), part = input.definitions[0]
+  if (part.kind !== 'part') throw Error('Original part')
+  part.document.features[0] = { id: 'profile', name: 'Original 2 by 3', type: 'sketch', plane: 'XY', offset: 0,
+    suppressed: false, profile: { kind: 'rectangle', center: [1, 1.5], width: 2, height: 3 } }
+  const solid = part.document.features[1]; if (solid.type !== 'extrude') throw Error('Original extrusion'); solid.depth = 4
+  input.occurrences[0].pose = { translation: [0, 0, 7], rotation: [0, 0, Math.sin(Math.PI / 12), Math.cos(Math.PI / 12)] }
+  input.occurrences.push({ ...structuredClone(input.occurrences[0]), id: 'fixed', name: 'Original fixed prism', fixed: true,
+    pose: { translation: [0, 0, -10], rotation: [0, 0, 0, 1] } })
+  const moving = axis('Z', { occurrencePath: ['pin'], definition: { id: part.id, revision: part.revision } }),
+    other = component ? axis('Z', { occurrencePath: ['fixed'], definition: { id: part.id, revision: part.revision } }) : axis('Z')
+  input.mates = [{ id: 'axis', name: 'Original prism bearing', type: 'concentric', suppressed: false,
+    first: reversedRoles ? other : moving, second: reversedRoles ? moving : other, alignment: 'aligned', rotationLock: null }]
+  return validateAssemblyDocument(input)
+}
+function readyOrigin(input: AssemblyDocument, options = {}) {
+  const result = prepareAssemblySolve(input, options)
+  expect(result.status, result.status === 'rejected' ? result.message : '').toBe('ready')
+  if (result.status !== 'ready') throw Error(result.message)
+  return result
+}
+
+it.each([false, true].flatMap(component => [false, true].map(reversedRoles => ({ component, reversedRoles }))))(
+  'captures prism Rz30 for component=$component reverse roles=$reversedRoles and leaves axial travel free', ({ component, reversedRoles }) => {
+    const input = prisms(component, reversedRoles), before = serializeAssemblyDocument(input), preview = readyOrigin(input)
+    try {
+      expect(preview.scopes[0].result.localDOF).toBe(2)
+      const locked = captureAssemblyConcentricRotationLock(preview, input, 'axis'), mate = locked.mates[0]
+      if (mate.type !== 'concentric' || !mate.rotationLock) throw Error('Expected captured origin rotation')
+      near(mate.rotationLock, [0, 0, (reversedRoles ? 1 : -1) * Math.sin(Math.PI / 12), Math.cos(Math.PI / 12)])
+      const moved = structuredClone(locked)
+      moved.occurrences[0].pose = { translation: [0, 0, 19], rotation: [0, 0, .5, Math.sqrt(3) / 2] }
+      const restored = readyOrigin(moved)
+      try {
+        expect(restored.scopes[0].result.localDOF).toBe(1); expect(restored.checks.every(check => check.satisfied)).toBe(true)
+        const document = validateAssemblyDocument(restored.document)
+        near(document.occurrences[0].pose.translation, [0, 0, 19], 1e-6)
+        const bounds = nativeBounds(document)
+        near(bounds.min, [-1.5, 0, 19], 1e-6); near(bounds.max, [Math.sqrt(3), 1 + 1.5 * Math.sqrt(3), 23], 1e-6)
+        const scene = buildAssemblyScene(document)
+        expect(scene.solidCount).toBe(2); expect(scene.volume).toBeCloseTo(48, 6); expect(scene.area).toBeCloseTo(104, 6)
+        expect(parseAssemblyDocument(serializeAssemblyDocument(document)).mates).toEqual(document.mates)
+      } finally { discardAssemblySolvePreview(restored) }
+      expect(serializeAssemblyDocument(input)).toBe(before)
+    } finally { discardAssemblySolvePreview(preview) }
+  }, 60_000)
+
+it('requires fresh session authority for origin capture, Apply, history and saved recovery', () => {
+  const input = prisms(), before = serializeAssemblyDocument(input), session = new AssemblyWorkerSession(), history = new AssemblyDocumentHistory(input)
+  try {
+    const initial = session.prepare(input); if (initial.status !== 'ready') throw Error('Expected ready')
+    const captured = session.captureRotation(input, initial.token, 'axis'); if (captured.status !== 'ready') throw Error('Expected locked preview')
+    expect(captured.token).not.toBe(initial.token)
+    expect(() => session.apply(input, initial.token)).toThrow()
+    expect(serializeAssemblyDocument(history.current)).toBe(before)
+    const applied = session.apply(input, captured.token)
+    history.commitDocument(applied.document)
+    expect(() => session.apply(input, captured.token)).toThrow()
+    const saved = serializeAssemblyDocument(history.current)
+    expect(serializeAssemblyDocument(history.undo())).toBe(before)
+    expect(serializeAssemblyDocument(history.redo())).toBe(saved)
+    const reopened = parseAssemblyDocument(saved), fresh = readyOrigin(reopened)
+    try { expect(fresh.scopes[0].result.localDOF).toBe(1) } finally { discardAssemblySolvePreview(fresh) }
+    const cancel = session.prepare(input); if (cancel.status !== 'ready') throw Error('Expected ready')
+    const discard = session.captureRotation(input, cancel.token, 'axis'); if (discard.status !== 'ready') throw Error('Expected ready')
+    session.discard(discard.token)
+    expect(() => session.apply(input, discard.token)).toThrow()
+    expect(serializeAssemblyDocument(input)).toBe(before)
+  } finally { session.discard() }
+}, 60_000)
+
+it('rejects forged, consumed and changed pose/revision/scope origin capture authority', () => {
+  const input = prisms(), preview = readyOrigin(input)
+  try {
+    expect(() => captureAssemblyConcentricRotationLock(structuredClone(preview), input, 'axis')).toThrow(/no fue verificada/)
+    const pose = structuredClone(input); pose.occurrences[0].pose.translation[2]++
+    expect(() => captureAssemblyConcentricRotationLock(preview, pose, 'axis')).toThrow(/documento cambió/)
+    const revision = structuredClone(input); revision.revision = 'r2'
+    expect(() => captureAssemblyConcentricRotationLock(preview, revision, 'axis')).toThrow(/documento cambió/)
+    expect(() => captureAssemblyConcentricRotationLock(preview, input, 'axis', { id: input.id, revision: 'old' })).toThrow()
+    discardAssemblySolvePreview(preview)
+    expect(() => captureAssemblyConcentricRotationLock(preview, input, 'axis')).toThrow(/no fue verificada/)
+  } finally { discardAssemblySolvePreview(preview) }
+}, 60_000)
+
+it('captures distinct local children in a reused rigid subassembly, independent of its parent gauge', () => {
+  const input = prisms(true), children = structuredClone(input.occurrences), mates = structuredClone(input.mates)
+  input.definitions.push({ kind: 'assembly', id: 'sub', revision: 'r1', name: 'Original nested bearing', createdAt: stamp, updatedAt: stamp,
+    occurrences: children, mates })
+  input.occurrences = [
+    { ...children[1], id: 'use-a', definition: { id: 'sub', revision: 'r1' }, pose: { translation: [100, 200, 300], rotation: [0, 0, Math.SQRT1_2, Math.SQRT1_2] } },
+    { ...children[1], id: 'use-b', definition: { id: 'sub', revision: 'r1' }, pose: { translation: [-50, 0, 0], rotation: [0, 0, 0, 1] } },
+  ]; input.mates = []
+  const preview = readyOrigin(input)
+  try {
+    const captured = captureAssemblyConcentricRotationLock(preview, input, 'axis', { id: 'sub', revision: 'r1' })
+    const sub = captured.definitions.find(value => value.id === 'sub'); if (sub?.kind !== 'assembly' || sub.mates[0].type !== 'concentric') throw Error('Original subassembly')
+    near(sub.mates[0].rotationLock!, [0, 0, -Math.sin(Math.PI / 12), Math.cos(Math.PI / 12)])
+    expect(captured.occurrences).toEqual(input.occurrences)
+    const fresh = readyOrigin(captured)
+    try {
+      expect(fresh.scopes.find(scope => scope.definition.id === 'sub')!.result.localDOF).toBe(1)
+      const scene = buildAssemblyScene(validateAssemblyDocument(fresh.document)); expect(scene.solidCount).toBe(4)
+      expect(scene.volume).toBeCloseTo(96, 6); expect(scene.area).toBeCloseTo(208, 6)
+    } finally { discardAssemblySolvePreview(fresh) }
+  } finally { discardAssemblySolvePreview(preview) }
+}, 60_000)
+
+it('rejects new origin capture for different descendants of the same local rigid owner', () => {
+  const input = prisms(true), children = structuredClone(input.occurrences)
+  children.forEach(child => { child.fixed = true })
+  input.definitions.push({ kind: 'assembly', id: 'rigid', revision: 'r1', name: 'Original one-owner descendants', createdAt: stamp, updatedAt: stamp,
+    occurrences: children, mates: [] })
+  input.occurrences = [{ ...children[1], id: 'owner', definition: { id: 'rigid', revision: 'r1' }, pose: { translation: [0, 0, 0], rotation: [0, 0, 0, 1] } }]
+  const mate = input.mates[0]; if (mate.type !== 'concentric') throw Error('Original concentric')
+  for (const reference of [mate.first, mate.second]) { if (!reference.component) throw Error('Original child'); reference.component.occurrencePath.unshift('owner') }
+  const preview = readyOrigin(input)
+  try { expect(() => captureAssemblyConcentricRotationLock(preview, input, 'axis')).toThrow(/propietarios rígidos distintos/) }
+  finally { discardAssemblySolvePreview(preview) }
+}, 60_000)
+
+it('retains original deep-chain angular budgets for capture and saved locked declarations', () => {
+  const input = prisms(), leaf = structuredClone(input.occurrences[0]), path = ['pin']
+  let child = leaf
+  for (let depth = 0; depth < 12; depth++) {
+    child.fixed = true
+    const id = `level-${depth}`
+    input.definitions.push({ kind: 'assembly', id, revision: 'r1', name: 'Original depth ' + depth, createdAt: stamp, updatedAt: stamp,
+      occurrences: [child], mates: [] })
+    child = { ...structuredClone(leaf), id: `owner-${depth}`, definition: { id, revision: 'r1' }, fixed: false,
+      pose: { translation: [0, 0, 0], rotation: [0, 0, 0, 1] } }
+    path.unshift(child.id)
+  }
+  input.occurrences = [child]
+  const mate = input.mates[0]; if (mate.type !== 'concentric' || !mate.first.component) throw Error('Original datum')
+  mate.first.component.occurrencePath = path
+  const preview = readyOrigin(input), narrow = readyOrigin(input, { angleTolerance: 1e-13 })
+  try {
+    const captured = captureAssemblyConcentricRotationLock(preview, input, 'axis')
+    expect(() => captureAssemblyConcentricRotationLock(narrow, input, 'axis')).toThrow(/precisión angular/)
+    const failure = prepareAssemblySolve(captured, { angleTolerance: 1e-13 })
+    expect(failure.status).toBe('rejected'); if (failure.status === 'rejected') expect(failure.reason).toBe('precisionLimit')
+    const fresh = readyOrigin(captured); discardAssemblySolvePreview(fresh)
+  } finally { discardAssemblySolvePreview(preview); discardAssemblySolvePreview(narrow) }
+}, 60_000)
+
+it('captures relative orientation under a large common translation while retaining positional precision guards', () => {
+  const input = prisms(true)
+  for (const occurrence of input.occurrences) { occurrence.pose.translation[0] += 1e6; occurrence.pose.translation[1] -= 1e6 }
+  const preview = readyOrigin(input)
+  try {
+    const captured = captureAssemblyConcentricRotationLock(preview, input, 'axis'), mate = captured.mates[0]
+    if (mate.type !== 'concentric') throw Error('Original concentric')
+    near(mate.rotationLock!, [0, 0, -Math.sin(Math.PI / 12), Math.cos(Math.PI / 12)])
+    const fresh = readyOrigin(captured); discardAssemblySolvePreview(fresh)
+  } finally { discardAssemblySolvePreview(preview) }
+  for (const occurrence of input.occurrences) occurrence.pose.translation[0] = 1e12
+  const rejected = prepareAssemblySolve(input)
+  expect(rejected.status).toBe('rejected'); if (rejected.status === 'rejected') expect(rejected.reason).toBe('precisionLimit')
+}, 60_000)
 
 it('resolves literal XYZ lines without cylinder radii in root, rotated assembly and nested part frames', () => {
   const input = cylinder(), leaf = structuredClone(input.occurrences[0])
@@ -125,7 +289,13 @@ it.each([false, true])('solves origin-line/%s concentricity with independent nat
     expect(result.scopes[0].result.localDOF).toBe(2); expect(result.checks.every(row => row.satisfied)).toBe(true)
     // Axial translation is free: restoration may choose any finite Z. Only radial coordinates are constrained.
     near(result.document.occurrences[0].pose.translation.slice(0, 2), [0, 0], 1e-6)
-    expect(() => captureAssemblyConcentricRotationLock(result, input, 'axis')).toThrow(/ejes de origen/)
+    const captured = captureAssemblyConcentricRotationLock(result, input, 'axis')
+    expect(captured.mates[0].type === 'concentric' && captured.mates[0].rotationLock !== null).toBe(true)
+    const locked = prepareAssemblySolve(captured)
+    expect(locked.status, locked.status === 'rejected' ? locked.message : '').toBe('ready')
+    if (locked.status !== 'ready') throw Error(locked.message)
+    try { expect(locked.scopes[0].result.localDOF).toBe(1); expect(locked.checks.every(row => row.satisfied)).toBe(true) }
+    finally { discardAssemblySolvePreview(locked) }
     const persisted = parseAssemblyDocument(serializeAssemblyDocument(validateAssemblyDocument(result.document)))
     expect(persisted.mates).toEqual(result.document.mates)
     const scene = buildAssemblyScene(persisted)

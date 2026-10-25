@@ -27,11 +27,14 @@ it('keeps configured datum choices out of material, plane-only and symmetry role
   for (const type of ['hinge', 'width', 'distance', 'coincident', 'tangent', 'symmetry', 'cylinder-sphere-tangent'] as const) {
     draft.type = type; expect(configuredMateUiRoleChoices(draft, 0, choices)).toEqual([])
   }
-  for (const type of ['concentric', 'gear', 'screw', 'rack-pinion'] as const) {
+  for (const type of ['gear', 'screw', 'rack-pinion'] as const) {
     const mechanical = configuredMechanicalDraft('material-only'); mechanical.type = type
     expect(configuredMechanicalRoleChoices(mechanical, 0, { geometry: choices, components: [] })).toEqual([])
     expect(configuredMechanicalRoleChoices(mechanical, 1, { geometry: choices, components: [] })).toEqual([])
   }
+  const locked = configuredMechanicalDraft('origin-lock'); locked.type = 'concentric'
+  expect(configuredMechanicalRoleChoices(locked, 0, { geometry: choices, components: [] })).toEqual(choices)
+  expect(configuredMechanicalRoleChoices(locked, 1, { geometry: choices, components: [] })).toEqual(choices)
   draft.type = 'concentric'
   expect(configuredMateUiProposal(draft, choices)).toMatchObject({ first: root, second: child, rotationLock: null })
   expect(() => configuredMateUiProposal(draft, [choices[0]])).toThrow(/catálogo/)

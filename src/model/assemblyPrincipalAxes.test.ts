@@ -48,8 +48,15 @@ it('admits direction and angle intent while retaining plane and material-mechani
     { ...common, type: 'limit-directed-angle', coordinate:'directed-about-axis', first:a, second:b, guide:axis('Z'), arc:{start:0,sweep:120} },
   ]) expect(validateAssemblyMate(declaration)).toEqual(declaration);
   expect(() => validateAssemblyMate({ ...common, type:'coincident', first:a, second:b, alignment:'aligned' })).toThrow();
-  expect(() => validateAssemblyMate({ ...concentric(), rotationLock:[0,0,0,1] })).toThrow(/bloqueo/);
-  expect(() => validateAssemblyConfiguredMechanicalSpec({ ...common, type:'concentric', first:a, second:b, alignment:'aligned' })).toThrow(/bloqueo/);
+  const locked = { ...concentric(), rotationLock:[0,0,0,1] };
+  expect(validateAssemblyMate(locked)).toEqual(locked);
+  const spec = { ...common, type:'concentric', first:a, second:b, alignment:'aligned' };
+  expect(validateAssemblyConfiguredMechanicalSpec(spec)).toEqual(spec);
+  expect(() => validateAssemblyConfiguredMechanicalSpec({ ...spec, rotationLock:[0,0,0,1] })).toThrow();
+  expect(() => validateAssemblyConfiguredMechanicalSpec({ ...common, type:'gear', first:a, second:b,
+    carrier:null, ratio:{numerator:1,denominator:1}, direction:'opposed', phase:0 })).toThrow();
+  expect(() => validateAssemblyConfiguredMechanicalSpec({ ...common, type:'screw', first:a, second:b,
+    lead:5, reverse:false, alignment:'aligned' })).toThrow();
   const { document } = assemblyConfigurationCoreFixture();
   expect(validateAssemblyConfiguredMateEdit({ scopePath:[], definition:{id:document.id,revision:document.revision}, configuration:null,
     change:{kind:'add',mate:concentric()} }).change).toEqual({kind:'add',mate:concentric()});
@@ -140,10 +147,29 @@ it.each(['line','cylinder'] as const)('solves line/%s coaxial supports with exac
     expect(input).toEqual(before);
   }
 });
-it('rejects numeric rotation capture for datum lines without silently unlocking the relation', () => {
-  const input=numeric('cylinder'); const mate=input.constraints[0];
-  if(mate.type!=='concentric') throw Error('Expected concentric');
-  mate.rotationLock=[0,0,0,1];
-  const result=solveRigidMates(input); expect(result.status).toBe('invalidInput'); expect(result.poses).toBeNull();
-  expect(mate.rotationLock).toEqual([0,0,0,1]);
+it.each(['line','cylinder'] as const)('preserves captured rotation for line/%s while leaving only axial travel free', kind => {
+  for(const reverse of [false,true]) {
+    const input=numeric(kind,reverse), mate=input.constraints[0];
+    if(mate.type!=='concentric') throw Error('Expected concentric');
+    // Ordered owner frames: inverse(first) * second. Reversing the roles inverts the lock.
+    mate.rotationLock=[0,0,(reverse?-1:1)*Math.sin(Math.PI/12),Math.cos(Math.PI/12)];
+    const before=structuredClone(input), result=solveRigidMates(input);
+    expect(result.status).toBe('underdefined'); expect(result.rank).toBe(5); expect(result.localDOF).toBe(1);
+    const pose=result.poses!.get('moving')!;
+    expect(Math.abs(pose.translation[0])).toBeLessThan(1e-6); expect(Math.abs(pose.translation[1])).toBeLessThan(1e-6);
+    const direction=transformRigidDirection(pose,[1,0,0]);
+    [Math.sqrt(3)/2,0.5,0].forEach((expected,index)=>expect(Math.abs(direction[index]-expected)).toBeLessThan(1e-8));
+    const displaced={...input,bodies:[{...input.bodies[0],pose:{...pose,translation:[0,0,23] as [number,number,number]}}]};
+    expect(evaluateRigidMates(displaced).checks.every(check=>check.satisfied)).toBe(true);
+    expect(solveRigidMates(displaced).poses!.get('moving')).toEqual(displaced.bodies[0].pose);
+    const spun=structuredClone(displaced);
+    spun.bodies[0].pose.rotation=[0,0,0.5,Math.sqrt(3)/2];
+    expect(evaluateRigidMates(spun).checks.every(check=>check.satisfied)).toBe(false);
+    const restored=solveRigidMates(spun);
+    expect(restored.rank).toBe(5); expect(restored.localDOF).toBe(1);
+    expect(Math.abs(restored.poses!.get('moving')!.translation[2]-23)).toBeLessThan(1e-6);
+    const restoredDirection=transformRigidDirection(restored.poses!.get('moving')!,[1,0,0]);
+    [Math.sqrt(3)/2,0.5,0].forEach((expected,index)=>expect(Math.abs(restoredDirection[index]-expected)).toBeLessThan(1e-8));
+    expect(input).toEqual(before);
+  }
 });

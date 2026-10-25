@@ -43,6 +43,19 @@ function nestedTreeFixture(): AssemblyDocument {
 }
 const treeAttribute = (tag: string, name: string) => tag.match(new RegExp('\\b' + name + '="([^"]*)"'))?.[1]
   .replaceAll('&quot;', '"').replaceAll('&amp;', '&')
+it('offers origin-axis rotation capture but grants no Apply or capture authority before a current preview', () => {
+  const document = createAssemblyExample(), occurrence = document.occurrences[1]
+  document.mates.push({ id: 'origin-spin', name: 'Original origin spin', type: 'concentric', suppressed: false, alignment: 'aligned', rotationLock: null,
+    first: { kind: 'principal-axis', component: { occurrencePath: [occurrence.id], definition: { ...occurrence.definition } }, axis: 'Z' },
+    second: { kind: 'principal-axis', component: null, axis: 'Z' } })
+  const before = serializeAssemblyDocument(document)
+  const html = renderToStaticMarkup(<AssemblyWorkspace initialDocument={document} initialSaved={before} onOpenPart={() => undefined} />)
+  const capture = html.match(/<button\b[^>]*aria-label="Bloquear giro Original origin spin"[^>]*>/g)
+  expect(capture).toHaveLength(1)
+  expect(capture![0]).toContain('disabled=""')
+  expect(capture![0]).toContain('Capturar bloqueo de giro desde la vista previa verificada')
+  expect(serializeAssemblyDocument(document)).toBe(before)
+})
 it('takes Width intent from the actual visible scene entry rather than an incoming face payload', () => {
   const actual = face(['sub-a','pin'],'plane'), scene = widthPickScene([actual]), incoming = face(['sub-a','pin'],'cylinder')
   const before = JSON.stringify(scene), selected = scopedAssemblyWidthPick(scene,incoming,['sub-a'])

@@ -915,8 +915,8 @@ export function evaluateRigidMates(problem: RigidMateProblem, poses?: ReadonlyMa
           maxAngle = 2 * Math.asin(Math.min(1, Math.hypot(...alignmentError) / 2));
           if (constraint.type === 'concentric' || constraint.type === 'screw') {
             if (![a.support?.kind, b.support?.kind].every(kind => kind === 'line' || kind === 'cylinder')
-              || (constraint.type === 'screw' || constraint.rotationLock !== null) && (a.support?.kind !== 'cylinder' || b.support?.kind !== 'cylinder'))
-              throw new Error('Concentric requires axis lines or cylinders; screw and rotation lock require material cylinders.');
+              || constraint.type === 'screw' && (a.support?.kind !== 'cylinder' || b.support?.kind !== 'cylinder'))
+              throw new Error('Concentric requires axis lines or cylinders; screw requires material cylinders.');
             const along = dot(second, d), line = subtract(d, multiply(second, along));
             targetVectorRows('length', line, (da, db) => {
               const dd = subtract(da.point, db.point);

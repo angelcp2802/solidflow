@@ -74,6 +74,17 @@ it('renders the actual configured format and bounded controls without triggering
   expect(html.match(/data-assembly-origin-tree-key=/g)).toHaveLength(42)
 })
 
+it('offers explicit free-concentric rotation capture while keeping it disabled without a current scene', () => {
+  const document = fixture()
+  document.source.mates.push({ id: 'free-origin', name: 'Original free origin', type: 'concentric', suppressed: false,
+    first: { kind: 'principal-axis', component: { occurrencePath: ['left', 'a'], definition: { id: 'configuration-A', revision: 'r1' } }, axis: 'Z' },
+    second: { kind: 'principal-axis', component: null, axis: 'Z' }, alignment: 'aligned', rotationLock: null })
+  const html = renderToStaticMarkup(<ConfiguredAssemblyWorkspace initialDocument={document} initialSaved={serializeAssemblyConfiguredDocument(document)} onOpenDocument={() => undefined} />)
+  expect(html).toMatch(/<button[^>]*aria-label="Bloquear giro de relación configurada Original free origin"[^>]*disabled=""[^>]*>Bloquear giro<\/button>/)
+  expect(html).toContain('aria-label="Editar relación configurada Original free origin"')
+  expect(buildConfiguredAssembly).not.toHaveBeenCalled()
+})
+
 it('starts a genuinely empty root variant from Base instead of copying the selected child configuration', () => {
   const document = fixture(), saved = serializeAssemblyConfiguredDocument(document), next = createConfiguredUiRootVariant(document, 'demo')
   expect(next.rootConfiguration).toBe('demo'); expect(scope(document, 'right').configuration).toBe('compact'); expect(scope(next, 'right').configuration).toBeNull()

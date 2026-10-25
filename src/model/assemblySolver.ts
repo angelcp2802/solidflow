@@ -263,8 +263,7 @@ function cloneProblem(input: RigidMateProblem): RigidMateProblem {
     if ((c.type === 'skew-cylinder-tangent' || c.type === 'parallel-cylinder-tangent')
       && (c.first.support.kind !== 'cylinder' || c.second.support.kind !== 'cylinder')) throw new Error('Cylinder tangency requires two actual cylinder supports.');
     if ((c.type === 'coincident' || c.type === 'distance' || c.type === 'limit-distance') && (c.first.support.kind !== 'plane' || c.second.support.kind !== 'plane')) throw new Error('Plane constraints require actual plane supports.');
-    if (c.type === 'concentric' && (![c.first.support.kind, c.second.support.kind].every(kind => kind === 'line' || kind === 'cylinder')
-      || c.rotationLock !== null && (c.first.support.kind !== 'cylinder' || c.second.support.kind !== 'cylinder'))) throw new Error('Concentric requires axis lines or cylinders; rotation lock requires material cylinders.');
+    if (c.type === 'concentric' && ![c.first.support.kind, c.second.support.kind].every(kind => kind === 'line' || kind === 'cylinder')) throw new Error('Concentric requires axis lines or cylinders.');
     if ((c.type === 'gear' || c.type === 'screw') && (c.first.support.kind !== 'cylinder' || c.second.support.kind !== 'cylinder')) throw new Error('Axis constraints require actual cylinder supports.');
     if (c.type === 'rack-pinion' && (c.first.support.kind !== 'cylinder' || c.second.support.kind !== 'line' && c.second.support.kind !== 'cylinder')) throw new Error('Rack and pinion needs a pinion cylinder and a rack line or cylinder.');
   }

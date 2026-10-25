@@ -51,6 +51,18 @@ function axis(path = ['left']): AssemblyAxisReference {
 function plane(path: string[] | null = null): AssemblyPrincipalPlaneReference {
   return { kind: 'principal-plane', component: path === null ? null : component(path), plane: 'XY' };
 }
+it.each([false, true])('roundtrips captured concentric origin axes with a %s material endpoint', material => {
+  const document = assembly();
+  const origin = { kind: 'principal-axis' as const, component: component(['left']), axis: 'Z' as const };
+  const mate = { id: 'origin-lock', name: 'Original locked datum', type: 'concentric' as const, suppressed: false,
+    first: origin, second: material ? axis(['right']) : { kind: 'principal-axis' as const, component: null, axis: 'Z' as const },
+    alignment: 'aligned' as const, rotationLock: [0, 0, -Math.sin(Math.PI / 12), Math.cos(Math.PI / 12)] };
+  const parsed = validateAssemblyDocument({ ...document, mates: [mate] });
+  expect(parseAssemblyDocument(serializeAssemblyDocument(parsed)).mates).toEqual(parsed.mates);
+  for (const rotationLock of [[0, 0, 0, 2], [0, 0, 0, 0], [0, 0, NaN, 1]]) {
+    expect(() => validateAssemblyDocument({ ...document, mates: [{ ...mate, rotationLock }] })).toThrow();
+  }
+});
 function coincidence(id = 'original-plane'): Extract<AssemblyMate, { type: 'coincident' }> {
   return { id, name: 'Original plane intent', suppressed: false, type: 'coincident', first: plane(), second: plane(['left']), alignment: 'aligned' };
 }
