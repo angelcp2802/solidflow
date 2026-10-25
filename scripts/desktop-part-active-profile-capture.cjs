@@ -5,7 +5,7 @@ const { encodeJavaScriptString: quote } = require('./desktop-ui-source.cjs');
 
 // Presentation evidence for two fixed original-fixture states. This does not
 // inspect pixels, attest CAD geometry or activate any application control.
-module.exports = function createPartActiveProfileCapture({ window, evaluate, waitFor, check, owned, digest, captures, STEP_MS }) {
+module.exports = function createPartActiveProfileCapture({ window, evaluate, waitFor, waitForPresentation, check, owned, digest, captures, STEP_MS }) {
   const phases = new Set(['staged-sleeve', 'consumed-sleeve']), attempted = new Set();
   check(Number.isSafeInteger(STEP_MS) && STEP_MS > 0, 'Active-profile capture requires the existing step deadline.');
   check(typeof owned === 'string' && path.isAbsolute(owned) && Array.isArray(captures), 'Active-profile capture requires owned output and a separate evidence array.');
@@ -52,17 +52,7 @@ module.exports = function createPartActiveProfileCapture({ window, evaluate, wai
           second = requestAnimationFrame(() => { clearTimeout(timer); resolve(); });
         });
       })`);
-      let frameTimer;
-      try {
-        await new Promise((resolve, reject) => {
-          frameTimer = setTimeout(() => reject(new Error('Active-profile presentation deadline.')), STEP_MS);
-          window.webContents.beginFrameSubscription(false, () => resolve());
-          window.webContents.invalidate();
-        });
-      } finally {
-        clearTimeout(frameTimer);
-        if (!window.webContents.isDestroyed()) window.webContents.endFrameSubscription();
-      }
+      await waitForPresentation('Active-profile');
       const presented = await read();
       check(presented.ready && JSON.stringify(presented) === JSON.stringify(before) && !window.isVisible(),
         'The active-profile editor and viewport bounds must remain unchanged through presentation.');

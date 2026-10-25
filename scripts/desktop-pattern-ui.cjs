@@ -826,6 +826,27 @@ async function runInElectron() {
     await samplePendingSave('saved-controls-fence'); releaseSaveCompletion('saved-controls-fence');
   };
   let opens = 0, saves = 0, csvExports = 0, geometryExports = 0, finished = false, window;
+  const presentationWaiters = new Set();
+  const presentation = { active: false, stopped: false, frames: 0, captureBarriers: 0,
+    limits: 'Hidden test-owned window with active in-memory presentation observation. No real OS focus, background performance or frame-rate claim.' };
+  function settlePresentationWaiters(error) {
+    for (const pending of presentationWaiters) {
+      presentationWaiters.delete(pending); clearTimeout(pending.timer);
+      if (error) pending.reject(error); else pending.resolve();
+    }
+  }
+  async function waitForPresentation(label) {
+    await new Promise((resolve, reject) => {
+      check(presentation.active && !finished, 'Capture requires the owned presentation observer.');
+      const pending = { resolve, reject, timer: setTimeout(() => {
+        presentationWaiters.delete(pending); reject(new Error(label + ' presentation deadline.'));
+      }, STEP_MS) };
+      presentationWaiters.add(pending);
+      try { window.webContents.invalidate(); }
+      catch (error) { presentationWaiters.delete(pending); clearTimeout(pending.timer); reject(error); }
+    });
+    presentation.captureBarriers++;
+  }
   const childBudgetStarted = performance.now();
   const timeout = setTimeout(() => finish(new Error('The isolated UI workflow did not finish before its child deadline.')), TEST_MS - 10_000);
   function finish(error) {
@@ -836,6 +857,15 @@ async function runInElectron() {
     }
     releaseSaveCompletion('cleanup');
     finished = true; clearTimeout(timeout);
+    try {
+      if (!error) check(presentation.active && presentation.frames > 0 && !window.isVisible(),
+        'The completed workflow must retain its hidden presentation observer.');
+    } catch (validationError) { error = validationError; }
+    try {
+      if (presentation.active && !window.webContents.isDestroyed()) window.webContents.endFrameSubscription();
+      presentation.active = false; presentation.stopped = true;
+    } catch (cleanupError) { error ??= cleanupError; }
+    settlePresentationWaiters(error || new Error('Workflow ended before the requested presentation.'));
     if (error) emitDesktopCiFailure(error);
     const report = { workflowStatus: error ? 'FAIL' : 'PASS', checks, protocolResponses, consoleErrors, failedRequests, captures,
       ...(partRevolution ? { profileCaptures } : {}),
@@ -953,17 +983,7 @@ async function runInElectron() {
       const timer = setTimeout(() => reject(new Error('Assembly visual renderer frame deadline.')), ${STEP_MS});
       requestAnimationFrame(() => requestAnimationFrame(() => { clearTimeout(timer); resolve(); }));
     })`);
-    let frameTimer;
-    try {
-      await new Promise((resolve, reject) => {
-        frameTimer = setTimeout(() => reject(new Error('Assembly visual presentation deadline.')), STEP_MS);
-        window.webContents.beginFrameSubscription(false, () => resolve());
-        window.webContents.invalidate();
-      });
-    } finally {
-      clearTimeout(frameTimer);
-      if (!window.webContents.isDestroyed()) window.webContents.endFrameSubscription();
-    }
+    await waitForPresentation('Assembly visual');
     check(await confirmed(), 'The confirmed assembly changed during visual capture.');
     const image = await window.webContents.capturePage(undefined, { stayHidden: true }), png = image.toPNG(), size = image.getSize();
     check(!image.isEmpty() && png.length <= 10 * 1024 * 1024 && !window.isVisible(), 'The isolated page capture is empty, oversized or visible.');
@@ -1113,7 +1133,7 @@ async function runInElectron() {
   const captureProfile = async (phase, sketchId) => {
     if (process.env.SOLIDFLOW_UI_CAPTURE !== '1') return;
     check(partRevolution, 'Active-profile captures are restricted to the original revolution scenario.');
-    activeProfileCapture ??= require('./desktop-part-active-profile-capture.cjs')({ window, evaluate, waitFor, check, owned, digest, captures: profileCaptures, STEP_MS });
+    activeProfileCapture ??= require('./desktop-part-active-profile-capture.cjs')({ window, evaluate, waitFor, waitForPresentation, check, owned, digest, captures: profileCaptures, STEP_MS });
     return activeProfileCapture(phase, sketchId);
   };
   // The extra workflow is a fixed tracked module, never a caller/env-selected script.
@@ -1136,7 +1156,7 @@ async function runInElectron() {
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, geometryExports }) })
     : partBodyCatalog
     ? require('./desktop-part-body-catalog-flow.cjs')({ expected, input, evaluate, observe, waitFor, pointer, key: bodyCatalogKey,
-      captureCatalog: require('./desktop-part-body-catalog-capture.cjs')({ getWindow: () => window, evaluate, check, owned, digest, captures, STEP_MS, expected }),
+      captureCatalog: require('./desktop-part-body-catalog-capture.cjs')({ getWindow: () => window, evaluate, waitForPresentation, check, owned, digest, captures, STEP_MS, expected }),
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, geometryExports }) })
     : partFinishing
@@ -1371,7 +1391,21 @@ async function runInElectron() {
         checks.push('test-owned blank target initialized before CDP observation');
       })();
       await this.instrumentation;
-      this.webContents.once('did-finish-load', () => { actualWorkflow().then(() => finish(), finish); });
+      this.webContents.once('did-finish-load', () => {
+        (async () => {
+          check(!this.isVisible() && !presentation.active, 'Expected one hidden presentation observer.');
+          // Observe real presentations throughout the owned UI test. Hidden
+          // compositor pacing otherwise delays RAF and acknowledged pointer
+          // input even when worker/DOM state is ready. No frames or inputs are
+          // fabricated, and production preferences and deadlines stay intact.
+          this.webContents.beginFrameSubscription(false, () => {
+            presentation.frames++; settlePresentationWaiters();
+          });
+          presentation.active = true;
+          checks.push({ hiddenPresentation: presentation });
+          await actualWorkflow();
+        })().then(() => finish(), finish);
+      });
       return super.loadURL(...args);
     }
   }

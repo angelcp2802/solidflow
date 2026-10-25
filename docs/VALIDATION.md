@@ -1,5 +1,69 @@
 # Validation
 
+## Hidden renderer presentation and prototype checks — 2026-10-25
+
+The final selected Windows runs 02 pass with one presentation observer per
+hidden test window. Production code and preferences, real pointer transport,
+geometry assertions and the 180/170/35-second parent/child/step deadlines are
+unchanged. Assembly, active-profile and body-catalogue captures share the same
+observer, which is stopped at completion or failure. Pending presentation waits
+are settled and their timers cleared; cleanup retains the original failure.
+
+Local Windows x64, Node 24.11.1 and Electron 44.9.3, with 1,135 matching
+non-Markdown source/runtime inputs frozen for this final run:
+
+| Command | Final result |
+| --- | --- |
+| `npm run build` | PASS, 3.653 s |
+| `test:desktop:assembly` | PASS, 684 checkpoints, 76.703 s; final capture |
+| `test:desktop:assembly-symmetry-picking` | PASS, 269 checkpoints, 82.442 s |
+| `test:desktop:assembly-configured-picking-compact` | PASS, 191 checkpoints, 13.788 s |
+| `test:desktop:part-revolution` | PASS, 181 checkpoints, 21.802 s; two active-profile captures and final capture |
+| `test:desktop:part-body-catalog` | PASS, 43 checkpoints, 6.368 s; three captures |
+| `npm test` | PASS, 9,717 tests / 424 files; 86 IPC checks and 2 explicit skips; 541.030 s |
+| `npm run test:desktop` | PASS, 1.605 s; zero console, request and resource errors |
+
+All five renderers report zero console, request and resource errors, observed
+child close and deleted isolated profiles. Their presentation observers report
+frames and a stopped final state. The rigid workflow retains source repair,
+movement, projection, interference, BOM and gear history in one session. The
+symmetry workflow retains all six cumulative relations, 24 actual role picks
+and six Save As/reopen pairs. Existing independent geometry tolerances remain
+those of each original workflow; no CAD algorithm or fixture changed.
+
+Seven final images pass a bounded visual review: readable shared header,
+viewport, BOM, active profiles and contained body-catalogue entries. At the
+minimum size, the part ribbon and lower PropertyManager content still require
+scrolling. Images are not geometry, interaction or stale-state authority.
+
+Before the change, the local rigid run exhausted its 170-second child deadline.
+Private timing showed substantial time in animation-frame barriers and
+acknowledged pointer movement; disabling background throttling did not resolve
+it and was reverted. A diagnostic presentation subscription completed the same
+workflow in 76.961 s. An earlier integrated snapshot then passed rigid and
+symmetry before review found two auxiliary captures still owning subscriptions
+and a missing test-VM context. Those passes are superseded by run 02, which
+includes the corrected capture ownership and failure-cleanup regression checks.
+The first acceptance plan stopped at its input-freeze guard after that review;
+it is not a complete acceptance result. Private diagnostics remain separate
+from the final uninstrumented runs above.
+
+The parent review snapshot `2fdd323` was also packaged locally as a Windows
+portable. A visible check saved the original plate, changed its extrusion from
+12 to 10 mm, saved and reopened it, then opened an original three-component
+assembly. The plate displayed 100 x 70 x 10 mm and 66.858 cm3, agreeing with
+`(100*70 - 4*pi*5^2)*10` mm3 to the displayed 0.001 cm3. The assembly opened with
+three solids and 72 mm3; that packaged check did not exercise its complete solve
+route. The current follow-up changes only tests and documentation, so no new
+application package is claimed. Signing, public distribution and other-platform
+acceptance remain pending.
+
+This evidence concerns hidden windows with active presentation observation;
+it does not establish normal background performance, OS focus, a frame rate,
+complete UI parity or cross-platform recovery. New-head hosted checks remain
+pending. The usable prototype takes priority; materials, colours and broader
+visual polish follow practical use.
+
 ## Basic standard assembly authoring — 2026-10-25
 
 Final selected run 07, full-suite and desktop smoke pass locally. The UI

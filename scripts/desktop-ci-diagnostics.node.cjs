@@ -84,25 +84,81 @@ test('same primary is annotated once, with no PASS representation or error mutat
   assert.deepEqual(Object.getOwnPropertyDescriptors(original), before);
 });
 
-test('actual child finish releases a pending Save and emits before app.exit while retaining the primary failure', () => {
+function exerciseChildFinish({ primary = new Error('Original child coordinate assertion'), active = true, frames = 1,
+  cleanupError = null, withWindow = true } = {}) {
   const source = fs.readFileSync(path.join(__dirname, 'desktop-pattern-ui.cjs'), 'utf8');
   const start = source.indexOf('  function finish(error) {'), end = source.indexOf('  const evaluate =', start);
-  assert.ok(start > 0 && end > start);
-  const events = [], writes = [], error = new Error('Original child coordinate assertion');
-  const context = vm.createContext({ finished: false, timeout: null, clearTimeout() {}, checks: [], protocolResponses: [], consoleErrors: [], failedRequests: [], captures: [], ipc: [],
+  const settleStart = source.indexOf('  function settlePresentationWaiters(error) {');
+  const settleEnd = source.indexOf('  const childBudgetStarted =', settleStart);
+  assert.ok(start > 0 && end > start && settleStart > 0 && settleEnd > settleStart);
+  const events = [], writes = [], clearedTimers = [], rejected = [];
+  const presentationWaiters = new Set(active ? [1, 2].map(id => ({ timer: 'presentation-' + id,
+    resolve() { throw Error('Failure must reject pending presentation'); },
+    reject(error) { rejected.push(error); events.push(['presentation-reject', id]); },
+  })) : []);
+  const context = vm.createContext({ finished: false, timeout: 'child-deadline', clearTimeout(id) { clearedTimers.push(id); },
+    checks: [], protocolResponses: [], consoleErrors: [], failedRequests: [], captures: [], ipc: [],
     opens: 0, saves: 0, csvExports: 0, geometryExports: 0, sourceOpens: 0, stepImports: 0,
     linkedSource: false, sourceRevision: false, partFinishing: false, partRevolution: false, assemblyExport: false, structuralStep: false, structuralInsertion: false,
-    saveCompletion: { enabled: true, ordinal: 1, armed: true, pending: true, samples: [] },
+    presentation: { active, stopped: false, frames, captureBarriers: 0 }, presentationWaiters,
+    window: withWindow ? { isVisible: () => false, webContents: { isDestroyed: () => false,
+      endFrameSubscription() { events.push(['presentation-end']); if (cleanupError) throw cleanupError; } } } : undefined,
+    check(condition, message) { if (!condition) throw Error(message); },
+    saveCompletion: { enabled: !!primary, ordinal: 1, armed: true, pending: !!primary, samples: [] },
     releaseSaveCompletion(by) { context.saveCompletion.pending=false;context.saveCompletion.releasedBy=by;events.push(['release',by]); },
     owned: '/original-owned-test', activeScenario: { test: 'original-diagnostic-integration' },
     path, describeError: value => ({ name: value.name, message: value.message }),
     emitDesktopCiFailure(value) { events.push(['annotation', value.message]); },
     fs: { writeFileSync(_name, data) { writes.push(JSON.parse(data)); }, writeSync(_fd, data) { events.push(['json', JSON.parse(data).workflowStatus]); } },
     console: { error() {}, log() { throw Error('No PASS log allowed'); } }, process: { exitCode: undefined },
-    app: { exit(code) { events.push(['exit', code]); }, quit() { throw Error('Failure must not call successful quit'); } }, error,
+    app: { exit(code) { events.push(['exit', code]); }, quit() { throw Error('Failure must not call successful quit'); } }, error: primary,
   });
-  vm.runInContext(source.slice(start, end) + '\nfinish(error);', context);
+  // Run the actual waiter cleanup and finish bodies, not a mirrored teardown.
+  vm.runInContext(source.slice(settleStart, settleEnd) + source.slice(start, end) + '\nfinish(error);', context);
+  const firstEvents = events.slice();
+  vm.runInContext('finish(error);', context);
+  assert.deepEqual(events, firstEvents, 'Second finish must not repeat cleanup or reporting');
+  return { context, events, writes, clearedTimers, rejected };
+}
+
+test('actual child finish releases Save, unsubscribes, rejects presentation waiters and retains the primary failure', () => {
+  const error = new Error('Original child coordinate assertion');
+  const { context, events, writes, clearedTimers, rejected } = exerciseChildFinish({ primary: error });
   assert.equal(writes[0].workflowStatus, 'FAIL'); assert.equal(writes[0].error.message, error.message);
-  assert.deepEqual(events, [['release', 'cleanup'], ['annotation', error.message], ['json', 'FAIL'], ['exit', 1]]);
+  assert.deepEqual(events, [['release', 'cleanup'], ['presentation-end'], ['presentation-reject', 1], ['presentation-reject', 2],
+    ['annotation', error.message], ['json', 'FAIL'], ['exit', 1]]);
+  assert.deepEqual(clearedTimers, ['child-deadline', 'presentation-1', 'presentation-2']);
+  assert.ok(rejected.every(value => value === error));
+  assert.equal(context.presentationWaiters.size, 0);
+  assert.equal(context.presentation.active, false); assert.equal(context.presentation.stopped, true);
   assert.equal(context.process.exitCode, 1);
+});
+
+test('presentation teardown failure cannot replace the original child failure or strand waiters', () => {
+  const primary = new Error('Original worker assertion'), cleanupError = new Error('Subscription teardown failed');
+  const { context, writes, rejected, events } = exerciseChildFinish({ primary, cleanupError });
+  assert.equal(writes[0].workflowStatus, 'FAIL'); assert.equal(writes[0].error.message, primary.message);
+  assert.ok(rejected.every(value => value === primary)); assert.equal(rejected.length, 2);
+  assert.equal(context.presentationWaiters.size, 0);
+  assert.deepEqual(events.filter(event => event[0] === 'annotation'), [['annotation', primary.message]]);
+  assert.deepEqual(events.at(-1), ['exit', 1]);
+});
+
+test('early child failure before a window or subscription exists still reports the original error', () => {
+  const primary = new Error('Initial production load failed');
+  const { context, writes, events } = exerciseChildFinish({ primary, active: false, frames: 0, withWindow: false });
+  assert.equal(writes[0].error.message, primary.message);
+  assert.equal(events.some(event => event[0] === 'presentation-end'), false);
+  assert.equal(context.presentationWaiters.size, 0);
+  assert.deepEqual(events.at(-1), ['exit', 1]);
+});
+
+test('failed presentation invariant still tears down the active subscription and rejects its waiters', () => {
+  const { context, writes, events, rejected } = exerciseChildFinish({ primary: null, frames: 0 });
+  assert.equal(writes[0].workflowStatus, 'FAIL');
+  assert.match(writes[0].error.message, /hidden presentation observer/);
+  assert.equal(events.filter(event => event[0] === 'presentation-end').length, 1);
+  assert.equal(rejected.length, 2); assert.ok(rejected.every(error => error.message === writes[0].error.message));
+  assert.equal(context.presentationWaiters.size, 0);
+  assert.equal(context.presentation.active, false); assert.equal(context.presentation.stopped, true);
 });

@@ -1,5 +1,25 @@
 # Development guide
 
+## Presentation during hidden renderer tests — 2026-10-25
+
+The isolated UI harness observes real compositor presentations from production
+page load until workflow completion. This keeps hidden-window frame scheduling
+from dominating acknowledged pointer input and animation-frame barriers. It
+does not fabricate frames, input events, application state or worker replies.
+Production window preferences, security checks and test deadlines are unchanged.
+
+One subscription owns the window. Assembly, active-profile and body-catalogue
+captures wait through that same observer before taking their hidden snapshot;
+they do not replace or stop the subscription. Completion and failure stop the
+observer and settle pending presentation waits, preserving the primary failure.
+The result records observed frames, capture barriers and final observer state.
+
+These runs exercise a hidden window with active presentation observation. They
+do not establish normal background performance, OS focus or a particular frame
+rate. Keep the complete assembly and accumulated symmetry workflows intact;
+their geometry, history and file checks remain distinct from presentation.
+See [validation](VALIDATION.md) for the executed source snapshot and limits.
+
 ## Basic standard assembly authoring — 2026-10-25
 
 The insertion-continuity implementation passes the bounded local authoring,
