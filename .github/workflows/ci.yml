@@ -181,6 +181,14 @@ jobs:
         if: matrix.batch == 'relations' && runner.os != 'Linux'
         run: npm run test:desktop:assembly-configured-origin-axis-lock
 
+      - name: Test basic assembly authoring from a new document (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-basic-authoring
+
+      - name: Test basic assembly authoring from a new document (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-basic-authoring
+
       - name: Test successive part operations (Linux)
         if: matrix.batch == 'persistence' && runner.os == 'Linux'
         run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:part-sequence

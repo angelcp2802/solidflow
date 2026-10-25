@@ -86,6 +86,7 @@ import { useAssemblyTreeNavigation } from './useAssemblyTreeNavigation'
 import AssemblyOriginIcon from './AssemblyOriginIcon'
 import { buildAssemblyOriginTree, retainAssemblyOriginTreeSelection, resolveAssemblyOriginTreeSelection,
   type AssemblyOriginTreeEntry, type AssemblyOriginTreeSelection } from './assemblyOriginTree'
+import { retainAssemblyInsertionSelection, resolveAssemblyInsertionSelection, type AssemblyInsertionNavigation, type AssemblyInsertionSelection } from './assemblyInsertionSelection'
 import './assembly.css'
 import { parseCadDocument as parseSavedCadDocument } from '../model/cadDocument'
 import { createAssemblyConfiguredDocument, type AssemblyConfiguredDocument } from '../model/assemblyConfiguredDocument'
@@ -235,7 +236,7 @@ interface AssemblyUiInterference {
 interface AssemblyUiDragProjection { projection: AssemblyDragProjection; checks: Extract<AssemblyPreviewReply, { status: 'ready' }>['checks']; baseSignature: string; generation: number }
 type AssemblyFilePurpose = 'open' | 'insert' | 'update' | 'replace-component'
 type AssemblyReplacementSelection = Omit<AssemblyPartReplacementRequest, 'part' | 'revision'>
-interface AssemblyFileTicket { purpose: AssemblyFilePurpose; source?: AssemblyDefinitionReference; sourceKind?: 'part' | 'assembly'; replacement?: AssemblyReplacementSelection; scope?: AssemblyDefinitionReference; scopePath: string; selectionPath?: string; signature: string; generation: number }
+interface AssemblyFileTicket { purpose: AssemblyFilePurpose; source?: AssemblyDefinitionReference; sourceKind?: 'part' | 'assembly'; replacement?: AssemblyReplacementSelection; scope?: AssemblyDefinitionReference; scopePath: string; selectionPath?: string; signature: string; generation: number; insertionNavigation?: AssemblyInsertionNavigation }
 /** File contents may arrive after browser focus returns or the active scope changes. */
 export function assemblyFileTicketIsCurrent(ticket: Pick<AssemblyFileTicket, 'purpose' | 'scopePath' | 'selectionPath' | 'signature' | 'generation'>,
   signature: string, generation: number, scopePath: string, selectionPath?: string): boolean {
@@ -357,15 +358,18 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   const [managerTab, setManagerTab] = useState<'components' | 'properties' | 'relations' | 'evaluate'>('components')
   const managerTabRef = useRef(managerTab)
   const manager = useRef<HTMLElement>(null)
-  const openManager = (tab: 'components' | 'properties' | 'relations' | 'evaluate', selector?: string) => {
+  const insertionNavigationEpoch = useRef(0), pendingInsertionSelection = useRef<AssemblyInsertionSelection | null>(null)
+  const abandonInsertionSelection = () => { insertionNavigationEpoch.current++; pendingInsertionSelection.current = null }
+  const openManager = (tab: 'components' | 'properties' | 'relations' | 'evaluate', selector?: string, focusIsCurrent?: () => boolean) => {
     if (tab === 'properties' && (editingBlocked || selectedTreeOrigin || operation.current || hasStaging() || dragging.current || dragSession.current)) return
+    abandonInsertionSelection()
     managerTabRef.current = tab
     if (tab !== 'relations') {
       clearSymmetryPicking(); setHingePicking(null); setWidthPicking(null); setRackPicking(null)
     }
     setManagerTab(tab)
     requestAnimationFrame(() => {
-      if (managerTabRef.current !== tab) return
+      if (managerTabRef.current !== tab || focusIsCurrent && !focusIsCurrent()) return
       const target = selector ? manager.current?.querySelector<HTMLElement>(selector) : manager.current?.querySelector<HTMLElement>('[role="tabpanel"]:not([hidden])')
       target?.scrollIntoView({ block: selector === '.assembly-movement h3' ? 'start' : 'nearest' })
       if (target && !target.matches('button, input, select, textarea, [tabindex]')) target.tabIndex = -1
@@ -608,6 +612,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     if (pending?.grantId) { linkedBindings.current.releaseGrant(pending.grantId); if (mounted.current) refreshLinked(v => v + 1) }
   }
   const invalidate = (keepSourceUpdate = false) => {
+    pendingInsertionSelection.current = null
     hingeContext.current = null
     clearSymmetryPicking()
     setHingePicking(null)
@@ -657,8 +662,24 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     const document = history.current!.commitDocument(next); invalidate(); setCommitted(document)
     setSelectedPath(value => assemblyTreeRows(document).some(row => samePath(row.path, value)) ? value : [])
     setScopePath(value => { try { nodeAt(document, value); return value } catch { return [] } })
+    return document
   }
   const edit = (value: AssemblyEdit) => { if (operation.current || hasStaging()) return; try { change(applyAssemblyEdit(current.current, value)) } catch (reason) { notify((reason as Error).message, true) } }
+  const commitInsertion = (next: AssemblyDocument, navigation: AssemblyInsertionNavigation) => {
+    const previous = current.current, document = change(next)
+    if (navigation.epoch === insertionNavigationEpoch.current && JSON.stringify(navigation.scopePath) === currentFileScope.current)
+      pendingInsertionSelection.current = retainAssemblyInsertionSelection(previous, document, navigation)
+  }
+  const reuseComponent = () => {
+    if (operation.current || hasStaging()) return
+    const definition = committed.definitions.find(value => assemblyDefinitionKey(value) === sourceKey)
+    if (!definition) return
+    try {
+      commitInsertion(applyAssemblyEdit(current.current, { type: 'insert-occurrence', scope: scopeReference,
+        occurrence: { name: definition.kind === 'part' ? definition.document.name : definition.name, definition: { id: definition.id, revision: definition.revision },
+          pose: identityRigidPose(), fixed: false, suppressed: false, visible: true } }), { scopePath: [...scopePath], epoch: insertionNavigationEpoch.current })
+    } catch (reason) { notify((reason as Error).message, true) }
+  }
   const cancel = () => {
     if (operation.current && !cancelable && !dragSession.current) return
     if (directedPending.current) { generation.current++; directedPending.current = false; setDirectedMeasurement(null); operation.current = false; setBusy(false); setCancelable(false); notify('Medición cancelada. El ensamblaje no ha cambiado.'); return }
@@ -1048,7 +1069,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     catch (reason) { if (mounted.current && id === generation.current) notify((reason as Error).message, true) }
     finally { if (mounted.current && id === generation.current) { operation.current = false; setBusy(false); setCancelable(false) } }
   }
-  const readContent = async (content: string, purpose: AssemblyFilePurpose, filePath?: string, source?: AssemblyDefinitionReference, replacement?: AssemblyReplacementSelection, insertionScope?: AssemblyDefinitionReference, sourceKind?: 'part' | 'assembly') => {
+  const readContent = async (content: string, purpose: AssemblyFilePurpose, filePath?: string, source?: AssemblyDefinitionReference, replacement?: AssemblyReplacementSelection, insertionScope?: AssemblyDefinitionReference, sourceKind?: 'part' | 'assembly', insertionNavigation?: AssemblyInsertionNavigation) => {
     if (purpose === 'open') {
       const saved = parseSavedCadDocument(content)
       if (saved.version === 3) {
@@ -1078,7 +1099,9 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
       currentUpdate.current = stage; setSourceUpdate(stage); setScene(review.scene); notify('Actualización pendiente. Repara las referencias indicadas y resuelve antes de Aplicar.'); return
     }
     if (purpose === 'insert') {
-      change(insertAssemblyComponent(current.current, document, insertionScope))
+      const next = insertAssemblyComponent(current.current, document, insertionScope)
+      if (insertionNavigation) commitInsertion(next, insertionNavigation)
+      else change(next)
       notify('Componente incorporado como origen reutilizable.'); return
     }
     if (document.version === 1) { invalidate(); onOpenPart(document, filePath, content) }
@@ -1163,14 +1186,15 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     }
     if (purpose === 'update') { if (!source || preview) return; invalidate() }
     const ticket: AssemblyFileTicket = { purpose, source, sourceKind, replacement, selectionPath: purpose === 'update' ? JSON.stringify(selectedPath) : undefined, scope: purpose === 'insert' ? { ...scopeReference } : undefined,
-      scopePath: JSON.stringify(scopePath), signature: serializeAssemblyDocument(current.current), generation: generation.current }
+      scopePath: JSON.stringify(scopePath), signature: serializeAssemblyDocument(current.current), generation: generation.current,
+      insertionNavigation: purpose === 'insert' ? { scopePath: [...scopePath], epoch: insertionNavigationEpoch.current } : undefined }
     if (!window.solidflow) { fileTicket.current = ticket; fileInput.current?.click(); return }
     if (purpose === 'open' && !await mayReplace()) return
     operation.current = true; setBusy(true)
     // A replacement confirmation may have saved the same document. Capture its
     // generation after that confirmation, before the native picker opens.
     ticket.signature = serializeAssemblyDocument(current.current); ticket.generation = generation.current
-    try { const file = await window.solidflow.openDocument(); if (file && mounted.current && assemblyFileTicketIsCurrent(ticket, serializeAssemblyDocument(current.current), generation.current, currentFileScope.current, currentFileSelection.current)) await readContent(file.content, purpose, file.path, source, replacement, ticket.scope, ticket.sourceKind) }
+    try { const file = await window.solidflow.openDocument(); if (file && mounted.current && assemblyFileTicketIsCurrent(ticket, serializeAssemblyDocument(current.current), generation.current, currentFileScope.current, currentFileSelection.current)) await readContent(file.content, purpose, file.path, source, replacement, ticket.scope, ticket.sourceKind, ticket.insertionNavigation) }
     catch (reason) { if (mounted.current && (purpose !== 'update' && purpose !== 'replace-component' || ticket.generation === generation.current)) notify((reason as Error).message, true) }
     finally { if (purpose !== 'update' && purpose !== 'replace-component' || ticket.generation === generation.current) { operation.current = false; if (mounted.current) { setBusy(false); setCancelable(false) } } }
   }
@@ -1794,6 +1818,25 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   const treeOriginCurrent = useRef({ context: treeOriginContext, entries: treeOrigins, blocked: treeOriginBlocked })
   treeOriginCurrent.current = { context: treeOriginContext, entries: treeOrigins, blocked: treeOriginBlocked }
   const selectedTreeOrigin = !treeOriginBlocked ? resolveAssemblyOriginTreeSelection(treeOriginSelection, treeOrigins, treeOriginContext) : null
+  useLayoutEffect(() => {
+    const ticket = pendingInsertionSelection.current
+    if (!ticket) return
+    const component = resolveAssemblyInsertionSelection(ticket, committed, { scopePath, epoch: insertionNavigationEpoch.current })
+    if (!component) { pendingInsertionSelection.current = null; return }
+    if (!mounted.current || editingBlocked || operation.current || hasStaging() || currentPreview.current || draft || replaceDialog
+      || dragging.current || dragSession.current || sceneSignature.current !== serialized
+      || confirmedScene.current?.signature !== serialized || confirmedScene.current.scene !== scene) return
+    // Selection first, so the next committed render owns the correct property fields.
+    if (!samePath(selectedPath, component.occurrencePath) || treeOriginSelection) {
+      setTreeOriginSelection(null); setSelectedPath(component.occurrencePath); return
+    }
+    pendingInsertionSelection.current = null
+    const epoch = insertionNavigationEpoch.current + 1, id = generation.current
+    openManager('properties', '[aria-label="Nombre del componente"]', () => mounted.current && id === generation.current
+      && epoch === insertionNavigationEpoch.current && current.current === ticket.document
+      && currentFileScope.current === JSON.stringify(ticket.navigation.scopePath)
+      && currentFileSelection.current === JSON.stringify(component.occurrencePath) && !operation.current && !hasStaging() && !currentPreview.current)
+  }, [committed, serialized, scene, busy, editingBlocked, draft, replaceDialog, selectedPath, treeOriginSelection, scopePath])
   const selectTreeOrigin = (entry: AssemblyOriginTreeEntry) => {
     const live = treeOriginCurrent.current
     if (treeOriginBlocked || live.blocked || managerTabRef.current !== 'components' || !mounted.current || operation.current
@@ -1801,6 +1844,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
       || treeOriginContext.documentSignature !== serializeAssemblyDocument(current.current)) return
     const selection = retainAssemblyOriginTreeSelection(entry, treeOriginContext)
     if (resolveAssemblyOriginTreeSelection(selection, live.entries, live.context)) {
+      abandonInsertionSelection()
       setDragMode('off')
       setTreeOriginSelection(selection)
     }
@@ -2074,7 +2118,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
         if (operation.current || hasStaging()) return
         operation.current = true; setBusy(true)
         ticket.signature = serializeAssemblyDocument(current.current); ticket.generation = generation.current
-        try { if (file.size > MAX_ASSEMBLY_BYTES) throw new Error('El documento supera los 20 MB admitidos.'); const content = await file.text(); if (mounted.current && assemblyFileTicketIsCurrent(ticket, serializeAssemblyDocument(current.current), generation.current, currentFileScope.current, currentFileSelection.current)) await readContent(content, purpose, undefined, ticket.source, ticket.replacement, ticket.scope, ticket.sourceKind) }
+        try { if (file.size > MAX_ASSEMBLY_BYTES) throw new Error('El documento supera los 20 MB admitidos.'); const content = await file.text(); if (mounted.current && assemblyFileTicketIsCurrent(ticket, serializeAssemblyDocument(current.current), generation.current, currentFileScope.current, currentFileSelection.current)) await readContent(content, purpose, undefined, ticket.source, ticket.replacement, ticket.scope, ticket.sourceKind, ticket.insertionNavigation) }
         catch (reason) { if (mounted.current && (purpose !== 'update' && purpose !== 'replace-component' || ticket.generation === generation.current)) notify((reason as Error).message, true) } finally { if (purpose !== 'update' && purpose !== 'replace-component' || ticket.generation === generation.current) { operation.current = false; if (mounted.current) { setBusy(false); setCancelable(false) } } }
       })()
     }} />
@@ -2142,7 +2186,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
           </div>
         </AssemblyCommandGroup>
       </nav>
-      <AssemblyCommandTabs kind="standard" value={ribbonTab} onChange={setRibbonTab} />
+      <AssemblyCommandTabs kind="standard" value={ribbonTab} onChange={tab => { abandonInsertionSelection(); setRibbonTab(tab) }} />
     </div>
     <main className="assembly-layout">
       <aside ref={manager} className={`assembly-manager-sidebar assembly-manager-${managerTab}`} aria-label="Gestor del ensamblaje">
@@ -2159,9 +2203,9 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
         onClick={() => openManager('properties', '[aria-label="Nombre del componente"]')}><Settings2 size={15} />Propiedades</button></div>
       <AssemblyComponentTree document={committed} selectedPath={selectedPath} resetKey={treeReset} active={managerTab === 'components'}
         originRows={treeOrigins} selectedOriginKey={selectedTreeOrigin?.treeKey} onOrigin={selectTreeOrigin} originDisabled={treeOriginBlocked}
-        onSelect={value => { setTreeOriginSelection(null); if (fileTicket.current?.purpose === 'update' || linkedTicket.current) generation.current++; setSelectedPath(value) }} disabled={editingBlocked} />
+        onSelect={value => { abandonInsertionSelection(); setTreeOriginSelection(null); if (fileTicket.current?.purpose === 'update' || linkedTicket.current) generation.current++; setSelectedPath(value) }} disabled={editingBlocked} />
       <section className="assembly-section"><h3>Insertar origen reutilizable</h3><select aria-label="Origen del componente" value={sourceKey} disabled={editingBlocked} onChange={event => setSourceKey(event.target.value)}><option value="">Selecciona un origen</option>{committed.definitions.map(value => <option key={assemblyDefinitionKey(value)} value={assemblyDefinitionKey(value)}>{value.kind === 'part' ? value.document.name : value.name} · {value.revision}</option>)}</select>
-        <button disabled={editingBlocked || !sourceKey} onClick={() => { const definition = committed.definitions.find(value => assemblyDefinitionKey(value) === sourceKey); if (definition) edit({ type: 'insert-occurrence', scope: scopeReference, occurrence: { name: definition.kind === 'part' ? definition.document.name : definition.name, definition: { id: definition.id, revision: definition.revision }, pose: identityRigidPose(), fixed: false, suppressed: false, visible: true } }) }}><Plus size={14} />Insertar otra ocurrencia</button></section>
+        <button disabled={editingBlocked || !sourceKey} onClick={reuseComponent}><Plus size={14} />Insertar otra ocurrencia</button></section>
 
           <section className="assembly-section assembly-document-tools"><h3>Documentos y ejemplos</h3>
             <button aria-label="Importar STEP estructurado" disabled={editingBlocked || !!draft || !!preview || replaceDialog} onClick={()=>void importStructural()}><FileInput size={16} />Importar STEP estructurado</button>
@@ -2233,7 +2277,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
                 <section className="assembly-section"><h2><Link2 size={16} />Relaciones</h2>
         <div className="assembly-property-confirmation"><button aria-label="Aplicar desde propiedades de relación" title="Aplicar" disabled={!canApply} onClick={() => void apply()}><Check size={19} /></button><button aria-label="Cancelar desde propiedades de relación" title="Cancelar" disabled={busy ? !cancelable : !preview && !sourceUpdate && !documentUpdate && !replacementReview} onClick={cancelToolbarPreview}><X size={19} /></button></div>
         <label>Relación<select aria-label="Tipo de relación" value={mateType} disabled={editingBlocked || replaceDialog || !!editingHinge || !!editingCircularPath || !!editingLinePath || !!editingProfile || !!editingSymmetry || !!editingWidth || standardPreviewFamily && !!preview || !!editingTangent || !!editingCylinderTangent || !!editingSphereTangent || !!editingLimitDistance || !!editingLimitAngle || !!editingLimitDirectedAngle} onChange={event => chooseMateType(event.target.value as typeof mateType)}><option value="hinge" disabled={referenceEditing}>Bisagra</option><option value="circular-path" disabled={referenceEditing}>Punto sobre trayecto circular</option><option value="line-path" disabled={referenceEditing}>Punto sobre trayecto LINE</option><option value="profile-center" disabled={referenceEditing}>Centro de perfiles acotados</option><option value="symmetry" disabled={referenceEditing}>Simetría · tres referencias</option><option value="width" disabled={referenceEditing}>Anchura centrada · cuatro planos</option><option value="concentric" disabled={referenceEditing}>Concéntrica</option><option value="coincident" disabled={referenceEditing}>Coincidente</option><option value="distance" disabled={referenceEditing}>Distancia firmada</option><option value="limit-distance" disabled={!!preview || referenceEditing}>Distancia con límites</option><option value="angle" disabled={referenceEditing}>Ángulo</option><option value="limit-angle" disabled={!!preview || referenceEditing}>Ángulo principal con límites</option><option value="limit-directed-angle" disabled={!!preview || referenceEditing}>Ángulo dirigido con límites</option><option value="parallel" disabled={!!preview || !!editingTangent || !!editingCylinderTangent || !!editingSphereTangent || !!editingLimitDistance || !!editingLimitAngle || !!editingLimitDirectedAngle}>Paralela</option><option value="perpendicular" disabled={!!preview || !!editingTangent || !!editingCylinderTangent || !!editingSphereTangent || !!editingLimitDistance || !!editingLimitAngle || !!editingLimitDirectedAngle}>Perpendicular</option><option value="tangent" disabled={!!preview || !!editingDirection || !!editingCylinderTangent || !!editingSphereTangent || !!editingLimitDistance || !!editingLimitAngle || !!editingLimitDirectedAngle}>Tangente plano–cilindro</option><option value="skew-cylinder-tangent" disabled={!!preview || !!editingDirection || !!editingTangent || !!editingSphereTangent || !!editingLimitDistance || !!editingLimitAngle || !!editingLimitDirectedAngle}>Tangente entre cilindros no paralelos</option><option value="parallel-cylinder-tangent" disabled={!!preview || !!editingDirection || !!editingTangent || !!editingSphereTangent || !!editingLimitDistance || !!editingLimitAngle || !!editingLimitDirectedAngle}>Tangente entre cilindros con paralelismo</option><option value="plane-sphere-tangent" disabled={!!preview || referenceEditing}>Tangente plano–esfera</option><option value="sphere-sphere-tangent" disabled={!!preview || referenceEditing}>Tangente esfera–esfera</option><option value="cylinder-sphere-tangent" disabled={!!preview || referenceEditing}>Tangente cilindro–esfera</option><option value="gear" disabled={referenceEditing}>Engranaje</option><option value="screw" disabled={referenceEditing}>Tornillo</option><option value="rack-pinion" disabled={referenceEditing}>Cremallera y piñón</option></select></label>
-<label>Ámbito<select aria-label="Ámbito de las relaciones" value={JSON.stringify(scopePath)} disabled={editingBlocked || !!preview} onChange={event => { if (operation.current || hasStaging() || currentPreview.current || replaceDialog) return; generation.current++; setScopePath(JSON.parse(event.target.value) as string[]); setReferences([null, null]); setWidthReferences([null,null,null,null]); setEditingWidthId(null); setTangentReferences([null, null]); setCylinderReferences([null, null]); setSphereReferences([null, null]); setLimitReferences([null, null]); setLimitAngleReferences([null, null]); setLimitDirectedSelection(['', '', '']); setCylinderLarger(''); setSphereLarger(''); setSelectedFaceMeshes([]); setComponentLock(['', '']); setEditingGearId(null); setEditingScrewId(null); setEditingRackId(null); setEditingDirectionId(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null); setRackKeys(['', '']); setRackPicking(null); setPickingLinearEdges(false); setEdgeChoice('') }}><option value="[]">{committed.name} · raíz</option>{rows.filter(row => row.definition.kind === 'assembly' && !row.suppressed).map(row => <option key={JSON.stringify(row.path)} value={JSON.stringify(row.path)}>{row.path.join(' / ')} · definición compartida</option>)}</select></label>
+<label>Ámbito<select aria-label="Ámbito de las relaciones" value={JSON.stringify(scopePath)} disabled={editingBlocked || !!preview} onChange={event => { if (operation.current || hasStaging() || currentPreview.current || replaceDialog) return; abandonInsertionSelection(); generation.current++; setScopePath(JSON.parse(event.target.value) as string[]); setReferences([null, null]); setWidthReferences([null,null,null,null]); setEditingWidthId(null); setTangentReferences([null, null]); setCylinderReferences([null, null]); setSphereReferences([null, null]); setLimitReferences([null, null]); setLimitAngleReferences([null, null]); setLimitDirectedSelection(['', '', '']); setCylinderLarger(''); setSphereLarger(''); setSelectedFaceMeshes([]); setComponentLock(['', '']); setEditingGearId(null); setEditingScrewId(null); setEditingRackId(null); setEditingDirectionId(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null); setRackKeys(['', '']); setRackPicking(null); setPickingLinearEdges(false); setEdgeChoice('') }}><option value="[]">{committed.name} · raíz</option>{rows.filter(row => row.definition.kind === 'assembly' && !row.suppressed).map(row => <option key={JSON.stringify(row.path)} value={JSON.stringify(row.path)}>{row.path.join(' / ')} · definición compartida</option>)}</select></label>
         {hasGenericReferences && <><div className="assembly-endpoints">{relationReferences.map((reference, index) => <button key={index} aria-label={`Referencia ${index + 1} de la relación`} disabled={referenceBlocked} className={endpointSlot === index ? 'active' : ''} onClick={() => { setDragMode('off'); setPickingLinearEdges(false); setEndpointSlot(index as 0 | 1); setPickingFaces(true) }}><strong>Referencia {index + 1}</strong><span>{referenceLabel(reference)}</span></button>)}</div>
         {!editingBlocked && !replaceDialog && <p className="assembly-muted" data-assembly-relation-guidance="">{canApply ? 'Vista previa verificada. Revisa el resultado y pulsa Aplicar.' : preview ? 'Revisa el resultado de la vista previa; Aplicar requiere una verificación vigente.' : relationSelectionGuidance()}</p>}
         </>}
@@ -2400,14 +2444,14 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
           ? { frame: (dragAnchor.current ?? eligibleDragFrame)!, mode: dragMode, active: dragActive } : undefined}
         onDragStart={beginDrag} onDragTarget={dragTarget} onDragEnd={endDrag} onDragCancel={cancel}
         pickingVertices={isSymmetry && activeSymmetryPick?.producer === 'vertex'} selectedVertices={symmetrySelectedVertices} onVertex={vertex => { if (managerTabRef.current === 'relations') pickSymmetryVertex(vertex) }}
-        onComponent={component => { setTreeOriginSelection(null); if (linkedTicket.current) generation.current++; setSelectedPath(component?.occurrencePath ?? []) }} onFace={face => { if (managerTabRef.current === 'relations') (rackPicking ? pickRackFace : pickFace)(face) }} onEdge={edge => { if (managerTabRef.current === 'relations') (rackPicking ? pickRackEdge : pickDirectionEdge)(edge) }} />
+        onComponent={component => { abandonInsertionSelection(); setTreeOriginSelection(null); if (linkedTicket.current) generation.current++; setSelectedPath(component?.occurrencePath ?? []) }} onFace={face => { if (managerTabRef.current === 'relations') (rackPicking ? pickRackFace : pickFace)(face) }} onEdge={edge => { if (managerTabRef.current === 'relations') (rackPicking ? pickRackEdge : pickDirectionEdge)(edge) }} />
       <div className="assembly-canvas-label"><strong>{displayed.name}</strong><span>{rackPicking ? rackPicking.kind === 'rack-edge' ? 'Selecciona una arista lineal actual de la cremallera' : rackPicking.kind === 'pinion' ? 'Selecciona el cilindro actual del piñón' : 'Selecciona el eje cilíndrico actual de la cremallera' : dragSession.current ? 'Arrastre · destinos nativos verificados · todavía sin aplicar' : preview ? 'Vista previa · todavía sin aplicar' : documentUpdate ? 'Actualización de subensamblaje · pendiente de resolver y aplicar' : sourceUpdate ? 'Actualización de origen · pendiente de resolver y aplicar' : replacementReview ? 'Sustitución de pieza · pendiente de resolver y aplicar' : activeSymmetryPick ? 'Selecciona ' + SYMMETRY_ROLE_LABELS[activeSymmetryPick.slot] + (activeSymmetryPick.producer === 'line-edge' ? ' · arista lineal' : activeSymmetryPick.producer === 'cylinder-axis' ? ' · eje cilíndrico' : '') : activeHingePick ? 'Selecciona ' + HINGE_ROLE_LABELS[activeHingePick.slot] : widthPickingSlot !== null ? 'Selecciona ' + WIDTH_ROLE_LABELS[widthPickingSlot] : pickingFaces ? `Selecciona referencia ${endpointSlot + 1}` : 'Componentes independientes · mm'}</span></div>
       {!scene?.bodies.length && !busy && <div className="assembly-empty"><Component size={42} /><h2>Diseña un conjunto de piezas</h2><p>Importa una pieza o abre el ejemplo original para empezar.</p></div>}
     </section>
     </main>
     {bomOpen && <AssemblyBomPanel report={bom.report} error={bom.error} options={bomOptions} selectedPath={selectedPath} disabled={bomBlocked}
       onOptionsChange={options => { if (!operation.current && !hasStaging() && !currentPreview.current && !draft && !replaceDialog) setBomOptions(options) }}
-      onSelect={componentPath => { if (!operation.current && !hasStaging() && !currentPreview.current && !draft && !replaceDialog) { setPickingFaces(false); if (fileTicket.current?.purpose === 'update' || linkedTicket.current) generation.current++; setSelectedPath(componentPath) } }}
+      onSelect={componentPath => { if (!operation.current && !hasStaging() && !currentPreview.current && !draft && !replaceDialog) { abandonInsertionSelection(); setPickingFaces(false); if (fileTicket.current?.purpose === 'update' || linkedTicket.current) generation.current++; setSelectedPath(componentPath) } }}
       onExport={() => void exportBom()} onClose={() => { restoreBomFocus.current = true; setBomOpen(false); setRibbonTab('evaluate') }} />}
     <footer className={`assembly-status ${error ? 'error' : ''}`} role="status" aria-live="polite">{busy && <Loader2 size={14} className="assembly-spinner" />}<span>{message}</span>{scene && <small>{scene.solidCount} sólidos · {scene.prototypeCount} orígenes · {scene.volume.toLocaleString(undefined, { maximumFractionDigits: 3 })} mm³</small>}</footer>
     {rootRevision && <AssemblyRootRevisionDialog id={committed.id} currentRevision={committed.revision} revision={rootRevision.revision} error={rootRevision.error}

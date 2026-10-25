@@ -1,5 +1,102 @@
 # Validation
 
+## Basic standard assembly authoring — 2026-10-25
+
+Final selected run 07, full-suite and desktop smoke pass locally. The UI
+continuity selects the exact newly imported/reused occurrence and opens its
+Properties after the matching rebuild, without changing insertion pose or
+fixed state. Later user navigation and stale rebuilds must not steal selection
+or focus.
+
+The original three-prism renderer creates an empty standard assembly through
+the UI, imports one part and reuses it twice. It names Base, Guía and Seguidor,
+explicitly fixes Base and moves Guía to X8 and Seguidor to X16 through movement
+preview/Apply. Automatic selection/Properties/name focus is checked before
+navigation assistance; a cancelled import must preserve panel, selection,
+recovery, history and complete worker observations, while checking the two
+expected busy-state UI audit events separately. Numeric moves independently
+preserve all three original basis vectors within 1e-6. The route explicitly
+uses Ajustar after movement before origin picking; it does not rely on auto-fit.
+A signed distance uses
+root YZ first and Guía YZ second with
+value -10 mm: dot(nGuía, pRoot-pGuía)=-10. A second relation aligns Seguidor's Z
+axis parallel to Base's; editing it to perpendicular exercises Cancel, retry
+and Apply, followed by Undo/Redo, Save/reopen and a fresh solve followed by
+Cancel. The Seguidor pose is underconstrained; no unique full pose is asserted.
+
+Each original 3-by-2-by-4 mm prism spans [0,0,0] to [3,2,4] mm, with volume
+24 mm3 and area 52 mm2. The harness uses V/A tolerance 1e-5, transformed
+original-corner bounds tolerance 1e-6 mm, signed-distance residual 1e-6 mm and
+normalized cross/dot orientation residual 1e-6. Form values use visible scripted
+inputs; actions and origin picks use actual pointer transport, while Tab
+commits names by native blur. The harness may scroll to reveal later controls;
+this is not proof that the whole editor fits initially. It requires three file
+Open dialogs (import, cancelled import, reopen), one Save and unchanged source
+bytes. It adds no STEP/export, nested assembly, configured-state, collision or
+contact coverage. The command is `npm run test:desktop:assembly-basic-authoring`.
+The recorded local Windows attempts retain the following history. All builds
+pass; renderer durations are complete command durations, not child-only runtime.
+
+| Attempt | Build | Basic authoring | Outcome |
+| --- | --- | --- | --- |
+| 01 | 4.894 s | 24 checkpoints / 8.109 s | FAIL at cancelled-import invariant. |
+| 02 | 3.728 s | 26 / 8.173 s | FAIL; final UI and complete worker/history state match, but the combined audit contains two busy-state UI events and a changed event serial. |
+| 03 | 3.688 s | 83 / 31.106 s | FAIL looking for root YZ before its label mounts, after insertion/reuse focus and movements; one harness console error. |
+| 04 | 3.749 s | 84 / 66.125 s | FAIL after 315 polls: picker is armed correctly, but root YZ is outside projection; only XY/XZ labels are projected. |
+| 05 | 3.694 s | 177 / 78.403 s | FAIL attempting Open while still disabled after Save IPC completion; one harness console error. |
+| 06 | 3.700 s | 189 / 83.444 s | PASS, superseded by the stronger independent three-basis zero-rotation oracle in 07. |
+| 07 | 3.658 s | 189 / 83.447 s | PASS on the final snapshot with that oracle. |
+
+The harness separately audits the exact two busy UI events rather than treating
+them as CAD worker-history changes, waits for mounted labels, performs a real
+Ajustar action, and waits for the renderer's clean saved identity and enabled
+Open control after IPC completion. These follow-ups do not establish product
+CAD failures; production is unchanged across these attempts, and original
+geometry tolerances and deadlines remain intact. Failed attempts have zero
+request/resource errors; only 03 and 05 record a console error.
+
+Selected 06 also passes import (55 checkpoints / 12.096 s) and origin axes
+(247 / 104.537 s). Final selected 07 repeats both: import passes 55 checkpoints
+in 12.127 s and origin axes passes 247 in 104.669 s. All three final renderers
+report zero console, request and resource errors, observed child closure and
+isolated-profile cleanup. Build 07 and these three renderers use the same
+1,135 matched source/runtime inputs. On that exact final snapshot, full run 01
+passes `npm test` in 554.735 s: 9,717 tests across 424 files, plus 83 IPC tests
+and two explicit IPC skips. Desktop smoke passes in 1.597 s with zero console,
+request and resource errors. Thus build, three selected renderers, full-suite
+and smoke pass on the same snapshot. Hosted acceptance of the current
+unpublished head remains pending. These bounded local results do not establish
+exact behavioral parity for menus, buttons, context menus or navigation; that
+audit remains separate.
+
+Bounded manual Windows checking on build 07 opens the renderer's saved original
+three-occurrence/two-relation assembly in an isolated recovery profile. An actual
+reuse click adds a fourth occurrence; Properties opens with a visible name
+focus ring/caret and selected body, Fixed unchecked, and displayed four solids /
+96 mm3. Actual Undo restores the displayed three solids / 72 mm3. Focus here is
+visual evidence; the renderer separately checks activeElement. An earlier
+indexed click only scrolled before a fresh coordinate click inserted; its cause
+is not established. This is not a manual repetition of New/import/relations/
+Save/reopen, and displayed measures are not independent geometry oracles.
+
+Three final PNGs pass bounded visual review with notes: the compact basic and
+origin views are 1024 by 661 content pixels, while import is 1544 by 941. Header,
+confirmation and viewport controls have no visible mutual overlap in these
+states. Compact secondary revision UUID text is truncated, and lower sidebar
+controls require scrolling. Origin labels can overlap shaded geometry while
+remaining legible. The final images do not show the insertion focus transition
+or active relation picking and establish no additional interaction or geometry
+coverage. Earlier sections retain their historical source states.
+
+The separately observed public parent `482166d` has terminal CI failure in run
+`40179796606`: five of nine renderer jobs and all three configured-authoring
+jobs pass. Ubuntu/Windows rigid persistence fail at steps 38/39, and
+Ubuntu/Windows symmetry picking fail at steps 104/105. All three desktop jobs
+stop at their required-renderer gate. Internal failure logs were unavailable,
+so these job failures establish no inner cause or timeout diagnosis. Security
+was observed passing separately. These are parent results, not acceptance of
+the current unpublished increment.
+
 ## Standard assembly reference controls — 2026-10-25
 
 Origin display and picking controls move from the standard assembly viewport

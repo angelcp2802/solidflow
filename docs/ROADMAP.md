@@ -88,6 +88,24 @@ Current-head hosted acceptance remains pending. This layout adds no relation
 family, external reference type or new CAD behavior; broader panel and platform
 acceptance remains open.
 
+A basic standard three-piece assembly workflow now passes bounded local
+acceptance: exact new-occurrence selection and Properties focus after rebuild,
+explicit fixing and numeric placement, existing relation previews, independent
+geometry/residual checks, Cancel/history and persistence. The import and origin
+regressions also pass on final selected run 07; bounded manual reuse/Undo and
+three final image reviews pass. Full-suite and smoke also pass on the same
+final 1,135-input snapshot. Initial
+placement and first-component fixing are not automatic, and camera fitting
+remains explicit. Compact secondary revision text can be truncated and lower
+sidebar controls require scrolling.
+
+Further work includes a behavioral audit of menus, buttons, context menus and
+navigation, distinguishing observed interaction from declaration-only evidence.
+Exact parity is not established by implementation progress or this acceptance.
+Reliable hosted persistence, broader reference/repair and configured/nested
+authoring paths, and platform/package validation remain open. Passing one
+three-piece model cannot establish those wider capabilities.
+
 ## Work in review
 
 Use the dated [project status and review queue](PROJECT_STATUS.md) for the

@@ -1,5 +1,33 @@
 # Development guide
 
+## Basic standard assembly authoring — 2026-10-25
+
+The insertion-continuity implementation passes the bounded local authoring,
+import and origin regressions. After importing
+or reusing a component, the transition selects the exact new occurrence
+and opens Properties with focus on its name only after its current rebuild has
+completed. A stale insertion must not move focus or selection after navigation,
+scope changes, Undo, document replacement or a cancelled picker. Existing
+mutation, freshness and preview guards remain authoritative.
+
+Insertion keeps identity pose and `fixed=false`; selecting the new component
+does not move it out of overlap or automatically ground the first instance.
+The bounded three-piece walkthrough fixes its base and moves the other pieces
+explicitly. It exercises current distance and parallel relations, preview,
+Cancel/Apply, history and file persistence rather than adding a CAD family.
+The renderer checks this automatic focus before navigation/scroll assistance,
+then checks that cancelling another import retains panel, selection, recovery,
+history and complete worker observations; the two expected busy-state UI audit
+events are checked separately. After numeric placement, the route explicitly
+uses Ajustar before origin picking; movement does not auto-fit. Visible numeric/name/select fields are
+scripted; pointer actions and Tab-to-commit naming use actual input transport.
+Selected run 07 and bounded manual reuse/Undo and final image reviews pass.
+The complete suite and desktop smoke also pass on the same final 1,135-input
+snapshot. This establishes the recorded workflow, not exact behavioral parity
+for menus, buttons, context menus or navigation; that audit remains separate.
+See [validation](VALIDATION.md) and
+[the standard walkthrough](DEMO_ASSEMBLIES.md#standard-three-piece-authoring).
+
 ## Standard assembly reference controls — 2026-10-25
 
 The standard assembly Relations inspector owns one origin-reference disclosure,

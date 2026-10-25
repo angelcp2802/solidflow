@@ -4,6 +4,54 @@ The integration draft is [PR #49](https://github.com/angelcp2802/solidflow/pull/
 This walkthrough covers a bounded prototype, not the complete assembly scope
 or a release. See [validation](VALIDATION.md) for the exact executed cases.
 
+## Standard three-piece authoring
+
+The bounded automated route passes final selected run 07; full-suite and desktop
+smoke also pass on the same final snapshot. This is not a complete assembly,
+platform or exact interaction-parity claim. Preserve any current unsaved work
+before starting an empty standard assembly.
+
+1. From the part workspace use **Crear un ensamblaje**, or use
+   **Nuevo ensamblaje** within the standard assembly workspace. Then
+   **Importar componente** loads the original 3-by-2-by-4 mm prism. After its
+   current rebuild, the new occurrence is selected and Properties opens with
+   focus on its name.
+2. Name the first instance **Base** and explicitly enable
+   **Fijo respecto a su padre**. Insertion itself leaves components free at
+   identity pose; no first-component fixing or non-overlapping placement is
+   assumed.
+3. Return to Components and use **Insertar otra ocurrencia** twice from the
+   same reusable source. Name them **Guía** and **Seguidor**. Move Guía to X8 mm
+   and Seguidor to X16 mm in Properties, leaving Y/Z zero and no rotation.
+   For each move, use **Vista previa del movimiento**, inspect the result and
+   **Aplicar**. Selecting a component alone does not move it. After both moves,
+   explicitly press **Ajustar** to frame the scene before picking origin
+   references. This is a user camera action, not automatic fitting after movement.
+4. In Relations, expand **Referencias de origen** and show planes. Choose the
+   current scope to pick root YZ as Reference 1, then select Guía and use
+   selected-component ownership to pick its YZ plane as Reference 2. Set a
+   signed distance of -10 mm. Preview and Apply after fresh verification.
+   With these normals, the signed condition is dot(nGuía, pRoot-pGuía)=-10.
+5. Relate Seguidor's Z axis parallel and aligned to Base's Z axis. Edit that
+   relation to perpendicular, preview, Cancel and inspect the retained committed
+   relation. Retry and Apply, then exercise Undo/Redo and Save/reopen. Solve
+   freshly after reopening and Cancel. The relation leaves freedom in Seguidor,
+   so a unique complete solved pose is not the expected result.
+
+The original prism has volume 24 mm³ and area 52 mm²; three occurrences total
+72 mm³ and 156 mm² of per-solid area. The original recipe is
+`scripts/desktop-assembly-basic-authoring-original.cjs`; its automated route is
+`npm run test:desktop:assembly-basic-authoring` (189 checkpoints in run 07).
+A separate manual Windows check reuses this saved original assembly, inserts
+one more occurrence with automatic Properties/name focus, and undoes it back
+to three solids. It does not manually repeat New/import/relations/Save/reopen.
+Automated form assignment is scripted on visible controls, with actual pointer
+actions and Tab blur; later controls may use scroll assistance. This is distinct
+from a manual walkthrough and does not cover configured/nested authoring,
+contact, collision or STEP export.
+See [provenance](PROVENANCE.md#original-three-piece-assembly-authoring-case) and
+[validation](VALIDATION.md) for independent oracles and actual results.
+
 ## Reproducible configured document
 
 After installing dependencies, run `npm run build` and
