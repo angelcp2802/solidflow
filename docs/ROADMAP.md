@@ -56,6 +56,16 @@ in local Windows acceptance; all-edge selection, tangent propagation and broader
 finishing interaction remain outside that coverage. Hosted acceptance remains
 pending. Exact results and snapshot limits are tracked in [validation](VALIDATION.md).
 
+The compact browsing body folder is now part of the document tree, with
+keyboard-accessible details and separate root/folder disclosure. The new
+original two-body browsing, finishing and successive-parts checks pass again
+after the final removal of nested body-list scrolling. Bounded Windows manual
+browsing passes at minimum and maximized sizes, and the full suite and desktop
+smoke pass on the same final snapshot. Hosted acceptance of the new head remains
+pending. Large catalogues, broader selection workflows and cross-platform
+interaction are not established
+by this bounded layout increment; see [validation](VALIDATION.md).
+
 ## Work in review
 
 Use the dated [project status and review queue](PROJECT_STATUS.md) for the

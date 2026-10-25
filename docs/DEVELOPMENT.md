@@ -1,5 +1,38 @@
 # Development guide
 
+## Body catalogue in the part tree — 2026-10-25
+
+The browsing body catalogue sits inside the document tree, below Part
+properties and before Material. Its folder button and the document-root button
+use native button activation, `aria-expanded`, `aria-controls` and hidden
+content. Compact body rows and the folder control are 28 px high. A separate
+keyboard-accessible details disclosure exposes the full body name and measured
+volume; truncated row labels are not the only way to read them.
+
+Collapsing either level preserves body selection and does not edit the CAD
+document. Reopening a document, including the same document ID, resets the
+folder's presentation state. Current body references, stale-selection feedback
+and busy/current-preview guards remain in force. Operation PropertyManagers
+retain their existing body controls rather than adopting this compact layout.
+
+The original `test:desktop:part-body-catalog` workflow checks pointer and native
+Tab/Enter/Space interactions, selection retention, read-only native-request,
+history and recovery invariants, lower-feature editing followed by Cancel,
+and same-ID reopening. Initial layout observations precede reveal assistance;
+later activation may use `scrollIntoView`. A zero-minimum grid track and entry
+minimum width keep long labels inside the tree while details expose their full
+text. The body list shares the outer tree scroll rather than imposing a second
+112 px list viewport. The details text retains its own 80 px maximum-height
+scroll region. A renderer assertion requires body B and its details control to
+remain fully visible with body A's details open in the original two-body case.
+Build 04 and the catalogue, finishing and successive-parts renderers pass on
+the final matching source/runtime snapshot. Bounded Windows manual browsing
+also passes at minimum and maximized sizes, including visible keyboard focus
+and selection retention through both disclosure levels. The full suite and
+desktop smoke pass on that same final snapshot. Hosted acceptance of the new
+head remains pending. See [validation](VALIDATION.md) for exact results and
+limits.
+
 ## Fillet and chamfer PropertyManagers — 2026-10-25
 
 Fillet and chamfer present edge selection, Radius or Distance, Bodies and Name

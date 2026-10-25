@@ -1,5 +1,102 @@
 # Validation
 
+## Body catalogue layout — 2026-10-25
+
+This increment moves the compact body folder inside the part document tree,
+after Part properties and before Material. Native root/folder buttons expose
+expanded state and hide descendants when collapsed. Separate details controls
+make complete long names and measured volumes available by keyboard. Body
+identity, selection, preview authority and document semantics are unchanged.
+
+The original two-prism renderer checks initial 28 px body
+rows and details hit targets, actual pointer and Tab/Enter/Space input, retained
+selection through both disclosure levels, and unchanged worker-request serial,
+build history, document recovery and history availability during browsing.
+It also double-clicks the lower `create-b` feature, cancels without committing,
+and reopens the identical document ID to check the folder reset. Initial layout
+checks precede reveal assistance; later actions may use `scrollIntoView`.
+
+Its numerical checks require each body's volume 240 mm3, planar triangle-mesh
+area 248 mm2 and literal bounds within 5e-6 in the corresponding units. Mesh
+area is not a native BRep-area measurement. The recipe changes only names in
+the existing original finishing fixture; it adds no STEP/export or accepted
+geometry. [Provenance](PROVENANCE.md#original-body-catalogue-presentation-case)
+records the exact coordinates and limits.
+
+Build 01 passes in 3.653 s, but catalogue attempts 01 and diagnostic 02 fail
+initial containment after 7.341 s and 7.346 s. Each row measures 474.265625 px
+against a 261 px clip; the details target at x=443..471 hits the canvas. A
+`minmax(0, 1fr)` grid track and zero entry minimum width correct the overflow
+without relaxing the assertions.
+
+Before the final scroll adjustment, build 03 passes in 3.597 s. Catalogue 03
+passes 41 checkpoints in 58.591 s total
+command time on local Windows, with zero console, request and resource errors,
+confirmed child close and isolated-profile cleanup. Its frozen 1,127 inputs
+match source and runtime for that earlier revision. Review of its initial,
+details and final captures at the
+1040-by-700 window minimum (1024-by-661 content) confirms readable 28 px rows,
+full name and volume in details, and visible focus. This bounded visual review
+does not establish large-catalogue or general platform support. Finishing 03
+also passes on the same 1,127-input snapshot: 102 checkpoints in 162.911 s total
+command time, zero console/request/resource errors, child close and profile
+cleanup confirmed. This elapsed time includes launch/startup and is not exact
+child runtime; its 170 s child deadline is unchanged. Successive-parts 03 also
+passes 149 checkpoints in 59.432 s.
+
+Subsequent manual review finds that the nested 112 px body-list viewport hides
+body B when A's details open, even in a maximized window. These earlier passes
+and captures therefore do not establish acceptance of the final layout. The
+final CSS removes the body-list height limit and internal scrolling so the
+catalogue uses the outer tree scroll; the details text keeps its 80 px scroll
+limit. The renderer now explicitly requires body B's row and details control
+fully visible while A's details are open. Build 04 passes in 3.547 s. The final
+1,127-input source/runtime snapshot matches for all three local Windows runs:
+
+| Workflow 04 | Checkpoints | Total command elapsed |
+| --- | ---: | ---: |
+| Original body catalogue | 41 | 60.822 s |
+| Original two-body finishing | 102 | 163.635 s |
+| Successive parts regression | 149 | 60.533 s |
+
+All pass with zero console, request and resource errors, confirmed child close
+and isolated-profile cleanup. With A's details open, B's row and details target
+are fully visible: row bottom 475 px is inside clip bottom 517 px. The final
+details capture was reviewed. The finishing duration is total command time,
+including launch/startup; its existing 170 s child deadline is unchanged and
+these values do not establish exact child-time headroom or CI performance.
+Manual 04 passes on the final Windows build using the isolated original fixture
+seeded through recovery, not a native file-open dialog. At a 1040-by-700 window
+(1024-by-661 content), pointer selection highlights A in gold; Tab visibly
+focuses its details control, and Return exposes the full name and 240 mm3 volume
+while B's row and details control remain visible. Folder collapse by pointer
+and reopen with Space retain A. Root collapse by pointer and reopen with Return
+retain A and its open details. The maximized 1920-by-1032 view is also stable
+with B visible. No edit, Apply, Save or export occurs; this is bounded browsing
+and focus evidence, not additional geometry or file-dialog coverage.
+
+Full 01 passes in 553.528 s: 9,710 tests across 423 files, followed by 83 IPC
+passes and two explicit skips. Desktop smoke 01 passes in 1.618 s with zero
+console, request and resource errors. Build 04, all three renderer 04 runs,
+manual 04, full 01 and smoke 01 use the same final 1,127-input source/runtime
+snapshot, with no intervening input changes. These local Windows results do not
+establish general platform support; hosted acceptance of the new head remains
+pending.
+
+Parent `c8226f3` ends in failure in its separate
+[CI run](https://github.com/angelcp2802/solidflow/actions/runs/40171401964):
+eight of nine renderer jobs and all three configured-authoring jobs pass.
+Only Windows persistence fails, at “Test rigid assembly preview, Apply and
+persistence (Windows/macOS)”. All three Desktop jobs fail the renderer gate
+before their unit, smoke or packaging steps.
+[Security](https://github.com/angelcp2802/solidflow/actions/runs/40171401893)
+passes. One connector log request returns “Transport closed”; the public REST
+log fallback returns HTTP 403. Public check annotations do establish that the
+isolated UI workflow did not finish before its child deadline, but provide no
+final internal checkpoint or underlying cause. These parent results are not
+hosted acceptance of the body-catalogue increment. Earlier sections below retain
+results for their historical source states.
+
 ## Fillet and chamfer panel order — 2026-10-25
 
 This increment orders edge selection, Radius or Distance, Bodies and Name,

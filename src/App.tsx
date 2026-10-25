@@ -410,6 +410,10 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
   const [sourceModel, setSourceModel] = useState<CadResult | null>(null);
   const [sourceBuiltFeatures, setSourceBuiltFeatures] = useState<Feature[] | null>(null);
   const [bodySelection, setBodySelection] = useState<BodyReference[]>([]);
+  const [bodyCatalogOpen, setBodyCatalogOpen] = useState(true);
+  const bodyCatalogButton = useRef<HTMLButtonElement>(null);
+  const bodyCatalogContent = useRef<HTMLDivElement>(null);
+  const revealedUnavailableBodies = useRef("");
   const [bodyPicking, setBodyPicking] = useState(false);
   const bodyOutputId = useRef("");
   const [sourceLoading, setSourceLoading] = useState(false);
@@ -624,6 +628,22 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
   const preservedRecovery = useRef<string | null>(skipInitialRecoveryWrite ? serializedDocument : null);
   const dirty = serializedDocument !== saved || editing !== null;
   const previewCurrent = builtFeatures === effectiveFeatures;
+  const unavailableBodySelection = bodySelection.filter(reference =>
+    !model?.bodies?.some(body => sameBodyReference(body.ref, reference)));
+  const unavailableBodySelectionKey = JSON.stringify(unavailableBodySelection.map(reference =>
+    [reference.bodyId, reference.sourceFeatureId]));
+  // Reveal newly unavailable browsing selections once; manual collapse stays respected.
+  useLayoutEffect(() => {
+    if (editing || busy || !previewCurrent || !model?.bodyCatalogActive) return;
+    if (unavailableBodySelection.length && revealedUnavailableBodies.current !== unavailableBodySelectionKey)
+      setBodyCatalogOpen(true);
+    revealedUnavailableBodies.current = unavailableBodySelectionKey;
+  }, [editing, busy, previewCurrent, model?.bodyCatalogActive, unavailableBodySelectionKey, unavailableBodySelection.length]);
+  const toggleBodyCatalog = () => {
+    if (bodyCatalogOpen && bodyCatalogContent.current?.contains(document.activeElement))
+      bodyCatalogButton.current?.focus();
+    setBodyCatalogOpen(value => !value);
+  };
   const editingResolved =
     !editing ||
     editing.suppressed ||
@@ -862,6 +882,8 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     editTreeReturn.current = null;
     selectedTreeOccurrence.current = null;
     setExpandedFeatureIds(new Set());
+    setBodyCatalogOpen(true);
+    revealedUnavailableBodies.current = "";
     setQuery("");
     setTreeOpen(true);
     setPickingEndFace(false);
@@ -3596,10 +3618,6 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
             </div>
           ) : (
             <>
-              {model?.bodyCatalogActive && <div className="property-section">
-                <h3><ChevronDown size={12} /> Cuerpos sólidos ({model.bodies?.length ?? 0})</h3>
-                <BodyList bodies={model.bodies ?? []} selection={bodySelection} onSelection={chooseBodySelection} disabled={busy || !previewCurrent} />
-              </div>}
               <div className="tree-filter">
                 <Search size={13} />
                 <input
@@ -3615,17 +3633,19 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                 )}
               </div>
               <div className="tree" ref={treeElement}>
-                <div
+                <button
+                  type="button"
                   className="tree-document"
-                  onClick={() => setTreeOpen(!treeOpen)}
+                  aria-expanded={treeOpen}
+                  aria-controls="part-document-tree-content"
+                  onClick={() => setTreeOpen(value => !value)}
                 >
                   <ChevronDown size={12} className={treeOpen ? "" : "closed"} />
                   <Box size={18} />
                   <strong>{doc.name}</strong>
                   <span>{dirty ? "*" : ""}</span>
-                </div>
-                {treeOpen && (
-                  <>
+                </button>
+                <div id="part-document-tree-content" hidden={!treeOpen}>
                     <div
                       className="tree-row subdued"
                       onClick={() => setPanel("properties")}
@@ -3634,6 +3654,17 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                       <Info size={15} />
                       <span>Propiedades de la pieza</span>
                     </div>
+                    {model?.bodyCatalogActive && <section className="part-body-catalog" aria-label="Catálogo de cuerpos sólidos">
+                      <button type="button" className="part-body-catalog-toggle" ref={bodyCatalogButton}
+                        aria-expanded={bodyCatalogOpen} aria-controls="part-body-catalog-content" onClick={toggleBodyCatalog}>
+                        {bodyCatalogOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                        <Box size={15} /><span>Cuerpos sólidos ({model.bodies?.length ?? 0})</span>
+                        {unavailableBodySelection.length > 0 && <small className="part-body-catalog-warning">{unavailableBodySelection.length} {unavailableBodySelection.length === 1 ? "no disponible" : "no disponibles"}</small>}
+                      </button>
+                      <div id="part-body-catalog-content" ref={bodyCatalogContent} hidden={!bodyCatalogOpen}>
+                        <BodyList compact bodies={model.bodies ?? []} selection={bodySelection} onSelection={chooseBodySelection} disabled={busy || !previewCurrent} />
+                      </div>
+                    </section>}
                     <div
                       className="tree-row subdued"
                       onClick={() => setPanel("properties")}
@@ -3677,8 +3708,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                       <span />
                       <ChevronUp size={12} />
                     </div>
-                  </>
-                )}
+                </div>
               </div>
               {faceSelection && !editing && (
                 <div className="face-selection-summary">

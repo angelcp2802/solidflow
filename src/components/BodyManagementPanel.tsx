@@ -1,4 +1,4 @@
-import { Box, ChevronDown, Eye, MousePointer2, X } from 'lucide-react'
+import { Box, ChevronDown, Eye, Info, MousePointer2, X } from 'lucide-react'
 import type { BodyReference, Feature, PickableBody } from '../cad/kernel.types'
 import { sameBodyReference, setBodyOperationDraft } from '../model/bodyCommands'
 
@@ -10,20 +10,33 @@ interface BodyListProps {
   onSelection: (selection: BodyReference[]) => void
   disabled?: boolean
   single?: boolean
+  compact?: boolean
 }
 
-export function BodyList({ bodies, selection, onSelection, disabled = false, single = false }: BodyListProps) {
+export function BodyList({ bodies, selection, onSelection, disabled = false, single = false, compact = false }: BodyListProps) {
   const unavailable = selection.filter(reference => !bodies.some(body => sameBodyReference(body.ref, reference)))
-  return <div className="body-list" aria-label="Cuerpos sólidos">
+  return <div className={`body-list${compact ? ' body-list-compact' : ''}`} aria-label="Cuerpos sólidos">
     {!bodies.length && <p className="muted-small">No hay cuerpos disponibles en este estado.</p>}
     {bodies.map(body => {
       const checked = selection.some(reference => sameBodyReference(reference, body.ref))
-      return <label className={`body-row ${checked ? 'selected' : ''}`} key={referenceKey(body.ref)}>
+      const volume = `${body.volume.toLocaleString(undefined, { maximumFractionDigits: 3 })} mm³`
+      const row = <label className={`body-row ${checked ? 'selected' : ''}`} key={referenceKey(body.ref)}>
         <input type="checkbox" checked={checked} disabled={disabled} onChange={() => onSelection(checked
           ? selection.filter(reference => !sameBodyReference(reference, body.ref))
           : single ? [{ ...body.ref }] : [...selection.map(reference => ({ ...reference })), { ...body.ref }])} />
-        <Box size={15} /><span>{body.name}<small>{body.volume.toLocaleString(undefined, { maximumFractionDigits: 3 })} mm³</small></span>
+        <Box size={15} />{compact
+          ? <span className="body-row-name" title={`${body.name} · ${volume}`}>{body.name}<small className="body-row-volume"> · {volume}</small></span>
+          : <span>{body.name}<small>{volume}</small></span>}
       </label>
+      return compact ? <div className="body-catalog-entry" key={referenceKey(body.ref)}>
+        {row}
+        <details className="body-catalog-details">
+          <summary aria-label={`Detalles de ${body.name}`} title="Ver nombre completo y volumen"><Info size={13} aria-hidden="true" /></summary>
+          <div className="body-catalog-details-content" tabIndex={0} aria-label={`Detalles de ${body.name}`}>
+            <strong>{body.name}</strong><span>Volumen: {volume}</span>
+          </div>
+        </details>
+      </div> : row
     })}
     {unavailable.map(reference => <div className="body-row unavailable" key={referenceKey(reference)}>
       <span>Cuerpo no disponible<small>Vuelve a seleccionar su estado actual.</small></span>

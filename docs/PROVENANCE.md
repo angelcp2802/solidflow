@@ -1,5 +1,36 @@
 # Public fixture provenance
 
+## Original body-catalogue presentation case
+
+`scripts/desktop-part-body-catalog-original.cjs` reuses the original finishing
+two-prism recipe and its document, feature and body IDs. It changes only the
+document and extrusion display names, adding long descriptive names for the
+catalogue/details checks. There is no imported model, external asset or stored
+topology reference. A spans [0,0,0] to [10,6,4] mm; B spans [20,0,0] to
+[30,6,4] mm. Each prism has analytical volume 240 mm3 and area 248 mm2.
+
+`scripts/desktop-part-body-catalog-flow.cjs` checks worker volume, the summed
+planar triangle-mesh area and literal bounds with absolute tolerances of 5e-6
+in their respective units. It does not measure native BRep area or perform a
+new STEP round trip. Pointer selection and native keyboard disclosure actions
+must preserve exact current body identities, worker serial/build history,
+recovery and history availability. A lower-feature edit is cancelled; the same
+original document is then reopened. No operation is accepted and no file is
+saved or exported. Two original opens and unchanged fixture bytes are required.
+
+This is a presentation and read-only browsing case with two bodies, not new
+finishing coverage, large-catalogue acceptance or platform support. Initial
+layout checks precede helper reveal; later pointer actions can use scroll
+assistance. The earlier 03 run's 41 checkpoints and three presentation captures precede
+the final scroll adjustment; captures add no geometric oracle. The final local
+04 run also passes 41 checkpoints, including body B and its details control
+remaining visible with A's details open. The bounded Windows manual check uses
+this same original fixture seeded through isolated recovery; it performs no
+native Open, edit, Apply, Save or export. Build, selected renderers, manual
+browsing, full-suite and smoke validation share the final unchanged input
+snapshot. Hosted acceptance of the new head remains pending. Exact results and
+source identity belong in [validation](VALIDATION.md).
+
 ## Original two-prism finishing cases
 
 `scripts/desktop-part-finishing-original.cjs` authors two separate rectangular

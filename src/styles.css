@@ -599,12 +599,20 @@ button,
   display: flex;
   align-items: center;
   gap: 6px;
+  width: 100%;
   height: 31px;
   padding: 0 10px 0 9px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+  font: inherit;
   color: #2f5776;
   cursor: default;
   white-space: nowrap;
 }
+.tree-document:focus-visible { outline: 2px solid #2384c2; outline-offset: -2px; }
+.tree-document > svg { flex: 0 0 auto; }
 .tree-document strong {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2108,3 +2116,51 @@ button,
 .property-manager.property-manager-finish .number-field input { height: 28px; }
 .property-manager.property-manager-finish .text-input,
 .property-manager.property-manager-finish .property-section select { min-height: 28px; }
+
+/* Browsing catalog only; detailed operation body controls retain their layout. */
+.part-body-catalog { flex: 0 0 auto; min-height: 0; border-bottom: 1px solid #dce4ea; }
+.part-body-catalog-toggle {
+  display: flex; align-items: center; gap: 5px; width: 100%; height: 28px;
+  padding: 0 9px 0 20px; border: 0; border-radius: 0; background: #f3f7fb;
+  color: #315c7b; text-align: left; font-size: 11px; cursor: pointer;
+}
+.part-body-catalog-toggle > span { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.part-body-catalog-toggle > svg { flex: 0 0 auto; }
+.part-body-catalog-toggle:hover { background: #e7f1f9; }
+.part-body-catalog-toggle:focus-visible { outline: 2px solid #2384c2; outline-offset: -2px; }
+.part-body-catalog-warning { flex: 0 0 auto; color: #946123; font-size: 9px; }
+.part-body-catalog .body-list-compact { grid-template-columns: minmax(0, 1fr); gap: 0; margin: 0; max-height: none; min-height: 0; overflow: visible; }
+.part-body-catalog .body-list-compact .body-row {
+  position: relative; min-height: 28px; height: 28px; padding: 0 9px 0 38px;
+  gap: 6px; border: 0; border-bottom: 1px solid #e5ecf2; border-radius: 0;
+  background: transparent; font-size: 11px;
+}
+.part-body-catalog .body-list-compact .body-row.selected { background: #fff2d9; box-shadow: inset 2px 0 #dda651; }
+.part-body-catalog .body-list-compact .body-row:focus-within { outline: 2px solid #2384c2; outline-offset: -2px; }
+.part-body-catalog .body-list-compact .body-row input { margin: 0; }
+.part-body-catalog .body-list-compact .body-row > svg { flex: 0 0 auto; }
+.part-body-catalog .body-list-compact .body-row-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; overflow-wrap: normal; }
+.part-body-catalog .body-list-compact .body-row-volume {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0;
+}
+.part-body-catalog .body-catalog-entry { position: relative; min-width: 0; flex: 0 0 auto; }
+.part-body-catalog .body-catalog-entry > .body-row { padding-right: 36px; }
+.part-body-catalog .body-catalog-details > summary {
+  position: absolute; top: 0; right: 3px; display: flex; align-items: center;
+  justify-content: center; width: 28px; height: 28px; list-style: none;
+  color: #315c7b; cursor: pointer; border-radius: 2px;
+}
+.part-body-catalog .body-catalog-details > summary::-webkit-details-marker { display: none; }
+.part-body-catalog .body-catalog-details > summary:hover { background: #e7f1f9; }
+.part-body-catalog .body-catalog-details > summary:focus-visible,
+.part-body-catalog .body-catalog-details-content:focus-visible { outline: 2px solid #2384c2; outline-offset: -2px; }
+.part-body-catalog .body-catalog-details-content {
+  display: flex; flex-direction: column; gap: 2px; max-height: 80px; overflow: auto;
+  padding: 5px 9px 5px 38px; background: #f3f7fb; color: #31536b;
+  font-size: 11px; line-height: 16px; overflow-wrap: anywhere; white-space: normal;
+}
+.part-body-catalog .body-list-compact .body-row.unavailable {
+  height: auto; min-height: 36px; padding-top: 4px; padding-bottom: 4px; background: #fff8ee;
+}
+.part-body-catalog .body-list-compact .body-row.unavailable button { min-width: 28px; min-height: 28px; }

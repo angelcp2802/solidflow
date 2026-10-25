@@ -33,6 +33,8 @@ const SCENARIOS = Object.freeze({
     test: 'production-renderer-part-revolution', caption: 'revolution, axial cut and native STEP round trip' }),
   'part-finishing': Object.freeze({ originalRecipe: 'desktop-part-finishing-original.cjs', entry: 'desktop-part-finishing.cjs',
     test: 'production-renderer-part-finishing', caption: 'selected body edge fillet and chamfer' }),
+  'part-body-catalog': Object.freeze({ originalRecipe: 'desktop-part-body-catalog-original.cjs', entry: 'desktop-part-body-catalog.cjs',
+    test: 'production-renderer-part-body-catalog', caption: 'compact body catalog selection and keyboard details' }),
   all: Object.freeze({ fixture: 'pattern-all-original.json', entry: 'desktop-pattern-all.cjs',
     test: 'production-renderer-selected-to-ALL', caption: 'ALL' }),
   'assembly-configurations': Object.freeze({ originalRecipe: 'desktop-assembly-configurations-original.cjs', entry: 'desktop-assembly-configurations.cjs',
@@ -231,6 +233,8 @@ async function launch() {
       await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(require('./desktop-part-revolution-original.cjs')()), { flag: 'wx' });
     } else if (activeScenario === SCENARIOS['part-finishing']) {
       await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(require('./desktop-part-finishing-original.cjs')()), { flag: 'wx' });
+    } else if (activeScenario === SCENARIOS['part-body-catalog']) {
+      await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(require('./desktop-part-body-catalog-original.cjs')()), { flag: 'wx' });
     } else if (activeScenario === SCENARIOS['assembly-configured-components']) {
       for (const [name, value] of Object.entries(require('./desktop-assembly-configured-components-original.cjs')()))
         await fsp.writeFile(path.join(temporary, name + '.solidflow'), JSON.stringify(value), { flag: 'wx' });
@@ -323,6 +327,16 @@ async function launch() {
     });
     report = JSON.parse(await fsp.readFile(path.join(temporary, 'workflow-result.json'), 'utf8'));
     check(report.workflowStatus === 'PASS', 'The child did not record a successful complete UI workflow.');
+    if (activeScenario === SCENARIOS['part-body-catalog'] && process.env.SOLIDFLOW_UI_CAPTURE === '1') {
+      const names = ['initial', 'details', 'final'].map(phase => 'part-body-catalog-' + phase + '.png');
+      check(report.captures?.length === names.length && report.captures.every((item, i) => item.name === names[i]), 'Three exact catalog captures required');
+      report.catalogCaptureImages = [];
+      for (const item of report.captures) {
+        const bytes = await fsp.readFile(path.join(temporary, item.name));
+        check(bytes.length <= 10 * 1024 * 1024 && digest(bytes) === item.sha256, 'Catalog capture bytes unchanged');
+        report.catalogCaptureImages.push({ ...item, base64: bytes.toString('base64') });
+      }
+    }
     if ((activeScenario.configuredPicking || activeScenario.originAxes || activeScenario === SCENARIOS['assembly-configured-components'] || activeScenario === SCENARIOS['part-fresh-sketch'] || activeScenario === SCENARIOS['part-sequence'] || activeScenario === SCENARIOS['part-finishing'] || activeScenario === SCENARIOS['part-revolution'] || activeScenario.mechanicalFamily || activeScenario.compoundFamily || [SCENARIOS['assembly-configurations'], SCENARIOS['assembly-configured-relations'], SCENARIOS.assembly, SCENARIOS['assembly-import'], SCENARIOS['assembly-linked-source'], SCENARIOS['assembly-source-revision'], SCENARIOS['assembly-interference-multibody'], SCENARIOS['assembly-interference-grouping'], SCENARIOS['assembly-interference-grouping-multibody'], SCENARIOS['assembly-interference-grouping-scope'], SCENARIOS['assembly-screw'], SCENARIOS['assembly-rack-pinion'], SCENARIOS['assembly-export'], SCENARIOS['assembly-direction'], SCENARIOS['assembly-angle-measurement'], SCENARIOS['assembly-directed-angle'], SCENARIOS['assembly-tangent'], SCENARIOS['assembly-cylinder-tangent'], SCENARIOS['assembly-sphere-tangent'], SCENARIOS['assembly-limit-distance'], SCENARIOS['assembly-limit-distance-compact'], SCENARIOS['assembly-limit-angle'], SCENARIOS['assembly-width'], SCENARIOS['assembly-line-path'], SCENARIOS['assembly-circular-path'], SCENARIOS['assembly-hinge'], SCENARIOS['assembly-hinge-picking'], SCENARIOS['assembly-hinge-repair'], SCENARIOS['assembly-hinge-limits'], SCENARIOS['assembly-hinge-limits-repair'], SCENARIOS['assembly-hinge-limits-picking'], SCENARIOS['assembly-profile-center'], SCENARIOS['assembly-symmetry'], SCENARIOS['assembly-symmetry-line-repair'], SCENARIOS['assembly-symmetry-plane-repair'], SCENARIOS['assembly-symmetry-sphere-repair'], SCENARIOS['assembly-symmetry-cylinder-repair'], SCENARIOS['assembly-symmetry-axisline-repair'], SCENARIOS['assembly-symmetry-repair'], SCENARIOS['assembly-symmetry-picking'], SCENARIOS['assembly-symmetry-nested-selected'], SCENARIOS['assembly-symmetry-nested-source'], SCENARIOS['assembly-replacement']].includes(activeScenario)) && process.env.SOLIDFLOW_UI_CAPTURE === '1') {
       check(report.captures?.length === 1 && report.captures[0].name === 'assembly-final.png', 'Expected one test-owned assembly capture.');
       const png = await fsp.readFile(path.join(temporary, 'assembly-final.png'));
@@ -602,6 +616,7 @@ async function runInElectron() {
   const partSequence = activeScenario === SCENARIOS['part-sequence'];
   const partRevolution = activeScenario === SCENARIOS['part-revolution'];
   const partFinishing = activeScenario === SCENARIOS['part-finishing'];
+  const partBodyCatalog = activeScenario === SCENARIOS['part-body-catalog'];
   const originAxes = activeScenario.originAxes;
   const configuredRelations = activeScenario === SCENARIOS['assembly-configured-relations'];
   const configuredComponents = activeScenario === SCENARIOS['assembly-configured-components'];
@@ -732,7 +747,7 @@ async function runInElectron() {
     [name, JSON.parse(fs.readFileSync(file, 'utf8'))])) : null;
   const outputs = untilNext ? { cutSelected: path.join(owned, 'saved-cut-selected.solidflow'),
     cutAll: path.join(owned, 'saved-cut-all.solidflow'), add: path.join(owned, 'saved-add-selected.solidflow') } : null;
-  const openPaths = partFinishing ? [input, finishingFiles.fillet, input, output] : configuredComponents ? [input, null, path.join(owned, 'incoming.solidflow'), path.join(owned, 'incoming.solidflow'), output] : structuralInsertion ? [input, insertionFiles.parent, output] : structuralStep ? [input, structuralFiles.part, output] : untilNext ? [inputPaths.cut, outputs.cutSelected, outputs.cutAll,
+  const openPaths = partBodyCatalog ? [input, input] : partFinishing ? [input, finishingFiles.fillet, input, output] : configuredComponents ? [input, null, path.join(owned, 'incoming.solidflow'), path.join(owned, 'incoming.solidflow'), output] : structuralInsertion ? [input, insertionFiles.parent, output] : structuralStep ? [input, structuralFiles.part, output] : untilNext ? [inputPaths.cut, outputs.cutSelected, outputs.cutAll,
     inputPaths.add, outputs.add, inputPaths.reject] : assembly ? [input, output, partUpdatePath, partUpdatePath, output, output, output, projectionOutput, output, interferencePath, translationPath, translationOutput, bomPath, input, gearOutput]
     : assemblyImport ? [input, importSourcePath, importRejectedPath, importSourcePath, output]
     : sourceRevision ? [input, sourceRevisionFiles.parent, output]
@@ -754,7 +769,7 @@ async function runInElectron() {
       repairFiles.replacementPart, repairFiles.replacementPart, repairFiles.replacementSaved]
     : symmetryPicking ? [input, ...Array(6).fill(output)]
     : symmetry ? [input, ...Array(5).fill(output)] : configuredRelations || configuredPicking || configuredMechanical || configuredCompound ? [input, output] : configurations ? [input, output, output] : [input, output];
-  const savePaths = partFinishing ? [finishingFiles.fillet, output] : configurations ? [null, output] : untilNext ? [outputs.cutSelected, outputs.cutAll, outputs.add] : assembly ? [output, projectionOutput, translationOutput, gearOutput]
+  const savePaths = partBodyCatalog ? [] : partFinishing ? [finishingFiles.fillet, output] : configurations ? [null, output] : untilNext ? [outputs.cutSelected, outputs.cutAll, outputs.add] : assembly ? [output, projectionOutput, translationOutput, gearOutput]
     : assemblyImport ? [importBaselinePath, output]
     : sourceRevision ? [null, output]
     : linkedSource ? [output, linkedSourceFiles.assemblyOutput]
@@ -848,11 +863,11 @@ async function runInElectron() {
     return window.webContents.executeJavaScript(source, false);
   };
   const pointer = async (type, point, buttons = 0, clickCount = 1) => {
-    check((partFinishing || partRevolution || partSequence || originAxes || freshSketch || configuredPicking || assembly || activeScenario === SCENARIOS['assembly-configurations'] || rackPinion || direction || tangent || cylinderTangent || sphereTangent || limitDistance || limitAngle || directedAngle || width || symmetry || symmetryPicking || hingePicking || hingeLimitsPicking) && !window.isVisible() && window.webContents.debugger.isAttached()
+    check((partBodyCatalog || partFinishing || partRevolution || partSequence || originAxes || freshSketch || configuredPicking || assembly || activeScenario === SCENARIOS['assembly-configurations'] || rackPinion || direction || tangent || cylinderTangent || sphereTangent || limitDistance || limitAngle || directedAngle || width || symmetry || symmetryPicking || hingePicking || hingeLimitsPicking) && !window.isVisible() && window.webContents.debugger.isAttached()
       && ['mouseMoved', 'mousePressed', 'mouseReleased'].includes(type)
       && Number.isFinite(point.x) && Number.isFinite(point.y) && point.x >= 0 && point.y >= 0
       && ([0, 1].includes(buttons) || partSequence && buttons === 2)
-      && (clickCount === 1 || clickCount === 2 && (partRevolution || partSequence)
+      && (clickCount === 1 || clickCount === 2 && (partRevolution || partSequence || partBodyCatalog)
         && ['mousePressed', 'mouseReleased'].includes(type) && buttons !== 2), 'Expected actual pointer input in the hidden test-owned CAD window.');
     await window.webContents.debugger.sendCommand('Input.dispatchMouseEvent', {
       type, x: point.x, y: point.y, button: buttons === 2 ? 'right' : type === 'mouseMoved' && !buttons ? 'none' : 'left', buttons: type === 'mouseReleased' ? 0 : buttons,
@@ -868,6 +883,18 @@ async function runInElectron() {
       type: 'mouseWheel', x: point.x, y: point.y, deltaX: 0, deltaY, button: 'none', buttons: 0,
       clickCount: 0, pointerType: 'mouse',
     });
+  };
+  // This new scenario needs only native focus traversal and disclosure activation.
+  // No arbitrary text, shortcuts, application state or reference injection.
+  const bodyCatalogKey = async (key, shift = false) => {
+    const codes = { Tab: 9, Enter: 13, ' ': 32 };
+    check(partBodyCatalog && !window.isVisible() && window.webContents.debugger.isAttached()
+      && Object.prototype.hasOwnProperty.call(codes, key) && typeof shift === 'boolean'
+      && (!shift || key === 'Tab'), 'Expected bounded body-catalog keyboard input in the hidden test-owned window.');
+    const event = { key, code: key === ' ' ? 'Space' : key, windowsVirtualKeyCode: codes[key], modifiers: shift ? 8 : 0 };
+    await window.webContents.debugger.sendCommand('Input.dispatchKeyEvent', { ...event, type: 'keyDown',
+      ...(key === 'Enter' ? { text: '\r', unmodifiedText: '\r' } : key === ' ' ? { text: ' ', unmodifiedText: ' ' } : {}) });
+    await window.webContents.debugger.sendCommand('Input.dispatchKeyEvent', { ...event, type: 'keyUp' });
   };
   const menuKey = async key => {
     const codes = { Escape: 27, Tab: 9, ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, Home: 36, End: 35, Enter: 13, ...(partSequence ? { ContextMenu: 93 } : {}) };
@@ -1098,6 +1125,11 @@ async function runInElectron() {
       captureProfile,
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, geometryExports }) })
+    : partBodyCatalog
+    ? require('./desktop-part-body-catalog-flow.cjs')({ expected, input, evaluate, observe, waitFor, pointer, key: bodyCatalogKey,
+      captureCatalog: require('./desktop-part-body-catalog-capture.cjs')({ getWindow: () => window, evaluate, check, owned, digest, captures, STEP_MS, expected }),
+      checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
+      initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, geometryExports }) })
     : partFinishing
     ? require('./desktop-part-finishing-flow.cjs')({ expected, input, output, finishingFiles, evaluate, observe, waitFor, pointer, capture,
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
@@ -1292,8 +1324,8 @@ async function runInElectron() {
   check(typeof actualWorkflow === 'function', 'Expected the statically selected test workflow.');
   class HiddenWindow extends electron.BrowserWindow {
     constructor(options) {
-      super({ ...options, ...(limitDistanceCompact || compactConfiguredPicking || partRevolution || partSequence || partFinishing ? { width: 1040, height: 700 } : {}), show: false }); check(!window, 'Unexpected second test application window.'); window = this;
-      if (limitDistanceCompact || compactConfiguredPicking || partRevolution || partSequence || partFinishing) {
+      super({ ...options, ...(limitDistanceCompact || compactConfiguredPicking || partRevolution || partSequence || partFinishing || partBodyCatalog ? { width: 1040, height: 700 } : {}), show: false }); check(!window, 'Unexpected second test application window.'); window = this;
+      if (limitDistanceCompact || compactConfiguredPicking || partRevolution || partSequence || partFinishing || partBodyCatalog) {
         check(options.minWidth === 1040 && options.minHeight === 700, 'Compact scenario must use the unchanged production minimum window size.');
         checks.push({ compactViewport: { requestedWindow: { width: 1040, height: 700 }, actualBounds: this.getBounds(), actualContentSize: this.getContentSize() } });
       }
@@ -1326,7 +1358,7 @@ async function runInElectron() {
         await super.loadURL('about:blank');
         this.webContents.debugger.attach('1.3');
         await this.webContents.debugger.sendCommand('Page.enable');
-        await this.webContents.debugger.sendCommand('Page.addScriptToEvaluateOnNewDocument', { source: '(' + installWorkerObserver.toString() + ')(' + (importedBodies || freshSketch ? 'true' : 'false') + ',' + (structuralStep ? 'true' : 'false') + ',' + (structuralInsertion ? 'true' : 'false') + ',' + (configurations ? 'true' : 'false') + ',' + (partRevolution ? 'true' : 'false') + ',' + (partFinishing ? 'true' : 'false') + ');' });
+        await this.webContents.debugger.sendCommand('Page.addScriptToEvaluateOnNewDocument', { source: '(' + installWorkerObserver.toString() + ')(' + (importedBodies || freshSketch || partBodyCatalog ? 'true' : 'false') + ',' + (structuralStep ? 'true' : 'false') + ',' + (structuralInsertion ? 'true' : 'false') + ',' + (configurations ? 'true' : 'false') + ',' + (partRevolution ? 'true' : 'false') + ',' + (partFinishing ? 'true' : 'false') + ');' });
         checks.push('test-owned blank target initialized before CDP observation');
       })();
       await this.instrumentation;
