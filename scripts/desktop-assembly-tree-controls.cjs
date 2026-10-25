@@ -10,7 +10,7 @@ module.exports=async function treeControls({configured=false,page,waitFor,pointe
   const tree=require('./desktop-assembly-tree-navigation.cjs')({page,waitFor,pointer});
   const inventory=await page(configured=>[...document.querySelectorAll('[data-assembly-tree-key]')].map(row=>{
     const key=row.getAttribute('data-assembly-tree-key'),identity=JSON.parse(key);
-    return {key,parent:row.getAttribute('data-assembly-tree-parent'),path:identity[configured?1:0],kind:configured?identity[0]:'occurrence',definition:identity.slice(-2)};
+    return {key,parent:row.getAttribute('data-assembly-tree-parent'),path:identity[configured?1:0],kind:row.hasAttribute('data-assembly-origin-tree-key')?'origin':configured?identity[0]:'occurrence',definition:identity.slice(-2)};
   }),mode);
   const parentPath=configured?['left']:['g-a'],siblingPath=configured?['right']:['g-b'],childPath=configured?['left','a']:['g-a','p-a'];
   function occurrence(path){const rows=inventory.filter(row=>row.kind==='occurrence'&&canonical(row.path)===canonical(path));check(rows.length===1,'One original tree occurrence at '+JSON.stringify(path));return rows[0];}
@@ -47,6 +47,7 @@ module.exports=async function treeControls({configured=false,page,waitFor,pointe
   await tree.press(await disclosure(parent.key));await expanded(parent.key,false);await focused(parent.key);
   check(canonical(await selected())===canonical([child.key])&&await page(s=>!!document.querySelector(s)?.closest('[hidden]'),await row(child.key)),'Collapsing retains the selected mounted descendant while hiding its row');
   const firstChild=inventory.find(value=>value.parent===parent.key);
+  check(firstChild&&firstChild.kind==='origin','Right enters the actual first origin datum before nested components or configuration actions');
   for(const [key,target,open] of [['ArrowRight',parent.key,true],['ArrowRight',firstChild.key,null],['ArrowLeft',parent.key,null],['ArrowLeft',parent.key,false],['ArrowDown',sibling.key,null],['ArrowUp',parent.key,null]]){
     await menuKey(key);await focused(target);if(open!==null)await expanded(parent.key,open);
   }
@@ -57,5 +58,6 @@ module.exports=async function treeControls({configured=false,page,waitFor,pointe
     :document.activeElement===document.querySelector('[aria-label="Nombre del componente"]'),mode));
   check((await observe()).serial===settled&&await page(()=>localStorage.getItem('solidflow.autosave'))===recovery,'Collapse, keyboard focus and explicit properties preserve settled native serial and exact recovery');
   if(configured)await navigation.pane('model');else await navigation.panel('components');
+  await require('./desktop-assembly-origin-tree-controls.cjs')({configured,page,waitFor,pointer,navigation,observe,check,canonical,checks,ownerPath:parentPath,siblingPath});
   checks.push({assemblyTreeNavigation:{configured,parent:parent.path,child:child.path,sibling:sibling.path,keyboard:['ArrowRight','ArrowRight','ArrowLeft','ArrowLeft','ArrowDown','ArrowUp'],evidenceLimits:'Actual CDP pointer/disclosure/row selection and fixed keyboard input on original reused BOM occurrences. No native-product keyboard parity, CAD edit, new geometry oracle or platform claim.'}});
 };

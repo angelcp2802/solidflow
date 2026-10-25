@@ -300,9 +300,13 @@ Component branches expand independently by full occurrence path. Collapsing a
 subassembly retains its selected descendant. Arrow keys navigate visible rows
 without selecting another component; Enter/Space activate the focused row.
 The explicit component-properties command focuses the existing inline controls
-while ordinary selection keeps the tree visible. This presentation state is not saved in the
-assembly document. Origin planes and axes are currently selected through the
-relation editor; actionable origin children in the component tree remain pending.
+while ordinary selection keeps the tree visible. This presentation state is not
+saved in the assembly document. Principal planes and axes appear at the root and
+under each visible, unsuppressed component. Selecting one shows that datum in
+the viewport, retaining its highlight when the branch is closed. This browsing
+does not assign relation roles or change the editing scope; use the relation
+editor's explicit role selection for that. Component selection clears the datum.
+There is no point-origin producer in this increment.
 
 The workspace has a component tree, names/poses/fixed/visible/suppressed controls,
 insertion of a chosen v1 part or v2 assembly, reuse of existing definitions and

@@ -82,6 +82,9 @@ import { standardAssemblyOriginKinds, standardAssemblyOriginPick, type StandardA
 import { AssemblyShellHeader, AssemblyCommandGroup, type AssemblyMenuDefinition } from './AssemblyCommandManager'
 import { AssemblyCommandTabs, type AssemblyCommandTab } from './AssemblyCommandTabs'
 import { useAssemblyTreeNavigation } from './useAssemblyTreeNavigation'
+import AssemblyOriginIcon from './AssemblyOriginIcon'
+import { buildAssemblyOriginTree, retainAssemblyOriginTreeSelection, resolveAssemblyOriginTreeSelection,
+  type AssemblyOriginTreeEntry, type AssemblyOriginTreeSelection } from './assemblyOriginTree'
 import './assembly.css'
 import { parseCadDocument as parseSavedCadDocument } from '../model/cadDocument'
 import { createAssemblyConfiguredDocument, type AssemblyConfiguredDocument } from '../model/assemblyConfiguredDocument'
@@ -261,41 +264,76 @@ function referenceLabel(reference: AssemblyGeometryReference | AssemblyTangentRe
   const component = reference.component?.occurrencePath.join(' / ') ?? 'Ámbito actual'
   return reference.kind === 'principal-axis' ? `${component} · Eje de origen ${reference.axis}` : reference.kind === 'principal-plane' ? `${component} · ${reference.plane}` : reference.kind === 'edge' ? `${component} · Arista lineal · ${reference.edge.sourceFeatureId}` : `${component} · ${reference.support === 'axis' ? 'Cilindro' : reference.support === 'cylinder-surface' ? 'Superficie cilíndrica' : reference.support === 'sphere-surface' ? 'Superficie esférica' : 'Plano'} · ${reference.face.sourceFeatureId}`
 }
-export function AssemblyComponentTree({ document, selectedPath, onSelect, disabled = false, active = true, resetKey = document.id }: {
+export function AssemblyComponentTree({ document, selectedPath, onSelect, disabled = false, active = true, resetKey = document.id,
+  originRows = [], selectedOriginKey = null, onOrigin, originDisabled = false }: {
   document: AssemblyDocument; selectedPath: readonly string[]; onSelect: (path: string[]) => void; disabled?: boolean; active?: boolean; resetKey?: unknown
+  originRows?: readonly AssemblyOriginTreeEntry[]; selectedOriginKey?: string | null; onOrigin?: (entry: AssemblyOriginTreeEntry) => void; originDisabled?: boolean
 }) {
+  type Node = { key: string; parentKey: string | null; level: number } & (
+    { kind: 'component'; row: AssemblyTreeRow } | { kind: 'origin'; origin: AssemblyOriginTreeEntry })
   const tree = useMemo(() => {
     const rows = assemblyTreeRows(document)
     const keys = new Map(rows.map(row => [JSON.stringify(row.path), JSON.stringify([row.path, row.definition.id, row.definition.revision])]))
-    return rows.map(row => ({ ...row, key: keys.get(JSON.stringify(row.path))!,
-      parentKey: keys.get(JSON.stringify(row.path.slice(0, -1))) ?? null }))
-  }, [document])
-  const navigation = useAssemblyTreeNavigation({ nodes: tree, selectedKey: tree.find(row => samePath(row.path, selectedPath))?.key ?? null,
-    resetKey, active, disabled })
-  const renderRows = (parentKey: string | null): ReactNode => tree.filter(row => row.parentKey === parentKey).map(row => {
-    const expandable = navigation.canExpand(row.key), expanded = navigation.isExpanded(row.key)
+    const originsByOwner = new Map<string, AssemblyOriginTreeEntry[]>()
+    for (const origin of originRows) {
+      const owner = JSON.stringify(origin.ownerPath), values = originsByOwner.get(owner) ?? []
+      values.push(origin); originsByOwner.set(owner, values)
+    }
+    const origins = (ownerPath: readonly string[]): Node[] => (originsByOwner.get(JSON.stringify(ownerPath)) ?? []).map(origin => ({
+      kind: 'origin', origin, key: origin.treeKey, parentKey: keys.get(JSON.stringify(ownerPath)) ?? null, level: ownerPath.length + 1,
+    }))
+    const nodes: Node[] = origins([])
+    for (const row of rows) {
+      nodes.push({ kind: 'component', row, key: keys.get(JSON.stringify(row.path))!,
+        parentKey: keys.get(JSON.stringify(row.path.slice(0, -1))) ?? null, level: row.path.length }, ...origins(row.path))
+    }
+    return nodes
+  }, [document, originRows])
+  const children = useMemo(() => {
+    const grouped = new Map<string | null, Node[]>()
+    for (const node of tree) {
+      const values = grouped.get(node.parentKey) ?? []; values.push(node); grouped.set(node.parentKey, values)
+    }
+    return grouped
+  }, [tree])
+  const selectedKey = selectedOriginKey ?? tree.find(node => node.kind === 'component' && samePath(node.row.path, selectedPath))?.key ?? null
+  const navigation = useAssemblyTreeNavigation({ nodes: tree, selectedKey, resetKey, active, disabled })
+  const renderRows = (parentKey: string | null): ReactNode => (children.get(parentKey) ?? []).map(node => {
+    const expandable = navigation.canExpand(node.key), expanded = navigation.isExpanded(node.key)
+    const row = node.kind === 'component' ? node.row : null, origin = node.kind === 'origin' ? node.origin : null
     // The key is JSON, so URI encoding also accepts document IDs with lone surrogates.
-    const childrenId = `standard-assembly-tree-children-${encodeURIComponent(row.key)}`
-    return <div className="assembly-tree-entry" role="none" key={row.key} hidden={!navigation.isVisible(row.key)}>
+    const childrenId = `standard-assembly-tree-children-${encodeURIComponent(node.key)}`
+    return <div className="assembly-tree-entry" role="none" key={node.key} hidden={!navigation.isVisible(node.key)}>
       <div className="assembly-tree-row-wrap" role="none">
-        {expandable && <button type="button" className="assembly-tree-toggle" data-assembly-tree-toggle={JSON.stringify(row.path)} data-assembly-tree-disclosure={row.key}
-          style={{ left: 7 + (row.path.length - 1) * 15 }} disabled={disabled} tabIndex={-1}
-          aria-label={`${expanded ? 'Plegar' : 'Desplegar'} ${row.occurrence.name}`} aria-expanded={expanded} aria-controls={childrenId}
-          onClick={() => navigation.toggle(row.key)}>{expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}</button>}
-        <button type="button" role="treeitem" aria-level={row.path.length} aria-selected={samePath(row.path, selectedPath)}
+        {expandable && <button type="button" className="assembly-tree-toggle" data-assembly-tree-toggle={row ? JSON.stringify(row.path) : undefined} data-assembly-tree-disclosure={node.key}
+          style={{ left: 7 + (node.level - 1) * 15 }} disabled={disabled || !active} tabIndex={-1}
+          aria-label={`${expanded ? 'Plegar' : 'Desplegar'} ${row?.occurrence.name}`} aria-expanded={expanded} aria-controls={childrenId}
+          onClick={() => navigation.toggle(node.key)}>{expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}</button>}
+        <button type="button" role="treeitem" aria-level={node.level} aria-selected={node.key === selectedKey}
           aria-expanded={expandable ? expanded : undefined} aria-controls={expandable ? childrenId : undefined}
           aria-owns={expandable ? childrenId : undefined}
-          data-assembly-tree-path={JSON.stringify(row.path)}
-          data-assembly-tree-key={row.key} data-assembly-tree-parent={row.parentKey ?? ''}
-          className={`assembly-tree-row ${samePath(row.path, selectedPath) ? 'selected' : ''} ${row.suppressed ? 'suppressed' : ''}`}
-          style={{ paddingLeft: 28 + (row.path.length - 1) * 15 }} disabled={disabled} tabIndex={navigation.rowTabIndex(row.key)}
-          ref={element => navigation.register(row.key, element)} onFocus={() => navigation.onFocus(row.key)}
-          onKeyDown={event => navigation.onKeyDown(event, row.key)} onClick={() => onSelect(row.path)}>
-          {row.definition.kind === 'assembly' ? <Layers size={15} /> : <Box size={15} />}<span>{row.occurrence.name}<small>{row.definition.id} · {row.definition.revision}</small></span>
-          {row.occurrence.fixed && <LockKeyhole size={12} aria-label="Fijo respecto a su padre" />}{!row.visible && <Eye size={12} aria-label="Oculto" />}
+          aria-label={origin ? `Seleccionar ${origin.display.label} en el árbol` : undefined}
+          data-assembly-tree-path={row ? JSON.stringify(row.path) : undefined}
+          data-assembly-tree-key={node.key} data-assembly-tree-parent={node.parentKey ?? ''}
+          data-assembly-origin-tree-key={origin?.treeKey} data-assembly-origin-tree-reference={origin ? JSON.stringify(origin.display.reference) : undefined}
+          data-assembly-origin-tree-owner={origin ? JSON.stringify(origin.ownerPath) : undefined}
+          className={`assembly-tree-row ${origin ? 'assembly-tree-origin' : ''} ${node.key === selectedKey ? 'selected' : ''} ${row?.suppressed ? 'suppressed' : ''}`}
+          style={{ paddingLeft: 28 + (node.level - 1) * 15 }} disabled={disabled || !active}
+          aria-disabled={origin && (originDisabled || !onOrigin) ? true : undefined} tabIndex={navigation.rowTabIndex(node.key)}
+          ref={element => navigation.register(node.key, element)} onFocus={() => navigation.onFocus(node.key)}
+          onKeyDown={event => navigation.onKeyDown(event, node.key)} onClick={() => {
+            if (disabled || !active || !navigation.isVisible(node.key)) return
+            if (origin) { if (!originDisabled) onOrigin?.(origin) }
+            else if (row) onSelect(row.path)
+          }}>
+          {origin ? <AssemblyOriginIcon plane={origin.display.reference.kind === 'principal-plane'} />
+            : row?.definition.kind === 'assembly' ? <Layers size={15} /> : <Box size={15} />}
+          <span>{origin ? origin.display.reference.kind === 'principal-plane' ? `Plano ${origin.display.reference.plane}` : `Eje ${origin.display.reference.axis}`
+            : <>{row?.occurrence.name}<small>{row?.definition.id} · {row?.definition.revision}</small></>}</span>
+          {row?.occurrence.fixed && <LockKeyhole size={12} aria-label="Fijo respecto a su padre" />}{row && !row.visible && <Eye size={12} aria-label="Oculto" />}
         </button>
       </div>
-      {expandable && <div id={childrenId} role="group" data-assembly-tree-parent-key={row.key} hidden={!expanded}>{renderRows(row.key)}</div>}
+      {expandable && <div id={childrenId} role="group" data-assembly-tree-parent-key={node.key} hidden={!expanded}>{renderRows(node.key)}</div>}
     </div>
   })
   return <div className="assembly-tree" role="tree" aria-label="Componentes del ensamblaje">
@@ -355,6 +393,8 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   const [analysisScope, setAnalysisScope] = useState<AssemblyInterferenceScope>({ mode: 'all', selected: [], excluded: [] })
   const [message, setMessage] = useState('Preparando ensamblaje…'), [error, setError] = useState(false), [selectedPath, setSelectedPath] = useState<string[]>([])
   const [scopePath, setScopePath] = useState<string[]>([]), [selectedFaceMeshes, setSelectedFaceMeshes] = useState<AssemblySceneFace[]>([])
+  const [treeOriginSelection, setTreeOriginSelection] = useState<AssemblyOriginTreeSelection | null>(null)
+  useEffect(() => { setTreeOriginSelection(null) }, [selectedPath])
   const [symmetryReferences,setSymmetryReferences]=useState<SymmetryUiReferences>([null,null,null]), [symmetryFamily,setSymmetryFamily]=useState<SymmetryUiFamily>('point'), [symmetryAlignment,setSymmetryAlignment]=useState<'aligned'|'opposed'|''>(''), [editingSymmetryId,setEditingSymmetryId]=useState<string|null>(null)
   const [symmetryPicking, setSymmetryPickingState] = useState<SymmetryPickTicket | null>(null), symmetryPickingRef = useRef<SymmetryPickTicket | null>(null)
   const setSymmetryPicking = (ticket: SymmetryPickTicket | null) => { symmetryPickingRef.current = ticket; setSymmetryPickingState(ticket) }
@@ -1731,6 +1771,28 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     const selectedOrigins = originOwner !== 'scope' && selectedPath.length ? buildAssemblyOriginDisplay(originEvaluation, scopePath, selectedPath, kinds) : []
     return [...scopeOrigins, ...selectedOrigins]
   }, [originEvaluation, scene, busy, sourceUpdate, documentUpdate, replacementReview, streamProjection, preview, draft, serialized, scopePath, selectedPath, originOwner, showOriginAxes, showOriginPlanes])
+  const treeOrigins = useMemo(() => {
+    try { return buildAssemblyOriginTree(evaluateAssemblyConfiguration(committed, [], null), []) } catch { return [] }
+  }, [committed])
+  const treeOriginBlocked = managerTab !== 'components' || editingBlocked || !!draft || !!preview || replaceDialog || !!streamProjection
+    || dragActive || !scene || sceneSignature.current !== serialized
+    || confirmedScene.current?.signature !== serialized || confirmedScene.current?.scene !== scene
+  const treeOriginSession = useMemo(() => ({}), [treeReset, scene, serialized, scopePath, generation.current, treeOriginBlocked])
+  const treeOriginContext = { documentSignature: serialized, scopePath, sessionIdentity: treeOriginSession }
+  const treeOriginCurrent = useRef({ context: treeOriginContext, entries: treeOrigins, blocked: treeOriginBlocked })
+  treeOriginCurrent.current = { context: treeOriginContext, entries: treeOrigins, blocked: treeOriginBlocked }
+  const selectedTreeOrigin = !treeOriginBlocked ? resolveAssemblyOriginTreeSelection(treeOriginSelection, treeOrigins, treeOriginContext) : null
+  const selectTreeOrigin = (entry: AssemblyOriginTreeEntry) => {
+    const live = treeOriginCurrent.current
+    if (treeOriginBlocked || live.blocked || managerTabRef.current !== 'components' || !mounted.current || operation.current
+      || hasStaging() || currentPreview.current || dragSession.current || dragging.current
+      || treeOriginContext.documentSignature !== serializeAssemblyDocument(current.current)) return
+    const selection = retainAssemblyOriginTreeSelection(entry, treeOriginContext)
+    if (resolveAssemblyOriginTreeSelection(selection, live.entries, live.context)) {
+      setDragMode('off')
+      setTreeOriginSelection(selection)
+    }
+  }
   const faceChoices = scene?.bodies.filter(body => body.visible).flatMap(body => body.faces).filter(face => isLimitDistance ? scopedAssemblyPlaneFace(face, scopePath) : isSphereTangent ? scopedAssemblySphereTangentFace(face, scopePath, mateType) : isCylinderTangent ? scopedAssemblyCylinderSurface(face, scopePath) : scopedAssemblyFace(face, scopePath)) ?? []
   const limitFaceMeshes = isLimitDistance ? faceChoices.filter(face => limitEndpoints.some(reference => reference && JSON.stringify(reference) === JSON.stringify(scopedAssemblyPlaneFace(face, scopePath)))) : []
   const edgeChoices = isDirection || isLimitAngle ? scene?.bodies.filter(body => body.visible).flatMap(body => body.edges ?? []).filter(edge => scopedAssemblyEdge(edge, scopePath)) ?? [] : []
@@ -1946,7 +2008,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     { id: 'edit', label: 'Editar', items: [
       { id: 'undo', label: 'Deshacer', disabled: editingBlocked || !history.current.canUndo, onSelect: () => undo() },
       { id: 'redo', label: 'Rehacer', disabled: editingBlocked || !history.current.canRedo, onSelect: () => undo(true) },
-      { id: 'component-properties', label: 'Propiedades del componente', disabled: !selected, onSelect: () => openManager('components', '[aria-label="Nombre del componente"]') },
+      { id: 'component-properties', label: 'Propiedades del componente', disabled: editingBlocked || !selected || !!selectedTreeOrigin, onSelect: () => openManager('components', '[aria-label="Nombre del componente"]') },
       { id: 'revision', label: 'Crear revisión…', disabled: editingBlocked || !!draft || replaceDialog, onSelect: openRootRevision },
     ] },
     { id: 'view', label: 'Ver', items: [
@@ -2020,7 +2082,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
         </AssemblyCommandGroup>
         <AssemblyCommandGroup label="Relaciones y movimiento">
           <button className="assembly-command-large" aria-label="Relación de ensamblaje" onClick={() => openManager('relations', '[aria-label="Tipo de relación"]')}><Link2 size={25} /><span>Relación</span></button>
-          <button aria-label="Mover componente" disabled={!selected} onClick={() => openManager('components', '.assembly-movement h3')}><Move3D size={17} />Mover componente</button>
+          <button aria-label="Mover componente" disabled={!selected || !!selectedTreeOrigin} onClick={() => openManager('components', '.assembly-movement h3')}><Move3D size={17} />Mover componente</button>
         </AssemblyCommandGroup>
         <AssemblyCommandGroup label="Documento">
           <div className="assembly-command-stack">
@@ -2069,11 +2131,14 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
         <div id="assembly-panel-components" role="tabpanel" aria-labelledby="assembly-tab-components" tabIndex={-1} hidden={managerTab !== 'components'} className="assembly-sidebar assembly-manager-panel">
 
       <h2><Layers size={16} />Componentes</h2>
-      <div className="assembly-tree-actions"><button type="button" aria-label="Propiedades del componente seleccionado" disabled={editingBlocked || !selected}
+      <div className="assembly-tree-actions"><button type="button" aria-label="Propiedades del componente seleccionado" disabled={editingBlocked || !selected || !!selectedTreeOrigin}
         onClick={() => openManager('components', '[aria-label="Nombre del componente"]')}><Settings2 size={15} />Propiedades</button></div>
-      <AssemblyComponentTree document={committed} selectedPath={selectedPath} resetKey={treeReset} active={managerTab === 'components'} onSelect={value => { if (fileTicket.current?.purpose === 'update' || linkedTicket.current) generation.current++; setSelectedPath(value) }} disabled={editingBlocked} />
+      <AssemblyComponentTree document={committed} selectedPath={selectedPath} resetKey={treeReset} active={managerTab === 'components'}
+        originRows={treeOrigins} selectedOriginKey={selectedTreeOrigin?.treeKey} onOrigin={selectTreeOrigin} originDisabled={treeOriginBlocked}
+        onSelect={value => { setTreeOriginSelection(null); if (fileTicket.current?.purpose === 'update' || linkedTicket.current) generation.current++; setSelectedPath(value) }} disabled={editingBlocked} />
       <section className="assembly-section"><h3>Insertar origen reutilizable</h3><select aria-label="Origen del componente" value={sourceKey} disabled={editingBlocked} onChange={event => setSourceKey(event.target.value)}><option value="">Selecciona un origen</option>{committed.definitions.map(value => <option key={assemblyDefinitionKey(value)} value={assemblyDefinitionKey(value)}>{value.kind === 'part' ? value.document.name : value.name} · {value.revision}</option>)}</select>
         <button disabled={editingBlocked || !sourceKey} onClick={() => { const definition = committed.definitions.find(value => assemblyDefinitionKey(value) === sourceKey); if (definition) edit({ type: 'insert-occurrence', scope: scopeReference, occurrence: { name: definition.kind === 'part' ? definition.document.name : definition.name, definition: { id: definition.id, revision: definition.revision }, pose: identityRigidPose(), fixed: false, suppressed: false, visible: true } }) }}><Plus size={14} />Insertar otra ocurrencia</button></section>
+      <fieldset className="assembly-component-properties" aria-label="Edición del componente seleccionado" hidden={!!selectedTreeOrigin} disabled={!!selectedTreeOrigin}>
       {selected && <section className="assembly-section" key={JSON.stringify(selected.path)}><h3>Componente seleccionado</h3><button aria-label={selected.definition.kind === 'part' ? 'Actualizar pieza' : 'Actualizar subensamblaje'} disabled={editingBlocked || !!preview} onClick={() => void open('update')}>{selected.definition.kind === 'part' ? 'Actualizar pieza' : 'Actualizar subensamblaje'}</button><label>Nombre<input aria-label="Nombre del componente" defaultValue={selected.occurrence.name} disabled={editingBlocked} onBlur={event => { if (event.target.value !== selected.occurrence.name) edit({ type: 'rename-occurrence', scope: selected.parent, occurrenceId: selected.occurrence.id, name: event.target.value }) }} /></label>
         {selected.definition.kind === 'part' && <details><summary>Sustituir pieza</summary>
           <label>Alcance<select aria-label="Alcance de sustitución" value={replacementMode} disabled={editingBlocked || !!preview || replaceDialog}
@@ -2117,6 +2182,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
           && assemblyDefinitionKey(preview.reply.translation.component.definition) === assemblyDefinitionKey(selected.occurrence.definition) ? preview.reply.translation : undefined}
         checks={preview?.reply.translation ? preview.reply.checks : undefined} onPreview={(request, options) => void translate(request, options)} />}
 
+      </fieldset>
           <section className="assembly-section assembly-document-tools"><h3>Documentos y ejemplos</h3>
             <button aria-label="Importar STEP estructurado" disabled={editingBlocked || !!draft || !!preview || replaceDialog} onClick={()=>void importStructural()}><FileInput size={16} />Importar STEP estructurado</button>
             <button disabled={editingBlocked || replaceDialog} onClick={exampleAssembly}>Placa y dos pasadores</button>
@@ -2271,8 +2337,8 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
       </aside>
       <section className="assembly-canvas"><div className="assembly-view-tools"><button disabled={!!dragSession.current} onClick={() => viewButton('iso')}>Isométrica</button><button disabled={!!dragSession.current} onClick={() => viewButton('front')}>Frontal</button><button disabled={!!dragSession.current} onClick={() => viewButton('top')}>Superior</button><button disabled={!!dragSession.current} onClick={() => viewButton('fit')}>Ajustar</button><button className={pickingFaces ? 'active' : ''} aria-pressed={pickingFaces} disabled={isHinge || isCircularPath || isLinePath || isSymmetry || (isWidth ? widthPickingBlocked : editingBlocked || !!preview || standardPreviewFamily && referenceEditing)} onClick={() => { openManager('relations'); if (isWidth) { const missing = widthReferences.findIndex(value => value === null); toggleWidthPicking(widthPickingSlot ?? (missing < 0 ? 0 : missing as WidthUiSlot)); return } setDragMode('off'); setPickingLinearEdges(false); setPickingFaces(!pickingFaces) }}>Seleccionar caras</button>
         {(isDirection || isLimitAngle) && <button aria-label="Seleccionar aristas lineales" aria-pressed={pickingLinearEdges} disabled={editingBlocked || !!preview || !!editingDirection || !!editingLimitAngle || replaceDialog || sceneSignature.current !== serialized} onClick={() => { openManager('relations'); setDragMode('off'); setPickingFaces(false); setPickingLinearEdges(!pickingLinearEdges) }}>Seleccionar aristas</button>}
-        <div className="assembly-drag-tools"><button aria-label="Arrastrar posición" aria-pressed={dragMode === 'translate'} disabled={editingBlocked || !!draft || !!preview || replaceDialog || !eligibleDragFrame} onClick={() => { clearSymmetryPicking(); setDragMode('translate') }}>Arrastrar posición</button>
-        <button aria-label="Arrastrar giro" aria-pressed={dragMode === 'rotate'} disabled={editingBlocked || !!draft || !!preview || replaceDialog || !eligibleDragFrame} onClick={() => { clearSymmetryPicking(); setDragMode('rotate') }}>Arrastrar giro</button>
+        <div className="assembly-drag-tools"><button aria-label="Arrastrar posición" aria-pressed={dragMode === 'translate'} disabled={editingBlocked || !!draft || !!preview || replaceDialog || !eligibleDragFrame} onClick={() => { setTreeOriginSelection(null); clearSymmetryPicking(); setDragMode('translate') }}>Arrastrar posición</button>
+        <button aria-label="Arrastrar giro" aria-pressed={dragMode === 'rotate'} disabled={editingBlocked || !!draft || !!preview || replaceDialog || !eligibleDragFrame} onClick={() => { setTreeOriginSelection(null); clearSymmetryPicking(); setDragMode('rotate') }}>Arrastrar giro</button>
         <button aria-label="Desactivar manipulador" disabled={!!dragSession.current || dragMode === 'off'} onClick={() => setDragMode('off')}>Desactivar manipulador</button></div></div>
       <div className="assembly-origin-tools" role="group" aria-label="Orígenes visibles del ensamblaje">
         <label><input type="checkbox" checked={showOriginAxes} onChange={event => { stopOriginPicking(); setShowOriginAxes(event.target.checked) }} />Mostrar ejes</label>
@@ -2286,14 +2352,15 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
         {activeOriginPicking && <span role="status">Referencia {endpointSlot + 1}: selecciona {originKinds.axes && originKinds.planes ? 'un eje o plano' : originKinds.axes ? 'un eje' : 'un plano'} visible</span>}
         {originOwner !== 'scope' && !originDisplays.some(value => value.reference.component) && (showOriginAxes || showOriginPlanes) && <span>Selecciona un componente visible dentro del ámbito.</span>}
       </div>
-      <AssemblyViewport scene={scene} view={view} selectedPath={selectedPath} selectedFaces={rackSelectedFaces} selectedEdges={rackSelectedEdges} selectedAnalysisPair={selectedAnalysisPair}
-        originReferences={originDisplays} selectedOrigins={selectedOriginReferences} pickingOrigins={activeOriginPicking} onOrigin={pickOrigin}
+      <AssemblyViewport scene={scene} view={view} selectedPath={selectedTreeOrigin ? [] : selectedPath} selectedFaces={rackSelectedFaces} selectedEdges={rackSelectedEdges} selectedAnalysisPair={selectedAnalysisPair}
+        originReferences={selectedTreeOrigin ? [selectedTreeOrigin.display] : originDisplays}
+        selectedOrigins={selectedTreeOrigin ? [selectedTreeOrigin.display.reference] : selectedOriginReferences} pickingOrigins={activeOriginPicking} onOrigin={pickOrigin}
         pickingFaces={isSymmetry ? !!activeSymmetryPick && activeSymmetryPick.producer !== 'vertex' && activeSymmetryPick.producer !== 'line-edge' : pickingFaces || !!rackPicking && rackPicking.kind !== 'rack-edge'} pickingEdges={isSymmetry ? activeSymmetryPick?.producer === 'line-edge' : pickingLinearEdges || rackPicking?.kind === 'rack-edge'} disabled={editingBlocked || replaceDialog || !!preview && !rackPicking}
         drag={dragMode !== 'off' && !activeSymmetryPick && !pickingFaces && !pickingLinearEdges && !sourceUpdate && !documentUpdate && !replacementReview && !preview && !draft && !replaceDialog && (dragAnchor.current ?? eligibleDragFrame)
           ? { frame: (dragAnchor.current ?? eligibleDragFrame)!, mode: dragMode, active: dragActive } : undefined}
         onDragStart={beginDrag} onDragTarget={dragTarget} onDragEnd={endDrag} onDragCancel={cancel}
         pickingVertices={isSymmetry && activeSymmetryPick?.producer === 'vertex'} selectedVertices={symmetrySelectedVertices} onVertex={vertex => { if (managerTabRef.current === 'relations') pickSymmetryVertex(vertex) }}
-        onComponent={component => { if (linkedTicket.current) generation.current++; setSelectedPath(component?.occurrencePath ?? []) }} onFace={face => { if (managerTabRef.current === 'relations') (rackPicking ? pickRackFace : pickFace)(face) }} onEdge={edge => { if (managerTabRef.current === 'relations') (rackPicking ? pickRackEdge : pickDirectionEdge)(edge) }} />
+        onComponent={component => { setTreeOriginSelection(null); if (linkedTicket.current) generation.current++; setSelectedPath(component?.occurrencePath ?? []) }} onFace={face => { if (managerTabRef.current === 'relations') (rackPicking ? pickRackFace : pickFace)(face) }} onEdge={edge => { if (managerTabRef.current === 'relations') (rackPicking ? pickRackEdge : pickDirectionEdge)(edge) }} />
       <div className="assembly-canvas-label"><strong>{displayed.name}</strong><span>{rackPicking ? rackPicking.kind === 'rack-edge' ? 'Selecciona una arista lineal actual de la cremallera' : rackPicking.kind === 'pinion' ? 'Selecciona el cilindro actual del piñón' : 'Selecciona el eje cilíndrico actual de la cremallera' : dragSession.current ? 'Arrastre · destinos nativos verificados · todavía sin aplicar' : preview ? 'Vista previa · todavía sin aplicar' : documentUpdate ? 'Actualización de subensamblaje · pendiente de resolver y aplicar' : sourceUpdate ? 'Actualización de origen · pendiente de resolver y aplicar' : replacementReview ? 'Sustitución de pieza · pendiente de resolver y aplicar' : activeSymmetryPick ? 'Selecciona ' + SYMMETRY_ROLE_LABELS[activeSymmetryPick.slot] + (activeSymmetryPick.producer === 'line-edge' ? ' · arista lineal' : activeSymmetryPick.producer === 'cylinder-axis' ? ' · eje cilíndrico' : '') : activeHingePick ? 'Selecciona ' + HINGE_ROLE_LABELS[activeHingePick.slot] : widthPickingSlot !== null ? 'Selecciona ' + WIDTH_ROLE_LABELS[widthPickingSlot] : pickingFaces ? `Selecciona referencia ${endpointSlot + 1}` : 'Componentes independientes · mm'}</span></div>
       {!scene?.bodies.length && !busy && <div className="assembly-empty"><Component size={42} /><h2>Diseña un conjunto de piezas</h2><p>Importa una pieza o abre el ejemplo original para empezar.</p></div>}
     </section>

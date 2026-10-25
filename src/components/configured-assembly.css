@@ -61,6 +61,8 @@
 .configured-model-tree button>span,.configured-model-tree button>strong { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; }
 .configured-model-tree button>svg { flex:none; color:#4b80a5; }
 .configured-model-tree button.selected { background:#dcecfb; border-color:#93b8d8; }
+.configured-model-tree button[data-assembly-origin-tree-key] { font-size:11px; }
+.configured-model-tree button>svg[data-origin-icon=plane] { color:#318ba5; }
 .configured-tree-line { display:flex; align-items:center; min-width:0; }
 .configured-model-tree .configured-tree-row { flex:1; min-width:0; }
 .configured-model-tree .configured-tree-disclosure { flex:0 0 20px; width:20px; justify-content:center; padding:3px 1px; }

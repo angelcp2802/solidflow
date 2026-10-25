@@ -1,5 +1,91 @@
 # Validation
 
+## Assembly origin-tree browsing — 2026-10-25
+
+The increment after `91c176ac` adds principal planes and axes to the root and
+visible, unsuppressed occurrence branches in both assembly trees. Browsing
+retains the editable component and scope, renders only the selected datum and
+does not assign a relation role. Full owner path, definition revision,
+configuration lineage, world pose and document/scope/session identity guard
+retained selection. Collapsing a branch retains its selected datum highlight.
+
+An idle standard manipulator yields to datum selection; rearming it restores
+component selection and clears the datum. Active drag sessions stay guarded.
+Properties access and the Move shortcut are unavailable during datum browsing.
+Standard component editors stay mounted but hidden and disabled, preserving
+their field state. No solver, tolerance, document schema or workflow deadline
+changes are part of this increment.
+
+On Windows x64 / Node 24.11.1 / actual Electron 44.9.3, `npm test` passes 9,445
+unit/CAD cases across 411 files in 539.02 seconds, followed by 83 IPC/security
+passes and two explicit platform skips. The final production build passes.
+Application/unit-test inputs stayed frozen; two subsequent renderer-harness
+repairs do not change that application. The final loader/worker/WASM desktop
+smoke passes. Earlier intermediate runs are diagnostic evidence only.
+
+- Standard persistence/BOM passes 600 recorded checkpoints, including five
+  finalization records. Configured persistence/BOM passes 191 checkpoints.
+  Actual CDP input checks tree selection, disclosure, exact owner identity,
+  disabled Properties access and unchanged native serial/recovery text before
+  the existing geometry, CSV, history and saved-document checks continue.
+- Standard/configured origin-axis regressions pass 192/301 checkpoints. The
+  standard case additionally checks rotation-arm to datum selection, then
+  translation rearming and component restoration. Both retain the original
+  prism oracles, reference assignment, preview, Cancel/retry, Apply, history and
+  real Save As/reopen checks.
+- The 1040×700 configured pointer regression passes 203 checkpoints, retaining
+  component/face/LINE nomination, confirmation, preview/history and real file
+  reopening. Its original 128 mm³ volume and 192 mm² area oracles retain 1e-5
+  tolerances; literal placement/bounds retain 1e-6 mm.
+- Nested selected/source symmetry repair passes 68/77 checkpoints with the
+  original native geometry, scope, history and saved-file checks. Component
+  replacement was checked in the preceding increment and was not rerun here.
+- All seven final renderer workflows report no console/resource errors and
+  confirmed child exit plus isolated-profile cleanup. All 1,085 non-Markdown
+  source inputs match the runtime with zero differences.
+- The final standard/configured origin and configured persistence captures
+  are 1544×941; the compact capture is 1024×661. They were inspected separately
+  from the interaction assertions. No screenshot was requested for standard
+  persistence or the two nested repair workflows.
+
+The compact relation panel keeps commands and confirmation visible, but its
+origin-reference section pushes the main relation fields below the initial
+scroll position. This remains a presentation improvement; the normal and
+compact captures show different panel states and are not a controlled layout
+comparison.
+
+A separate visible Windows check of the final production build uses the original
+nested BOM fixture recovered from a test-owned profile. Actual pointer input
+selects Conjunto A, expands its datums, arms rotation, selects its XZ plane and
+collapses/reopens the branch. The rings disappear, the plane and projected label
+retain their highlight, and component editors plus Properties/Move are disabled
+or hidden. Opening/closing Edit retains the datum and its disabled Properties
+action. This presentation check performs no CAD edit, drag, relation assignment
+or saved-file round trip; the recovered example is initially marked unsaved.
+
+Diagnostic attempts found an ambiguous tree/viewport accessible label and a
+datum activation guard that rejected an idle armed manipulator. Tree labels now
+identify their tree context, and a valid datum selection disarms that manipulator.
+A later rigid run passed datum navigation but stopped because the older BOM
+assertion expected a component at global row index 6. It now requires the unique
+selected full path, definition and revision plus the exact BOM member. The nested
+symmetry helper also inventories component rows separately from datums and checks
+every full path. These harness changes preserve fixture, geometry and deadlines.
+
+Pure display-transform witnesses use original prism coordinates and compare to
+12 decimal places; they are not native BRep measurements. The catalog case has
+312 entries while the viewport remains bounded to one selected datum. These
+cases do not establish arbitrary topology, point-origin production, axis rotation
+locking, general installed-package support or complete assembly-demo acceptance.
+
+The preceding occurrence-tree head `94b0128` completes
+[CI](https://github.com/angelcp2802/solidflow/actions/runs/40143970447) with all
+nine renderer jobs, three configured-authoring jobs and three downstream Desktop
+jobs passing, including build, smoke and packaging on their hosted targets.
+Its [Security](https://github.com/angelcp2802/solidflow/actions/runs/40143970474)
+also passes. These results belong to that head; the new origin-tree increment
+requires its own hosted execution and installed-package acceptance remains open.
+
 ## Assembly occurrence-tree navigation — 2026-10-25
 
 The increment after `4ae70d52` adds independent occurrence disclosure, retained

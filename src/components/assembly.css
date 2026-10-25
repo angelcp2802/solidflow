@@ -173,6 +173,9 @@
 .assembly-classic-workspace .assembly-tree { max-height: none; padding: 5px 0 9px; }
 .assembly-classic-workspace .assembly-tree-row { min-height: 32px; padding-top: 5px; padding-bottom: 5px; gap: 6px; font-size: 11px; }
 .assembly-classic-workspace .assembly-tree-row small { font-size: 9px; margin-top: 1px; }
+.assembly-classic-workspace .assembly-tree-origin { min-height: 26px; padding-top: 3px; padding-bottom: 3px; }
+.assembly-tree-origin > svg { color: #3683b4; flex-shrink: 0; }
+.assembly-tree-origin[aria-disabled="true"] { opacity: .55; cursor: default; }
 .assembly-classic-workspace .assembly-section { padding: 10px 11px; }
 .assembly-classic-workspace .assembly-properties > .assembly-section:first-of-type > h2 { margin: -10px -11px 10px; padding: 10px 11px; color: #345b78; background: #edf2f6; border-bottom: 1px solid #d2dce4; }
 .assembly-classic-workspace .assembly-section label { margin: 8px 0; }
@@ -204,3 +207,4 @@
 .assembly-origin-tools button { padding: 5px 7px; border: 1px solid #c6d6e2; border-radius: 2px; color: #376d96; font-size: 10px; }
 .assembly-origin-tools button[aria-pressed="true"] { background: #ddebfa; color: #166ea7; }
 .assembly-origin-tools > span { flex-basis: 100%; line-height: 1.4; }
+.assembly-component-properties { min-width: 0; margin: 0; padding: 0; border: 0; }

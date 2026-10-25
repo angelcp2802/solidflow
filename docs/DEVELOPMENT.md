@@ -17,8 +17,25 @@ properties command focuses the standard workspace's existing inline controls
 or opens the configured occurrence inspector. Configured selection may
 still rebuild when its declaring scope changes; it must retain the fresh-build
 guard. Disclosure and keyboard focus themselves do not issue CAD requests.
-Origin references remain available through the existing relation editor; the
-component tree does not yet expose actionable origin planes or axes.
+The component tree also exposes principal planes and axes for the document root
+and each visible, unsuppressed occurrence. `assemblyOriginTree.ts` separates the
+complete declaration catalog from the viewport's bounded display list: browsing
+draws only the selected datum. Its full owner path, definition revision, selected
+configuration lineage, world pose and current document/scope/session binding
+must still resolve before selection or highlighting. Root browsing always uses
+the document frame, independently of the current relation-editing scope.
+
+Datum browsing is presentation-only. It neither changes component selection or
+scope nor assigns a relation role, and collapse retains its highlight. Selecting
+a component clears it. Selecting a datum disarms an idle standard manipulator;
+arming a manipulator clears datum browsing. Active drag sessions remain guarded.
+While a datum is selected, component Properties access is disabled and standard
+component editors stay mounted but hidden and disabled, retaining their fields.
+The standard workspace keeps guarded datum rows focusable
+with `aria-disabled` when component browsing remains available; activation stays
+blocked. The configured model tree remains disabled during a relation draft.
+Armed origin roles retain the existing relation editor and its current display,
+ticket and compatibility checks. A point-origin producer is not added.
 
 `desktop-assembly-tree-navigation.cjs` discovers mounted ancestry and opens its
 real disclosure controls before a hidden target can be selected. It does not
@@ -26,6 +43,12 @@ unhide nodes or write application state. The bounded tree-controls scenario uses
 the existing original reused BOM fixtures and actual pointer/keyboard input;
 its acceptance and subsequent persistence checks remain separate. See
 [validation](VALIDATION.md) for executed cases and limits.
+
+`desktop-assembly-origin-tree-controls.cjs` uses actual pointer input on the
+original origin-axis and reused BOM fixtures. It checks root/component plane
+and axis selection, retained highlight when collapsed, and exact recovery,
+history controls, owner/scope and native request invariants before restoring
+the original component. Existing relation and file-persistence oracles follow.
 
 Part and assembly top-level menus use `AssemblyMenuBar.tsx`. Callers provide existing
 actions and their current guards; closed menus do not mount duplicate controls.

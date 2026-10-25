@@ -12,6 +12,8 @@ import { validateDocument } from '../model/document'
 import type { AssemblyScene, AssemblySceneFace, AssemblySceneEdge } from '../cad/kernel.assembly-types'
 import type { AssemblyScopeSolveReport } from '../cad/kernel.assembly-solve'
 import { identityRigidPose } from '../model/rigidPose'
+import { evaluateAssemblyConfiguration } from '../model/assemblyConfigurationCore'
+import { buildAssemblyOriginTree } from './assemblyOriginTree'
 import { buildAssembly, exportAssemblyCad, inspectAssemblyInterferences, moveAssemblyComponent, moveAssemblyWorldComponent, projectAssemblyDrag, previewAssembly, reviewAssemblyPartUpdate, translateAssemblyUntilContact } from '../cad/kernel'
 
 vi.mock('../cad/kernel', () => ({ buildAssembly: vi.fn(), exportAssemblyCad: vi.fn(), exportAssemblyStep: vi.fn(), importAssemblyStep: vi.fn(), insertAssemblyStep: vi.fn(), previewAssembly: vi.fn(), applyAssemblyPreview: vi.fn(), discardAssemblyPreview: vi.fn(), reviewAssemblyPartReplacement: vi.fn(), previewAssemblyPartReplacement: vi.fn(), discardAssemblyPartReplacement: vi.fn(), captureAssemblyRotationLock: vi.fn(), captureAssemblyComponentLock: vi.fn(), captureAssemblyGear: vi.fn(), captureAssemblyScrew: vi.fn(), captureAssemblyRackPinion: vi.fn(), reviewAssemblyPartUpdate: vi.fn(), inspectAssemblyInterferences: vi.fn(), moveAssemblyComponent: vi.fn(), moveAssemblyComponentMotion: vi.fn(), moveAssemblyWorldComponent: vi.fn(), projectAssemblyDrag: vi.fn(), translateAssemblyUntilContact: vi.fn() }))
@@ -152,6 +154,44 @@ it('renders separate occurrence tree entries for a reused source and distinguish
 it('retains full nested occurrence paths and inherited visibility/suppression without a world-fixed shortcut', () => {
   const rows = assemblyTreeRows(nestedTreeFixture()), a = rows.find(row => row.path.join('/') === 'a/child')!, b = rows.find(row => row.path.join('/') === 'b/child')!
   expect(a.visible).toBe(false); expect(a.occurrence.fixed).toBe(true); expect(a.parent).toEqual({ id: 'sub', revision: 'r1' }); expect(b.suppressed).toBe(true)
+})
+it('renders actual origin leaves under each occurrence and selects one datum without selecting its body', () => {
+  const document = createAssemblyExample(), before = serializeAssemblyDocument(document)
+  const originRows = buildAssemblyOriginTree(evaluateAssemblyConfiguration(document, [], null), [])
+  const chosen = originRows.find(entry => entry.ownerPath.join('/') === 'right' && entry.display.reference.kind === 'principal-plane' && entry.display.reference.plane === 'XZ')!
+  const onSelect = vi.fn(), onOrigin = vi.fn()
+  const html = renderToStaticMarkup(<AssemblyComponentTree document={document} selectedPath={['right']} originRows={originRows}
+    selectedOriginKey={chosen.treeKey} onSelect={onSelect} onOrigin={onOrigin} />)
+  const rows = html.match(/<button(?=[^>]*role="treeitem")[^>]*>/g) ?? []
+  const leaves = rows.filter(tag => treeAttribute(tag, 'data-assembly-origin-tree-key'))
+  expect(leaves).toHaveLength(24)
+  expect(rows.filter(tag => treeAttribute(tag, 'aria-selected') === 'true')).toHaveLength(1)
+  const selected = leaves.find(tag => treeAttribute(tag, 'aria-selected') === 'true')!
+  expect(treeAttribute(selected, 'data-assembly-origin-tree-key')).toBe(chosen.treeKey)
+  expect(treeAttribute(selected, 'data-assembly-origin-tree-owner')).toBe('["right"]')
+  expect(treeAttribute(selected, 'data-assembly-origin-tree-reference')).toBe(JSON.stringify(chosen.display.reference))
+  expect(treeAttribute(selected, 'aria-level')).toBe('2')
+  const owner = rows.find(tag => treeAttribute(tag, 'data-assembly-tree-path') === '["right"]')!
+  expect(treeAttribute(owner, 'aria-expanded')).toBe('true')
+  expect(treeAttribute(selected, 'data-assembly-tree-parent')).toBe(treeAttribute(owner, 'data-assembly-tree-key'))
+  expect(leaves.filter(tag => treeAttribute(tag, 'data-assembly-origin-tree-owner') === '[]')).toHaveLength(6)
+  expect(onSelect).not.toHaveBeenCalled(); expect(onOrigin).not.toHaveBeenCalled()
+  expect(serializeAssemblyDocument(document)).toBe(before); expect(buildAssembly).not.toHaveBeenCalled()
+})
+it('omits hidden and suppressed origin descendants and guards datum activation separately from component browsing', () => {
+  const document = nestedTreeFixture(), originRows = buildAssemblyOriginTree(evaluateAssemblyConfiguration(document, [], null), [])
+  const html = renderToStaticMarkup(<AssemblyComponentTree document={document} selectedPath={[]} originRows={originRows}
+    onSelect={() => undefined} onOrigin={() => undefined} originDisabled />)
+  const leaves = html.match(/<button(?=[^>]*data-assembly-origin-tree-key=)[^>]*>/g) ?? []
+  expect(leaves).toHaveLength(6)
+  for (const tag of leaves) {
+    expect(treeAttribute(tag, 'data-assembly-origin-tree-owner')).toBe('[]')
+    expect(tag).toContain('aria-disabled="true"')
+    expect(tag).not.toContain(' disabled=""')
+  }
+  const components = html.match(/<button(?=[^>]*data-assembly-tree-path=)[^>]*>/g) ?? []
+  expect(components).toHaveLength(4)
+  expect(components.every(tag => !tag.includes('disabled=""'))).toBe(true)
 })
 it('keeps reused descendants mounted under distinct closed branches without changing the complete occurrence catalog', () => {
   const document = nestedTreeFixture(), before = serializeAssemblyDocument(document), onSelect = vi.fn()

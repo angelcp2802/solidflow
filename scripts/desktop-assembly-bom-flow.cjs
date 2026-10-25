@@ -46,10 +46,24 @@ module.exports = async function bomWorkflow(context) {
       if (select.disabled || ![...select.options].some(option => option.value === JSON.stringify(path))) throw Error('Actual full hidden path choice missing');
       select.value = JSON.stringify(path); select.dispatchEvent(new Event('change', { bubbles: true }));
     }, JSON.stringify(['g-b', 'p-b']));
-    await waitFor('BOM selection reaches the exact reused hidden occurrence', () => page(() => {
-      const rows = [...document.querySelectorAll('[role="treeitem"]')], selected = rows.map((row, index) => row.getAttribute('aria-selected') === 'true' ? index : -1).filter(index => index >= 0);
-      return selected.length === 1 && selected[0] === 6 && document.querySelector('tr[data-selected-member]')?.getAttribute('data-selected-member') === '["g-b","p-b"]';
-    }));
+    try {
+      await waitFor('BOM selection reaches the exact reused hidden occurrence', () => page(() => {
+        const selected = [...document.querySelectorAll('[role="treeitem"][aria-selected="true"]')];
+        return selected.length === 1 && !selected[0].hasAttribute('data-assembly-origin-tree-key')
+          && selected[0].getAttribute('data-assembly-tree-path') === '["g-b","p-b"]'
+          && selected[0].getAttribute('data-assembly-tree-key') === JSON.stringify([['g-b', 'p-b'], 'bom-part', 'r1'])
+          && document.querySelector('tr[data-selected-member]')?.getAttribute('data-selected-member') === '["g-b","p-b"]';
+      }));
+    } catch (error) {
+      checks.push({ bomHiddenSelectionFailure: await page(() => ({
+        selected: [...document.querySelectorAll('[role="treeitem"][aria-selected="true"]')].slice(0, 12).map(row => ({
+          path: row.getAttribute('data-assembly-tree-path'), key: row.getAttribute('data-assembly-tree-key'),
+          origin: row.hasAttribute('data-assembly-origin-tree-key'), hidden: !!row.closest('[hidden]'),
+        })),
+        bomMembers: [...document.querySelectorAll('tr[data-selected-member]')].slice(0, 12).map(row => row.getAttribute('data-selected-member')),
+      })) });
+      throw error;
+    }
   }
   await chooseHidden(); await table('bom/exact-hidden-member-selected');
   const headers = ['Item', 'Type', 'Name', 'Definition ID', 'Revision', 'Quantity per parent', 'Total quantity', 'Occurrence paths'];

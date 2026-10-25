@@ -180,8 +180,12 @@ its draft. Returning to it does not automatically rearm picking.
 Panels remain mounted to retain field values, but inactive panels are hidden.
 Renderer workflows navigate through the actual tabs before operating fields;
 scripted form controls remain distinct from pointer-validated interactions.
-The tree's origin labels remain descriptive. Visible origin references have
-separate controls and selectable overlays in the viewport.
+The model tree lists **Plano XY/XZ/YZ** and **Eje X/Y/Z** at the root and under
+each visible, unsuppressed component. Expand a component and click a datum to
+show it in the viewport; closing that branch retains its highlight. Click a
+component to return to body selection. Root datums always belong to the document
+root. This exploration does not change the editing scope or assign a relation
+role. Use the explicit reference controls below when creating a relation.
 
 In a standard assembly, enable **Mostrar ejes** or **Mostrar planos** and choose
 **Ámbito actual**, **Componente seleccionado** or **Ambos** in **Orígenes visibles

@@ -1,5 +1,26 @@
 # Public fixture provenance
 
+## Assembly origin-tree browsing
+
+The pure catalog tests reuse `assemblyConfigurationCore.test-utils.ts` and its
+original prisms. Literal world witnesses distinguish the reused B occurrences:
+centers (10,0,0) and (30,4,0), with the latter's local X directed along world Y.
+An extent of 2 gives X-axis endpoints (30,2,0)/(30,6,0) and XZ-plane corners
+(30,2,-2), (30,6,-2), (30,6,2), (30,2,2), compared to 12 decimal places.
+These are display-transform witnesses, not native BRep or solver measurements.
+A generated repetition of the same authored source supplies 312 catalog entries
+to check that the viewport still displays only one selected datum.
+
+Static component tests reuse the existing original standard/configured assemblies.
+The renderer reuses the original two-prism origin-axis and nested BOM recipes;
+no imported model, topology key, binary or third-party visual asset is added.
+The small plane/axis SVG icons are authored directly in the shared component.
+Pointer cases check the actual tree and projected-label selection, retained
+collapse state, current scope/owner, history guards, native request count/serial
+and exact recovery text. They add no relation-role assignment or geometric oracle.
+The existing independent geometry, preview/history and saved-file checks remain
+separate. Source-specific execution belongs in [validation](VALIDATION.md).
+
 ## Assembly occurrence-tree navigation
 
 The shared navigation tests author a small presentation-only hierarchy with two

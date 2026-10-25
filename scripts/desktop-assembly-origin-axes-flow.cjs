@@ -304,7 +304,11 @@ module.exports = function originAxesWorkflow(c) {
     await waitFor('owned replacement prompt', () => page(() => !!document.querySelector('[role="dialog"][aria-labelledby="discard-title"]')));
     await button('Continuar sin guardar', '[role="dialog"][aria-labelledby="discard-title"]');
     let row = await response(before.serial, BUILD); check(canonical(configured ? row.current.document : row.document) === canonical(expected), 'Actual original opened through file IPC');
-    geometry(row.response.value, expected, 0, 'initial'); await recovery(expected); await selectMoving(); await menus.initial();
+    geometry(row.response.value, expected, 0, 'initial'); await recovery(expected); await selectMoving();
+    await require('./desktop-assembly-origin-tree-controls.cjs')({ configured, page, waitFor, pointer,
+      actualControl: (selector, text) => actualControl(selector, text, true), navigation: navigation ?? assemblyNavigation,
+      observe, check, canonical, checks });
+    await menus.initial();
     await draft(1); await menus.retainedDraft(references, canonical); await ribbon.retained('relation-draft');
     const rejectedCommit = await preview(expected, 1); await recovery(expected); await ribbon.retained('verified-preview');
     const cancelSerial = (await observe()).serial;

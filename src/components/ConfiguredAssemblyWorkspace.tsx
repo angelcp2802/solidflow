@@ -17,6 +17,7 @@ import { createConfiguredUiRootVariant, createConfiguredUiScopeVariant, configur
 import AssemblyViewport from './AssemblyViewport'
 import { configuredComponentPick, configuredMatePickChoice, configuredMateHighlights, type ConfiguredMatePick } from './configuredAssemblyPicking'
 import { buildAssemblyOriginDisplay, type AssemblyOriginReference } from './assemblyOriginPicking'
+import { buildAssemblyOriginTree, retainAssemblyOriginTreeSelection, resolveAssemblyOriginTreeSelection, type AssemblyOriginTreeEntry, type AssemblyOriginTreeSelection } from './assemblyOriginTree'
 import { configuredOriginCatalog, configuredOriginHighlights, configuredOriginOwners, configuredOriginPickAssignment, configuredOriginPickChoice, type ConfiguredOriginPick } from './configuredAssemblyOriginPicking'
 import type { AssemblySceneFace, AssemblySceneEdge } from '../cad/kernel.assembly-types'
 import ConfiguredAssemblyBomPanel from './ConfiguredAssemblyBomPanel'
@@ -86,12 +87,14 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
   const [originAxes, setOriginAxes] = useState(false), [originPlanes, setOriginPlanes] = useState(false)
   const [originOwner, setOriginOwner] = useState<'scope' | 'selected' | 'both'>('scope')
   const [originComponent, setOriginComponent] = useState<string | null>(null)
+  const [treeOriginSelection, setTreeOriginSelection] = useState<AssemblyOriginTreeSelection | null>(null)
   const stopMatePick = () => { matePickRef.current = null; setMatePick(null); originPickRef.current = null; setOriginPick(null) }
   useEffect(() => { if (inspectorPane !== 'relation' && (matePickRef.current || originPickRef.current)) stopMatePick() }, [inspectorPane])
   const [view, setView] = useState<{ name: 'iso' | 'front' | 'top' | 'fit'; stamp: number }>({ name: 'iso', stamp: 0 })
   const [discardDialog, setDiscardDialog] = useState(false), answer = useRef<((allow: boolean) => void) | null>(null)
   const [bomOpen, setBomOpen] = useState(false), [bomOptions, setBomOptions] = useState<ConfiguredAssemblyBomOptions>({ mode: 'parts-only', includeHidden: true, scopePath: [] })
   const [bomSelection, setBomSelection] = useState<{ serialized: string; member: ConfiguredAssemblyBomMember } | null>(null)
+  useEffect(() => { setTreeOriginSelection(null) }, [scope, occurrenceId, bomSelection])
   const bomView = useRef({ open: bomOpen, options: bomOptions, revision: 0 }), bomToggle = useRef<HTMLButtonElement>(null)
   const restoreBomFocus = useRef(false)
   useLayoutEffect(() => {
@@ -365,6 +368,19 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
   }
   const displayScene = useMemo(() => scene ? configuredUiDisplayScene(scene) : null, [scene])
   const blocked = busy || !!preview
+  const treeOriginRows = useMemo(() => buildAssemblyOriginTree(evaluation, []), [evaluation])
+  const treeOriginSession = useMemo(() => ({}), [scene, generation, path, !!mateDraft, blocked, inspectorPane === 'model'])
+  const treeOriginContext = { documentSignature: serialized, scopePath: selectedScope.path, sessionIdentity: treeOriginSession }
+  const currentTreeOrigins = useRef({ rows: treeOriginRows, context: treeOriginContext, active: false })
+  currentTreeOrigins.current = { rows: treeOriginRows, context: treeOriginContext, active: inspectorPane === 'model' && !blocked && !mateDraft }
+  const selectedTreeOrigin = resolveAssemblyOriginTreeSelection(treeOriginSelection, treeOriginRows, treeOriginContext)
+  const modelOrigin = inspectorPane === 'model' && !blocked && !mateDraft && scene && configuredUiSceneMatches(scene, document, generation) ? selectedTreeOrigin : null
+  const modelOriginRef = useRef(modelOrigin); modelOriginRef.current = modelOrigin
+  const selectTreeOrigin = (entry: AssemblyOriginTreeEntry) => {
+    if (!currentTreeOrigins.current.active || !fresh(renderedTicket) || operation.current || pending.current || mateDraftRef.current || inspectorPane !== 'model' || !scene || !configuredUiSceneMatches(scene, current.current, epoch.current)) return
+    const retained = retainAssemblyOriginTreeSelection(entry, treeOriginContext)
+    if (resolveAssemblyOriginTreeSelection(retained, currentTreeOrigins.current.rows, currentTreeOrigins.current.context)) setTreeOriginSelection(retained)
+  }
   const generalDraft = mateDraft && !('mechanical' in mateDraft) && !('compound' in mateDraft) ? mateDraft : null
   const originOwners = useMemo(() => configuredOriginOwners(evaluation, selectedScope.path), [evaluation, selectedScope.path])
   const originComponentKey = originComponent ?? originOwners.find(row => JSON.stringify(row.path) === JSON.stringify([...selectedScope.path, occurrenceId]))?.key ?? ''
@@ -397,7 +413,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
     { id: 'edit', label: 'Editar', items: [
       { id: 'undo', label: 'Deshacer', disabled: blocked || !!mateDraft || !history.current.canUndo, onSelect: () => undo(false) },
       { id: 'redo', label: 'Rehacer', disabled: blocked || !!mateDraft || !history.current.canRedo, onSelect: () => undo(true) },
-      { id: 'component-properties', label: 'Propiedades del componente', disabled: blocked || !selected, onSelect: () => menuReveal('configured-occurrence-inspector') },
+      { id: 'component-properties', label: 'Propiedades del componente', disabled: blocked || !selected || !!modelOrigin, onSelect: () => menuReveal('configured-occurrence-inspector') },
     ] },
     { id: 'view', label: 'Ver', items: [
       ...([['iso', 'Isométrica'], ['front', 'Frontal'], ['top', 'Superior'], ['fit', 'Ajustar a pantalla']] as const).map(([name, label]) => ({ id: 'view-' + name, label, disabled: busy, onSelect: () => menuView(name) })),
@@ -458,16 +474,17 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
     <div className="configured-assembly-layout"><aside ref={inspector} aria-label="Inspector del ensamblaje configurado">
       <div className="configured-inspector-tabs" aria-label="Panel del ensamblaje">
         <button title="Árbol del ensamblaje" aria-label="Mostrar árbol del ensamblaje" aria-pressed={inspectorPane === 'model'} onClick={() => setRevealRequest({ id: 'configured-model-tree' })}><Layers size={17} /></button>
-        <button title="Propiedades del componente" aria-label="Mostrar propiedades del componente" aria-pressed={inspectorPane === 'occurrence'} onClick={() => { setRevealRequest(null); setInspectorPane('occurrence') }}><Box size={17} /></button>
+        <button title="Propiedades del componente" aria-label="Mostrar propiedades del componente" aria-pressed={inspectorPane === 'occurrence'} disabled={!!modelOrigin} onClick={() => { if (modelOriginRef.current) return; setRevealRequest(null); setInspectorPane('occurrence') }}><Box size={17} /></button>
         <button title="Configuraciones" aria-label="Mostrar configuraciones" aria-pressed={inspectorPane === 'configuration'} onClick={() => setRevealRequest({ id: 'configured-root-state' })}><Component size={17} /></button>
         <button title="Relación de posición" aria-label="Mostrar relación de posición" aria-pressed={inspectorPane === 'relation' || inspectorPane === 'relations'} onClick={() => setRevealRequest({ id: mateDraft ? 'configured-relation-inspector' : 'configured-relations' })}><Link2 size={17} /></button>
         <span>{inspectorPane === 'relation' ? 'Relación de posición' : inspectorPane === 'components' ? 'Componentes' : inspectorPane === 'configuration' ? 'Configuraciones' : inspectorPane === 'occurrence' ? 'Propiedades' : 'Modelo'}</span>
       </div>
       <div data-configured-pane="model" hidden={inspectorPane !== 'model'}>
-        <ConfiguredAssemblyTree name={document.source.name} evaluation={evaluation} scope={scope} occurrenceId={occurrenceId} disabled={blocked || !!mateDraft}
+        <ConfiguredAssemblyTree name={document.source.name} evaluation={evaluation} scope={scope} occurrenceId={occurrenceId} disabled={blocked || !!mateDraft || !scene}
           active={inspectorPane === 'model'} resetKey={initialDocument}
-          onScope={value => { if (value !== scope) changeScope(value); setRevealRequest({ id: 'configured-root-state' }) }}
-          onOccurrence={(owner, id) => { if (!fresh(renderedTicket) || operation.current || pending.current || mateDraftRef.current) return; if (owner !== scope) changeScope(owner); occurrenceRef.current = id; setOccurrenceId(id); setBomSelection(null) }}
+          originRows={treeOriginRows} selectedOriginKey={selectedTreeOrigin?.treeKey} onOrigin={selectTreeOrigin}
+          onScope={value => { setTreeOriginSelection(null); if (value !== scope) changeScope(value); setRevealRequest({ id: 'configured-root-state' }) }}
+          onOccurrence={(owner, id) => { if (!fresh(renderedTicket) || operation.current || pending.current || mateDraftRef.current) return; setTreeOriginSelection(null); if (owner !== scope) changeScope(owner); occurrenceRef.current = id; setOccurrenceId(id); setBomSelection(null) }}
           onProperties={() => { if (!fresh(renderedTicket) || operation.current || pending.current || mateDraftRef.current || !selected) return; setRevealRequest({ id: 'configured-occurrence-inspector' }) }}
           onRelations={() => setRevealRequest({ id: 'configured-relations' })} />
         <details className="configured-effective-parts"><summary>Piezas efectivas</summary><ul>{evaluation.parts.map(part => <li key={JSON.stringify(part.path)}>{part.path.join(' / ')}{part.suppressed ? ' · suprimida' : part.visible ? '' : ' · oculta'}</li>)}</ul>
@@ -563,8 +580,9 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
       {mateChoices.error && <p role="alert">{mateChoices.error}</p>}
 
       </div>
-    </aside><main><nav aria-label="Vistas del ensamblaje configurado">{([['iso', 'Isométrica'], ['front', 'Frontal'], ['top', 'Superior'], ['fit', 'Ajustar']] as const).map(([name, label]) => <button key={name} disabled={busy} onClick={() => setView(old => ({ name, stamp: old.stamp + 1 }))}>{label}</button>)}</nav>{inspectorPane === 'relation' && matePick && generalDraft && !blocked && <p role="status" aria-label="Selección de referencia en vista configurada">Selecciona {configuredMateUiRoleLabels(generalDraft)[matePick.slot]}: {matePick.kind === 'face' ? 'una cara compatible' : 'una arista LINE'} · Ámbito: {selectedScope.path.join(' / ') || 'Raíz'} · Estado: {selectedScope.configuration ?? 'Base'}. <button type="button" onClick={stopMatePick}>Cancelar selección en vista</button></p>}{inspectorPane === 'relation' && originPick && generalDraft && !blocked && <p role="status" aria-label="Selección de origen en vista configurada">Selecciona {configuredMateUiRoleLabels(generalDraft)[originPick.slot]}: un eje o plano de origen visible compatible. <button type="button" onClick={stopMatePick}>Cancelar selección de origen</button></p>}<div className="configured-assembly-view"><AssemblyViewport originReferences={originDisplay} selectedOrigins={selectedOrigins} pickingOrigins={inspectorPane === 'relation' && !blocked && !!originPick} onOrigin={pickOrigin} selectedFaces={mateHighlights.faces} selectedEdges={mateHighlights.edges} scene={displayScene} disabled={busy} view={view} selectedPath={preview ? [] : bomSelectedPath.length ? bomSelectedPath : selected ? [...selectedScope.path, selected.id] : []} pickingFaces={inspectorPane === 'relation' && !blocked && matePick?.kind === 'face'} pickingEdges={inspectorPane === 'relation' && !blocked && matePick?.kind === 'edge'} onFace={pickMate} onEdge={pickMate} onComponent={component => {
+    </aside><main><nav aria-label="Vistas del ensamblaje configurado">{([['iso', 'Isométrica'], ['front', 'Frontal'], ['top', 'Superior'], ['fit', 'Ajustar']] as const).map(([name, label]) => <button key={name} disabled={busy} onClick={() => setView(old => ({ name, stamp: old.stamp + 1 }))}>{label}</button>)}</nav>{inspectorPane === 'relation' && matePick && generalDraft && !blocked && <p role="status" aria-label="Selección de referencia en vista configurada">Selecciona {configuredMateUiRoleLabels(generalDraft)[matePick.slot]}: {matePick.kind === 'face' ? 'una cara compatible' : 'una arista LINE'} · Ámbito: {selectedScope.path.join(' / ') || 'Raíz'} · Estado: {selectedScope.configuration ?? 'Base'}. <button type="button" onClick={stopMatePick}>Cancelar selección en vista</button></p>}{inspectorPane === 'relation' && originPick && generalDraft && !blocked && <p role="status" aria-label="Selección de origen en vista configurada">Selecciona {configuredMateUiRoleLabels(generalDraft)[originPick.slot]}: un eje o plano de origen visible compatible. <button type="button" onClick={stopMatePick}>Cancelar selección de origen</button></p>}<div className="configured-assembly-view"><AssemblyViewport originReferences={inspectorPane === 'model' ? modelOrigin ? [modelOrigin.display] : [] : originDisplay} selectedOrigins={inspectorPane === 'model' ? modelOrigin ? [modelOrigin.display.reference] : [] : selectedOrigins} pickingOrigins={inspectorPane === 'relation' && !blocked && !!originPick} onOrigin={pickOrigin} selectedFaces={mateHighlights.faces} selectedEdges={mateHighlights.edges} scene={displayScene} disabled={busy} view={view} selectedPath={preview || modelOrigin ? [] : bomSelectedPath.length ? bomSelectedPath : selected ? [...selectedScope.path, selected.id] : []} pickingFaces={inspectorPane === 'relation' && !blocked && matePick?.kind === 'face'} pickingEdges={inspectorPane === 'relation' && !blocked && matePick?.kind === 'edge'} onFace={pickMate} onEdge={pickMate} onComponent={component => {
         if (!fresh(renderedTicket) || operation.current || pending.current || mateDraftRef.current || !scene || !configuredUiSceneMatches(scene, current.current, epoch.current)) return
+        setTreeOriginSelection(null)
         const id = configuredComponentPick(displayScene, component, selectedScope.path)
         if (!id || !selectedScope.occurrences.some(row => row.id === id && !row.suppressed)) return
         occurrenceRef.current = id; setOccurrenceId(id); setBomSelection(null); setMessage('Componente seleccionado en el ámbito actual.')
@@ -576,7 +594,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
       rootConfigurationLabel={document.rootConfiguration === null ? 'Base' : `${rootVariants.find(value => value.id === document.rootConfiguration)?.name ?? document.rootConfiguration} · ${JSON.stringify(document.rootConfiguration)}`}
       scopes={evaluation.scopes.map(value => ({ path: value.path, label: `${value.path.join(' / ') || 'Todo el ensamblaje'} · ${value.configuration ?? 'Base'}` }))}
       onOptionsChange={options => { if (!freshBom(renderedBomTicket) || operation.current || pending.current || mateDraftRef.current) return; changeBomView(true, options) }}
-      onSelect={member => { if (!freshBom(renderedBomTicket) || operation.current || pending.current || mateDraftRef.current || !bom.report) return; const match = configuredBomUiSelectedPath(bom.report, serialized, { serialized, member }); if (match.length) setBomSelection({ serialized, member: structuredClone(member) }) }}
+      onSelect={member => { if (!freshBom(renderedBomTicket) || operation.current || pending.current || mateDraftRef.current || !bom.report) return; const match = configuredBomUiSelectedPath(bom.report, serialized, { serialized, member }); if (match.length) { setTreeOriginSelection(null); setBomSelection({ serialized, member: structuredClone(member) }) } }}
       onExport={() => void exportBom()} onClose={() => changeBomView(false)} />}{failure && <p className="configured-assembly-error" role="alert">{failure}</p>}<footer role="status">{message}</footer>
     {discardDialog && <div ref={dialog} role="dialog" aria-modal="true" aria-label="Cambios del ensamblaje configurado"><p>Hay cambios sin guardar. ¿Abrir otro documento?</p><button onClick={() => { if (!fresh(renderedTicket)) return; const resolve = answer.current; answer.current = null; setDiscardDialog(false); resolve?.(false) }}>Cancelar apertura</button><button onClick={() => { if (!fresh(renderedTicket)) return; const resolve = answer.current; answer.current = null; setDiscardDialog(false); resolve?.(true) }}>Continuar sin guardar</button></div>}
   </div>

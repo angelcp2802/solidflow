@@ -40,6 +40,11 @@ it('renders the actual configured format and bounded controls without triggering
   expect(html).toContain('aria-label="Mostrar árbol del ensamblaje" aria-pressed="true"')
   expect(html).toContain('role="tree" aria-label="Componentes del ensamblaje configurado"')
   expect(html).toMatch(/<button[^>]*aria-label="Propiedades del componente seleccionado"[^>]*disabled=""/)
+  const propertiesTab = html.match(/<button[^>]*aria-label="Mostrar propiedades del componente"[^>]*>/)?.[0]
+  expect(propertiesTab).toBeDefined(); expect(propertiesTab).not.toContain('disabled=')
+  expect(html).toContain('aria-label="Seleccionar Plano XY de Raíz"')
+  expect(html).toContain('aria-label="Seleccionar Eje Z de right / b"')
+  expect(html.match(/data-assembly-origin-tree-key=/g)).toHaveLength(42)
 })
 
 it('starts a genuinely empty root variant from Base instead of copying the selected child configuration', () => {
