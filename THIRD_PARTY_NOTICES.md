@@ -12,7 +12,7 @@ redistributed builds.
 | OpenType.js, tiny-inflate, string.prototype.codepointat and runtime type packages | MIT |
 | Lucide React, Flatbush, Flatqueue | ISC; Lucide's complete notice also preserves its Feather MIT attribution |
 | replicad-opencascadejs 1.1.0 | LGPL-2.1-only |
-| Electron 44.7.0 | MIT, with Chromium and other third-party notices |
+| Electron 44.9.3 | MIT, with Chromium and other third-party notices |
 
 Electron distributions include `LICENSE.electron.txt` and
 `LICENSES.chromium.html`. Preserve those complete files. Development tools also

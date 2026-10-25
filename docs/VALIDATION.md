@@ -1,5 +1,21 @@
 # Validation
 
+## Prototype package notices — 2026-10-25
+
+The Electron version in the third-party notice and license manifest now matches
+the locked 44.9.3 runtime. The other 15 manifest entries match the lockfile and
+installed packages; all 16 preserved license texts match their installed
+upstream copies. No dependency, application code or license text changed.
+
+Local Windows x64 packaging, including `npm run build`, passes from the
+44.9.3 runtime installation. The companion unpacked package contains the exact
+updated notices and manifest, the 16 license texts and unchanged Electron and
+Chromium notices. Its nine application/worker/WASM files match both the current
+build and the earlier manually exercised portable. The new portable is unsigned
+and was not launched in this increment. This metadata-only correction does not
+repeat or extend CAD acceptance, resolve hosted failures, establish other-platform
+packaging or complete the corresponding-source distribution review.
+
 ## Hidden renderer presentation and prototype checks — 2026-10-25
 
 The final selected Windows runs 02 pass with one presentation observer per

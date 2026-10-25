@@ -1,5 +1,14 @@
 # Roadmap
 
+The current priority is a functional first prototype for hands-on use:
+successive sketch, extrusion and cut operations; component insertion and basic
+relations; selection and navigation; and reliable history, saving and reopening.
+Fix blockers in those paths first. Material assignment, colours, backgrounds
+and additional menu polish follow practical use. The bounded
+[prototype walkthrough](DEMO_ASSEMBLIES.md), [validation record](VALIDATION.md)
+and [priority issue](https://github.com/angelcp2802/solidflow/issues/55) distinguish
+implemented cases from the remaining assembly and release scope.
+
 The [persisted configuration integration](ASSEMBLY_CONFIGURATIONS_PERSISTENCE.md)
 connects complete v3 source/catalog/selection files to effective native scenes,
 private worker previews and atomic Apply, state editing, history, recovery and
