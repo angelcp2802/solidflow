@@ -79,6 +79,13 @@ module.exports = function basicAuthoringWorkflow(context) {
     await pointer('mousePressed', before.point, 1); await pointer('mouseReleased', before.point, 0);
     gestures.push({ action: 'pointer', selector, text, point: before.point });
   }
+  async function rightClick(selector) {
+    const before = await prepare(selector);
+    await pointer('mouseMoved', before.point);
+    check(canonical(await inspect(selector, null)) === canonical(before), 'Context target remains stationary before right press');
+    await pointer('mousePressed', before.point, 2); await pointer('mouseReleased', before.point, 2);
+    gestures.push({ action: 'context-pointer', selector, point: before.point });
+  }
   async function button(text, parent = '.assembly-app') { await actual(parent + ' button', text); }
   async function control(selector, value) {
     await prepare(selector);
@@ -122,7 +129,7 @@ module.exports = function basicAuthoringWorkflow(context) {
       check(new Set(doc.occurrences.map(o => o.id)).size === count && doc.occurrences.every(o => canonical(o.definition) === canonical(definition) && o.visible && !o.suppressed), 'Distinct visible exact-tuple uses');
     }
   }
-  function geometry(scene, doc, count, phase) {
+  function geometry(scene, doc, count, phase, baseFixed = true) {
     graph(doc, count);
     check(scene.kind === 'assembly-scene' && scene.solidCount === count && scene.bodies.length === count && scene.prototypeCount === (count ? 1 : 0) && !scene.warnings.length, 'Exact independent prism counts');
     near(scene.volume, 24 * count, 1e-5, 'Original total volume'); near(scene.area, 52 * count, 1e-5, 'Original total area');
@@ -135,7 +142,7 @@ module.exports = function basicAuthoringWorkflow(context) {
       vector(b.bounds.min, [0, 1, 2].map(i => Math.min(...vertices.map(v => v[i]))), 1e-6, 'Eight original vertices lower bounds');
       vector(b.bounds.max, [0, 1, 2].map(i => Math.max(...vertices.map(v => v[i]))), 1e-6, 'Eight original vertices upper bounds');
     }
-    if (owners.base && baselinePoses.base) check(canonical(occurrence(doc, owners.base).pose) === canonical(baselinePoses.base) && occurrence(doc, owners.base).fixed, 'Explicit fixed base remains exact');
+    if (owners.base && baselinePoses.base) check(canonical(occurrence(doc, owners.base).pose) === canonical(baselinePoses.base) && occurrence(doc, owners.base).fixed === baseFixed, 'Base retains its exact pose and explicitly expected fixed state');
     phases.push({ phase, solids: count, volume: scene.volume, area: scene.area, documentSha256: digest(canonical(doc)), mates: doc.mates.map(m => ({ id: m.id, name: m.name, type: m.type })) });
   }
   function relationGeometry(doc) {
@@ -205,6 +212,144 @@ module.exports = function basicAuthoringWorkflow(context) {
     await waitFor('exact occurrence selected without forcing Properties', () => page(selector => document.querySelector(selector)?.getAttribute('aria-selected') === 'true'
       && document.querySelector('#assembly-panel-components')?.hidden === false, tree(id)));
     check(canonical(await observe.counters()) === canonical(before), 'Presentation selection allocates no native work');
+  }
+  const contextAction = id => '[data-cad-context-action=' + JSON.stringify(id) + ']';
+  async function contextMenuState() {
+    return page(() => {
+      const menus = [...document.querySelectorAll('.cad-context-menu[role="menu"]')];
+      if (menus.length !== 1 || !menus[0].checkVisibility({ visibilityProperty: true }) || !menus[0].contains(document.activeElement)) return false;
+      const headings = [...menus[0].querySelectorAll('.part-feature-context-heading')];
+      const nodes = [...menus[0].querySelectorAll('[data-cad-context-action]')];
+      if (headings.length !== 1 || !headings[0].textContent.trim() || !nodes.length
+        || menus[0].querySelectorAll('button').length !== nodes.length
+        || nodes.some(e => !(e instanceof HTMLButtonElement) || e.getAttribute('role') !== 'menuitem'
+          || !e.getAttribute('data-cad-context-action')?.trim() || !e.textContent.trim())
+        || new Set(nodes.map(e => e.getAttribute('data-cad-context-action'))).size !== nodes.length)
+        throw Error('Context menu requires one named heading and unique labelled button actions');
+      return { target: headings[0].textContent.trim(),
+        actions: nodes.map(e => ({ id: e.getAttribute('data-cad-context-action'), label: e.textContent.trim(), disabled: e.disabled })) };
+    });
+  }
+  async function contextReadOnlyState() {
+    const { selected, panel, ...persistentUi } = await uiState();
+    return { persistentUi, observation: await observe(), counters: await observe.counters(), references: await page(() => {
+      const first = [...document.querySelectorAll('[aria-label="Referencia 1 de la relación"]')];
+      const second = [...document.querySelectorAll('[aria-label="Referencia 2 de la relación"]')];
+      const viewports = [...document.querySelectorAll('.assembly-viewport')];
+      // Relations stays mounted while its manager is hidden. Existence and
+      // nonempty role text are required; an empty picking mode is valid browsing.
+      if (first.length !== 1 || second.length !== 1 || viewports.length !== 1
+        || !first[0].textContent.trim() || !second[0].textContent.trim()
+        || !viewports[0].hasAttribute('data-reference-picking'))
+        throw Error('Context audit requires both exact named relation roles and an explicit viewport picking mode');
+      return { first: first[0].textContent, second: second[0].textContent,
+        mode: viewports[0].getAttribute('data-reference-picking') };
+    }) };
+  }
+  function checkContextUnchanged(before, after, label) {
+    const snapshot = state => {
+      const { recovery, ...ui } = state.persistentUi;
+      return { references: state.references, counters: state.counters, ui,
+        recoverySha256: digest(recovery ?? ''), observationSha256: digest(canonical(state.observation)),
+        assemblyCount: state.observation.assemblies.length, buildCount: state.observation.builds.length };
+    };
+    // Retain bounded evidence before asserting, including on a failed comparison.
+    // The assertion still compares complete observations and recovery text.
+    checks.push({ contextReadOnlyAudit: { label, before: snapshot(before), after: snapshot(after) } });
+    check(canonical(after) === canonical(before), label);
+  }
+  async function closeContextRetaining(selector) {
+    await menuKey('Escape');
+    await waitFor('Escape closes context and restores its selected row', () => page(selector => {
+      const row = document.querySelector(selector);
+      return !document.querySelector('.cad-context-menu') && row?.getAttribute('aria-selected') === 'true' && document.activeElement === row;
+    }, selector));
+  }
+  async function componentContextWorkflow(doc, previousId) {
+    await select(previousId);
+    const baseline = await contextReadOnlyState(), baseSelector = tree(owners.base);
+    await rightClick(baseSelector);
+    const menu = await waitFor('right click retargets exact Base component context', async () => {
+      const state = await contextMenuState();
+      return state?.target === 'Base' && await page(selector => document.querySelector(selector)?.getAttribute('aria-selected') === 'true', baseSelector) ? state : false;
+    });
+    for (const id of ['component-properties', 'component-move', 'component-fixed', 'component-visible', 'component-suppressed'])
+      check(menu.actions.filter(action => action.id === id).length === 1, 'One existing component context action: ' + id);
+    check(menu.actions.find(action => action.id === 'component-fixed').label === 'Flotar', 'Fixed component offers Float');
+    check(menu.actions.find(action => action.id === 'component-move').disabled && !menu.actions.find(action => action.id === 'component-properties').disabled,
+      'Fixed component blocks Move but permits Properties');
+    check(menu.actions.find(action => action.id === 'component-visible').label === 'Ocultar'
+      && menu.actions.find(action => action.id === 'component-suppressed').label === 'Suprimir', 'Visible active component exposes its actual state actions');
+    await closeContextRetaining(baseSelector);
+    checkContextUnchanged(baseline, await contextReadOnlyState(), 'Right click and Escape preserve document, recovery, full history and relation roles');
+    await menuKey('ContextMenu');
+    await waitFor('keyboard opens selected component context', contextMenuState);
+    await actual(contextAction('component-properties'));
+    await waitFor('context Properties focuses the exact Base name', () => page(() => {
+      const input = document.querySelector('[aria-label="Nombre del componente"]');
+      return document.querySelector('#assembly-panel-properties')?.hidden === false && input?.value === 'Base' && input === document.activeElement;
+    }));
+    checkContextUnchanged(baseline, await contextReadOnlyState(), 'Keyboard context Properties preserves all committed state and relation roles');
+    for (const fixed of [false, true]) {
+      await rightClick(baseSelector);
+      const state = await waitFor('current fixed-state context action', contextMenuState), action = state.actions.find(action => action.id === 'component-fixed');
+      check(action && !action.disabled && action.label === (fixed ? 'Fijar' : 'Flotar'), 'Context fixed action matches current committed state');
+      check(state.actions.find(action => action.id === 'component-move').disabled === !fixed, 'Context Move follows the actual current fixed state');
+      const before = await serial(); await actual(contextAction('component-fixed'));
+      const event = await response(before, 'build-assembly'), next = event.document, expected = structuredClone(doc);
+      occurrence(expected, owners.base).fixed = fixed; expected.updatedAt = next.updatedAt;
+      check(canonical(next) === canonical(expected), 'Context fix/float changes only the exact Base fixed flag and timestamp');
+      geometry(event.response.value, next, doc.occurrences.length, fixed ? 'context-fix-base' : 'context-float-base', fixed);
+      await recovery(next); doc = next;
+    }
+    const originSelector = '[data-assembly-origin-tree-reference]' + attr('data-assembly-origin-tree-reference', JSON.stringify(ref('principal-plane', null, 'YZ')));
+    const originBefore = await contextReadOnlyState(); await rightClick(originSelector);
+    const originMenu = await waitFor('root plane context selects only its browsing datum', async () => {
+      const state = await contextMenuState();
+      return state && await page(selector => document.querySelector(selector)?.getAttribute('aria-selected') === 'true'
+        && document.querySelector('.assembly-viewport')?.getAttribute('data-reference-picking') === '', originSelector) ? state : false;
+    });
+    check(!originMenu.actions.some(action => action.id.startsWith('component-')), 'Root datum context exposes no component mutation');
+    check(canonical(originMenu.actions.map(action => action.id).sort()) === canonical(['origin-controls', 'origin-owner']), 'Root datum context contains only existing origin navigation');
+    check(originMenu.actions.find(action => action.id === 'origin-owner').disabled && !originMenu.actions.find(action => action.id === 'origin-controls').disabled,
+      'Root datum has no component owner but retains origin controls navigation');
+    await closeContextRetaining(originSelector);
+    checkContextUnchanged(originBefore, await contextReadOnlyState(), 'Origin context browsing and Escape preserve document, complete observations and relation roles');
+    checks.push({ assemblyContextNavigation: { component: menu, origin: originMenu, fixedCycle: [false, true], counters: await observe.counters(), documentSha256: digest(canonical(doc)) } });
+    await select(previousId); await actual('[aria-label="Propiedades del componente seleccionado"]');
+    await waitFor('context workflow restores prior component Properties', () => page(name => {
+      const input = document.querySelector('[aria-label="Nombre del componente"]');
+      return input?.value === name && input === document.activeElement;
+    }, occurrence(doc, previousId).name));
+    return doc;
+  }
+  async function viewportContextWorkflow(doc, selectedId) {
+    await select(owners.base);
+    const baseline = await contextReadOnlyState();
+    const corner = () => page(() => {
+      const canvas = document.querySelector('.assembly-viewport canvas'), rect = canvas?.getBoundingClientRect();
+      if (!canvas || !rect || rect.width < 40 || rect.height < 60) return false;
+      const point = { x: rect.right - 12, y: rect.bottom - 32 };
+      return document.elementFromPoint(point.x, point.y) === canvas ? { point, rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height } } : false;
+    });
+    const target = await waitFor('actual empty canvas corner is pointer reachable', corner);
+    await pointer('mouseMoved', target.point);
+    check(canonical(await corner()) === canonical(target), 'Background context point remains stationary and hits the canvas before press');
+    await pointer('mousePressed', target.point, 2); await pointer('mouseReleased', target.point, 2);
+    const background = await waitFor('blank canvas opens only current view commands', contextMenuState);
+    check(canonical(background.actions.map(action => action.id).sort()) === canonical(['view-fit', 'view-front', 'view-iso', 'view-top']), 'Background context contains exact existing view commands');
+    check(background.actions.every(action => !action.disabled), 'Idle background view commands are enabled');
+    await menuKey('Escape');
+    await waitFor('background Escape returns focus to viewport without clearing selection', () => page(selector => !document.querySelector('.cad-context-menu')
+      && document.activeElement === document.querySelector('.assembly-viewport') && document.querySelector(selector)?.getAttribute('aria-selected') === 'true', tree(owners.base)));
+    await menuKey('ContextMenu');
+    const keyboard = await waitFor('viewport keyboard context targets the selected exact component', contextMenuState);
+    check(keyboard.target === occurrence(doc, owners.base).name && keyboard.actions.some(action => action.id === 'component-properties'), 'Keyboard viewport context uses current selected Base component');
+    await menuKey('Escape');
+    await waitFor('keyboard viewport context closes with host focus', () => page(() => !document.querySelector('.cad-context-menu') && document.activeElement === document.querySelector('.assembly-viewport')));
+    checkContextUnchanged(baseline, await contextReadOnlyState(), 'Viewport pointer and keyboard context preserve document, full observations and relation roles');
+    checks.push({ assemblyViewportContextNavigation: { background, keyboard, point: target.point, counters: await observe.counters(), documentSha256: digest(canonical(doc)) } });
+    await select(selectedId);
   }
   async function preview(doc, selector, text, phase, mateCount = doc.mates.length) {
     const before = await serial(); await actual(selector, text); const event = await response(before, 'preview-assembly'), value = event.response.value;
@@ -395,7 +540,9 @@ module.exports = function basicAuthoringWorkflow(context) {
       const added = event.document.occurrences.filter(o => !current.occurrences.some(old => old.id === o.id)); check(added.length === 1 && !added[0].fixed && canonical(added[0].pose) === canonical({ translation: [0, 0, 0], rotation: [0, 0, 0, 1] }), 'Reuse creates exactly one floating identity occurrence');
       check(current.occurrences.every(old => canonical(occurrence(event.document, old.id)) === canonical(old)), 'Reuse preserves every prior occurrence');
       owners[role] = added[0].id; current = event.document; geometry(event.response.value, current, count, 'reuse-' + role); await recovery(current); await insertedSelection(current, owners[role], role);
-      current = await rename(current, owners[role], name); current = await move(current, owners[role], x, count);
+      current = await rename(current, owners[role], name);
+      if (role === 'guide') current = await componentContextWorkflow(current, owners.guide);
+      current = await move(current, owners[role], x, count);
     }
     // Explicitly frame all three placed parts. Movement preserves the user's
     // camera, so the first imported part's framing need not contain root datums
@@ -407,6 +554,7 @@ module.exports = function basicAuthoringWorkflow(context) {
     check(canonical(await uiState()) === canonical(beforeFit.ui) && canonical(await observe()) === canonical(beforeFit.observations),
       'Explicit fit after placement preserves recovery, selection, history and complete worker observations');
     gestures.push({ action: 'explicit-fit-after-three-component-placement', documentSha256: digest(canonical(current)) });
+    await viewportContextWorkflow(current, owners.follower);
     await control(TYPE, 'distance'); await control(NAME, 'Guide to root'); await control('[aria-label="Distancia firmada"]', '-10');
     await origin(1, 'principal-plane', null, 'YZ'); await origin(2, 'principal-plane', owners.guide, 'YZ');
     current = await apply(await preview(current, '#assembly-panel-relations button', 'Vista previa de la nueva relación', 'root-plane-preview', 1), 'root-plane-apply');

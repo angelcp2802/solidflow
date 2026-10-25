@@ -1,5 +1,37 @@
 # Development guide
 
+## Standard assembly context actions — 2026-10-25
+
+Right-clicking a standard assembly component selects that exact occurrence and
+opens Properties, Move, Fix/Float, Hide/Show and Suppress/Activate commands.
+The tree remains global when the relation scope changes. These commands use
+the existing parent-definition edits; editing a declaration in a reused
+subassembly still affects its equivalent uses. Move is unavailable for a fixed
+or effectively suppressed component. Hidden/suppressed rows remain available
+in the tree for restoration.
+
+Tree datum menus browse the selected origin and navigate to its owner or the
+origin controls; opening a menu never assigns a relation role. Selected tree
+overlays keep their global frame, while ordinary overlays use the current
+scope. Datum context browsing currently requires the Model panel. Background
+menus retain selection and expose existing view commands. ContextMenu and
+Shift+F10 are supported on tree rows and the focused viewport; Escape closes
+the menu, restores focus and retains selection.
+
+The shared context-menu component retains the part adapter's selectors and
+keyboard behavior. Assembly targets are revalidated against the current
+document, occurrence/definition, selection, scope, scene, generation and
+document session before activation. Drafts, previews, active reference picking,
+dragging and staged edits block context actions. Reopening a byte-identical
+document invalidates the previous menu through its workspace session.
+
+The bounded authoring renderer checks tree targeting, Properties focus,
+Fix/Float, datum browsing, viewport background pointer input and component
+keyboard context. It retains geometry/history/file checks. It does not yet
+establish body/datum context picking by actual pointer, every state toggle,
+configured menus or exact menu-inventory parity. See [validation](VALIDATION.md)
+for the executed snapshots and remaining limits.
+
 ## Presentation during hidden renderer tests — 2026-10-25
 
 The isolated UI harness observes real compositor presentations from production

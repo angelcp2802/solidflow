@@ -1,5 +1,8 @@
 import { CompactViewportToolbar, ViewportToolGroup, ViewportToolIcon } from './CompactViewportToolbar'
 import { createAssemblyActivity } from './assemblyActivity'
+import CadContextMenu, { type CadContextAction } from './CadContextMenu'
+import { assemblyTreeRows, createAssemblyComponentContextTarget, resolveAssemblyComponentContextTarget, resolveAssemblyOriginContextEntry, type AssemblyTreeRow, type AssemblyComponentContextTarget } from './assemblyContextTarget'
+export { assemblyTreeRows, type AssemblyTreeRow } from './assemblyContextTarget'
 import { insertAssemblyStepFile } from '../model/assemblyStepInsertion'
 import { importStructuralStep } from '../model/structuralStepImport'
 import { MAX_STEP_BYTES } from '../model/stepSource'
@@ -77,7 +80,7 @@ import { createAssemblyDragSession, type AssemblyDragSession } from './assemblyD
 import AssemblyMovementPanel, { assemblyMotionMatches } from './AssemblyMovementPanel'
 import AssemblyTranslationPanel, { assemblyTranslationMatches } from './AssemblyTranslationPanel'
 import AssemblyDragProjectionPanel, { assemblyDragProjectionMatches, type AssemblyDragProjection } from './AssemblyDragProjectionPanel'
-import AssemblyViewport, { assemblyBodyKey, assemblyFaceKey, assemblyEdgeKey } from './AssemblyViewport'
+import AssemblyViewport, { assemblyBodyKey, assemblyFaceKey, assemblyEdgeKey, type AssemblyViewportContextTarget } from './AssemblyViewport'
 import { evaluateAssemblyConfiguration } from '../model/assemblyConfigurationCore'
 import { buildAssemblyOriginDisplay, type AssemblyOriginReference } from './assemblyOriginPicking'
 import { standardAssemblyOriginKinds, standardAssemblyOriginPick, type StandardAssemblyOriginPickTicket } from './assemblyStandardOriginPicking'
@@ -100,24 +103,6 @@ export interface AssemblyWorkspaceProps {
   onOpenConfigured?: (document: AssemblyConfiguredDocument, path?: string, saved?: string) => void
 }
 type AssemblyNode = AssemblyDocument | EmbeddedAssemblyDefinition
-export interface AssemblyTreeRow {
-  path: string[]; occurrence: AssemblyOccurrence; parent: AssemblyDefinitionReference; definition: AssemblyDefinition
-  visible: boolean; suppressed: boolean
-}
-/** Saved occurrence paths, including reused nested declarations; never sibling indexes. */
-export function assemblyTreeRows(document: AssemblyDocument): AssemblyTreeRow[] {
-  const table = new Map(document.definitions.map(value => [assemblyDefinitionKey(value), value])), rows: AssemblyTreeRow[] = []
-  const visit = (node: AssemblyNode, prefix: string[], visible: boolean, suppressed: boolean) => {
-    for (const occurrence of node.occurrences) {
-      const definition = table.get(assemblyDefinitionKey(occurrence.definition))
-      if (!definition) throw new Error('Falta la definición de una ocurrencia.')
-      const path = [...prefix, occurrence.id], inheritedVisible = visible && occurrence.visible, inheritedSuppressed = suppressed || occurrence.suppressed
-      rows.push({ path, occurrence, parent: { id: node.id, revision: node.revision }, definition, visible: inheritedVisible, suppressed: inheritedSuppressed })
-      if (definition.kind === 'assembly') visit(definition, path, inheritedVisible, inheritedSuppressed)
-    }
-  }
-  visit(document, [], true, false); return rows
-}
 function samePath(a: readonly string[], b: readonly string[]): boolean { return a.length === b.length && a.every((id, i) => id === b[i]) }
 /** Display eligibility only. The document frame and worker still validate identity. */
 export function assemblyHasVisibleDragBody(scene: AssemblyScene | null, component: AssemblyComponentReference): boolean {
@@ -268,9 +253,11 @@ function referenceLabel(reference: AssemblyGeometryReference | AssemblyTangentRe
   return reference.kind === 'principal-axis' ? `${component} · Eje de origen ${reference.axis}` : reference.kind === 'principal-plane' ? `${component} · ${reference.plane}` : reference.kind === 'edge' ? `${component} · Arista lineal · ${reference.edge.sourceFeatureId}` : `${component} · ${reference.support === 'axis' ? 'Cilindro' : reference.support === 'cylinder-surface' ? 'Superficie cilíndrica' : reference.support === 'sphere-surface' ? 'Superficie esférica' : 'Plano'} · ${reference.face.sourceFeatureId}`
 }
 export function AssemblyComponentTree({ document, selectedPath, onSelect, disabled = false, active = true, resetKey = document.id,
-  originRows = [], selectedOriginKey = null, onOrigin, originDisabled = false }: {
+  originRows = [], selectedOriginKey = null, onOrigin, originDisabled = false, onComponentContext, onOriginContext }: {
   document: AssemblyDocument; selectedPath: readonly string[]; onSelect: (path: string[]) => void; disabled?: boolean; active?: boolean; resetKey?: unknown
   originRows?: readonly AssemblyOriginTreeEntry[]; selectedOriginKey?: string | null; onOrigin?: (entry: AssemblyOriginTreeEntry) => void; originDisabled?: boolean
+  onComponentContext?: (path: string[], point: { x: number; y: number }, element: HTMLElement) => void
+  onOriginContext?: (entry: AssemblyOriginTreeEntry, point: { x: number; y: number }, element: HTMLElement) => void
 }) {
   type Node = { key: string; parentKey: string | null; level: number } & (
     { kind: 'component'; row: AssemblyTreeRow } | { kind: 'origin'; origin: AssemblyOriginTreeEntry })
@@ -304,6 +291,12 @@ export function AssemblyComponentTree({ document, selectedPath, onSelect, disabl
   const renderRows = (parentKey: string | null): ReactNode => (children.get(parentKey) ?? []).map(node => {
     const expandable = navigation.canExpand(node.key), expanded = navigation.isExpanded(node.key)
     const row = node.kind === 'component' ? node.row : null, origin = node.kind === 'origin' ? node.origin : null
+    const hasContext = origin ? !!onOriginContext : !!onComponentContext
+    const context = (point: { x: number; y: number }, element: HTMLElement) => {
+      if (disabled || !active || !navigation.isVisible(node.key)) return
+      if (origin) { if (!originDisabled) onOriginContext?.(origin, point, element) }
+      else if (row) onComponentContext?.(row.path, point, element)
+    }
     // The key is JSON, so URI encoding also accepts document IDs with lone surrogates.
     const childrenId = `standard-assembly-tree-children-${encodeURIComponent(node.key)}`
     return <div className="assembly-tree-entry" role="none" key={node.key} hidden={!navigation.isVisible(node.key)}>
@@ -316,6 +309,7 @@ export function AssemblyComponentTree({ document, selectedPath, onSelect, disabl
           aria-expanded={expandable ? expanded : undefined} aria-controls={expandable ? childrenId : undefined}
           aria-owns={expandable ? childrenId : undefined}
           aria-label={origin ? `Seleccionar ${origin.display.label} en el árbol` : undefined}
+          aria-haspopup={hasContext ? 'menu' : undefined}
           data-assembly-tree-path={row ? JSON.stringify(row.path) : undefined}
           data-assembly-tree-key={node.key} data-assembly-tree-parent={node.parentKey ?? ''}
           data-assembly-origin-tree-key={origin?.treeKey} data-assembly-origin-tree-reference={origin ? JSON.stringify(origin.display.reference) : undefined}
@@ -324,7 +318,13 @@ export function AssemblyComponentTree({ document, selectedPath, onSelect, disabl
           style={{ paddingLeft: 28 + (node.level - 1) * 15 }} disabled={disabled || !active}
           aria-disabled={origin && (originDisabled || !onOrigin) ? true : undefined} tabIndex={navigation.rowTabIndex(node.key)}
           ref={element => navigation.register(node.key, element)} onFocus={() => navigation.onFocus(node.key)}
-          onKeyDown={event => navigation.onKeyDown(event, node.key)} onClick={() => {
+          onContextMenu={hasContext ? event => { event.preventDefault(); event.stopPropagation(); context({ x: event.clientX, y: event.clientY }, event.currentTarget) } : undefined}
+          onKeyDown={event => {
+            if (hasContext && (event.key === 'ContextMenu' || event.key === 'F10' && event.shiftKey)) {
+              event.preventDefault(); event.stopPropagation()
+              const rect = event.currentTarget.getBoundingClientRect(); context({ x: rect.left + 28, y: rect.bottom }, event.currentTarget)
+            } else navigation.onKeyDown(event, node.key)
+          }} onClick={() => {
             if (disabled || !active || !navigation.isVisible(node.key)) return
             if (origin) { if (!originDisabled) onOrigin?.(origin) }
             else if (row) onSelect(row.path)
@@ -355,6 +355,9 @@ function downloadBomCsv(content: string, name: string): void {
 
 export default function AssemblyWorkspace({ initialDocument, initialPath, initialSaved, onOpenPart, onOpenConfigured }: AssemblyWorkspaceProps) {
   const [treeReset, setTreeReset] = useState(0)
+  type ContextTarget = { point: { x: number; y: number }; element: HTMLElement; reset: number; signature: string; scope: string; generation: number }
+    & ({ kind: 'component'; ticket: AssemblyComponentContextTarget } | { kind: 'origin'; ticket: AssemblyOriginTreeSelection } | { kind: 'background' })
+  const [contextTarget, setContextTarget] = useState<ContextTarget | null>(null)
   const [ribbonTab, setRibbonTab] = useState<AssemblyCommandTab>('assembly')
   const [managerTab, setManagerTab] = useState<'components' | 'properties' | 'relations' | 'evaluate'>('components')
   const managerTabRef = useRef(managerTab)
@@ -2073,6 +2076,88 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   }, [sourceUpdate, documentUpdate, replacementReview])
   const newAssembly = () => void (async () => { if (await mayReplace()) replace(createEmptyAssembly()) })()
   const exampleAssembly = () => void (async () => { if (await mayReplace()) replace(createAssemblyExample()) })()
+  const contextBlocked = editingBlocked || !!draft || !!preview || replaceDialog || !!streamProjection || bomOpen
+    || dragActive || !!dragSession.current || !!dragging.current || pickingFaces || pickingLinearEdges
+    || !!symmetryPicking || !!hingePicking || !!widthPicking || !!rackPicking || activeOriginPicking
+    || !scene || sceneSignature.current !== serialized || confirmedScene.current?.signature !== serialized
+    || confirmedScene.current?.scene !== scene
+  const contextCurrent = useRef({ target: contextTarget, reset: treeReset, blocked: contextBlocked, originSelection: treeOriginSelection })
+  contextCurrent.current = { target: contextTarget, reset: treeReset, blocked: contextBlocked, originSelection: treeOriginSelection }
+  const contextMayOpen = () => !contextBlocked && !contextCurrent.current.blocked && mounted.current
+    && !operation.current && !hasStaging() && !currentPreview.current && !dragSession.current && !dragging.current
+    && serialized === serializeAssemblyDocument(current.current) && JSON.stringify(scopePath) === currentFileScope.current
+  const contextBase = (point: { x: number; y: number }, element: HTMLElement) => ({ point, element,
+    reset: treeReset, signature: serialized, scope: JSON.stringify(scopePath), generation: generation.current })
+  const openComponentContext = (componentPath: string[], point: { x: number; y: number }, element: HTMLElement) => {
+    if (!contextMayOpen()) return
+    const ticket = createAssemblyComponentContextTarget(current.current, scopePath, componentPath)
+    if (!ticket) return
+    abandonInsertionSelection(); setTreeOriginSelection(null)
+    if (fileTicket.current?.purpose === 'update' || linkedTicket.current) generation.current++
+    setSelectedPath([...componentPath])
+    setContextTarget({ ...contextBase(point, element), kind: 'component', ticket })
+  }
+  const openOriginContext = (entry: AssemblyOriginTreeEntry, point: { x: number; y: number }, element: HTMLElement) => {
+    if (!contextMayOpen() || treeOriginCurrent.current.blocked) return
+    const ticket = retainAssemblyOriginTreeSelection(entry, treeOriginContext)
+    if (!resolveAssemblyOriginTreeSelection(ticket, treeOriginCurrent.current.entries, treeOriginCurrent.current.context)) return
+    abandonInsertionSelection(); setDragMode('off'); setTreeOriginSelection(ticket)
+    setContextTarget({ ...contextBase(point, element), kind: 'origin', ticket })
+  }
+  const openViewportContext = (target: AssemblyViewportContextTarget) => {
+    if (!contextMayOpen()) return
+    if (target.kind === 'component') {
+      const ticket = createAssemblyComponentContextTarget(current.current, scopePath, target.component.occurrencePath)
+      if (ticket && assemblyDefinitionKey(ticket.component.definition) === assemblyDefinitionKey(target.component.definition))
+        openComponentContext(target.component.occurrencePath, target.point, target.restoreFocusElement)
+    } else if (target.kind === 'origin') {
+      const entry = resolveAssemblyOriginContextEntry(target.reference, scopePath, treeOrigins, selectedTreeOrigin)
+      if (entry) openOriginContext(entry, target.point, target.restoreFocusElement)
+    } else setContextTarget({ ...contextBase(target.point, target.restoreFocusElement), kind: 'background' })
+  }
+  const contextIsCurrent = (target: ContextTarget) => {
+    const live = contextCurrent.current
+    if (live.target !== target || live.blocked || !mounted.current || operation.current || hasStaging() || currentPreview.current
+      || dragSession.current || dragging.current || target.reset !== live.reset || target.generation !== generation.current
+      || target.signature !== serializeAssemblyDocument(current.current) || target.scope !== currentFileScope.current) return false
+    if (target.kind === 'component') return !live.originSelection && !!resolveAssemblyComponentContextTarget(target.ticket,
+      current.current, JSON.parse(currentFileScope.current), JSON.parse(currentFileSelection.current))
+    if (target.kind === 'origin') return live.originSelection === target.ticket && !treeOriginCurrent.current.blocked
+      && !!resolveAssemblyOriginTreeSelection(target.ticket, treeOriginCurrent.current.entries, treeOriginCurrent.current.context)
+    return true
+  }
+  const activeContext = contextTarget && contextIsCurrent(contextTarget) ? contextTarget : null
+  useLayoutEffect(() => { if (contextTarget && !activeContext) setContextTarget(null) }, [contextTarget, activeContext])
+  const contextRow = activeContext?.kind === 'component'
+    ? resolveAssemblyComponentContextTarget(activeContext.ticket, committed, scopePath, selectedPath) : null
+  const contextOrigin = activeContext?.kind === 'origin'
+    ? resolveAssemblyOriginTreeSelection(activeContext.ticket, treeOrigins, treeOriginContext) : null
+  const contextAction = (action: () => void) => { if (activeContext && contextIsCurrent(activeContext)) action() }
+  const contextEdit = (field: 'fixed' | 'visible' | 'suppressed') => contextAction(() => {
+    if (activeContext?.kind !== 'component') return
+    const row = resolveAssemblyComponentContextTarget(activeContext.ticket, current.current,
+      JSON.parse(currentFileScope.current), JSON.parse(currentFileSelection.current))
+    if (!row) return
+    const common = { scope: row.parent, occurrenceId: row.occurrence.id }
+    if (field === 'fixed') edit({ ...common, type: 'set-occurrence-fixed', fixed: !row.occurrence.fixed })
+    else if (field === 'visible') edit({ ...common, type: 'set-occurrence-visible', visible: !row.occurrence.visible })
+    else edit({ ...common, type: 'set-occurrence-suppressed', suppressed: !row.occurrence.suppressed })
+  })
+  const contextActions: CadContextAction[] = contextRow ? [
+    { id: 'component-properties', label: 'Propiedades del componente', icon: Settings2, onSelect: () => contextAction(() => openManager('properties', '[aria-label="Nombre del componente"]')) },
+    { id: 'component-move', label: 'Mover componente', icon: Move3D, disabled: contextRow.occurrence.fixed || contextRow.suppressed,
+      onSelect: () => contextAction(() => openManager('properties', '.assembly-movement h3')) },
+    { id: 'component-fixed', label: contextRow.occurrence.fixed ? 'Flotar' : 'Fijar', onSelect: () => contextEdit('fixed') },
+    { id: 'component-visible', label: contextRow.occurrence.visible ? 'Ocultar' : 'Mostrar', onSelect: () => contextEdit('visible') },
+    { id: 'component-suppressed', label: contextRow.occurrence.suppressed ? 'Activar' : 'Suprimir', onSelect: () => contextEdit('suppressed') },
+  ] : contextOrigin ? [
+    { id: 'origin-controls', label: 'Referencias de origen', onSelect: () => contextAction(() => {
+      setOriginControlsOpen(true); openManager('relations', '#assembly-relation-origins summary')
+    }) },
+    { id: 'origin-owner', label: 'Seleccionar componente propietario', disabled: !contextOrigin.ownerPath.length,
+      onSelect: () => contextAction(() => { abandonInsertionSelection(); setTreeOriginSelection(null); setSelectedPath([...contextOrigin.ownerPath]) }) },
+  ] : (['iso', 'front', 'top', 'fit'] as const).map((name, index) => ({ id: `view-${name}`,
+    label: ['Isométrica', 'Frontal', 'Superior', 'Ajustar a pantalla'][index], onSelect: () => contextAction(() => viewButton(name)) }))
   const menus: AssemblyMenuDefinition[] = [
     { id: 'file', label: 'Archivo', items: [
       { id: 'new', label: 'Nuevo ensamblaje', disabled: editingBlocked || replaceDialog, onSelect: newAssembly },
@@ -2213,6 +2298,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
         onClick={() => openManager('properties', '[aria-label="Nombre del componente"]')}><Settings2 size={15} />Propiedades</button></div>
       <AssemblyComponentTree document={committed} selectedPath={selectedPath} resetKey={treeReset} active={managerTab === 'components'}
         originRows={treeOrigins} selectedOriginKey={selectedTreeOrigin?.treeKey} onOrigin={selectTreeOrigin} originDisabled={treeOriginBlocked}
+        onComponentContext={openComponentContext} onOriginContext={openOriginContext}
         onSelect={value => { abandonInsertionSelection(); setTreeOriginSelection(null); if (fileTicket.current?.purpose === 'update' || linkedTicket.current) generation.current++; setSelectedPath(value) }} disabled={editingBlocked} />
       <section className="assembly-section"><h3>Insertar origen reutilizable</h3><select aria-label="Origen del componente" value={sourceKey} disabled={editingBlocked} onChange={event => setSourceKey(event.target.value)}><option value="">Selecciona un origen</option>{committed.definitions.map(value => <option key={assemblyDefinitionKey(value)} value={assemblyDefinitionKey(value)}>{value.kind === 'part' ? value.document.name : value.name} · {value.revision}</option>)}</select>
         <button disabled={editingBlocked || !sourceKey} onClick={reuseComponent}><Plus size={14} />Insertar otra ocurrencia</button></section>
@@ -2450,6 +2536,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
         <button title="Arrastrar giro" aria-label="Arrastrar giro" aria-pressed={dragMode === 'rotate'} disabled={editingBlocked || !!draft || !!preview || replaceDialog || !eligibleDragFrame} onClick={() => { setTreeOriginSelection(null); clearSymmetryPicking(); setDragMode('rotate') }}><ViewportToolIcon name="rotate" label="Arrastrar giro" /></button>
         <button title="Desactivar manipulador" aria-label="Desactivar manipulador" disabled={!!dragSession.current || dragMode === 'off'} onClick={() => setDragMode('off')}><ViewportToolIcon name="stop" label="Desactivar manipulador" /></button></ViewportToolGroup></CompactViewportToolbar>
       <AssemblyViewport originLabelTopInset={44} scene={scene} view={view} selectedPath={selectedTreeOrigin ? [] : selectedPath} selectedFaces={rackSelectedFaces} selectedEdges={rackSelectedEdges} selectedAnalysisPair={selectedAnalysisPair}
+        onContextTarget={openViewportContext}
         originReferences={selectedTreeOrigin ? [selectedTreeOrigin.display] : originDisplays}
         selectedOrigins={selectedTreeOrigin ? [selectedTreeOrigin.display.reference] : selectedOriginReferences} pickingOrigins={activeOriginPicking} onOrigin={pickOrigin}
         pickingFaces={isSymmetry ? !!activeSymmetryPick && activeSymmetryPick.producer !== 'vertex' && activeSymmetryPick.producer !== 'line-edge' : pickingFaces || !!rackPicking && rackPicking.kind !== 'rack-edge'} pickingEdges={isSymmetry ? activeSymmetryPick?.producer === 'line-edge' : pickingLinearEdges || rackPicking?.kind === 'rack-edge'} disabled={editingBlocked || replaceDialog || !!preview && !rackPicking}
@@ -2467,6 +2554,8 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
       onSelect={componentPath => { if (!operation.current && !hasStaging() && !currentPreview.current && !draft && !replaceDialog) { abandonInsertionSelection(); setPickingFaces(false); if (fileTicket.current?.purpose === 'update' || linkedTicket.current) generation.current++; setSelectedPath(componentPath) } }}
       onExport={() => void exportBom()} onClose={() => { restoreBomFocus.current = true; setBomOpen(false); setRibbonTab('evaluate') }} />}
     <footer className={`assembly-status ${error ? 'error' : ''}`} role="status" aria-live="polite">{busy && <Loader2 size={14} className="assembly-spinner" />}<span>{message}</span>{scene && <small>{scene.solidCount} sólidos · {scene.prototypeCount} orígenes · {scene.volume.toLocaleString(undefined, { maximumFractionDigits: 3 })} mm³</small>}</footer>
+    {activeContext && <CadContextMenu targetName={contextRow?.occurrence.name ?? contextOrigin?.display.label ?? 'Vista del ensamblaje'}
+      actions={contextActions} point={activeContext.point} restoreFocusElement={activeContext.element} onClose={() => setContextTarget(null)} />}
     {rootRevision && <AssemblyRootRevisionDialog id={committed.id} currentRevision={committed.revision} revision={rootRevision.revision} error={rootRevision.error}
       onRevision={revision => setRootRevision(value => value && { ...value, revision, error: '' })} onPreview={() => void previewRootRevision()} onCancel={() => setRootRevision(null)} />}
     {replaceDialog && <div className="assembly-modal-backdrop"><div ref={replaceModal} className="assembly-modal" role="dialog" aria-modal="true" aria-label="Cambios sin guardar"><h2>Hay cambios sin guardar</h2><p>Guarda el ensamblaje antes de sustituirlo.</p>{draft && <p>Aplica o cancela la vista previa para guardar sus cambios.</p>}<div><button disabled={!!draft || busy} onClick={() => void save().then(success => { if (success) answerReplace(true) })}>Guardar y continuar</button><button onClick={() => answerReplace(true)}>Continuar sin guardar</button><button onClick={() => answerReplace(false)}>Cancelar</button></div></div></div>}

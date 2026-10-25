@@ -1,7 +1,8 @@
 import { expect, it } from 'vitest'
 import * as THREE from 'three'
-import { assemblyAnalysisBodySelected, assemblyBodyKey, assemblyComponentKey, assemblyFaceKey, assemblyDragWorldTarget, createAssemblyDragProxy, createAssemblyInterferenceOverlay, pickAssemblyComponent, pickAssemblyFace, type AssemblyPickBody, type AssemblyPickFace } from './AssemblyViewport'
-import type { AssemblySceneBody, AssemblySceneFace } from '../cad/kernel.assembly-types'
+import { assemblyAnalysisBodySelected, assemblyBodyKey, assemblyComponentKey, assemblyFaceKey, assemblyDragWorldTarget, createAssemblyDragProxy, createAssemblyInterferenceOverlay, pickAssemblyComponent, pickAssemblyFace, resolveAssemblyViewportContext, type AssemblyPickBody, type AssemblyPickFace } from './AssemblyViewport'
+import type { AssemblyScene, AssemblySceneBody, AssemblySceneFace } from '../cad/kernel.assembly-types'
+import { assemblyOriginReferenceKey, type AssemblyOriginDisplay } from './assemblyOriginPicking'
 import { identityRigidPose } from '../model/rigidPose'
 import type { AssemblyInterferencePair } from '../model/assemblyInterference'
 
@@ -25,6 +26,74 @@ function fixture() {
   return { camera, bodies, faces, add, dispose: () => { [...bodies, ...faces].forEach(({ object }) => { object.geometry.dispose(); (object.material as THREE.Material).dispose() }) } }
 }
 const pointer = { x: 50, y: 50 }, size = { width: 100, height: 100 }
+function contextState(f: ReturnType<typeof fixture>) {
+  const scene: AssemblyScene = { kind: 'assembly-scene', sceneId: 'original-display', bodies: f.bodies.map(entry => entry.body),
+    volume: 0, area: 0, solidCount: 0, prototypeCount: 0, bounds: null, visibleBounds: null, warnings: [] }
+  return { scene, presentedScene: scene, originsCurrent: true, dragActive: false }
+}
+it('resolves component context from frontmost current body rather than a selected face or another reused owner', () => {
+  const f = fixture()
+  try {
+    f.add(['back', 'pin'], -3); const front = f.add(['front', 'pin'], 0), state = contextState(f)
+    const before = JSON.stringify(state.scene)
+    const target = resolveAssemblyViewportContext(f.camera, f.bodies, pointer, size, { ...state, selectedPath: ['back', 'pin'] })
+    expect(target).toEqual({ kind: 'component', component: front.entry.body.component })
+    if (target?.kind === 'component') target.component.definition.revision = 'changed'
+    expect(JSON.stringify(state.scene)).toBe(before)
+    expect(pickAssemblyFace(f.camera, f.bodies, f.faces, pointer, size)).toBe(front.faceEntry.face)
+  } finally { f.dispose() }
+})
+it('returns background for empty, hidden and ambiguous component context hits', () => {
+  const f = fixture()
+  try {
+    f.add(['hidden'], 0, false)
+    expect(resolveAssemblyViewportContext(f.camera, f.bodies, pointer, size, contextState(f))).toEqual({ kind: 'background' })
+    f.add(['a'], 0); f.add(['b'], 0)
+    expect(resolveAssemblyViewportContext(f.camera, f.bodies, pointer, size, contextState(f))).toEqual({ kind: 'background' })
+    expect(resolveAssemblyViewportContext(f.camera, f.bodies, { x: 98, y: 98 }, size, contextState(f))).toEqual({ kind: 'background' })
+  } finally { f.dispose() }
+})
+it.each(['principal-axis', 'principal-plane'] as const)('resolves only a unique displayed %s overlay without making a material selection', kind => {
+  const f = fixture()
+  try {
+    f.add(['pin'], 0)
+    const reference = kind === 'principal-axis' ? { kind, component: null, axis: 'X' as const } : { kind, component: null, plane: 'XY' as const }
+    const entry: AssemblyOriginDisplay = { key: assemblyOriginReferenceKey(reference), reference, label: 'Original origin', worldPose: identityRigidPose() }
+    const state = { ...contextState(f), originReferences: [entry] }
+    expect(resolveAssemblyViewportContext(f.camera, f.bodies, pointer, size, state)).toEqual({ kind: 'origin', reference })
+    expect(resolveAssemblyViewportContext(f.camera, [], pointer, size, { ...state, originReferences: [entry, structuredClone(entry)] })).toEqual({ kind: 'background' })
+    expect(resolveAssemblyViewportContext(f.camera, f.bodies, pointer, size, { ...state, originsCurrent: false })).toBeNull()
+  } finally { f.dispose() }
+})
+it.each(['disabled', 'dragActive', 'pickingFaces', 'pickingEdges', 'pickingVertices', 'pickingOrigins'] as const)('withholds context while %s owns the interaction', guard => {
+  const f = fixture()
+  try {
+    f.add(['pin'], 0); const state = { ...contextState(f), [guard]: true }
+    expect(resolveAssemblyViewportContext(f.camera, f.bodies, pointer, size, state)).toBeNull()
+    expect(resolveAssemblyViewportContext(f.camera, f.bodies, null, size, { ...state, selectedPath: ['pin'] })).toBeNull()
+  } finally { f.dispose() }
+})
+it('rejects a replacement scene before presentation even if its display ID was reused', () => {
+  const f = fixture()
+  try {
+    f.add(['pin'], 0); const state = contextState(f)
+    expect(resolveAssemblyViewportContext(f.camera, f.bodies, pointer, size, { ...state, scene: structuredClone(state.scene) })).toBeNull()
+    expect(resolveAssemblyViewportContext(f.camera, f.bodies, null, size, { ...state, scene: null })).toBeNull()
+  } finally { f.dispose() }
+})
+it('keyboard context uses an exact visible selected owner, allowing multiple bodies but rejecting prefixes and conflicting revisions', () => {
+  const f = fixture()
+  try {
+    const first = f.add(['sub', 'pin'], 0); f.add(['sub', 'pin'], -3)
+    const state = { ...contextState(f), selectedPath: ['sub', 'pin'] }
+    expect(resolveAssemblyViewportContext(f.camera, f.bodies, null, size, state)).toEqual({ kind: 'component', component: first.entry.body.component })
+    expect(resolveAssemblyViewportContext(f.camera, f.bodies, null, size, { ...state, selectedPath: ['sub'] })).toEqual({ kind: 'background' })
+    f.bodies[1].body.component.definition.revision = 'r2'
+    expect(resolveAssemblyViewportContext(f.camera, f.bodies, null, size, state)).toEqual({ kind: 'background' })
+    f.bodies.forEach(entry => { entry.body.visible = false })
+    expect(resolveAssemblyViewportContext(f.camera, f.bodies, null, size, state)).toEqual({ kind: 'background' })
+  } finally { f.dispose() }
+})
 it('keeps a manipulable intent proxy empty and reads its actual world frame instead of a parent-local target', () => {
   const parent = new THREE.Group(), proxy = createAssemblyDragProxy({ translation: [2, 3, 4], rotation: [0, 0, 0, 1] })
   parent.position.set(10, 20, 30); parent.quaternion.set(0, 0, Math.SQRT1_2, Math.SQRT1_2); parent.add(proxy)

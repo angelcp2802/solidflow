@@ -932,7 +932,7 @@ async function runInElectron() {
     check((basicAuthoring || partBodyCatalog || partFinishing || partRevolution || partSequence || originAxes || freshSketch || configuredPicking || assembly || activeScenario === SCENARIOS['assembly-configurations'] || rackPinion || direction || tangent || cylinderTangent || sphereTangent || limitDistance || limitAngle || directedAngle || width || symmetry || symmetryPicking || hingePicking || hingeLimitsPicking) && !window.isVisible() && window.webContents.debugger.isAttached()
       && ['mouseMoved', 'mousePressed', 'mouseReleased'].includes(type)
       && Number.isFinite(point.x) && Number.isFinite(point.y) && point.x >= 0 && point.y >= 0
-      && ([0, 1].includes(buttons) || partSequence && buttons === 2)
+      && ([0, 1].includes(buttons) || (partSequence || basicAuthoring) && buttons === 2)
       && (clickCount === 1 || clickCount === 2 && (partRevolution || partSequence || partBodyCatalog)
         && ['mousePressed', 'mouseReleased'].includes(type) && buttons !== 2), 'Expected actual pointer input in the hidden test-owned CAD window.');
     await window.webContents.debugger.sendCommand('Input.dispatchMouseEvent', {
@@ -963,7 +963,7 @@ async function runInElectron() {
     await window.webContents.debugger.sendCommand('Input.dispatchKeyEvent', { ...event, type: 'keyUp' });
   };
   const menuKey = async key => {
-    const codes = { Escape: 27, Tab: 9, ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, Home: 36, End: 35, Enter: 13, ...(partSequence ? { ContextMenu: 93 } : {}) };
+    const codes = { Escape: 27, Tab: 9, ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, Home: 36, End: 35, Enter: 13, ...((partSequence || basicAuthoring) ? { ContextMenu: 93 } : {}) };
     check((basicAuthoring || originAxes || partSequence || configuredPicking || assembly || activeScenario === SCENARIOS['assembly-configurations']) && !window.isVisible() && window.webContents.debugger.isAttached()
       && Object.prototype.hasOwnProperty.call(codes, key), 'Expected bounded keyboard input in the hidden allowlisted CAD workflow.');
     await window.webContents.debugger.sendCommand('Input.dispatchKeyEvent', { type: 'keyDown', key, code: key, windowsVirtualKeyCode: codes[key],

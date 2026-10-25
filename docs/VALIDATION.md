@@ -1,5 +1,60 @@
 # Validation
 
+## Standard assembly context actions — 2026-10-25
+
+Component tree right-click now selects its exact occurrence and offers existing
+Properties, Move, Fix/Float, Hide/Show and Suppress/Activate paths. Origin menus
+browse and navigate without assigning a relation; background menus retain
+selection. Escape restores focus and retains the selected target. Component
+commands preserve the existing shared parent-definition semantics. Current
+document, selection, scope, scene, generation and session guards remain active;
+there is no solver or schema change. Configured menus are outside this increment.
+
+The original three-prism renderer exercises tree right-click on an unselected
+Base, Escape, keyboard context and Properties focus; Float then Fix changes only
+that flag and timestamp, retaining analytical volume, area, bounds and poses.
+Root YZ context retains browsing selection and relation-role text. Viewport
+background right-click exposes the four view commands, and keyboard context
+uses the selected Base. The workflow keeps its original relation, Cancel/Apply,
+history and exact saved reopening checks. Numeric/name fields remain scripted;
+pointer and context-key actions use actual input transport.
+
+Local Windows x64, Node 24.11.1 and Electron 44.9.3 acceptance 02 used 1,140
+matching non-Markdown source/runtime inputs:
+
+| Command | Result |
+| --- | --- |
+| `npm run build` | PASS, 4.520 s |
+| `npm run test:desktop:assembly-basic-authoring` | PASS, 257 checkpoints, 28.751 s |
+| `npm run test:desktop:part-sequence` | PASS, 145 checkpoints, 19.740 s |
+| `npm run test:desktop:assembly-origin-axes` | PASS, 248 checkpoints, 25.124 s |
+| `npm test` | PASS, 9,754 tests / 426 files; 91 IPC checks and 2 explicit skips; 494.437 s |
+| `npm run test:desktop` | PASS, 2.282 s |
+
+Review then strengthened only the authoring harness: reference controls and the
+viewport must exist uniquely, role text must be nonempty, and menus must have a
+named heading and uniquely identified, labelled actions. Four before/after records
+retain role text, counters, history controls and hashes of recovery and complete
+worker observations; comparisons still use the complete values. Final acceptance
+03 repeats basic authoring: **PASS, 261 checkpoints, 28.024 s**. All 1,140
+final inputs match source/runtime; the sole difference from 02 is this renderer
+harness file. Production, build, unit/IPC and smoke inputs are unchanged; those
+commands were not repeated for this assertion-only follow-up.
+
+Each renderer and smoke reports zero console/request/resource errors. Renderers
+confirm child close, isolated-profile removal and stopped presentation observers.
+Initial build 01 rejected a readonly assignment in a new test; corrected fixture
+construction preceded acceptance 02. Independent review also corrected nested
+origin-frame handling and allowed global tree targets outside the relation scope
+before acceptance. Pure tests cover those identity cases, without a native claim.
+
+This does not validate viewport component/datum context picking by actual pointer,
+Hide/Show or Suppress/Activate execution through the new menu, nested menu use in
+the renderer, configured context menus, every command-state combination or exact
+menu parity. Datum context browsing currently requires the Model panel. The
+already-open portable predates this increment; no new package/manual acceptance
+or platform support follows from these local results.
+
 ## Rejected component-name restoration — 2026-10-25
 
 A focused renderer diagnostic reproduced an invalid component name remaining

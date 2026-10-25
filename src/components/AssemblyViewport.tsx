@@ -42,6 +42,14 @@ export const assemblyEdgeKey = (edge: AssemblySceneEdge): string => JSON.stringi
 export interface AssemblyPickBody { body: AssemblySceneBody; object: THREE.Mesh }
 export interface AssemblyPickFace { face: AssemblySceneFace; object: THREE.Mesh }
 export interface AssemblyPickEdge { edge: AssemblySceneEdge; object: THREE.LineSegments; highlight?: LineSegments2 }
+type AssemblyViewportContextSelection =
+  | { kind: 'component'; component: AssemblyComponentReference }
+  | { kind: 'origin'; reference: AssemblyOriginReference }
+  | { kind: 'background' }
+export type AssemblyViewportContextTarget = AssemblyViewportContextSelection & {
+  point: { x: number; y: number }
+  restoreFocusElement: HTMLElement
+}
 export function assemblyAnalysisBodySelected(body: AssemblySceneBody, pair: AnalysisPair | null | undefined): boolean {
   return !!pair && [pair.first, pair.second].some(value => assemblyBodyKey(value.component, value.body) === assemblyBodyKey(body.component, body.body))
 }
@@ -109,6 +117,28 @@ export function pickAssemblyComponent(camera: Camera, bodies: readonly AssemblyP
   }
   return matches.size === 1 ? structuredClone(matches.values().next().value!) : null
 }
+/** Browsing context never assigns a material reference or changes the document. */
+export function resolveAssemblyViewportContext(
+  camera: Camera, bodies: readonly AssemblyPickBody[], pointer: { x: number; y: number } | null,
+  size: { width: number; height: number },
+  state: Pick<AssemblyViewportProps, 'scene' | 'selectedPath' | 'originReferences' | 'disabled' | 'pickingFaces' | 'pickingEdges' | 'pickingVertices' | 'pickingOrigins'>
+    & { presentedScene: AssemblyScene | null; originsCurrent: boolean; dragActive: boolean },
+): AssemblyViewportContextSelection | null {
+  if (state.disabled || state.dragActive || assemblyReferencePickMode(state) !== null
+    || !state.scene || state.presentedScene !== state.scene || !state.originsCurrent) return null
+  if (!pointer) {
+    // A subassembly prefix or two revisions at the same path is not an exact
+    // selected rendered component. Multiple bodies of one component are valid.
+    const selected = JSON.stringify(state.selectedPath ?? [])
+    const matches = new Map(bodies.filter(({ body }) => body.visible && JSON.stringify(body.component.occurrencePath) === selected)
+      .map(({ body }) => [assemblyComponentKey(body.component), body.component]))
+    return matches.size === 1 ? { kind: 'component', component: structuredClone(matches.values().next().value!) } : { kind: 'background' }
+  }
+  const reference = pickAssemblyOrigin(camera, state.originReferences ?? [], assemblyOriginExtent(state.scene.visibleBounds), pointer, size)
+  if (reference) return { kind: 'origin', reference }
+  const component = pickAssemblyComponent(camera, bodies, pointer, size)
+  return component ? { kind: 'component', component } : { kind: 'background' }
+}
 /** Individual native-edge display DTOs select identity; mesh segments confer no support authority. */
 export function pickAssemblyEdge(camera: Camera, bodies: readonly AssemblyPickBody[], edges: readonly AssemblyPickEdge[], pointer: { x: number; y: number }, size: { width: number; height: number }, tolerance = 8): AssemblySceneEdge | null {
   const ray = rayAt(camera, pointer, size)
@@ -171,6 +201,7 @@ export interface AssemblyViewportProps {
   onFace: (face: AssemblySceneFace | null) => void
   onEdge?: (edge: AssemblySceneEdge | null) => void
   onVertex?: (vertex: AssemblySceneVertex | null) => void
+  onContextTarget?: (target: AssemblyViewportContextTarget) => void
 }
 export default function AssemblyViewport(props: AssemblyViewportProps) {
   const host = useRef<HTMLDivElement>(null), input = useRef(props); input.current = props
@@ -179,7 +210,7 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
   const originLabelFrame = useRef(''), originLabelPress = useRef<{ key: string; signature: string } | null>(null)
   const originFrame = useRef('')
   const originCatalog = (value: AssemblyViewportProps) => JSON.stringify([value.originReferences, value.scene?.visibleBounds])
-  const context = useRef<{ group: THREE.Group; analysis: THREE.Group; markers: THREE.Group; clearHover: () => void; camera: THREE.OrthographicCamera; controls: OrbitControls; bodies: AssemblyPickBody[]; faces: AssemblyPickFace[]; edges: AssemblyPickEdge[]; fit: () => void; highlight: () => void; syncDrag: () => void } | null>(null)
+  const context = useRef<{ scene: AssemblyScene | null; group: THREE.Group; analysis: THREE.Group; markers: THREE.Group; clearHover: () => void; camera: THREE.OrthographicCamera; controls: OrbitControls; bodies: AssemblyPickBody[]; faces: AssemblyPickFace[]; edges: AssemblyPickEdge[]; fit: () => void; highlight: () => void; syncDrag: () => void } | null>(null)
   useEffect(() => {
     const element = host.current!, world = new THREE.Scene(), group = new THREE.Group(), analysis = new THREE.Group(), markers = new THREE.Group(), origins = new THREE.Group()
     const camera = new THREE.OrthographicCamera(-80, 80, 60, -60, .01, 100000); camera.up.set(0, 0, 1); camera.position.set(100, -130, 100)
@@ -194,6 +225,8 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
     configureCadNavigation(controls)
     const selectionGesture = createCadSelectionGesture()
     let acceptedGesture = false, dragConsumed = false
+    let contextPress: { x: number; y: number; scene: AssemblyScene | null; catalog: string; moved: boolean } | null = null
+    let presentedScene: AssemblyScene | null = null
     const cancelDrag = (notify = true) => {
       const wasAccepted = acceptedGesture; acceptedGesture = false
       transform.reset(); transform.pointerUp(null); controls.enabled = true
@@ -224,7 +257,7 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
     }
     const axisChanged = () => setDragAxis(transform.axis)
     const keyDown = (event: KeyboardEvent) => { if (event.key === 'Escape' && acceptedGesture) { event.preventDefault(); cancelDrag() } }
-    const pointerCancel = () => { selectionGesture.cancel(); cancelDrag() }
+    const pointerCancel = () => { selectionGesture.cancel(); contextPress = null; cancelDrag() }
     transform.addEventListener('mouseDown', dragStart); transform.addEventListener('objectChange', dragTarget)
     transform.addEventListener('mouseUp', dragEnd); transform.addEventListener('axis-changed', axisChanged)
     window.addEventListener('keydown', keyDown); window.addEventListener('blur', pointerCancel); renderer.domElement.addEventListener('pointercancel', pointerCancel)
@@ -280,10 +313,11 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
         material.resolution.set(element.clientWidth, element.clientHeight)
       })
     }
-    context.current = { group, analysis, markers, clearHover, camera, controls, bodies: [], faces: [], edges: [], fit, highlight, syncDrag }
+    context.current = { scene: null, group, analysis, markers, clearHover, camera, controls, bodies: [], faces: [], edges: [], fit, highlight, syncDrag }
     const size = () => ({ width: element.clientWidth, height: element.clientHeight })
     const renderFrame = () => {
       controls.update(); renderer.render(world, camera)
+      presentedScene = context.current?.scene ?? null
       originFrame.current = displayedOriginCatalog
       const width = element.clientWidth, height = element.clientHeight
       const topInset = input.current.originLabelTopInset ?? 0
@@ -303,10 +337,14 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
     const point = (event: PointerEvent) => { const rect = element.getBoundingClientRect(); return { x: event.clientX - rect.left, y: event.clientY - rect.top } }
     const pointerDown = (event: PointerEvent) => {
       selectionGesture.down(event); dragConsumed = false
+      const value = input.current
+      contextPress = event.button === 2 && value.onContextTarget && !value.disabled && !acceptedGesture && !value.drag?.active && assemblyReferencePickMode(value) === null
+        ? { x: event.clientX, y: event.clientY, scene: presentedScene, catalog: originFrame.current, moved: false } : null
       originPressCatalog = assemblyReferencePickMode(input.current) === 'origin' && originFrame.current === originCatalog(input.current) ? originFrame.current : ''
     }
     const pointerMove = (event: PointerEvent) => {
       selectionGesture.move(event)
+      if (contextPress && Math.hypot(event.clientX - contextPress.x, event.clientY - contextPress.y) > 4) contextPress.moved = true
       const current = context.current
       hovered = current && !input.current.disabled && assemblyReferencePickMode(input.current) === 'face' && !event.buttons ? (() => { const face = pickAssemblyFace(camera, current.bodies, current.faces, point(event), size()); return face ? assemblyFaceKey(face) : null })() : null
       hoveredEdge = current && !input.current.disabled && assemblyReferencePickMode(input.current) === 'edge' && !event.buttons ? (() => { const edge = pickAssemblyEdge(camera, current.bodies, current.edges, point(event), size()); return edge ? assemblyEdgeKey(edge) : null })() : null
@@ -332,6 +370,31 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
       else if (mode === 'face') input.current.onFace(pickAssemblyFace(camera, current.bodies, current.faces, point(event), size()))
       else input.current.onComponent(pickAssemblyComponent(camera, current.bodies, point(event), size()))
     }
+    const openContext = (clientPoint: { x: number; y: number }, keyboard: boolean) => {
+      const current = context.current, value = input.current
+      if (!current || !value.onContextTarget) return
+      const rect = renderer.domElement.getBoundingClientRect()
+      if (rect.width <= 0 || rect.height <= 0 || Math.abs(rect.width - element.clientWidth) >= 1 || Math.abs(rect.height - element.clientHeight) >= 1) return
+      const target = resolveAssemblyViewportContext(camera, current.bodies,
+        keyboard ? null : { x: clientPoint.x - rect.left, y: clientPoint.y - rect.top }, size(),
+        { ...value, presentedScene, originsCurrent: originFrame.current === originCatalog(value), dragActive: acceptedGesture || !!value.drag?.active })
+      if (target) value.onContextTarget({ ...target, point: clientPoint, restoreFocusElement: element })
+    }
+    const contextMenu = (event: MouseEvent) => {
+      if (!input.current.onContextTarget) return
+      event.preventDefault(); event.stopPropagation()
+      const press = contextPress; contextPress = null
+      if (!press || press.moved || press.scene !== presentedScene || press.catalog !== originFrame.current || Math.hypot(event.clientX - press.x, event.clientY - press.y) > 4) return
+      openContext({ x: event.clientX, y: event.clientY }, false)
+    }
+    const contextKey = (event: KeyboardEvent) => {
+      if (event.target !== element || !input.current.onContextTarget || event.altKey || event.ctrlKey || event.metaKey
+        || !(event.key === 'ContextMenu' || event.key === 'F10' && event.shiftKey)) return
+      event.preventDefault(); event.stopPropagation()
+      const rect = renderer.domElement.getBoundingClientRect()
+      openContext({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }, true)
+    }
+    renderer.domElement.addEventListener('contextmenu', contextMenu); element.addEventListener('keydown', contextKey)
     renderer.domElement.addEventListener('pointerdown', pointerDown, true); renderer.domElement.addEventListener('pointermove', pointerMove); renderer.domElement.addEventListener('pointerleave', pointerLeave); renderer.domElement.addEventListener('pointerup', pointerUp)
     let frame = 0; const draw = () => {
       renderFrame()
@@ -345,6 +408,7 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
       transform.removeEventListener('mouseUp', dragEnd); transform.removeEventListener('axis-changed', axisChanged); transform.dispose()
       window.removeEventListener('keydown', keyDown); window.removeEventListener('blur', pointerCancel); renderer.domElement.removeEventListener('pointercancel', pointerCancel)
       renderer.domElement.removeEventListener('pointerdown', pointerDown, true); renderer.domElement.removeEventListener('pointermove', pointerMove); renderer.domElement.removeEventListener('pointerleave', pointerLeave); renderer.domElement.removeEventListener('pointerup', pointerUp)
+      renderer.domElement.removeEventListener('contextmenu', contextMenu); element.removeEventListener('keydown', contextKey)
       disposeDisplay(group); disposeDisplay(analysis); disposeDisplay(origins)
       renderer.dispose(); renderer.domElement.remove(); context.current = null
     }
@@ -377,6 +441,7 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
         highlight.visible = false; highlight.renderOrder = 3; occurrence.add(object, highlight); current.edges.push({ edge, object, highlight })
       }
     }
+    current.scene = props.scene
     current.highlight(); if (first || props.selectedAnalysisPair) current.fit()
   }, [props.scene, props.selectedAnalysisPair])
   useEffect(() => {
@@ -404,7 +469,7 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
         const value = input.current, matches = (value.originReferences ?? []).filter(entry => entry.key === label.key)
           if (!value.disabled && assemblyReferencePickMode(value) === 'origin' && originFrame.current === originCatalog(value) && matches.length === 1 && assemblyOriginDisplayBinding(matches[0]) === label.binding) value.onOrigin?.(structuredClone(matches[0].reference))
       }}>{label.label}</button>
-  return <div className="assembly-viewport" ref={host} aria-label="Visor 3D del ensamblaje" data-analysis-pair={props.selectedAnalysisPair?.id} data-drag-axis={dragAxis ?? ''} data-reference-picking={assemblyReferencePickMode(props) ?? ''}>
+  return <div className="assembly-viewport" ref={host} tabIndex={props.onContextTarget ? 0 : undefined} aria-label="Visor 3D del ensamblaje" data-analysis-pair={props.selectedAnalysisPair?.id} data-drag-axis={dragAxis ?? ''} data-reference-picking={assemblyReferencePickMode(props) ?? ''}>
     <div className="assembly-origin-labels" aria-label="Referencias de origen visibles">
       <svg className="assembly-origin-leaders" aria-hidden="true">{originLabelState.layout.labels.map(label => <line key={label.key}
         x1={label.x} y1={label.y} x2={Math.max(label.left, Math.min(label.left + label.width, label.x))} y2={Math.max(label.top, Math.min(label.top + label.height, label.y))} />)}</svg>
