@@ -113,6 +113,8 @@ module.exports = function freshSketchWorkflow(c) {
       const selected = document.querySelectorAll('.body-operation-panel input[type="checkbox"]:checked');
       return selected.length === 1 && (type === 'cut' || document.querySelector('select[aria-label="Resultado del saliente"]')?.value === 'merge');
     }, type));
+    await require('./desktop-part-extrude-layout.cjs')({ page, recovery: () => page(() => localStorage.getItem('solidflow.autosave')), check, records },
+      'fresh-' + type + '-cancel', { profileId: sketch.id, locked: true });
     await page(value => { const e=document.querySelector('input[aria-label="Profundidad"]'); if(!e||e.disabled)throw Error('Depth field unavailable'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,String(value)); e.dispatchEvent(new Event('input',{bubbles:true})); }, type === 'cut' ? -3 : 3);
     await ready();
     check(await page(id => { const select = document.querySelector('select[aria-label="Croquis de la operación"]'); return select?.disabled && select.value === id; }, sketch.id), 'Direct operation retains its active sketch and prevents substituting a different profile');
@@ -134,6 +136,9 @@ module.exports = function freshSketchWorkflow(c) {
       check(canonical(redrawn.features.at(-1)) === canonical(sketch), 'Local Redo restores original material geometry after feature cancellation');
     }
     await start();
+    await waitFor('reopened fresh operation depth', () => page(() => !!document.querySelector('input[aria-label="Profundidad"]')));
+    await require('./desktop-part-extrude-layout.cjs')({ page, recovery: () => page(() => localStorage.getItem('solidflow.autosave')), check, records },
+      'fresh-' + type + '-accept', { profileId: sketch.id, locked: true });
     await page(value => { const e=document.querySelector('input[aria-label="Profundidad"]'); if(!e||e.disabled)throw Error('Depth field unavailable'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,String(value)); e.dispatchEvent(new Event('input',{bubbles:true})); }, type === 'cut' ? -3 : 3);
     await ready(); const serial=(await observe()).serial; await click(APPLY);
     await waitFor('operation committed',()=>page(()=>!document.querySelector('.property-manager')));

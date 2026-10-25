@@ -1,5 +1,19 @@
 # Public fixture provenance
 
+## Extrusion and cut panel-order checks
+
+`scripts/desktop-part-extrude-layout.cjs` reads the existing production UI; it
+introduces no geometry fixture. The sequence and fresh-sketch integrations
+reuse `src/cad/fixtures/part-sequence-original.json` and
+`scripts/desktop-part-fresh-sketch-original.cjs`, documented below. Empty cut
+selection and missing new-extrusion body limits are temporary UI drafts;
+Cancel or repair returns to the existing sequence without adding accepted
+geometry. Original geometric expectations and tolerances remain in place.
+
+The additional `BodyManagementPanel.test.tsx` cases use symbolic body DTOs and
+original incomplete declarations to check narrow diagnostic presentation.
+They are not native geometry or pointer evidence.
+
 ## Original two-direction and mid-plane revolution cases
 
 `src/cad/kernel.revolution-extent.test.ts` authors an annular-sector rectangle

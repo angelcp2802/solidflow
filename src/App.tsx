@@ -3058,7 +3058,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
             </button>
           </div>
           {editing ? (
-            <div className={`property-manager${editing.type === "revolve" ? " property-manager-revolve" : ""}`}>
+            <div className={`property-manager${editing.type === "revolve" ? " property-manager-revolve" : editing.type === "extrude" || editing.type === "cut" ? " property-manager-extrude" : ""}`}>
               <div className="property-manager-header">
                 <div className="property-title">
                   <span>{labels[editing.type]}</span>
@@ -3089,7 +3089,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                   </span>
                 </div>
               </div>
-              {editing.type !== "revolve" && <>{operationNameEditor}{operationBodyEditor}</>}
+              {editing.type !== "revolve" && editing.type !== "extrude" && editing.type !== "cut" && <>{operationNameEditor}{operationBodyEditor}</>}
               {editing.type === "sketch" ? (
                 <>
                   {sketchTool === "offset" && entityProfile && <SketchOffsetPanel
@@ -3532,6 +3532,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                       {operationNameEditor}
                     </>
                   ) : (
+                    <>
                     <ExtrudePanel
                       feature={editing}
                       features={availableFeatures}
@@ -3574,6 +3575,9 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                           );
                       }}
                     />
+                    {operationBodyEditor}
+                    {operationNameEditor}
+                    </>
                   )}
                   <div className="property-tip">
                     <Info size={15} />

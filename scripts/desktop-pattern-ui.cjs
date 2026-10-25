@@ -870,11 +870,11 @@ async function runInElectron() {
     await window.webContents.debugger.sendCommand('Input.dispatchKeyEvent', { type: 'keyUp', key, code: key, windowsVirtualKeyCode: codes[key] });
   };
   const asideWheel = async (point, deltaY) => {
-    check((configuredPicking || originAxes) && !window.isVisible() && window.webContents.debugger.isAttached()
+    check((configuredPicking || originAxes || partSequence) && !window.isVisible() && window.webContents.debugger.isAttached()
       && Number.isFinite(point.x) && Number.isFinite(point.y) && point.x >= 0 && point.y >= 0
       && Number.isFinite(deltaY) && deltaY !== 0 && Math.abs(deltaY) <= 240,
-    'Expected bounded wheel input over the hidden assembly inspector.');
-    check(await evaluate(`(() => { const a=document.querySelector(${encodeJavaScriptString(originAxes === 'standard' ? '.assembly-layout > aside' : '.configured-assembly-layout > aside')});
+    'Expected bounded wheel input over the hidden property inspector.');
+    check(await evaluate(`(() => { const a=document.querySelector(${encodeJavaScriptString(partSequence ? '.property-manager.property-manager-extrude' : originAxes === 'standard' ? '.assembly-layout > aside' : '.configured-assembly-layout > aside')});
       if(!a)return false; const r=a.getBoundingClientRect(),x=${point.x},y=${point.y};
       return x>r.left&&x<r.right&&y>r.top&&y<r.bottom&&x<innerWidth&&y<innerHeight&&a.contains(document.elementFromPoint(x,y)); })()`),
     'Inspector wheel target must be a currently visible inspector point.');
@@ -1082,7 +1082,7 @@ async function runInElectron() {
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
     : partSequence
-    ? require('./desktop-part-sequence-flow.cjs')({ expected, input, output, evaluate, observe, waitFor, click, menu, menuKey, pointer, capture,
+    ? require('./desktop-part-sequence-flow.cjs')({ expected, input, output, evaluate, observe, waitFor, click, menu, menuKey, pointer, asideWheel, capture,
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
     : partRevolution
@@ -1280,8 +1280,8 @@ async function runInElectron() {
   check(typeof actualWorkflow === 'function', 'Expected the statically selected test workflow.');
   class HiddenWindow extends electron.BrowserWindow {
     constructor(options) {
-      super({ ...options, ...(limitDistanceCompact || compactConfiguredPicking || partRevolution ? { width: 1040, height: 700 } : {}), show: false }); check(!window, 'Unexpected second test application window.'); window = this;
-      if (limitDistanceCompact || compactConfiguredPicking || partRevolution) {
+      super({ ...options, ...(limitDistanceCompact || compactConfiguredPicking || partRevolution || partSequence ? { width: 1040, height: 700 } : {}), show: false }); check(!window, 'Unexpected second test application window.'); window = this;
+      if (limitDistanceCompact || compactConfiguredPicking || partRevolution || partSequence) {
         check(options.minWidth === 1040 && options.minHeight === 700, 'Compact scenario must use the unchanged production minimum window size.');
         checks.push({ compactViewport: { requestedWindow: { width: 1040, height: 700 }, actualBounds: this.getBounds(), actualContentSize: this.getContentSize() } });
       }

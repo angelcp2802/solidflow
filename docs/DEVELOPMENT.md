@@ -1,5 +1,43 @@
 # Development guide
 
+## Extrusion and cut PropertyManagers — 2026-10-25
+
+Extrusion and cut now present the selected profile, direction parameters and
+any destination-surface controls before Bodies and Name. The existing shared
+body and name editors remain single instances with their original callbacks.
+Density rules are scoped to these two editors, retain actual inputs and field
+boxes of at least 28 px and keep the confirmation header sticky. Other operation layouts and
+document declarations are unchanged.
+
+The body panel translates only two exact incomplete-draft validation messages,
+and only when the corresponding draft state matches. An empty explicit cut
+scope with no selected bodies shows “Selecciona al menos un cuerpo que quieras
+cortar.” A new separate extrusion with `throughAll` or `untilNext`, no body
+limit and an empty base-feature ID shows “Selecciona un cuerpo límite para
+calcular hasta dónde llega la extrusión.” Other errors, stale references and
+additional diagnostic details pass through unchanged. This is presentation:
+validation, native verification and Apply authority remain unchanged.
+
+The original sequence renderer now runs at the production minimum window size.
+It observes the initial DOM order, source profile/lock, primary field visibility
+and confirmation controls before extra scrolling, measuring actual input height
+as well as its enclosing box. Its missing-cut-destination
+case uses actual pointer deselection, normal inspector wheel input and the
+existing Cancel/restore path. Its missing-extrusion-limit cases return to blind
+depth and continue the original merge operation; they do not test Cancel from
+those limit modes. The fresh-sketch renderer keeps its normal window size and
+checks staged-profile locking through its existing Cancel/retry/Apply paths.
+
+Normal `upToSurface` entry always supplies a preferred reference plane or a
+principal plane. There is no normal empty-target UI state in this increment,
+and the renderer does not fabricate one. Final build, three selected renderers
+and bounded visible checks pass. Final local acceptance also passes the full
+suite and desktop smoke; build, all three renderer-03 cases, full-suite 03 and
+smoke 03 share the exact 1,119-input source/runtime snapshot. Hosted acceptance
+of the new head remains pending. The frozen source and the distinction between
+visual observations and numerical oracles are recorded in
+[validation](VALIDATION.md).
+
 ## Parameter-first PropertyManagers — 2026-10-25
 
 The revolution editor presents Profile, Axis, Direction 1, optional Direction 2,

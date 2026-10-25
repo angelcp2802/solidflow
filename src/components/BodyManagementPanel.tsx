@@ -48,6 +48,14 @@ export function BodyFeaturePanel({ feature, outputBodyId, existing, onFeature, p
   const single = !!boss || feature.type === 'fillet' || feature.type === 'chamfer' || feature.type === 'shell' || feature.type === 'draft'
   const newBody = boss?.bodyOperation?.mode === 'new'
   const limit = boss?.type === 'extrude' && newBody && boss.endCondition && 'baseFeatureId' in boss.endCondition ? boss.endCondition : null
+  // Translate only these exact incomplete-draft rejections; retain all other diagnostics.
+  const displayMessage = feature.type === 'cut' && Array.isArray(feature.bodyScope) && feature.bodyScope.length === 0 && list.selection.length === 0
+    && /^Documento\.features\[\d+\]\.bodyScope: se esperaba una lista de entre 1 y 256 elementos$/.test(message ?? '')
+    ? 'Selecciona al menos un cuerpo que quieras cortar.'
+    : limit && (limit.kind === 'throughAll' || limit.kind === 'untilNext') && limit.baseBody === undefined && limit.baseFeatureId === ''
+      && /^Documento\.features\[\d+\]\.endCondition\.baseFeatureId: se esperaba texto de entre 1 y 128 caracteres$/.test(message ?? '')
+      ? 'Selecciona un cuerpo límite para calcular hasta dónde llega la extrusión.'
+      : message
   return <div className="property-section body-operation-panel">
     <h3><ChevronDown size={12} /> {combine ? 'Combinar cuerpos' : 'Cuerpos de la operación'}</h3>
     {boss && <label>Resultado del saliente
@@ -99,6 +107,6 @@ export function BodyFeaturePanel({ feature, outputBodyId, existing, onFeature, p
       <button type="button" className={`outline-button ${picking ? 'active' : ''}`} disabled={list.disabled} onClick={() => onPicking(!picking)}><MousePointer2 size={14} /> Seleccionar cuerpos en el visor</button>
     </>}
     <button type="button" className="outline-button" disabled={list.disabled} onClick={() => onPicking(false)}><Eye size={14} /> Ver vista previa</button>
-    {message && <p role="status" className="muted-small">{message}</p>}
+    {displayMessage && <p role="status" className="muted-small">{displayMessage}</p>}
   </div>
 }

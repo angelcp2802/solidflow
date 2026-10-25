@@ -2085,3 +2085,16 @@ button,
 .body-operation-panel select { display: block; width: 100%; margin-top: 5px; }
 .body-operation-panel .outline-button { margin-top: 8px; }
 .body-operand-order { margin: 8px 0; padding-left: 24px; font-size: 11px; color: #47657e; }
+
+/* Scoped extrusion/cut density; preserve readable controls and body selection. */
+.property-manager.property-manager-extrude .property-section { padding: 0 10px 8px; }
+.property-manager.property-manager-extrude .property-section h3 { height: 28px; margin: 0 0 5px; }
+.property-manager.property-manager-extrude .operation-profile-section { padding-top: 7px; }
+.property-manager.property-manager-extrude .operation-profile-section h3 { height: 22px; margin-bottom: 4px; }
+.property-manager.property-manager-extrude .property-section > select { margin-bottom: 6px; }
+.property-manager.property-manager-extrude .muted-small { margin-top: 6px; }
+.property-manager.property-manager-extrude .number-field { min-height: 34px; }
+.property-manager.property-manager-extrude .number-field > div { height: 30px; }
+.property-manager.property-manager-extrude .number-field input { height: 28px; }
+.property-manager.property-manager-extrude .text-input,
+.property-manager.property-manager-extrude .property-section select { min-height: 28px; }

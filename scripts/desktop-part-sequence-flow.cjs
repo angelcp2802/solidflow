@@ -5,11 +5,13 @@ const { encodeJavaScriptString: quote } = require('./desktop-ui-source.cjs');
 // Original analytical fixture, real top commands/left properties and worker.
 // No application state or worker responses are supplied by this workflow.
 module.exports = function partSequenceWorkflow(context) {
-  const { expected, input, output, evaluate, observe, waitFor, click, menu, menuKey, pointer, capture,
+  const { expected, input, output, evaluate, observe, waitFor, click, menu, menuKey, pointer, asideWheel, capture,
     checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
     initialReadyMs, dialogCounts } = context;
   const APPLY = 'button[title="Aceptar operación"]';
   const records = [];
+  const page = (fn, ...args) => evaluate('(' + fn.toString() + ')(' + args.map(v => 'JSON.parse(' + quote(JSON.stringify(v)) + ')').join(',') + ')');
+  const initialLayout = (phase, profileId, locked) => require('./desktop-part-extrude-layout.cjs')({ page, recovery, check, records }, phase, { profileId, locked });
   async function change(selector, value) {
     await evaluate(`(() => { const e=document.querySelector(${quote(selector)}); if(!e||e.disabled) throw Error('Missing enabled field');
       const p=e.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;
@@ -44,6 +46,56 @@ module.exports = function partSequenceWorkflow(context) {
     await waitFor('current operation can Apply',()=>evaluate(`!!document.querySelector(${quote(APPLY)}) && !document.querySelector(${quote(APPLY)}).disabled`));
   }
   const recovery = () => evaluate(`localStorage.getItem('solidflow.autosave')`);
+  const inspectPanelTarget = selector => page(selector => {
+    const panel = document.querySelector('.property-manager.property-manager-extrude'), matches = panel?.querySelectorAll(selector);
+    if (!panel || matches.length !== 1) throw Error('One current property target required: ' + selector);
+    const element = matches[0], r = element.getBoundingClientRect(), p = panel.getBoundingClientRect(), h = panel.querySelector('.property-manager-header').getBoundingClientRect();
+    const top = Math.max(0, p.top + panel.clientTop, h.bottom), bottom = Math.min(innerHeight, p.top + panel.clientTop + panel.clientHeight);
+    const point = { x: r.left + r.width / 2, y: r.top + r.height / 2 }, hit = document.elementFromPoint(point.x, point.y);
+    return { point, rect: { left: r.left, top: r.top, right: r.right, bottom: r.bottom }, scrollTop: panel.scrollTop,
+      visible: r.width > 0 && r.height > 0 && r.left >= p.left && r.right <= p.left + panel.clientWidth && r.top >= top && r.bottom <= bottom
+        && !!hit && (hit === element || element.contains(hit)), disabled: element.matches(':disabled'), text: element.textContent.trim(),
+      delta: r.top < top ? -160 : 160, wheelPoint: { x: p.left + 4, y: (top + bottom) / 2 } };
+  }, selector);
+  async function revealPanelTarget(selector) {
+    let previous = null, quietSince = 0;
+    const stationary = () => waitFor('stationary property target ' + selector, async () => {
+      const current = await inspectPanelTarget(selector), key = JSON.stringify(current);
+      if (previous !== key) { previous = key; quietSince = Date.now(); return false; }
+      return Date.now() - quietSince >= 120 ? current : false;
+    });
+    let state = await stationary();
+    for (let step = 0; !state.visible && step < 16; step++) {
+      const old = state.scrollTop;
+      await asideWheel(state.wheelPoint, state.delta);
+      await waitFor('property wheel movement', async () => { const next = await inspectPanelTarget(selector); return next.visible || next.scrollTop !== old; });
+      state = await stationary();
+    }
+    check(state.visible, 'Property control or reason is fully contained and unobscured after normal panel wheel: ' + JSON.stringify({ selector, state }));
+    records.push({ phase: 'property-wheel-reveal', selector, ...state }); return state;
+  }
+  async function pressPanelTarget(selector) {
+    const state = await revealPanelTarget(selector); check(!state.disabled, 'Property target is enabled');
+    await pointer('mouseMoved', state.point);
+    const current = await inspectPanelTarget(selector);
+    check(current.visible && !current.disabled && canonical(current.point) === canonical(state.point) && current.scrollTop === state.scrollTop,
+      'Property target remains stable before the actual pointer press');
+    await pointer('mousePressed', current.point, 1); await pointer('mouseReleased', current.point, 0);
+  }
+  async function blockedBodyReason(kind, beforeRecovery) {
+    const wanted = kind === 'cut' ? 'Selecciona al menos un cuerpo que quieras cortar.' : 'Selecciona un cuerpo límite para calcular hasta dónde llega la extrusión.';
+    const status = '.body-operation-panel [role="status"]';
+    await waitFor('explicit body selection rejection ' + kind, () => page((kind, wanted) => {
+      const panel = document.querySelector('.property-manager.property-manager-extrude'), apply = panel?.querySelector('button[title="Aceptar operación"]');
+      return apply?.disabled && panel.querySelector('.body-operation-panel [role="status"]')?.textContent === wanted
+        && (kind === 'cut' ? panel.querySelectorAll('.body-operation-panel input[type="checkbox"]:checked').length === 0
+          : panel.querySelector('[aria-label="Cuerpo límite de la extrusión"]')?.value === '');
+    }, kind, wanted));
+    if (kind !== 'cut') await revealPanelTarget('[aria-label="Cuerpo límite de la extrusión"]');
+    const shown = await revealPanelTarget(status);
+    check(shown.text === wanted && await recovery() === beforeRecovery, 'Actionable rejection is visible and preserves committed recovery');
+    records.push({ phase: 'blocked-body-selection', kind, reason: shown.text, applyDisabled: true, recoveryUnchanged: true });
+  }
   const contextSelector = id => '.tree-row[data-feature-id="'+id+'"]';
   async function actualTreePress(selector, button = 1) {
     await evaluate(`(() => {const matches=document.querySelectorAll(${quote(selector)});
@@ -133,10 +185,13 @@ module.exports = function partSequenceWorkflow(context) {
     await evaluate(`(() => {const button=[...document.querySelectorAll('.ribbon-tabs button')].find(e=>e.textContent.trim()==='Operaciones');if(!button)throw Error('Operations tab unavailable');button.click();})()`);
     await click('button.command[title="Corte extruido"]');
     await waitFor('saved unused sketch starts direct cut',()=>evaluate(`!!document.querySelector('input[aria-label="Profundidad"]')`));
+    await initialLayout('saved-unused-cut-cancel', id, true);
     await change('input[aria-label="Profundidad"]',4);await ready();
     check(await evaluate(`(() => {const selector=document.querySelector('select[aria-label="Croquis de la operación"]');return selector?.disabled&&selector.value==='seq-cut-left-sketch';})()`),
       'Saved unused direct cut locks the original sketch identity');
     check(await recovery()===originalRecovery,'Saved unused sketch and cut previews preserve committed recovery');
+    await pressPanelTarget('.body-operation-panel input[type="checkbox"]');
+    await blockedBodyReason('cut', originalRecovery);
     let serial=(await observe()).serial;await click('button[title="Cancelar operación"]');
     await waitFor('saved unused cut Cancel resumes width-three sketch',()=>evaluate(`document.querySelector('input[aria-label="Anchura"]')?.value==='3'
       &&document.querySelector('.ribbon-tabs .selected')?.textContent.trim()==='Croquis'`));
@@ -156,6 +211,7 @@ module.exports = function partSequenceWorkflow(context) {
       &&!!document.querySelector('button.command[title="Corte extruido"]')&&!document.querySelector('button.command[title="Corte extruido"]').disabled`));
     await click('button.command[title="Corte extruido"]');
     await waitFor('saved unused acceptance cut properties',()=>evaluate(`!!document.querySelector('input[aria-label="Profundidad"]')`));
+    await initialLayout('saved-unused-cut-accept', id, true);
     await change('input[aria-label="Profundidad"]',4);await ready();
     serial=(await observe()).serial;await click(APPLY);
     await waitFor('saved unused direct cut committed',()=>evaluate(`!document.querySelector('.property-manager')`));
@@ -289,12 +345,24 @@ module.exports = function partSequenceWorkflow(context) {
       await evaluate(`(() => { const t=[...document.querySelectorAll('.ribbon-tabs button')].find(e=>e.textContent.trim()==='Operaciones'); if(t)t.click(); })()`);
       await click('button.command[title="'+(op.type==='cut'?'Corte extruido':'Saliente/Base extruido')+'"]');
       await waitFor('operation properties ready',()=>evaluate(`!!document.querySelector('input[aria-label="Profundidad"]')`));
+      await initialLayout('sequence-' + op.type + '-' + i, expected.features.find(feature => feature.name === op.sketch).id, false);
       if(op.type==='cut') {
         await waitFor('sole current cut body preselected',()=>evaluate(`document.querySelectorAll('.body-operation-panel input[type="checkbox"]:checked').length===1`));
       }
       await change('input[aria-label="Profundidad"]',op.depth);
       if(op.type==='extrude') {
         await waitFor('body result available',()=>evaluate(`!!document.querySelector('select[aria-label="Resultado del saliente"]') && !document.querySelector('select[aria-label="Resultado del saliente"]').disabled`));
+        if (i === 2) {
+          const saved = await recovery();
+          await change('select[aria-label="Resultado del saliente"]', 'new');
+          for (const mode of ['throughAll', 'untilNext']) {
+            await revealPanelTarget('[aria-label="Condición final"]');
+            await change('select[aria-label="Condición final"]', mode);
+            await blockedBodyReason(mode, saved);
+          }
+          await revealPanelTarget('[aria-label="Condición final"]');
+          await change('select[aria-label="Condición final"]', 'blind');
+        }
         await change('select[aria-label="Resultado del saliente"]','merge');
         await waitFor('body picker available',()=>evaluate(`document.querySelectorAll('.body-operation-panel input[type="checkbox"]').length===1 && !document.querySelector('.body-operation-panel input[type="checkbox"]').disabled`));
         if(!await evaluate(`document.querySelector('.body-operation-panel input[type="checkbox"]').checked`)) await click('.body-operation-panel input[type="checkbox"]');

@@ -1,5 +1,96 @@
 # Validation
 
+## Extrusion and cut panel order — 2026-10-25
+
+This increment places profile and direction/destination parameters before
+Bodies and Name for extrusion and cut. Local density rules retain field boxes
+and actual inputs of at least 28 px, plus the sticky confirmation header. Two exact incomplete-body
+diagnostics receive actionable presentation text; other diagnostics and all
+document, preview and Apply guards remain unchanged.
+
+The first build fails after 2.500 s with a TypeScript error in the new panel
+test: its fixture helper's union return type permits a cut, so adding a
+`bodyOperation` property is rejected. Narrowing that helper's return type to
+the extrusion variant resolves the compilation error. Build 02 passes in
+3.677 s; sequence 02 passes 149 checkpoints in 59.434 s and fresh sketches 02
+passes 50 in 17.186 s. Before final acceptance, the read-only layout helper is
+strengthened to check the actual input height as well as its enclosing box.
+Production code is unchanged from run 02. The final run uses 1,119 frozen
+non-Markdown source/runtime inputs. Build 03 passes in 3.593 s, followed by
+these local Windows renderer results:
+
+| Workflow | Checkpoints | Elapsed |
+| --- | ---: | ---: |
+| Successive parts at minimum window size | 149 | 59.324 s |
+| Fresh face-supported sketches at normal window size | 50 | 16.340 s |
+| Revolution and saved editing regression | 178 | 48.543 s |
+
+All three report zero console, request and resource errors, confirmed child exit
+and isolated-profile cleanup. Initial layout observations precede helper
+scrolling: they require Profile, End condition and Depth to be fully contained
+and hit-tested, at least 28 px actual inputs and field boxes, visible confirmation controls,
+the exact profile ID and its expected lock state. They also check DOM order
+through Reverse, Bodies and Name, without claiming all those controls fit
+without scrolling. The sequence uses the unchanged 1040 x 700 production
+minimum window; the fresh-sketch workflow retains its normal size.
+
+In the existing saved-unused-sketch cut path, actual pointer deselection leaves
+no target body. The renderer requires Apply to be disabled and the visible
+message “Selecciona al menos un cuerpo que quieras cortar.” Normal inspector
+wheel input reveals the message; the existing Cancel path restores the draft
+sketch and then the original committed document/recovery. For a new separate
+extrusion, both `throughAll` and `untilNext` leave the explicit body limit
+unselected and require “Selecciona un cuerpo límite para calcular hasta dónde
+llega la extrusión.” Apply stays disabled and committed recovery stays intact.
+The workflow repairs the draft by returning to blind depth and the original
+merge selection before continuing the existing geometry/history/file oracles.
+It does not cancel from either missing-limit mode or validate a populated limit.
+
+No empty `upToSurface` target is manufactured: ordinary UI entry supplies a
+preferred reference plane or a principal plane. These checks do not establish
+additional surface-target geometry or full extrusion-mode coverage. Existing
+fixture provenance, numerical tolerances and workflow deadlines are retained.
+
+A separate visible Windows check opens a saved cut by tree double-click at
+minimum size. Profile, end condition, depth 4, reverse and the first body row
+are initially visible; Name requires panel scrolling. Actual pointer
+deselection of the sole cut body and normal wheel input expose the full
+actionable message. Both Accept controls are disabled, the separate viewport
+error remains visible and sticky Cancel stays available. Cancel followed by a
+fresh settled observation restores the two holes and stepped boss, one displayed
+body of 1080 mm3 and `Listo`.
+
+The saved extrusion also opens at minimum size with its intended profile,
+blind depth 3 and body-result order; its existing result mode remains disabled.
+At a maximized 1920 x 1032 view, all sections through Name are visible without
+scrolling. An accessibility value setter changes depth from 3 to 5, producing
+a visibly larger boss and enabled Accept. Cancel restores the original model,
+displayed volume 1080 mm3 and `Listo`; neither Apply nor Save is performed.
+These are visual/UI-state observations, not independent numerical geometry
+measurements or human typing. Visual review covers these named states and the
+final sequence capture. The compact ribbon still scrolls horizontally; these
+observations do not establish that every command fits without scrolling.
+
+Final local acceptance is complete. Full `npm test` 03 passes 9,702 cases
+across 422 files, plus 83 IPC checks and two explicit skips, in 549.302 s.
+Desktop smoke 03 passes in 1.558 s with zero console, request and resource
+errors. Build 03, all three renderer-03 workflows, full-suite 03 and smoke 03
+share the exact final 1,119-input source/runtime snapshot. This remains bounded
+local Windows evidence, not a complete renderer matrix, platform support or
+complete modeling/demo acceptance. Hosted acceptance of the new head remains
+pending. All dated sections below describe their earlier source states.
+
+Parent `55c4adf` has terminal [CI failure](https://github.com/angelcp2802/solidflow/actions/runs/40167039789):
+eight of nine renderer jobs and all three configured-authoring jobs pass.
+Ubuntu persistence job 121090111105 fails at
+`Test rigid assembly preview, Apply and persistence (Linux)`. The single
+dedicated log retrieval attempt returns `Transport closed`, so no exact
+checkpoint, timeout or underlying cause is established. All three Desktop
+jobs fail `Require every renderer validation job` before unit, smoke and
+packaging acceptance. [Security](https://github.com/angelcp2802/solidflow/actions/runs/40167039766)
+completes successfully. These results belong to the parent and do not establish
+hosted acceptance of the extrusion/cut increment or its subsequent head.
+
 ## Parameter-first PropertyManagers — 2026-10-25
 
 This increment reorders the revolution editor to Profile, Axis, Direction 1,

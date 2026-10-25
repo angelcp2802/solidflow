@@ -7,7 +7,50 @@ with interaction priorities in [issue #55](https://github.com/angelcp2802/solidf
 and hosted acceptance in [issue #53](https://github.com/angelcp2802/solidflow/issues/53).
 The review remains unmerged; this is not release or complete-demo acceptance.
 
-The current increment prioritizes parameters in the left PropertyManager.
+The current increment applies the parameter-first layout to extrusion and cut:
+Profile, direction/destination parameters, Bodies, then Name. Density changes
+are local to these editors; the sticky confirmation header and existing
+callbacks/guards remain. Exact empty-cut-scope and missing-new-body-limit
+diagnostics receive actionable text without replacing unrelated errors or
+changing Apply authority.
+
+Local acceptance is complete within the scope below. The initial build fails on the panel test's
+union fixture type; narrowing it to the extrusion variant allows build 02 to
+pass in 3.677 s. After strengthening the layout helper to measure actual input
+height as well as its box, final build 03 passes in 3.593 s with 1,119 frozen
+non-Markdown source/runtime inputs. Production code is unchanged from run 02.
+Sequence 03 passes 149 checkpoints in 59.324 s at minimum window size, fresh
+sketches 03 passes 50 in 16.340 s at normal size, and revolution 03 passes 178
+in 48.543 s. All report zero console, request and resource errors with
+child/profile cleanup confirmed. They cover initial field order
+and visibility, locked staged profiles and existing Cancel/retry paths. The
+sequence also checks empty cut selection followed by Cancel and missing
+`throughAll`/`untilNext` body limits followed by repair to blind depth and merge;
+it does not test Cancel from those limit modes or an artificial empty
+`upToSurface` target. Visible minimum-size and maximized checks confirm the
+saved cut's blocked empty selection, accessible sticky Cancel and extrusion
+depth-edit/Cancel recovery. Name needs scrolling at minimum size; all extrusion
+sections fit in the reviewed maximized state. Displayed 1080 mm3 and the restored
+model are UI-state observations, not new geometry oracles; depth entry uses an
+accessibility setter. Full-suite 03 passes 9,702 cases across 422 files, plus
+83 IPC checks and two explicit skips, in 549.302 s. Desktop smoke 03 passes in
+1.558 s with zero console, request and resource errors. Build 03, all three
+renderer-03 workflows, full-suite 03 and smoke 03 share the exact final
+1,119-input source/runtime snapshot. This completes local acceptance for these
+cases, not the full renderer matrix, platform support or complete modeling/demo
+coverage. Hosted acceptance of the new head remains pending.
+
+Parent `55c4adf` finishes [CI](https://github.com/angelcp2802/solidflow/actions/runs/40167039789)
+with failure: eight of nine renderers and all three configured-authoring jobs
+pass. Ubuntu persistence job 121090111105 fails at the rigid assembly preview,
+Apply and persistence step. One log retrieval attempt returns `Transport
+closed`; the exact checkpoint and cause remain unestablished. All three Desktop
+jobs stop at `Require every renderer validation job` before unit, smoke and
+packaging acceptance. [Security](https://github.com/angelcp2802/solidflow/actions/runs/40167039766)
+passes. This historical parent result does not validate the current increment
+or the next published head; the completed local acceptance above is separate.
+
+The preceding increment prioritized parameters in the left PropertyManager.
 Revolution now orders Profile, Axis, Direction 1, optional Direction 2, Bodies
 and Name. The configured general-relation editor orders Type/options,
 references, origin disclosure, parameters and Name, with a single title and
@@ -16,7 +59,8 @@ distinguishes selecting references, explicitly previewing and applying a current
 verified result; it is hidden during blocked editing or replacement dialogs.
 Existing error/status reporting and authority guards remain.
 
-Local acceptance is complete for the final snapshot recorded below; hosted
+Local acceptance of that preceding increment is complete for its final snapshot
+recorded below; hosted
 acceptance of the current head remains pending. The first build passes in
 3.605 s, but the revolution renderer fails after 6.357 s because the first-angle
 field crosses the minimum
@@ -160,8 +204,8 @@ See [validation](VALIDATION.md) for exact
 local results, retained failures and hosted links; results from earlier commits
 do not establish current-head acceptance.
 
-Next priorities include current-head hosted acceptance of the parameter-first
-PropertyManager increment. Further priorities include
+Next priorities include hosted acceptance of the extrusion/cut panel increment.
+Further priorities include
 viewport/external revolution-axis selection,
 thin-wall and revolved-cut workflows, broader material/mechanical reference picking and
 the complete basic assembly demo. Repeated/hosted persistence timing, remaining
