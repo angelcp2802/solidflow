@@ -31,3 +31,7 @@ instructions, notices and applicable library replacement rights when distributin
 binaries. A stable binary release requires a corresponding-source distribution
 review; CI validates packaging without uploading binaries until that source bundle
 is verified.
+
+See [CAD runtime source and identity](docs/CAD_RUNTIME_SOURCE.md) for the verified
+package/file identities, pinned upstream inputs and remaining rebuild, replacement
+and recipient-download work. Source acquisition is not a completed source release.
