@@ -56,6 +56,23 @@ it('offers origin-axis rotation capture but grants no Apply or capture authority
   expect(capture![0]).toContain('Capturar bloqueo de giro desde la vista previa verificada')
   expect(serializeAssemblyDocument(document)).toBe(before)
 })
+it('lists saved coincident and concentric edits without exposing an implicit rotation unlock', () => {
+  const document = createAssemblyExample(), occurrence = document.occurrences[1]
+  const component = { occurrencePath: [occurrence.id], definition: { ...occurrence.definition } }
+  document.mates.push({ id: 'saved-plane', name: 'Original plane relation', type: 'coincident', suppressed: false, alignment: 'aligned',
+    first: { kind: 'principal-plane', component, plane: 'XY' }, second: { kind: 'principal-plane', component: null, plane: 'XY' } },
+  { id: 'saved-axis', name: 'Original locked axis', type: 'concentric', suppressed: false, alignment: 'aligned', rotationLock: [0, 0, 0, 1],
+    first: { kind: 'principal-axis', component, axis: 'Z' }, second: { kind: 'principal-axis', component: null, axis: 'Z' } })
+  const before = serializeAssemblyDocument(document)
+  const html = renderToStaticMarkup(<AssemblyWorkspace initialDocument={document} initialSaved={before} onOpenPart={() => undefined} />)
+  for (const label of ['Editar coincidencia Original plane relation', 'Editar concentricidad Original locked axis'])
+    expect(html.match(new RegExp('<button\\b[^>]*aria-label="' + label + '"[^>]*>', 'g'))).toHaveLength(1)
+  expect(html).toContain('giro bloqueado')
+  expect(html).not.toContain('aria-label="Desbloquear giro"')
+  expect(html).not.toContain('aria-label="Vista previa de la relación editada"')
+  expect(html).toMatch(/<button(?=[^>]*aria-label="Bloquear giro Original locked axis")(?=[^>]*disabled="")[^>]*>/)
+  expect(serializeAssemblyDocument(document)).toBe(before)
+})
 it('takes Width intent from the actual visible scene entry rather than an incoming face payload', () => {
   const actual = face(['sub-a','pin'],'plane'), scene = widthPickScene([actual]), incoming = face(['sub-a','pin'],'cylinder')
   const before = JSON.stringify(scene), selected = scopedAssemblyWidthPick(scene,incoming,['sub-a'])

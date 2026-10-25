@@ -1,5 +1,71 @@
 # Validation
 
+## Saved plane/axis relations and rotation release — 2026-10-25
+
+Standard coincidence and concentricity now support name/orientation edits with
+immutable ordered references, ID, suppression and parent scope. Concentric
+editing preserves the exact saved quaternion unless **Desbloquear giro** is
+explicitly selected. It submits the existing update through native Preview and
+Apply. Declaration tickets reject stale documents, scopes and sessions; Cancel
+retains retry fields, while Apply, Undo/Redo and replacement end editing.
+
+Local Windows x64 / Node 24.11.1 / Electron 44.9.3 uses 1,152 matching non-Markdown
+source/runtime inputs. Build passes in 4.927 s. The origin-axis-lock renderer
+passes 113 checkpoints in 14.173 s; the origin-axes renderer passes 316 in
+32.095 s. Both report zero console, request and resource errors, child closure
+and isolated-profile cleanup. `npm test` passes 9,804 tests in 430 files plus
+103 IPC checks and two explicit skips in 593.817 s. Desktop smoke passes in
+2.093 s.
+
+The lock route edits the name while preserving exact capture bytes, explicitly
+releases rotation, cancels, retries and applies, then checks Undo to the locked
+document, Redo to the unlocked document, Save/reopen and fresh Solve/Cancel.
+Native DOF changes from one to two; eight independently transformed prism
+corners and axial residuals check the unlocked scene without imposing a unique
+free roll or axial position. Two original 2×3×4 mm prisms have summed V48 mm³
+and A104 mm². Coordinates use 1e-6, volume/area 1e-5 and axis residuals 1e-6
+tolerances. This renderer reports axial freedom rather than demonstrating drag.
+
+The origin route retains the two authored axis relations and adds an aligned
+XY coincidence. It edits the name, verifies read-only type/references, cancels
+and retries, applies, checks exact Undo/Redo documents and saved reopening.
+The three-relation fixture has DOF zero and plane separation zero. Opposed
+orientation is exercised only as a retained field in that renderer, without
+submitting an incompatible solve. A separate native case solves an isolated
+coincidence aligned then opposed: normal dot ±1, zero separation and DOF three,
+with bounds checked against independently transformed literal corners.
+
+Nine pure helper cases cover lock preservation/release, suppression, shared
+scope, history, invalid fields and stale tickets. Native tests also reject a
+locked incompatible orientation, revoke stale Apply authority, persist unlock
+and demonstrate a finite Rz90/Z19 displacement with bounds [-3,0,19] to
+[0,2,23] mm for the moving prism. Fixed-owner geometry stays unchanged.
+
+The first new coincidence renderer attempt failed because Undo/Redo had cleared
+component selection before asking for selected-owner planes. The harness now
+selects the original occurrence through the existing actual control and checks
+unchanged worker serial/recovery before proceeding. Production code did not
+change after that attempt; the successful build and lock run were retained by
+matching their input hashes. Field values use scripted setters and command
+actions use actual pointer transport. Cancel checks retained fields, recovery,
+history and revoked Apply; it does not independently measure the restored
+displayed scene. These runs do not establish configured/material-face editor
+coverage, installed interaction, platform support or general interface parity.
+
+A separate Windows portable walkthrough uses the same production inputs and
+verifies the live application archive against the packaged archive. Actual
+controls release a saved concentric lock through Preview, Cancel, retry and
+Apply. Cancel retains the checked release field without committing; Undo/Redo
+restore the locked/unlocked states. Native Save As and Open preserve the two
+prisms, and a fresh Solve reports two local degrees of freedom and V48 mm³.
+The final preview is cancelled, leaving the saved document clean. Independent
+file comparison finds only the rotation lock becoming null and the save time
+changing; identity, references, definitions and poses remain exact. Independent
+axis arithmetic gives zero separation and angle, within 1e-6 mm/rad. The original
+locked fixture and the earlier recovered document retain their bytes. This
+walkthrough does not exercise manual name/orientation editing, free-spin drag,
+export measurement, configured editors or other operating systems.
+
 ## Current part to independent assembly — 2026-10-25
 
 The explicit command copies the current committed part into a new unsaved

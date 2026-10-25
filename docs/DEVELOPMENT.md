@@ -1,5 +1,30 @@
 # Development guide
 
+## Edit saved coincidence and concentricity — 2026-10-25
+
+The standard relation list offers **Editar coincidencia** and **Editar
+concentricidad**. Name and Orientation are editable; Type and the two ordered
+references remain read-only. The edited relation keeps its ID, suppression and
+parent-definition scope. Finish any other relation editor first. Edits in a
+reused subassembly still affect the shared definition.
+
+A concentric edit preserves the exact saved rotation lock. **Desbloquear giro**
+is available only when that relation already has a lock; it explicitly removes
+the lock through **Vista previa de la relación editada**, followed by Apply.
+Changing orientation while retaining a lock may be incompatible and is checked
+by the existing solver. No automatic recapture or quaternion entry is provided.
+The existing verified-preview capture route remains available after leaving
+this editor. Capture and generic Resolve are blocked while it is active.
+
+Cancel revokes the preview but retains name, orientation and unlock intent for
+retry. **Terminar edición de relación** leaves without committing. Apply,
+Undo/Redo, document replacement and scope changes end the editor. Declaration
+tickets bind the document, exact scope and document session, including a
+byte-identical reopen; preview-generation changes alone retain the fields.
+The document schema and native solver are unchanged. See [validation](VALIDATION.md)
+for executed cases and limits; this does not establish configured-workspace
+editing or general interaction parity.
+
 ## Create an assembly from the current part — 2026-10-25
 
 **Archivo → Crear ensamblaje con esta pieza**, also available as **Con esta

@@ -14,7 +14,8 @@ import { CadEngine } from './kernel.engine'
 import { withNativeOwners } from './kernel.native-ownership'
 import { placeAssemblyShape, validateAssemblyShape } from './kernel.assembly-placements'
 import { AssemblyWorkerSession } from './kernel.assembly-session'
-import { AssemblyDocumentHistory } from '../model/assemblyEditing'
+import { applyAssemblyEdit, AssemblyDocumentHistory } from '../model/assemblyEditing'
+import { assemblyOrdinaryMateUiEdit } from '../components/assemblyOrdinaryMateEdit'
 
 beforeAll(async () => setOC(await initOpenCascade({ wasmBinary: await readFile(createRequire(import.meta.url).resolve('replicad-opencascadejs/wasm')), print: () => undefined, printErr: () => undefined })), 60_000)
 const stamp = '2026-10-23T00:00:00.000Z'
@@ -133,6 +134,62 @@ it('requires fresh session authority for origin capture, Apply, history and save
   } finally { session.discard() }
 }, 60_000)
 
+it('edits a saved origin lock without recapture, rejects conflicting orientation, then explicitly releases spin through fresh Apply', () => {
+  const input = prisms(), session = new AssemblyWorkerSession()
+  try {
+    const initial = session.prepare(input); if (initial.status !== 'ready') throw Error('Expected free preview')
+    const captured = session.captureRotation(input, initial.token, 'axis'); if (captured.status !== 'ready') throw Error('Expected captured preview')
+    const locked = session.apply(input, captured.token).document, mate = locked.mates[0]
+    if (mate.type !== 'concentric' || !mate.rotationLock) throw Error('Expected saved lock')
+    near(mate.rotationLock, [0, 0, -Math.sin(Math.PI / 12), Math.cos(Math.PI / 12)])
+    const before = serializeAssemblyDocument(locked), history = new AssemblyDocumentHistory(locked)
+    const candidate = (alignment: 'aligned' | 'opposed', releaseRotation: boolean) => {
+      const update = assemblyOrdinaryMateUiEdit(mate, { name: 'Edited original bearing', alignment, releaseRotation })
+      if (!update) throw Error('Expected ordinary edit')
+      return applyAssemblyEdit(locked, { type: 'update-mate', mateId: mate.id, mate: update })
+    }
+    const renamed = session.prepare(locked, candidate('aligned', false))
+    if (renamed.status !== 'ready') throw Error('Expected rename preview')
+    expect(renamed.scopes[0].result.localDOF).toBe(1)
+    expect(renamed.document.mates[0]).toEqual({ ...mate, name: 'Edited original bearing' })
+    const conflict = session.prepare(locked, candidate('opposed', false))
+    expect(conflict.status).toBe('rejected')
+    expect(() => session.apply(locked, renamed.token)).toThrow()
+    expect(serializeAssemblyDocument(locked)).toBe(before)
+    expect(serializeAssemblyDocument(history.current)).toBe(before)
+    const proposed = candidate('aligned', true), preview = session.prepare(locked, proposed)
+    if (preview.status !== 'ready') throw Error('Expected unlock preview')
+    expect(preview.scopes[0].result.localDOF).toBe(2)
+    expect(preview.document.mates[0]).toEqual({ ...mate, name: 'Edited original bearing', rotationLock: null })
+    expect(preview.checks.every(check => check.satisfied)).toBe(true)
+    session.discard(preview.token)
+    expect(() => session.apply(locked, preview.token)).toThrow()
+    expect(serializeAssemblyDocument(history.current)).toBe(before)
+    const retry = session.prepare(locked, proposed); if (retry.status !== 'ready') throw Error('Expected retry')
+    const stale = structuredClone(locked); stale.updatedAt = '2026-10-24T00:00:00.000Z'
+    expect(() => session.apply(stale, retry.token)).toThrow()
+    const fresh = session.prepare(locked, proposed); if (fresh.status !== 'ready') throw Error('Expected fresh retry')
+    const applied = session.apply(locked, fresh.token).document
+    history.commitDocument(applied)
+    expect(history.undo()).toEqual(locked); expect(history.redo()).toEqual(applied)
+    const reopened = parseAssemblyDocument(serializeAssemblyDocument(applied))
+    // Independent finite roll/slide satisfying the unlocked Z axis: Rz90 and Z19.
+    reopened.occurrences[0].pose = { translation: [0, 0, 19], rotation: [0, 0, Math.SQRT1_2, Math.SQRT1_2] }
+    const moved = readyOrigin(reopened)
+    try {
+      expect(moved.scopes[0].result.localDOF).toBe(2)
+      expect(moved.checks.every(check => check.satisfied)).toBe(true)
+      near(moved.document.occurrences[0].pose.translation, [0, 0, 19], 1e-6)
+      near(moved.document.occurrences[0].pose.rotation, [0, 0, Math.SQRT1_2, Math.SQRT1_2], 1e-8)
+      const document = validateAssemblyDocument(moved.document), bounds = nativeBounds(document), scene = buildAssemblyScene(document)
+      near(bounds.min, [-3, 0, 19], 1e-6); near(bounds.max, [0, 2, 23], 1e-6)
+      expect(scene.solidCount).toBe(2); expect(scene.volume).toBeCloseTo(48, 6); expect(scene.area).toBeCloseTo(104, 6)
+      expect(document.occurrences[1]).toEqual(locked.occurrences[1])
+    } finally { discardAssemblySolvePreview(moved) }
+    expect(serializeAssemblyDocument(locked)).toBe(before)
+  } finally { session.discard() }
+}, 60_000)
+
 it('rejects forged, consumed and changed pose/revision/scope origin capture authority', () => {
   const input = prisms(), preview = readyOrigin(input)
   try {
@@ -145,6 +202,50 @@ it('rejects forged, consumed and changed pose/revision/scope origin capture auth
     discardAssemblySolvePreview(preview)
     expect(() => captureAssemblyConcentricRotationLock(preview, input, 'axis')).toThrow(/no fue verificada/)
   } finally { discardAssemblySolvePreview(preview) }
+}, 60_000)
+
+it('edits isolated root/component XY coincidence from aligned to opposed with independent plane and prism evidence', () => {
+  const input = prisms(), session = new AssemblyWorkerSession()
+  input.mates = [{ id: 'plane', name: 'Original XY coincidence', type: 'coincident', suppressed: false, alignment: 'aligned',
+    first: { kind: 'principal-plane', component: null, plane: 'XY' },
+    second: { kind: 'principal-plane', component: { occurrencePath: ['pin'], definition: { ...input.occurrences[0].definition } }, plane: 'XY' } }]
+  const assertGeometry = (document: AssemblyDocument, sign: number) => {
+    const { translation: t, rotation: [x, y, z, w] } = document.occurrences[0].pose
+    // Literal local XY normal transformed by the saved quaternion. Root normal is +Z.
+    const normal = [2 * (x * z + w * y), 2 * (y * z - w * x), 1 - 2 * (x * x + y * y)]
+    near(normal, [0, 0, sign], 1e-6)
+    expect(Math.abs(t[2])).toBeLessThanOrEqual(1e-6) // root-normal plane separation
+    // Independently transform all eight original 2x3x4 corners; no unique free XY/roll pose.
+    const corners = [0, 2].flatMap(a => [0, 3].flatMap(b => [0, 4].map(c => [
+      t[0] + (1 - 2 * (y * y + z * z)) * a + 2 * (x * y - w * z) * b + 2 * (x * z + w * y) * c,
+      t[1] + 2 * (x * y + w * z) * a + (1 - 2 * (x * x + z * z)) * b + 2 * (y * z - w * x) * c,
+      t[2] + 2 * (x * z - w * y) * a + 2 * (y * z + w * x) * b + (1 - 2 * (x * x + y * y)) * c,
+    ])))
+    const bounds = nativeBounds(document)
+    near(bounds.min, [0, 1, 2].map(i => Math.min(...corners.map(p => p[i]))), 1e-6)
+    near(bounds.max, [0, 1, 2].map(i => Math.max(...corners.map(p => p[i]))), 1e-6)
+    const scene = buildAssemblyScene(document)
+    expect(scene.solidCount).toBe(2); expect(scene.volume).toBeCloseTo(48, 6); expect(scene.area).toBeCloseTo(104, 6)
+    expect(document.occurrences[1]).toEqual(input.occurrences[1])
+  }
+  try {
+    const initial = session.prepare(input); if (initial.status !== 'ready') throw Error('Expected aligned coincidence')
+    expect(initial.scopes[0].result.localDOF).toBe(3)
+    const committed = session.apply(input, initial.token).document, before = serializeAssemblyDocument(committed)
+    assertGeometry(committed, 1)
+    const mate = committed.mates[0]; if (mate.type !== 'coincident') throw Error('Expected coincidence')
+    const update = assemblyOrdinaryMateUiEdit(mate, { name: 'Opposed XY coincidence', alignment: 'opposed', releaseRotation: false })
+    if (!update) throw Error('Expected ordinary plane edit')
+    const proposed = applyAssemblyEdit(committed, { type: 'update-mate', scope: { id: committed.id, revision: committed.revision }, mateId: mate.id, mate: update })
+    const preview = session.prepare(committed, proposed); if (preview.status !== 'ready') throw Error('Expected opposed coincidence')
+    expect(preview.scopes[0].result.localDOF).toBe(3)
+    expect(preview.checks.every(check => check.satisfied)).toBe(true)
+    assertGeometry(preview.document, -1)
+    expect(serializeAssemblyDocument(committed)).toBe(before)
+    const applied = session.apply(committed, preview.token).document
+    expect(applied.mates[0]).toEqual({ ...mate, name: 'Opposed XY coincidence', alignment: 'opposed' })
+    assertGeometry(parseAssemblyDocument(serializeAssemblyDocument(applied)), -1)
+  } finally { session.discard() }
 }, 60_000)
 
 it('captures distinct local children in a reused rigid subassembly, independent of its parent gauge', () => {

@@ -340,11 +340,12 @@ module.exports = function originAxesWorkflow(c) {
       // the independently known placed prism dimensions and native bounds.
       check(b.worldPose.translation.every(Number.isFinite), 'Finite actual placement');
       const translation = id === 'ground' ? [-15, 0, 0] : stage ? [0, 0, b.worldPose.translation[2]] : [20, 10, 6];
-      const theta = (stage === 2 ? 30 : 20) * Math.PI / 180;
+      const theta = (stage >= 2 ? 30 : 20) * Math.PI / 180;
       const cos = id === 'moving' && stage === 1 ? 1 - 2 * q[2] * q[2] : Math.cos(theta);
       const sin = id === 'moving' && stage === 1 ? 2 * q[2] * q[3] : Math.sin(theta);
       near(b.volume, 24, 1e-5, 'Member volume'); near(b.area, 52, 1e-5, 'Member area');
       translation.forEach((v, i) => { if (id === 'ground' || stage === 0 || i < 2) near(b.worldPose.translation[i], v, 1e-5, id + ' origin'); });
+      if (stage === 3 && id === 'moving') near(b.worldPose.translation[2], 0, 1e-6, 'Coincident root/component XY signed plane separation');
       near(Math.hypot(...q), 1, 1e-9, 'Unit rotation');
       near(q[0], 0, 1e-6, 'Origin Z remains vertical X'); near(q[1], 0, 1e-6, 'Origin Z remains vertical Y');
       if (id === 'ground' || stage !== 1) {
@@ -366,16 +367,23 @@ module.exports = function originAxesWorkflow(c) {
       : v.status === 'ready' && v.hasToken && v.checks.length === stage && v.checks.every(c => c.satisfied), 'Authenticated physically verified preview');
     if (configured) check(canonical(row.current.document) === canonical(baseline) && v.verification.reports.length === stage
       && v.verification.reports.every(r => !r.passive && r.measurement.status === 'ok' && r.measurement.satisfied), 'Every placed configured relation physically verified');
-    else check(v.scopes.length === 1 && !v.scopes[0].temporaryAnchor && v.scopes[0].result.localDOF === (stage === 1 ? 2 : 1), 'Concentric keeps slide/spin; angle removes only spin');
+    else check(v.scopes.length === 1 && !v.scopes[0].temporaryAnchor && v.scopes[0].result.localDOF === (stage === 1 ? 2 : stage === 2 ? 1 : 0), 'Concentric keeps slide/spin; angle removes spin; added XY coincidence removes slide');
     const mates = declarations(v.document);
     check(mates.length === stage && mates[0].type === 'concentric' && mates[0].rotationLock === null, 'Saved origin concentric retains free spin');
-    for (const [i, mate] of mates.entries()) {
+    for (const [i, mate] of mates.slice(0, 2).entries()) {
       check(mate.first.kind === 'principal-axis' && mate.second.kind === 'principal-axis'
         && mate.first.axis === (i ? 'X' : 'Z') && mate.second.axis === mate.first.axis
         && canonical(mate.first.component.occurrencePath) === '["moving"]' && mate.first.component.definition.id === 'origin-axis-prism'
         && mate.second.component === null, 'Exact root/component axis declarations');
     }
-    if (stage === 2) check(mates[1].type === 'angle' && mates[1].angle === 30, 'Saved 30 degree relation');
+    if (stage >= 2) check(mates[1].type === 'angle' && mates[1].angle === 30, 'Saved 30 degree relation');
+    if (stage === 3) {
+      const mate = mates[2];
+      check(mate.type === 'coincident' && mate.alignment === 'aligned' && !mate.suppressed
+        && mate.first.kind === 'principal-plane' && mate.first.plane === 'XY' && mate.second.kind === 'principal-plane' && mate.second.plane === 'XY'
+        && canonical(mate.first.component) === canonical({ occurrencePath: ['moving'], definition: { id: 'origin-axis-prism', revision: 'r1' } })
+        && mate.second.component === null, 'Third relation retains exact ordered component/root XY references and aligned orientation');
+    }
     geometry(v.scene, v.document, stage, 'preview-' + stage); return v.document;
   }
   async function standardRelationGuidance(phase) {
@@ -505,6 +513,108 @@ module.exports = function originAxesWorkflow(c) {
     const row = await response(before.serial, BUILD), actual = configured ? row.current.document : row.document;
     check(canonical(actual) === canonical(wanted), 'History restores complete document'); geometry(row.response.value, actual, stage, redo ? 'redo' : 'undo'); await recovery(actual);
   }
+  async function savedCoincidence(baseline) {
+    const createdName = 'Origin XY coincidence', editedName = 'Renamed origin XY coincidence';
+    // Undo/Redo intentionally clears the component selection. Establish the
+    // actual owner again before asking the origin picker for selected datums.
+    const beforeSelection = await observe.counters(), recoveryBeforeSelection = await page(() => localStorage.getItem('solidflow.autosave'));
+    await selectMoving();
+    check((await observe.counters()).serial === beforeSelection.serial
+      && await page(() => localStorage.getItem('solidflow.autosave')) === recoveryBeforeSelection,
+    'Reselecting the exact moving owner after history does not solve or alter committed recovery');
+    await recovery(baseline);
+    const action = label => actualControl('button[aria-label="' + label + '"]', null, true);
+    async function field(label, value) {
+      const selector = '[aria-label="' + label + '"]';
+      await assemblyNavigation.reveal(selector);
+      await page(selector => {
+        const rows = [...document.querySelectorAll(selector)], e = rows[0];
+        if (rows.length !== 1 || e.disabled || e.closest('[hidden]')) throw Error('One editable visible field required');
+        e.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
+      }, selector);
+      await waitFor('visible coincidence field ' + label, () => page(selector => {
+        const e = document.querySelector(selector), r = e.getBoundingClientRect(), panel = e.closest('.assembly-manager-panel'), p = panel.getBoundingClientRect();
+        const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        return !e.disabled && r.width > 0 && r.height > 0 && r.left >= Math.max(0, p.left) && r.right <= Math.min(innerWidth, p.right)
+          && r.top >= Math.max(0, p.top) && r.bottom <= Math.min(innerHeight, p.bottom) && (hit === e || e.contains(hit));
+      }, selector));
+      await control(label, value);
+    }
+    async function propose(committed, editing, label) {
+      const before = (await observe.counters()).serial;
+      if (editing) await action('Vista previa de la relación editada');
+      else await actualControl('#assembly-panel-relations button', 'Vista previa de la nueva relación', true);
+      const row = await response(before, 'preview-assembly'), candidate = ready(row, committed, 3);
+      check(canonical(candidate.mates.slice(0, 2)) === canonical(baseline.mates), 'Coincidence preview preserves both previously authored relations byte for byte');
+      const immutable = doc => ({ ...doc, updatedAt: null, mates: null, occurrences: doc.occurrences.map(o => ({ ...o, pose: null })) });
+      check(canonical(immutable(candidate)) === canonical(immutable(committed)), 'Coincidence preview preserves complete source, scope and occurrence identities outside solved poses and edited declarations');
+      phases.push({ label, candidateSha256: digest(Buffer.from(canonical(candidate))), mates: candidate.mates });
+      await recovery(committed); return candidate;
+    }
+    async function accept(candidate, label) {
+      const before = (await observe.counters()).serial; await action('Aplicar ensamblaje');
+      const row = await response(before, 'apply-assembly'), actual = row.response.value.document;
+      const untimed = doc => { const { updatedAt, ...rest } = doc; return rest; };
+      check(canonical(untimed(actual)) === canonical(untimed(candidate)), 'Coincidence Apply publishes exactly the authenticated proposal');
+      geometry(row.response.value.scene, actual, 3, label); await recovery(actual); return actual;
+    }
+    await field('Tipo de relación', 'coincident'); await field('Nombre de la relación', createdName);
+    await field('Orientación de la relación', 'aligned'); await showOrigins();
+    for (const [slot, owner] of [[1, 'moving'], [2, null]]) {
+      await control('Orígenes visibles de', owner ? 'selected' : 'scope'); await armOrigin(slot);
+      await waitFor('current projected coincidence plane label', () => page(label => document.querySelector('button[aria-label="' + label + '"]')?.disabled === false,
+        'Seleccionar Plano XY · ' + (owner ?? 'Raíz')));
+      await originLabel(slot, 'principal-plane', 'XY', owner);
+    }
+    let candidate = await propose(baseline, false, 'coincidence-create-preview');
+    const committed = await accept(candidate, 'coincidence-created'), original = committed.mates[2];
+    await action('Editar coincidencia ' + createdName);
+    const inspect = () => page(() => {
+      const one = selector => { const rows = [...document.querySelectorAll(selector)]; if (rows.length !== 1) throw Error('One coincidence control required: ' + selector); return rows[0]; };
+      const region = one('[aria-label="Edición de coincidencia"]'), type = one('[aria-label="Tipo de relación"]');
+      return { visible: !region.closest('[hidden]') && region.getClientRects().length > 0, type: type.value, typeDisabled: type.disabled,
+        name: one('[aria-label="Nombre de la relación"]').value, alignment: one('[aria-label="Orientación de la relación"]').value,
+        refs: [1, 2].map(i => { const e = one('[aria-label="Referencia ' + i + ' de la relación"]'); return { text: e.textContent.trim(), disabled: e.disabled }; }),
+        previewDisabled: one('button[aria-label="Vista previa de la relación editada"]').disabled,
+        newCreation: [...document.querySelectorAll('#assembly-panel-relations button')].some(e => e.textContent.trim() === 'Vista previa de la nueva relación'),
+        unlockCount: document.querySelectorAll('input[aria-label="Desbloquear giro"]').length,
+        history: ['Deshacer', 'Rehacer'].map(label => one('button[aria-label="' + label + ' ensamblaje"]').disabled) };
+    });
+    const initial = await inspect(), recoveryBytes = await page(() => localStorage.getItem('solidflow.autosave'));
+    check(initial.visible && initial.type === 'coincident' && initial.typeDisabled && initial.refs.every(e => e.disabled && e.text && !e.text.includes('Sin seleccionar'))
+      && initial.name === createdName && initial.alignment === 'aligned' && !initial.previewDisabled && !initial.newCreation && initial.unlockCount === 0,
+    'Saved coincidence editor keeps type/ordered references read-only with no new creation or spin-lock control');
+    await field('Nombre de la relación', editedName);
+    // Opposed would conflict with the retained aligned Z concentric relation.
+    // Exercise the offered field without claiming an incompatible native solve.
+    const untouched = await observe();
+    await field('Orientación de la relación', 'opposed'); check((await inspect()).alignment === 'opposed', 'Saved coincidence exposes the opposed form value');
+    await field('Orientación de la relación', 'aligned');
+    const afterFields = await observe();
+    check(afterFields.serial === untouched.serial && canonical(afterFields.assemblies) === canonical(untouched.assemblies)
+      && await page(() => localStorage.getItem('solidflow.autosave')) === recoveryBytes, 'Alignment field changes do not solve or commit before Preview');
+    candidate = await propose(committed, true, 'coincidence-edit-preview');
+    check(canonical(candidate.mates[2]) === canonical({ ...original, name: editedName }), 'Edited coincidence preserves complete ID, ordered references, suppression and aligned orientation');
+    let before = (await observe.counters()).serial; await action('Cancelar vista previa del ensamblaje');
+    const discarded = await response(before, 'discard-assembly'); check(discarded.response.value === null, 'Coincidence Cancel revokes preview authority');
+    await recovery(committed);
+    const retained = await inspect();
+    check(retained.visible && retained.name === editedName && retained.alignment === 'aligned' && !retained.previewDisabled
+      && canonical(retained.refs) === canonical(initial.refs) && canonical(retained.history) === canonical(initial.history)
+      && await page(() => localStorage.getItem('solidflow.autosave')) === recoveryBytes, 'Coincidence Cancel retains retry fields and exact committed recovery/history');
+    const retry = await propose(committed, true, 'coincidence-edit-retry');
+    check(canonical(retry.mates) === canonical(candidate.mates), 'Retry preserves all three relation declarations');
+    const edited = await accept(retry, 'coincidence-edit-applied');
+    for (const [redo, wanted] of [[false, committed], [true, edited]]) {
+      before = (await observe.counters()).serial; await action((redo ? 'Rehacer' : 'Deshacer') + ' ensamblaje');
+      const row = await response(before, BUILD); check(canonical(row.document) === canonical(wanted), 'Coincidence history restores the exact complete document');
+      geometry(row.response.value, wanted, 3, redo ? 'coincidence-redo' : 'coincidence-undo'); await recovery(wanted);
+    }
+    selectionGestures.push({ kind: 'saved-coincidence-edit', initial, retained, id: original.id, name: editedName,
+      alignedNativeLifecycle: true, opposedFormOnly: true, cancelledRecoverySha256: digest(Buffer.from(recoveryBytes)),
+      beforeSha256: digest(Buffer.from(canonical(committed))), afterSha256: digest(Buffer.from(canonical(edited))) });
+    return edited;
+  }
   return async () => {
     await waitFor('production startup', () => page(() => document.querySelector('.statusbar')?.textContent.includes('Listo') && typeof window.solidflow?.openDocument === 'function'), initialReadyMs);
     const sourceBytes = await fs.readFile(input); let before = await observe(); await click('button[aria-label="Abrir (Ctrl+O)"]');
@@ -546,6 +656,7 @@ module.exports = function originAxesWorkflow(c) {
     let current = await apply(proposed, 1); const first = current;
     await draft(2); proposed = await preview(current, 2); current = await apply(proposed, 2);
     await history(false, first, 1); await history(true, current, 2);
+    if (!configured) current = await savedCoincidence(current);
     if (configured) { await button('Guardar como', NAV); await waitFor('actual canceled Save As', () => ipc.filter(x => x.channel === 'document:save' && x.completed).length === 1); await recovery(current); }
     await button('Guardar como', NAV);
     await waitFor('actual saved bytes and completed Save', async () => { try { return ipc.filter(x => x.channel === 'document:save' && x.completed).length === (configured ? 2 : 1)
@@ -553,12 +664,12 @@ module.exports = function originAxesWorkflow(c) {
       && await page(root => document.querySelector(root)?.getAttribute('aria-busy') === 'false' && !document.querySelector(root + ' header')?.textContent.includes('*'), ROOT); } catch (e) { if (e.code === 'ENOENT') return false; throw e; } });
     const savedBytes = await fs.readFile(output); before = await observe(); await button('Abrir', NAV); row = await response(before.serial, BUILD);
     check(canonical(configured ? row.current.document : row.document) === canonical(current), 'Reopened saved document exactly retains axis identities and mates');
-    geometry(row.response.value, current, 2, 'reopened'); await recovery(current);
+    geometry(row.response.value, current, configured ? 2 : 3, 'reopened'); await recovery(current);
     check((await fs.readFile(input)).equals(sourceBytes) && (await fs.readFile(output)).equals(savedBytes), 'Input and saved bytes unchanged by reopen');
     check(dialogCounts().opens === 2 && dialogCounts().saves === (configured ? 2 : 1), 'Exact native Open/Save dialog count');
     check(!consoleErrors.length && !failedRequests.length, 'No console or resource failures');
     checks.push({ scenario: configured ? 'configured-origin-axes' : 'origin-axes', phases, selectionGestures,
-      selectionLimits: 'Actual CDP menu and ribbon pointer/keyboard navigation, component, visibility, role and projected-origin label presses; owner/type/name/value form controls scripted and visible. Ribbon tabs preserve draft and verified-preview fields, recovery, inspector state, confirmation guards and native request serial. Configured owner changes preserve the open draft and allow both component origins before restoring the root/component oracle. One incompatible concentric plane rejected; one eligible angle plane replaced before preview. Existing geometry, history and file oracles unchanged.',
+      selectionLimits: 'Actual CDP menu and ribbon pointer/keyboard navigation, component, visibility, role and projected-origin label presses; owner/type/name/value form controls scripted and visible. Ribbon tabs preserve draft and verified-preview fields, recovery, inspector state, confirmation guards and native request serial. Configured route unchanged. Standard adds compatible aligned XY coincidence and actual saved-edit Preview/Cancel/retry/Apply/Undo/Redo, preserving both earlier mates; opposed is a form-only check because it conflicts with aligned Z. Independent plane separation, literal prism bounds/volume/area and exact save/reopen are retained.',
       savedSha256: digest(savedBytes), sourceSha256: digest(sourceBytes) });
     await capture(current);
   };
