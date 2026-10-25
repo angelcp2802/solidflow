@@ -107,7 +107,9 @@ module.exports = function symmetryPickingWorkflow(context) {
     const roleSelector='select[aria-label="'+roles[index]+'"]',options=await page(s=>[...document.querySelector(s).options].map(o=>({value:o.value,disabled:o.disabled})),roleSelector);
     const faceKey=index===2?JSON.stringify([JSON.stringify([ref.component.occurrencePath,ref.component.definition.id,ref.component.definition.revision]),ref.body?[ref.body.bodyId,ref.body.sourceFeatureId]:null,ref.face.sourceFeatureId,ref.face.key]):null;
     const matching=options.filter(o=>{if(o.disabled)return false;if(index===2)return o.value===faceKey;try{return canonical(JSON.parse(o.value))===canonical(ref)}catch{return false}});check(matching.length===1,'Exact actual native option for pointer intent');
-    const previous=await page(rs=>JSON.parse(rs).map(role=>document.querySelector('select[aria-label="'+role+'"]')?.value),JSON.stringify(roles)),stored=await page(()=>localStorage.getItem('solidflow.autosave')),before=await observe();
+    // Only the serial is compared across a display-only pick. Keep the complete
+    // native history for response/geometry checks without copying it per pointer.
+    const previous=await page(rs=>JSON.parse(rs).map(role=>document.querySelector('select[aria-label="'+role+'"]')?.value),JSON.stringify(roles)),stored=await page(()=>localStorage.getItem('solidflow.autosave')),before=await observe.counters();
     await pointer('mouseMoved',point);
     check(canonical(await viewportLayout())===canonical(layout),'Symmetry viewport remains stationary immediately before press');
     await pointer('mousePressed',point,1);
@@ -124,7 +126,7 @@ module.exports = function symmetryPickingWorkflow(context) {
     await waitFor('completed native armed role '+kind+' '+roles[index],()=>page(s=>document.querySelector(s)?.getAttribute('aria-pressed')==='false',selector));
     const after=await page(rs=>JSON.parse(rs).map(role=>document.querySelector('select[aria-label="'+role+'"]')?.value),JSON.stringify(roles));for(let slot=0;slot<3;slot++)if(slot!==index)check(after[slot]===previous[slot],'Pointer preserves other symmetry roles');
     if(reselect)check(after[index]===previous[index],'Same-source pointer reselect preserves exact current identity');
-    check((await observe()).serial===before.serial,'Display pointer selection performs no CAD operation');check(await page(()=>localStorage.getItem('solidflow.autosave'))===stored,'Pointer intent preserves committed recovery');
+    check((await observe.counters()).serial===before.serial,'Display pointer selection performs no CAD operation');check(await page(()=>localStorage.getItem('solidflow.autosave'))===stored,'Pointer intent preserves committed recovery');
     evidence.pointerHits.push({kind,index,role:roles[index],mode,reselect,owner:id,viewBarrierElapsedMs:viewReadyMs-startedMs,totalElapsedMs:Date.now()-startedMs,worldPoint,point,rect,sceneCenter:center,sceneSpan:span,pixelsPerMm:pixels,reference:ref});
   }
   async function reportUi(){await idle('symmetry report idle');await waitFor('physical symmetry report and locked controls',()=>page((summary,rolesJson)=>{const el=document.querySelector(summary),text=el?.textContent??'';return text.includes('tres soportes')&&text.includes('posición')&&text.includes('incertidumbre')&&text.includes('Soportes infinitos')&&JSON.parse(rolesJson).every(role=>document.querySelector('select[aria-label="'+role+'"]')?.disabled===true);},SUMMARY,JSON.stringify(roles)));}

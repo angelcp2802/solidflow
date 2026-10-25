@@ -125,6 +125,46 @@ test('actual child deadline annotation redacts synthetic checkpoint paths throug
   assert.doesNotMatch(actual.lines[0], /Original Person|fixture\.solidflow/);
 });
 
+test('actual child deadline allowlists the last movement and response without serializing payloads or dates', () => {
+  const payload = { toJSON() { throw Error('No payload serialization'); } };
+  const error = exerciseChildDeadline([
+    { assemblyResponseProgress: { status: 'reading-snapshot', action: 'move-assembly-component-motion', afterSerial: 125,
+      polls: 12, observedSerial: 126, elapsedMs: 5312.4, lastReadMs: 2.2, workerErrorCount: 0,
+      startedAt: '2026-10-25T00:00:00Z', matching: payload, document: payload } },
+    { moveTimings: [{ name: 'previous move' }, { name: 'gear/winding-720-preview-apply', status: 'started', elapsedMs: 106,
+      latestCounterSerial: 125, startedAt: '2026-10-25T00:00:00Z', document: payload, geometry: payload,
+      steps: [{ name: 'click-preview', status: 'completed', durationMs: 11 }, { name: 'wait-response', status: 'started' }] }] },
+    'last completed control', payload,
+  ]);
+  const progress = JSON.parse(error.message.split(' progress=')[1].split('; lastCompletedWait=')[0]);
+  assert.deepEqual(progress, {
+    movement: { name: 'gear/winding-720-preview-apply', status: 'started', reportedElapsedMs: 106, step: 'wait-response',
+      stepStatus: 'started', completedStepDurationMs: null, latestCounterSerial: 125, eventSerial: null },
+    response: { status: 'reading-snapshot', action: 'move-assembly-component-motion', afterSerial: 125, polls: 12,
+      observedSerial: 126, reportedElapsedMs: 5312, lastReadMs: 2, workerErrorCount: 0 },
+  });
+  assert.doesNotMatch(error.message, /previous move|2026-10|startedAt|document|geometry|matching/);
+});
+
+test('actual child deadline progress rejects invalid scalars, bounds strings and redacts annotation paths', () => {
+  let getterCalls = 0;
+  const response = { action: 'x'.repeat(500), polls: Infinity, afterSerial: -1, observedSerial: 1e10,
+    elapsedMs: NaN, lastReadMs: '12', workerErrorCount: 0 };
+  Object.defineProperty(response, 'status', { get() { getterCalls++; throw Error('No getter execution'); } });
+  const error = exerciseChildDeadline([{ assemblyResponseProgress: response }, { moveTimings: [{
+    name: 'ENOENT: C:\\Users\\Original Person\\secret\\fixture.solidflow', steps: null,
+  }] }]);
+  assert.equal(getterCalls, 0);
+  const progress = JSON.parse(error.message.split(' progress=')[1].split('; lastCompletedWait=')[0]);
+  assert.equal(progress.response.action, 'x'.repeat(80));
+  for (const key of ['status', 'polls', 'afterSerial', 'observedSerial', 'reportedElapsedMs', 'lastReadMs']) assert.equal(progress.response[key], null);
+  assert.equal(progress.movement.step, null);
+  const annotation = emit(error).lines[0];
+  assert.match(annotation, /<path>/); assert.doesNotMatch(annotation, /Original Person|fixture\.solidflow/);
+  assert.ok(Buffer.byteLength(annotation) <= 4096);
+  assert.doesNotMatch(exerciseChildDeadline([{ moveTimings: [] }, { assemblyResponseProgress: null }]).message, / progress=/);
+});
+
 function exerciseChildFinish({ primary = new Error('Original child coordinate assertion'), active = true, frames = 1,
   cleanupError = null, withWindow = true } = {}) {
   const source = fs.readFileSync(path.join(__dirname, 'desktop-pattern-ui.cjs'), 'utf8');

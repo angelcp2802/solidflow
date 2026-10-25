@@ -92,6 +92,11 @@ those tests now inspect the expected label span or direct button text without
 performing generic tag removal. Their exact-label and disabled-state checks
 remain required, and a new CodeQL result must confirm the analysis outcome.
 
+Review snapshot `debe6ca` has now completed CodeQL successfully. Its annotations
+contain one medium worker-origin warning and no test HTML-stripping alerts.
+The Security workflow and dependency audit also pass. Passing that check does
+not close the contextual worker review or establish broader security coverage.
+
 ## Renderer oracles
 
 The directed-guide source-repair workflow now observes
@@ -122,3 +127,19 @@ Messages are limited to 4096 encoded bytes, escape workflow-command controls
 and redact absolute paths/URLs. Descriptor reads avoid invoking arbitrary
 error/name getters. These annotations improve observability; they neither
 convert failures into passes nor identify an unobserved hosted cause.
+
+When available, the deadline also includes the last movement's name, state and
+step, plus response-poll state, action, serial counters and recorded durations.
+Only bounded own scalar fields are selected from existing evidence. Dates,
+documents, geometry and response records are excluded. Reported elapsed values
+are the last stored samples, not new measurements of an in-flight operation.
+The timeout performs no additional renderer read and retains the original
+deadline and cleanup path.
+
+The symmetry picker compares the existing observer's serial counter before and
+after a display-only pick. These two reads now use the existing counter
+projection rather than copying accumulated native history. Response polling
+still checks the complete records, worker errors and duplicate replies; native
+geometry, all six cumulative relations, history and file checks are unchanged.
+This removes identified unnecessary copying without asserting that it caused
+the hosted timeout or that the hosted failure is resolved.

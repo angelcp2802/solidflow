@@ -852,10 +852,32 @@ async function runInElectron() {
     // Snapshot existing counters before finish stops presentation; no renderer
     // request or evidence-object serialization may delay deadline teardown.
     const lastCompletedWait = checks.findLast(value => typeof value === 'string');
+    const own = (value, key) => value && typeof value === 'object'
+      ? Object.getOwnPropertyDescriptor(value, key)?.value : undefined;
+    const text = value => typeof value === 'string' ? value.slice(0, 80) : null;
+    const number = value => typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1e9
+      ? Math.round(value) : null;
+    const movementEvidence = checks.findLast(value => Array.isArray(own(value, 'moveTimings')));
+    const movement = own(movementEvidence, 'moveTimings')?.at(-1);
+    const steps = own(movement, 'steps'), step = Array.isArray(steps) ? steps.at(-1) : undefined;
+    const response = own(checks.findLast(value => own(value, 'assemblyResponseProgress')), 'assemblyResponseProgress');
+    // Only these scalar fields enter the error. Never serialize evidence objects,
+    // timestamps, matching response records, documents or geometric payloads.
+    const progress = {
+      ...(movement ? { movement: { name: text(own(movement, 'name')), status: text(own(movement, 'status')),
+        reportedElapsedMs: number(own(movement, 'elapsedMs')), step: text(own(step, 'name')),
+        stepStatus: text(own(step, 'status')), completedStepDurationMs: number(own(step, 'durationMs')),
+        latestCounterSerial: number(own(movement, 'latestCounterSerial')), eventSerial: number(own(movement, 'eventSerial')) } } : {}),
+      ...(response ? { response: { status: text(own(response, 'status')), action: text(own(response, 'action')),
+        afterSerial: number(own(response, 'afterSerial')), polls: number(own(response, 'polls')),
+        observedSerial: number(own(response, 'observedSerial')), reportedElapsedMs: number(own(response, 'elapsedMs')),
+        lastReadMs: number(own(response, 'lastReadMs')), workerErrorCount: number(own(response, 'workerErrorCount')) } } : {}),
+    };
     finish(new Error('The isolated UI workflow did not finish before its child deadline.'
       + ` elapsedMs=${Math.round(performance.now() - childBudgetStarted)}; checks=${checks.length};`
       + ` frames=${presentation.frames}; captureBarriers=${presentation.captureBarriers};`
       + ` presentationActive=${presentation.active}; pendingPresentations=${presentationWaiters.size};`
+      + (Object.keys(progress).length ? ` progress=${JSON.stringify(progress)};` : '')
       + ` lastCompletedWait=${JSON.stringify(lastCompletedWait === undefined ? 'none' : lastCompletedWait.slice(0, 200))}`));
   }, TEST_MS - 10_000);
   function finish(error) {

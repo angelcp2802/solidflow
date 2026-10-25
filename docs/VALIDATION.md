@@ -1,5 +1,56 @@
 # Validation
 
+## Renderer phase reporting and CAD runtime identity — 2026-10-25
+
+The deadline now includes bounded existing movement/step and response-poll
+fields, without another renderer read. Recorded durations are the latest stored
+samples, not fresh measurements of an outstanding operation. Symmetry pointer
+checks use the existing serial-counter projection for their two serial-only
+reads; full response/error/duplicate checks and accumulated native history stay
+intact. Application code, fixtures, geometry tolerances and deadlines are unchanged.
+
+Final local Windows x64, Node 24.11.1, Electron 44.9.3 acceptance uses the same
+1,135 matching non-Markdown source/runtime inputs for every command below:
+
+| Command | Result |
+| --- | --- |
+| `npm run build` | PASS, 3.862 s |
+| `npm run test:desktop:assembly` | PASS, 684 checkpoints, 70.566 s |
+| `npm run test:desktop:assembly-symmetry-picking` | PASS, 269 checkpoints, 65.792 s |
+| `npm test` | PASS, 9,717 tests / 424 files; 91 IPC checks and 2 explicit skips; 457.740 s |
+| `npm run test:desktop` | PASS, 1.564 s |
+
+Both renderers and desktop smoke report zero console, request and resource
+errors. The renderers confirm child close, isolated-profile removal and stopped
+presentation observers. Focused diagnostics pass 17 cases, including the actual
+deadline callback, bounded scalar extraction/redaction and cleanup. Independent
+source review found no actionable issue in the three changed scripts. No new
+manual interaction, package launch or general performance gain is established.
+
+Latest completed hosted review `debe6ca`
+[CI](https://github.com/angelcp2802/solidflow/actions/runs/40201628113) passes
+7/9 renderer batches and all three configured-authoring jobs. Windows rigid
+persistence times out at 170,003 ms with 649 checkpoints, after preparing the
+second 720-degree move. Symmetry picking times out at 170,225 ms with 257
+checkpoints, after its last source reselect. Both have zero pending presentation
+waiters in the annotation. Their cumulative frame counts do not establish recent
+frame activity, and the last completed checkpoint does not identify the exact
+outstanding operation or its cause. All Desktop jobs stop at their renderer
+prerequisite; unit, smoke and packaging there are skipped.
+
+The [Security workflow](https://github.com/angelcp2802/solidflow/actions/runs/40201628092)
+and separate CodeQL check pass on that hosted snapshot. CodeQL reports one
+medium dedicated-worker origin warning and no presentation-test HTML-stripping
+alerts. The worker warning remains under contextual review without suppression.
+The follow-up's new-head hosted acceptance remains pending.
+
+The [CAD runtime identity record](CAD_RUNTIME_SOURCE.md) separately verifies
+the locked npm integrity, installed/packaged file hashes and five acquired source
+snapshots. An independently checked private source candidate remains incomplete:
+toolchain closure, clean rebuild, compatible replacement and recipient retrieval
+are still open. No public binary/source archive upload or release acceptance is
+claimed. Functional prototype use remains the immediate priority.
+
 ## Deadline diagnostics and presentation assertions — 2026-10-25
 
 The child deadline now records existing elapsed time, evidence count,
