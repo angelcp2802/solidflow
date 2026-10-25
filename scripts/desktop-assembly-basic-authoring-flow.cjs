@@ -145,17 +145,19 @@ module.exports = function basicAuthoringWorkflow(context) {
     if (owners.base && baselinePoses.base) check(canonical(occurrence(doc, owners.base).pose) === canonical(baselinePoses.base) && occurrence(doc, owners.base).fixed === baseFixed, 'Base retains its exact pose and explicitly expected fixed state');
     phases.push({ phase, solids: count, volume: scene.volume, area: scene.area, documentSha256: digest(canonical(doc)), mates: doc.mates.map(m => ({ id: m.id, name: m.name, type: m.type })) });
   }
-  function relationGeometry(doc) {
-    const plane = doc.mates.find(m => m.name === 'Guide to root'), direction = doc.mates.find(m => m.name.startsWith('Follower to base'));
+  function relationGeometry(doc, expectedDistance, expectedAlignment = 'aligned') {
+    const plane = doc.mates.find(m => m.type === 'distance'), direction = doc.mates.find(m => m.name.startsWith('Follower to base'));
     check(doc.mates.length <= 2 && (doc.mates.length === 0 || !!plane) && (doc.mates.length < 2 || !!direction), 'All authored relations accounted for by independent oracles');
     if (plane) {
-      check(plane.type === 'distance' && plane.distance === -10 && plane.alignment === 'aligned'
+      check((expectedDistance === -10 || expectedDistance === -12) && plane.name === (expectedDistance === -10 ? 'Guide to root' : 'Guide to root edited')
+        && plane.type === 'distance' && plane.distance === expectedDistance && plane.alignment === expectedAlignment
         && canonical(plane.first) === canonical(ref('principal-plane', null, 'YZ')) && canonical(plane.second) === canonical(ref('principal-plane', owners.guide, 'YZ')), 'Exact root then component signed-plane intent');
       const pose = occurrence(doc, owners.guide).pose, normal = rotate(pose.rotation, [1, 0, 0]);
       // Signed distance is dot(second normal, first origin - second origin).
-      // Root YZ first and guide YZ second therefore require -10, not +10.
-      vector(normal, [1, 0, 0], 1e-6, 'Aligned independent YZ normals');
-      near(dot(normal, pose.translation.map(v => -v)), -10, 1e-6, 'Independent signed root-to-guide distance');
+      // Literal authoring phases require -10 initially, then -12 after editing.
+      check(expectedAlignment === 'aligned' || expectedAlignment === 'opposed', 'Literal distance orientation oracle');
+      vector(normal, [expectedAlignment === 'aligned' ? 1 : -1, 0, 0], 1e-6, 'Independent aligned/opposed YZ normal');
+      near(dot(normal, pose.translation.map(v => -v)), expectedDistance, 1e-6, 'Independent signed root-to-guide distance');
     }
     if (direction) {
       check(['parallel', 'perpendicular'].includes(direction.type) && canonical(direction.first) === canonical(ref('principal-axis', owners.follower, 'Z'))
@@ -351,17 +353,87 @@ module.exports = function basicAuthoringWorkflow(context) {
     checks.push({ assemblyViewportContextNavigation: { background, keyboard, point: target.point, counters: await observe.counters(), documentSha256: digest(canonical(doc)) } });
     await select(selectedId);
   }
-  async function preview(doc, selector, text, phase, mateCount = doc.mates.length) {
+  async function preview(doc, selector, text, phase, mateCount = doc.mates.length, expectedDistance = -12, expectedAlignment = 'aligned') {
     const before = await serial(); await actual(selector, text); const event = await response(before, 'preview-assembly'), value = event.response.value;
     check(canonical(event.current) === canonical(doc) && value.status === 'ready' && value.hasToken && value.checks.every(c => c.satisfied && c.lengthResidual <= c.lengthTolerance && c.angleResidual <= c.angleTolerance), 'Exact committed baseline and independently verified private preview');
     check(value.document.mates.length === mateCount && value.checks.length === mateCount && value.scopes.length === 1
       && value.scopes[0].result.localDOF > 0 && !value.scopes[0].temporaryAnchor, 'Exactly the authored relations are verified with remaining freedom and no temporary anchor');
-    geometry(value.scene, value.document, 3, phase); relationGeometry(value.document); await recovery(doc); return value;
+    geometry(value.scene, value.document, 3, phase); relationGeometry(value.document, expectedDistance, expectedAlignment); await recovery(doc); return value;
   }
-  async function apply(candidate, phase, expectedCount = 3) {
+  async function apply(candidate, phase, expectedCount = 3, expectedDistance = -12) {
     const before = await serial(); await actual(APPLY); const event = await response(before, 'apply-assembly'), actualDoc = event.response.value.document;
     check(event.hasToken && event.response.value.kind === 'assembly-applied' && canonical(withoutStamp(actualDoc)) === canonical(withoutStamp(candidate.document)), 'Apply consumes authority for exactly the verified proposal');
-    geometry(event.response.value.scene, actualDoc, expectedCount, phase); relationGeometry(actualDoc); await recovery(actualDoc); return actualDoc;
+    geometry(event.response.value.scene, actualDoc, expectedCount, phase); relationGeometry(actualDoc, expectedDistance); await recovery(actualDoc); return actualDoc;
+  }
+  async function editSavedDistance(doc) {
+    const original = doc.mates.find(mate => mate.name === 'Guide to root');
+    check(doc.mates.length === 1 && original?.type === 'distance' && original.distance === -10, 'Edit begins with the one saved signed distance');
+    await actual('button' + attr('aria-label', 'Editar distancia Guide to root'));
+    const previewSelector = '[aria-label="Vista previa de la distancia editada"]';
+    const editorState = () => page(() => {
+      const one = selector => { const nodes = [...document.querySelectorAll(selector)]; if (nodes.length !== 1) throw Error('Exact distance editor control required: ' + selector); return nodes[0]; };
+      const first = one('[aria-label="Referencia 1 de la relación"]'), second = one('[aria-label="Referencia 2 de la relación"]');
+      if (!first.textContent.trim() || !second.textContent.trim()) throw Error('Distance editor requires both named original references');
+      return { type: one('[aria-label="Tipo de relación"]').value, typeDisabled: one('[aria-label="Tipo de relación"]').disabled,
+        name: one('[aria-label="Nombre de la relación"]').value, distance: one('[aria-label="Distancia firmada"]').value,
+        alignment: one('[aria-label="Orientación de la relación"]').value,
+        first: { text: first.textContent, disabled: first.disabled }, second: { text: second.textContent, disabled: second.disabled },
+        previewDisabled: one('[aria-label="Vista previa de la distancia editada"]').disabled,
+        finishVisible: one('[aria-label="Terminar edición de distancia"]').checkVisibility({ visibilityProperty: true }),
+        newCreationCount: [...document.querySelectorAll('#assembly-panel-relations button')].filter(button => button.textContent.trim() === 'Vista previa de la nueva relación').length };
+    });
+    const initialEditor = await waitFor('saved distance editor retains identity and locks references', async () => {
+      const state = await editorState();
+      return state.type === 'distance' && state.typeDisabled && state.name === 'Guide to root' && state.distance === '-10'
+        && state.alignment === 'aligned' && state.first.disabled && state.second.disabled && state.finishVisible && state.newCreationCount === 0 ? state : false;
+    });
+    const invalidBefore = { ui: await uiState(), observation: await observe(), counters: await observe.counters() };
+    await control('[aria-label="Distancia firmada"]', '');
+    const invalidEditor = await waitFor('blank signed distance cannot create a preview', async () => { const state = await editorState(); return state.distance === '' && state.previewDisabled ? state : false; });
+    const invalidAfter = { ui: await uiState(), observation: await observe(), counters: await observe.counters() };
+    const invalidSnapshot = state => ({ counters: state.counters, observationSha256: digest(canonical(state.observation)), recoverySha256: digest(state.ui.recovery), undo: state.ui.undo, redo: state.ui.redo });
+    checks.push({ rejectedDistanceEdit: { input: 'blank', editor: invalidEditor, before: invalidSnapshot(invalidBefore), after: invalidSnapshot(invalidAfter) } });
+    check(canonical(invalidAfter) === canonical(invalidBefore), 'Blank distance leaves committed document, history and complete worker observations unchanged');
+    await control(NAME, 'Guide to root edited'); await control('[aria-label="Distancia firmada"]', '-12');
+    const beforePreview = await uiState();
+    const checkIntent = (candidate, alignment) => {
+      const expected = { ...structuredClone(original), name: 'Guide to root edited', distance: -12, alignment };
+      check(candidate.document.mates.length === 1 && canonical(candidate.document.mates[0]) === canonical(expected),
+        'Distance edit preserves ID, ordered references, suppression and every other mate declaration');
+      check(canonical(candidate.document.definitions) === canonical(doc.definitions), 'Distance edit preserves definitions and root scope');
+    };
+    const cancelEditPreview = async alignment => {
+      const before = await serial(); await actual(CANCEL); await response(before, 'discard-assembly'); await recovery(doc);
+      const restored = await uiState();
+      check(restored.undo === beforePreview.undo && restored.redo === beforePreview.redo && restored.recovery === beforePreview.recovery,
+        'Distance preview Cancel restores exact committed recovery and history availability');
+      await waitFor('distance Cancel revokes Apply and retains editable intent', async () => {
+        const state = await editorState();
+        return state.typeDisabled && state.name === 'Guide to root edited' && state.distance === '-12' && state.alignment === alignment
+          && canonical(state.first) === canonical(initialEditor.first) && canonical(state.second) === canonical(initialEditor.second)
+          && !state.previewDisabled && state.finishVisible && state.newCreationCount === 0
+          && await page(selector => document.querySelector(selector)?.disabled === true, APPLY);
+      });
+      relationGeometry(JSON.parse(restored.recovery), -10);
+    };
+    const first = await preview(doc, previewSelector, null, 'distance-edit-preview', 1, -12);
+    checkIntent(first, 'aligned'); await cancelEditPreview('aligned');
+    await control('[aria-label="Orientación de la relación"]', 'opposed');
+    const opposed = await preview(doc, previewSelector, null, 'distance-edit-opposed-preview', 1, -12, 'opposed');
+    checkIntent(opposed, 'opposed'); await cancelEditPreview('opposed');
+    await control('[aria-label="Orientación de la relación"]', 'aligned');
+    const retry = await preview(doc, previewSelector, null, 'distance-edit-retry', 1, -12);
+    checkIntent(retry, 'aligned'); check(canonical(retry.document.mates) === canonical(first.document.mates), 'Distance retry retains exact initial edited intent');
+    const committed = await apply(retry, 'distance-edit-apply', 3, -12);
+    for (const [label, wanted, distance] of [['Deshacer ensamblaje', doc, -10], ['Rehacer ensamblaje', committed, -12]]) {
+      const before = await serial(); await actual('button' + attr('aria-label', label)); const restored = await built(before, 3, 'distance-edit-' + label);
+      check(canonical(restored) === canonical(wanted), 'One distance-edit history step restores the complete authored document');
+      relationGeometry(restored, distance);
+    }
+    checks.push({ savedDistanceEdit: { mateId: original.id, initialDistance: -10, editedDistance: -12, opposedPreviewCanceled: true,
+      originalReferences: [original.first, original.second], initialEditor, invalidEditor,
+      committedSha256: digest(canonical(committed)) } });
+    return committed;
   }
   async function move(doc, id, x, expectedCount) {
     await control('[aria-label="Destino local X del componente"]', String(x));
@@ -557,7 +629,8 @@ module.exports = function basicAuthoringWorkflow(context) {
     await viewportContextWorkflow(current, owners.follower);
     await control(TYPE, 'distance'); await control(NAME, 'Guide to root'); await control('[aria-label="Distancia firmada"]', '-10');
     await origin(1, 'principal-plane', null, 'YZ'); await origin(2, 'principal-plane', owners.guide, 'YZ');
-    current = await apply(await preview(current, '#assembly-panel-relations button', 'Vista previa de la nueva relación', 'root-plane-preview', 1), 'root-plane-apply');
+    current = await apply(await preview(current, '#assembly-panel-relations button', 'Vista previa de la nueva relación', 'root-plane-preview', 1, -10), 'root-plane-apply', 3, -10);
+    current = await editSavedDistance(current);
     await control(TYPE, 'parallel'); await control(NAME, 'Follower to base');
     await origin(1, 'principal-axis', owners.follower, 'Z'); await origin(2, 'principal-axis', owners.base, 'Z');
     await control('[aria-label="Orientación de la relación"]', 'aligned');
@@ -576,7 +649,7 @@ module.exports = function basicAuthoringWorkflow(context) {
     check(canonical(retry.document.mates) === canonical(candidate.document.mates), 'Retry preserves the exact edited relation intent'); current = await apply(retry, 'edit-apply');
     for (const [label, wanted] of [['Deshacer ensamblaje', parallelDoc], ['Rehacer ensamblaje', current]]) {
       before = await serial(); await actual('button' + attr('aria-label', label)); const restored = await built(before, 3, label);
-      check(canonical(restored) === canonical(wanted), 'One history step restores complete authored assembly'); relationGeometry(restored);
+      check(canonical(restored) === canonical(wanted), 'One history step restores complete authored assembly'); relationGeometry(restored, -12);
     }
     await select(owners.follower); await actual('[aria-label="Propiedades del componente seleccionado"]');
     await actual('[aria-label="Nombre del componente"]'); before = await serial();
@@ -586,7 +659,7 @@ module.exports = function basicAuthoringWorkflow(context) {
     // Reuse the workflow's one Save As: no Tab or blur/rebuild wait before click.
     await button('Guardar como');
     current = await builtNameAction(before, current, owners.follower, { name: 'Seguidor guardado' }, 3, 'rename-and-save-follower');
-    relationGeometry(current);
+    relationGeometry(current, -12);
     await waitFor('actual saved complete authored assembly', async () => { try { return ipc.filter(x => x.channel === 'document:save' && x.completed).length === 1 && canonical(JSON.parse(await fs.readFile(output, 'utf8'))) === canonical(current); } catch (e) { if (e.code === 'ENOENT') return false; throw e; } });
     // Main-process file completion precedes save()'s renderer setSaved/finally.
     // Observe that commit before invoking the next guarded file action.
@@ -599,7 +672,7 @@ module.exports = function basicAuthoringWorkflow(context) {
         && document.querySelector('.assembly-shell-file')?.textContent === filename;
     }, current.name, output.split(/[\\/]/).pop()));
     const saved = await fs.readFile(output); before = await serial(); await button('Abrir'); const reopened = await built(before, 3, 'saved-reopen');
-    check(canonical(reopened) === canonical(current), 'Save/reopen preserves created root, imported definition, three occurrences and both relations'); relationGeometry(reopened);
+    check(canonical(reopened) === canonical(current), 'Save/reopen preserves created root, imported definition, three occurrences and both relations'); relationGeometry(reopened, -12);
     candidate = await preview(current, '[aria-label="Resolver ensamblaje"]', null, 'reopened-solve');
     check(canonical(candidate.document.mates) === canonical(current.mates), 'Fresh solve preserves saved declarations');
     before = await serial(); await actual(CANCEL); await response(before, 'discard-assembly'); await recovery(current);

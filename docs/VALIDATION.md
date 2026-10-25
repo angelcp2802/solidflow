@@ -1,5 +1,59 @@
 # Validation
 
+## Saved standard distance editing — 2026-10-25
+
+The saved standard distance editor changes name, signed distance and alignment
+through the existing native preview/Apply path. It retains the same mate ID,
+ordered references, suppression and parent-definition scope. Type and reference
+controls are read-only; new relation creation is unavailable during editing.
+Document, session and scope changes invalidate the edit ticket. Cancel retains
+its fields for retry; Apply and Undo/Redo end the edit. No schema or solver
+change is involved.
+
+The original three-prism authoring route edits its root-YZ to Guía-YZ relation
+from -10 to -12 mm and renames it. A blank distance disables preview without
+changing complete worker observations, counters, recovery or history controls.
+Aligned and opposed previews each preserve the full mate declaration except
+the requested fields. Both are cancelled before a fresh aligned retry/Apply.
+One Undo restores the complete -10 document; Redo restores the complete edited
+document. Final Save/reopen and fresh solve retain the -12 relation, alongside
+the existing parallel-to-perpendicular edit and component/context actions.
+
+Independent checks use the second plane's normal in
+`dot(nGuía, pRoot-pGuía)`: aligned normal +X and opposed normal -X both require
+the literal signed value -12 mm. This does not constrain free Y/Z translation
+or roll. Original prism volumes/areas, transformed eight-vertex bounds and
+normal/distance tolerances remain unchanged; see [provenance](PROVENANCE.md).
+Cancel checks committed recovery, history controls, retained editor fields and
+revoked Apply. It does not independently measure the restored displayed scene.
+Shared-definition scope, suppressed intent and stale-ticket cases also have
+pure tests; the renderer case stays at root scope with active mates.
+
+Local Windows x64, Node 24.11.1 and Electron 44.9.3 acceptance 01 used the same
+1,142 matching non-Markdown source/runtime inputs for every command:
+
+| Command | Result |
+| --- | --- |
+| `npm run build` | PASS, 4.783 s |
+| `npm run test:desktop:assembly-basic-authoring` | PASS, 302 checkpoints, 32.515 s |
+| `npm run test:desktop:assembly-origin-axes` | PASS, 248 checkpoints, 24.892 s |
+| `npm test` | PASS, 9,768 tests / 427 files; 91 IPC checks and 2 explicit skips; 451.219 s |
+| `npm run test:desktop` | PASS, 2.306 s |
+
+Renderers and smoke report zero console/request/resource errors. Renderer
+children close, their temporary profiles are removed and presentation
+observers stop. Independent source and retained-result reviews found no
+blocking defect within this scope. Visible form fields are scripted; buttons
+use actual input transport in the hidden production renderer with scroll
+assistance. This is not a manual typing or installed-package acceptance claim.
+
+Opposed Apply/persistence, material-face distance editing, nested/configured
+renderer editing, restored Cancel scene measurement and exhaustive editor
+transitions remain outside these checks. The user's earlier portable predates
+this increment. Current-head hosted acceptance and the complete demo remain
+open; prior CI results are not acceptance of these new inputs. No public binary
+or platform-support claim follows from this local run.
+
 ## Standard assembly context actions — 2026-10-25
 
 Component tree right-click now selects its exact occurrence and offers existing

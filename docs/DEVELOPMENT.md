@@ -1,5 +1,31 @@
 # Development guide
 
+## Saved standard distance editing — 2026-10-25
+
+The standard relation list offers **Editar distancia** for a saved signed
+distance. The editor reuses Name, Signed distance and Orientation, while Type
+and the two ordered reference controls remain read-only. Finish another
+relation editor first. **Vista previa de la distancia editada** updates the
+existing mate through the normal native preview path; it preserves the mate
+ID, ordered endpoints, suppression and parent-definition scope. New relation
+creation is blocked until **Terminar edición de distancia** or successful Apply.
+Blank or nonfinite distance values cannot submit a preview.
+
+The edit ticket binds the committed document, exact scope and document session.
+Preview and Cancel may change the worker generation without ending the editor;
+Cancel retains the name, signed value and orientation for retry. Apply, Undo,
+Redo, document replacement and scope changes end the edit. The existing preview
+freshness and Apply guards remain authoritative; no schema or solver change is
+involved. Reused subassemblies retain shared parent-definition edit semantics.
+
+The original three-piece authoring route now edits its root-to-Guía distance
+from -10 to -12 mm, changes its name, previews both orientations and cancels
+before retrying aligned. It checks Apply, Undo/Redo and the final saved reopening.
+Cancel checks recovery, history controls, retained editor fields and revoked
+Apply; it does not independently measure the restored displayed scene. The
+earlier portable/manual checks predate this feature. See [validation](VALIDATION.md)
+for executed snapshots, results and remaining limits.
+
 ## Standard assembly context actions — 2026-10-25
 
 Right-clicking a standard assembly component selects that exact occurrence and
