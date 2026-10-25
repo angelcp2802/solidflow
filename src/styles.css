@@ -353,6 +353,26 @@ button,
 .command-group:first-child {
   padding-left: 0;
 }
+.part-command-group {
+  flex-direction: column;
+  gap: 0;
+}
+.part-command-group-content {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  align-items: stretch;
+  gap: 2px;
+}
+.part-command-group-label {
+  flex: 0 0 16px;
+  color: #657d8e;
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
+  white-space: nowrap;
+  user-select: none;
+}
 .command {
   display: flex;
   align-items: center;
@@ -387,10 +407,6 @@ button,
   min-height: 27px;
   max-width: 88px;
 }
-.command.large > svg:last-child {
-  margin-top: -1px;
-  color: #798d9e;
-}
 .command.active {
   border-color: #abc7dd;
   background: #dcebf7;
@@ -412,6 +428,21 @@ button,
 .command-stack .command > svg {
   width: 19px;
   height: 19px;
+}
+.part-command-group .command.large {
+  padding-top: 2px;
+}
+.part-command-group .command.large > svg {
+  width: 26px;
+  height: 26px;
+}
+.part-command-group .command-stack {
+  grid-template-rows: repeat(2, 27px);
+  gap: 2px;
+  padding-bottom: 0;
+}
+.part-command-group .command-stack .command {
+  height: 27px;
 }
 .ribbon-end {
   display: flex;
@@ -759,6 +790,14 @@ button,
   min-height: 0;
   overflow: auto;
   padding-bottom: 15px;
+  scroll-padding-top: 89px;
+}
+.property-manager-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f8fafc;
+  box-shadow: 0 2px 4px #4255670a;
 }
 .property-title {
   display: flex;

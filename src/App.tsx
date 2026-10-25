@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import {
   Box,
   FilePlus2,
@@ -312,8 +313,15 @@ function Command({
     >
       <Icon size={large ? 30 : 22} strokeWidth={1.45} />
       <span>{label}</span>
-      {large && <ChevronDown size={10} />}
     </button>
+  );
+}
+function CommandGroup({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="command-group part-command-group" role="group" aria-label={label}>
+      <div className="part-command-group-content">{children}</div>
+      <span className="part-command-group-label" aria-hidden="true">{label}</span>
+    </div>
   );
 }
 function NumberField({
@@ -2573,7 +2581,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
         <div className="commands">
           {tab === "Operaciones" ? (
             <>
-              <div className="command-group">
+              <CommandGroup label="Crear">
                 <Command
                   icon={Box}
                   label="Saliente/Base extruido"
@@ -2602,8 +2610,8 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                     disabled={!!editing}
                   />
                 </div>
-              </div>
-              <div className="command-group">
+              </CommandGroup>
+              <CommandGroup label="Quitar material">
                 <Command
                   icon={Scissors}
                   label="Corte extruido"
@@ -2618,8 +2626,8 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                   disabled={!canExport}
                   onClick={startHole}
                 />
-              </div>
-              <div className="command-group">
+              </CommandGroup>
+              <CommandGroup label="Modificar">
                 <Command
                   icon={CornerDownRight}
                   label="Redondeo"
@@ -2648,6 +2656,8 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                     onClick={() => startFaceOperation("draft")}
                   />
                 </div>
+              </CommandGroup>
+              <CommandGroup label="Patrones">
                 <div className="command-stack">
                   <Command
                     icon={Grid3X3}
@@ -2667,11 +2677,15 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                     disabled={!!editing || !canExport}
                     onClick={() => startRepetition("mirror")}
                   />
-                <Command icon={Component} label="Combinar cuerpos" onClick={startCombine}
-                  disabled={!canExport || !model?.bodyCatalogActive || bodySelection.length < 2} />
                 </div>
-              </div>
-              <div className="command-group">
+              </CommandGroup>
+              <CommandGroup label="Cuerpos">
+                <div className="command-stack">
+                  <Command icon={Component} label="Combinar cuerpos" onClick={startCombine}
+                    disabled={!canExport || !model?.bodyCatalogActive || bodySelection.length < 2} />
+                </div>
+              </CommandGroup>
+              <CommandGroup label="Referencias">
                 <Command
                   icon={Pencil}
                   label="Croquis"
@@ -2686,7 +2700,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                   onClick={startPlane}
                   disabled={!!editing}
                 />
-              </div>
+              </CommandGroup>
             </>
           ) : tab === "Croquis" ? (
             <>
@@ -3000,33 +3014,35 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
           </div>
           {editing ? (
             <div className="property-manager">
-              <div className="property-title">
-                <span>{labels[editing.type]}</span>
-                <button onClick={cancelActiveEdit} title="Cancelar">
-                  <X size={15} />
-                </button>
-              </div>
-              <div className="confirm-row">
-                <button
-                  className="accept"
-                  onClick={acceptEdit}
-                  title="Aceptar operación"
-                  disabled={!canAccept}
-                >
-                  <Check size={23} />
-                </button>
-                <button
-                  className="cancel"
-                  onClick={cancelActiveEdit}
-                  title="Cancelar operación"
-                >
-                  <X size={23} />
-                </button>
-                <span>
-                  {doc.features.some((f) => f.id === editing.id)
-                    ? "Editar operación"
-                    : "Nueva operación"}
-                </span>
+              <div className="property-manager-header">
+                <div className="property-title">
+                  <span>{labels[editing.type]}</span>
+                  <button onClick={cancelActiveEdit} title="Cancelar">
+                    <X size={15} />
+                  </button>
+                </div>
+                <div className="confirm-row">
+                  <button
+                    className="accept"
+                    onClick={acceptEdit}
+                    title="Aceptar operación"
+                    disabled={!canAccept}
+                  >
+                    <Check size={23} />
+                  </button>
+                  <button
+                    className="cancel"
+                    onClick={cancelActiveEdit}
+                    title="Cancelar operación"
+                  >
+                    <X size={23} />
+                  </button>
+                  <span>
+                    {doc.features.some((f) => f.id === editing.id)
+                      ? "Editar operación"
+                      : "Nueva operación"}
+                  </span>
+                </div>
               </div>
               <div className="property-section">
                 <h3>

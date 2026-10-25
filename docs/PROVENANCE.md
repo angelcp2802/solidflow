@@ -1,5 +1,26 @@
 # Public fixture provenance
 
+## Original revolution and bore sequence
+
+`scripts/desktop-part-revolution-original.cjs` authors two unused sketches in
+millimetres: an XY rectangle centered at (2,0), width 4 and height 8, and an XZ
+circle centered at (0,0), radius 1. There are no imported solids or downstream
+operations in the input. The actual editor changes rectangle height to 10.
+Its local-Y half revolution has volume 80 pi and bounds (-4,-5,-4) to (4,5,0);
+the full revolution has volume 160 pi and bounds (-4,-5,-4) to (4,5,4).
+A symmetric 20 mm cut through the radius-1 circle leaves volume 150 pi and
+surface area 130 pi, with the same full-cylinder bounds.
+
+These literal formulas are independent of the worker's results. The workflow
+uses actual pointer activation; numerical fields use input/select setters and
+bubbling events. It checks Cancel, operation history, Save/reopen and exports
+actual STEP bytes through the existing restricted IPC. A separate native reader
+checks BRep validity, one solid, volume and area within 1e-5 and bounds within
+1e-6 mm. It does not reuse the application's native shapes. File dialogs are
+substituted with test-owned paths, so this is not manual native-dialog evidence.
+No vendor model, binary, artwork or implementation is included. Current local-Y
+revolution coverage does not establish arbitrary axes or the complete workbench.
+
 ## Ordinary part selection and origin-label placement
 
 The part-selection unit cases construct an original 8 by 8 planar display

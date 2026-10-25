@@ -91,7 +91,7 @@ test('actual child finish releases a pending Save and emits before app.exit whil
   const events = [], writes = [], error = new Error('Original child coordinate assertion');
   const context = vm.createContext({ finished: false, timeout: null, clearTimeout() {}, checks: [], protocolResponses: [], consoleErrors: [], failedRequests: [], captures: [], ipc: [],
     opens: 0, saves: 0, csvExports: 0, geometryExports: 0, sourceOpens: 0, stepImports: 0,
-    linkedSource: false, sourceRevision: false, assemblyExport: false, structuralStep: false, structuralInsertion: false,
+    linkedSource: false, sourceRevision: false, partRevolution: false, assemblyExport: false, structuralStep: false, structuralInsertion: false,
     saveCompletion: { enabled: true, ordinal: 1, armed: true, pending: true, samples: [] },
     releaseSaveCompletion(by) { context.saveCompletion.pending=false;context.saveCompletion.releasedBy=by;events.push(['release',by]); },
     owned: '/original-owned-test', activeScenario: { test: 'original-diagnostic-integration' },

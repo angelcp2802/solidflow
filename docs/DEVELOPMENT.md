@@ -1,5 +1,26 @@
 # Development guide
 
+Part operation commands use labelled `CommandGroup` containers without changing
+their callback, order or availability. The fixed-height ribbon keeps horizontal
+overflow; group-specific icon and row sizing makes space for labels. Direct
+commands no longer draw a dropdown chevron. The part property editor keeps its
+existing title and confirmation row inside a sticky header, with scroll padding
+for field navigation. These are presentation changes, not new CAD capabilities.
+
+Configured origin-picking instructions occupy a separate flex row before the
+viewport. They previously used an absolute overlay above projected origin
+labels. The existing ResizeObserver updates viewport projection when the row
+appears; current layout and identity checks remain required. Origin-label audits
+include the bounded actual hit element to make future covering elements visible
+in diagnostics, without relaxing containment, separation or center-hit checks.
+
+`test:desktop:part-revolution` uses a tracked original sketch recipe and the
+existing hidden production harness. It tests the current local-Y revolution and
+subsequent cut through actual controls, history, Save/reopen and one restricted
+STEP export. Its independent reader checks the exported solid. Numeric field
+setters and test-owned native-dialog paths are distinct from human typing/dialog
+operation. CI configuration for three systems is not executed platform evidence.
+
 Ordinary part browsing uses `partSelection.ts` to share the edge/face/plane
 candidate policy between hover and activation. It reuses the existing visible
 geometry pickers and their pixel thresholds, clipping and occlusion checks.
@@ -95,6 +116,15 @@ complete projected record against the full snapshot, plus an empty result after
 the current serial. Source-repair correlation, gesture streams and final error
 audits retain full snapshots; no observation is pruned. These measurements do
 not by themselves identify the cause of an earlier workflow deadline.
+
+The standard persistence workflow passes its existing `assemblyNavigation`
+instance to all eight subflows. Their `withNavigation` entry reuses the already
+wrapped click instead of wrapping it again and revealing every target twice.
+Explicit subflow pane changes use that same navigator and its actual pointer
+transport when available. Target uniqueness, visibility, enabled controls and
+native response checks remain. One unused pre-save gear snapshot is removed;
+the subsequent full audit and all consumed observations remain. Measure the
+complete workflow before making any performance or deadline-stability claim.
 
 Part and assembly top-level menus use `AssemblyMenuBar.tsx`. Callers provide existing
 actions and their current guards; closed menus do not mount duplicate controls.

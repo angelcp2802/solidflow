@@ -60,7 +60,9 @@ module.exports = function originAxesWorkflow(c) {
           const r = button.getBoundingClientRect(), hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
           return { key: button.getAttribute('data-origin-key'), left: r.left, top: r.top, right: r.right, bottom: r.bottom,
             inBounds: r.width > 0 && r.height > 0 && r.left >= boundary.left && r.right <= boundary.right && r.top >= boundary.top && r.bottom <= boundary.bottom,
-            ownHit: hit === button || button.contains(hit) };
+            ownHit: hit === button || button.contains(hit), hitTarget: hit ? { tag: hit.tagName,
+              role: hit.getAttribute('role'), label: hit.getAttribute('aria-label')?.slice(0, 160) ?? null,
+              className: hit.getAttribute('class')?.slice(0, 160) ?? null } : null };
         });
         return { labels, overflow: !!viewport.querySelector('.assembly-origin-overflow') };
       });

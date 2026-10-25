@@ -1,6 +1,37 @@
 # Project status and review queue
 
-### Current increment: navigable part history
+## Current review: everyday modeling and interface continuity
+
+Continue in [draft PR #49](https://github.com/angelcp2802/solidflow/pull/49),
+with interaction priorities in [issue #55](https://github.com/angelcp2802/solidflow/issues/55)
+and hosted acceptance in [issue #53](https://github.com/angelcp2802/solidflow/issues/53).
+The review remains unmerged; this is not release or complete-demo acceptance.
+
+The part interface now combines labelled operation groups, a persistent
+accept/cancel header, automatic face/edge browsing and a collapsible feature tree.
+The original sequence exercises multiple cuts and additive extrusions. A separate
+original revolution-and-bore workflow checks the currently supported local-Y
+revolution, downstream cut, history, saved reopening and independent STEP geometry.
+Both assembly workspaces have contextual command tabs, component properties and
+origin-plane/axis tree selection. Configured picking instructions now reserve
+their own row instead of covering origin labels.
+
+The latest parent `6d0cc52` passes six of nine renderer jobs and all three
+configured-authoring jobs. Windows/macOS configured-origin hit checks and
+Windows rigid-persistence timing fail; the three downstream Desktop gates stop.
+Both Security jobs pass. The current increment corrects the covered labels and
+removes repeated persistence navigation, while preserving all acceptance commands
+and deadlines. See [validation](VALIDATION.md) for exact local results, retained
+failures and links; parent results do not establish current-head acceptance.
+
+Next functional priorities are selectable revolution axes and direction,
+origin-axis rotation capture, broader material/mechanical reference picking and
+the complete basic assembly demo. Repeated/hosted persistence timing, remaining
+origin orientations and installed-package support also remain open. The sections
+below retain earlier snapshots; their "next" work and counts belong to their
+recorded increment.
+
+### Historical increment: navigable part history
 
 The part tree now collapses each operation's input sketches, preserves selection
 when folded and temporarily reveals filtered matches. Contextual sketch editing

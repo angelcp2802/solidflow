@@ -1,5 +1,102 @@
 # Validation
 
+## Grouped commands, visible confirmation and revolution workflow — 2026-10-25
+
+The part ribbon now labels six existing command groups. Direct command buttons
+no longer show a dropdown chevron. Its height and command order, callbacks and
+availability remain unchanged. The operation title and accept/cancel row stay
+inside the scrolling property editor as a sticky header. These changes do not
+add CAD operations or change document schemas, solver tolerances or IPC policy.
+
+The preceding selection/layout head `6d0cc52` finishes with six of nine renderer
+jobs and all three configured-authoring jobs passing in
+[CI](https://github.com/angelcp2802/solidflow/actions/runs/40153706203).
+Windows/macOS configured-origin jobs fail their all-label center-hit check:
+the moving YZ label is in bounds but its center is covered. Dedicated logs for
+both jobs were retrieved. The configured origin status banner uses an absolute
+overlay above the label layer; it now occupies its own row before the viewport.
+The existing ResizeObserver and fresh-layout guard remain. Bounded hit-element
+diagnostics now accompany the unchanged containment/separation/hit oracle.
+
+The same parent has a Windows rigid-persistence child-deadline failure; its
+dedicated log request returns `Transport closed`, while the check annotation
+identifies the deadline. The internal phase remains unknown. All three Desktop
+jobs stop at the required-renderer gate before their unit/smoke/package stages.
+Both [Security jobs](https://github.com/angelcp2802/solidflow/actions/runs/40153706249)
+pass. These parent results do not transfer to this increment.
+
+The persistence harness now passes its already-created navigator to all eight
+subflows instead of wrapping their click again. Explicit pane changes reuse the
+parent pointer transport. One unused gear observation is removed; all consumed
+observations, native checks and existing deadlines remain. A local pass alone
+cannot establish the prior hosted cause or recurring timing stability.
+
+The new original revolution workflow first passes twelve native geometry/history
+phases, then stops before Save because its exact menu-text comparison includes
+the displayed keyboard shortcut. The helper now selects the command's label
+span in the open File menu, retaining unique visible targets and actual pointer
+presses. Failed-control diagnostics retain the bounded last observation. Its
+saved-byte proof also exposes the hash required by the existing capture guard.
+The original failure log is retained; no geometric oracle or deadline changed.
+
+The corrected workflow passes 63 checkpoints and thirteen native phases in the
+production Windows renderer. It edits an unused profile from height 8 to 10,
+previews a half revolution, cancels back to the exact draft, then accepts a full
+revolution and a subsequent symmetric cylindrical cut. Undo/Redo restore each
+operation independently. Actual Save/reopen retains feature IDs and body scope.
+The real exported STEP is read by a separate native instance: one valid solid,
+volume 471.23889803846885 mm3 (150 pi), area 408.4070449666606 mm2 (130 pi),
+bounds (-4,-5,-4) to (4,5,4) mm. Volume/area tolerance is 1e-5 and bounds 1e-6 mm.
+Numeric fields use scripted input/change events; file dialogs use test-owned
+paths. Arbitrary revolution axes, reverse/two-direction/thin-wall revolution,
+revolved cuts and the third Undo to the original height remain unverified or
+unimplemented, as distinguished in the workflow contract.
+
+The configured-origin retry passes all 312 checkpoints, including its original
+all-label containment, separation and center-hit audits. Compact configured
+picking passes 197 checkpoints. The complete rigid persistence workflow passes
+645 checkpoints in 163.656 seconds wall time, including its optional final
+capture and confirmed child/profile cleanup. This is one local run with a narrow
+deadline margin; recurring hosted timing remains open. All three retain their
+original geometry/history/persistence oracles and report zero console, request
+or resource errors. Checkpoint counts include navigation and diagnostics.
+
+Final Windows x64 / Node 24.11.1 / actual Electron 44.9.3 acceptance: `npm test`
+passes 9,458 unit/CAD cases across 413 files in 527.45 seconds, then 83
+IPC/security cases with two explicit platform skips. Production build and
+`npm run test:desktop` pass. All 1,094 non-Markdown source inputs match the
+isolated runtime and remain frozen through the complete acceptance run.
+Seven selected renderer workflows pass with zero console, failed-request or
+resource errors and confirmed child exit/profile cleanup:
+
+| Executed workflow | Recorded checkpoints |
+| --- | ---: |
+| Revolution and subsequent bore / prepared part sequence | 63 / 118 |
+| Fresh interactive sketches | 48 |
+| Standard / configured origin axes | 205 / 312 |
+| Compact configured picking / complete rigid persistence | 197 / 645 |
+
+The final revolution capture shows all six operation groups and the two accepted
+solid operations. Configured final/compact captures were inspected; the compact
+editor's lower references still require scrolling. Their final captures have no
+armed origin labels, so hit evidence comes from the actual workflow audits.
+
+A separate visible 1040 by 700 production demo reuses the original prepared part.
+Actual horizontal wheel input reveals the final ribbon groups and returns to the
+first. The existing sketch editor opens; vertical scrolling reveals its bottom
+parameters while the title and accept/cancel controls stay visible. Cancel closes
+the editor; no parameter is changed or accepted. Selection is cleared and the
+demo is maximized, then its settled layout inspected. This check does not claim
+manual geometry authoring, native-dialog operation or middle-button dragging.
+An early indexed action meets an obsolete accessibility cache during asynchronous
+editing; refreshed state establishes the editor before the scroll/Cancel check.
+It is retained as a manual-control limitation, not a product failure diagnosis.
+
+Full revolution-axis/direction options, origin-axis rotation capture, other origin
+orientations/overflow interaction, recurring hosted timing and complete assembly
+demo/installed-package acceptance remain open. This local run is not a new-head
+Linux/macOS or hosted acceptance result.
+
 ## Part selection and separated origin labels — 2026-10-25
 
 Ordinary part browsing now defaults to automatic visible-edge/face selection.

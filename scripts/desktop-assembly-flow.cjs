@@ -326,25 +326,25 @@ module.exports = function assemblyWorkflow(context) {
       independentOracles: 'plate V4800-72pi/A2960+12pi; each pin V189pi/4/A495pi/8; sum V4800+45pi/2/A2960+543pi/4; metrics1e-5; final bounds/translation1e-6/axis1e-8; initial cylinder support bounds1e-5; DOF12→8→7→3→2→1',
       evidenceLimits: 'Scripted production-renderer controls, actual worker scene DTO metrics/supports/physical checks and real preload/IPC only. No native BRep validity/material probes, human pointer/native-dialog interaction, installed-package or general assembly/platform claim.',
       workerPhases: phases.slice(), assemblyUi: state.assemblyUi });
-    await require('./desktop-assembly-source-flow.cjs')({ expected, saved, savedBytes, output, partUpdatePath, updatedPart,
+    await require('./desktop-assembly-source-flow.cjs')({ assemblyNavigation, expected, saved, savedBytes, output, partUpdatePath, updatedPart,
       evaluate, observe, waitFor, click, capture, button, control, page, idle, responseAfter, recordPhase,
       checks, ipc, check, canonical, digest, near, close, dialogCounts, protocolResponses, consoleErrors, failedRequests });
-    await require('./desktop-assembly-movement-flow.cjs')({ output, observe, waitFor, click, button, control, page, idle, responseAfter,
+    await require('./desktop-assembly-movement-flow.cjs')({ assemblyNavigation, output, observe, waitFor, click, button, control, page, idle, responseAfter,
       checks, ipc, check, canonical, digest, near, close, dialogCounts, consoleErrors, failedRequests });
-    await require('./desktop-assembly-drag-flow.cjs')({ output, observe, waitFor, click, button, page, idle, responseAfter, pointer, capture,
+    await require('./desktop-assembly-drag-flow.cjs')({ assemblyNavigation, output, observe, waitFor, click, button, page, idle, responseAfter, pointer, capture,
       checks, ipc, check, canonical, digest, near, close, dialogCounts, consoleErrors, failedRequests });
-    await require('./desktop-assembly-projection-flow.cjs')({ output, projectionOutput, observe, waitFor, click, button, page, idle, responseAfter, pointer, capture: async () => {},
+    await require('./desktop-assembly-projection-flow.cjs')({ assemblyNavigation, output, projectionOutput, observe, waitFor, click, button, page, idle, responseAfter, pointer, capture: async () => {},
       checks, ipc, check, canonical, digest, near, close, dialogCounts, consoleErrors, failedRequests });
-    await require('./desktop-assembly-interference-flow.cjs')({ interferencePath, interferenceFixture, output,
+    await require('./desktop-assembly-interference-flow.cjs')({ assemblyNavigation, interferencePath, interferenceFixture, output,
       evaluate, observe, waitFor, click, capture, button, control, page, idle, responseAfter,
       checks, ipc, check, canonical, digest, near, close, dialogCounts, consoleErrors, failedRequests });
-    await require('./desktop-assembly-translation-flow.cjs')({ translationPath, translationFixture, translationOutput,
+    await require('./desktop-assembly-translation-flow.cjs')({ assemblyNavigation, translationPath, translationFixture, translationOutput,
       observe, waitFor, click, capture: async () => {}, button, control, page, idle, responseAfter,
       checks, ipc, check, canonical, digest, near, close, dialogCounts, consoleErrors, failedRequests });
-    await require('./desktop-assembly-bom-flow.cjs')({ bomPath, bomFixture, bomCsvOutputs,
+    await require('./desktop-assembly-bom-flow.cjs')({ assemblyNavigation, bomPath, bomFixture, bomCsvOutputs,
       observe, waitFor, click, pointer, menuKey, capture: async () => {}, button, control, page, idle, responseAfter,
       checks, ipc, check, canonical, digest, near, close, dialogCounts, consoleErrors, failedRequests });
-    await require('./desktop-assembly-gear-flow.cjs')({ expected, input, gearOutput,
+    await require('./desktop-assembly-gear-flow.cjs')({ assemblyNavigation, expected, input, gearOutput,
       observe, waitFor, click, capture, pointer, button, control, page, idle, responseAfter,
       addRelation, face, faceKey, checks, ipc, check, canonical, digest, near, close,
       dialogCounts, consoleErrors, failedRequests });

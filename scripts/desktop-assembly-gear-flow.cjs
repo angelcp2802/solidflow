@@ -364,7 +364,7 @@ module.exports = async function gearWorkflow(context) {
   await control('input[aria-label="Giro local del movimiento en grados"]', '0');
   const finalGear = gear(committed.document);
   close(.5 * finalGear.angles.first - finalGear.angles.second - finalGear.phase, 0, 1e-8, 'Edited signed weighted phase');
-  before = await observe(); await button('Guardar como', ':is(.assembly-toolbar, .assembly-quickbar)');
+  await button('Guardar como', ':is(.assembly-toolbar, .assembly-quickbar)');
   await waitFor('actual gear file write completes', () => dialogCounts().saves === 4 && ipc.filter(value => value.channel === 'document:save' && value.completed).length === 7);
   await idle('gear Save As completes'); const bytes = await fsp.readFile(gearOutput), saved = JSON.parse(bytes.toString('utf8'));
   check(canonical(saved) === canonical(committed.document), 'Saved gear bytes differ from the authenticated committed result.');

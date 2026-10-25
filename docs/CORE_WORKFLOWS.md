@@ -5,6 +5,12 @@ The current priority is a complete everyday modeling sequence, tracked in
 area selects the operation; the left feature tree selects or edits its inputs;
 the left property editor controls parameters and preview/accept/cancel.
 
+The **Operaciones** ribbon groups commands under **Crear**, **Quitar material**,
+**Modificar**, **Patrones**, **Cuerpos** and **Referencias**. Narrow windows retain
+horizontal scrolling. Direct command buttons do not display a dropdown arrow.
+While editing, the operation title and accept/cancel controls stay visible as
+the left property editor scrolls.
+
 The part's top menus support arrow-key navigation, Enter, Tab and Escape.
 Escape closes a focused menu and returns focus to its trigger without cancelling
 the active sketch or operation. Unavailable actions remain disabled; closing a
@@ -60,7 +66,7 @@ remain disabled. Inspect the rebuilt result after accepting an earlier edit.
 
 While editing a new sketch or a saved sketch without dependents, wait for a
 healthy, current preview, then choose
-**Operaciones → Saliente/Base extruido** or **Corte extruido**. Finish any active
+**Operaciones → Saliente/Base extruido**, **Corte extruido** or **Revolución**. Finish any active
 sketch chamfer, fillet, mirror or offset tool first.
 
 The operation retains the sketch as a draft and locks its profile selector.
@@ -76,6 +82,21 @@ before saving it.
 The existing **Salir del croquis** route remains available. These instructions
 describe the interaction contract; executed cases and their limits are recorded
 in [validation](VALIDATION.md).
+
+## Revolution followed by a cut
+
+The current revolution uses the sketch's local Y axis and one positive angle
+up to 360 degrees. Place the closed profile on one side of that axis. While
+editing an unused sketch, choose **Operaciones → Revolución**, inspect the
+angle and preview, then accept. Cancelling returns to the edited sketch.
+Select another sketch to create a subsequent **Corte extruido** against the
+current body. Each accepted operation remains a separate history step.
+
+Selecting an arbitrary revolution axis, reverse direction, two directions,
+thin-wall revolution and revolved cuts remain pending. The renderer regression
+uses an original sleeve profile and axial bore; its formulas and evidence limits
+are documented in [provenance](PROVENANCE.md#original-revolution-and-bore-sequence)
+and [validation](VALIDATION.md).
 
 ## Several cuts and additive extrusions
 
@@ -316,6 +337,9 @@ volume, bounds, save/reopen and edited dimensions. After building, run
 `npm run test:desktop:part-sequence` for actual upper commands, left properties,
 separate operations, history and native file save/reopen. Its prepared sketches
 are fixture inputs; this test does not draw all five sketches interactively.
+`npm run test:desktop:part-revolution` separately exercises the current local-Y
+revolution, a later bore cut, history, native Save/reopen and independent STEP
+reimport from its two original unused sketches.
 Mouse event tests exercise the installed OrbitControls implementation; pure
 selection/SSR cases are separate from real viewport click evidence.
 

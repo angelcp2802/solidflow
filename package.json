@@ -15,6 +15,7 @@
     "test:desktop": "node scripts/desktop-smoke.cjs",
     "test:desktop:part-fresh-sketch": "node scripts/desktop-part-fresh-sketch.cjs",
     "test:desktop:part-sequence": "node scripts/desktop-part-sequence.cjs",
+    "test:desktop:part-revolution": "node scripts/desktop-part-revolution.cjs",
     "test:desktop:assembly-origin-axes": "node scripts/desktop-assembly-origin-axes.cjs",
     "test:desktop:assembly-configured-origin-axes": "node scripts/desktop-assembly-configured-origin-axes.cjs",
     "test:desktop:assembly-configured-components": "node scripts/desktop-assembly-configured-components.cjs",

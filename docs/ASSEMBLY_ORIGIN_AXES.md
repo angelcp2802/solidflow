@@ -33,8 +33,11 @@ remains relative to the declaring scope. Hidden, suppressed, ambiguous or stale
 owners are excluded. Labels bind to their displayed owner and pose; geometry
 picking requires the currently rendered catalog. The overlay remains visible
 through material solids, with axis picking taking priority near an axis line.
-Coincident axis projections are ambiguous. Use a distinct label when reachable;
-if labels also overlap, show only the scope or selected component before picking.
+Coincident axis projections are ambiguous. Use the distinct reference label;
+labels occupy separate viewport boxes with leaders to their projected anchors.
+When the complete set cannot fit, it moves to a scrolling reference list. Showing
+only the scope or selected component can also reduce visual clutter. The layout
+does not change the underlying ambiguity of a geometric hit.
 Plane rectangles and axis extents are display witnesses of infinite
 analytic references, not new material faces or edges. Changing visibility or
 selecting a reference does not solve or modify the committed document.
