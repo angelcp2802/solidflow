@@ -23,10 +23,10 @@
     "package:linux": "npm run build && electron-builder --linux AppImage tar.gz --publish never"
   },
   "dependencies": {
-    "react": "19.3.0",
-    "react-dom": "19.3.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
     "three": "0.186.1",
-    "lucide-react": "1.55.0",
+    "lucide-react": "1.61.0",
     "replicad": "1.1.0",
     "replicad-opencascadejs": "1.1.0"
   },
@@ -37,10 +37,10 @@
     "@types/three": "0.186.0",
     "@vitejs/plugin-react": "6.1.2",
     "electron": "44.7.0",
-    "electron-builder": "^26.0.12",
+    "electron-builder": "^26.18.0",
     "typescript": "7.0.2",
-    "vite": "8.3.4",
-    "vitest": "5.0.3"
+    "vite": "8.3.5",
+    "vitest": "5.0.5"
   },
   "build": {
     "appId": "com.solidflow.desktop",
