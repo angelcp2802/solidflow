@@ -6,7 +6,7 @@ const key = (value: string, changes: Partial<KeyboardEvent> = {}) => ({ key: val
 
 describe('assembly keyboard command ownership', () => {
   it('every displayed hint dispatches its existing command without changing actions, guards or menu membership', () => {
-    const ids = ['new', 'open', 'save', 'save-as', 'undo', 'redo', 'view-front', 'view-back', 'view-left', 'view-right', 'view-top', 'view-bottom', 'view-iso', 'view-fit', 'view-previous']
+    const ids = ['new', 'open', 'save', 'save-as', 'undo', 'redo', 'view-front', 'view-back', 'view-left', 'view-right', 'view-top', 'view-bottom', 'view-iso', 'view-normal', 'view-fit', 'view-previous']
     const items = ids.map(id => ({ id, label: id, disabled: true, checked: true, onSelect: vi.fn() }))
     const help = { id: 'help', label: 'Help', onSelect: vi.fn() }
     const menus = [{ id: 'fixture', label: 'Original commands', items: [...items, help] }]
@@ -27,14 +27,16 @@ describe('assembly keyboard command ownership', () => {
     ['o', false, 'open'], ['s', false, 'save'], ['s', true, 'save-as'], ['n', false, 'new'],
     ['z', false, 'undo'], ['y', false, 'redo'],
     ['1', false, 'view-front'], ['2', false, 'view-back'], ['3', false, 'view-left'], ['4', false, 'view-right'],
-    ['5', false, 'view-top'], ['6', false, 'view-bottom'], ['7', false, 'view-iso'], ['z', true, 'view-previous'],
+    ['5', false, 'view-top'], ['6', false, 'view-bottom'], ['7', false, 'view-iso'], ['8', false, 'view-normal'], ['z', true, 'view-previous'],
   ] as const)('maps only the existing %s / shift=%s command', (value, shiftKey, expected) => {
     expect(assemblyShortcutCommand(key(value, { ctrlKey: true, shiftKey }), false)).toBe(expected)
     expect(assemblyShortcutCommand(key(value, { metaKey: true, shiftKey }), false)).toBe(expected)
   })
 
   it('does not turn unsupported views or modifier combinations into actions', () => {
-    for (const value of ['8', '9', 'Delete', 'Enter']) expect(assemblyShortcutCommand(key(value, { ctrlKey: true }), false)).toBeNull()
+    for (const value of ['9', 'Delete', 'Enter']) expect(assemblyShortcutCommand(key(value, { ctrlKey: true }), false)).toBeNull()
+    expect(assemblyShortcutCommand(key('8'), false)).toBeNull()
+    expect(assemblyShortcutCommand(key('8', { ctrlKey: true, shiftKey: true }), false)).toBeNull()
     for (const modifiers of [{ ctrlKey: true, altKey: true }, { ctrlKey: true, metaKey: true }, { ctrlKey: true, shiftKey: true }])
       expect(assemblyShortcutCommand(key('o', modifiers), false)).toBeNull()
     expect(assemblyShortcutCommand(key('f', { shiftKey: true }), false)).toBeNull()
@@ -43,7 +45,7 @@ describe('assembly keyboard command ownership', () => {
   })
 
   it('preserves native text undo, redo, camera keys and Escape in editable controls', () => {
-    for (const value of ['z', 'y', '1', '5', '7']) expect(assemblyShortcutCommand(key(value, { ctrlKey: true }), true)).toBeNull()
+    for (const value of ['z', 'y', '1', '5', '7', '8']) expect(assemblyShortcutCommand(key(value, { ctrlKey: true }), true)).toBeNull()
     expect(assemblyShortcutCommand(key('z', { metaKey: true, shiftKey: true }), true)).toBeNull()
     for (const value of ['f', 'Escape']) expect(assemblyShortcutCommand(key(value), true)).toBeNull()
     expect(assemblyShortcutCommand(key('s', { ctrlKey: true }), true)).toBe('save')
@@ -71,8 +73,8 @@ describe('assembly keyboard command ownership', () => {
 
   it('lets modal Escape retain its owner and blocks file commands while that owner is open', () => {
     const action = vi.fn(), commit = vi.fn(() => true)
-    for (const value of ['Escape', 'o']) {
-      const event = key(value, { ctrlKey: value === 'o' })
+    for (const value of ['Escape', 'o', '8']) {
+      const event = key(value, { ctrlKey: value !== 'Escape' })
       expect(dispatchAssemblyShortcut(event, { editable: false, owned: true, command: () => ({ onSelect: action }), beforeFile: commit })).toBe('blocked')
       expect(event.preventDefault).toHaveBeenCalledTimes(value === 'Escape' ? 0 : 1)
     }

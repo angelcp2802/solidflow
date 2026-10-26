@@ -1,5 +1,6 @@
 import { OrthographicCamera, Vector3 } from 'three'
 import type { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+import { resolveNormalToView, type NormalToTarget } from './normalToView'
 
 export const standardViews = [
   { name: 'front', label: 'Frontal', shortcut: 'Ctrl+1', direction: [0, 0, 1], up: [0, 1, 0] },
@@ -10,17 +11,20 @@ export const standardViews = [
   { name: 'bottom', label: 'Inferior', shortcut: 'Ctrl+6', direction: [0, -1, 0], up: [0, 0, 1] },
   { name: 'iso', label: 'Isométrica', shortcut: 'Ctrl+7', direction: [1, 1, 1], up: [0, 1, 0] },
 ] as const
-export type ViewName = typeof standardViews[number]['name'] | 'fit' | 'previous'
+export type ViewName = typeof standardViews[number]['name'] | 'fit' | 'previous' | 'normal'
 type ViewKey = Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'metaKey' | 'altKey' | 'shiftKey' | 'isComposing' | 'defaultPrevented'>
 export function viewShortcutCommand(event: ViewKey, editable: boolean): ViewName | null {
   if (editable || event.defaultPrevented || event.isComposing || event.altKey || event.ctrlKey && event.metaKey) return null
   const key = event.key.toLowerCase(), modified = event.ctrlKey || event.metaKey
   if (modified && event.shiftKey && key === 'z') return 'previous'
   if (event.shiftKey) return null
+  if (modified && key === '8') return 'normal'
   if (modified) return standardViews.find(view => view.shortcut === 'Ctrl+' + key)?.name ?? null
   return key === 'f' ? 'fit' : null
 }
-export interface ViewRequest { name: ViewName; stamp: number }
+export type ViewRequest =
+  | { name: Exclude<ViewName, 'normal'>; stamp: number }
+  | { name: 'normal'; stamp: number; target: NormalToTarget }
 type Triple = [number, number, number]
 export interface CameraView {
   position: Triple; target: Triple; up: Triple
@@ -46,6 +50,8 @@ const equal = (a: CameraView, b: CameraView) => {
 /** Presentation-only session state. Never serialized or committed to document Undo. */
 export function createViewHistory() {
   let current: CameraView | null = null, previous: CameraView[] = [], request: ViewRequest | null = null, attached = false, gesturing = false, revision = 0
+  let normalKey: string | null = null, normalReversed = false
+  const clearNormalTo = () => { normalKey = null; normalReversed = false }
   const listeners = new Set<() => void>()
   const publish = () => { revision++; listeners.forEach(listener => listener()) }
   return {
@@ -66,7 +72,13 @@ export function createViewHistory() {
     gesture(value: boolean) { if (gesturing !== value) { gesturing = value; publish() } },
     attach(value: boolean) { attached = value; publish() },
     consume(next: ViewRequest) { const first = request === null, changed = next !== request; request = next; return { first, changed } },
-    reset() { current = null; previous = []; request = null; gesturing = false; publish() },
+    clearNormalTo,
+    normalToFlip(key: string | null) {
+      if (key === null) { clearNormalTo(); return false }
+      normalReversed = key === normalKey ? !normalReversed : false; normalKey = key
+      return normalReversed
+    },
+    reset() { current = null; previous = []; request = null; gesturing = false; clearNormalTo(); publish() },
   }
 }
 export type ViewHistory = ReturnType<typeof createViewHistory>
@@ -108,7 +120,7 @@ export function bindViewNavigation(history: ViewHistory, camera: OrthographicCam
   const change = () => {
     if (suspended || restoring || anchored) return
     const after = read()
-    if (baseline && !equal(baseline, after)) { history.record(baseline, after); baseline = null }
+    if (baseline && !equal(baseline, after)) { history.clearNormalTo(); history.record(baseline, after); baseline = null }
     else history.remember(after)
   }
   const finishedInput = () => {
@@ -118,6 +130,7 @@ export function bindViewNavigation(history: ViewHistory, camera: OrthographicCam
     // At high zoom those can still be visible, so finalize from the actual pose.
     if (!before) return after
     if (equal(before, after)) return before
+    history.clearNormalTo()
     history.record(before, after)
     return after
   }
@@ -148,16 +161,25 @@ export function bindViewNavigation(history: ViewHistory, camera: OrthographicCam
     afterUpdate() { if (anchored) install(anchored) },
     request(value: ViewRequest) {
       if (history.navigating) return
+      const starting = restoring ?? read()
+      const normal = value.name === 'normal' ? resolveNormalToView(value.target,
+        new Vector3().fromArray(starting.position).sub(new Vector3().fromArray(starting.target)).toArray(), starting.up) : null
+      if (value.name === 'normal' && !normal) return
       const consumed = history.consume(value)
       if (restoring) { restore(restoring); restoring = null; if (!consumed.changed) return }
       if (!consumed.changed) return
       baseline = null
+      if (value.name !== 'normal') history.clearNormalTo()
       if (value.name === 'previous') { const previous = history.previous(); if (previous) restore(previous); return }
       const before = read()
+      const reverseNormal = normal && history.normalToFlip(normal.repeatKey)
       quiet(() => {
         drain()
         let direction = new Vector3().fromArray(before.position).sub(new Vector3().fromArray(before.target)).normalize()
-        if (value.name !== 'fit') {
+        if (normal) {
+          direction = new Vector3(...normal.direction).multiplyScalar(reverseNormal ? -1 : 1)
+          changeUp(normal.up)
+        } else if (value.name !== 'fit') {
           const view = standardViews.find(view => view.name === value.name)!
           direction = new Vector3(...view.direction).normalize()
           changeUp(view.up)

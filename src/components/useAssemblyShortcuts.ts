@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import { standardViews, type ViewName } from './viewNavigation'
 import type { AssemblyMenuAction, AssemblyMenuDefinition } from './AssemblyMenuBar'
 
@@ -13,6 +13,7 @@ const shortcuts: readonly { id: AssemblyShortcutCommand; key: string; modified: 
   { id: 'undo', key: 'z', modified: true, shift: false, label: 'Ctrl+Z' },
   { id: 'redo', key: 'y', modified: true, shift: false, label: 'Ctrl+Y' },
   ...standardViews.map(view => ({ id: `view-${view.name}` as const, key: view.shortcut.slice(-1), modified: true, shift: false, label: view.shortcut })),
+  { id: 'view-normal', key: '8', modified: true, shift: false, label: 'Ctrl+8' },
   { id: 'view-previous', key: 'z', modified: true, shift: true, label: 'Ctrl+Shift+Z' },
   { id: 'view-fit', key: 'f', modified: false, shift: false, label: 'F' },
 ]
@@ -67,7 +68,8 @@ export function useAssemblyShortcuts(options: {
   escape: Command
   beforeFile?: (id: 'new' | 'open' | 'save' | 'save-as', target: HTMLElement | null) => boolean
 }) {
-  const current = useRef(options); current.current = options
+  const current = useRef(options)
+  useLayoutEffect(() => { current.current = options })
   useEffect(() => {
     const handle = (event: KeyboardEvent) => {
       const state = current.current, root = document.querySelector(state.root)

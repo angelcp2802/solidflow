@@ -165,6 +165,14 @@ jobs:
         if: matrix.batch == 'relations' && runner.os != 'Linux'
         run: npm run test:desktop:assembly-mate-reference-edit
 
+      - name: Test normal views in parts and assemblies (Linux)
+        if: matrix.batch == 'relations' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:normal-to-view
+
+      - name: Test normal views in parts and assemblies (Windows/macOS)
+        if: matrix.batch == 'relations' && runner.os != 'Linux'
+        run: npm run test:desktop:normal-to-view
+
       - name: Test configured origin axis relations (Linux)
         if: matrix.batch == 'relations' && runner.os == 'Linux'
         run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-configured-origin-axes

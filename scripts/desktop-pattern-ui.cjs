@@ -12,6 +12,8 @@ const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 const { dispatchShortcutKey } = require('./desktop-shortcut-key-event.cjs');
 const { emitDesktopCiFailure, markDesktopCiFailureReported } = require('./desktop-ci-diagnostics.cjs');
 const SCENARIOS = Object.freeze({
+  'normal-to-view': Object.freeze({ originalRecipe: 'desktop-normal-to-view-original.cjs', entry: 'desktop-normal-to-view.cjs',
+    test: 'production-renderer-normal-to-view', caption: 'normal views and camera-only history in parts and assemblies' }),
   'assembly-shortcuts': Object.freeze({ shortcuts: true, originAxes: 'standard', originalRecipe: 'desktop-assembly-origin-axis-lock-original.cjs', entry: 'desktop-assembly-shortcuts.cjs', test: 'production-renderer-assembly-shortcuts', caption: 'standard assembly physical keyboard commands' }),
   'assembly-configured-shortcuts': Object.freeze({ shortcuts: true, originAxes: 'configured', originalRecipe: 'desktop-assembly-origin-axis-lock-original.cjs', entry: 'desktop-assembly-configured-shortcuts.cjs', test: 'production-renderer-configured-shortcuts', caption: 'configured assembly physical keyboard commands' }),
   'assembly-mate-reference-edit': Object.freeze({ originalRecipe: 'desktop-assembly-mate-reference-edit-original.cjs', entry: 'desktop-assembly-mate-reference-edit.cjs',
@@ -236,6 +238,11 @@ async function launch() {
     await fsp.writeFile(path.join(temporary, '.test-owned.json'), JSON.stringify({ token }), { flag: 'wx' });
     if (activeScenario === SCENARIOS['part-from-empty']) {
       // This fixed workflow starts from the application's new part, with no input fixture.
+    } else if (activeScenario === SCENARIOS['normal-to-view']) {
+      const documents = require('./desktop-normal-to-view-original.cjs').createNormalToDocuments();
+      for (const [key, filename] of [['part', 'input.solidflow'], ['standard', 'normal-standard.solidflow'], ['configured', 'normal-configured.solidflow']]) {
+        await fsp.writeFile(path.join(temporary, filename), JSON.stringify(documents[key]), { flag: 'wx' });
+      }
     } else if (activeScenario === SCENARIOS['assembly-mate-reference-edit']) {
       await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(require('./desktop-assembly-mate-reference-edit-original.cjs')()), { flag: 'wx' });
     } else if (activeScenario === SCENARIOS['assembly-basic-authoring']) {
@@ -421,7 +428,7 @@ async function launch() {
 
 // Runs before any app bundle. This only observes/forwards the real Worker API;
 // no CAD response, React state, document or IPC result is supplied by the test.
-function installWorkerObserver(importedBodyDetails = false, structuralStep = false, structuralInsertion = false, configurations = false, profileDetails = false, finishingDetails = false, mateReferenceDetails = false) {
+function installWorkerObserver(importedBodyDetails = false, structuralStep = false, structuralInsertion = false, configurations = false, profileDetails = false, finishingDetails = false, mateReferenceDetails = false, normalViewDetails = false) {
   const NativeWorker = globalThis.Worker;
   const observations = { serial: 0, eventSerial: 0, builds: [], ui: [], assemblies: [], assemblyUi: [], workerErrors: [] };
   const copy = value => JSON.parse(JSON.stringify(value));
@@ -453,14 +460,15 @@ function installWorkerObserver(importedBodyDetails = false, structuralStep = fal
     }
     return { worldMeshVertexCount: vertices.length / 3, worldMeshBounds: { min, max } };
   };
-  const compactScene = scene => scene && ({ kind: scene.kind, sceneId: scene.sceneId, volume: scene.volume,
+  const compactScene = (scene, configuredScene = configurations && !normalViewDetails) => scene && ({ kind: scene.kind, sceneId: scene.sceneId, volume: scene.volume,
     area: scene.area, solidCount: scene.solidCount, prototypeCount: scene.prototypeCount,
     bounds: copy(scene.bounds), visibleBounds: copy(scene.visibleBounds), warnings: copy(scene.warnings),
     bodies: scene.bodies.map(body => ({ component: copy(body.component), body: copy(body.body), name: body.name,
-      visible: body.visible, worldPose: copy(body.worldPose), ...(configurations ? { configurationAncestry: copy(body.configurationAncestry) } : {}), volume: body.volume, area: body.area,
+      visible: body.visible, worldPose: copy(body.worldPose), ...(configuredScene ? { configurationAncestry: copy(body.configurationAncestry) } : {}), volume: body.volume, area: body.area,
       solidCount: body.solidCount, bounds: copy(body.bounds), ...(mateReferenceDetails ? worldMeshSummary(body.vertices) : {}),
       ...(structuralStep || structuralInsertion ? { meshAreaMm2: meshArea(body.vertices, body.triangles) } : {}), faces: body.faces.map(face => ({
         selection: copy(face.selection), support: copy(face.support), worldSupport: copy(face.worldSupport),
+        ...(normalViewDetails ? { worldViewAxis: copy(face.worldViewAxis ?? null) } : {}),
         ...(face.sphereSurface ? { sphereSurface: copy(face.sphereSurface) } : {}),
         ...(face.worldSphereSurface ? { worldSphereSurface: copy(face.worldSphereSurface) } : {}),
         vertexCount: face.vertices.length / 3, triangleCount: face.triangles.length / 3 })),
@@ -514,7 +522,7 @@ function installWorkerObserver(importedBodyDetails = false, structuralStep = fal
       }
     }
   }).observe(document, { subtree: true, childList: true, attributes: true, attributeFilter: ['disabled'] });
-  function compactConfigured(value) { return { kind: value.kind, context: copy(value.context), scene: compactScene(value.scene), referenceDiagnostics: copy(value.referenceDiagnostics) }; }
+  function compactConfigured(value) { return { kind: value.kind, context: copy(value.context), scene: compactScene(value.scene, true), referenceDiagnostics: copy(value.referenceDiagnostics) }; }
   globalThis.Worker = new Proxy(NativeWorker, { construct(Target, args, newTarget) {
     const worker = Reflect.construct(Target, args, newTarget), send = worker.postMessage, pending = new Map();
     worker.postMessage = function(message, ...rest) {
@@ -591,9 +599,10 @@ function installWorkerObserver(importedBodyDetails = false, structuralStep = fal
       else {
         const result = event.data.value;
         record.response = { ok: true, value: { bodyCatalogActive: result.bodyCatalogActive,
-          ...(profileDetails ? { sketches: copy(result.sketches) } : {}),
+          ...(profileDetails || normalViewDetails ? { sketches: copy(result.sketches) } : {}),
           ...(importedBodyDetails ? { volume: result.volume, bounds: copy(result.bounds), meshVertexCount: result.vertices.length / 3, meshTriangleCount: result.triangles.length / 3 } : {}),
           bodies: result.bodies?.map(body => ({ ref: copy(body.ref), createdByFeatureId: body.createdByFeatureId,
+            ...(normalViewDetails ? { faces: body.faces.map(face => ({ ref: copy(face.ref), frame: copy(face.frame), viewAxis: copy(face.viewAxis ?? null) })) } : {}),
             ...(finishingDetails ? { edges: body.edges.map(edge => ({ ref: copy(edge.ref), lines: copy(edge.lines) })) } : {}),
             volume: body.volume, bounds: copy(body.bounds), ...(importedBodyDetails ? { meshAreaMm2: meshArea(body.vertices, body.triangles),
               meshVertexCount: body.vertices.length / 3, meshTriangleCount: body.triangles.length / 3 } : {}) })), featureErrors: copy(result.featureErrors), warnings: copy(result.warnings) } };
@@ -641,6 +650,9 @@ async function runInElectron() {
   const translationOutput = path.join(owned, 'saved-translation.solidflow');
   const gearOutput = path.join(owned, 'saved-gear.solidflow');
   const fromEmpty = activeScenario === SCENARIOS['part-from-empty'];
+  const normalToView = activeScenario === SCENARIOS['normal-to-view'];
+  const normalInputs = normalToView ? { part: input, standard: path.join(owned, 'normal-standard.solidflow'), configured: path.join(owned, 'normal-configured.solidflow') } : null;
+  const normalDocuments = normalToView ? Object.fromEntries(Object.entries(normalInputs).map(([key, file]) => [key, JSON.parse(fs.readFileSync(file, 'utf8'))])) : null;
   const expected = fromEmpty ? {} : JSON.parse(fs.readFileSync(input, 'utf8')), expectedIds = expected.features?.map(feature => feature.id);
   const untilNext = activeScenario === SCENARIOS['until-next'];
   const freshSketch = activeScenario === SCENARIOS['part-fresh-sketch'];
@@ -659,7 +671,7 @@ async function runInElectron() {
   const compactConfiguredPicking = !!activeScenario.compactConfiguredPicking;
   const configuredMechanical = activeScenario.mechanicalFamily;
   const configuredCompound = activeScenario.compoundFamily;
-  const configurations = activeScenario === SCENARIOS['assembly-configurations'] || configuredRelations || configuredComponents || configuredPicking || !!configuredMechanical || !!configuredCompound || originAxes === 'configured';
+  const configurations = normalToView || activeScenario === SCENARIOS['assembly-configurations'] || configuredRelations || configuredComponents || configuredPicking || !!configuredMechanical || !!configuredCompound || originAxes === 'configured';
   const importedBodies = activeScenario === SCENARIOS['imported-bodies'];
   const structuralStep = activeScenario === SCENARIOS['assembly-step'];
   const structuralInsertion = activeScenario === SCENARIOS['assembly-step-insertion'];
@@ -782,7 +794,7 @@ async function runInElectron() {
     [name, JSON.parse(fs.readFileSync(file, 'utf8'))])) : null;
   const outputs = untilNext ? { cutSelected: path.join(owned, 'saved-cut-selected.solidflow'),
     cutAll: path.join(owned, 'saved-cut-all.solidflow'), add: path.join(owned, 'saved-add-selected.solidflow') } : null;
-  const openPaths = fromEmpty ? [output] : shortcuts ? [input, null, shortcutOutput, shortcutOutput] : basicAuthoring ? [input, null, output] : partSequence ? [input, output, partAssemblyOutput] : partBodyCatalog ? [input, input] : partFinishing ? [input, finishingFiles.fillet, input, output] : configuredComponents ? [input, null, path.join(owned, 'incoming.solidflow'), path.join(owned, 'incoming.solidflow'), output] : structuralInsertion ? [input, insertionFiles.parent, output] : structuralStep ? [input, structuralFiles.part, output] : untilNext ? [inputPaths.cut, outputs.cutSelected, outputs.cutAll,
+  const openPaths = normalToView ? [normalInputs.part, normalInputs.standard, normalInputs.configured] : fromEmpty ? [output] : shortcuts ? [input, null, shortcutOutput, shortcutOutput] : basicAuthoring ? [input, null, output] : partSequence ? [input, output, partAssemblyOutput] : partBodyCatalog ? [input, input] : partFinishing ? [input, finishingFiles.fillet, input, output] : configuredComponents ? [input, null, path.join(owned, 'incoming.solidflow'), path.join(owned, 'incoming.solidflow'), output] : structuralInsertion ? [input, insertionFiles.parent, output] : structuralStep ? [input, structuralFiles.part, output] : untilNext ? [inputPaths.cut, outputs.cutSelected, outputs.cutAll,
     inputPaths.add, outputs.add, inputPaths.reject] : assembly ? [input, output, partUpdatePath, partUpdatePath, output, output, output, projectionOutput, output, interferencePath, translationPath, translationOutput, bomPath, input, gearOutput]
     : assemblyImport ? [input, importSourcePath, importRejectedPath, importSourcePath, output]
     : sourceRevision ? [input, sourceRevisionFiles.parent, output]
@@ -804,7 +816,7 @@ async function runInElectron() {
       repairFiles.replacementPart, repairFiles.replacementPart, repairFiles.replacementSaved]
     : symmetryPicking ? [input, ...Array(6).fill(output)]
     : symmetry ? [input, ...Array(5).fill(output)] : configuredRelations || configuredPicking || configuredMechanical || configuredCompound ? [input, output] : configurations ? [input, output, output] : [input, output];
-  const savePaths = fromEmpty ? [output] : shortcuts ? [output, shortcutOutput] : partBodyCatalog ? [] : partSequence ? [output, partAssemblyOutput] : partFinishing ? [finishingFiles.fillet, output] : configurations ? [null, output] : untilNext ? [outputs.cutSelected, outputs.cutAll, outputs.add] : assembly ? [output, projectionOutput, translationOutput, gearOutput]
+  const savePaths = normalToView ? [] : fromEmpty ? [output] : shortcuts ? [output, shortcutOutput] : partBodyCatalog ? [] : partSequence ? [output, partAssemblyOutput] : partFinishing ? [finishingFiles.fillet, output] : configurations ? [null, output] : untilNext ? [outputs.cutSelected, outputs.cutAll, outputs.add] : assembly ? [output, projectionOutput, translationOutput, gearOutput]
     : assemblyImport ? [importBaselinePath, output]
     : sourceRevision ? [null, output]
     : linkedSource ? [output, linkedSourceFiles.assemblyOutput]
@@ -973,25 +985,32 @@ async function runInElectron() {
       return await window.webContents.executeJavaScript(source, false);
     } finally { endTiming?.(); }
   };
-  const pointer = async (type, point, buttons = 0, clickCount = 1) => {
-    check((fromEmpty || basicAuthoring || mateReferenceEdit || partBodyCatalog || partFinishing || partRevolution || partSequence || originAxes || freshSketch || configuredPicking || assembly || activeScenario === SCENARIOS['assembly-configurations'] || rackPinion || direction || tangent || cylinderTangent || sphereTangent || limitDistance || limitAngle || directedAngle || width || symmetry || symmetryPicking || hingePicking || hingeLimitsPicking) && !window.isVisible() && window.webContents.debugger.isAttached()
+  const pointer = async (type, point, buttons = 0, clickCount = 1, modifiers = 0) => {
+    check((normalToView || fromEmpty || basicAuthoring || mateReferenceEdit || partBodyCatalog || partFinishing || partRevolution || partSequence || originAxes || freshSketch || configuredPicking || assembly || activeScenario === SCENARIOS['assembly-configurations'] || rackPinion || direction || tangent || cylinderTangent || sphereTangent || limitDistance || limitAngle || directedAngle || width || symmetry || symmetryPicking || hingePicking || hingeLimitsPicking) && !window.isVisible() && window.webContents.debugger.isAttached()
       && ['mouseMoved', 'mousePressed', 'mouseReleased'].includes(type)
       && Number.isFinite(point.x) && Number.isFinite(point.y) && point.x >= 0 && point.y >= 0
-      && ([0, 1].includes(buttons) || (partSequence || basicAuthoring) && buttons === 2)
-      && (clickCount === 1 || clickCount === 2 && (partRevolution || partSequence || partBodyCatalog)
+      && ([0, 1].includes(buttons) || (normalToView || partSequence || basicAuthoring) && buttons === 2)
+      && (modifiers === 0 || normalToView && [2, 4].includes(modifiers))
+      && (clickCount === 1 || clickCount === 2 && (normalToView || partRevolution || partSequence || partBodyCatalog)
         && ['mousePressed', 'mouseReleased'].includes(type) && buttons !== 2), 'Expected actual pointer input in the hidden test-owned CAD window.');
     const endTiming = workflowTiming?.begin('pointer');
     try { await window.webContents.debugger.sendCommand('Input.dispatchMouseEvent', {
       type, x: point.x, y: point.y, button: buttons === 2 ? 'right' : type === 'mouseMoved' && !buttons ? 'none' : 'left', buttons: type === 'mouseReleased' ? 0 : buttons,
-      clickCount: type === 'mouseMoved' ? 0 : clickCount, pointerType: 'mouse',
+      clickCount: type === 'mouseMoved' ? 0 : clickCount, pointerType: 'mouse', modifiers,
     }); } finally { endTiming?.(); }
   };
-  const {cameraFrame,cameraGesture}=require('./desktop-camera-input.cjs')({getWindow:()=>window,evaluate,check,digest,allowed:fromEmpty||shortcuts||mateReferenceEdit,allowFrameDiagnostics:mateReferenceEdit});
+  const {cameraFrame,cameraGesture}=require('./desktop-camera-input.cjs')({getWindow:()=>window,evaluate,check,digest,allowed:normalToView||fromEmpty||shortcuts||mateReferenceEdit,allowFrameDiagnostics:mateReferenceEdit});
   const wheel = async (point, deltaY) => {
-    check((fromEmpty || limitDistance || freshSketch) && !window.isVisible() && window.webContents.debugger.isAttached()
+    check((normalToView || fromEmpty || limitDistance || freshSketch) && !window.isVisible() && window.webContents.debugger.isAttached()
       && Number.isFinite(point.x) && Number.isFinite(point.y) && point.x >= 0 && point.y >= 0
       && Number.isFinite(deltaY) && deltaY !== 0 && Math.abs(deltaY) <= 1000,
     'Expected a bounded actual wheel input in the hidden test-owned interval window.');
+    if (normalToView) {
+      check(deltaY === -240 && await evaluate(`(() => {
+        const svg=document.querySelector('svg[aria-label="Editor de croquis multientidad"]');
+        return !!svg && svg.checkVisibility() && svg.contains(document.elementFromPoint(${point.x},${point.y}));
+      })()`), 'Normal-view wheel input belongs to the original multientity sketch only');
+    }
     await window.webContents.debugger.sendCommand('Input.dispatchMouseEvent', {
       type: 'mouseWheel', x: point.x, y: point.y, deltaX: 0, deltaY, button: 'none', buttons: 0,
       clickCount: 0, pointerType: 'mouse',
@@ -1011,7 +1030,7 @@ async function runInElectron() {
   };
   // Physical keyboard events only, scoped to owned shortcuts and the fixed from-empty workflow.
   const shortcutKey = async combo => {
-    check((fromEmpty || shortcuts) && !window.isVisible() && window.webContents.debugger.isAttached(), 'Only fixed shortcut keys in owned hidden scenario');
+    check((normalToView || fromEmpty || shortcuts) && !window.isVisible() && window.webContents.debugger.isAttached(), 'Only fixed shortcut keys in owned hidden scenario');
     // Only the two original keyboard-fixture name inputs may receive native
     // editor commands. Model Undo and modal ownership keep their normal route.
     const editable = (combo==='A'||combo==='Z') && await evaluate(`(() => {
@@ -1031,8 +1050,8 @@ async function runInElectron() {
     }
   };
   const menuKey = async key => {
-    const codes = { Escape: 27, Tab: 9, ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, Home: 36, End: 35, Enter: 13, ...((partSequence || basicAuthoring) ? { ContextMenu: 93 } : {}) };
-    check((basicAuthoring || mateReferenceEdit || originAxes || partSequence || configuredPicking || assembly || activeScenario === SCENARIOS['assembly-configurations']) && !window.isVisible() && window.webContents.debugger.isAttached()
+    const codes = { Escape: 27, Tab: 9, ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, Home: 36, End: 35, Enter: 13, ...((normalToView || partSequence || basicAuthoring) ? { ContextMenu: 93 } : {}) };
+    check((normalToView || basicAuthoring || mateReferenceEdit || originAxes || partSequence || configuredPicking || assembly || activeScenario === SCENARIOS['assembly-configurations']) && !window.isVisible() && window.webContents.debugger.isAttached()
       && Object.prototype.hasOwnProperty.call(codes, key), 'Expected bounded keyboard input in the hidden allowlisted CAD workflow.');
     await window.webContents.debugger.sendCommand('Input.dispatchKeyEvent', { type: 'keyDown', key, code: key, windowsVirtualKeyCode: codes[key],
       ...(key === 'Enter' ? { text: '\r', unmodifiedText: '\r' } : {}) });
@@ -1238,7 +1257,11 @@ async function runInElectron() {
     return activeProfileCapture(phase, sketchId);
   };
   // The extra workflow is a fixed tracked module, never a caller/env-selected script.
-  const actualWorkflow = fromEmpty
+  const actualWorkflow = normalToView
+    ? require('./desktop-normal-to-view-flow.cjs')({ inputs: normalInputs, documents: normalDocuments, evaluate, observe, waitFor, click, pointer, wheel, menuKey, cameraFrame, cameraGesture, key: shortcutKey,
+      checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
+      initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
+    : fromEmpty
     ? require('./desktop-part-from-empty-flow.cjs')({ expected, output, evaluate, observe, waitFor, click, pointer, wheel, menu, capture, cameraFrame, cameraGesture, key: shortcutKey,
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
@@ -1496,7 +1519,7 @@ async function runInElectron() {
         await super.loadURL('about:blank');
         this.webContents.debugger.attach('1.3');
         await this.webContents.debugger.sendCommand('Page.enable');
-        await this.webContents.debugger.sendCommand('Page.addScriptToEvaluateOnNewDocument', { source: '(' + installWorkerObserver.toString() + ')(' + (fromEmpty || importedBodies || freshSketch || partBodyCatalog ? 'true' : 'false') + ',' + (structuralStep ? 'true' : 'false') + ',' + (structuralInsertion ? 'true' : 'false') + ',' + (configurations ? 'true' : 'false') + ',' + (partRevolution ? 'true' : 'false') + ',' + (partFinishing ? 'true' : 'false') + ',' + (mateReferenceEdit ? 'true' : 'false') + ');' });
+        await this.webContents.debugger.sendCommand('Page.addScriptToEvaluateOnNewDocument', { source: '(' + installWorkerObserver.toString() + ')(' + (normalToView || fromEmpty || importedBodies || freshSketch || partBodyCatalog ? 'true' : 'false') + ',' + (structuralStep ? 'true' : 'false') + ',' + (structuralInsertion ? 'true' : 'false') + ',' + (configurations ? 'true' : 'false') + ',' + (partRevolution ? 'true' : 'false') + ',' + (partFinishing ? 'true' : 'false') + ',' + (mateReferenceEdit ? 'true' : 'false') + ',' + (normalToView ? 'true' : 'false') + ');' });
         checks.push('test-owned blank target initialized before CDP observation');
       })();
       await this.instrumentation;

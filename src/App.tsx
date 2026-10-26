@@ -1,5 +1,7 @@
 import { useViewHistory } from './components/useViewHistory'
-import { standardViews, viewShortcutCommand, type ViewName } from './components/viewNavigation'
+import { standardViews, viewShortcutCommand, type ViewName, type ViewRequest } from './components/viewNavigation'
+import { validateNormalToTarget } from './components/normalToView'
+import { partNormalToTarget, partViewReferenceKey, togglePartViewReference, type PartViewReference } from './components/partNormalTo'
 import { ViewOrientationControls } from './components/ViewOrientationControls'
 import { requestNewDocument, useNewDocumentDialog } from './components/useNewDocumentDialog';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -405,6 +407,14 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     "auto",
   );
   const [faceSelection, setFaceSelection] = useState<PickableFace | null>(null);
+  // Ordered presentation references are bound to the visible native result.
+  // They neither enter feature parameters nor document history.
+  const [normalSelection, updateNormalSelection] = useState<{
+    document: Document; model: CadResult | null; face: PickableFace | null;
+    selected: string | null; references: PartViewReference[];
+  } | null>(null);
+  const normalSelectionRef = useRef(normalSelection);
+  const setNormalSelection = (value: typeof normalSelection) => { normalSelectionRef.current = value; updateNormalSelection(value); };
   const [pickingSupport, setPickingSupport] = useState(false);
   const [pickingEndFace, setPickingEndFace] = useState(false);
   const [holeSection, setHoleSection] = useState<HoleSection>("type");
@@ -441,7 +451,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     [display, setDisplay] = useState<"shaded" | "edges" | "wire">("edges"),
     [grid, setGrid] = useState(false);
   const viewHistory = useViewHistory();
-  const [view, setView] = useState<{ name: ViewName; stamp: number }>({
+  const [view, setView] = useState<ViewRequest>({
       name: "iso",
       stamp: 0,
     }),
@@ -782,10 +792,41 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
   };
   const [sketchFitStamp, setSketchFitStamp] = useState(0);
   const viewIs2D = editing?.type === 'sketch' && !pickingSupport || placingHoles;
+  const normalReferences = useMemo((): PartViewReference[] | null => {
+    if (edgeSelection.length || bodySelection.length) return null;
+    if (normalSelection && normalSelection.face === faceSelection && normalSelection.selected === selected)
+      return normalSelection.document === doc && normalSelection.model === visibleBase ? normalSelection.references : null;
+    if (faceSelection) return [{ kind: 'face', face: faceSelection.ref }];
+    if (selectedFeature) return [{ kind: 'feature', id: selectedFeature.id }];
+    if (selected === 'XY' || selected === 'XZ' || selected === 'YZ') return [{ kind: 'principal', plane: selected }];
+    return selected ? null : [];
+  }, [normalSelection, faceSelection, selected, selectedFeature, doc, visibleBase, edgeSelection.length, bodySelection.length]);
+  const normalTarget = useMemo(() => normalReferences && partNormalToTarget(normalReferences, visibleBase, operationDocument.features),
+    [normalReferences, visibleBase, operationDocument.features]);
+  const canNormal = !viewHistory.navigating && !busy && previewCurrent && !sourceLoading && !importing && !exporting
+    && !discardOpen && !newDocumentDialog.pending() && (!!viewIs2D || !!normalTarget && validateNormalToTarget(normalTarget));
+  const selectViewReference = (reference: PartViewReference, additive = false) => {
+    if (editing || busy || !previewCurrent || docRef.current !== doc || normalSelectionRef.current !== normalSelection) return;
+    if (additive && normalReferences === null) return;
+    const references = togglePartViewReference(normalReferences ?? [], reference, additive);
+    const last = references.at(-1);
+    const face = last?.kind === 'face' ? modelFaceSelection.findPrimary(last.face) ?? null : null;
+    const selected = last?.kind === 'feature' ? last.id : last?.kind === 'principal' ? last.plane : null;
+    if (last?.kind === 'face' && !face) return;
+    setNormalSelection({ document: doc, model: visibleBase, face, selected, references });
+    setFaceSelection(face); setSelected(selected); setEdgeSelection([]); setBodySelection([]);
+    if (last?.kind === 'principal') setPlane(last.plane);
+  };
   const changeView = (name: ViewName) => {
     if (viewHistory.navigating) return;
     if (name === 'previous' && (!viewHistory.canPrevious || viewIs2D)) return;
-    if (viewIs2D) { if (name === 'fit') setSketchFitStamp(stamp => stamp + 1); return; }
+    if (viewIs2D) { if (name === 'fit' || name === 'normal' && canNormal) setSketchFitStamp(stamp => stamp + 1); return; }
+    if (name === 'normal') {
+      if (!canNormal || !normalTarget || normalSelectionRef.current !== normalSelection) {
+        notify('Selecciona una cara o plano actual, o dos planos no paralelos para definir qué queda arriba.', true); return;
+      }
+      setView(previous => ({ name: 'normal', target: structuredClone(normalTarget), stamp: previous.stamp + 1 })); return;
+    }
     setView(previous => ({ name, stamp: previous.stamp + 1 }));
   };
   useEffect(() => {
@@ -1385,7 +1426,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     setFaceSelection(null);
     setError("");
   };
-  const selectFace = (face: PickableFace | null) => {
+  const selectFace = (face: PickableFace | null, additive = false) => {
     if (
       (pickingMirror ||
         pickingFaceOperation ||
@@ -1438,10 +1479,12 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
       }
       changeSupport({ kind: "face", face: currentFace.ref });
     } else {
-      setFaceSelection(currentFace ?? null);
-      if (!editing) setBodySelection([]);
-      setSelected(null);
-      setEdgeSelection([]);
+      if (!editing && currentFace) selectViewReference({ kind: 'face', face: currentFace.ref }, additive);
+      else {
+        setNormalSelection(null); setFaceSelection(currentFace ?? null);
+        if (!editing) setBodySelection([]);
+        setSelected(null); setEdgeSelection([]);
+      }
       if (currentFace && !currentFace.frame)
         notify(
           "Cara curva seleccionada. Los croquis planos requieren una cara plana.",
@@ -2036,6 +2079,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
   };
   const clearBrowsingSelection = () => {
     if (editing || busy || !previewCurrent) return;
+    setNormalSelection(null);
     setFaceSelection(null);
     setEdgeSelection([]);
     setBodySelection([]);
@@ -2351,8 +2395,8 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
   const selectedInputSketches = selectedFeature ? inputSketches(selectedFeature) : [];
   const openFeatureMenu = (feature: Feature, origin: HTMLElement, point?: { x: number; y: number }, parentId?: string) => {
     selectedTreeOccurrence.current = { featureId: feature.id, parentId };
-    setSelected(feature.id);
-    setFaceSelection(null);
+    if (!editing) selectViewReference({ kind: 'feature', id: feature.id });
+    else { setSelected(feature.id); setFaceSelection(null); }
     const bounds = origin.getBoundingClientRect();
     setFeatureMenu({ requestId: crypto.randomUUID(), featureId: feature.id, parentId, origin, point: point ?? { x: bounds.left + 20, y: bounds.bottom } });
   };
@@ -2382,7 +2426,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
         {group.expanded ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
       </button>}
       <div
-        className={`tree-row ${parentId !== undefined ? "nested" : ""} ${selected === feature.id ? "selected" : ""} ${feature.suppressed ? "suppressed" : ""}`}
+        className={`tree-row ${parentId !== undefined ? "nested" : ""} ${selected === feature.id || !editing && normalReferences?.some(reference => reference.kind === 'feature' && reference.id === feature.id) ? "selected" : ""} ${feature.suppressed ? "suppressed" : ""}`}
         data-feature-id={feature.id}
         data-parent-feature-id={parentId}
         data-tree-occurrence={treeOccurrenceKey(feature.id, parentId)}
@@ -2391,10 +2435,10 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
         aria-label={feature.name}
         aria-haspopup="menu"
         aria-expanded={featureMenu?.featureId === feature.id && featureMenu.parentId === parentId}
-        onClick={() => {
+        onClick={event => {
           selectedTreeOccurrence.current = { featureId: feature.id, parentId };
-          setSelected(feature.id);
-          setFaceSelection(null);
+          if (!editing) selectViewReference({ kind: 'feature', id: feature.id }, event.ctrlKey || event.metaKey);
+          else { setSelected(feature.id); setFaceSelection(null); }
         }}
         onDoubleClick={() => editFeature(feature, parentId)}
         onContextMenu={event => {
@@ -2418,7 +2462,9 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
             event.preventDefault(); editFeature(feature, parentId);
           } else if (event.key === " ") {
             selectedTreeOccurrence.current = { featureId: feature.id, parentId };
-            event.preventDefault(); setSelected(feature.id); setFaceSelection(null);
+            event.preventDefault();
+            if (!editing) selectViewReference({ kind: 'feature', id: feature.id }, event.ctrlKey || event.metaKey);
+            else { setSelected(feature.id); setFaceSelection(null); }
           }
         }}
         title="Doble clic para editar · Botón derecho para opciones"
@@ -2436,6 +2482,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     "Vista anterior": !viewHistory.canPrevious || viewIs2D,
     "Ajustar a pantalla": viewHistory.navigating,
     ...Object.fromEntries(standardViews.map(view => [view.label, !!viewIs2D || viewHistory.navigating])),
+    'Normal a': !canNormal,
     "Nuevo ensamblaje vacío": newDocumentBlocked,
     "Crear ensamblaje con esta pieza": !canCreateAssemblyFromPart,
     "Importar STEP…": !!editing || importing || exporting,
@@ -2486,6 +2533,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     {
       id: "view", label: "Ver", items: [
         ...standardViews.map(({ name, label, shortcut }): [string, string, () => void] => [label, shortcut, () => changeView(name)]),
+        ["Normal a", "Ctrl+8", () => changeView("normal")],
         ["Vista anterior", "Ctrl+Shift+Z", () => changeView("previous")],
         ["Ajustar a pantalla", "F", () => changeView("fit")],
         ["Cuadrícula", "", () => setGrid(!grid)],
@@ -2573,6 +2621,8 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
             disabled: !!editing || importing || exporting, onSelect: () => editFeature(menuFeature, featureMenu.parentId) },
           ...inputSketches(menuFeature).map(sketch => ({ id: `edit-sketch-${sketch.id}`, label: `Editar croquis: ${sketch.name}`, icon: Square,
             disabled: !!editing || importing || exporting, onSelect: () => editFeature(sketch, menuFeature.id) })),
+          { id: 'normal-to', label: 'Normal a', icon: PanelTop,
+            disabled: !!editing || !canNormal, onSelect: () => changeView('normal') },
         ]} />}
       <input
         ref={fileInput}
@@ -3727,13 +3777,12 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                     {(["XY", "XZ", "YZ"] as Plane[]).map((p) => (
                       <div
                         className={
-                          "tree-row plane " + (selected === p ? "selected" : "")
+                          "tree-row plane " + (selected === p || !editing && normalReferences?.some(reference => reference.kind === 'principal' && reference.plane === p) ? "selected" : "")
                         }
                         key={p}
-                        onClick={() => {
-                          setPlane(p);
-                          setSelected(p);
-                          setFaceSelection(null);
+                        onClick={event => {
+                          if (!editing) selectViewReference({ kind: 'principal', plane: p }, event.ctrlKey || event.metaKey);
+                          else { setPlane(p); setSelected(p); setFaceSelection(null); }
                         }}
                       >
                         <span className="tree-indent" />
@@ -3831,9 +3880,10 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
             </>
           )}
         </aside>
-        <section className="graphics-area">
+        <section className="graphics-area" data-normal-selection-kind={normalTarget?.kind ?? 'invalid'} data-normal-selection-keys={JSON.stringify(normalReferences?.map(partViewReferenceKey) ?? [])} data-normal-enabled={canNormal}>
           <div className="viewport-toolbar">
-            <ViewOrientationControls onView={changeView} canPrevious={viewHistory.canPrevious} disabled={!!viewIs2D || viewHistory.navigating} />
+            <ViewOrientationControls onView={changeView} canPrevious={viewHistory.canPrevious} canNormal={canNormal} disabled={!!viewIs2D || viewHistory.navigating} />
+            {!editing && normalReferences && normalReferences.length > 1 && <span className="normal-view-selection" title="Normal a: primera referencia de frente; segunda hacia arriba">{normalReferences.length} referencias</span>}
             <IconButton
               icon={Maximize}
               title="Ajustar a pantalla (F)"
@@ -3999,18 +4049,16 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                       extrudeEditing?.endCondition?.kind === "upToSurface" &&
                       extrudeEditing.endCondition.target.kind === "face"
                     ? [extrudeEditing.endCondition.target.face]
-                    : []
+                    : !editing ? normalReferences?.flatMap(reference => reference.kind === 'face' ? [reference.face] : []) ?? [] : []
               }
               onSelectFace={selectFace}
               selectedPlaneId={selectedPlaneId}
+              selectedPlaneIds={!editing ? normalReferences?.flatMap(reference => reference.kind === 'feature' ? [reference.id] : []) : undefined}
               showPlanes={showPlanes}
-              onSelectPlane={(id) => {
+              onSelectPlane={(id, additive = false) => {
                 if (!editing) {
                   if (busy || !previewCurrent) return;
-                  setSelected(id);
-                  setFaceSelection(null);
-                  setEdgeSelection([]);
-                  setBodySelection([]);
+                  selectViewReference({ kind: 'feature', id }, additive);
                 }
               }}
               onSelect={() => {
@@ -4162,6 +4210,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                         bottom: "Inferior",
                         left: "Izquierda",
                         right: "Derecha",
+                        normal: "Normal a",
                       }[view.name]}
             </span>
           </div>

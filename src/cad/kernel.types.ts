@@ -320,12 +320,22 @@ export interface PickableBody {
   bounds: { min: Vec3; max: Vec3 };
 }
 
+/** Analytic display orientation only; never a sketch support or mate authority. */
+export interface FaceViewAxis {
+  kind: 'axis';
+  point: Vec3;
+  direction: Vec3;
+  xDirection?: Vec3;
+}
+
 export interface PickableFace {
   ref: FaceReference;
   /** UI-only legacy aliases; saved selections keep their original reference. */
   aliases?: readonly FaceReference[];
   /** Null for curved faces: they cannot support a planar sketch. */
   frame: PlaneFrame | null;
+  /** Current cylindrical/conical native axis, independent of face reversal. */
+  viewAxis?: FaceViewAxis;
   /** A face-local display mesh; triangle picking never persists an index. */
   vertices: number[];
   triangles: number[];

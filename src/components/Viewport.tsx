@@ -1,4 +1,4 @@
-import { bindViewNavigation, createViewHistory, type ViewHistory, type ViewName } from './viewNavigation';
+import { bindViewNavigation, createViewHistory, type ViewHistory, type ViewRequest } from './viewNavigation';
 export type { ViewName } from './viewNavigation';
 import { pickPartReference, type PartSelectionMode } from "./partSelection";
 import { configureCadNavigation, createCadSelectionGesture } from "./cadNavigation";
@@ -141,7 +141,7 @@ export function pickVisibleEdge(
 
 interface Props {
   model: CadResult | null;
-  view: { name: ViewName; stamp: number };
+  view: ViewRequest;
   viewHistory?: ViewHistory;
   display: "shaded" | "edges" | "wire";
   grid: boolean;
@@ -156,10 +156,11 @@ interface Props {
   onSelectEdge?: (ref: EdgeReference) => void;
   selectedFace?: FaceReference | null;
   selectedFaces?: FaceReference[];
-  onSelectFace?: (face: PickableFace | null) => void;
+  onSelectFace?: (face: PickableFace | null, additive?: boolean) => void;
   selectedPlaneId?: string;
+  selectedPlaneIds?: readonly string[];
   showPlanes?: boolean;
-  onSelectPlane?: (planeId: string) => void;
+  onSelectPlane?: (planeId: string, additive?: boolean) => void;
   visibleSketchIds?: string[];
   selectedSketchId?: string;
   activeInputSketchIds?: readonly string[];
@@ -184,6 +185,7 @@ export default function Viewport({
   selectedFaces = [],
   onSelectFace,
   selectedPlaneId,
+  selectedPlaneIds = [],
   showPlanes = false,
   onSelectPlane,
   visibleSketchIds,
@@ -225,8 +227,8 @@ export default function Viewport({
     const activeIds = new Set(activeInputSketchIds);
     return [...(model?.sketches ?? []).filter(sketch => !activeIds.has(sketch.id)), ...(activeInputSketches ?? [])];
   }, [model?.sketches, activeInputSketchIds, activeInputSketches]);
-  const interaction = useRef({ onSelect, onClearSelection, selectionDisabled, onSelectBody, selectedBodies, onSelectEdge, selectionMode, selectedEdges, visibleSketchIds, selectedSketchId, activeInputSketchIds, activeInputSketches, selectedFace, selectedFaces, onSelectFace, selectedPlaneId, showPlanes, onSelectPlane, edgeReferences, faceReferences });
-  interaction.current = { onSelect, onClearSelection, selectionDisabled, onSelectBody, selectedBodies, onSelectEdge, selectionMode, selectedEdges, visibleSketchIds, selectedSketchId, activeInputSketchIds, activeInputSketches, selectedFace, selectedFaces, onSelectFace, selectedPlaneId, showPlanes, onSelectPlane, edgeReferences, faceReferences };
+  const interaction = useRef({ model, onSelect, onClearSelection, selectionDisabled, onSelectBody, selectedBodies, onSelectEdge, selectionMode, selectedEdges, visibleSketchIds, selectedSketchId, activeInputSketchIds, activeInputSketches, selectedFace, selectedFaces, onSelectFace, selectedPlaneId, selectedPlaneIds, showPlanes, onSelectPlane, edgeReferences, faceReferences });
+  interaction.current = { model, onSelect, onClearSelection, selectionDisabled, onSelectBody, selectedBodies, onSelectEdge, selectionMode, selectedEdges, visibleSketchIds, selectedSketchId, activeInputSketchIds, activeInputSketches, selectedFace, selectedFaces, onSelectFace, selectedPlaneId, selectedPlaneIds, showPlanes, onSelectPlane, edgeReferences, faceReferences };
   useEffect(() => {
     const el = host.current!;
     const scene = new THREE.Scene();
@@ -331,7 +333,7 @@ export default function Viewport({
       if (!current) return;
       const previouslyVisible = !!current.body || current.sketches.some(sketch => sketch.objects.some(object => object.visible)) || current.planes.some(plane => plane.object.visible);
       for (const plane of current.planes) {
-        const selected = plane.id === interaction.current.selectedPlaneId;
+        const selected = plane.id === interaction.current.selectedPlaneId || interaction.current.selectedPlaneIds.includes(plane.id);
         plane.object.visible = selected || interaction.current.showPlanes;
         const material = plane.object.material as THREE.MeshBasicMaterial;
         material.color.setHex(selected ? 0xe58b23 : 0x3c8fcd);
@@ -505,7 +507,7 @@ export default function Viewport({
         material.opacity = isSelected ? .48 : .24;
       });
       context.current?.planes.forEach(plane => {
-        if (plane.border) (plane.border.material as THREE.LineBasicMaterial).color.setHex(plane.id === interaction.current.selectedPlaneId ? 0xe58b23 : plane.id === hoveredPlane ? 0xffbd57 : 0x3c8fcd);
+        if (plane.border) (plane.border.material as THREE.LineBasicMaterial).color.setHex(plane.id === interaction.current.selectedPlaneId || interaction.current.selectedPlaneIds.includes(plane.id) ? 0xe58b23 : plane.id === hoveredPlane ? 0xffbd57 : 0x3c8fcd);
       });
       const kind = interaction.current.selectionDisabled ? '' : hovered ? 'edge' : hoveredFace ? 'face' : hoveredPlane ? 'plane' : hoveredBody ? 'body' : '';
       el.dataset.partHoverKind = kind;
@@ -524,7 +526,9 @@ export default function Viewport({
       edge: () => pick(x, y), face: () => pickFace(x, y), plane: () => pickPlane(x, y),
     });
     const pickBody = (x: number, y: number) => pickVisibleBody(camera, context.current?.bodies ?? [], { x, y }, { width: el.clientWidth, height: el.clientHeight });
+    let selectionModel: CadResult | null = null;
     const pointerDown = (e: PointerEvent) => {
+      selectionModel = interaction.current.model;
       selectionGesture.down(e);
       hovered = null;
       hoveredFace = null; hoveredPlane = null; hoveredBody = null;
@@ -550,21 +554,21 @@ export default function Viewport({
       updateHighlights();
     };
     const pointerUp = (e: PointerEvent) => {
-      if (!selectionGesture.up(e) || interaction.current.selectionDisabled) return;
+      if (!selectionGesture.up(e) || interaction.current.selectionDisabled || selectionModel !== interaction.current.model) return;
       const rect = el.getBoundingClientRect();
       hoverPointer = { x: e.clientX - rect.left, y: e.clientY - rect.top };
       hoverDirty = true;
       if (interaction.current.selectionMode !== 'body') {
         const candidate = pickReference(interaction.current.selectionMode, hoverPointer.x, hoverPointer.y);
         if (candidate?.kind === 'edge') interaction.current.onSelectEdge?.({ ...candidate.reference });
-        else if (candidate?.kind === 'face') interaction.current.onSelectFace?.(candidate.face);
-        else if (candidate?.kind === 'plane') interaction.current.onSelectPlane?.(candidate.id);
+        else if (candidate?.kind === 'face') interaction.current.onSelectFace?.(candidate.face, e.ctrlKey || e.metaKey);
+        else if (candidate?.kind === 'plane') interaction.current.onSelectPlane?.(candidate.id, e.ctrlKey || e.metaKey);
         else if (interaction.current.onClearSelection) interaction.current.onClearSelection();
         else if (interaction.current.selectionMode === 'face') interaction.current.onSelectFace?.(null);
         return;
       }
       const planeId = pickPlane(hoverPointer.x, hoverPointer.y);
-      if (planeId) { interaction.current.onSelectPlane?.(planeId); return; }
+      if (planeId) { interaction.current.onSelectPlane?.(planeId, e.ctrlKey || e.metaKey); return; }
       if (interaction.current.onSelectBody && context.current?.bodies.length) {
         const reference = pickBody(hoverPointer.x, hoverPointer.y);
         if (reference) interaction.current.onSelectBody(reference);
@@ -833,7 +837,7 @@ export default function Viewport({
   useEffect(() => {
     context.current?.updatePlanes();
     context.current?.updateHighlights();
-  }, [selectedPlaneId, showPlanes]);
+  }, [selectedPlaneId, selectedPlaneIds, showPlanes]);
   useEffect(() => {
     const c = context.current;
     if (!c) return;

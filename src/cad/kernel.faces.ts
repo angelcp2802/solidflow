@@ -4,6 +4,7 @@ import { clonePlaneFrame, planarFaceFrame } from './kernel.frames';
 import { namingDigest } from './kernel.naming';
 import { withNativeOwners } from './kernel.native-ownership';
 import { ownedNativeTopology } from './kernel.native-topology';
+import { faceViewAxis } from './kernel.view-axis';
 
 export interface FaceDescriptor { ref: FaceReference; frame: PlaneFrame | null }
 export interface FaceCatalog {
@@ -131,8 +132,9 @@ export function pickableFacesFromCatalog(catalog: {
 }): PickableFace[] {
   return catalog.entries.map(({ face, frame, ref, aliases }) => {
     const mesh = face.mesh({ tolerance: .05, angularTolerance: .12 });
+    const viewAxis = frame ? null : faceViewAxis(face);
     return { ref: { ...ref }, ...(aliases ? { aliases: aliases.map(alias => ({ ...alias })) } : {}),
-      frame: frame ? clonePlaneFrame(frame) : null, vertices: mesh.vertices, triangles: mesh.triangles };
+      frame: frame ? clonePlaneFrame(frame) : null, ...(viewAxis ? { viewAxis } : {}), vertices: mesh.vertices, triangles: mesh.triangles };
   });
 }
 

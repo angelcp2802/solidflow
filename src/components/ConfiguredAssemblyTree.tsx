@@ -1,5 +1,5 @@
 import { Box, ChevronRight, EyeOff, Layers, Link2, LockKeyhole, Settings2 } from 'lucide-react'
-import { useId, useMemo, type ReactNode } from 'react'
+import { useId, useMemo, type MouseEvent, type ReactNode } from 'react'
 import type { AssemblyConfigurationEvaluation } from '../model/assemblyConfigurationCore'
 import { useAssemblyTreeNavigation } from './useAssemblyTreeNavigation'
 import type { AssemblyOriginTreeEntry } from './assemblyOriginTree'
@@ -61,7 +61,7 @@ interface Props {
   onRelations: () => void
   originRows?: readonly AssemblyOriginTreeEntry[]
   selectedOriginKey?: string | null
-  onOrigin?: (entry: AssemblyOriginTreeEntry) => void
+  onOrigin?: (entry: AssemblyOriginTreeEntry, additive?: boolean) => void
 }
 
 /** Disclosure and focus are presentation state; callers retain every CAD guard. */
@@ -86,10 +86,10 @@ export default function ConfiguredAssemblyTree({ name, evaluation, scope, occurr
     const origin = node.kind === 'origin' ? node.entry : null
     const originLabel = origin ? origin.display.reference.kind === 'principal-plane' ? `Plano ${origin.display.reference.plane}` : `Eje ${origin.display.reference.axis}` : ''
     const level = node.path.length + (node.kind === 'configuration' || origin ? 1 : 0)
-    const choose = () => {
+    const choose = (event: MouseEvent<HTMLButtonElement>) => {
       if (disabled || !active || !navigation.isVisible(node.key)) return
       if (node.kind === 'occurrence') onOccurrence(JSON.stringify(node.ownerPath), node.occurrence.id)
-      else if (node.kind === 'origin') onOrigin?.(node.entry)
+      else if (node.kind === 'origin') onOrigin?.(node.entry, event.ctrlKey || event.metaKey)
       else onScope(JSON.stringify(node.path))
     }
     return <li key={node.key} role="none" hidden={!navigation.isVisible(node.key)}>

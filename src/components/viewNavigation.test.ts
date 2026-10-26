@@ -3,6 +3,7 @@ import { OrthographicCamera, Vector3 } from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { configureCadNavigation } from './cadNavigation'
 import { bindViewNavigation, captureCameraView, createViewHistory, standardViews, viewShortcutCommand, type ViewHistory, type ViewName, type ViewRequest } from './viewNavigation'
+import type { NormalToTarget } from './normalToView'
 
 // Real installed controls; only the DOM surface is synthetic. No renderer or CAD.
 class Surface extends EventTarget {
@@ -18,7 +19,7 @@ const emit = (target: EventTarget, type: string, values: object) => target.dispa
 function fixture(history: ViewHistory = createViewHistory(), initial: ViewRequest = { name: 'iso', stamp: 0 }, center: [number, number, number] = [3, 4, 5]) {
   const surface = new Surface(), camera = new OrthographicCamera(-10, 10, 10, -10, .1, 1000)
   camera.position.set(30, 30, 30)
-  let controls: OrbitControls, aspect = 1, stamp = initial.stamp
+  let controls: OrbitControls, aspect = 1, stamp = initial.stamp, fitCount = 0
   const makeControls = () => {
     const position = camera.position.clone(), target = controls?.target.clone() ?? new Vector3()
     controls?.dispose()
@@ -29,6 +30,7 @@ function fixture(history: ViewHistory = createViewHistory(), initial: ViewReques
   }
   makeControls()
   const fit = () => {
+    fitCount++
     const direction = camera.position.clone().sub(controls.target).normalize()
     controls.target.fromArray(center); camera.position.copy(controls.target).addScaledVector(direction, 60)
     camera.top = 12; camera.bottom = -12; camera.left = -12 * aspect; camera.right = 12 * aspect
@@ -45,10 +47,12 @@ function fixture(history: ViewHistory = createViewHistory(), initial: ViewReques
   const drag = (shiftKey = false) => { begin(shiftKey); move(150, 100, shiftKey); move(180, 115, shiftKey); end(); update() }
   return { camera, surface, history, initial, navigation, begin, move, end, drag, update, forcedUpdate,
     controls: () => controls,
+    fits: () => fitCount,
     setZoom(value: number) { navigation.automatic(() => { camera.zoom = value; camera.updateProjectionMatrix() }) },
     read: () => captureCameraView(camera, controls),
     direction: () => camera.position.clone().sub(controls.target).normalize(),
-    request(name: ViewName) { const request = { name, stamp: ++stamp }; navigation.request(request); update(); return request },
+    request(name: Exclude<ViewName, 'normal'>) { const request = { name, stamp: ++stamp }; navigation.request(request); update(); return request },
+    normal(target: NormalToTarget): ViewRequest { const request: ViewRequest = { name: 'normal', stamp: ++stamp, target }; navigation.request(request); update(); return request },
     wheel(deltaY = -100) { emit(surface, 'wheel', { deltaY, deltaMode: 0, clientX: 200, clientY: 200, ctrlKey: false }); update() },
     resize(value: number) { aspect = value; camera.left = -camera.top * value; camera.right = -camera.left; camera.updateProjectionMatrix(); update() },
     dispose() { navigation.dispose(); controls.dispose() },
@@ -266,13 +270,106 @@ describe('camera view commands and session history', () => {
   })
 })
 
+describe('Normal To camera requests', () => {
+  const plane: NormalToTarget = { kind: 'plane', key: 'original-3-4-5-frame',
+    frame: { origin: [101, -73, 25], normal: [3 / 5, 0, 4 / 5], xDirection: [4 / 5, 0, -3 / 5] } }
+  const state = (f: ReturnType<typeof fixture>) => {
+    f.camera.updateMatrixWorld()
+    return { pose: f.read(), quaternion: f.camera.quaternion.toArray(), world: [...f.camera.matrixWorld.elements], projection: [...f.camera.projectionMatrix.elements] }
+  }
+
+  it('fits the selected oblique basis, projects independent coordinates and restores the complete prior view exactly', () => {
+    const f = fixture()
+    try {
+      f.drag(true); f.wheel(); const before = state(f), fits = f.fits(), depth = f.history.depth
+      f.normal(plane)
+      expect(f.fits()).toBe(fits + 1); expect(f.history.depth).toBe(depth + 1)
+      expect(f.camera.zoom).toBe(1); expect(f.camera.up.toArray()).toEqual([0, 1, 0])
+      expect(f.controls().target.toArray()).toEqual([3, 4, 5])
+      expect(f.camera.position.distanceTo(new Vector3(39, 4, 53))).toBeLessThan(1e-12)
+      for (const [x, y, z] of [[3, 4, 5], [8, -6, 15], [-5, 14, -2]]) {
+        const actual = new Vector3(x, y, z).project(f.camera)
+        expect(Math.abs(actual.x - (4 * (x - 3) - 3 * (z - 5)) / 5 / 12)).toBeLessThan(1e-12)
+        expect(Math.abs(actual.y - (y - 4) / 12)).toBeLessThan(1e-12)
+      }
+      const after = state(f); f.forcedUpdate(1000); expect(state(f)).toEqual(after)
+      f.request('previous'); expect(state(f)).toEqual(before); expect(f.fits()).toBe(fits + 1)
+    } finally { f.dispose() }
+  })
+
+  it('flips the same ordered selection by reversing direction while keeping up, and resets on a changed target', () => {
+    const f = fixture()
+    try {
+      const request = f.normal(plane), first = state(f), depth = f.history.depth
+      f.navigation.request(request); f.update(); expect(state(f)).toEqual(first); expect(f.history.depth).toBe(depth)
+      f.normal(plane)
+      expect(f.direction().distanceTo(new Vector3(-3 / 5, 0, -4 / 5))).toBeLessThan(1e-12)
+      expect(f.camera.up.toArray()).toEqual(first.pose.up); expect(f.history.depth).toBe(depth + 1)
+      f.request('previous'); expect(state(f)).toEqual(first)
+      f.normal(plane); expect(state(f)).toEqual(first) // Previous ends the repeat sequence.
+      f.normal(plane)
+      f.normal({ ...plane, key: 'different-current-owner' })
+      expect(state(f)).toEqual(first)
+      f.normal({ ...plane, frame: { ...plane.frame, normal: [-3 / 5, 0, -4 / 5] } })
+      expect(f.direction().distanceTo(new Vector3(-3 / 5, 0, -4 / 5))).toBeLessThan(1e-12)
+      expect(f.camera.up.toArray()).toEqual([0, -1, 0])
+    } finally { f.dispose() }
+  })
+
+  it('uses the second ordered plane as screen up and retains it during the reverse view', () => {
+    const f = fixture()
+    try {
+      const target: NormalToTarget = { kind: 'planes', key: 'front/side',
+        first: { origin: [0, 0, 0], normal: [0, 0, 1], xDirection: [1, 0, 0] },
+        second: { origin: [9, 7, 5], normal: [1, 0, 0], xDirection: [0, 1, 0] } }
+      f.normal(target); expect(f.camera.up.toArray()).toEqual([1, 0, 0])
+      const center = new Vector3(3, 4, 5).project(f.camera), secondDirection = new Vector3(4, 4, 5).project(f.camera)
+      expect(Math.abs(secondDirection.x - center.x)).toBeLessThan(1e-12)
+      expect(secondDirection.y - center.y).toBeCloseTo(1 / 12, 12)
+      f.normal(target); expect(f.camera.up.toArray()).toEqual([1, 0, 0])
+      expect(f.direction().distanceTo(new Vector3(0, 0, -1))).toBeLessThan(1e-12)
+    } finally { f.dispose() }
+  })
+
+  it('rejects malformed targets and held-gesture commands without consuming history, repeat state or Fit', () => {
+    const f = fixture()
+    try {
+      f.normal(plane); const before = state(f), depth = f.history.depth, fits = f.fits()
+      f.normal({ ...plane, frame: { ...plane.frame, normal: [0, 0, 0] } })
+      expect(state(f)).toEqual(before); expect(f.history.depth).toBe(depth); expect(f.fits()).toBe(fits)
+      f.begin(); f.normal(plane); f.end(); f.update()
+      expect(state(f)).toEqual(before); expect(f.history.depth).toBe(depth); expect(f.fits()).toBe(fits)
+      f.normal(plane); expect(f.direction().distanceTo(new Vector3(-3 / 5, 0, -4 / 5))).toBeLessThan(1e-12)
+    } finally { f.dispose() }
+  })
+
+  it('preserves repeat state over an unchanged viewport remount and resets after effective input or another view', () => {
+    const history = createViewHistory(), first = fixture(history)
+    const request = first.normal(plane), before = state(first), depth = history.depth
+    first.dispose()
+    const f = fixture(history, request)
+    try {
+      expect(state(f)).toEqual(before); expect(history.depth).toBe(depth)
+      f.normal(plane); expect(f.direction().distanceTo(new Vector3(-3 / 5, 0, -4 / 5))).toBeLessThan(1e-12)
+      f.drag(true); f.normal(plane); expect(state(f)).toEqual(before)
+      f.request('top'); f.normal(plane); expect(state(f)).toEqual(before)
+      f.normal({ kind: 'none' }); const nearest = state(f), nearestDepth = history.depth
+      expect(f.direction().toArray()).toEqual([0, 0, 1]); expect(f.camera.up.toArray()).toEqual([0, 1, 0])
+      f.normal({ kind: 'none' }); expect(state(f)).toEqual(nearest); expect(history.depth).toBe(nearestDepth)
+    } finally { f.dispose() }
+  })
+})
+
 describe('shared view key mapping', () => {
   const key = (value: string, changes = {}) => ({ key: value, ctrlKey: true, metaKey: false, shiftKey: false, altKey: false, isComposing: false, defaultPrevented: false, ...changes })
   it('maps the seven standard views and Previous independently of document undo', () => {
     expect(['1', '2', '3', '4', '5', '6', '7'].map(value => viewShortcutCommand(key(value), false))).toEqual(['front', 'back', 'left', 'right', 'top', 'bottom', 'iso'])
     expect(viewShortcutCommand(key('z', { shiftKey: true }), false)).toBe('previous')
     expect(viewShortcutCommand(key('z'), false)).toBeNull(); expect(viewShortcutCommand(key('y'), false)).toBeNull()
-    expect(viewShortcutCommand(key('8'), false)).toBeNull()
+    expect(viewShortcutCommand(key('8'), false)).toBe('normal')
+    expect(viewShortcutCommand(key('8', { ctrlKey: false, metaKey: true }), false)).toBe('normal')
+    expect(viewShortcutCommand(key('8'), true)).toBeNull()
+    expect(viewShortcutCommand(key('8', { shiftKey: true }), false)).toBeNull()
     expect(standardViews.map(view => view.shortcut)).toEqual(['Ctrl+1', 'Ctrl+2', 'Ctrl+3', 'Ctrl+4', 'Ctrl+5', 'Ctrl+6', 'Ctrl+7'])
   })
   it('leaves text, composition, modal-owned events and extra modifiers alone', () => {

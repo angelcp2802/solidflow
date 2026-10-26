@@ -215,14 +215,14 @@ it('binds scene display to complete normalized source/catalog/selector/generatio
 
 it('keeps configured viewport commands inside the canvas with their exact accessible text', () => {
   const html = renderToStaticMarkup(<ConfiguredAssemblyWorkspace initialDocument={fixture()} onOpenDocument={() => undefined} />)
-  const view = html.indexOf('<div class="configured-assembly-view">')
+  const view = html.search(/<div\b[^>]*class="configured-assembly-view"[^>]*>/)
   const nav = html.match(/<nav\b[^>]*aria-label="Vistas del ensamblaje configurado"[^>]*>([\s\S]*?)<\/nav>/)
   expect(view).toBeGreaterThan(-1)
   expect(nav).not.toBeNull()
   expect(nav!.index).toBeGreaterThan(view)
   const orientation = nav![1].match(/<select\b[^>]*aria-label="Orientación de vista"[^>]*>([\s\S]*?)<\/select>/)
   expect(orientation).not.toBeNull()
-  expect([...orientation![1].matchAll(/<option value="([^"]+)"/g)].map(value => value[1])).toEqual(['front', 'back', 'left', 'right', 'top', 'bottom', 'iso'])
+  expect([...orientation![1].matchAll(/<option value="([^"]+)"/g)].map(value => value[1])).toEqual(['front', 'back', 'left', 'right', 'top', 'bottom', 'iso', 'normal'])
   expect(nav![1]).toMatch(/<button(?=[^>]*aria-label="Vista anterior")(?=[^>]*disabled="")[^>]*>/)
   const buttons = nav![1].match(/<button\b[^>]*>[\s\S]*?<\/button>/g) ?? []
   expect(buttons.map(button => {
@@ -230,7 +230,7 @@ it('keeps configured viewport commands inside the canvas with their exact access
     const content = button.match(/^<button\b[^>]*><svg\b(?=[^>]*\baria-hidden="true")[^>]*>(?:<(path|circle|rect|line|polyline|polygon|ellipse)\b[^>]*><\/\1>)+<\/svg><span class="compact-viewport-label">([^<]*)<\/span><\/button>$/)
     expect(content).not.toBeNull()
     return content![2]
-  })).toEqual(['Vista anterior', 'Isométrica', 'Frontal', 'Superior', 'Ajustar'])
+  })).toEqual(['Normal a', 'Vista anterior', 'Isométrica', 'Frontal', 'Superior', 'Ajustar'])
   for (const button of buttons) {
     expect(button).toContain('class="compact-viewport-label"')
     expect(button).toMatch(/<svg\b[^>]*aria-hidden="true"/)

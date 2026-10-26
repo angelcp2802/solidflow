@@ -154,6 +154,11 @@ export function buildAssemblySceneFromOccurrences(occurrences: readonly Readonly
           const vertices = numeric(triples(face.vertices, pose), 3)
           return { selection: { component: structuredClone(component), body: source.body ? { ...source.body } : null, face: { ...face.ref } },
             support: support ? structuredClone(support) : null, worldSupport: support ? worldSupport(support, pose) : null,
+             ...(face.viewAxis ? { viewAxis: structuredClone(face.viewAxis), worldViewAxis: {
+               kind: 'axis' as const, point: transformRigidPoint(pose, face.viewAxis.point),
+               direction: transformRigidDirection(pose, face.viewAxis.direction),
+               ...(face.viewAxis.xDirection ? { xDirection: transformRigidDirection(pose, face.viewAxis.xDirection) } : {}),
+             } } : {}),
             ...(sphereSurface ? { sphereSurface: structuredClone(sphereSurface),
               worldSphereSurface: { ...sphereSurface, center: transformRigidPoint(pose, sphereSurface.center) } } : {}),
             vertices, triangles: indices(face.triangles, vertices.length / 3) }

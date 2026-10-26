@@ -6,7 +6,7 @@ import type { AssemblyTangentSide } from '../model/assemblyTangentMates'
 import type { AssemblyCylinderTangentBranch } from '../model/assemblyCylinderTangentMates'
 import type { AssemblySphereTangentBranch } from '../model/assemblySphereTangentMates'
 import type { RigidPose } from '../model/rigidPose'
-import type { BodyReference, FaceReference, EdgeReference, VertexReference, Vec3 } from './kernel.types'
+import type { BodyReference, FaceReference, FaceViewAxis, EdgeReference, VertexReference, Vec3 } from './kernel.types'
 import type { AssemblyNativeFaceSupport, AssemblyNativeLineSupport } from './kernel.assembly-supports'
 import type { AssemblyProjectionWitness, AssemblyMovementWitness, AssemblyMotionWitness, AssemblyTranslationWitness, AssemblyScopeSolveReport, AssemblySolveOptions, AssemblySolveRejection } from './kernel.assembly-solve'
 import type { RigidMateEvaluation } from '../model/assemblySolveTypes'
@@ -74,6 +74,9 @@ export interface AssemblySceneFace {
   /** Actual native local support. Null means an unsupported analytic surface. */
   support: AssemblyNativeFaceSupport | null
   worldSupport: AssemblyNativeFaceSupport | null
+  /** Presentation axes do not expand the solver's supported surface families. */
+  viewAxis?: FaceViewAxis
+  worldViewAxis?: FaceViewAxis
   /** Display intent only; deliberately separate from the older plane/axis union. */
   sphereSurface?: { kind: 'sphere-surface'; center: Vec3; radius: number; tolerance: number }
   worldSphereSurface?: { kind: 'sphere-surface'; center: Vec3; radius: number; tolerance: number }

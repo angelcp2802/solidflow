@@ -13,6 +13,7 @@
     "test": "npm run test:unit && npm run test:ipc",
     "package": "npm run build && electron-builder --publish never",
     "test:desktop": "node scripts/desktop-smoke.cjs",
+    "test:desktop:normal-to-view": "node scripts/desktop-normal-to-view.cjs",
     "test:desktop:part-fresh-sketch": "node scripts/desktop-part-fresh-sketch.cjs",
     "test:desktop:part-from-empty": "node scripts/desktop-part-from-empty.cjs",
     "test:desktop:part-sequence": "node scripts/desktop-part-sequence.cjs",

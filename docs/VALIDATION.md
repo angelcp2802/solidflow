@@ -1,5 +1,83 @@
 # Validation
 
+## Selection-derived Normal To — local acceptance, 2026-10-26
+
+Final acceptance 07 passes all eight commands against 1,191 matching frozen
+source/runtime inputs on Windows and Node 24.11.1. Every command ran on this
+snapshot; no earlier result was retained. `npm run build` passes in 4.788 s.
+`npm test` passes 9,953 tests across 437 files, plus 134 IPC checks and two
+explicit skips, in 440.908 s. `npm run test:desktop` passes in 2.387 s with
+a loaded WASM kernel and passing worker-queue checks. Durations include the
+runner's post-command evidence checks.
+
+| Production-renderer command | Recorded passing checks | Observed wall time |
+| --- | ---: | ---: |
+| `npm run test:desktop:normal-to-view` | 156 | 17.168 s |
+| `npm run test:desktop:part-from-empty` | 102 | 27.742 s |
+| `npm run test:desktop:assembly-shortcuts` | 173 | 31.834 s |
+| `npm run test:desktop:assembly-configured-shortcuts` | 134 | 27.891 s |
+| `npm run test:desktop:assembly-mate-reference-edit` | 276 | 39.238 s |
+
+All five renderer routes report zero console/request/resource errors, observed
+child closure and isolated temporary-profile deletion. Desktop smoke reports
+zero errors and leaves no newly retained temporary profile. Source/runtime
+inputs and production assets are checked before and after each command.
+
+The new route operates an original pocketed prism, a two-occurrence standard
+assembly and one configured root state through real pointer and keyboard input.
+It exercises Ctrl+8 and visible orientation controls, planar and cylindrical
+faces, ordered plane pairs and reversed order, repeated-side flipping, nearest
+orientation with no selection, rotated component datums, and rejection of
+parallel pairs. The part additionally covers an unsupported body selection,
+a single-input-sketch feature, and 2D sketch Fit after physical wheel zoom.
+Its 48 recorded phases include three original-input byte comparisons.
+
+Independent literal world points predict actual selected faces after each
+orientation. Each prism's volume `960 - 4.5*pi` mm³ is checked within 1e-5
+in all three documents. Native area `736 + 6*pi` mm² is checked within 1e-5
+for the members of both assemblies; bounds use 1e-6 mm. Analytic direction
+checks use 1e-6, and restored 2D sketch projection uses 0.11 px. Native unit
+cases separately exercise cylinder and cone axis extraction and placed frames;
+the rendered curved-face case uses a cylinder, not a cone.
+
+Exact Previous View restoration of the central canvas crop passes in all
+three workspaces with no masks, selected face or origin overlays. Selected
+geometry and datums retain semantic and pointer checks without a
+raster-equivalence claim. The route
+checks unchanged worker history, recovery, model Undo/Redo and file IPC around
+settled camera actions. Three Opens and zero Saves are observed, and all three
+original input files remain byte-identical. This is not a Save/reopen test;
+the separately listed authoring and relation routes retain their own file
+round trips. Entering or cancelling a sketch may build its preview.
+
+Earlier failed executions exposed valid assembly clicks and Ctrl+8 callbacks
+being rejected after a discarded React render. Normal-view context and shortcut
+callbacks now publish in the layout commit phase. A private production-React
+reproduction using the actual shortcut hook changed three rejected commands
+to zero while preserving focused-field guards and command freshness after a
+synchronous field commit. That causal probe does not test CAD or write a file;
+the production-renderer routes above exercise the integrated correction.
+Attempt 06 then passed the build and five renderer routes but stopped on two
+old static toolbar expectations. They now include the Normal To option and
+button, and accept the container's additional metadata. The same three initial
+manipulation guards remain checked. Their 103 focused tests and the fresh full
+suite above pass; the final acceptance does not retain the earlier partial run.
+
+This evidence is limited to the declared fixtures, tolerances and routes.
+It does not establish general interface equivalence, installed application
+acceptance, other platforms, named custom views, dimetric/trimetric presets,
+standalone edge/axis view targets or nested/configured relation editing.
+
+At preceding public head `f5b3f2b5f31e18d055386c3989abc8e8245eb883`,
+[CI](https://github.com/angelcp2802/solidflow/actions/runs/40318725716) finished
+with 7/9 renderer batches and 3/3 configured-authoring jobs passing. Windows
+symmetry picking reached its unchanged overall deadline; Windows source-update
+timed out waiting for its saved-parent expectation. Three Desktop jobs stopped
+at the renderer gate. These failures remain unresolved by this view increment.
+[Security](https://github.com/angelcp2802/solidflow/actions/runs/40318724348)
+finished successfully, with a worker-message origin warning still pending
+triage; a successful workflow is not a zero-findings security claim.
+
 ## Saved standard relation reference editing — local acceptance, 2026-10-26
 
 Saved distance, ordinary angle, coincidence and concentricity references are

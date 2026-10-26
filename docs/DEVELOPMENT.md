@@ -1,5 +1,62 @@
 # Development guide
 
+## Selection-derived Normal To — 2026-10-26
+
+**Normal a** (Ctrl+8) is available through the orientation controls and View
+menu in part, standard assembly and configured assembly workspaces. In 3D,
+it resolves the current selection to a world-space orientation, then invokes
+that workspace's existing Fit. It does not retain the current zoom when
+executed. Previous View restores the prior camera framing, including its zoom
+and pan, independently of model Undo and the saved document.
+
+SolidFlow defines the following orientation policy:
+
+- A planar face or datum uses its current normal for the target-to-eye
+  direction and its natural frame Y (`normal × xDirection`) for screen up.
+  Part sketches and features with exactly one current, valid input sketch use
+  that sketch's frame. Assembly root and component datum planes use their
+  evaluated world placement, including inherited rotation and translation.
+- A cylindrical or conical face uses its native analytic surface axis and
+  radial frame. This is presentation metadata; it does not introduce a new
+  solver support or admit a standalone model axis or edge as a view target.
+- Ctrl/Meta selection retains an ordered pair of planar references. The first
+  normal sets the target-to-eye direction; the second normal, projected
+  perpendicular to the first, sets screen up. Reversing the order changes the
+  result. Parallel or opposed normals cannot define this pair.
+- With no selection, the nearest of the 24 proper cardinal orientations is
+  chosen by minimum complete orientation rotation, including screen up.
+  Ties are deterministic: Front/Back, Left/Right, Top/Bottom, with natural up
+  before the quarter-turn alternatives. This is not independent rounding of
+  the three direction coordinates.
+- Repeating Normal To for the same ordered identity and world geometry
+  alternates the viewing side while retaining up. Executing Normal To for a
+  different target, an effective navigation gesture, another view command or
+  a new document resets that repetition. An empty selection has no side-flip cycle.
+
+Ordinary assembly clicks still select components and separately nominate the
+hit face for viewing. Tree and BOM component selections are unsupported view
+targets until a compatible face or plane is chosen; retaining a component
+through a rebuild does not turn it into an empty-selection request. Modified
+selection toggles references without dropping a third or fourth identity.
+More than two references, unsupported curved surfaces, hidden or ambiguous
+faces and stale document/scene/scope/session selections disable Normal To.
+Invalid selection does not execute nearest, consume a camera request or add
+history. Relation picking and previews keep their own selection ownership;
+camera nomination does not edit their references or drafts.
+
+In the existing 2D sketch editor, Normal To requests the editor's 2D Fit.
+It does not flip a 3D side or add to 3D camera history. The prior 3D camera
+remains owned by the surrounding part workspace. Named custom views, dimetric
+and trimetric presets, standalone edge/axis targets and arbitrary curved-face
+orientation are outside this increment.
+
+`npm run test:desktop:normal-to-view` is the dedicated production-renderer
+route for the original part, standard assembly and configured root-state
+fixtures described in [provenance](PROVENANCE.md). Native extraction tests,
+mathematical orientation tests and renderer interaction checks establish
+different facts. Recorded local results and remaining platform limits are
+listed separately in [validation](VALIDATION.md).
+
 ## Replace saved standard relation references — 2026-10-26
 
 The standard distance, ordinary angle, coincidence and concentricity editors
@@ -102,8 +159,10 @@ bounded HTML origin-label text rectangles; their projected SVG anchors are
 checked separately. This avoids treating text compositor antialiasing as a
 camera change. The rendered restoration checks are separate from independent
 mathematical orientation tests; neither proves all view tools
-or platform parity. Normal To, named custom views, dimetric and trimetric
-presets remain separate work. Record actual executed cases in [validation](VALIDATION.md).
+or platform parity. Normal To now has the separately scoped policy and recorded
+acceptance described above; these earlier routes do not establish its coverage.
+Named custom views, dimetric and trimetric presets remain separate work.
+Record actual executed cases in [validation](VALIDATION.md).
 
 ## New document choice and authoring from empty — 2026-10-25
 

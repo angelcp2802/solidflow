@@ -432,7 +432,7 @@ it('keeps the compact viewport command names unique and retains initial manipula
   expect(nav).toBeDefined()
   const orientation = nav!.match(/<select\b[^>]*aria-label="Orientación de vista"[^>]*>([\s\S]*?)<\/select>/)
   expect(orientation).not.toBeNull()
-  expect([...orientation![1].matchAll(/<option value="([^"]+)"/g)].map(value => value[1])).toEqual(['front', 'back', 'left', 'right', 'top', 'bottom', 'iso'])
+  expect([...orientation![1].matchAll(/<option value="([^"]+)"/g)].map(value => value[1])).toEqual(['front', 'back', 'left', 'right', 'top', 'bottom', 'iso', 'normal'])
   expect(nav!).toMatch(/<button(?=[^>]*aria-label="Vista anterior")(?=[^>]*disabled="")[^>]*>/)
   const buttons = nav!.match(/<button\b[^>]*>[\s\S]*?<\/button>/g) ?? []
   expect(buttons.map(button => {
@@ -441,7 +441,7 @@ it('keeps the compact viewport command names unique and retains initial manipula
     expect(content).not.toBeNull()
     return content![2]
   })).toEqual([
-    'Vista anterior', 'Isométrica', 'Frontal', 'Superior', 'Ajustar', 'Seleccionar caras',
+    'Normal a', 'Vista anterior', 'Isométrica', 'Frontal', 'Superior', 'Ajustar', 'Seleccionar caras',
     'Arrastrar posición', 'Arrastrar giro', 'Desactivar manipulador',
   ])
   for (const button of buttons) {
@@ -449,7 +449,7 @@ it('keeps the compact viewport command names unique and retains initial manipula
     expect(button).toMatch(/<svg\b[^>]*aria-hidden="true"/)
     expect(button).toMatch(/title="[^"]+"/)
   }
-  for (const button of buttons.slice(6)) expect(button).toMatch(/<button[^>]*disabled=""/)
+  for (const button of buttons.slice(7)) expect(button).toMatch(/<button[^>]*disabled=""/)
   expect(nav).toContain('class="compact-viewport-group assembly-drag-tools"')
 })
 it('does not start movement or expose a raw pose-write control during initial workspace rendering', () => {

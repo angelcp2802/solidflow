@@ -30,6 +30,18 @@ test('select-all without owned editable focus and unknown keys dispatch nothing'
   await assert.rejects(dispatchShortcutKey('arbitrary',options),/Bounded/);
   assert.deepEqual(sent,[]);
 });
+test('normal-view shortcut carries the platform modifier and releases it without editing commands',async()=>{
+  for(const platform of ['win32','linux','darwin']){
+    const modifier=platform==='darwin'?4:2, rows=await events('8',platform,false);
+    assert.deepEqual(rows.slice(1,3),[
+      {key:'8',code:'Digit8',windowsVirtualKeyCode:56,modifiers:modifier,type:'rawKeyDown'},
+      {key:'8',code:'Digit8',windowsVirtualKeyCode:56,modifiers:modifier,type:'keyUp'},
+    ]);
+    assert.equal(rows[0].key,platform==='darwin'?'Meta':'Control');
+    assert.equal(rows.at(-1).modifiers,0);
+    assert.ok(rows.every(row=>!Object.hasOwn(row,'commands')));
+  }
+});
 test('main dispatch failure still releases every key and preserves the first error',async()=>{
   const failure=new Error('keydown failed'),sent=[];
   await assert.rejects(dispatchShortcutKey('ShiftS',{platform:'darwin',editable:false,send:async event=>{

@@ -1,5 +1,6 @@
 import { useViewHistory } from './useViewHistory'
-import { standardViews, type ViewName } from './viewNavigation'
+import { standardViews, type ViewName, type ViewRequest } from './viewNavigation'
+import { assemblyNormalSelectionOrComponent, nominateAssemblyNormalFace, nominateAssemblyNormalOrigin, nominateAssemblyNormalUnsupported, resolveAssemblyNormalSelection, type AssemblyNormalSelection } from './assemblyNormalTo'
 import { ViewOrientationControls } from './ViewOrientationControls'
 import { requestNewDocument, useNewDocumentDialog } from './useNewDocumentDialog'
 import { CompactViewportToolbar, ViewportToolGroup, ViewportToolIcon } from './CompactViewportToolbar'
@@ -87,7 +88,7 @@ import { createAssemblyDragSession, type AssemblyDragSession } from './assemblyD
 import AssemblyMovementPanel, { assemblyMotionMatches } from './AssemblyMovementPanel'
 import AssemblyTranslationPanel, { assemblyTranslationMatches } from './AssemblyTranslationPanel'
 import AssemblyDragProjectionPanel, { assemblyDragProjectionMatches, type AssemblyDragProjection } from './AssemblyDragProjectionPanel'
-import AssemblyViewport, { assemblyBodyKey, assemblyFaceKey, assemblyEdgeKey, type AssemblyViewportContextTarget } from './AssemblyViewport'
+import AssemblyViewport, { assemblyBodyKey, assemblyFaceKey, assemblyEdgeKey, type AssemblyViewportContextTarget, type AssemblyViewportViewSelection } from './AssemblyViewport'
 import { evaluateAssemblyConfiguration } from '../model/assemblyConfigurationCore'
 import { buildAssemblyOriginDisplay, type AssemblyOriginReference } from './assemblyOriginPicking'
 import { standardAssemblyOriginKinds, standardAssemblyOriginPick, type StandardAssemblyOriginPickTicket } from './assemblyStandardOriginPicking'
@@ -269,7 +270,7 @@ function referenceLabel(reference: AssemblyGeometryReference | AssemblyTangentRe
 export function AssemblyComponentTree({ document, selectedPath, onSelect, disabled = false, active = true, resetKey = document.id,
   originRows = [], selectedOriginKey = null, onOrigin, originDisabled = false, onComponentContext, onOriginContext }: {
   document: AssemblyDocument; selectedPath: readonly string[]; onSelect: (path: string[]) => void; disabled?: boolean; active?: boolean; resetKey?: unknown
-  originRows?: readonly AssemblyOriginTreeEntry[]; selectedOriginKey?: string | null; onOrigin?: (entry: AssemblyOriginTreeEntry) => void; originDisabled?: boolean
+  originRows?: readonly AssemblyOriginTreeEntry[]; selectedOriginKey?: string | null; onOrigin?: (entry: AssemblyOriginTreeEntry, additive?: boolean) => void; originDisabled?: boolean
   onComponentContext?: (path: string[], point: { x: number; y: number }, element: HTMLElement) => void
   onOriginContext?: (entry: AssemblyOriginTreeEntry, point: { x: number; y: number }, element: HTMLElement) => void
 }) {
@@ -338,9 +339,9 @@ export function AssemblyComponentTree({ document, selectedPath, onSelect, disabl
               event.preventDefault(); event.stopPropagation()
               const rect = event.currentTarget.getBoundingClientRect(); context({ x: rect.left + 28, y: rect.bottom }, event.currentTarget)
             } else navigation.onKeyDown(event, node.key)
-          }} onClick={() => {
+          }} onClick={event => {
             if (disabled || !active || !navigation.isVisible(node.key)) return
-            if (origin) { if (!originDisabled) onOrigin?.(origin) }
+            if (origin) { if (!originDisabled) onOrigin?.(origin, event.ctrlKey || event.metaKey) }
             else if (row) onSelect(row.path)
           }}>
           {origin ? <AssemblyOriginIcon plane={origin.display.reference.kind === 'principal-plane'} />
@@ -422,6 +423,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   const [message, setMessage] = useState('Preparando ensamblaje…'), [error, setError] = useState(false), [selectedPath, setSelectedPath] = useState<string[]>([])
   const [scopePath, setScopePath] = useState<string[]>([]), [selectedFaceMeshes, setSelectedFaceMeshes] = useState<AssemblySceneFace[]>([])
   const [treeOriginSelection, setTreeOriginSelection] = useState<AssemblyOriginTreeSelection | null>(null)
+  const [normalSelection, setNormalSelection] = useState<AssemblyNormalSelection | null>(null)
   useEffect(() => { setTreeOriginSelection(null) }, [selectedPath])
   const [symmetryReferences,setSymmetryReferences]=useState<SymmetryUiReferences>([null,null,null]), [symmetryFamily,setSymmetryFamily]=useState<SymmetryUiFamily>('point'), [symmetryAlignment,setSymmetryAlignment]=useState<'aligned'|'opposed'|''>(''), [editingSymmetryId,setEditingSymmetryId]=useState<string|null>(null)
   const [symmetryPicking, setSymmetryPickingState] = useState<SymmetryPickTicket | null>(null), symmetryPickingRef = useRef<SymmetryPickTicket | null>(null)
@@ -498,7 +500,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   const [mateName, setMateName] = useState('Relación'), [faceChoice, setFaceChoice] = useState('')
   const [datumComponent, setDatumComponent] = useState('scope'), [datumPlane, setDatumPlane] = useState<Plane>('XY'), [datumAxis, setDatumAxis] = useState<'X' | 'Y' | 'Z'>('X'), [componentLock, setComponentLock] = useState(['', ''])
   const viewHistory = useViewHistory()
-  const [view, setView] = useState<{ name: ViewName; stamp: number }>({ name: 'iso', stamp: 0 }), [rebuild, setRebuild] = useState(0)
+  const [view, setView] = useState<ViewRequest>({ name: 'iso', stamp: 0 }), [rebuild, setRebuild] = useState(0)
   const [replaceDialog, setReplaceDialog] = useState(false), replaceAnswer = useRef<((answer: boolean) => void) | null>(null), replaceModal = useRef<HTMLDivElement>(null)
   const [rootRevision, setRootRevision] = useState<{ revision: string; signature: string; error: string } | null>(null)
   const structuralInput = useRef<HTMLInputElement>(null)
@@ -694,6 +696,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     if (pending?.grantId) { linkedBindings.current.releaseGrant(pending.grantId); if (mounted.current) refreshLinked(v => v + 1) }
   }
   const invalidate = (keepSourceUpdate = false) => {
+    setNormalSelection(null)
     pendingInsertionSelection.current = null
     hingeContext.current = null
     clearSymmetryPicking()
@@ -1056,6 +1059,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     return () => { window.removeEventListener('keydown', keyboard); if (previous instanceof HTMLElement && previous.isConnected) previous.focus() }
   }, [replaceDialog])
   const replace = (document: AssemblyDocument, filePath?: string, fileSaved?: string) => {
+    setNormalSelection(null)
     viewHistory.reset(); setView(previous => ({ name: 'iso', stamp: previous.stamp + 1 }))
     setOrdinaryEdit(null); setReleaseRotation(false); setAngleEdit(null); setDistanceEdit(null); setTreeReset(value => value + 1)
     restoreBomFocus.current = false; setRibbonTab('assembly'); managerTabRef.current = 'components'; setManagerTab('components')
@@ -1957,7 +1961,16 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     const choice = rackChoices.find(value => value.reference.kind === 'edge' && value.key === assemblyEdgeKey(edge))
     if (choice) rackChoice(1, choice.key)
   }
-  const viewButton = (name: typeof view.name) => { if (!dragSession.current && !viewHistory.navigating && (name !== 'previous' || viewHistory.canPrevious)) setView(previous => ({ name, stamp: previous.stamp + 1 })) }
+  const viewButton = (name: ViewName) => {
+    if (dragSession.current || viewHistory.navigating || name === 'previous' && !viewHistory.canPrevious) return
+    if (name === 'normal') {
+      if (!canNormal || normalViewCurrent.current.context !== normalViewContext || operation.current || hasStaging()
+        || currentPreview.current || dragging.current || serialized !== serializeAssemblyDocument(current.current)
+        || JSON.stringify(scopePath) !== currentFileScope.current) return
+      const target = resolveAssemblyNormalSelection(normalViewSelection, normalViewContext, treeOrigins).target
+      if (target) setView(previous => ({ name, stamp: previous.stamp + 1, target }))
+    } else setView(previous => ({ name, stamp: previous.stamp + 1 }))
+  }
   const undo = (redo = false) => { if (operation.current || hasStaging()) return; setOrdinaryEdit(null); setReleaseRotation(false); setAngleEdit(null); setDistanceEdit(null); invalidate(); setLimitDirectedSelection(['', '', '']); setCommitted(redo ? history.current!.redo() : history.current!.undo()); setSelectedPath([]); setScopePath([]); setEditingDirectionId(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null); setCylinderLarger(''); setSphereLarger(''); setMovementReset(value => value + 1) }
   const datum = () => {
     if (referenceEditTicket && mateType === 'concentric' || isCylinderTangent || isSphereTangent && mateType !== 'plane-sphere-tangent' || referenceBlocked || operation.current || hasStaging() || !referenceEditorIsCurrent()) return
@@ -2013,6 +2026,24 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   const treeOriginCurrent = useRef({ context: treeOriginContext, entries: treeOrigins, blocked: treeOriginBlocked })
   treeOriginCurrent.current = { context: treeOriginContext, entries: treeOrigins, blocked: treeOriginBlocked }
   const selectedTreeOrigin = !treeOriginBlocked ? resolveAssemblyOriginTreeSelection(treeOriginSelection, treeOrigins, treeOriginContext) : null
+  const normalViewBlocked = editingBlocked || !!draft || !!preview || replaceDialog || !!streamProjection || dragActive
+    || pickingFaces || pickingLinearEdges || !!symmetryPicking || !!hingePicking || !!widthPicking || !!rackPicking || originPicking
+    || !scene || sceneSignature.current !== serialized || confirmedScene.current?.signature !== serialized || confirmedScene.current?.scene !== scene
+  const normalViewSession = useMemo(() => ({}), [treeReset, scene, serialized, scopePath, generation.current])
+  const normalViewContext = { documentSignature: serialized, scopePath, sessionIdentity: normalViewSession, scene }
+  const normalViewCurrent = useRef({ context: normalViewContext, blocked: normalViewBlocked })
+  // A discarded render must not invalidate handlers from the last committed view.
+  useLayoutEffect(() => { normalViewCurrent.current = { context: normalViewContext, blocked: normalViewBlocked } })
+  const normalComponentKey = selectedPath.length ? JSON.stringify(['component', selectedPath]) : null
+  const normalViewSelection = assemblyNormalSelectionOrComponent(normalSelection, normalComponentKey, normalViewContext)
+  const normalResolution = resolveAssemblyNormalSelection(normalViewSelection, normalViewContext, treeOrigins)
+  const canNormal = !normalViewBlocked && !dragSession.current && !viewHistory.navigating && normalResolution.target !== null
+  const nominateViewSelection = (value: AssemblyViewportViewSelection) => {
+    if (normalViewBlocked || normalViewCurrent.current.context !== normalViewContext || normalViewCurrent.current.blocked
+      || operation.current || hasStaging() || currentPreview.current || dragging.current || dragSession.current
+      || value.scene !== scene || serialized !== serializeAssemblyDocument(current.current) || JSON.stringify(scopePath) !== currentFileScope.current) return
+    setNormalSelection(previous => nominateAssemblyNormalFace(assemblyNormalSelectionOrComponent(previous, normalComponentKey, normalViewContext), value.face, value.empty, normalViewContext, value.additive, JSON.stringify(['visible-surface', value.component])))
+  }
   useLayoutEffect(() => {
     const ticket = pendingInsertionSelection.current
     if (!ticket) return
@@ -2023,7 +2054,9 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
       || confirmedScene.current?.signature !== serialized || confirmedScene.current.scene !== scene) return
     // Selection first, so the next committed render owns the correct property fields.
     if (!samePath(selectedPath, component.occurrencePath) || treeOriginSelection) {
-      setTreeOriginSelection(null); setSelectedPath(component.occurrencePath); return
+      setTreeOriginSelection(null)
+      setNormalSelection(nominateAssemblyNormalUnsupported(JSON.stringify(['component', component.occurrencePath]), normalViewContext))
+      setSelectedPath(component.occurrencePath); return
     }
     pendingInsertionSelection.current = null
     const epoch = insertionNavigationEpoch.current + 1, id = generation.current
@@ -2032,7 +2065,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
       && currentFileScope.current === JSON.stringify(ticket.navigation.scopePath)
       && currentFileSelection.current === JSON.stringify(component.occurrencePath) && !operation.current && !hasStaging() && !currentPreview.current)
   }, [committed, serialized, scene, busy, editingBlocked, draft, replaceDialog, selectedPath, treeOriginSelection, scopePath])
-  const selectTreeOrigin = (entry: AssemblyOriginTreeEntry) => {
+  const selectTreeOrigin = (entry: AssemblyOriginTreeEntry, additive = false) => {
     const live = treeOriginCurrent.current
     if (treeOriginBlocked || live.blocked || managerTabRef.current !== 'components' || !mounted.current || operation.current
       || hasStaging() || currentPreview.current || dragSession.current || dragging.current
@@ -2041,7 +2074,11 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     if (resolveAssemblyOriginTreeSelection(selection, live.entries, live.context)) {
       abandonInsertionSelection()
       setDragMode('off')
-      setTreeOriginSelection(selection)
+      const next = nominateAssemblyNormalOrigin(normalViewSelection, entry, normalViewContext, additive)
+      const lastOrigin = [...next.items].reverse().find(item => item.kind === 'origin')
+      const retained = lastOrigin && treeOrigins.find(row => row.treeKey === lastOrigin.key && row.binding === lastOrigin.binding)
+      setTreeOriginSelection(retained ? retainAssemblyOriginTreeSelection(retained, treeOriginContext) : null)
+      setNormalSelection(next)
     }
   }
   // Creation permits preselection before choosing a family; a saved relation's
@@ -2301,10 +2338,11 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     && serialized === serializeAssemblyDocument(current.current) && JSON.stringify(scopePath) === currentFileScope.current
   const contextBase = (point: { x: number; y: number }, element: HTMLElement) => ({ point, element,
     reset: treeReset, signature: serialized, scope: JSON.stringify(scopePath), generation: generation.current })
-  const openComponentContext = (componentPath: string[], point: { x: number; y: number }, element: HTMLElement) => {
+  const openComponentContext = (componentPath: string[], point: { x: number; y: number }, element: HTMLElement, fromTree = false) => {
     if (!contextMayOpen()) return
     const ticket = createAssemblyComponentContextTarget(current.current, scopePath, componentPath)
     if (!ticket) return
+    if (fromTree) setNormalSelection(nominateAssemblyNormalUnsupported(JSON.stringify(['component', componentPath]), normalViewContext))
     abandonInsertionSelection(); setTreeOriginSelection(null)
     if (fileTicket.current?.purpose === 'update' || linkedTicket.current) generation.current++
     setSelectedPath([...componentPath])
@@ -2315,6 +2353,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     const ticket = retainAssemblyOriginTreeSelection(entry, treeOriginContext)
     if (!resolveAssemblyOriginTreeSelection(ticket, treeOriginCurrent.current.entries, treeOriginCurrent.current.context)) return
     abandonInsertionSelection(); setDragMode('off'); setTreeOriginSelection(ticket)
+    setNormalSelection(previous => nominateAssemblyNormalOrigin(previous, entry, normalViewContext, false))
     setContextTarget({ ...contextBase(point, element), kind: 'origin', ticket })
   }
   const openViewportContext = (target: AssemblyViewportContextTarget) => {
@@ -2357,6 +2396,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     else edit({ ...common, type: 'set-occurrence-suppressed', suppressed: !row.occurrence.suppressed })
   })
   const contextActions: CadContextAction[] = contextRow ? [
+    { id: 'view-normal', label: 'Normal a', disabled: !canNormal, onSelect: () => contextAction(() => viewButton('normal')) },
     { id: 'component-properties', label: 'Propiedades del componente', icon: Settings2, onSelect: () => contextAction(() => openManager('properties', '[aria-label="Nombre del componente"]')) },
     { id: 'component-move', label: 'Mover componente', icon: Move3D, disabled: contextRow.occurrence.fixed || contextRow.suppressed,
       onSelect: () => contextAction(() => openManager('properties', '.assembly-movement h3')) },
@@ -2364,13 +2404,14 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     { id: 'component-visible', label: contextRow.occurrence.visible ? 'Ocultar' : 'Mostrar', onSelect: () => contextEdit('visible') },
     { id: 'component-suppressed', label: contextRow.occurrence.suppressed ? 'Activar' : 'Suprimir', onSelect: () => contextEdit('suppressed') },
   ] : contextOrigin ? [
+    { id: 'view-normal', label: 'Normal a', disabled: !canNormal, onSelect: () => contextAction(() => viewButton('normal')) },
     { id: 'origin-controls', label: 'Referencias de origen', onSelect: () => contextAction(() => {
       setOriginControlsOpen(true); openManager('relations', '#assembly-relation-origins summary')
     }) },
     { id: 'origin-owner', label: 'Seleccionar componente propietario', disabled: !contextOrigin.ownerPath.length,
-      onSelect: () => contextAction(() => { abandonInsertionSelection(); setTreeOriginSelection(null); setSelectedPath([...contextOrigin.ownerPath]) }) },
-  ] : [...standardViews, { name: 'fit' as const, label: 'Ajustar a pantalla' }, { name: 'previous' as const, label: 'Vista anterior' }].map(({ name, label }) => ({ id: `view-${name}`,
-    label, disabled: viewHistory.navigating || name === 'previous' && !viewHistory.canPrevious, onSelect: () => contextAction(() => viewButton(name)) }))
+      onSelect: () => contextAction(() => { abandonInsertionSelection(); setTreeOriginSelection(null); setNormalSelection(nominateAssemblyNormalUnsupported(JSON.stringify(['component', contextOrigin.ownerPath]), normalViewContext)); setSelectedPath([...contextOrigin.ownerPath]) }) },
+  ] : [...standardViews, { name: 'normal' as const, label: 'Normal a' }, { name: 'fit' as const, label: 'Ajustar a pantalla' }, { name: 'previous' as const, label: 'Vista anterior' }].map(({ name, label }) => ({ id: `view-${name}`,
+    label, disabled: viewHistory.navigating || name === 'normal' && !canNormal || name === 'previous' && !viewHistory.canPrevious, onSelect: () => contextAction(() => viewButton(name)) }))
   const menus: AssemblyMenuDefinition[] = withAssemblyShortcutLabels([
     { id: 'file', label: 'Archivo', items: [
       { id: 'new', label: 'Nuevo…', disabled: newDocumentBlocked || replaceDialog, onSelect: newAssembly },
@@ -2388,6 +2429,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     ] },
     { id: 'view', label: 'Ver', items: [
       ...standardViews.map(({ name, label }) => ({ id: 'view-' + name, label, disabled: !!dragSession.current || viewHistory.navigating, onSelect: () => viewButton(name) })),
+      { id: 'view-normal', label: 'Normal a', disabled: !canNormal, onSelect: () => viewButton('normal') },
       { id: 'view-previous', label: 'Vista anterior', disabled: !!dragSession.current || !viewHistory.canPrevious, onSelect: () => viewButton('previous') },
       { id: 'view-fit', label: 'Ajustar a pantalla', disabled: !!dragSession.current || viewHistory.navigating, onSelect: () => viewButton('fit') },
       { id: 'show-tree', label: 'Árbol de componentes', onSelect: () => openManager('components') },
@@ -2534,8 +2576,8 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
         onClick={() => openManager('properties', '[aria-label="Nombre del componente"]')}><Settings2 size={15} />Propiedades</button></div>
       <AssemblyComponentTree document={committed} selectedPath={selectedPath} resetKey={treeReset} active={managerTab === 'components'}
         originRows={treeOrigins} selectedOriginKey={selectedTreeOrigin?.treeKey} onOrigin={selectTreeOrigin} originDisabled={treeOriginBlocked}
-        onComponentContext={openComponentContext} onOriginContext={openOriginContext}
-        onSelect={value => { abandonInsertionSelection(); setTreeOriginSelection(null); if (fileTicket.current?.purpose === 'update' || linkedTicket.current) generation.current++; setSelectedPath(value) }} disabled={editingBlocked} />
+        onComponentContext={(value, point, element) => openComponentContext(value, point, element, true)} onOriginContext={openOriginContext}
+        onSelect={value => { abandonInsertionSelection(); setTreeOriginSelection(null); setNormalSelection(nominateAssemblyNormalUnsupported(JSON.stringify(['component', value]), normalViewContext)); if (fileTicket.current?.purpose === 'update' || linkedTicket.current) generation.current++; setSelectedPath(value) }} disabled={editingBlocked} />
       <section className="assembly-section"><h3>Insertar origen reutilizable</h3><select aria-label="Origen del componente" value={sourceKey} disabled={editingBlocked} onChange={event => setSourceKey(event.target.value)}><option value="">Selecciona un origen</option>{committed.definitions.map(value => <option key={assemblyDefinitionKey(value)} value={assemblyDefinitionKey(value)}>{value.kind === 'part' ? value.document.name : value.name} · {value.revision}</option>)}</select>
         <button disabled={editingBlocked || !sourceKey} onClick={reuseComponent}><Plus size={14} />Insertar otra ocurrencia</button></section>
 
@@ -2800,28 +2842,28 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
 </div>
         </div>
       </aside>
-      <section className="assembly-canvas"><CompactViewportToolbar label="Controles del visor del ensamblaje" className="assembly-view-tools"><ViewportToolGroup label="Vistas del ensamblaje"><ViewOrientationControls onView={viewButton} disabled={!!dragSession.current || viewHistory.navigating} canPrevious={viewHistory.canPrevious} /><button title="Isométrica" disabled={!!dragSession.current || viewHistory.navigating} onClick={() => viewButton('iso')}><ViewportToolIcon name="iso" label="Isométrica" /></button><button title="Frontal" disabled={!!dragSession.current || viewHistory.navigating} onClick={() => viewButton('front')}><ViewportToolIcon name="front" label="Frontal" /></button><button title="Superior" disabled={!!dragSession.current || viewHistory.navigating} onClick={() => viewButton('top')}><ViewportToolIcon name="top" label="Superior" /></button><button title="Ajustar" disabled={!!dragSession.current || viewHistory.navigating} onClick={() => viewButton('fit')}><ViewportToolIcon name="fit" label="Ajustar" /></button></ViewportToolGroup><ViewportToolGroup label="Selección de referencias"><button title="Seleccionar caras" className={pickingFaces ? 'active' : ''} aria-pressed={pickingFaces} disabled={isHinge || isCircularPath || isLinePath || isSymmetry || (isWidth ? widthPickingBlocked : referenceBlocked)} onClick={() => { openManager('relations'); if (isWidth) { const missing = widthReferences.findIndex(value => value === null); toggleWidthPicking(widthPickingSlot ?? (missing < 0 ? 0 : missing as WidthUiSlot)); return } setDragMode('off'); setPickingLinearEdges(false); setPickingFaces(!pickingFaces) }}><ViewportToolIcon name="face" label="Seleccionar caras" /></button>
+      <section className="assembly-canvas" data-normal-selection-kind={normalResolution.target?.kind ?? 'invalid'} data-normal-selection-keys={JSON.stringify(normalViewSelection?.items.map(value => [value.kind, value.key]) ?? [])} data-normal-enabled={canNormal}><CompactViewportToolbar label="Controles del visor del ensamblaje" className="assembly-view-tools"><ViewportToolGroup label="Vistas del ensamblaje"><ViewOrientationControls onView={viewButton} disabled={!!dragSession.current || viewHistory.navigating} canPrevious={viewHistory.canPrevious} canNormal={canNormal} /><button title="Isométrica" disabled={!!dragSession.current || viewHistory.navigating} onClick={() => viewButton('iso')}><ViewportToolIcon name="iso" label="Isométrica" /></button><button title="Frontal" disabled={!!dragSession.current || viewHistory.navigating} onClick={() => viewButton('front')}><ViewportToolIcon name="front" label="Frontal" /></button><button title="Superior" disabled={!!dragSession.current || viewHistory.navigating} onClick={() => viewButton('top')}><ViewportToolIcon name="top" label="Superior" /></button><button title="Ajustar" disabled={!!dragSession.current || viewHistory.navigating} onClick={() => viewButton('fit')}><ViewportToolIcon name="fit" label="Ajustar" /></button></ViewportToolGroup><ViewportToolGroup label="Selección de referencias"><button title="Seleccionar caras" className={pickingFaces ? 'active' : ''} aria-pressed={pickingFaces} disabled={isHinge || isCircularPath || isLinePath || isSymmetry || (isWidth ? widthPickingBlocked : referenceBlocked)} onClick={() => { openManager('relations'); if (isWidth) { const missing = widthReferences.findIndex(value => value === null); toggleWidthPicking(widthPickingSlot ?? (missing < 0 ? 0 : missing as WidthUiSlot)); return } setDragMode('off'); setPickingLinearEdges(false); setPickingFaces(!pickingFaces) }}><ViewportToolIcon name="face" label="Seleccionar caras" /></button>
         {(isDirection || isLimitAngle || mateType === 'angle') && <button title="Seleccionar aristas lineales" aria-label="Seleccionar aristas lineales" aria-pressed={pickingLinearEdges} disabled={editingBlocked || !!preview || !!editingDirection || !!editingLimitAngle || replaceDialog || sceneSignature.current !== serialized} onClick={() => { openManager('relations'); setDragMode('off'); setPickingFaces(false); setPickingLinearEdges(!pickingLinearEdges) }}><ViewportToolIcon name="edge" label="Seleccionar aristas" /></button>}
         </ViewportToolGroup><ViewportToolGroup label="Manipulación del componente" className="assembly-drag-tools"><button title="Arrastrar posición" aria-label="Arrastrar posición" aria-pressed={dragMode === 'translate'} disabled={editingBlocked || !!draft || !!preview || replaceDialog || !eligibleDragFrame} onClick={() => { setTreeOriginSelection(null); clearSymmetryPicking(); setDragMode('translate') }}><ViewportToolIcon name="translate" label="Arrastrar posición" /></button>
         <button title="Arrastrar giro" aria-label="Arrastrar giro" aria-pressed={dragMode === 'rotate'} disabled={editingBlocked || !!draft || !!preview || replaceDialog || !eligibleDragFrame} onClick={() => { setTreeOriginSelection(null); clearSymmetryPicking(); setDragMode('rotate') }}><ViewportToolIcon name="rotate" label="Arrastrar giro" /></button>
         <button title="Desactivar manipulador" aria-label="Desactivar manipulador" disabled={!!dragSession.current || dragMode === 'off'} onClick={() => setDragMode('off')}><ViewportToolIcon name="stop" label="Desactivar manipulador" /></button></ViewportToolGroup></CompactViewportToolbar>
-      <AssemblyViewport originLabelTopInset={44} scene={scene} view={view} viewHistory={viewHistory} selectedPath={selectedTreeOrigin ? [] : selectedPath} selectedFaces={rackSelectedFaces} selectedEdges={rackSelectedEdges} selectedAnalysisPair={selectedAnalysisPair}
+      <AssemblyViewport originLabelTopInset={44} scene={scene} view={view} viewHistory={viewHistory} selectedPath={selectedTreeOrigin ? [] : selectedPath} selectedFaces={normalViewBlocked ? rackSelectedFaces : [...rackSelectedFaces, ...normalResolution.faces]} selectedEdges={rackSelectedEdges} selectedAnalysisPair={selectedAnalysisPair}
         onContextTarget={openViewportContext}
-        originReferences={selectedTreeOrigin ? [selectedTreeOrigin.display] : originDisplays}
-        selectedOrigins={selectedTreeOrigin ? [selectedTreeOrigin.display.reference] : selectedOriginReferences} pickingOrigins={activeOriginPicking} onOrigin={pickOrigin}
+        originReferences={!normalViewBlocked && normalResolution.origins.length ? normalResolution.origins : selectedTreeOrigin ? [selectedTreeOrigin.display] : originDisplays}
+        selectedOrigins={!normalViewBlocked && normalResolution.origins.length ? normalResolution.origins.map(value => value.reference) : selectedTreeOrigin ? [selectedTreeOrigin.display.reference] : selectedOriginReferences} pickingOrigins={activeOriginPicking} onOrigin={pickOrigin}
         pickingFaces={isSymmetry ? !!activeSymmetryPick && activeSymmetryPick.producer !== 'vertex' && activeSymmetryPick.producer !== 'line-edge' : pickingFaces || !!rackPicking && rackPicking.kind !== 'rack-edge'} pickingEdges={isSymmetry ? activeSymmetryPick?.producer === 'line-edge' : pickingLinearEdges || rackPicking?.kind === 'rack-edge'} disabled={editingBlocked || replaceDialog || !!preview && !rackPicking}
         drag={dragMode !== 'off' && !activeSymmetryPick && !pickingFaces && !pickingLinearEdges && !sourceUpdate && !documentUpdate && !replacementReview && !preview && !draft && !replaceDialog && (dragAnchor.current ?? eligibleDragFrame)
           ? { frame: (dragAnchor.current ?? eligibleDragFrame)!, mode: dragMode, active: dragActive } : undefined}
         onDragStart={beginDrag} onDragTarget={dragTarget} onDragEnd={endDrag} onDragCancel={cancel}
         pickingVertices={isSymmetry && activeSymmetryPick?.producer === 'vertex'} selectedVertices={symmetrySelectedVertices} onVertex={vertex => { if (managerTabRef.current === 'relations') pickSymmetryVertex(vertex) }}
-        onComponent={component => { abandonInsertionSelection(); setTreeOriginSelection(null); if (linkedTicket.current) generation.current++; setSelectedPath(component?.occurrencePath ?? []) }} onFace={face => { if (managerTabRef.current === 'relations') (rackPicking ? pickRackFace : pickFace)(face) }} onEdge={edge => { if (managerTabRef.current === 'relations') (rackPicking ? pickRackEdge : pickDirectionEdge)(edge) }} />
+        onViewSelection={nominateViewSelection} onComponent={component => { abandonInsertionSelection(); setTreeOriginSelection(null); if (linkedTicket.current) generation.current++; setSelectedPath(component?.occurrencePath ?? []) }} onFace={face => { if (managerTabRef.current === 'relations') (rackPicking ? pickRackFace : pickFace)(face) }} onEdge={edge => { if (managerTabRef.current === 'relations') (rackPicking ? pickRackEdge : pickDirectionEdge)(edge) }} />
       <div className="assembly-canvas-label"><strong>{displayed.name}</strong><span>{rackPicking ? rackPicking.kind === 'rack-edge' ? 'Selecciona una arista lineal actual de la cremallera' : rackPicking.kind === 'pinion' ? 'Selecciona el cilindro actual del piñón' : 'Selecciona el eje cilíndrico actual de la cremallera' : dragSession.current ? 'Arrastre · destinos nativos verificados · todavía sin aplicar' : preview ? 'Vista previa · todavía sin aplicar' : documentUpdate ? 'Actualización de subensamblaje · pendiente de resolver y aplicar' : sourceUpdate ? 'Actualización de origen · pendiente de resolver y aplicar' : replacementReview ? 'Sustitución de pieza · pendiente de resolver y aplicar' : activeSymmetryPick ? 'Selecciona ' + SYMMETRY_ROLE_LABELS[activeSymmetryPick.slot] + (activeSymmetryPick.producer === 'line-edge' ? ' · arista lineal' : activeSymmetryPick.producer === 'cylinder-axis' ? ' · eje cilíndrico' : '') : activeHingePick ? 'Selecciona ' + HINGE_ROLE_LABELS[activeHingePick.slot] : widthPickingSlot !== null ? 'Selecciona ' + WIDTH_ROLE_LABELS[widthPickingSlot] : pickingFaces ? `Selecciona referencia ${endpointSlot + 1}` : 'Componentes independientes · mm'}</span></div>
       {!scene?.bodies.length && !busy && <div className="assembly-empty"><Component size={42} /><h2>Diseña un conjunto de piezas</h2><p>Importa una pieza o abre el ejemplo original para empezar.</p></div>}
     </section>
     </main>
     {bomOpen && <AssemblyBomPanel report={bom.report} error={bom.error} options={bomOptions} selectedPath={selectedPath} disabled={bomBlocked}
       onOptionsChange={options => { if (!operation.current && !hasStaging() && !currentPreview.current && !draft && !replaceDialog) setBomOptions(options) }}
-      onSelect={componentPath => { if (!operation.current && !hasStaging() && !currentPreview.current && !draft && !replaceDialog) { abandonInsertionSelection(); setPickingFaces(false); if (fileTicket.current?.purpose === 'update' || linkedTicket.current) generation.current++; setSelectedPath(componentPath) } }}
+      onSelect={componentPath => { if (!operation.current && !hasStaging() && !currentPreview.current && !draft && !replaceDialog) { abandonInsertionSelection(); setNormalSelection(nominateAssemblyNormalUnsupported(JSON.stringify(['component', componentPath]), normalViewContext)); setPickingFaces(false); if (fileTicket.current?.purpose === 'update' || linkedTicket.current) generation.current++; setSelectedPath(componentPath) } }}
       onExport={() => void exportBom()} onClose={() => { restoreBomFocus.current = true; setBomOpen(false); setRibbonTab('evaluate') }} />}
     <footer className={`assembly-status ${error ? 'error' : ''}`} role="status" aria-live="polite">{busy && <Loader2 size={14} className="assembly-spinner" />}<span>{message}</span>{scene && <small>{scene.solidCount} sólidos · {scene.prototypeCount} orígenes · {scene.volume.toLocaleString(undefined, { maximumFractionDigits: 3 })} mm³</small>}</footer>
     {activeContext && <CadContextMenu targetName={contextRow?.occurrence.name ?? contextOrigin?.display.label ?? 'Vista del ensamblaje'}

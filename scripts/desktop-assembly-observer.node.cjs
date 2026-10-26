@@ -6,7 +6,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 // Exercise the actual injected observer without starting Electron or CAD.
-function observer() {
+function observer(options = []) {
   const source = fs.readFileSync(path.join(__dirname, 'desktop-pattern-ui.cjs'), 'utf8');
   const start = source.indexOf('function installWorkerObserver(');
   const end = source.indexOf('\nasync function runInElectron()', start);
@@ -19,7 +19,7 @@ function observer() {
   }
   // DOM mutation auditing is outside this worker-projection test.
   const context = vm.createContext({ Worker, Blob, document: {}, MutationObserver: class { observe() {} } });
-  vm.runInContext(source.slice(start, end) + '\ninstallWorkerObserver();', context);
+  vm.runInContext(source.slice(start, end) + '\ninstallWorkerObserver(...' + JSON.stringify(options) + ');', context);
   return { api: context.__solidflowUiTestObservation, worker: vm.runInContext('new Worker()', context) };
 }
 const plain = value => JSON.parse(JSON.stringify(value));
@@ -70,4 +70,39 @@ test('completed cardinality stays exact beyond the ten-record diagnostic window'
   assert.deepEqual(plain(api.assemblyResponseAfter(14, action)), {
     serial: 14, assemblyCount: 14, workerErrors: [], record: null, completedCount: 0, matching: [],
   });
+});
+
+// Synthetic transport DTOs; these do not assert native CAD validity.
+function normalScene(configured) {
+  const bounds = { min: [0,0,0], max: [1,1,1] };
+  return { kind: 'assembly-scene', sceneId: 'original', volume: 1, area: 6, solidCount: 1, prototypeCount: 1,
+    bounds, visibleBounds: bounds, warnings: [], bodies: [{ component: { occurrencePath: ['original'] },
+      body: { bodyId: 'original-body', sourceFeatureId: 'original-feature' }, name: 'Original', visible: true,
+      worldPose: { translation: [0,0,0], rotation: [0,0,0,1] }, volume: 1, area: 6, solidCount: 1, bounds,
+      ...(configured ? { configurationAncestry: [{ path: [], configuration: 'original' }] } : {}),
+      faces: [{ selection: { face: { key: 'original-face' } }, support: null, worldSupport: null,
+        worldViewAxis: { kind: 'axis', point: [0,0,0], direction: [0,0,1], xDirection: [1,0,0] }, vertices: [], triangles: [] }], edges: [] }] };
+}
+
+test('mixed normal-view observer retains standard and configured native metadata without inventing ancestry', () => {
+  const { api, worker } = observer([false,false,false,true,false,false,false,true]);
+  const scene = normalScene(false), configured = normalScene(true);
+  worker.postMessage({ id: 'standard', action: 'build-assembly' });
+  worker.emit('message', { id: 'standard', ok: true, value: scene });
+  worker.postMessage({ id: 'configured', action: 'build-configured-assembly' });
+  worker.emit('message', { id: 'configured', ok: true, value: { kind: 'configured-assembly-scene', context: {}, scene: configured, referenceDiagnostics: [] } });
+  const rows = plain(api.snapshot()).assemblies;
+  assert.equal(rows.length,2);
+  assert.equal(Object.hasOwn(rows[0].response.value.bodies[0],'configurationAncestry'),false);
+  assert.deepEqual(rows[1].response.value.scene.bodies[0].configurationAncestry,configured.bodies[0].configurationAncestry);
+  assert.deepEqual(rows[0].response.value.bodies[0].faces[0].worldViewAxis,scene.bodies[0].faces[0].worldViewAxis);
+  assert.equal(worker.sent.length,2);
+});
+
+test('configured observation still rejects a missing required configuration ancestry', () => {
+  for (const mixed of [false,true]) {
+    const { worker } = observer([false,false,false,true,false,false,false,mixed]);
+    worker.postMessage({ id: 'configured', action: 'build-configured-assembly' });
+    assert.throws(()=>worker.emit('message',{id:'configured',ok:true,value:{kind:'configured-assembly-scene',context:{},scene:normalScene(false),referenceDiagnostics:[]}}));
+  }
 });

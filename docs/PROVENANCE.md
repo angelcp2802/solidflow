@@ -1,5 +1,90 @@
 # Public fixture provenance
 
+## Original Normal To geometry and orientation witnesses
+
+`scripts/desktop-normal-to-view-original.cjs` authors three documents directly
+from a new parametric recipe. The part starts with a centred 20 × 12 mm XY
+rectangle and a 4 mm extrusion along +Z. A circle of radius 1.5 mm centred at
+(-4,1) on z=4 cuts 2 mm downward, leaving a blind pocket with floor z=2.
+Its offset centre distinguishes orientation and roll without imported geometry.
+
+The independent solid volume is `20 × 12 × 4 - pi × 1.5² × 2`, or
+`960 - 4.5*pi mm³`. The original box area is
+`2 × (20×12 + 20×4 + 12×4) = 736 mm²`; the removed top disk and pocket
+floor cancel, leaving the cylindrical wall `2*pi × 1.5 × 2`.
+The native BRep area is therefore `736 + 6*pi mm²`. This is an analytic
+surface-area expectation, not a tessellated curved-mesh area oracle.
+Part bounds are (-10,-6,0) to (10,6,4).
+
+The standard assembly uses two fixed visible occurrences of that same part,
+with no mates: `ground` at identity and `turned` rotated +90 degrees about Z
+and translated (30,0,0). Its literal point map is
+`(x,y,z) -> (30-y,x,z)`, represented by quaternion
+`(0,0,sqrt(1/2),sqrt(1/2))`. The second pocket centre is consequently
+(29,-4), and its source YZ plane has world normal +Y and natural up +Z.
+Combined bounds are (-10,-10,0) to (36,10,4); the summed volume and native
+area are twice the single-part formulas. The configured document wraps the
+same assembly in one original root configuration with no occurrence or mate
+overrides. It is not an additional nested-configuration witness.
+
+The planned `test:desktop:normal-to-view` route opens these three originals
+through the application and uses actual pointer, modified-selection and key
+events. Independently declared world points, the known solid envelopes and
+the documented Fit conventions predict pixel positions; returned native face
+identities confirm what was actually picked. The route does not read or set
+application camera matrices, inject a selection or calculate expected picks
+with the production projection helper. Representative points include the
+upper face (5,-2,4), pocket floor (-4,1,2), opposite bottom (-4,1,0), and
+the rotated component's Y-normal side at (29,10,3). The intended cylindrical
+wall hit starts from an oblique view at
+`(-4-1.5/sqrt(2), 1-1.5/sqrt(2), 3)`.
+
+The route is designed to exercise nearest orientation and Previous, a planar
+face's natural up, repeated-side reversal, ordered face/datum and datum/datum
+pairs, the rotated component datum, the native cylindrical axis and invalid
+parallel selections. Part-only checks also cover a single-sketch feature,
+unsupported body selection and the active 2D sketch's Fit. Native volume and
+assembly BRep area use 1e-5 mm³/mm²; bounds use 1e-6 mm, analytical direction
+comparisons 1e-6 and the 2D sketch framing check 0.11 CSS pixels. The part
+renderer does not substitute its mesh area for native BRep area.
+
+Exact Previous pixel comparison is limited to the existing central canvas
+crop with no selection and no origin overlays; this route requires zero
+masked rectangles for that comparison. Selected faces and datum overlays
+instead have identity, orientation and actual-hit checks, without equivalent
+raster claims. Camera actions are intended to preserve the committed recipe,
+worker observation, model Undo/Redo state and file activity. Sketch entry and
+Cancel may perform their ordinary preview/rebuild work; settled 2D camera
+actions may not. The three input files must remain byte-identical, with exactly
+three granted Opens and no Saves. These are declared assertions of the route,
+not an execution result; acceptance remains pending in [validation](VALIDATION.md).
+
+The smaller witnesses establish separate contracts. `normalToView.test.ts`
+uses independent analytical frames, including normal (3/5,0,4/5), ordered
+nonparallel normals and rolled cardinal cameras, to test natural up, pair
+projection, nearest full orientation, deterministic ties and invalid inputs.
+`assemblyNormalTo.test.ts` reuses the tracked configuration-core prism catalog
+for rotated/nested world frames and selection lifetime; it does not establish
+new native geometry. Component fallback, explicit empty selection, stale
+contexts and four-reference removal remain distinct cases.
+
+`kernel.view-axis.test.ts` constructs native cylinder and cone surface patches
+with radius 2, parameter interval 0..4 and cone half-angle pi/6, around an
+axis through (3,4,5) directed +Y with radial +X. Their independent areas are
+16*pi and 24*pi mm² respectively. An X90 rotation followed by translation
+(8,-2,3) gives axis point (11,-7,7) and direction +Z. The tests inspect native
+placement and reversal, detached metadata, unchanged reference keys, planar
+and spherical rejection, and native-query failure propagation. A separate
+assembly placement checks the presentation axis in world coordinates while
+retaining the original mate supports. Conical extraction is represented by
+these native witnesses; the new desktop fixture contains a cylinder, not a
+cone, so it cannot establish conical pointer interaction.
+
+All of these are authored source geometry, mathematical expectations or
+scripted application checks. Helper results do not prove renderer behavior;
+native surface extraction does not prove UI interaction; a desktop case does
+not establish cross-platform support or equivalence with another application.
+
 ## Original saved relation reference editing case
 
 `scripts/desktop-assembly-mate-reference-edit-original.cjs` reuses the tracked

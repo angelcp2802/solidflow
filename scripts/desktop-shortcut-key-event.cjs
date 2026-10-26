@@ -4,7 +4,7 @@
 // with their key event; they never call an application or DOM editing handler.
 async function dispatchShortcutKey(combo, { platform, editable, send }) {
   const combos = { O:['o',79], S:['s',83], ShiftS:['s',83], Z:['z',90], Y:['y',89], A:['a',65], N:['n',78],
-    ShiftZ:['z',90], '1':['1',49], '2':['2',50], '3':['3',51], '4':['4',52], '5':['5',53], '6':['6',54], '7':['7',55], F:['f',70], Escape:['Escape',27], Tab:['Tab',9], Backspace:['Backspace',8] };
+    ShiftZ:['z',90], '1':['1',49], '2':['2',50], '3':['3',51], '4':['4',52], '5':['5',53], '6':['6',54], '7':['7',55], '8':['8',56], F:['f',70], Escape:['Escape',27], Tab:['Tab',9], Backspace:['Backspace',8] };
   if (!Object.hasOwn(combos, combo) || typeof editable !== 'boolean' || typeof send !== 'function') throw Error('Bounded shortcut transport arguments required');
   if (combo === 'A' && !editable) throw Error('Select-all requires a current owned editable input');
   const primary = !['F','Escape','Tab','Backspace'].includes(combo), shift = combo.startsWith('Shift'), mac = platform === 'darwin';
