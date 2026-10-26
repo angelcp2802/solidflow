@@ -269,7 +269,7 @@ module.exports = function mateReferenceEditWorkflow(context) {
       return !!e&&!e.disabled&&r?.classList.contains('active')&&!r.disabled&&document.querySelector('.assembly-viewport')?.getAttribute('data-reference-picking')==='origin';
     },selector,slot));
     await actual(selector);
-    const label=(id??'Ámbito actual')+' · '+(kind==='principal-axis'?'Eje de origen ':'')+value;
+    const label=(id?occurrence(expected,id).name:'Ámbito actual')+' · '+(kind==='principal-axis'?'Eje de origen ':'')+value;
     await waitFor('exact origin stored in role',()=>page((selector,label)=>document.querySelector(selector+' span')?.textContent===label
       &&document.querySelector('.assembly-viewport')?.getAttribute('data-reference-picking')==='',role(slot),label));
     check(await serial()===before,'Origin reference choice creates no worker request');

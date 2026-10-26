@@ -10,6 +10,7 @@ import { retainAssemblyAngleEdit, resolveAssemblyAngleEdit, assemblyAngleUiEdit,
 import { retainOrdinaryMateEdit, resolveOrdinaryMateEdit, assemblyOrdinaryMateUiEdit, type OrdinaryMateEditTicket, type AssemblyOrdinaryMate } from './assemblyOrdinaryMateEdit'
 import CadContextMenu, { type CadContextAction } from './CadContextMenu'
 import { assemblyTreeRows, createAssemblyComponentContextTarget, resolveAssemblyComponentContextTarget, resolveAssemblyOriginContextEntry, type AssemblyTreeRow, type AssemblyComponentContextTarget } from './assemblyContextTarget'
+import { assemblyReferenceCardLabel } from './assemblyReferenceCardLabel'
 export { assemblyTreeRows, type AssemblyTreeRow } from './assemblyContextTarget'
 import { insertAssemblyStepFile } from '../model/assemblyStepInsertion'
 import { importStructuralStep } from '../model/structuralStepImport'
@@ -2659,7 +2660,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
           <button aria-label={`Referencia ${index + 1} de la relación`} disabled={referenceBlocked} className={endpointSlot === index ? 'active' : ''} onClick={() => {
             if (referenceBlocked || operation.current || hasStaging() || currentPreview.current || !referenceEditorIsCurrent()) return
             stopOriginPicking(); setDragMode('off'); setPickingLinearEdges(false); setEndpointSlot(index as 0 | 1); setPickingFaces(true)
-          }}><strong>Referencia {index + 1}</strong><span>{referenceLabel(reference)}</span></button>
+          }}><strong>Referencia {index + 1}</strong><span title={reference ? JSON.stringify(reference) : undefined}>{assemblyReferenceCardLabel(reference, rows, scopePath)}</span></button>
           {editedReferences && <button title="Quitar referencia" aria-label={`Quitar referencia ${index + 1} de la relación`} disabled={referenceBlocked || !reference} onClick={() => {
             if (referenceBlocked || operation.current || hasStaging() || currentPreview.current || !referenceEditorIsCurrent()) return
             stopOriginPicking(); setRelationReference(index as 0 | 1, null); setEndpointSlot(index as 0 | 1); setSelectedFaceMeshes([]); setPickingFaces(false); setPickingLinearEdges(false)

@@ -1,5 +1,78 @@
 # Validation
 
+## Names in standard relation reference cards — 2026-10-26
+
+The two generic standard-assembly reference cards now display current occurrence
+names, including nested ancestry and display-only ordinals for same-named
+siblings. The original reference remains in the tooltip. Missing, ambiguous or
+incompatible paths/revisions show `Referencia no vigente`; names do not replace
+saved identity. Other relation panels retain their existing presentation.
+
+Six fresh commands passed on Windows x64 with Node 24.11.1 and Electron 44.9.3,
+against 1,196 matching source/runtime inputs. Dependencies were not changed.
+
+| Command | Result | Elapsed |
+| --- | --- | --- |
+| `npm run build` | PASS | 7.005 s |
+| `npm test` | 9,973 tests in 439 files; 154 IPC passes, two explicit skips | 528.769 s |
+| `npm run test:desktop:assembly-basic-authoring` | PASS; 409 recorded checks | 45.235 s |
+| `npm run test:desktop:assembly-mate-reference-edit` | PASS; 276 recorded checks | 42.887 s |
+| `npm run test:desktop:assembly-origin-axes` | PASS; 323 recorded checks | 35.431 s |
+| `npm run test:desktop` | PASS | 4.429 s |
+
+The label tests use original symbolic documents to cover reused occurrences,
+nested scopes, duplicate names, rename/reversal, stale identity, missing paths
+and unchanged references. The renderer routes compare labels against document
+names while retaining the existing identity, geometry, history and persistence
+checks. The reference-edit fixture now has names distinct from occurrence IDs;
+its geometry and identities are unchanged. All four saved relation edits passed;
+distance and angle retain exact Cancel raster checks, while coincidence and
+concentricity retain their semantic-only raster scope.
+
+All three renderer processes reported no console/request errors, successful
+resource responses, observed child closure and isolated-profile cleanup. These
+are local scripted checks, not new human-user or cross-platform acceptance.
+The earlier hosted stability failures remain open.
+
+## Continuous native-window part and assembly walkthrough — 2026-10-26
+
+A local Windows x64 package of version 0.19.0 exercised the production code at
+public head `d103c8c114f67adec6e833bb116f67794a0c7ab9`. The later `7f480766`
+increment changes test diagnostics only. The package used Electron 44.9.3 and
+an isolated task-owned profile. This was agent-driven native-window interaction,
+not human-user acceptance or an installed-platform certification.
+
+Starting with an empty part, the walkthrough drew an original rectangle,
+extruded it by 20 mm, then drew two circles in successive face-supported
+sketches and cut each by -20 mm. Native Save and later Open reconstructed one
+solid with both bores and the three solid operations. The saved rectangle is
+40.135 by 40.27 mm; the circles have radii 4.82 and 3.265 mm. The displayed
+volume, 30,195.193 mm3, agrees with the independent formula
+`20*(40.135*40.27-pi*(4.82^2+3.265^2))` at the UI's three decimal places.
+This comparison does not claim additional precision from a rounded display.
+
+The current part became the fixed first assembly occurrence. A second use was
+renamed and moved to X=80 mm through preview and Apply. Viewport selection of
+the root XY plane and the second occurrence's XY plane authored an aligned
+coincidence. A second relation selected the two occurrences' YZ planes and set
+a signed distance of 60 mm. Under `q=n2 dot (P1-P2)`, with identity rotations
+and YZ normal +X, the expected second X coordinate is -60 mm; the saved value
+differed by approximately 2.56e-10 mm. The first occurrence stayed fixed at
+the origin; the second retained Y=Z=0 and identity rotation.
+
+Native Save As, switching to the standalone part, and native Open of the
+related assembly preserved both occurrences and both relations. A fresh solve
+reported one remaining local degree of freedom and rank five. The coincidence
+reported zero linear/angular residual; the distance reported 2.56e-10 mm and
+zero angular residual against displayed limits of 1e-6 mm and 1e-8 rad.
+Cancel restored the clean saved assembly. Its embedded part exactly matched
+the separately saved part, and its displayed combined volume was 60,390.385 mm3.
+
+The original documents and evidence remain private local test artifacts. This
+bounded route does not cover all origin axes, material references, nested or
+configured assemblies, history editing, or the broader first-use checklist.
+No checklist item or release gate is closed by this walkthrough alone.
+
 ## Basic symmetry Save observations — 2026-10-26
 
 This increment extends an existing test observer to the basic symmetry route.

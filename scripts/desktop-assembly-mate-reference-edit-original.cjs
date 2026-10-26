@@ -9,7 +9,7 @@ module.exports = function originalMateReferenceEdit() {
   const definition = { id: document.id, revision: 'r1' };
   const ref = (kind, id, value) => ({ kind, component: id ? { occurrencePath: [id], definition: { ...definition } } : null,
     [kind === 'principal-plane' ? 'plane' : 'axis']: value });
-  const occurrence = (id, translation, fixed = false, degrees = 0) => ({ id, name: id, definition: { ...definition }, fixed,
+  const occurrence = (id, translation, fixed = false, degrees = 0) => ({ id, name: 'Original ' + id, definition: { ...definition }, fixed,
     visible: true, suppressed: false, pose: { translation, rotation: [0, 0, Math.sin(degrees * Math.PI / 360), Math.cos(degrees * Math.PI / 360)] } });
   const mate = (type, first, second, fields = {}) => ({ id: 'original-' + type, name: 'Original ' + type, type, first, second, suppressed: false, ...fields });
   return { version: 2, kind: 'assembly', id: 'original-mate-reference-edit', revision: 'r1', name: 'Original reference editing', units: 'mm',

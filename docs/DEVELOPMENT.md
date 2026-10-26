@@ -1,5 +1,21 @@
 # Development guide
 
+## Names in standard relation reference cards — 2026-10-26
+
+The two generic reference cards in the standard assembly Relations inspector
+show current occurrence names instead of internal IDs. Resolve a component's
+scope-relative saved path against the current document tree, requiring a unique
+complete path and its exact definition/revision. Nested names include their
+ancestor names; same-named siblings receive a display-only instance ordinal in
+document order. Missing or incompatible declarations show `Referencia no vigente`
+rather than borrowing another component's name.
+
+Derive these labels from current rows during rendering. Names and instance
+ordinals are presentation only: they never replace saved identity or authorize a
+reference. The original reference remains available in the card's tooltip.
+Current-scope datums and empty roles keep their existing labels. Other relation
+panels and the configured workspace retain their existing presentation.
+
 ## Basic symmetry Save observations — 2026-10-26
 
 The basic five-family symmetry renderer route now uses the same passive Save

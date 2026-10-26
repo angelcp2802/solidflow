@@ -571,7 +571,7 @@ module.exports = function basicAuthoringWorkflow(context) {
     check(doc.occurrences.filter(o => o.id !== id).every(o => canonical(occurrence(value.document, o.id)) === canonical(o)), 'Other occurrences remain exact through the move');
     await recovery(doc); return apply(value, 'move-' + x, expectedCount);
   }
-  async function origin(slot, kind, id, value) {
+  async function origin(slot, kind, id, value, doc) {
     if (id) await select(id);
     await control('[aria-label="Orígenes visibles de"]', id ? 'selected' : 'scope');
     const toggle = '.assembly-origin-tools label:nth-of-type(' + (kind === 'principal-axis' ? 1 : 2) + ') input';
@@ -617,7 +617,7 @@ module.exports = function basicAuthoringWorkflow(context) {
       throw Error(error.message + ': ' + JSON.stringify(readiness));
     }
     await actual(selector);
-    const label = (id ?? 'Ámbito actual') + ' · ' + (kind === 'principal-axis' ? 'Eje de origen ' : '') + value;
+    const label = (id ? occurrence(doc, id).name : 'Ámbito actual') + ' · ' + (kind === 'principal-axis' ? 'Eje de origen ' : '') + value;
     await waitFor('exact picked origin assigned to intended role', () => page((slot, label) => document.querySelector('[aria-label="Referencia ' + slot + ' de la relación"] span')?.textContent === label
       && document.querySelector('[aria-label="Visor 3D del ensamblaje"]')?.getAttribute('data-reference-picking') === '', slot, label));
     check(canonical(await observe.counters()) === canonical(before), 'Origin pick alone changes no native history');
@@ -748,11 +748,11 @@ module.exports = function basicAuthoringWorkflow(context) {
     gestures.push({ action: 'explicit-fit-after-three-component-placement', documentSha256: digest(canonical(current)) });
     await viewportContextWorkflow(current, owners.follower);
     await control(TYPE, 'distance'); await control(NAME, 'Guide to root'); await control('[aria-label="Distancia firmada"]', '-10');
-    await origin(1, 'principal-plane', null, 'YZ'); await origin(2, 'principal-plane', owners.guide, 'YZ');
+    await origin(1, 'principal-plane', null, 'YZ', current); await origin(2, 'principal-plane', owners.guide, 'YZ', current);
     current = await apply(await preview(current, '#assembly-panel-relations button', 'Vista previa de la nueva relación', 'root-plane-preview', 1, -10), 'root-plane-apply', 3, -10);
     current = await editSavedDistance(current);
     await control(TYPE, 'parallel'); await control(NAME, 'Follower to base');
-    await origin(1, 'principal-axis', owners.follower, 'Z'); await origin(2, 'principal-axis', owners.base, 'Z');
+    await origin(1, 'principal-axis', owners.follower, 'Z', current); await origin(2, 'principal-axis', owners.base, 'Z', current);
     await control('[aria-label="Orientación de la relación"]', 'aligned');
     current = await apply(await preview(current, '[aria-label="Vista previa de la nueva relación direccional"]', null, 'component-axis-preview', 2), 'component-axis-apply');
     const parallelDoc = current, originalMate = current.mates.find(m => m.name === 'Follower to base');
@@ -772,7 +772,7 @@ module.exports = function basicAuthoringWorkflow(context) {
       check(canonical(restored) === canonical(wanted), 'One history step restores complete authored assembly'); relationGeometry(restored, -12);
     }
     await control(TYPE, 'angle'); await control(NAME, 'Guide to base angle'); await control('[aria-label="Ángulo de relación"]', '30');
-    await origin(1, 'principal-axis', owners.guide, 'Z'); await origin(2, 'principal-axis', owners.base, 'Z');
+    await origin(1, 'principal-axis', owners.guide, 'Z', current); await origin(2, 'principal-axis', owners.base, 'Z', current);
     const beforeAngle = current;
     candidate = await preview(current, '#assembly-panel-relations button', 'Vista previa de la nueva relación', 'principal-angle-preview', 3, -12, 'aligned', 30);
     check(canonical(candidate.document.mates.slice(0, 2)) === canonical(beforeAngle.mates)

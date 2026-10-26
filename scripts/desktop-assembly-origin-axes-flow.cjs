@@ -264,15 +264,17 @@ module.exports = function originAxesWorkflow(c) {
       labelSelected: document.querySelector('button[aria-label="' + label + '"]')?.classList.contains('selected'),
     }), configured, label) } });
     if (accepted) {
-      await waitFor('actual origin assigned to intended role', () => page((configured, slot, wanted) => {
+      const ownerName = !configured && owner ? expected.occurrences.find(value => value.id === owner)?.name : 'Ámbito actual';
+      if (!configured) check(typeof ownerName === 'string' && ownerName.length > 0, 'Exact original origin owner has a display name');
+      await waitFor('actual origin assigned to intended role', () => page((configured, slot, wanted, ownerName) => {
         if (configured) { const value = document.querySelector('[aria-label="Referencia ' + slot + ' de relación configurada"]')?.value;
           if (!value) return false; const ref = JSON.parse(value);
           return ref.kind === wanted.kind && ref.axis === wanted.axis && ref.plane === wanted.plane
             && (wanted.component ? JSON.stringify(ref.component?.occurrencePath) === JSON.stringify(wanted.component.occurrencePath)
               && ref.component?.definition.id === wanted.component.definition.id && ref.component?.definition.revision === wanted.component.definition.revision : ref.component === null); }
-        const text = (wanted.component?.occurrencePath.join(' / ') ?? 'Ámbito actual') + ' · ' + (wanted.kind === 'principal-axis' ? 'Eje de origen ' + wanted.axis : wanted.plane);
+        const text = ownerName + ' · ' + (wanted.kind === 'principal-axis' ? 'Eje de origen ' + wanted.axis : wanted.plane);
         return document.querySelector('[aria-label="Referencia ' + slot + ' de la relación"] span')?.textContent === text;
-      }, configured, slot, wanted));
+      }, configured, slot, wanted, ownerName));
       await waitFor('origin selection ends after assigning one role', async () => await originMode() === '');
       const after = await references(); check(after[slot === 1 ? 1 : 0] === original[slot === 1 ? 1 : 0], 'The other origin role remains unchanged');
       check(await page(key => [...document.querySelectorAll('[data-origin-key]')].some(e => e.getAttribute('data-origin-key') === key && e.classList.contains('selected')), key), 'Accepted current origin is visibly highlighted');
