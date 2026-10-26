@@ -225,7 +225,7 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
     const transform = new TransformControls(camera, renderer.domElement), proxy = createAssemblyDragProxy(identityRigidPose())
     const helper = transform.getHelper(); world.add(proxy, helper); transform.enabled = false
     transform.setSize(.9)
-    let controls = new OrbitControls(camera, renderer.domElement); controls.enableDamping = true; controls.screenSpacePanning = true
+    let controls = new OrbitControls(camera, renderer.domElement)
     configureCadNavigation(controls)
     const selectionGesture = createCadSelectionGesture()
     let acceptedGesture = false, dragConsumed = false
@@ -284,10 +284,10 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
       camera.near = Math.max(.001, span * .001); camera.far = span * 20; camera.zoom = 1; camera.updateProjectionMatrix(); controls.update()
     }
     const navigation = bindViewNavigation(navigationHistory, camera, controls, fitRaw, () => Math.max(element.clientWidth, 1) / Math.max(element.clientHeight, 1), () => {
-      const position = camera.position.clone(), target = controls.target.clone(), enabled = controls.enabled, damping = controls.dampingFactor
+      const position = camera.position.clone(), target = controls.target.clone(), enabled = controls.enabled
       controls.removeEventListener('start', pointerLeave); controls.dispose()
       controls = new OrbitControls(camera, renderer.domElement)
-      configureCadNavigation(controls); controls.enableDamping = true; controls.dampingFactor = damping; controls.enabled = enabled
+      configureCadNavigation(controls); controls.enabled = enabled
       controls.target.copy(target); camera.position.copy(position); camera.lookAt(target); camera.updateMatrixWorld()
       controls.addEventListener('start', pointerLeave)
       if (context.current) context.current.controls = controls
@@ -331,7 +331,8 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
     context.current = { navigation, scene: null, group, analysis, markers, clearHover, camera, controls, bodies: [], faces: [], edges: [], fit, highlight, syncDrag }
     const size = () => ({ width: element.clientWidth, height: element.clientHeight })
     const renderFrame = () => {
-      controls.update(); navigation.afterUpdate(); renderer.render(world, camera)
+      // Direct controls update in their input handlers and explicit Fit calls.
+      navigation.afterUpdate(); renderer.render(world, camera)
       presentedScene = context.current?.scene ?? null
       originFrame.current = displayedOriginCatalog
       const width = element.clientWidth, height = element.clientHeight

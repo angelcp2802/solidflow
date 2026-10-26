@@ -6,6 +6,9 @@ export function configureCadNavigation(controls: OrbitControls): void {
   controls.mouseButtons = { LEFT: null, MIDDLE: MOUSE.ROTATE, RIGHT: null }
   controls.enableZoom = true
   controls.screenSpacePanning = true
+  // Direct CAD manipulation ends with the input; there is no inertial tail.
+  controls.enableDamping = false
+  controls.autoRotate = false
 }
 
 type Pointer = Pick<PointerEvent, 'pointerId' | 'button' | 'clientX' | 'clientY'>

@@ -246,9 +246,6 @@ export default function Viewport({
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     el.appendChild(renderer.domElement);
     let controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.12;
-    controls.screenSpacePanning = true;
     configureCadNavigation(controls);
     scene.add(new THREE.HemisphereLight(0xf5f9ff, 0x657b92, 2.5));
     const key = new THREE.DirectionalLight(0xffffff, 3);
@@ -297,10 +294,10 @@ export default function Viewport({
       controls.update();
     };
     const navigation = bindViewNavigation(navigationHistory, camera, controls, fitRaw, () => Math.max(el.clientWidth, 1) / Math.max(el.clientHeight, 1), () => {
-      const position = camera.position.clone(), target = controls.target.clone(), enabled = controls.enabled, damping = controls.dampingFactor
+      const position = camera.position.clone(), target = controls.target.clone(), enabled = controls.enabled
       controls.removeEventListener('change', cameraChanged); controls.dispose()
       controls = new OrbitControls(camera, renderer.domElement)
-      configureCadNavigation(controls); controls.enableDamping = true; controls.dampingFactor = damping; controls.enabled = enabled
+      configureCadNavigation(controls); controls.enabled = enabled
       controls.target.copy(target); camera.position.copy(position); camera.lookAt(target); camera.updateMatrixWorld()
       controls.addEventListener('change', cameraChanged)
       if (context.current) context.current.controls = controls
@@ -596,7 +593,7 @@ export default function Viewport({
     renderer.domElement.addEventListener("pointermove", pointerMove);
     renderer.domElement.addEventListener("pointerleave", pointerLeave);
     renderer.setAnimationLoop(() => {
-      controls.update();
+      // Direct controls update in their input handlers and explicit Fit calls.
       navigation.afterUpdate();
       if (hoverDirty) {
         hoverDirty = false;

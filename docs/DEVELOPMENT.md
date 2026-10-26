@@ -1,5 +1,36 @@
 # Development guide
 
+## Direct camera input and bounded symmetry observation — 2026-10-26
+
+Part and assembly viewports use direct camera manipulation. Middle-button
+orbit, modified-middle pan and wheel zoom end at their last input pose, with
+no inertial tail or automatic rotation. The shared configuration also applies
+when controls are recreated for a changed up direction or focus-loss cancel.
+Input handlers and explicit Fit update controls; render frames do not advance
+them again. Before rendering, the completed pose is reapplied to prevent
+vector/spherical round-trip drift. Empty gestures retain their starting pose.
+This is an explicit interaction policy, not proof of another application's
+runtime behavior.
+
+Camera history still records one effective gesture and remains separate from
+model Undo. View commands stay blocked while the gesture is held. Cancel, Fit,
+resize, sketch remount and New/Open keep their existing ownership rules.
+Gesture finalization also checks the actual pose when controls emit no change
+event. Translation comparisons use visible height/zoom with a floating-point
+rounding floor, preserving the fine pan in the covered high-zoom and
+translated-origin cases.
+Numerical tests use real installed controls and compare complete poses,
+quaternions and matrices immediately after input and after subsequent frames.
+Renderer checks retain exact crop comparisons, bounded text masks and their
+existing deadlines; record actual results separately in [validation](VALIDATION.md).
+
+The symmetry-picking renderer workflow reads scalar counters where it only
+needs a serial and filters the requested worker response before copying it
+across the renderer boundary. The full selected response and all worker errors
+remain available. Exact completed cardinality must be at most one before a
+response is accepted; a bounded diagnostic summary cannot replace that count.
+Original geometric checks, pointer picks, saved files and deadlines remain.
+
 ## Source revision Save diagnostics — 2026-10-26
 
 The source-revision renderer workflow retains one bounded last-observation

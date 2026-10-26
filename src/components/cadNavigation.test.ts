@@ -32,6 +32,14 @@ function fixture() {
   return { surface, camera, controls, position, target, direction, drag }
 }
 describe('CAD camera controls', () => {
+  it('disables inertial and automatic movement even when reconfiguring existing controls', () => {
+    const f = fixture()
+    try {
+      f.controls.enableDamping = true; f.controls.autoRotate = true
+      configureCadNavigation(f.controls)
+      expect(f.controls.enableDamping).toBe(false); expect(f.controls.autoRotate).toBe(false)
+    } finally { f.controls.dispose() }
+  })
   it.each([{}, { shiftKey: true }, { ctrlKey: true }, { metaKey: true }])('keeps left drag out of camera navigation: %j', modifiers => {
     const f = fixture()
     try { f.drag(0, modifiers); expect(f.camera.position.distanceTo(f.position)).toBeLessThan(1e-12); expect(f.controls.target.equals(f.target)).toBe(true); expect(f.camera.zoom).toBe(1) }

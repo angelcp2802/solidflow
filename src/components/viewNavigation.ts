@@ -28,7 +28,18 @@ export interface CameraView {
 }
 const copy = (value: CameraView): CameraView => ({ ...value, position: [...value.position], target: [...value.target], up: [...value.up] })
 const equal = (a: CameraView, b: CameraView) => {
-  const values = (v: CameraView) => [...v.position, ...v.target, ...v.up, v.top, v.bottom, v.zoom, v.near, v.far]
+  // Translation precision follows the visible scale, not distance from the
+  // world origin: a small scene-space pan can be large on screen at high zoom.
+  const tolerance = 1e-10 * Math.min(Math.abs(a.top - a.bottom) / a.zoom, Math.abs(b.top - b.bottom) / b.zoom)
+  const coordinates = (v: CameraView) => [...v.position, ...v.target]
+  if (!coordinates(a).every((value, index) => {
+    const other = coordinates(b)[index]
+    // A few arithmetic round trips at a translated origin can move one ULP
+    // even for zero input. Keep that rounding floor distinct from view scale.
+    const roundoff = 8 * Number.EPSILON * Math.max(1, Math.abs(value), Math.abs(other))
+    return Math.abs(value - other) <= Math.max(tolerance, roundoff)
+  })) return false
+  const values = (v: CameraView) => [...v.up, v.top, v.bottom, v.zoom, v.near, v.far]
   return values(a).every((value, index) => Math.abs(value - values(b)[index]) <= 1e-10 * Math.max(1, Math.abs(value), Math.abs(values(b)[index])))
 }
 
@@ -100,13 +111,29 @@ export function bindViewNavigation(history: ViewHistory, camera: OrthographicCam
     if (baseline && !equal(baseline, after)) { history.record(baseline, after); baseline = null }
     else history.remember(after)
   }
-  const end = () => { baseline = null; history.gesture(false) }
+  const finishedInput = () => {
+    const after = read(), before = baseline
+    baseline = null
+    // Controls suppress change events for small scene-space displacements.
+    // At high zoom those can still be visible, so finalize from the actual pose.
+    if (!before) return after
+    if (equal(before, after)) return before
+    history.record(before, after)
+    return after
+  }
+  const end = () => {
+    if (suspended) return
+    // Empty gestures retain the exact starting pose. Effective gestures keep
+    // their last input pose, before subsequent frames or commands can drift.
+    anchored = finishedInput(); install(anchored); history.remember(anchored)
+    history.gesture(false)
+  }
   controls.addEventListener('start', start); controls.addEventListener('change', change); controls.addEventListener('end', end)
   history.attach(true)
   return {
     cancelGesture() {
       if (!history.navigating) return
-      const value = read()
+      const value = finishedInput()
       quiet(() => { recreateControls(); install(value) })
       baseline = null; anchored = read(); history.remember(anchored); history.gesture(false)
     },
@@ -116,8 +143,8 @@ export function bindViewNavigation(history: ViewHistory, camera: OrthographicCam
       if (direction) { const distance = camera.position.distanceTo(controls.target); camera.position.copy(controls.target).addScaledVector(direction, distance); camera.lookAt(controls.target); anchored = read() }
       if (!restoring) history.remember(read())
     },
-    // OrbitControls clamps its polar angle away from singularities. Preserve an
-    // exact named/restored orthographic pose until a real gesture begins.
+    // Preserve exact named, restored and completed-input poses before rendering;
+    // controls may otherwise round-trip coordinates or clamp a polar view.
     afterUpdate() { if (anchored) install(anchored) },
     request(value: ViewRequest) {
       if (history.navigating) return

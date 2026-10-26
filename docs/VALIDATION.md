@@ -1,5 +1,82 @@
 # Validation
 
+## Direct camera input and bounded symmetry observation — 2026-10-26
+
+Orbit, modified-middle pan and wheel zoom now finish at their last input pose.
+Input handlers and explicit Fit update controls; render frames reapply the
+completed pose without advancing controls. Gesture finalization also checks
+the actual pose when controls suppress a change event. New/Open, Previous
+View, model Undo, selection and manipulator ownership retain their contracts.
+
+Focused checks pass 44/44 with installed OrbitControls. They compare complete
+camera poses, quaternions and matrices at release, through Previous and after
+1/6/30/300/10000 updates, including different input/frame schedules, empty
+gestures, up-direction recreation and cancellation. Four fine-pan cases use
+ten pixels at zoom 100000 near (3,4,5) and (1000000,1000000,1000000), with
+release or cancellation and no controls change event. Expected NDC displacement
+is independently 2×10/400 within 1e-5 (0.002 CSS px); final/restored poses
+remain exact. A subsequent empty pan adds no history. Visible-scale comparison
+with a separate eight-machine-epsilon coordinate floor preserves these motions
+while rejecting the observed round-trip noise. See [provenance](PROVENANCE.md).
+
+The symmetry test reads scalar counters for serial-only baselines and copies
+the requested response rather than the entire retained history. Eight focused
+observer/response tests pass, including six new reader cases. Complete selected
+records, all worker errors, exact completed cardinality, original exceptions
+and deadlines remain; duplicate completions reject before payload acceptance.
+
+Local Windows acceptance passes all 11 commands against 1,177 matching frozen
+source/runtime inputs. Build passes in 6.158 s; `npm test` passes 9,871 tests
+across 433 files plus 131 IPC checks and two explicit skips in 597.796 s.
+Desktop smoke passes in 2.448 s with a loaded WASM kernel, worker-queue checks,
+zero console/request/resource errors and no newly retained temporary profile.
+Durations below include the runner's post-command evidence checks.
+
+| Production-renderer command | Passing checkpoints | Observed wall time |
+| --- | ---: | ---: |
+| `npm run test:desktop:part-from-empty` | 102 | 29.019 s |
+| `npm run test:desktop:assembly-shortcuts` | 173 | 32.301 s |
+| `npm run test:desktop:assembly-configured-shortcuts` | 134 | 28.446 s |
+| `npm run test:desktop:assembly-symmetry-picking` | 269 | 55.960 s |
+| `npm run test:desktop:assembly` | 690 | 73.882 s |
+| `npm run test:desktop:part-finishing` | 103 | 19.795 s |
+| `npm run test:desktop:assembly-configured-picking-compact` | 191 | 14.449 s |
+| `npm run test:desktop:assembly-limit-distance-compact` | 273 | 13.803 s |
+
+All eight renderer routes report zero console/request/resource errors and
+confirmed child closure and temporary-profile cleanup. Original geometry,
+file checks, exact image comparisons and deadlines are unchanged. The first
+private runner stopped after the successful part route because its distribution
+inventory included an SVG absent from the renderer's eight-file report.
+Continuation retains that intact execution and build after verifying all frozen
+inputs and original logs. It compares the exact eight reported files and checks
+the SVG separately against the original distribution and frozen public asset.
+The initial failed ledger is retained; no passing execution was repeated.
+
+A separate offline synthetic profile uses the unchanged observer methods on
+identical histories with one retained original eighteen-body preview payload.
+On Windows x64, Node 24.11.1, Ryzen 7 5800X, five samples per method give:
+at 64 repeated records, returned JSON falls from 17,246,310 to 269,608 bytes
+and median copy time from 109.075 to 2.107 ms. At one record, copy time is
+1.834 versus 1.990 ms, with no improvement. Selected records and worker errors
+remain equal. This measures synthetic copy cost only; history retention and
+scanning still exist. It establishes no renderer/kernel speedup, user latency
+improvement or causal explanation of earlier workflow timings/timeouts.
+Local code and React review checked event cleanup, transient camera ownership
+and event-driven finalization; performance review keeps those limits explicit.
+
+Preceding public head `156b30fc`
+[CI](https://github.com/angelcp2802/solidflow/actions/runs/40293524184)
+passed 7/9 renderer batches and all three configured-authoring jobs. Windows
+persistence shortcuts and symmetry failed; all three dependent Desktop jobs
+failed their renderer prerequisite gate.
+[Security](https://github.com/angelcp2802/solidflow/actions/runs/40293524220)
+succeeded, with the dedicated-worker origin annotation tracked separately.
+Hosted validation of this increment remains pending. Local results do not
+establish a hosted fix, general platform support, native middle-button
+acceptance or complete interface parity. Earlier native-window observations
+remain evidence of their recorded packages, not this newly built increment.
+
 ## Exact source Save diagnostics — 2026-10-26
 
 This increment adds passive test diagnostics for the authored assembly-source

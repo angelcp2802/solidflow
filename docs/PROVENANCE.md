@@ -2,6 +2,23 @@
 
 ## View navigation evidence
 
+Direct-input regressions use the same original synthetic 400×400 event surface
+and installed OrbitControls. Six pointer moves advance from (100,100) by
+(10,4) per event for orbit and pan; wheel input uses the original -100 delta.
+Complete camera pose, quaternion, world matrix and projection matrix are
+compared at release, after 1/6/30/300/10000 updates and across Previous.
+Separate frame schedules, zero-movement input, zero wheel delta, Top/Bottom
+recreation and focus-loss cancellation check transaction ownership. These are
+numerical interaction tests, not new CAD fixtures or rendered-pixel evidence.
+High-zoom cases pan ten pixels at zoom 100000 around (3,4,5) and
+(1000000,1000000,1000000), then release or cancel without a controls change
+event. The independent expected NDC displacement is 2×10/400; its 1e-5 bound
+allows translated-coordinate arithmetic (0.002 CSS px). Final and restored
+camera snapshots remain exact, and a zero-input follow-up must add no history.
+Production translation comparison uses 1e-10 of visible height, with a separate
+eight-machine-epsilon coordinate rounding floor; it does not loosen CAD or
+rendered-pixel acceptance.
+
 Camera navigation reuses the original part authored below and the existing
 two-prism assembly keyboard recipes. It adds no imported geometry or vendor
 assets. Expected orthographic camera directions and up vectors are independently
