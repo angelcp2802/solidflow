@@ -11,6 +11,8 @@ module.exports = async function originTreeControls({ configured = false, page, w
   const tree = require('./desktop-assembly-tree-navigation.cjs')({ page, waitFor, pointer, actualControl });
   const read = () => page(configured => {
     const root = document.querySelector(configured ? '.configured-assembly-workspace' : '.assembly-app');
+    const view = root?.querySelector(configured ? '.configured-assembly-view' : '.assembly-canvas');
+    const normalButtons = [...(root?.querySelectorAll('button.view-normal[aria-label="Normal a"]') ?? [])];
     const history = configured
       ? [...document.querySelectorAll('[aria-label="Archivo del ensamblaje configurado"] button')].filter(el => ['Deshacer', 'Rehacer'].includes(el.textContent.trim()))
       : [...document.querySelectorAll('button[aria-label="Deshacer ensamblaje"],button[aria-label="Rehacer ensamblaje"]')];
@@ -25,6 +27,8 @@ module.exports = async function originTreeControls({ configured = false, page, w
       picking: document.querySelector('[aria-label="Visor 3D del ensamblaje"]')?.getAttribute('data-reference-picking'),
       dragbuttons: [...document.querySelectorAll('button[aria-label="Arrastrar posición"],button[aria-label="Arrastrar giro"]')]
         .map(el => ({ label: el.getAttribute('aria-label'), pressed: el.getAttribute('aria-pressed'), disabled: el.disabled })),
+      normal: { kind: view?.getAttribute('data-normal-selection-kind'), enabled: view?.getAttribute('data-normal-enabled'),
+        buttonCount: normalButtons.length, buttonDisabled: normalButtons[0]?.disabled ?? null },
       origins: [...document.querySelectorAll('[data-assembly-origin-tree-key][aria-selected="true"]')].map(el => el.getAttribute('data-assembly-origin-tree-key')),
       overlay: [...document.querySelectorAll('.assembly-origin-labels [data-origin-key]')].map(el => ({ key: el.getAttribute('data-origin-key'), selected: el.classList.contains('selected'), disabled: el.disabled })) };
   }, mode);
@@ -124,16 +128,39 @@ module.exports = async function originTreeControls({ configured = false, page, w
       });
       await invariants('translation rearmed after datum');
       const rearmedState = await read();
+      check(rearmedState.normal.kind === 'invalid' && rearmedState.normal.enabled === 'false'
+        && rearmedState.normal.buttonCount === 1 && rearmedState.normal.buttonDisabled === true,
+      'Translation rearm retains an unsupported component target and disables the actual Normal To control');
       await tree.press('button[aria-label="Desactivar manipulador"]');
       await waitFor('actual manipulator deactivation clears both modes', async () => dragModeMatches(await read(), null));
       await tree.press(selector);
       await waitFor('same datum is selected again after manipulator deactivation', datumSelected);
       check(dragModeMatches(await read(), null), 'Reselected datum keeps the manipulator disarmed');
       await invariants('datum reselected after manipulator deactivation');
+      await tree.press('button[aria-label="Arrastrar giro"]');
+      await waitFor('actual rotation rearm restores the component and clears the datum overlay', async () => {
+        const state = await read();
+        return dragModeMatches(state, 'Arrastrar giro') && !state.origins.length && !state.overlay.length
+          && canonical(state.components) === canonical(baseline.components);
+      });
+      await invariants('rotation rearmed after datum');
+      const rotationRearmedState = await read();
+      check(rotationRearmedState.normal.kind === 'invalid' && rotationRearmedState.normal.enabled === 'false'
+        && rotationRearmedState.normal.buttonCount === 1 && rotationRearmedState.normal.buttonDisabled === true,
+      'Rotation rearm retains an unsupported component target and disables the actual Normal To control');
+      await tree.press('button[aria-label="Desactivar manipulador"]');
+      await waitFor('actual rotation deactivation clears both modes', async () => dragModeMatches(await read(), null));
+      await tree.press(selector);
+      await waitFor('same datum is selected again after rotation deactivation', datumSelected);
+      check(dragModeMatches(await read(), null), 'Datum reselected after rotation keeps both manipulator modes disarmed');
+      await invariants('datum reselected after rotation deactivation');
       checks.push({ originTreeManipulatorContinuity: { owner: ownerPath, reference,
-        sequence: ['Arrastrar giro', entry.key, 'Arrastrar posición', 'Desactivar manipulador', entry.key],
+        sequence: ['Arrastrar giro', entry.key, 'Arrastrar posición', 'Desactivar manipulador', entry.key,
+          'Arrastrar giro', 'Desactivar manipulador', entry.key],
         selectedDatumModes: datumState.dragbuttons, rearmedModes: rearmedState.dragbuttons,
-        restoredComponent: rearmedState.components, nativeSerial: nativeBefore.serial,
+        restoredComponent: rearmedState.components, rotationRearmedModes: rotationRearmedState.dragbuttons,
+        rotationRestoredComponent: rotationRearmedState.components,
+        normalToWhileArmed: { translation: rearmedState.normal, rotation: rotationRearmedState.normal }, nativeSerial: nativeBefore.serial,
         evidenceLimits: 'Actual CDP mode buttons and datum selection on the original free moving fixture; no drag gesture or CAD solve.' } });
     }
     if (!gestures.length) {

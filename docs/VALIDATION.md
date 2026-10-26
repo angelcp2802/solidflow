@@ -1,5 +1,61 @@
 # Validation
 
+## Origin navigation and Normal To interaction — local acceptance, 2026-10-26
+
+Arming component translation or rotation now clears the browsed datum's Normal
+To selection as well as the tree selection. The component remains selected;
+its unsupported view target keeps Normal To disabled. Context-menu checks now
+include the intentional Normal To action and verify its availability alongside
+the existing actions, rather than expecting the earlier menu contents.
+
+Acceptance 01 passes all eight freshly executed commands on Windows and Node
+24.11.1 against 1,191 matching frozen source/runtime inputs. Build passes in
+6.258 s. `npm test` passes 9,953 tests across 437 files, plus 134 IPC checks and
+two explicit skips, in 446.728 s. Desktop smoke passes in 2.374 s with loaded
+WASM and passing worker-queue checks. Durations include evidence verification.
+
+| Production-renderer command | Recorded passing checks | Observed wall time |
+| --- | ---: | ---: |
+| `npm run test:desktop:assembly-origin-axes` | 323 | 33.181 s |
+| `npm run test:desktop:assembly-basic-authoring` | 409 | 43.051 s |
+| `npm run test:desktop:normal-to-view` | 156 | 16.765 s |
+| `npm run test:desktop:assembly-shortcuts` | 173 | 34.689 s |
+| `npm run test:desktop:assembly-configured-origin-axes` | 325 | 23.141 s |
+
+All five renderer routes report zero console/request/resource errors, observed
+child closure and isolated-profile cleanup. Frozen code and production assets
+are verified before and after each command. No earlier passing run is retained.
+
+Before applying the correction, the unchanged preceding snapshot reproduced
+both hosted failures locally: translation rearm left the datum overlay visible,
+and basic authoring rejected the root context menu's added Normal To action.
+The corrected origin route preserves that translation check and adds rotation
+rearm, deactivation and datum reselection. Both rearm cases verify the same
+retained component, no datum overlay, a disabled actual Normal To button and
+unchanged document/history/native-work observations. This additional sequence
+uses the original free component in the standard assembly; it does not perform
+a drag gesture or establish configured manipulation coverage.
+
+Basic authoring checks exact ordered menus and Normal To availability for root
+plane, tree component, keyboard, Fix/Float and retained-component background
+contexts. The existing mutation guards, persistence expectations, fixtures,
+geometric tolerances and deadlines remain unchanged. The Normal To route
+separately preserves its bounded orientation and Previous View checks below.
+
+At preceding public head `2c15cb86be69550300f1cae16831a7585a62d453`,
+[CI](https://github.com/angelcp2802/solidflow/actions/runs/40333222472) finished
+with 3/9 renderer batches and 3/3 configured-authoring jobs passing. The two
+reproduced failures each stopped one batch on all three hosted operating
+systems; three Desktop jobs stopped at the renderer gate. The source-update
+Save case was not reached. Its earlier saved-parent failure and recurring
+hosted stability remain unresolved by this local acceptance. All three
+hinge/symmetry batches passed, without establishing the cause of the prior
+Windows timeout. [Security](https://github.com/angelcp2802/solidflow/actions/runs/40333222476)
+succeeded with the worker-message origin warning still pending triage.
+
+These results do not establish hosted success for the corrected snapshot,
+manual installed-application acceptance or broader platform/interface parity.
+
 ## Selection-derived Normal To — local acceptance, 2026-10-26
 
 Final acceptance 07 passes all eight commands against 1,191 matching frozen

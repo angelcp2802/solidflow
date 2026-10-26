@@ -229,6 +229,7 @@ module.exports = function basicAuthoringWorkflow(context) {
     check(canonical(await observe.counters()) === canonical(before), 'Presentation selection allocates no native work');
   }
   const contextAction = id => '[data-cad-context-action=' + JSON.stringify(id) + ']';
+  const componentContextActions = ['view-normal', 'component-properties', 'component-move', 'component-fixed', 'component-visible', 'component-suppressed'];
   async function contextMenuState() {
     return page(() => {
       const menus = [...document.querySelectorAll('.cad-context-menu[role="menu"]')];
@@ -244,6 +245,19 @@ module.exports = function basicAuthoringWorkflow(context) {
       return { target: headings[0].textContent.trim(),
         actions: nodes.map(e => ({ id: e.getAttribute('data-cad-context-action'), label: e.textContent.trim(), disabled: e.disabled })) };
     });
+  }
+  async function checkContextNormal(menu, kind, enabled, label) {
+    const state = await page(() => {
+      const canvases = [...document.querySelectorAll('.assembly-canvas')];
+      const buttons = [...document.querySelectorAll('.assembly-view-tools button[aria-label="Normal a"]')];
+      if (canvases.length !== 1 || buttons.length !== 1) throw Error('Exactly one Normal To target and toolbar control required');
+      return { kind: canvases[0].getAttribute('data-normal-selection-kind'), enabled: canvases[0].getAttribute('data-normal-enabled'),
+        toolbarDisabled: buttons[0].disabled };
+    });
+    const actions = menu.actions.filter(action => action.id === 'view-normal');
+    check(actions.length === 1 && actions[0].label === 'Normal a' && actions[0].disabled === !enabled
+      && state.kind === kind && state.enabled === String(enabled) && state.toolbarDisabled === !enabled, label);
+    checks.push({ contextNormalAvailability: { label, ...state, menuDisabled: actions[0].disabled } });
   }
   async function contextReadOnlyState() {
     const { selected, panel, ...persistentUi } = await uiState();
@@ -290,6 +304,8 @@ module.exports = function basicAuthoringWorkflow(context) {
     });
     for (const id of ['component-properties', 'component-move', 'component-fixed', 'component-visible', 'component-suppressed'])
       check(menu.actions.filter(action => action.id === id).length === 1, 'One existing component context action: ' + id);
+    check(canonical(menu.actions.map(action => action.id)) === canonical(componentContextActions), 'Component context contains exactly Normal To followed by the ordered five existing component actions');
+    await checkContextNormal(menu, 'invalid', false, 'Tree component context disables Normal To for an unsupported body target');
     check(menu.actions.find(action => action.id === 'component-fixed').label === 'Flotar', 'Fixed component offers Float');
     check(menu.actions.find(action => action.id === 'component-move').disabled && !menu.actions.find(action => action.id === 'component-properties').disabled,
       'Fixed component blocks Move but permits Properties');
@@ -298,7 +314,9 @@ module.exports = function basicAuthoringWorkflow(context) {
     await closeContextRetaining(baseSelector);
     checkContextUnchanged(baseline, await contextReadOnlyState(), 'Right click and Escape preserve document, recovery, full history and relation roles');
     await menuKey('ContextMenu');
-    await waitFor('keyboard opens selected component context', contextMenuState);
+    const keyboardMenu = await waitFor('keyboard opens selected component context', contextMenuState);
+    check(canonical(keyboardMenu.actions.map(action => action.id)) === canonical(componentContextActions), 'Keyboard component context preserves the exact ordered actions');
+    await checkContextNormal(keyboardMenu, 'invalid', false, 'Keyboard component context retains the unsupported view target');
     await actual(contextAction('component-properties'));
     await waitFor('context Properties focuses the exact Base name', () => page(() => {
       const input = document.querySelector('[aria-label="Nombre del componente"]');
@@ -308,6 +326,8 @@ module.exports = function basicAuthoringWorkflow(context) {
     for (const fixed of [false, true]) {
       await rightClick(baseSelector);
       const state = await waitFor('current fixed-state context action', contextMenuState), action = state.actions.find(action => action.id === 'component-fixed');
+      check(canonical(state.actions.map(action => action.id)) === canonical(componentContextActions), 'Fix/Float context preserves the exact ordered actions');
+      await checkContextNormal(state, 'invalid', false, 'Fix/Float component context does not reinterpret the component as an empty view target');
       check(action && !action.disabled && action.label === (fixed ? 'Fijar' : 'Flotar'), 'Context fixed action matches current committed state');
       check(state.actions.find(action => action.id === 'component-move').disabled === !fixed, 'Context Move follows the actual current fixed state');
       const before = await serial(); await actual(contextAction('component-fixed'));
@@ -325,7 +345,8 @@ module.exports = function basicAuthoringWorkflow(context) {
         && document.querySelector('.assembly-viewport')?.getAttribute('data-reference-picking') === '', originSelector) ? state : false;
     });
     check(!originMenu.actions.some(action => action.id.startsWith('component-')), 'Root datum context exposes no component mutation');
-    check(canonical(originMenu.actions.map(action => action.id).sort()) === canonical(['origin-controls', 'origin-owner']), 'Root datum context contains only existing origin navigation');
+    check(canonical(originMenu.actions.map(action => action.id)) === canonical(['view-normal', 'origin-controls', 'origin-owner']), 'Root datum context contains exactly Normal To followed by origin navigation');
+    await checkContextNormal(originMenu, 'plane', true, 'Root YZ datum context enables Normal To for its current planar target');
     check(originMenu.actions.find(action => action.id === 'origin-owner').disabled && !originMenu.actions.find(action => action.id === 'origin-controls').disabled,
       'Root datum has no component owner but retains origin controls navigation');
     await closeContextRetaining(originSelector);
@@ -353,20 +374,23 @@ module.exports = function basicAuthoringWorkflow(context) {
     await pointer('mousePressed', target.point, 2); await pointer('mouseReleased', target.point, 2);
     const background = await waitFor('blank canvas opens only current view commands', contextMenuState);
     const expectedBackground = [['view-front', 'Frontal'], ['view-back', 'Posterior'], ['view-left', 'Izquierda'], ['view-right', 'Derecha'],
-      ['view-top', 'Superior'], ['view-bottom', 'Inferior'], ['view-iso', 'Isométrica'], ['view-fit', 'Ajustar a pantalla'], ['view-previous', 'Vista anterior']];
-    check(canonical(background.actions.map(action => [action.id, action.label])) === canonical(expectedBackground), 'Background context contains exactly the ordered seven standard views, Fit and Previous');
+      ['view-top', 'Superior'], ['view-bottom', 'Inferior'], ['view-iso', 'Isométrica'], ['view-normal', 'Normal a'], ['view-fit', 'Ajustar a pantalla'], ['view-previous', 'Vista anterior']];
+    check(canonical(background.actions.map(action => [action.id, action.label])) === canonical(expectedBackground), 'Background context contains exactly the ordered seven standard views, Normal To, Fit and Previous');
+    await checkContextNormal(background, 'invalid', false, 'Background context retains the selected component and disables Normal To for that unsupported target');
     const previousDisabled = await page(() => {
       const buttons = [...document.querySelectorAll('.assembly-view-tools button[aria-label="Vista anterior"]')];
       if (buttons.length !== 1) throw Error('Exactly one toolbar Previous control required');
       return buttons[0].disabled;
     });
-    check(background.actions.every(action => action.disabled === (action.id === 'view-previous' && previousDisabled)), 'Idle standard views and Fit are enabled; Previous matches current toolbar availability');
+    check(background.actions.every(action => action.disabled === (action.id === 'view-normal' || action.id === 'view-previous' && previousDisabled)), 'Idle standard views and Fit are enabled; Normal To remains disabled for the component and Previous matches current toolbar availability');
     await menuKey('Escape');
     await waitFor('background Escape returns focus to viewport without clearing selection', () => page(selector => !document.querySelector('.cad-context-menu')
       && document.activeElement === document.querySelector('.assembly-viewport') && document.querySelector(selector)?.getAttribute('aria-selected') === 'true', tree(owners.base)));
     await menuKey('ContextMenu');
     const keyboard = await waitFor('viewport keyboard context targets the selected exact component', contextMenuState);
     check(keyboard.target === occurrence(doc, owners.base).name && keyboard.actions.some(action => action.id === 'component-properties'), 'Keyboard viewport context uses current selected Base component');
+    check(canonical(keyboard.actions.map(action => action.id)) === canonical(componentContextActions), 'Keyboard viewport context contains the exact ordered component actions');
+    await checkContextNormal(keyboard, 'invalid', false, 'Keyboard viewport context retains disabled Normal To for the selected component');
     await menuKey('Escape');
     await waitFor('keyboard viewport context closes with host focus', () => page(() => !document.querySelector('.cad-context-menu') && document.activeElement === document.querySelector('.assembly-viewport')));
     checkContextUnchanged(baseline, await contextReadOnlyState(), 'Viewport pointer and keyboard context preserve document, full observations and relation roles');

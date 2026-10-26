@@ -1,5 +1,21 @@
 # Development guide
 
+## Returning from datum browsing to component manipulation — 2026-10-26
+
+Arming **Arrastrar posición** or **Arrastrar giro** clears both the browsed
+tree datum and its Normal To presentation selection. The retained component
+becomes the active manipulation target with no datum overlay. A component
+alone remains an unsupported Normal To target; this transition does not
+become a no-selection request or change the camera, document or model history.
+The existing eligibility and active-operation guards remain in effect.
+
+Context menus include **Normal a** alongside their existing commands. A current
+planar datum enables it; a tree-selected component or background context that
+retains that component disables it. Origin navigation, component mutations,
+ordered standard views and Previous View retain their separate availability.
+The origin-axis and basic-authoring renderer routes check these interactions;
+executed results belong in [validation](VALIDATION.md).
+
 ## Selection-derived Normal To — 2026-10-26
 
 **Normal a** (Ctrl+8) is available through the orientation controls and View
