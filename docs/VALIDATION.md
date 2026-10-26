@@ -1,5 +1,55 @@
 # Validation
 
+## Exact source Save diagnostics — 2026-10-26
+
+This increment adds passive test diagnostics for the authored assembly-source
+Save failure previously observed on hosted Windows. It changes no application
+code, file format, geometry, fixture, retry policy or acceptance deadline. The
+unmodified source-revision route passed locally before the change; the hosted
+failure's cause is still unresolved.
+
+Local Windows acceptance passes all seven commands against 1,175 matching
+frozen source/runtime inputs. `npm run build` passes in 4.725 s. `npm test`
+passes 9,858 tests across 433 files, plus 125 IPC tests and two explicit skips,
+in 493.577 s. `npm run test:desktop` passes in 1.592 s with no console or
+request errors. The four production-renderer routes pass with no console or
+request errors, confirmed child closure and temporary-profile cleanup:
+
+| Command | Passing checkpoints | Duration |
+| --- | ---: | ---: |
+| `npm run test:desktop:assembly-source-revision` | 73 | 4.467 s |
+| `npm run test:desktop:assembly-linked-source` | 142 | 8.483 s |
+| `npm run test:desktop:assembly-source-update-save-pending` | 61 | 4.769 s |
+| `npm run test:desktop:assembly-configurations` | 196 | 12.781 s |
+
+The source-revision record independently shows exact disk/authored canonical
+equality and exactly one completed chosen Save. Its second Save request and
+returned destination both identify the original input; request/disk raw hashes
+match, canonical hashes match the frozen authored graph, and no top-level
+field differs. Cancelled Save As and the later parent Save remain separately
+recorded. Existing geometry, raw-byte, history and parent-review assertions
+still pass; diagnostics neither replace their expectation nor relax them.
+
+Seven new tests execute the actual IPC observation proxy and exercise the
+two acceptance conjuncts independently, frozen expectations, exact rejection
+identity, cancellation/success, bounded redacted errors and malformed JSON.
+Parser diagnostics retain a fixed category rather than document text; the
+original exception is still propagated. Only one last-poll record is retained.
+The existing poll interval, number of file reads and deadlines are unchanged.
+
+Preceding public head `12f3484b` [CI](https://github.com/angelcp2802/solidflow/actions/runs/40290392884)
+passed 7/9 renderer batches and all three configured-authoring jobs. Both
+macOS and Linux persistence batches passed, including the previously failing
+macOS keyboard route. Windows persistence failed the exact unmasked camera
+crop comparison after orbit/Previous; Windows symmetry picking reached its
+170-second child deadline after the final axisline file had reopened. The
+remaining pending operation is not identified by that log; it does not prove
+a pointer-selection failure. All three dependent Desktop jobs failed their
+renderer gate. [Security](https://github.com/angelcp2802/solidflow/actions/runs/40290392844)
+completed successfully with a separate CodeQL origin-check warning on the
+dedicated worker receiver. This diagnostic increment does not resolve those
+hosted failures or establish general platform/release acceptance.
+
 ## Standard views and previous camera states — 2026-10-26
 
 All three workspaces now expose Front, Back, Left, Right, Top, Bottom and

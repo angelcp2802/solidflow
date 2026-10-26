@@ -1,5 +1,22 @@
 # Development guide
 
+## Source revision Save diagnostics — 2026-10-26
+
+The source-revision renderer workflow retains one bounded last-observation
+record for its normal Save. It separately reports equality with the complete
+Apply-authored graph and the number of completed chosen saves; acceptance
+still requires both exact graph equality and exactly one completed save.
+The expectation is frozen before Save, with no later recovery or disk recapture.
+
+For that workflow only, file IPC records request/return destination categories,
+request raw/canonical hashes and a bounded rejection description. Diagnostics
+omit file paths, document contents, stack and causes. Malformed saved JSON uses
+a fixed diagnostic category because parser messages may quote input. The
+original IPC/read/parse errors are still propagated unchanged. No retry, new
+file read, additional awaited action or deadline change is introduced.
+The existing final byte, geometry, history and parent-review checks remain.
+See [validation](VALIDATION.md) for executed results and unresolved causes.
+
 ## Standard views and previous camera states — 2026-10-25
 
 Part, standard assembly and configured assembly share seven standard views:

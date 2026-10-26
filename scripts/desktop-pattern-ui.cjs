@@ -1502,6 +1502,7 @@ async function runInElectron() {
     });
     const value = Reflect.get(target, member); return typeof value === 'function' ? value.bind(target) : value;
   } });
+  const sourceSaveObservation = sourceRevision ? require('./desktop-save-observation.cjs').createSaveObservation({ input, output, canonical, digest }) : null;
   const testingIpc = new Proxy(electron.ipcMain, { get(target, member) {
     if (member === 'handle') return (channel, handler) => target.handle(channel, async (event, payload) => {
       const observation = { channel, completed: false }; ipc.push(observation);
@@ -1520,6 +1521,8 @@ async function runInElectron() {
           sha256: digest(Buffer.from(payload.data.buffer, payload.data.byteOffset, payload.data.byteLength)) };
       }
       if ((sourceRevision || configurations || assemblySourceUpdate) && channel === 'document:save') observation.documentWrite = { name: payload?.name, hasPath: typeof payload?.filePath === 'string', ...(configurations || assemblySourceUpdate ? { filePath: payload?.filePath } : {}), sha256: typeof payload?.content === 'string' ? digest(payload.content) : null };
+      if (sourceSaveObservation && channel === 'document:save') Object.assign(observation.documentWrite,
+        sourceSaveObservation.request(payload, ipc.filter(row => row.channel === 'document:save').length));
       const selectedSave = saveCompletion.enabled && channel === 'document:save'
         && ipc.filter(row => row.channel === 'document:save').length === saveCompletion.ordinal;
       if (selectedSave) {
@@ -1529,8 +1532,12 @@ async function runInElectron() {
       }
       let result;
       try { result = await handler(event, payload); observation.completed = true; }
-      catch (error) { if (configurations && observation.csv) observation.failed = true; if (selectedSave) saveCompletion.ready(); throw error; }
+      catch (error) {
+        if (sourceSaveObservation && channel === 'document:save') sourceSaveObservation.rejected(observation.documentWrite, error);
+        if (configurations && observation.csv) observation.failed = true; if (selectedSave) saveCompletion.ready(); throw error;
+      }
       if ((sourceRevision || configurations || assemblySourceUpdate) && channel === 'document:save') observation.documentWrite.chosen = result !== null;
+      if (sourceSaveObservation && channel === 'document:save') sourceSaveObservation.returned(observation.documentWrite, result);
       if (selectedSave) {
         try {
           check(typeof result === 'string' && under(owned, result) && savePaths.includes(result), 'Selected Save must return its actual test-owned granted path.');

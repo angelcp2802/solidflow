@@ -2,6 +2,7 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
+const { createSaveObservation } = require('./desktop-save-observation.cjs');
 module.exports = function sourceRevisionWorkflow(context) {
   context = require('./desktop-assembly-navigation.cjs').withNavigation(context);
   const assemblyNavigation = context.assemblyNavigation;
@@ -97,8 +98,14 @@ module.exports = function sourceRevisionWorkflow(context) {
       && await page(() => document.querySelector('.assembly-app')?.getAttribute('aria-busy') === 'false'));
     await recovery(authored, 'Save As Cancel'); check((await fs.readFile(input)).equals(originalSourceBytes), 'Cancelled Save As leaves source bytes intact');
     check(await page(name => document.querySelector('.assembly-shell-file')?.textContent === name && document.querySelector('.assembly-shell-document > strong')?.textContent.endsWith(' *'), path.basename(input)), 'Cancelled Save As preserves source path and dirty authored revision');
-    await button('Guardar'); await waitFor('normal source save actual authored graph', async () => canonical(JSON.parse(await fs.readFile(input, 'utf8'))) === canonical(authored)
-      && ipc.filter(x => x.channel === 'document:save' && x.completed && x.documentWrite?.chosen === true).length === 1);
+    const sourceSave = createSaveObservation({ input, output: files.output, canonical, digest }).graph(authored);
+    checks.push({ sourceRevisionSave: sourceSave.record });
+    await button('Guardar'); await waitFor('normal source save actual authored graph', async () => {
+      try {
+        const raw = await fs.readFile(input, 'utf8');
+        return sourceSave.sample(raw, ipc.filter(x => x.channel === 'document:save' && x.completed && x.documentWrite?.chosen === true).length);
+      } catch (error) { sourceSave.failed(error); throw error; }
+    });
     const authoredBytes = await fs.readFile(input), saveCalls = ipc.filter(x => x.channel === 'document:save');
     check(saveCalls.length === 2 && saveCalls[1].documentWrite?.hasPath === true && saveCalls[1].documentWrite?.chosen === true && saveCalls[1].documentWrite.sha256 === digest(authoredBytes), 'Normal Save uses independently granted source pathname and exact authored bytes');
     await waitFor('source clean after successful save', () => page(name => document.querySelector('.assembly-shell-document > strong')?.textContent === name, authored.name));
