@@ -2,6 +2,7 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const vm=require('node:vm');
+const {readFileSync}=require('node:fs');
 const {createHash}=require('node:crypto');
 const cameraInput=require('./desktop-camera-input.cjs');
 const digest=bytes=>createHash('sha256').update(bytes).digest('hex');
@@ -25,16 +26,20 @@ function fixture(options={}){
   },elementFromPoint:()=>options.hit===false?{}:canvas,createRange(){
     let selected;return {selectNodeContents(element){selected=element;},getBoundingClientRect(){return selected.textRect;}};
   }};
-  const size=options.size??{width:608,height:300},raw=options.raw??Buffer.alloc(size.width*size.height*4,127),digests=[];
-  const image={getSize:()=>size,isEmpty:()=>!!options.empty,toBitmap:()=>raw};
+  let size=options.size??{width:608,height:300};
+  const raw=options.raw??Buffer.alloc(size.width*size.height*4,127),digests=[];
+  let currentRaw=raw;
+  const image={getSize:()=>size,isEmpty:()=>!!options.empty,toBitmap:()=>currentRaw};
   const window={isVisible:()=>!!options.visible,webContents:{debugger:{isAttached:()=>options.attached!==false,sendCommand:async(method,event)=>{
     assert.equal(method,'Input.dispatchMouseEvent');sent.push(event);await options.fail?.(event);
   }},capturePage:async crop=>{captures.push(crop);return image;}}};
-  const camera=cameraInput({getWindow:()=>window,allowed:options.allowed!==false,check:(value,message)=>assert.ok(value,message),digest:bytes=>{
+  const camera=cameraInput({getWindow:()=>window,allowed:options.allowed!==false,
+    allowRasterComparison:options.rasterComparison,allowFrameDiagnostics:options.frameDiagnostics,
+    check:(value,message)=>assert.ok(value,message),digest:bytes=>{
     digests.push(Buffer.from(bytes));return digest(bytes);
   },evaluate:async source=>{scripts.push(source);return JSON.parse(JSON.stringify(vm.runInNewContext(source,{document,innerWidth:1024,innerHeight:700,
     getComputedStyle:element=>({borderLeftWidth:element.border,borderRightWidth:element.border,borderTopWidth:element.border,borderBottomWidth:element.border})})));}});
-  return {...camera,sent,captures,scripts,raw,digests};
+  return {...camera,sent,captures,scripts,raw,digests,setCapture(bytes,dimensions=size){currentRaw=bytes;size=dimensions;}};
 }
 test('orbit and pan send bounded real middle-button CDP paths with only Shift distinguishing pan',async()=>{
   for(const kind of ['orbit','pan']){
@@ -130,4 +135,189 @@ test('malformed, ambiguous or excessive masks fail closed rather than hiding a c
   ];
   for(const labels of cases){const f=fixture({labels});await assert.rejects(f.cameraFrame());assert.deepEqual(f.sent,[]);}
   await assert.rejects(fixture({raw:Buffer.alloc(5)}).cameraFrame(),/four bytes/);
+});
+
+test('raster retention requires explicit isolated camera-navigation scope without image diagnostics',()=>{
+  assert.equal(fixture().rasterComparison,undefined);
+  for(const rasterComparison of [null,1,'true',{},[]])assert.throws(()=>fixture({rasterComparison}),/opt-in/);
+  assert.throws(()=>fixture({rasterComparison:true,allowed:false}),/opt-in/);
+  assert.throws(()=>fixture({rasterComparison:true,frameDiagnostics:true}),/opt-in/);
+});
+
+test('only the latest exact capture object can be retained or compared, without changing poll signatures',async()=>{
+  const f=fixture({rasterComparison:true,size:{width:8,height:8}}),first=await f.cameraFrame();
+  const signature=JSON.stringify(first),second=await f.cameraFrame();
+  assert.equal(JSON.stringify(second),signature);
+  assert.deepEqual(Object.keys(second),['width','height','sha256','rawSha256','maskedRects','unmaskedPixelCount']);
+  assert.throws(()=>f.rasterComparison.retainBaseline({...second}),/capture object/);
+  assert.throws(()=>f.rasterComparison.retainBaseline(first),/capture object/);
+  f.rasterComparison.retainBaseline(second);
+  const third=await f.cameraFrame();
+  assert.throws(()=>f.rasterComparison.compare({...third}),/capture object/);
+  assert.throws(()=>f.rasterComparison.compare(second),/capture object/);
+  const result=f.rasterComparison.compare(third);
+  assert.equal(result.raw.changedPixels,0);assert.equal(result.raw.bbox,null);
+  assert.deepEqual(result.raw.grid4x4,Array(16).fill(0));assert.equal(result.unmasked.maxByteDelta,0);
+  assert.equal(f.captures.length,3);assert.equal(f.scripts.length,6);assert.deepEqual(f.sent,[]);
+  f.rasterComparison.clear();
+  assert.throws(()=>f.rasterComparison.compare(third),/capture object/);
+  assert.throws(()=>f.rasterComparison.retainBaseline(third),/capture object/);
+  const fourth=await f.cameraFrame();
+  assert.throws(()=>f.rasterComparison.compare(fourth),/retained crop/);
+  f.rasterComparison.retainBaseline(fourth);
+  assert.equal(f.rasterComparison.compare(await f.cameraFrame()).raw.changedPixels,0);
+  f.rasterComparison.clear();
+});
+
+test('retention is capped at two million pixels without changing larger capture results',async()=>{
+  const f=fixture({rasterComparison:true,size:{width:2000,height:1000}});
+  f.rasterComparison.retainBaseline(await f.cameraFrame());
+  f.rasterComparison.clear();
+  f.setCapture(Buffer.alloc(2001*1000*4,127),{width:2001,height:1000});
+  const large=await f.cameraFrame();
+  assert.equal(large.width,2001);assert.equal(large.unmaskedPixelCount,2001000);
+  assert.equal(large.rawSha256,large.sha256);
+  assert.throws(()=>f.rasterComparison.retainBaseline(large),/pixel limit/);
+  f.rasterComparison.clear();
+});
+
+test('independent byte differences retain exact pixel counts, exclusive bounds and fixed grid locations',async()=>{
+  const f=fixture({rasterComparison:true,size:{width:8,height:8}}),before=await f.cameraFrame();
+  f.rasterComparison.retainBaseline(before);
+  const bytes=Buffer.from(f.raw);
+  bytes[0]=129;bytes[(5*8+3)*4+2]=0;bytes[(7*8+7)*4+3]=255;
+  f.setCapture(bytes);
+  const after=await f.cameraFrame(),result=f.rasterComparison.compare(after),grid=Array(16).fill(0);
+  grid[0]=1;grid[9]=1;grid[15]=1;
+  assert.deepEqual(result.raw,{changedPixels:3,maxByteDelta:128,bbox:{x:0,y:0,right:8,bottom:8},grid4x4:grid});
+  assert.deepEqual(result.unmasked,result.raw);
+  assert.deepEqual(result.expected,{rawSha256:before.rawSha256,sha256:before.sha256});
+  assert.deepEqual(result.actual,{rawSha256:after.rawSha256,sha256:after.sha256});
+  assert.equal(result.masks.rawChangedInsideMasks,0);assert.equal(result.masks.rawChangedOutsideMasks,3);
+  assert.ok(JSON.stringify(result).length<3000);assert.equal(f.captures.length,2);
+  f.rasterComparison.clear();
+});
+
+test('failure statistics use only existing text exclusions and still count their raw differences',async()=>{
+  const f=fixture({rasterComparison:true,labels:[label()]}),before=await f.cameraFrame();
+  f.rasterComparison.retainBaseline(before);
+  const bytes=Buffer.from(f.raw);
+  bytes[(18*608+24)*4]=129; // Inside the original text rectangle.
+  bytes[(17*608+22)*4]=128; // Adjacent pixel remains in the exact comparison.
+  bytes[(80*608+80)*4]=130;bytes[(299*608+607)*4+3]=131;
+  f.setCapture(bytes);
+  const after=await f.cameraFrame(),result=f.rasterComparison.compare(after);
+  assert.deepEqual(after.maskedRects,before.maskedRects);
+  assert.equal(result.raw.changedPixels,4);assert.equal(result.unmasked.changedPixels,3);
+  assert.equal(result.raw.maxByteDelta,4);assert.equal(result.unmasked.maxByteDelta,4);
+  assert.deepEqual(result.raw.bbox,{x:22,y:17,right:608,bottom:300});
+  assert.deepEqual(result.unmasked.bbox,result.raw.bbox);
+  const rawGrid=Array(16).fill(0);rawGrid[0]=2;rawGrid[4]=1;rawGrid[15]=1;
+  assert.deepEqual(result.raw.grid4x4,rawGrid);
+  const comparisonGrid=[...rawGrid];comparisonGrid[0]=1;
+  assert.deepEqual(result.unmasked.grid4x4,comparisonGrid);
+  assert.deepEqual(result.masks,{identical:true,expectedPixels:120,actualPixels:120,rawChangedInsideMasks:1,rawChangedOutsideMasks:3});
+  assert.equal(digest(bytes),after.rawSha256);assert.equal(f.captures.length,2);assert.equal(f.scripts.length,4);assert.deepEqual(f.sent,[]);
+  f.rasterComparison.clear();
+});
+
+test('retained metadata and buffer hashes reject mutation, unequal dimensions and failed latest captures',async()=>{
+  for(const mutate of ['metadata','bytes']){
+    const f=fixture({rasterComparison:true,size:{width:8,height:8}}),before=await f.cameraFrame();
+    f.rasterComparison.retainBaseline(before);
+    f.setCapture(Buffer.from(f.raw));const after=await f.cameraFrame();
+    if(mutate==='metadata')before.maskedRects.push({x:0});else f.raw[0]=0;
+    assert.throws(()=>f.rasterComparison.compare(after),/unchanged/);
+    f.rasterComparison.clear();
+  }
+  const f=fixture({rasterComparison:true,size:{width:8,height:8}}),before=await f.cameraFrame();
+  f.rasterComparison.retainBaseline(before);
+  f.setCapture(Buffer.alloc(9*8*4,127),{width:9,height:8});
+  const different=await f.cameraFrame();
+  assert.throws(()=>f.rasterComparison.compare(different),/equal bitmap dimensions/);
+  f.setCapture(Buffer.alloc(3));await assert.rejects(f.cameraFrame(),/four bytes/);
+  assert.throws(()=>f.rasterComparison.compare(different),/capture object/);
+  f.rasterComparison.clear();
+});
+
+// Original synthetic hashes model accepted images, not camera or application
+// state. The real flow runs with a controlled clock and its unchanged polls.
+async function navigationFixture(options={}){
+  let clock=0,active='',latest,baseline,compares=0,clears=0,primaryError;
+  const events=[],checks=[],polls=[];
+  const module={exports:{}};
+  vm.runInNewContext(readFileSync(require.resolve('./desktop-view-navigation-flow.cjs'),'utf8'),{module,Date:{now:()=>clock}});
+  const frameHash=label=>{
+    if(label.startsWith('preset '))return label.endsWith('7')?'a':label.at(-1);
+    if(label==='previous preset 5'&&options.failBeforeWheel)return 'e';
+    if(label.startsWith('previous preset '))return label.at(-1);
+    if(label.includes('temporary front'))return '1';
+    if(label==='fit after wheel')return 'e';
+    if(label==='wheel-in previous restores baseline'&&options.failWheel)return 'e';
+    if(label==='previous restores zoom after Fit')return 'd';
+    if(label.includes('actual input')||label.includes('previous restores gesture'))return label.startsWith('orbit')?'b':label.startsWith('pan')?'c':'d';
+    return 'a';
+  };
+  const rasterComparison={
+    retainBaseline(result){assert.equal(result,latest);baseline=result;events.push('retain:'+active);if(options.retainError)throw Error('diagnostic retention');},
+    compare(result){assert.equal(result,latest);assert.ok(baseline);compares++;events.push('compare:'+active);if(options.compareError)throw Error('diagnostic comparison');return {status:'compared',raw:{changedPixels:1}};},
+    clear(){clears++;baseline=null;events.push('clear');if(options.clearError)throw Error('diagnostic cleanup');},
+  };
+  let error;
+  try {
+    await module.exports({kind:'standard',checks,rasterComparison:options.optOut?undefined:rasterComparison,
+      canonical:JSON.stringify,check:(condition,message)=>{if(!condition){primaryError=new Error(message);throw primaryError;}},
+      snapshot:async()=>({native:{builds:[{serial:1,response:{ok:true,value:{bodies:[{}]}}}],assemblies:[],workerErrors:[]}}),
+      key:async combo=>{events.push('key:'+combo);},cameraGesture:async kind=>{events.push('gesture:'+kind);},
+      page:async()=>{events.push('projection:'+active);return [];},
+      cameraFrame:async(...args)=>{
+        assert.deepEqual(args,[]);events.push('capture:'+active);
+        latest={width:8,height:8,sha256:frameHash(active).repeat(64),rawSha256:clock.toString(16).padStart(64,'0'),maskedRects:[],unmaskedPixelCount:64};return latest;
+      },
+      waitFor:async(label,predicate)=>{
+        active=label.replace('stationary rendered camera crop: ','');
+        for(let count=1;count<=3;count++){
+          clock+=250;const result=await predicate();
+          if(result){assert.equal(count,3);polls.push(count);events.push('accepted:'+active);return result;}
+        }
+        throw Error('Original 500ms stationary signature changed');
+      },
+    });
+  } catch(caught){error=caught;}
+  return {error,primaryError,events,polls,compares,clears,evidence:checks.find(value=>value.viewNavigation)?.viewNavigation};
+}
+
+test('wheel failure binds the accepted original captures before projection and preserves the exact assertion',async()=>{
+  const f=await navigationFixture({failWheel:true});
+  assert.equal(f.error,f.primaryError);assert.match(f.error.message,/Previous crosses one completed wheel-in transaction/);
+  assert.equal(f.compares,1);assert.equal(f.clears,1);assert.equal(f.events.at(-1),'clear');
+  const retained=f.events.indexOf('retain:wheel-in initial isometric');
+  assert.deepEqual(f.events.slice(retained-1,retained+2),['accepted:wheel-in initial isometric','retain:wheel-in initial isometric','projection:wheel-in initial isometric']);
+  assert.equal(f.evidence.rasterComparison.status,'compared');assert.equal(f.evidence.rasterComparison.raw.changedPixels,1);
+  assert.equal(f.polls.length,28);assert.ok(f.polls.every(count=>count===3));
+  assert.equal(f.events.filter(value=>value.startsWith('capture:')).length,84);
+});
+
+test('diagnostic retention, comparison or cleanup failures never replace the original navigation failure',async()=>{
+  for(const option of ['retainError','compareError','clearError']){
+    const f=await navigationFixture({failWheel:true,[option]:true});
+    assert.equal(f.error,f.primaryError);assert.match(f.error.message,/Previous crosses one completed wheel-in transaction/);
+    assert.equal(f.clears,1);assert.equal(f.events.at(-1),'clear');
+    assert.equal(f.evidence.rasterComparison.status,option==='clearError'?'compared':'unavailable');
+  }
+  const early=await navigationFixture({failBeforeWheel:true});
+  assert.equal(early.error,early.primaryError);assert.match(early.error.message,/Previous returns preset 5/);
+  assert.equal(early.clears,1);assert.equal(early.compares,0);assert.equal(early.events.at(-1),'clear');
+  assert.equal(early.evidence.rasterComparison,undefined);
+  assert.equal(early.events.some(value=>value.startsWith('retain:')),false);
+});
+
+test('successful and opted-out navigation keep the original polls, captures and report without diff statistics',async()=>{
+  const success=await navigationFixture(),without=await navigationFixture({optOut:true});
+  assert.equal(success.error,undefined);assert.equal(without.error,undefined);
+  assert.equal(success.compares,0);assert.equal(success.clears,1);assert.equal(without.clears,0);
+  assert.equal(success.evidence.rasterComparison,undefined);assert.equal(without.evidence.rasterComparison,undefined);
+  assert.equal(success.evidence.completed,true);assert.equal(without.evidence.completed,true);
+  const inputs=events=>events.filter(value=>!value.startsWith('retain:')&&value!=='clear');
+  assert.deepEqual(inputs(success.events),without.events);assert.deepEqual(success.polls,without.polls);
 });

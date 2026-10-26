@@ -1,5 +1,80 @@
 # Validation
 
+## Wheel-history diagnostic investigation — 2026-10-26
+
+At public head `4bfc0404d954ac027a674706be95ca0bf1f8d7bc`,
+[CI attempt 1](https://github.com/angelcp2802/solidflow/actions/runs/40351799993/attempts/1)
+completed six of nine renderer batches successfully, with two failures and one
+cancelled batch. All three configured-authoring jobs passed. The macOS relations
+batch was cancelled without a test log, so it provides no new Normal To result.
+Its targeted rerun was also cancelled without a log. Neither attempt supplies
+new selector evidence; the other completed results are retained evidence from
+attempt 1, not newly executed checks.
+
+The Linux standard-shortcut failure occurs after isometric baseline, wheel zoom,
+Fit, Previous, Front and two more Previous commands. Presets 6/5, orbit and pan
+restorations passed; both restorations of the zoomed view also passed. The last
+758-by-481 crop has the same text exclusion and projected origin witness as its
+baseline, but different raw and unmasked hashes. Its hashes equal the earlier
+Fit crop. That equality does not establish that Fit was stored incorrectly in
+the history.
+
+A separate numerical investigation used the current navigation implementation
+and installed OrbitControls with a synthetic DOM surface and the assembly Fit
+formula. All twelve combinations of three viewport sizes, two analytical bound
+variants and an optional earlier-navigation sequence restored the original
+camera values, quaternion and world/inverse/projection matrices exactly. Each
+wheel input produced one start/change/end sequence and one history entry. The
+Fit calculation itself differed from the baseline by up to 2.14e-14 in matrix
+entries. These cases neither reproduce the hosted raster failure nor exercise
+its React lifecycle, actual native bounds, compositor or Linux GPU.
+
+The Windows rigid-assembly failure exhausted the 170-second child deadline after
+approximately 117.9 seconds in earlier phases and 52.1 seconds in the gear phase.
+The last 720-degree preview had only about 5.35 seconds remaining when requested.
+A prior local passing run with identical assembly/gear/timing workflow files
+needed about 5.63 seconds for that response. Different host/build conditions
+prevent a causal performance comparison. All recorded Save IPC completed; no
+CAD error was observed before termination. The aggregate budget was exhausted,
+but the underlying cost and hosted stability remain unresolved. The combined
+workflow, its source-repair audit and existing deadlines are preserved.
+
+The new raster diagnostic retains the existing accepted wheel baseline and
+latest candidate, each limited to two million pixels. A failure-only summary
+locates byte differences using the existing raw and masked buffers. It does not
+capture new images, modify the camera, change masks, bypass an assertion or
+relax a deadline.
+
+Local Windows acceptance 01 passes all six freshly executed commands against
+1,191 matching frozen source/runtime inputs. Build passes in 5.165 s; the full
+suite passes 9,953 tests across 437 files plus 144 IPC checks and two explicit
+skips in 444.615 s. Desktop smoke passes in 2.391 s, including WASM loading and
+worker-queue checks. Durations include evidence verification.
+
+| Production-renderer command | Passing checks | Observed wall time |
+| --- | ---: | ---: |
+| `npm run test:desktop:assembly-shortcuts` | 173 | 31.975 s |
+| `npm run test:desktop:assembly-configured-shortcuts` | 134 | 28.174 s |
+| `npm run test:desktop:part-from-empty` | 102 | 29.149 s |
+
+All three routes complete the seven presets, Previous 6/5, orbit/pan/wheel
+restoration and Fit sequence with unchanged exact comparisons. The part route
+also retains its four authored solid operations, history, saved reopening and
+sketch-view remount. Every renderer reports zero console/request/resource
+errors, observed child closure and isolated-profile cleanup. No failure-only
+raster statistics appear in these passing reports.
+
+The camera helper's 19 Node checks cover capture ownership, the pixel bound,
+metadata/buffer mutation, independently specified byte differences and masks,
+accepted-poll identity, unchanged capture/poll sequences, cleanup and preservation
+of the original error when optional diagnostics fail. These simulated failures
+test the observation mechanism; they do not reproduce the hosted Linux defect.
+
+The eight built production inputs and static SVG are identical to the preceding
+accepted build. No production behavior, installed demo or platform claim changes.
+The Linux raster mismatch, aggregate Windows workflow budget and macOS selector
+evidence remain open pending the corresponding hosted observations.
+
 ## Native selector and symmetry Save diagnostics — 2026-10-26
 
 Acceptance 02 passes all six freshly executed commands on Windows and Node

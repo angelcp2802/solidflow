@@ -1,5 +1,26 @@
 # Development guide
 
+## Wheel-history raster diagnostics — 2026-10-26
+
+The part-from-empty and standard/configured shortcut routes can retain two
+existing camera crops for the final Previous View comparison after wheel zoom,
+Fit and a temporary Front view. The retained baseline is the original result
+accepted by the unchanged stationary-frame wait, before projection witnesses
+are read. Only the latest candidate and that baseline are retained, with a
+bounded pixel count; pixel buffers are never added to the public frame object
+or its stationarity signature.
+
+If that original comparison fails, a compact diagnostic reports the changed
+pixel counts, maximum byte differences, bounding boxes and a fixed 4-by-4 grid.
+Raw and unmasked comparisons remain distinct, using the existing text masks.
+No additional screenshot, input, camera-state read, wait or acceptance tolerance
+is introduced. Diagnostic errors cannot replace the original failure, and the
+retained buffers are released when the view workflow finishes or throws.
+
+These observations distinguish where a raster mismatch occurs; they do not
+establish that the camera history is wrong, fix a rendering defect or establish
+platform support. Executed checks and their limits belong in [validation](VALIDATION.md).
+
 ## Hosted interaction diagnostics — 2026-10-26
 
 The Normal To renderer route observes the native orientation selector while

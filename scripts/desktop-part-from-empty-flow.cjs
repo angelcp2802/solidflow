@@ -6,7 +6,7 @@ const { encodeJavaScriptString: quote } = require('./desktop-ui-source.cjs');
 // Parameter fields use the actual visible controls; no model/worker state injection.
 module.exports = function fromEmptyWorkflow(c) {
   const { output, evaluate, observe, waitFor, pointer, menu, capture, key, checks, check, canonical, digest,
-    consoleErrors, failedRequests, ipc, protocolResponses, dialogCounts, initialReadyMs, cameraFrame, cameraGesture } = c;
+    consoleErrors, failedRequests, ipc, protocolResponses, dialogCounts, initialReadyMs, cameraFrame, cameraGesture, rasterComparison } = c;
   const APPLY = 'button[title="Aceptar operación"]', SVG = 'svg[aria-label="Editor de croquis multientidad"]';
   const NEW = '[role="dialog"][aria-labelledby="new-document-title"]';
   const phases = [], drawings = [];
@@ -156,7 +156,7 @@ module.exports = function fromEmptyWorkflow(c) {
     const reopenedDocument=JSON.parse(await recovery());
     check(reopenedDocument.id===documentId&&canonical(reopenedDocument.features)===canonical(saved.features),'Reopened recovery retains exact authored document identity and features');
     check(dialogCounts().opens===1&&dialogCounts().saves===1,'Only one Save As and saved reopen; no input fixture is opened');
-    await require('./desktop-view-navigation-flow.cjs')({page,waitFor,check,checks,canonical,key,cameraFrame,cameraGesture,kind:'part',actualControl:press,
+    await require('./desktop-view-navigation-flow.cjs')({page,waitFor,check,checks,canonical,key,cameraFrame,cameraGesture,rasterComparison,kind:'part',actualControl:press,
       snapshot:async()=>({native:await observe(),recovery:await recovery(),dialogs:dialogCounts(),ipc:structuredClone(ipc),ui:await page(()=>{
         const viewport=document.querySelector('.viewport-canvas[aria-label="Vista 3D de la pieza"]');
         return {history:['Deshacer (Ctrl+Z)','Rehacer (Ctrl+Y)'].map(title=>({title,disabled:document.querySelector('button[title="'+title+'"]')?.disabled})),

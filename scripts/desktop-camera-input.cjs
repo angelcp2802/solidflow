@@ -2,8 +2,64 @@
 
 // Fixed camera-only gestures in the already isolated, hidden renderer workflow.
 // No camera state, application handlers or model values are read or injected.
-module.exports = function cameraInput({ getWindow, evaluate, check, digest, allowed, allowFrameDiagnostics = false }) {
+module.exports = function cameraInput({ getWindow, evaluate, check, digest, allowed, allowFrameDiagnostics = false, allowRasterComparison = false }) {
+  check(typeof allowRasterComparison === 'boolean' && (!allowRasterComparison || allowed === true && allowFrameDiagnostics === false),
+    'Raster comparison requires an explicit camera-navigation opt-in');
   const diagnosticNames = new Set();
+  const rasterPixelLimit = 2_000_000;
+  let baseline = null, latest = null;
+  function retainedFrame(frame) {
+    check(frame && frame.raw && frame.bitmap && frame.covered, 'Raster comparison requires a retained crop within the pixel limit');
+    check(JSON.stringify(frame.result) === frame.metadata && digest(frame.raw) === frame.result.rawSha256
+      && digest(frame.bitmap) === frame.result.sha256, 'Retained raster identity and hashes must remain unchanged');
+    return frame;
+  }
+  const rasterComparison = allowRasterComparison ? {
+    retainBaseline(result) {
+      check(latest && latest.result === result, 'Raster baseline must be the latest accepted capture object');
+      baseline = retainedFrame(latest);
+    },
+    compare(result) {
+      check(latest && latest.result === result, 'Raster candidate must be the latest accepted capture object');
+      const before = retainedFrame(baseline), after = retainedFrame(latest);
+      const { width, height } = before.result;
+      check(width === after.result.width && height === after.result.height, 'Raster comparison requires equal bitmap dimensions');
+      const statistics = () => ({ changedPixels: 0, maxByteDelta: 0, bbox: null, grid4x4: Array(16).fill(0) });
+      const raw = statistics(), unmasked = statistics();
+      let rawChangedInsideMasks = 0, rawChangedOutsideMasks = 0;
+      function changed(stats, x, y, delta) {
+        if (delta === 0) return;
+        stats.changedPixels++; stats.maxByteDelta = Math.max(stats.maxByteDelta, delta);
+        stats.grid4x4[Math.floor(y * 4 / height) * 4 + Math.floor(x * 4 / width)]++;
+        const box = stats.bbox;
+        if (box) {
+          box.x = Math.min(box.x, x); box.y = Math.min(box.y, y);
+          box.right = Math.max(box.right, x + 1); box.bottom = Math.max(box.bottom, y + 1);
+        } else stats.bbox = { x, y, right: x + 1, bottom: y + 1 };
+      }
+      for (let pixel = 0; pixel < width * height; pixel++) {
+        let rawDelta = 0, comparisonDelta = 0;
+        for (let byte = pixel * 4; byte < pixel * 4 + 4; byte++) {
+          rawDelta = Math.max(rawDelta, Math.abs(before.raw[byte] - after.raw[byte]));
+          comparisonDelta = Math.max(comparisonDelta, Math.abs(before.bitmap[byte] - after.bitmap[byte]));
+        }
+        const x = pixel % width, y = Math.floor(pixel / width);
+        changed(raw, x, y, rawDelta); changed(unmasked, x, y, comparisonDelta);
+        if (rawDelta) {
+          if (before.covered[pixel] || after.covered[pixel]) rawChangedInsideMasks++;
+          else rawChangedOutsideMasks++;
+        }
+      }
+      return { status: 'compared', width, height, pixelLimit: rasterPixelLimit,
+        expected: { rawSha256: before.result.rawSha256, sha256: before.result.sha256 },
+        actual: { rawSha256: after.result.rawSha256, sha256: after.result.sha256 }, raw, unmasked,
+        masks: { identical: JSON.stringify(before.result.maskedRects) === JSON.stringify(after.result.maskedRects),
+          expectedPixels: width * height - before.result.unmaskedPixelCount, actualPixels: width * height - after.result.unmaskedPixelCount,
+          rawChangedInsideMasks, rawChangedOutsideMasks },
+        limits: 'Byte differences from the two retained captures only. Unmasked uses their existing comparison buffers; inside/outside partitions use the union of their existing text masks. Bboxes have exclusive right/bottom bounds; grids are row-major 4 by 4. No new mask or acceptance tolerance.' };
+    },
+    clear() { baseline = null; latest = null; },
+  } : undefined;
   const bounds = async () => {
     const window = getWindow();
     check(allowed && window && !window.isVisible() && window.webContents.debugger.isAttached(), 'Camera evidence belongs to the fixed hidden test window');
@@ -19,6 +75,9 @@ module.exports = function cameraInput({ getWindow, evaluate, check, digest, allo
     return {window,rect};
   };
   async function cameraFrame(options) {
+    // Replace the candidate before capturing; only the explicit baseline may
+    // outlive the latest poll. Buffers never enter result or its signature.
+    latest = null;
     let diagnostic = null;
     if (options !== undefined) {
       check(allowFrameDiagnostics === true && options !== null && typeof options === 'object' && !Array.isArray(options)
@@ -92,6 +151,8 @@ module.exports = function cameraInput({ getWindow, evaluate, check, digest, allo
       check(Buffer.isBuffer(png) && png.length > 0 && png.length <= 4*1024*1024, 'Bounded diagnostic PNG bytes');
       result.diagnosticImage={name:diagnostic,mimeType:'image/png',byteLength:png.length,sha256:digest(png),crop,base64:png.toString('base64')};
     }
+    if (allowRasterComparison) latest = pixelCount <= rasterPixelLimit
+      ? { result, raw, bitmap, covered, metadata: JSON.stringify(result) } : { result };
     return result;
   }
   async function cameraGesture(kind) {
@@ -119,5 +180,5 @@ module.exports = function cameraInput({ getWindow, evaluate, check, digest, allo
     if(gestureError)throw gestureError;
     return {kind,start,end:kind==='wheel-in'?start:end,modifiers,transport:'CDP mouse events'};
   }
-  return {cameraFrame,cameraGesture};
+  return {cameraFrame,cameraGesture,rasterComparison};
 };
