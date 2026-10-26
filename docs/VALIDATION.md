@@ -1,5 +1,87 @@
 # Validation
 
+## Native part reuse during ordinary assembly Solve — 2026-10-26
+
+Ordinary Solve now shares completed native part reconstruction between its
+fresh reference snapshots and final display scene, within one request. Admission
+uses the complete validated definition content. Each placed body still has its
+own copy, native validation, mesh and physical measurements; saved identity,
+reference checks and resource limits remain in force. Apply, configured assembly
+and movement reconstruction paths retain their existing behavior.
+
+Original fixtures compare exact picking catalogs and placed scenes, apart from
+fresh scene IDs, for a semantic prism, named multibody part, eccentric bored pin,
+sphere and cone. Independent native checks include solid validity, analytical
+volume/area within 1e-5 and bounds within 1e-6. The three-body plate/two-pin case
+retains four relations, rank ten and two local degrees of freedom. Its expected
+combined volume is `4800 + 45*pi/2` and area `2960 + 543*pi/4`; bounds are
+`[-20,-15,-8]` to `[20,15,4]`. Eccentric-bore placement checks use 1e-8.
+
+Tests also cover changed feature content under the same ID/revision, detached
+presentation data, expired inspection leases, real tessellation/copy failures,
+final owner-release failures and reply-cloning failure before token publication.
+Forty-two focused tests in four files and TypeScript passed after the final
+test adjustment. These focused results do not replace full acceptance.
+
+The first full attempt built successfully but reported 9,992 passing tests and
+one failure in 441 files. The failing test observed only the render constructor,
+which ordinary Prepare no longer calls. It now records both real constructors
+before either can throw and requires exactly one engine through the appropriate
+Prepare/Apply route. It preserves the actual meshing failure, revoked Apply
+token, unchanged input and rejection of access to every constructed engine.
+IPC, renderer and desktop checks did not run in that failed attempt.
+
+**Local Windows acceptance 02: PASS**, six fresh commands against 1,198 matching
+source/runtime inputs with Node 24.11.1 and Electron 44.9.3. Dependencies,
+geometric tolerances, input routes and deadlines were not changed.
+
+| Command | Result | Elapsed |
+| --- | --- | --- |
+| `npm run build` | PASS | 6.871 s |
+| `npm test` | 9,993 tests in 441 files; 154 IPC passes, two explicit skips | 487.214 s |
+| `npm run test:desktop:assembly` | PASS; 690 recorded checks | 62.129 s |
+| `npm run test:desktop:assembly-symmetry-picking` | PASS; 269 recorded checks | 58.709 s |
+| `npm run test:desktop:assembly-mate-reference-edit` | PASS; 276 recorded checks | 42.737 s |
+| `npm run test:desktop` | PASS | 4.425 s |
+
+The assembly route retains gear winding, Cancel/Apply, Undo/Redo, seven saves
+and reopening. The symmetry route retains all six original point, line, plane,
+sphere, cylinder and axis-line cases, including pointer reselection and fresh
+native verification after reopening. Saved-reference editing retains distance,
+ordinary angle, coincidence and concentricity; exact Cancel raster comparisons
+remain limited to distance and angle. All three renderer routes reported no
+console/request errors, observed child closure and isolated-profile cleanup.
+
+### Matched ordinary-Solve timing observation
+
+Before and after measurements used the same original plate/two-pin document,
+unchanged fixture/configuration/oracles and dependencies, on Windows x64
+10.0.26200 with Node 24.11.1 and an AMD Ryzen 7 5800X (16 logical processors).
+Each run starts a fresh child, loads WASM once, then measures one fresh worker
+session per sample in control/profile/control order. The separately packaged
+demo remained open; host exclusivity was not established.
+
+| Sample | Before | After |
+| --- | --- | --- |
+| First control | 697.0379 ms | 516.4594 ms |
+| CPU-profiled | 572.2816 ms | 366.6866 ms |
+| Second control | 502.3847 ms | 292.9754 ms |
+
+These intervals cover the real synchronous ordinary Prepare call, including its
+final scene. They exclude WASM startup, subsequent assertions/discard, worker
+transport, renderer interaction and the broader Save/reopen flow. Each sample
+preserved the input/result document and the independent geometric checks above,
+with two local degrees of freedom, rank ten and zero numeric iterations.
+Session discard returned and child closure was observed; this is not a general
+native-memory leak test. Source/runtime hashes remained fixed during acceptance,
+and the measured runtime/dependencies remained fixed before and after profiling.
+
+Both observed controls improved for this workload. Two controls and one profiled
+sample per version do not establish statistical speedup, other model sizes,
+interactive latency or platform support. The profile has sampling overhead and
+nested inclusive frames; their times must not be added. This local observation
+does not close the outstanding hosted timeout or Linux raster-restoration issue.
+
 ## Names in standard relation reference cards — 2026-10-26
 
 The two generic standard-assembly reference cards now display current occurrence
@@ -33,6 +115,22 @@ All three renderer processes reported no console/request errors, successful
 resource responses, observed child closure and isolated-profile cleanup. These
 are local scripted checks, not new human-user or cross-platform acceptance.
 The earlier hosted stability failures remain open.
+
+At public head `7e3aeb96dad762aeef7534601adbf46f83434524`,
+[CI](https://github.com/angelcp2802/solidflow/actions/runs/40381806306)
+finished with ten passing validation jobs and two failures. All four macOS
+renderer jobs and all three configured-authoring jobs passed. Windows symmetry
+picking reached its unchanged 170-second aggregate deadline after 244 recorded
+checks; the last completed wait concerned the symmetry-name input. Its five
+observed Save requests had fulfilled in 9.5402–14.7458 ms. No sixth Save request
+was observed before that deadline. Linux standard shortcuts again differed in
+two unmasked pixels, maximum byte delta one, after Previous View; the existing
+text masks were identical. These observations do not establish the cause of
+either failure or close prior intermittent Save failures. All three downstream
+Desktop jobs stopped at the renderer dependency gate before build/tests/package.
+[Security](https://github.com/angelcp2802/solidflow/actions/runs/40381806321)
+passed dependency audit and CodeQL; one existing medium CodeQL warning remains
+open. No platform or release acceptance follows from these bounded jobs.
 
 ## Continuous native-window part and assembly walkthrough — 2026-10-26
 

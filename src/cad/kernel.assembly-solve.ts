@@ -718,7 +718,7 @@ export function assertUnavailableAssemblyGearCoordinates(base: AssemblyDocument,
   }, snapshots), snapshots)
 }
 /** Same-path source repair may retain zero frames only with directed-axis proof. */
-export function assertAssemblyGearSourceContinuity(base: AssemblyDocument, proposal: AssemblyDocument, options: AssemblySolveOptions = {}): void {
+export function assertAssemblyGearSourceContinuity(base: AssemblyDocument, proposal: AssemblyDocument, options: AssemblySolveOptions = {}, snapshots?: AssemblySnapshotRunner): void {
   const originalNodes = new Map([base, ...base.definitions].filter(value => value.kind === 'assembly').map(value => [key(value), value]))
   const source = (document: AssemblyDocument, reference: AssemblyDefinitionReference) => document.definitions.find(value => key(value) === key(reference))
   const changed = new Set<string>()
@@ -766,7 +766,7 @@ export function assertAssemblyGearSourceContinuity(base: AssemblyDocument, propo
       if (previous.carrier) before.assertWitness(previous.carrier, base)
       if (current.carrier) after.assertWitness(current.carrier, proposal)
     }
-  }))
+  }, snapshots), snapshots)
 }
 function finalChecks(candidate: AssemblyDocument, options: ReturnType<typeof policy>, selectedComponent?: AssemblyComponentReference, snapshots?: AssemblySnapshotRunner): {
   checks: RigidMateEvaluation['checks']; tangencies: AssemblyTangentSupportReport[]; cylinderTangencies: AssemblyCylinderTangencySupportReport[]; sphericalTangencies: AssemblySphericalTangencySupportReport[]; limitDistances: AssemblyLimitDistanceSupportReport[]; limitAngles: AssemblyLimitAngleSupportReport[]; limitDirectedAngles: AssemblyLimitDirectedAngleSupportReport[]; widthCentered: AssemblyWidthCenteredSupportReport[]; symmetries: AssemblySymmetrySupportReport[]; profileCenters: AssemblyProfileCenterSupportReport[]; linePaths: AssemblyLinePathSupportReport[]; circularPaths: AssemblyCircularPathSupportReport[]; hinges: AssemblyHingeSupportReport[]; selectedWorldPose?: RigidPose
@@ -1034,8 +1034,8 @@ function finalChecks(candidate: AssemblyDocument, options: ReturnType<typeof pol
  * Flexible per-instance children are deliberately not represented by this API.
  * All native ownership is released before a successful preview is published.
  */
-export function prepareAssemblySolve(input: AssemblyDocument, options: AssemblySolveOptions = {}): AssemblySolvePreview | AssemblySolveRejection {
-  return prepare(input, options)
+export function prepareAssemblySolve(input: AssemblyDocument, options: AssemblySolveOptions = {}, snapshots?: AssemblySnapshotRunner): AssemblySolvePreview | AssemblySolveRejection {
+  return prepare(input, options, undefined, false, snapshots)
 }
 
 /** Native endpoint continuity for the centered-width affine path argument.

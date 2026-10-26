@@ -27,6 +27,9 @@ import type {
   SketchFeature,
   RevolveFeature,
   Vec3,
+  PickableFace,
+  PickableEdge,
+  PickableVertex,
 } from './kernel.types';
 import { createEdgeCatalog, pickableEdges, pickableEdgesFromCatalog, resolveEdgeReferences, type EdgeCatalog } from './kernel.edges';
 import { advanceLineage } from './kernel.naming';
@@ -42,7 +45,7 @@ import { geometryDelta, isRepetition, patternPlan, repetitionSolid, type Feature
 import { draftSolid, shellSolid } from './kernel.face-operations';
 import { throughAllBossTool, throughAllTool, untilNextTool, upToSurfaceTool } from './kernel.extrusion-limits';
 import { isNativeCleanupFailure, NativeCleanupError, NativeOwners, withNativeOwners } from './kernel.native-ownership';
-import { extractAssemblyFaceSupport, extractAssemblyDirectionFaceSupport, extractAssemblyCylinderSurfaceSupport, extractAssemblySphereSurfaceSupport, extractAssemblyEdgeSupport, extractAssemblyVertexSupport, UnsupportedAssemblyCurveError, type AssemblyNativeFaceSupport, type AssemblyNativeCylinderSurfaceSupport, type AssemblyNativeSphereSurfaceSupport, type AssemblyNativeLineSupport, type AssemblyNativePointSupport } from './kernel.assembly-supports';
+import { extractAssemblyFaceSupport, extractAssemblyDirectionFaceSupport, extractAssemblyCylinderSurfaceSupport, extractAssemblySphereSurfaceSupport, extractAssemblyEdgeSupport, extractAssemblyVertexSupport, UnsupportedAssemblyCurveError, UnsupportedAssemblySurfaceError, UnsupportedAssemblySphereSurfaceError, type AssemblyNativeFaceSupport, type AssemblyNativeCylinderSurfaceSupport, type AssemblyNativeSphereSurfaceSupport, type AssemblyNativeLineSupport, type AssemblyNativePointSupport } from './kernel.assembly-supports';
 import { extractAssemblyProfileSupport, extractAssemblyRectangleAxisSupport, type AssemblyNativeProfileSupport, type AssemblyNativeRectangleAxisSupport } from './kernel.assembly-profile-supports';
 import { observeAssemblyPathCurve, evaluateAssemblyPathCurve, type AssemblyPathCurveObservation, type AssemblyPathCurveEvaluation, type AssemblyPathCurveCoordinate, type AssemblyPathCurveBands } from './kernel.assembly-path-curves';
 import { validateAssemblyShape } from './kernel.assembly-placements';
@@ -84,6 +87,18 @@ export type AssemblyReferenceInventory = AssemblyReferenceShapeInventory & {
   featureErrors: CadResult['featureErrors'];
   warnings: string[];
 };
+
+/** Detached local picking metadata, never native reference authority or a placed mesh. */
+export interface AssemblyPresentationBody {
+  body: BodyReference | null;
+  name: string;
+  faces: PickableFace[];
+  edges: PickableEdge[];
+  vertexPoints: PickableVertex[];
+}
+export type AssemblyPartInspection = Pick<CadEngine, 'readCurrentAssemblyPresentation' | 'copyCurrentBodyShape'
+  | 'inspectCurrentFaceSupport' | 'inspectCurrentSphereSurfaceSupport' | 'inspectCurrentEdgeSupport'
+  | 'inspectCurrentVertexSupport' | 'inspectCurrentArcPathOrigins'>;
 
 /** Raw worker callers must obey the same body-operation shape as saved documents. */
 function validateBodyOperationDeclaration(feature: Extract<Feature, { type: 'extrude' | 'revolve' | 'sweep' | 'loft' }>): void {
@@ -715,6 +730,92 @@ export class CadEngine {
         current();
         return copy;
       }, result => [result], 'Current body copy or release failed.');
+    } catch (error) {
+      this.inspectionReady = false; this.inspectionEpoch++;
+      throw error;
+    }
+  }
+
+  /** A read-only lease bound to this exact completed build and its owner. The
+   * caller owns every copied body; no borrowed native object escapes. */
+  borrowCurrentAssemblyInspection(assertOwnerCurrent: () => void, onFailure: (error: unknown) => void): AssemblyPartInspection {
+    if (!this.inspectionReady || this.hasErrors) throw new Error('La pieza necesita una reconstrucción completa y vigente antes de prestar su geometría.');
+    const epoch = this.inspectionEpoch;
+    const current = (): void => {
+      assertOwnerCurrent();
+      if (!this.inspectionReady || this.hasErrors || epoch !== this.inspectionEpoch) throw new Error('La geometría prestada ya no está vigente.');
+    };
+    const read = <T>(operation: () => T, unsupported?: (error: unknown) => boolean): T => {
+      // Guard failures are never unsupported geometry, even if an owner throws
+      // the same exception class as an ordinary analytic-family rejection.
+      try { current(); } catch (error) { onFailure(error); throw error; }
+      let result: T;
+      try { result = operation(); }
+      catch (error) {
+        if (!unsupported?.(error)) onFailure(error);
+        else { try { current(); } catch { onFailure(error); } }
+        throw error;
+      }
+      try { current(); } catch (error) { onFailure(error); throw error; }
+      return result;
+    };
+    return {
+      readCurrentAssemblyPresentation: () => read(() => this.readCurrentAssemblyPresentation()),
+      inspectCurrentFaceSupport: (...args) => read(() => this.inspectCurrentFaceSupport(...args), error => error instanceof UnsupportedAssemblySurfaceError),
+      inspectCurrentSphereSurfaceSupport: (...args) => read(() => this.inspectCurrentSphereSurfaceSupport(...args), error => error instanceof UnsupportedAssemblySphereSurfaceError),
+      inspectCurrentEdgeSupport: (...args) => read(() => this.inspectCurrentEdgeSupport(...args), error => error instanceof UnsupportedAssemblyCurveError),
+      inspectCurrentVertexSupport: (...args) => read(() => this.inspectCurrentVertexSupport(...args)),
+      inspectCurrentArcPathOrigins: (...args) => read(() => this.inspectCurrentArcPathOrigins(...args)),
+      copyCurrentBodyShape: reference => {
+        try {
+          return withNativeOwners(owners => read(() => owners.own(this.copyCurrentBodyShape(reference))),
+            result => [result], 'Borrowed body copy or release failed.');
+        } catch (error) { onFailure(error); throw error; }
+      },
+    };
+  }
+
+  /** Read the catalogs from an already completed native build. Preserve render
+   * meshing order/cache effects without rebuilding or replacing native topology. */
+  readCurrentAssemblyPresentation(): AssemblyPresentationBody[] {
+    if (!this.inspectionReady || this.hasErrors) throw new Error('La pieza necesita una reconstrucción completa y vigente antes de mostrar sus referencias.');
+    const epoch = this.inspectionEpoch, shape = this.shape, catalog = this.bodyCatalog;
+    const current = (): void => {
+      if (!this.inspectionReady || epoch !== this.inspectionEpoch || shape !== this.shape || catalog !== this.bodyCatalog) {
+        throw new Error('La geometría cambió mientras se preparaba su presentación.');
+      }
+    };
+    try {
+      // A successfully rebuilt empty part is valid; a new/disposed engine is not.
+      if (!shape) { current(); return []; }
+      const state = this.finalState;
+      if (!state) throw new Error('La reconstrucción no publicó un estado nativo vigente.');
+      const bodies = catalog ? catalog.entries().map(entry => ({ body: { ...entry.ref }, name: entry.name, shape: entry.shape,
+        identity: JSON.stringify(entry.ref) })) : [{ body: null, name: 'Agregado de pieza', shape,
+        identity: JSON.stringify(['legacy', state.sourceFeatureId, state.lineage]) }];
+      const result = bodies.map(({ body, name, identity, shape: bodyShape }) => {
+        const faces = body ? this.currentFaceCatalogs.get(identity) : this.finalSemanticFaces ?? this.currentFaceCatalogs.get(identity);
+        const edges = body ? this.currentEdgeCatalogs.get(identity) : this.finalSemanticEdges ?? this.currentEdgeCatalogs.get(identity);
+        const points = this.currentVertexCatalogs.get(identity);
+        if (!faces || !edges || !points) throw new Error('La reconstrucción no publicó los catálogos de presentación actuales.');
+        // Render build triangulates each body before its picking catalogs.
+        // Keep this order: lazy per-face triangulation can differ at seams.
+        bodyShape.mesh(MESH_OPTIONS); current();
+        bodyShape.meshEdges(MESH_OPTIONS); current();
+        const edgeData = pickableEdgesFromCatalog(edges); current();
+        const faceData = pickableFacesFromCatalog(faces); current();
+        const vertexPoints = pickableVerticesFromCatalog(points); current();
+        return { body, name, faces: faceData, edges: edgeData, vertexPoints };
+      });
+      if (catalog) {
+        // The ordinary render route also meshes the aggregate after explicit
+        // bodies. Retain those cache effects before making placed copies.
+        shape.mesh(MESH_OPTIONS); current();
+        shape.meshEdges(MESH_OPTIONS); current();
+        pickableEdges(shape, state.sourceFeatureId, state.lineage); current();
+        pickableFaces(shape, state.sourceFeatureId, state.lineage); current();
+      }
+      return result;
     } catch (error) {
       this.inspectionReady = false; this.inspectionEpoch++;
       throw error;

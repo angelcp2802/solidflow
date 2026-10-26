@@ -5,6 +5,7 @@ import { createAssemblyRootRevision } from '../model/assemblyRevisions'
 import { applyAssemblySolvePreview, assertAssemblyGearSourceContinuity, assertUnavailableAssemblyGearCoordinates, captureAssemblyComponentLock, captureAssemblyConcentricRotationLock, captureAssemblyGearPreview, captureAssemblyScrewPreview, captureAssemblyRackPinionPreview,
   discardAssemblySolvePreview, prepareAssemblyDragPreview, prepareAssemblyMovePreview, prepareAssemblyMotionPreview, prepareAssemblyWorldMovePreview, prepareAssemblyTranslationPreview, prepareAssemblySolve, type AssemblySolveOptions, type AssemblySolvePreview } from './kernel.assembly-solve'
 import { buildAssemblyScene } from './kernel.assembly-scene'
+import { withAssemblyGeometryReuse } from './kernel.assembly-snapshot'
 import type { AssemblyAppliedReply, AssemblyGearCaptureRequest, AssemblyScrewCaptureRequest, AssemblyRackPinionCaptureRequest, AssemblyKernelRequest, AssemblyPreviewReply, AssemblyScene } from './kernel.assembly-types'
 import { reviewAssemblyPartSourceUpdate, prepareAssemblyPartSourceProposal, type AssemblySourceUpdateReview } from './kernel.assembly-source-updates'
 import { analyzeAssemblyInterference } from './kernel.assembly-interference'
@@ -253,9 +254,21 @@ export class AssemblyWorkerSession {
     assertGearProposal(base, proposal)
     assertScrewProposal(base, proposal)
     assertRackPinionProposal(base, proposal)
-    assertUnavailableAssemblyGearCoordinates(base, proposal)
-    assertAssemblyGearSourceContinuity(base, proposal, options)
-    return this.#prepare(base, proposal, options)
+    let native: ReturnType<typeof prepareAssemblySolve> | undefined
+    try {
+      const prepared = withAssemblyGeometryReuse(proposal, (snapshots, parts) => {
+        assertUnavailableAssemblyGearCoordinates(base, proposal, snapshots)
+        assertAssemblyGearSourceContinuity(base, proposal, options, snapshots)
+        native = prepareAssemblySolve(proposal, options, snapshots)
+        return { native, scene: native.status === 'ready' ? buildAssemblyScene(validateAssemblyDocument(native.document), parts) : undefined }
+      })
+      // The shared owner has closed successfully. No token is stored while
+      // construction, placed validation or final native cleanup can still fail.
+      return this.#publish(base, proposal, prepared.native, options, undefined, undefined, undefined, prepared.scene)
+    } catch (error) {
+      if (native?.status === 'ready') discardAssemblySolvePreview(native)
+      throw error
+    }
   }
   /** Revision authoring cannot accept a renderer proposal. Only this exact
    * detached identity rewrite may retain existing native capture declarations;
@@ -310,15 +323,15 @@ export class AssemblyWorkerSession {
     const base = validateAssemblyDocument(current), native = prepareAssemblyTranslationPreview(base, translation, stopOptions, options)
     return this.#publish(base, base, native, options)
   }
-  #publish(base: AssemblyDocument, proposal: AssemblyDocument, native: ReturnType<typeof prepareAssemblySolve>, options: AssemblySolveOptions, replacementReviewId?: string, documentUpdateReviewId?: string, partUpdateReviewId?: string): AssemblyPreviewReply {
+  #publish(base: AssemblyDocument, proposal: AssemblyDocument, native: ReturnType<typeof prepareAssemblySolve>, options: AssemblySolveOptions, replacementReviewId?: string, documentUpdateReviewId?: string, partUpdateReviewId?: string, preparedScene?: AssemblyScene): AssemblyPreviewReply {
     if (native.status === 'rejected') return { kind: 'assembly-preview', ...native }
     try {
-      const document = validateAssemblyDocument(native.document), scene = buildAssemblyScene(document), token = crypto.randomUUID()
-      this.#preview = { token, base: JSON.stringify(base), proposed: proposal, native, options: copy(options),
+      const document = validateAssemblyDocument(native.document), scene = preparedScene ?? buildAssemblyScene(document), token = crypto.randomUUID()
+      const pending: PendingPreview = { token, base: JSON.stringify(base), proposed: proposal, native, options: copy(options),
         ...(replacementReviewId === undefined ? {} : { replacementReviewId }),
         ...(documentUpdateReviewId === undefined ? {} : { documentUpdateReviewId }),
         ...(partUpdateReviewId === undefined ? {} : { partUpdateReviewId }) }
-      return { kind: 'assembly-preview', status: 'ready', token, document, scene, scopes: copy(native.scopes), checks: copy(native.checks),
+      const reply: AssemblyPreviewReply = { kind: 'assembly-preview', status: 'ready', token, document, scene, scopes: copy(native.scopes), checks: copy(native.checks),
         ...(native.tangencies ? { tangencies: copy(native.tangencies) } : {}),
         ...(native.cylinderTangencies ? { cylinderTangencies: copy(native.cylinderTangencies) } : {}),
         ...(native.sphericalTangencies ? { sphericalTangencies: copy(native.sphericalTangencies) } : {}),
@@ -334,6 +347,8 @@ export class AssemblyWorkerSession {
         ...(native.movement ? { movement: copy(native.movement) } : {}), ...(native.projection ? { projection: copy(native.projection) } : {}),
         ...(native.motion ? { motion: copy(native.motion) } : {}),
         ...(native.translation ? { translation: copy(native.translation) } : {}) }
+      this.#preview = pending
+      return reply
     } catch (error) { discardAssemblySolvePreview(native); throw error }
   }
   apply(current: AssemblyDocument, token: string): AssemblyAppliedReply {

@@ -6,9 +6,11 @@ import { beforeAll, expect, it, vi } from 'vitest'
 import { validateDocument } from '../model/document'
 import { validateAssemblyDocument, type AssemblyDocument, type AssemblyFaceReference, type EmbeddedPartDefinition } from '../model/assemblyDocument'
 import { identityRigidPose } from '../model/rigidPose'
-import { AssemblyGeometrySnapshot, withAssemblyGeometryReuse, type AssemblyEndpointWitness, type AssemblySnapshotRunner } from './kernel.assembly-snapshot'
+import { AssemblyGeometrySnapshot, withAssemblyGeometryReuse, type AssemblyEndpointWitness, type AssemblySnapshotRunner, type AssemblyScenePartProvider, type AssemblyScenePartSource } from './kernel.assembly-snapshot'
 import { CadEngine } from './kernel.engine'
 import { NativeCleanupError } from './kernel.native-ownership'
+import { buildAssemblyScene } from './kernel.assembly-scene'
+import { UnsupportedAssemblySurfaceError } from './kernel.assembly-supports'
 
 beforeAll(async () => setOC(await initOpenCascade({
   wasmBinary: await readFile(createRequire(import.meta.url).resolve('replicad-opencascadejs/wasm')),
@@ -67,6 +69,64 @@ it('is lazy and revokes a retained runner after its one synchronous operation', 
     expect(build).not.toHaveBeenCalled()
   } finally { build.mockRestore() }
 })
+
+it('shares presentation construction without changing live witnesses or retaining the scene lease', () => {
+  const input = fixture(), before = JSON.stringify(input), build = vi.spyOn(CadEngine.prototype, 'rebuildForAssemblyReferences')
+  let retained: AssemblyScenePartSource | undefined, provider: AssemblyScenePartProvider | undefined
+  try {
+    withAssemblyGeometryReuse(input, (run, parts) => run(input, snapshot => {
+      provider = parts
+      const chosen = cylinder(snapshot, input), first = parts(part(input))!
+      retained = first
+      const original = structuredClone(first.bodies)
+      expect(snapshot.assertWitness(chosen.witness, input)).toBe(chosen.witness)
+      close(xy(cylinder(snapshot, input).witness), [1, 0])
+      first.bodies[0].faces[0].ref.key = 'detached display mutation'
+      first.bodies[0].faces[0].vertices[0] = 999
+      expect(parts(part(input))!.bodies).toEqual(original)
+      const scene = buildAssemblyScene(input, parts)
+      expect(scene.solidCount).toBe(1); expect(Math.abs(scene.volume - 189 * Math.PI / 4)).toBeLessThan(1e-5)
+      expect(snapshot.assertWitness(chosen.witness, input)).toBe(chosen.witness)
+      close(xy(cylinder(snapshot, input).witness), [1, 0])
+    }))
+    expect(build).toHaveBeenCalledTimes(1); expect(JSON.stringify(input)).toBe(before)
+    expect(() => provider!(part(input))).toThrow('ya no está vigente')
+    expect(() => retained!.inspection.readCurrentAssemblyPresentation()).toThrow('ya no está vigente')
+    expect(() => retained!.inspection.copyCurrentBodyShape(retained!.bodies[0].body)).toThrow('ya no está vigente')
+  } finally { build.mockRestore() }
+}, 60_000)
+
+it('uses an independent scene reconstruction for changed content under the same tuple', () => {
+  const input = fixture(), changed = structuredClone(input), bore = part(changed).document.features[2]
+  if (bore.type !== 'sketch' || bore.profile.kind !== 'circle') throw new Error('Original bore missing')
+  bore.profile.radius = .5
+  const build = vi.spyOn(CadEngine.prototype, 'rebuildForAssemblyReferences'), render = vi.spyOn(CadEngine.prototype, 'build')
+  try {
+    withAssemblyGeometryReuse(input, (run, parts) => {
+      run(input, snapshot => close(xy(cylinder(snapshot, input).witness), [1, 0]))
+      expect(parts(part(changed))).toBeUndefined()
+      const scene = buildAssemblyScene(changed, parts)
+      expect(scene.solidCount).toBe(1); expect(Math.abs(scene.volume - 45 * Math.PI)).toBeLessThan(1e-5)
+      run(input, snapshot => close(xy(cylinder(snapshot, input).witness), [1, 0]))
+    })
+    expect(build).toHaveBeenCalledTimes(1); expect(render).toHaveBeenCalledTimes(1)
+  } finally { build.mockRestore(); render.mockRestore() }
+}, 60_000)
+
+it.each([new Error('Original deferred presentation sentinel'), new UnsupportedAssemblySurfaceError()])('revokes all live snapshot witnesses if deferred presentation throws $name', failure => {
+  const input = fixture(), actual = CadEngine.prototype.readCurrentAssemblyPresentation
+  withAssemblyGeometryReuse(input, (run, parts) => run(input, snapshot => {
+    const witness = cylinder(snapshot, input).witness
+    const read = vi.spyOn(CadEngine.prototype, 'readCurrentAssemblyPresentation').mockImplementation(function (this: CadEngine) {
+      actual.call(this); throw failure
+    })
+    try {
+      expect(() => parts(part(input))).toThrow(failure)
+      expect(() => snapshot.assertWitness(witness, input)).toThrow('ya no está vigente')
+      expect(() => run(input, () => 'not reached')).toThrow('ya no está vigente')
+    } finally { read.mockRestore() }
+  }))
+}, 60_000)
 
 it('shares local geometry but issues fresh placed witnesses, with independent snapshot lifetime', () => {
   const input = fixture(), moved = structuredClone(input), build = vi.spyOn(CadEngine.prototype, 'rebuildForAssemblyReferences')

@@ -3,7 +3,8 @@ import { assemblyDefinitionKey, expandAssemblyParts, validateAssemblyDocument, t
   type AssemblyComponentReference, type ExpandedPartOccurrence } from '../model/assemblyDocument'
 import { validateDocument } from '../model/document'
 import { rigidRotationMatrix, transformRigidDirection, transformRigidPoint, validateRigidPose, type RigidPose } from '../model/rigidPose'
-import { CadEngine } from './kernel.engine'
+import { CadEngine, type AssemblyPresentationBody, type AssemblyPartInspection } from './kernel.engine'
+import type { AssemblyScenePartProvider } from './kernel.assembly-snapshot'
 import { placeAssemblyShape, validateAssemblyShape } from './kernel.assembly-placements'
 import { UnsupportedAssemblySurfaceError, UnsupportedAssemblySphereSurfaceError, UnsupportedAssemblyCurveError, type AssemblyNativeFaceSupport, type AssemblyNativeLineSupport } from './kernel.assembly-supports'
 import { withNativeOwners } from './kernel.native-ownership'
@@ -29,7 +30,7 @@ interface PrototypeBody {
   faces: { face: PickableFace; support: AssemblyNativeFaceSupport | null; sphereSurface?: NonNullable<AssemblySceneFace['sphereSurface']> }[]
   edges: { edge: PickableEdge; support: AssemblyNativeLineSupport | null; circularPathOrigins: VertexReference[] }[]
 }
-interface Prototype { engine: CadEngine; bodies: PrototypeBody[] }
+interface Prototype { inspection: AssemblyPartInspection; bodies: PrototypeBody[] }
 function worldSupport(support: AssemblyNativeFaceSupport, pose: RigidPose): AssemblyNativeFaceSupport {
   const common = { point: transformRigidPoint(pose, support.point), xDirection: transformRigidDirection(pose, support.xDirection), tolerance: support.tolerance }
   return support.kind === 'plane' ? { ...common, kind: 'plane', normal: transformRigidDirection(pose, support.normal) }
@@ -56,11 +57,14 @@ function union(values: AssemblySceneBody['bounds'][]): AssemblyScene['bounds'] {
   return values.length ? { min: [0, 1, 2].map(i => Math.min(...values.map(value => value.min[i]))) as Vec3,
     max: [0, 1, 2].map(i => Math.max(...values.map(value => value.max[i]))) as Vec3 } : null
 }
-function sceneBodySources(result: CadResult, engine: CadEngine, admitVertices: (count: number) => boolean): PrototypeBody[] {
+function sceneBodySources(result: CadResult, engine: AssemblyPartInspection, admitVertices: (count: number) => boolean): PrototypeBody[] {
   if (result.featureErrors.length) throw new Error('No se pudo reconstruir la pieza: ' + result.featureErrors.map(value => value.message).join('; '))
   if (result.bodyCatalogActive && !result.bodies) throw new Error('La pieza no publicó sus cuerpos explícitos.')
   const bodies = result.bodyCatalogActive ? result.bodies!.map(body => ({ body: { ...body.ref }, name: body.name, faces: body.faces, edges: body.edges, vertexPoints: body.vertexPoints ?? [] }))
     : result.vertices.length ? [{ body: null, name: 'Agregado de pieza', faces: result.faces ?? [], edges: result.edges, vertexPoints: result.vertexPoints ?? [] }] : []
+  return inspectBodySources(bodies, engine, admitVertices)
+}
+function inspectBodySources(bodies: AssemblyPresentationBody[], engine: AssemblyPartInspection, admitVertices: (count: number) => boolean): PrototypeBody[] {
   return bodies.map(body => ({ ...body, vertexPoints: admitVertices(body.vertexPoints.length) ? body.vertexPoints.map(value => {
     const support = engine.inspectCurrentVertexSupport(value.ref, body.body)
     return { vertex: { ...value.ref }, point: [...support.point] as Vec3, tolerance: support.tolerance }
@@ -89,18 +93,19 @@ function sceneBodySources(result: CadResult, engine: CadEngine, admitVertices: (
  * Build actual independently placed BReps and display meshes without Fuse.
  * Picking retains local prototype face keys with complete occurrence scope;
  * rigidly transformed face meshes are display metadata, never native proof.
- * All native engines/copies are released before a complete DTO can escape.
+ * Local engines/copies are released before returning. A shared provider's
+ * owner must close before the caller publishes the returned DTO or a token.
  */
-export function buildAssemblyScene(input: AssemblyDocument): AssemblyScene {
+export function buildAssemblyScene(input: AssemblyDocument, parts?: AssemblyScenePartProvider): AssemblyScene {
   const document = validateAssemblyDocument(input), occurrences = expandAssemblyParts(document)
-  return buildAssemblySceneFromOccurrences(occurrences)
+  return buildAssemblySceneFromOccurrences(occurrences, parts)
 }
 
 type ReadonlyData<T> = T extends object ? { readonly [K in keyof T]: ReadonlyData<T[K]> } : T
 /** @internal Native display construction shared by the two validated expansion
  * boundaries. An inventory or its display metadata grants no reference/Apply
  * authority. Callers must own and validate the full declaration context. */
-export function buildAssemblySceneFromOccurrences(occurrences: readonly ReadonlyData<ExpandedPartOccurrence>[]): AssemblyScene {
+export function buildAssemblySceneFromOccurrences(occurrences: readonly ReadonlyData<ExpandedPartOccurrence>[], parts?: AssemblyScenePartProvider): AssemblyScene {
   return withNativeOwners<AssemblyScene>(owners => {
     const prototypes = new Map<string, Prototype>(), bodies: AssemblySceneBody[] = [], warnings: string[] = []
     let prototypeEntries = 0, expandedEntries = 0, faceReferences = 0, edgeReferences = 0, numbers = 0, prototypeVertexPoints = 0, expandedVertexPoints = 0
@@ -119,19 +124,29 @@ export function buildAssemblySceneFromOccurrences(occurrences: readonly Readonly
       const definition = occurrence.definition, identity = assemblyDefinitionKey(definition)
       let prototype = prototypes.get(identity)
       if (!prototype) {
-        const engine = new CadEngine(); owners.own({ delete: () => engine.dispose() })
-        const result = engine.build(validateDocument(definition.document).features)
-        prototype = { engine, bodies: sceneBodySources(result, engine, count => {
+        const admitVertices = (count: number): boolean => {
           if (count > MAX_ASSEMBLY_SCENE_VERTEX_POINTS - prototypeVertexPoints) {
             warnings.push('Se omitió un catálogo opcional de vértices del prototipo por presupuesto.'); return false
           }
           prototypeVertexPoints += count; return true
-        }) }; prototypes.set(identity, prototype)
+        }
+        const shared = parts?.({ ...definition, document: validateDocument(definition.document) })
+        let partWarnings: string[]
+        if (shared) {
+          prototype = { inspection: shared.inspection, bodies: inspectBodySources(shared.bodies, shared.inspection, admitVertices) }
+          partWarnings = shared.warnings
+        } else {
+          const engine = new CadEngine(); owners.own({ delete: () => engine.dispose() })
+          const result = engine.build(validateDocument(definition.document).features)
+          prototype = { inspection: engine, bodies: sceneBodySources(result, engine, admitVertices) }
+          partWarnings = result.warnings
+        }
+        prototypes.set(identity, prototype)
         prototypeEntries += prototype.bodies.length
         faceReferences += prototype.bodies.reduce((total, body) => total + body.faces.length, 0)
         edgeReferences += prototype.bodies.reduce((total, body) => total + body.edges.length, 0)
         if (prototypeEntries > MAX_ASSEMBLY_SCENE_BODY_ENTRIES || faceReferences > MAX_ASSEMBLY_SCENE_FACE_REFERENCES || edgeReferences > MAX_ASSEMBLY_SCENE_EDGE_REFERENCES) throw new Error('La escena supera el presupuesto de cuerpos, caras o aristas de prototipo.')
-        warnings.push(...result.warnings.map(message => definition.document.name + ': ' + message))
+        warnings.push(...partWarnings.map(message => definition.document.name + ': ' + message))
         if (!prototype.bodies.length) warnings.push('La pieza «' + definition.document.name + '» no contiene cuerpos para mostrar.')
       }
       expandedEntries += prototype.bodies.length
@@ -140,7 +155,7 @@ export function buildAssemblySceneFromOccurrences(occurrences: readonly Readonly
         occurrencePath: [...occurrence.path], definition: { id: definition.id, revision: definition.revision } }
       for (const source of prototype.bodies) {
         const data = withNativeOwners(placedOwners => {
-          const copy = placedOwners.own(prototype!.engine.copyCurrentBodyShape(source.body))
+          const copy = placedOwners.own(prototype!.inspection.copyCurrentBodyShape(source.body))
           const shape = placedOwners.own(placeAssemblyShape(copy, pose)), solidCount = validateAssemblyShape(shape)
           const mesh = shape.mesh(MESH), edges = shape.meshEdges(MESH), box = placedOwners.own(shape.boundingBox)
           const vertices = numeric(mesh.vertices, 3), normals = numeric(mesh.normals, 3), triangles = indices(mesh.triangles, vertices.length / 3)

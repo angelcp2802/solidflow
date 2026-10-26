@@ -249,15 +249,21 @@ it.each(['prepare', 'apply'] as const)('publishes no Apply authority when actual
   const session = new AssemblyWorkerSession(), input = assembly(features('legacy')), before = serializeAssemblyDocument(input)
   const older = session.prepare(input)
   if (older.status !== 'ready') throw new Error(older.message)
-  const original = Shape.prototype.mesh, renderBuild = CadEngine.prototype.build, rendered: CadEngine[] = [], failure = new Error('Original final scene mesh fault')
-  const build = vi.spyOn(CadEngine.prototype, 'build').mockImplementation(function (this: CadEngine, source) { rendered.push(this); return renderBuild.call(this, source) })
+  const original = Shape.prototype.mesh, renderBuild = CadEngine.prototype.build, referenceBuild = CadEngine.prototype.rebuildForAssemblyReferences,
+    constructed = new Set<CadEngine>(), failure = new Error('Original final scene mesh fault')
+  // Register before either real build can throw. Ordinary prepare shares a
+  // reference build with presentation; Apply still constructs its render scene.
+  const build = vi.spyOn(CadEngine.prototype, 'build').mockImplementation(function (this: CadEngine, source) { constructed.add(this); return renderBuild.call(this, source) })
+  const references = vi.spyOn(CadEngine.prototype, 'rebuildForAssemblyReferences').mockImplementation(function (this: CadEngine, source) { constructed.add(this); return referenceBuild.call(this, source) })
   const mesh = vi.spyOn(Shape.prototype, 'mesh').mockImplementation(function (this: AnyShape, options) { original.call(this, options); throw failure })
   try {
     if (stage === 'prepare') expect(() => session.prepare(input)).toThrow(failure)
     else expect(() => session.apply(input, older.token)).toThrow(failure)
-    expect(mesh).toHaveBeenCalled(); expect(rendered.length).toBeGreaterThan(0)
+    expect(mesh).toHaveBeenCalled(); expect(constructed.size).toBe(1)
+    expect(stage === 'prepare' ? references : build).toHaveBeenCalledTimes(1)
+    expect(stage === 'prepare' ? build : references).not.toHaveBeenCalled()
     expect(() => session.apply(input, older.token)).toThrow('ya no está disponible')
     expect(serializeAssemblyDocument(input)).toBe(before)
-    for (const engine of rendered) expect(() => engine.copyCurrentBodyShape(null)).toThrow('reconstrucción completa')
-  } finally { mesh.mockRestore(); build.mockRestore(); session.discard() }
+    for (const engine of constructed) expect(() => engine.copyCurrentBodyShape(null)).toThrow('reconstrucción completa')
+  } finally { mesh.mockRestore(); references.mockRestore(); build.mockRestore(); session.discard() }
 }, 60_000)

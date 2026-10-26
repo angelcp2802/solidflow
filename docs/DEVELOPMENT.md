@@ -1,5 +1,29 @@
 # Development guide
 
+## Native part reuse during ordinary assembly Solve — 2026-10-26
+
+An ordinary assembly Solve request can reuse completed local part reconstruction
+across its reference snapshots and final display scene. Admission compares the
+complete validated definition content; matching ID/revision labels alone do not
+establish a reusable part. Changed content follows the private reconstruction
+path. The shared inventory belongs to that request and has no lifetime across
+requests, saved documents or worker sessions.
+
+Every snapshot still authenticates its own document, placements and witnesses,
+and every final relation is checked against current native geometry. The scene
+borrows only guarded inspection/copy operations and detached presentation data.
+Each placed occurrence retains its independent body copy, validation, meshing,
+physical measurements and existing resource limits. Presentation preserves the
+ordinary mesh order, current picking identities, names, warnings and optional
+vertex-catalog admission.
+
+The shared native owner must close successfully before a new preview token is
+stored. Preparing the complete reply must also succeed before that publication.
+Failures revoke the candidate; an expired lease cannot inspect or copy geometry.
+Apply, configured assemblies and the existing movement routes keep their own
+reconstruction paths. Executed equivalence checks and timing comparisons belong
+in [validation](VALIDATION.md), with their measured cases and limits.
+
 ## Names in standard relation reference cards — 2026-10-26
 
 The two generic reference cards in the standard assembly Relations inspector

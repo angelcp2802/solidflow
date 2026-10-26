@@ -6,7 +6,7 @@ import { validateAssemblyLinePathSelection, type AssemblyLinePathSelection } fro
 import type { AssemblyLinePathCurve } from './kernel.assembly-line-path'
 import { validateAssemblyArcPathSelection, type AssemblyArcPathSelection } from '../model/assemblyArcPathReferences'
 import type { AssemblyArcPathCurve, AssemblyArcPathEvaluation } from './kernel.assembly-arc-path'
-import { CadEngine } from './kernel.engine'
+import { CadEngine, type AssemblyPresentationBody, type AssemblyPartInspection } from './kernel.engine'
 import { principalPlaneFrame } from './kernel.frames'
 import { isNativeCleanupFailure, NativeCleanupError, NativeOwners, withNativeOwners } from './kernel.native-ownership'
 import type { AssemblyNativeSupport, AssemblyNativeCylinderSurfaceSupport, AssemblyNativeSphereSurfaceSupport, AssemblyNativePointSupport } from './kernel.assembly-supports'
@@ -215,6 +215,7 @@ function worldSupport(local: AssemblyNativeSupport, pose: RigidPose): AssemblyNa
 interface Placement { definition: AssemblyDefinition; pose: RigidPose; suppressed: boolean }
 interface PartState {
   engine: CadEngine
+  warnings: string[]
   selections: Omit<AssemblyFaceSelection, 'component'>[]
   vertexSelections: Omit<AssemblyVertexSelection, 'component'>[]
   bodyEntries: number
@@ -228,11 +229,12 @@ export const MAX_ASSEMBLY_NATIVE_EDGE_REFERENCES = 65_536
 export const MAX_ASSEMBLY_NATIVE_VERTEX_REFERENCES = 65_536
 
 function emptyPartState(): PartState {
-  return { engine: new CadEngine(), selections: [], vertexSelections: [], bodyEntries: 0,
+  return { engine: new CadEngine(), warnings: [], selections: [], vertexSelections: [], bodyEntries: 0,
     faceReferences: 0, edgeReferences: 0, vertexReferences: 0 }
 }
 function rebuildPartState(state: PartState, definition: Extract<AssemblyDefinition, { kind: 'part' }>): void {
   const result = state.engine.rebuildForAssemblyReferences(definition.document.features)
+  state.warnings = [...result.warnings]
   if (result.featureErrors.length) throw new Error('No se pudo reconstruir la pieza del ensamblaje: ' + result.featureErrors.map(value => value.message).join('; '))
   // Native geometry and catalogs; display vertices confer no body authority.
   state.bodyEntries = result.kind === 'explicit' ? result.bodies.length : result.kind === 'legacy' ? 1 : 0
@@ -248,6 +250,14 @@ function rebuildPartState(state: PartState, definition: Extract<AssemblyDefiniti
 }
 
 /** Internal owner of immutable local geometry, never placed witnesses or solve results. */
+/** Only display data and guarded native reads/copies, never the mutable engine. */
+export interface AssemblyScenePartSource {
+  bodies: AssemblyPresentationBody[]
+  warnings: string[]
+  inspection: AssemblyPartInspection
+}
+export type AssemblyScenePartProvider = (definition: Extract<AssemblyDefinition, { kind: 'part' }>) => AssemblyScenePartSource | undefined
+
 class AssemblyGeometryReusePool {
   #admitted = new Map<string, string>()
   #parts = new Map<string, PartState>()
@@ -293,6 +303,16 @@ class AssemblyGeometryReusePool {
       return state
     } catch (error) { this.invalidate(); throw error }
   }
+  scenePart(definition: Extract<AssemblyDefinition, { kind: 'part' }>): AssemblyScenePartSource | undefined {
+    const state = this.borrow(definition)
+    if (!state) return undefined
+    const signature = this.#admitted.get(assemblyDefinitionKey(definition))
+    const inspection = state.engine.borrowCurrentAssemblyInspection(() => {
+      this.assertAlive()
+      if (JSON.stringify(definition) !== signature) { this.invalidate(); throw new Error('La pieza cambió durante su presentación compartida.') }
+    }, () => this.invalidate())
+    return { bodies: inspection.readCurrentAssemblyPresentation(), warnings: [...state.warnings], inspection }
+  }
   dispose(): void {
     if (this.#disposed) return
     this.#disposed = true; this.invalidate(); this.#parts.clear(); this.#admitted.clear()
@@ -307,7 +327,7 @@ export interface AssemblySnapshotRunner {
   <T>(document: AssemblyDocument, operation: (snapshot: AssemblyGeometrySnapshot) => T): T
 }
 /** One synchronous operation only: no geometry or authority survives in a cache. */
-export function withAssemblyGeometryReuse<T>(source: AssemblyDocument, operation: (snapshots: AssemblySnapshotRunner) => T): T {
+export function withAssemblyGeometryReuse<T>(source: AssemblyDocument, operation: (snapshots: AssemblySnapshotRunner, parts: AssemblyScenePartProvider) => T): T {
   return withNativeOwners(owners => {
     const pool = new AssemblyGeometryReusePool(source)
     owners.own({ delete: () => pool.dispose() })
@@ -324,7 +344,7 @@ export function withAssemblyGeometryReuse<T>(source: AssemblyDocument, operation
         throw error
       }
     }
-    return operation(snapshots)
+    return operation(snapshots, definition => pool.scenePart(definition))
   }, undefined, 'Assembly reusable geometry operation or release failed.')
 }
 
