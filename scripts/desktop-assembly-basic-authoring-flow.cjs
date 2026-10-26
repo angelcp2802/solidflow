@@ -402,10 +402,10 @@ module.exports = function basicAuthoringWorkflow(context) {
         finishVisible: one('[aria-label="Terminar edición de distancia"]').checkVisibility({ visibilityProperty: true }),
         newCreationCount: [...document.querySelectorAll('#assembly-panel-relations button')].filter(button => button.textContent.trim() === 'Vista previa de la nueva relación').length };
     });
-    const initialEditor = await waitFor('saved distance editor retains identity and locks references', async () => {
+    const initialEditor = await waitFor('saved distance editor retains identity and enables reference replacement', async () => {
       const state = await editorState();
       return state.type === 'distance' && state.typeDisabled && state.name === 'Guide to root' && state.distance === '-10'
-        && state.alignment === 'aligned' && state.first.disabled && state.second.disabled && state.finishVisible && state.newCreationCount === 0 ? state : false;
+        && state.alignment === 'aligned' && !state.first.disabled && !state.second.disabled && state.finishVisible && state.newCreationCount === 0 ? state : false;
     });
     const invalidBefore = { ui: await uiState(), observation: await observe(), counters: await observe.counters() };
     await control('[aria-label="Distancia firmada"]', '');
@@ -472,10 +472,10 @@ module.exports = function basicAuthoringWorkflow(context) {
         finishVisible: one('[aria-label="Terminar edición de ángulo"]').checkVisibility({ visibilityProperty: true }),
         newCreationCount: [...document.querySelectorAll('#assembly-panel-relations button')].filter(button => button.textContent.trim() === 'Vista previa de la nueva relación').length };
     });
-    const initialEditor = await waitFor('saved angle editor locks original ordered references', async () => {
+    const initialEditor = await waitFor('saved angle editor retains editable original ordered references', async () => {
       const state = await editorState();
       return state.type === 'angle' && state.typeDisabled && state.name === original.name && state.angle === '30'
-        && state.first.disabled && state.second.disabled && state.finishVisible && state.newCreationCount === 0 ? state : false;
+        && !state.first.disabled && !state.second.disabled && state.finishVisible && state.newCreationCount === 0 ? state : false;
     });
     const snapshot = async () => ({ ui: await uiState(), observation: await observe(), counters: await observe.counters() });
     const summarize = state => ({ counters: state.counters, observationSha256: digest(canonical(state.observation)),

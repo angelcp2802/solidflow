@@ -55,8 +55,9 @@
 .assembly-empty p { line-height: 1.6; }
 .assembly-properties { flex: 0 0 285px; overflow: auto; background: #fcfdff; border-left: 1px solid #c4d3df; }
 .assembly-endpoints { display: flex; flex-direction: column; gap: 6px; }
-.assembly-endpoints > button { text-align: left; background: #f2f7fb; border: 1px dashed #adc9dc; border-radius: 4px; padding: 8px; color: #527d9d; }
-.assembly-endpoints > button.active { border-style: solid; border-color: #368bca; background: #eaf4fc; }
+.assembly-reference-slot { display: flex; gap: 4px; min-width: 0; }
+.assembly-reference-slot > button:first-child { flex: 1; min-width: 0; text-align: left; background: #f2f7fb; border: 1px dashed #adc9dc; border-radius: 4px; padding: 8px; color: #527d9d; }
+.assembly-reference-slot > button:first-child.active { border-style: solid; border-color: #368bca; background: #eaf4fc; }
 .assembly-endpoints strong, .assembly-endpoints span { display: block; }
 .assembly-endpoints strong { font-size: 10px; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
 .assembly-endpoints span { font-size: 11px; overflow-wrap: anywhere; }

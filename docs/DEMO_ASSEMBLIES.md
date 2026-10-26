@@ -44,8 +44,9 @@ before starting an empty standard assembly.
    signed distance of -10 mm. Preview and Apply after fresh verification.
    With these normals, the signed condition is dot(nGuía, pRoot-pGuía)=-10.
 5. In the saved relation list, choose **Editar distancia** for that relation.
-   Change its name and signed distance to -12 mm. Type and References 1/2 remain
-   read-only, preserving their order; Name and Orientation remain editable.
+   Change its name and signed distance to -12 mm. Type remains read-only;
+   Name, Orientation and References 1/2 are editable. Keep the original
+   references for this walkthrough.
    Use **Vista previa de la distancia editada**, then Cancel. The editor retains
    the changed fields for retry while the committed relation stays at -10 mm.
    The automated route also previews the opposite orientation and cancels it;
@@ -61,8 +62,8 @@ before starting an empty standard assembly.
 7. Create an ordinary **Ángulo** relation using Guía Z as Reference 1 and
    Base Z as Reference 2. Set 30 degrees, preview and Apply. Choose
    **Editar ángulo** for the saved relation, change its name and set 60 degrees.
-   Type and the ordered references remain read-only; this angle has no
-   Orientation field. Use **Vista previa del ángulo editado**, then Cancel.
+   Type remains read-only; keep the original ordered references for this route.
+   This angle has no Orientation field. Use **Vista previa del ángulo editado**, then Cancel.
    Preview 0 and 180 degrees separately and Cancel each; restore 60, retry and
    Apply. Undo restores the saved 30-degree relation; Redo returns to the renamed
    60-degree relation. **Terminar edición de ángulo** leaves without applying.
@@ -100,6 +101,25 @@ from a manual walkthrough and does not cover configured/nested authoring,
 contact, collision or STEP export.
 See [provenance](PROVENANCE.md#original-three-piece-assembly-authoring-case) and
 [validation](VALIDATION.md) for independent oracles and actual results.
+
+## Replace a saved standard relation's references
+
+For a saved distance, ordinary angle, coincidence or concentricity, open its
+editor and select **Referencia 1** or **Referencia 2**. Use **Quitar referencia**
+to clear that slot, then select compatible current geometry or an origin datum.
+An angle can also use a straight edge. Clearing a field leaves the saved
+relation intact; Preview remains unavailable until both references are valid.
+
+Preview the edited relation, then Apply. Cancel returns to the committed scene
+and retains the draft for another attempt. **Terminar edición** discards the
+draft. After Apply, Undo/Redo and Save/reopen use the same relation identity.
+For a locked concentric relation, changing its component owners requires
+explicit **Desbloquear giro**. Replacing an axis on the same ordered owners
+preserves the capture, subject to fresh verification.
+
+The separate `npm run test:desktop:assembly-mate-reference-edit` route uses an
+original five-prism fixture. See [validation](VALIDATION.md) for its executed
+results and [provenance](PROVENANCE.md) for geometry and evidence boundaries.
 
 ## Reproducible configured document
 

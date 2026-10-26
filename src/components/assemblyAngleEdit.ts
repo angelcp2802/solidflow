@@ -1,4 +1,4 @@
-import type { AssemblyDefinitionReference, AssemblyMate } from '../model/assemblyDocument'
+import { validateAssemblyGeometryReference, type AssemblyDefinitionReference, type AssemblyGeometryReference, type AssemblyMate } from '../model/assemblyDocument'
 import type { NewAssemblyMate } from '../model/assemblyEditing'
 
 export type AssemblyAngleMate = Extract<AssemblyMate, { type: 'angle' }>
@@ -35,10 +35,13 @@ export function resolveAssemblyAngleEdit(ticket: AssemblyAngleEditTicket | null,
   return matches.length === 1 && matches[0].type === 'angle' && JSON.stringify(matches[0]) === ticket.mateSignature ? matches[0] : null
 }
 
-export function assemblyAngleUiEdit(mate: AssemblyAngleMate, fields: { name: string; angle: string }): Extract<NewAssemblyMate, { type: 'angle' }> {
+export function assemblyAngleUiEdit(mate: AssemblyAngleMate, fields: { name: string; angle: string;
+  references?: readonly [AssemblyGeometryReference | null, AssemblyGeometryReference | null] }): Extract<NewAssemblyMate, { type: 'angle' }> {
   if (!fields.name.trim()) throw new Error('Escribe un nombre para la relación.')
   if (!fields.angle.trim() || !Number.isFinite(Number(fields.angle)) || Number(fields.angle) < 0 || Number(fields.angle) > 180)
     throw new Error('Escribe un ángulo finito entre 0° y 180°.')
+  const references = fields.references === undefined ? [mate.first, mate.second] : fields.references
+  if (!Array.isArray(references) || references.length !== 2) throw new Error('Selecciona dos referencias para el ángulo.')
   return { type: 'angle', name: fields.name, angle: Number(fields.angle),
-    suppressed: mate.suppressed, first: structuredClone(mate.first), second: structuredClone(mate.second) }
+    suppressed: mate.suppressed, first: validateAssemblyGeometryReference(references[0]), second: validateAssemblyGeometryReference(references[1]) }
 }

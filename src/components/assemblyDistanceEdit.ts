@@ -1,4 +1,4 @@
-import type { AssemblyDefinitionReference, AssemblyMate } from '../model/assemblyDocument'
+import { validateAssemblyPlaneReference, type AssemblyDefinitionReference, type AssemblyGeometryReference, type AssemblyMate } from '../model/assemblyDocument'
 import type { NewAssemblyMate } from '../model/assemblyEditing'
 
 export type AssemblyDistanceMate = Extract<AssemblyMate, { type: 'distance' }>
@@ -35,10 +35,13 @@ export function resolveAssemblyDistanceEdit(ticket: AssemblyDistanceEditTicket |
   return matches.length === 1 && matches[0].type === 'distance' && JSON.stringify(matches[0]) === ticket.mateSignature ? matches[0] : null
 }
 
-export function assemblyDistanceUiEdit(mate: AssemblyDistanceMate, fields: { name: string; distance: string; alignment: 'aligned' | 'opposed' }): Extract<NewAssemblyMate, { type: 'distance' }> {
+export function assemblyDistanceUiEdit(mate: AssemblyDistanceMate, fields: { name: string; distance: string; alignment: 'aligned' | 'opposed';
+  references?: readonly [AssemblyGeometryReference | null, AssemblyGeometryReference | null] }): Extract<NewAssemblyMate, { type: 'distance' }> {
   if (!fields.name.trim()) throw new Error('Escribe un nombre para la relación.')
   if (!fields.distance.trim() || !Number.isFinite(Number(fields.distance))) throw new Error('Escribe una distancia firmada finita.')
   if (fields.alignment !== 'aligned' && fields.alignment !== 'opposed') throw new Error('Selecciona una orientación válida.')
+  const references = fields.references === undefined ? [mate.first, mate.second] : fields.references
+  if (!Array.isArray(references) || references.length !== 2) throw new Error('Selecciona dos planos para la relación.')
   return { type: 'distance', name: fields.name, distance: Number(fields.distance), alignment: fields.alignment,
-    suppressed: mate.suppressed, first: structuredClone(mate.first), second: structuredClone(mate.second) }
+    suppressed: mate.suppressed, first: validateAssemblyPlaneReference(references[0]), second: validateAssemblyPlaneReference(references[1]) }
 }

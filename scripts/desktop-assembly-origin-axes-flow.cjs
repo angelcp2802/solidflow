@@ -581,9 +581,9 @@ module.exports = function originAxesWorkflow(c) {
         history: ['Deshacer', 'Rehacer'].map(label => one('button[aria-label="' + label + ' ensamblaje"]').disabled) };
     });
     const initial = await inspect(), recoveryBytes = await page(() => localStorage.getItem('solidflow.autosave'));
-    check(initial.visible && initial.type === 'coincident' && initial.typeDisabled && initial.refs.every(e => e.disabled && e.text && !e.text.includes('Sin seleccionar'))
+    check(initial.visible && initial.type === 'coincident' && initial.typeDisabled && initial.refs.every(e => !e.disabled && e.text && !e.text.includes('Sin seleccionar'))
       && initial.name === createdName && initial.alignment === 'aligned' && !initial.previewDisabled && !initial.newCreation && initial.unlockCount === 0,
-    'Saved coincidence editor keeps type/ordered references read-only with no new creation or spin-lock control');
+    'Saved coincidence editor keeps type fixed and ordered references editable with no new creation or spin-lock control');
     await field('Nombre de la relación', editedName);
     // Opposed would conflict with the retained aligned Z concentric relation.
     // Exercise the offered field without claiming an incompatible native solve.

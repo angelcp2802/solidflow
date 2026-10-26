@@ -227,7 +227,7 @@ module.exports = function originAxisLockWorkflow(context) {
     }
     await aria('Editar concentricidad ' + originalMate.name);
     const initial = await editor();
-    check(initial.visible && initial.type === 'concentric' && initial.typeDisabled && initial.refs.every(e => e.disabled && e.text && !e.text.includes('Sin seleccionar'))
+    check(initial.visible && initial.type === 'concentric' && initial.typeDisabled && initial.refs.every(e => !e.disabled && e.text && !e.text.includes('Sin seleccionar'))
       && initial.name === originalMate.name && initial.alignment === 'aligned' && !initial.unlock && !initial.previewDisabled
       && !initial.newCreation && initial.captureCount === 1 && initial.captureDisabled, 'Saved locked relation exposes one guarded ordinary editor without recapture or new creation');
     await actualControl('input[aria-label="Nombre de la relación"]');
@@ -246,7 +246,7 @@ module.exports = function originAxisLockWorkflow(context) {
     await cancel(renamed, true, 'unlock-cancel');
     const retained = await editor();
     check(retained.visible && retained.name === name && retained.unlock && retained.alignment === 'aligned' && !retained.previewDisabled
-      && canonical(retained.refs) === canonical(beforeUnlock.refs) && canonical(retained.history) === canonical(beforeUnlock.history), 'Unlock Cancel retains editable fields, immutable references and history availability');
+      && canonical(retained.refs) === canonical(beforeUnlock.refs) && canonical(retained.history) === canonical(beforeUnlock.history), 'Unlock Cancel retains editable fields, ordered references and history availability');
     check(await page(() => localStorage.getItem('solidflow.autosave')) === committedRecovery, 'Unlock Cancel retains exact locked committed recovery bytes');
     const retry = await editPreview(renamed, false, 'unlock-retry');
     check(canonical(retry.mates) === canonical(proposed.mates), 'Unlock retry preserves the exact declaration without a fabricated free pose');

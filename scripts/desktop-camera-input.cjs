@@ -2,7 +2,8 @@
 
 // Fixed camera-only gestures in the already isolated, hidden renderer workflow.
 // No camera state, application handlers or model values are read or injected.
-module.exports = function cameraInput({ getWindow, evaluate, check, digest, allowed }) {
+module.exports = function cameraInput({ getWindow, evaluate, check, digest, allowed, allowFrameDiagnostics = false }) {
+  const diagnosticNames = new Set();
   const bounds = async () => {
     const window = getWindow();
     check(allowed && window && !window.isVisible() && window.webContents.debugger.isAttached(), 'Camera evidence belongs to the fixed hidden test window');
@@ -17,7 +18,16 @@ module.exports = function cameraInput({ getWindow, evaluate, check, digest, allo
       'Camera canvas has bounded visible geometry');
     return {window,rect};
   };
-  async function cameraFrame() {
+  async function cameraFrame(options) {
+    let diagnostic = null;
+    if (options !== undefined) {
+      check(allowFrameDiagnostics === true && options !== null && typeof options === 'object' && !Array.isArray(options)
+        && Object.keys(options).length === 1 && Object.hasOwn(options, 'diagnostic')
+        && ['before', 'before-confirm', 'restored'].includes(options.diagnostic), 'Only the opted-in reference-edit workflow may request a named frame diagnostic');
+      diagnostic = options.diagnostic;
+      check(diagnosticNames.size < 3 && !diagnosticNames.has(diagnostic), 'At most three unique named frame diagnostics');
+      diagnosticNames.add(diagnostic);
+    }
     const {window,rect}=await bounds();
     // Interior crop avoids the command toolbar, orientation triad and status UI.
     const crop={x:Math.ceil(rect.x+rect.width*.12),y:Math.ceil(rect.y+rect.height*.20),width:Math.floor(rect.width*.76),height:Math.floor(rect.height*.60)};
@@ -74,7 +84,15 @@ module.exports = function cameraInput({ getWindow, evaluate, check, digest, allo
     let maskedPixelCount=0;for(const value of covered)maskedPixelCount+=value;
     check(maskedPixelCount<=pixelCount*.10,'Text exclusions must leave at least 90 percent of the capture exact');
     for(let i=0;i<covered.length;i++)if(covered[i])bitmap.fill(0,i*4,i*4+4);
-    return {width:size.width,height:size.height,sha256:digest(bitmap),rawSha256:digest(raw),maskedRects,unmaskedPixelCount:pixelCount-maskedPixelCount};
+    const result={width:size.width,height:size.height,sha256:digest(bitmap),rawSha256:digest(raw),maskedRects,unmaskedPixelCount:pixelCount-maskedPixelCount};
+    if (diagnostic !== null) {
+      // Encode the already captured, unmodified image. No extra screenshot,
+      // page mutation, path, camera access or alternative comparison buffer.
+      const png=image.toPNG();
+      check(Buffer.isBuffer(png) && png.length > 0 && png.length <= 4*1024*1024, 'Bounded diagnostic PNG bytes');
+      result.diagnosticImage={name:diagnostic,mimeType:'image/png',byteLength:png.length,sha256:digest(png),crop,base64:png.toString('base64')};
+    }
+    return result;
   }
   async function cameraGesture(kind) {
     check(['orbit','pan','wheel-in'].includes(kind),'Only fixed camera gesture kinds');

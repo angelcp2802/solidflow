@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { assemblyConfigurationCoreFixture } from '../model/assemblyConfigurationCore.test-utils'
-import { serializeAssemblyDocument, type EmbeddedAssemblyDefinition } from '../model/assemblyDocument'
+import { serializeAssemblyDocument, validateAssemblyDocument, type AssemblyGeometryReference, type EmbeddedAssemblyDefinition } from '../model/assemblyDocument'
 import { applyAssemblyEdit, AssemblyDocumentHistory } from '../model/assemblyEditing'
 import { assemblyAngleUiEdit, retainAssemblyAngleEdit, resolveAssemblyAngleEdit, type AssemblyAngleEditContext, type AssemblyAngleMate } from './assemblyAngleEdit'
 
@@ -32,6 +32,50 @@ describe('saved angle editing', () => {
     const history = new AssemblyDocumentHistory(document)
     history.commitDocument(candidate)
     expect(history.undo()).toEqual(before); expect(history.redo()).toEqual(candidate)
+  })
+
+  it('replaces ordered root/component references without mutating their owners or the saved document', () => {
+    const { document, scope, mate } = fixture(), before = structuredClone(document)
+    const owner = { occurrencePath: ['b'], definition: { id: 'configuration-B', revision: 'r1' } }
+    const references: [AssemblyGeometryReference, AssemblyGeometryReference] = [
+      { kind: 'principal-axis', component: owner, axis: 'X' },
+      { kind: 'principal-plane', component: null, plane: 'XZ' },
+    ]
+    const update = assemblyAngleUiEdit(mate, { name: 'Moved angle', angle: '60', references })
+    expect(update).toEqual({ type: 'angle', name: 'Moved angle', angle: 60, suppressed: true,
+      first: { kind: 'principal-axis', component: { occurrencePath: ['b'], definition: { id: 'configuration-B', revision: 'r1' } }, axis: 'X' },
+      second: { kind: 'principal-plane', component: null, plane: 'XZ' } })
+    const snapshot = structuredClone(update)
+    expect(update.first).not.toBe(references[0]); expect(update.second).not.toBe(references[1])
+    owner.occurrencePath[0] = 'changed-after-proposal'; owner.definition.revision = 'changed'
+    expect(update).toEqual(snapshot); expect(document).toEqual(before)
+    const candidate = applyAssemblyEdit(document, { type: 'update-mate', scope: { id: scope.id, revision: scope.revision }, mateId: mate.id, mate: update })
+    const changed = candidate.definitions.find(value => value.kind === 'assembly') as EmbeddedAssemblyDefinition
+    expect(changed.mates).toEqual([{ ...snapshot, id: 'saved-angle' }]); expect(changed.occurrences).toEqual(scope.occurrences)
+    expect(candidate.occurrences).toEqual(before.occurrences)
+    expect(validateAssemblyDocument(JSON.parse(serializeAssemblyDocument(candidate)))).toEqual(candidate)
+    const history = new AssemblyDocumentHistory(document); history.commitDocument(candidate)
+    expect(history.undo()).toEqual(before); expect(history.redo()).toEqual(candidate)
+  })
+
+  it('retains the angle declaration contract for a material LINE reference', () => {
+    const { mate } = fixture()
+    const edge: AssemblyGeometryReference = { kind: 'edge', component: { occurrencePath: ['a'], definition: { id: 'configuration-A', revision: 'r1' } },
+      body: null, edge: { sourceFeatureId: 'original', key: 'straight-edge' }, support: 'line' }
+    const update = assemblyAngleUiEdit(mate, { name: 'Line angle', angle: '90', references: [edge, mate.first] })
+    expect(update.first).toEqual(edge); expect(update.first).not.toBe(edge); expect(update.second).toEqual(mate.first)
+  })
+
+  it.each([0, 1] as const)('rejects missing or incompatible geometry in endpoint %s without fallback', slot => {
+    const { mate } = fixture(), before = structuredClone(mate)
+    const surface = { kind: 'face', component: { occurrencePath: ['a'], definition: { id: 'configuration-A', revision: 'r1' } }, body: null,
+      face: { sourceFeatureId: 'original', key: 'surface' }, support: 'cylinder-surface' }
+    for (const reference of [null, surface]) {
+      const references: [AssemblyGeometryReference | null, AssemblyGeometryReference | null] = [mate.first, mate.second]
+      references[slot] = reference as AssemblyGeometryReference | null
+      expect(() => assemblyAngleUiEdit(mate, { name: 'Angle', angle: '60', references })).toThrow()
+      expect(mate).toEqual(before)
+    }
   })
 
   it.each(['', ' ', 'NaN', 'Infinity', '-Infinity', '1e999', '-0.1', '180.1', '360'])('rejects invalid ordinary angle %j before proposing an edit', angle => {

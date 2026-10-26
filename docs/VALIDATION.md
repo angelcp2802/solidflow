@@ -1,5 +1,113 @@
 # Validation
 
+## Saved standard relation reference editing — local acceptance, 2026-10-26
+
+Saved distance, ordinary angle, coincidence and concentricity references are
+editable. Final local Windows acceptance 11 passes all 11 commands on Node
+24.11.1 against 1,180 matching frozen source/runtime inputs. Every command was
+executed on the corrected snapshot; no earlier result was retained as a pass.
+`npm run build` passes in 5.003 s. `npm test` passes 9,885 tests across 433
+files, plus 131 IPC checks and two explicit skips, in 457.777 s. Desktop smoke
+passes in 2.520 s with a loaded WASM kernel, passing worker-queue checks,
+zero console/request/resource errors and no newly retained temporary profile.
+Durations include the runner's post-command evidence checks.
+
+| Production-renderer command | Recorded passing checks | Observed wall time |
+| --- | ---: | ---: |
+| `npm run test:desktop:assembly-mate-reference-edit` | 276 | 39.275 s |
+| `npm run test:desktop:assembly-basic-authoring` | 402 | 42.790 s |
+| `npm run test:desktop:assembly-origin-axes` | 317 | 32.008 s |
+| `npm run test:desktop:assembly-origin-axis-lock` | 113 | 14.570 s |
+| `npm run test:desktop:assembly-shortcuts` | 173 | 31.558 s |
+| `npm run test:desktop:assembly-direction` | 172 | 13.180 s |
+| `npm run test:desktop:assembly-limit-distance-compact` | 273 | 13.130 s |
+| `npm run test:desktop:assembly` | 690 | 70.893 s |
+
+All eight renderer routes report zero console/request/resource errors,
+confirmed child closure and isolated temporary-profile cleanup. The runner
+verifies the frozen inputs before and after each command. The unchanged
+rigid-assembly route retains creation by face preselection before choosing
+the relation type; its final pass checks that this workflow was preserved.
+Supplemental focused checks pass 152 tests across six files, and ten
+camera-observer tests pass after adding bounded, explicit diagnostics.
+
+The new route exercises four saved editors at the standard root scope,
+including root/component reference replacement, actual pointer picks of a
+planar material face and a LINE edge, removal of a required reference and
+blocking of Preview until the pair is complete. Generic Resolve, other
+editors, suppression/deletion and capture cannot replace the open draft.
+Cancel discards its worker capability without rebuilding or committing,
+retains the editor draft for retry and preserves committed recovery/history.
+Retry, Apply and complete Undo/Redo round trips pass for each family. A
+concentric owner change requires explicit **Desbloquear giro**; no lock is
+transferred or recaptured. The pure helper checks additionally cover exact
+lock preservation when only the selected axis changes on the same ordered
+owners, and rejection of incompatible or incomplete references.
+
+Twenty-two observed native scene phases use five instances of the original
+3 x 2 x 4 mm prism: each has volume 24 mm³ and area 52 mm², totaling five
+solids, 120 mm³ and 260 mm². Volume/area tolerances are 1e-5; independently
+rotated literal corners check native bounds and actual placed mesh extrema
+within 1e-6 mm. Plane/direction/angle checks use 1e-6 mm or rad as applicable.
+The distance case checks X=8 to X=0 within 1e-6 mm and a changed displayed
+frame; unconstrained coordinates are not asserted to have a unique pose.
+See [fixture provenance](PROVENANCE.md) for the original inputs and oracles.
+
+Exact Cancel raster comparison is required only for distance and ordinary
+angle, with origins hidden through their real visibility controls. Both pass.
+Coincidence and concentricity explicitly report no raster comparison; they
+retain editor, document, token, native geometry/mesh, history and persistence
+checks. This scope is fixed before capture, with no dynamic fallback. All four
+restore origin keys, selection and projected anchors semantically, without
+claiming pixel equivalence for translucent origin overlays or selected faces.
+
+One Save As and two Opens traverse the actual preload/IPC path. The complete
+Apply-authored graph is frozen before Save, then compared with the disk file
+and reopened worker input. The four relation IDs, types, names, ordered
+references and false suppression flags survive. Reopening all four editors
+preserves both the original input bytes and the saved bytes. This route does
+not establish suppressed-true renderer coverage, nested/configured reference
+editing, an independent locked-roll measurement or general geometric validity.
+
+Earlier failed attempts remain recorded. The initial build passed in 5.771 s;
+idle translucent-origin PNG pairs then differed at 40 or 88 unmasked pixels
+by one or two color-channel levels despite matching canvas, masks, selection
+and projected origin positions. A later attempt passed distance Cancel,
+retry, Apply and Undo/Redo with exact raster restoration before stopping at
+the next editor's pointer target. After bounded mesh observation and waiting
+for a presented preview, distance and angle completed before a 25.939 s stop
+at the coincidence selected-face raster baseline. These executions do not
+establish stable overlay rendering.
+
+With the explicit four-functional/two-raster scope, attempt 10 passed the new
+route in 39.534 s and six other renderer routes, then the unchanged rigid
+assembly test exposed a creation regression: the new face filter prevented
+preselection before changing type. The product correction confines those
+filters to saved-relation editing. Acceptance 11 rebuilds and reruns the
+complete plan above, including that unchanged regression route. No geometric
+tolerance or workflow deadline was increased. Translucent-origin/face raster
+variation remains unresolved and is not attributed to GPU behavior.
+
+Code review also found and corrected a generic Resolve path that could
+verify the committed document while a distance/angle reference draft remained
+open. Other relation editors, suppression/deletion and capture commands now
+share the same live editor guard. Focused checks cover compatible reference
+syntax, independent copies, ordered lock-owner changes and invalid inputs;
+they do not replace actual renderer acceptance.
+
+Applied guidance: frontend-design within the existing blue CAD interface;
+React event/transient-state guidance; code-simplifier for the touched draft
+update; code-review and scoped security-review for reference validation and
+the fixed test/CI registration. No high-confidence security defect was found
+in that scope; this is not an application-wide security audit. External static
+evidence establishes available declarations only, not runtime lock semantics
+or interaction parity. Performance investigation of the preceding hosted
+assembly timeout remains separate, with no measured causal fix claimed here.
+Hosted validation and other-platform execution of this increment are not
+established by these local results. This is bounded reference-editing
+acceptance, not completion of the prototype or complete interaction parity.
+Earlier passing increments below remain historical evidence.
+
 ## Direct camera input and bounded symmetry observation — 2026-10-26
 
 Orbit, modified-middle pan and wheel zoom now finish at their last input pose.

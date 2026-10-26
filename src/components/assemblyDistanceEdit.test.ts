@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { assemblyConfigurationCoreFixture } from '../model/assemblyConfigurationCore.test-utils'
-import { serializeAssemblyDocument, type EmbeddedAssemblyDefinition } from '../model/assemblyDocument'
+import { serializeAssemblyDocument, validateAssemblyDocument, type AssemblyGeometryReference, type EmbeddedAssemblyDefinition } from '../model/assemblyDocument'
 import { applyAssemblyEdit, AssemblyDocumentHistory } from '../model/assemblyEditing'
 import { assemblyDistanceUiEdit, retainAssemblyDistanceEdit, resolveAssemblyDistanceEdit, type AssemblyDistanceEditContext, type AssemblyDistanceMate } from './assemblyDistanceEdit'
 
@@ -32,6 +32,43 @@ describe('saved distance editing', () => {
     const history = new AssemblyDocumentHistory(document)
     history.commitDocument(candidate)
     expect(history.undo()).toEqual(before); expect(history.redo()).toEqual(candidate)
+  })
+
+  it('replaces root/component endpoints with detached ordered planes and retains identity through history and serialization', () => {
+    const { document, scope, mate } = fixture(), before = structuredClone(document)
+    const owner = { occurrencePath: ['b'], definition: { id: 'configuration-B', revision: 'r1' } }
+    const references: [AssemblyGeometryReference, AssemblyGeometryReference] = [
+      { kind: 'principal-plane', component: owner, plane: 'YZ' },
+      { kind: 'principal-plane', component: null, plane: 'YZ' },
+    ]
+    const update = assemblyDistanceUiEdit(mate, { name: 'Moved supports', distance: '12', alignment: 'aligned', references })
+    expect(update).toEqual({ type: 'distance', name: 'Moved supports', distance: 12, alignment: 'aligned', suppressed: true,
+      first: { kind: 'principal-plane', component: { occurrencePath: ['b'], definition: { id: 'configuration-B', revision: 'r1' } }, plane: 'YZ' },
+      second: { kind: 'principal-plane', component: null, plane: 'YZ' } })
+    const snapshot = structuredClone(update)
+    expect(update.first).not.toBe(references[0]); expect(update.second).not.toBe(references[1])
+    owner.occurrencePath[0] = 'changed-after-proposal'; owner.definition.revision = 'changed'
+    expect(update).toEqual(snapshot); expect(document).toEqual(before)
+    const candidate = applyAssemblyEdit(document, { type: 'update-mate', scope: { id: scope.id, revision: scope.revision }, mateId: mate.id, mate: update })
+    const changed = candidate.definitions.find(value => value.kind === 'assembly') as EmbeddedAssemblyDefinition
+    expect(changed.mates).toEqual([{ ...snapshot, id: 'saved-distance' }]); expect(changed.occurrences).toEqual(scope.occurrences)
+    expect(candidate.occurrences).toEqual(before.occurrences)
+    expect(validateAssemblyDocument(JSON.parse(serializeAssemblyDocument(candidate)))).toEqual(candidate)
+    const history = new AssemblyDocumentHistory(document); history.commitDocument(candidate)
+    expect(history.undo()).toEqual(before); expect(history.redo()).toEqual(candidate)
+  })
+
+  it.each([0, 1] as const)('rejects missing or non-planar replacement in endpoint %s without fallback or mutation', slot => {
+    const { mate } = fixture(), before = structuredClone(mate)
+    const incompatible: (AssemblyGeometryReference | null)[] = [null, { kind: 'principal-axis', component: null, axis: 'Z' },
+      { kind: 'face', component: { occurrencePath: ['b'], definition: { id: 'configuration-B', revision: 'r1' } }, body: null,
+        face: { sourceFeatureId: 'original', key: 'cylinder-axis' }, support: 'axis' }]
+    for (const reference of incompatible) {
+      const references: [AssemblyGeometryReference | null, AssemblyGeometryReference | null] = [mate.first, mate.second]
+      references[slot] = reference
+      expect(() => assemblyDistanceUiEdit(mate, { name: 'Distance', distance: '12', alignment: 'aligned', references })).toThrow()
+      expect(mate).toEqual(before)
+    }
   })
 
   it.each(['', ' ', 'NaN', 'Infinity', '-Infinity', '1e999'])('rejects invalid signed distance %j before proposing an edit', distance => {

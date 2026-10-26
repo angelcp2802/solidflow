@@ -1,4 +1,4 @@
-import type { AssemblyDefinitionReference, AssemblyMate } from '../model/assemblyDocument'
+import { validateAssemblyGeometryReference, validateAssemblyPlaneReference, type AssemblyConcentricReference, type AssemblyDefinitionReference, type AssemblyGeometryReference, type AssemblyMate } from '../model/assemblyDocument'
 import type { NewAssemblyMate } from '../model/assemblyEditing'
 
 export type AssemblyOrdinaryMate = Extract<AssemblyMate, { type: 'coincident' | 'concentric' }>
@@ -38,14 +38,28 @@ export function resolveOrdinaryMateEdit(ticket: OrdinaryMateEditTicket | null, c
 }
 
 export function assemblyOrdinaryMateUiEdit(mate: AssemblyOrdinaryMate,
-  fields: { name: string; alignment: 'aligned' | 'opposed'; releaseRotation: boolean }): NewAssemblyMate | null {
+  fields: { name: string; alignment: 'aligned' | 'opposed'; releaseRotation: boolean;
+    references?: readonly [AssemblyGeometryReference | null, AssemblyGeometryReference | null] }): NewAssemblyMate | null {
   if (!fields.name.trim() || fields.name.length > 200 || (fields.alignment !== 'aligned' && fields.alignment !== 'opposed')
     || typeof fields.releaseRotation !== 'boolean') return null
   if (fields.releaseRotation && (mate.type !== 'concentric' || mate.rotationLock === null)) return null
+  const references = fields.references === undefined ? [mate.first, mate.second] : fields.references
+  if (!Array.isArray(references) || references.length !== 2) return null
   const common = { name: fields.name, alignment: fields.alignment, suppressed: mate.suppressed }
-  // Never recapture or normalize a saved lock when merely editing name/orientation.
-  if (mate.type === 'concentric') return { ...common, type: 'concentric',
-    first: structuredClone(mate.first), second: structuredClone(mate.second),
-    rotationLock: fields.releaseRotation ? null : structuredClone(mate.rotationLock) }
-  return { ...common, type: 'coincident', first: structuredClone(mate.first), second: structuredClone(mate.second) }
+  try {
+    if (mate.type === 'coincident') return { ...common, type: 'coincident',
+      first: validateAssemblyPlaneReference(references[0]), second: validateAssemblyPlaneReference(references[1]) }
+    const first = validateAssemblyGeometryReference(references[0]), second = validateAssemblyGeometryReference(references[1])
+    const concentric = (reference: AssemblyGeometryReference): reference is AssemblyConcentricReference =>
+      reference.kind === 'principal-axis' || reference.kind === 'face' && reference.support === 'axis'
+    if (!concentric(first) || !concentric(second)) return null
+    // A saved capture belongs to the ordered owner frames. Different supports
+    // on those same owners retain it; changing owners requires explicit release.
+    const changedOwners = JSON.stringify([first.component, second.component]) !== JSON.stringify([
+      validateAssemblyGeometryReference(mate.first).component, validateAssemblyGeometryReference(mate.second).component,
+    ])
+    if (mate.rotationLock !== null && changedOwners && !fields.releaseRotation) return null
+    return { ...common, type: 'concentric', first, second,
+      rotationLock: fields.releaseRotation ? null : structuredClone(mate.rotationLock) }
+  } catch { return null }
 }

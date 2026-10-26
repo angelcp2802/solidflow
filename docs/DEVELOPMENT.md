@@ -1,5 +1,34 @@
 # Development guide
 
+## Replace saved standard relation references — 2026-10-26
+
+The standard distance, ordinary angle, coincidence and concentricity editors
+allow either ordered reference to be replaced or cleared. Select its numbered
+field before choosing a compatible face, origin plane or origin axis. Ordinary
+angles also accept current native LINE edges. Distance and coincidence require
+planes; concentricity requires cylindrical face axes or origin axes. The type,
+relation ID, suppression and parent-definition scope remain unchanged.
+
+Reference selection changes only the current editor draft. A complete compatible
+pair must pass a fresh native preview before Apply can commit it. Cancel revokes
+the preview and retains the reference draft and parameter fields for retry;
+ending the editor discards that draft. Apply, Undo/Redo, document replacement and
+scope/session changes end the editor. Pick callbacks recheck the retained draft,
+active slot and current document/scene before accepting visible geometry.
+
+A concentric rotation capture belongs to the ordered component owner frames.
+Replacing an axis on the same owners preserves its exact quaternion, subject to
+fresh solver verification. Changing either owner or their order requires an
+explicit **Desbloquear giro**. The editor neither transfers nor recaptures a lock
+implicitly. This is SolidFlow's declared editing policy; static declarations in
+another application do not prove its runtime interaction or lock policy.
+
+The original `test:desktop:assembly-mate-reference-edit` route covers the four
+editors separately from the existing basic-authoring route. Its source fixture
+and independent geometry expectations are recorded in [provenance](PROVENANCE.md).
+Only executed results in [validation](VALIDATION.md) establish a checked case;
+this does not add configured-workspace reference editing or certify all platforms.
+
 ## Direct camera input and bounded symmetry observation — 2026-10-26
 
 Part and assembly viewports use direct camera manipulation. Middle-button
@@ -138,8 +167,8 @@ CI alone establishes neither platform support nor complete shortcut parity.
 ## Edit saved coincidence and concentricity — 2026-10-25
 
 The standard relation list offers **Editar coincidencia** and **Editar
-concentricidad**. Name and Orientation are editable; Type and the two ordered
-references remain read-only. The edited relation keeps its ID, suppression and
+concentricidad**. Name and Orientation are editable; Type remains read-only.
+The ordered references can now be replaced as described above. The edited relation keeps its ID, suppression and
 parent-definition scope. Finish any other relation editor first. Edits in a
 reused subassembly still affect the shared definition.
 
@@ -205,21 +234,23 @@ unit tests run with `npm test`; validate the complete route with
 ## Saved ordinary angle editing — 2026-10-25
 
 The standard relation list offers **Editar ángulo** for a saved ordinary
-angle. Name and **Ángulo de relación** remain editable; Type and the two
-ordered geometry references are read-only. There is no alignment control.
+angle. Name and **Ángulo de relación** remain editable; Type is read-only.
+The ordered geometry references can now be replaced as described above.
+There is no alignment control.
 The current model uses the principal domain 0–180 degrees, including both
 endpoints. Blank, nonfinite or out-of-range input cannot submit an edited
 preview. This domain describes this application's model, not interaction or
 angle-convention parity with another application.
 
 **Vista previa del ángulo editado** updates the existing relation without
-changing its ID, ordered references, suppression or parent scope. Finish any
+changing its ID, suppression or parent scope. Finish any
 other reference editor first. Cancel revokes the preview while retaining name
 and angle for retry; **Terminar edición de ángulo** leaves without committing.
 Apply, Undo/Redo, document replacement and scope changes clear the edit.
 Document/scope/session tickets reject stale editors, including byte-identical
 reopening; preview generation changes alone do not discard the fields.
-New relation creation and reference picking remain blocked during editing.
+New relation creation remains blocked during editing; reference picking edits
+the current draft as described above.
 The existing solver, preview freshness, history and file paths are unchanged.
 
 The original authoring route adds Guía Z first and Base Z second at 30 degrees,
@@ -234,10 +265,11 @@ See [validation](VALIDATION.md) for executed snapshots and bounded results.
 
 The standard relation list offers **Editar distancia** for a saved signed
 distance. The editor reuses Name, Signed distance and Orientation, while Type
-and the two ordered reference controls remain read-only. Finish another
+remains read-only. The ordered reference controls now edit the current draft.
+Finish another
 relation editor first. **Vista previa de la distancia editada** updates the
 existing mate through the normal native preview path; it preserves the mate
-ID, ordered endpoints, suppression and parent-definition scope. New relation
+ID, suppression and parent-definition scope. New relation
 creation is blocked until **Terminar edición de distancia** or successful Apply.
 Blank or nonfinite distance values cannot submit a preview.
 

@@ -1,5 +1,47 @@
 # Public fixture provenance
 
+## Original saved relation reference editing case
+
+`scripts/desktop-assembly-mate-reference-edit-original.cjs` reuses the tracked
+basic-authoring prism: a 3 by 2 mm rectangle from (0,0) to (3,2), extruded 4 mm
+along +Z. Five occurrences share that independent source: fixed ground at
+(-8,0,0), distance at (8,0,0), angle at (0,8,0), coincidence at (-8,8,0), and
+concentricity at (0,0,8). The last starts at +30 degrees about Z; the others
+use identity rotation. Literal volume is 24 mm³ and area 52 mm² per prism,
+120 mm³ and 260 mm² summed over all five solids.
+
+Four original root-to-component relations use aligned YZ planes at signed
+distance -8 mm, root Z to material X at 90 degrees, aligned XY coincidence,
+and aligned Z concentricity. Its literal saved rotation-lock declaration is
+(0,0,-sin(15°),cos(15°)); the initial +30-degree placement may be unsolved,
+and subsequent native previews verify the saved constraints. The route replaces
+references with ground/component datums, ground's top plane z=4 and the angle
+component's top-front X-directed LINE at y=0,z=4. Geometry catalogs nominate
+the current topology keys; they do not supply expected coordinates or results.
+
+The production-renderer route independently rotates the eight literal prism
+corners and compares native per-member/assembly bounds and placed mesh extrema
+within 1e-6 mm. Volume
+and area tolerances are 1e-5 mm³/mm²; signed plane and axis separation use
+1e-6 mm, and direction/angle comparisons use 1e-6 in their stated units.
+It verifies document identity, four mate IDs/types/names/suppression flags,
+exact endpoint changes, Cancel/retry/Apply, Undo/Redo and Save/reopen. The full
+expected saved graph is frozen from Apply before Save, not recaptured from disk.
+For distance and ordinary angle, Cancel also compares the bounded rendered
+camera frame exactly with its pre-preview frame, with origin planes and axes
+hidden through their real checkboxes. Coincidence and concentricity retain the
+geometry, mesh, editor and history checks without an exact raster comparison.
+Hiding and restoring origins must preserve the draft, history and worker
+counters. Restored origin identities, selection and projected anchors are
+checked separately, without requiring identical translucent-overlay pixels.
+These checks do not require a unique pose in unconstrained directions or prove
+continuous motion.
+
+This is authored geometry and scripted Electron interaction with real worker
+and restricted test-owned file operations. It is not a private model, external
+application output, manual native-dialog test, nested/configured edit test or
+general platform acceptance. Record actual execution in [validation](VALIDATION.md).
+
 ## View navigation evidence
 
 Direct-input regressions use the same original synthetic 400×400 event surface
