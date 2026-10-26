@@ -1,5 +1,25 @@
 # Development guide
 
+## Stable part selection actions — 2026-10-26
+
+The part tree has one permanent selection footer. Its two fixed-height rows
+show the current selection and its actions: sketch/plane creation for a face,
+or edit/suppress/delete for an operation. Curved faces retain the existing
+disabled planar-creation controls. Full action names remain accessible through
+button labels and tooltips; long selection names are truncated with their full
+text available in the title.
+
+Selecting a tree occurrence after a face changes this footer's content without
+resizing the tree or clamping its scroll position. A second click at the same
+pointer position can therefore edit the same occurrence. No delayed selection,
+retargeted click or alternative double-click handler is introduced.
+
+The Normal To renderer route uses a 1040 x 720 test window and compares the
+row, tree, footer and scroll position across the first click before dispatching
+the second click. Fresh face-based sketch creation and the existing operation
+editing routes remain separate checks. See [validation](VALIDATION.md) for
+executed results and limits; the window size is one checked case.
+
 ## Returning from datum browsing to component manipulation — 2026-10-26
 
 Arming **Arrastrar posición** or **Arrastrar giro** clears both the browsed

@@ -278,12 +278,14 @@ function IconButton({
   icon: Icon,
   title,
   onClick,
+  children,
   active = false,
   disabled = false,
 }: {
   icon: LucideIcon;
   title: string;
   onClick?: () => void;
+  children?: ReactNode;
   active?: boolean;
   disabled?: boolean;
 }) {
@@ -296,6 +298,7 @@ function IconButton({
       disabled={disabled}
     >
       <Icon size={17} strokeWidth={1.65} />
+      {children}
     </button>
   );
 }
@@ -506,6 +509,9 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
   editingRef.current = editing;
   docRef.current = doc;
   const selectedFeature = doc.features.find((f) => f.id === selected);
+  const selectedFaceFeatureName = faceSelection
+    ? doc.features.find(feature => feature.id === faceSelection.ref.sourceFeatureId)?.name ?? ""
+    : "";
   const modelSelectionDtos = useMemo(() => bodySelectionDtos(model), [model]);
   const sourceSelectionDtos = useMemo(() => bodySelectionDtos(sourceModel), [sourceModel]);
   const sourceOperationDtos = useMemo(() => {
@@ -3810,68 +3816,54 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                     </div>
                 </div>
               </div>
-              {faceSelection && !editing && (
-                <div className="face-selection-summary">
-                  <strong>
-                    {faceSelection.frame
-                      ? "Cara plana seleccionada"
-                      : "Cara curva seleccionada"}
-                  </strong>
-                  <span>
-                    {
-                      doc.features.find(
-                        (feature) =>
-                          feature.id === faceSelection.ref.sourceFeatureId,
-                      )?.name
-                    }
-                  </span>
-                  <button
-                    className="outline-button"
-                    disabled={!faceSelection.frame}
-                    onClick={() => startSketch()}
-                  >
-                    <Pencil size={14} /> Crear croquis en cara
-                  </button>
-                  <button
-                    className="outline-button"
-                    disabled={!faceSelection.frame}
-                    onClick={startPlane}
-                  >
-                    <PanelTop size={14} /> Crear plano desde cara
-                  </button>
-                </div>
-              )}
-              <div className="selection-tools" role="group" aria-label="Acciones de la operación seleccionada">
-                <span>{selectedFeature?.name ?? "Selecciona una operación"}</span>
+              <div className={`selection-tools${faceSelection ? " face-selection-summary" : ""}`} role="group"
+                aria-label={faceSelection ? "Acciones de la cara seleccionada" : "Acciones de la operación seleccionada"}>
+                <span title={faceSelection
+                  ? `${faceSelection.frame ? "Cara plana seleccionada" : "Cara curva seleccionada"}: ${selectedFaceFeatureName}`
+                  : selectedFeature?.name ?? "Selecciona una operación"}>
+                  {faceSelection ? <>
+                    <strong>{faceSelection.frame ? "Cara plana seleccionada" : "Cara curva seleccionada"}</strong>
+                    {selectedFaceFeatureName && `: ${selectedFaceFeatureName}`}
+                  </> : selectedFeature?.name ?? "Selecciona una operación"}
+                </span>
                 <div>
-                  <IconButton
-                    icon={Pencil}
-                    title="Editar operación"
-                    disabled={!selectedFeature}
-                    onClick={() => { if (selectedFeature) editFeature(selectedFeature); }}
-                  />
-                  <IconButton
-                    icon={Eye}
-                    title={
-                      selectedFeature?.suppressed
-                        ? "Activar operación"
-                        : "Suprimir operación"
-                    }
-                    disabled={!selectedFeature}
-                    onClick={() => {
-                      if (selectedFeature) apply(
-                        updateFeature(doc, selectedFeature.id, {
-                          suppressed: !selectedFeature.suppressed,
-                        }),
-                      );
-                    }}
-                  />
-                  <IconButton
-                    icon={Trash2}
-                    title="Eliminar operación"
-                    disabled={!selectedFeature}
-                    onClick={() => { if (selectedFeature) deleteSelected(); }}
-                  />
+                  {faceSelection ? <>
+                    <IconButton icon={Pencil} title="Crear croquis en cara" disabled={!faceSelection.frame} onClick={() => startSketch()}>
+                      <span className="selection-action-label">Crear croquis en cara</span>
+                    </IconButton>
+                    <IconButton icon={PanelTop} title="Crear plano desde cara" disabled={!faceSelection.frame} onClick={startPlane}>
+                      <span className="selection-action-label">Crear plano desde cara</span>
+                    </IconButton>
+                  </> : <>
+                    <IconButton
+                      icon={Pencil}
+                      title="Editar operación"
+                      disabled={!selectedFeature}
+                      onClick={() => { if (selectedFeature) editFeature(selectedFeature); }}
+                    />
+                    <IconButton
+                      icon={Eye}
+                      title={
+                        selectedFeature?.suppressed
+                          ? "Activar operación"
+                          : "Suprimir operación"
+                      }
+                      disabled={!selectedFeature}
+                      onClick={() => {
+                        if (selectedFeature) apply(
+                          updateFeature(doc, selectedFeature.id, {
+                            suppressed: !selectedFeature.suppressed,
+                          }),
+                        );
+                      }}
+                    />
+                    <IconButton
+                      icon={Trash2}
+                      title="Eliminar operación"
+                      disabled={!selectedFeature}
+                      onClick={() => { if (selectedFeature) deleteSelected(); }}
+                    />
+                  </>}
                 </div>
               </div>
               <div className="manager-footer">

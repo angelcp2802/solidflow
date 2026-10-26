@@ -1485,10 +1485,10 @@ async function runInElectron() {
   check(typeof actualWorkflow === 'function', 'Expected the statically selected test workflow.');
   class HiddenWindow extends electron.BrowserWindow {
     constructor(options) {
-      super({ ...options, ...(basicAuthoring || limitDistanceCompact || compactConfiguredPicking || partRevolution || partSequence || partFinishing || partBodyCatalog || activeScenario === SCENARIOS['assembly-origin-axes'] ? { width: 1040, height: 700 } : {}), show: false }); check(!window, 'Unexpected second test application window.'); window = this;
-      if (basicAuthoring || limitDistanceCompact || compactConfiguredPicking || partRevolution || partSequence || partFinishing || partBodyCatalog || activeScenario === SCENARIOS['assembly-origin-axes']) {
+      super({ ...options, ...(normalToView ? { width: 1040, height: 720 } : basicAuthoring || limitDistanceCompact || compactConfiguredPicking || partRevolution || partSequence || partFinishing || partBodyCatalog || activeScenario === SCENARIOS['assembly-origin-axes'] ? { width: 1040, height: 700 } : {}), show: false }); check(!window, 'Unexpected second test application window.'); window = this;
+      if (normalToView || basicAuthoring || limitDistanceCompact || compactConfiguredPicking || partRevolution || partSequence || partFinishing || partBodyCatalog || activeScenario === SCENARIOS['assembly-origin-axes']) {
         check(options.minWidth === 1040 && options.minHeight === 700, 'Compact scenario must use the unchanged production minimum window size.');
-        checks.push({ compactViewport: { requestedWindow: { width: 1040, height: 700 }, actualBounds: this.getBounds(), actualContentSize: this.getContentSize() } });
+        checks.push({ compactViewport: { requestedWindow: { width: 1040, height: normalToView ? 720 : 700 }, actualBounds: this.getBounds(), actualContentSize: this.getContentSize() } });
       }
       const preferences = this.webContents.getLastWebPreferences();
       check(preferences.contextIsolation && !preferences.nodeIntegration && preferences.sandbox && preferences.webSecurity && !preferences.webviewTag,

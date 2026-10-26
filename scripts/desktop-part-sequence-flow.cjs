@@ -310,32 +310,38 @@ module.exports = function partSequenceWorkflow(context) {
       shortcut:e.querySelector('kbd')?.textContent??'',role:e.getAttribute('role'),disabled:e.disabled,
     })));
     const expectedViews=[['Frontal','Ctrl+1'],['Posterior','Ctrl+2'],['Izquierda','Ctrl+3'],['Derecha','Ctrl+4'],
-      ['Superior','Ctrl+5'],['Inferior','Ctrl+6'],['Isométrica','Ctrl+7'],['Vista anterior','Ctrl+Shift+Z'],
+      ['Superior','Ctrl+5'],['Inferior','Ctrl+6'],['Isométrica','Ctrl+7'],['Normal a','Ctrl+8'],['Vista anterior','Ctrl+Shift+Z'],
       ['Ajustar a pantalla','F'],['Cuadrícula',''],['Planos de referencia','']];
     check(canonical(viewItems.map(({index,label,shortcut,role})=>({index,label,shortcut,role})))===canonical(expectedViews.map(([label,shortcut],index)=>({
-      index,label,shortcut,role:index<9?'menuitem':'menuitemcheckbox',
-    }))),'Live cut View menu exposes all seven orientations, Previous, Fit and display commands in their declared order');
+      index,label,shortcut,role:index<10?'menuitem':'menuitemcheckbox',
+    }))),'Live cut View menu exposes all seven orientations, Normal To, Previous, Fit and display commands in their declared order');
+    check(await page(()=>{
+      const buttons=document.querySelectorAll('button[aria-label="Normal a"]'),host=document.querySelector('.graphics-area');
+      return buttons.length===1&&buttons[0].disabled&&buttons[0].title==='Normal a (Ctrl+8)'
+        &&host?.getAttribute('data-normal-selection-kind')==='invalid'&&host.getAttribute('data-normal-enabled')==='false'
+        &&document.querySelectorAll('.body-operation-panel input[type="checkbox"]:checked').length===1;
+    }),'Live cut retains its selected body and disables Normal To for that unsupported target');
     const previousDisabled=await page(()=>{
       const buttons=document.querySelectorAll('button[aria-label="Vista anterior"]');
       if(buttons.length!==1)throw Error('One existing Previous View toolbar command required');
       return buttons[0].disabled;
     });
-    check(viewItems.every(item=>item.disabled===(item.index===7&&previousDisabled)),
-      'Live cut view browsing remains enabled and Previous matches its current toolbar availability');
+    check(viewItems.every(item=>item.disabled===(item.index===7||item.index===8&&previousDisabled)),
+      'Live cut disables Normal To for the selected body; other view browsing remains enabled and Previous matches its current toolbar availability');
     const focus=async(index,label)=>waitFor('part menu real focus: '+label,()=>page((index,label)=>{
       const popup=document.querySelector('.part-main-menus [role="menu"]'),e=document.activeElement;
       return !!popup&&popup.contains(e)&&e.matches('button:not(:disabled)')&&Number(e.dataset.menuIndex)===index
         &&e.querySelector('span:not(.assembly-menu-check)')?.textContent===label;
     },index,label));
-    const viewKeys=[],enabledViews=expectedViews.map(([label],index)=>({index,label})).filter(item=>item.index!==7||!previousDisabled);
+    const viewKeys=[],enabledViews=expectedViews.map(([label],index)=>({index,label})).filter(item=>item.index!==7&&(item.index!==8||!previousDisabled));
     await focus(0,'Frontal');
     for(const item of enabledViews.slice(1)){
       await menuKey('ArrowDown');viewKeys.push('ArrowDown');await focus(item.index,item.label);
     }
     await menuKey('ArrowDown');viewKeys.push('ArrowDown');await focus(0,'Frontal');
-    await menuKey('ArrowUp');viewKeys.push('ArrowUp');await focus(10,'Planos de referencia');
+    await menuKey('ArrowUp');viewKeys.push('ArrowUp');await focus(11,'Planos de referencia');
     await menuKey('Home');viewKeys.push('Home');await focus(0,'Frontal');
-    await menuKey('End');viewKeys.push('End');await focus(10,'Planos de referencia');
+    await menuKey('End');viewKeys.push('End');await focus(11,'Planos de referencia');
     await escape('view');
     check(canonical(await snapshot())===canonical(original),'Menu Escape preserves live cut depth, fields, body references and committed recovery');
     await open('insert');

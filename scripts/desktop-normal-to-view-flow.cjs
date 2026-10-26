@@ -55,12 +55,29 @@ module.exports = function runNormalToViewWorkflow(c) {
   async function unchanged(label, expected = baseline) {
     check(canonical(await snapshot()) === canonical(expected), label + ': exact worker history, recovery, model Undo/Redo and file IPC unchanged');
   }
-  async function pressAt(point, additive = false, clickCount = 1) {
+  const pocketSelector = '.tree-row[data-feature-id="normal-pocket-profile"][data-parent-feature-id="normal-pocket"]';
+  const readPocketTarget = (selector, point) => {
+    const rows = [...document.querySelectorAll(selector)], row = rows[0], tree = row?.closest('.tree');
+    const footer = document.querySelector('.selection-tools'), hit = document.elementFromPoint(point.x, point.y), hitRow = hit?.closest('[data-feature-id]');
+    const rect = e => { const r = e?.getBoundingClientRect(); return r ? { x:r.x, y:r.y, width:r.width, height:r.height } : null; };
+    return { rowCount:rows.length, rowConnected:row?.isConnected ?? false, rowSelected:row?.classList.contains('selected') ?? false,
+      layout:{row:rect(row),tree:rect(tree),footer:rect(footer),scrollTop:tree?.scrollTop ?? null,
+        clientHeight:tree?.clientHeight ?? null,scrollHeight:tree?.scrollHeight ?? null},
+      summaryPresent:!!document.querySelector('.face-selection-summary'),
+      hit:{withinRow:!!row&&!!hit&&row.contains(hit),featureId:hitRow?.getAttribute('data-feature-id') ?? null,
+        parentFeatureId:hitRow?.getAttribute('data-parent-feature-id') ?? null},
+      editorPresent:!!document.querySelector('.property-manager') };
+  };
+  async function pressAt(point, additive = false, clickCount = 1, pocketObservation = null) {
     const modifiers = additive ? process.platform === 'darwin' ? 4 : 2 : 0;
     await pointer('mouseMoved', point, 0, 1, modifiers);
     await pointer('mousePressed', point, 1, clickCount, modifiers);
     await pointer('mouseReleased', point, 0, clickCount, modifiers);
-    await raf();
+    // Observe the first click within the existing presentation barrier, without
+    // another wait, pointer relocation or evaluation before the second click.
+    if (pocketObservation) pocketObservation.afterFirst = await evaluate('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(('
+      + readPocketTarget.toString() + ')(' + quote(pocketSelector) + ',' + JSON.stringify(point) + ')))))');
+    else await raf();
   }
   async function actual(selector, text = null, additive = false, double = false) {
     if (kind === 'standard') await require('./desktop-assembly-navigation.cjs').withNavigation({ ...c, page }).assemblyNavigation.reveal(selector, text ?? '');
@@ -72,13 +89,29 @@ module.exports = function runNormalToViewWorkflow(c) {
       rows[0].scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
     }, selector, text);
     await raf();
-    const point = await waitFor('reachable Normal To control ' + (text ?? selector), () => page((selector, text) => {
+    const observePocket = double && selector === pocketSelector;
+    const locate = (selector, text, observe) => {
       const rows = [...document.querySelectorAll(selector)].filter(e => text === null || e.textContent.trim() === text), e = rows[0], r = e?.getBoundingClientRect();
       if (rows.length !== 1 || e.disabled || !r.width || !r.height || e.closest('[hidden]')) return false;
       const p = { x: r.left+r.width/2, y: r.top+r.height/2 };
-      return p.x>=0 && p.x<innerWidth && p.y>=0 && p.y<innerHeight && e.contains(document.elementFromPoint(p.x,p.y)) ? p : false;
-    }, selector, text));
-    await pressAt(point, additive);
+      if (!(p.x>=0 && p.x<innerWidth && p.y>=0 && p.y<innerHeight && e.contains(document.elementFromPoint(p.x,p.y)))) return false;
+      return { point:p, observation:observe ? observe(selector,p) : null };
+    };
+    const located = await waitFor('reachable Normal To control ' + (text ?? selector), () => evaluate('(' + locate.toString() + ')('
+      + quote(selector) + ',' + JSON.stringify(text) + ',' + (observePocket ? readPocketTarget.toString() : 'null') + ')'));
+    const point = located.point, pocketObservation = observePocket ? { selector, point, before:located.observation, afterFirst:null, lastEditor:null } : null;
+    if (pocketObservation) evidence.sketchDoubleClick = pocketObservation;
+    await pressAt(point, additive, 1, pocketObservation);
+    if (pocketObservation) {
+      const {before,afterFirst}=pocketObservation;
+      check([before,afterFirst].every(value=>value.rowCount===1&&value.rowConnected&&value.layout.row&&value.layout.tree&&value.layout.footer
+        &&value.hit.withinRow&&value.hit.featureId==='normal-pocket-profile'&&value.hit.parentFeatureId==='normal-pocket'&&!value.editorPresent),
+      'Both clicks address the same current original sketch occurrence at the unchanged pointer position');
+      check(before.summaryPresent&&!afterFirst.summaryPresent&&!before.rowSelected&&afterFirst.rowSelected,
+        'First sketch click replaces the selected-face summary with selected-operation actions');
+      check(canonical(afterFirst.layout)===canonical(before.layout),
+        'First sketch click preserves exact row, tree and permanent footer bounds and tree scroll');
+    }
     if (double) await pressAt(point, additive, 2);
     gestures.push({ kind, action: double ? 'double-pointer' : 'pointer', selector, text, additive, point });
   }
@@ -291,9 +324,17 @@ module.exports = function runNormalToViewWorkflow(c) {
     await actual('.tree-row[data-feature-id="normal-base"]');await selected('plane',1,'Single-sketch feature admits Normal To');await normal('button');
     await pick([-4,1,2],front,planeFace(2,2),'Single-sketch feature uses its original XY support');
     await actual('button[data-part-tree-toggle="normal-pocket"]');
-    await actual('.tree-row[data-feature-id="normal-pocket-profile"][data-parent-feature-id="normal-pocket"]',null,false,true);
+    await actual(pocketSelector,null,false,true);
     const svg='svg[aria-label="Editor de croquis multientidad"]';
-    await waitFor('Original circle sketch editor ready',()=>page(selector=>!!document.querySelector(selector)&&document.querySelector('button[title="Aceptar operación"]')?.disabled===false,svg));
+    await waitFor('Original circle sketch editor ready',async()=>{
+      const state=await page(selector=>{
+        const editor=document.querySelector(selector),accepts=[...document.querySelectorAll('button[title="Aceptar operación"]')];
+        return {svgPresent:!!editor,propertyManagerPresent:!!document.querySelector('.property-manager'),acceptCount:accepts.length,
+          acceptDisabled:accepts[0]?.disabled ?? null,entityCount:editor?.querySelectorAll('[data-selection-kind="entity"]').length ?? 0};
+      },svg);
+      evidence.sketchDoubleClick.lastEditor=state;
+      return state.svgPresent&&state.acceptDisabled===false;
+    });
     const sketchState=()=>page(selector=>{
       const e=document.querySelector(selector),circle=e?.querySelector('[data-selection-kind="entity"][data-selection-id="pocket-circle"]');
       if(!e||!circle)throw Error('Actual original circle entity required');const r=circle.getBoundingClientRect(),s=e.getBoundingClientRect();

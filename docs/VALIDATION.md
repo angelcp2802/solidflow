@@ -1,5 +1,77 @@
 # Validation
 
+## Stable part selection footer — local acceptance, 2026-10-26
+
+The part workspace now uses one permanent 64 px selection footer for face,
+operation and empty-selection actions. Selecting a tree occurrence after a
+face no longer removes a separate panel and resizes the scrollable tree.
+The same second pointer click can open that occurrence's editor.
+
+The preceding production build reproduced the hosted failure in a 1040 x 720
+window with 1024 x 681 content and a 719 x 478 part viewport. A private passive
+probe, using the existing hit-test and two-frame observation calls, recorded
+the original sketch row moving from Y=342 to Y=484 after the first click.
+The tree grew from 171 to 313 px and scrollTop clamped from 172 to 30 when the
+face summary disappeared. The unchanged second point (130.5,354) no longer
+hit that row; the editor never appeared. This establishes the cause for that
+original document and window, rather than attributing the failure to timing.
+
+Acceptance 01 passes all nine freshly executed commands on Windows and Node
+24.11.1 against 1,191 matching frozen source/runtime inputs. Build passes in
+4.843 s. `npm test` passes 9,953 tests across 437 files, plus 134 IPC checks and
+two explicit skips, in 438.893 s. Desktop smoke passes in 2.392 s with loaded
+WASM and passing worker-queue checks. Durations include evidence verification.
+
+| Production-renderer command | Recorded passing checks | Observed wall time |
+| --- | ---: | ---: |
+| `npm run test:desktop:normal-to-view` | 157 | 17.507 s |
+| `npm run test:desktop:part-fresh-sketch` | 51 | 7.523 s |
+| `npm run test:desktop:part-revolution` | 179 | 21.812 s |
+| `npm run test:desktop:part-sequence` | 180 | 22.779 s |
+| `npm run test:desktop:assembly-origin-axis-lock` | 113 | 14.698 s |
+| `npm run test:desktop:assembly-configured-origin-axis-lock` | 94 | 10.965 s |
+
+All six renderer routes report zero console/request/resource errors, observed
+child closure and isolated-profile cleanup. Every command checks the frozen
+code and built assets; no earlier passing result is retained.
+
+The public Normal To route now requests the same compact window size and
+retains its complete three-workspace orientation route. In the corrected
+part case, both clicks hit the same original sketch occurrence at (130.5,495).
+Its row stays at Y=483, tree height at 312 px, footer height at 64 px and
+scrollTop at 31. The first click changes face actions to operation actions;
+the second opens the one-entity sketch with acceptance enabled. Exact layout
+and identity assertions precede the unchanged second click. No retargeting,
+extra wait, deadline extension or relaxed geometric tolerance is used.
+
+Fresh-sketch and revolution routes separately exercise face-based sketch
+creation and the existing tree editing workflow. The sequence and two
+origin-axis-lock routes also check updated command inventories: Normal To is
+disabled for the live-cut body selection and enabled for their idle empty
+assembly selection. Existing ordered actions, keyboard traversal, layout,
+mutation guards and persistence checks remain in place. Fixtures are unchanged.
+
+Separate visual inspection of two isolated-window captures checked the face
+and operation footers at the same compact size, with no overlapping controls.
+That private capture route adds presentation pauses and is not acceptance or
+timing evidence. Its temporary harness was restored and all 1,191 runtime
+inputs and production assets were verified against the accepted snapshot.
+
+At preceding public head `c56439fa7dc11185e29aebcea9b54bb7cd02ef0a`,
+[CI](https://github.com/angelcp2802/solidflow/actions/runs/40337996957) finished
+with one renderer batch passing, five failing and three cancelled; all three
+configured-authoring jobs passed and the three Desktop jobs failed their
+renderer gate. This increment addresses the reproduced sketch opening and
+two outdated menu/toolbar inventories. Linux Previous View raster mismatch
+and the Windows symmetry workflow's overall deadline remain unresolved.
+The earlier source-update Save failure is not established as fixed: an
+additional unchanged local execution at that preceding head passed 61 checks,
+including its retained first Save completion and subsequent parent Save.
+
+This is bounded local acceptance, not a manual installed-application demo,
+recurring hosted stability or general platform/interface equivalence. Broader
+first-use acceptance and the remaining prototype/release gates stay open.
+
 ## Origin navigation and Normal To interaction — local acceptance, 2026-10-26
 
 Arming component translation or rotation now clears the browsed datum's Normal
