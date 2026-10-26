@@ -6,6 +6,7 @@ import { validateStepSource } from './stepSource'
 import { bodyReferenceCreationFeatureId, createdBodyIds, featureBodyOutputIncludes, featureBodyReferences } from './bodyReferences'
 import { bodyPatternAddresses, MAX_CREATED_BODY_IDS, validateBodyPatternDeclaration } from './bodyPatterns'
 import { validateFeaturePatternDeclaration, type FeaturePatternOperation } from './featurePatterns'
+import { validateNamedViews, type NamedView } from './namedViews'
 
 export interface Document {
   version: 1
@@ -15,6 +16,7 @@ export interface Document {
   features: Feature[]
   createdAt: string
   updatedAt: string
+  namedViews?: NamedView[]
 }
 
 export type SolidDocument = Document
@@ -813,7 +815,7 @@ function feature(value: unknown, path: string): Feature {
 /** Checks the entire dependency graph and returns a detached, normalized document. */
 export function validateDocument(value: unknown): Document {
   const source = object(value, 'Documento')
-  keys(source, ['version', 'id', 'name', 'units', 'features', 'createdAt', 'updatedAt'], 'Documento')
+  keys(source, ['version', 'id', 'name', 'units', 'features', 'createdAt', 'updatedAt'], 'Documento', ['namedViews'])
   if (source.version !== 1) fail('Documento.version', 'versión de archivo no compatible')
   if (source.units !== 'mm') fail('Documento.units', 'solo se admiten milímetros')
   const sourceFeatures = boundedArray(source.features, 'Documento.features', 0, MAX_FEATURES)
@@ -894,6 +896,11 @@ export function validateDocument(value: unknown): Document {
   const result: Document = {
     version: 1, id: string(source.id, 'Documento.id', 128), name: string(source.name, 'Documento.name'),
     units: 'mm', features, createdAt, updatedAt,
+  }
+  if (Object.hasOwn(source, 'namedViews')) {
+    const field = Object.getOwnPropertyDescriptor(source, 'namedViews')!
+    if (!('value' in field) || !field.enumerable) fail('Documento.namedViews', 'se esperaba un campo de datos')
+    result.namedViews = validateNamedViews(field.value)
   }
   if (features.some(feature => feature.type === 'importedBodies') && new TextEncoder().encode(JSON.stringify(result, null, 2)).byteLength > MAX_IMPORTED_BODIES_DOCUMENT_BYTES) {
     fail('Documento', 'el documento serializado supera 20 MiB')

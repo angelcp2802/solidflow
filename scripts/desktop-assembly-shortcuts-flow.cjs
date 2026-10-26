@@ -4,7 +4,7 @@ const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 // Reuse the original 2x3x4 prism bearing. No injected model or keyboard handler.
 module.exports = function assemblyShortcutWorkflow(context) {
   const c = require('./desktop-assembly-navigation.cjs').withNavigation(context);
-  const { configured, expected, input, output, shortcutOutput, shortcutKey, shortcutText, evaluate, observe, waitFor, pointer, capture,
+  const { configured, expected, input, output, shortcutOutput, shortcutKey, shortcutText, namedViewKey, evaluate, observe, waitFor, pointer, capture,
     check, checks, canonical, digest, ipc, dialogCounts, consoleErrors, failedRequests, initialReadyMs, cameraFrame, cameraGesture, rasterComparison } = c;
   const ROOT = configured ? '.configured-assembly-workspace' : '.assembly-app';
   const NAV = configured ? '[aria-label="Comandos del ensamblaje configurado"]' : '.assembly-toolbar';
@@ -287,6 +287,16 @@ module.exports = function assemblyShortcutWorkflow(context) {
     await waitFor('Escape revokes Apply capability',()=>page(configured=>{
       const e=configured?[...document.querySelectorAll('[aria-label="Comandos del ensamblaje configurado"] button')].find(e=>e.textContent.trim()==='Aplicar configuración'):document.querySelector('[aria-label="Aplicar ensamblaje"]');return !!e&&e.disabled;
     },configured));
+    check(dialogCounts().opens===3&&dialogCounts().saves===2,'Original shortcut prefix consumes exactly three Open and two SaveAs grants');
+    const named=await require('./desktop-named-views-flow.cjs')({kind:configured?'configured':'standard',page,waitFor,check,checks,canonical,digest,
+      key:shortcutKey,text:shortcutText,namedViewKey,press:actualControl,pointer,cameraFrame,cameraGesture,rasterComparison,observe,ipc,dialogCounts,output:shortcutOutput,
+      reopen:async document=>{
+        const beforeOpen=await serial();await key('O');const reopened=await response(beforeOpen,BUILD);
+        check(canonical(configured?reopened.current.document:reopened.document)===canonical(document),
+          'Named-view native reopen preserves the complete workspace-specific document');
+        geometry(reopened.response.value,'named-view-reopened');await recovery(document);
+      }});
+    current=named.document;
     // Cross workspace boundaries using the actual selector and existing discard
     // dialogs. Preserve both owned files; only standard Save-and-continue may
     // update the current SaveAs file, with the explicitly checked name change.
@@ -334,7 +344,7 @@ module.exports = function assemblyShortcutWorkflow(context) {
       ipc.filter(v=>v.channel==='document:save'&&v.completed).length===savesBeforeNew+(configured?0:1)
       &&canonical(JSON.parse(await fs.readFile(shortcutOutput,'utf8')))===canonical(current));
     if(configured)check((await fs.readFile(shortcutOutput)).equals(shortcutBytes),'Configured New leaves saved file bytes intact');
-    check(dialogCounts().opens===3&&dialogCounts().saves===2,'New uses no additional file picker grant, including Save-and-continue');
+    check(dialogCounts().opens===4&&dialogCounts().saves===2,'New retains the three original Open grants plus named-view reopen, with no additional picker for Save-and-continue');
     before=await serial();await key('N');await newDialogReady();
     await actualControl(NEW_DIALOG+' [data-new-document-kind="assembly"]');
     await waitFor('unsaved empty part asks before replacement',()=>page(()=>!!document.querySelector('[role="dialog"][aria-labelledby="discard-title"]')));
@@ -358,7 +368,7 @@ module.exports = function assemblyShortcutWorkflow(context) {
     await waitFor('unsaved empty assembly asks before reopening original',()=>page(()=>!!document.querySelector('[role="dialog"][aria-label="Cambios sin guardar"]')));
     await actualControl('[role="dialog"][aria-label="Cambios sin guardar"] button','Continuar sin guardar');
     row=await response(before,BUILD);
-    check(canonical(configured?row.current.document:row.document)===canonical(current),'Fourth Open restores the exact saved original after both workspace replacements');
+    check(canonical(configured?row.current.document:row.document)===canonical(current),'Original final Open restores the exact saved document and named catalog after both workspace replacements');
     geometry(row.response.value,'reopened-after-new');await recovery(current);
     check((await fs.readFile(output)).equals(outputBytes),'New and reopen preserve the earlier Save file byte for byte');
     check(ipc.filter(v=>v.channel==='document:save'&&v.completed).length===savesBeforeNew+(configured?0:1),'Only the declared standard Save-and-continue writes during New transitions');
@@ -366,7 +376,9 @@ module.exports = function assemblyShortcutWorkflow(context) {
       saveAndContinue:!configured,limits:'Part path is not exposed by the renderer; fresh part identity, empty declaration/history and bounded file requests are checked, not an unobservable internal path. Empty part observer exposes feature declarations and explicit-body absence, not aggregate mesh metrics.'}});
     check((await fs.readFile(input)).equals(originalBytes),'Original fixture file never overwritten');
     check(canonical(JSON.parse(await fs.readFile(shortcutOutput,'utf8')))===canonical(current),'Final SaveAs bytes retained after reopen and Cancel');
-    check(dialogCounts().opens===4&&dialogCounts().saves===2,'Exactly four Open and two SaveAs owned file picker grants');
+    check(dialogCounts().opens===5&&dialogCounts().saves===2,'Original four Open plus one named-view reopen; exactly two SaveAs grants');
+    check(ipc.filter(v=>v.channel==='document:save'&&v.completed).length===(configured?4:6),
+      'Original completed Save sequence plus exactly one named-view Save');
     const final=await observe();check(!final.workerErrors.length&&!consoleErrors.length&&!failedRequests.length,'No native or renderer errors');
     checks.push({ scenario:configured?'configured-assembly-shortcuts':'assembly-shortcuts',phases,gestures,savedSha256:digest(await fs.readFile(shortcutOutput)),sourceSha256:digest(originalBytes),limits:'Actual CDP keydown/up and text key events; native file dialogs substituted only with owned paths. Both New selectors cancel without replacement; standard dirty New chooses Assembly then cancels confirmation. Configured draft and both previews block New. Both create an empty part then an empty standard assembly and reopen the original; standard additionally saves its checked name edit through Save-and-continue. No external native-window or cross-platform parity claim.' });
     await capture(current);

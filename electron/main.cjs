@@ -198,14 +198,52 @@ function requireStepPath(filePath) {
 
 // The renderer owns full CAD schema/graph validation. This main-process gate
 // admits only the bounded saved-document envelope, never native authority.
+// Input here has already crossed JSON.parse: no getters, sparse arrays or
+// executable prototypes. Keep optional presentation data aligned with the
+// namedViews model contract without normalizing the bytes selected for saving.
+function hasValidSavedNamedViews(document) {
+  if (!Object.hasOwn(document, 'namedViews')) return true;
+  const views = document.namedViews;
+  if (!Array.isArray(views) || views.length > 64) return false;
+  const exact = (value, keys) => value && typeof value === 'object' && !Array.isArray(value)
+    && Object.keys(value).length === keys.length && keys.every(key => Object.hasOwn(value, key));
+  const controls = /[\x00-\x1f\x7f-\x9f]/, ids = new Set(), names = new Set();
+  const coordinate = value => Number.isFinite(value) && Math.abs(value) <= 1_000_000_000;
+  const vector = value => Array.isArray(value) && value.length === 3 && value.every(coordinate);
+  const coefficient = value => Number.isFinite(value) && Math.abs(value) <= 3.4028234663852886e38 / (32 * 4 * 1_000_000_000)
+    && (value === 0 || Math.fround(value) !== 0);
+  return views.every(entry => {
+    if (!exact(entry, ['id', 'name', 'view']) || typeof entry.id !== 'string' || !entry.id || entry.id.length > 128
+      || entry.id.trim() !== entry.id || controls.test(entry.id) || typeof entry.name !== 'string' || !entry.name
+      || entry.name.length > 80 || entry.name.trim().normalize('NFC') !== entry.name || controls.test(entry.name)) return false;
+    const name = entry.name.toLowerCase();
+    if (ids.has(entry.id) || names.has(name)) return false;
+    ids.add(entry.id); names.add(name);
+    const view = entry.view;
+    if (!exact(view, ['position', 'target', 'up', 'top', 'bottom', 'zoom', 'near', 'far'])
+      || ![view.position, view.target, view.up].every(vector) || ![view.top, view.bottom, view.near, view.far].every(coordinate)
+      || !Number.isFinite(view.zoom) || view.zoom <= 0 || view.top <= view.bottom || view.near <= 0 || view.far <= view.near) return false;
+    const height = (view.top - view.bottom) / view.zoom, depth = view.far - view.near;
+    if (![height, 2 / height, depth, 2 / depth].every(number => Number.isFinite(number) && number > 0)) return false;
+    const center = (view.top + view.bottom) / 2, top = center + height / 2, bottom = center - height / 2, effectiveHeight = top - bottom;
+    if (effectiveHeight <= 0 || !Number.isFinite(Math.fround(height)) || Math.fround(height) === 0
+      || ![2 / effectiveHeight, -(top + bottom) / effectiveHeight, -2 / depth, -(view.far + view.near) / depth].every(coefficient)) return false;
+    const direction = view.position.map((number, index) => number - view.target[index]);
+    const distance = Math.hypot(...direction), upLength = Math.hypot(...view.up);
+    if (Math.fround(distance) === 0 || Math.abs(upLength - 1) > 1e-10) return false;
+    const [x, y, z] = direction.map(number => number / distance), [ux, uy, uz] = view.up.map(number => number / upLength);
+    return Math.fround(Math.hypot(y * uz - z * uy, z * ux - x * uz, x * uy - y * ux)) !== 0;
+  });
+}
 function isSavedDocumentEnvelope(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  if (!hasValidSavedNamedViews(value)) return false;
   // Retain the existing v1 transport contract.
   if (value.version === 1) return Array.isArray(value.features);
   if (value.version === 3) {
     const fields = ['version', 'kind', 'source', 'catalog', 'rootConfiguration'];
-    if (value.kind !== 'configured-assembly' || Object.keys(value).length !== fields.length ||
-        fields.some(key => !Object.hasOwn(value, key)) || Object.keys(value).some(key => !fields.includes(key)) ||
+    if (value.kind !== 'configured-assembly' || Object.keys(value).length !== fields.length + Number(Object.hasOwn(value, 'namedViews')) ||
+        fields.some(key => !Object.hasOwn(value, key)) || Object.keys(value).some(key => !fields.includes(key) && key !== 'namedViews') ||
         value.source?.version !== 2 || !isSavedDocumentEnvelope(value.source) ||
         !Array.isArray(value.catalog) || value.catalog.length > 513 ||
         !(value.rootConfiguration === null || typeof value.rootConfiguration === 'string' && value.rootConfiguration.trim().length > 0 &&
@@ -234,8 +272,8 @@ function isSavedDocumentEnvelope(value) {
   }
   const fields = ['version', 'kind', 'id', 'revision', 'name', 'units', 'definitions', 'occurrences', 'mates', 'createdAt', 'updatedAt'];
   if (value.version !== 2 || value.kind !== 'assembly' || value.units !== 'mm' ||
-      Object.keys(value).length !== fields.length || fields.some(key => !Object.hasOwn(value, key)) ||
-      Object.keys(value).some(key => !fields.includes(key))) return false;
+      Object.keys(value).length !== fields.length + Number(Object.hasOwn(value, 'namedViews')) || fields.some(key => !Object.hasOwn(value, key)) ||
+      Object.keys(value).some(key => !fields.includes(key) && key !== 'namedViews')) return false;
   const text = (candidate, maximum) => typeof candidate === 'string' && candidate.trim().length > 0 && candidate.length <= maximum;
   const identifier = candidate => text(candidate, 128) && !/[\x00-\x1f\x7f]/.test(candidate);
   const stamp = candidate => {
@@ -246,6 +284,8 @@ function isSavedDocumentEnvelope(value) {
   return identifier(value.id) && identifier(value.revision) && text(value.name, 200) &&
     stamp(value.createdAt) && stamp(value.updatedAt) && Date.parse(value.updatedAt) >= Date.parse(value.createdAt) &&
     Array.isArray(value.definitions) && value.definitions.length <= 512 &&
+    value.definitions.every(definition => definition?.kind !== 'part' || !definition.document || typeof definition.document !== 'object'
+      || hasValidSavedNamedViews(definition.document)) &&
     Array.isArray(value.occurrences) && value.occurrences.length <= 4096 &&
     Array.isArray(value.mates) && value.mates.length <= 4096;
 }

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { OrthographicCamera, Vector3 } from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { configureCadNavigation } from './cadNavigation'
-import { bindViewNavigation, captureCameraView, createViewHistory, standardViews, viewShortcutCommand, type ViewHistory, type ViewName, type ViewRequest } from './viewNavigation'
+import { bindViewNavigation, captureCameraView, createViewHistory, standardViews, viewShortcutCommand, type CameraView, type ViewHistory, type ViewName, type ViewRequest } from './viewNavigation'
 import type { NormalToTarget } from './normalToView'
 
 // Real installed controls; only the DOM surface is synthetic. No renderer or CAD.
@@ -48,11 +48,13 @@ function fixture(history: ViewHistory = createViewHistory(), initial: ViewReques
   return { camera, surface, history, initial, navigation, begin, move, end, drag, update, forcedUpdate,
     controls: () => controls,
     fits: () => fitCount,
+    setAspect(value: number) { aspect = value },
     setZoom(value: number) { navigation.automatic(() => { camera.zoom = value; camera.updateProjectionMatrix() }) },
     read: () => captureCameraView(camera, controls),
     direction: () => camera.position.clone().sub(controls.target).normalize(),
     request(name: Exclude<ViewName, 'normal'>) { const request = { name, stamp: ++stamp }; navigation.request(request); update(); return request },
     normal(target: NormalToTarget): ViewRequest { const request: ViewRequest = { name: 'normal', stamp: ++stamp, target }; navigation.request(request); update(); return request },
+    named(view: CameraView): ViewRequest { const request: ViewRequest = { name: 'named', stamp: ++stamp, view }; navigation.request(request); update(); return request },
     wheel(deltaY = -100) { emit(surface, 'wheel', { deltaY, deltaMode: 0, clientX: 200, clientY: 200, ctrlKey: false }); update() },
     resize(value: number) { aspect = value; camera.left = -camera.top * value; camera.right = -camera.left; camera.updateProjectionMatrix(); update() },
     dispose() { navigation.dispose(); controls.dispose() },
@@ -267,6 +269,152 @@ describe('camera view commands and session history', () => {
     const f = fixture()
     try { const snapshot = f.history.current!; snapshot.position[0] = 999; expect(f.history.current!.position[0]).not.toBe(999) }
     finally { f.dispose() }
+  })
+})
+
+describe('named camera view requests', () => {
+  // Original rolled camera, translated from the origin, with an asymmetric
+  // vertical frustum. Literal witnesses below do not use the restore helper.
+  const saved = (): CameraView => ({ position: [11, -7, 53], target: [11, -7, 3], up: [3 / 5, 4 / 5, 0],
+    top: 14, bottom: -6, zoom: 2, near: 1, far: 201 })
+  const state = (f: ReturnType<typeof fixture>) => {
+    f.camera.updateMatrixWorld()
+    return { pose: f.read(), quaternion: f.camera.quaternion.toArray(), world: [...f.camera.matrixWorld.elements],
+      inverse: [...f.camera.matrixWorldInverse.elements], projection: [...f.camera.projectionMatrix.elements] }
+  }
+  const checkProjection = (f: ReturnType<typeof fixture>, aspect: number) => {
+    // right=(4,-3,0)/5, up=(3,4,0)/5; vertical center4, half-height5
+    // after zoom2; camera distance50, near1/far201.
+    for (const [point, expected] of [
+      [[11, -7, 3], [0, -.8, -.51]], [[15, -10, 3], [1 / aspect, -.8, -.51]],
+      [[14, -3, 3], [0, .2, -.51]], [[11, -7, 13], [0, -.8, -.61]],
+    ]) new Vector3(...point).project(f.camera).toArray().forEach((value, axis) => {
+      expect(Math.abs(value - expected[axis])).toBeLessThan(1e-12)
+    })
+  }
+
+  it('restores all saved fields without Fit and returns to the complete previous camera exactly', () => {
+    const f = fixture()
+    try {
+      f.drag(true); f.wheel()
+      const before = state(f), depth = f.history.depth, fits = f.fits(), view = saved(), original = structuredClone(view)
+      f.named(view)
+      expect(f.read()).toEqual(original); expect(f.fits()).toBe(fits); expect(f.history.depth).toBe(depth + 1)
+      expect([f.camera.left, f.camera.right]).toEqual([-10, 10]); checkProjection(f, 1)
+      const recalled = state(f)
+      view.position[0] = 999; view.target[1] = 999; view.up[2] = 999; view.zoom = 99
+      f.forcedUpdate(1000); expect(state(f)).toEqual(recalled)
+      f.request('previous'); expect(state(f)).toEqual(before); expect(f.fits()).toBe(fits)
+    } finally { f.dispose() }
+  })
+
+  it('preserves vertical framing and roll at the current aspect without stretching the model', () => {
+    const f = fixture()
+    try {
+      f.resize(2); const depth = f.history.depth, fits = f.fits()
+      f.named(saved()); expect(f.read()).toEqual(saved())
+      expect([f.camera.left, f.camera.right]).toEqual([-20, 20]); checkProjection(f, 2)
+      f.resize(.5)
+      expect(f.read()).toEqual(saved()); expect([f.camera.left, f.camera.right]).toEqual([-5, 5]); checkProjection(f, .5)
+      expect(f.history.depth).toBe(depth + 1); expect(f.fits()).toBe(fits)
+    } finally { f.dispose() }
+  })
+
+  it('records an effective first named command and treats repeated poses and request identities as no-ops', () => {
+    const first = fixture(undefined, { name: 'named', stamp: 0, view: saved() })
+    try {
+      expect(first.fits()).toBe(0); expect(first.history.depth).toBe(1); expect(first.read()).toEqual(saved())
+      first.request('previous')
+      expect(first.read()).toEqual({ position: [30, 30, 30], target: [0, 0, 0], up: [0, 1, 0], top: 10, bottom: -10, zoom: 1, near: .1, far: 1000 })
+      const request = first.named(saved()), before = state(first), revision = first.history.snapshot()
+      first.navigation.request(request); first.named(saved()); first.update()
+      expect(state(first)).toEqual(before); expect(first.history.depth).toBe(1)
+      expect(first.history.snapshot()).toBe(revision); expect(first.fits()).toBe(0)
+    } finally { first.dispose() }
+  })
+
+  it('caps named recalls at ten entries and restores their literal poses in reverse order', () => {
+    const f = fixture(), views: CameraView[] = []
+    try {
+      for (let index = 0; index < 14; index++) {
+        const view = saved(); view.position[0] += index; view.target[0] += index
+        views.push(structuredClone(view)); f.named(view)
+      }
+      expect(f.history.depth).toBe(10)
+      for (let index = 12; index >= 3; index--) { f.request('previous'); expect(f.read()).toEqual(views[index]) }
+      expect(f.history.canPrevious).toBe(false); expect(f.fits()).toBe(1)
+    } finally { f.dispose() }
+  })
+
+  it('keeps the saved camera and previous entry through a viewport remount without reapplying its request', () => {
+    const history = createViewHistory(), first = fixture(history)
+    const original = state(first), request = first.named(saved()), recalled = state(first)
+    first.dispose()
+    const second = fixture(history, request)
+    try {
+      second.forcedUpdate(1000); expect(state(second)).toEqual(recalled)
+      expect(history.depth).toBe(1); expect(second.fits()).toBe(0)
+      second.request('previous'); expect(state(second)).toEqual(original)
+      history.reset(); second.request('iso'); expect(history.depth).toBe(0)
+    } finally { second.dispose() }
+  })
+
+  it('does not consume a named command during a held gesture, and accepts that same request after cancellation', () => {
+    const f = fixture(), request: ViewRequest = { name: 'named', stamp: 10, view: saved() }
+    try {
+      f.begin(); f.move(150, 100); const during = state(f), depth = f.history.depth, fits = f.fits()
+      f.navigation.request(request); expect(state(f)).toEqual(during); expect(f.history.depth).toBe(depth)
+      f.navigation.cancelGesture(); const canceled = state(f)
+      f.navigation.request(request); f.update()
+      expect(f.read()).toEqual(saved()); expect(f.history.depth).toBe(depth + 1); expect(f.fits()).toBe(fits)
+      f.request('previous'); expect(state(f)).toEqual(canceled)
+    } finally { f.dispose() }
+  })
+
+  it.each([0, -1, NaN, Infinity, 1e-100, 1e308])('rejects an unusable current aspect %s without consuming a valid saved view', aspect => {
+    const f = fixture(), request: ViewRequest = { name: 'named', stamp: 10, view: saved() }
+    try {
+      const before = state(f), revision = f.history.snapshot(), fits = f.fits()
+      f.setAspect(aspect); f.navigation.request(request)
+      expect(state(f)).toEqual(before); expect(f.history.snapshot()).toBe(revision); expect(f.history.depth).toBe(0)
+      f.setAspect(1); f.navigation.request(request); f.update()
+      expect(f.read()).toEqual(saved()); expect(f.history.depth).toBe(1); expect(f.fits()).toBe(fits)
+    } finally { f.setAspect(1); f.dispose() }
+  })
+
+  it('preserves the projection safety margin when a narrow current aspect increases the horizontal coefficient', () => {
+    const f = fixture(), request: ViewRequest = { name: 'named', stamp: 10, view: {
+      position: [1e9, 0, 40], target: [1e9, 0, 0], up: [0, 1, 0], top: 10, bottom: -10, zoom: 2e28, near: 1, far: 201,
+    } }
+    try {
+      const before = state(f), revision = f.history.snapshot(), fits = f.fits()
+      // At aspect .001, x scale is2e30 (finite Float32), but its product
+      // with a permitted world coordinate1e9 is2e39, beyond Float32.
+      f.setAspect(.001); f.navigation.request(request)
+      expect(state(f)).toEqual(before); expect(f.history.snapshot()).toBe(revision); expect(f.history.depth).toBe(0)
+      // The same declaration is admissible at aspect1: scale2e27 retains
+      // the model's stated margin. Rejection must not consume its identity.
+      f.setAspect(1); f.navigation.request(request); f.update()
+      expect(f.read()).toEqual(request.view); expect(f.history.depth).toBe(1); expect(f.fits()).toBe(fits)
+    } finally { f.setAspect(1); f.dispose() }
+  })
+
+  it.each([
+    ['non-finite position', { position: [Infinity, 0, 2] }], ['zero direction', { position: [11, -7, 3] }],
+    ['zero up', { up: [0, 0, 0] }], ['parallel up', { up: [0, 0, 1] }],
+    ['empty frustum', { bottom: 14 }], ['zero zoom', { zoom: 0 }], ['reversed clip', { far: .5 }],
+  ])('rejects %s before consuming the request or changing Normal To repeat state', (_label, invalid) => {
+    const f = fixture(), target: NormalToTarget = { kind: 'plane', key: 'original-horizontal',
+      frame: { origin: [0, 0, 0], normal: [0, 0, 1], xDirection: [1, 0, 0] } }
+    try {
+      f.normal(target); const before = state(f), depth = f.history.depth, fits = f.fits(), revision = f.history.snapshot()
+      const request: ViewRequest = { name: 'named', stamp: 10, view: { ...saved(), ...invalid } as CameraView }
+      f.navigation.request(request); f.update()
+      expect(state(f)).toEqual(before); expect(f.history.depth).toBe(depth); expect(f.fits()).toBe(fits)
+      expect(f.history.snapshot()).toBe(revision)
+      f.normal(target); expect(f.direction().distanceTo(new Vector3(0, 0, -1))).toBeLessThan(1e-12)
+      request.view = saved(); f.navigation.request(request); f.update(); expect(f.read()).toEqual(saved())
+    } finally { f.dispose() }
   })
 })
 

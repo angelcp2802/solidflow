@@ -3,6 +3,8 @@ import { standardViews, viewShortcutCommand, type ViewName, type ViewRequest } f
 import { validateNormalToTarget } from './components/normalToView'
 import { partNormalToTarget, partViewReferenceKey, togglePartViewReference, type PartViewReference } from './components/partNormalTo'
 import { ViewOrientationControls } from './components/ViewOrientationControls'
+import { NamedViewsDialog } from './components/NamedViewsDialog'
+import { sameDocumentExceptNamedViews, useNamedDocumentViews } from './components/useNamedDocumentViews'
 import { requestNewDocument, useNewDocumentDialog } from './components/useNewDocumentDialog';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
@@ -811,6 +813,25 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     [normalReferences, visibleBase, operationDocument.features]);
   const canNormal = !viewHistory.navigating && !busy && previewCurrent && !sourceLoading && !importing && !exporting
     && !discardOpen && !newDocumentDialog.pending() && (!!viewIs2D || !!normalTarget && validateNormalToTarget(normalTarget));
+  const adoptNamedViewMetadata = (next: Document) => {
+    const before = docRef.current;
+    if (!sameDocumentExceptNamedViews(before, next)) throw Error('Sólo se puede modificar el catálogo de vistas.');
+    const owned = { ...next, features: before.features };
+    const selection = normalSelectionRef.current;
+    if (selection?.document === before && selection.model === visibleBase)
+      setNormalSelection({ ...selection, document: owned });
+    docRef.current = owned; setDoc(owned); return owned;
+  };
+  const namedViews = useNamedDocumentViews({ document: doc, identity: documentEpoch.current, scene: model, history: viewHistory,
+    isCurrent: () => docRef.current === doc && !fileOperation.current,
+    blocked: !!editing || !!stagedSketch || busy || !previewCurrent || !model || sourceLoading || importing || exporting
+      || fileOperation.current || discardOpen || rename || showHelp || newDocumentDialog.pending(),
+    commit: next => {
+      if (docRef.current !== doc || !sameDocumentExceptNamedViews(doc, next)) throw Error('El documento ha cambiado.');
+      return adoptNamedViewMetadata(history.current!.apply(next));
+    },
+    recall: savedView => setView(previous => ({ name: 'named', stamp: previous.stamp + 1, view: savedView })),
+  });
   const selectViewReference = (reference: PartViewReference, additive = false) => {
     if (editing || busy || !previewCurrent || docRef.current !== doc || normalSelectionRef.current !== normalSelection) return;
     if (additive && normalReferences === null) return;
@@ -824,7 +845,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     if (last?.kind === 'principal') setPlane(last.plane);
   };
   const changeView = (name: ViewName) => {
-    if (viewHistory.navigating) return;
+    if (namedViews.isOpen || viewHistory.navigating) return;
     if (name === 'previous' && (!viewHistory.canPrevious || viewIs2D)) return;
     if (viewIs2D) { if (name === 'fit' || name === 'normal' && canNormal) setSketchFitStamp(stamp => stamp + 1); return; }
     if (name === 'normal') {
@@ -941,6 +962,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     [],
   );
   const reset = (next: Document, path?: string, markSaved = false) => {
+    namedViews.close();
     documentEpoch.current++;
     viewHistory.reset();
     preservedRecovery.current = null;
@@ -1174,6 +1196,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     }
   };
   const saveDoc = async (saveAs = false) => {
+    if (namedViews.isOpen) return;
     if (!requireFinishedEdit()) return;
     if (fileOperation.current) {
       notify("Espera a que termine la operación de archivo actual.");
@@ -1304,6 +1327,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     }
   };
   const undo = () => {
+      if (namedViews.isOpen) return;
       if (editing?.type === "sketch") {
         const previous = sketchPast.at(-1);
         if (!previous) return;
@@ -1317,11 +1341,14 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
         return;
       }
       if (!requireFinishedEdit()) return;
-      setDoc(history.current!.undo());
+      const next = history.current!.undo();
+      if (sameDocumentExceptNamedViews(docRef.current, next)) { adoptNamedViewMetadata(next); return; }
+      setDoc(next);
       setSelected(null);
       setError("");
     },
     redo = () => {
+      if (namedViews.isOpen) return;
       if (editing?.type === "sketch") {
         const next = sketchFuture.at(-1);
         if (!next) return;
@@ -1335,7 +1362,9 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
         return;
       }
       if (!requireFinishedEdit()) return;
-      setDoc(history.current!.redo());
+      const next = history.current!.redo();
+      if (sameDocumentExceptNamedViews(docRef.current, next)) { adoptNamedViewMetadata(next); return; }
+      setDoc(next);
       setSelected(null);
       setError("");
     };
@@ -2198,6 +2227,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
       const input =
         e.target instanceof HTMLElement &&
         !!e.target.closest("input,textarea,select,[contenteditable='true']");
+      if (namedViews.isOpen) return;
       if (showHelp || rename || discardDecision.current) {
         if (e.key === "Escape") {
           if (discardDecision.current) finishDiscard(false);
@@ -2489,6 +2519,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     "Ajustar a pantalla": viewHistory.navigating,
     ...Object.fromEntries(standardViews.map(view => [view.label, !!viewIs2D || viewHistory.navigating])),
     'Normal a': !canNormal,
+    'Vistas guardadas…': !namedViews.canOpen,
     "Nuevo ensamblaje vacío": newDocumentBlocked,
     "Crear ensamblaje con esta pieza": !canCreateAssemblyFromPart,
     "Importar STEP…": !!editing || importing || exporting,
@@ -2540,6 +2571,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
       id: "view", label: "Ver", items: [
         ...standardViews.map(({ name, label, shortcut }): [string, string, () => void] => [label, shortcut, () => changeView(name)]),
         ["Normal a", "Ctrl+8", () => changeView("normal")],
+        ["Vistas guardadas…", "", namedViews.open],
         ["Vista anterior", "Ctrl+Shift+Z", () => changeView("previous")],
         ["Ajustar a pantalla", "F", () => changeView("fit")],
         ["Cuadrícula", "", () => setGrid(!grid)],
@@ -3874,7 +3906,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
         </aside>
         <section className="graphics-area" data-normal-selection-kind={normalTarget?.kind ?? 'invalid'} data-normal-selection-keys={JSON.stringify(normalReferences?.map(partViewReferenceKey) ?? [])} data-normal-enabled={canNormal}>
           <div className="viewport-toolbar">
-            <ViewOrientationControls onView={changeView} canPrevious={viewHistory.canPrevious} canNormal={canNormal} disabled={!!viewIs2D || viewHistory.navigating} />
+            <ViewOrientationControls onView={changeView} canPrevious={viewHistory.canPrevious} canNormal={canNormal} disabled={!!viewIs2D || viewHistory.navigating} onNamedViews={namedViews.open} canNamedViews={namedViews.canOpen} />
             {!editing && normalReferences && normalReferences.length > 1 && <span className="normal-view-selection" title="Normal a: primera referencia de frente; segunda hacia arriba">{normalReferences.length} referencias</span>}
             <IconButton
               icon={Maximize}
@@ -4203,6 +4235,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                         left: "Izquierda",
                         right: "Derecha",
                         normal: "Normal a",
+                        named: "Vista guardada",
                       }[view.name]}
             </span>
           </div>
@@ -4666,6 +4699,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
           </div>
         </div>
       )}
+      {namedViews.isOpen && <NamedViewsDialog views={namedViews.views} canSave={namedViews.canSave} onSave={namedViews.save} onShow={namedViews.show} onDelete={namedViews.remove} onClose={namedViews.close} />}
       {rename && (
         <div className="modal-backdrop">
           <form

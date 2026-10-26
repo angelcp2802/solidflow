@@ -6,7 +6,7 @@ const { encodeJavaScriptString: quote } = require('./desktop-ui-source.cjs');
 // Parameter fields use the actual visible controls; no model/worker state injection.
 module.exports = function fromEmptyWorkflow(c) {
   const { output, evaluate, observe, waitFor, pointer, menu, capture, key, checks, check, canonical, digest,
-    consoleErrors, failedRequests, ipc, protocolResponses, dialogCounts, initialReadyMs, cameraFrame, cameraGesture, rasterComparison } = c;
+    consoleErrors, failedRequests, ipc, protocolResponses, dialogCounts, initialReadyMs, cameraFrame, cameraGesture, rasterComparison, shortcutText, namedViewKey } = c;
   const APPLY = 'button[title="Aceptar operación"]', SVG = 'svg[aria-label="Editor de croquis multientidad"]';
   const NEW = '[role="dialog"][aria-labelledby="new-document-title"]';
   const phases = [], drawings = [];
@@ -163,9 +163,33 @@ module.exports = function fromEmptyWorkflow(c) {
           selection:['selection-mode','selected-face','selected-edges','selected-bodies'].map(name=>[name,viewport?.getAttribute('data-part-'+name)])};
       })})});
     await require('./desktop-part-view-remount.cjs')({page,waitFor,check,checks,canonical,cameraFrame,cameraGesture,key,press,tab,idle,recovery,observe,ipc,dialogCounts});
+    const named = await require('./desktop-named-views-flow.cjs')({kind:'part',page,waitFor,check,checks,canonical,digest,key,text:shortcutText,namedViewKey,press,pointer,
+      cameraFrame,cameraGesture,rasterComparison,observe,ipc,dialogCounts,output,reopen:async document=>{
+        // A clean saved part is replaced through the real chooser. The new
+        // document must not inherit its predecessor's presentation catalog.
+        const beforeNew=(await observe()).serial;
+        await key('N');await waitFor('New owns the named-view isolation transition',()=>page(selector=>!!document.querySelector(selector),NEW));
+        await press(NEW+' [data-new-document-kind="part"]');await idle();
+        const empty=JSON.parse(await recovery());
+        check(empty.version===1&&empty.id!==document.id&&empty.features.length===0&&!Object.hasOwn(empty,'namedViews'),
+          'New part owns a fresh identity with no previous named-view catalog');
+        const emptyBuild=await waitFor('one original empty part builds after named-view isolation',async()=>{
+          const rows=(await observe()).builds.filter(row=>row.serial>beforeNew&&row.response);
+          check(rows.length<=1,'Named-view isolation creates one empty part build');
+          return rows.length===1&&rows[0].response.ok&&rows[0].features.length===0?rows[0]:false;
+        });
+        check(emptyBuild.response.value.featureErrors.length===0&&emptyBuild.response.value.warnings.length===0,'Fresh isolated part has no native errors');
+        const beforeOpen=(await observe()).serial;await key('O');
+        await waitFor('unsaved isolated part asks before named-view reopen',()=>page(()=>!!document.querySelector('[role="dialog"][aria-labelledby="discard-title"]')));
+        await press('[role="dialog"][aria-labelledby="discard-title"] button','Continuar sin guardar');await idle();
+        const row=await built(beforeOpen,8,11144,4136,13,'named-view-reopened');
+        check(canonical(row.features)===canonical(document.features),'Named-view reopen retains all eight original geometric operations');
+      }});
+    check(dialogCounts().opens===2&&dialogCounts().saves===1&&ipc.filter(e=>e.channel==='document:save'&&e.completed).length===2,
+      'Original one Open/SaveAs plus one named-view Save and reopen, with no added SaveAs');
     check(!consoleErrors.length&&!failedRequests.length,'No renderer or resource errors');
     check(protocolResponses.some(p=>/kernel\.worker-[\w-]+\.js$/.test(p.url)&&p.status===200)&&protocolResponses.some(p=>p.url.endsWith('.wasm')&&p.status===200),'Actual production worker and WASM loaded');
-    checks.push({savedSha256:digest(savedBytes),phases,drawings,independentOracles:'Original rectangles: base40x30x10; through-hole10x10; mergedboss8x8x3; separatepocket6x4x2. V12000/11000/11192/11144mm3 at1e-5; planar meshA3800/4000/4096/4136mm2 at1e-4; bounds1e-6mm; four-point rectangles1e-9mm. No prepared geometry or imported input.',limits:'Actual pointer strokes and command input; parameter fields assigned via existing controls. Mesh area is not native BRep area; external-window and platform acceptance are separate.'});
-    await capture(saved);
+    checks.push({savedSha256:digest(named.savedBytes),originalSaveSha256:digest(savedBytes),phases,drawings,independentOracles:'Original rectangles: base40x30x10; through-hole10x10; mergedboss8x8x3; separatepocket6x4x2. V12000/11000/11192/11144mm3 at1e-5; planar meshA3800/4000/4096/4136mm2 at1e-4; bounds1e-6mm; four-point rectangles1e-9mm. No prepared geometry or imported input.',limits:'Actual pointer strokes and command input; parameter fields assigned via existing controls. Mesh area is not native BRep area; external-window and platform acceptance are separate.'});
+    await capture(named.document);
   };
 };

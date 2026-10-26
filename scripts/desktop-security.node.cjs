@@ -84,6 +84,22 @@ const configuredAssembly = { version: 3, kind: 'configured-assembly', source: as
   configurations: [{ id: 'original-variant', name: 'Original variant', occurrences: [], mates: [] }],
 }], rootConfiguration: 'original-variant' };
 
+// Independently authored camera data. These are transport/byte-preservation
+// fixtures; no view or geometry result is inferred from the main-process gate.
+const namedView = () => ({ id: 'original-view', name: 'Vista Café', view: {
+  position: [12, -8, 40], target: [12, -8, 0], up: [.6, .8, 0], top: 14, bottom: -6, zoom: 2, near: 1, far: 201,
+} });
+function withViewsAt(position, views) {
+  const document = structuredClone(position === 'part' ? JSON.parse(content)
+    : position === 'assembly' || position === 'embedded-part' ? assembly : configuredAssembly);
+  if (position === 'source') document.source.namedViews = views;
+  else if (position === 'embedded-part' || position === 'configured-embedded-part') {
+    const source = document.version === 3 ? document.source : document;
+    source.definitions.push({ kind: 'part', id: 'original-part', revision: 'r1', document: { version: 1, features: [], namedViews: views } });
+  } else document.namedViews = views;
+  return document;
+}
+
 test('packaged application ignores development URLs and keeps renderer isolation', async (t) => {
   const { window } = await harness(t);
   assert.equal(window.url, 'solidflow://app/index.html');
@@ -235,6 +251,71 @@ test('configured Save As and reopen preserve exact v3 bytes, cancellation and on
   assert.equal(await save(event, { content: bytes, filePath: reopened.path }), reopened.path);
   await assert.rejects(save(event, { content: bytes, filePath: path.join(temporary, 'other.solidflow') }), /Guardar como/);
   assert.deepEqual(await fs.readdir(temporary), ['configured.solidflow']);
+});
+
+test('named view catalogs survive real Save As, reopen and normal Save in every admitted document position', async t => {
+  const h = await harness(t), save = h.handlers.get('document:save');
+  for (const position of ['part', 'assembly', 'configured', 'source', 'embedded-part', 'configured-embedded-part']) {
+    const view = namedView(), second = { id: 'translated-high-zoom', name: 'Detalle', view: {
+      position: [1e6, 1e6, 1e6 + 40], target: [1e6, 1e6, 1e6], up: [0, 1, 0], top: 60, bottom: -60, zoom: 100000, near: 1, far: 201,
+    } };
+    const document = withViewsAt(position, [view, second]), bytes = JSON.stringify(document, null, 2) + '\n';
+    const selected = path.join(h.temporary, position + '.solidflow');
+    h.dialogQueue.push({ canceled: false, filePath: selected });
+    assert.equal(await save(h.event, { content: bytes }), selected);
+    assert.equal(h.state.lastDialog.title, document.version === 3 ? 'Guardar ensamblaje configurado' : document.version === 2 ? 'Guardar ensamblaje' : 'Guardar pieza');
+    assert.equal(await fs.readFile(selected, 'utf8'), bytes);
+    h.dialogQueue.push({ canceled: false, filePaths: [selected] });
+    const reopened = await h.handlers.get('document:open')(h.event);
+    assert.equal(reopened.content, bytes);
+    assert.equal(await save(h.event, { content: bytes, filePath: reopened.path }), reopened.path);
+    assert.equal(await fs.readFile(selected, 'utf8'), bytes);
+    await assert.rejects(save(h.event, { content: bytes, filePath: path.join(h.temporary, 'unselected.solidflow') }), /Guardar como/);
+  }
+  assert.equal(h.state.dialogCalls, 12); assert.equal((await fs.readdir(h.temporary)).length, 6);
+});
+
+test('named view envelope rejects malformed catalogs and cameras before dialogs or writes in roots and embedded parts', async t => {
+  const h = await harness(t), save = h.handlers.get('document:save'), original = namedView();
+  const invalid = [null, {}, false, [null], [original, { ...original, id: 'second' }], [original, { ...original, name: 'Other' }],
+    Array.from({ length: 65 }, (_, i) => ({ ...original, id: 'id-' + i, name: 'Name ' + i })),
+    ...['', ' padded', 'n'.repeat(129), 'id\u0085'].map(id => [{ ...original, id }]),
+    ...['', ' ', ' padded', 'Cafe\u0301', 'n'.repeat(81), 'name\u0000', 'name\u0085'].map(name => [{ ...original, name }]),
+    [original, { ...original, id: 'second', name: 'VISTA CAFÉ' }],
+    [{ ...original, token: 'not-authority' }], [{ ...original, view: { ...original.view, filePath: 'ungranted.solidflow' } }],
+    ...[
+      { position: [1, 2] }, { target: [1, 2, 3, 4] }, { up: null }, { target: [null, 0, 0] },
+      { position: [1e9 + 1, 0, 40] }, { position: [12, -8, 0] }, { up: [0, 0, 0] }, { up: [0, 2, 0] }, { up: [0, 0, 1] },
+      { up: [1e-200, 0, 1] }, { position: [0, 1e-200, 0], target: [0, 0, 0], up: [1, 0, 0] },
+      { top: -6 }, { top: 1e9 + 1 }, { near: 0 }, { far: 1 }, { far: 1e9 + 1 }, { zoom: 0 }, { zoom: -1 }, { zoom: '2' },
+      { zoom: 1e100 }, { zoom: 1e-100 }, { top: 1e9, bottom: 1e9 - 2, zoom: 1e20 },
+      { near: Number.MIN_VALUE, far: Number.MIN_VALUE * 2 },
+    ].map(patch => [{ ...original, view: { ...original.view, ...patch } }]),
+  ];
+  for (const position of ['part', 'assembly', 'configured', 'source', 'embedded-part', 'configured-embedded-part']) {
+    for (const views of invalid) await assert.rejects(save(h.event, { content: JSON.stringify(withViewsAt(position, views)) }), /SolidFlow no válido/, position);
+  }
+  for (const document of [
+    { ...withViewsAt('assembly', [original]), token: 'not-authority' },
+    { ...withViewsAt('configured', [original]), generation: 123 },
+  ]) await assert.rejects(save(h.event, { content: JSON.stringify(document) }), /SolidFlow no válido/);
+  assert.equal(h.state.dialogCalls, 0); assert.deepEqual(await fs.readdir(h.temporary), []);
+});
+
+test('invalid saved views leave an existing grant and bytes intact; empty and 64-entry catalogs retain the bounded contract', async t => {
+  const h = await harness(t), save = h.handlers.get('document:save'), selected = path.join(h.temporary, 'retained-views.solidflow');
+  h.dialogQueue.push({ canceled: false, filePath: selected });
+  assert.equal(await save(h.event, { content: assemblyContent }), selected);
+  const malformed = withViewsAt('assembly', [{ ...namedView(), view: { ...namedView().view, zoom: 0 } }]);
+  await assert.rejects(save(h.event, { content: JSON.stringify(malformed), filePath: selected }), /SolidFlow no válido/);
+  assert.equal(await fs.readFile(selected, 'utf8'), assemblyContent);
+  for (const views of [[], Array.from({ length: 64 }, (_, index) => ({ ...namedView(), id: 'view-' + index, name: 'View ' + index }))]) {
+    const bytes = JSON.stringify(withViewsAt('assembly', views));
+    assert.equal(await save(h.event, { content: bytes, filePath: selected }), selected);
+    assert.equal(await fs.readFile(selected, 'utf8'), bytes);
+  }
+  assert.equal(await save(h.event, { content: assemblyContent, filePath: selected }), selected);
+  assert.equal(await fs.readFile(selected, 'utf8'), assemblyContent); assert.equal(h.state.dialogCalls, 1);
 });
 
 test('configured transport rejects malformed wrappers, nested versions, catalog bounds and persisted authority before dialogs', async (t) => {

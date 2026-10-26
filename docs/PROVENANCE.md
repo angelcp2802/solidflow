@@ -1,5 +1,35 @@
 # Public fixture provenance
 
+## Original named-view declarations and camera witnesses
+
+The named-view model and history tests author empty part, standard assembly and
+configured assembly documents through the existing constructors. Their camera
+poses are original numeric declarations, including position `(3,4,25)`, target
+`(3,4,5)`, vertical up, frustum top 12/bottom -8, zoom 2.5 and clip range
+0.1–1000. They establish serialization and metadata boundaries without claiming
+native geometry or rendered behavior. Names, IDs, duplicate entries, sparse
+arrays, unknown fields and degenerate camera cases are synthetic test inputs.
+
+Camera-navigation tests use separately declared poses, including a 3/5–4/5 roll
+and asymmetric vertical framing, with literal world points and independent
+projection expectations at multiple viewport aspects. Tiny directions/bases and
+extreme zoom/aspect pairs are deliberately invalid numeric declarations; they
+test rejection rather than a supported modeling scale.
+
+The named-view renderer flow reuses the existing original part-from-empty and
+two-prism shortcut documents. It creates views through application controls and
+retains the earlier geometry, history and file checks. Original captures supply
+the displayed-restoration witnesses. Save/reopen checks distinguish the stored
+camera catalog from transient panels, selection and origin visibility; any
+restored context uses the application's controls. No external camera implementation,
+private CAD model or imported rendering is used as a fixture.
+
+Desktop transport tests independently declare position `(12,-8,40)`, target
+`(12,-8,0)`, up `(0.6,0.8,0)`, frustum 14/-6, zoom 2 and clipping 1/201, plus
+a translated high-zoom view. These test exact file bytes, grants and rejection
+before writing in all admitted catalog positions. They do not provide a geometry
+or rendered-camera witness. Malformed camera/name variants are synthetic.
+
 ## Original Normal To geometry and orientation witnesses
 
 `scripts/desktop-normal-to-view-original.cjs` authors three documents directly

@@ -5,6 +5,7 @@ export type { AssemblySourceLink } from './assemblySourceLink'
 import type { BodyReference, EdgeReference, FaceReference, Plane, VertexReference } from '../cad/kernel.types'
 import { validateVertexReference } from '../cad/kernel.vertex-references'
 import { validateDocument, type Document } from './document'
+import { validateNamedViews, type NamedView } from './namedViews'
 import { composeRigidPoses, identityRigidPose, validateRigidPose, type Quaternion, type RigidPose } from './rigidPose'
 import { validateAssemblyGearData, type AssemblyGearData } from './assemblyGear'
 import { validateAssemblyScrewData, type AssemblyScrewData } from './assemblyScrew'
@@ -179,6 +180,7 @@ export interface AssemblyDocument extends AssemblyNode {
   units: 'mm'
   /** Flat, revision-addressed table; nested occurrences reference this table. */
   definitions: AssemblyDefinition[]
+  namedViews?: NamedView[]
 }
 export type CadDocument = Document | AssemblyDocument
 export interface ExpandedPartOccurrence {
@@ -202,11 +204,11 @@ function identifier(value: unknown, path: string): string {
   if (/[\x00-\x1f\x7f]/.test(result)) fail(path, 'identificador con caracteres de control')
   return result
 }
-function record(value: unknown, path: string, required: string[]): Record<string, unknown> {
+function record(value: unknown, path: string, required: string[], optional: string[] = []): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) fail(path, 'se esperaba un objeto')
   const fields = Object.getOwnPropertyDescriptors(value)
   for (const key of Reflect.ownKeys(fields)) {
-    if (typeof key !== 'string' || !required.includes(key)) fail(path, 'campo desconocido')
+    if (typeof key !== 'string' || !required.includes(key) && !optional.includes(key)) fail(path, 'campo desconocido')
     if (!('value' in fields[key]) || !fields[key].enumerable) fail(path, 'se esperaban campos de datos')
   }
   for (const key of required) if (!Object.hasOwn(fields, key)) fail(path + '.' + key, 'campo obligatorio')
@@ -648,7 +650,7 @@ function checkDefinitionGraph(document: AssemblyDocument): void {
 /** Syntax/graph authority only. It neither builds solids nor solves mates. */
 function checkedAssemblyDocument(value: unknown): AssemblyDocument {
   const source = record(value, 'Ensamblaje', ['version', 'kind', 'id', 'revision', 'name', 'units', 'definitions',
-    'occurrences', 'mates', 'createdAt', 'updatedAt'])
+    'occurrences', 'mates', 'createdAt', 'updatedAt'], ['namedViews'])
   if (source.version !== ASSEMBLY_DOCUMENT_VERSION || source.kind !== 'assembly') fail('Ensamblaje.version', 'formato de ensamblaje no compatible')
   if (source.units !== 'mm') fail('Ensamblaje.units', 'solo se admiten milímetros')
   const budget: Budget = { occurrences: 0, mates: 0, features: 0 }
@@ -656,6 +658,7 @@ function checkedAssemblyDocument(value: unknown): AssemblyDocument {
     .map((value, index) => definition(value, 'Ensamblaje.definitions[' + index + ']', budget))
   const result: AssemblyDocument = { version: 2, kind: 'assembly', units: 'mm', ...metadata(source, 'Ensamblaje'),
     definitions, ...nodeContents(source, 'Ensamblaje', budget) }
+  if (Object.hasOwn(source, 'namedViews')) result.namedViews = validateNamedViews(source.namedViews)
   checkDefinitionGraph(result)
   return result
 }

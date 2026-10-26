@@ -4,7 +4,7 @@
 // No camera/application state injection or CAD geometry substitute is used.
 module.exports = async function compactViewportControls({ configured, page, waitFor, actualControl, observe, check, checks, canonical }) {
   const selector = configured ? '[aria-label="Vistas del ensamblaje configurado"]' : '.assembly-view-tools';
-  const names = ['Normal a', 'Vista anterior', 'Isométrica', 'Frontal', 'Superior', 'Ajustar', ...(configured ? [] : ['Seleccionar caras', 'Arrastrar posición', 'Arrastrar giro', 'Desactivar manipulador'])];
+  const names = ['Vistas guardadas', 'Normal a', 'Vista anterior', 'Isométrica', 'Frontal', 'Superior', 'Ajustar', ...(configured ? [] : ['Seleccionar caras', 'Arrastrar posición', 'Arrastrar giro', 'Desactivar manipulador'])];
   const inspect = () => page(selector => {
     const bars = document.querySelectorAll(selector), bar = bars[0], viewport = document.querySelector('.assembly-viewport');
     if (bars.length !== 1 || !bar || !viewport) throw Error('One compact toolbar and assembly viewport required');
@@ -63,9 +63,12 @@ module.exports = async function compactViewportControls({ configured, page, wait
     const diagnostic = JSON.stringify(value);
     check(value.toolbarVisible && value.contained && value.toolbar.height === 32, label + ': compact 32px toolbar fully inside viewport/window: ' + diagnostic);
     check(canonical(value.buttons.map(button => button.text)) === canonical(names), label + ': exact unique current button command inventory');
+    const normal = value.buttons.find(button => button.label === 'Normal a');
+    const named = value.buttons.find(button => button.label === 'Vistas guardadas');
     check(value.normalSelection.kind === 'none' && value.normalSelection.keys === '[]' && value.normalSelection.enabled === 'true'
-      && !value.buttons[0].disabled && value.buttons[0].label === 'Normal a' && value.buttons[0].title === 'Normal a (Ctrl+8)',
+      && normal && !normal.disabled && normal.title === 'Normal a (Ctrl+8)',
     label + ': idle empty selection enables the unique Normal To command with its shortcut');
+    check(named && !named.disabled && named.title === 'Vistas guardadas…', label + ': confirmed idle scene enables the named-view catalog');
     check(value.buttons.every(button => button.visible && button.contained && button.ownHit && button.rect.width === 28 && button.rect.height === 26 && button.title), label + ': all icon commands retain accessible text and full hit targets: ' + diagnostic);
     check(value.orientation.length === 1, label + ': one separate standard-view selector');
     const orientation = value.orientation[0];

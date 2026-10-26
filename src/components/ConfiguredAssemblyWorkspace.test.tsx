@@ -230,12 +230,15 @@ it('keeps configured viewport commands inside the canvas with their exact access
     const content = button.match(/^<button\b[^>]*><svg\b(?=[^>]*\baria-hidden="true")[^>]*>(?:<(path|circle|rect|line|polyline|polygon|ellipse)\b[^>]*><\/\1>)+<\/svg><span class="compact-viewport-label">([^<]*)<\/span><\/button>$/)
     expect(content).not.toBeNull()
     return content![2]
-  })).toEqual(['Normal a', 'Vista anterior', 'Isométrica', 'Frontal', 'Superior', 'Ajustar'])
+  })).toEqual(['Vistas guardadas', 'Normal a', 'Vista anterior', 'Isométrica', 'Frontal', 'Superior', 'Ajustar'])
   for (const button of buttons) {
     expect(button).toContain('class="compact-viewport-label"')
     expect(button).toMatch(/<svg\b[^>]*aria-hidden="true"/)
     expect(button).toMatch(/title="[^"]+"/)
   }
+  const named = buttons.filter(button => button.includes('aria-label="Vistas guardadas"'))
+  expect(named).toHaveLength(1)
+  expect(named[0]).toMatch(/<button[^>]*disabled=""/)
   expect(nav![1]).not.toContain('Arrastrar')
 })
 it('exposes authoring shortcuts with mounted inspector targets and preserves separate file/view navigation', () => {

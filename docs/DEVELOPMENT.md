@@ -1,5 +1,60 @@
 # Development guide
 
+## Document-local named views — 2026-10-26
+
+Part, standard assembly and configured assembly roots may contain an optional
+`namedViews` catalog. Each entry has its own stable ID, name and detached
+orthographic camera pose: position, target, up, vertical frustum, zoom and clip
+range. Previous View remains transient session state and is never serialized.
+An embedded part retains its own catalog; importing or reusing a component must
+not promote that catalog into its parent assembly. A configured root catalog is
+separate from its source document and configuration catalog.
+
+Versions 1, 2 and 3 retain their existing interpretation when the optional field
+is absent. Their older strict readers can reject files containing the new field;
+do not promise those readers will preserve or understand it. Omitting the last
+deleted catalog avoids leaving an empty extension in the document. Loading,
+serialization and recovery validate the same optional data before acceptance.
+
+Limit a catalog to 64 entries and a name to 80 UTF-16 code units. Creation trims
+and normalizes a name to NFC; imported names must already have that form.
+Locale-independent lowercase keys detect name collisions. IDs are unique,
+bounded to 128 code units and cannot contain control characters. Accept only
+exact data fields and dense arrays, and return detached values. Reject malformed
+cameras without normalizing them: finite bounded coordinates, unit up,
+nondegenerate direction/basis and representable projection values are required.
+The current viewport aspect must also admit the horizontal projection at recall.
+No saved view carries native geometry, references or an Apply capability.
+
+The desktop Save envelope admits this optional field and independently validates
+its catalog and numeric camera data at roots, configured sources and embedded
+parts before any dialog or write. It retains its bounded envelope role; full
+CAD graph validation remains in the model. File grants, sender checks, the
+document byte limit and atomic writes are unchanged. Invalid metadata must not
+overwrite a previously authorized file or revoke its existing grant.
+
+Creating or deleting a view is one document-history transaction. It affects
+dirty state, Save/Save As and recovery. A metadata-only adoption may preserve
+the current geometric scene only when the complete document excluding its root
+`namedViews` field remains exactly equal and the scene is already confirmed for
+the current document. Apply the same rule to Undo/Redo; otherwise retain the
+ordinary invalidation/rebuild path. Never omit nested catalogs, timestamps,
+revisions, configuration context or other document data from that comparison.
+Native snapshot, witness and worker authentication remain complete.
+
+Recall resolves an entry from the current document and restores its camera
+without Fit or a CAD operation. It leaves document dirty state and document
+history unchanged. One effective recall adds one Previous View entry; a no-op
+does not. Restore vertical framing and use the current viewport aspect for
+horizontal framing. Creating, deleting or canceling a catalog entry does not
+move the camera. The existing ten-entry camera-history limit still applies.
+
+The shared catalog dialog owns one committed document and scene context.
+Revalidate that context on every action; New/Open, remount, a different scene,
+active geometry edits or a gesture invalidate an old dialog action. The modal
+contains focus and keyboard input while preserving native text editing. Its
+toolbar and menu entry use the same availability and ownership checks.
+
 ## Retained pixel observations for view restoration — 2026-10-26
 
 The opted-in camera comparison can report up to sixteen differing pixel centers

@@ -794,7 +794,7 @@ async function runInElectron() {
     [name, JSON.parse(fs.readFileSync(file, 'utf8'))])) : null;
   const outputs = untilNext ? { cutSelected: path.join(owned, 'saved-cut-selected.solidflow'),
     cutAll: path.join(owned, 'saved-cut-all.solidflow'), add: path.join(owned, 'saved-add-selected.solidflow') } : null;
-  const openPaths = normalToView ? [normalInputs.part, normalInputs.standard, normalInputs.configured] : fromEmpty ? [output] : shortcuts ? [input, null, shortcutOutput, shortcutOutput] : basicAuthoring ? [input, null, output] : partSequence ? [input, output, partAssemblyOutput] : partBodyCatalog ? [input, input] : partFinishing ? [input, finishingFiles.fillet, input, output] : configuredComponents ? [input, null, path.join(owned, 'incoming.solidflow'), path.join(owned, 'incoming.solidflow'), output] : structuralInsertion ? [input, insertionFiles.parent, output] : structuralStep ? [input, structuralFiles.part, output] : untilNext ? [inputPaths.cut, outputs.cutSelected, outputs.cutAll,
+  const openPaths = normalToView ? [normalInputs.part, normalInputs.standard, normalInputs.configured] : fromEmpty ? [output, output] : shortcuts ? [input, null, shortcutOutput, shortcutOutput, shortcutOutput] : basicAuthoring ? [input, null, output] : partSequence ? [input, output, partAssemblyOutput] : partBodyCatalog ? [input, input] : partFinishing ? [input, finishingFiles.fillet, input, output] : configuredComponents ? [input, null, path.join(owned, 'incoming.solidflow'), path.join(owned, 'incoming.solidflow'), output] : structuralInsertion ? [input, insertionFiles.parent, output] : structuralStep ? [input, structuralFiles.part, output] : untilNext ? [inputPaths.cut, outputs.cutSelected, outputs.cutAll,
     inputPaths.add, outputs.add, inputPaths.reject] : assembly ? [input, output, partUpdatePath, partUpdatePath, output, output, output, projectionOutput, output, interferencePath, translationPath, translationOutput, bomPath, input, gearOutput]
     : assemblyImport ? [input, importSourcePath, importRejectedPath, importSourcePath, output]
     : sourceRevision ? [input, sourceRevisionFiles.parent, output]
@@ -1033,23 +1033,52 @@ async function runInElectron() {
   // Physical keyboard events only, scoped to owned shortcuts and the fixed from-empty workflow.
   const shortcutKey = async combo => {
     check((normalToView || fromEmpty || shortcuts) && !window.isVisible() && window.webContents.debugger.isAttached(), 'Only fixed shortcut keys in owned hidden scenario');
-    // Only the two original keyboard-fixture name inputs may receive native
-    // editor commands. Model Undo and modal ownership keep their normal route.
+    // Native editor commands belong only to the two original fixture fields
+    // or the single visible, focused named-view input in its actual modal.
     const editable = (combo==='A'||combo==='Z') && await evaluate(`(() => {
       const e=document.activeElement;
-      return e instanceof HTMLInputElement && ['Nombre del componente','Nombre de relación configurada'].includes(e.getAttribute('aria-label'))
-        && !!e.closest('.assembly-app,.configured-assembly-workspace') && !document.querySelector('[role="dialog"]')
-        && !e.disabled && !e.readOnly && !e.closest('[hidden]') && e.checkVisibility() && e.getClientRects().length>0;
+      if(!(e instanceof HTMLInputElement)||e.disabled||e.readOnly||e.closest('[hidden]')||!e.checkVisibility()||!e.getClientRects().length)return false;
+      const named=document.querySelectorAll('dialog.named-views-dialog[open] input[aria-label="Nombre de la vista"]');
+      if(${fromEmpty || shortcuts}&&named.length===1&&named[0]===e&&document.querySelectorAll('[role="dialog"]').length===1){
+        const r=e.getBoundingClientRect();return e.contains(document.elementFromPoint(r.left+r.width/2,r.top+r.height/2));
+      }
+      return ['Nombre del componente','Nombre de relación configurada'].includes(e.getAttribute('aria-label'))
+        &&!!e.closest('.assembly-app,.configured-assembly-workspace')&&!document.querySelector('[role="dialog"]');
     })()`);
     await dispatchShortcutKey(combo,{platform:process.platform,editable,send:event=>window.webContents.debugger.sendCommand('Input.dispatchKeyEvent',event)});
   };
   const shortcutText = async value => {
-    check(shortcuts && !window.isVisible() && window.webContents.debugger.isAttached() && ['Keyboard renamed','native undo probe','Saved before New'].includes(value), 'Only fixed original text for native editing acceptance');
-    check(await evaluate(`(() => { const e=document.activeElement;return e instanceof HTMLInputElement&&!e.disabled&&!e.readOnly&&!e.closest('[hidden]')&&e.getClientRects().length>0; })()`), 'Actual enabled input must own text typing');
+    const named = (fromEmpty || shortcuts) && ['Part view','Assembly view','Configured view','PART VIEW','ASSEMBLY VIEW','CONFIGURED VIEW','Temporary view','Pending view'].includes(value);
+    check((named || shortcuts && ['Keyboard renamed','native undo probe','Saved before New'].includes(value))
+      && !window.isVisible() && window.webContents.debugger.isAttached(), 'Only fixed original text for native editing acceptance');
+    check(await evaluate(`(() => {
+      const e=document.activeElement;if(!(e instanceof HTMLInputElement)||e.disabled||e.readOnly||e.closest('[hidden]')||!e.getClientRects().length)return false;
+      if(!${named})return true;
+      const fields=document.querySelectorAll('dialog.named-views-dialog[open] input[aria-label="Nombre de la vista"]'),r=e.getBoundingClientRect();
+      return fields.length===1&&fields[0]===e&&document.querySelectorAll('[role="dialog"]').length===1&&e.checkVisibility()
+        &&e.contains(document.elementFromPoint(r.left+r.width/2,r.top+r.height/2));
+    })()`), 'Actual enabled owned input must own text typing');
     for(const key of value){const event={key,code:key===' '?'Space':'Key'+key.toUpperCase(),windowsVirtualKeyCode:key.toUpperCase().charCodeAt(0),modifiers:0};
       try{await window.webContents.debugger.sendCommand('Input.dispatchKeyEvent',{...event,type:'keyDown',text:key,unmodifiedText:key});}
       finally{await window.webContents.debugger.sendCommand('Input.dispatchKeyEvent',{...event,type:'keyUp'});}
     }
+  };
+  const namedViewKey = async key => {
+    const codes = { Home: 36, End: 35, ArrowUp: 38, ArrowDown: 40 };
+    check((fromEmpty || shortcuts) && !window.isVisible() && window.webContents.debugger.isAttached()
+      && Object.hasOwn(codes, key), 'Only bounded named-view list navigation in the owned hidden workflow');
+    check(await evaluate(`(() => {
+      const fields=document.querySelectorAll('dialog.named-views-dialog[open] select[aria-label="Vistas de este documento"]'),e=fields[0];
+      if(fields.length!==1||document.querySelectorAll('[role="dialog"]').length!==1||document.activeElement!==e||e.disabled||e.size<3||!e.checkVisibility())return false;
+      const r=e.getBoundingClientRect();return r.width>0&&r.height>0&&e.contains(document.elementFromPoint(r.left+r.width/2,r.top+r.height/2));
+    })()`), 'The single visible named-view list must own native navigation focus');
+    const event = { key, code: key, windowsVirtualKeyCode: codes[key], modifiers: 0 };
+    let failure;
+    try { await window.webContents.debugger.sendCommand('Input.dispatchKeyEvent', { ...event, type: 'rawKeyDown' }); }
+    catch (error) { failure = error; }
+    try { await window.webContents.debugger.sendCommand('Input.dispatchKeyEvent', { ...event, type: 'keyUp' }); }
+    catch (error) { failure ??= error; }
+    if (failure) throw failure;
   };
   const menuKey = async key => {
     const codes = { Escape: 27, Tab: 9, ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, Home: 36, End: 35, Enter: 13, ...((normalToView || partSequence || basicAuthoring) ? { ContextMenu: 93 } : {}) };
@@ -1267,7 +1296,7 @@ async function runInElectron() {
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
     : fromEmpty
-    ? require('./desktop-part-from-empty-flow.cjs')({ expected, output, evaluate, observe, waitFor, click, pointer, wheel, menu, capture, cameraFrame, cameraGesture, rasterComparison, key: shortcutKey,
+    ? require('./desktop-part-from-empty-flow.cjs')({ expected, output, evaluate, observe, waitFor, click, pointer, wheel, menu, capture, cameraFrame, cameraGesture, rasterComparison, key: shortcutKey, shortcutText, namedViewKey,
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
     : mateReferenceEdit
@@ -1301,7 +1330,7 @@ async function runInElectron() {
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, geometryExports }) })
     : originAxes
-    ? require(shortcuts ? './desktop-assembly-shortcuts-flow.cjs' : activeScenario.originLock ? './desktop-assembly-origin-axis-lock-flow.cjs' : './desktop-assembly-origin-axes-flow.cjs')({ configured: originAxes === 'configured', expected, input, output, shortcutOutput, shortcutKey, shortcutText, cameraFrame, cameraGesture, rasterComparison, evaluate, observe, waitFor, click, pointer, menuKey, asideWheel, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
+    ? require(shortcuts ? './desktop-assembly-shortcuts-flow.cjs' : activeScenario.originLock ? './desktop-assembly-origin-axis-lock-flow.cjs' : './desktop-assembly-origin-axes-flow.cjs')({ configured: originAxes === 'configured', expected, input, output, shortcutOutput, shortcutKey, shortcutText, namedViewKey, cameraFrame, cameraGesture, rasterComparison, evaluate, observe, waitFor, click, pointer, menuKey, asideWheel, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : configuredCompound
     ? require('./desktop-assembly-configured-compound-flow.cjs')({ family: configuredCompound, profileKind: activeScenario.profileKind, expected, input, output, evaluate, observe, waitFor, click, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, completePendingSave, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : configuredMechanical
@@ -1571,7 +1600,7 @@ async function runInElectron() {
         observation.geometry = { name: payload.name, format: payload.format, bytes: payload.data.byteLength,
           sha256: digest(Buffer.from(payload.data.buffer, payload.data.byteOffset, payload.data.byteLength)) };
       }
-      if ((sourceRevision || configurations || assemblySourceUpdate) && channel === 'document:save') observation.documentWrite = { name: payload?.name, hasPath: typeof payload?.filePath === 'string', ...(configurations || assemblySourceUpdate ? { filePath: payload?.filePath } : {}), sha256: typeof payload?.content === 'string' ? digest(payload.content) : null };
+      if ((sourceRevision || configurations || assemblySourceUpdate || fromEmpty || shortcuts) && channel === 'document:save') observation.documentWrite = { name: payload?.name, hasPath: typeof payload?.filePath === 'string', ...(configurations || assemblySourceUpdate ? { filePath: payload?.filePath } : {}), sha256: typeof payload?.content === 'string' ? digest(payload.content) : null };
       const symmetrySave = (symmetry || symmetryPicking) && channel === 'document:save';
       if (symmetrySave) observation.documentWrite = { state: 'pending', durationMs: null };
       if (sourceSaveObservation && channel === 'document:save') Object.assign(observation.documentWrite,
@@ -1600,7 +1629,7 @@ async function runInElectron() {
           symmetrySaveTimings.delete(observation.documentWrite);
         }
       }
-      if ((sourceRevision || configurations || assemblySourceUpdate || symmetry || symmetryPicking) && channel === 'document:save') observation.documentWrite.chosen = result !== null;
+      if ((sourceRevision || configurations || assemblySourceUpdate || symmetry || symmetryPicking || fromEmpty || shortcuts) && channel === 'document:save') observation.documentWrite.chosen = result !== null;
       if (sourceSaveObservation && channel === 'document:save') sourceSaveObservation.returned(observation.documentWrite, result);
       if (selectedSave) {
         try {

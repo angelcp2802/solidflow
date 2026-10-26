@@ -1,5 +1,111 @@
 # Validation
 
+## Document-local named views — 2026-10-26
+
+Part, standard assembly and configured assembly documents support an optional
+named-view catalog. The shared dialog creates, selects, recalls and deletes
+orthographic camera declarations. Edits use document Undo/Redo, dirty state,
+recovery and native Save/reopen; recall uses separate camera history without Fit,
+a geometry request or a document-history edit. Three workspace routes exercise
+two distinct poses through actual list selection and real orbit/pan/wheel input.
+
+The initial focused run passed 138 tests in five files and TypeScript checking:
+bounded declarations, independent projections/numerical rejection, three-version
+persistence/history, exact root-only metadata adoption, selection rebinding and
+modal keyboard policy. Static keyboard tests do not establish native IME acceptance.
+The desktop-envelope correction passed 54 focused security tests with two skips:
+valid root/source/embedded catalogs round-trip without normalization; invalid
+metadata causes no dialog/write and preserves existing file bytes and grants.
+
+Six incomplete attempts remain retained. Attempt01 exposed a product defect:
+the desktop assembly root-key allowlists rejected `namedViews` before writing.
+The gate now validates the catalog in permitted positions. Attempt02 compared
+different viewport sizes after Open switched Relations (318 px) to Components
+(282 px). Attempt03 requested configured visibility controls available only during
+relation editing. Attempt04 compared reopened reference state immediately after
+input; it retained no actual mismatch, so its cause is not established. The test
+now restores the panel/reference through real controls and waits for exact canvas
+and reference-state equality within the original deadline, without repeating input.
+Panels, selection and visibility are not persisted in named views.
+
+**Local Windows acceptance 05: FAIL.** Build and all six renderer routes passed,
+including part sequence's 180 checks in 25.180 s. The following `npm test` failed:
+443 files/10,092 tests passed, two files/two tests failed. IPC and smoke did not run.
+Renderer reports recorded no console/request errors, child closure and profile cleanup.
+
+Both failures omitted `Vistas guardadas` from exact toolbar inventories. The two
+workspace test files now include that command and require it uniquely disabled
+initially; standard manipulation guards select each command by its label instead
+of positional slicing. All 103 focused workspace tests passed in 1.98 s.
+This correction does not substitute for complete acceptance.
+
+Configured RUN05 recorded two post-click observations: root X was selected in
+the tree before its label appeared; the next observation included the selected
+X label. Exact reference equality and framing recovery passed. That observed
+presentation delay does not retroactively establish attempt04's missing state.
+
+**Local Windows acceptance 06: FAIL.** Build and all six renderer routes passed.
+Unit tests passed 10,094/10,094 in 445 files; IPC then reported 159 passes,
+two failures and two skips (163 total). Desktop smoke did not run. Both failures
+came from the extracted Save-proxy VM fixture: missing `fromEmpty`/`shortcuts`
+bindings caused `ReferenceError: fromEmpty is not defined` before the handler.
+The real harness declares these flags. The test-only correction supplies both as
+false. The complete focused IPC rerun passed 161 tests with two explicit skips,
+zero failures and 163 total tests in 1.673 s.
+
+**Local Windows acceptance 07: PASS.** Nine fresh commands ran against
+1,207 frozen source/runtime inputs with Node 24.11.1 and Electron 44.9.3.
+Scope is 29 code/test files plus three documents; the nine new inputs are unchanged.
+The corrected existing VM test adds no inventory entry. No prior result is reused.
+
+| Command | Result | Elapsed |
+| --- | --- | --- |
+| `npm run build` | PASS | 7.283 s |
+| `npm run test:desktop:assembly-configured-shortcuts` | PASS; 366 recorded checks | 59.581 s |
+| `npm run test:desktop:part-from-empty` | PASS; 208 recorded checks | 50.050 s |
+| `npm run test:desktop:assembly-shortcuts` | PASS; 359 recorded checks | 63.407 s |
+| `npm run test:desktop:assembly-origin-axis-lock` | PASS; 113 recorded checks | 17.111 s |
+| `npm run test:desktop:assembly-configured-origin-axis-lock` | PASS; 94 recorded checks | 12.683 s |
+| `npm run test:desktop:part-sequence` | PASS; 180 recorded checks | 24.974 s |
+| `npm test` | 10,094 tests in 445 files; 161 IPC passes, 2 explicit skips | 363.794 s |
+| `npm run test:desktop` | PASS | 4.867 s |
+
+All six renderer reports recorded no console/request errors, child closure and
+isolated-profile cleanup. The final desktop smoke loaded WASM and completed its
+worker-queue check. Every source/runtime input and produced asset matched the
+recorded snapshot through terminal completion; dependencies were unchanged.
+The complete suite includes the four new named-view test files.
+
+Image checks retain exact central-crop dimensions/pixels, original bounded text
+masks and at least 90% unmasked coverage; selected anchors keep the 0.11 CSS px
+tolerance. Reopened recall requires equal canvas rectangles. Original tolerances
+remain: four-operation part volume 1e-5 mm³, planar mesh area 1e-4 mm² and bounds
+1e-6 mm; two-prism assembly volume 48 mm³/native area 104 mm² within 1e-5,
+with placed bounds within 1e-6 mm. Save/reopen rechecks the exact document and geometry.
+
+Catalogs allow 64 entries, names 80 UTF-16 code units and IDs 128. Exact fields,
+dense arrays, canonical unique names/IDs and bounded representable cameras are
+required. Only exact root-catalog changes can preserve a confirmed scene; nested
+data, revisions and configuration context remain compared. Native authentication,
+snapshot/witness authority, CSP, sender checks, grants and byte limits are unchanged.
+Absent catalogs retain prior interpretation; older strict readers may reject the
+extension. This is document-local functionality, without a global/library catalog,
+rename, dimetric or trimetric presets. Previous history is transient. Coverage
+does not establish full-viewport, external-window, dense-assembly, IME or additional
+platform acceptance.
+
+The preceding published head `f9c20c26` completed
+[hosted CI](https://github.com/angelcp2802/solidflow/actions/runs/40393377464)
+with eight of nine renderer jobs and all three configured-authoring jobs passing.
+Windows hinge/symmetry reached its 170.008 s child deadline after cylinder recovery,
+with six Open dialogs and five completed Saves. The retained tail identifies no
+next incomplete operation or geometric failure. Linux persistence passed without
+a new differing-pixel report; this does not establish an intermittent-pixel fix.
+All three Desktop jobs stopped at the renderer dependency gate. The corresponding
+[Security workflow](https://github.com/angelcp2802/solidflow/actions/runs/40393377456)
+passed. These results precede the feature. Stability, manual demo and release remain
+open; the checklist stays 16/25 complete with nine pending, not an app percentage.
+
 ## Retained pixel observations for view restoration — 2026-10-26
 
 The opted-in test helper now reports up to sixteen distinct differing pixel

@@ -1,4 +1,6 @@
 import { useViewHistory } from './useViewHistory'
+import { NamedViewsDialog } from './NamedViewsDialog'
+import { rebindNamedViewSelection, sameDocumentExceptNamedViews, useNamedDocumentViews } from './useNamedDocumentViews'
 import { standardViews, type ViewName, type ViewRequest } from './viewNavigation'
 import { assemblyNormalSelectionOrComponent, nominateAssemblyNormalFace, nominateAssemblyNormalOrigin, nominateAssemblyNormalUnsupported, resolveAssemblyNormalSelection, type AssemblyNormalSelection } from './assemblyNormalTo'
 import { ViewOrientationControls } from './ViewOrientationControls'
@@ -1003,7 +1005,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     finally { if (mounted.current && id === generation.current) { operation.current = false; setBusy(false) } }
   }
   const save = async (saveAs = false): Promise<boolean> => {
-    if (activity.commandActive || draft || hasStaging() || rootRevision) return false
+    if (namedViews.isOpen || activity.commandActive || draft || hasStaging() || rootRevision) return false
     const snapshot = serializeAssemblyDocument(current.current), document = current.current; operation.current = true; setBusy(true)
     try {
       if (window.solidflow) { const target = await window.solidflow.saveDocument(snapshot, document.name, saveAs ? undefined : path); if (!target) return false; if (current.current === document) setPath(target) }
@@ -1061,7 +1063,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   }, [replaceDialog])
   const replace = (document: AssemblyDocument, filePath?: string, fileSaved?: string) => {
     setNormalSelection(null)
-    viewHistory.reset(); setView(previous => ({ name: 'iso', stamp: previous.stamp + 1 }))
+    namedViews.close(); viewHistory.reset(); setView(previous => ({ name: 'iso', stamp: previous.stamp + 1 }))
     setOrdinaryEdit(null); setReleaseRotation(false); setAngleEdit(null); setDistanceEdit(null); setTreeReset(value => value + 1)
     restoreBomFocus.current = false; setRibbonTab('assembly'); managerTabRef.current = 'components'; setManagerTab('components')
     linkedEpoch.current++; linkedTicket.current = null; linkedBindings.current.clear(); refreshLinked(v => v + 1)
@@ -1962,8 +1964,40 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     const choice = rackChoices.find(value => value.reference.kind === 'edge' && value.key === assemblyEdgeKey(edge))
     if (choice) rackChoice(1, choice.key)
   }
+  const namedSelectionRebind = useRef<{ before: AssemblyDocument; after: AssemblyDocument;
+    normal: typeof normalViewContext; tree: typeof treeOriginContext } | null>(null)
+  const canRetainNamedViewScene = (next: AssemblyDocument): boolean => {
+    const before = current.current, signature = serializeAssemblyDocument(before), confirmed = confirmedScene.current
+    if (!sameDocumentExceptNamedViews(before, next) || operation.current || hasStaging() || currentPreview.current || draft
+      || dragSession.current || dragging.current || !scene || confirmed?.scene !== scene
+      || confirmed.signature !== signature || sceneSignature.current !== signature) return false
+    return true
+  }
+  const retainNamedViewScene = (next: AssemblyDocument): boolean => {
+    if (!canRetainNamedViewScene(next) || !scene) return false
+    // Only presentation bookkeeping advances. Native witnesses and Apply
+    // capabilities retain their complete original document authentication.
+    const nextSignature = serializeAssemblyDocument(next)
+    namedSelectionRebind.current = { before: current.current, after: next,
+      normal: normalViewCurrent.current.context, tree: treeOriginCurrent.current.context }
+    sceneSignature.current = nextSignature; confirmedScene.current = { signature: nextSignature, scene }
+    current.current = next; setCommitted(next); return true
+  }
+  const namedViews = useNamedDocumentViews({ document: committed, identity: generation.current, scene, history: viewHistory,
+    isCurrent: () => current.current === committed && canRetainNamedViewScene(committed),
+    blocked: editingBlocked || activity.commandActive || !!draft || !!preview || hasStaging() || replaceDialog || !!rootRevision
+      || !!replaceAnswer.current || newDocumentDialog.pending() || dragActive || !!dragSession.current || dragging.current
+      || !scene || confirmedScene.current?.scene !== scene || confirmedScene.current?.signature !== serialized || sceneSignature.current !== serialized,
+    commit: next => {
+      if (current.current !== committed || !canRetainNamedViewScene(next)) throw Error('El documento o la escena han cambiado.')
+      const owned = history.current!.commitDocument(next)
+      if (!retainNamedViewScene(owned)) throw Error('La escena confirmada ya no está disponible.')
+      return owned
+    },
+    recall: savedView => setView(previous => ({ name: 'named', stamp: previous.stamp + 1, view: savedView })),
+  })
   const viewButton = (name: ViewName) => {
-    if (dragSession.current || viewHistory.navigating || name === 'previous' && !viewHistory.canPrevious) return
+    if (namedViews.isOpen || dragSession.current || viewHistory.navigating || name === 'previous' && !viewHistory.canPrevious) return
     if (name === 'normal') {
       if (!canNormal || normalViewCurrent.current.context !== normalViewContext || operation.current || hasStaging()
         || currentPreview.current || dragging.current || serialized !== serializeAssemblyDocument(current.current)
@@ -1972,7 +2006,12 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
       if (target) setView(previous => ({ name, stamp: previous.stamp + 1, target }))
     } else setView(previous => ({ name, stamp: previous.stamp + 1 }))
   }
-  const undo = (redo = false) => { if (operation.current || hasStaging()) return; setOrdinaryEdit(null); setReleaseRotation(false); setAngleEdit(null); setDistanceEdit(null); invalidate(); setLimitDirectedSelection(['', '', '']); setCommitted(redo ? history.current!.redo() : history.current!.undo()); setSelectedPath([]); setScopePath([]); setEditingDirectionId(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null); setCylinderLarger(''); setSphereLarger(''); setMovementReset(value => value + 1) }
+  const undo = (redo = false) => {
+    if (namedViews.isOpen || operation.current || hasStaging()) return
+    const next = redo ? history.current!.redo() : history.current!.undo()
+    if (retainNamedViewScene(next)) return
+    setOrdinaryEdit(null); setReleaseRotation(false); setAngleEdit(null); setDistanceEdit(null); invalidate(); setLimitDirectedSelection(['', '', '']); setCommitted(next); setSelectedPath([]); setScopePath([]); setEditingDirectionId(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null); setCylinderLarger(''); setSphereLarger(''); setMovementReset(value => value + 1)
+  }
   const datum = () => {
     if (referenceEditTicket && mateType === 'concentric' || isCylinderTangent || isSphereTangent && mateType !== 'plane-sphere-tangent' || referenceBlocked || operation.current || hasStaging() || !referenceEditorIsCurrent()) return
     const row = availableComponents.find(value => JSON.stringify(value.path) === datumComponent)
@@ -2035,6 +2074,14 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   const normalViewCurrent = useRef({ context: normalViewContext, blocked: normalViewBlocked })
   // A discarded render must not invalidate handlers from the last committed view.
   useLayoutEffect(() => { normalViewCurrent.current = { context: normalViewContext, blocked: normalViewBlocked } })
+  useLayoutEffect(() => {
+    const transition = namedSelectionRebind.current
+    if (!transition) return
+    namedSelectionRebind.current = null
+    if (current.current !== transition.after || committed !== transition.after) return
+    setNormalSelection(selection => rebindNamedViewSelection(selection, transition.before, transition.after, transition.normal, normalViewContext))
+    setTreeOriginSelection(selection => rebindNamedViewSelection(selection, transition.before, transition.after, transition.tree, treeOriginContext))
+  })
   const normalComponentKey = selectedPath.length ? JSON.stringify(['component', selectedPath]) : null
   const normalViewSelection = assemblyNormalSelectionOrComponent(normalSelection, normalComponentKey, normalViewContext)
   const normalResolution = resolveAssemblyNormalSelection(normalViewSelection, normalViewContext, treeOrigins)
@@ -2431,6 +2478,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     { id: 'view', label: 'Ver', items: [
       ...standardViews.map(({ name, label }) => ({ id: 'view-' + name, label, disabled: !!dragSession.current || viewHistory.navigating, onSelect: () => viewButton(name) })),
       { id: 'view-normal', label: 'Normal a', disabled: !canNormal, onSelect: () => viewButton('normal') },
+      { id: 'view-named', label: 'Vistas guardadas…', disabled: !namedViews.canOpen, onSelect: namedViews.open },
       { id: 'view-previous', label: 'Vista anterior', disabled: !!dragSession.current || !viewHistory.canPrevious, onSelect: () => viewButton('previous') },
       { id: 'view-fit', label: 'Ajustar a pantalla', disabled: !!dragSession.current || viewHistory.navigating, onSelect: () => viewButton('fit') },
       { id: 'show-tree', label: 'Árbol de componentes', onSelect: () => openManager('components') },
@@ -2460,7 +2508,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   ])
   const shortcutPicking = originPicking || pickingFaces || pickingLinearEdges || !!symmetryPicking || !!hingePicking || !!widthPicking || !!rackPicking
   const shortcutCancel = menus.flatMap(menu => menu.items).find(item => item.id === 'cancel-preview')!
-  useAssemblyShortcuts({ root: '.assembly-classic-workspace', menus, modal: newDocumentDialog.isOpen || replaceDialog || !!replaceAnswer.current,
+  useAssemblyShortcuts({ root: '.assembly-classic-workspace', menus, modal: namedViews.isOpen || newDocumentDialog.isOpen || replaceDialog || !!replaceAnswer.current,
     beforeFile: (id, target) => {
       if (!(target instanceof HTMLInputElement) || target.getAttribute('aria-label') !== 'Nombre del componente') return true
       const typed = target.value, changed = typed !== selected?.occurrence.name
@@ -2843,7 +2891,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
 </div>
         </div>
       </aside>
-      <section className="assembly-canvas" data-normal-selection-kind={normalResolution.target?.kind ?? 'invalid'} data-normal-selection-keys={JSON.stringify(normalViewSelection?.items.map(value => [value.kind, value.key]) ?? [])} data-normal-enabled={canNormal}><CompactViewportToolbar label="Controles del visor del ensamblaje" className="assembly-view-tools"><ViewportToolGroup label="Vistas del ensamblaje"><ViewOrientationControls onView={viewButton} disabled={!!dragSession.current || viewHistory.navigating} canPrevious={viewHistory.canPrevious} canNormal={canNormal} /><button title="Isométrica" disabled={!!dragSession.current || viewHistory.navigating} onClick={() => viewButton('iso')}><ViewportToolIcon name="iso" label="Isométrica" /></button><button title="Frontal" disabled={!!dragSession.current || viewHistory.navigating} onClick={() => viewButton('front')}><ViewportToolIcon name="front" label="Frontal" /></button><button title="Superior" disabled={!!dragSession.current || viewHistory.navigating} onClick={() => viewButton('top')}><ViewportToolIcon name="top" label="Superior" /></button><button title="Ajustar" disabled={!!dragSession.current || viewHistory.navigating} onClick={() => viewButton('fit')}><ViewportToolIcon name="fit" label="Ajustar" /></button></ViewportToolGroup><ViewportToolGroup label="Selección de referencias"><button title="Seleccionar caras" className={pickingFaces ? 'active' : ''} aria-pressed={pickingFaces} disabled={isHinge || isCircularPath || isLinePath || isSymmetry || (isWidth ? widthPickingBlocked : referenceBlocked)} onClick={() => { openManager('relations'); if (isWidth) { const missing = widthReferences.findIndex(value => value === null); toggleWidthPicking(widthPickingSlot ?? (missing < 0 ? 0 : missing as WidthUiSlot)); return } setDragMode('off'); setPickingLinearEdges(false); setPickingFaces(!pickingFaces) }}><ViewportToolIcon name="face" label="Seleccionar caras" /></button>
+      <section className="assembly-canvas" data-normal-selection-kind={normalResolution.target?.kind ?? 'invalid'} data-normal-selection-keys={JSON.stringify(normalViewSelection?.items.map(value => [value.kind, value.key]) ?? [])} data-normal-enabled={canNormal}><CompactViewportToolbar label="Controles del visor del ensamblaje" className="assembly-view-tools"><ViewportToolGroup label="Vistas del ensamblaje"><ViewOrientationControls onView={viewButton} disabled={!!dragSession.current || viewHistory.navigating} canPrevious={viewHistory.canPrevious} canNormal={canNormal} onNamedViews={namedViews.open} canNamedViews={namedViews.canOpen} /><button title="Isométrica" disabled={!!dragSession.current || viewHistory.navigating} onClick={() => viewButton('iso')}><ViewportToolIcon name="iso" label="Isométrica" /></button><button title="Frontal" disabled={!!dragSession.current || viewHistory.navigating} onClick={() => viewButton('front')}><ViewportToolIcon name="front" label="Frontal" /></button><button title="Superior" disabled={!!dragSession.current || viewHistory.navigating} onClick={() => viewButton('top')}><ViewportToolIcon name="top" label="Superior" /></button><button title="Ajustar" disabled={!!dragSession.current || viewHistory.navigating} onClick={() => viewButton('fit')}><ViewportToolIcon name="fit" label="Ajustar" /></button></ViewportToolGroup><ViewportToolGroup label="Selección de referencias"><button title="Seleccionar caras" className={pickingFaces ? 'active' : ''} aria-pressed={pickingFaces} disabled={isHinge || isCircularPath || isLinePath || isSymmetry || (isWidth ? widthPickingBlocked : referenceBlocked)} onClick={() => { openManager('relations'); if (isWidth) { const missing = widthReferences.findIndex(value => value === null); toggleWidthPicking(widthPickingSlot ?? (missing < 0 ? 0 : missing as WidthUiSlot)); return } setDragMode('off'); setPickingLinearEdges(false); setPickingFaces(!pickingFaces) }}><ViewportToolIcon name="face" label="Seleccionar caras" /></button>
         {(isDirection || isLimitAngle || mateType === 'angle') && <button title="Seleccionar aristas lineales" aria-label="Seleccionar aristas lineales" aria-pressed={pickingLinearEdges} disabled={editingBlocked || !!preview || !!editingDirection || !!editingLimitAngle || replaceDialog || sceneSignature.current !== serialized} onClick={() => { openManager('relations'); setDragMode('off'); setPickingFaces(false); setPickingLinearEdges(!pickingLinearEdges) }}><ViewportToolIcon name="edge" label="Seleccionar aristas" /></button>}
         </ViewportToolGroup><ViewportToolGroup label="Manipulación del componente" className="assembly-drag-tools"><button title="Arrastrar posición" aria-label="Arrastrar posición" aria-pressed={dragMode === 'translate'} disabled={editingBlocked || !!draft || !!preview || replaceDialog || !eligibleDragFrame} onClick={() => { setTreeOriginSelection(null); setNormalSelection(null); clearSymmetryPicking(); setDragMode('translate') }}><ViewportToolIcon name="translate" label="Arrastrar posición" /></button>
         <button title="Arrastrar giro" aria-label="Arrastrar giro" aria-pressed={dragMode === 'rotate'} disabled={editingBlocked || !!draft || !!preview || replaceDialog || !eligibleDragFrame} onClick={() => { setTreeOriginSelection(null); setNormalSelection(null); clearSymmetryPicking(); setDragMode('rotate') }}><ViewportToolIcon name="rotate" label="Arrastrar giro" /></button>
@@ -2871,6 +2919,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
       actions={contextActions} point={activeContext.point} restoreFocusElement={activeContext.element} onClose={() => setContextTarget(null)} />}
     {rootRevision && <AssemblyRootRevisionDialog id={committed.id} currentRevision={committed.revision} revision={rootRevision.revision} error={rootRevision.error}
       onRevision={revision => setRootRevision(value => value && { ...value, revision, error: '' })} onPreview={() => void previewRootRevision()} onCancel={() => setRootRevision(null)} />}
+    {namedViews.isOpen && <NamedViewsDialog views={namedViews.views} canSave={namedViews.canSave} onSave={namedViews.save} onShow={namedViews.show} onDelete={namedViews.remove} onClose={namedViews.close} />}
     {newDocumentDialog.dialog}
     {replaceDialog && <div className="assembly-modal-backdrop"><div ref={replaceModal} className="assembly-modal" role="dialog" aria-modal="true" aria-label="Cambios sin guardar"><h2>Hay cambios sin guardar</h2><p>Guarda el ensamblaje antes de sustituirlo.</p>{draft && <p>Aplica o cancela la vista previa para guardar sus cambios.</p>}<div><button disabled={!!draft || busy} onClick={() => void save().then(success => { if (success) answerReplace(true) })}>Guardar y continuar</button><button onClick={() => answerReplace(true)}>Continuar sin guardar</button><button onClick={() => answerReplace(false)}>Cancelar</button></div></div></div>}
   </div>

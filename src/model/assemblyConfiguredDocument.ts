@@ -1,6 +1,7 @@
 import {MAX_ASSEMBLY_BYTES,type AssemblyDocument} from './assemblyDocument'
 import {evaluateAssemblyConfiguration,type AssemblyConfigurationCatalog} from './assemblyConfigurationCore'
 import type {AssemblyConfigurationGeometryInput} from '../cad/kernel.assembly-configuration-snapshot'
+import {validateNamedViews,type NamedView} from './namedViews'
 
 export interface AssemblyConfiguredDocument {
   version:3
@@ -8,6 +9,7 @@ export interface AssemblyConfiguredDocument {
   source:AssemblyDocument
   catalog:AssemblyConfigurationCatalog
   rootConfiguration:string|null
+  namedViews?:NamedView[]
 }
 /** Strict bounded JSON preflight shared by the new persisted-document dispatcher.
  * Descriptor inspection precedes every value read; this grants no CAD authority. */
@@ -57,11 +59,12 @@ export function validateAssemblyConfiguredDocument(value:unknown):AssemblyConfig
   validateConfiguredDocumentJsonData(value)
   if(!value || typeof value!=='object' || Array.isArray(value))throw Error('Configured document must be a record.')
   const fields=Object.getOwnPropertyDescriptors(value),keys=['version','kind','source','catalog','rootConfiguration']
-  if(Reflect.ownKeys(fields).length!==keys.length || keys.some(key=>!Object.hasOwn(fields,key)))throw Error('Configured document envelope fields must be exact and complete.')
+  if(Reflect.ownKeys(fields).some(key=>typeof key!=='string' || !keys.includes(key) && key!=='namedViews') || keys.some(key=>!Object.hasOwn(fields,key)))throw Error('Configured document envelope fields must be exact and complete.')
   if(fields.version.value!==3 || fields.kind.value!=='configured-assembly')throw Error('Unsupported configured document format.')
   const evaluation=evaluateAssemblyConfiguration(fields.source.value,fields.catalog.value,fields.rootConfiguration.value)
   const result:AssemblyConfiguredDocument={version:3,kind:'configured-assembly',source:structuredClone(evaluation.source) as AssemblyDocument,
     catalog:structuredClone(evaluation.catalog) as AssemblyConfigurationCatalog,rootConfiguration:evaluation.rootConfiguration}
+  if(Object.hasOwn(fields,'namedViews'))result.namedViews=validateNamedViews(fields.namedViews.value)
   bounded(result)
   return result
 }

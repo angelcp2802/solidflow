@@ -1,4 +1,6 @@
 import { useViewHistory } from './useViewHistory'
+import { NamedViewsDialog } from './NamedViewsDialog'
+import { rebindNamedViewSelection, sameDocumentExceptNamedViews, useNamedDocumentViews } from './useNamedDocumentViews'
 import { standardViews, type ViewName, type ViewRequest } from './viewNavigation'
 import { assemblyNormalSelectionOrComponent, nominateAssemblyNormalFace, nominateAssemblyNormalOrigin, nominateAssemblyNormalUnsupported, resolveAssemblyNormalSelection, type AssemblyNormalSelection } from './assemblyNormalTo'
 import { ViewOrientationControls } from './ViewOrientationControls'
@@ -139,7 +141,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
   const [discardDialog, setDiscardDialog] = useState(false), answer = useRef<((allow: boolean) => void) | null>(null)
   const [bomOpen, setBomOpen] = useState(false), [bomOptions, setBomOptions] = useState<ConfiguredAssemblyBomOptions>({ mode: 'parts-only', includeHidden: true, scopePath: [] })
   const [bomSelection, setBomSelection] = useState<{ serialized: string; member: ConfiguredAssemblyBomMember } | null>(null)
-  useEffect(() => { setTreeOriginSelection(null) }, [scope, occurrenceId, bomSelection])
+  useEffect(() => { setTreeOriginSelection(null) }, [scope, occurrenceId, bomSelection?.member])
   const bomView = useRef({ open: bomOpen, options: bomOptions, revision: 0 }), bomToggle = useRef<HTMLButtonElement>(null)
   const restoreBomFocus = useRef(false)
   useLayoutEffect(() => {
@@ -218,6 +220,34 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
     const owned = history.current!.commitDocument(checked)
     revoke(0, reservedEpoch); setFailure(null); current.current = owned; skipRecovery.current = false; setDocument(owned)
   }
+  const namedSelectionRebind = useRef<{ before: AssemblyConfiguredDocument; after: AssemblyConfiguredDocument;
+    normal: typeof normalViewContext; tree: typeof treeOriginContext } | null>(null)
+  const canRetainNamedViewScene = (next: AssemblyConfiguredDocument) =>
+    sameDocumentExceptNamedViews(current.current, next) && !operation.current && !pending.current && !mateDraftRef.current
+    && !!scene && scene === sceneRef.current && scene === committedSceneRef.current
+    && configuredUiSceneMatches(scene, current.current, epoch.current)
+  const retainNamedViewScene = (next: AssemblyConfiguredDocument) => {
+    if (!canRetainNamedViewScene(next)) return false
+    // Root view metadata does not change the authenticated source/catalog or
+    // generation. Keep the confirmed scene and its native context untouched.
+    namedSelectionRebind.current = { before: current.current, after: next,
+      normal: normalViewCurrent.current.context, tree: currentTreeOrigins.current.context }
+    if (bomSelection && configuredBomUiSelectedPath(bom.report, serialized, bomSelection).length)
+      setBomSelection({ serialized: serializeAssemblyConfiguredDocument(next), member: bomSelection.member })
+    current.current = next; skipRecovery.current = false; setDocument(next); return true
+  }
+  const namedViews = useNamedDocumentViews({ document, identity: generation, scene, history: viewHistory,
+    isCurrent: () => current.current === document && epoch.current === generation && canRetainNamedViewScene(document),
+    blocked: busy || operation.current || !!preview || !!pending.current || !!mateDraft || discardDialog || !!answer.current
+      || newDocumentDialog.pending() || !scene || scene !== committedSceneRef.current || !configuredUiSceneMatches(scene, document, generation),
+    commit: next => {
+      if (current.current !== document || !canRetainNamedViewScene(next)) throw Error('El documento o la escena han cambiado.')
+      const owned = history.current!.commitDocument(next)
+      if (!retainNamedViewScene(owned)) throw Error('La escena confirmada ya no está disponible.')
+      return owned
+    },
+    recall: savedView => setView(previous => ({ name: 'named', stamp: previous.stamp + 1, view: savedView })),
+  })
   const edit = (change: Parameters<typeof editConfiguredUiOccurrence>[3]) => {
     if (!fresh(renderedTicket) || operation.current || pending.current || mateDraftRef.current || !selected) return
     setFailure(null)
@@ -229,6 +259,8 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
     return () => { mounted.current = false; if (pending.current) release(pending.current.token); answer.current?.(false) }
   }, [])
   useEffect(() => {
+    const retained = committedSceneRef.current
+    if (retained && sceneRef.current === retained && configuredUiSceneMatches(retained, current.current, epoch.current)) return
     const captured = ticket(); begin('build'); setMessage('Reconstruyendo la configuración…')
     void buildConfiguredAssembly({ document: current.current, generation: captured.generation }).then(value => {
       if (!fresh(captured)) return
@@ -282,7 +314,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
     finally { if (fresh(captured)) finish() }
   }
   const save = async (saveAs: boolean) => {
-    if (!fresh(renderedTicket) || operation.current || pending.current || mateDraftRef.current) return false
+    if (namedViews.isOpen || !fresh(renderedTicket) || operation.current || pending.current || mateDraftRef.current) return false
     if (!window.solidflow) { setMessage('Abre la aplicación de escritorio para guardar en un archivo.'); return false }
     const captured = ticket(), content = captured.serialized; setFailure(null); begin('file')
     try {
@@ -322,8 +354,10 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
     finally { if (fresh(captured)) finish() }
   }
   const undo = (redo: boolean) => {
-    if (!fresh(renderedTicket) || operation.current || pending.current || mateDraftRef.current) return
-    const reservedEpoch = nextEpoch(), value = redo ? history.current!.redo() : history.current!.undo()
+    if (namedViews.isOpen || !fresh(renderedTicket) || operation.current || pending.current || mateDraftRef.current) return
+    const value = redo ? history.current!.redo() : history.current!.undo()
+    if (retainNamedViewScene(value)) return
+    const reservedEpoch = nextEpoch()
     revoke(0, reservedEpoch); setFailure(null); current.current = value; skipRecovery.current = false; setDocument(value)
   }
   const changeScope = (value: string) => { if (!fresh(renderedTicket) || operation.current || pending.current || !evaluation.scopes.some(row => JSON.stringify(row.path) === value)) return; revoke(); setFailure(null); scopeRef.current = value; occurrenceRef.current = ''; setScope(value); setOccurrenceId('') }
@@ -442,6 +476,14 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
   const normalViewCurrent = useRef({ context: normalViewContext, blocked: normalViewBlocked })
   // Publish only committed ownership; render bailouts must retain live handlers.
   useLayoutEffect(() => { normalViewCurrent.current = { context: normalViewContext, blocked: normalViewBlocked } })
+  useLayoutEffect(() => {
+    const transition = namedSelectionRebind.current
+    if (!transition) return
+    namedSelectionRebind.current = null
+    if (current.current !== transition.after || document !== transition.after) return
+    setNormalSelection(selection => rebindNamedViewSelection(selection, transition.before, transition.after, transition.normal, normalViewContext))
+    setTreeOriginSelection(selection => rebindNamedViewSelection(selection, transition.before, transition.after, transition.tree, treeOriginContext))
+  })
   const normalComponentPath = bomSelectedPath.length ? bomSelectedPath : selected ? [...selectedScope.path, selected.id] : []
   const normalComponentKey = normalComponentPath.length ? JSON.stringify(['component', normalComponentPath]) : null
   const normalViewSelection = assemblyNormalSelectionOrComponent(normalSelection, normalComponentKey, normalViewContext)
@@ -487,7 +529,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
   }
   const menuReveal = (id: string) => { if (fresh(renderedTicket) && !operation.current && !pending.current) setRevealRequest({ id }) }
   const menuView = (name: ViewName) => {
-    if (operation.current || viewHistory.navigating || !fresh(renderedTicket) || name === 'previous' && !viewHistory.canPrevious) return
+    if (namedViews.isOpen || operation.current || viewHistory.navigating || !fresh(renderedTicket) || name === 'previous' && !viewHistory.canPrevious) return
     if (name === 'normal') {
       if (!canNormal || normalViewCurrent.current.context !== normalViewContext || pending.current || mateDraftRef.current) return
       const target = resolveAssemblyNormalSelection(normalViewSelection, normalViewContext, treeOriginRows).target
@@ -515,6 +557,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
     { id: 'view', label: 'Ver', items: [
       ...standardViews.map(({ name, label }) => ({ id: 'view-' + name, label, disabled: busy || viewHistory.navigating, onSelect: () => menuView(name) })),
       { id: 'view-normal', label: 'Normal a', disabled: !canNormal, onSelect: () => menuView('normal') },
+      { id: 'view-named', label: 'Vistas guardadas…', disabled: !namedViews.canOpen, onSelect: namedViews.open },
       { id: 'view-fit', label: 'Ajustar a pantalla', disabled: busy || viewHistory.navigating, onSelect: () => menuView('fit') },
       { id: 'view-previous', label: 'Vista anterior', disabled: busy || !viewHistory.canPrevious, onSelect: () => menuView('previous') },
       { id: 'show-tree', label: 'Árbol del ensamblaje', disabled: blocked, onSelect: () => menuReveal('configured-model-tree') },
@@ -534,7 +577,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
       { id: 'viewport-controls', label: 'Controles del visor', onSelect: () => setMessage('Clic: seleccionar. Rueda: acercar o alejar. Rueda pulsada: girar. Mayús + rueda pulsada: desplazar. Para relacionar orígenes, abre una relación, elige el componente y activa su referencia.') },
     ] },
   ])
-  useAssemblyShortcuts({ root: '.configured-assembly-workspace', menus, modal: newDocumentDialog.isOpen || discardDialog || !!answer.current,
+  useAssemblyShortcuts({ root: '.configured-assembly-workspace', menus, modal: namedViews.isOpen || newDocumentDialog.isOpen || discardDialog || !!answer.current,
     escape: matePick || originPick ? { disabled: blocked, onSelect: () => {
       if (operation.current || !fresh(renderedTicket)) return
       stopMatePick(); setMessage('Selección en vista cancelada. Se conservan las referencias y los campos de la relación.')
@@ -687,7 +730,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
       {mateChoices.error && <p role="alert">{mateChoices.error}</p>}
 
       </div>
-    </aside><main>{inspectorPane === 'relation' && matePick && generalDraft && !blocked && <p role="status" aria-label="Selección de referencia en vista configurada">Selecciona {configuredMateUiRoleLabels(generalDraft)[matePick.slot]}: {matePick.kind === 'face' ? 'una cara compatible' : 'una arista LINE'} · Ámbito: {selectedScope.path.join(' / ') || 'Raíz'} · Estado: {selectedScope.configuration ?? 'Base'}. <button type="button" onClick={stopMatePick}>Cancelar selección en vista</button></p>}{inspectorPane === 'relation' && originPick && generalDraft && !blocked && <p role="status" aria-label="Selección de origen en vista configurada">Selecciona {configuredMateUiRoleLabels(generalDraft)[originPick.slot]}: un eje o plano de origen visible compatible. <button type="button" onClick={stopMatePick}>Cancelar selección de origen</button></p>}<div className="configured-assembly-view" data-normal-selection-kind={normalResolution.target?.kind ?? 'invalid'} data-normal-selection-keys={JSON.stringify(normalViewSelection?.items.map(value => [value.kind, value.key]) ?? [])} data-normal-enabled={canNormal}><CompactViewportToolbar label="Vistas del ensamblaje configurado"><ViewportToolGroup label="Orientación y ajuste"><ViewOrientationControls onView={menuView} disabled={busy || viewHistory.navigating} canPrevious={viewHistory.canPrevious} canNormal={canNormal} />{([['iso', 'Isométrica'], ['front', 'Frontal'], ['top', 'Superior'], ['fit', 'Ajustar']] as const).map(([name, label]) => <button key={name} title={label} disabled={busy || viewHistory.navigating} onClick={() => menuView(name)}><ViewportToolIcon name={name} label={label} /></button>)}</ViewportToolGroup></CompactViewportToolbar><AssemblyViewport originLabelTopInset={44} originReferences={!normalViewBlocked && normalResolution.origins.length ? normalResolution.origins : inspectorPane === 'model' ? modelOrigin ? [modelOrigin.display] : [] : originDisplay} selectedOrigins={!normalViewBlocked && normalResolution.origins.length ? normalResolution.origins.map(value => value.reference) : inspectorPane === 'model' ? modelOrigin ? [modelOrigin.display.reference] : [] : selectedOrigins} pickingOrigins={inspectorPane === 'relation' && !blocked && !!originPick} onOrigin={pickOrigin} selectedFaces={normalViewBlocked ? mateHighlights.faces : [...mateHighlights.faces, ...normalResolution.faces]} selectedEdges={mateHighlights.edges} scene={displayScene} disabled={busy} view={view} viewHistory={viewHistory} selectedPath={preview || modelOrigin ? [] : bomSelectedPath.length ? bomSelectedPath : selected ? [...selectedScope.path, selected.id] : []} pickingFaces={inspectorPane === 'relation' && !blocked && matePick?.kind === 'face'} pickingEdges={inspectorPane === 'relation' && !blocked && matePick?.kind === 'edge'} onFace={pickMate} onEdge={pickMate} onViewSelection={nominateViewSelection} onComponent={component => {
+    </aside><main>{inspectorPane === 'relation' && matePick && generalDraft && !blocked && <p role="status" aria-label="Selección de referencia en vista configurada">Selecciona {configuredMateUiRoleLabels(generalDraft)[matePick.slot]}: {matePick.kind === 'face' ? 'una cara compatible' : 'una arista LINE'} · Ámbito: {selectedScope.path.join(' / ') || 'Raíz'} · Estado: {selectedScope.configuration ?? 'Base'}. <button type="button" onClick={stopMatePick}>Cancelar selección en vista</button></p>}{inspectorPane === 'relation' && originPick && generalDraft && !blocked && <p role="status" aria-label="Selección de origen en vista configurada">Selecciona {configuredMateUiRoleLabels(generalDraft)[originPick.slot]}: un eje o plano de origen visible compatible. <button type="button" onClick={stopMatePick}>Cancelar selección de origen</button></p>}<div className="configured-assembly-view" data-normal-selection-kind={normalResolution.target?.kind ?? 'invalid'} data-normal-selection-keys={JSON.stringify(normalViewSelection?.items.map(value => [value.kind, value.key]) ?? [])} data-normal-enabled={canNormal}><CompactViewportToolbar label="Vistas del ensamblaje configurado"><ViewportToolGroup label="Orientación y ajuste"><ViewOrientationControls onView={menuView} disabled={busy || viewHistory.navigating} canPrevious={viewHistory.canPrevious} canNormal={canNormal} onNamedViews={namedViews.open} canNamedViews={namedViews.canOpen} />{([['iso', 'Isométrica'], ['front', 'Frontal'], ['top', 'Superior'], ['fit', 'Ajustar']] as const).map(([name, label]) => <button key={name} title={label} disabled={busy || viewHistory.navigating} onClick={() => menuView(name)}><ViewportToolIcon name={name} label={label} /></button>)}</ViewportToolGroup></CompactViewportToolbar><AssemblyViewport originLabelTopInset={44} originReferences={!normalViewBlocked && normalResolution.origins.length ? normalResolution.origins : inspectorPane === 'model' ? modelOrigin ? [modelOrigin.display] : [] : originDisplay} selectedOrigins={!normalViewBlocked && normalResolution.origins.length ? normalResolution.origins.map(value => value.reference) : inspectorPane === 'model' ? modelOrigin ? [modelOrigin.display.reference] : [] : selectedOrigins} pickingOrigins={inspectorPane === 'relation' && !blocked && !!originPick} onOrigin={pickOrigin} selectedFaces={normalViewBlocked ? mateHighlights.faces : [...mateHighlights.faces, ...normalResolution.faces]} selectedEdges={mateHighlights.edges} scene={displayScene} disabled={busy} view={view} viewHistory={viewHistory} selectedPath={preview || modelOrigin ? [] : bomSelectedPath.length ? bomSelectedPath : selected ? [...selectedScope.path, selected.id] : []} pickingFaces={inspectorPane === 'relation' && !blocked && matePick?.kind === 'face'} pickingEdges={inspectorPane === 'relation' && !blocked && matePick?.kind === 'edge'} onFace={pickMate} onEdge={pickMate} onViewSelection={nominateViewSelection} onComponent={component => {
         if (!fresh(renderedTicket) || operation.current || pending.current || mateDraftRef.current || !scene || !configuredUiSceneMatches(scene, current.current, epoch.current)) return
         setTreeOriginSelection(null)
         const id = configuredComponentPick(displayScene, component, selectedScope.path)
@@ -703,6 +746,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
       onOptionsChange={options => { if (!freshBom(renderedBomTicket) || operation.current || pending.current || mateDraftRef.current) return; changeBomView(true, options) }}
       onSelect={member => { if (!freshBom(renderedBomTicket) || operation.current || pending.current || mateDraftRef.current || !bom.report) return; const match = configuredBomUiSelectedPath(bom.report, serialized, { serialized, member }); if (match.length) { setNormalSelection(nominateAssemblyNormalUnsupported(JSON.stringify(['component', match]), normalViewContext)); setTreeOriginSelection(null); setBomSelection({ serialized, member: structuredClone(member) }) } }}
       onExport={() => void exportBom()} onClose={() => changeBomView(false)} />}{failure && <p className="configured-assembly-error" role="alert">{failure}</p>}<footer role="status">{message}</footer>
+    {namedViews.isOpen && <NamedViewsDialog views={namedViews.views} canSave={namedViews.canSave} onSave={namedViews.save} onShow={namedViews.show} onDelete={namedViews.remove} onClose={namedViews.close} />}
     {newDocumentDialog.dialog}
     {discardDialog && <div ref={dialog} role="dialog" aria-modal="true" aria-label="Cambios del ensamblaje configurado"><p>Hay cambios sin guardar. ¿Sustituir el documento actual?</p><button onClick={() => { if (!fresh(renderedTicket)) return; const resolve = answer.current; answer.current = null; setDiscardDialog(false); resolve?.(false) }}>Cancelar apertura</button><button onClick={() => { if (!fresh(renderedTicket)) return; const resolve = answer.current; answer.current = null; setDiscardDialog(false); resolve?.(true) }}>Continuar sin guardar</button></div>}
   </div>

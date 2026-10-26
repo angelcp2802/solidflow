@@ -12,7 +12,7 @@
   font: inherit;
   font-size: 11px;
 }
-.viewport-toolbar .view-previous, .viewport-toolbar .view-normal {
+.viewport-toolbar .view-previous, .viewport-toolbar .view-normal, .viewport-toolbar .view-named {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -24,7 +24,7 @@
   background: transparent;
   color: inherit;
 }
-.view-orientation-select:focus-visible, .view-previous:focus-visible, .view-normal:focus-visible {
+.view-orientation-select:focus-visible, .view-previous:focus-visible, .view-normal:focus-visible, .view-named:focus-visible {
   outline: 2px solid #187fbe;
   outline-offset: 1px;
 }

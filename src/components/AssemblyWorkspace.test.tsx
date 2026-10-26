@@ -441,7 +441,7 @@ it('keeps the compact viewport command names unique and retains initial manipula
     expect(content).not.toBeNull()
     return content![2]
   })).toEqual([
-    'Normal a', 'Vista anterior', 'Isométrica', 'Frontal', 'Superior', 'Ajustar', 'Seleccionar caras',
+    'Vistas guardadas', 'Normal a', 'Vista anterior', 'Isométrica', 'Frontal', 'Superior', 'Ajustar', 'Seleccionar caras',
     'Arrastrar posición', 'Arrastrar giro', 'Desactivar manipulador',
   ])
   for (const button of buttons) {
@@ -449,7 +449,14 @@ it('keeps the compact viewport command names unique and retains initial manipula
     expect(button).toMatch(/<svg\b[^>]*aria-hidden="true"/)
     expect(button).toMatch(/title="[^"]+"/)
   }
-  for (const button of buttons.slice(7)) expect(button).toMatch(/<button[^>]*disabled=""/)
+  const named = buttons.filter(button => button.includes('aria-label="Vistas guardadas"'))
+  expect(named).toHaveLength(1)
+  expect(named[0]).toMatch(/<button[^>]*disabled=""/)
+  for (const label of ['Arrastrar posición', 'Arrastrar giro', 'Desactivar manipulador']) {
+    const matches = buttons.filter(button => button.includes(`<span class="compact-viewport-label">${label}</span>`))
+    expect(matches).toHaveLength(1)
+    expect(matches[0]).toMatch(/<button[^>]*disabled=""/)
+  }
   expect(nav).toContain('class="compact-viewport-group assembly-drag-tools"')
 })
 it('does not start movement or expose a raw pose-write control during initial workspace rendering', () => {

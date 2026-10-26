@@ -1,5 +1,6 @@
 import { OrthographicCamera, Vector3 } from 'three'
 import type { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+import { isSavedViewProjectionCoefficient, validateSavedCameraView, type SavedCameraView } from '../model/namedViews'
 import { resolveNormalToView, type NormalToTarget } from './normalToView'
 
 export const standardViews = [
@@ -25,11 +26,8 @@ export function viewShortcutCommand(event: ViewKey, editable: boolean): ViewName
 export type ViewRequest =
   | { name: Exclude<ViewName, 'normal'>; stamp: number }
   | { name: 'normal'; stamp: number; target: NormalToTarget }
-type Triple = [number, number, number]
-export interface CameraView {
-  position: Triple; target: Triple; up: Triple
-  top: number; bottom: number; zoom: number; near: number; far: number
-}
+  | { name: 'named'; stamp: number; view: CameraView }
+export type CameraView = SavedCameraView
 const copy = (value: CameraView): CameraView => ({ ...value, position: [...value.position], target: [...value.target], up: [...value.up] })
 const equal = (a: CameraView, b: CameraView) => {
   // Translation precision follows the visible scale, not distance from the
@@ -97,7 +95,8 @@ export function bindViewNavigation(history: ViewHistory, camera: OrthographicCam
   const drain = () => { const damping = controls.enableDamping; controls.enableDamping = false; controls.update(); controls.enableDamping = damping }
   const install = (value: CameraView) => {
     camera.position.fromArray(value.position); controls.target.fromArray(value.target); camera.up.fromArray(value.up)
-    camera.top = value.top; camera.bottom = value.bottom; camera.left = -value.top * aspect(); camera.right = -camera.left
+    camera.top = value.top; camera.bottom = value.bottom
+    camera.left = -(value.top - value.bottom) * aspect() / 2; camera.right = -camera.left
     camera.zoom = value.zoom; camera.near = value.near; camera.far = value.far; camera.updateProjectionMatrix()
     camera.lookAt(controls.target); camera.updateMatrixWorld()
   }
@@ -161,6 +160,14 @@ export function bindViewNavigation(history: ViewHistory, camera: OrthographicCam
     afterUpdate() { if (anchored) install(anchored) },
     request(value: ViewRequest) {
       if (history.navigating) return
+      let named: CameraView | null = null
+      if (value.name === 'named') {
+        // Saved documents are untrusted. Reject before consuming the command
+        // or changing the session, and retain no caller-owned coordinate arrays.
+        try { named = validateSavedCameraView(value.view) } catch { return }
+        const width = (named.top - named.bottom) * aspect() / named.zoom
+        if (!(width > 0) || !Number.isFinite(width) || !isSavedViewProjectionCoefficient(2 / width)) return
+      }
       const starting = restoring ?? read()
       const normal = value.name === 'normal' ? resolveNormalToView(value.target,
         new Vector3().fromArray(starting.position).sub(new Vector3().fromArray(starting.target)).toArray(), starting.up) : null
@@ -172,6 +179,10 @@ export function bindViewNavigation(history: ViewHistory, camera: OrthographicCam
       if (value.name !== 'normal') history.clearNormalTo()
       if (value.name === 'previous') { const previous = history.previous(); if (previous) restore(previous); return }
       const before = read()
+      if (named) {
+        if (!equal(before, named)) { restore(named); history.record(before, read()) }
+        return
+      }
       const reverseNormal = normal && history.normalToFlip(normal.repeatKey)
       quiet(() => {
         drain()

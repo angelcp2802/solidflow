@@ -85,7 +85,7 @@ function wrapSave(handler, { symmetry = false, symmetryPicking = false, now = ()
   const context = vm.createContext({ require, input, output, canonical, digest, handler, ipc: [],
     electron: { ipcMain: { handle(channel, callback) { assert.equal(channel, 'document:save'); wrapped = callback; } } },
     sourceRevision: !symmetry && !symmetryPicking, symmetry, symmetryPicking, symmetrySaveTimings: new Map(), performance: { now },
-    configurations: false, assemblySourceUpdate: false, partRevolution: false,
+    configurations: false, assemblySourceUpdate: false, fromEmpty: false, shortcuts: false, partRevolution: false,
     assemblyExport: false, structuralStep: false, structuralInsertion: false, linkedSource: false,
     saveCompletion: { enabled: false }, check(condition, message) { assert.ok(condition, message); },
   });
