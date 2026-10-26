@@ -153,7 +153,11 @@ module.exports = function tangentWorkflow(context) {
     await control('select[aria-label="Cara de referencia"]', selectionKey(selected)); await button('Usar cara en referencia ' + (slot + 1));
   }
   async function pickSurface(scene, selected) {
-    await button('Frontal', '.assembly-view-tools'); await click('button[aria-label="Referencia 2 de la relación"]');
+    await button('Ver', '.assembly-main-menus');
+    await waitFor('Bottom view command available', () => page(() => document.querySelector('[data-assembly-command="view-bottom"]')?.disabled === false));
+    await click('[data-assembly-command="view-bottom"]');
+    await waitFor('Bottom view closes its menu', () => page(() => !document.querySelector('.assembly-main-menus [role="menu"]')));
+    await click('button[aria-label="Referencia 2 de la relación"]');
     await waitFor('actual face pointer mode', () => page(() => document.querySelector('[aria-label="Visor 3D del ensamblaje"]')?.getAttribute('data-reference-picking') === 'face'));
     await page(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     const rect = await page(() => { const r = document.querySelector('[aria-label="Visor 3D del ensamblaje"] canvas').getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; });

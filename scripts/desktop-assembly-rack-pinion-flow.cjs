@@ -233,7 +233,8 @@ module.exports = function rackPinionWorkflow(context) {
     const edges = bodyOf(scene, 'rack').edges.filter(edge => edge.support?.kind === 'line' && Math.abs(edge.support.axis[2]) > .99
       && edge.lines.length >= 6 && edge.lines.every((value, index) => index % 3 === 0 || Math.abs(value - 15) < 1e-6));
     check(edges.length === 1, 'Expected one actual longitudinal top rack edge.'); const edge = edges[0];
-    await button('Superior', '.assembly-view-tools'); await click('button[aria-label="Seleccionar arista lineal"]');
+    // The literal XY target below requires Frontal (+Z with +Y up).
+    await button('Frontal', '.assembly-view-tools'); await click('button[aria-label="Seleccionar arista lineal"]');
     await waitFor('native edge pick intent bound to current preview', () => page(() => document.querySelector('[aria-label="Visor 3D del ensamblaje"]')?.getAttribute('data-reference-picking') === 'edge'));
     await page(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     const rect = await page(() => { const r = document.querySelector('[aria-label="Visor 3D del ensamblaje"] canvas').getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; });

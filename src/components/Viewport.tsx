@@ -1,3 +1,5 @@
+import { bindViewNavigation, createViewHistory, type ViewHistory, type ViewName } from './viewNavigation';
+export type { ViewName } from './viewNavigation';
 import { pickPartReference, type PartSelectionMode } from "./partSelection";
 import { configureCadNavigation, createCadSelectionGesture } from "./cadNavigation";
 import { useEffect, useMemo, useRef } from "react";
@@ -136,11 +138,11 @@ export function pickVisibleEdge(
   return selected;
 }
 
-export type ViewName =
-  "iso" | "front" | "back" | "left" | "right" | "top" | "bottom" | "fit";
+
 interface Props {
   model: CadResult | null;
   view: { name: ViewName; stamp: number };
+  viewHistory?: ViewHistory;
   display: "shaded" | "edges" | "wire";
   grid: boolean;
   selected: boolean;
@@ -166,6 +168,7 @@ interface Props {
 export default function Viewport({
   model,
   view,
+  viewHistory,
   display,
   grid,
   selected,
@@ -189,6 +192,8 @@ export default function Viewport({
   activeInputSketches,
 }: Props) {
   const host = useRef<HTMLDivElement>(null);
+  const localViewHistory = useRef(createViewHistory());
+  const navigationHistory = viewHistory ?? localViewHistory.current;
   const context = useRef<{
     scene: THREE.Scene;
     camera: THREE.OrthographicCamera;
@@ -210,6 +215,7 @@ export default function Viewport({
     updatePlanes: (autoFit?: boolean) => void;
     grid: THREE.GridHelper;
     fit: () => void;
+    navigation: ReturnType<typeof bindViewNavigation>;
   } | null>(null);
   const edgeReferences = useMemo(() => createEdgeSelectionIndex(model?.edges ?? []), [model]);
   const faceReferences = useMemo(() => createFaceSelectionIndex(model?.faces ?? []), [model]);
@@ -239,7 +245,7 @@ export default function Viewport({
     renderer.setClearColor(0xffffff, 0);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     el.appendChild(renderer.domElement);
-    const controls = new OrbitControls(camera, renderer.domElement);
+    let controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.12;
     controls.screenSpacePanning = true;
@@ -262,7 +268,7 @@ export default function Viewport({
     floor.material.transparent = true;
     floor.material.opacity = 0.42;
     scene.add(floor);
-    const fit = () => {
+    const fitRaw = () => {
       const box = new THREE.Box3().setFromObject(group);
       context.current?.sketches.forEach((sketch) => sketch.objects.forEach((object) => {
         if (object.visible) box.expandByObject(object);
@@ -290,7 +296,19 @@ export default function Viewport({
       camera.updateProjectionMatrix();
       controls.update();
     };
+    const navigation = bindViewNavigation(navigationHistory, camera, controls, fitRaw, () => Math.max(el.clientWidth, 1) / Math.max(el.clientHeight, 1), () => {
+      const position = camera.position.clone(), target = controls.target.clone(), enabled = controls.enabled, damping = controls.dampingFactor
+      controls.removeEventListener('change', cameraChanged); controls.dispose()
+      controls = new OrbitControls(camera, renderer.domElement)
+      configureCadNavigation(controls); controls.enableDamping = true; controls.dampingFactor = damping; controls.enabled = enabled
+      controls.target.copy(target); camera.position.copy(position); camera.lookAt(target); camera.updateMatrixWorld()
+      controls.addEventListener('change', cameraChanged)
+      if (context.current) context.current.controls = controls
+      return controls
+    });
+    const fit = () => navigation.automatic(fitRaw);
     context.current = {
+      navigation,
       scene,
       camera,
       renderer,
@@ -572,12 +590,14 @@ export default function Viewport({
     controls.addEventListener('change', cameraChanged);
     renderer.domElement.addEventListener("pointercancel", selectionGesture.cancel);
     window.addEventListener("blur", selectionGesture.cancel);
+    window.addEventListener("blur", navigation.cancelGesture);
     renderer.domElement.addEventListener("pointerdown", pointerDown);
     renderer.domElement.addEventListener("pointerup", pointerUp);
     renderer.domElement.addEventListener("pointermove", pointerMove);
     renderer.domElement.addEventListener("pointerleave", pointerLeave);
     renderer.setAnimationLoop(() => {
       controls.update();
+      navigation.afterUpdate();
       if (hoverDirty) {
         hoverDirty = false;
         const mode = interaction.current.selectionMode;
@@ -597,11 +617,13 @@ export default function Viewport({
       renderer.setAnimationLoop(null);
       renderer.domElement.removeEventListener("pointercancel", selectionGesture.cancel);
       window.removeEventListener("blur", selectionGesture.cancel);
+      window.removeEventListener("blur", navigation.cancelGesture);
       renderer.domElement.removeEventListener("pointerdown", pointerDown);
       renderer.domElement.removeEventListener("pointerup", pointerUp);
       renderer.domElement.removeEventListener("pointermove", pointerMove);
       renderer.domElement.removeEventListener("pointerleave", pointerLeave);
       controls.removeEventListener('change', cameraChanged);
+      navigation.dispose();
       controls.dispose();
       for (const content of [group, sketchGroup, faceGroup, planeGroup]) content.traverse((o) => {
         if (o instanceof THREE.Mesh || o instanceof THREE.Line) {
@@ -818,23 +840,7 @@ export default function Viewport({
   useEffect(() => {
     const c = context.current;
     if (!c) return;
-    const dirs: Record<string, [number, number, number]> = {
-      iso: [1, 1, 1.4],
-      front: [0, 0, 1],
-      back: [0, 0, -1],
-      left: [-1, 0, 0],
-      right: [1, 0, 0],
-      top: [0, 1, 0],
-      bottom: [0, -1, 0],
-    };
-    if (view.name !== "fit") {
-      const dir = new THREE.Vector3(...dirs[view.name]);
-      c.camera.up.set(0, 1, 0);
-      if (view.name === "top" || view.name === "bottom")
-        c.camera.up.set(0, 0, -1);
-      c.camera.position.copy(c.controls.target).add(dir.multiplyScalar(400));
-    }
-    c.fit();
+    c.navigation.request(view);
   }, [view]);
   useEffect(() => {
     if (context.current) context.current.grid.visible = grid;

@@ -6,7 +6,7 @@ const key = (value: string, changes: Partial<KeyboardEvent> = {}) => ({ key: val
 
 describe('assembly keyboard command ownership', () => {
   it('every displayed hint dispatches its existing command without changing actions, guards or menu membership', () => {
-    const ids = ['new', 'open', 'save', 'save-as', 'undo', 'redo', 'view-front', 'view-top', 'view-iso', 'view-fit']
+    const ids = ['new', 'open', 'save', 'save-as', 'undo', 'redo', 'view-front', 'view-back', 'view-left', 'view-right', 'view-top', 'view-bottom', 'view-iso', 'view-fit', 'view-previous']
     const items = ids.map(id => ({ id, label: id, disabled: true, checked: true, onSelect: vi.fn() }))
     const help = { id: 'help', label: 'Help', onSelect: vi.fn() }
     const menus = [{ id: 'fixture', label: 'Original commands', items: [...items, help] }]
@@ -21,24 +21,25 @@ describe('assembly keyboard command ownership', () => {
     }
     expect(annotated[0].items.at(-1)).toBe(help)
     expect(withAssemblyShortcutLabels([{ ...menus[0], items: [items[1]] }])[0].items).toHaveLength(1)
-    expect(annotated.flatMap(menu => menu.items).some(item => item.shortcut === 'Ctrl+Shift+Z')).toBe(false)
+    expect(annotated.flatMap(menu => menu.items).some(item => item.shortcut === 'Ctrl+Shift+Z')).toBe(true)
   })
   it.each([
     ['o', false, 'open'], ['s', false, 'save'], ['s', true, 'save-as'], ['n', false, 'new'],
     ['z', false, 'undo'], ['y', false, 'redo'],
-    ['1', false, 'view-front'], ['5', false, 'view-top'], ['7', false, 'view-iso'],
+    ['1', false, 'view-front'], ['2', false, 'view-back'], ['3', false, 'view-left'], ['4', false, 'view-right'],
+    ['5', false, 'view-top'], ['6', false, 'view-bottom'], ['7', false, 'view-iso'], ['z', true, 'view-previous'],
   ] as const)('maps only the existing %s / shift=%s command', (value, shiftKey, expected) => {
     expect(assemblyShortcutCommand(key(value, { ctrlKey: true, shiftKey }), false)).toBe(expected)
     expect(assemblyShortcutCommand(key(value, { metaKey: true, shiftKey }), false)).toBe(expected)
   })
 
   it('does not turn unsupported views or modifier combinations into actions', () => {
-    for (const value of ['2', '3', '4', '6', 'Delete', 'Enter']) expect(assemblyShortcutCommand(key(value, { ctrlKey: true }), false)).toBeNull()
+    for (const value of ['8', '9', 'Delete', 'Enter']) expect(assemblyShortcutCommand(key(value, { ctrlKey: true }), false)).toBeNull()
     for (const modifiers of [{ ctrlKey: true, altKey: true }, { ctrlKey: true, metaKey: true }, { ctrlKey: true, shiftKey: true }])
       expect(assemblyShortcutCommand(key('o', modifiers), false)).toBeNull()
     expect(assemblyShortcutCommand(key('f', { shiftKey: true }), false)).toBeNull()
-    expect(assemblyShortcutCommand(key('z', { ctrlKey: true, shiftKey: true }), false)).toBeNull()
-    expect(assemblyShortcutCommand(key('z', { metaKey: true, shiftKey: true }), false)).toBeNull()
+    expect(assemblyShortcutCommand(key('z', { ctrlKey: true, shiftKey: true }), false)).toBe('view-previous')
+    expect(assemblyShortcutCommand(key('z', { metaKey: true, shiftKey: true }), false)).toBe('view-previous')
   })
 
   it('preserves native text undo, redo, camera keys and Escape in editable controls', () => {

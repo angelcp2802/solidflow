@@ -5,7 +5,7 @@ const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 module.exports = function assemblyShortcutWorkflow(context) {
   const c = require('./desktop-assembly-navigation.cjs').withNavigation(context);
   const { configured, expected, input, output, shortcutOutput, shortcutKey, shortcutText, evaluate, observe, waitFor, pointer, capture,
-    check, checks, canonical, digest, ipc, dialogCounts, consoleErrors, failedRequests, initialReadyMs } = c;
+    check, checks, canonical, digest, ipc, dialogCounts, consoleErrors, failedRequests, initialReadyMs, cameraFrame, cameraGesture } = c;
   const ROOT = configured ? '.configured-assembly-workspace' : '.assembly-app';
   const NAV = configured ? '[aria-label="Comandos del ensamblaje configurado"]' : '.assembly-toolbar';
   const NEW_DIALOG = '[role="dialog"][aria-labelledby="new-document-title"]';
@@ -72,7 +72,25 @@ module.exports = function assemblyShortcutWorkflow(context) {
     }, ROOT).then(actual => actual && canonical(actual) === canonical(doc)));
   }
 
-  const key = async combo => { await shortcutKey(combo); gestures.push({ key: combo, transport: 'CDP physical down/up' }); await page(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))); };
+  const nativeInputState = (selector=null) => page(selector=>{
+    const active=document.activeElement,e=selector?document.querySelector(selector):active;
+    if(!(e instanceof HTMLInputElement))return {input:false,focused:false,activeTag:active?.tagName??null};
+    const label=e.getAttribute('aria-label'),owned=['Nombre del componente','Nombre de relación configurada'].includes(label)
+      &&!!e.closest('.assembly-app,.configured-assembly-workspace');
+    return {input:true,owned,label:owned?label:null,focused:active===e,enabled:!e.disabled&&!e.readOnly,
+      visible:!e.closest('[hidden]')&&e.checkVisibility()&&e.getClientRects().length>0,
+      value:owned?e.value.slice(0,96):null,length:owned?e.value.length:null,start:e.selectionStart,end:e.selectionEnd};
+  },selector);
+  const inputFailure = async (error,selector=null) => { error.message+='; nativeInput='+JSON.stringify(await nativeInputState(selector));throw error; };
+  const key = async combo => {
+    const prior=combo==='A'?await nativeInputState():null;
+    await shortcutKey(combo);gestures.push({key:combo,transport:'CDP physical down/up; macOS owned-field A/Z include native editor commands'});
+    await page(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    if(combo==='A')await waitFor('actual select-all covers the current owned input',async()=>{
+      const state=await nativeInputState();return state.owned&&state.focused&&state.enabled&&state.visible
+        &&state.label===prior.label&&state.value===prior.value&&state.length===prior.length&&state.start===0&&state.end===state.length;
+    }).catch(error=>inputFailure(error));
+  };
   const outside = () => actualControl(ROOT + ' button[title="Isométrica"]');
   const snapshot = async () => ({ native: await observe(), recovery: await page(() => localStorage.getItem('solidflow.autosave')), dialogs: dialogCounts(), ipc: structuredClone(ipc) });
   const stable = async (before, label) => check(canonical(await snapshot()) === canonical(before), label);
@@ -178,8 +196,8 @@ module.exports = function assemblyShortcutWorkflow(context) {
   async function nativeTextUndo(selector) {
     await actualControl(selector); const value=await page(s=>document.querySelector(s).value,selector), before=await snapshot();
     await key('A'); await shortcutText('native undo probe');
-    await waitFor('actual keyboard text inserted',()=>page(s=>document.querySelector(s)?.value==='native undo probe',selector));
-    await key('Z'); await waitFor('native input undo restores prior text without assembly undo',()=>page((s,v)=>document.querySelector(s)?.value===v,selector,value));
+    await waitFor('actual keyboard text inserted',()=>page(s=>document.activeElement===document.querySelector(s)&&document.querySelector(s)?.value==='native undo probe',selector)).catch(error=>inputFailure(error,selector));
+    await key('Z'); await waitFor('native input undo restores prior text without assembly undo',()=>page((s,v)=>document.activeElement===document.querySelector(s)&&document.querySelector(s)?.value===v,selector,value)).catch(error=>inputFailure(error,selector));
     await stable(before,'Native text undo leaves complete worker history, recovery and file requests unchanged');
     checks.push({ nativeTextUndo: { selector, originalValue:value, typed:'native undo probe', restored:value, inputRetainedFocus:await page(s=>document.activeElement===document.querySelector(s),selector) } });
   }
@@ -193,6 +211,12 @@ module.exports = function assemblyShortcutWorkflow(context) {
     check(canonical(current)===canonical(expected),'Keyboard Open loads exact original owned document'); geometry(row.response.value,'opened'); await recovery(current);
     await outside(); await key('ShiftS'); await saved(output,current,1);
     await newSelectorCancellation(current);
+    await require('./desktop-view-navigation-flow.cjs')({page,waitFor,check,checks,canonical,key,cameraFrame,cameraGesture,kind:configured?'configured':'standard',actualControl,
+      snapshot:async()=>({...await snapshot(),ui:await page(()=>({
+        history:[...document.querySelectorAll('button[aria-label^="Deshacer"],button[aria-label^="Rehacer"]')].map(e=>({label:e.getAttribute('aria-label'),disabled:e.disabled})),
+        selection:[...document.querySelectorAll('[data-assembly-tree-path][aria-selected="true"],[data-assembly-origin-tree-key][aria-selected="true"]')].map(e=>({path:e.getAttribute('data-assembly-tree-path'),origin:e.getAttribute('data-assembly-origin-tree-key')})),
+        picking:document.querySelector('.assembly-viewport')?.getAttribute('data-reference-picking')
+      }))})});
     if(!configured){
       await actualControl(`[data-assembly-tree-path='["moving"]']`);
       await nativeTextUndo('input[aria-label="Nombre del componente"]');

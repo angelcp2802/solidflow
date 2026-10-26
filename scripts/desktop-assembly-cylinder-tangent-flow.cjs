@@ -112,7 +112,11 @@ module.exports = function cylinderTangentWorkflow(context) {
       }
       async function cancel(base, label) { await idle(label + ' idle'); await click(CANCEL); await recovery(base.document, label); await waitFor(label + ' committed view', () => page((applySelector, reportSelector) => document.querySelector('.assembly-canvas-label span')?.textContent === 'Componentes independientes · mm' && document.querySelector(applySelector)?.disabled === true && !document.querySelector(reportSelector), APPLY, SUMMARY)); }
       async function pickFixed(scene, selected) {
-        await button('Frontal', '.assembly-view-tools'); await click('button[aria-label="Referencia 1 de la relación"]'); await waitFor('actual face pointer mode', () => page(() => document.querySelector('[aria-label="Visor 3D del ensamblaje"]')?.getAttribute('data-reference-picking') === 'face'));
+        await button('Ver', '.assembly-main-menus');
+        await waitFor('Bottom view command available', () => page(() => document.querySelector('[data-assembly-command="view-bottom"]')?.disabled === false));
+        await click('[data-assembly-command="view-bottom"]');
+        await waitFor('Bottom view closes its menu', () => page(() => !document.querySelector('.assembly-main-menus [role="menu"]')));
+        await click('button[aria-label="Referencia 1 de la relación"]'); await waitFor('actual face pointer mode', () => page(() => document.querySelector('[aria-label="Visor 3D del ensamblaje"]')?.getAttribute('data-reference-picking') === 'face'));
         await page(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))); const rect = await page(() => { const r = document.querySelector('[aria-label="Visor 3D del ensamblaje"] canvas').getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; });
         const center = scene.visibleBounds.min.map((value, i) => (value + scene.visibleBounds.max[i]) / 2), span = Math.hypot(...subtract(scene.visibleBounds.max, scene.visibleBounds.min)), surfacePoint = [0, -2, 0], pixels = rect.height / (1.3 * span), point = { x: rect.x + rect.width / 2 + (surfacePoint[0] - center[0]) * pixels, y: rect.y + rect.height / 2 - (surfacePoint[2] - center[2]) * pixels };
         check(Number.isSafeInteger(selected.vertexCount) && selected.vertexCount > 0 && Number.isSafeInteger(selected.triangleCount) && selected.triangleCount > 0, 'Actual cylindrical face has no display mesh.');

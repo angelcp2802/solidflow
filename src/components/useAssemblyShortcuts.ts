@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react'
+import { standardViews, type ViewName } from './viewNavigation'
 import type { AssemblyMenuAction, AssemblyMenuDefinition } from './AssemblyMenuBar'
 
-export type AssemblyShortcutCommand = 'new' | 'open' | 'save' | 'save-as' | 'undo' | 'redo' | 'view-front' | 'view-top' | 'view-iso' | 'view-fit' | 'escape'
+export type AssemblyShortcutCommand = 'new' | 'open' | 'save' | 'save-as' | 'undo' | 'redo' | `view-${ViewName}` | 'escape'
 type Key = Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'metaKey' | 'altKey' | 'shiftKey' | 'isComposing' | 'defaultPrevented' | 'repeat'>
 type Command = Pick<AssemblyMenuAction, 'disabled' | 'onSelect'>
 const shortcuts: readonly { id: AssemblyShortcutCommand; key: string; modified: boolean; shift: boolean; label: string }[] = [
@@ -11,9 +12,8 @@ const shortcuts: readonly { id: AssemblyShortcutCommand; key: string; modified: 
   { id: 'save-as', key: 's', modified: true, shift: true, label: 'Ctrl+Shift+S' },
   { id: 'undo', key: 'z', modified: true, shift: false, label: 'Ctrl+Z' },
   { id: 'redo', key: 'y', modified: true, shift: false, label: 'Ctrl+Y' },
-  { id: 'view-front', key: '1', modified: true, shift: false, label: 'Ctrl+1' },
-  { id: 'view-top', key: '5', modified: true, shift: false, label: 'Ctrl+5' },
-  { id: 'view-iso', key: '7', modified: true, shift: false, label: 'Ctrl+7' },
+  ...standardViews.map(view => ({ id: `view-${view.name}` as const, key: view.shortcut.slice(-1), modified: true, shift: false, label: view.shortcut })),
+  { id: 'view-previous', key: 'z', modified: true, shift: true, label: 'Ctrl+Shift+Z' },
   { id: 'view-fit', key: 'f', modified: false, shift: false, label: 'F' },
 ]
 

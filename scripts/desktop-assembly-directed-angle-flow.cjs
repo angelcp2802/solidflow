@@ -153,7 +153,11 @@ module.exports = function directedAngleWorkflow(context) {
     return circularDegrees(Math.atan2(a[1] * b[2] - a[2] * b[1], a[1] * b[1] + a[2] * b[2]) * 180 / Math.PI);
   }
   async function drag(base, targetDegrees, wantedDegrees, activity, label) {
-    await selectMoving(); await button('Frontal', '.assembly-view-tools'); await click('button[aria-label="Arrastrar giro"]');
+    await selectMoving(); await button('Ver', '.assembly-main-menus');
+    await waitFor('Bottom view command available', () => page(() => document.querySelector('[data-assembly-command="view-bottom"]')?.disabled === false));
+    await click('[data-assembly-command="view-bottom"]');
+    await waitFor('Bottom view closes its menu', () => page(() => !document.querySelector('.assembly-main-menus [role="menu"]')));
+    await click('button[aria-label="Arrastrar giro"]');
     await page(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     const rect = await page(selector => { const r = document.querySelector(selector + ' canvas').getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; }, VIEW);
     const bounds = base.scene.visibleBounds, old = moving(base.document).pose, oldDegrees = xDegrees(old), center = bounds.min.map((value, index) => (value + bounds.max[index]) / 2),

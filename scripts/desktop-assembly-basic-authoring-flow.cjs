@@ -352,8 +352,15 @@ module.exports = function basicAuthoringWorkflow(context) {
     check(canonical(await corner()) === canonical(target), 'Background context point remains stationary and hits the canvas before press');
     await pointer('mousePressed', target.point, 2); await pointer('mouseReleased', target.point, 2);
     const background = await waitFor('blank canvas opens only current view commands', contextMenuState);
-    check(canonical(background.actions.map(action => action.id).sort()) === canonical(['view-fit', 'view-front', 'view-iso', 'view-top']), 'Background context contains exact existing view commands');
-    check(background.actions.every(action => !action.disabled), 'Idle background view commands are enabled');
+    const expectedBackground = [['view-front', 'Frontal'], ['view-back', 'Posterior'], ['view-left', 'Izquierda'], ['view-right', 'Derecha'],
+      ['view-top', 'Superior'], ['view-bottom', 'Inferior'], ['view-iso', 'Isométrica'], ['view-fit', 'Ajustar a pantalla'], ['view-previous', 'Vista anterior']];
+    check(canonical(background.actions.map(action => [action.id, action.label])) === canonical(expectedBackground), 'Background context contains exactly the ordered seven standard views, Fit and Previous');
+    const previousDisabled = await page(() => {
+      const buttons = [...document.querySelectorAll('.assembly-view-tools button[aria-label="Vista anterior"]')];
+      if (buttons.length !== 1) throw Error('Exactly one toolbar Previous control required');
+      return buttons[0].disabled;
+    });
+    check(background.actions.every(action => action.disabled === (action.id === 'view-previous' && previousDisabled)), 'Idle standard views and Fit are enabled; Previous matches current toolbar availability');
     await menuKey('Escape');
     await waitFor('background Escape returns focus to viewport without clearing selection', () => page(selector => !document.querySelector('.cad-context-menu')
       && document.activeElement === document.querySelector('.assembly-viewport') && document.querySelector(selector)?.getAttribute('aria-selected') === 'true', tree(owners.base)));

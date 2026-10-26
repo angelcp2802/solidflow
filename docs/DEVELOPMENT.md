@@ -1,5 +1,33 @@
 # Development guide
 
+## Standard views and previous camera states — 2026-10-25
+
+Part, standard assembly and configured assembly share seven standard views:
+Front, Back, Left, Right, Top, Bottom and Isometric, on Ctrl+1 through Ctrl+7.
+The compact orientation selector and View menu use the same declarations.
+Front looks toward the XY plane from +Z with +Y upward; Top looks from +Y
+with -Z upward. Isometric uses equal positive X/Y/Z direction components.
+These presentation conventions do not transform the saved geometry.
+
+Previous View (Ctrl+Shift+Z) consumes up to ten prior camera states. Model Redo
+remains Ctrl+Y. Camera history is separate from document Undo and serialization:
+effective named-view changes, Fit and actual navigation gestures can be undone
+without changing the CAD model. Repeated identical views do not add entries.
+The 3D camera survives entry into and cancellation of a sketch, whose 2D Fit
+uses a separate request. New/Open establish a new camera-history session.
+
+The implementation uses public OrbitControls events and methods. Native input
+transport is exercised by the existing part-from-empty and both assembly
+keyboard routes: seven presets, middle-button orbit, modified middle-button
+pan, wheel zoom and Previous. The part route additionally checks a sketch
+round trip after zooming. Exact central-render-crop restoration excludes the
+bounded HTML origin-label text rectangles; their projected SVG anchors are
+checked separately. This avoids treating text compositor antialiasing as a
+camera change. The rendered restoration checks are separate from independent
+mathematical orientation tests; neither proves all view tools
+or platform parity. Normal To, named custom views, dimetric and trimetric
+presets remain separate work. Record actual executed cases in [validation](VALIDATION.md).
+
 ## New document choice and authoring from empty — 2026-10-25
 
 New (`Nuevo…`, Ctrl+N) opens a shared Part/Assembly chooser in the part,
@@ -34,10 +62,10 @@ workspace interactions or platform support.
 Standard and configured workspaces register keyboard commands while mounted.
 They reuse the current menu callbacks and disabled predicates. Ctrl+O opens,
 Ctrl+S saves, Ctrl+Shift+S saves as, Ctrl+Z undoes, and Ctrl+Y redoes.
-Ctrl+Shift+Z is reserved for the still-unimplemented previous-view command;
+Ctrl+Shift+Z invokes Previous View as described above;
 it does not redo document edits. Ctrl+N now opens the shared Part/Assembly
-chooser in both assembly workspaces, as described above. F fits the view; Ctrl+1, Ctrl+5 and Ctrl+7 select the
-available front, top and isometric views. The matcher also recognizes Meta,
+chooser in both assembly workspaces, as described above. F fits the view; Ctrl+1
+through Ctrl+7 select the seven standard views. The matcher also recognizes Meta,
 but platform execution must be recorded separately.
 
 Text fields retain native Undo/Redo and unmodified typing. Composition, repeats

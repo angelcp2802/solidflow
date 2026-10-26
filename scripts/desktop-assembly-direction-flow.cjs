@@ -188,7 +188,8 @@ module.exports = function directionWorkflow(context) {
     relations(event.response.value, event.document); await recovery(event.document, label); record(label, event); return { document: event.document, scene: event.response.value };
   }
   async function pickLine(scene, selected) {
-    await button('Superior', '.assembly-view-tools'); await click('button[aria-label="Seleccionar aristas lineales"]');
+    // The literal XY target below requires Frontal (+Z with +Y up).
+    await button('Frontal', '.assembly-view-tools'); await click('button[aria-label="Seleccionar aristas lineales"]');
     await waitFor('actual LINE pointer mode', () => page(() => document.querySelector('[aria-label="Visor 3D del ensamblaje"]')?.getAttribute('data-reference-picking') === 'edge'));
     await page(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     const rect = await page(() => { const r = document.querySelector('[aria-label="Visor 3D del ensamblaje"] canvas').getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; });

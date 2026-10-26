@@ -72,18 +72,30 @@ module.exports = function hingePickingWorkflow(context) {
     await waitFor('actual armed role', () => page((selector, mode) => document.querySelector(selector)?.getAttribute('aria-pressed') === 'true'
       && document.querySelector('[aria-label="Visor 3D del ensamblaje"]')?.getAttribute('data-reference-picking') === mode, selector, edge ? 'edge' : 'face'));
     check(await page(() => document.querySelector('button[aria-label="Arrastrar posición"]')?.getAttribute('aria-pressed') === 'false' && document.querySelector('button[aria-label="Arrastrar giro"]')?.getAttribute('aria-pressed') === 'false'), 'Reference picking disables component drag'); }
-  async function projection(scene, world, fit = true) {
-    if (fit) { await button('Isométrica', '.assembly-view-tools'); await frames(); }
+  async function projection(scene, world, view = 'iso') {
+    if (view === 'iso') await button('Isométrica', '.assembly-view-tools');
+    else {
+      check(view === 'bottom', 'Only the literal lower standard view supplements isometric picking');
+      const selector = 'select[aria-label="Orientación de vista"]'; await assemblyNavigation.reveal(selector);
+      await page(selector => { const e = document.querySelector(selector);
+        if (!e || e.disabled || ![...e.options].some(o => o.value === 'bottom' && !o.disabled)) throw Error('Enabled lower standard view command');
+        Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(e, 'bottom'); e.dispatchEvent(new Event('change', { bubbles: true }));
+      }, selector);
+    }
+    await frames();
     const rect = await page(() => { const r = document.querySelector('[aria-label="Visor 3D del ensamblaje"] canvas').getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; });
     const bounds = scene.visibleBounds, center = bounds.min.map((v, i) => (v + bounds.max[i]) / 2), span = Math.max(1, Math.hypot(...bounds.max.map((v, i) => v - bounds.min[i]))), pixels = rect.height / (1.3 * span), r = sub(world, center);
-    const point = { x: rect.x + rect.width / 2 + (1.3 * r[0] + r[1]) / Math.sqrt(2.69) * pixels,
-      y: rect.y + rect.height / 2 - (-r[0] + 1.3 * r[1] + 2.69 * r[2]) / Math.sqrt(9.9261) * pixels };
+    // Independent image bases: ISO looks from (1,1,1) with world Y up, so
+    // right=(X-Z)/sqrt(2), up=(-X+2Y-Z)/sqrt(6). Inferior looks from -Y,
+    // with right=X/up=Z. Neither basis is read from or injected into the camera.
+    const point = { x: rect.x + rect.width / 2 + (view === 'bottom' ? r[0] : (r[0] - r[2]) / Math.sqrt(2)) * pixels,
+      y: rect.y + rect.height / 2 - (view === 'bottom' ? r[2] : (-r[0] + 2 * r[1] - r[2]) / Math.sqrt(6)) * pixels };
     check(point.x > rect.x && point.x < rect.x + rect.width && point.y > rect.y && point.y < rect.y + rect.height, 'Literal projected material point inside current canvas');
-    return { point, worldPoint: world, rect, sceneCenter: center, sceneSpan: span, pixelsPerMm: pixels };
+    return { view, point, worldPoint: world, rect, sceneCenter: center, sceneSpan: span, pixelsPerMm: pixels };
   }
   async function hit(point) { await pointer('mouseMoved', point); await pointer('mousePressed', point, 1); await pointer('mouseReleased', point); }
-  async function pick(base, slot, reference, world, { edge = false, reselect = false } = {}) {
-    const projected = await projection(base.scene, world); await arm(slot, edge);
+  async function pick(base, slot, reference, world, { edge = false, reselect = false, view = 'iso' } = {}) {
+    const projected = await projection(base.scene, world, view); await arm(slot, edge);
     const beforeFields = await fields(), serial = (await observe()).serial, stored = await page(() => localStorage.getItem('solidflow.autosave'));
     if (reselect) check(beforeFields[slot] === '', 'Current edit role is empty before actual pointer reselect');
     const keys = await page((role, reference) => { const stable = v => JSON.stringify(v, (_k, x) => x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.keys(x).sort().map(k => [k, x[k]])) : x);
@@ -127,7 +139,10 @@ module.exports = function hingePickingWorkflow(context) {
     await button('Continuar sin guardar', '[role="dialog"][aria-labelledby="discard-title"]'); let event = await response(before.serial, 'build-assembly'), base = { document: event.document, scene: event.response.value };
     check(canonical(base.document) === canonical(expected), 'Exact actual Open'); geometry(base.scene, base.document); await recovery(base.document, 'Open');
     await control('select[aria-label="Tipo de relación"]', 'hinge'); await control('input[aria-label="Nombre de bisagra"]', name); await control('select[aria-label="Alineación de ejes de bisagra"]', 'aligned');
-    const refs = originalReferences(base.scene), groundWall = [-1 / Math.sqrt(2.69), 1.3 / Math.sqrt(2.69), 3.5], movingWallLocal = [-Math.SQRT1_2, Math.SQRT1_2, .5],
+    // Same cylindrical faces, through their upper openings in the new ISO.
+    // At local z=4 each ray has radius 1-1/sqrt(2)<1; Rx(-90deg) makes
+    // the moving ray's local direction (1,-1,1), hence its opposite Y sign.
+    const refs = originalReferences(base.scene), groundWall = [-Math.SQRT1_2, -Math.SQRT1_2, 3.5], movingWallLocal = [-Math.SQRT1_2, Math.SQRT1_2, 3.5],
       movingWall = placed(expected.occurrences[1].pose, movingWallLocal), movingCap = placed(expected.occurrences[1].pose, [5, 0, 0]);
     let projected = await projection(base.scene, [5, 0, 4]); await arm(0); let beforeFields = await fields(), serial = (await observe()).serial, stored = await page(() => localStorage.getItem('solidflow.autosave'));
     await hit(projected.point); await noIntentChange('actual planar face rejected for cylindrical-axis role', beforeFields, serial, stored);
@@ -145,7 +160,9 @@ module.exports = function hingePickingWorkflow(context) {
     await pick(base, 0, refs.references[0], groundWall);
     await pick(base, 1, refs.references[1], movingWall);
     await pick(base, 2, refs.references[2], [5, 0, 4]);
-    await pick(base, 3, refs.references[3], movingCap);
+    // The same moving z=0 cap faces global -Y; Inferior exposes its interior
+    // point at global x=25, clear of the ground leaf's x<=10 extent.
+    await pick(base, 3, refs.references[3], movingCap, { view: 'bottom' });
     event = await preview('Añadir bisagra'); ready(event, refs.references, 'Four actual face picks Cancel'); await cancel(base);
     event = await preview('Añadir bisagra'); ready(event, refs.references, 'Four actual face picks retry'); base = await apply(event, 'Pointer author Apply'); const authored = base.document;
     await history('Deshacer', expected); base = await history('Rehacer', authored);
@@ -155,7 +172,7 @@ module.exports = function hingePickingWorkflow(context) {
     check(clearedFields[1] === '' && editFields.every((value, slot) => slot === 1 || clearedFields[slot] === value), 'Clearing edit Eje B preserves the other three full roles');
     check(await page(() => { const list = [...document.querySelectorAll('.assembly-hinge-panel button')].filter(e => e.textContent.trim() === 'Verificar edición de bisagra'); return list.length === 1 && list[0].disabled; }), 'Incomplete edit cannot submit');
     check((await observe()).serial === editSerial, 'Clearing a draft edit performs no native request'); await recovery(base.document, 'Incomplete edit preserves committed recovery');
-    await pick(base, 1, refs.references[1], [-1 / Math.sqrt(2.69), 1.3 / Math.sqrt(2.69), 7.5], { reselect: true });
+    await pick(base, 1, refs.references[1], [-Math.SQRT1_2, -Math.SQRT1_2, 7.5], { reselect: true });
     name = 'Bisagra reseleccionada'; await control('input[aria-label="Nombre de bisagra"]', name); event = await preview('Verificar edición de bisagra'); ready(event, refs.references, 'Current material edit reselect Cancel'); await cancel(base);
     event = await preview('Verificar edición de bisagra'); ready(event, refs.references, 'Edit retry'); base = await apply(event, 'Pointer edit Apply'); const edited = base.document;
     await history('Deshacer', authored); base = await history('Rehacer', edited);

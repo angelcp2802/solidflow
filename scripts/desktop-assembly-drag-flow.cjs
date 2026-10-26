@@ -32,11 +32,12 @@ module.exports = async function dragWorkflow(context) {
     const rect = await page(() => { const r = document.querySelector('[aria-label="Visor 3D del ensamblaje"] canvas').getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; });
     const center = bounds.min.map((value, axis) => (value + bounds.max[axis]) / 2), span = Math.hypot(...bounds.max.map((value, axis) => value - bounds.min[axis]));
     const pixels = rect.height / (span * 1.3);
+    // Frontal is exact +Z with +Y up, so Z does not displace the screen target.
     return { x: rect.x + rect.width / 2 + (position[0] - center[0]) * pixels,
-      y: rect.y + rect.height / 2 - (position[1] - center[1]) * pixels + (position[2] - center[2]) * .0001 * pixels, rect };
+      y: rect.y + rect.height / 2 - (position[1] - center[1]) * pixels, rect };
   }
   async function handle(document, mode, axis) {
-    await button('Superior', '.assembly-view-tools'); await click('button[aria-label="Arrastrar ' + (mode === 'rotate' ? 'giro' : 'posición') + '"]');
+    await button('Frontal', '.assembly-view-tools'); await click('button[aria-label="Arrastrar ' + (mode === 'rotate' ? 'giro' : 'posición') + '"]');
     await page(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     const center = await origin(document), candidates = [];
     if (mode === 'rotate') {

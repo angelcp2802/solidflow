@@ -97,12 +97,16 @@ module.exports = function symmetryPickingWorkflow(context) {
     check(await page(()=>document.querySelector('button[aria-label="Arrastrar posición"]')?.getAttribute('aria-pressed')==='false'&&document.querySelector('button[aria-label="Arrastrar giro"]')?.getAttribute('aria-pressed')==='false'),'Role picking turns component drag off');
     const id=kind+'-'+['source','target','mirror'][index],occ=base.document.occurrences.find(o=>o.id===id);
     check(canonical(occ.pose.rotation)===canonical([0,0,0,1]),'Literal pointer owner has initial proper identity rotation');
-    const local=index===2||kind==='plane'?[4,.6,2]:kind==='point'?[4,0,4]:kind==='line'?[4,0,2]:kind==='sphere'?[2/Math.sqrt(3.69),-2.6/Math.sqrt(3.69),2/Math.sqrt(3.69)]:[2/Math.sqrt(2.69),-2.6/Math.sqrt(2.69),2];
+    // Same native supports, sampled on their visible portions from +X/+Y/+Z.
+    // The +X plane's upper-Y interior and the corner-Z edge above Z=3
+    // clear the adjacent mirror prism; the material vertex remains exact.
+    const local=index===2||kind==='plane'?[4,5.4,2]:kind==='point'?[4,0,4]:kind==='line'?[4,0,3.5]:kind==='sphere'?[2/Math.sqrt(3),2/Math.sqrt(3),2/Math.sqrt(3)]:[2/Math.sqrt(2),2/Math.sqrt(2),2];
     // Manager tabs change the host width before ResizeObserver updates the
     // renderer's canvas. Project only after both describe the same stable area.
     const layout=await stableViewport(),rect=layout.rect,bounds=base.scene.visibleBounds;
     const center=bounds.min.map((v,i)=>(v+bounds.max[i])/2),span=Math.max(1,Math.hypot(...bounds.max.map((v,i)=>v-bounds.min[i]))),pixels=rect.height/(1.3*span),worldPoint=local.map((v,i)=>v+occ.pose.translation[i]),r=worldPoint.map((v,i)=>v-center[i]);
-    const point={x:rect.x+rect.width/2+(1.3*r[0]+r[1])/Math.sqrt(2.69)*pixels,y:rect.y+rect.height/2-(-r[0]+1.3*r[1]+2.69*r[2])/Math.sqrt(9.9261)*pixels};
+    // Independent orthonormal basis for eye (1,1,1) with world +Y up.
+    const point={x:rect.x+rect.width/2+(r[0]-r[2])/Math.sqrt(2)*pixels,y:rect.y+rect.height/2-(-r[0]+2*r[1]-r[2])/Math.sqrt(6)*pixels};
     check(point.x>rect.x&&point.x<rect.x+rect.width&&point.y>rect.y&&point.y<rect.y+rect.height,'Literal native support point inside actual canvas');
     const roleSelector='select[aria-label="'+roles[index]+'"]',options=await page(s=>[...document.querySelector(s).options].map(o=>({value:o.value,disabled:o.disabled})),roleSelector);
     const faceKey=index===2?JSON.stringify([JSON.stringify([ref.component.occurrencePath,ref.component.definition.id,ref.component.definition.revision]),ref.body?[ref.body.bodyId,ref.body.sourceFeatureId]:null,ref.face.sourceFeatureId,ref.face.key]):null;

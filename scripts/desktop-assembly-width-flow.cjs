@@ -35,11 +35,12 @@ module.exports = function widthWorkflow(context) {
     await waitFor('actual Width face role '+roles[index],()=>page(selector=>document.querySelector(selector)?.getAttribute('aria-pressed')==='true'&&document.querySelector('[aria-label="Visor 3D del ensamblaje"]')?.getAttribute('data-reference-picking')==='face',selector));
     await frames(2);
     const rect=await canvasRect(),bounds=base.scene.visibleBounds,center=bounds.min.map((v,i)=>(v+bounds.max[i])/2),span=Math.hypot(...bounds.max.map((v,i)=>v-bounds.min[i])),pixels=rect.height/(1.3*span);
-    const id=['a','b','c','d'][index],occ=base.document.occurrences.find(v=>v.id===id),local=[2,-2.4,2];
+    // Same +X face, with its +Y interior visible past the neighboring prisms.
+    const id=['a','b','c','d'][index],occ=base.document.occurrences.find(v=>v.id===id),local=[2,2.4,2];
     check(canonical(occ.pose.rotation)===canonical([0,0,0,1]),'Literal pointer fixture requires original identity owner rotation');
     const worldPoint=local.map((v,i)=>v+occ.pose.translation[i]),relative=worldPoint.map((v,i)=>v-center[i]);
-    // Isometric eye direction (1,-1.3,1): independent literal camera basis.
-    const point={x:rect.x+rect.width/2+(1.3*relative[0]+relative[1])/Math.sqrt(2.69)*pixels,y:rect.y+rect.height/2-(-relative[0]+1.3*relative[1]+2.69*relative[2])/Math.sqrt(9.9261)*pixels};
+    // Independent orthonormal basis for eye (1,1,1) with world +Y up.
+    const point={x:rect.x+rect.width/2+(relative[0]-relative[2])/Math.sqrt(2)*pixels,y:rect.y+rect.height/2-(-relative[0]+2*relative[1]-relative[2])/Math.sqrt(6)*pixels};
     check(point.x>rect.x&&point.x<rect.x+rect.width&&point.y>rect.y&&point.y<rect.y+rect.height,'Original plane interior projects inside actual canvas');
     const previous=await page(rolesJson=>JSON.parse(rolesJson).map(role=>document.querySelector('select[aria-label="'+role+'"]')?.value),JSON.stringify(roles));
     const recoveryBefore=await page(()=>localStorage.getItem('solidflow.autosave')),before=await observe();

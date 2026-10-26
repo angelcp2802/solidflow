@@ -6,7 +6,7 @@ const { encodeJavaScriptString: quote } = require('./desktop-ui-source.cjs');
 // Parameter fields use the actual visible controls; no model/worker state injection.
 module.exports = function fromEmptyWorkflow(c) {
   const { output, evaluate, observe, waitFor, pointer, menu, capture, key, checks, check, canonical, digest,
-    consoleErrors, failedRequests, ipc, protocolResponses, dialogCounts, initialReadyMs } = c;
+    consoleErrors, failedRequests, ipc, protocolResponses, dialogCounts, initialReadyMs, cameraFrame, cameraGesture } = c;
   const APPLY = 'button[title="Aceptar operación"]', SVG = 'svg[aria-label="Editor de croquis multientidad"]';
   const NEW = '[role="dialog"][aria-labelledby="new-document-title"]';
   const phases = [], drawings = [];
@@ -156,6 +156,13 @@ module.exports = function fromEmptyWorkflow(c) {
     const reopenedDocument=JSON.parse(await recovery());
     check(reopenedDocument.id===documentId&&canonical(reopenedDocument.features)===canonical(saved.features),'Reopened recovery retains exact authored document identity and features');
     check(dialogCounts().opens===1&&dialogCounts().saves===1,'Only one Save As and saved reopen; no input fixture is opened');
+    await require('./desktop-view-navigation-flow.cjs')({page,waitFor,check,checks,canonical,key,cameraFrame,cameraGesture,kind:'part',actualControl:press,
+      snapshot:async()=>({native:await observe(),recovery:await recovery(),dialogs:dialogCounts(),ipc:structuredClone(ipc),ui:await page(()=>{
+        const viewport=document.querySelector('.viewport-canvas[aria-label="Vista 3D de la pieza"]');
+        return {history:['Deshacer (Ctrl+Z)','Rehacer (Ctrl+Y)'].map(title=>({title,disabled:document.querySelector('button[title="'+title+'"]')?.disabled})),
+          selection:['selection-mode','selected-face','selected-edges','selected-bodies'].map(name=>[name,viewport?.getAttribute('data-part-'+name)])};
+      })})});
+    await require('./desktop-part-view-remount.cjs')({page,waitFor,check,checks,canonical,cameraFrame,cameraGesture,key,press,tab,idle,recovery,observe,ipc,dialogCounts});
     check(!consoleErrors.length&&!failedRequests.length,'No renderer or resource errors');
     check(protocolResponses.some(p=>/kernel\.worker-[\w-]+\.js$/.test(p.url)&&p.status===200)&&protocolResponses.some(p=>p.url.endsWith('.wasm')&&p.status===200),'Actual production worker and WASM loaded');
     checks.push({savedSha256:digest(savedBytes),phases,drawings,independentOracles:'Original rectangles: base40x30x10; through-hole10x10; mergedboss8x8x3; separatepocket6x4x2. V12000/11000/11192/11144mm3 at1e-5; planar meshA3800/4000/4096/4136mm2 at1e-4; bounds1e-6mm; four-point rectangles1e-9mm. No prepared geometry or imported input.',limits:'Actual pointer strokes and command input; parameter fields assigned via existing controls. Mesh area is not native BRep area; external-window and platform acceptance are separate.'});

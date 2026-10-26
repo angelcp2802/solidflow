@@ -143,13 +143,13 @@ module.exports = function limitAngleWorkflow(context) {
     await click('button[aria-label="Referencia ' + (slot + 1) + ' de la relación"]'); await control('select[aria-label="Cara de referencia"]', selectionKey(selected)); await button('Usar cara en referencia ' + (slot + 1));
   }
   async function pickTop(scene, selected) {
-    await button('Superior', '.assembly-view-tools'); await click('button[aria-label="Referencia 1 de la relación"]');
+    await button('Frontal', '.assembly-view-tools'); await click('button[aria-label="Referencia 1 de la relación"]');
     await waitFor('native angular plane pick mode', () => page(selector => document.querySelector(selector)?.getAttribute('data-reference-picking') === 'face', VIEW));
     await page(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     const rect = await page(selector => { const r = document.querySelector(selector + ' canvas').getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; }, VIEW);
     const center = scene.visibleBounds.min.map((value, i) => (value + scene.visibleBounds.max[i]) / 2), span = Math.hypot(...scene.visibleBounds.max.map((value, i) => value - scene.visibleBounds.min[i])), pixels = rect.height / (1.3 * span);
     // Original moving cap point Rx60*[1,1,2]+[0,0,22], inside its edges.
-    const surfacePoint = [1, .5 - Math.sqrt(3), 23 + Math.sqrt(3) / 2], norm = Math.hypot(1, .0001), screenY = ((surfacePoint[1] - center[1]) + .0001 * (surfacePoint[2] - center[2])) / norm;
+    const surfacePoint = [1, .5 - Math.sqrt(3), 23 + Math.sqrt(3) / 2], screenY = surfacePoint[1] - center[1];
     const point = { x: rect.x + rect.width / 2 + (surfacePoint[0] - center[0]) * pixels, y: rect.y + rect.height / 2 - screenY * pixels };
     check(selected.vertexCount > 0 && selected.triangleCount > 0, 'Actual native angular cap mesh absent.'); const before = await observe();
     await pointer('mouseMoved', point); await pointer('mousePressed', point, 1); await pointer('mouseReleased', point);
@@ -207,7 +207,11 @@ module.exports = function limitAngleWorkflow(context) {
     check(canonical(event.current) === canonical(base.document), 'Strict angular request lost committed base.'); close(event.motion.rotation.angle, (target - xDegrees(old)) * Math.PI / 180, 1e-12, 'Literal strict local-X increment'); await rejected(event, base, label);
   }
   async function drag(base, targetDegrees, wantedDegrees, activity, label) {
-    await selectMoving(); await button('Frontal', '.assembly-view-tools'); await click('button[aria-label="Arrastrar giro"]');
+    await selectMoving(); await button('Ver', '.assembly-main-menus');
+    await waitFor('Bottom view command available', () => page(() => document.querySelector('[data-assembly-command="view-bottom"]')?.disabled === false));
+    await click('[data-assembly-command="view-bottom"]');
+    await waitFor('Bottom view closes its menu', () => page(() => !document.querySelector('.assembly-main-menus [role="menu"]')));
+    await click('button[aria-label="Arrastrar giro"]');
     await page(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     const rect = await page(selector => { const r = document.querySelector(selector + ' canvas').getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; }, VIEW);
     const bounds = base.scene.visibleBounds, old = occurrence(base.document, 'moving').pose, oldDegrees = xDegrees(old), center = bounds.min.map((v, i) => (v + bounds.max[i]) / 2), span = Math.hypot(...bounds.max.map((v, i) => v - bounds.min[i])), pixels = rect.height / (1.3 * span);

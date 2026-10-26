@@ -29,7 +29,11 @@ module.exports = async function projectionWorkflow(context) {
     await waitFor('slider selection reaches controls', () => page(name => document.querySelector('input[aria-label="Nombre del componente"]')?.value === name, right.name));
   }
   async function handle(document, scene) {
-    await button('Frontal', '.assembly-view-tools'); await click('button[aria-label="Arrastrar posición"]');
+    await button('Ver', '.assembly-main-menus');
+    await waitFor('Bottom view command available', () => page(() => document.querySelector('[data-assembly-command="view-bottom"]')?.disabled === false));
+    await click('[data-assembly-command="view-bottom"]');
+    await waitFor('Bottom view closes its menu', () => page(() => !document.querySelector('.assembly-main-menus [role="menu"]')));
+    await click('button[aria-label="Arrastrar posición"]');
     await page(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     // Cancel restores this confirmed scene without issuing another native build.
     // A previous displaced preview must not supply the fitted camera's bounds.
@@ -43,7 +47,7 @@ module.exports = async function projectionWorkflow(context) {
       await pointer('mouseMoved', point);
       if (await page(() => document.querySelector('[aria-label="Visor 3D del ensamblaje"]')?.getAttribute('data-drag-axis')) === 'XZ') return point;
     }
-    throw Error('Actual front-view manipulator did not expose the XZ plane.');
+    throw Error('Actual bottom-view manipulator did not expose the XZ plane.');
   }
   async function gesture() {
     const point = await handle(base, suppressed.response.value), start = await observe.counters(), savedRecovery = await recovery();

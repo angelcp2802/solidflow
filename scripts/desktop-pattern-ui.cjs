@@ -9,6 +9,7 @@ const { createRequire } = require('node:module');
 const { randomUUID, createHash } = require('node:crypto');
 const { spawn } = require('node:child_process');
 const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
+const { dispatchShortcutKey } = require('./desktop-shortcut-key-event.cjs');
 const { emitDesktopCiFailure, markDesktopCiFailureReported } = require('./desktop-ci-diagnostics.cjs');
 const SCENARIOS = Object.freeze({
   'assembly-shortcuts': Object.freeze({ shortcuts: true, originAxes: 'standard', originalRecipe: 'desktop-assembly-origin-axis-lock-original.cjs', entry: 'desktop-assembly-shortcuts.cjs', test: 'production-renderer-assembly-shortcuts', caption: 'standard assembly physical keyboard commands' }),
@@ -966,6 +967,7 @@ async function runInElectron() {
       clickCount: type === 'mouseMoved' ? 0 : clickCount, pointerType: 'mouse',
     }); } finally { endTiming?.(); }
   };
+  const {cameraFrame,cameraGesture}=require('./desktop-camera-input.cjs')({getWindow:()=>window,evaluate,check,digest,allowed:fromEmpty||shortcuts});
   const wheel = async (point, deltaY) => {
     check((fromEmpty || limitDistance || freshSketch) && !window.isVisible() && window.webContents.debugger.isAttached()
       && Number.isFinite(point.x) && Number.isFinite(point.y) && point.x >= 0 && point.y >= 0
@@ -990,27 +992,16 @@ async function runInElectron() {
   };
   // Physical keyboard events only, scoped to owned shortcuts and the fixed from-empty workflow.
   const shortcutKey = async combo => {
-    const combos = { O: ['o',79], S: ['s',83], ShiftS: ['s',83], Z: ['z',90], Y: ['y',89], A: ['a',65], N: ['n',78], '1': ['1',49], '5': ['5',53], '7': ['7',55], F: ['f',70], Escape: ['Escape',27], Tab: ['Tab',9], Backspace: ['Backspace',8] };
-    check((fromEmpty || shortcuts) && !window.isVisible() && window.webContents.debugger.isAttached() && Object.hasOwn(combos,combo), 'Only fixed shortcut keys in owned hidden scenario');
-    const primary=!['F','Escape','Tab','Backspace'].includes(combo), shift=combo.startsWith('Shift'), mac=process.platform==='darwin';
-    const modifier=mac?{key:'Meta',code:'MetaLeft',windowsVirtualKeyCode:91}:{key:'Control',code:'ControlLeft',windowsVirtualKeyCode:17};
-    const flags=(primary?(mac?4:2):0)|(shift?8:0),[key,vk]=combos[combo];
-    const event={key:shift?key.toUpperCase():key,code:/^[a-z]$/.test(key)?'Key'+key.toUpperCase():/^[0-9]$/.test(key)?'Digit'+key:key,windowsVirtualKeyCode:vk,modifiers:flags};
-    let dispatchError;
-    try {
-      if(primary)await window.webContents.debugger.sendCommand('Input.dispatchKeyEvent',{...modifier,type:'rawKeyDown',modifiers:mac?4:2});
-      if(shift)await window.webContents.debugger.sendCommand('Input.dispatchKeyEvent',{key:'Shift',code:'ShiftLeft',windowsVirtualKeyCode:16,type:'rawKeyDown',modifiers:flags});
-      await window.webContents.debugger.sendCommand('Input.dispatchKeyEvent',{...event,type:'rawKeyDown'});
-    } catch (error) { dispatchError=error; }
-    // Attempt every release, even if the main event or another release failed.
-    const releases=[{...event,type:'keyUp'},
-      ...(shift?[{key:'Shift',code:'ShiftLeft',windowsVirtualKeyCode:16,type:'keyUp',modifiers:primary?(mac?4:2):0}]:[]),
-      ...(primary?[{...modifier,type:'keyUp',modifiers:0}]:[])];
-    for(const release of releases){
-      try{await window.webContents.debugger.sendCommand('Input.dispatchKeyEvent',release);}
-      catch(error){dispatchError ??= error;}
-    }
-    if(dispatchError)throw dispatchError;
+    check((fromEmpty || shortcuts) && !window.isVisible() && window.webContents.debugger.isAttached(), 'Only fixed shortcut keys in owned hidden scenario');
+    // Only the two original keyboard-fixture name inputs may receive native
+    // editor commands. Model Undo and modal ownership keep their normal route.
+    const editable = (combo==='A'||combo==='Z') && await evaluate(`(() => {
+      const e=document.activeElement;
+      return e instanceof HTMLInputElement && ['Nombre del componente','Nombre de relación configurada'].includes(e.getAttribute('aria-label'))
+        && !!e.closest('.assembly-app,.configured-assembly-workspace') && !document.querySelector('[role="dialog"]')
+        && !e.disabled && !e.readOnly && !e.closest('[hidden]') && e.checkVisibility() && e.getClientRects().length>0;
+    })()`);
+    await dispatchShortcutKey(combo,{platform:process.platform,editable,send:event=>window.webContents.debugger.sendCommand('Input.dispatchKeyEvent',event)});
   };
   const shortcutText = async value => {
     check(shortcuts && !window.isVisible() && window.webContents.debugger.isAttached() && ['Keyboard renamed','native undo probe','Saved before New'].includes(value), 'Only fixed original text for native editing acceptance');
@@ -1229,7 +1220,7 @@ async function runInElectron() {
   };
   // The extra workflow is a fixed tracked module, never a caller/env-selected script.
   const actualWorkflow = fromEmpty
-    ? require('./desktop-part-from-empty-flow.cjs')({ expected, output, evaluate, observe, waitFor, click, pointer, wheel, menu, capture, key: shortcutKey,
+    ? require('./desktop-part-from-empty-flow.cjs')({ expected, output, evaluate, observe, waitFor, click, pointer, wheel, menu, capture, cameraFrame, cameraGesture, key: shortcutKey,
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
     : basicAuthoring
@@ -1259,7 +1250,7 @@ async function runInElectron() {
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, geometryExports }) })
     : originAxes
-    ? require(shortcuts ? './desktop-assembly-shortcuts-flow.cjs' : activeScenario.originLock ? './desktop-assembly-origin-axis-lock-flow.cjs' : './desktop-assembly-origin-axes-flow.cjs')({ configured: originAxes === 'configured', expected, input, output, shortcutOutput, shortcutKey, shortcutText, evaluate, observe, waitFor, click, pointer, menuKey, asideWheel, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
+    ? require(shortcuts ? './desktop-assembly-shortcuts-flow.cjs' : activeScenario.originLock ? './desktop-assembly-origin-axis-lock-flow.cjs' : './desktop-assembly-origin-axes-flow.cjs')({ configured: originAxes === 'configured', expected, input, output, shortcutOutput, shortcutKey, shortcutText, cameraFrame, cameraGesture, evaluate, observe, waitFor, click, pointer, menuKey, asideWheel, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : configuredCompound
     ? require('./desktop-assembly-configured-compound-flow.cjs')({ family: configuredCompound, profileKind: activeScenario.profileKind, expected, input, output, evaluate, observe, waitFor, click, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, completePendingSave, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : configuredMechanical

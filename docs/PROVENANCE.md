@@ -1,5 +1,38 @@
 # Public fixture provenance
 
+## View navigation evidence
+
+Camera navigation reuses the original part authored below and the existing
+two-prism assembly keyboard recipes. It adds no imported geometry or vendor
+assets. Expected orthographic camera directions and up vectors are independently
+declared in the mathematical tests; the isometric basis must give equal
+foreshortening to all three principal axes.
+
+The production-renderer route sends actual key and middle-pointer events. Its
+read-only image comparison captures the interior 12–88% of canvas width and
+20–80% of height, waits for a stable frame, and checks exact pixel restoration
+after Previous outside visible HTML origin-label text rectangles. Those bounded
+rectangles are excluded without changing the DOM or rendered image;
+their identities, text, state, rectangles, raw hash and remaining pixel count
+are retained. At least 90% of the crop must remain unmasked. All unmasked
+pixels remain exact. It also checks existing projected SVG origin anchors within
+0.11 CSS pixels when present. Neither the expected pixels nor camera matrices
+are injected. Pixel equality proves restoration of this crop; it is not an
+independent proof of the seven absolute orientations or native geometry.
+Fit recomputes framing rather than restoring a snapshot: its renderer check
+requires a visible change from zoom and recovery of available projected anchors
+within 0.11 CSS pixels. Independent camera tests check its numerical framing;
+Fit is not required to reproduce the preset's bitmap. Previous retains exact
+unmasked pixel comparisons after every tested gesture and after Fit.
+
+Original gesture strokes travel 60 CSS pixels horizontally and 24 vertically
+in six steps from a hit-tested canvas position. Pan adds Shift; wheel zoom
+uses one -160 delta. The tests preserve document/history/selection/file state.
+The separate part sketch round trip admits draft/rebuild worker records while
+requiring the original committed recipe and its prior 3D framing to survive.
+File dialogs remain test-owned; native-window and hosted-platform evidence
+must be recorded separately.
+
 ## Part authoring from an empty document
 
 `scripts/desktop-part-from-empty-flow.cjs` defines an original analytical
@@ -2036,18 +2069,19 @@ The 12 prisms, two spheres and four cylinders give independent total volume
 be checked using all eight transformed prism corners, sphere centre plus/minus
 radius and cylinder endpoint extrema plus `R*sqrt(1-axisCoordinate²)`.
 
-The authored pointer oracle uses the existing Isometric view, whose eye
-direction is `(1,-1.3,1)`. For actual visible-bound centre C, diagonal S
+The authored pointer oracle uses the Isometric view, whose eye
+direction is `(1,1,1)`, with world +Y up. For actual visible-bound centre C, diagonal S
 clamped to at least one mm, CSS canvas height H and relative point `(dx,dy,dz)`,
 the independent projection has scale `k=H/(1.3*S)`, horizontal displacement
-`k*(1.3*dx+dy)/sqrt(2.69)` and upward displacement
-`k*(-dx+1.3*dy+2.69*dz)/sqrt(9.9261)`. Canvas left/top and half its CSS
+`k*(dx-dz)/sqrt(2)` and upward displacement
+`k*(-dx+2*dy-dz)/sqrt(6)`. Canvas left/top and half its CSS
 width/height supply the pixel origin; no hidden camera or selected-reference
 state supplies expected pixels. Geometric click candidates are the prism
-corner `(4,0,4)`, LINE midpoint `(4,0,2)`, planar interior `(4,0.6,2)`,
-sphere centre plus `2*(1,-1.3,1)/sqrt(3.69)` and cylindrical side point
-`(2/sqrt(2.69),-2.6/sqrt(2.69),2) mm`, transformed by the actual owner pose.
-The low-Y planar point avoids same-row occlusion from the target in this view.
+corner `(4,0,4)`, LINE interior `(4,0,3.5)`, planar interior `(4,5.4,2)`,
+sphere centre plus `2*(1,1,1)/sqrt(3)` and cylindrical side point
+`(2/sqrt(2),2/sqrt(2),2) mm`, transformed by the actual owner pose.
+The high-Y planar point and LINE point above Z=3 avoid same-row prism
+occlusion in this view, retaining the original native plane and edge identities.
 
 This records original geometry and a selection plan, not an executed pointer
 result. Actual event delivery, selected current identities, occlusion and
@@ -2403,10 +2437,13 @@ retain the mixed-sign/difference behavior.
 
 The follow-up clicks all four faces through actual CDP mouse input in its
 hidden test-owned Electron window. Target face interiors use original local
-coordinates `(2,-2.4,2) mm`, original occurrence translations and the ordinary
+coordinates `(2,2.4,2) mm`, original occurrence translations and the ordinary
 isometric preset. The projection is independently calculated from that preset's
-literal direction `(1,-1.3,1)`, source bounds and the actual canvas rectangle;
-it reads or writes no camera object. Expected face identity is found by source
+literal direction `(1,1,1)` with world +Y up, source bounds and the actual canvas
+rectangle. Its orthonormal screen basis is `(1,0,-1)/sqrt(2)` right and
+`(-1,2,-1)/sqrt(6)` up. The +Y face interiors avoid neighboring-prism occlusion
+while retaining the same positive-X faces; the projection reads or writes no
+camera object. Expected face identity is found by source
 occurrence and signed native normal, never a retained face index. Each click
 must select only its assigned role, preserve committed recovery and perform no
 CAD operation. A same-face reselection during editing must additionally close
@@ -7416,8 +7453,15 @@ placement is [20,0,8] mm with Rx(−90 degrees), keeping both caps selectable.
 Six actual CDP face clicks select two R1 cylinder axes, the ground z4/moving z0
 caps and two material +X planes at local x10. A staged current LINE selection is
 restored to the original cylinder before authoring; an eighth hit reselects the
-moving angular plane during editing. The original isometric camera projection
-uses the current canvas rectangle and original material points. Full current
+moving angular plane during editing. The isometric projection uses the current
+canvas rectangle and independent screen bases `(1,0,-1)/sqrt(2)` right and
+`(-1,2,-1)/sqrt(6)` up. Cylinder-wall points are ground
+`(-1/sqrt(2),-1/sqrt(2),3.5)` and moving local
+`(-1/sqrt(2),1/sqrt(2),3.5) mm`; their eye rays leave the Z=4 openings at
+radius `1-1/sqrt(2)<1 mm`. The same moving local Z=0 cap faces global -Y,
+so the actual Inferior command (eye -Y, up +Z) exposes its unchanged local
+point `(5,0,0)`, world `(25,0,8) mm`, clear of the ground leaf's X<=10 extent.
+Full current
 owner/body/producer/reference option identities must match after each click;
 the other five fields, recovery bytes and worker serial remain unchanged.
 
@@ -7430,7 +7474,7 @@ React callbacks or replace documents, CAD responses or worker capabilities.
 
 After actual six-role authoring, the explicit start330/sweep60-degree arc bounds
 physical Z spin by [−30,30] degrees under either observed cylinder guide sign.
-The initial solved free roll is observed rather than prescribed. A frontal view
+The initial solved free roll is observed rather than prescribed. The Inferior view
 keeps local Z perpendicular to the view ray. Two actual horizontal held moves
 produce distinct trusted DOM clientX values and posted request poses, which
 calibrate the final third pointer input. No solved pose or reported phase enters

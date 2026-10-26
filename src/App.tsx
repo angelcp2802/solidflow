@@ -1,3 +1,6 @@
+import { useViewHistory } from './components/useViewHistory'
+import { standardViews, viewShortcutCommand, type ViewName } from './components/viewNavigation'
+import { ViewOrientationControls } from './components/ViewOrientationControls'
 import { requestNewDocument, useNewDocumentDialog } from './components/useNewDocumentDialog';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
@@ -52,7 +55,7 @@ import {
   CopyPlus,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import Viewport, { type ViewName } from "./components/Viewport";
+import Viewport from "./components/Viewport";
 import type { PartSelectionMode } from "./components/partSelection";
 import SketchCanvas from "./components/SketchCanvas";
 import AssemblyMenuBar, { type AssemblyMenuDefinition } from "./components/AssemblyMenuBar";
@@ -437,6 +440,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
   const [tab, setTab] = useState("Operaciones"),
     [display, setDisplay] = useState<"shaded" | "edges" | "wire">("edges"),
     [grid, setGrid] = useState(false);
+  const viewHistory = useViewHistory();
   const [view, setView] = useState<{ name: ViewName; stamp: number }>({
       name: "iso",
       stamp: 0,
@@ -776,7 +780,14 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     setDoc(history.current!.apply(next));
     setError("");
   };
-  const changeView = (name: ViewName) => setView({ name, stamp: Date.now() });
+  const [sketchFitStamp, setSketchFitStamp] = useState(0);
+  const viewIs2D = editing?.type === 'sketch' && !pickingSupport || placingHoles;
+  const changeView = (name: ViewName) => {
+    if (viewHistory.navigating) return;
+    if (name === 'previous' && (!viewHistory.canPrevious || viewIs2D)) return;
+    if (viewIs2D) { if (name === 'fit') setSketchFitStamp(stamp => stamp + 1); return; }
+    setView(previous => ({ name, stamp: previous.stamp + 1 }));
+  };
   useEffect(() => {
     initKernel()
       .then(() => setReady(true))
@@ -884,6 +895,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
   );
   const reset = (next: Document, path?: string, markSaved = false) => {
     documentEpoch.current++;
+    viewHistory.reset();
     preservedRecovery.current = null;
     browserOpenSource.current = null;
     editTreeReturn.current = null;
@@ -910,7 +922,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     setFilePath(path);
     setSaved(markSaved ? serializeDocument(next) : "");
     setError("");
-    changeView("iso");
+    setView(previous => ({ name: "iso", stamp: previous.stamp + 1 }));
   };
   const finishDiscard = (accepted: boolean) => {
     const resolve = discardDecision.current;
@@ -2161,6 +2173,13 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
         cancelActiveEdit();
         return;
       }
+      const requestedView = viewShortcutCommand(e, input);
+      if (requestedView) {
+        if (document.querySelector('[role="menu"]')) return;
+        e.preventDefault();
+        if (!e.repeat) changeView(requestedView);
+        return;
+      }
       if (e.ctrlKey || e.metaKey) {
         const key = e.key.toLowerCase();
         if (input && (key === "z" || key === "y")) return;
@@ -2169,21 +2188,8 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
           if (key === "s") void saveDoc(e.shiftKey);
           if (key === "o") void openDoc();
           if (key === "n") newDoc();
-          if (key === "z") e.shiftKey ? redo() : undo();
+          if (key === "z" && !e.shiftKey) undo();
           if (key === "y") redo();
-        }
-        const views: Record<string, ViewName> = {
-          "1": "front",
-          "2": "back",
-          "3": "left",
-          "4": "right",
-          "5": "top",
-          "6": "bottom",
-          "7": "iso",
-        };
-        if (views[key]) {
-          e.preventDefault();
-          changeView(views[key]);
         }
       } else if (!input) {
         if (e.key === "Escape") {
@@ -2192,7 +2198,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
             setSketchSelection([]);
           } else cancelEdit();
         }
-        if (e.key.toLowerCase() === "f") changeView("fit");
+
         if (e.key === "Delete") deleteSelected();
       }
     };
@@ -2427,6 +2433,9 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
   };
   const disabledMenuCommands: Record<string, boolean> = {
     "Nuevo…": newDocumentBlocked,
+    "Vista anterior": !viewHistory.canPrevious || viewIs2D,
+    "Ajustar a pantalla": viewHistory.navigating,
+    ...Object.fromEntries(standardViews.map(view => [view.label, !!viewIs2D || viewHistory.navigating])),
     "Nuevo ensamblaje vacío": newDocumentBlocked,
     "Crear ensamblaje con esta pieza": !canCreateAssemblyFromPart,
     "Importar STEP…": !!editing || importing || exporting,
@@ -2476,9 +2485,8 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     },
     {
       id: "view", label: "Ver", items: [
-        ["Isométrica", "Ctrl+7", () => changeView("iso")],
-        ["Frontal", "Ctrl+1", () => changeView("front")],
-        ["Superior", "Ctrl+5", () => changeView("top")],
+        ...standardViews.map(({ name, label, shortcut }): [string, string, () => void] => [label, shortcut, () => changeView(name)]),
+        ["Vista anterior", "Ctrl+Shift+Z", () => changeView("previous")],
         ["Ajustar a pantalla", "F", () => changeView("fit")],
         ["Cuadrícula", "", () => setGrid(!grid)],
         ["Planos de referencia", "", () => setShowPlanes(!showPlanes)],
@@ -3825,25 +3833,30 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
         </aside>
         <section className="graphics-area">
           <div className="viewport-toolbar">
+            <ViewOrientationControls onView={changeView} canPrevious={viewHistory.canPrevious} disabled={!!viewIs2D || viewHistory.navigating} />
             <IconButton
               icon={Maximize}
               title="Ajustar a pantalla (F)"
+              disabled={viewHistory.navigating}
               onClick={() => changeView("fit")}
             />
             <i />
             <IconButton
               icon={Box}
               title="Vista isométrica (Ctrl+7)"
+              disabled={!!viewIs2D || viewHistory.navigating}
               onClick={() => changeView("iso")}
             />
             <IconButton
               icon={Square}
               title="Vista frontal (Ctrl+1)"
+              disabled={!!viewIs2D || viewHistory.navigating}
               onClick={() => changeView("front")}
             />
             <IconButton
               icon={Layers}
               title="Vista superior (Ctrl+5)"
+              disabled={!!viewIs2D || viewHistory.navigating}
               onClick={() => changeView("top")}
             />
             <i />
@@ -3916,7 +3929,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                 setSketchSelection(next);
               }}
               solution={sketchSolution}
-              fitStamp={view.stamp}
+              fitStamp={sketchFitStamp}
               chamferPreview={sketchTool === "chamfer" ? chamferPreview : null}
               filletPreview={sketchTool === "fillet" ? filletPreview : null}
               mirrorPreview={sketchTool === "mirror" ? mirrorPreview : null}
@@ -3939,7 +3952,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                     : holeEditing.head.diameter
                 }
                 referenceLines={holeReferenceLines}
-                fitStamp={view.stamp}
+                fitStamp={sketchFitStamp}
                 plane={sketchPlaneShortLabel}
               />
             ) : (
@@ -3953,6 +3966,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
             <Viewport
               model={visibleModel}
               view={view}
+              viewHistory={viewHistory}
               display={display}
               grid={grid}
               selected={
@@ -4139,7 +4153,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                 ? sketchPlaneShortLabel
                 : view.name === "iso"
                   ? "Isométrica"
-                  : view.name === "fit"
+                  : view.name === "fit" || view.name === "previous"
                     ? "Vista de modelo"
                     : {
                         front: "Frontal",

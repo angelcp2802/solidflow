@@ -220,13 +220,17 @@ it('keeps configured viewport commands inside the canvas with their exact access
   expect(view).toBeGreaterThan(-1)
   expect(nav).not.toBeNull()
   expect(nav!.index).toBeGreaterThan(view)
+  const orientation = nav![1].match(/<select\b[^>]*aria-label="Orientación de vista"[^>]*>([\s\S]*?)<\/select>/)
+  expect(orientation).not.toBeNull()
+  expect([...orientation![1].matchAll(/<option value="([^"]+)"/g)].map(value => value[1])).toEqual(['front', 'back', 'left', 'right', 'top', 'bottom', 'iso'])
+  expect(nav![1]).toMatch(/<button(?=[^>]*aria-label="Vista anterior")(?=[^>]*disabled="")[^>]*>/)
   const buttons = nav![1].match(/<button\b[^>]*>[\s\S]*?<\/button>/g) ?? []
   expect(buttons.map(button => {
     // Match the whole button: one text-free SVG, then its only text label.
     const content = button.match(/^<button\b[^>]*><svg\b(?=[^>]*\baria-hidden="true")[^>]*>(?:<(path|circle|rect|line|polyline|polygon|ellipse)\b[^>]*><\/\1>)+<\/svg><span class="compact-viewport-label">([^<]*)<\/span><\/button>$/)
     expect(content).not.toBeNull()
     return content![2]
-  })).toEqual(['Isométrica', 'Frontal', 'Superior', 'Ajustar'])
+  })).toEqual(['Vista anterior', 'Isométrica', 'Frontal', 'Superior', 'Ajustar'])
   for (const button of buttons) {
     expect(button).toContain('class="compact-viewport-label"')
     expect(button).toMatch(/<svg\b[^>]*aria-hidden="true"/)

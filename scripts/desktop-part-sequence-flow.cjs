@@ -304,8 +304,38 @@ module.exports = function partSequenceWorkflow(context) {
       await menuKey('Escape');
       await waitFor('part menu Escape closes and restores trigger: '+id,()=>evaluate(`!document.querySelector('.part-main-menus [role="menu"]')&&document.activeElement===document.querySelector('[data-assembly-menu="${id}"]')`));
     };
-    await open('view');await menuKey('ArrowDown');
-    await waitFor('part menu real Down focuses Front',()=>evaluate(`document.activeElement?.getAttribute('role')==='menuitem'&&document.activeElement.textContent.trim().startsWith('Frontal')`));
+    await open('view');
+    const viewItems=await page(()=>[...document.querySelectorAll('.part-main-menus [role="menu"] > button')].map(e=>({
+      index:Number(e.dataset.menuIndex),label:e.querySelector('span:not(.assembly-menu-check)')?.textContent,
+      shortcut:e.querySelector('kbd')?.textContent??'',role:e.getAttribute('role'),disabled:e.disabled,
+    })));
+    const expectedViews=[['Frontal','Ctrl+1'],['Posterior','Ctrl+2'],['Izquierda','Ctrl+3'],['Derecha','Ctrl+4'],
+      ['Superior','Ctrl+5'],['Inferior','Ctrl+6'],['Isométrica','Ctrl+7'],['Vista anterior','Ctrl+Shift+Z'],
+      ['Ajustar a pantalla','F'],['Cuadrícula',''],['Planos de referencia','']];
+    check(canonical(viewItems.map(({index,label,shortcut,role})=>({index,label,shortcut,role})))===canonical(expectedViews.map(([label,shortcut],index)=>({
+      index,label,shortcut,role:index<9?'menuitem':'menuitemcheckbox',
+    }))),'Live cut View menu exposes all seven orientations, Previous, Fit and display commands in their declared order');
+    const previousDisabled=await page(()=>{
+      const buttons=document.querySelectorAll('button[aria-label="Vista anterior"]');
+      if(buttons.length!==1)throw Error('One existing Previous View toolbar command required');
+      return buttons[0].disabled;
+    });
+    check(viewItems.every(item=>item.disabled===(item.index===7&&previousDisabled)),
+      'Live cut view browsing remains enabled and Previous matches its current toolbar availability');
+    const focus=async(index,label)=>waitFor('part menu real focus: '+label,()=>page((index,label)=>{
+      const popup=document.querySelector('.part-main-menus [role="menu"]'),e=document.activeElement;
+      return !!popup&&popup.contains(e)&&e.matches('button:not(:disabled)')&&Number(e.dataset.menuIndex)===index
+        &&e.querySelector('span:not(.assembly-menu-check)')?.textContent===label;
+    },index,label));
+    const viewKeys=[],enabledViews=expectedViews.map(([label],index)=>({index,label})).filter(item=>item.index!==7||!previousDisabled);
+    await focus(0,'Frontal');
+    for(const item of enabledViews.slice(1)){
+      await menuKey('ArrowDown');viewKeys.push('ArrowDown');await focus(item.index,item.label);
+    }
+    await menuKey('ArrowDown');viewKeys.push('ArrowDown');await focus(0,'Frontal');
+    await menuKey('ArrowUp');viewKeys.push('ArrowUp');await focus(10,'Planos de referencia');
+    await menuKey('Home');viewKeys.push('Home');await focus(0,'Frontal');
+    await menuKey('End');viewKeys.push('End');await focus(10,'Planos de referencia');
     await escape('view');
     check(canonical(await snapshot())===canonical(original),'Menu Escape preserves live cut depth, fields, body references and committed recovery');
     await open('insert');
@@ -319,7 +349,7 @@ module.exports = function partSequenceWorkflow(context) {
     await menuKey('Tab');
     await waitFor('part menu Tab reaches quick actions in shared header',()=>evaluate(`!document.querySelector('.part-main-menus [role="menu"]')&&!!document.activeElement?.closest('.command-header .quick-actions')`));
     check(canonical(await snapshot())===canonical(original)&&(await observe()).serial===before.serial,'Menu navigation preserves the cut draft without another native build');
-    records.push({phase:'live-cut-menu-keyboard',keys:['ArrowDown','Escape','Escape','Tab'],draftRetained:true,insertGuards:true,serial:before.serial});
+    records.push({phase:'live-cut-menu-keyboard',keys:[...viewKeys,'Escape','Escape','Tab'],viewItems,draftRetained:true,insertGuards:true,serial:before.serial});
   }
   return async () => {
     await waitFor('part file control ready',()=>evaluate(`document.querySelector('.statusbar')?.textContent.includes('Listo') && typeof window.solidflow?.openDocument==='function' && !!document.querySelector('button[aria-label="Abrir (Ctrl+O)"]')`),initialReadyMs);

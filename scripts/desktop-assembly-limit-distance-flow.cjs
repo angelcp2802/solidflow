@@ -138,13 +138,13 @@ module.exports = function limitDistanceWorkflow(context) {
     await click('button[aria-label="Referencia ' + (slot + 1) + ' de la relación"]'); await control('select[aria-label="Cara de referencia"]', selectionKey(selected)); await button('Usar cara en referencia ' + (slot + 1));
   }
   async function pickTop(scene, selected) {
-    await button('Superior', '.assembly-view-tools'); await click('button[aria-label="Referencia 1 de la relación"]');
+    await button('Frontal', '.assembly-view-tools'); await click('button[aria-label="Referencia 1 de la relación"]');
     await waitFor('native plane pointer mode', () => page(selector => document.querySelector(selector)?.getAttribute('data-reference-picking') === 'face', VIEW));
     await page(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     const rect = await page(selector => { const r = document.querySelector(selector + ' canvas').getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; }, VIEW);
     const center = scene.visibleBounds.min.map((value, i) => (value + scene.visibleBounds.max[i]) / 2), span = Math.hypot(...scene.visibleBounds.max.map((value, i) => value - scene.visibleBounds.min[i])), pixels = rect.height / (1.3 * span);
     // The top camera has the product's small Y tilt; project the literal point in that frame.
-    const surfacePoint = [1, 1, 24], norm = Math.hypot(1, .0001), screenY = ((surfacePoint[1] - center[1]) + .0001 * (surfacePoint[2] - center[2])) / norm;
+    const surfacePoint = [1, 1, 24], screenY = surfacePoint[1] - center[1];
     const point = { x: rect.x + rect.width / 2 + (surfacePoint[0] - center[0]) * pixels, y: rect.y + rect.height / 2 - screenY * pixels };
     check(Number.isSafeInteger(selected.vertexCount) && selected.vertexCount > 0 && Number.isSafeInteger(selected.triangleCount) && selected.triangleCount > 0, 'Native top plane has no actual display mesh.');
     const before = await observe(); await pointer('mouseMoved', point); await pointer('mousePressed', point, 1); await pointer('mouseReleased', point);
@@ -191,7 +191,11 @@ module.exports = function limitDistanceWorkflow(context) {
     check(canonical(event.current) === canonical(base.document) && event.motion.translation[2] === z && event.motion.rotation.angle === 0, 'Strict numeric movement request changed.'); await rejected(event, base, label);
   }
   async function drag(base, targetZ, wantedZ, activity, label) {
-    await selectMoving(); await button('Frontal', '.assembly-view-tools'); await click('button[aria-label="Arrastrar posición"]');
+    await selectMoving(); await button('Ver', '.assembly-main-menus');
+    await waitFor('Bottom view command available', () => page(() => document.querySelector('[data-assembly-command="view-bottom"]')?.disabled === false));
+    await click('[data-assembly-command="view-bottom"]');
+    await waitFor('Bottom view closes its menu', () => page(() => !document.querySelector('.assembly-main-menus [role="menu"]')));
+    await click('button[aria-label="Arrastrar posición"]');
     await page(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     const rect = await page(selector => { const r = document.querySelector(selector + ' canvas').getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; }, VIEW);
     // Observe real DOM input coordinates. CDP's issued doubles may be rounded
@@ -257,7 +261,7 @@ module.exports = function limitDistanceWorkflow(context) {
     // Retain bounded real-input/DOM observations even when acquisition fails.
     acquisition.input = await page(() => window.__solidflowLimitInputObservation.snapshot());
     acquisition.acquired = !!point;
-    check(!!point, 'Actual front-view Z manipulator handle absent.'); const before = await observe(), recoveryBefore = await page(() => localStorage.getItem('solidflow.autosave'));
+    check(!!point, 'Actual bottom-view Z manipulator handle absent.'); const before = await observe(), recoveryBefore = await page(() => localStorage.getItem('solidflow.autosave'));
     await pointer('mousePressed', point, 1); await waitFor('pointer-down blocks Apply', () => page(apply => document.querySelector('.assembly-app')?.getAttribute('aria-busy') === 'true' && document.querySelector(apply)?.disabled === true, APPLY));
     // Calibrate the held Z handle from actual POSTED pointer targets. The
     // orthographic mapping is affine, but the DOM/camera screen scale need not
@@ -285,7 +289,7 @@ module.exports = function limitDistanceWorkflow(context) {
         workerSerial: request.serial, requestedPose: request.drag.pose });
     }
     const first = samples[0], second = samples[1], slope = (second.requestedPose.translation[2] - first.requestedPose.translation[2]) / (second.clientPoint.y - first.clientPoint.y);
-    check(first.workerSerial !== second.workerSerial && Number.isFinite(slope) && slope < 0, 'Held Z pointer calibration is not a distinct finite front-view mapping.');
+    check(first.workerSerial !== second.workerSerial && Number.isFinite(slope) && slope < 0, 'Held Z pointer calibration is not a distinct finite bottom-view mapping.');
     const finalPoint = { x: point.x, y: second.clientPoint.y + (targetZ - second.requestedPose.translation[2]) / slope };
     check(Number.isFinite(finalPoint.x) && Number.isFinite(finalPoint.y) && finalPoint.x >= 0 && finalPoint.y >= 0, 'Calibrated literal pointer target is not a finite global input coordinate.');
     calibration = { method: 'two-posted-target-affine', coordinateSource: 'actual-dom-client', samples, slope, finalPoint };

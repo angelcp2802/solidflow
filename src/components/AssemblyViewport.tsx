@@ -1,3 +1,4 @@
+import { bindViewNavigation, createViewHistory, type ViewHistory, type ViewRequest } from './viewNavigation'
 import { configureCadNavigation, createCadSelectionGesture } from './cadNavigation'
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import * as THREE from 'three'
@@ -196,7 +197,8 @@ export interface AssemblyViewportProps {
   onDragTarget?: (worldPose: RigidPose) => void
   onDragEnd?: () => void
   onDragCancel?: () => void
-  view?: { name: 'iso' | 'front' | 'top' | 'fit'; stamp: number }
+  view?: ViewRequest
+  viewHistory?: ViewHistory
   onComponent: (component: AssemblyComponentReference | null) => void
   onFace: (face: AssemblySceneFace | null) => void
   onEdge?: (edge: AssemblySceneEdge | null) => void
@@ -204,16 +206,18 @@ export interface AssemblyViewportProps {
   onContextTarget?: (target: AssemblyViewportContextTarget) => void
 }
 export default function AssemblyViewport(props: AssemblyViewportProps) {
+  const localViewHistory = useRef(createViewHistory())
+  const navigationHistory = props.viewHistory ?? localViewHistory.current
   const host = useRef<HTMLDivElement>(null), input = useRef(props); input.current = props
   const [dragAxis, setDragAxis] = useState<string | null>(null)
   const [originLabelState, setOriginLabelState] = useState(() => ({ layout: layoutAssemblyOriginLabels([], { width: 0, height: 0 }, { topInset: props.originLabelTopInset }), signature: '', width: 0, height: 0, topInset: props.originLabelTopInset ?? 0 }))
   const originLabelFrame = useRef(''), originLabelPress = useRef<{ key: string; signature: string } | null>(null)
   const originFrame = useRef('')
   const originCatalog = (value: AssemblyViewportProps) => JSON.stringify([value.originReferences, value.scene?.visibleBounds])
-  const context = useRef<{ scene: AssemblyScene | null; group: THREE.Group; analysis: THREE.Group; markers: THREE.Group; clearHover: () => void; camera: THREE.OrthographicCamera; controls: OrbitControls; bodies: AssemblyPickBody[]; faces: AssemblyPickFace[]; edges: AssemblyPickEdge[]; fit: () => void; highlight: () => void; syncDrag: () => void } | null>(null)
+  const context = useRef<{ scene: AssemblyScene | null; group: THREE.Group; analysis: THREE.Group; markers: THREE.Group; clearHover: () => void; camera: THREE.OrthographicCamera; controls: OrbitControls; bodies: AssemblyPickBody[]; faces: AssemblyPickFace[]; edges: AssemblyPickEdge[]; fit: () => void; navigation: ReturnType<typeof bindViewNavigation>; highlight: () => void; syncDrag: () => void } | null>(null)
   useEffect(() => {
     const element = host.current!, world = new THREE.Scene(), group = new THREE.Group(), analysis = new THREE.Group(), markers = new THREE.Group(), origins = new THREE.Group()
-    const camera = new THREE.OrthographicCamera(-80, 80, 60, -60, .01, 100000); camera.up.set(0, 0, 1); camera.position.set(100, -130, 100)
+    const camera = new THREE.OrthographicCamera(-80, 80, 60, -60, .01, 100000); camera.up.set(0, 1, 0); camera.position.set(100, 100, 140)
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); renderer.setClearColor(0xffffff, 0)
     element.appendChild(renderer.domElement); world.add(group, analysis, markers, origins)
     world.add(new THREE.HemisphereLight(0xffffff, 0x647e98, 2.4)); const light = new THREE.DirectionalLight(0xffffff, 2.5); light.position.set(70, -80, 120); world.add(light)
@@ -221,7 +225,7 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
     const transform = new TransformControls(camera, renderer.domElement), proxy = createAssemblyDragProxy(identityRigidPose())
     const helper = transform.getHelper(); world.add(proxy, helper); transform.enabled = false
     transform.setSize(.9)
-    const controls = new OrbitControls(camera, renderer.domElement); controls.enableDamping = true; controls.screenSpacePanning = true
+    let controls = new OrbitControls(camera, renderer.domElement); controls.enableDamping = true; controls.screenSpacePanning = true
     configureCadNavigation(controls)
     const selectionGesture = createCadSelectionGesture()
     let acceptedGesture = false, dragConsumed = false
@@ -257,11 +261,11 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
     }
     const axisChanged = () => setDragAxis(transform.axis)
     const keyDown = (event: KeyboardEvent) => { if (event.key === 'Escape' && acceptedGesture) { event.preventDefault(); cancelDrag() } }
-    const pointerCancel = () => { selectionGesture.cancel(); contextPress = null; cancelDrag() }
+    const pointerCancel = () => { selectionGesture.cancel(); contextPress = null; cancelDrag(); navigation.cancelGesture() }
     transform.addEventListener('mouseDown', dragStart); transform.addEventListener('objectChange', dragTarget)
     transform.addEventListener('mouseUp', dragEnd); transform.addEventListener('axis-changed', axisChanged)
     window.addEventListener('keydown', keyDown); window.addEventListener('blur', pointerCancel); renderer.domElement.addEventListener('pointercancel', pointerCancel)
-    const fit = () => {
+    const fitRaw = () => {
       let bounds = input.current.scene?.visibleBounds
       const ghosts = input.current.scene?.bodies.filter(body => !body.visible && assemblyAnalysisBodySelected(body, input.current.selectedAnalysisPair)) ?? []
       if (ghosts.length) {
@@ -273,12 +277,23 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
       if (!bounds) return
       const center = new THREE.Vector3(...bounds.min).add(new THREE.Vector3(...bounds.max)).multiplyScalar(.5)
       const span = Math.max(1, new THREE.Vector3(...bounds.max).sub(new THREE.Vector3(...bounds.min)).length())
-      const direction = camera.position.clone().sub(controls.target).normalize(); if (direction.lengthSq() === 0) direction.set(1, -1, 1).normalize()
+      const direction = camera.position.clone().sub(controls.target).normalize(); if (direction.lengthSq() === 0) direction.set(1, 1, 1).normalize()
       controls.target.copy(center); camera.position.copy(center).addScaledVector(direction, span * 2)
       const aspect = Math.max(element.clientWidth, 1) / Math.max(element.clientHeight, 1)
       camera.top = span * .65; camera.bottom = -camera.top; camera.right = camera.top * aspect; camera.left = -camera.right
       camera.near = Math.max(.001, span * .001); camera.far = span * 20; camera.zoom = 1; camera.updateProjectionMatrix(); controls.update()
     }
+    const navigation = bindViewNavigation(navigationHistory, camera, controls, fitRaw, () => Math.max(element.clientWidth, 1) / Math.max(element.clientHeight, 1), () => {
+      const position = camera.position.clone(), target = controls.target.clone(), enabled = controls.enabled, damping = controls.dampingFactor
+      controls.removeEventListener('start', pointerLeave); controls.dispose()
+      controls = new OrbitControls(camera, renderer.domElement)
+      configureCadNavigation(controls); controls.enableDamping = true; controls.dampingFactor = damping; controls.enabled = enabled
+      controls.target.copy(target); camera.position.copy(position); camera.lookAt(target); camera.updateMatrixWorld()
+      controls.addEventListener('start', pointerLeave)
+      if (context.current) context.current.controls = controls
+      return controls
+    })
+    const fit = () => navigation.automatic(fitRaw)
     let hovered: string | null = null, hoveredEdge: string | null = null, hoveredVertex: string | null = null, hoveredOrigin: string | null = null, originVisualSignature = '', labelSignature = '', displayedOriginCatalog = '', originPressCatalog = ''
     const clearHover = () => { hovered = null; hoveredEdge = null; hoveredVertex = null; hoveredOrigin = null }
     const highlight = () => {
@@ -313,10 +328,10 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
         material.resolution.set(element.clientWidth, element.clientHeight)
       })
     }
-    context.current = { scene: null, group, analysis, markers, clearHover, camera, controls, bodies: [], faces: [], edges: [], fit, highlight, syncDrag }
+    context.current = { navigation, scene: null, group, analysis, markers, clearHover, camera, controls, bodies: [], faces: [], edges: [], fit, highlight, syncDrag }
     const size = () => ({ width: element.clientWidth, height: element.clientHeight })
     const renderFrame = () => {
-      controls.update(); renderer.render(world, camera)
+      controls.update(); navigation.afterUpdate(); renderer.render(world, camera)
       presentedScene = context.current?.scene ?? null
       originFrame.current = displayedOriginCatalog
       const width = element.clientWidth, height = element.clientHeight
@@ -401,7 +416,7 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
       frame = requestAnimationFrame(draw)
     }; draw()
     return () => {
-      cancelAnimationFrame(frame); resize.disconnect(); cancelDrag(); controls.removeEventListener('start', pointerLeave); controls.dispose()
+      cancelAnimationFrame(frame); resize.disconnect(); cancelDrag(); controls.removeEventListener('start', pointerLeave); navigation.dispose(); controls.dispose()
       window.removeEventListener('blur', pointerLeave); renderer.domElement.removeEventListener('pointercancel', pointerLeave)
       disposeAssemblyVertexMarkers(markers)
       transform.removeEventListener('mouseDown', dragStart); transform.removeEventListener('objectChange', dragTarget)
@@ -454,8 +469,7 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
   useEffect(() => { context.current?.clearHover(); context.current?.highlight(); context.current?.syncDrag() }, [props.drag, props.disabled, props.pickingFaces, props.pickingEdges, props.pickingVertices, props.pickingOrigins])
   useEffect(() => {
     const current = context.current; if (!current || !props.view) return
-    if (props.view.name !== 'fit') { const direction = props.view.name === 'front' ? new THREE.Vector3(0, -1, 0) : props.view.name === 'top' ? new THREE.Vector3(0, -.0001, 1) : new THREE.Vector3(1, -1.3, 1); current.camera.position.copy(current.controls.target).addScaledVector(direction.normalize(), 100) }
-    current.fit()
+    current.navigation.request(props.view)
   }, [props.view])
   const originButton = (label: AssemblyOriginLabelAnchor, style?: CSSProperties) => <button key={label.key} type="button"
       className={(props.selectedOrigins ?? []).some(ref => assemblyOriginReferenceKey(ref) === label.key) ? 'selected' : ''}

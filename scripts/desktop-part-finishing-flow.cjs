@@ -105,8 +105,10 @@ module.exports = function finishingWorkflow(c) {
       const list = document.querySelectorAll(selector); if (list.length !== 1) throw Error('One main part renderer canvas required');
       const canvas = list[0], r = canvas.getBoundingClientRect(), aspect = r.width / r.height;
       const scale = r.height / (2 * 24.6 / Math.min(aspect, 1)), d = world.map((v, i) => v - [15, 3, 2][i]);
-      const right = [1.4 / Math.sqrt(2.96), 0, -1 / Math.sqrt(2.96)];
-      const up = [-1 / Math.sqrt(3.96 * 2.96), 2.96 / Math.sqrt(3.96 * 2.96), -1.4 / Math.sqrt(3.96 * 2.96)];
+      // Independently derived for the equal-axis (1,1,1) isometric view:
+      // screen right = (X-Z)/sqrt(2), screen up = (-X+2Y-Z)/sqrt(6).
+      const right = [1 / Math.sqrt(2), 0, -1 / Math.sqrt(2)];
+      const up = [-1 / Math.sqrt(6), 2 / Math.sqrt(6), -1 / Math.sqrt(6)];
       const point = { x: r.left + r.width / 2 + d.reduce((s, v, i) => s + v * right[i], 0) * scale,
         y: r.top + r.height / 2 - d.reduce((s, v, i) => s + v * up[i], 0) * scale };
       return { point, rect: { left: r.left, top: r.top, width: r.width, height: r.height }, scale,

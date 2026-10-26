@@ -1,5 +1,141 @@
 # Validation
 
+## Standard views and previous camera states — 2026-10-26
+
+All three workspaces now expose Front, Back, Left, Right, Top, Bottom and
+Isometric through the orientation selector, View menu and Ctrl+1 through Ctrl+7.
+Previous View uses Ctrl+Shift+Z and consumes up to ten prior camera states;
+Ctrl+Y remains model Redo. Camera history is session-only presentation state,
+separate from document Undo, recovery and serialization. New/Open reset it,
+including reopening the same document identity.
+
+Final local Windows acceptance 07 passes all 29 command records against 1,173
+matching frozen source/runtime inputs. Twenty-five unaffected records retain
+their verified original logs and input provenance. Build passes in 5.455 s;
+`npm test` passes 9,858 tests across 433 files plus 118 IPC checks and two
+explicit skips in 557.738 s. Desktop smoke passes in 2.354 s with zero
+console/request/resource errors. All 26 renderer routes below report zero
+console, request and resource errors, confirmed child closure and isolated
+temporary-profile cleanup. Original command deadlines remain unchanged.
+
+| Production-renderer command | Passing checkpoints | Command duration |
+| --- | ---: | ---: |
+| `npm run test:desktop:part-from-empty` | 102 | 32.180 s |
+| `npm run test:desktop:assembly-shortcuts` | 173 | 40.580 s |
+| `npm run test:desktop:assembly-configured-shortcuts` | 134 | 37.757 s |
+| `npm run test:desktop:part-sequence` | 180 | 24.513 s |
+| `npm run test:desktop:assembly-basic-authoring` | 402 | 42.942 s |
+| `npm run test:desktop:assembly-configured-picking` | 188 | 14.139 s |
+| `npm run test:desktop:assembly-configured-picking-compact` | 191 | 14.226 s |
+| `npm run test:desktop:assembly` | 690 | 75.188 s |
+| `npm run test:desktop:part-finishing` | 103 | 19.802 s |
+| `npm run test:desktop:assembly-direction` | 172 | 13.779 s |
+| `npm run test:desktop:assembly-rack-pinion` | 176 | 38.854 s |
+| `npm run test:desktop:assembly-directed-angle` | 378 | 29.713 s |
+| `npm run test:desktop:assembly-hinge-limits-picking` | 147 | 17.209 s |
+| `npm run test:desktop:assembly-limit-angle` | 316 | 17.837 s |
+| `npm run test:desktop:assembly-limit-distance` | 272 | 13.743 s |
+| `npm run test:desktop:assembly-limit-distance-compact` | 273 | 13.682 s |
+| `npm run test:desktop:assembly-cylinder-tangent` | 334 | 14.086 s |
+| `npm run test:desktop:assembly-sphere-tangent` | 463 | 29.934 s |
+| `npm run test:desktop:assembly-tangent` | 150 | 7.866 s |
+| `npm run test:desktop:assembly-hinge-picking` | 87 | 9.435 s |
+| `npm run test:desktop:assembly-width` | 95 | 8.373 s |
+| `npm run test:desktop:assembly-symmetry-picking` | 269 | 74.449 s |
+| `npm run test:desktop:assembly-origin-axes` | 317 | 32.129 s |
+| `npm run test:desktop:assembly-configured-origin-axes` | 325 | 23.351 s |
+| `npm run test:desktop:assembly-origin-axis-lock` | 113 | 14.359 s |
+| `npm run test:desktop:assembly-configured-origin-axis-lock` | 94 | 10.712 s |
+
+The view routes use actual key events and Chromium pointer/wheel input for
+the seven presets, middle-button orbit, modified-middle pan, zoom, Fit and
+Previous. Camera commands preserve complete worker observations, file IPC,
+recovery and model-history availability. The part route zooms the saved model,
+enters an empty sketch, invokes 2D Fit and cancels. Remounting restores the
+previous 3D crop; Previous returns through the wheel transaction without an
+extra 2D Fit history entry. Existing successive-operation and Save/reopen
+checks remain separate from these camera observations.
+
+Restoration compares the central 12–88% width and 20–80% height crop. Exact
+pixel equality excludes only visible HTML origin-label text rectangles,
+bounded to 32 labels and ten percent of pixels. Every other pixel remains
+exact; raw capture hashes are retained. Label identity, text, state and
+rectangles are compared separately, with projected SVG origin anchors within
+0.11 CSS pixels where available. The main navigation route requires 500 ms
+of observed stationary crop evidence within its existing deadline. Fit must
+change the zoomed crop and recover projected framing, without requiring an
+identical antialiased preset bitmap. Independent mathematical tests check
+orientation, equal isometric foreshortening, Fit, ten-entry history, resize
+and restoration. These are bounded comparisons, not full-viewport identity.
+
+The original part route retains four rectangular sketches producing a
+40×30×10 mm base, 10×10 through-hole, 8×8×3 mm merged boss and 6×4×2 mm blind
+pocket. Volumes are 12000/11000/11192/11144 mm³ within 1e-5; planar mesh areas
+are 3800/4000/4096/4136 mm² within 1e-4. Bounds are [-20,-15,0] to
+[20,15,10] mm for the first two solids and to [20,15,13] mm thereafter, within
+1e-6 mm. Original two-prism origin cases retain summed V48 mm³ and A104 mm²
+within 1e-5 and independently transformed bounds within 1e-6 mm. See
+[provenance](PROVENANCE.md) for fixtures, support points, derivations and
+case-specific limits. No camera comparison substitutes for those CAD checks.
+
+Front now looks from +Z with +Y upward; Top from +Y with -Z upward; Bottom
+from -Y with +Z upward. Isometric uses equal positive X/Y/Z components.
+These choices do not transform saved geometry. Existing selection/drag
+harnesses use the current view exposing their original support and update
+independent pixel projections. Isometric cases choose visible points on the
+same intended supports. CAD identities, geometric criteria and tolerances
+remain unchanged. Menu checks cover actual ordering and separate labels/shortcut
+hints. The compact selector is checked independently for its exact options,
+visible contained hit target and absence of button overlaps.
+
+Earlier attempts exposed text-compositor differences, a transient one-pixel
+geometry-edge plateau, and stale menu/projection assumptions. Attempt 06 then
+failed a newly added selector assertion: it demanded 26-pixel height and the
+same top coordinate as icon buttons, although the real 66×28 control was
+contained, visible and reachable. Existing minimum-height and native-control
+layout made that expectation invalid. The corrected harness requires width
+66, height at least 26 and complete containment in the 32-pixel toolbar, keeping
+hit, option and overlap checks. Both origin-axis-lock routes pass afterward;
+no production CSS, CAD tolerance or deadline changed for this correction.
+
+A separate walkthrough of the current Windows package exercises the actual
+part window: Front through the dropdown, Ctrl+1 through Ctrl+7, a -240 wheel
+input, the Previous button and Ctrl+Shift+Z restoring the prior zoom after
+Front, and F for Fit. Save As completes through the native file dialog.
+The recovered four-operation demonstration visibly reports one solid and
+11144 mm³. This is a bounded presentation/save check, without numeric native
+bitmap comparison or operating-system middle-button acceptance.
+
+After saving the part, the native Open dialog loads the original two-prism
+assembly: Ready, two solids, one source and 48 mm³; Previous is disabled after
+replacement, the View menu exposes seven presets plus Previous, and Bottom
+followed by Ctrl+Shift+Z visibly restores Isometric. Left-click selects the
+intended moving body and matching tree row; right-click exposes Properties,
+Move, Fix, Hide and Suppress for that component, and Escape closes the menu
+while retaining selection, without executing an edit or testing operating-system
+middle-button/pan input.
+
+The macOS keyboard harness now supplies native editing commands only for
+explicitly owned editable fields and verifies selection before typing.
+Bounded transport tests cover dispatch and release, but hosted macOS execution
+of this correction remains pending. Preceding public head `0c9ad268`
+[CI](https://github.com/angelcp2802/solidflow/actions/runs/40236762580) passed
+7/9 renderer batches and all three configured-authoring jobs. Windows
+persistence failed the source-revision/parent-review save workflow; macOS
+persistence failed standard keyboard input. All three dependent Desktop jobs
+failed their renderer gate before build/unit/smoke/package. Windows rigid passed
+in that run; recurring stability is not established.
+[Security](https://github.com/angelcp2802/solidflow/actions/runs/40236762578)
+passed. Current-head hosted validation remains pending.
+
+Static command and shortcut review informed the inventory; the camera basis
+and geometric tests are independent application choices. Static evidence
+does not establish runtime gesture grouping, snapshot contents or complete
+behavioral parity. Normal To, named custom views, dimetric/trimetric presets,
+broader human-user acceptance and remaining view-editor behavior stay open.
+Local Windows acceptance does not establish macOS/Linux support or release
+readiness.
+
 ## New document choice and part authoring from empty — 2026-10-25
 
 Final local Windows acceptance 06 passes all seven command records against
@@ -82,8 +218,9 @@ Both assembly workspaces dispatch existing file, history and view commands from
 the keyboard, using the same command table as their visible menu hints. Native
 text undo stays in editable fields. Standard component-name Save crosses the
 existing synchronous blur validation; dialog ownership and picker-first Escape
-preserve current command guards. Ctrl+Y is Redo; Ctrl+Shift+Z remains unassigned
-until previous-view history exists. Save As uses this application's Ctrl+Shift+S
+preserve current command guards. At this increment, Ctrl+Y was Redo and
+Ctrl+Shift+Z was still unassigned; the later standard-view increment above adds
+Previous View. Save As uses this application's Ctrl+Shift+S
 convention. No document schema, solver or file-IPC capability is added.
 
 Local Windows x64 / Node 24.11.1 / Electron 44.9.3 acceptance uses 1,157 matching

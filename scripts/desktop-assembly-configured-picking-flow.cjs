@@ -97,16 +97,16 @@ module.exports=function configuredPicking(c){
   for(const [id,x,h] of [['A',-8,0],['B',8,z]]){const rows=s.bodies.filter(b=>canonical(b.component.occurrencePath)===canonical([id]));check(rows.length===1,'Unique component body');const b=rows[0];near(b.volume,64,1e-5,'Cube volume');near(b.area,96,1e-5,'Cube area');for(let i=0;i<3;i++){near(b.bounds.min[i],[x-2,-2,h][i],1e-6,'Cube minimum');near(b.bounds.max[i],[x+2,2,h+4][i],1e-6,'Cube maximum');near(b.worldPose.translation[i],[x,0,h][i],1e-6,'Literal placement');}near(Math.abs(b.worldPose.rotation[3]),1,1e-8,'Unchanged orientation');}
   phases.push({label,z,volume:s.volume,area:s.area});return s;
  }
- async function top(){await button('Superior','[aria-label="Vistas del ensamblaje configurado"]');await page(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));}
+ async function front(){await button('Frontal','[aria-label="Vistas del ensamblaje configurado"]');await page(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));}
  async function point(world,z){
   const r=await page(()=>{const canvas=document.querySelector('.configured-assembly-view canvas'),r=canvas?.getBoundingClientRect();if(!r||!r.width||!r.height||r.left<0||r.right>innerWidth||r.top<0||r.bottom>innerHeight)throw Error('Entire configured canvas must remain visible');return {x:r.x,y:r.y,width:r.width,height:r.height};});
-  // Literal original envelope and public top-view convention: up projects +Y,
-  // camera direction (0,-0.0001,1). No camera state or selected geometry injection.
-  const span=Math.hypot(20,4,z+4),pixels=r.height/(1.3*span),d=Math.hypot(1,.0001);
-  return {x:r.x+r.width/2+world[0]*pixels,y:r.y+r.height/2-(world[1]+.0001*(world[2]-(z+4)/2))/d*pixels};
+  // Literal original envelope with Frontal looking from +Z and up projecting +Y.
+  // Exact XY pixel projection; no camera state or selected geometry injection.
+  const span=Math.hypot(20,4,z+4),pixels=r.height/(1.3*span);
+  return {x:r.x+r.width/2+world[0]*pixels,y:r.y+r.height/2-world[1]*pixels};
  }
  async function press(world,z){const p=await point(world,z);await pointer('mouseMoved',p);await pointer('mousePressed',p,1);await pointer('mouseReleased',p,0);return p;}
- async function component(id,z){await top();const before=(await observe()).serial,p=await press([id==='A'?-8:8,0,id==='A'?4:z+4],z);await waitFor('actual component '+id,()=>page(id=>document.querySelector('[aria-label="Ocurrencia configurada"]')?.value===id,id));check(await page(()=>{const pane=document.querySelector('[data-configured-pane="model"]');return pane&&!pane.hidden&&pane.querySelector('button[aria-pressed="true"]');}),'A component click selects its real tree row without replacing the model tree');
+ async function component(id,z){await front();const before=(await observe()).serial,p=await press([id==='A'?-8:8,0,id==='A'?4:z+4],z);await waitFor('actual component '+id,()=>page(id=>document.querySelector('[aria-label="Ocurrencia configurada"]')?.value===id,id));check(await page(()=>{const pane=document.querySelector('[data-configured-pane="model"]');return pane&&!pane.hidden&&pane.querySelector('button[aria-pressed="true"]');}),'A component click selects its real tree row without replacing the model tree');
   await navigation.pane('occurrence');
   await waitFor('explicit component properties pane',()=>page(()=>{const pane=document.querySelector('[data-configured-pane="occurrence"]');return pane&&!pane.hidden&&pane.querySelector('#configured-occurrence-inspector');}));
   await navigation.pane('model');
@@ -119,7 +119,7 @@ module.exports=function configuredPicking(c){
   await waitFor('role armed before leaving editor',()=>page(()=>document.querySelector('[aria-label="Visor 3D del ensamblaje"]')?.getAttribute('data-reference-picking')==='face'));
   await navigation.pane('model');
   await waitFor('leaving editor ends temporary picking',()=>page(()=>!document.querySelector('[aria-label="Selección de referencia en vista configurada"]')&&document.querySelector('[aria-label="Visor 3D del ensamblaje"]')?.getAttribute('data-reference-picking')===''));
-  await top();await press([8,0,z+4],z);
+  await front();await press([8,0,z+4],z);
   check(canonical(await draftState())===canonical(original),'Clicking model with a retained draft neither selects a component nor changes relation references');
   await navigation.pane('relation');
   check(canonical(await draftState())===canonical(original),'Explicit return restores the same authored relation draft');
@@ -132,7 +132,7 @@ module.exports=function configuredPicking(c){
   await actualControl('button[aria-label="'+label+'"]',null,true);
   await waitFor('actual role picking '+kind,()=>page(kind=>document.querySelector('[aria-label="Visor 3D del ensamblaje"]')?.getAttribute('data-reference-picking')===kind,kind));
   await waitFor('visible active role feedback',()=>page(slot=>{const e=document.querySelector('[aria-label="Selección de referencia en vista configurada"]');return e&&e.textContent.includes('Referencia '+slot);},slot));
-  await top();const before=(await observe()).serial,p=await press([id==='A'?-8:8,kind==='face'?0:-2,id==='A'?4:z+4],z);
+  await front();const before=(await observe()).serial,p=await press([id==='A'?-8:8,kind==='face'?0:-2,id==='A'?4:z+4],z);
   const ref=await waitFor('actual role reference populated',()=>page((slot,kind,id)=>{const value=document.querySelector('[aria-label="Referencia '+slot+' de relación configurada"]')?.value;if(!value)return false;const r=JSON.parse(value);return r.kind===kind&&r.component?.occurrencePath.length===1&&r.component.occurrencePath[0]===id?r:false;},slot,kind,id));
   await waitFor('picked role exits temporary picking feedback',()=>page(()=>!document.querySelector('[aria-label="Selección de referencia en vista configurada"]')&&document.querySelector('[aria-label="Visor 3D del ensamblaje"]')?.getAttribute('data-reference-picking')===''));
   const body=scene.bodies.find(b=>b.component.occurrencePath[0]===id),rows=(kind==='face'?body.faces:body.edges).filter(r=>canonical(r.selection[kind])===canonical(ref[kind]));

@@ -1,3 +1,6 @@
+import { useViewHistory } from './useViewHistory'
+import { standardViews, type ViewName } from './viewNavigation'
+import { ViewOrientationControls } from './ViewOrientationControls'
 import { requestNewDocument, useNewDocumentDialog } from './useNewDocumentDialog'
 import { createDocument } from '../model/document'
 import { createEmptyAssembly } from '../examples/assembly'
@@ -129,7 +132,8 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
   const [treeOriginSelection, setTreeOriginSelection] = useState<AssemblyOriginTreeSelection | null>(null)
   const stopMatePick = () => { matePickRef.current = null; setMatePick(null); originPickRef.current = null; setOriginPick(null) }
   useEffect(() => { if (inspectorPane !== 'relation' && (matePickRef.current || originPickRef.current)) stopMatePick() }, [inspectorPane])
-  const [view, setView] = useState<{ name: 'iso' | 'front' | 'top' | 'fit'; stamp: number }>({ name: 'iso', stamp: 0 })
+  const viewHistory = useViewHistory()
+  const [view, setView] = useState<{ name: ViewName; stamp: number }>({ name: 'iso', stamp: 0 })
   const [discardDialog, setDiscardDialog] = useState(false), answer = useRef<((allow: boolean) => void) | null>(null)
   const [bomOpen, setBomOpen] = useState(false), [bomOptions, setBomOptions] = useState<ConfiguredAssemblyBomOptions>({ mode: 'parts-only', includeHidden: true, scopePath: [] })
   const [bomSelection, setBomSelection] = useState<{ serialized: string; member: ConfiguredAssemblyBomMember } | null>(null)
@@ -454,7 +458,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
     setRelationDraft({ ...generalDraft, references }); setFailure(null); setMessage('Referencia de origen seleccionada. Verifica la vista previa antes de aplicar.')
   }
   const menuReveal = (id: string) => { if (fresh(renderedTicket) && !operation.current && !pending.current) setRevealRequest({ id }) }
-  const menuView = (name: typeof view.name) => { if (!operation.current && fresh(renderedTicket)) setView(old => ({ name, stamp: old.stamp + 1 })) }
+  const menuView = (name: typeof view.name) => { if (!operation.current && !viewHistory.navigating && fresh(renderedTicket) && (name !== 'previous' || viewHistory.canPrevious)) setView(old => ({ name, stamp: old.stamp + 1 })) }
   const componentMenuBlocked = blocked || !!mateDraft || !scene || selectedScope.suppressed
   const cancelPreview = () => {
     if (!fresh(renderedTicket) || operationKind.current !== 'build' && operationKind.current !== 'solve' && (operation.current || !pending.current)) return
@@ -474,7 +478,9 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
       { id: 'component-properties', label: 'Propiedades del componente', disabled: blocked || !selected || !!modelOrigin, onSelect: () => menuReveal('configured-occurrence-inspector') },
     ] },
     { id: 'view', label: 'Ver', items: [
-      ...([['iso', 'Isométrica'], ['front', 'Frontal'], ['top', 'Superior'], ['fit', 'Ajustar a pantalla']] as const).map(([name, label]) => ({ id: 'view-' + name, label, disabled: busy, onSelect: () => menuView(name) })),
+      ...standardViews.map(({ name, label }) => ({ id: 'view-' + name, label, disabled: busy || viewHistory.navigating, onSelect: () => menuView(name) })),
+      { id: 'view-fit', label: 'Ajustar a pantalla', disabled: busy || viewHistory.navigating, onSelect: () => menuView('fit') },
+      { id: 'view-previous', label: 'Vista anterior', disabled: busy || !viewHistory.canPrevious, onSelect: () => menuView('previous') },
       { id: 'show-tree', label: 'Árbol del ensamblaje', disabled: blocked, onSelect: () => menuReveal('configured-model-tree') },
       { id: 'show-configurations', label: 'Configuraciones', disabled: blocked, onSelect: () => menuReveal('configured-root-state') },
       { id: 'show-relations', label: 'Relaciones de posición', disabled: blocked, onSelect: () => menuReveal(mateDraft ? 'configured-relation-inspector' : 'configured-relations') },
@@ -645,7 +651,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
       {mateChoices.error && <p role="alert">{mateChoices.error}</p>}
 
       </div>
-    </aside><main>{inspectorPane === 'relation' && matePick && generalDraft && !blocked && <p role="status" aria-label="Selección de referencia en vista configurada">Selecciona {configuredMateUiRoleLabels(generalDraft)[matePick.slot]}: {matePick.kind === 'face' ? 'una cara compatible' : 'una arista LINE'} · Ámbito: {selectedScope.path.join(' / ') || 'Raíz'} · Estado: {selectedScope.configuration ?? 'Base'}. <button type="button" onClick={stopMatePick}>Cancelar selección en vista</button></p>}{inspectorPane === 'relation' && originPick && generalDraft && !blocked && <p role="status" aria-label="Selección de origen en vista configurada">Selecciona {configuredMateUiRoleLabels(generalDraft)[originPick.slot]}: un eje o plano de origen visible compatible. <button type="button" onClick={stopMatePick}>Cancelar selección de origen</button></p>}<div className="configured-assembly-view"><CompactViewportToolbar label="Vistas del ensamblaje configurado"><ViewportToolGroup label="Orientación y ajuste">{([['iso', 'Isométrica'], ['front', 'Frontal'], ['top', 'Superior'], ['fit', 'Ajustar']] as const).map(([name, label]) => <button key={name} title={label} disabled={busy} onClick={() => setView(old => ({ name, stamp: old.stamp + 1 }))}><ViewportToolIcon name={name} label={label} /></button>)}</ViewportToolGroup></CompactViewportToolbar><AssemblyViewport originLabelTopInset={44} originReferences={inspectorPane === 'model' ? modelOrigin ? [modelOrigin.display] : [] : originDisplay} selectedOrigins={inspectorPane === 'model' ? modelOrigin ? [modelOrigin.display.reference] : [] : selectedOrigins} pickingOrigins={inspectorPane === 'relation' && !blocked && !!originPick} onOrigin={pickOrigin} selectedFaces={mateHighlights.faces} selectedEdges={mateHighlights.edges} scene={displayScene} disabled={busy} view={view} selectedPath={preview || modelOrigin ? [] : bomSelectedPath.length ? bomSelectedPath : selected ? [...selectedScope.path, selected.id] : []} pickingFaces={inspectorPane === 'relation' && !blocked && matePick?.kind === 'face'} pickingEdges={inspectorPane === 'relation' && !blocked && matePick?.kind === 'edge'} onFace={pickMate} onEdge={pickMate} onComponent={component => {
+    </aside><main>{inspectorPane === 'relation' && matePick && generalDraft && !blocked && <p role="status" aria-label="Selección de referencia en vista configurada">Selecciona {configuredMateUiRoleLabels(generalDraft)[matePick.slot]}: {matePick.kind === 'face' ? 'una cara compatible' : 'una arista LINE'} · Ámbito: {selectedScope.path.join(' / ') || 'Raíz'} · Estado: {selectedScope.configuration ?? 'Base'}. <button type="button" onClick={stopMatePick}>Cancelar selección en vista</button></p>}{inspectorPane === 'relation' && originPick && generalDraft && !blocked && <p role="status" aria-label="Selección de origen en vista configurada">Selecciona {configuredMateUiRoleLabels(generalDraft)[originPick.slot]}: un eje o plano de origen visible compatible. <button type="button" onClick={stopMatePick}>Cancelar selección de origen</button></p>}<div className="configured-assembly-view"><CompactViewportToolbar label="Vistas del ensamblaje configurado"><ViewportToolGroup label="Orientación y ajuste"><ViewOrientationControls onView={menuView} disabled={busy || viewHistory.navigating} canPrevious={viewHistory.canPrevious} />{([['iso', 'Isométrica'], ['front', 'Frontal'], ['top', 'Superior'], ['fit', 'Ajustar']] as const).map(([name, label]) => <button key={name} title={label} disabled={busy || viewHistory.navigating} onClick={() => menuView(name)}><ViewportToolIcon name={name} label={label} /></button>)}</ViewportToolGroup></CompactViewportToolbar><AssemblyViewport originLabelTopInset={44} originReferences={inspectorPane === 'model' ? modelOrigin ? [modelOrigin.display] : [] : originDisplay} selectedOrigins={inspectorPane === 'model' ? modelOrigin ? [modelOrigin.display.reference] : [] : selectedOrigins} pickingOrigins={inspectorPane === 'relation' && !blocked && !!originPick} onOrigin={pickOrigin} selectedFaces={mateHighlights.faces} selectedEdges={mateHighlights.edges} scene={displayScene} disabled={busy} view={view} viewHistory={viewHistory} selectedPath={preview || modelOrigin ? [] : bomSelectedPath.length ? bomSelectedPath : selected ? [...selectedScope.path, selected.id] : []} pickingFaces={inspectorPane === 'relation' && !blocked && matePick?.kind === 'face'} pickingEdges={inspectorPane === 'relation' && !blocked && matePick?.kind === 'edge'} onFace={pickMate} onEdge={pickMate} onComponent={component => {
         if (!fresh(renderedTicket) || operation.current || pending.current || mateDraftRef.current || !scene || !configuredUiSceneMatches(scene, current.current, epoch.current)) return
         setTreeOriginSelection(null)
         const id = configuredComponentPick(displayScene, component, selectedScope.path)

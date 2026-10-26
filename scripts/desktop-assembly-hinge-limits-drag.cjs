@@ -75,7 +75,11 @@ module.exports = async function hingeLimitsDrag(context) {
   async function drag(base, targetDegrees, label) {
     savedIntent(base.document); const old = moving(base.document).pose, oldDegrees = yaw(old); physical(base.scene, base.document, oldDegrees, label + '/base');
     check(targetDegrees >= -90 && targetDegrees <= 90 && Math.abs(targetDegrees - oldDegrees) < 180, 'Bounded original short local-Z pointer chart');
-    await selectMoving(base); await button('Frontal', '.assembly-view-tools'); await click('button[aria-label="Arrastrar giro"]');
+    await selectMoving(base); await button('Ver', '.assembly-main-menus');
+    await waitFor('Bottom view command available', () => page(() => document.querySelector('[data-assembly-command="view-bottom"]')?.disabled === false));
+    await click('[data-assembly-command="view-bottom"]');
+    await waitFor('Bottom view closes its menu', () => page(() => !document.querySelector('.assembly-main-menus [role="menu"]')));
+    await click('button[aria-label="Arrastrar giro"]');
     await page(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     const rect = await page(selector => { const r = document.querySelector(selector + ' canvas').getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; }, VIEW), bounds = base.scene.visibleBounds,
       center = bounds.min.map((v, i) => (v + bounds.max[i]) / 2), span = Math.hypot(...bounds.max.map((v, i) => v - bounds.min[i])), pixels = rect.height / (1.3 * span),

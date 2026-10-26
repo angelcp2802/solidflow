@@ -263,13 +263,14 @@ module.exports = async function gearWorkflow(context) {
 
   // Chromium input operates the real Z ring. Independent eccentric native
   // markers verify the linked rotations; no scene or target result is supplied.
-  await select('left'); await button('Superior', '.assembly-view-tools'); await click('button[aria-label="Arrastrar giro"]');
+  await select('left'); await button('Frontal', '.assembly-view-tools'); await click('button[aria-label="Arrastrar giro"]');
   await page(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   const rect = await page(() => { const r = document.querySelector('[aria-label="Visor 3D del ensamblaje"] canvas').getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; });
   const bounds = committed.scene.visibleBounds, span = Math.hypot(...bounds.max.map((value, axis) => value - bounds.min[axis]));
   const centerWorld = bounds.min.map((value, i) => (value + bounds.max[i]) / 2), p = committed.document.occurrences.find(value => value.id === 'left').pose.translation;
+  // The real Frontal control exposes the XY plane from exact +Z, with +Y up.
   const pixels = rect.height / (span * 1.3), center = { x: rect.x + rect.width / 2 + (p[0] - centerWorld[0]) * pixels,
-    y: rect.y + rect.height / 2 - (p[1] - centerWorld[1]) * pixels + (p[2] - centerWorld[2]) * .0001 * pixels };
+    y: rect.y + rect.height / 2 - (p[1] - centerWorld[1]) * pixels };
   let handle;
   for (const scale of [1, .9, 1.1]) {
     for (let angle = .3; angle < 2 * Math.PI; angle += .2) {
