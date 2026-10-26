@@ -1,5 +1,66 @@
 # Validation
 
+## Retained pixel observations for view restoration — 2026-10-26
+
+The opted-in test helper now reports up to sixteen distinct differing pixel
+centers and clipped 3-by-3 neighborhoods from its two existing retained captures.
+It prioritizes differences in the unchanged comparison buffers, then distinct
+raw differences. Native byte positions, mask membership, observed label/canvas
+rectangles, bitmap scale, device-pixel ratio and bounded computed styles help
+inspect a failed exact comparison. The extra report is capped at 128 KiB.
+
+Twenty-three focused Node tests passed, including four new cases for literal
+asymmetric pixel neighborhoods, sample priority, scale/style observations and
+diagnostic failure/budget limits. The asymmetric case uses explicit byte offsets
+and nine literal expected neighbors to detect row/column transposition. Tests
+also retain exact counts/bounds, public frame signatures, two captures/four DOM
+evaluations for a pair, no input gestures, detached reports and pair cleanup.
+Both helper and test syntax checks passed.
+
+**Local Windows acceptance 01: PASS**, six fresh sequential commands with Node
+24.11.1 and Electron 44.9.3 against 1,198 matching source/runtime inputs. The
+eight production inputs and separate static SVG remained byte-identical to the
+preceding accepted build; dependencies were not changed.
+
+| Command | Result | Elapsed |
+| --- | --- | --- |
+| `npm run build` | PASS | 7.469 s |
+| `npm test` | 9,993 tests in 441 files; 158 IPC passes, two explicit skips | 489.228 s |
+| `npm run test:desktop:part-from-empty` | PASS; 102 recorded checks | 30.366 s |
+| `npm run test:desktop:assembly-shortcuts` | PASS; 173 recorded checks | 34.290 s |
+| `npm run test:desktop:assembly-configured-shortcuts` | PASS; 134 recorded checks | 30.508 s |
+| `npm run test:desktop` | PASS | 4.395 s |
+
+All three renderer routes preserved seven standard views, Previous View and
+orbit/pan/wheel restoration, with the existing exact image comparisons outside
+the original text masks. Part-from-empty retained four successive operations,
+Undo/Redo, Save/reopen and sketch remount. Assembly shortcuts retained their
+original standard/configured documents, input guards, New and Save/reopen routes.
+The reports recorded no console/request errors, child closure and isolated-profile
+cleanup. These passing routes do not exercise the failure-only pixel report;
+the focused synthetic cases above validate that report's contents and limits.
+
+This increment does not change the camera, label rendering, comparison masks,
+tolerances or waiting policy. DOM observations precede capture; they cannot
+establish synchronized compositor state or pixel ownership. The earlier Linux
+Previous View failure changed two unmasked pixels by at most one native byte
+value, at crop coordinates (646,348) and (646,349). Its old evidence lacked
+the added observations. A label-border explanation remains a hypothesis; this
+diagnostic change does not establish a fix or cross-platform acceptance.
+
+The preceding published head `fe9e4421` finished
+[hosted CI](https://github.com/angelcp2802/solidflow/actions/runs/40390069512)
+with eleven successful validation jobs and one failed Linux persistence job.
+That failure occurred in the first basic-authoring startup wait, before any
+view navigation or image comparison; it is distinct from the earlier two-pixel
+difference. Its configured startup wait was 35 seconds, but the report does not
+record its exact elapsed duration or establish a cause. No console/request errors
+were recorded. All three downstream Desktop jobs stopped at the renderer
+dependency gate without running their tests or packaging. That head's
+[Security workflow](https://github.com/angelcp2802/solidflow/actions/runs/40390069528)
+passed. Neither this local acceptance nor that hosted result closes the pending
+stability or platform-release requirements.
+
 ## Native part reuse during ordinary assembly Solve — 2026-10-26
 
 Ordinary Solve now shares completed native part reconstruction between its

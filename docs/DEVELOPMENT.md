@@ -1,5 +1,29 @@
 # Development guide
 
+## Retained pixel observations for view restoration — 2026-10-26
+
+The opted-in camera comparison can report up to sixteen differing pixel centers
+and clipped 3-by-3 neighborhoods from its two already retained captures. Prefer
+differences in the existing comparison buffers, then fill the remaining slots
+with distinct raw differences. Complete counts, bounds and grids still describe
+every differing pixel. Native byte positions are reported without assuming
+RGBA/BGRA order; each neighborhood records both original mask-membership bits.
+
+Retained metadata combines the existing canvas/label rectangles with the crop
+and bitmap scale. The same DOM evaluations additionally observe device-pixel
+ratio and a fixed set of twelve computed style values. Each style string is
+bounded to 192 characters.
+The additional metadata hashes label keys and does not duplicate label text.
+These observations precede capture and do not establish synchronized compositor
+state or ownership of a pixel.
+
+Keep this metadata outside the public camera frame and its stability signature.
+Only the existing failed comparison requests the extra report, capped at 128 KiB;
+optional diagnostic failure must preserve the original statistics and failure.
+Returned data is detached, and clearing the retained pair releases its metadata.
+Do not add captures, evaluations, gestures, waits, mask expansion or acceptance
+tolerances. This is test evidence, not a change to camera or label behavior.
+
 ## Native part reuse during ordinary assembly Solve — 2026-10-26
 
 An ordinary assembly Solve request can reuse completed local part reconstruction

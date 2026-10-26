@@ -7,7 +7,36 @@ module.exports = function cameraInput({ getWindow, evaluate, check, digest, allo
     'Raster comparison requires an explicit camera-navigation opt-in');
   const diagnosticNames = new Set();
   const rasterPixelLimit = 2_000_000;
+  const sampleLimit = 16, evidenceByteLimit = 128 * 1024;
   let baseline = null, latest = null;
+  function pixelEvidence(before, after, coordinates) {
+    // Diagnostic-only: use the two existing captures and observations. No
+    // channel-order assumption, image encoding, DOM query or extra screenshot.
+    try {
+      const { width, height } = before.result;
+      const bytes = (buffer, x, y) => [...buffer.subarray((y * width + x) * 4, (y * width + x + 1) * 4)];
+      const pixels = coordinates.map(({ x, y }) => {
+        const left = Math.max(0, x - 1), top = Math.max(0, y - 1), right = Math.min(width, x + 2), bottom = Math.min(height, y + 2);
+        const neighbors = [];
+        for (let row = top; row < bottom; row++) for (let column = left; column < right; column++) {
+          const offset = row * width + column;
+          neighbors.push({ x: column, y: row, before: bytes(before.raw, column, row), after: bytes(after.raw, column, row),
+            maskedBefore: !!before.covered[offset], maskedAfter: !!after.covered[offset] });
+        }
+        return { x, y, comparisonBefore: bytes(before.bitmap, x, y), comparisonAfter: bytes(after.bitmap, x, y),
+          neighborhood: { x: left, y: top, width: right - left, height: bottom - top, pixels: neighbors } };
+      });
+      const value = { status: 'retained', expected: before.observed, actual: after.observed, pixels,
+        limits: { distinctPixelLimit: sampleLimit, neighborhoodSide: 3, byteLimit: evidenceByteLimit,
+          selection: 'First unmasked differences in row-major order, then other raw differences; at most sixteen distinct coordinates.',
+          byteOrder: 'Native bitmap byte positions 0..3, without an RGBA/BGRA claim.',
+          observation: 'DOM rectangles and styles precede capturePage; no synchronized DOM/compositor or pixel-owner claim.' } };
+      const serialized = JSON.stringify(value);
+      if (Buffer.byteLength(serialized, 'utf8') > evidenceByteLimit) return { status: 'unavailable', reason: 'byte-budget', byteLimit: evidenceByteLimit };
+      // Reports must not expose mutable references to the retained observations.
+      return JSON.parse(serialized);
+    } catch { return { status: 'unavailable', reason: 'diagnostic-error' }; }
+  }
   function retainedFrame(frame) {
     check(frame && frame.raw && frame.bitmap && frame.covered, 'Raster comparison requires a retained crop within the pixel limit');
     check(JSON.stringify(frame.result) === frame.metadata && digest(frame.raw) === frame.result.rawSha256
@@ -26,6 +55,7 @@ module.exports = function cameraInput({ getWindow, evaluate, check, digest, allo
       check(width === after.result.width && height === after.result.height, 'Raster comparison requires equal bitmap dimensions');
       const statistics = () => ({ changedPixels: 0, maxByteDelta: 0, bbox: null, grid4x4: Array(16).fill(0) });
       const raw = statistics(), unmasked = statistics();
+      const rawCandidates = [], unmaskedCandidates = [];
       let rawChangedInsideMasks = 0, rawChangedOutsideMasks = 0;
       function changed(stats, x, y, delta) {
         if (delta === 0) return;
@@ -45,10 +75,17 @@ module.exports = function cameraInput({ getWindow, evaluate, check, digest, allo
         }
         const x = pixel % width, y = Math.floor(pixel / width);
         changed(raw, x, y, rawDelta); changed(unmasked, x, y, comparisonDelta);
+        if (rawDelta && rawCandidates.length < sampleLimit) rawCandidates.push({ x, y });
+        if (comparisonDelta && unmaskedCandidates.length < sampleLimit) unmaskedCandidates.push({ x, y });
         if (rawDelta) {
           if (before.covered[pixel] || after.covered[pixel]) rawChangedInsideMasks++;
           else rawChangedOutsideMasks++;
         }
+      }
+      const coordinates = [...unmaskedCandidates];
+      for (const point of rawCandidates) {
+        if (coordinates.length >= sampleLimit) break;
+        if (!coordinates.some(value => value.x === point.x && value.y === point.y)) coordinates.push(point);
       }
       return { status: 'compared', width, height, pixelLimit: rasterPixelLimit,
         expected: { rawSha256: before.result.rawSha256, sha256: before.result.sha256 },
@@ -56,6 +93,7 @@ module.exports = function cameraInput({ getWindow, evaluate, check, digest, allo
         masks: { identical: JSON.stringify(before.result.maskedRects) === JSON.stringify(after.result.maskedRects),
           expectedPixels: width * height - before.result.unmaskedPixelCount, actualPixels: width * height - after.result.unmaskedPixelCount,
           rawChangedInsideMasks, rawChangedOutsideMasks },
+        pixelEvidence: pixelEvidence(before, after, coordinates),
         limits: 'Byte differences from the two retained captures only. Unmasked uses their existing comparison buffers; inside/outside partitions use the union of their existing text masks. Bboxes have exclusive right/bottom bounds; grids are row-major 4 by 4. No new mask or acceptance tolerance.' };
     },
     clear() { baseline = null; latest = null; },
@@ -68,7 +106,9 @@ module.exports = function cameraInput({ getWindow, evaluate, check, digest, allo
         .filter(e=>e.getClientRects().length&&e.getBoundingClientRect().width>100&&e.getBoundingClientRect().height>100);
       if(list.length!==1)throw Error('One current visible CAD canvas required');
       const e=list[0],r=e.getBoundingClientRect(),x=r.left+r.width*.62,y=r.top+r.height*.52;
-      return {x:r.left,y:r.top,width:r.width,height:r.height,innerWidth,innerHeight,hit:document.elementFromPoint(x,y)===e};
+      let dpr=null;
+      if(${allowRasterComparison === true})try{const value=devicePixelRatio;if(Number.isFinite(value)&&value>0)dpr=value;}catch{}
+      return {x:r.left,y:r.top,width:r.width,height:r.height,innerWidth,innerHeight,hit:document.elementFromPoint(x,y)===e,dpr};
     })()`);
     check(rect.width>250&&rect.height>200&&rect.x>=0&&rect.y>=0&&rect.x+rect.width<=rect.innerWidth+1&&rect.y+rect.height<=rect.innerHeight+1,
       'Camera canvas has bounded visible geometry');
@@ -98,9 +138,15 @@ module.exports = function cameraInput({ getWindow, evaluate, check, digest, allo
           const range=document.createRange();range.selectNodeContents(button);
           const box=button.getBoundingClientRect(),style=getComputedStyle(button);
           const left=parseFloat(style.borderLeftWidth),right=parseFloat(style.borderRightWidth),top=parseFloat(style.borderTopWidth),bottom=parseFloat(style.borderBottomWidth);
+          let computed=null;
+          if(${allowRasterComparison === true})try{
+            const names=['opacity','backgroundColor','borderLeftColor','borderRightColor','borderTopColor','borderBottomColor',
+              'borderLeftWidth','borderRightWidth','borderTopWidth','borderBottomWidth','borderRadius','transform'];
+            computed=Object.fromEntries(names.map(name=>{const value=style[name];return [name,typeof value==='string'&&value.length<=192?value:null];}));
+          }catch{}
           return {key:button.dataset.originKey,text:button.textContent,
             state:{disabled:button.disabled,className:button.className,ariaPressed:button.getAttribute('aria-pressed'),ariaSelected:button.getAttribute('aria-selected')},
-            button:rectangle(box),interior:{x:box.left+left,y:box.top+top,width:box.width-left-right,height:box.height-top-bottom},textRect:rectangle(range.getBoundingClientRect())};
+            button:rectangle(box),interior:{x:box.left+left,y:box.top+top,width:box.width-left-right,height:box.height-top-bottom},textRect:rectangle(range.getBoundingClientRect()),computed};
         });
     })()`);
     check(Array.isArray(labels)&&labels.length<=32,'Only a bounded set of visible origin-label texts may be excluded');
@@ -151,8 +197,18 @@ module.exports = function cameraInput({ getWindow, evaluate, check, digest, allo
       check(Buffer.isBuffer(png) && png.length > 0 && png.length <= 4*1024*1024, 'Bounded diagnostic PNG bytes');
       result.diagnosticImage={name:diagnostic,mimeType:'image/png',byteLength:png.length,sha256:digest(png),crop,base64:png.toString('base64')};
     }
-    if (allowRasterComparison) latest = pixelCount <= rasterPixelLimit
-      ? { result, raw, bitmap, covered, metadata: JSON.stringify(result) } : { result };
+    if (allowRasterComparison) {
+      let observed=null;
+      if(pixelCount<=rasterPixelLimit)try{
+        observed={canvas:{x:rect.x,y:rect.y,width:rect.width,height:rect.height},viewport:{width:rect.innerWidth,height:rect.innerHeight},
+          crop:{...crop},bitmapScale:{x:sx,y:sy},devicePixelRatio:rect.dpr,
+          labels:labels.map((label,index)=>({index,keySha256:digest(label.key),button:{...label.button},interior:{...label.interior},
+            textRect:{...label.textRect},computed:label.computed?{...label.computed}:null}))};
+      }catch{}
+      // Metadata remains private to the retained pair, outside result and the
+      // unchanged stationary-frame signature. clear() releases it with buffers.
+      latest=pixelCount<=rasterPixelLimit?{result,raw,bitmap,covered,metadata:JSON.stringify(result),observed}:{result};
+    }
     return result;
   }
   async function cameraGesture(kind) {

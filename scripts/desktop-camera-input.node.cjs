@@ -17,7 +17,7 @@ function fixture(options={}){
     dataset:{originKey:value.key},textContent:value.text,disabled:value.disabled,className:value.className,
     getClientRects:()=>value.visible?[value.button]:[],checkVisibility:()=>value.visible,
     getBoundingClientRect:()=>value.button,getAttribute:name=>value[name]??null,
-    textRect:value.textRect,border:value.border??'1px',
+    textRect:value.textRect,border:value.border??'1px',computed:value.computed,
   }));
   const document={querySelectorAll:selector=>{
     if(selector==='.assembly-origin-labels > button[data-origin-key]')return labels;
@@ -36,9 +36,11 @@ function fixture(options={}){
   const camera=cameraInput({getWindow:()=>window,allowed:options.allowed!==false,
     allowRasterComparison:options.rasterComparison,allowFrameDiagnostics:options.frameDiagnostics,
     check:(value,message)=>assert.ok(value,message),digest:bytes=>{
+    if(options.diagnosticHashFailure&&typeof bytes==='string')throw Error('diagnostic hash unavailable');
     digests.push(Buffer.from(bytes));return digest(bytes);
   },evaluate:async source=>{scripts.push(source);return JSON.parse(JSON.stringify(vm.runInNewContext(source,{document,innerWidth:1024,innerHeight:700,
-    getComputedStyle:element=>({borderLeftWidth:element.border,borderRightWidth:element.border,borderTopWidth:element.border,borderBottomWidth:element.border})})));}});
+    devicePixelRatio:options.devicePixelRatio??1,
+    getComputedStyle:element=>({borderLeftWidth:element.border,borderRightWidth:element.border,borderTopWidth:element.border,borderBottomWidth:element.border,...element.computed})})));}});
   return {...camera,sent,captures,scripts,raw,digests,setCapture(bytes,dimensions=size){currentRaw=bytes;size=dimensions;}};
 }
 test('orbit and pan send bounded real middle-button CDP paths with only Shift distinguishing pan',async()=>{
@@ -194,7 +196,9 @@ test('independent byte differences retain exact pixel counts, exclusive bounds a
   assert.deepEqual(result.expected,{rawSha256:before.rawSha256,sha256:before.sha256});
   assert.deepEqual(result.actual,{rawSha256:after.rawSha256,sha256:after.sha256});
   assert.equal(result.masks.rawChangedInsideMasks,0);assert.equal(result.masks.rawChangedOutsideMasks,3);
-  assert.ok(JSON.stringify(result).length<3000);assert.equal(f.captures.length,2);
+  const {pixelEvidence,...statistics}=result;
+  assert.ok(JSON.stringify(statistics).length<3000);
+  assert.ok(Buffer.byteLength(JSON.stringify(pixelEvidence),'utf8')<=128*1024);assert.equal(f.captures.length,2);
   f.rasterComparison.clear();
 });
 
@@ -238,6 +242,111 @@ test('retained metadata and buffer hashes reject mutation, unequal dimensions an
   f.setCapture(Buffer.alloc(3));await assert.rejects(f.cameraFrame(),/four bytes/);
   assert.throws(()=>f.rasterComparison.compare(different),/capture object/);
   f.rasterComparison.clear();
+});
+
+test('pixel evidence copies native bytes in clipped 3 by 3 neighborhoods from the original two captures',async()=>{
+  const original=Buffer.alloc(8*8*4,127);
+  // Literal byte offsets and distinct rows surround the asymmetric (4,3)
+  // center. The expected neighborhood below is independent of offset math.
+  for(const [offset,bytes] of [[76,[1,2,3,4]],[80,[11,12,13,14]],[84,[21,22,23,24]],
+    [108,[31,32,33,34]],[112,[41,42,43,44]],[116,[51,52,53,54]],
+    [140,[61,62,63,64]],[144,[71,72,73,74]],[148,[81,82,83,84]]])original.set(bytes,offset);
+  const f=fixture({rasterComparison:true,size:{width:8,height:8},raw:Buffer.from(original)});
+  const before=await f.cameraFrame();f.rasterComparison.retainBaseline(before);
+  const changed=Buffer.from(original);changed[0]=129;changed[114]=0;changed[255]=255;
+  f.setCapture(changed);
+  const after=await f.cameraFrame(),result=f.rasterComparison.compare(after),evidence=result.pixelEvidence;
+  assert.equal(evidence.status,'retained');
+  assert.deepEqual(evidence.pixels.map(({x,y})=>[x,y]),[[0,0],[4,3],[7,7]]);
+  assert.deepEqual(evidence.pixels.map(({neighborhood:n})=>[n.x,n.y,n.width,n.height,n.pixels.length]),[[0,0,2,2,4],[3,2,3,3,9],[6,6,2,2,4]]);
+  assert.deepEqual(evidence.pixels[0].comparisonBefore,[127,127,127,127]);
+  assert.deepEqual(evidence.pixels[0].comparisonAfter,[129,127,127,127]);
+  assert.deepEqual(evidence.pixels[1].comparisonBefore,[41,42,43,44]);
+  assert.deepEqual(evidence.pixels[1].comparisonAfter,[41,42,0,44]);
+  assert.deepEqual(evidence.pixels[2].comparisonAfter,[127,127,127,255]);
+  assert.deepEqual(evidence.pixels[1].neighborhood.pixels.map(({x,y,before,after})=>({x,y,before,after})),[
+    {x:3,y:2,before:[1,2,3,4],after:[1,2,3,4]},
+    {x:4,y:2,before:[11,12,13,14],after:[11,12,13,14]},
+    {x:5,y:2,before:[21,22,23,24],after:[21,22,23,24]},
+    {x:3,y:3,before:[31,32,33,34],after:[31,32,33,34]},
+    {x:4,y:3,before:[41,42,43,44],after:[41,42,0,44]},
+    {x:5,y:3,before:[51,52,53,54],after:[51,52,53,54]},
+    {x:3,y:4,before:[61,62,63,64],after:[61,62,63,64]},
+    {x:4,y:4,before:[71,72,73,74],after:[71,72,73,74]},
+    {x:5,y:4,before:[81,82,83,84],after:[81,82,83,84]},
+  ]);
+  for(const sample of evidence.pixels)for(const pixel of sample.neighborhood.pixels){
+    const offset=(pixel.y*8+pixel.x)*4;
+    assert.deepEqual(pixel.before,[...original.subarray(offset,offset+4)]);
+    assert.deepEqual(pixel.after,[...changed.subarray(offset,offset+4)]);
+    assert.equal(pixel.maskedBefore,false);assert.equal(pixel.maskedAfter,false);
+  }
+  assert.deepEqual(f.raw,original);assert.equal(digest(changed),after.rawSha256);
+  assert.equal(f.captures.length,2);assert.equal(f.scripts.length,4);assert.deepEqual(f.sent,[]);
+  assert.deepEqual(Object.keys(after),['width','height','sha256','rawSha256','maskedRects','unmaskedPixelCount']);
+  const saved=JSON.stringify(evidence);
+  evidence.expected.canvas.x=-1;evidence.actual.crop.y=-1;evidence.pixels[0].neighborhood.pixels[0].before[0]=0;
+  assert.equal(JSON.stringify(f.rasterComparison.compare(after).pixelEvidence),saved);
+  f.rasterComparison.clear();assert.throws(()=>f.rasterComparison.compare(after),/capture object/);
+});
+
+test('sixteen distinct samples prioritize comparison differences over earlier masked text bytes',async()=>{
+  const f=fixture({rasterComparison:true,labels:[label()]}),before=await f.cameraFrame();
+  f.rasterComparison.retainBaseline(before);
+  const changed=Buffer.from(f.raw),inside=[];
+  for(let y=17;y<20;y++)for(let x=23;x<35;x++){changed[(y*608+x)*4]=128;inside.push([x,y]);}
+  changed[(80*608+80)*4]=129;changed[(80*608+81)*4+1]=130;f.setCapture(changed);
+  const after=await f.cameraFrame(),result=f.rasterComparison.compare(after),samples=result.pixelEvidence.pixels;
+  assert.equal(result.raw.changedPixels,38);assert.equal(result.unmasked.changedPixels,2);
+  assert.deepEqual(samples.map(({x,y})=>[x,y]),[[80,80],[81,80],...inside.slice(0,14)]);
+  assert.equal(new Set(samples.map(({x,y})=>`${x},${y}`)).size,16);
+  assert.deepEqual(samples[2].comparisonBefore,[0,0,0,0]);assert.deepEqual(samples[2].comparisonAfter,[0,0,0,0]);
+  const textPixel=samples[2].neighborhood.pixels.find(pixel=>pixel.x===23&&pixel.y===17);
+  assert.equal(textPixel.maskedBefore,true);assert.equal(textPixel.maskedAfter,true);
+  assert.deepEqual(textPixel.before,[127,127,127,127]);assert.deepEqual(textPixel.after,[128,127,127,127]);
+  assert.equal(result.masks.rawChangedInsideMasks,36);assert.equal(result.masks.rawChangedOutsideMasks,2);
+  assert.equal(f.captures.length,2);assert.equal(f.scripts.length,4);f.rasterComparison.clear();
+});
+
+test('observed rectangles, scale and bounded styles remain outside public capture signatures',async()=>{
+  const computed={opacity:'1',backgroundColor:'rgb(255, 223, 158)',borderLeftColor:'rgb(168, 102, 22)',
+    borderRadius:'2px',transform:'none',unrequested:'not retained'};
+  const options={rasterComparison:true,size:{width:1216,height:600},devicePixelRatio:2,labels:[label({computed})]};
+  const f=fixture(options),before=await f.cameraFrame();f.rasterComparison.retainBaseline(before);
+  const after=await f.cameraFrame(),result=f.rasterComparison.compare(after),observed=result.pixelEvidence.expected;
+  assert.deepEqual(before,after);assert.deepEqual(result.pixelEvidence.pixels,[]);
+  assert.deepEqual(observed.canvas,{x:100,y:80,width:800,height:500});
+  assert.deepEqual(observed.viewport,{width:1024,height:700});
+  assert.deepEqual(observed.crop,{x:196,y:180,width:608,height:300});
+  assert.deepEqual(observed.bitmapScale,{x:2,y:2});assert.equal(observed.devicePixelRatio,2);
+  assert.deepEqual(observed.labels[0],{index:0,keySha256:digest('X'),button:{x:210,y:190,width:80,height:30},
+    interior:{x:211,y:191,width:78,height:28},textRect:{x:220,y:198,width:10,height:8},
+    computed:{opacity:'1',backgroundColor:'rgb(255, 223, 158)',borderLeftColor:'rgb(168, 102, 22)',borderRightColor:null,
+      borderTopColor:null,borderBottomColor:null,borderLeftWidth:'1px',borderRightWidth:'1px',borderTopWidth:'1px',borderBottomWidth:'1px',borderRadius:'2px',transform:'none'}});
+  assert.equal(JSON.stringify(observed).includes('Eje X'),false);assert.equal(JSON.stringify(observed).includes('unrequested'),false);
+  assert.equal(f.captures.length,2);assert.equal(f.scripts.length,4);assert.deepEqual(f.sent,[]);
+  const changedStyle=fixture({...options,devicePixelRatio:Infinity,labels:[label({computed:{...computed,opacity:'0.5',transform:'x'.repeat(193)}})]});
+  const samePixels=await changedStyle.cameraFrame();assert.deepEqual(samePixels,before);
+  changedStyle.rasterComparison.retainBaseline(samePixels);
+  const metadata=changedStyle.rasterComparison.compare(await changedStyle.cameraFrame()).pixelEvidence.expected;
+  assert.equal(metadata.devicePixelRatio,null);assert.equal(metadata.labels[0].computed.opacity,'0.5');assert.equal(metadata.labels[0].computed.transform,null);
+  assert.deepEqual(await fixture({...options,rasterComparison:false}).cameraFrame(),before);
+  f.rasterComparison.clear();changedStyle.rasterComparison.clear();
+});
+
+test('diagnostic metadata failure or output budget never changes exact comparison statistics',async()=>{
+  const computed=Object.fromEntries(['opacity','backgroundColor','borderLeftColor','borderRightColor','borderTopColor','borderBottomColor','borderRadius','transform'].map(key=>[key,'x'.repeat(192)]));
+  const cases=[{diagnosticHashFailure:true,labels:[label()]},{labels:Array.from({length:32},(_,i)=>label({key:String(i),computed}))}];
+  for(const options of cases){
+    const f=fixture({...options,rasterComparison:true}),before=await f.cameraFrame();f.rasterComparison.retainBaseline(before);
+    const bytes=Buffer.from(f.raw);bytes[(80*608+80)*4]=128;f.setCapture(bytes);
+    const after=await f.cameraFrame(),result=f.rasterComparison.compare(after);
+    assert.equal(result.raw.changedPixels,1);assert.equal(result.raw.maxByteDelta,1);
+    assert.equal(result.unmasked.changedPixels,1);assert.notEqual(after.sha256,before.sha256);
+    if(options.diagnosticHashFailure){assert.equal(result.pixelEvidence.status,'retained');assert.equal(result.pixelEvidence.expected,null);assert.equal(result.pixelEvidence.actual,null);}
+    else assert.deepEqual(result.pixelEvidence,{status:'unavailable',reason:'byte-budget',byteLimit:128*1024});
+    assert.equal(f.captures.length,2);assert.equal(f.scripts.length,4);assert.deepEqual(f.sent,[]);f.rasterComparison.clear();
+  }
 });
 
 // Original synthetic hashes model accepted images, not camera or application
