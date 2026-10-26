@@ -5,7 +5,7 @@ import { coordinateAssemblyLinePathPosition, assemblyLinePathFollowAxis, assembl
 import { evaluateAssemblyCircularPathReferences } from './kernel.assembly-circular-path-evaluation'
 import { savedAssemblyCircularPathConstraint } from './kernel.assembly-circular-path-adapter'
 import { evaluateAssemblyLinePathReferences } from './kernel.assembly-line-path-evaluation'
-import { AssemblyGeometrySnapshot, isResolvedAssemblyHingeMate, assemblyLinePathPlacementArithmetic, isResolvedAssemblyLinePathMate, isResolvedAssemblyCircularPathMate, type AssemblyLinePathWitness, assemblyEndpointPlacementArithmetic, assemblyPointPlacementArithmetic, assemblyProfilePlacementArithmetic, assemblyProfileAxisPlacementArithmetic, isResolvedAssemblyProfileCenterMate, isResolvedAssemblyWidthMate, isResolvedAssemblySymmetryMate, isResolvedAssemblyBinaryMate, resolvedAssemblyMateWitnesses, type AssemblyEndpointWitness, type AssemblyMateWitness, type AssemblyProfileMateWitness, type AssemblyResolvedMateWitness, type AssemblyReadonly,
+import { AssemblyGeometrySnapshot, withAssemblyGeometryReuse, type AssemblySnapshotRunner, isResolvedAssemblyHingeMate, assemblyLinePathPlacementArithmetic, isResolvedAssemblyLinePathMate, isResolvedAssemblyCircularPathMate, type AssemblyLinePathWitness, assemblyEndpointPlacementArithmetic, assemblyPointPlacementArithmetic, assemblyProfilePlacementArithmetic, assemblyProfileAxisPlacementArithmetic, isResolvedAssemblyProfileCenterMate, isResolvedAssemblyWidthMate, isResolvedAssemblySymmetryMate, isResolvedAssemblyBinaryMate, resolvedAssemblyMateWitnesses, type AssemblyEndpointWitness, type AssemblyMateWitness, type AssemblyProfileMateWitness, type AssemblyResolvedMateWitness, type AssemblyReadonly,
   type ResolvedAssemblyMate, type ResolvedAssemblyBinaryMate, type ResolvedAssemblyWidthMate, type UnavailableAssemblyGear, type UnavailableAssemblyScrew, type UnavailableAssemblyRackPinion } from './kernel.assembly-snapshot'
 import { evaluateRigidMates } from '../model/assemblyMateEquations'
 import { solveRigidMates, type RigidMateSolveResult, type RigidMateSolverOptions } from '../model/assemblySolver'
@@ -149,7 +149,8 @@ function freeze<T>(value: T): AssemblyReadonly<T> {
   return value as AssemblyReadonly<T>
 }
 const key = assemblyDefinitionKey
-function withSnapshot<T>(document: AssemblyDocument, operation: (snapshot: AssemblyGeometrySnapshot) => T): T {
+function withSnapshot<T>(document: AssemblyDocument, operation: (snapshot: AssemblyGeometrySnapshot) => T, snapshots?: AssemblySnapshotRunner): T {
+  if (snapshots) return snapshots(document, operation)
   return withNativeOwners(owners => {
     const snapshot = new AssemblyGeometrySnapshot(document)
     owners.own({ delete: () => snapshot.dispose() })
@@ -618,7 +619,7 @@ function continueGearIntent(problem: RigidMateProblem, before: Node): RigidMateP
   return lifted
 }
 /** Saved lifted values must agree with current native orientations, not phase. */
-function verifyInitialGearState(document: AssemblyDocument, options: ReturnType<typeof policy>): void {
+function verifyInitialGearState(document: AssemblyDocument, options: ReturnType<typeof policy>, snapshots?: AssemblySnapshotRunner): void {
   if (![document, ...document.definitions].some(value => value.kind === 'assembly' && value.mates.some(mate => mate.type === 'gear' || mate.type === 'screw' || mate.type === 'rack-pinion'))) return
   withSnapshot(document, snapshot => {
     const fixed = (value: AssemblyEndpointWitness): RigidMateEndpoint => ({ bodyId: null, frame: poseCopy(value.declaredWorldPose),
@@ -650,7 +651,7 @@ function verifyInitialGearState(document: AssemblyDocument, options: ReturnType<
         throw new Error('Los ángulos guardados del engranaje no coinciden con su colocación nativa; vuelve a capturar el origen.')
       }
     }
-  })
+  }, snapshots)
 }
 function guardUnavailableGearCoordinates(base: AssemblyDocument, candidate: AssemblyDocument, unavailable: readonly (UnavailableAssemblyGear | UnavailableAssemblyScrew | UnavailableAssemblyRackPinion)[]): void {
   const table = (document: AssemblyDocument) => new Map([document, ...document.definitions].map(value => [key(value), value]))
@@ -695,7 +696,7 @@ function guardUnavailableGearCoordinates(base: AssemblyDocument, candidate: Asse
   }
 }
 /** A missing native chart freezes only the coordinates and sources it depends on. */
-export function assertUnavailableAssemblyGearCoordinates(base: AssemblyDocument, candidate: AssemblyDocument): void {
+export function assertUnavailableAssemblyGearCoordinates(base: AssemblyDocument, candidate: AssemblyDocument, snapshots?: AssemblySnapshotRunner): void {
   if (![base, ...base.definitions].some(value => value.kind === 'assembly' && value.mates.some(mate => mate.type === 'gear' || mate.type === 'screw' || mate.type === 'rack-pinion'))) return
   if (JSON.stringify(base) === JSON.stringify(candidate)) return
   withSnapshot(base, before => withSnapshot(candidate, after => {
@@ -714,7 +715,7 @@ export function assertUnavailableAssemblyGearCoordinates(base: AssemblyDocument,
       unavailable.set(JSON.stringify([record.scopePath, key(record.scope), mate.id]), originalRecord)
     }
     guardUnavailableGearCoordinates(base, candidate, [...unavailable.values()])
-  }))
+  }, snapshots), snapshots)
 }
 /** Same-path source repair may retain zero frames only with directed-axis proof. */
 export function assertAssemblyGearSourceContinuity(base: AssemblyDocument, proposal: AssemblyDocument, options: AssemblySolveOptions = {}): void {
@@ -767,7 +768,7 @@ export function assertAssemblyGearSourceContinuity(base: AssemblyDocument, propo
     }
   }))
 }
-function finalChecks(candidate: AssemblyDocument, options: ReturnType<typeof policy>, selectedComponent?: AssemblyComponentReference): {
+function finalChecks(candidate: AssemblyDocument, options: ReturnType<typeof policy>, selectedComponent?: AssemblyComponentReference, snapshots?: AssemblySnapshotRunner): {
   checks: RigidMateEvaluation['checks']; tangencies: AssemblyTangentSupportReport[]; cylinderTangencies: AssemblyCylinderTangencySupportReport[]; sphericalTangencies: AssemblySphericalTangencySupportReport[]; limitDistances: AssemblyLimitDistanceSupportReport[]; limitAngles: AssemblyLimitAngleSupportReport[]; limitDirectedAngles: AssemblyLimitDirectedAngleSupportReport[]; widthCentered: AssemblyWidthCenteredSupportReport[]; symmetries: AssemblySymmetrySupportReport[]; profileCenters: AssemblyProfileCenterSupportReport[]; linePaths: AssemblyLinePathSupportReport[]; circularPaths: AssemblyCircularPathSupportReport[]; hinges: AssemblyHingeSupportReport[]; selectedWorldPose?: RigidPose
 } {
   return withSnapshot(candidate, snapshot => {
@@ -1024,7 +1025,7 @@ function finalChecks(candidate: AssemblyDocument, options: ReturnType<typeof pol
       snapshot.assertWitness(witness, candidate); selectedWorldPose = poseCopy(witness.declaredWorldPose)
     }
     return { checks, hinges, tangencies, cylinderTangencies, sphericalTangencies, limitDistances, limitAngles, limitDirectedAngles, widthCentered, symmetries, profileCenters, linePaths, circularPaths, ...(selectedWorldPose ? { selectedWorldPose } : {}) }
-  })
+  }, snapshots)
 }
 
 /**
@@ -1193,39 +1194,44 @@ export function prepareAssemblyMotionPreview(input: AssemblyDocument, request: A
     let linePaths: AssemblyLinePathSupportReport[] = []
     let hinges: AssemblyHingeSupportReport[] = []
     let circularPaths: AssemblyCircularPathSupportReport[] = []
-    for (let index = 1; index <= plan.stationCount; index++) {
-      const station = prepare(previous, selected, { frame: 'local', request: plan.atStation(index) }, true)
-      if (station.status === 'rejected') return { ...station, message: `Estación ${index}/${plan.stationCount}: ${station.message}` }
-      try {
-        // Use worker-owned candidate data; even a frozen DTO is not authority.
-        const next = validateAssemblyDocument(authority(station, previous).candidate)
-        scopes = structuredClone(station.scopes) as AssemblyScopeSolveReport[]
-        phase = 'verification'
-        const driver = node(next, plan.scope).occurrences.find(value => value.id === plan.occurrenceId)
-        if (!driver || driver.fixed || driver.suppressed || key(driver.definition) !== key(plan.component.definition)
-          || station.movement?.frame !== 'local') throw new Error('La estación no conserva el componente local dirigido.')
-        const measured = measureAssemblyComponentMotionAngle(plan.startPose.rotation, plan.request.rotation.axis,
-          driver.pose.rotation, evaluatedAngle, selected.angleTolerance)
-        const expected = plan.request.rotation.angle * (index / plan.stationCount), residual = Math.abs(measured - expected)
-        if (!Number.isFinite(residual) || residual > selected.angleTolerance) throw new Error('La estación no conserva el giro local firmado solicitado dentro de su tolerancia.')
-        evaluatedAngle = measured; previous = next; verifiedStations++
-        movement = structuredClone(station.movement) as AssemblyMovementWitness
-        checks = structuredClone(station.checks) as RigidMateEvaluation['checks']
-        tangencies = structuredClone(station.tangencies ?? []) as AssemblyTangentSupportReport[]
-        cylinderTangencies = structuredClone(station.cylinderTangencies ?? []) as AssemblyCylinderTangencySupportReport[]
-        sphericalTangencies = structuredClone(station.sphericalTangencies ?? []) as AssemblySphericalTangencySupportReport[]
-        limitDistances = structuredClone(station.limitDistances ?? []) as AssemblyLimitDistanceSupportReport[]
-        limitAngles = structuredClone(station.limitAngles ?? []) as AssemblyLimitAngleSupportReport[]
-        limitDirectedAngles = structuredClone(station.limitDirectedAngles ?? []) as AssemblyLimitDirectedAngleSupportReport[]
-        widthCentered = structuredClone(station.widthCentered ?? []) as AssemblyWidthCenteredSupportReport[]
-        symmetries = structuredClone(station.symmetries ?? []) as AssemblySymmetrySupportReport[]
-        profileCenters = structuredClone(station.profileCenters ?? []) as AssemblyProfileCenterSupportReport[]
-        linePaths = structuredClone(station.linePaths ?? []) as AssemblyLinePathSupportReport[]
-        hinges = structuredClone(station.hinges ?? []) as AssemblyHingeSupportReport[]
-        circularPaths = structuredClone(station.circularPaths ?? []) as AssemblyCircularPathSupportReport[]
-      } finally { discardAssemblySolvePreview(station) }
-      phase = 'reference'
-    }
+    // Part definitions remain local and immutable during this request. Each
+    // station still gets new document-bound witnesses and native checks.
+    const rejected = withAssemblyGeometryReuse(source, snapshots => {
+      for (let index = 1; index <= plan.stationCount; index++) {
+        const station = prepare(previous, selected, { frame: 'local', request: plan.atStation(index) }, true, snapshots)
+        if (station.status === 'rejected') return { ...station, message: `Estación ${index}/${plan.stationCount}: ${station.message}` }
+        try {
+          // Use worker-owned candidate data; even a frozen DTO is not authority.
+          const next = validateAssemblyDocument(authority(station, previous).candidate)
+          scopes = structuredClone(station.scopes) as AssemblyScopeSolveReport[]
+          phase = 'verification'
+          const driver = node(next, plan.scope).occurrences.find(value => value.id === plan.occurrenceId)
+          if (!driver || driver.fixed || driver.suppressed || key(driver.definition) !== key(plan.component.definition)
+            || station.movement?.frame !== 'local') throw new Error('La estación no conserva el componente local dirigido.')
+          const measured = measureAssemblyComponentMotionAngle(plan.startPose.rotation, plan.request.rotation.axis,
+            driver.pose.rotation, evaluatedAngle, selected.angleTolerance)
+          const expected = plan.request.rotation.angle * (index / plan.stationCount), residual = Math.abs(measured - expected)
+          if (!Number.isFinite(residual) || residual > selected.angleTolerance) throw new Error('La estación no conserva el giro local firmado solicitado dentro de su tolerancia.')
+          evaluatedAngle = measured; previous = next; verifiedStations++
+          movement = structuredClone(station.movement) as AssemblyMovementWitness
+          checks = structuredClone(station.checks) as RigidMateEvaluation['checks']
+          tangencies = structuredClone(station.tangencies ?? []) as AssemblyTangentSupportReport[]
+          cylinderTangencies = structuredClone(station.cylinderTangencies ?? []) as AssemblyCylinderTangencySupportReport[]
+          sphericalTangencies = structuredClone(station.sphericalTangencies ?? []) as AssemblySphericalTangencySupportReport[]
+          limitDistances = structuredClone(station.limitDistances ?? []) as AssemblyLimitDistanceSupportReport[]
+          limitAngles = structuredClone(station.limitAngles ?? []) as AssemblyLimitAngleSupportReport[]
+          limitDirectedAngles = structuredClone(station.limitDirectedAngles ?? []) as AssemblyLimitDirectedAngleSupportReport[]
+          widthCentered = structuredClone(station.widthCentered ?? []) as AssemblyWidthCenteredSupportReport[]
+          symmetries = structuredClone(station.symmetries ?? []) as AssemblySymmetrySupportReport[]
+          profileCenters = structuredClone(station.profileCenters ?? []) as AssemblyProfileCenterSupportReport[]
+          linePaths = structuredClone(station.linePaths ?? []) as AssemblyLinePathSupportReport[]
+          hinges = structuredClone(station.hinges ?? []) as AssemblyHingeSupportReport[]
+          circularPaths = structuredClone(station.circularPaths ?? []) as AssemblyCircularPathSupportReport[]
+        } finally { discardAssemblySolvePreview(station) }
+        phase = 'reference'
+      }
+    })
+    if (rejected) return rejected
     phase = 'verification'
     if (!movement || verifiedStations !== plan.stationCount) throw new Error('El movimiento no verificó todas las estaciones solicitadas.')
     const windingResidual = Math.abs(evaluatedAngle - plan.request.rotation.angle)
@@ -1332,7 +1338,7 @@ function verifiedProjection(candidate: AssemblyDocument, movement: Extract<Movem
     evidence, temporaryAnchor: false }
 }
 function prepare(input: AssemblyDocument, options: AssemblySolveOptions, movement?: MovementRequest,
-  refineAngularResiduals = false): AssemblySolvePreview | AssemblySolveRejection {
+  refineAngularResiduals = false, snapshots?: AssemblySnapshotRunner): AssemblySolvePreview | AssemblySolveRejection {
   const scopes: AssemblyScopeSolveReport[] = []
   let phase: AssemblySolveRejection['reason'] = 'reference'
   try {
@@ -1340,7 +1346,7 @@ function prepare(input: AssemblyDocument, options: AssemblySolveOptions, movemen
     const selected = policy(options, movement?.frame === 'projection')
     const numericalAngleTolerance = refineAngularResiduals ? selected.angleTolerance / 10 : selected.angleTolerance
     if (!Number.isFinite(numericalAngleTolerance) || numericalAngleTolerance <= 0) throw new RangeError('La precisión angular interna de la estación no es representable.')
-    verifyInitialGearState(source, selected)
+    verifyInitialGearState(source, selected, snapshots)
     let movementPlan: MovementPlan | undefined
     if (movement?.frame === 'projection') {
       const drag = validateAssemblyComponentDrag(movement.request)
@@ -1401,7 +1407,7 @@ function prepare(input: AssemblyDocument, options: AssemblySolveOptions, movemen
         }
         for (const item of resolved) for (const witness of resolvedAssemblyMateWitnesses(item)) snapshot.assertMateWitness(witness, scope)
         return result
-      })
+      }, snapshots)
       scopes.push({ definition: reference, result: summary(result), ...(anchor === undefined ? {} : { temporaryAnchor: { occurrenceId: anchor } }) })
       if (!result.poses || !['underdefined', 'fullyDefined'].includes(result.status)) {
         return { status: 'rejected', reason: 'numeric', message: 'No se aplicaron posiciones: ' + result.status + '.', scopes }
@@ -1431,11 +1437,11 @@ function prepare(input: AssemblyDocument, options: AssemblySolveOptions, movemen
     }
     phase = 'verification'
     const checked = validateAssemblyDocument(candidate)
-    assertUnavailableAssemblyGearCoordinates(source, checked)
+    assertUnavailableAssemblyGearCoordinates(source, checked, snapshots)
     if (movementPlan?.frame === 'projection' && !activePoseChange(source, checked, selected)) {
       return { status: 'rejected', reason: 'numeric', message: 'No hay movimiento compatible con las relaciones para este destino.', scopes }
     }
-    const verified = finalChecks(checked, selected, movementPlan && movementPlan.frame !== 'local' ? movementPlan.plan.component : undefined), checks = verified.checks
+    const verified = finalChecks(checked, selected, movementPlan && movementPlan.frame !== 'local' ? movementPlan.plan.component : undefined, snapshots), checks = verified.checks
     const movementWitness = movementPlan && movementPlan.frame !== 'projection' ? verifiedMovement(checked, movementPlan, selected, verified.selectedWorldPose) : undefined
     const projectionWitness = movementPlan?.frame === 'projection' ? verifiedProjection(checked, movementPlan, projected, selected, verified.selectedWorldPose) : undefined
     const preview = freeze({ status: 'ready' as const, document: checked, scopes, checks,

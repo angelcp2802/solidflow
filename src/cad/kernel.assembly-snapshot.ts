@@ -8,7 +8,7 @@ import { validateAssemblyArcPathSelection, type AssemblyArcPathSelection } from 
 import type { AssemblyArcPathCurve, AssemblyArcPathEvaluation } from './kernel.assembly-arc-path'
 import { CadEngine } from './kernel.engine'
 import { principalPlaneFrame } from './kernel.frames'
-import { isNativeCleanupFailure, NativeCleanupError } from './kernel.native-ownership'
+import { isNativeCleanupFailure, NativeCleanupError, NativeOwners, withNativeOwners } from './kernel.native-ownership'
 import type { AssemblyNativeSupport, AssemblyNativeCylinderSurfaceSupport, AssemblyNativeSphereSurfaceSupport, AssemblyNativePointSupport } from './kernel.assembly-supports'
 import type { BodyReference, FaceReference, VertexReference } from './kernel.types'
 import { assemblyDefinitionKey, assemblyOccurrencePathKey, expandAssemblyParts, validateAssemblyDocument,
@@ -213,11 +213,120 @@ function worldSupport(local: AssemblyNativeSupport, pose: RigidPose): AssemblyNa
     : { ...common, kind: 'cylinder', axis: transformRigidDirection(pose, local.axis), radius: local.radius }
 }
 interface Placement { definition: AssemblyDefinition; pose: RigidPose; suppressed: boolean }
-interface PartState { engine: CadEngine; selections: Omit<AssemblyFaceSelection, 'component'>[]; vertexSelections: Omit<AssemblyVertexSelection, 'component'>[]; bodyEntries: number }
+interface PartState {
+  engine: CadEngine
+  selections: Omit<AssemblyFaceSelection, 'component'>[]
+  vertexSelections: Omit<AssemblyVertexSelection, 'component'>[]
+  bodyEntries: number
+  faceReferences: number
+  edgeReferences: number
+  vertexReferences: number
+}
 export const MAX_ASSEMBLY_NATIVE_BODY_ENTRIES = 4096
 export const MAX_ASSEMBLY_NATIVE_FACE_REFERENCES = 65_536
 export const MAX_ASSEMBLY_NATIVE_EDGE_REFERENCES = 65_536
 export const MAX_ASSEMBLY_NATIVE_VERTEX_REFERENCES = 65_536
+
+function emptyPartState(): PartState {
+  return { engine: new CadEngine(), selections: [], vertexSelections: [], bodyEntries: 0,
+    faceReferences: 0, edgeReferences: 0, vertexReferences: 0 }
+}
+function rebuildPartState(state: PartState, definition: Extract<AssemblyDefinition, { kind: 'part' }>): void {
+  const result = state.engine.rebuildForAssemblyReferences(definition.document.features)
+  if (result.featureErrors.length) throw new Error('No se pudo reconstruir la pieza del ensamblaje: ' + result.featureErrors.map(value => value.message).join('; '))
+  // Native geometry and catalogs; display vertices confer no body authority.
+  state.bodyEntries = result.kind === 'explicit' ? result.bodies.length : result.kind === 'legacy' ? 1 : 0
+  state.faceReferences = result.kind === 'explicit' ? result.bodies.reduce((total, body) => total + body.faces.length, 0) : result.kind === 'legacy' ? result.faces.length : 0
+  state.edgeReferences = result.kind === 'explicit' ? result.bodies.reduce((total, body) => total + body.edges.length, 0) : result.kind === 'legacy' ? result.edges.length : 0
+  state.vertexReferences = result.kind === 'explicit' ? result.bodies.reduce((total, body) => total + body.vertexRefs.length, 0) : result.kind === 'legacy' ? result.vertexRefs.length : 0
+  state.selections = result.kind === 'explicit'
+    ? result.bodies.flatMap(body => body.faces.map(face => ({ body: { ...body.ref }, face: { ...face } })))
+    : result.kind === 'legacy' ? result.faces.map(face => ({ body: null, face: { ...face } })) : []
+  state.vertexSelections = result.kind === 'explicit'
+    ? result.bodies.flatMap(body => body.vertexRefs.map(vertex => ({ body: { ...body.ref }, vertex: { ...vertex } })))
+    : result.kind === 'legacy' ? result.vertexRefs.map(vertex => ({ body: null, vertex: { ...vertex } })) : []
+}
+
+/** Internal owner of immutable local geometry, never placed witnesses or solve results. */
+class AssemblyGeometryReusePool {
+  #admitted = new Map<string, string>()
+  #parts = new Map<string, PartState>()
+  #owners = new NativeOwners()
+  #alive = true
+  #disposed = false
+  #bodyEntries = 0
+  #faceReferences = 0
+  #edgeReferences = 0
+  #vertexReferences = 0
+  constructor(source: AssemblyDocument) {
+    const document = validateAssemblyDocument(source)
+    for (const definition of document.definitions) if (definition.kind === 'part') {
+      this.#admitted.set(assemblyDefinitionKey(definition), JSON.stringify(definition))
+    }
+  }
+  assertAlive(): void {
+    if (!this.#alive) throw new Error('La reutilización nativa de ensamblaje ya no está vigente.')
+  }
+  invalidate(): void { this.#alive = false }
+  borrow(definition: Extract<AssemblyDefinition, { kind: 'part' }>): PartState | undefined {
+    this.assertAlive()
+    const key = assemblyDefinitionKey(definition)
+    // Same revision labels do not establish identical feature/source content.
+    // Non-admitted content uses the snapshot's ordinary private reconstruction.
+    if (this.#admitted.get(key) !== JSON.stringify(definition)) return undefined
+    const existing = this.#parts.get(key)
+    if (existing) return existing
+    const state = emptyPartState()
+    try {
+      this.#owners.own({ delete: () => state.engine.dispose() })
+      rebuildPartState(state, definition)
+      if (this.#admitted.get(key) !== JSON.stringify(definition)) throw new Error('La pieza cambió durante su reconstrucción nativa compartida.')
+      const bodies = this.#bodyEntries + state.bodyEntries, faces = this.#faceReferences + state.faceReferences,
+        edges = this.#edgeReferences + state.edgeReferences, vertices = this.#vertexReferences + state.vertexReferences
+      // A sequence of scoped snapshots must not accumulate an unbounded inventory.
+      if (bodies > MAX_ASSEMBLY_NATIVE_BODY_ENTRIES || faces > MAX_ASSEMBLY_NATIVE_FACE_REFERENCES || edges > MAX_ASSEMBLY_NATIVE_EDGE_REFERENCES) {
+        throw new Error('El ensamblaje supera el presupuesto de cuerpos, caras o aristas nativos.')
+      }
+      if (vertices > MAX_ASSEMBLY_NATIVE_VERTEX_REFERENCES) throw new Error('El ensamblaje supera el presupuesto de vértices nativos.')
+      this.#bodyEntries = bodies; this.#faceReferences = faces; this.#edgeReferences = edges; this.#vertexReferences = vertices
+      this.#parts.set(key, state)
+      return state
+    } catch (error) { this.invalidate(); throw error }
+  }
+  dispose(): void {
+    if (this.#disposed) return
+    this.#disposed = true; this.invalidate(); this.#parts.clear(); this.#admitted.clear()
+    this.#owners.releaseExcept(new Set())
+    const errors = this.#owners.cleanupErrors()
+    if (errors.length) throw new NativeCleanupError(undefined, errors, 'Assembly reusable geometry release failed.')
+  }
+}
+
+/** Executes each callback with a fresh document-bound native witness session. */
+export interface AssemblySnapshotRunner {
+  <T>(document: AssemblyDocument, operation: (snapshot: AssemblyGeometrySnapshot) => T): T
+}
+/** One synchronous operation only: no geometry or authority survives in a cache. */
+export function withAssemblyGeometryReuse<T>(source: AssemblyDocument, operation: (snapshots: AssemblySnapshotRunner) => T): T {
+  return withNativeOwners(owners => {
+    const pool = new AssemblyGeometryReusePool(source)
+    owners.own({ delete: () => pool.dispose() })
+    const snapshots: AssemblySnapshotRunner = (document, inspect) => {
+      pool.assertAlive()
+      try {
+        return withNativeOwners(snapshotOwners => {
+          const snapshot = new AssemblyGeometrySnapshot(document, pool)
+          snapshotOwners.own({ delete: () => snapshot.dispose() })
+          return inspect(snapshot)
+        }, undefined, 'Assembly reusable snapshot or release failed.')
+      } catch (error) {
+        if (isNativeCleanupFailure(error)) pool.invalidate()
+        throw error
+      }
+    }
+    return operation(snapshots)
+  }, undefined, 'Assembly reusable geometry operation or release failed.')
+}
 
 /**
  * Immutable complete-document native reference session. Definitions rebuild once
@@ -229,9 +338,13 @@ export class AssemblyGeometrySnapshot {
   #signature: string
   #definitions: Map<string, AssemblyDefinition>
   #parts = new Map<string, PartState>()
+  #ownedParts = new Set<PartState>()
+  #pool: AssemblyGeometryReusePool | undefined
   #alive = true
 
-  constructor(input: AssemblyDocument) {
+  constructor(input: AssemblyDocument, pool?: AssemblyGeometryReusePool) {
+    this.#pool = pool
+    pool?.assertAlive()
     this.#document = validateAssemblyDocument(input)
     this.#signature = JSON.stringify(this.#document)
     this.#definitions = new Map([this.#document, ...this.#document.definitions].map(value => [assemblyDefinitionKey(value), value]))
@@ -245,37 +358,29 @@ export class AssemblyGeometrySnapshot {
           if (expandedBodies > MAX_ASSEMBLY_NATIVE_BODY_ENTRIES) throw new Error('El ensamblaje supera 4096 entradas de cuerpo expandidas.')
           continue
         }
-        const engine = new CadEngine(), state: PartState = { engine, selections: [], vertexSelections: [], bodyEntries: 0 }
+        const borrowed = pool?.borrow(definition), state = borrowed ?? emptyPartState()
         this.#parts.set(key, state)
-        const result = engine.rebuildForAssemblyReferences(definition.document.features)
-        if (result.featureErrors.length) throw new Error('No se pudo reconstruir la pieza del ensamblaje: ' + result.featureErrors.map(value => value.message).join('; '))
-        // Reference sessions rebuild the same native geometry and catalogs,
-        // without treating display vertices as evidence that a body exists.
-        state.bodyEntries = result.kind === 'explicit' ? result.bodies.length : result.kind === 'legacy' ? 1 : 0
+        if (!borrowed) { this.#ownedParts.add(state); rebuildPartState(state, definition) }
         prototypeBodies += state.bodyEntries; expandedBodies += state.bodyEntries
-        faceReferences += result.kind === 'explicit' ? result.bodies.reduce((total, body) => total + body.faces.length, 0) : result.kind === 'legacy' ? result.faces.length : 0
-        edgeReferences += result.kind === 'explicit' ? result.bodies.reduce((total, body) => total + body.edges.length, 0) : result.kind === 'legacy' ? result.edges.length : 0
-        vertexReferences += result.kind === 'explicit' ? result.bodies.reduce((total, body) => total + body.vertexRefs.length, 0) : result.kind === 'legacy' ? result.vertexRefs.length : 0
+        faceReferences += state.faceReferences; edgeReferences += state.edgeReferences; vertexReferences += state.vertexReferences
         if (prototypeBodies > MAX_ASSEMBLY_NATIVE_BODY_ENTRIES || expandedBodies > MAX_ASSEMBLY_NATIVE_BODY_ENTRIES || faceReferences > MAX_ASSEMBLY_NATIVE_FACE_REFERENCES || edgeReferences > MAX_ASSEMBLY_NATIVE_EDGE_REFERENCES) {
           throw new Error('El ensamblaje supera el presupuesto de cuerpos, caras o aristas nativos.')
         }
         if (vertexReferences > MAX_ASSEMBLY_NATIVE_VERTEX_REFERENCES) throw new Error('El ensamblaje supera el presupuesto de vértices nativos.')
-        state.selections = result.kind === 'explicit'
-          ? result.bodies.flatMap(body => body.faces.map(face => ({ body: { ...body.ref }, face: { ...face } })))
-          : result.kind === 'legacy' ? result.faces.map(face => ({ body: null, face: { ...face } })) : []
-        state.vertexSelections = result.kind === 'explicit'
-          ? result.bodies.flatMap(body => body.vertexRefs.map(vertex => ({ body: { ...body.ref }, vertex: { ...vertex } })))
-          : result.kind === 'legacy' ? result.vertexRefs.map(vertex => ({ body: null, vertex: { ...vertex } })) : []
       }
     } catch (error) { this.#fail(error) }
   }
-  #available(): void { if (!this.#alive) throw new Error('La sesión nativa de ensamblaje ya no está vigente.') }
+  #available(): void {
+    if (!this.#alive) throw new Error('La sesión nativa de ensamblaje ya no está vigente.')
+    this.#pool?.assertAlive()
+  }
   #current(input: AssemblyDocument): void {
     this.#available()
     if (JSON.stringify(validateAssemblyDocument(input)) !== this.#signature) throw new Error('El documento cambió; reconstruye la sesión nativa del ensamblaje.')
     this.#available()
   }
   #fail(error: unknown): never {
+    if (isNativeCleanupFailure(error)) this.#pool?.invalidate()
     try { this.dispose() } catch (cleanup) { throw new NativeCleanupError({ error }, [cleanup], 'Assembly native snapshot or release failed.') }
     throw error
   }
@@ -935,9 +1040,9 @@ export class AssemblyGeometrySnapshot {
   dispose(): void {
     if (!this.#alive) return
     this.#alive = false
-    const states = [...this.#parts.values()]; this.#parts.clear()
+    const states = [...this.#ownedParts]; this.#ownedParts.clear(); this.#parts.clear()
     const errors: unknown[] = []
     for (const state of states.reverse()) { try { state.engine.dispose() } catch (error) { errors.push(error) } }
-    if (errors.length) throw new AggregateError(errors, 'Assembly native snapshot release failed.')
+    if (errors.length) { this.#pool?.invalidate(); throw new AggregateError(errors, 'Assembly native snapshot release failed.') }
   }
 }

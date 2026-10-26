@@ -1,5 +1,26 @@
 # Development guide
 
+## Native part reuse during explicit motion — 2026-10-26
+
+One explicit component-motion request can reuse the native local geometry of
+unchanged part definitions across its verified stations. Admission compares the
+complete validated part definition, including its content, rather than trusting
+its ID and revision alone. Different content uses a private reconstruction.
+There is no cache shared between requests, saved documents or worker sessions.
+
+Every station still creates new document-bound reference snapshots, resolves
+current placements and performs the existing native checks. Placed supports,
+witnesses, solver outputs and motion acceptance are never cached. Per-snapshot
+body and reference limits remain in force, including reused entries, and the
+retained native inventory has its own cumulative limits.
+
+The operation owns shared native geometry and releases it before the final
+preview becomes authoritative. Individual snapshots release only the geometry
+they own. A fatal native failure revokes shared borrowers; cleanup failures
+prevent a successful result. Apply authenticates and commits the private pending
+candidate; the worker then rebuilds its scene separately, with no retained pool.
+Recorded measurements and executed validation belong in [validation](VALIDATION.md).
+
 ## Wheel-history raster diagnostics — 2026-10-26
 
 The part-from-empty and standard/configured shortcut routes can retain two
@@ -23,14 +44,21 @@ platform support. Executed checks and their limits belong in [validation](VALIDA
 
 ## Hosted interaction diagnostics — 2026-10-26
 
-The Normal To renderer route observes the native orientation selector while
-retaining its existing pointer, End and Enter sequence. Passive, bounded DOM
-listeners record delivered keys and input/change values before React resets
-the command selector. The observations use the existing presentation reads;
-they do not focus a control, execute a command or inspect camera/React state.
-Listeners are removed after the command, including its error path. The later
-independent geometric hit remains the acceptance criterion: an enabled button
-alone does not establish that the selector executed Normal To.
+The Normal To renderer route retains pointer, End and Enter for the orientation
+selector on Windows and Linux. On macOS it reaches the closed selector through
+bounded native Tab/Shift+Tab input, then types `n` only when Normal is the unique
+enabled visible matching option. Read-only DOM guards check focus, visibility,
+hit testing and absence of a dialog or menu. This route does not exercise the
+macOS native dropdown with the mouse.
+
+Passive, bounded DOM listeners record delivered keys and input/change values
+before React resets the command selector. On macOS observation begins after
+focus traversal. Every platform requires trusted input and change events for
+Normal, without dropped observations, before the existing independent geometric
+hit. Observations do not modify controls or inspect camera/React state, and
+listeners are removed on success or error. An enabled button alone does not
+establish that the selector executed Normal To. Actual platform acceptance is
+recorded separately; helper tests do not prove native macOS delivery.
 
 The symmetry-picking route records each native Save request and outcome,
 including a sanitized rejection or a still-pending handler. Its file comparison

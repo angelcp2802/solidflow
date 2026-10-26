@@ -604,4 +604,61 @@ it('publishes full-turn state for every reuse of a nested local declaration with
     expect(preview.checks.filter(check => JSON.parse(check.constraintId)[1] === declaration.id)).toHaveLength(2)
   } finally { querySpy.mockRestore(); referenceBuildSpy.mockRestore(); buildSpy.mockRestore(); value.session.discard() }
 }, 60_000)
+it('reuses only the two unchanged native part definitions within each fully verified motion request', () => {
+  const value = captured(), before = serializeAssemblyDocument(value.document)
+  const rebuild = vi.spyOn(CadEngine.prototype, 'rebuildForAssemblyReferences')
+  try {
+    for (let requestIndex = 1; requestIndex <= 2; requestIndex++) {
+      const preview = ready(value.session.moveMotion(value.document, motionRequest(value.document)))
+      expect(rebuild).toHaveBeenCalledTimes(2 * requestIndex)
+      expect(preview.motion).toMatchObject({ stationCount: 12, verifiedStations: 12, sampledOnly: true })
+      expect(preview.checks.every(check => check.satisfied)).toBe(true)
+      close(gear(preview.document).angles.first, -4 * Math.PI)
+      close(gear(preview.document).angles.second, 2 * Math.PI)
+      expect(preview.scene.solidCount).toBe(3)
+      close(preview.scene.volume, 4800 + 45 * Math.PI / 2, 1e-5)
+      close(preview.scene.area, 2960 + 543 * Math.PI / 4, 1e-5)
+      expect(serializeAssemblyDocument(value.document)).toBe(before)
+      value.session.discard()
+    }
+  } finally { rebuild.mockRestore(); value.session.discard() }
+}, 60_000)
+
+it('rejects completed motion if releasing its shared native parts fails and attempts every owner once', () => {
+  const value = captured(), before = serializeAssemblyDocument(value.document)
+  const older = ready(value.session.prepare(value.document))
+  const built = new Set<CadEngine>(), releases = new Map<CadEngine, number>()
+  const originalBuild = CadEngine.prototype.rebuildForAssemblyReferences, originalDispose = CadEngine.prototype.dispose
+  const originalResolve = AssemblyGeometrySnapshot.prototype.resolveActiveMates
+  let finalStationResolved = false
+  const failure = new Error('Original final motion pool release failure')
+  const resolve = vi.spyOn(AssemblyGeometrySnapshot.prototype, 'resolveActiveMates').mockImplementation(function (this: AssemblyGeometrySnapshot, document) {
+    const result = originalResolve.call(this, document)
+    if (result.some(item => item.mate.type === 'gear' && Math.abs(item.mate.angles.first + 4 * Math.PI) < 1e-8)) finalStationResolved = true
+    return result
+  })
+  const rebuild = vi.spyOn(CadEngine.prototype, 'rebuildForAssemblyReferences').mockImplementation(function (this: CadEngine, features) {
+    const result = originalBuild.call(this, features)
+    built.add(this)
+    return result
+  })
+  const dispose = vi.spyOn(CadEngine.prototype, 'dispose').mockImplementation(function (this: CadEngine) {
+    originalDispose.call(this)
+    if (built.has(this)) {
+      releases.set(this, (releases.get(this) ?? 0) + 1)
+      throw failure
+    }
+  })
+  try {
+    const reply = value.session.moveMotion(value.document, motionRequest(value.document))
+    expect(reply.status).toBe('rejected'); expect('token' in reply).toBe(false)
+    expect(finalStationResolved).toBe(true)
+    expect(built.size).toBe(2)
+    expect(releases.size).toBe(2)
+    expect([...releases.values()]).toEqual([1, 1])
+    expect(serializeAssemblyDocument(value.document)).toBe(before)
+    expect(() => value.session.apply(value.document, older.token)).toThrow('disponible')
+  } finally { dispose.mockRestore(); rebuild.mockRestore(); resolve.mockRestore(); value.session.discard() }
+}, 60_000)
+
 import { requireResolvedBinaryMate } from './kernel.assembly-binary-fixtures.test-utils'

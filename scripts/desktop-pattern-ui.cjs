@@ -1059,6 +1059,9 @@ async function runInElectron() {
       ...(key === 'Enter' ? { text: '\r', unmodifiedText: '\r' } : {}) });
     await window.webContents.debugger.sendCommand('Input.dispatchKeyEvent', { type: 'keyUp', key, code: key, windowsVirtualKeyCode: codes[key] });
   };
+  const normalSelectInput = normalToView && process.platform === 'darwin'
+    ? require('./desktop-normal-select-input.cjs').createNormalSelectInput({ allowed: normalToView, platform: process.platform,
+      getWindow: () => window, evaluate, waitFor, check }) : undefined;
   const asideWheel = async (point, deltaY) => {
     check((configuredPicking || originAxes || partSequence) && !window.isVisible() && window.webContents.debugger.isAttached()
       && Number.isFinite(point.x) && Number.isFinite(point.y) && point.x >= 0 && point.y >= 0
@@ -1260,7 +1263,7 @@ async function runInElectron() {
   };
   // The extra workflow is a fixed tracked module, never a caller/env-selected script.
   const actualWorkflow = normalToView
-    ? require('./desktop-normal-to-view-flow.cjs')({ inputs: normalInputs, documents: normalDocuments, evaluate, observe, waitFor, click, pointer, wheel, menuKey, cameraFrame, cameraGesture, key: shortcutKey,
+    ? require('./desktop-normal-to-view-flow.cjs')({ inputs: normalInputs, documents: normalDocuments, evaluate, observe, waitFor, click, pointer, wheel, menuKey, normalSelectInput, cameraFrame, cameraGesture, key: shortcutKey,
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
     : fromEmpty

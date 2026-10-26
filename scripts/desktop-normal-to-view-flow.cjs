@@ -1,6 +1,7 @@
 'use strict';
 const fs = require('node:fs/promises');
 const { encodeJavaScriptString: quote } = require('./desktop-ui-source.cjs');
+const { normalSelectDelivered } = require('./desktop-normal-select-input.cjs');
 
 // A fixed route over three original inputs, operated through real pointer and
 // keyboard controls. No model, selection or camera state is supplied by the test.
@@ -180,19 +181,29 @@ module.exports = function runNormalToViewWorkflow(c) {
     const before = await selection();check(before?.enabled, 'Current admitted selection before Normal To');
     check(normalCommands.length<32,'Bounded fixed-route command observations');
     const command={kind,method,before,nativeTargets:nativeTargets(before)};normalCommands.push(command);
-    let observingMenu=method==='menu';
+    let observingMenu=false;
     try{
+      if(method==='menu'&&c.normalSelectInput)command.nativeFocus=await c.normalSelectInput.focus();
+      // Tab traversal is complete before the bounded delivery trace starts.
+      observingMenu=method==='menu';
       command.presentationBefore=await presentation(observingMenu?'start':null);
       if(method==='key')await key('8');
       else if(method==='button')await actual(normalButton);
+      else if(c.normalSelectInput){
+        command.menuTransport='closed-select-typeahead';
+        await c.normalSelectInput.key('n');
+      }
       else {
         // Preserve pointer -> End -> Enter while observing native delivery.
+        command.menuTransport='pointer-end-enter';
         await actual('select[aria-label="Orientación de vista"]');
         await c.menuKey('End');await c.menuKey('Enter');
       }
       await waitNormal('Normal To request presented');
       command.after=await selection();command.presentationAfter=await presentation(observingMenu?'finish':null);
       observingMenu=false;
+      if(method==='menu')check(normalSelectDelivered(command.presentationAfter.menuObservation),
+        'Native orientation selector delivers one trusted Normal input and change without dropped observations');
       check(canonical(command.after)===canonical(before),'View command retains ordered selected identities');
       await unchanged('Normal To '+method);
     }catch(error){

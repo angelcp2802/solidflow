@@ -1,5 +1,86 @@
 # Validation
 
+## Explicit-motion geometry reuse and selector delivery — 2026-10-26
+
+The production change reuses unchanged local part geometry within one explicit
+motion request. Every station retains fresh document-bound witnesses and the
+existing native checks. Exact part content, per-snapshot and cumulative native
+budgets, ownership and failure cleanup are covered separately from motion
+geometry. No tolerance, station count or workflow deadline was relaxed.
+
+**Local Windows acceptance 01: PASS**, six freshly executed commands with
+1,194 matching source/runtime inputs, Node 24.11.1 and Electron 44.9.3:
+
+| Command | Result | Elapsed |
+| --- | --- | --- |
+| `npm run build` | PASS | 4.778 s |
+| Focused snapshot-reuse and gear tests | 66 tests, 2 files PASS | 118.871 s |
+| `npm run test:desktop:assembly` | 690 checks PASS | 59.403 s |
+| `npm run test:desktop:normal-to-view` | 157 checks PASS | 17.513 s |
+| `npm test` | 9,963 tests in 438 files; 153 IPC passes, 2 explicit skips | 378.439 s |
+| `npm run test:desktop` | PASS | 2.397 s |
+
+Both renderer routes had zero console/request/resource errors, observed child
+closure and isolated-profile cleanup. The assembly route retained its complete
+workflow, including source editing, movement, pointer projection, interference,
+translation, BOM and gear editing. Both 720-degree previews verified all twelve
+stations; Cancel, Apply, Undo/Redo and the rejected incompatible X-axis turn
+remained exercised. Their observed response waits were 1,442 and 1,439 ms,
+including the route's polling overhead.
+
+Eight new native snapshot tests check fresh placed bore coordinates, foreign and
+cloned witness rejection, independent snapshot lifetimes, changed content under
+the same revision, mutation during reconstruction, fatal-query revocation,
+expanded and cumulative inventory limits, and failed-feature cleanup. Two gear
+regressions check two unique native part rebuilds per request without sharing
+between requests, and failure of final pool release after the last station:
+every owner is attempted once and no token is returned.
+
+### Matched original motion measurement
+
+The same original plate/two-pin document and request were measured before and
+after on Windows 10.0.26200 x64, AMD Ryzen 7 5800X, Node 24.11.1, with the same
+WASM bytes. The captured gear uses ratio 1:2, same direction, phase -pi/12 and
+its existing nonzero neutral frames. Each run has two unprofiled controls and
+one CPU-profiled invocation, each with a fresh session and twelve stations.
+
+| Invocation | Before reuse | After reuse |
+| --- | --- | --- |
+| First unprofiled control | 5,939.580 ms | 1,434.106 ms |
+| CPU-profiled invocation | 6,494.016 ms | 1,377.494 ms |
+| Second unprofiled control | 5,651.147 ms | 1,160.645 ms |
+
+All six invocations passed the same independent checks: three solids, two
+prototypes, volume `4800 + 45*pi/2` and area `2960 + 543*pi/4` within 1e-5,
+bounds within 1e-6, driver winding -4*pi and follower winding -2*pi within 1e-8,
+whole-turn physical endpoint agreement, unchanged capture and unchanged input.
+The earlier sampled profile attributed 5.132 s inclusively to rebuilding part
+references (78.1% of its sampled interval); nested costs are not additive.
+
+These are isolated Node/WASM measurements of this workload. Startup, assertions,
+Electron transport, rendering and the full workflow's warm state are excluded.
+Two controls per version do not establish a general speedup, distribution or
+hosted-CI timeout fix. No timing threshold was added to public tests.
+
+### Native selector coverage and remaining hosted failures
+
+Nine Node tests exercise the bounded macOS closed-selector keyboard helper,
+guards, key release and trusted input/change admission. The Windows renderer
+route delivered both trusted events for Normal in part, standard assembly and
+configured assembly workspaces, then passed the unchanged geometric oracles.
+The new macOS Tab/typeahead route still requires a real macOS CI result. Native
+dropdown mouse interaction on macOS remains unverified.
+
+At preceding public head `a7ec635b4f6af88247f042bf52821f6905ad53d2`,
+[CI](https://github.com/angelcp2802/solidflow/actions/runs/40359033448) supplied
+three distinct observations: macOS received End/Enter without selecting Normal
+or emitting input/change; Linux differed by two unmasked pixels with maximum
+byte delta one in the final Previous View comparison; two Windows workflows
+exhausted their aggregate 170-second deadlines. Completed Save handlers in
+those Windows reports did not reject. None of those observations establishes
+cross-platform acceptance of this increment. Linux restoration, recurring
+hosted stability and the broader human first-use route remain open.
+
 ## Wheel-history diagnostic investigation — 2026-10-26
 
 At public head `4bfc0404d954ac027a674706be95ca0bf1f8d7bc`,
