@@ -1,5 +1,27 @@
 # Development guide
 
+## Basic symmetry Save observations — 2026-10-26
+
+The basic five-family symmetry renderer route now uses the same passive Save
+observer as the symmetry-picking route. The test-owned IPC proxy records each
+request's ordinal, categorical destination and canonical content hash, then its
+pending, fulfilled or rejected state, observed duration and sanitized rejection.
+`completed: false` alone does not distinguish an outstanding handler from one
+that rejected. A handler duration does not isolate a filesystem operation.
+
+The file predicate retains only its latest existing read, bounded to 4 MiB for
+diagnostics. After the wait, one summary compares that read with the original
+committed Apply document and reports hashes, parse/read status and differing
+top-level fields. Its return value never decides acceptance. Reset the retained
+read state before each existing read so a later read error cannot report stale
+successful bytes. Raw content and personal paths are not added to the report.
+
+Keep the five families, saved-document predicate, read count, polling interval
+and deadlines unchanged when maintaining this observer. It adds no write retry,
+file read, renderer evaluation or production persistence change. The proxy tests
+exercise both symmetry route flags and preserve the original return and thrown
+error identities. See [validation](VALIDATION.md) for measured cases and limits.
+
 ## Native part reuse during explicit motion — 2026-10-26
 
 One explicit component-motion request can reuse the native local geometry of

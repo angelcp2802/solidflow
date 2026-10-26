@@ -77,14 +77,14 @@ test('failure observations are bounded and omit paths, URLs, stack, causes and u
 
 // Execute the existing IPC proxy, rather than a hand-written imitation of its
 // catch/return path, so a diagnostic cannot accidentally swallow a rejection.
-function wrapSave(handler, { symmetryPicking = false, now = () => performance.now() } = {}) {
+function wrapSave(handler, { symmetry = false, symmetryPicking = false, now = () => performance.now() } = {}) {
   const source = fs.readFileSync(path.join(__dirname, 'desktop-pattern-ui.cjs'), 'utf8');
   const start = source.indexOf('  const sourceSaveObservation ='), end = source.indexOf('  const testingDialog =', start);
   assert.ok(start >= 0 && end > start);
   let wrapped;
   const context = vm.createContext({ require, input, output, canonical, digest, handler, ipc: [],
     electron: { ipcMain: { handle(channel, callback) { assert.equal(channel, 'document:save'); wrapped = callback; } } },
-    sourceRevision: !symmetryPicking, symmetryPicking, symmetrySaveTimings: new Map(), performance: { now },
+    sourceRevision: !symmetry && !symmetryPicking, symmetry, symmetryPicking, symmetrySaveTimings: new Map(), performance: { now },
     configurations: false, assemblySourceUpdate: false, partRevolution: false,
     assemblyExport: false, structuralStep: false, structuralInsertion: false, linkedSource: false,
     saveCompletion: { enabled: false }, check(condition, message) { assert.ok(condition, message); },
@@ -107,7 +107,7 @@ test('actual source Save IPC proxy forwards one request and preserves original r
   assert.equal(record.documentWrite.requestCanonicalSha256, digest(canonical(authored)));
 });
 
-test('actual symmetry Save proxy exposes pending, fulfilled, canceled and rejected outcomes without replacing them', async () => {
+for (const scenario of ['symmetry', 'symmetryPicking']) test('actual ' + scenario + ' Save proxy exposes pending, fulfilled, canceled and rejected outcomes without replacing them', async () => {
   let now=10, settle, calls=0;
   const payload={name:'Original',content:JSON.stringify(authored)};
   const originalError=Object.assign(new Error('rename "C:\\private\\part.solidflow" failed'),{code:'EPERM'});
@@ -116,7 +116,7 @@ test('actual symmetry Save proxy exposes pending, fulfilled, canceled and reject
     if(calls===1)return await new Promise(resolve=>{settle=resolve;});
     if(calls===2){now=35;return null;}
     now=48;throw originalError;
-  },{symmetryPicking:true,now:()=>now});
+  },{[scenario]:true,now:()=>now});
   const pending=proxy.invoke(payload),first=proxy.records[0];
   assert.equal(calls,1);assert.equal(first.completed,false);
   assert.equal(first.documentWrite.state,'pending');assert.equal(first.documentWrite.durationMs,null);

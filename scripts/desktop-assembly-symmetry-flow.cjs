@@ -9,6 +9,7 @@ module.exports = function symmetryWorkflow(context) {
   context = require('./desktop-assembly-navigation.cjs').withNavigation(context);
   const assemblyNavigation = context.assemblyNavigation;
   const {expected,input,output,evaluate,observe,waitFor,click,capture,checks,ipc,check,canonical,digest,initialReadyMs,dialogCounts,consoleErrors,failedRequests,protocolResponses}=context;
+  const saveObservation=require('./desktop-save-observation.cjs').createSaveObservation({input,output,canonical,digest});
   const families=['point','line','plane','sphere','cylinder'];
   const TYPE='select[aria-label="Tipo de relación"]', FAMILY='select[aria-label="Familia de simetría"]', NAME='input[aria-label="Nombre de simetría"]', ALIGN='select[aria-label="Orientación de simetría"]';
   const roles=['Origen de simetría','Destino de simetría','Plano de simetría'], APPLY='button[aria-label="Aplicar ensamblaje"]', CANCEL='button[aria-label="Cancelar vista previa del ensamblaje"]', SUMMARY='[aria-label="Simetría verificada"]';
@@ -88,7 +89,32 @@ module.exports = function symmetryWorkflow(context) {
       await click('button[aria-label="Editar simetría '+name+'"]');await control('select[aria-label="'+roles[0]+'"]','');check(await page(()=>[...document.querySelectorAll('.assembly-symmetry-panel button')].find(b=>b.textContent.trim()==='Vista previa de la edición de simetría')?.disabled===true),'Missing role blocks edit');await chooseReference(0,refs[0]);await chooseReference(2,refs[2]);await control(NAME,name+' editada');
       if(kind!=='point'&&kind!=='sphere'){const changed=kind==='plane'?'aligned':'opposed';await control(ALIGN,changed);before=await observe();await button('Vista previa de la edición de simetría');event=await responseAfter(before.serial,'preview-assembly');const reply=event.response.value;check(reply.status==='ready'||reply.status==='rejected','Explicit branch edit has defined actual outcome');if(reply.status==='ready'){check(reply.hasToken,'Ready branch capability');nativeReports(reply);await cancel(accepted);}else{check(!reply.hasToken,'Rejected branch has no capability');await recovery(accepted,'rejected branch preserves commit');}record.phases.push({phase:'branch-edit-unapplied',serial:event.serial,value:reply});await control(ALIGN,kind==='plane'?'opposed':'aligned');}
       before=await observe();await button('Vista previa de la edición de simetría');event=await responseAfter(before.serial,'preview-assembly');ready(event,solved);check(event.proposed.mates.find(m=>m.id===mate.id)?.name===name+' editada','Actual name edit proposal');await reportUi();await cancel(accepted);await button('Cancelar edición de simetría');
-      await button('Guardar como',':is(.assembly-toolbar, .assembly-quickbar)');await waitFor('Save As exact '+kind,async()=>{if(dialogCounts().saves!==index+1||!ipc.some(v=>v.channel==='document:save'&&v.completed))return false;try{return canonical(JSON.parse(await fsp.readFile(output,'utf8')))===canonical(accepted);}catch{return false;}});const savedBytes=await fsp.readFile(output);record.savedSha256=digest(savedBytes);
+      // Keep the original Save predicate. Retain only its last existing read,
+      // bounded for diagnostics; neither the cap nor graph.sample accepts a Save.
+      const savedGraph=saveObservation.graph(accepted);record.saveObservation=savedGraph.record;
+      let lastSaveRaw=null,lastSaveReadError=null,saveReadCount=0,saveReadStatus='not-read';
+      try {
+        await button('Guardar como',':is(.assembly-toolbar, .assembly-quickbar)');
+        await waitFor('Save As exact '+kind,async()=>{
+          if(dialogCounts().saves!==index+1||!ipc.some(v=>v.channel==='document:save'&&v.completed))return false;
+          try {
+            saveReadCount++;lastSaveRaw=null;lastSaveReadError=null;saveReadStatus='pending';
+            const raw=await fsp.readFile(output,'utf8');lastSaveReadError=null;
+            const withinDiagnosticLimit=Buffer.byteLength(raw,'utf8')<=4*1024*1024;
+            lastSaveRaw=withinDiagnosticLimit?raw:null;saveReadStatus=withinDiagnosticLimit?'read':'diagnostic-limit';
+            return canonical(JSON.parse(raw))===canonical(accepted);
+          } catch(error) { if(saveReadStatus==='pending'){lastSaveReadError=error;saveReadStatus='read-error';}return false; }
+        });
+      } finally {
+        savedGraph.record.readCount=saveReadCount;savedGraph.record.lastReadStatus=saveReadStatus;
+        // sample's count===1 return belongs to another route. Ignore it here;
+        // this evidence must never change the original predicate or exception.
+        try {
+          if(lastSaveRaw!==null)savedGraph.sample(lastSaveRaw,ipc.filter(v=>v.channel==='document:save'&&v.completed&&v.documentWrite?.chosen&&v.documentWrite.ordinal===index+1).length);
+          else if(lastSaveReadError)savedGraph.failed(lastSaveReadError);
+        } catch(error) { savedGraph.failed(error); }
+      }
+      const savedBytes=await fsp.readFile(output);record.savedSha256=digest(savedBytes);
       before=await observe();await button('Abrir',':is(.assembly-toolbar, .assembly-quickbar)');event=await responseAfter(before.serial,'build-assembly');check(canonical(event.document)===canonical(accepted),'Exact saved three-role '+kind+' reopened');intent(event.document,kind,refs,mate.id,name);geometry(event.response.value,event.document,solved);committed={document:event.document,scene:event.response.value};await recovery(committed.document,'reopened '+kind);
       before=await observe();await click('button[aria-label="Resolver ensamblaje"]');event=await responseAfter(before.serial,'preview-assembly');ready(event,solved);await reportUi();record.phases.push({phase:'reopened-fresh-native-verification',serial:event.serial,value:event.response.value});await cancel(committed.document);
       check(digest(await fsp.readFile(input))===digest(originalBytes)&&digest(await fsp.readFile(output))===digest(savedBytes),'Original and saved bytes preserved for '+kind);

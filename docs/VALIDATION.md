@@ -1,5 +1,65 @@
 # Validation
 
+## Basic symmetry Save observations — 2026-10-26
+
+This increment extends an existing test observer to the basic symmetry route.
+It changes no production behavior, geometric oracle, saved-document predicate,
+file-read count, polling interval or deadline. In the earlier route's report,
+`completed: false` could mean either a pending handler or a rejected handler;
+it was not evidence of a filesystem hang by itself.
+
+**Local Windows acceptance 01: PASS**, four freshly executed commands with
+1,194 matching source/runtime inputs, Node 24.11.1 and Electron 44.9.3:
+
+| Command | Result | Elapsed |
+| --- | --- | --- |
+| `npm run build` | PASS | 5.233 s |
+| `npm run test:desktop:assembly-symmetry` | 183 recorded checks PASS | 56.759 s |
+| `npm test` | 9,963 tests in 438 files; 154 IPC passes, 2 explicit skips | 541.742 s |
+| `npm run test:desktop` | PASS | 2.502 s |
+
+The original point, line, plane, sphere and cylinder cases retained actual
+worker preview/Apply, Undo/Redo, edit/reselect and preview cancellation, followed
+by five Save As/reopen pairs and fresh native verification. All five handlers
+fulfilled, returning the test-owned output destination in observed intervals of
+2.357–3.745 ms. Each last read contained valid JSON exactly equal to its original
+Apply document, with no differing fields and one completed chosen Save for its
+ordinal. Each case needed one read in the unchanged polling predicate. These
+durations cover the observed handler, not individual disk operations or a
+general Save-performance guarantee.
+
+The geometric checks retain fifteen solids and three prototypes, total volume
+`1056 + 160*pi/3` and area `1408 + 80*pi` within 1e-4, individual primitive
+volume/area and independently rotated finite-solid bounds within 1e-6, and
+unchanged fixed/nonparticipating placements. The renderer had no console or
+request errors; child closure and isolated-profile deletion were observed.
+The final ledger, raw logs and renderer report hashes were checked together.
+
+### Hosted evidence and unresolved cases
+
+At preceding public head `d103c8c114f67adec6e833bb116f67794a0c7ab9`,
+[CI](https://github.com/angelcp2802/solidflow/actions/runs/40368943617) passed all
+six macOS/Linux renderer batches, the Windows relations batch and all three
+configured-authoring jobs. The macOS Normal To step passed; the retained bounded
+log does not contain all three complete workspace event traces, so it does not
+support a separate event-by-event audit of those three selections. Native
+dropdown mouse interaction remains outside that route's keyboard coverage.
+
+Two Windows renderer failures remain unresolved. Basic symmetry exceeded the
+35-second Save comparison wait for the sphere case after three successful
+Save/reopen pairs; its fourth Save recorded `completed: false` without the new
+outcome details. The assembly macro reached its aggregate 170-second deadline
+during the gear pointer gesture's final projection, before either 720-degree
+preview. Downstream Desktop failures stopped at the aggregate renderer
+dependency gate and do not establish additional Desktop execution defects.
+Passing Linux restoration and macOS Normal To in this run does not prove the
+earlier intermittent failures fixed. The new observer has not yet supplied
+hosted evidence for the Windows Save failure.
+
+This diagnostic does not complete a feature item: [issue #55](https://github.com/angelcp2802/solidflow/issues/55)
+remains at 16 of 25 checklist items, not an estimate of the whole application.
+The complete human first-use demo and release readiness remain unverified.
+
 ## Explicit-motion geometry reuse and selector delivery — 2026-10-26
 
 The production change reuses unchanged local part geometry within one explicit
