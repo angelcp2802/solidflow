@@ -1,5 +1,29 @@
 # Development guide
 
+## Hosted interaction diagnostics — 2026-10-26
+
+The Normal To renderer route observes the native orientation selector while
+retaining its existing pointer, End and Enter sequence. Passive, bounded DOM
+listeners record delivered keys and input/change values before React resets
+the command selector. The observations use the existing presentation reads;
+they do not focus a control, execute a command or inspect camera/React state.
+Listeners are removed after the command, including its error path. The later
+independent geometric hit remains the acceptance criterion: an enabled button
+alone does not establish that the selector executed Normal To.
+
+The symmetry-picking route records each native Save request and outcome,
+including a sanitized rejection or a still-pending handler. Its file comparison
+retains the latest result of the existing read, then summarizes it against the
+original committed Apply document. These observations do not retry a write,
+read an additional file or change the saved-document predicate or deadlines.
+The shared source-revision observer's stricter return predicate is not used
+as symmetry acceptance. Handler durations describe the observed intervals;
+they do not identify an individual filesystem operation as the cause.
+
+These diagnostics run only in the existing isolated, test-owned workflows.
+They do not change production controls, IPC admission or document persistence.
+See [validation](VALIDATION.md) for executed cases and unresolved hosted errors.
+
 ## Stable part selection actions — 2026-10-26
 
 The part tree has one permanent selection footer. Its two fixed-height rows

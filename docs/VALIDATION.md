@@ -1,5 +1,81 @@
 # Validation
 
+## Native selector and symmetry Save diagnostics — 2026-10-26
+
+Acceptance 02 passes all six freshly executed commands on Windows and Node
+24.11.1 against 1,191 matching frozen source/runtime inputs; no earlier passing
+result is retained. Build passes in 4.976 s. `npm test` passes 9,953 tests across
+437 files, plus 135 IPC checks and two explicit skips, in 440.143 s. Desktop
+smoke passes in 2.384 s with loaded WASM and passing worker-queue checks.
+Durations include evidence verification. The eight production inputs and
+static SVG match the preceding accepted build: this is a diagnostics-only change.
+
+At preceding public head `c648924367fe50784133d4ab03a9ff636adcd730`,
+[CI](https://github.com/angelcp2802/solidflow/actions/runs/40344362318)
+completed with seven of nine renderer batches and all three configured-authoring
+jobs passing. The three Desktop jobs failed their renderer gate. The remaining
+renderer failures were macOS Normal To and Windows symmetry picking; the Linux
+Previous View route passed this run, without establishing the cause or resolution
+of its earlier raster mismatch.
+
+In the macOS part case, the first native-selector invocation used pointer,
+End and Enter with the ordered YZ/XY selection. The following analytical +X
+face hit instead selected the +Z face. Selection and viewport bounds remained
+stable, but the old readiness check only established that Normal To was enabled.
+It did not show whether the selector delivered its command. The route now
+records up to 24 passive focus/key/input/change observations during each of
+its three native-selector invocations, using the existing presentation reads.
+Values are observed in capture before React resets the command selector;
+listeners are removed after success or an error. No focus, command, model or
+camera state is injected. The original geometry assertions still decide PASS.
+
+The current Windows failure was `Save As exact line`, after the second native
+Save dialog. Its handler was marked incomplete, which previously could mean
+either pending or rejected. This was a different stopping point from the
+preceding run's overall symmetry deadline. The test proxy now records each
+Save's outcome, sanitized rejection, monotonic handler interval, ordinal and
+canonical request hash. The symmetry route summarizes only the latest existing
+file read against the original committed Apply document, retaining at most
+4 MiB for that diagnostic. The original saved-document predicate is unchanged;
+the shared observer's stricter acceptance return is deliberately ignored.
+No extra file read, retry, geometry tolerance or deadline is introduced.
+
+The fresh local renderer results on Windows are:
+
+| Production-renderer command | Recorded passing checks | Observed wall time |
+| --- | ---: | ---: |
+| `npm run test:desktop:normal-to-view` | 157 | 17.762 s |
+| `npm run test:desktop:assembly-symmetry-picking` | 269 | 50.111 s |
+| `npm run test:desktop:assembly-source-revision` | 73 | 5.292 s |
+
+Normal To retains all 48 phases across part, standard and configured workspaces,
+including the compact-window double click and exact unselected Previous pixels.
+Each of its three selector invocations observed trusted input/change events for
+`normal`, with no dropped events, followed by the existing independent face hit.
+
+Symmetry retains all six families, 18 authoring picks, six edit reselections,
+Apply/Undo/Redo, six Save/reopen pairs and fresh native verification. All six
+observed Saves returned the test-owned output; request, authored and disk
+canonical hashes matched. Each case's existing first read found its authored
+document. Observed handler intervals were 2.972–5.550 ms. These are six samples
+from this local run, not a filesystem benchmark or a hosted failure diagnosis.
+The source-revision route separately checks the existing observer integration.
+
+The first acceptance attempt passed its unit and renderer cases but failed five
+IPC teardown checks because their extracted-function VM lacked the new timing
+map. The VM now supplies that dependency and its monotonic clock; all five
+original assertions remain. The existing teardown test also verifies that a
+pending Save snapshot retains its pre-cleanup duration after late completion.
+The two focused Node files passed 28 checks before the fresh second acceptance.
+
+The real IPC proxy's Node checks also exercise pending, successful, cancelled
+and rejected Saves, retaining the original result/rejection and sanitized logs.
+The renderer routes report zero console/request/resource errors, observed child
+closure and isolated-profile cleanup. This increment changes test diagnostics
+only, not production behavior. It does not establish either hosted failure as
+fixed, a performance improvement, a new installed demo or platform support.
+Fresh hosted evidence and broader first-prototype/release acceptance remain open.
+
 ## Stable part selection footer — local acceptance, 2026-10-26
 
 The part workspace now uses one permanent 64 px selection footer for face,

@@ -224,7 +224,8 @@ test('actual deadline keeps every timing phase and existing progress within the 
 });
 
 function exerciseChildFinish({ primary = new Error('Original child coordinate assertion'), active = true, frames = 1,
-  cleanupError = null, withWindow = true, timing = null, duringCleanup = () => {} } = {}) {
+  cleanupError = null, withWindow = true, timing = null, duringCleanup = () => {},
+  symmetrySaveTimings = new Map(), ipc = [], now = () => performance.now() } = {}) {
   const source = fs.readFileSync(path.join(__dirname, 'desktop-pattern-ui.cjs'), 'utf8');
   const start = source.indexOf('  function finish(error) {'), end = source.indexOf('  const evaluate =', start);
   const settleStart = source.indexOf('  function settlePresentationWaiters(error) {');
@@ -235,8 +236,9 @@ function exerciseChildFinish({ primary = new Error('Original child coordinate as
     resolve() { throw Error('Failure must reject pending presentation'); },
     reject(error) { rejected.push(error); events.push(['presentation-reject', id]); },
   })) : []);
-  const context = vm.createContext({ finished: false, workflowTiming: timing, timeout: 'child-deadline', clearTimeout(id) { clearedTimers.push(id); },
-    checks: [], protocolResponses: [], consoleErrors: [], failedRequests: [], captures: [], ipc: [],
+  const context = vm.createContext({ finished: false, workflowTiming: timing, symmetrySaveTimings, performance: { now },
+    timeout: 'child-deadline', clearTimeout(id) { clearedTimers.push(id); },
+    checks: [], protocolResponses: [], consoleErrors: [], failedRequests: [], captures: [], ipc,
     opens: 0, saves: 0, csvExports: 0, geometryExports: 0, sourceOpens: 0, stepImports: 0,
     linkedSource: false, sourceRevision: false, partFinishing: false, partRevolution: false, assemblyExport: false, structuralStep: false, structuralInsertion: false,
     presentation: { active, stopped: false, frames, captureBarriers: 0 }, presentationWaiters,
@@ -311,7 +313,10 @@ test('actual finish retains a detached partial timing snapshot through cleanup a
   now = 65;
   const original = new Error('Original native preview deadline');
   const beforeFinish = timing.snapshot();
+  const pendingSave = { state: 'pending', durationMs: null };
   const { writes, rejected, events } = exerciseChildFinish({ primary: original, timing,
+    symmetrySaveTimings: new Map([[pendingSave, 40]]), now: () => now,
+    ipc: [{ channel: 'document:save', completed: false, documentWrite: pendingSave }],
     duringCleanup() { now = 90; endEvaluate(); } });
   const retained = writes[0].workflowTiming;
   assert.deepEqual(retained, beforeFinish);
@@ -321,13 +326,17 @@ test('actual finish retains a detached partial timing snapshot through cleanup a
   assert.equal(retained.categories.evaluate.activeCount, 1);
   assert.equal(retained.categories.evaluate.pendingMs, 25);
   assert.equal(retained.categories.assemblyResponse.activeCount, 1);
+  assert.deepEqual(writes[0].ipc[0].documentWrite, { state: 'pending', durationMs: 25 });
   assert.equal(timing.snapshot().categories.evaluate.activeCount, 0, 'Cleanup has already completed the live operation');
   assert.equal(writes[0].error.message, original.message);
   assert.ok(rejected.every(error => error === original));
   assert.deepEqual(events.at(-1), ['exit', 1]);
   const immutableReport = JSON.stringify(retained);
   now = 100; endEvaluate(); endResponse(); timing.completePhase();
+  pendingSave.state = 'fulfilled'; pendingSave.durationMs = 60;
   assert.equal(timing.snapshot().categories.evaluate.activeCount, 0);
   assert.equal(JSON.stringify(retained), immutableReport);
   assert.deepEqual(retained, beforeFinish, 'Both snapshots remain detached after late promise cleanup');
+  assert.deepEqual(writes[0].ipc[0].documentWrite, { state: 'pending', durationMs: 25 },
+    'Late Save completion must not rewrite the already emitted pending outcome');
 });

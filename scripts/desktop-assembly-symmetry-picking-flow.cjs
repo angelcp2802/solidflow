@@ -7,6 +7,7 @@ module.exports = function symmetryPickingWorkflow(context) {
   context = require('./desktop-assembly-navigation.cjs').withNavigation(context);
   const assemblyNavigation = context.assemblyNavigation;
   const {expected,input,output,evaluate,observe,waitFor,click,capture,pointer,checks,ipc,check,canonical,digest,initialReadyMs,dialogCounts,consoleErrors,failedRequests,protocolResponses}=context;
+  const saveObservation=require('./desktop-save-observation.cjs').createSaveObservation({input,output,canonical,digest});
   const families=['point','line','plane','sphere','cylinder','axisline'];
   const TYPE='select[aria-label="Tipo de relación"]', FAMILY='select[aria-label="Familia de simetría"]', NAME='input[aria-label="Nombre de simetría"]', ALIGN='select[aria-label="Orientación de simetría"]';
   const roles=['Origen de simetría','Destino de simetría','Plano de simetría'], APPLY='button[aria-label="Aplicar ensamblaje"]', CANCEL='button[aria-label="Cancelar vista previa del ensamblaje"]', SUMMARY='[aria-label="Simetría verificada"]';
@@ -157,7 +158,32 @@ module.exports = function symmetryPickingWorkflow(context) {
       for(const [action,wanted,which] of [['Deshacer',baseline,solved.slice(0,-1)],['Rehacer',accepted,solved]]){before=await observe.counters();await click('button[aria-label="'+action+' ensamblaje"]');event=await responseAfter(before.serial,'build-assembly');check(canonical(event.document)===canonical(wanted),'Exact '+action+' '+kind);geometry(event.response.value,event.document,which);await recovery(event.document,action+' '+kind);committed={document:event.document,scene:event.response.value};}
       await click('button[aria-label="Editar simetría '+name+'"]');await pickRole(committed,kind,0,refs[0],true);await control(NAME,name+' editada');
       before=await observe.counters();await button('Vista previa de la edición de simetría');event=await responseAfter(before.serial,'preview-assembly');ready(event,solved);check(event.proposed.mates.find(m=>m.id===mate.id)?.name===name+' editada','Actual name edit proposal');await reportUi();await cancel(accepted);await button('Cancelar edición de simetría');
-      await button('Guardar como',':is(.assembly-toolbar, .assembly-quickbar)');await waitFor('Save As exact '+kind,async()=>{if(dialogCounts().saves!==index+1||!ipc.some(v=>v.channel==='document:save'&&v.completed))return false;try{return canonical(JSON.parse(await fsp.readFile(output,'utf8')))===canonical(accepted);}catch{return false;}});const savedBytes=await fsp.readFile(output);record.savedSha256=digest(savedBytes);
+      // Keep the original Save predicate. Retain only its last existing read,
+      // bounded for diagnostics; neither the cap nor graph.sample accepts a Save.
+      const savedGraph=saveObservation.graph(accepted);record.saveObservation=savedGraph.record;
+      let lastSaveRaw=null,lastSaveReadError=null,saveReadCount=0,saveReadStatus='not-read';
+      try {
+        await button('Guardar como',':is(.assembly-toolbar, .assembly-quickbar)');
+        await waitFor('Save As exact '+kind,async()=>{
+          if(dialogCounts().saves!==index+1||!ipc.some(v=>v.channel==='document:save'&&v.completed))return false;
+          try {
+            saveReadCount++;lastSaveRaw=null;lastSaveReadError=null;saveReadStatus='pending';
+            const raw=await fsp.readFile(output,'utf8');lastSaveReadError=null;
+            const withinDiagnosticLimit=Buffer.byteLength(raw,'utf8')<=4*1024*1024;
+            lastSaveRaw=withinDiagnosticLimit?raw:null;saveReadStatus=withinDiagnosticLimit?'read':'diagnostic-limit';
+            return canonical(JSON.parse(raw))===canonical(accepted);
+          } catch(error) { if(saveReadStatus==='pending'){lastSaveReadError=error;saveReadStatus='read-error';}return false; }
+        });
+      } finally {
+        savedGraph.record.readCount=saveReadCount;savedGraph.record.lastReadStatus=saveReadStatus;
+        // sample's count===1 return belongs to another route. Ignore it here;
+        // this evidence must never change the original predicate or exception.
+        try {
+          if(lastSaveRaw!==null)savedGraph.sample(lastSaveRaw,ipc.filter(v=>v.channel==='document:save'&&v.completed&&v.documentWrite?.chosen&&v.documentWrite.ordinal===index+1).length);
+          else if(lastSaveReadError)savedGraph.failed(lastSaveReadError);
+        } catch(error) { savedGraph.failed(error); }
+      }
+      const savedBytes=await fsp.readFile(output);record.savedSha256=digest(savedBytes);
       before=await observe.counters();await button('Abrir',':is(.assembly-toolbar, .assembly-quickbar)');event=await responseAfter(before.serial,'build-assembly');check(canonical(event.document)===canonical(accepted),'Exact saved three-role '+kind+' reopened');intent(event.document,kind,refs,mate.id,name);geometry(event.response.value,event.document,solved);committed={document:event.document,scene:event.response.value};await recovery(committed.document,'reopened '+kind);
       before=await observe.counters();await click('button[aria-label="Resolver ensamblaje"]');event=await responseAfter(before.serial,'preview-assembly');ready(event,solved);await reportUi();record.phases.push({phase:'reopened-fresh-native-verification',serial:event.serial,value:event.response.value});await cancel(committed.document);
       check(digest(await fsp.readFile(input))===digest(originalBytes)&&digest(await fsp.readFile(output))===digest(savedBytes),'Original and saved bytes preserved for '+kind);

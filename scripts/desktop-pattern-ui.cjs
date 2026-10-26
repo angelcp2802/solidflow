@@ -890,6 +890,7 @@ async function runInElectron() {
     presentation.captureBarriers++;
   }
   const childBudgetStarted = performance.now();
+  const symmetrySaveTimings = new Map();
   const workflowTiming = assembly ? require('./desktop-workflow-timing.cjs').createWorkflowTiming() : null;
   const timeout = setTimeout(() => {
     // Snapshot existing counters before finish stops presentation; no renderer
@@ -935,6 +936,7 @@ async function runInElectron() {
   function finish(error) {
     if (finished) return;
     const timingSnapshot = workflowTiming?.snapshot();
+    for (const [record, started] of symmetrySaveTimings) record.durationMs = Math.max(0, performance.now() - started);
     if (!error && saveCompletion.enabled && (!saveCompletion.armed || saveCompletion.pending
       || saveCompletion.releasedBy !== 'saved-controls-fence' || saveCompletion.observation?.ipcReturnReleased !== true)) {
       error = new Error('The selected real Save did not complete its pending-return acceptance.');
@@ -1548,7 +1550,7 @@ async function runInElectron() {
     });
     const value = Reflect.get(target, member); return typeof value === 'function' ? value.bind(target) : value;
   } });
-  const sourceSaveObservation = sourceRevision ? require('./desktop-save-observation.cjs').createSaveObservation({ input, output, canonical, digest }) : null;
+  const sourceSaveObservation = sourceRevision || symmetryPicking ? require('./desktop-save-observation.cjs').createSaveObservation({ input, output, canonical, digest }) : null;
   const testingIpc = new Proxy(electron.ipcMain, { get(target, member) {
     if (member === 'handle') return (channel, handler) => target.handle(channel, async (event, payload) => {
       const observation = { channel, completed: false }; ipc.push(observation);
@@ -1567,6 +1569,8 @@ async function runInElectron() {
           sha256: digest(Buffer.from(payload.data.buffer, payload.data.byteOffset, payload.data.byteLength)) };
       }
       if ((sourceRevision || configurations || assemblySourceUpdate) && channel === 'document:save') observation.documentWrite = { name: payload?.name, hasPath: typeof payload?.filePath === 'string', ...(configurations || assemblySourceUpdate ? { filePath: payload?.filePath } : {}), sha256: typeof payload?.content === 'string' ? digest(payload.content) : null };
+      const symmetrySave = symmetryPicking && channel === 'document:save';
+      if (symmetrySave) observation.documentWrite = { state: 'pending', durationMs: null };
       if (sourceSaveObservation && channel === 'document:save') Object.assign(observation.documentWrite,
         sourceSaveObservation.request(payload, ipc.filter(row => row.channel === 'document:save').length));
       const selectedSave = saveCompletion.enabled && channel === 'document:save'
@@ -1577,12 +1581,23 @@ async function runInElectron() {
         saveCompletion.nativeReady = new Promise(resolve => { saveCompletion.ready = resolve; });
       }
       let result;
-      try { result = await handler(event, payload); observation.completed = true; }
+      if (symmetrySave) symmetrySaveTimings.set(observation.documentWrite, performance.now());
+      try {
+        result = await handler(event, payload); observation.completed = true;
+        if (symmetrySave) observation.documentWrite.state = 'fulfilled';
+      }
       catch (error) {
+        if (symmetrySave) observation.documentWrite.state = 'rejected';
         if (sourceSaveObservation && channel === 'document:save') sourceSaveObservation.rejected(observation.documentWrite, error);
         if (configurations && observation.csv) observation.failed = true; if (selectedSave) saveCompletion.ready(); throw error;
       }
-      if ((sourceRevision || configurations || assemblySourceUpdate) && channel === 'document:save') observation.documentWrite.chosen = result !== null;
+      finally {
+        if (symmetrySave) {
+          observation.documentWrite.durationMs = Math.max(0, performance.now() - symmetrySaveTimings.get(observation.documentWrite));
+          symmetrySaveTimings.delete(observation.documentWrite);
+        }
+      }
+      if ((sourceRevision || configurations || assemblySourceUpdate || symmetryPicking) && channel === 'document:save') observation.documentWrite.chosen = result !== null;
       if (sourceSaveObservation && channel === 'document:save') sourceSaveObservation.returned(observation.documentWrite, result);
       if (selectedSave) {
         try {

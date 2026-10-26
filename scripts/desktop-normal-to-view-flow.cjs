@@ -35,11 +35,42 @@ module.exports = function runNormalToViewWorkflow(c) {
     return e ? { kind: e.getAttribute('data-normal-selection-kind'), keys: JSON.parse(e.getAttribute('data-normal-selection-keys') || 'null'),
       enabled: e.getAttribute('data-normal-enabled') === 'true', buttonDisabled: document.querySelector('button[aria-label="Normal a"]')?.disabled } : null;
   }, host());
-  const presentation = () => page((hostSelector,canvasSelector)=>{
+  const presentation = (menuObservation = null) => page((hostSelector,canvasSelector,menuObservation)=>{
     const box=e=>{const r=e?.getBoundingClientRect();return r?{x:r.x,y:r.y,width:r.width,height:r.height,clientWidth:e.clientWidth,clientHeight:e.clientHeight}:null;};
     const outer=document.querySelector(hostSelector),surface=document.querySelector(canvasSelector),viewport=surface?.parentElement;
-    return {outer:box(outer),viewport:box(viewport),canvas:box(surface),picking:viewport?.getAttribute('data-reference-picking')??null};
-  },host(),canvas());
+    const result={outer:box(outer),viewport:box(viewport),canvas:box(surface),picking:viewport?.getAttribute('data-reference-picking')??null};
+    if(menuObservation==='start'){
+      window.__solidflowNormalMenuObservation?.stop();
+      const selector='select[aria-label="Orientación de vista"]',select=document.querySelector(selector);
+      const state=()=>({connected:!!select?.isConnected,current:document.querySelector(selector)===select,
+        disabled:select?.disabled??null,value:select?.value??null,selectedIndex:select?.selectedIndex??null,
+        optionCount:select?.options.length??0,options:[...(select?.options??[])].slice(0,16).map(option=>({value:option.value,selected:option.selected,disabled:option.disabled})),
+        activeTag:document.activeElement?.tagName??null,selectFocused:document.activeElement===select,
+        viewLabel:document.querySelector('[aria-label="Nombre de la vista"]')?.textContent.trim().slice(0,64)??null,
+        rejectionVisible:!!document.querySelector('.toast-error')});
+      const events=[],types=['focus','blur','keydown','keyup','input','change'];
+      let dropped=0;
+      const listener=event=>{
+        if(event.target!==select&&event.type!=='keydown'&&event.type!=='keyup')return;
+        if(events.length===24){dropped++;return;}
+        events.push({type:event.type,key:typeof event.key==='string'?event.key.slice(0,32):null,
+          isTrusted:event.isTrusted,defaultPrevented:event.defaultPrevented,targetIsSelect:event.target===select,state:state()});
+      };
+      const stop=()=>{for(const type of types)document.removeEventListener(type,listener,true);};
+      // Capture input/change before React restores the command selector's empty value.
+      // These listeners observe only; they never focus, cancel or dispatch an event.
+      window.__solidflowNormalMenuObservation={stop,read:()=>({events,dropped,state:state()})};
+      for(const type of types)document.addEventListener(type,listener,{capture:true,passive:true});
+      result.menuObservation=window.__solidflowNormalMenuObservation.read();
+    }else if(menuObservation==='finish'){
+      const observation=window.__solidflowNormalMenuObservation;
+      if(observation){
+        try{result.menuObservation=observation.read();}
+        finally{observation.stop();delete window.__solidflowNormalMenuObservation;}
+      }
+    }
+    return result;
+  },host(),canvas(),menuObservation);
   function nativeTargets(state) {
     const all=native?.bodies.flatMap(body=>body.faces)??[];
     return (state?.keys??[]).slice(0,3).map(value=>{
@@ -148,19 +179,29 @@ module.exports = function runNormalToViewWorkflow(c) {
   async function normal(method = 'key') {
     const before = await selection();check(before?.enabled, 'Current admitted selection before Normal To');
     check(normalCommands.length<32,'Bounded fixed-route command observations');
-    const command={kind,method,before,nativeTargets:nativeTargets(before),presentationBefore:await presentation()};normalCommands.push(command);
-    if(method==='key')await key('8');
-    else if(method==='button')await actual(normalButton);
-    else {
-      // A visible native select is the same existing toolbar command. Pointer
-      // opens it, then its actual option is chosen by the bounded key transport.
-      await actual('select[aria-label="Orientación de vista"]');
-      await c.menuKey('End');await c.menuKey('Enter');
+    const command={kind,method,before,nativeTargets:nativeTargets(before)};normalCommands.push(command);
+    let observingMenu=method==='menu';
+    try{
+      command.presentationBefore=await presentation(observingMenu?'start':null);
+      if(method==='key')await key('8');
+      else if(method==='button')await actual(normalButton);
+      else {
+        // Preserve pointer -> End -> Enter while observing native delivery.
+        await actual('select[aria-label="Orientación de vista"]');
+        await c.menuKey('End');await c.menuKey('Enter');
+      }
+      await waitNormal('Normal To request presented');
+      command.after=await selection();command.presentationAfter=await presentation(observingMenu?'finish':null);
+      observingMenu=false;
+      check(canonical(command.after)===canonical(before),'View command retains ordered selected identities');
+      await unchanged('Normal To '+method);
+    }catch(error){
+      if(observingMenu){
+        try{command.presentationAfter=await presentation('finish');}
+        catch{command.menuObservationCleanupFailed=true;}
+      }
+      throw error;
     }
-    await waitNormal('Normal To request presented');
-    command.after=await selection();command.presentationAfter=await presentation();
-    check(canonical(command.after)===canonical(before),'View command retains ordered selected identities');
-    await unchanged('Normal To '+method);
   }
   function faces(owner='ground') {
     return kind==='part' ? native.bodies.flatMap(b=>b.faces) : native.bodies.filter(b=>canonical(b.component.occurrencePath)===canonical([owner])).flatMap(b=>b.faces);

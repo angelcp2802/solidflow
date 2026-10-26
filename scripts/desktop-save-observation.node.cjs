@@ -77,14 +77,15 @@ test('failure observations are bounded and omit paths, URLs, stack, causes and u
 
 // Execute the existing IPC proxy, rather than a hand-written imitation of its
 // catch/return path, so a diagnostic cannot accidentally swallow a rejection.
-function wrapSave(handler) {
+function wrapSave(handler, { symmetryPicking = false, now = () => performance.now() } = {}) {
   const source = fs.readFileSync(path.join(__dirname, 'desktop-pattern-ui.cjs'), 'utf8');
   const start = source.indexOf('  const sourceSaveObservation ='), end = source.indexOf('  const testingDialog =', start);
   assert.ok(start >= 0 && end > start);
   let wrapped;
   const context = vm.createContext({ require, input, output, canonical, digest, handler, ipc: [],
     electron: { ipcMain: { handle(channel, callback) { assert.equal(channel, 'document:save'); wrapped = callback; } } },
-    sourceRevision: true, configurations: false, assemblySourceUpdate: false, partRevolution: false,
+    sourceRevision: !symmetryPicking, symmetryPicking, symmetrySaveTimings: new Map(), performance: { now },
+    configurations: false, assemblySourceUpdate: false, partRevolution: false,
     assemblyExport: false, structuralStep: false, structuralInsertion: false, linkedSource: false,
     saveCompletion: { enabled: false }, check(condition, message) { assert.ok(condition, message); },
   });
@@ -104,6 +105,37 @@ test('actual source Save IPC proxy forwards one request and preserves original r
   assert.equal(record.documentWrite.error.code, 'EPERM');
   assert.equal(record.documentWrite.sha256, digest(payload.content));
   assert.equal(record.documentWrite.requestCanonicalSha256, digest(canonical(authored)));
+});
+
+test('actual symmetry Save proxy exposes pending, fulfilled, canceled and rejected outcomes without replacing them', async () => {
+  let now=10, settle, calls=0;
+  const payload={name:'Original',content:JSON.stringify(authored)};
+  const originalError=Object.assign(new Error('rename "C:\\private\\part.solidflow" failed'),{code:'EPERM'});
+  const proxy=wrapSave(async (_event,actual)=>{
+    calls++;assert.equal(actual,payload);
+    if(calls===1)return await new Promise(resolve=>{settle=resolve;});
+    if(calls===2){now=35;return null;}
+    now=48;throw originalError;
+  },{symmetryPicking:true,now:()=>now});
+  const pending=proxy.invoke(payload),first=proxy.records[0];
+  assert.equal(calls,1);assert.equal(first.completed,false);
+  assert.equal(first.documentWrite.state,'pending');assert.equal(first.documentWrite.durationMs,null);
+  now=25;settle(output);assert.equal(await pending,output);
+  assert.equal(first.completed,true);assert.equal(first.documentWrite.state,'fulfilled');
+  assert.equal(first.documentWrite.durationMs,15);assert.equal(first.documentWrite.chosen,true);
+  assert.equal(first.documentWrite.requestTarget,'none');assert.equal(first.documentWrite.returnedTarget,'output');
+  assert.equal(first.documentWrite.requestCanonicalSha256,digest(canonical(authored)));
+  assert.equal(await proxy.invoke(payload),null);
+  const canceled=proxy.records[1];
+  assert.equal(canceled.completed,true);assert.equal(canceled.documentWrite.state,'fulfilled');
+  assert.equal(canceled.documentWrite.chosen,false);assert.equal(canceled.documentWrite.returnedTarget,'none');
+  assert.equal(canceled.documentWrite.durationMs,10);
+  await assert.rejects(proxy.invoke(payload),error=>error===originalError);
+  const rejected=proxy.records[2];
+  assert.equal(calls,3);assert.equal(proxy.records.length,3);assert.equal(rejected.completed,false);
+  assert.equal(rejected.documentWrite.state,'rejected');assert.equal(rejected.documentWrite.durationMs,13);
+  assert.equal(rejected.documentWrite.error.code,'EPERM');assert.equal(Object.hasOwn(rejected.documentWrite,'chosen'),false);
+  assert.doesNotMatch(JSON.stringify(proxy.records),/private|stack|cause/);
 });
 
 test('actual source Save IPC proxy retains cancellation and successful result without extra writes', async () => {
