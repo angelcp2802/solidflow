@@ -1,5 +1,20 @@
 # Development guide
 
+## Previous-preset raster evidence — 2026-10-27
+
+The shared camera acceptance route retains the accepted Top and Bottom preset
+crops in its existing two diagnostic owners. A failed Previous comparison uses
+the exact original accepted capture, before projection observations and public
+frame copies. Bottom uses the second owner's identity; Top uses the first.
+Release both owners before gesture coverage and in the final cleanup path.
+
+Optional retention, comparison or cleanup errors must preserve the original
+acceptance error. Diagnostic failure reports `unavailable`; it never changes a
+pass criterion. Keep the original pointer/key sequence, stationary polls,
+capture count, text exclusions, projected-anchor tolerance and byte limits.
+This instrumentation retains observations; it does not establish a rendering
+cause or fix a visual discrepancy.
+
 ## Native geometry through motion presentation — 2026-10-27
 
 Explicit local angular motion shares its request-local native part owner between

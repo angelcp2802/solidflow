@@ -105,9 +105,12 @@ module.exports = async function viewNavigation(context) {
     const iso = await frame('initial isometric');
     await unchanged('Initial isometric');
     const presets = new Map();
+    let lowerPresetResult;
     for (const command of ['1', '2', '3', '4', '5', '6', '7']) {
       await key(command);
-      const current = await frame('preset ' + command);
+      const current = await frame('preset ' + command, command === '5'
+        ? result => rasterComparison?.retainBaseline(result)
+        : command === '6' ? result => { rasterComparison?.retainMovedBaseline(result); lowerPresetResult = result; } : undefined);
       if (command !== '7') changed(current, iso, 'Preset ' + command + ' differs from isometric');
       else same(current, iso, 'Isometric preset repeat');
       presets.set(command, current); evidence.presets.push({ command, frame: current });
@@ -117,11 +120,26 @@ module.exports = async function viewNavigation(context) {
     // item. Two Previous commands then consume distinct accepted camera states.
     await key('7'); same(await frame('repeated isometric'), iso, 'Repeated current preset');
     for (const command of ['6', '5']) {
-      await key('ShiftZ'); const restored = await frame('previous preset ' + command);
-      same(restored, presets.get(command), 'Previous returns preset ' + command);
+      let restoredResult;
+      await key('ShiftZ'); const restored = await frame('previous preset ' + command, result => { restoredResult = result; });
+      try {
+        same(restored, presets.get(command), 'Previous returns preset ' + command);
+      } catch (error) {
+        if (rasterComparison) {
+          try {
+            evidence.presetRasterComparison = { command, comparison: rasterUnavailable ? { status: 'unavailable' }
+              : rasterComparison.compare(restoredResult, command === '6' ? lowerPresetResult : undefined) };
+          } catch { evidence.presetRasterComparison = { command, comparison: { status: 'unavailable' } }; }
+        }
+        throw error;
+      }
       evidence.previous.push({ expectedPreset: command, frame: restored });
       await unchanged('Previous preset ' + command);
     }
+    // Reuse the existing two diagnostic owners. No preset pixels survive into
+    // the gesture section and no new capture, input or stationary poll is added.
+    try { rasterComparison?.clear(); } catch { rasterUnavailable = true; }
+    lowerPresetResult = undefined;
     for (const gesture of ['orbit', 'pan', 'wheel-in']) {
       await key('7'); const base = await frame(gesture + ' initial isometric', gesture === 'wheel-in'
         ? result => rasterComparison?.retainBaseline(result) : undefined);

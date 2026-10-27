@@ -1,5 +1,63 @@
 # Validation
 
+## Earlier Previous-preset failure evidence — 2026-10-27
+
+Head `41e461dbcf4a011a740b75587017624e440a642b` fails
+[Linux persistence](https://github.com/angelcp2802/solidflow/actions/runs/40483294641/job/122118705710)
+at Previous returning to Top, before the wheel-input comparison. Its observed
+text mask, selected root-axis identity and projected anchor match; the exact
+unmasked crop hash differs. The bounded job-log response is truncated and has
+no detailed pixel comparison for this earlier assertion. The two-pixel border
+localization on the preceding head cannot establish this new difference's
+extent or cause.
+
+On that same head, both
+[Windows persistence](https://github.com/angelcp2802/solidflow/actions/runs/40483294641/job/122118705663)
+and [macOS persistence](https://github.com/angelcp2802/solidflow/actions/runs/40483294641/job/122118705682)
+complete successfully. The other renderer and configured-authoring jobs also
+pass. The retained Windows Desktop log stops at the renderer prerequisite and
+reports `RENDERER_RESULT=failure` before dependency installation, desktop tests
+or packaging. Security execution passes. These results validate their executed
+jobs on this head, not recurring stability or installed-platform support.
+The two persistence log requests returned HTTP 502, so no duration or step-level
+details are inferred from them.
+
+The shared route now retains the accepted Top and Bottom crops in the existing
+two diagnostic owners and records their comparison if either Previous
+assertion fails. Retention uses the original accepted objects before the
+projection read, and releases them before the gesture section. It adds no
+input, camera access, frame capture, stationary poll, mask or tolerance. This
+is diagnostic coverage, not a claimed rendering correction.
+
+The focused camera-input suite passes 31 cases, including both preset failures,
+retention/comparison/cleanup errors and owner selection. It preserves the
+original error identity, 30/33 captures up to those failures, 84 captures up to
+the existing wheel failure and 105 for successful navigation. Successful and
+opted-out routes retain the same input sequence and poll counts. Production
+assets are unchanged.
+
+Final local Windows acceptance uses Node 24.11.1, Electron 44.9.3 and the same
+1,210-input source/runtime snapshot for all eight commands:
+
+| Command | Result | Elapsed |
+| --- | --- | --- |
+| `npm run build` | PASS | 3.871 s |
+| `npm run test:desktop:part-from-empty` | PASS; 222 checks | 50.742 s |
+| `npm run test:desktop:assembly-shortcuts` | PASS; 389 checks | 66.214 s |
+| `npm run test:desktop:assembly-configured-shortcuts` | PASS; 404 checks | 62.824 s |
+| `npm run test:desktop:assembly-shortcuts-compact` | PASS; 390 checks | 66.650 s |
+| `npm run test:desktop:assembly-configured-shortcuts-compact` | PASS; 405 checks | 63.128 s |
+| `npm test` | 10,112 tests/446 files; 169 IPC passes, 2 explicit skips | 432.093 s |
+| `npm run test:desktop` | PASS | 1.514 s |
+
+All five renderer reports retain zero console/request errors and confirmed
+child/profile cleanup. The eight production input hashes remain identical to
+the accepted parent build; this increment changes test coverage and documents
+only. The raw logs and complete reports are retained locally. Code-review and
+security-review guidance were applied. Hosted validation of this diagnostic
+increment remains pending; a local pass does not establish the Linux cause or
+installed-platform support.
+
 ## Motion presentation reuse — 2026-10-27
 
 Before this candidate, public head `a444ae22e37e14431e6527de0b5ade0d478d0bba`

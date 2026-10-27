@@ -498,7 +498,7 @@ test('moved retention adds no polls, captures or inputs and clears on success an
 // Original synthetic hashes model accepted images, not camera or application
 // state. The real flow runs with a controlled clock and its unchanged polls.
 async function navigationFixture(options={}){
-  let clock=0,active='',latest,baseline,compares=0,clears=0,primaryError;
+  let clock=0,active='',latest,baseline,lower,compares=0,clears=0,primaryError;
   const events=[],checks=[],polls=[];
   let menuOpen=false,menuActions=0;
   const presetNames=new Map([['Dimétrica','dimetric'],['Trimétrica','trimetric']]);
@@ -530,7 +530,7 @@ async function navigationFixture(options={}){
     if(label.startsWith('menu preset ')||label.startsWith('repeated menu preset ')||label.startsWith('previous menu preset '))
       return label.endsWith('dimetric')?'f':options.sameAdditionalPresets?'f':'9';
     if(label.startsWith('preset '))return label.endsWith('7')?'a':label.at(-1);
-    if(label==='previous preset 5'&&options.failBeforeWheel)return 'e';
+    if(label==='previous preset '+options.failPreviousPreset)return 'e';
     if(label.startsWith('previous preset '))return label.at(-1);
     if(label.includes('temporary front'))return '1';
     if(label==='fit after wheel')return 'e';
@@ -541,8 +541,9 @@ async function navigationFixture(options={}){
   };
   const rasterComparison={
     retainBaseline(result){assert.equal(result,latest);baseline=result;events.push('retain:'+active);if(options.retainError)throw Error('diagnostic retention');},
-    compare(result){assert.equal(result,latest);assert.ok(baseline);compares++;events.push('compare:'+active);if(options.compareError)throw Error('diagnostic comparison');return {status:'compared',raw:{changedPixels:1}};},
-    clear(){clears++;baseline=null;events.push('clear');if(options.clearError)throw Error('diagnostic cleanup');},
+    retainMovedBaseline(result){assert.equal(result,latest);lower=result;events.push('retain:'+active);if(options.retainError)throw Error('diagnostic retention');},
+    compare(result,expected){assert.equal(result,latest);assert.ok(baseline);if(active==='previous preset 6')assert.equal(expected,lower);else assert.equal(expected,undefined);compares++;events.push('compare:'+active);if(options.compareError)throw Error('diagnostic comparison');return {status:'compared',raw:{changedPixels:1}};},
+    clear(){clears++;baseline=lower=null;events.push('clear');if(options.clearError)throw Error('diagnostic cleanup');},
   };
   let error;
   try {
@@ -580,7 +581,7 @@ async function navigationFixture(options={}){
 test('wheel failure binds the accepted original captures before projection and preserves the exact assertion',async()=>{
   const f=await navigationFixture({failWheel:true});
   assert.equal(f.error,f.primaryError);assert.match(f.error.message,/Previous crosses one completed wheel-in transaction/);
-  assert.equal(f.compares,1);assert.equal(f.clears,1);assert.equal(f.events.at(-1),'clear');
+  assert.equal(f.compares,1);assert.equal(f.clears,2);assert.equal(f.events.at(-1),'clear');
   const retained=f.events.indexOf('retain:wheel-in initial isometric');
   assert.deepEqual(f.events.slice(retained-1,retained+2),['accepted:wheel-in initial isometric','retain:wheel-in initial isometric','projection:wheel-in initial isometric']);
   assert.equal(f.evidence.rasterComparison.status,'compared');assert.equal(f.evidence.rasterComparison.raw.changedPixels,1);
@@ -592,21 +593,40 @@ test('diagnostic retention, comparison or cleanup failures never replace the ori
   for(const option of ['retainError','compareError','clearError']){
     const f=await navigationFixture({failWheel:true,[option]:true});
     assert.equal(f.error,f.primaryError);assert.match(f.error.message,/Previous crosses one completed wheel-in transaction/);
-    assert.equal(f.clears,1);assert.equal(f.events.at(-1),'clear');
-    assert.equal(f.evidence.rasterComparison.status,option==='clearError'?'compared':'unavailable');
+    assert.equal(f.clears,2);assert.equal(f.events.at(-1),'clear');
+    assert.equal(f.evidence.rasterComparison.status,'unavailable');
   }
-  const early=await navigationFixture({failBeforeWheel:true});
-  assert.equal(early.error,early.primaryError);assert.match(early.error.message,/Previous returns preset 5/);
-  assert.equal(early.clears,1);assert.equal(early.compares,0);assert.equal(early.events.at(-1),'clear');
-  assert.equal(early.evidence.rasterComparison,undefined);
-  assert.equal(early.events.some(value=>value.startsWith('retain:')),false);
+});
+
+test('preset restoration failures retain the accepted original pair and preserve errors and exact poll counts',async()=>{
+  for(const preset of ['6','5'])for(const failure of [undefined,'retainError','compareError','clearError']){
+    const f=await navigationFixture({failPreviousPreset:preset,...(failure?{[failure]:true}:{})});
+    assert.equal(f.error,f.primaryError);assert.match(f.error.message,new RegExp('Previous returns preset '+preset));
+    assert.equal(f.clears,1);assert.equal(f.events.at(-1),'clear');
+    assert.equal(f.evidence.rasterComparison,undefined);
+    assert.equal(f.evidence.presetRasterComparison.command,preset);
+    assert.equal(f.evidence.presetRasterComparison.comparison.status,
+      failure==='retainError'||failure==='compareError'?'unavailable':'compared');
+    if(!failure){
+      assert.equal(f.compares,1);
+      assert.equal(f.evidence.presetRasterComparison.comparison.raw.changedPixels,1);
+      for(const command of ['5','6']){
+        const retained=f.events.indexOf('retain:preset '+command);
+        assert.deepEqual(f.events.slice(retained-1,retained+2),['accepted:preset '+command,'retain:preset '+command,'projection:preset '+command]);
+      }
+    }
+    assert.equal(f.polls.length,preset==='6'?10:11);assert.ok(f.polls.every(count=>count===3));
+    assert.equal(f.events.filter(value=>value.startsWith('capture:')).length,preset==='6'?30:33);
+    assert.equal(f.events.some(value=>value.startsWith('gesture:')),false);
+  }
 });
 
 test('successful and opted-out navigation share the same polls, captures and report without diff statistics',async()=>{
   const success=await navigationFixture(),without=await navigationFixture({optOut:true});
   assert.equal(success.error,undefined);assert.equal(without.error,undefined);
-  assert.equal(success.compares,0);assert.equal(success.clears,1);assert.equal(without.clears,0);
+  assert.equal(success.compares,0);assert.equal(success.clears,2);assert.equal(without.clears,0);
   assert.equal(success.evidence.rasterComparison,undefined);assert.equal(without.evidence.rasterComparison,undefined);
+  assert.equal(success.evidence.presetRasterComparison,undefined);assert.equal(without.evidence.presetRasterComparison,undefined);
   assert.equal(success.evidence.completed,true);assert.equal(without.evidence.completed,true);
   const inputs=events=>events.filter(value=>!value.startsWith('retain:')&&value!=='clear');
   assert.deepEqual(inputs(success.events),without.events);assert.deepEqual(success.polls,without.polls);
@@ -641,7 +661,7 @@ test('view preset coverage rejects changed authority, false restoration and inva
     [{failMenuPrevious:true},/Previous bypasses repeated menu preset and returns isometric/],
   ]){
     const f=await navigationFixture(options);assert.equal(f.error,f.primaryError);assert.match(f.error.message,message);
-    assert.notEqual(f.evidence.completed,true);assert.equal(f.clears,1);assert.equal(f.events.at(-1),'clear');
+    assert.notEqual(f.evidence.completed,true);assert.equal(f.clears,2);assert.equal(f.events.at(-1),'clear');
     assert.equal(f.compares,0);
   }
 });

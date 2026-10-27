@@ -1,5 +1,25 @@
 # Project status and review queue
 
+## Current investigation: earlier Previous-preset failure
+
+Head `41e461d` reaches a different Linux persistence failure: Previous returning
+to Top, before the wheel section that retained detailed pixel evidence on the
+parent. Matching text masks and projected anchors do not establish the extent
+or cause of the changed crop. The shared acceptance route now retains the
+accepted Top/Bottom images in its existing bounded diagnostic owners, without
+changing captures, inputs or pass criteria. Local acceptance passes the focused
+31 cases, build, 10,112 tests across 446 files, 169 IPC checks with two explicit
+skips, desktop startup and all five affected renderer routes on the same
+1,210-input snapshot. This is not a claimed product fix.
+
+Windows and macOS persistence complete successfully on `41e461d`; the other
+renderer and configured-authoring jobs pass. The retained Windows Desktop log
+stops on the failed renderer prerequisite, before packaging. This execution does not
+establish installed-platform support or validate the next diagnostic head.
+
+The functional checklist remains **16/25**, with nine items open. Continue in
+draft PR #49, with release gate #5 and broader platform/demo acceptance open.
+
 ## Current increment: motion presentation reuse
 
 The candidate reuses verified native part geometry for the final scene of an
