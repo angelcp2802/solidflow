@@ -1,6 +1,8 @@
 import { useViewHistory } from './useViewHistory'
 import { NamedViewsDialog } from './NamedViewsDialog'
 import CadContextMenu, { type CadContextAction } from './CadContextMenu'
+import { resolveAssemblyOriginContextEntry } from './assemblyContextTarget'
+import { configuredOriginContextLabel, configuredOriginContextRelation } from './configuredOriginContext'
 import { captureConfiguredComponentContext, configuredComponentContextRow, resolveConfiguredComponentContext, type ConfiguredComponentContextTarget } from './configuredAssemblyContextTarget'
 import { rebindNamedViewSelection, sameDocumentExceptNamedViews, useNamedDocumentViews } from './useNamedDocumentViews'
 import { standardViews, type ViewName, type ViewRequest } from './viewNavigation'
@@ -141,11 +143,13 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
   const viewHistory = useViewHistory()
   const [view, setView] = useState<ViewRequest>({ name: 'iso', stamp: 0 })
   const [navigationRevision, setNavigationRevision] = useState(0), navigationRevisionRef = useRef(0)
-  const [componentContext, setComponentContext] = useState<{ ticket: ConfiguredComponentContextTarget; scene: ConfiguredAssemblyScene;
-    point: { x: number; y: number }; element: HTMLElement } | null>(null)
   const [discardDialog, setDiscardDialog] = useState(false), answer = useRef<((allow: boolean) => void) | null>(null)
   const [bomOpen, setBomOpen] = useState(false), [bomOptions, setBomOptions] = useState<ConfiguredAssemblyBomOptions>({ mode: 'parts-only', includeHidden: true, scopePath: [] })
   const [bomSelection, setBomSelection] = useState<{ serialized: string; member: ConfiguredAssemblyBomMember } | null>(null)
+  type Popup = { scene: ConfiguredAssemblyScene; context: ReturnType<typeof configuredUiTicket>; evaluation: ReturnType<typeof evaluateAssemblyConfiguration>;
+    normal: typeof normalSelection; origin: typeof treeOriginSelection; bom: typeof bomSelection; point: { x: number; y: number }; element: HTMLElement } & (
+    { kind: 'component'; ticket: ConfiguredComponentContextTarget } | { kind: 'origin'; ticket: AssemblyOriginTreeSelection } | { kind: 'background' })
+  const [contextTarget, setContextTarget] = useState<Popup | null>(null)
   useEffect(() => { setTreeOriginSelection(null) }, [scope, occurrenceId, bomSelection?.member])
   const bomView = useRef({ open: bomOpen, options: bomOptions, revision: 0 }), bomToggle = useRef<HTMLButtonElement>(null)
   const restoreBomFocus = useRef(false)
@@ -549,33 +553,73 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
   const menuReveal = (id: string) => { if (fresh(renderedTicket) && !operation.current && !pending.current) setRevealRequest({ id }) }
   const contextBlocked = blocked || !!mateDraft || !!matePick || !!originPick || viewHistory.navigating
     || namedViews.isOpen || newDocumentDialog.isOpen || discardDialog || !scene
-  const contextCurrent = useRef({ target: componentContext, blocked: contextBlocked })
-  contextCurrent.current = { target: componentContext, blocked: contextBlocked }
+  const contextCurrent = useRef({ target: contextTarget, blocked: contextBlocked, normal: normalSelection, origin: treeOriginSelection, bom: bomSelection })
+  contextCurrent.current = { target: contextTarget, blocked: contextBlocked, normal: normalSelection, origin: treeOriginSelection, bom: bomSelection }
   const contextSceneCurrent = () => !contextCurrent.current.blocked && mounted.current && !operation.current && !pending.current
     && !mateDraftRef.current && !matePickRef.current && !originPickRef.current && !newDocumentRequest.current
     && !newDocumentDialog.pending() && !answer.current && !!scene && scene === sceneRef.current
     && scene === committedSceneRef.current && configuredUiSceneMatches(scene, current.current, epoch.current)
-  const openComponentContext = (component: AssemblyComponentReference, point: { x: number; y: number }, element: HTMLElement) => {
-    if (!fresh(renderedTicket) || !contextSceneCurrent() || !scene || !element.isConnected) return
+  const contextBase = (committed: ConfiguredAssemblyScene, point: { x: number; y: number }, element: HTMLElement,
+    selection = { normal: normalSelection, origin: treeOriginSelection, bom: bomSelection }) =>
+    ({ scene: committed, context: ticket(), evaluation, point: { ...point }, element, ...selection })
+  const selectContextComponent = (component: AssemblyComponentReference) => {
+    if (!fresh(renderedTicket) || !contextSceneCurrent() || !scene) return null
     const row = configuredComponentContextRow(evaluation, component)
-    if (!row) return
+    if (!row) return null
     const owner = JSON.stringify(row.scope.path)
     if (owner !== scopeRef.current) changeScope(owner)
-    if (owner !== scopeRef.current || !contextSceneCurrent()) return
+    if (owner !== scopeRef.current || !contextSceneCurrent()) return null
     setNormalSelection(null); setTreeOriginSelection(null); setBomSelection(null)
     occurrenceRef.current = row.occurrence.id; setOccurrenceId(row.occurrence.id)
-    const captured = captureConfiguredComponentContext(evaluation, ticket(), component)
-    if (captured) setComponentContext({ ticket: captured, scene, point: { ...point }, element })
+    return captureConfiguredComponentContext(evaluation, ticket(), component)
+  }
+  const openComponentContext = (component: AssemblyComponentReference, point: { x: number; y: number }, element: HTMLElement) => {
+    if (!scene || !element.isConnected) return
+    const captured = selectContextComponent(component)
+    if (captured) setContextTarget({ ...contextBase(scene, point, element, { normal: null, origin: null, bom: null }), kind: 'component', ticket: captured })
+  }
+  const openOriginContext = (entry: AssemblyOriginTreeEntry, point: { x: number; y: number }, element: HTMLElement) => {
+    if (!fresh(renderedTicket) || !contextSceneCurrent() || !scene || !element.isConnected || !currentTreeOrigins.current.active) return
+    const captured = retainAssemblyOriginTreeSelection(entry, treeOriginContext)
+    if (!resolveAssemblyOriginTreeSelection(captured, currentTreeOrigins.current.rows, currentTreeOrigins.current.context)) return
+    const normal = nominateAssemblyNormalOrigin(null, entry, normalViewContext, false)
+    setTreeOriginSelection(captured); setNormalSelection(normal)
+    setContextTarget({ ...contextBase(scene, point, element, { normal, origin: captured, bom: bomSelection }), kind: 'origin', ticket: captured })
   }
   const openViewportContext = (target: AssemblyViewportContextTarget) => {
+    if (!fresh(renderedTicket) || !contextSceneCurrent() || !scene) return
     if (target.kind === 'component') openComponentContext(target.component, target.point, target.restoreFocusElement)
+    else if (target.kind === 'origin') {
+      const entry = resolveAssemblyOriginContextEntry(target.reference, selectedScope.path, treeOriginRows, modelOrigin)
+      if (entry) openOriginContext(entry, target.point, target.restoreFocusElement)
+    } else setContextTarget({ ...contextBase(scene, target.point, target.restoreFocusElement), kind: 'background' })
   }
-  const contextIsCurrent = (target: NonNullable<typeof componentContext>) =>
-    contextCurrent.current.target === target && contextSceneCurrent() && target.scene === scene
-    && !!resolveConfiguredComponentContext(target.ticket, evaluation, ticket())
-  const activeContext = componentContext && contextIsCurrent(componentContext) ? componentContext : null
-  useLayoutEffect(() => { if (componentContext && !activeContext) setComponentContext(null) }, [componentContext, activeContext])
-  const contextRow = activeContext ? resolveConfiguredComponentContext(activeContext.ticket, evaluation, ticket()) : null
+  const contextIsCurrent = (target: Popup) => {
+    const live = contextCurrent.current
+    if (live.target !== target || !contextSceneCurrent() || target.scene !== scene || target.evaluation !== evaluation || !fresh(target.context)
+      || target.normal !== live.normal || target.origin !== live.origin || target.bom !== live.bom) return false
+    if (target.kind === 'component') return !!resolveConfiguredComponentContext(target.ticket, evaluation, ticket())
+    if (target.kind === 'origin') return currentTreeOrigins.current.active && live.origin === target.ticket
+      && !!resolveAssemblyOriginTreeSelection(target.ticket, currentTreeOrigins.current.rows, currentTreeOrigins.current.context)
+    return true
+  }
+  const activeContext = contextTarget && contextIsCurrent(contextTarget) ? contextTarget : null
+  useLayoutEffect(() => { if (contextTarget && !activeContext) setContextTarget(null) }, [contextTarget, activeContext])
+  const contextRow = activeContext?.kind === 'component' ? resolveConfiguredComponentContext(activeContext.ticket, evaluation, ticket()) : null
+  const contextOrigin = activeContext?.kind === 'origin' ? resolveAssemblyOriginTreeSelection(activeContext.ticket, treeOriginRows, treeOriginContext) : null
+  const originNominee = contextOrigin && !selectedScope.suppressed
+    ? configuredOriginContextRelation(contextOrigin, treeOriginRows, evaluation, selectedScope.path, mateChoices.values) : null
+  const contextAction = (action: () => void) => { if (activeContext && contextIsCurrent(activeContext)) action() }
+  const prepareOriginRelation = () => contextAction(() => {
+    if (!contextOrigin || selectedScope.suppressed) return
+    const nominee = configuredOriginContextRelation(contextOrigin, treeOriginRows, evaluation, selectedScope.path, mateChoices.values)
+    if (!nominee) return
+    const draft = configuredMateUiDraft(crypto.randomUUID()); draft.type = nominee.type; draft.references[0] = nominee.reference
+    const owner = originOwners.find(row => JSON.stringify(row.path) === JSON.stringify(contextOrigin.ownerPath))
+    setOriginOwner(owner ? 'selected' : 'scope'); setOriginComponent(owner?.key ?? null)
+    setOriginAxes(nominee.type === 'concentric'); setOriginPlanes(nominee.type === 'coincident')
+    setRelationDraft(draft); setFailure(null); setMessage('Referencia preparada. Selecciona la segunda referencia y verifica la vista previa antes de aplicar.')
+  })
   const contextActions: CadContextAction[] = activeContext && contextRow ? [
     { id: 'component-properties', label: 'Propiedades', icon: Settings2,
       onSelect: () => { if (contextIsCurrent(activeContext)) menuReveal('configured-occurrence-inspector') } },
@@ -586,6 +630,19 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
       onSelect: () => { if (contextIsCurrent(activeContext) && !contextRow.scope.suppressed) edit({ visible: !contextRow.occurrence.visible }) } },
     { id: 'component-suppressed', label: contextRow.occurrence.suppressed ? 'Activar' : 'Suprimir', disabled: contextRow.scope.suppressed,
       onSelect: () => { if (contextIsCurrent(activeContext) && !contextRow.scope.suppressed) edit({ suppressed: !contextRow.occurrence.suppressed }) } },
+  ] : contextOrigin ? [
+    { id: 'view-normal', label: 'Normal a', disabled: !canNormal, onSelect: () => contextAction(() => menuView('normal')) },
+    { id: 'origin-relation', label: 'Relacionar en el ámbito actual…', disabled: !originNominee, onSelect: prepareOriginRelation },
+    { id: 'origin-owner', label: 'Seleccionar componente propietario', disabled: !contextOrigin.ownerPath.length,
+      onSelect: () => contextAction(() => { selectContextComponent({ occurrencePath: [...contextOrigin.ownerPath], definition: { ...contextOrigin.definition } }) }) },
+  ] : activeContext?.kind === 'background' ? [
+    ...[...standardViews, { name: 'normal' as const, label: 'Normal a' }, { name: 'fit' as const, label: 'Ajustar a pantalla' }, { name: 'previous' as const, label: 'Vista anterior' }].map(({ name, label }) => ({ id: 'view-' + name, label,
+      disabled: viewHistory.navigating || name === 'normal' && !canNormal || name === 'previous' && !viewHistory.canPrevious,
+      onSelect: () => contextAction(() => menuView(name)) })),
+    { id: 'view-named', label: 'Vistas guardadas…', disabled: !namedViews.canOpen, onSelect: () => contextAction(namedViews.open) },
+    { id: 'selection-clear', label: 'Deseleccionar todo', onSelect: () => contextAction(() => {
+      occurrenceRef.current = ''; setOccurrenceId(''); setNormalSelection(null); setTreeOriginSelection(null); setBomSelection(null)
+    }) },
   ] : []
   const menuView = (name: ViewName) => {
     if (namedViews.isOpen || operation.current || viewHistory.navigating || !fresh(renderedTicket) || name === 'previous' && !viewHistory.canPrevious) return
@@ -691,6 +748,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
         <ConfiguredAssemblyTree name={document.source.name} evaluation={evaluation} scope={scope} occurrenceId={occurrenceId} disabled={blocked || !!mateDraft || !scene}
           active={inspectorPane === 'model'} resetKey={initialDocument}
           onComponentContext={openComponentContext}
+          onOriginContext={openOriginContext}
           originRows={treeOriginRows} selectedOriginKey={selectedTreeOrigin?.treeKey} onOrigin={selectTreeOrigin}
           onScope={value => { setTreeOriginSelection(null); if (value !== scope) changeScope(value); setNormalSelection(nominateAssemblyNormalUnsupported(JSON.stringify(['scope', value]), normalViewContext)); setRevealRequest({ id: 'configured-root-state' }) }}
           onOccurrence={(owner, id) => { if (!fresh(renderedTicket) || operation.current || pending.current || mateDraftRef.current) return; setTreeOriginSelection(null); if (owner !== scope) changeScope(owner); setNormalSelection(nominateAssemblyNormalUnsupported(JSON.stringify(['component', owner, id]), normalViewContext)); occurrenceRef.current = id; setOccurrenceId(id); setBomSelection(null) }}
@@ -806,8 +864,9 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
       onOptionsChange={options => { if (!freshBom(renderedBomTicket) || operation.current || pending.current || mateDraftRef.current) return; changeBomView(true, options) }}
       onSelect={member => { if (!freshBom(renderedBomTicket) || operation.current || pending.current || mateDraftRef.current || !bom.report) return; const match = configuredBomUiSelectedPath(bom.report, serialized, { serialized, member }); if (match.length) { setNormalSelection(nominateAssemblyNormalUnsupported(JSON.stringify(['component', match]), normalViewContext)); setTreeOriginSelection(null); setBomSelection({ serialized, member: structuredClone(member) }) } }}
       onExport={() => void exportBom()} onClose={() => changeBomView(false)} />}{failure && <p className="configured-assembly-error" role="alert">{failure}</p>}<footer role="status">{message}</footer>
-    {activeContext && contextRow && <CadContextMenu targetName={`${contextRow.occurrence.name} · ${contextRow.scope.path.join(' / ') || 'Raíz'} · ${contextRow.scope.configuration ?? 'Base'}`}
-      actions={contextActions} point={activeContext.point} restoreFocusElement={activeContext.element} onClose={() => setComponentContext(null)} />}
+    {activeContext && <CadContextMenu targetName={contextRow ? `${contextRow.occurrence.name} · ${contextRow.scope.path.join(' / ') || 'Raíz'} · ${contextRow.scope.configuration ?? 'Base'}`
+      : contextOrigin ? configuredOriginContextLabel(contextOrigin, evaluation) : 'Vista del ensamblaje'}
+      actions={contextActions} point={activeContext.point} restoreFocusElement={activeContext.element} onClose={() => setContextTarget(null)} />}
     {namedViews.isOpen && <NamedViewsDialog views={namedViews.views} canSave={namedViews.canSave} canUpdate={namedViews.canUpdate}
       onSave={namedViews.save} onShow={namedViews.show} onDelete={namedViews.remove} onRename={namedViews.rename} onUpdate={namedViews.update} onClose={namedViews.close} />}
     {newDocumentDialog.dialog}

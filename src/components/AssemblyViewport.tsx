@@ -130,12 +130,19 @@ export function pickAssemblyComponent(camera: Camera, bodies: readonly AssemblyP
 export function resolveAssemblyViewportContext(
   camera: Camera, bodies: readonly AssemblyPickBody[], pointer: { x: number; y: number } | null,
   size: { width: number; height: number },
-  state: Pick<AssemblyViewportProps, 'scene' | 'selectedPath' | 'originReferences' | 'disabled' | 'pickingFaces' | 'pickingEdges' | 'pickingVertices' | 'pickingOrigins'>
+  state: Pick<AssemblyViewportProps, 'scene' | 'selectedPath' | 'originReferences' | 'selectedOrigins' | 'selectedFaces' | 'disabled' | 'pickingFaces' | 'pickingEdges' | 'pickingVertices' | 'pickingOrigins'>
     & { presentedScene: AssemblyScene | null; originsCurrent: boolean; dragActive: boolean },
 ): AssemblyViewportContextSelection | null {
   if (state.disabled || state.dragActive || assemblyReferencePickMode(state) !== null
     || !state.scene || state.presentedScene !== state.scene || !state.originsCurrent) return null
   if (!pointer) {
+    const selectedOrigins = state.selectedOrigins ?? []
+    if (selectedOrigins.length > 1 || selectedOrigins.length && (state.selectedFaces?.length ?? 0)) return { kind: 'background' }
+    if (selectedOrigins.length === 1) {
+      const key = assemblyOriginReferenceKey(selectedOrigins[0])
+      const matches = (state.originReferences ?? []).filter(entry => assemblyOriginReferenceKey(entry.reference) === key)
+      return matches.length === 1 ? { kind: 'origin', reference: structuredClone(matches[0].reference) } : null
+    }
     // A subassembly prefix or two revisions at the same path is not an exact
     // selected rendered component. Multiple bodies of one component are valid.
     const selected = JSON.stringify(state.selectedPath ?? [])

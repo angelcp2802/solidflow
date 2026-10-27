@@ -1008,7 +1008,7 @@ async function runInElectron() {
       clickCount: type === 'mouseMoved' ? 0 : clickCount, pointerType: 'mouse', modifiers,
     }); } finally { endTiming?.(); }
   };
-  const {cameraFrame,cameraGesture,rasterComparison}=require('./desktop-camera-input.cjs')({getWindow:()=>window,evaluate,check,digest,allowed:normalToView||fromEmpty||shortcuts||mateReferenceEdit,allowFrameDiagnostics:mateReferenceEdit,allowRasterComparison:fromEmpty||shortcuts});
+  const {cameraFrame,cameraGesture,rasterComparison}=require('./desktop-camera-input.cjs')({getWindow:()=>window,evaluate,check,digest,allowed:configuredComponents||normalToView||fromEmpty||shortcuts||mateReferenceEdit,allowFrameDiagnostics:mateReferenceEdit,allowRasterComparison:fromEmpty||shortcuts});
   const wheel = async (point, deltaY) => {
     check((normalToView || fromEmpty || limitDistance || freshSketch) && !window.isVisible() && window.webContents.debugger.isAttached()
       && Number.isFinite(point.x) && Number.isFinite(point.y) && point.x >= 0 && point.y >= 0
@@ -1099,21 +1099,22 @@ async function runInElectron() {
       ...(key === 'Enter' ? { text: '\r', unmodifiedText: '\r' } : {}) });
     await window.webContents.debugger.sendCommand('Input.dispatchKeyEvent', { type: 'keyUp', key, code: key, windowsVirtualKeyCode: codes[key], modifiers: 0 });
   };
-  let componentMenuCaptured = false;
-  const captureComponentMenu = async () => {
+  const contextMenuCaptures = new Set();
+  const captureComponentMenu = async (kind = 'component') => {
     if (process.env.SOLIDFLOW_UI_CAPTURE !== '1') return;
-    check(configuredComponents && !componentMenuCaptured && !window.isVisible(), 'One configured component menu capture in its owned hidden window');
+    const counts = { component: 4, origin: 3, background: 14 };
+    check(configuredComponents && Object.hasOwn(counts, kind) && !contextMenuCaptures.has(kind) && !window.isVisible(), 'One capture per bounded configured context kind in its owned hidden window');
     await evaluate('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(true))))');
     const crop = await evaluate(`(() => {
       const menus=document.querySelectorAll('.cad-context-menu[role="menu"]'),e=menus[0],r=e?.getBoundingClientRect();
-      if(menus.length!==1||!r||r.left<0||r.top<0||r.right>innerWidth||r.bottom>innerHeight||r.width>280||r.height>300
-        ||!e.contains(document.activeElement)||e.querySelectorAll('[data-cad-context-action]').length!==4)throw Error('One focused, bounded configured menu required');
+      if(menus.length!==1||!r||r.left<0||r.top<0||r.right>innerWidth||r.bottom>innerHeight||r.width>280||r.height>${kind === 'background' ? 550 : 300}
+        ||!e.contains(document.activeElement)||e.querySelectorAll('[data-cad-context-action]').length!==${counts[kind]})throw Error('One focused, bounded configured menu required');
       return {x:Math.floor(r.x),y:Math.floor(r.y),width:Math.ceil(r.width),height:Math.ceil(r.height)};
     })()`);
     const image = await window.webContents.capturePage(crop), png = image.toPNG();
     check(!image.isEmpty() && png.length > 0 && png.length <= 256 * 1024, 'Bounded original configured menu PNG');
-    componentMenuCaptured = true;
-    checks.push({ componentMenuCapture: { crop, sha256: digest(png), byteLength: png.length, base64: png.toString('base64') } });
+    contextMenuCaptures.add(kind);
+    checks.push({ [kind + 'MenuCapture']: { crop, sha256: digest(png), byteLength: png.length, base64: png.toString('base64') } });
   };
   const headerCaptures = new Set();
   const captureHeader = async name => {
@@ -1389,7 +1390,7 @@ async function runInElectron() {
     : configuredPicking
     ? require('./desktop-assembly-configured-picking-flow.cjs')({ expected, input, output, evaluate, observe, waitFor, click, pointer, menuKey, asideWheel, compactViewport: compactConfiguredPicking, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
     : configuredComponents
-    ? require('./desktop-assembly-configured-components-flow.cjs')({ expected, input, output, evaluate, observe, waitFor, click, pointer, menuKey, captureComponentMenu, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
+    ? require('./desktop-assembly-configured-components-flow.cjs')({ expected, input, output, evaluate, observe, waitFor, click, pointer, menuKey, cameraFrame, captureComponentMenu, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
     : configuredRelations
     ? require('./desktop-assembly-configured-relations-flow.cjs')({ expected, input, output, evaluate, observe, waitFor, click, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : configurations

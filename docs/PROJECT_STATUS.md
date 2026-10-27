@@ -1,5 +1,27 @@
 # Project status and review queue
 
+## Configured origin and background contexts — 2026-10-27
+
+Origin menus now prepare an existing relation form from a current plane/axis,
+offer Normal To and select the exact owner. Background menus expose views,
+saved views and explicit deselection. Keyboard viewport context recognizes a
+single current origin and preserves multiple/mixed selection. Names are shown
+instead of internal occurrence IDs in origin headings.
+
+Local acceptance passes build, 10,165 unit/CAD tests, 173 IPC passes with two
+explicit skips, nine renderer routes and desktop startup. The original new
+coincidence is verified, cancelled, retried, applied and preserved through
+history, Save/reopen and fresh verification. Three menu images were reviewed;
+view commands change bounded actual raster crops. See [validation](VALIDATION.md)
+for exact cases, scope and limitations.
+
+The parent Windows failure is now tied to a rejected atomic file rename (EPERM)
+on the fourth Save; the prior saved file remains. The source of that denial and
+recurring hosted stability still need repair/investigation. Hosted validation of
+this UI increment is pending. The medium CodeQL annotation, broader demo/human
+and installed-platform acceptance and release gate #5 remain open. Continue in
+draft PR #49; checklist #55 stays **16/25**, with nine open items.
+
 ## Symmetry timeout investigation — 2026-10-27
 
 The Windows renderer timeout repeats on `b68d189` after a different checkpoint.

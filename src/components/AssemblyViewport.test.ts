@@ -94,6 +94,40 @@ it('keyboard context uses an exact visible selected owner, allowing multiple bod
     expect(resolveAssemblyViewportContext(f.camera, f.bodies, null, size, state)).toEqual({ kind: 'background' })
   } finally { f.dispose() }
 })
+it('keyboard context resolves one selected current origin before an older component selection', () => {
+  const f = fixture()
+  try {
+    f.add(['pin'], 0)
+    const reference = { kind: 'principal-plane', component: null, plane: 'XY' } as const
+    const entry: AssemblyOriginDisplay = { key: assemblyOriginReferenceKey(reference), reference, label: 'Original root plane', worldPose: identityRigidPose() }
+    const state = { ...contextState(f), selectedPath: ['pin'], originReferences: [entry], selectedOrigins: [reference] }
+    const target = resolveAssemblyViewportContext(f.camera, f.bodies, null, size, state)
+    expect(target).toEqual({ kind: 'origin', reference })
+    if (target?.kind === 'origin') expect(target.reference).not.toBe(reference)
+    expect(resolveAssemblyViewportContext(f.camera, f.bodies, null, size, { ...state, originReferences: [] })).toBeNull()
+    expect(resolveAssemblyViewportContext(f.camera, f.bodies, null, size, { ...state, originReferences: [entry, entry] })).toBeNull()
+    expect(resolveAssemblyViewportContext(f.camera, f.bodies, null, size, { ...state, originsCurrent: false })).toBeNull()
+  } finally { f.dispose() }
+})
+it('keyboard context retains the background commands for a multiple-origin selection', () => {
+  const f = fixture()
+  try {
+    f.add(['pin'], 0)
+    const plane = { kind: 'principal-plane', component: null, plane: 'XY' } as const
+    const axis = { kind: 'principal-axis', component: null, axis: 'Z' } as const
+    expect(resolveAssemblyViewportContext(f.camera, f.bodies, null, size, { ...contextState(f), selectedPath: ['pin'], selectedOrigins: [plane, axis] }))
+      .toEqual({ kind: 'background' })
+  } finally { f.dispose() }
+})
+it('keyboard context keeps a mixed face and origin selection instead of retargeting its origin alone', () => {
+  const f = fixture()
+  try {
+    const body = f.add(['pin'], 0), plane = { kind: 'principal-plane', component: null, plane: 'XY' } as const
+    const entry: AssemblyOriginDisplay = { key: assemblyOriginReferenceKey(plane), reference: plane, label: 'Original plane', worldPose: identityRigidPose() }
+    expect(resolveAssemblyViewportContext(f.camera, f.bodies, null, size, { ...contextState(f), selectedPath: ['pin'], originReferences: [entry],
+      selectedOrigins: [plane], selectedFaces: [body.faceEntry.face] })).toEqual({ kind: 'background' })
+  } finally { f.dispose() }
+})
 it('keeps a manipulable intent proxy empty and reads its actual world frame instead of a parent-local target', () => {
   const parent = new THREE.Group(), proxy = createAssemblyDragProxy({ translation: [2, 3, 4], rotation: [0, 0, 0, 1] })
   parent.position.set(10, 20, 30); parent.quaternion.set(0, 0, Math.SQRT1_2, Math.SQRT1_2); parent.add(proxy)

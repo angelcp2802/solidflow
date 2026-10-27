@@ -1,5 +1,106 @@
 # Validation
 
+## Configured origin and background contexts — 2026-10-27
+
+Configured assembly tree/viewport contexts now include origins and background.
+An origin offers Normal To, preparation of a relation in the current scope and
+selection of its component owner. Background offers nine orientations, Normal
+To, Fit, Previous, saved views and explicit deselection. Opening it preserves
+the selection. Labels use current occurrence names; IDs remain authority keys.
+The existing four component actions and blue shared menu remain in use.
+
+Origin nomination resolves the current global catalog row, then an existing
+purpose-compatible form option in the current edit frame. The scope root maps
+to component:null; descendants map to relative occurrence paths. Outside owners,
+ambiguous/stale catalog bindings and missing/duplicate options are rejected.
+Planes seed coincidence; axes seed unlocked concentricity. This only prepares
+the first form role; native preview and explicit Apply/Cancel retain authority.
+
+Popup actions bind the exact scene/evaluation, complete UI ticket/navigation
+revision and normal/origin/BOM selection identities. Operation, draft/picking,
+preview, camera-navigation and dialog guards remain. Keyboard viewport context
+now resolves one selected current origin before an older component selection;
+multiple origins or mixed face/origin selection retain background commands.
+Missing, duplicate or stale origin catalogs cannot silently retarget a component.
+
+Final local Windows x64 acceptance uses Node 24.11.1 / Electron 44.9.3 and one
+unchanged snapshot of 1,223 non-Markdown inputs and eight production inputs:
+
+| Command | Result | Elapsed |
+| --- | --- | --- |
+| `npm run build` | PASS | 4.301 s |
+| `npm run test:desktop:assembly-configured-components` | PASS; 281 checks | 17.134 s |
+| `npm run test:desktop:assembly-configured-relations` | PASS; 129 checks | 9.544 s |
+| `npm run test:desktop:assembly-configured-origin-axes` | PASS; 326 checks | 22.255 s |
+| `npm run test:desktop:assembly-configured-origin-axis-lock` | PASS; 94 checks | 9.626 s |
+| `npm run test:desktop:assembly-configured-picking-compact` | PASS; 191 checks | 13.398 s |
+| `npm run test:desktop:assembly-basic-authoring` | PASS; 409 checks | 41.777 s |
+| `npm run test:desktop:assembly-shortcuts` | PASS; 489 checks | 74.651 s |
+| `npm run test:desktop:assembly-configured-shortcuts` | PASS; 529 checks | 71.324 s |
+| `npm run test:desktop:normal-to-view` | PASS; 157 checks | 16.638 s |
+| `npm test` | PASS | 365.207 s |
+| `npm run test:desktop` | PASS | 1.572 s |
+
+The full unit/CAD suite has 10,165 tests across 450 files; IPC has 173 passes
+with two explicit skips. Eight new nomination/label units and three shared
+viewport-keyboard units cover scope conversion, current catalog resolution,
+friendly labels, stale/ambiguous nominees and single/multiple/mixed selections.
+All nine renderer routes have zero console/request errors and confirmed child/
+profile cleanup. The worker and WASM production bytes remain unchanged.
+
+The extended original component route exercises tree right click, ContextMenu
+and Shift+F10, viewport origin keyboard context, exact owner selection, background
+pointer/keyboard, all fourteen action inventory, Escape/focus, scope A/B/A
+closure and explicit deselection. It waits for the actual origin-overlay
+presentation boundary before the next keyboard input. Single-axis Normal To
+remains unavailable; empty-selection Normal To retains its existing contract.
+Three bounded menu PNGs were reviewed; the old component/origin 300-pixel cap
+is preserved, with 550 only for the fourteen-action background menu.
+
+With the pointer parked at the same toolbar location, existing interior bitmap
+captures change after forced Isometric to Frontal and Isometric to origin Normal
+To commands. This detects a rendered-crop change, not an independent camera
+matrix/direction or external UI-parity proof. Existing text masks and image
+tolerances are unchanged. Pointer/key transport is CDP in a hidden owned window;
+navigation and some initial focus/field changes remain scripted DOM operations.
+The origin viewport route is exercised by keyboard, not a new native right-click
+ray/occlusion walkthrough over every rendered datum.
+
+Root-axis nomination is prepared and cancelled without native/document work.
+A root-XY to nested left/anchor-XY coincidence uses literal ordered references,
+name/type/alignment/suppression and the existing named-state mateDeclarations
+schema. Only the generated UUID comes from the observed intent. The complete
+candidate graph is compared independently before Cancel, retry and Apply;
+Undo/Redo, selector changes, Save/reopen and fresh verification retain it.
+The coincidence is already satisfied in the original prisms: this proves
+nomination/acceptance/persistence, not forced movement or general rotated-scope
+geometry. Existing literal six-body totals remain 116 mm³ / 276 mm² with the
+original per-member bounds. Rotated scope units verify identities, not a new
+native geometric solve. No external/private model or new CAD fixture is added.
+
+Retained preceding attempts exposed a missing frame barrier in the test, an
+incorrect empty-selection Normal To assumption, an incorrect mates-vs-
+mateDeclarations expectation, and the real missing keyboard-origin route.
+The first three were corrected in test expectations; the keyboard route was
+implemented with new unit coverage. No old native oracle or deadline is relaxed.
+
+Applied frontend-design, vercel-react-best-practices, code-review, focused
+code-simplifier and security-review, including delegated read-only review.
+No new REA investigation was required for this own-source UI change. No schema,
+dependency, IPC/file grant, security policy or native preview capability changed.
+
+Separately, hosted parent `b2c7b56` now supplies a concrete Windows failure:
+[Save As for the sphere case](https://github.com/angelcp2802/solidflow/actions/runs/40536992055/job/122306045967)
+waits after the fourth document write rejects atomic rename with EPERM. Its
+request canonical hash matches the expected authored document; the readable disk
+file matches the preceding successful Save, and the original file stays intact.
+This establishes one file-publication failure, not the cause of the Windows
+lock/permission denial or every earlier global deadline. No file-write fix is
+claimed in this UI increment. Hosted stability, the medium CodeQL annotation,
+remaining context/reference editors, broader demo/human use, materials and
+installed-platform acceptance remain open. Checklist #55 stays **16/25**, draft
+PR #49 remains unmerged, and release is still gated by #5.
+
 ## Symmetry deadline evidence — 2026-10-27
 
 Hosted [Windows symmetry picking](https://github.com/angelcp2802/solidflow/actions/runs/40533025221/job/122290692699) reaches the original child deadline on two

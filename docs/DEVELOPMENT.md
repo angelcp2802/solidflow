@@ -1,5 +1,22 @@
 # Development guide
 
+## Configured origin/background context contracts — 2026-10-27
+
+Use the same current-scene guards for all configured popup kinds. Bind normal,
+origin and BOM selection identities as well as the complete UI ticket, navigation
+revision and evaluation identity. Origin rows resolve against the live global
+catalog; nominate an existing purpose-compatible form option in the current
+edit frame. Root is component:null, descendants are relative, and outside owners
+are unavailable. Preparing a first role never grants native Apply authority.
+
+Use current occurrence names for labels and exact IDs/bindings for actions.
+Viewport keyboard context may target a single current selected origin; stale or
+ambiguous catalogs must not fall back to a component. Multiple/mixed selections
+retain background commands. Background opening preserves selection; only the
+explicit deselection command clears it. Wait for the renderer to remove the old
+origin catalog before testing a subsequent keyboard command. Preserve existing
+empty-selection Normal To semantics, native previews, history and persistence.
+
 ## Symmetry workflow deadline checkpoints — 2026-10-27
 
 The six-case renderer workflow records a fixed family/stage checkpoint and
