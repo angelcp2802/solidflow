@@ -28,7 +28,8 @@ module.exports = function assemblyMenuControls({ configured, page, waitFor, actu
     await close('edit');
     await open('file');
     check(await page(() => document.querySelector('[data-assembly-command="save"]')?.disabled === false), 'Idle file menu exposes the existing enabled Save action');
-    await key('Tab'); await waitFor('Tab exits to existing quick access', async () => await closed() && await page(() => !!document.activeElement?.closest('.assembly-quickbar')));
+    await key('Tab'); await waitFor('Tab exits to the pinned header control', async () => await closed() && await page(() => document.activeElement === document.querySelector('button[data-header-menu-pin][aria-pressed="true"]')));
+    await key('Tab'); await waitFor('Tab continues to existing quick access', async () => await closed() && await page(() => !!document.activeElement?.closest('.assembly-quickbar')));
     await open('view'); await key('ArrowRight'); await waitFor('Right arrow opens and focuses Insert', () => focused('insert'));
     await key('ArrowLeft'); await waitFor('Left arrow returns focus to View', () => focused('view'));
     check(await page(() => [...document.querySelectorAll('.assembly-main-menus [role="menu"] [data-assembly-command]')].slice(0, 9)

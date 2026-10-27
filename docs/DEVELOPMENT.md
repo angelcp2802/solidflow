@@ -9,6 +9,13 @@ workspace remounts within that renderer session; it is not document data or a
 persisted application setting. The initial pinned state preserves the existing
 SolidFlow layout and is a project design choice.
 
+Disclosure and pin buttons retain a 28px minimum height within the existing
+35px row. Initial layout checks include the single pressed pin in the exact
+control inventory and retain containment, hit testing and overlap checks.
+Keyboard traversal from a pinned menu closes its popup, reaches the pin, then
+continues to quick actions on the next Tab. Keep that intermediate focus target
+explicit in both part and assembly acceptance routes.
+
 Unpinning leaves a temporary menu row over the quick-action region. Those quick
 actions remain in the layout but become hidden, inert and excluded from the
 accessibility tree until the disclosure closes. Outside pointer/focus and

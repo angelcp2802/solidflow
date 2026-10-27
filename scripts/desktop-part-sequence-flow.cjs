@@ -353,9 +353,11 @@ module.exports = function partSequenceWorkflow(context) {
     await open('file');
     await partToAssembly.draftGuard();
     await menuKey('Tab');
+    await waitFor('part menu Tab reaches the pinned header control',()=>evaluate(`!document.querySelector('.part-main-menus [role="menu"]')&&document.activeElement===document.querySelector('button[data-header-menu-pin][aria-pressed="true"]')`));
+    await menuKey('Tab');
     await waitFor('part menu Tab reaches quick actions in shared header',()=>evaluate(`!document.querySelector('.part-main-menus [role="menu"]')&&!!document.activeElement?.closest('.command-header .quick-actions')`));
     check(canonical(await snapshot())===canonical(original)&&(await observe()).serial===before.serial,'Menu navigation preserves the cut draft without another native build');
-    records.push({phase:'live-cut-menu-keyboard',keys:[...viewKeys,'Escape','Escape','Tab'],viewItems,draftRetained:true,insertGuards:true,serial:before.serial});
+    records.push({phase:'live-cut-menu-keyboard',keys:[...viewKeys,'Escape','Escape','Tab','Tab'],viewItems,draftRetained:true,insertGuards:true,serial:before.serial});
   }
   return async () => {
     await waitFor('part file control ready',()=>evaluate(`document.querySelector('.statusbar')?.textContent.includes('Listo') && typeof window.solidflow?.openDocument==='function' && !!document.querySelector('button[aria-label="Abrir (Ctrl+O)"]')`),initialReadyMs);

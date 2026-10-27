@@ -28,7 +28,7 @@
 .command-header .command-header-reveal,
 .command-header .command-header-menu-pin {
   display: inline-flex; align-items: center; justify-content: center; flex: 0 0 24px;
-  align-self: center; width: 24px; min-width: 24px; height: 26px; min-height: 26px;
+  align-self: center; width: 24px; min-width: 24px; height: 28px; min-height: 28px;
   padding: 0; border: 1px solid transparent; border-radius: 2px; background: transparent; color: #38576e;
 }
 .command-header .command-header-menu-pin[aria-pressed="true"] { color: #176da8; }

@@ -1,5 +1,27 @@
 # Project status and review queue
 
+## Current correction: header layout and keyboard acceptance
+
+The menu pin now meets the existing 28px minimum height. Initial header
+inventories include its single pressed control, and part/assembly keyboard
+routes check Tab to the pin before continuing to quick access. The 35px row,
+overlap/hit-test requirements, CAD authority and camera tolerances remain.
+
+Local Windows acceptance passes build, 10,116 tests across 447 files, 169 IPC
+checks with two explicit skips, desktop startup and nine affected renderer
+routes on one unchanged 1,214-input snapshot. Six initial layouts and three
+fifteen-state menu cases pass; nine header images have been visually reviewed.
+See [validation](VALIDATION.md) for executed cases, retained failures and limits.
+
+Prior head `9929dbc` has header-layout failures on Windows/macOS and a Linux
+Previous-view raster discrepancy. Its Windows hinge/symmetry job succeeds on
+this execution. The focused header correction does not establish a fix for
+Linux or recurring hosted stability. New hosted validation remains pending.
+
+The prototype checklist stays **16/25**, with nine items open. Continue in
+draft PR #49; broader demo/human use, remaining editors and installed-platform
+acceptance remain open, as does release gate #5.
+
 ## Current functional increment: header menu visibility
 
 The shared header adds unpin/reveal/pin controls, a renderer-session preference

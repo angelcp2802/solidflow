@@ -36,6 +36,7 @@ module.exports = async function commandHeaderLayout({ page, check, checks }, pha
     for (let i = 0; i < groups.length; i++) for (let j = i + 1; j < groups.length; j++) if (overlap(groups[i].rect, groups[j].rect)) groupOverlaps.push([i, j]);
     return { ...result, header: h, clientWidth: header.clientWidth, scrollWidth: header.scrollWidth,
       popupCount: header.querySelectorAll('[role="menu"]').length, menus: menus.map(e => e.textContent.trim()), quickCount: quick.length,
+      pinCount: header.querySelectorAll('button[data-header-menu-pin][aria-pressed="true"]').length,
       menusBeforeQuick: !!menus.length && !!quick.length && !!(menus.at(-1).compareDocumentPosition(quick[0]) & Node.DOCUMENT_POSITION_FOLLOWING),
       targets, overlaps, groups, groupOverlaps,
       document: title && { ...describe(title), slotWidth: documentSlot.getBoundingClientRect().width, textLength: title.textContent.trim().length,
@@ -48,7 +49,7 @@ module.exports = async function commandHeaderLayout({ page, check, checks }, pha
     || layout.scrollWidth > layout.clientWidth + 1) fail('Single 35px command row fits current content width');
   if (layout.menus.join('|') !== 'Archivo|Editar|Ver|Insertar|Herramientas|Ayuda' || !layout.menusBeforeQuick
     || layout.quickCount !== (kind === 'configured' ? 5 : 6)) fail('Existing menus precede each single quick-action instance');
-  if (layout.targets.length !== (kind === 'part' ? 14 : kind === 'configured' ? 11 : 12)
+  if (layout.pinCount !== 1 || layout.targets.length !== (kind === 'part' ? 15 : kind === 'configured' ? 12 : 13)
     || !layout.targets.every(t => t.contained && t.ownHit && t.rect.height >= 28) || layout.overlaps.length || layout.groupOverlaps.length)
     fail('All header controls, including disabled actions, are contained, hit-tested and disjoint');
   if (!layout.document?.contained || !layout.document.ownHit || !layout.document.hasFullTitle || layout.document.slotWidth < 95.5)

@@ -24,13 +24,14 @@ module.exports = async function headerMenus({ page, waitFor, check, checks, cano
       popupCount: header.querySelectorAll('[role="menu"]').length,
       dialog: !!document.querySelector('[role="dialog"][aria-labelledby="new-document-title"]'),
       namedDialog: !!document.querySelector('dialog.named-views-dialog[open]'),
+      minimumControlHeight: Math.min(...controls.map(element => element.getBoundingClientRect().height)),
       contained: controls.every(element => { const r = element.getBoundingClientRect(); return r.left >= rect.x && r.top >= rect.y && r.right <= rect.x + rect.width && r.bottom <= rect.y + rect.height; }),
       viewport: { width: innerWidth, height: innerHeight } };
   });
   const state = async (label, predicate) => {
     const value = await waitFor('header menus: ' + label, async () => { const current = await inspect(); return predicate(current) ? current : false; });
     check(value.header.height >= 30 && value.header.height <= 36 && value.header.x >= 0
-      && value.header.x + value.header.width <= value.viewport.width + 1 && value.contained,
+      && value.header.x + value.header.width <= value.viewport.width + 1 && value.contained && value.minimumControlHeight >= 28,
     'Header controls fit their single row: ' + label);
     evidence.states.push({ label, ...value }); return value;
   };

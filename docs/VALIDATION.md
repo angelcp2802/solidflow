@@ -1,5 +1,67 @@
 # Validation
 
+## Header layout and keyboard follow-up — 2026-10-27
+
+Hosted head `9929dbc` reports header-layout failures in
+[Windows persistence](https://github.com/angelcp2802/solidflow/actions/runs/40495774968/job/122160714389)
+and [macOS relations](https://github.com/angelcp2802/solidflow/actions/runs/40495774968/job/122160714169).
+The exact inventory omitted the new pin; the pin also measured 26px against
+the existing 28px height minimum. Returned layouts show contained hit targets
+and empty overlap lists. The original Windows part-sequence route reproduces
+that failure locally before the correction.
+
+Pin/disclosure height is now 28px within the unchanged 35px row. Initial
+inventories require one pressed pin and exactly 15/13/12 controls in
+part/standard/configured headers. Existing containment, hit testing, overlap,
+document-title and minimum-height checks remain. The fifteen-state menu route
+also checks the 28px minimum for its visible controls.
+
+The first local correction progresses past layout, then fails a stale Tab
+expectation. Both part and assembly routes now explicitly exercise popup
+closure, Tab to the pin, then a second Tab to quick access. Part records both
+keys; assembly retains its existing key recorder. Production focus behavior is
+unchanged, and draft/native-work assertions remain. Both failed runs are retained.
+
+Final local Windows acceptance uses Node 24.11.1, Electron 44.9.3 and one
+unchanged 1,214-input source/runtime snapshot:
+
+| Command | Result | Elapsed |
+| --- | --- | --- |
+| `npm run build` | PASS | 4.388 s |
+| `npm run test:desktop:part-sequence` | PASS; 183 checks | 22.861 s |
+| `npm run test:desktop:part-body-catalog` | PASS; 43 checks | 5.855 s |
+| `npm run test:desktop:assembly-origin-axes` | PASS; 324 checks | 32.425 s |
+| `npm run test:desktop:assembly-configured-origin-axes` | PASS; 326 checks | 22.851 s |
+| `npm run test:desktop:assembly-configured-picking` | PASS; 188 checks | 13.433 s |
+| `npm run test:desktop:assembly-configured-picking-compact` | PASS; 191 checks | 13.658 s |
+| `npm run test:desktop:part-from-empty` | PASS; 238 checks | 52.407 s |
+| `npm run test:desktop:assembly-shortcuts-compact` | PASS; 426 checks | 70.040 s |
+| `npm run test:desktop:assembly-configured-shortcuts-compact` | PASS; 451 checks | 67.143 s |
+| `npm test` | 10,116 tests/447 files; 169 IPC passes, 2 explicit skips | 442.563 s |
+| `npm run test:desktop` | PASS | 1.549 s |
+
+All nine renderer routes report zero console/request errors, successful
+protocol responses and confirmed child/profile cleanup. Six initial-layout
+cases check the exact complete inventories; the three disclosure routes each
+complete fifteen states while preserving their existing CAD/history/recovery/
+file observations. All nine original header crops were viewed: part at its
+original viewport and both assemblies at compact size, each pinned, temporary
+and collapsed. This is header-only local evidence; the capture's surrounding
+DOM checks do not establish atomic compositor synchronization.
+
+[Linux persistence on the prior head](https://github.com/angelcp2802/solidflow/actions/runs/40495774968/job/122160714283)
+also fails Previous returning to preset 5 with matching masks and rounded
+projected anchors but differing exact crop hashes. This change does not fix or
+relax that comparison. The prior
+[Windows hinge/symmetry job](https://github.com/angelcp2802/solidflow/actions/runs/40495774968/job/122160714239)
+finishes successfully on this execution; this does not establish repeatability
+or explain the earlier timeout.
+
+Hosted validation of this follow-up remains pending. The checklist stays
+16/25 with nine open; broader demo, installed-platform acceptance and release
+gate #5 remain open. Applied frontend-design, code-review and security-review
+guidance to the focused change, retaining the existing desktop boundaries.
+
 ## Header menu visibility — 2026-10-27
 
 The shared header now supports pinning, temporary reveal and collapse in parts,
