@@ -110,3 +110,18 @@ export function validateNamedViews(value: unknown): NamedView[] {
     return { id, name, view: validateSavedCameraView(source.view.value) }
   })
 }
+
+/** Preserve the selected identity, order and detached camera on a name edit. */
+export function renameNamedView(values: unknown, id: string, name: string): NamedView[] {
+  const views = validateNamedViews(values)
+  if (!views.some(view => view.id === id)) throw Error('La vista guardada ya no está disponible.')
+  return validateNamedViews(views.map(view => view.id === id ? { ...view, name: normalizeNamedViewName(name) } : view))
+}
+
+/** Replace only one saved pose; capture validation also owns the new arrays. */
+export function updateNamedViewCamera(values: unknown, id: string, camera: unknown): NamedView[] {
+  const views = validateNamedViews(values)
+  if (!views.some(view => view.id === id)) throw Error('La vista guardada ya no está disponible.')
+  const captured = validateSavedCameraView(camera)
+  return views.map(view => view.id === id ? { ...view, view: captured } : view)
+}

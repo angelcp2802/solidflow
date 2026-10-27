@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'react'
-import { MAX_NAMED_VIEWS, normalizeNamedViewName, validateNamedViews, validateSavedCameraView, type NamedView, type SavedCameraView } from '../model/namedViews'
+import { MAX_NAMED_VIEWS, normalizeNamedViewName, renameNamedView, updateNamedViewCamera, validateNamedViews, validateSavedCameraView, type NamedView, type SavedCameraView } from '../model/namedViews'
 import type { ViewHistory } from './viewNavigation'
 
 export interface NamedViewDocument { namedViews?: NamedView[] }
@@ -80,6 +80,7 @@ export function useNamedDocumentViews<T extends NamedViewDocument>(options: Opti
     views: options.document.namedViews ?? [],
     canOpen: !options.blocked && !options.history.navigating,
     canSave: !options.blocked && !options.history.navigating && captureAvailable && (options.document.namedViews?.length ?? 0) < MAX_NAMED_VIEWS,
+    canUpdate: !options.blocked && !options.history.navigating && captureAvailable,
     open() {
       const value = current.current
       if (!mounted.current || value.blocked || !value.isCurrent() || value.history.navigating || active.current) return
@@ -97,6 +98,18 @@ export function useNamedDocumentViews<T extends NamedViewDocument>(options: Opti
       const { value } = live(), found = validateNamedViews(value.document.namedViews ?? []).find(view => view.id === id)
       if (!found) throw Error('La vista guardada ya no está disponible.')
       value.recall(found.view); close()
+    },
+    rename(id: string, name: string) {
+      const { value, ticket } = live()
+      const views = renameNamedView(value.document.namedViews ?? [], id, name)
+      if (JSON.stringify(views) === JSON.stringify(value.document.namedViews)) return
+      commit(value, ticket, withDocumentNamedViews(value.document, views))
+    },
+    update(id: string) {
+      const { value, ticket } = live()
+      const views = updateNamedViewCamera(value.document.namedViews ?? [], id, value.history.current)
+      if (JSON.stringify(views) === JSON.stringify(value.document.namedViews)) return
+      commit(value, ticket, withDocumentNamedViews(value.document, views))
     },
     remove(id: string) {
       const { value, ticket } = live(), views = validateNamedViews(value.document.namedViews ?? [])

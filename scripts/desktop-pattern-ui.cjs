@@ -1036,11 +1036,12 @@ async function runInElectron() {
   const shortcutKey = async combo => {
     check((normalToView || fromEmpty || shortcuts) && !window.isVisible() && window.webContents.debugger.isAttached(), 'Only fixed shortcut keys in owned hidden scenario');
     // Native editor commands belong only to the two original fixture fields
-    // or the single visible, focused named-view input in its actual modal.
+    // or one exact visible, focused creation/rename field in its actual modal.
     const editable = (combo==='A'||combo==='Z') && await evaluate(`(() => {
       const e=document.activeElement;
       if(!(e instanceof HTMLInputElement)||e.disabled||e.readOnly||e.closest('[hidden]')||!e.checkVisibility()||!e.getClientRects().length)return false;
-      const named=document.querySelectorAll('dialog.named-views-dialog[open] input[aria-label="Nombre de la vista"]');
+      const label=e.getAttribute('aria-label'),named=['Nombre de la vista','Nombre de la vista seleccionada'].includes(label)
+        ?document.querySelectorAll('dialog.named-views-dialog[open] input[aria-label="'+label+'"]'):[];
       if(${fromEmpty || shortcuts}&&named.length===1&&named[0]===e&&document.querySelectorAll('[role="dialog"]').length===1){
         const r=e.getBoundingClientRect();return e.contains(document.elementFromPoint(r.left+r.width/2,r.top+r.height/2));
       }
@@ -1050,13 +1051,14 @@ async function runInElectron() {
     await dispatchShortcutKey(combo,{platform:process.platform,editable,send:event=>window.webContents.debugger.sendCommand('Input.dispatchKeyEvent',event)});
   };
   const shortcutText = async value => {
-    const named = (fromEmpty || shortcuts) && ['Part view','Assembly view','Configured view','PART VIEW','ASSEMBLY VIEW','CONFIGURED VIEW','Temporary view','Pending view'].includes(value);
+    const named = (fromEmpty || shortcuts) && ['Part view','Assembly view','Configured view','PART VIEW','ASSEMBLY VIEW','CONFIGURED VIEW','Temporary view','Pending view','Pending rename','Part view renamed','Assembly view renamed','Configured view renamed'].includes(value);
     check((named || shortcuts && ['Keyboard renamed','native undo probe','Saved before New'].includes(value))
       && !window.isVisible() && window.webContents.debugger.isAttached(), 'Only fixed original text for native editing acceptance');
     check(await evaluate(`(() => {
       const e=document.activeElement;if(!(e instanceof HTMLInputElement)||e.disabled||e.readOnly||e.closest('[hidden]')||!e.getClientRects().length)return false;
       if(!${named})return true;
-      const fields=document.querySelectorAll('dialog.named-views-dialog[open] input[aria-label="Nombre de la vista"]'),r=e.getBoundingClientRect();
+      const label=e.getAttribute('aria-label'),fields=['Nombre de la vista','Nombre de la vista seleccionada'].includes(label)
+        ?document.querySelectorAll('dialog.named-views-dialog[open] input[aria-label="'+label+'"]'):[],r=e.getBoundingClientRect();
       return fields.length===1&&fields[0]===e&&document.querySelectorAll('[role="dialog"]').length===1&&e.checkVisibility()
         &&e.contains(document.elementFromPoint(r.left+r.width/2,r.top+r.height/2));
     })()`), 'Actual enabled owned input must own text typing');

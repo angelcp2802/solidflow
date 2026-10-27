@@ -4701,7 +4701,8 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
           </div>
         </div>
       )}
-      {namedViews.isOpen && <NamedViewsDialog views={namedViews.views} canSave={namedViews.canSave} onSave={namedViews.save} onShow={namedViews.show} onDelete={namedViews.remove} onClose={namedViews.close} />}
+      {namedViews.isOpen && <NamedViewsDialog views={namedViews.views} canSave={namedViews.canSave} canUpdate={namedViews.canUpdate}
+        onSave={namedViews.save} onShow={namedViews.show} onDelete={namedViews.remove} onRename={namedViews.rename} onUpdate={namedViews.update} onClose={namedViews.close} />}
       {rename && (
         <div className="modal-backdrop">
           <form

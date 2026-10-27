@@ -4,6 +4,24 @@ The integration draft is [PR #49](https://github.com/angelcp2802/solidflow/pull/
 This walkthrough covers a bounded prototype, not the complete assembly scope
 or a release. See [validation](VALIDATION.md) for the exact executed cases.
 
+## Editing a saved working view
+
+In a part, standard assembly or configured assembly, position the camera and
+open **Vistas guardadas**. Enter a new name and choose **Guardar vista actual**.
+The catalog belongs to that document.
+
+To change an existing entry, select it in the list. Edit **Nombre de la vista
+seleccionada** and press **Renombrar**. To replace its orientation and framing,
+close the dialog, navigate to the desired view, reopen the dialog, select the
+entry and choose **Actualizar vista**. **Mostrar** recalls the saved camera;
+Update itself leaves the displayed camera where it is.
+
+Close the dialog before using document Undo/Redo or Save. Completed rename and
+update commands are undoable and are included in the ordinary saved document.
+Closing the dialog discards a name that has only been typed; it does not undo
+an explicit completed command. Names must be unique within the document.
+An existing entry can still be renamed or updated when all 64 slots are used.
+
 ## Standard three-piece authoring
 
 The bounded automated route includes direct naming followed by a single Fixed

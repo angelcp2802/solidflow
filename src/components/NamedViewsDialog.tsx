@@ -5,10 +5,13 @@ import './named-views-dialog.css'
 export interface NamedViewsDialogProps {
   views: readonly NamedView[]
   canSave: boolean
+  canUpdate: boolean
   /** Synchronous document transactions; the owner revalidates the current session. */
   onSave: (name: string) => string
   onShow: (id: string) => void
   onDelete: (id: string) => void
+  onRename: (id: string, name: string) => void
+  onUpdate: (id: string) => void
   onClose: () => void
 }
 
@@ -29,11 +32,13 @@ export function namedViewDialogKeyAction(event: DialogKey, editing: boolean, com
 
 /** Document-local catalog editor. Camera and document authority stay with its owner. */
 export function NamedViewsDialog(props: NamedViewsDialogProps) {
-  const { views, canSave, onSave, onShow, onDelete } = props
-  const titleId = useId(), nameId = useId(), errorId = useId()
+  const { views, canSave, canUpdate, onSave, onShow, onDelete, onRename, onUpdate } = props
+  const titleId = useId(), nameId = useId(), renameId = useId(), errorId = useId()
   const dialog = useRef<HTMLDialogElement>(null), latest = useRef(props), composing = useRef(false)
   const [name, setName] = useState(''), [selectedId, setSelectedId] = useState(''), [error, setError] = useState('')
+  const [renameDraft, setRenameDraft] = useState<{ id: string; name: string } | null>(null)
   const selected = views.find(view => view.id === selectedId) ?? views[0]
+  const selectedName = selected && renameDraft?.id === selected.id ? renameDraft.name : selected?.name ?? ''
   const full = views.length >= MAX_NAMED_VIEWS
   useLayoutEffect(() => { latest.current = props })
   useEffect(() => {
@@ -71,20 +76,35 @@ export function NamedViewsDialog(props: NamedViewsDialogProps) {
     <p>Guarda la orientación y el encuadre actuales en este documento.</p>
     <div className="named-views-catalog">
       {views.length ? <select aria-label="Vistas de este documento" size={Math.min(8, Math.max(3, views.length))}
-        value={selected?.id ?? ''} onChange={event => { setSelectedId(event.target.value); setError('') }} onDoubleClick={show}>
+        value={selected?.id ?? ''} onChange={event => { setSelectedId(event.target.value); setRenameDraft(null); setError('') }} onDoubleClick={show}>
         {views.map(view => <option key={view.id} value={view.id}>{view.name}</option>)}
       </select> : <p className="named-views-empty">Todavía no hay vistas guardadas.</p>}
       <div className="named-views-actions">
         <button type="button" disabled={!selected} onClick={show}>Mostrar</button>
+        <button type="button" disabled={!selected || !canUpdate} title="Sustituir el encuadre seleccionado por el actual"
+          onClick={() => { if (selected) act(() => onUpdate(selected.id)) }}>Actualizar vista</button>
         <button type="button" disabled={!selected} onClick={() => {
-          if (selected) act(() => { onDelete(selected.id); setSelectedId('') })
+          if (selected) act(() => { onDelete(selected.id); setSelectedId(''); setRenameDraft(null) })
         }}>Eliminar</button>
       </div>
     </div>
+    {selected && <form className="named-views-rename" onSubmit={event => {
+      event.preventDefault()
+      if (composing.current) return
+      act(() => { onRename(selected.id, selectedName); setRenameDraft(null) })
+    }}>
+      <label htmlFor={renameId}>Nombre de la vista seleccionada</label>
+      <div className="named-views-save">
+        <input id={renameId} aria-label="Nombre de la vista seleccionada" value={selectedName} maxLength={MAX_NAMED_VIEW_NAME_LENGTH}
+          autoComplete="off" required onCompositionStart={() => { composing.current = true }} onCompositionEnd={() => { composing.current = false }}
+          aria-describedby={error ? errorId : undefined} onChange={event => { setRenameDraft({ id: selected.id, name: event.target.value }); setError('') }} />
+        <button type="submit" disabled={!selectedName.trim() || selectedName.trim() === selected.name}>Renombrar</button>
+      </div>
+    </form>}
     <form onSubmit={event => {
       event.preventDefault()
       if (!canSave || full || composing.current) return
-      act(() => { const id = onSave(normalizeNamedViewName(name)); setSelectedId(id); setName('') })
+      act(() => { const id = onSave(normalizeNamedViewName(name)); setSelectedId(id); setRenameDraft(null); setName('') })
     }}>
       <label htmlFor={nameId}>Nombre de la vista</label>
       <div className="named-views-save">

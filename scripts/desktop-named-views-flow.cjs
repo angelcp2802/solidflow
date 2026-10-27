@@ -189,16 +189,16 @@ module.exports = async function namedViews(c) {
     }, DIALOG));
   }
   async function close() { await command('Escape'); await waitFor('named-view modal closes', () => page(s => !document.querySelector(s), DIALOG)); }
-  async function type(value) {
-    await press(INPUT); await command('A');
+  async function type(value, selector = INPUT) {
+    await press(selector); await command('A');
     await waitFor('native select-all owns the named-view field', () => page(s => {
       const e = document.querySelector(s); return !!e && document.activeElement === e && e.selectionStart === 0 && e.selectionEnd === e.value.length;
-    }, INPUT));
+    }, selector));
     await text(value);
-    await waitFor('physical text reaches named-view field', () => page((s, value) => document.querySelector(s)?.value === value, INPUT, value));
+    await waitFor('physical text reaches named-view field', () => page((s, value) => document.querySelector(s)?.value === value, selector, value));
   }
   async function saveView(label, expectedCount) {
-    await type(label); await press(DIALOG + ' button[type="submit"]');
+    await type(label); await press(DIALOG + ' button[type="submit"]', 'Guardar vista actual');
     return waitFor('named view commits only its catalog', async () => {
       const doc = JSON.parse(await recovery());
       return doc.namedViews?.length === expectedCount && doc.namedViews.at(-1).name === label ? doc : false;
@@ -230,7 +230,7 @@ module.exports = async function namedViews(c) {
     evidence.authoredPose = { initial, input: [] };
     for (const gesture of ['orbit', 'pan', 'wheel-in']) evidence.authoredPose.input.push(await cameraGesture(gesture));
     await sameLayout('Authored pose retains the original viewport layout');
-    const base = await frame('saved baseline', value => rasterComparison?.retainBaseline(value));
+    let base = await frame('saved baseline', value => rasterComparison?.retainBaseline(value));
     check(canonical(base.projected.map(p => [p.key, p.selected])) === canonical(selected.origins),
       'Saved baseline retains the complete original label inventory for exact recall checks');
     different(base, initial, 'Original orbit/pan/zoom pose differs from the initial fixture view');
@@ -242,7 +242,7 @@ module.exports = async function namedViews(c) {
     check([first.view.position, first.view.target, first.view.up].every(v => Array.isArray(v) && v.length === 3 && v.every(Number.isFinite))
       && ['top', 'bottom', 'zoom', 'near', 'far'].every(k => Number.isFinite(first.view[k])), 'Committed camera declaration is finite and complete');
     await unchanged(doc, 'Create first view'); evidence.catalog.push({ action: 'create', view: first });
-    await type(name.toUpperCase()); await press(DIALOG + ' button[type="submit"]');
+    await type(name.toUpperCase()); await press(DIALOG + ' button[type="submit"]', 'Guardar vista actual');
     await waitFor('case-colliding name is rejected in the modal', () => page(s => document.querySelector(s + ' [role="alert"]')?.textContent.includes('duplicado'), DIALOG));
     await unchanged(doc, 'Duplicate name rejection');
     await type('Pending view');
@@ -274,7 +274,7 @@ module.exports = async function namedViews(c) {
       } finally { try { rasterComparison?.clearMovedBaseline(); } catch { /* Preserve the original workflow failure. */ } }
     }
     await cameraGesture('pan'); const secondFrame = await frame('second saved pose'); different(secondFrame, base, 'Second original saved pose');
-    await open(); const two = await saveView('Temporary view', 2), second = structuredClone(two.namedViews[1]);
+    await open(); let two = await saveView('Temporary view', 2); const second = structuredClone(two.namedViews[1]);
     check(second.id !== first.id && canonical(two.namedViews[0]) === canonical(first) && canonical(second.view) !== canonical(first.view),
       'Second catalog entry retains a distinct camera and cannot overwrite the first identity');
     await unchanged(two, 'Create second view');
@@ -284,6 +284,41 @@ module.exports = async function namedViews(c) {
     await open(); await selectView(second, 'End'); await showSelected();
     const selectedSecond = await frame('second of two selected views'); same(selectedSecond, secondFrame, 'Actual second-name selection recalls the distinct second pose');
     await unchanged(two, 'Second name recall');
+    const renameInput = DIALOG + ' input[aria-label="Nombre de la vista seleccionada"]';
+    await open(); await selectView(second, 'End');
+    await type(first.name.toUpperCase(), renameInput); await press(DIALOG + ' button[type="submit"]', 'Renombrar');
+    await waitFor('renaming cannot collide with another saved view', () => page(s => document.querySelector(s + ' [role="alert"]')?.textContent.includes('duplicado'), DIALOG));
+    await unchanged(two, 'Rejected saved-view rename');
+    await type('Pending rename', renameInput);
+    for (const shortcut of ['S', 'Z', 'Y', 'N', 'O']) await command(shortcut);
+    await unchanged(two, 'Pending rename owns file and history shortcuts'); await close();
+    await unchanged(two, 'Closing a pending rename preserves both saved entries');
+    await open(); await selectView(first, 'Home');
+    const renamedName = name + ' renamed', beforeRename = structuredClone(two);
+    await type(renamedName, renameInput); await press(DIALOG + ' button[type="submit"]', 'Renombrar');
+    two = structuredClone(beforeRename); two.namedViews[0].name = renamedName;
+    await current(two); await unchanged(two, 'Rename preserves selected identity, both poses, order, geometry and file authority'); await close();
+    await command('Z'); await unchanged(beforeRename, 'Undo saved-view rename');
+    await command('Y'); await unchanged(two, 'Redo saved-view rename');
+    first = structuredClone(two.namedViews[0]);
+    await open(); await selectView(first, 'Home');
+    const beforeUpdate = structuredClone(two);
+    await press(DIALOG + ' button', 'Actualizar vista');
+    two = structuredClone(beforeUpdate); two.namedViews[0].view = structuredClone(second.view);
+    await current(two); await unchanged(two, 'Update changes only the selected saved pose to the already captured second camera'); await close();
+    await command('Z'); await unchanged(beforeUpdate, 'Undo saved-view camera update');
+    await command('Y'); await unchanged(two, 'Redo saved-view camera update');
+    first = structuredClone(two.namedViews[0]);
+    await open(); await selectView(first, 'Home'); await press(DIALOG + ' button', 'Actualizar vista');
+    await unchanged(two, 'Updating an identical saved pose changes no committed data'); await close();
+    await command('Z'); await unchanged(beforeUpdate, 'No-op update adds no history entry');
+    await command('Y'); await unchanged(two, 'Redo after no-op update restores the one actual camera edit');
+    base = await frame('updated saved baseline', value => rasterComparison?.retainBaseline(value));
+    same(base, secondFrame, 'Renaming and updating never move the displayed camera');
+    evidence.frames.updated = base;
+    evidence.catalog.push({ action: 'rename-update-undo-redo', original: beforeRename.namedViews[0], renamed: beforeUpdate.namedViews[0], updated: first,
+      duplicateRejected: true, pendingCancelled: true, noOpHistoryPreserved: true });
+    doc = structuredClone(two); doc.namedViews = [structuredClone(first)];
     await open(); await selectView(second, 'End');
     await press(DIALOG + ' button', 'Eliminar'); await current(doc); await unchanged(doc, 'Delete selected second view'); await close();
     await command('Z'); await unchanged(two, 'Undo catalog deletion');

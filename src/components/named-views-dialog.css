@@ -29,6 +29,7 @@ dialog.named-views-dialog[role="dialog"] button:hover:not(:disabled) { backgroun
 dialog.named-views-dialog[role="dialog"] button:disabled { opacity: .55; cursor: default; }
 .named-views-dialog :is(button, input, select):focus-visible { outline: 2px solid #1874c9; outline-offset: 2px; }
 .named-views-dialog form { padding-top: 12px; border-top: 1px solid #c6d2dc; }
+.named-views-dialog .named-views-rename { margin-bottom: 14px; }
 .named-views-dialog label { display: block; margin-bottom: 6px; font-weight: 600; }
 .named-views-save { display: flex; flex-wrap: wrap; gap: 8px; }
 .named-views-save input { flex: 1 1 180px; min-width: 0; min-height: 30px; box-sizing: border-box; padding: 4px 8px; border: 1px solid #9fb5ca; border-radius: 3px; background: #fff; color: #19344d; font: inherit; }

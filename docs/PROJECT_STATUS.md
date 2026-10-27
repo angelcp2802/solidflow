@@ -1,5 +1,30 @@
 # Project status and review queue
 
+## Saved-view name and camera editing — 2026-10-27
+
+Parts and both assembly workspaces now rename a selected saved view and update
+its stored camera without changing its ID, order or other entries. The existing
+modal ownership, strict validators, document history/recovery and Save/reopen
+remain in use. Repeated identical updates add no history.
+
+Final local Windows acceptance passes build, 10,140 tests across 448 files,
+169 IPC checks with two explicit skips, desktop startup and six renderer routes
+on one snapshot of 1,215 non-Markdown inputs. The routes cover the three workspaces, both
+assembly window sizes, name rejection/cancellation, edit Undo/Redo and edited
+view persistence. Two supplementary dialog images were reviewed. See
+[validation](VALIDATION.md) for timings, the retained driver failure and limits.
+
+Parent `57f543c` completes all fifteen
+[CI jobs](https://github.com/angelcp2802/solidflow/actions/runs/40508982018),
+including the nine renderer batches and three Desktop packaging jobs. The prior
+Windows waits are not reproduced there; their cause and recurring stability
+remain unestablished. The medium security annotation remains open. Hosted
+acceptance of the new saved-view editor is still pending.
+
+The prototype checklist remains **16/25**, with nine open items. Continue in
+draft PR #49; broader demo/human use, remaining reference/view editors,
+installed-platform acceptance and release gate #5 remain open.
+
 ## Current correction: stable origin-reference labels
 
 Origin-reference buttons use bounded integer CSS-pixel positions and

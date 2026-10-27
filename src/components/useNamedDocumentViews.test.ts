@@ -6,7 +6,7 @@ import { createAssemblyConfiguredDocument } from '../model/assemblyConfiguredDoc
 import { assemblyConfigurationCoreFixture } from '../model/assemblyConfigurationCore.test-utils'
 import { parseCadDocument, serializeCadDocument, type CadDocument } from '../model/cadDocument'
 import { readCadRecovery, writeCadRecovery } from '../model/cadRecovery'
-import type { NamedView } from '../model/namedViews'
+import { renameNamedView, updateNamedViewCamera, type NamedView } from '../model/namedViews'
 import { rebindNamedViewSelection, sameDocumentExceptNamedViews, withDocumentNamedViews } from './useNamedDocumentViews'
 
 // Original camera declarations and existing original millimetre-box documents.
@@ -39,6 +39,25 @@ function historyFor(document: CadDocument) {
 }
 
 describe('root named-view document transactions', () => {
+  it.each([1, 2, 3])('renames and updates a saved version %s view through independent history and recovery', version => {
+    const initial = fixtures().find(document => document.version === version)!, history = historyFor(initial)
+    const original = history.commit(withDocumentNamedViews(initial, [view()])), originalBytes = serializeCadDocument(original)
+    const renamed = history.commit(withDocumentNamedViews(original, renameNamedView(original.namedViews, 'original-view', 'Detalle')))
+    const capture = { ...view().view, position: [52, -8, 0], zoom: 4 }
+    const updated = history.commit(withDocumentNamedViews(renamed, updateNamedViewCamera(renamed.namedViews, 'original-view', capture)))
+    expect(updated.namedViews).toEqual([{ id: 'original-view', name: 'Detalle', view: { ...view().view, position: [52, -8, 0], zoom: 4 } }])
+    expect(sameDocumentExceptNamedViews(initial, updated)).toBe(true)
+    const bytes = serializeCadDocument(updated)
+    expect(parseCadDocument(bytes)).toEqual(updated)
+    const storage = new Map<string, string>()
+    writeCadRecovery({ setItem: (key, value) => { storage.set(key, value) } }, updated)
+    expect(readCadRecovery({ getItem: key => storage.get(key) ?? null })).toEqual({ status: 'recovered', document: updated, serialized: bytes })
+    expect(serializeCadDocument(history.undo())).toBe(serializeCadDocument(renamed))
+    expect(serializeCadDocument(history.undo())).toBe(originalBytes)
+    expect(serializeCadDocument(history.redo())).toBe(serializeCadDocument(renamed))
+    expect(serializeCadDocument(history.redo())).toBe(bytes)
+    expect(original.namedViews).toEqual([view()])
+  })
   it.each([1, 2, 3])('creates, deletes, undoes, redoes and persists version %s without changing other document content', version => {
     const initial = fixtures().find(document => document.version === version)!, before = serializeCadDocument(initial), history = historyFor(initial)
     const saved = history.commit(withDocumentNamedViews(initial, [view()])), savedBytes = serializeCadDocument(saved)

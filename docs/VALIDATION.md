@@ -1,5 +1,86 @@
 # Validation
 
+## Saved-view name and camera editing — 2026-10-27
+
+The shared document-view editor now renames an existing entry and explicitly
+updates its saved camera. Both operations retain identity and catalog order.
+The change adds no document field, geometry operation, dependency or IPC API.
+It retains the existing strict name/camera validators, 64-entry limit,
+modal/current-document ownership, metadata-only history and file grants.
+
+Local Windows x64 acceptance uses Node 24.11.1 and Electron 44.9.3
+on one unchanged snapshot of 1,215 non-Markdown source/runtime inputs and eight
+production inputs.
+
+| Command | Result | Elapsed |
+| --- | --- | --- |
+| `npm run build` | PASS | 3.856 s |
+| `npm run test:desktop:part-from-empty` | PASS; 272 checks | 54.155 s |
+| `npm run test:desktop:normal-to-view` | PASS; 157 checks | 16.826 s |
+| `npm run test:desktop:assembly-shortcuts` | PASS; 489 checks | 75.122 s |
+| `npm run test:desktop:assembly-configured-shortcuts` | PASS; 529 checks | 71.727 s |
+| `npm run test:desktop:assembly-shortcuts-compact` | PASS; 490 checks | 74.038 s |
+| `npm run test:desktop:assembly-configured-shortcuts-compact` | PASS; 530 checks | 70.858 s |
+| `npm test` | 10,140 tests / 448 files; 169 IPC passes, 2 explicit skips | 443.126 s |
+| `npm run test:desktop` | PASS | 1.562 s |
+
+The part-from-empty and four assembly shortcut routes exercise the actual
+production dialog with fixed native pointer/key input in isolated hidden
+windows. They retain their original distinct-pose and exact pixel/mask/anchor
+checks before editing. Added steps reject a case-colliding rename, cancel
+pending text, rename the first identity, replace its camera with the separately
+authored second pose, Undo/Redo both operations and prove an identical update
+adds no history. The edited entry is then saved through the existing granted
+file path and reopened, with exact document/recovery checks and the caller's
+original geometry assertions. The separate Normal To route is a regression.
+All six renderer reports have zero console/request errors and confirm child
+closure and isolated-profile cleanup. Deadlines and image criteria are unchanged.
+
+The first standard-assembly attempt stops at the new rename field because the
+bounded test driver only admits the old creation label. It is retained as a
+failed execution, not a product defect or an accepted result. The driver now
+admits the two exact labels and fixed test text, still requiring unique field
+ownership, one modal, focus, editability, hit-testing and its hidden test window.
+Final acceptance above runs after that correction.
+
+Fifteen new model cases cover stable identity/order, immutable camera ownership,
+invalid and duplicate names, invalid cameras, stale IDs and editing at capacity.
+Three document tests cover rename/update history, serialization and recovery
+for versions 1, 2 and 3; one added presentation case covers unavailable capture
+and missing selection. These unit tests do not execute hook tickets or React
+events. Renderer evidence supplies the concrete interaction cases above.
+The new cameras and names are project-authored synthetic declarations, and the
+renderer reuses existing original fixtures. No external CAD model is added.
+
+Two supplementary compact-standard dialog images were reviewed at original
+resolution, after rename and after update. Their replay adds two full-window
+captures and read-only DOM observations. Every dialog control is visible,
+inside the viewport and hit-tested in those observations. The original
+acceptance is separate; frozen production assets remain unchanged and the
+private capture instrumentation is restored afterward. This is not a manual
+external-app interaction test, full UI parity or broad platform acceptance.
+
+Two earlier supplementary attempts stop at their window-ownership guard; the
+second records an empty global BrowserWindow inventory. The final replay uses
+the existing explicitly owned window callback instead. Those failed capture
+attempts and all restoration checks are retained separately from acceptance.
+
+Previous public head `57f543c` completes all fifteen jobs in its
+[CI run](https://github.com/angelcp2802/solidflow/actions/runs/40508982018):
+nine renderer batches, three configured-authoring jobs and all three Desktop
+unit/IPC/startup/packaging jobs succeed. Thus the earlier Windows Save/symmetry
+waits and Linux exact-restoration failure are not reproduced on that execution.
+The label correction has its separate controlled local evidence below; this
+does not establish the cause or recurring resolution of the Windows waits.
+The separately tracked medium CodeQL annotation remains open.
+
+Hosted validation of this new saved-view increment remains pending. Broader
+demo/human acceptance, remaining editors, installed-platform acceptance and
+release gate #5 remain open. Checklist #55 stays **16/25**. Frontend-design,
+React client guidance, code-review, focused code-simplifier and security-review
+were applied, including a delegated read-only diff review. This source-level
+increment makes no new comparison claim about external shipped software.
+
 ## Origin-reference label rendering — 2026-10-27
 
 A local Linux WSLg run reproduces the compact-assembly Isometric-repeat failure

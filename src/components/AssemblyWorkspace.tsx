@@ -2919,7 +2919,8 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
       actions={contextActions} point={activeContext.point} restoreFocusElement={activeContext.element} onClose={() => setContextTarget(null)} />}
     {rootRevision && <AssemblyRootRevisionDialog id={committed.id} currentRevision={committed.revision} revision={rootRevision.revision} error={rootRevision.error}
       onRevision={revision => setRootRevision(value => value && { ...value, revision, error: '' })} onPreview={() => void previewRootRevision()} onCancel={() => setRootRevision(null)} />}
-    {namedViews.isOpen && <NamedViewsDialog views={namedViews.views} canSave={namedViews.canSave} onSave={namedViews.save} onShow={namedViews.show} onDelete={namedViews.remove} onClose={namedViews.close} />}
+    {namedViews.isOpen && <NamedViewsDialog views={namedViews.views} canSave={namedViews.canSave} canUpdate={namedViews.canUpdate}
+      onSave={namedViews.save} onShow={namedViews.show} onDelete={namedViews.remove} onRename={namedViews.rename} onUpdate={namedViews.update} onClose={namedViews.close} />}
     {newDocumentDialog.dialog}
     {replaceDialog && <div className="assembly-modal-backdrop"><div ref={replaceModal} className="assembly-modal" role="dialog" aria-modal="true" aria-label="Cambios sin guardar"><h2>Hay cambios sin guardar</h2><p>Guarda el ensamblaje antes de sustituirlo.</p>{draft && <p>Aplica o cancela la vista previa para guardar sus cambios.</p>}<div><button disabled={!!draft || busy} onClick={() => void save().then(success => { if (success) answerReplace(true) })}>Guardar y continuar</button><button onClick={() => answerReplace(true)}>Continuar sin guardar</button><button onClick={() => answerReplace(false)}>Cancelar</button></div></div></div>}
   </div>

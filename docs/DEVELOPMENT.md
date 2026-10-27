@@ -1,5 +1,32 @@
 # Development guide
 
+## Editing document-local views — 2026-10-27
+
+The shared saved-view dialog supports renaming a selected entry and replacing
+its camera with the current stationary view. Both commands retain its ID and
+catalog order. Rename preserves the exact saved pose; Update preserves the
+name and all other entries. Capture and name admission use the existing strict
+validators, including duplicate names, finite camera bounds and the 64-entry
+limit. Editing remains possible at capacity; creating another view does not.
+
+Keep these commands inside the current modal/document/scene ticket and the
+existing metadata-only document transaction. No-op edits add no history. A
+pending name changes nothing until Renombrar; Cerrar/Escape discards that text.
+An explicit completed edit participates in document Undo/Redo, dirty state,
+recovery and ordinary Save/reopen, while leaving the displayed camera, native
+scene, geometric witnesses and file authority unchanged. Updating a saved view
+does not recall it. File versions and the existing namedViews schema remain
+unchanged; the earlier strict-reader compatibility limits still apply.
+
+The renderer acceptance route retains its original distinct-pose and exact
+camera-restoration assertions before editing. It then checks a rejected rename,
+pending-name cancellation, explicit rename/update, Undo/Redo and a repeated
+no-op update before saving and reopening the edited entry. Its new saved
+baseline must first equal the independently authored second pose. Fixed typing
+is restricted to the creation or rename input by its exact accessible label,
+single modal, actual focus, editability and hit-test. Record execution separately
+from this contract and from any claim about external software behavior.
+
 ## Origin-reference label pixel placement — 2026-10-27
 
 Origin-reference buttons use rectangular borders and place their HTML boxes at
