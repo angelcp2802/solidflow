@@ -1,6 +1,7 @@
 import { Box, ChevronRight, EyeOff, Layers, Link2, LockKeyhole, Settings2 } from 'lucide-react'
 import { useId, useMemo, type MouseEvent, type ReactNode } from 'react'
 import type { AssemblyConfigurationEvaluation } from '../model/assemblyConfigurationCore'
+import type { AssemblyComponentReference } from '../model/assemblyDocument'
 import { useAssemblyTreeNavigation } from './useAssemblyTreeNavigation'
 import type { AssemblyOriginTreeEntry } from './assemblyOriginTree'
 import AssemblyOriginIcon from './AssemblyOriginIcon'
@@ -62,10 +63,11 @@ interface Props {
   originRows?: readonly AssemblyOriginTreeEntry[]
   selectedOriginKey?: string | null
   onOrigin?: (entry: AssemblyOriginTreeEntry, additive?: boolean) => void
+  onComponentContext?: (component: AssemblyComponentReference, point: { x: number; y: number }, element: HTMLElement) => void
 }
 
 /** Disclosure and focus are presentation state; callers retain every CAD guard. */
-export default function ConfiguredAssemblyTree({ name, evaluation, scope, occurrenceId, disabled, active, resetKey, onScope, onOccurrence, onProperties, onRelations, originRows, selectedOriginKey, onOrigin }: Props) {
+export default function ConfiguredAssemblyTree({ name, evaluation, scope, occurrenceId, disabled, active, resetKey, onScope, onOccurrence, onProperties, onRelations, originRows, selectedOriginKey, onOrigin, onComponentContext }: Props) {
   const prefix = useId(), nodes = useMemo(() => configuredAssemblyTreeNodes(evaluation, originRows), [evaluation, originRows])
   const childrenByParent = useMemo(() => {
     const result = new Map<string | null, TreeNode[]>()
@@ -92,6 +94,10 @@ export default function ConfiguredAssemblyTree({ name, evaluation, scope, occurr
       else if (node.kind === 'origin') onOrigin?.(node.entry, event.ctrlKey || event.metaKey)
       else onScope(JSON.stringify(node.path))
     }
+    const context = (point: { x: number; y: number }, element: HTMLElement) => {
+      if (node.kind !== 'occurrence' || !onComponentContext || disabled || !active || !navigation.isVisible(node.key) || !element.isConnected) return
+      onComponentContext({ occurrencePath: [...node.path], definition: { ...node.occurrence.definition } }, point, element)
+    }
     return <li key={node.key} role="none" hidden={!navigation.isVisible(node.key)}>
       <div className="configured-tree-line">
         {children.length ? <button type="button" className="configured-tree-disclosure" tabIndex={-1}
@@ -107,11 +113,20 @@ export default function ConfiguredAssemblyTree({ name, evaluation, scope, occurr
           aria-level={level} aria-selected={node.key === selectedKey}
           aria-expanded={children.length ? expanded : undefined} aria-controls={children.length ? groupId(node.key) : undefined}
           aria-owns={children.length ? groupId(node.key) : undefined}
+          aria-haspopup={occurrence && onComponentContext ? 'menu' : undefined}
           aria-label={origin ? `Seleccionar ${originLabel} de ${origin.ownerPath.join(' / ') || 'Raíz'}` : occurrence ? `Seleccionar componente ${occurrence.name}` : `Configuración de ${node.path.join(' / ')}`}
           aria-pressed={node.kind === 'configuration' ? scope === JSON.stringify(node.path) : node.key === selectedKey}
           title={occurrence ? `${node.path.join(' / ')} · ${occurrence.definition.id} · ${occurrence.definition.revision}` : undefined}
           tabIndex={navigation.rowTabIndex(node.key)} disabled={disabled || !active} aria-disabled={origin && !onOrigin ? true : undefined}
-          onFocus={() => navigation.onFocus(node.key)} onKeyDown={event => navigation.onKeyDown(event, node.key)} onClick={choose}>
+          onFocus={() => navigation.onFocus(node.key)} onKeyDown={event => {
+            if (occurrence && onComponentContext && !event.altKey && !event.ctrlKey && !event.metaKey
+              && (event.key === 'ContextMenu' || event.key === 'F10' && event.shiftKey)) {
+              event.preventDefault(); event.stopPropagation()
+              const rect = event.currentTarget.getBoundingClientRect(); context({ x: rect.left + 28, y: rect.bottom }, event.currentTarget)
+            } else navigation.onKeyDown(event, node.key)
+          }} onContextMenu={occurrence && onComponentContext ? event => {
+            event.preventDefault(); event.stopPropagation(); context({ x: event.clientX, y: event.clientY }, event.currentTarget)
+          } : undefined} onClick={choose}>
           {origin ? <AssemblyOriginIcon plane={origin.display.reference.kind === 'principal-plane'} /> : node.kind === 'configuration' || node.kind === 'occurrence' && node.isAssembly ? <Layers size={15} aria-hidden="true" /> : <Box size={15} aria-hidden="true" />}
           <span>{node.kind === 'origin' ? originLabel : node.kind === 'occurrence' ? node.occurrence.name : node.scope.configuration ?? 'Base'}</span>
           {occurrence?.fixed && <LockKeyhole size={12} aria-label="Fijado" />}{occurrence && !occurrence.visible && <EyeOff size={12} aria-label="Oculto" />}

@@ -1,5 +1,26 @@
 # Development guide
 
+## Configured component context ownership — 2026-10-27
+
+Tree and viewport component menus share CadContextMenu. Resolve the exact
+occurrence path, definition/revision and effective owner in the workspace's
+current validated evaluation. Select that owner and occurrence before capturing
+the menu ticket. Retain the exact evaluation and committed scene identities,
+complete UI ticket and navigation revision; recheck them at action time. A
+presentation target never grants geometry, file or native Apply authority.
+
+Exclude operations, previews, relation drafts/picks, camera navigation and
+dialogs. Keep Properties available for suppressed occurrences; a suppressed
+owner disables all component mutations, and a suppressed occurrence cannot
+start Fix/Float. Fix/Float must use the existing verified native preview with
+explicit Apply/Cancel. Visibility and suppression use the existing validated
+state edit/history/recovery path, including shared named-state semantics.
+
+Opening or escaping a menu performs no document/file/kernel operation. Preserve
+ContextMenu, Shift+F10, disabled-item navigation, initiating focus and selection.
+Viewport origin/background commands and broader context/reference editing
+remain separate unfinished work. This adds no saved schema or IPC command.
+
 ## Configured scope navigation and scene ownership — 2026-10-27
 
 Changing the UI scope does not change the configured source, catalog or root

@@ -1,5 +1,24 @@
 # Project status and review queue
 
+## Configured component context menus — 2026-10-27
+
+Configured tree/viewport components now expose Properties, verified Fix/Float,
+Hide/Show and Suppress/Activate with exact occurrence/owner-state checks. Native
+preview Apply/Cancel, history, recovery and Save/reopen remain explicit.
+
+Local Windows acceptance passes build, 10,154 tests across 449 files, 169 IPC
+passes with two explicit skips, seven renderer routes and desktop startup.
+The revised original component workflow additionally passes exact remaining-body
+and disabled-action assertions. A compact menu image was reviewed. See
+[validation](VALIDATION.md) for inputs, geometry, interaction methods and limits.
+
+Parent `5566e20` has a Windows symmetry-picking child-deadline failure; its
+Desktop packaging gates therefore fail/cancel. The cause and recurring hosted
+stability remain open, as does the medium CodeQL alert. Hosted checks for this
+menu increment are pending. No installed-platform or complete UI parity claim
+follows. Continue in draft PR #49; checklist #55 stays **16/25**, with nine open
+items and release gate #5 open.
+
 ## Configured scope navigation — 2026-10-27
 
 Idle navigation between configured assembly scopes retains the exact confirmed

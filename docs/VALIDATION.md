@@ -1,5 +1,85 @@
 # Validation
 
+## Configured component context menus — 2026-10-27
+
+Configured assembly components now offer Properties, Fix/Float, Hide/Show and
+Suppress/Activate from their tree row and visible viewport body. The existing
+blue shared menu supports ContextMenu, Shift+F10, Home/End and Escape with focus
+and selection retention. Opening a menu selects its exact occurrence and owner;
+it performs no document edit, native rebuild or file request.
+
+Each target binds the full UI ticket, navigation revision, exact evaluation and
+committed scene, occurrence path, definition/revision and effective owner state.
+Actions recheck those identities. Busy work, previews, drafts/picks, camera
+navigation and dialogs block opening. Suppressed owners disable all mutations;
+Properties remains available. Fix/Float uses the existing real native preview,
+private token and explicit Apply/Cancel. Visibility and suppression retain the
+existing validated state/history path and shared named-state semantics.
+
+Local Windows x64 acceptance uses Node 24.11.1 / Electron 44.9.3. Build passes
+in 3.935 s. The full acceptance snapshot covers 1,219 non-Markdown inputs and
+eight production inputs:
+
+| Command | Result | Elapsed |
+| --- | --- | --- |
+| `npm run test:desktop:assembly-configured-components` | PASS; 195 checks | 12.593 s |
+| `npm run test:desktop:assembly-configured-relations` | PASS; 129 checks | 9.778 s |
+| `npm run test:desktop:assembly-configured-origin-axes` | PASS; 326 checks | 21.984 s |
+| `npm run test:desktop:assembly-configured-picking-compact` | PASS; 191 checks | 13.491 s |
+| `npm run test:desktop:assembly-basic-authoring` | PASS; 409 checks | 43.272 s |
+| `npm run test:desktop:assembly-shortcuts` | PASS; 489 checks | 74.468 s |
+| `npm run test:desktop:assembly-configured-shortcuts` | PASS; 529 checks | 71.115 s |
+| `npm run test:desktop` | PASS | 1.551 s |
+| `npm test` | 10,154 tests / 449 files; 169 IPC passes, 2 explicit skips | 371.131 s |
+
+All seven renderer routes report zero console/request errors and confirmed
+child/profile cleanup. The strengthened configured-components route adds:
+
+- Exact shared-A owner selection, Properties focus, tree right click and both
+  keyboard open routes; viewport right click and ContextMenu retain native state.
+- Literal two-prism totals: hidden bodies retain 48 mm³ / 104 mm² and have no
+  visible bounds; suppressed bodies have zero physical totals. Parent suppression
+  leaves only right/anchor, a 24 mm³ prism. Undo restores exact declarations.
+- Exact four-action inventory and inherited-disabled flags, disabled-item keyboard
+  navigation, owner-navigation closure and pending-preview rejection.
+- Menu-driven native Fix/Float through Cancel/retry/Apply, Undo/Redo, complete
+  source/catalog persistence, Save/reopen and fresh verification. Existing six-body
+  authoring oracles retain literal volume 116 mm³ and area 276 mm².
+
+After that acceptance, two test-only assertions were strengthened to identify
+the remaining body path and all four disabled flags explicitly. The revised
+configured-components route passes again (12.458 s). All other non-Markdown
+source/runtime inputs and all production inputs remain identical. A supplementary compact-menu
+PNG was reviewed. A preceding attempt failed on an incorrect expectation that
+Properties focuses a pose input; the existing first enabled preview button is
+the correct focus target, and production focus behavior was preserved.
+
+Pointer openings and action activation use CDP; navigation and initial focus
+remain scripted DOM operations in a hidden window. Ticket rejection across UI
+field changes and A/B/A has twelve unit cases; renderer navigation closes the
+old menu but does not directly invoke a retained obsolete React callback. This
+does not prove physical OS input, all context targets, external-software parity
+or installed-platform acceptance. Fixtures are the existing project-authored
+rectangular prisms; no external models or binaries were added. Native worker,
+WASM, schemas, dependencies, IPC and file grants are unchanged.
+
+Frontend-design, vercel-react-best-practices, code-review, focused code-simplifier
+and security-review were used, including delegated read-only review. No new REA
+investigation was required for this own-source UI change; no performance or
+external-runtime fidelity claim is made.
+
+Hosted parent `5566e20` passes eleven renderer/configured jobs but fails the
+[Windows symmetry-picking job](https://github.com/angelcp2802/solidflow/actions/runs/40524919609/job/122261751083):
+the child deadline expires at 170,609 ms, after 247 checks, with the last completed
+wait named “physical symmetry report and locked controls”. Desktop gates fail or
+cancel without running packaging. The cause remains unestablished; no timeout,
+image tolerance or security policy is relaxed. The tracked medium CodeQL alert
+also remains open. Hosted validation of this new menu increment is pending.
+Checklist #55 stays **16/25**; remaining origin/background context commands,
+reference editors, broader demo/human use, materials, recurring hosted stability,
+installed-platform acceptance and release gate #5 remain open. Continue in draft
+PR #49.
+
 ## Configured scope navigation — 2026-10-27
 
 Idle configured-scope navigation now retains the exact current committed scene

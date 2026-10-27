@@ -990,10 +990,10 @@ async function runInElectron() {
     } finally { endTiming?.(); }
   };
   const pointer = async (type, point, buttons = 0, clickCount = 1, modifiers = 0) => {
-    check((normalToView || fromEmpty || basicAuthoring || mateReferenceEdit || partBodyCatalog || partFinishing || partRevolution || partSequence || originAxes || freshSketch || configuredPicking || assembly || activeScenario === SCENARIOS['assembly-configurations'] || rackPinion || direction || tangent || cylinderTangent || sphereTangent || limitDistance || limitAngle || directedAngle || width || symmetry || symmetryPicking || hingePicking || hingeLimitsPicking) && !window.isVisible() && window.webContents.debugger.isAttached()
+    check((configuredComponents || normalToView || fromEmpty || basicAuthoring || mateReferenceEdit || partBodyCatalog || partFinishing || partRevolution || partSequence || originAxes || freshSketch || configuredPicking || assembly || activeScenario === SCENARIOS['assembly-configurations'] || rackPinion || direction || tangent || cylinderTangent || sphereTangent || limitDistance || limitAngle || directedAngle || width || symmetry || symmetryPicking || hingePicking || hingeLimitsPicking) && !window.isVisible() && window.webContents.debugger.isAttached()
       && ['mouseMoved', 'mousePressed', 'mouseReleased'].includes(type)
       && Number.isFinite(point.x) && Number.isFinite(point.y) && point.x >= 0 && point.y >= 0
-      && ([0, 1].includes(buttons) || (normalToView || partSequence || basicAuthoring) && buttons === 2)
+      && ([0, 1].includes(buttons) || (configuredComponents || normalToView || partSequence || basicAuthoring) && buttons === 2)
       && (modifiers === 0 || normalToView && [2, 4].includes(modifiers))
       && (clickCount === 1 || clickCount === 2 && (normalToView || partRevolution || partSequence || partBodyCatalog)
         && ['mousePressed', 'mouseReleased'].includes(type) && buttons !== 2), 'Expected actual pointer input in the hidden test-owned CAD window.');
@@ -1084,13 +1084,31 @@ async function runInElectron() {
     catch (error) { failure ??= error; }
     if (failure) throw failure;
   };
-  const menuKey = async key => {
-    const codes = { Escape: 27, Tab: 9, ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, Home: 36, End: 35, Enter: 13, ...((normalToView || partSequence || basicAuthoring) ? { ContextMenu: 93 } : {}) };
-    check((normalToView || fromEmpty || basicAuthoring || mateReferenceEdit || originAxes || partSequence || configuredPicking || assembly || activeScenario === SCENARIOS['assembly-configurations']) && !window.isVisible() && window.webContents.debugger.isAttached()
-      && Object.prototype.hasOwnProperty.call(codes, key), 'Expected bounded keyboard input in the hidden allowlisted CAD workflow.');
+  const menuKey = async (key, shift = false) => {
+    const codes = { Escape: 27, Tab: 9, ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, Home: 36, End: 35, Enter: 13, ...((configuredComponents || normalToView || partSequence || basicAuthoring) ? { ContextMenu: 93 } : {}), ...(configuredComponents ? { F10: 121 } : {}) };
+    check((configuredComponents || normalToView || fromEmpty || basicAuthoring || mateReferenceEdit || originAxes || partSequence || configuredPicking || assembly || activeScenario === SCENARIOS['assembly-configurations']) && !window.isVisible() && window.webContents.debugger.isAttached()
+      && Object.prototype.hasOwnProperty.call(codes, key) && typeof shift === 'boolean'
+      && (!shift || configuredComponents && key === 'F10'), 'Expected bounded keyboard input in the hidden allowlisted CAD workflow.');
     await window.webContents.debugger.sendCommand('Input.dispatchKeyEvent', { type: 'keyDown', key, code: key, windowsVirtualKeyCode: codes[key],
+      modifiers: shift ? 8 : 0,
       ...(key === 'Enter' ? { text: '\r', unmodifiedText: '\r' } : {}) });
-    await window.webContents.debugger.sendCommand('Input.dispatchKeyEvent', { type: 'keyUp', key, code: key, windowsVirtualKeyCode: codes[key] });
+    await window.webContents.debugger.sendCommand('Input.dispatchKeyEvent', { type: 'keyUp', key, code: key, windowsVirtualKeyCode: codes[key], modifiers: 0 });
+  };
+  let componentMenuCaptured = false;
+  const captureComponentMenu = async () => {
+    if (process.env.SOLIDFLOW_UI_CAPTURE !== '1') return;
+    check(configuredComponents && !componentMenuCaptured && !window.isVisible(), 'One configured component menu capture in its owned hidden window');
+    await evaluate('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(true))))');
+    const crop = await evaluate(`(() => {
+      const menus=document.querySelectorAll('.cad-context-menu[role="menu"]'),e=menus[0],r=e?.getBoundingClientRect();
+      if(menus.length!==1||!r||r.left<0||r.top<0||r.right>innerWidth||r.bottom>innerHeight||r.width>280||r.height>300
+        ||!e.contains(document.activeElement)||e.querySelectorAll('[data-cad-context-action]').length!==4)throw Error('One focused, bounded configured menu required');
+      return {x:Math.floor(r.x),y:Math.floor(r.y),width:Math.ceil(r.width),height:Math.ceil(r.height)};
+    })()`);
+    const image = await window.webContents.capturePage(crop), png = image.toPNG();
+    check(!image.isEmpty() && png.length > 0 && png.length <= 256 * 1024, 'Bounded original configured menu PNG');
+    componentMenuCaptured = true;
+    checks.push({ componentMenuCapture: { crop, sha256: digest(png), byteLength: png.length, base64: png.toString('base64') } });
   };
   const headerCaptures = new Set();
   const captureHeader = async name => {
@@ -1366,7 +1384,7 @@ async function runInElectron() {
     : configuredPicking
     ? require('./desktop-assembly-configured-picking-flow.cjs')({ expected, input, output, evaluate, observe, waitFor, click, pointer, menuKey, asideWheel, compactViewport: compactConfiguredPicking, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
     : configuredComponents
-    ? require('./desktop-assembly-configured-components-flow.cjs')({ expected, input, output, evaluate, observe, waitFor, click, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
+    ? require('./desktop-assembly-configured-components-flow.cjs')({ expected, input, output, evaluate, observe, waitFor, click, pointer, menuKey, captureComponentMenu, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
     : configuredRelations
     ? require('./desktop-assembly-configured-relations-flow.cjs')({ expected, input, output, evaluate, observe, waitFor, click, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : configurations
@@ -1547,8 +1565,8 @@ async function runInElectron() {
   check(typeof actualWorkflow === 'function', 'Expected the statically selected test workflow.');
   class HiddenWindow extends electron.BrowserWindow {
     constructor(options) {
-      super({ ...options, ...(normalToView || activeScenario.compactShortcuts ? { width: 1040, height: 720 } : basicAuthoring || limitDistanceCompact || compactConfiguredPicking || partRevolution || partSequence || partFinishing || partBodyCatalog || activeScenario === SCENARIOS['assembly-origin-axes'] ? { width: 1040, height: 700 } : {}), show: false }); check(!window, 'Unexpected second test application window.'); window = this;
-      if (normalToView || activeScenario.compactShortcuts || basicAuthoring || limitDistanceCompact || compactConfiguredPicking || partRevolution || partSequence || partFinishing || partBodyCatalog || activeScenario === SCENARIOS['assembly-origin-axes']) {
+      super({ ...options, ...(normalToView || activeScenario.compactShortcuts ? { width: 1040, height: 720 } : configuredComponents || basicAuthoring || limitDistanceCompact || compactConfiguredPicking || partRevolution || partSequence || partFinishing || partBodyCatalog || activeScenario === SCENARIOS['assembly-origin-axes'] ? { width: 1040, height: 700 } : {}), show: false }); check(!window, 'Unexpected second test application window.'); window = this;
+      if (normalToView || activeScenario.compactShortcuts || configuredComponents || basicAuthoring || limitDistanceCompact || compactConfiguredPicking || partRevolution || partSequence || partFinishing || partBodyCatalog || activeScenario === SCENARIOS['assembly-origin-axes']) {
         check(options.minWidth === 1040 && options.minHeight === 700, 'Compact scenario must use the unchanged production minimum window size.');
         checks.push({ compactViewport: { requestedWindow: { width: 1040, height: normalToView || activeScenario.compactShortcuts ? 720 : 700 }, actualBounds: this.getBounds(), actualContentSize: this.getContentSize() } });
       }
