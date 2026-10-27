@@ -1,5 +1,68 @@
 # Validation
 
+## Symmetry deadline evidence — 2026-10-27
+
+Hosted [Windows symmetry picking](https://github.com/angelcp2802/solidflow/actions/runs/40533025221/job/122290692699) reaches the original child deadline on two
+revisions: parent `5566e20` at 170,609 ms / 247 checks, last completed wait
+“physical symmetry report and locked controls”; parent `b68d189` at
+170,002 ms / 210 checks, last completed wait “Rehacer cylinder committed
+recovery”. Both have an active presentation and no pending capture barrier.
+The different checkpoints and local passes do not establish a root cause.
+
+The original six-case workflow now retains a passive scalar checkpoint for
+family, stage and completed-case count. The deadline reports those fields and
+elapsed intervals using own data descriptors, without serializing documents,
+native records, dates or geometric payloads or invoking getters. Clock errors,
+invalid values and retrograde readings cannot replace the original workflow
+outcome. The original actions, waits, Save predicates, native/reference oracles,
+image tolerances, deadlines and failure classification are unchanged.
+
+One unmodified local baseline passes in 49.202 s. One temporary instrumented
+session passes in 48.040 s and is restored to its original digest afterwards.
+On Windows 11 Pro x64 build 26200, Ryzen 7 5800X (8 cores / 16 threads),
+Node 24.11.1 and Electron 44.9.3, it records 1,307 evaluate calls (8.197 s),
+91 counter reads (0.363 s), 281 selected-response reads (3.051 s), 96 pointer
+events (1.305 s) and 265 waits (38.207 s). These wall intervals overlap and
+include scheduling/transport; they are not kernel-only or CPU measurements.
+Neither this one session nor the complete command times demonstrate a speedup
+or explain the hosted failure. No optimization is claimed.
+
+Final local acceptance uses one unchanged snapshot of 1,220 non-Markdown inputs
+and eight production inputs. Rebuilding preserves the exact bytes of all eight production inputs,
+including the renderer, desktop loader, worker and WASM:
+
+| Command | Result | Elapsed |
+| --- | --- | --- |
+| `npm run build` | PASS | 4.102 s |
+| `npm run test:desktop:assembly-symmetry-picking` | PASS; 270 checks | 48.093 s |
+| `npm run test:desktop:assembly` | PASS; 690 checks | 55.451 s |
+| `npm test` | PASS | 369.312 s |
+| `npm run test:desktop` | PASS | 1.575 s |
+
+The unit/CAD result is 10,154 tests across 449 files. IPC has 173 passes with
+two explicit skips. Four new diagnostic tests exercise the actual deadline
+source block, live checkpoint identity, invalid/throwing clocks and scalar
+filtering without accessing hostile payloads/getters. The simulated deadline
+remains exactly 170,000 ms; no hosted-success claim is derived from those tests.
+
+Both renderer reports have zero console/request errors and confirmed child/
+profile cleanup. Symmetry preserves all six original analytic cases, 18 author
+role picks and six same-source edit reselects, native Apply, Undo/Redo, six actual
+Save As/reopen pairs, exact committed recovery and fresh verification. The
+final checkpoint records all six cases complete. The general assembly route
+also passes with its existing timing and response diagnostics. Fixtures remain
+the existing project-authored models; no external source/model/binary is added.
+
+Applied performance-optimization for measurement, code-review, focused
+code-simplifier and security-review, including delegated read-only review.
+No production React/UI, document schema, geometry, dependency, IPC/file grant or
+security policy changes. No new REA investigation was required for this
+own-source test-diagnostic work. The application behavior and public platform
+claims are unchanged. The Windows timeout, medium CodeQL annotation, broader
+human/demo and installed-platform acceptance remain open. Hosted acceptance of
+this diagnostic increment is pending. Checklist #55 stays **16/25**; draft
+PR #49 and release gate #5 remain open.
+
 ## Configured component context menus — 2026-10-27
 
 Configured assembly components now offer Properties, Fix/Float, Hide/Show and

@@ -1,5 +1,19 @@
 # Development guide
 
+## Symmetry workflow deadline checkpoints — 2026-10-27
+
+The six-case renderer workflow records a fixed family/stage checkpoint and
+completed-case count before each original phase. These scalar diagnostics do
+not accept native results, change action order or replace Save/Apply/history
+predicates. Preserve all geometry/reference oracles and the original deadlines.
+
+The deadline callback reads own data descriptors only. Include the bounded
+family, stage, completed count and elapsed intervals; never serialize documents,
+geometry, getters or arbitrary evidence objects while reporting a timeout.
+The diagnostic clock is monotonic and tolerates invalid readings or exceptions.
+A checkpoint identifies the pending phase; it does not prove the cause of a
+slowdown, successful completion or a performance improvement.
+
 ## Configured component context ownership — 2026-10-27
 
 Tree and viewport component menus share CadContextMenu. Resolve the exact

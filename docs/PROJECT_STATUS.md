@@ -1,5 +1,22 @@
 # Project status and review queue
 
+## Symmetry timeout investigation — 2026-10-27
+
+The Windows renderer timeout repeats on `b68d189` after a different checkpoint.
+Two bounded local sessions pass, so the root cause remains unestablished. The
+original six-case test now reports its family and pending phase at a deadline,
+with scalar-only diagnostics and unchanged actions/oracles/time limits.
+
+Local acceptance passes build, 10,154 unit/CAD tests, 173 IPC passes with two
+explicit skips, the complete six-case symmetry workflow, the general assembly
+workflow and desktop startup. All production asset bytes are unchanged. See
+[validation](VALIDATION.md) for measurements, methods and limitations.
+
+This is diagnostic progress, not a timeout fix or a speedup claim. Hosted checks,
+the medium CodeQL annotation, broader installed-platform/human acceptance and
+release gate #5 remain open. Continue in draft PR #49; checklist #55 remains
+**16/25**, with nine open items.
+
 ## Configured component context menus — 2026-10-27
 
 Configured tree/viewport components now expose Properties, verified Fix/Float,

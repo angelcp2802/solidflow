@@ -907,9 +907,14 @@ async function runInElectron() {
     const movement = own(movementEvidence, 'moveTimings')?.at(-1);
     const steps = own(movement, 'steps'), step = Array.isArray(steps) ? steps.at(-1) : undefined;
     const response = own(checks.findLast(value => own(value, 'assemblyResponseProgress')), 'assemblyResponseProgress');
+    const symmetry = own(checks.findLast(value => own(value, 'symmetryWorkflowProgress')), 'symmetryWorkflowProgress');
+    const elapsedSince = value => { const start = number(value); return start === null ? null : number(Math.max(0, performance.now() - start)); };
     // Only these scalar fields enter the error. Never serialize evidence objects,
     // timestamps, matching response records, documents or geometric payloads.
     const progress = {
+      ...(symmetry ? { symmetry: { family: text(own(symmetry, 'family')), stage: text(own(symmetry, 'stage')),
+        completedCases: number(own(symmetry, 'completedCases')), elapsedMs: elapsedSince(own(symmetry, 'startedMs')),
+        stageElapsedMs: elapsedSince(own(symmetry, 'stageStartedMs')) } } : {}),
       ...(movement ? { movement: { name: text(own(movement, 'name')), status: text(own(movement, 'status')),
         reportedElapsedMs: number(own(movement, 'elapsedMs')), step: text(own(step, 'name')),
         stepStatus: text(own(step, 'status')), completedStepDurationMs: number(own(step, 'durationMs')),

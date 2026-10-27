@@ -11,6 +11,7 @@ module.exports = function symmetryPickingWorkflow(context) {
   const families=['point','line','plane','sphere','cylinder','axisline'];
   const TYPE='select[aria-label="Tipo de relación"]', FAMILY='select[aria-label="Familia de simetría"]', NAME='input[aria-label="Nombre de simetría"]', ALIGN='select[aria-label="Orientación de simetría"]';
   const roles=['Origen de simetría','Destino de simetría','Plano de simetría'], APPLY='button[aria-label="Aplicar ensamblaje"]', CANCEL='button[aria-label="Cancelar vista previa del ensamblaje"]', SUMMARY='[aria-label="Simetría verificada"]';
+  const progress=require('./desktop-symmetry-progress.cjs').createSymmetryProgress();checks.push({symmetryWorkflowProgress:progress.record});
   const evidence={scenario:'original-six-case-native-symmetry-pointer',cases:[]};checks.push(evidence);
   evidence.pointerHits=[];
   evidence.pointerAttempts=[];
@@ -142,6 +143,7 @@ module.exports = function symmetryPickingWorkflow(context) {
     let before=await observe.counters();await click('button[aria-label="Abrir (Ctrl+O)"]');await waitFor('initial discard confirmation',()=>page(()=>!!document.querySelector('[role="dialog"][aria-labelledby="discard-title"]')));await button('Continuar sin guardar','[role="dialog"][aria-labelledby="discard-title"]');let event=await responseAfter(before.serial,'build-assembly'),committed={document:event.document,scene:event.response.value};check(canonical(committed.document)===canonical(expected),'Exact original fixture opened');geometry(committed.scene,committed.document,[]);await recovery(committed.document,'initial fixture');
     const solved=[];
     for(const [index,kind] of families.entries()){
+      progress.enter(kind,'picking');
       const baseline=committed.document,refs=refsFor(committed.scene,kind),name='Simetría seleccionada '+kind,record={kind,refs,phases:[]};evidence.cases.push(record);
       await control(TYPE,'symmetry');await control(FAMILY,kind==='axisline'?'line':kind);
       if(index===0){
@@ -153,17 +155,18 @@ module.exports = function symmetryPickingWorkflow(context) {
         check(await page(()=>document.querySelector('button[aria-label="Arrastrar posición"]')?.getAttribute('aria-pressed')==='true'),'Actual component drag mode active before role arming');
       }
       for(let i=0;i<3;i++)await pickRole(committed,kind,i,refs[i],false);if(kind!=='point'&&kind!=='sphere')await control(ALIGN,kind==='plane'?'opposed':'aligned');await control(NAME,name);
-      before=await observe.counters();await button('Vista previa de simetría');event=await responseAfter(before.serial,'preview-assembly');const v=ready(event,[...solved,kind]),mate=intent(v.document,kind,refs,null,name);await reportUi();check(canonical(event.current)===canonical(baseline),'Actual author uses committed baseline');record.phases.push({phase:'author-ready',serial:event.serial,value:v});
-      before=await observe.counters();await click(APPLY);event=await responseAfter(before.serial,'apply-assembly');check(event.hasToken&&event.response.value.kind==='assembly-applied','Actual Apply capability');committed={document:event.response.value.document,scene:event.response.value.scene};solved.push(kind);intent(committed.document,kind,refs,mate.id,name);geometry(committed.scene,committed.document,solved);await recovery(committed.document,'applied '+kind);const accepted=committed.document;
+      progress.enter(kind,'author-preview');before=await observe.counters();await button('Vista previa de simetría');event=await responseAfter(before.serial,'preview-assembly');const v=ready(event,[...solved,kind]),mate=intent(v.document,kind,refs,null,name);await reportUi();check(canonical(event.current)===canonical(baseline),'Actual author uses committed baseline');record.phases.push({phase:'author-ready',serial:event.serial,value:v});
+      progress.enter(kind,'apply');before=await observe.counters();await click(APPLY);event=await responseAfter(before.serial,'apply-assembly');check(event.hasToken&&event.response.value.kind==='assembly-applied','Actual Apply capability');committed={document:event.response.value.document,scene:event.response.value.scene};solved.push(kind);intent(committed.document,kind,refs,mate.id,name);geometry(committed.scene,committed.document,solved);await recovery(committed.document,'applied '+kind);const accepted=committed.document;
+      progress.enter(kind,'history');
       for(const [action,wanted,which] of [['Deshacer',baseline,solved.slice(0,-1)],['Rehacer',accepted,solved]]){before=await observe.counters();await click('button[aria-label="'+action+' ensamblaje"]');event=await responseAfter(before.serial,'build-assembly');check(canonical(event.document)===canonical(wanted),'Exact '+action+' '+kind);geometry(event.response.value,event.document,which);await recovery(event.document,action+' '+kind);committed={document:event.document,scene:event.response.value};}
-      await click('button[aria-label="Editar simetría '+name+'"]');await pickRole(committed,kind,0,refs[0],true);await control(NAME,name+' editada');
-      before=await observe.counters();await button('Vista previa de la edición de simetría');event=await responseAfter(before.serial,'preview-assembly');ready(event,solved);check(event.proposed.mates.find(m=>m.id===mate.id)?.name===name+' editada','Actual name edit proposal');await reportUi();await cancel(accepted);await button('Cancelar edición de simetría');
+      progress.enter(kind,'edit-preview');await click('button[aria-label="Editar simetría '+name+'"]');await pickRole(committed,kind,0,refs[0],true);await control(NAME,name+' editada');
+      before=await observe.counters();await button('Vista previa de la edición de simetría');event=await responseAfter(before.serial,'preview-assembly');ready(event,solved);check(event.proposed.mates.find(m=>m.id===mate.id)?.name===name+' editada','Actual name edit proposal');await reportUi();progress.enter(kind,'edit-cancel');await cancel(accepted);await button('Cancelar edición de simetría');
       // Keep the original Save predicate. Retain only its last existing read,
       // bounded for diagnostics; neither the cap nor graph.sample accepts a Save.
       const savedGraph=saveObservation.graph(accepted);record.saveObservation=savedGraph.record;
       let lastSaveRaw=null,lastSaveReadError=null,saveReadCount=0,saveReadStatus='not-read';
       try {
-        await button('Guardar como',':is(.assembly-toolbar, .assembly-quickbar)');
+        progress.enter(kind,'save');await button('Guardar como',':is(.assembly-toolbar, .assembly-quickbar)');
         await waitFor('Save As exact '+kind,async()=>{
           if(dialogCounts().saves!==index+1||!ipc.some(v=>v.channel==='document:save'&&v.completed))return false;
           try {
@@ -184,12 +187,13 @@ module.exports = function symmetryPickingWorkflow(context) {
         } catch(error) { savedGraph.failed(error); }
       }
       const savedBytes=await fsp.readFile(output);record.savedSha256=digest(savedBytes);
-      before=await observe.counters();await button('Abrir',':is(.assembly-toolbar, .assembly-quickbar)');event=await responseAfter(before.serial,'build-assembly');check(canonical(event.document)===canonical(accepted),'Exact saved three-role '+kind+' reopened');intent(event.document,kind,refs,mate.id,name);geometry(event.response.value,event.document,solved);committed={document:event.document,scene:event.response.value};await recovery(committed.document,'reopened '+kind);
-      before=await observe.counters();await click('button[aria-label="Resolver ensamblaje"]');event=await responseAfter(before.serial,'preview-assembly');ready(event,solved);await reportUi();record.phases.push({phase:'reopened-fresh-native-verification',serial:event.serial,value:event.response.value});await cancel(committed.document);
-      check(digest(await fsp.readFile(input))===digest(originalBytes)&&digest(await fsp.readFile(output))===digest(savedBytes),'Original and saved bytes preserved for '+kind);
+      progress.enter(kind,'reopen');before=await observe.counters();await button('Abrir',':is(.assembly-toolbar, .assembly-quickbar)');event=await responseAfter(before.serial,'build-assembly');check(canonical(event.document)===canonical(accepted),'Exact saved three-role '+kind+' reopened');intent(event.document,kind,refs,mate.id,name);geometry(event.response.value,event.document,solved);committed={document:event.document,scene:event.response.value};await recovery(committed.document,'reopened '+kind);
+      progress.enter(kind,'fresh-preview');before=await observe.counters();await click('button[aria-label="Resolver ensamblaje"]');event=await responseAfter(before.serial,'preview-assembly');ready(event,solved);await reportUi();record.phases.push({phase:'reopened-fresh-native-verification',serial:event.serial,value:event.response.value});progress.enter(kind,'fresh-cancel');await cancel(committed.document);
+      check(digest(await fsp.readFile(input))===digest(originalBytes)&&digest(await fsp.readFile(output))===digest(savedBytes),'Original and saved bytes preserved for '+kind);progress.caseCompleted();
     }
-    if(process.env.SOLIDFLOW_UI_CAPTURE==='1'){await control(TYPE,'symmetry');await click('button[aria-label="Editar simetría Simetría seleccionada cylinder"]');await page(()=>document.querySelector('.assembly-symmetry-panel')?.scrollIntoView({block:'start',inline:'nearest',behavior:'instant'}));await capture(committed.document);}
+    if(process.env.SOLIDFLOW_UI_CAPTURE==='1'){progress.enter('axisline','capture');await control(TYPE,'symmetry');await click('button[aria-label="Editar simetría Simetría seleccionada cylinder"]');await page(()=>document.querySelector('.assembly-symmetry-panel')?.scrollIntoView({block:'start',inline:'nearest',behavior:'instant'}));await capture(committed.document);}
     check(evidence.pointerHits.length===24&&evidence.pointerHits.filter(v=>v.reselect).length===6,'Eighteen actual author hits and six same-source edit hits');
     check(dialogCounts().opens===7&&dialogCounts().saves===6,'Exact test-owned six Save As/reopen pairs');check(!consoleErrors.length&&!failedRequests.length,'Production renderer errors');check(protocolResponses.every(v=>v.status>=200&&v.status<400),'Production asset request failure');Object.assign(evidence,{finalDocument:committed.document,limits:'Six original cases: all five analytic families plus explicit cylinder-face line-axis purpose. Eighteen actual author role picks and six same-source edit reselects, native mirror plane, actual worker/Apply/history, six Save As/reopen pairs and fresh native verification. No arbitrary visibility, nested/suppressed picking, general datum naming, complete free-pose, human-dialog, vendor or platform claim.'});
+    progress.enter('axisline','complete');
   };
 };

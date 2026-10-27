@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const { emitDesktopCiFailure, markDesktopCiFailureReported } = require('./desktop-ci-diagnostics.cjs');
+const { createSymmetryProgress } = require('./desktop-symmetry-progress.cjs');
 const emit = (error, env = { GITHUB_ACTIONS: 'true' }) => { const lines = []; const result = emitDesktopCiFailure(error, { env, write: line => lines.push(line) }); return { result, lines }; };
 
 test('only explicit GitHub Actions emits a failure annotation; local and lookalike values remain silent', () => {
@@ -100,6 +101,57 @@ function exerciseChildDeadline(checks, { timing = null } = {}) {
   assert.equal(context.presentationWaiters.size, 3);
   return failure;
 }
+
+test('symmetry progress keeps only bounded original family/stage checkpoints and a monotonic clock', () => {
+  let now = 10;
+  const progress = createSymmetryProgress(() => now), record = progress.record;
+  assert.deepEqual(record, { family: 'startup', stage: 'startup', startedMs: 10, stageStartedMs: 10, completedCases: 0 });
+  now = 25; progress.enter('point', 'author-preview'); progress.caseCompleted();
+  assert.strictEqual(progress.record, record, 'The deadline observes the live scalar record');
+  assert.equal(record.stageStartedMs, 25); assert.equal(record.completedCases, 1);
+  now = 12; progress.enter('line', 'picking'); assert.equal(record.stageStartedMs, 25);
+  const before = { ...record };
+  assert.throws(() => progress.enter('private model name', 'picking'), RangeError);
+  assert.throws(() => progress.enter('point', 'private action'), RangeError);
+  assert.deepEqual(record, before, 'Reject invalid checkpoint names without changing the retained state');
+  for (let i = 0; i < 10; i++) progress.caseCompleted();
+  assert.equal(record.completedCases, 6, 'Diagnostics retain only the six original case count');
+  assert.deepEqual(Object.keys(record).sort(), ['completedCases', 'family', 'stage', 'stageStartedMs', 'startedMs']);
+});
+
+test('symmetry diagnostic clock failures cannot replace the original workflow result', () => {
+  const values = [5, NaN, Infinity, -1, '10', new Error('diagnostic clock failure'), 7];
+  const progress = createSymmetryProgress(() => { const value = values.shift(); if (value instanceof Error) throw value; return value; });
+  for (let i = 0; i < 5; i++) { progress.enter('point', 'fresh-cancel'); assert.equal(progress.record.stageStartedMs, 5); }
+  progress.enter('point', 'complete'); assert.equal(progress.record.stageStartedMs, 7);
+  assert.throws(() => createSymmetryProgress(null), TypeError);
+});
+
+test('actual child deadline identifies the symmetry family and pending stage without touching payloads', () => {
+  let now = 0;
+  const progress = createSymmetryProgress(() => now);
+  for (let i = 0; i < 5; i++) progress.caseCompleted();
+  now = 100; progress.enter('axisline', 'fresh-cancel');
+  const payload = { toJSON() { throw Error('No native payload serialization'); } };
+  Object.defineProperty(progress.record, 'document', { get() { throw Error('No document access'); } });
+  const error = exerciseChildDeadline([{ symmetryWorkflowProgress: progress.record }, 'physical symmetry report and locked controls', payload]);
+  const fields = JSON.parse(error.message.split(' progress=')[1].split('; lastCompletedWait=')[0]);
+  assert.deepEqual(fields, { symmetry: { family: 'axisline', stage: 'fresh-cancel', completedCases: 5, elapsedMs: 170101, stageElapsedMs: 170001 } });
+  assert.match(error.message, /lastCompletedWait="physical symmetry report and locked controls"$/);
+  assert.doesNotMatch(error.message, /document|startedMs|stageStartedMs/);
+  assert.ok(Buffer.byteLength(emit(error).lines[0]) <= 4096);
+});
+
+test('actual symmetry deadline ignores getters and invalid scalar diagnostics', () => {
+  let calls = 0;
+  const record = { family: 'x'.repeat(100), completedCases: Infinity, startedMs: -1, stageStartedMs: '100',
+    toJSON() { throw Error('No record serialization'); } };
+  Object.defineProperty(record, 'stage', { get() { calls++; throw Error('No getter execution'); } });
+  const error = exerciseChildDeadline([{ symmetryWorkflowProgress: record }]);
+  const fields = JSON.parse(error.message.split(' progress=')[1].split('; lastCompletedWait=')[0]);
+  assert.deepEqual(fields.symmetry, { family: 'x'.repeat(80), stage: null, completedCases: null, elapsedMs: null, stageElapsedMs: null });
+  assert.equal(calls, 0);
+});
 
 test('actual child deadline reports existing counters and the last completed wait before trailing object evidence', () => {
   const trailing = { toJSON() { throw Error('Evidence must not be serialized'); } };
