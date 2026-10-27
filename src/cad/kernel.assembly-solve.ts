@@ -5,7 +5,7 @@ import { coordinateAssemblyLinePathPosition, assemblyLinePathFollowAxis, assembl
 import { evaluateAssemblyCircularPathReferences } from './kernel.assembly-circular-path-evaluation'
 import { savedAssemblyCircularPathConstraint } from './kernel.assembly-circular-path-adapter'
 import { evaluateAssemblyLinePathReferences } from './kernel.assembly-line-path-evaluation'
-import { AssemblyGeometrySnapshot, withAssemblyGeometryReuse, type AssemblySnapshotRunner, isResolvedAssemblyHingeMate, assemblyLinePathPlacementArithmetic, isResolvedAssemblyLinePathMate, isResolvedAssemblyCircularPathMate, type AssemblyLinePathWitness, assemblyEndpointPlacementArithmetic, assemblyPointPlacementArithmetic, assemblyProfilePlacementArithmetic, assemblyProfileAxisPlacementArithmetic, isResolvedAssemblyProfileCenterMate, isResolvedAssemblyWidthMate, isResolvedAssemblySymmetryMate, isResolvedAssemblyBinaryMate, resolvedAssemblyMateWitnesses, type AssemblyEndpointWitness, type AssemblyMateWitness, type AssemblyProfileMateWitness, type AssemblyResolvedMateWitness, type AssemblyReadonly,
+import { AssemblyGeometrySnapshot, withAssemblyGeometryReuse, type AssemblySnapshotRunner, type AssemblyScenePartProvider, isResolvedAssemblyHingeMate, assemblyLinePathPlacementArithmetic, isResolvedAssemblyLinePathMate, isResolvedAssemblyCircularPathMate, type AssemblyLinePathWitness, assemblyEndpointPlacementArithmetic, assemblyPointPlacementArithmetic, assemblyProfilePlacementArithmetic, assemblyProfileAxisPlacementArithmetic, isResolvedAssemblyProfileCenterMate, isResolvedAssemblyWidthMate, isResolvedAssemblySymmetryMate, isResolvedAssemblyBinaryMate, resolvedAssemblyMateWitnesses, type AssemblyEndpointWitness, type AssemblyMateWitness, type AssemblyProfileMateWitness, type AssemblyResolvedMateWitness, type AssemblyReadonly,
   type ResolvedAssemblyMate, type ResolvedAssemblyBinaryMate, type ResolvedAssemblyWidthMate, type UnavailableAssemblyGear, type UnavailableAssemblyScrew, type UnavailableAssemblyRackPinion } from './kernel.assembly-snapshot'
 import { evaluateRigidMates } from '../model/assemblyMateEquations'
 import { solveRigidMates, type RigidMateSolveResult, type RigidMateSolverOptions } from '../model/assemblySolver'
@@ -1183,8 +1183,10 @@ export function prepareAssemblyMovePreview(input: AssemblyDocument, move: Assemb
  * This verifies stations, not the continuous path or collision avoidance.
  */
 export function prepareAssemblyMotionPreview(input: AssemblyDocument, request: AssemblyComponentMotion,
-  options: AssemblySolveOptions = {}): AssemblySolvePreview | AssemblySolveRejection {
+  options: AssemblySolveOptions = {},
+  present?: (document: AssemblyReadonly<AssemblyDocument>, parts: AssemblyScenePartProvider) => undefined): AssemblySolvePreview | AssemblySolveRejection {
   let scopes: AssemblyScopeSolveReport[] = [], phase: AssemblySolveRejection['reason'] = 'reference'
+  let presentationFailed = false
   try {
     const source = validateAssemblyDocument(input), plan = planAssemblyComponentMotion(source, request), selected = policy(options)
     let previous = validateAssemblyDocument(source), evaluatedAngle = 0, verifiedStations = 0
@@ -1194,9 +1196,10 @@ export function prepareAssemblyMotionPreview(input: AssemblyDocument, request: A
     let linePaths: AssemblyLinePathSupportReport[] = []
     let hinges: AssemblyHingeSupportReport[] = []
     let circularPaths: AssemblyCircularPathSupportReport[] = []
+    let motion: AssemblyMotionWitness | undefined
     // Part definitions remain local and immutable during this request. Each
     // station still gets new document-bound witnesses and native checks.
-    const rejected = withAssemblyGeometryReuse(source, snapshots => {
+    const rejected = withAssemblyGeometryReuse(source, (snapshots, parts) => {
       for (let index = 1; index <= plan.stationCount; index++) {
         const station = prepare(previous, selected, { frame: 'local', request: plan.atStation(index) }, true, snapshots)
         if (station.status === 'rejected') return { ...station, message: `Estación ${index}/${plan.stationCount}: ${station.message}` }
@@ -1230,17 +1233,29 @@ export function prepareAssemblyMotionPreview(input: AssemblyDocument, request: A
         } finally { discardAssemblySolvePreview(station) }
         phase = 'reference'
       }
+      phase = 'verification'
+      if (!movement || verifiedStations !== plan.stationCount) throw new Error('El movimiento no verificó todas las estaciones solicitadas.')
+      const windingResidual = Math.abs(evaluatedAngle - plan.request.rotation.angle)
+      if (!Number.isFinite(windingResidual) || windingResidual > selected.angleTolerance) throw new Error('La verificación final no conserva las vueltas completas solicitadas.')
+      motion = { ...movement, frame: 'local', component: structuredClone(plan.component),
+        drivenComponent: structuredClone(plan.component), scope: { ...plan.scope }, targetPose: validateRigidPose(plan.targetPose),
+        affectedPaths: plan.affectedPaths.map(path => [...path]), axis: plan.request.rotation.axis, requestedAngle: plan.request.rotation.angle,
+        evaluatedAngle, windingResidual, windingTolerance: selected.angleTolerance, stationCount: plan.stationCount,
+        verifiedStations, maxAngularStep: plan.maxAngularStep, sampledOnly: true }
+      if (present) {
+        try {
+          // Internal synchronous presentation only. A detached frozen document
+          // cannot alter the candidate; borrowed native reads expire at close.
+          const result = present(freeze(validateAssemblyDocument(previous)), parts)
+          if (result !== undefined) throw new TypeError('La presentación del movimiento debe completarse de forma síncrona.')
+        } catch (error) { presentationFailed = true; throw error }
+      }
+      // Preserve the existing rejection classification for pool-release failure.
+      phase = 'reference'
     })
     if (rejected) return rejected
     phase = 'verification'
-    if (!movement || verifiedStations !== plan.stationCount) throw new Error('El movimiento no verificó todas las estaciones solicitadas.')
-    const windingResidual = Math.abs(evaluatedAngle - plan.request.rotation.angle)
-    if (!Number.isFinite(windingResidual) || windingResidual > selected.angleTolerance) throw new Error('La verificación final no conserva las vueltas completas solicitadas.')
-    const motion: AssemblyMotionWitness = { ...movement, frame: 'local', component: structuredClone(plan.component),
-      drivenComponent: structuredClone(plan.component), scope: { ...plan.scope }, targetPose: validateRigidPose(plan.targetPose),
-      affectedPaths: plan.affectedPaths.map(path => [...path]), axis: plan.request.rotation.axis, requestedAngle: plan.request.rotation.angle,
-      evaluatedAngle, windingResidual, windingTolerance: selected.angleTolerance, stationCount: plan.stationCount,
-      verifiedStations, maxAngularStep: plan.maxAngularStep, sampledOnly: true }
+    if (!motion) throw new Error('El movimiento no conserva su verificación final.')
     const preview = freeze({ status: 'ready' as const, document: previous, scopes, checks,
       ...(tangencies.length ? { tangencies } : {}), ...(cylinderTangencies.length ? { cylinderTangencies } : {}),
       ...(sphericalTangencies.length ? { sphericalTangencies } : {}), ...(limitDistances.length ? { limitDistances } : {}),
@@ -1251,6 +1266,9 @@ export function prepareAssemblyMotionPreview(input: AssemblyDocument, request: A
     previews.set(preview, { source: JSON.stringify(source), candidate: validateAssemblyDocument(previous), options: selected })
     return preview
   } catch (error) {
+    // Scene failures used to escape from the session's final scene construction.
+    // Retain any aggregated cleanup failures as well as that original failure.
+    if (presentationFailed) throw error
     return { status: 'rejected', reason: error instanceof RangeError ? 'precisionLimit' : phase,
       message: error instanceof Error ? error.message : 'No se pudo verificar el movimiento angular.', scopes }
   }

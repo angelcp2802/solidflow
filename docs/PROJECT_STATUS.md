@@ -1,6 +1,32 @@
 # Project status and review queue
 
-## Latest correction: existing view-menu coverage
+## Current increment: motion presentation reuse
+
+The candidate reuses verified native part geometry for the final scene of an
+explicit angular move. It retains all station checks, complete-turn state and
+request-bound cleanup; no persistent cache or document-format change is added.
+The existing 62 gear/reuse tests and 11 new geometry/lifetime cases pass, as does
+the build. The paired local timing experiment passes its original criteria with
+a median 5.97% reduction for its one 720-degree case; individual pairs vary from
+2.24% to 9.16%. This is not an application-wide speedup. Final local acceptance
+passes the build, 10,112 tests across 446 files, 168 IPC checks with two explicit
+skips, desktop startup and 690 whole-assembly checks. The assembly child closes
+and its isolated profile is removed, with no console or request errors.
+Hosted validation of this increment remains pending.
+
+Parent `a444ae2` completed Windows and macOS persistence, including the original
+assembly workflow and all 31 test steps in each job. The earlier Windows timeout
+was not reproduced on that execution; returned metadata establishes neither
+repeatability nor timing margin. Linux still fails the exact Previous image
+comparison in assembly shortcuts: two unmasked pixels lie on a selected axis
+label's border. Their location does not establish the rendering cause, and
+acceptance tolerances remain unchanged. See [validation](VALIDATION.md).
+
+The checklist remains **16/25**, with nine open items. Continue in draft PR #49;
+broader demo acceptance, materials, controls/editors and installed-platform
+validation remain open, as does release gate #5.
+
+## Previous correction: existing view-menu coverage
 
 Hosted head `ad7ec78` failed the first persistence scenario on all three
 platforms: the basic-authoring background-menu assertion still expected seven
@@ -17,10 +43,10 @@ The new full suite passes 10,101 tests across 445 files and 168 IPC checks with
 two explicit skips; desktop startup also passes. All nine commands share one
 1,209-input snapshot. See [validation](VALIDATION.md) for timings and limits.
 
-The earlier Windows cumulative assembly timeout and Linux Previous raster
-difference remain distinct open problems. Next, measure a dominant Windows
-phase and test a specific optimization without changing its deadline or CAD
-oracles; closure requires the corrected head to pass the affected hosted runner.
+The later `a444ae2` Windows persistence pass and current motion experiment are
+recorded above. The earlier timeout remains historical evidence of variability,
+not a failure reproduced by that later run. Linux visual investigation remains
+open; any new candidate still requires its own hosted validation.
 
 ## Additional views and restoration diagnostics
 

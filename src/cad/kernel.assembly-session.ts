@@ -309,8 +309,17 @@ export class AssemblyWorkerSession {
   }
   moveMotion(current: AssemblyDocument, motion: AssemblyComponentMotion, options: AssemblySolveOptions = {}): AssemblyPreviewReply {
     this.discard()
-    const base = validateAssemblyDocument(current), native = prepareAssemblyMotionPreview(base, motion, options)
-    return this.#publish(base, base, native, options)
+    const base = validateAssemblyDocument(current)
+    let scene: AssemblyScene | undefined
+    const native = prepareAssemblyMotionPreview(base, motion, options, (document, parts) => {
+      scene = buildAssemblyScene(validateAssemblyDocument(document), parts)
+    })
+    if (native.status === 'ready' && !scene) {
+      discardAssemblySolvePreview(native)
+      throw new Error('El movimiento no conserva su escena verificada.')
+    }
+    // The request's native owner has closed before #publish stores any token.
+    return this.#publish(base, base, native, options, undefined, undefined, undefined, scene)
   }
   project(current: AssemblyDocument, drag: AssemblyComponentDrag, options: AssemblySolveOptions = {}): AssemblyPreviewReply {
     this.discard()

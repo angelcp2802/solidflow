@@ -1,5 +1,91 @@
 # Validation
 
+## Motion presentation reuse — 2026-10-27
+
+Before this candidate, public head `a444ae22e37e14431e6527de0b5ade0d478d0bba`
+completed all 31 test steps in both
+[Windows persistence](https://github.com/angelcp2802/solidflow/actions/runs/40474405424/job/122088961008)
+and [macOS persistence](https://github.com/angelcp2802/solidflow/actions/runs/40474405424/job/122088961014),
+including the original rigid-assembly workflow. The historical cumulative
+Windows timeout was not reproduced on that run. Job-step metadata returned no
+duration, so this does not establish timing margin or recurring stability.
+Linux reached assembly shortcuts and failed Previous after wheel input, before
+the added presets: two unmasked pixels differ by at most one channel unit on
+the left border of the selected root-axis label. DOM styles/position, masks and
+projected anchors agree, but the composite image does not isolate WebGL, DOM
+painting or composition as its cause. No visual criterion has been relaxed.
+
+The unchanged local Windows full-assembly baseline passed 690 checks in
+59.444 s (workflow 58.460 s; gear phase 22.636 s), with child/profile cleanup.
+All 1,209 input hashes and production assets matched before and after. These
+local times are not hosted-runner measurements or a before/after speedup.
+
+The private cost investigation retains the original three-body, two-prototype
+720-degree gear case (ratio 1:2, same direction, phase -pi/12). An initial
+observer failed its own unused-reference-entry assertion before collecting a
+population, despite passing the model's geometry checks. The corrected observer
+measures actual active-mate resolution and native witness verification. Three
+fresh-process baselines showed two reference rebuilds and two repeated render
+builds; the latter occupied 13.44–14.63% of counted request time. That includes
+presentation and validation, and was not treated as a promised saving.
+
+The candidate retains the native owner through final scene construction. A
+separate pair of observer sanity runs precedes three fresh-process A/B pairs,
+ordered A/B, B/A and A/B. Each population process initializes the same WASM once
+and executes a first request, two warm controls, one counted request and a warm
+control afterward. Every request uses a new session and the exact same input;
+all 32 requests retain five mate checks, twelve verified stations, winding,
+independent volume/area/bounds and whole-turn endpoint oracles. The former
+scene path makes two render builds; the candidate makes none. Both retain
+three placed-body meshes/edge meshes, 60 snapshot releases and all witness
+checks. The observed engines decrease from four to two, each released once;
+this is not a census of every native allocation.
+
+Local Windows (kernel 10.0.26200), x64, Ryzen 7 5800X, Node 24.11.1; the same installed
+WASM and dependencies are used for both variants. Uninstrumented warm medians:
+
+| Pair order | Baseline A | Candidate B | Reduction |
+| --- | --- | --- | --- |
+| A then B | 1,292.236 ms | 1,173.895 ms | 9.16% |
+| B then A | 1,260.455 ms | 1,185.211 ms | 5.97% |
+| A then B | 1,265.267 ms | 1,236.887 ms | 2.24% |
+
+The median paired reduction is 5.97% (75.245 ms), above the predefined 5%
+criterion and observed baseline drift. The third candidate process has a wider
+warm range, 1,181.527–1,298.060 ms; the effect is not uniform. All samples remain
+in the result. Counted times are inclusive; candidate scene work is nested
+within motion preparation and must not be added again. Instrumentation and
+neighbor-control drift remain below the original 10% investigation limit.
+These small samples establish a benefit for this Node/WASM case, not p95,
+renderer latency, application-wide performance or a fix for the older timeout.
+
+The existing 62 gear/ordinary-reuse tests pass, and 11 new tests pass with exact
+conventional-scene equality plus independent solid count, volume, area, bounds
+and eccentric-axis checks. New cases also exercise later-station rejection,
+constructor failure, frozen-document mutation attempts, asynchronous-hook
+rejection, expired leases, scene/release/combined failure, post-cleanup UUID or
+reply-copy failure, and changed content under unchanged revision labels.
+
+Final local Windows acceptance passes with Node 24.11.1, Electron 44.9.3 and
+one unchanged 1,210-input snapshot:
+
+| Command | Result | Elapsed |
+| --- | --- | --- |
+| `npm run build` | PASS | 4.030 s |
+| `npm test` | 10,112 tests/446 files; 168 IPC passes, 2 explicit skips | 432.498 s |
+| `npm run test:desktop` | PASS | 1.911 s |
+| `npm run test:desktop:assembly` | PASS; 690 checks | 58.741 s |
+
+All four commands exit successfully and retain their complete logs. The assembly
+report confirms no console errors or failed requests, child closure and removal
+of its isolated profile. Source/runtime input hashes and production assets match
+the same frozen candidate before and after every command. These elapsed times
+are complete local command durations, separate from the paired Node/WASM timing
+experiment above. Hosted validation of this increment remains pending.
+Performance, code review, focused simplification and security-review guidance
+were applied to this increment; these checks do not certify a complete
+application or platform.
+
 ## Existing view-menu coverage correction — 2026-10-27
 
 Published head `ad7ec78a6da7b6c4a2f81d16437b06d7f03aa466` fails the first

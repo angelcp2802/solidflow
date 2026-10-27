@@ -1,5 +1,28 @@
 # Development guide
 
+## Native geometry through motion presentation — 2026-10-27
+
+Explicit local angular motion shares its request-local native part owner between
+the verified stations and the final display scene. The internal optional
+presentation hook runs after every station and complete-turn check succeeds. It
+receives a detached, deeply frozen final document and an expiring part provider;
+it must complete synchronously and return `undefined`. The hook receives no
+preview capability and cannot change the private candidate.
+
+Register the final native capability only after successful owner cleanup. The
+worker session requires a prepared scene before publishing its ready reply.
+Scene failures propagate with any aggregated cleanup causes; failure to close
+the shared owner after successful scene construction retains the existing
+`rejected` / `reference` result. Attempt each owner release once and preserve
+revocation when later token generation or reply copying fails.
+
+No native cache survives the request. Complete definition-content admission,
+fresh document-bound witnesses, placed-body copies, geometric checks, meshing
+and resource limits remain required. A retained provider or inspection must
+reject access after closure. Apply and other movement paths retain their own
+reconstruction. Measure nested scene time without adding it to the inclusive
+motion time; executed workloads and limits belong in [validation](VALIDATION.md).
+
 ## View-catalog coverage across existing workflows — 2026-10-27
 
 A view-catalog change must update the independent exact expectations in the
