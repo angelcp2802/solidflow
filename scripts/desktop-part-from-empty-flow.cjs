@@ -6,7 +6,7 @@ const { encodeJavaScriptString: quote } = require('./desktop-ui-source.cjs');
 // Parameter fields use the actual visible controls; no model/worker state injection.
 module.exports = function fromEmptyWorkflow(c) {
   const { output, evaluate, observe, waitFor, pointer, menu, capture, key, checks, check, canonical, digest,
-    consoleErrors, failedRequests, ipc, protocolResponses, dialogCounts, initialReadyMs, cameraFrame, cameraGesture, rasterComparison, shortcutText, namedViewKey } = c;
+    consoleErrors, failedRequests, ipc, protocolResponses, dialogCounts, initialReadyMs, cameraFrame, cameraGesture, rasterComparison, shortcutText, namedViewKey, menuKey, captureHeader } = c;
   const APPLY = 'button[title="Aceptar operación"]', SVG = 'svg[aria-label="Editor de croquis multientidad"]';
   const NEW = '[role="dialog"][aria-labelledby="new-document-title"]';
   const phases = [], drawings = [];
@@ -156,12 +156,13 @@ module.exports = function fromEmptyWorkflow(c) {
     const reopenedDocument=JSON.parse(await recovery());
     check(reopenedDocument.id===documentId&&canonical(reopenedDocument.features)===canonical(saved.features),'Reopened recovery retains exact authored document identity and features');
     check(dialogCounts().opens===1&&dialogCounts().saves===1,'Only one Save As and saved reopen; no input fixture is opened');
-    await require('./desktop-view-navigation-flow.cjs')({page,waitFor,check,checks,canonical,key,cameraFrame,cameraGesture,rasterComparison,kind:'part',actualControl:press,
-      snapshot:async()=>({native:await observe(),recovery:await recovery(),dialogs:dialogCounts(),ipc:structuredClone(ipc),ui:await page(()=>{
+    const viewSnapshot=async()=>({native:await observe(),recovery:await recovery(),dialogs:dialogCounts(),ipc:structuredClone(ipc),ui:await page(()=>{
         const viewport=document.querySelector('.viewport-canvas[aria-label="Vista 3D de la pieza"]');
         return {history:['Deshacer (Ctrl+Z)','Rehacer (Ctrl+Y)'].map(title=>({title,disabled:document.querySelector('button[title="'+title+'"]')?.disabled})),
           selection:['selection-mode','selected-face','selected-edges','selected-bodies'].map(name=>[name,viewport?.getAttribute('data-part-'+name)])};
-      })})});
+      })});
+    await require('./desktop-header-menu-flow.cjs')({page,waitFor,check,checks,canonical,actualControl:press,menuKey,captureHeader,snapshot:viewSnapshot,kind:'part'});
+    await require('./desktop-view-navigation-flow.cjs')({page,waitFor,check,checks,canonical,key,cameraFrame,cameraGesture,rasterComparison,kind:'part',actualControl:press,snapshot:viewSnapshot});
     await require('./desktop-part-view-remount.cjs')({page,waitFor,check,checks,canonical,cameraFrame,cameraGesture,key,press,tab,idle,recovery,observe,ipc,dialogCounts});
     const named = await require('./desktop-named-views-flow.cjs')({kind:'part',page,waitFor,check,checks,canonical,digest,key,text:shortcutText,namedViewKey,press,pointer,
       cameraFrame,cameraGesture,rasterComparison,observe,ipc,dialogCounts,output,reopen:async document=>{

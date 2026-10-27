@@ -1,5 +1,32 @@
 # Development guide
 
+## Shared header menu visibility — 2026-10-27
+
+`CommandHeader` owns only menu visibility and its disclosure/pin controls.
+Callers and `AssemblyMenuBar` retain command identity, current disabled checks
+and CAD/file authority. A renderer-memory preference starts pinned and survives
+workspace remounts within that renderer session; it is not document data or a
+persisted application setting. The initial pinned state preserves the existing
+SolidFlow layout and is a project design choice.
+
+Unpinning leaves a temporary menu row over the quick-action region. Those quick
+actions remain in the layout but become hidden, inert and excluded from the
+accessibility tree until the disclosure closes. Outside pointer/focus and
+window blur close the temporary row. The existing popup consumes the first
+Escape; a later Escape closes the row and restores its disclosure. ArrowDown
+reveals and focuses the first menu; Enter retains native button activation.
+
+Before executing a command from a temporary menu, focus the stable disclosure
+and close the row. Dialogs must capture that connected return target before
+their opening action runs. Keep the existing current-command/disabled/open-menu
+guards ahead of this focus step. Fixed menus retain their prior focus return.
+
+Header evidence uses three original PNG crops of the owned hidden test window,
+bounded to 2,400 by 64 pixels and 256 KiB per image. Two animation frames precede
+each requested image; expected DOM state is checked before and after. These
+observations do not establish atomic DOM/compositor synchronization. They do
+not replace actual input/focus checks or the existing camera comparisons.
+
 ## Previous-preset raster evidence — 2026-10-27
 
 The shared camera acceptance route retains the accepted Top and Bottom preset

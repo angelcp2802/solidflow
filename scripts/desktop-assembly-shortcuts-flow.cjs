@@ -5,7 +5,7 @@ const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 module.exports = function assemblyShortcutWorkflow(context) {
   const c = require('./desktop-assembly-navigation.cjs').withNavigation(context);
   const { configured, expected, input, output, shortcutOutput, shortcutKey, shortcutText, namedViewKey, evaluate, observe, waitFor, pointer, capture,
-    check, checks, canonical, digest, ipc, dialogCounts, consoleErrors, failedRequests, initialReadyMs, cameraFrame, cameraGesture, rasterComparison } = c;
+    check, checks, canonical, digest, ipc, dialogCounts, consoleErrors, failedRequests, initialReadyMs, cameraFrame, cameraGesture, rasterComparison, menuKey, captureHeader } = c;
   const ROOT = configured ? '.configured-assembly-workspace' : '.assembly-app';
   const NAV = configured ? '[aria-label="Comandos del ensamblaje configurado"]' : '.assembly-toolbar';
   const NEW_DIALOG = '[role="dialog"][aria-labelledby="new-document-title"]';
@@ -211,12 +211,13 @@ module.exports = function assemblyShortcutWorkflow(context) {
     check(canonical(current)===canonical(expected),'Keyboard Open loads exact original owned document'); geometry(row.response.value,'opened'); await recovery(current);
     await outside(); await key('ShiftS'); await saved(output,current,1);
     await newSelectorCancellation(current);
-    await require('./desktop-view-navigation-flow.cjs')({page,waitFor,check,checks,canonical,key,cameraFrame,cameraGesture,rasterComparison,kind:configured?'configured':'standard',actualControl,
-      snapshot:async()=>({...await snapshot(),ui:await page(()=>({
+    const viewSnapshot=async()=>({...await snapshot(),ui:await page(()=>({
         history:[...document.querySelectorAll('button[aria-label^="Deshacer"],button[aria-label^="Rehacer"]')].map(e=>({label:e.getAttribute('aria-label'),disabled:e.disabled})),
         selection:[...document.querySelectorAll('[data-assembly-tree-path][aria-selected="true"],[data-assembly-origin-tree-key][aria-selected="true"]')].map(e=>({path:e.getAttribute('data-assembly-tree-path'),origin:e.getAttribute('data-assembly-origin-tree-key')})),
         picking:document.querySelector('.assembly-viewport')?.getAttribute('data-reference-picking')
-      }))})});
+      }))});
+    await require('./desktop-header-menu-flow.cjs')({page,waitFor,check,checks,canonical,actualControl,menuKey,captureHeader,snapshot:viewSnapshot,kind:configured?'configured':'standard'});
+    await require('./desktop-view-navigation-flow.cjs')({page,waitFor,check,checks,canonical,key,cameraFrame,cameraGesture,rasterComparison,kind:configured?'configured':'standard',actualControl,snapshot:viewSnapshot});
     if(!configured){
       await actualControl(`[data-assembly-tree-path='["moving"]']`);
       await nativeTextUndo('input[aria-label="Nombre del componente"]');

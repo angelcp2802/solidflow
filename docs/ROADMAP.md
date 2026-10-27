@@ -84,8 +84,13 @@ checks pass at minimum and maximized sizes, and eight retained captures pass
 visual review. Full-suite and smoke pass on the final snapshot; hosted
 acceptance of the new head remains pending. Lower compact editor content still
 requires scrolling. The measured 34 px tree-height
-increase is bounded to that case and content size. Menu auto-hide and pin/unpin
-remain open work, as does broader compact-width and platform acceptance.
+increase is bounded to that case and content size. Shared menu hide/reveal and
+pin/unpin controls are implemented in the current increment, with a
+renderer-session preference and stable dialog focus return. Five local Windows
+renderer cases, full tests and desktop startup pass on its final snapshot;
+hosted acceptance remains pending. Details are in [validation](VALIDATION.md). Broader
+context/reference editors, compact-width coverage and platform acceptance remain
+open.
 
 Standard assembly origin controls now share a disclosure inside the Relations
 inspector, next to reference roles, with existing picking guards preserved.

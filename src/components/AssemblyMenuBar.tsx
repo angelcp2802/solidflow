@@ -1,4 +1,5 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { useContext, useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { HeaderMenuActionFocus } from './headerMenuActionFocus'
 
 export interface AssemblyMenuAction {
   id: string
@@ -27,6 +28,7 @@ export function assemblyMenuFocusIndex(items: readonly Pick<AssemblyMenuAction, 
 
 /** Only caller-owned commands are rendered. Closed menus have no hidden items. */
 export default function AssemblyMenuBar({ menus, label, variant = 'assembly' }: { menus: readonly AssemblyMenuDefinition[]; label?: string; variant?: 'assembly' | 'part' }) {
+  const prepareActionFocus = useContext(HeaderMenuActionFocus)
   const prefix = useId(), root = useRef<HTMLElement>(null), triggers = useRef(new Map<string, HTMLButtonElement>())
   const [open, setOpen] = useState<string | null>(null), openRef = useRef(open)
   const [focusRequest, setFocusRequest] = useState<{ id: string; index: number | null } | null>(null)
@@ -103,7 +105,7 @@ export default function AssemblyMenuBar({ menus, label, variant = 'assembly' }: 
           onClick={() => {
             const actual = currentMenus.current.find(value => value.id === menu.id)?.items.find(value => value.id === item.id)
             if (!actual || actual.disabled || openRef.current !== menu.id) return
-            close(true); actual.onSelect()
+            close(true); prepareActionFocus?.(); actual.onSelect()
           }}><span className="assembly-menu-check" aria-hidden="true">{item.checked ? '✓' : ''}</span><span>{item.label}</span>{item.shortcut && <kbd className="assembly-menu-shortcut">{item.shortcut}</kbd>}</button>)}
       </div>}
     </div>)}

@@ -18,6 +18,25 @@
 .command-header-quick-actions,
 .command-header-utilities { display: flex; align-items: center; flex: 0 0 auto; min-width: 0; }
 .command-header-menus { align-self: stretch; align-items: stretch; overflow: visible; }
+.command-header-brand { gap: 3px; }
+.command-header-actions { position: relative; display: flex; align-items: center; align-self: stretch; flex: 0 0 auto; min-width: 0; gap: inherit; }
+.command-header-menus[hidden] { display: none; }
+.command-header[data-menu-pinned="false"] .command-header-menus {
+  position: absolute; z-index: 2; top: 0; bottom: 0; left: 0; width: max-content; background: #fff;
+}
+.command-header-quick-actions[aria-hidden="true"] { visibility: hidden; }
+.command-header .command-header-reveal,
+.command-header .command-header-menu-pin {
+  display: inline-flex; align-items: center; justify-content: center; flex: 0 0 24px;
+  align-self: center; width: 24px; min-width: 24px; height: 26px; min-height: 26px;
+  padding: 0; border: 1px solid transparent; border-radius: 2px; background: transparent; color: #38576e;
+}
+.command-header .command-header-menu-pin[aria-pressed="true"] { color: #176da8; }
+.command-header .command-header-reveal:hover,
+.command-header .command-header-menu-pin:hover { background: #e3f0fa; border-color: #bed6e9; }
+.command-header .command-header-reveal:focus-visible,
+.command-header .command-header-menu-pin:focus-visible { outline: 2px solid #2385c8; outline-offset: -2px; }
+.command-header-reveal[aria-expanded="true"] > svg { transform: rotate(90deg); }
 .command-header-document { display: flex; align-items: center; flex: 1 1 120px; min-width: 96px; }
 .command-header-document > * { min-width: 0; }
 .command-header-utilities { gap: 7px; }

@@ -1,5 +1,69 @@
 # Validation
 
+## Header menu visibility — 2026-10-27
+
+The shared header now supports pinning, temporary reveal and collapse in parts,
+standard assemblies and configured assemblies. The preference begins pinned
+and lasts for the renderer session. The keyboard and focus behavior exercised
+below is defined by SolidFlow.
+
+Nine focused store/markup tests pass, as do the existing 169 IPC checks with
+two explicit skips and the build. An actual part route passes 238 checks,
+including disclosure, two-stage Escape, ArrowDown/Enter, New/Cancel and named
+views/Escape with focus returning to the connected disclosure. A later shared
+collapse-helper refinement passes the configured compact route with 451 checks.
+These two runs are separate input snapshots and do not substitute for final
+acceptance of one complete candidate.
+
+Both routes preserve their exact observed CAD, history, recovery and file
+authority across header actions and cancelled dialogs, and report clean
+console/requests with child/profile cleanup. Original header crops reviewed at
+normal part size and configured compact size show the pinned, temporary and
+collapsed states within one row. The first part attempt's temporary/collapsed
+images showed a prior compositor presentation despite the matching DOM state;
+they remain retained as unsuitable visual proof. The later capture waits for
+two animation frames and verifies DOM state before/after its existing image;
+the fresh crops match their requested states on visual inspection. This is
+bounded visual evidence, without an atomic synchronization claim.
+
+Final local Windows acceptance passes with Node 24.11.1, Electron 44.9.3 and
+one unchanged 1,214-input source/runtime snapshot:
+
+| Command | Result | Elapsed |
+| --- | --- | --- |
+| `npm run build` | PASS | 3.786 s |
+| `npm run test:desktop:part-from-empty` | PASS; 238 checks | 52.388 s |
+| `npm run test:desktop:assembly-shortcuts` | PASS; 425 checks | 69.599 s |
+| `npm run test:desktop:assembly-configured-shortcuts` | PASS; 450 checks | 65.708 s |
+| `npm run test:desktop:assembly-shortcuts-compact` | PASS; 426 checks | 68.693 s |
+| `npm run test:desktop:assembly-configured-shortcuts-compact` | PASS; 451 checks | 65.517 s |
+| `npm test` | 10,116 tests/447 files; 169 IPC passes, 2 explicit skips | 443.496 s |
+| `npm run test:desktop` | PASS | 1.548 s |
+
+Each renderer report completes all fifteen header states, including both modal
+focus returns, while retaining its exact CAD/history/recovery/file observations.
+All five reports show zero console/request errors and confirmed child/profile
+cleanup. The source/runtime inputs and eight production hashes match the same
+candidate before and after every command. All fifteen final header images
+(three states in five viewport/workspace cases) were viewed at original size
+and match their requested states, including readable document/mode information
+in both compact configurations. This is header-only visual evidence.
+
+Parent `3570064` passes Windows/macOS persistence, but
+[Linux compact assembly shortcuts](https://github.com/angelcp2802/solidflow/actions/runs/40486796960/job/122130487688)
+fails Isometric preset repeat. Separately,
+[Windows hinge/symmetry](https://github.com/angelcp2802/solidflow/actions/runs/40486796960/job/122130487631)
+exhausts its unchanged 170-second child deadline: the annotation records
+170,055 ms, 244 checks and the last completed wait for the symmetry-name field.
+That location does not establish the timeout's cause. Both investigations remain
+open; parent checks do not validate this increment.
+
+Hosted validation of this functional increment remains pending. Design,
+client-side React, focused simplification, code-review and security-review
+guidance were applied; these results do not establish installed-platform
+support, complete keyboard/menu coverage or a correction for the existing Linux
+camera comparison failure.
+
 ## Earlier Previous-preset failure evidence — 2026-10-27
 
 Head `41e461dbcf4a011a740b75587017624e440a642b` fails

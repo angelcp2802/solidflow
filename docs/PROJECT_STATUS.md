@@ -1,5 +1,25 @@
 # Project status and review queue
 
+## Current functional increment: header menu visibility
+
+The shared header adds unpin/reveal/pin controls, a renderer-session preference
+and keyboard/focus handling in all three workspaces. Temporary menus replace
+the visible quick-action region. New and named-view dialogs return focus to
+the stable disclosure when cancelled. Command guards and document/file
+authority stay with their existing owners.
+
+Final local acceptance passes build, 10,116 tests across 447 files, 169 IPC
+checks with two explicit skips, desktop startup and all five affected renderer
+routes on the same 1,214-input snapshot. Fifteen header images have been
+visually reviewed. See [validation](VALIDATION.md) for the executed cases and
+limits. Hosted validation of this increment remains pending.
+
+The checklist remains **16/25**: menu visibility completes only a subpart of
+the open contextual/reference-editor item. Broader demo use, installed-platform
+acceptance and release gate #5 remain open. Parent `3570064` also retains the
+Linux compact-view discrepancy and a Windows hinge/symmetry child timeout;
+their causes remain under investigation.
+
 ## Current investigation: earlier Previous-preset failure
 
 Head `41e461d` reaches a different Linux persistence failure: Previous returning

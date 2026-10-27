@@ -1084,11 +1084,35 @@ async function runInElectron() {
   };
   const menuKey = async key => {
     const codes = { Escape: 27, Tab: 9, ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, Home: 36, End: 35, Enter: 13, ...((normalToView || partSequence || basicAuthoring) ? { ContextMenu: 93 } : {}) };
-    check((normalToView || basicAuthoring || mateReferenceEdit || originAxes || partSequence || configuredPicking || assembly || activeScenario === SCENARIOS['assembly-configurations']) && !window.isVisible() && window.webContents.debugger.isAttached()
+    check((normalToView || fromEmpty || basicAuthoring || mateReferenceEdit || originAxes || partSequence || configuredPicking || assembly || activeScenario === SCENARIOS['assembly-configurations']) && !window.isVisible() && window.webContents.debugger.isAttached()
       && Object.prototype.hasOwnProperty.call(codes, key), 'Expected bounded keyboard input in the hidden allowlisted CAD workflow.');
     await window.webContents.debugger.sendCommand('Input.dispatchKeyEvent', { type: 'keyDown', key, code: key, windowsVirtualKeyCode: codes[key],
       ...(key === 'Enter' ? { text: '\r', unmodifiedText: '\r' } : {}) });
     await window.webContents.debugger.sendCommand('Input.dispatchKeyEvent', { type: 'keyUp', key, code: key, windowsVirtualKeyCode: codes[key] });
+  };
+  const headerCaptures = new Set();
+  const captureHeader = async name => {
+    check((fromEmpty || shortcuts) && !window.isVisible() && window.webContents.debugger.isAttached()
+      && ['pinned', 'temporary', 'collapsed'].includes(name) && !headerCaptures.has(name) && headerCaptures.size < 3,
+    'At most three header captures in the owned hidden workflow');
+    headerCaptures.add(name);
+    // DOM state can precede its compositor surface. Let the committed header
+    // cross a paint before requesting its one original screenshot.
+    await evaluate('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(true))))');
+    const observed = await evaluate(`(() => {
+      const rows=document.querySelectorAll('.command-header');if(rows.length!==1)throw Error('One header required');
+      const r=rows[0].getBoundingClientRect();
+      if(r.x!==0||r.y!==0||r.width!==innerWidth||r.width<100||r.width>2400||r.height<1||r.height>64)throw Error('Bounded header crop required');
+      return {crop:{x:0,y:0,width:Math.ceil(r.width),height:Math.ceil(r.height)},state:{pinned:rows[0].dataset.menuPinned,expanded:rows[0].dataset.menuExpanded}};
+    })()`);
+    const expectedState = name === 'pinned' ? { pinned: 'true', expanded: 'true' }
+      : { pinned: 'false', expanded: name === 'temporary' ? 'true' : 'false' };
+    check(canonical(observed.state) === canonical(expectedState), 'The requested header state precedes its capture');
+    const image = await window.webContents.capturePage(observed.crop), png = image.toPNG();
+    check(!image.isEmpty() && png.length > 0 && png.length <= 256 * 1024, 'Bounded original header PNG');
+    const after = await evaluate(`(() => {const header=document.querySelector('.command-header');return {pinned:header?.dataset.menuPinned,expanded:header?.dataset.menuExpanded};})()`);
+    check(canonical(after) === canonical(observed.state), 'Header state remains unchanged across its capture');
+    return { name, crop: observed.crop, observedState: observed.state, mimeType: 'image/png', sha256: digest(png), byteLength: png.length, base64: png.toString('base64') };
   };
   const normalSelectInput = normalToView && process.platform === 'darwin'
     ? require('./desktop-normal-select-input.cjs').createNormalSelectInput({ allowed: normalToView, platform: process.platform,
@@ -1298,7 +1322,7 @@ async function runInElectron() {
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
     : fromEmpty
-    ? require('./desktop-part-from-empty-flow.cjs')({ expected, output, evaluate, observe, waitFor, click, pointer, wheel, menu, capture, cameraFrame, cameraGesture, rasterComparison, key: shortcutKey, shortcutText, namedViewKey,
+    ? require('./desktop-part-from-empty-flow.cjs')({ expected, output, evaluate, observe, waitFor, click, pointer, wheel, menu, menuKey, captureHeader, capture, cameraFrame, cameraGesture, rasterComparison, key: shortcutKey, shortcutText, namedViewKey,
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
     : mateReferenceEdit
@@ -1332,7 +1356,7 @@ async function runInElectron() {
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, geometryExports }) })
     : originAxes
-    ? require(shortcuts ? './desktop-assembly-shortcuts-flow.cjs' : activeScenario.originLock ? './desktop-assembly-origin-axis-lock-flow.cjs' : './desktop-assembly-origin-axes-flow.cjs')({ configured: originAxes === 'configured', expected, input, output, shortcutOutput, shortcutKey, shortcutText, namedViewKey, cameraFrame, cameraGesture, rasterComparison, evaluate, observe, waitFor, click, pointer, menuKey, asideWheel, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
+    ? require(shortcuts ? './desktop-assembly-shortcuts-flow.cjs' : activeScenario.originLock ? './desktop-assembly-origin-axis-lock-flow.cjs' : './desktop-assembly-origin-axes-flow.cjs')({ configured: originAxes === 'configured', expected, input, output, shortcutOutput, shortcutKey, shortcutText, namedViewKey, cameraFrame, cameraGesture, rasterComparison, evaluate, observe, waitFor, click, pointer, menuKey, captureHeader, asideWheel, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : configuredCompound
     ? require('./desktop-assembly-configured-compound-flow.cjs')({ family: configuredCompound, profileKind: activeScenario.profileKind, expected, input, output, evaluate, observe, waitFor, click, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, completePendingSave, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : configuredMechanical
