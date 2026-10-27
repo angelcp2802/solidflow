@@ -1,5 +1,71 @@
 # Validation
 
+## Bounded Windows atomic Save and export — 2026-10-27
+
+One hosted Windows sphere case previously rejected the atomic rename for its
+fourth Save with `EPERM`: its submitted canonical document matched the expected authored
+snapshot, while disk retained the third successful Save. That evidence does
+not identify the denying process/permission or explain every earlier deadline.
+
+The writer now retries only Windows `EPERM`/`EACCES`/`EBUSY` renames, at most
+six attempts on the same already-synced and closed temporary file. Five scheduled
+waits total 1,550 ms. It never removes/truncates/copies over the old destination.
+Permanent denial rejects with the last error; staging and other errors are not
+retried. The main-frame sender is checked before each attempt. A check cannot
+cancel an OS rename already submitted; this change adds no such claim.
+
+Twenty-two new IPC regressions exercise real temporary files through the real
+Save/export handlers. Fault injection covers transient and persistent denial,
+exact byte views, bounds, other errors/platform branches, sender invalidation,
+the shared operation gate, existing/new grants, staging handle cleanup and a
+cleanup error that must not mask publication failure. The platform-branch cases
+are simulations on Windows, not Linux/macOS runtime evidence. The real Windows
+case opens only its own original temporary fixture without Delete sharing,
+observes the first denied rename, closes that reader and publishes exact new
+bytes on retry. It is skipped on non-Windows hosts.
+
+Final local Windows x64 acceptance uses Node 24.11.1 / Electron 44.9.3, with
+**1,223 non-Markdown source/runtime inputs and eight production inputs** checked
+before and after execution:
+
+- `npm run build`: PASS, 3.836 s. Only main-process production bytes change from
+  the prior accepted snapshot; renderer assets, native worker and WASM remain.
+- `npm test`: PASS, 365.671 s; **10,165 unit/CAD tests across 450 files and
+  195 IPC passes with two explicit skips**. The focused security suite has
+  76 passes; skips concern file-symlink privilege and POSIX FIFO behavior on
+  this Windows host. The real no-delete-sharing reader case passes.
+- `npm run test:desktop`: PASS, 1.570 s, production worker/WASM startup.
+- `test:desktop:assembly-symmetry`: PASS, 183 checkpoints, 42.591 s. The original
+  cumulative session covers **five** families: point, line, plane, sphere and
+  cylinder, with five exact Save/reopen operations, including the previously
+  failed fourth sphere Save. It is not a six-family cumulative test.
+- `test:desktop:assembly-symmetry-repair`: PASS, 122 checkpoints, 7.779 s;
+  material-vertex source/replacement repair, three Save/reopen operations.
+- `test:desktop:assembly-symmetry-axisline-repair`: PASS, 155 checkpoints,
+  10.642 s; a separate axisline source/replacement lifecycle with four
+  Save/reopen operations. This is not part of the cumulative five-family run.
+
+All three production-renderer routes report zero console/request errors and
+confirmed child closure/profile cleanup. Existing exact authored-document,
+Undo/Redo, repair and fresh-verification checks remain; no tolerance, deadline,
+wait predicate or fixture was relaxed. Renderer input is the existing hidden
+window/CDP/scripted workflow, not a new manual installed-application walkthrough.
+The snapshot excludes Markdown; documentation changes add no runtime inputs.
+
+Parent `b610d61` hosted CI completes eleven renderer/configured jobs successfully
+but fails Windows persistence while waiting for **normal source save actual
+authored graph**; the three Desktop checks fail their prerequisites. Its detailed
+job log was unavailable during this change, so the annotation is not evidence
+of the same `EPERM` cause. The new head still needs hosted acceptance and
+recurring persistence stability. The existing medium CodeQL annotation and
+installed-platform/demo/release gates remain open.
+
+Applied `code-review` and `security-review`, including delegated read-only review
+of code and documentation. No new REA investigation was needed for this own-source
+writer change. This is a bounded reliability change, not proof that every hosted
+failure is resolved. No document schema, native kernel, dependency, protocol/CSP
+setting or public file capability is added.
+
 ## Configured origin and background contexts — 2026-10-27
 
 Configured assembly tree/viewport contexts now include origins and background.

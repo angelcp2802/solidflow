@@ -1,5 +1,31 @@
 # Development guide
 
+## Bounded Windows atomic publication — 2026-10-27
+
+Save and export stage their exact bytes in a same-directory exclusive `wx`
+temporary file with mode `0600`, sync and close it, then replace the destination
+with rename. On Windows only, rename failures with `EPERM`, `EACCES` or `EBUSY`
+receive at most five retries after 50/100/200/400/800 ms (six attempts, 1,550 ms
+of scheduled waiting). These codes can also represent permanent denial: reaching
+the bound rejects the operation with its final filesystem error. Other errors,
+other platforms and staging failures are not retried.
+
+Never unlink, truncate or copy over the previous destination to make replacement
+succeed. Recheck the exact authorized main-frame sender before every publication
+attempt, including after staging and retry delays. Keep the shared file-operation
+gate until completion or failure, grant a new Save pathname only after successful
+publication, and retain an existing grant after a failed later Save. Close staged
+handles and attempt temporary cleanup in `finally`; cleanup failure must not hide
+the publication error. This does not identify the source of a hosted lock or
+establish crash/power-loss durability, general network-filesystem behavior or
+installed-platform acceptance.
+
+The IPC tests inject filesystem failures and control retry timers around real
+temporary files, and also exercise a real Windows reader opened without Delete
+sharing. The latter releases
+its own temporary-file lock during the first retry; it is skipped on non-Windows
+hosts. No personal model, third-party application or dependency is needed.
+
 ## Configured origin/background context contracts — 2026-10-27
 
 Use the same current-scene guards for all configured popup kinds. Bind normal,

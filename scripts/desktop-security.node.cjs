@@ -14,7 +14,8 @@ const ROOT = path.resolve(__dirname, '..');
 // Run with node --test explicitly; .node.cjs keeps Vitest from collecting it.
 // Exercise the real main-process handlers against real temporary files without
 // opening windows. Only Electron's window/dialog/protocol transport is replaced.
-async function harness(t, { packaged = true, developmentUrl = 'https://evil.invalid/', fileSystem = fs } = {}) {
+async function harness(t, { packaged = true, developmentUrl = 'https://evil.invalid/', fileSystem = fs,
+  platform = process.platform, waitForRename = require('node:timers/promises').setTimeout } = {}) {
   const temporary = await fs.mkdtemp(path.join(os.tmpdir(), 'solidflow-ipc-check-'));
   t.after(async () => {
     assert.ok(path.resolve(temporary).startsWith(path.resolve(os.tmpdir()) + path.sep));
@@ -63,9 +64,10 @@ async function harness(t, { packaged = true, developmentUrl = 'https://evil.inva
     net: { fetch: async (url) => { state.fetched = url; return new Response('bytes', { headers: { 'Content-Type': 'text/javascript' } }); } },
   };
   vm.runInNewContext(await fs.readFile(path.join(ROOT, 'electron/main.cjs'), 'utf8'), {
-    require: name => name === 'electron' ? electron : name === 'node:fs/promises' ? fileSystem : require(name), __dirname: path.join(ROOT, 'electron'),
+    require: name => name === 'electron' ? electron : name === 'node:fs/promises' ? fileSystem
+      : name === 'node:timers/promises' ? { setTimeout: waitForRename } : require(name), __dirname: path.join(ROOT, 'electron'),
     Buffer, URL, Uint8Array, Response, Headers, console: { ...console, error(...args) { state.consoleErrors.push(args); } },
-    process: { platform: process.platform, env: { SOLIDFLOW_DEV_URL: developmentUrl } },
+    process: { platform, env: { SOLIDFLOW_DEV_URL: developmentUrl } },
   });
   await ready.catch(() => {});
   await Promise.resolve();
@@ -557,6 +559,218 @@ test('failed atomic replacement removes its temporary file', async (t) => {
   dialogQueue.push({ canceled: false, filePath: invalidTarget });
   await assert.rejects(handlers.get('document:save')(event, { content, name: 'Invalid' }));
   assert.equal((await fs.readdir(temporary)).some(name => name.endsWith('.tmp')), false);
+});
+
+for (const code of ['EPERM', 'EACCES', 'EBUSY']) {
+  test(`Windows atomic Save retries ${code} without touching the previous document`, async (t) => {
+    let selected, staged;
+    const attempts = [], waits = [];
+    const h = await harness(t, { platform: 'win32', fileSystem: { ...fs, rename: async (from, to) => {
+      attempts.push([from, to]); staged ??= from;
+      assert.equal(from, staged); assert.equal(to, selected);
+      assert.equal(await fs.readFile(to, 'utf8'), content);
+      assert.equal(await fs.readFile(from, 'utf8'), assemblyContent);
+      if (attempts.length < 3) throw Object.assign(new Error('Replacement denied'), { code });
+      await fs.rename(from, to);
+    } }, waitForRename: async ms => {
+      waits.push(ms); assert.equal(await fs.readFile(selected, 'utf8'), content);
+    } });
+    selected = path.join(h.temporary, 'retry.solidflow'); await fs.writeFile(selected, content);
+    h.dialogQueue.push({ canceled: false, filePath: selected });
+    assert.equal(await h.handlers.get('document:save')(h.event, { content: assemblyContent }), selected);
+    assert.deepEqual(waits, [50, 100]); assert.equal(attempts.length, 3);
+    assert.equal(await fs.readFile(selected, 'utf8'), assemblyContent);
+    assert.deepEqual(await fs.readdir(h.temporary), ['retry.solidflow']);
+    assert.equal(h.state.dialogCalls, 1); assert.deepEqual(h.state.consoleErrors, []);
+    await assert.rejects(h.handlers.get('document:save')(h.event, { content, filePath: path.join(h.temporary, 'unchosen.solidflow') }), /Guardar como/);
+  });
+
+  test(`Windows atomic Save bounds persistent ${code} and preserves the final error and old bytes`, async (t) => {
+    const failures = [], waits = []; let deny = true, selected;
+    const h = await harness(t, { platform: 'win32', fileSystem: { ...fs, rename: async (from, to) => {
+      if (!deny) return fs.rename(from, to);
+      assert.equal(to, selected); assert.equal(await fs.readFile(to, 'utf8'), content);
+      const failure = Object.assign(new Error(`Denied attempt ${failures.length + 1}`), { code });
+      failures.push(failure); throw failure;
+    } }, waitForRename: async ms => { waits.push(ms); } });
+    selected = path.join(h.temporary, 'permanent.solidflow'); await fs.writeFile(selected, content);
+    const save = h.handlers.get('document:save');
+    h.dialogQueue.push({ canceled: false, filePath: selected });
+    await assert.rejects(save(h.event, { content: assemblyContent }), error => error === failures[5]);
+    assert.equal(failures.length, 6); assert.deepEqual(waits, [50, 100, 200, 400, 800]);
+    assert.equal(await fs.readFile(selected, 'utf8'), content);
+    assert.deepEqual(await fs.readdir(h.temporary), ['permanent.solidflow']);
+    await assert.rejects(save(h.event, { content: assemblyContent, filePath: selected }), /Guardar como/);
+    deny = false; h.dialogQueue.push({ canceled: false, filePath: selected });
+    assert.equal(await save(h.event, { content: assemblyContent }), selected);
+    assert.equal(await save(h.event, { content, filePath: selected }), selected);
+    assert.equal(h.state.dialogCalls, 2); assert.deepEqual(h.state.consoleErrors, []);
+  });
+}
+
+for (const [platform, code] of [['win32', 'EIO'], ['win32', 'ENOENT'], ['win32', 'ENOSPC'], ['linux', 'EPERM'], ['darwin', 'EACCES']]) {
+  test(`atomic Save does not retry ${code} on ${platform}`, async (t) => {
+    const failure = Object.assign(new Error('Permanent replacement failure'), { code });
+    let attempts = 0; const waits = [];
+    const h = await harness(t, { platform, fileSystem: { ...fs, rename: async () => { attempts++; throw failure; } },
+      waitForRename: async ms => { waits.push(ms); } });
+    const selected = path.join(h.temporary, 'unchanged.solidflow'); await fs.writeFile(selected, content);
+    h.dialogQueue.push({ canceled: false, filePath: selected });
+    await assert.rejects(h.handlers.get('document:save')(h.event, { content: assemblyContent }), error => error === failure);
+    assert.equal(attempts, 1); assert.deepEqual(waits, []);
+    assert.equal(await fs.readFile(selected, 'utf8'), content);
+    assert.deepEqual(await fs.readdir(h.temporary), ['unchanged.solidflow']);
+  });
+}
+
+for (const invalidation of ['navigation', 'frame', 'destroyed']) {
+  test(`Windows atomic Save rechecks ${invalidation} before retrying publication`, async (t) => {
+    let h, attempts = 0; const waits = [];
+    h = await harness(t, { platform: 'win32', fileSystem: { ...fs, rename: async () => {
+      attempts++; throw Object.assign(new Error('Busy'), { code: 'EPERM' });
+    } }, waitForRename: async ms => {
+      waits.push(ms);
+      if (invalidation === 'navigation') h.event.senderFrame.url = 'solidflow://app/other.html';
+      else if (invalidation === 'frame') h.window.webContents.mainFrame = { url: h.window.url };
+      else h.window.isDestroyed = () => true;
+    } });
+    const selected = path.join(h.temporary, 'revoked.solidflow'); await fs.writeFile(selected, content);
+    h.dialogQueue.push({ canceled: false, filePath: selected });
+    await assert.rejects(h.handlers.get('document:save')(h.event, { content: assemblyContent }), /no autorizada/);
+    assert.equal(attempts, 1); assert.deepEqual(waits, [50]);
+    assert.equal(await fs.readFile(selected, 'utf8'), content);
+    assert.deepEqual(await fs.readdir(h.temporary), ['revoked.solidflow']);
+  });
+}
+
+test('Windows atomic export retains the shared file gate and exact byte view across retries without granting Save', async (t) => {
+  let attempts = 0, release, entered;
+  const waiting = new Promise(resolve => { release = resolve; });
+  const started = new Promise(resolve => { entered = resolve; });
+  const h = await harness(t, { platform: 'win32', fileSystem: { ...fs, rename: async (from, to) => {
+    if (++attempts === 1) throw Object.assign(new Error('Busy'), { code: 'EBUSY' });
+    await fs.rename(from, to);
+  } }, waitForRename: async () => { entered(); await waiting; } });
+  const selected = path.join(h.temporary, 'bounded.csv'); await fs.writeFile(selected, 'previous');
+  const data = new Uint8Array([0, 65, 66, 67, 0]), save = h.handlers.get('document:save');
+  h.dialogQueue.push({ canceled: false, filePath: selected });
+  const pending = h.handlers.get('document:export')(h.event, { data: data.subarray(1, 4), format: 'csv' });
+  try {
+    await Promise.race([started, pending.then(() => assert.fail('Export completed without reaching the retry'))]);
+    assert.equal(attempts, 1); data.fill(90);
+    await assert.rejects(save(h.event, { content }), /operación de archivo actual/);
+    await assert.rejects(h.handlers.get('document:open')(h.event), /operación de archivo actual/);
+    assert.equal(await fs.readFile(selected, 'utf8'), 'previous');
+  } finally { release(); }
+  assert.equal(await pending, selected); assert.equal(attempts, 2);
+  assert.equal(await fs.readFile(selected, 'utf8'), 'ABC');
+  assert.equal(h.state.dialogCalls, 1); assert.deepEqual(await fs.readdir(h.temporary), ['bounded.csv']);
+  await assert.rejects(save(h.event, { content, filePath: path.join(h.temporary, 'bounded.solidflow') }), /Guardar como/);
+});
+
+for (const stage of ['writeFile', 'sync', 'close']) {
+  test(`atomic Save closes and cleans staged bytes after ${stage} failure without retrying rename`, async (t) => {
+    const failure = Object.assign(new Error(`Staging ${stage} failed`), { code: 'EPERM' });
+    let attempts = 0, closes = 0, armed = true; const waits = [];
+    const h = await harness(t, { platform: 'win32', fileSystem: { ...fs,
+      open: async (...args) => {
+        const handle = await fs.open(...args);
+        return Object.fromEntries(['writeFile', 'sync', 'close'].map(method => [method, async (...values) => {
+          if (method === 'close') closes++;
+          if (armed && method === stage) { armed = false; throw failure; }
+          return handle[method](...values);
+        }]));
+      }, rename: async () => { attempts++; },
+    }, waitForRename: async ms => { waits.push(ms); } });
+    const selected = path.join(h.temporary, 'staging.solidflow'); await fs.writeFile(selected, content);
+    h.dialogQueue.push({ canceled: false, filePath: selected });
+    await assert.rejects(h.handlers.get('document:save')(h.event, { content: assemblyContent }), error => error === failure);
+    assert.equal(closes, stage === 'close' ? 2 : 1); assert.equal(attempts, 0); assert.deepEqual(waits, []);
+    assert.equal(await fs.readFile(selected, 'utf8'), content);
+    assert.deepEqual(await fs.readdir(h.temporary), ['staging.solidflow']);
+  });
+}
+
+test('atomic Save open failure preserves the target and never unlinks a file it did not create', async (t) => {
+  const failure = Object.assign(new Error('No space for staged file'), { code: 'ENOSPC' });
+  let opens = 0, renames = 0, unlinks = 0; const waits = [];
+  const h = await harness(t, { platform: 'win32', fileSystem: { ...fs,
+    open: async (_file, flags, mode) => { opens++; assert.equal(flags, 'wx'); assert.equal(mode, 0o600); throw failure; },
+    rename: async () => { renames++; }, unlink: async () => { unlinks++; },
+  }, waitForRename: async ms => { waits.push(ms); } });
+  const selected = path.join(h.temporary, 'open-failed.solidflow'); await fs.writeFile(selected, content);
+  h.dialogQueue.push({ canceled: false, filePath: selected });
+  await assert.rejects(h.handlers.get('document:save')(h.event, { content: assemblyContent }), error => error === failure);
+  assert.equal(opens, 1); assert.equal(renames, 0); assert.equal(unlinks, 0); assert.deepEqual(waits, []);
+  assert.equal(await fs.readFile(selected, 'utf8'), content);
+  assert.deepEqual(await fs.readdir(h.temporary), ['open-failed.solidflow']);
+});
+
+test('failed Windows replacement preserves its original error even when temporary cleanup is denied', async (t) => {
+  let attempts = 0, staged;
+  const failure = Object.assign(new Error('Replacement failure'), { code: 'EPERM' });
+  const h = await harness(t, { platform: 'win32', fileSystem: { ...fs,
+    rename: async from => { staged = from; attempts++; throw failure; },
+    unlink: async file => { assert.equal(file, staged); throw Object.assign(new Error('Cleanup denied'), { code: 'EACCES' }); },
+  }, waitForRename: async () => {} });
+  const selected = path.join(h.temporary, 'cleanup-denied.solidflow'); await fs.writeFile(selected, content);
+  h.dialogQueue.push({ canceled: false, filePath: selected });
+  await assert.rejects(h.handlers.get('document:save')(h.event, { content: assemblyContent }), error => error === failure);
+  assert.equal(attempts, 6); assert.equal(await fs.readFile(selected, 'utf8'), content);
+  assert.equal(await fs.readFile(staged, 'utf8'), assemblyContent);
+  assert.equal(h.state.consoleErrors.length, 1);
+  assert.deepEqual([...h.state.consoleErrors[0]], ['No se pudo limpiar el archivo temporal:', 'Cleanup denied']);
+  await fs.unlink(staged); assert.deepEqual(await fs.readdir(h.temporary), ['cleanup-denied.solidflow']);
+});
+
+test('a failed later Windows Save retains its existing grant and permits a subsequent explicit retry', async (t) => {
+  let deny = false, attempts = 0;
+  const failure = Object.assign(new Error('Busy'), { code: 'EPERM' });
+  const h = await harness(t, { platform: 'win32', fileSystem: { ...fs, rename: async (from, to) => {
+    attempts++; if (deny) throw failure;
+    await fs.rename(from, to);
+  } }, waitForRename: async () => {} });
+  const selected = path.join(h.temporary, 'existing-grant.solidflow'), save = h.handlers.get('document:save');
+  h.dialogQueue.push({ canceled: false, filePath: selected });
+  assert.equal(await save(h.event, { content }), selected);
+  deny = true;
+  await assert.rejects(save(h.event, { content: assemblyContent, filePath: selected }), error => error === failure);
+  assert.equal(await fs.readFile(selected, 'utf8'), content);
+  assert.deepEqual(await fs.readdir(h.temporary), ['existing-grant.solidflow']);
+  deny = false;
+  assert.equal(await save(h.event, { content: assemblyContent, filePath: selected }), selected);
+  assert.equal(await fs.readFile(selected, 'utf8'), assemblyContent);
+  assert.equal(attempts, 8); assert.equal(h.state.dialogCalls, 1);
+});
+
+test('Windows atomic Save recovers after a real no-delete-sharing reader closes', { skip: process.platform !== 'win32', timeout: 15000 }, async (t) => {
+  let reader, closed; const waits = [];
+  // Register reader cleanup before the harness removes its owned directory.
+  t.after(async () => { if (reader?.exitCode === null) reader.kill(); await closed?.catch(() => {}); });
+  const h = await harness(t, { waitForRename: async ms => {
+    waits.push(ms); assert.equal(await fs.readFile(selected, 'utf8'), content);
+    reader.stdin.end('release\n'); await closed;
+    await require('node:timers/promises').setTimeout(ms);
+  } });
+  const selected = path.join(h.temporary, 'real-reader.solidflow'); await fs.writeFile(selected, content);
+  // This original fixture locks only its own temporary file. ReadWrite sharing
+  // deliberately omits Delete; the OS must deny rename until the reader exits.
+  const script = '$stream = [System.IO.File]::Open($env:SOLIDFLOW_ATOMIC_LOCK_TARGET, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite); try { [Console]::Out.WriteLine("ready"); [Console]::Out.Flush(); [Console]::In.ReadLine() | Out-Null } finally { $stream.Dispose() }';
+  reader = spawn(path.join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'),
+    ['-NoProfile', '-NonInteractive', '-Command', script], { windowsHide: true, env: { ...process.env, SOLIDFLOW_ATOMIC_LOCK_TARGET: selected }, stdio: ['pipe', 'pipe', 'pipe'] });
+  closed = new Promise((resolve, reject) => {
+    reader.once('error', reject);
+    reader.once('close', code => code === 0 ? resolve() : reject(new Error(`Reader exited ${code}`)));
+  });
+  let output = '';
+  const ready = new Promise(resolve => { reader.stdout.on('data', chunk => { output += chunk.toString(); if (output.includes('ready')) resolve(); }); });
+  await Promise.race([ready, closed.then(() => assert.fail('Reader closed before acquiring its lock'))]);
+  h.dialogQueue.push({ canceled: false, filePath: selected });
+  try { assert.equal(await h.handlers.get('document:save')(h.event, { content: assemblyContent }), selected); }
+  finally { if (reader.exitCode === null) reader.stdin.end('release\n'); }
+  assert.deepEqual(waits, [50]); assert.equal(await fs.readFile(selected, 'utf8'), assemblyContent);
+  assert.deepEqual(await fs.readdir(h.temporary), ['real-reader.solidflow']);
+  assert.equal(h.state.dialogCalls, 1); assert.deepEqual(h.state.consoleErrors, []);
 });
 
 test('STEP import returns exact selected bytes and a basename without granting write access', async (t) => {

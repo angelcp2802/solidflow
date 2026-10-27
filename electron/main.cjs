@@ -5,11 +5,13 @@ const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { randomUUID, createHash } = require('node:crypto');
 const { TextDecoder } = require('node:util');
+const { setTimeout: delay } = require('node:timers/promises');
 
 const MAX_DOCUMENT_BYTES = 20 * 1024 * 1024;
 const MAX_STEP_BYTES = 8 * 1024 * 1024;
 const MAX_EXPORT_BYTES = 256 * 1024 * 1024;
 const MAX_CSV_EXPORT_BYTES = 20 * 1024 * 1024;
+const WINDOWS_RENAME_RETRY_DELAYS = [50, 100, 200, 400, 800];
 const DIST_PATH = path.resolve(__dirname, '../dist');
 const APP_URL = 'solidflow://app/index.html';
 const DOCUMENT_CSP = "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'";
@@ -77,7 +79,7 @@ function suggestedPath(name, extension) {
   return path.join(app.getPath('documents'), `${base}.${extension}`);
 }
 
-async function atomicWrite(target, data) {
+async function atomicWrite(target, data, assertCanPublish) {
   const temporary = path.join(path.dirname(target), `.${path.basename(target)}.${randomUUID()}.tmp`);
   let handle;
   let created = false;
@@ -88,7 +90,19 @@ async function atomicWrite(target, data) {
     await handle.sync();
     await handle.close();
     handle = null;
-    await fs.rename(temporary, target);
+    // Windows may deny replacement while another process holds the file.
+    // Retry only the rename, never delete/truncate the previous good document.
+    for (let attempt = 0; ; attempt++) {
+      assertCanPublish();
+      try {
+        await fs.rename(temporary, target);
+        break;
+      } catch (error) {
+        if (process.platform !== 'win32' || !['EPERM', 'EACCES', 'EBUSY'].includes(error.code)
+          || attempt >= WINDOWS_RENAME_RETRY_DELAYS.length) throw error;
+        await delay(WINDOWS_RENAME_RETRY_DELAYS[attempt]);
+      }
+    }
   } finally {
     if (handle) await handle.close().catch(() => {});
     if (created) await fs.unlink(temporary).catch((error) => { if (error.code !== 'ENOENT') console.error('No se pudo limpiar el archivo temporal:', error.message); });
@@ -390,7 +404,7 @@ handleFileOperation('document:save', async (event, payload) => {
     target = requireFilePath(result.filePath, 'solidflow');
   }
   assertSender(event);
-  await atomicWrite(target, content);
+  await atomicWrite(target, content, () => assertSender(event));
   documentGrants.set(pathKey(target), target);
   return target;
 });
@@ -416,7 +430,7 @@ handleFileOperation('document:export', async (event, payload) => {
   if (result.canceled || !result.filePath) return null;
   assertSender(event);
   const target = requireFilePath(result.filePath, format);
-  await atomicWrite(target, bytes);
+  await atomicWrite(target, bytes, () => assertSender(event));
   return target;
 });
 
