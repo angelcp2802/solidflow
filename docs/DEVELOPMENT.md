@@ -1,5 +1,35 @@
 # Development guide
 
+## Dedicated worker message admission — 2026-10-27
+
+The CAD worker accepts browser-delivered dedicated-channel events only:
+`isTrusted === true`, empty `origin`, null `source` and no transferred ports.
+Check metadata before reading `data` or calling the serial queue. Ignore
+synthetic events without closing their caller-owned ports. For an actual
+received event outside the channel contract, close any transferred ports and
+withhold the entire request. These checks grant no command, file or preview
+capability; the existing strict queue envelope, payload validators and private
+session tokens remain authoritative. They do not authenticate a compromised
+owning renderer.
+
+This is the dedicated-worker channel contract, whose implicit MessagePort
+delivery differs from cross-window messaging. The [Worker postMessage steps](https://html.spec.whatwg.org/multipage/workers.html#dom-worker-postmessage)
+use that implicit port; [channel message delivery](https://html.spec.whatwg.org/multipage/web-messaging.html#message-ports)
+sets data/ports while [MessageEvent](https://html.spec.whatwg.org/multipage/comms.html#the-messageevent-interface)
+retains empty origin/null source defaults. Native [port close](https://html.spec.whatwg.org/multipage/web-messaging.html#dom-messageport-close)
+disentangles the received channel. An empty origin is not a trusted web origin.
+
+The desktop smoke sends an actual transferred-port `init` request100 before
+the existing malformed requests101–103 and native prism104. A reply101 is an
+ordered barrier; accepting100 would violate the original exact reply sequence.
+The four responses must have the dedicated-channel metadata, and the prism's
+independent V24 mm³/bounds remain. Test-owned ports are closed and the worker
+terminated on success, error or the unchanged15 s probe deadline. Unit tests
+import the actual worker entry with mocked queue/native dependencies; they
+check metadata/data-read ordering and port closure, not native geometry or
+browser provenance. Record actual compiled execution separately from units
+and await hosted CodeQL before claiming that its warning has cleared.
+
 ## Placed scene cardinality and passive picking timings — 2026-10-27
 
 `placeAssemblyShapeChecked` returns an owned, independent placed aggregate and

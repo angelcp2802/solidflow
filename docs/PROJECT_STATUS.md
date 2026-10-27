@@ -1,5 +1,28 @@
 # Project status and review queue
 
+## Dedicated worker message admission — 2026-10-27
+
+The CAD worker explicitly checks dedicated-channel metadata before reading data
+or calling its serial queue. Synthetic events and unexpected received channels
+are withheld; received extra ports are closed. Existing strict payload checks,
+queue order, private preview authority and file grants remain. This hardening
+does not authenticate a compromised renderer or prove a prior exploitable
+cross-window vulnerability. Hosted CodeQL must confirm its annotation status.
+
+Local frozen Windows acceptance passes build, desktop transferred-port rejection
+and subsequent native work, 10,214 unit/CAD cases and 199 IPC passes/two explicit
+skips. Basic assembly (409), configured lifecycle (212) and six-case symmetry picking (270)
+all pass with history/persistence, zero console/request errors and confirmed
+cleanup. See [validation](VALIDATION.md) for the old-worker negative control,
+1,227 input/nine-output freeze, exact geometry, inventory correction and limits.
+
+Parent ec47eb0 completes eleven renderer/configured jobs, including all three
+persistence routes. Windows six-case picking still times out at 170.006 s and
+the three Desktop prerequisite checks fail. Its new timing evidence is recorded
+separately; this channel change claims no timeout repair. Broader demo/human and
+installed-platform acceptance, nine open groups on #55 and release gate #5 remain
+open. Continue in draft PR #49, with checklist #55 still 16/25.
+
 ## Scene validation reuse and symmetry picking — 2026-10-27
 
 The scene builder consumes the placed aggregate's already measured solid count,

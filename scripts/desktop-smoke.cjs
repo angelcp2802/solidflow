@@ -10,8 +10,11 @@ const ROOT = path.resolve(__dirname, '..');
 // worker. No fake dispatcher, WASM response, UI document or capability is injected.
 function workerQueueProbe(url) {
   return new Promise((resolve, reject) => {
-    const worker = new Worker(url, { type: 'module' }), replies = [], events = [];
-    const finish = (error, result) => { clearTimeout(timer); worker.terminate(); if (error) reject(error); else resolve(result); };
+    const worker = new Worker(url, { type: 'module' }), channel = new MessageChannel(), replies = [], events = [];
+    const finish = (error, result) => {
+      clearTimeout(timer); channel.port1.close(); channel.port2.close(); worker.terminate();
+      if (error) reject(error); else resolve(result);
+    };
     const timer = setTimeout(() => finish(Error('Production worker queue did not recover from malformed input.')), 15000);
     worker.onerror = event => finish(Error('Production probe worker failed: ' + event.message));
     worker.onmessage = event => {
@@ -24,18 +27,24 @@ function workerQueueProbe(url) {
         if (!last.ok || !value || Math.abs(value.volume - 24) > 1e-6 || value.featureErrors.length || value.warnings.length
           || !value.vertices.length || !value.triangles.length || ![...value.vertices, ...value.normals].every(Number.isFinite)) throw Error('The worker did not rebuild the original 2 by 3 by 4 prism.');
         for (const [name, wanted] of [['min', [0, 0, 0]], ['max', [2, 3, 4]]]) if (value.bounds[name].length !== 3 || value.bounds[name].some((v, i) => !Number.isFinite(v) || Math.abs(v - wanted[i]) > 1e-6)) throw Error('Independent native prism bounds failed.');
-        if (events.some(item => !item.isTrusted || !item.sourceIsNull || item.ports !== 0)) throw Error('Unexpected dedicated worker response channel.');
-        finish(null, { status: 'PASS', malformedWithoutId: 'no reply', correlatedErrors: replies.slice(0, 3).map(reply => ({ id: reply.id, error: reply.error })), nativePrism: { volume: value.volume, bounds: value.bounds }, events });
+        if (events.some(item => !item.isTrusted || item.origin !== '' || !item.sourceIsNull || item.ports !== 0)) throw Error('Unexpected dedicated worker response channel.');
+        finish(null, { status: 'PASS', malformedWithoutId: 'no reply', portRejectionControl: { requestId: 100, followingBarrierId: 101, observedReplyIds: replies.map(reply => reply.id) },
+          correlatedErrors: replies.slice(0, 3).map(reply => ({ id: reply.id, error: reply.error })), nativePrism: { volume: value.volume, bounds: value.bounds }, events });
       } catch (error) { finish(error); }
     };
-    worker.postMessage(null);
-    worker.postMessage({ id: 101, action: 'unknown-operation' });
-    worker.postMessage({ id: 102, action: 'build' });
-    worker.postMessage({ id: 103, action: 'build', features: null });
-    worker.postMessage({ id: 104, action: 'build', features: [
+    try {
+      // This real transferred channel is outside the command protocol. The next
+      // legitimate reply is an ordered barrier, not a timeout-based silence test.
+      worker.postMessage({ id: 100, action: 'init' }, [channel.port2]);
+      worker.postMessage(null);
+      worker.postMessage({ id: 101, action: 'unknown-operation' });
+      worker.postMessage({ id: 102, action: 'build' });
+      worker.postMessage({ id: 103, action: 'build', features: null });
+      worker.postMessage({ id: 104, action: 'build', features: [
       { id: 'profile', name: 'Original rectangle', type: 'sketch', plane: 'XY', offset: 0, suppressed: false, profile: { kind: 'rectangle', center: [1, 1.5], width: 2, height: 3 } },
       { id: 'solid', name: 'Original prism', type: 'extrude', sketchId: 'profile', depth: 4, symmetric: false, suppressed: false },
-    ] });
+      ] });
+    } catch (error) { finish(error); }
   });
 }
 

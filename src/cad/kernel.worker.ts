@@ -20,4 +20,13 @@ function initialize(): Promise<void> {
 // snapshot independently of preceding display builds or assembly previews.
 const queue = createKernelWorkerQueue({ initialize, handle: request => dispatcher.handle(request),
   postMessage: response => self.postMessage(response) });
-self.onmessage = (event: MessageEvent<unknown>) => { void queue.receive(event.data); };
+self.onmessage = (event: MessageEvent<unknown>) => {
+  // Dedicated-worker delivery uses its implicit port: no Window origin/source.
+  // A trusted event identifies browser delivery, not authorization of its data.
+  if (event.isTrusted !== true) return;
+  if (event.origin !== '' || event.source !== null || event.ports.length !== 0) {
+    for (const port of event.ports) port.close();
+    return;
+  }
+  void queue.receive(event.data);
+};

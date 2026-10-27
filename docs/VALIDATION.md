@@ -1,5 +1,81 @@
 # Validation
 
+## Dedicated CAD worker channel admission — 2026-10-27
+
+The worker entry now checks actual channel metadata before reading message data
+or calling the existing serial queue. It accepts browser-delivered dedicated
+events with empty origin, null source and no transferred ports. Synthetic events
+are ignored without closing their caller-owned ports; actual received extra
+ports are closed and their request is withheld. The existing envelope, payload,
+queue serialization and private session capabilities remain. This hardening
+does not authenticate a compromised owning renderer or establish a prior
+exploitable cross-window vulnerability. The [development contract](DEVELOPMENT.md#dedicated-worker-message-admission--2026-10-27)
+links the applicable WHATWG channel and MessageEvent semantics.
+
+Nine new units import the real worker entry with mocked queue/dispatcher/native
+dependencies. They check payload identity and continued queue admission of null,
+rejection of synthetic events and unexpected origin/source metadata before any
+data getter, closure of both actually received test ports and retention of
+synthetic caller-owned ports. On the old entry, eight fail and the accepted-path
+case passes; with the guard all nine pass. Together with existing queue and
+standard/configured transport cases, five files pass 97/97 and TypeScript passes.
+Units do not establish browser provenance, native BRep behavior or actual
+MessagePort closure inside a compiled worker.
+
+The desktop probe adds a real transferred-port init100 before the existing
+malformed requests101–103 and native prism104. Exact replies101–104 form an
+ordered rejection control, retaining V24 mm³/bounds `[0,0,0]..[2,3,4]` at1e-6,
+non-empty mesh with finite vertices/normals and original error/queue-continuation
+checks. Response metadata is
+also checked. Owned probe ports close and the worker terminates on success,
+error and the unchanged15 s deadline. The extended probe fails as expected on
+the prior unchanged compiled worker, whose added port request is admitted. It
+passes after rebuilding the guard. Port closure itself is asserted by units;
+the compiled probe observes rejection and subsequent successful native work.
+
+The full-build controller initially expected eight production inputs while its
+broader inventory also included the existing static SVG. It stopped after a
+successful4.095 s build. The corrected inventory retains all nine outputs;
+source and compiled bytes were unchanged, so that build is retained.
+
+Final frozen acceptance is **PASS on Windows x64**, Node 24.11.1/Electron44.9.3,
+with **1,227 non-Markdown inputs and nine production inputs** unchanged through
+execution. Nine includes the existing static SVG as well as the eight observed
+inputs retained by each renderer report.
+
+| Command | Actual result |
+| --- | --- |
+| `npm run build` | PASS, 4.095 s. |
+| `npm run test:desktop` | PASS, 1.560 s, actual transferred-port rejection/barrier and native V24/bounds. |
+| `npm test` | PASS, 10,214 unit/CAD cases in 453 files, 199 IPC passes and two explicit skips, 356.407 s overall. |
+| `npm run test:desktop:assembly-basic-authoring` | PASS, 409 checkpoints, 42.025 s, original ordinary assembly authoring/reference/edit/history and Save/reopen coverage. |
+| `npm run test:desktop:assembly-configurations` | PASS, 212 checkpoints, 12.362 s, original configured lifecycle including expected CSV export rejection. |
+| `npm run test:desktop:assembly-symmetry-picking` | PASS, 270 checkpoints, 46.636 s, all six cases, 24 author/reselection hits, 43 completed native responses and six Save/reopens. |
+
+All three renderer reports have zero console/request errors and confirmed
+child/profile cleanup. Hidden-window/CDP input and scripted fields establish
+these bounded cases, not human/installed-platform acceptance. The worker bundle
+changes. No dependency, WASM binary, saved format, file grant, Electron policy
+or CI gate is changed.
+
+Applied code-review and security-review, including read-only delegated review,
+which found no outstanding issue in the change. No
+SECURITY_MODEL.md exists in its base; no scanner exclusion or accepted risk is
+introduced. Await actual hosted CodeQL before claiming its existing medium
+annotation has cleared. This own-source integration check uses no external
+software reconstruction or REA setup. Broader functional groups, demo/human use,
+installed-platform acceptance and release remain open.
+
+Parent ec47eb0's Windows six-case picking still reaches its170.006 s deadline:
+259 checkpoints, five complete cases, axisline/edit-preview active5.492 s.
+Passive accounting records41 response waits (one pending4.065 s),122.831 s
+inclusive response time,53.038 s evaluate and113.080 s polling sleeps. These
+categories overlap. A bounded120,000-character log tail retains40 completed
+worker round trips totaling113.885 s, with77.4 ms of response projection. It
+does not isolate kernel CPU from transport/queueing/scheduling or establish the
+cause of this host difference. This channel-admission change does not claim to
+repair that timeout. No failed run was restarted or deadline increased.
+
 ## Assembly scene validation reuse and picking measurements — 2026-10-27
 
 The six-case symmetry viewport-picking route has a recurring hosted Windows
