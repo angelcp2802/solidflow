@@ -77,7 +77,8 @@ module.exports = async function compactViewportControls({ configured, page, wait
       && !orientation.overlaps.length, label + ': named enabled selector has its full unobstructed hit target within the toolbar: ' + diagnostic);
     const choices = [['', 'Vistas', true], ['front', 'Frontal (Ctrl+1)', false], ['back', 'Posterior (Ctrl+2)', false],
       ['left', 'Izquierda (Ctrl+3)', false], ['right', 'Derecha (Ctrl+4)', false], ['top', 'Superior (Ctrl+5)', false],
-      ['bottom', 'Inferior (Ctrl+6)', false], ['iso', 'Isométrica (Ctrl+7)', false], ['normal', 'Normal a (Ctrl+8)', false]];
+      ['bottom', 'Inferior (Ctrl+6)', false], ['iso', 'Isométrica (Ctrl+7)', false], ['dimetric', 'Dimétrica', false], ['trimetric', 'Trimétrica', false],
+      ['normal', 'Normal a (Ctrl+8)', false]];
     check(canonical(orientation.options.map(option => [option.value, option.text, option.disabled])) === canonical(choices), label + ': exact ordered selector choices and shortcut labels');
     check(value.buttons.every(button => button.rect.top === value.buttons[0].rect.top) && !value.overlapPairs.length && !value.covered.length,
       label + ': one command row without command/context/origin/instruction overlaps: ' + diagnostic);

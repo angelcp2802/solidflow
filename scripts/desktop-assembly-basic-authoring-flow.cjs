@@ -373,9 +373,12 @@ module.exports = function basicAuthoringWorkflow(context) {
     check(canonical(await corner()) === canonical(target), 'Background context point remains stationary and hits the canvas before press');
     await pointer('mousePressed', target.point, 2); await pointer('mouseReleased', target.point, 2);
     const background = await waitFor('blank canvas opens only current view commands', contextMenuState);
+    const contextEvidence = { background };
+    checks.push({ assemblyViewportContextNavigation: contextEvidence });
     const expectedBackground = [['view-front', 'Frontal'], ['view-back', 'Posterior'], ['view-left', 'Izquierda'], ['view-right', 'Derecha'],
-      ['view-top', 'Superior'], ['view-bottom', 'Inferior'], ['view-iso', 'Isométrica'], ['view-normal', 'Normal a'], ['view-fit', 'Ajustar a pantalla'], ['view-previous', 'Vista anterior']];
-    check(canonical(background.actions.map(action => [action.id, action.label])) === canonical(expectedBackground), 'Background context contains exactly the ordered seven standard views, Normal To, Fit and Previous');
+      ['view-top', 'Superior'], ['view-bottom', 'Inferior'], ['view-iso', 'Isométrica'], ['view-dimetric', 'Dimétrica'], ['view-trimetric', 'Trimétrica'],
+      ['view-normal', 'Normal a'], ['view-fit', 'Ajustar a pantalla'], ['view-previous', 'Vista anterior']];
+    check(canonical(background.actions.map(action => [action.id, action.label])) === canonical(expectedBackground), 'Background context contains exactly the ordered nine standard views, Normal To, Fit and Previous');
     await checkContextNormal(background, 'invalid', false, 'Background context retains the selected component and disables Normal To for that unsupported target');
     const previousDisabled = await page(() => {
       const buttons = [...document.querySelectorAll('.assembly-view-tools button[aria-label="Vista anterior"]')];
@@ -394,7 +397,7 @@ module.exports = function basicAuthoringWorkflow(context) {
     await menuKey('Escape');
     await waitFor('keyboard viewport context closes with host focus', () => page(() => !document.querySelector('.cad-context-menu') && document.activeElement === document.querySelector('.assembly-viewport')));
     checkContextUnchanged(baseline, await contextReadOnlyState(), 'Viewport pointer and keyboard context preserve document, full observations and relation roles');
-    checks.push({ assemblyViewportContextNavigation: { background, keyboard, point: target.point, counters: await observe.counters(), documentSha256: digest(canonical(doc)) } });
+    Object.assign(contextEvidence, { keyboard, point: target.point, counters: await observe.counters(), documentSha256: digest(canonical(doc)) });
     await select(selectedId);
   }
   async function preview(doc, selector, text, phase, mateCount = doc.mates.length, expectedDistance = -12, expectedAlignment = 'aligned', expectedAngle = null) {

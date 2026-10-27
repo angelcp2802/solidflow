@@ -1,5 +1,22 @@
 # Development guide
 
+## View-catalog coverage across existing workflows — 2026-10-27
+
+A view-catalog change must update the independent exact expectations in the
+basic-authoring background context, the shared assembly View-menu helper, the
+compact viewport helper and the live-cut part-menu route. Checking only the
+shared navigation route misses these existing consumers. Preserve literal
+expected order, labels, shortcuts, roles, disabled states and keyboard focus;
+do not derive expected inventory from the production catalog under test.
+
+The live-cut menu's added presets shift Normal To, named views, Previous and
+the display checkboxes by two positions. Its traversal still skips the same
+unavailable functions, includes both enabled new presets and retains the cut
+draft without another native request. Basic authoring retains the already
+observed background target/actions before asserting inventory, then completes
+that same evidence record after the existing keyboard/context checks. This
+adds no input, evaluation, capture, wait or relaxed acceptance condition.
+
 ## Dimetric/trimetric commands and named-view diagnostics — 2026-10-27
 
 The shared orientation catalog includes Dimetric and Trimetric in the Part,

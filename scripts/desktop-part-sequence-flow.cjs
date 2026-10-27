@@ -310,11 +310,11 @@ module.exports = function partSequenceWorkflow(context) {
       shortcut:e.querySelector('kbd')?.textContent??'',role:e.getAttribute('role'),disabled:e.disabled,
     })));
     const expectedViews=[['Frontal','Ctrl+1'],['Posterior','Ctrl+2'],['Izquierda','Ctrl+3'],['Derecha','Ctrl+4'],
-      ['Superior','Ctrl+5'],['Inferior','Ctrl+6'],['Isométrica','Ctrl+7'],['Normal a','Ctrl+8'],['Vistas guardadas…',''],['Vista anterior','Ctrl+Shift+Z'],
+      ['Superior','Ctrl+5'],['Inferior','Ctrl+6'],['Isométrica','Ctrl+7'],['Dimétrica',''],['Trimétrica',''],['Normal a','Ctrl+8'],['Vistas guardadas…',''],['Vista anterior','Ctrl+Shift+Z'],
       ['Ajustar a pantalla','F'],['Cuadrícula',''],['Planos de referencia','']];
     check(canonical(viewItems.map(({index,label,shortcut,role})=>({index,label,shortcut,role})))===canonical(expectedViews.map(([label,shortcut],index)=>({
-      index,label,shortcut,role:index<11?'menuitem':'menuitemcheckbox',
-    }))),'Live cut View menu exposes all seven orientations, Normal To, named views, Previous, Fit and display commands in their declared order');
+      index,label,shortcut,role:index<13?'menuitem':'menuitemcheckbox',
+    }))),'Live cut View menu exposes all nine orientations, Normal To, named views, Previous, Fit and display commands in their declared order');
     check(await page(()=>{
       const buttons=document.querySelectorAll('button[aria-label="Normal a"]'),host=document.querySelector('.graphics-area');
       return buttons.length===1&&buttons[0].disabled&&buttons[0].title==='Normal a (Ctrl+8)'
@@ -326,22 +326,22 @@ module.exports = function partSequenceWorkflow(context) {
       if(buttons.length!==1)throw Error('One existing Previous View toolbar command required');
       return buttons[0].disabled;
     });
-    check(viewItems.every(item=>item.disabled===(item.index===7||item.index===8||item.index===9&&previousDisabled)),
+    check(viewItems.every(item=>item.disabled===(item.index===9||item.index===10||item.index===11&&previousDisabled)),
       'Live cut disables Normal To for the selected body and named views during the active edit; other view browsing remains enabled and Previous matches its current toolbar availability');
     const focus=async(index,label)=>waitFor('part menu real focus: '+label,()=>page((index,label)=>{
       const popup=document.querySelector('.part-main-menus [role="menu"]'),e=document.activeElement;
       return !!popup&&popup.contains(e)&&e.matches('button:not(:disabled)')&&Number(e.dataset.menuIndex)===index
         &&e.querySelector('span:not(.assembly-menu-check)')?.textContent===label;
     },index,label));
-    const viewKeys=[],enabledViews=expectedViews.map(([label],index)=>({index,label})).filter(item=>item.index!==7&&item.index!==8&&(item.index!==9||!previousDisabled));
+    const viewKeys=[],enabledViews=expectedViews.map(([label],index)=>({index,label})).filter(item=>item.index!==9&&item.index!==10&&(item.index!==11||!previousDisabled));
     await focus(0,'Frontal');
     for(const item of enabledViews.slice(1)){
       await menuKey('ArrowDown');viewKeys.push('ArrowDown');await focus(item.index,item.label);
     }
     await menuKey('ArrowDown');viewKeys.push('ArrowDown');await focus(0,'Frontal');
-    await menuKey('ArrowUp');viewKeys.push('ArrowUp');await focus(12,'Planos de referencia');
+    await menuKey('ArrowUp');viewKeys.push('ArrowUp');await focus(14,'Planos de referencia');
     await menuKey('Home');viewKeys.push('Home');await focus(0,'Frontal');
-    await menuKey('End');viewKeys.push('End');await focus(12,'Planos de referencia');
+    await menuKey('End');viewKeys.push('End');await focus(14,'Planos de referencia');
     await escape('view');
     check(canonical(await snapshot())===canonical(original),'Menu Escape preserves live cut depth, fields, body references and committed recovery');
     await open('insert');

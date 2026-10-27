@@ -1,6 +1,28 @@
 # Project status and review queue
 
-## Latest increment: additional views and restoration diagnostics
+## Latest correction: existing view-menu coverage
+
+Hosted head `ad7ec78` failed the first persistence scenario on all three
+platforms: the basic-authoring background-menu assertion still expected seven
+standard views after production added two. The original report did not retain
+the differing inventory. The correction updates four independent exact test
+inventories, preserves keyboard guards/roles/focus and records the observed
+background commands before asserting them. It changes no production behavior.
+
+Six affected Windows renderer routes now pass, including basic authoring,
+successive part operations, both assembly origin-menu routes and both compact
+origin-axis-lock routes. Their production assets match the accepted view-preset
+build byte-for-byte; its five navigation routes remain evidence for that build.
+The new full suite passes 10,101 tests across 445 files and 168 IPC checks with
+two explicit skips; desktop startup also passes. All nine commands share one
+1,209-input snapshot. See [validation](VALIDATION.md) for timings and limits.
+
+The earlier Windows cumulative assembly timeout and Linux Previous raster
+difference remain distinct open problems. Next, measure a dominant Windows
+phase and test a specific optimization without changing its deadline or CAD
+oracles; closure requires the corrected head to pass the affected hosted runner.
+
+## Additional views and restoration diagnostics
 
 Dimetric and Trimetric are available through the existing orientation selector
 and View menu in parts, standard assemblies and configured assemblies. They
@@ -15,7 +37,7 @@ worker or file authority. Build, 10,101 tests across 445 files, 168 IPC passes
 with two explicit skips and desktop startup also pass on the same 1,209-input
 snapshot. Executed cases, timings and limits are in [validation](VALIDATION.md).
 
-The latest published parent, `1489bb8`, passed ten renderer/configured-authoring
+Earlier head `1489bb8` passed ten renderer/configured-authoring
 jobs but failed persistence on Windows and Linux. Windows exhausted its
 cumulative assembly deadline; Linux reported different restored pixels. The
 new diagnostic retains the exact moved/Previous image pair without relaxing

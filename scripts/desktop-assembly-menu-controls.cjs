@@ -31,12 +31,13 @@ module.exports = function assemblyMenuControls({ configured, page, waitFor, actu
     await key('Tab'); await waitFor('Tab exits to existing quick access', async () => await closed() && await page(() => !!document.activeElement?.closest('.assembly-quickbar')));
     await open('view'); await key('ArrowRight'); await waitFor('Right arrow opens and focuses Insert', () => focused('insert'));
     await key('ArrowLeft'); await waitFor('Left arrow returns focus to View', () => focused('view'));
-    check(await page(() => [...document.querySelectorAll('.assembly-main-menus [role="menu"] [data-assembly-command]')].slice(0, 7)
+    check(await page(() => [...document.querySelectorAll('.assembly-main-menus [role="menu"] [data-assembly-command]')].slice(0, 9)
       .map(e => [e.getAttribute('data-assembly-command'), e.querySelector(':scope > span:not(.assembly-menu-check)')?.textContent.trim(), e.querySelector(':scope > kbd')?.textContent.trim(), e.disabled])
       .map(row => JSON.stringify(row)).join('|') ===
       [['view-front', 'Frontal', 'Ctrl+1', false], ['view-back', 'Posterior', 'Ctrl+2', false], ['view-left', 'Izquierda', 'Ctrl+3', false], ['view-right', 'Derecha', 'Ctrl+4', false],
-        ['view-top', 'Superior', 'Ctrl+5', false], ['view-bottom', 'Inferior', 'Ctrl+6', false], ['view-iso', 'Isométrica', 'Ctrl+7', false]].map(row => JSON.stringify(row)).join('|')),
-    'View menu starts with the exact ordered seven enabled standard views and separate shortcut labels');
+        ['view-top', 'Superior', 'Ctrl+5', false], ['view-bottom', 'Inferior', 'Ctrl+6', false], ['view-iso', 'Isométrica', 'Ctrl+7', false],
+        ['view-dimetric', 'Dimétrica', undefined, false], ['view-trimetric', 'Trimétrica', undefined, false]].map(row => JSON.stringify(row)).join('|')),
+    'View menu starts with the exact ordered nine enabled standard views; only the original seven have shortcut labels');
     await key('Home'); await waitFor('Home focuses front view', () => page(() => document.activeElement?.getAttribute('data-assembly-command') === 'view-front'));
     await key('ArrowDown'); await waitFor('Down focuses back view', () => page(() => document.activeElement?.getAttribute('data-assembly-command') === 'view-back'));
     await key('ArrowUp'); await waitFor('Up returns focus to front view', () => page(() => document.activeElement?.getAttribute('data-assembly-command') === 'view-front'));

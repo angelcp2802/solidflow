@@ -1,5 +1,51 @@
 # Validation
 
+## Existing view-menu coverage correction — 2026-10-27
+
+Published head `ad7ec78a6da7b6c4a2f81d16437b06d7f03aa466` fails the first
+persistence scenario on Windows, Linux and macOS in
+[CI run 40471768042](https://github.com/angelcp2802/solidflow/actions/runs/40471768042).
+The observed failure is the basic-authoring background-menu assertion requiring
+exactly seven standard views. Source inspection identifies the stale expected
+list against the nine-view producer. The original logs do not retain the
+different list, so that code-level diagnosis is distinguished from the observed
+assertion. Build succeeded; later navigation/compact scenarios were not reached.
+This is separate from the preceding head's Windows timeout and Linux pixel
+difference, neither of which was re-exercised at its original failure point.
+
+The initial increment's review missed independent literal inventories in other
+renderer helpers. Four helpers are corrected: background context, assembly
+View-menu prefix, compact selector and live-cut part menu. Exact order, labels,
+shortcut absence, roles, guards, retained draft and focus traversal remain
+required. The live-cut indices shift by two rather than removing unavailable
+command checks. Basic authoring now retains its already observed background
+target/actions before comparing them, so any future mismatch remains reviewable.
+No application code, geometry oracle, deadline, mask or tolerance changes.
+
+**Local Windows coverage acceptance 01: PASS**, with Node 24.11.1,
+Electron 44.9.3 and one 1,209-input snapshot:
+
+| Command | Result | Elapsed |
+| --- | --- | --- |
+| `npm run build` | PASS | 4.164 s |
+| `npm run test:desktop:assembly-basic-authoring` | PASS; 409 checks | 42.552 s |
+| `npm run test:desktop:part-sequence` | PASS; 182 checks | 22.572 s |
+| `npm run test:desktop:assembly-origin-axes` | PASS; 323 checks | 32.471 s |
+| `npm run test:desktop:assembly-configured-origin-axes` | PASS; 325 checks | 22.655 s |
+| `npm run test:desktop:assembly-origin-axis-lock` | PASS; 113 checks | 14.345 s |
+| `npm run test:desktop:assembly-configured-origin-axis-lock` | PASS; 94 checks | 9.910 s |
+| `npm test` | 10,101 tests/445 files; 168 IPC passes, 2 explicit skips | 424.827 s |
+| `npm run test:desktop` | PASS | 1.558 s |
+
+All six renderer reports confirm no console/request errors, child closure and
+isolated-profile cleanup. The basic-authoring report retains all twelve exact
+background commands, including both new presets, plus completed keyboard and
+read-only-context evidence. Production assets are byte-identical to the prior
+accepted view-preset build. Its five navigation reports are retained rather
+than rerun for these test-helper-only changes. Hosted and broader manual/platform
+acceptance remain open. Scoped code-review covers the exact inventory changes;
+performance investigation is separate and introduces no unmeasured optimization.
+
 ## Additional axonometric views and exact Previous diagnostics — 2026-10-27
 
 Dimetric and Trimetric use the shared camera command path in all three
