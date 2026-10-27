@@ -3,11 +3,11 @@
 // Shared, read-only camera acceptance. Input and fresh stationary canvas crops
 // belong to the test-owned transport supplied by the caller, not camera APIs.
 module.exports = async function viewNavigation(context) {
-  const { page, waitFor, check, checks, canonical, snapshot, key, cameraGesture, cameraFrame, rasterComparison, kind } = context;
+  const { page, waitFor, check, checks, canonical, snapshot, key, cameraGesture, cameraFrame, rasterComparison, kind, actualControl } = context;
   let rasterUnavailable = false;
   check(['part', 'standard', 'configured'].includes(kind), 'Known view-navigation workspace');
-  const evidence = { kind, presets: [], gestures: [], previous: [], projectionTolerancePx: .11,
-    limits: 'Actual keys and CDP middle-drag/pan/wheel; fresh central canvas crop only (12–88% width, 20–80% height), excluding bounded visible HTML origin-label text rectangles. Exact remaining pixels prove bounded displayed restoration, not exact seven-view orientation, BRep validity or full-viewport equality. Independent basis tests cover orientation. Optional SVG witnesses are actual projected anchors, never displaced label boxes. No camera state is read or injected.' };
+  const evidence = { kind, presets: [], menuPresets: [], gestures: [], previous: [], projectionTolerancePx: .11,
+    limits: 'Actual keys, View-menu pointer actions and CDP middle-drag/pan/wheel; fresh central canvas crop only (12–88% width, 20–80% height), excluding bounded visible HTML origin-label text rectangles. Exact remaining pixels prove bounded displayed restoration, not exact preset orientation, BRep validity or full-viewport equality. Independent basis tests cover orientation. The orientation selector inventory is observed, not selected by this route. Optional SVG witnesses are actual projected anchors, never displaced label boxes. No camera state is read or injected.' };
   checks.push({ viewNavigation: evidence });
   const before = await snapshot();
   check(before.native && Array.isArray(before.native.builds) && Array.isArray(before.native.assemblies)
@@ -77,6 +77,29 @@ module.exports = async function viewNavigation(context) {
     check(actual.width === expected.width && actual.height === expected.height && actual.sha256 !== expected.sha256,
       label + ': actual rendered scene changes at unchanged canvas dimensions');
   }
+  async function menuPreset(name, label) {
+    check(typeof actualControl === 'function', 'Additional presets require the original actual pointer transport');
+    await actualControl('button[data-assembly-menu="view"]', 'Ver');
+    const menu = await waitFor('View-menu popup belongs to its current trigger: ' + name, async () => {
+      const value = await page(label => {
+        const triggers = document.querySelectorAll('button[data-assembly-menu="view"]'), menus = document.querySelectorAll('[role="menu"]');
+        const trigger = triggers[0], popup = menus[0];
+        const rows = [...(popup?.querySelectorAll('button[role="menuitem"]') ?? [])].filter(row => row.textContent.trim() === label);
+        const row = rows[0];
+        return { triggerCount: triggers.length, menuCount: menus.length, expanded: trigger?.getAttribute('aria-expanded') === 'true',
+          owned: !!trigger && popup?.getAttribute('aria-labelledby') === trigger.id, count: rows.length,
+          enabled: !!row && !row.disabled, shortcut: !!row?.querySelector('.assembly-menu-shortcut'),
+          command: row?.getAttribute('data-assembly-command') ?? null };
+      }, label);
+      return value.triggerCount === 1 && value.menuCount === 1 && value.expanded && value.owned ? value : false;
+    });
+    check(menu.triggerCount === 1 && menu.menuCount === 1 && menu.expanded && menu.owned && menu.count === 1
+      && menu.enabled && !menu.shortcut && typeof menu.command === 'string' && menu.command.length > 0,
+      'One current enabled View-menu command without an invented shortcut: ' + name);
+    await actualControl('[role="menu"] button[role="menuitem"]', label);
+    await waitFor('View-menu command closes its popup: ' + name, () => page(() => !document.querySelector('[role="menu"]')));
+    return { name, label, command: menu.command, transport: 'actual View-menu pointer actions' };
+  }
   try {
     await key('7');
     const iso = await frame('initial isometric');
@@ -140,6 +163,35 @@ module.exports = async function viewNavigation(context) {
     }
     await key('7'); same(await frame('final isometric'), iso, 'Final isometric');
     await unchanged('Completed camera browsing');
+    const orientation = await page(() => {
+      const selectors = document.querySelectorAll('select[aria-label="Orientación de vista"]'), select = selectors[0];
+      return { count: selectors.length, enabled: !!select && !select.disabled,
+        visible: !!select?.checkVisibility() && select.getClientRects().length > 0, value: select?.value,
+        options: [...(select?.options ?? [])].map(option => ({ value: option.value, label: option.textContent.trim(), disabled: option.disabled })) };
+    });
+    check(orientation.count === 1 && orientation.enabled && orientation.visible && orientation.value === ''
+      && canonical(orientation.options.map(option => option.value)) === canonical(['', 'front', 'back', 'left', 'right', 'top', 'bottom', 'iso', 'dimetric', 'trimetric', 'normal'])
+      && [['dimetric', 'Dimétrica'], ['trimetric', 'Trimétrica']].every(([name, label]) => orientation.options.some(option => option.value === name && option.label === label && !option.disabled)),
+      'Shared orientation selector exposes both additional presets without shortcuts and leaves Normal To last');
+    evidence.orientation = orientation;
+    let previousMenuFrame = iso;
+    for (const [name, label] of [['dimetric', 'Dimétrica'], ['trimetric', 'Trimétrica']]) {
+      const input = await menuPreset(name, label), current = await frame('menu preset ' + name);
+      changed(current, iso, 'Menu preset ' + name + ' differs from isometric');
+      if (name === 'trimetric') changed(current, previousMenuFrame, 'Trimetric differs from dimetric');
+      await unchanged('Menu preset ' + name);
+      const repeatedInput = await menuPreset(name, label), repeated = await frame('repeated menu preset ' + name);
+      same(repeated, current, 'Repeated menu preset ' + name);
+      await unchanged('Repeated menu preset ' + name);
+      evidence.menuPresets.push({ ...input, frame: current, repeatedInput, repeated });
+      previousMenuFrame = current;
+    }
+    for (const [name, expected] of [['dimetric', evidence.menuPresets[0].frame], ['isometric', iso]]) {
+      await key('ShiftZ'); const restored = await frame('previous menu preset ' + name);
+      same(restored, expected, 'Previous bypasses repeated menu preset and returns ' + name);
+      await unchanged('Previous menu preset ' + name);
+      evidence.previous.push({ expectedPreset: name, frame: restored });
+    }
     evidence.completed = true;
   } finally {
     // Diagnostics must never replace the original assertion or retain crops

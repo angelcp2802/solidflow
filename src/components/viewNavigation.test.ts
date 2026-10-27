@@ -95,7 +95,7 @@ describe('camera view commands and session history', () => {
       expect(f.history.canPrevious).toBe(false)
     } finally { f.dispose() }
   })
-  it.each(['top', 'bottom'] as const)('uses the %s up basis for real horizontal middle orbit and pan', name => {
+  it.each(['top', 'bottom', 'dimetric', 'trimetric'] as const)('uses the %s up basis for real horizontal middle orbit and pan', name => {
     const f = fixture()
     try {
       f.request(name); const before = f.read(), direction = f.direction()
@@ -108,6 +108,66 @@ describe('camera view commands and session history', () => {
       f.request('previous'); expect(f.read()).toEqual(before)
       f.wheel(); expect(f.camera.zoom).toBeGreaterThan(1); expect(f.direction().distanceTo(direction)).toBeLessThan(1e-12)
       f.request('previous'); expect(f.read()).toEqual(before)
+    } finally { f.dispose() }
+  })
+  it.each([
+    {
+      name: 'dimetric' as const,
+      right: [0.9354143467241411, 0, -0.35355339051216605],
+      up: [-0.11785113014268137, 0.942809041610104, -0.31180478216719176],
+      depth: [0.33333333326677816, 0.33333333325402237, 0.8819171037433291],
+    },
+    {
+      name: 'trimetric' as const,
+      right: [0.8844181216774213, 0, -0.4666953889300622],
+      up: [-0.24036589468392133, 0.8571673007021341, -0.4555090068042732],
+      depth: [0.400036026779314, 0.5150380749100181, 0.7580942940502868],
+    },
+  ])('projects an asymmetric box in %s through an independent literal screen basis', ({ name, right, up, depth }) => {
+    const f = fixture()
+    // Literal world-to-screen bases are independent of the preset catalog and
+    // camera helpers. A 10 by 6 by 4 box exposes axis swaps, signs and roll.
+    const corners = [[0, 0, 0], [10, 0, 0], [0, 6, 0], [0, 0, 4], [10, 6, 0], [10, 0, 4], [0, 6, 4], [10, 6, 4]]
+    const dot = (a: number[], b: number[]) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+    const checkBasis = () => {
+      expect(f.direction().distanceTo(new Vector3(...depth))).toBeLessThan(1e-12)
+      expect(f.camera.up.toArray()).toEqual([0, 1, 0])
+      for (const corner of corners) {
+        const projected = new Vector3(corner[0] + 3, corner[1] + 4, corner[2] + 5).project(f.camera)
+        expect(projected.x).toBeCloseTo(dot(corner, right) / 12, 12)
+        expect(projected.y).toBeCloseTo(dot(corner, up) / 12, 12)
+        expect(projected.z).toBeCloseTo((2 * (60 - dot(corner, depth)) - (1000 + .01)) / (1000 - .01), 12)
+      }
+    }
+    try {
+      f.request(name); checkBasis()
+      const pose = f.read(), historyDepth = f.history.depth
+      f.forcedUpdate(300); checkBasis(); expect(f.read()).toEqual(pose)
+      f.request(name); expect(f.read()).toEqual(pose); expect(f.history.depth).toBe(historyDepth)
+      f.named(pose); expect(f.history.depth).toBe(historyDepth)
+      f.request('front'); f.request('previous'); expect(f.read()).toEqual(pose)
+      f.wheel(); const zoomed = f.read(); expect(zoomed.zoom).toBeGreaterThan(1)
+      f.request('fit'); checkBasis()
+      f.request('previous'); expect(f.read()).toEqual(zoomed)
+    } finally { f.dispose() }
+  })
+  it('distinguishes two equal dimetric axis scales from three different trimetric scales', () => {
+    const f = fixture()
+    const lengths = () => {
+      const origin = new Vector3(3, 4, 5).project(f.camera)
+      return [new Vector3(4, 4, 5), new Vector3(3, 5, 5), new Vector3(3, 4, 6)].map(point => {
+        point.project(f.camera); return 12 * Math.hypot(point.x - origin.x, point.y - origin.y)
+      })
+    }
+    try {
+      f.request('dimetric'); const dimetric = lengths()
+      expect(dimetric[0]).toBeCloseTo(Math.sqrt(8) / 3, 9)
+      expect(dimetric[1]).toBeCloseTo(dimetric[0], 10)
+      expect(dimetric[2]).toBeCloseTo(Math.sqrt(2) / 3, 9)
+      f.request('trimetric'); const trimetric = lengths()
+      expect(trimetric[0]).toBeGreaterThan(trimetric[1] + .05)
+      expect(trimetric[1]).toBeGreaterThan(trimetric[2] + .05)
+      expect(trimetric[2]).toBeGreaterThan(0)
     } finally { f.dispose() }
   })
   it.each(['orbit', 'pan', 'wheel'] as const)('records one %s gesture and restores target, zoom, orientation and crop across a preset', gesture => {
@@ -518,7 +578,8 @@ describe('shared view key mapping', () => {
     expect(viewShortcutCommand(key('8', { ctrlKey: false, metaKey: true }), false)).toBe('normal')
     expect(viewShortcutCommand(key('8'), true)).toBeNull()
     expect(viewShortcutCommand(key('8', { shiftKey: true }), false)).toBeNull()
-    expect(standardViews.map(view => view.shortcut)).toEqual(['Ctrl+1', 'Ctrl+2', 'Ctrl+3', 'Ctrl+4', 'Ctrl+5', 'Ctrl+6', 'Ctrl+7'])
+    expect(standardViews.filter(view => view.shortcut).map(view => view.shortcut)).toEqual(['Ctrl+1', 'Ctrl+2', 'Ctrl+3', 'Ctrl+4', 'Ctrl+5', 'Ctrl+6', 'Ctrl+7'])
+    expect(viewShortcutCommand(key('9'), false)).toBeNull()
   })
   it('leaves text, composition, modal-owned events and extra modifiers alone', () => {
     expect(viewShortcutCommand(key('1'), true)).toBeNull()

@@ -4234,6 +4234,8 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                         bottom: "Inferior",
                         left: "Izquierda",
                         right: "Derecha",
+                        dimetric: "Dimétrica",
+                        trimetric: "Trimétrica",
                         normal: "Normal a",
                         named: "Vista guardada",
                       }[view.name]}

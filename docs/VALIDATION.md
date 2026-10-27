@@ -1,5 +1,75 @@
 # Validation
 
+## Additional axonometric views and exact Previous diagnostics — 2026-10-27
+
+Dimetric and Trimetric use the shared camera command path in all three
+workspaces, including the standard assembly background menu. They add no
+keyboard shortcut or document field. The orientation selector keeps Normal To
+last and displays no empty shortcut suffix. Existing cardinal/isometric
+definitions and camera/document history separation are preserved.
+
+Read-only orientation measurements on one original asymmetric part supplied
+the new direction constants; they do not establish menu execution, fitted
+framing, animation or broad interface equivalence in another application.
+Independent literal screen bases project all eight corners of a 10 x 6 x 4
+box, with 12-decimal projection assertions. Unit tests also cover projected
+axis-scale categories, Fit after zoom, repeat/no-op history, named-view reuse,
+Previous and actual installed controls with middle orbit/pan/wheel. The focused
+source run passes 193 tests in four files. The camera-input node file passes
+30 tests, including synthetic one-byte failures and original-error retention.
+
+The shared renderer route appends six stationary frames: actual View-menu
+selection and repetition of each new preset, then Previous to Dimetric and
+Isometric. It preserves observed worker/document/history/file authority and
+retains exact pixels outside the existing bounded text masks and original
+anchor tolerances. The selector's inventory is observed; native selection of
+its new options is not exercised by this route. This does not validate all
+menus, all nine native orientations or full-viewport equality.
+
+The named-view diagnostic now owns the moved image separately from the saved
+view, so a Previous mismatch compares the correct existing captures. Tests
+reject stale/copied/mutated owners, verify saved/moved independence, enforce
+limits and cleanup, and preserve the original failure if diagnostics fail.
+At most two baselines plus the latest capture are retained, each capped at
+2 million pixels; the existing 128 KiB diagnostic-output limit remains.
+No extra input, capture, evaluation, poll, mask or tolerance is introduced.
+
+**Local Windows acceptance 01: PASS**, using Node 24.11.1 and
+Electron 44.9.3 against one frozen 1,209-input source/runtime snapshot:
+
+| Command | Result | Elapsed |
+| --- | --- | --- |
+| `npm run build` | PASS | 4.196 s |
+| `npm run test:desktop:assembly-shortcuts` | PASS; 389 checks | 66.688 s |
+| `npm run test:desktop:assembly-configured-shortcuts` | PASS; 404 checks | 62.938 s |
+| `npm run test:desktop:part-from-empty` | PASS; 222 checks | 50.465 s |
+| `npm run test:desktop:assembly-shortcuts-compact` | PASS; 390 checks | 66.103 s |
+| `npm run test:desktop:assembly-configured-shortcuts-compact` | PASS; 405 checks | 62.853 s |
+| `npm test` | 10,101 tests/445 files; 168 IPC passes, 2 explicit skips | 476.982 s |
+| `npm run test:desktop` | PASS | 1.566 s |
+
+All five renderer reports confirm no console/request errors,
+completed named-view/navigation checks, child closure and isolated-profile
+cleanup. These are local Windows results; hosted and broader installed/manual
+acceptance remain open. Relevant skills are frontend-design, client-side React
+guidance, code-review and binary/runtime investigation for the measurements.
+No new dependency, IPC authority or document parser is introduced.
+
+Published parent `1489bb83000e8f4143ea494aec166782d96083fb` completed
+[CI run 40466663248](https://github.com/angelcp2802/solidflow/actions/runs/40466663248)
+with ten passing renderer/configured-authoring jobs and two failed persistence
+jobs. Linux failed a different Previous assertion during the first named-view
+orbit: hashes differ despite matching dimensions, masks, selection and anchors;
+that pair's differing pixels were not retained. It cannot be identified with
+the preceding head's two-pixel mismatch. Windows exhausted the cumulative
+170-second assembly deadline at gear winding preview/Apply. The outstanding
+motion request had run about 1.24 seconds without a worker error; the evidence
+does not prove a stalled or geometrically invalid motion. Its earlier compact
+routes passed according to mandatory workflow ordering, though their individual
+reports are outside the bounded retrieved log. macOS persistence passed this
+run. All three Desktop jobs stopped at the renderer prerequisite before their
+install/build/test/startup/package steps. Both hosted failures remain open.
+
 ## Camera selection and compact named views — 2026-10-27
 
 Hosted head `59cee90ed6f0240463f951569e059004f048020a` completed

@@ -1,5 +1,37 @@
 # Development guide
 
+## Dimetric/trimetric commands and named-view diagnostics — 2026-10-27
+
+The shared orientation catalog includes Dimetric and Trimetric in the Part,
+standard assembly and configured assembly selectors and View menus. Both use
+the existing Fit/Previous/session-history path and have no keyboard shortcut;
+Ctrl+1 through Ctrl+7 and Ctrl+8 retain their existing commands. Normal To stays
+last in the selector. The standard assembly background menu derives the same
+catalog. No new document field or serialized preset name is introduced.
+
+The new fixed directions use positive X/Y/Z and project world Y as screen-up,
+retaining the ordinary Y orbit axis. Independent literal screen bases project
+all corners of an original 10 x 6 x 4 box; category checks distinguish two equal
+dimetric axis scales from three distinct trimetric scales. Keep exact camera
+history, gesture ownership, workspace guards and named-view validation intact.
+
+The shared renderer route appends actual View-menu selection and repetition of
+both presets, followed by Previous returning to Dimetric and then Isometric.
+Each step preserves observed worker/document/file/history authority. Selector
+inventory is observed separately; this route does not select its new native
+options. Existing exact crop comparisons, bounded text masks, projected-anchor
+tolerance and operation deadlines remain unchanged.
+
+Named-view diagnostics retain an additional, independently owned moved-image
+baseline for the moved-to-Previous comparison. The exact accepted capture
+object selects that baseline; a copy, stale object or different saved baseline
+is rejected. Recall continues to compare against the saved-view baseline.
+At most two baselines and the latest capture are retained, each capped at
+2 million pixels. The moved baseline is released after each gesture and all
+captures are released in finally. Failure-only pixel evidence keeps its
+128 KiB limit. This adds no capture, input, evaluation or poll and must never
+replace the original assertion. It is diagnostic evidence, not a rendering fix.
+
 ## Selection during camera navigation — 2026-10-27
 
 Projected origin labels are camera-dependent: an axis endpoint outside the

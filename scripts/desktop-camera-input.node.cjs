@@ -171,6 +171,51 @@ test('only the latest exact capture object can be retained or compared, without 
   f.rasterComparison.clear();
 });
 
+test('moved comparison owns a separate exact baseline and releases it without changing saved-view evidence',async()=>{
+  const savedBytes=Buffer.alloc(8*8*4,127),f=fixture({rasterComparison:true,size:{width:8,height:8},raw:savedBytes});
+  const saved=await f.cameraFrame();f.rasterComparison.retainBaseline(saved);
+  const movedBytes=Buffer.from(savedBytes);movedBytes[104]=9;
+  f.setCapture(movedBytes);const moved=await f.cameraFrame();f.rasterComparison.retainMovedBaseline(moved);
+  const previousBytes=Buffer.from(movedBytes);previousBytes[104]=10;
+  f.setCapture(previousBytes);const previous=await f.cameraFrame();
+  assert.throws(()=>f.rasterComparison.compare(previous,{...moved}),/exact retained baseline/);
+  assert.throws(()=>f.rasterComparison.compare(previous,saved),/exact retained baseline/);
+  assert.throws(()=>f.rasterComparison.compare({...previous},moved),/capture object/);
+  const report=f.rasterComparison.compare(previous,moved);
+  assert.equal(report.expected.sha256,moved.sha256);assert.equal(report.actual.sha256,previous.sha256);
+  assert.deepEqual(report.unmasked.bbox,{x:2,y:3,right:3,bottom:4});
+  assert.equal(report.unmasked.changedPixels,1);assert.equal(report.unmasked.maxByteDelta,1);
+  assert.deepEqual(report.pixelEvidence.pixels.map(p=>[p.x,p.y,p.comparisonBefore,p.comparisonAfter]),[[2,3,[9,127,127,127],[10,127,127,127]]]);
+  assert.equal(f.rasterComparison.compare(previous).expected.sha256,saved.sha256);
+  assert.equal(f.rasterComparison.compare(previous).unmasked.maxByteDelta,117);
+  f.rasterComparison.clearMovedBaseline();
+  assert.throws(()=>f.rasterComparison.compare(previous,moved),/exact retained baseline/);
+  f.setCapture(Buffer.from(savedBytes));const recalled=await f.cameraFrame();
+  assert.equal(f.rasterComparison.compare(recalled).unmasked.changedPixels,0);
+  assert.equal(f.captures.length,4);assert.equal(f.scripts.length,8);assert.deepEqual(f.sent,[]);
+  f.rasterComparison.clear();
+});
+
+test('moved retention replaces only its single owner and rejects stale, mutated, oversized or cleared captures',async()=>{
+  const f=fixture({rasterComparison:true,size:{width:8,height:8}}),first=await f.cameraFrame();
+  f.rasterComparison.retainMovedBaseline(first);
+  const second=await f.cameraFrame();
+  assert.throws(()=>f.rasterComparison.retainMovedBaseline(first),/capture object/);
+  assert.throws(()=>f.rasterComparison.retainMovedBaseline({...second}),/capture object/);
+  f.rasterComparison.retainMovedBaseline(second);const third=await f.cameraFrame();
+  assert.throws(()=>f.rasterComparison.compare(third,first),/exact retained baseline/);
+  assert.equal(f.rasterComparison.compare(third,second).unmasked.changedPixels,0);
+  second.sha256='0'.repeat(64);assert.throws(()=>f.rasterComparison.compare(third,second),/unchanged/);
+  f.rasterComparison.clear();
+  const fourth=await f.cameraFrame();assert.throws(()=>f.rasterComparison.compare(fourth,second),/exact retained baseline/);
+  f.rasterComparison.retainMovedBaseline(fourth);
+  f.setCapture(Buffer.alloc(9*8*4,127),{width:9,height:8});const resized=await f.cameraFrame();
+  assert.throws(()=>f.rasterComparison.compare(resized,fourth),/equal bitmap dimensions/);
+  f.setCapture(Buffer.alloc(2001*1000*4,127),{width:2001,height:1000});const large=await f.cameraFrame();
+  assert.throws(()=>f.rasterComparison.retainMovedBaseline(large),/pixel limit/);
+  f.rasterComparison.clear();
+});
+
 test('retention is capped at two million pixels without changing larger capture results',async()=>{
   const f=fixture({rasterComparison:true,size:{width:2000,height:1000}});
   f.rasterComparison.retainBaseline(await f.cameraFrame());
@@ -349,14 +394,141 @@ test('diagnostic metadata failure or output budget never changes exact compariso
   }
 });
 
+// Execute the real named-view workflow up to its first completed gesture with
+// synthetic DOM observations and real retained byte buffers. No UI/camera
+// implementation is simulated or claimed; these tests cover diagnostic wiring.
+async function namedDiagnosticFixture(options={}){
+  const f=fixture({rasterComparison:true,size:{width:8,height:8}}),events=[],checks=[],polls=[];
+  const stop=new Error('Stop after the first named-view gesture');
+  let clock=0,active='',typed='',document={version:1,name:'Original'},gestureCount=0,primaryError,compares=0;
+  const module={exports:{}};
+  vm.runInNewContext(readFileSync(require.resolve('./desktop-named-views-flow.cjs'),'utf8'),{module,require,structuredClone,Date:{now:()=>clock}});
+  const raster={
+    retainBaseline(value){events.push('retain-saved:'+active);if(options.savedRetainError)throw Error('saved retention');f.rasterComparison.retainBaseline(value);},
+    retainMovedBaseline(value){events.push('retain-moved:'+active);if(options.retainError)throw Error('moved retention');f.rasterComparison.retainMovedBaseline(value);},
+    compare(value,expected){events.push('compare:'+active);compares++;if(options.compareError)throw Error('comparison');return f.rasterComparison.compare(value,expected);},
+    clearMovedBaseline(){events.push('clear-moved');f.rasterComparison.clearMovedBaseline();if(options.releaseError)throw Error('moved cleanup');},
+    clear(){events.push('clear-all');f.rasterComparison.clear();if(options.clearError)throw Error('cleanup');},
+  };
+  const page=async(fn,...args)=>{
+    const source=fn.toString();events.push('observe:'+source);
+    if(source.includes("localStorage.getItem('solidflow.autosave')"))return JSON.stringify(document);
+    if(source.includes("'selection-mode'"))return {part:[],tree:[],origins:[]};
+    if(source.includes("const layer = document.querySelector('.assembly-origin-labels')"))return [];
+    if(source.includes('return selectors.map'))return [];
+    if(source.includes('One current canvas owns the named-view layout'))return {canvas:{x:100,y:80,width:800,height:500},managerTab:null,configuredPanes:[]};
+    if(source.includes('requestAnimationFrame'))return;
+    if(['button[aria-label="Vistas guardadas"]','dialogs.length === 1','selectionStart === 0','?.value === value',
+      "textContent.includes('duplicado')",'document.querySelectorAll(s).length === 1','!document.querySelector(s)',
+      'e?.options.length === 1'].some(fragment=>source.includes(fragment)))return true;
+    throw Error('Unexpected named-view observation: '+source+' '+JSON.stringify(args));
+  };
+  let error;
+  try{
+    await module.exports({kind:'part',page,checks,canonical:JSON.stringify,digest,ipc:[],dialogCounts:()=>({opens:0,saves:0}),observe:async()=>({workerErrors:[]}),
+      check:(condition,message)=>{if(!condition){primaryError=new Error(message);throw primaryError;}},
+      key:async value=>{events.push('key:'+value);},pointer:async(...args)=>{events.push('pointer:'+JSON.stringify(args));},
+      press:async(selector,name)=>{events.push('press:'+selector+':'+name);if(selector.endsWith('button[type="submit"]')&&!document.namedViews){
+        document={...document,namedViews:[{id:'saved-one',name:typed,view:{position:[1,2,3],target:[0,0,0],up:[0,1,0],top:1,bottom:-1,zoom:1,near:.1,far:100}}]};
+      }},text:async value=>{typed=value;events.push('text:'+value);},
+      cameraGesture:async value=>{events.push('gesture:'+value);if(++gestureCount===5)throw stop;return {kind:value};},
+      rasterComparison:options.optOut?undefined:raster,
+      cameraFrame:async(...args)=>{
+        assert.deepEqual(args,[]);events.push('capture:'+active);
+        const bytes=Buffer.alloc(8*8*4,127);
+        if(active==='initial fixture camera')bytes[0]=1;
+        if(active==='orbit moved'||active==='orbit Previous')bytes[104]=9;
+        if(active==='orbit Previous'&&options.failPrevious)bytes[104]=10;
+        if(active==='orbit recalled'&&options.failRecall)bytes[0]=2;
+        f.setCapture(bytes);return f.cameraFrame();
+      },
+      waitFor:async(label,predicate)=>{
+        const stationary=label.startsWith('stationary named-view crop: ');
+        if(stationary)active=label.slice('stationary named-view crop: '.length);
+        for(let count=1;count<=3;count++){
+          if(stationary)clock+=250;const result=await predicate();
+          if(result){if(stationary){assert.equal(count,3);polls.push(count);events.push('accepted:'+active);}return result;}
+        }
+        throw Error('Unmet named-view observation: '+label);
+      },
+    });
+  }catch(caught){error=caught;}
+  return {f,error,primaryError,stop,events,polls,compares,evidence:checks.find(v=>v.namedViews)?.namedViews};
+}
+
+test('named-view Previous failure compares its accepted moved image instead of the independent saved baseline',async()=>{
+  const f=await namedDiagnosticFixture({failPrevious:true});
+  assert.equal(f.error,f.primaryError);assert.match(f.error.message,/Previous bypasses no-op recall: exact named-view pixels/);
+  const report=f.evidence.rasterComparison,moved=f.evidence.gestures[0].moved;
+  assert.equal(report.expected.sha256,moved.sha256);assert.notEqual(report.expected.sha256,f.evidence.frames.base.sha256);
+  assert.equal(report.unmasked.changedPixels,1);assert.equal(report.unmasked.maxByteDelta,1);
+  assert.deepEqual(report.unmasked.bbox,{x:2,y:3,right:3,bottom:4});
+  const retained=f.events.indexOf('retain-moved:orbit moved');assert.equal(f.events[retained-1],'accepted:orbit moved');
+  assert.ok(f.events[retained+1].startsWith('observe:'));
+  assert.equal(f.compares,1);assert.deepEqual(f.events.slice(-2),['clear-moved','clear-all']);
+  assert.equal(f.polls.length,7);assert.equal(f.f.captures.length,21);assert.equal(f.f.scripts.length,42);
+});
+
+test('moved diagnostic failures preserve the original assertion and cannot poison saved-view comparisons',async()=>{
+  for(const option of ['retainError','compareError','releaseError','clearError']){
+    const f=await namedDiagnosticFixture({failPrevious:true,[option]:true});
+    assert.equal(f.error,f.primaryError);assert.match(f.error.message,/Previous bypasses no-op recall/);
+    assert.equal(f.evidence.rasterComparison.status,['retainError','compareError'].includes(option)?'unavailable':'compared');
+    assert.deepEqual(f.events.slice(-2),['clear-moved','clear-all']);
+  }
+  const saved=await namedDiagnosticFixture({failRecall:true,retainError:true});
+  assert.match(saved.error.message,/Recall after orbit/);assert.equal(saved.evidence.rasterComparison.status,'compared');
+  assert.equal(saved.evidence.rasterComparison.expected.sha256,saved.evidence.frames.base.sha256);
+  const moved=await namedDiagnosticFixture({failPrevious:true,savedRetainError:true});
+  assert.equal(moved.evidence.rasterComparison.status,'compared');
+  assert.equal(moved.evidence.rasterComparison.expected.sha256,moved.evidence.gestures[0].moved.sha256);
+});
+
+test('moved retention adds no polls, captures or inputs and clears on success and absent diagnostics',async()=>{
+  const success=await namedDiagnosticFixture(),without=await namedDiagnosticFixture({optOut:true});
+  assert.equal(success.error,success.stop);assert.equal(without.error,without.stop);
+  assert.equal(success.evidence.gestures[0].restored.sha256,success.evidence.frames.base.sha256);
+  assert.equal(success.evidence.rasterComparison,undefined);assert.equal(without.evidence.rasterComparison,undefined);
+  const inputs=events=>events.filter(e=>!e.startsWith('retain-')&&!e.startsWith('clear-'));
+  assert.deepEqual(inputs(success.events),without.events);assert.deepEqual(success.polls,without.polls);
+  assert.equal(success.f.captures.length,without.f.captures.length);assert.equal(success.f.scripts.length,without.f.scripts.length);
+  assert.equal(success.events.filter(e=>e==='clear-moved').length,2);assert.equal(success.events.at(-1),'clear-all');
+});
+
 // Original synthetic hashes model accepted images, not camera or application
 // state. The real flow runs with a controlled clock and its unchanged polls.
 async function navigationFixture(options={}){
   let clock=0,active='',latest,baseline,compares=0,clears=0,primaryError;
   const events=[],checks=[],polls=[];
+  let menuOpen=false,menuActions=0;
+  const presetNames=new Map([['Dimétrica','dimetric'],['Trimétrica','trimetric']]);
+  const orientationOptions=['','front','back','left','right','top','bottom','iso','dimetric','trimetric','normal'].map(value=>({
+    value,textContent:value==='dimetric'?'Dimétrica':value==='trimetric'?'Trimétrica':value,disabled:value===''}));
+  if(options.normalNotLast)orientationOptions.push(orientationOptions.splice(-2,1)[0]);
+  const selector={disabled:false,value:'',checkVisibility:()=>true,getClientRects:()=>[{}],options:orientationOptions};
+  const trigger={id:'original-view-trigger',getAttribute:name=>name==='aria-expanded'?String(menuOpen):null};
+  const rows=[...presetNames].map(([label,name],index)=>({textContent:label,disabled:options.disabledPreset===name,
+    querySelector:()=>options.inventedShortcut===name?{}:null,
+    getAttribute:attribute=>attribute==='data-assembly-command'?(options.kind==='part'?String(index+7):'view-'+name):null}));
+  const popup={getAttribute:attribute=>attribute==='aria-labelledby'?trigger.id:null,
+    querySelectorAll:selector=>{assert.equal(selector,'button[role="menuitem"]');return rows;}};
+  const document={
+    querySelector:selector=>{
+      if(selector==='.assembly-origin-labels'){events.push('projection:'+active);return null;}
+      assert.equal(selector,'[role="menu"]');return menuOpen?popup:null;
+    },
+    querySelectorAll:query=>{
+      if(query==='select[aria-label="Orientación de vista"]')return [selector];
+      if(query==='button[data-assembly-menu="view"]')return [trigger];
+      assert.equal(query,'[role="menu"]');return menuOpen?[popup]:[];
+    },
+  };
   const module={exports:{}};
   vm.runInNewContext(readFileSync(require.resolve('./desktop-view-navigation-flow.cjs'),'utf8'),{module,Date:{now:()=>clock}});
   const frameHash=label=>{
+    if(label==='previous menu preset isometric')return options.failMenuPrevious?'e':'a';
+    if(label.startsWith('menu preset ')||label.startsWith('repeated menu preset ')||label.startsWith('previous menu preset '))
+      return label.endsWith('dimetric')?'f':options.sameAdditionalPresets?'f':'9';
     if(label.startsWith('preset '))return label.endsWith('7')?'a':label.at(-1);
     if(label==='previous preset 5'&&options.failBeforeWheel)return 'e';
     if(label.startsWith('previous preset '))return label.at(-1);
@@ -374,16 +546,25 @@ async function navigationFixture(options={}){
   };
   let error;
   try {
-    await module.exports({kind:'standard',checks,rasterComparison:options.optOut?undefined:rasterComparison,
+    await module.exports({kind:options.kind??'standard',checks,rasterComparison:options.optOut?undefined:rasterComparison,
       canonical:JSON.stringify,check:(condition,message)=>{if(!condition){primaryError=new Error(message);throw primaryError;}},
-      snapshot:async()=>({native:{builds:[{serial:1,response:{ok:true,value:{bodies:[{}]}}}],assemblies:[],workerErrors:[]}}),
+      snapshot:async()=>({native:{builds:[{serial:1,response:{ok:true,value:{bodies:[{}]}}}],assemblies:[],workerErrors:[]},
+        ...(options.mutateDocument&&menuActions?{document:'changed by a view command'}:{})}),
       key:async combo=>{events.push('key:'+combo);},cameraGesture:async kind=>{events.push('gesture:'+kind);},
-      page:async()=>{events.push('projection:'+active);return [];},
+      actualControl:async(selector,label)=>{
+        events.push('control:'+selector+':'+label);
+        if(selector==='button[data-assembly-menu="view"]'){assert.equal(label,'Ver');assert.equal(menuOpen,false);menuOpen=true;return;}
+        assert.equal(selector,'[role="menu"] button[role="menuitem"]');assert.equal(menuOpen,true);assert.ok(presetNames.has(label));
+        menuActions++;menuOpen=false;
+      },
+      page:async(fn,...args)=>vm.runInNewContext('('+fn.toString()+')(...args)',{document,args}),
       cameraFrame:async(...args)=>{
         assert.deepEqual(args,[]);events.push('capture:'+active);
         latest={width:8,height:8,sha256:frameHash(active).repeat(64),rawSha256:clock.toString(16).padStart(64,'0'),maskedRects:[],unmaskedPixelCount:64};return latest;
       },
       waitFor:async(label,predicate)=>{
+        if(label.startsWith('View-menu popup belongs to its current trigger: ')){const result=await predicate();assert.ok(result);return result;}
+        if(label.startsWith('View-menu command closes its popup: ')){const result=await predicate();assert.equal(result,true);return result;}
         active=label.replace('stationary rendered camera crop: ','');
         for(let count=1;count<=3;count++){
           clock+=250;const result=await predicate();
@@ -421,7 +602,7 @@ test('diagnostic retention, comparison or cleanup failures never replace the ori
   assert.equal(early.events.some(value=>value.startsWith('retain:')),false);
 });
 
-test('successful and opted-out navigation keep the original polls, captures and report without diff statistics',async()=>{
+test('successful and opted-out navigation share the same polls, captures and report without diff statistics',async()=>{
   const success=await navigationFixture(),without=await navigationFixture({optOut:true});
   assert.equal(success.error,undefined);assert.equal(without.error,undefined);
   assert.equal(success.compares,0);assert.equal(success.clears,1);assert.equal(without.clears,0);
@@ -429,4 +610,38 @@ test('successful and opted-out navigation keep the original polls, captures and 
   assert.equal(success.evidence.completed,true);assert.equal(without.evidence.completed,true);
   const inputs=events=>events.filter(value=>!value.startsWith('retain:')&&value!=='clear');
   assert.deepEqual(inputs(success.events),without.events);assert.deepEqual(success.polls,without.polls);
+});
+
+test('view preset menus exercise both orientations and no-op history in each workspace through actualControl',async()=>{
+  for(const kind of ['part','standard','configured']){
+    const f=await navigationFixture({kind});assert.equal(f.error,undefined);assert.equal(f.evidence.completed,true);
+    assert.deepEqual(f.events.filter(value=>value.startsWith('control:')),[
+      'control:button[data-assembly-menu="view"]:Ver','control:[role="menu"] button[role="menuitem"]:Dimétrica',
+      'control:button[data-assembly-menu="view"]:Ver','control:[role="menu"] button[role="menuitem"]:Dimétrica',
+      'control:button[data-assembly-menu="view"]:Ver','control:[role="menu"] button[role="menuitem"]:Trimétrica',
+      'control:button[data-assembly-menu="view"]:Ver','control:[role="menu"] button[role="menuitem"]:Trimétrica',
+    ]);
+    assert.deepEqual(JSON.parse(JSON.stringify(f.evidence.menuPresets.map(value=>[value.name,value.command]))),
+      [['dimetric',kind==='part'?'7':'view-dimetric'],['trimetric',kind==='part'?'8':'view-trimetric']]);
+    assert.deepEqual(JSON.parse(JSON.stringify(f.evidence.previous.slice(-2).map(value=>value.expectedPreset))),['dimetric','isometric']);
+    assert.equal(f.evidence.orientation.options.at(-1).value,'normal');
+    assert.equal(f.polls.length,35);assert.ok(f.polls.every(count=>count===3));
+    assert.equal(f.events.filter(value=>value.startsWith('capture:')).length,105);
+    assert.equal(f.events.some(value=>value==='key:9'||value==='key:0'),false);
+  }
+});
+
+test('view preset coverage rejects changed authority, false restoration and invalid controls without losing cleanup',async()=>{
+  for(const [options,message] of [
+    [{normalNotLast:true},/leaves Normal To last/],
+    [{disabledPreset:'dimetric'},/One current enabled View-menu command/],
+    [{inventedShortcut:'trimetric'},/without an invented shortcut/],
+    [{sameAdditionalPresets:true},/Trimetric differs from dimetric/],
+    [{mutateDocument:true},/Menu preset dimetric: exact worker history/],
+    [{failMenuPrevious:true},/Previous bypasses repeated menu preset and returns isometric/],
+  ]){
+    const f=await navigationFixture(options);assert.equal(f.error,f.primaryError);assert.match(f.error.message,message);
+    assert.notEqual(f.evidence.completed,true);assert.equal(f.clears,1);assert.equal(f.events.at(-1),'clear');
+    assert.equal(f.compares,0);
+  }
 });

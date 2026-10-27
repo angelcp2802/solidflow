@@ -11,6 +11,10 @@ export const standardViews = [
   { name: 'top', label: 'Superior', shortcut: 'Ctrl+5', direction: [0, 1, 0], up: [0, 0, -1] },
   { name: 'bottom', label: 'Inferior', shortcut: 'Ctrl+6', direction: [0, -1, 0], up: [0, 0, 1] },
   { name: 'iso', label: 'Isométrica', shortcut: 'Ctrl+7', direction: [1, 1, 1], up: [0, 1, 0] },
+  // Positive-octant axonometric directions. Project world Y into the screen
+  // plane for upright framing while retaining the ordinary Y orbit axis.
+  { name: 'dimetric', label: 'Dimétrica', shortcut: '', direction: [0.33333333326677816, 0.33333333325402237, 0.8819171037433291], up: [0, 1, 0] },
+  { name: 'trimetric', label: 'Trimétrica', shortcut: '', direction: [0.400036026779314, 0.5150380749100181, 0.7580942940502868], up: [0, 1, 0] },
 ] as const
 export type ViewName = typeof standardViews[number]['name'] | 'fit' | 'previous' | 'normal'
 type ViewKey = Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'metaKey' | 'altKey' | 'shiftKey' | 'isComposing' | 'defaultPrevented'>

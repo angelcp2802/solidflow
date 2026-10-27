@@ -10,7 +10,7 @@ export function ViewOrientationControls({ onView, disabled = false, canPrevious,
   return <>
     <select className="view-orientation-select" aria-label="Orientación de vista" title="Vistas estándar" value="" disabled={disabled} onChange={event => onView(event.target.value as ViewName)}>
       <option value="" disabled>Vistas</option>
-      {standardViews.map(view => <option key={view.name} value={view.name}>{view.label} ({view.shortcut})</option>)}
+      {standardViews.map(view => <option key={view.name} value={view.name}>{view.label}{view.shortcut ? ` (${view.shortcut})` : ''}</option>)}
       <option value="normal" disabled={!canNormal}>Normal a (Ctrl+8)</option>
     </select>
     {onNamedViews && <button className="view-named" type="button" aria-label="Vistas guardadas" title="Vistas guardadas…" disabled={!canNamedViews} onClick={onNamedViews}><Bookmark size={17} aria-hidden="true" /><span className="compact-viewport-label">Vistas guardadas</span></button>}

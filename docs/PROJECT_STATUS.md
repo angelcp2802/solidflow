@@ -1,6 +1,35 @@
 # Project status and review queue
 
-## Current review: everyday modeling and interface continuity
+## Latest increment: additional views and restoration diagnostics
+
+Dimetric and Trimetric are available through the existing orientation selector
+and View menu in parts, standard assemblies and configured assemblies. They
+preserve the blue interface, existing shortcuts and camera-only Previous View
+history. Numerical tests project an original asymmetric box through independent
+literal screen bases and exercise Fit, repeated commands and direct gestures.
+
+Five local Windows renderer routes pass: the three workspace types and both
+compact assembly routes. They exercise actual View-menu activation, repeated
+commands and exact Previous restoration without changing observed document,
+worker or file authority. Build, 10,101 tests across 445 files, 168 IPC passes
+with two explicit skips and desktop startup also pass on the same 1,209-input
+snapshot. Executed cases, timings and limits are in [validation](VALIDATION.md).
+
+The latest published parent, `1489bb8`, passed ten renderer/configured-authoring
+jobs but failed persistence on Windows and Linux. Windows exhausted its
+cumulative assembly deadline; Linux reported different restored pixels. The
+new diagnostic retains the exact moved/Previous image pair without relaxing
+acceptance. It does not claim to fix either hosted failure. All Desktop jobs
+were stopped by that prerequisite, before testing or packaging.
+
+[Issue #55](https://github.com/angelcp2802/solidflow/issues/55) remains 16/25:
+the combined view item still includes unfinished editor behavior. Broader
+human use, controls/context/reference editing, assembly cases, materials and
+installed-platform acceptance remain open. Continue in the existing draft
+[PR #49](https://github.com/angelcp2802/solidflow/pull/49); release remains gated
+by [#5](https://github.com/angelcp2802/solidflow/issues/5).
+
+## Earlier review: everyday modeling and interface continuity
 
 Continue in [draft PR #49](https://github.com/angelcp2802/solidflow/pull/49),
 with interaction priorities in [issue #55](https://github.com/angelcp2802/solidflow/issues/55)

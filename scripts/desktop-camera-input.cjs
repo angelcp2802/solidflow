@@ -8,7 +8,9 @@ module.exports = function cameraInput({ getWindow, evaluate, check, digest, allo
   const diagnosticNames = new Set();
   const rasterPixelLimit = 2_000_000;
   const sampleLimit = 16, evidenceByteLimit = 128 * 1024;
-  let baseline = null, latest = null;
+  // At most two independent baselines and the latest crop; each is subject to
+  // the same pixel limit. The moved frame never replaces the saved view.
+  let baseline = null, movedBaseline = null, latest = null;
   function pixelEvidence(before, after, coordinates) {
     // Diagnostic-only: use the two existing captures and observations. No
     // channel-order assumption, image encoding, DOM query or extra screenshot.
@@ -48,9 +50,18 @@ module.exports = function cameraInput({ getWindow, evaluate, check, digest, allo
       check(latest && latest.result === result, 'Raster baseline must be the latest accepted capture object');
       baseline = retainedFrame(latest);
     },
-    compare(result) {
+    retainMovedBaseline(result) {
+      check(latest && latest.result === result, 'Moved raster baseline must be the latest accepted capture object');
+      movedBaseline = retainedFrame(latest);
+    },
+    clearMovedBaseline() { movedBaseline = null; },
+    compare(result, expectedMoved) {
       check(latest && latest.result === result, 'Raster candidate must be the latest accepted capture object');
-      const before = retainedFrame(baseline), after = retainedFrame(latest);
+      // Supplying the original moved capture selects only that exact retained
+      // owner, never a similar object or the unrelated saved-view baseline.
+      if (expectedMoved !== undefined) check(movedBaseline && movedBaseline.result === expectedMoved,
+        'Moved raster comparison requires its exact retained baseline object');
+      const before = retainedFrame(expectedMoved === undefined ? baseline : movedBaseline), after = retainedFrame(latest);
       const { width, height } = before.result;
       check(width === after.result.width && height === after.result.height, 'Raster comparison requires equal bitmap dimensions');
       const statistics = () => ({ changedPixels: 0, maxByteDelta: 0, bbox: null, grid4x4: Array(16).fill(0) });
@@ -96,7 +107,7 @@ module.exports = function cameraInput({ getWindow, evaluate, check, digest, allo
         pixelEvidence: pixelEvidence(before, after, coordinates),
         limits: 'Byte differences from the two retained captures only. Unmasked uses their existing comparison buffers; inside/outside partitions use the union of their existing text masks. Bboxes have exclusive right/bottom bounds; grids are row-major 4 by 4. No new mask or acceptance tolerance.' };
     },
-    clear() { baseline = null; latest = null; },
+    clear() { baseline = null; movedBaseline = null; latest = null; },
   } : undefined;
   const bounds = async () => {
     const window = getWindow();

@@ -44,6 +44,15 @@ describe('assembly keyboard command ownership', () => {
     expect(assemblyShortcutCommand(key('z', { metaKey: true, shiftKey: true }), false)).toBe('view-previous')
   })
 
+  it('keeps axonometric menu commands available without assigning extra keyboard shortcuts', () => {
+    const items = ['view-trimetric', 'view-dimetric'].map(id => ({ id, label: id, onSelect: vi.fn() }))
+    const annotated = withAssemblyShortcutLabels([{ id: 'view', label: 'Ver', items }])[0].items
+    expect(annotated).toEqual(items)
+    expect(annotated.every(item => !item.shortcut)).toBe(true)
+    for (const value of ['', '9', 'd', 't']) expect(assemblyShortcutCommand(key(value, { ctrlKey: true }), false)).toBeNull()
+    expect(assemblyShortcutCommand(key('8', { ctrlKey: true }), false)).toBe('view-normal')
+  })
+
   it('preserves native text undo, redo, camera keys and Escape in editable controls', () => {
     for (const value of ['z', 'y', '1', '5', '7', '8']) expect(assemblyShortcutCommand(key(value, { ctrlKey: true }), true)).toBeNull()
     expect(assemblyShortcutCommand(key('z', { metaKey: true, shiftKey: true }), true)).toBeNull()

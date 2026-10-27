@@ -156,7 +156,7 @@ module.exports = async function namedViews(c) {
     try { accept?.(value); } catch { rasterUnavailable = true; }
     return { ...value, projected: await projection() };
   }
-  function same(actual, expected, label, diagnosticResult) {
+  function same(actual, expected, label, diagnosticResult, movedDiagnostic) {
     try {
       check(actual.width === expected.width && actual.height === expected.height && actual.sha256 === expected.sha256,
         label + ': exact named-view pixels ' + canonical({ actual, expected }));
@@ -168,7 +168,11 @@ module.exports = async function namedViews(c) {
       }), label + ': same selected origin anchors within0.11CSSpx');
     } catch (error) {
       if (diagnosticResult && rasterComparison) {
-        try { evidence.rasterComparison = rasterUnavailable ? { status: 'unavailable' } : rasterComparison.compare(diagnosticResult); }
+        try {
+          const unavailable = movedDiagnostic ? movedDiagnostic.unavailable : rasterUnavailable;
+          evidence.rasterComparison = unavailable ? { status: 'unavailable' }
+            : rasterComparison.compare(diagnosticResult, movedDiagnostic?.baseline);
+        }
         catch { evidence.rasterComparison = { status: 'unavailable' }; }
       }
       throw error;
@@ -248,18 +252,26 @@ module.exports = async function namedViews(c) {
     same(await frame('after modal cancellation'), base, 'Cancel preserves the camera');
     await unchanged(doc, 'Cancel preserves committed first view');
     for (const gesture of ['orbit', 'pan', 'wheel-in']) {
-      await cameraGesture(gesture); const moved = await frame(gesture + ' moved'); different(moved, base, gesture);
-      const gestureEvidence = { gesture, moved }; evidence.gestures.push(gestureEvidence);
-      await unchanged(doc, gesture + ' leaves the saved camera detached');
-      await show(); let result;
-      const recalled = await frame(gesture + ' recalled', value => { result = value; });
-      same(recalled, base, 'Recall after ' + gesture, result);
-      await show(); same(await frame(gesture + ' no-op recall'), base, 'Repeated recall is stationary');
-      await command('ShiftZ'); const previous = await frame(gesture + ' Previous'); same(previous, moved, 'Previous bypasses no-op recall');
-      await show(); const restored = await frame(gesture + ' final recall', value => { result = value; });
-      same(restored, base, 'Final recall after ' + gesture, result);
-      await unchanged(doc, gesture + ' recall/Previous has no document authority');
-      Object.assign(gestureEvidence, { recalled, previous, restored });
+      const movedDiagnostic = { baseline: null, unavailable: false };
+      try {
+        await cameraGesture(gesture); const moved = await frame(gesture + ' moved', value => {
+          movedDiagnostic.baseline = value;
+          try { rasterComparison?.retainMovedBaseline(value); } catch { movedDiagnostic.unavailable = true; }
+        }); different(moved, base, gesture);
+        const gestureEvidence = { gesture, moved }; evidence.gestures.push(gestureEvidence);
+        await unchanged(doc, gesture + ' leaves the saved camera detached');
+        await show(); let result;
+        const recalled = await frame(gesture + ' recalled', value => { result = value; });
+        same(recalled, base, 'Recall after ' + gesture, result);
+        await show(); same(await frame(gesture + ' no-op recall'), base, 'Repeated recall is stationary');
+        await command('ShiftZ'); let previousResult;
+        const previous = await frame(gesture + ' Previous', value => { previousResult = value; });
+        same(previous, moved, 'Previous bypasses no-op recall', previousResult, movedDiagnostic);
+        await show(); const restored = await frame(gesture + ' final recall', value => { result = value; });
+        same(restored, base, 'Final recall after ' + gesture, result);
+        await unchanged(doc, gesture + ' recall/Previous has no document authority');
+        Object.assign(gestureEvidence, { recalled, previous, restored });
+      } finally { try { rasterComparison?.clearMovedBaseline(); } catch { /* Preserve the original workflow failure. */ } }
     }
     await cameraGesture('pan'); const secondFrame = await frame('second saved pose'); different(secondFrame, base, 'Second original saved pose');
     await open(); const two = await saveView('Temporary view', 2), second = structuredClone(two.namedViews[1]);

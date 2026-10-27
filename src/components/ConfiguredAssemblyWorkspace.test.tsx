@@ -222,7 +222,9 @@ it('keeps configured viewport commands inside the canvas with their exact access
   expect(nav!.index).toBeGreaterThan(view)
   const orientation = nav![1].match(/<select\b[^>]*aria-label="Orientación de vista"[^>]*>([\s\S]*?)<\/select>/)
   expect(orientation).not.toBeNull()
-  expect([...orientation![1].matchAll(/<option value="([^"]+)"/g)].map(value => value[1])).toEqual(['front', 'back', 'left', 'right', 'top', 'bottom', 'iso', 'normal'])
+  expect([...orientation![1].matchAll(/<option value="([^"]+)"/g)].map(value => value[1])).toEqual(['front', 'back', 'left', 'right', 'top', 'bottom', 'iso', 'dimetric', 'trimetric', 'normal'])
+  expect(orientation![1]).toContain('<option value="dimetric">Dimétrica</option>')
+  expect(orientation![1]).toContain('<option value="trimetric">Trimétrica</option>')
   expect(nav![1]).toMatch(/<button(?=[^>]*aria-label="Vista anterior")(?=[^>]*disabled="")[^>]*>/)
   const buttons = nav![1].match(/<button\b[^>]*>[\s\S]*?<\/button>/g) ?? []
   expect(buttons.map(button => {
