@@ -19,7 +19,7 @@ module.exports = async function namedViews(c) {
   check(!Object.hasOwn(original, 'namedViews'), 'Original fixture starts without a document view catalog');
   check(!native.workerErrors.length, 'Named views start from healthy native history');
   const evidence = { kind, catalog: [], gestures: [], frames: {}, completed: false,
-    limits: 'Real pointer, physical keys and fixed native text. Camera declarations come from committed recovery, never camera/React APIs. Existing central crop and bounded origin-text masks compare every remaining pixel exactly; visible origin selection and projected anchors are retained. Two distinct saved poses use the actual list and Home/End selection. Original fixture geometry is rechecked by the caller after native reopen. No full-viewport, external-window or platform claim.' };
+    limits: 'Real pointer, physical keys and fixed native text. Camera declarations come from committed recovery, never camera/React APIs. Part/tree selection is retained; currently projected labels retain their selected state. Labels may leave the viewport while navigating. Recalled views retain exact central-crop pixels outside the existing bounded text masks and original projected anchors. Two distinct saved poses use the actual list and Home/End selection. Original fixture geometry is rechecked by the caller after native reopen. No full-viewport, external-window or platform claim.' };
   checks.push({ namedViews: evidence });
   const projection = () => page(() => {
     const layer = document.querySelector('.assembly-origin-labels');
@@ -62,6 +62,15 @@ module.exports = async function namedViews(c) {
       && canonical({ ipc, dialogs: dialogCounts() }) === canonical(files), 'Idle tree datum selection preserves document, complete native history and file requests');
   }
   const selected = await selection();
+  const originStates = new Map(selected.origins);
+  check(originStates.size === selected.origins.length, 'Named-view baseline has unique projected reference identities');
+  if (kind === 'standard') check(selected.part === null && selected.tree.length === 0 && originStates.size === 3
+    && ['X', 'Y', 'Z'].every(axis => originStates.get(JSON.stringify(['principal-axis', null, axis])) === false),
+    'Original standard fixture exposes all three unselected root axes before navigation');
+  if (kind === 'configured') check(selected.part === null && canonical(selected.tree) === canonical([configuredDatum.treeKey])
+    && originStates.size === 1 && originStates.get(configuredDatum.originKey) === true,
+    'Original configured fixture owns exactly the selected root X tree row and label');
+  if (kind === 'part') check(selected.tree.length === 0 && originStates.size === 0, 'Original part fixture has no assembly reference selection');
   const visibilitySelectors = kind === 'standard' ? [1, 2].map(i => '#assembly-origin-controls label:nth-of-type(' + i + ') input')
     : kind === 'configured' ? ['Mostrar ejes de origen configurados', 'Mostrar planos de origen configurados'].map(label => 'input[aria-label="' + label + '"]') : [];
   const visibility = () => page((selectors, kind) => {
@@ -120,7 +129,16 @@ module.exports = async function namedViews(c) {
     check(canonical(geometry) === canonical(original), label + ': only the root view catalog may change');
     check(canonical(await observe()) === canonical(native), label + ': complete native history and serial unchanged');
     check(canonical({ ipc, dialogs: dialogCounts() }) === canonical(files), label + ': no file IPC or picker request');
-    check(canonical(await selection()) === canonical(selected), label + ': material and visible origin selection retained');
+    const actualSelection = await selection();
+    // Projection deliberately culls labels outside the viewport. Selection lives
+    // in the part metadata/tree; each label still in view must retain its state.
+    // same() separately requires the exact original labels/anchors on recall.
+    const selectionRetained = canonical(actualSelection.part) === canonical(selected.part)
+      && canonical(actualSelection.tree) === canonical(selected.tree)
+      && new Set(actualSelection.origins.map(([key]) => key)).size === actualSelection.origins.length
+      && actualSelection.origins.every(([key, active]) => originStates.has(key) && originStates.get(key) === active);
+    if (!selectionRetained) evidence.selectionMismatch = { label, expected: selected, actual: actualSelection };
+    check(selectionRetained, label + ': part/tree selection and currently projected origin states retained');
     check(canonical(await visibility()) === canonical(visible), label + ': original origin visibility retained');
   }
   async function frame(label, accept) {
@@ -209,6 +227,8 @@ module.exports = async function namedViews(c) {
     for (const gesture of ['orbit', 'pan', 'wheel-in']) evidence.authoredPose.input.push(await cameraGesture(gesture));
     await sameLayout('Authored pose retains the original viewport layout');
     const base = await frame('saved baseline', value => rasterComparison?.retainBaseline(value));
+    check(canonical(base.projected.map(p => [p.key, p.selected])) === canonical(selected.origins),
+      'Saved baseline retains the complete original label inventory for exact recall checks');
     different(base, initial, 'Original orbit/pan/zoom pose differs from the initial fixture view');
     await unchanged(original, 'Authoring the saved camera');
     evidence.frames.base = base;
@@ -229,6 +249,7 @@ module.exports = async function namedViews(c) {
     await unchanged(doc, 'Cancel preserves committed first view');
     for (const gesture of ['orbit', 'pan', 'wheel-in']) {
       await cameraGesture(gesture); const moved = await frame(gesture + ' moved'); different(moved, base, gesture);
+      const gestureEvidence = { gesture, moved }; evidence.gestures.push(gestureEvidence);
       await unchanged(doc, gesture + ' leaves the saved camera detached');
       await show(); let result;
       const recalled = await frame(gesture + ' recalled', value => { result = value; });
@@ -238,7 +259,7 @@ module.exports = async function namedViews(c) {
       await show(); const restored = await frame(gesture + ' final recall', value => { result = value; });
       same(restored, base, 'Final recall after ' + gesture, result);
       await unchanged(doc, gesture + ' recall/Previous has no document authority');
-      evidence.gestures.push({ gesture, moved, recalled, previous, restored });
+      Object.assign(gestureEvidence, { recalled, previous, restored });
     }
     await cameraGesture('pan'); const secondFrame = await frame('second saved pose'); different(secondFrame, base, 'Second original saved pose');
     await open(); const two = await saveView('Temporary view', 2), second = structuredClone(two.namedViews[1]);

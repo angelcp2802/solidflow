@@ -86,6 +86,18 @@ it('projects a label at the actual transformed axis endpoint and filters stale d
   expect(assemblyOriginLabels(camera(), [a], 2, size)).toEqual([])
   expect(pickAssemblyOrigin(camera(), [a], 2, { x: 700, y: 400 }, size)).toBeNull()
 })
+it('omits offscreen endpoint labels while retaining visible-axis picking and reference identity', () => {
+  const entry = display(), view = camera(), before = structuredClone(entry)
+  expect(assemblyOriginLabels(view, [entry], 2, size).map(label => [label.key, label.x, label.y])).toEqual([[entry.key, 700, 500]])
+  // A parallel camera shift places the positive endpoint at x=1100; the axis
+  // still crosses the viewport from x=700 to its clipped right boundary.
+  view.position.x = -4; view.lookAt(-4, 0, 0); view.updateMatrixWorld()
+  expect(assemblyOriginLabels(view, [entry], 2, size)).toEqual([])
+  expect(pickAssemblyOrigin(view, [entry], 2, { x: 950, y: 500 }, size)).toEqual(entry.reference)
+  view.position.x = 0; view.lookAt(0, 0, 0); view.updateMatrixWorld()
+  expect(assemblyOriginLabels(view, [entry], 2, size).map(label => [label.key, label.x, label.y])).toEqual([[entry.key, 700, 500]])
+  expect(entry).toEqual(before)
+})
 it('origin intent cannot coexist with material face, edge or vertex picking', () => {
   expect(assemblyReferencePickMode({ pickingOrigins: true })).toBe('origin')
   for (const other of [{ pickingFaces: true }, { pickingEdges: true }, { pickingVertices: true }])

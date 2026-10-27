@@ -1,5 +1,70 @@
 # Validation
 
+## Camera selection and compact named views — 2026-10-27
+
+Hosted head `59cee90ed6f0240463f951569e059004f048020a` completed
+[CI run 40408939322](https://github.com/angelcp2802/solidflow/actions/runs/40408939322)
+with nine successful validation jobs and three failed persistence jobs. Windows
+failed after a pan in the standard named-view route; macOS failed after orbit
+in the configured route. Linux failed an exact Previous View raster comparison:
+two unmasked pixels differed by at most one byte value, while the retained
+anchors, label rectangles/styles and masks matched. Its cause remains unresolved.
+All three Desktop jobs stopped at the renderer dependency gate before testing
+or packaging; this run establishes no installed-platform acceptance.
+
+A private Windows reproduction requested a 1024 x 681 content area. Its standard
+canvas exactly matched the hosted 722 x 503 canvas at (302,154). The same pan
+failure retained root Y/Z as unselected while X left the projected-label list;
+part/tree selection was unchanged. The configured local case likewise retained
+the selected root X tree row while its label left the viewport after orbit.
+That canvas was 754 x 442, not the hosted macOS 770 x 439; it demonstrates the
+same failure class locally, not macOS validation. Both original assertions
+failed before the correction, and their reports remain retained privately.
+
+The test now separates persistent selection from camera-dependent label
+presence. It rejects unknown/duplicate identities and changed visible selected
+states, requires complete original and saved-baseline label inventories, and
+preserves exact recalled pixels, existing text masks, projected anchors within
+0.11 CSS px, native history and reopened reference context. An independent
+literal-projection regression checks that an offscreen endpoint label can be
+omitted while the visible portion of its axis remains selectable with the same
+reference identity. No production behavior or document format changes.
+
+Two additional compact shortcut scenarios request 1040 x 720 windows and retain
+actual dimensions. Original-size scenarios remain in CI, including the Linux
+case above. No tolerance, mask, deadline or existing scenario has been removed.
+
+**Local Windows acceptance 02: PASS.** Nine commands completed against one
+1,209-input source/runtime snapshot with Node 24.11.1 and Electron 44.9.3.
+
+| Command | Result | Elapsed |
+| --- | --- | --- |
+| `npm run build` | PASS | 5.945 s |
+| `npm run test:desktop:assembly-shortcuts-compact` | PASS; 360 recorded checks | 61.256 s |
+| `npm run test:desktop:assembly-configured-shortcuts-compact` | PASS; 367 recorded checks | 57.037 s |
+| `npm run test:desktop:assembly-shortcuts` | PASS; 359 recorded checks | 59.804 s |
+| `npm run test:desktop:assembly-configured-shortcuts` | PASS; 366 recorded checks | 56.612 s |
+| `npm run test:desktop:part-from-empty` | PASS; 208 recorded checks | 45.585 s |
+| `npm run test:desktop:part-sequence` | PASS; 180 recorded checks | 22.008 s |
+| `npm test` | 10,095 tests in 445 files; 161 IPC passes, 2 explicit skips | 351.297 s |
+| `npm run test:desktop` | PASS | 1.518 s |
+
+The first private controller stopped after seven successful commands because
+it incorrectly required named-view evidence from the part-sequence route.
+That route covers solid sequences, selection/navigation and part-to-assembly;
+the part-from-empty route covers part named views. The controller failure is
+retained. The seven raw command logs and all inputs were verified again before
+running the remaining full suite and smoke test, without repeating passed work.
+
+All six renderer reports contain no console/request errors. The four assembly
+routes and part-from-empty complete named-view acceptance; part-sequence retains
+its independent solid and assembly-transition checks. Existing geometry oracles,
+native history, Save/reopen and exact restored-view comparisons remain intact.
+Code and CI changes received independent code-review and security-review skill
+checks. This is bounded Windows evidence, not a complete application security
+audit. Hosted validation of the correction, the Linux raster cause and broader
+manual prototype/platform acceptance remain open.
+
 ## Document-local named views — 2026-10-26
 
 Part, standard assembly and configured assembly documents support an optional

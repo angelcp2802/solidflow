@@ -221,6 +221,22 @@ jobs:
         if: matrix.batch == 'persistence' && runner.os != 'Linux'
         run: npm run test:desktop:assembly-configured-shortcuts
 
+      - name: Test compact standard assembly shortcuts and named views (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-shortcuts-compact
+
+      - name: Test compact standard assembly shortcuts and named views (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-shortcuts-compact
+
+      - name: Test compact configured assembly shortcuts and named views (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-configured-shortcuts-compact
+
+      - name: Test compact configured assembly shortcuts and named views (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-configured-shortcuts-compact
+
       - name: Test part authoring from an empty document (Linux)
         if: matrix.batch == 'persistence' && runner.os == 'Linux'
         run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:part-from-empty

@@ -1,5 +1,18 @@
 # Public fixture provenance
 
+## Offscreen origin labels and compact navigation — 2026-10-27
+
+The added projection regression uses an original orthographic camera with
+bounds -5 to 5, a 1000 x 1000 viewport and a root X axis of half-extent 2.
+Moving the camera and target together from x=0 to x=-4 moves its positive
+endpoint from screen x=700 to x=1100; returning restores x=700. A literal
+screen point at (950, 500) remains on the visible axis during the shift.
+The reference declaration must remain unchanged throughout.
+
+Both compact shortcut runners reuse the existing original two-prism recipes.
+They add no imported models or new geometry fixtures. Their 1040 x 720 request
+is a test-window size, not evidence of another operating system's rendering.
+
 ## Original named-view declarations and camera witnesses
 
 The named-view model and history tests author empty part, standard assembly and

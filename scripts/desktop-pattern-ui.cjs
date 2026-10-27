@@ -16,6 +16,8 @@ const SCENARIOS = Object.freeze({
     test: 'production-renderer-normal-to-view', caption: 'normal views and camera-only history in parts and assemblies' }),
   'assembly-shortcuts': Object.freeze({ shortcuts: true, originAxes: 'standard', originalRecipe: 'desktop-assembly-origin-axis-lock-original.cjs', entry: 'desktop-assembly-shortcuts.cjs', test: 'production-renderer-assembly-shortcuts', caption: 'standard assembly physical keyboard commands' }),
   'assembly-configured-shortcuts': Object.freeze({ shortcuts: true, originAxes: 'configured', originalRecipe: 'desktop-assembly-origin-axis-lock-original.cjs', entry: 'desktop-assembly-configured-shortcuts.cjs', test: 'production-renderer-configured-shortcuts', caption: 'configured assembly physical keyboard commands' }),
+  'assembly-shortcuts-compact': Object.freeze({ shortcuts: true, compactShortcuts: true, originAxes: 'standard', originalRecipe: 'desktop-assembly-origin-axis-lock-original.cjs', entry: 'desktop-assembly-shortcuts-compact.cjs', test: 'production-renderer-assembly-shortcuts-compact', caption: 'compact standard assembly physical keyboard commands' }),
+  'assembly-configured-shortcuts-compact': Object.freeze({ shortcuts: true, compactShortcuts: true, originAxes: 'configured', originalRecipe: 'desktop-assembly-origin-axis-lock-original.cjs', entry: 'desktop-assembly-configured-shortcuts-compact.cjs', test: 'production-renderer-configured-shortcuts-compact', caption: 'compact configured assembly physical keyboard commands' }),
   'assembly-mate-reference-edit': Object.freeze({ originalRecipe: 'desktop-assembly-mate-reference-edit-original.cjs', entry: 'desktop-assembly-mate-reference-edit.cjs',
     test: 'production-renderer-assembly-mate-reference-edit', caption: 'saved standard mate reference replacement and persistence' }),
   'assembly-basic-authoring': Object.freeze({ originalRecipe: 'desktop-assembly-basic-authoring-original.cjs', entry: 'desktop-assembly-basic-authoring.cjs',
@@ -1519,10 +1521,10 @@ async function runInElectron() {
   check(typeof actualWorkflow === 'function', 'Expected the statically selected test workflow.');
   class HiddenWindow extends electron.BrowserWindow {
     constructor(options) {
-      super({ ...options, ...(normalToView ? { width: 1040, height: 720 } : basicAuthoring || limitDistanceCompact || compactConfiguredPicking || partRevolution || partSequence || partFinishing || partBodyCatalog || activeScenario === SCENARIOS['assembly-origin-axes'] ? { width: 1040, height: 700 } : {}), show: false }); check(!window, 'Unexpected second test application window.'); window = this;
-      if (normalToView || basicAuthoring || limitDistanceCompact || compactConfiguredPicking || partRevolution || partSequence || partFinishing || partBodyCatalog || activeScenario === SCENARIOS['assembly-origin-axes']) {
+      super({ ...options, ...(normalToView || activeScenario.compactShortcuts ? { width: 1040, height: 720 } : basicAuthoring || limitDistanceCompact || compactConfiguredPicking || partRevolution || partSequence || partFinishing || partBodyCatalog || activeScenario === SCENARIOS['assembly-origin-axes'] ? { width: 1040, height: 700 } : {}), show: false }); check(!window, 'Unexpected second test application window.'); window = this;
+      if (normalToView || activeScenario.compactShortcuts || basicAuthoring || limitDistanceCompact || compactConfiguredPicking || partRevolution || partSequence || partFinishing || partBodyCatalog || activeScenario === SCENARIOS['assembly-origin-axes']) {
         check(options.minWidth === 1040 && options.minHeight === 700, 'Compact scenario must use the unchanged production minimum window size.');
-        checks.push({ compactViewport: { requestedWindow: { width: 1040, height: normalToView ? 720 : 700 }, actualBounds: this.getBounds(), actualContentSize: this.getContentSize() } });
+        checks.push({ compactViewport: { requestedWindow: { width: 1040, height: normalToView || activeScenario.compactShortcuts ? 720 : 700 }, actualBounds: this.getBounds(), actualContentSize: this.getContentSize() } });
       }
       const preferences = this.webContents.getLastWebPreferences();
       check(preferences.contextIsolation && !preferences.nodeIntegration && preferences.sandbox && preferences.webSecurity && !preferences.webviewTag,

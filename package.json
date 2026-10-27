@@ -22,6 +22,8 @@
     "test:desktop:part-body-catalog": "node scripts/desktop-part-body-catalog.cjs",
     "test:desktop:assembly-shortcuts": "node scripts/desktop-assembly-shortcuts.cjs",
     "test:desktop:assembly-configured-shortcuts": "node scripts/desktop-assembly-configured-shortcuts.cjs",
+    "test:desktop:assembly-shortcuts-compact": "node scripts/desktop-assembly-shortcuts-compact.cjs",
+    "test:desktop:assembly-configured-shortcuts-compact": "node scripts/desktop-assembly-configured-shortcuts-compact.cjs",
     "test:desktop:assembly-mate-reference-edit": "node scripts/desktop-assembly-mate-reference-edit.cjs",
     "test:desktop:assembly-basic-authoring": "node scripts/desktop-assembly-basic-authoring.cjs",
     "test:desktop:assembly-origin-axes": "node scripts/desktop-assembly-origin-axes.cjs",

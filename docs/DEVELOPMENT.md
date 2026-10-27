@@ -1,5 +1,30 @@
 # Development guide
 
+## Selection during camera navigation — 2026-10-27
+
+Projected origin labels are camera-dependent: an axis endpoint outside the
+viewport has no label, even if part of that axis remains visible and selectable.
+The named-view renderer check compares persistent part/tree selection exactly
+and requires every currently projected label to retain its known selected state.
+Unknown or duplicate label identities fail. Its original fixtures explicitly
+establish all three unselected root axes, or the configured selected root X and
+its tree row, before navigation. The saved baseline must contain that complete
+label inventory, so exact recalled-view comparisons cannot become vacuous.
+
+A clipped label's DOM selected class is unobservable. Configured tree selection
+provides the persistent witness; returning to a saved camera still requires the
+exact original label inventory, projected anchors and existing pixel/mask checks.
+Native reopening separately restores the original selection/visibility through
+the actual controls. Failure diagnostics retain the already observed selection
+and moved frame without adding input, capture, evaluation or waiting.
+
+`test:desktop:assembly-shortcuts-compact` and
+`test:desktop:assembly-configured-shortcuts-compact` request a hidden 1040 x 720
+window and record its actual content dimensions. They reuse the original
+shortcut recipes, ownership/security checks, deadlines and cleanup. CI runs
+them in addition to the existing original-size scenarios; operating-system
+window decorations and available display space can affect actual content size.
+
 ## Document-local named views — 2026-10-26
 
 Part, standard assembly and configured assembly roots may contain an optional
