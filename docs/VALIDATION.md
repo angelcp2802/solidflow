@@ -1,5 +1,74 @@
 # Validation
 
+## Completed right-context gestures — 2026-10-27
+
+The part viewport now requires both context-menu intent and a matching actual
+right-button release before selecting a target or opening a menu. Either event
+order is accepted once. Drag, frame changes and cancellation retain the existing
+guards and four-pixel threshold. There is no timer, saved-format, kernel, IPC,
+dependency or CI-gate change. The keyboard route remains direct and cancels a
+pending pointer context; Escape also revokes it without consuming application
+Escape behavior.
+
+Local Windows x64, Node 24.11.1 / Electron 44.9.3 acceptance uses one snapshot of
+**1,233 non-Markdown source/runtime inputs** and nine production outputs.
+Freeze SHA-256: `457b22f45cc5c48575328001d87fa043789852d2aff102a54cb6eb46f18b4b0a`.
+Each renderer independently matches its eight recorded inputs; the outer freeze
+also includes the SVG. Worker/WASM and Electron main/preload bytes are unchanged.
+
+- `npm run build`: PASS, 4.896 s.
+- `npm run test:desktop:part-fresh-sketch`: PASS, 79 checkpoints, 8.318 s.
+- `npm run test:desktop:part-sequence`: PASS, 183 checkpoints, 21.843 s.
+- `npm run test:desktop:part-body-catalog`: PASS, 43 checkpoints, 5.992 s.
+- `npm run test:desktop:normal-to-view`: PASS, 157 checkpoints, 16.569 s.
+- `npm test`: PASS, 10,263 unit/CAD cases in 456 files, plus 200 IPC passes and
+  two explicit skips; complete command 369.021 s.
+- `npm run test:desktop`: PASS, 2.552 s.
+
+All four renderer reports have zero console/request errors, observed child
+closure and deleted isolated profiles. Optional menu images were disabled in
+these runs; checkpoint counts are specific to these routes. The fresh workflow
+retains the existing independent V960→V1008→V996 material sequence, saved-cut
+V1000 preview/Cancel to V996, planar areas/bounds and literal 12 mm outer edge.
+See [provenance](PROVENANCE.md) for their original formulas and tolerances.
+
+Seventeen new helper cases cover early/late intent, actual release, drag/return,
+4/4.001 px boundary, frame identity, cancellation, wrong/replaced/duplicate input
+and prototype-backed native-style fields. A private adapter of the previous
+event-handler semantics fails 11 of those 17 cases, with six passes; this is a
+semantic negative control, not native event-delivery evidence.
+
+The passive original-case trace preserves the exact four pointer calls and
+12-pixel drag, with no intermediate evaluations or waits. Legacy and candidate
+Windows traces both deliver `pointerdown → pointermove → pointerup → contextmenu`,
+all trusted and on the original canvas; both finish with no popup/selection.
+Their adapter calls and compared non-timing input/target fields match. The new Escape-midpress case
+also passes on the legacy Windows build: this is additional coverage, not a
+reproduced Escape regression. Observer records are bounded and fully removed.
+
+Two earlier unsuccessful expectations are retained: the first observer wrongly
+required one canvas, overlooking the orientation triad; the corrected guard
+identifies the unique non-image WebGL canvas. A later controller wrongly expected
+the legacy Escape case to fail; its real complete workflow succeeds and is
+recorded as such. Neither result weakens the interaction or geometric oracle.
+
+Applied frontend-design, vercel-react-best-practices, code-simplifier, code-review
+and security-review, with delegated read-only review. No high-confidence security
+finding was identified in the scoped diff; this is not a full application audit.
+REA's installed 6.3 process-capture adapter rejects capture on Windows because it
+cannot verify descendant-process cleanup, so no REA process scenario ran or
+yielded Evidence. The retained package
+investigation remains separate; no vendor runtime equivalence is claimed here.
+
+Public parent f7210b8 has successful Windows persistence and Security, but macOS/
+Linux persistence fail the combined right-drag predicate and Windows cumulative
+hinge/symmetry reaches 170 s; three Desktop jobs stop at that renderer prerequisite.
+The new traces must establish actual hosted delivery and the failing predicate;
+the source-derived early-context defect is not yet the demonstrated cause of
+those hosted failures. Hosted stability, OS-pointer/human and installed-platform
+acceptance remain open. Checklist #55 stays 16/25, nine open groups; release #5
+stays open. Continue in draft PR #49.
+
 ## Part viewport context commands — 2026-10-27
 
 The part viewport now opens the shared blue context menu over current faces,

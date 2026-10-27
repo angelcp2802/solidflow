@@ -1,5 +1,21 @@
 # Public fixture provenance
 
+## Original context event-order cases — 2026-10-27
+
+`cadContextGesture.test.ts` uses independently chosen screen coordinates
+`(100,50)`, pointer identities and opaque frame identities. Both request/release
+orders, a literal 12-pixel drag/return, the existing 4-pixel boundary,
+cancellation, replacement/duplicate input and prototype-backed event fields
+exercise interaction declarations, not CAD geometry or native OS delivery.
+These cases contain no imported model, captured vendor input or copied source.
+
+The passive renderer trace and Escape-during-right-press case reuse the existing
+original `desktop-part-fresh-sketch` body and its analytic volumes, planar areas,
+bounds and edge coordinates below. No new CAD fixture or alternate geometric
+oracle is introduced. The trace is restricted to that original case and contains
+only bounded event/target/state fields; it does not record arbitrary DOM text,
+document contents, private models or paths.
+
 ## Original part viewport contexts — 2026-10-27
 
 The context workflow extends the existing original `desktop-part-fresh-sketch`

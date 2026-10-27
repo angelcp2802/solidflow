@@ -85,9 +85,12 @@ module.exports = function freshSketchWorkflow(c) {
       check(await page(ref=>document.querySelector('.viewport-canvas').dataset.partSelectedFace===JSON.stringify(ref),chosen),'Background context preserves selection before an explicit command');
       await dismissContext();await right(background);await menuReady('background');await click('[data-part-context-action="clear-selection"]');
       await waitFor('explicit background deselection',()=>page(()=>document.querySelector('.viewport-canvas').dataset.partSelectedFace===''));
-      await pointer('mouseMoved',facePoint);await pointer('mousePressed',facePoint,2);const end={x:facePoint.x+12,y:facePoint.y};
-      await pointer('mouseMoved',end,2);await pointer('mouseReleased',end,2);
-      check(await page(selector=>!document.querySelector(selector)&&document.querySelector('.viewport-canvas').dataset.partSelectedFace==='',popup),'A right drag neither opens a context nor selects its release target');
+      await require('./desktop-part-context-observation.cjs')({ page, pointer, checks, records, check }, facePoint);
+      await pointer('mouseMoved',facePoint);await pointer('mousePressed',facePoint,2);
+      await menuKey('Escape');await pointer('mouseReleased',facePoint,2);
+      const escaped=await page(selector=>({popupPresent:!!document.querySelector(selector),faceEmpty:document.querySelector('.viewport-canvas').dataset.partSelectedFace===''}),popup);
+      checks.push({partContextEscapeDuringPress:escaped});
+      check(!escaped.popupPresent&&escaped.faceEmpty,'Escape during a right press revokes context intent without selecting its release target');
       await pointer('mouseMoved',facePoint);await pointer('mousePressed',facePoint,2);await click('button[title="Seleccionar aristas"]');
       await pointer('mouseReleased',facePoint,2);
       check(await page(selector=>!document.querySelector(selector),popup),'Changing selection mode during a right press invalidates its context');

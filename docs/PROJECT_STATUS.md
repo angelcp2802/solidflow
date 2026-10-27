@@ -1,5 +1,29 @@
 # Project status and review queue
 
+## Part context release and drag rejection — 2026-10-27
+
+Part right-click menus now wait for both menu intent and a real matching release,
+in either order. Target selection and opening wait for the gesture to complete. Existing
+four-pixel, context/model/camera and cancellation guards remain; keyboard opening
+is direct. A passive trace retains the unchanged original right-drag assertion
+and separates menu/selection outcomes. No saved schema or geometric algorithm
+changes.
+
+Frozen Windows acceptance passes build, 10,263 unit/CAD cases in 456 files,
+200 IPC passes/two explicit skips, desktop startup and four renderer routes:
+fresh contexts/sketches 79 checkpoints, successive operations 183, body catalog 43,
+Normal To 157. Seventeen new helper cases and a retained legacy semantic negative
+control exercise ordering. The actual Windows trace is late-context in both
+builds; Escape-midpress also passes in both. See [validation](VALIDATION.md) for
+the exact snapshot, commands, prior observation failures and scope.
+
+Parent f7210b8 passes Windows persistence/Security but fails the macOS/Linux
+right-drag assertion and the Windows cumulative hinge/symmetry deadline; three
+Desktop gates stop. Actual hosted delivery/cause for this candidate remains
+unproven. Keep draft PR #49, checklist #55 at 16/25 with nine open groups, and
+release #5 open. The earlier private Windows three-prism native reopen is a
+separate bounded case, not full-demo/human or current-candidate OS-input proof.
+
 ## Part viewport context workflows — 2026-10-27
 
 Right-click and keyboard contexts in the part viewport now target current faces,

@@ -2,6 +2,7 @@ import { bindViewNavigation, createViewHistory, type ViewHistory, type ViewReque
 export type { ViewName } from './viewNavigation';
 import { pickPartReference, type PartSelectionMode } from "./partSelection";
 import { configureCadNavigation, createCadSelectionGesture } from "./cadNavigation";
+import { createCadContextGesture } from "./cadContextGesture";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
@@ -478,9 +479,8 @@ export default function Viewport({
     });
     resize.observe(el);
     const selectionGesture = createCadSelectionGesture();
-    const contextGesture = createCadSelectionGesture();
-    let contextPointer: number | null = null;
-    const cancelSelection = () => { selectionGesture.cancel(); contextGesture.cancel(); contextPointer = null; };
+    const contextGesture = createCadContextGesture();
+    const cancelSelection = () => { selectionGesture.cancel(); contextGesture.cancel(); };
     let hoverPointer: { x: number; y: number } | null = null;
     let hoverDirty = false;
     let hovered: string | null = null;
@@ -542,10 +542,9 @@ export default function Viewport({
     const pointerDown = (e: PointerEvent) => {
       selectionModel = interaction.current.model;
       selectionGesture.down(e);
-      contextPointer = e.button === 2 && interaction.current.onContextTarget && !interaction.current.selectionDisabled && !navigationHistory.navigating ? e.pointerId : null;
-      if (contextPointer !== null) {
+      if (e.button === 2 && interaction.current.onContextTarget && !interaction.current.selectionDisabled && !navigationHistory.navigating) {
         el.focus({ preventScroll: true });
-        contextGesture.down({ pointerId: e.pointerId, button: 0, clientX: e.clientX, clientY: e.clientY }, interaction.current.contextFrame);
+        contextGesture.down(e, interaction.current.contextFrame);
       } else contextGesture.cancel();
       hovered = null;
       hoveredFace = null; hoveredPlane = null; hoveredBody = null;
@@ -566,13 +565,15 @@ export default function Viewport({
       hoverDirty = true;
     };
     const pointerLeave = () => {
-      contextGesture.cancel(); contextPointer = null;
+      contextGesture.cancel();
       hoverPointer = null;
       hovered = null;
       hoveredFace = null; hoveredPlane = null; hoveredBody = null;
       updateHighlights();
     };
     const pointerUp = (e: PointerEvent) => {
+      const point = contextGesture.up(e, interaction.current.contextFrame);
+      if (point) openContext(point, false);
       if (!selectionGesture.up(e) || interaction.current.selectionDisabled || selectionModel !== interaction.current.model) return;
       const rect = el.getBoundingClientRect();
       hoverPointer = { x: e.clientX - rect.left, y: e.clientY - rect.top };
@@ -606,7 +607,7 @@ export default function Viewport({
       if (body && ray.intersectObject(body, false).length) interaction.current.onSelect();
       else interaction.current.onClearSelection?.();
     };
-    const cameraChanged = () => { hoverDirty = true; contextGesture.cancel(); contextPointer = null; };
+    const cameraChanged = () => { hoverDirty = true; contextGesture.cancel(); };
     controls.addEventListener('change', cameraChanged);
     const openContext = (point: { x: number; y: number }, keyboard: boolean) => {
       const value = interaction.current;
@@ -634,14 +635,15 @@ export default function Viewport({
     const contextMenu = (event: MouseEvent) => {
       if (!interaction.current.onContextTarget) return;
       event.preventDefault(); event.stopPropagation();
-      const pointerId = contextPointer; contextPointer = null;
-      if (pointerId !== null && contextGesture.up({ pointerId, button: 0, clientX: event.clientX, clientY: event.clientY }, interaction.current.contextFrame))
-        openContext({ x: event.clientX, y: event.clientY }, false);
+      const point = contextGesture.request(event, interaction.current.contextFrame);
+      if (point) openContext(point, false);
     };
     const contextKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { contextGesture.cancel(); return; }
       if (event.target !== el || !interaction.current.onContextTarget || event.altKey || event.ctrlKey || event.metaKey
         || !(event.key === 'ContextMenu' || event.key === 'F10' && event.shiftKey)) return;
       event.preventDefault(); event.stopPropagation();
+      contextGesture.cancel();
       const rect = renderer.domElement.getBoundingClientRect();
       openContext({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }, true);
     };

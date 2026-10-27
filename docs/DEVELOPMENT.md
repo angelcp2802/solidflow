@@ -1,5 +1,34 @@
 # Development guide
 
+## Right-context release ordering — 2026-10-27
+
+Treat a native `contextmenu` as menu intent, never as a synthetic pointer release.
+`createCadContextGesture` retains intent and the actual matching right-button
+release separately. Complete once when both exist, in either order, at the
+recorded release point. Consume the state before calling the context action.
+Reuse the existing selection gesture's irreversible four-pixel drag/pointer
+guard; do not introduce a timer, delayed opening or another movement threshold.
+
+Recheck the exact interaction frame at request and release. Process a possible
+right-context completion before the left-selection handler's early return.
+Keep presented-model, disabled and navigation checks at the actual opening.
+Cancel pending context state on camera changes, leave/cancel, window blur, a
+replacement press, Escape and direct keyboard-context opening. Escape still
+propagates to the existing application handler. Copy native event fields
+explicitly: DOM pointer coordinates need not be enumerable own properties.
+
+The original fresh-sketch workflow retains a passive trace around its unchanged
+four-call, 12-pixel right drag. Log menu presence and selected-face state
+separately while retaining their existing combined assertion. Scope the observer
+to that synthetic fixture, cap records/strings, remove its listeners and mutation
+observer in `finally`, and preserve the primary failure. The viewport's WebGL
+canvas is distinct from the orientation triad (`role="img"`); do not require the
+whole viewport to contain only one canvas. Trace collection adds no evaluations
+or waits between pointer calls. It records calls to the pointer adapter, not
+intercepted CDP messages. Capture listeners precede application handlers and
+mutation notifications are batched; do not infer synchronous post-handler state
+from a capture-phase event row.
+
 ## Part viewport context ownership — 2026-10-27
 
 Part viewport right-click targeting shares the existing visible face/edge/body
