@@ -1,5 +1,39 @@
 # Public fixture provenance
 
+## Original current-body placement witnesses — 2026-10-27
+
+`src/cad/kernel.assembly-current-placement.test.ts` builds its own parametric
+features in millimeters. The first XY rectangle spans `(0,0)..(2,3)` and extrudes
+4 mm; an optional second rectangle spans `(5,0)..(7,3)` at the same depth.
+Explicit-body and legacy-aggregate declarations use the same original geometry.
+The first prism has V24 mm³ and A52 mm². The two-solid aggregate has V48 mm³ and A104 mm².
+For the independently declared mapping `(x,y,z) -> (10-y,-3+x,2+z)`, their bounds
+are `(7,-3,2)..(10,-1,6)` and `(7,-3,2)..(10,4,6)` respectively.
+
+A separate circle of radius 2 at the XY origin extrudes 12 mm along +Z. Its
+V`48*pi` mm³ and A`56*pi` mm² follow from cylinder formulas. A +90-degree Y rotation
+and translation `(10,20,30)` give bounds `(10,18,28)..(22,22,32)`. Mass/area checks
+use absolute 1e-5 mm³/mm² and coordinate checks 1e-6 mm. Native BRep/solid admission
+is additional to those independent formulas. Native partner queries distinguish
+the result from its prototype, another placed result and an ordinary copy;
+physical checks also verify surviving results after source disposal.
+
+Fault cases patch actual received native wrappers or completed operations, then
+check exact candidate release, retained causes and rejection of stale authority.
+They supply no fake geometric result. Invalid references, completed-build and
+owner revocation, cleanup failures and the two-argument lease type contract are
+separate from the physical witnesses. No imported model or proprietary artifact
+is used.
+
+The separate local native profile and unchanged renderer comparison reuse
+`src/cad/fixtures/assembly-symmetry-picking-original.json`: twelve 4x6x4 prisms,
+four radius 2/height 4 cylinders and two radius 2 spheres, 18 solids/three prototypes.
+Their independent sums are V`1152+256*pi/3` mm³ and A`1536+128*pi` mm², checked
+within 1e-5 along with each body's known volume/area, count and nonempty mesh.
+The existing six-case renderer fixture, oracles, tolerance and deadlines are
+unchanged. Profiling scripts and raw local observations are not public fixtures;
+see [validation](VALIDATION.md) for methods and limits.
+
 ## Offscreen origin labels and compact navigation — 2026-10-27
 
 The added projection regression uses an original orthographic camera with

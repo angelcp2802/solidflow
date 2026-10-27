@@ -43,11 +43,17 @@ export interface PlacedAssemblyShape {
   readonly solidCount: number;
 }
 
-function placeShape(source: Shape3D, pose: RigidPose, validate: (shape: Shape3D) => number, context: string): PlacedAssemblyShape {
+function placeShape(source: Shape3D, pose: RigidPose, validate: (shape: Shape3D) => number, context: string,
+  assertSourceCurrent?: () => void): PlacedAssemblyShape {
   const checked = validateRigidPose(pose), r = rigidRotationMatrix(checked.rotation), t = checked.translation;
   return withNativeOwners(owners => {
+    assertSourceCurrent?.();
     const sourceSolids = validate(source);
+    assertSourceCurrent?.();
+    const sourceRaw = source.wrapped;
+    assertSourceCurrent?.();
     const bounds = finiteBounds(source, owners);
+    assertSourceCurrent?.();
     // Reject arithmetic overflow before passing the placement into native code.
     for (const x of [bounds[0][0], bounds[1][0]]) for (const y of [bounds[0][1], bounds[1][1]]) for (const z of [bounds[0][2], bounds[1][2]]) {
       if (![r[0] * x + r[1] * y + r[2] * z + t[0], r[3] * x + r[4] * y + r[5] * z + t[1],
@@ -56,9 +62,11 @@ function placeShape(source: Shape3D, pose: RigidPose, validate: (shape: Shape3D)
       }
     }
     const copy = copyBodyShape(source);
-    if (copy === source || copy.wrapped === source.wrapped) throw new Error('La copia del prototipo no puede reutilizar su propietario nativo.');
+    if (copy === source || copy.wrapped === sourceRaw) throw new Error('La copia del prototipo no puede reutilizar su propietario nativo.');
     owners.own(copy);
-    if (copy.wrapped.IsPartner(source.wrapped)) throw new Error('La copia del prototipo conserva topología compartida.');
+    assertSourceCurrent?.();
+    if (copy.wrapped.IsPartner(sourceRaw)) throw new Error('La copia del prototipo conserva topología compartida.');
+    assertSourceCurrent?.();
     const oc = getOC(), transform = owners.own(new oc.gp_Trsf());
     transform.SetValues(r[0], r[1], r[2], t[0], r[3], r[4], r[5], t[1], r[6], r[7], r[8], t[2]);
     const scale = transform.ScaleFactor();
@@ -70,14 +78,18 @@ function placeShape(source: Shape3D, pose: RigidPose, validate: (shape: Shape3D)
     const builder = owners.own(new oc.BRepBuilderAPI_Transform(copy.wrapped, transform, true, false));
     if (!builder.IsDone()) throw new Error('No se pudo colocar el cuerpo del ensamblaje.');
     const raw = owners.own(builder.Shape());
-    if (raw.IsNull() || raw.IsPartner(source.wrapped) || raw.IsPartner(copy.wrapped)) {
+    if (raw.IsNull()) throw new Error('La colocación del cuerpo no tiene topología independiente.');
+    assertSourceCurrent?.();
+    if (raw.IsPartner(sourceRaw) || raw.IsPartner(copy.wrapped)) {
       throw new Error('La colocación del cuerpo no tiene topología independiente.');
     }
+    assertSourceCurrent?.();
     // cast owns a distinct downcast wrapper; raw remains separately owned.
     const result = owners.own(cast(raw)).asShape3D();
     const solidCount = validate(result);
     if (solidCount !== sourceSolids) throw new Error('La colocación no conserva todos los sólidos del agregado.');
     finiteBounds(result, owners);
+    assertSourceCurrent?.();
     return { shape: result, solidCount };
   }, result => [result.shape], context);
 }
@@ -99,6 +111,6 @@ export function placeAssemblyShape(source: Shape3D, pose: RigidPose): Shape3D {
 /** Same owned placement and native admission, with its already measured count.
  * Consume synchronously without mutating shape; this is not a retained validator.
  * Native cleanup must finish successfully before either field is returned. */
-export function placeAssemblyShapeChecked(source: Shape3D, pose: RigidPose): PlacedAssemblyShape {
-  return placeShape(source, pose, validateAssemblyShape, 'Assembly shape placement or release failed.');
+export function placeAssemblyShapeChecked(source: Shape3D, pose: RigidPose, assertSourceCurrent?: () => void): PlacedAssemblyShape {
+  return placeShape(source, pose, validateAssemblyShape, 'Assembly shape placement or release failed.', assertSourceCurrent);
 }

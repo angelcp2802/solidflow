@@ -48,7 +48,8 @@ import { isNativeCleanupFailure, NativeCleanupError, NativeOwners, withNativeOwn
 import { extractAssemblyFaceSupport, extractAssemblyDirectionFaceSupport, extractAssemblyCylinderSurfaceSupport, extractAssemblySphereSurfaceSupport, extractAssemblyEdgeSupport, extractAssemblyVertexSupport, UnsupportedAssemblyCurveError, UnsupportedAssemblySurfaceError, UnsupportedAssemblySphereSurfaceError, type AssemblyNativeFaceSupport, type AssemblyNativeCylinderSurfaceSupport, type AssemblyNativeSphereSurfaceSupport, type AssemblyNativeLineSupport, type AssemblyNativePointSupport } from './kernel.assembly-supports';
 import { extractAssemblyProfileSupport, extractAssemblyRectangleAxisSupport, type AssemblyNativeProfileSupport, type AssemblyNativeRectangleAxisSupport } from './kernel.assembly-profile-supports';
 import { observeAssemblyPathCurve, evaluateAssemblyPathCurve, type AssemblyPathCurveObservation, type AssemblyPathCurveEvaluation, type AssemblyPathCurveCoordinate, type AssemblyPathCurveBands } from './kernel.assembly-path-curves';
-import { validateAssemblyShape } from './kernel.assembly-placements';
+import { placeAssemblyShapeChecked, validateAssemblyShape, type PlacedAssemblyShape } from './kernel.assembly-placements';
+import type { RigidPose } from '../model/rigidPose';
 import { ownedNativeTopology } from './kernel.native-topology';
 import { createVertexCatalog, pickableVerticesFromCatalog, resolveVertexReference, type VertexCatalog } from './kernel.vertices';
 import { evaluateFeatureRecipes, stageFeatureRecipeEvaluation, type NativeRecipeSourceState } from './kernel.feature-recipes';
@@ -98,7 +99,9 @@ export interface AssemblyPresentationBody {
 }
 export type AssemblyPartInspection = Pick<CadEngine, 'readCurrentAssemblyPresentation' | 'copyCurrentBodyShape'
   | 'inspectCurrentFaceSupport' | 'inspectCurrentSphereSurfaceSupport' | 'inspectCurrentEdgeSupport'
-  | 'inspectCurrentVertexSupport' | 'inspectCurrentArcPathOrigins'>;
+  | 'inspectCurrentVertexSupport' | 'inspectCurrentArcPathOrigins'> & {
+    placeCurrentAssemblyBody(reference: BodyReference | null, pose: RigidPose): PlacedAssemblyShape;
+  };
 
 /** Raw worker callers must obey the same body-operation shape as saved documents. */
 function validateBodyOperationDeclaration(feature: Extract<Feature, { type: 'extrude' | 'revolve' | 'sweep' | 'loft' }>): void {
@@ -705,20 +708,26 @@ export class CadEngine {
     }
   }
 
-  /** OWNED independent copy of an exact current body, or the complete legacy aggregate. */
-  copyCurrentBodyShape(reference: BodyReference | null): Shape3D {
+  /** Internal borrowed source and its exact synchronous owner checkpoint. */
+  private captureCurrentBody(reference: BodyReference | null): { source: Shape3D; current: () => void } {
     if (!this.inspectionReady || this.hasErrors || !this.shape || !this.finalState) {
       throw new Error('La pieza necesita una reconstrucción completa y vigente antes de copiar sus cuerpos.');
     }
     const epoch = this.inspectionEpoch, shape = this.shape, catalog = this.bodyCatalog;
     if (reference === null && catalog) throw new Error('Selecciona el cuerpo explícito; el agregado no sustituye su identidad.');
     if (reference !== null && !catalog) throw new Error('La pieza antigua no tiene un catálogo explícito de cuerpos.');
-    const source = reference === null ? shape : catalog!.resolve(reference).shape, sourceRaw = source.wrapped;
+    const source = reference === null ? shape : catalog!.resolve(reference).shape;
     const current = (): void => {
       if (!this.inspectionReady || epoch !== this.inspectionEpoch || shape !== this.shape || catalog !== this.bodyCatalog) {
         throw new Error('La geometría cambió mientras se copiaba el cuerpo.');
       }
     };
+    return { source, current };
+  }
+
+  /** OWNED independent copy of an exact current body, or the complete legacy aggregate. */
+  copyCurrentBodyShape(reference: BodyReference | null): Shape3D {
+    const { source, current } = this.captureCurrentBody(reference), sourceRaw = source.wrapped;
     try {
       return withNativeOwners(owners => {
         const sourceCount = validateAssemblyShape(source); current();
@@ -730,6 +739,25 @@ export class CadEngine {
         current();
         return copy;
       }, result => [result], 'Current body copy or release failed.');
+    } catch (error) {
+      this.inspectionReady = false; this.inspectionEpoch++;
+      throw error;
+    }
+  }
+
+  /** OWNED placed body/count; the prototype remains borrowed and never escapes.
+   * Guard every borrowed-source boundary and withhold the result after cleanup
+   * if either this build or an enclosing owner's lease was invalidated. */
+  placeCurrentAssemblyBody(reference: BodyReference | null, pose: RigidPose, assertOwnerCurrent?: () => void): PlacedAssemblyShape {
+    assertOwnerCurrent?.();
+    const { source, current: currentBody } = this.captureCurrentBody(reference);
+    const current = (): void => { assertOwnerCurrent?.(); currentBody(); };
+    try {
+      return withNativeOwners(owners => {
+        const placed = placeAssemblyShapeChecked(source, pose, current);
+        owners.own(placed.shape); current();
+        return placed;
+      }, result => [result.shape], 'Current body placement or release failed.');
     } catch (error) {
       this.inspectionReady = false; this.inspectionEpoch++;
       throw error;
@@ -770,6 +798,15 @@ export class CadEngine {
         try {
           return withNativeOwners(owners => read(() => owners.own(this.copyCurrentBodyShape(reference))),
             result => [result], 'Borrowed body copy or release failed.');
+        } catch (error) { onFailure(error); throw error; }
+      },
+      placeCurrentAssemblyBody: (reference, pose) => {
+        try {
+          return withNativeOwners(owners => read(() => {
+            const placed = this.placeCurrentAssemblyBody(reference, pose, current);
+            owners.own(placed.shape);
+            return placed;
+          }), result => [result.shape], 'Borrowed body placement or release failed.');
         } catch (error) { onFailure(error); throw error; }
       },
     };

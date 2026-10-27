@@ -2,17 +2,17 @@ import { readFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import initOpenCascade from 'replicad-opencascadejs'
 import { Face, getOC, setOC, type Shape3D } from 'replicad'
-import { beforeAll, expect, it, vi } from 'vitest'
+import { beforeAll, expect, expectTypeOf, it, vi } from 'vitest'
 import { createAssemblyExample, createEmptyAssembly } from '../examples/assembly'
 import { validateAssemblyDocument, type AssemblyDocument, type EmbeddedPartDefinition } from '../model/assemblyDocument'
 import { parseDocument, validateDocument, type Document } from '../model/document'
-import { identityRigidPose } from '../model/rigidPose'
+import { identityRigidPose, type RigidPose } from '../model/rigidPose'
 import { buildAssemblyScene } from './kernel.assembly-scene'
 import { withAssemblyGeometryReuse } from './kernel.assembly-snapshot'
 import { CadEngine, type AssemblyPresentationBody } from './kernel.engine'
 import { withNativeOwners } from './kernel.native-ownership'
 import { UnsupportedAssemblySurfaceError } from './kernel.assembly-supports'
-import type { CadResult, Vec3 } from './kernel.types'
+import type { BodyReference, CadResult, Vec3 } from './kernel.types'
 
 let originalSphere: Document
 beforeAll(async () => {
@@ -189,7 +189,8 @@ it.each(['rebuild', 'dispose', 'owner'] as const)('rejects a retained inspection
   try {
     engine.rebuildForAssemblyReferences(semanticPrism().features)
     const lease = engine.borrowCurrentAssemblyInspection(() => { if (!alive) throw new Error('Original owner closed') }, error => { failures.push(error) })
-    expect(Object.keys(lease).sort()).toEqual(['copyCurrentBodyShape', 'inspectCurrentArcPathOrigins', 'inspectCurrentEdgeSupport',
+    expectTypeOf(lease.placeCurrentAssemblyBody).parameters.toEqualTypeOf<[BodyReference | null, RigidPose]>()
+    expect(Object.keys(lease).sort()).toEqual(['copyCurrentBodyShape', 'placeCurrentAssemblyBody', 'inspectCurrentArcPathOrigins', 'inspectCurrentEdgeSupport',
       'inspectCurrentFaceSupport', 'inspectCurrentSphereSurfaceSupport', 'inspectCurrentVertexSupport', 'readCurrentAssemblyPresentation'].sort())
     expect(lease.readCurrentAssemblyPresentation()).toHaveLength(1)
     if (action === 'rebuild') engine.rebuildForAssemblyReferences(semanticPrism().features)
@@ -197,6 +198,7 @@ it.each(['rebuild', 'dispose', 'owner'] as const)('rejects a retained inspection
     else alive = false
     expect(() => lease.readCurrentAssemblyPresentation()).toThrow()
     expect(() => lease.copyCurrentBodyShape(null)).toThrow()
+    expect(() => lease.placeCurrentAssemblyBody(null, { translation: [0, 0, 0], rotation: [0, 0, 0, 1] })).toThrow()
     expect(failures.length).toBeGreaterThanOrEqual(2)
     if (action !== 'dispose') expect(engine.readCurrentAssemblyPresentation()).toHaveLength(1)
   } finally { engine.dispose() }

@@ -93,6 +93,7 @@ it('shares presentation construction without changing live witnesses or retainin
     expect(() => provider!(part(input))).toThrow('ya no está vigente')
     expect(() => retained!.inspection.readCurrentAssemblyPresentation()).toThrow('ya no está vigente')
     expect(() => retained!.inspection.copyCurrentBodyShape(retained!.bodies[0].body)).toThrow('ya no está vigente')
+    expect(() => retained!.inspection.placeCurrentAssemblyBody(retained!.bodies[0].body, { translation: [0, 0, 0], rotation: [0, 0, 0, 1] })).toThrow('ya no está vigente')
   } finally { build.mockRestore() }
 }, 60_000)
 

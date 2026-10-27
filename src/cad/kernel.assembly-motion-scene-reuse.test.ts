@@ -146,6 +146,7 @@ it('passes a detached deeply frozen final document and revokes every retained sc
     expect(() => parts!(pin)).toThrow(/ya no está vigente/)
     expect(() => leased!.inspection.readCurrentAssemblyPresentation()).toThrow(/ya no está vigente/)
     expect(() => leased!.inspection.copyCurrentBodyShape(leased!.bodies[0].body)).toThrow(/ya no está vigente/)
+    expect(() => leased!.inspection.placeCurrentAssemblyBody(leased!.bodies[0].body, { translation: [0, 0, 0], rotation: [0, 0, 0, 1] })).toThrow(/ya no está vigente/)
     const history = new AssemblyDocumentHistory(input), applied = solve.applyAssemblySolvePreview(history, preview)
     expect(applied.name).toBe(input.name); vector(applied.occurrences[0].pose.translation, input.occurrences[0].pose.translation)
     expect(() => solve.applyAssemblySolvePreview(history, preview!)).toThrow()

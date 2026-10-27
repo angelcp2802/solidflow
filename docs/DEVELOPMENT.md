@@ -1,5 +1,37 @@
 # Development guide
 
+## Current-body assembly placement — 2026-10-27
+
+Scene construction asks the completed part inspection to place an exact current
+body directly. `placeCurrentAssemblyBody(reference, pose)` borrows the prototype
+only for the synchronous checked placement and returns an owned independent
+shape with its measured solid count. It avoids the previous intermediate
+`copyCurrentBodyShape` and its duplicate admission. The ordinary copy API and
+its other export, interference and translation consumers retain their contract.
+
+Capture the same completed-build epoch, aggregate and explicit body catalog as
+copying. An explicit catalog requires its exact current body reference; null
+continues to mean the complete legacy aggregate only. Validate the source and
+placed result, preserve closed-solid cardinality and finite rigid placement,
+and keep `CopyGeom=true` and topology-independence checks. Current-body placement
+changes neither presentation meshing order nor reference metadata.
+
+Check engine and enclosing-lease currentness before using borrowed source data,
+after native query boundaries and after placement cleanup. Adopt each received
+independent candidate before a guard can throw. The engine adopts the helper's
+returned shape before its final guard; the lease adopts the engine's result
+before its post-read guard. Withhold both shape and count on any operation or
+cleanup failure, release owned candidates, retain aggregate causes and revoke
+the failed inspection. Invalid body selection before placement must not revoke
+an otherwise healthy engine. Never delete the borrowed prototype as a candidate.
+
+The lease exposes exactly two placement arguments; its owner guard is internal.
+It grants no retained validation proof, saved reference, worker command or Apply
+capability. Profile `copyBodyShape` calls and `withNativeValidationContext`
+scopes by their actual names: the transform still copies native geometry, and
+one validation scope can perform several native queries. Keep native dispatcher,
+worker round-trip and complete renderer timings separate.
+
 ## Dedicated worker message admission — 2026-10-27
 
 The CAD worker accepts browser-delivered dedicated-channel events only:

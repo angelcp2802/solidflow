@@ -165,8 +165,8 @@ it('releases the actual placed owner and all prototypes when real mesh retrieval
   const realBuild = CadEngine.prototype.build, engines: CadEngine[] = []
   const builds = vi.spyOn(CadEngine.prototype, 'build').mockImplementation(function(this: CadEngine, features) { engines.push(this); return realBuild.call(this, features) })
   let released = 0, placedCount = 0, candidate: Shape3D | null = null
-  const spy = vi.spyOn(placements, 'placeAssemblyShapeChecked').mockImplementation((source, pose) => {
-    const placed = original(source, pose), shape = placed.shape
+  const spy = vi.spyOn(placements, 'placeAssemblyShapeChecked').mockImplementation((...args) => {
+    const placed = original(...args), shape = placed.shape
     if (++placedCount === 1) return placed // Fail after both real prototypes exist.
     const mesh = shape.mesh.bind(shape), remove = shape.delete.bind(shape); candidate = shape
     vi.spyOn(shape, 'mesh').mockImplementation(options => { mesh(options); throw primary })
@@ -185,8 +185,8 @@ it('releases the actual placed owner and all prototypes when real mesh retrieval
 
 it('rejects an oversized numeric display response after a real mesh query instead of clipping it', () => {
   const input = placed(), original = placements.placeAssemblyShapeChecked
-  const spy = vi.spyOn(placements, 'placeAssemblyShapeChecked').mockImplementation((source, pose) => {
-    const placed = original(source, pose), shape = placed.shape, mesh = shape.mesh.bind(shape)
+  const spy = vi.spyOn(placements, 'placeAssemblyShapeChecked').mockImplementation((...args) => {
+    const placed = original(...args), shape = placed.shape, mesh = shape.mesh.bind(shape)
     vi.spyOn(shape, 'mesh').mockImplementation(options => { const real = mesh(options); return { ...real, vertices: Array(MAX_ASSEMBLY_SCENE_NUMBERS + 2).fill(real.vertices[0]) } })
     return placed
   })

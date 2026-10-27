@@ -1,5 +1,112 @@
 # Validation
 
+## Borrowed current-body placement and native cost — 2026-10-27
+
+Scene construction now places the exact current prototype body directly,
+avoiding an intermediate owned copy and its repeated validation. Source/result
+BRep admission, solid cardinality, topology independence, rigid pose and bounds,
+actual placed mesh/mass/area and fatal cleanup remain. Build epochs and enclosing
+leases guard borrowed source use and delivery after cleanup. The two-argument
+lease contract keeps its owner guard internal; ordinary copying remains for
+other consumers. See the [development contract](DEVELOPMENT.md#current-body-assembly-placement--2026-10-27)
+and [original physical witnesses](PROVENANCE.md#original-current-body-placement-witnesses--2026-10-27).
+
+The same original 18-body native build request was profiled through the actual
+dispatcher and OpenCascade/WASM on Windows x64, Node 24.11.1, Replicad/OpenCascade
+1.1.0. Inclusive instrumented wrappers overlap; their self time excludes only
+other observed wrappers. Initial measurements found repeated admission around
+the extra copy; raw copy time alone was small. An early three-sample candidate
+run was noisy (366..506 ms) and is retained without a reliable-improvement claim.
+
+The controlled comparison uses four fresh processes in A1/B1/A2/B2 order,
+three warmup requests per process, seven plain samples and three separately
+instrumented samples per process. All pass the original independent volume/area,
+per-body count, mesh and unchanged-document checks. Pooled 14-sample medians are
+**456.3505 -> 351.8885 ms (22.89% lower)** for this native dispatcher request.
+Instrumented calls per request change from 75 to 39 `withNativeValidationContext`
+scopes and 36 to 18 `copyBodyShape` calls; mesh calls remain 44. These are not total
+native IsValid or deep-copy counts: placement still uses `CopyGeom=true`.
+
+The complete unchanged six-case picking command was also run three times per
+variant on the same Windows host, Electron 44.9.3, all A followed by all B:
+
+| Measurement (ms) | A samples | B samples | Median A -> B |
+| --- | --- | --- | --- |
+| Complete command | 46391.588, 46329.559, 46575.737 | 42705.213, 42599.926, 42980.267 | 46391.588 ->42705.213 (7.95% lower) |
+| Renderer workflow | 45547.973, 45625.907, 45844.616 | 42009.629, 41912.761, 42284.616 | 45625.907 ->42009.629 (7.93% lower) |
+| Sum of 43 observed worker round trips | 23127.100, 23340.300, 23532.600 | 19570.700, 19351.900, 19743.300 | 23340.300 ->19570.700 (16.15% lower) |
+
+All six runs pass 270 checkpoints, six cases, 24 actual author/reselection hits,
+43 completed native responses and six Save/reopens; every report has zero
+console/request errors and confirmed child/profile cleanup. The unchanged
+fixture SHA-256 is `cfae904e4748fba6f6fc0484ae73b1988a84bc5b44f5d547c3127a6092a900c2`.
+Response projection totals stay 52..58 ms. These sequential local observations
+are not randomized, CPU-only partitions, a general speed guarantee or proof of
+hosted-timeout repair. Round trips include transport, queueing and scheduling;
+overlapping workflow categories must not be added.
+
+REA's configured MCP transport closed during analysis and session discovery;
+neither call produced evidence. The existing REA 6.3.0 CLI then statically analyzed
+an exact copied subset of the baseline production artifacts. It parsed the
+worker and external-shim JavaScript; the WASM was included with its byte hash
+verified, without a demonstrated WASM parse or decompilation. Evidence
+`ev_e529a5f2ab8b04eaf0b9e7a4af5a3183f452e0705ccc5d2e8147459df16dbcbd`
+has shipped-artifact authority and derived confidence: two JavaScript artifacts,
+zero parse failures or integrity contradictions within that subset. It does not
+prove a recovered source-level call path, runtime cost, complete application
+coverage or external software parity. The separate native measurements supply
+runtime cost evidence. No REA setup or duplicate installation was performed.
+
+The 22 new native cases cover independent physical placement and prototype/result
+separation, source disposal, exact/stale references, build and owner revocation,
+query/cleanup faults, candidate release and aggregate causes. Earlier lease and
+scene tests retain their assertions, with fault hooks forwarded to the checked
+placement boundary including its guard. An initial focused run retained four
+failures from old exact-lease inventory/copy interception assumptions; adapting
+those boundary hooks preserved all physical oracles. Then 11 affected files pass
+195 cases; the 22 new cases pass separately. The final type-only lease repair is
+included in final acceptance below.
+
+**Final frozen Windows x64 acceptance: PASS.** Source and runtime match across
+1,228 non-Markdown inputs; all nine production outputs remain frozen through
+execution. Freeze SHA-256:
+`88b00c5fa94fa378523fa00b99b0d33198f1a7bc4ff8ee4be0df1458997d439e`.
+The rebuild after the type-only lease repair produces exactly the same nine
+outputs as benchmark B, so its three renderer observations apply to these
+production bytes. Each renderer report independently observes eight outputs;
+the full freeze additionally includes the existing static SVG.
+
+| Command | Actual result |
+| --- | --- |
+| `npm run build` | PASS, 4.175 s, production byte-identical to benchmark B. |
+| `npm test` | PASS, 10,236 unit/CAD cases in 454 files and 199 IPC passes/two explicit skips, 346.208 s overall. |
+| `npm run test:desktop` | PASS, 1.596 s, transferred-port rejection/barrier followed by native prism reconstruction. |
+| `npm run test:desktop:assembly` | PASS, 690 checkpoints, 49.050 s, complete original standard route including source updates, movement, pointer projection, interference, translation, BOM and gear/history/persistence. |
+| `npm run test:desktop:assembly-configurations` | PASS, 212 checkpoints, 11.935 s, original configured lifecycle including expected CSV export rejection. |
+| `npm run test:desktop:assembly-source-update` | PASS, 61 checkpoints, 4.305 s, original source revision, repair, preview, history and Save/reopen. |
+
+All three final renderer reports have zero console/request errors, successful
+asset responses and confirmed child/profile cleanup. Hidden scripted renderer
+input and test-owned dialogs establish only their recorded cases. No test
+deadline, tolerance, fixture, saved format, WASM binary, dependency, Electron
+policy, worker capability or CI gate changes.
+
+Applied performance-optimization, code-simplifier, code-review, security-review
+and REA, including read-only delegated review. The review's lease-signature
+finding was corrected before final acceptance. No outstanding finding remains
+in this increment; no SECURITY_MODEL.md exists in its base, and no exclusion or
+accepted risk is added. This is not an application-wide security certification.
+
+Public parent `94d2de9f0bf35ef0d900072c19889f0fbd8c64ff` has completed
+[all 15 CI jobs](https://github.com/angelcp2802/solidflow/actions/runs/40570524697)
+successfully, including the previously failing Windows picking route and all
+three Desktop jobs. Its [Security run](https://github.com/angelcp2802/solidflow/actions/runs/40570525259)
+also succeeds. This is one complete matrix, not recurring persistence stability
+or installed-platform/human acceptance. Older failures remain recorded below.
+The candidate requires its own hosted acceptance. Draft PR #49, checklist #55's
+16/25 completed groups and release gate #5 remain open; this optimization closes
+no additional functional group.
+
 ## Dedicated CAD worker channel admission — 2026-10-27
 
 The worker entry now checks actual channel metadata before reading message data

@@ -198,8 +198,8 @@ it('rejects expanded world overflow before native allocation rather than trustin
 
 it('retains native numeric display caps after actual mesh retrieval', () => {
   const input = fixture(), original = placements.placeAssemblyShapeChecked
-  const place = vi.spyOn(placements, 'placeAssemblyShapeChecked').mockImplementation((source, pose) => {
-    const placed = original(source, pose), shape = placed.shape, mesh = shape.mesh.bind(shape)
+  const place = vi.spyOn(placements, 'placeAssemblyShapeChecked').mockImplementation((...args) => {
+    const placed = original(...args), shape = placed.shape, mesh = shape.mesh.bind(shape)
     vi.spyOn(shape, 'mesh').mockImplementation(options => { const result = mesh(options); return { ...result, vertices: Array(MAX_ASSEMBLY_SCENE_NUMBERS + 2).fill(result.vertices[0]) } })
     return placed
   })
@@ -226,8 +226,8 @@ it('withholds all earlier bodies when a later actual placed mesh and native rele
   const primary = Error('Original configured placed mesh failure'), cleanup = Error('Original configured placed release failure'), engines: CadEngine[] = []
   let count = 0, released = 0, candidate: Shape3D | undefined, published: unknown, caught: unknown
   const build = vi.spyOn(CadEngine.prototype, 'build').mockImplementation(function (this: CadEngine, ...args) { engines.push(this); return realBuild.apply(this, args) })
-  const place = vi.spyOn(placements, 'placeAssemblyShapeChecked').mockImplementation((source, pose) => {
-    const placed = realPlace(source, pose), shape = placed.shape
+  const place = vi.spyOn(placements, 'placeAssemblyShapeChecked').mockImplementation((...args) => {
+    const placed = realPlace(...args), shape = placed.shape
     if (++count === 4) {
       const mesh = shape.mesh.bind(shape), remove = shape.delete.bind(shape); candidate = shape
       vi.spyOn(shape, 'mesh').mockImplementation(options => { mesh(options); throw primary })

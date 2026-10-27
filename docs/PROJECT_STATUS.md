@@ -1,5 +1,36 @@
 # Project status and review queue
 
+## Direct current-body placement — 2026-10-27
+
+Assembly scenes avoid an intermediate body copy and duplicate native admission,
+while retaining exact current references, source/result validity, independent
+topology, placed mass/area/bounds and cleanup. Build and owner guards remain
+active through result delivery. The ordinary copy consumers keep their API.
+
+On one Windows host, controlled native dispatcher medians improve from
+456.3505 to 351.8885 ms (14 plain samples per variant in A1/B1/A2/B2 process
+order). The unchanged complete six-case picking command improves from 46.392
+to 42.705 s over three runs per variant. All six runs retain 270 checkpoints,
+24 author/reselection hits, 43 native replies and six Save/reopens, with no
+console/request errors and confirmed cleanup. These bounded local measurements
+do not prove hosted stability or complete demo acceptance. REA statically
+analyzed the matching compiled-worker subset through its existing CLI after
+the configured MCP transport closed; runtime profiling is separate evidence.
+
+Final frozen Windows acceptance passes build, 10,236 unit/CAD cases in
+454 files and 199 IPC passes/two explicit skips, production desktop startup,
+the complete standard assembly route (690 checkpoints), configured lifecycle
+(212) and source-update lifecycle (61). All nine outputs are identical to
+benchmark B after the type-only lease repair. See [validation](VALIDATION.md)
+for the 1,228-input freeze, original geometry, actual commands and limits.
+
+Public parent 94d2de9 has now completed all 15 CI jobs and Security successfully,
+including Windows picking and all three Desktop targets. This establishes one
+complete matrix, not recurring persistence or installed-platform/human
+acceptance. The new candidate requires its own hosted checks. Continue in draft
+PR #49; checklist #55 remains 16/25 with nine open groups, and release gate #5
+remains open.
+
 ## Dedicated worker message admission — 2026-10-27
 
 The CAD worker explicitly checks dedicated-channel metadata before reading data

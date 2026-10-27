@@ -306,8 +306,8 @@ it.each(['review catalog', 'recaptured preview'] as const)('withholds %s authori
   const original = placements.placeAssemblyShapeChecked, restored: { mockRestore(): void }[] = []
   const actualCapture = vi.spyOn(solves, 'captureAssemblyGearPreview')
   let meshes = 0, releases = 0
-  const spy = vi.spyOn(placements, 'placeAssemblyShapeChecked').mockImplementation((source, pose) => {
-    const placed = original(source, pose), shape = placed.shape, mesh = shape.mesh.bind(shape), remove = shape.delete.bind(shape)
+  const spy = vi.spyOn(placements, 'placeAssemblyShapeChecked').mockImplementation((...args) => {
+    const placed = original(...args), shape = placed.shape, mesh = shape.mesh.bind(shape), remove = shape.delete.bind(shape)
     let failed = false
     restored.push(vi.spyOn(shape, 'mesh').mockImplementation(options => {
       const result = mesh(options)

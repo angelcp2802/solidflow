@@ -342,8 +342,8 @@ it('queries the actual interpolated nested-document placement at the final stopp
     received.push([...pose.translation]); return real(source, pose)
   })
   const checked = placements.placeAssemblyShapeChecked
-  const scene = vi.spyOn(placements, 'placeAssemblyShapeChecked').mockImplementation((source, pose) => {
-    received.push([...pose.translation]); return checked(source, pose)
+  const scene = vi.spyOn(placements, 'placeAssemblyShapeChecked').mockImplementation((...args) => {
+    received.push([...args[1].translation]); return checked(...args)
   })
   try {
     const result = traceAssemblyTranslation(movement), actual = expandAssemblyParts(movement.at(result.fraction))

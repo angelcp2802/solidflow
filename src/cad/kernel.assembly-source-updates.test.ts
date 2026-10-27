@@ -309,8 +309,8 @@ it('preserves query and native cleanup causes while withholding the entire sourc
   const input = semantic(), changed = changedSemantic(input), before = serializeAssemblyDocument(input), original = placements.placeAssemblyShapeChecked
   const primary = new Error('Original source-review mesh fault'), cleanup = new Error('Original source-review release fault')
   let calls = 0, releases = 0
-  const spy = vi.spyOn(placements, 'placeAssemblyShapeChecked').mockImplementation((source, pose) => {
-    const placed = original(source, pose), shape = placed.shape
+  const spy = vi.spyOn(placements, 'placeAssemblyShapeChecked').mockImplementation((...args) => {
+    const placed = original(...args), shape = placed.shape
     if (++calls === 3) {
       const mesh = shape.mesh.bind(shape), remove = shape.delete.bind(shape)
       vi.spyOn(shape, 'mesh').mockImplementation(options => { mesh(options); throw primary })
@@ -328,11 +328,11 @@ it('preserves query and native cleanup causes while withholding the entire sourc
 }, 60_000)
 
 it('withholds a review if an actual reused source engine epoch is revoked between occurrence copies', () => {
-  const input = semantic(), original = CadEngine.prototype.copyCurrentBodyShape; let copies = 0
-  const spy = vi.spyOn(CadEngine.prototype, 'copyCurrentBodyShape').mockImplementation(function(this: CadEngine, ref) {
-    const shape = original.call(this, ref)
+  const input = semantic(), original = CadEngine.prototype.placeCurrentAssemblyBody; let copies = 0
+  const spy = vi.spyOn(CadEngine.prototype, 'placeCurrentAssemblyBody').mockImplementation(function(this: CadEngine, ...args) {
+    const placed = original.apply(this, args)
     if (++copies === 1) this.dispose()
-    return shape // The owned first copy survives; the next prototype query must fail.
+    return placed // The owned first placement survives; the next prototype query must fail.
   })
   try { expect(() => reviewAssemblyPartSourceUpdate(input, semanticSource, changedSemantic(input), 'r2')).toThrow('reconstrucción completa') }
   finally { spy.mockRestore() }

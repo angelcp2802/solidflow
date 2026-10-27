@@ -5,7 +5,6 @@ import { validateDocument } from '../model/document'
 import { rigidRotationMatrix, transformRigidDirection, transformRigidPoint, validateRigidPose, type RigidPose } from '../model/rigidPose'
 import { CadEngine, type AssemblyPresentationBody, type AssemblyPartInspection } from './kernel.engine'
 import type { AssemblyScenePartProvider } from './kernel.assembly-snapshot'
-import { placeAssemblyShapeChecked } from './kernel.assembly-placements'
 import { UnsupportedAssemblySurfaceError, UnsupportedAssemblySphereSurfaceError, UnsupportedAssemblyCurveError, type AssemblyNativeFaceSupport, type AssemblyNativeLineSupport } from './kernel.assembly-supports'
 import { withNativeOwners } from './kernel.native-ownership'
 import type { AssemblyScene, AssemblySceneBody, AssemblySceneFace, AssemblySceneEdge, AssemblySceneVertex } from './kernel.assembly-types'
@@ -155,8 +154,7 @@ export function buildAssemblySceneFromOccurrences(occurrences: readonly Readonly
         occurrencePath: [...occurrence.path], definition: { id: definition.id, revision: definition.revision } }
       for (const source of prototype.bodies) {
         const data = withNativeOwners(placedOwners => {
-          const copy = placedOwners.own(prototype!.inspection.copyCurrentBodyShape(source.body))
-          const placed = placeAssemblyShapeChecked(copy, pose)
+          const placed = prototype!.inspection.placeCurrentAssemblyBody(source.body, pose)
           const shape = placedOwners.own(placed.shape), solidCount = placed.solidCount
           const mesh = shape.mesh(MESH), edges = shape.meshEdges(MESH), box = placedOwners.own(shape.boundingBox)
           const vertices = numeric(mesh.vertices, 3), normals = numeric(mesh.normals, 3), triangles = indices(mesh.triangles, vertices.length / 3)
