@@ -1,5 +1,39 @@
 # Public fixture provenance
 
+## Original part viewport contexts — 2026-10-27
+
+The context workflow extends the existing original `desktop-part-fresh-sketch`
+fixture, without an imported or additional CAD model. Its base is a 20x12 mm
+rectangle extruded 4 mm, V960 mm³, planar area736 mm². A drawn 4x4 rectangle on
+the current face adds 3 mm: V1008 and area784. A second drawn 2x2 rectangle cuts
+3 mm: V996 and area808. Editing that saved cut to 2 mm gives V1000 and area800;
+Cancel restores V996/area808 and the exact saved declarations. Bounds remain
+`(-10,-6,0)..(10,6,7)` after the boss. These are analytic material/surface sums,
+not expectations obtained from the operation being tested.
+
+The outer LINE midpoint `(10,0,4)` is independently projected in a frontal Fit
+view. Known 20x12x7 bounds remain below the documented 30 mm Fit floor. The screen
+scale is `viewportHeight*min(aspect,1)/(2*30*0.82)`, derived from that literal
+camera convention; the test never reads or sets an application camera matrix.
+The actual picked primary reference resolves uniquely in the current body's
+observed edge catalog. Every polyline endpoint has x=10/z=4, the Y intervals
+cover [-6,6] continuously and their total length is12 mm, each within1e-6 mm.
+Those independent coordinates confirm the intended target without deriving
+an expected edge key from the picker.
+
+The separate principal-XZ case selects the existing tree row, opens the viewport
+keyboard context, starts an empty principal sketch and Cancels. The actual
+worker request must name XZ without a face/operation-plane support. Rebuilding
+the original two features retains V960, area736 and exact declarations; no
+invented XY/XZ/YZ entry is added to the rendered operation-plane catalog.
+
+Resolver tests use original minimal display DTOs, primary and alias references,
+explicit/legacy body declarations, an operation plane and curved-frame absence.
+They establish nomination/rejection only, not native BRep or pointer behavior.
+Three principal cases intentionally use an empty rendered-plane catalog.
+CDP pointer/key events, DOM row/command activation and native/saved evidence
+have separate boundaries in [validation](VALIDATION.md).
+
 ## Original current-body placement witnesses — 2026-10-27
 
 `src/cad/kernel.assembly-current-placement.test.ts` builds its own parametric

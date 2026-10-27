@@ -11,6 +11,7 @@ import { LineMaterial } from "three/addons/lines/LineMaterial.js";
 import type { BodyReference, CadResult, EdgeReference, FaceReference, PickableFace, PlaneFrame, SketchVisual } from "../cad/kernel.types";
 import { sameBodyReference } from "../model/bodyCommands";
 import { createEdgeSelectionIndex, createFaceSelectionIndex, referenceIdentity } from "../cad/selection.references";
+import type { PartContextTarget, PartViewportContextRequest } from './partViewportContext';
 
 interface PickableVisual {
   ref: EdgeReference;
@@ -161,6 +162,8 @@ interface Props {
   selectedPlaneIds?: readonly string[];
   showPlanes?: boolean;
   onSelectPlane?: (planeId: string, additive?: boolean) => void;
+  onContextTarget?: (request: PartViewportContextRequest) => void;
+  contextRevision?: unknown;
   visibleSketchIds?: string[];
   selectedSketchId?: string;
   activeInputSketchIds?: readonly string[];
@@ -188,6 +191,8 @@ export default function Viewport({
   selectedPlaneIds = [],
   showPlanes = false,
   onSelectPlane,
+  onContextTarget,
+  contextRevision,
   visibleSketchIds,
   selectedSketchId,
   activeInputSketchIds,
@@ -200,6 +205,7 @@ export default function Viewport({
     scene: THREE.Scene;
     camera: THREE.OrthographicCamera;
     renderer: THREE.WebGLRenderer;
+    presentedModel: CadResult | null;
     controls: OrbitControls;
     group: THREE.Group;
     sketchGroup: THREE.Group;
@@ -227,8 +233,10 @@ export default function Viewport({
     const activeIds = new Set(activeInputSketchIds);
     return [...(model?.sketches ?? []).filter(sketch => !activeIds.has(sketch.id)), ...(activeInputSketches ?? [])];
   }, [model?.sketches, activeInputSketchIds, activeInputSketches]);
-  const interaction = useRef({ model, onSelect, onClearSelection, selectionDisabled, onSelectBody, selectedBodies, onSelectEdge, selectionMode, selectedEdges, visibleSketchIds, selectedSketchId, activeInputSketchIds, activeInputSketches, selectedFace, selectedFaces, onSelectFace, selectedPlaneId, selectedPlaneIds, showPlanes, onSelectPlane, edgeReferences, faceReferences });
-  interaction.current = { model, onSelect, onClearSelection, selectionDisabled, onSelectBody, selectedBodies, onSelectEdge, selectionMode, selectedEdges, visibleSketchIds, selectedSketchId, activeInputSketchIds, activeInputSketches, selectedFace, selectedFaces, onSelectFace, selectedPlaneId, selectedPlaneIds, showPlanes, onSelectPlane, edgeReferences, faceReferences };
+  const contextFrame = useMemo(() => ({ model, revision: contextRevision, selectionMode, showPlanes, selectionDisabled, enabled: !!onContextTarget }),
+    [model, contextRevision, selectionMode, showPlanes, selectionDisabled, !!onContextTarget]);
+  const interaction = useRef({ model, onSelect, onClearSelection, selectionDisabled, onSelectBody, selectedBodies, onSelectEdge, selectionMode, selectedEdges, visibleSketchIds, selectedSketchId, activeInputSketchIds, activeInputSketches, selectedFace, selectedFaces, onSelectFace, selectedPlaneId, selectedPlaneIds, showPlanes, onSelectPlane, onContextTarget, contextFrame, edgeReferences, faceReferences });
+  interaction.current = { model, onSelect, onClearSelection, selectionDisabled, onSelectBody, selectedBodies, onSelectEdge, selectionMode, selectedEdges, visibleSketchIds, selectedSketchId, activeInputSketchIds, activeInputSketches, selectedFace, selectedFaces, onSelectFace, selectedPlaneId, selectedPlaneIds, showPlanes, onSelectPlane, onContextTarget, contextFrame, edgeReferences, faceReferences };
   useEffect(() => {
     const el = host.current!;
     const scene = new THREE.Scene();
@@ -311,6 +319,7 @@ export default function Viewport({
       scene,
       camera,
       renderer,
+      presentedModel: null,
       controls,
       group,
       sketchGroup,
@@ -469,6 +478,9 @@ export default function Viewport({
     });
     resize.observe(el);
     const selectionGesture = createCadSelectionGesture();
+    const contextGesture = createCadSelectionGesture();
+    let contextPointer: number | null = null;
+    const cancelSelection = () => { selectionGesture.cancel(); contextGesture.cancel(); contextPointer = null; };
     let hoverPointer: { x: number; y: number } | null = null;
     let hoverDirty = false;
     let hovered: string | null = null;
@@ -530,12 +542,18 @@ export default function Viewport({
     const pointerDown = (e: PointerEvent) => {
       selectionModel = interaction.current.model;
       selectionGesture.down(e);
+      contextPointer = e.button === 2 && interaction.current.onContextTarget && !interaction.current.selectionDisabled && !navigationHistory.navigating ? e.pointerId : null;
+      if (contextPointer !== null) {
+        el.focus({ preventScroll: true });
+        contextGesture.down({ pointerId: e.pointerId, button: 0, clientX: e.clientX, clientY: e.clientY }, interaction.current.contextFrame);
+      } else contextGesture.cancel();
       hovered = null;
       hoveredFace = null; hoveredPlane = null; hoveredBody = null;
       updateHighlights();
     };
     const pointerMove = (e: PointerEvent) => {
       selectionGesture.move(e);
+      contextGesture.move(e);
       if (e.buttons) {
         hoverPointer = null;
         hovered = null;
@@ -548,6 +566,7 @@ export default function Viewport({
       hoverDirty = true;
     };
     const pointerLeave = () => {
+      contextGesture.cancel(); contextPointer = null;
       hoverPointer = null;
       hovered = null;
       hoveredFace = null; hoveredPlane = null; hoveredBody = null;
@@ -587,10 +606,49 @@ export default function Viewport({
       if (body && ray.intersectObject(body, false).length) interaction.current.onSelect();
       else interaction.current.onClearSelection?.();
     };
-    const cameraChanged = () => { hoverDirty = true; };
+    const cameraChanged = () => { hoverDirty = true; contextGesture.cancel(); contextPointer = null; };
     controls.addEventListener('change', cameraChanged);
-    renderer.domElement.addEventListener("pointercancel", selectionGesture.cancel);
-    window.addEventListener("blur", selectionGesture.cancel);
+    const openContext = (point: { x: number; y: number }, keyboard: boolean) => {
+      const value = interaction.current;
+      if (!value.onContextTarget || value.selectionDisabled || navigationHistory.navigating || context.current?.presentedModel !== value.model) return;
+      if (keyboard) { value.onContextTarget({ target: { kind: 'keyboard' }, model: value.model, point, origin: el }); return; }
+      const rect = renderer.domElement.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0 || Math.abs(rect.width - el.clientWidth) >= 1 || Math.abs(rect.height - el.clientHeight) >= 1) return;
+      const x = point.x - rect.left, y = point.y - rect.top;
+      let target: PartContextTarget = { kind: 'background' };
+      if (value.selectionMode === 'body') {
+        const plane = pickPlane(x, y);
+        if (plane) target = { kind: 'plane', id: plane };
+        else if (context.current?.bodies.length) {
+          const reference = pickBody(x, y);
+          if (reference) target = { kind: 'body', reference };
+        } else if (context.current?.body && screenRay(camera, { x, y }, { width: el.clientWidth, height: el.clientHeight })?.intersectObject(context.current.body, false).length)
+          target = { kind: 'body', reference: null };
+      } else {
+        const candidate = pickReference(value.selectionMode, x, y);
+        if (candidate?.kind === 'face') target = { kind: 'face', reference: { ...candidate.face.ref } };
+        else if (candidate) target = candidate;
+      }
+      value.onContextTarget({ target, model: value.model, point, origin: el });
+    };
+    const contextMenu = (event: MouseEvent) => {
+      if (!interaction.current.onContextTarget) return;
+      event.preventDefault(); event.stopPropagation();
+      const pointerId = contextPointer; contextPointer = null;
+      if (pointerId !== null && contextGesture.up({ pointerId, button: 0, clientX: event.clientX, clientY: event.clientY }, interaction.current.contextFrame))
+        openContext({ x: event.clientX, y: event.clientY }, false);
+    };
+    const contextKey = (event: KeyboardEvent) => {
+      if (event.target !== el || !interaction.current.onContextTarget || event.altKey || event.ctrlKey || event.metaKey
+        || !(event.key === 'ContextMenu' || event.key === 'F10' && event.shiftKey)) return;
+      event.preventDefault(); event.stopPropagation();
+      const rect = renderer.domElement.getBoundingClientRect();
+      openContext({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }, true);
+    };
+    renderer.domElement.addEventListener('contextmenu', contextMenu);
+    el.addEventListener('keydown', contextKey);
+    renderer.domElement.addEventListener("pointercancel", cancelSelection);
+    window.addEventListener("blur", cancelSelection);
     window.addEventListener("blur", navigation.cancelGesture);
     renderer.domElement.addEventListener("pointerdown", pointerDown);
     renderer.domElement.addEventListener("pointerup", pointerUp);
@@ -616,8 +674,10 @@ export default function Viewport({
     return () => {
       resize.disconnect();
       renderer.setAnimationLoop(null);
-      renderer.domElement.removeEventListener("pointercancel", selectionGesture.cancel);
-      window.removeEventListener("blur", selectionGesture.cancel);
+      renderer.domElement.removeEventListener('contextmenu', contextMenu);
+      el.removeEventListener('keydown', contextKey);
+      renderer.domElement.removeEventListener("pointercancel", cancelSelection);
+      window.removeEventListener("blur", cancelSelection);
       window.removeEventListener("blur", navigation.cancelGesture);
       renderer.domElement.removeEventListener("pointerdown", pointerDown);
       renderer.domElement.removeEventListener("pointerup", pointerUp);
@@ -792,6 +852,7 @@ export default function Viewport({
     }
     c.updatePlanes(false);
     c.updateHighlights();
+    c.presentedModel = model;
     if (!previouslyVisible && c.planes.some(plane => plane.object.visible)) c.fit();
   }, [model]);
   useEffect(() => {
@@ -850,6 +911,7 @@ export default function Viewport({
     <div
       ref={host}
       className="viewport-canvas"
+      tabIndex={onContextTarget ? 0 : undefined}
       aria-label="Vista 3D de la pieza"
       data-part-selection-mode={selectionMode}
       data-part-active-input-sketches={JSON.stringify(activeInputSketches?.map(sketch => sketch.id) ?? [])}

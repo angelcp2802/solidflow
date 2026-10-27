@@ -66,6 +66,8 @@ import SketchCanvas from "./components/SketchCanvas";
 import AssemblyMenuBar, { type AssemblyMenuDefinition } from "./components/AssemblyMenuBar";
 import CommandHeader from "./components/CommandHeader";
 import PartFeatureContextMenu from "./components/PartFeatureContextMenu";
+import CadContextMenu, { type CadContextAction } from './components/CadContextMenu';
+import { resolvePartContextTarget, type PartContextTarget, type PartViewportContextRequest } from './components/partViewportContext';
 import EntitySketchPanel from "./components/EntitySketchPanel";
 import SketchChamferPanel from "./components/SketchChamferPanel";
 import type { ChamferPlan } from "./sketch/chamfer";
@@ -449,6 +451,11 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
   // stays out of recovery/history until acceptance and resumes on Cancel.
   const [stagedSketch, setStagedSketch] = useState<SketchFeature | null>(null);
   const [featureMenu, setFeatureMenu] = useState<{ requestId: string; featureId: string; parentId?: string; point: { x: number; y: number }; origin: HTMLElement } | null>(null);
+  type ViewportPopup = { requestId: string; target: PartContextTarget; document: Document; model: CadResult | null;
+    selection: string; epoch: number; point: { x: number; y: number }; origin: HTMLElement };
+  const [viewportPopup, setViewportPopup] = useState<ViewportPopup | null>(null);
+  const viewportPopupAuthority = useRef(viewportPopup); viewportPopupAuthority.current = viewportPopup;
+  const invalidateViewportPopup = () => { viewportPopupAuthority.current = null; setViewportPopup(null); };
   const [expandedFeatureIds, setExpandedFeatureIds] = useState<ReadonlySet<string>>(() => new Set());
   const treeElement = useRef<HTMLDivElement>(null);
   const selectedTreeOccurrence = useRef<{ featureId: string; parentId?: string } | null>(null);
@@ -760,6 +767,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     if (focusTreeOccurrence(feature.id, parentId)) editTreeReturn.current = null;
   });
   const editFeature = (feature: Feature, preferredOwnerId?: string) => {
+    invalidateViewportPopup();
     setPickingEndFace(false);
     if (!requireFinishedEdit()) return;
     const previousOccurrence = selectedTreeOccurrence.current;
@@ -798,6 +806,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     }
   };
   const apply = (next: Document) => {
+    invalidateViewportPopup();
     setDoc(history.current!.apply(next));
     setError("");
   };
@@ -836,6 +845,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     recall: savedView => setView(previous => ({ name: 'named', stamp: previous.stamp + 1, view: savedView })),
   });
   const selectViewReference = (reference: PartViewReference, additive = false) => {
+    invalidateViewportPopup();
     if (editing || busy || !previewCurrent || docRef.current !== doc || normalSelectionRef.current !== normalSelection) return;
     if (additive && normalReferences === null) return;
     const references = togglePartViewReference(normalReferences ?? [], reference, additive);
@@ -848,6 +858,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     if (last?.kind === 'principal') setPlane(last.plane);
   };
   const changeView = (name: ViewName) => {
+    invalidateViewportPopup();
     if (namedViews.isOpen || viewHistory.navigating) return;
     if (name === 'previous' && (!viewHistory.canPrevious || viewIs2D)) return;
     if (viewIs2D) { if (name === 'fit' || name === 'normal' && canNormal) setSketchFitStamp(stamp => stamp + 1); return; }
@@ -1899,6 +1910,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     setError("");
   };
   const toggleEdge = (edge: EdgeReference) => {
+    invalidateViewportPopup();
     if (finishEditing) {
       if (sourceLoading) return;
       const current =
@@ -2093,6 +2105,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     setEditing(next);
   };
   const chooseBodySelection = (references: BodyReference[]) => {
+    invalidateViewportPopup();
     if (editing && isBodyCommandFeature(editing)) {
       let changed = withBodySelection(editing, references);
       if (isRepetition(changed) && changed.source.mode === 'bodies') {
@@ -2122,6 +2135,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
       : single ? [{ ...reference }] : [...bodySelection, { ...reference }]);
   };
   const clearBrowsingSelection = () => {
+    invalidateViewportPopup();
     if (editing || busy || !previewCurrent) return;
     setNormalSelection(null);
     setFaceSelection(null);
@@ -2433,12 +2447,100 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
       (sketch.lines.length || sketch.constructionLines.length),
   );
   const featureTree = buildPartFeatureTree(doc.features, expandedFeatureIds, query);
+  const viewportContextBlocked = !!editing || !!stagedSketch || busy || !ready || !previewCurrent || !visibleModel
+    || sourceLoading || importing || exporting || discardOpen || rename || showHelp || newDocumentDialog.pending()
+    || namedViews.isOpen || viewHistory.navigating;
+  const browsingSelectionKey = JSON.stringify([selected, faceSelection?.ref ?? null, edgeSelection, bodySelection, normalReferences]);
+  const viewportContextFrame = useMemo(() => ({ document: doc, model: visibleModel, selection: browsingSelectionKey,
+    mode: selectionMode, showPlanes, view, blocked: viewportContextBlocked }),
+    [doc, visibleModel, browsingSelectionKey, selectionMode, showPlanes, view, viewportContextBlocked]);
+  const viewportContextCurrent = useRef({ frame: viewportContextFrame, popup: viewportPopup });
+  viewportContextCurrent.current = { frame: viewportContextFrame, popup: viewportPopup };
+  const viewportContextIsCurrent = (popup: ViewportPopup) => {
+    const live = viewportContextCurrent.current;
+    return viewportPopupAuthority.current === popup && live.popup === popup && !live.frame.blocked
+      && mounted.current && !fileOperation.current && !discardDecision.current && !newDocumentRequest.current
+      && !editingRef.current && popup.epoch === documentEpoch.current && popup.document === docRef.current
+      && popup.document === live.frame.document && popup.model === live.frame.model && popup.selection === live.frame.selection
+      && !!resolvePartContextTarget(popup.target, docRef.current, live.frame.model, live.frame.showPlanes);
+  };
+  const activeViewportPopup = viewportPopup && viewportContextIsCurrent(viewportPopup) ? viewportPopup : null;
+  useLayoutEffect(() => { if (viewportPopup && !activeViewportPopup) invalidateViewportPopup(); }, [viewportPopup, activeViewportPopup]);
+  const openViewportContext = (request: PartViewportContextRequest) => {
+    if (viewportContextCurrent.current.frame !== viewportContextFrame || viewportContextBlocked || docRef.current !== doc
+      || !mounted.current || editingRef.current || fileOperation.current || discardDecision.current
+      || newDocumentRequest.current || request.model !== visibleModel) return;
+    let target = request.target;
+    if (target.kind === 'keyboard') {
+      if (faceSelection && !edgeSelection.length && !bodySelection.length && normalReferences?.length === 1)
+        target = { kind: 'face', reference: faceSelection.ref };
+      else if (edgeSelection.length === 1 && !faceSelection && !bodySelection.length)
+        target = { kind: 'edge', reference: edgeSelection[0] };
+      else if (bodySelection.length === 1 && !faceSelection && !edgeSelection.length)
+        target = { kind: 'body', reference: bodySelection[0] };
+      else if (normalReferences?.length === 1 && normalReferences[0].kind !== 'face') {
+        const reference = normalReferences[0];
+        target = reference.kind === 'feature' ? { kind: 'feature', id: reference.id } : { kind: 'principal', plane: reference.plane };
+      } else target = { kind: 'background' };
+    }
+    const resolved = resolvePartContextTarget(target, doc, visibleModel, showPlanes);
+    if (!resolved) return;
+    target = resolved.target;
+    let selection = browsingSelectionKey;
+    if (target.kind === 'face') {
+      selectViewReference({ kind: 'face', face: target.reference });
+      selection = JSON.stringify([null, target.reference, [], [], [{ kind: 'face', face: target.reference }]]);
+    } else if (target.kind === 'principal' || target.kind === 'plane' || target.kind === 'feature') {
+      const reference: PartViewReference = target.kind === 'principal'
+        ? { kind: 'principal', plane: target.plane } : { kind: 'feature', id: target.id };
+      selectViewReference(reference);
+      selection = JSON.stringify([target.kind === 'principal' ? target.plane : target.id, null, [], [], [reference]]);
+    } else if (target.kind === 'edge') {
+      invalidateViewportPopup(); setNormalSelection(null); setSelected(null); setFaceSelection(null); setBodySelection([]);
+      const references = [{ ...target.reference }]; setEdgeSelection(references);
+      selection = JSON.stringify([null, null, references, [], null]);
+    } else if (target.kind === 'body' && target.reference) {
+      chooseBodySelection([target.reference]); setNormalSelection(null);
+      selection = JSON.stringify([null, null, [], [target.reference], null]);
+    } else if (target.kind === 'body' && resolved.feature) {
+      selectViewReference({ kind: 'feature', id: resolved.feature.id });
+      selection = JSON.stringify([resolved.feature.id, null, [], [], [{ kind: 'feature', id: resolved.feature.id }]]);
+    }
+    setFeatureMenu(null);
+    const popup: ViewportPopup = { requestId: crypto.randomUUID(), target, document: doc, model: visibleModel,
+      selection, epoch: documentEpoch.current, point: request.point, origin: request.origin };
+    viewportPopupAuthority.current = popup; setViewportPopup(popup);
+  };
+  const viewportContext = activeViewportPopup
+    ? resolvePartContextTarget(activeViewportPopup.target, doc, visibleModel, showPlanes) : null;
+  const viewportContextAction = (action: () => void) => {
+    if (!activeViewportPopup || !viewportContextIsCurrent(activeViewportPopup)) return;
+    invalidateViewportPopup(); action();
+  };
   const menuFeature = featureMenu ? doc.features.find(feature => feature.id === featureMenu.featureId) : undefined;
   const inputSketches = (feature: Feature) => [...new Set(featureSketchIds(feature))]
     .map(id => doc.features.find(candidate => candidate.id === id))
     .filter((candidate): candidate is SketchFeature => candidate?.type === "sketch");
   const selectedInputSketches = selectedFeature ? inputSketches(selectedFeature) : [];
+  const viewportContextActions: CadContextAction[] = viewportContext ? [
+    ...(viewportContext.feature ? [{ id: 'edit-feature', label: viewportContext.feature.type === 'sketch' ? 'Editar croquis' : 'Editar operación', icon: Pencil,
+      onSelect: () => viewportContextAction(() => editFeature(viewportContext.feature!)) },
+      ...inputSketches(viewportContext.feature).map(sketch => ({ id: `edit-sketch-${sketch.id}`, label: `Editar croquis: ${sketch.name}`, icon: Square,
+        onSelect: () => viewportContextAction(() => editFeature(sketch, viewportContext.feature!.id)) }))] : []),
+    ...(viewportContext.canSketch ? [{ id: 'new-sketch', label: 'Crear croquis', icon: Pencil,
+      onSelect: () => viewportContextAction(() => startSketch()) }] : []),
+    { id: 'normal-to', label: 'Normal a', icon: PanelTop, disabled: !canNormal,
+      onSelect: () => viewportContextAction(() => changeView('normal')) },
+    ...[...standardViews, { name: 'fit' as const, label: 'Ajustar a pantalla' }, { name: 'previous' as const, label: 'Vista anterior' }]
+      .map(({ name, label }) => ({ id: `view-${name}`, label, disabled: name === 'previous' && !viewHistory.canPrevious,
+        onSelect: () => viewportContextAction(() => changeView(name)) })),
+    { id: 'named-views', label: 'Vistas guardadas…', disabled: !namedViews.canOpen,
+      onSelect: () => viewportContextAction(namedViews.open) },
+    { id: 'clear-selection', label: 'Deseleccionar', disabled: !faceSelection && !edgeSelection.length && !bodySelection.length && !selected,
+      onSelect: () => viewportContextAction(clearBrowsingSelection) },
+  ] : [];
   const openFeatureMenu = (feature: Feature, origin: HTMLElement, point?: { x: number; y: number }, parentId?: string) => {
+    invalidateViewportPopup();
     selectedTreeOccurrence.current = { featureId: feature.id, parentId };
     if (!editing) selectViewReference({ kind: 'feature', id: feature.id });
     else { setSelected(feature.id); setFaceSelection(null); }
@@ -2662,6 +2764,9 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
   return (
     <div className="app-shell">
       {newDocumentDialog.dialog}
+      {activeViewportPopup && viewportContext && <CadContextMenu key={activeViewportPopup.requestId} namespace="part"
+        targetName={viewportContext.name} point={activeViewportPopup.point} restoreFocusElement={activeViewportPopup.origin}
+        actions={viewportContextActions} onClose={() => setViewportPopup(null)} />}
       {featureMenu && menuFeature && <PartFeatureContextMenu key={featureMenu.requestId}
         featureName={menuFeature.name} point={featureMenu.point} restoreFocusElement={featureMenu.origin}
         onClose={() => setFeatureMenu(null)}
@@ -4057,6 +4162,8 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
           ) : (
             <Viewport
               model={visibleModel}
+              contextRevision={viewportContextFrame}
+              onContextTarget={viewportContextBlocked ? undefined : openViewportContext}
               view={view}
               viewHistory={viewHistory}
               display={display}

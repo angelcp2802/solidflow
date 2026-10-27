@@ -1,5 +1,123 @@
 # Validation
 
+## Part viewport context commands — 2026-10-27
+
+The part viewport now opens the shared blue context menu over current faces,
+edges, explicit bodies and visible operation planes, with separate selected
+principal-plane keyboard behavior. Background contexts retain selection until
+explicit deselection. Commands reuse the existing feature/input-sketch editors,
+planar sketch creation, orientation/Normal To/Fit/Previous, named views and
+selection handlers. No saved schema, worker action, geometry algorithm, file
+grant, dependency or CI gate changes.
+
+The popup is bound to the document, displayed model, selection and epoch. Its
+gesture rejects movement, camera/frame changes and canceled input. Current
+catalog admission rejects stale, ambiguous and alias-only primary references,
+duplicate body identities, suppressed sources and unavailable operation planes.
+An active editor or other staged/file/dialog work withholds context commands.
+See the [ownership contract](DEVELOPMENT.md#part-viewport-context-ownership--2026-10-27)
+and [original witnesses](PROVENANCE.md#original-part-viewport-contexts--2026-10-27).
+
+The expanded original fresh-sketch renderer route passes 79 checkpoints with two
+optional menu captures. Its actual CDP right-click/ContextMenu/Shift+F10 opens
+face contexts; Escape retains the exact face and restores viewport focus.
+Background opening retains that selection; explicit deselection clears it.
+A right drag and a selection-mode change during a right press open no popup or
+CAD work. An active operation editor rejects the same context gesture.
+
+Two context-created associative face sketches are actually drawn and used for
+successive boss/cut operations, Cancel/retry, Undo/Redo, recovery, Save/reopen.
+Principal-XZ keyboard context starts a real empty principal sketch request and
+Cancels back to the original history. A post-reopen face context opens the saved
+cut editor: its 2 mm preview has native V1000 mm³ and planar mesh area800 mm²;
+Cancel restores V996/area808, exact feature declarations and saved bytes.
+Actual current body and outer LINE-edge contexts also pass pointer/keyboard,
+Fit and explicit deselection without native rebuild or recovery changes.
+
+Reference targeting and keyboard opening use CDP input. Menu actions, tree rows,
+fields and other existing controls use DOM activation; these are not operating
+system mouse or human-user acceptance. Volume uses 1e-5 mm³, planar mesh area
+1e-4 mm² and bounds 1e-6 mm; drawn 0.001 mm snapped targets retain 1e-9 coordinate
+checks. Native BRep admission is separate from the planar mesh-area oracle.
+The literal outer-edge projection uses the known 30 mm Fit floor and original
+world midpoint. The exact picked primary source/key resolves uniquely in the
+observed native body catalog; endpoints match x=10/z=4 and cover Y[-6,6]
+continuously with total length12 mm at1e-6 mm. This excludes another edge of the
+same operation, a gap or extra overlapping segments.
+
+Ten new resolver cases exercise original display DTOs only. Review found that
+the first fixture incorrectly placed XY in the rendered-plane catalog. The
+implementation now distinguishes principals explicitly and three regressions
+use no rendered planes. The actual principal keyboard route above corroborates
+that correction. A first broader probe passed63 fresh-sketch checks and183
+successive-operation checks; its limited face/background evidence is retained
+separately from the expanded acceptance. A later oracle-strengthening attempt
+failed because its observation profile did not retain body edges. The original
+edge-detail projection is now also enabled for this fixed fresh-sketch route;
+a real-observer unit preserves its primary references/coordinates and proves
+request/reply nonmutation. The exact coordinate/coverage oracle remains. The
+initial test-plane TypeScript
+declaration was corrected to the existing support/reversed contract.
+
+Two final optional face/background menu PNGs are byte-identical to the earlier
+visually reviewed captures: their 260 px panels, readable labels, blue focus,
+disabled entries and complete bounded layout are retained. This is one recorded
+window size, not general compact-window/platform coverage. Operation-plane
+pointer menus, curved-face and legacy-aggregate full workflows remain resolver
+coverage only; wider multiselection, external fidelity and human use remain open.
+
+Retained REA Evidence `ev_b81373f27b8a823d76021cd52c515172160dc0cb3877f8e9e4560c5db71792de`
+was reused without new target execution or setup. Its bundle and two installed
+artifact identities match their recorded hashes; eight selected menu/command
+declarations have RVA 0 and absent bodies. They establish vocabulary, not builtin
+menu contents or action semantics. Nine old bounded component/origin/background
+observations are parent-reported, without original capture hashes; they are not
+replayed part-face evidence. The earlier index-hash mismatch stays explicit.
+The current part workflow, guards and command choices are independently tested
+SolidFlow behavior; no external implementation or artifact is included.
+
+**Local Windows x64 acceptance: PASS**, Node 24.11.1/Electron 44.9.3, on 1,230
+matching source/runtime non-Markdown inputs and nine production outputs.
+Final freeze SHA-256:
+`80cc4d709c46b4010f442beda1bfd7830e2ea9ce613c53ce70f23c9a67fd47fb`.
+Pass 04 includes the full suite and all four renderer routes below. A final
+test-only review repair mutates the real observer snapshot instead of an extra
+normalization clone, strengthening its isolation assertion. The complete
+affected IPC suite, build and desktop smoke pass again on that final source.
+All typed application/unit sources and renderer-harness inputs are unchanged;
+all nine product outputs are byte-identical to pass 04. Full source/production
+hashes remain frozen through each accepted execution.
+
+| Command | Actual result |
+| --- | --- |
+| `npm run build` | PASS, 3.793 s in 04 and 3.854 s after the test-only repair, identical production outputs. |
+| `npm test` | PASS, 10,246 unit/CAD cases in 455 files, 200 IPC passes/two explicit skips, 329.251 s in 04. |
+| `npm run test:ipc` | PASS again after the final snapshot assertion repair, 200 passes/two explicit skips, 5.475 s. |
+| `npm run test:desktop` | PASS, 1.544 s in 04 and 1.507 s final, including transferred-port rejection/barrier and independent native prism checks. |
+| `npm run test:desktop:part-fresh-sketch` | PASS, 79 checkpoints, 8.378 s, strengthened exact edge coordinates/continuous 12 mm coverage and two optional menu captures. |
+| `npm run test:desktop:part-sequence` | PASS, 183 checkpoints, 21.615 s, original successive operations, tree menus, history and persistence. |
+| `npm run test:desktop:part-body-catalog` | PASS, 43 checkpoints, 5.707 s, original body browsing and selection. |
+| `npm run test:desktop:normal-to-view` | PASS, 157 checkpoints, 16.549 s, original part/standard/configured orientation and camera history. |
+
+All four renderer reports have zero console/request errors and confirmed
+child/profile cleanup. Five focused files pass 33 cases, including the ten new
+resolver cases. Applied frontend-design, vercel-react-best-practices,
+code-simplifier, code-review, security-review and REA, with delegated read-only
+review. The principal-plane, exact-edge-witness and snapshot-unit findings were
+corrected; no outstanding finding remains in this increment. No security policy
+exclusion is introduced. This is not general external fidelity, installed-package
+or platform/human acceptance. Draft PR #49, nine remaining groups in #55 and
+release gate #5 remain open.
+
+Public parent 7780b8e has eleven successful renderer/configured jobs, including
+Windows hinge/symmetry. Its Windows persistence job fails during
+[dependency installation](https://github.com/angelcp2802/solidflow/actions/runs/40580456869/job/122458125815),
+before build or any persistence test. The complete job log reports only npm's
+exit 1 and a runner-local debug-log location, without the underlying cause.
+All three Desktop jobs consequently fail their required renderer gate.
+Security/CodeQL succeeds with no new-alert result annotations. This does not
+establish recurring stability; no failed run is restarted or deadline changed.
+
 ## Borrowed current-body placement and native cost — 2026-10-27
 
 Scene construction now places the exact current prototype body directly,

@@ -1,5 +1,37 @@
 # Development guide
 
+## Part viewport context ownership — 2026-10-27
+
+Part viewport right-click targeting shares the existing visible face/edge/body
+pickers and selection filters. A stationary press must retain its input frame,
+displayed model, mode and camera; movement beyond 4 px, cancellation, blur,
+leaving the canvas, a new model or a changed context invalidates it. Keyboard
+ContextMenu/Shift+F10 uses a single current selected target; mixed selection
+retains background commands. Opening a background context preserves selection.
+
+Resolve exact primary face/edge references and unique current body identities
+against the presented catalog. Do not substitute a legacy alias or aggregate
+for an explicit body. Operation-plane targets require a current visible native
+plane entry and a live plane feature. Principal XY/XZ/YZ keyboard selections
+are a distinct target, independent of rendered operation planes. They use the
+existing principal-frame sketch/Normal To behavior, never an invented mesh.
+
+Bind each popup to the document, displayed model, selection witness and document
+epoch. Recheck currentness before executing an existing command. Editing,
+rebuild, camera navigation, file work and dialogs withhold contexts. Selection,
+editing and commit handlers revoke retained popup authority; actions consume it
+once. Closing for Escape retains selection and restores initiating focus.
+CadContextMenu closes before calling onSelect: the close handler schedules UI
+removal, while the action still performs its synchronous ownership check and
+consumption. Do not replace that close handler with early authority revocation
+without preserving authorized command execution.
+
+The blue shared menu exposes existing feature/input-sketch editors, planar
+sketch creation, view commands, named views and explicit deselection. It grants
+no new native proof, file permission, worker action or saved-document field.
+Keep display-resolver tests, CDP gestures, DOM command activation, actual native
+reconstruction and independent saved-file checks distinct in validation.
+
 ## Current-body assembly placement — 2026-10-27
 
 Scene construction asks the completed part inspection to place an exact current

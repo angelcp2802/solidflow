@@ -1011,7 +1011,7 @@ async function runInElectron() {
     check((configuredComponents || normalToView || fromEmpty || basicAuthoring || mateReferenceEdit || partBodyCatalog || partFinishing || partRevolution || partSequence || originAxes || freshSketch || configuredPicking || assembly || activeScenario === SCENARIOS['assembly-configurations'] || rackPinion || direction || tangent || cylinderTangent || sphereTangent || limitDistance || limitAngle || directedAngle || width || symmetry || symmetryPicking || hingePicking || hingeLimitsPicking) && !window.isVisible() && window.webContents.debugger.isAttached()
       && ['mouseMoved', 'mousePressed', 'mouseReleased'].includes(type)
       && Number.isFinite(point.x) && Number.isFinite(point.y) && point.x >= 0 && point.y >= 0
-      && ([0, 1].includes(buttons) || (configuredComponents || normalToView || partSequence || basicAuthoring) && buttons === 2)
+      && ([0, 1].includes(buttons) || (configuredComponents || normalToView || partSequence || basicAuthoring || freshSketch) && buttons === 2)
       && (modifiers === 0 || normalToView && [2, 4].includes(modifiers))
       && (clickCount === 1 || clickCount === 2 && (normalToView || partRevolution || partSequence || partBodyCatalog)
         && ['mousePressed', 'mouseReleased'].includes(type) && buttons !== 2), 'Expected actual pointer input in the hidden test-owned CAD window.');
@@ -1103,16 +1103,33 @@ async function runInElectron() {
     if (failure) throw failure;
   };
   const menuKey = async (key, shift = false) => {
-    const codes = { Escape: 27, Tab: 9, ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, Home: 36, End: 35, Enter: 13, ...((configuredComponents || normalToView || partSequence || basicAuthoring) ? { ContextMenu: 93 } : {}), ...(configuredComponents ? { F10: 121 } : {}) };
-    check((configuredComponents || normalToView || fromEmpty || basicAuthoring || mateReferenceEdit || originAxes || partSequence || configuredPicking || assembly || activeScenario === SCENARIOS['assembly-configurations']) && !window.isVisible() && window.webContents.debugger.isAttached()
+    const codes = { Escape: 27, Tab: 9, ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, Home: 36, End: 35, Enter: 13, ...((configuredComponents || normalToView || partSequence || basicAuthoring || freshSketch) ? { ContextMenu: 93 } : {}), ...((configuredComponents || freshSketch) ? { F10: 121 } : {}) };
+    check((configuredComponents || normalToView || fromEmpty || basicAuthoring || mateReferenceEdit || originAxes || partSequence || configuredPicking || assembly || freshSketch || activeScenario === SCENARIOS['assembly-configurations']) && !window.isVisible() && window.webContents.debugger.isAttached()
       && Object.prototype.hasOwnProperty.call(codes, key) && typeof shift === 'boolean'
-      && (!shift || configuredComponents && key === 'F10'), 'Expected bounded keyboard input in the hidden allowlisted CAD workflow.');
+      && (!shift || (configuredComponents || freshSketch) && key === 'F10'), 'Expected bounded keyboard input in the hidden allowlisted CAD workflow.');
     await window.webContents.debugger.sendCommand('Input.dispatchKeyEvent', { type: 'keyDown', key, code: key, windowsVirtualKeyCode: codes[key],
       modifiers: shift ? 8 : 0,
       ...(key === 'Enter' ? { text: '\r', unmodifiedText: '\r' } : {}) });
     await window.webContents.debugger.sendCommand('Input.dispatchKeyEvent', { type: 'keyUp', key, code: key, windowsVirtualKeyCode: codes[key], modifiers: 0 });
   };
   const contextMenuCaptures = new Set();
+  const capturePartMenu = async kind => {
+    if (process.env.SOLIDFLOW_UI_CAPTURE !== '1') return;
+    const counts = { face: 17, background: 14 };
+    check(freshSketch && Object.hasOwn(counts, kind) && !contextMenuCaptures.has('part-' + kind)
+      && !window.isVisible() && window.webContents.debugger.isAttached(), 'One capture per bounded original part context');
+    await evaluate('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(true))))');
+    const crop = await evaluate(`(() => {
+      const menus=document.querySelectorAll('.part-feature-context-menu[role="menu"]'),e=menus[0],r=e?.getBoundingClientRect();
+      if(menus.length!==1||!r||r.left<0||r.top<0||r.right>innerWidth||r.bottom>innerHeight||r.width>280
+        ||!e.contains(document.activeElement)||e.querySelectorAll('[data-part-context-action]').length!==${counts[kind]})throw Error('One focused bounded part menu required');
+      return {x:Math.floor(r.x),y:Math.floor(r.y),width:Math.ceil(r.width),height:Math.ceil(r.height)};
+    })()`);
+    const image=await window.webContents.capturePage(crop),png=image.toPNG();
+    check(!image.isEmpty()&&png.length>0&&png.length<=256*1024,'Bounded original part menu PNG');
+    contextMenuCaptures.add('part-' + kind);
+    checks.push({ partContextCapture: { kind, crop, sha256:digest(png),byteLength:png.length,base64:png.toString('base64') } });
+  };
   const captureComponentMenu = async (kind = 'component') => {
     if (process.env.SOLIDFLOW_UI_CAPTURE !== '1') return;
     const counts = { component: 4, origin: 3, background: 14 };
@@ -1373,7 +1390,7 @@ async function runInElectron() {
       checks, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
     : freshSketch
-    ? require('./desktop-part-fresh-sketch-flow.cjs')({ expected, input, output, evaluate, observe, waitFor, click, pointer, wheel, menu, capture,
+    ? require('./desktop-part-fresh-sketch-flow.cjs')({ expected, input, output, evaluate, observe, waitFor, click, pointer, wheel, menu, menuKey, capturePartMenu, capture,
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
     : partSequence
@@ -1619,7 +1636,7 @@ async function runInElectron() {
         await super.loadURL('about:blank');
         this.webContents.debugger.attach('1.3');
         await this.webContents.debugger.sendCommand('Page.enable');
-        await this.webContents.debugger.sendCommand('Page.addScriptToEvaluateOnNewDocument', { source: '(' + installWorkerObserver.toString() + ')(' + (normalToView || fromEmpty || importedBodies || freshSketch || partBodyCatalog ? 'true' : 'false') + ',' + (structuralStep ? 'true' : 'false') + ',' + (structuralInsertion ? 'true' : 'false') + ',' + (configurations ? 'true' : 'false') + ',' + (partRevolution ? 'true' : 'false') + ',' + (partFinishing ? 'true' : 'false') + ',' + (mateReferenceEdit ? 'true' : 'false') + ',' + (normalToView ? 'true' : 'false') + ',' + (symmetryPicking ? 'true' : 'false') + ');' });
+        await this.webContents.debugger.sendCommand('Page.addScriptToEvaluateOnNewDocument', { source: '(' + installWorkerObserver.toString() + ')(' + (normalToView || fromEmpty || importedBodies || freshSketch || partBodyCatalog ? 'true' : 'false') + ',' + (structuralStep ? 'true' : 'false') + ',' + (structuralInsertion ? 'true' : 'false') + ',' + (configurations ? 'true' : 'false') + ',' + (partRevolution ? 'true' : 'false') + ',' + (partFinishing || freshSketch ? 'true' : 'false') + ',' + (mateReferenceEdit ? 'true' : 'false') + ',' + (normalToView ? 'true' : 'false') + ',' + (symmetryPicking ? 'true' : 'false') + ');' });
         checks.push('test-owned blank target initialized before CDP observation');
       })();
       await this.instrumentation;

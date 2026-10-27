@@ -1,5 +1,44 @@
 # Project status and review queue
 
+## Part viewport context workflows — 2026-10-27
+
+Right-click and keyboard contexts in the part viewport now target current faces,
+edges, bodies and selected principal planes. Existing feature/sketch editors,
+planar sketch creation, views and explicit deselection are available in the
+shared blue menu. Background/Escape retain selection; stale, dragged, mode-changed
+or staged input cannot start a context command.
+
+The original production-renderer workflow creates two associative face sketches,
+extrudes/cuts, saves/reopens and edits the saved cut from a face context. Cancel
+restores native V996/planar mesh area808 after the V1000/area800 preview, exact
+history and saved bytes. Principal-XZ keyboard creation/Cancel, current body and
+edge pointer/keyboard commands, selection retention and rejected gestures are
+also exercised. The picked outer edge has independently checked coordinates,
+continuous coverage and literal 12 mm length. Two bounded menu captures retain
+the existing blue design and visible focus. See [validation](VALIDATION.md) for
+actual commands, tolerances, the retained observation-profile failure and limits.
+
+These are hidden Electron/CDP gestures and DOM command activation, not human
+or operating-system pointer acceptance. Operation-plane pointer, curved-face,
+legacy-aggregate and wider selection workflows remain outside this renderer
+case. No additional complete functional group is closed.
+
+Local Windows acceptance passes build, 10,246 unit/CAD cases in 455 files,
+200 IPC passes/two explicit skips, production desktop startup and four renderer
+routes: fresh context/sketch (79 checkpoints), successive operations (183), body
+catalog (43) and Normal To across all three workspaces (157). The final observer
+test-only repair is followed by the full IPC suite/build/smoke, with unchanged
+typed sources, renderer inputs and all nine production outputs. Exact freeze
+and evidence limits are in [validation](VALIDATION.md).
+
+Public parent 7780b8e finishes eleven renderer/configured jobs successfully.
+Windows persistence stops during dependency installation, before build/tests;
+the complete job log does not expose the underlying cause. Three Desktop jobs
+fail their renderer prerequisite; Security succeeds. This is not a Save failure
+or recurring-stability proof. Continue in draft PR #49 with checklist #55 still
+16/25 and nine open groups; broader demo/installed-platform acceptance and
+release gate #5 remain open.
+
 ## Direct current-body placement — 2026-10-27
 
 Assembly scenes avoid an intermediate body copy and duplicate native admission,

@@ -24,6 +24,22 @@ function observer(options = [], now = () => 0) {
 }
 const plain = value => JSON.parse(JSON.stringify(value));
 
+test('part edge-detail observation retains the primary catalog and coordinates without changing requests or replies', () => {
+  const { api, worker } = observer([false, false, false, false, false, true]);
+  const request = { id: 'original-edge', action: 'build', features: [] };
+  const edge = { ref: { sourceFeatureId: 'original-cut', key: 'original-primary' }, lines: [10, -6, 4, 10, 6, 4] };
+  const value = { bodyCatalogActive: true, featureErrors: [], warnings: [], bodies: [{
+    ref: { bodyId: 'original-body', sourceFeatureId: 'original-cut' }, createdByFeatureId: 'original-extrude',
+    volume: 996, bounds: { min: [-10, -6, 0], max: [10, 6, 7] }, edges: [edge],
+  }] };
+  const before = JSON.stringify(value); worker.postMessage(request); assert.strictEqual(worker.sent[0], request);
+  worker.emit('message', { id: request.id, ok: true, value });
+  const retained = api.snapshot().builds[0].response.value.bodies[0].edges;
+  assert.deepEqual(plain(retained), [edge]); retained[0].lines[0] = 99;
+  assert.equal(plain(api.snapshot()).builds[0].response.value.bodies[0].edges[0].lines[0], 10);
+  assert.equal(JSON.stringify(value), before);
+});
+
 test('optional worker timing measures transport/queue wall time and response capture without changing sent data or reply', () => {
   let now = 10;
   const { api, worker } = observer([false, false, false, false, false, false, false, false, true], () => now);
