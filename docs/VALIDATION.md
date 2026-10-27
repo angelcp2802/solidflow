@@ -1,5 +1,108 @@
 # Validation
 
+## Assembly scene validation reuse and picking measurements — 2026-10-27
+
+The six-case symmetry viewport-picking route has a recurring hosted Windows
+deadline failure. On public parent `810567d`, eleven renderer/configured jobs
+pass, including Windows persistence; Windows hinge/symmetry fails at the same
+picking step. Its annotation records 170.003 s, 208 checkpoints, four completed
+cases and cylinder/history active for 4.044 s, last wait `actual build-assembly`.
+Three Desktop jobs fail their renderer prerequisite. The preceding `85418b7`
+failure reached five cases/axisline preview. Neither annotation establishes a
+deadlock or identifies kernel CPU as the cause. Full connector job-log retrieval
+failed; a bounded 120,000-character tail was subsequently read through check
+diagnostics. It records five opens and four successful completed Saves
+(86.249..210.422 ms), with zero console/request errors at the deadline. This
+bounded tail does not establish the cost of the entire job. No failed job was
+restarted or deadline increased for this change.
+
+Passive test-only accounting now observes actual send-to-reply wall time and
+response compaction. It uses monotonic nullable clocks, the existing bounded
+record envelope and the original wait/error/duplicate predicates. Sent messages,
+worker responses, polling intervals, child deadlines, geometry tolerances,
+selection gestures and acceptance oracles are unchanged. Inclusive workflow
+categories overlap; they are not additive kernel/render/transport partitions.
+
+In scene construction, the placed aggregate was immediately validated again
+after the placement helper had already checked its source and exact result.
+The helper now returns that actual result's measured solid count alongside its
+owned shape. The scene consumes the count before meshing, with no intervening
+mutation. Source/result BRep validity, closed-solid checks, cardinality
+comparison, topology independence, rigid-pose/bounds admission and fatal owner
+cleanup all remain. Actual placed mesh, mass/area and bounds are still queried;
+there is no persistent cache or reused authorization.
+
+Same-host Windows x64, Node 24.11.1/Electron 44.9.3 observations, three fresh runs
+per variant, all A runs followed by all B runs:
+
+| Measurement (ms) | A samples | B samples | Median A → B |
+| --- | --- | --- | --- |
+| Complete command wall time | 48088.545, 47990.457, 48928.072 | 46060.306, 45953.448, 45994.752 | 48088.545 → 45994.752 (4.35% lower) |
+| Harness workflow wall time | 47383.702, 47285.474, 48223.673 | 45344.258, 45218.903, 45273.416 | 47383.702 → 45273.416 (4.45% lower) |
+| Sum of 43 observed worker round trips | 24884.700, 25023.900, 25477.900 | 23078.700, 23011.600, 23167.800 | 25023.900 → 23078.700 (7.77% lower) |
+
+Response compaction totals remain about 55 ms per run. Worker round trips include
+transport, queueing and scheduling, not only native computation. This sequential
+local comparison is not a randomized trial, a general speed guarantee or proof
+that hosted Windows will pass. An uninstrumented earlier run took 48002 ms;
+no precise observer-overhead claim follows from one such run.
+
+All six A/B runs pass the same 270 checkpoints, point/LINE/plane/sphere/cylinder/
+cylinder-axis cases, 18 author picks plus six reselections, six Save/reopen
+lifecycles and 43 actual worker responses. The original fixture digest is equal,
+all recorded timings are finite/nonnegative and untruncated, and every run has
+zero console/request errors with confirmed child/profile cleanup. Expected
+native geometry, references, history and rejection controls remain in the route.
+Inputs are frozen across each run; only the native placement/scene source and
+its added test differ between A and B.
+
+Three new native cases independently check a two-solid placed aggregate's count,
+topology independence, V48 mm³/A104 mm² and literal Z90-translated bounds
+`[7,-3,2]..[10,3,6]` within 1e-6; reject a closed solid plus a loose face; and
+withhold the shape/count pair while releasing the candidate exactly once after
+an actual native builder cleanup fault. Scene fault-injection tests now intercept
+the checked entry point and retain their original caps, complete error causes,
+no-publication and owner-release assertions. Translation observes both its
+existing shape-only query and the new final-scene query. Four Node tests cover
+nullable/backward clocks, unchanged sent/reply data, real rejection preservation,
+response-accounting cleanup and scalar pending-response deadline evidence with
+all nine rigid phases idle. Eight focused native files pass 147/147 cases.
+
+The first frozen full acceptance passes 10,205 unit/CAD tests in 452 files, then
+fails seven IPC diagnostic cases: their VM omitted the new `symmetryPicking`
+flag referenced by the actual harness code. The VM now declares both scenario
+flags. A new picking-specific deadline case initially expected no phase rows;
+its assertion was corrected to the existing nine explicit zero/idle rows,
+without changing the formatter or any prior expectation. The complete IPC
+suite then passes 199 cases with two explicit skips. These attempts are retained.
+
+Second frozen acceptance is **PASS on Windows x64**, Node 24.11.1/Electron
+44.9.3, with **1,226 non-Markdown inputs and eight production inputs** unchanged
+through execution. Its production bytes equal the three B measurement runs;
+later changes only repair/extend tests.
+
+| Command | Actual result |
+| --- | --- |
+| `npm run build` | PASS, 3.969 s. |
+| `npm test` | PASS, 10,205 unit/CAD tests in 452 files, 199 IPC passes and two explicit skips, 361.478 s overall. |
+| `npm run test:desktop` | PASS, 1.586 s, actual production worker/WASM startup. |
+| `npm run test:desktop:assembly` | PASS, 690 checkpoints, 53.784 s, original cumulative authoring/source/movement/interference/BOM/gear coverage, history and persistence; 26 completed IPC operations. |
+| `npm run test:desktop:assembly-configurations` | PASS, 212 checkpoints, 12.604 s, original selected-state/placement/solve/history and persistence/BOM coverage, including its expected CSV export rejection. |
+
+Both renderer reports have zero console/request errors and confirmed child/profile
+cleanup. These hidden-window/CDP workflows and scripted fields do not establish
+human OS interaction or installed-platform acceptance. No new screenshot or
+packaged-application acceptance is claimed for this nonvisual change.
+
+Applied performance-optimization, code-review, security-review and focused
+code-simplifier, including delegated read-only review. No high-confidence new
+security vulnerability was identified in this diff; there is no base
+SECURITY_MODEL.md to supply exclusions. The existing medium CodeQL annotation
+on the worker message handler remains open. No Electron/IPC/file grant, CSP,
+dependency, WASM binary, saved format or CI policy changes. REA setup is not
+needed for this own-source performance change. Broader demo, human/installed
+platform acceptance and release remain open.
+
 ## Successive scoped revolved cuts — 2026-10-27
 
 The new `revolvedCut` feature removes actual revolved material, with the existing

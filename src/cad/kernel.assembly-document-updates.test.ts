@@ -296,11 +296,11 @@ it('withholds the whole source review after an actual failed downstream cut and 
 it('retains both real native mesh and release failures without publishing a replacement capability', () => {
   const { base, incoming } = fixture(), before = serializeAssemblyDocument(base), session = new AssemblyWorkerSession()
   const existing = session.reviewDocumentUpdate(base, oldSource, incoming), previous = ready(session.previewDocumentUpdate(base, existing.reviewId, empty()))
-  const original = placements.placeAssemblyShape, primary = new Error('Original update mesh fault'), cleanup = new Error('Original update release fault'); let releases = 0
-  const spy = vi.spyOn(placements, 'placeAssemblyShape').mockImplementation((source, pose) => {
-    const shape = original(source, pose), mesh = shape.mesh.bind(shape), remove = shape.delete.bind(shape)
+  const original = placements.placeAssemblyShapeChecked, primary = new Error('Original update mesh fault'), cleanup = new Error('Original update release fault'); let releases = 0
+  const spy = vi.spyOn(placements, 'placeAssemblyShapeChecked').mockImplementation((source, pose) => {
+    const placed = original(source, pose), shape = placed.shape, mesh = shape.mesh.bind(shape), remove = shape.delete.bind(shape)
     vi.spyOn(shape, 'mesh').mockImplementation(options => { mesh(options); throw primary })
-    vi.spyOn(shape, 'delete').mockImplementation(() => { remove(); releases++; throw cleanup }); return shape
+    vi.spyOn(shape, 'delete').mockImplementation(() => { remove(); releases++; throw cleanup }); return placed
   })
   const causes = (e: unknown): unknown[] => e instanceof AggregateError ? [e, ...e.errors.flatMap(causes)] : [e]
   try {

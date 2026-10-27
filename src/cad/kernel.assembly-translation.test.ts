@@ -341,12 +341,16 @@ it('queries the actual interpolated nested-document placement at the final stopp
   const spy = vi.spyOn(placements, 'placeAssemblyShape').mockImplementation((source, pose) => {
     received.push([...pose.translation]); return real(source, pose)
   })
+  const checked = placements.placeAssemblyShapeChecked
+  const scene = vi.spyOn(placements, 'placeAssemblyShapeChecked').mockImplementation((source, pose) => {
+    received.push([...pose.translation]); return checked(source, pose)
+  })
   try {
     const result = traceAssemblyTranslation(movement), actual = expandAssemblyParts(movement.at(result.fraction))
     expect(result.status).toBe('stopped'); expect(received.at(-2)).toEqual(actual[0].worldPose.translation)
     expect(received.at(-1)).toEqual(actual[1].worldPose.translation)
     near(actual[0].worldPose.translation[0], 11.9, 5e-6)
-  } finally { spy.mockRestore() }
+  } finally { scene.mockRestore(); spy.mockRestore() }
 }, 60_000)
 
 it('uses actual native shape tolerances in the safety band and requested deflection in the real query', () => {

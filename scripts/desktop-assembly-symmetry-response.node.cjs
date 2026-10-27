@@ -5,7 +5,7 @@ const createResponseReader = require('./desktop-assembly-symmetry-response.cjs')
 
 const action = 'preview-assembly';
 const check = (condition, message) => { if (!condition) throw new Error(message); };
-function harness(states, inspectWait = inspect => inspect()) {
+function harness(states, inspectWait = inspect => inspect(), timing) {
   const reads = [], waits = [];
   const observe = () => { throw new Error('Full observer history must not be read'); };
   observe.assemblyResponseAfter = async (...args) => {
@@ -13,13 +13,24 @@ function harness(states, inspectWait = inspect => inspect()) {
     assert.ok(states.length, 'No extra projection read');
     return states.shift();
   };
-  const read = createResponseReader({ observe, check, waitFor: (...args) => {
+  const read = createResponseReader({ observe, check, timing, waitFor: (...args) => {
     assert.equal(args.length, 2, 'Keep the existing default wait budget');
     waits.push(args[0]);
     return inspectWait(args[1]);
   } });
   return { read, reads, waits };
 }
+
+test('optional response timing closes exactly once on success and on the unchanged original wait error', async () => {
+  const calls = [], timing = { begin(category) { calls.push(['begin', category]); return () => calls.push(['end', category]); } };
+  const record = { response: { ok: true, value: { original: true } } };
+  const successful = harness([{ workerErrors: [], completedCount: 1, record }], undefined, timing);
+  assert.strictEqual(await successful.read(0, action), record);
+  const failure = new Error('Original wait failure');
+  const rejected = harness([], async () => { throw failure; }, timing);
+  await assert.rejects(rejected.read(0, action), error => error === failure);
+  assert.deepEqual(calls, [['begin', 'assemblyResponse'], ['end', 'assemblyResponse'], ['begin', 'assemblyResponse'], ['end', 'assemblyResponse']]);
+});
 
 test('symmetry response waits on pending projection and returns the complete unique record', async () => {
   const record = Object.freeze({ serial: 9, action, current: { id: 'baseline' }, proposed: { mates: ['original'] },

@@ -430,10 +430,15 @@ async function launch() {
 
 // Runs before any app bundle. This only observes/forwards the real Worker API;
 // no CAD response, React state, document or IPC result is supplied by the test.
-function installWorkerObserver(importedBodyDetails = false, structuralStep = false, structuralInsertion = false, configurations = false, profileDetails = false, finishingDetails = false, mateReferenceDetails = false, normalViewDetails = false) {
+function installWorkerObserver(importedBodyDetails = false, structuralStep = false, structuralInsertion = false, configurations = false, profileDetails = false, finishingDetails = false, mateReferenceDetails = false, normalViewDetails = false, workerTimings = false) {
   const NativeWorker = globalThis.Worker;
   const observations = { serial: 0, eventSerial: 0, builds: [], ui: [], assemblies: [], assemblyUi: [], workerErrors: [] };
   const copy = value => JSON.parse(JSON.stringify(value));
+  const clock = () => {
+    try { const time = performance.now(); return Number.isFinite(time) && time >= 0 ? time : null; }
+    catch { return null; }
+  };
+  const duration = (start, end) => start !== null && end !== null && end >= start ? Math.min(Number.MAX_SAFE_INTEGER, end - start) : null;
   // Observation of the actual display mesh, not a native BRep-area capability.
   // Original planar imported-box checks compare this independent triangle sum.
   const meshArea = (vertices, triangles) => {
@@ -527,6 +532,7 @@ function installWorkerObserver(importedBodyDetails = false, structuralStep = fal
   function compactConfigured(value) { return { kind: value.kind, context: copy(value.context), scene: compactScene(value.scene, true), referenceDiagnostics: copy(value.referenceDiagnostics) }; }
   globalThis.Worker = new Proxy(NativeWorker, { construct(Target, args, newTarget) {
     const worker = Reflect.construct(Target, args, newTarget), send = worker.postMessage, pending = new Map();
+    const sentAt = workerTimings ? new WeakMap() : null;
     worker.postMessage = function(message, ...rest) {
       if (message?.action === 'build') {
         const record = { serial: ++observations.serial, eventSerial: ++observations.eventSerial, id: message.id, features: copy(message.features), response: null };
@@ -549,11 +555,17 @@ function installWorkerObserver(importedBodyDetails = false, structuralStep = fal
         if (observations.assemblies.length >= 256) observations.workerErrors.push('Observer assembly envelope exceeded256.');
         else { observations.assemblies.push(record); pending.set(message.id, record); }
       }
+      if (workerTimings) {
+        const record = pending.get(message?.id);
+        if (record) { record.timing = { workerRoundTripMs: null, responseCaptureMs: null }; sentAt.set(record, clock()); }
+      }
       return Reflect.apply(send, this, [message, ...rest]);
     };
     worker.addEventListener('message', event => {
       const record = pending.get(event.data?.id);
       if (!record) return;
+      const arrived = workerTimings ? clock() : null;
+      if (workerTimings) record.timing.workerRoundTripMs = duration(sentAt.get(record) ?? null, arrived);
       pending.delete(event.data.id);
       record.responseEventSerial = ++observations.eventSerial;
       if (!event.data.ok) record.response = { ok: false, error: event.data.error };
@@ -609,6 +621,7 @@ function installWorkerObserver(importedBodyDetails = false, structuralStep = fal
             volume: body.volume, bounds: copy(body.bounds), ...(importedBodyDetails ? { meshAreaMm2: meshArea(body.vertices, body.triangles),
               meshVertexCount: body.vertices.length / 3, meshTriangleCount: body.triangles.length / 3 } : {}) })), featureErrors: copy(result.featureErrors), warnings: copy(result.warnings) } };
       }
+      if (workerTimings) record.timing.responseCaptureMs = duration(arrived, clock());
     });
     worker.addEventListener('error', event => observations.workerErrors.push(event.message || 'Worker error'));
     return worker;
@@ -893,7 +906,7 @@ async function runInElectron() {
   }
   const childBudgetStarted = performance.now();
   const symmetrySaveTimings = new Map();
-  const workflowTiming = assembly ? require('./desktop-workflow-timing.cjs').createWorkflowTiming() : null;
+  const workflowTiming = assembly || symmetryPicking ? require('./desktop-workflow-timing.cjs').createWorkflowTiming() : null;
   const timeout = setTimeout(() => {
     // Snapshot existing counters before finish stops presentation; no renderer
     // request or evidence-object serialization may delay deadline teardown.
@@ -1447,6 +1460,7 @@ async function runInElectron() {
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : symmetryPicking
     ? require('./desktop-assembly-symmetry-picking-flow.cjs')({ expected, input, output, evaluate, observe, waitFor, click, capture, pointer,
+      timing: workflowTiming,
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : symmetryRepair
@@ -1605,7 +1619,7 @@ async function runInElectron() {
         await super.loadURL('about:blank');
         this.webContents.debugger.attach('1.3');
         await this.webContents.debugger.sendCommand('Page.enable');
-        await this.webContents.debugger.sendCommand('Page.addScriptToEvaluateOnNewDocument', { source: '(' + installWorkerObserver.toString() + ')(' + (normalToView || fromEmpty || importedBodies || freshSketch || partBodyCatalog ? 'true' : 'false') + ',' + (structuralStep ? 'true' : 'false') + ',' + (structuralInsertion ? 'true' : 'false') + ',' + (configurations ? 'true' : 'false') + ',' + (partRevolution ? 'true' : 'false') + ',' + (partFinishing ? 'true' : 'false') + ',' + (mateReferenceEdit ? 'true' : 'false') + ',' + (normalToView ? 'true' : 'false') + ');' });
+        await this.webContents.debugger.sendCommand('Page.addScriptToEvaluateOnNewDocument', { source: '(' + installWorkerObserver.toString() + ')(' + (normalToView || fromEmpty || importedBodies || freshSketch || partBodyCatalog ? 'true' : 'false') + ',' + (structuralStep ? 'true' : 'false') + ',' + (structuralInsertion ? 'true' : 'false') + ',' + (configurations ? 'true' : 'false') + ',' + (partRevolution ? 'true' : 'false') + ',' + (partFinishing ? 'true' : 'false') + ',' + (mateReferenceEdit ? 'true' : 'false') + ',' + (normalToView ? 'true' : 'false') + ',' + (symmetryPicking ? 'true' : 'false') + ');' });
         checks.push('test-owned blank target initialized before CDP observation');
       })();
       await this.instrumentation;

@@ -49,10 +49,10 @@ it('imports a reusable assembly graph with local fixed-plane mates and fresh nat
   if (embedded.kind !== 'assembly') throw Error('Imported assembly absent')
   expect(embedded.occurrences).toEqual(source.occurrences); expect(embedded.mates).toEqual(source.mates)
   expect(embedded.mates[0].type).toBe('coincident')
-  const before = serializeAssemblyDocument(twice), original = placements.placeAssemblyShape
+  const before = serializeAssemblyDocument(twice), original = placements.placeAssemblyShapeChecked
   const solids: number[] = []
-  const spy = vi.spyOn(placements, 'placeAssemblyShape').mockImplementation((...args) => {
-    const shape = original(...args); solids.push(validatePositiveClosedTool(shape).solidCount); return shape
+  const spy = vi.spyOn(placements, 'placeAssemblyShapeChecked').mockImplementation((...args) => {
+    const placed = original(...args); solids.push(validatePositiveClosedTool(placed.shape).solidCount); return placed
   })
   try {
     geometry(twice); expect(solids).toEqual([1, 1, 1, 1])

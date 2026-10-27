@@ -303,11 +303,11 @@ it.each(['review catalog', 'recaptured preview'] as const)('withholds %s authori
   decisions.recapture = review.mechanicalMates.map(({ scope, mateId }) => ({ scope, mateId }))
   const previous = ready(session.previewReplacement(current, review.reviewId, decisions))
   const primary = new Error('Original replacement mesh fault'), cleanup = new Error('Original replacement release fault')
-  const original = placements.placeAssemblyShape, restored: { mockRestore(): void }[] = []
+  const original = placements.placeAssemblyShapeChecked, restored: { mockRestore(): void }[] = []
   const actualCapture = vi.spyOn(solves, 'captureAssemblyGearPreview')
   let meshes = 0, releases = 0
-  const spy = vi.spyOn(placements, 'placeAssemblyShape').mockImplementation((source, pose) => {
-    const shape = original(source, pose), mesh = shape.mesh.bind(shape), remove = shape.delete.bind(shape)
+  const spy = vi.spyOn(placements, 'placeAssemblyShapeChecked').mockImplementation((source, pose) => {
+    const placed = original(source, pose), shape = placed.shape, mesh = shape.mesh.bind(shape), remove = shape.delete.bind(shape)
     let failed = false
     restored.push(vi.spyOn(shape, 'mesh').mockImplementation(options => {
       const result = mesh(options)
@@ -317,7 +317,7 @@ it.each(['review catalog', 'recaptured preview'] as const)('withholds %s authori
       remove()
       if (failed) { releases++; throw cleanup }
     }))
-    return shape
+    return placed
   })
   const causalErrors = (error: unknown): unknown[] => error instanceof AggregateError ? [error, ...error.errors.flatMap(causalErrors)] : [error]
   try {

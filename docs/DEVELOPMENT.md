@@ -1,5 +1,38 @@
 # Development guide
 
+## Placed scene cardinality and passive picking timings — 2026-10-27
+
+`placeAssemblyShapeChecked` returns an owned, independent placed aggregate and
+the solid count measured from that exact result. It performs the same source
+and result BRep/closed-solid checks, cardinality comparison, proper rigid
+transform, copy independence and finite-bounds checks as `placeAssemblyShape`.
+The latter keeps its shape-only API. The pair may escape only after all other
+native owners have been released successfully; a cleanup failure withholds both
+fields and releases the candidate. No validator survives the operation.
+
+The scene builder consumes that count synchronously, before meshing or mutating
+the returned shape, instead of immediately validating the identical aggregate
+again. It still queries actual placed mesh, edges, native mass/area and bounds.
+Do not use the count after mutation or as an authorization for another request.
+Fault-injection tests aimed at scene construction must intercept the checked
+entry point, return its original pair and patch its actual owned shape. Separate
+export, interference and translation consumers retain their shape-only wrapper.
+
+The six-case symmetry viewport-picking harness enables optional passive worker
+timings. `workerRoundTripMs` measures renderer send to reply arrival, including
+transport, queueing and scheduling; it is not kernel CPU time.
+`responseCaptureMs` measures the observer's existing response projection.
+Missing, invalid or backward clocks produce nullable diagnostics. Timings never
+alter sent data, actual replies, acceptance, polling or deadlines. The existing
+256-record envelope bounds retained timing records; overflow is explicit.
+
+Workflow accounting also covers this picking route. Its categories overlap,
+so their totals must not be added. Existing rigid-workflow phase names remain
+idle here; the six symmetry families are identified in bounded response timing
+records. Compare the same workload, host, versions and oracles before reporting
+a difference. Local synthetic timing does not establish hosted stability,
+installed-platform acceptance or external-application behavior.
+
 ## Subtractive revolution contract — 2026-10-27
 
 `revolvedCut` is a distinct saved feature, sharing sketch, axis, angle, reverse

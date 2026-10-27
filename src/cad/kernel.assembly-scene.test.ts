@@ -161,17 +161,17 @@ it('skips only an explicitly typed unsupported classification after a real nativ
 }, 60_000)
 
 it('releases the actual placed owner and all prototypes when real mesh retrieval then cleanup fail', () => {
-  const input = placed(), original = placements.placeAssemblyShape, primary = new Error('Original placed mesh fault'), cleanup = new Error('Original placed release fault')
+  const input = placed(), original = placements.placeAssemblyShapeChecked, primary = new Error('Original placed mesh fault'), cleanup = new Error('Original placed release fault')
   const realBuild = CadEngine.prototype.build, engines: CadEngine[] = []
   const builds = vi.spyOn(CadEngine.prototype, 'build').mockImplementation(function(this: CadEngine, features) { engines.push(this); return realBuild.call(this, features) })
   let released = 0, placedCount = 0, candidate: Shape3D | null = null
-  const spy = vi.spyOn(placements, 'placeAssemblyShape').mockImplementation((source, pose) => {
-    const shape = original(source, pose)
-    if (++placedCount === 1) return shape // Fail after both real prototypes exist.
+  const spy = vi.spyOn(placements, 'placeAssemblyShapeChecked').mockImplementation((source, pose) => {
+    const placed = original(source, pose), shape = placed.shape
+    if (++placedCount === 1) return placed // Fail after both real prototypes exist.
     const mesh = shape.mesh.bind(shape), remove = shape.delete.bind(shape); candidate = shape
     vi.spyOn(shape, 'mesh').mockImplementation(options => { mesh(options); throw primary })
     vi.spyOn(shape, 'delete').mockImplementation(() => { released++; remove(); throw cleanup })
-    return shape
+    return placed
   })
   try {
     let failure: unknown
@@ -184,11 +184,11 @@ it('releases the actual placed owner and all prototypes when real mesh retrieval
 }, 60_000)
 
 it('rejects an oversized numeric display response after a real mesh query instead of clipping it', () => {
-  const input = placed(), original = placements.placeAssemblyShape
-  const spy = vi.spyOn(placements, 'placeAssemblyShape').mockImplementation((source, pose) => {
-    const shape = original(source, pose), mesh = shape.mesh.bind(shape)
+  const input = placed(), original = placements.placeAssemblyShapeChecked
+  const spy = vi.spyOn(placements, 'placeAssemblyShapeChecked').mockImplementation((source, pose) => {
+    const placed = original(source, pose), shape = placed.shape, mesh = shape.mesh.bind(shape)
     vi.spyOn(shape, 'mesh').mockImplementation(options => { const real = mesh(options); return { ...real, vertices: Array(MAX_ASSEMBLY_SCENE_NUMBERS + 2).fill(real.vertices[0]) } })
-    return shape
+    return placed
   })
   try { expect(() => buildAssemblyScene(input)).toThrow('presupuesto de números') } finally { spy.mockRestore() }
 }, 60_000)

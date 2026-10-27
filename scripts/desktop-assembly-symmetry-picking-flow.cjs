@@ -25,7 +25,14 @@ module.exports = function symmetryPickingWorkflow(context) {
   async function button(text,scope='.assembly-app'){ await assemblyNavigation.button(text, scope);await page((text,scope)=>{const values=[...document.querySelectorAll(scope+' button')].filter(v=>v.textContent.trim()===text);if(values.length!==1||values[0].disabled)throw Error('Exact enabled button absent: '+text);values[0].click();},text,scope);}
   async function control(selector,value){ await assemblyNavigation.reveal(selector);await page((selector,value)=>{const el=document.querySelector(selector);if(!el||el.disabled)throw Error('Editable control absent: '+selector);const proto=el instanceof HTMLSelectElement?HTMLSelectElement.prototype:HTMLInputElement.prototype;if(el instanceof HTMLSelectElement&&![...el.options].some(o=>o.value===value&&!o.disabled))throw Error('Exact option absent: '+value);Object.getOwnPropertyDescriptor(proto,'value').set.call(el,value);el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));},selector,value);await waitFor('rendered '+selector,()=>page((selector,value)=>document.querySelector(selector)?.value===value,selector,value));}
   const idle=label=>waitFor(label,()=>page(()=>document.querySelector('.assembly-app')?.getAttribute('aria-busy')==='false'));
-  const responseAfter=require('./desktop-assembly-symmetry-response.cjs')({observe,waitFor,check});
+  evidence.workerTimings=[];
+  const readResponse=require('./desktop-assembly-symmetry-response.cjs')({observe,waitFor,check,timing:context.timing});
+  const responseAfter=async(serial,action)=>{
+    const record=await readResponse(serial,action);
+    if(evidence.workerTimings.length<256)evidence.workerTimings.push({serial:record.serial,action,family:progress.record.family,stage:progress.record.stage,...record.timing});
+    else evidence.workerTimingsTruncated=true;
+    return record;
+  };
   async function recovery(document,label){await waitFor(label+' committed recovery',async()=>await page(()=>document.querySelector('.assembly-app')?.getAttribute('aria-busy')==='false')&&canonical(JSON.parse(await page(()=>localStorage.getItem('solidflow.autosave'))))===canonical(document));}
   function body(scene,id){const values=scene.bodies.filter(v=>canonical(v.component.occurrencePath)===canonical([id]));check(values.length===1,'Exact native owner '+id);return values[0];}
   function support(scene,id,kind){const b=body(scene,id);let candidates;

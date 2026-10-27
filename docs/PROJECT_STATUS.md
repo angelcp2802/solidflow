@@ -1,5 +1,27 @@
 # Project status and review queue
 
+## Scene validation reuse and symmetry picking — 2026-10-27
+
+The scene builder consumes the placed aggregate's already measured solid count,
+retaining source/result native validation, independent topology, actual placed
+mass/area/bounds and fatal cleanup. Optional passive picking timings distinguish
+worker round trips from response projection and overlapping harness waits.
+
+Six unchanged local cases pass in three runs per variant. Median complete wall
+time is 48.089 s before and 45.995 s after (4.35% lower on this Windows host).
+This is a limited sequential comparison, not a hosted-timeout fix claim.
+Final local acceptance passes build, 10,205 unit/CAD cases, 199 IPC passes with
+two explicit skips, desktop startup, the complete standard assembly route
+(690 checkpoints) and the configured lifecycle (212 checkpoints). The earlier
+diagnostic-VM failure and its correction are retained. See [validation](VALIDATION.md)
+for exact frozen inputs, independent geometry and the measurement limitations.
+
+Public parent `810567d` has eleven renderer/configured successes and the recurring
+Windows symmetry-picking deadline failure; the three Desktop prerequisites fail.
+Hosted acceptance of this change, the medium CodeQL annotation, broader human/
+installed-platform acceptance and release remain open. Continue in draft PR #49;
+checklist #55 remains 16/25 with nine open groups.
+
 ## Configured origin and background contexts — 2026-10-27
 
 Origin menus now prepare an existing relation form from a current plane/axis,

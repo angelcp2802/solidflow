@@ -6,7 +6,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 // Exercise the actual injected observer without starting Electron or CAD.
-function observer(options = []) {
+function observer(options = [], now = () => 0) {
   const source = fs.readFileSync(path.join(__dirname, 'desktop-pattern-ui.cjs'), 'utf8');
   const start = source.indexOf('function installWorkerObserver(');
   const end = source.indexOf('\nasync function runInElectron()', start);
@@ -18,11 +18,40 @@ function observer(options = []) {
     emit(type, data) { this.listeners.get(type)({ data, message: data }); }
   }
   // DOM mutation auditing is outside this worker-projection test.
-  const context = vm.createContext({ Worker, Blob, document: {}, MutationObserver: class { observe() {} } });
+  const context = vm.createContext({ Worker, Blob, document: {}, performance: { now }, MutationObserver: class { observe() {} } });
   vm.runInContext(source.slice(start, end) + '\ninstallWorkerObserver(...' + JSON.stringify(options) + ');', context);
   return { api: context.__solidflowUiTestObservation, worker: vm.runInContext('new Worker()', context) };
 }
 const plain = value => JSON.parse(JSON.stringify(value));
+
+test('optional worker timing measures transport/queue wall time and response capture without changing sent data or reply', () => {
+  let now = 10;
+  const { api, worker } = observer([false, false, false, false, false, false, false, false, true], () => now);
+  const message = Object.freeze({ id: 'timed', action: 'discard-assembly' });
+  worker.postMessage(message); assert.strictEqual(worker.sent[0], message);
+  assert.deepEqual(plain(api.snapshot().assemblies[0].timing), { workerRoundTripMs: null, responseCaptureMs: null });
+  now = 35; worker.emit('message', { id: 'timed', ok: true, value: null });
+  const record = plain(api.assemblyResponseAfter(0, 'discard-assembly')).record;
+  assert.deepEqual(record.timing, { workerRoundTripMs: 25, responseCaptureMs: 0 });
+  assert.deepEqual(record.response, { ok: true, value: null });
+  assert.equal(Object.hasOwn(message, 'timing'), false);
+});
+
+test('failed diagnostic clocks remain nullable and cannot hide an actual worker rejection', () => {
+  let mode = 'throw';
+  const { api, worker } = observer([false, false, false, false, false, false, false, false, true], () => {
+    if (mode === 'throw') throw new Error('Clock unavailable'); return mode === 'backward' ? 5 : 10;
+  });
+  worker.postMessage({ id: 'missing-clock', action: 'preview-assembly' });
+  mode = 'valid'; worker.emit('message', { id: 'missing-clock', ok: false, error: 'Original native rejection' });
+  const first = plain(api.snapshot()).assemblies[0];
+  assert.deepEqual(first.timing, { workerRoundTripMs: null, responseCaptureMs: 0 });
+  assert.deepEqual(first.response, { ok: false, error: 'Original native rejection' });
+  worker.postMessage({ id: 'backward', action: 'preview-assembly' }); mode = 'backward';
+  worker.emit('message', { id: 'backward', ok: true, value: null });
+  assert.equal(api.snapshot().assemblies[1].timing.workerRoundTripMs, null);
+  assert.deepEqual(plain(api.snapshot().workerErrors), []);
+});
 
 test('assembly response projection preserves complete selected record, errors and strict boundary among pending/completed actions', () => {
   const { api, worker } = observer();

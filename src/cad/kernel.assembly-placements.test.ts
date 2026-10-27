@@ -6,7 +6,7 @@ import { cast, getOC, makeBox, makeCylinder, measureShapeSurfaceProperties, meas
 import { beforeAll, expect, it, vi } from 'vitest';
 import { createDocument, serializeDocument, validateDocument } from '../model/document';
 import { composeRigidPoses, type RigidPose } from '../model/rigidPose';
-import { placeAssemblyBody } from './kernel.assembly-placements';
+import { placeAssemblyBody, placeAssemblyShapeChecked, validateAssemblyShape } from './kernel.assembly-placements';
 import { bodyBoolean, NativeBodyCatalog, validateBodyShape } from './kernel.bodies';
 import * as bodies from './kernel.bodies';
 import { CadEngine } from './kernel.engine';
@@ -87,6 +87,31 @@ function compound(owners: NativeOwners, shapes: readonly Shape3D[]): Shape3D {
   const oc = getOC(), builder = owners.own(new oc.TopoDS_Builder()), raw = owners.own(new oc.TopoDS_Compound());
   builder.MakeCompound(raw); shapes.forEach(shape => builder.Add(raw, shape.wrapped)); return owners.own(cast(raw)).asShape3D();
 }
+
+it('returns the actual placed aggregate count with independent topology, mass and bounds', () => withNativeOwners(owners => {
+  // Original two disjoint2x3x4boxes, properZ90rotation then[10,-3,2].
+  const first = owners.own(makeBox([0, 0, 0], [2, 3, 4])), second = owners.own(makeBox([4, 0, 0], [6, 3, 4]));
+  const source = compound(owners, [first, second]);
+  const placed = placeAssemblyShapeChecked(source, { translation: [10, -3, 2], rotation: [0, 0, H, H] });
+  owners.own(placed.shape);
+  expect(placed.solidCount).toBe(2); expect(validateAssemblyShape(placed.shape)).toBe(2);
+  independent(source, placed.shape); expect(validateAssemblyShape(source)).toBe(2);
+  expect(Math.abs(owners.own(measureShapeVolumeProperties(placed.shape)).volume - 48)).toBeLessThan(1e-6);
+  expect(Math.abs(owners.own(measureShapeSurfaceProperties(placed.shape)).area - 104)).toBeLessThan(1e-6);
+  const bounds = owners.own(placed.shape.boundingBox).bounds;
+  [[7, -3, 2], [10, 3, 6]].forEach((side, i) => side.forEach((value, j) => expect(Math.abs(bounds[i][j] - value)).toBeLessThan(1e-6)));
+}));
+
+it('rejects a closed solid with a loose face instead of returning a checked aggregate', () => withNativeOwners(owners => {
+  const source = owners.own(makeBox([0, 0, 0], [2, 3, 4])), face = owners.ownAll(source.faces)[0];
+  const oc = getOC(), builder = owners.own(new oc.TopoDS_Builder()), raw = owners.own(new oc.TopoDS_Compound());
+  builder.MakeCompound(raw); builder.Add(raw, source.wrapped); builder.Add(raw, face.wrapped);
+  const loose = owners.own(cast(raw)).asShape3D();
+  let published: ReturnType<typeof placeAssemblyShapeChecked> | undefined;
+  expect(() => { published = placeAssemblyShapeChecked(loose, IDENTITY); }).toThrow(/geometría suelta/);
+  expect(published).toBeUndefined(); expect(validateAssemblyShape(source)).toBe(1);
+  metrics(source, 24, 52, [0, 0, 0], [2, 3, 4]);
+}));
 
 it('places the original plate at identity with independent solid and face topology', () => withNativeOwners(owners => {
   const source = parts(owners), placed = owners.own(placeAssemblyBody(source.plate, IDENTITY));
@@ -194,11 +219,12 @@ function errorTree(error: unknown, seen = new Set<unknown>()): unknown[] {
     ...(error instanceof Error && error.cause !== undefined ? errorTree(error.cause, seen) : [])];
 }
 /** Adapt only actual objects received by this component, before arena adoption. */
-function placementFault<T>(patch: (owner: NativeOwner) => void, action: () => T): T {
+function placementFault<T>(patch: (owner: NativeOwner) => void, action: () => T,
+  placementContext = 'Assembly body placement or release failed.'): T {
   const real = ownership.withNativeOwners;
   const replacement: typeof ownership.withNativeOwners = <R>(operation: (owners: NativeOwners) => R,
     retained: (result: R) => readonly NativeOwner[] = () => [], context?: string): R => real(owners => {
-      if (context === 'Assembly body placement or release failed.') {
+      if (context === placementContext) {
         const own = owners.own.bind(owners); owners.own = <S extends NativeOwner>(value: S): S => { patch(value); return own(value); };
       }
       return operation(owners);
@@ -206,6 +232,28 @@ function placementFault<T>(patch: (owner: NativeOwner) => void, action: () => T)
   const spy = vi.spyOn(ownership, 'withNativeOwners').mockImplementation(replacement);
   try { return action(); } finally { spy.mockRestore(); }
 }
+
+it('withholds the checked shape/count pair and releases its candidate once when native builder cleanup fails', () => withNativeOwners(owners => {
+  const source = owners.own(makeBox([0, 0, 0], [2, 3, 4])), cleanup = new Error('Original checked aggregate builder cleanup');
+  let published: ReturnType<typeof placeAssemblyShapeChecked> | undefined, shapeCount = 0, resultReleases = 0, builderReleases = 0;
+  const failure = captured(() => placementFault(value => {
+    if ('asShape3D' in value && typeof value.asShape3D === 'function' && 'wrapped' in value) {
+      const shape = value as Shape3D;
+      if (++shapeCount === 2) {
+        const handle = shape.wrapped, remove = handle.delete.bind(handle);
+        Object.defineProperty(handle, 'delete', { configurable: true, value: () => { resultReleases++; remove(); } });
+      }
+    } else if ('Perform' in value && 'ModifiedShape' in value && 'IsDone' in value) {
+      const remove = value.delete.bind(value);
+      Object.defineProperty(value, 'delete', { configurable: true, value: () => { builderReleases++; remove(); throw cleanup; } });
+    }
+  }, () => { published = placeAssemblyShapeChecked(source, { translation: [10, -3, 2], rotation: [0, 0, H, H] }); },
+  'Assembly shape placement or release failed.'));
+  expect(published).toBeUndefined(); expect(failure).toBeInstanceOf(NativeCleanupError); expect(errorTree(failure)).toContain(cleanup);
+  expect(shapeCount).toBe(2); expect(resultReleases).toBe(1); expect(builderReleases).toBe(1);
+  metrics(source, 24, 52, [0, 0, 0], [2, 3, 4]);
+}));
+
 for (const fault of ['matrix-query', 'build-query', 'matrix-release', 'builder-release', 'validation-and-release'] as const)
   it('retains native ' + fault + ' failure and withholds/releases a completed candidate exactly once', () => withNativeOwners(owners => {
     const source = owners.own(makeCylinder(2, 12)), primary = new Error('Original assembly placement primary ' + fault), cleanup = new Error('Original assembly placement cleanup ' + fault),

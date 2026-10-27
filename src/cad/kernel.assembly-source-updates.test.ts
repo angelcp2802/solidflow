@@ -306,17 +306,17 @@ it('retains suppressed component and principal identities while preserving poses
 }, 60_000)
 
 it('preserves query and native cleanup causes while withholding the entire source review', () => {
-  const input = semantic(), changed = changedSemantic(input), before = serializeAssemblyDocument(input), original = placements.placeAssemblyShape
+  const input = semantic(), changed = changedSemantic(input), before = serializeAssemblyDocument(input), original = placements.placeAssemblyShapeChecked
   const primary = new Error('Original source-review mesh fault'), cleanup = new Error('Original source-review release fault')
   let calls = 0, releases = 0
-  const spy = vi.spyOn(placements, 'placeAssemblyShape').mockImplementation((source, pose) => {
-    const shape = original(source, pose)
+  const spy = vi.spyOn(placements, 'placeAssemblyShapeChecked').mockImplementation((source, pose) => {
+    const placed = original(source, pose), shape = placed.shape
     if (++calls === 3) {
       const mesh = shape.mesh.bind(shape), remove = shape.delete.bind(shape)
       vi.spyOn(shape, 'mesh').mockImplementation(options => { mesh(options); throw primary })
       vi.spyOn(shape, 'delete').mockImplementation(() => { releases++; remove(); throw cleanup })
     }
-    return shape
+    return placed
   })
   try {
     let failure: unknown

@@ -37,7 +37,13 @@ export function validateAssemblyShape(shape: Shape3D): number {
   }, undefined, 'Assembly aggregate validation or release failed.');
 }
 
-function placeShape(source: Shape3D, pose: RigidPose, validate: (shape: Shape3D) => number, context: string): Shape3D {
+export interface PlacedAssemblyShape {
+  readonly shape: Shape3D;
+  /** Native count for this returned shape before any caller mutation. */
+  readonly solidCount: number;
+}
+
+function placeShape(source: Shape3D, pose: RigidPose, validate: (shape: Shape3D) => number, context: string): PlacedAssemblyShape {
   const checked = validateRigidPose(pose), r = rigidRotationMatrix(checked.rotation), t = checked.translation;
   return withNativeOwners(owners => {
     const sourceSolids = validate(source);
@@ -69,15 +75,16 @@ function placeShape(source: Shape3D, pose: RigidPose, validate: (shape: Shape3D)
     }
     // cast owns a distinct downcast wrapper; raw remains separately owned.
     const result = owners.own(cast(raw)).asShape3D();
-    if (validate(result) !== sourceSolids) throw new Error('La colocación no conserva todos los sólidos del agregado.');
+    const solidCount = validate(result);
+    if (solidCount !== sourceSolids) throw new Error('La colocación no conserva todos los sólidos del agregado.');
     finiteBounds(result, owners);
-    return result;
-  }, result => [result], context);
+    return { shape: result, solidCount };
+  }, result => [result.shape], context);
 }
 
 /** BORROWED one-solid prototype → OWNED independent one-solid occurrence, in mm. */
 export function placeAssemblyBody(source: Shape3D, pose: RigidPose): Shape3D {
-  return placeShape(source, pose, shape => { validateBodyShape(shape); return 1; }, 'Assembly body placement or release failed.');
+  return placeShape(source, pose, shape => { validateBodyShape(shape); return 1; }, 'Assembly body placement or release failed.').shape;
 }
 
 /**
@@ -86,5 +93,12 @@ export function placeAssemblyBody(source: Shape3D, pose: RigidPose): Shape3D {
  * The caller retains occurrence identity; this performs no reference or mate solve.
  */
 export function placeAssemblyShape(source: Shape3D, pose: RigidPose): Shape3D {
+  return placeAssemblyShapeChecked(source, pose).shape;
+}
+
+/** Same owned placement and native admission, with its already measured count.
+ * Consume synchronously without mutating shape; this is not a retained validator.
+ * Native cleanup must finish successfully before either field is returned. */
+export function placeAssemblyShapeChecked(source: Shape3D, pose: RigidPose): PlacedAssemblyShape {
   return placeShape(source, pose, validateAssemblyShape, 'Assembly shape placement or release failed.');
 }

@@ -85,12 +85,12 @@ test('same primary is annotated once, with no PASS representation or error mutat
   assert.deepEqual(Object.getOwnPropertyDescriptors(original), before);
 });
 
-function exerciseChildDeadline(checks, { timing = null } = {}) {
+function exerciseChildDeadline(checks, { timing = null, symmetryPicking = false } = {}) {
   const source = fs.readFileSync(path.join(__dirname, 'desktop-pattern-ui.cjs'), 'utf8');
   const start = source.indexOf('  const childBudgetStarted ='), end = source.indexOf('  function finish(error) {', start);
   assert.ok(start > 0 && end > start);
   let callback, delay, failure, now = 100;
-  const context = vm.createContext({ checks, TEST_MS: 180_000, performance: { now: () => now }, assembly: !!timing,
+  const context = vm.createContext({ checks, TEST_MS: 180_000, performance: { now: () => now }, assembly: !!timing && !symmetryPicking, symmetryPicking,
     require(name) { assert.equal(name, './desktop-workflow-timing.cjs'); return { createWorkflowTiming: () => timing }; },
     presentation: { active: true, frames: 123, captureBarriers: 2 }, presentationWaiters: new Set([1, 2, 3]),
     setTimeout(fn, milliseconds) { callback = fn; delay = milliseconds; }, finish(error) { failure = error; } });
@@ -216,6 +216,21 @@ test('actual child deadline progress rejects invalid scalars, bounds strings and
   assert.match(annotation, /<path>/); assert.doesNotMatch(annotation, /Original Person|fixture\.solidflow/);
   assert.ok(Buffer.byteLength(annotation) <= 4096);
   assert.doesNotMatch(exerciseChildDeadline([{ moveTimings: [] }, { assemblyResponseProgress: null }]).message, / progress=/);
+});
+
+test('actual picking deadline retains pending response timing with rigid phases idle', () => {
+  const { createWorkflowTiming } = require('./desktop-workflow-timing.cjs');
+  let now = 0;
+  const timing = createWorkflowTiming(() => now), end = timing.begin('assemblyResponse');
+  now = 125;
+  const error = exerciseChildDeadline(['actual picking checkpoint'], { timing, symmetryPicking: true });
+  const compact = JSON.parse(error.message.split(' timing=')[1].split(';')[0]);
+  assert.deepEqual(compact.categories.find(row => row[0] === 'assemblyResponse'), ['assemblyResponse', 1, 125, 1, 125]);
+  assert.equal(compact.phase, null);
+  assert.deepEqual(compact.phases, ['authoring', 'source', 'movement', 'drag', 'projection', 'interference', 'translation', 'bom', 'gear']
+    .map(name => [name, 0, 'idle']));
+  assert.match(error.message, /lastCompletedWait="actual picking checkpoint"/);
+  end();
 });
 
 test('actual deadline retains pending timing and scalar-only phase evidence without renderer reads', () => {
