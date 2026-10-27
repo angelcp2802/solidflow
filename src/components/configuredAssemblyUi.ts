@@ -72,12 +72,12 @@ export function editConfiguredUiOccurrence(document: AssemblyConfiguredDocument,
   }
   return validateAssemblyConfiguredDocument(next)
 }
-export interface ConfiguredUiTicket { serialized: string; generation: number; scope: string; path?: string; occurrence?: string; draftRevision?: number }
-export function configuredUiTicket(document: AssemblyConfiguredDocument, generation: number, scope: string, path?: string, occurrence?: string, draftRevision?: number): ConfiguredUiTicket {
-  return { serialized: serializeAssemblyConfiguredDocument(document), generation, scope, path, occurrence, draftRevision }
+export interface ConfiguredUiTicket { serialized: string; generation: number; scope: string; path?: string; occurrence?: string; draftRevision?: number; navigationRevision?: number }
+export function configuredUiTicket(document: AssemblyConfiguredDocument, generation: number, scope: string, path?: string, occurrence?: string, draftRevision?: number, navigationRevision?: number): ConfiguredUiTicket {
+  return { serialized: serializeAssemblyConfiguredDocument(document), generation, scope, path, occurrence, draftRevision, navigationRevision }
 }
 export function configuredUiTicketMatches(ticket: ConfiguredUiTicket, current: ConfiguredUiTicket): boolean {
-  return ticket.serialized === current.serialized && ticket.generation === current.generation && ticket.scope === current.scope && ticket.path === current.path && ticket.occurrence === current.occurrence && ticket.draftRevision === current.draftRevision
+  return ticket.serialized === current.serialized && ticket.generation === current.generation && ticket.scope === current.scope && ticket.path === current.path && ticket.occurrence === current.occurrence && ticket.draftRevision === current.draftRevision && ticket.navigationRevision === current.navigationRevision
 }
 export interface ConfiguredMateUiTicket { context: ConfiguredUiTicket; revision: number; draft: string; sceneId: string | null }
 export function configuredMateUiTicketMatches(before: ConfiguredMateUiTicket, after: ConfiguredMateUiTicket): boolean {

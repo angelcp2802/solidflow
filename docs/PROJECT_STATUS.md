@@ -1,5 +1,28 @@
 # Project status and review queue
 
+## Configured scope navigation — 2026-10-27
+
+Idle navigation between configured assembly scopes retains the exact confirmed
+scene and native generation. A separate UI revision keeps prior callbacks and
+pointer releases stale; pending drafts and invalid contexts retain revocation
+and fresh reconstruction. Document/geometry/file formats are unchanged.
+
+In the original four-solid/two-prototype local experiment, nine scope changes
+drop from nine native rebuilds to none. Scripted median navigation is
+144.826 ms before and 52.810 ms after in one session per side; this
+is not an application-wide performance or OS-input claim. Final Windows
+acceptance passes build, 10,142 tests across 448 files, 169 IPC passes with two
+explicit skips, eighteen renderer routes and desktop startup on one frozen
+1,216 non-Markdown inputs. Scope-bound selection and draft cancellation are exercised.
+See [validation](VALIDATION.md) for actual cases, timings, failures and limits.
+
+Parent `fd820ea` completes all fifteen [CI jobs](https://github.com/angelcp2802/solidflow/actions/runs/40516138455).
+Hosted checks for this new navigation increment remain pending; the tracked
+medium security annotation, broader human/demo acceptance, installed-platform
+acceptance and release gate #5 remain open. Continue in draft PR #49. The
+prototype checklist remains **16/25**, with nine open items; configured context
+menus and remaining reference editors still require follow-up.
+
 ## Saved-view name and camera editing — 2026-10-27
 
 Parts and both assembly workspaces now rename a selected saved view and update

@@ -25,6 +25,7 @@ module.exports=function configurationsWorkflow(context){
  }
  function preserved(doc){check(doc.version===3&&doc.kind==='configured-assembly','Full v3 saved envelope');check(canonical(doc.source)===canonical(expected.source),'Source Base document byte-equivalent data preserved');check(canonical(doc.catalog[0])===canonical(expected.catalog[0]),'All root selectors preserved');check(canonical(doc.catalog[1].configurations[1])===canonical(expected.catalog[1].configurations[1]),'Dormant single state preserved');}
  function ready(row,committed){const v=row.response.value;check(v.kind==='configured-assembly-preview'&&v.hasToken&&Number.isSafeInteger(v.candidateGeneration)&&v.candidateGeneration>v.generation,'Fresh private preview capability');preserved(v.document);check(v.document.rootConfiguration===committed.rootConfiguration,'Selected root retained through solve');const states=committed.rootConfiguration==='mixed'?3:2;check(v.states.length===states&&new Set(v.states.map(s=>s.key)).size===states,'Each selected intrinsic state solved once');check(v.verification.status==='verified'&&v.verification.reports.length===2&&v.verification.reports.every(r=>r.measurement.status==='ok'&&r.measurement.satisfied),'Every placed original relation freshly verified');geometry(v.scene,v.document,10,10,'native-ready');check(canonical(row.current.document)===canonical(committed),'Preview bound to exact committed source/catalog/selector');return v.document;}
+ const navigateScope=require('./desktop-configured-scope-navigation.cjs')({page,control,observe,waitFor,check,canonical,ipc,dialogCounts,checks:context.checks});
  return async()=>{
   await waitFor('production startup',()=>page(()=>document.querySelector('.statusbar')?.textContent.includes('Listo')&&typeof window.solidflow?.openDocument==='function'),initialReadyMs);
   const originalBytes=await fs.readFile(input);let before=await observe();await click('button[aria-label="Abrir (Ctrl+O)"]');
@@ -32,7 +33,23 @@ module.exports=function configurationsWorkflow(context){
   let e=await response(before.serial,'build-configured-assembly');const initialGeneration=e.current.generation;check(canonical(e.current.document)===canonical(expected),'Actual file IPC opens complete configured envelope');geometry(e.response.value,expected,10,4,'opened-mixed');await recovery(expected,'Open');
   before=await observe();await control('Configuración raíz','both-compact');e=await response(before.serial,'build-configured-assembly');let both=e.current.document;geometry(e.response.value,both,4,4,'away-both-compact');await recovery(both,'Away selector');
   before=await observe();await control('Configuración raíz','mixed');e=await response(before.serial,'build-configured-assembly');check(canonical(e.current.document)===canonical(expected)&&e.current.generation>initialGeneration,'Away/back restores exact saved data with a distinct runtime generation');geometry(e.response.value,expected,10,4,'back-mixed');await recovery(expected,'Back selector');
-  before=await observe();await control('Ámbito de configuración','["right"]');await response(before.serial,'build-configured-assembly');await control('Ocurrencia configurada','b');await waitFor('editable B pose',()=>page(()=>!!document.querySelector('[aria-label="Posición configurada X"]')));await control('Posición configurada X','6');
+  await navigateScope('["right"]');await control('Ocurrencia configurada','b');
+  const heldSerial=(await observe.counters()).serial,corner=await page(()=>{
+    const canvas=document.querySelector('.assembly-viewport canvas'),r=canvas?.getBoundingClientRect();
+    if(!r)throw Error('One actual configured canvas required');
+    const point={x:r.right-12,y:r.bottom-12};if(document.elementFromPoint(point.x,point.y)!==canvas)throw Error('Canvas corner must be directly hit-tested');return point;
+  });
+  await context.pointer('mouseMoved',corner);await context.pointer('mousePressed',corner,1);
+  await navigateScope('["left"]');await control('Ocurrencia configurada','b');
+  await context.pointer('mouseReleased',corner,1);
+  await page(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true)))));
+  check(await page(()=>document.querySelector('[aria-label="Ocurrencia configurada"]')?.value==='b'),
+    'Releasing a press from the previous scope cannot clear the newly selected component');
+  await context.pointer('mousePressed',corner,1);await context.pointer('mouseReleased',corner,1);
+  await waitFor('a fresh background click still clears the current component',()=>page(()=>document.querySelector('[aria-label="Ocurrencia configurada"]')?.value===''));
+  check((await observe.counters()).serial===heldSerial,'Cross-scope and fresh selection gestures send no worker requests');
+  await recovery(expected,'Scope-bound pointer gestures');
+  before=await observe();await navigateScope('["right"]');await control('Ocurrencia configurada','b');await waitFor('editable B pose',()=>page(()=>!!document.querySelector('[aria-label="Posición configurada X"]')));await control('Posición configurada X','6');
   before=await observe();await button('Actualizar posición del estado',ROOT);e=await response(before.serial,'build-configured-assembly');const edited=e.current.document;preserved(edited);near(edited.catalog[1].configurations[0].occurrences[0].pose.translation[0],6,0,'Exact named declarative X edit');geometry(e.response.value,edited,10,6,'committed-named-X6');await recovery(edited,'Pose edit');
   before=await observe();await button('Resolver configuración');e=await response(before.serial,'preview-configured-assembly');const firstCandidate=ready(e,edited);await recovery(edited,'Preview does not write recovery');check(await disabled('Guardar')&&await disabled('Deshacer')&&await page(()=>document.querySelector('[aria-label="Configuración raíz"]')?.disabled&&document.querySelector('[aria-label="Ámbito de configuración"]')?.disabled),'Preview locks file/history and root/scope controls');
   before=await observe();await button('Cancelar');await response(before.serial,'discard-configured-assembly');e=await response(before.serial,'build-configured-assembly');geometry(e.response.value,edited,10,6,'cancel-restores-committed-geometry');await recovery(edited,'Cancel keeps committed edit');check(await disabled('Aplicar configuración'),'Cancel revokes Apply');

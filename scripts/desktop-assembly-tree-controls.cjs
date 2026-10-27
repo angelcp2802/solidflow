@@ -34,10 +34,11 @@ module.exports=async function treeControls({configured=false,page,waitFor,pointe
   const selectionSerial=(await observe.counters()).serial,oldScope=configured?await page(()=>document.querySelector('[aria-label="Ámbito de configuración"]')?.value):null;
   await tree.press(await row(child.key));
   await waitFor('actual descendant selection stays in the tree',async()=>canonical(await selected())===canonical([child.key])&&await page(configured=>configured?document.querySelector('[data-configured-pane="model"]')?.hidden===false:document.querySelector('#assembly-panel-components')?.hidden===false,mode));
-  // Changing a configured owner retains its existing fresh-build guard.
+  // Selecting another configured owner changes UI scope, not native geometry.
   if(configured&&oldScope!==JSON.stringify(parentPath)){
-    const rebuilt=await response(selectionSerial,'build-configured-assembly');
-    check(canonical(rebuilt.current.document)===canonical(JSON.parse(recovery)),'Owner selection rebuild preserves the complete committed document');
+    await page(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true)))));
+    check((await observe.counters()).serial===selectionSerial&&await page(()=>localStorage.getItem('solidflow.autosave'))===recovery,
+      'Owner selection retains the committed document without a native request');
   }
   await waitFor('selected tree owner ready',()=>page(configured=>{
     const root=document.querySelector(configured?'.configured-assembly-workspace':'.assembly-app');

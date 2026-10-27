@@ -138,6 +138,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
   useEffect(() => { if (inspectorPane !== 'relation' && (matePickRef.current || originPickRef.current)) stopMatePick() }, [inspectorPane])
   const viewHistory = useViewHistory()
   const [view, setView] = useState<ViewRequest>({ name: 'iso', stamp: 0 })
+  const [navigationRevision, setNavigationRevision] = useState(0), navigationRevisionRef = useRef(0)
   const [discardDialog, setDiscardDialog] = useState(false), answer = useRef<((allow: boolean) => void) | null>(null)
   const [bomOpen, setBomOpen] = useState(false), [bomOptions, setBomOptions] = useState<ConfiguredAssemblyBomOptions>({ mode: 'parts-only', includeHidden: true, scopePath: [] })
   const [bomSelection, setBomSelection] = useState<{ serialized: string; member: ConfiguredAssemblyBomMember } | null>(null)
@@ -155,7 +156,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
   const operationKind = useRef<'build' | 'solve' | 'apply' | 'file' | null>(null), dirtyRef = useRef(false)
   current.current = document; pending.current = preview; pathRef.current = path; sceneRef.current = scene
   const serialized = useMemo(() => serializeAssemblyConfiguredDocument(document), [document]), dirty = serialized !== saved
-  const renderedTicket = { serialized, generation, scope, path, occurrence: occurrenceId, draftRevision: mateRevision.current }
+  const renderedTicket = { serialized, generation, scope, path, occurrence: occurrenceId, draftRevision: mateRevision.current, navigationRevision }
   dirtyRef.current = dirty
   const evaluation = useMemo(() => evaluateAssemblyConfiguration(document.source, document.catalog, document.rootConfiguration), [document])
   const selectedScope = evaluation.scopes.find(row => JSON.stringify(row.path) === scope) ?? evaluation.scopes[0]
@@ -189,7 +190,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
     catch (reason) { return { report: null, error: reason instanceof Error ? reason.message : 'Lista de materiales no disponible.' } }
   }, [document, bomOpen, bomOptions])
   const bomSelectedPath = configuredBomUiSelectedPath(bom.report, serialized, bomSelection)
-  const ticket = () => configuredUiTicket(current.current, epoch.current, scopeRef.current, pathRef.current, occurrenceRef.current, mateRevision.current)
+  const ticket = () => configuredUiTicket(current.current, epoch.current, scopeRef.current, pathRef.current, occurrenceRef.current, mateRevision.current, navigationRevisionRef.current)
   const fresh = (value: ReturnType<typeof ticket>) => mounted.current && configuredUiTicketMatches(value, ticket())
   const mateTicket = () => ({ context: ticket(), revision: mateRevision.current, draft: JSON.stringify(mateDraftRef.current), sceneId: sceneRef.current?.scene.sceneId ?? null })
   const renderedMateTicket = { context: renderedTicket, revision: mateRevision.current, draft: JSON.stringify(mateDraft), sceneId: scene?.scene.sceneId ?? null }
@@ -360,7 +361,21 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
     const reservedEpoch = nextEpoch()
     revoke(0, reservedEpoch); setFailure(null); current.current = value; skipRecovery.current = false; setDocument(value)
   }
-  const changeScope = (value: string) => { if (!fresh(renderedTicket) || operation.current || pending.current || !evaluation.scopes.some(row => JSON.stringify(row.path) === value)) return; revoke(); setFailure(null); scopeRef.current = value; occurrenceRef.current = ''; setScope(value); setOccurrenceId('') }
+  const changeScope = (value: string) => {
+    if (!fresh(renderedTicket) || operation.current || pending.current || !evaluation.scopes.some(row => JSON.stringify(row.path) === value)
+      || value === scopeRef.current) return
+    if (navigationRevisionRef.current >= Number.MAX_SAFE_INTEGER) { error(Error('Vuelve a abrir el ensamblaje para continuar navegando.')); return }
+    const retained = sceneRef.current
+    const retainScene = !busy && !viewHistory.navigating && !preview && !mateDraft && !mateDraftRef.current && !discardDialog && !answer.current
+      && !newDocumentRequest.current && !newDocumentDialog.pending() && !namedViews.isOpen
+      && retained && retained === scene && retained === committedSceneRef.current && configuredUiSceneMatches(retained, current.current, epoch.current)
+    // UI callbacks must remain stale after A → B → A even when native geometry
+    // is unchanged. This revision never grants a native preview capability.
+    navigationRevisionRef.current++; setNavigationRevision(navigationRevisionRef.current)
+    if (retainScene) { setNormalSelection(null); setTreeOriginSelection(null); stopMatePick() }
+    else revoke()
+    setFailure(null); setBomSelection(null); scopeRef.current = value; occurrenceRef.current = ''; setScope(value); setOccurrenceId('')
+  }
   const relationTarget = (change: AssemblyConfiguredMateEdit['change']) => validateAssemblyConfiguredMateEdit({ scopePath: [...selectedScope.path], definition: { ...selectedScope.definition }, configuration: selectedScope.configuration, change })
   const previewRelation = async (intent: AssemblyConfiguredMateEdit) => {
     if (!freshMate() || operation.current || pending.current || !scene || selectedScope.suppressed) return
@@ -462,7 +477,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
   const displayScene = useMemo(() => scene ? configuredUiDisplayScene(scene) : null, [scene])
   const blocked = busy || !!preview
   const treeOriginRows = useMemo(() => buildAssemblyOriginTree(evaluation, []), [evaluation])
-  const treeOriginSession = useMemo(() => ({}), [scene, generation, path, !!mateDraft, blocked, inspectorPane === 'model'])
+  const treeOriginSession = useMemo(() => ({}), [scene, generation, path, !!mateDraft, blocked, inspectorPane === 'model', navigationRevision])
   const treeOriginContext = { documentSignature: serialized, scopePath: selectedScope.path, sessionIdentity: treeOriginSession }
   const currentTreeOrigins = useRef({ rows: treeOriginRows, context: treeOriginContext, active: false })
   currentTreeOrigins.current = { rows: treeOriginRows, context: treeOriginContext, active: inspectorPane === 'model' && !blocked && !mateDraft }
@@ -471,7 +486,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
   const modelOriginRef = useRef(modelOrigin); modelOriginRef.current = modelOrigin
   const normalViewBlocked = blocked || !!mateDraft || discardDialog || !scene || selectedScope.suppressed
     || !configuredUiSceneMatches(scene, document, generation)
-  const normalViewSession = useMemo(() => ({}), [displayScene, serialized, generation, path, scope])
+  const normalViewSession = useMemo(() => ({}), [displayScene, serialized, generation, path, scope, navigationRevision])
   const normalViewContext = { documentSignature: serialized, scopePath: selectedScope.path, sessionIdentity: normalViewSession, scene: displayScene }
   const normalViewCurrent = useRef({ context: normalViewContext, blocked: normalViewBlocked })
   // Publish only committed ownership; render bailouts must retain live handlers.
@@ -730,7 +745,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
       {mateChoices.error && <p role="alert">{mateChoices.error}</p>}
 
       </div>
-    </aside><main>{inspectorPane === 'relation' && matePick && generalDraft && !blocked && <p role="status" aria-label="Selección de referencia en vista configurada">Selecciona {configuredMateUiRoleLabels(generalDraft)[matePick.slot]}: {matePick.kind === 'face' ? 'una cara compatible' : 'una arista LINE'} · Ámbito: {selectedScope.path.join(' / ') || 'Raíz'} · Estado: {selectedScope.configuration ?? 'Base'}. <button type="button" onClick={stopMatePick}>Cancelar selección en vista</button></p>}{inspectorPane === 'relation' && originPick && generalDraft && !blocked && <p role="status" aria-label="Selección de origen en vista configurada">Selecciona {configuredMateUiRoleLabels(generalDraft)[originPick.slot]}: un eje o plano de origen visible compatible. <button type="button" onClick={stopMatePick}>Cancelar selección de origen</button></p>}<div className="configured-assembly-view" data-normal-selection-kind={normalResolution.target?.kind ?? 'invalid'} data-normal-selection-keys={JSON.stringify(normalViewSelection?.items.map(value => [value.kind, value.key]) ?? [])} data-normal-enabled={canNormal}><CompactViewportToolbar label="Vistas del ensamblaje configurado"><ViewportToolGroup label="Orientación y ajuste"><ViewOrientationControls onView={menuView} disabled={busy || viewHistory.navigating} canPrevious={viewHistory.canPrevious} canNormal={canNormal} onNamedViews={namedViews.open} canNamedViews={namedViews.canOpen} />{([['iso', 'Isométrica'], ['front', 'Frontal'], ['top', 'Superior'], ['fit', 'Ajustar']] as const).map(([name, label]) => <button key={name} title={label} disabled={busy || viewHistory.navigating} onClick={() => menuView(name)}><ViewportToolIcon name={name} label={label} /></button>)}</ViewportToolGroup></CompactViewportToolbar><AssemblyViewport originLabelTopInset={44} originReferences={!normalViewBlocked && normalResolution.origins.length ? normalResolution.origins : inspectorPane === 'model' ? modelOrigin ? [modelOrigin.display] : [] : originDisplay} selectedOrigins={!normalViewBlocked && normalResolution.origins.length ? normalResolution.origins.map(value => value.reference) : inspectorPane === 'model' ? modelOrigin ? [modelOrigin.display.reference] : [] : selectedOrigins} pickingOrigins={inspectorPane === 'relation' && !blocked && !!originPick} onOrigin={pickOrigin} selectedFaces={normalViewBlocked ? mateHighlights.faces : [...mateHighlights.faces, ...normalResolution.faces]} selectedEdges={mateHighlights.edges} scene={displayScene} disabled={busy} view={view} viewHistory={viewHistory} selectedPath={preview || modelOrigin ? [] : bomSelectedPath.length ? bomSelectedPath : selected ? [...selectedScope.path, selected.id] : []} pickingFaces={inspectorPane === 'relation' && !blocked && matePick?.kind === 'face'} pickingEdges={inspectorPane === 'relation' && !blocked && matePick?.kind === 'edge'} onFace={pickMate} onEdge={pickMate} onViewSelection={nominateViewSelection} onComponent={component => {
+    </aside><main>{inspectorPane === 'relation' && matePick && generalDraft && !blocked && <p role="status" aria-label="Selección de referencia en vista configurada">Selecciona {configuredMateUiRoleLabels(generalDraft)[matePick.slot]}: {matePick.kind === 'face' ? 'una cara compatible' : 'una arista LINE'} · Ámbito: {selectedScope.path.join(' / ') || 'Raíz'} · Estado: {selectedScope.configuration ?? 'Base'}. <button type="button" onClick={stopMatePick}>Cancelar selección en vista</button></p>}{inspectorPane === 'relation' && originPick && generalDraft && !blocked && <p role="status" aria-label="Selección de origen en vista configurada">Selecciona {configuredMateUiRoleLabels(generalDraft)[originPick.slot]}: un eje o plano de origen visible compatible. <button type="button" onClick={stopMatePick}>Cancelar selección de origen</button></p>}<div className="configured-assembly-view" data-normal-selection-kind={normalResolution.target?.kind ?? 'invalid'} data-normal-selection-keys={JSON.stringify(normalViewSelection?.items.map(value => [value.kind, value.key]) ?? [])} data-normal-enabled={canNormal}><CompactViewportToolbar label="Vistas del ensamblaje configurado"><ViewportToolGroup label="Orientación y ajuste"><ViewOrientationControls onView={menuView} disabled={busy || viewHistory.navigating} canPrevious={viewHistory.canPrevious} canNormal={canNormal} onNamedViews={namedViews.open} canNamedViews={namedViews.canOpen} />{([['iso', 'Isométrica'], ['front', 'Frontal'], ['top', 'Superior'], ['fit', 'Ajustar']] as const).map(([name, label]) => <button key={name} title={label} disabled={busy || viewHistory.navigating} onClick={() => menuView(name)}><ViewportToolIcon name={name} label={label} /></button>)}</ViewportToolGroup></CompactViewportToolbar><AssemblyViewport interactionRevision={navigationRevision} originLabelTopInset={44} originReferences={!normalViewBlocked && normalResolution.origins.length ? normalResolution.origins : inspectorPane === 'model' ? modelOrigin ? [modelOrigin.display] : [] : originDisplay} selectedOrigins={!normalViewBlocked && normalResolution.origins.length ? normalResolution.origins.map(value => value.reference) : inspectorPane === 'model' ? modelOrigin ? [modelOrigin.display.reference] : [] : selectedOrigins} pickingOrigins={inspectorPane === 'relation' && !blocked && !!originPick} onOrigin={pickOrigin} selectedFaces={normalViewBlocked ? mateHighlights.faces : [...mateHighlights.faces, ...normalResolution.faces]} selectedEdges={mateHighlights.edges} scene={displayScene} disabled={busy} view={view} viewHistory={viewHistory} selectedPath={preview || modelOrigin ? [] : bomSelectedPath.length ? bomSelectedPath : selected ? [...selectedScope.path, selected.id] : []} pickingFaces={inspectorPane === 'relation' && !blocked && matePick?.kind === 'face'} pickingEdges={inspectorPane === 'relation' && !blocked && matePick?.kind === 'edge'} onFace={pickMate} onEdge={pickMate} onViewSelection={nominateViewSelection} onComponent={component => {
         if (!fresh(renderedTicket) || operation.current || pending.current || mateDraftRef.current || !scene || !configuredUiSceneMatches(scene, current.current, epoch.current)) return
         setTreeOriginSelection(null)
         const id = configuredComponentPick(displayScene, component, selectedScope.path)

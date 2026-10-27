@@ -1,5 +1,88 @@
 # Validation
 
+## Configured scope navigation — 2026-10-27
+
+Idle configured-scope navigation now retains the exact current committed scene
+instead of discarding and reconstructing unchanged geometry. Operation,
+preview/draft state and refs, dialogs, camera navigation and invalid or replaced
+scene contexts keep the existing revocation path. A separate monotonic UI
+revision invalidates old tickets and selection gestures even after A to B to A;
+native generation remains the owner of actual document/scene changes.
+
+The benchmark uses Windows 11 Pro x64 build 26200, an AMD Ryzen 7 5800X,
+Node 24.11.1 and Electron 44.9.3. Each side runs one isolated session with three
+right/left/root cycles over the existing original mixed configured fixture:
+four solids and two native prototypes. The nine commands use the same scripted
+DOM select changes and measurement interval: control change, two RAFs, idle
+scope state and observer counters. Checks outside the interval preserve the
+exact document/file state and the original volume/area/bounds oracles.
+
+| Measured side | Commands | New native builds | Median | Range |
+| --- | --- | --- | --- | --- |
+| Original | 9 | 9 | 144.826 ms | 134.142–153.657 ms |
+| Candidate | 9 | 0 | 52.810 ms | 40.306–53.484 ms |
+
+These are observed scripted navigation times, including renderer/transport
+scheduling, not kernel-only measurements or OS input latency. The sessions are
+not randomized independent trials and do not establish an application-wide
+speedup. The CAD worker and WASM production inputs remain byte-identical.
+The candidate's final benchmark also completes the original surrounding
+workflow with its additional selection/draft guards. A preceding candidate
+attempt measured its nine commands but later failed on a legacy tree rebuild
+wait; it is retained as a failed run, not acceptance. Thirteen explicit scope
+waits now require zero new worker requests and retained document state. The
+shared helper additionally checks native context, history and file guards.
+Retained native data is identified as a prior real build, never a
+fabricated fresh reply; edit, Apply, Cancel and root-state rebuilds remain.
+
+Final local acceptance uses one unchanged snapshot of 1,216 non-Markdown
+source/runtime inputs and eight production inputs:
+
+| Command | Result | Elapsed |
+| --- | --- | --- |
+| `npm run build` | PASS | 3.761 s |
+| `npm run test:desktop:assembly-configurations` | PASS; 212 checks | 11.548 s |
+| `npm run test:desktop:assembly-configured-relations` | PASS; 129 checks | 10.179 s |
+| `npm run test:desktop:assembly-configured-components` | PASS; 97 checks | 8.650 s |
+| `npm run test:desktop:assembly-configured-compound` | PASS; 4 original routes | 42.611 s |
+| `npm run test:desktop:assembly-configured-mechanical` | PASS; 5 original routes | 47.644 s |
+| `npm run test:desktop:assembly-configured-origin-axes` | PASS; 326 checks | 22.566 s |
+| `npm run test:desktop:assembly-configured-picking-compact` | PASS; 191 checks | 13.524 s |
+| `npm run test:desktop:assembly-origin-axes` | PASS; 324 checks | 32.363 s |
+| `npm run test:desktop:assembly-shortcuts` | PASS; 489 checks | 74.916 s |
+| `npm run test:desktop:assembly-configured-shortcuts` | PASS; 525 checks | 70.953 s |
+| `npm run test:desktop:part-from-empty` | PASS; 272 checks | 54.148 s |
+| `npm test` | 10,142 tests / 448 files; 169 IPC passes, 2 explicit skips | 434.865 s |
+| `npm run test:desktop` | PASS | 1.559 s |
+
+All eighteen original renderer routes report zero console/request errors and
+confirmed child/profile cleanup, with their native geometry, history, recovery
+and file assertions retained. A new configured case holds a native CDP left
+press across a scope change and verifies that release cannot clear the newly
+selected component; a fresh background click still clears selection. Another
+case leaves an unsubmitted relation draft and requires its cancellation and a
+real fresh rebuild of the unchanged committed document. Pointer input is CDP;
+the scope/occurrence controls use DOM events, not a complete physical-keyboard
+walkthrough. Two new unit cases check ticket A/B/A rejection and gesture context
+changes. They do not mount a batched React A/B/A sequence. Right-button and
+origin-label revision checks were reviewed statically; the new runtime case
+exercises left selection. No image tolerance or deadline is changed.
+
+The fixture and all native oracles are project-authored and already tracked;
+no new external model is added. This changes no saved schema, geometry
+operation, dependency, IPC command or native Apply capability. Performance,
+React, code-review, focused code-simplifier and security-review guidance were
+applied, including a delegated read-only review. No new external-software
+comparison or native human-user acceptance is claimed.
+
+Parent `fd820ea` completes all fifteen [CI jobs](https://github.com/angelcp2802/solidflow/actions/runs/40516138455),
+including all renderer, configured-authoring and Desktop unit/IPC/startup/
+packaging jobs. The security checks also succeed while retaining the tracked
+medium CodeQL annotation. Hosted acceptance of this new navigation increment
+remains pending. Checklist #55 stays **16/25**, with remaining context/reference
+editors, broader demo/human use, installed-platform acceptance and release
+gate #5 open.
+
 ## Saved-view name and camera editing — 2026-10-27
 
 The shared document-view editor now renames an existing entry and explicitly

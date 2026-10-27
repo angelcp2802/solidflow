@@ -86,4 +86,11 @@ describe('CAD selection gesture', () => {
     gesture.down(pointer); gesture.move({ ...pointer, clientX: 110 }); expect(gesture.up(pointer)).toBe(false)
     gesture.down(pointer); gesture.down({ ...pointer, button: 1 }); expect(gesture.up(pointer)).toBe(false)
   })
+  it('rejects a press crossing a UI context change even when the same scene and scope return', () => {
+    const gesture = createCadSelectionGesture()
+    gesture.down(pointer, 10); expect(gesture.up(pointer, 11)).toBe(false)
+    gesture.down(pointer, 10); expect(gesture.up(pointer, 12)).toBe(false)
+    gesture.down(pointer, 12); expect(gesture.up(pointer, 12)).toBe(true)
+    gesture.down(pointer); expect(gesture.up(pointer)).toBe(true)
+  })
 })

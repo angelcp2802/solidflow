@@ -135,12 +135,13 @@ module.exports = function configuredMechanicalWorkflow(c) {
     const b = await response(before.serial, 'build-configured-assembly'); geometry(b.response.value, staged, true, 'applied'); await recovery(staged); return staged;
   }
   async function history(label, doc, captured) { const before = await observe(); await button(label, NAV); const row = await response(before.serial, 'build-configured-assembly'); check(canonical(row.current.document) === canonical(doc), label + ' restores complete v3 context'); geometry(row.response.value, doc, captured, label); await recovery(doc); }
-  return async () => {
+  const navigateScope=require('./desktop-configured-scope-navigation.cjs')({page,control,observe,waitFor,check,canonical,ipc,dialogCounts,checks:c.checks});
+ return async () => {
     await waitFor('production startup', () => page(() => document.querySelector('.statusbar')?.textContent.includes('Listo') && typeof window.solidflow?.openDocument === 'function'), initialReadyMs);
     const originalBytes = await fs.readFile(input); let before = await observe(); await click('button[aria-label="Abrir (Ctrl+O)"]');
     await waitFor('initial discard dialog', () => page(() => !!document.querySelector('[role="dialog"][aria-labelledby="discard-title"]'))); await button('Continuar sin guardar', '[role="dialog"][aria-labelledby="discard-title"]');
     let row = await response(before.serial, 'build-configured-assembly'); check(canonical(row.current.document) === canonical(expected), 'Real file IPC opened original configured geometry'); geometry(row.response.value, expected, false, 'initial'); await recovery(expected);
-    before = await observe(); await control('Ámbito de configuración', '["right"]'); await response(before.serial, 'build-configured-assembly');
+    before = await observe(); await navigateScope('["right"]');
     await button('Nueva relación mecánica configurada'); await control('Tipo de relación mecánica configurada', family); let name = 'Original configured ' + family; await control('Nombre de relación mecánica configurada', name);
     await choose('Referencia 1 mecánica configurada', 'a', family === 'lock' ? 'component' : 'axis');
     await choose('Referencia 2 mecánica configurada', family === 'rack-pinion' ? 'rack' : 'b', family === 'lock' ? 'component' : family === 'rack-pinion' ? 'line' : 'axis');

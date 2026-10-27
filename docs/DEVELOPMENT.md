@@ -1,5 +1,40 @@
 # Development guide
 
+## Configured scope navigation and scene ownership — 2026-10-27
+
+Changing the UI scope does not change the configured source, catalog or root
+selector. An idle scope change may retain the exact scene shared by the
+rendered state, sceneRef and committedSceneRef only when its complete native
+context still matches the current document and generation. Exclude operation,
+busy, preview (state and ref), relation draft (state and ref), camera navigation
+and every New/discard/answer/saved-view dialog. Other cases retain revoke and
+the existing fresh reconstruction path. Document changes, Apply, Cancel and
+root-configuration changes retain their existing native invalidation.
+
+Keep a separate monotonic UI navigation revision. Update its ref synchronously
+before changing scope, and its React state so a batched return to the original
+scope still renders a new owner. Include it in configured UI tickets, origin
+tree and Normal To session identities. A previous callback must stay stale
+after A to B to A even if the source, selected occurrence and native generation
+are identical. This revision is transient UI state, never a native capability
+or saved-document field.
+
+Clear prior picks, normal/origin/BOM selections and the old occurrence during
+the scope change; the tree's selecting handler may then retain its intended
+destination. AssemblyViewport binds left selection gestures, right-button
+context presses and origin-label pointer presses to the caller's interaction
+revision. A release from an earlier scope must not reach the current selection
+callback. Existing callers without a revision retain their previous gesture
+semantics; current keyboard origin activation still checks its current binding.
+
+The shared renderer scope helper requires an existing real build matching the
+whole current source/catalog/root state, then checks exact recovery, unchanged
+history/file guards and zero new worker requests after scope selection. It
+returns that prior build explicitly for retained-scene assertions; it must not
+manufacture a fresh worker reply. Native geometry oracles remain with each
+owning workflow. Record performance measurements and their workload separately
+from functional acceptance in [validation](VALIDATION.md).
+
 ## Editing document-local views — 2026-10-27
 
 The shared saved-view dialog supports renaming a selected entry and replacing

@@ -200,6 +200,17 @@ it('rejects a previous rendered state even after its selector returns to the sam
   expect(configuredUiTicketMatches(rendered, configuredUiTicket(structuredClone(document), 40, '["right"]', 'saved.solidflow', 'b'))).toBe(true)
 })
 
+it('keeps navigation callbacks stale after A to B to A without changing native generation', () => {
+  const document = fixture(), initial = configuredUiTicket(document, 40, '[]', 'saved.solidflow', 'b', 7, 0)
+  const child = configuredUiTicket(document, 40, '["right"]', 'saved.solidflow', '', 7, 1)
+  const returned = configuredUiTicket(document, 40, '[]', 'saved.solidflow', 'b', 7, 2)
+  expect(configuredUiTicketMatches(initial, child)).toBe(false)
+  expect(configuredUiTicketMatches(initial, returned)).toBe(false)
+  expect(configuredUiTicketMatches(child, returned)).toBe(false)
+  expect(configuredUiTicketMatches(returned, configuredUiTicket(document, 40, '[]', 'saved.solidflow', 'b', 7, 2))).toBe(true)
+  expect(initial.generation).toBe(returned.generation)
+})
+
 it('binds scene display to complete normalized source/catalog/selector/generation and returns only a detached viewport copy', () => {
   const document = fixture(), scene: ConfiguredAssemblyScene = { kind: 'configured-assembly-scene', context: { generation: 7, root: { id: document.source.id, revision: document.source.revision }, rootConfiguration: document.rootConfiguration,
     sourceSignature: JSON.stringify(document.source), catalogSignature: JSON.stringify(document.catalog) }, scene: { kind: 'assembly-scene', sceneId: 'unattested-display-only', bodies: [], volume: 0, area: 0, solidCount: 0, prototypeCount: 0, bounds: null, visibleBounds: null, warnings: [] }, referenceDiagnostics: [] }

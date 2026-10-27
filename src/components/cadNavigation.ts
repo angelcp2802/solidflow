@@ -15,20 +15,20 @@ type Pointer = Pick<PointerEvent, 'pointerId' | 'button' | 'clientX' | 'clientY'
 
 /** A navigation/canceled/dragged gesture must never become a selection on release. */
 export function createCadSelectionGesture() {
-  let down: Pointer | null = null
+  let down: (Pointer & { context: unknown }) | null = null
   const cancel = () => { down = null }
   const move = (event: Pointer) => {
     if (down && (event.pointerId !== down.pointerId || Math.hypot(event.clientX - down.clientX, event.clientY - down.clientY) > 4)) cancel()
   }
   return {
     cancel,
-    down(event: Pointer) {
-      down = event.button === 0 ? { pointerId: event.pointerId, button: event.button, clientX: event.clientX, clientY: event.clientY } : null
+    down(event: Pointer, context?: unknown) {
+      down = event.button === 0 ? { pointerId: event.pointerId, button: event.button, clientX: event.clientX, clientY: event.clientY, context } : null
     },
     move,
-    up(event: Pointer): boolean {
+    up(event: Pointer, context?: unknown): boolean {
       move(event)
-      const select = down !== null && event.button === 0
+      const select = down !== null && event.button === 0 && Object.is(down.context, context)
       cancel()
       return select
     },
