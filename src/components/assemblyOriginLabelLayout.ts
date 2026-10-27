@@ -10,6 +10,12 @@ export interface AssemblyOriginLabelLayout {
 }
 const margin = 4, gap = 4, buttonWidth = 170, buttonHeight = 22, limit = 96
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
+const pixelPosition = (value: number, min: number, max: number) => {
+  const first = Math.ceil(min), last = Math.floor(max)
+  // Keep the full box inside its reserved region even when a fractional,
+  // subpixel-sized interval has no integer CSS-pixel position.
+  return first <= last ? clamp(Math.round(value), first, last) : clamp(value, min, max)
+}
 const intersects = (a: AssemblyOriginLabelPlacement, b: AssemblyOriginLabelPlacement) =>
   a.left < b.left + b.width + gap && a.left + a.width + gap > b.left && a.top < b.top + b.height + gap && a.top + a.height + gap > b.top
 
@@ -28,9 +34,12 @@ export function layoutAssemblyOriginLabels(anchors: readonly AssemblyOriginLabel
   if (!anchors.length) return result
   if (!usable || anchors.length > limit || size.width < margin * 2 + 1 || size.height < topMargin + margin + buttonHeight) return overflow()
   const columns = Math.min(limit, Math.floor((size.width - margin * 2 + gap) / (width + gap)))
-  const rows = Math.min(limit, Math.floor((size.height - topMargin - margin + gap) / (buttonHeight + gap)))
+  const firstTop = pixelPosition(topMargin, topMargin, size.height - margin - buttonHeight)
+  const rows = Math.min(limit, Math.floor((size.height - margin - buttonHeight - firstTop) / (buttonHeight + gap)) + 1)
   if (columns * rows < anchors.length) return overflow()
-  const box = (a: AssemblyOriginLabelAnchor, left: number, top: number): AssemblyOriginLabelPlacement => ({ ...a, left, top, width, height: buttonHeight })
+  const box = (a: AssemblyOriginLabelAnchor, left: number, top: number): AssemblyOriginLabelPlacement => ({ ...a,
+    left: pixelPosition(left, margin, size.width - margin - width),
+    top: pixelPosition(top, topMargin, size.height - margin - buttonHeight), width, height: buttonHeight })
   // Prefer the original anchor; separate colliding references vertically first.
   for (const anchor of ordered) {
     const left = clamp(anchor.x - width / 2, margin, size.width - margin - width)
@@ -55,13 +64,13 @@ export function layoutAssemblyOriginLabels(anchors: readonly AssemblyOriginLabel
       const index = row * columns + column
       if (occupied.has(index)) continue
       const dx = margin + column * (width + gap) + width / 2 - anchor.x
-      const dy = topMargin + row * (buttonHeight + gap) + buttonHeight - anchor.y
+      const dy = firstTop + row * (buttonHeight + gap) + buttonHeight - anchor.y
       const squared = dx * dx + dy * dy
       if (squared < distance) { best = index; distance = squared }
     }
     if (best < 0) return overflow()
     occupied.add(best)
-    result.labels.push(box(anchor, margin + best % columns * (width + gap), topMargin + Math.floor(best / columns) * (buttonHeight + gap)))
+    result.labels.push(box(anchor, margin + best % columns * (width + gap), firstTop + Math.floor(best / columns) * (buttonHeight + gap)))
   }
   return result
 }

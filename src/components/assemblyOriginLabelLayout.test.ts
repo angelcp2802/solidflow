@@ -49,6 +49,48 @@ it('caps a narrow box to the viewport and leaves long names available in full', 
   checkBoxes(result, 100, 60)
 })
 
+it('aligns fractional label boxes to CSS pixels while retaining exact projected witnesses', () => {
+  const entry = anchor('root-x', 627.9, 353.4)
+  const result = layoutAssemblyOriginLabels([entry], { width: 780, height: 542 })
+  expect(result.labels).toEqual([{ ...entry, left: 543, top: 331, width: 170, height: 22 }])
+  checkBoxes(result, 780, 542)
+})
+
+it('packs snapped coincident labels with the original gap and stable key order', () => {
+  const entries = ['c', 'a', 'b'].map(key => anchor(key, 627.9, 353.4))
+  const result = layoutAssemblyOriginLabels(entries, { width: 780, height: 542 })
+  expect(result.labels.map(({ key, left, top }) => [key, left, top])).toEqual([
+    ['a', 543, 331], ['b', 543, 305], ['c', 543, 357],
+  ])
+  checkBoxes(result, 780, 542)
+  expect(layoutAssemblyOriginLabels([...entries].reverse(), { width: 780, height: 542 })).toEqual(result)
+})
+
+it('keeps rounded boxes inside fractional viewport and toolbar boundaries', () => {
+  const edge = anchor('edge', 780.25, 542.25)
+  expect(layoutAssemblyOriginLabels([edge], { width: 780.25, height: 542.25 }).labels)
+    .toEqual([{ ...edge, left: 606, top: 516, width: 170, height: 22 }])
+  const top = anchor('top', 200, 12)
+  expect(layoutAssemblyOriginLabels([top], { width: 400, height: 100 }, { topInset: 44.25 }).labels)
+    .toEqual([{ ...top, left: 115, top: 49, width: 170, height: 22 }])
+})
+
+it('preserves containment when a fractional reserved interval has no integer position', () => {
+  const entry = anchor('small', 100, 10)
+  const result = layoutAssemblyOriginLabels([entry], { width: 200, height: 30.75 }, { topInset: .5 })
+  expect(result.labels).toEqual([{ ...entry, left: 15, top: 4.5, width: 170, height: 22 }])
+  checkBoxes(result, 200, 30.75)
+})
+
+it('does not compress the four-pixel gap to fit a fractional grid boundary', () => {
+  const entries = [anchor('a', 100, 10), anchor('b', 100, 10)]
+  const rejected = layoutAssemblyOriginLabels(entries, { width: 200, height: 56.6 }, { topInset: .5 })
+  expect(rejected.labels).toEqual([]); expect(rejected.overflow).toEqual(entries)
+  const accepted = layoutAssemblyOriginLabels(entries, { width: 200, height: 57 }, { topInset: .5 })
+  expect(accepted.labels.map(({ top }) => top)).toEqual([5, 31])
+  checkBoxes(accepted, 200, 57)
+})
+
 it('uses one explicit list with every identity when boxes cannot fit, including tiny viewports', () => {
   const entries = Array.from({ length: 12 }, (_, i) => anchor(String(i), 5, 5))
   for (const size of [{ width: 180, height: 100 }, { width: 10, height: 10 }]) {

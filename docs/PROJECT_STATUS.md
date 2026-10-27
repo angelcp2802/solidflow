@@ -1,5 +1,29 @@
 # Project status and review queue
 
+## Current correction: stable origin-reference labels
+
+Origin-reference buttons use bounded integer CSS-pixel positions and
+rectangular borders while preserving projected witnesses and identity. The
+grid derives capacity from its actual first row, retaining the four-pixel gap
+and complete overflow list. Camera/geometry/document/file behavior is unchanged.
+
+Local acceptance passes Windows build, 10,121 tests across 447 files, 169 IPC
+checks with two explicit skips, desktop startup and seven renderer routes.
+Linux passes three final renderer routes and startup after an isolated
+corner-radius reversal reproduces the original visual failure. Both systems
+use identical 1,214 source inputs and eight production inputs. Two supplementary
+final-window images were reviewed. See [validation](VALIDATION.md) for the
+executed cases, retained failures and limitations.
+
+Prior head `4cb3a12` passes Windows/macOS persistence, but Linux exact zoom
+restoration and separate Windows source-update saving/symmetry waits remain
+open. This candidate still requires hosted validation and establishes no fix
+for the Windows waits or general platform support.
+
+The prototype checklist remains **16/25**, with nine items open. Continue in
+draft PR #49; broader demo/human use, remaining editors and installed-platform
+acceptance remain open, as does release gate #5.
+
 ## Current correction: header layout and keyboard acceptance
 
 The menu pin now meets the existing 28px minimum height. Initial header

@@ -1,5 +1,22 @@
 # Development guide
 
+## Origin-reference label pixel placement — 2026-10-27
+
+Origin-reference buttons use rectangular borders and place their HTML boxes at
+the nearest bounded integer CSS-pixel position. Preserve projected witness
+`x/y`, binding, key and label data exactly. This is presentation layout only;
+CAD coordinates, camera matrices and document data are unaffected.
+
+Use the first actual snapped row to calculate grid capacity, rank cells and
+place labels. Keep the existing four-pixel gap and reserved toolbar band. If
+the full catalog cannot fit, retain all identities in the existing overflow
+list. A valid fractional interval with no integer position retains bounded
+clamping; it must not invent space or clip a button.
+
+Keep exact camera-image assertions, text-exclusion definitions, projected-anchor
+tolerances and deadlines unchanged. Runtime observations and the visual
+comparison boundary are recorded in [validation](VALIDATION.md).
+
 ## Shared header menu visibility — 2026-10-27
 
 `CommandHeader` owns only menu visibility and its disclosure/pin controls.

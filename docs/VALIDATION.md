@@ -1,5 +1,92 @@
 # Validation
 
+## Origin-reference label rendering — 2026-10-27
+
+A local Linux WSLg run reproduces the compact-assembly Isometric-repeat failure
+with the original production loader and transport. Two retained capture pairs
+later localize 141 and 99 unmasked one-byte pixel differences to selected
+origin-label borders. Their observed rectangles, styles, text masks and rounded
+projected anchors match; the remaining crop pixels are identical. Retaining
+the existing captures adds PNG encoding/storage and may affect timing; the
+uninstrumented original route also fails. These observations identify the
+affected displayed region without establishing a general browser-rendering cause.
+
+The candidate uses bounded integer CSS-pixel button positions and rectangular
+borders. Projected geometric witnesses and identities remain unchanged. Grid
+capacity follows the actual snapped first row, preserving the four-pixel gap
+or retaining the full catalog in the overflow list. Seventeen focused layout
+cases pass, including five new literal fractional/collision/boundary cases.
+The source change does not alter geometry, camera math, document formats or
+file authority. Existing image criteria, mask definitions and deadlines remain.
+
+A controlled reversal on the aligned candidate restores only the 2px corner
+radius and reproduces an exact Previous-image failure. Restoring the rectangular
+border and rebuilding reproduces the same eight production assets, then passes
+the original compact route again. The original failing prism recipes are
+project-authored synthetic fixtures; no external CAD model is required.
+
+Windows and Linux use one identical 1,214-input source snapshot and eight
+byte-identical production inputs. Both use Node 24.11.1 and Electron 44.9.3,
+with their respective platform executables. Linux uses the existing WSLg
+display; this is local runtime evidence, without an installed-platform claim.
+
+Windows acceptance:
+
+| Command | Result | Elapsed |
+| --- | --- | --- |
+| `npm run build` | PASS | 4.131 s |
+| `npm run test:desktop:assembly-shortcuts` | PASS; 425 checks | 68.987 s |
+| `npm run test:desktop:assembly-configured-shortcuts` | PASS; 450 checks | 66.336 s |
+| `npm run test:desktop:assembly-shortcuts-compact` | PASS; 426 checks | 68.848 s |
+| `npm run test:desktop:assembly-configured-shortcuts-compact` | PASS; 451 checks | 65.965 s |
+| `npm run test:desktop:assembly-origin-axes` | PASS; 324 checks | 32.419 s |
+| `npm run test:desktop:assembly-configured-picking-compact` | PASS; 191 checks | 13.799 s |
+| `npm run test:desktop:part-from-empty` | PASS; 238 checks | 51.501 s |
+| `npm test` | 10,121 tests/447 files; 169 IPC passes, 2 explicit skips | 447.701 s |
+| `npm run test:desktop` | PASS | 1.558 s |
+
+Linux acceptance after the corner-radius reversal:
+
+| Command | Result | Elapsed |
+| --- | --- | --- |
+| `npm run build` | PASS | 4.383 s |
+| `npm run test:desktop:assembly-shortcuts-compact` | PASS; 426 checks | 76.084 s |
+| `npm run test:desktop:assembly-configured-shortcuts-compact` | PASS; 451 checks | 71.583 s |
+| `npm run test:desktop:assembly-shortcuts` | PASS; 425 checks | 77.623 s |
+| `npm run test:desktop` | PASS | 1.922 s |
+
+The seven Windows and three final Linux renderer reports retain their existing
+CAD/history/recovery/file checks, report no console/request errors and confirm
+child/profile cleanup. Exact camera restoration passes the standard/configured
+compact routes and standard original-size routes recorded above. Selection is
+also exercised by the Windows origin-axis and configured-picking cases.
+
+Two supplementary Linux visual replays enable the existing final-capture option
+and duplicate that PNG to private storage, matching the original report hashes.
+Both original-resolution images were reviewed: a standard reference-display
+scene and a rotation-lock workflow result. Labels are visible in the first
+image; the second shows the workspace with origin labels hidden.
+The production assets remain unchanged, and the private test-harness change is
+restored afterward. These replays supplement the unmodified acceptance routes;
+they do not establish full UI fidelity or native-desktop interaction coverage.
+
+Prior head `4cb3a12` passes
+[Windows persistence](https://github.com/angelcp2802/solidflow/actions/runs/40499534359/job/122173441919)
+and [macOS persistence](https://github.com/angelcp2802/solidflow/actions/runs/40499534359/job/122173441885).
+[Linux persistence](https://github.com/angelcp2802/solidflow/actions/runs/40499534359/job/122173441750)
+fails exact zoom restoration. Separate Windows failures remain open:
+[relation source-update saving](https://github.com/angelcp2802/solidflow/actions/runs/40499534359/job/122173441922)
+waits for the updated guide through IPC, and
+[hinge/symmetry](https://github.com/angelcp2802/solidflow/actions/runs/40499534359/job/122173441827)
+exhausts the unchanged child deadline after 249 checks. Those observations do
+not establish their causes, and this label change claims no correction for them.
+
+Hosted validation of this candidate remains pending. The prototype checklist
+stays 16/25 with nine open; broader human/demo use, recurring hosted stability,
+installed-platform acceptance and release gate #5 remain open. Applied
+frontend-design, code-review, focused code-simplifier and security-review
+guidance within the existing desktop and dependency boundaries.
+
 ## Header layout and keyboard follow-up — 2026-10-27
 
 Hosted head `9929dbc` reports header-layout failures in
