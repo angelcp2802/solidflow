@@ -142,7 +142,7 @@ function bodyReferencePath(feature: Feature, index: number, path: string): strin
   }
   if (feature.type === 'extrude' && feature.bodyOperation?.mode === 'new') return `${path}.endCondition.baseBody`
   if (feature.type === 'extrude' || feature.type === 'revolve' || feature.type === 'sweep' || feature.type === 'loft') return `${path}.bodyOperation.target`
-  return `${path}.bodyScope${feature.type === 'cut' || feature.type === 'hole' ? `[${index}]` : ''}`
+  return `${path}.bodyScope${feature.type === 'cut' || feature.type === 'revolvedCut' || feature.type === 'hole' ? `[${index}]` : ''}`
 }
 
 function integer(value: unknown, path: string, minimum: number, maximum: number): number {
@@ -671,18 +671,20 @@ function feature(value: unknown, path: string): Feature {
       ...(Object.hasOwn(source, 'bodyScope') ? { bodyScope: bodyReferences(source.bodyScope, `${path}.bodyScope`) } : {}),
     }
   }
-  if (source.type === 'revolve') {
-    keys(source, [...baseKeys, 'sketchId', 'angle'], path, ['bodyOperation', 'axis', 'reversed', 'extent'])
+  if (source.type === 'revolve' || source.type === 'revolvedCut') {
+    keys(source, [...baseKeys, 'sketchId', 'angle'], path, [source.type === 'revolve' ? 'bodyOperation' : 'bodyScope', 'axis', 'reversed', 'extent'])
     const extent = Object.hasOwn(source, 'extent') ? revolutionExtent(source.extent, `${path}.extent`) : undefined
     const angle = number(source.angle, `${path}.angle`, extent?.kind === 'two-directions' ? 0 : Number.MIN_VALUE, 360)
     if (extent?.kind === 'two-directions' && (angle + extent.secondAngle <= 0 || angle + extent.secondAngle > 360)) {
       fail(`${path}.extent.secondAngle`, 'la suma de los dos ángulos debe ser mayor que 0 y no superar 360')
     }
-    return { ...base, type: 'revolve', sketchId: string(source.sketchId, `${path}.sketchId`, 128), angle,
+    const parameters = { sketchId: string(source.sketchId, `${path}.sketchId`, 128), angle,
       ...(Object.hasOwn(source, 'axis') ? { axis: revolutionAxis(source.axis, `${path}.axis`) } : {}),
       ...(Object.hasOwn(source, 'reversed') ? { reversed: boolean(source.reversed, `${path}.reversed`) } : {}),
-      ...(extent ? { extent } : {}),
-      ...(Object.hasOwn(source, 'bodyOperation') ? { bodyOperation: bodyOperation(source.bodyOperation, `${path}.bodyOperation`) } : {}) }
+      ...(extent ? { extent } : {}) }
+    return source.type === 'revolvedCut'
+      ? { ...base, type: 'revolvedCut', ...parameters, ...(Object.hasOwn(source, 'bodyScope') ? { bodyScope: bodyReferences(source.bodyScope, `${path}.bodyScope`) } : {}) }
+      : { ...base, type: 'revolve', ...parameters, ...(Object.hasOwn(source, 'bodyOperation') ? { bodyOperation: bodyOperation(source.bodyOperation, `${path}.bodyOperation`) } : {}) }
   }
   if (source.type === 'combine') {
     const keepTools = boolean(source.keepTools, `${path}.keepTools`)

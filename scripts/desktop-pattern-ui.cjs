@@ -367,9 +367,9 @@ async function launch() {
       check(png.length <= 10 * 1024 * 1024 && digest(png) === report.captures[0].sha256, 'Assembly capture bytes changed.');
       report.captureImage = { ...report.captures[0], base64: png.toString('base64') };
       if (activeScenario === SCENARIOS['part-revolution']) {
-        const names = ['part-profile-staged-sleeve.png', 'part-profile-consumed-sleeve.png'];
+        const names = ['part-profile-staged-sleeve.png', 'part-profile-consumed-sleeve.png', 'part-profile-revolved-groove.png'];
         check(report.profileCaptures?.length === names.length && report.profileCaptures.every((item, i) => item.name === names[i]),
-          'Expected exactly the two original active-profile captures.');
+          'Expected exactly the three original active-profile captures.');
         report.profileCaptureImages = [];
         for (const item of report.profileCaptures) {
           const bytes = await fsp.readFile(path.join(temporary, item.name));
@@ -796,7 +796,7 @@ async function runInElectron() {
     [name, JSON.parse(fs.readFileSync(file, 'utf8'))])) : null;
   const outputs = untilNext ? { cutSelected: path.join(owned, 'saved-cut-selected.solidflow'),
     cutAll: path.join(owned, 'saved-cut-all.solidflow'), add: path.join(owned, 'saved-add-selected.solidflow') } : null;
-  const openPaths = normalToView ? [normalInputs.part, normalInputs.standard, normalInputs.configured] : fromEmpty ? [output, output] : shortcuts ? [input, null, shortcutOutput, shortcutOutput, shortcutOutput] : basicAuthoring ? [input, null, output] : partSequence ? [input, output, partAssemblyOutput] : partBodyCatalog ? [input, input] : partFinishing ? [input, finishingFiles.fillet, input, output] : configuredComponents ? [input, null, path.join(owned, 'incoming.solidflow'), path.join(owned, 'incoming.solidflow'), output] : structuralInsertion ? [input, insertionFiles.parent, output] : structuralStep ? [input, structuralFiles.part, output] : untilNext ? [inputPaths.cut, outputs.cutSelected, outputs.cutAll,
+  const openPaths = partRevolution ? [input, output, output, output] : normalToView ? [normalInputs.part, normalInputs.standard, normalInputs.configured] : fromEmpty ? [output, output] : shortcuts ? [input, null, shortcutOutput, shortcutOutput, shortcutOutput] : basicAuthoring ? [input, null, output] : partSequence ? [input, output, partAssemblyOutput] : partBodyCatalog ? [input, input] : partFinishing ? [input, finishingFiles.fillet, input, output] : configuredComponents ? [input, null, path.join(owned, 'incoming.solidflow'), path.join(owned, 'incoming.solidflow'), output] : structuralInsertion ? [input, insertionFiles.parent, output] : structuralStep ? [input, structuralFiles.part, output] : untilNext ? [inputPaths.cut, outputs.cutSelected, outputs.cutAll,
     inputPaths.add, outputs.add, inputPaths.reject] : assembly ? [input, output, partUpdatePath, partUpdatePath, output, output, output, projectionOutput, output, interferencePath, translationPath, translationOutput, bomPath, input, gearOutput]
     : assemblyImport ? [input, importSourcePath, importRejectedPath, importSourcePath, output]
     : sourceRevision ? [input, sourceRevisionFiles.parent, output]
@@ -1723,10 +1723,10 @@ async function runInElectron() {
         return { canceled: false, filePath: finishingFiles.steps[geometryExports - 1] };
       }
       if (partRevolution && options.title === 'Exportar geometría') {
-        check(++geometryExports === 1 && options.filters?.length === 1 && options.filters[0].name === 'STEP'
+        check(++geometryExports <= 2 && options.filters?.length === 1 && options.filters[0].name === 'STEP'
           && options.filters[0].extensions?.length === 1 && options.filters[0].extensions[0] === 'step'
           && path.basename(options.defaultPath) === expected.name + '.step',
-          'The original revolution exports once through the exact STEP native dialog.');
+          'Only the two original sleeve states export through the exact STEP native dialog.');
         return { canceled: false, filePath: revolutionStepPath };
       }
       if ((structuralStep || structuralInsertion) && options.title === 'Exportar geometría') {

@@ -3,7 +3,12 @@ const fsp = require('node:fs/promises');
 
 // Independent native reader of the actual exported bytes. This runtime has no
 // access to the application worker's shapes, previews or retained capabilities.
-module.exports = async function verifyRevolutionStep(bytes, check) {
+module.exports = async function verifyRevolutionStep(bytes, check, recipe = 'sleeve') {
+  check(recipe === 'sleeve' || recipe === 'two-grooves', 'Only the two original analytical STEP recipes are admitted');
+  // Grooves remove14pi and3.75pi from the original150pi sleeve. Surface area
+  // increases by10pi and6.5pi; each remains outside the radius1 axial bore.
+  const expectedVolume = (recipe === 'two-grooves' ? 132.25 : 150) * Math.PI;
+  const expectedArea = (recipe === 'two-grooves' ? 146.5 : 130) * Math.PI;
   const text = bytes.toString('utf8');
   check(text.startsWith('ISO-10303-21;') && /END-ISO-10303-21;\s*$/.test(text), 'Complete real STEP exchange file');
   check(/SI_UNIT\s*\(\s*\.MILLI\.\s*,\s*\.METRE\.\s*\)/.test(text), 'Actual STEP uses millimetres');
@@ -35,8 +40,8 @@ module.exports = async function verifyRevolutionStep(bytes, check) {
       oc.BRepGProp.SurfaceProperties(solid, area, false, false);
       oc.BRepBndLib.AddOptimal(solid, bounds, false, false);
       const min = [bounds.GetXMin(), bounds.GetYMin(), bounds.GetZMin()], max = [bounds.GetXMax(), bounds.GetYMax(), bounds.GetZMax()];
-      near(volume.Mass(), 150 * Math.PI, 1e-5, 'Independent tube volume pi*(4²-1²)*10');
-      near(area.Mass(), 130 * Math.PI, 1e-5, 'Independent tube area 2*pi*(4+1)*10+2*pi*(4²-1²)');
+      near(volume.Mass(), expectedVolume, 1e-5, 'Independent original sleeve/groove volume');
+      near(area.Mass(), expectedArea, 1e-5, 'Independent original sleeve/groove surface area');
       for (let axis = 0; axis < 3; axis++) {
         near(min[axis], [-4, -5, -4][axis], 1e-6, 'Independent exported sleeve minimum');
         near(max[axis], [4, 5, 4][axis], 1e-6, 'Independent exported sleeve maximum');
@@ -45,7 +50,7 @@ module.exports = async function verifyRevolutionStep(bytes, check) {
       explorer.Next();
     }
     check(solids.length === 1, 'One native exported sleeve solid');
-    result = { kind: 'separate-native-step-reader', units: 'mm', valid: true, solidCount: 1, solids };
+    result = { kind: 'separate-native-step-reader', recipe, units: 'mm', valid: true, solidCount: 1, solids };
   } catch (error) { primary = error; }
   finally { for (const owner of owners.reverse()) { try { owner.delete(); } catch (error) { cleanup.push(error); } } }
   if (primary || cleanup.length) throw new AggregateError(primary ? [primary, ...cleanup] : cleanup,

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Crosshair, RotateCcw, RotateCw } from 'lucide-react'
-import type { RevolutionAxis, RevolveFeature, SketchFeature } from '../cad/kernel.types'
+import type { RevolutionAxis, RevolutionFeature, SketchFeature } from '../cad/kernel.types'
 import './revolve-panel.css'
 
 interface AxisOption { value: string; label: string; axis: RevolutionAxis }
@@ -27,13 +27,13 @@ export function revolutionAxisOptions(sketch?: SketchFeature): AxisOption[] {
 }
 
 /** An explicit undefined patch removes the optional declaration rather than saving an own undefined property. */
-export function mergeRevolutionDraft(feature: RevolveFeature, patch: Partial<RevolveFeature>): RevolveFeature {
+export function mergeRevolutionDraft<T extends RevolutionFeature>(feature: T, patch: Partial<T>): T {
   const next = { ...feature, ...patch }
   if ('extent' in patch && patch.extent === undefined) delete next.extent
   return next
 }
 
-export function revolutionAngleError(feature: RevolveFeature): string | null {
+export function revolutionAngleError(feature: RevolutionFeature): string | null {
   const second = feature.extent?.kind === 'two-directions' ? feature.extent.secondAngle : 0
   const two = feature.extent?.kind === 'two-directions'
   if (!Number.isFinite(feature.angle) || !Number.isFinite(second)) return 'Introduce ángulos finitos.'
@@ -46,9 +46,9 @@ export function revolutionAngleError(feature: RevolveFeature): string | null {
 }
 
 interface Props {
-  feature: RevolveFeature
+  feature: RevolutionFeature
   sketch?: SketchFeature
-  onChange: (patch: Partial<RevolveFeature>) => void
+  onChange: (patch: Partial<RevolutionFeature>) => void
   children: ReactNode
 }
 

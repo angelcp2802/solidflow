@@ -1,4 +1,5 @@
 import { useViewHistory } from './components/useViewHistory'
+import { isRevolutionFeature } from './cad/revolutionExtent'
 import { standardViews, viewShortcutCommand, type ViewName, type ViewRequest } from './components/viewNavigation'
 import { validateNormalToTarget } from './components/normalToView'
 import { partNormalToTarget, partViewReferenceKey, togglePartViewReference, type PartViewReference } from './components/partNormalTo'
@@ -169,7 +170,7 @@ import type {
   Vec3,
   BodyReference,
   CombineFeature,
-  RevolveFeature,
+  RevolutionFeature,
 } from "./cad/kernel.types";
 import {
   createDemoDocument,
@@ -201,6 +202,7 @@ const labels: Record<string, string> = {
   extrude: "Saliente-Extruir",
   cut: "Corte-Extruir",
   revolve: "Saliente-Revolución",
+  revolvedCut: "Corte-Revolución",
   fillet: "Redondeo",
   chamfer: "Chaflán",
   plane: "Plano",
@@ -221,6 +223,7 @@ const featureIcons: Record<string, LucideIcon> = {
   extrude: Box,
   cut: Scissors,
   revolve: RotateCw,
+  revolvedCut: Scissors,
   fillet: CornerDownRight,
   chamfer: Triangle,
   plane: PanelTop,
@@ -565,7 +568,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
               (selectedFeature ? featureSketchIds(selectedFeature)[0] : ""),
         ) as SketchFeature | undefined);
   const sourceFeatures = useMemo(() => {
-    if (!editing || !["fillet", "chamfer", "mirror", "shell", "draft", "extrude", "cut", "hole", "revolve", "sweep", "loft", "combine"].includes(editing.type)
+    if (!editing || !["fillet", "chamfer", "mirror", "shell", "draft", "extrude", "cut", "hole", "revolve", "revolvedCut", "sweep", "loft", "combine"].includes(editing.type)
       && !isRepetition(editing)) return null;
     const index = operationDocument.features.findIndex(feature => feature.id === editing.id);
     return operationDocument.features.slice(0, index < 0 ? operationDocument.features.length : index);
@@ -1606,10 +1609,14 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     setTab("Operaciones");
     setError("");
   };
-  const startFeature = (type: "extrude" | "cut" | "revolve") => {
+  const startFeature = (type: "extrude" | "cut" | "revolve" | "revolvedCut") => {
     if (editing && !canContinueSketch) { requireFinishedEdit(); return; }
     if (!canStartProfileFeature || !model) {
       notify("Espera a que la pieza se reconstruya sin errores antes de añadir la operación.");
+      return;
+    }
+    if (type === "revolvedCut" && !model.vertices.length) {
+      notify("Crea primero un sólido antes de aplicar un corte por revolución.");
       return;
     }
     setPickingEndFace(false);
@@ -1644,10 +1651,12 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     bodyOutputId.current = crypto.randomUUID();
     const targets = explicitBodies ? initialPartTargets(model.bodies ?? [], bodySelection, sketch) : [];
     const mergeTarget = type === "extrude" && sketch.support?.kind === "face" && targets.length === 1 ? targets[0] : null;
-    setBodySelection(type === "cut" || mergeTarget ? targets : []);
-    setBodyPicking(type === "cut" && explicitBodies && !targets.length);
+    setBodySelection(type === "cut" || type === "revolvedCut" || mergeTarget ? targets : []);
+    setBodyPicking((type === "cut" || type === "revolvedCut") && explicitBodies && !targets.length);
     if (type === "revolve") setEditing({ ...base, type, angle: 360,
       ...(explicitBodies ? { bodyOperation: { mode: "new", bodyId: bodyOutputId.current } } : {}) });
+    else if (type === "revolvedCut") setEditing({ ...base, type, angle: 360,
+      ...(explicitBodies ? { bodyScope: targets } : {}) });
     else if (type === "cut") setEditing({ ...base, type,
       depth: sketch.type === "sketch" && sketch.support ? -20 : 20, symmetric: false,
       ...(explicitBodies ? { bodyScope: targets } : {}) });
@@ -2058,7 +2067,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
   };
   const changeDraft = (patch: Partial<Feature>) => {
     if (!editing) return;
-    const merged = editing.type === "revolve" ? mergeRevolutionDraft(editing, patch as Partial<RevolveFeature>) : { ...editing, ...patch } as Feature;
+    const merged = isRevolutionFeature(editing) ? mergeRevolutionDraft(editing, patch as Partial<RevolutionFeature>) : { ...editing, ...patch } as Feature;
     const ownedPattern = isRepetition(merged) && merged.source.mode === 'bodies' ? merged : null;
     const scopedPattern = isRepetition(merged) && merged.featurePattern ? merged : null;
     const selection = ownedPattern?.source.mode === 'bodies' ? ownedPattern.source.bodies
@@ -2532,7 +2541,8 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     "Cambiar nombre de pieza": !!editing,
     "Croquis rectangular": !!editing, "Croquis circular": !!editing,
     "Saliente extruido": !canStartProfileFeature, "Corte extruido": !canStartProfileFeature || !model?.vertices.length,
-    "Revolución": !canStartProfileFeature, "Asistente para taladro": !canExport,
+    "Revolución": !canStartProfileFeature, "Corte por revolución": !canStartProfileFeature || !model?.vertices.length,
+    "Asistente para taladro": !canExport,
     "Barrido": !!editing, "Recubrir": !!editing, "Redondeo": !canExport, "Chaflán": !canExport,
     "Vaciado": !canExport, "Desmoldeo": !canExport, "Plano de referencia": !!editing,
     "Matriz lineal": !canExport, "Matriz circular": !canExport, "Simetría": !canExport,
@@ -2586,6 +2596,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
         ["Corte extruido", "", () => startFeature("cut")],
         ["Asistente para taladro", "", startHole],
         ["Revolución", "", () => startFeature("revolve")],
+        ["Corte por revolución", "", () => startFeature("revolvedCut")],
         ["Barrido", "", () => startAdvancedFeature("sweep")],
         ["Recubrir", "", () => startAdvancedFeature("loft")],
         ["Redondeo", "", () => startFinish("fillet")],
@@ -2818,6 +2829,13 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                   label="Corte extruido"
                   large
                   onClick={() => startFeature("cut")}
+                  disabled={!canStartProfileFeature || !model?.vertices.length}
+                />
+                <Command
+                  icon={RotateCw}
+                  label="Corte por revolución"
+                  large
+                  onClick={() => startFeature("revolvedCut")}
                   disabled={!canStartProfileFeature || !model?.vertices.length}
                 />
                 <Command
@@ -3219,7 +3237,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
             </button>
           </div>
           {editing ? (
-            <div className={`property-manager${editing.type === "revolve" ? " property-manager-revolve" : editing.type === "extrude" || editing.type === "cut" ? " property-manager-extrude" : isEdgeFinish(editing) ? " property-manager-finish" : ""}`}>
+            <div className={`property-manager${isRevolutionFeature(editing) ? " property-manager-revolve" : editing.type === "extrude" || editing.type === "cut" ? " property-manager-extrude" : isEdgeFinish(editing) ? " property-manager-finish" : ""}`}>
               <div className="property-manager-header">
                 <div className="property-title">
                   <span>{labels[editing.type]}</span>
@@ -3250,7 +3268,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                   </span>
                 </div>
               </div>
-              {editing.type !== "revolve" && editing.type !== "extrude" && editing.type !== "cut" && !isEdgeFinish(editing) && <>{operationNameEditor}{operationBodyEditor}</>}
+              {!isRevolutionFeature(editing) && editing.type !== "extrude" && editing.type !== "cut" && !isEdgeFinish(editing) && <>{operationNameEditor}{operationBodyEditor}</>}
               {editing.type === "sketch" ? (
                 <>
                   {sketchTool === "offset" && entityProfile && <SketchOffsetPanel
@@ -3681,7 +3699,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                       ))}
                     </select>
                   </div>
-                  {editing.type === "revolve" ? (
+                  {isRevolutionFeature(editing) ? (
                     <>
                       <RevolvePanel feature={editing}
                         sketch={availableSketches.find(sketch => sketch.id === editing.sketchId)}

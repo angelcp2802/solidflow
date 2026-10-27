@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
-import type { BodyReference, CombineFeature, ExtrudeFeature, PickableBody } from '../cad/kernel.types'
+import type { BodyReference, CombineFeature, ExtrudeFeature, PickableBody, RevolvedCutFeature } from '../cad/kernel.types'
 import { BodyFeaturePanel, BodyList } from './BodyManagementPanel'
 
 // Symbolic DTOs test rendered controls, not native bodies or pointer events.
@@ -14,7 +14,7 @@ describe('incomplete body drafts receive narrow actionable guidance', () => {
   const cutGuidance = 'Selecciona al menos un cuerpo que quieras cortar.'
   const limitGuidance = 'Selecciona un cuerpo límite para calcular hasta dónde llega la extrusión.'
   const noAction = () => { throw Error('Rendering must not invoke an editing callback') }
-  const render = (feature: ExtrudeFeature, message: string, selection: BodyReference[] = []) => renderToStaticMarkup(
+  const render = (feature: ExtrudeFeature | RevolvedCutFeature, message: string, selection: BodyReference[] = []) => renderToStaticMarkup(
     <BodyFeaturePanel bodies={[body('A')]} selection={selection} feature={feature} outputBodyId="new-body" existing={false}
       onSelection={noAction} onFeature={noAction} picking={false} onPicking={noAction} message={message} />)
   const separate = (kind: 'throughAll' | 'untilNext'): Extract<ExtrudeFeature, { type: 'extrude' }> => ({
@@ -36,6 +36,15 @@ describe('incomplete body drafts receive narrow actionable guidance', () => {
     expect(render(cut, other)).toContain(other)
     expect(render(cut, other)).not.toContain(cutGuidance)
     expect(render(cut, cutError + ' Detalle adicional.')).toContain(cutError + ' Detalle adicional.')
+  })
+
+  it('explains an incomplete revolved-cut scope using the same body selection control', () => {
+    const feature: RevolvedCutFeature = { id: 'revolved-cut', name: 'Original groove', type: 'revolvedCut', suppressed: false,
+      sketchId: 'profile', angle: 360, bodyScope: [] }
+    const markup = render(feature, cutError)
+    expect(markup).toContain(cutGuidance); expect(markup).not.toContain(cutError)
+    expect(markup).toContain('Seleccionar cuerpos en el visor')
+    expect(feature.bodyScope).toEqual([])
   })
 
   it.each(['throughAll', 'untilNext'] as const)('explains only the missing explicit new-body limit for %s', kind => {

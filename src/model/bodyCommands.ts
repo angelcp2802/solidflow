@@ -52,7 +52,7 @@ export function isBodyCommandFeature(feature: Feature): boolean {
     || ((feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror') && feature.source.mode === 'features' && feature.featurePattern !== undefined)
     || ((feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror') && feature.source.mode === 'bodies' && feature.bodyPattern !== undefined)
     || ((feature.type === 'extrude' || feature.type === 'revolve' || feature.type === 'sweep' || feature.type === 'loft') && feature.bodyOperation !== undefined)
-    || ((feature.type === 'cut' || feature.type === 'hole' || feature.type === 'fillet' || feature.type === 'chamfer' || feature.type === 'shell' || feature.type === 'draft') && feature.bodyScope !== undefined)
+    || ((feature.type === 'cut' || feature.type === 'revolvedCut' || feature.type === 'hole' || feature.type === 'fillet' || feature.type === 'chamfer' || feature.type === 'shell' || feature.type === 'draft') && feature.bodyScope !== undefined)
 }
 
 /** Changing draft creation mode never adopts a merge target as a new-body limit. */
@@ -98,6 +98,7 @@ export function withBodySelection(feature: Feature, selection: readonly BodyRefe
     ...(feature.endCondition && 'baseFeatureId' in feature.endCondition
       ? { endCondition: { ...feature.endCondition, baseFeatureId: first.sourceFeatureId } } : {}),
   }
+  if (feature.type === 'revolvedCut') return { ...feature, bodyScope: references }
   if (feature.type === 'hole') return { ...feature, bodyScope: references, baseFeatureId: first.sourceFeatureId }
   if (feature.type === 'fillet' || feature.type === 'chamfer' || feature.type === 'shell' || feature.type === 'draft') {
     return { ...feature, bodyScope: first, baseFeatureId: first.sourceFeatureId }

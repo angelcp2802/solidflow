@@ -4,6 +4,7 @@
 // No solid, downstream operation, external model or reference application data.
 // GUI previews an independent axis rectangle, cancels, changes sleeve height
 // 8 -> 10 and revolves x=[0,4] around local Y, then cuts R1.
+// Two unused original rectangles support successive outer revolved grooves.
 module.exports = () => ({
   version: 1, id: 'original-revolution-sequence', name: 'Original revolved sleeve', units: 'mm',
   createdAt: '2026-10-25T00:00:00.000Z', updatedAt: '2026-10-25T00:00:00.000Z',
@@ -24,5 +25,9 @@ module.exports = () => ({
         { id: 'left', type: 'line', start: 'd', end: 'a', construction: false },
         { id: 'axis-line', type: 'line', start: 'axis-start', end: 'axis-end', construction: true },
       ], constraints: [] } },
+    { id: 'outer-groove-one', name: 'First outer groove', type: 'sketch', plane: 'XY', offset: 0, suppressed: false,
+      profile: { kind: 'rectangle', center: [4, 1], width: 2, height: 2 } },
+    { id: 'outer-groove-two', name: 'Second outer groove', type: 'sketch', plane: 'XY', offset: 0, suppressed: false,
+      profile: { kind: 'rectangle', center: [4.25, -3.5], width: 1.5, height: 1 } },
   ],
 });

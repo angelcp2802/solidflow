@@ -117,6 +117,14 @@ export interface RevolveFeature extends FeatureBase {
   bodyOperation?: BodyOperation;
 }
 
+/** A subtractive revolution. Older readers reject this distinct feature type. */
+export interface RevolvedCutFeature extends Omit<RevolveFeature, 'type' | 'bodyOperation'> {
+  type: 'revolvedCut';
+  /** Absence retains aggregate-body editing; explicit catalogs require exact targets. */
+  bodyScope?: BodyReference[];
+}
+export type RevolutionFeature = RevolveFeature | RevolvedCutFeature;
+
 export type CombineFeature = FeatureBase & (
   | { type: 'combine'; operation: 'add' | 'common'; operands: BodyReference[]; resultBodyId: string; keepTools: boolean }
   | { type: 'combine'; operation: 'subtract'; target: BodyReference; tools: BodyReference[]; keepTools: boolean }
@@ -302,7 +310,7 @@ export interface DraftFeature extends FeatureBase {
 
 export type FaceOperationFeature = ShellFeature | DraftFeature;
 
-export type Feature = ImportedSolidFeature | ImportedBodiesFeature | SketchFeature | ReferencePlaneFeature | ExtrudeFeature | RevolveFeature | CombineFeature | HoleFeature | SweepFeature | LoftFeature | EdgeFinishFeature | RepetitionFeature | FaceOperationFeature;
+export type Feature = ImportedSolidFeature | ImportedBodiesFeature | SketchFeature | ReferencePlaneFeature | ExtrudeFeature | RevolutionFeature | CombineFeature | HoleFeature | SweepFeature | LoftFeature | EdgeFinishFeature | RepetitionFeature | FaceOperationFeature;
 
 /** Serializable display/picking metadata; identity comes from saved producers. */
 export interface PickableBody {

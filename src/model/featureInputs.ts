@@ -15,6 +15,7 @@ export function featureSketchIds(feature: Feature): string[] {
     case 'extrude':
     case 'cut':
     case 'revolve':
+    case 'revolvedCut':
       return [feature.sketchId]
     case 'sweep':
       return [feature.profileSketchId, feature.pathSketchId]

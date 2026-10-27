@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
-import type { RevolveFeature, SketchFeature } from '../cad/kernel.types'
+import type { RevolveFeature, RevolvedCutFeature, SketchFeature } from '../cad/kernel.types'
 import type { EntityProfile } from '../sketch/types'
 import RevolvePanel, { mergeRevolutionDraft, revolutionAngleError, revolutionAxisOptions, revolutionAxisValue } from './RevolvePanel'
 
@@ -18,6 +18,18 @@ const feature: RevolveFeature = { id: 'revolve', name: 'Original turn', type: 'r
 const render = (value = feature, current: SketchFeature | undefined = sketch) => renderToStaticMarkup(
   <RevolvePanel feature={value} sketch={current} onChange={() => undefined}><input aria-label="Ángulo" value={value.angle} readOnly /></RevolvePanel>,
 )
+
+it('uses the shared axis/direction editor for a distinct subtractive revolution without changing its scope', () => {
+  const cut: RevolvedCutFeature = { ...feature, type: 'revolvedCut', bodyScope: [{ bodyId: 'body', sourceFeatureId: 'base' }] }
+  const before = structuredClone(cut)
+  const html = renderToStaticMarkup(<RevolvePanel feature={cut} sketch={sketch} onChange={() => undefined}>Angle</RevolvePanel>)
+  expect(html).toContain('aria-label="Eje de revolución"')
+  expect(html).toContain('aria-label="Dirección 2"')
+  const next = mergeRevolutionDraft(cut, { extent: { kind: 'mid-plane' } })
+  expect(next.type).toBe('revolvedCut'); expect(next.bodyScope).toEqual(cut.bodyScope)
+  expect(next).not.toHaveProperty('bodyOperation'); expect(cut).toEqual(before)
+  expect(mergeRevolutionDraft(next, { extent: undefined })).not.toHaveProperty('extent')
+})
 
 describe('revolution axis and direction controls', () => {
   it('displays legacy Y and forward direction without materializing optional declarations', () => {

@@ -16,7 +16,7 @@ export function featureBodyReferences(feature: Feature): BodyReference[] {
   } else if (feature.type === 'extrude' && feature.bodyOperation?.mode === 'new'
     && feature.endCondition && feature.endCondition.kind !== 'upToSurface' && feature.endCondition.baseBody) {
     references = [feature.endCondition.baseBody]
-  } else if ((feature.type === 'cut' || feature.type === 'hole') && feature.bodyScope) {
+  } else if ((feature.type === 'cut' || feature.type === 'revolvedCut' || feature.type === 'hole') && feature.bodyScope) {
     references = feature.bodyScope
   } else if ((feature.type === 'fillet' || feature.type === 'chamfer' || feature.type === 'shell' || feature.type === 'draft') && feature.bodyScope) {
     references = [feature.bodyScope]

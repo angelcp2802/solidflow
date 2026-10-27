@@ -153,6 +153,8 @@ module.exports = function partRevolutionWorkflow(context) {
     check(canonical(original.features) === canonical(expected.features), 'Actual opened profiles equal the original recipe');
     await waitFor('opened profiles are idle', () => page(() => document.querySelector('.statusbar')?.textContent.includes('Listo')));
     const originalRecovery = await recovery();
+    await tab('Operaciones');
+    await require('./desktop-part-revolved-cut-flow.cjs').assertDisabled({ press, page, check }, 'profile-only');
     const extents = require('./desktop-part-revolution-extents.cjs')({ page, press, change, built, observe, ready,
       recovery, originalRecovery, check, canonical, records, waitFor });
     await press('.tree-row[data-feature-id="axis-profile"]'); await tab('Operaciones');
@@ -401,6 +403,12 @@ module.exports = function partRevolutionWorkflow(context) {
     // The isolated launcher verifies captured demo bytes against this common
     // top-level proof shared by the other part workflow reports.
     evidence.savedSha256 = evidence.partRevolution.savedSha256;
-    await capture(saved);
+    const grooved = await require('./desktop-part-revolved-cut-flow.cjs')({ ...context,
+      page, press, change, tab, ready, built, recovery, fileCommand, activeProfile,
+      saved, bodyId, previousFeatureId: cut.id, evidence });
+    const completed = await observe();
+    check(!completed.workerErrors.length && !consoleErrors.length && !failedRequests.length && ipc.every(event => event.completed),
+      'Both additive and subtractive revolution workflows finish without transport, console, resource or unfinished IPC errors');
+    await capture(grooved);
   };
 };

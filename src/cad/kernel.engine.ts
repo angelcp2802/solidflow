@@ -25,7 +25,7 @@ import type {
   PlaneFrame,
   PlaneSupport,
   SketchFeature,
-  RevolveFeature,
+  RevolutionFeature,
   Vec3,
   PickableFace,
   PickableEdge,
@@ -39,7 +39,7 @@ import { createFaceCatalog, pickableFaces, pickableFacesFromCatalog, resolveSele
 import { clonePlaneFrame, offsetPlaneFrame, principalPlaneFrame } from './kernel.frames';
 import { makeOwnedPrimitiveSketch } from './kernel.primitive-sketch';
 import { resolveRevolutionAxis, revolutionRadialCoordinate } from './revolutionAxis';
-import { resolveRevolutionExtent } from './revolutionExtent';
+import { isRevolutionFeature, resolveRevolutionExtent } from './revolutionExtent';
 import { loftSolid, sweepSolid } from './kernel.sweep-loft';
 import { geometryDelta, isRepetition, patternPlan, repetitionSolid, type FeatureGeometry } from './kernel.patterns';
 import { draftSolid, shellSolid } from './kernel.face-operations';
@@ -201,9 +201,9 @@ function extrudePrimitiveSketch(sketch: Sketch, depth: number): Shape3D {
   }, result => [result], 'Primitive extrusion construction or release failed.');
 }
 
-function featureSolid(feature: ExtrudeFeature | RevolveFeature, sketchFeature: SketchFeature, resolvedFrame: PlaneFrame, validateDepth = true): Shape3D {
+function featureSolid(feature: ExtrudeFeature | RevolutionFeature, sketchFeature: SketchFeature, resolvedFrame: PlaneFrame, validateDepth = true): Shape3D {
   const frame = sketchFeature.support ? resolvedFrame : undefined;
-  if (feature.type === 'revolve') {
+  if (isRevolutionFeature(feature)) {
     const extent = resolveRevolutionExtent(feature);
     const { profile } = sketchFeature;
     const axis = resolveRevolutionAxis({ ...feature, reversed: extent.reversed }, sketchFeature, resolvedFrame);
@@ -838,7 +838,7 @@ export class CadEngine {
     // This scan chooses numerical precision, not operand validity. Do not walk
     // raw reference arrays before the per-feature declaration boundary.
     const accurateMeasurements = features.some(feature => !feature.suppressed && (
-      feature.type === 'hole' || feature.type === 'combine'
+      feature.type === 'hole' || feature.type === 'combine' || feature.type === 'revolvedCut'
       || ('bodyScope' in feature && feature.bodyScope !== undefined)
       || (isRepetition(feature) && (feature.source?.mode === 'bodies' || feature.bodyPattern !== undefined || 'featurePattern' in feature))
       || ((feature.type === 'extrude' || feature.type === 'revolve' || feature.type === 'sweep' || feature.type === 'loft') && !!feature.bodyOperation)
@@ -1561,7 +1561,7 @@ export class CadEngine {
           continue;
         }
         if (!('sketchId' in feature)) throw new Error('Tipo de operación no compatible.');
-        if (bodyCatalog && feature.type === 'cut' && !feature.bodyScope?.length) throw new Error('Selecciona los cuerpos exactos sobre los que aplicar el corte.');
+        if (bodyCatalog && (feature.type === 'cut' || feature.type === 'revolvedCut') && !feature.bodyScope?.length) throw new Error('Selecciona los cuerpos exactos sobre los que aplicar el corte.');
         if (bodyCatalog && (feature.type === 'extrude' || feature.type === 'revolve') && !feature.bodyOperation) {
           throw new Error('Elige crear un cuerpo nuevo o añadir material a un cuerpo seleccionado.');
         }
@@ -1578,10 +1578,10 @@ export class CadEngine {
         let operationBase = body;
         if (bodyCatalog && (feature.type === 'extrude' || feature.type === 'revolve') && feature.bodyOperation?.mode === 'merge') {
           operationBase = bodyCatalog.resolve(feature.bodyOperation.target).shape;
-        } else if (bodyCatalog && feature.type === 'cut' && feature.bodyScope?.length === 1) {
+        } else if (bodyCatalog && (feature.type === 'cut' || feature.type === 'revolvedCut') && feature.bodyScope?.length === 1) {
           operationBase = bodyCatalog.resolve(feature.bodyScope[0]).shape;
         }
-        if (feature.type !== 'revolve' && feature.endCondition) {
+        if (!isRevolutionFeature(feature) && feature.endCondition) {
           validateLength(feature.depth, 'Profundidad', true);
           if (feature.symmetric) throw new Error('La extrusión simétrica sólo está disponible con profundidad fija.');
           const end=feature.endCondition, frame=sketchFrames.get(sketchFeature.id)!, sign=Math.sign(feature.depth);
@@ -1675,12 +1675,12 @@ export class CadEngine {
             } else tool = featureSolid(feature, sketchFeature, sketchFrames.get(sketchFeature.id)!);
           } else tool = featureSolid(feature, sketchFeature, sketchFrames.get(sketchFeature.id)!);
         } else tool = featureSolid(feature, sketchFeature, sketchFrames.get(sketchFeature.id)!);
-        if (feature.type === 'cut' && !body) throw new Error('Crea primero un sólido antes de aplicar un corte.');
+        if ((feature.type === 'cut' || feature.type === 'revolvedCut') && !body) throw new Error('Crea primero un sólido antes de aplicar un corte.');
         validateSolid(tool);
-        const revolutionExtent = feature.type === 'revolve' ? resolveRevolutionExtent(feature) : undefined;
-        const revolutionAxis = feature.type === 'revolve' ? resolveRevolutionAxis({ ...feature, reversed: revolutionExtent!.reversed }, sketchFeature, sketchFrames.get(sketchFeature.id)!) : undefined;
+        const revolutionExtent = isRevolutionFeature(feature) ? resolveRevolutionExtent(feature) : undefined;
+        const revolutionAxis = isRevolutionFeature(feature) ? resolveRevolutionAxis({ ...feature, reversed: revolutionExtent!.reversed }, sketchFeature, sketchFrames.get(sketchFeature.id)!) : undefined;
         const structure: unknown[] = [feature.id, feature.type, feature.sketchId, sketchFeature.plane, sketchFeature.profile.kind,
-          feature.type === 'revolve' ? [revolutionAxis!.legacy ? 'local-Y' : revolutionAxis!.identity, sketchFeature.profile.kind === 'entities'
+          isRevolutionFeature(feature) ? [revolutionAxis!.legacy ? 'local-Y' : revolutionAxis!.identity, sketchFeature.profile.kind === 'entities'
             ? entityRevolutionSide(sketchFeature.profile, revolutionAxis) : Math.sign(revolutionRadialCoordinate(sketchFeature.profile.center, revolutionAxis!)), revolutionExtent!.sweepAngle === 360]
             : [feature.symmetric, Math.sign(feature.depth)]];
         // Keep the legacy descriptor byte-identical for existing saved edge references.
@@ -1690,7 +1690,7 @@ export class CadEngine {
           sketchFeature.support.kind === 'plane' ? sketchFeature.support.planeId : sketchFeature.support.face.sourceFeatureId,
           sketchSupportLineages.get(sketchFeature.id)]);
         if (limitLineage) structure.push(['endCondition',limitLineage]);
-        if (feature.type === 'cut' && feature.bodyScope) {
+        if ((feature.type === 'cut' || feature.type === 'revolvedCut') && feature.bodyScope) {
           if (!bodyCatalog) throw new Error('El corte seleccionado requiere un catálogo de cuerpos explícitos.');
           const nextLineage = advanceLineage(lineage, [...structure, ['bodyScope', feature.bodyScope]]);
           adoptBodyTransaction(bodyCatalog.stageScopedCut(feature.bodyScope, tool, { sourceFeatureId: feature.id, lineage: nextLineage }));
@@ -1739,10 +1739,11 @@ export class CadEngine {
           rememberReferencedSource(beforeForRecord);
           continue;
         }
-        candidate = feature.type === 'cut' ? body.cut(tool) : body.fuse(tool);
+        candidate = feature.type === 'cut' || feature.type === 'revolvedCut' ? body.cut(tool) : body.fuse(tool);
         const volume = validateSolid(candidate);
-        if (feature.type === 'cut' && currentVolume - volume <= Math.max(1e-9, currentVolume * 1e-10)) {
-          throw new Error('El corte no intersecta el sólido. Revisa el plano, el centro y la profundidad.');
+        if ((feature.type === 'cut' || feature.type === 'revolvedCut') && currentVolume - volume <= Math.max(1e-9, currentVolume * 1e-10)) {
+          throw new Error(feature.type === 'revolvedCut' ? 'El corte no intersecta el sólido. Revisa el croquis, el eje y el ángulo.'
+            : 'El corte no intersecta el sólido. Revisa el plano, el centro y la profundidad.');
         }
         if (feature.type === 'extrude' && feature.endCondition && volume-currentVolume<=Math.max(1e-9,currentVolume*1e-10)) {
           throw new Error('El saliente con esta condición final no añade material al sólido.');

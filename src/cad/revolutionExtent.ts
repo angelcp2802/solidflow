@@ -1,5 +1,9 @@
-import type { RevolveFeature } from './kernel.types';
+import type { Feature, RevolveFeature, RevolutionFeature } from './kernel.types';
 import { captureOwnDataRecord } from '../model/ownDataRecord';
+
+export function isRevolutionFeature(feature: Feature): feature is RevolutionFeature {
+  return feature.type === 'revolve' || feature.type === 'revolvedCut';
+}
 
 export interface ResolvedRevolutionExtent {
   kind: 'one-direction' | 'two-directions' | 'mid-plane';

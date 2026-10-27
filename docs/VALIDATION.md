@@ -1,5 +1,105 @@
 # Validation
 
+## Successive scoped revolved cuts — 2026-10-27
+
+The new `revolvedCut` feature removes actual revolved material, with the existing
+axis, reverse, two-direction and total mid-plane controls. Ribbon and Insert
+commands require earlier material and matching editor guards. Exact body scopes,
+saved declarations and downstream poststates remain distinct from additive
+revolution. Original synthetic fixtures contain no imported vendor model/code.
+
+Fourteen new native tests use a cylinder R5, height10 and an annular groove
+r3..5 over z4..6. Independent formulas require V218π mm³ and A174π mm²; a
+quarter groove requires V242π and A156π+8. A second groove r4..5 over z7..8
+requires V209π/A190π. Both aggregate and exact-body chains are exercised, along
+with reversed/two-direction/mid-plane extents, one/two target bodies and rejected
+missing/empty/stale/nonintersecting scopes. Invalid cases preserve prior bodies.
+Six positive one-body cases also reopen STEP to check valid BRep, solid count,
+volume, area and bounds against those literal oracles (volume/area1e-5,
+bounds1e-5 mm in these unit assertions). Other scoped cases check native volume,
+exact identity advancement and transactional rejection without a STEP claim.
+
+Twenty document tests cover strict fields, angular/axis/scope rejection, exact
+round trips, body dependencies/output association and legacy additive bytes.
+Additional body-command/history and rendered-panel tests cover scope attestation
+and shared controls. These structural/symbolic tests do not replace native proof.
+
+The existing `test:desktop:part-revolution` route retains its previous additive
+axis/extent, cylindrical bore, tree/parameter, history and STEP cases, then uses
+two new original unused sketches to cut a saved R4/R1 height10 sleeve. The first
+groove r3..4,y0..2 removes14π; the second r3.5..4,y−4..−3 removes3.75π. Literal
+final oracles are **V132.25π/A146.5π**, one valid solid, bounds X/Z±4,Y±5.
+The first groove also exercises a total90° mid-plane preview and exact Cancel.
+Both full cuts preserve the original body ID and consume its exact current
+poststate. The route uses ribbon and Insert commands, Undo/Redo, normal Save and
+reopen after each cut, saved-cut editing/Cancel, and a second independent native
+STEP reread. UUIDs alone come from observed authored intents; behavior, ordered
+references and expected complete feature graphs remain independently specified.
+
+Renderer input uses actual CDP pointer activation with scripted visible field
+events. No worker result/reference is injected. The fixed owned-dialog script
+admits four opens, one Save As grant and two STEP exports at its known paths.
+Three phase/sketch-bound PNG captures retain hidden-window ownership, uniqueness
+and 10 MiB per-image limits. Primary parameters and confirmation buttons are
+hit-tested in the initial unscrolled panel; cut layout forbids additive modes.
+The new blue cut/mid-plane screenshot has been visually inspected.
+
+Retained attempts: the first native run used r3 in the second-groove fixture
+while the independent oracle specified r4; the literal profile was corrected,
+not the oracle. Parser-test wording and body-command test API assumptions were
+corrected to existing contracts. Renderer candidates01–05 exposed test-selector
+use of an enabled title for disabled commands, layout assumptions about second
+direction/additive controls, the previous two-capture limit and the old two-open
+fixture script. The extended fixed budgets are only for the new original route;
+no product result, timeout, tolerance or wait predicate was loosened. Candidate06
+passes build and the extended renderer (251 checkpoints), including separate
+final STEP metrology and zero recorded console/request errors. Subsequent
+read-only review adds a global error check after the new subflow and explicit
+complete-prefix assertions before either cut is accepted.
+
+The first full acceptance then finds three existing byte-order regressions in
+two document test files: the shared parser placed `type` after revolution
+parameters. The parser now retains its historical base/type/parameter order,
+and the new legacy test compares literal historical bytes rather than two
+round trips through the new parser. Seven focused files/189 tests pass after
+this correction. No expected historical bytes were changed. A second full
+frozen acceptance reruns the corrected production parser and stronger renderer.
+
+Final acceptance02 is **PASS on Windows x64**, Node24.11.1/Electron44.9.3,
+with **1,226 non-Markdown inputs and eight production inputs** unchanged through
+execution:
+
+- `npm run build`: 3.945 s.
+- Extended `test:desktop:part-revolution`: 251 checkpoints, 34.214 s, including
+  both complete-prefix assertions and the final global error check.
+- `test:desktop:part-sequence`: 183 checkpoints, 21.997 s.
+- `test:desktop:assembly-basic-authoring`: 409 checkpoints, 41.710 s.
+- `npm test`: **10,202 unit/CAD tests in 452 files, 195 IPC passes and two
+  explicit skips**, 366.049 s. The existing historical axis/extent byte tests
+  pass without changing their expectations.
+- `npm run test:desktop`: 1.569 s, real production worker/WASM startup.
+
+All three renderer routes report zero console/request errors and confirmed
+child/profile cleanup. The final grooved-part screenshot and cut-panel capture
+were visually reviewed. Native worker/renderer bundles change; the WASM binary,
+dependencies, Electron/IPC/file grants and CI policies remain unchanged.
+
+Applied frontend-design, vercel-react-best-practices, code-review, security-review
+and focused code-simplifier, with delegated read-only review. REA supplied retained
+static interface declarations privately; these contain no implementation bodies
+and establish no original UI/gesture behavior. No external-UI parity,
+installed-platform acceptance, thin-wall/external-axis support or regenerative
+revolution pattern support is claimed.
+
+Parent `85418b7` hosted CI has eleven renderer/configured successes, including
+Windows persistence. Windows **symmetry viewport picking**, a separate six-case
+route, reaches its unchanged 170.009 s child deadline with five cases complete
+and axisline author-preview active for 5.442 s. The three Desktop checks fail
+their prerequisites. That annotation is not the earlier atomic-rename failure
+and does not identify a deadlock. New-head hosted acceptance, recurring stability,
+the existing medium CodeQL annotation, broader demo/human use and release gate5
+remain open. Checklist55 stays16/25 with nine open groups.
+
 ## Bounded Windows atomic Save and export — 2026-10-27
 
 One hosted Windows sphere case previously rejected the atomic rename for its

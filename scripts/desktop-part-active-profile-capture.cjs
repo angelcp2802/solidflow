@@ -3,18 +3,19 @@ const fsp = require('node:fs/promises');
 const path = require('node:path');
 const { encodeJavaScriptString: quote } = require('./desktop-ui-source.cjs');
 
-// Presentation evidence for two fixed original-fixture states. This does not
+// Presentation evidence for fixed original-fixture states. This does not
 // inspect pixels, attest CAD geometry or activate any application control.
 module.exports = function createPartActiveProfileCapture({ window, evaluate, waitFor, waitForPresentation, check, owned, digest, captures, STEP_MS }) {
-  const phases = new Set(['staged-sleeve', 'consumed-sleeve']), attempted = new Set();
+  const phases = new Map([['staged-sleeve', 'sleeve-profile'], ['consumed-sleeve', 'sleeve-profile'],
+    ['revolved-groove', 'outer-groove-one']]), attempted = new Set();
   check(Number.isSafeInteger(STEP_MS) && STEP_MS > 0, 'Active-profile capture requires the existing step deadline.');
   check(typeof owned === 'string' && path.isAbsolute(owned) && Array.isArray(captures), 'Active-profile capture requires owned output and a separate evidence array.');
   let capturing = false;
   return async (phase, sketchId) => {
     check(process.env.SOLIDFLOW_UI_CAPTURE === '1', 'Active-profile capture requires the explicit capture setting.');
-    check(phases.has(phase) && sketchId === 'sleeve-profile', 'Only the two original sleeve-profile presentation phases may be captured.');
-    check(!capturing && !attempted.has(phase) && attempted.size < 2 && captures.length < 2,
-      'Active-profile captures must be sequential, unique and limited to two.');
+    check(phases.get(phase) === sketchId, 'Only fixed original profile/phase bindings may be captured.');
+    check(!capturing && !attempted.has(phase) && attempted.size < phases.size && captures.length < phases.size,
+      'Active-profile captures must be sequential, unique and limited to the three fixed phases.');
     check(!window.isDestroyed() && !window.isVisible(), 'Active-profile capture requires the hidden test-owned window.');
     attempted.add(phase);
     capturing = true;

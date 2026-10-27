@@ -62,7 +62,7 @@ export function BodyFeaturePanel({ feature, outputBodyId, existing, onFeature, p
   const newBody = boss?.bodyOperation?.mode === 'new'
   const limit = boss?.type === 'extrude' && newBody && boss.endCondition && 'baseFeatureId' in boss.endCondition ? boss.endCondition : null
   // Translate only these exact incomplete-draft rejections; retain all other diagnostics.
-  const displayMessage = feature.type === 'cut' && Array.isArray(feature.bodyScope) && feature.bodyScope.length === 0 && list.selection.length === 0
+  const displayMessage = (feature.type === 'cut' || feature.type === 'revolvedCut') && Array.isArray(feature.bodyScope) && feature.bodyScope.length === 0 && list.selection.length === 0
     && /^Documento\.features\[\d+\]\.bodyScope: se esperaba una lista de entre 1 y 256 elementos$/.test(message ?? '')
     ? 'Selecciona al menos un cuerpo que quieras cortar.'
     : limit && (limit.kind === 'throughAll' || limit.kind === 'untilNext') && limit.baseBody === undefined && limit.baseFeatureId === ''

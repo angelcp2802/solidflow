@@ -1,5 +1,31 @@
 # Development guide
 
+## Subtractive revolution contract — 2026-10-27
+
+`revolvedCut` is a distinct saved feature, sharing sketch, axis, angle, reverse
+and extent declarations with additive `revolve`. Keep additive `bodyOperation`
+and subtractive `bodyScope` separate. The strict parser rejects mixed extrusion
+or additive fields; older readers reject the new type rather than silently
+reinterpreting removal as added material. Existing `revolve` bytes and reference
+descriptors remain unchanged.
+
+Resolve the current solved sketch/support frame and the existing bounded angular
+interval before building the revolved tool. Subtract it from the current exact
+scope through the native body transaction; require material removal from every
+selected target and preserve all prior states on failure. A cut allocates no
+body ID: output references advance each selected body to the cut's feature ID.
+Its sketch and scope are graph dependencies for edits and downstream rebuilds.
+An explicit catalog requires nonempty exact targets. Aggregate legacy histories
+can omit scope; they still require earlier material and actual intersection.
+
+Expose the command in the part ribbon and Insert menu, with matching staged-edit,
+busy and existing-material guards. Reuse the blue revolution parameter editor;
+do not offer additive output modes in a cut. Body picking can select several
+current bodies. Preview/Cancel, acceptance, history, normal Save and reopening
+retain the existing body-command contracts. External axes, thin walls and
+regenerative feature patterns by revolution remain separate work; the existing
+recipe gate continues to reject unsupported revolution regeneration.
+
 ## Bounded Windows atomic publication — 2026-10-27
 
 Save and export stage their exact bytes in a same-directory exclusive `wx`
