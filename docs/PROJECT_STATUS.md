@@ -1,5 +1,25 @@
 # Project status and review queue
 
+## Assembly context release follow-up — 2026-10-28
+
+The standard and configured assembly viewport now uses the same completed
+right-context gesture as parts. Selection and opening wait for actual release
+plus menu intent. Current scene/catalog/revision, camera and viewport guards
+reject a changed frame; Escape, keyboard replacement and cancellation revoke
+pending pointer intent. Original complete authoring/component workflows include
+controlled early-intent regressions; their ordinary pointer contexts remain.
+
+The prior public head 9a3b162 completes all 15 CI jobs and Security successfully,
+including all three persistence routes and Desktop package checks. This is one
+complete matrix; recurring stability and installed/manual acceptance stay open.
+Current job logs for the three persistence routes were unavailable through the
+log connectors, so their actual event order and the cause of the earlier f7210b8
+failure remain unestablished. Windows symmetry's 168-second whole-step duration
+also retains the cumulative-budget concern; it is not a child CPU measurement.
+
+Keep draft PR #49, checklist #55 at 16/25 with nine open groups, and release #5
+open. See [validation](VALIDATION.md) for this follow-up's actual local results.
+
 ## Part context release and drag rejection — 2026-10-27
 
 Part right-click menus now wait for both menu intent and a real matching release,

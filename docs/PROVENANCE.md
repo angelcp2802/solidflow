@@ -1,5 +1,29 @@
 # Public fixture provenance
 
+## Original assembly context gesture cases — 2026-10-28
+
+The shared `desktop-assembly-context-gesture.cjs` subflow reuses two existing
+original prism documents. It introduces no model, native result or saved state.
+The ordinary from-New route has three 3x2x4 mm prisms at X=0,8,16, with literal
+envelope `(0,0,0)..(19,2,4)`, V72 mm³ and A156 mm². Its frontal target is the last
+prism's top-face center `(17.5,1,4)`. The configured component route has two
+2x3x4 mm prisms at X=0,20, envelope `(0,0,0)..(22,3,4)`, V48/A104; its target is
+the right nested anchor's top-face center `(21,1.5,4)`.
+
+Both frontal screen bases are right=X/up=Y. Projection uses the literal envelope
+center and `canvasHeight/(1.3*envelopeDiagonal)`, retaining each route's original
+Fit convention. The canvas hit must be current and unobstructed; the resulting
+menu must name the expected occurrence/owner/configuration and offer component
+Properties. No application camera matrix, selection or geometric reply is set.
+
+The independently chosen 12-pixel drag returns to its original point. Actual
+CDP down/up is combined with a clearly labelled synthetic `MouseEvent` to deliver
+early context intent while held. This establishes handler ordering, not natural
+early OS delivery. Separate Escape, keyboard replacement and ordinary native
+context clicks retain recovery, history and worker counters. On failure, attempt
+pointer release while retaining the primary assertion and bounded cleanup error.
+The callers retain their complete native and saved-file checks and deadlines.
+
 ## Original context event-order cases — 2026-10-27
 
 `cadContextGesture.test.ts` uses independently chosen screen coordinates

@@ -1,5 +1,75 @@
 # Validation
 
+## Shared assembly context release — 2026-10-28
+
+The shared standard/configured viewport now defers pointer context selection and
+opening until both actual matching right release and menu intent arrive. It uses
+the existing gesture helper and four-pixel guard. Current scene/catalog/revision,
+camera, canvas rectangle and navigation state are checked at request/release;
+resize/camera/leave/cancel/blur/Escape/replacement/keyboard opening revoke pending
+intent. No saved schema, native geometry, IPC, dependency or CI change is made.
+
+Windows x64, Node 24.11.1 / Electron 44.9.3 uses **1,234 non-Markdown inputs** and
+nine outputs, freeze SHA-256
+`6ee47feb34c1edc852ce34682bd577c616d10591c032627388397e5eaef00d81`.
+Worker/WASM and main/preload match the preceding accepted snapshot exactly.
+
+- `npm run build`: PASS, 5.267 s.
+- `npm run test:desktop:assembly-basic-authoring`: PASS, 418 checkpoints, 42.659 s.
+- `npm run test:desktop:assembly-configured-components`: PASS, 289 checkpoints,
+  15.310 s.
+- `npm run test:desktop:normal-to-view`: PASS, 157 checkpoints, 16.610 s.
+- `npm run test:desktop:part-fresh-sketch`: PASS, 79 checkpoints, 8.183 s.
+- `npm test`: PASS, 10,263 unit/CAD cases in 456 files, 200 IPC passes and two
+  explicit skips; complete command 331.033 s.
+- `npm run test:desktop`: PASS, 1.561 s.
+
+All four completed renderer reports have zero console/request errors, observed
+child closure and deleted isolated profiles. Each independently matches eight
+production hashes; the outer freeze also includes the SVG. Both assembly routes
+add five gesture cases: controlled early intent with drag/return, Escape,
+keyboard replacement, an early-intent click that completes on release and an
+ordinary native-context click. Nine bounded state records per workspace retain
+no premature popup/retarget, correct component menu/selection and no cleanup
+errors. Recovery, history and worker counters remain unchanged by the subflow.
+Full original geometry, Apply/Undo/Redo and saved-file oracles remain active.
+Resize, camera, leave/blur and changed-frame revocation are source-reviewed
+contracts here, not additional individually exercised held-press cases.
+
+Before rebuilding the candidate, these exact final scripts run against the old
+accepted production bundle: both complete commands fail the intended first
+assertion, which observes premature popup or selection before actual release.
+This is a production-handler negative control using an explicitly untrusted
+early `MouseEvent` between actual CDP presses/releases. It does not establish
+natural early event delivery on any OS. The separate ordinary context click
+retains the normal production route; hidden interaction is not OS-pointer/human
+or complete-demo acceptance. No additional checklist group is closed.
+
+Applied frontend-design, vercel-react-best-practices, code-simplifier, code-review
+and security-review. Independent read-only review identified the resize-frame
+gap and cleanup error masking, both corrected before this freeze. Final scoped
+reviews report no remaining actionable/high-confidence security finding; this
+is not a full application audit. This source change requires no new binary
+investigation; retained REA evidence and its platform limits remain separate.
+
+Public parent 9a3b162 [CI](https://github.com/angelcp2802/solidflow/actions/runs/40595461036)
+completes all 15 jobs successfully; [Security](https://github.com/angelcp2802/solidflow/actions/runs/40595461008)
+and the separate CodeQL check succeed at that exact head. Persistence fresh-face
+steps pass macOS (job 122510116508, step 41), Linux (122510116527, step 40) and Windows
+(122510116631, step 41). Detailed logs were unavailable through the log connector
+(closed transport) and bounded diagnostics (502), so actual hosted event order,
+individual trace fields and old f7210b8 failure attribution remain unestablished.
+Desktop checks build/package their declared targets; no uploaded binary or
+installed runtime acceptance follows. The Windows six-family symmetry step
+(job 122510116691, step 121) succeeds with a whole-step duration of 168 s at GitHub's
+second precision. That includes launcher/cleanup overhead and does not measure
+child elapsed time, worker CPU or comfortable deadline margin. Recurring
+stability and its performance investigation remain open.
+
+The new candidate needs its own hosted checks. Checklist #55 stays 16/25 with
+nine open groups; broader demo/human/installed-platform acceptance and release
+gate #5 stay open. Continue in draft PR #49 without changing gates or deadlines.
+
 ## Completed right-context gestures — 2026-10-27
 
 The part viewport now requires both context-menu intent and a matching actual

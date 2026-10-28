@@ -1,5 +1,30 @@
 # Development guide
 
+## Assembly context release ordering — 2026-10-28
+
+The shared standard/configured assembly viewport uses `createCadContextGesture`
+for right-button intent and actual release, in either order. Never select,
+nominate a view target or open a pointer context before both arrive. Complete at
+the recorded release point, once, before the left-selection handler's early
+return. Keep the existing irreversible four-pixel drag and pointer guards.
+
+The press frame includes the exact presented/current scene, origin catalog,
+interaction revision, view-history revision, camera pose/projection and canvas
+rectangle. Recheck it at both request and release, including disabled, reference
+picking, manipulator and navigation state. Camera change, resize, leave/cancel,
+blur, Escape, a replacement press and direct keyboard opening revoke pending
+pointer intent; remove listeners when controls are recreated or disposed.
+Keyboard opening remains direct and Escape keeps its normal workspace behavior.
+
+The existing complete `test:desktop:assembly-basic-authoring` and
+`test:desktop:assembly-configured-components` routes now include the shared
+`desktop-assembly-context-gesture.cjs` subflow. Actual CDP presses/releases are
+combined with an explicitly untrusted synthetic early `contextmenu` to exercise
+the previously conditional order. Check no early popup/selection, drag/return,
+Escape, keyboard replacement, one released component menu and the ordinary
+native-context click. Preserve original geometry, history, file, cleanup and
+deadline oracles. A controlled early event is not natural OS-delivery evidence.
+
 ## Right-context release ordering — 2026-10-27
 
 Treat a native `contextmenu` as menu intent, never as a synthetic pointer release.

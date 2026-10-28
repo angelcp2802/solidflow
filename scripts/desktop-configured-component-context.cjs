@@ -85,6 +85,8 @@ module.exports = function configuredComponentContext(c) {
       const pixels = r.height / (1.3 * Math.hypot(22, 3, 4));
       return { x: r.left + r.width / 2 + 10 * pixels, y: r.top + r.height / 2 };
     });
+    await require('./desktop-assembly-context-gesture.cjs')({ page, pointer, menuKey, waitFor, check, checks, canonical, observe },
+      { kind: 'configured', point: p, heading: 'anchor · right · A' });
     await pointer('mouseMoved', p); await pointer('mousePressed', p, 2); await pointer('mouseReleased', p, 2);
     await menu(['right', 'anchor'], 'anchor');
     const viewport = '.configured-assembly-view .assembly-viewport';

@@ -398,6 +398,18 @@ module.exports = function basicAuthoringWorkflow(context) {
     await waitFor('keyboard viewport context closes with host focus', () => page(() => !document.querySelector('.cad-context-menu') && document.activeElement === document.querySelector('.assembly-viewport')));
     checkContextUnchanged(baseline, await contextReadOnlyState(), 'Viewport pointer and keyboard context preserve document, full observations and relation roles');
     Object.assign(contextEvidence, { keyboard, point: target.point, counters: await observe.counters(), documentSha256: digest(canonical(doc)) });
+    await actual('.assembly-view-tools button[title="Frontal"]');
+    await page(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    const componentPoint = await page(() => {
+      const r = document.querySelector('.assembly-viewport > canvas').getBoundingClientRect();
+      // Three original 3x2x4 prisms at X=0,8,16: envelope [0,0,0]..[19,2,4].
+      // Frontal screen right=X/up=Y; target the last prism's top-face center.
+      const pixels = r.height / (1.3 * Math.hypot(19, 2, 4));
+      return { x: r.left + r.width / 2 + 8 * pixels, y: r.top + r.height / 2 };
+    });
+    await require('./desktop-assembly-context-gesture.cjs')({ page, pointer, menuKey, waitFor, check, checks, canonical, observe },
+      { kind: 'standard', point: componentPoint, heading: occurrence(doc, owners.follower).name });
+    checkContextUnchanged(baseline, await contextReadOnlyState(), 'Assembly context gesture audit preserves full native history and relation roles');
     await select(selectedId);
   }
   async function preview(doc, selector, text, phase, mateCount = doc.mates.length, expectedDistance = -12, expectedAlignment = 'aligned', expectedAngle = null) {
