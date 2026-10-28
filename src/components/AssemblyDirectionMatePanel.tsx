@@ -1,4 +1,4 @@
-import type { AssemblyGeometryReference, AssemblyMate } from '../model/assemblyDocument'
+import { validateAssemblyGeometryReference, type AssemblyGeometryReference, type AssemblyMate } from '../model/assemblyDocument'
 import type { NewAssemblyMate } from '../model/assemblyEditing'
 import { assemblyDirectionMateAngle, assemblyDirectionMateObjective, assemblyDirectionReferenceKind,
   type AssemblyDirectionAlignment, type AssemblyDirectionMateType } from '../model/assemblyDirectionMates'
@@ -12,9 +12,14 @@ export function assemblyDirectionUiProposal(first: AssemblyGeometryReference | n
   assemblyDirectionMateAngle(fields.type, assemblyDirectionReferenceKind(first), assemblyDirectionReferenceKind(second), fields.alignment)
   return { type: fields.type, name: fields.name, suppressed: false, first: structuredClone(first), second: structuredClone(second), alignment: fields.alignment }
 }
-/** Edit direction intent without relabeling the saved relation or its endpoints. */
-export function assemblyDirectionUiEdit(mate: AssemblyUiDirectionMate, fields: AssemblyDirectionUiFields): NewAssemblyMate {
-  return { ...assemblyDirectionUiProposal(mate.first, mate.second, fields), suppressed: mate.suppressed }
+/** Replacing endpoints changes the draft only; the worker must verify its current native supports. */
+export function assemblyDirectionUiEdit(mate: AssemblyUiDirectionMate, fields: AssemblyDirectionUiFields & {
+  references?: readonly [AssemblyGeometryReference | null, AssemblyGeometryReference | null]
+}): NewAssemblyMate {
+  const references = fields.references === undefined ? [mate.first, mate.second] : fields.references
+  if (!Array.isArray(references) || references.length !== 2) throw new Error('Selecciona dos referencias del ámbito actual.')
+  return { ...assemblyDirectionUiProposal(validateAssemblyGeometryReference(references[0]),
+    validateAssemblyGeometryReference(references[1]), fields), suppressed: mate.suppressed }
 }
 export function assemblyDirectionUiObjective(type: AssemblyDirectionMateType, first: AssemblyGeometryReference | null, second: AssemblyGeometryReference | null) {
   return first && second ? assemblyDirectionMateObjective(type, assemblyDirectionReferenceKind(first), assemblyDirectionReferenceKind(second)) : null
@@ -43,7 +48,7 @@ export default function AssemblyDirectionMatePanel(props: AssemblyDirectionMateP
   return <section className="assembly-gear" role="region" aria-label="Relación paralela o perpendicular">
     <h3>{props.editing ? 'Editar orientación' : 'Definir orientación'}</h3>
     <p>Selecciona planos, ejes de caras cilíndricas o aristas lineales. La relación controla la orientación; no une posiciones ni añade contacto.</p>
-    {props.editing && <p>La edición conserva las referencias. Puedes cambiar entre paralela y perpendicular; cierra la edición para crear otra familia.</p>}
+    {props.editing && <p>Puedes sustituir cualquiera de las dos referencias y cambiar entre paralela y perpendicular. Verifica los cambios antes de aplicar; cierra la edición para crear otra familia.</p>}
     {props.first && props.second ? <p>{description(props.type, props.first, props.second)}</p> : <p>Selecciona dos referencias actuales para definir la relación.</p>}
     <label>Nombre<input aria-label="Nombre de la relación" value={props.name} disabled={props.disabled} onChange={event => props.onName(event.target.value)} /></label>
     {objective === 'collinear' && <label>Orientación<select aria-label="Orientación de la relación" value={props.alignment} disabled={props.disabled} onChange={event => props.onAlignment(event.target.value as 'aligned' | 'opposed')}><option value="aligned">Alineada</option><option value="opposed">Opuesta</option></select></label>}

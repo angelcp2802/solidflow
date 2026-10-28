@@ -73,6 +73,26 @@ checks. Rejection, cancellation, source drift and worker failure cannot publish
 new committed poses or overwrite history/recovery. Native BRep validity and
 reference freshness remain separate from numerical angular satisfaction.
 
+## Replacing references in a saved standard relation
+
+The standard editor permits either endpoint of a saved parallel/perpendicular
+relation to be replaced or cleared. It uses current planar/cylindrical faces,
+analytic LINE edges, and root/component principal axes or planes. A cleared
+endpoint remains empty and blocks preview; the saved endpoint is not a fallback.
+Changing supports recomputes the orientation branch from the replacement pair.
+
+The draft retains the exact saved declaration, document signature, scope revision,
+scope path and editor session. Selecting a reference changes only that draft.
+Preview resolves current native supports and Apply requires its existing private
+single-use capability. Preview Cancel retains the draft for retry; closing the
+editor discards it. Apply, history, document replacement and scope changes revoke
+the retained edit. ID and suppression survive an accepted replacement, including
+conversion between parallel and perpendicular. No saved schema is added.
+
+See [the walkthrough](DEMO_ASSEMBLIES.md) for the controls and
+[validation](VALIDATION.md) for the exact executed scope; these rules do not
+establish general interaction, nested-assembly or platform coverage.
+
 ## Required evidence
 
 The support matrix has nine ordered pairs from plane, cylinder-axis and LINE.

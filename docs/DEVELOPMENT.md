@@ -1,5 +1,26 @@
 # Development guide
 
+## Saved direction-reference editor identity — 2026-10-28
+
+Parallel/perpendicular editing participates in the standard workspace's shared
+reference draft. Retain the unique exact original declaration, document signature,
+scope ID/revision/path and editor session. The ticket's original family is stable
+while the draft may convert between the two directional families. Never resolve
+the ticket against a previewed declaration or substitute saved endpoints for an
+empty replacement slot.
+
+Reference callbacks require the current ticket, draft, slot, document, scope and
+presented scene. Resolve actual current face/LINE/origin catalog entries before
+writing the draft. Recalculate the collinear/orthogonal objective from the new
+endpoints. Preview and Apply use existing worker verification/capabilities; no
+saved reference or renderer ticket grants native authority.
+
+Preview Cancel retains the draft; explicit Close, Apply, history, document
+replacement or a new scope revoke it. Keep the complete original direction
+workflow and its geometric oracles before the appended replacement lifecycle.
+Only that test's bounded temporary-path dialog list adds a second Save and third
+Open; production file grants, native-dialog policies and deadlines remain.
+
 ## Quoted JSON byte-count allocation — 2026-10-28
 
 Both v2 and configured-document JSON preflights use the shared

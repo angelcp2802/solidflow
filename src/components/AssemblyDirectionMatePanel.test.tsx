@@ -1,8 +1,8 @@
 import { expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { createAssemblyExample } from '../examples/assembly'
-import { applyAssemblyEdit } from '../model/assemblyEditing'
-import { serializeAssemblyDocument, type AssemblyGeometryReference } from '../model/assemblyDocument'
+import { applyAssemblyEdit, AssemblyDocumentHistory } from '../model/assemblyEditing'
+import { parseAssemblyDocument, serializeAssemblyDocument, type AssemblyGeometryReference } from '../model/assemblyDocument'
 import type { AssemblyDirectionAlignment, AssemblyDirectionMateType, AssemblyDirectionSupportKind } from '../model/assemblyDirectionMates'
 import AssemblyDirectionMatePanel, { assemblyDirectionUiEdit, assemblyDirectionUiObjective, assemblyDirectionUiProposal, type AssemblyDirectionMatePanelProps, type AssemblyUiDirectionMate } from './AssemblyDirectionMatePanel'
 
@@ -64,6 +64,55 @@ it('changes the family through update-mate without leaving an additional active 
   const updated = applyAssemblyEdit(added, { type: 'update-mate', mateId: mate.id, mate: assemblyDirectionUiEdit(mate, { type: 'perpendicular', name: mate.name, alignment: null }) })
   expect(updated.mates).toHaveLength(1); expect(updated.mates[0]).toMatchObject({ id: mate.id, type: 'perpendicular', first, second, alignment: null })
 })
+it.each(['parallel', 'perpendicular'] as const)('replaces saved %s endpoints while preserving ID, suppression, history and the complete serialized document', type => {
+  const document = createAssemblyExample(), before = serializeAssemblyDocument(document)
+  const saved = applyAssemblyEdit(document, { type: 'add-mate', mate: { type, name: 'Original endpoints',
+    first: { kind: 'principal-plane', component: null, plane: 'XY' },
+    second: { kind: 'principal-plane', component: { occurrencePath: ['left'], definition: { id: 'example-pin', revision: 'r1' } }, plane: 'XY' },
+    alignment: type === 'parallel' ? 'aligned' : null, suppressed: true } })
+  const mate = saved.mates[0] as AssemblyUiDirectionMate, savedBytes = serializeAssemblyDocument(saved)
+  const owner = { occurrencePath: ['right'], definition: { id: 'example-pin', revision: 'r1' } }
+  const references: [AssemblyGeometryReference, AssemblyGeometryReference] = [
+    { kind: 'principal-plane', component: null, plane: 'XZ' }, { kind: 'principal-axis', component: owner, axis: 'X' },
+  ]
+  // Plane/direction parallel is orthogonal to the plane's normal; perpendicular
+  // is collinear. Expected declarations do not use the objective helper.
+  const alignment = type === 'parallel' ? null : 'opposed'
+  const proposal = assemblyDirectionUiEdit(mate, { type, name: 'Replacement endpoints', alignment, references })
+  expect(proposal).toEqual({ type, name: 'Replacement endpoints', suppressed: true, alignment,
+    first: { kind: 'principal-plane', component: null, plane: 'XZ' },
+    second: { kind: 'principal-axis', component: { occurrencePath: ['right'], definition: { id: 'example-pin', revision: 'r1' } }, axis: 'X' } })
+  const detached = structuredClone(proposal)
+  owner.occurrencePath[0] = 'changed-after-proposal'; owner.definition.revision = 'changed'
+  expect(proposal).toEqual(detached)
+  const candidate = applyAssemblyEdit(saved, { type: 'update-mate', mateId: mate.id, mate: proposal })
+  expect(candidate.mates).toEqual([{ ...detached, id: mate.id }])
+  expect(candidate.occurrences).toEqual(saved.occurrences); expect(candidate.definitions).toEqual(saved.definitions)
+  expect(parseAssemblyDocument(serializeAssemblyDocument(candidate))).toEqual(candidate)
+  const history = new AssemblyDocumentHistory(saved); history.commitDocument(candidate)
+  expect(history.undo()).toEqual(saved); expect(history.redo()).toEqual(candidate)
+  expect(serializeAssemblyDocument(saved)).toBe(savedBytes); expect(serializeAssemblyDocument(document)).toBe(before)
+})
+it('changes family and endpoints together using the new mixed-support orientation', () => {
+  const mate: AssemblyUiDirectionMate = { id: 'saved', type: 'parallel', name: 'Original', suppressed: false,
+    first: ref('plane'), second: ref('plane', 'right'), alignment: 'aligned' }
+  const first: AssemblyGeometryReference = { kind: 'principal-plane', component: null, plane: 'YZ' }, second = ref('line', 'right')
+  const proposal = assemblyDirectionUiEdit(mate, { type: 'perpendicular', name: 'New direction', alignment: 'opposed', references: [first, second] })
+  expect(proposal).toEqual({ type: 'perpendicular', name: 'New direction', suppressed: false, first, second, alignment: 'opposed' })
+  expect('angle' in proposal).toBe(false)
+  expect(() => assemblyDirectionUiEdit(mate, { type: 'perpendicular', name: 'Wrong orientation', alignment: null, references: [first, second] })).toThrow(/requires/)
+})
+it.each([0, 1] as const)('rejects a missing or incompatible saved replacement in slot %s without falling back to old endpoints', slot => {
+  const mate: AssemblyUiDirectionMate = { id: 'saved', type: 'parallel', name: 'Original', suppressed: false,
+    first: ref('plane'), second: ref('plane', 'right'), alignment: 'aligned' }, before = structuredClone(mate)
+  const unsupported = { ...ref('line'), support: 'circle' } as unknown as AssemblyGeometryReference
+  for (const reference of [null, unsupported]) {
+    const references: [AssemblyGeometryReference | null, AssemblyGeometryReference | null] = [mate.first, mate.second]
+    references[slot] = reference
+    expect(() => assemblyDirectionUiEdit(mate, { type: 'parallel', name: 'Replacement', alignment: 'aligned', references })).toThrow()
+    expect(mate).toEqual(before)
+  }
+})
 it.each([0, 1])('rejects missing reference slot %s before creating a proposal', index => {
   expect(() => assemblyDirectionUiProposal(index === 0 ? null : ref('plane'), index === 1 ? null : ref('plane', 'right'), { type: 'parallel', name: 'Missing endpoint', alignment: 'aligned' })).toThrow('dos referencias')
 })
@@ -86,8 +135,9 @@ it.each(['missing reference', 'blank name'])('keeps preview blocked for %s', inv
   const html = renderToStaticMarkup(<AssemblyDirectionMatePanel {...p} />)
   expect(html).toMatch(/<button(?=[^>]*aria-label="Vista previa de la nueva relación direccional")(?=[^>]*disabled="")[^>]*>/)
 })
-it('labels existing direction editing and explains the preserved-reference/family boundary', () => {
+it('labels saved direction editing and explains replacement, verification and the family boundary', () => {
   const html = renderToStaticMarkup(<AssemblyDirectionMatePanel {...props()} editing />)
-  expect(html).toContain('La edición conserva las referencias.'); expect(html).toContain('cierra la edición para crear otra familia')
+  expect(html).toContain('Puedes sustituir cualquiera de las dos referencias'); expect(html).toContain('Verifica los cambios antes de aplicar')
+  expect(html).toContain('cierra la edición para crear otra familia')
   expect(html).toContain('aria-label="Vista previa de la relación direccional editada"'); expect(html).toContain('aria-label="Cerrar edición de relación direccional"')
 })

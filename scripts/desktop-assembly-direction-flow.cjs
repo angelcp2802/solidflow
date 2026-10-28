@@ -73,6 +73,15 @@ module.exports = function directionWorkflow(context) {
     near(document.occurrences.find(value => value.id === 'ground').pose.rotation, [0, 0, 0, 1], 1e-12, 'Ground fixed orientation');
   }
   function nativeDirection(scene, ref) {
+    if (ref.kind === 'principal-axis' || ref.kind === 'principal-plane') {
+      const local = ref.kind === 'principal-axis' ? { X: [1, 0, 0], Y: [0, 1, 0], Z: [0, 0, 1] }[ref.axis]
+        : { XY: [0, 0, 1], XZ: [0, -1, 0], YZ: [1, 0, 0] }[ref.plane];
+      check(!!local, 'Original declared datum direction is required.');
+      if (!ref.component) return { kind: ref.kind === 'principal-plane' ? 'plane' : 'axis', direction: local };
+      const owner = body(scene, ref.component.occurrencePath[0]);
+      check(canonical(owner.component) === canonical(ref.component), 'Datum native owner/revision differs.');
+      return { kind: ref.kind === 'principal-plane' ? 'plane' : 'axis', direction: rotate(owner.worldPose.rotation, local) };
+    }
     const owner = body(scene, ref.component.occurrencePath[0]), entity = ref.kind === 'edge' ? ref.edge : ref.face;
     check(canonical(owner.component) === canonical(ref.component) && canonical(owner.body) === canonical(ref.body), 'Native endpoint owner/revision differs.');
     const values = ref.kind === 'edge' ? owner.edges : owner.faces;
@@ -163,8 +172,12 @@ module.exports = function directionWorkflow(context) {
     record(label + '/preview', event); return event;
   }
   async function edit(base, label, type, alignment, dof) {
-    const mate = base.document.mates[0]; await click('button[aria-label="Editar relación ' + mate.name + '"]');
-    await waitFor('saved direction editor rendered', () => page((selector, name) => document.querySelector(selector)?.value === name, NAME, mate.name));
+    const mate = base.document.mates[0];
+    // Cancelling a native preview retains the editor's uncommitted draft.
+    if (!await page(selector => !!document.querySelector(selector), EDIT)) {
+      await click('button[aria-label="Editar relación ' + mate.name + '"]');
+      await waitFor('saved direction editor rendered', () => page((selector, name) => document.querySelector(selector)?.value === name, NAME, mate.name));
+    }
     await control(TYPE, type); await control(NAME, label); await orientation(alignment);
     const before = await observe(); await click(EDIT); const event = await responseAfter(before.serial, 'preview-assembly'), result = ready(event, 1, dof), edited = result.document.mates[0];
     check(edited.id === mate.id && edited.type === type && edited.name === label && edited.alignment === alignment
@@ -254,7 +267,7 @@ module.exports = function directionWorkflow(context) {
     committed = { document: event.document, scene: event.response.value }; await recovery(committed.document, 'reopened'); record('reopen/committed', event);
     await waitFor('reopen resets history', () => page(() => document.querySelector('button[aria-label="Deshacer ensamblaje"]')?.disabled === true && document.querySelector('button[aria-label="Rehacer ensamblaje"]')?.disabled === true));
     before = await observe(); await click('button[aria-label="Resolver ensamblaje"]'); event = await responseAfter(before.serial, 'preview-assembly'); ready(event, 1, 4); record('reopen/fresh-native', event); await cancel(committed, 'reopened solve cancelled');
-    await button('Isométrica', '.assembly-view-tools'); await capture(committed.document);
+    await button('Isométrica', '.assembly-view-tools');
     const state = await observe(), counts = dialogCounts();
     check(phases.length === 36 && phases.filter(value => value.action === 'apply-assembly').length === 13 && gestures.length === 1, 'Unexpected direction workflow coverage/count.');
     check(counts.opens === 2 && counts.saves === 1 && counts.csvExports === 0 && ipc.every(value => value.completed), 'Unexpected file dialogs or incomplete file IPC.');
@@ -264,5 +277,13 @@ module.exports = function directionWorkflow(context) {
     Object.assign(evidence, { savedSha256: digest(savedBytes), finalDocument: committed.document,
       independentOracles: 'Two native drilled prisms:V480-8pi mm3,A496+12pi mm2;per-body V240-4pi/A248+6pi and transformed outer-corner bounds1e-5;fixed-ground origin and scene/saved translation1e-12mm;moving origin remains free;native top+Z,bore-axis-Z,LINE+Z at1e-8;actual world direction angles1e-6rad;natural rank2/DOF4 collinear,rank1/DOF5 orthogonal,rank0/DOF6 suppressed/deleted.',
       limits: 'Original fixed/free two-component cases only. Scripted controls and one actual Chromium LINE pointer; dialog paths test-owned. No state/CAD reply injection, complete27-combination desktop matrix, global mobility, contact, human dialogs, packages or platform generalization.' });
+    const edited = await require('./desktop-assembly-direction-reference-edit-flow.cjs')({
+      context, base: committed, page, button, control, choose, orientation, responseAfter,
+      recovery, idle, ready, relations, face, line, reference,
+    });
+    evidence.originalSavedSha256 = evidence.savedSha256;
+    evidence.originalFinalDocument = evidence.finalDocument;
+    evidence.savedSha256 = edited.savedSha256;
+    evidence.finalDocument = edited.document;
   };
 };

@@ -4,6 +4,25 @@ The integration draft is [PR #49](https://github.com/angelcp2802/solidflow/pull/
 This walkthrough covers a bounded prototype, not the complete assembly scope
 or a release. See [validation](VALIDATION.md) for the exact executed cases.
 
+## Replacing references of a saved parallel/perpendicular relation
+
+1. In the standard assembly's Relations list, choose **Editar** for the saved
+   parallel or perpendicular relation. References 1 and 2 show its saved targets.
+2. Select either reference card. Use a current face or LINE edge, or expand
+   **Referencias de origen** to choose a root/component plane or axis. **Quitar
+   referencia** empties that endpoint; both references must be present to preview.
+3. Review the relation type and orientation. For a plane and direction,
+   perpendicular aligns the direction with the plane normal; parallel makes
+   them orthogonal. Position remains free unless another relation constrains it.
+4. Choose **Vista previa de los cambios**. Cancel returns to the committed model
+   while keeping the edited references for retry. **Cerrar edición** discards
+   those changes. Apply commits only the freshly verified preview.
+5. Undo/Redo applies to the accepted change. Save and reopen the assembly to
+   retain its new references, then solve again to verify their current geometry.
+
+This uses the standard workspace. Exact executed cases and remaining scope are
+recorded in [validation](VALIDATION.md).
+
 ## Editing a saved working view
 
 In a part, standard assembly or configured assembly, position the camera and

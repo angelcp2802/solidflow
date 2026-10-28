@@ -70,6 +70,7 @@ import AssemblyGearPanel, { assemblyGearUiEdit, type AssemblyGearUiFields, type 
 import AssemblyScrewPanel, { assemblyScrewUiEdit, type AssemblyScrewUiFields, type AssemblyUiScrewMate } from './AssemblyScrewPanel'
 import AssemblyRackPinionPanel, { assemblyRackPinionUiEdit, type AssemblyRackPinionUiFields, type AssemblyUiRackPinionMate } from './AssemblyRackPinionPanel'
 import AssemblyDirectionMatePanel, { assemblyDirectionUiEdit, assemblyDirectionUiObjective, assemblyDirectionUiProposal, type AssemblyUiDirectionMate } from './AssemblyDirectionMatePanel'
+import { retainAssemblyDirectionEdit, resolveAssemblyDirectionEdit, type AssemblyDirectionEditTicket } from './assemblyDirectionEdit'
 import type { AssemblyDirectionMateType } from '../model/assemblyDirectionMates'
 import AssemblyTangentMatePanel, { AssemblyTangentSupportSummary, assemblyTangentUiEdit, assemblyTangentUiProposal, assemblyTangentUiReports, type AssemblyUiTangentMate } from './AssemblyTangentMatePanel'
 import type { AssemblyTangentSide } from '../model/assemblyTangentMates'
@@ -118,7 +119,7 @@ export interface AssemblyWorkspaceProps {
 type AssemblyNode = AssemblyDocument | EmbeddedAssemblyDefinition
 type RelationReferencePair = [AssemblyGeometryReference | null, AssemblyGeometryReference | null]
 type RelationReferenceDraft = {
-  ticket: AssemblyDistanceEditTicket | AssemblyAngleEditTicket | OrdinaryMateEditTicket
+  ticket: AssemblyDistanceEditTicket | AssemblyAngleEditTicket | OrdinaryMateEditTicket | AssemblyDirectionEditTicket
   references: RelationReferencePair
 }
 function samePath(a: readonly string[], b: readonly string[]): boolean { return a.length === b.length && a.every((id, i) => id === b[i]) }
@@ -473,7 +474,13 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   const [angleEdit, setAngleEdit] = useState<AssemblyAngleEditTicket | null>(null)
   const [ordinaryEdit, setOrdinaryEdit] = useState<OrdinaryMateEditTicket | null>(null)
   const [releaseRotation, setReleaseRotation] = useState(false)
-  const [editingDirectionId, setEditingDirectionId] = useState<string | null>(null), [edgeChoice, setEdgeChoice] = useState('')
+  const [directionEdit, updateDirectionEdit] = useState<AssemblyDirectionEditTicket | null>(null), [edgeChoice, setEdgeChoice] = useState('')
+  const directionEditCurrent = useRef({ ticket: directionEdit, session: treeReset })
+  directionEditCurrent.current = { ticket: directionEdit, session: treeReset }
+  const setDirectionEdit = (ticket: AssemblyDirectionEditTicket | null) => {
+    directionEditCurrent.current = { ticket, session: treeReset }
+    updateDirectionEdit(ticket)
+  }
   const [editingTangentId, setEditingTangentId] = useState<string | null>(null), [tangentSide, setTangentSide] = useState<AssemblyTangentSide>('positive')
   const [tangentReferences, setTangentReferences] = useState<[AssemblyTangentReference | null, AssemblyTangentReference | null]>([null, null])
   const [editingCylinderTangentId, setEditingCylinderTangentId] = useState<string | null>(null)
@@ -593,15 +600,21 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
       setOrdinaryEdit(null); setReleaseRotation(false)
     }
   }, [ordinaryEdit, editingOrdinary, mateType])
-  const referenceEditTicket = ordinaryEdit ?? angleEdit ?? distanceEdit
-  const savedReferenceEditIsActive = () => !!(ordinaryEditCurrent.current.ticket || angleEditCurrent.current.ticket || distanceEditCurrent.current.ticket)
-  const referenceEditMate = editingOrdinary ?? editingAngle ?? editingDistance
+  const directionEditContext = { documentSignature: serialized, scopePath, scope, session: treeReset }
+  const editingDirection = resolveAssemblyDirectionEdit(directionEdit, directionEditContext)
+  useLayoutEffect(() => {
+    if (directionEdit && (!editingDirection || mateType !== 'parallel' && mateType !== 'perpendicular')) setDirectionEdit(null)
+  }, [directionEdit, editingDirection, mateType])
+  const referenceEditTicket = ordinaryEdit ?? angleEdit ?? distanceEdit ?? directionEdit
+  const savedReferenceEditIsActive = () => !!(ordinaryEditCurrent.current.ticket || angleEditCurrent.current.ticket || distanceEditCurrent.current.ticket || directionEditCurrent.current.ticket)
+  const referenceEditMate = editingOrdinary ?? editingAngle ?? editingDistance ?? editingDirection
   const editedReferences = referenceDraft?.ticket === referenceEditTicket && referenceEditMate ? referenceDraft.references : null
   useLayoutEffect(() => {
     if (referenceDraft && !editedReferences) setReferenceDraft(null)
   }, [referenceDraft, editedReferences])
   const referenceEditorIsCurrent = () => referenceDraftRef.current === referenceDraft && endpointSlotRef.current === endpointSlot
     && (!referenceEditTicket || !!editedReferences)
+    && (!directionEdit || directionEditCurrent.current.ticket === directionEdit && directionEditCurrent.current.session === treeReset)
     && serialized === serializeAssemblyDocument(current.current) && JSON.stringify(scopePath) === currentFileScope.current
   const setRelationReference = (slot: 0 | 1, reference: AssemblyGeometryReference | null) => {
     if (!referenceEditorIsCurrent()) return
@@ -618,8 +631,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     })
   }
   const isDirection = mateType === 'parallel' || mateType === 'perpendicular'
-  const editingDirection = scope.mates.find((mate): mate is AssemblyUiDirectionMate => (mate.type === 'parallel' || mate.type === 'perpendicular') && mate.id === editingDirectionId)
-  const directionReferences = editingDirection ? [editingDirection.first, editingDirection.second] as const : references
+  const directionReferences: RelationReferencePair = directionEdit ? editedReferences ?? [null, null] : references
   const isTangent = mateType === 'tangent'
   const editingTangent = scope.mates.find((mate): mate is AssemblyUiTangentMate => mate.type === 'tangent' && mate.id === editingTangentId)
   const tangentEndpoints = editingTangent ? [editingTangent.first, editingTangent.second] as const : tangentReferences
@@ -639,8 +651,8 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   const limitAngleEndpoints = editingLimitAngle ? [editingLimitAngle.first, editingLimitAngle.second] as const : limitAngleReferences
   const ordinaryAngleEndpoints = editedReferences ?? references
   const directionalEndpoints = isLimitAngle ? limitAngleEndpoints : mateType === 'angle' ? ordinaryAngleEndpoints : directionReferences
-  const referenceEditing = !!ordinaryEdit || !!angleEdit || !!distanceEdit || !!editingHinge || !!editingCircularPath || !!editingLinePath || !!editingProfile || !!editingSymmetry || !!editingWidth || !!editingDirection || !!editingTangent || !!editingCylinderTangent || !!editingSphereTangent || !!editingLimitDistance || !!editingLimitAngle || !!editingLimitDirectedAngle
-  const standardPreviewFamily = !!ordinaryEdit || !!angleEdit || !!distanceEdit || isHinge || isCircularPath || isLinePath || isProfile || isSymmetry || isWidth || isDirection || isTangent || isCylinderTangent || isSphereTangent || isLimitDistance || isLimitAngle || isLimitDirectedAngle
+  const referenceEditing = !!ordinaryEdit || !!angleEdit || !!distanceEdit || !!directionEdit || !!editingHinge || !!editingCircularPath || !!editingLinePath || !!editingProfile || !!editingSymmetry || !!editingWidth || !!editingTangent || !!editingCylinderTangent || !!editingSphereTangent || !!editingLimitDistance || !!editingLimitAngle || !!editingLimitDirectedAngle
+  const standardPreviewFamily = !!ordinaryEdit || !!angleEdit || !!distanceEdit || !!directionEdit || isHinge || isCircularPath || isLinePath || isProfile || isSymmetry || isWidth || isDirection || isTangent || isCylinderTangent || isSphereTangent || isLimitDistance || isLimitAngle || isLimitDirectedAngle
   const canApply = canApplyAssemblyPreview(preview, serialized, candidateSignature, generation.current, busy)
   const symmetryReports=canApply&&preview&&preview.reply.checks.every(check=>check.satisfied)?assemblySymmetryUiReports(preview.reply.document,preview.reply.symmetries??[]):[]
   const widthReports = canApply && preview && preview.reply.checks.every(check => check.satisfied)
@@ -974,7 +986,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
         else linkedBindings.current.releaseGrant(linked.grantId)
         refreshLinked(v => v + 1)
       }
-      setOrdinaryEdit(null); setReleaseRotation(false); setAngleEdit(null); setDistanceEdit(null); setCommitted(document); setScene(reply.scene); setSelectedFaceMeshes([]); setReferences([null, null]); setWidthReferences([null,null,null,null]); setEditingWidthId(null); setTangentReferences([null, null]); setCylinderReferences([null, null]); setSphereReferences([null, null]); setLimitReferences([null, null]); setLimitAngleReferences([null, null]); setLimitDirectedSelection(['', '', '']); setCylinderLarger(''); setSphereLarger(''); setMovementReset(value => value + 1); setEditingDirectionId(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null)
+      setOrdinaryEdit(null); setReleaseRotation(false); setAngleEdit(null); setDistanceEdit(null); setCommitted(document); setScene(reply.scene); setSelectedFaceMeshes([]); setReferences([null, null]); setWidthReferences([null,null,null,null]); setEditingWidthId(null); setTangentReferences([null, null]); setCylinderReferences([null, null]); setSphereReferences([null, null]); setLimitReferences([null, null]); setLimitAngleReferences([null, null]); setLimitDirectedSelection(['', '', '']); setCylinderLarger(''); setSphereLarger(''); setMovementReset(value => value + 1); setDirectionEdit(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null)
       setEditingLimitDirectedAngleId(null)
       if (candidate.reply.translation) notify('Traslación aplicada. Se conservan las relaciones y el historial; no se añade un bloqueo temporal.')
       else if (candidate.reply.projection) notify('Proyección local aplicada. Se conservan las relaciones y el historial del ensamblaje.')
@@ -1067,7 +1079,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     setOrdinaryEdit(null); setReleaseRotation(false); setAngleEdit(null); setDistanceEdit(null); setTreeReset(value => value + 1)
     restoreBomFocus.current = false; setRibbonTab('assembly'); managerTabRef.current = 'components'; setManagerTab('components')
     linkedEpoch.current++; linkedTicket.current = null; linkedBindings.current.clear(); refreshLinked(v => v + 1)
-    setEditingDirectionId(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null); setCylinderLarger(''); setSphereLarger('')
+    setDirectionEdit(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null); setCylinderLarger(''); setSphereLarger('')
     invalidate(); setLimitDirectedSelection(['', '', '']); confirmedScene.current = null; sceneSignature.current = ''; setScene(null); history.current!.reset(document); setCommitted(validateAssemblyDocument(document)); setPath(filePath); setSaved(fileSaved ?? ''); setSelectedPath([]); setScopePath([]); setSourceKey(''); setEditingGearId(null); setEditingScrewId(null); setEditingRackId(null); setRackKeys(['', ''])
   }
   const importStructural = async () => {
@@ -1467,7 +1479,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   const pickDirectionEdge = (edge: AssemblySceneEdge | null) => {
     if (isHinge) { acceptHingePick(edge, 'line-edge', activeHingePick); return }
     if (isSymmetry) { acceptSymmetryPick(edge, 'edge', symmetryPicking); return }
-    if (!edge || (!isDirection && !isLimitAngle && mateType !== 'angle') || editingDirection || editingLimitAngle || operation.current || hasStaging() || currentPreview.current || draft || replaceDialog
+    if (!edge || (!isDirection && !isLimitAngle && mateType !== 'angle') || editingLimitAngle || operation.current || hasStaging() || currentPreview.current || draft || replaceDialog
       || sceneSignature.current !== serializeAssemblyDocument(current.current) || confirmedScene.current?.signature !== serialized || confirmedScene.current?.scene !== scene || !referenceEditorIsCurrent()) return
     const matches = scene?.bodies.filter(body => body.visible).flatMap(body => body.edges ?? []).filter(value => assemblyEdgeKey(value) === assemblyEdgeKey(edge)) ?? []
     const actual = matches.length === 1 ? matches[0] : null
@@ -1490,7 +1502,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     setReferenceDraft({ ticket, references: [structuredClone(mate.first), structuredClone(mate.second)] }); setEndpointSlot(0)
     stopOriginPicking(); clearSymmetryPicking(); setHingePicking(null); setWidthPicking(null)
     setOrdinaryEdit(ticket); setReleaseRotation(false); setMateType(mate.type); setMateName(mate.name); setAlignment(mate.alignment)
-    setEditingDirectionId(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null)
+    setDirectionEdit(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null)
     setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null)
     setEditingGearId(null); setEditingScrewId(null); setEditingRackId(null)
     setReferences([null, null]); setSelectedFaceMeshes([]); setPickingFaces(false); setPickingLinearEdges(false); setRackPicking(null); setDragMode('off')
@@ -1525,7 +1537,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     setReferenceDraft({ ticket, references: [structuredClone(mate.first), structuredClone(mate.second)] }); setEndpointSlot(0)
     stopOriginPicking(); clearSymmetryPicking(); setHingePicking(null); setWidthPicking(null)
     setDistanceEdit(ticket); setMateType('distance'); setMateName(mate.name); setMateValue(String(mate.distance)); setAlignment(mate.alignment)
-    setEditingDirectionId(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null)
+    setDirectionEdit(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null)
     setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null)
     setEditingGearId(null); setEditingScrewId(null); setEditingRackId(null)
     setReferences([null, null]); setSelectedFaceMeshes([]); setPickingFaces(false); setPickingLinearEdges(false); setRackPicking(null); setDragMode('off')
@@ -1558,7 +1570,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     setReferenceDraft({ ticket, references: [structuredClone(mate.first), structuredClone(mate.second)] }); setEndpointSlot(0)
     stopOriginPicking(); clearSymmetryPicking(); setHingePicking(null); setWidthPicking(null)
     setAngleEdit(ticket); setMateType('angle'); setMateName(mate.name); setMateValue(String(mate.angle))
-    setEditingDirectionId(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null)
+    setDirectionEdit(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null)
     setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null)
     setEditingGearId(null); setEditingScrewId(null); setEditingRackId(null)
     setReferences([null, null]); setSelectedFaceMeshes([]); setPickingFaces(false); setPickingLinearEdges(false); setRackPicking(null); setDragMode('off')
@@ -1580,26 +1592,44 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     setReferenceDraft(null)
     setAngleEdit(null); setReferences([null, null]); setSelectedFaceMeshes([]); setPickingFaces(false); setPickingLinearEdges(false)
   }
+  const liveDirectionContext = () => ({ documentSignature: serializeAssemblyDocument(current.current),
+    scopePath: JSON.parse(currentFileScope.current) as string[],
+    scope: nodeAt(current.current, JSON.parse(currentFileScope.current) as string[]), session: directionEditCurrent.current.session })
   const editDirection = () => {
-    if (!isDirection || !editingDirectionId || operation.current || hasStaging() || currentPreview.current || draft || replaceDialog) return
+    if (!isDirection || !directionEdit || directionEditCurrent.current.ticket !== directionEdit || operation.current || hasStaging() || currentPreview.current || draft || replaceDialog || rootRevision
+      || sceneSignature.current !== serializeAssemblyDocument(current.current)) return
     try {
-      const mate = nodeAt(current.current, scopePath).mates.find((value): value is AssemblyUiDirectionMate => (value.type === 'parallel' || value.type === 'perpendicular') && value.id === editingDirectionId)
-      if (!mate) throw new Error('La relación direccional ya no pertenece al ámbito actual.')
-      const updated = assemblyDirectionUiEdit(mate, { type: mateType, name: mateName,
-        alignment: assemblyDirectionUiObjective(mateType, mate.first, mate.second) === 'collinear' ? alignment : null })
-      void solve(applyAssemblyEdit(current.current, { type: 'update-mate', scope: scopeReference, mateId: mate.id, mate: updated }))
+      const context = liveDirectionContext(), mate = resolveAssemblyDirectionEdit(directionEdit, context)
+      if (!mate) throw new Error('La relación direccional editada ya no pertenece al documento y ámbito actuales.')
+      if (!editedReferences || !referenceEditorIsCurrent()) throw new Error('Selecciona las referencias de la relación direccional editada.')
+      const updated = assemblyDirectionUiEdit(mate, { type: mateType, name: mateName, references: editedReferences,
+        alignment: assemblyDirectionUiObjective(mateType, editedReferences[0], editedReferences[1]) === 'collinear' ? alignment : null })
+      void solve(applyAssemblyEdit(current.current, { type: 'update-mate', scope: { id: context.scope.id, revision: context.scope.revision }, mateId: mate.id, mate: updated }))
     } catch (reason) { notify((reason as Error).message, true) }
   }
   const beginDirectionEdit = (mate: AssemblyUiDirectionMate) => {
-    if (operation.current || hasStaging() || currentPreview.current || draft || replaceDialog || savedReferenceEditIsActive()) return
-    setEditingDirectionId(mate.id); setMateType(mate.type); setMateName(mate.name); setAlignment(mate.alignment ?? 'aligned')
-    setReferences([structuredClone(mate.first), structuredClone(mate.second)]); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null); setEditingGearId(null); setEditingScrewId(null); setEditingRackId(null)
-    setPickingFaces(false); setPickingLinearEdges(false); setRackPicking(null); setDragMode('off')
+    if (operation.current || hasStaging() || currentPreview.current || draft || replaceDialog || rootRevision || referenceEditing
+      || !mounted.current || directionEditCurrent.current.session !== treeReset
+      || serialized !== serializeAssemblyDocument(current.current) || JSON.stringify(scopePath) !== currentFileScope.current
+      || sceneSignature.current !== serialized || confirmedScene.current?.signature !== serialized || confirmedScene.current?.scene !== scene) return
+    const ticket = retainAssemblyDirectionEdit(liveDirectionContext(), mate)
+    if (!ticket) return
+    setReferenceDraft({ ticket, references: [structuredClone(mate.first), structuredClone(mate.second)] }); setEndpointSlot(0)
+    stopOriginPicking(); clearSymmetryPicking(); setHingePicking(null); setWidthPicking(null)
+    setDirectionEdit(ticket); setMateType(mate.type); setMateName(mate.name); setAlignment(mate.alignment ?? 'aligned')
+    setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null); setEditingGearId(null); setEditingScrewId(null); setEditingRackId(null)
+    setReferences([null, null]); setSelectedFaceMeshes([]); setPickingFaces(false); setPickingLinearEdges(false); setRackPicking(null); setDragMode('off')
+  }
+  const endDirectionEdit = () => {
+    if (!directionEdit || directionEditCurrent.current.ticket !== directionEdit || directionEditCurrent.current.session !== treeReset
+      || operation.current || hasStaging() || currentPreview.current || draft || replaceDialog) return
+    stopOriginPicking()
+    setReferenceDraft(null); setDirectionEdit(null); setReferences([null, null]); setSelectedFaceMeshes([]); setPickingFaces(false); setPickingLinearEdges(false)
   }
   const beginTangentEdit = (mate: AssemblyUiTangentMate) => {
     if (operation.current || hasStaging() || currentPreview.current || draft || replaceDialog || savedReferenceEditIsActive()) return
     setMateType('tangent'); setEditingTangentId(mate.id); setMateName(mate.name); setTangentSide(mate.side)
-    setTangentReferences([structuredClone(mate.first), structuredClone(mate.second)]); setEditingDirectionId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null); setEditingGearId(null); setEditingScrewId(null); setEditingRackId(null)
+    setTangentReferences([structuredClone(mate.first), structuredClone(mate.second)]); setDirectionEdit(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null); setEditingGearId(null); setEditingScrewId(null); setEditingRackId(null)
     setPickingFaces(false); setPickingLinearEdges(false); setRackPicking(null); setDragMode('off')
   }
   const editTangent = () => {
@@ -1616,7 +1646,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     setMateType(mate.type); setEditingCylinderTangentId(mate.id); setMateName(mate.name); setCylinderBranchKind(mate.branch.kind)
     setCylinderLarger(mate.branch.kind === 'internal' ? mate.branch.larger : '')
     setCylinderReferences([structuredClone(mate.first), structuredClone(mate.second)])
-    setEditingDirectionId(null); setEditingTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null); setEditingGearId(null); setEditingScrewId(null); setEditingRackId(null)
+    setDirectionEdit(null); setEditingTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null); setEditingGearId(null); setEditingScrewId(null); setEditingRackId(null)
     setPickingFaces(false); setPickingLinearEdges(false); setRackPicking(null); setDragMode('off')
   }
   const editCylinderTangent = () => {
@@ -1636,7 +1666,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     if (mate.type === 'plane-sphere-tangent') { setSphereSide(mate.side); setSphereLarger('') }
     else { setSphereBranchKind(mate.branch.kind); setSphereLarger(mate.branch.kind === 'internal' ? mate.branch.larger : '') }
     setSphereReferences([structuredClone(mate.first), structuredClone(mate.second)])
-    setEditingDirectionId(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null); setEditingGearId(null); setEditingScrewId(null); setEditingRackId(null)
+    setDirectionEdit(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null); setEditingGearId(null); setEditingScrewId(null); setEditingRackId(null)
     setPickingFaces(false); setPickingLinearEdges(false); setRackPicking(null); setDragMode('off')
   }
   const editSphereTangent = () => {
@@ -1651,7 +1681,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     if (operation.current || hasStaging() || currentPreview.current || draft || replaceDialog || savedReferenceEditIsActive()) return
     setMateType('limit-distance'); setEditingLimitDirectedAngleId(null); setEditingLimitDistanceId(mate.id); setMateName(mate.name); setAlignment(mate.alignment)
     setLimitMinimum(String(mate.limits.minimum)); setLimitMaximum(String(mate.limits.maximum)); setLimitReferences([structuredClone(mate.first), structuredClone(mate.second)])
-    setEditingDirectionId(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingGearId(null); setEditingScrewId(null); setEditingRackId(null)
+    setDirectionEdit(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingGearId(null); setEditingScrewId(null); setEditingRackId(null)
     setPickingFaces(false); setPickingLinearEdges(false); setRackPicking(null); setDragMode('off')
   }
   const limitFields = () => ({ name: mateName, alignment, minimum: limitMinimum, maximum: limitMaximum })
@@ -1667,7 +1697,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     if (operation.current || hasStaging() || currentPreview.current || draft || replaceDialog || savedReferenceEditIsActive()) return
     setMateType('limit-angle'); setEditingLimitDirectedAngleId(null); setEditingLimitAngleId(mate.id); setMateName(mate.name)
     setLimitAngleMinimum(String(mate.limits.minimum)); setLimitAngleMaximum(String(mate.limits.maximum)); setLimitAngleReferences([structuredClone(mate.first), structuredClone(mate.second)])
-    setEditingDirectionId(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingGearId(null); setEditingScrewId(null); setEditingRackId(null)
+    setDirectionEdit(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingGearId(null); setEditingScrewId(null); setEditingRackId(null)
     setPickingFaces(false); setPickingLinearEdges(false); setRackPicking(null); setDragMode('off')
   }
   const limitAngleFields = () => ({ name: mateName, minimum: limitAngleMinimum, maximum: limitAngleMaximum })
@@ -1684,7 +1714,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     setMateType('limit-directed-angle'); setEditingLimitDirectedAngleId(mate.id); setMateName(mate.name)
     setLimitDirectedStart(String(mate.arc.start)); setLimitDirectedSweep(String(mate.arc.sweep))
     setLimitDirectedSelection([mate.first, mate.second, mate.guide].map(assemblyDirectedAngleReferenceKey) as AssemblyDirectedAngleSelection)
-    setEditingDirectionId(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null)
+    setDirectionEdit(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null)
     setEditingGearId(null); setEditingScrewId(null); setEditingRackId(null); setPickingFaces(false); setPickingLinearEdges(false); setRackPicking(null); setDragMode('off')
   }
   const limitDirectedAngleFields = () => ({ name: mateName, start: limitDirectedStart, sweep: limitDirectedSweep })
@@ -2010,7 +2040,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     if (namedViews.isOpen || operation.current || hasStaging()) return
     const next = redo ? history.current!.redo() : history.current!.undo()
     if (retainNamedViewScene(next)) return
-    setOrdinaryEdit(null); setReleaseRotation(false); setAngleEdit(null); setDistanceEdit(null); invalidate(); setLimitDirectedSelection(['', '', '']); setCommitted(next); setSelectedPath([]); setScopePath([]); setEditingDirectionId(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null); setCylinderLarger(''); setSphereLarger(''); setMovementReset(value => value + 1)
+    setOrdinaryEdit(null); setReleaseRotation(false); setAngleEdit(null); setDistanceEdit(null); invalidate(); setLimitDirectedSelection(['', '', '']); setCommitted(next); setSelectedPath([]); setScopePath([]); setDirectionEdit(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null); setCylinderLarger(''); setSphereLarger(''); setMovementReset(value => value + 1)
   }
   const datum = () => {
     if (referenceEditTicket && mateType === 'concentric' || isCylinderTangent || isSphereTangent && mateType !== 'plane-sphere-tangent' || referenceBlocked || operation.current || hasStaging() || !referenceEditorIsCurrent()) return
@@ -2214,7 +2244,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     if (next !== 'angle') setAngleEdit(null)
     if (next !== 'distance') setDistanceEdit(null)
     setMateType(next); setEditingGearId(null); setEditingScrewId(null); setEditingRackId(null)
-    if (next !== 'parallel' && next !== 'perpendicular') setEditingDirectionId(null)
+    if (next !== 'parallel' && next !== 'perpendicular') setDirectionEdit(null)
     if (next !== 'tangent') setEditingTangentId(null)
     if (!cylinderTangentType(next)) setEditingCylinderTangentId(null)
     if (!sphereTangentType(next)) setEditingSphereTangentId(null)
@@ -2703,7 +2733,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
                 <section className="assembly-section"><h2><Link2 size={16} />Relaciones</h2>
         <div className="assembly-property-confirmation"><button aria-label="Aplicar desde propiedades de relación" title="Aplicar" disabled={!canApply} onClick={() => void apply()}><Check size={19} /></button><button aria-label="Cancelar desde propiedades de relación" title="Cancelar" disabled={busy ? !cancelable : !preview && !sourceUpdate && !documentUpdate && !replacementReview} onClick={cancelToolbarPreview}><X size={19} /></button></div>
         <label>Relación<select aria-label="Tipo de relación" value={mateType} disabled={editingBlocked || replaceDialog || !!ordinaryEdit || !!angleEdit || !!distanceEdit || !!editingHinge || !!editingCircularPath || !!editingLinePath || !!editingProfile || !!editingSymmetry || !!editingWidth || standardPreviewFamily && !!preview || !!editingTangent || !!editingCylinderTangent || !!editingSphereTangent || !!editingLimitDistance || !!editingLimitAngle || !!editingLimitDirectedAngle} onChange={event => chooseMateType(event.target.value as typeof mateType)}><option value="hinge" disabled={referenceEditing}>Bisagra</option><option value="circular-path" disabled={referenceEditing}>Punto sobre trayecto circular</option><option value="line-path" disabled={referenceEditing}>Punto sobre trayecto LINE</option><option value="profile-center" disabled={referenceEditing}>Centro de perfiles acotados</option><option value="symmetry" disabled={referenceEditing}>Simetría · tres referencias</option><option value="width" disabled={referenceEditing}>Anchura centrada · cuatro planos</option><option value="concentric" disabled={referenceEditing}>Concéntrica</option><option value="coincident" disabled={referenceEditing}>Coincidente</option><option value="distance" disabled={referenceEditing}>Distancia firmada</option><option value="limit-distance" disabled={!!preview || referenceEditing}>Distancia con límites</option><option value="angle" disabled={referenceEditing}>Ángulo</option><option value="limit-angle" disabled={!!preview || referenceEditing}>Ángulo principal con límites</option><option value="limit-directed-angle" disabled={!!preview || referenceEditing}>Ángulo dirigido con límites</option><option value="parallel" disabled={!!preview || !!editingTangent || !!editingCylinderTangent || !!editingSphereTangent || !!editingLimitDistance || !!editingLimitAngle || !!editingLimitDirectedAngle}>Paralela</option><option value="perpendicular" disabled={!!preview || !!editingTangent || !!editingCylinderTangent || !!editingSphereTangent || !!editingLimitDistance || !!editingLimitAngle || !!editingLimitDirectedAngle}>Perpendicular</option><option value="tangent" disabled={!!preview || !!editingDirection || !!editingCylinderTangent || !!editingSphereTangent || !!editingLimitDistance || !!editingLimitAngle || !!editingLimitDirectedAngle}>Tangente plano–cilindro</option><option value="skew-cylinder-tangent" disabled={!!preview || !!editingDirection || !!editingTangent || !!editingSphereTangent || !!editingLimitDistance || !!editingLimitAngle || !!editingLimitDirectedAngle}>Tangente entre cilindros no paralelos</option><option value="parallel-cylinder-tangent" disabled={!!preview || !!editingDirection || !!editingTangent || !!editingSphereTangent || !!editingLimitDistance || !!editingLimitAngle || !!editingLimitDirectedAngle}>Tangente entre cilindros con paralelismo</option><option value="plane-sphere-tangent" disabled={!!preview || referenceEditing}>Tangente plano–esfera</option><option value="sphere-sphere-tangent" disabled={!!preview || referenceEditing}>Tangente esfera–esfera</option><option value="cylinder-sphere-tangent" disabled={!!preview || referenceEditing}>Tangente cilindro–esfera</option><option value="gear" disabled={referenceEditing}>Engranaje</option><option value="screw" disabled={referenceEditing}>Tornillo</option><option value="rack-pinion" disabled={referenceEditing}>Cremallera y piñón</option></select></label>
-<label>Ámbito<select aria-label="Ámbito de las relaciones" value={JSON.stringify(scopePath)} disabled={editingBlocked || !!preview} onChange={event => { if (operation.current || hasStaging() || currentPreview.current || replaceDialog) return; abandonInsertionSelection(); generation.current++; setOrdinaryEdit(null); setReleaseRotation(false); setAngleEdit(null); setDistanceEdit(null); setScopePath(JSON.parse(event.target.value) as string[]); setReferences([null, null]); setWidthReferences([null,null,null,null]); setEditingWidthId(null); setTangentReferences([null, null]); setCylinderReferences([null, null]); setSphereReferences([null, null]); setLimitReferences([null, null]); setLimitAngleReferences([null, null]); setLimitDirectedSelection(['', '', '']); setCylinderLarger(''); setSphereLarger(''); setSelectedFaceMeshes([]); setComponentLock(['', '']); setEditingGearId(null); setEditingScrewId(null); setEditingRackId(null); setEditingDirectionId(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null); setRackKeys(['', '']); setRackPicking(null); setPickingLinearEdges(false); setEdgeChoice('') }}><option value="[]">{committed.name} · raíz</option>{rows.filter(row => row.definition.kind === 'assembly' && !row.suppressed).map(row => <option key={JSON.stringify(row.path)} value={JSON.stringify(row.path)}>{row.path.join(' / ')} · definición compartida</option>)}</select></label>
+<label>Ámbito<select aria-label="Ámbito de las relaciones" value={JSON.stringify(scopePath)} disabled={editingBlocked || !!preview} onChange={event => { if (operation.current || hasStaging() || currentPreview.current || replaceDialog) return; abandonInsertionSelection(); generation.current++; setOrdinaryEdit(null); setReleaseRotation(false); setAngleEdit(null); setDistanceEdit(null); setScopePath(JSON.parse(event.target.value) as string[]); setReferences([null, null]); setWidthReferences([null,null,null,null]); setEditingWidthId(null); setTangentReferences([null, null]); setCylinderReferences([null, null]); setSphereReferences([null, null]); setLimitReferences([null, null]); setLimitAngleReferences([null, null]); setLimitDirectedSelection(['', '', '']); setCylinderLarger(''); setSphereLarger(''); setSelectedFaceMeshes([]); setComponentLock(['', '']); setEditingGearId(null); setEditingScrewId(null); setEditingRackId(null); setDirectionEdit(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null); setRackKeys(['', '']); setRackPicking(null); setPickingLinearEdges(false); setEdgeChoice('') }}><option value="[]">{committed.name} · raíz</option>{rows.filter(row => row.definition.kind === 'assembly' && !row.suppressed).map(row => <option key={JSON.stringify(row.path)} value={JSON.stringify(row.path)}>{row.path.join(' / ')} · definición compartida</option>)}</select></label>
         {hasGenericReferences && <><div className="assembly-endpoints">{relationReferences.map((reference, index) => <div className="assembly-reference-slot" key={index}>
           <button aria-label={`Referencia ${index + 1} de la relación`} disabled={referenceBlocked} className={endpointSlot === index ? 'active' : ''} onClick={() => {
             if (referenceBlocked || operation.current || hasStaging() || currentPreview.current || !referenceEditorIsCurrent()) return
@@ -2737,12 +2767,12 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
         {hasGenericReferences && <>
         <label>Cara del ensamblaje<select aria-label="Cara de referencia" value={faceChoice} disabled={referenceBlocked} onChange={event => setFaceChoice(event.target.value)}><option value="">Selecciona una cara actual</option>{faceChoices.map(face => <option key={assemblyFaceKey(face)} value={assemblyFaceKey(face)}>{face.selection.component.occurrencePath.join(' / ')} · {face.sphereSurface ? `Superficie esférica R${face.sphereSurface.radius} · centro (${face.sphereSurface.center.map(value => Number(value.toPrecision(5))).join(', ')})` : <>{face.support?.kind === 'cylinder' ? `${isTangent || isCylinderTangent || isSphereTangent ? 'Superficie cilíndrica' : 'Cilindro'} R${face.support.radius}` : 'Plano'} · ({face.support?.point.map(value => Number(value.toPrecision(5))).join(', ')})</>}</option>)}</select></label>
         <button disabled={referenceBlocked || !faceChoices.some(face => assemblyFaceKey(face) === faceChoice)} onClick={() => { const face = faceChoices.find(value => assemblyFaceKey(value) === faceChoice); if (face) pickFace(face) }}>Usar cara en referencia {endpointSlot + 1}</button>
-        {(isDirection || isLimitAngle || mateType === 'angle') && <><label>Arista lineal del ensamblaje<select aria-label="Arista de referencia" value={edgeChoice} disabled={editingBlocked || !!preview || !!editingDirection || !!editingLimitAngle} onChange={event => setEdgeChoice(event.target.value)}><option value="">Selecciona una arista lineal actual</option>{edgeChoices.map(edge => <option key={assemblyEdgeKey(edge)} value={assemblyEdgeKey(edge)}>{edge.selection.component.occurrencePath.join(' / ')} · Arista lineal · {edge.selection.body?.bodyId ?? 'agregado'} · {edge.selection.edge.sourceFeatureId} · ({edge.support?.point.map(value => Number(value.toPrecision(5))).join(', ')})</option>)}</select></label><button disabled={editingBlocked || !!preview || !!editingDirection || !!editingLimitAngle || !edgeChoices.some(edge => assemblyEdgeKey(edge) === edgeChoice)} onClick={() => { const edge = edgeChoices.find(value => assemblyEdgeKey(value) === edgeChoice); if (edge) pickDirectionEdge(edge) }}>Usar arista en referencia {endpointSlot + 1}</button></>}
+        {(isDirection || isLimitAngle || mateType === 'angle') && <><label>Arista lineal del ensamblaje<select aria-label="Arista de referencia" value={edgeChoice} disabled={referenceBlocked || !!editingLimitAngle} onChange={event => setEdgeChoice(event.target.value)}><option value="">Selecciona una arista lineal actual</option>{edgeChoices.map(edge => <option key={assemblyEdgeKey(edge)} value={assemblyEdgeKey(edge)}>{edge.selection.component.occurrencePath.join(' / ')} · Arista lineal · {edge.selection.body?.bodyId ?? 'agregado'} · {edge.selection.edge.sourceFeatureId} · ({edge.support?.point.map(value => Number(value.toPrecision(5))).join(', ')})</option>)}</select></label><button disabled={referenceBlocked || !!editingLimitAngle || !edgeChoices.some(edge => assemblyEdgeKey(edge) === edgeChoice)} onClick={() => { const edge = edgeChoices.find(value => assemblyEdgeKey(value) === edgeChoice); if (edge) pickDirectionEdge(edge) }}>Usar arista en referencia {endpointSlot + 1}</button></>}
         {(!standardPreviewFamily || !!ordinaryEdit || !!distanceEdit || !!angleEdit) && <label>Nombre<input aria-label="Nombre de la relación" value={mateName} disabled={editingBlocked || !!preview} onChange={event => setMateName(event.target.value)} /></label>}</>}
 
         {isDirection && <AssemblyDirectionMatePanel type={mateType} first={directionReferences[0]} second={directionReferences[1]} name={mateName} alignment={alignment}
-          editing={!!editingDirection} disabled={editingBlocked || !!preview || replaceDialog} onName={setMateName} onAlignment={setAlignment}
-          onPreview={editingDirection ? editDirection : addMate} onCancelEdit={() => { setEditingDirectionId(null); setReferences([null, null]); setWidthReferences([null,null,null,null]); setEditingWidthId(null); setSelectedFaceMeshes([]) }} />}
+          editing={!!directionEdit} disabled={editingBlocked || !!preview || replaceDialog || !!directionEdit && !editingDirection} onName={setMateName} onAlignment={setAlignment}
+          onPreview={directionEdit ? editDirection : addMate} onCancelEdit={endDirectionEdit} />}
         {isSymmetry && <div className="assembly-symmetry-panel">
           <p>Selecciona dos entidades de la misma familia y un plano de simetría.</p>
           <label>Familia de simetría<select aria-label="Familia de simetría" value={symmetryFamily} disabled={symmetryBlocked} onChange={event=>{if(!symmetryMayEdit())return;clearSymmetryPicking();setSymmetryFamily(event.target.value as SymmetryUiFamily);setSymmetryReferences([null,null,null]);setSymmetryAlignment('')}}>{([['point','Puntos'],['line','Rectas'],['plane','Planos'],['sphere','Esferas'],['cylinder','Cilindros']] as const).map(([key,label])=><option key={key} value={key}>{label}</option>)}</select></label>
@@ -2867,9 +2897,9 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
         {mate.type === 'limit-directed-angle' && <button aria-label={`Editar límite dirigido ${mate.name}`} disabled={editingBlocked || !!preview || replaceDialog || !!referenceEditTicket} onClick={() => beginLimitDirectedAngleEdit(mate)}>Editar</button>}
         {mate.type === 'limit-angle' && <button aria-label={`Editar intervalo angular ${mate.name}`} disabled={editingBlocked || !!preview || replaceDialog || !!referenceEditTicket} onClick={() => beginLimitAngleEdit(mate)}>Editar</button>}
         {mate.type === 'limit-distance' && <button aria-label={`Editar intervalo entre planos ${mate.name}`} disabled={editingBlocked || !!preview || replaceDialog || !!referenceEditTicket} onClick={() => beginLimitDistanceEdit(mate)}>Editar</button>}
-        {mate.type === 'gear' && <button aria-label={`Editar engranaje ${mate.name}`} disabled={editingBlocked || !!preview || replaceDialog || !!referenceEditTicket} onClick={() => { if (operation.current || hasStaging() || currentPreview.current || draft || replaceDialog || savedReferenceEditIsActive()) return; setMateType('gear'); setEditingDirectionId(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null); setEditingGearId(mate.id); setEditingScrewId(null); setPickingFaces(false); setDragMode('off') }}>Editar</button>}
-        {mate.type === 'screw' && <button aria-label={`Editar tornillo ${mate.name}`} disabled={editingBlocked || !!preview || replaceDialog || !!referenceEditTicket} onClick={() => { if (operation.current || hasStaging() || currentPreview.current || draft || replaceDialog || savedReferenceEditIsActive()) return; setMateType('screw'); setEditingDirectionId(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null); setEditingScrewId(mate.id); setEditingGearId(null); setPickingFaces(false); setDragMode('off') }}>Editar</button>}
-        {mate.type === 'rack-pinion' && <button aria-label={`Editar cremallera y piñón ${mate.name}`} disabled={editingBlocked || !!preview || replaceDialog || !!referenceEditTicket} onClick={() => { if (operation.current || hasStaging() || currentPreview.current || draft || replaceDialog || savedReferenceEditIsActive()) return; setMateType('rack-pinion'); setEditingDirectionId(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null); setEditingRackId(mate.id); setEditingGearId(null); setEditingScrewId(null); setRackPicking(null); setPickingFaces(false); setDragMode('off') }}>Editar</button>}
+        {mate.type === 'gear' && <button aria-label={`Editar engranaje ${mate.name}`} disabled={editingBlocked || !!preview || replaceDialog || !!referenceEditTicket} onClick={() => { if (operation.current || hasStaging() || currentPreview.current || draft || replaceDialog || savedReferenceEditIsActive()) return; setMateType('gear'); setDirectionEdit(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null); setEditingGearId(mate.id); setEditingScrewId(null); setPickingFaces(false); setDragMode('off') }}>Editar</button>}
+        {mate.type === 'screw' && <button aria-label={`Editar tornillo ${mate.name}`} disabled={editingBlocked || !!preview || replaceDialog || !!referenceEditTicket} onClick={() => { if (operation.current || hasStaging() || currentPreview.current || draft || replaceDialog || savedReferenceEditIsActive()) return; setMateType('screw'); setDirectionEdit(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null); setEditingScrewId(mate.id); setEditingGearId(null); setPickingFaces(false); setDragMode('off') }}>Editar</button>}
+        {mate.type === 'rack-pinion' && <button aria-label={`Editar cremallera y piñón ${mate.name}`} disabled={editingBlocked || !!preview || replaceDialog || !!referenceEditTicket} onClick={() => { if (operation.current || hasStaging() || currentPreview.current || draft || replaceDialog || savedReferenceEditIsActive()) return; setMateType('rack-pinion'); setDirectionEdit(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null); setEditingRackId(mate.id); setEditingGearId(null); setEditingScrewId(null); setRackPicking(null); setPickingFaces(false); setDragMode('off') }}>Editar</button>}
         {mate.type === 'concentric' && !mate.suppressed && <button title="Capturar bloqueo de giro desde la vista previa verificada" aria-label={`Bloquear giro ${mate.name}`} disabled={!canApply || !!referenceEditTicket || !!sourceUpdate || !!documentUpdate || !!replacementReview} onClick={() => void capture(mate.id)}><LockKeyhole size={14} /></button>}
         <button aria-label={`Eliminar ${mate.name}`} disabled={editingBlocked || !!referenceEditTicket || solveDeletion(mate.type) && (!!preview || replaceDialog)} onClick={() => deleteRelation(mate)}><Trash2 size={14} /></button></div>)}{!scope.mates.length && <p className="assembly-muted">No hay relaciones en este ámbito.</p>}
         <details><summary>Bloquear posición relativa</summary>{[0, 1].map(index => <select key={index} aria-label={`Componente ${index + 1} del bloqueo`} value={componentLock[index]} disabled={editingBlocked} onChange={event => setComponentLock(values => values.map((value, i) => i === index ? event.target.value : value))}><option value="">Selecciona componente {index + 1}</option>{availableComponents.map(row => <option key={JSON.stringify(row.path)} value={JSON.stringify(row.path)}>{row.path.join(' / ')}</option>)}</select>)}<button disabled={!canApply || !!referenceEditTicket || !!sourceUpdate || !!documentUpdate || !!replacementReview || !componentLock[0] || !componentLock[1]} onClick={() => void capture()}>Capturar y resolver desde la vista previa</button></details>
@@ -2892,7 +2922,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
         </div>
       </aside>
       <section className="assembly-canvas" data-normal-selection-kind={normalResolution.target?.kind ?? 'invalid'} data-normal-selection-keys={JSON.stringify(normalViewSelection?.items.map(value => [value.kind, value.key]) ?? [])} data-normal-enabled={canNormal}><CompactViewportToolbar label="Controles del visor del ensamblaje" className="assembly-view-tools"><ViewportToolGroup label="Vistas del ensamblaje"><ViewOrientationControls onView={viewButton} disabled={!!dragSession.current || viewHistory.navigating} canPrevious={viewHistory.canPrevious} canNormal={canNormal} onNamedViews={namedViews.open} canNamedViews={namedViews.canOpen} /><button title="Isométrica" disabled={!!dragSession.current || viewHistory.navigating} onClick={() => viewButton('iso')}><ViewportToolIcon name="iso" label="Isométrica" /></button><button title="Frontal" disabled={!!dragSession.current || viewHistory.navigating} onClick={() => viewButton('front')}><ViewportToolIcon name="front" label="Frontal" /></button><button title="Superior" disabled={!!dragSession.current || viewHistory.navigating} onClick={() => viewButton('top')}><ViewportToolIcon name="top" label="Superior" /></button><button title="Ajustar" disabled={!!dragSession.current || viewHistory.navigating} onClick={() => viewButton('fit')}><ViewportToolIcon name="fit" label="Ajustar" /></button></ViewportToolGroup><ViewportToolGroup label="Selección de referencias"><button title="Seleccionar caras" className={pickingFaces ? 'active' : ''} aria-pressed={pickingFaces} disabled={isHinge || isCircularPath || isLinePath || isSymmetry || (isWidth ? widthPickingBlocked : referenceBlocked)} onClick={() => { openManager('relations'); if (isWidth) { const missing = widthReferences.findIndex(value => value === null); toggleWidthPicking(widthPickingSlot ?? (missing < 0 ? 0 : missing as WidthUiSlot)); return } setDragMode('off'); setPickingLinearEdges(false); setPickingFaces(!pickingFaces) }}><ViewportToolIcon name="face" label="Seleccionar caras" /></button>
-        {(isDirection || isLimitAngle || mateType === 'angle') && <button title="Seleccionar aristas lineales" aria-label="Seleccionar aristas lineales" aria-pressed={pickingLinearEdges} disabled={editingBlocked || !!preview || !!editingDirection || !!editingLimitAngle || replaceDialog || sceneSignature.current !== serialized} onClick={() => { openManager('relations'); setDragMode('off'); setPickingFaces(false); setPickingLinearEdges(!pickingLinearEdges) }}><ViewportToolIcon name="edge" label="Seleccionar aristas" /></button>}
+        {(isDirection || isLimitAngle || mateType === 'angle') && <button title="Seleccionar aristas lineales" aria-label="Seleccionar aristas lineales" aria-pressed={pickingLinearEdges} disabled={referenceBlocked || !!editingLimitAngle || sceneSignature.current !== serialized} onClick={() => { openManager('relations'); setDragMode('off'); setPickingFaces(false); setPickingLinearEdges(!pickingLinearEdges) }}><ViewportToolIcon name="edge" label="Seleccionar aristas" /></button>}
         </ViewportToolGroup><ViewportToolGroup label="Manipulación del componente" className="assembly-drag-tools"><button title="Arrastrar posición" aria-label="Arrastrar posición" aria-pressed={dragMode === 'translate'} disabled={editingBlocked || !!draft || !!preview || replaceDialog || !eligibleDragFrame} onClick={() => { setTreeOriginSelection(null); setNormalSelection(null); clearSymmetryPicking(); setDragMode('translate') }}><ViewportToolIcon name="translate" label="Arrastrar posición" /></button>
         <button title="Arrastrar giro" aria-label="Arrastrar giro" aria-pressed={dragMode === 'rotate'} disabled={editingBlocked || !!draft || !!preview || replaceDialog || !eligibleDragFrame} onClick={() => { setTreeOriginSelection(null); setNormalSelection(null); clearSymmetryPicking(); setDragMode('rotate') }}><ViewportToolIcon name="rotate" label="Arrastrar giro" /></button>
         <button title="Desactivar manipulador" aria-label="Desactivar manipulador" disabled={!!dragSession.current || dragMode === 'off'} onClick={() => setDragMode('off')}><ViewportToolIcon name="stop" label="Desactivar manipulador" /></button></ViewportToolGroup></CompactViewportToolbar>

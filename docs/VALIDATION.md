@@ -1,5 +1,101 @@
 # Validation
 
+## Saved standard directional reference editing — 2026-10-28
+
+Parallel/perpendicular editing now retains the exact saved declaration,
+document signature, scope ID/revision/path and session in a ticket. Its shared
+reference draft admits current material planes/cylinder axes, native LINE and
+root/component datums. Clearing an endpoint blocks preview without falling back
+to the saved reference. Changed supports determine the new collinear/orthogonal
+branch. Cancel retains the draft; Close discards it; Apply/history/document/scope
+changes end editing. ID and suppression remain. No saved-schema, kernel, worker,
+IPC, dependency, CI gate, tolerance or public deadline change.
+
+Windows x64 Node 24.11.1 / Electron 44.9.3 uses **1,239 non-Markdown inputs**
+and nine products. Stable manifest SHA-256, over JSON `{files, production}`:
+`3dcaaad81951411e2c7ba9890cb633e26d874b2b81558c2e3aacf403369675bc`.
+Only renderer JavaScript/HTML change from parent f3aabd5. Worker/WASM, main,
+preload, CSS, SVG and the external stub match it byte-for-byte. Each renderer
+independently matches all eight recorded production inputs.
+
+- Focused editor/ticket/Workspace unit paths: PASS, 167 cases in six files,
+  command 2.653 s. The five affected source files and tests are unchanged through
+  the final complete checks below.
+- `npm run build`: PASS, final command 4.104 s; products identical to the first
+  candidate build despite the later test-only capture placement adjustment.
+- `npm run test:desktop:assembly-direction`: PASS, 256 checkpoints, including
+  the complete original 36 phases/13 Apply/one native LINE pointer before the
+  appended 12 phases/three Apply/three actual CDP origin-label clicks.
+  Final capture-enabled command 14.948 s; the ordinary preceding run is 15.107 s.
+- `npm run test:desktop:assembly-mate-reference-edit`: PASS, 276 checkpoints,
+  37.905 s; all four earlier saved-reference editors retain their full route.
+- `npm run test:desktop:assembly-basic-authoring`: PASS, 418 checkpoints, 42.252 s.
+- `npm run test:desktop:assembly-configured-components`: PASS, 289 checkpoints,
+  15.297 s.
+- `npm test`: final snapshot PASS, 10,300 cases in 458 files and 200 IPC
+  passes/two explicit platform skips; 325.351 s (Vitest 318.56 s). The preceding
+  same-source complete run also passes in 324.777 s.
+- `npm run test:desktop`: final snapshot PASS, 1.561 s; actual worker/WASM startup,
+  queue and the original prism's volume/bounds. Its report has zero console/request
+  errors but does not expose the renderer routes' explicit cleanup flags.
+
+All four renderer reports have zero console/request errors, observed child
+closure and isolated-profile deletion. The three earlier renderer routes retain
+the identical application sources/products; the final snapshot differs only in
+the direction-only optional capture placement. One final 1544×941 presented
+committed-scene PNG (118,188 bytes, SHA-256
+`01562a68594abbf05a9981f53e82bcb24ad635932c45d48c5df4a02ea8f58004`)
+was visually reviewed. It is not an editor-state pixel-equivalence assertion.
+The final build, direction capture, full unit/IPC suite and startup checks share
+the final 1,239-input snapshot and nine products; both source/runtime input sets
+and those products remain pinned throughout the final controller.
+
+The new native route first replaces material endpoints with root XY/component X
+datums and verifies perpendicular collinearity; after Cancel/retry/Apply and
+history, it switches to root Y/material LINE perpendicular orthogonality. It
+then converts to a material plane/LINE parallel relation with the opposite
+support-kind meaning, Cancel/retries, applies, saves/reopens and solves freshly.
+Both slots are independently cleared; explicit Close discards a staged clear,
+and a fresh edit restores the saved endpoints. One mate ID and unsuppressed state
+survive every native replacement; unit declarations separately cover suppression
+and nested-scope ticket changes.
+
+Independent checks retain two original drilled-prism solids/one prototype,
+total V=`480-8*pi` mm³/A=`496+12*pi` mm² and per-body measurements, fixed-ground
+pose, transformed outer-corner bounds within `1e-5 mm`, and actual native world
+plane/LINE directions. Datums use literal declared directions and independently
+rotated native world poses. Angular targets use `1e-6 rad`; isolated collinear
+rank/DOF is 2/4 and orthogonal 1/5. Free placements are not unique-pose oracles.
+Three native opens/two saves complete the actual restricted file IPC; no model,
+geometric locator, worker reply or Apply capability is injected.
+
+The negative control runs the two new direction-flow scripts against the accepted
+parent products. Its original 36 phases/13 Apply/one LINE pick complete, then it
+fails exactly at the missing replaceable/removable saved reference roles. That
+control precedes the test-owned dialog-list extension. The first candidate also
+finishes replacement/geometry phases but fails when its added second Save is
+absent from that list; the direction-only paths now permit exactly two saves and
+three opens, with exact final counts. A later review moves the single optional
+screenshot to the final extended endpoint so capture mode retains one image.
+None of these test corrections changes a production file grant or deadline.
+
+Applied frontend-design, vercel-react-best-practices, code-simplifier, code-review
+and security-review, with delegated read-only code/security/oracle review.
+Retained REA worker evidence remains tied to the unchanged worker digest; this
+ordinary source/UI change does not require repeating that analysis. It does not
+establish external-application interaction parity or complete static coverage.
+
+Hosted validation of this new editor remains pending. Parent f3aabd5 completes
+[all fifteen CI jobs](https://github.com/angelcp2802/solidflow/actions/runs/40668094935)
+and [Security](https://github.com/angelcp2802/solidflow/actions/runs/40668094929)
+successfully. Its Linux Desktop unit/CAD command passes 10,288 cases/457 files
+in 484.18 s; the exact unchanged combined 20 MiB case passes in 1,234 ms against
+the original 5,000 ms limit. Linux IPC (201 passes/one skip), worker/WASM startup
+and AppImage packaging also pass. This accepted occurrence does not establish
+the previous timeout's complete cause or recurring stability. No installed-platform,
+human/complete-demo or release acceptance follows. Checklist #55 remains 16/25
+with nine groups open, PR #49 draft/unmerged and release #5 open.
+
 ## Exact ASCII JSON byte cost — 2026-10-28
 
 The shared quoted-string byte counter avoids intermediate JSON strings and

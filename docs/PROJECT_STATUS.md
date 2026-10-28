@@ -1,5 +1,34 @@
 # Project status and review queue
 
+## Saved directional reference replacement — 2026-10-28
+
+Saved standard parallel/perpendicular relations now use the shared two-reference
+draft. Either endpoint can be cleared and replaced by a current material face,
+LINE edge or root/component origin. Type/support changes recompute the correct
+orientation branch from the new references. A retained declaration/session/scope
+ticket protects the editor; the existing native preview and Apply remain
+authoritative. No document schema, kernel, worker, file-IPC or dependency change.
+
+The extended complete original direction workflow passes locally, including
+three replacement Apply operations, actual origin-label clicks, Cancel/retry,
+Undo/Redo, saved reopening and fresh native verification. Earlier ordinary
+reference editing, standard authoring and configured component routes also pass.
+Final build, full suite (10,300 cases/458 files, 200 IPC passes/two platform skips),
+desktop startup and capture-enabled direction workflow pass on the final pinned
+snapshot. See [validation](VALIDATION.md); hosted and installed-platform
+acceptance remain separate.
+
+Parent f3aabd5 completes all fifteen hosted CI jobs and Security successfully.
+Its original combined 20 MiB Linux case passes in 1,234 ms within its unchanged
+five-second deadline; unit/CAD, IPC, startup and packaging pass there. The new
+editor still requires its own hosted checks. One accepted occurrence does not
+close recurring stability or establish the old timeout's complete cause.
+
+This closes a specific editor gap. Keep prototype checklist #55 at 16/25 with
+nine groups open, draft PR #49 unmerged and release #5 open. External revolution
+axes, broader reference editors, full demo/human use and platform/stability work
+remain separate requirements.
+
 ## Quoted JSON allocation cost — 2026-10-28
 
 Ordinary and configured JSON preflights avoid temporary quoted strings and

@@ -830,8 +830,9 @@ async function runInElectron() {
     : symmetryRepair ? [input, repairFiles.updatedPart, repairFiles.updatedPart, repairFiles.updatedSaved, repairFiles.baselineSaved,
       repairFiles.replacementPart, repairFiles.replacementPart, repairFiles.replacementSaved]
     : symmetryPicking ? [input, ...Array(6).fill(output)]
-    : symmetry ? [input, ...Array(5).fill(output)] : configuredRelations || configuredPicking || configuredMechanical || configuredCompound ? [input, output] : configurations ? [input, output, output] : [input, output];
+    : symmetry ? [input, ...Array(5).fill(output)] : direction ? [input, output, output] : configuredRelations || configuredPicking || configuredMechanical || configuredCompound ? [input, output] : configurations ? [input, output, output] : [input, output];
   const savePaths = normalToView ? [] : fromEmpty ? [output] : shortcuts ? [output, shortcutOutput] : partBodyCatalog ? [] : partSequence ? [output, partAssemblyOutput] : partFinishing ? [finishingFiles.fillet, output] : configurations ? [null, output] : untilNext ? [outputs.cutSelected, outputs.cutAll, outputs.add] : assembly ? [output, projectionOutput, translationOutput, gearOutput]
+    : direction ? [output, output]
     : assemblyImport ? [importBaselinePath, output]
     : sourceRevision ? [null, output]
     : linkedSource ? [output, linkedSourceFiles.assemblyOutput]

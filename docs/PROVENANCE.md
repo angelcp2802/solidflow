@@ -1,5 +1,29 @@
 # Public fixture provenance
 
+## Saved direction-reference continuation — 2026-10-28
+
+The appended `desktop-assembly-direction-reference-edit-flow.cjs` continues the
+existing original `assembly-direction-mates-original.json` fixture: two placed
+copies of the independently authored drilled prism. It adds no model or external
+data. Principal XY and X/Y axes are literal declared coordinate directions;
+component datums are independently rotated by the placed native pose. Material
+plane/LINE directions come from exact current native world supports. The existing
+native BRep validation gates and volume/area, transformed-corner and fixed-ground
+checks remain. Independent formulas and declared directions are compared with
+native observations; this renderer does not run a second independent BRep reader.
+
+The cases change root/component ownership and plane/direction support kinds,
+verify their distinct angular meanings and preserve reference identity through
+Cancel/retry, Apply, history and saved reopening. Limits and actual command
+results belong in [validation](VALIDATION.md); the evidence is not a unique-pose,
+complete support-matrix or platform certificate.
+
+The unit cases reuse `createAssemblyExample` and
+`assemblyConfigurationCoreFixture`, with original symbolic direction references
+and explicit changed owner/revision/suppression declarations. They test editor
+identity, detached proposals, history and serialization; symbolic topology keys
+do not stand in for native reference or geometry evidence.
+
 ## Original quoted JSON size witnesses — 2026-10-28
 
 `src/shared/jsonStringByteLength.test.ts` uses original ASCII, escaping and UTF-16
