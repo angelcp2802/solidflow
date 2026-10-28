@@ -1,27 +1,49 @@
 import type { ReactNode } from 'react'
-import { Crosshair, RotateCcw, RotateCw } from 'lucide-react'
+import { Crosshair, MousePointer2, RotateCcw, RotateCw } from 'lucide-react'
 import type { RevolutionAxis, RevolutionFeature, SketchFeature } from '../cad/kernel.types'
 import './revolve-panel.css'
 
 interface AxisOption { value: string; label: string; axis: RevolutionAxis }
-export const revolutionAxisValue = (axis?: RevolutionAxis): string =>
-  !axis || axis.kind === 'sketch-axis' ? `sketch-${axis?.axis ?? 'y'}` : JSON.stringify(['sketch-line', axis.entityId])
+export function revolutionAxisValue(axis?: RevolutionAxis): string {
+  if (!axis || axis.kind === 'sketch-axis') return `sketch-${axis?.axis ?? 'y'}`
+  if (axis.kind === 'sketch-line') return JSON.stringify(['sketch-line', axis.entityId])
+  if (axis.kind === 'principal-axis') return `principal-${axis.axis}`
+  if (axis.kind === 'external-sketch-line') return JSON.stringify(['external-sketch-line', axis.sketchId, axis.entityId])
+  return JSON.stringify(['linear-edge', axis.body?.bodyId ?? null, axis.body?.sourceFeatureId ?? null,
+    axis.edge.sourceFeatureId, axis.edge.key])
+}
+
+function uniqueLines(sketch: SketchFeature) {
+  if (sketch.suppressed || sketch.profile.kind !== 'entities') return []
+  const counts = new Map<string, number>()
+  for (const entity of sketch.profile.entities) counts.set(entity.id, (counts.get(entity.id) ?? 0) + 1)
+  return sketch.profile.entities.filter(entity => entity.type === 'line' && counts.get(entity.id) === 1)
+}
 
 /** Declaration choices only. The native build resolves solved coordinates and validates the axis. */
-export function revolutionAxisOptions(sketch?: SketchFeature): AxisOption[] {
+export function revolutionAxisOptions(sketch?: SketchFeature, sourceSketches: readonly SketchFeature[] = []): AxisOption[] {
   const options: AxisOption[] = [
     { value: 'sketch-y', label: 'Eje Y del croquis', axis: { kind: 'sketch-axis', axis: 'y' } },
     { value: 'sketch-x', label: 'Eje X del croquis', axis: { kind: 'sketch-axis', axis: 'x' } },
   ]
-  if (sketch?.profile.kind !== 'entities') return options
-  const entities = sketch.profile.entities
-  const counts = new Map<string, number>()
-  for (const entity of entities) counts.set(entity.id, (counts.get(entity.id) ?? 0) + 1)
-  for (const entity of entities) {
-    if (entity.type !== 'line' || counts.get(entity.id) !== 1) continue
+  for (const entity of sketch ? uniqueLines(sketch) : []) {
     const axis: RevolutionAxis = { kind: 'sketch-line', entityId: entity.id }
     options.push({ value: revolutionAxisValue(axis), axis,
       label: `Línea ${entity.id}${entity.construction ? ' · Construcción' : ' · Perfil'}` })
+  }
+  for (const axis of ['X', 'Y', 'Z'] as const) {
+    const declaration: RevolutionAxis = { kind: 'principal-axis', axis }
+    options.push({ value: revolutionAxisValue(declaration), label: `Eje ${axis} del origen`, axis: declaration })
+  }
+  const sourceCounts = new Map<string, number>()
+  for (const source of sourceSketches) sourceCounts.set(source.id, (sourceCounts.get(source.id) ?? 0) + 1)
+  for (const source of sourceSketches) {
+    if (source.id === sketch?.id || sourceCounts.get(source.id) !== 1) continue
+    for (const entity of uniqueLines(source)) {
+      const axis: RevolutionAxis = { kind: 'external-sketch-line', sketchId: source.id, entityId: entity.id }
+      options.push({ value: revolutionAxisValue(axis), axis,
+        label: `${source.name} · Línea ${entity.id}${entity.construction ? ' · Construcción' : ' · Perfil'}` })
+    }
   }
   return options
 }
@@ -30,6 +52,7 @@ export function revolutionAxisOptions(sketch?: SketchFeature): AxisOption[] {
 export function mergeRevolutionDraft<T extends RevolutionFeature>(feature: T, patch: Partial<T>): T {
   const next = { ...feature, ...patch }
   if ('extent' in patch && patch.extent === undefined) delete next.extent
+  if ('axis' in patch && patch.axis === undefined) delete next.axis
   return next
 }
 
@@ -48,14 +71,21 @@ export function revolutionAngleError(feature: RevolutionFeature): string | null 
 interface Props {
   feature: RevolutionFeature
   sketch?: SketchFeature
+  sourceSketches?: SketchFeature[]
+  axisPicking?: boolean
+  onAxisPickingChange?: (active: boolean) => void
   onChange: (patch: Partial<RevolutionFeature>) => void
   children: ReactNode
 }
 
-export default function RevolvePanel({ feature, sketch, onChange, children }: Props) {
+export default function RevolvePanel({ feature, sketch, sourceSketches, axisPicking = false,
+  onAxisPickingChange, onChange, children }: Props) {
   const currentSketch = sketch?.id === feature.sketchId ? sketch : undefined
-  const options = revolutionAxisOptions(currentSketch), value = revolutionAxisValue(feature.axis)
-  const missing = !options.some(option => option.value === value)
+  const options = revolutionAxisOptions(currentSketch, sourceSketches), value = revolutionAxisValue(feature.axis)
+  const materialAxis = feature.axis?.kind === 'linear-edge' ? feature.axis : undefined
+  const missing = !materialAxis && !options.some(option => option.value === value)
+  const missingLabel = feature.axis?.kind === 'sketch-line' ? feature.axis.entityId
+    : feature.axis?.kind === 'external-sketch-line' ? `${feature.axis.sketchId} · ${feature.axis.entityId}` : value
   const midPlane = feature.extent?.kind === 'mid-plane', twoDirections = feature.extent?.kind === 'two-directions'
   const angleError = revolutionAngleError(feature)
   return <>
@@ -66,16 +96,38 @@ export default function RevolvePanel({ feature, sketch, onChange, children }: Pr
         aria-describedby={`revolution-axis-guidance${missing || !currentSketch ? ' revolution-axis-error' : ''}`}
         onChange={event => {
           const option = options.find(candidate => candidate.value === event.target.value)
-          if (currentSketch && option) onChange({ axis: option.axis })
+          if (currentSketch && option) {
+            onChange({ axis: option.axis })
+            onAxisPickingChange?.(false)
+          }
         }}>
-        {missing && <option value={value} disabled>Línea no disponible: {feature.axis?.kind === 'sketch-line' ? feature.axis.entityId : value}</option>}
+        {missing && <option value={value} disabled>Línea no disponible: {missingLabel}</option>}
+        {materialAxis && <option value={value} disabled>Arista recta de {materialAxis.body?.bodyId ?? materialAxis.edge.sourceFeatureId}</option>}
         {options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
       </select>
-      <p id="revolution-axis-guidance" className="muted-small">
-        X, Y o una línea, incluida construcción. El perfil debe quedar a un lado del eje.
+      <div className="revolve-axis-actions">
+        {onAxisPickingChange && <button type="button" className={`revolve-axis-pick${axisPicking ? ' active' : ''}`}
+          aria-label={axisPicking ? 'Terminar selección de eje' : 'Seleccionar eje en pantalla'} aria-pressed={axisPicking}
+          aria-describedby="revolution-axis-guidance" disabled={!currentSketch}
+          onClick={() => { if (currentSketch) onAxisPickingChange(!axisPicking) }}>
+          <MousePointer2 size={14} aria-hidden="true" />
+          {axisPicking ? 'Terminar' : 'En pantalla'}
+        </button>}
+        <button type="button" className="revolve-axis-reset" aria-label="Restablecer eje"
+          title="Usar el eje Y del croquis" disabled={!currentSketch || !feature.axis}
+          onClick={() => {
+            if (!currentSketch || !feature.axis) return
+            onChange({ axis: undefined })
+            onAxisPickingChange?.(false)
+          }}><RotateCcw size={14} aria-hidden="true" /> Restablecer</button>
+      </div>
+      <p id="revolution-axis-guidance" className="muted-small"
+        title="Elige un eje del croquis o del origen, una línea de otro croquis o una arista recta. El eje debe estar en el plano del perfil y el perfil a un lado del eje.">
+        {axisPicking ? 'Elige un eje o línea recta. Escape termina la selección.'
+          : 'Eje en el plano del perfil; perfil a un lado.'}
       </p>
       {(missing || !currentSketch) && <p id="revolution-axis-error" role="alert" className="revolve-axis-error">
-        {!currentSketch ? 'El croquis seleccionado no está disponible.' : 'La línea guardada no está disponible en este croquis. Elige un eje explícitamente.'}
+        {!currentSketch ? 'El croquis seleccionado no está disponible.' : 'La línea guardada no está disponible. Elige un eje explícitamente.'}
       </p>}
     </section>
     <section className="property-section revolve-direction-section" aria-labelledby="revolution-direction-heading">

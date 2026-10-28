@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { Children, isValidElement, type ReactElement, type ReactNode } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import type { RevolveFeature, RevolvedCutFeature, SketchFeature } from '../cad/kernel.types'
+import type { RevolutionAxis, RevolveFeature, RevolvedCutFeature, SketchFeature } from '../cad/kernel.types'
 import type { EntityProfile } from '../sketch/types'
 import RevolvePanel, { mergeRevolutionDraft, revolutionAngleError, revolutionAxisOptions, revolutionAxisValue } from './RevolvePanel'
 
@@ -18,6 +19,26 @@ const feature: RevolveFeature = { id: 'revolve', name: 'Original turn', type: 'r
 const render = (value = feature, current: SketchFeature | undefined = sketch) => renderToStaticMarkup(
   <RevolvePanel feature={value} sketch={current} onChange={() => undefined}><input aria-label="Ángulo" value={value.angle} readOnly /></RevolvePanel>,
 )
+
+interface ControlProps {
+  'aria-label'?: string
+  children?: ReactNode
+  onClick?: () => void
+  onChange?: (event: { target: { value: string } }) => void
+}
+function control(root: ReactNode, label: string): ReactElement<ControlProps> {
+  let found: ReactElement<ControlProps> | undefined
+  const visit = (node: ReactNode) => {
+    Children.forEach(node, child => {
+      if (!isValidElement<ControlProps>(child)) return
+      if (child.props['aria-label'] === label) found = child
+      else if (child.props.children) visit(child.props.children)
+    })
+  }
+  visit(root)
+  if (!found) throw new Error(`Missing control: ${label}`)
+  return found
+}
 
 it('uses the shared axis/direction editor for a distinct subtractive revolution without changing its scope', () => {
   const cut: RevolvedCutFeature = { ...feature, type: 'revolvedCut', bodyScope: [{ bodyId: 'body', sourceFeatureId: 'base' }] }
@@ -44,7 +65,8 @@ describe('revolution axis and direction controls', () => {
 
   it('offers only current unique lines, distinguishes construction, and keeps opaque IDs independent of local axes', () => {
     const options = revolutionAxisOptions(sketch)
-    expect(options.map(option => option.value)).toEqual(['sketch-y', 'sketch-x', '["sketch-line","construction-axis"]', '["sketch-line","sketch-x"]'])
+    expect(options.map(option => option.value)).toEqual(['sketch-y', 'sketch-x', '["sketch-line","construction-axis"]', '["sketch-line","sketch-x"]',
+      'principal-X', 'principal-Y', 'principal-Z'])
     expect(options[2].label).toBe('Línea construction-axis · Construcción')
     expect(options[3].label).toBe('Línea sketch-x · Perfil')
     const reordered = { ...sketch, profile: { ...profile, entities: [...profile.entities].reverse() } }
@@ -73,6 +95,104 @@ describe('revolution axis and direction controls', () => {
     const legacy = { ...sketch, profile: { kind: 'rectangle' as const, center: [3, 2] as [number, number], width: 2, height: 4 } }
     expect(render(selected, legacy)).toContain('Línea no disponible: construction-axis')
     expect(revolutionAxisValue({ kind: 'sketch-axis', axis: 'x' })).toBe('sketch-x')
+  })
+
+  it('offers world axes and unique active external lines with their sketch identity', () => {
+    const external: SketchFeature = { ...sketch, id: 'external', name: 'Croquis del eje' }
+    const ambiguous: SketchFeature = { ...external, id: 'duplicate-source' }
+    const sources = [sketch, external, { ...external, id: 'hidden', suppressed: true }, ambiguous, ambiguous,
+      { ...external, id: 'duplicate-line', profile: { ...profile, entities: [profile.entities[0], profile.entities[0], profile.entities[2]] } }]
+    const options = revolutionAxisOptions(sketch, sources)
+    expect(options.filter(option => option.axis.kind === 'principal-axis').map(option => option.axis)).toEqual([
+      { kind: 'principal-axis', axis: 'X' }, { kind: 'principal-axis', axis: 'Y' }, { kind: 'principal-axis', axis: 'Z' },
+    ])
+    expect(options.filter(option => option.axis.kind === 'external-sketch-line').map(option => [option.axis, option.label])).toEqual([
+      [{ kind: 'external-sketch-line', sketchId: 'external', entityId: 'construction-axis' }, 'Croquis del eje · Línea construction-axis · Construcción'],
+      [{ kind: 'external-sketch-line', sketchId: 'external', entityId: 'sketch-x' }, 'Croquis del eje · Línea sketch-x · Perfil'],
+    ])
+    const axis: RevolutionAxis = { kind: 'external-sketch-line', sketchId: external.id, entityId: 'construction-axis' }
+    const html = renderToStaticMarkup(<RevolvePanel feature={{ ...feature, axis }} sketch={sketch}
+      sourceSketches={[external]} onChange={() => undefined}>Angle</RevolvePanel>)
+    expect(html).toContain('selected="">Croquis del eje · Línea construction-axis · Construcción</option>')
+    expect(html).not.toContain('role="alert"')
+    expect(revolutionAxisValue(axis)).not.toBe(revolutionAxisValue({ kind: 'sketch-line', entityId: axis.entityId }))
+  })
+
+  it('retains a missing external declaration and does not borrow a same-named profile line', () => {
+    const axis: RevolutionAxis = { kind: 'external-sketch-line', sketchId: 'removed-sketch', entityId: 'construction-axis' }
+    const value: RevolveFeature = { ...feature, axis }
+    const html = render(value)
+    expect(html).toContain('disabled="" selected="">Línea no disponible: removed-sketch · construction-axis</option>')
+    expect(html).toContain('La línea guardada no está disponible. Elige un eje explícitamente.')
+    expect(value.axis).toEqual(axis)
+    expect(html).not.toContain('<option value="sketch-y" selected="">')
+  })
+
+  it('displays a retained native edge declaration without falsely classifying an absent dropdown option as missing', () => {
+    const edge = { sourceFeatureId: 'current-solid', key: 'opaque-edge-id' }
+    const axis: RevolutionAxis = { kind: 'linear-edge', body: { bodyId: 'axis-body', sourceFeatureId: 'body-state' }, edge }
+    const html = render({ ...feature, axis })
+    expect(html).toContain('disabled="" selected="">Arista recta de axis-body</option>')
+    expect(html).not.toContain('Línea no disponible')
+    expect(html).not.toContain('role="alert"')
+    expect(revolutionAxisValue(axis)).not.toBe(revolutionAxisValue({ ...axis, body: { ...axis.body!, bodyId: 'other-body' } }))
+    expect(revolutionAxisValue(axis)).not.toBe(revolutionAxisValue({ ...axis, body: null }))
+    expect(render({ ...feature, axis: { ...axis, body: null } })).toContain('Arista recta de current-solid')
+  })
+
+  it('starts and ends viewport selection explicitly without changing the draft', () => {
+    const onChange = vi.fn(), onAxisPickingChange = vi.fn()
+    const tree = RevolvePanel({ feature, sketch, onChange, onAxisPickingChange, children: 'Angle' })
+    const html = renderToStaticMarkup(tree)
+    expect(html).toContain('aria-label="Seleccionar eje en pantalla" aria-pressed="false"')
+    control(tree, 'Seleccionar eje en pantalla').props.onClick?.()
+    expect(onAxisPickingChange).toHaveBeenLastCalledWith(true)
+    expect(onChange).not.toHaveBeenCalled()
+    const picking = RevolvePanel({ feature, sketch, axisPicking: true, onChange, onAxisPickingChange, children: 'Angle' })
+    expect(renderToStaticMarkup(picking)).toContain('Escape termina la selección.')
+    control(picking, 'Terminar selección de eje').props.onClick?.()
+    expect(onAxisPickingChange).toHaveBeenLastCalledWith(false)
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('commits only offered declarations and ends active picking after an explicit choice', () => {
+    const onChange = vi.fn(), onAxisPickingChange = vi.fn()
+    const external = { ...sketch, id: 'external', name: 'External axis' }
+    const axis: RevolutionAxis = { kind: 'external-sketch-line', sketchId: external.id, entityId: 'construction-axis' }
+    const tree = RevolvePanel({ feature, sketch, sourceSketches: [external], axisPicking: true,
+      onChange, onAxisPickingChange, children: 'Angle' })
+    control(tree, 'Eje de revolución').props.onChange?.({ target: { value: revolutionAxisValue(axis) } })
+    expect(onChange).toHaveBeenLastCalledWith({ axis })
+    expect(onAxisPickingChange).toHaveBeenLastCalledWith(false)
+    onChange.mockClear(); onAxisPickingChange.mockClear()
+    control(tree, 'Eje de revolución').props.onChange?.({ target: { value: 'unoffered-value' } })
+    expect(onChange).not.toHaveBeenCalled(); expect(onAxisPickingChange).not.toHaveBeenCalled()
+  })
+
+  it('restores the legacy Y declaration only after an explicit reset, removing the own optional property', () => {
+    const selected: RevolveFeature = { ...feature, axis: { kind: 'principal-axis', axis: 'Y' }, reversed: true }
+    const before = structuredClone(selected), onChange = vi.fn(), onAxisPickingChange = vi.fn()
+    const tree = RevolvePanel({ feature: selected, sketch, onChange, onAxisPickingChange, children: 'Angle' })
+    expect(onChange).not.toHaveBeenCalled()
+    expect(renderToStaticMarkup(tree)).toContain('title="Usar el eje Y del croquis"')
+    control(tree, 'Restablecer eje').props.onClick?.()
+    expect(onChange).toHaveBeenCalledWith({ axis: undefined })
+    expect(onAxisPickingChange).toHaveBeenCalledWith(false)
+    const restored = mergeRevolutionDraft(selected, { axis: undefined })
+    expect(restored).not.toHaveProperty('axis')
+    expect(restored.reversed).toBe(true); expect(restored.sketchId).toBe(selected.sketchId)
+    expect(selected).toEqual(before)
+    expect(render(restored)).toContain('<option value="sketch-y" selected="">Eje Y del croquis</option>')
+  })
+
+  it('guards choice, reset and picking callbacks when the active profile is unavailable', () => {
+    const onChange = vi.fn(), onAxisPickingChange = vi.fn()
+    const tree = RevolvePanel({ feature: { ...feature, axis: { kind: 'principal-axis', axis: 'Y' } },
+      sketch: { ...sketch, id: 'different-profile' }, onChange, onAxisPickingChange, children: 'Angle' })
+    control(tree, 'Eje de revolución').props.onChange?.({ target: { value: 'principal-X' } })
+    control(tree, 'Restablecer eje').props.onClick?.()
+    control(tree, 'Seleccionar eje en pantalla').props.onClick?.()
+    expect(onChange).not.toHaveBeenCalled(); expect(onAxisPickingChange).not.toHaveBeenCalled()
   })
 
   it('keeps the legacy angle field and offers only implemented end conditions', () => {

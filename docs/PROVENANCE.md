@@ -1,5 +1,45 @@
 # Public fixture provenance
 
+## Original external revolution axes — 2026-10-28
+
+`desktop-part-external-axis-original.cjs` authors four declarations in
+millimetres: a rectangular sketch, its explicit axis prism, a construction-line
+sketch at `x=2,z=0`, and the unused revolution profile `x=[5,9], y=[-3,3]` in XY.
+The prism occupies `[-3,-2] × [-4,4] × [0,1]`, with volume `8 mm³`. No imported
+model, saved topology key or third-party geometric data supplies this recipe.
+
+The renderer's independent annulus expectations are:
+
+| Axis | Outer/inner radius and height, mm | Revolution volume, mm³ |
+| --- | --- | --- |
+| Local/world Y through the origin | `R=9, r=5, H=6` | `336*pi` |
+| External construction line at `x=2` | `R=7, r=3, H=6` | `240*pi` |
+| Current prism LINE at `x=-2,z=0`, parallel to Y | `R=11, r=7, H=6` | `432*pi` |
+
+The quarter-turn external case has volume `60*pi mm³`; literal bounds distinguish
+its two directions. The route compares native build observations with these
+formulas and bounds, checks that the read prism retains its original producer,
+and exercises current-prefix picking, coincident declarations, cancellation,
+history and saved rebuilding. Renderer observations do not independently attest
+BRep validity, surface area or a STEP round trip.
+
+`kernel.revolution-external-axis.test.ts` uses separate original CAD fixtures.
+Its annular cylinder has `R=5, r=1, H=10`, volume `240*pi mm³` and surface area
+`168*pi mm²`. Its separate axis cube occupies `[0,2] × [10,12] × [0,2]`, with
+volume `8 mm³` and area `24 mm²`. These are not the desktop inventory: the desktop
+external annulus also has volume `240*pi` but analytical area `200*pi`, and its
+axis prism's analytical area is `34 mm²`. Do not transfer area or bounds between
+these equal-volume cases. The CAD tests read exported preceding/final STEP
+geometry and check native LINE, validity, solids and physical properties against
+their own analytical expectations; exact executed results remain in
+[validation](VALIDATION.md).
+
+The model tests use original symbolic keys for strict persistence, dependency,
+read-only body ownership and deletion cases. Those keys establish no native
+topology or geometric correspondence. The independent fixtures and bounded
+observations do not establish external-application interaction equivalence,
+complete CAD coverage or platform support.
+
 ## Saved direction-reference continuation — 2026-10-28
 
 The appended `desktop-assembly-direction-reference-edit-flow.cjs` continues the

@@ -4,6 +4,8 @@ import { validateEntityProfile } from '../sketch/validation'
 import { featureDependencyIds, featureSketchIds } from './featureInputs'
 import { validateStepSource } from './stepSource'
 import { bodyReferenceCreationFeatureId, createdBodyIds, featureBodyOutputIncludes, featureBodyReferences } from './bodyReferences'
+import { featureRevolutionAxisBodyReferences } from './revolutionAxisReferences'
+import { captureOwnDataRecord } from './ownDataRecord'
 import { bodyPatternAddresses, MAX_CREATED_BODY_IDS, validateBodyPatternDeclaration } from './bodyPatterns'
 import { validateFeaturePatternDeclaration, type FeaturePatternOperation } from './featurePatterns'
 import { validateNamedViews, type NamedView } from './namedViews'
@@ -565,7 +567,8 @@ export function validateImportedBodiesFeature(value: unknown, path = 'Cuerpos im
 }
 
 function revolutionAxis(value: unknown, path: string): RevolutionAxis {
-  const source = object(value, path)
+  const source = Object.fromEntries(captureOwnDataRecord(value,
+    ['kind', 'axis', 'entityId', 'sketchId', 'edge', 'body'], ['kind'], path))
   if (source.kind === 'sketch-axis') {
     keys(source, ['kind', 'axis'], path)
     if (source.axis !== 'x' && source.axis !== 'y') fail(`${path}.axis`, 'se esperaba el eje local x o y')
@@ -574,6 +577,25 @@ function revolutionAxis(value: unknown, path: string): RevolutionAxis {
   if (source.kind === 'sketch-line') {
     keys(source, ['kind', 'entityId'], path)
     return { kind: 'sketch-line', entityId: entityIdentifier(source.entityId, `${path}.entityId`) }
+  }
+  if (source.kind === 'principal-axis') {
+    keys(source, ['kind', 'axis'], path)
+    if (source.axis !== 'X' && source.axis !== 'Y' && source.axis !== 'Z') fail(`${path}.axis`, 'se esperaba el eje principal X, Y o Z')
+    return { kind: 'principal-axis', axis: source.axis }
+  }
+  if (source.kind === 'external-sketch-line') {
+    keys(source, ['kind', 'sketchId', 'entityId'], path)
+    return { kind: 'external-sketch-line', sketchId: entityIdentifier(source.sketchId, `${path}.sketchId`),
+      entityId: entityIdentifier(source.entityId, `${path}.entityId`) }
+  }
+  if (source.kind === 'linear-edge') {
+    keys(source, ['kind', 'edge', 'body'], path)
+    const edge = edgeReference(Object.fromEntries(captureOwnDataRecord(source.edge,
+      ['sourceFeatureId', 'key'], undefined, `${path}.edge`)), `${path}.edge`)
+    const body = source.body === null ? null : bodyReference(Object.fromEntries(captureOwnDataRecord(source.body,
+      ['bodyId', 'sourceFeatureId'], undefined, `${path}.body`)), `${path}.body`)
+    if (body && body.sourceFeatureId !== edge.sourceFeatureId) fail(`${path}.body.sourceFeatureId`, 'la arista y su cuerpo deben pertenecer al mismo estado')
+    return { kind: 'linear-edge', edge, body }
   }
   return fail(`${path}.kind`, 'eje de revolución desconocido')
 }
@@ -846,6 +868,23 @@ export function validateDocument(value: unknown): Document {
         fail(`${location}.bodyId`, 'el cuerpo no pertenece a la salida explícita de esa operación')
       }
     })
+    if ((parsed.type === 'revolve' || parsed.type === 'revolvedCut') && parsed.axis) {
+      const axis = parsed.axis
+      if (axis.kind === 'external-sketch-line' && seen.get(axis.sketchId)?.type !== 'sketch') {
+        fail(`${path}.axis.sketchId`, 'debe referenciar un croquis anterior')
+      }
+      if (axis.kind === 'linear-edge') {
+        const owner = seen.get(axis.edge.sourceFeatureId)
+        if (!owner || owner.type === 'sketch' || owner.type === 'plane') {
+          fail(`${path}.axis.edge.sourceFeatureId`, 'debe referenciar una operación sólida anterior')
+        }
+        for (const reference of featureRevolutionAxisBodyReferences(parsed)) {
+          if (!featureBodyOutputIncludes(owner, reference.bodyId, [...seen.values()])) {
+            fail(`${path}.axis.body.bodyId`, 'el cuerpo del eje no pertenece a la salida explícita de esa operación')
+          }
+        }
+      }
+    }
     if (parsed.type === 'importedSolid' || parsed.type === 'importedBodies') {
       if (seenImport) fail(`${path}.type`, 'solo se admite un sólido importado')
       if (seenSolid) fail(`${path}.type`, 'el sólido importado debe ser la primera operación sólida, incluso con operaciones suprimidas')
@@ -997,7 +1036,7 @@ export function removeFeature(document: Document, id: string): Document {
   const creators = new Map<string, string | null>()
   const features = document.features.filter((item) => {
     const dependsOnRemoved = featureDependencyIds(item).some((dependencyId) => removed.has(dependencyId))
-      || featureBodyReferences(item).some(reference => {
+      || [...featureBodyReferences(item), ...featureRevolutionAxisBodyReferences(item)].some(reference => {
         const key = JSON.stringify([reference.bodyId, reference.sourceFeatureId])
         if (!creators.has(key)) creators.set(key, bodyReferenceCreationFeatureId(document.features, reference))
         const creator = creators.get(key)

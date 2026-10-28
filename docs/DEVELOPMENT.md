@@ -1,5 +1,50 @@
 # Development guide
 
+## External revolution axes — 2026-10-28
+
+Additive and subtractive revolutions share three additional strict axis variants:
+`{kind:'principal-axis',axis:'X'|'Y'|'Z'}` in the part's world frame,
+`{kind:'external-sketch-line',sketchId,entityId}` from an earlier resolved sketch,
+and `{kind:'linear-edge',edge,body}` with an exact `BodyReference` or explicit
+`null` for a legacy aggregate. Saved coordinates and native handles are not axis
+declarations. Existing local X/Y, same-sketch lines and absent defaults retain
+their canonical bytes and historical reference descriptors: explicit local
+declarations keep v1 axis identities, and absence keeps the legacy local-Y
+lineage. New variants use v2 axis descriptors within the existing document
+version; older strict readers reject them rather than substituting an axis.
+
+Resolve the axis once against the operation's preceding build state, then reuse
+it for the tool and reference lineage. Read solved endpoints/current support
+frames for external sketches. Material axes require a unique current native LINE
+in the declared body state, including matching edge/body source IDs and current
+lineage; an explicit catalog cannot fall back to the aggregate. Retain the
+actual world line. Its distance from the profile plane must not exceed `1e-7 mm`,
+and its unit direction's absolute dot product with the plane normal must not
+exceed `1e-8`. Reject unavailable, ambiguous, curved or out-of-plane sources
+without substituting local Y. Existing reverse and bounded-extent rules remain.
+
+Axis producers are graph dependencies, including deletion through a read body's
+creator behind a potential ALL state. They are not extra profile inputs:
+`featureSketchIds` still contains only the revolution profile; reading an axis
+body does not add it to material targets or outputs. Preserve profile consumption,
+Normal To, history and explicit body-state ownership. Revolution regeneration
+through feature recipes remains a separate, explicitly gated capability.
+
+`SketchVisual.lineEntities` supplies identified resolved world-space LINE
+witnesses without changing legacy line arrays. Viewport candidates retain full
+declarations and body owners; display segments confer no native authority.
+Selection requires the current draft/document/prefix ticket, candidate catalog,
+matching press/release camera and a catalog marked presented after rendering.
+Camera changes, wheel, resize, cancellation and context replacement revoke stale
+gestures. Coincident declarations use an explicit chooser instead of guessing
+an owner; entering that menu must not cancel its pending choice.
+
+After building, run `npm run test:desktop:part-external-axis` for the original
+production-renderer workflow. Its fixture, separate native CAD oracles and
+observation limits are described in [provenance](PROVENANCE.md). Record actual
+command results in [validation](VALIDATION.md); authored checks do not establish
+complete demo or platform acceptance.
+
 ## Opening a saved direction from a parameter editor — 2026-10-28
 
 Do not use the broad `referenceEditing` display state as the entry guard for

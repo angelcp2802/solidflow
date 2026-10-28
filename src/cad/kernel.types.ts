@@ -97,7 +97,10 @@ export type CutFeature = Extract<ExtrudeFeature, { type: 'cut' }>;
 
 export type RevolutionAxis =
   | { kind: 'sketch-axis'; axis: 'x' | 'y' }
-  | { kind: 'sketch-line'; entityId: string };
+  | { kind: 'sketch-line'; entityId: string }
+  | { kind: 'principal-axis'; axis: 'X' | 'Y' | 'Z' }
+  | { kind: 'external-sketch-line'; sketchId: string; entityId: string }
+  | { kind: 'linear-edge'; edge: EdgeReference; body: BodyReference | null };
 
 export type RevolutionExtent =
   | { kind: 'two-directions'; secondAngle: number }
@@ -376,6 +379,8 @@ export interface SketchVisual {
   lines: number[];
   /** Construction geometry is displayed separately and never creates material. */
   constructionLines: number[];
+  /** Resolved world-space LINE witnesses for picking; native rebuilds retain authority. */
+  lineEntities?: { entityId: string; start: Vec3; end: Vec3; construction: boolean }[];
 }
 
 export interface CadResult {

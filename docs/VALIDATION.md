@@ -1,5 +1,103 @@
 # Validation
 
+## External revolution axes and current-prefix picking — 2026-10-28
+
+Revolve and revolved cut now admit explicit principal world axes, identified
+LINEs from earlier solved sketches and material LINE references with exact body
+ownership. Axis geometry resolves once against the state preceding the operation
+and is reused for construction and reference lineage. Current native catalogs,
+unique source identities and explicit coplanarity admission prevent display
+segments or saved coordinates from acting as geometric authority. Local/default
+serialization and v1 reference descriptors retain their existing contracts;
+new variants use v2 axis descriptors. See [development](DEVELOPMENT.md).
+
+The final local run uses Windows x64, Node 24.11.1, Electron 44.9.3, TypeScript
+7.0.2, Vitest 5.0.3, Vite 8.3.4 and Replicad/OpenCascade 1.1.0. It reuses the
+existing accepted runtime without resetting it or installing dependencies.
+All five commands share **1,247 pinned source/runtime inputs and nine products**;
+the canonical `{files,production}` manifest SHA-256 is
+`f831749eb62cc76489e70dd04a4ff938f6edc9151e39c76b54e05a02ea872243`.
+
+| Command | Final executed result |
+| --- | --- |
+| `npm run build` | PASS, 4.118 s. |
+| `npm run test:desktop:part-external-axis` with capture enabled | PASS, 109 recorded checkpoints / 19 native-build phases, 16.531 s. |
+| `npm run test:desktop:part-revolution` with capture enabled | PASS, 251 recorded checkpoints, 35.437 s; the complete original additive/cut, extent, history, saved-reopen and two STEP routes remain. |
+| `npm test` | PASS, 10,397 unit/CAD cases in 461 files; 200 IPC passes, zero failures and two explicit Windows platform skips; command 428.337 s, Vitest 421.38 s. |
+| `npm run test:desktop` | PASS, 1.562 s; production worker/WASM, queue and native prism volume 24/bounds verified. |
+
+Both renderer reports independently match eight production-input hashes, report
+zero console/resource failures and confirm child closure and isolated temporary
+profile deletion. Their captures were inspected. The startup report also has
+zero console/request failures, but does not expose those explicit cleanup flags.
+The two IPC skips retain their original reasons: Windows symlink permissions
+and the POSIX FIFO case. No assertion, geometric tolerance, deadline or existing
+workflow was relaxed to obtain acceptance.
+
+The new route starts with four independently authored declarations, not saved
+topology: a prism of volume8, a construction-line sketch and a rectangle profile.
+It exercises local/world axes, rejection of noncoplanar world Z, the other-sketch
+dropdown, actual source-scene line clicks, quarter-turn reversal, coincident
+world/local choices, actual canvas-to-menu pointer transfer and Escape. A wheel
+event during a pressed selection must not activate it. Cancel/retry, Apply,
+Undo/Redo and two saved fresh rebuilds preserve exact intended declarations.
+Material picking uses the actual preceding prism LINE and exact body/state,
+while the independent output body and the prism remain distinct. Three Open
+dialogs, one Save As dialog and two completed document writes are observed.
+
+Renderer oracles are annulus volumes 336*pi, 240*pi and 432*pi, quarter-turn 60*pi,
+literal bounds at 1e-6 mm and prism volume 8 at 1e-6 mm3; annulus volumes use 1e-5 mm3.
+These observations do not independently establish BRep validity or surface area.
+The separate native CAD inventory checks preceding/final STEP geometry, native
+LINE, BRep validity, solid count, mass, area and bounds with analytical oracles.
+Its R5/r1/H10 annulus has V240*pi/A168*pi and differs from the desktop's R7/r3/H6
+annulus, which has equal volume but analytical area 200*pi. Do not transfer area
+or bounds between them. Native cases include solved coordinates/current support
+frames, partial reversal, support-lineage replay, untouched axis bodies after a
+different body changes, legacy semantic/v1 aliases, merge/cut read-only owners,
+unavailable/curved/out-of-plane references and fatal catalog-release failure.
+Model and picker tests cover strict declarations, dependency/cascade separation,
+legacy compatibility, owner ambiguity, clipped segments and distant datums.
+
+Early runs identified and repaired the added controls pushing the first angle
+below the unchanged compact-editor acceptance boundary. The new recorder also
+initially expected no warning for two intentionally separate solids and omitted
+the body-edge observation needed by its material case. It now requires the exact
+two-solid warning and retains those original native edge observations only for
+the fixed scenario. Its independent geometry and interaction checks remain.
+An earlier complete run from the source tree used pre-existing Electron44.7.0;
+it is retained as separate diagnostic evidence. Installed dependency differences
+were audited, then the full five-command acceptance above was repeated in the
+locked 44.9.3 runtime; environment equivalence is not assumed.
+
+REA analyzes the exact built worker SHA-256
+`dae5f82b8013461d18167372f48d1f949d5564f6c6597629fe07472318909010`,
+Evidence `ev_5bbed12f4c090bda268f539262b0545a1d8bcd10ec974e28e8f87bfde7c4d231`.
+The private two-file subset parses one JavaScript file with zero parse failures;
+semantic coverage remains partial at its 100,000-node ceiling with 75,905 unknowns.
+This static observation is not full-app runtime or parity evidence. A separate
+original-model UI observation accepts one earlier-sketch construction line and
+commits one revolved solid; it does not validate every selector or orientation.
+No third-party model, binary, screenshot or personal path is published.
+
+After application acceptance, a separately validated workflow-only amendment
+adds the new renderer command to persistence on Linux and Windows/macOS. YAML
+parsing, exact structural preservation after removing the two additions, command
+resolution and all nine batch/platform combinations are checked. No application,
+dependency, permission, action pin or deadline changes accompany that amendment.
+Parent `2b8426e` completes all fifteen CI jobs and Security successfully. This new
+revision requires its own hosted checks. Applied frontend-design,
+vercel-react-best-practices, code-simplifier, code-review and security-review,
+plus REA and Computer Use for their distinct evidence. Delegated read-only review
+finds no outstanding actionable/high-confidence scoped finding; this is not a
+full application security audit. No SECURITY_MODEL policy exists in the base;
+the existing security policy and desktop invariants remain unchanged.
+
+Keep draft PR #49 unmerged, checklist #55 at 16/25 with nine groups open and release #5
+open. General interaction equivalence, thin-wall operations, specialized picking,
+complete demo/human use, installed-platform support and recurring hosted stability
+remain unproven by this bounded increment.
+
 ## Cylinder-to-direction editor transfer — 2026-10-28
 
 The published directional-reference increment introduced an overly broad entry

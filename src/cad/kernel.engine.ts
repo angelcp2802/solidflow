@@ -38,7 +38,7 @@ import { sketchVisual } from './kernel.sketch-visual';
 import { createFaceCatalog, pickableFaces, pickableFacesFromCatalog, resolveSelectedFaces, type FaceCatalog, type FaceDescriptor } from './kernel.faces';
 import { clonePlaneFrame, offsetPlaneFrame, principalPlaneFrame } from './kernel.frames';
 import { makeOwnedPrimitiveSketch } from './kernel.primitive-sketch';
-import { resolveRevolutionAxis, revolutionRadialCoordinate } from './revolutionAxis';
+import { resolveRevolutionAxis, revolutionRadialCoordinate, type ResolvedRevolutionAxis, type RevolutionAxisSources } from './revolutionAxis';
 import { isRevolutionFeature, resolveRevolutionExtent } from './revolutionExtent';
 import { loftSolid, sweepSolid } from './kernel.sweep-loft';
 import { geometryDelta, isRepetition, patternPlan, repetitionSolid, type FeatureGeometry } from './kernel.patterns';
@@ -204,12 +204,14 @@ function extrudePrimitiveSketch(sketch: Sketch, depth: number): Shape3D {
   }, result => [result], 'Primitive extrusion construction or release failed.');
 }
 
-function featureSolid(feature: ExtrudeFeature | RevolutionFeature, sketchFeature: SketchFeature, resolvedFrame: PlaneFrame, validateDepth = true): Shape3D {
+function featureSolid(feature: ExtrudeFeature | RevolutionFeature, sketchFeature: SketchFeature, resolvedFrame: PlaneFrame,
+  validateDepth = true, resolvedAxis?: ResolvedRevolutionAxis): Shape3D {
   const frame = sketchFeature.support ? resolvedFrame : undefined;
   if (isRevolutionFeature(feature)) {
     const extent = resolveRevolutionExtent(feature);
     const { profile } = sketchFeature;
-    const axis = resolveRevolutionAxis({ ...feature, reversed: extent.reversed }, sketchFeature, resolvedFrame);
+    if (!resolvedAxis) throw new Error('La revolución requiere resolver primero su eje en el estado anterior.');
+    const axis = resolvedAxis;
     if (profile.kind === 'entities') {
       return entityProfileSolid(profile, sketchFeature.plane, sketchFeature.offset,
         { type: 'revolve', angle: extent.sweepAngle, axis, ...(extent.identity ? { startAngle: extent.startAngle } : {}) }, frame);
@@ -1105,6 +1107,43 @@ export class CadEngine {
     const resolveSupport = (support: PlaneSupport) => resolveSourceSketchSupport(sketchSupportContext, support);
     const sourceSketchSolveSession = createSourceSketchSolveRegistry(features, sketchSupportContext);
     const sourceSketchSolves = sourceSketchSolveSession.reader;
+    const revolutionSources: RevolutionAxisSources = {
+      sketchLine: (sketchId, entityId) => {
+        const source = sketches.get(sketchId), frame = sketchFrames.get(sketchId);
+        if (!source || source.suppressed || unavailableFeatureIds.has(sketchId) || !frame || source.profile.kind !== 'entities') {
+          throw new Error('El croquis anterior del eje está suprimido, no está resuelto o no contiene líneas.');
+        }
+        const axis = resolveRevolutionAxis({ axis: { kind: 'sketch-line', entityId } }, source, frame);
+        return { origin: axis.origin, direction: axis.direction,
+          identity: ['external-sketch-line', sketchId, entityId, source.plane,
+            entityProfileStructure(source.profile), sketchSupportLineages.get(sketchId) ?? null] };
+      },
+      linearEdge: (reference, bodyReference) => {
+        const currentBody = body;
+        if (!currentBody) throw new Error('El eje requiere una arista de un sólido anterior vigente.');
+        return withNativeOwners(owners => {
+          if (bodyReference !== null) {
+            if (!bodyCatalog) throw new Error('La pieza antigua no tiene un catálogo explícito de cuerpos.');
+            const entry = bodyCatalog.resolve(bodyReference);
+            if (reference.sourceFeatureId !== entry.ref.sourceFeatureId) throw new Error('La arista y el cuerpo del eje pertenecen a estados distintos.');
+            const catalog = createEdgeCatalog(entry.shape, entry.ref.sourceFeatureId, entry.lineage);
+            owners.own({ delete: () => catalog.dispose() });
+            const edge = resolveEdgeReferences(catalog, [reference], entry.ref.sourceFeatureId)[0];
+            const support = extractAssemblyEdgeSupport(edge);
+            return { origin: support.point, direction: support.axis,
+              identity: ['linear-edge', { ...entry.ref }, { ...reference }, entry.lineage] };
+          }
+          if (bodyCatalog) throw new Error('Selecciona el cuerpo explícito de la arista; el agregado no sustituye su identidad.');
+          if (reference.sourceFeatureId !== sourceFeatureId) throw new Error('La arista del eje no pertenece al estado anterior vigente.');
+          const catalog = createSemanticEdgeCatalog(currentBody, sourceFeatureId, lineage, semantic);
+          owners.own({ delete: () => catalog.dispose() });
+          const edge = resolveSemanticEdgeReferences(catalog, [reference], sourceFeatureId)[0];
+          const support = extractAssemblyEdgeSupport(edge);
+          return { origin: support.point, direction: support.axis,
+            identity: ['linear-edge', null, { ...reference }, lineage] };
+        }, undefined, 'Revolution axis extraction or native catalog release failed.');
+      },
+    };
 
     const built = withPrismOwners<CadResult | AssemblyReferenceInventory>(prismOwners, () => {
     let reconstructionFailed = false, reconstructionError: unknown;
@@ -1611,6 +1650,12 @@ export class CadEngine {
           unavailableFeatureIds.add(feature.id);
           continue;
         }
+        const revolutionExtent = isRevolutionFeature(feature) ? resolveRevolutionExtent(feature) : undefined;
+        const axisField = isRevolutionFeature(feature) ? Object.getOwnPropertyDescriptor(feature, 'axis') : undefined;
+        if (axisField && (!('value' in axisField) || !axisField.enumerable)) throw new Error('El eje de revolución no es un campo de datos válido.');
+        const revolutionAxis = isRevolutionFeature(feature) ? resolveRevolutionAxis({
+          ...(axisField ? { axis: axisField.value } : {}), reversed: revolutionExtent!.reversed,
+        }, sketchFeature, sketchFrames.get(sketchFeature.id)!, revolutionSources) : undefined;
         let limitLineage: unknown = null;
         let operationBase = body;
         if (bodyCatalog && (feature.type === 'extrude' || feature.type === 'revolve') && feature.bodyOperation?.mode === 'merge') {
@@ -1711,11 +1756,9 @@ export class CadEngine {
               if (prepared.status === 'verified') toolSemantic = prepared.references;
             } else tool = featureSolid(feature, sketchFeature, sketchFrames.get(sketchFeature.id)!);
           } else tool = featureSolid(feature, sketchFeature, sketchFrames.get(sketchFeature.id)!);
-        } else tool = featureSolid(feature, sketchFeature, sketchFrames.get(sketchFeature.id)!);
+        } else tool = featureSolid(feature, sketchFeature, sketchFrames.get(sketchFeature.id)!, true, revolutionAxis);
         if ((feature.type === 'cut' || feature.type === 'revolvedCut') && !body) throw new Error('Crea primero un sólido antes de aplicar un corte.');
         validateSolid(tool);
-        const revolutionExtent = isRevolutionFeature(feature) ? resolveRevolutionExtent(feature) : undefined;
-        const revolutionAxis = isRevolutionFeature(feature) ? resolveRevolutionAxis({ ...feature, reversed: revolutionExtent!.reversed }, sketchFeature, sketchFrames.get(sketchFeature.id)!) : undefined;
         const structure: unknown[] = [feature.id, feature.type, feature.sketchId, sketchFeature.plane, sketchFeature.profile.kind,
           isRevolutionFeature(feature) ? [revolutionAxis!.legacy ? 'local-Y' : revolutionAxis!.identity, sketchFeature.profile.kind === 'entities'
             ? entityRevolutionSide(sketchFeature.profile, revolutionAxis) : Math.sign(revolutionRadialCoordinate(sketchFeature.profile.center, revolutionAxis!)), revolutionExtent!.sweepAngle === 360]

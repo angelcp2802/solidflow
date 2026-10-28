@@ -26,6 +26,10 @@ describe('accepted sketch display geometry', () => {
     const result = sketchVisual(sketch);
     expect(result.lines).toEqual([7, 3, 4, 7, 10, 4]);
     expect(result.constructionLines).toEqual([7, 0, 0, 7, 3, 4]);
+    expect(result.lineEntities).toEqual([
+      { entityId: 'open', start: [7, 3, 4], end: [7, 10, 4], construction: false },
+      { entityId: 'helper', start: [7, 0, 0], end: [7, 3, 4], construction: true },
+    ]);
   });
 
   it.each([false, true])('discretizes the correct arc side with clockwise=%s', (clockwise) => {
@@ -38,6 +42,7 @@ describe('accepted sketch display geometry', () => {
     const y = result.lines.filter((_, index) => index % 3 === 1);
     expect(clockwise ? Math.min(...y) : Math.max(...y)).toBeCloseTo(clockwise ? -10 : 10, 8);
     expect(y.every((coordinate) => clockwise ? coordinate <= 1e-12 : coordinate >= -1e-12)).toBe(true);
+    expect(result.lineEntities).toBeUndefined();
   });
 
   it('discretizes a circle on its plane as a closed display wire', () => {
@@ -51,6 +56,17 @@ describe('accepted sketch display geometry', () => {
     }
     expect(result.lines.slice(-3)[0]).toBeCloseTo(result.lines[0], 10);
     expect(result.lines.slice(-3)[2]).toBeCloseTo(result.lines[2], 10);
+    expect(result.lineEntities).toBeUndefined();
+  });
+
+  it('never identifies primitive, duplicate or collapsed display segments as selectable LINE entities', () => {
+    expect(sketchVisual(feature()).lineEntities).toBeUndefined();
+    const sketch = feature();
+    sketch.profile = { kind: 'entities', points: [{ id: 'a', x: 1, y: 2 }], constraints: [],
+      entities: [{ id: 'duplicate', type: 'line', start: 'origin', end: 'a', construction: true },
+        { id: 'duplicate', type: 'line', start: 'a', end: 'origin', construction: true },
+        { id: 'collapsed', type: 'line', start: 'a', end: 'a', construction: true }] };
+    expect(sketchVisual(sketch).lineEntities).toBeUndefined();
   });
 
   it('returns a valid empty visual for an accepted empty sketch', () => {

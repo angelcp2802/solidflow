@@ -1,6 +1,7 @@
 import type { Feature, SketchFeature, SweepPathSegment } from '../cad/kernel.types'
 import type { SketchPoint } from '../sketch/types'
 import { featureBodyReferences } from './bodyReferences'
+import { featureRevolutionAxisBodyReferences } from './revolutionAxisReferences'
 
 export type FeatureWithBase = Extract<Feature, { baseFeatureId: string }>
 
@@ -30,6 +31,11 @@ export function featureSketchIds(feature: Feature): string[] {
 export function featureDependencyIds(feature: Feature): string[] {
   const ids = featureSketchIds(feature)
   ids.push(...featureBodyReferences(feature).map(reference => reference.sourceFeatureId))
+  if (feature.type === 'revolve' || feature.type === 'revolvedCut') {
+    if (feature.axis?.kind === 'external-sketch-line') ids.push(feature.axis.sketchId)
+    if (feature.axis?.kind === 'linear-edge') ids.push(feature.axis.edge.sourceFeatureId)
+  }
+  ids.push(...featureRevolutionAxisBodyReferences(feature).map(reference => reference.sourceFeatureId))
   if (hasBaseFeature(feature)) ids.push(feature.baseFeatureId)
   if (feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror') {
     if (feature.source.mode === 'features') ids.push(...feature.source.featureIds)

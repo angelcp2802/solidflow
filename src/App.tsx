@@ -123,6 +123,7 @@ import { reconcileBodyPatternDraft } from "./model/bodyPatterns";
 import { createEdgeSelectionIndex, createFaceSelectionIndex } from "./cad/selection.references";
 import ExtrudePanel from "./components/ExtrudePanel";
 import RevolvePanel, { mergeRevolutionDraft } from "./components/RevolvePanel";
+import { revolutionAxisCandidates, type RevolutionAxisCandidate } from './components/revolutionAxisPicking';
 import HolePanel, { type HoleSection } from "./components/HolePanel";
 import HolePositionsCanvas from "./components/HolePositionsCanvas";
 import {
@@ -450,6 +451,10 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
   // A feature started from a new or unused sketch is a reversible preview. The sketch
   // stays out of recovery/history until acceptance and resumes on Cancel.
   const [stagedSketch, setStagedSketch] = useState<SketchFeature | null>(null);
+  type AxisPickingRequest = { draft: RevolutionFeature; document: Document; epoch: number; model: CadResult; features: Feature[] };
+  const [axisPickingRequest, setAxisPickingRequest] = useState<AxisPickingRequest | null>(null);
+  const axisPickingAuthority = useRef<AxisPickingRequest | null>(null);
+  const stopAxisPicking = () => { axisPickingAuthority.current = null; setAxisPickingRequest(null); };
   const [featureMenu, setFeatureMenu] = useState<{ requestId: string; featureId: string; parentId?: string; point: { x: number; y: number }; origin: HTMLElement } | null>(null);
   type ViewportPopup = { requestId: string; target: PartContextTarget; document: Document; model: CadResult | null;
     selection: string; epoch: number; point: { x: number; y: number }; origin: HTMLElement };
@@ -621,12 +626,20 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     extrudeEditing.endCondition?.kind === "upToSurface" &&
     pickingEndFace;
   const pickingHole = !!holeEditing && pickingSupport;
+  const axisPicking = !!axisPickingRequest && editing === axisPickingRequest.draft && doc === axisPickingRequest.document
+    && documentEpoch.current === axisPickingRequest.epoch && sourceModel === axisPickingRequest.model
+    && sourceFeatures === axisPickingRequest.features && sourceBuiltFeatures === sourceFeatures && !sourceLoading
+    && !sourceModel.featureErrors.length && !bodyPicking;
+  axisPickingAuthority.current = axisPicking ? axisPickingRequest : null;
+  const axisCandidates = useMemo(() => axisPicking && editing && isRevolutionFeature(editing)
+    ? revolutionAxisCandidates(sourceModel, editing.sketchId) : [], [axisPicking, sourceModel, editing]);
   const viewportSelectionMode: PartSelectionMode = bodyPicking ? 'body'
     : pickingSupport || pickingFaceOperation || pickingExtrude || pickingHole ? 'face'
       : pickingFinish ? 'edge' : editing ? 'body' : selectionMode;
   const placingHoles =
     !!holeEditing && holeSection === "positions" && !pickingHole;
   const visibleBase =
+    axisPicking ||
     bodyPicking ||
     pickingFinish ||
     pickingMirror ||
@@ -806,6 +819,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     }
   };
   const apply = (next: Document) => {
+    stopAxisPicking();
     invalidateViewportPopup();
     setDoc(history.current!.apply(next));
     setError("");
@@ -976,6 +990,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     [],
   );
   const reset = (next: Document, path?: string, markSaved = false) => {
+    stopAxisPicking();
     namedViews.close();
     documentEpoch.current++;
     viewHistory.reset();
@@ -2065,6 +2080,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     }
   };
   const cancelEdit = () => {
+    stopAxisPicking();
     setBodyPicking(false);
     setBodySelection([]);
     setPickingEndFace(false);
@@ -2078,6 +2094,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     setTab(stagedSketch ? "Croquis" : "Operaciones");
   };
   const changeDraft = (patch: Partial<Feature>) => {
+    stopAxisPicking();
     if (!editing) return;
     const merged = isRevolutionFeature(editing) ? mergeRevolutionDraft(editing, patch as Partial<RevolutionFeature>) : { ...editing, ...patch } as Feature;
     const ownedPattern = isRepetition(merged) && merged.source.mode === 'bodies' ? merged : null;
@@ -2104,7 +2121,23 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     setError(reconciliationError);
     setEditing(next);
   };
+  const changeAxisPicking = (active: boolean) => {
+    stopAxisPicking();
+    if (!active || !editing || !isRevolutionFeature(editing) || editingRef.current !== editing || docRef.current !== doc
+      || !sourceModel || !sourceFeatures || sourceLoading || sourceBuiltFeatures !== sourceFeatures || sourceModel.featureErrors.length) return;
+    invalidateViewportPopup();
+    setBodyPicking(false); setPickingSupport(false); setPickingEndFace(false);
+    const request = { draft: editing, document: doc, epoch: documentEpoch.current, model: sourceModel, features: sourceFeatures };
+    axisPickingAuthority.current = request; setAxisPickingRequest(request);
+  };
+  const selectRevolutionAxis = (candidate: RevolutionAxisCandidate) => {
+    const request = axisPickingRequest;
+    if (!request || axisPickingAuthority.current !== request || !mounted.current || editingRef.current !== request.draft
+      || docRef.current !== request.document || documentEpoch.current !== request.epoch || !axisCandidates.includes(candidate)) return;
+    changeDraft({ axis: structuredClone(candidate.axis) } as Partial<RevolutionFeature>);
+  };
   const chooseBodySelection = (references: BodyReference[]) => {
+    stopAxisPicking();
     invalidateViewportPopup();
     if (editing && isBodyCommandFeature(editing)) {
       let changed = withBodySelection(editing, references);
@@ -2251,6 +2284,9 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
         e.target instanceof HTMLElement &&
         !!e.target.closest("input,textarea,select,[contenteditable='true']");
       if (namedViews.isOpen) return;
+      if (e.key === 'Escape' && axisPickingAuthority.current) {
+        e.preventDefault(); stopAxisPicking(); return;
+      }
       if (showHelp || rename || discardDecision.current) {
         if (e.key === "Escape") {
           if (discardDecision.current) finishDiscard(false);
@@ -3808,6 +3844,9 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                     <>
                       <RevolvePanel feature={editing}
                         sketch={availableSketches.find(sketch => sketch.id === editing.sketchId)}
+                        sourceSketches={availableSketches}
+                        axisPicking={axisPicking}
+                        onAxisPickingChange={changeAxisPicking}
                         onChange={changeDraft}>
                         <NumberField
                           label="Ángulo"
@@ -4162,6 +4201,8 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
           ) : (
             <Viewport
               model={visibleModel}
+              revolutionAxisPicking={axisPicking ? { request: axisPickingRequest, candidates: axisCandidates,
+                selected: editing && isRevolutionFeature(editing) ? editing.axis : undefined, onSelect: selectRevolutionAxis } : undefined}
               contextRevision={viewportContextFrame}
               onContextTarget={viewportContextBlocked ? undefined : openViewportContext}
               view={view}
@@ -4180,7 +4221,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                 !holeEditing
               }
               selectionMode={viewportSelectionMode}
-              selectionDisabled={!editing && (busy || !previewCurrent)}
+              selectionDisabled={axisPicking ? sourceLoading || sourceBuiltFeatures !== sourceFeatures : !editing && (busy || !previewCurrent)}
               onClearSelection={!editing ? clearBrowsingSelection : undefined}
               selectedEdges={selectedEdges}
               selectedBodies={bodySelection}

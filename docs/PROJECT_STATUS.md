@@ -1,5 +1,31 @@
 # Project status and review queue
 
+## External revolution axes and viewport selection — 2026-10-28
+
+Additive and subtractive revolutions can declare a world datum, an identified
+LINE in another earlier solved sketch, or an exact current material edge and
+its body owner. The build authenticates native LINE geometry and coplanarity
+before constructing material. Axis bodies remain read-only dependencies;
+existing local axes, profile consumption and saved reference identities remain.
+The blue editor provides explicit choices, viewport picking and an overlapping
+reference chooser with draft, prefix, presentation and camera guards.
+
+Final local Windows acceptance uses Node 24.11.1 and the existing locked Electron
+44.9.3 runtime: build, 10,397 unit/CAD cases in 461 files, 200 IPC passes/two
+explicit platform skips, desktop startup, the new 109-checkpoint axis route and
+the complete existing 251-checkpoint revolution/cut/STEP route all pass. Both
+renderer reports confirm exact production hashes, no console/request errors and
+owned child/profile cleanup. See [validation](VALIDATION.md) and the separate
+original fixture inventories in [provenance](PROVENANCE.md).
+
+Parent `2b8426e` completes all fifteen hosted CI jobs and Security successfully.
+The new axis route is added to the existing persistence matrix without changing
+permissions, dependencies or deadlines; this revision still needs its own hosted
+acceptance. Keep checklist #55 at **16/25**, with nine groups open, PR #49
+draft/unmerged and release #5 open. Thin-wall work, remaining specialized picking,
+full interaction/demo/human acceptance and installed-platform/stability work
+remain separate requirements; this increment does not establish full parity.
+
 ## Saved-direction editor transfer correction — 2026-10-28
 
 The saved-direction entry guard now blocks active shared-reference tickets while
