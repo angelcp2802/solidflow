@@ -2,6 +2,7 @@ import {MAX_ASSEMBLY_BYTES,type AssemblyDocument} from './assemblyDocument'
 import {evaluateAssemblyConfiguration,type AssemblyConfigurationCatalog} from './assemblyConfigurationCore'
 import type {AssemblyConfigurationGeometryInput} from '../cad/kernel.assembly-configuration-snapshot'
 import {validateNamedViews,type NamedView} from './namedViews'
+import {jsonStringByteLength} from '../shared/jsonStringByteLength'
 
 export interface AssemblyConfiguredDocument {
   version:3
@@ -18,7 +19,7 @@ export function validateConfiguredDocumentJsonData(value:unknown):void {
   const ancestors=new Set<object>(),encoder=new TextEncoder()
   let bytes=0,nodes=0
   function add(amount:number){bytes+=amount;if(bytes>MAX_ASSEMBLY_BYTES)throw Error('Configured document exceeds20MiB.')}
-  function stringBytes(text:string){if(text.length>MAX_ASSEMBLY_BYTES)throw Error('Configured document exceeds20MiB.');return encoder.encode(JSON.stringify(text)).byteLength}
+  function stringBytes(text:string){if(text.length>MAX_ASSEMBLY_BYTES)throw Error('Configured document exceeds20MiB.');return jsonStringByteLength(text,encoder)}
   while(stack.length){
     const frame=stack.pop()!,current=frame.value
     if(frame.exit){ancestors.delete(current as object);continue}

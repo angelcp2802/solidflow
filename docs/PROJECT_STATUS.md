@@ -1,5 +1,31 @@
 # Project status and review queue
 
+## Quoted JSON allocation cost — 2026-10-28
+
+Ordinary and configured JSON preflights avoid temporary quoted strings and
+encoded byte arrays for unescaped ASCII, using an exact shared size counter.
+Unicode and escaping retain the existing native calculation; byte, object and
+graph admission checks remain. The unchanged combined 20 MiB case keeps its
+original fixture, seven assertions and five-second test deadline.
+
+Two complete local six-family assembly runs retain the same 270-checkpoint
+sequence, geometry, 24 selections, 43 worker replies and six save/reopens while
+workflow elapsed falls from 41.848/41.898 to 32.823/33.381 s. This is a bounded
+same-host Windows observation, not a general CAD or platform speed claim.
+Private phase comparisons preserve every original byte assertion and integrity
+check; their Node adapter and WSL Node 20 results do not replace timed Vitest or
+GitHub Linux acceptance. Full local acceptance passes: 10,288 unit/CAD cases,
+200 IPC passes/two platform skips, build, desktop startup and three additional
+renderer routes. REA separately analyzes the exact corrected worker; semantic
+coverage remains partial. See [validation](VALIDATION.md) for exact scope.
+
+Parent 8ce3e2e completes fourteen CI jobs and Security successfully. Linux Desktop
+builds, then its original combined-budget case exceeds five seconds; subsequent
+IPC/startup/package steps skip. The timeout's complete hosted cause remains
+unestablished. The measured allocation reduction needs its own hosted checks.
+Keep draft PR #49, checklist #55 at 16/25 with nine open groups, and release #5
+open; no stability or complete-demo group closes from this increment.
+
 ## Assembly context release follow-up — 2026-10-28
 
 The standard and configured assembly viewport now uses the same completed

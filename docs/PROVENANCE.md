@@ -1,5 +1,28 @@
 # Public fixture provenance
 
+## Original quoted JSON size witnesses — 2026-10-28
+
+`src/shared/jsonStringByteLength.test.ts` uses original ASCII, escaping and UTF-16
+literals. Its independent oracle is the installed runtime's native
+`TextEncoder().encode(JSON.stringify(string)).byteLength`. All 65,536 individual
+UTF-16 code units are checked alone and between ASCII words (131,072 comparisons),
+with separate valid/lone surrogate sequences, controls, DEL, slash, punctuation,
+Unicode separators, repeated mixed inputs and quoted sizes just below/at/above
+20 MiB. Nonprimitive inputs must throw without reading coercion/serialization
+hooks. These are byte-admission tests, not geometric or platform certificates.
+See [JSON quoting](https://tc39.es/ecma262/multipage/structured-data.html#sec-quotejsonstring)
+and the [UTF-8 encoder](https://encoding.spec.whatwg.org/#utf-8-encoder) for the
+separate quoting/encoding rules; the uncommon path still uses both native APIs.
+
+The unchanged configuration-state budget fixture uses 7,650,000 original zero
+bytes: two autonomous opaque source declarations contain 20,400,000 base64
+characters. Original measured pretty-JSON UTF-8 sizes are source 20,502,207,
+catalog 9,667 and states 936,642 bytes; the combined source/catalog/states object
+is 21,555,483 bytes against the literal 20,971,520-byte limit. The individual
+inputs fit; empty state validation succeeds and the combined 4,096 states must
+reject. The zero bytes are intentionally not a valid STEP shape. No vendor file,
+private CAD model, smaller substitute or extended test timeout is introduced.
+
 ## Original assembly context gesture cases — 2026-10-28
 
 The shared `desktop-assembly-context-gesture.cjs` subflow reuses two existing

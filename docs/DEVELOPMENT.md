@@ -1,5 +1,28 @@
 # Development guide
 
+## Quoted JSON byte-count allocation — 2026-10-28
+
+Both v2 and configured-document JSON preflights use the shared
+`jsonStringByteLength` for primitive string keys/values. ASCII U+0020..U+007F,
+excluding quote and backslash, needs neither JSON escaping nor multibyte UTF-8:
+its quoted size is `length + 2`. Other strings retain the exact existing
+`TextEncoder.encode(JSON.stringify(value))` calculation. The helper is a byte
+counter, not an encoder or sanitizer; it rejects nonprimitive input without
+coercion. The regular expression has no stateful flags.
+
+Keep the caller's existing per-string length check and per-walk encoder. Preserve
+descriptor inspection before value reads, prototypes, cycles, sparse/symbol or
+hidden fields, node/depth limits and cumulative byte accounting. Repeated data
+counts on every use. Do not cache validation by mutable caller identity or
+substitute compact preflight counts for the separate pretty-serialized document
+and combined source/catalog/state 20 MiB bounds.
+
+The original combined-budget test retains its 7,650,000 zero bytes, 4,096 states,
+all individual/combined byte assertions and the public five-second timeout.
+Its opaque source exercises storage and validation, not valid STEP geometry.
+Separate private phase timing or CPU sampling is diagnostic evidence, not a
+replacement for the unchanged public case or affected-platform acceptance.
+
 ## Assembly context release ordering — 2026-10-28
 
 The shared standard/configured assembly viewport uses `createCadContextGesture`

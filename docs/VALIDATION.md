@@ -1,5 +1,132 @@
 # Validation
 
+## Exact ASCII JSON byte cost — 2026-10-28
+
+The shared quoted-string byte counter avoids intermediate JSON strings and
+encoded buffers for unescaped ASCII only. Both v2 and configured preflights keep
+the same native JSON/TextEncoder path for controls, quote/backslash, Unicode and
+surrogates. Per-string/cumulative bytes, descriptors, prototypes, cycles,
+node/depth limits, repeated references and final pretty-JSON limits remain.
+No schema, geometry algorithm, STEP integrity check, dependency or CI change.
+
+The original test file remains unchanged before/after this correction:
+`assemblyConfigurationState.test.ts` (SHA-256
+`26d7ea7d2d067f7b9fd20a6e3bc42c5a73afde851c6c475e7ce4c7e78421d670`).
+Its source/catalog/states sizes are 20,502,207 / 9,667 / 936,642 bytes and its
+combined size is 21,555,483, against 20,971,520. All seven assertions, original
+zero-byte source, 4,096 states and five-second public timeout remain.
+
+Frozen Windows x64 Node 24.11.1 / Electron 44.9.3 uses **1,236 non-Markdown inputs**
+and nine outputs. Freeze SHA-256:
+`8dedfdd54a8ad009c4fd2bdbfb1c7d82084edf0001f484ae281889f24908b496`.
+WASM/main/preload are unchanged; the new worker is `kernel.worker-CjVPCkMw.js`,
+SHA-256 `dfb7862eff8c62259ffd83009f4a3588849ba3faaded505a3f6b53f3d88f29f8`.
+
+- Focused public Vitest paths for the helper, ordinary/configured documents and
+  configuration states: PASS, 278 cases in four files, command 3.204 s.
+- `npm run build`: PASS, 3.959 s.
+- `npm run test:desktop:assembly-symmetry-picking`: PASS twice, 270 checkpoints
+  each; original workflow 32.823/33.381 s (whole commands 33.553/34.105 s).
+- `npm run test:desktop:assembly-configured-components`: PASS, 288 checkpoints,
+  command 14.940 s.
+- `npm run test:desktop:assembly-basic-authoring`: PASS, 418 checkpoints,
+  command 42.151 s.
+- `npm run test:desktop:part-fresh-sketch`: PASS, 79 checkpoints, command 7.989 s.
+- `npm test`: PASS, 10,288 unit/CAD cases in 457 files, 200 IPC passes and two
+  explicit platform skips; command 317.030 s (Vitest 310.30 s).
+- `npm run test:desktop`: PASS, command 1.574 s; actual worker/WASM startup,
+  queue and the original prism's volume 24 mm³/bounds [0,0,0]..[2,3,4].
+
+The three additional renderer reports each have zero console/request errors,
+observed child closure and isolated-profile deletion; each independently checks
+eight production hashes. The separate startup report has zero console/request
+errors but does not expose those explicit cleanup flags. A fresh post-acceptance
+audit matches all 1,236 source/runtime input pairs and all nine products to the
+same freeze. Markdown evidence updates are outside that non-Markdown snapshot.
+
+The two candidate six-family runs match the exact checkpoint-string sequence of
+both original controls, keep 18 solids/three prototypes, 24 role picks, 43 worker
+replies and six Save As/reopen pairs, and pass unchanged native geometry/history
+oracles. Both have zero console/request errors, observed child closure and
+isolated-profile deletion, with eight independently checked production hashes.
+Original controls 41.848/41.898 s have mean 41.873 s; candidate mean 33.102 s is
+20.95% lower in this two-sample-per-variant, sequential same-host observation.
+This is elapsed workflow time, not isolated worker CPU or hosted improvement.
+
+A separate hypothesis-first phase experiment executes the exact original test
+callback and seven assertions through a private Node assertion adapter. One
+process per mode/host, all inputs pinned; timings below are milliseconds:
+
+| Local host/runtime | Original control | Candidate control | Original phased | Candidate phased |
+| --- | ---: | ---: | ---: | ---: |
+| Windows / Node 24.11.1 | 1513.190 | 1336.705 | 1518.608 | 1348.804 |
+| WSL Ubuntu / Node 20.20.2 | 2444.707 | 2039.918 | 2284.989 | 2049.784 |
+
+Every original assertion operand/result and byte count matches across all eight
+logical executions. `checkJsonData` still runs 4,166 times; its inclusive total
+falls 280.379→123.006 ms on Windows and 338.687→142.116 ms on WSL. The original
+4,096-state phase retains 4,161 guard calls. All six canonical decodes and seven
+SHA checks remain; their time is largely unchanged. Guard, decode, SHA and
+outer-phase totals overlap and must not be added. The original phased/control
+variation includes −6.53% on WSL; do not subtract an assumed observer overhead.
+This single-sample local comparison supports a measured contributing cost, not
+complete attribution of the hosted five-second timeout. The adapter is not a
+Vitest pass; WSL Node 20 is not the hosted Ubuntu/Node 24 environment. This state
+case does not execute the separate v3 preflight; its coverage is separate.
+
+The new helper's 25 public cases include 131,072 native-oracle comparisons across
+all individual UTF-16 units, original escape/Unicode/punctuation sequences,
+nonprimitive hook rejection and quoted sizes at 20 MiB ±1 byte. The private pre-change
+microbenchmark alternates native/candidate order across seven samples on the
+same original 468-string corpus and a 10,200,000-character ASCII source. Medians
+21.398→2.489 ms and 17.871→6.368 ms concern only that counting operation; they are
+not the full-workflow result or a portable performance guarantee.
+
+The independent actual pre-change CPU trace identifies the current worker by
+metadata/Profile owner and exact URL, with two clock markers agreeing within
+0.1044 ms. Measured overlapping covered thread CPU is worker 24.045 s, renderer
+27.049 s and browser 5.292 s; never add these to get elapsed time. Sampled leaf
+locations in the frozen renderer/worker match this repeated size calculation.
+Explicit loss/overwrite/profile-invalid counters are zero; informational clock
+cache misses and six tiny renderer timestamp inversions are retained. Samples
+are reordered using cumulative signed timestamps as DevTools does; no unknown
+final tail is invented. The earlier broad capture did not flush and remains an
+explicit failed diagnostic, despite its original workflow passing.
+
+REA analyzed the exact pre-change compiled worker (2fd508c…): one parsed JS file,
+zero parse errors, focused two-file inventory; semantic coverage remains partial
+at its 100,000-node ceiling. Evidence
+`ev_35258a03514d18a41f181e748297f1b589aa9fde7c2ca9ef62564b2e87a3ea1f`
+is retained separately from runtime CPU evidence. Prior retained worker evidence
+has a different digest and is not current evidence.
+
+The corrected worker's separate analysis is
+`ev_fb3cca7115d719b9fbcd9b868890a9f0c5e4ae8aa396374d55883e9a46c2d6cd`.
+The exact worker hash above and real package metadata form a two-file subset:
+one parsed JavaScript file, zero parse errors, 410,806 visited AST nodes.
+Application inventory is complete within that subset; semantic coverage is
+partial at the same 100,000-node ceiling, with 75,676 semantic unknowns. The
+oversized MCP response was recovered through its retained summary and a complete
+private session export, without repeating analysis. The export's zero ledger
+unknown records do not mean zero semantic unknowns. No semantic equivalence,
+full-application, external-runtime or human acceptance follows from this subset.
+
+Applied performance-optimization, code-simplifier, code-review and security-review,
+with independent read-only review, plus REA for compiled-artifact evidence. No
+high-confidence scoped vulnerability was found; no validation cache or security
+policy exclusion is introduced. These are not a full application security audit.
+
+Parent 8ce3e2e [CI](https://github.com/angelcp2802/solidflow/actions/runs/40650271889)
+finishes 14/15 jobs successfully. All renderer/configured jobs and Windows/macOS
+Desktop pass; Linux Desktop builds but its combined-budget case reaches 5,000 ms,
+with 10,262/10,263 cases passing and later IPC/smoke/package steps skipped.
+[Security](https://github.com/angelcp2802/solidflow/actions/runs/40650271926) passes.
+The timeout alone does not prove a bound bypass. The corrected revision still
+requires the original timed case and complete acceptance on that Linux runner.
+No deadline, fixture, gate or required command was changed or rerun to hide it.
+Checklist #55 remains 16/25 with nine open groups, PR #49 draft/unmerged and
+release #5 open; broader demo/human/platform and recurring stability stay open.
+
 ## Shared assembly context release — 2026-10-28
 
 The shared standard/configured viewport now defers pointer context selection and

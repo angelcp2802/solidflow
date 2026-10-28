@@ -5,6 +5,7 @@ export type { AssemblySourceLink } from './assemblySourceLink'
 import type { BodyReference, EdgeReference, FaceReference, Plane, VertexReference } from '../cad/kernel.types'
 import { validateVertexReference } from '../cad/kernel.vertex-references'
 import { validateDocument, type Document } from './document'
+import { jsonStringByteLength } from '../shared/jsonStringByteLength'
 import { validateNamedViews, type NamedView } from './namedViews'
 import { composeRigidPoses, identityRigidPose, validateRigidPose, type Quaternion, type RigidPose } from './rigidPose'
 import { validateAssemblyGearData, type AssemblyGearData } from './assemblyGear'
@@ -258,7 +259,7 @@ function checkJsonData(value: unknown): void {
   }
   const stringBytes = (value: string) => {
     if (value.length > MAX_ASSEMBLY_BYTES) fail('Ensamblaje', 'el documento supera los 20 MB admitidos')
-    return encoder.encode(JSON.stringify(value)).byteLength
+    return jsonStringByteLength(value, encoder)
   }
   while (stack.length) {
     const frame = stack.pop()!, current = frame.value
