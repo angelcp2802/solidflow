@@ -1,5 +1,21 @@
 # Development guide
 
+## Opening a saved direction from a parameter editor — 2026-10-28
+
+Do not use the broad `referenceEditing` display state as the entry guard for
+`beginDirectionEdit`. It includes the legacy cylinder-tangency parameter editor,
+which the established saved-direction action must be able to replace. Use the
+current shared-reference ticket owners to block an owned draft instead. Keep all
+operation, native preview, staging, document, scope, session, mounted and confirmed
+scene guards, then explicitly clear the replaced cylinder editor when beginning
+the directional ticket/draft.
+
+The existing complete cylinder-tangency route checks that this navigation does
+no CAD work, closes the directional edit, reopens/closes the cylinder edit and
+releases the family options. Preserve that cross-editor contract alongside the
+directional reference-replacement route; do not increase its deadline or replace
+the sequence with an extra Close action to mask a no-op button.
+
 ## Saved direction-reference editor identity — 2026-10-28
 
 Parallel/perpendicular editing participates in the standard workspace's shared

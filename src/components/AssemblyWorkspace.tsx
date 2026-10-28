@@ -1608,7 +1608,9 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     } catch (reason) { notify((reason as Error).message, true) }
   }
   const beginDirectionEdit = (mate: AssemblyUiDirectionMate) => {
-    if (operation.current || hasStaging() || currentPreview.current || draft || replaceDialog || rootRevision || referenceEditing
+    // Opening a saved direction replaces a legacy parameter editor. Retained
+    // reference drafts and active native previews still own their interaction.
+    if (operation.current || hasStaging() || currentPreview.current || draft || replaceDialog || rootRevision || savedReferenceEditIsActive()
       || !mounted.current || directionEditCurrent.current.session !== treeReset
       || serialized !== serializeAssemblyDocument(current.current) || JSON.stringify(scopePath) !== currentFileScope.current
       || sceneSignature.current !== serialized || confirmedScene.current?.signature !== serialized || confirmedScene.current?.scene !== scene) return

@@ -1,5 +1,27 @@
 # Project status and review queue
 
+## Saved-direction editor transfer correction — 2026-10-28
+
+The saved-direction entry guard now blocks active shared-reference tickets while
+preserving the established transition from the cylinder-tangency parameter
+editor. The preceding guard treated every visible editor as an owned reference
+draft, so a still-enabled saved-direction button returned without opening it.
+All current-document/scope/session/scene and operation/preview checks remain;
+the target action clears the replaced cylinder editor explicitly.
+
+The exact published production bundle reproduces the three hosted failures at
+`direction edit replaces CC editor`. With the corrected guard, the untouched
+complete skew/parallel cylinder route and directional reference-edit route pass
+locally. Final build, 10,300 unit/CAD cases in 458 files, 200 IPC passes/two
+platform skips and desktop startup also pass on the pinned snapshot. Hosted
+acceptance of this correction remains required; see [validation](VALIDATION.md).
+This correction adds no schema, geometric algorithm,
+worker, IPC, dependency, fixture, assertion or deadline change.
+
+Keep checklist #55 at 16/25 with nine groups open, PR #49 draft/unmerged and
+release #5 open. General cross-editor, complete-demo, human/installed-platform
+and recurring-stability acceptance remain separate work.
+
 ## Saved directional reference replacement — 2026-10-28
 
 Saved standard parallel/perpendicular relations now use the shared two-reference

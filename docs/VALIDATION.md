@@ -1,5 +1,81 @@
 # Validation
 
+## Cylinder-to-direction editor transfer — 2026-10-28
+
+The published directional-reference increment introduced an overly broad entry
+guard. `referenceEditing` includes the legacy cylinder-tangency parameter editor,
+so its enabled saved-direction action returned before replacing that editor.
+The corrected guard checks the live shared-reference ticket owners instead,
+retaining operation/staging/native-preview and exact document/scope/session/scene
+guards. Existing transition cleanup, reference-draft initialization and native
+verification remain. No saved schema, kernel, worker, IPC, dependency, test,
+fixture, tolerance, budget or public deadline changes.
+
+Head 0fb5819 [CI](https://github.com/angelcp2802/solidflow/actions/runs/40674543591)
+finishes with nine successful jobs and six failures: the same intact cylinder
+workflow fails in all three hosted relation
+jobs: Linux 122769491355 step84, macOS 122769491162 step85 and Windows
+122769491065 step85. Head-pinned annotations identify
+`Timed out waiting for direction edit replaces CC editor; last observation=false.`
+The expanded direction-only steps pass on all three. Full hosted logs were
+unavailable through the connectors; their native checkpoint and cleanup tails
+were not observed. This is an identified UI transition failure, not evidence of
+a geometric or worker deadline failure.
+The three Desktop jobs fail their renderer prerequisite and skip their later
+tests/IPC/startup/package steps. All eighteen head-pinned checks are terminal
+(twelve successful/six failed); Security passes. No run was retried or cancelled.
+
+A local negative control uses the exact published production products and all
+1,239 prior runtime input hashes. The unmodified complete cylinder route reaches
+297 checkpoints, including the first direction Apply and locked cylinder editor,
+then reproduces the same timeout after 45.333 s. Console/request errors are zero;
+the test child closes with exit1. No test, selector, fixture or assertion changes
+between that failure and the corrected candidate.
+
+Local Windows x64 Node 24.11.1 / Electron 44.9.3 candidate:
+
+- `npm run build`: PASS, 4.135 s.
+- `npm run test:desktop:assembly-cylinder-tangent`: PASS, 334 checkpoints,
+  11.131 s. Both original skew/parallel families remain complete.
+- `npm run test:desktop:assembly-direction`: PASS, 256 checkpoints, 14.980 s;
+  original 36 phases plus the 12-phase saved-reference continuation remain.
+- `npm run test:desktop:assembly-mate-reference-edit`: PASS, 276 checkpoints,
+  37.590 s.
+- `npm test`: PASS, 10,300 unit/CAD cases in 458 files, 200 IPC passes/two
+  explicit platform skips; command 326.569 s.
+- `npm run test:desktop`: PASS, 1.598 s; actual worker/WASM, queue and original
+  prism startup probe, zero console/request errors. Its report does not expose
+  the renderer workflows' explicit cleanup flags.
+
+The cylinder route retains 24/28 per-family phases, 7/9 Apply operations, two
+actual native cylinder-face pointer selections, external/internal branches,
+ordered roles, conflicts, suppression, history, four opens/two saves, saved
+reopening and fresh verification. Its unchanged cross-editor sequence requires
+cylinder-to-direction, direction-close-to-cylinder and cylinder-close-to-direction
+without CAD work. Original independent cylinder V=`138*pi` mm³/A=`134*pi` mm²,
+placed analytic bounds, fixed pose, support distances and angular targets remain.
+The free moving pose is not a unique-position oracle. Current reference tickets
+must still withhold competing editor entry; Apply remains independently guarded.
+
+The corrected application retains the same worker/WASM/main/preload/CSS/SVG and
+external stub. Only renderer JavaScript/HTML change. Source and runtime input
+hashes and the nine products are pinned throughout the final controller. The
+1,239-input manifest SHA-256 over JSON `{files, production}` is
+`76e02c7441ee883d7d702884445e642066f7ab58212a67f6522497d4b2a86507`.
+All three renderer reports independently match eight production hashes, have
+zero console/request errors and confirm child closure/isolated-profile deletion.
+Ordinary source
+review does not repeat the unchanged REA worker analysis or establish external
+application interaction parity.
+
+Applied frontend-design and vercel-react-best-practices for existing UI behavior,
+code-simplifier, code-review and security-review, with delegated read-only review.
+The guard correction has no actionable/high-confidence finding in that scope;
+this is not a full application audit. Hosted validation of the corrected revision
+remains required. The known failed parent is retained, with no rerun or weakened
+check used to conceal it. Checklist #55 remains 16/25 with nine open groups,
+PR #49 draft/unmerged and release #5 open.
+
 ## Saved standard directional reference editing — 2026-10-28
 
 Parallel/perpendicular editing now retains the exact saved declaration,
