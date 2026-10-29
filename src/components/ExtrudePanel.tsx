@@ -20,6 +20,7 @@ interface Props {
   existing?: boolean;
   thinWallRequired?: boolean;
   thinWallDisabled?: boolean;
+  autoCornersAvailable?: boolean;
   onChange: (patch: Partial<ExtrudeFeature>) => void;
   onTarget: (target: PlaneSupport) => void;
   onPickFace: () => void;
@@ -60,6 +61,7 @@ export default function ExtrudePanel({
   existing = false,
   thinWallRequired = false,
   thinWallDisabled = false,
+  autoCornersAvailable = false,
   onChange,
   onTarget,
   onPickFace,
@@ -232,6 +234,8 @@ export default function ExtrudePanel({
         </div>
       )}
       <ThinWallPanel thinWall={feature.thinWall} existing={existing} required={thinWallRequired} disabled={loading || thinWallDisabled}
+        autoCornersAvailable={feature.type === 'extrude' && autoCornersAvailable}
+        allowAutoCornerRecovery={feature.type === 'extrude'}
         onChange={thinWall => onChange({ thinWall })} />
     </>
   );

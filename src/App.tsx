@@ -124,7 +124,7 @@ import { createEdgeSelectionIndex, createFaceSelectionIndex } from "./cad/select
 import ExtrudePanel from "./components/ExtrudePanel";
 import RevolvePanel, { mergeRevolutionDraft } from "./components/RevolvePanel";
 import { thinWallInputError } from './components/ThinWallPanel';
-import { defaultThinWallDefinition, isThinWallOperation, mergeThinWallEditorDraft, thinWallRequiredByProfile, withRequiredThinWall } from './components/thinWallEditorDraft';
+import { defaultThinWallDefinition, isThinWallOperation, mergeThinWallEditorDraft, thinAutoCornersAvailableByProfile, thinWallRequiredByProfile, withRequiredThinWall } from './components/thinWallEditorDraft';
 import { revolutionAxisCandidates, type RevolutionAxisCandidate } from './components/revolutionAxisPicking';
 import HolePanel, { type HoleSection } from "./components/HolePanel";
 import HolePositionsCanvas from "./components/HolePositionsCanvas";
@@ -632,6 +632,8 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     && !sourceLoading && !sourceModel.featureErrors.length;
   const thinWallRequired = !!editing && isThinWallOperation(editing)
     && thinWallRequiredByProfile(editing.sketchId, sourceModel, thinWallSourceCurrent);
+  const thinAutoCornersAvailable = editing?.type === 'extrude'
+    && thinAutoCornersAvailableByProfile(editing.sketchId, sourceModel, thinWallSourceCurrent);
   useEffect(() => {
     if (!thinWallRequired || !editing || !isThinWallOperation(editing)
       || Object.hasOwn(editing, 'thinWall') || doc.features.some(feature => feature.id === editing.id)
@@ -3895,6 +3897,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                     <ExtrudePanel
                       feature={editing}
                       existing={doc.features.some(feature => feature.id === editing.id)}
+                      autoCornersAvailable={thinAutoCornersAvailable}
                       thinWallRequired={thinWallRequired}
                       thinWallDisabled={!thinWallSourceCurrent}
                       features={availableFeatures}

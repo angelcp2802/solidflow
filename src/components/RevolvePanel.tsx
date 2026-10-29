@@ -173,6 +173,7 @@ export default function RevolvePanel({ feature, sketch, sourceSketches, axisPick
     </section>}
     {angleError && <p id="revolution-angle-error" role="alert" className="revolve-axis-error revolve-angle-error">{angleError}</p>}
     <ThinWallPanel thinWall={feature.thinWall} existing={existing} required={thinWallRequired} disabled={!currentSketch || thinWallDisabled}
+      autoCornersAvailable={false}
       onChange={thinWall => onChange({ thinWall })} />
   </>
 }

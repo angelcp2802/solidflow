@@ -32,6 +32,7 @@ describe('accepted sketch display geometry', () => {
       { entityId: 'helper', start: [7, 0, 0], end: [7, 3, 4], construction: true },
     ]);
     expect(result.profileTopology).toBe('open');
+    expect(result.profileOpenOnly).toBe(true);
   });
 
   it.each([false, true])('discretizes the correct arc side with clockwise=%s', (clockwise) => {

@@ -66,7 +66,7 @@ function entityRecipePrismFactory(input: EntityRecipeProfileInput): {
       // Explicit frame already includes the sketch offset once. This builder
       // constructs contours/holes/regions from result.profile without solving.
       const prism = owners.own(entityProfileSolid(profile, view.input.plane, 0,
-        { type: 'extrude', depth: sign * length }, { ...frame, origin }));
+        { type: 'extrude', depth: sign * length }, { ...frame, origin }, !!thinWall?.definition.autoCorners?.enabled));
       input.validateTool(prism);
       input.assertWorkingCurrent();
       return prism;

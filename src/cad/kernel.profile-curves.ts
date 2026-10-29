@@ -91,7 +91,7 @@ export function profileCurveIntersections(first: Curve, second: Curve): Point2[]
 }
 
 /** Shared analytic validation for selected open paths and closed material contours. */
-export function makeProfileCurves(profile: EntityProfile): { curves: Curve[]; nodes: Point2[] } {
+export function makeProfileCurves(profile: EntityProfile, derivedArcs = false): { curves: Curve[]; nodes: Point2[] } {
   const points = new Map(profile.points.map((point) => [point.id, [point.x, point.y] as Point2]));
   points.set('origin', [0, 0]);
   const nodes: Point2[] = [];
@@ -117,7 +117,7 @@ export function makeProfileCurves(profile: EntityProfile): { curves: Curve[]; no
     if (ids[0] === ids[1]) throw new Error('Una línea o arco tiene extremos coincidentes. Usa un círculo para un contorno circular completo.');
     if (entity.type === 'line') return { id: entity.id, type: 'line', start, end, nodes: ids };
     const center = point(entity.center), radius = distance(center, start);
-    if (radius < .01 || Math.abs(radius - distance(center, end)) > JOIN_TOLERANCE * 2) {
+    if (radius < (derivedArcs ? JOIN_TOLERANCE : .01) || Math.abs(radius - distance(center, end)) > JOIN_TOLERANCE * 2) {
       throw new Error('El arco no tiene un radio válido y constante tras resolver el croquis.');
     }
     const angle = Math.atan2(start[1] - center[1], start[0] - center[0]);
@@ -138,21 +138,22 @@ export function makeProfileCurves(profile: EntityProfile): { curves: Curve[]; no
 }
 
 /** Classify resolved geometry, not nominal point IDs or an unsolved draft. */
-export function classifyThinWallProfile(profile: Profile): 'open' | 'closed' | 'invalid' {
+export function analyzeThinWallProfile(profile: Profile): { topology: 'open' | 'closed' | 'invalid'; openOnly: boolean } {
+  const invalid = { topology: 'invalid' as const, openOnly: false };
   if (profile.kind !== 'entities') {
     const dimensions = profile.kind === 'circle' ? [profile.radius] : [profile.width, profile.height];
     return [...profile.center, ...dimensions].every(Number.isFinite) && dimensions.every((value) => value > JOIN_TOLERANCE)
-      ? 'closed' : 'invalid';
+      ? { topology: 'closed', openOnly: false } : invalid;
   }
   if (profile.points.some((point) => !Number.isFinite(point.x) || !Number.isFinite(point.y))
-    || profile.entities.some((entity) => entity.type === 'circle' && (!Number.isFinite(entity.radius) || entity.radius <= JOIN_TOLERANCE))) return 'invalid';
+    || profile.entities.some((entity) => entity.type === 'circle' && (!Number.isFinite(entity.radius) || entity.radius <= JOIN_TOLERANCE))) return invalid;
   try {
     const { curves, nodes } = makeProfileCurves(profile);
-    if (new Set(curves.map((curve) => curve.id)).size !== curves.length) return 'invalid';
+    if (new Set(curves.map((curve) => curve.id)).size !== curves.length) return invalid;
     const adjacency = nodes.map(() => [] as number[]);
     curves.forEach((curve, index) => curve.nodes?.forEach((node) => adjacency[node].push(index)));
-    if (adjacency.some((edges) => edges.length > 2)) return 'invalid';
-    let open = false;
+    if (adjacency.some((edges) => edges.length > 2)) return invalid;
+    let open = false, closed = curves.some(curve => !curve.nodes);
     const seen = new Set<number>();
     for (let index = 0; index < curves.length; index++) {
       if (seen.has(index) || !curves[index].nodes) continue;
@@ -166,9 +167,14 @@ export function classifyThinWallProfile(profile: Profile): 'open' | 'closed' | '
         }
       }
       const endpoints = [...component].filter((node) => adjacency[node].length === 1).length;
-      if (endpoints !== 0 && endpoints !== 2) return 'invalid';
+      if (endpoints !== 0 && endpoints !== 2) return invalid;
       if (endpoints === 2) open = true;
+      else closed = true;
     }
-    return open ? 'open' : 'closed';
-  } catch { return 'invalid'; }
+    return { topology: open ? 'open' : 'closed', openOnly: open && !closed };
+  } catch { return invalid; }
+}
+
+export function classifyThinWallProfile(profile: Profile): 'open' | 'closed' | 'invalid' {
+  return analyzeThinWallProfile(profile).topology;
 }

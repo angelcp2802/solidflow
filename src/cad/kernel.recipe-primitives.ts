@@ -145,7 +145,7 @@ function explicitFramePrimitiveFactory(input: ExplicitFramePrimitiveInput): {
         // the explicit frame and axial start here, never the center twice.
         const origin = finitePoint(frame.origin.map((value, axis) => value + ray[axis] * start) as Vec3, 'Thin prism start origin');
         const result = owners.own(entityProfileSolid(section.profile, 'XY', 0,
-          { type: 'extrude', depth: sign * length }, { ...frame, origin }));
+          { type: 'extrude', depth: sign * length }, { ...frame, origin }, !!thinWall?.definition.autoCorners?.enabled));
         input.validateTool(result);
         return result;
       }

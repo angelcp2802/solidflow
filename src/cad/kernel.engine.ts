@@ -215,6 +215,7 @@ function featureSolid(feature: ExtrudeFeature | RevolutionFeature, sketchFeature
   // Keep the incoming plane/offset: geometric end conditions translate this
   // sketch along its normal while borrowing the same already-solved section.
   if (thinSection) sketchFeature = { ...sketchFeature, profile: thinSection.sketch.profile };
+  const derivedArcs = !!thinSection && !!feature.thinWall?.autoCorners?.enabled;
   const frame = sketchFeature.support ? resolvedFrame : undefined;
   if (isRevolutionFeature(feature)) {
     const extent = resolveRevolutionExtent(feature);
@@ -223,7 +224,7 @@ function featureSolid(feature: ExtrudeFeature | RevolutionFeature, sketchFeature
     const axis = resolvedAxis;
     if (profile.kind === 'entities') {
       return entityProfileSolid(profile, sketchFeature.plane, sketchFeature.offset,
-        { type: 'revolve', angle: extent.sweepAngle, axis, ...(extent.identity ? { startAngle: extent.startAngle } : {}) }, frame);
+        { type: 'revolve', angle: extent.sweepAngle, axis, ...(extent.identity ? { startAngle: extent.startAngle } : {}) }, frame, derivedArcs);
     }
     const halfWidth = profile.kind === 'rectangle'
       ? Math.abs(axis.radialDirection[0]) * profile.width / 2 + Math.abs(axis.radialDirection[1]) * profile.height / 2 : profile.radius;
@@ -258,7 +259,7 @@ function featureSolid(feature: ExtrudeFeature | RevolutionFeature, sketchFeature
   const startOffset = sketchFeature.offset - (feature.symmetric ? feature.depth / 2 : 0);
   const startFrame = frame ? offsetPlaneFrame(frame, feature.symmetric ? -feature.depth / 2 : 0) : undefined;
   if (sketchFeature.profile.kind === 'entities') {
-    return entityProfileSolid(sketchFeature.profile, sketchFeature.plane, startOffset, { type: 'extrude', depth: feature.depth }, startFrame);
+    return entityProfileSolid(sketchFeature.profile, sketchFeature.plane, startOffset, { type: 'extrude', depth: feature.depth }, startFrame, derivedArcs);
   }
   const sketch = makeSketch(sketchFeature, startOffset, startFrame);
   try {
@@ -1780,7 +1781,7 @@ export class CadEngine {
         validateSolid(tool);
         const structure: unknown[] = [feature.id, feature.type, feature.sketchId, sketchFeature.plane, sketchFeature.profile.kind,
           isRevolutionFeature(feature) ? [revolutionAxis!.legacy ? 'local-Y' : revolutionAxis!.identity, materialProfile.kind === 'entities'
-            ? entityRevolutionSide(materialProfile, revolutionAxis) : Math.sign(revolutionRadialCoordinate(materialProfile.center, revolutionAxis!)), revolutionExtent!.sweepAngle === 360]
+            ? entityRevolutionSide(materialProfile, revolutionAxis, !!thinWall?.definition.autoCorners?.enabled) : Math.sign(revolutionRadialCoordinate(materialProfile.center, revolutionAxis!)), revolutionExtent!.sweepAngle === 360]
             : [feature.symmetric, Math.sign(feature.depth)]];
         // Keep the legacy descriptor byte-identical for existing saved edge references.
         if (revolutionExtent?.identity) structure.push(revolutionExtent.identity);

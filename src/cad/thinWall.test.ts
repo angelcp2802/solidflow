@@ -10,6 +10,59 @@ const definitions: ThinWallDefinition[] = [
 ];
 
 describe('strict thin-wall declarations and abstract offsets', () => {
+  it.each(definitions)('detaches optional corner settings without changing wall offsets: %j', definition => {
+    for (const enabled of [false, true]) {
+      const autoCorners = { enabled, radius: .001 };
+      const source = { ...definition, autoCorners };
+      const captured = validateThinWallDefinition(source);
+      expect(captured).toEqual(source);
+      expect(captured.autoCorners).not.toBe(autoCorners);
+      autoCorners.radius = 7;
+      expect(captured.autoCorners?.radius).toBe(.001);
+      const resolved = resolveThinWall({ thinWall: captured })!;
+      expect([resolved.positive, resolved.negative]).toEqual([
+        resolveThinWall({ thinWall: definition })!.positive, resolveThinWall({ thinWall: definition })!.negative,
+      ]);
+    }
+  });
+
+  it.each([undefined, null, false, [], {}, { enabled: true }, { radius: 3 },
+    { enabled: 1, radius: 3 }, { enabled: true, radius: '3' }, { enabled: false, radius: 0 },
+    { enabled: true, radius: 1e-7 }, { enabled: true, radius: Infinity },
+    { enabled: true, radius: NaN }, { enabled: true, radius: 100_001 },
+    { enabled: true, radius: 3, extra: 1 },
+  ])('rejects malformed corner options, including explicit undefined: %j', autoCorners => {
+    expect(() => validateThinWallDefinition({ ...definitions[0], autoCorners })).toThrow();
+  });
+
+  it('never invokes corner accessors, inherited fields, hidden data or symbols', () => {
+    const hook = vi.fn(() => 3);
+    for (const key of ['enabled', 'radius']) {
+      const autoCorners = { enabled: true, radius: 3 };
+      Object.defineProperty(autoCorners, key, { enumerable: true, get: hook });
+      expect(() => validateThinWallDefinition({ ...definitions[0], autoCorners })).toThrow();
+    }
+    const source = { ...definitions[0] };
+    Object.defineProperty(source, 'autoCorners', { enumerable: true, get: hook });
+    expect(() => validateThinWallDefinition(source)).toThrow();
+    for (const autoCorners of [Object.assign(Object.create({}), { enabled: true, radius: 3 }),
+      Object.defineProperty({ enabled: true, radius: 3 }, 'extra', { value: 1 }),
+      { enabled: true, radius: 3, [Symbol('extra')]: 1 }]) {
+      expect(() => validateThinWallDefinition({ ...definitions[0], autoCorners })).toThrow();
+    }
+    expect(hook).not.toHaveBeenCalled();
+  });
+
+  it('keeps absent identities exact and identifies activation without using a continuous radius', () => {
+    const identity = (autoCorners?: { enabled: boolean; radius: number }) => resolveThinWall({
+      thinWall: { ...definitions[0], ...(autoCorners ? { autoCorners } : {}) },
+    })!.identity;
+    expect(identity()).toEqual(['thin-wall-v1', 'one-side', false]);
+    expect(identity({ enabled: true, radius: 3 })).toEqual(identity({ enabled: true, radius: .001 }));
+    expect(identity({ enabled: true, radius: 3 })).not.toEqual(identity({ enabled: false, radius: 3 }));
+    expect(identity({ enabled: false, radius: 3 })).not.toEqual(identity());
+  });
+
   it.each(definitions)('captures detached data for %j', definition => {
     const captured = validateThinWallDefinition(definition);
     expect(captured).toEqual(definition);

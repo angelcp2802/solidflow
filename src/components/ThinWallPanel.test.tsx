@@ -190,3 +190,199 @@ describe('explicit thin-wall mode transitions', () => {
     expect(thinWallModeChange(invalid, 'two-sides')).toEqual({ kind: 'two-sides', firstThickness: -2, secondThickness: 10 })
   })
 })
+
+describe('automatic corner controls from explicit solved eligibility', () => {
+  const AUTO = 'Redondeo automático de esquinas', RADIUS = 'Radio del redondeo automático'
+
+  it('offers no corner option from required/closed assumptions or a retained declaration alone', () => {
+    const rounded: ThinWallDefinition = { ...one, autoCorners: { enabled: true, radius: 3 } }
+    for (const required of [false, true]) {
+      const html = renderToStaticMarkup(ThinWallPanel({ thinWall: rounded, required, onChange: () => undefined }))
+      expect(html).not.toContain(`aria-label="${AUTO}"`)
+      expect(html).not.toContain(`aria-label="${RADIUS}"`)
+    }
+    expect(ThinWallPanel({ existing: true, autoCornersAvailable: true, onChange: () => undefined })).toBeNull()
+  })
+
+  it('does not materialize a default option during render and initializes only an explicit enable at 5 mm', () => {
+    const before = structuredClone(one), onChange = vi.fn()
+    const tree = ThinWallPanel({ thinWall: one, autoCornersAvailable: true, required: true, onChange })
+    expect(control(tree, AUTO).props.disabled).toBe(false)
+    expect(renderToStaticMarkup(tree)).not.toContain(`aria-label="${RADIUS}"`)
+    expect(onChange).not.toHaveBeenCalled()
+    change(tree, AUTO, '', true)
+    expect(onChange).toHaveBeenCalledExactlyOnceWith({ ...one, autoCorners: { enabled: true, radius: 5 } })
+    expect(one).toEqual(before)
+  })
+
+  it('remembers a disabled radius and re-enables it without changing wall dimensions or side', () => {
+    const remembered: ThinWallDefinition = { ...one, autoCorners: { enabled: false, radius: 2.75 } }
+    const before = structuredClone(remembered), onChange = vi.fn()
+    const tree = ThinWallPanel({ thinWall: remembered, autoCornersAvailable: true, existing: true, onChange })
+    expect(control(tree, 'Operación lámina').props.disabled).toBe(true)
+    expect(renderToStaticMarkup(tree)).toContain('class="number-field thin-wall-inactive-radius"')
+    expect(control(tree, RADIUS).props.disabled).toBe(false)
+    change(tree, AUTO, '', true)
+    expect(onChange).toHaveBeenCalledWith({ ...remembered, autoCorners: { enabled: true, radius: 2.75 } })
+    const enabled = onChange.mock.calls[0][0] as ThinWallDefinition
+    const enabledTree = ThinWallPanel({ thinWall: enabled, autoCornersAvailable: true, existing: true, onChange })
+    change(enabledTree, AUTO, '', false)
+    expect(onChange).toHaveBeenLastCalledWith(remembered)
+    expect(remembered).toEqual(before)
+  })
+
+  it.each([one, mid, two])('edits radius independently in the $kind wall', mode => {
+    const rounded: ThinWallDefinition = { ...mode, autoCorners: { enabled: true, radius: 3 } }
+    const before = structuredClone(rounded), onChange = vi.fn()
+    const tree = ThinWallPanel({ thinWall: rounded, autoCornersAvailable: true, onChange })
+    expect(renderToStaticMarkup(tree)).toContain(`aria-label="${RADIUS}"`)
+    change(tree, RADIUS, '1.25')
+    expect(onChange).toHaveBeenCalledWith({ ...rounded, autoCorners: { enabled: true, radius: 1.25 } })
+    expect(rounded).toEqual(before)
+  })
+
+  it.each(['', '-2', 'NaN'])('retains a rejected radius draft %s so it can be corrected', value => {
+    const rounded: ThinWallDefinition = { ...one, autoCorners: { enabled: true, radius: 3 } }
+    const onChange = vi.fn(), tree = ThinWallPanel({ thinWall: rounded, autoCornersAvailable: true, onChange })
+    change(tree, RADIUS, value)
+    const next = onChange.mock.calls[0][0] as ThinWallDefinition
+    expect(next.autoCorners?.radius).toBe(value === '' ? 0 : Number(value))
+    expect(thinWallInputError(next)).not.toBeNull()
+    const html = renderToStaticMarkup(ThinWallPanel({ thinWall: next, autoCornersAvailable: true, onChange }))
+    expect(html).toContain('role="alert"')
+    expect(html).toContain('aria-invalid="true"')
+    expect(html).toContain('aria-describedby="thin-wall-error"')
+    expect(rounded.autoCorners?.radius).toBe(3)
+  })
+
+  it('preserves corner configuration through thickness and one-sided reversal', () => {
+    const rounded: ThinWallDefinition = { ...one, autoCorners: { enabled: true, radius: 3 } }
+    const onChange = vi.fn(), tree = ThinWallPanel({ thinWall: rounded, autoCornersAvailable: true, onChange })
+    change(tree, 'Espesor de pared', '4')
+    expect(onChange).toHaveBeenLastCalledWith({ ...rounded, thickness: 4 })
+    control(tree, 'Invertir lado de pared').props.onClick?.()
+    expect(onChange).toHaveBeenLastCalledWith({ ...rounded, reversed: false })
+  })
+
+  it('keeps an invalid remembered radius visible as an error and recoverable after off/on', () => {
+    const rounded: ThinWallDefinition = { ...one, autoCorners: { enabled: true, radius: 3 } }
+    const onChange = vi.fn()
+    change(ThinWallPanel({ thinWall: rounded, autoCornersAvailable: true, onChange }), RADIUS, '')
+    const invalid = onChange.mock.calls[0][0] as ThinWallDefinition
+    change(ThinWallPanel({ thinWall: invalid, autoCornersAvailable: true, onChange }), AUTO, '', false)
+    const off = onChange.mock.calls[1][0] as ThinWallDefinition
+    expect(off.autoCorners).toEqual({ enabled: false, radius: 0 })
+    expect(thinWallInputError(off)).not.toBeNull()
+    const offTree = ThinWallPanel({ thinWall: off, autoCornersAvailable: true, onChange })
+    expect(renderToStaticMarkup(offTree)).toContain('role="alert"')
+    expect(control(offTree, AUTO).props.disabled).toBe(false)
+    change(offTree, AUTO, '', true)
+    const retry = onChange.mock.calls[2][0] as ThinWallDefinition
+    expect(retry.autoCorners).toEqual({ enabled: true, radius: 0 })
+    change(ThinWallPanel({ thinWall: retry, autoCornersAvailable: true, onChange }), RADIUS, '2')
+    const corrected = onChange.mock.calls[3][0] as ThinWallDefinition
+    expect(corrected).toEqual({ ...one, autoCorners: { enabled: true, radius: 2 } })
+    expect(thinWallInputError(corrected)).toBeNull()
+    expect(rounded.autoCorners?.radius).toBe(3)
+  })
+
+  it('guards both corner callbacks while the shared panel is disabled', () => {
+    const rounded: ThinWallDefinition = { ...one, autoCorners: { enabled: true, radius: 3 } }
+    const onChange = vi.fn(), tree = ThinWallPanel({ thinWall: rounded, disabled: true, autoCornersAvailable: true, onChange })
+    expect(control(tree, AUTO).props.disabled).toBe(true)
+    expect(control(tree, RADIUS).props.disabled).toBe(true)
+    change(tree, AUTO, '', false); change(tree, RADIUS, '1')
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it.each([true, false])('preserves detached known options through every mode transition with enabled=%s', enabled => {
+    const rounded: ThinWallDefinition = { kind: 'one-side', thickness: 2, reversed: true, autoCorners: { enabled, radius: 3 } }
+    const before = structuredClone(rounded)
+    Object.freeze(rounded.autoCorners); Object.freeze(rounded)
+    const midpoint = thinWallModeChange(rounded, 'mid-plane')!
+    const twoSides = thinWallModeChange(midpoint, 'two-sides')!
+    const oneSide = thinWallModeChange(twoSides, 'one-side')!
+    expect(midpoint).toEqual({ kind: 'mid-plane', thickness: 2, autoCorners: { enabled, radius: 3 } })
+    expect(twoSides).toEqual({ kind: 'two-sides', firstThickness: 2, secondThickness: 10, autoCorners: { enabled, radius: 3 } })
+    expect(oneSide).toEqual({ kind: 'one-side', thickness: 2, reversed: false, autoCorners: { enabled, radius: 3 } })
+    expect(midpoint.autoCorners).not.toBe(rounded.autoCorners)
+    expect(twoSides.autoCorners).not.toBe(midpoint.autoCorners)
+    expect(oneSide.autoCorners).not.toBe(twoSides.autoCorners)
+    expect(rounded).toEqual(before)
+  })
+
+  it('allows an ineligible retained option to be disabled without offering a new activation', () => {
+    const rounded: ThinWallDefinition = { ...one, autoCorners: { enabled: true, radius: 3 } }
+    const before = structuredClone(rounded), onChange = vi.fn()
+    const tree = ThinWallPanel({ thinWall: rounded, existing: true, autoCornersAvailable: false,
+      allowAutoCornerRecovery: true, onChange })
+    expect(control(tree, AUTO).props.disabled).toBe(false)
+    change(tree, AUTO, '', true)
+    expect(onChange).not.toHaveBeenCalled()
+    change(tree, AUTO, '', false)
+    expect(onChange).toHaveBeenCalledWith({ ...rounded, autoCorners: { enabled: false, radius: 3 } })
+    const off = onChange.mock.calls[0][0] as ThinWallDefinition
+    const offTree = ThinWallPanel({ thinWall: off, autoCornersAvailable: false, allowAutoCornerRecovery: true, onChange })
+    expect(control(offTree, AUTO).props.disabled).toBe(true)
+    expect(renderToStaticMarkup(offTree)).toContain('class="number-field thin-wall-inactive-radius"')
+    expect(control(offTree, RADIUS).props.disabled).toBe(false)
+    change(offTree, AUTO, '', true)
+    expect(onChange).toHaveBeenCalledOnce()
+    expect(rounded).toEqual(before)
+  })
+
+  it.each([0, -1, NaN, Infinity, 100_001])('corrects remembered invalid radius %s while off and ineligible without reactivation', radius => {
+    const invalid: ThinWallDefinition = { ...one, autoCorners: { enabled: false, radius } }
+    const before = structuredClone(invalid), onChange = vi.fn()
+    const tree = ThinWallPanel({ thinWall: invalid, autoCornersAvailable: false, allowAutoCornerRecovery: true, onChange })
+    expect(control(tree, AUTO).props.disabled).toBe(true)
+    expect(control(tree, RADIUS).props.disabled).toBe(false)
+    expect(renderToStaticMarkup(tree)).toContain('role="alert"')
+    expect(renderToStaticMarkup(tree)).not.toContain('thin-wall-inactive-radius')
+    expect(thinWallInputError(invalid)).not.toBeNull()
+    change(tree, RADIUS, '2.5')
+    const corrected = onChange.mock.calls[0][0] as ThinWallDefinition
+    expect(corrected).toEqual({ ...one, autoCorners: { enabled: false, radius: 2.5 } })
+    expect(thinWallInputError(corrected)).toBeNull()
+    expect(invalid).toEqual(before)
+  })
+
+  it('keeps an off radius mounted across the first valid digit and a complete decimal correction', () => {
+    const invalid: ThinWallDefinition = { ...one, autoCorners: { enabled: false, radius: 0 } }
+    const before = structuredClone(invalid), onChange = vi.fn()
+    let draft: ThinWallDefinition = invalid
+    for (const value of ['2', '2.5']) {
+      const tree = ThinWallPanel({ thinWall: draft, autoCornersAvailable: false, allowAutoCornerRecovery: true, onChange })
+      change(tree, RADIUS, value)
+      draft = onChange.mock.lastCall![0] as ThinWallDefinition
+      const nextTree = ThinWallPanel({ thinWall: draft, autoCornersAvailable: false, allowAutoCornerRecovery: true, onChange })
+      expect(control(nextTree, RADIUS).props.disabled).toBe(false)
+      expect(control(nextTree, RADIUS).props).not.toHaveProperty('aria-hidden')
+      const html = renderToStaticMarkup(nextTree)
+      const label = html.match(/<label[^>]*for="thin-wall-auto-corner-radius"[^>]*>/)?.[0]
+      expect(label).toContain('thin-wall-inactive-radius')
+      expect(label).not.toContain('aria-hidden')
+      expect(label).not.toContain(' hidden')
+      expect(draft.autoCorners).toEqual({ enabled: false, radius: Number(value) })
+      expect(thinWallInputError(draft)).toBeNull()
+    }
+    expect(invalid).toEqual(before)
+  })
+
+  it('does not offer recovery on a new ineligible wall without a retained corner declaration', () => {
+    const onChange = vi.fn()
+    const tree = ThinWallPanel({ thinWall: one, autoCornersAvailable: false, allowAutoCornerRecovery: true, onChange })
+    expect(renderToStaticMarkup(tree)).not.toContain(`aria-label="${AUTO}"`)
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('keeps stale-prefix recovery controls disabled, including retained off invalid radius', () => {
+    const invalid: ThinWallDefinition = { ...one, autoCorners: { enabled: false, radius: 0 } }
+    const onChange = vi.fn(), tree = ThinWallPanel({ thinWall: invalid, autoCornersAvailable: false,
+      allowAutoCornerRecovery: true, disabled: true, onChange })
+    expect(control(tree, AUTO).props.disabled).toBe(true)
+    expect(control(tree, RADIUS).props.disabled).toBe(true)
+    change(tree, AUTO, '', false); change(tree, AUTO, '', true); change(tree, RADIUS, '2')
+    expect(onChange).not.toHaveBeenCalled()
+  })
+})

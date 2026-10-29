@@ -1,5 +1,29 @@
 # Development guide
 
+## Automatic thin-wall corners — 2026-10-29
+
+The optional `thinWall.autoCorners` record stores only enabled/radius data;
+validate its own descriptors before reading nested values. Absence must preserve
+legacy declaration and topology descriptors. Radius means the inner material
+radius. Plan all analytic corner contacts on the original solved source and
+check the remaining interval of every shared LINE/ARC before returning a
+temporary rounded chain. Do not invoke a sketch edit, allocate constraints or
+run another solve. The shared wall builder offsets this common chain for both
+sides and retains existing crossings, reentry, ownership and native checks.
+
+Keep small-radius admission internal to derived profiles; ordinary source ARC
+validation retains its existing defaults. `profileOpenOnly` is a solved display
+witness, not document authority. Only a unique current successful eligible source
+permits new activation. Retained extrusion settings must remain recoverable after
+source closure: allow disabling and correction of an invalid inactive radius,
+preserve focus through decimal entry, and keep the global stale-prefix lock.
+Cut/revolution menu coverage, closed/mixed
+profiles, axial caps and offset repair remain separate work. The new original
+renderer command is `npm run test:desktop:part-auto-corners`; keep the complete
+existing thin-wall, external-axis and revolution routes. See the
+[contract](THIN_WALL_OPERATIONS.md), [fixtures](PROVENANCE.md#original-automatic-corner-fixtures--2026-10-29)
+and [executed validation](VALIDATION.md).
+
 ## Planar thin-wall integration — 2026-10-28
 
 The [thin-wall contract](THIN_WALL_OPERATIONS.md) defines the strict optional
@@ -17,7 +41,7 @@ is current. Editor clearing removes the optional field; invalid temporary values
 stay editable and block Apply. Preserve exact body ownership and legacy absence.
 The [original fixtures](PROVENANCE.md#original-planar-thin-wall-fixtures--2026-10-28)
 and [validation](VALIDATION.md) separate mathematical/native tests, rendered
-interaction and platform acceptance. Axial caps, automatic corner fillets and
+interaction and platform acceptance. Axial caps, broader automatic-corner UI and
 offset clipping/repair remain open; straight section end segments are not axial
 caps. This increment does not close the full prototype thin-feature group.
 

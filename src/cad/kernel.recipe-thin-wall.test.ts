@@ -112,6 +112,36 @@ const transforms = [
   { kind: 'circularPattern', transform: { key: '1', angle: 180, origin: [15, 0, 0], direction: [0, 0, 1] }, min: [20, -10, 0], max: [30, 0, 8], center: [25, -5] },
   { kind: 'mirror', transform: { key: 'mirror', mirror: { origin: [15, 0, 0], xDirection: [0, 1, 0], normal: [1, 0, 0] } }, min: [20, 0, 0], max: [30, 10, 8], center: [25, 5] },
 ] as const;
+
+it.each([
+  { kind: 'linearPattern', transform: { key: '1,0', translation: [20, 0, 0] }, ownerMin: [20, -10, 0], ownerMax: [40, 10, 8],
+    min: [25, -1, 0], max: [33, 5, 4] },
+  { kind: 'circularPattern', transform: { key: '1', angle: 180, origin: [15, 0, 0], direction: [0, 0, 1] },
+    ownerMin: [10, -10, 0], ownerMax: [30, 10, 8], min: [17, -5, 0], max: [25, 1, 4] },
+  { kind: 'mirror', transform: { key: 'mirror', mirror: { origin: [15, 0, 0], xDirection: [0, 1, 0], normal: [1, 0, 0] } },
+    ownerMin: [10, -10, 0], ownerMax: [30, 10, 8], min: [17, -1, 0], max: [25, 5, 4] },
+] as const)('regenerates an authentic rounded L through $kind without changing the source owner', row => withNativeOwners(owners => {
+  // Original LINEs(5,0)->(12,0)->(12,5), wall1 to the right, inner radius1.
+  // Smoothed spine length10+pi/2, section area10+3pi/4 and perimeter22+3pi/2.
+  const profile: SketchFeature['profile'] = { kind: 'entities', points: [
+    { id: 'a', x: 5, y: 0 }, { id: 'b', x: 12, y: 0 }, { id: 'c', x: 12, y: 5 },
+  ], entities: [{ id: 'horizontal', type: 'line', start: 'a', end: 'b', construction: false },
+    { id: 'vertical', type: 'line', start: 'b', end: 'c', construction: false }], constraints: [] };
+  const setup = declarations(profile, { kind: 'one-side', thickness: 1, reversed: false, autoCorners: { enabled: true, radius: 1 } },
+    structuredClone(row.transform) as RecipeInstanceTransform, row.kind, [...row.ownerMin], [...row.ownerMax]);
+  const before = JSON.stringify(setup), solve = entitySource(setup.features, owners);
+  const owner = owners.own(makeBox([...row.ownerMin], [...row.ownerMax]));
+  const built = buildRecipeInstanceTool({ closure: extractRecipeClosure(setup.features, setup.request), featureId: 'effect',
+    address: row.transform.key, targetBodyId: target.bodyId, workingTarget: owner, entitySource: solve,
+    assertWorkingCurrent: () => solve.registry.assertCheckpoint(solve.checkpoint, setup.features), validateTool: validateBodyShape });
+  owners.own(built.tool);
+  metrics(built.tool, 40 + 3 * Math.PI, 108 + 7.5 * Math.PI, [...row.min], [...row.max]);
+  const cut = owners.own(bodyBoolean('subtract', owner, built.tool));
+  metrics(cut, 3160 - 3 * Math.PI, 1528 + 6 * Math.PI, [...row.ownerMin], [...row.ownerMax]);
+  metrics(owner, 3200, 1440, [...row.ownerMin], [...row.ownerMax]);
+  expect(JSON.stringify(setup)).toBe(before);
+}), 60_000);
+
 it.each(transforms)('regenerates an annular blind pocket on the current owner for $kind', row => withNativeOwners(owners => {
   const setup = declarations({ kind: 'circle', center: [5, 5], radius: 1 }, { kind: 'one-side', thickness: 1, reversed: false },
     structuredClone(row.transform) as RecipeInstanceTransform, row.kind, [...row.min], [...row.max]);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Feature, SketchVisual, ThinWallDefinition } from '../cad/kernel.types'
-import { defaultThinWallDefinition, isThinWallOperation, mergeThinWallEditorDraft, thinWallRequiredByProfile, withRequiredThinWall, type ThinWallOperation } from './thinWallEditorDraft'
+import { defaultThinWallDefinition, isThinWallOperation, mergeThinWallEditorDraft, thinAutoCornersAvailableByProfile, thinWallRequiredByProfile, withRequiredThinWall, type ThinWallOperation } from './thinWallEditorDraft'
 
 // Original declaration-only operations. No topology or native solve is fabricated by these tests.
 const target = { bodyId: 'original-body', sourceFeatureId: 'original-state' }
@@ -63,6 +63,21 @@ describe('thin-wall editor draft isolation', () => {
 })
 
 describe('automatic walls from current native sketch topology', () => {
+  it('offers rounding only for a unique current explicitly all-open source witness', () => {
+    const openOnly = { ...witness('open'), profileOpenOnly: true as const }
+    const model = { sketches: [openOnly], featureErrors: [] }
+    expect(thinAutoCornersAvailableByProfile('profile', model, true)).toBe(true)
+    for (const sketch of [witness('open'), witness('closed'), witness('invalid'), witness(),
+      { ...witness('closed'), profileOpenOnly: true as const }]) {
+      expect(thinAutoCornersAvailableByProfile('profile', { ...model, sketches: [sketch] }, true)).toBe(false)
+    }
+    expect(thinAutoCornersAvailableByProfile('profile', model, false)).toBe(false)
+    expect(thinAutoCornersAvailableByProfile('other', model, true)).toBe(false)
+    expect(thinAutoCornersAvailableByProfile('profile', { ...model, sketches: [openOnly, openOnly] }, true)).toBe(false)
+    expect(thinAutoCornersAvailableByProfile('profile', { ...model, featureErrors: [{ id: 'failed', message: 'Original failure' }] }, true)).toBe(false)
+    expect(thinAutoCornersAvailableByProfile('profile', null, true)).toBe(false)
+  })
+
   it('requires one current successful open-profile witness, rather than nominal coordinates or anonymous segments', () => {
     expect(thinWallRequiredByProfile('profile', { sketches: [witness('open')], featureErrors: [] }, true)).toBe(true)
     for (const topology of ['closed', 'invalid', undefined] as const)

@@ -1,5 +1,32 @@
 # Project status and review queue
 
+## Automatic inner-radius thin-wall corners — 2026-10-29
+
+The optional strict corner setting rounds temporary exclusively open LINE/ARC
+chains before both wall offsets, retaining the solved source and legacy absence.
+The shared material path handles the four solid operations and supported
+extrude/cut regeneration. The blue extrusion editor offers current eligible
+activation, retains the radius across wall modes and OFF/ON, and permits recovery
+after source closure without bypassing the stale-prefix guard. Correcting an
+invalid inactive radius keeps the same focused field through decimal entry.
+
+Final local Windows acceptance passes build, **10,719 unit/CAD cases in 474 files**,
+**200 IPC passes/two platform skips**, desktop startup, the new
+**130-checkpoint/24-native-phase** corner route and the complete existing thin-wall,
+external-axis and revolution/cut/STEP routes. Seven commands share 1,274 pinned
+inputs and nine products; see [validation](VALIDATION.md) and
+[original fixtures](PROVENANCE.md#original-automatic-corner-fixtures--2026-10-29).
+The new route has been added to the existing three-platform persistence jobs;
+its new-head hosted execution remains pending. The prior published thin-wall
+head c00a1a3 has a complete green CI/Security matrix.
+
+Keep #55 at **16/25**, #53 at **6/9**, PR #49 draft/unmerged and release #5 open.
+Axial caps, closed/mixed automatic-corner eligibility, offset clipping/split repair,
+broader cut/revolution controls and specialized editors/picking, complete
+demo/human use, materials/appearance, installed platforms and recurring
+stability remain open. This bounded increment does not close the full
+thin-feature group or establish complete interaction parity.
+
 ## Planar thin walls in successive part operations — 2026-10-29
 
 Extrusion, cut, revolution and revolved cut share a strict optional wall
@@ -23,8 +50,12 @@ the [contract](THIN_WALL_OPERATIONS.md) and [provenance](PROVENANCE.md).
 
 The independently reviewed workflow-only follow-up adds this route to existing
 persistence jobs on Linux, Windows and macOS without changing privileges,
-dependencies or deadlines. Current-increment hosted acceptance remains required;
-parent `bf4d9e4` completes all fifteen CI jobs and Security. Keep checklist #55 at
+dependencies or deadlines. Published head `c00a1a3` completes all fifteen
+[CI jobs](https://github.com/angelcp2802/solidflow/actions/runs/40791425721)
+and both [Security jobs](https://github.com/angelcp2802/solidflow/actions/runs/40791425720)
+successfully. The thin-wall route passes in each of the Linux, Windows and macOS
+persistence jobs. This complete hosted matrix does not establish recurring
+stability or installed-platform/human acceptance. Keep checklist #55 at
 **16/25** with nine groups open, #53 at **6/9**, PR #49 draft/unmerged and release
 #5 open. Axial caps, automatic corner fillets, offset clipping/split repair,
 remaining editors/picking, complete demo/human use, installed platforms and

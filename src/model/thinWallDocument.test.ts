@@ -40,6 +40,32 @@ function wall(document: Document): WallOperation {
 }
 
 describe('thin-wall document compatibility', () => {
+  it.each(operations)('round-trips and histories detached corner settings on %s', type => {
+    const initial = fixture(type), history = new DocumentHistory(initial);
+    const thinWall: ThinWallDefinition = { ...definitions[0], autoCorners: { enabled: true, radius: .001 } };
+    history.apply(updateFeature(history.current, 'wall', { thinWall }));
+    const saved = parseDocument(serializeDocument(history.current));
+    expect(wall(saved).thinWall).toEqual(thinWall);
+    expect(wall(saved).thinWall?.autoCorners).not.toBe(thinWall.autoCorners);
+    expect(saved.features[0]).toEqual(initial.features[0]);
+    history.apply(updateFeature(saved, 'wall', { thinWall: { ...thinWall, autoCorners: { enabled: false, radius: .001 } } }));
+    expect(wall(history.undo()).thinWall?.autoCorners).toEqual({ enabled: true, radius: .001 });
+    expect(wall(history.redo()).thinWall?.autoCorners).toEqual({ enabled: false, radius: .001 });
+    expect(wall(parseDocument(serializeDocument(history.current))).thinWall?.autoCorners).toEqual({ enabled: false, radius: .001 });
+  });
+
+  it.each(operations)('rejects executable or invalid saved corner settings on %s', type => {
+    const hook = vi.fn(() => 3);
+    const autoCorners = { enabled: true, radius: 3 };
+    Object.defineProperty(autoCorners, 'radius', { get: hook, enumerable: true });
+    for (const option of [autoCorners, undefined, { enabled: true, radius: '3' }, { enabled: false, radius: NaN }]) {
+      const original = fixture(type);
+      Object.assign(wall(original), { thinWall: { ...definitions[0], autoCorners: option } });
+      expect(() => validateDocument(original)).toThrow();
+    }
+    expect(hook).not.toHaveBeenCalled();
+  });
+
   it.each(operations)('preserves exact absent legacy bytes for %s, including open sketches', type => {
     const original = fixture(type), bytes = JSON.stringify(original, null, 2);
     expect(serializeDocument(validateDocument(original))).toBe(bytes);

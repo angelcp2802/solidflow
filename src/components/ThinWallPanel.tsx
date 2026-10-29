@@ -1,16 +1,19 @@
 import { ChevronDown, ArrowLeftRight } from 'lucide-react'
 import type { ThinWallDefinition } from '../cad/kernel.types'
-import { validateThinWallDefinition } from '../cad/thinWall'
+import { MAX_THIN_WALL_THICKNESS, MIN_THIN_WALL_THICKNESS, validateThinWallDefinition } from '../cad/thinWall'
 import { DEFAULT_WALL_THICKNESS, defaultThinWallDefinition } from './thinWallEditorDraft'
 import './thin-wall-panel.css'
+
+const DEFAULT_AUTO_CORNER_RADIUS = 5
 
 /** Mode changes retain the first displayed thickness; a new second side starts at 10 mm. */
 export function thinWallModeChange(wall: ThinWallDefinition, kind: string): ThinWallDefinition | null {
   if (kind === wall.kind) return wall
   const thickness = wall.kind === 'two-sides' ? wall.firstThickness : wall.thickness
-  if (kind === 'one-side') return { kind, thickness, reversed: false }
-  if (kind === 'mid-plane') return { kind, thickness }
-  if (kind === 'two-sides') return { kind, firstThickness: thickness, secondThickness: DEFAULT_WALL_THICKNESS }
+  const common = wall.autoCorners ? { autoCorners: { ...wall.autoCorners } } : {}
+  if (kind === 'one-side') return { kind, thickness, reversed: false, ...common }
+  if (kind === 'mid-plane') return { kind, thickness, ...common }
+  if (kind === 'two-sides') return { kind, firstThickness: thickness, secondThickness: DEFAULT_WALL_THICKNESS, ...common }
   return null
 }
 
@@ -27,13 +30,21 @@ interface Props {
   existing?: boolean
   required?: boolean
   disabled?: boolean
+  autoCornersAvailable?: boolean
+  allowAutoCornerRecovery?: boolean
 }
 
-export default function ThinWallPanel({ thinWall, onChange, existing = false, required = false, disabled = false }: Props) {
+export default function ThinWallPanel({ thinWall, onChange, existing = false, required = false, disabled = false,
+  autoCornersAvailable = false, allowAutoCornerRecovery = false }: Props) {
   // The regular/thin operation kind belongs to its creation, not an edit-time toggle.
   if (existing && !thinWall) return null
   const error = thinWallInputError(thinWall)
   const canReverse = thinWall?.kind === 'one-side' && !disabled
+  const autoCorners = thinWall?.autoCorners
+  const showAutoCorners = autoCornersAvailable || (allowAutoCornerRecovery && !!autoCorners)
+  // Inactive declarations still validate, so an invalid remembered radius must remain editable.
+  const invalidAutoCornerRadius = !!autoCorners && (!Number.isFinite(autoCorners.radius)
+    || autoCorners.radius <= MIN_THIN_WALL_THICKNESS || autoCorners.radius > MAX_THIN_WALL_THICKNESS)
   const changeThickness = (value: string, side?: 'firstThickness' | 'secondThickness') => {
     if (!thinWall || disabled) return
     const thickness = value === '' ? 0 : Number(value)
@@ -92,6 +103,29 @@ export default function ThinWallPanel({ thinWall, onChange, existing = false, re
           aria-invalid={!!error} aria-describedby={error ? 'thin-wall-error' : undefined}
           onChange={event => changeThickness(event.target.value)} /><small>mm</small>
       </div></label>}
+      {showAutoCorners && <div className="thin-wall-auto-corners">
+        <label className="thin-wall-option-toggle" htmlFor="thin-wall-auto-corners">
+          <input id="thin-wall-auto-corners" type="checkbox" aria-label="Redondeo automático de esquinas"
+            checked={autoCorners?.enabled ?? false} disabled={disabled || (!autoCornersAvailable && !autoCorners?.enabled)}
+            onChange={event => {
+              if (disabled || (!autoCornersAvailable && (!autoCorners?.enabled || event.target.checked))) return
+              onChange({ ...thinWall, autoCorners: { enabled: event.target.checked,
+                radius: autoCorners?.radius ?? DEFAULT_AUTO_CORNER_RADIUS } })
+            }} />
+          Redondeo automático de esquinas
+        </label>
+        {autoCorners && <label className={`number-field${!autoCorners.enabled && !invalidAutoCornerRadius ? ' thin-wall-inactive-radius' : ''}`}
+          htmlFor="thin-wall-auto-corner-radius"><span>Radio</span><div>
+          <input id="thin-wall-auto-corner-radius" aria-label="Radio del redondeo automático" type="number" step={0.1}
+            value={Number.isFinite(autoCorners.radius) ? autoCorners.radius : ''} disabled={disabled}
+            aria-invalid={!!error} aria-describedby={error ? 'thin-wall-error' : undefined}
+            onChange={event => {
+              if (disabled) return
+              onChange({ ...thinWall, autoCorners: { ...autoCorners,
+                radius: event.target.value === '' ? 0 : Number(event.target.value) } })
+            }} /><small>mm</small>
+        </div></label>}
+      </div>}
       {error && <p id="thin-wall-error" className="thin-wall-error" role="alert">{error}</p>}
     </>}
   </section>

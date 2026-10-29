@@ -5,7 +5,7 @@ import type { ExtrudeFeature, RevolutionFeature, SketchFeature, ThinWallDefiniti
 import ExtrudePanel from './ExtrudePanel'
 import RevolvePanel, { mergeRevolutionDraft } from './RevolvePanel'
 import ThinWallPanel from './ThinWallPanel'
-import { mergeThinWallEditorDraft } from './thinWallEditorDraft'
+import { mergeThinWallEditorDraft, thinAutoCornersAvailableByProfile } from './thinWallEditorDraft'
 
 const sketch: SketchFeature = { id: 'profile', name: 'Original rectangle', type: 'sketch', plane: 'XY', offset: 0, suppressed: false,
   profile: { kind: 'rectangle', center: [5, 0], width: 4, height: 6 } }
@@ -96,5 +96,64 @@ describe('shared wall wiring into production operation editors', () => {
     wallSection(tree).props.onChange({ kind: 'one-side', thickness: 1, reversed: false })
     const changed = mergeRevolutionDraft(revolvedCut, onChange.mock.calls.at(-1)![0])
     expect(changed.bodyScope).toEqual(cut.bodyScope); expect(changed).not.toHaveProperty('bodyOperation')
+  })
+
+  it('offers automatic corners only for explicitly eligible additive extrusions', () => {
+    const rounded: ThinWallDefinition = { ...wall, autoCorners: { enabled: true, radius: 3 } }
+    const feature = { ...extrude, thinWall: rounded }
+    const eligible = extrudeTree(feature, vi.fn(), { autoCornersAvailable: true, thinWallRequired: true })
+    expect(wallSection(eligible).props.autoCornersAvailable).toBe(true)
+    expect(renderToStaticMarkup(eligible)).toContain('aria-label="Redondeo automático de esquinas"')
+    expect(renderToStaticMarkup(eligible)).toContain('aria-label="Radio del redondeo automático"')
+    for (const required of [true, false]) {
+      const unproven = extrudeTree({ ...extrude, thinWall: wall }, vi.fn(), { thinWallRequired: required })
+      expect(wallSection(unproven).props.autoCornersAvailable).toBe(false)
+      expect(renderToStaticMarkup(unproven)).not.toContain('aria-label="Redondeo automático de esquinas"')
+    }
+  })
+
+  it.each([false, true])('keeps corner controls absent in cut and both revolution editors with retained enabled=%s declarations', enabled => {
+    const rounded: ThinWallDefinition = { ...wall, autoCorners: { enabled, radius: 3 } }
+    const cut: ExtrudeFeature = { id: 'cut', name: 'Original cut', type: 'cut', suppressed: false, sketchId: 'profile',
+      depth: -5, symmetric: false, thinWall: rounded, bodyScope: [{ bodyId: 'body', sourceFeatureId: 'state' }] }
+    const cutTree = extrudeTree(cut, vi.fn(), { autoCornersAvailable: true })
+    expect(wallSection(cutTree).props.autoCornersAvailable).toBe(false)
+    expect(wallSection(cutTree).props.allowAutoCornerRecovery).toBe(false)
+    expect(renderToStaticMarkup(cutTree)).not.toContain('aria-label="Redondeo automático de esquinas"')
+    for (const type of ['revolve', 'revolvedCut'] as const) {
+      const feature: RevolutionFeature = type === 'revolve' ? { ...revolve, thinWall: rounded }
+        : { id: 'groove', name: 'Original groove', type, sketchId: 'profile', suppressed: false, angle: 90, thinWall: rounded, bodyScope: cut.bodyScope }
+      const before = structuredClone(feature)
+      const tree = RevolvePanel({ feature, sketch, thinWallRequired: true, onChange: () => undefined, children: 'Angle' })
+      expect(wallSection(tree).props.autoCornersAvailable).toBe(false)
+      expect(renderToStaticMarkup(tree)).not.toContain('aria-label="Redondeo automático de esquinas"')
+      expect(feature).toEqual(before)
+    }
+  })
+
+  it('forwards a full corner edit without changing termination, signed depth or exact output ownership', () => {
+    const onChange = vi.fn(), feature = { ...extrude, thinWall: wall }, before = structuredClone(feature)
+    const tree = extrudeTree(feature, onChange, { autoCornersAvailable: true, existing: true })
+    wallSection(tree).props.onChange({ ...wall, autoCorners: { enabled: true, radius: 1.5 } })
+    const edited = mergeThinWallEditorDraft(feature, onChange.mock.calls[0][0], feature)
+    expect(edited).toEqual({ ...feature, thinWall: { ...wall, autoCorners: { enabled: true, radius: 1.5 } } })
+    expect(feature).toEqual(before)
+  })
+
+  it('keeps a saved extrusion recoverable after a current solved profile stops being open-only', () => {
+    const rounded: ThinWallDefinition = { ...wall, autoCorners: { enabled: true, radius: 3 } }
+    const feature = { ...extrude, thinWall: rounded }, before = structuredClone(feature), onChange = vi.fn()
+    const available = thinAutoCornersAvailableByProfile(sketch.id, { featureErrors: [],
+      sketches: [{ id: sketch.id, lines: [], constructionLines: [], profileTopology: 'closed' }] }, true)
+    expect(available).toBe(false)
+    const tree = extrudeTree(feature, onChange, { existing: true, autoCornersAvailable: available })
+    const section = wallSection(tree)
+    expect(section.props.allowAutoCornerRecovery).toBe(true)
+    expect(section.props.autoCornersAvailable).toBe(false)
+    expect(renderToStaticMarkup(tree)).toContain('aria-label="Redondeo automático de esquinas"')
+    section.props.onChange({ ...rounded, autoCorners: { enabled: false, radius: 3 } })
+    expect(mergeThinWallEditorDraft(feature, onChange.mock.calls[0][0], feature))
+      .toEqual({ ...feature, thinWall: { ...rounded, autoCorners: { enabled: false, radius: 3 } } })
+    expect(feature).toEqual(before)
   })
 })

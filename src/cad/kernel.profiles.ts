@@ -85,8 +85,8 @@ export function entityProfileStructure(profile: EntityProfile): unknown {
   ];
 }
 
-export function makeContours(profile: EntityProfile): Contour[] {
-  const { curves, nodes } = makeProfileCurves(profile);
+export function makeContours(profile: EntityProfile, derivedArcs = false): Contour[] {
+  const { curves, nodes } = makeProfileCurves(profile, derivedArcs);
   const adjacency = nodes.map(() => [] as number[]);
   curves.forEach((curve, index) => curve.nodes?.forEach((id) => adjacency[id].push(index)));
   if (adjacency.some((edges) => edges.length !== 2)) {
@@ -125,8 +125,8 @@ function curveRadialBounds(curve: Curve, axis?: ResolvedRevolutionAxis): [number
   return [Math.min(...coordinates), Math.max(...coordinates)];
 }
 
-export function entityRevolutionSide(profile: EntityProfile, axis?: ResolvedRevolutionAxis): number {
-  const curves = makeContours(profile).flatMap((contour) => contour.curves.map(({ curve }) => curve));
+export function entityRevolutionSide(profile: EntityProfile, axis?: ResolvedRevolutionAxis, derivedArcs = false): number {
+  const curves = makeContours(profile, derivedArcs).flatMap((contour) => contour.curves.map(({ curve }) => curve));
   const bounds = curves.map(curve => curveRadialBounds(curve, axis));
   const minimum = Math.min(...bounds.map(([min]) => min)), maximum = Math.max(...bounds.map(([, max]) => max));
   if (minimum < -JOIN_TOLERANCE && maximum > JOIN_TOLERANCE) {
@@ -140,9 +140,9 @@ export function entityRevolutionSide(profile: EntityProfile, axis?: ResolvedRevo
 
 /** Closed contours use even/odd nesting: material, hole, island, hole, ... */
 export function entityProfileSolid(profile: EntityProfile, plane: Plane, offset: number,
-  operation: { type: 'extrude'; depth: number } | { type: 'revolve'; angle: number; axis?: ResolvedRevolutionAxis; startAngle?: number }, frame?: PlaneFrame): Shape3D {
-  const contours = makeContours(profile);
-  if (operation.type === 'revolve') entityRevolutionSide(profile, operation.axis);
+  operation: { type: 'extrude'; depth: number } | { type: 'revolve'; angle: number; axis?: ResolvedRevolutionAxis; startAngle?: number }, frame?: PlaneFrame, derivedArcs = false): Shape3D {
+  const contours = makeContours(profile, derivedArcs);
+  if (operation.type === 'revolve') entityRevolutionSide(profile, operation.axis, derivedArcs);
   const toWorld = (point: Point2) => frame ? framePoint(frame, point[0], point[1]) : onSketchPlane(plane, point[0], point[1], offset);
   const normal: Vec3 = frame?.normal ?? (plane === 'XY' ? [0, 0, 1] : plane === 'XZ' ? [0, -1, 0] : [1, 0, 0]);
   return withNativeOwners(owners => {

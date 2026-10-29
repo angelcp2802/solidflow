@@ -18,6 +18,13 @@ export function thinWallRequiredByProfile(sketchId: string, model: Pick<CadResul
   return matches.length === 1 && matches[0].profileTopology === 'open'
 }
 
+/** Mixed/closed, missing, duplicate or stale solved witnesses do not offer corner rounding. */
+export function thinAutoCornersAvailableByProfile(sketchId: string, model: Pick<CadResult, 'sketches' | 'featureErrors'> | null, current: boolean): boolean {
+  if (!current || !model || model.featureErrors.length) return false
+  const matches = model.sketches?.filter(sketch => sketch.id === sketchId) ?? []
+  return matches.length === 1 && matches[0].profileTopology === 'open' && matches[0].profileOpenOnly === true
+}
+
 export function withRequiredThinWall<T extends ThinWallOperation>(feature: T, original: Feature | undefined, required: boolean): T {
   if (!required || original || Object.hasOwn(feature, 'thinWall')) return feature
   return { ...feature, thinWall: defaultThinWallDefinition() }

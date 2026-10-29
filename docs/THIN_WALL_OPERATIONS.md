@@ -24,6 +24,16 @@ clamped or coerced. Accessors, extra keys, `null` and an explicitly stored
 clearing an editor draft removes the own field. Existing document versions and
 regular-operation reference descriptors retain their prior meanings.
 
+Each form can additionally declare `autoCorners: { enabled: boolean, radius:
+number }`. The radius is the **inner material radius**, in millimetres, with
+the same finite numeric admission range as a wall thickness. Presence is strict:
+both own data fields are required even when disabled, and an explicit
+`undefined`, accessor or extra field is invalid. Disabled settings retain their
+radius for later editing; absence preserves the previous declaration and
+reference descriptor exactly. Continuous radii are not topology identities.
+Older strict readers that predate this option reject its presence rather than
+silently discarding it; documents without the option retain their prior form.
+
 Axial symmetry and angular mid-plane remain distinct from wall mid-plane.
 Reversing revolution changes angular direction; reversing a one-sided wall
 changes which side of its planar source receives material. The two controls do
@@ -53,6 +63,23 @@ inputs; they are neither saved source edits nor a second sketch solve. Curve
 classification in `SketchVisual.profileTopology` is a current solved display
 witness, not saved document authority.
 
+Enabled automatic corner rounding first constructs one temporary rounded source,
+then offsets both walls from that common source. This keeps corner arcs
+concentric, with radii `R` and `R + positive + negative`. For a counterclockwise
+turn, the temporary source radius is `R + negative`; for a clockwise turn it is
+`R + positive`. The analytic LINE/ARC and ARC/ARC tangent candidates reuse the
+sketch fillet geometry without creating saved constraints or invoking its edit
+command. Every corner is planned against the original solved chain, and both
+replacement ends of each shared LINE or ARC are checked together before output.
+Tangent continuations do not create extra arcs; cusps, ambiguous branches,
+extensions, consumed shared segments and crossings reject atomically.
+
+Automatic rounding currently requires exclusively open material chains. Closed
+or mixed profiles reject explicitly. The smaller-arc admission used for this
+derived geometry retains the `1e-5 mm` joining tolerance; it does not relax the
+existing `0.01 mm` source-ARC admission. Source sketches, their construction
+geometry and axis references remain unchanged.
+
 All source and derived components are inspected. Branches, crossings, ambiguous
 corners, inverted or collapsed radii, reversed segments, reentry into the source,
 and overlapping walls fail explicitly. The implementation does not silently
@@ -77,6 +104,21 @@ from depth, angle, termination, body ownership and cut scope. Invalid temporary
 numeric drafts remain editable and prevent Apply. Cancel, history and saved
 rebuild must restore the actual declaration and output identity.
 
+The extrusion editor offers automatic corner controls only for one current,
+successful solved profile explicitly identified as containing exclusively open
+chains (`SketchVisual.profileOpenOnly`). Missing, duplicate, stale, closed or
+mixed witnesses do not permit new activation. A retained extrusion setting can
+still be disabled after its source becomes closed or mixed; it cannot be
+reactivated without eligibility. The global stale-prefix lock remains in force.
+Its initial radius is `5 mm`; the
+declared radius is retained across wall-mode changes and disabling/re-enabling.
+An invalid retained radius remains visible and editable even while disabled,
+and retains focus during correction until the user leaves the field. No value
+is silently reset or clamped. A valid inactive radius is hidden when unfocused.
+This bounded UI inventory does not establish the corresponding cut/revolution
+menus. The shared material builder nevertheless consumes validated corner
+settings in all four operation types and supported extrude/cut recipes.
+
 All automatic end-condition tools borrow the same prepared section, preserving
 their translated frame and offset. Supported extrude/cut regeneration recipes use that
 same builder for primitives and source-solved entity profiles. Revolution
@@ -86,9 +128,9 @@ wall remains an error even when an owner is behind its ray.
 
 ## Remaining scope
 
-Axial end caps, automatic corner fillets, clipping/repair of merging or splitting
-offsets, complete menu/selection interaction and the wider thin-feature workflow
-remain open. Straight planar end segments are not axial end caps. Current
+Axial end caps, broader automatic-corner UI/runtime coverage, clipping/repair of
+merging or splitting offsets, complete menu/selection interaction and the wider
+thin-feature workflow remain open. Straight planar end segments are not axial end caps. Current
 bounded fixtures do not establish complete feature parity or installed-platform
 support. Original fixtures, analytical expectations and tolerances are recorded
 in [provenance](PROVENANCE.md).

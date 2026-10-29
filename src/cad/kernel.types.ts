@@ -80,10 +80,14 @@ export type ExtrudeEndCondition =
   | { kind: 'upToSurface'; target: PlaneSupport };
 
 /** Optional planar wall thickness; absence retains a filled profile. */
-export type ThinWallDefinition =
+export type ThinWallDefinition = (
   | { kind: 'one-side'; thickness: number; reversed: boolean }
   | { kind: 'mid-plane'; thickness: number }
-  | { kind: 'two-sides'; firstThickness: number; secondThickness: number };
+  | { kind: 'two-sides'; firstThickness: number; secondThickness: number }
+) & {
+  /** Optional original-chain corner rounding; radius is the inner material radius. */
+  autoCorners?: { enabled: boolean; radius: number };
+};
 
 interface ExtrudeDefinition extends FeatureBase {
   sketchId: string;
@@ -385,6 +389,8 @@ export interface SketchVisual {
   frame?: PlaneFrame;
   /** Classification of this resolved profile; absence is unknown to older consumers. */
   profileTopology?: 'open' | 'closed' | 'invalid';
+  /** True only when every resolved material component is an open chain. */
+  profileOpenOnly?: true;
   /** Solved sketch curves as consecutive XYZ endpoint pairs, in millimetres. */
   lines: number[];
   /** Construction geometry is displayed separately and never creates material. */

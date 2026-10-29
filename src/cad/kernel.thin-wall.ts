@@ -7,6 +7,7 @@ import type { SketchFeature } from './kernel.types';
 import { JOIN_TOLERANCE, makeContours, makeProfileCurves, type Contour, type Curve, type Point2 } from './kernel.profiles';
 import { profileCurveIntersections } from './kernel.profile-curves';
 import type { ResolvedThinWall } from './thinWall';
+import { roundThinSource } from './kernel.thin-corners';
 
 const TAU = Math.PI * 2;
 const AREA_TOLERANCE = JOIN_TOLERANCE ** 2;
@@ -48,15 +49,27 @@ function contains(contour: Contour, point: Point2): boolean {
       continue;
     }
     const relative = (point[1] - curve.center[1]) / curve.radius;
-    if (relative <= -1 || relative >= 1) continue; // A tangent does not cross the ray.
+    if (relative < -1 || relative > 1) continue;
     const angle = reverse ? curve.angle + curve.sweep : curve.angle;
     const sweep = reverse ? -curve.sweep : curve.sweep;
-    for (const root of [Math.asin(relative), Math.PI - Math.asin(relative)]) {
+    const root = Math.asin(relative), roots = Math.abs(relative) === 1 ? [root] : [root, Math.PI - root];
+    for (const root of roots) {
       const travelled = sweep > 0 ? positiveAngle(root - angle) : positiveAngle(angle - root);
       const position = travelled / Math.abs(sweep);
       const derivative = Math.cos(root) * sweep;
       const atStart = travelled < 1e-12, atEnd = Math.abs(travelled - Math.abs(sweep)) < 1e-12;
-      if (position > 1 && !atEnd || derivative > 0 && atEnd || derivative < 0 && atStart) continue;
+      if (position > 1 && !atEnd) continue;
+      if (Math.abs(Math.cos(root)) <= 1e-12) {
+        // A minimum at an ARC endpoint has only one incident circular side.
+        // It must balance the adjoining cap/line at the same ray height. An
+        // interior tangent has two sides and contributes no crossing.
+        if (relative < 0 && curve.center[0] > point[0] && curve.type === 'arc') {
+          if (atStart && !atEnd) winding++;
+          else if (atEnd && !atStart) winding--;
+        }
+        continue;
+      }
+      if (derivative > 0 && atEnd || derivative < 0 && atStart) continue;
       if (curve.center[0] + curve.radius * Math.cos(root) > point[0]) winding += derivative > 0 ? 1 : -1;
     }
   }
@@ -243,12 +256,20 @@ export function prepareThinSection(solvedSketch: SketchFeature, wall: ResolvedTh
     || wall.positive + wall.negative <= JOIN_TOLERANCE || wall.positive + wall.negative > 100_000) {
     throw new Error('Pared delgada: espesor resuelto no válido o inferior a la tolerancia de unión.');
   }
-  const source = entityProfile(solvedSketch);
+  let source = entityProfile(solvedSketch);
   if (source.points.some((point) => !Number.isFinite(point.x) || !Number.isFinite(point.y))
     || source.entities.some((entity) => entity.type === 'circle' && (!Number.isFinite(entity.radius) || entity.radius <= JOIN_TOLERANCE))) {
     throw new Error('Pared delgada: el perfil contiene coordenadas o radios no válidos.');
   }
-  const { curves, nodes } = makeProfileCurves(source), ordered = chains(curves, nodes);
+  const original = makeProfileCurves(source), originalChains = chains(original.curves, original.nodes);
+  const derivedArcs = wall.definition.autoCorners?.enabled === true;
+  let cornerIdentity: readonly unknown[] | undefined;
+  if (derivedArcs) {
+    const rounded = roundThinSource(originalChains, wall);
+    source = rounded.profile; cornerIdentity = rounded.identity;
+  }
+  const { curves, nodes } = derivedArcs ? makeProfileCurves(source, true) : original;
+  const ordered = derivedArcs ? chains(curves, nodes) : originalChains;
   const analysis = supportProfile(curves), output: EntityProfile = { kind: 'entities', points: [], entities: [], constraints: [] };
   const identities: unknown[] = [], regions: { outerIds: string[]; innerIds?: string[] }[] = [];
   ordered.forEach((chain, index) => {
@@ -259,7 +280,7 @@ export function prepareThinSection(solvedSketch: SketchFeature, wall: ResolvedTh
     for (const [thickness, ids] of [[wall.positive, positiveIds], [wall.negative, negativeIds]] as const) {
       if (!thickness) continue;
       const members = new Set(ids);
-      const imageCurves = makeProfileCurves({ ...output, entities: output.entities.filter((entity) => members.has(entity.id)) }).curves;
+      const imageCurves = makeProfileCurves({ ...output, entities: output.entities.filter((entity) => members.has(entity.id)) }, derivedArcs).curves;
       for (const { curve: original } of chain.entries) for (const derived of imageCurves) {
         if (profileCurveIntersections(original, derived).length) throw new Error('Pared delgada: una equidistancia vuelve a entrar o toca su fuente.');
       }
@@ -284,7 +305,7 @@ export function prepareThinSection(solvedSketch: SketchFeature, wall: ResolvedTh
   });
   // This validates every source/image/cap intersection, contact, branch and loop;
   // no clipping, split reduction or selection of one component is permitted.
-  const contours = makeContours(output);
+  const contours = makeContours(output, derivedArcs);
   if (contours.some((contour) => !Number.isFinite(thinContourArea(contour)) || Math.abs(thinContourArea(contour)) <= AREA_TOLERANCE)) {
     throw new Error('Pared delgada: una región se ha colapsado.');
   }
@@ -316,5 +337,5 @@ export function prepareThinSection(solvedSketch: SketchFeature, wall: ResolvedTh
   const support = solvedSketch.support;
   return { sketch: { ...solvedSketch, profile: output,
     ...(support ? { support: support.kind === 'face' ? { ...support, face: { ...support.face } } : { ...support } } : {}) },
-  identity: ['thin-section-v1', [...wall.identity], identities] };
+  identity: ['thin-section-v1', [...wall.identity], identities, ...(cornerIdentity ? [cornerIdentity] : [])] };
 }

@@ -8,4 +8,10 @@
 .thin-wall-reverse:focus-visible { outline: 2px solid #207fba; outline-offset: 2px; }
 .thin-wall-reverse:disabled { color: #8c9ba7; border-color: #c5d1da; cursor: default; }
 .thin-wall-section .number-field:has(input[aria-invalid="true"]) > div { border-color: #ba6c57; }
+.thin-wall-auto-corners { margin-top: 7px; padding-top: 7px; border-top: 1px solid #cfdae2; }
+.thin-wall-option-toggle { display: flex; align-items: flex-start; gap: 6px; margin-bottom: 5px; cursor: pointer; line-height: 1.35; }
+.thin-wall-option-toggle input { flex: 0 0 auto; margin: 1px 0 0; accent-color: #207fba; }
+.thin-wall-option-toggle:has(input:disabled) { color: #7b8c99; cursor: default; }
+/* Keep a remembered off radius focused while an invalid draft becomes valid. */
+.thin-wall-inactive-radius:not(:focus-within) { display: none; }
 .thin-wall-error { margin: 6px 0 0; color: #9c442f; font-size: 11px; line-height: 1.5; }

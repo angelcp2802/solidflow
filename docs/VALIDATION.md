@@ -1,5 +1,107 @@
 # Validation
 
+## Automatic thin-wall inner-radius corners — 2026-10-29
+
+The optional strict enabled/radius record derives temporary rounded open
+LINE/ARC chains from the already-solved source. Both wall offsets share those
+analytic contacts; the declared radius belongs to the inner material boundary.
+Shared source intervals are checked together before accepting any trim. No
+constraint allocation, source mutation or second solve is introduced. Absence
+retains legacy declaration/topology identities. See the
+[contract](THIN_WALL_OPERATIONS.md) and [original fixtures](PROVENANCE.md).
+
+Final local Windows x64 acceptance reuses Node 24.11.1, Electron 44.9.3,
+TypeScript 7.0.2, Vitest 5.0.3, Vite 8.3.4 and Replicad/OpenCascade 1.1.0,
+without reset or dependency installation. Seven commands share
+**1,274 pinned source/runtime inputs and nine products**. Canonical
+`{files,production}` manifest SHA-256:
+`07a7b845c41660a92ce9c9c4453cb589ccb9474eb1c36d5991e4ecc345d64cdf`.
+
+| Command | Final executed result |
+| --- | --- |
+| `npm run build` | PASS, 3.819 s. |
+| `npm run test:desktop:part-auto-corners` with capture | PASS, 130 checkpoints / 24 native-build phases / 58 recorded control inputs, 13.130 s. |
+| `npm run test:desktop:part-thin-wall` with capture | PASS, complete existing 179-checkpoint / 27-phase route, 18.296 s. |
+| `npm run test:desktop:part-external-axis` with capture | PASS, complete existing 109-checkpoint route, 16.885 s. |
+| `npm run test:desktop:part-revolution` with capture | PASS, complete existing 251-checkpoint revolution/cut/STEP route, 35.702 s. |
+| `npm test` | PASS, 10,719 unit/CAD cases in 474 files; 200 IPC passes, zero failures/two explicit Windows platform skips. Command 429.164 s; Vitest 422.28 s. |
+| `npm run test:desktop` | PASS, 1.558 s; production worker/WASM, queue and native prism checks. |
+
+All four renderer reports match eight production-input hashes, have zero
+console/request failures, and confirm owned child closure and isolated profile
+deletion. The corner capture was inspected: the expected rounded wall and
+separate read-only cylinder remain visible in the blue desktop UI. Its saved
+original document is retained locally. No packaged executable or installed
+platform acceptance is established by these runs.
+
+The new editor route covers three wall modes, reversal, retained OFF/ON radius,
+invalid drafts, Cancel/retry, new/saved Apply, Undo/Redo, two writes and fresh
+native reopening. It additionally focuses the retained inactive invalid field,
+enters 2 then 2.5 and verifies the same DOM node, focus and visible hit-test
+through both updates; a real pointer blur then hides the valid inactive field.
+Reactivation verifies independent geometry before restoring the original
+invalid-draft Cancel case. Pointer controls use real CDP press/release; numeric
+entry uses the native field setter and bubbling events, not physical keyboard
+delivery. There are two Open dialogs and one Save As. Renderer tolerances are
+`1e-5 mm³` for volume and `1e-6 mm` for literal bounds; this route does not
+independently attest BRep validity, area or STEP.
+
+Separate section-native cases check live/STEP-reopened BRep validity, solid
+count, volume, area, bounds and inner radii for LINE/LINE, LINE/ARC, ARC/ARC,
+left/right turns, three thickness modes, R0.001 and two disjoint L chains.
+Their mass/surface tolerance is `1e-5`, bounds `1e-6 mm`, radii `1e-7 mm`.
+Full-engine cases separately check additive/subtractive extrusion and full
+revolution with original Cartesian/sector/Pappus formulas, history/reopening,
+source retention and disabling a saved corner setting after source closure.
+Linear/circular/mirror recipe cases retain exact owner state and source solves.
+Small-radius admission is internal to derived curves; ordinary source ARC
+validation retains its previous minimum.
+
+Review reproduced and corrected a false overlap between disjoint rounded L
+bands caused by ARC endpoint tangency accounting. Eight negative recovery UI
+cases then exposed settings that could not be disabled after source closure,
+and a focused decimal-entry regression exposed field unmounting on the first
+valid digit. Both fixes preserve source eligibility, validation and stale-prefix
+guards. The last complete acceptance attempt failed before Vite because a new
+test variable inferred only one member of the wall union; an explicit
+`ThinWallDefinition` annotation corrects that test type without changing runtime
+behavior. The final seven-command run above follows that correction. Earlier
+failed logs are retained. No geometric tolerance, deadline, application guard
+or earlier workflow was weakened to obtain acceptance.
+
+Retained REA evidence inspects the exact production worker SHA-256
+`608e929ed2aed31a8b62c37d354e719f4bd8600987c1abc460e577caf598edb4`,
+Evidence `ev_a0119092c46d1180677486e0321ed8834d3acbf20112c54e7d9d953c94e2bede`.
+The final worker matches those analyzed bytes. One JavaScript file parses with
+zero parse failures; semantic coverage remains partial at the 100,000-node
+ceiling, with 77,206 unknowns. The completed result was retained through summary
+and local export after a transport-size limit, without repeating analysis.
+Separate bounded original-model runtime observations inform the inner-radius
+interpretation and small-radius case; they do not establish complete equivalence.
+No external model, binary, screenshot, private artifact or personal path is
+published.
+
+The existing persistence matrix receives two literal command steps (Linux Xvfb
+and Windows/macOS) for the new route. Removing them reproduces the prior parsed
+workflow. Permissions, action pins, dependencies and deadlines are unchanged.
+New-head hosted acceptance remains pending; prior head c00a1a3 has fifteen green
+CI jobs and both Security jobs, including the older thin-wall route on all
+three platforms. Neither that matrix nor this Windows run establishes recurring
+stability or installed-platform operation.
+
+Applied frontend-design, vercel-react-best-practices, code-simplifier,
+code-review and security-review, with retained REA and Computer Use evidence.
+Scoped independent reviews leave no outstanding actionable/high-confidence
+finding; this is not a full application security audit. No SECURITY_MODEL policy
+exists in base c174d4a; no exclusions or security-policy changes are added.
+
+Keep #55 **16/25**, #53 **6/9**, PR #49 draft/unmerged and release #5 open.
+Axial caps, closed/mixed corner eligibility, offset clipping/split repair,
+broader cut/revolution controls and specialized picking/editors, complete
+demo/human use, materials/appearance, installed platforms and recurring
+stability remain open. This increment does not close the complete thin-feature
+group or establish full feature/interaction parity.
+
 ## Planar thin-wall material and editor lifecycle — 2026-10-29
 
 The optional strict three-mode wall declaration is connected to extrusion, cut,
@@ -93,8 +195,16 @@ that amendment changes no application input. A subsequent staged-file check
 removed one superfluous terminal newline from the pure profile-curve module.
 The exact source difference is that one trailing byte; an additional build
 passes in 5.980 s and reproduces all nine production products byte for byte.
-All remaining pinned inputs stay unchanged. Hosted execution of this increment
-is still required. Parent `bf4d9e4` completes all fifteen
+All remaining pinned inputs stay unchanged. Published application/workflow head
+`c00a1a3aff8544b0601aa837c238bf87ee012ce5` completes all fifteen
+[CI jobs](https://github.com/angelcp2802/solidflow/actions/runs/40791425721) and both
+[Security jobs](https://github.com/angelcp2802/solidflow/actions/runs/40791425720)
+successfully. The new thin-wall command executes successfully in each persistence
+job: Linux `123177318278`, Windows `123177318305` and macOS `123177318213`.
+The three Desktop jobs also complete their build, unit/CAD, IPC, production-loader
+smoke and packaging steps successfully. These are hosted-job results, not proof
+of installed interactive operation or recurring persistence stability.
+Parent `bf4d9e4` completes all fifteen
 [CI jobs](https://github.com/angelcp2802/solidflow/actions/runs/40686619595) and
 [Security](https://github.com/angelcp2802/solidflow/actions/runs/40686619597).
 

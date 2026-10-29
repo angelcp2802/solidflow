@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { EntityProfile } from '../sketch/types';
-import { classifyThinWallProfile, makeProfileCurves } from './kernel.profile-curves';
+import { analyzeThinWallProfile, classifyThinWallProfile, makeProfileCurves } from './kernel.profile-curves';
 import { makeProfileCurves as nativeEntrypoint } from './kernel.profiles';
 
 function open(): EntityProfile {
@@ -9,6 +9,27 @@ function open(): EntityProfile {
       { id: 'vertical', type: 'line', start: 'a', end: 'b', construction: false }], constraints: [] };
 }
 describe('shared native-free resolved profile analysis', () => {
+  it('distinguishes exclusively open chains from mixed open and closed material', () => {
+    const profile = open();
+    expect(analyzeThinWallProfile(profile)).toEqual({ topology: 'open', openOnly: true });
+    profile.points.push({ id: 'far', x: 30, y: 0 });
+    profile.entities.push({ id: 'closed', type: 'circle', center: 'far', radius: 1, construction: false });
+    expect(analyzeThinWallProfile(profile)).toEqual({ topology: 'open', openOnly: false });
+    profile.entities[2].construction = true;
+    expect(analyzeThinWallProfile(profile)).toEqual({ topology: 'open', openOnly: true });
+    profile.entities[2].construction = false;
+    profile.entities.splice(0, 2);
+    expect(analyzeThinWallProfile(profile)).toEqual({ topology: 'closed', openOnly: false });
+  });
+
+  it('keeps small derived arcs separate from legacy source admission', () => {
+    const profile: EntityProfile = { kind: 'entities', points: [{ id: 's', x: .001, y: 0 }, { id: 'e', x: 0, y: .001 }],
+      entities: [{ id: 'small', type: 'arc', center: 'origin', start: 's', end: 'e', clockwise: false, construction: false }], constraints: [] };
+    expect(() => makeProfileCurves(profile)).toThrow('radio');
+    expect(makeProfileCurves(profile, true).curves[0]).toMatchObject({ type: 'arc', radius: .001 });
+    expect(analyzeThinWallProfile(profile)).toEqual({ topology: 'invalid', openOnly: false });
+  });
+
   it('preserves the old entrypoint and its analytic open-curve values', () => {
     const profile = open();
     expect(nativeEntrypoint(profile)).toEqual(makeProfileCurves(profile));
