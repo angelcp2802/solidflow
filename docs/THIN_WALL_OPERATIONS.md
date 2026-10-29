@@ -49,43 +49,76 @@ not substitute for each other.
 ## Independent linear directions — 2026-10-29
 
 Both regular and thin `extrude`/`cut` operations can declare the separate optional
-field `secondDirection: { enabled: boolean, depth: number }`. Its exact own
-enumerable data fields are required; extra keys, accessors, coercion, `null` and
-explicit undefined reject. The second depth is positive and finite, from
-`0.01` through `100000 mm`, including while OFF. The existing signed first depth
-retains its individual magnitude range of `0.01..100000 mm`.
+field `secondDirection: { enabled: boolean, depth: number,
+endCondition?: ExtrudeEndCondition }`. Its own enumerable `enabled` and `depth`
+data fields are required. The optional second end uses the existing strict
+`throughAll`, `untilNext` or `upToSurface` union; extra keys, accessors, coercion,
+`null` and explicit undefined reject. The second depth stays positive and finite,
+from `0.01` through `100000 mm`, including while OFF or automatic. The first
+signed depth retains its individual magnitude range of `0.01..100000 mm`.
+Automatic sides retain numerically validated depths, while the selected native
+limits determine geometry and D1's sign determines both senses.
 
-An active second direction requires Blind depth and `symmetric: false`, with no
-`endCondition`. For `s = sign(D1)`, construction starts at `-s*D2` from the source
-plane and extrudes once over `s*(abs(D1)+D2)`. The calculated span can reach
-`200000 mm`. Direction 1 inversion changes the sign of the whole interval while
-retaining both stored lengths; there is no independent Direction 2 inversion.
-This interval differs from legacy axial mid-plane, which splits one total depth
-equally around the source plane. It also differs from the two planar wall sides.
+Each active side can independently be Blind, unilateral ThroughAll, UntilNext
+or UpToSurface. Both rays begin at the same original solved profile and incoming
+frame: first along `sign(D1)` and second in the opposite sense. Direction 1
+inversion reverses both rays while retaining their target declarations; it does
+not swap targets or add a separate Direction 2 inversion. An explicit surface
+or plane target left behind its ray rejects until the user repairs it; dynamic
+cut rays retain the proven-absence rule below. First-direction axial
+mid-plane and ThroughAll in both senses remain incompatible with an active
+second direction. The second side never offers either of those two modes.
 
-Absence preserves saved bytes and reference descriptors. A present record adds
-`['second-direction-v1', enabled]` to structural identity; neither continuous
-length enters that identity. OFF retains its valid second length and uses the
-existing first-direction or mid-plane/automatic construction. Older strict
-readers reject the new field rather than discard it. Editor clearing removes
-the own field; ordinary OFF/ON does not clear it. The existing semantic-prism
-provenance path declines declared second directions, including OFF, rather than
-assigning a first-direction-only provenance to the new interval.
+For two Blind sides, construction retains the single interval beginning at
+`-sign(D1)*D2` and spanning `sign(D1)*(abs(D1)+D2)`, up to `200000 mm`. Moving the
+source plane moves these fixed-depth endpoints. For an automatic side, resolve
+its own boundary from the unchanged source frame and the same pre-operation
+owner. Compose both native tools atomically; inclined or curved end geometry
+must not be replaced by an average, enclosing bound or nominal depth. Moving a
+source plane between two fixed world-plane targets changes the resolved lengths
+while retaining both world endpoints. Mixed modes move only their Blind end.
 
-The parser retains valid numeric intent for explicit recovery after an
-incompatible extent change. The engine and recipe extractor reject active
-mid-plane or automatic combinations before any provisional factory or no-hit
-shortcut. Explicit OFF preserves the selected first-direction limit and its
-references. Invalid OFF dimensions remain editable and block Apply. Changing
-the first extent never replaces an invalid first depth with a default length.
+New-body ThroughAll/UntilNext sides name their own exact limit bodies; those
+read owners are not outputs or material targets. Cut sides use their explicit
+scope, and both sides read each owner's state before either cut is applied.
+A missing ray requires the existing exact-owner native absence proof. Contact,
+an incomplete limiting face, failed native work or failed release cannot become
+a miss. In ALL regeneration, an owner outside both rays keeps its prior state.
+An error in either side must not publish a partial result.
 
-The original solved profile and its incoming frame/offset are reused once.
-Moving a source plane moves both fixed-depth endpoints; it does not anchor them
-to surrounding faces. Source solves, body scopes, creation identities and
-material declarations retain their existing contracts. Primitive and authentic
-source-solved entity regeneration use the same interval after linear, circular
-or reflected placement; reflection parity is applied once to the first signed
-depth before calculating the shifted start.
+Absence preserves legacy bytes and reference descriptors. Presence identifies
+enabled/OFF, and a declared second end additionally identifies its end kind;
+continuous lengths do not become topology identities. OFF retains the second
+length, condition and target while using only the first side for geometry.
+Retained references remain structural/deletion dependencies, but inactive body
+limits are not active native-owner requirements. Older strict readers reject
+new fields rather than discard them. Explicit editor clearing removes the own
+field; ordinary OFF/ON does not. The existing semantic-prism provenance path
+continues to decline declared second directions, including OFF.
+
+Incompatible midpoint/both-senses changes retain the active request and block
+Apply until explicit OFF recovery. Invalid first/second numeric drafts remain
+editable even when inactive and prevent Apply; changing modes does not insert
+a default replacement depth. A focused correction field stays mounted through
+the first valid digit and decimal. D1 retains its existing editability during
+body picking, while D2 and facial picking remain blocked and Apply still requires
+the completed current body selection.
+
+Face selection is owned by its first/second role, draft, document epoch, source
+model and prefix. Editing, cancellation or changing owners revokes that request.
+The viewport additionally checks the same scene, request and camera presented
+at press and release, and cancels stale gestures after navigation or resizing.
+These source/pure contracts do not establish physical face-click acceptance;
+the new renderer route selects planes through property controls.
+
+Primitive and genuinely source-solved entity regeneration reuse these sides
+after placement and apply reflection parity once. A fixed principal-plane
+UpToSurface end requires an explicit world policy per
+`(featureId, path)`, where the paths are `endCondition.target` and
+`secondDirection.endCondition.target`. One side's policy does not authorize the
+other. Inactive/stale choices remain explicitly removable. Datum/face limits
+and transformed/instance correspondence in regeneration remain pending; they
+must not silently fall back to copied geometry or an unrelated plane.
 
 ## Section construction
 
@@ -141,7 +174,7 @@ multiple-output contract exists.
 
 Active caps currently require an additive fixed-depth extrusion with one or two
 Blind directions and one simple closed source component, with `symmetric: false`
-and no `endCondition`. Open,
+and no active automatic end on either side. Open,
 mixed, nested or disconnected sources reject; cuts, revolutions, axial mid-plane
 and automatic limits reject before any provisional prism or no-hit witness.
 Disabled settings retain their data and use the previous uncapped geometry.

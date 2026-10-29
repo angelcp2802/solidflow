@@ -9,6 +9,35 @@ const feature: ExtrudeFeature = { id: 'boss', name: 'Original boss', type: 'extr
   thinWall: { kind: 'one-side', thickness: 2, reversed: false, endCaps: { enabled: true, thickness: 1 } } }
 
 describe('extrusion extent draft isolation and shared admission', () => {
+  it('detaches both target trees, clears only an explicit nested end and preserves invalid OFF numbers', () => {
+    const first = { kind: 'upToSurface' as const, target: { kind: 'face' as const, face: { sourceFeatureId: 'source-a', key: 'face-a' } } }
+    const second = { enabled: false, depth: 0, endCondition: { kind: 'untilNext' as const, baseFeatureId: 'source-b', baseBody: { bodyId: 'body-b', sourceFeatureId: 'source-b' } } }
+    const next = mergeExtrusionDraft(feature, { endCondition: first, secondDirection: second })
+    expect(next.endCondition).toEqual(first); expect(next.endCondition).not.toBe(first)
+    expect(next.secondDirection).toEqual(second); expect(next.secondDirection?.endCondition).not.toBe(second.endCondition)
+    first.target.face.key = 'changed'; second.endCondition.baseBody.sourceFeatureId = 'changed'
+    expect(next.endCondition).toMatchObject({ target: { face: { key: 'face-a' } } })
+    expect(next.secondDirection?.endCondition).toMatchObject({ baseBody: { sourceFeatureId: 'source-b' } })
+    const cleared = mergeExtrusionDraft(next, { secondDirection: { ...next.secondDirection!, endCondition: undefined } })
+    expect(cleared.secondDirection).toEqual({ enabled: false, depth: 0 })
+    expect(cleared.endCondition).toEqual(next.endCondition); expect(cleared.thinWall).toEqual(feature.thinWall)
+  })
+
+  it('rejects nested end/target/reference accessors before invoking or spreading them', () => {
+    const getter = vi.fn(() => 'source')
+    const face = { sourceFeatureId: 'source', key: 'face' }
+    Object.defineProperty(face, 'key', { enumerable: true, get: getter })
+    const end = { kind: 'upToSurface' as const, target: { kind: 'face' as const, face } }
+    for (const patch of [{ endCondition: end }, { secondDirection: { enabled: false, depth: 0, endCondition: end } }]) {
+      expect(() => mergeExtrusionDraft(feature, patch)).toThrow()
+    }
+    const direction = { enabled: false, depth: 0 }
+    Object.defineProperty(direction, 'endCondition', { enumerable: true, get: getter })
+    expect(() => mergeExtrusionDraft(feature, { secondDirection: direction })).toThrow()
+    const executableText = { toJSON: getter }
+    expect(() => mergeExtrusionDraft(feature, { endCondition: { kind: 'upToSurface', target: { kind: 'face', face: { sourceFeatureId: 'source', key: executableText } } } } as unknown as Partial<ExtrudeFeature>)).toThrow()
+    expect(getter).not.toHaveBeenCalled()
+  })
   it.each([7, -7])('keeps absent legacy normal and mid-plane declarations unchanged at D1=%s', depth => {
     for (const symmetric of [false, true]) {
       const input: ExtrudeFeature = { ...feature, depth, symmetric }

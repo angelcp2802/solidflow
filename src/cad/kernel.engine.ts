@@ -43,7 +43,9 @@ import { isRevolutionFeature, resolveRevolutionExtent } from './revolutionExtent
 import { assertThinWallEndCapsContext, resolveThinWall } from './thinWall';
 import { prepareThinSection } from './kernel.thin-wall';
 import { buildThinWallEndCaps } from './kernel.thin-caps';
-import { assertExtrusionDirectionContext, resolveExtrusionSpan } from './extrusionDirection';
+import { assertExtrusionDirectionContext, readSecondDirection, resolveExtrusionDirections, resolveExtrusionSpan } from './extrusionDirection';
+import { resolveDirectionTools, type NativeDirectionTool } from './kernel.direction-tools';
+import { resolveUntilNextCut } from './kernel.until-next-resolution';
 import { loftSolid, sweepSolid } from './kernel.sweep-loft';
 import { geometryDelta, isRepetition, patternPlan, repetitionSolid, type FeatureGeometry } from './kernel.patterns';
 import { draftSolid, shellSolid } from './kernel.face-operations';
@@ -977,6 +979,13 @@ export class CadEngine {
       && feature.endCondition?.kind==='upToSurface' && feature.endCondition.target?.kind==='face'
       && typeof feature.endCondition.target.face?.sourceFeatureId === 'string'
       ? [feature.endCondition.target.face.sourceFeatureId] : []));
+    for (const feature of features) {
+      if (feature.suppressed || feature.type !== 'extrude' && feature.type !== 'cut') continue;
+      try {
+        const end = readSecondDirection(feature)?.endCondition;
+        if (end?.kind === 'upToSurface' && end.target.kind === 'face') wantedLimitFaces.add(end.target.face.sourceFeatureId);
+      } catch { /* The ordinary feature validator reports malformed declarations. */ }
+    }
     const historicalLimitFaces = new Map<string, FaceCatalog | SemanticFaceCatalog>();
     const referencedSources = new Set([...wantedLimitFaces, ...features.flatMap((feature) =>
       !feature.suppressed && 'support' in feature && feature.support?.kind === 'face'
@@ -1178,7 +1187,8 @@ export class CadEngine {
         const thinWall = resolveThinWall(feature);
         assertExtrusionDirectionContext(feature);
         assertThinWallEndCapsContext(thinWall?.definition, feature.type === 'extrude' ? 'add' : 'subtract',
-          feature.type === 'extrude' && feature.endCondition === undefined,
+          feature.type === 'extrude' && feature.endCondition === undefined
+            && !(readSecondDirection(feature)?.enabled && readSecondDirection(feature)?.endCondition),
           feature.type !== 'extrude' || feature.symmetric !== false);
         if (thinWall && feature.type !== 'extrude' && feature.type !== 'cut'
           && feature.type !== 'revolve' && feature.type !== 'revolvedCut') {
@@ -1692,7 +1702,83 @@ export class CadEngine {
         } else if (bodyCatalog && (feature.type === 'cut' || feature.type === 'revolvedCut') && feature.bodyScope?.length === 1) {
           operationBase = bodyCatalog.resolve(feature.bodyScope[0]).shape;
         }
-        if (!isRevolutionFeature(feature) && feature.endCondition) {
+        const directions = !isRevolutionFeature(feature) ? resolveExtrusionDirections(feature) : undefined;
+        if (!isRevolutionFeature(feature) && directions?.second && !directions.allBlind) {
+          const frame = sketchFrames.get(sketchFeature.id)!, limitIdentities: unknown[] = [];
+          const buildDirections = (owner?: Shape3D): Shape3D => {
+            const branches: NativeDirectionTool[] = [directions.first, directions.second!].map((branch, index) => {
+              const sign = Math.sign(branch.signedDepth), direction = frame.normal.map(value => value * sign) as Vec3;
+              const branchFeature = { ...feature, depth: branch.signedDepth, symmetric: false, endCondition: undefined };
+              delete branchFeature.secondDirection;
+              const makePrism = (length: number, start = 0) => featureSolid({ ...branchFeature, depth: sign * length },
+                { ...sketchFeature, offset: sketchFeature.offset + sign * start }, offsetPlaneFrame(frame, sign * start), false, undefined, thinSection);
+              const end = branch.endCondition;
+              if (!end) {
+                limitIdentities[index] = ['blind'];
+                return { build: () => featureSolid(branchFeature, sketchFeature, frame, true, undefined, thinSection) };
+              }
+              let target: Shape3D | undefined, surface: { frame: PlaneFrame } | { face: Face } | undefined;
+              if (end.kind === 'upToSurface') {
+                if (end.target.kind === 'face') {
+                  const id = end.target.face.sourceFeatureId, catalog = historicalLimitFaces.get(id);
+                  if (!solidFeatureIds.has(id) || unavailableFeatureIds.has(id) || !catalog) throw Error('La cara límite de una dirección no está disponible. Recupera su referencia.');
+                  const face = ('semanticStatus' in catalog ? resolveSemanticSelectedFaces(catalog, [end.target.face], id)
+                    : resolveSelectedFaces(catalog, [end.target.face], id))[0];
+                  surface = { face }; limitIdentities[index] = ['upToSurface', 'face', id, end.target.face.key, historicalFaces.get(id)!.lineage];
+                } else {
+                  const support = resolveSupport(end.target);
+                  if (!support) throw Error('El plano límite de una dirección no está disponible. Recupera su referencia.');
+                  surface = { frame: support.frame }; limitIdentities[index] = ['upToSurface', end.target.kind, support.lineage];
+                }
+              } else {
+                const scoped = feature.type === 'cut' ? feature.bodyScope?.[0]
+                  : feature.bodyOperation?.mode === 'merge' ? feature.bodyOperation.target : end.baseBody;
+                if (!solidFeatureIds.has(end.baseFeatureId) || unavailableFeatureIds.has(end.baseFeatureId)
+                  || (scoped ? scoped.sourceFeatureId !== end.baseFeatureId : sourceFeatureId !== end.baseFeatureId)) {
+                  throw Error('El cuerpo límite de una dirección ha cambiado o no está disponible.');
+                }
+                if (feature.type === 'extrude' && feature.bodyOperation?.mode === 'new') {
+                  if (!bodyCatalog || !end.baseBody) throw Error('Selecciona el cuerpo límite exacto de cada dirección.');
+                  target = bodyCatalog.resolve(end.baseBody).shape;
+                } else {
+                  if (end.baseBody !== undefined) throw Error('El cuerpo límite explícito corresponde a una extrusión de cuerpo nuevo.');
+                  target = owner ?? operationBase ?? undefined;
+                }
+                if (!target) throw Error('No hay un cuerpo anterior para resolver esta dirección.');
+                if (end.kind === 'untilNext') requireSingleSolid(target, 'Hasta siguiente requiere un sólido cerrado por propietario.');
+                limitIdentities[index] = [end.kind, end.baseFeatureId, ...(end.kind === 'throughAll' ? [end.bothDirections] : []),
+                  ...(end.baseBody ? [['baseBody', end.baseBody]] : [])];
+              }
+              return { untilNext: end.kind === 'untilNext',
+                ...(target && feature.type === 'cut' ? { observeForward: () => resolveUntilNextCut({ workingTarget: target!, origin: frame.origin, direction, makePrism }) } : {}),
+                build: () => withNativeOwners(owners => {
+                  if (surface) return owners.own(upToSurfaceTool(surface, frame.origin, direction, makePrism));
+                  const isolated = owners.own(copyBodyShape(target!));
+                  return owners.own(end.kind === 'throughAll' ? (feature.type === 'cut' ? throughAllTool : throughAllBossTool)(isolated,
+                    frame.origin, direction, end.bothDirections, makePrism) : untilNextTool(isolated, frame.origin, direction, makePrism, feature.type === 'cut'));
+                }, result => [result], 'Independent end construction or release failed.'),
+              };
+            });
+            const resolved = resolveDirectionTools(branches, feature.type === 'cut', shape => { validateSolid(shape); });
+            if (resolved.kind !== 'complete') throw Error('El corte no elimina material del propietario seleccionado en ninguna dirección.');
+            return resolved.tool;
+          };
+          if (bodyCatalog && feature.type === 'cut' && feature.bodyScope && feature.bodyScope.length > 1) {
+            const replacements = feature.bodyScope.map(ref => {
+              const entry = bodyCatalog!.resolve(ref), combined = buildDirections(entry.shape); extraCandidates.push(combined);
+              const shape = bodyBoolean('subtract', entry.shape, combined); extraCandidates.push(shape);
+              if (measuredVolume(entry.shape) - validateSolid(shape) <= Math.max(1e-9, measuredVolume(entry.shape) * 1e-10)) throw Error('El corte no elimina material de cada cuerpo seleccionado.');
+              return { ref, shape };
+            });
+            const nextLineage = advanceLineage(lineage, [feature.id, 'cut', feature.sketchId, sketchFeature.plane,
+              sketchFeature.profile.kind, sketchFeature.profile.kind === 'entities' ? entityProfileStructure(sketchFeature.profile) : null,
+              Math.sign(feature.depth), feature.bodyScope, ['direction-limits-v1', limitIdentities], directions.identity,
+              ...(thinSection ? [['thinWall', thinWall!.identity, thinSection.identity]] : [])]);
+            adoptBodyTransaction(bodyCatalog.stageReplaceMany(replacements, { sourceFeatureId: feature.id, lineage: nextLineage }));
+            sourceFeatureId = feature.id; lineage = nextLineage; semantic = undefined; rememberReferencedSource(beforeForRecord); continue;
+          }
+          tool = buildDirections(); limitLineage = ['direction-limits-v1', limitIdentities];
+        } else if (!isRevolutionFeature(feature) && feature.endCondition) {
           validateLength(feature.depth, 'Profundidad', true);
           if (feature.symmetric) throw new Error('La extrusión simétrica sólo está disponible con profundidad fija.');
           const end=feature.endCondition, frame=sketchFrames.get(sketchFeature.id)!, sign=Math.sign(feature.depth);

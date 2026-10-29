@@ -157,18 +157,21 @@ result or cut owners and finish **Seleccionar cuerpos en el visor** before
 enabling **Dirección 2** and entering the independent positive opposite depth.
 The second block follows the first target controls and precedes the thin-wall
 controls. Its initial 10 mm is
-an editor choice; subsequent OFF/ON retains the entered length.
+an editor choice; subsequent OFF/ON retains the entered length, condition and
+target.
 
 With first 13/opposite 7 and a source plane at Z=5, the solid spans Z=-2..18.
 **Invertir dirección** retains both lengths and changes that interval to
 Z=-8..12. This differs from **Plano medio**, where one total depth is shared
-equally. There is no separate inversion or automatic termination for Direction 2
-in this increment.
+equally. There is no separate inversion for Direction 2. Either side can also
+choose **Por todo**, **Hasta siguiente** or **Hasta superficie** in its own
+condition selector.
 
-Changing the first mode to **Plano medio**, **Por todo**, **Hasta siguiente** or
-**Hasta superficie** while Direction 2 is active keeps its declaration and blocks
-Apply. Explicitly turn Direction 2 OFF to recover that mode: its length and the
-chosen first-limit references remain available. Correct invalid first or second
+Changing the first mode to **Plano medio** or **Por todo · ambos sentidos** while
+Direction 2 is active keeps its declaration and blocks Apply. Explicitly turn
+Direction 2 OFF to recover that mode; its length and second target remain
+retained. Unilateral **Por todo**, **Hasta siguiente** and **Hasta superficie**
+can coexist with an active second side. Correct invalid first or second
 lengths even when inactive; the editor keeps the focused field through decimal
 entry and never replaces an invalid first length with 20 mm. Wait for a current,
 healthy preview before Apply. Cancel preserves the committed document.
@@ -189,6 +192,45 @@ editing, Cancel/retry, Undo/Redo, saving and fresh reopening. Formulas and
 measurement limits are in [provenance](PROVENANCE.md#original-independent-linear-direction-fixtures--2026-10-29);
 actual execution is recorded in [validation](VALIDATION.md). This bounded route
 does not complete the wider feature or interface checklist.
+
+### Independent automatic end limits
+
+In **Dirección 1**, choose **Hasta superficie** and select a plane above the
+source sketch. Enable **Dirección 2**, choose **Hasta superficie** in
+**Condición final de dirección 2**, then select a different plane below it in
+**Superficie de destino de dirección 2**. The preview should finish at those
+two planes. Each target belongs to its own side. **Invertir dirección** retains
+both targets; if they now lie behind their respective rays, explicitly choose
+compatible targets rather than expecting an automatic swap.
+
+For a new separate body using **Por todo** or **Hasta siguiente**, choose the
+exact limit body in that side's **Cuerpo límite** selector. The two sides may
+read different limit bodies. Those bodies do not become the new result or
+cut targets. A cut still requires its own explicit body selection, and both
+sides act on each selected body's preceding state.
+
+Mixing an automatic end and a fixed depth is supported. Moving the source sketch
+moves the fixed-depth end while the plane-bound end stays at its target. With
+two plane-bound ends, moving the source between them leaves both world endpoints
+fixed. Automatic ends do not currently support active **Tapas de extremos**;
+turn caps OFF explicitly to recover that mode, or return both active sides to
+fixed depth.
+
+The original `npm run test:desktop:part-two-direction-limits` route uses planes
+at Z=-3 and Z=16, a separate boss and a stepped cut owner. Editing only the
+boss's second target to Z=-5 leaves the cut's targets unchanged. Moving the
+source from Z=5 to Z=7 keeps the boss anchored at -5..16 and the cut base at
+V6876 mm³. It also declares mixed-end, per-side body-limit, Cancel/retry,
+Undo/Redo, save and fresh-reopen checks. See its
+[original fixtures](PROVENANCE.md#original-independent-end-limit-fixtures--2026-10-29)
+and the actual [validation record](VALIDATION.md) before making execution claims.
+
+Face selection has separate first/second buttons and rejects stale source or
+view requests. This plane-control renderer route does not test a physical click
+on a face. For operation regeneration, each supported fixed principal-plane
+end has its own explicit **Mantener plano límite fijo** choice; an inactive or
+unavailable saved choice can be removed independently. Datum/face limits in
+regeneration remain pending, as do broader interface and platform acceptance.
 
 ## Several cuts and additive extrusions
 

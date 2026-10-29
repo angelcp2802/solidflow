@@ -123,6 +123,7 @@ import { reconcileBodyPatternDraft } from "./model/bodyPatterns";
 import { createEdgeSelectionIndex, createFaceSelectionIndex } from "./cad/selection.references";
 import ExtrudePanel from "./components/ExtrudePanel";
 import { extrusionDirectionInputError, mergeExtrusionDraft } from './components/extrusionEditorDraft';
+import { extrusionEndForSide, extrusionEndPatch, extrusionEndPickCurrent, type ExtrusionEndPickingRequest, type ExtrusionSide } from './components/extrusionEndPicking';
 import RevolvePanel, { mergeRevolutionDraft } from "./components/RevolvePanel";
 import { thinWallInputError } from './components/ThinWallPanel';
 import { defaultThinWallDefinition, isThinWallOperation, mergeThinWallEditorDraft, thinAutoCornersAvailableByProfile, thinEndCapsAvailableByProfile, thinWallRequiredByProfile, withRequiredThinWall } from './components/thinWallEditorDraft';
@@ -431,7 +432,9 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
   const normalSelectionRef = useRef(normalSelection);
   const setNormalSelection = (value: typeof normalSelection) => { normalSelectionRef.current = value; updateNormalSelection(value); };
   const [pickingSupport, setPickingSupport] = useState(false);
-  const [pickingEndFace, setPickingEndFace] = useState(false);
+  const [endPickingRequest, setEndPickingRequest] = useState<ExtrusionEndPickingRequest | null>(null);
+  const endPickingAuthority = useRef<ExtrusionEndPickingRequest | null>(null);
+  const stopEndPicking = useCallback(() => { endPickingAuthority.current = null; setEndPickingRequest(null); }, []);
   const [holeSection, setHoleSection] = useState<HoleSection>("type");
   const [selectedHolePosition, setSelectedHolePosition] = useState<
     string | null
@@ -599,7 +602,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
   const effectiveFeatures = useMemo(() => {
     if (bodyPlan) return bodyPlan.previewFeatures;
     if (sourceFeatures && editing?.type === "extrude" && editing.bodyOperation?.mode === "new"
-      && editing.endCondition && 'baseFeatureId' in editing.endCondition) return sourceFeatures;
+      && [editing.endCondition, editing.secondDirection?.endCondition].some(end => end && 'baseFeatureId' in end)) return sourceFeatures;
     if (!editing) return operationDocument.features;
     if (editing.type === "sketch") {
       const complete = unusedPartSketchPreview(operationDocument, editing);
@@ -625,10 +628,11 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
   const pickingMirror = !!mirrorEditing && pickingSupport;
   const pickingFaceOperation =
     !!faceEditing && (!facePreview || pickingSupport);
-  const pickingExtrude =
-    !!extrudeEditing &&
-    extrudeEditing.endCondition?.kind === "upToSurface" &&
-    pickingEndFace;
+  const pickingExtrude = extrusionEndPickCurrent(endPickingRequest, { draft: editing, document: doc, epoch: documentEpoch.current,
+    model: sourceModel, features: sourceFeatures, builtFeatures: sourceBuiltFeatures, loading: sourceLoading,
+    blocked: bodyPicking || pickingSupport });
+  endPickingAuthority.current = pickingExtrude ? endPickingRequest : null;
+  const pickedExtrusionEnd = extrudeEditing && endPickingRequest && pickingExtrude ? extrusionEndForSide(extrudeEditing, endPickingRequest.side) : undefined;
   const pickingHole = !!holeEditing && pickingSupport;
   const thinWallSourceCurrent = !!sourceFeatures && !!sourceModel && sourceBuiltFeatures === sourceFeatures
     && !sourceLoading && !sourceModel.featureErrors.length;
@@ -732,6 +736,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     !!editingResolved &&
     !thinWallDraftError &&
     !extrusionDraftError &&
+    (!extrudeEditing || thinWallSourceCurrent) &&
     (!thinWallRequired || !isThinWallOperation(editing) || !!editing.thinWall) &&
     (!editing || !isBodyCommandFeature(editing) || (!!bodyPlan && !bodyPicking)) &&
     !pickingMirror &&
@@ -806,7 +811,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
   });
   const editFeature = (feature: Feature, preferredOwnerId?: string) => {
     invalidateViewportPopup();
-    setPickingEndFace(false);
+    stopEndPicking();
     if (!requireFinishedEdit()) return;
     const previousOccurrence = selectedTreeOccurrence.current;
     const preferred = preferredOwnerId ?? (previousOccurrence?.featureId === feature.id ? previousOccurrence.parentId : undefined);
@@ -1028,7 +1033,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     revealedUnavailableBodies.current = "";
     setQuery("");
     setTreeOpen(true);
-    setPickingEndFace(false);
+    stopEndPicking();
     setHoleSection("type");
     setSelectedHolePosition(null);
     setDoc(history.current!.reset(next));
@@ -1507,11 +1512,13 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     setFaceSelection(null);
     setError("");
   };
-  const changeEndTarget = (target: PlaneSupport) => {
-    if (!extrudeEditing || extrudeEditing.endCondition?.kind !== "upToSurface")
-      return;
-    changeDraft({ endCondition: { kind: "upToSurface", target } });
-    setPickingEndFace(false);
+  const changeEndTarget = (target: PlaneSupport, side: ExtrusionSide, request?: ExtrusionEndPickingRequest) => {
+    if (!mounted.current || !extrudeEditing || extrusionEndForSide(extrudeEditing, side)?.kind !== 'upToSurface'
+      || !thinWallSourceCurrent || (side === 'second' && bodyPicking) || pickingSupport || editingRef.current !== extrudeEditing || docRef.current !== doc) return;
+    if (request && (endPickingAuthority.current !== request || request.side !== side || request.draft !== extrudeEditing
+      || request.document !== doc || request.epoch !== documentEpoch.current)) return;
+    changeDraft(extrusionEndPatch(extrudeEditing, side, { kind: 'upToSurface', target }));
+    stopEndPicking();
     setFaceSelection(null);
     setError("");
   };
@@ -1543,7 +1550,8 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
       return;
     }
     if (pickingExtrude) {
-      if (currentFace) changeEndTarget({ kind: "face", face: currentFace.ref });
+      const request = endPickingAuthority.current;
+      if (currentFace && request) changeEndTarget({ kind: 'face', face: currentFace.ref }, request.side, request);
       return;
     }
     if (faceEditing && !facePreview && !pickingSupport) {
@@ -1670,7 +1678,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
       notify("Crea primero un sólido antes de aplicar un corte por revolución.");
       return;
     }
-    setPickingEndFace(false);
+    stopEndPicking();
     setPickingSupport(false);
     setSelectionMode("auto");
     setEdgeSelection([]);
@@ -1725,7 +1733,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     bodyOutputId.current = crypto.randomUUID();
     const feature: CombineFeature = { id: crypto.randomUUID(), type: "combine", name: `Combinar${doc.features.filter(item => item.type === "combine").length + 1}`,
       suppressed: false, operation: "add", operands: bodySelection.map(ref => ({ ...ref })), resultBodyId: bodyOutputId.current, keepTools: false };
-    setEditing(feature); setBodyPicking(true); setPickingSupport(false); setPickingEndFace(false);
+    setEditing(feature); setBodyPicking(true); setPickingSupport(false); stopEndPicking();
     setFaceSelection(null); setEdgeSelection([]); setSelectionMode("auto"); setTab("Operaciones"); setError("");
   };
   const startRepetition = (type: RepetitionFeature["type"]) => {
@@ -1900,7 +1908,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     setHoleSection("positions");
     setSelectedHolePosition(null);
     setPickingSupport(!selectedFace && !chosenPlane);
-    setPickingEndFace(false);
+    stopEndPicking();
     setSelectionMode("auto");
     setFaceSelection(null);
     setEdgeSelection([]);
@@ -2096,7 +2104,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
       setBodyPicking(false);
       setBodySelection([]);
       setPickingSupport(false);
-      setPickingEndFace(false);
+      stopEndPicking();
       setFaceSelection(null);
       setEdgeSelection([]);
       setSelectionMode("auto");
@@ -2109,7 +2117,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     stopAxisPicking();
     setBodyPicking(false);
     setBodySelection([]);
-    setPickingEndFace(false);
+    stopEndPicking();
     setEditing(stagedSketch);
     setStagedSketch(null);
     setPickingSupport(false);
@@ -2121,6 +2129,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
   };
   const changeDraft = (patch: Partial<Feature>) => {
     stopAxisPicking();
+    stopEndPicking();
     if (!editing) return;
     let merged: Feature;
     const original = doc.features.find(feature => feature.id === editing.id);
@@ -2152,20 +2161,21 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
       catch (error) { reconciliationError = error instanceof Error ? error.message : String(error); }
       if ('source' in patch) setBodySelection(selection.map(ref => ({ ...ref })));
     }
-    if (JSON.stringify(next) === JSON.stringify(editing)) return;
+    if (JSON.stringify(next) === JSON.stringify(editing)) return editing;
     if (editing.type === "sketch") {
       setSketchPast((old) => [...old, structuredClone(editing)].slice(-100));
       setSketchFuture([]);
     }
     setError(reconciliationError);
     setEditing(next);
+    return next;
   };
   const changeAxisPicking = (active: boolean) => {
     stopAxisPicking();
     if (!active || !editing || !isRevolutionFeature(editing) || editingRef.current !== editing || docRef.current !== doc
       || !sourceModel || !sourceFeatures || sourceLoading || sourceBuiltFeatures !== sourceFeatures || sourceModel.featureErrors.length) return;
     invalidateViewportPopup();
-    setBodyPicking(false); setPickingSupport(false); setPickingEndFace(false);
+    setBodyPicking(false); setPickingSupport(false); stopEndPicking();
     const request = { draft: editing, document: doc, epoch: documentEpoch.current, model: sourceModel, features: sourceFeatures };
     axisPickingAuthority.current = request; setAxisPickingRequest(request);
   };
@@ -2175,8 +2185,19 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
       || docRef.current !== request.document || documentEpoch.current !== request.epoch || !axisCandidates.includes(candidate)) return;
     changeDraft({ axis: structuredClone(candidate.axis) } as Partial<RevolutionFeature>);
   };
+  const changeEndPicking = (side: ExtrusionSide) => {
+    const current = endPickingAuthority.current;
+    stopEndPicking(); stopAxisPicking();
+    if (current?.side === side || !mounted.current || !extrudeEditing || editingRef.current !== extrudeEditing || docRef.current !== doc
+      || !thinWallSourceCurrent || !sourceModel || !sourceFeatures || bodyPicking || pickingSupport
+      || extrusionEndForSide(extrudeEditing, side)?.kind !== 'upToSurface') return;
+    invalidateViewportPopup();
+    const request = { side, draft: extrudeEditing, document: doc, epoch: documentEpoch.current, model: sourceModel, features: sourceFeatures };
+    endPickingAuthority.current = request; setEndPickingRequest(request);
+  };
   const chooseBodySelection = (references: BodyReference[]) => {
     stopAxisPicking();
+    stopEndPicking();
     invalidateViewportPopup();
     if (editing && isBodyCommandFeature(editing)) {
       let changed = withBodySelection(editing, references);
@@ -2823,9 +2844,11 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     existing={doc.features.some(feature => feature.id === editing.id)}
     bodies={sourceModel?.bodies ?? []} selection={bodySelection}
     onSelection={chooseBodySelection}
-    disabled={sourceLoading || sourceBuiltFeatures !== sourceFeatures}
-    picking={bodyPicking} onPicking={setBodyPicking}
+    disabled={sourceLoading || sourceBuiltFeatures !== sourceFeatures || pickingExtrude}
+    picking={bodyPicking} onPicking={value => { stopEndPicking(); setBodyPicking(value); }}
     onFeature={feature => {
+      if (sourceLoading || sourceBuiltFeatures !== sourceFeatures || pickingExtrude) return;
+      stopEndPicking(); stopAxisPicking();
       const separate = (feature.type === "extrude" || feature.type === "revolve") && feature.bodyOperation?.mode === "new";
       const selection = separate ? [] : bodySelection;
       if (separate) setBodySelection([]);
@@ -3907,7 +3930,8 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                       existing={doc.features.some(feature => feature.id === editing.id)}
                       autoCornersAvailable={thinAutoCornersAvailable}
                       endCapsAvailable={thinEndCapsAvailable}
-                      directionDisabled={!thinWallSourceCurrent || bodyPicking || pickingSupport || pickingExtrude}
+                      directionDisabled={!thinWallSourceCurrent || pickingSupport}
+                      bodyPicking={bodyPicking}
                       thinWallRequired={thinWallRequired}
                       thinWallDisabled={!thinWallSourceCurrent}
                       features={availableFeatures}
@@ -3933,21 +3957,22 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                             }
                       }
                       picking={pickingExtrude}
+                      pickingSide={pickingExtrude ? endPickingRequest?.side : null}
                       loading={sourceLoading}
                       canPickFace={
-                        !!sourceSelectionDtos.faces.length && !sourceLoading
+                        !!sourceSelectionDtos.faces.length && thinWallSourceCurrent
                       }
                       onTarget={changeEndTarget}
-                      onPickFace={() => setPickingEndFace(!pickingExtrude)}
+                      onPickFace={changeEndPicking}
                       onChange={(patch) => {
-                        changeDraft(patch);
-                        if ("endCondition" in patch)
-                          setPickingEndFace(
-                            patch.endCondition?.kind === "upToSurface" &&
-                              editing.endCondition?.kind !== "upToSurface" &&
-                              !!sourceSelectionDtos.faces.length &&
-                              !preferredEndPlane,
-                          );
+                        const next = changeDraft(patch);
+                        if (!next || next.type !== 'extrude' && next.type !== 'cut' || !thinWallSourceCurrent
+                          || !sourceModel || !sourceFeatures || bodyPicking || pickingSupport || !sourceSelectionDtos.faces.length || preferredEndPlane) return;
+                        const side = (['first', 'second'] as const).find(side => extrusionEndForSide(next, side)?.kind === 'upToSurface'
+                          && extrusionEndForSide(editing, side)?.kind !== 'upToSurface');
+                        if (!side) return;
+                        const request = { side, draft: next, document: doc, epoch: documentEpoch.current, model: sourceModel, features: sourceFeatures };
+                        endPickingAuthority.current = request; setEndPickingRequest(request);
                       }}
                     />
                     {operationBodyEditor}
@@ -4251,6 +4276,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
               model={visibleModel}
               revolutionAxisPicking={axisPicking ? { request: axisPickingRequest, candidates: axisCandidates,
                 selected: editing && isRevolutionFeature(editing) ? editing.axis : undefined, onSelect: selectRevolutionAxis } : undefined}
+              referencePickingRequest={pickingExtrude ? endPickingRequest : undefined}
               contextRevision={viewportContextFrame}
               onContextTarget={viewportContextBlocked ? undefined : openViewportContext}
               view={view}
@@ -4269,7 +4295,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                 !holeEditing
               }
               selectionMode={viewportSelectionMode}
-              selectionDisabled={axisPicking ? sourceLoading || sourceBuiltFeatures !== sourceFeatures : !editing && (busy || !previewCurrent)}
+              selectionDisabled={axisPicking || pickingExtrude ? sourceLoading || sourceBuiltFeatures !== sourceFeatures : !editing && (busy || !previewCurrent)}
               onClearSelection={!editing ? clearBrowsingSelection : undefined}
               selectedEdges={selectedEdges}
               selectedBodies={bodySelection}
@@ -4283,10 +4309,8 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
               selectedFaces={
                 pickingFaceOperation && !pickingSupport
                   ? operationFaces
-                  : pickingExtrude &&
-                      extrudeEditing?.endCondition?.kind === "upToSurface" &&
-                      extrudeEditing.endCondition.target.kind === "face"
-                    ? [extrudeEditing.endCondition.target.face]
+                  : pickingExtrude && pickedExtrusionEnd?.kind === 'upToSurface' && pickedExtrusionEnd.target.kind === 'face'
+                    ? [pickedExtrusionEnd.target.face]
                     : !editing ? normalReferences?.flatMap(reference => reference.kind === 'face' ? [reference.face] : []) ?? [] : []
               }
               onSelectFace={selectFace}
@@ -4370,7 +4394,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                     ? "Selecciona una cara plana"
                     : sketchPlaneLabel
                   : pickingExtrude
-                    ? "Selecciona la cara de destino · Pieza anterior a la operación"
+                    ? `Selecciona la cara de destino de dirección ${endPickingRequest?.side === 'second' ? '2' : '1'} · Pieza anterior a la operación`
                     : pickingFaceOperation
                       ? pickingSupport
                         ? "Selecciona una cara plana como plano neutro"

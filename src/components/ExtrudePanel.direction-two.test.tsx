@@ -81,7 +81,7 @@ describe('independent second extrusion direction', () => {
     expect(mergeExtrusionDraft(input, onChange.mock.lastCall![0])).toMatchObject({ depth: 20, secondDirection: { enabled: true, depth: 4.5 } })
   })
 
-  it.each(['mid', 'throughAll', 'throughAllBoth', 'untilNext', 'upToSurface'])('retains D2 in %s and permits explicit OFF without changing the chosen limit', mode => {
+  it.each(['mid', 'throughAllBoth'])('retains D2 in %s and permits explicit OFF without changing the chosen limit', mode => {
     const input: ExtrudeFeature = { ...feature, secondDirection: { enabled: true, depth: 10 } }, onChange = vi.fn()
     const changed = mergeExtrusionDraft(input, extrudeModePatch(input, mode, 'base', { kind: 'principal', plane: 'XZ' })!)
     const before = structuredClone(changed), root = tree(changed, onChange)
@@ -105,7 +105,7 @@ describe('independent second extrusion direction', () => {
 
   it.each([true, false])('does not offer new activation in an ineligible context, axial mid=%s', symmetric => {
     const input: ExtrudeFeature = symmetric ? { ...feature, symmetric: true }
-      : { ...feature, endCondition: { kind: 'upToSurface', target: { kind: 'principal', plane: 'XZ' } } }
+      : { ...feature, endCondition: { kind: 'throughAll', baseFeatureId: 'base', bothDirections: true } }
     const onChange = vi.fn(), root = tree(input, onChange)
     expect(control(root, TWO).props.disabled).toBe(true)
     change(root, TWO, '', true)

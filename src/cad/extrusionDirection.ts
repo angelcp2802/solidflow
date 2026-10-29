@@ -1,17 +1,23 @@
 import { captureOwnDataRecord } from '../model/ownDataRecord';
 import type { ExtrudeFeature } from './kernel.types';
+import { validateExtrusionEndCondition } from './extrusionEndCondition';
 
 export type SecondDirection = NonNullable<ExtrudeFeature['secondDirection']>;
 const MIN_DEPTH = .01, MAX_DEPTH = 100_000;
 
-export function validateSecondDirection(value: unknown, label = 'Segunda dirección'): SecondDirection {
-  const fields = captureOwnDataRecord(value, ['enabled', 'depth'], ['enabled', 'depth'], label);
-  const enabled = fields.get('enabled'), depth = fields.get('depth');
-  if (typeof enabled !== 'boolean') throw new Error(`${label}: la activación debe ser booleana.`);
+export function validateSecondDirectionDepth(depth: unknown, label = 'Segunda dirección'): number {
   if (typeof depth !== 'number' || !Number.isFinite(depth) || depth < MIN_DEPTH || depth > MAX_DEPTH) {
     throw new Error(`${label}: la profundidad debe estar entre 0.01 y 100000 mm.`);
   }
-  return { enabled, depth };
+  return depth;
+}
+export function validateSecondDirection(value: unknown, label = 'Segunda dirección'): SecondDirection {
+  const fields = captureOwnDataRecord(value, ['enabled', 'depth', 'endCondition'], ['enabled', 'depth'], label);
+  const enabled = fields.get('enabled'), depth = validateSecondDirectionDepth(fields.get('depth'), label);
+  if (typeof enabled !== 'boolean') throw new Error(`${label}: la activación debe ser booleana.`);
+  const endCondition = fields.has('endCondition') ? validateExtrusionEndCondition(fields.get('endCondition'), `${label}.endCondition`) : undefined;
+  if (endCondition?.kind === 'throughAll' && endCondition.bothDirections) throw Error(`${label}: Por todo en la segunda dirección solo admite su propio sentido.`);
+  return { enabled, depth, ...(endCondition ? { endCondition } : {}) };
 }
 
 function directionDescriptor(feature: object): PropertyDescriptor | undefined {
@@ -47,9 +53,28 @@ export function assertExtrusionDirectionContext(feature: object): void {
   const end = Object.getOwnPropertyDescriptor(feature, 'endCondition');
   if (!symmetry?.enumerable || !('value' in symmetry) || symmetry.value !== false
     || !end && 'endCondition' in feature
-    || end && (!end.enumerable || !('value' in end) || end.value !== undefined)) {
-    throw new Error('La segunda dirección requiere profundidad ciega y un solo sentido por rama; desactiva el plano medio y las condiciones automáticas.');
+    || end && (!end.enumerable || !('value' in end))) {
+    throw new Error('La segunda dirección requiere un solo sentido por rama; desactiva el plano medio.');
   }
+  if (end?.value !== undefined) {
+    const firstEnd = validateExtrusionEndCondition(end.value);
+    if (firstEnd.kind === 'throughAll' && firstEnd.bothDirections) throw Error('Por todo en ambos sentidos no se combina con una segunda dirección activa.');
+  }
+}
+
+export interface ResolvedExtrusionDirections {
+  first: { signedDepth: number; endCondition?: ExtrudeFeature['endCondition'] };
+  second?: { signedDepth: number; endCondition?: ExtrudeFeature['endCondition'] };
+  identity: readonly unknown[] | null;
+  allBlind: boolean;
+}
+/** Admission/role plan. Automatic ends are resolved natively, never from nominal depths. */
+export function resolveExtrusionDirections(feature: Pick<ExtrudeFeature, 'depth' | 'symmetric' | 'secondDirection' | 'endCondition'>): ResolvedExtrusionDirections {
+  const span = resolveExtrusionSpan(feature), direction = readSecondDirection(feature);
+  return { first: { signedDepth: feature.depth, ...(feature.endCondition ? { endCondition: feature.endCondition } : {}) },
+    ...(direction?.enabled ? { second: { signedDepth: -Math.sign(feature.depth) * direction.depth,
+      ...(direction.endCondition ? { endCondition: direction.endCondition } : {}) } } : {}),
+    identity: span.identity, allBlind: !feature.endCondition && !(direction?.enabled && direction.endCondition) };
 }
 
 export interface ResolvedExtrusionSpan {
@@ -67,10 +92,11 @@ export function resolveExtrusionSpan(feature: Pick<ExtrudeFeature, 'depth' | 'sy
   const minimum = validatePrimary ? MIN_DEPTH : 1e-7, maximum = validatePrimary ? MAX_DEPTH : 10_000_000;
   if (typeof depth !== 'number' || !Number.isFinite(depth) || Math.abs(depth) < minimum || Math.abs(depth) > maximum
     || typeof feature.symmetric !== 'boolean') throw new Error('La profundidad principal y el indicador de plano medio deben ser válidos.');
-  if (!direction?.enabled) return { startShift: feature.symmetric ? -depth / 2 : 0, signedDepth: depth,
-    identity: direction ? ['second-direction-v1', false] : null };
+  const identity: readonly unknown[] | null = direction ? ['second-direction-v1', direction.enabled,
+    ...(direction.endCondition ? [['second-direction-end-v1', direction.endCondition.kind]] : [])] : null;
+  if (!direction?.enabled) return { startShift: feature.symmetric ? -depth / 2 : 0, signedDepth: depth, identity };
   const total = Math.abs(depth) + direction.depth;
   if (!Number.isFinite(total) || total > 2 * MAX_DEPTH) throw new Error('La profundidad total de ambas direcciones no puede superar 200000 mm.');
   return { startShift: -Math.sign(depth) * direction.depth, signedDepth: Math.sign(depth) * total,
-    identity: ['second-direction-v1', true] };
+    identity };
 }

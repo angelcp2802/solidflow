@@ -1,5 +1,39 @@
 # Project status and review queue
 
+## Independent automatic ends in both directions — 2026-10-29
+
+Extrusions and cuts now retain a separate geometric end condition on each side.
+First/second Blind, unilateral ThroughAll, UntilNext and UpToSurface combinations
+share the original source frame and pre-operation owners, then compose tools
+atomically. Exact new-body limit reads, cut scopes and historical face references
+remain distinct. OFF settings and per-side world-plane regeneration policies
+stay editable without silently borrowing the other side's target.
+
+Final local Windows acceptance passes build, **11,006 unit/CAD cases in 487
+files**, **200 IPC passes/two platform skips**, startup and seven complete
+renderer routes. The new route has **226 checkpoints/35 native phases**, covering
+anchored and mixed limits, distinct per-side body limits, explicit inversion
+recovery, exact cut ownership, later target/source edits, history, two writes
+and fresh reopening. Ten commands share **1,304 pinned inputs/nine products**.
+Separate native/STEP, historical-face and genuine saved-regeneration cases
+retain their own geometric limits; see [validation](VALIDATION.md),
+[fixtures](PROVENANCE.md#original-independent-end-limit-fixtures--2026-10-29)
+and the [workflow](CORE_WORKFLOWS.md#independent-automatic-end-limits).
+
+The new route joins the existing Linux/Windows/macOS persistence jobs; its
+new-head hosted result remains pending. Parent `13894c9` completes all fifteen
+[CI jobs](https://github.com/angelcp2802/solidflow/actions/runs/40877560119) and
+both [Security jobs](https://github.com/angelcp2802/solidflow/actions/runs/40877560076).
+Installed-platform and recurring stability acceptance remain separate.
+
+Keep #55 **16/25** with nine groups open, #53 **6/9**, PR #49 draft/unmerged and
+release #5 open. Automatic caps, other end modes, datum/face and instance limit
+correspondence in regeneration, offset repair, broader menus/editors/picking
+and configured/boundary workflows, materials/appearance, complete human demo,
+installed platforms and recurring stability remain open. The new renderer uses
+plane/body selectors and does not establish physical viewport face clicks or
+complete interaction parity. The whole independent CAD objective remains active.
+
 ## Independent linear extrusion and cut directions — 2026-10-29
 
 Regular and thin extrusions/cuts can retain an independent opposite Blind depth.

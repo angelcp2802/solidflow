@@ -1,5 +1,121 @@
 # Validation
 
+## Independent native end limits in both directions — 2026-10-29
+
+This follow-up to published `13894c9` extends the strict optional second direction
+with its own end condition. First and second sides independently use Blind,
+unilateral ThroughAll, UntilNext or UpToSurface. Both rays use the original
+solved profile/frame and pre-operation owners; one atomic union precedes the
+material operation. Exact body reads, historical faces, declared OFF references
+and per-locator regeneration policies remain distinct from output owners.
+See the [contract](THIN_WALL_OPERATIONS.md#independent-linear-directions--2026-10-29),
+[workflow](CORE_WORKFLOWS.md#independent-automatic-end-limits) and
+[original fixtures](PROVENANCE.md#original-independent-end-limit-fixtures--2026-10-29).
+
+Final local Windows acceptance reuses Node 24.11.1/Electron 44.9.3 without
+installing dependencies or resetting the existing runtime. Prior input and
+product hashes were verified before synchronization. The final ten-command
+sequence shares **1,304 pinned non-Markdown inputs/nine products**; source,
+runtime and product hashes are checked around each phase. Its manifest is
+`97aa1757162637e23b190313cd88095ea4fab0776a2b2be551ad0030af87f83b`.
+
+| Command | Final result |
+| --- | --- |
+| `npm run build` | PASS, 3.934 s. |
+| `npm run test:desktop:part-two-direction-limits` | PASS, 22.098 s; **226 checkpoints/35 native-build phases/96 control inputs**. |
+| `npm run test:desktop:part-two-direction` | PASS, 20.007 s; complete 195-checkpoint route with the newly valid first-automatic/second-Blind transition. |
+| `npm run test:desktop:part-end-caps` | PASS, 13.121 s; complete 131-checkpoint prior route. |
+| `npm run test:desktop:part-auto-corners` | PASS, 12.932 s; complete 130-checkpoint prior route. |
+| `npm run test:desktop:part-thin-wall` | PASS, 18.180 s; complete 179-checkpoint prior route. |
+| `npm run test:desktop:part-external-axis` | PASS, 16.839 s; complete 109-checkpoint prior route. |
+| `npm run test:desktop:part-revolution` | PASS, 35.393 s; complete 251-checkpoint prior route. |
+| `npm test` | PASS, 438.465 s overall: **11,006 unit/CAD cases in 487 files**, Vitest 430.97 s; **200 IPC passes/two explicit platform skips**, no failures. |
+| `npm run test:desktop` | PASS, 1.569 s; production loader/preload/worker/WASM startup without reported console or resource-request errors. |
+
+All seven renderer reports match their eight relevant production hashes, report
+zero console errors/failed requests, observe their owned child closing and
+confirm deletion of their isolated temporary profile. The new route covers two
+anchored planes, both mixed modes, unchanged wrong-side targets after inversion
+and explicit recovery, distinct limit bodies for all four Next/All pairings,
+an exact stepped cut owner, OFF retention, midpoint recovery, new/saved
+Cancel/retry/Apply, Undo/Redo, two writes and fresh native reopening. Editing
+only the boss's second target and then moving the common source 5→7 preserves
+the separate cut's targets and V6876. Renderer volumes/bounds use `1e-5 mm³` and
+`1e-6 mm`; these checks do not substitute for BRep/area/STEP oracles.
+
+Separate native/STEP cases check both signs, both anchored ends and mixed-end
+source movement, thin geometry, opposite selected owners, incomplete-limit
+atomic rejection and a buried historical face that rebinds after its producer's
+depth changes. Explicit-frame geometry also checks two inclined planes by
+independent integrals. Real saved feature-pattern cases distinguish Next/All
+boundaries in an original enclosed stratified body, including authentic solved
+entities and ALL owners outside both rays. World-principal-plane cases exercise
+each automatic locator through translation, rotation and reflection. The
+provenance chapter records literal volumes, areas, bounds and tolerances.
+
+The blue editors retain each side's dimensions/targets, preserve D1 editing
+during body picking and keep Apply, D2 and facial-selection ownership guarded.
+Pattern choices use `(featureId, path)` independently, including retained OFF
+principal-plane policies and explicit removal of genuinely stale policies.
+Request/gesture tests check draft/document/model/prefix identity and presented
+scene/camera at press/release. The renderer route uses plane/body dropdowns,
+actual CDP pointer press/release and native field setters with bubbling events;
+it does not inject application state or worker results. **A physical viewport
+face click and physical keyboard delivery are not established by this route.**
+
+The first integrated route attempt is retained as a failure: its negative
+inversion case correctly reached the exact draft error, but the recorder
+expected the two correct warnings in the opposite order. The final recorder
+requires their actual exact order; all success warnings, owner/geometry checks,
+tolerances, deadlines and grants remain unchanged. A trailing blank line flagged
+by preflight was also removed. The complete final sequence above uses the
+corrected source; it is not an earlier-head result.
+
+The inspected 1024×661 blue capture has SHA-256
+`2a286e48d9da4f0182be5204222489647cbc1a18f4249b28113816ee519515d8`;
+the original saved model has SHA-256
+`b6ccdc5b20f859fc583980524bf3c896213c07572250e4f77c690e9c4fad55cb`.
+They remain local validation artifacts, not release binaries or complete
+human-demo acceptance.
+
+REA inspected final worker `kernel.worker-CCO2Jxd7.js`, SHA-256
+`a9dd22620bed683688d574ef09a2991e33447ea6993ea492c019569e05cef74e`,
+with its paired WASM digest retained. Analysis
+`ev_1476c2b2613a012ca9e34804df67f01eb6ec9c6c2b8803edc21c4f943d7900b9`
+and summary
+`ev_15753ce27a725e7f5ba936493cbc8b1e17ed8275896ff77743c50e0efa4ac3d3`
+record one parsed JavaScript file, 1,415,928 bytes, 428,144 AST nodes and zero
+parse failures. Semantic coverage is partial at the 100,000-node ceiling, with
+77,957 unknowns. A `secondDirection` string-seed trace
+(`ev_9f58766bf956f14775db7ce11c93574b929f215e246b00692bd99371e00a2df3`)
+has no matches in its application graph; that is not evidence that the feature
+is absent. Retained summary/export retrieval handled the transport budget
+without repeating analysis. Static inspection does not establish runtime parity
+or WASM decompilation; the behavioral evidence is the separate executed cases.
+
+Applied frontend-design, vercel-react-best-practices client rules,
+code-simplifier, code-review and security-review, with REA/runtime evidence.
+Independent scoped reviews cover all 45 changed non-Markdown files and the
+documentation, including the final recorder correction. No actionable or
+high-confidence security finding remains in this diff. No base SECURITY_MODEL
+exists; existing desktop/security contracts apply without new exclusions.
+This is not human PR approval, a whole-application audit or a performance claim.
+
+The new route joins existing three-platform persistence jobs with unchanged
+permissions, pins, dependencies, grants and deadlines. Its hosted result is
+pending. Parent `13894c9` completes all fifteen
+[CI jobs](https://github.com/angelcp2802/solidflow/actions/runs/40877560119) and
+both [Security jobs](https://github.com/angelcp2802/solidflow/actions/runs/40877560076).
+The documented renderer inventory now matches the configured 77 distinct
+commands: persistence 37, relations 23 and hinge-symmetry 17. Configuration and
+single-head passes do not establish recurring stability or installed-platform use.
+
+Keep #55 **16/25**, #53 **6/9**, PR #49 draft/unmerged and release #5 open.
+Automatic caps, datum/face and instance limit correspondence in regeneration,
+additional end modes, wider offset repair, physical face-click and broader
+editor/selection acceptance, materials, complete human demo, recurring stability
+and installed platforms remain open within the existing community CAD objective.
+
 ## Independent linear extrusion and cut directions — 2026-10-29
 
 This follow-up to published `cb220f3` adds strict optional independent opposite

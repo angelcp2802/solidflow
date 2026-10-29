@@ -8,7 +8,7 @@ import {
   bodyBoolean, copyBodyShape, createConservativeBodyBounds, validateBodyShape, type NativeBodyCatalog,
   type NativeBodyReplacement, type NativeBodyStateUpdate, type NativeBodyTransaction,
 } from './kernel.bodies';
-import { buildRecipeInstanceTool, resolveRecipeInstanceUntilNext } from './kernel.recipe-instance';
+import { buildRecipeInstanceTool, resolveRecipeInstanceDirections, resolveRecipeInstanceUntilNext } from './kernel.recipe-instance';
 import { framePoint } from './kernel.frames';
 import { validatePositiveClosedTool } from './kernel.closed-tools';
 import { validateEntityRecipeProfileForAbsence, type EntityRecipeSolveInput } from './kernel.recipe-entities';
@@ -118,6 +118,7 @@ function allCutEntirelyBehindRay(closure: RecipeClosure, operation: RecipeOperat
   if (closure.request.scope.mode !== 'all' || operation.type !== 'cut'
     || operation.termination?.kind !== 'throughAll' || operation.termination.bothDirections) return false;
   const definition = closure.definitions.find(item => item.feature.id === operation.featureId)?.feature;
+  if (definition && (definition.type === 'extrude' || definition.type === 'cut') && definition.secondDirection?.enabled) return false;
   const thinWallDeclared = Boolean(definition && Object.hasOwn(definition, 'thinWall'));
   const sketch = closure.definitions.find(definition => definition.feature.id === operation.sketchId)?.feature;
   if (sketch?.type !== 'sketch') return false;
@@ -349,7 +350,7 @@ export function evaluateFeatureRecipes(input: RecipeEvaluationInput): OwnedRecip
             };
             assertWorkingCurrent();
             const beforeState = intermediate(before);
-            if (beforeState.empty && operation.termination?.kind !== 'blind' && operation.termination?.kind !== 'upToSurface') {
+            if (beforeState.empty && [operation.termination, operation.secondTermination].some(end => end && end.kind !== 'blind' && end.kind !== 'upToSurface')) {
               throw new Error('A dynamic end condition on an empty working owner needs a separate extent policy.');
             }
             // Equivalent fixed intrinsic bindings share one event/target tool.
@@ -362,7 +363,12 @@ export function evaluateFeatureRecipes(input: RecipeEvaluationInput): OwnedRecip
                 // Tools may contain several closed regions. Recipe/profile gates
                 // remain in the bridge; source/current/final owners still use validateSingle.
                 validateTool: validatePositiveClosedTool };
-              const construction = operation.termination?.kind === 'untilNext' && closure.request.scope.mode === 'all'
+              const definition = closure.definitions.find(item => item.feature.id === operation.featureId)?.feature;
+              const independent = definition && (definition.type === 'extrude' || definition.type === 'cut') && definition.secondDirection?.enabled
+                && (operation.termination?.kind !== 'blind' || operation.secondTermination);
+              const construction = independent && closure.request.scope.mode === 'all'
+                ? resolveRecipeInstanceDirections(constructionInput)
+                : operation.termination?.kind === 'untilNext' && closure.request.scope.mode === 'all'
                 ? (() => {
                   const resolved = resolveRecipeInstanceUntilNext(constructionInput);
                   if (resolved.kind === 'complete') return resolved;

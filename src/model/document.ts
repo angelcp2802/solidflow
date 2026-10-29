@@ -3,7 +3,7 @@ import { isEdgeReferenceKeyV2, isFaceReferenceKeyV2 } from '../cad/kernel.semant
 import { validateEntityProfile } from '../sketch/validation'
 import { featureDependencyIds, featureSketchIds } from './featureInputs'
 import { validateStepSource } from './stepSource'
-import { bodyReferenceCreationFeatureId, createdBodyIds, featureBodyOutputIncludes, featureBodyReferences } from './bodyReferences'
+import { bodyReferenceCreationFeatureId, createdBodyIds, featureBodyOutputIncludes, featureBodyReferences, featureBodyReferencePaths } from './bodyReferences'
 import { featureRevolutionAxisBodyReferences } from './revolutionAxisReferences'
 import { captureOwnDataRecord } from './ownDataRecord'
 import { mergeThinWallDraft, readThinWall } from '../cad/thinWall'
@@ -144,7 +144,7 @@ function bodyReferencePath(feature: Feature, index: number, path: string): strin
     return feature.operation === 'subtract' ? `${path}.${index === 0 ? 'target' : `tools[${index - 1}]`}`
       : `${path}.operands[${index}]`
   }
-  if (feature.type === 'extrude' && feature.bodyOperation?.mode === 'new') return `${path}.endCondition.baseBody`
+  if (feature.type === 'extrude' && feature.bodyOperation?.mode === 'new') return `${path}.${featureBodyReferencePaths(feature)[index]}`
   if (feature.type === 'extrude' || feature.type === 'revolve' || feature.type === 'sweep' || feature.type === 'loft') return `${path}.bodyOperation.target`
   return `${path}.bodyScope${feature.type === 'cut' || feature.type === 'revolvedCut' || feature.type === 'hole' ? `[${index}]` : ''}`
 }
@@ -672,14 +672,15 @@ function feature(value: unknown, path: string): Feature {
     const operation = source.type === 'extrude' && Object.hasOwn(source, 'bodyOperation')
       ? bodyOperation(source.bodyOperation, `${path}.bodyOperation`) : undefined
     if (symmetric && endCondition) fail(`${path}.symmetric`, 'el plano medio solo admite una profundidad definida')
-    if (endCondition && endCondition.kind !== 'upToSurface') {
+    for (const [limit, locator] of [[endCondition, 'endCondition'], [secondDirection?.endCondition, 'secondDirection.endCondition']] as const) {
+      if (!limit || limit.kind === 'upToSurface') continue
       if (operation?.mode === 'new') {
-        if (!endCondition.baseBody) fail(`${path}.endCondition.baseBody`, 'el cuerpo nuevo requiere un cuerpo base explícito')
-        if (endCondition.baseBody.sourceFeatureId !== endCondition.baseFeatureId) {
-          fail(`${path}.endCondition.baseBody.sourceFeatureId`, 'debe coincidir con la operación base de la condición final')
+        if (!limit.baseBody) fail(`${path}.${locator}.baseBody`, 'el cuerpo nuevo requiere un cuerpo base explícito')
+        if (limit.baseBody.sourceFeatureId !== limit.baseFeatureId) {
+          fail(`${path}.${locator}.baseBody.sourceFeatureId`, 'debe coincidir con la operación base de la condición final')
         }
-      } else if (endCondition.baseBody) {
-        fail(`${path}.endCondition.baseBody`, 'solo se admite al crear un cuerpo nuevo')
+      } else if (limit.baseBody) {
+        fail(`${path}.${locator}.baseBody`, 'solo se admite al crear un cuerpo nuevo')
       }
     }
     const definition = {
@@ -925,14 +926,16 @@ export function validateDocument(value: unknown): Document {
     if ('support' in parsed && parsed.support) {
       checkSupportReference(parsed.support, seen, `${path}.support`)
     }
-    if ((parsed.type === 'extrude' || parsed.type === 'cut') && parsed.endCondition) {
-      const endCondition = parsed.endCondition
+    if (parsed.type === 'extrude' || parsed.type === 'cut') for (const [endCondition, locator] of [
+      [parsed.endCondition, 'endCondition'], [parsed.secondDirection?.endCondition, 'secondDirection.endCondition'],
+    ] as const) {
+      if (!endCondition) continue
       if (endCondition.kind === 'upToSurface') {
-        checkSupportReference(endCondition.target, seen, `${path}.endCondition.target`)
+        checkSupportReference(endCondition.target, seen, `${path}.${locator}.target`)
       } else {
         const base = seen.get(endCondition.baseFeatureId)
         if (!base || base.type === 'sketch' || base.type === 'plane') {
-          fail(`${path}.endCondition.baseFeatureId`, 'debe referenciar una operación sólida anterior')
+          fail(`${path}.${locator}.baseFeatureId`, 'debe referenciar una operación sólida anterior')
         }
       }
     }

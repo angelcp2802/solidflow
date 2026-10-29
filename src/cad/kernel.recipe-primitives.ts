@@ -10,6 +10,7 @@ import { buildThinWallEndCaps } from './kernel.thin-caps';
 import { readSecondDirection, resolveExtrusionSpan, type ResolvedExtrusionSpan } from './extrusionDirection';
 import { entityProfileSolid } from './kernel.profiles';
 import { resolveUntilNextAdd, resolveUntilNextCut, type UntilNextCutResolution } from './kernel.until-next-resolution';
+import { resolveDirectionTools, type DirectionToolResolution } from './kernel.direction-tools';
 
 /** Explicit-frame primitive construction: no document IDs, recipe graph or catalog publication. */
 export type PrimitiveProfile =
@@ -38,6 +39,8 @@ export interface ExplicitFramePrimitiveInput {
   readonly validateTool: (tool: Shape3D) => void;
   readonly thinWall?: ThinWallDefinition;
   readonly secondDirection?: ExtrudeFeature['secondDirection'];
+  /** Resolved native counterpart of the declared second end; never an inferred coordinate. */
+  readonly secondTermination?: PrimitiveTermination;
 }
 
 const MIN_PARAMETER_LENGTH = .01, MAX_PARAMETER_LENGTH = 100_000;
@@ -219,6 +222,12 @@ export function resolveExplicitFrameUntilNext(input: ExplicitFramePrimitiveInput
 
 /** Strict construction API: a successfully returned tool is always owned and non-null. */
 export function buildExplicitFramePrimitive(input: ExplicitFramePrimitiveInput): Shape3D {
+  const direction = readSecondDirection(input);
+  if (direction?.enabled && (input.termination.kind !== 'blind' || direction.endCondition)) {
+    const resolution = resolveExplicitFrameDirections(input, input.operation === 'subtract');
+    if (resolution.kind !== 'complete') throw Error('No se puede construir una operación sin material en ambas direcciones.');
+    return resolution.tool;
+  }
   const { signedDepth, center, ray, termination, target, limit, makePrism, span } = explicitFramePrimitiveFactory(input);
   return withNativeOwners(owners => {
     let result: Shape3D;
@@ -240,4 +249,27 @@ export function buildExplicitFramePrimitive(input: ExplicitFramePrimitiveInput):
     input.validateTool(result);
     return result;
   }, result => [result], 'Explicit-frame primitive construction or release failed.');
+}
+
+/** Both rays borrow the same pre-operation owner; no sequential material search. */
+export function resolveExplicitFrameDirections(input: ExplicitFramePrimitiveInput, allowSeparatedMiss: boolean): DirectionToolResolution {
+  const direction = readSecondDirection(input);
+  if (!direction?.enabled || input.termination.kind === 'blind' && !direction.endCondition) {
+    return { kind: 'complete', tool: buildExplicitFramePrimitive(input) };
+  }
+  if (input.termination.kind === 'blind' && input.termination.symmetric
+    || input.termination.kind === 'throughAll' && input.termination.bothDirections) throw Error('Cada dirección requiere su propio sentido, sin plano medio ni Por todo bilateral.');
+  assertThinWallEndCapsContext(resolveThinWall(input)?.definition, input.operation, false, false);
+  if (direction.endCondition && (!input.secondTermination || input.secondTermination.kind !== direction.endCondition.kind)
+    || !direction.endCondition && input.secondTermination && input.secondTermination.kind !== 'blind') throw Error('Falta resolver exactamente el límite de la segunda dirección.');
+  const { secondDirection: _direction, secondTermination: _second, ...first } = input;
+  const second: ExplicitFramePrimitiveInput = { ...first, signedDepth: -Math.sign(input.signedDepth) * direction.depth,
+    termination: input.secondTermination ?? { kind: 'blind', symmetric: false } };
+  const branches = [first, second].map(branch => ({
+    build: () => buildExplicitFramePrimitive(branch), untilNext: branch.termination.kind === 'untilNext',
+    ...(branch.termination.kind === 'untilNext' || branch.termination.kind === 'throughAll' ? {
+      observeForward: () => resolveExplicitFrameUntilNext({ ...branch, termination: { kind: 'untilNext' } }),
+    } : {}),
+  }));
+  return resolveDirectionTools(branches, allowSeparatedMiss && input.operation === 'subtract', input.validateTool);
 }

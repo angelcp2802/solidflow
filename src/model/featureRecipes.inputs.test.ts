@@ -55,12 +55,12 @@ it.each([false, true])('retains a detached independent second length through rec
   operation.secondDirection.depth = 3; expect(input.secondDirection?.depth).toBe(2);
 });
 
-it('rejects active automatic extents and invalid OFF second lengths before native absence shortcuts', () => {
+it('rejects incompatible bilateral extents and invalid OFF second lengths before native absence shortcuts', () => {
   for (const secondDirection of [{ enabled: true, depth: 2 }, { enabled: false, depth: 0 }]) {
     const { features, request } = originalDeclaration(), operation = features[3];
     if (operation.type !== 'cut') throw Error('Expected original cut');
     operation.secondDirection = secondDirection;
-    operation.endCondition = { kind: 'throughAll', baseFeatureId: 'budget-create', bothDirections: false };
+    operation.endCondition = { kind: 'throughAll', baseFeatureId: 'budget-create', bothDirections: secondDirection.enabled };
     expect(failureCodes(() => extractRecipeClosure(features, request))).toContain('SECOND_DIRECTION_DECLARATION');
   }
 });
@@ -69,6 +69,27 @@ it('rejects executable second-direction declarations without calling their acces
   const { features, request } = originalDeclaration(), hook = vi.fn(() => ({ enabled: false, depth: 2 }));
   Object.defineProperty(features[3], 'secondDirection', { get: hook, enumerable: true });
   expect(() => extractRecipeClosure(features, request)).toThrow(); expect(hook).not.toHaveBeenCalled();
+});
+
+it('keeps two reference policies for one feature unique by their complete locators', () => {
+  const { features, request } = originalDeclaration(), operation = features[3];
+  if (operation.type !== 'cut') throw Error('Fixture');
+  operation.endCondition = { kind: 'upToSurface', target: { kind: 'principal', plane: 'XY' } };
+  operation.secondDirection = { enabled: true, depth: 2, endCondition: { kind: 'upToSurface', target: { kind: 'principal', plane: 'XZ' } } };
+  request.referencePolicies = ['endCondition.target', 'secondDirection.endCondition.target'].map(path => ({ featureId: operation.id, path, placement: 'world' }));
+  const closure = extractRecipeClosure(features, request), input = fixedProfileInstanceInput(closure, operation.id, '1,0');
+  expect(input.termination.kind).toBe('upToSurface'); expect(input.secondTermination?.kind).toBe('upToSurface');
+  request.referencePolicies.push({ ...request.referencePolicies[1] });
+  expect(failureCodes(() => extractRecipeClosure(features, request))).toContain('REFERENCE_POLICY');
+});
+
+it('retains an inactive secondary reference policy without resolving it or discarding its declaration', () => {
+  const { features, request } = originalDeclaration(), operation = features[3];
+  if (operation.type !== 'cut') throw Error('Fixture');
+  operation.secondDirection = { enabled: false, depth: 2, endCondition: { kind: 'upToSurface', target: { kind: 'principal', plane: 'XZ' } } };
+  request.referencePolicies = [{ featureId: operation.id, path: 'secondDirection.endCondition.target', placement: 'world' }];
+  const input = fixedProfileInstanceInput(extractRecipeClosure(features, request), operation.id, '1,0');
+  expect(input.secondTermination).toBeUndefined(); expect(input.secondDirection).toEqual(operation.secondDirection);
 });
 
 it('charges oversized own property names to the detached recipe character envelope', () => {

@@ -215,20 +215,29 @@ module.exports = function twoDirectionWorkflow(context) {
     await built(serial, row => authored(row) && !last(row).symmetric && !last(row).endCondition,
       row => plainOwners(row, plain), 'explicit-second-reactivation-after-midpoint');
 
-    await change(END, 'upToSurface'); await change(TARGET, 'plane:two-limit-plane');
-    await waitFor('automatic target retained during blocked second direction', () => page((end, target, two, depth, apply) =>
+    serial = (await observe()).serial; await change(END, 'upToSurface'); await change(TARGET, 'plane:two-limit-plane');
+    await built(serial, row => authored(row) && !last(row).symmetric
+      && canonical(last(row).endCondition) === canonical({ kind: 'upToSurface', target: { kind: 'plane', planeId: 'two-limit-plane' } }),
+    row => plainOwners(row, { volume: 1080, min: [30, 0, -2], max: [40, 6, 16] }), 'first-automatic-limit-with-retained-second-blind-depth');
+    await ready();
+    check(await page((end, target, two, depth, apply) =>
       document.querySelector(end)?.value === 'upToSurface' && document.querySelector(target)?.value === 'plane:two-limit-plane'
       && document.querySelector(two)?.checked === true && document.querySelector(two)?.disabled === false
-      && document.querySelector(depth)?.value === '7' && document.querySelector(depth)?.disabled === true
-      && document.querySelector(apply)?.disabled === true, END, TARGET, TWO, D2, APPLY));
+      && document.querySelector(depth)?.value === '7' && document.querySelector(depth)?.disabled === false
+      && document.querySelector(apply)?.disabled === false, END, TARGET, TWO, D2, APPLY),
+    'The first automatic plane and independent second blind depth are simultaneously valid');
     serial = (await observe()).serial; await press(TWO);
     await built(serial, row => authored(row, 13, 7, false) && !last(row).symmetric
       && canonical(last(row).endCondition) === canonical({ kind: 'upToSurface', target: { kind: 'plane', planeId: 'two-limit-plane' } }),
     row => plainOwners(row, automatic), 'explicit-second-off-preserves-the-exact-automatic-target');
     check(await page((target, two) => document.querySelector(target)?.value === 'plane:two-limit-plane'
-      && document.querySelector(two)?.checked === false && document.querySelector(two)?.disabled === true, TARGET, TWO),
-    'Explicit second recovery preserves the selected first target and prevents unsupported activation');
-    serial = (await observe()).serial; await change(END, 'blind'); await press(TWO);
+      && document.querySelector(two)?.checked === false && document.querySelector(two)?.disabled === false, TARGET, TWO),
+    'Explicit second OFF preserves the selected first target and permits independent reactivation');
+    serial = (await observe()).serial; await press(TWO);
+    await built(serial, row => authored(row) && !last(row).symmetric
+      && canonical(last(row).endCondition) === canonical({ kind: 'upToSurface', target: { kind: 'plane', planeId: 'two-limit-plane' } }),
+    row => plainOwners(row, { volume: 1080, min: [30, 0, -2], max: [40, 6, 16] }), 'reactivate-second-with-first-plane-still-anchored');
+    serial = (await observe()).serial; await change(END, 'blind');
     await built(serial, row => authored(row) && !last(row).symmetric && !last(row).endCondition,
       row => plainOwners(row, plain), 'return-blind-and-explicitly-restore-second');
 

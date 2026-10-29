@@ -147,12 +147,26 @@ it('keeps exact body identity through saved independent depth edits and OFF reco
   await verify(history.current.features, 1920, 992, [6, 4, 10], [0, 0, 0], [12, 8, 20]);
 });
 
-it.each(['symmetric', 'throughAll', 'untilNext', 'upToSurface'] as const)('rejects active second direction with %s before native factories', kind => {
+it.each(['symmetric', 'throughAllBoth'] as const)('rejects conflicting global mode %s with active second direction', kind => {
   const operation = extrusion();
   if (kind === 'symmetric') operation.symmetric = true;
-  else operation.endCondition = kind === 'upToSurface' ? { kind, target: { kind: 'principal', plane: 'XY' } }
-    : kind === 'throughAll' ? { kind, baseFeatureId: 'missing', bothDirections: false } : { kind, baseFeatureId: 'missing' };
+  else operation.endCondition = { kind: 'throughAll', baseFeatureId: 'missing', bothDirections: true };
   const result = engine.build([profile(), operation]);
-  expect(result.featureErrors).toHaveLength(1); expect(result.featureErrors[0].message).toMatch(/profundidad ciega/);
+  expect(result.featureErrors).toHaveLength(1); expect(result.featureErrors[0].message).toMatch(/plano medio|ambos sentidos/);
+  expect(() => engine.export('step')).toThrow(/errores/);
+});
+
+it.each(['throughAll', 'untilNext'] as const)('does not substitute a missing %s limit with either nominal depth', kind => {
+  const operation = extrusion();
+  operation.endCondition = kind === 'throughAll' ? { kind, baseFeatureId: 'missing', bothDirections: false } : { kind, baseFeatureId: 'missing' };
+  const result = engine.build([profile(), operation]);
+  expect(result.featureErrors).toHaveLength(1); expect(result.featureErrors[0].message).toMatch(/cuerpo límite/);
+  expect(() => engine.export('step')).toThrow(/errores/);
+});
+
+it('rejects a surface at the source plane instead of silently restoring the first fixed depth', () => {
+  const operation = extrusion(); operation.endCondition = { kind: 'upToSurface', target: { kind: 'principal', plane: 'XY' } };
+  const result = engine.build([profile(), operation]);
+  expect(result.featureErrors).toHaveLength(1); expect(result.featureErrors[0].message).toMatch(/superficie límite/);
   expect(() => engine.export('step')).toThrow(/errores/);
 });

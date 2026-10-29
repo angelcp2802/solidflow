@@ -11,6 +11,7 @@ import { withNativeOwners } from './kernel.native-ownership';
 import { throughAllBossTool, throughAllTool, untilNextTool, upToSurfaceTool } from './kernel.extrusion-limits';
 import { resolveUntilNextAdd, resolveUntilNextCut, type UntilNextCutResolution } from './kernel.until-next-resolution';
 import type { PrimitiveTermination } from './kernel.recipe-primitives';
+import { resolveDirectionTools, type DirectionToolResolution } from './kernel.direction-tools';
 import { readCheckpointSourceSketchSolve, type SourceSketchSolveCheckpoint,
   type SourceSketchSolveRegistry } from './kernel.sketch-solves';
 
@@ -30,6 +31,7 @@ export interface EntityRecipeProfileInput {
 export interface EntityRecipeToolInput extends EntityRecipeProfileInput {
   readonly termination: PrimitiveTermination;
   readonly operation: 'add' | 'subtract';
+  readonly secondTermination?: PrimitiveTermination;
   readonly workingTarget: Shape3D;
 }
 const sameFrame = (a: PlaneFrame, b: PlaneFrame): boolean =>
@@ -130,6 +132,15 @@ export function resolveEntityRecipeUntilNext(input: EntityRecipeToolInput): Unti
 export function buildEntityRecipeTool(input: EntityRecipeToolInput): Shape3D {
   const { source, placement, termination } = input;
   const secondDirection = readSecondDirection(placement);
+  if (secondDirection?.enabled && (termination.kind !== placement.termination.kind
+    || termination.kind === 'blind' && placement.termination.kind === 'blind' && termination.symmetric !== placement.termination.symmetric)) {
+    throw Error('La terminación nativa debe coincidir con la declaración de cada dirección.');
+  }
+  if (secondDirection?.enabled && (termination.kind !== 'blind' || secondDirection.endCondition)) {
+    const resolution = resolveEntityRecipeDirections(input, input.operation === 'subtract');
+    if (resolution.kind !== 'complete') throw Error('No se puede construir una operación sin material en ambas direcciones.');
+    return resolution.tool;
+  }
   assertExtrusionDirectionContext({ symmetric: termination.kind === 'blind' && termination.symmetric,
     ...(termination.kind !== 'blind' ? { endCondition: termination } : {}),
     ...(secondDirection ? { secondDirection } : {}) });
@@ -153,4 +164,36 @@ export function buildEntityRecipeTool(input: EntityRecipeToolInput): Shape3D {
     readCheckpointSourceSketchSolve(source.registry, source.checkpoint, source.features, placement.sketchId);
     return tool;
   }, tool => [tool], 'Entity recipe tool construction or release failed.');
+}
+
+/** Fresh authentic sections for two rays, read from the same current solve and owner. */
+export function resolveEntityRecipeDirections(input: EntityRecipeToolInput, allowSeparatedMiss: boolean): DirectionToolResolution {
+  const { placement, termination } = input, direction = readSecondDirection(placement);
+  if (direction?.enabled && (termination.kind !== placement.termination.kind
+    || termination.kind === 'blind' && placement.termination.kind === 'blind' && termination.symmetric !== placement.termination.symmetric)) {
+    throw Error('La terminación nativa debe coincidir con la declaración de cada dirección.');
+  }
+  if (!direction?.enabled || termination.kind === 'blind' && !direction.endCondition) {
+    return { kind: 'complete', tool: buildEntityRecipeTool(input) };
+  }
+  if (termination.kind === 'blind' && termination.symmetric || termination.kind === 'throughAll' && termination.bothDirections) {
+    throw Error('Cada dirección requiere su propio sentido, sin plano medio ni Por todo bilateral.');
+  }
+  assertThinWallEndCapsContext(resolveThinWall(placement)?.definition, input.operation, false, false);
+  if (direction.endCondition && (!input.secondTermination || input.secondTermination.kind !== direction.endCondition.kind)
+    || !direction.endCondition && input.secondTermination && input.secondTermination.kind !== 'blind') throw Error('Falta resolver exactamente el límite de la segunda dirección.');
+  const { secondDirection: _direction, secondTermination: _secondPlacement, ...firstPlacement } = placement;
+  const { secondTermination: _secondNative, ...firstInput } = input;
+  const first = { ...firstInput, placement: firstPlacement };
+  const signedDepth = -Math.sign(placement.signedDepth) * direction.depth;
+  const second: EntityRecipeToolInput = { ...firstInput, placement: { ...firstPlacement, signedDepth,
+    termination: placement.secondTermination ?? { kind: 'blind', signedDepth, symmetric: false } },
+    termination: input.secondTermination ?? { kind: 'blind', symmetric: false } };
+  const branches = [first, second].map(branch => ({
+    build: () => buildEntityRecipeTool(branch), untilNext: branch.termination.kind === 'untilNext',
+    ...(branch.termination.kind === 'untilNext' || branch.termination.kind === 'throughAll' ? {
+      observeForward: () => resolveEntityRecipeUntilNext({ ...branch, termination: { kind: 'untilNext' } }),
+    } : {}),
+  }));
+  return resolveDirectionTools(branches, allowSeparatedMiss && input.operation === 'subtract', input.validateTool);
 }

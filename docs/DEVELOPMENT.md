@@ -3,47 +3,84 @@
 ## Independent linear extrusion directions — 2026-10-29
 
 `extrude` and `cut` share the strict optional `secondDirection` record. Use
-`readSecondDirection`/`resolveExtrusionSpan` for data admission and the common
-span; validate the positive second length 0.01..100000 even while OFF. The first
-signed length retains its existing individual limit. Active Blind directions
+`readSecondDirection`/`resolveExtrusionDirections` for strict data admission and
+the two role plans. The optional nested `secondDirection.endCondition` uses the
+same bounded end union as Direction 1, with only unilateral ThroughAll. Validate
+the positive second length 0.01..100000 even while OFF or automatic. The first
+signed length retains its existing individual limit. Two active Blind directions
 start at `-sign(D1)*D2` and use one signed span
 `sign(D1)*(abs(D1)+D2)`, up to 200000 mm. Keep legacy `symmetric` distinct from
 these independent lengths. Absence preserves document bytes/reference identity;
-presence identifies enabled/OFF without including either continuous depth.
+presence identifies enabled/OFF and any declared second-end kind without
+including either continuous depth.
 Older strict readers reject the new optional field.
 
-Reject active mid-plane/automatic combinations before any provisional factory or
-absence shortcut, including recipe extraction and direct internal entity-tool
-entrypoints. Retain valid numeric intent for explicit OFF recovery without
-clearing the selected first limit or its references. Editor drafts retain
-invalid numbers and block Apply. Switching the first mode must preserve invalid
-D1 rather than substitute 20 mm; inactive correction fields stay mounted through
+Each side can independently use Blind, unilateral ThroughAll, UntilNext or
+UpToSurface, including two automatic ends. Reject active first-side mid-plane or
+both-senses combinations before any provisional factory or absence shortcut,
+including recipe extraction and direct internal entity-tool entrypoints.
+Retain each side's condition, target and numeric intent through explicit OFF
+recovery. Editor drafts retain invalid numbers and block Apply. Switching the
+first mode must preserve invalid D1 rather than substitute 20 mm; inactive
+correction fields stay mounted through
 the first valid digit and decimal focus. Stale-prefix and selection guards
 remain authoritative. Inspect optional descriptors before spreading patches;
 explicit editor clearing removes the own field.
 
-Reuse the original solved profile, incoming frame and offset once. Compute the
-span after recipe reflection parity, while leaving the checkpoint's source frame
-unchanged. Primitive and source-solved entity factories regenerate geometry;
-they do not replay a saved delta. Keep exact body scopes, creation identities,
+Reuse the original solved profile, incoming frame and offset once. Both native
+branches borrow the same pre-operation owner; neither resolves against a result
+already modified by the other. Construct and validate their atomic union with
+the shared direction-tool builder, including real inclined/curved boundaries.
+Only an existing native absence proof can omit a ray. Incomplete faces, contact
+and native/release errors are not misses; an ALL owner outside both rays keeps
+its current identity. Apply recipe reflection parity once while leaving the
+checkpoint's source frame unchanged. Primitive and source-solved factories
+regenerate geometry; they do not replay a saved delta. Keep exact body scopes,
+creation identities,
 native ownership and release/currentness checks. Declared second directions
 decline the existing first-direction-only semantic-prism provenance path.
-Do not change dependency or material declarations for a new scalar length.
+Keep declared OFF references for dependency/deletion handling, while excluding
+inactive limit-body reads from current native-owner requirements. New-body
+limit reads stay separate from creation outputs and cut scope.
+
+World principal-plane policies are keyed by `(featureId, path)`, using
+`endCondition.target` or `secondDirection.endCondition.target`. Each active
+principal-plane UpToSurface side requires its own policy. The panel can remove
+a retained stale policy without removing the other side's choice. Datum/face and transformed or
+instance limit correspondence in recipes remain explicit pending capabilities.
+
+Face-picking requests carry their side, draft, document/epoch and exact source
+model/prefix. Revoke them on draft/owner replacement, Cancel and Apply. Retain
+viewport press/release checks for presented scene, request, camera and size;
+navigation, wheel, leave, blur or resize cancel stale gestures. Preserve legacy
+D1 editing during body picking, but keep D2/facial selection and Apply guarded.
+Pure request tests and plane-select renderer controls do not attest physical
+face clicks.
 
 For eligible thin walls, construct the outer solid and shortened inner core once
-over the complete shifted span, with caps only at external ends. The 13+7/cap 4
-fixture has core `20-8=12`; checking caps per branch would reject valid geometry
+over the complete shifted Blind span, with caps only at external ends. An active
+automatic end on either side still rejects caps and requires explicit recovery;
+do not silently turn them off. The 13+7/cap 4 fixture has core `20-8=12`;
+checking caps per branch would reject valid geometry
 or add a false source-plane plate. A source-plane 5→7 change translates both
 fixed endpoints; the stepped-cut fixture changes V6876→6888 from actual material
 intersection, without turning fixed lengths into anchored limits.
 
-Run `npm run test:desktop:part-two-direction` alongside the existing thin-wall,
+Two world-plane targets at -3 and 16 retain those endpoints after source 5→7;
+the separate anchored stepped cut remains V6876. Keep this distinct from the
+fixed-depth cut's V6888 after the same source move.
+
+Run `npm run test:desktop:part-two-direction-limits` and the complete existing
+`npm run test:desktop:part-two-direction` alongside the existing thin-wall,
 end-cap, automatic-corner, external-axis and revolution routes after building.
 Use the [contract](THIN_WALL_OPERATIONS.md#independent-linear-directions--2026-10-29)
-and [original fixtures](PROVENANCE.md#original-independent-linear-direction-fixtures--2026-10-29)
+and [original fixtures](PROVENANCE.md#original-independent-end-limit-fixtures--2026-10-29)
 to interpret checks; record actual results in [validation](VALIDATION.md).
-Independent automatic second ends, separate second inversion, wider topology
-repair and the combined demo remain outside this bounded increment.
+Separate second inversion, unsupported recipe limit correspondence, automatic
+caps, wider topology repair, physical face-click acceptance and the combined
+demo remain outside this bounded increment. Source, native, renderer and export
+evidence retain their separate limits; do not infer a full-suite or platform
+result from the authored cases.
 
 ## Internal thin-wall axial caps — 2026-10-29
 
@@ -2197,8 +2234,9 @@ The desktop smoke check loads the initial model, preload, worker and WASM and ch
 
 Run focused tests while developing, then the checks relevant to the complete change. The [CI workflow](../.github/workflows/ci.yml) is configured for Node 24 on Windows 2025 x64, Ubuntu 24.04 x64 and macOS 15 arm64: install, build, unit tests, IPC tests, Electron smoke check and packaging. Linux uses Xvfb. A configured job is not an executed result; check Actions for the actual commit and platform before claiming a pass.
 
-The 51 longer renderer commands run in three fixed batches of 17 per operating
-system, separately from unit/CAD and packaging. The configured mechanical and
+The 77 distinct longer renderer commands run in three fixed batches per operating
+system: persistence has 37, relations 23 and hinge-symmetry 17, separately from
+unit/CAD and packaging. The configured mechanical and
 compound workflows retain their separate job. The original Desktop check names
 depend on every renderer and configured job: after pinned Node setup, an
 unconditional result guard fails unless both dependencies succeeded. A skipped

@@ -122,6 +122,7 @@ export interface RecipeOperation {
   type: Feature['type'];
   sketchId: string | null;
   termination: RecipeTermination | null;
+  secondTermination?: RecipeTermination;
   applications: RecipeOwnerApplication[];
 }
 export type RecipeNativeRequirement =
@@ -384,7 +385,7 @@ export function extractRecipeClosure(features: readonly Feature[], rawRequest: R
   for (const policy of request.referencePolicies) {
     recordKeys(policy, patternId, 'referencePolicies', ['featureId', 'path', 'placement'], ['owner', 'parentTargetBodyId']);
     stringId(policy.featureId, patternId, 'referencePolicies.featureId');
-    if (!['support', 'endCondition.target'].includes(policy.path)) invalid('REFERENCE_POLICY', patternId, 'referencePolicies.path', 'Unknown reference schema locator.');
+    if (!['support', 'endCondition.target', 'secondDirection.endCondition.target'].includes(policy.path)) invalid('REFERENCE_POLICY', patternId, 'referencePolicies.path', 'Unknown reference schema locator.');
     const key = locatorKey(policy.featureId, policy.path);
     if (policies.has(key) || !['world', 'transform', 'instance'].includes(policy.placement)) invalid('REFERENCE_POLICY', patternId, 'referencePolicies', 'Reference locators must be unique and have an explicit placement policy.');
     policies.set(key, policy);
@@ -512,6 +513,28 @@ export function extractRecipeClosure(features: readonly Feature[], rawRequest: R
         node.termination = end.kind === 'throughAll' ? { kind: 'throughAll', bothDirections: end.bothDirections, baseFeatureId: end.baseFeatureId }
           : { kind: 'untilNext', baseFeatureId: end.baseFeatureId };
       } else invalid('UNSUPPORTED_END_SCHEMA', feature.id, 'endCondition', 'Unknown end-condition schema; do not reinterpret it as blind or copied geometry.');
+    }
+    const secondEnd = readSecondDirection(feature);
+    if (secondEnd && !secondEnd.enabled && secondEnd.endCondition?.kind === 'upToSurface') {
+      const key = locatorKey(feature.id, 'secondDirection.endCondition.target');
+      if (policies.has(key)) usedPolicies.add(key); // Retained policy is data only, not a native limit requirement.
+    }
+    if (secondEnd?.enabled && secondEnd.endCondition) {
+      const end = secondEnd.endCondition, path = 'secondDirection.endCondition';
+      if (end.kind === 'upToSurface') {
+        const policy = policyFor(feature.id, `${path}.target`, end.target);
+        node.secondTermination = { kind: 'upToSurface', target: end.target, policy };
+        if (end.target.kind !== 'principal' || policy.placement !== 'world') {
+          pending('UP_TO_SURFACE_PENDING', feature.id, path, 'Only an explicitly fixed external principal-plane limit is currently resolved; datum/face and transformed/instance correspondence remain required.');
+        }
+      } else {
+        const sourceBase = feature.type === 'cut' ? feature.bodyScope?.[0]
+          : feature.bodyOperation?.mode === 'merge' ? feature.bodyOperation.target : feature.bodyOperation?.mode === 'new' ? end.baseBody : undefined;
+        if (!sourceBase || sourceBase.sourceFeatureId !== end.baseFeatureId) invalid('SOURCE_LIMIT_BASE', feature.id, `${path}.baseFeatureId`, 'The saved second limit must agree with its declared exact owner input.');
+        if (feature.type === 'cut' && end.baseBody !== undefined) invalid('SOURCE_LIMIT_BASE', feature.id, `${path}.baseBody`, 'Cut limits use their explicit owner scope.');
+        node.secondTermination = end.kind === 'throughAll' ? { kind: 'throughAll', bothDirections: false, baseFeatureId: end.baseFeatureId }
+          : { kind: 'untilNext', baseFeatureId: end.baseFeatureId };
+      }
     }
     for (const [key, source] of selectedBindings) {
       let sourceInput: BodyReference | null = null;
@@ -696,6 +719,7 @@ export interface ResolvedRecipeExtrusionInput {
   ray: Vec3;
   signedDepth: number;
   termination: RecipeTermination;
+  secondTermination?: RecipeTermination;
   thinWall?: ThinWallDefinition;
   secondDirection?: ExtrudeFeature['secondDirection'];
 }
@@ -720,6 +744,7 @@ export function intrinsicProfileInstancePlacement(closure: RecipeClosure, featur
   const secondDirection = readSecondDirection(feature);
   return freezeTree({ sourceFeatureId: featureId, sketchId: sketch.id, sourceFrame,
     frame: mapped.frame, ray: mapped.ray, signedDepth: mapped.signedDepth, termination,
+    ...(node.secondTermination ? { secondTermination: node.secondTermination } : {}),
     ...(thinWall ? { thinWall } : {}), ...(secondDirection ? { secondDirection } : {}) });
 }
 /** Primitive compatibility adapter; entity geometry is available only through its real-solve reader. */
@@ -729,6 +754,7 @@ export function fixedProfileInstanceInput(closure: RecipeClosure, featureId: str
   if (!sketch || sketch.type !== 'sketch' || sketch.profile.kind === 'entities') invalid('FIXED_PROFILE_INPUT', featureId, 'sketchId', 'The primitive adapter cannot consume an unsolved entity declaration.');
   return freezeTree({ sourceFeatureId: featureId, profile: boundedClone(sketch.profile, sketch.id, { remaining: RECIPE_LIMITS.jsonNodes }),
     frame: placement.frame, ray: placement.ray, signedDepth: placement.signedDepth, termination: placement.termination,
+    ...(placement.secondTermination ? { secondTermination: placement.secondTermination } : {}),
     ...(placement.thinWall ? { thinWall: placement.thinWall } : {}),
     ...(placement.secondDirection ? { secondDirection: placement.secondDirection } : {}) });
 }

@@ -72,9 +72,9 @@ function entitySource(features: Feature[], owners: NativeOwners) {
     unavailableFeatureIds: new Set(), planes: new Map(), historicalFaces: new Map() });
   owners.own({ delete: () => registry.revoke() });
   features.forEach((feature, index) => registry.observeFeature(feature, index));
-  const sketch = features[2];
+  const index = features.findIndex(feature => feature.id === 'effect-profile'), sketch = features[index];
   if (sketch.type !== 'sketch') throw new Error('Original source sketch missing.');
-  registry.solveAndStage(sketch, 2, () => {});
+  registry.solveAndStage(sketch, index, () => {});
   return { registry: registry.reader, checkpoint: checkpointSourceSketchSolves(registry.reader, features, [sketch.id]), features };
 }
 function line(): SketchFeature['profile'] {
@@ -131,6 +131,39 @@ const independentTransforms = [
   { kind: 'mirror', transform: { key: 'mirror', mirror: { origin: [20, 0, 0], xDirection: [0, 1, 0], normal: [1, 0, 0] } } },
 ] as const;
 
+it.each([
+  { name: 'translated Z', transform: { key: '1,0', translation: [20, 0, 2] }, x: 20, firstHigh: 14, firstLow: 0, secondHigh: 20, secondLow: 0 },
+  { name: 'rotated about Y', transform: { key: '1', angle: 180, origin: [20, 0, 1], direction: [0, 1, 0] }, x: 20, firstHigh: 0, firstLow: -10, secondHigh: 0, secondLow: -16 },
+  { name: 'reflected Z', transform: { key: 'mirror', mirror: { origin: [0, 0, 1], xDirection: [1, 0, 0], normal: [0, 0, 1] } }, x: 0, firstHigh: 0, firstLow: -10, secondHigh: 0, secondLow: -16 },
+] as const)('regenerates each world-anchored endpoint through $name for primitive and solved entities', row => withNativeOwners(owners => {
+  for (const entity of [false, true]) for (const firstAuto of [false, true]) {
+    const setup = declarations(closedRectangle(10, 6, entity), { kind: 'one-side', thickness: 1, reversed: false },
+      structuredClone(row.transform) as RecipeInstanceTransform, 'mirror' in row.transform ? 'mirror' : 'angle' in row.transform ? 'circularPattern' : 'linearPattern',
+      [row.x, -10, -20], [row.x + 20, 10, 24]);
+    const profile = setup.features[2], operation = setup.features[3];
+    if (profile.type !== 'sketch' || operation.type !== 'cut') throw Error('Expected original world-limit cut');
+    profile.offset = 5; delete operation.thinWall;
+    operation.depth = firstAuto ? -11 : 13;
+    if (firstAuto) operation.endCondition = { kind: 'upToSurface', target: { kind: 'principal', plane: 'XY' } };
+    operation.secondDirection = { enabled: true, depth: 7,
+      ...(!firstAuto ? { endCondition: { kind: 'upToSurface', target: { kind: 'principal', plane: 'XY' } } as const } : {}) };
+    setup.request.referencePolicies = [{ featureId: 'effect', path: firstAuto ? 'endCondition.target' : 'secondDirection.endCondition.target', placement: 'world' }];
+    const before = JSON.stringify(setup), solve = entity ? entitySource(setup.features, owners) : undefined;
+    const owner = owners.own(makeBox([row.x, -10, -20], [row.x + 20, 10, 24]));
+    const built = buildRecipeInstanceTool({ closure: extractRecipeClosure(setup.features, setup.request), featureId: 'effect', address: row.transform.key,
+      targetBodyId: target.bodyId, workingTarget: owner, validateTool: validateBodyShape, ...(solve ? { entitySource: solve,
+        assertWorkingCurrent: () => solve.registry.assertCheckpoint(solve.checkpoint, setup.features) } : {}) });
+    owners.own(built.tool);
+    const low = firstAuto ? row.firstLow : row.secondLow, high = firstAuto ? row.firstHigh : row.secondHigh;
+    const height = high - low, volume = 60 * height, area = 120 + 32 * height;
+    metrics(built.tool, volume, area, [row.x + 5, -3, low], [row.x + 15, 3, high]);
+    const cut = owners.own(bodyBoolean('subtract', owner, built.tool));
+    metrics(cut, 17600 - volume, 4320 + area, [row.x, -10, -20], [row.x + 20, 10, 24]);
+    metrics(owner, 17600, 4320, [row.x, -10, -20], [row.x + 20, 10, 24]);
+    expect(JSON.stringify(setup)).toBe(before);
+  }
+}), 60_000);
+
 it.each(['throughAll', 'symmetric'] as const)('rejects an internally mismatched %s termination before building a second-direction entity tool', kind => withNativeOwners(owners => {
   const setup = declarations(closedRectangle(4, 2, true), { kind: 'one-side', thickness: 1, reversed: false });
   const operation = setup.features[3]; if (operation.type !== 'cut') throw Error('Expected cut');
@@ -139,7 +172,7 @@ it.each(['throughAll', 'symmetric'] as const)('rejects an internally mismatched 
   const owner = owners.own(makeBox([20, -10, 0], [40, 10, 8])), native = vi.spyOn(profiles, 'entityProfileSolid');
   expect(() => buildEntityRecipeTool({ source, placement, operation: 'subtract', workingTarget: owner,
     termination: kind === 'throughAll' ? { kind, bothDirections: false } : { kind: 'blind', symmetric: true },
-    assertWorkingCurrent: () => source.registry.assertCheckpoint(source.checkpoint, setup.features), validateTool: validateBodyShape })).toThrow(/profundidad ciega/);
+    assertWorkingCurrent: () => source.registry.assertCheckpoint(source.checkpoint, setup.features), validateTool: validateBodyShape })).toThrow(/coincidir/);
   expect(native).not.toHaveBeenCalled(); metrics(owner, 3200, 1440, [20, -10, 0], [40, 10, 8]);
 }), 60_000);
 
@@ -202,7 +235,7 @@ it.each(['entity', 'primitive'] as const)('rejects active or invalid OFF second 
       { kind: 'one-side', thickness: 1, reversed: false }, { key: '1,0', translation: [20, 0, 0] }, 'linearPattern', [20, -10, -10], [40, 10, -2]);
     const operation = setup.features[3]; if (operation.type !== 'cut') throw Error('Expected cut');
     delete operation.thinWall; operation.secondDirection = secondDirection;
-    operation.endCondition = { kind: 'throughAll', baseFeatureId: source.sourceFeatureId, bothDirections: false };
+    operation.endCondition = { kind: 'throughAll', baseFeatureId: source.sourceFeatureId, bothDirections: secondDirection.enabled };
     setup.request.scope = { mode: 'all', reevaluateAt: 'patternInput' }; setup.request.bindings[0].targets = 'scope';
     const sourceShape = owners.own(makeBox([0, -10, 0], [20, 10, 4])), targetShape = owners.own(makeBox([20, -10, -10], [40, 10, -2]));
     const active = catalog([{ ref: target, shape: targetShape }], owners);

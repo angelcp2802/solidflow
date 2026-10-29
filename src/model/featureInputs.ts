@@ -45,12 +45,14 @@ export function featureDependencyIds(feature: Feature): string[] {
     if (feature.support.kind === 'plane') ids.push(feature.support.planeId)
     if (feature.support.kind === 'face') ids.push(feature.support.face.sourceFeatureId)
   }
-  if ((feature.type === 'extrude' || feature.type === 'cut') && feature.endCondition) {
-    const endCondition = feature.endCondition
-    if (endCondition.kind === 'upToSurface') {
-      if (endCondition.target.kind === 'plane') ids.push(endCondition.target.planeId)
-      if (endCondition.target.kind === 'face') ids.push(endCondition.target.face.sourceFeatureId)
-    } else ids.push(endCondition.baseFeatureId)
+  if (feature.type === 'extrude' || feature.type === 'cut') {
+    for (const endCondition of [feature.endCondition, feature.secondDirection?.endCondition]) {
+      if (!endCondition) continue
+      if (endCondition.kind === 'upToSurface') {
+        if (endCondition.target.kind === 'plane') ids.push(endCondition.target.planeId)
+        if (endCondition.target.kind === 'face') ids.push(endCondition.target.face.sourceFeatureId)
+      } else ids.push(endCondition.baseFeatureId)
+    }
   }
   return [...new Set(ids)]
 }

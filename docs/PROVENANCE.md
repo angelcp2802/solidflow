@@ -1,5 +1,102 @@
 # Public fixture provenance
 
+## Original independent end-limit fixtures — 2026-10-29
+
+This increment uses original Cartesian rectangles, explicitly declared world
+planes, separate limit bodies and enclosed rectangular cavities in millimetres.
+No imported model, retained topology, mesh measurement or limit resolver
+supplies an expected value. The cases below describe independent oracles and
+their evidence boundaries; actual command results belong in
+[validation](VALIDATION.md).
+
+[`kernel.two-direction-limits.test.ts`](../src/cad/kernel.two-direction-limits.test.ts)
+places a 10x6 profile at z5, with first nominal depth 11, second 8 and target
+planes z-3/16. Both automatic ends give V1140, A728, centroid z6.5 and z bounds
+`[-3,16]` before and after source 5→7, for both signs with explicitly compatible
+target assignments. For the same starting interval, first-auto/second-Blind at
+source7 gives z`[-1,16]`, V1020/A664; first-Blind/second-auto gives z`[-3,18]`,
+V1260/A792. A 12x8/outside-wall2 section between those world planes has
+V1824/A2016 with caps OFF; active automatic caps reject. Separate scoped owners
+above and below the source require real material removal on each owner, while
+an incomplete limiting face rejects without partial owner publication.
+
+The native engine cases export and reimport STEP, then inspect BRep validity,
+solid count and independent mass/surface/bounds values. A separate explicit-frame
+primitive case uses profile `[0,4]x[0,2]`, upper plane `z=12+x/2` and lower plane
+`z=-4+x/4`. Integrating their gap gives V132, area
+`198+4*sqrt(5)+2*sqrt(17)`, centroid `(200/99,1,157/33)` and bounds
+`[0,0,-4]..[4,2,14]`. That builder case checks actual inclined ends, not a mean
+depth or enclosing box, and is distinct from the engine STEP round trips.
+Volume/area tolerances are `1e-5 mm³/mm²`; centroid/bounds use `1e-6 mm`.
+
+The historical-face case starts with a 20x14 base at z0..4, then adds the same
+section from z4..14, burying the original top face. A 4x3 internal cut starts
+at z10, extends 2 mm forward and terminates backward at that saved original
+face. The outer block stays V3920; the cavity is 8 mm long, giving V3824/A1648.
+Editing the base depth 4→6 leaves the outer block unchanged but moves the
+historical limit, giving a 6 mm cavity and V3848/A1620. Suppressing the face's
+producer rejects the active request without cutting; explicit second-side OFF
+retains the unavailable reference and leaves only the forward cavity in the
+remaining z4..14 boss, V2776/A1292. This is native/STEP historical-reference
+evidence, distinct from a physical viewport face click.
+
+[`kernel.two-direction-limits-recipes.test.ts`](../src/cad/kernel.two-direction-limits-recipes.test.ts)
+uses one enclosed stratified owner: outer `[0,20]x[0,14]`, z`[-21,30]`, minus
+three 16x10 inner cavities at z`[-16,-12]`, `[-6,14]` and `[20,26]`.
+Its V is `20*14*51-16*10*(4+20+6)=9480`, with A6548. From z5, a 4x3 cut meets
+near walls of thickness6 in both senses and farther upper/lower walls of
+thickness4/5. This distinguishes each side's boundary choice:
+
+| First / second limit | Remaining volume mm³ | Area mm² |
+| --- | ---: | ---: |
+| UntilNext / UntilNext | 9336 | 6668 |
+| ThroughAll / UntilNext | 9288 | 6700 |
+| UntilNext / ThroughAll | 9276 | 6714 |
+| ThroughAll / ThroughAll | 9228 | 6746 |
+
+The saved feature-pattern cases regenerate both primitive and genuinely solved
+entity profiles against an exact current target. ALL cases also place owners
+outside both instance rays and require their unchanged states. Those cases use
+native BRep/area/volume checks; they do not attest a renderer pattern gesture.
+
+The world-principal-plane cases in
+[`kernel.recipe-thin-wall.test.ts`](../src/cad/kernel.recipe-thin-wall.test.ts)
+use a 10x6 profile at z5 and a fixed XY end at z0, with a separate policy for
+the automatic side. First-auto/second-Blind7 gives z`[0,12]` before placement;
+translation +Z2 requires z`[0,14]`, V840/A568. First-Blind13/second-auto gives
+z`[0,18]`, then z`[0,20]`, V1200/A760. The selected Y rotation and Z reflection
+instead give z`[-10,0]`, V600/A440, or z`[-16,0]`, V960/A632 respectively.
+Primitive and authentic source-solved entity cases share these literal oracles;
+copying the source delta cannot supply the new anchored lengths. Policies are
+unique by `(featureId, path)` for `endCondition.target` and
+`secondDirection.endCondition.target`. Datum/face and transformed/instance
+correspondence remain explicit pending capabilities.
+
+[`desktop-part-two-direction-limits-original.cjs`](../scripts/desktop-part-two-direction-limits-original.cjs)
+declares the original stepped base V7056, separate 12x8 limit bodies at
+z`[16,19]` (V288) and `[-9,-3]` (V576), four planes and two unused profiles.
+The 10x6 boss uses targets -3/16, V1140. The per-side body-limit previews give
+Next/Next V1140, All/Next V1320, Next/All V1500 and All/All V1680; both read
+owners retain their exact declarations, current identities, volumes and bounds.
+Its 13/7 mixed-end previews give V1080 for first-auto/second-Blind and V1260
+for first-Blind/second-auto. These renderer nominal depths differ deliberately
+from the 11/8 native mixed-end fixture above.
+
+The independent 4x3 stepped cut retains targets -3/16 and leaves
+`7056-(12*11+6*8)=6876`. Editing only the boss's second target to -5 gives
+V1260 and does not change the cut's references. Moving their common source
+plane 5→7 preserves boss bounds z`[-5,16]` and cut V6876. This contrasts with
+the fixed-depth route's V6888 after the same source move.
+[`desktop-part-two-direction-limits-flow.cjs`](../scripts/desktop-part-two-direction-limits-flow.cjs)
+declares reverse/explicit reassignment, OFF target retention, midpoint recovery,
+new/saved Cancel and Apply, history, two writes and fresh reopening. It checks
+native body volume at `1e-5 mm³`, bounds at `1e-6 mm` and exact owner identities.
+Controls use CDP pointer press/release with native field setters and bubbling
+events; they do not inject handlers, application state or worker results.
+Targets are chosen from plane/body selectors. Physical face clicks, physical
+keyboard entry, renderer BRep/area/STEP attestation, general interface parity
+and platform acceptance are not established by this route.
+
 ## Original independent linear-direction fixtures — 2026-10-29
 
 The new declarations use original Cartesian rectangles, literal signed depths,
@@ -39,7 +136,7 @@ counted192-area contacting face, gives final V4672/A4112. Cap material and core
 void probes include the source plane, so separately capped branches cannot
 satisfy the oracle. Borrowed target/source owners stay unchanged. Adversarial
 ALL absence and mismatched internal-termination cases check rejection before an
-active or invalid OFF declaration can disappear behind a shortcut.
+incompatible active or invalid OFF declaration can disappear behind a shortcut.
 
 The declaration inventory in
 [`extrusionDirection.test.ts`](../src/cad/extrusionDirection.test.ts),
@@ -65,7 +162,8 @@ one applied source-frame translation from duplicated offset or anchored ends.
 [`desktop-part-two-direction-flow.cjs`](../scripts/desktop-part-two-direction-flow.cjs)
 checks body volumes at `1e-5 mm³`, literal bounds at `1e-6 mm`, exact current and
 creation owners, global reverse, retained OFF decimal focus, explicit
-mid-plane/automatic recovery, new/saved Cancel and Apply, history, writes and
+mid-plane recovery, valid first-automatic/second-Blind previews, new/saved
+Cancel and Apply, history, writes and
 fresh reopening. It uses CDP pointer press/release and native field setters with
 bubbling input events. Renderer checks are separate from BRep, area and STEP
 checks; this route does not establish two independently anchored automatic ends,

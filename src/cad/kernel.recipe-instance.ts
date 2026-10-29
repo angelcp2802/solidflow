@@ -1,9 +1,10 @@
 import type { Shape3D } from 'replicad';
-import { fixedProfileInstanceInput, intrinsicProfileInstancePlacement, requireInitialRecipeDeclaration, type RecipeClosure } from '../model/featureRecipes';
+import { fixedProfileInstanceInput, intrinsicProfileInstancePlacement, requireInitialRecipeDeclaration, type RecipeClosure, type RecipeTermination } from '../model/featureRecipes';
 import { withNativeOwners } from './kernel.native-ownership';
-import { buildExplicitFramePrimitive, resolveExplicitFrameUntilNext, type PrimitiveTermination } from './kernel.recipe-primitives';
+import { buildExplicitFramePrimitive, resolveExplicitFrameDirections, resolveExplicitFrameUntilNext, type PrimitiveTermination } from './kernel.recipe-primitives';
 import { principalPlaneFrame } from './kernel.frames';
-import { buildEntityRecipeTool, resolveEntityRecipeUntilNext, type EntityRecipeSolveInput } from './kernel.recipe-entities';
+import { buildEntityRecipeTool, resolveEntityRecipeDirections, resolveEntityRecipeUntilNext, type EntityRecipeSolveInput } from './kernel.recipe-entities';
+import type { DirectionToolResolution } from './kernel.direction-tools';
 import type { UntilNextCutResolution } from './kernel.until-next-resolution';
 
 export interface RecipeInstanceToolInput {
@@ -27,6 +28,17 @@ export interface OwnedRecipeInstanceTool {
 }
 /** A completed tool is owned; other outcomes contain detached native observations only. */
 export type RecipeInstanceUntilNextResolution = UntilNextCutResolution & { readonly operation: 'add' | 'subtract' };
+export type RecipeInstanceDirectionsResolution = DirectionToolResolution & { readonly operation: 'add' | 'subtract' };
+
+function nativeTermination(end: RecipeTermination): PrimitiveTermination {
+  if (end.kind === 'blind') return { kind: 'blind', symmetric: end.symmetric };
+  if (end.kind === 'throughAll') return { kind: 'throughAll', bothDirections: end.bothDirections };
+  if (end.kind === 'untilNext') return { kind: 'untilNext' };
+  if (end.target.kind === 'principal' && end.policy.placement === 'world') return {
+    kind: 'upToSurface', limit: { frame: principalPlaneFrame(end.target.plane) },
+  };
+  throw Error('La referencia exacta de un límite de instancia sigue pendiente de resolución nativa.');
+}
 
 /**
  * Initial native bridge: one fixed intrinsic selected/ALL operation/event/address/
@@ -73,7 +85,32 @@ function recipeInstanceContext(input: RecipeInstanceToolInput) {
     termination = { kind: 'upToSurface', limit: { frame: principalPlaneFrame(end.target.plane) } };
   } else throw new Error('The exact principal-plane end reference is not resolved.');
   const sketch = closure.definitions.find(item => item.feature.id === resolved.sketchId)?.feature;
-  return { closure, resolved, operation, termination, sketch };
+  const secondTermination = resolved.secondTermination ? nativeTermination(resolved.secondTermination) : undefined;
+  return { closure, resolved, operation, termination, secondTermination, sketch };
+}
+
+/** ALL may retain an owner only when both authenticated dynamic rays prove absence. */
+export function resolveRecipeInstanceDirections(input: RecipeInstanceToolInput): RecipeInstanceDirectionsResolution {
+  const { closure, resolved, operation, termination, secondTermination, sketch } = recipeInstanceContext(input);
+  if (closure.request.scope.mode === 'all' && !input.assertWorkingCurrent) throw Error('ALL independent directions require their current working-owner/revision guard.');
+  input.assertWorkingCurrent?.();
+  const allowMiss = operation === 'subtract';
+  return withNativeOwners<RecipeInstanceDirectionsResolution>(owners => {
+    let resolution: DirectionToolResolution;
+    if (sketch?.type === 'sketch' && sketch.profile.kind === 'entities') {
+      if (!input.entitySource || !input.assertWorkingCurrent) throw Error('Entity recipes require a current real-solve checkpoint and owner guard.');
+      resolution = resolveEntityRecipeDirections({ source: input.entitySource, placement: resolved, termination, secondTermination,
+        operation, workingTarget: input.workingTarget, validateTool: input.validateTool, assertWorkingCurrent: input.assertWorkingCurrent }, allowMiss);
+    } else {
+      const profile = fixedProfileInstanceInput(closure, input.featureId, input.address).profile;
+      if (profile.kind !== 'rectangle' && profile.kind !== 'circle') throw Error('Unknown intrinsic recipe profile.');
+      resolution = resolveExplicitFrameDirections({ profile, frame: resolved.frame, signedDepth: resolved.signedDepth,
+        termination, secondTermination, operation, workingTarget: input.workingTarget, validateTool: input.validateTool,
+        ...(resolved.thinWall ? { thinWall: resolved.thinWall } : {}), ...(resolved.secondDirection ? { secondDirection: resolved.secondDirection } : {}) }, allowMiss);
+    }
+    if (resolution.kind === 'complete') owners.own(resolution.tool);
+    input.assertWorkingCurrent?.(); return { ...resolution, operation };
+  }, result => result.kind === 'complete' ? [result.tool] : [], 'Independent recipe directions or release failed.');
 }
 
 function resolveInstanceUntilNext(input: RecipeInstanceToolInput,
@@ -112,7 +149,12 @@ export function resolveRecipeInstanceUntilNext(input: RecipeInstanceToolInput): 
 }
 
 export function buildRecipeInstanceTool(input: RecipeInstanceToolInput): OwnedRecipeInstanceTool {
-  const context = recipeInstanceContext(input), { closure, resolved, operation, termination, sketch } = context;
+  const context = recipeInstanceContext(input), { closure, resolved, operation, termination, secondTermination, sketch } = context;
+  if (resolved.secondDirection?.enabled && (termination.kind !== 'blind' || resolved.secondDirection.endCondition)) {
+    const result = resolveRecipeInstanceDirections(input);
+    if (result.kind === 'complete') return { operation, tool: result.tool };
+    throw Error('La operación no cambia material en ninguna dirección del propietario seleccionado.');
+  }
   if (termination.kind === 'untilNext') {
     const result = resolveInstanceUntilNext(input, context);
     if (result.kind === 'complete') return { operation, tool: result.tool };
@@ -123,14 +165,14 @@ export function buildRecipeInstanceTool(input: RecipeInstanceToolInput): OwnedRe
   if (sketch?.type === 'sketch' && sketch.profile.kind === 'entities') {
     if (!input.entitySource || !input.assertWorkingCurrent) throw new Error('Entity recipes require a current real-solve checkpoint and working-owner guard.');
     return { operation, tool: buildEntityRecipeTool({ source: input.entitySource, placement: resolved,
-      termination, operation, workingTarget: input.workingTarget, validateTool: input.validateTool,
+      termination, secondTermination, operation, workingTarget: input.workingTarget, validateTool: input.validateTool,
       assertWorkingCurrent: input.assertWorkingCurrent }) };
   }
   const profile = fixedProfileInstanceInput(closure, input.featureId, input.address).profile;
   if (profile.kind !== 'rectangle' && profile.kind !== 'circle') throw new Error('Unknown intrinsic recipe profile.');
   return withNativeOwners(owners => ({ operation, tool: owners.own(buildExplicitFramePrimitive({
     profile, frame: resolved.frame, signedDepth: resolved.signedDepth,
-    termination, operation, workingTarget: input.workingTarget, validateTool: input.validateTool,
+    termination, secondTermination, operation, workingTarget: input.workingTarget, validateTool: input.validateTool,
     ...(resolved.thinWall ? { thinWall: resolved.thinWall } : {}),
     ...(resolved.secondDirection ? { secondDirection: resolved.secondDirection } : {}),
   })) }), result => [result.tool], 'Recipe instance tool construction or release failed.');
