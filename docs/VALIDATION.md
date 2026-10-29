@@ -1,5 +1,116 @@
 # Validation
 
+## Planar thin-wall material and editor lifecycle — 2026-10-29
+
+The optional strict three-mode wall declaration is connected to extrusion, cut,
+revolution and revolved cut. Source sketches are solved once, axes read the
+original preceding geometry, and a temporary closed planar section supplies
+material to fixed and automatic end-condition factories. Supported extrude/cut
+regeneration recipes use the same section. Legacy filled-prism provenance is
+excluded for thin walls; existing declaration absence and body ownership remain.
+See the [contract](THIN_WALL_OPERATIONS.md) and [original fixtures](PROVENANCE.md).
+
+Final local Windows x64 acceptance uses Node 24.11.1, existing Electron 44.9.3,
+TypeScript 7.0.2, Vitest 5.0.3, Vite 8.3.4 and Replicad/OpenCascade 1.1.0, without
+resetting the accepted runtime or installing dependencies. All six commands
+share **1,266 pinned source/runtime inputs and nine products**; the canonical
+`{files,production}` manifest SHA-256 is
+`0dcefa4fb2b1616552f58b7fdedc10eaa45868e6e4b8ff82aa43b942c1159864`.
+
+| Command | Final executed result |
+| --- | --- |
+| `npm run build` | PASS, 3.819 s. |
+| `npm run test:desktop:part-thin-wall` with capture enabled | PASS, 179 recorded checkpoints / 27 native-build phases, 17.700 s. |
+| `npm run test:desktop:part-external-axis` with capture enabled | PASS, 109 checkpoints, 17.971 s. |
+| `npm run test:desktop:part-revolution` with capture enabled | PASS, complete original 251-checkpoint revolution/cut/STEP route, 35.389 s. |
+| `npm test` | PASS, 10,604 unit/CAD cases in 471 files; 200 IPC passes, zero failures and two explicit Windows platform skips. Command 331.589 s; Vitest 323.30 s. |
+| `npm run test:desktop` | PASS, 1.587 s; production worker/WASM, queue and native prism volume 24/bounds verified. |
+
+All three renderer reports match eight production-input hashes, have zero
+console/resource failures, and confirm owned child closure and isolated temporary
+profile deletion. The final thin-wall capture was inspected and shows the three
+expected separate bodies and four successive solid operations. Its clean saved
+document was retained locally. The startup report also has zero console/request
+failures but does not expose those explicit cleanup flags. A source-tree build
+and focused tests are separate diagnostics; the table uses the locked runtime.
+
+The new renderer opens six original declarations, enables a closed rectangular
+wall, disables it to require a genuinely absent field/filled result, and enables
+it again. One-side/reversed/mid-plane/two-side controls produce independently
+expected material, with invalid input blocking acceptance. Cancel/retry, an open
+LINE through-all scoped cut, an open LINE revolution about its exact construction
+axis and a scoped revolved groove preserve output and read-only body states.
+Later thickness editing rolls back the preview prefix, Cancel restores the saved
+sequence, and Apply reconstructs the later three operations. Both history
+directions, two completed writes and a fresh native reopen preserve exact source
+and operation declarations. Two Open dialogs and one Save As dialog are observed.
+
+Renderer per-owner volume tolerance is `1e-5 mm³`, bounds `1e-6 mm`; formulas and
+literal bounds belong to its own original inventory. The renderer does not
+independently attest BRep validity, area or STEP. Separate native tests measure
+live and STEP-reopened validity, solid count, volume, area and bounds for analytic
+LINE/ARC/circle/rectangle walls and full-engine additive/subtractive sequences.
+They cover solved versus stored coordinates, current construction/external/world/
+body-edge axes, angular versus thickness mid-plane, translated supports,
+automatic limits, multi-owner cuts, persistence/reference restoration and invalid
+raw declarations without invoking getters. Recipe tests include real source
+solves, owner/currentness, cancellation and native release boundaries.
+
+Review found that unconditionally disabling the ALL behind-ray shortcut for thin
+walls rejected a valid ahead/behind-owner pattern. The exact new LINE and
+primitive cases failed before correction. The corrected path retains the
+conservative geometric no-hit proof but requires a real validated/released wall
+witness and current ownership. Both valid cases pass; collapsed geometry,
+failed release and stale state still fail. Annular through-all cuts that split
+one explicit owner remain explicit rejection cases rather than implicit outputs.
+
+The first two renderer runs remain recorded as failures: the first selected the
+menu caption instead of the actual ribbon caption; the second left body picking
+armed after checkbox targeting, so Apply correctly stayed disabled although the
+native cut was correct. The route now uses the actual ribbon title and ends
+selection through the visible real control. No product guard, assertion,
+geometric tolerance, deadline or existing workflow was relaxed.
+
+REA inspects the exact new worker SHA-256
+`1ea1473c7c70b782a43e29e4d429db57c03efe30a1fafa61b529649b59cad829`,
+Evidence `ev_9779b57790541c54219e0f7e9cf0799746c42b13762f243bd86c8640ee84dd0c`.
+The private worker/WASM subset parses one JavaScript file with zero parse
+failures; semantic coverage remains partial at the 100,000-node ceiling with
+76,565 unknowns. Its completed result was consumed through a retained summary
+and exported locally after a transport-size limit; analysis was not repeated.
+Retained declaration evidence and separate original-model runtime observations
+inform controls, not geometric or interaction equivalence. No third-party code,
+model, binary, screenshot or personal path is published.
+
+After application acceptance, a separately parsed and reviewed workflow-only
+amendment adds the new command to the existing Linux/Windows/macOS persistence
+matrix. Removing the two new steps reproduces the original parsed workflow;
+command resolution and nine platform/batch routing cases pass. Permissions,
+dependencies, action pins and deadlines remain exact. The amendment changes only
+the CI file from SHA-256 `2d2cb904a019359d568d3479d58ccb820768984f472bf745f16207ffd57e99d3`
+to `00f59ce21f2bcdd12a884bad6fa066bfe0e083e10bf2a36f1e70800be3a9e089`;
+that amendment changes no application input. A subsequent staged-file check
+removed one superfluous terminal newline from the pure profile-curve module.
+The exact source difference is that one trailing byte; an additional build
+passes in 5.980 s and reproduces all nine production products byte for byte.
+All remaining pinned inputs stay unchanged. Hosted execution of this increment
+is still required. Parent `bf4d9e4` completes all fifteen
+[CI jobs](https://github.com/angelcp2802/solidflow/actions/runs/40686619595) and
+[Security](https://github.com/angelcp2802/solidflow/actions/runs/40686619597).
+
+Applied frontend-design, vercel-react-best-practices, code-simplifier,
+code-review and security-review, plus REA and Computer Use for distinct evidence.
+Independent scoped reviews and focused regressions leave no outstanding
+actionable/high-confidence finding; this is not a full application security
+audit. No SECURITY_MODEL policy exists in base `d40b`; no exclusions are added.
+
+Keep checklist #55 at **16/25** with nine groups open, #53 at **6/9**, draft PR
+#49 unmerged and release #5 open. Axial end caps, automatic corner fillets,
+offset clipping/split repair, remaining specialized editors/picking, full
+interaction/demo/human use, installed platforms and recurring stability remain
+open. Straight planar chain ends are not axial end caps; the bounded acceptance
+above does not close the complete thin-feature group or establish parity.
+
 ## External revolution axes and current-prefix picking — 2026-10-28
 
 Revolve and revolved cut now admit explicit principal world axes, identified
@@ -86,7 +197,12 @@ parsing, exact structural preservation after removing the two additions, command
 resolution and all nine batch/platform combinations are checked. No application,
 dependency, permission, action pin or deadline changes accompany that amendment.
 Parent `2b8426e` completes all fifteen CI jobs and Security successfully. This new
-revision requires its own hosted checks. Applied frontend-design,
+revision `bf4d9e4` subsequently completes all fifteen
+[CI jobs](https://github.com/angelcp2802/solidflow/actions/runs/40686619595) and
+[Security](https://github.com/angelcp2802/solidflow/actions/runs/40686619597)
+successfully. The external-axis route executes successfully in the Windows 2025,
+macOS 15 and Ubuntu 24.04 persistence jobs. Those job results do not establish
+broader installed-platform support or recurring stability. Applied frontend-design,
 vercel-react-best-practices, code-simplifier, code-review and security-review,
 plus REA and Computer Use for their distinct evidence. Delegated read-only review
 finds no outstanding actionable/high-confidence scoped finding; this is not a

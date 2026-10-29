@@ -79,6 +79,12 @@ export type ExtrudeEndCondition =
   | { kind: 'untilNext'; baseFeatureId: string; baseBody?: BodyReference }
   | { kind: 'upToSurface'; target: PlaneSupport };
 
+/** Optional planar wall thickness; absence retains a filled profile. */
+export type ThinWallDefinition =
+  | { kind: 'one-side'; thickness: number; reversed: boolean }
+  | { kind: 'mid-plane'; thickness: number }
+  | { kind: 'two-sides'; firstThickness: number; secondThickness: number };
+
 interface ExtrudeDefinition extends FeatureBase {
   sketchId: string;
   /** Signed blind length; with a geometric end condition only its sign selects direction. */
@@ -86,6 +92,7 @@ interface ExtrudeDefinition extends FeatureBase {
   /** Legacy mid-plane spans -depth/2 to +depth/2; false for geometric end conditions. */
   symmetric: boolean;
   endCondition?: ExtrudeEndCondition;
+  thinWall?: ThinWallDefinition;
 }
 
 /** Absence of body fields retains the legacy aggregate operation. */
@@ -117,6 +124,7 @@ export interface RevolveFeature extends FeatureBase {
   axis?: RevolutionAxis;
   /** Absent preserves positive rotation about the selected directed axis. */
   reversed?: boolean;
+  thinWall?: ThinWallDefinition;
   bodyOperation?: BodyOperation;
 }
 
@@ -375,6 +383,8 @@ export interface FeatureError {
 export interface SketchVisual {
   id: string;
   frame?: PlaneFrame;
+  /** Classification of this resolved profile; absence is unknown to older consumers. */
+  profileTopology?: 'open' | 'closed' | 'invalid';
   /** Solved sketch curves as consecutive XYZ endpoint pairs, in millimetres. */
   lines: number[];
   /** Construction geometry is displayed separately and never creates material. */

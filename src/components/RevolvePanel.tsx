@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
 import { Crosshair, MousePointer2, RotateCcw, RotateCw } from 'lucide-react'
 import type { RevolutionAxis, RevolutionFeature, SketchFeature } from '../cad/kernel.types'
+import ThinWallPanel from './ThinWallPanel'
+import { mergeThinWallEditorDraft } from './thinWallEditorDraft'
 import './revolve-panel.css'
 
 interface AxisOption { value: string; label: string; axis: RevolutionAxis }
@@ -49,8 +51,8 @@ export function revolutionAxisOptions(sketch?: SketchFeature, sourceSketches: re
 }
 
 /** An explicit undefined patch removes the optional declaration rather than saving an own undefined property. */
-export function mergeRevolutionDraft<T extends RevolutionFeature>(feature: T, patch: Partial<T>): T {
-  const next = { ...feature, ...patch }
+export function mergeRevolutionDraft<T extends RevolutionFeature>(feature: T, patch: Partial<T>, original?: RevolutionFeature): T {
+  const next = mergeThinWallEditorDraft(feature, patch, original)
   if ('extent' in patch && patch.extent === undefined) delete next.extent
   if ('axis' in patch && patch.axis === undefined) delete next.axis
   return next
@@ -74,12 +76,15 @@ interface Props {
   sourceSketches?: SketchFeature[]
   axisPicking?: boolean
   onAxisPickingChange?: (active: boolean) => void
+  existing?: boolean
+  thinWallRequired?: boolean
+  thinWallDisabled?: boolean
   onChange: (patch: Partial<RevolutionFeature>) => void
   children: ReactNode
 }
 
 export default function RevolvePanel({ feature, sketch, sourceSketches, axisPicking = false,
-  onAxisPickingChange, onChange, children }: Props) {
+  onAxisPickingChange, existing = false, thinWallRequired = false, thinWallDisabled = false, onChange, children }: Props) {
   const currentSketch = sketch?.id === feature.sketchId ? sketch : undefined
   const options = revolutionAxisOptions(currentSketch, sourceSketches), value = revolutionAxisValue(feature.axis)
   const materialAxis = feature.axis?.kind === 'linear-edge' ? feature.axis : undefined
@@ -167,5 +172,7 @@ export default function RevolvePanel({ feature, sketch, sourceSketches, axisPick
       </label>}
     </section>}
     {angleError && <p id="revolution-angle-error" role="alert" className="revolve-axis-error revolve-angle-error">{angleError}</p>}
+    <ThinWallPanel thinWall={feature.thinWall} existing={existing} required={thinWallRequired} disabled={!currentSketch || thinWallDisabled}
+      onChange={thinWall => onChange({ thinWall })} />
   </>
 }

@@ -6,6 +6,7 @@ import { validateStepSource } from './stepSource'
 import { bodyReferenceCreationFeatureId, createdBodyIds, featureBodyOutputIncludes, featureBodyReferences } from './bodyReferences'
 import { featureRevolutionAxisBodyReferences } from './revolutionAxisReferences'
 import { captureOwnDataRecord } from './ownDataRecord'
+import { mergeThinWallDraft, readThinWall } from '../cad/thinWall'
 import { bodyPatternAddresses, MAX_CREATED_BODY_IDS, validateBodyPatternDeclaration } from './bodyPatterns'
 import { validateFeaturePatternDeclaration, type FeaturePatternOperation } from './featurePatterns'
 import { validateNamedViews, type NamedView } from './namedViews'
@@ -660,7 +661,8 @@ function feature(value: unknown, path: string): Feature {
   }
   if (source.type === 'extrude' || source.type === 'cut') {
     keys(source, [...baseKeys, 'sketchId', 'depth', 'symmetric'], path,
-      ['endCondition', source.type === 'extrude' ? 'bodyOperation' : 'bodyScope'])
+      ['endCondition', 'thinWall', source.type === 'extrude' ? 'bodyOperation' : 'bodyScope'])
+    const thinWall = readThinWall(source, `${path}.thinWall`)
     const depth = number(source.depth, `${path}.depth`, -MAX_DIMENSION, MAX_DIMENSION)
     if (Math.abs(depth) < MIN_DIMENSION) fail(`${path}.depth`, `el valor absoluto debe ser al menos ${MIN_DIMENSION}`)
     const symmetric = boolean(source.symmetric, `${path}.symmetric`)
@@ -684,6 +686,7 @@ function feature(value: unknown, path: string): Feature {
       depth,
       symmetric,
       ...(endCondition ? { endCondition } : {}),
+      ...(thinWall ? { thinWall } : {}),
     }
     return source.type === 'extrude' ? {
       ...definition, type: 'extrude',
@@ -694,7 +697,8 @@ function feature(value: unknown, path: string): Feature {
     }
   }
   if (source.type === 'revolve' || source.type === 'revolvedCut') {
-    keys(source, [...baseKeys, 'sketchId', 'angle'], path, [source.type === 'revolve' ? 'bodyOperation' : 'bodyScope', 'axis', 'reversed', 'extent'])
+    keys(source, [...baseKeys, 'sketchId', 'angle'], path, [source.type === 'revolve' ? 'bodyOperation' : 'bodyScope', 'axis', 'reversed', 'extent', 'thinWall'])
+    const thinWall = readThinWall(source, `${path}.thinWall`)
     const extent = Object.hasOwn(source, 'extent') ? revolutionExtent(source.extent, `${path}.extent`) : undefined
     const angle = number(source.angle, `${path}.angle`, extent?.kind === 'two-directions' ? 0 : Number.MIN_VALUE, 360)
     if (extent?.kind === 'two-directions' && (angle + extent.secondAngle <= 0 || angle + extent.secondAngle > 360)) {
@@ -703,7 +707,8 @@ function feature(value: unknown, path: string): Feature {
     const parameters = { sketchId: string(source.sketchId, `${path}.sketchId`, 128), angle,
       ...(Object.hasOwn(source, 'axis') ? { axis: revolutionAxis(source.axis, `${path}.axis`) } : {}),
       ...(Object.hasOwn(source, 'reversed') ? { reversed: boolean(source.reversed, `${path}.reversed`) } : {}),
-      ...(extent ? { extent } : {}) }
+      ...(extent ? { extent } : {}),
+      ...(thinWall ? { thinWall } : {}) }
     return source.type === 'revolvedCut'
       ? { ...base, type: 'revolvedCut', ...parameters, ...(Object.hasOwn(source, 'bodyScope') ? { bodyScope: bodyReferences(source.bodyScope, `${path}.bodyScope`) } : {}) }
       : { ...base, type: 'revolve', ...parameters, ...(Object.hasOwn(source, 'bodyOperation') ? { bodyOperation: bodyOperation(source.bodyOperation, `${path}.bodyOperation`) } : {}) }
@@ -1001,7 +1006,7 @@ export function updateFeature(document: Document, id: string, patch: Partial<Fea
   if (!original) throw new Error('La operación que se intenta editar no existe.')
   if (patch.id !== undefined && patch.id !== id) throw new Error('El identificador de una operación no se puede cambiar.')
   if (patch.type !== undefined && patch.type !== original.type) throw new Error('El tipo de una operación no se puede cambiar.')
-  const candidate = { ...original, ...patch } as Feature
+  const candidate = mergeThinWallDraft(original, patch) as Feature
   const repetition = (value: Feature): value is RepetitionFeature => value.type === 'linearPattern' || value.type === 'circularPattern' || value.type === 'mirror'
   if (repetition(original) && repetition(candidate) && (original.bodyPattern || candidate.bodyPattern)) {
     const before = original.bodyPattern, after = candidate.bodyPattern

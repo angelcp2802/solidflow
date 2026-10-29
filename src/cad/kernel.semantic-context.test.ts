@@ -80,6 +80,26 @@ it('rejects an active earlier solid as ancestry for a standalone producer', () =
   expect(entityPrismContextFromFeatures(features, 'solid')).toBeUndefined();
 });
 
+it('excludes thin-wall producers and their suppressed ancestry from filled-prism provenance', () => {
+  const features = fixture();
+  (features[3] as ExtrudeFeature).thinWall = { kind: 'mid-plane', thickness: 1 };
+  expect(entityPrismContextFromFeatures(features, 'solid')).toBeUndefined();
+  const earlier: ExtrudeFeature = { ...extrude(), id: 'earlier', suppressed: true,
+    thinWall: { kind: 'one-side', thickness: 1, reversed: false } };
+  const supported: SketchFeature = { ...sketch(), id: 'supported', support: { kind: 'face',
+    face: { sourceFeatureId: earlier.id, key: 'face-v2|' + 'a'.repeat(64) } } };
+  const source = { ...extrude(), sketchId: supported.id };
+  expect(entityPrismContextFromFeatures([...fixture().slice(0, 3), earlier, supported, source], 'solid')).toBeUndefined();
+});
+
+it('does not read an executable thin-wall declaration while declining filled-prism provenance', () => {
+  const features = fixture();
+  let calls = 0;
+  Object.defineProperty(features[3], 'thinWall', { enumerable: true, get: () => { calls++; throw new Error('untrusted getter'); } });
+  expect(entityPrismContextFromFeatures(features, 'solid')).toBeUndefined();
+  expect(calls).toBe(0);
+});
+
 it.each(['cut', 'suppressed', 'endCondition', 'zero', 'nonfinite'] as const)(
   'does not enable a standalone finite extrusion context for %s', kind => {
     const features = fixture(), source = features[3] as ExtrudeFeature;

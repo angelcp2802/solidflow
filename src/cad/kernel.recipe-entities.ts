@@ -2,6 +2,8 @@ import type { Shape3D } from 'replicad';
 import type { Feature, PlaneFrame, Vec3 } from './kernel.types';
 import type { IntrinsicRecipeExtrusionPlacement } from '../model/featureRecipes';
 import { entityProfileSolid } from './kernel.profiles';
+import { prepareThinSection } from './kernel.thin-wall';
+import { resolveThinWall } from './thinWall';
 import { copyBodyShape, maximumNativeShapeTolerance } from './kernel.bodies';
 import { withNativeOwners } from './kernel.native-ownership';
 import { throughAllBossTool, throughAllTool, untilNextTool, upToSurfaceTool } from './kernel.extrusion-limits';
@@ -47,6 +49,9 @@ function entityRecipePrismFactory(input: EntityRecipeProfileInput): {
   const depth = placement.signedDepth, sign = Math.sign(depth), frame = placement.frame;
   if (!Number.isFinite(depth) || Math.abs(depth) < .01 || Math.abs(depth) > 100_000) throw new Error('Entity recipe depth is outside the native parameter range.');
   const ray = frame.normal.map(value => sign * value) as Vec3;
+  const thinWall = resolveThinWall(placement);
+  const profile = thinWall ? prepareThinSection(view.resolved, thinWall).sketch.profile : view.result.profile;
+  if (profile.kind !== 'entities') throw new Error('Entity recipes require a closed resolved entity section.');
   // Reflection parity was applied exactly once by transformedExtrusionFrame.
   // Keep the authentic solved local coordinates and arc orientation unchanged.
   const makePrism = (length: number, start = 0): Shape3D => {
@@ -60,7 +65,7 @@ function entityRecipePrismFactory(input: EntityRecipeProfileInput): {
       input.assertWorkingCurrent();
       // Explicit frame already includes the sketch offset once. This builder
       // constructs contours/holes/regions from result.profile without solving.
-      const prism = owners.own(entityProfileSolid(view.result.profile, view.input.plane, 0,
+      const prism = owners.own(entityProfileSolid(profile, view.input.plane, 0,
         { type: 'extrude', depth: sign * length }, { ...frame, origin }));
       input.validateTool(prism);
       input.assertWorkingCurrent();

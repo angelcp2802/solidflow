@@ -1,5 +1,36 @@
 # Project status and review queue
 
+## Planar thin walls in successive part operations — 2026-10-29
+
+Extrusion, cut, revolution and revolved cut share a strict optional wall
+declaration with one-side, mid-plane and two-side thicknesses. A temporary closed
+material section derives from the solved source without changing its sketch;
+axes, translated end conditions, explicit body targets and supported extrude/cut
+regeneration preserve their existing ownership contracts. The blue shared panel
+keeps thickness independent of depth/angle, auto-enables current solved open
+profiles and preserves the regular/thin kind while editing existing operations.
+
+Final local Windows acceptance in the existing Electron 44.9.3 runtime passes
+build, **10,604 unit/CAD cases in 471 files**, **200 IPC passes/two platform skips**,
+desktop startup, the new **179-checkpoint/27-phase** thin-wall route, and the
+complete existing external-axis and revolution/cut/STEP routes. All six commands
+share 1,266 pinned inputs and nine products. The new route covers four successive
+operations, modes, clearing, invalid input, exact targets, Cancel/retry, later
+saved editing, history and fresh reopening. A valid ALL ahead/behind-owner
+regeneration failure found in review is corrected with a real native wall
+witness; invalid and stale cases remain rejected. See [validation](VALIDATION.md),
+the [contract](THIN_WALL_OPERATIONS.md) and [provenance](PROVENANCE.md).
+
+The independently reviewed workflow-only follow-up adds this route to existing
+persistence jobs on Linux, Windows and macOS without changing privileges,
+dependencies or deadlines. Current-increment hosted acceptance remains required;
+parent `bf4d9e4` completes all fifteen CI jobs and Security. Keep checklist #55 at
+**16/25** with nine groups open, #53 at **6/9**, PR #49 draft/unmerged and release
+#5 open. Axial caps, automatic corner fillets, offset clipping/split repair,
+remaining editors/picking, complete demo/human use, installed platforms and
+recurring stability remain open. This bounded increment does not close the full
+thin-feature group or establish interaction parity.
+
 ## External revolution axes and viewport selection — 2026-10-28
 
 Additive and subtractive revolutions can declare a world datum, an identified
@@ -19,9 +50,12 @@ owned child/profile cleanup. See [validation](VALIDATION.md) and the separate
 original fixture inventories in [provenance](PROVENANCE.md).
 
 Parent `2b8426e` completes all fifteen hosted CI jobs and Security successfully.
-The new axis route is added to the existing persistence matrix without changing
-permissions, dependencies or deadlines; this revision still needs its own hosted
-acceptance. Keep checklist #55 at **16/25**, with nine groups open, PR #49
+Head `bf4d9e4` also completes all fifteen [CI jobs](https://github.com/angelcp2802/solidflow/actions/runs/40686619595)
+and [Security](https://github.com/angelcp2802/solidflow/actions/runs/40686619597)
+successfully. The new axis route executes successfully in all three persistence
+jobs, without changing permissions, dependencies or deadlines. These bounded
+hosted results do not establish installed-platform support or recurring
+stability. Keep checklist #55 at **16/25**, with nine groups open, PR #49
 draft/unmerged and release #5 open. Thin-wall work, remaining specialized picking,
 full interaction/demo/human acceptance and installed-platform/stability work
 remain separate requirements; this increment does not establish full parity.

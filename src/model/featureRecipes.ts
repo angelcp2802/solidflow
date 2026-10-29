@@ -5,10 +5,11 @@
  * remain attributable to a feature/path, and bounded copying rejects getters.
  */
 import type {
-  BodyReference, FaceReference, Feature, PlaneFrame, PlaneSupport, Profile, Vec3,
+  BodyReference, FaceReference, Feature, PlaneFrame, PlaneSupport, Profile, ThinWallDefinition, Vec3,
 } from '../cad/kernel.types';
 import { featureDependencyIds } from './featureInputs';
 import { principalPlaneFrame } from '../cad/kernel.frames';
+import { readThinWall } from '../cad/thinWall';
 
 export const RECIPE_LIMITS = Object.freeze({
   sourceFeatures: 32, targets: 32, dynamicTargets: 256, bindings: 512, applications: 512,
@@ -464,6 +465,10 @@ export function extractRecipeClosure(features: readonly Feature[], rawRequest: R
     const node: RecipeOperation = { featureId: feature.id, type: feature.type, sketchId: null, termination: null, applications: [] };
     operations.push(node);
     const selectedBindings = [...bindingSources].filter(([, source]) => source.sourceFeatureId === feature.id).sort(([a], [b]) => textOrder(a, b));
+    if (Object.hasOwn(feature, 'thinWall')) {
+      try { readThinWall(feature); }
+      catch { invalid('THIN_WALL_DECLARATION', feature.id, 'thinWall', 'Expected an exact bounded thin-wall declaration.'); }
+    }
     if (feature.type !== 'extrude' && feature.type !== 'cut') {
       pending('OPERATION_RECIPE_PENDING', feature.id, 'type', `Regeneration for ${feature.type} remains required; no aggregate/delta substitute is used.`);
       continue;
@@ -688,6 +693,7 @@ export interface ResolvedRecipeExtrusionInput {
   ray: Vec3;
   signedDepth: number;
   termination: RecipeTermination;
+  thinWall?: ThinWallDefinition;
 }
 export interface IntrinsicRecipeExtrusionPlacement extends Omit<ResolvedRecipeExtrusionInput, 'profile'> {
   sketchId: string; sourceFrame: PlaneFrame;
@@ -706,8 +712,10 @@ export function intrinsicProfileInstancePlacement(closure: RecipeClosure, featur
   const sourceFrame = principalPlaneFrame(sketch.plane, sketch.offset);
   const mapped = transformedExtrusionFrame(sourceFrame, feature.depth, transform);
   const termination = node.termination.kind === 'blind' ? { ...node.termination, signedDepth: mapped.signedDepth } : node.termination;
+  const thinWall = readThinWall(feature);
   return freezeTree({ sourceFeatureId: featureId, sketchId: sketch.id, sourceFrame,
-    frame: mapped.frame, ray: mapped.ray, signedDepth: mapped.signedDepth, termination });
+    frame: mapped.frame, ray: mapped.ray, signedDepth: mapped.signedDepth, termination,
+    ...(thinWall ? { thinWall } : {}) });
 }
 /** Primitive compatibility adapter; entity geometry is available only through its real-solve reader. */
 export function fixedProfileInstanceInput(closure: RecipeClosure, featureId: string, address: string): Readonly<ResolvedRecipeExtrusionInput> {
@@ -715,5 +723,6 @@ export function fixedProfileInstanceInput(closure: RecipeClosure, featureId: str
   const sketch = closure.definitions.find(definition => definition.feature.id === placement.sketchId)?.feature;
   if (!sketch || sketch.type !== 'sketch' || sketch.profile.kind === 'entities') invalid('FIXED_PROFILE_INPUT', featureId, 'sketchId', 'The primitive adapter cannot consume an unsolved entity declaration.');
   return freezeTree({ sourceFeatureId: featureId, profile: boundedClone(sketch.profile, sketch.id, { remaining: RECIPE_LIMITS.jsonNodes }),
-    frame: placement.frame, ray: placement.ray, signedDepth: placement.signedDepth, termination: placement.termination });
+    frame: placement.frame, ray: placement.ray, signedDepth: placement.signedDepth, termination: placement.termination,
+    ...(placement.thinWall ? { thinWall: placement.thinWall } : {}) });
 }

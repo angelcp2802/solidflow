@@ -40,6 +40,8 @@ import { clonePlaneFrame, offsetPlaneFrame, principalPlaneFrame } from './kernel
 import { makeOwnedPrimitiveSketch } from './kernel.primitive-sketch';
 import { resolveRevolutionAxis, revolutionRadialCoordinate, type ResolvedRevolutionAxis, type RevolutionAxisSources } from './revolutionAxis';
 import { isRevolutionFeature, resolveRevolutionExtent } from './revolutionExtent';
+import { resolveThinWall } from './thinWall';
+import { prepareThinSection } from './kernel.thin-wall';
 import { loftSolid, sweepSolid } from './kernel.sweep-loft';
 import { geometryDelta, isRepetition, patternPlan, repetitionSolid, type FeatureGeometry } from './kernel.patterns';
 import { draftSolid, shellSolid } from './kernel.face-operations';
@@ -205,7 +207,14 @@ function extrudePrimitiveSketch(sketch: Sketch, depth: number): Shape3D {
 }
 
 function featureSolid(feature: ExtrudeFeature | RevolutionFeature, sketchFeature: SketchFeature, resolvedFrame: PlaneFrame,
-  validateDepth = true, resolvedAxis?: ResolvedRevolutionAxis): Shape3D {
+  validateDepth = true, resolvedAxis?: ResolvedRevolutionAxis,
+  thinSection?: ReturnType<typeof prepareThinSection>): Shape3D {
+  if (Object.hasOwn(feature, 'thinWall') !== Boolean(thinSection)) {
+    throw new Error('La pared delgada requiere su sección resuelta antes de construir material.');
+  }
+  // Keep the incoming plane/offset: geometric end conditions translate this
+  // sketch along its normal while borrowing the same already-solved section.
+  if (thinSection) sketchFeature = { ...sketchFeature, profile: thinSection.sketch.profile };
   const frame = sketchFeature.support ? resolvedFrame : undefined;
   if (isRevolutionFeature(feature)) {
     const extent = resolveRevolutionExtent(feature);
@@ -1159,6 +1168,11 @@ export class CadEngine {
       let featureFailed = false, featureError: unknown;
       let bodyAware = false;
       try {
+        const thinWall = resolveThinWall(feature);
+        if (thinWall && feature.type !== 'extrude' && feature.type !== 'cut'
+          && feature.type !== 'revolve' && feature.type !== 'revolvedCut') {
+          throw new Error('La pared delgada solo corresponde a extrusiones y revoluciones de material o corte.');
+        }
         const importedBase = Object.getOwnPropertyDescriptor(feature, 'type')?.value === 'importedBodies' ? validateImportedBodiesFeature(feature) : undefined;
         if (isRepetition(feature)) {
           if (repetitionDeclarationErrors.has(feature)) throw repetitionDeclarationErrors.get(feature);
@@ -1656,6 +1670,10 @@ export class CadEngine {
         const revolutionAxis = isRevolutionFeature(feature) ? resolveRevolutionAxis({
           ...(axisField ? { axis: axisField.value } : {}), reversed: revolutionExtent!.reversed,
         }, sketchFeature, sketchFrames.get(sketchFeature.id)!, revolutionSources) : undefined;
+        // Resolve axes against the original solved sketch (including its
+        // construction lines), then derive material without editing that sketch.
+        const thinSection = thinWall ? prepareThinSection(sketchFeature, thinWall) : undefined;
+        const materialProfile = thinSection?.sketch.profile ?? sketchFeature.profile;
         let limitLineage: unknown = null;
         let operationBase = body;
         if (bodyCatalog && (feature.type === 'extrude' || feature.type === 'revolve') && feature.bodyOperation?.mode === 'merge') {
@@ -1669,7 +1687,7 @@ export class CadEngine {
           const end=feature.endCondition, frame=sketchFrames.get(sketchFeature.id)!, sign=Math.sign(feature.depth);
           const direction=frame.normal.map(value=>value*sign) as Vec3;
           const makePrism=(length:number,start=0) => featureSolid({...feature,endCondition:undefined,depth:sign*length,symmetric:false},
-            {...sketchFeature,offset:sketchFeature.offset+sign*start}, offsetPlaneFrame(frame,sign*start),false);
+            {...sketchFeature,offset:sketchFeature.offset+sign*start}, offsetPlaneFrame(frame,sign*start),false,undefined,thinSection);
           if(end.kind==='throughAll'||end.kind==='untilNext') {
             const scopedBase = feature.type === 'cut' ? feature.bodyScope?.[0]
               : feature.bodyOperation?.mode === 'merge' ? feature.bodyOperation.target
@@ -1705,7 +1723,8 @@ export class CadEngine {
               const nextLineage = advanceLineage(lineage, [feature.id, 'cut', feature.sketchId, sketchFeature.plane,
                 sketchFeature.profile.kind, sketchFeature.profile.kind === 'entities' ? entityProfileStructure(sketchFeature.profile) : null,
                 Math.sign(feature.depth), feature.bodyScope, end.kind, end.kind === 'throughAll' ? end.bothDirections : null,
-                sketchSupportLineages.get(sketchFeature.id) ?? null]);
+                sketchSupportLineages.get(sketchFeature.id) ?? null,
+                ...(thinSection ? [['thinWall', thinWall!.identity, thinSection.identity]] : [])]);
               adoptBodyTransaction(bodyCatalog.stageReplaceMany(replacements, { sourceFeatureId: feature.id, lineage: nextLineage }));
               sourceFeatureId = feature.id; lineage = nextLineage; semantic = undefined;
               rememberReferencedSource(beforeForRecord); continue;
@@ -1754,17 +1773,18 @@ export class CadEngine {
               tool = owner.takeShape();
               const prepared = preparePrismReferencesV2(sketchFeature.profile, context, owner.provenance);
               if (prepared.status === 'verified') toolSemantic = prepared.references;
-            } else tool = featureSolid(feature, sketchFeature, sketchFrames.get(sketchFeature.id)!);
-          } else tool = featureSolid(feature, sketchFeature, sketchFrames.get(sketchFeature.id)!);
-        } else tool = featureSolid(feature, sketchFeature, sketchFrames.get(sketchFeature.id)!, true, revolutionAxis);
+            } else tool = featureSolid(feature, sketchFeature, sketchFrames.get(sketchFeature.id)!, true, undefined, thinSection);
+          } else tool = featureSolid(feature, sketchFeature, sketchFrames.get(sketchFeature.id)!, true, undefined, thinSection);
+        } else tool = featureSolid(feature, sketchFeature, sketchFrames.get(sketchFeature.id)!, true, revolutionAxis, thinSection);
         if ((feature.type === 'cut' || feature.type === 'revolvedCut') && !body) throw new Error('Crea primero un sólido antes de aplicar un corte.');
         validateSolid(tool);
         const structure: unknown[] = [feature.id, feature.type, feature.sketchId, sketchFeature.plane, sketchFeature.profile.kind,
-          isRevolutionFeature(feature) ? [revolutionAxis!.legacy ? 'local-Y' : revolutionAxis!.identity, sketchFeature.profile.kind === 'entities'
-            ? entityRevolutionSide(sketchFeature.profile, revolutionAxis) : Math.sign(revolutionRadialCoordinate(sketchFeature.profile.center, revolutionAxis!)), revolutionExtent!.sweepAngle === 360]
+          isRevolutionFeature(feature) ? [revolutionAxis!.legacy ? 'local-Y' : revolutionAxis!.identity, materialProfile.kind === 'entities'
+            ? entityRevolutionSide(materialProfile, revolutionAxis) : Math.sign(revolutionRadialCoordinate(materialProfile.center, revolutionAxis!)), revolutionExtent!.sweepAngle === 360]
             : [feature.symmetric, Math.sign(feature.depth)]];
         // Keep the legacy descriptor byte-identical for existing saved edge references.
         if (revolutionExtent?.identity) structure.push(revolutionExtent.identity);
+        if (thinSection) structure.push(['thinWall', thinWall!.identity, thinSection.identity]);
         if (sketchFeature.profile.kind === 'entities') structure.push(entityProfileStructure(sketchFeature.profile));
         if (sketchFeature.support) structure.push(['support', sketchFeature.support.kind,
           sketchFeature.support.kind === 'plane' ? sketchFeature.support.planeId : sketchFeature.support.face.sourceFeatureId,

@@ -95,7 +95,8 @@ function resolveInstanceUntilNext(input: RecipeInstanceToolInput,
       const profile = fixedProfileInstanceInput(closure, input.featureId, input.address).profile;
       if (profile.kind !== 'rectangle' && profile.kind !== 'circle') throw new Error('Unknown intrinsic recipe profile.');
       result = resolveExplicitFrameUntilNext({ profile, frame: resolved.frame, signedDepth: resolved.signedDepth,
-        termination, operation, workingTarget: input.workingTarget, validateTool: input.validateTool });
+        termination, operation, workingTarget: input.workingTarget, validateTool: input.validateTool,
+        ...(resolved.thinWall ? { thinWall: resolved.thinWall } : {}) });
     }
     if (result.kind === 'complete') owners.own(result.tool);
     // Native inspection cleanup completes before either kind can leave this bridge.
@@ -129,5 +130,6 @@ export function buildRecipeInstanceTool(input: RecipeInstanceToolInput): OwnedRe
   return withNativeOwners(owners => ({ operation, tool: owners.own(buildExplicitFramePrimitive({
     profile, frame: resolved.frame, signedDepth: resolved.signedDepth,
     termination, operation, workingTarget: input.workingTarget, validateTool: input.validateTool,
+    ...(resolved.thinWall ? { thinWall: resolved.thinWall } : {}),
   })) }), result => [result.tool], 'Recipe instance tool construction or release failed.');
 }

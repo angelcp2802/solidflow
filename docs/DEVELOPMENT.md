@@ -1,5 +1,26 @@
 # Development guide
 
+## Planar thin-wall integration — 2026-10-28
+
+The [thin-wall contract](THIN_WALL_OPERATIONS.md) defines the strict optional
+three-mode declaration for additive/subtractive extrusions and revolutions.
+Resolve the original sketch and revolution axis before deriving a temporary
+closed material section. Do not solve that section again, mutate source
+constraints, or replace a translated limit frame with the original offset.
+Every fixed/automatic end-condition factory and extrude/cut regeneration recipe
+must use the same section. Never assign filled-prism provenance to a thin wall.
+
+The pure profile-curve module shares topology classification with native profile
+construction. `SketchVisual.profileTopology` describes the already-solved source;
+the UI can require a new open-profile wall only while that model/prefix witness
+is current. Editor clearing removes the optional field; invalid temporary values
+stay editable and block Apply. Preserve exact body ownership and legacy absence.
+The [original fixtures](PROVENANCE.md#original-planar-thin-wall-fixtures--2026-10-28)
+and [validation](VALIDATION.md) separate mathematical/native tests, rendered
+interaction and platform acceptance. Axial caps, automatic corner fillets and
+offset clipping/repair remain open; straight section end segments are not axial
+caps. This increment does not close the full prototype thin-feature group.
+
 ## External revolution axes — 2026-10-28
 
 Additive and subtractive revolutions share three additional strict axis variants:

@@ -1,5 +1,82 @@
 # Public fixture provenance
 
+## Original planar thin-wall fixtures — 2026-10-28
+
+The thin-wall tests use original dimensioned LINE/ARC/rectangle/circle profiles,
+literal source constraints and analytical expectations in millimetres. They do
+not import external CAD models, topology keys or geometric results. Symbolic
+keys in document and editor tests prove declaration lifecycle only. Executed
+results belong in [validation](VALIDATION.md); these formulas are not a claim
+that all thin-feature workflows have passed.
+
+`kernel.thin-wall.integration.test.ts` constructs native material directly from
+the derived section and measures live and STEP-reopened BRep validity, solid
+count, volume, area and bounds. Its independent cases include:
+
+| Original geometry | Analytical volume, mm³ | Analytical area, mm² |
+| --- | --- | --- |
+| Directed LINE length 10, right width 2, depth 3 | `60` | `112` |
+| L with legs 10/8, outside width 1, depth 3 | `57` | `158` |
+| Same L, inside width 1, depth 3 | `51` | `142` |
+| Rectangle 10×6, outside width 1, depth 3 | `108` | `288` |
+| Circle radius 5, outside width 1, depth 3 | `33*pi` | `88*pi` |
+| Quarter ARC radius 5, total midpoint width 2, depth 3 | `15*pi` | `25*pi+12` |
+| Revolved vertical LINE at x=5, height 8, right width 1 | `88*pi` | `198*pi` |
+
+Additional original two-side, tangent LINE/ARC and nested separate-circle cases
+retain their own formulas and solid counts. The pure tests cover canonical
+entity ordering, analytic section areas, translated coordinates, construction
+exclusion and explicit rejection cases. Expected values do not call the wall
+builder, offset helper or native mass calculation to generate their oracles.
+
+`kernel.thin-wall-engine.test.ts` separately exercises the complete feature
+sequence. Its open source LINE is 12 mm long; width 1.5 and depth 4 give volume
+72 and area 144. A 20×12×8 enclosure has volume 1920 and area 992. An internal
+12×1.5×4 cavity leaves volume 1848 and area 1136; the corresponding full-depth
+through hole leaves volume 1776 and area 1172. The automatic plane cut removes
+that same 18 mm² section over 6 mm, leaving volume 1812 and area 1154. Two
+separated 20×12×4 explicit owners cut through the gap retain two solids, total
+volume 1776 and area 1616. Exact body scope, saved edits, reference restoration
+and the absence of source mutation are checked separately.
+
+The engine's open revolution source at x=6 spans y=-2..5. Width 1.5 to the
+right gives radii 6/7.5 about world Y, or 4/5.5 about an external x=2 axis.
+Its optional disjoint axis prism is 1×2×2 with volume 4 and area 16. A separate
+radius-8, height-10 cylinder with a revolved r=6..7.5, z=3..7 cavity has volume
+`559*pi` and area `436.5*pi`. Angular-midpoint and asymmetric-wall tests use
+their own literal sector bounds. Volume/area tolerance is `1e-5` in the native
+engine reader and bounds tolerance `1e-6 mm`; exported STEP is measured again.
+
+`kernel.recipe-thin-wall.test.ts` uses original explicit prism owners, saved
+declarations and a real source-solve registry. It covers blind annular pockets,
+line/arc sections, transformations, automatic limits and stale publication.
+Some simple dimensioned rectangle bands are intentionally shared with engine
+checks; this does not make one test an independent geometry implementation.
+The expected physical values remain literal analytical oracles. An annular
+through-all cut that splits one explicit owner is a rejection fixture, not a
+supported multiple-output operation. See the [contract](THIN_WALL_OPERATIONS.md)
+for remaining cap, fillet, clipping and workflow limits.
+
+`desktop-part-thin-wall-original.cjs` authors a separate six-declaration
+production-renderer fixture: a radius-12/height-20 cylinder and four unused
+profiles. Its closed rectangle is 8×6 at x=30 with a 6 mm extrusion. Outside
+width1 gives V192; inside1 gives V144; midpoint total2 gives V336; outside1 and
+inside0.5 give V270. Disabling thin produces the filled V288; the later
+outside1.5 edit gives V306. An open 10 mm LINE at z=20 cuts down through the
+cylinder with width2, removing 400 mm³ while leaving the rectangle owner alone.
+A vertical open LINE at x=30, y=-3..3, z=30 and its original construction axis
+at x=25 define a separate r5..6/H6 annular body, V66*pi. Reversing width1 gives
+r4..5, V54*pi. Its later r5.5..6.5/H4 revolved cutter removes the intersecting
+23*pi, leaving V43*pi. Source declarations contain no saved native keys.
+
+The renderer checks literal per-owner volumes at `1e-5 mm³`, bounds at
+`1e-6 mm`, exact source/creation identities, unchanged original source sketches,
+mode and clearing declarations, Cancel/retry, history and fresh saved rebuilding.
+It observes actual native worker responses rather than injecting geometry. This
+route does not independently verify BRep validity, surface area or STEP; those
+checks belong to the distinct native inventories above. A scripted route is
+not human-user acceptance or a platform-support certificate.
+
 ## Original external revolution axes — 2026-10-28
 
 `desktop-part-external-axis-original.cjs` authors four declarations in

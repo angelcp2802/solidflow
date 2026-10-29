@@ -12,6 +12,7 @@ import { buildRecipeInstanceTool, resolveRecipeInstanceUntilNext } from './kerne
 import { framePoint } from './kernel.frames';
 import { validatePositiveClosedTool } from './kernel.closed-tools';
 import { validateEntityRecipeProfileForAbsence, type EntityRecipeSolveInput } from './kernel.recipe-entities';
+import { validatePrimitiveRecipeProfileForAbsence, type PrimitiveRecipeProfileInput } from './kernel.recipe-primitives';
 import { isNativeCleanupFailure, NativeCleanupError, withNativeOwners, type NativeOwner, type NativeOwners } from './kernel.native-ownership';
 import { attestNativeRecipeScope, assertNativeRecipeScopeCurrent, type NativeRecipeScopeAttestation } from './kernel.recipe-scopes';
 
@@ -116,9 +117,12 @@ function allCutEntirelyBehindRay(closure: RecipeClosure, operation: RecipeOperat
   assertWorkingCurrent: () => void): boolean {
   if (closure.request.scope.mode !== 'all' || operation.type !== 'cut'
     || operation.termination?.kind !== 'throughAll' || operation.termination.bothDirections) return false;
+  const definition = closure.definitions.find(item => item.feature.id === operation.featureId)?.feature;
+  const thinWallDeclared = Boolean(definition && Object.hasOwn(definition, 'thinWall'));
   const sketch = closure.definitions.find(definition => definition.feature.id === operation.sketchId)?.feature;
   if (sketch?.type !== 'sketch') return false;
   let entityPlacement: Readonly<IntrinsicRecipeExtrusionPlacement> | undefined;
+  let primitiveWitness: Omit<PrimitiveRecipeProfileInput, 'assertWorkingCurrent'> | undefined;
   let origin: Vec3, ray: Vec3;
   if (sketch.profile.kind === 'entities') {
     if (!entitySource) throw new Error('Entity absence requires the engine real-solve checkpoint.');
@@ -141,6 +145,11 @@ function allCutEntirelyBehindRay(closure: RecipeClosure, operation: RecipeOperat
       || !parameter(Math.abs(resolved.signedDepth)) || (profile.kind === 'circle' ? !parameter(profile.radius)
         : !parameter(profile.width) || !parameter(profile.height))) return false;
     origin = framePoint(resolved.frame, profile.center[0], profile.center[1]); ray = resolved.ray;
+    if (thinWallDeclared) {
+      if (!resolved.thinWall) throw new Error('The extracted thin wall is missing its resolved declaration.');
+      primitiveWitness = { profile, frame: resolved.frame, signedDepth: resolved.signedDepth,
+        thinWall: resolved.thinWall, validateTool: validatePositiveClosedTool };
+    }
   }
   if (!origin.every(Number.isFinite) || !ray.every(Number.isFinite)) throw new Error('Recipe ray placement must be finite.');
   const projection = withNativeOwners(owners => {
@@ -181,6 +190,10 @@ function allCutEntirelyBehindRay(closure: RecipeClosure, operation: RecipeOperat
     // positive closed witness and release it successfully before returning.
     witnessTolerance = validateEntityRecipeProfileForAbsence({ source: entitySource!, placement: entityPlacement,
       validateTool: validatePositiveClosedTool, assertWorkingCurrent });
+  } else if (primitiveWitness) {
+    // Keep valid ALL misses, but never hide a collapsed/invalid primitive wall
+    // behind owner bounds. The same real section builder supplies this witness.
+    witnessTolerance = validatePrimitiveRecipeProfileForAbsence({ ...primitiveWitness, assertWorkingCurrent });
   }
   assertWorkingCurrent();
   const rayLength = Math.hypot(...ray), guard = projection.guard + witnessTolerance * rayLength;

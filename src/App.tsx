@@ -7,7 +7,7 @@ import { ViewOrientationControls } from './components/ViewOrientationControls'
 import { NamedViewsDialog } from './components/NamedViewsDialog'
 import { sameDocumentExceptNamedViews, useNamedDocumentViews } from './components/useNamedDocumentViews'
 import { requestNewDocument, useNewDocumentDialog } from './components/useNewDocumentDialog';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
   Box,
@@ -123,6 +123,8 @@ import { reconcileBodyPatternDraft } from "./model/bodyPatterns";
 import { createEdgeSelectionIndex, createFaceSelectionIndex } from "./cad/selection.references";
 import ExtrudePanel from "./components/ExtrudePanel";
 import RevolvePanel, { mergeRevolutionDraft } from "./components/RevolvePanel";
+import { thinWallInputError } from './components/ThinWallPanel';
+import { defaultThinWallDefinition, isThinWallOperation, mergeThinWallEditorDraft, thinWallRequiredByProfile, withRequiredThinWall } from './components/thinWallEditorDraft';
 import { revolutionAxisCandidates, type RevolutionAxisCandidate } from './components/revolutionAxisPicking';
 import HolePanel, { type HoleSection } from "./components/HolePanel";
 import HolePositionsCanvas from "./components/HolePositionsCanvas";
@@ -454,7 +456,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
   type AxisPickingRequest = { draft: RevolutionFeature; document: Document; epoch: number; model: CadResult; features: Feature[] };
   const [axisPickingRequest, setAxisPickingRequest] = useState<AxisPickingRequest | null>(null);
   const axisPickingAuthority = useRef<AxisPickingRequest | null>(null);
-  const stopAxisPicking = () => { axisPickingAuthority.current = null; setAxisPickingRequest(null); };
+  const stopAxisPicking = useCallback(() => { axisPickingAuthority.current = null; setAxisPickingRequest(null); }, []);
   const [featureMenu, setFeatureMenu] = useState<{ requestId: string; featureId: string; parentId?: string; point: { x: number; y: number }; origin: HTMLElement } | null>(null);
   type ViewportPopup = { requestId: string; target: PartContextTarget; document: Document; model: CadResult | null;
     selection: string; epoch: number; point: { x: number; y: number }; origin: HTMLElement };
@@ -626,6 +628,18 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     extrudeEditing.endCondition?.kind === "upToSurface" &&
     pickingEndFace;
   const pickingHole = !!holeEditing && pickingSupport;
+  const thinWallSourceCurrent = !!sourceFeatures && !!sourceModel && sourceBuiltFeatures === sourceFeatures
+    && !sourceLoading && !sourceModel.featureErrors.length;
+  const thinWallRequired = !!editing && isThinWallOperation(editing)
+    && thinWallRequiredByProfile(editing.sketchId, sourceModel, thinWallSourceCurrent);
+  useEffect(() => {
+    if (!thinWallRequired || !editing || !isThinWallOperation(editing)
+      || Object.hasOwn(editing, 'thinWall') || doc.features.some(feature => feature.id === editing.id)
+      || !mounted.current || docRef.current !== doc || editingRef.current !== editing) return;
+    const next = withRequiredThinWall(editing, undefined, true);
+    stopAxisPicking();
+    setEditing(current => current === editing ? next : current);
+  }, [thinWallRequired, editing, doc, stopAxisPicking]);
   const axisPicking = !!axisPickingRequest && editing === axisPickingRequest.draft && doc === axisPickingRequest.document
     && documentEpoch.current === axisPickingRequest.epoch && sourceModel === axisPickingRequest.model
     && sourceFeatures === axisPickingRequest.features && sourceBuiltFeatures === sourceFeatures && !sourceLoading
@@ -705,9 +719,12 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
           : model?.faces?.some(
             (face) => face.ref.sourceFeatureId === editing.id,
           ));
+  const thinWallDraftError = editing && isThinWallOperation(editing) ? thinWallInputError(editing.thinWall) : null;
   const canAccept =
     !!editing &&
     !!editingResolved &&
+    !thinWallDraftError &&
+    (!thinWallRequired || !isThinWallOperation(editing) || !!editing.thinWall) &&
     (!editing || !isBodyCommandFeature(editing) || (!!bodyPlan && !bodyPicking)) &&
     !pickingMirror &&
     !pickingExtrude &&
@@ -1672,6 +1689,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
       name: `${labels[type]}${doc.features.filter((f) => f.type === type).length + 1}`,
       sketchId: sketch.id,
       suppressed: false,
+      ...(thinWallRequiredByProfile(sketch.id, model, previewCurrent) ? { thinWall: defaultThinWallDefinition() } : {}),
     };
     const explicitBodies = model?.bodyCatalogActive === true || !doc.features.some(feature => feature.type !== "sketch" && feature.type !== "plane" && !isBodyCommandFeature(feature));
     bodyOutputId.current = crypto.randomUUID();
@@ -2096,7 +2114,18 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
   const changeDraft = (patch: Partial<Feature>) => {
     stopAxisPicking();
     if (!editing) return;
-    const merged = isRevolutionFeature(editing) ? mergeRevolutionDraft(editing, patch as Partial<RevolutionFeature>) : { ...editing, ...patch } as Feature;
+    let merged: Feature;
+    const original = doc.features.find(feature => feature.id === editing.id);
+    try {
+      merged = isRevolutionFeature(editing)
+        ? mergeRevolutionDraft(editing, patch as Partial<RevolutionFeature>, original && isRevolutionFeature(original) ? original : undefined)
+        : mergeThinWallEditorDraft(editing, patch, original);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+      return;
+    }
+    if (isThinWallOperation(merged)) merged = withRequiredThinWall(merged, original,
+      thinWallRequiredByProfile(merged.sketchId, sourceModel, thinWallSourceCurrent));
     const ownedPattern = isRepetition(merged) && merged.source.mode === 'bodies' ? merged : null;
     const scopedPattern = isRepetition(merged) && merged.featurePattern ? merged : null;
     const selection = ownedPattern?.source.mode === 'bodies' ? ownedPattern.source.bodies
@@ -3843,6 +3872,9 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                   {isRevolutionFeature(editing) ? (
                     <>
                       <RevolvePanel feature={editing}
+                        existing={doc.features.some(feature => feature.id === editing.id)}
+                        thinWallRequired={thinWallRequired}
+                        thinWallDisabled={!thinWallSourceCurrent}
                         sketch={availableSketches.find(sketch => sketch.id === editing.sketchId)}
                         sourceSketches={availableSketches}
                         axisPicking={axisPicking}
@@ -3862,6 +3894,9 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                     <>
                     <ExtrudePanel
                       feature={editing}
+                      existing={doc.features.some(feature => feature.id === editing.id)}
+                      thinWallRequired={thinWallRequired}
+                      thinWallDisabled={!thinWallSourceCurrent}
                       features={availableFeatures}
                       planes={availablePlanes}
                       baseFeatureId={

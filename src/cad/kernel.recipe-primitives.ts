@@ -1,9 +1,12 @@
 import { Plane as NativePlane, sketchCircle, sketchRectangle, type Face, type Shape3D, type Sketch } from 'replicad';
 import { framePoint } from './kernel.frames';
-import { copyBodyShape } from './kernel.bodies';
+import { copyBodyShape, maximumNativeShapeTolerance } from './kernel.bodies';
 import { withNativeOwners, type NativeOwners } from './kernel.native-ownership';
 import { throughAllBossTool, throughAllTool, untilNextTool, upToSurfaceTool } from './kernel.extrusion-limits';
-import type { PlaneFrame, Vec3 } from './kernel.types';
+import type { PlaneFrame, ThinWallDefinition, Vec3 } from './kernel.types';
+import { prepareThinSection } from './kernel.thin-wall';
+import { resolveThinWall } from './thinWall';
+import { entityProfileSolid } from './kernel.profiles';
 import { resolveUntilNextAdd, resolveUntilNextCut, type UntilNextCutResolution } from './kernel.until-next-resolution';
 
 /** Explicit-frame primitive construction: no document IDs, recipe graph or catalog publication. */
@@ -31,6 +34,7 @@ export interface ExplicitFramePrimitiveInput {
   readonly workingTarget?: Shape3D;
   /** Borrowed input, must not consume/mutate it. Check native validity, finite bounds and solid geometry. */
   readonly validateTool: (tool: Shape3D) => void;
+  readonly thinWall?: ThinWallDefinition;
 }
 
 const MIN_PARAMETER_LENGTH = .01, MAX_PARAMETER_LENGTH = 100_000;
@@ -99,6 +103,12 @@ function explicitFramePrimitiveFactory(input: ExplicitFramePrimitiveInput): {
     signedDepth = parameterLength(input.signedDepth, 'Signed depth', true), sign = Math.sign(signedDepth),
     ray = frame.normal.map(value => sign * value) as Vec3,
     center = finitePoint(framePoint(frame, profile.center[0], profile.center[1]), 'World profile center');
+  const thinWall = resolveThinWall(input);
+  const section = thinWall ? prepareThinSection({
+    id: 'recipe-primitive-profile', name: 'Recipe primitive profile', type: 'sketch', suppressed: false,
+    plane: 'XY', offset: 0, profile: { ...profile, center: [...profile.center] },
+  }, thinWall).sketch : undefined;
+  if (section && section.profile.kind !== 'entities') throw new Error('Thin-wall recipes require a closed prepared entity section.');
   const termination = input.termination;
   if (!termination || typeof termination !== 'object') throw new Error('Primitive termination is required.');
   if (termination.kind === 'blind' && typeof termination.symmetric !== 'boolean') throw new Error('Blind symmetry must be explicit.');
@@ -130,6 +140,15 @@ function explicitFramePrimitiveFactory(input: ExplicitFramePrimitiveInput): {
     const endCenter = finitePoint(startCenter.map((value, axis) => value + ray[axis] * length) as Vec3, 'Prism end center');
     void endCenter; // Reject overflow BEFORE invoking native constructors.
     return withNativeOwners(owners => {
+      if (section?.profile.kind === 'entities') {
+        // The temporary section retains local center coordinates. Apply only
+        // the explicit frame and axial start here, never the center twice.
+        const origin = finitePoint(frame.origin.map((value, axis) => value + ray[axis] * start) as Vec3, 'Thin prism start origin');
+        const result = owners.own(entityProfileSolid(section.profile, 'XY', 0,
+          { type: 'extrude', depth: sign * length }, { ...frame, origin }));
+        input.validateTool(result);
+        return result;
+      }
       const plane = owners.own(new NativePlane(startCenter, frame.xDirection, frame.normal));
       const sketch = profile.kind === 'rectangle' ? sketchRectangle(profile.width, profile.height, { plane })
         : sketchCircle(profile.radius, { plane });
@@ -140,6 +159,31 @@ function explicitFramePrimitiveFactory(input: ExplicitFramePrimitiveInput): {
     }, result => [result], 'Explicit-frame prism construction or release failed.');
   };
   return { signedDepth, center, ray, termination, target, limit, makePrism };
+}
+
+export interface PrimitiveRecipeProfileInput extends Pick<ExplicitFramePrimitiveInput,
+  'profile' | 'frame' | 'signedDepth' | 'validateTool' | 'thinWall'> {
+  /** Evaluator-owned guard for the actual working owner/revision and source epoch. */
+  readonly assertWorkingCurrent: () => void;
+}
+
+/** A real validated section, released before it can authorize a separated miss. */
+export function validatePrimitiveRecipeProfileForAbsence(input: PrimitiveRecipeProfileInput): number {
+  input.assertWorkingCurrent();
+  const thinWall = resolveThinWall(input);
+  const { signedDepth, makePrism } = explicitFramePrimitiveFactory({
+    profile: input.profile, frame: input.frame, signedDepth: input.signedDepth, validateTool: input.validateTool,
+    termination: { kind: 'blind', symmetric: false }, operation: 'subtract',
+    ...(thinWall ? { thinWall: thinWall.definition } : {}),
+  });
+  const tolerance = withNativeOwners(owners => {
+    const witness = owners.own(makePrism(Math.abs(signedDepth)));
+    return maximumNativeShapeTolerance(witness);
+  }, undefined, 'Primitive recipe absence witness construction or release failed.');
+  // Successful geometry is insufficient if releasing it failed or changed the
+  // working owner. No caught native failure is converted into absence evidence.
+  input.assertWorkingCurrent();
+  return tolerance;
 }
 
 /** Native observations only; saved scope, currentness and miss policy belong to the bridge/evaluator. */

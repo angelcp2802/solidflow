@@ -1,4 +1,5 @@
 import { ChevronDown, MousePointer2, RotateCw } from "lucide-react";
+import ThinWallPanel from './ThinWallPanel';
 import type {
   ExtrudeFeature,
   Feature,
@@ -16,6 +17,9 @@ interface Props {
   picking: boolean;
   loading: boolean;
   canPickFace: boolean;
+  existing?: boolean;
+  thinWallRequired?: boolean;
+  thinWallDisabled?: boolean;
   onChange: (patch: Partial<ExtrudeFeature>) => void;
   onTarget: (target: PlaneSupport) => void;
   onPickFace: () => void;
@@ -53,6 +57,9 @@ export default function ExtrudePanel({
   picking,
   loading,
   canPickFace,
+  existing = false,
+  thinWallRequired = false,
+  thinWallDisabled = false,
   onChange,
   onTarget,
   onPickFace,
@@ -224,6 +231,8 @@ export default function ExtrudePanel({
           </p>
         </div>
       )}
+      <ThinWallPanel thinWall={feature.thinWall} existing={existing} required={thinWallRequired} disabled={loading || thinWallDisabled}
+        onChange={thinWall => onChange({ thinWall })} />
     </>
   );
 }

@@ -16,6 +16,7 @@ describe('accepted sketch display geometry', () => {
     expect(result.lines.slice(0, 6)).toEqual(firstSegment);
     expect(result.lines.slice(-3)).toEqual(firstSegment.slice(0, 3));
     expect(result.constructionLines).toEqual([]);
+    expect(result.profileTopology).toBe('closed');
   });
 
   it('displays an open entity line separately from construction geometry', () => {
@@ -30,6 +31,7 @@ describe('accepted sketch display geometry', () => {
       { entityId: 'open', start: [7, 3, 4], end: [7, 10, 4], construction: false },
       { entityId: 'helper', start: [7, 0, 0], end: [7, 3, 4], construction: true },
     ]);
+    expect(result.profileTopology).toBe('open');
   });
 
   it.each([false, true])('discretizes the correct arc side with clockwise=%s', (clockwise) => {
@@ -72,7 +74,16 @@ describe('accepted sketch display geometry', () => {
   it('returns a valid empty visual for an accepted empty sketch', () => {
     const sketch = feature();
     sketch.profile = { kind: 'entities', points: [], entities: [], constraints: [] };
-    expect(sketchVisual(sketch)).toEqual({ id: 'sketch', lines: [], constructionLines: [],
+    expect(sketchVisual(sketch)).toEqual({ id: 'sketch', profileTopology: 'invalid', lines: [], constructionLines: [],
       frame: { origin: [0, 0, 7], xDirection: [1, 0, 0], normal: [0, 0, 1] } });
+  });
+
+  it('marks an ambiguous or branching resolved profile invalid without resolving it again', () => {
+    const sketch = feature();
+    sketch.profile = { kind: 'entities', points: [{ id: 'a', x: 5, y: 0 }, { id: 'b', x: 5, y: 5 }, { id: 'c', x: 10, y: 0 }],
+      entities: [{ id: 'one', type: 'line', start: 'origin', end: 'a', construction: false },
+        { id: 'two', type: 'line', start: 'a', end: 'b', construction: false },
+        { id: 'three', type: 'line', start: 'a', end: 'c', construction: false }], constraints: [] };
+    expect(sketchVisual(sketch).profileTopology).toBe('invalid');
   });
 });

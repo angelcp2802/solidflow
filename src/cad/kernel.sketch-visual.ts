@@ -1,5 +1,6 @@
 import type { PlaneFrame, SketchFeature, SketchVisual } from './kernel.types';
 import { clonePlaneFrame, framePoint, principalPlaneFrame } from './kernel.frames';
+import { classifyThinWallProfile } from './kernel.profile-curves';
 
 type Point2 = [number, number];
 const TAU = Math.PI * 2;
@@ -7,7 +8,8 @@ const positiveAngle = (angle: number) => ((angle % TAU) + TAU) % TAU;
 
 /** Display tessellation only. Solid modelling always uses the native analytic curves. */
 export function sketchVisual(feature: SketchFeature, frame: PlaneFrame = principalPlaneFrame(feature.plane, feature.offset)): SketchVisual {
-  const visual: SketchVisual = { id: feature.id, frame: clonePlaneFrame(frame), lines: [], constructionLines: [] };
+  const visual: SketchVisual = { id: feature.id, frame: clonePlaneFrame(frame),
+    profileTopology: classifyThinWallProfile(feature.profile), lines: [], constructionLines: [] };
   const toWorld = ([u, v]: Point2) => framePoint(frame, u, v);
   const line = (a: Point2, b: Point2, construction = false) => {
     (construction ? visual.constructionLines : visual.lines).push(...toWorld(a), ...toWorld(b));
