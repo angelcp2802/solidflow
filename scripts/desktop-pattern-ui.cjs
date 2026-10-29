@@ -52,6 +52,8 @@ const SCENARIOS = Object.freeze({
     test: 'production-renderer-part-auto-corners', caption: 'automatic thin-wall corner radii, modes, editing and persistence' }),
   'part-end-caps': Object.freeze({ thinWall: true, endCaps: true, originalRecipe: 'desktop-part-end-caps-original.cjs', entry: 'desktop-part-end-caps.cjs',
     test: 'production-renderer-part-end-caps', caption: 'thin-wall axial caps, explicit recovery, editing and persistence' }),
+  'part-two-direction': Object.freeze({ thinWall: true, twoDirection: true, originalRecipe: 'desktop-part-two-direction-original.cjs', entry: 'desktop-part-two-direction.cjs',
+    test: 'production-renderer-part-two-direction', caption: 'independent blind extrusion depths, caps, cuts, editing and persistence' }),
   'part-finishing': Object.freeze({ originalRecipe: 'desktop-part-finishing-original.cjs', entry: 'desktop-part-finishing.cjs',
     test: 'production-renderer-part-finishing', caption: 'selected body edge fillet and chamfer' }),
   'part-body-catalog': Object.freeze({ originalRecipe: 'desktop-part-body-catalog-original.cjs', entry: 'desktop-part-body-catalog.cjs',
@@ -189,6 +191,8 @@ const SCENARIOS = Object.freeze({
 let activeScenario = SCENARIOS.all, started = false;
 
 function thinWallScenarioFiles() {
+  if (activeScenario.twoDirection) return { original: require('./desktop-part-two-direction-original.cjs'),
+    workflow: require('./desktop-part-two-direction-flow.cjs'), demoName: 'extrusiones-dos-direcciones.solidflow' };
   if (activeScenario.endCaps) return { original: require('./desktop-part-end-caps-original.cjs'),
     workflow: require('./desktop-part-end-caps-flow.cjs'), demoName: 'tapas-extremos.solidflow' };
   if (activeScenario.autoCorners) return { original: require('./desktop-part-auto-corners-original.cjs'),

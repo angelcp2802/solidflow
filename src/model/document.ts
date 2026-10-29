@@ -7,6 +7,7 @@ import { bodyReferenceCreationFeatureId, createdBodyIds, featureBodyOutputInclud
 import { featureRevolutionAxisBodyReferences } from './revolutionAxisReferences'
 import { captureOwnDataRecord } from './ownDataRecord'
 import { mergeThinWallDraft, readThinWall } from '../cad/thinWall'
+import { readSecondDirection, readSecondDirectionDraft } from '../cad/extrusionDirection'
 import { bodyPatternAddresses, MAX_CREATED_BODY_IDS, validateBodyPatternDeclaration } from './bodyPatterns'
 import { validateFeaturePatternDeclaration, type FeaturePatternOperation } from './featurePatterns'
 import { validateNamedViews, type NamedView } from './namedViews'
@@ -661,8 +662,9 @@ function feature(value: unknown, path: string): Feature {
   }
   if (source.type === 'extrude' || source.type === 'cut') {
     keys(source, [...baseKeys, 'sketchId', 'depth', 'symmetric'], path,
-      ['endCondition', 'thinWall', source.type === 'extrude' ? 'bodyOperation' : 'bodyScope'])
+      ['endCondition', 'thinWall', 'secondDirection', source.type === 'extrude' ? 'bodyOperation' : 'bodyScope'])
     const thinWall = readThinWall(source, `${path}.thinWall`)
+    const secondDirection = readSecondDirection(source, `${path}.secondDirection`)
     const depth = number(source.depth, `${path}.depth`, -MAX_DIMENSION, MAX_DIMENSION)
     if (Math.abs(depth) < MIN_DIMENSION) fail(`${path}.depth`, `el valor absoluto debe ser al menos ${MIN_DIMENSION}`)
     const symmetric = boolean(source.symmetric, `${path}.symmetric`)
@@ -687,6 +689,7 @@ function feature(value: unknown, path: string): Feature {
       symmetric,
       ...(endCondition ? { endCondition } : {}),
       ...(thinWall ? { thinWall } : {}),
+      ...(secondDirection ? { secondDirection } : {}),
     }
     return source.type === 'extrude' ? {
       ...definition, type: 'extrude',
@@ -1006,7 +1009,13 @@ export function updateFeature(document: Document, id: string, patch: Partial<Fea
   if (!original) throw new Error('La operación que se intenta editar no existe.')
   if (patch.id !== undefined && patch.id !== id) throw new Error('El identificador de una operación no se puede cambiar.')
   if (patch.type !== undefined && patch.type !== original.type) throw new Error('El tipo de una operación no se puede cambiar.')
+  readSecondDirection(original)
+  const secondDirection = readSecondDirectionDraft(patch)
   const candidate = mergeThinWallDraft(original, patch) as Feature
+  if (Object.hasOwn(patch, 'secondDirection')) {
+    if (secondDirection) Object.assign(candidate, { secondDirection })
+    else delete (candidate as { secondDirection?: unknown }).secondDirection
+  }
   const repetition = (value: Feature): value is RepetitionFeature => value.type === 'linearPattern' || value.type === 'circularPattern' || value.type === 'mirror'
   if (repetition(original) && repetition(candidate) && (original.bodyPattern || candidate.bodyPattern)) {
     const before = original.bodyPattern, after = candidate.bodyPattern

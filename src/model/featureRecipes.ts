@@ -5,11 +5,12 @@
  * remain attributable to a feature/path, and bounded copying rejects getters.
  */
 import type {
-  BodyReference, FaceReference, Feature, PlaneFrame, PlaneSupport, Profile, ThinWallDefinition, Vec3,
+  BodyReference, ExtrudeFeature, FaceReference, Feature, PlaneFrame, PlaneSupport, Profile, ThinWallDefinition, Vec3,
 } from '../cad/kernel.types';
 import { featureDependencyIds } from './featureInputs';
 import { principalPlaneFrame } from '../cad/kernel.frames';
 import { readThinWall } from '../cad/thinWall';
+import { assertExtrusionDirectionContext, readSecondDirection } from '../cad/extrusionDirection';
 
 export const RECIPE_LIMITS = Object.freeze({
   sourceFeatures: 32, targets: 32, dynamicTargets: 256, bindings: 512, applications: 512,
@@ -464,6 +465,8 @@ export function extractRecipeClosure(features: readonly Feature[], rawRequest: R
     const feature = definition.feature;
     const node: RecipeOperation = { featureId: feature.id, type: feature.type, sketchId: null, termination: null, applications: [] };
     operations.push(node);
+    try { assertExtrusionDirectionContext(feature); }
+    catch { invalid('SECOND_DIRECTION_DECLARATION', feature.id, 'secondDirection', 'Expected a bounded second blind direction with a compatible extrusion context.'); }
     const selectedBindings = [...bindingSources].filter(([, source]) => source.sourceFeatureId === feature.id).sort(([a], [b]) => textOrder(a, b));
     if (Object.hasOwn(feature, 'thinWall')) {
       try { readThinWall(feature); }
@@ -694,6 +697,7 @@ export interface ResolvedRecipeExtrusionInput {
   signedDepth: number;
   termination: RecipeTermination;
   thinWall?: ThinWallDefinition;
+  secondDirection?: ExtrudeFeature['secondDirection'];
 }
 export interface IntrinsicRecipeExtrusionPlacement extends Omit<ResolvedRecipeExtrusionInput, 'profile'> {
   sketchId: string; sourceFrame: PlaneFrame;
@@ -713,9 +717,10 @@ export function intrinsicProfileInstancePlacement(closure: RecipeClosure, featur
   const mapped = transformedExtrusionFrame(sourceFrame, feature.depth, transform);
   const termination = node.termination.kind === 'blind' ? { ...node.termination, signedDepth: mapped.signedDepth } : node.termination;
   const thinWall = readThinWall(feature);
+  const secondDirection = readSecondDirection(feature);
   return freezeTree({ sourceFeatureId: featureId, sketchId: sketch.id, sourceFrame,
     frame: mapped.frame, ray: mapped.ray, signedDepth: mapped.signedDepth, termination,
-    ...(thinWall ? { thinWall } : {}) });
+    ...(thinWall ? { thinWall } : {}), ...(secondDirection ? { secondDirection } : {}) });
 }
 /** Primitive compatibility adapter; entity geometry is available only through its real-solve reader. */
 export function fixedProfileInstanceInput(closure: RecipeClosure, featureId: string, address: string): Readonly<ResolvedRecipeExtrusionInput> {
@@ -724,5 +729,6 @@ export function fixedProfileInstanceInput(closure: RecipeClosure, featureId: str
   if (!sketch || sketch.type !== 'sketch' || sketch.profile.kind === 'entities') invalid('FIXED_PROFILE_INPUT', featureId, 'sketchId', 'The primitive adapter cannot consume an unsolved entity declaration.');
   return freezeTree({ sourceFeatureId: featureId, profile: boundedClone(sketch.profile, sketch.id, { remaining: RECIPE_LIMITS.jsonNodes }),
     frame: placement.frame, ray: placement.ray, signedDepth: placement.signedDepth, termination: placement.termination,
-    ...(placement.thinWall ? { thinWall: placement.thinWall } : {}) });
+    ...(placement.thinWall ? { thinWall: placement.thinWall } : {}),
+    ...(placement.secondDirection ? { secondDirection: placement.secondDirection } : {}) });
 }

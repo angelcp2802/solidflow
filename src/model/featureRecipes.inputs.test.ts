@@ -1,11 +1,12 @@
 /** Original input-envelope regressions for recipe declarations.
  * Finite numeric/plain-record inputs; no native fixture or external sample.
  */
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import type { BodyReference, Feature } from '../cad/kernel.types';
 import {
   extractRecipeClosure, recipeTransform, RecipeClosureError, RECIPE_LIMITS,
   validatePendingOffsetSurfaceIntent, type RegenerationRequest,
+  fixedProfileInstanceInput,
 } from './featureRecipes';
 
 function originalDeclaration(): { features: Feature[]; request: RegenerationRequest } {
@@ -42,6 +43,33 @@ function failureCodes(action: () => unknown): string[] {
   }
   return [];
 }
+
+it.each([false, true])('retains a detached independent second length through recipe placement, enabled=%s', enabled => {
+  const { features, request } = originalDeclaration(), operation = features[3];
+  if (operation.type !== 'cut') throw Error('Expected original cut');
+  operation.secondDirection = { enabled, depth: 2 };
+  const input = fixedProfileInstanceInput(extractRecipeClosure(features, request), operation.id, '1,0');
+  expect(input.secondDirection).toEqual({ enabled, depth: 2 });
+  expect(input.secondDirection).not.toBe(operation.secondDirection);
+  expect(input.signedDepth).toBe(1); expect(input.frame.origin).toEqual([20, 0, 0]);
+  operation.secondDirection.depth = 3; expect(input.secondDirection?.depth).toBe(2);
+});
+
+it('rejects active automatic extents and invalid OFF second lengths before native absence shortcuts', () => {
+  for (const secondDirection of [{ enabled: true, depth: 2 }, { enabled: false, depth: 0 }]) {
+    const { features, request } = originalDeclaration(), operation = features[3];
+    if (operation.type !== 'cut') throw Error('Expected original cut');
+    operation.secondDirection = secondDirection;
+    operation.endCondition = { kind: 'throughAll', baseFeatureId: 'budget-create', bothDirections: false };
+    expect(failureCodes(() => extractRecipeClosure(features, request))).toContain('SECOND_DIRECTION_DECLARATION');
+  }
+});
+
+it('rejects executable second-direction declarations without calling their accessor', () => {
+  const { features, request } = originalDeclaration(), hook = vi.fn(() => ({ enabled: false, depth: 2 }));
+  Object.defineProperty(features[3], 'secondDirection', { get: hook, enumerable: true });
+  expect(() => extractRecipeClosure(features, request)).toThrow(); expect(hook).not.toHaveBeenCalled();
+});
 
 it('charges oversized own property names to the detached recipe character envelope', () => {
   const { features, request } = originalDeclaration();

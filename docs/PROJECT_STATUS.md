@@ -1,5 +1,39 @@
 # Project status and review queue
 
+## Independent linear extrusion and cut directions — 2026-10-29
+
+Regular and thin extrusions/cuts can retain an independent opposite Blind depth.
+The shared engine/regeneration interval preserves signed inversion, the resolved
+source frame and exact owners. Eligible additive caps close the external ends
+of the complete span. The blue editor preserves OFF values, requires explicit
+recovery after incompatible first-mode changes and retains invalid numeric
+fields through decimal correction; an invalid D1 is no longer replaced by 20 mm.
+See the [workflow](CORE_WORKFLOWS.md#unequal-linear-extrusion-and-cut-depths).
+
+Final local Windows acceptance passes build, **10,926 unit/CAD cases in 480
+files**, **200 IPC passes/two platform skips**, startup and six complete renderer
+routes. The new route has **193 checkpoints/33 native phases**, including saved
+source-plane translation, exact cut ownership, unequal lengths, global reverse,
+full-span caps, recovery, Cancel/retry, history, two writes and fresh reopening.
+Nine commands share **1,290 pinned inputs/nine products**. Separate native/STEP
+oracles and primitive/source-solved recipe cases cover the documented geometry;
+see [validation](VALIDATION.md) and [provenance](PROVENANCE.md).
+
+The new route is added to existing Linux/Windows/macOS persistence jobs; its
+new-head hosted result remains pending. Parent `cb220f3` completes all fifteen
+[CI jobs](https://github.com/angelcp2802/solidflow/actions/runs/40870919550) and
+both [Security jobs](https://github.com/angelcp2802/solidflow/actions/runs/40870919564).
+These results do not establish recurring stability or installed-platform use.
+
+Keep #55 at **16/25**, #53 at **6/9**, PR #49 draft/unmerged and release #5 open.
+The nine open groups still include full demo/human acceptance, remaining view
+and keyboard interaction, recurring/installed-platform acceptance, broader
+menus/context/selection, contextual/reference-first editors, wider thin and
+specialized mechanical/material/origin workflows, boundary/configured editing,
+and materials/density/colors/backgrounds. Independent automatic second limits,
+other cap extents/regions and offset repair remain open within those groups.
+This is a checklist of bounded workflows, not an application completion percentage.
+
 ## Internal thin-wall axial caps — 2026-10-29
 
 An optional strict enabled/thickness declaration closes both axial ends inside

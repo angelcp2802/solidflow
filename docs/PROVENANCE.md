@@ -1,5 +1,76 @@
 # Public fixture provenance
 
+## Original independent linear-direction fixtures — 2026-10-29
+
+The new declarations use original Cartesian rectangles, literal signed depths,
+source planes and body identities in millimetres. They import no geometry,
+saved topology or geometric output. The intervals and expected material are
+specified independently of the direction resolver and native constructors.
+Executed results belong in [validation](VALIDATION.md).
+
+[`kernel.two-direction.test.ts`](../src/cad/kernel.two-direction.test.ts) starts
+with `[0,12]x[0,8]`, first depth 20 and opposite depth 10. The one continuous
+interval is `z=-10..20`, with V2880, A1392 and centroid `(6,4,5)`. Global inversion
+retains V/A, changes the interval to `-20..10` and moves the centroid to
+`(6,4,-5)`. Outside wall 2 with cap 1 gives
+`V=16*12*30-12*8*28=3072` and
+`A=2*192+56*30+2*96+40*28=3376`, with the same respective centroids. The
+separate first 13/opposite 7/cap 4 case has a complete height 20, core 12, V2688,
+A2176 and centroid `(6,4,3)`; the cap fit is checked over the whole interval.
+
+Additional native cases retain an open length 12/right-width 2 wall across height 30
+(V720/A888), support offsets 3+4 applied once, constrained entities solved from
+stored 10x6 to intended 12x8, and the calculated 200000 mm maximum span of a unit
+square (V200000/A800002). A selected internal 2x2x30 cavity removes 120 from one
+12x8x40 owner; another equal owner stays unchanged. Their combined V7560/A3832,
+two solids and exact body roles are checked. Two 12x8x6 owners separated by a
+gap are each cut 3 mm deep by the same 2x2 tool, leaving V564 each and combined
+V1128/A912. Engine cases inspect STEP-reopened valid solids, volume/area at
+`1e-5 mm³/mm²`, and centroid/bounds at `1e-6 mm`. Saved edits, Undo/Redo, OFF
+recovery and a single source solve are separate checks.
+
+[`kernel.recipe-thin-wall.test.ts`](../src/cad/kernel.recipe-thin-wall.test.ts)
+regenerates original primitive and genuinely source-solved entity rectangles
+through linear/circular/mirror placement. A 4x2 cut spans `z=2..8` inside a
+20x20x10 target, leaving V3952/A1688. Its independently constructed source
+poststate has V1584/A1144. A 12x8/outside 2 capped addition spans `-10..20` over a
+20x20x4 base at `-14..-10`: V3072/A3376 plus V1600/A1120, subtracting the twice
+counted192-area contacting face, gives final V4672/A4112. Cap material and core
+void probes include the source plane, so separately capped branches cannot
+satisfy the oracle. Borrowed target/source owners stay unchanged. Adversarial
+ALL absence and mismatched internal-termination cases check rejection before an
+active or invalid OFF declaration can disappear behind a shortcut.
+
+The declaration inventory in
+[`extrusionDirection.test.ts`](../src/cad/extrusionDirection.test.ts),
+[`extrusionDirectionDocument.test.ts`](../src/model/extrusionDirectionDocument.test.ts)
+and the recipe-input/semantic-context tests covers exact own data, individual
+bounds, absence compatibility, detached retained OFF values, incompatible
+context recovery and discrete identity. Editor tests describe drafts and DOM
+structure rather than native solids or physical keyboard delivery.
+
+[`desktop-part-two-direction-original.cjs`](../scripts/desktop-part-two-direction-original.cjs)
+declares a merged stepped base, two planes and three unused supported profiles.
+The base is a 20x14x18 block plus a 12x14x12 upper step, V7056 with bounds
+`[0,0,-10]..[20,14,20]`. The source plane starts at 5. A 10x6 solid with 13/7 depths
+has V1200 and z`[-2,18]`; reverse gives z`[-8,12]`. OFF gives V780, a corrected
+opposite depth 3.5 gives V990, and a first-depth edit 15 with opposite 7 gives V1320.
+A separate 12x8/outside 2/cap 4 solid over 13+7 gives V2688.
+
+The fixture's cut profile is `[10,14]x[4,7]`, first 11/opposite 8, initially
+z`[-3,16]`. Its intersections with the two steps remove `12*11+6*8=180`, leaving
+V6876. Moving only the source plane 5→7 moves the fixed-depth interval to
+`[-1,18]`, removes `12*9+6*10=168` and leaves V6888. These expectations distinguish
+one applied source-frame translation from duplicated offset or anchored ends.
+[`desktop-part-two-direction-flow.cjs`](../scripts/desktop-part-two-direction-flow.cjs)
+checks body volumes at `1e-5 mm³`, literal bounds at `1e-6 mm`, exact current and
+creation owners, global reverse, retained OFF decimal focus, explicit
+mid-plane/automatic recovery, new/saved Cancel and Apply, history, writes and
+fresh reopening. It uses CDP pointer press/release and native field setters with
+bubbling input events. Renderer checks are separate from BRep, area and STEP
+checks; this route does not establish two independently anchored automatic ends,
+arbitrary topology-reference coverage, complete workflow or platform acceptance.
+
 ## Original internal axial-cap fixtures — 2026-10-29
 
 The new inventory uses original Cartesian rectangles, concentric circles,

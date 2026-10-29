@@ -43,6 +43,7 @@ import { isRevolutionFeature, resolveRevolutionExtent } from './revolutionExtent
 import { assertThinWallEndCapsContext, resolveThinWall } from './thinWall';
 import { prepareThinSection } from './kernel.thin-wall';
 import { buildThinWallEndCaps } from './kernel.thin-caps';
+import { assertExtrusionDirectionContext, resolveExtrusionSpan } from './extrusionDirection';
 import { loftSolid, sweepSolid } from './kernel.sweep-loft';
 import { geometryDelta, isRepetition, patternPlan, repetitionSolid, type FeatureGeometry } from './kernel.patterns';
 import { draftSolid, shellSolid } from './kernel.face-operations';
@@ -257,17 +258,18 @@ function featureSolid(feature: ExtrudeFeature | RevolutionFeature, sketchFeature
   }
   if (validateDepth) validateLength(feature.depth, 'Profundidad', true);
   else if (!Number.isFinite(feature.depth) || Math.abs(feature.depth)>10_000_000 || Math.abs(feature.depth)<1e-7) throw new Error('La extensión calculada para esta condición final no es válida.');
-  const startOffset = sketchFeature.offset - (feature.symmetric ? feature.depth / 2 : 0);
-  const startFrame = frame ? offsetPlaneFrame(frame, feature.symmetric ? -feature.depth / 2 : 0) : undefined;
+  const span = resolveExtrusionSpan(feature, validateDepth);
+  const startOffset = sketchFeature.offset + span.startShift;
+  const startFrame = frame ? offsetPlaneFrame(frame, span.startShift) : undefined;
   if (thinSection && feature.thinWall?.endCaps?.enabled) {
-    return buildThinWallEndCaps(thinSection, feature.thinWall, sketchFeature.plane, startOffset, feature.depth, startFrame);
+    return buildThinWallEndCaps(thinSection, feature.thinWall, sketchFeature.plane, startOffset, span.signedDepth, startFrame);
   }
   if (sketchFeature.profile.kind === 'entities') {
-    return entityProfileSolid(sketchFeature.profile, sketchFeature.plane, startOffset, { type: 'extrude', depth: feature.depth }, startFrame, derivedArcs);
+    return entityProfileSolid(sketchFeature.profile, sketchFeature.plane, startOffset, { type: 'extrude', depth: span.signedDepth }, startFrame, derivedArcs);
   }
   const sketch = makeSketch(sketchFeature, startOffset, startFrame);
   try {
-    return extrudePrimitiveSketch(sketch, feature.depth);
+    return extrudePrimitiveSketch(sketch, span.signedDepth);
   } finally {
     sketch.delete();
   }
@@ -1174,6 +1176,7 @@ export class CadEngine {
       let bodyAware = false;
       try {
         const thinWall = resolveThinWall(feature);
+        assertExtrusionDirectionContext(feature);
         assertThinWallEndCapsContext(thinWall?.definition, feature.type === 'extrude' ? 'add' : 'subtract',
           feature.type === 'extrude' && feature.endCondition === undefined,
           feature.type !== 'extrude' || feature.symmetric !== false);
@@ -1728,11 +1731,13 @@ export class CadEngine {
                 if (previous - volume <= Math.max(1e-9, previous * 1e-10)) throw new Error('El corte no elimina material de cada cuerpo seleccionado.');
                 return { ref, shape };
               });
+              const directionIdentity = resolveExtrusionSpan(feature).identity;
               const nextLineage = advanceLineage(lineage, [feature.id, 'cut', feature.sketchId, sketchFeature.plane,
                 sketchFeature.profile.kind, sketchFeature.profile.kind === 'entities' ? entityProfileStructure(sketchFeature.profile) : null,
                 Math.sign(feature.depth), feature.bodyScope, end.kind, end.kind === 'throughAll' ? end.bothDirections : null,
                 sketchSupportLineages.get(sketchFeature.id) ?? null,
-                ...(thinSection ? [['thinWall', thinWall!.identity, thinSection.identity]] : [])]);
+                ...(thinSection ? [['thinWall', thinWall!.identity, thinSection.identity]] : []),
+                ...(directionIdentity ? [directionIdentity] : [])]);
               adoptBodyTransaction(bodyCatalog.stageReplaceMany(replacements, { sourceFeatureId: feature.id, lineage: nextLineage }));
               sourceFeatureId = feature.id; lineage = nextLineage; semantic = undefined;
               rememberReferencedSource(beforeForRecord); continue;
@@ -1792,6 +1797,10 @@ export class CadEngine {
             : [feature.symmetric, Math.sign(feature.depth)]];
         // Keep the legacy descriptor byte-identical for existing saved edge references.
         if (revolutionExtent?.identity) structure.push(revolutionExtent.identity);
+        if (!isRevolutionFeature(feature)) {
+          const directionIdentity = resolveExtrusionSpan(feature).identity;
+          if (directionIdentity) structure.push(directionIdentity);
+        }
         if (thinSection) structure.push(['thinWall', thinWall!.identity, thinSection.identity]);
         if (sketchFeature.profile.kind === 'entities') structure.push(entityProfileStructure(sketchFeature.profile));
         if (sketchFeature.support) structure.push(['support', sketchFeature.support.kind,

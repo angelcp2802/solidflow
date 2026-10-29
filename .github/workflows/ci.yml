@@ -309,6 +309,14 @@ jobs:
         if: matrix.batch == 'persistence' && runner.os != 'Linux'
         run: npm run test:desktop:part-end-caps
 
+      - name: Test independent blind extrusion directions (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:part-two-direction
+
+      - name: Test independent blind extrusion directions (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:part-two-direction
+
       - name: Test actual pointer sketches on fresh support faces (Linux)
         if: matrix.batch == 'persistence' && runner.os == 'Linux'
         run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:part-fresh-sketch

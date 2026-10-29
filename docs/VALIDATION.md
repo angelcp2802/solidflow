@@ -1,5 +1,114 @@
 # Validation
 
+## Independent linear extrusion and cut directions — 2026-10-29
+
+This follow-up to published `cb220f3` adds strict optional independent opposite
+Blind depths to regular/thin extrusions and cuts. Engine and primitive or
+source-solved entity regeneration share one signed interval and one translated
+source frame. Eligible additive caps shorten one core over that complete
+interval, rather than capping each branch. Absence retains legacy bytes and
+reference descriptors; present OFF data remain strict and recoverable. See the
+[contract](THIN_WALL_OPERATIONS.md#independent-linear-directions--2026-10-29),
+[workflow](CORE_WORKFLOWS.md#unequal-linear-extrusion-and-cut-depths) and
+[original fixtures](PROVENANCE.md#original-independent-linear-direction-fixtures--2026-10-29).
+
+The blue editor retains D2 through OFF/ON and unsupported first-mode changes,
+requires explicit OFF recovery without erasing first-limit references, and keeps
+invalid inactive fields editable through decimal correction. The related D1
+transition correction preserves an invalid depth instead of silently replacing
+it with 20 mm. Focused UI structure/CSS checks cover its mounted correction
+field; the actual renderer focus observation below covers D2. Existing
+selection, stale-prefix, preview and exact body-owner guards remain.
+
+Final local acceptance reuses the existing Windows Node 24.11.1/Electron 44.9.3
+runtime, without dependency installation or resetting that checkout. Prior input
+and product hashes were checked before copying 28 changed inputs. All nine
+commands share **1,290 pinned non-Markdown inputs and nine products**; source,
+runtime and product hashes are checked before/after each phase. The final manifest
+is `e6ff6295f1ffe3e04782c9422217a8f2b8af0cedf8e64fbd152ed1b8009de6b7`.
+
+| Command | Final result |
+| --- | --- |
+| `npm run build` | PASS, 4.192 s. |
+| `npm run test:desktop:part-two-direction` | PASS, 19.302 s; **193 checkpoints, 33 native-build phases and 87 control inputs**. |
+| `npm run test:desktop:part-end-caps` | PASS, 13.249 s; complete 131-checkpoint prior route. |
+| `npm run test:desktop:part-auto-corners` | PASS, 13.360 s; complete 130-checkpoint prior route. |
+| `npm run test:desktop:part-thin-wall` | PASS, 19.144 s; complete 179-checkpoint prior route. |
+| `npm run test:desktop:part-external-axis` | PASS, 16.858 s; complete 109-checkpoint prior route. |
+| `npm run test:desktop:part-revolution` | PASS, 35.838 s; complete 251-checkpoint prior route. |
+| `npm test` | PASS, 430.488 s overall: **10,926 unit/CAD cases in 480 files**, Vitest 423.58 s; **200 IPC passes/two explicit platform skips**, no failures. |
+| `npm run test:desktop` | PASS, 1.568 s; production loader/preload/worker/WASM startup with no reported console or request failures. |
+
+All six renderer reports match the eight relevant production hashes, report no
+console errors or failed requests, observe their owned child close and confirm
+deletion of their isolated temporary profile. Standard startup is separate from
+these editor workflows. The new route uses actual CDP pointer press/release on
+enabled, stationary, hit-tested controls and native field setters with bubbling
+events; it does not claim physical keyboard delivery or inject application
+state, handlers, worker results or native geometry.
+
+The original route distinguishes unequal 13/7 from axial midpoint and one-way
+construction, global inversion, retained OFF depth and same-node focused
+0→3→3.5 correction. It exercises explicit mid-plane/surface recovery, an exact
+cut owner among three bodies, caps 4 over the total 20 mm span, invalid Cancel,
+retry, new/saved Apply, Undo/Redo, two writes and fresh native reopening. Moving
+only the source plane 5→7 retains all fixed depths, shifts both additive spans
+once and changes the stepped cut from V6876 to V6888 mm³. Renderer volume and
+bounds tolerances are `1e-5 mm³` and `1e-6 mm`; BRep validity, area, centroid and
+STEP evidence are supplied separately by the original native cases.
+
+The focused core and UI runs precede final acceptance; the full suite above
+includes their final versions. Native/STEP cases cover signed unequal spans,
+full-span caps, an open wall, exact owners including separated two-owner cuts,
+the calculated 200000 mm span, translated support and genuinely solved sources.
+Primitive/entity linear, circular and mirror regeneration checks material and
+core probes with borrowed owners unchanged. Malformed OFF records, executable
+descriptors, incompatible extents, automatic absence shortcuts and discrepant
+internal entity terminations reject. See provenance for literal formulas and
+the separate measurement limits.
+
+The inspected final blue capture is 1024×661 with SHA-256
+`740e6edc3281a6b02a7d70de5d9385ec4c3dd34dfe552712263989fe5b1a213d`;
+the original saved demo has SHA-256
+`dda3dd1bf05089ff6e7c0b52122a6cbf4fc686fb5409f89d8426e4532d4fa478`.
+They remain local artifacts, not release binaries or full human-demo acceptance.
+
+REA inspected the exact final worker `kernel.worker-CkA2taRs.js`, SHA-256
+`679c7051be48fed40d5294c077b2589253d3260f54b7fd3f4df3f189f5147295`,
+with its paired WASM digest retained. Evidence
+`ev_70af99df0593d21c0f461af0c2d9aaa5cb9ab645043de8e7bc35be0033999261`
+and summary
+`ev_be6749e755f039022b95b753b740348bc034bb698d6fe5b069065283413c6c79`
+record one JavaScript file, 1,400,523 bytes, 424,133 AST nodes and zero parse
+failures. Semantic coverage is partial at the 100,000-node ceiling, with 77,416
+unknowns. The transport budget required retained-summary/export retrieval;
+analysis was not repeated. Static syntax observations do not establish runtime
+equivalence, WASM decompilation or a whole-application audit.
+
+Applied frontend-design, vercel-react-best-practices client rules,
+code-simplifier, code-review and security-review, with REA/runtime evidence.
+Independent scoped reviews cover the complete core, UI/App, renderer and
+workflow diff; no actionable/high-confidence finding remains. No base
+SECURITY_MODEL policy exists; existing desktop/security contracts apply without
+new exclusions. Documentation review corrected the cut body-selection order
+and clarified that an external cap can cover the source plane when one branch
+is shorter than its cap. No performance improvement is claimed.
+
+The new route joins existing three-platform persistence jobs without changing
+permissions, dependency pins, file grants or deadlines. Its own hosted result
+remains pending. Parent `cb220f3` now completes all fifteen
+[CI jobs](https://github.com/angelcp2802/solidflow/actions/runs/40870919550) and
+both [Security jobs](https://github.com/angelcp2802/solidflow/actions/runs/40870919564),
+including the cap route on Linux, Windows and macOS. This does not establish
+recurring stability, installed-platform acceptance or a release.
+
+Keep #55 **16/25**, #53 **6/9**, PR #49 draft/unmerged and release #5 open.
+Independent automatic second limits/inversion, wider thin-wall topology repair,
+remaining editors/picking and boundary/configured workflows, materials,
+complete demo/human use, recurring stability and installed platforms remain
+open. This increment closes a bounded functional gap, not the entire group or
+the existing community CAD objective.
+
 ## Internal axial caps and explicit editor recovery — 2026-10-29
 
 The strict optional `thinWall.endCaps` record adds internal axial caps to fixed

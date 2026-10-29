@@ -97,6 +97,8 @@ interface ExtrudeDefinition extends FeatureBase {
   depth: number;
   /** Legacy mid-plane spans -depth/2 to +depth/2; false for geometric end conditions. */
   symmetric: boolean;
+  /** Independent opposite blind length; absence retains the legacy interval. */
+  secondDirection?: { enabled: boolean; depth: number };
   endCondition?: ExtrudeEndCondition;
   thinWall?: ThinWallDefinition;
 }

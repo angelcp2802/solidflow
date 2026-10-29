@@ -46,6 +46,47 @@ Reversing revolution changes angular direction; reversing a one-sided wall
 changes which side of its planar source receives material. The two controls do
 not substitute for each other.
 
+## Independent linear directions — 2026-10-29
+
+Both regular and thin `extrude`/`cut` operations can declare the separate optional
+field `secondDirection: { enabled: boolean, depth: number }`. Its exact own
+enumerable data fields are required; extra keys, accessors, coercion, `null` and
+explicit undefined reject. The second depth is positive and finite, from
+`0.01` through `100000 mm`, including while OFF. The existing signed first depth
+retains its individual magnitude range of `0.01..100000 mm`.
+
+An active second direction requires Blind depth and `symmetric: false`, with no
+`endCondition`. For `s = sign(D1)`, construction starts at `-s*D2` from the source
+plane and extrudes once over `s*(abs(D1)+D2)`. The calculated span can reach
+`200000 mm`. Direction 1 inversion changes the sign of the whole interval while
+retaining both stored lengths; there is no independent Direction 2 inversion.
+This interval differs from legacy axial mid-plane, which splits one total depth
+equally around the source plane. It also differs from the two planar wall sides.
+
+Absence preserves saved bytes and reference descriptors. A present record adds
+`['second-direction-v1', enabled]` to structural identity; neither continuous
+length enters that identity. OFF retains its valid second length and uses the
+existing first-direction or mid-plane/automatic construction. Older strict
+readers reject the new field rather than discard it. Editor clearing removes
+the own field; ordinary OFF/ON does not clear it. The existing semantic-prism
+provenance path declines declared second directions, including OFF, rather than
+assigning a first-direction-only provenance to the new interval.
+
+The parser retains valid numeric intent for explicit recovery after an
+incompatible extent change. The engine and recipe extractor reject active
+mid-plane or automatic combinations before any provisional factory or no-hit
+shortcut. Explicit OFF preserves the selected first-direction limit and its
+references. Invalid OFF dimensions remain editable and block Apply. Changing
+the first extent never replaces an invalid first depth with a default length.
+
+The original solved profile and its incoming frame/offset are reused once.
+Moving a source plane moves both fixed-depth endpoints; it does not anchor them
+to surrounding faces. Source solves, body scopes, creation identities and
+material declarations retain their existing contracts. Primitive and authentic
+source-solved entity regeneration use the same interval after linear, circular
+or reflected placement; reflection parity is applied once to the first signed
+depth before calculating the shifted start.
+
 ## Section construction
 
 The build uses the already-solved local profile. Construction geometry is
@@ -98,8 +139,9 @@ multiple-output contract exists.
 
 ## Axial end caps
 
-Active caps currently require an additive fixed-depth extrusion of one simple
-closed source component, with `symmetric: false` and no `endCondition`. Open,
+Active caps currently require an additive fixed-depth extrusion with one or two
+Blind directions and one simple closed source component, with `symmetric: false`
+and no `endCondition`. Open,
 mixed, nested or disconnected sources reject; cuts, revolutions, axial mid-plane
 and automatic limits reject before any provisional prism or no-hit witness.
 Disabled settings retain their data and use the previous uncapped geometry.
@@ -113,6 +155,15 @@ solve either temporary profile. The remaining core must exceed `1e-5 mm`;
 zero, negative or sub-tolerance cores reject rather than becoming a filled block.
 Engine and supported fixed-depth additive regeneration share this construction,
 native ownership and non-destructive Boolean handling.
+
+With two active directions, `D` is the complete calculated span above and the
+incoming start already includes its second-direction shift. Construct caps once
+at the two external ends, with one continuous core over the complete interval
+instead of independently capping either branch.
+Do not cap or validate each branch independently: `D1=13`, `D2=7`, `c=4` has a
+20 mm envelope and a 12 mm core that crosses the source plane, although the
+second branch alone is shorter than two caps. It remains subject to the same
+single-closed-region and native validity checks.
 
 ## Editors and downstream operations
 
@@ -153,7 +204,8 @@ wall remains an error even when an owner is behind its ray.
 
 The blue extrusion panel offers new caps only for a unique current successful
 closed source with `SketchVisual.profileClosedSingle`, and only in additive
-one-direction Blind mode. This display witness does not replace native checks.
+Blind mode without axial symmetry, including an independent second Blind depth.
+This display witness does not replace native checks.
 The initial cap thickness of `1 mm` is a SolidFlow UI choice, not a universal
 default inferred from another application. Wall-mode changes and OFF/ON preserve
 both optional settings and their independent dimensions.
@@ -168,7 +220,8 @@ route is `npm run test:desktop:part-end-caps`.
 
 ## Remaining scope
 
-Other cap extents, independent two-direction extrusion, multi-region cap policy,
+Independent automatic limits or inversion for the second linear direction,
+other cap extents, multi-region cap policy,
 broader automatic-corner UI/runtime coverage, clipping/repair of
 merging or splitting offsets, complete menu/selection interaction and the wider
 thin-feature workflow remain open. Straight planar end segments are not axial end caps. Current

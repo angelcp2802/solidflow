@@ -14,7 +14,7 @@ export function entityPrismContextFromFeatures(
 ): EntityPrismContextV2 | undefined {
   const sourceIndex = features.findIndex(feature => feature.id === sourceFeatureId);
   const source = features[sourceIndex];
-  if (!source || source.type !== 'extrude' || source.suppressed || source.endCondition || Object.hasOwn(source, 'thinWall') ||
+  if (!source || source.type !== 'extrude' || source.suppressed || source.endCondition || Object.hasOwn(source, 'thinWall') || Object.hasOwn(source, 'secondDirection') ||
       !Number.isFinite(source.depth) || source.depth === 0) return undefined;
   const previous = new Map<string, { feature: Feature; index: number }>();
   for (let index = 0; index <= sourceIndex; index++) {
@@ -31,7 +31,7 @@ export function entityPrismContextFromFeatures(
     if (required.has(id)) return true;
     const feature = record.feature;
     if (feature.type !== 'plane' && feature.type !== 'sketch' && feature.type !== 'extrude') return false;
-    if (feature.type === 'extrude' && (Object.hasOwn(feature, 'thinWall') || feature.endCondition || (feature.id !== sourceFeatureId && !feature.suppressed))) return false;
+    if (feature.type === 'extrude' && (Object.hasOwn(feature, 'thinWall') || Object.hasOwn(feature, 'secondDirection') || feature.endCondition || (feature.id !== sourceFeatureId && !feature.suppressed))) return false;
     required.add(id);
     if (required.size > SEMANTIC_PRISM_LIMITS.maxHistory) return false;
     const dependency = feature.type === 'extrude' ? feature.sketchId

@@ -5,6 +5,7 @@ import { entityProfileSolid } from './kernel.profiles';
 import { prepareThinSection } from './kernel.thin-wall';
 import { assertThinWallEndCapsContext, resolveThinWall } from './thinWall';
 import { buildThinWallEndCaps } from './kernel.thin-caps';
+import { assertExtrusionDirectionContext, readSecondDirection, resolveExtrusionSpan, type ResolvedExtrusionSpan } from './extrusionDirection';
 import { copyBodyShape, maximumNativeShapeTolerance } from './kernel.bodies';
 import { withNativeOwners } from './kernel.native-ownership';
 import { throughAllBossTool, throughAllTool, untilNextTool, upToSurfaceTool } from './kernel.extrusion-limits';
@@ -38,7 +39,7 @@ const sameFrame = (a: PlaneFrame, b: PlaneFrame): boolean =>
 
 /** The ordinary tool and absence witness use the same authentic native profile construction. */
 function entityRecipePrismFactory(input: EntityRecipeProfileInput): {
-  makePrism: (length: number, start?: number) => Shape3D; ray: Vec3;
+  makePrism: (length: number, start?: number) => Shape3D; ray: Vec3; span: ResolvedExtrusionSpan;
 } {
   const { source, placement } = input;
   input.assertWorkingCurrent();
@@ -51,6 +52,10 @@ function entityRecipePrismFactory(input: EntityRecipeProfileInput): {
   if (!Number.isFinite(depth) || Math.abs(depth) < .01 || Math.abs(depth) > 100_000) throw new Error('Entity recipe depth is outside the native parameter range.');
   const ray = frame.normal.map(value => sign * value) as Vec3;
   const thinWall = resolveThinWall(placement);
+  const secondDirection = readSecondDirection(placement);
+  const span = resolveExtrusionSpan({ depth, symmetric: placement.termination.kind === 'blind' && placement.termination.symmetric,
+    ...(placement.termination.kind !== 'blind' ? { endCondition: placement.termination } : {}),
+    ...(secondDirection ? { secondDirection } : {}) });
   const feature = source.features.find(feature => feature.id === placement.sourceFeatureId);
   assertThinWallEndCapsContext(thinWall?.definition, feature?.type === 'extrude' ? 'add' : 'subtract',
     placement.termination.kind === 'blind', placement.termination.kind !== 'blind' || placement.termination.symmetric !== false);
@@ -79,11 +84,12 @@ function entityRecipePrismFactory(input: EntityRecipeProfileInput): {
       return prism;
     }, prism => [prism], 'Entity recipe prism construction or release failed.');
   };
-  return { makePrism, ray };
+  return { makePrism, ray, span };
 }
 
 /** Native profile evidence only. The witness never changes or replaces an owner. */
 export function validateEntityRecipeProfileForAbsence(input: EntityRecipeProfileInput): number {
+  if (readSecondDirection(input.placement)?.enabled) throw new Error('La segunda dirección activa no admite un testigo de ausencia para un límite automático.');
   const { makePrism } = entityRecipePrismFactory(input);
   const tolerance = withNativeOwners(owners => {
     const prism = owners.own(makePrism(Math.abs(input.placement.signedDepth)));
@@ -101,6 +107,7 @@ export function validateEntityRecipeProfileForAbsence(input: EntityRecipeProfile
 export function resolveEntityRecipeUntilNext(input: EntityRecipeToolInput): UntilNextCutResolution {
   if (input.termination.kind !== 'untilNext') throw new Error('Entity UntilNext resolution requires its exact termination.');
   assertThinWallEndCapsContext(resolveThinWall(input.placement)?.definition, input.operation, false, false);
+  if (readSecondDirection(input.placement)?.enabled) throw new Error('La segunda dirección activa requiere profundidad ciega.');
   const { makePrism, ray } = entityRecipePrismFactory(input);
   return withNativeOwners<UntilNextCutResolution>(owners => {
     const result = (input.operation === 'subtract' ? resolveUntilNextCut : resolveUntilNextAdd)({
@@ -122,15 +129,19 @@ export function resolveEntityRecipeUntilNext(input: EntityRecipeToolInput): Unti
 /** Real solved entities, freshly constructed native material; no seed BRep/delta copying. */
 export function buildEntityRecipeTool(input: EntityRecipeToolInput): Shape3D {
   const { source, placement, termination } = input;
+  const secondDirection = readSecondDirection(placement);
+  assertExtrusionDirectionContext({ symmetric: termination.kind === 'blind' && termination.symmetric,
+    ...(termination.kind !== 'blind' ? { endCondition: termination } : {}),
+    ...(secondDirection ? { secondDirection } : {}) });
   assertThinWallEndCapsContext(resolveThinWall(placement)?.definition, input.operation,
     termination.kind === 'blind', termination.kind !== 'blind' || termination.symmetric !== false);
-  const { makePrism, ray } = entityRecipePrismFactory(input);
+  const { makePrism, ray, span } = entityRecipePrismFactory(input);
   const depth = placement.signedDepth, frame = placement.frame;
   return withNativeOwners(owners => {
     const target = termination.kind === 'throughAll' || termination.kind === 'untilNext'
       ? owners.own(copyBodyShape(input.workingTarget)) : undefined;
     let tool: Shape3D;
-    if (termination.kind === 'blind') tool = owners.own(makePrism(Math.abs(depth), termination.symmetric ? -Math.abs(depth) / 2 : 0));
+    if (termination.kind === 'blind') tool = owners.own(makePrism(Math.abs(span.signedDepth), span.startShift / Math.sign(depth)));
     else if (termination.kind === 'throughAll') tool = owners.own(input.operation === 'add'
       ? throughAllBossTool(target!, frame.origin, ray, termination.bothDirections, makePrism)
       : throughAllTool(target!, frame.origin, ray, termination.bothDirections, makePrism));

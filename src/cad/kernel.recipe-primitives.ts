@@ -3,10 +3,11 @@ import { framePoint } from './kernel.frames';
 import { copyBodyShape, maximumNativeShapeTolerance } from './kernel.bodies';
 import { withNativeOwners, type NativeOwners } from './kernel.native-ownership';
 import { throughAllBossTool, throughAllTool, untilNextTool, upToSurfaceTool } from './kernel.extrusion-limits';
-import type { PlaneFrame, ThinWallDefinition, Vec3 } from './kernel.types';
+import type { ExtrudeFeature, PlaneFrame, ThinWallDefinition, Vec3 } from './kernel.types';
 import { prepareThinSection } from './kernel.thin-wall';
 import { assertThinWallEndCapsContext, resolveThinWall } from './thinWall';
 import { buildThinWallEndCaps } from './kernel.thin-caps';
+import { readSecondDirection, resolveExtrusionSpan, type ResolvedExtrusionSpan } from './extrusionDirection';
 import { entityProfileSolid } from './kernel.profiles';
 import { resolveUntilNextAdd, resolveUntilNextCut, type UntilNextCutResolution } from './kernel.until-next-resolution';
 
@@ -36,6 +37,7 @@ export interface ExplicitFramePrimitiveInput {
   /** Borrowed input, must not consume/mutate it. Check native validity, finite bounds and solid geometry. */
   readonly validateTool: (tool: Shape3D) => void;
   readonly thinWall?: ThinWallDefinition;
+  readonly secondDirection?: ExtrudeFeature['secondDirection'];
 }
 
 const MIN_PARAMETER_LENGTH = .01, MAX_PARAMETER_LENGTH = 100_000;
@@ -95,6 +97,7 @@ function finitePoint(value: Vec3, context: string): Vec3 { return vector(value, 
 function explicitFramePrimitiveFactory(input: ExplicitFramePrimitiveInput): {
   signedDepth: number; center: Vec3; ray: Vec3; termination: PrimitiveTermination;
   target: Shape3D | undefined; limit: ResolvedPrimitiveLimit | undefined;
+  span: ResolvedExtrusionSpan;
   makePrism: (length: number, start?: number) => Shape3D;
 } {
   if (!input || (input.operation !== 'add' && input.operation !== 'subtract') || typeof input.validateTool !== 'function') {
@@ -111,6 +114,10 @@ function explicitFramePrimitiveFactory(input: ExplicitFramePrimitiveInput): {
   if (termination.kind === 'throughAll' && typeof termination.bothDirections !== 'boolean') throw new Error('ThroughAll direction scope must be explicit.');
   assertThinWallEndCapsContext(thinWall?.definition, input.operation,
     termination.kind === 'blind', termination.kind !== 'blind' || termination.symmetric !== false);
+  const secondDirection = readSecondDirection(input);
+  const span = resolveExtrusionSpan({ depth: signedDepth, symmetric: termination.kind === 'blind' && termination.symmetric,
+    ...(termination.kind !== 'blind' ? { endCondition: termination } : {}),
+    ...(secondDirection ? { secondDirection } : {}) });
   const section = thinWall ? prepareThinSection({
     id: 'recipe-primitive-profile', name: 'Recipe primitive profile', type: 'sketch', suppressed: false,
     plane: 'XY', offset: 0, profile: { ...profile, center: [...profile.center] },
@@ -163,11 +170,11 @@ function explicitFramePrimitiveFactory(input: ExplicitFramePrimitiveInput): {
       return result;
     }, result => [result], 'Explicit-frame prism construction or release failed.');
   };
-  return { signedDepth, center, ray, termination, target, limit, makePrism };
+  return { signedDepth, center, ray, termination, target, limit, makePrism, span };
 }
 
 export interface PrimitiveRecipeProfileInput extends Pick<ExplicitFramePrimitiveInput,
-  'profile' | 'frame' | 'signedDepth' | 'validateTool' | 'thinWall'> {
+  'profile' | 'frame' | 'signedDepth' | 'validateTool' | 'thinWall' | 'secondDirection'> {
   /** Evaluator-owned guard for the actual working owner/revision and source epoch. */
   readonly assertWorkingCurrent: () => void;
 }
@@ -176,10 +183,13 @@ export interface PrimitiveRecipeProfileInput extends Pick<ExplicitFramePrimitive
 export function validatePrimitiveRecipeProfileForAbsence(input: PrimitiveRecipeProfileInput): number {
   input.assertWorkingCurrent();
   const thinWall = resolveThinWall(input);
+  const secondDirection = readSecondDirection(input);
+  if (secondDirection?.enabled) throw new Error('La segunda dirección activa no admite un testigo de ausencia para un límite automático.');
   const { signedDepth, makePrism } = explicitFramePrimitiveFactory({
     profile: input.profile, frame: input.frame, signedDepth: input.signedDepth, validateTool: input.validateTool,
     termination: { kind: 'blind', symmetric: false }, operation: 'subtract',
     ...(thinWall ? { thinWall: thinWall.definition } : {}),
+    ...(secondDirection ? { secondDirection } : {}),
   });
   const tolerance = withNativeOwners(owners => {
     const witness = owners.own(makePrism(Math.abs(signedDepth)));
@@ -209,7 +219,7 @@ export function resolveExplicitFrameUntilNext(input: ExplicitFramePrimitiveInput
 
 /** Strict construction API: a successfully returned tool is always owned and non-null. */
 export function buildExplicitFramePrimitive(input: ExplicitFramePrimitiveInput): Shape3D {
-  const { signedDepth, center, ray, termination, target, limit, makePrism } = explicitFramePrimitiveFactory(input);
+  const { signedDepth, center, ray, termination, target, limit, makePrism, span } = explicitFramePrimitiveFactory(input);
   return withNativeOwners(owners => {
     let result: Shape3D;
     // Existing limit helpers include native operations on their target. Protect
@@ -219,7 +229,7 @@ export function buildExplicitFramePrimitive(input: ExplicitFramePrimitiveInput):
     const isolatedTarget = (termination.kind === 'throughAll' || termination.kind === 'untilNext')
       ? owners.own(copyBodyShape(target!)) : undefined;
     switch (termination.kind) {
-      case 'blind': result = owners.own(makePrism(Math.abs(signedDepth), termination.symmetric ? -Math.abs(signedDepth) / 2 : 0)); break;
+      case 'blind': result = owners.own(makePrism(Math.abs(span.signedDepth), span.startShift / Math.sign(signedDepth))); break;
       case 'throughAll': result = owners.own(input.operation === 'add'
         ? throughAllBossTool(isolatedTarget!, center, ray, termination.bothDirections, makePrism)
         : throughAllTool(isolatedTarget!, center, ray, termination.bothDirections, makePrism)); break;

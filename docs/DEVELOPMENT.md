@@ -1,5 +1,50 @@
 # Development guide
 
+## Independent linear extrusion directions — 2026-10-29
+
+`extrude` and `cut` share the strict optional `secondDirection` record. Use
+`readSecondDirection`/`resolveExtrusionSpan` for data admission and the common
+span; validate the positive second length 0.01..100000 even while OFF. The first
+signed length retains its existing individual limit. Active Blind directions
+start at `-sign(D1)*D2` and use one signed span
+`sign(D1)*(abs(D1)+D2)`, up to 200000 mm. Keep legacy `symmetric` distinct from
+these independent lengths. Absence preserves document bytes/reference identity;
+presence identifies enabled/OFF without including either continuous depth.
+Older strict readers reject the new optional field.
+
+Reject active mid-plane/automatic combinations before any provisional factory or
+absence shortcut, including recipe extraction and direct internal entity-tool
+entrypoints. Retain valid numeric intent for explicit OFF recovery without
+clearing the selected first limit or its references. Editor drafts retain
+invalid numbers and block Apply. Switching the first mode must preserve invalid
+D1 rather than substitute 20 mm; inactive correction fields stay mounted through
+the first valid digit and decimal focus. Stale-prefix and selection guards
+remain authoritative. Inspect optional descriptors before spreading patches;
+explicit editor clearing removes the own field.
+
+Reuse the original solved profile, incoming frame and offset once. Compute the
+span after recipe reflection parity, while leaving the checkpoint's source frame
+unchanged. Primitive and source-solved entity factories regenerate geometry;
+they do not replay a saved delta. Keep exact body scopes, creation identities,
+native ownership and release/currentness checks. Declared second directions
+decline the existing first-direction-only semantic-prism provenance path.
+Do not change dependency or material declarations for a new scalar length.
+
+For eligible thin walls, construct the outer solid and shortened inner core once
+over the complete shifted span, with caps only at external ends. The 13+7/cap 4
+fixture has core `20-8=12`; checking caps per branch would reject valid geometry
+or add a false source-plane plate. A source-plane 5→7 change translates both
+fixed endpoints; the stepped-cut fixture changes V6876→6888 from actual material
+intersection, without turning fixed lengths into anchored limits.
+
+Run `npm run test:desktop:part-two-direction` alongside the existing thin-wall,
+end-cap, automatic-corner, external-axis and revolution routes after building.
+Use the [contract](THIN_WALL_OPERATIONS.md#independent-linear-directions--2026-10-29)
+and [original fixtures](PROVENANCE.md#original-independent-linear-direction-fixtures--2026-10-29)
+to interpret checks; record actual results in [validation](VALIDATION.md).
+Independent automatic second ends, separate second inversion, wider topology
+repair and the combined demo remain outside this bounded increment.
+
 ## Internal thin-wall axial caps — 2026-10-29
 
 Validate the strict optional `thinWall.endCaps` declaration before native work.

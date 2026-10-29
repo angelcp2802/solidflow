@@ -122,6 +122,7 @@ import { createdBodyIds, featureBodyReferences, featureCurrentBodyReferences } f
 import { reconcileBodyPatternDraft } from "./model/bodyPatterns";
 import { createEdgeSelectionIndex, createFaceSelectionIndex } from "./cad/selection.references";
 import ExtrudePanel from "./components/ExtrudePanel";
+import { extrusionDirectionInputError, mergeExtrusionDraft } from './components/extrusionEditorDraft';
 import RevolvePanel, { mergeRevolutionDraft } from "./components/RevolvePanel";
 import { thinWallInputError } from './components/ThinWallPanel';
 import { defaultThinWallDefinition, isThinWallOperation, mergeThinWallEditorDraft, thinAutoCornersAvailableByProfile, thinEndCapsAvailableByProfile, thinWallRequiredByProfile, withRequiredThinWall } from './components/thinWallEditorDraft';
@@ -176,6 +177,7 @@ import type {
   BodyReference,
   CombineFeature,
   RevolutionFeature,
+  ExtrudeFeature,
 } from "./cad/kernel.types";
 import {
   createDemoDocument,
@@ -724,10 +726,12 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
             (face) => face.ref.sourceFeatureId === editing.id,
           ));
   const thinWallDraftError = editing && isThinWallOperation(editing) ? thinWallInputError(editing.thinWall) : null;
+  const extrusionDraftError = editing?.type === 'extrude' || editing?.type === 'cut' ? extrusionDirectionInputError(editing) : null;
   const canAccept =
     !!editing &&
     !!editingResolved &&
     !thinWallDraftError &&
+    !extrusionDraftError &&
     (!thinWallRequired || !isThinWallOperation(editing) || !!editing.thinWall) &&
     (!editing || !isBodyCommandFeature(editing) || (!!bodyPlan && !bodyPicking)) &&
     !pickingMirror &&
@@ -2121,9 +2125,11 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     let merged: Feature;
     const original = doc.features.find(feature => feature.id === editing.id);
     try {
-      merged = isRevolutionFeature(editing)
-        ? mergeRevolutionDraft(editing, patch as Partial<RevolutionFeature>, original && isRevolutionFeature(original) ? original : undefined)
-        : mergeThinWallEditorDraft(editing, patch, original);
+      if (isRevolutionFeature(editing)) {
+        merged = mergeRevolutionDraft(editing, patch as Partial<RevolutionFeature>, original && isRevolutionFeature(original) ? original : undefined);
+      } else if (editing.type === 'extrude' || editing.type === 'cut') {
+        merged = mergeExtrusionDraft(editing, patch as Partial<ExtrudeFeature>, original?.type === 'extrude' || original?.type === 'cut' ? original : undefined);
+      } else merged = mergeThinWallEditorDraft(editing, patch, original);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
       return;
@@ -3901,6 +3907,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                       existing={doc.features.some(feature => feature.id === editing.id)}
                       autoCornersAvailable={thinAutoCornersAvailable}
                       endCapsAvailable={thinEndCapsAvailable}
+                      directionDisabled={!thinWallSourceCurrent || bodyPicking || pickingSupport || pickingExtrude}
                       thinWallRequired={thinWallRequired}
                       thinWallDisabled={!thinWallSourceCurrent}
                       features={availableFeatures}

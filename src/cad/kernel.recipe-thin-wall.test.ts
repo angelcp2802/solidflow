@@ -4,11 +4,12 @@ import initOpenCascade from 'replicad-opencascadejs';
 import { makeBox, measureShapeSurfaceProperties, measureShapeVolumeProperties, setOC, Solid, type Shape3D } from 'replicad';
 import { afterEach, beforeAll, expect, it, vi } from 'vitest';
 import { parseDocument, serializeDocument, validateDocument } from '../model/document';
-import { exactStateKey, extractRecipeClosure, type RecipeInstanceTransform, type RegenerationRequest } from '../model/featureRecipes';
+import { exactStateKey, extractRecipeClosure, intrinsicProfileInstancePlacement, type RecipeInstanceTransform, type RegenerationRequest } from '../model/featureRecipes';
 import { bodyBoolean, NativeBodyCatalog, validateBodyShape } from './kernel.bodies';
 import { evaluateFeatureRecipes, stageFeatureRecipeEvaluation } from './kernel.feature-recipes';
 import { withNativeOwners, type NativeOwners } from './kernel.native-ownership';
 import { buildRecipeInstanceTool } from './kernel.recipe-instance';
+import { buildEntityRecipeTool } from './kernel.recipe-entities';
 import { buildExplicitFramePrimitive, validatePrimitiveRecipeProfileForAbsence } from './kernel.recipe-primitives';
 import { checkpointSourceSketchSolves, createSourceSketchSolveRegistry } from './kernel.sketch-solves';
 import type { BodyReference, Feature, SketchFeature, ThinWallDefinition, Vec3 } from './kernel.types';
@@ -113,6 +114,104 @@ const transforms = [
   { kind: 'circularPattern', transform: { key: '1', angle: 180, origin: [15, 0, 0], direction: [0, 0, 1] }, min: [20, -10, 0], max: [30, 0, 8], center: [25, -5] },
   { kind: 'mirror', transform: { key: 'mirror', mirror: { origin: [15, 0, 0], xDirection: [0, 1, 0], normal: [1, 0, 0] } }, min: [20, 0, 0], max: [30, 10, 8], center: [25, 5] },
 ] as const;
+
+function closedRectangle(width: number, height: number, entity: boolean): SketchFeature['profile'] {
+  if (!entity) return { kind: 'rectangle', center: [10, 0], width, height };
+  return { kind: 'entities', constraints: [], points: [
+    { id: 'a', x: 10 - width / 2, y: -height / 2 }, { id: 'b', x: 10 + width / 2, y: -height / 2 },
+    { id: 'c', x: 10 + width / 2, y: height / 2 }, { id: 'd', x: 10 - width / 2, y: height / 2 },
+  ], entities: [
+    { id: 'ab', type: 'line', start: 'a', end: 'b', construction: false }, { id: 'bc', type: 'line', start: 'b', end: 'c', construction: false },
+    { id: 'cd', type: 'line', start: 'c', end: 'd', construction: false }, { id: 'da', type: 'line', start: 'd', end: 'a', construction: false },
+  ] };
+}
+const independentTransforms = [
+  { kind: 'linearPattern', transform: { key: '1,0', translation: [20, 0, 0] } },
+  { kind: 'circularPattern', transform: { key: '1', angle: 180, origin: [20, 0, 0], direction: [0, 0, 1] } },
+  { kind: 'mirror', transform: { key: 'mirror', mirror: { origin: [20, 0, 0], xDirection: [0, 1, 0], normal: [1, 0, 0] } } },
+] as const;
+
+it.each(['throughAll', 'symmetric'] as const)('rejects an internally mismatched %s termination before building a second-direction entity tool', kind => withNativeOwners(owners => {
+  const setup = declarations(closedRectangle(4, 2, true), { kind: 'one-side', thickness: 1, reversed: false });
+  const operation = setup.features[3]; if (operation.type !== 'cut') throw Error('Expected cut');
+  delete operation.thinWall; operation.secondDirection = { enabled: true, depth: 2 };
+  const source = entitySource(setup.features, owners), placement = intrinsicProfileInstancePlacement(extractRecipeClosure(setup.features, setup.request), 'effect', '1,0');
+  const owner = owners.own(makeBox([20, -10, 0], [40, 10, 8])), native = vi.spyOn(profiles, 'entityProfileSolid');
+  expect(() => buildEntityRecipeTool({ source, placement, operation: 'subtract', workingTarget: owner,
+    termination: kind === 'throughAll' ? { kind, bothDirections: false } : { kind: 'blind', symmetric: true },
+    assertWorkingCurrent: () => source.registry.assertCheckpoint(source.checkpoint, setup.features), validateTool: validateBodyShape })).toThrow(/profundidad ciega/);
+  expect(native).not.toHaveBeenCalled(); metrics(owner, 3200, 1440, [20, -10, 0], [40, 10, 8]);
+}), 60_000);
+
+it.each(independentTransforms)('regenerates both independent cut branches through $kind for primitive and solved entities', row => withNativeOwners(owners => {
+  for (const entity of [false, true]) {
+    const setup = declarations(closedRectangle(4, 2, entity), { kind: 'one-side', thickness: 1, reversed: false },
+      structuredClone(row.transform) as RecipeInstanceTransform, row.kind, [20, -10, 0], [40, 10, 10]);
+    const profile = setup.features[2], operation = setup.features[3];
+    if (profile.type !== 'sketch' || operation.type !== 'cut') throw Error('Expected original extrusion');
+    profile.offset = 4; delete operation.thinWall; operation.secondDirection = { enabled: true, depth: 2 };
+    const before = JSON.stringify(setup), solve = entity ? entitySource(setup.features, owners) : undefined;
+    const base = owners.own(makeBox([0, -10, 0], [20, 10, 4])), cavity = owners.own(makeBox([8, -1, 2], [12, 1, 8]));
+    const sourceShape = owners.own(bodyBoolean('subtract', base, cavity)), targetShape = owners.own(makeBox([20, -10, 0], [40, 10, 10]));
+    const active = catalog([{ ref: postSource, shape: sourceShape, createdBy: source.sourceFeatureId }, { ref: target, shape: targetShape }], owners);
+    const evaluated = evaluateFeatureRecipes({ ...setup, catalog: active, ...(solve ? { sourceSketchSolves: solve.registry } : {}),
+      historicalStates: new Map([[exactStateKey(postSource), { ref: postSource, shape: sourceShape, lineage: 'original-independent-cut' }]]) });
+    owners.own({ delete: () => evaluated.dispose() });
+    expect(evaluated.replacements.map(value => value.ref)).toEqual([target]);
+    metrics(evaluated.replacements[0].shape, 3952, 1688, [20, -10, 0], [40, 10, 10]);
+    probe(evaluated.replacements[0].shape, [30, 0, 3], false); probe(evaluated.replacements[0].shape, [30, 0, 7], false);
+    metrics(active.resolve(target).shape, 4000, 1600, [20, -10, 0], [40, 10, 10]);
+    metrics(active.resolve(postSource).shape, 1584, 1144, [0, -10, 0], [20, 10, 4]);
+    expect(JSON.stringify(setup)).toBe(before);
+  }
+}), 60_000);
+
+it.each(independentTransforms)('caps one complete unequal interval through $kind for primitive and solved entities', row => withNativeOwners(owners => {
+  for (const entity of [false, true]) {
+    const thinWall: ThinWallDefinition = { kind: 'one-side', thickness: 2, reversed: false, endCaps: { enabled: true, thickness: 1 } };
+    const setup = declarations(closedRectangle(12, 8, entity), thinWall,
+      structuredClone(row.transform) as RecipeInstanceTransform, row.kind, [20, -10, -14], [40, 10, -10]);
+    const baseProfile = setup.features[0]; if (baseProfile.type !== 'sketch') throw Error('Expected base profile');
+    baseProfile.offset = -14;
+    setup.features[3] = { id: 'effect', name: 'Original two-direction capped addition', type: 'extrude', suppressed: false,
+      sketchId: 'effect-profile', depth: 20, symmetric: false, secondDirection: { enabled: true, depth: 10 },
+      thinWall, bodyOperation: { mode: 'merge', target: source } };
+    const before = JSON.stringify(setup), solve = entity ? entitySource(setup.features, owners) : undefined;
+    const base = owners.own(makeBox([0, -10, -14], [20, 10, -10]));
+    const outer = owners.own(makeBox([2, -6, -10], [18, 6, 20])), core = owners.own(makeBox([4, -4, -9], [16, 4, 19]));
+    const caps = owners.own(bodyBoolean('subtract', outer, core)), sourceShape = owners.own(bodyBoolean('add', base, caps));
+    const targetShape = owners.own(makeBox([20, -10, -14], [40, 10, -10]));
+    const active = catalog([{ ref: postSource, shape: sourceShape, createdBy: source.sourceFeatureId }, { ref: target, shape: targetShape }], owners);
+    const evaluated = evaluateFeatureRecipes({ ...setup, catalog: active, ...(solve ? { sourceSketchSolves: solve.registry } : {}),
+      historicalStates: new Map([[exactStateKey(postSource), { ref: postSource, shape: sourceShape, lineage: 'original-independent-caps' }]]) });
+    owners.own({ delete: () => evaluated.dispose() });
+    expect(evaluated.replacements.map(value => value.ref)).toEqual([target]);
+    metrics(evaluated.replacements[0].shape, 4672, 4112, [20, -10, -14], [40, 10, 20]);
+    probe(evaluated.replacements[0].shape, [30, 0, -9.5], true);
+    probe(evaluated.replacements[0].shape, [30, 0, 0], false); // No false cap on the source sketch plane.
+    probe(evaluated.replacements[0].shape, [30, 0, 19.5], true);
+    metrics(active.resolve(target).shape, 1600, 1120, [20, -10, -14], [40, 10, -10]);
+    metrics(active.resolve(postSource).shape, 4672, 4112, [0, -10, -14], [20, 10, 20]);
+    expect(JSON.stringify(setup)).toBe(before);
+  }
+}), 60_000);
+
+it.each(['entity', 'primitive'] as const)('rejects active or invalid OFF second direction before a separated ALL %s shortcut', kind => withNativeOwners(owners => {
+  for (const secondDirection of [{ enabled: true, depth: 2 }, { enabled: false, depth: 0 }]) {
+    const setup = declarations(kind === 'entity' ? closedRectangle(4, 2, true) : closedRectangle(4, 2, false),
+      { kind: 'one-side', thickness: 1, reversed: false }, { key: '1,0', translation: [20, 0, 0] }, 'linearPattern', [20, -10, -10], [40, 10, -2]);
+    const operation = setup.features[3]; if (operation.type !== 'cut') throw Error('Expected cut');
+    delete operation.thinWall; operation.secondDirection = secondDirection;
+    operation.endCondition = { kind: 'throughAll', baseFeatureId: source.sourceFeatureId, bothDirections: false };
+    setup.request.scope = { mode: 'all', reevaluateAt: 'patternInput' }; setup.request.bindings[0].targets = 'scope';
+    const sourceShape = owners.own(makeBox([0, -10, 0], [20, 10, 4])), targetShape = owners.own(makeBox([20, -10, -10], [40, 10, -2]));
+    const active = catalog([{ ref: target, shape: targetShape }], owners);
+    expect(() => evaluateFeatureRecipes({ ...setup, catalog: active,
+      historicalStates: new Map([[exactStateKey(postSource), { ref: postSource, shape: sourceShape, lineage: 'adversarial-component-state' }]]) }))
+      .toThrow(/second.*direction|SECOND_DIRECTION/i);
+    metrics(active.resolve(target).shape, 3200, 1440, [20, -10, -10], [40, 10, -2]);
+  }
+}), 60_000);
 
 it.each([
   { kind: 'linearPattern', transform: { key: '1,0', translation: [20, 0, 0] } },

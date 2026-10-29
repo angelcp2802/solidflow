@@ -1,0 +1,6 @@
+.extrude-direction-two-toggle { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.extrude-direction-two-toggle input { margin: 0; accent-color: #207fba; }
+.extrude-direction-two-toggle:has(input:disabled) { color: #7b8c99; cursor: default; }
+/* Retain the focused numeric node while an inactive invalid draft becomes valid. */
+.extrude-inactive-second-depth:not(:focus-within), .extrude-inactive-primary-depth:not(:focus-within) { display: none; }
+.extrude-direction-error { margin: 6px 0 0; color: #9c442f; font-size: 11px; line-height: 1.5; }

@@ -149,6 +149,47 @@ uses an original sleeve profile and axial bore; its formulas and evidence limits
 are documented in [provenance](PROVENANCE.md#original-revolution-and-bore-sequence)
 and [validation](VALIDATION.md).
 
+## Unequal linear extrusion and cut depths
+
+For **Saliente/Base extruido** or **Corte extruido**, choose **Hasta profundidad
+específica** in **Dirección 1** and enter its depth. Choose the intended body
+result or cut owners and finish **Seleccionar cuerpos en el visor** before
+enabling **Dirección 2** and entering the independent positive opposite depth.
+The second block follows the first target controls and precedes the thin-wall
+controls. Its initial 10 mm is
+an editor choice; subsequent OFF/ON retains the entered length.
+
+With first 13/opposite 7 and a source plane at Z=5, the solid spans Z=-2..18.
+**Invertir dirección** retains both lengths and changes that interval to
+Z=-8..12. This differs from **Plano medio**, where one total depth is shared
+equally. There is no separate inversion or automatic termination for Direction 2
+in this increment.
+
+Changing the first mode to **Plano medio**, **Por todo**, **Hasta siguiente** or
+**Hasta superficie** while Direction 2 is active keeps its declaration and blocks
+Apply. Explicitly turn Direction 2 OFF to recover that mode: its length and the
+chosen first-limit references remain available. Correct invalid first or second
+lengths even when inactive; the editor keeps the focused field through decimal
+entry and never replaces an invalid first length with 20 mm. Wait for a current,
+healthy preview before Apply. Cancel preserves the committed document.
+
+A thin additive extrusion can use **Tapas de extremos** over both Blind
+directions when its source is one eligible closed region. The caps occupy only
+the two external ends of the complete span. First 13/opposite 7 with cap 4 leaves
+one 12 mm core across the source plane; it does not add a plate at that plane.
+Other cap contexts retain their explicit recovery and geometric restrictions in
+the [thin-wall contract](THIN_WALL_OPERATIONS.md#axial-end-caps).
+
+The original `npm run test:desktop:part-two-direction` route starts from a stepped
+base and unused profiles supported by a Z=5 plane. It creates separate plain and
+capped solids and cuts the exact base owner. Moving that source plane to Z=7
+translates both fixed-depth endpoints once; the cut base changes from V6876 to
+V6888 mm³ because its intersection with the step changes. The route covers
+editing, Cancel/retry, Undo/Redo, saving and fresh reopening. Formulas and
+measurement limits are in [provenance](PROVENANCE.md#original-independent-linear-direction-fixtures--2026-10-29);
+actual execution is recorded in [validation](VALIDATION.md). This bounded route
+does not complete the wider feature or interface checklist.
+
 ## Several cuts and additive extrusions
 
 Open **Archivo → Ejemplo: cortes y salientes sucesivos**. Save any current work

@@ -148,7 +148,8 @@ function allCutEntirelyBehindRay(closure: RecipeClosure, operation: RecipeOperat
     if (thinWallDeclared) {
       if (!resolved.thinWall) throw new Error('The extracted thin wall is missing its resolved declaration.');
       primitiveWitness = { profile, frame: resolved.frame, signedDepth: resolved.signedDepth,
-        thinWall: resolved.thinWall, validateTool: validatePositiveClosedTool };
+        thinWall: resolved.thinWall, validateTool: validatePositiveClosedTool,
+        ...(resolved.secondDirection ? { secondDirection: resolved.secondDirection } : {}) };
     }
   }
   if (!origin.every(Number.isFinite) || !ray.every(Number.isFinite)) throw new Error('Recipe ray placement must be finite.');

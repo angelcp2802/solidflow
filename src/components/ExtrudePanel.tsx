@@ -1,5 +1,8 @@
 import { ChevronDown, MousePointer2, RotateCw } from "lucide-react";
 import ThinWallPanel from './ThinWallPanel';
+import { validateSecondDirection } from '../cad/extrusionDirection';
+import { extrusionDirectionInputError } from './extrusionEditorDraft';
+import './extrude-panel.css';
 import type {
   ExtrudeFeature,
   Feature,
@@ -7,6 +10,8 @@ import type {
   PlaneSupport,
   ReferencePlaneFeature,
 } from "../cad/kernel.types";
+
+const DEFAULT_SECOND_DIRECTION_DEPTH = 10;
 
 interface Props {
   feature: ExtrudeFeature;
@@ -22,6 +27,7 @@ interface Props {
   thinWallDisabled?: boolean;
   autoCornersAvailable?: boolean;
   endCapsAvailable?: boolean;
+  directionDisabled?: boolean;
   onChange: (patch: Partial<ExtrudeFeature>) => void;
   onTarget: (target: PlaneSupport) => void;
   onPickFace: () => void;
@@ -30,12 +36,10 @@ interface Props {
 /** Draft transition only; a missing explicit body limit remains invalid. */
 export function extrudeModePatch(feature: ExtrudeFeature, value: string, baseFeatureId: string | null, preferredTarget: PlaneSupport): Partial<ExtrudeFeature> | null {
   const end = feature.endCondition
-  const rememberedDepth = Number.isFinite(feature.depth) && Math.abs(feature.depth) >= 0.01 && Math.abs(feature.depth) <= 100_000
-    ? feature.depth : feature.depth < 0 ? -20 : 20
   if (value === 'blind' || value === 'mid') return { endCondition: undefined, symmetric: value === 'mid' }
   if (value === 'upToSurface') return {
     endCondition: { kind: 'upToSurface', target: end?.kind === 'upToSurface' ? end.target : preferredTarget },
-    symmetric: false, depth: rememberedDepth,
+    symmetric: false, depth: feature.depth,
   }
   if (!['throughAll', 'throughAllBoth', 'untilNext'].includes(value)) return null
   const explicitBody = feature.type === 'extrude' && feature.bodyOperation?.mode === 'new'
@@ -46,7 +50,7 @@ export function extrudeModePatch(feature: ExtrudeFeature, value: string, baseFea
   return {
     endCondition: value === 'untilNext' ? { kind: 'untilNext', baseFeatureId: base, ...reference }
       : { kind: 'throughAll', baseFeatureId: base, bothDirections: value === 'throughAllBoth', ...reference },
-    symmetric: false, depth: rememberedDepth,
+    symmetric: false, depth: feature.depth,
   }
 }
 
@@ -64,11 +68,23 @@ export default function ExtrudePanel({
   thinWallDisabled = false,
   autoCornersAvailable = false,
   endCapsAvailable = false,
+  directionDisabled = false,
   onChange,
   onTarget,
   onPickFace,
 }: Props) {
   const end = feature.endCondition;
+  const direction = feature.secondDirection;
+  const directionAvailable = feature.symmetric === false && end === undefined;
+  const directionControlsDisabled = loading || picking || directionDisabled;
+  const secondDepthDisabled = directionControlsDisabled || (!directionAvailable && !!direction?.enabled);
+  const directionError = extrusionDirectionInputError(feature);
+  const primaryDepthInvalid = !!extrusionDirectionInputError({ depth: feature.depth, symmetric: false });
+  let secondDepthInvalid = false;
+  if (direction) {
+    try { validateSecondDirection(direction); }
+    catch { secondDepthInvalid = true; }
+  }
   const mode =
     end?.kind === "throughAll" && end.bothDirections
       ? "throughAllBoth"
@@ -109,28 +125,29 @@ export default function ExtrudePanel({
           </option>
           <option value="upToSurface">Hasta superficie</option>
         </select>
-        {!end && (
-          <label className="number-field">
-            <span>Profundidad</span>
-            <div>
-              <input
-                aria-label="Profundidad"
-                type="number"
-                step={1}
-                value={Number.isFinite(feature.depth) ? feature.depth : ""}
-                onChange={(event) =>
-                  onChange({
-                    depth:
-                      event.target.value === ""
-                        ? 0
-                        : Number(event.target.value),
-                  })
-                }
-              />
-              <small>mm</small>
-            </div>
-          </label>
-        )}
+        <label className={`number-field${end && !primaryDepthInvalid ? ' extrude-inactive-primary-depth' : ''}`} htmlFor="extrude-primary-depth">
+          <span>Profundidad</span>
+          <div>
+            <input
+              id="extrude-primary-depth"
+              aria-label="Profundidad"
+              type="number"
+              step={1}
+              value={Number.isFinite(feature.depth) ? feature.depth : ""}
+              aria-invalid={primaryDepthInvalid}
+              aria-describedby={directionError ? 'extrusion-direction-error' : undefined}
+              onChange={(event) =>
+                onChange({
+                  depth:
+                    event.target.value === ""
+                      ? 0
+                      : Number(event.target.value),
+                })
+              }
+            />
+            <small>mm</small>
+          </div>
+        </label>
         {end && (
           <p className="muted-small">
             {mode === "throughAllBoth"
@@ -235,6 +252,29 @@ export default function ExtrudePanel({
           </p>
         </div>
       )}
+      <section className="property-section extrude-direction-two-section" aria-labelledby="extrude-direction-two-heading" aria-disabled={directionControlsDisabled}>
+        <h3 id="extrude-direction-two-heading"><label className="extrude-direction-two-toggle" htmlFor="extrude-direction-two">
+          <input id="extrude-direction-two" type="checkbox" aria-label="Dirección 2" checked={direction?.enabled ?? false}
+            disabled={directionControlsDisabled || (!directionAvailable && !direction?.enabled)}
+            onChange={event => {
+              if (directionControlsDisabled || (event.target.checked && !directionAvailable)
+                || (!event.target.checked && !direction?.enabled)) return;
+              onChange({ secondDirection: { enabled: event.target.checked, depth: direction?.depth ?? DEFAULT_SECOND_DIRECTION_DEPTH } });
+            }} />
+          Dirección 2
+        </label></h3>
+        {direction && <label className={`number-field${!direction.enabled && !secondDepthInvalid ? ' extrude-inactive-second-depth' : ''}`}
+          htmlFor="extrude-second-depth"><span>Profundidad de dirección 2</span><div>
+          <input id="extrude-second-depth" aria-label="Profundidad de dirección 2" type="number" step={1}
+            value={Number.isFinite(direction.depth) ? direction.depth : ''} disabled={secondDepthDisabled}
+            aria-invalid={!!directionError} aria-describedby={directionError ? 'extrusion-direction-error' : undefined}
+            onChange={event => {
+              if (secondDepthDisabled) return;
+              onChange({ secondDirection: { ...direction, depth: event.target.value === '' ? 0 : Number(event.target.value) } });
+            }} /><small>mm</small>
+        </div></label>}
+      </section>
+      {directionError && <p id="extrusion-direction-error" className="extrude-direction-error" role="alert">{directionError}</p>}
       <ThinWallPanel thinWall={feature.thinWall} existing={existing} required={thinWallRequired} disabled={loading || thinWallDisabled}
         autoCornersAvailable={feature.type === 'extrude' && autoCornersAvailable}
         allowAutoCornerRecovery={feature.type === 'extrude'}
