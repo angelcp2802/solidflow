@@ -355,6 +355,10 @@ async function launch() {
       await fsp.copyFile(path.join(__dirname, '..', 'src', 'cad', 'fixtures', fixture),
         path.join(temporary, 'input-' + name + '.solidflow'), fs.constants.COPYFILE_EXCL);
     }
+    if (activeScenario === SCENARIOS['part-sequence']) {
+      await fsp.writeFile(path.join(temporary, 'input-assembly-pin.solidflow'),
+        JSON.stringify(require('./desktop-assembly-basic-authoring-original.cjs')()), { flag: 'wx' });
+    }
     const environment = { ...process.env, SOLIDFLOW_PATTERN_UI_TEST_ROOT: root, SOLIDFLOW_PATTERN_UI_TEST_TEMP: temporary, SOLIDFLOW_PATTERN_UI_TEST_TOKEN: token };
     delete environment.ELECTRON_RUN_AS_NODE; delete environment.SOLIDFLOW_DEV_URL;
     const entry = path.join(__dirname, activeScenario.entry);
@@ -415,6 +419,16 @@ async function launch() {
         const proof = report.checks.find(item => item && typeof item === 'object' && item.savedSha256);
         check(bytes.length <= 1024 * 1024 && proof?.savedSha256 === digest(bytes), 'The original demo must retain the exact verified native Save bytes.');
         report.demoDocument = { name: activeScenario.thinWall === true ? thinWallScenarioFiles().demoName : activeScenario === SCENARIOS['part-external-axis'] ? 'eje-externo-revolucion.solidflow' : activeScenario === SCENARIOS['assembly-mate-reference-edit'] ? 'referencias-editadas.solidflow' : activeScenario === SCENARIOS['part-from-empty'] ? 'pieza-desde-cero.solidflow' : activeScenario === SCENARIOS['assembly-basic-authoring'] ? 'ensamblaje-creado.solidflow' : activeScenario.configuredPicking ? 'seleccion-configurada.solidflow' : activeScenario === SCENARIOS['part-fresh-sketch'] ? 'croquis-nuevos-en-caras.solidflow' : activeScenario === SCENARIOS['part-finishing'] ? 'redondeo-y-chaflan.solidflow' : activeScenario === SCENARIOS['part-revolution'] ? 'revolucion-y-corte.solidflow' : activeScenario === SCENARIOS['assembly-configured-components'] ? 'componentes-configurados.solidflow' : activeScenario.originAxes ? 'relaciones-ejes-origen.solidflow' : 'secuencia-operaciones.solidflow', sha256: digest(bytes), content: bytes.toString('utf8') };
+      }
+      if (activeScenario === SCENARIOS['part-sequence']) {
+        const bytes = await fsp.readFile(path.join(temporary, 'saved-sequence-assembly.solidflow'));
+        const proof = report.checks.find(item => item?.partAssemblyMates)?.partAssemblyMates;
+        check(bytes.length <= 1024 * 1024 && proof?.savedSha256 === digest(bytes),
+          'The combined assembly must retain its exact final normal Save bytes.');
+        const document = JSON.parse(bytes.toString('utf8'));
+        check(document.kind === 'assembly' && report.captures[0].confirmedDocumentId === document.id,
+          'The final capture and saved combined assembly have the same document identity.');
+        report.assemblyDemoDocument = { name: 'ensamblaje-pieza-modelada.solidflow', sha256: digest(bytes), content: bytes.toString('utf8') };
       }
     }
   } catch (error) {
@@ -707,6 +721,7 @@ async function runInElectron() {
   const freshSketch = activeScenario === SCENARIOS['part-fresh-sketch'];
   const partSequence = activeScenario === SCENARIOS['part-sequence'];
   const partAssemblyOutput = partSequence ? path.join(owned, 'saved-sequence-assembly.solidflow') : null;
+  const partAssemblyPinInput = partSequence ? path.join(owned, 'input-assembly-pin.solidflow') : null;
   const partRevolution = activeScenario === SCENARIOS['part-revolution'];
   const partExternalAxis = activeScenario === SCENARIOS['part-external-axis'];
   const partThinWall = activeScenario.thinWall === true;
@@ -845,7 +860,7 @@ async function runInElectron() {
     [name, JSON.parse(fs.readFileSync(file, 'utf8'))])) : null;
   const outputs = untilNext ? { cutSelected: path.join(owned, 'saved-cut-selected.solidflow'),
     cutAll: path.join(owned, 'saved-cut-all.solidflow'), add: path.join(owned, 'saved-add-selected.solidflow') } : null;
-  const openPaths = partThinWall ? [input, output] : partExternalAxis ? [input, output, output] : partRevolution ? [input, output, output, output] : normalToView ? [normalInputs.part, normalInputs.standard, normalInputs.configured] : fromEmpty ? [output, output] : shortcuts ? [input, null, shortcutOutput, shortcutOutput, shortcutOutput] : basicAuthoring ? [input, null, output] : partSequence ? [input, output, partAssemblyOutput] : partBodyCatalog ? [input, input] : partFinishing ? [input, finishingFiles.fillet, input, output] : configuredComponents ? [input, null, path.join(owned, 'incoming.solidflow'), path.join(owned, 'incoming.solidflow'), output] : structuralInsertion ? [input, insertionFiles.parent, output] : structuralStep ? [input, structuralFiles.part, output] : untilNext ? [inputPaths.cut, outputs.cutSelected, outputs.cutAll,
+  const openPaths = partThinWall ? [input, output] : partExternalAxis ? [input, output, output] : partRevolution ? [input, output, output, output] : normalToView ? [normalInputs.part, normalInputs.standard, normalInputs.configured] : fromEmpty ? [output, output] : shortcuts ? [input, null, shortcutOutput, shortcutOutput, shortcutOutput] : basicAuthoring ? [input, null, output] : partSequence ? [input, output, partAssemblyOutput, partAssemblyPinInput, partAssemblyOutput] : partBodyCatalog ? [input, input] : partFinishing ? [input, finishingFiles.fillet, input, output] : configuredComponents ? [input, null, path.join(owned, 'incoming.solidflow'), path.join(owned, 'incoming.solidflow'), output] : structuralInsertion ? [input, insertionFiles.parent, output] : structuralStep ? [input, structuralFiles.part, output] : untilNext ? [inputPaths.cut, outputs.cutSelected, outputs.cutAll,
     inputPaths.add, outputs.add, inputPaths.reject] : assembly ? [input, output, partUpdatePath, partUpdatePath, output, output, output, projectionOutput, output, interferencePath, translationPath, translationOutput, bomPath, input, gearOutput]
     : assemblyImport ? [input, importSourcePath, importRejectedPath, importSourcePath, output]
     : sourceRevision ? [input, sourceRevisionFiles.parent, output]
@@ -1228,7 +1243,7 @@ async function runInElectron() {
     if ((!fromEmpty && !basicAuthoring && !mateReferenceEdit && !originAxes && !freshSketch && !partSequence && !partFinishing && !partRevolution && !partExternalAxis && !partThinWall && !configurations && !sourceRevision && !linkedSource && !assembly && !assemblyImport && !interferenceMultibody && !interferenceGrouping && !interferenceGroupingMultibody && !interferenceGroupingScope && !screw && !rackPinion && !assemblyExport && !direction && !angleMeasurement && !directedAngle && !tangent && !cylinderTangent && !sphereTangent && !limitDistance && !limitAngle && !width && !linePath && !circularPath && !hinge && !hingeLimits && !hingePicking && !hingeLimitsPicking && !hingeRepair && !profileCenter && !symmetry && !symmetryRepair && !symmetrySurfaceRepair && !symmetryPicking && !symmetryNestedRepair && !replacement) || process.env.SOLIDFLOW_UI_CAPTURE !== '1') return;
     check(!widthPreview || width, 'Preview capture is restricted to the fixed Width scenario.');
     check(captures.length === 0 && !window.isVisible(), 'Expected one hidden test-owned capture.');
-    const confirmed = () => fromEmpty || partFinishing || partSequence || freshSketch || partRevolution || partExternalAxis || partThinWall
+    const confirmed = () => fromEmpty || partFinishing || (partSequence && expectedCapture.kind !== 'assembly') || freshSketch || partRevolution || partExternalAxis || partThinWall
       ? evaluate(`(() => { const t=document.querySelector('.document-title')?.textContent ?? ''; return !document.querySelector('.property-manager') && t.includes(${encodeJavaScriptString(expectedCapture.name)}) && !t.includes('*') && document.querySelector('.statusbar')?.textContent.includes('Listo'); })()`)
       : configurations
       ? evaluate(`(() => document.querySelector('.configured-assembly-workspace')?.getAttribute('aria-busy') === 'false'
@@ -1431,7 +1446,7 @@ async function runInElectron() {
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
     : partSequence
-    ? require('./desktop-part-sequence-flow.cjs')({ expected, input, output, partAssemblyOutput, evaluate, observe, waitFor, click, menu, menuKey, pointer, asideWheel, capture,
+    ? require('./desktop-part-sequence-flow.cjs')({ expected, input, output, partAssemblyOutput, partAssemblyPinInput, evaluate, observe, waitFor, click, menu, menuKey, pointer, asideWheel, capture,
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
     : partThinWall

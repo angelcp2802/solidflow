@@ -16,6 +16,10 @@ import * as profiles from './kernel.profiles';
 // A4*3 footprint therefore removes144/192/204/252 for Next/Next,
 // All/Next, Next/All and All/All. Native material never supplies an oracle.
 const engine = new CadEngine();
+// These six cases rebuild enclosed native owners, including both profile forms
+// in each selected-scope row. Hosted runs measured up to 7.364 s per case;
+// retain every build/assertion with a local budget, not the global 5 s default.
+const NATIVE_RECIPE_CASE_TIMEOUT = 15_000;
 beforeAll(async () => setOC(await initOpenCascade({ wasmBinary: await readFile(createRequire(import.meta.url)
   .resolve('replicad-opencascadejs/wasm')), print: () => undefined })), 60_000);
 afterEach(() => { vi.restoreAllMocks(); engine.dispose(); });
@@ -87,7 +91,7 @@ it.each(cases)('regenerates $first/$second from the actual saved seed and curren
     expect(solve).toHaveBeenCalledTimes(entity ? 1 : 0); solve.mockRestore();
     expect(serializeDocument(document)).toBe(bytes);
   }
-});
+}, NATIVE_RECIPE_CASE_TIMEOUT);
 it.each([cases[0], cases[3]])('ALL $first/$second preserves source/remote states with two native absence proofs', row => {
   const real = recipeBridge.resolveRecipeInstanceDirections;
   const guard = vi.spyOn(recipeBridge, 'resolveRecipeInstanceDirections').mockImplementation(input => {
@@ -101,4 +105,4 @@ it.each([cases[0], cases[3]])('ALL $first/$second preserves source/remote states
     { bodyId: 'S', sourceFeatureId: 'effect' }, { bodyId: 'T', sourceFeatureId: 'pattern' }, { bodyId: 'U', sourceFeatureId: 'create-U' }]);
   metrics('T', 'pattern', row.volume, row.area); metrics('U', 'create-U', 1680, 968);
   expect(guard).toHaveBeenCalled();
-});
+}, NATIVE_RECIPE_CASE_TIMEOUT);

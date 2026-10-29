@@ -49,6 +49,12 @@ their existing controls; a dragged or canceled gesture does not become a click.
 Assembly browsing continues to select components; an armed relation field owns
 its face, edge, vertex or origin selection instead.
 
+The [combined part/assembly walkthrough](DEMO_ASSEMBLIES.md#from-a-modeled-part-to-a-constrained-three-component-assembly)
+continues an actually authored part into three components and four origin
+relations. It exercises root and component planes/axes, two captured rotation
+locks, a distance edit that moves two related occurrences, history and saved
+reopening. The original model and wider assembly limitations remain explicit.
+
 Visible assembly-origin labels are kept inside the viewport in separate boxes,
 with a line to their original geometric anchor when displaced. If the available
 area cannot fit them, **Referencias de origen** presents the complete set in a

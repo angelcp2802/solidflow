@@ -9,6 +9,13 @@ and additional menu polish follow practical use. The bounded
 and [priority issue](https://github.com/angelcp2802/solidflow/issues/55) distinguish
 implemented cases from the remaining assembly and release scope.
 
+The [combined modeled-part demo](DEMO_ASSEMBLIES.md#from-a-modeled-part-to-a-constrained-three-component-assembly)
+now joins successive part modeling, independent transfer, reuse/import of three
+components, root/component planes and axes, captured rotations and coupled
+distance editing in one saved assembly. Its automated reopening/solve is
+bounded evidence; full human acceptance and installed-platform use remain open.
+It does not close the complete demo group or change the nine open groups in #55.
+
 The [viewport face-limit route](CORE_WORKFLOWS.md#independent-automatic-end-limits)
 now exercises actual clicks for both extrusion/cut ends, saved second-face
 replacement, canceled gestures and reopening on original planar bodies.

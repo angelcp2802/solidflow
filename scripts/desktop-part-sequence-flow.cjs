@@ -439,8 +439,8 @@ module.exports = function partSequenceWorkflow(context) {
       && protocolResponses.some(p=>p.url.endsWith('.wasm')&&p.status===200),'Production worker and WASM observed.');
     checks.push({originalSha256:digest(await fsp.readFile(input)),savedSha256:digest(await fsp.readFile(output)),records,
       independentOracles:'Volumes 960,944,928,976,984 mm3; saved unused width-three cut removes 3*2*4=24 mm3, leaving 936 mm3. Widening the base from 20 to 22 mm adds 2*12*4=96 mm3, giving 1080 mm3 with X bounds ±11 mm. Bounds 1e-6 mm, volume 1e-5 mm3. Native area/BRep checks are separate.'});
-    await capture(saved);
-    await partToAssembly.run(saved);
+    const finalAssembly = await partToAssembly.run(saved);
+    await capture(finalAssembly);
     check(!consoleErrors.length && !failedRequests.length && protocolResponses.every(value => value.status >= 200 && value.status < 400),
       'Part-to-assembly continuation has no renderer, request or production resource errors');
   };

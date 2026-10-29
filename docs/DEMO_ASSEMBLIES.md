@@ -4,6 +4,53 @@ The integration draft is [PR #49](https://github.com/angelcp2802/solidflow/pull/
 This walkthrough covers a bounded prototype, not the complete assembly scope
 or a release. See [validation](VALIDATION.md) for the exact executed cases.
 
+## From a modeled part to a constrained three-component assembly
+
+The `test:desktop:part-sequence` route now continues the actually authored part
+into one assembly. It keeps the original two-occurrence transfer and saved
+reopening checks before adding a different original prism and relations. The
+part remains an embedded, independent copy; its saved source file is not
+overwritten. This is a bounded standard-assembly demo, not complete assembly
+or human/platform acceptance.
+
+1. Finish the part's successive cuts and bosses. Use **Crear ensamblaje con
+   esta pieza**. Name the fixed first occurrence **Base**, reuse its source as
+   **Guía**, and move Guía to local `(35,0,0)` with zero rotation. Preview and
+   Apply the movement.
+2. Import the original 3x2x4 mm prism, name it **Pin**, and preview/Apply its
+   initial position `(60,0,20)`, with zero rotation. New instances start at
+   identity; use the tree and Properties to distinguish overlapping instances.
+3. In Relations choose **Concéntrica**, aligned. Use the explicit origin-axis
+   forms to set root **X** as Reference 1 and Guía **X** as Reference 2. Preview
+   and Apply. Then **Resolver ensamblaje**, **Bloquear giro** for that saved
+   relation, and Apply the newly verified capture.
+4. Create a signed **Distancia** from root **YZ** to Guía **YZ**, value **-35**.
+   Preview and Apply. The ordered references and negative sign put Guía at X35.
+5. Create an aligned **Concéntrica** from Guía **Z** to Pin **Z**. Preview and
+   Apply; then solve, capture its rotation with **Bloquear giro**, and Apply.
+   Before the final distance, Pin's movement along this axis is still free.
+   Capturing rotation preserves the verified current orientation.
+6. Create signed **Distancia** from Guía **XY** to Pin **XY**, value **-20**.
+   Preview and Apply. Four relations and two captures now close the root scope
+   with zero local degrees of freedom, without a temporary anchor.
+7. Edit the saved root-to-Guía distance to **-40**. Preview: Guía and Pin both
+   move 5 mm in X. Cancel keeps the edited fields for retry and preserves the
+   committed document. Retry and Apply, then Undo/Redo. Save normally, reopen,
+   solve the saved model and Cancel that final preview.
+
+The final assembly has three solids and two embedded part definitions. Its
+per-component material totals V2184 mm3 and A1876 mm2. Base remains at the
+origin; Guía is `(40,0,0)` and Pin `(40,0,20)`. The independently captured
+orientation determines Pin's bounds; see
+[provenance](PROVENANCE.md#original-combined-part-and-assembly-demo--2026-10-29).
+The automated route uses actual pointer actions and Tab, with visible native
+field setters for values. Origins are selected through explicit forms; this
+does not claim viewport-reference picking. Its final reopened solve is a new
+native request in the same hidden window/worker. Cancel verifies committed
+data and retained scene metadata, not an independent pixel-restoration test.
+Exact executed results and any separate native-window check belong in
+[validation](VALIDATION.md).
+
 ## Replacing references of a saved parallel/perpendicular relation
 
 1. In the standard assembly's Relations list, choose **Editar** for the saved

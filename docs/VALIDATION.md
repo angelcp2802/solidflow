@@ -1,5 +1,139 @@
 # Validation
 
+## Modeled part to constrained three-component assembly — 2026-10-29
+
+This bounded continuation joins successive part authoring, the existing
+independent part-to-assembly transfer, component reuse/import and saved relation
+editing in one standard assembly. The original two coincident occurrences and
+their mateless Save As/reopen checks remain before the extension. See the
+[walkthrough](DEMO_ASSEMBLIES.md#from-a-modeled-part-to-a-constrained-three-component-assembly)
+and [original fixture provenance](PROVENANCE.md#original-combined-part-and-assembly-demo--2026-10-29).
+This does not complete the assembly, human-demo or release scope.
+
+Final local acceptance used Windows, Node 24.11.1 and Electron 44.9.3, with
+**11 commands, 1,308 pinned non-Markdown inputs and nine production products**.
+An independent audit rehashed all inputs in both source and runtime, all nine
+products and eleven closed logs. All command exits are zero. The manifest is
+`44f4f525ead77a5efaabf531173d8c0f595df3254a6ae0e6c9a80acf8c1811a7`.
+Markdown documentation is outside that frozen input manifest.
+
+| Command | Final local result |
+| --- | --- |
+| `npm run build` | PASS, 3.919 s. |
+| Focused recipe file, sample 1 | PASS, six cases; 15.112 s overall. |
+| Focused recipe file, sample 2 | PASS, six cases; 15.187 s overall. |
+| Focused recipe file, sample 3 | PASS, six cases; 15.064 s overall. |
+| `npm run test:desktop:part-sequence` | PASS, 506 checkpoints; 51.263 s. |
+| `npm run test:desktop:assembly-basic-authoring` | PASS, 418 checkpoints; 42.687 s. |
+| `npm run test:desktop:assembly-origin-axis-lock` | PASS, 113 checkpoints; 14.025 s. |
+| `npm run test:desktop:assembly-mate-reference-edit` | PASS, 276 checkpoints; 39.083 s. |
+| `npm run test:desktop:part-face-limits` | PASS, 219 checkpoints; 23.209 s. |
+| `npm test` | PASS, 427.158 s overall: **11,013 unit/CAD cases in 488 files**, Vitest 420.24 s; **200 IPC passes/two explicit platform skips**, no failures. |
+| `npm run test:desktop` | PASS, 1.546 s; production loader/preload/worker/WASM startup. |
+
+Each focused recipe invocation runs
+`npm run test:unit -- src/cad/kernel.two-direction-limits-recipes.test.ts`
+with a JSON reporter. All five renderer reports match eight relevant production
+hashes, report zero console errors/failed requests and completed IPC, observe
+the owned child closing and confirm isolated-profile deletion. The part and
+assembly demo contents and final PNG hashes were independently checked.
+
+The combined helper records **32 geometry checkpoints: 30 backed by native
+results and two cached Cancel comparisons**, with 110 recorded input steps.
+It retains the actual sequential part, V1080 mm3/A912 mm2, as one embedded
+independent definition used by Base and Guía. Pin uses the unchanged original
+3x2x4 mm prism, V24/A52, as a second definition. Three occurrences total
+**V2184 mm3/A1876 mm2**, measured as component sums, not a fused material union.
+Native volume/area tolerance is 1e-5; coordinates use 1e-6 mm and quaternion
+comparisons 1e-8.
+
+Four ordered origin relations and two captured rotation locks constrain Guía
+at (35,0,0) and Pin at (35,0,20), with Base fixed at identity. They use root X
+with Guía X, root YZ with Guía YZ at signed distance -35, Guía Z with Pin Z,
+and Guía XY with Pin XY at -20. Editing only the root distance to -40 moves
+both Guía and Pin to X40. The final bounds are (-11,-6,0)..(51,6,24).
+Four closed-state preview/solve checkpoints report zero local DOF without a
+temporary anchor. The added assembly portion checks Cancel/retry, one Undo/Redo pair, normal
+Save, reopening and another native Solve request with exact definitions,
+references, captures and source-file preservation. The complete route performs
+three writes, five Open dialogs and two Save As dialogs.
+
+The first attempt remains a recorded FAIL: the new free concentric preview
+placed Pin at Z19.995408145992595 while the recorder incorrectly demanded its
+Z20 seed at 1e-6 mm. Console and request errors were zero. Axial displacement
+and roll are free before closure. The correction keeps the offset seed
+(60,0,20), all operations and tolerances; free coordinates remain observations.
+Before Capture, it freezes the verified input quaternions and independently
+computes their relative rotation with Hamilton algebra. The returned capture
+and final orientation are checked against those earlier inputs. Pin bounds
+come from eight literal original corners transformed by that retained input
+rotation. Final XYZ, residual and zero-DOF checks remain strict.
+
+Input is actual CDP press/release and Tab; visible native field setters declare
+form values. Origin references use the existing explicit origin forms, not
+viewport origin picking. The isolated production window is hidden. Cancel
+checks committed recovery/history, revoked Apply and the cached committed
+scene; it does not independently measure restored displayed geometry. Reopen
+and Solve use the same Electron process/worker, not a new-process solve.
+
+The six enclosed two-direction recipe cases now have an explicit **15,000 ms
+per-case budget**, replacing their implicit 5,000 ms default. All four selected
+rows still execute both primitive and entity builds; both ALL rows retain their
+real missing/stale guard calls and native absence proofs. No case, assertion,
+geometry/ownership check, native tolerance, global test default, worker policy
+or renderer 35-second-step/180-second-total budget changed. Removing only the
+new budget/comment from the current file reconstructs the prior fixture hash.
+Three unchanged isolated before samples and three after samples each pass all
+six cases on the same local host/runtime. Overall ranges are 15.033–15.688 s
+before and 15.064–15.187 s after. These measurements establish no speedup or
+cumulative hosted stability; no production optimization is claimed.
+
+The retained [parent CI run for `87416d0`](https://github.com/angelcp2802/solidflow/actions/runs/40898440449)
+tested the same recorded parent tree with Node 24.22.1. Linux Desktop had five
+5,000 ms timeout failures: selected Next/Next 7.364 s, All/Next 7.312 s,
+Next/All 5.562 s, All/All 6.472 s, and ALL All/All 5.156 s. Windows Desktop
+had three: selected Next/Next 5.959 s, All/Next 5.863 s and All/All 5.255 s.
+Here Next means UntilNext and All means unilateral ThroughAll. No geometric
+assertion failure was reported. Node revision, host hardware and concurrent
+load were not isolated as causes. All twelve renderer/configured jobs passed;
+[parent Security](https://github.com/angelcp2802/solidflow/actions/runs/40898440482)
+passed both jobs. The final retained macOS Desktop job passed unit tests, IPC,
+smoke and packaging; Linux/Windows Desktop retained their unit failures and
+skipped the later IPC/package steps. These parent results do not validate the
+new budget/increment or establish installed-platform support. New-head hosted
+acceptance remains separate.
+
+The earlier exact compiled-function REA evidence is reused: all nine production
+product hashes remain unchanged. No new REA analysis, setup or binary
+investigation was performed for this script/test-budget increment; the renderer
+and native measurements above are separate runtime evidence. The prior
+MCP transport failures and static subset's unknown coverage keep their original
+limits in the viewport-face entry below.
+
+The final 1024x661 blue capture was visually inspected; its SHA-256 is
+`04c4d889093e1250160df04bddedd36901d96311ad714fd4d30a5095dd7e41d7`.
+The saved three-component assembly has SHA-256
+`fed4aee20af759c613ccc210a382f75e48ee741d074977c132b5d6353ea44091`;
+the retained sequential part has SHA-256
+`33e46b144b874deae8d95d09d6d21aa3e3a50e9bdb23e6df061e3d7e7054a61c`.
+Original reports, failures, demos, capture and audit remain private.
+
+A separate new production-process launch verified readiness, an isolated owned
+profile and the nine product hashes, but exposed no targetable SolidFlow window
+in the available native app inventory. No demo was opened and no UI input was
+sent. The unused owned process and its children were closed; its diagnostic
+profile was retained. This native demo attempt is **not exercised**, not a
+native interaction PASS. It resolves no human/native-demo or release gate.
+The nine open prototype groups and broader assembly/platform acceptance remain
+open.
+
+Applied code-review, security-review, code-simplifier and measured
+performance-optimization guidance. Independent reviews cover the five changed
+non-Markdown files, affected file/IPC/preview contracts and documentation.
+Computer-use supplied only the native window inventory for the unexercised
+attempt above. No high-confidence vulnerability was identified in this scoped
+diff; this is not a whole-application audit or human PR approval.
+
 ## Actual viewport face limits and recorder readiness — 2026-10-29
 
 This follow-up to published `ab9e5a9` verifies actual CDP face clicks for both

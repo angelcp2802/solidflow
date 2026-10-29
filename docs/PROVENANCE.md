@@ -1,5 +1,61 @@
 # Public fixture provenance
 
+## Original combined part and assembly demo — 2026-10-29
+
+[`desktop-part-assembly-mates-flow.cjs`](../scripts/desktop-part-assembly-mates-flow.cjs)
+continues the real
+[`desktop-part-sequence-flow.cjs`](../scripts/desktop-part-sequence-flow.cjs)
+and [part transfer](../scripts/desktop-part-to-assembly-flow.cjs). No assembly
+graph or native result is supplied as input. Actual application commands create
+the root, identities, definitions, occurrences, relations and rotation captures.
+The additional input is the unchanged
+[`desktop-assembly-basic-authoring-original.cjs`](../scripts/desktop-assembly-basic-authoring-original.cjs)
+prism, written into the same isolated test-owned directory.
+
+The widened sequential part has V1080/A912: base `22*12*4`, two `2*2*4`
+cuts, a `4*4*3` boss and `2*2*2` cap. Its area is `800+48+48+16`. The prism
+has V24/A52, from dimensions 3x2x4. Two sequential occurrences plus one prism
+therefore have V2184/A1876, three solids and two definitions. These are
+per-solid sums, not a fused material union. No triangle measurement or native
+tool supplies these expected values.
+
+The first occurrence is fixed at identity. Root X/Guía X concentricity and
+its checked identity capture constrain Guía's Y/Z and orientation; root
+YZ/Guía YZ signed distance -35 then fixes Guía at `(35,0,0)`. Guía Z/Pin Z
+concentricity and a second rotation capture constrain Pin's transverse
+coordinates/orientation; Guía XY/Pin XY distance -20 closes Pin at `(35,0,20)`.
+Editing only the first distance -35→-40 gives Guía `(40,0,0)` and Pin
+`(40,0,20)`, with zero local DOF and no temporary anchor. Base and each
+sequential occurrence retain the original `seq-body` material identity; the
+prism's legacy nullable material reference remains scoped to its exact owner.
+
+Before the fourth relation, Pin's axial Z is free; before rotation capture,
+roll is free too. The initial declared move remains `(60,0,20)`, but the
+solver need not preserve those unconstrained coordinates. Intermediate free
+Z/roll are observations and geometry consistency checks, not literal placement
+oracles. They must not overwrite the final literal targets.
+
+Immediately before each capture button, the verified preview's two owner
+quaternions and request serial are copied and frozen. Independent Hamilton
+algebra predicts `conjugate(qFirst)*qSecond`; the returned lock must match up
+to quaternion sign. Final Pin orientation uses only those retained input
+quaternions, not the final reply. Its expected AABB comes from the eight literal
+corners `[0,3]x[0,2]x[0,4]`, transformed by that input-derived orientation and
+the literal final translation. Volume/area use 1e-5, coordinates/bounds 1e-6
+and quaternion components 1e-8; unit norm uses 1e-9. The union is within
+1e-6 of `(-11,-6,0)..(51,6,24)` in this original case.
+
+The original mateless two-occurrence Save/reopen assertions remain before this
+extension. It then checks the third import, four ordered relations/two locks,
+coupled preview/Cancel/retry, history, normal Save, reopening and another rigid
+solve. The two source files and original input remain byte-identical. The
+normal third write needs no new Save dialog; five Open dialogs and two Save As
+dialogs are allowlisted inside the owned profile. The final assembly's real
+Save bytes have their own artifact proof, separate from the saved part and
+capture. The new native request after reopening is not a cold-process claim;
+cached-scene checks on Cancel are marked explicitly. Results belong in
+[validation](VALIDATION.md).
+
 ## Original viewport face-limit inputs — 2026-10-29
 
 [`desktop-part-face-limits-flow.cjs`](../scripts/desktop-part-face-limits-flow.cjs)

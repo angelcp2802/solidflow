@@ -170,6 +170,9 @@ module.exports = function partToAssemblyWorkflow(context) {
     check(!(await observe()).workerErrors.length, 'No worker errors during part-to-assembly continuation');
     Object.assign(evidence, { assemblySavedSha256: digest(assemblyBytes), sourceFileUnchanged: true, finalDocument: doc,
       independentOracles: 'Final original sequence: widened22*12*4 base1056 minus two2*2*4 cuts32 plus4*4*3 boss48 plus2*2*2 cap8=1080mm3; area800+48+48+16=912mm2. Two coincident occurrences sum2160/1824, not a fused union. V/A1e-5; bounds1e-6.' });
+    const combined = require('./desktop-part-assembly-mates-flow.cjs')({ ...context, page, press, field, navigation });
+    const final = await combined(doc, part, firstId);
+    return final.document;
   }
   return { draftGuard, run };
 };

@@ -1,5 +1,39 @@
 # Development guide
 
+## Combined modeled-part and constrained assembly route — 2026-10-29
+
+After building, run `npm run test:desktop:part-sequence`. Its existing sequential
+part and two-occurrence transfer checks now continue through
+`desktop-part-assembly-mates-flow.cjs`: import the tracked original prism,
+place/name three components, create four root/component origin relations,
+capture two concentric rotation locks, edit a signed distance, exercise
+Cancel/retry/Apply and one Undo/Redo pair, then save/reopen and solve again.
+Keep the original part checks and the independently saved part artifact. The
+final capture and additional assembly artifact must identify the exact final
+assembly and match its actual normal Save bytes.
+
+The parent owns a fixed five-Open/two-Save-As path sequence and three completed
+Save IPC writes. The third write uses the established assembly association;
+the additional prism is generated from tracked original source in the owned
+temporary directory. Reuse existing guarded pointer/form/navigation helpers,
+sender checks, private Apply authority, cleanup and workflow deadlines.
+Do not supply application state, references or native replies to make this
+route pass. Origin references use the existing explicit forms; they do not
+establish viewport-picking coverage.
+
+Retain independent part/prism formulas, exact identities and current owners,
+the pre-capture frozen quaternion inputs and literal final positions. Before
+the last relation, axial position/roll can be free observations; do not turn
+them into fixed-coordinate expectations. Final closure requires zero local
+degrees of freedom and no temporary anchor. Two Cancel checkpoints reuse the
+confirmed scene and check document/history recovery; they are not new native
+measurements or exact raster-restoration evidence. Hidden-window CDP actions
+and native form setters remain distinct from physical keyboard, a new process,
+an installed application and human acceptance. See the
+[walkthrough](DEMO_ASSEMBLIES.md#from-a-modeled-part-to-a-constrained-three-component-assembly),
+[provenance](PROVENANCE.md#original-combined-part-and-assembly-demo--2026-10-29)
+and [validation](VALIDATION.md).
+
 ## Selecting independent end faces in the viewport — 2026-10-29
 
 Run `npm run test:desktop:part-face-limits` after building. It reuses the
@@ -2138,8 +2172,11 @@ named overrides; saved/editor variant solve/writeback remains a separate integra
 
 Use Node.js 24 and npm. Dependency versions are recorded in `package-lock.json`; install them with `npm ci`. Git is needed for the contribution workflow. Windows is the platform with the current local desktop evidence; macOS and Linux are targets whose build and runtime results must be recorded separately.
 
-The public Vitest suite retains isolated fork workers and each test's existing
-deadline. Concurrent workers are capped at four (or one fewer than the available
+The public Vitest suite retains isolated fork workers and its global 5-second
+test default. The six enclosed two-direction recipe cases use an explicit
+15-second fixture budget after hosted measurements of up to 7.364 seconds;
+their complete native builds and geometric/ownership assertions remain required.
+Concurrent workers are capped at four (or one fewer than the available
 CPU count, with a minimum of one), because individual CAD workers can own large
 native/WASM heaps. A targeted filtered run is diagnostic evidence, not a
 replacement for the complete `npm test` acceptance.
@@ -2587,7 +2624,7 @@ a fresh solve. Its renderer workflow checks an original fixed-prism case with
 a renamed child; source-local inspection of suppressed children is separate
 from active parent-placement checks. Configured CI is not platform acceptance.
 
-OpenCascade/WASM tests use the public Vitest `forks` pool: isolated child processes with a fresh worker per test file under Vitest's enabled isolation default. Initialize the runtime before constructing shapes, dispose engines and release owned native objects after use. Keep focused checks on the project configuration. The worker-count policy, test selection and timeouts remain unchanged; avoid sharing mutable kernel state across test files or weakening validity checks to accommodate a failing fixture.
+OpenCascade/WASM tests use the public Vitest `forks` pool: isolated child processes with a fresh worker per test file under Vitest's enabled isolation default. Initialize the runtime before constructing shapes, dispose engines and release owned native objects after use. Keep focused checks on the project configuration. The worker-count policy, test selection and global timeout remain unchanged. The six cases in `kernel.two-direction-limits-recipes.test.ts` have a measured 15-second local budget; this exception does not change geometric/ownership checks, the 60-second WASM setup budget or renderer deadlines. Avoid sharing mutable kernel state across test files or weakening validity checks to accommodate a failing fixture.
 
 Distinguish these evidence types in reports: numerical unit/integration tests, server-rendered components, browser or Electron interaction and exported-file checks. Record the exact files and commands used. Public CI must be self-contained: it uses tracked source, declared dependencies and synthetic fixtures that the project can distribute. A new fixture needs documented provenance, generation steps, parameters, units and tolerances. Do not invent a source or an expected result to fill a gap in evidence.
 
