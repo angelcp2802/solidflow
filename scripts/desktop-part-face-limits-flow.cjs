@@ -12,8 +12,8 @@ module.exports = function faceLimitsWorkflow(context) {
   const TARGET = 'select[aria-label="Superficie de destino"]', TARGET2 = 'select[aria-label="Superficie de destino de dirección 2"]';
   const NAME = 'input[aria-label="Nombre de operación"]', PLANE = 'input[aria-label="Distancia del plano"]';
   const PICK = '.property-manager button.outline-button';
-  const records = [], inputs = [], faces = [], guards = [];
-  const evidence = { partFaceLimits: { records, inputs, faces, guards,
+  const records = [], inputs = [], faces = [], guards = [], inputTraces = [];
+  const evidence = { partFaceLimits: { records, inputs, faces, guards, inputTraces,
     provenance: 'The unchanged original independent-end-limit fixture: Cartesian stepped base, separate 12x8 read-only limit blocks and two rectangles, in millimetres. No imported model or saved topology is supplied.',
     scope: 'Real D1/D2 viewport face clicks, exact original face/body owners, held-gesture wheel/leave/Escape rejection, Cancel/retry, Apply, history, source-plane motion, two writes and fresh reopening.',
     inputLimits: 'Actual CDP pointer press/release, wheel and Escape. Visible parameter fields use native setters and bubbling events. View changes use existing presets and Fit controls. Read-only hover references locate displayed original faces; no camera, handler, React state, document or worker response is injected.',
@@ -226,13 +226,92 @@ module.exports = function faceLimitsWorkflow(context) {
     }
     throw Error('Original face was not visibly hovered: ' + JSON.stringify({ ref, viewName, z, predicted, attempts }));
   }
+  // Capture-only diagnostics for the retained macOS release failure. These
+  // listeners never dispatch input or decide whether a face should be accepted.
+  // In particular, clearing hover on pointer-down is normal production behavior.
+  async function startInputTrace(point) {
+    await page(point => {
+      const key = '__solidflowFaceClickDiagnostics';
+      if (Object.hasOwn(window, key)) throw Error('A previous face-input observer is still active');
+      const events = [], limit = 16, endpoints = { canvasDown: false, canvasUp: false };
+      let dropped = 0;
+      const text = value => typeof value === 'string' ? value.slice(0, 2048) : null;
+      const rect = element => {
+        if (!element) return null;
+        const r = element.getBoundingClientRect();
+        return { x: r.x, y: r.y, width: r.width, height: r.height,
+          clientWidth: element.clientWidth, clientHeight: element.clientHeight };
+      };
+      const snapshot = () => {
+        const host = document.querySelector('.viewport-canvas'), canvas = host?.querySelector('canvas');
+        const hit = document.elementFromPoint(point.x, point.y), apply = document.querySelector('button[title="Aceptar operación"]');
+        return { host: rect(host), canvas: rect(canvas), hitTag: hit?.tagName ?? null, hitIsCanvas: !!canvas && hit === canvas,
+          picking: host?.dataset.partReferencePicking ?? null, mode: host?.dataset.partSelectionMode ?? null,
+          hoverFace: text(host?.dataset.partHoverFace), selectedFace: text(host?.dataset.partSelectedFace),
+          firstTarget: text(document.querySelector('select[aria-label="Superficie de destino"]')?.value),
+          secondTarget: text(document.querySelector('select[aria-label="Superficie de destino de dirección 2"]')?.value),
+          applyDisabled: apply ? apply.disabled : null,
+          operationName: text(document.querySelector('input[aria-label="Nombre de operación"]')?.value),
+          status: text(document.querySelector('.statusbar')?.textContent) };
+      };
+      const before = snapshot();
+      const types = ['pointerdown', 'pointerup', 'pointermove', 'pointerleave', 'pointercancel', 'blur', 'resize'];
+      const listener = event => {
+        const canvas = document.querySelector('.viewport-canvas canvas');
+        const targetIsCanvas = !!canvas && event.target === canvas;
+        if (event.type.startsWith('pointer') && !targetIsCanvas && !['pointerdown', 'pointerup', 'pointercancel'].includes(event.type)) return;
+        if (targetIsCanvas && event.type === 'pointerdown') endpoints.canvasDown = true;
+        if (targetIsCanvas && event.type === 'pointerup') endpoints.canvasUp = true;
+        if (events.length === limit) { events.shift(); dropped++; }
+        events.push({ type: event.type, trusted: event.isTrusted, pointerId: event.pointerId ?? null,
+          button: event.button ?? null, buttons: event.buttons ?? null,
+          clientX: event.clientX ?? null, clientY: event.clientY ?? null,
+          targetIsCanvas, targetIsWindow: event.target === window,
+          targetTag: event.target === window ? 'Window' : event.target instanceof Element ? event.target.tagName : null,
+          snapshot: snapshot() });
+      };
+      for (const type of types) window.addEventListener(type, listener, { capture: true, passive: true });
+      Object.defineProperty(window, key, { configurable: true, value: { stop() {
+        for (const type of types) window.removeEventListener(type, listener, true);
+        delete window[key];
+        return { before, events, endpoints, dropped, limit, after: snapshot(), observerRemoved: !Object.hasOwn(window, key) };
+      } } });
+    }, point);
+  }
+  const buildHeaders = state => ({ serial: state.serial, workerErrors: state.workerErrors.slice(-4).map(error => String(error).slice(0, 512)),
+    builds: state.builds.slice(-4).map(row => ({ serial: row.serial, lastFeatureId: last(row)?.id ?? null,
+      responsePresent: !!row.response, responseOk: row.response?.ok ?? null })) });
   async function pick(side, ref, viewName, z, predicate, expectedOwners, phase) {
     await view(viewName); await arm(side); const point = await findFace(ref, viewName, z);
-    const serial = (await observe()).serial;
-    await pointer('mousePressed', point, 1); await pointer('mouseReleased', point, 0);
-    inputs.push({ input: 'actual viewport left press/release', side, point, view: viewName, originalRef: ref });
-    await waitFor('accepted original face closes its owned request', () => page(() => document.querySelector('.viewport-canvas')?.dataset.partReferencePicking === 'false'));
-    return built(serial, predicate, expectedOwners, phase);
+    const before = await observe(), serial = before.serial;
+    await startInputTrace(point);
+    let primary;
+    try {
+      await pointer('mousePressed', point, 1); await pointer('mouseReleased', point, 0);
+      inputs.push({ input: 'actual viewport left press/release', side, point, view: viewName, originalRef: ref });
+      await waitFor('accepted original face closes its owned request', () => page(() => document.querySelector('.viewport-canvas')?.dataset.partReferencePicking === 'false'));
+      return await built(serial, predicate, expectedOwners, phase);
+    } catch (error) { primary = error; throw error; }
+    finally {
+      const trace = { phase, side, originalRef: ref, point, beforeWorker: buildHeaders(before), completed: !primary };
+      inputTraces.push(trace);
+      try {
+        trace.dom = await page(() => {
+          const observer = window.__solidflowFaceClickDiagnostics;
+          if (!observer) throw Error('Expected the owned face-input observer');
+          return observer.stop();
+        });
+        trace.afterWorker = buildHeaders(await observe());
+        if (!primary) {
+          check(trace.dom.observerRemoved && trace.dom.events.length <= trace.dom.limit, 'Bounded read-only face-input observer is removed after the click');
+          check(trace.dom.endpoints.canvasDown && trace.dom.endpoints.canvasUp,
+            'Both real pointer endpoints reached the displayed canvas');
+        }
+      } catch (error) {
+        trace.collectionError = String(error?.message ?? error);
+        if (!primary) throw error;
+      }
+    }
   }
   async function guardedRole(side, ref, viewName, z, initialRecovery) {
     await view(viewName); await arm(side);

@@ -1,5 +1,25 @@
 # Development guide
 
+## Bounded face-click input diagnostics — 2026-10-29
+
+`test:desktop:part-face-limits` now retains passive input diagnostics for each
+of its seven accepted-click attempts. Preserve the original hover, pointer
+dispatch, owned-request closure, native geometry and history/persistence
+assertions. A trace must not retry a click, supply a reference, alter a guard
+or increase the existing 35-second step/180-second workflow deadlines.
+
+The test-owned window observer keeps sixteen recent events, a dropped count
+and independent canvas down/up flags. It records target identity, viewport
+rectangles, current selection/request attributes, target field values and
+bounded status text, plus before/after headers of four existing worker builds.
+Keep capture listeners passive; descendant blur is not window blur. Remove
+listeners and the temporary observer property on success and failure, and
+retain the original error if diagnostic collection fails. Capture-phase
+snapshots precede the canvas handler; the final snapshot follows the original
+wait. Observation can affect scheduling. These records diagnose a failed
+interaction; they do not prove frame authority, a performance improvement or
+resolution of the retained macOS failure. See [validation](VALIDATION.md#observing-the-retained-macos-face-click-failure).
+
 ## Combined modeled-part and constrained assembly route — 2026-10-29
 
 After building, run `npm run test:desktop:part-sequence`. Its existing sequential

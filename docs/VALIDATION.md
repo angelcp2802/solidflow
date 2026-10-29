@@ -1,5 +1,167 @@
 # Validation
 
+## Native three-component demo and bounded REA outcomes — 2026-10-29
+
+The standard-assembly demo was exercised in a separate visible Windows Electron
+44.9.3 process with an owned fresh profile and the unchanged production main,
+preload, renderer and worker. This follows public baseline `76bf539`; the
+independent native-evidence audit rehashed **1,308 non-Markdown inputs in both
+source and runtime and all nine production products**, without mismatches.
+See the [combined walkthrough](DEMO_ASSEMBLIES.md#from-a-modeled-part-to-a-constrained-three-component-assembly)
+and the automated combined acceptance below. No application state, UI handlers,
+protocols, IPC results or worker responses were supplied by the launcher.
+
+An earlier isolated launch used `windowsHide:true` and produced no targetable
+SolidFlow window. The subsequent visible launch used `windowsHide:false` with
+the same products and became controllable. This changes only the private
+launcher; it is a bounded observed launch comparison, not a production-window
+fix or general platform conclusion. Unlike the earlier unexercised attempt,
+this fresh process opened the saved three-component assembly through its real
+native file dialog. The original fixture and source part remained unchanged;
+all writes went to an owned copy. The native demo process was left open in its
+own profile after the final checks.
+
+Fifteen retained UI/accessibility checkpoints and four actual saved-file
+proofs cover the following sequence. They are not a complete event-by-event
+input log.
+
+1. Open the original assembly and use native Save As to create a byte-identical
+   owned copy. The original opened assembly was solved and canceled before
+   creating the copy.
+2. With native keyboard input, change the root-to-Guía signed distance from
+   -40 to -45. Preview, Cancel and verify retained -45 draft fields with Apply
+   revoked; retry, then Apply. Guía and Pin both move to X45.
+3. Use Ctrl+S. Use Ctrl+Z and Save to restore the complete original bytes, then
+   Ctrl+Y and Save to restore the complete edited bytes. Reopen that saved copy
+   and inspect its components; solve and cancel the reopened copy again.
+4. Click Guía and Pin in the actual 3D viewport and inspect their corresponding
+   Properties panes. Displayed positions are Guía (45,0,approximately 0) and
+   Pin (45,0,20), with Base still fixed at identity.
+5. Exercise wheel inputs of +240 and -240 and Fit, observing the resulting
+   views qualitatively.
+
+The saved-file proof snapshots for Apply, Undo, Redo and reopening preserve
+component IDs, definitions, fixed/visible state, captures and all relation
+fields except the intended distance edit. The initial/Undo bytes have SHA-256
+`fed4aee20af759c613ccc210a382f75e48ee741d074977c132b5d6353ea44091`;
+Apply/Redo/reopened bytes have SHA-256
+`d1c27a8afe074910784b3122bd20bf1a5e16d76898b5f30ab9b864b61a35e0d9`.
+The largest saved-coordinate error against the literal X45 placement is below
+1.12e-9 mm. The reopened native solve reports **zero local DOF, rank 12 and
+four satisfied physical checks**. Residuals are satisfied, not numerically
+zero: the retained native checks show linear residuals at most 6.66e-10 mm and
+angular residuals at most 2.07e-11 rad.
+
+This session adds native opening, editing, history, saving/reopening, component
+selection and a fresh-process solve of the existing authored assembly. It does
+not repeat native creation of every part/component/relation or prove every
+menu. Wheel changes and Fit have no measured scale or pixel-difference oracle;
+middle-button dragging was not exercised. Live screenshots were inspected but
+were not archived as pixel-hashed native captures. No new BRep validity,
+volume/area or STEP measurements are claimed beyond the separate automated
+geometry evidence below. The bounded run does not establish human acceptance,
+complete assembly parity, installed-platform support or release readiness.
+
+REA results remain separate from that successful native interaction:
+
+- The existing REA 6.3 active Electron capture attempt failed when its hook
+  rejected the application's `solidflow://app` navigation as external. Its
+  error was retained; no producer, application protocol or security control
+  was patched or bypassed.
+- Passive CLI target listing completed with exit zero and direct Evidence
+  `ev_7e2863f36a11965c6c9fa469ca4fe8d3e9e05367dff0c81c694091df2cbc2867`.
+  It reported Node 24.22.0/protocol 1.1, **zero eligible targets and one
+  unsupported-location exclusion**. `raw_result` and subject are null and
+  locations are empty; the rejected target's URL and exact exclusion reason
+  cannot be recovered from this Evidence. No observe operation was invoked,
+  and no main-script digest, renderer, IPC or feature-execution observation
+  resulted.
+- The passive controller itself failed because its parser expected an
+  `{ok,data}` envelope instead of direct CLI Evidence. That local parser
+  failure does not invalidate the completed listing. Its separately owned
+  process tree was verified and closed without touching the live native demo.
+  A corrected second preparation was saved but **not executed**; an unlisted
+  UUID was never forced through REA authorization.
+
+The native interaction used the computer-use skill; the bounded REA diagnostics
+used reverse-engineer-anything, with code-review and security-review applied to
+launch/evidence boundaries. This increment changes no frontend implementation.
+All original checkpoints, file proofs and diagnostics remain private.
+
+At the retained hosted readback for
+[baseline `76bf539`](https://github.com/angelcp2802/solidflow/actions/runs/40912387750),
+eleven of twelve renderer/configured jobs passed and the macOS face-limit route
+failed after the combined sequence had passed. The **506-checkpoint combined
+sequence passed on Windows, Linux and macOS**. All three Desktop jobs failed at prerequisite steps, so those jobs did
+not exercise the new six-case recipe budget. The
+[Security run](https://github.com/angelcp2802/solidflow/actions/runs/40912387629)
+passed both jobs. The renderer failure remains under investigation; this record
+does not claim new-head hosted acceptance or replace the retained failures.
+The nine open prototype groups and broader native/platform/release gates remain
+open.
+
+### Observing the retained macOS face-click failure
+
+The failed macOS face route had already passed ten native phases, its first
+Save and all six held wheel/leave/Escape rejection cases. It failed at the
+first saved second-face replacement toward the original inward cap at z-3:
+the exact expected hover was observed and press/release was dispatched. The
+recorder did not observe request closure within the existing 35-second step
+deadline. There were
+no reported console/resource errors. The retained report contains no
+post-release DOM snapshot, so it does not establish whether a gesture guard,
+changed scene/frame, hit target or application admission rejected the click.
+
+The recorder now collects a bounded passive trace around each of its seven
+existing accepted-click attempts. It retains before/event/after DOM metadata
+and the last four existing worker-build headers. A ring holds at most sixteen
+events with a dropped count; two independent flags retain whether canvas
+down/up were observed even if older events leave the ring. Target tags and
+window identity distinguish a genuine window blur from captured descendant
+blur. Pointer endpoints delivered outside the canvas remain visible in the
+trace. These listeners do not dispatch input, invoke application handlers or
+change camera, geometry, tickets, deadlines, file grants or tolerances.
+
+Event snapshots run in the capture phase before the canvas handler. The final
+snapshot runs after the existing acceptance/build wait or its original error;
+it is not an immediate post-handler probe. Listener/global cleanup runs in
+`finally`, preserving the original failure if collection also fails. DOM reads
+and observation transport can affect timing. A diagnostic pass therefore does
+not establish a causal fix for the retained macOS failure.
+
+### Final local acceptance for the diagnostic increment
+
+The final Windows run used the existing Node 24.11.1/Electron 44.9.3 runtime.
+All six commands share **1,308 frozen non-Markdown inputs and nine unchanged
+production products**. Source/runtime inputs and products were verified around
+each phase. The manifest is
+`4b8d7ed40bf8d94158b163acf1828684a23f1e0964ab721fe2a68d0c6a5ad8a7`.
+
+| Command | Final result |
+| --- | --- |
+| `npm run build` | PASS, 3.887 s. |
+| `npm run test:desktop:part-face-limits`, sample 1 | PASS, 219 checkpoints; 23.334 s. |
+| `npm run test:desktop:part-face-limits`, sample 2 | PASS, 219 checkpoints; 23.233 s. |
+| `npm run test:desktop:part-sequence` | PASS, 506 checkpoints; 51.489 s. |
+| `npm test` | PASS, 436.168 s overall; **11,013 unit/CAD cases in 488 files**, Vitest 429.28 s, **200 IPC passes/two explicit platform skips**. |
+| `npm run test:desktop` | PASS, 1.557 s; production loader/preload/worker/WASM startup. |
+
+All three renderer reports match their eight relevant production hashes,
+report zero console/request failures, observe their owned child closing and
+confirm isolated-profile cleanup. Both face reports retain twenty native
+phases, six held-gesture rejections and seven completed traces with observers
+removed and down/up observed. Each trace has four retained events, no drops
+and exactly one additional worker build. Captured blur targets are BUTTON/DIV,
+not Window. Event coordinates use their float32 representation; exact decimal
+identity is not claimed. Ring overflow behavior was reviewed in code and was
+not exercised by these runs. An exploratory acceptance was stopped for
+collector review; only the final complete run above counts as full acceptance.
+
+Applied code-review, security-review and code-simplifier guidance to the
+test-only observer and cleanup/error contracts. No production UI, authority,
+dependency or security policy changed. Native interaction and REA limits remain
+as recorded above; a new-head hosted pass and recurring stability remain open.
+
 ## Modeled part to constrained three-component assembly — 2026-10-29
 
 This bounded continuation joins successive part authoring, the existing

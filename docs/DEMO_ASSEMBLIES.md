@@ -51,6 +51,13 @@ data and retained scene metadata, not an independent pixel-restoration test.
 Exact executed results and any separate native-window check belong in
 [validation](VALIDATION.md).
 
+The separate [visible Windows check](VALIDATION.md#native-three-component-demo-and-bounded-rea-outcomes--2026-10-29)
+opened this saved assembly in a fresh process, edited -40 to -45 on its own
+copy, exercised Cancel/retry/Apply and native keyboard history/save, then
+reopened it and checked component selection/Properties and another solve.
+It complements the automated authoring route; complete human acceptance and
+installed-platform validation remain open.
+
 ## Replacing references of a saved parallel/perpendicular relation
 
 1. In the standard assembly's Relations list, choose **Editar** for the saved
