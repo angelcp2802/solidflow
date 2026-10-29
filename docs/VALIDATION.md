@@ -1,5 +1,43 @@
 # Validation
 
+## Compact assembly toolbar acceptance inventory — 2026-10-29
+
+Follow-up to public `3268c31`. Its [CI](https://github.com/angelcp2802/solidflow/actions/runs/40938483335)
+passes the earlier origin-axis relation step on all three runners, then fails
+the three rotation-capture jobs at `Initial: exact unique current button
+command inventory`. This occurs before rotation capture: the shared recorder
+still expects eleven standard commands, while ordinary preselection adds two.
+The recorded console/request error arrays are empty.
+
+The recorder now requires the exact thirteen-command standard inventory and
+the unchanged seven-command configured inventory. It also checks that the
+unique face/LINE browse controls are enabled with their initial pressed states.
+Full-list equality remains strict; only its expected/actual diagnostic is
+bounded. The initial, Frontal and Isometric observations retain the existing
+32 px toolbar, 28×26 px buttons, containment, center-hit, overlap, camera-only
+state and CAD-request checks. Inputs remain Frontal followed by Isometric.
+
+**Final local Windows acceptance: PASS**, using the existing Node 24.11.1 and
+Electron 44.9.3 runtime. Two sequential batches completed five commands on the
+same frozen snapshot: build, complete standard/configured origin-axis-lock
+routes (**113/94 checkpoints**), `npm test` (**11,070 unit/CAD cases in 491 files,
+200 IPC passes/two explicit platform skips**) and production desktop startup.
+The original twenty/ten workflow phases retain their geometry, rotation-lock,
+Cancel/retry/Apply, history, Save/reopen and fresh-solve checks. Both renderer
+reports confirm zero console/request errors and owned child/profile cleanup.
+
+An independent final audit rehashed 1,314 inputs in both source and runtime,
+nine products, five logs and both batch states. Each renderer supplies the
+exact eight expected production-header hashes; the SVG is audited separately.
+All nine products remain byte-identical to the preceding accepted build. The
+combined input/product manifest is
+`6ce9329390e67e9d44207830143df8835006ac5366ee838d5799e6933a3119bd`.
+Applied code-review guidance and independent read-only reviews. This focused
+test-helper change leaves native oracles, tolerances, deadlines, dependencies
+and production code unchanged. No failed hosted job was retried. New-head
+hosted results, recurring stability, installed-platform and human acceptance
+remain open; #55 stays 16/25, #53 stays 6/9 and release gate #5 stays open.
+
 ## Clearing ordinary creation references explicitly — 2026-10-29
 
 Follow-up to public `00c9eb4`. Its [CI](https://github.com/angelcp2802/solidflow/actions/runs/40934830558)

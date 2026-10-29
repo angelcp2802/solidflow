@@ -4,7 +4,9 @@
 // No camera/application state injection or CAD geometry substitute is used.
 module.exports = async function compactViewportControls({ configured, page, waitFor, actualControl, observe, check, checks, canonical }) {
   const selector = configured ? '[aria-label="Vistas del ensamblaje configurado"]' : '.assembly-view-tools';
-  const names = ['Vistas guardadas', 'Normal a', 'Vista anterior', 'Isométrica', 'Frontal', 'Superior', 'Ajustar', ...(configured ? [] : ['Seleccionar caras', 'Arrastrar posición', 'Arrastrar giro', 'Desactivar manipulador'])];
+  const names = ['Vistas guardadas', 'Normal a', 'Vista anterior', 'Isométrica', 'Frontal', 'Superior', 'Ajustar',
+    ...(configured ? [] : ['Preseleccionar caras', 'Preseleccionar aristas lineales', 'Seleccionar caras',
+      'Arrastrar posición', 'Arrastrar giro', 'Desactivar manipulador'])];
   const inspect = () => page(selector => {
     const bars = document.querySelectorAll(selector), bar = bars[0], viewport = document.querySelector('.assembly-viewport');
     if (bars.length !== 1 || !bar || !viewport) throw Error('One compact toolbar and assembly viewport required');
@@ -62,7 +64,15 @@ module.exports = async function compactViewportControls({ configured, page, wait
   function verify(value, label) {
     const diagnostic = JSON.stringify(value);
     check(value.toolbarVisible && value.contained && value.toolbar.height === 32, label + ': compact 32px toolbar fully inside viewport/window: ' + diagnostic);
-    check(canonical(value.buttons.map(button => button.text)) === canonical(names), label + ': exact unique current button command inventory');
+    const actualNames = value.buttons.map(button => button.text);
+    check(canonical(actualNames) === canonical(names), label + ': exact unique current button command inventory: '
+      + JSON.stringify({ expected: names, actual: actualNames.slice(0, 32).map(name => name.slice(0, 128)),
+        actualCount: actualNames.length, displayedNameLimit: 32, nameCharacterLimit: 128 }));
+    if (!configured) for (const [name, pressed] of [['Preseleccionar caras', 'true'], ['Preseleccionar aristas lineales', 'false']]) {
+      const matches = value.buttons.filter(button => button.label === name);
+      check(matches.length === 1 && !matches[0].disabled && matches[0].pressed === pressed,
+        label + ': one enabled ' + name + ' command retains its idle aria-pressed=' + pressed);
+    }
     const normal = value.buttons.find(button => button.label === 'Normal a');
     const named = value.buttons.find(button => button.label === 'Vistas guardadas');
     check(value.normalSelection.kind === 'none' && value.normalSelection.keys === '[]' && value.normalSelection.enabled === 'true'
