@@ -24,6 +24,7 @@
     "test:desktop:part-end-caps": "node scripts/desktop-part-end-caps.cjs",
     "test:desktop:part-two-direction": "node scripts/desktop-part-two-direction.cjs",
     "test:desktop:part-two-direction-limits": "node scripts/desktop-part-two-direction-limits.cjs",
+    "test:desktop:part-face-limits": "node scripts/desktop-part-face-limits.cjs",
     "test:desktop:part-finishing": "node scripts/desktop-part-finishing.cjs",
     "test:desktop:part-body-catalog": "node scripts/desktop-part-body-catalog.cjs",
     "test:desktop:assembly-shortcuts": "node scripts/desktop-assembly-shortcuts.cjs",

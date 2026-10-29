@@ -9,6 +9,14 @@ and additional menu polish follow practical use. The bounded
 and [priority issue](https://github.com/angelcp2802/solidflow/issues/55) distinguish
 implemented cases from the remaining assembly and release scope.
 
+The [viewport face-limit route](CORE_WORKFLOWS.md#independent-automatic-end-limits)
+now exercises actual clicks for both extrusion/cut ends, saved second-face
+replacement, canceled gestures and reopening on original planar bodies.
+Coincident distinct faces no longer choose an owner by catalog order. Broader
+face/edge/datum and contextual interaction, full demo/human acceptance,
+materials/appearance and installed-platform validation remain open. This bounded
+follow-up does not close any of the nine remaining groups in #55.
+
 The [persisted configuration integration](ASSEMBLY_CONFIGURATIONS_PERSISTENCE.md)
 connects complete v3 source/catalog/selection files to effective native scenes,
 private worker previews and atomic Apply, state editing, history, recovery and

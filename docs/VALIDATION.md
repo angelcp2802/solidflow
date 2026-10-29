@@ -1,5 +1,99 @@
 # Validation
 
+## Actual viewport face limits and recorder readiness — 2026-10-29
+
+This follow-up to published `ab9e5a9` verifies actual CDP face clicks for both
+extrusion/cut end roles and fixes arbitrary selection between coincident faces.
+It also repairs recorder readiness in the existing sequence and fresh-sketch
+routes. See [workflow](CORE_WORKFLOWS.md#independent-automatic-end-limits),
+[development contract](DEVELOPMENT.md#selecting-independent-end-faces-in-the-viewport--2026-10-29)
+and [original inputs](PROVENANCE.md#original-viewport-face-limit-inputs--2026-10-29).
+
+Final local Windows acceptance reused Node 24.11.1/Electron 44.9.3. All thirteen
+commands share **1,307 pinned non-Markdown inputs/nine products**, verified
+before synchronization and around every phase. The final manifest is
+`c366d49ee7484d9a4c0e4ccd1e51bf1fbd329ecdc97dd193b150870358c9183e`.
+
+| Command | Final result |
+| --- | --- |
+| `npm run build` | PASS, 4.256 s. |
+| `npm run test:desktop:part-fresh-sketch` | PASS, 9.108 s; complete 86-checkpoint route. |
+| `npm run test:desktop:part-face-limits` | PASS, 23.315 s; **219 checkpoints/20 native-build phases/125 recorded inputs/six canceled-gesture cases**. |
+| `npm run test:desktop:part-sequence` | PASS, 23.894 s; complete 208-checkpoint route. |
+| `npm run test:desktop:part-two-direction-limits` | PASS, 22.307 s; complete 226-checkpoint route. |
+| `npm run test:desktop:part-two-direction` | PASS, 20.123 s; complete 195-checkpoint route. |
+| `npm run test:desktop:part-end-caps` | PASS, 13.040 s; complete 131-checkpoint route. |
+| `npm run test:desktop:part-auto-corners` | PASS, 12.872 s; complete 130-checkpoint route. |
+| `npm run test:desktop:part-thin-wall` | PASS, 18.255 s; complete 179-checkpoint route. |
+| `npm run test:desktop:part-external-axis` | PASS, 16.885 s; complete 109-checkpoint route. |
+| `npm run test:desktop:part-revolution` | PASS, 35.520 s; complete 251-checkpoint route. |
+| `npm test` | PASS, 430.837 s overall: **11,013 unit/CAD cases in 488 files**, Vitest 423.84 s; **200 IPC passes/two explicit platform skips**, no failures. |
+| `npm run test:desktop` | PASS, 1.547 s; production loader/preload/worker/WASM startup. |
+
+All ten renderer reports match eight relevant production hashes, contain zero
+console errors/failed requests, observe the owned child closing and confirm
+isolated-profile deletion. The new route identifies three original cap faces
+and delivers seven actual viewport clicks: both sides of a boss and cut, then
+saved second-face preview/Cancel/retry. Each role separately rejects held wheel,
+viewport-leave and Escape gestures. Exact recovery, current/creation owners,
+three history pairs, two writes and fresh reopening are checked. The boss changes
+V1680→1320 after its second target changes z-9→-3; the separate cut remains
+V6786. Moving the source 5→7 leaves both operations' references/endpoints fixed.
+Volume tolerance is 1e-5 mm3 and bounds tolerance 1e-6 mm. Analytical areas
+A1016/A824 are provenance expectations, not new measured BRep/area/STEP evidence.
+
+Production picking now rejects distinct frontmost references within its
+existing depth tolerance regardless of catalog order, while retaining multiple
+triangle hits on one reference and material occlusion. Seven new display/pure
+cases cover ambiguity and read-only hover currentness. These cases are included
+in the full count above; the separate focused 46-case check is not added again.
+The hover dataset only reports a detached reference after exact scene, role,
+camera and presentation checks. Parameters use native field setters with
+bubbling events; this hidden-child route is separate from physical keyboard,
+installed-app and human acceptance.
+
+Failures remain recorded. Hosted `ab9e5a9` failed its sequence route on all three
+systems at `Missing enabled field`; dependent Desktop gates consequently failed.
+The same failure reproduced locally on its unchanged products. Waiting for one
+enabled current field fixes that recorder. Integrated attempts 02/03 then exposed
+two fresh-sketch recorder races: a reopened depth field was still disabled, and
+a later unguarded context-editor setter could change DOM without changing the
+draft. All three depth edits now share readiness and the existing setter guard.
+Attempt 04 reran the complete sequence above. No geometry/owner assertions,
+tolerances, source-prefix guards, file grants or deadlines were relaxed.
+
+REA's whole-renderer MCP analysis and subsequent session probe both lost their
+transport and are not counted as completed analyses. The existing REA 6.3.0 CLI
+then analyzed two exact compiled-function byte ranges from `index-DFq6x4-P.js`,
+SHA-256 `19b8749619fa9cfca288745f4385bdf4233e87190a68da5b823c8fd4076bee7f`.
+Evidence `ev_c3fcb7f4bc0253a4b23c9fe09b4cd795c1610a57717b7c1ed04d6d28a9ec0d4c`
+records 853 bytes/two parsed files/310 AST nodes and zero parse failures or
+integrity contradictions. Its semantic graph has 236 nodes, 177 relations and
+84 unknowns, with coverage `unknown` and no truncation. Omitted dependencies
+and call sites remain unknown. This inert subset inspection neither proves
+execution nor replaces runtime or external-behavior evidence. Original bundle,
+byte-range provenance, full Evidence and failures remain private.
+
+The visually inspected 1024x661 blue capture has SHA-256
+`2d86c457a710b360625d98d4bd920a6c1d655f33417847c841894d3ba4b60d0e`;
+the saved original demo has SHA-256
+`193b236d238c0f837021aa4c7630b6ad5adf424e5ddf61583cd1695012b4f258`.
+They are local part-validation artifacts, not installed binaries or a complete
+assembly/human demo. The nine open #55 groups, #53 stability/platform gates,
+draft PR and release gate remain open.
+
+Applied frontend-design, vercel-react-best-practices client rules,
+code-simplifier, code-review and security-review, with bounded REA evidence.
+Independent scoped reviews cover the nine changed non-Markdown files and
+affected contracts; inputs/products and retained failures are checked separately.
+No actionable or high-confidence security finding remains in this diff; this
+is not human approval, a whole-application audit or a performance claim.
+The new route joins the existing persistence batch: 78 distinct renderer
+commands, partitioned 38/23/17. Permissions, dependencies, pins and grants remain
+unchanged. Current hosted results belong to [PR #49](https://github.com/angelcp2802/solidflow/pull/49)
+and [#53](https://github.com/angelcp2802/solidflow/issues/53); a local pass does not
+establish hosted or installed-platform acceptance.
+
 ## Independent native end limits in both directions — 2026-10-29
 
 This follow-up to published `13894c9` extends the strict optional second direction
@@ -101,13 +195,14 @@ high-confidence security finding remains in this diff. No base SECURITY_MODEL
 exists; existing desktop/security contracts apply without new exclusions.
 This is not human PR approval, a whole-application audit or a performance claim.
 
-The new route joins existing three-platform persistence jobs with unchanged
-permissions, pins, dependencies, grants and deadlines. Its hosted result is
-pending. Parent `13894c9` completes all fifteen
+The route joined existing three-platform persistence jobs with unchanged
+permissions, pins, dependencies, grants and deadlines. Its later hosted
+`ab9e5a9` sequence-recorder failure is addressed in the follow-up above.
+Parent `13894c9` completes all fifteen
 [CI jobs](https://github.com/angelcp2802/solidflow/actions/runs/40877560119) and
 both [Security jobs](https://github.com/angelcp2802/solidflow/actions/runs/40877560076).
-The documented renderer inventory now matches the configured 77 distinct
-commands: persistence 37, relations 23 and hinge-symmetry 17. Configuration and
+At that revision, the renderer inventory matched 77 distinct commands:
+persistence 37, relations 23 and hinge-symmetry 17. Configuration and
 single-head passes do not establish recurring stability or installed-platform use.
 
 Keep #55 **16/25**, #53 **6/9**, PR #49 draft/unmerged and release #5 open.

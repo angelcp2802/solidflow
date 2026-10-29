@@ -38,6 +38,10 @@ explicit selection mode. Switching modes clears the previous browsing selection.
 Click empty background or **Limpiar selección de pieza** to clear it without
 changing the document or its history.
 
+If distinct faces coincide at the frontmost depth, the click does not choose an
+arbitrary owner. Use another visible part of the face or change the view to
+make the intended reference unique.
+
 While editing an operation, its reference fields own the selection mode and the
 browsing controls are disabled. Finish or cancel the operation before changing
 the ordinary filter. Wheel zoom and held-middle-button camera navigation keep
@@ -225,9 +229,20 @@ Undo/Redo, save and fresh-reopen checks. See its
 [original fixtures](PROVENANCE.md#original-independent-end-limit-fixtures--2026-10-29)
 and the actual [validation record](VALIDATION.md) before making execution claims.
 
-Face selection has separate first/second buttons and rejects stale source or
-view requests. This plane-control renderer route does not test a physical click
-on a face. For operation regeneration, each supported fixed principal-plane
+For a face target, use **Seleccionar cara de destino** for the first side or
+**Seleccionar cara de destino de dirección 2** for the second, then click a
+visible face on the preceding model. Use the view presets and Fit as needed;
+after navigating, make a new complete click. A held gesture interrupted by the
+wheel, leaving the viewport or Escape cannot provide a late target. Escape
+cancels the operation; retry it to continue. Editing a saved target changes only
+that side, with Cancel, history and reopening retaining the saved references.
+
+The separate `npm run test:desktop:part-face-limits` route exercises these clicks
+on original outer caps at Z19/-9, then changes only the boss's second face to
+Z-3. The boss becomes V1320 mm³ and the independently targeted cut stays V6786
+mm³ after moving the source 5→7. This is bounded production-renderer CDP input
+evidence, separate from physical keyboard and installed-app acceptance.
+For operation regeneration, each supported fixed principal-plane
 end has its own explicit **Mantener plano límite fijo** choice; an inactive or
 unavailable saved choice can be removed independently. Datum/face limits in
 regeneration remain pending, as do broader interface and platform acceptance.

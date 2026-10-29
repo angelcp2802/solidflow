@@ -40,6 +40,22 @@ interface FaceVisualObject { face: PickableFace; object: THREE.Mesh }
 interface BodyVisualObject { ref: BodyReference; object: THREE.Mesh }
 interface PlaneVisualObject { id: string; object: THREE.Mesh; border?: THREE.LineSegments; normal?: THREE.ArrowHelper }
 
+export interface FaceHoverObservation { model: CadResult | null; frame: unknown; camera: string; face: PickableFace }
+
+/** Read-only display observation; it does not nominate or modify a saved target. */
+export function currentFaceHoverReference(observation: FaceHoverObservation | null, current: {
+  model: CadResult | null; frame: unknown; camera: string;
+  presentedModel: CadResult | null; presentedFrame: unknown; presentedCamera: string | undefined;
+  face: PickableFace | undefined; selectionMode: PartSelectionMode; disabled: boolean; navigating: boolean;
+}): FaceReference | null {
+  if (!observation || !current.model || !current.frame || current.disabled || current.navigating || !['auto', 'face'].includes(current.selectionMode)
+    || observation.model !== current.model || current.presentedModel !== current.model
+    || observation.frame !== current.frame || current.presentedFrame !== current.frame
+    || observation.camera !== current.camera || current.presentedCamera !== current.camera
+    || current.face !== observation.face) return null;
+  return { sourceFeatureId: observation.face.ref.sourceFeatureId, key: observation.face.ref.key };
+}
+
 function screenRay(camera: THREE.OrthographicCamera | THREE.PerspectiveCamera, pointer: { x: number; y: number }, viewport: { width: number; height: number }): THREE.Raycaster | null {
   if (viewport.width <= 0 || viewport.height <= 0 || pointer.x < 0 || pointer.y < 0 || pointer.x > viewport.width || pointer.y > viewport.height) return null;
   camera.updateMatrixWorld();
@@ -55,12 +71,20 @@ export function pickVisibleFace(camera: THREE.OrthographicCamera | THREE.Perspec
   if (!ray) return null;
   faces.forEach(face => face.object.updateMatrixWorld());
   const byObject = new Map(faces.map(face => [face.object, face.face]));
-  const hit = ray.intersectObjects(faces.map(face => face.object), false)[0];
-  if (!hit) return null;
+  const hits = ray.intersectObjects(faces.map(face => face.object), false);
+  if (!hits.length) return null;
+  const nearest = hits[0].distance, tolerance = Math.max(1e-5, nearest * 1e-7);
+  const candidates = new Map<string, PickableFace>();
+  for (const hit of hits) {
+    if (hit.distance > nearest + tolerance) break;
+    const face = byObject.get(hit.object as THREE.Mesh);
+    if (face) candidates.set(referenceIdentity(face.ref), face);
+  }
+  if (candidates.size !== 1) return null;
   body?.updateMatrixWorld();
   const surface = body ? ray.intersectObject(body, false)[0] : undefined;
-  if (surface && surface.distance < hit.distance - Math.max(1e-5, hit.distance * 1e-7)) return null;
-  return hit ? byObject.get(hit.object as THREE.Mesh) ?? null : null;
+  if (surface && surface.distance < nearest - tolerance) return null;
+  return candidates.values().next().value ?? null;
 }
 
 /** Frontmost body triangles; coincident hits on different bodies are ambiguous. */
@@ -232,6 +256,8 @@ export default function Viewport({
     presentedAxisCamera?: string;
     presentedReferenceFrame?: unknown;
     presentedReferenceCamera?: string;
+    presentedHoverFrame?: unknown;
+    presentedHoverCamera?: string;
     cancelAxisSelection: () => void;
     sketches: SketchVisualObjects[];
     body: THREE.Mesh | null;
@@ -520,9 +546,13 @@ export default function Viewport({
     resize.observe(el);
     const selectionGesture = createCadSelectionGesture();
     const contextGesture = createCadContextGesture();
-    const cancelSelection = () => { selectionGesture.cancel(); contextGesture.cancel(); clearAxisChoices(); };
+    const cancelSelection = () => {
+      selectionGesture.cancel(); contextGesture.cancel(); clearAxisChoices();
+      hoverPointer = null; clearFaceHover(); context.current?.updateHighlights();
+    };
     const cancelAxisSelection = () => {
       clearAxisChoices();
+      clearFaceHover(); context.current?.updateHighlights();
       if (interaction.current.revolutionAxisPicking) {
         selectionGesture.cancel();
         if (context.current) context.current.presentedAxisCandidates = undefined;
@@ -538,6 +568,19 @@ export default function Viewport({
     let hoverDirty = false;
     let hovered: string | null = null;
     let hoveredFace: string | null = null;
+    let faceHoverObservation: FaceHoverObservation | null = null;
+    function clearFaceHover() { hoveredFace = null; faceHoverObservation = null; el.dataset.partHoverFace = ''; }
+    const updateFaceHoverDataset = () => {
+      const value = interaction.current, c = context.current;
+      const reference = currentFaceHoverReference(faceHoverObservation, { model: value.model,
+        frame: value.referenceFrame ?? value.contextFrame, camera: faceHoverObservation ? cameraIdentity() : '',
+        presentedModel: c?.presentedModel ?? null, presentedFrame: c?.presentedHoverFrame, presentedCamera: c?.presentedHoverCamera,
+        face: faceHoverObservation ? value.faceReferences.findPrimary(faceHoverObservation.face.ref) : undefined,
+        selectionMode: value.selectionMode, disabled: value.selectionDisabled || !!value.revolutionAxisPicking,
+        navigating: navigationHistory.navigating });
+      const serialized = reference ? JSON.stringify(reference) : '';
+      if (el.dataset.partHoverFace !== serialized) el.dataset.partHoverFace = serialized;
+    };
     let hoveredPlane: string | null = null;
     let hoveredBody: BodyReference | null = null;
     let hoveredAxis: RevolutionAxisCandidate | null = null;
@@ -586,6 +629,7 @@ export default function Viewport({
       });
       const kind = interaction.current.selectionDisabled ? '' : hovered ? 'edge' : hoveredFace ? 'face' : hoveredPlane ? 'plane' : hoveredBody ? 'body' : '';
       el.dataset.partHoverKind = kind;
+      updateFaceHoverDataset();
       renderer.domElement.style.cursor = interaction.current.selectionDisabled ? 'wait' : axisPicking ? hoveredAxis ? 'pointer' : 'crosshair' : kind ? 'pointer' : interaction.current.selectionMode === 'auto' || interaction.current.selectionMode === 'body' ? '' : 'crosshair';
     };
     context.current.updateHighlights = updateHighlights;
@@ -617,7 +661,7 @@ export default function Viewport({
         contextGesture.down(e, interaction.current.contextFrame);
       } else contextGesture.cancel();
       hovered = null;
-      hoveredFace = null; hoveredPlane = null; hoveredBody = null;
+      clearFaceHover(); hoveredPlane = null; hoveredBody = null;
       updateHighlights();
     };
     const pointerMove = (e: PointerEvent) => {
@@ -626,7 +670,7 @@ export default function Viewport({
       if (e.buttons) {
         hoverPointer = null;
         hovered = null;
-        hoveredFace = null; hoveredPlane = null; hoveredBody = null;
+        clearFaceHover(); hoveredPlane = null; hoveredBody = null;
         updateHighlights();
         return;
       }
@@ -643,7 +687,7 @@ export default function Viewport({
       contextGesture.cancel();
       hoverPointer = null;
       hovered = null;
-      hoveredFace = null; hoveredPlane = null; hoveredBody = null;
+      clearFaceHover(); hoveredPlane = null; hoveredBody = null;
       updateHighlights();
     };
     const pointerUp = (e: PointerEvent) => {
@@ -769,6 +813,8 @@ export default function Viewport({
         const candidate = !axisPicking && pointer && mode !== 'body' ? pickReference(mode, pointer.x, pointer.y) : null;
         hovered = candidate?.kind === 'edge' ? edgeIdentity(candidate.reference) : null;
         hoveredFace = candidate?.kind === 'face' ? edgeIdentity(candidate.face.ref) : null;
+        faceHoverObservation = candidate?.kind === 'face' ? { model: interaction.current.model,
+          frame: interaction.current.referenceFrame ?? interaction.current.contextFrame, camera: cameraIdentity(), face: candidate.face } : null;
         hoveredPlane = candidate?.kind === 'plane' ? candidate.id : pointer && mode === 'body' ? pickPlane(pointer.x, pointer.y) : null;
         hoveredBody = pointer && mode === 'body' && interaction.current.onSelectBody && !hoveredPlane ? pickBody(pointer.x, pointer.y) : null;
         updateHighlights();
@@ -779,7 +825,11 @@ export default function Viewport({
         context.current.presentedAxisCamera = cameraIdentity();
         context.current.presentedReferenceFrame = context.current.presentedModel === interaction.current.model ? interaction.current.referenceFrame : undefined;
         context.current.presentedReferenceCamera = cameraIdentity();
+        context.current.presentedHoverFrame = context.current.presentedModel === interaction.current.model
+          ? interaction.current.referenceFrame ?? interaction.current.contextFrame : undefined;
+        context.current.presentedHoverCamera = cameraIdentity();
       }
+      updateFaceHoverDataset();
       drawTriad();
     });
     return () => {
@@ -1049,6 +1099,7 @@ export default function Viewport({
       data-part-selection-mode={selectionMode}
       data-part-axis-picking={!!revolutionAxisPicking}
       data-part-reference-picking={!!referencePickingRequest}
+      data-part-hover-face=""
       data-part-axis-candidates={JSON.stringify(revolutionAxisPicking?.candidates.map(candidate => ({ key: candidate.key, label: candidate.label })) ?? [])}
       data-part-active-input-sketches={JSON.stringify(activeInputSketches?.map(sketch => sketch.id) ?? [])}
       data-part-selected-face={selectedFace ? JSON.stringify(selectedFace) : ""}

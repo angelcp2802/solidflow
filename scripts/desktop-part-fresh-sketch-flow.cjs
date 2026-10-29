@@ -8,6 +8,13 @@ module.exports = function freshSketchWorkflow(c) {
   const APPLY = 'button[title="Aceptar operación"]', records = [], drawn = [];
   const page = (fn, ...args) => evaluate('(' + fn.toString() + ')(' + args.map(v => 'JSON.parse(' + quote(JSON.stringify(v)) + ')').join(',') + ')');
   const near = (a, b, tolerance, label) => check(Number.isFinite(a) && Math.abs(a - b) <= tolerance, label + ': ' + a + ' expected ' + b);
+  async function changeDepth(value) {
+    await waitFor('one enabled current fresh-operation depth', () => page(() => {
+      const fields = document.querySelectorAll('input[aria-label="Profundidad"]');
+      return fields.length === 1 && !fields[0].disabled;
+    }));
+    await page(value => { const e=document.querySelector('input[aria-label="Profundidad"]'); if(!e||e.disabled)throw Error('Depth field unavailable'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,String(value)); e.dispatchEvent(new Event('input',{bubbles:true})); }, value);
+  }
   async function right(point) { await pointer('mouseMoved',point); await pointer('mousePressed',point,2); await pointer('mouseReleased',point,2); }
   const popup='.part-feature-context-menu[role="menu"]';
   async function menuReady(kind) {
@@ -172,7 +179,7 @@ module.exports = function freshSketchWorkflow(c) {
     }, type));
     await require('./desktop-part-extrude-layout.cjs')({ page, recovery: () => page(() => localStorage.getItem('solidflow.autosave')), check, records },
       'fresh-' + type + '-cancel', { profileId: sketch.id, locked: true });
-    await page(value => { const e=document.querySelector('input[aria-label="Profundidad"]'); if(!e||e.disabled)throw Error('Depth field unavailable'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,String(value)); e.dispatchEvent(new Event('input',{bubbles:true})); }, type === 'cut' ? -3 : 3);
+    await changeDepth(type === 'cut' ? -3 : 3);
     await ready();
     const beforeContext=(await observe()).serial;
     const blockedPoint=await page(()=>{const r=document.querySelector('.viewport-canvas canvas').getBoundingClientRect();return{x:r.left+r.width/2,y:r.top+r.height/2};});
@@ -199,7 +206,7 @@ module.exports = function freshSketchWorkflow(c) {
     await waitFor('reopened fresh operation depth', () => page(() => !!document.querySelector('input[aria-label="Profundidad"]')));
     await require('./desktop-part-extrude-layout.cjs')({ page, recovery: () => page(() => localStorage.getItem('solidflow.autosave')), check, records },
       'fresh-' + type + '-accept', { profileId: sketch.id, locked: true });
-    await page(value => { const e=document.querySelector('input[aria-label="Profundidad"]'); if(!e||e.disabled)throw Error('Depth field unavailable'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,String(value)); e.dispatchEvent(new Event('input',{bubbles:true})); }, type === 'cut' ? -3 : 3);
+    await changeDepth(type === 'cut' ? -3 : 3);
     await ready(); const serial=(await observe()).serial; await click(APPLY);
     await waitFor('operation committed',()=>page(()=>!document.querySelector('.property-manager')));
     const row=await built(serial,count,volume,area,height,type), feature=row.features.at(-1);
@@ -236,7 +243,7 @@ module.exports = function freshSketchWorkflow(c) {
     const facePoint=await page(()=>{const r=document.querySelector('.viewport-canvas canvas').getBoundingClientRect();return{x:r.left+r.width/2,y:r.top+r.height/2};});
     await right(facePoint);await menuReady('face');await click('[data-part-context-action="edit-feature"]');
     await waitFor('context opens the actual saved cut editor',()=>page(()=>document.querySelector('input[aria-label="Profundidad"]')?.value==='-3'));
-    serial=(await observe()).serial;await page(()=>{const e=document.querySelector('input[aria-label="Profundidad"]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,'-2');e.dispatchEvent(new Event('input',{bubbles:true}));});
+    serial=(await observe()).serial;await changeDepth(-2);
     await ready();await built(serial,6,1000,800,7,'context-edit-preview');serial=(await observe()).serial;
     await click('button[title="Cancelar operación"]');const contextRestored=await built(serial,6,996,808,7,'context-edit-cancel');
     check(canonical(contextRestored.features)===canonical(saved.features),'Contextual parameter Cancel restores saved declarations exactly');

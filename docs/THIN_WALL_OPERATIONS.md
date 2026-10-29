@@ -109,7 +109,13 @@ model and prefix. Editing, cancellation or changing owners revokes that request.
 The viewport additionally checks the same scene, request and camera presented
 at press and release, and cancels stale gestures after navigation or resizing.
 These source/pure contracts do not establish physical face-click acceptance;
-the new renderer route selects planes through property controls.
+the independent-end renderer route selects planes through property controls.
+The separate `test:desktop:part-face-limits` route uses actual CDP clicks on
+original preceding-body caps for both roles, including saved target replacement,
+held-gesture cancellation, history and fresh reopening. See its
+[provenance](PROVENANCE.md#original-viewport-face-limit-inputs--2026-10-29) and
+[executed validation](VALIDATION.md). This bounded hidden-window route does not
+establish arbitrary/curved-face selection, installed-app or human acceptance.
 
 Primitive and genuinely source-solved entity regeneration reuse these sides
 after placement and apply reflection parity once. A fixed principal-plane

@@ -1,5 +1,39 @@
 # Public fixture provenance
 
+## Original viewport face-limit inputs — 2026-10-29
+
+[`desktop-part-face-limits-flow.cjs`](../scripts/desktop-part-face-limits-flow.cjs)
+reuses the unchanged
+[`desktop-part-two-direction-limits-original.cjs`](../scripts/desktop-part-two-direction-limits-original.cjs).
+Expected material comes from its original millimetre rectangles. Actual worker
+face references identify the original planar caps; they do not supply the
+expected geometry or click coordinates. Inputs use actual view presets/Fit and
+pixels calibrated from literal bounds `(0,-1,-10)..(41,14,20)`. Read-only hover
+readback must equal the independently identified original face before a click.
+The ring point `(40.5,3,z)` is outside the boss footprint, avoiding coincident
+cap ambiguity. No camera, application state, target handler or worker result is
+injected.
+
+Upper/lower outer faces at z19/-9 give the 10x6 boss height28, V1680 and
+analytical A1016. Editing only the second target by clicking the lower inward
+face z-3 gives height22, V1320 and analytical A824. The cut footprint
+`[10,14]x[4,7]` removes `12*(8-(-9))+6*(19-8)=270` from the stepped base,
+leaving V6786; selecting the first face while the second side still targets the
+z-3 plane leaves V6858. The two limit
+bodies remain V288/V576, with exact current/creation owners. Moving the source
+from z5 to z7 changes neither saved FaceRef nor anchored endpoints. The renderer
+checks V within 1e-5 mm3 and bounds within 1e-6 mm; the areas above are analytical
+expectations, not a new measured BRep/STEP claim.
+
+[`Viewport.face-picking.test.ts`](../src/components/Viewport.face-picking.test.ts)
+uses original Three.js display boxes and an orthographic 100-pixel/10-mm
+calibration. Distinct references at equal or near-equal depth reject in either
+catalog order; multiple triangles of one reference remain selectable, and nearer
+material occludes a scoped back face. Separate pure observation cases reject
+stale model/frame/camera/presentation and disabled/unavailable candidates.
+These display tests do not establish native geometry or actual input acceptance.
+Actual command outcomes belong in [validation](VALIDATION.md).
+
 ## Original independent end-limit fixtures — 2026-10-29
 
 This increment uses original Cartesian rectangles, explicitly declared world

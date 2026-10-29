@@ -14,6 +14,10 @@ module.exports = function partSequenceWorkflow(context) {
   const page = (fn, ...args) => evaluate('(' + fn.toString() + ')(' + args.map(v => 'JSON.parse(' + quote(JSON.stringify(v)) + ')').join(',') + ')');
   const initialLayout = (phase, profileId, locked) => require('./desktop-part-extrude-layout.cjs')({ page, recovery, check, records }, phase, { profileId, locked });
   async function change(selector, value) {
+    await waitFor('enabled current sequence field ' + selector, () => page(selector => {
+      const fields = document.querySelectorAll(selector);
+      return fields.length === 1 && !fields[0].disabled;
+    }, selector));
     await evaluate(`(() => { const e=document.querySelector(${quote(selector)}); if(!e||e.disabled) throw Error('Missing enabled field');
       const p=e.tagName==='SELECT'?HTMLSelectElement.prototype:HTMLInputElement.prototype;
       Object.getOwnPropertyDescriptor(p,'value').set.call(e,${quote(String(value))});

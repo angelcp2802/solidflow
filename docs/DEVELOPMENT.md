@@ -1,5 +1,33 @@
 # Development guide
 
+## Selecting independent end faces in the viewport — 2026-10-29
+
+Run `npm run test:desktop:part-face-limits` after building. It reuses the
+original independent-limit fixture, selects actual preceding-body faces with
+CDP press/release in both end roles, and exercises held wheel/leave/Escape
+rejection, Cancel/retry, Apply, history, a saved second-face edit, source-plane
+motion, two writes and fresh reopening. Parameter fields still use native
+setters with bubbling events; the window is an isolated hidden test child.
+The route does not establish physical keyboard, installed-app or human demo
+acceptance. See [provenance](PROVENANCE.md#original-viewport-face-limit-inputs--2026-10-29)
+and [executed validation](VALIDATION.md).
+
+`pickVisibleFace` rejects distinct frontmost references within its existing
+depth tolerance, independently of catalog order. Multiple triangle hits on the
+same exact reference remain selectable; nearer material still occludes a
+scoped face. Keep this decision in the production picker, not in the observer.
+The read-only `data-part-hover-face` contains a detached current reference or
+an empty string. It requires the exact model, selection/request frame, camera,
+presented scene and unique current face; navigation, disabled/mode changes and
+pointer cancellation invalidate it. It supplies no target-setting capability.
+Observer face/frame summaries are enabled only for this fixed scenario.
+
+The sequence recorder waits for one enabled current field before using its
+existing setter. The fresh-sketch recorder shares that wait across all three
+depth edits, including the saved-operation context editor. This retains the
+source-prefix guard instead of racing its asynchronous reconstruction. Preserve
+their original geometry, ownership and failure assertions and workflow deadlines.
+
 ## Independent linear extrusion directions — 2026-10-29
 
 `extrude` and `cut` share the strict optional `secondDirection` record. Use
@@ -54,8 +82,8 @@ model/prefix. Revoke them on draft/owner replacement, Cancel and Apply. Retain
 viewport press/release checks for presented scene, request, camera and size;
 navigation, wheel, leave, blur or resize cancel stale gestures. Preserve legacy
 D1 editing during body picking, but keep D2/facial selection and Apply guarded.
-Pure request tests and plane-select renderer controls do not attest physical
-face clicks.
+Pure request tests and plane-select renderer controls do not attest viewport
+clicks. The separate face-limit route above provides bounded CDP input evidence.
 
 For eligible thin walls, construct the outer solid and shortened inner core once
 over the complete shifted Blind span, with caps only at external ends. An active
@@ -77,7 +105,7 @@ Use the [contract](THIN_WALL_OPERATIONS.md#independent-linear-directions--2026-1
 and [original fixtures](PROVENANCE.md#original-independent-end-limit-fixtures--2026-10-29)
 to interpret checks; record actual results in [validation](VALIDATION.md).
 Separate second inversion, unsupported recipe limit correspondence, automatic
-caps, wider topology repair, physical face-click acceptance and the combined
+caps, wider topology repair, broader face-click coverage and the combined
 demo remain outside this bounded increment. Source, native, renderer and export
 evidence retain their separate limits; do not infer a full-suite or platform
 result from the authored cases.
@@ -2234,8 +2262,8 @@ The desktop smoke check loads the initial model, preload, worker and WASM and ch
 
 Run focused tests while developing, then the checks relevant to the complete change. The [CI workflow](../.github/workflows/ci.yml) is configured for Node 24 on Windows 2025 x64, Ubuntu 24.04 x64 and macOS 15 arm64: install, build, unit tests, IPC tests, Electron smoke check and packaging. Linux uses Xvfb. A configured job is not an executed result; check Actions for the actual commit and platform before claiming a pass.
 
-The 77 distinct longer renderer commands run in three fixed batches per operating
-system: persistence has 37, relations 23 and hinge-symmetry 17, separately from
+The 78 distinct longer renderer commands run in three fixed batches per operating
+system: persistence has 38, relations 23 and hinge-symmetry 17, separately from
 unit/CAD and packaging. The configured mechanical and
 compound workflows retain their separate job. The original Desktop check names
 depend on every renderer and configured job: after pinned Node setup, an

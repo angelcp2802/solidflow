@@ -56,6 +56,8 @@ const SCENARIOS = Object.freeze({
     test: 'production-renderer-part-two-direction', caption: 'independent blind extrusion depths, caps, cuts, editing and persistence' }),
   'part-two-direction-limits': Object.freeze({ thinWall: true, twoDirectionLimits: true, originalRecipe: 'desktop-part-two-direction-limits-original.cjs', entry: 'desktop-part-two-direction-limits.cjs',
     test: 'production-renderer-part-two-direction-limits', caption: 'independent extrusion limits, exact targets, editing and persistence' }),
+  'part-face-limits': Object.freeze({ thinWall: true, faceLimits: true, originalRecipe: 'desktop-part-two-direction-limits-original.cjs', entry: 'desktop-part-face-limits.cjs',
+    test: 'production-renderer-part-face-limits', caption: 'actual viewport face targets in both extrusion directions' }),
   'part-finishing': Object.freeze({ originalRecipe: 'desktop-part-finishing-original.cjs', entry: 'desktop-part-finishing.cjs',
     test: 'production-renderer-part-finishing', caption: 'selected body edge fillet and chamfer' }),
   'part-body-catalog': Object.freeze({ originalRecipe: 'desktop-part-body-catalog-original.cjs', entry: 'desktop-part-body-catalog.cjs',
@@ -193,6 +195,8 @@ const SCENARIOS = Object.freeze({
 let activeScenario = SCENARIOS.all, started = false;
 
 function thinWallScenarioFiles() {
+  if (activeScenario.faceLimits) return { original: require('./desktop-part-two-direction-limits-original.cjs'),
+    workflow: require('./desktop-part-face-limits-flow.cjs'), demoName: 'extrusiones-limites-caras.solidflow' };
   if (activeScenario.twoDirectionLimits) return { original: require('./desktop-part-two-direction-limits-original.cjs'),
     workflow: require('./desktop-part-two-direction-limits-flow.cjs'), demoName: 'extrusiones-limites-independientes.solidflow' };
   if (activeScenario.twoDirection) return { original: require('./desktop-part-two-direction-original.cjs'),
@@ -459,7 +463,7 @@ async function launch() {
 
 // Runs before any app bundle. This only observes/forwards the real Worker API;
 // no CAD response, React state, document or IPC result is supplied by the test.
-function installWorkerObserver(importedBodyDetails = false, structuralStep = false, structuralInsertion = false, configurations = false, profileDetails = false, finishingDetails = false, mateReferenceDetails = false, normalViewDetails = false, workerTimings = false) {
+function installWorkerObserver(importedBodyDetails = false, structuralStep = false, structuralInsertion = false, configurations = false, profileDetails = false, finishingDetails = false, mateReferenceDetails = false, normalViewDetails = false, workerTimings = false, faceLimitDetails = false) {
   const NativeWorker = globalThis.Worker;
   const observations = { serial: 0, eventSerial: 0, builds: [], ui: [], assemblies: [], assemblyUi: [], workerErrors: [] };
   const copy = value => JSON.parse(JSON.stringify(value));
@@ -646,6 +650,7 @@ function installWorkerObserver(importedBodyDetails = false, structuralStep = fal
           ...(importedBodyDetails ? { volume: result.volume, bounds: copy(result.bounds), meshVertexCount: result.vertices.length / 3, meshTriangleCount: result.triangles.length / 3 } : {}),
           bodies: result.bodies?.map(body => ({ ref: copy(body.ref), createdByFeatureId: body.createdByFeatureId,
             ...(normalViewDetails ? { faces: body.faces.map(face => ({ ref: copy(face.ref), frame: copy(face.frame), viewAxis: copy(face.viewAxis ?? null) })) } : {}),
+            ...(faceLimitDetails ? { faces: body.faces.map(face => ({ ref: copy(face.ref), frame: copy(face.frame ?? null) })) } : {}),
             ...(finishingDetails ? { edges: body.edges.map(edge => ({ ref: copy(edge.ref), lines: copy(edge.lines) })) } : {}),
             volume: body.volume, bounds: copy(body.bounds), ...(importedBodyDetails ? { meshAreaMm2: meshArea(body.vertices, body.triangles),
               meshVertexCount: body.vertices.length / 3, meshTriangleCount: body.triangles.length / 3 } : {}) })), featureErrors: copy(result.featureErrors), warnings: copy(result.warnings) } };
@@ -1055,7 +1060,7 @@ async function runInElectron() {
   };
   const {cameraFrame,cameraGesture,rasterComparison}=require('./desktop-camera-input.cjs')({getWindow:()=>window,evaluate,check,digest,allowed:configuredComponents||normalToView||fromEmpty||shortcuts||mateReferenceEdit,allowFrameDiagnostics:mateReferenceEdit,allowRasterComparison:fromEmpty||shortcuts});
   const wheel = async (point, deltaY) => {
-    check((partExternalAxis || normalToView || fromEmpty || limitDistance || freshSketch) && !window.isVisible() && window.webContents.debugger.isAttached()
+    check((partExternalAxis || activeScenario.faceLimits || normalToView || fromEmpty || limitDistance || freshSketch) && !window.isVisible() && window.webContents.debugger.isAttached()
       && Number.isFinite(point.x) && Number.isFinite(point.y) && point.x >= 0 && point.y >= 0
       && Number.isFinite(deltaY) && deltaY !== 0 && Math.abs(deltaY) <= 1000,
     'Expected a bounded actual wheel input in the hidden test-owned interval window.');
@@ -1136,7 +1141,7 @@ async function runInElectron() {
   };
   const menuKey = async (key, shift = false) => {
     const codes = { Escape: 27, Tab: 9, ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, Home: 36, End: 35, Enter: 13, ...((configuredComponents || normalToView || partSequence || basicAuthoring || freshSketch) ? { ContextMenu: 93 } : {}), ...((configuredComponents || freshSketch) ? { F10: 121 } : {}) };
-    check((partExternalAxis || configuredComponents || normalToView || fromEmpty || basicAuthoring || mateReferenceEdit || originAxes || partSequence || configuredPicking || assembly || freshSketch || activeScenario === SCENARIOS['assembly-configurations']) && !window.isVisible() && window.webContents.debugger.isAttached()
+    check((partExternalAxis || activeScenario.faceLimits || configuredComponents || normalToView || fromEmpty || basicAuthoring || mateReferenceEdit || originAxes || partSequence || configuredPicking || assembly || freshSketch || activeScenario === SCENARIOS['assembly-configurations']) && !window.isVisible() && window.webContents.debugger.isAttached()
       && Object.prototype.hasOwnProperty.call(codes, key) && typeof shift === 'boolean'
       && (!shift || (configuredComponents || freshSketch) && key === 'F10'), 'Expected bounded keyboard input in the hidden allowlisted CAD workflow.');
     await window.webContents.debugger.sendCommand('Input.dispatchKeyEvent', { type: 'keyDown', key, code: key, windowsVirtualKeyCode: codes[key],
@@ -1430,7 +1435,7 @@ async function runInElectron() {
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
     : partThinWall
-    ? thinWallScenarioFiles().workflow({ expected, input, output, evaluate, observe, waitFor, pointer, menuKey, capture,
+    ? thinWallScenarioFiles().workflow({ expected, input, output, evaluate, observe, waitFor, pointer, wheel, menuKey, capture,
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
     : partExternalAxis
@@ -1676,7 +1681,7 @@ async function runInElectron() {
         await super.loadURL('about:blank');
         this.webContents.debugger.attach('1.3');
         await this.webContents.debugger.sendCommand('Page.enable');
-        await this.webContents.debugger.sendCommand('Page.addScriptToEvaluateOnNewDocument', { source: '(' + installWorkerObserver.toString() + ')(' + (normalToView || fromEmpty || importedBodies || freshSketch || partBodyCatalog ? 'true' : 'false') + ',' + (structuralStep ? 'true' : 'false') + ',' + (structuralInsertion ? 'true' : 'false') + ',' + (configurations ? 'true' : 'false') + ',' + (partRevolution ? 'true' : 'false') + ',' + (partExternalAxis || partFinishing || freshSketch ? 'true' : 'false') + ',' + (mateReferenceEdit ? 'true' : 'false') + ',' + (normalToView ? 'true' : 'false') + ',' + (symmetryPicking ? 'true' : 'false') + ');' });
+        await this.webContents.debugger.sendCommand('Page.addScriptToEvaluateOnNewDocument', { source: '(' + installWorkerObserver.toString() + ')(' + (normalToView || fromEmpty || importedBodies || freshSketch || partBodyCatalog ? 'true' : 'false') + ',' + (structuralStep ? 'true' : 'false') + ',' + (structuralInsertion ? 'true' : 'false') + ',' + (configurations ? 'true' : 'false') + ',' + (partRevolution ? 'true' : 'false') + ',' + (partExternalAxis || partFinishing || freshSketch ? 'true' : 'false') + ',' + (mateReferenceEdit ? 'true' : 'false') + ',' + (normalToView ? 'true' : 'false') + ',' + (symmetryPicking ? 'true' : 'false') + ',' + (activeScenario.faceLimits ? 'true' : 'false') + ');' });
         checks.push('test-owned blank target initialized before CDP observation');
       })();
       await this.instrumentation;
