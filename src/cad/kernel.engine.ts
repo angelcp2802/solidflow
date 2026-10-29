@@ -40,8 +40,9 @@ import { clonePlaneFrame, offsetPlaneFrame, principalPlaneFrame } from './kernel
 import { makeOwnedPrimitiveSketch } from './kernel.primitive-sketch';
 import { resolveRevolutionAxis, revolutionRadialCoordinate, type ResolvedRevolutionAxis, type RevolutionAxisSources } from './revolutionAxis';
 import { isRevolutionFeature, resolveRevolutionExtent } from './revolutionExtent';
-import { resolveThinWall } from './thinWall';
+import { assertThinWallEndCapsContext, resolveThinWall } from './thinWall';
 import { prepareThinSection } from './kernel.thin-wall';
+import { buildThinWallEndCaps } from './kernel.thin-caps';
 import { loftSolid, sweepSolid } from './kernel.sweep-loft';
 import { geometryDelta, isRepetition, patternPlan, repetitionSolid, type FeatureGeometry } from './kernel.patterns';
 import { draftSolid, shellSolid } from './kernel.face-operations';
@@ -258,6 +259,9 @@ function featureSolid(feature: ExtrudeFeature | RevolutionFeature, sketchFeature
   else if (!Number.isFinite(feature.depth) || Math.abs(feature.depth)>10_000_000 || Math.abs(feature.depth)<1e-7) throw new Error('La extensión calculada para esta condición final no es válida.');
   const startOffset = sketchFeature.offset - (feature.symmetric ? feature.depth / 2 : 0);
   const startFrame = frame ? offsetPlaneFrame(frame, feature.symmetric ? -feature.depth / 2 : 0) : undefined;
+  if (thinSection && feature.thinWall?.endCaps?.enabled) {
+    return buildThinWallEndCaps(thinSection, feature.thinWall, sketchFeature.plane, startOffset, feature.depth, startFrame);
+  }
   if (sketchFeature.profile.kind === 'entities') {
     return entityProfileSolid(sketchFeature.profile, sketchFeature.plane, startOffset, { type: 'extrude', depth: feature.depth }, startFrame, derivedArcs);
   }
@@ -1170,6 +1174,9 @@ export class CadEngine {
       let bodyAware = false;
       try {
         const thinWall = resolveThinWall(feature);
+        assertThinWallEndCapsContext(thinWall?.definition, feature.type === 'extrude' ? 'add' : 'subtract',
+          feature.type === 'extrude' && feature.endCondition === undefined,
+          feature.type !== 'extrude' || feature.symmetric !== false);
         if (thinWall && feature.type !== 'extrude' && feature.type !== 'cut'
           && feature.type !== 'revolve' && feature.type !== 'revolvedCut') {
           throw new Error('La pared delgada solo corresponde a extrusiones y revoluciones de material o corte.');

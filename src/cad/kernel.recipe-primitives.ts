@@ -5,7 +5,8 @@ import { withNativeOwners, type NativeOwners } from './kernel.native-ownership';
 import { throughAllBossTool, throughAllTool, untilNextTool, upToSurfaceTool } from './kernel.extrusion-limits';
 import type { PlaneFrame, ThinWallDefinition, Vec3 } from './kernel.types';
 import { prepareThinSection } from './kernel.thin-wall';
-import { resolveThinWall } from './thinWall';
+import { assertThinWallEndCapsContext, resolveThinWall } from './thinWall';
+import { buildThinWallEndCaps } from './kernel.thin-caps';
 import { entityProfileSolid } from './kernel.profiles';
 import { resolveUntilNextAdd, resolveUntilNextCut, type UntilNextCutResolution } from './kernel.until-next-resolution';
 
@@ -104,15 +105,17 @@ function explicitFramePrimitiveFactory(input: ExplicitFramePrimitiveInput): {
     ray = frame.normal.map(value => sign * value) as Vec3,
     center = finitePoint(framePoint(frame, profile.center[0], profile.center[1]), 'World profile center');
   const thinWall = resolveThinWall(input);
-  const section = thinWall ? prepareThinSection({
-    id: 'recipe-primitive-profile', name: 'Recipe primitive profile', type: 'sketch', suppressed: false,
-    plane: 'XY', offset: 0, profile: { ...profile, center: [...profile.center] },
-  }, thinWall).sketch : undefined;
-  if (section && section.profile.kind !== 'entities') throw new Error('Thin-wall recipes require a closed prepared entity section.');
   const termination = input.termination;
   if (!termination || typeof termination !== 'object') throw new Error('Primitive termination is required.');
   if (termination.kind === 'blind' && typeof termination.symmetric !== 'boolean') throw new Error('Blind symmetry must be explicit.');
   if (termination.kind === 'throughAll' && typeof termination.bothDirections !== 'boolean') throw new Error('ThroughAll direction scope must be explicit.');
+  assertThinWallEndCapsContext(thinWall?.definition, input.operation,
+    termination.kind === 'blind', termination.kind !== 'blind' || termination.symmetric !== false);
+  const section = thinWall ? prepareThinSection({
+    id: 'recipe-primitive-profile', name: 'Recipe primitive profile', type: 'sketch', suppressed: false,
+    plane: 'XY', offset: 0, profile: { ...profile, center: [...profile.center] },
+  }, thinWall) : undefined;
+  if (section && section.sketch.profile.kind !== 'entities') throw new Error('Thin-wall recipes require a closed prepared entity section.');
   const target = input.workingTarget;
   if ((termination.kind === 'throughAll' || termination.kind === 'untilNext') && !target) {
     throw new Error('Dynamic termination requires the current per-instance working target.');
@@ -140,12 +143,14 @@ function explicitFramePrimitiveFactory(input: ExplicitFramePrimitiveInput): {
     const endCenter = finitePoint(startCenter.map((value, axis) => value + ray[axis] * length) as Vec3, 'Prism end center');
     void endCenter; // Reject overflow BEFORE invoking native constructors.
     return withNativeOwners(owners => {
-      if (section?.profile.kind === 'entities') {
+      if (section?.sketch.profile.kind === 'entities') {
         // The temporary section retains local center coordinates. Apply only
         // the explicit frame and axial start here, never the center twice.
         const origin = finitePoint(frame.origin.map((value, axis) => value + ray[axis] * start) as Vec3, 'Thin prism start origin');
-        const result = owners.own(entityProfileSolid(section.profile, 'XY', 0,
-          { type: 'extrude', depth: sign * length }, { ...frame, origin }, !!thinWall?.definition.autoCorners?.enabled));
+        const result = owners.own(thinWall?.definition.endCaps?.enabled
+          ? buildThinWallEndCaps(section, thinWall.definition, 'XY', 0, sign * length, { ...frame, origin })
+          : entityProfileSolid(section.sketch.profile, 'XY', 0,
+            { type: 'extrude', depth: sign * length }, { ...frame, origin }, !!thinWall?.definition.autoCorners?.enabled));
         input.validateTool(result);
         return result;
       }

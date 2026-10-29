@@ -3,7 +3,8 @@ import type { Feature, PlaneFrame, Vec3 } from './kernel.types';
 import type { IntrinsicRecipeExtrusionPlacement } from '../model/featureRecipes';
 import { entityProfileSolid } from './kernel.profiles';
 import { prepareThinSection } from './kernel.thin-wall';
-import { resolveThinWall } from './thinWall';
+import { assertThinWallEndCapsContext, resolveThinWall } from './thinWall';
+import { buildThinWallEndCaps } from './kernel.thin-caps';
 import { copyBodyShape, maximumNativeShapeTolerance } from './kernel.bodies';
 import { withNativeOwners } from './kernel.native-ownership';
 import { throughAllBossTool, throughAllTool, untilNextTool, upToSurfaceTool } from './kernel.extrusion-limits';
@@ -50,7 +51,11 @@ function entityRecipePrismFactory(input: EntityRecipeProfileInput): {
   if (!Number.isFinite(depth) || Math.abs(depth) < .01 || Math.abs(depth) > 100_000) throw new Error('Entity recipe depth is outside the native parameter range.');
   const ray = frame.normal.map(value => sign * value) as Vec3;
   const thinWall = resolveThinWall(placement);
-  const profile = thinWall ? prepareThinSection(view.resolved, thinWall).sketch.profile : view.result.profile;
+  const feature = source.features.find(feature => feature.id === placement.sourceFeatureId);
+  assertThinWallEndCapsContext(thinWall?.definition, feature?.type === 'extrude' ? 'add' : 'subtract',
+    placement.termination.kind === 'blind', placement.termination.kind !== 'blind' || placement.termination.symmetric !== false);
+  const section = thinWall ? prepareThinSection(view.resolved, thinWall) : undefined;
+  const profile = section?.sketch.profile ?? view.result.profile;
   if (profile.kind !== 'entities') throw new Error('Entity recipes require a closed resolved entity section.');
   // Reflection parity was applied exactly once by transformedExtrusionFrame.
   // Keep the authentic solved local coordinates and arc orientation unchanged.
@@ -65,8 +70,10 @@ function entityRecipePrismFactory(input: EntityRecipeProfileInput): {
       input.assertWorkingCurrent();
       // Explicit frame already includes the sketch offset once. This builder
       // constructs contours/holes/regions from result.profile without solving.
-      const prism = owners.own(entityProfileSolid(profile, view.input.plane, 0,
-        { type: 'extrude', depth: sign * length }, { ...frame, origin }, !!thinWall?.definition.autoCorners?.enabled));
+      const prism = owners.own(section && thinWall?.definition.endCaps?.enabled
+        ? buildThinWallEndCaps(section, thinWall.definition, view.input.plane, 0, sign * length, { ...frame, origin })
+        : entityProfileSolid(profile, view.input.plane, 0,
+          { type: 'extrude', depth: sign * length }, { ...frame, origin }, !!thinWall?.definition.autoCorners?.enabled));
       input.validateTool(prism);
       input.assertWorkingCurrent();
       return prism;
@@ -93,6 +100,7 @@ export function validateEntityRecipeProfileForAbsence(input: EntityRecipeProfile
 /** Native observations from the full authentic solved profile; no saved miss policy is inferred here. */
 export function resolveEntityRecipeUntilNext(input: EntityRecipeToolInput): UntilNextCutResolution {
   if (input.termination.kind !== 'untilNext') throw new Error('Entity UntilNext resolution requires its exact termination.');
+  assertThinWallEndCapsContext(resolveThinWall(input.placement)?.definition, input.operation, false, false);
   const { makePrism, ray } = entityRecipePrismFactory(input);
   return withNativeOwners<UntilNextCutResolution>(owners => {
     const result = (input.operation === 'subtract' ? resolveUntilNextCut : resolveUntilNextAdd)({
@@ -114,6 +122,8 @@ export function resolveEntityRecipeUntilNext(input: EntityRecipeToolInput): Unti
 /** Real solved entities, freshly constructed native material; no seed BRep/delta copying. */
 export function buildEntityRecipeTool(input: EntityRecipeToolInput): Shape3D {
   const { source, placement, termination } = input;
+  assertThinWallEndCapsContext(resolveThinWall(placement)?.definition, input.operation,
+    termination.kind === 'blind', termination.kind !== 'blind' || termination.symmetric !== false);
   const { makePrism, ray } = entityRecipePrismFactory(input);
   const depth = placement.signedDepth, frame = placement.frame;
   return withNativeOwners(owners => {

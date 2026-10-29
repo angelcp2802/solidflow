@@ -10,7 +10,8 @@ const positiveAngle = (angle: number) => ((angle % TAU) + TAU) % TAU;
 export function sketchVisual(feature: SketchFeature, frame: PlaneFrame = principalPlaneFrame(feature.plane, feature.offset)): SketchVisual {
   const topology = analyzeThinWallProfile(feature.profile);
   const visual: SketchVisual = { id: feature.id, frame: clonePlaneFrame(frame),
-    profileTopology: topology.topology, ...(topology.openOnly ? { profileOpenOnly: true } : {}), lines: [], constructionLines: [] };
+    profileTopology: topology.topology, ...(topology.openOnly ? { profileOpenOnly: true } : {}),
+    ...(topology.closedSingle ? { profileClosedSingle: true } : {}), lines: [], constructionLines: [] };
   const toWorld = ([u, v]: Point2) => framePoint(frame, u, v);
   const line = (a: Point2, b: Point2, construction = false) => {
     (construction ? visual.constructionLines : visual.lines).push(...toWorld(a), ...toWorld(b));

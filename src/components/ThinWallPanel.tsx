@@ -5,12 +5,18 @@ import { DEFAULT_WALL_THICKNESS, defaultThinWallDefinition } from './thinWallEdi
 import './thin-wall-panel.css'
 
 const DEFAULT_AUTO_CORNER_RADIUS = 5
+const DEFAULT_END_CAP_THICKNESS = 1
+
+function invalidThinDimension(value: number): boolean {
+  return !Number.isFinite(value) || value <= MIN_THIN_WALL_THICKNESS || value > MAX_THIN_WALL_THICKNESS
+}
 
 /** Mode changes retain the first displayed thickness; a new second side starts at 10 mm. */
 export function thinWallModeChange(wall: ThinWallDefinition, kind: string): ThinWallDefinition | null {
   if (kind === wall.kind) return wall
   const thickness = wall.kind === 'two-sides' ? wall.firstThickness : wall.thickness
-  const common = wall.autoCorners ? { autoCorners: { ...wall.autoCorners } } : {}
+  const common = { ...(wall.autoCorners ? { autoCorners: { ...wall.autoCorners } } : {}),
+    ...(wall.endCaps ? { endCaps: { ...wall.endCaps } } : {}) }
   if (kind === 'one-side') return { kind, thickness, reversed: false, ...common }
   if (kind === 'mid-plane') return { kind, thickness, ...common }
   if (kind === 'two-sides') return { kind, firstThickness: thickness, secondThickness: DEFAULT_WALL_THICKNESS, ...common }
@@ -32,10 +38,12 @@ interface Props {
   disabled?: boolean
   autoCornersAvailable?: boolean
   allowAutoCornerRecovery?: boolean
+  endCapsAvailable?: boolean
+  allowEndCapRecovery?: boolean
 }
 
 export default function ThinWallPanel({ thinWall, onChange, existing = false, required = false, disabled = false,
-  autoCornersAvailable = false, allowAutoCornerRecovery = false }: Props) {
+  autoCornersAvailable = false, allowAutoCornerRecovery = false, endCapsAvailable = false, allowEndCapRecovery = false }: Props) {
   // The regular/thin operation kind belongs to its creation, not an edit-time toggle.
   if (existing && !thinWall) return null
   const error = thinWallInputError(thinWall)
@@ -43,8 +51,11 @@ export default function ThinWallPanel({ thinWall, onChange, existing = false, re
   const autoCorners = thinWall?.autoCorners
   const showAutoCorners = autoCornersAvailable || (allowAutoCornerRecovery && !!autoCorners)
   // Inactive declarations still validate, so an invalid remembered radius must remain editable.
-  const invalidAutoCornerRadius = !!autoCorners && (!Number.isFinite(autoCorners.radius)
-    || autoCorners.radius <= MIN_THIN_WALL_THICKNESS || autoCorners.radius > MAX_THIN_WALL_THICKNESS)
+  const invalidAutoCornerRadius = !!autoCorners && invalidThinDimension(autoCorners.radius)
+  const endCaps = thinWall?.endCaps
+  const showEndCaps = endCapsAvailable || (allowEndCapRecovery && !!endCaps)
+  const invalidEndCapThickness = !!endCaps && invalidThinDimension(endCaps.thickness)
+  const endCapThicknessDisabled = disabled || (!endCapsAvailable && !!endCaps?.enabled)
   const changeThickness = (value: string, side?: 'firstThickness' | 'secondThickness') => {
     if (!thinWall || disabled) return
     const thickness = value === '' ? 0 : Number(value)
@@ -123,6 +134,29 @@ export default function ThinWallPanel({ thinWall, onChange, existing = false, re
               if (disabled) return
               onChange({ ...thinWall, autoCorners: { ...autoCorners,
                 radius: event.target.value === '' ? 0 : Number(event.target.value) } })
+            }} /><small>mm</small>
+        </div></label>}
+      </div>}
+      {showEndCaps && <div className="thin-wall-end-caps">
+        <label className="thin-wall-option-toggle" htmlFor="thin-wall-end-caps">
+          <input id="thin-wall-end-caps" type="checkbox" aria-label="Tapas de extremos"
+            checked={endCaps?.enabled ?? false} disabled={disabled || (!endCapsAvailable && !endCaps?.enabled)}
+            onChange={event => {
+              if (disabled || (!endCapsAvailable && (!endCaps?.enabled || event.target.checked))) return
+              onChange({ ...thinWall, endCaps: { enabled: event.target.checked,
+                thickness: endCaps?.thickness ?? DEFAULT_END_CAP_THICKNESS } })
+            }} />
+          Tapas de extremos
+        </label>
+        {endCaps && <label className={`number-field${!endCaps.enabled && !invalidEndCapThickness ? ' thin-wall-inactive-cap-thickness' : ''}`}
+          htmlFor="thin-wall-cap-thickness"><span>Espesor de tapas</span><div>
+          <input id="thin-wall-cap-thickness" aria-label="Espesor de tapas" type="number" step={0.1}
+            value={Number.isFinite(endCaps.thickness) ? endCaps.thickness : ''} disabled={endCapThicknessDisabled}
+            aria-invalid={!!error} aria-describedby={error ? 'thin-wall-error' : undefined}
+            onChange={event => {
+              if (endCapThicknessDisabled) return
+              onChange({ ...thinWall, endCaps: { ...endCaps,
+                thickness: event.target.value === '' ? 0 : Number(event.target.value) } })
             }} /><small>mm</small>
         </div></label>}
       </div>}

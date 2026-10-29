@@ -19,7 +19,26 @@ describe('shared native-free resolved profile analysis', () => {
     expect(analyzeThinWallProfile(profile)).toEqual({ topology: 'open', openOnly: true });
     profile.entities[2].construction = false;
     profile.entities.splice(0, 2);
+    expect(analyzeThinWallProfile(profile)).toEqual({ topology: 'closed', openOnly: false, closedSingle: true });
+  });
+
+  it('identifies one solved closed chain despite distinct coincident endpoint identifiers', () => {
+    const profile = open();
+    profile.points.push({ id: 'alias', x: 10, y: 0 });
+    profile.entities[1] = { id: 'vertical', type: 'line', start: 'alias', end: 'b', construction: false };
+    profile.entities.push({ id: 'close', type: 'line', start: 'b', end: 'origin', construction: false });
+    expect(analyzeThinWallProfile(profile)).toEqual({ topology: 'closed', openOnly: false, closedSingle: true });
+    profile.entities[2].construction = true;
+    expect(analyzeThinWallProfile(profile)).toEqual({ topology: 'open', openOnly: true });
+  });
+
+  it.each([0, 20])('does not identify two nested or disjoint circles as one closed component (separation %s)', (separation) => {
+    const profile: EntityProfile = { kind: 'entities', constraints: [], points: [{ id: 'second-center', x: separation, y: 0 }],
+      entities: [{ id: 'outer', type: 'circle', center: 'origin', radius: 5, construction: false },
+        { id: 'inner', type: 'circle', center: 'second-center', radius: 1, construction: false }] };
     expect(analyzeThinWallProfile(profile)).toEqual({ topology: 'closed', openOnly: false });
+    profile.entities[1].construction = true;
+    expect(analyzeThinWallProfile(profile)).toEqual({ topology: 'closed', openOnly: false, closedSingle: true });
   });
 
   it('keeps small derived arcs separate from legacy source admission', () => {

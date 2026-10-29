@@ -25,6 +25,13 @@ export function thinAutoCornersAvailableByProfile(sketchId: string, model: Pick<
   return matches.length === 1 && matches[0].profileTopology === 'open' && matches[0].profileOpenOnly === true
 }
 
+/** Axial caps require one current solved closed material component, not merely no open chain. */
+export function thinEndCapsAvailableByProfile(sketchId: string, model: Pick<CadResult, 'sketches' | 'featureErrors'> | null, current: boolean): boolean {
+  if (!current || !model || model.featureErrors.length) return false
+  const matches = model.sketches?.filter(sketch => sketch.id === sketchId) ?? []
+  return matches.length === 1 && matches[0].profileTopology === 'closed' && matches[0].profileClosedSingle === true
+}
+
 export function withRequiredThinWall<T extends ThinWallOperation>(feature: T, original: Feature | undefined, required: boolean): T {
   if (!required || original || Object.hasOwn(feature, 'thinWall')) return feature
   return { ...feature, thinWall: defaultThinWallDefinition() }

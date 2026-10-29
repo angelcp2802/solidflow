@@ -14,15 +14,21 @@ function thickness(value: unknown, label: string, noun = 'el espesor'): number {
 
 /** Strict detached declaration; no property access or numeric coercion is used. */
 export function validateThinWallDefinition(value: unknown, label = 'Operación de pared delgada'): ThinWallDefinition {
-  const fields = captureOwnDataRecord(value, ['kind', 'thickness', 'reversed', 'firstThickness', 'secondThickness', 'autoCorners'], ['kind'], label);
-  let options: Pick<ThinWallDefinition, 'autoCorners'> = {};
+  const fields = captureOwnDataRecord(value, ['kind', 'thickness', 'reversed', 'firstThickness', 'secondThickness', 'autoCorners', 'endCaps'], ['kind'], label);
+  let options: Pick<ThinWallDefinition, 'autoCorners' | 'endCaps'> = {};
   if (fields.has('autoCorners')) {
     const corner = captureOwnDataRecord(fields.get('autoCorners'), ['enabled', 'radius'], ['enabled', 'radius'], `${label}.autoCorners`);
     if (typeof corner.get('enabled') !== 'boolean') throw new Error(`${label}.autoCorners: la activación debe ser booleana.`);
     options = { autoCorners: { enabled: corner.get('enabled') as boolean,
       radius: thickness(corner.get('radius'), `${label}.autoCorners.radius`, 'el radio') } };
   }
-  const count = fields.size - (fields.has('autoCorners') ? 1 : 0);
+  if (fields.has('endCaps')) {
+    const caps = captureOwnDataRecord(fields.get('endCaps'), ['enabled', 'thickness'], ['enabled', 'thickness'], `${label}.endCaps`);
+    if (typeof caps.get('enabled') !== 'boolean') throw new Error(`${label}.endCaps: la activación debe ser booleana.`);
+    options = { ...options, endCaps: { enabled: caps.get('enabled') as boolean,
+      thickness: thickness(caps.get('thickness'), `${label}.endCaps.thickness`) } };
+  }
+  const count = fields.size - (fields.has('autoCorners') ? 1 : 0) - (fields.has('endCaps') ? 1 : 0);
   const kind = fields.get('kind');
   if (kind === 'one-side') {
     if (count !== 3 || !fields.has('thickness') || !fields.has('reversed') || typeof fields.get('reversed') !== 'boolean') {
@@ -75,20 +81,29 @@ export function resolveThinWall(feature: object): ResolvedThinWall | undefined {
   const definition = readThinWall(feature);
   if (!definition) return undefined;
   const cornerIdentity = definition.autoCorners ? [['auto-corners-v1', definition.autoCorners.enabled]] : [];
+  const capIdentity = definition.endCaps ? [['end-caps-v1', definition.endCaps.enabled]] : [];
   if (definition.kind === 'one-side') return {
     definition,
     positive: definition.reversed ? 0 : definition.thickness,
     negative: definition.reversed ? definition.thickness : 0,
-    identity: ['thin-wall-v1', definition.kind, definition.reversed, ...cornerIdentity],
+    identity: ['thin-wall-v1', definition.kind, definition.reversed, ...cornerIdentity, ...capIdentity],
   };
   if (definition.kind === 'mid-plane') return {
     definition, positive: definition.thickness / 2, negative: definition.thickness / 2,
-    identity: ['thin-wall-v1', definition.kind, ...cornerIdentity],
+    identity: ['thin-wall-v1', definition.kind, ...cornerIdentity, ...capIdentity],
   };
   return {
     definition, positive: definition.firstThickness, negative: definition.secondThickness,
-    identity: ['thin-wall-v1', definition.kind, 'first-positive', 'second-negative', ...cornerIdentity],
+    identity: ['thin-wall-v1', definition.kind, 'first-positive', 'second-negative', ...cornerIdentity, ...capIdentity],
   };
+}
+
+/** Context is resolved by the caller before any provisional automatic prism. */
+export function assertThinWallEndCapsContext(definition: ThinWallDefinition | undefined,
+  operation: string, blind: boolean, symmetric: boolean): void {
+  if (definition?.endCaps?.enabled && (operation !== 'add' || !blind || symmetric)) {
+    throw new Error('Tapas de pared delgada: requieren una extrusión aditiva ciega de un solo sentido.');
+  }
 }
 
 /** Draft clearing deletes the optional field instead of persisting own undefined. */

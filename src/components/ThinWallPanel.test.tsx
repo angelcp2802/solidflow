@@ -386,3 +386,157 @@ describe('automatic corner controls from explicit solved eligibility', () => {
     expect(onChange).not.toHaveBeenCalled()
   })
 })
+
+describe('end cap controls from explicit solved eligibility', () => {
+  const CAPS = 'Tapas de extremos', CAP_T = 'Espesor de tapas'
+
+  it('initializes an explicit cap activation at 1 mm without materializing settings during render', () => {
+    const onChange = vi.fn(), before = structuredClone(one)
+    const tree = ThinWallPanel({ thinWall: one, endCapsAvailable: true, onChange })
+    expect(control(tree, CAPS).props.disabled).toBe(false)
+    expect(renderToStaticMarkup(tree)).not.toContain(`aria-label="${CAP_T}"`)
+    expect(onChange).not.toHaveBeenCalled()
+    change(tree, CAPS, '', true)
+    expect(onChange).toHaveBeenCalledExactlyOnceWith({ ...one, endCaps: { enabled: true, thickness: 1 } })
+    expect(one).toEqual(before)
+  })
+
+  it('does not infer cap eligibility from required state or a retained declaration alone', () => {
+    const capped: ThinWallDefinition = { ...one, endCaps: { enabled: true, thickness: 1 } }
+    for (const required of [false, true]) {
+      const html = renderToStaticMarkup(ThinWallPanel({ thinWall: capped, required, onChange: () => undefined }))
+      expect(html).not.toContain(`aria-label="${CAPS}"`)
+      expect(html).not.toContain(`aria-label="${CAP_T}"`)
+    }
+    expect(ThinWallPanel({ existing: true, endCapsAvailable: true, onChange: () => undefined })).toBeNull()
+  })
+
+  it.each([one, mid, two])('edits cap thickness independently in the $kind wall', mode => {
+    const capped: ThinWallDefinition = { ...mode, endCaps: { enabled: true, thickness: 1 } }
+    const before = structuredClone(capped), onChange = vi.fn()
+    const tree = ThinWallPanel({ thinWall: capped, endCapsAvailable: true, onChange })
+    change(tree, CAP_T, '1.5')
+    expect(onChange).toHaveBeenCalledWith({ ...capped, endCaps: { enabled: true, thickness: 1.5 } })
+    expect(capped).toEqual(before)
+  })
+
+  it('retains the declared cap thickness through OFF/ON and leaves other options unchanged', () => {
+    const capped: ThinWallDefinition = { ...one, autoCorners: { enabled: false, radius: 3 }, endCaps: { enabled: true, thickness: 1.5 } }
+    const before = structuredClone(capped), onChange = vi.fn()
+    change(ThinWallPanel({ thinWall: capped, endCapsAvailable: true, existing: true, onChange }), CAPS, '', false)
+    const off = onChange.mock.lastCall![0] as ThinWallDefinition
+    expect(off).toEqual({ ...capped, endCaps: { enabled: false, thickness: 1.5 } })
+    const offTree = ThinWallPanel({ thinWall: off, endCapsAvailable: true, existing: true, onChange })
+    expect(renderToStaticMarkup(offTree)).toContain('class="number-field thin-wall-inactive-cap-thickness"')
+    change(offTree, CAPS, '', true)
+    expect(onChange).toHaveBeenLastCalledWith(capped)
+    expect(capped).toEqual(before)
+  })
+
+  it.each(['', '-2', 'NaN', '100001'])('keeps an invalid cap thickness draft %s editable and rejected', value => {
+    const capped: ThinWallDefinition = { ...one, endCaps: { enabled: true, thickness: 1 } }
+    const onChange = vi.fn()
+    change(ThinWallPanel({ thinWall: capped, endCapsAvailable: true, onChange }), CAP_T, value)
+    const invalid = onChange.mock.lastCall![0] as ThinWallDefinition
+    expect(invalid.endCaps?.thickness).toBe(value === '' ? 0 : Number(value))
+    expect(thinWallInputError(invalid)).not.toBeNull()
+    const tree = ThinWallPanel({ thinWall: invalid, endCapsAvailable: true, onChange })
+    expect(control(tree, CAP_T).props.disabled).toBe(false)
+    expect(renderToStaticMarkup(tree)).toContain('role="alert"')
+    expect(renderToStaticMarkup(tree)).toContain('aria-describedby="thin-wall-error"')
+    expect(capped.endCaps?.thickness).toBe(1)
+  })
+
+  it.each([true, false])('preserves detached cap and corner declarations through wall modes with cap enabled=%s', enabled => {
+    const capped: ThinWallDefinition = { ...one, autoCorners: { enabled: false, radius: 3 }, endCaps: { enabled, thickness: 1.5 } }
+    const before = structuredClone(capped)
+    Object.freeze(capped.endCaps); Object.freeze(capped.autoCorners); Object.freeze(capped)
+    let previous: ThinWallDefinition = capped
+    for (const mode of ['mid-plane', 'two-sides', 'one-side']) {
+      const next: ThinWallDefinition = thinWallModeChange(previous, mode)!
+      expect(next.endCaps).toEqual(capped.endCaps)
+      expect(next.autoCorners).toEqual(capped.autoCorners)
+      expect(next.endCaps).not.toBe(previous.endCaps)
+      expect(next.autoCorners).not.toBe(previous.autoCorners)
+      previous = next
+    }
+    expect(capped).toEqual(before)
+  })
+
+  it('keeps caps through thickness and side edits without changing their declaration', () => {
+    const capped: ThinWallDefinition = { ...one, endCaps: { enabled: true, thickness: 1.5 } }
+    const onChange = vi.fn(), tree = ThinWallPanel({ thinWall: capped, endCapsAvailable: true, onChange })
+    change(tree, 'Espesor de pared', '4')
+    expect(onChange).toHaveBeenLastCalledWith({ ...capped, thickness: 4 })
+    control(tree, 'Invertir lado de pared').props.onClick?.()
+    expect(onChange).toHaveBeenLastCalledWith({ ...capped, reversed: false })
+  })
+
+  it('allows only explicit disabling of an active retained setting when the context becomes ineligible', () => {
+    const capped: ThinWallDefinition = { ...one, endCaps: { enabled: true, thickness: 1.5 } }
+    const before = structuredClone(capped), onChange = vi.fn()
+    const tree = ThinWallPanel({ thinWall: capped, endCapsAvailable: false, allowEndCapRecovery: true, onChange })
+    expect(control(tree, CAPS).props.disabled).toBe(false)
+    expect(control(tree, CAP_T).props.disabled).toBe(true)
+    change(tree, CAP_T, '2'); change(tree, CAPS, '', true)
+    expect(onChange).not.toHaveBeenCalled()
+    change(tree, CAPS, '', false)
+    const off = onChange.mock.lastCall![0] as ThinWallDefinition
+    expect(off).toEqual({ ...capped, endCaps: { enabled: false, thickness: 1.5 } })
+    const offTree = ThinWallPanel({ thinWall: off, endCapsAvailable: false, allowEndCapRecovery: true, onChange })
+    expect(control(offTree, CAPS).props.disabled).toBe(true)
+    change(offTree, CAPS, '', true)
+    expect(onChange).toHaveBeenCalledOnce()
+    expect(capped).toEqual(before)
+  })
+
+  it.each([0, -1, 1e-7, NaN, Infinity, 100_001])('corrects retained invalid cap thickness %s while OFF and ineligible', thickness => {
+    const invalid: ThinWallDefinition = { ...one, endCaps: { enabled: false, thickness } }
+    const before = structuredClone(invalid), onChange = vi.fn()
+    const tree = ThinWallPanel({ thinWall: invalid, allowEndCapRecovery: true, onChange })
+    expect(control(tree, CAPS).props.disabled).toBe(true)
+    expect(control(tree, CAP_T).props.disabled).toBe(false)
+    expect(renderToStaticMarkup(tree)).not.toContain('thin-wall-inactive-cap-thickness')
+    expect(thinWallInputError(invalid)).not.toBeNull()
+    change(tree, CAP_T, '1.5')
+    const corrected = onChange.mock.lastCall![0] as ThinWallDefinition
+    expect(corrected).toEqual({ ...one, endCaps: { enabled: false, thickness: 1.5 } })
+    expect(thinWallInputError(corrected)).toBeNull()
+    expect(invalid).toEqual(before)
+  })
+
+  it('keeps the inactive cap field mounted across the first valid digit and decimal correction', () => {
+    const invalid: ThinWallDefinition = { ...one, endCaps: { enabled: false, thickness: 0 } }
+    const onChange = vi.fn()
+    let draft: ThinWallDefinition = invalid
+    for (const value of ['1', '1.5']) {
+      change(ThinWallPanel({ thinWall: draft, allowEndCapRecovery: true, onChange }), CAP_T, value)
+      draft = onChange.mock.lastCall![0] as ThinWallDefinition
+      const nextTree = ThinWallPanel({ thinWall: draft, allowEndCapRecovery: true, onChange })
+      expect(control(nextTree, CAP_T).props.disabled).toBe(false)
+      expect(control(nextTree, CAP_T).props).not.toHaveProperty('aria-hidden')
+      const label = renderToStaticMarkup(nextTree).match(/<label[^>]*for="thin-wall-cap-thickness"[^>]*>/)?.[0]
+      expect(label).toContain('thin-wall-inactive-cap-thickness')
+      expect(label).not.toContain('aria-hidden')
+      expect(label).not.toContain(' hidden')
+      expect(draft.endCaps).toEqual({ enabled: false, thickness: Number(value) })
+    }
+    expect(invalid.endCaps?.thickness).toBe(0)
+  })
+
+  it.each([true, false])('guards cap recovery callbacks while the prefix is stale, enabled=%s', enabled => {
+    const invalid: ThinWallDefinition = { ...one, endCaps: { enabled, thickness: 0 } }
+    const onChange = vi.fn(), tree = ThinWallPanel({ thinWall: invalid, endCapsAvailable: true, allowEndCapRecovery: true, disabled: true, onChange })
+    expect(control(tree, CAPS).props.disabled).toBe(true)
+    expect(control(tree, CAP_T).props.disabled).toBe(true)
+    change(tree, CAPS, '', false); change(tree, CAPS, '', true); change(tree, CAP_T, '1.5')
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('does not offer recovery without a retained setting or erase the existing wall kind', () => {
+    const onChange = vi.fn(), tree = ThinWallPanel({ thinWall: one, existing: true, allowEndCapRecovery: true, onChange })
+    expect(renderToStaticMarkup(tree)).not.toContain(`aria-label="${CAPS}"`)
+    expect(control(tree, 'Operación lámina').props.disabled).toBe(true)
+    expect(onChange).not.toHaveBeenCalled()
+  })
+})

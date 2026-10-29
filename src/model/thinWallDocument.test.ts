@@ -40,6 +40,31 @@ function wall(document: Document): WallOperation {
 }
 
 describe('thin-wall document compatibility', () => {
+  it.each(operations)('retains active/inactive cap intent through save and history on %s without granting native eligibility', type => {
+    const initial = fixture(type), history = new DocumentHistory(initial);
+    const thinWall: ThinWallDefinition = { ...definitions[0], endCaps: { enabled: true, thickness: 1 } };
+    history.apply(updateFeature(history.current, 'wall', { thinWall }));
+    const reopened = parseDocument(serializeDocument(history.current));
+    expect(wall(reopened).thinWall).toEqual(thinWall);
+    expect(wall(reopened).thinWall?.endCaps).not.toBe(thinWall.endCaps);
+    history.apply(updateFeature(reopened, 'wall', { thinWall: { ...thinWall, endCaps: { enabled: false, thickness: 1 } } }));
+    expect(wall(history.undo()).thinWall?.endCaps).toEqual({ enabled: true, thickness: 1 });
+    expect(wall(history.redo()).thinWall?.endCaps).toEqual({ enabled: false, thickness: 1 });
+    expect(wall(parseDocument(serializeDocument(history.current))).thinWall?.endCaps).toEqual({ enabled: false, thickness: 1 });
+    expect(history.current.features[0]).toEqual(initial.features[0]);
+  });
+
+  it.each(operations)('rejects executable and malformed cap records on %s before native work', type => {
+    const hook = vi.fn(() => 1), accessor = { enabled: true, thickness: 1 };
+    Object.defineProperty(accessor, 'thickness', { get: hook, enumerable: true });
+    for (const endCaps of [accessor, undefined, { enabled: true, thickness: '1' }, { enabled: false, thickness: NaN }]) {
+      const document = fixture(type);
+      Object.assign(wall(document), { thinWall: { ...definitions[0], endCaps } });
+      expect(() => validateDocument(document)).toThrow();
+    }
+    expect(hook).not.toHaveBeenCalled();
+  });
+
   it.each(operations)('round-trips and histories detached corner settings on %s', type => {
     const initial = fixture(type), history = new DocumentHistory(initial);
     const thinWall: ThinWallDefinition = { ...definitions[0], autoCorners: { enabled: true, radius: .001 } };

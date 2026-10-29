@@ -17,6 +17,7 @@ describe('accepted sketch display geometry', () => {
     expect(result.lines.slice(-3)).toEqual(firstSegment.slice(0, 3));
     expect(result.constructionLines).toEqual([]);
     expect(result.profileTopology).toBe('closed');
+    expect(result.profileClosedSingle).toBe(true);
   });
 
   it('displays an open entity line separately from construction geometry', () => {
@@ -33,6 +34,19 @@ describe('accepted sketch display geometry', () => {
     ]);
     expect(result.profileTopology).toBe('open');
     expect(result.profileOpenOnly).toBe(true);
+    expect(result.profileClosedSingle).toBeUndefined();
+  });
+
+  it('keeps multi-contour closed displays distinct from a single closed witness', () => {
+    const sketch = feature();
+    sketch.profile = { kind: 'entities', points: [], constraints: [], entities: [
+      { id: 'outer', type: 'circle', center: 'origin', radius: 10, construction: false },
+      { id: 'inner', type: 'circle', center: 'origin', radius: 5, construction: false },
+    ] };
+    const result = sketchVisual(sketch);
+    expect(result.profileTopology).toBe('closed');
+    expect(result.profileClosedSingle).toBeUndefined();
+    expect(result.lines.length).toBeGreaterThan(0);
   });
 
   it.each([false, true])('discretizes the correct arc side with clockwise=%s', (clockwise) => {

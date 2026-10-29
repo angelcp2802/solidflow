@@ -21,6 +21,7 @@
     "test:desktop:part-external-axis": "node scripts/desktop-part-external-axis.cjs",
     "test:desktop:part-thin-wall": "node scripts/desktop-part-thin-wall.cjs",
     "test:desktop:part-auto-corners": "node scripts/desktop-part-auto-corners.cjs",
+    "test:desktop:part-end-caps": "node scripts/desktop-part-end-caps.cjs",
     "test:desktop:part-finishing": "node scripts/desktop-part-finishing.cjs",
     "test:desktop:part-body-catalog": "node scripts/desktop-part-body-catalog.cjs",
     "test:desktop:assembly-shortcuts": "node scripts/desktop-assembly-shortcuts.cjs",

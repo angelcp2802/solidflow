@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Feature, SketchVisual, ThinWallDefinition } from '../cad/kernel.types'
-import { defaultThinWallDefinition, isThinWallOperation, mergeThinWallEditorDraft, thinAutoCornersAvailableByProfile, thinWallRequiredByProfile, withRequiredThinWall, type ThinWallOperation } from './thinWallEditorDraft'
+import { defaultThinWallDefinition, isThinWallOperation, mergeThinWallEditorDraft, thinAutoCornersAvailableByProfile, thinEndCapsAvailableByProfile, thinWallRequiredByProfile, withRequiredThinWall, type ThinWallOperation } from './thinWallEditorDraft'
 
 // Original declaration-only operations. No topology or native solve is fabricated by these tests.
 const target = { bodyId: 'original-body', sourceFeatureId: 'original-state' }
@@ -63,6 +63,21 @@ describe('thin-wall editor draft isolation', () => {
 })
 
 describe('automatic walls from current native sketch topology', () => {
+  it('offers caps only for a unique current explicitly single-closed-component source witness', () => {
+    const closedSingle = { ...witness('closed'), profileClosedSingle: true as const }
+    const model = { sketches: [closedSingle], featureErrors: [] }
+    expect(thinEndCapsAvailableByProfile('profile', model, true)).toBe(true)
+    for (const sketch of [witness('closed'), witness('open'), witness('invalid'), witness(),
+      { ...witness('open'), profileClosedSingle: true as const }]) {
+      expect(thinEndCapsAvailableByProfile('profile', { ...model, sketches: [sketch] }, true)).toBe(false)
+    }
+    expect(thinEndCapsAvailableByProfile('profile', model, false)).toBe(false)
+    expect(thinEndCapsAvailableByProfile('other', model, true)).toBe(false)
+    expect(thinEndCapsAvailableByProfile('profile', { ...model, sketches: [closedSingle, closedSingle] }, true)).toBe(false)
+    expect(thinEndCapsAvailableByProfile('profile', { ...model, featureErrors: [{ id: 'failed', message: 'Original failure' }] }, true)).toBe(false)
+    expect(thinEndCapsAvailableByProfile('profile', null, true)).toBe(false)
+  })
+
   it('offers rounding only for a unique current explicitly all-open source witness', () => {
     const openOnly = { ...witness('open'), profileOpenOnly: true as const }
     const model = { sketches: [openOnly], featureErrors: [] }

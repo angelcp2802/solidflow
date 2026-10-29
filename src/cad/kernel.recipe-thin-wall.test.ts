@@ -12,6 +12,7 @@ import { buildRecipeInstanceTool } from './kernel.recipe-instance';
 import { buildExplicitFramePrimitive, validatePrimitiveRecipeProfileForAbsence } from './kernel.recipe-primitives';
 import { checkpointSourceSketchSolves, createSourceSketchSolveRegistry } from './kernel.sketch-solves';
 import type { BodyReference, Feature, SketchFeature, ThinWallDefinition, Vec3 } from './kernel.types';
+import * as profiles from './kernel.profiles';
 
 // Original synthetic component fixtures, in mm. Expected solids use Cartesian
 // dimensions and circular-sector formulas, never the wall-preparation helper.
@@ -112,6 +113,71 @@ const transforms = [
   { kind: 'circularPattern', transform: { key: '1', angle: 180, origin: [15, 0, 0], direction: [0, 0, 1] }, min: [20, -10, 0], max: [30, 0, 8], center: [25, -5] },
   { kind: 'mirror', transform: { key: 'mirror', mirror: { origin: [15, 0, 0], xDirection: [0, 1, 0], normal: [1, 0, 0] } }, min: [20, 0, 0], max: [30, 10, 8], center: [25, 5] },
 ] as const;
+
+it.each([
+  { kind: 'linearPattern', transform: { key: '1,0', translation: [20, 0, 0] } },
+  { kind: 'circularPattern', transform: { key: '1', angle: 180, origin: [20, 0, 0], direction: [0, 0, 1] } },
+  { kind: 'mirror', transform: { key: 'mirror', mirror: { origin: [20, 0, 0], xDirection: [0, 1, 0], normal: [1, 0, 0] } } },
+] as const)('regenerates capped primitive and solved-entity additions through $kind without changing owners', row => withNativeOwners(owners => {
+  for (const entity of [false, true]) {
+    const profile: SketchFeature['profile'] = entity ? { kind: 'entities', points: [
+      { id: 'a', x: 4, y: -4 }, { id: 'b', x: 14, y: -4 }, { id: 'c', x: 14, y: 2 }, { id: 'd', x: 4, y: 2 },
+    ], entities: [
+      { id: 'ab', type: 'line', start: 'a', end: 'b', construction: false },
+      { id: 'bc', type: 'line', start: 'b', end: 'c', construction: false },
+      { id: 'cd', type: 'line', start: 'c', end: 'd', construction: false },
+      { id: 'da', type: 'line', start: 'd', end: 'a', construction: false },
+    ], constraints: [['a', 4, -4], ['b', 16, -4], ['c', 16, 4], ['d', 4, 4]].map(([id, x, y]) =>
+      ({ id: 'fix-' + id, type: 'fix', pointId: id as string, x: x as number, y: y as number })) }
+      : { kind: 'rectangle', center: [10, 0], width: 12, height: 8 };
+    const thinWall: ThinWallDefinition = { kind: 'one-side', thickness: 2, reversed: false, endCaps: { enabled: true, thickness: 1 } };
+    const setup = declarations(profile, thinWall, structuredClone(row.transform) as RecipeInstanceTransform, row.kind, [20, -10, 0], [40, 10, 4]);
+    const sourceProfile = setup.features[2]; if (sourceProfile.type !== 'sketch') throw Error('Expected original source');
+    sourceProfile.offset = 4;
+    setup.features[3] = { id: 'effect', name: 'Original capped addition', type: 'extrude', suppressed: false,
+      sketchId: sourceProfile.id, depth: 20, symmetric: false, thinWall, bodyOperation: { mode: 'merge', target: source } };
+    const before = JSON.stringify(setup), realSolve = vi.spyOn(profiles, 'solveEntityProfileResult');
+    realSolve.mockClear();
+    const solve = entity ? entitySource(setup.features, owners) : undefined;
+    const base = owners.own(makeBox([0, -10, 0], [20, 10, 4]));
+    // Independent healthy poststate: exact outer box minus the shortened core,
+    // fused to its base at z4. No seed delta/profile helper is replayed.
+    const outer = owners.own(makeBox([2, -6, 4], [18, 6, 24]));
+    const core = owners.own(makeBox([4, -4, 5], [16, 4, 23]));
+    const caps = owners.own(bodyBoolean('subtract', outer, core)), sourceShape = owners.own(bodyBoolean('add', base, caps));
+    const targetShape = owners.own(makeBox([20, -10, 0], [40, 10, 4]));
+    const active = catalog([{ ref: postSource, shape: sourceShape, createdBy: source.sourceFeatureId }, { ref: target, shape: targetShape }], owners);
+    const evaluated = evaluateFeatureRecipes({ ...setup, catalog: active, ...(solve ? { sourceSketchSolves: solve.registry } : {}),
+      historicalStates: new Map([[exactStateKey(postSource), { ref: postSource, shape: sourceShape, lineage: 'original-capped-addition' }]]) });
+    owners.own({ delete: () => evaluated.dispose() });
+    expect(evaluated.replacements.map(value => value.ref)).toEqual([target]);
+    // Outer/cavity V2112/A2416 plus baseV1600/A1120, minus the twice-counted
+    // contacting end face192*2. All transformed tools retain physical +Z.
+    metrics(evaluated.replacements[0].shape, 3712, 3152, [20, -10, 0], [40, 10, 24]);
+    probe(evaluated.replacements[0].shape, [30, 0, 4.5], true);
+    probe(evaluated.replacements[0].shape, [30, 0, 6], false);
+    metrics(active.resolve(target).shape, 1600, 1120, [20, -10, 0], [40, 10, 4]);
+    metrics(active.resolve(postSource).shape, 3712, 3152, [0, -10, 0], [20, 10, 24]);
+    expect(realSolve).toHaveBeenCalledTimes(entity ? 1 : 0);
+    expect(JSON.stringify(setup)).toBe(before);
+  }
+}), 60_000);
+
+it.each(['entity', 'primitive'] as const)('does not hide active cap settings behind an ALL separated %s cut witness', kind => withNativeOwners(owners => {
+  const profile: SketchFeature['profile'] = kind === 'entity' ? line() : { kind: 'rectangle', center: [5, 0], width: 4, height: 4 };
+  const setup = declarations(profile, { kind: 'one-side', thickness: 1, reversed: false, endCaps: { enabled: true, thickness: 1 } },
+    { key: '1,0', translation: [20, 0, 0] }, 'linearPattern', [20, -10, -10], [40, 10, -2]);
+  const effect = setup.features[3]; if (effect.type !== 'cut') throw Error('Expected original cut');
+  effect.endCondition = { kind: 'throughAll', baseFeatureId: source.sourceFeatureId, bothDirections: false };
+  setup.request.scope = { mode: 'all', reevaluateAt: 'patternInput' }; setup.request.bindings[0].targets = 'scope';
+  const solve = kind === 'entity' ? entitySource(setup.features, owners) : undefined;
+  const sourceShape = owners.own(makeBox([0, -10, 0], [20, 10, 4])), targetShape = owners.own(makeBox([20, -10, -10], [40, 10, -2]));
+  const active = catalog([{ ref: target, shape: targetShape }], owners);
+  expect(() => evaluateFeatureRecipes({ ...setup, catalog: active, ...(solve ? { sourceSketchSolves: solve.registry } : {}),
+    historicalStates: new Map([[exactStateKey(postSource), { ref: postSource, shape: sourceShape, lineage: 'adversarial-component-state' }]]) }))
+    .toThrow(/aditiva ciega/);
+  metrics(active.resolve(target).shape, 3200, 1440, [20, -10, -10], [40, 10, -2]);
+}), 60_000);
 
 it.each([
   { kind: 'linearPattern', transform: { key: '1,0', translation: [20, 0, 0] }, ownerMin: [20, -10, 0], ownerMax: [40, 10, 8],

@@ -1,5 +1,100 @@
 # Validation
 
+## Internal axial caps and explicit editor recovery — 2026-10-29
+
+The strict optional `thinWall.endCaps` record adds internal axial caps to fixed
+signed additive extrusions with one simple closed source component. Temporary
+outer/inner section metadata feeds a shared engine/recipe builder; the inner
+core shortens at both ends while the original envelope, resolved support/offset,
+source solve and owner/currentness rules remain. Unsupported active contexts
+reject before automatic factories or absence witnesses. Declaration absence
+retains legacy identities; OFF retains thickness and ordinary wall geometry.
+See the [contract](THIN_WALL_OPERATIONS.md) and [provenance](PROVENANCE.md).
+
+Final local Windows x64 acceptance reuses Node 24.11.1, Electron 44.9.3,
+TypeScript 7.0.2, Vitest 5.0.3, Vite 8.3.4 and Replicad/OpenCascade 1.1.0 without
+reset or dependency installation. All eight commands share **1,279 pinned
+source/runtime inputs and nine products**. Canonical `{files,production}`
+manifest SHA-256:
+`fc62a9152fbf46e5cd00cb63a4e2880c368d09742c08665b73d274fd1298aebf`.
+
+| Command | Final executed result |
+| --- | --- |
+| `npm run build` | PASS, 3.846 s. |
+| `npm run test:desktop:part-end-caps` with capture | PASS, 131 checkpoints / 25 native-build phases / 56 recorded control inputs, 13.191 s. |
+| `npm run test:desktop:part-auto-corners` with capture | PASS, complete existing 130-checkpoint route, 12.891 s. |
+| `npm run test:desktop:part-thin-wall` with capture | PASS, complete existing 179-checkpoint route, 18.225 s. |
+| `npm run test:desktop:part-external-axis` with capture | PASS, complete existing 109-checkpoint route, 16.708 s. |
+| `npm run test:desktop:part-revolution` with capture | PASS, complete existing 251-checkpoint revolution/cut/STEP route, 35.457 s. |
+| `npm test` | PASS, 10,818 unit/CAD cases in 475 files; 200 IPC passes, zero failures/two explicit Windows platform skips. Command 427.288 s; Vitest 420.36 s. |
+| `npm run test:desktop` | PASS, 1.548 s; production worker/WASM, queue and native prism checks. |
+
+All five renderer reports match eight production-input hashes, report zero
+console/request failures and confirm owned child closure and isolated profile
+deletion. The cap capture was inspected: the capped envelope and separate
+read-only cylinder are visible in the blue UI. The saved original document is
+retained locally; no executable/package or installed-platform acceptance follows.
+
+The new route covers actual cap activation, retained thickness, native core-zero
+rejection, explicit unsupported-midpoint OFF recovery, invalid inactive numeric
+correction, new/saved Apply, Cancel/retry, Undo/Redo, two writes and fresh native
+reopening. It verifies the same visible focused DOM field through 0→1→1.5,
+then actual pointer blur and reactivation. Controls use CDP pointer press/release;
+numeric entry uses native value setters and bubbling events, not physical
+keyboard delivery. There are two Open dialogs and one Save As. Renderer volume
+tolerance is `1e-5 mm³`, bounds `1e-6 mm`; this route does not independently
+attest BRep validity, surface, centroid or STEP.
+
+Nine separate original native cases inspect live and STEP-reopened BRep validity,
+one solid, volume, surface, centroid and bounds. They cover three wall modes,
+inside/outside, circle, signed depth/offset, oblique frame, cap 0.000001 and
+remaining core 0.00002. Complete-engine and primitive/solved-entity recipe cases
+check source retention, exactly one real source solve, support offsets once,
+linear/circular/mirror regeneration, exact owner states, history/reopening and
+unsupported-context/absence-witness rejection. Their independently specified
+formulas and tolerances are in provenance. A valid scalar declaration can still
+fail native construction; no numeric value is silently clamped.
+
+The first complete attempt stopped in the new core-zero rejection case. The
+worker correctly rejected it and returned the reconstruction-stopped warning;
+the new recorder's expected warning array omitted that exact message. A one-line
+correction now requires that exact warning only for failed builds, retaining
+exact feature error/owner inventory and all success-path expectations. The
+first failed log remains retained. No geometric tolerance, deadline, application
+guard or previous renderer workflow was relaxed. Focused source diagnostics and
+TypeScript checks preceded the locked-runtime table above.
+
+REA analyzes the exact final production worker SHA-256
+`420c5ec4ecb684d5f38b564a51ab62e6b25483cd805f7de1f71d2cc3fd67f767`,
+Evidence `ev_74dd9e7395a55982542299a0345a5c208a2f323c78a1bb2f7aee44dec15b564c`.
+One JavaScript file parses with zero parse failures (423,340 AST nodes);
+semantic coverage remains partial at the 100,000-node ceiling, with 77,321
+unknowns. The completed result was read through its retained summary and exported
+privately after a transport-size limit, without repeating analysis. Separate
+hash-matched declaration evidence and original-model UI observations inform the
+cap controls. A repeated midpoint transition rejects after intervening accepted
+Blind edits; earlier experimental document history still limits that observation.
+Neither metadata nor this bounded UI trace proves general eligibility or parity.
+No external code, model, binary, screenshot, private artifact or path is published.
+
+CI adds two literal cap-command steps to existing persistence jobs. Removing
+them reproduces the prior workflow byte-for-byte after line-ending normalization;
+command resolution is verified. Permissions, pins, dependencies and deadlines
+are unchanged. New-head hosted acceptance is pending. Parent automatic-corner
+route passes in all three persistence jobs; both parent Security jobs succeed.
+These observations do not establish recurring persistence or installed support.
+
+Applied frontend-design, vercel-react-best-practices, code-simplifier,
+code-review and security-review, with REA and Computer Use evidence. Independent
+scoped review reports no outstanding actionable/high-confidence finding; this is
+not a full application security audit or performance claim. Base 792c98f has no
+SECURITY_MODEL policy; no exclusions or policy changes are introduced.
+
+Keep #55 **16/25**, #53 **6/9**, PR #49 draft/unmerged and release #5 open. Other
+cap extents/regions, independent bidirectional extrusion, offset topology repair,
+broader editors/picking, complete demo/human use, materials, installed platforms
+and recurring stability remain open.
+
 ## Automatic thin-wall inner-radius corners — 2026-10-29
 
 The optional strict enabled/radius record derives temporary rounded open

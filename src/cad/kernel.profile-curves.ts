@@ -138,12 +138,12 @@ export function makeProfileCurves(profile: EntityProfile, derivedArcs = false): 
 }
 
 /** Classify resolved geometry, not nominal point IDs or an unsolved draft. */
-export function analyzeThinWallProfile(profile: Profile): { topology: 'open' | 'closed' | 'invalid'; openOnly: boolean } {
+export function analyzeThinWallProfile(profile: Profile): { topology: 'open' | 'closed' | 'invalid'; openOnly: boolean; closedSingle?: true } {
   const invalid = { topology: 'invalid' as const, openOnly: false };
   if (profile.kind !== 'entities') {
     const dimensions = profile.kind === 'circle' ? [profile.radius] : [profile.width, profile.height];
     return [...profile.center, ...dimensions].every(Number.isFinite) && dimensions.every((value) => value > JOIN_TOLERANCE)
-      ? { topology: 'closed', openOnly: false } : invalid;
+      ? { topology: 'closed', openOnly: false, closedSingle: true } : invalid;
   }
   if (profile.points.some((point) => !Number.isFinite(point.x) || !Number.isFinite(point.y))
     || profile.entities.some((entity) => entity.type === 'circle' && (!Number.isFinite(entity.radius) || entity.radius <= JOIN_TOLERANCE))) return invalid;
@@ -153,7 +153,7 @@ export function analyzeThinWallProfile(profile: Profile): { topology: 'open' | '
     const adjacency = nodes.map(() => [] as number[]);
     curves.forEach((curve, index) => curve.nodes?.forEach((node) => adjacency[node].push(index)));
     if (adjacency.some((edges) => edges.length > 2)) return invalid;
-    let open = false, closed = curves.some(curve => !curve.nodes);
+    let open = false, closedCount = curves.filter(curve => !curve.nodes).length;
     const seen = new Set<number>();
     for (let index = 0; index < curves.length; index++) {
       if (seen.has(index) || !curves[index].nodes) continue;
@@ -169,9 +169,10 @@ export function analyzeThinWallProfile(profile: Profile): { topology: 'open' | '
       const endpoints = [...component].filter((node) => adjacency[node].length === 1).length;
       if (endpoints !== 0 && endpoints !== 2) return invalid;
       if (endpoints === 2) open = true;
-      else closed = true;
+      else closedCount++;
     }
-    return { topology: open ? 'open' : 'closed', openOnly: open && !closed };
+    return { topology: open ? 'open' : 'closed', openOnly: open && closedCount === 0,
+      ...(!open && closedCount === 1 ? { closedSingle: true as const } : {}) };
   } catch { return invalid; }
 }
 

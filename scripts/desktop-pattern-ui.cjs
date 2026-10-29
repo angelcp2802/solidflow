@@ -50,6 +50,8 @@ const SCENARIOS = Object.freeze({
     test: 'production-renderer-part-thin-wall', caption: 'thin extrusions, cuts and revolutions with exact owners and persistence' }),
   'part-auto-corners': Object.freeze({ thinWall: true, autoCorners: true, originalRecipe: 'desktop-part-auto-corners-original.cjs', entry: 'desktop-part-auto-corners.cjs',
     test: 'production-renderer-part-auto-corners', caption: 'automatic thin-wall corner radii, modes, editing and persistence' }),
+  'part-end-caps': Object.freeze({ thinWall: true, endCaps: true, originalRecipe: 'desktop-part-end-caps-original.cjs', entry: 'desktop-part-end-caps.cjs',
+    test: 'production-renderer-part-end-caps', caption: 'thin-wall axial caps, explicit recovery, editing and persistence' }),
   'part-finishing': Object.freeze({ originalRecipe: 'desktop-part-finishing-original.cjs', entry: 'desktop-part-finishing.cjs',
     test: 'production-renderer-part-finishing', caption: 'selected body edge fillet and chamfer' }),
   'part-body-catalog': Object.freeze({ originalRecipe: 'desktop-part-body-catalog-original.cjs', entry: 'desktop-part-body-catalog.cjs',
@@ -185,6 +187,15 @@ const SCENARIOS = Object.freeze({
     additionalFixtures: Object.freeze({ replacementPart: 'assembly-updated-pin-original.json' }) }),
 });
 let activeScenario = SCENARIOS.all, started = false;
+
+function thinWallScenarioFiles() {
+  if (activeScenario.endCaps) return { original: require('./desktop-part-end-caps-original.cjs'),
+    workflow: require('./desktop-part-end-caps-flow.cjs'), demoName: 'tapas-extremos.solidflow' };
+  if (activeScenario.autoCorners) return { original: require('./desktop-part-auto-corners-original.cjs'),
+    workflow: require('./desktop-part-auto-corners-flow.cjs'), demoName: 'redondeos-pared.solidflow' };
+  return { original: require('./desktop-part-thin-wall-original.cjs'),
+    workflow: require('./desktop-part-thin-wall-flow.cjs'), demoName: 'operaciones-lamina.solidflow' };
+}
 const fixturePath = () => path.join(__dirname, '..', 'src', 'cad', 'fixtures', activeScenario.fixture);
 const PATTERN_ID = 'ui-all-P';
 const PROFILE_PREFIX = 'solidflow-pattern-all-test-';
@@ -264,7 +275,7 @@ async function launch() {
     } else if (activeScenario === SCENARIOS['part-external-axis']) {
       await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(require('./desktop-part-external-axis-original.cjs')()), { flag: 'wx' });
     } else if (activeScenario.thinWall === true) {
-      await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify((activeScenario.autoCorners ? require('./desktop-part-auto-corners-original.cjs') : require('./desktop-part-thin-wall-original.cjs'))()), { flag: 'wx' });
+      await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(thinWallScenarioFiles().original()), { flag: 'wx' });
     } else if (activeScenario === SCENARIOS['part-finishing']) {
       await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(require('./desktop-part-finishing-original.cjs')()), { flag: 'wx' });
     } else if (activeScenario === SCENARIOS['part-body-catalog']) {
@@ -391,7 +402,7 @@ async function launch() {
         const bytes = await fsp.readFile(path.join(temporary, activeScenario.shortcuts ? 'saved-shortcuts-copy.solidflow' : 'saved.solidflow'));
         const proof = report.checks.find(item => item && typeof item === 'object' && item.savedSha256);
         check(bytes.length <= 1024 * 1024 && proof?.savedSha256 === digest(bytes), 'The original demo must retain the exact verified native Save bytes.');
-        report.demoDocument = { name: activeScenario.thinWall === true ? activeScenario.autoCorners ? 'redondeos-pared.solidflow' : 'operaciones-lamina.solidflow' : activeScenario === SCENARIOS['part-external-axis'] ? 'eje-externo-revolucion.solidflow' : activeScenario === SCENARIOS['assembly-mate-reference-edit'] ? 'referencias-editadas.solidflow' : activeScenario === SCENARIOS['part-from-empty'] ? 'pieza-desde-cero.solidflow' : activeScenario === SCENARIOS['assembly-basic-authoring'] ? 'ensamblaje-creado.solidflow' : activeScenario.configuredPicking ? 'seleccion-configurada.solidflow' : activeScenario === SCENARIOS['part-fresh-sketch'] ? 'croquis-nuevos-en-caras.solidflow' : activeScenario === SCENARIOS['part-finishing'] ? 'redondeo-y-chaflan.solidflow' : activeScenario === SCENARIOS['part-revolution'] ? 'revolucion-y-corte.solidflow' : activeScenario === SCENARIOS['assembly-configured-components'] ? 'componentes-configurados.solidflow' : activeScenario.originAxes ? 'relaciones-ejes-origen.solidflow' : 'secuencia-operaciones.solidflow', sha256: digest(bytes), content: bytes.toString('utf8') };
+        report.demoDocument = { name: activeScenario.thinWall === true ? thinWallScenarioFiles().demoName : activeScenario === SCENARIOS['part-external-axis'] ? 'eje-externo-revolucion.solidflow' : activeScenario === SCENARIOS['assembly-mate-reference-edit'] ? 'referencias-editadas.solidflow' : activeScenario === SCENARIOS['part-from-empty'] ? 'pieza-desde-cero.solidflow' : activeScenario === SCENARIOS['assembly-basic-authoring'] ? 'ensamblaje-creado.solidflow' : activeScenario.configuredPicking ? 'seleccion-configurada.solidflow' : activeScenario === SCENARIOS['part-fresh-sketch'] ? 'croquis-nuevos-en-caras.solidflow' : activeScenario === SCENARIOS['part-finishing'] ? 'redondeo-y-chaflan.solidflow' : activeScenario === SCENARIOS['part-revolution'] ? 'revolucion-y-corte.solidflow' : activeScenario === SCENARIOS['assembly-configured-components'] ? 'componentes-configurados.solidflow' : activeScenario.originAxes ? 'relaciones-ejes-origen.solidflow' : 'secuencia-operaciones.solidflow', sha256: digest(bytes), content: bytes.toString('utf8') };
       }
     }
   } catch (error) {
@@ -1411,7 +1422,7 @@ async function runInElectron() {
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
     : partThinWall
-    ? (activeScenario.autoCorners ? require('./desktop-part-auto-corners-flow.cjs') : require('./desktop-part-thin-wall-flow.cjs'))({ expected, input, output, evaluate, observe, waitFor, pointer, menuKey, capture,
+    ? thinWallScenarioFiles().workflow({ expected, input, output, evaluate, observe, waitFor, pointer, menuKey, capture,
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
     : partExternalAxis

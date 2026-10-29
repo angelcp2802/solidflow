@@ -5,7 +5,8 @@ import initOpenCascade from 'replicad-opencascadejs';
 import { getOC, importSTEP, setOC } from 'replicad';
 import { CadEngine } from './kernel.engine';
 import { withNativeOwners } from './kernel.native-ownership';
-import { createDocument, parseDocument, serializeDocument, updateFeature } from '../model/document';
+import { DocumentHistory, createDocument, parseDocument, serializeDocument, updateFeature } from '../model/document';
+import * as profiles from './kernel.profiles';
 import type { BodyReference, CadResult, ExtrudeFeature, Feature, RevolutionFeature, SketchFeature, ThinWallDefinition, Vec3 } from './kernel.types';
 
 const engine = new CadEngine();
@@ -68,6 +69,75 @@ async function verify(features: Feature[], volume: number, area: number, min: Ve
 }
 
 describe('thin-wall material in the complete feature engine', () => {
+  const capped: ThinWallDefinition = { kind: 'one-side', thickness: 2, reversed: false, endCaps: { enabled: true, thickness: 1 } };
+  function capProfile(): SketchFeature {
+    return { ...rectangle('profile', 12, 8), profile: { kind: 'rectangle', center: [6, 4], width: 12, height: 8 } };
+  }
+
+  it('constructs and STEP-reopens a capped original rectangle through the full engine', async () => {
+    await verify([capProfile(), extrusion({ depth: 20, thinWall: capped })], 2112, 2416, [-2, -2, 0], [14, 10, 20]);
+  });
+
+  it('keeps the incoming support offset exactly once for negative capped extrusion', async () => {
+    const support: Feature = { id: 'cap-support', name: 'Original translated datum', type: 'plane', suppressed: false,
+      support: { kind: 'principal', plane: 'XY' }, offset: 3, reversed: false };
+    await verify([support, { ...capProfile(), support: { kind: 'plane', planeId: support.id }, offset: 4 },
+      extrusion({ depth: -20, thinWall: capped })], 2112, 2416, [-2, -2, -13], [14, 10, 7]);
+  });
+
+  it('solves the original constrained profile exactly once before making outer and core prisms', async () => {
+    const sketch: SketchFeature = { ...capProfile(), profile: { kind: 'entities', points: [
+      { id: 'a', x: 0, y: 0 }, { id: 'b', x: 10, y: 0 }, { id: 'c', x: 10, y: 6 }, { id: 'd', x: 0, y: 6 },
+    ], entities: [
+      { id: 'ab', type: 'line', start: 'a', end: 'b', construction: false },
+      { id: 'bc', type: 'line', start: 'b', end: 'c', construction: false },
+      { id: 'cd', type: 'line', start: 'c', end: 'd', construction: false },
+      { id: 'da', type: 'line', start: 'd', end: 'a', construction: false },
+    ], constraints: [['a', 0, 0], ['b', 12, 0], ['c', 12, 8], ['d', 0, 8]].map(([id, x, y]) =>
+      ({ id: 'fix-' + id, type: 'fix', pointId: id as string, x: x as number, y: y as number })) } };
+    const solve = vi.spyOn(profiles, 'solveEntityProfileResult');
+    await verify([sketch, extrusion({ depth: 20, thinWall: capped })], 2112, 2416, [-2, -2, 0], [14, 10, 20]);
+    expect(solve).toHaveBeenCalledTimes(1);
+  });
+
+  it('rebuilds cap thickness history and OFF recovery without changing exact body ownership', async () => {
+    const history = new DocumentHistory({ ...createDocument('Original axial-cap history'), features: [capProfile(),
+      extrusion({ depth: 20, thinWall: capped, bodyOperation: { mode: 'new', bodyId: 'caps-body' } })] });
+    const first = await verify(history.current.features, 2112, 2416, [-2, -2, 0], [14, 10, 20]);
+    history.apply(updateFeature(history.current, 'operation', { thinWall: { ...capped, endCaps: { enabled: true, thickness: 2 } } }));
+    // Core12*8*16; inner area2*96+2*(12+8)*16, plus outer area1504.
+    const edited = await verify(parseDocument(serializeDocument(history.current)).features, 2304, 2336, [-2, -2, 0], [14, 10, 20]);
+    expect(edited.bodies!.map(body => body.ref)).toEqual(first.bodies!.map(body => body.ref));
+    await verify(history.undo().features, 2112, 2416, [-2, -2, 0], [14, 10, 20]);
+    await verify(history.redo().features, 2304, 2336, [-2, -2, 0], [14, 10, 20]);
+    history.apply(updateFeature(history.current, 'operation', { thinWall: { ...capped, endCaps: { enabled: false, thickness: 2 } } }));
+    await verify(parseDocument(serializeDocument(history.current)).features, 1920, 2112, [-2, -2, 0], [14, 10, 20]);
+  });
+
+  it.each(['cut', 'revolve', 'revolvedCut', 'symmetric', 'throughAll', 'untilNext', 'upToSurface'] as const)(
+    'rejects active axial caps for %s before constructing a provisional tool', kind => {
+      let operation: Feature = extrusion({ depth: 20, thinWall: capped });
+      if (kind === 'cut') operation = extrusion({ type: 'cut', depth: 20, thinWall: capped });
+      else if (kind === 'revolve' || kind === 'revolvedCut') operation = { id: 'operation', name: 'Unsupported caps', type: kind,
+        suppressed: false, sketchId: 'profile', angle: 360, thinWall: capped };
+      else if (kind === 'symmetric') operation.symmetric = true;
+      else operation.endCondition = kind === 'upToSurface' ? { kind, target: { kind: 'principal', plane: 'XY' } }
+        : kind === 'throughAll' ? { kind, baseFeatureId: 'base', bothDirections: false } : { kind, baseFeatureId: 'base' };
+      const result = engine.build([...box(), capProfile(), operation]);
+      expect(result.featureErrors).toHaveLength(1); expect(result.featureErrors[0].message).toMatch(/aditiva ciega/);
+      close(result.volume, 1920); expect(() => engine.export('step')).toThrow(/errores/);
+    });
+
+  it('recovers a saved cap declaration after its source becomes open by explicitly disabling it', async () => {
+    const operation = extrusion({ thinWall: capped });
+    const rejected = engine.build([line(), operation]);
+    expect(rejected.featureErrors).toHaveLength(1); expect(rejected.featureErrors[0].message).toMatch(/único contorno/);
+    const recovered = parseDocument(serializeDocument({ ...createDocument('Original cap recovery'), features: [line(),
+      extrusion({ thinWall: { ...capped, endCaps: { enabled: false, thickness: 1 } } })] }));
+    await verify(recovered.features, 96, 160, [-6, -2, 0], [6, 0, 4]);
+    expect(recovered.features[0]).toEqual(line());
+  });
+
   it.each([
     { wall: one, volume: 72, area: 144, y: [-1.5, 0] },
     { wall: { ...one, reversed: true }, volume: 72, area: 144, y: [0, 1.5] },

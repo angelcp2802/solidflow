@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ThinWallDefinition } from './kernel.types';
-import { mergeThinWallDraft, readThinWall, resolveThinWall, validateThinWallDefinition } from './thinWall';
+import { assertThinWallEndCapsContext, mergeThinWallDraft, readThinWall, resolveThinWall, validateThinWallDefinition } from './thinWall';
 
 const definitions: ThinWallDefinition[] = [
   { kind: 'one-side', thickness: 2, reversed: false },
@@ -10,6 +10,65 @@ const definitions: ThinWallDefinition[] = [
 ];
 
 describe('strict thin-wall declarations and abstract offsets', () => {
+  it.each(definitions)('detaches end caps and retains both options without changing offsets: %j', definition => {
+    const endCaps = { enabled: false, thickness: 1.0000001e-7 };
+    const source = { ...definition, autoCorners: { enabled: false, radius: 3 }, endCaps };
+    const captured = validateThinWallDefinition(source);
+    expect(captured).toEqual(source);
+    expect(captured.endCaps).not.toBe(endCaps);
+    endCaps.thickness = 10;
+    expect(captured.endCaps?.thickness).toBe(1.0000001e-7);
+    const before = resolveThinWall({ thinWall: definition })!, after = resolveThinWall({ thinWall: captured })!;
+    expect([after.positive, after.negative]).toEqual([before.positive, before.negative]);
+  });
+
+  it.each([undefined, null, false, [], {}, { enabled: true }, { thickness: 1 },
+    { enabled: 1, thickness: 1 }, { enabled: true, thickness: '1' }, { enabled: false, thickness: 0 },
+    { enabled: false, thickness: 1e-7 }, { enabled: false, thickness: Infinity },
+    { enabled: true, thickness: NaN }, { enabled: true, thickness: 100_001 },
+    { enabled: true, thickness: 1, extra: 1 },
+  ])('rejects malformed end caps even when inactive: %j', endCaps => {
+    expect(() => validateThinWallDefinition({ ...definitions[0], endCaps })).toThrow();
+  });
+
+  it('captures cap descriptors without invoking accessors or accepting hidden/inherited/symbol data', () => {
+    const hook = vi.fn(() => 1);
+    for (const key of ['enabled', 'thickness']) {
+      const endCaps = { enabled: true, thickness: 1 };
+      Object.defineProperty(endCaps, key, { enumerable: true, get: hook });
+      expect(() => validateThinWallDefinition({ ...definitions[0], endCaps })).toThrow();
+    }
+    const source = { ...definitions[0] };
+    Object.defineProperty(source, 'endCaps', { enumerable: true, get: hook });
+    expect(() => validateThinWallDefinition(source)).toThrow();
+    for (const endCaps of [Object.assign(Object.create({}), { enabled: true, thickness: 1 }),
+      Object.defineProperty({ enabled: true, thickness: 1 }, 'extra', { value: 1 }),
+      { enabled: true, thickness: 1, [Symbol('extra')]: 1 }]) {
+      expect(() => validateThinWallDefinition({ ...definitions[0], endCaps })).toThrow();
+    }
+    expect(hook).not.toHaveBeenCalled();
+  });
+
+  it('identifies cap presence and activation without using the continuous thickness', () => {
+    const identity = (endCaps?: { enabled: boolean; thickness: number }) => resolveThinWall({
+      thinWall: { ...definitions[0], ...(endCaps ? { endCaps } : {}) },
+    })!.identity;
+    expect(identity()).toEqual(['thin-wall-v1', 'one-side', false]);
+    expect(identity({ enabled: true, thickness: 1 })).toEqual(identity({ enabled: true, thickness: 2 }));
+    expect(identity({ enabled: false, thickness: 1 })).toEqual(['thin-wall-v1', 'one-side', false, ['end-caps-v1', false]]);
+    expect(identity({ enabled: true, thickness: 1 })).not.toEqual(identity({ enabled: false, thickness: 1 }));
+  });
+
+  it('requires the exact active-cap operation context while retaining inactive records', () => {
+    const active = { ...definitions[0], endCaps: { enabled: true, thickness: 1 } };
+    const inactive = { ...active, endCaps: { enabled: false, thickness: 1 } };
+    expect(() => assertThinWallEndCapsContext(active, 'add', true, false)).not.toThrow();
+    for (const context of [['subtract', true, false], ['add', false, false], ['add', true, true]] as const) {
+      expect(() => assertThinWallEndCapsContext(active, context[0], context[1], context[2])).toThrow(/aditiva ciega/);
+      expect(() => assertThinWallEndCapsContext(inactive, context[0], context[1], context[2])).not.toThrow();
+    }
+  });
+
   it.each(definitions)('detaches optional corner settings without changing wall offsets: %j', definition => {
     for (const enabled of [false, true]) {
       const autoCorners = { enabled, radius: .001 };

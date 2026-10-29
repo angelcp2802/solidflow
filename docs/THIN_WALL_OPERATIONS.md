@@ -34,6 +34,13 @@ reference descriptor exactly. Continuous radii are not topology identities.
 Older strict readers that predate this option reject its presence rather than
 silently discarding it; documents without the option retain their prior form.
 
+Each wall form can also declare `endCaps: { enabled: boolean, thickness:
+number }`. Both own data fields are required, including while disabled. Cap
+thickness uses the same finite numeric range as wall thickness; extra fields,
+accessors, coercions and explicit undefined are rejected. Absence preserves
+legacy declarations and identities. Presence identifies only enabled/OFF state,
+not continuous cap thickness. Older strict readers reject this new field.
+
 Axial symmetry and angular mid-plane remain distinct from wall mid-plane.
 Reversing revolution changes angular direction; reversing a one-sided wall
 changes which side of its planar source receives material. The two controls do
@@ -89,6 +96,24 @@ catalogue still requires one closed solid per output identity. A through-all
 annular cut that splits an explicit owner must therefore fail until an explicit
 multiple-output contract exists.
 
+## Axial end caps
+
+Active caps currently require an additive fixed-depth extrusion of one simple
+closed source component, with `symmetric: false` and no `endCondition`. Open,
+mixed, nested or disconnected sources reject; cuts, revolutions, axial mid-plane
+and automatic limits reject before any provisional prism or no-hit witness.
+Disabled settings retain their data and use the previous uncapped geometry.
+
+The prepared section carries explicit temporary outer/inner profiles. Construct
+the complete outer extrusion over signed depth `D`, then subtract its inner core
+over `sign(D) * (abs(D) - 2*c)`, beginning `sign(D)*c` from the incoming resolved
+start frame. Both caps occupy the existing axial envelope. Preserve the caller's
+support, offset and orientation once; do not recover these from generated IDs or
+solve either temporary profile. The remaining core must exceed `1e-5 mm`;
+zero, negative or sub-tolerance cores reject rather than becoming a filled block.
+Engine and supported fixed-depth additive regeneration share this construction,
+native ownership and non-destructive Boolean handling.
+
 ## Editors and downstream operations
 
 New operations on a current solved open profile automatically enable one side
@@ -126,9 +151,25 @@ regeneration recipes remain outside the existing recipe inventory. A no-hit
 pattern shortcut must not skip validating a thin section; a genuine invalid
 wall remains an error even when an owner is behind its ray.
 
+The blue extrusion panel offers new caps only for a unique current successful
+closed source with `SketchVisual.profileClosedSingle`, and only in additive
+one-direction Blind mode. This display witness does not replace native checks.
+The initial cap thickness of `1 mm` is a SolidFlow UI choice, not a universal
+default inferred from another application. Wall-mode changes and OFF/ON preserve
+both optional settings and their independent dimensions.
+
+Retained caps remain explicitly recoverable in all four editors after an
+unsupported source or extent change: disable them instead of silently dropping
+the request. An active unsupported cap dimension is locked; an invalid inactive
+dimension remains editable. Its DOM field stays mounted and visibly focused
+through decimal correction, and hides after blur when inactive and valid. The
+global stale-prefix/operation locks retain priority. The original production
+route is `npm run test:desktop:part-end-caps`.
+
 ## Remaining scope
 
-Axial end caps, broader automatic-corner UI/runtime coverage, clipping/repair of
+Other cap extents, independent two-direction extrusion, multi-region cap policy,
+broader automatic-corner UI/runtime coverage, clipping/repair of
 merging or splitting offsets, complete menu/selection interaction and the wider
 thin-feature workflow remain open. Straight planar end segments are not axial end caps. Current
 bounded fixtures do not establish complete feature parity or installed-platform

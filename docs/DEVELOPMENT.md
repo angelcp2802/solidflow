@@ -1,5 +1,25 @@
 # Development guide
 
+## Internal thin-wall axial caps — 2026-10-29
+
+Validate the strict optional `thinWall.endCaps` declaration before native work.
+Active settings require a fixed-depth additive non-symmetric extrusion and one
+closed source region. Reject unsupported contexts before automatic-end factories
+and absence witnesses. Keep outer/inner profiles as explicit temporary section
+metadata; generated identifier spellings are not a geometry API. Extrude outer
+material over the signed envelope and shorten/shift only the inner core at both
+ends, preserving the incoming resolved frame once. Share the builder with
+supported additive regeneration and retain owner/currentness/release checks.
+
+`profileClosedSingle` is a current solved display witness for new cap controls,
+not document or native authority. Retained unsupported settings need explicit
+OFF recovery, invalid inactive dimensions remain editable, and decimal entry
+must retain focus. Run `npm run test:desktop:part-end-caps` alongside the complete
+thin-wall, automatic-corner, external-axis and revolution routes. See the
+[contract](THIN_WALL_OPERATIONS.md), [fixtures](PROVENANCE.md) and
+[executed validation](VALIDATION.md). Broader cap extents/regions, combined demo,
+installed platforms and recurring stability remain separate requirements.
+
 ## Automatic thin-wall corners — 2026-10-29
 
 The optional `thinWall.autoCorners` record stores only enabled/radius data;

@@ -251,7 +251,15 @@ function appendImage(output: EntityProfile, chain: Chain, image: Image, prefix: 
  * outward on closed loops and right on canonical open chains. No native distance
  * sign or first-wire selection supplies that semantic decision.
  */
-export function prepareThinSection(solvedSketch: SketchFeature, wall: ResolvedThinWall): { sketch: SketchFeature; identity: readonly unknown[] } {
+export interface PreparedThinSection {
+  sketch: SketchFeature;
+  identity: readonly unknown[];
+  /** Ephemeral analytic profiles; never saved or inferred from generated ID spellings. */
+  closedRegions: readonly { outer: EntityProfile; inner: EntityProfile }[];
+  openComponents: number;
+}
+
+export function prepareThinSection(solvedSketch: SketchFeature, wall: ResolvedThinWall): PreparedThinSection {
   if (![wall.positive, wall.negative].every((value) => Number.isFinite(value) && value >= 0)
     || wall.positive + wall.negative <= JOIN_TOLERANCE || wall.positive + wall.negative > 100_000) {
     throw new Error('Pared delgada: espesor resuelto no válido o inferior a la tolerancia de unión.');
@@ -262,6 +270,9 @@ export function prepareThinSection(solvedSketch: SketchFeature, wall: ResolvedTh
     throw new Error('Pared delgada: el perfil contiene coordenadas o radios no válidos.');
   }
   const original = makeProfileCurves(source), originalChains = chains(original.curves, original.nodes);
+  if (wall.definition.endCaps?.enabled && (originalChains.length !== 1 || !originalChains[0].closed)) {
+    throw new Error('Tapas de pared delgada: requieren un único contorno fuente cerrado simple.');
+  }
   const derivedArcs = wall.definition.autoCorners?.enabled === true;
   let cornerIdentity: readonly unknown[] | undefined;
   if (derivedArcs) {
@@ -335,7 +346,16 @@ export function prepareThinSection(solvedSketch: SketchFeature, wall: ResolvedTh
     }
   }
   const support = solvedSketch.support;
+  const regionProfile = (ids: readonly string[]): EntityProfile => {
+    const members = new Set(ids), entities = output.entities.filter(entity => members.has(entity.id));
+    const points = new Set(entities.flatMap(entity => entity.type === 'circle' ? [entity.center]
+      : entity.type === 'arc' ? [entity.start, entity.end, entity.center] : [entity.start, entity.end]));
+    return { kind: 'entities', entities: entities.map(entity => ({ ...entity })),
+      points: output.points.filter(point => points.has(point.id)).map(point => ({ ...point })), constraints: [] };
+  };
   return { sketch: { ...solvedSketch, profile: output,
     ...(support ? { support: support.kind === 'face' ? { ...support, face: { ...support.face } } : { ...support } } : {}) },
-  identity: ['thin-section-v1', [...wall.identity], identities, ...(cornerIdentity ? [cornerIdentity] : [])] };
+  identity: ['thin-section-v1', [...wall.identity], identities, ...(cornerIdentity ? [cornerIdentity] : [])],
+  closedRegions: regions.flatMap(region => region.innerIds ? [{ outer: regionProfile(region.outerIds), inner: regionProfile(region.innerIds) }] : []),
+  openComponents: ordered.filter(chain => !chain.closed).length };
 }

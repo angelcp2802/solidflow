@@ -1,5 +1,38 @@
 # Project status and review queue
 
+## Internal thin-wall axial caps — 2026-10-29
+
+An optional strict enabled/thickness declaration closes both axial ends inside
+the original signed extrusion envelope. One simple closed source region supplies
+explicit temporary outer/inner profiles; engine and supported additive recipes
+share the same construction without a second solve or owner mutation. Active
+caps currently require additive one-direction Blind. Other extents/operations
+and open/mixed/nested/disconnected sources reject explicitly.
+
+The blue panel uses a current single-closed-component display witness for new
+activation. Retained settings remain explicitly recoverable in all four editors;
+invalid inactive thicknesses retain focus during decimal correction. The initial
+1 mm value is a SolidFlow UI choice. See the [contract](THIN_WALL_OPERATIONS.md).
+
+Final local Windows acceptance passes build, **10,818 unit/CAD cases in 475
+files**, **200 IPC passes/two platform skips**, startup and all five complete
+renderer routes. The new route has **131 checkpoints/25 native phases**, including
+native zero-core rejection, explicit recovery, new/saved Apply, history and fresh
+reopening. Eight commands share **1,279 pinned inputs/nine products**. Separate
+live/STEP native oracles check validity, one solid, mass, surface, centroid and
+bounds; see [validation](VALIDATION.md) and [original fixtures](PROVENANCE.md).
+
+The new route is added to the existing three-platform persistence matrix;
+new-head hosted acceptance remains pending. The prior automatic-corner route
+passes all three hosted persistence jobs and both Security jobs pass; full
+Desktop/platform and recurring stability remain separate requirements.
+
+Keep #55 at **16/25**, #53 at **6/9**, PR #49 draft/unmerged and release #5 open.
+Other cap extents and multi-region policy, independent two-direction extrusion,
+offset repair, broader editors/picking, complete demo/human use, materials,
+installed platforms and recurring stability remain open. This increment does
+not close the entire thin-feature group or establish complete parity.
+
 ## Automatic inner-radius thin-wall corners — 2026-10-29
 
 The optional strict corner setting rounds temporary exclusively open LINE/ARC

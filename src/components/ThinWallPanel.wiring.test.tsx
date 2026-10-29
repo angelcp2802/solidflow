@@ -2,10 +2,10 @@ import { Children, isValidElement, type ComponentProps, type ReactElement, type 
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
 import type { ExtrudeFeature, RevolutionFeature, SketchFeature, ThinWallDefinition } from '../cad/kernel.types'
-import ExtrudePanel from './ExtrudePanel'
+import ExtrudePanel, { extrudeModePatch } from './ExtrudePanel'
 import RevolvePanel, { mergeRevolutionDraft } from './RevolvePanel'
 import ThinWallPanel from './ThinWallPanel'
-import { mergeThinWallEditorDraft, thinAutoCornersAvailableByProfile } from './thinWallEditorDraft'
+import { mergeThinWallEditorDraft, thinAutoCornersAvailableByProfile, thinEndCapsAvailableByProfile } from './thinWallEditorDraft'
 
 const sketch: SketchFeature = { id: 'profile', name: 'Original rectangle', type: 'sketch', plane: 'XY', offset: 0, suppressed: false,
   profile: { kind: 'rectangle', center: [5, 0], width: 4, height: 6 } }
@@ -154,6 +154,103 @@ describe('shared wall wiring into production operation editors', () => {
     section.props.onChange({ ...rounded, autoCorners: { enabled: false, radius: 3 } })
     expect(mergeThinWallEditorDraft(feature, onChange.mock.calls[0][0], feature))
       .toEqual({ ...feature, thinWall: { ...rounded, autoCorners: { enabled: false, radius: 3 } } })
+    expect(feature).toEqual(before)
+  })
+
+  it('offers new caps only on an explicitly eligible additive Blind extrusion', () => {
+    const blind = { ...extrude, thinWall: wall }; delete blind.endCondition
+    const witness = { id: sketch.id, lines: [], constructionLines: [], profileTopology: 'closed' as const, profileClosedSingle: true as const }
+    const available = thinEndCapsAvailableByProfile(sketch.id, { featureErrors: [], sketches: [witness] }, true)
+    expect(available).toBe(true)
+    const eligible = extrudeTree(blind, vi.fn(), { endCapsAvailable: available })
+    expect(wallSection(eligible).props.endCapsAvailable).toBe(true)
+    expect(renderToStaticMarkup(eligible)).toContain('aria-label="Tapas de extremos"')
+    const notEligible: ExtrudeFeature[] = [
+      { ...blind, symmetric: true },
+      { ...blind, endCondition: { kind: 'throughAll', baseFeatureId: 'base', bothDirections: false } },
+      { ...blind, endCondition: { kind: 'throughAll', baseFeatureId: 'base', bothDirections: true } },
+      { ...blind, endCondition: { kind: 'untilNext', baseFeatureId: 'base' } },
+      { ...blind, endCondition: { kind: 'upToSurface', target: { kind: 'principal', plane: 'XZ' } } },
+      { id: 'cut', name: 'Original cut', type: 'cut', suppressed: false, sketchId: sketch.id,
+        depth: 8, symmetric: false, thinWall: wall, bodyScope: [{ bodyId: 'body', sourceFeatureId: 'base' }] },
+    ]
+    for (const feature of notEligible) {
+      const tree = extrudeTree(feature, vi.fn(), { endCapsAvailable: true })
+      expect(wallSection(tree).props.endCapsAvailable).toBe(false)
+      expect(renderToStaticMarkup(tree)).not.toContain('aria-label="Tapas de extremos"')
+    }
+    const unproven = extrudeTree(blind)
+    expect(wallSection(unproven).props.endCapsAvailable).toBe(false)
+    expect(renderToStaticMarkup(unproven)).not.toContain('aria-label="Tapas de extremos"')
+  })
+
+  it.each(['revolve', 'revolvedCut'] as const)('does not offer new caps for %s but retains explicit document recovery', type => {
+    const feature: RevolutionFeature = type === 'revolve' ? revolve
+      : { id: 'groove', name: 'Original groove', type, sketchId: sketch.id, suppressed: false, angle: 90,
+        bodyScope: [{ bodyId: 'body', sourceFeatureId: 'base' }] }
+    const plain = RevolvePanel({ feature: { ...feature, thinWall: wall }, sketch, onChange: () => undefined, children: 'Angle' })
+    expect(wallSection(plain).props.endCapsAvailable).toBe(false)
+    expect(renderToStaticMarkup(plain)).not.toContain('aria-label="Tapas de extremos"')
+    const capped = { ...feature, thinWall: { ...wall, endCaps: { enabled: true, thickness: 1.5 } } }, before = structuredClone(capped)
+    const onChange = vi.fn(), tree = RevolvePanel({ feature: capped, sketch, onChange, children: 'Angle' })
+    expect(wallSection(tree).props.allowEndCapRecovery).toBe(true)
+    expect(renderToStaticMarkup(tree)).toContain('aria-label="Tapas de extremos"')
+    wallSection(tree).props.onChange({ ...capped.thinWall, endCaps: { enabled: false, thickness: 1.5 } })
+    expect(mergeRevolutionDraft(capped, onChange.mock.lastCall![0]))
+      .toEqual({ ...capped, thinWall: { ...capped.thinWall, endCaps: { enabled: false, thickness: 1.5 } } })
+    expect(capped).toEqual(before)
+  })
+
+  it('recovers retained caps on a cut without changing its exact owner scope', () => {
+    const cut: ExtrudeFeature = { id: 'cut', name: 'Original cut', type: 'cut', suppressed: false, sketchId: sketch.id,
+      depth: 8, symmetric: false, thinWall: { ...wall, endCaps: { enabled: true, thickness: 1.5 } },
+      bodyScope: [{ bodyId: 'body', sourceFeatureId: 'base' }] }
+    const before = structuredClone(cut), onChange = vi.fn(), tree = extrudeTree(cut, onChange, { endCapsAvailable: true })
+    const section = wallSection(tree)
+    expect(section.props).toMatchObject({ endCapsAvailable: false, allowEndCapRecovery: true })
+    expect(renderToStaticMarkup(tree)).toContain('aria-label="Tapas de extremos"')
+    section.props.onChange({ ...cut.thinWall!, endCaps: { enabled: false, thickness: 1.5 } })
+    const next = mergeThinWallEditorDraft(cut, onChange.mock.lastCall![0], cut)
+    expect(next.bodyScope).toEqual(cut.bodyScope)
+    expect(next).not.toHaveProperty('bodyOperation')
+    expect(next.thinWall?.endCaps).toEqual({ enabled: false, thickness: 1.5 })
+    expect(cut).toEqual(before)
+  })
+
+  it('allows cap recovery after source closure eligibility changes and keeps stale-prefix locking authoritative', () => {
+    const capped: ThinWallDefinition = { ...wall, endCaps: { enabled: true, thickness: 1.5 } }
+    const feature = { ...extrude, thinWall: capped }; delete feature.endCondition
+    const before = structuredClone(feature)
+    const available = thinEndCapsAvailableByProfile(sketch.id, { featureErrors: [],
+      sketches: [{ id: sketch.id, lines: [], constructionLines: [], profileTopology: 'open' }] }, true)
+    expect(available).toBe(false)
+    const tree = extrudeTree(feature, vi.fn(), { existing: true, endCapsAvailable: available })
+    expect(wallSection(tree).props).toMatchObject({ endCapsAvailable: false, allowEndCapRecovery: true })
+    expect(renderToStaticMarkup(tree)).toContain('aria-label="Tapas de extremos"')
+    const stale = extrudeTree(feature, vi.fn(), { existing: true, endCapsAvailable: true, thinWallDisabled: true })
+    expect(wallSection(stale).props.disabled).toBe(true)
+    const loading = extrudeTree(feature, vi.fn(), { endCapsAvailable: true, loading: true })
+    expect(wallSection(loading).props.disabled).toBe(true)
+    expect(feature).toEqual(before)
+  })
+
+  it('retains caps through a Blind/mid/Blind extent transition without silently disabling them', () => {
+    const capped: ThinWallDefinition = { ...wall, endCaps: { enabled: true, thickness: 1.5 } }
+    const feature = { ...extrude, thinWall: capped }; delete feature.endCondition
+    const before = structuredClone(feature)
+    const midPatch = extrudeModePatch(feature, 'mid', null, { kind: 'principal', plane: 'XY' })!
+    const mid = mergeThinWallEditorDraft(feature, midPatch, feature)
+    expect(mid.symmetric).toBe(true)
+    expect(mid.thinWall).toEqual(capped)
+    const section = wallSection(extrudeTree(mid, vi.fn(), { endCapsAvailable: true }))
+    expect(section.props).toMatchObject({ endCapsAvailable: false, allowEndCapRecovery: true })
+    const off = mergeThinWallEditorDraft(mid, { thinWall: { ...capped, endCaps: { enabled: false, thickness: 1.5 } } }, feature)
+    const back = mergeThinWallEditorDraft(off, extrudeModePatch(off, 'blind', null, { kind: 'principal', plane: 'XY' })!, feature)
+    expect(back.symmetric).toBe(false)
+    expect(back.thinWall?.endCaps).toEqual({ enabled: false, thickness: 1.5 })
+    expect(wallSection(extrudeTree(back, vi.fn(), { endCapsAvailable: true })).props.endCapsAvailable).toBe(true)
+    expect(back).toMatchObject({ type: 'extrude', bodyOperation: feature.bodyOperation })
+    expect(back.depth).toBe(feature.depth)
     expect(feature).toEqual(before)
   })
 })

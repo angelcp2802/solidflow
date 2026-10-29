@@ -1,5 +1,55 @@
 # Public fixture provenance
 
+## Original internal axial-cap fixtures — 2026-10-29
+
+The new inventory uses original Cartesian rectangles, concentric circles,
+literal frames and independently specified dimensions in millimetres. No
+external model, topology or native output supplies an oracle. For outer/inner
+areas `Ao/Ai`, perimeters `Po/Pi`, depth magnitude `H` and cap thickness `c`, the
+closed-cavity formulas are `V=Ao*H-Ai*(H-2*c)` and
+`A=2*Ao+Po*H+2*Ai+Pi*(H-2*c)`. Positive caps are inside the original envelope;
+these formulas do not describe the topology of an uncapped end at `c=0`.
+
+`kernel.thin-caps.test.ts` starts from `[0,12]x[0,8]`, outside wall2, depth20 and
+cap1. Outer bounds are `(-2,-2,0)..(14,10,20)`; shortening the 12x8 core to18
+gives V2112/A2416/centroid `(6,4,10)`. Inward wall2 gives V1344/A1488. Wall
+midpoint total4 gives V3264/A2000; wall positive2/negative1 gives V2760/A2200.
+A radius5 circle with outside wall1, depth10 and cap2 gives V210*pi/A302*pi.
+Depth-20 with offset7 keeps V/A and moves centroid to `(6,4,-3)`, bounds
+`(-2,-2,-13)..(14,10,7)`. The oblique fixture explicitly declares origin
+`(30,-20,12)`, X`(1,0,0)` and normal`(0,1/sqrt(2),1/sqrt(2))`; expected world
+centroid and bounds are literal frame projections in that file.
+
+Two boundary fixtures use cap0.000001 (V1920.000192/A2495.99992) and cap9.99999
+(remaining core0.00002; V3839.99808/A1696.0008). All nine cases independently
+inspect live and STEP-reopened BRep validity, one solid, volume, surface,
+centroid and bounds: tolerances `1e-5 mm³/mm²` and `1e-6 mm` for positions.
+Collapsed/inverted/sub-tolerance cores, invalid numeric values, open/mixed/
+nested/disconnected sources and collapsed planar walls reject explicitly.
+
+Complete-engine cases separately use the rectangle above, source support offsets
+3+4, a constrained entity profile solved from stored10x6 to intended12x8,
+thickness history1→2, OFF recovery and exact body references. A source changed to
+the original length12 open LINE recovers only after caps are explicitly disabled;
+the depth4/wall2 result has V96/A160 and literal bounds `(-6,-2,0)..(6,0,4)`.
+Unsupported operations/extents reject without publishing a provisional tool.
+
+Recipe cases regenerate the same cap1 envelope in original primitive and solved
+entity forms through linear/circular/mirror placement. A base20x20x4 contributes
+V1600/A1120, the capped addition V2112/A2416 and their contacting192-area face
+is counted twice before union: final V3712/A3152. Literal bounds and inside-cap/
+outside-core probes distinguish real cap material from a replayed saved delta.
+Source and borrowed owners remain unchanged; only the entity source is solved.
+
+`desktop-part-end-caps-original.cjs` declares a separate read-only R2/H3 cylinder
+at `(40,0)` and an unused original 12x8 rectangle. The renderer uses independent
+volumes1920 (OFF), 2112 (c1), 2208 (c1.5) and2304 (c2), and literal envelope
+bounds at `1e-6 mm`; volume tolerance is `1e-5 mm³`. Its area formulas are not
+renderer measurements. The route covers explicit unsupported-extent recovery,
+native core-zero rejection, retained invalid OFF decimal focus, Cancel/retry,
+new/saved Apply, history, writes and fresh reopening. Controls use CDP pointer
+events and native input setters, not a claim of physical keyboard delivery.
+
 ## Original automatic-corner fixtures — 2026-10-29
 
 The new corner inventory uses independently specified LINE/ARC chains and

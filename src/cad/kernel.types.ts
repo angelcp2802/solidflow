@@ -87,6 +87,8 @@ export type ThinWallDefinition = (
 ) & {
   /** Optional original-chain corner rounding; radius is the inner material radius. */
   autoCorners?: { enabled: boolean; radius: number };
+  /** Optional internal axial end plates for an eligible blind extrusion. */
+  endCaps?: { enabled: boolean; thickness: number };
 };
 
 interface ExtrudeDefinition extends FeatureBase {
@@ -391,6 +393,8 @@ export interface SketchVisual {
   profileTopology?: 'open' | 'closed' | 'invalid';
   /** True only when every resolved material component is an open chain. */
   profileOpenOnly?: true;
+  /** True only for one resolved closed material component; native geometry still validates independently. */
+  profileClosedSingle?: true;
   /** Solved sketch curves as consecutive XYZ endpoint pairs, in millimetres. */
   lines: number[];
   /** Construction geometry is displayed separately and never creates material. */
