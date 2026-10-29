@@ -36,6 +36,15 @@ tokens, reports and picking are still revoked. Apply or an unrelated operation
 clears this intent. Changing to a compatible ordinary family while Reference 2
 is pending keeps that temporary pick; an incompatible/specialized family ends it.
 
+Filled ordinary creation roles expose the same explicit removal action as the
+saved reference editors. Clearing a creation role revokes its retained creation
+intent and any pending automatic second-role pick, without editing the committed
+document or invoking CAD. Specialized families retain their own role producers.
+The origin-axis authoring recorder starts each new standard draft by clearing
+populated ordinary roles through their actual controls, then retains its original
+first-reference/complete/verified guidance and native assertions. Cancel itself
+continues to retain the declaration intent for a retry.
+
 After building, `npm run test:desktop:assembly-direction` continues the original
 drilled-prism route with actual face/LINE preselection, then its existing native
 relation, history and persistence checks. `npm run test:desktop:normal-to-view`

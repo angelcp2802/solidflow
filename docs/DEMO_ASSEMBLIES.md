@@ -27,6 +27,11 @@ Saved relations and specialized role editors retain their own drafts when
 reopened. A pending preview can be reopened through **Relación** without losing
 its Apply/Cancel state. The manager's Relations tab remains ordinary navigation.
 
+To empty an ordinary creation role, use its **Quitar referencia** button. This
+changes the draft only. After Cancel, you can retry the retained pair, replace
+its targets, or remove both references to start an empty pair. Removing a
+reference also ends any temporary automatic pick; Preview requires both roles.
+
 The automated acceptance uses the existing original drilled prisms in the root
 standard workspace. Pure selection tests cover additional nested datum/currentness
 cases; they do not establish configured or nested interactive acceptance.

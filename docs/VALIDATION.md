@@ -1,5 +1,54 @@
 # Validation
 
+## Clearing ordinary creation references explicitly — 2026-10-29
+
+Follow-up to public `00c9eb4`. Its [CI](https://github.com/angelcp2802/solidflow/actions/runs/40934830558)
+failed in all three original origin-axis relation jobs at
+`standard relation guidance first-reference`. Each retained report shows the
+same accepted retry selection: Moving Z in role 1 and root Z still in role 2,
+with no console/request errors. The earlier first draft passed its guidance
+checks. The failed wait did not retain its own guidance/disabled DOM snapshot;
+the role/status records, source guidance rule and repeated draft sequence
+establish the mismatch with the recorder's empty-second-role assumption.
+
+Cancel intentionally retains ordinary declaration intent. Filled ordinary
+creation roles now expose **Quitar referencia**, without changing the saved
+model or invoking CAD. Editing/clearing an endpoint revokes the old creation
+record; clearing also ends its temporary automatic pick. Saved editors keep
+their guards, and specialized families retain their own reference producers.
+
+The original origin-axis route now starts each *new* standard draft by using
+those actual removal controls. Each click must clear only its selected role,
+retain the other role/type/name, end picking, leave Apply disabled and preserve
+the CAD serial and exact recovery bytes. Its original first-reference,
+complete-reference, verified-preview, native geometry and persistence checks
+remain unchanged. The configured branch performs no new clear action.
+
+**Final local Windows follow-up: PASS.** Seven commands completed in two
+sequential batches on the same frozen inputs/products. The first passed build
+and four complete renderer routes: origin axes **331**, direction/preselection
+**336**, Normal To **157** and combined part/assembly **506** checkpoints. The
+second passed **11,070 unit/CAD cases in 491 files, 200 IPC cases/two explicit
+platform skips**, and production desktop startup. Both batches pin the same
+1,314 non-Markdown inputs and nine products; the second changes no input. The
+combined manifest is
+`8dde8322f3012bf6132d7fa0023bdc116edb6716e9c74fe602c3ab5cb619628b`.
+Dependencies, native oracles, tolerances and deadlines remain unchanged. All
+four renderer reports match production hashes and confirm zero console/request
+errors plus owned child/profile cleanup. Independent final audit rehashed both
+input copies, all nine products, both batch states and seven logs. It retained
+the three clear records (zero/two/zero clicks) and seven original guidance cases,
+including the same CAD serial/recovery hash before and after retry clearing.
+Markdown links and publication markers were checked separately. No failed
+hosted job was retried.
+
+The added action is scoped to the six ordinary creation families and existing
+saved reference editors; it is not a new generic clearer for specialized
+material/mechanical roles. Applied frontend-design, React, code-review,
+code-simplifier and security-review guidance. New-head hosted, recurring,
+installed-platform and human acceptance remain separate from local Windows
+results. #55 remains 16/25 and #53 remains 6/9; release gate #5 stays open.
+
 ## Ordered standard assembly preselection — 2026-10-29
 
 The follow-up to public baseline `ee19ce6` shares ordered browse identities

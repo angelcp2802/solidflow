@@ -410,6 +410,50 @@ module.exports = function originAxesWorkflow(c) {
     check(phase === 'verified-preview' || state.status.includes(expected), 'Origin selection status agrees with the current role guidance');
     selectionGestures.push({ kind: 'standard-relation-guidance', phase, ...state });
   }
+  async function clearOrdinaryDraft(stage, type) {
+    if (configured) return;
+    const inspect = () => page(() => ({
+      type: document.querySelector('[aria-label="Tipo de relación"]')?.value,
+      name: document.querySelector('[aria-label="Nombre de la relación"]')?.value,
+      picking: document.querySelector('[aria-label="Visor 3D del ensamblaje"]')?.getAttribute('data-reference-picking'),
+      applyDisabled: document.querySelector('button[aria-label="Aplicar ensamblaje"]')?.disabled,
+      roles: [1, 2].map(slot => {
+        const buttons = document.querySelectorAll('button[aria-label="Referencia ' + slot + ' de la relación"]');
+        const title = buttons[0]?.querySelector('span')?.title;
+        if (title && title.length > 8192) throw Error('Original origin reference exceeds the bounded draft observation.');
+        const remove = document.querySelectorAll('button[aria-label="Quitar referencia ' + slot + ' de la relación"]');
+        return { count: buttons.length, reference: title ? JSON.parse(title) : null,
+          removeCount: remove.length, removeDisabled: remove[0]?.disabled ?? null };
+      }),
+    }));
+    const before = await waitFor('ordinary origin draft exposes removable retained references', async () => {
+      const state = await inspect();
+      return state.type === type && state.roles.every(role => role.count === 1 && (role.reference
+        ? role.removeCount === 1 && role.removeDisabled === false : role.removeCount === 0)) ? state : false;
+    });
+    const serial = (await observe()).serial, committedBytes = await page(() => localStorage.getItem('solidflow.autosave'));
+    check(typeof committedBytes === 'string' && committedBytes.length > 0, 'New ordinary draft has committed recovery bytes.');
+    const wanted = before.roles.map(role => role.reference), clearedSlots = [];
+    for (const slot of [1, 2]) {
+      if (!wanted[slot - 1]) continue;
+      await actualControl('button[aria-label="Quitar referencia ' + slot + ' de la relación"]', null, true);
+      wanted[slot - 1] = null; clearedSlots.push(slot);
+      await waitFor('ordinary origin draft clears only requested role ' + slot, async () => {
+        const state = await inspect();
+        return canonical(state.roles.map(role => role.reference)) === canonical(wanted)
+          && state.type === type && state.name === before.name && state.picking === '' ? state : false;
+      });
+    }
+    const after = await inspect();
+    check(after.roles.every(role => role.count === 1 && role.reference === null && role.removeCount === 0)
+      && after.type === type && after.name === before.name && after.picking === '' && after.applyDisabled === true,
+    'Explicit new ordinary draft starts with two empty roles, retained fields and no Apply authority.');
+    check((await observe()).serial === serial && await page(() => localStorage.getItem('solidflow.autosave')) === committedBytes,
+      'Explicit reference clearing performs no CAD work or committed recovery change.');
+    selectionGestures.push({ kind: 'ordinary-origin-draft-clear', stage, clearedSlots,
+      before: before.roles.map(role => role.reference), after: after.roles.map(role => role.reference),
+      type, name: before.name, serial, recoverySha256: digest(Buffer.from(committedBytes)) });
+  }
   async function draft(stage) {
     const type = stage === 1 ? 'concentric' : 'angle', axis = stage === 1 ? 'Z' : 'X';
     if (configured && !await page(form => !!document.querySelector(form), FORM)) await button('Nueva relación configurada', '[aria-label="Relaciones del estado configurado"]');
@@ -440,6 +484,7 @@ module.exports = function originAxesWorkflow(c) {
       check(layout.controls.length === 4 && layout.controls.every(e => !e.painted && !e.ownHit && e.checked !== true), 'Closed origin controls remain mounted, unpainted and unhittable with both visibility options off');
     }
     await control(configured ? 'Tipo de relación configurada' : 'Tipo de relación', type);
+    await clearOrdinaryDraft(stage, type);
     await control(configured ? 'Nombre de relación configurada' : 'Nombre de la relación', stage === 1 ? 'Origin Z alignment' : 'Origin X 30 degrees');
     await showOrigins();
     const ownerLabel = configured ? 'Propietario de referencias de origen configuradas' : 'Orígenes visibles de';

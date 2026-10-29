@@ -457,7 +457,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   // An editor's declaration intent survives preview Cancel; generic selection does not.
   const [referenceDraft, updateReferenceDraft] = useState<RelationReferenceDraft | null>(null), referenceDraftRef = useRef(referenceDraft)
   const setReferenceDraft = (value: RelationReferenceDraft | null) => {
-    if (value) creationReferenceDraft.current = null
+    if (value) { creationReferenceDraft.current = null; preselectionPick.current = null }
     referenceDraftRef.current = value; updateReferenceDraft(value)
   }
   const [pickingFaces, setPickingFaces] = useState(false), [pickingLinearEdges, setPickingLinearEdges] = useState(false)
@@ -629,6 +629,8 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     && serialized === serializeAssemblyDocument(current.current) && JSON.stringify(scopePath) === currentFileScope.current
   const setRelationReference = (slot: 0 | 1, reference: AssemblyGeometryReference | null) => {
     if (!referenceEditorIsCurrent()) return
+    if (!referenceEditTicket) creationReferenceDraft.current = null
+    if (!reference) preselectionPick.current = null
     const pending = preselectionPick.current
     if (reference && !referenceEditTicket && pending?.slot === slot && pending.signature === serialized
       && pending.scope === JSON.stringify(scopePath) && pending.scene === scene && pending.generation === generation.current) {
@@ -2816,7 +2818,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
             if (referenceBlocked || operation.current || hasStaging() || currentPreview.current || !referenceEditorIsCurrent()) return
             stopOriginPicking(); setDragMode('off'); setPickingLinearEdges(false); setEndpointSlot(index as 0 | 1); setPickingFaces(true)
           }}><strong>Referencia {index + 1}</strong><span title={reference ? JSON.stringify(reference) : undefined}>{assemblyReferenceCardLabel(reference, rows, scopePath)}</span></button>
-          {editedReferences && <button title="Quitar referencia" aria-label={`Quitar referencia ${index + 1} de la relación`} disabled={referenceBlocked || !reference} onClick={() => {
+          {(editedReferences || !referenceEditing && isAssemblyOrdinaryCreationType(mateType) && reference) && <button title="Quitar referencia" aria-label={`Quitar referencia ${index + 1} de la relación`} disabled={referenceBlocked || !reference} onClick={() => {
             if (referenceBlocked || operation.current || hasStaging() || currentPreview.current || !referenceEditorIsCurrent()) return
             stopOriginPicking(); setRelationReference(index as 0 | 1, null); setEndpointSlot(index as 0 | 1); setSelectedFaceMeshes([]); setPickingFaces(false); setPickingLinearEdges(false)
             notify('Selecciona una nueva referencia antes de verificar los cambios.')
