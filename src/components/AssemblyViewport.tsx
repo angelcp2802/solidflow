@@ -55,10 +55,26 @@ export type AssemblyViewportContextTarget = AssemblyViewportContextSelection & {
 export interface AssemblyViewportViewSelection {
   scene: AssemblyScene
   face: AssemblySceneFace | null
+  edge?: AssemblySceneEdge | null
   component: AssemblyComponentReference | null
   /** False for an ambiguous/unsupported visible surface, which is not empty selection. */
   empty: boolean
   additive: boolean
+}
+export interface AssemblyViewportInteractionFrame {
+  scene: AssemblyScene | null
+  revision: number | undefined
+  camera: string
+  viewRevision: number
+  browseMode: 'face' | 'edge'
+}
+/** A held browse/context click cannot cross a scene, mode or navigation change. */
+export function assemblyViewportInteractionFrameCurrent(press: AssemblyViewportInteractionFrame, current: AssemblyViewportInteractionFrame): boolean {
+  return !!press.scene && press.scene === current.scene && Object.is(press.revision, current.revision)
+    && press.camera === current.camera && press.viewRevision === current.viewRevision && press.browseMode === current.browseMode
+}
+export function assemblyViewportBrowseMode(value: Pick<AssemblyViewportProps, 'browseSelectionMode' | 'onViewSelection' | 'disabled' | 'pickingFaces' | 'pickingEdges' | 'pickingVertices' | 'pickingOrigins'>): 'face' | 'edge' | null {
+  return value.onViewSelection && !value.disabled && assemblyReferencePickMode(value) === null ? value.browseSelectionMode ?? 'face' : null
 }
 export function assemblyAnalysisBodySelected(body: AssemblySceneBody, pair: AnalysisPair | null | undefined): boolean {
   return !!pair && [pair.first, pair.second].some(value => assemblyBodyKey(value.component, value.body) === assemblyBodyKey(body.component, body.body))
@@ -191,6 +207,15 @@ export function pickAssemblyEdge(camera: Camera, bodies: readonly AssemblyPickBo
   const matches = new Map(candidates.filter(value => Math.abs(value.pixels - first.pixels) <= .15 && Math.abs(value.depth - first.depth) <= depthTolerance).map(value => [assemblyEdgeKey(value.edge), value.edge]))
   return matches.size === 1 ? first.edge : null
 }
+/** Browse only current native DTOs; visible material without a native edge is not empty space. */
+export function pickAssemblyViewSelection(scene: AssemblyScene, camera: Camera, bodies: readonly AssemblyPickBody[], faces: readonly AssemblyPickFace[], edges: readonly AssemblyPickEdge[], pointer: { x: number; y: number }, size: { width: number; height: number }, mode: 'face' | 'edge' = 'face', additive = false): AssemblyViewportViewSelection {
+  const edge = mode === 'edge' ? pickAssemblyEdge(camera, bodies, edges, pointer, size) : null
+  const face = mode === 'face' ? pickAssemblyFace(camera, bodies, faces, pointer, size) : null
+  const component = edge ? structuredClone(edge.selection.component) : pickAssemblyComponent(camera, bodies, pointer, size)
+  const ray = rayAt(camera, pointer, size)
+  const hit = !!ray?.intersectObjects(bodies.filter(item => item.body.visible).map(item => item.object), false).length
+  return { scene, face, edge, component, empty: !face && !edge && !component && !hit, additive }
+}
 export interface AssemblyViewportProps {
   scene: AssemblyScene | null
   selectedPath?: readonly string[]
@@ -218,6 +243,7 @@ export interface AssemblyViewportProps {
   view?: ViewRequest
   viewHistory?: ViewHistory
   onComponent: (component: AssemblyComponentReference | null) => void
+  browseSelectionMode?: 'face' | 'edge'
   onViewSelection?: (selection: AssemblyViewportViewSelection) => void
   onFace: (face: AssemblySceneFace | null) => void
   onEdge?: (edge: AssemblySceneEdge | null) => void
@@ -233,7 +259,7 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
   const originLabelFrame = useRef(''), originLabelPress = useRef<{ key: string; signature: string; revision: number | undefined } | null>(null)
   const originFrame = useRef('')
   const originCatalog = (value: AssemblyViewportProps) => JSON.stringify([value.originReferences, value.scene?.visibleBounds])
-  const context = useRef<{ scene: AssemblyScene | null; group: THREE.Group; analysis: THREE.Group; markers: THREE.Group; clearHover: () => void; camera: THREE.OrthographicCamera; controls: OrbitControls; bodies: AssemblyPickBody[]; faces: AssemblyPickFace[]; edges: AssemblyPickEdge[]; fit: () => void; navigation: ReturnType<typeof bindViewNavigation>; highlight: () => void; syncDrag: () => void } | null>(null)
+  const context = useRef<{ scene: AssemblyScene | null; group: THREE.Group; analysis: THREE.Group; markers: THREE.Group; clearHover: () => void; cancelBrowse: () => void; camera: THREE.OrthographicCamera; controls: OrbitControls; bodies: AssemblyPickBody[]; faces: AssemblyPickFace[]; edges: AssemblyPickEdge[]; fit: () => void; navigation: ReturnType<typeof bindViewNavigation>; highlight: () => void; syncDrag: () => void } | null>(null)
   useEffect(() => {
     const element = host.current!, world = new THREE.Scene(), group = new THREE.Group(), analysis = new THREE.Group(), markers = new THREE.Group(), origins = new THREE.Group()
     const camera = new THREE.OrthographicCamera(-80, 80, 60, -60, .01, 100000); camera.up.set(0, 1, 0); camera.position.set(100, 100, 140)
@@ -248,10 +274,12 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
     configureCadNavigation(controls)
     const selectionGesture = createCadSelectionGesture(), contextGesture = createCadContextGesture()
     let acceptedGesture = false, dragConsumed = false
-    let contextPress: { scene: AssemblyScene | null; catalog: string; revision: number | undefined; camera: string; viewRevision: number } | null = null
+    let contextPress: (AssemblyViewportInteractionFrame & { catalog: string }) | null = null
+    let viewPressFrame: AssemblyViewportInteractionFrame | null = null
     const cancelContext = () => { contextGesture.cancel(); contextPress = null }
+    const cancelBrowse = () => { if (viewPressFrame) selectionGesture.cancel(); viewPressFrame = null }
+    const cancelInteractionContext = () => { cancelContext(); cancelBrowse() }
     let presentedScene: AssemblyScene | null = null
-    let viewPressScene: AssemblyScene | null = null
     const cancelDrag = (notify = true) => {
       const wasAccepted = acceptedGesture; acceptedGesture = false
       transform.reset(); transform.pointerUp(null); controls.enabled = true
@@ -283,10 +311,10 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
     const axisChanged = () => setDragAxis(transform.axis)
     const keyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
-      cancelContext()
+      cancelInteractionContext()
       if (acceptedGesture) { event.preventDefault(); cancelDrag() }
     }
-    const pointerCancel = () => { selectionGesture.cancel(); cancelContext(); viewPressScene = null; cancelDrag(); navigation.cancelGesture() }
+    const pointerCancel = () => { selectionGesture.cancel(); cancelInteractionContext(); cancelDrag(); navigation.cancelGesture() }
     transform.addEventListener('mouseDown', dragStart); transform.addEventListener('objectChange', dragTarget)
     transform.addEventListener('mouseUp', dragEnd); transform.addEventListener('axis-changed', axisChanged)
     window.addEventListener('keydown', keyDown); window.addEventListener('blur', pointerCancel); renderer.domElement.addEventListener('pointercancel', pointerCancel)
@@ -310,12 +338,12 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
     }
     const navigation = bindViewNavigation(navigationHistory, camera, controls, fitRaw, () => Math.max(element.clientWidth, 1) / Math.max(element.clientHeight, 1), () => {
       const position = camera.position.clone(), target = controls.target.clone(), enabled = controls.enabled
-      controls.removeEventListener('start', pointerLeave); controls.removeEventListener('change', cancelContext); controls.dispose()
+      controls.removeEventListener('start', pointerLeave); controls.removeEventListener('change', cancelInteractionContext); controls.dispose()
       controls = new OrbitControls(camera, renderer.domElement)
       configureCadNavigation(controls); controls.enabled = enabled
       controls.target.copy(target); camera.position.copy(position); camera.lookAt(target); camera.updateMatrixWorld()
       controls.addEventListener('start', pointerLeave)
-      controls.addEventListener('change', cancelContext)
+      controls.addEventListener('change', cancelInteractionContext)
       if (context.current) context.current.controls = controls
       return controls
     })
@@ -354,7 +382,7 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
         material.resolution.set(element.clientWidth, element.clientHeight)
       })
     }
-    context.current = { navigation, scene: null, group, analysis, markers, clearHover, camera, controls, bodies: [], faces: [], edges: [], fit, highlight, syncDrag }
+    context.current = { navigation, scene: null, group, analysis, markers, clearHover, cancelBrowse, camera, controls, bodies: [], faces: [], edges: [], fit, highlight, syncDrag }
     const size = () => ({ width: element.clientWidth, height: element.clientHeight })
     const renderFrame = () => {
       // Direct controls update in their input handlers and explicit Fit calls.
@@ -368,7 +396,7 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
       if (signature !== labelSignature) { labelSignature = signature; setOriginLabelState({ layout: layoutAssemblyOriginLabels(labels, { width, height }, { topInset }), signature, width, height, topInset }) }
     }
     const resize = new ResizeObserver(() => {
-      cancelContext()
+      cancelInteractionContext()
       renderer.setSize(element.clientWidth, element.clientHeight)
       const aspect = Math.max(element.clientWidth, 1) / Math.max(element.clientHeight, 1)
       camera.right = camera.top * aspect; camera.left = -camera.right; camera.updateProjectionMatrix(); context.current?.highlight()
@@ -378,34 +406,41 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
     })
     resize.observe(element)
     const point = (event: PointerEvent) => { const rect = element.getBoundingClientRect(); return { x: event.clientX - rect.left, y: event.clientY - rect.top } }
-    const contextReady = () => {
+    const presentationReady = () => {
       const value = input.current
-      return !!value.onContextTarget && !value.disabled && !acceptedGesture && !value.drag?.active
-        && !navigationHistory.navigating && assemblyReferencePickMode(value) === null && !!value.scene
-        && presentedScene === value.scene && context.current?.scene === value.scene && originFrame.current === originCatalog(value)
+      const rect = renderer.domElement.getBoundingClientRect()
+      return !value.disabled && !acceptedGesture && !value.drag?.active
+        && !navigationHistory.navigating && !!value.scene
+        && presentedScene === value.scene && context.current?.scene === value.scene
+        && rect.width > 0 && rect.height > 0 && Math.abs(rect.width - element.clientWidth) < 1 && Math.abs(rect.height - element.clientHeight) < 1
     }
+    const selectionReady = () => presentationReady() && assemblyReferencePickMode(input.current) === null
+    const contextReady = () => !!input.current.onContextTarget && selectionReady() && originFrame.current === originCatalog(input.current)
     const contextCamera = () => {
       const rect = renderer.domElement.getBoundingClientRect()
       return JSON.stringify({ view: captureCameraView(camera, controls), horizontal: [camera.left, camera.right],
-        viewport: [rect.x, rect.y, rect.width, rect.height] })
+        viewport: [rect.x, rect.y, rect.width, rect.height, element.clientWidth, element.clientHeight] })
     }
-    const currentContextFrame = () => {
-      if (!contextPress || !contextReady() || contextPress.scene !== presentedScene || contextPress.catalog !== originFrame.current
-        || !Object.is(contextPress.revision, input.current.interactionRevision)
-        || contextPress.viewRevision !== navigationHistory.snapshot() || contextPress.camera !== contextCamera()) {
-        cancelContext(); return null
+    const captureInteractionFrame = (): AssemblyViewportInteractionFrame => ({ scene: presentedScene,
+      revision: input.current.interactionRevision, camera: contextCamera(), viewRevision: navigationHistory.snapshot(),
+      browseMode: input.current.browseSelectionMode ?? 'face' })
+    const currentContextFrame = (press: (AssemblyViewportInteractionFrame & { catalog?: string }) | null = contextPress, browse = false) => {
+      if (!press || !(browse ? !!input.current.onViewSelection && selectionReady() : contextReady())
+        || !assemblyViewportInteractionFrameCurrent(press, captureInteractionFrame())
+        || !browse && press.catalog !== originFrame.current) {
+        if (browse) cancelBrowse(); else cancelContext()
+        return null
       }
-      return contextPress
+      return press
     }
     const pointerDown = (event: PointerEvent) => {
-      selectionGesture.down(event, input.current.interactionRevision); dragConsumed = false
-      cancelContext()
+      cancelInteractionContext(); dragConsumed = false
       const value = input.current
-      viewPressScene = event.button === 0 && !value.disabled && assemblyReferencePickMode(value) === null
-        && presentedScene === value.scene ? presentedScene : null
+      if (event.button === 0 && !presentationReady()) { selectionGesture.cancel(); return }
+      viewPressFrame = event.button === 0 && assemblyViewportBrowseMode(value) !== null && selectionReady() ? captureInteractionFrame() : null
+      selectionGesture.down(event, viewPressFrame ?? value.interactionRevision)
       if (event.button === 2 && contextReady()) {
-        contextPress = { scene: presentedScene, catalog: originFrame.current, revision: value.interactionRevision,
-          camera: contextCamera(), viewRevision: navigationHistory.snapshot() }
+        contextPress = { ...captureInteractionFrame(), catalog: originFrame.current }
         contextGesture.down(event, contextPress)
       }
       originPressCatalog = assemblyReferencePickMode(input.current) === 'origin' && originFrame.current === originCatalog(input.current) ? originFrame.current : ''
@@ -415,33 +450,36 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
       contextGesture.move(event)
       const current = context.current
       hovered = current && !input.current.disabled && assemblyReferencePickMode(input.current) === 'face' && !event.buttons ? (() => { const face = pickAssemblyFace(camera, current.bodies, current.faces, point(event), size()); return face ? assemblyFaceKey(face) : null })() : null
-      hoveredEdge = current && !input.current.disabled && assemblyReferencePickMode(input.current) === 'edge' && !event.buttons ? (() => { const edge = pickAssemblyEdge(camera, current.bodies, current.edges, point(event), size()); return edge ? assemblyEdgeKey(edge) : null })() : null
+      const mode = assemblyReferencePickMode(input.current)
+      const browseEdges = assemblyViewportBrowseMode(input.current) === 'edge' && selectionReady()
+      hoveredEdge = current && !input.current.disabled && (mode === 'edge' || browseEdges) && !event.buttons ? (() => { const edge = pickAssemblyEdge(camera, current.bodies, current.edges, point(event), size()); return edge ? assemblyEdgeKey(edge) : null })() : null
       hoveredVertex = current && !input.current.disabled && assemblyReferencePickMode(input.current) === 'vertex' && !event.buttons ? (() => { const vertex = pickAssemblyVertex(camera, current.bodies, point(event), size()); return vertex ? assemblyVertexKey(vertex) : null })() : null
       hoveredOrigin = current && !input.current.disabled && assemblyReferencePickMode(input.current) === 'origin' && originFrame.current === originCatalog(input.current) && !event.buttons ? (() => { const origin = pickAssemblyOrigin(camera, input.current.originReferences ?? [], assemblyOriginExtent(input.current.scene?.visibleBounds), point(event), size()); return origin ? assemblyOriginReferenceKey(origin) : null })() : null
-      renderer.domElement.style.cursor = acceptedGesture ? 'grabbing' : input.current.disabled ? 'wait' : transform.axis ? 'move' : assemblyReferencePickMode(input.current) !== null ? (hovered || hoveredEdge || hoveredVertex || hoveredOrigin ? 'pointer' : 'crosshair') : event.buttons === 4 ? 'grabbing' : 'default'; highlight()
+      renderer.domElement.style.cursor = acceptedGesture ? 'grabbing' : input.current.disabled ? 'wait' : transform.axis ? 'move' : mode !== null ? (hovered || hoveredEdge || hoveredVertex || hoveredOrigin ? 'pointer' : 'crosshair') : event.buttons === 4 ? 'grabbing' : browseEdges && hoveredEdge ? 'pointer' : 'default'; highlight()
     }
-    const pointerLeave = () => { cancelContext(); clearHover(); highlight() }
+    const pointerLeave = () => { cancelInteractionContext(); clearHover(); highlight() }
     controls.addEventListener('start', pointerLeave)
-    controls.addEventListener('change', cancelContext)
+    controls.addEventListener('change', cancelInteractionContext)
+    renderer.domElement.addEventListener('wheel', pointerLeave)
     window.addEventListener('blur', pointerLeave); renderer.domElement.addEventListener('pointercancel', pointerLeave)
     const nominateView = (pointer: { x: number; y: number }, additive: boolean) => {
       const current = context.current, value = input.current
       if (!current || !value.onViewSelection || !value.scene || value.scene !== presentedScene || current.scene !== value.scene
         || value.disabled || acceptedGesture || value.drag?.active || assemblyReferencePickMode(value) !== null) return
-      const face = pickAssemblyFace(camera, current.bodies, current.faces, pointer, size())
-      const component = pickAssemblyComponent(camera, current.bodies, pointer, size())
-      const ray = rayAt(camera, pointer, size())
-      const hit = !!ray?.intersectObjects(current.bodies.filter(item => item.body.visible).map(item => item.object), false).length
-      value.onViewSelection({ scene: value.scene, face, component, empty: !face && !component && !hit, additive })
+      const selection = pickAssemblyViewSelection(value.scene, camera, current.bodies, current.faces, current.edges,
+        pointer, size(), value.browseSelectionMode ?? 'face', additive)
+      value.onViewSelection(selection)
+      return selection
     }
     const pointerUp = (event: PointerEvent) => {
       const contextPoint = contextGesture.up(event, currentContextFrame())
       if (contextPoint) { cancelContext(); openContext(contextPoint, false) }
       const current = context.current
-      const select = selectionGesture.up(event, input.current.interactionRevision)
-      const pressedScene = viewPressScene; viewPressScene = null
+      const press = viewPressFrame
+      const select = selectionGesture.up(event, press ? currentContextFrame(press, true) : input.current.interactionRevision)
+      viewPressFrame = null
       if (dragConsumed) { dragConsumed = false; return }
-      if (!current || input.current.disabled || !select) return
+      if (!current || input.current.disabled || !select || !presentationReady()) return
       const mode = assemblyReferencePickMode(input.current)
       if (mode === 'conflict') return
       if (mode === 'origin') {
@@ -451,8 +489,14 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
       else if (mode === 'edge') input.current.onEdge?.(pickAssemblyEdge(camera, current.bodies, current.edges, point(event), size()))
       else if (mode === 'face') input.current.onFace(pickAssemblyFace(camera, current.bodies, current.faces, point(event), size()))
       else {
-        if (pressedScene && pressedScene === presentedScene) nominateView(point(event), event.ctrlKey || event.metaKey)
-        input.current.onComponent(pickAssemblyComponent(camera, current.bodies, point(event), size()))
+        let component: AssemblyComponentReference | null
+        if (input.current.onViewSelection) {
+          if (!press) return
+          const selection = nominateView(point(event), event.ctrlKey || event.metaKey)
+          if (!selection) return
+          component = selection.component
+        } else component = pickAssemblyComponent(camera, current.bodies, point(event), size())
+        input.current.onComponent(component)
       }
     }
     const openContext = (clientPoint: { x: number; y: number }, keyboard: boolean) => {
@@ -475,7 +519,7 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
       if (contextPoint) { cancelContext(); openContext(contextPoint, false) }
     }
     const contextKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') { cancelContext(); return }
+      if (event.key === 'Escape') { cancelInteractionContext(); return }
       if (event.target !== element || !input.current.onContextTarget || event.altKey || event.ctrlKey || event.metaKey
         || !(event.key === 'ContextMenu' || event.key === 'F10' && event.shiftKey)) return
       event.preventDefault(); event.stopPropagation()
@@ -490,7 +534,8 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
       frame = requestAnimationFrame(draw)
     }; draw()
     return () => {
-      cancelAnimationFrame(frame); resize.disconnect(); cancelContext(); cancelDrag(); controls.removeEventListener('start', pointerLeave); controls.removeEventListener('change', cancelContext); navigation.dispose(); controls.dispose()
+      cancelAnimationFrame(frame); resize.disconnect(); cancelInteractionContext(); cancelDrag(); controls.removeEventListener('start', pointerLeave); controls.removeEventListener('change', cancelInteractionContext); navigation.dispose(); controls.dispose()
+      renderer.domElement.removeEventListener('wheel', pointerLeave)
       window.removeEventListener('blur', pointerLeave); renderer.domElement.removeEventListener('pointercancel', pointerLeave)
       disposeAssemblyVertexMarkers(markers)
       transform.removeEventListener('mouseDown', dragStart); transform.removeEventListener('objectChange', dragTarget)
@@ -540,6 +585,8 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
     if (pair && [pair.first, pair.second].every(value => keys.has(assemblyBodyKey(value.component, value.body)))) current.analysis.add(createAssemblyInterferenceOverlay(pair))
   }, [props.scene, props.selectedAnalysisPair])
   useEffect(() => { context.current?.highlight() }, [props.selectedPath, props.selectedFaces, props.selectedEdges, props.selectedVertices, props.originReferences, props.selectedOrigins])
+  useEffect(() => { context.current?.cancelBrowse(); context.current?.clearHover(); context.current?.highlight() },
+    [props.scene, props.browseSelectionMode, props.interactionRevision, props.disabled, props.pickingFaces, props.pickingEdges, props.pickingVertices, props.pickingOrigins])
   useEffect(() => { context.current?.clearHover(); context.current?.highlight(); context.current?.syncDrag() }, [props.drag, props.disabled, props.pickingFaces, props.pickingEdges, props.pickingVertices, props.pickingOrigins])
   useEffect(() => {
     const current = context.current; if (!current || !props.view) return

@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import type { AssemblyScene, AssemblySceneBody, AssemblySceneFace } from '../cad/kernel.assembly-types'
+import type { AssemblyScene, AssemblySceneBody, AssemblySceneEdge, AssemblySceneFace } from '../cad/kernel.assembly-types'
 import { assemblyConfigurationCoreFixture } from '../model/assemblyConfigurationCore.test-utils'
 import { evaluateAssemblyConfiguration } from '../model/assemblyConfigurationCore'
 import { buildAssemblyOriginTree } from './assemblyOriginTree'
 import { assemblyNormalSelectionOrComponent, nominateAssemblyNormalFace, nominateAssemblyNormalOrigin, nominateAssemblyNormalUnsupported, resolveAssemblyNormalSelection, type AssemblyNormalContext } from './assemblyNormalTo'
 import { resolveNormalToView } from './normalToView'
+import { nominateAssemblyBrowseEdge, resolveAssemblyRelationSelection } from './assemblyBrowseSelection'
 
 // Original display-only witnesses. The nested datum catalog reuses the documented
 // configuration prisms; these tests do not establish native surface extraction.
@@ -169,4 +170,30 @@ describe('assembly Normal To selection isolation and world frames', () => {
     expect(assemblyNormalSelectionOrComponent(selected, key, changed)).toBe(selected)
     expect(resolveAssemblyNormalSelection(selected, changed, f.origins).target).toBeNull()
   })
+  it('retains shared LINE and mixed browse selection without turning either into a camera target', () => {
+    const f = fixture(), edge: AssemblySceneEdge = {
+      selection: { component: structuredClone(f.face.selection.component), body: null,
+        edge: { sourceFeatureId: 'original-prism', key: 'edge-v1|' + 'b'.repeat(64) } },
+      support: { kind: 'line', point: [0, 0, 0], axis: [1, 0, 0], tolerance: 1e-7 }, worldSupport: null, lines: [0, 0, 0, 1, 0, 0],
+    }
+    f.body.edges = [edge]
+    const first = nominateAssemblyBrowseEdge(null, edge, false, f.context, false)
+    const mixed = nominateAssemblyNormalFace(first, f.face, false, f.context, true), before = JSON.stringify(mixed)
+    expect(resolveAssemblyNormalSelection(first, f.context, f.origins).target).toBeNull()
+    expect(resolveAssemblyNormalSelection(mixed, f.context, f.origins).target).toBeNull()
+    expect(mixed.items.map(item => item.kind)).toEqual(['edge', 'face'])
+    expect(JSON.stringify(mixed)).toBe(before)
+    expect(resolveAssemblyRelationSelection(mixed, f.context, f.origins).status).toBe('ready')
+    const faceOnly = nominateAssemblyBrowseEdge(mixed, edge, false, f.context, true)
+    expect(resolveAssemblyNormalSelection(faceOnly, f.context, f.origins).target?.kind).toBe('plane')
+  })
+  it('keeps a conical camera axis independent from relation preselection eligibility', () => {
+    const f = fixture()
+    f.face.support = null; f.face.worldSupport = null
+    f.face.worldViewAxis = { kind: 'axis', point: [30, 4, 0], direction: [0, 1, 0], xDirection: [0, 0, 1] }
+    const selected = nominateAssemblyNormalFace(null, f.face, false, f.context, false)
+    expect(resolveAssemblyNormalSelection(selected, f.context, f.origins).target?.kind).toBe('axis')
+    expect(resolveAssemblyRelationSelection(selected, f.context, f.origins)).toMatchObject({ status: 'invalid', references: [], faces: [], edges: [], origins: [] })
+  })
+
 })

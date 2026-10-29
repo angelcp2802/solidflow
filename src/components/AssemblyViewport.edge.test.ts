@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest'
 import * as THREE from 'three'
-import { assemblyEdgeKey, pickAssemblyEdge, type AssemblyPickBody, type AssemblyPickEdge } from './AssemblyViewport'
-import type { AssemblySceneEdge, AssemblySceneBody } from '../cad/kernel.assembly-types'
+import { assemblyEdgeKey, pickAssemblyComponent, pickAssemblyEdge, pickAssemblyViewSelection, type AssemblyPickBody, type AssemblyPickEdge } from './AssemblyViewport'
+import type { AssemblyScene, AssemblySceneEdge, AssemblySceneBody, AssemblySceneFace } from '../cad/kernel.assembly-types'
 import { identityRigidPose } from '../model/rigidPose'
 
 // Original display primitives exercise picking identity/occlusion, not native support authority.
@@ -21,6 +21,62 @@ function fixture() {
   return { camera, bodies, edges, add, dispose: () => [...bodies, ...edges].forEach(({ object }) => { object.geometry.dispose(); (object.material as THREE.Material).dispose() }) }
 }
 const point = { x: 50, y: 50 }, size = { width: 100, height: 100 }
+function browseScene(f: ReturnType<typeof fixture>): AssemblyScene {
+  return { kind: 'assembly-scene', sceneId: 'original-edge-browse', bodies: f.bodies.map(value => value.body),
+    volume: 0, area: 0, solidCount: f.bodies.length, prototypeCount: 1, bounds: null, visibleBounds: null, warnings: [] }
+}
+function visibleFace(f: ReturnType<typeof fixture>) {
+  const body = f.bodies[0].body
+  const face: AssemblySceneFace = { selection: { component: body.component, body: body.body,
+    face: { sourceFeatureId: 'final', key: 'face-v1|original-front' } }, support: null, worldSupport: null,
+    vertices: [-1, -1, .5, 1, -1, .5, 0, 1, .5], triangles: [0, 1, 2] }
+  return { face, object: f.bodies[0].object }
+}
+it('browses only the exact native edge even when a visible face is also available', () => {
+  const f = fixture()
+  try {
+    const edge = f.add(['sub', 'rack']), selection = pickAssemblyViewSelection(browseScene(f), f.camera, f.bodies,
+      [visibleFace(f)], f.edges, point, size, 'edge', true)
+    expect(selection.edge).toBe(edge); expect(selection.face).toBeNull(); expect(selection.empty).toBe(false); expect(selection.additive).toBe(true)
+    expect(selection.component).toEqual(edge.selection.component)
+    selection.component!.occurrencePath[0] = 'changed'
+    expect(edge.selection.component.occurrencePath).toEqual(['sub', 'rack'])
+  } finally { f.dispose() }
+})
+it('does not turn decorative mesh segments or a face into a native browse edge', () => {
+  const f = fixture()
+  try {
+    f.add(['rack']); f.bodies[0].body.edgeLines = [-1, 0, .5, 1, 0, .5]
+    const selection = pickAssemblyViewSelection(browseScene(f), f.camera, f.bodies, [visibleFace(f)], [], point, size, 'edge')
+    expect(selection.edge).toBeNull(); expect(selection.face).toBeNull(); expect(selection.component).toEqual(f.bodies[0].body.component)
+    expect(selection.empty).toBe(false)
+  } finally { f.dispose() }
+})
+it('keeps the native edge owner within pixel tolerance just outside the material silhouette', () => {
+  const f = fixture()
+  try {
+    const edge = f.add(['rack']), pointer = { x: 61, y: 50 }
+    expect(pickAssemblyComponent(f.camera, f.bodies, pointer, size)).toBeNull()
+    const selection = pickAssemblyViewSelection(browseScene(f), f.camera, f.bodies, [], f.edges, pointer, size, 'edge')
+    expect(selection.edge).toBe(edge); expect(selection.component).toEqual(edge.selection.component); expect(selection.empty).toBe(false)
+  } finally { f.dispose() }
+})
+it('keeps ambiguous visible material nonempty while genuinely empty space clears edge browsing', () => {
+  const f = fixture()
+  try {
+    f.add(['a']); f.add(['b'])
+    const scene = browseScene(f), ambiguous = pickAssemblyViewSelection(scene, f.camera, f.bodies, [], f.edges, point, size, 'edge')
+    expect(ambiguous.edge).toBeNull(); expect(ambiguous.component).toBeNull(); expect(ambiguous.empty).toBe(false)
+    expect(pickAssemblyViewSelection(scene, f.camera, f.bodies, [], f.edges, { x: 95, y: 95 }, size, 'edge').empty).toBe(true)
+  } finally { f.dispose() }
+})
+it('retains face browsing as the omitted-mode default', () => {
+  const f = fixture()
+  try {
+    f.add(['rack']); const face = visibleFace(f), selection = pickAssemblyViewSelection(browseScene(f), f.camera, f.bodies, [face], f.edges, point, size)
+    expect(selection.face).toBe(face.face); expect(selection.edge).toBeNull(); expect(selection.empty).toBe(false)
+  } finally { f.dispose() }
+})
 it('selects a native-edge DTO by its complete occurrence identity independently of array order', () => {
   const f = fixture(); try { f.add(['a', 'rack'], -3); const front = f.add(['b', 'rack'])
     expect(pickAssemblyEdge(f.camera, f.bodies, f.edges, point, size)).toBe(front)

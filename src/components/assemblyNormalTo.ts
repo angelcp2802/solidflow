@@ -1,48 +1,35 @@
 import { Quaternion, Vector3 } from 'three'
-import type { AssemblyScene, AssemblySceneFace } from '../cad/kernel.assembly-types'
+import type { AssemblySceneFace } from '../cad/kernel.assembly-types'
 import { validateRigidPose } from '../model/rigidPose'
 import { assemblyFaceKey } from './AssemblyViewport'
 import type { AssemblyOriginDisplay } from './assemblyOriginPicking'
-import type { AssemblyOriginTreeContext, AssemblyOriginTreeEntry } from './assemblyOriginTree'
+import type { AssemblyOriginTreeEntry } from './assemblyOriginTree'
+import { assemblyBrowseSelectionOrComponent, nominateAssemblyBrowseFace, nominateAssemblyBrowseOrigin, nominateAssemblyBrowseUnsupported,
+  type AssemblyBrowseContext, type AssemblyBrowseSelection } from './assemblyBrowseSelection'
 import { validateNormalToTarget, type NormalToPlane, type NormalToTarget } from './normalToView'
 
-export interface AssemblyNormalContext extends AssemblyOriginTreeContext {
-  readonly scene: AssemblyScene | null
-}
-type NormalItem = { kind: 'face'; key: string } | { kind: 'origin'; key: string; binding: string } | { kind: 'unsupported'; key: string }
-export interface AssemblyNormalSelection extends AssemblyNormalContext { readonly items: readonly NormalItem[] }
+export type AssemblyNormalContext = AssemblyBrowseContext
+export type AssemblyNormalSelection = AssemblyBrowseSelection
 const sameContext = (a: AssemblyNormalContext, b: AssemblyNormalContext) => a.documentSignature === b.documentSignature
   && Object.is(a.sessionIdentity, b.sessionIdentity) && a.scene === b.scene
   && a.scopePath.length === b.scopePath.length && a.scopePath.every((value, index) => value === b.scopePath[index])
 
-function nominate(previous: AssemblyNormalSelection | null, item: NormalItem | null, context: AssemblyNormalContext,
-  additive: boolean): AssemblyNormalSelection {
-  let items: readonly NormalItem[] = item ? [item] : []
-  if (item && additive && previous && sameContext(previous, context)) {
-    const found = previous.items.some(value => value.kind === item.kind && value.key === item.key)
-    items = found ? item.kind === 'unsupported' ? previous.items : previous.items.filter(value => value.kind !== item.kind || value.key !== item.key)
-      : [...previous.items, item]
-  }
-  return { ...context, scopePath: [...context.scopePath], items }
-}
-
-/** Camera nomination is independent of component and relation-reference selection. */
+/** Camera nomination shares browse identities; its geometry contract stays separate. */
 export function nominateAssemblyNormalFace(previous: AssemblyNormalSelection | null, face: AssemblySceneFace | null,
   empty: boolean, context: AssemblyNormalContext, additive: boolean, unresolvedKey = 'unresolved-visible-surface'): AssemblyNormalSelection {
-  return nominate(previous, face ? { kind: 'face', key: assemblyFaceKey(face) }
-    : empty ? null : { kind: 'unsupported', key: unresolvedKey }, context, additive)
+  return nominateAssemblyBrowseFace(previous, face, empty, context, additive, unresolvedKey)
 }
 export function nominateAssemblyNormalUnsupported(key: string, context: AssemblyNormalContext): AssemblyNormalSelection {
-  return nominate(null, { kind: 'unsupported', key }, context, false)
+  return nominateAssemblyBrowseUnsupported(key, context)
 }
 /** An edit may clear camera nomination while retaining a component's ordinary UI selection. */
 export function assemblyNormalSelectionOrComponent(selection: AssemblyNormalSelection | null, componentKey: string | null,
   context: AssemblyNormalContext): AssemblyNormalSelection | null {
-  return selection ?? (componentKey === null ? null : nominateAssemblyNormalUnsupported(componentKey, context))
+  return assemblyBrowseSelectionOrComponent(selection, componentKey, context)
 }
 export function nominateAssemblyNormalOrigin(previous: AssemblyNormalSelection | null, entry: AssemblyOriginTreeEntry,
   context: AssemblyNormalContext, additive: boolean): AssemblyNormalSelection {
-  return nominate(previous, { kind: 'origin', key: entry.treeKey, binding: entry.binding }, context, additive)
+  return nominateAssemblyBrowseOrigin(previous, entry, context, additive)
 }
 
 function originPlane(display: AssemblyOriginDisplay): NormalToPlane | null {
@@ -66,7 +53,7 @@ export function resolveAssemblyNormalSelection(selection: AssemblyNormalSelectio
   if (selection.items.length > 2) return result
   const targets: Exclude<NormalToTarget, { kind: 'none' } | { kind: 'planes' }>[] = []
   for (const item of selection.items) {
-    if (item.kind === 'unsupported') return result
+    if (item.kind === 'unsupported' || item.kind === 'edge') return result
     if (item.kind === 'origin') {
       const matches = origins.filter(value => value.treeKey === item.key && value.binding === item.binding)
       if (matches.length !== 1) return result

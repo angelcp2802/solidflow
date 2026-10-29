@@ -1,5 +1,49 @@
 # Development guide
 
+## Ordered assembly preselection — 2026-10-29
+
+The standard workspace shares one ordered browse selection between Normal To
+and ordinary relation creation. Faces, LINE edges and tree datums retain exact
+identities plus document, scene, scope and session context. Ctrl/Meta toggles
+an item; ordinary click replaces the list. Never truncate a third selection
+to manufacture a valid pair. Normal To resolves its own world frames; its
+camera-only cone axes do not authorize solver references.
+
+The ribbon and Insert menu's **Relación** command re-resolve all selected
+entries before preparing one or two ordinary endpoints. A single reference
+arms the second role; accepting that role ends this temporary pick. Two
+references retain their order without starting a pick. Preserve a compatible
+ordinary family; otherwise suggest coincidence for planes, concentricity for
+declared axes, or parallel for a mixed/LINE pair. This does not infer a distance,
+angle, tangency branch or rotation lock. Specialized and saved editors keep
+their own explicit roles. Reopening a retained preview only navigates to it.
+
+Reject stale, ambiguous, hidden, unsupported or out-of-scope selections
+atomically. Global tree datums require conversion to the current editable
+scope; material references retain exact occurrence/definition/body identities.
+Preselection supplies declarations, never native-reference or Apply authority.
+Keep preview validation, worker authentication and persistence unchanged.
+
+The optional viewport edge-browse mode must leave configured callers and armed
+role pickers compatible. A browse press/release must retain the same scene,
+mode, interaction revision, camera, viewport and view-history revision.
+Wheel, leave, Escape, blur, cancellation, resize or navigation during the press
+invalidates it; navigating between separate completed selections is permitted.
+
+Ordinary creation keeps its two UI declarations through preview/Cancel, bound
+to the exact committed document, editable scope, session and family. Native
+tokens, reports and picking are still revoked. Apply or an unrelated operation
+clears this intent. Changing to a compatible ordinary family while Reference 2
+is pending keeps that temporary pick; an incompatible/specialized family ends it.
+
+After building, `npm run test:desktop:assembly-direction` continues the original
+drilled-prism route with actual face/LINE preselection, then its existing native
+relation, history and persistence checks. `npm run test:desktop:normal-to-view`
+checks the independent camera workflows. The direction harness permits Ctrl/Meta
+only in this fixed test-owned scenario, using Meta on macOS as in the existing
+Normal To route; no selection or native reply is injected.
+Executed cases and limitations belong in [validation](VALIDATION.md).
+
 ## Bounded face-click input diagnostics — 2026-10-29
 
 `test:desktop:part-face-limits` now retains passive input diagnostics for each

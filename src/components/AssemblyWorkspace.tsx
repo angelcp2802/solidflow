@@ -3,6 +3,8 @@ import { NamedViewsDialog } from './NamedViewsDialog'
 import { rebindNamedViewSelection, sameDocumentExceptNamedViews, useNamedDocumentViews } from './useNamedDocumentViews'
 import { standardViews, type ViewName, type ViewRequest } from './viewNavigation'
 import { assemblyNormalSelectionOrComponent, nominateAssemblyNormalFace, nominateAssemblyNormalOrigin, nominateAssemblyNormalUnsupported, resolveAssemblyNormalSelection, type AssemblyNormalSelection } from './assemblyNormalTo'
+import { nominateAssemblyBrowseEdge, resolveAssemblyRelationSelection } from './assemblyBrowseSelection'
+import { assemblyRelationDefault, isAssemblyOrdinaryCreationType } from './assemblyRelationDefaults'
 import { ViewOrientationControls } from './ViewOrientationControls'
 import { requestNewDocument, useNewDocumentDialog } from './useNewDocumentDialog'
 import { CompactViewportToolbar, ViewportToolGroup, ViewportToolIcon } from './CompactViewportToolbar'
@@ -389,6 +391,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     abandonInsertionSelection()
     managerTabRef.current = tab
     if (tab !== 'relations') {
+      preselectionPick.current = null
       clearSymmetryPicking(); setHingePicking(null); setWidthPicking(null); setRackPicking(null)
     }
     setManagerTab(tab)
@@ -427,7 +430,9 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   const [message, setMessage] = useState('Preparando ensamblaje…'), [error, setError] = useState(false), [selectedPath, setSelectedPath] = useState<string[]>([])
   const [scopePath, setScopePath] = useState<string[]>([]), [selectedFaceMeshes, setSelectedFaceMeshes] = useState<AssemblySceneFace[]>([])
   const [treeOriginSelection, setTreeOriginSelection] = useState<AssemblyOriginTreeSelection | null>(null)
+  // One ordered browse selection feeds camera commands and relation preselection independently.
   const [normalSelection, setNormalSelection] = useState<AssemblyNormalSelection | null>(null)
+  const [browseSelectionMode, setBrowseSelectionMode] = useState<'face' | 'edge'>('face')
   useEffect(() => { setTreeOriginSelection(null) }, [selectedPath])
   const [symmetryReferences,setSymmetryReferences]=useState<SymmetryUiReferences>([null,null,null]), [symmetryFamily,setSymmetryFamily]=useState<SymmetryUiFamily>('point'), [symmetryAlignment,setSymmetryAlignment]=useState<'aligned'|'opposed'|''>(''), [editingSymmetryId,setEditingSymmetryId]=useState<string|null>(null)
   const [symmetryPicking, setSymmetryPickingState] = useState<SymmetryPickTicket | null>(null), symmetryPickingRef = useRef<SymmetryPickTicket | null>(null)
@@ -445,11 +450,16 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   const [widthPicking, setWidthPicking] = useState<{ slot: WidthUiSlot; signature: string; scope: string; generation: number } | null>(null)
   const [widthBranch,setWidthBranch] = useState<WidthUiBranch | ''>(''), [tabBranch,setTabBranch] = useState<WidthUiBranch | ''>(''), [widthAlignment,setWidthAlignment] = useState<'aligned'|'opposed'|''>('')
   const [references, setReferences] = useState<RelationReferencePair>([null, null]), [endpointSlot, updateEndpointSlot] = useState<0 | 1>(0)
+  const creationReferenceDraft = useRef<{ document: AssemblyDocument; scope: string; session: number; family: string; references: RelationReferencePair } | null>(null)
+  const preselectionPick = useRef<{ signature: string; scope: string; scene: AssemblyScene; generation: number; slot: 1 } | null>(null)
   const endpointSlotRef = useRef(endpointSlot)
   const setEndpointSlot = (slot: 0 | 1) => { endpointSlotRef.current = slot; updateEndpointSlot(slot) }
   // An editor's declaration intent survives preview Cancel; generic selection does not.
   const [referenceDraft, updateReferenceDraft] = useState<RelationReferenceDraft | null>(null), referenceDraftRef = useRef(referenceDraft)
-  const setReferenceDraft = (value: RelationReferenceDraft | null) => { referenceDraftRef.current = value; updateReferenceDraft(value) }
+  const setReferenceDraft = (value: RelationReferenceDraft | null) => {
+    if (value) creationReferenceDraft.current = null
+    referenceDraftRef.current = value; updateReferenceDraft(value)
+  }
   const [pickingFaces, setPickingFaces] = useState(false), [pickingLinearEdges, setPickingLinearEdges] = useState(false)
   const [showOriginAxes, setShowOriginAxes] = useState(false), [showOriginPlanes, setShowOriginPlanes] = useState(false)
   const [originControlsOpen, updateOriginControlsOpen] = useState(false), originControlsOpenRef = useRef(false)
@@ -531,6 +541,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     busy: exportView.current.busy, draft: exportView.current.draft, preview: !!currentPreview.current, sourceUpdate: hasStaging(),
     replacing: exportView.current.replacing || !!replaceAnswer.current, sceneSignature: sceneSignature.current, confirmedSceneSignature: confirmedScene.current?.signature ?? null })
   const serialized = useMemo(() => serializeAssemblyDocument(committed), [committed]), candidateSignature = useMemo(() => draft ? serializeAssemblyDocument(draft) : null, [draft])
+  useEffect(() => { creationReferenceDraft.current = null }, [scopePath, serialized, treeReset])
   const dirty = serialized !== saved || !!draft || !!sourceUpdate || !!documentUpdate || !!replacementReview, dirtyRef = useRef(dirty); dirtyRef.current = dirty
   const rows = useMemo(() => assemblyTreeRows(committed), [committed]), selected = rows.find(row => samePath(row.path, selectedPath))
   const movementScope = selected && (assemblyDefinitionKey(committed) === assemblyDefinitionKey(selected.parent) ? committed
@@ -618,6 +629,12 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     && serialized === serializeAssemblyDocument(current.current) && JSON.stringify(scopePath) === currentFileScope.current
   const setRelationReference = (slot: 0 | 1, reference: AssemblyGeometryReference | null) => {
     if (!referenceEditorIsCurrent()) return
+    const pending = preselectionPick.current
+    if (reference && !referenceEditTicket && pending?.slot === slot && pending.signature === serialized
+      && pending.scope === JSON.stringify(scopePath) && pending.scene === scene && pending.generation === generation.current) {
+      preselectionPick.current = null
+      stopOriginPicking(); setPickingFaces(false); setPickingLinearEdges(false)
+    }
     if (editedReferences && referenceDraft) {
       const next: RelationReferencePair = [...editedReferences]
       next[slot] = reference && structuredClone(reference)
@@ -710,8 +727,14 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     const pending = pendingLinked.current; pendingLinked.current = null
     if (pending?.grantId) { linkedBindings.current.releaseGrant(pending.grantId); if (mounted.current) refreshLinked(v => v + 1) }
   }
-  const invalidate = (keepSourceUpdate = false) => {
+  const invalidate = (keepSourceUpdate = false, keepCreationReferences = false) => {
+    const retained = keepCreationReferences && creationReferenceDraft.current?.document === current.current
+      && creationReferenceDraft.current.scope === currentFileScope.current && creationReferenceDraft.current.session === treeReset
+      && creationReferenceDraft.current.family === mateType && isAssemblyOrdinaryCreationType(mateType)
+      ? creationReferenceDraft.current : null
+    creationReferenceDraft.current = retained
     setNormalSelection(null)
+    preselectionPick.current = null
     pendingInsertionSelection.current = null
     hingeContext.current = null
     clearSymmetryPicking()
@@ -736,7 +759,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
       currentReplacement.current = null; setReplacementReview(null)
     }
     generation.current++; if (currentPreview.current) discardToken(currentPreview.current.reply.token)
-    currentPreview.current = null; setPreview(null); setDraft(null); setReports([]); setSelectedFaceMeshes([]); setReferences([null, null]); setTangentReferences([null, null]); setCylinderReferences([null, null]); setSphereReferences([null, null]); setLimitReferences([null, null]); setLimitAngleReferences([null, null]); setFaceChoice(''); setPickingFaces(false)
+    currentPreview.current = null; setPreview(null); setDraft(null); setReports([]); setSelectedFaceMeshes([]); setReferences(retained ? structuredClone(retained.references) : [null, null]); setTangentReferences([null, null]); setCylinderReferences([null, null]); setSphereReferences([null, null]); setLimitReferences([null, null]); setLimitAngleReferences([null, null]); setFaceChoice(''); setPickingFaces(false)
     restoreScene()
   }
   useEffect(() => {
@@ -788,7 +811,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     if (operation.current && !cancelable && !dragSession.current) return
     if (directedPending.current) { generation.current++; directedPending.current = false; setDirectedMeasurement(null); operation.current = false; setBusy(false); setCancelable(false); notify('Medición cancelada. El ensamblaje no ha cambiado.'); return }
     if (analysisPending.current) { generation.current++; analysisPending.current = false; clearInspection(); operation.current = false; setBusy(false); setCancelable(false); notify('Comprobación cancelada. El documento confirmado no ha cambiado.'); return }
-    invalidate(); operation.current = false; setBusy(false); setCancelable(false); setRebuild(value => value + 1); notify('Vista previa cancelada. Se conservan las posiciones confirmadas.')
+    invalidate(false, true); operation.current = false; setBusy(false); setCancelable(false); setRebuild(value => value + 1); notify('Vista previa cancelada. Se conservan las posiciones confirmadas.')
   }
   const cancelToolbarPreview = () => {
     if (!operation.current && currentDocumentUpdate.current && currentPreview.current) {
@@ -850,11 +873,11 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     const candidate = validateAssemblyDocument(reply.document), record = { reply, baseSignature, candidateSignature: serializeAssemblyDocument(candidate), generation: id }
     currentPreview.current = record; setPreview(record); setDraft(candidate); setScene(reply.scene); notify('Vista previa verificada. Revisa las relaciones y pulsa Aplicar.')
   }
-  const solve = async (proposed = currentUpdate.current?.document ?? current.current) => {
+  const solve = async (proposed = currentUpdate.current?.document ?? current.current, keepCreationReferences = false) => {
     if (currentDocumentUpdate.current) { await solveDocumentUpdate(); return }
     if (currentReplacement.current) { await solveReplacement(); return }
     if (operation.current || savedReferenceEditIsActive() && proposed === current.current) return
-    const base = current.current, signature = serializeAssemblyDocument(base); invalidate(!!currentUpdate.current); const id = ++generation.current; operation.current = true; setBusy(true); setCancelable(true); notify('Resolviendo todas las relaciones…')
+    const base = current.current, signature = serializeAssemblyDocument(base); invalidate(!!currentUpdate.current, keepCreationReferences); const id = ++generation.current; operation.current = true; setBusy(true); setCancelable(true); notify('Resolviendo todas las relaciones…')
     try {
       const reviewId = currentUpdate.current?.review.reviewId
       acceptReply(await (reviewId ? previewAssemblyPartUpdate(base, reviewId, proposed) : previewAssembly(base, proposed)), id, signature)
@@ -978,6 +1001,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
       const reply = await applyAssemblyPreview(current.current, candidate.reply.token)
       if (!mounted.current || id !== generation.current) return
       const document = history.current!.commitDocument(reply.document); currentPreview.current = null; setPreview(null); setDraft(null); currentUpdate.current = null; setSourceUpdate(null); currentDocumentUpdate.current = null; setDocumentUpdate(null); currentReplacement.current = null; setReplacementReview(null); sceneSignature.current = serializeAssemblyDocument(document); confirmedScene.current = { signature: sceneSignature.current, scene: reply.scene }
+      creationReferenceDraft.current = null
       pendingLinked.current = null
       if (linked?.grantId) {
         const definition = document.definitions.find(d => assemblyDefinitionKey(d) === assemblyDefinitionKey(linked.target))
@@ -1869,7 +1893,15 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
       catch (reason) { notify((reason as Error).message, true) }
       return
     }
-    try { if (!mateName.trim()) throw new Error('Escribe un nombre para la relación.'); if ((mateType === 'distance' || mateType === 'angle') && !mateValue.trim()) throw new Error('Escribe el valor de la relación.'); const mate = assemblyMateProposal(references[0], references[1], mateType, alignment, Number(mateValue)); mate.name = mateName; void solve(applyAssemblyEdit(current.current, { type: 'add-mate', scope: scopeReference, mate })) }
+    try {
+      if (!mateName.trim()) throw new Error('Escribe un nombre para la relación.')
+      if ((mateType === 'distance' || mateType === 'angle') && !mateValue.trim()) throw new Error('Escribe el valor de la relación.')
+      const mate = assemblyMateProposal(references[0], references[1], mateType, alignment, Number(mateValue))
+      mate.name = mateName
+      const candidate = applyAssemblyEdit(current.current, { type: 'add-mate', scope: scopeReference, mate })
+      creationReferenceDraft.current = { document: current.current, scope: currentFileScope.current, session: treeReset, family: mateType, references: structuredClone(references) }
+      void solve(candidate, true)
+    }
     catch (reason) { notify((reason as Error).message, true) }
   }
   const capture = async (mateId?: string) => {
@@ -2117,12 +2149,17 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   const normalComponentKey = selectedPath.length ? JSON.stringify(['component', selectedPath]) : null
   const normalViewSelection = assemblyNormalSelectionOrComponent(normalSelection, normalComponentKey, normalViewContext)
   const normalResolution = resolveAssemblyNormalSelection(normalViewSelection, normalViewContext, treeOrigins)
+  const browseResolution = resolveAssemblyRelationSelection(normalViewSelection, normalViewContext, treeOrigins)
+  const browseFaces = browseResolution.status === 'ready' ? browseResolution.faces : normalResolution.faces
+  const browseOrigins = browseResolution.status === 'ready' ? browseResolution.origins : normalResolution.origins
   const canNormal = !normalViewBlocked && !dragSession.current && !viewHistory.navigating && normalResolution.target !== null
   const nominateViewSelection = (value: AssemblyViewportViewSelection) => {
     if (normalViewBlocked || normalViewCurrent.current.context !== normalViewContext || normalViewCurrent.current.blocked
       || operation.current || hasStaging() || currentPreview.current || dragging.current || dragSession.current
       || value.scene !== scene || serialized !== serializeAssemblyDocument(current.current) || JSON.stringify(scopePath) !== currentFileScope.current) return
-    setNormalSelection(previous => nominateAssemblyNormalFace(assemblyNormalSelectionOrComponent(previous, normalComponentKey, normalViewContext), value.face, value.empty, normalViewContext, value.additive, JSON.stringify(['visible-surface', value.component])))
+    setNormalSelection(previous => value.edge
+      ? nominateAssemblyBrowseEdge(assemblyNormalSelectionOrComponent(previous, normalComponentKey, normalViewContext), value.edge, value.empty, normalViewContext, value.additive)
+      : nominateAssemblyNormalFace(assemblyNormalSelectionOrComponent(previous, normalComponentKey, normalViewContext), value.face, value.empty, normalViewContext, value.additive, JSON.stringify(['visible-surface', value.component])))
   }
   useLayoutEffect(() => {
     const ticket = pendingInsertionSelection.current
@@ -2228,6 +2265,13 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     if (operation.current || hasStaging() || replaceDialog
       || currentPreview.current && (standardPreviewFamily || next === 'hinge' || next === 'circular-path' || next === 'line-path' || next === 'profile-center' || next === 'symmetry' || next === 'width' || next === 'limit-directed-angle' || next === 'limit-angle' || next === 'limit-distance' || next === 'parallel' || next === 'perpendicular' || next === 'tangent' || cylinderTangentType(next) || sphereTangentType(next))
       || ordinaryEdit && next !== mateType || angleEdit && next !== 'angle' || distanceEdit && next !== 'distance' || editingHinge && next !== 'hinge' || editingCircularPath && next !== 'circular-path' || editingLinePath && next !== 'line-path' || editingProfile && next !== 'profile-center' || editingSymmetry && next !== 'symmetry' || editingWidth && next !== 'width' || editingDirection && next !== 'parallel' && next !== 'perpendicular' || editingTangent && next !== 'tangent' || (editingCylinderTangent || editingSphereTangent || editingLimitDistance || editingLimitAngle || editingLimitDirectedAngle) && next !== mateType) return
+    const pendingPick = preselectionPick.current
+    const keepSecondPick = pendingPick?.generation === generation.current && pendingPick.signature === serialized
+      && pendingPick.scope === currentFileScope.current && pendingPick.scene === scene && !referenceEditing
+      && references[0] && !references[1] && isAssemblyOrdinaryCreationType(next)
+      && assemblyRelationDefault([references[0]], next) === next
+    creationReferenceDraft.current = null
+    preselectionPick.current = null
     clearSymmetryPicking()
     if (next !== mateType) hingeContext.current = null
     if (isHinge !== (next === 'hinge')) { setHingeReferences([null,null,null,null]); resetHingeStops(); setEditingHingeId(null); setHingeAlignment('') }
@@ -2253,7 +2297,37 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     if (next !== 'limit-distance') setEditingLimitDistanceId(null)
     if (next !== 'limit-angle') setEditingLimitAngleId(null)
     if (next !== 'limit-directed-angle') setEditingLimitDirectedAngleId(null)
-    setRackPicking(null); setRackKeys(['', '']); setPickingFaces(false); setPickingLinearEdges(false); setWidthPicking(null)
+    setRackPicking(null); setRackKeys(['', '']); setPickingFaces(!!keepSecondPick); setPickingLinearEdges(false); setWidthPicking(null)
+    if (keepSecondPick) { preselectionPick.current = pendingPick; setEndpointSlot(1) }
+  }
+  const beginRelationFromSelection = () => {
+    if (!mounted.current || dragging.current || dragSession.current) return
+    const panel = () => openManager('relations', '[aria-label="Tipo de relación"]')
+    // Navigation can resume a retained preview/editor; only a clean entry may prefill.
+    if (operation.current || hasStaging() || currentPreview.current || editingBlocked || draft || replaceDialog
+      || referenceEditing || editingGear || editingScrew || editingRack || !isAssemblyOrdinaryCreationType(mateType)) {
+      panel(); return
+    }
+    if (normalViewBlocked || normalViewCurrent.current.context !== normalViewContext || normalViewCurrent.current.blocked
+      || serialized !== serializeAssemblyDocument(current.current) || JSON.stringify(scopePath) !== currentFileScope.current) return
+    const selected = resolveAssemblyRelationSelection(normalViewSelection, normalViewContext, treeOrigins)
+    if (selected.status !== 'ready') {
+      panel()
+      if (selected.status === 'invalid') notify(selected.message ?? 'Vuelve a seleccionar una o dos referencias actuales del ámbito.', true)
+      return
+    }
+    const nextType = assemblyRelationDefault(selected.references, mateType)
+    if (!nextType) { panel(); notify('Estas referencias requieren un editor con roles específicos.', true); return }
+    chooseMateType(nextType)
+    setReferences([structuredClone(selected.references[0]), selected.references[1] ? structuredClone(selected.references[1]) : null])
+    setSelectedFaceMeshes(selected.faces); setFaceChoice(''); setEdgeChoice(''); setDragMode('off')
+    const needsSecond = selected.references.length === 1
+    setEndpointSlot(needsSecond ? 1 : 0)
+    preselectionPick.current = needsSecond ? { signature: serialized, scope: JSON.stringify(scopePath), scene: scene!, generation: generation.current, slot: 1 } : null
+    setPickingFaces(needsSecond); setPickingLinearEdges(false)
+    openManager('relations', needsSecond ? '[aria-label="Referencia 2 de la relación"]' : '[aria-label="Tipo de relación"]')
+    notify(needsSecond ? 'Referencia 1 preparada. Selecciona la referencia 2 o elige un origen en el panel.'
+      : 'Dos referencias preparadas en el orden seleccionado. Revisa el tipo y pulsa Vista previa.')
   }
   const circularPathChoices=scene?assemblyCircularPathCatalogChoices({...scene,bodies:scene.bodies.filter(body=>body.visible)}).filter(c=>c.reference.component.occurrencePath.length>scopePath.length&&scopePath.every((id,i)=>c.reference.component.occurrencePath[i]===id)).map(c=>({...c,reference:{...c.reference,component:{...c.reference.component,occurrencePath:c.reference.component.occurrencePath.slice(scopePath.length)}}})):[]
   const circularContextKey=JSON.stringify([serialized,scopePath,generation.current,confirmedScene.current?.scene.sceneId??null,mateType,editingCircularPathId])
@@ -2523,7 +2597,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
       { id: 'insert-component', label: 'Componente desde archivo…', disabled: editingBlocked || replaceDialog, onSelect: () => void open('insert') },
       { id: 'insert-step', label: 'STEP estructurado…', disabled: editingBlocked || !!draft || !!preview || replaceDialog, onSelect: () => void insertStructural() },
       { id: 'insert-reuse', label: 'Otra ocurrencia de un origen…', onSelect: () => openManager('components', '[aria-label="Origen del componente"]') },
-      { id: 'insert-relation', label: 'Relación de posición…', onSelect: () => openManager('relations', '[aria-label="Tipo de relación"]') },
+      { id: 'insert-relation', label: 'Relación de posición…', onSelect: beginRelationFromSelection },
     ] },
     { id: 'tools', label: 'Herramientas', items: [
       { id: 'solve', label: 'Resolver ensamblaje', disabled: busy || !!rootRevision || !!referenceEditTicket, onSelect: () => void solve() },
@@ -2558,6 +2632,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     },
     escape: shortcutPicking ? { disabled: editingBlocked || dragActive || !!dragSession.current, onSelect: () => {
       if (operation.current || hasStaging() || dragActive || dragSession.current) return
+      preselectionPick.current = null
       clearSymmetryPicking(); setHingePicking(null); setWidthPicking(null); setRackPicking(null)
       notify('Selección en vista cancelada. Se conservan las referencias y los campos de la relación.')
     } } : shortcutCancel,
@@ -2602,7 +2677,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
           </div>
         </AssemblyCommandGroup>
         <AssemblyCommandGroup label="Relaciones y movimiento">
-          <button className="assembly-command-large" aria-label="Relación de ensamblaje" onClick={() => openManager('relations', '[aria-label="Tipo de relación"]')}><Link2 size={25} /><span>Relación</span></button>
+          <button className="assembly-command-large" aria-label="Relación de ensamblaje" onClick={beginRelationFromSelection}><Link2 size={25} /><span>Relación</span></button>
           <button aria-label="Mover componente" disabled={editingBlocked || !selected || !!selectedTreeOrigin} onClick={() => openManager('properties', '.assembly-movement h3')}><Move3D size={17} />Mover componente</button>
         </AssemblyCommandGroup>
         <AssemblyCommandGroup label="Documento">
@@ -2735,7 +2810,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
                 <section className="assembly-section"><h2><Link2 size={16} />Relaciones</h2>
         <div className="assembly-property-confirmation"><button aria-label="Aplicar desde propiedades de relación" title="Aplicar" disabled={!canApply} onClick={() => void apply()}><Check size={19} /></button><button aria-label="Cancelar desde propiedades de relación" title="Cancelar" disabled={busy ? !cancelable : !preview && !sourceUpdate && !documentUpdate && !replacementReview} onClick={cancelToolbarPreview}><X size={19} /></button></div>
         <label>Relación<select aria-label="Tipo de relación" value={mateType} disabled={editingBlocked || replaceDialog || !!ordinaryEdit || !!angleEdit || !!distanceEdit || !!editingHinge || !!editingCircularPath || !!editingLinePath || !!editingProfile || !!editingSymmetry || !!editingWidth || standardPreviewFamily && !!preview || !!editingTangent || !!editingCylinderTangent || !!editingSphereTangent || !!editingLimitDistance || !!editingLimitAngle || !!editingLimitDirectedAngle} onChange={event => chooseMateType(event.target.value as typeof mateType)}><option value="hinge" disabled={referenceEditing}>Bisagra</option><option value="circular-path" disabled={referenceEditing}>Punto sobre trayecto circular</option><option value="line-path" disabled={referenceEditing}>Punto sobre trayecto LINE</option><option value="profile-center" disabled={referenceEditing}>Centro de perfiles acotados</option><option value="symmetry" disabled={referenceEditing}>Simetría · tres referencias</option><option value="width" disabled={referenceEditing}>Anchura centrada · cuatro planos</option><option value="concentric" disabled={referenceEditing}>Concéntrica</option><option value="coincident" disabled={referenceEditing}>Coincidente</option><option value="distance" disabled={referenceEditing}>Distancia firmada</option><option value="limit-distance" disabled={!!preview || referenceEditing}>Distancia con límites</option><option value="angle" disabled={referenceEditing}>Ángulo</option><option value="limit-angle" disabled={!!preview || referenceEditing}>Ángulo principal con límites</option><option value="limit-directed-angle" disabled={!!preview || referenceEditing}>Ángulo dirigido con límites</option><option value="parallel" disabled={!!preview || !!editingTangent || !!editingCylinderTangent || !!editingSphereTangent || !!editingLimitDistance || !!editingLimitAngle || !!editingLimitDirectedAngle}>Paralela</option><option value="perpendicular" disabled={!!preview || !!editingTangent || !!editingCylinderTangent || !!editingSphereTangent || !!editingLimitDistance || !!editingLimitAngle || !!editingLimitDirectedAngle}>Perpendicular</option><option value="tangent" disabled={!!preview || !!editingDirection || !!editingCylinderTangent || !!editingSphereTangent || !!editingLimitDistance || !!editingLimitAngle || !!editingLimitDirectedAngle}>Tangente plano–cilindro</option><option value="skew-cylinder-tangent" disabled={!!preview || !!editingDirection || !!editingTangent || !!editingSphereTangent || !!editingLimitDistance || !!editingLimitAngle || !!editingLimitDirectedAngle}>Tangente entre cilindros no paralelos</option><option value="parallel-cylinder-tangent" disabled={!!preview || !!editingDirection || !!editingTangent || !!editingSphereTangent || !!editingLimitDistance || !!editingLimitAngle || !!editingLimitDirectedAngle}>Tangente entre cilindros con paralelismo</option><option value="plane-sphere-tangent" disabled={!!preview || referenceEditing}>Tangente plano–esfera</option><option value="sphere-sphere-tangent" disabled={!!preview || referenceEditing}>Tangente esfera–esfera</option><option value="cylinder-sphere-tangent" disabled={!!preview || referenceEditing}>Tangente cilindro–esfera</option><option value="gear" disabled={referenceEditing}>Engranaje</option><option value="screw" disabled={referenceEditing}>Tornillo</option><option value="rack-pinion" disabled={referenceEditing}>Cremallera y piñón</option></select></label>
-<label>Ámbito<select aria-label="Ámbito de las relaciones" value={JSON.stringify(scopePath)} disabled={editingBlocked || !!preview} onChange={event => { if (operation.current || hasStaging() || currentPreview.current || replaceDialog) return; abandonInsertionSelection(); generation.current++; setOrdinaryEdit(null); setReleaseRotation(false); setAngleEdit(null); setDistanceEdit(null); setScopePath(JSON.parse(event.target.value) as string[]); setReferences([null, null]); setWidthReferences([null,null,null,null]); setEditingWidthId(null); setTangentReferences([null, null]); setCylinderReferences([null, null]); setSphereReferences([null, null]); setLimitReferences([null, null]); setLimitAngleReferences([null, null]); setLimitDirectedSelection(['', '', '']); setCylinderLarger(''); setSphereLarger(''); setSelectedFaceMeshes([]); setComponentLock(['', '']); setEditingGearId(null); setEditingScrewId(null); setEditingRackId(null); setDirectionEdit(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null); setRackKeys(['', '']); setRackPicking(null); setPickingLinearEdges(false); setEdgeChoice('') }}><option value="[]">{committed.name} · raíz</option>{rows.filter(row => row.definition.kind === 'assembly' && !row.suppressed).map(row => <option key={JSON.stringify(row.path)} value={JSON.stringify(row.path)}>{row.path.join(' / ')} · definición compartida</option>)}</select></label>
+<label>Ámbito<select aria-label="Ámbito de las relaciones" value={JSON.stringify(scopePath)} disabled={editingBlocked || !!preview} onChange={event => { if (operation.current || hasStaging() || currentPreview.current || replaceDialog) return; abandonInsertionSelection(); creationReferenceDraft.current = null; preselectionPick.current = null; generation.current++; setOrdinaryEdit(null); setReleaseRotation(false); setAngleEdit(null); setDistanceEdit(null); setScopePath(JSON.parse(event.target.value) as string[]); setReferences([null, null]); setWidthReferences([null,null,null,null]); setEditingWidthId(null); setTangentReferences([null, null]); setCylinderReferences([null, null]); setSphereReferences([null, null]); setLimitReferences([null, null]); setLimitAngleReferences([null, null]); setLimitDirectedSelection(['', '', '']); setCylinderLarger(''); setSphereLarger(''); setSelectedFaceMeshes([]); setComponentLock(['', '']); setEditingGearId(null); setEditingScrewId(null); setEditingRackId(null); setDirectionEdit(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null); setRackKeys(['', '']); setRackPicking(null); setPickingLinearEdges(false); setEdgeChoice('') }}><option value="[]">{committed.name} · raíz</option>{rows.filter(row => row.definition.kind === 'assembly' && !row.suppressed).map(row => <option key={JSON.stringify(row.path)} value={JSON.stringify(row.path)}>{row.path.join(' / ')} · definición compartida</option>)}</select></label>
         {hasGenericReferences && <><div className="assembly-endpoints">{relationReferences.map((reference, index) => <div className="assembly-reference-slot" key={index}>
           <button aria-label={`Referencia ${index + 1} de la relación`} disabled={referenceBlocked} className={endpointSlot === index ? 'active' : ''} onClick={() => {
             if (referenceBlocked || operation.current || hasStaging() || currentPreview.current || !referenceEditorIsCurrent()) return
@@ -2923,15 +2998,15 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
 </div>
         </div>
       </aside>
-      <section className="assembly-canvas" data-normal-selection-kind={normalResolution.target?.kind ?? 'invalid'} data-normal-selection-keys={JSON.stringify(normalViewSelection?.items.map(value => [value.kind, value.key]) ?? [])} data-normal-enabled={canNormal}><CompactViewportToolbar label="Controles del visor del ensamblaje" className="assembly-view-tools"><ViewportToolGroup label="Vistas del ensamblaje"><ViewOrientationControls onView={viewButton} disabled={!!dragSession.current || viewHistory.navigating} canPrevious={viewHistory.canPrevious} canNormal={canNormal} onNamedViews={namedViews.open} canNamedViews={namedViews.canOpen} /><button title="Isométrica" disabled={!!dragSession.current || viewHistory.navigating} onClick={() => viewButton('iso')}><ViewportToolIcon name="iso" label="Isométrica" /></button><button title="Frontal" disabled={!!dragSession.current || viewHistory.navigating} onClick={() => viewButton('front')}><ViewportToolIcon name="front" label="Frontal" /></button><button title="Superior" disabled={!!dragSession.current || viewHistory.navigating} onClick={() => viewButton('top')}><ViewportToolIcon name="top" label="Superior" /></button><button title="Ajustar" disabled={!!dragSession.current || viewHistory.navigating} onClick={() => viewButton('fit')}><ViewportToolIcon name="fit" label="Ajustar" /></button></ViewportToolGroup><ViewportToolGroup label="Selección de referencias"><button title="Seleccionar caras" className={pickingFaces ? 'active' : ''} aria-pressed={pickingFaces} disabled={isHinge || isCircularPath || isLinePath || isSymmetry || (isWidth ? widthPickingBlocked : referenceBlocked)} onClick={() => { openManager('relations'); if (isWidth) { const missing = widthReferences.findIndex(value => value === null); toggleWidthPicking(widthPickingSlot ?? (missing < 0 ? 0 : missing as WidthUiSlot)); return } setDragMode('off'); setPickingLinearEdges(false); setPickingFaces(!pickingFaces) }}><ViewportToolIcon name="face" label="Seleccionar caras" /></button>
+      <section className="assembly-canvas" data-assembly-browse-mode={browseSelectionMode} data-normal-selection-kind={normalResolution.target?.kind ?? 'invalid'} data-normal-selection-keys={JSON.stringify(normalViewSelection?.items.map(value => [value.kind, value.key]) ?? [])} data-normal-enabled={canNormal}><CompactViewportToolbar label="Controles del visor del ensamblaje" className="assembly-view-tools"><ViewportToolGroup label="Vistas del ensamblaje"><ViewOrientationControls onView={viewButton} disabled={!!dragSession.current || viewHistory.navigating} canPrevious={viewHistory.canPrevious} canNormal={canNormal} onNamedViews={namedViews.open} canNamedViews={namedViews.canOpen} /><button title="Isométrica" disabled={!!dragSession.current || viewHistory.navigating} onClick={() => viewButton('iso')}><ViewportToolIcon name="iso" label="Isométrica" /></button><button title="Frontal" disabled={!!dragSession.current || viewHistory.navigating} onClick={() => viewButton('front')}><ViewportToolIcon name="front" label="Frontal" /></button><button title="Superior" disabled={!!dragSession.current || viewHistory.navigating} onClick={() => viewButton('top')}><ViewportToolIcon name="top" label="Superior" /></button><button title="Ajustar" disabled={!!dragSession.current || viewHistory.navigating} onClick={() => viewButton('fit')}><ViewportToolIcon name="fit" label="Ajustar" /></button></ViewportToolGroup><ViewportToolGroup label="Selección previa"><button aria-label="Preseleccionar caras" title="Preseleccionar caras · Ctrl para añadir o quitar" aria-pressed={browseSelectionMode === 'face'} disabled={normalViewBlocked} onClick={() => setBrowseSelectionMode('face')}><ViewportToolIcon name="face" label="Preseleccionar caras" /></button><button aria-label="Preseleccionar aristas lineales" title="Preseleccionar aristas lineales · Ctrl para añadir o quitar" aria-pressed={browseSelectionMode === 'edge'} disabled={normalViewBlocked} onClick={() => setBrowseSelectionMode('edge')}><ViewportToolIcon name="edge" label="Preseleccionar aristas lineales" /></button></ViewportToolGroup><ViewportToolGroup label="Selección de referencias"><button title="Seleccionar caras" className={pickingFaces ? 'active' : ''} aria-pressed={pickingFaces} disabled={isHinge || isCircularPath || isLinePath || isSymmetry || (isWidth ? widthPickingBlocked : referenceBlocked)} onClick={() => { openManager('relations'); if (isWidth) { const missing = widthReferences.findIndex(value => value === null); toggleWidthPicking(widthPickingSlot ?? (missing < 0 ? 0 : missing as WidthUiSlot)); return } setDragMode('off'); setPickingLinearEdges(false); setPickingFaces(!pickingFaces) }}><ViewportToolIcon name="face" label="Seleccionar caras" /></button>
         {(isDirection || isLimitAngle || mateType === 'angle') && <button title="Seleccionar aristas lineales" aria-label="Seleccionar aristas lineales" aria-pressed={pickingLinearEdges} disabled={referenceBlocked || !!editingLimitAngle || sceneSignature.current !== serialized} onClick={() => { openManager('relations'); setDragMode('off'); setPickingFaces(false); setPickingLinearEdges(!pickingLinearEdges) }}><ViewportToolIcon name="edge" label="Seleccionar aristas" /></button>}
         </ViewportToolGroup><ViewportToolGroup label="Manipulación del componente" className="assembly-drag-tools"><button title="Arrastrar posición" aria-label="Arrastrar posición" aria-pressed={dragMode === 'translate'} disabled={editingBlocked || !!draft || !!preview || replaceDialog || !eligibleDragFrame} onClick={() => { setTreeOriginSelection(null); setNormalSelection(null); clearSymmetryPicking(); setDragMode('translate') }}><ViewportToolIcon name="translate" label="Arrastrar posición" /></button>
         <button title="Arrastrar giro" aria-label="Arrastrar giro" aria-pressed={dragMode === 'rotate'} disabled={editingBlocked || !!draft || !!preview || replaceDialog || !eligibleDragFrame} onClick={() => { setTreeOriginSelection(null); setNormalSelection(null); clearSymmetryPicking(); setDragMode('rotate') }}><ViewportToolIcon name="rotate" label="Arrastrar giro" /></button>
         <button title="Desactivar manipulador" aria-label="Desactivar manipulador" disabled={!!dragSession.current || dragMode === 'off'} onClick={() => setDragMode('off')}><ViewportToolIcon name="stop" label="Desactivar manipulador" /></button></ViewportToolGroup></CompactViewportToolbar>
-      <AssemblyViewport originLabelTopInset={44} scene={scene} view={view} viewHistory={viewHistory} selectedPath={selectedTreeOrigin ? [] : selectedPath} selectedFaces={normalViewBlocked ? rackSelectedFaces : [...rackSelectedFaces, ...normalResolution.faces]} selectedEdges={rackSelectedEdges} selectedAnalysisPair={selectedAnalysisPair}
+      <AssemblyViewport originLabelTopInset={44} scene={scene} view={view} viewHistory={viewHistory} selectedPath={selectedTreeOrigin ? [] : selectedPath} selectedFaces={normalViewBlocked ? rackSelectedFaces : [...rackSelectedFaces, ...browseFaces]} selectedEdges={normalViewBlocked ? rackSelectedEdges : [...rackSelectedEdges, ...browseResolution.edges]} selectedAnalysisPair={selectedAnalysisPair} browseSelectionMode={browseSelectionMode}
         onContextTarget={openViewportContext}
-        originReferences={!normalViewBlocked && normalResolution.origins.length ? normalResolution.origins : selectedTreeOrigin ? [selectedTreeOrigin.display] : originDisplays}
-        selectedOrigins={!normalViewBlocked && normalResolution.origins.length ? normalResolution.origins.map(value => value.reference) : selectedTreeOrigin ? [selectedTreeOrigin.display.reference] : selectedOriginReferences} pickingOrigins={activeOriginPicking} onOrigin={pickOrigin}
+        originReferences={!normalViewBlocked && browseOrigins.length ? browseOrigins : selectedTreeOrigin ? [selectedTreeOrigin.display] : originDisplays}
+        selectedOrigins={!normalViewBlocked && browseOrigins.length ? browseOrigins.map(value => value.reference) : selectedTreeOrigin ? [selectedTreeOrigin.display.reference] : selectedOriginReferences} pickingOrigins={activeOriginPicking} onOrigin={pickOrigin}
         pickingFaces={isSymmetry ? !!activeSymmetryPick && activeSymmetryPick.producer !== 'vertex' && activeSymmetryPick.producer !== 'line-edge' : pickingFaces || !!rackPicking && rackPicking.kind !== 'rack-edge'} pickingEdges={isSymmetry ? activeSymmetryPick?.producer === 'line-edge' : pickingLinearEdges || rackPicking?.kind === 'rack-edge'} disabled={editingBlocked || replaceDialog || !!preview && !rackPicking}
         drag={dragMode !== 'off' && !activeSymmetryPick && !pickingFaces && !pickingLinearEdges && !sourceUpdate && !documentUpdate && !replacementReview && !preview && !draft && !replaceDialog && (dragAnchor.current ?? eligibleDragFrame)
           ? { frame: (dragAnchor.current ?? eligibleDragFrame)!, mode: dragMode, active: dragActive } : undefined}

@@ -1,5 +1,30 @@
 # Public fixture provenance
 
+## Original ordered assembly preselection — 2026-10-29
+
+[`desktop-assembly-preselection-flow.cjs`](../scripts/desktop-assembly-preselection-flow.cjs)
+continues the tracked original
+[`assembly-direction-mates-original.json`](../src/cad/fixtures/assembly-direction-mates-original.json)
+and its existing native direction/history/persistence route. It adds no fixture
+or imported model. The original drilled prism is 10 by 6 by 4 mm, with a radius-1
+through bore. Ground is fixed at identity; Moving is translated `(20,10,6)` mm
+and rotated 30 degrees about X.
+
+Actual pointer points use literal original geometry: Ground's top interior
+`(0,0,4)`, Moving's top interior `(20,8,6+2*sqrt(3))` and the midpoint of its
+outer LINE `(25,9+1.5*sqrt(3),7.5+sqrt(3))`, all in mm. The points are projected
+using the documented front/Fit camera and actual current viewport rectangle;
+no candidate search or setter supplies a selection. Native support/identity
+checks and the previous independent V/A/bounds, direction and mobility oracles
+remain unchanged. This is a root standard-assembly input route, not proof for
+all geometries, nested/configured interaction, physical devices or installed
+platforms. See [validation](VALIDATION.md) for executed results.
+
+The new browse/default unit tests contain original declaration/display stubs.
+They reuse the documented original configuration fixture for nested datum
+contexts; they establish selection/currentness behavior rather than native
+surface extraction, solvability or geometric equivalence.
+
 ## Original combined part and assembly demo — 2026-10-29
 
 [`desktop-part-assembly-mates-flow.cjs`](../scripts/desktop-part-assembly-mates-flow.cjs)

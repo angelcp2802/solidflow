@@ -4,6 +4,33 @@ The integration draft is [PR #49](https://github.com/angelcp2802/solidflow/pull/
 This walkthrough covers a bounded prototype, not the complete assembly scope
 or a release. See [validation](VALIDATION.md) for the exact executed cases.
 
+## Selecting references before opening a relation
+
+In the standard assembly, use **Preseleccionar caras** or **Preseleccionar
+aristas lineales** in the viewport toolbar. Click a current face/LINE, then hold
+Ctrl (or Meta) while clicking another reference. Ctrl/Meta on an already selected
+item removes it. You can also select root/component datums in the Components
+tree. Rotate or zoom between separate selections as needed.
+
+Choose the ribbon's **Relación**, or **Insertar → Relación de posición…**.
+One reference fills Reference 1 and activates Reference 2. Two references fill
+both cards in selection order. Review the proposed family, name, orientation
+and any numeric value; choose **Vista previa** and inspect the result before
+**Aplicar**. Preselection alone does not change the document. More than two
+references, unsupported geometry or an obsolete selection require a new
+selection rather than silently dropping an item.
+
+A compatible ordinary family is retained. Otherwise planes suggest Coincident,
+declared axes suggest Concentric, and mixed/LINE references suggest Parallel.
+Choose the required family explicitly; no distance, angle or contact is guessed.
+Saved relations and specialized role editors retain their own drafts when
+reopened. A pending preview can be reopened through **Relación** without losing
+its Apply/Cancel state. The manager's Relations tab remains ordinary navigation.
+
+The automated acceptance uses the existing original drilled prisms in the root
+standard workspace. Pure selection tests cover additional nested datum/currentness
+cases; they do not establish configured or nested interactive acceptance.
+
 ## From a modeled part to a constrained three-component assembly
 
 The `test:desktop:part-sequence` route now continues the actually authored part

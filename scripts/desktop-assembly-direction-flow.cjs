@@ -228,7 +228,12 @@ module.exports = function directionWorkflow(context) {
     await recovery(committed.document, 'original'); record('open/original', event);
     event = await add(committed, 'Plano y LINE perpendicular', 'perpendicular', face(committed.scene, 'ground', 'plane'), line(committed.scene, 'moving'), 'aligned', 4, true);
     await cancel(committed, 'pointer candidate cancelled');
-    event = await add(committed, 'Plano y LINE perpendicular', 'perpendicular', face(committed.scene, 'ground', 'plane'), line(committed.scene, 'moving'), 'aligned', 4);
+    event = await require('./desktop-assembly-preselection-flow.cjs')({
+      context, base: committed, page, control, orientation, responseAfter, recovery, ready, cancel,
+      reference, selectionKey, first: face(committed.scene, 'ground', 'plane'), second: line(committed.scene, 'moving'),
+      secondFace: face(committed.scene, 'moving', 'plane'),
+    });
+    record('Plano y LINE perpendicular/preview', event);
     committed = await apply(event, 'line-perpendicular'); const lineCommitted = committed.document;
     committed = await history('undo', expected, 'undo/one-direction'); committed = await history('redo', lineCommitted, 'redo/one-direction');
     event = await edit(committed, 'Plano y LINE paralela', 'parallel', null, 5); committed = await apply(event, 'line-parallel');

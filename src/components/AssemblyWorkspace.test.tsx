@@ -443,7 +443,8 @@ it('keeps the compact viewport command names unique and retains initial manipula
     expect(content).not.toBeNull()
     return content![2]
   })).toEqual([
-    'Vistas guardadas', 'Normal a', 'Vista anterior', 'Isométrica', 'Frontal', 'Superior', 'Ajustar', 'Seleccionar caras',
+    'Vistas guardadas', 'Normal a', 'Vista anterior', 'Isométrica', 'Frontal', 'Superior', 'Ajustar',
+    'Preseleccionar caras', 'Preseleccionar aristas lineales', 'Seleccionar caras',
     'Arrastrar posición', 'Arrastrar giro', 'Desactivar manipulador',
   ])
   for (const button of buttons) {
@@ -454,6 +455,12 @@ it('keeps the compact viewport command names unique and retains initial manipula
   const named = buttons.filter(button => button.includes('aria-label="Vistas guardadas"'))
   expect(named).toHaveLength(1)
   expect(named[0]).toMatch(/<button[^>]*disabled=""/)
+  for (const [label, pressed] of [['Preseleccionar caras', 'true'], ['Preseleccionar aristas lineales', 'false']]) {
+    const matches = buttons.filter(button => button.includes(`aria-label="${label}"`))
+    expect(matches).toHaveLength(1)
+    expect(matches[0]).toContain(`aria-pressed="${pressed}"`)
+    expect(matches[0]).toMatch(/<button[^>]*disabled=""/)
+  }
   for (const label of ['Arrastrar posición', 'Arrastrar giro', 'Desactivar manipulador']) {
     const matches = buttons.filter(button => button.includes(`<span class="compact-viewport-label">${label}</span>`))
     expect(matches).toHaveLength(1)

@@ -1,5 +1,93 @@
 # Validation
 
+## Ordered standard assembly preselection — 2026-10-29
+
+The follow-up to public baseline `ee19ce6` shares ordered browse identities
+between camera commands and ordinary relation creation. The standard ribbon
+and Insert command re-resolve current faces, LINE edges and tree datums before
+prefilling the two roles. One reference arms the missing second role; two
+preserve click order. A compatible ordinary family is retained, with explicit
+fallback suggestions otherwise. Creation fields survive preview/Cancel as UI
+declarations bound to the exact document, scope, session and family. Native
+verification and Apply capabilities remain separate.
+
+**Final local Windows acceptance: PASS.** All six commands below completed on
+the final Ctrl/Meta harness snapshot, with 1,314 frozen non-Markdown inputs and
+nine production products. Its manifest digest is
+`533f4277e3ad57e890ab0d8402e4f9f758e975ebd6644bfa9938812f2db93e89`.
+
+| Executed command | Observed scope/result |
+| --- | --- |
+| `npm run build` | PASS with the existing Node 24.11.1/Electron 44.9.3 runtime. |
+| `npm run test:desktop:assembly-direction` | PASS, 336 checkpoints. |
+| `npm run test:desktop:normal-to-view` | PASS, 157 checkpoints across part, standard and configured camera routes. |
+| `npm run test:desktop:part-sequence` | PASS, 506 checkpoints including the authored part and constrained three-component assembly. |
+| `npm test` | PASS, 11,070 unit/CAD cases in 491 files; IPC 200 passes and two explicit platform skips. |
+| `npm run test:desktop` | PASS, production desktop startup. |
+
+The fixed direction route uses the tracked original drilled prisms. Six actual
+pointer selections cover a single Ground top face, a compatible
+Coincident-to-Distance change while the second role remains armed, acceptance
+of Moving's actual top face with automatic pick closure, and two ordered
+face/LINE selections before opening Relation. Preselection and type changes
+perform no CAD work or grant Apply. A mixed pair suggests Parallel; the user
+then chooses Perpendicular. Two previews exercise navigation out/back to the
+retained preview, Cancel and retry before the existing Apply. The new native
+direction case has **rank 2/local DOF 4**, with position still free; a single
+direction relation does not fully constrain the assembly.
+
+The earlier direction route retains its 36 recorded phases/13 Apply operations,
+history and saved reopening, followed by the saved-reference editor route.
+Do not add duplicate preview serials when counting cumulative phases. Native
+volume/area, support, transformed-bounds, direction and mobility oracles retain
+their existing tolerances. The separate combined route retains its own authored
+part, four relations, two rotation captures and zero-local-DOF final solve.
+See [provenance](PROVENANCE.md#original-ordered-assembly-preselection--2026-10-29)
+and the [walkthrough](DEMO_ASSEMBLIES.md#selecting-references-before-opening-a-relation).
+
+The accepted snapshot pins 1,314 non-Markdown inputs and nine production
+products. All three renderer reports match production hashes, report zero
+console/request errors and confirm owned child/profile cleanup. An independent
+final audit rehashed source/runtime, all six logs and the three renderer
+reports, including the unit/IPC and startup results. Its earlier partial audit
+did not count the then-running unit suite. Markdown links and publication
+markers were checked separately from the non-Markdown input manifest.
+
+Development failures remain distinct from acceptance: the first second-role
+attempt failed without a diagnostic cause. A later record showed a 1,226 px
+viewport alongside a temporarily 1,262 px canvas. Layout admission now waits
+for matching dimensions, and production down/up reject incoherent presentation
+for armed roles too. Further failures exposed an unrevealed preview button,
+creation references cleared by preview invalidation, and the previous toolbar
+name expectation. These were corrected without extra input retries, wider
+geometric tolerances or increased workflow deadlines. Diagnostic reads can
+affect scheduling; a later pass alone does not prove the first failure's cause.
+
+Pure tests additionally cover ordered/toggled/rejected excess selections,
+stale sessions/scenes/definitions/body/topology, ambiguous/hidden/out-of-scope
+references, reused instances and conversion of global tree datums into nested
+editable scopes. A cone's camera axis remains insufficient for a solver
+reference. These are declaration/display tests, not nested/configured
+interactive or native extraction acceptance. The renderer route demonstrates
+the recorded original root cases, rather than every ordinary family, geometry,
+physical device, complete context menu or installed platform.
+
+A separate single REA 6.3.0 static attempt used ten byte-exact files from the
+earlier exploratory build. It ended with heap exhaustion before producing any
+Evidence ID or completed graph. It predates the final presentation/creation
+changes and supplies no feature or final-artifact coverage. Earlier passive
+runtime limits remain recorded below; no additional runtime observer was run.
+Applied frontend-design, React best practices, code-review, code-simplifier and
+security-review guidance, with separate cross-reviews of the affected contracts.
+These reviews are not human approval or a whole-application security audit.
+
+For the **previous public baseline `ee19ce6`**, all 15 CI jobs and both Security
+jobs subsequently completed successfully, including the macOS face case and
+packaging on all three targets. This is one successful head, not recurring
+stability, installed-platform or causal macOS-fix evidence. New-head CI must be
+checked separately. The broader nine groups in #55, recurring/package acceptance
+in #53, human acceptance and release gate #5 remain open.
+
 ## Native three-component demo and bounded REA outcomes — 2026-10-29
 
 The standard-assembly demo was exercised in a separate visible Windows Electron
