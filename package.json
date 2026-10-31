@@ -33,6 +33,7 @@
     "test:desktop:assembly-configured-shortcuts-compact": "node scripts/desktop-assembly-configured-shortcuts-compact.cjs",
     "test:desktop:assembly-mate-reference-edit": "node scripts/desktop-assembly-mate-reference-edit.cjs",
     "test:desktop:assembly-basic-authoring": "node scripts/desktop-assembly-basic-authoring.cjs",
+    "test:desktop:assembly-embedded-part-edit": "node scripts/desktop-assembly-embedded-part-edit.cjs",
     "test:desktop:assembly-origin-axes": "node scripts/desktop-assembly-origin-axes.cjs",
     "test:desktop:assembly-configured-origin-axes": "node scripts/desktop-assembly-configured-origin-axes.cjs",
     "test:desktop:assembly-origin-axis-lock": "node scripts/desktop-assembly-origin-axis-lock.cjs",

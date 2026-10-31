@@ -222,3 +222,8 @@
 .assembly-component-manager-header > button { display: flex; flex-shrink: 0; align-items: center; gap: 4px; padding: 5px; color: #326e9b; font-size: 10px; }
 .assembly-component-manager-header > button:focus-visible { outline: 2px solid #2385c8; outline-offset: -2px; }
 .assembly-component-manager-empty { margin: 0; padding: 14px 11px; font-size: 11px; line-height: 1.5; color: #60788a; }
+.assembly-embedded-part-controls { margin: 8px; padding: 10px; border: 1px solid #bfd0dd; border-radius: 3px; background: #edf5fb; color: #315b79; }
+.assembly-embedded-part-controls p { margin: 0 0 8px; font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
+.assembly-embedded-part-controls button { min-height: 28px; margin: 2px 5px 2px 0; padding: 4px 8px; border: 1px solid #b7cddd; border-radius: 3px; background: #fff; color: #246993; font-size: 11px; }
+.assembly-embedded-part-controls button:disabled { opacity: .55; }
+.assembly-embedded-part-editor > p[role="status"] { margin: 0; padding: 24px; color: #426780; font-size: 13px; }

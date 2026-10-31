@@ -319,6 +319,8 @@ button,
   font-size: 11px;
   color: #5f7383;
 }
+.workspace-tag[aria-label="Edición de pieza en el ensamblaje"] { gap: 6px; }
+.workspace-tag[aria-label="Edición de pieza en el ensamblaje"] button { min-height: 28px; padding: 4px 8px; font-size: 11px; }
 
 .command-manager {
   z-index: 20;

@@ -38,11 +38,13 @@ export function assemblyShortcutCommand(event: Key, editable: boolean): Assembly
 
 /** Re-read authority after a synchronous field commit; never queue or replay commands. */
 export function dispatchAssemblyShortcut(event: Key & { preventDefault: () => void }, options: {
+  active?: boolean
   editable: boolean
   owned: boolean
   command: (id: AssemblyShortcutCommand) => Command | undefined
   beforeFile?: (id: 'new' | 'open' | 'save' | 'save-as') => boolean
 }): 'ignored' | 'blocked' | 'executed' {
+  if (options.active === false) return 'ignored'
   const id = assemblyShortcutCommand(event, options.editable)
   if (!id) return 'ignored'
   if (options.owned) {
@@ -63,6 +65,7 @@ export function dispatchAssemblyShortcut(event: Key & { preventDefault: () => vo
 
 export function useAssemblyShortcuts(options: {
   root: string
+  active?: boolean
   menus: readonly AssemblyMenuDefinition[]
   modal: boolean
   escape: Command
@@ -72,14 +75,16 @@ export function useAssemblyShortcuts(options: {
   useLayoutEffect(() => { current.current = options })
   useEffect(() => {
     const handle = (event: KeyboardEvent) => {
-      const state = current.current, root = document.querySelector(state.root)
+      const state = current.current
+      if (state.active === false) return
+      const root = document.querySelector(state.root)
       const target = event.target instanceof HTMLElement ? event.target : null
       if (!root || target && target !== document.body && !root.contains(target)) return
       const editable = !!target && (target.isContentEditable || !!target.closest('input,textarea,select'))
       const owned = state.modal || !!document.querySelector('[role="dialog"][aria-modal="true"]') || !!root.querySelector('[role="menu"]')
       dispatchAssemblyShortcut(event, {
-        editable, owned,
-        command: id => id === 'escape' ? current.current.escape : current.current.menus.flatMap(menu => menu.items).find(item => item.id === id),
+        editable, owned, active: current.current.active,
+        command: id => current.current.active === false ? undefined : id === 'escape' ? current.current.escape : current.current.menus.flatMap(menu => menu.items).find(item => item.id === id),
         beforeFile: id => current.current.beforeFile?.(id, target) ?? true,
       })
     }

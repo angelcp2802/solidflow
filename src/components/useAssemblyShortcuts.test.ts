@@ -5,6 +5,20 @@ const key = (value: string, changes: Partial<KeyboardEvent> = {}) => ({ key: val
   shiftKey: false, altKey: false, repeat: false, defaultPrevented: false, isComposing: false, preventDefault: vi.fn(), ...changes })
 
 describe('assembly keyboard command ownership', () => {
+  it('leaves keys entirely to the active editor when the assembly is suspended', () => {
+    const command = vi.fn(), beforeFile = vi.fn()
+    for (const [value, flags] of [['s', { ctrlKey: true }], ['z', { metaKey: true }],
+      ['y', { ctrlKey: true }], ['f', {}], ['1', { ctrlKey: true }], ['8', { metaKey: true }], ['Escape', {}]] as const) {
+      for (const editable of [false, true]) {
+        const event = key(value, flags)
+        expect(dispatchAssemblyShortcut(event, { active: false, editable, owned: true, command, beforeFile })).toBe('ignored')
+        expect(event.preventDefault).not.toHaveBeenCalled()
+      }
+    }
+    expect(command).not.toHaveBeenCalled()
+    expect(beforeFile).not.toHaveBeenCalled()
+  })
+
   it('every displayed hint dispatches its existing command without changing actions, guards or menu membership', () => {
     const ids = ['new', 'open', 'save', 'save-as', 'undo', 'redo', 'view-front', 'view-back', 'view-left', 'view-right', 'view-top', 'view-bottom', 'view-iso', 'view-normal', 'view-fit', 'view-previous']
     const items = ids.map(id => ({ id, label: id, disabled: true, checked: true, onSelect: vi.fn() }))

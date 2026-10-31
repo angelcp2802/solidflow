@@ -12,6 +12,8 @@ const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 const { dispatchShortcutKey } = require('./desktop-shortcut-key-event.cjs');
 const { emitDesktopCiFailure, markDesktopCiFailureReported } = require('./desktop-ci-diagnostics.cjs');
 const SCENARIOS = Object.freeze({
+  'assembly-embedded-part-edit': Object.freeze({ embeddedPartEdit: true, originalRecipe: 'desktop-assembly-embedded-part-edit-original.cjs',
+    entry: 'desktop-assembly-embedded-part-edit.cjs', test: 'production-renderer-assembly-embedded-part-edit', caption: 'embedded part editing, source review and retained assembly history' }),
   'normal-to-view': Object.freeze({ originalRecipe: 'desktop-normal-to-view-original.cjs', entry: 'desktop-normal-to-view.cjs',
     test: 'production-renderer-normal-to-view', caption: 'normal views and camera-only history in parts and assemblies' }),
   'assembly-shortcuts': Object.freeze({ shortcuts: true, originAxes: 'standard', originalRecipe: 'desktop-assembly-origin-axis-lock-original.cjs', entry: 'desktop-assembly-shortcuts.cjs', test: 'production-renderer-assembly-shortcuts', caption: 'standard assembly physical keyboard commands' }),
@@ -300,6 +302,9 @@ async function launch() {
       await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(original), { flag: 'wx' });
     } else if (activeScenario.mechanicalFamily) {
       const original = require('./desktop-assembly-configured-mechanical-original.cjs')(activeScenario.mechanicalFamily);
+      await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(original), { flag: 'wx' });
+    } else if (activeScenario.embeddedPartEdit) {
+      const original = require('./desktop-assembly-embedded-part-edit-original.cjs')();
       await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(original), { flag: 'wx' });
     } else if (activeScenario.originAxes) {
       const original = require('./' + activeScenario.originalRecipe)(activeScenario.originAxes === 'configured');
@@ -714,6 +719,7 @@ async function runInElectron() {
   const gearOutput = path.join(owned, 'saved-gear.solidflow');
   const fromEmpty = activeScenario === SCENARIOS['part-from-empty'];
   const normalToView = activeScenario === SCENARIOS['normal-to-view'];
+  const embeddedPartEdit = activeScenario.embeddedPartEdit === true;
   const normalInputs = normalToView ? { part: input, standard: path.join(owned, 'normal-standard.solidflow'), configured: path.join(owned, 'normal-configured.solidflow') } : null;
   const normalDocuments = normalToView ? Object.fromEntries(Object.entries(normalInputs).map(([key, file]) => [key, JSON.parse(fs.readFileSync(file, 'utf8'))])) : null;
   const expected = fromEmpty ? {} : JSON.parse(fs.readFileSync(input, 'utf8')), expectedIds = expected.features?.map(feature => feature.id);
@@ -860,7 +866,8 @@ async function runInElectron() {
     [name, JSON.parse(fs.readFileSync(file, 'utf8'))])) : null;
   const outputs = untilNext ? { cutSelected: path.join(owned, 'saved-cut-selected.solidflow'),
     cutAll: path.join(owned, 'saved-cut-all.solidflow'), add: path.join(owned, 'saved-add-selected.solidflow') } : null;
-  const openPaths = partThinWall ? [input, output] : partExternalAxis ? [input, output, output] : partRevolution ? [input, output, output, output] : normalToView ? [normalInputs.part, normalInputs.standard, normalInputs.configured] : fromEmpty ? [output, output] : shortcuts ? [input, null, shortcutOutput, shortcutOutput, shortcutOutput] : basicAuthoring ? [input, null, output] : partSequence ? [input, output, partAssemblyOutput, partAssemblyPinInput, partAssemblyOutput] : partBodyCatalog ? [input, input] : partFinishing ? [input, finishingFiles.fillet, input, output] : configuredComponents ? [input, null, path.join(owned, 'incoming.solidflow'), path.join(owned, 'incoming.solidflow'), output] : structuralInsertion ? [input, insertionFiles.parent, output] : structuralStep ? [input, structuralFiles.part, output] : untilNext ? [inputPaths.cut, outputs.cutSelected, outputs.cutAll,
+  const partCopyOutput = embeddedPartEdit ? path.join(owned, 'saved-embedded-part-copy.solidflow') : null;
+  const openPaths = embeddedPartEdit ? [input, output] : partThinWall ? [input, output] : partExternalAxis ? [input, output, output] : partRevolution ? [input, output, output, output] : normalToView ? [normalInputs.part, normalInputs.standard, normalInputs.configured] : fromEmpty ? [output, output] : shortcuts ? [input, null, shortcutOutput, shortcutOutput, shortcutOutput] : basicAuthoring ? [input, null, output] : partSequence ? [input, output, partAssemblyOutput, partAssemblyPinInput, partAssemblyOutput] : partBodyCatalog ? [input, input] : partFinishing ? [input, finishingFiles.fillet, input, output] : configuredComponents ? [input, null, path.join(owned, 'incoming.solidflow'), path.join(owned, 'incoming.solidflow'), output] : structuralInsertion ? [input, insertionFiles.parent, output] : structuralStep ? [input, structuralFiles.part, output] : untilNext ? [inputPaths.cut, outputs.cutSelected, outputs.cutAll,
     inputPaths.add, outputs.add, inputPaths.reject] : assembly ? [input, output, partUpdatePath, partUpdatePath, output, output, output, projectionOutput, output, interferencePath, translationPath, translationOutput, bomPath, input, gearOutput]
     : assemblyImport ? [input, importSourcePath, importRejectedPath, importSourcePath, output]
     : sourceRevision ? [input, sourceRevisionFiles.parent, output]
@@ -882,7 +889,7 @@ async function runInElectron() {
       repairFiles.replacementPart, repairFiles.replacementPart, repairFiles.replacementSaved]
     : symmetryPicking ? [input, ...Array(6).fill(output)]
     : symmetry ? [input, ...Array(5).fill(output)] : direction ? [input, output, output] : configuredRelations || configuredPicking || configuredMechanical || configuredCompound ? [input, output] : configurations ? [input, output, output] : [input, output];
-  const savePaths = normalToView ? [] : fromEmpty ? [output] : shortcuts ? [output, shortcutOutput] : partBodyCatalog ? [] : partSequence ? [output, partAssemblyOutput] : partFinishing ? [finishingFiles.fillet, output] : configurations ? [null, output] : untilNext ? [outputs.cutSelected, outputs.cutAll, outputs.add] : assembly ? [output, projectionOutput, translationOutput, gearOutput]
+  const savePaths = embeddedPartEdit ? [output, null, null, partCopyOutput, output] : normalToView ? [] : fromEmpty ? [output] : shortcuts ? [output, shortcutOutput] : partBodyCatalog ? [] : partSequence ? [output, partAssemblyOutput] : partFinishing ? [finishingFiles.fillet, output] : configurations ? [null, output] : untilNext ? [outputs.cutSelected, outputs.cutAll, outputs.add] : assembly ? [output, projectionOutput, translationOutput, gearOutput]
     : direction ? [output, output]
     : assemblyImport ? [importBaselinePath, output]
     : sourceRevision ? [null, output]
@@ -1060,12 +1067,12 @@ async function runInElectron() {
     } finally { endTiming?.(); }
   };
   const pointer = async (type, point, buttons = 0, clickCount = 1, modifiers = 0) => {
-    check((partThinWall || partExternalAxis || configuredComponents || normalToView || fromEmpty || basicAuthoring || mateReferenceEdit || partBodyCatalog || partFinishing || partRevolution || partSequence || originAxes || freshSketch || configuredPicking || assembly || activeScenario === SCENARIOS['assembly-configurations'] || rackPinion || direction || tangent || cylinderTangent || sphereTangent || limitDistance || limitAngle || directedAngle || width || symmetry || symmetryPicking || hingePicking || hingeLimitsPicking) && !window.isVisible() && window.webContents.debugger.isAttached()
+    check((embeddedPartEdit || partThinWall || partExternalAxis || configuredComponents || normalToView || fromEmpty || basicAuthoring || mateReferenceEdit || partBodyCatalog || partFinishing || partRevolution || partSequence || originAxes || freshSketch || configuredPicking || assembly || activeScenario === SCENARIOS['assembly-configurations'] || rackPinion || direction || tangent || cylinderTangent || sphereTangent || limitDistance || limitAngle || directedAngle || width || symmetry || symmetryPicking || hingePicking || hingeLimitsPicking) && !window.isVisible() && window.webContents.debugger.isAttached()
       && ['mouseMoved', 'mousePressed', 'mouseReleased'].includes(type)
       && Number.isFinite(point.x) && Number.isFinite(point.y) && point.x >= 0 && point.y >= 0
       && ([0, 1].includes(buttons) || (configuredComponents || normalToView || partSequence || basicAuthoring || freshSketch) && buttons === 2)
       && (modifiers === 0 || (normalToView || direction) && [2, 4].includes(modifiers))
-      && (clickCount === 1 || clickCount === 2 && (normalToView || partRevolution || partSequence || partBodyCatalog)
+      && (clickCount === 1 || clickCount === 2 && (embeddedPartEdit || normalToView || partRevolution || partSequence || partBodyCatalog)
         && ['mousePressed', 'mouseReleased'].includes(type) && buttons !== 2), 'Expected actual pointer input in the hidden test-owned CAD window.');
     const endTiming = workflowTiming?.begin('pointer');
     try { await window.webContents.debugger.sendCommand('Input.dispatchMouseEvent', {
@@ -1104,12 +1111,15 @@ async function runInElectron() {
   };
   // Physical keyboard events only, scoped to owned shortcuts and the fixed from-empty workflow.
   const shortcutKey = async combo => {
-    check((normalToView || fromEmpty || shortcuts) && !window.isVisible() && window.webContents.debugger.isAttached(), 'Only fixed shortcut keys in owned hidden scenario');
+    check((embeddedPartEdit || normalToView || fromEmpty || shortcuts) && !window.isVisible() && window.webContents.debugger.isAttached(), 'Only fixed shortcut keys in owned hidden scenario');
     // Native editor commands belong only to the two original fixture fields
     // or one exact visible, focused creation/rename field in its actual modal.
     const editable = (combo==='A'||combo==='Z') && await evaluate(`(() => {
       const e=document.activeElement;
       if(!(e instanceof HTMLInputElement)||e.disabled||e.readOnly||e.closest('[hidden]')||!e.checkVisibility()||!e.getClientRects().length)return false;
+      if(${embeddedPartEdit}&&e.closest('.app-shell')&&!document.querySelector('[role="dialog"]')){
+        const r=e.getBoundingClientRect();return e.contains(document.elementFromPoint(r.left+r.width/2,r.top+r.height/2));
+      }
       const label=e.getAttribute('aria-label'),named=['Nombre de la vista','Nombre de la vista seleccionada'].includes(label)
         ?document.querySelectorAll('dialog.named-views-dialog[open] input[aria-label="'+label+'"]'):[];
       if(${fromEmpty || shortcuts}&&named.length===1&&named[0]===e&&document.querySelectorAll('[role="dialog"]').length===1){
@@ -1425,7 +1435,11 @@ async function runInElectron() {
     return activeProfileCapture(phase, sketchId);
   };
   // The extra workflow is a fixed tracked module, never a caller/env-selected script.
-  const actualWorkflow = normalToView
+  const actualWorkflow = embeddedPartEdit
+    ? require('./desktop-assembly-embedded-part-edit-flow.cjs')({ expected, input, output, partCopyOutput, evaluate, observe, waitFor, click, pointer, key: shortcutKey,
+      checks, ipc, consoleErrors, failedRequests, check, canonical, digest,
+      initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
+    : normalToView
     ? require('./desktop-normal-to-view-flow.cjs')({ inputs: normalInputs, documents: normalDocuments, evaluate, observe, waitFor, click, pointer, wheel, menuKey, normalSelectInput, cameraFrame, cameraGesture, key: shortcutKey,
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
@@ -1743,7 +1757,7 @@ async function runInElectron() {
         observation.geometry = { name: payload.name, format: payload.format, bytes: payload.data.byteLength,
           sha256: digest(Buffer.from(payload.data.buffer, payload.data.byteOffset, payload.data.byteLength)) };
       }
-      if ((sourceRevision || configurations || assemblySourceUpdate || fromEmpty || shortcuts) && channel === 'document:save') observation.documentWrite = { name: payload?.name, hasPath: typeof payload?.filePath === 'string', ...(configurations || assemblySourceUpdate ? { filePath: payload?.filePath } : {}), sha256: typeof payload?.content === 'string' ? digest(payload.content) : null };
+      if ((embeddedPartEdit || sourceRevision || configurations || assemblySourceUpdate || fromEmpty || shortcuts) && channel === 'document:save') observation.documentWrite = { name: payload?.name, hasPath: typeof payload?.filePath === 'string', ...(configurations || assemblySourceUpdate ? { filePath: payload?.filePath } : {}), sha256: typeof payload?.content === 'string' ? digest(payload.content) : null };
       const symmetrySave = (symmetry || symmetryPicking) && channel === 'document:save';
       if (symmetrySave) observation.documentWrite = { state: 'pending', durationMs: null };
       if (sourceSaveObservation && channel === 'document:save') Object.assign(observation.documentWrite,
@@ -1772,7 +1786,7 @@ async function runInElectron() {
           symmetrySaveTimings.delete(observation.documentWrite);
         }
       }
-      if ((sourceRevision || configurations || assemblySourceUpdate || symmetry || symmetryPicking || fromEmpty || shortcuts) && channel === 'document:save') observation.documentWrite.chosen = result !== null;
+      if ((embeddedPartEdit || sourceRevision || configurations || assemblySourceUpdate || symmetry || symmetryPicking || fromEmpty || shortcuts) && channel === 'document:save') observation.documentWrite.chosen = result !== null;
       if (sourceSaveObservation && channel === 'document:save') sourceSaveObservation.returned(observation.documentWrite, result);
       if (selectedSave) {
         try {
@@ -1848,8 +1862,8 @@ async function runInElectron() {
         return csvExports === 1 ? { canceled: true } : { canceled: false, filePath: bomCsvOutputs[csvExports - 2] };
       }
       if (structuralStep || structuralInsertion) check(path.basename(options.defaultPath) === (structuralInsertion ? 'Original structural insertion parent.solidflow' : 'Conjunto _Árbol_ Ω.solidflow'), 'Structural Save As uses the literal sanitized original name.');
-      check(options.title === (partSequence ? saves === 0 ? 'Guardar pieza' : 'Guardar ensamblaje' : configurations ? 'Guardar ensamblaje configurado' : mateReferenceEdit || basicAuthoring || originAxes || structuralInsertion || structuralStep || assembly || assemblyImport || assemblySourceUpdate || linkedSource || sourceRevision || screw || rackPinion || assemblyExport || direction || angleMeasurement || directedAngle || tangent || cylinderTangent || sphereTangent || limitDistance || limitAngle || width || linePath || circularPath || hinge || hingeLimits || hingePicking || hingeLimitsPicking || hingeRepair || profileCenter || symmetry || symmetryRepair || symmetrySurfaceRepair || symmetryPicking || symmetryNestedRepair || replacement ? 'Guardar ensamblaje' : 'Guardar pieza') && ++saves <= savePaths.length, 'Unexpected native save/export dialog request.');
-      if ((sourceRevision || configurations) && savePaths[saves - 1] === null) return { canceled: true };
+      check(options.title === (embeddedPartEdit ? saves === 0 || saves === 4 ? 'Guardar ensamblaje' : 'Guardar pieza' : partSequence ? saves === 0 ? 'Guardar pieza' : 'Guardar ensamblaje' : configurations ? 'Guardar ensamblaje configurado' : mateReferenceEdit || basicAuthoring || originAxes || structuralInsertion || structuralStep || assembly || assemblyImport || assemblySourceUpdate || linkedSource || sourceRevision || screw || rackPinion || assemblyExport || direction || angleMeasurement || directedAngle || tangent || cylinderTangent || sphereTangent || limitDistance || limitAngle || width || linePath || circularPath || hinge || hingeLimits || hingePicking || hingeLimitsPicking || hingeRepair || profileCenter || symmetry || symmetryRepair || symmetrySurfaceRepair || symmetryPicking || symmetryNestedRepair || replacement ? 'Guardar ensamblaje' : 'Guardar pieza') && ++saves <= savePaths.length, 'Unexpected native save/export dialog request.');
+      if ((embeddedPartEdit || sourceRevision || configurations) && savePaths[saves - 1] === null) return { canceled: true };
       return { canceled: false, filePath: savePaths[saves - 1] };
     };
     if (member === 'showErrorBox') return (title, message) => finish(new Error(title + ': ' + message));

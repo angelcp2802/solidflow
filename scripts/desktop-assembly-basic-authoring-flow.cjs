@@ -229,7 +229,7 @@ module.exports = function basicAuthoringWorkflow(context) {
     check(canonical(await observe.counters()) === canonical(before), 'Presentation selection allocates no native work');
   }
   const contextAction = id => '[data-cad-context-action=' + JSON.stringify(id) + ']';
-  const componentContextActions = ['view-normal', 'component-properties', 'component-move', 'component-fixed', 'component-visible', 'component-suppressed'];
+  const componentContextActions = ['view-normal', 'component-properties', 'component-edit-part', 'component-move', 'component-fixed', 'component-visible', 'component-suppressed'];
   async function contextMenuState() {
     return page(() => {
       const menus = [...document.querySelectorAll('.cad-context-menu[role="menu"]')];
@@ -304,7 +304,9 @@ module.exports = function basicAuthoringWorkflow(context) {
     });
     for (const id of ['component-properties', 'component-move', 'component-fixed', 'component-visible', 'component-suppressed'])
       check(menu.actions.filter(action => action.id === id).length === 1, 'One existing component context action: ' + id);
-    check(canonical(menu.actions.map(action => action.id)) === canonical(componentContextActions), 'Component context contains exactly Normal To followed by the ordered five existing component actions');
+    check(canonical(menu.actions.map(action => action.id)) === canonical(componentContextActions), 'Component context retains the exact ordered commands including embedded-part editing');
+    check(menu.actions.find(action => action.id === 'component-edit-part').label === 'Editar pieza'
+      && !menu.actions.find(action => action.id === 'component-edit-part').disabled, 'Idle original part exposes its enabled embedded editor without replacing its state actions');
     await checkContextNormal(menu, 'invalid', false, 'Tree component context disables Normal To for an unsupported body target');
     check(menu.actions.find(action => action.id === 'component-fixed').label === 'Flotar', 'Fixed component offers Float');
     check(menu.actions.find(action => action.id === 'component-move').disabled && !menu.actions.find(action => action.id === 'component-properties').disabled,

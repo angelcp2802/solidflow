@@ -1,5 +1,69 @@
 # Validation
 
+## Editing an embedded part from its assembly — 2026-10-31
+
+The standard assembly workspace can open the selected embedded part in its
+normal feature editor. The parent workspace retains its history and file
+association. Returning with changes uses the existing shared-source review,
+explicit reference repairs, fresh native Solve and authenticated Apply. All
+exact uses of that source revision advance together. Save in the temporary
+editor creates an independent copy; it neither applies nor writes the parent.
+
+The original fixture in `desktop-assembly-embedded-part-edit-original.cjs`
+contains two uses of one explicit-body 2×3×4 mm prism, at Z=0 and Z=10. It was
+authored analytically for this test without an external model. The production
+UI creates a signed material-top distance of −10 mm from actual native face
+choices, alongside an origin-Z concentric relation with locked rotation.
+Editing width 2→3 and center X 1→1.5 gives independent total volume 48→72 mm³,
+area 104→132 mm² and bounds [0,0,0]…[3,3,14]. Volume/area tolerance is 1e−5,
+coordinate tolerance 1e−6 mm and physical quaternion tolerance 1e−8. Both
+fresh native relation checks must satisfy their reported budgets, with rank 6
+and zero local degrees of freedom. Native body/placement admission supplies
+BRep validation; the renderer does not manufacture a separate validity flag.
+
+The Windows production-renderer route passes **172 checkpoints** with Node
+24.11.1 and Electron 44.9.3. It exercises source-prefix operation editing,
+premature Return rejection during the normal debounce, local Undo/Redo,
+two cancelled copy saves, an exact-hash successful copy, discard Cancel/Escape,
+review/repair/Solve Cancel and retry, Apply, the parent's two preceding history
+states, Save/reopen, fresh Solve and discarding another unfinished sketch.
+Recovery and the saved parent remain byte-exact until the permitted parent
+commit/write. Both reused occurrences retain their poses and body identities.
+The run reports no console/request errors and confirms owned child/profile
+cleanup. The first exploratory run exposed a missing parent reconstruction:
+returning now invalidates the old scene signature before rebuilding because
+part calculations replace the worker's assembly session.
+
+**Final frozen Windows checks: PASS.** Eleven commands completed on the same
+snapshot: `npm run build`, `npm test` (**11,120 cases in 494 files; 201 IPC
+passes/two explicit platform skips**), `npm run test:desktop` and eight complete
+renderer routes. Besides the embedded editor's 172 checkpoints, these cover
+basic assembly authoring (418), successive part operations (506), Normal To
+(157), standard/configured keyboard commands (489/529) and standard/configured
+origin-axis rotation locks (113/94). All renderer reports confirm zero
+console/request errors and owned child/profile cleanup. Correcting the
+extracted Save-proxy test context leaves the nine production products
+byte-identical to the preceding successful embedded-editor build.
+
+An independent final audit rehashed 1,324 inputs in both source and runtime,
+nine products and eleven logs. All eight renderer reports carry the exact
+eight production-header hashes; the SVG is audited separately. Combined
+input/product manifest:
+`471544b35d9ac1922815919e1a8cf75b4ae6b7b78249e70571f1ce55998b8d94`.
+
+Applied frontend-design, vercel-react-best-practices, code-simplifier,
+code-review and security-review with the project-specific corrections. This is
+bounded runtime evidence, not completed release acceptance.
+The close guard uses a synthetic cancellable `beforeunload` event; an operating
+system close and a pending Apply are not exercised. At the final discard sample
+no native request remained outstanding: that case proves an unfinished edit
+with its debounce pending, not discard during an outstanding native request.
+The separate producer-ledger tests cover pending-request accounting after
+cleanup acknowledgement; they model that signal without mounting Activity.
+Linked-file writeback, dormant uses, general topology correspondence, installed
+packages, human acceptance and new macOS/Linux runtime results remain outside
+this case. The nine broader checklist groups remain open.
+
 ## Compact assembly toolbar acceptance inventory — 2026-10-29
 
 Follow-up to public `3268c31`. Its [CI](https://github.com/angelcp2802/solidflow/actions/runs/40938483335)
@@ -34,9 +98,12 @@ combined input/product manifest is
 `6ce9329390e67e9d44207830143df8835006ac5366ee838d5799e6933a3119bd`.
 Applied code-review guidance and independent read-only reviews. This focused
 test-helper change leaves native oracles, tolerances, deadlines, dependencies
-and production code unchanged. No failed hosted job was retried. New-head
-hosted results, recurring stability, installed-platform and human acceptance
-remain open; #55 stays 16/25, #53 stays 6/9 and release gate #5 stays open.
+and production code unchanged. No failed hosted job was retried. Public
+`12eb871` subsequently passed all 15 [CI jobs](https://github.com/angelcp2802/solidflow/actions/runs/40942177329)
+and both [security jobs](https://github.com/angelcp2802/solidflow/actions/runs/40942176536).
+Those results belong to that earlier snapshot. Recurring stability,
+installed-platform and human acceptance remain open; #55 stays 16/25,
+#53 stays 6/9 and release gate #5 stays open.
 
 ## Clearing ordinary creation references explicitly — 2026-10-29
 

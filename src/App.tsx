@@ -199,6 +199,8 @@ import { MAX_ASSEMBLY_BYTES, type AssemblyDocument } from "./model/assemblyDocum
 import { parseCadDocument, serializeCadDocument, validateCadDocument, type CadDocument } from "./model/cadDocument";
 import type { AssemblyConfiguredDocument } from "./model/assemblyConfiguredDocument";
 import { readCadRecovery, writeCadRecovery } from "./model/cadRecovery";
+import type { EmbeddedPartBuildSnapshot, EmbeddedPartEditorProps } from './components/embeddedPartEditor';
+import { EmbeddedPartWorkError, type EmbeddedPartActivation, type EmbeddedPartTimer } from './components/embeddedPartWork';
 
 const planeNames: Record<Plane, string> = {
   XY: "Alzado",
@@ -394,7 +396,9 @@ export default function App() {
       initialSaved={session.saved} skipInitialRecoveryWrite={session.skipInitialRecoveryWrite} onOpenDocument={replaceDocument} />
   ) : session.document.version === 2 ? (
     <AssemblyWorkspace key={session.epoch} initialDocument={session.document} initialPath={session.path}
-      initialSaved={session.saved} onOpenPart={replaceDocument} onOpenConfigured={replaceDocument} />
+      initialSaved={session.saved} onOpenPart={replaceDocument} onOpenConfigured={replaceDocument}
+      renderPartEditor={props => <PartWorkspace initialDocument={props.initialDocument} embeddedEdit={props}
+        onOpenAssembly={() => undefined} />} />
   ) : (
     <PartWorkspace key={session.epoch} initialDocument={session.document} initialPath={session.path}
       initialSaved={session.saved} skipInitialRecoveryWrite={session.skipInitialRecoveryWrite} onOpenAssembly={replaceDocument} />
@@ -406,9 +410,53 @@ interface PartWorkspaceProps {
   initialPath?: string;
   initialSaved?: string;
   skipInitialRecoveryWrite?: boolean;
+  embeddedEdit?: EmbeddedPartEditorProps;
   onOpenAssembly: (document: AssemblyDocument | AssemblyConfiguredDocument, path?: string, saved?: string) => void;
 }
-function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitialRecoveryWrite = false, onOpenAssembly }: PartWorkspaceProps) {
+interface EmbeddedPartReadiness {
+  buildSnapshot: EmbeddedPartBuildSnapshot;
+  builtFeatures: Feature[] | null;
+  sourceBuiltFeatures: Feature[] | null;
+  sourceLoading: boolean;
+  model: CadResult | null;
+  ready: boolean;
+  busy: boolean;
+  error: string;
+  unfinished: boolean;
+  filePending: boolean;
+  dialogOpen: boolean;
+  builtActivation: EmbeddedPartActivation | null;
+}
+/** Input freshness only; the external ledger separately proves a drained,
+ * completed activation. Neither check grants assembly review or Apply. */
+export function embeddedPartInputsReady(activation: EmbeddedPartActivation, current: EmbeddedPartReadiness): boolean {
+  const { buildSnapshot: snapshot } = current;
+  return current.ready && !current.busy && !current.error && !!current.model && !current.model.featureErrors.length
+    && !current.unfinished && !current.filePending && !current.dialogOpen && !current.sourceLoading
+    && current.builtActivation === activation && current.builtFeatures === snapshot.features
+    && snapshot.features === snapshot.document.features
+    && (snapshot.sourceFeatures === null || current.sourceBuiltFeatures === snapshot.sourceFeatures);
+}
+export function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitialRecoveryWrite = false, onOpenAssembly, embeddedEdit }: PartWorkspaceProps) {
+  const shell = useRef<HTMLDivElement>(null);
+  const embeddedRef = useRef(embeddedEdit); embeddedRef.current = embeddedEdit;
+  const [workRevision, setWorkRevision] = useState(0);
+  const [fileBuildRevision, setFileBuildRevision] = useState(0);
+  const [embeddedReturnReady, setEmbeddedReturnReady] = useState(false);
+  const builtActivation = useRef<EmbeddedPartActivation | null>(null);
+  const isActiveOwner = (owner = embeddedRef.current) => {
+    if (!owner) return !embeddedRef.current;
+    const state = owner.work.getState();
+    return embeddedRef.current?.activation === owner.activation && embeddedRef.current.active
+      && state.phase === 'active' && state.activation === owner.activation;
+  };
+  const runProducer = useCallback(<T,>(send: () => Promise<T>): Promise<T> => {
+    const owner = embeddedRef.current;
+    if (!owner) return send();
+    if (!isActiveOwner(owner)) return Promise.reject(new EmbeddedPartWorkError('inactive'));
+    const settled = () => { if (isActiveOwner(owner)) setWorkRevision(value => value + 1); };
+    return owner.work.run(owner.activation, send).then(value => { settled(); return value; }, reason => { settled(); throw reason; });
+  }, []);
   const newDocumentDialog = useNewDocumentDialog(), newDocumentRequest = useRef(false);
   const [doc, setDoc] = useState<Document>(() => validateDocument(initialDocument));
   const history = useRef<DocumentHistory | null>(null);
@@ -506,7 +554,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     [showHelp, setShowHelp] = useState(false),
     [rename, setRename] = useState(false),
     [discardOpen, setDiscardOpen] = useState(false);
-  const [filePath, setFilePath] = useState<string | undefined>(initialPath),
+  const [filePath, setFilePath] = useState<string | undefined>(embeddedEdit ? undefined : initialPath),
     [saved, setSaved] = useState(initialSaved ?? ""),
     [exporting, setExporting] = useState(false),
     [importing, setImporting] = useState(false),
@@ -618,6 +666,11 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
       editing,
     ];
   }, [operationDocument.features, editing, bodyPlan, sourceFeatures]);
+  const buildSnapshot = useMemo<EmbeddedPartBuildSnapshot>(() => ({ document: doc, features: effectiveFeatures, sourceFeatures }),
+    [doc, effectiveFeatures, sourceFeatures]);
+  useLayoutEffect(() => {
+    if (embeddedEdit?.active) embeddedEdit.work.setSnapshot(embeddedEdit.activation, buildSnapshot);
+  }, [embeddedEdit?.work, embeddedEdit?.activation, embeddedEdit?.active, buildSnapshot]);
   const finishEditing = isEdgeFinish(editing) ? editing : null;
   const mirrorEditing = editing?.type === "mirror" ? editing : null;
   const faceEditing = isFaceOperation(editing) ? editing : null;
@@ -700,6 +753,30 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
   const serializedDocument = useMemo(() => serializeDocument(doc), [doc]);
   const preservedRecovery = useRef<string | null>(skipInitialRecoveryWrite ? serializedDocument : null);
   const dirty = serializedDocument !== saved || editing !== null;
+  const embeddedChanged = !!embeddedEdit && serializeCadDocument(doc) !== embeddedEdit.baselineSerialized;
+  const embeddedUnfinished = !!editing || !!stagedSketch;
+  const liveEditor = useRef({ doc, buildSnapshot, effectiveFeatures, sourceFeatures, builtFeatures, sourceBuiltFeatures,
+    sourceLoading, model, ready, busy, error, importing, exporting, unfinished: embeddedUnfinished, discardOpen });
+  liveEditor.current = { doc, buildSnapshot, effectiveFeatures, sourceFeatures, builtFeatures, sourceBuiltFeatures,
+    sourceLoading, model, ready, busy, error, importing, exporting, unfinished: embeddedUnfinished, discardOpen };
+  const canReturnCurrentPart = () => {
+    const owner = embeddedRef.current, current = liveEditor.current;
+    return !!owner && mounted.current && isActiveOwner(owner) && docRef.current === current.doc
+      && !editingRef.current && embeddedPartInputsReady(owner.activation, {
+        ...current, builtActivation: builtActivation.current,
+        filePending: current.importing || current.exporting || fileOperation.current,
+        dialogOpen: current.discardOpen || !!discardDecision.current,
+      });
+  };
+  useLayoutEffect(() => {
+    const owner = embeddedRef.current;
+    setEmbeddedReturnReady(!!owner && canReturnCurrentPart()
+      && owner.work.markReady(owner.activation, buildSnapshot));
+  }, [embeddedEdit?.activation, embeddedEdit?.active, buildSnapshot, builtFeatures, sourceBuiltFeatures, sourceLoading,
+    model, ready, busy, error, importing, exporting, embeddedUnfinished, discardOpen, workRevision]);
+  useLayoutEffect(() => {
+    if (embeddedEdit) embeddedEdit.onDirtyChange(embeddedChanged, embeddedUnfinished);
+  }, [embeddedEdit?.onDirtyChange, embeddedChanged, embeddedUnfinished]);
   const previewCurrent = builtFeatures === effectiveFeatures;
   const unavailableBodySelection = bodySelection.filter(reference =>
     !model?.bodies?.some(body => sameBodyReference(body.ref, reference)));
@@ -779,6 +856,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     setToastError(isError);
   };
   const requireFinishedEdit = () => {
+    if (!isActiveOwner()) return false;
     if (!editing) return true;
     notify("Acepta o cancela la operación en curso antes de continuar.");
     return false;
@@ -915,21 +993,37 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     setView(previous => ({ name, stamp: previous.stamp + 1 }));
   };
   useEffect(() => {
-    initKernel()
-      .then(() => setReady(true))
+    const owner = embeddedEdit;
+    if (!isActiveOwner(owner)) return;
+    let active = true;
+    runProducer(() => initKernel())
+      .then(() => { if (active && isActiveOwner(owner)) setReady(true); })
       .catch((e) => {
+        if (!active || !isActiveOwner(owner)) return;
         setError(`No se pudo iniciar el motor geométrico: ${e.message}`);
         setBusy(false);
       });
-  }, []);
+    return () => { active = false; };
+  }, [runProducer, embeddedEdit?.activation, embeddedEdit?.active]);
   useEffect(() => {
-    if (!ready) return;
+    const owner = embeddedEdit;
+    if (!ready || !isActiveOwner(owner)) return;
     let active = true;
     setBusy(true);
-    const timer = setTimeout(() => {
-      buildModel(effectiveFeatures)
+    let timer: ReturnType<typeof setTimeout>;
+    let registered: EmbeddedPartTimer | null = null;
+    if (owner) {
+      registered = owner.work.registerTimer(owner.activation, () => clearTimeout(timer));
+      if (!registered) return;
+    }
+    timer = setTimeout(() => {
+      const send = () => buildModel(effectiveFeatures);
+      const result = owner && registered ? owner.work.runTimer(registered, send) : runProducer(send);
+      result
         .then((result) => {
-          if (active) {
+          if (owner && isActiveOwner(owner)) setWorkRevision(value => value + 1);
+          if (active && isActiveOwner(owner)) {
+            builtActivation.current = owner?.activation ?? null;
             setModel(result);
             setBuiltFeatures(effectiveFeatures);
             setBusy(false);
@@ -937,7 +1031,9 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
           }
         })
         .catch((e) => {
-          if (active) {
+          if (owner && isActiveOwner(owner)) setWorkRevision(value => value + 1);
+          if (active && isActiveOwner(owner)) {
+            builtActivation.current = null;
             setBuiltFeatures(null);
             setError(e.message);
             setBusy(false);
@@ -946,10 +1042,14 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     }, 120);
     return () => {
       active = false;
-      clearTimeout(timer);
+      if (owner && registered) owner.work.cancelTimer(registered);
+      else clearTimeout(timer);
     };
-  }, [effectiveFeatures, ready]);
+  }, [effectiveFeatures, ready, runProducer, embeddedEdit?.activation, embeddedEdit?.active,
+    embeddedEdit ? buildSnapshot : null, fileBuildRevision]);
   useEffect(() => {
+    const owner = embeddedEdit;
+    if (!isActiveOwner(owner)) return;
     if (!ready || !sourceFeatures) {
       setSourceModel(null);
       setSourceBuiltFeatures(null);
@@ -960,16 +1060,16 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     setSourceLoading(true);
     setSourceModel(null);
     setSourceBuiltFeatures(null);
-    buildModel(sourceFeatures)
+    runProducer(() => buildModel(sourceFeatures))
       .then((result) => {
-        if (active) {
+        if (active && isActiveOwner(owner)) {
           setSourceModel(result);
           setSourceBuiltFeatures(sourceFeatures);
           setSourceLoading(false);
         }
       })
       .catch((reason) => {
-        if (active) {
+        if (active && isActiveOwner(owner)) {
           setSourceLoading(false);
           setError(reason.message);
         }
@@ -977,11 +1077,12 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     return () => {
       active = false;
     };
-  }, [ready, sourceFeatures]);
+  }, [ready, sourceFeatures, runProducer, embeddedEdit?.activation, embeddedEdit?.active]);
   useEffect(() => {
     setEdgeSelection([]);
   }, [doc.features]);
   useEffect(() => {
+    if (embeddedEdit) return;
     if (preservedRecovery.current === serializedDocument) return;
     preservedRecovery.current = null;
     try {
@@ -991,7 +1092,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
         "No se pudo guardar la recuperación local. Guarda la pieza en un archivo.",
       );
     }
-  }, [doc, serializedDocument]);
+  }, [doc, serializedDocument, !!embeddedEdit]);
   useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(() => setToast(""), 4500);
@@ -1020,6 +1121,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     [],
   );
   const reset = (next: Document, path?: string, markSaved = false) => {
+    if (embeddedRef.current || !isActiveOwner()) return;
     stopAxisPicking();
     namedViews.close();
     documentEpoch.current++;
@@ -1058,7 +1160,28 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     setDiscardOpen(false);
     resolve?.(accepted);
   };
+  const returnToAssembly = () => {
+    const owner = embeddedRef.current, current = liveEditor.current;
+    if (!owner || !canReturnCurrentPart() || !owner.work.isReady(owner.activation, current.buildSnapshot)) {
+      notify("Termina la operación y espera a que la pieza se reconstruya antes de volver al ensamblaje.");
+      return;
+    }
+    if (!owner.onReturn(current.doc, owner.activation, current.buildSnapshot))
+      notify("La pieza o el ensamblaje cambiaron. Revisa la edición antes de volver.", true);
+  };
+  const discardEmbeddedPart = async () => {
+    const owner = embeddedRef.current;
+    if (!owner || !isActiveOwner(owner) || discardDecision.current || fileOperation.current) return;
+    const changed = serializeCadDocument(docRef.current) !== owner.baselineSerialized;
+    const unfinished = liveEditor.current.unfinished || !!editingRef.current;
+    if (changed || unfinished) {
+      const confirmed = await new Promise<boolean>(resolve => { discardDecision.current = resolve; setDiscardOpen(true); });
+      if (!confirmed || !mounted.current || !isActiveOwner(owner)) return;
+    }
+    owner.onDiscard();
+  };
   const canReplace = async (ownsFileOperation = false): Promise<boolean> => {
+    if (embeddedRef.current || !isActiveOwner()) return false;
     // A second shortcut must not queue another document replacement.
     if (discardDecision.current) return false;
     if (fileOperation.current && !ownsFileOperation) {
@@ -1071,11 +1194,12 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
       setDiscardOpen(true);
     });
   };
-  const newDocumentBlocked = busy || !!editing || !!stagedSketch || importing || exporting || discardOpen;
+  const newDocumentBlocked = !!embeddedEdit || busy || !!editing || !!stagedSketch || importing || exporting || discardOpen;
   const newDocumentUnsafe = busy || !!editing || !!stagedSketch || importing || exporting;
   const newDocumentUnsafeRef = useRef(newDocumentUnsafe); newDocumentUnsafeRef.current = newDocumentUnsafe;
   const newDocumentBlockedRef = useRef(newDocumentBlocked); newDocumentBlockedRef.current = newDocumentBlocked;
   const newDoc = async () => {
+    if (embeddedRef.current || !isActiveOwner()) return;
     if (newDocumentRequest.current || newDocumentBlockedRef.current || fileOperation.current || discardDecision.current) return;
     newDocumentRequest.current = true;
     const source = replacementSource();
@@ -1092,6 +1216,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
   const isReplacementCurrent = (source: ReplacementSource) => mounted.current && source.epoch === documentEpoch.current &&
     source.document === docRef.current && source.editing === editingRef.current;
   const openReplacement = (content: string, path: string | undefined, source: ReplacementSource) => {
+    if (embeddedRef.current || !isActiveOwner()) return;
     const next = parseCadDocument(content);
     const saved = serializeCadDocument(next);
     if (!isReplacementCurrent(source)) throw new Error("El documento cambió durante la apertura. Vuelve a abrir el archivo.");
@@ -1099,6 +1224,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     else reset(next, path, true);
   };
   const newAssembly = async () => {
+    if (embeddedRef.current || !isActiveOwner()) return;
     if (newDocumentRequest.current || newDocumentBlockedRef.current || fileOperation.current || discardDecision.current) return;
     newDocumentRequest.current = true;
     const source = replacementSource();
@@ -1109,6 +1235,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     finally { newDocumentRequest.current = false; }
   };
   const newAssemblyFromPart = () => {
+    if (embeddedRef.current || !isActiveOwner()) return;
     if (!requireFinishedEdit()) return;
     if (fileOperation.current || discardDecision.current) {
       notify("Termina la operación de archivo actual antes de crear el ensamblaje.");
@@ -1255,6 +1382,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     }
   };
   const saveDoc = async (saveAs = false) => {
+    if (!isActiveOwner()) return;
     if (namedViews.isOpen) return;
     if (!requireFinishedEdit()) return;
     if (fileOperation.current) {
@@ -1264,31 +1392,27 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     fileOperation.current = true;
     const snapshot = serializedDocument;
     const epoch = documentEpoch.current;
+    const owner = embeddedRef.current;
     try {
-      if (window.solidflow) {
-        const path = await window.solidflow.saveDocument(
-          snapshot,
-          doc.name,
-          saveAs ? undefined : filePath,
-        );
-        if (!path) return;
-        if (!mounted.current || documentEpoch.current !== epoch) return;
-        setFilePath(path);
-      } else
-        download(
-          new Blob([snapshot], { type: "application/json" }),
-          doc.name + ".solidflow",
-        );
-      if (!mounted.current || documentEpoch.current !== epoch) return;
-      setSaved(snapshot);
-      notify("Pieza guardada");
+      await runProducer(async () => {
+        if (window.solidflow) {
+          const path = await window.solidflow.saveDocument(snapshot, doc.name, owner || saveAs ? undefined : filePath);
+          if (!path || !mounted.current || !isActiveOwner(owner) || documentEpoch.current !== epoch) return;
+          if (!owner) setFilePath(path);
+        } else download(new Blob([snapshot], { type: "application/json" }), doc.name + ".solidflow");
+        if (!mounted.current || !isActiveOwner(owner) || documentEpoch.current !== epoch) return;
+        setSaved(snapshot);
+        notify(owner ? "Copia guardada. Los cambios de la pieza siguen pendientes en el ensamblaje." : "Pieza guardada");
+      });
     } catch (e) {
-      if (mounted.current) notify((e as Error).message, true);
+      if (mounted.current && isActiveOwner(owner)) notify((e as Error).message, true);
     } finally {
       fileOperation.current = false;
+      if (owner && isActiveOwner(owner)) setFileBuildRevision(value => value + 1);
     }
   };
   const openDoc = async () => {
+    if (embeddedRef.current || !isActiveOwner()) return;
     const source = replacementSource();
     if (!(await canReplace()) || !isReplacementCurrent(source)) return;
     fileOperation.current = true;
@@ -1307,6 +1431,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     }
   };
   const performStepImport = async (read: () => Promise<StepFile | null>) => {
+    if (embeddedRef.current || !isActiveOwner()) return;
     if (!requireFinishedEdit()) return;
     if (fileOperation.current) {
       notify("Espera a que termine la operación de archivo actual.");
@@ -1336,6 +1461,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     }
   };
   const selectStructuralStep = async () => {
+    if (embeddedRef.current || !isActiveOwner()) return;
     if (!requireFinishedEdit() || fileOperation.current || !ready) return;
     const epoch = documentEpoch.current, original = serializeDocument(docRef.current), editing = editingRef.current;
     const fresh = () => mounted.current && documentEpoch.current === epoch && editingRef.current === editing && serializeDocument(docRef.current) === original;
@@ -1350,6 +1476,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     finally { if(mounted.current && documentEpoch.current===epoch) {fileOperation.current=false;setImporting(false);} }
   };
   const selectStep = () => {
+    if (embeddedRef.current || !isActiveOwner()) return;
     if (!requireFinishedEdit()) return;
     if (fileOperation.current) {
       notify("Espera a que termine la operación de archivo actual.");
@@ -1359,6 +1486,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     else stepInput.current?.click();
   };
   const exportFile = async (format: "step" | "stl") => {
+    if (!isActiveOwner()) return;
     if (!requireFinishedEdit()) return;
     if (!canExport) return;
     if (fileOperation.current) {
@@ -1367,22 +1495,25 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     }
     fileOperation.current = true;
     setExporting(true);
+    const owner = embeddedRef.current;
     try {
-      const blob = await exportCad(format, doc.features);
-      if (window.solidflow) {
-        const path = await window.solidflow.exportDocument(
-          new Uint8Array(await blob.arrayBuffer()),
-          doc.name,
-          format,
-        );
-        if (!path) return;
-      } else download(blob, doc.name + "." + format);
-      notify(`Geometría exportada en ${format.toUpperCase()}`);
+      await runProducer(async () => {
+        const blob = await exportCad(format, doc.features);
+        if (!mounted.current || !isActiveOwner(owner)) return;
+        if (window.solidflow) {
+          const bytes = new Uint8Array(await blob.arrayBuffer());
+          if (!mounted.current || !isActiveOwner(owner)) return;
+          const path = await window.solidflow.exportDocument(bytes, doc.name, format);
+          if (!path) return;
+        } else download(blob, doc.name + "." + format);
+        if (mounted.current && isActiveOwner(owner)) notify(`Geometría exportada en ${format.toUpperCase()}`);
+      });
     } catch (e) {
-      notify((e as Error).message, true);
+      if (mounted.current && isActiveOwner(owner)) notify((e as Error).message, true);
     } finally {
       fileOperation.current = false;
-      setExporting(false);
+      if (mounted.current && isActiveOwner(owner)) setExporting(false);
+      if (owner && isActiveOwner(owner)) setFileBuildRevision(value => value + 1);
     }
   };
   const undo = () => {
@@ -2339,6 +2470,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
   };
   useEffect(() => {
     const handle = (e: KeyboardEvent) => {
+      if (!isActiveOwner()) return;
       if (e.defaultPrevented || newDocumentDialog.pending()) return;
       const input =
         e.target instanceof HTMLElement &&
@@ -2374,7 +2506,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
       }
       const requestedView = viewShortcutCommand(e, input);
       if (requestedView) {
-        if (document.querySelector('[role="menu"]')) return;
+        if (shell.current?.querySelector('[role="menu"]')) return;
         e.preventDefault();
         if (!e.repeat) changeView(requestedView);
         return;
@@ -2722,16 +2854,20 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
   };
   const disabledMenuCommands: Record<string, boolean> = {
     "Nuevo…": newDocumentBlocked,
+    "Abrir…": !!embeddedEdit,
+    "Abrir pieza de ejemplo": !!embeddedEdit,
+    "Ejemplo: cortes y salientes sucesivos": !!embeddedEdit,
     "Vista anterior": !viewHistory.canPrevious || viewIs2D,
     "Ajustar a pantalla": viewHistory.navigating,
     ...Object.fromEntries(standardViews.map(view => [view.label, !!viewIs2D || viewHistory.navigating])),
     'Normal a': !canNormal,
     'Vistas guardadas…': !namedViews.canOpen,
     "Nuevo ensamblaje vacío": newDocumentBlocked,
-    "Crear ensamblaje con esta pieza": !canCreateAssemblyFromPart,
-    "Importar STEP…": !!editing || importing || exporting,
-    "Importar STEP estructurado…": !!editing || importing || exporting,
+    "Crear ensamblaje con esta pieza": !!embeddedEdit || !canCreateAssemblyFromPart,
+    "Importar STEP…": !!embeddedEdit || !!editing || importing || exporting,
+    "Importar STEP estructurado…": !!embeddedEdit || !!editing || importing || exporting,
     "Guardar": !!editing || importing || exporting, "Guardar como…": !!editing || importing || exporting,
+    "Guardar copia…": !!editing || importing || exporting, "Guardar copia como…": !!editing || importing || exporting,
     "Exportar STEP": !canExport, "Exportar STL": !canExport,
     "Deshacer": editing?.type === "sketch" ? !sketchPast.length : !!editing || !history.current.canUndo,
     "Rehacer": editing?.type === "sketch" ? !sketchFuture.length : !!editing || !history.current.canRedo,
@@ -2755,8 +2891,8 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
         ["Abrir…", "Ctrl+O", openDoc],
         ["Importar STEP…", "", selectStep],
         ["Importar STEP estructurado…", "", () => void selectStructuralStep()],
-        ["Guardar", "Ctrl+S", () => saveDoc()],
-        ["Guardar como…", "Ctrl+Mayús+S", () => saveDoc(true)],
+        [embeddedEdit ? "Guardar copia…" : "Guardar", "Ctrl+S", () => saveDoc()],
+        [embeddedEdit ? "Guardar copia como…" : "Guardar como…", "Ctrl+Mayús+S", () => saveDoc(true)],
         ["Exportar STEP", "", () => exportFile("step")],
         ["Exportar STL", "", () => exportFile("stl")],
         ["Abrir pieza de ejemplo", "", loadDemo],
@@ -2859,8 +2995,15 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
     message={bodyCommand && !bodyCommand.accepted ? bodyCommand.message : undefined}
   />;
 
+  // Activity cleanup acknowledges this activation only. Native promises remain
+  // in the external ledger until their original settlement.
+  useEffect(() => {
+    const owner = embeddedEdit;
+    return () => { if (owner) owner.work.acknowledgeCleanup(owner.activation); };
+  }, [embeddedEdit?.work, embeddedEdit?.activation]);
+
   return (
-    <div className="app-shell">
+    <div className="app-shell" ref={shell}>
       {newDocumentDialog.dialog}
       {activeViewportPopup && viewportContext && <CadContextMenu key={activeViewportPopup.requestId} namespace="part"
         targetName={viewportContext.name} point={activeViewportPopup.point} restoreFocusElement={activeViewportPopup.origin}
@@ -2882,6 +3025,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
         accept=".solidflow"
         hidden
         onChange={async (e) => {
+          if (embeddedRef.current || !isActiveOwner()) return;
           const input = e.currentTarget;
           const f = input.files?.[0], source = browserOpenSource.current;
           browserOpenSource.current = null;
@@ -2928,7 +3072,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
         menus={<AssemblyMenuBar variant="part" menus={partMenus} />}
         document={<div className="document-title" title={`${doc.name}${dirty ? " · Cambios sin guardar" : ""} — SolidFlow`}>
           {doc.name}
-          {dirty ? " *" : ""} — SolidFlow
+          {dirty ? " *" : ""}{embeddedEdit ? ` en ${embeddedEdit.assemblyName}` : " — SolidFlow"}
         </div>}
         quickActions={<div className="quick-actions">
           <IconButton
@@ -2941,10 +3085,11 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
             icon={FolderOpen}
             title="Abrir (Ctrl+O)"
             onClick={() => void openDoc()}
+            disabled={!!embeddedEdit}
           />
           <IconButton
             icon={Save}
-            title="Guardar (Ctrl+S)"
+            title={embeddedEdit ? "Guardar copia… (Ctrl+S)" : "Guardar (Ctrl+S)"}
             onClick={() => void saveDoc()}
           />
           <i />
@@ -2972,10 +3117,15 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
           <IconButton
             icon={RotateCw}
             title="Reconstruir pieza"
-            onClick={() => setDoc({ ...doc, features: [...doc.features] })}
+            onClick={() => { if (isActiveOwner()) setDoc({ ...doc, features: [...doc.features] }); }}
           />
         </div>}
-        utilities={<><div className="command-search">
+        utilities={<>{embeddedEdit ? <div className="workspace-tag" role="region" aria-label="Edición de pieza en el ensamblaje"
+          title={`Editando ${embeddedEdit.componentName}. Guardar crea una copia independiente.`}>
+          <button className="primary-button" onClick={returnToAssembly} disabled={!embeddedReturnReady}>Volver al ensamblaje</button>
+          <button className="outline-button" onClick={() => void discardEmbeddedPart()}
+            disabled={!embeddedEdit.active || importing || exporting || discardOpen}>Descartar edición</button>
+        </div> : <div className="command-search">
           <Search size={14} />
           <input
             placeholder="Buscar en el árbol…"
@@ -2984,7 +3134,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
             onChange={(e) => setQuery(e.target.value)}
           />
           <kbd>⌕</kbd>
-        </div>
+        </div>}
         <div className="workspace-tag">
           <Box size={13} aria-hidden="true" /> Pieza
         </div>
@@ -5007,10 +5157,10 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
               }
             }}
           >
-            <h2 id="discard-title">Cambios sin guardar</h2>
+            <h2 id="discard-title">{embeddedEdit ? "Descartar edición de pieza" : "Cambios sin guardar"}</h2>
             <p id="discard-description">
-              Hay cambios sin guardar en esta pieza. Si continúas, se perderán
-              los cambios y la operación que estés editando.
+              {embeddedEdit ? "Los cambios de esta pieza siguen pendientes en el ensamblaje, aunque hayas guardado una copia. Si continúas, se perderán los cambios y la operación que estés editando."
+                : "Hay cambios sin guardar en esta pieza. Si continúas, se perderán los cambios y la operación que estés editando."}
             </p>
             <div className="modal-actions">
               <button
@@ -5023,7 +5173,7 @@ function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitial
                 className="primary-button"
                 onClick={() => finishDiscard(true)}
               >
-                Continuar sin guardar
+                {embeddedEdit ? "Descartar edición" : "Continuar sin guardar"}
               </button>
             </div>
           </div>

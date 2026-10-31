@@ -100,6 +100,8 @@ import { buildAssemblyOriginDisplay, type AssemblyOriginReference } from './asse
 import { standardAssemblyOriginKinds, standardAssemblyOriginPick, type StandardAssemblyOriginPickTicket } from './assemblyStandardOriginPicking'
 import { AssemblyShellHeader, AssemblyCommandGroup, type AssemblyMenuDefinition } from './AssemblyCommandManager'
 import { useAssemblyShortcuts, withAssemblyShortcutLabels } from './useAssemblyShortcuts'
+import { useAssemblyEmbeddedPartEditor } from './useAssemblyEmbeddedPartEditor'
+import type { EmbeddedPartEditorProps } from './embeddedPartEditor'
 import { flushSync } from 'react-dom'
 import { AssemblyCommandTabs, type AssemblyCommandTab } from './AssemblyCommandTabs'
 import { useAssemblyTreeNavigation } from './useAssemblyTreeNavigation'
@@ -117,6 +119,7 @@ export interface AssemblyWorkspaceProps {
   initialSaved?: string
   onOpenPart: (document: Document, path?: string, saved?: string) => void
   onOpenConfigured?: (document: AssemblyConfiguredDocument, path?: string, saved?: string) => void
+  renderPartEditor?: (props: EmbeddedPartEditorProps) => ReactNode
 }
 type AssemblyNode = AssemblyDocument | EmbeddedAssemblyDefinition
 type RelationReferencePair = [AssemblyGeometryReference | null, AssemblyGeometryReference | null]
@@ -374,7 +377,7 @@ function downloadBomCsv(content: string, name: string): void {
   link.href = url; link.download = name + '.csv'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 2000)
 }
 
-export default function AssemblyWorkspace({ initialDocument, initialPath, initialSaved, onOpenPart, onOpenConfigured }: AssemblyWorkspaceProps) {
+export default function AssemblyWorkspace({ initialDocument, initialPath, initialSaved, onOpenPart, onOpenConfigured, renderPartEditor }: AssemblyWorkspaceProps) {
   const newDocumentDialog = useNewDocumentDialog(), newDocumentRequest = useRef(false)
   const [treeReset, setTreeReset] = useState(0)
   type ContextTarget = { point: { x: number; y: number }; element: HTMLElement; reset: number; signature: string; scope: string; generation: number }
@@ -404,7 +407,8 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     })
   }
   const history = useRef<AssemblyDocumentHistory | null>(null); history.current ??= new AssemblyDocumentHistory(initialDocument)
-  const [committed, setCommitted] = useState(() => validateAssemblyDocument(initialDocument)), [path, setPath] = useState(initialPath)
+  const [committed, publishCommitted] = useState(() => validateAssemblyDocument(initialDocument)), [path, setPath] = useState(initialPath)
+  const embeddedOwnerEpoch = useRef(0)
   const [saved, setSaved] = useState(initialSaved ?? ''), [scene, setScene] = useState<AssemblyScene | null>(null), [commandBusy, setBusy] = useState(false), [cancelable, setCancelable] = useState(false)
   const [sceneBuilding, setSceneBuilding] = useState(true), [activity] = useState(createAssemblyActivity)
   const busy = commandBusy || sceneBuilding
@@ -428,7 +432,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   const [analysisClearance, setAnalysisClearance] = useState('1'), [includeHidden, setIncludeHidden] = useState(true), [includeWithinComponent, setIncludeWithinComponent] = useState(false), [treatSubassembliesAsComponents, setTreatSubassembliesAsComponents] = useState(false), analysisPending = useRef(false)
   const [analysisScope, setAnalysisScope] = useState<AssemblyInterferenceScope>({ mode: 'all', selected: [], excluded: [] })
   const [message, setMessage] = useState('Preparando ensamblaje…'), [error, setError] = useState(false), [selectedPath, setSelectedPath] = useState<string[]>([])
-  const [scopePath, setScopePath] = useState<string[]>([]), [selectedFaceMeshes, setSelectedFaceMeshes] = useState<AssemblySceneFace[]>([])
+  const [scopePath, publishScopePath] = useState<string[]>([]), [selectedFaceMeshes, setSelectedFaceMeshes] = useState<AssemblySceneFace[]>([])
   const [treeOriginSelection, setTreeOriginSelection] = useState<AssemblyOriginTreeSelection | null>(null)
   // One ordered browse selection feeds camera commands and relation preselection independently.
   const [normalSelection, setNormalSelection] = useState<AssemblyNormalSelection | null>(null)
@@ -536,13 +540,21 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   const linkedBindings = useRef(new AssemblyLinkedSourceBindings(grantId => { void window.solidflow?.releaseLinkedSource(grantId).catch(() => {}) }))
   const [, refreshLinked] = useState(0)
   const current = useRef(committed), currentPreview = useRef(preview), sceneSignature = useRef(''), confirmedScene = useRef<{ signature: string; scene: AssemblyScene } | null>(null); current.current = committed; currentPreview.current = preview
+  const setCommitted = (document: AssemblyDocument) => {
+    embeddedOwnerEpoch.current++
+    current.current = document
+    publishCommitted(document)
+  }
+  const setScopePath = (value: string[] | ((previous: string[]) => string[])) => {
+    embeddedOwnerEpoch.current++
+    publishScopePath(value)
+  }
   const exportView = useRef({ busy, draft: !!draft, replacing: replaceDialog }); exportView.current = { busy, draft: !!draft, replacing: replaceDialog }
   const geometryExportState = (): AssemblyExportState => ({ document: current.current, generation: generation.current, mounted: mounted.current,
     busy: exportView.current.busy, draft: exportView.current.draft, preview: !!currentPreview.current, sourceUpdate: hasStaging(),
-    replacing: exportView.current.replacing || !!replaceAnswer.current, sceneSignature: sceneSignature.current, confirmedSceneSignature: confirmedScene.current?.signature ?? null })
+    replacing: exportView.current.replacing || !!replaceAnswer.current || embeddedPart.isOpen(), sceneSignature: sceneSignature.current, confirmedSceneSignature: confirmedScene.current?.signature ?? null })
   const serialized = useMemo(() => serializeAssemblyDocument(committed), [committed]), candidateSignature = useMemo(() => draft ? serializeAssemblyDocument(draft) : null, [draft])
   useEffect(() => { creationReferenceDraft.current = null }, [scopePath, serialized, treeReset])
-  const dirty = serialized !== saved || !!draft || !!sourceUpdate || !!documentUpdate || !!replacementReview, dirtyRef = useRef(dirty); dirtyRef.current = dirty
   const rows = useMemo(() => assemblyTreeRows(committed), [committed]), selected = rows.find(row => samePath(row.path, selectedPath))
   const movementScope = selected && (assemblyDefinitionKey(committed) === assemblyDefinitionKey(selected.parent) ? committed
     : committed.definitions.find(value => value.kind === 'assembly' && assemblyDefinitionKey(value) === assemblyDefinitionKey(selected.parent)))
@@ -560,6 +572,55 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   const scope = nodeAt(committed, scopePath), scopeReference = { id: scope.id, revision: scope.revision }
   const currentFileScope = useRef(JSON.stringify(scopePath)); currentFileScope.current = JSON.stringify(scopePath)
   const currentFileSelection = useRef(JSON.stringify(selectedPath)); currentFileSelection.current = JSON.stringify(selectedPath)
+  const embeddedPart = useAssemblyEmbeddedPartEditor({
+    getContext: () => ({ document: current.current, ownerEpoch: embeddedOwnerEpoch.current,
+      scopePath: JSON.parse(currentFileScope.current) as string[] }),
+    blocked: () => !mounted.current || busy || operation.current || hasStaging() || !!currentPreview.current || !!draft
+      || replaceDialog || !!replaceAnswer.current || !!rootRevision || !!dragSession.current || !!fileTicket.current
+      || !!structuralRead.current || namedViews.isOpen || newDocumentDialog.isOpen
+      || sceneSignature.current !== serializeAssemblyDocument(current.current),
+    // The activity ref includes reconstruction and releases synchronously on Cancel.
+    canLeaveReview: () => !operation.current,
+    renderPartEditor,
+    onEnter: () => { setContextTarget(null); namedViews.close(); void invalidate() },
+    onRestore: () => {
+      // Part builds replace the worker's assembly session, even if the saved
+      // parent bytes are unchanged. Require a fresh native assembly scene.
+      sceneSignature.current = ''
+      setRebuild(value => value + 1)
+      notify('Edición de pieza cerrada. El ensamblaje conserva sus cambios confirmados.')
+    },
+    discardReview: () => {
+      const cleanup = invalidate()
+      operation.current = false; setBusy(false); setCancelable(false)
+      return cleanup
+    },
+    onError: message => notify(message, true),
+    onReview: async (prepared, ticket, isCurrent) => {
+      const base = current.current, signature = serializeAssemblyDocument(base), id = ++generation.current
+      let reviewId: string | undefined
+      if (!isCurrent() || base !== ticket.document) throw Error('La sesión de edición de pieza ya no corresponde al ensamblaje.')
+      operation.current = true; setBusy(true); setCancelable(true)
+      notify('Revisando los cambios de la pieza y las referencias del ensamblaje…')
+      try {
+        const review = await reviewAssemblyPartUpdate(base, prepared.source, prepared.document, crypto.randomUUID())
+        reviewId = review.reviewId
+        if (!mounted.current || id !== generation.current || !isCurrent() || current.current !== base
+          || signature !== serializeAssemblyDocument(current.current)) throw Error('La revisión de la pieza se ha cancelado o ha quedado obsoleta.')
+        const stage = { review, document: validateAssemblyDocument(review.document), repaired: [], baseSignature: signature }
+        currentUpdate.current = stage; setSourceUpdate(stage); setScene(review.scene)
+        managerTabRef.current = 'relations'; setManagerTab('relations')
+        notify('Cambios de pieza pendientes. Revisa las referencias, resuelve y aplica al ensamblaje.')
+      } catch (reason) {
+        if (reviewId && currentUpdate.current?.review.reviewId !== reviewId) await discardAssemblyPartUpdate(reviewId).catch(() => {})
+        throw reason
+      } finally {
+        if (mounted.current && id === generation.current) { operation.current = false; setBusy(false); setCancelable(false) }
+      }
+    },
+  })
+  const dirty = serialized !== saved || !!draft || !!sourceUpdate || !!documentUpdate || !!replacementReview || embeddedPart.dirty,
+    dirtyRef = useRef(dirty); dirtyRef.current = dirty
   const availableComponents = rows.filter(row => inside(row.path, scopePath) && !row.suppressed)
   const directedChoices = useMemo(() => assemblyDirectedAngleChoices(scene, scopePath, rows), [scene, scopePath, rows])
   const directedSignature = JSON.stringify([scopePath, directedSelection]), currentDirectedSignature = useRef(directedSignature); currentDirectedSignature.current = directedSignature
@@ -691,10 +752,10 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   const displayedProjection = preview?.reply.projection && preview.generation === generation.current && preview.baseSignature === serialized
     ? { projection: preview.reply.projection, checks: preview.reply.checks }
     : streamProjection?.generation === generation.current && streamProjection.baseSignature === serialized ? streamProjection : null
-  const editingBlocked = busy || !!sourceUpdate || !!documentUpdate || !!replacementReview || !!rootRevision
+  const editingBlocked = busy || !!sourceUpdate || !!documentUpdate || !!replacementReview || !!rootRevision || embeddedPart.open
   // Document-only actions may follow a name blur while its scene rebuild is pending.
   // Native selection, solving and Apply still use the aggregate editingBlocked.
-  const documentEditingBlocked = commandBusy || !!sourceUpdate || !!documentUpdate || !!replacementReview || !!rootRevision
+  const documentEditingBlocked = commandBusy || !!sourceUpdate || !!documentUpdate || !!replacementReview || !!rootRevision || embeddedPart.open
   const directedReport = directedMeasurement && !editingBlocked && !draft && !preview && !replaceDialog && sceneSignature.current === serialized
     && assemblyDirectedAngleReplyIsCurrent(directedMeasurement.ticket, { mounted: mounted.current, generation: generation.current, documentSignature: serialized, requestSignature: directedSignature }) ? directedMeasurement.report : null
   const bomBlocked = editingBlocked || !!draft || !!preview || replaceDialog
@@ -723,13 +784,14 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     sceneSignature.current = confirmedScene.current?.signature === signature ? signature : ''
     setScene(confirmedScene.current?.signature === signature ? confirmedScene.current.scene : null)
   }
-  const discardToken = (token?: string) => { void discardAssemblyPreview(token).catch(() => { /* Restarted workers already revoked the capability. */ }) }
+  const discardToken = (token?: string) => discardAssemblyPreview(token).catch(() => { /* Restarted workers already revoked the capability. */ })
   const dropPendingLinked = (expected?: PendingLinkedSource | null) => {
     if (expected && pendingLinked.current !== expected) return
     const pending = pendingLinked.current; pendingLinked.current = null
     if (pending?.grantId) { linkedBindings.current.releaseGrant(pending.grantId); if (mounted.current) refreshLinked(v => v + 1) }
   }
   const invalidate = (keepSourceUpdate = false, keepCreationReferences = false) => {
+    const pending: Promise<unknown>[] = []
     const retained = keepCreationReferences && creationReferenceDraft.current?.document === current.current
       && creationReferenceDraft.current.scope === currentFileScope.current && creationReferenceDraft.current.session === treeReset
       && creationReferenceDraft.current.family === mateType && isAssemblyOrdinaryCreationType(mateType)
@@ -751,18 +813,19 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     if (!keepSourceUpdate) {
       linkedTicket.current = null; dropPendingLinked()
       const partStage = currentUpdate.current
-      if (partStage?.review.reviewId) void discardAssemblyPartUpdate(partStage.review.reviewId).catch(() => {})
+      if (partStage?.review.reviewId) pending.push(discardAssemblyPartUpdate(partStage.review.reviewId).catch(() => {}))
       currentUpdate.current = null; setSourceUpdate(null)
       const documentStage = currentDocumentUpdate.current
-      if (documentStage) void discardAssemblyDocumentUpdate(documentStage.review.reviewId).catch(() => {})
+      if (documentStage) pending.push(discardAssemblyDocumentUpdate(documentStage.review.reviewId).catch(() => {}))
       currentDocumentUpdate.current = null; setDocumentUpdate(null)
       const replacement = currentReplacement.current
-      if (replacement) void discardAssemblyPartReplacement(replacement.review.reviewId).catch(() => {})
+      if (replacement) pending.push(discardAssemblyPartReplacement(replacement.review.reviewId).catch(() => {}))
       currentReplacement.current = null; setReplacementReview(null)
     }
-    generation.current++; if (currentPreview.current) discardToken(currentPreview.current.reply.token)
+    generation.current++; if (currentPreview.current) pending.push(discardToken(currentPreview.current.reply.token))
     currentPreview.current = null; setPreview(null); setDraft(null); setReports([]); setSelectedFaceMeshes([]); setReferences(retained ? structuredClone(retained.references) : [null, null]); setTangentReferences([null, null]); setCylinderReferences([null, null]); setSphereReferences([null, null]); setLimitReferences([null, null]); setLimitAngleReferences([null, null]); setFaceChoice(''); setPickingFaces(false)
     restoreScene()
+    return Promise.all(pending)
   }
   useEffect(() => {
     mounted.current = true
@@ -782,7 +845,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
       .finally(() => { if (mounted.current && id === generation.current) { activity.setRebuilding(false); setSceneBuilding(false) } })
   }, [committed, serialized, rebuild])
   useEffect(() => { try { writeCadRecovery(localStorage, committed) } catch { notify('No se pudo guardar la recuperación local. Guarda el ensamblaje en un archivo.', true) } }, [serialized])
-  useEffect(() => { const leave = (event: BeforeUnloadEvent) => { if (dirtyRef.current) { event.preventDefault(); event.returnValue = '' } }; window.addEventListener('beforeunload', leave); return () => window.removeEventListener('beforeunload', leave) }, [])
+  useEffect(() => { const leave = (event: BeforeUnloadEvent) => { if (dirtyRef.current || embeddedPart.hasUnappliedWork()) { event.preventDefault(); event.returnValue = '' } }; window.addEventListener('beforeunload', leave); return () => window.removeEventListener('beforeunload', leave) }, [])
   const change = (next: AssemblyDocument) => {
     const document = history.current!.commitDocument(next); invalidate(); setCommitted(document)
     setSelectedPath(value => assemblyTreeRows(document).some(row => samePath(row.path, value)) ? value : [])
@@ -790,7 +853,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     return document
   }
   const edit = (value: AssemblyEdit): boolean => {
-    if (activity.commandActive || hasStaging() || rootRevision) return false
+    if (embeddedPart.isOpen() || activity.commandActive || hasStaging() || rootRevision) return false
     try { change(applyAssemblyEdit(current.current, value)); return true }
     catch (reason) { notify((reason as Error).message, true); return false }
   }
@@ -813,7 +876,10 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     if (operation.current && !cancelable && !dragSession.current) return
     if (directedPending.current) { generation.current++; directedPending.current = false; setDirectedMeasurement(null); operation.current = false; setBusy(false); setCancelable(false); notify('Medición cancelada. El ensamblaje no ha cambiado.'); return }
     if (analysisPending.current) { generation.current++; analysisPending.current = false; clearInspection(); operation.current = false; setBusy(false); setCancelable(false); notify('Comprobación cancelada. El documento confirmado no ha cambiado.'); return }
-    invalidate(false, true); operation.current = false; setBusy(false); setCancelable(false); setRebuild(value => value + 1); notify('Vista previa cancelada. Se conservan las posiciones confirmadas.')
+    const cleanup = invalidate(false, true); operation.current = false; setBusy(false); setCancelable(false)
+    if (embeddedPart.isOpen()) embeddedPart.resumeAfter(cleanup)
+    else setRebuild(value => value + 1)
+    notify('Vista previa cancelada. Se conservan las posiciones confirmadas.')
   }
   const cancelToolbarPreview = () => {
     if (!operation.current && currentDocumentUpdate.current && currentPreview.current) {
@@ -876,6 +942,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     currentPreview.current = record; setPreview(record); setDraft(candidate); setScene(reply.scene); notify('Vista previa verificada. Revisa las relaciones y pulsa Aplicar.')
   }
   const solve = async (proposed = currentUpdate.current?.document ?? current.current, keepCreationReferences = false) => {
+    if (embeddedPart.isOpen() && !currentUpdate.current) return
     if (currentDocumentUpdate.current) { await solveDocumentUpdate(); return }
     if (currentReplacement.current) { await solveReplacement(); return }
     if (operation.current || savedReferenceEditIsActive() && proposed === current.current) return
@@ -994,6 +1061,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     dragging.current = false; setDragActive(false); notify('Verificando el último destino del arrastre…'); controller.end()
   }
   const apply = async () => {
+    if (embeddedPart.isOpen() && !embeddedPart.isReviewing()) return
     const candidate = currentPreview.current
     if (!candidate || operation.current || !canApplyAssemblyPreview(candidate, serializeAssemblyDocument(current.current), draft ? serializeAssemblyDocument(draft) : null, generation.current, false)) return
     const id = generation.current, replacing = !!currentReplacement.current, updatingDocument = !!currentDocumentUpdate.current,
@@ -1014,6 +1082,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
       }
       setOrdinaryEdit(null); setReleaseRotation(false); setAngleEdit(null); setDistanceEdit(null); setCommitted(document); setScene(reply.scene); setSelectedFaceMeshes([]); setReferences([null, null]); setWidthReferences([null,null,null,null]); setEditingWidthId(null); setTangentReferences([null, null]); setCylinderReferences([null, null]); setSphereReferences([null, null]); setLimitReferences([null, null]); setLimitAngleReferences([null, null]); setLimitDirectedSelection(['', '', '']); setCylinderLarger(''); setSphereLarger(''); setMovementReset(value => value + 1); setDirectionEdit(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null)
       setEditingLimitDirectedAngleId(null)
+      if (updatingPart && embeddedPart.isOpen()) embeddedPart.complete()
       if (candidate.reply.translation) notify('Traslación aplicada. Se conservan las relaciones y el historial; no se añade un bloqueo temporal.')
       else if (candidate.reply.projection) notify('Proyección local aplicada. Se conservan las relaciones y el historial del ensamblaje.')
       else if (candidate.reply.motion) { setReports([]); notify('Movimiento angular aplicado. Resuelve de nuevo para medir los grados de libertad sin el ancla temporal.') }
@@ -1043,7 +1112,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     finally { if (mounted.current && id === generation.current) { operation.current = false; setBusy(false) } }
   }
   const save = async (saveAs = false): Promise<boolean> => {
-    if (namedViews.isOpen || activity.commandActive || draft || hasStaging() || rootRevision) return false
+    if (embeddedPart.isOpen() || namedViews.isOpen || activity.commandActive || draft || hasStaging() || rootRevision) return false
     const snapshot = serializeAssemblyDocument(current.current), document = current.current; operation.current = true; setBusy(true)
     try {
       if (window.solidflow) { const target = await window.solidflow.saveDocument(snapshot, document.name, saveAs ? undefined : path); if (!target) return false; if (current.current === document) setPath(target) }
@@ -1100,6 +1169,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     return () => { window.removeEventListener('keydown', keyboard); if (previous instanceof HTMLElement && previous.isConnected) previous.focus() }
   }, [replaceDialog])
   const replace = (document: AssemblyDocument, filePath?: string, fileSaved?: string) => {
+    if (embeddedPart.isOpen()) return
     setNormalSelection(null)
     namedViews.close(); viewHistory.reset(); setView(previous => ({ name: 'iso', stamp: previous.stamp + 1 }))
     setOrdinaryEdit(null); setReleaseRotation(false); setAngleEdit(null); setDistanceEdit(null); setTreeReset(value => value + 1)
@@ -1306,7 +1376,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     finally { if (mounted.current && id === generation.current) { operation.current = false; setBusy(false); setCancelable(false) } }
   }
   const open = async (purpose: AssemblyFilePurpose) => {
-    if (operation.current || hasStaging()) return
+    if (embeddedPart.isOpen() || operation.current || hasStaging()) return
     clearInspection()
     const source = purpose === 'update' && selected ? { id: selected.definition.id, revision: selected.definition.revision } : undefined
     const sourceKind = purpose === 'update' ? selected?.definition.kind : undefined
@@ -2033,6 +2103,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   const namedSelectionRebind = useRef<{ before: AssemblyDocument; after: AssemblyDocument;
     normal: typeof normalViewContext; tree: typeof treeOriginContext } | null>(null)
   const canRetainNamedViewScene = (next: AssemblyDocument): boolean => {
+    if (embeddedPart.isOpen()) return false
     const before = current.current, signature = serializeAssemblyDocument(before), confirmed = confirmedScene.current
     if (!sameDocumentExceptNamedViews(before, next) || operation.current || hasStaging() || currentPreview.current || draft
       || dragSession.current || dragging.current || !scene || confirmed?.scene !== scene
@@ -2073,7 +2144,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     } else setView(previous => ({ name, stamp: previous.stamp + 1 }))
   }
   const undo = (redo = false) => {
-    if (namedViews.isOpen || operation.current || hasStaging()) return
+    if (embeddedPart.isOpen() || namedViews.isOpen || operation.current || hasStaging()) return
     const next = redo ? history.current!.redo() : history.current!.undo()
     if (retainNamedViewScene(next)) return
     setOrdinaryEdit(null); setReleaseRotation(false); setAngleEdit(null); setDistanceEdit(null); invalidate(); setLimitDirectedSelection(['', '', '']); setCommitted(next); setSelectedPath([]); setScopePath([]); setDirectionEdit(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null); setCylinderLarger(''); setSphereLarger(''); setMovementReset(value => value + 1)
@@ -2463,10 +2534,10 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   }, [sourceUpdate, documentUpdate, replacementReview])
   const newDocumentBlocked = editingBlocked || !!draft || !!preview || referenceEditing
   const newDocumentBlockedRef = useRef(newDocumentBlocked); newDocumentBlockedRef.current = newDocumentBlocked
-  const newDocumentEditorBlocked = !!rootRevision || referenceEditing || !!draft
+  const newDocumentEditorBlocked = embeddedPart.open || !!rootRevision || referenceEditing || !!draft
   const newDocumentEditorBlockedRef = useRef(newDocumentEditorBlocked); newDocumentEditorBlockedRef.current = newDocumentEditorBlocked
   const newAssembly = () => void (async () => {
-    if (newDocumentRequest.current || newDocumentBlockedRef.current || operation.current || hasStaging() || replaceAnswer.current) return
+    if (embeddedPart.isOpen() || newDocumentRequest.current || newDocumentBlockedRef.current || operation.current || hasStaging() || replaceAnswer.current) return
     newDocumentRequest.current = true
     const source = current.current, id = generation.current, scope = currentFileScope.current
     // Save-and-continue releases the authoritative operation ref before its
@@ -2551,9 +2622,20 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     else if (field === 'visible') edit({ ...common, type: 'set-occurrence-visible', visible: !row.occurrence.visible })
     else edit({ ...common, type: 'set-occurrence-suppressed', suppressed: !row.occurrence.suppressed })
   })
+  const canEditSelectedPart = !!renderPartEditor && !editingBlocked && !draft && !preview && !replaceDialog
+    && !!selected && selected.definition.kind === 'part' && !selectedTreeOrigin
+  const editSelectedPart = () => {
+    const componentPath = JSON.parse(currentFileSelection.current) as string[], scope = JSON.parse(currentFileScope.current) as string[]
+    const target = createAssemblyComponentContextTarget(current.current, scope, componentPath)
+    const row = resolveAssemblyComponentContextTarget(target, current.current, scope, componentPath)
+    if (!row || row.definition.kind !== 'part') return
+    embeddedPart.begin(row.path)
+  }
   const contextActions: CadContextAction[] = contextRow ? [
     { id: 'view-normal', label: 'Normal a', disabled: !canNormal, onSelect: () => contextAction(() => viewButton('normal')) },
     { id: 'component-properties', label: 'Propiedades del componente', icon: Settings2, onSelect: () => contextAction(() => openManager('properties', '[aria-label="Nombre del componente"]')) },
+    ...(contextRow.definition.kind === 'part' ? [{ id: 'component-edit-part', label: 'Editar pieza', icon: Component,
+      disabled: !canEditSelectedPart, onSelect: () => contextAction(editSelectedPart) }] : []),
     { id: 'component-move', label: 'Mover componente', icon: Move3D, disabled: contextRow.occurrence.fixed || contextRow.suppressed,
       onSelect: () => contextAction(() => openManager('properties', '.assembly-movement h3')) },
     { id: 'component-fixed', label: contextRow.occurrence.fixed ? 'Flotar' : 'Fijar', onSelect: () => contextEdit('fixed') },
@@ -2581,6 +2663,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
       { id: 'undo', label: 'Deshacer', disabled: editingBlocked || !history.current.canUndo, onSelect: () => undo() },
       { id: 'redo', label: 'Rehacer', disabled: editingBlocked || !history.current.canRedo, onSelect: () => undo(true) },
       { id: 'component-properties', label: 'Propiedades del componente', disabled: editingBlocked || !selected || !!selectedTreeOrigin, onSelect: () => openManager('properties', '[aria-label="Nombre del componente"]') },
+      { id: 'component-edit-part', label: 'Editar pieza', disabled: !canEditSelectedPart, onSelect: editSelectedPart },
       { id: 'revision', label: 'Crear revisión…', disabled: editingBlocked || !!draft || replaceDialog, onSelect: openRootRevision },
     ] },
     { id: 'view', label: 'Ver', items: [
@@ -2616,7 +2699,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   ])
   const shortcutPicking = originPicking || pickingFaces || pickingLinearEdges || !!symmetryPicking || !!hingePicking || !!widthPicking || !!rackPicking
   const shortcutCancel = menus.flatMap(menu => menu.items).find(item => item.id === 'cancel-preview')!
-  useAssemblyShortcuts({ root: '.assembly-classic-workspace', menus, modal: namedViews.isOpen || newDocumentDialog.isOpen || replaceDialog || !!replaceAnswer.current,
+  useAssemblyShortcuts({ root: '.assembly-classic-workspace', active: embeddedPart.parentActive, menus, modal: namedViews.isOpen || newDocumentDialog.isOpen || replaceDialog || !!replaceAnswer.current,
     beforeFile: (id, target) => {
       if (!(target instanceof HTMLInputElement) || target.getAttribute('aria-label') !== 'Nombre del componente') return true
       const typed = target.value, changed = typed !== selected?.occurrence.name
@@ -2639,7 +2722,9 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
       notify('Selección en vista cancelada. Se conservan las referencias y los campos de la relación.')
     } } : shortcutCancel,
   })
-  return <div className="assembly-app assembly-classic-workspace" aria-busy={busy}>
+  return <><div className="assembly-app assembly-classic-workspace" aria-busy={busy}
+    hidden={!embeddedPart.parentActive} inert={!embeddedPart.parentActive} aria-hidden={!embeddedPart.parentActive || undefined}
+    style={!embeddedPart.parentActive ? { display: 'none' } : undefined}>
     <input ref={fileInput} type="file" accept=".solidflow" hidden onChange={event => {
       const file = event.target.files?.[0], ticket = fileTicket.current; event.target.value = ''; fileTicket.current = null; if (!file || !ticket) return
       void (async () => {
@@ -2775,6 +2860,10 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
         {selected.path.length > 1 && <p className="assembly-muted">El nombre, los estados y los controles de posición editan la definición compartida en todas sus instancias. La sustitución tiene su propio alcance.</p>}
         {(['fixed', 'visible', 'suppressed'] as const).map(field => <label className="assembly-check" key={field}><input type="checkbox" checked={selected.occurrence[field]} disabled={documentEditingBlocked} onChange={event => { const common = { scope: selected.parent, occurrenceId: selected.occurrence.id }; if (field === 'fixed') edit({ ...common, type: 'set-occurrence-fixed', fixed: event.target.checked }); else if (field === 'visible') edit({ ...common, type: 'set-occurrence-visible', visible: event.target.checked }); else edit({ ...common, type: 'set-occurrence-suppressed', suppressed: event.target.checked }) }} />{field === 'fixed' ? 'Fijo respecto a su padre' : field === 'visible' ? 'Visible' : 'Suprimido'}</label>)}
         <button className="assembly-danger" disabled={editingBlocked} onClick={() => edit({ type: 'delete-occurrence', scope: selected.parent, occurrenceId: selected.occurrence.id })}><Trash2 size={14} />Eliminar ocurrencia</button></section>}
+      {selected?.definition.kind === 'part' && <section className="assembly-section" aria-label="Edición de la pieza">
+        <button aria-label="Editar pieza del componente" disabled={!canEditSelectedPart} onClick={editSelectedPart}><Component size={14} />Editar pieza</button>
+        <p className="assembly-muted">Los cambios se revisarán para todas las instancias de este origen antes de aplicarlos al ensamblaje.</p>
+      </section>}
       {selected && <AssemblyLinkedSourcePanel sourceLink={selected.definition.sourceLink} sourceKind={selected.definition.kind}
         connected={!!linkedBindings.current.get(linkedEpoch.current, selected.definition)}
         available={typeof window !== 'undefined' && !!window.solidflow?.chooseLinkedSource}
@@ -2803,6 +2892,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
                 {displayedProjection && <AssemblyDragProjectionPanel projection={displayedProjection.projection} checks={displayedProjection.checks} pending={!!dragSession.current}
         selectedName={rows.find(row => samePath(row.path, displayedProjection.projection.component.occurrencePath))?.occurrence.name ?? 'Componente seleccionado'}
         drivenName={rows.find(row => samePath(row.path, displayedProjection.projection.drivenComponent.occurrencePath))?.occurrence.name ?? 'Grupo raíz'} />}
+      {embeddedPart.controls}
       {sourceUpdate && <AssemblySourceUpdatePanel review={sourceUpdate.review} document={sourceUpdate.document} repaired={sourceUpdate.repaired} busy={busy} cancelable={cancelable} onRepair={repairSource} onSolve={() => void solve()} onCancel={cancel} />}
       {documentUpdate && <AssemblyDocumentSourceUpdatePanel review={documentUpdate.review} decisions={documentUpdate.decisions} busy={busy} cancelable={cancelable}
         onRepair={repairDocumentSource} onMateDecision={decideDocumentMate} onSolve={() => void solveDocumentUpdate()} onCancel={cancel} />}
@@ -3032,5 +3122,5 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
       onSave={namedViews.save} onShow={namedViews.show} onDelete={namedViews.remove} onRename={namedViews.rename} onUpdate={namedViews.update} onClose={namedViews.close} />}
     {newDocumentDialog.dialog}
     {replaceDialog && <div className="assembly-modal-backdrop"><div ref={replaceModal} className="assembly-modal" role="dialog" aria-modal="true" aria-label="Cambios sin guardar"><h2>Hay cambios sin guardar</h2><p>Guarda el ensamblaje antes de sustituirlo.</p>{draft && <p>Aplica o cancela la vista previa para guardar sus cambios.</p>}<div><button disabled={!!draft || busy} onClick={() => void save().then(success => { if (success) answerReplace(true) })}>Guardar y continuar</button><button onClick={() => answerReplace(true)}>Continuar sin guardar</button><button onClick={() => answerReplace(false)}>Cancelar</button></div></div></div>}
-  </div>
+  </div>{embeddedPart.editor}</>
 }

@@ -77,14 +77,15 @@ test('failure observations are bounded and omit paths, URLs, stack, causes and u
 
 // Execute the existing IPC proxy, rather than a hand-written imitation of its
 // catch/return path, so a diagnostic cannot accidentally swallow a rejection.
-function wrapSave(handler, { symmetry = false, symmetryPicking = false, now = () => performance.now() } = {}) {
+function wrapSave(handler, { symmetry = false, symmetryPicking = false, embeddedPartEdit = false, now = () => performance.now() } = {}) {
   const source = fs.readFileSync(path.join(__dirname, 'desktop-pattern-ui.cjs'), 'utf8');
   const start = source.indexOf('  const sourceSaveObservation ='), end = source.indexOf('  const testingDialog =', start);
   assert.ok(start >= 0 && end > start);
   let wrapped;
   const context = vm.createContext({ require, input, output, canonical, digest, handler, ipc: [],
     electron: { ipcMain: { handle(channel, callback) { assert.equal(channel, 'document:save'); wrapped = callback; } } },
-    sourceRevision: !symmetry && !symmetryPicking, symmetry, symmetryPicking, symmetrySaveTimings: new Map(), performance: { now },
+    sourceRevision: !symmetry && !symmetryPicking && !embeddedPartEdit, symmetry, symmetryPicking, embeddedPartEdit,
+    symmetrySaveTimings: new Map(), performance: { now },
     configurations: false, assemblySourceUpdate: false, fromEmpty: false, shortcuts: false, partRevolution: false,
     assemblyExport: false, structuralStep: false, structuralInsertion: false, linkedSource: false,
     saveCompletion: { enabled: false }, check(condition, message) { assert.ok(condition, message); },
@@ -151,6 +152,37 @@ test('actual source Save IPC proxy retains cancellation and successful result wi
   assert.equal(proxy.records[1].documentWrite.ordinal, 2);
   assert.equal(proxy.records[1].documentWrite.chosen, true);
   assert.equal(proxy.records[1].documentWrite.returnedTarget, 'input');
+});
+
+test('actual embedded part copy Save proxy preserves pending, copied, canceled and rejected outcomes', async () => {
+  const payload = { name: 'Original copy', content: JSON.stringify({ version: 1, id: 'original-copy', features: [] }) };
+  const originalError = new Error('copy write rejected');
+  let calls = 0, settle;
+  const proxy = wrapSave(async (_event, actual) => {
+    calls++; assert.equal(actual, payload);
+    if (calls === 1) return await new Promise(resolve => { settle = resolve; });
+    if (calls === 2) return null;
+    throw originalError;
+  }, { embeddedPartEdit: true });
+  const pending = proxy.invoke(payload), first = proxy.records[0];
+  assert.equal(calls, 1); assert.equal(first.completed, false);
+  assert.equal(first.documentWrite.sha256, digest(payload.content));
+  assert.equal(first.documentWrite.hasPath, false);
+  assert.equal(Object.hasOwn(first.documentWrite, 'chosen'), false);
+  settle(output); assert.equal(await pending, output);
+  assert.equal(first.completed, true); assert.equal(first.documentWrite.chosen, true);
+  assert.equal(await proxy.invoke(payload), null);
+  assert.equal(proxy.records[1].completed, true); assert.equal(proxy.records[1].documentWrite.chosen, false);
+  await assert.rejects(proxy.invoke(payload), error => error === originalError);
+  assert.equal(calls, 3); assert.equal(proxy.records.length, 3);
+  const rejected = proxy.records[2];
+  assert.equal(rejected.completed, false); assert.equal(Object.hasOwn(rejected.documentWrite, 'chosen'), false);
+  for (const record of proxy.records) {
+    assert.equal(record.documentWrite.sha256, digest(payload.content));
+    assert.equal(record.documentWrite.hasPath, false);
+    assert.equal(Object.hasOwn(record.documentWrite, 'ordinal'), false, 'embedded copy branch runs without source-revision diagnostics');
+  }
+  assert.equal(JSON.stringify(proxy.records).includes(output), false);
 });
 
 test('malformed diagnostic content cannot prevent the actual handler or replace its error', async () => {
