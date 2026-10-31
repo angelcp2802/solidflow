@@ -1,0 +1,35 @@
+.view-orientation-select {
+  box-sizing: border-box;
+  flex: 0 0 66px;
+  width: 66px;
+  min-width: 0;
+  height: 26px;
+  padding: 2px 4px;
+  border: 1px solid #c6d2dc;
+  border-radius: 2px;
+  background: #fff;
+  color: #355b75;
+  font: inherit;
+  font-size: 11px;
+}
+.viewport-toolbar .view-previous, .viewport-toolbar .view-normal, .viewport-toolbar .view-named {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 26px;
+  min-height: 0;
+  padding: 0;
+  border: 1px solid transparent;
+  background: transparent;
+  color: inherit;
+}
+.view-orientation-select:focus-visible, .view-previous:focus-visible, .view-normal:focus-visible, .view-named:focus-visible {
+  outline: 2px solid #187fbe;
+  outline-offset: 1px;
+}
+.normal-view-selection {
+  color: #355b75;
+  font-size: 11px;
+  white-space: nowrap;
+}

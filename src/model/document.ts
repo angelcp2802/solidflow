@@ -1,11 +1,16 @@
-import type { BodyOperation, BodyPatternOperation, BodyReference, EdgeReference, EdgeSelection, ExtrudeEndCondition, FaceReference, Feature, HoleEndCondition, HoleHead, HolePosition, LinearPatternDirection, LoftSection, PatternSource, Plane, PlaneSupport, Profile, RepetitionFeature, SketchSupport, SweepPathSegment, Vec3 } from '../cad/kernel.types'
+import type { BodyOperation, BodyPatternOperation, BodyReference, EdgeReference, EdgeSelection, ExtrudeEndCondition, FaceReference, Feature, HoleEndCondition, HoleHead, HolePosition, LinearPatternDirection, LoftSection, PatternSource, Plane, PlaneSupport, Profile, RepetitionFeature, RevolutionAxis, RevolutionExtent, SketchSupport, SweepPathSegment, Vec3 } from '../cad/kernel.types'
 import { isEdgeReferenceKeyV2, isFaceReferenceKeyV2 } from '../cad/kernel.semantic-references'
 import { validateEntityProfile } from '../sketch/validation'
 import { featureDependencyIds, featureSketchIds } from './featureInputs'
 import { validateStepSource } from './stepSource'
-import { bodyReferenceCreationFeatureId, createdBodyIds, featureBodyOutputIncludes, featureBodyReferences } from './bodyReferences'
+import { bodyReferenceCreationFeatureId, createdBodyIds, featureBodyOutputIncludes, featureBodyReferences, featureBodyReferencePaths } from './bodyReferences'
+import { featureRevolutionAxisBodyReferences } from './revolutionAxisReferences'
+import { captureOwnDataRecord } from './ownDataRecord'
+import { mergeThinWallDraft, readThinWall } from '../cad/thinWall'
+import { readSecondDirection, readSecondDirectionDraft } from '../cad/extrusionDirection'
 import { bodyPatternAddresses, MAX_CREATED_BODY_IDS, validateBodyPatternDeclaration } from './bodyPatterns'
 import { validateFeaturePatternDeclaration, type FeaturePatternOperation } from './featurePatterns'
+import { validateNamedViews, type NamedView } from './namedViews'
 
 export interface Document {
   version: 1
@@ -15,11 +20,13 @@ export interface Document {
   features: Feature[]
   createdAt: string
   updatedAt: string
+  namedViews?: NamedView[]
 }
 
 export type SolidDocument = Document
 
 const MAX_FEATURES = 2000
+const MAX_IMPORTED_BODIES_DOCUMENT_BYTES = 20 * 1024 * 1024
 const MAX_DIMENSION = 100_000
 const MAX_COORDINATE = 1_000_000
 const MIN_DIMENSION = 0.01
@@ -137,9 +144,9 @@ function bodyReferencePath(feature: Feature, index: number, path: string): strin
     return feature.operation === 'subtract' ? `${path}.${index === 0 ? 'target' : `tools[${index - 1}]`}`
       : `${path}.operands[${index}]`
   }
-  if (feature.type === 'extrude' && feature.bodyOperation?.mode === 'new') return `${path}.endCondition.baseBody`
+  if (feature.type === 'extrude' && feature.bodyOperation?.mode === 'new') return `${path}.${featureBodyReferencePaths(feature)[index]}`
   if (feature.type === 'extrude' || feature.type === 'revolve' || feature.type === 'sweep' || feature.type === 'loft') return `${path}.bodyOperation.target`
-  return `${path}.bodyScope${feature.type === 'cut' || feature.type === 'hole' ? `[${index}]` : ''}`
+  return `${path}.bodyScope${feature.type === 'cut' || feature.type === 'revolvedCut' || feature.type === 'hole' ? `[${index}]` : ''}`
 }
 
 function integer(value: unknown, path: string, minimum: number, maximum: number): number {
@@ -523,8 +530,96 @@ function edgeSelection(value: unknown, baseFeatureId: string, path: string): Edg
   return { mode: 'selected', edges }
 }
 
+/** Check the entire new import payload before hashing any individual source. */
+function preflightImportedBodies(source: Record<string, unknown>, path: string): void {
+  const dataRecord = (value: unknown, fields: string[], location: string): Record<string, unknown> => {
+    const record = object(value, location)
+    if (Object.getPrototypeOf(record) !== Object.prototype && Object.getPrototypeOf(record) !== null) fail(location, 'objeto de datos no válido')
+    if (Reflect.ownKeys(record).length !== fields.length) fail(location, 'campos de datos no válidos')
+    for (const field of fields) {
+      const descriptor = Object.getOwnPropertyDescriptor(record, field)
+      if (!descriptor?.enumerable || !('value' in descriptor)) fail(location + '.' + field, 'se esperaba un campo de datos propio')
+    }
+    return record
+  }
+  dataRecord(source, ['id', 'name', 'type', 'suppressed', 'bodies'], path)
+  const bodies = boundedArray(source.bodies, path + '.bodies', 1, MAX_BODY_OPERANDS)
+  if (Object.getPrototypeOf(bodies) !== Array.prototype || Reflect.ownKeys(bodies).length !== bodies.length + 1) fail(path + '.bodies', 'lista de datos densa no válida')
+  let encodedBytes = 0
+  for (let index = 0; index < bodies.length; index++) {
+    const descriptor = Object.getOwnPropertyDescriptor(bodies, String(index))
+    if (!descriptor?.enumerable || !('value' in descriptor)) fail(path + '.bodies', 'lista de datos densa no válida')
+    const location = `${path}.bodies[${index}]`
+    const body = dataRecord(descriptor.value, ['bodyId', 'source'], location)
+    const step = dataRecord(body.source, ['format', 'encoding', 'data', 'sha256'], location + '.source')
+    if (typeof step.data !== 'string') fail(location + '.source.data', 'se esperaba base64')
+    encodedBytes += step.data.length
+    if (encodedBytes > MAX_IMPORTED_BODIES_DOCUMENT_BYTES) fail(path, 'las fuentes importadas superan 20 MiB')
+  }
+}
+
+/** Detached strict declaration for direct kernel callers; no native authority. */
+export function validateImportedBodiesFeature(value: unknown, path = 'Cuerpos importados'): Extract<Feature, { type: 'importedBodies' }> {
+  const source = object(value, path)
+  preflightImportedBodies(source, path)
+  if (source.type !== 'importedBodies') fail(path + '.type', 'se esperaba importedBodies')
+  const parsed = feature(source, path)
+  if (parsed.type !== 'importedBodies') fail(path + '.type', 'se esperaba importedBodies')
+  return parsed
+}
+
+function revolutionAxis(value: unknown, path: string): RevolutionAxis {
+  const source = Object.fromEntries(captureOwnDataRecord(value,
+    ['kind', 'axis', 'entityId', 'sketchId', 'edge', 'body'], ['kind'], path))
+  if (source.kind === 'sketch-axis') {
+    keys(source, ['kind', 'axis'], path)
+    if (source.axis !== 'x' && source.axis !== 'y') fail(`${path}.axis`, 'se esperaba el eje local x o y')
+    return { kind: 'sketch-axis', axis: source.axis }
+  }
+  if (source.kind === 'sketch-line') {
+    keys(source, ['kind', 'entityId'], path)
+    return { kind: 'sketch-line', entityId: entityIdentifier(source.entityId, `${path}.entityId`) }
+  }
+  if (source.kind === 'principal-axis') {
+    keys(source, ['kind', 'axis'], path)
+    if (source.axis !== 'X' && source.axis !== 'Y' && source.axis !== 'Z') fail(`${path}.axis`, 'se esperaba el eje principal X, Y o Z')
+    return { kind: 'principal-axis', axis: source.axis }
+  }
+  if (source.kind === 'external-sketch-line') {
+    keys(source, ['kind', 'sketchId', 'entityId'], path)
+    return { kind: 'external-sketch-line', sketchId: entityIdentifier(source.sketchId, `${path}.sketchId`),
+      entityId: entityIdentifier(source.entityId, `${path}.entityId`) }
+  }
+  if (source.kind === 'linear-edge') {
+    keys(source, ['kind', 'edge', 'body'], path)
+    const edge = edgeReference(Object.fromEntries(captureOwnDataRecord(source.edge,
+      ['sourceFeatureId', 'key'], undefined, `${path}.edge`)), `${path}.edge`)
+    const body = source.body === null ? null : bodyReference(Object.fromEntries(captureOwnDataRecord(source.body,
+      ['bodyId', 'sourceFeatureId'], undefined, `${path}.body`)), `${path}.body`)
+    if (body && body.sourceFeatureId !== edge.sourceFeatureId) fail(`${path}.body.sourceFeatureId`, 'la arista y su cuerpo deben pertenecer al mismo estado')
+    return { kind: 'linear-edge', edge, body }
+  }
+  return fail(`${path}.kind`, 'eje de revolución desconocido')
+}
+
+function revolutionExtent(value: unknown, path: string): RevolutionExtent {
+  const source = object(value, path)
+  if (source.kind === 'two-directions') {
+    keys(source, ['kind', 'secondAngle'], path)
+    return { kind: 'two-directions', secondAngle: number(source.secondAngle, `${path}.secondAngle`, 0, 360) }
+  }
+  if (source.kind === 'mid-plane') {
+    keys(source, ['kind'], path)
+    return { kind: 'mid-plane' }
+  }
+  return fail(`${path}.kind`, 'extensión de revolución desconocida')
+}
+
 function feature(value: unknown, path: string): Feature {
   const source = object(value, path)
+  const typeDescriptor = Object.getOwnPropertyDescriptor(source, 'type')
+  if (!typeDescriptor || !('value' in typeDescriptor)) fail(path + '.type', 'se esperaba un campo de datos propio')
+  if (typeDescriptor?.value === 'importedBodies') preflightImportedBodies(source, path)
   const baseKeys = ['id', 'name', 'type', 'suppressed']
   const base = {
     id: string(source.id, `${path}.id`, 128),
@@ -534,6 +629,18 @@ function feature(value: unknown, path: string): Feature {
   if (source.type === 'importedSolid') {
     keys(source, [...baseKeys, 'source'], path)
     return { ...base, type: 'importedSolid', source: validateStepSource(source.source, `${path}.source`) }
+  }
+  if (source.type === 'importedBodies') {
+    keys(source, [...baseKeys, 'bodies'], path)
+    const bodies = boundedArray(source.bodies, path + '.bodies', 1, MAX_BODY_OPERANDS)
+    const ids = new Set<string>()
+    return { ...base, type: 'importedBodies', bodies: bodies.map((value, index) => {
+      const location = `${path}.bodies[${index}]`, body = object(value, location)
+      const bodyId = entityIdentifier(body.bodyId, location + '.bodyId')
+      if (ids.has(bodyId)) fail(location + '.bodyId', 'identificador de cuerpo duplicado')
+      ids.add(bodyId)
+      return { bodyId, source: validateStepSource(body.source, location + '.source') }
+    }) }
   }
   if (source.type === 'sketch') {
     keys(source, [...baseKeys, 'plane', 'offset', 'profile'], path, ['support'])
@@ -555,7 +662,9 @@ function feature(value: unknown, path: string): Feature {
   }
   if (source.type === 'extrude' || source.type === 'cut') {
     keys(source, [...baseKeys, 'sketchId', 'depth', 'symmetric'], path,
-      ['endCondition', source.type === 'extrude' ? 'bodyOperation' : 'bodyScope'])
+      ['endCondition', 'thinWall', 'secondDirection', source.type === 'extrude' ? 'bodyOperation' : 'bodyScope'])
+    const thinWall = readThinWall(source, `${path}.thinWall`)
+    const secondDirection = readSecondDirection(source, `${path}.secondDirection`)
     const depth = number(source.depth, `${path}.depth`, -MAX_DIMENSION, MAX_DIMENSION)
     if (Math.abs(depth) < MIN_DIMENSION) fail(`${path}.depth`, `el valor absoluto debe ser al menos ${MIN_DIMENSION}`)
     const symmetric = boolean(source.symmetric, `${path}.symmetric`)
@@ -563,14 +672,15 @@ function feature(value: unknown, path: string): Feature {
     const operation = source.type === 'extrude' && Object.hasOwn(source, 'bodyOperation')
       ? bodyOperation(source.bodyOperation, `${path}.bodyOperation`) : undefined
     if (symmetric && endCondition) fail(`${path}.symmetric`, 'el plano medio solo admite una profundidad definida')
-    if (endCondition && endCondition.kind !== 'upToSurface') {
+    for (const [limit, locator] of [[endCondition, 'endCondition'], [secondDirection?.endCondition, 'secondDirection.endCondition']] as const) {
+      if (!limit || limit.kind === 'upToSurface') continue
       if (operation?.mode === 'new') {
-        if (!endCondition.baseBody) fail(`${path}.endCondition.baseBody`, 'el cuerpo nuevo requiere un cuerpo base explícito')
-        if (endCondition.baseBody.sourceFeatureId !== endCondition.baseFeatureId) {
-          fail(`${path}.endCondition.baseBody.sourceFeatureId`, 'debe coincidir con la operación base de la condición final')
+        if (!limit.baseBody) fail(`${path}.${locator}.baseBody`, 'el cuerpo nuevo requiere un cuerpo base explícito')
+        if (limit.baseBody.sourceFeatureId !== limit.baseFeatureId) {
+          fail(`${path}.${locator}.baseBody.sourceFeatureId`, 'debe coincidir con la operación base de la condición final')
         }
-      } else if (endCondition.baseBody) {
-        fail(`${path}.endCondition.baseBody`, 'solo se admite al crear un cuerpo nuevo')
+      } else if (limit.baseBody) {
+        fail(`${path}.${locator}.baseBody`, 'solo se admite al crear un cuerpo nuevo')
       }
     }
     const definition = {
@@ -579,6 +689,8 @@ function feature(value: unknown, path: string): Feature {
       depth,
       symmetric,
       ...(endCondition ? { endCondition } : {}),
+      ...(thinWall ? { thinWall } : {}),
+      ...(secondDirection ? { secondDirection } : {}),
     }
     return source.type === 'extrude' ? {
       ...definition, type: 'extrude',
@@ -588,11 +700,22 @@ function feature(value: unknown, path: string): Feature {
       ...(Object.hasOwn(source, 'bodyScope') ? { bodyScope: bodyReferences(source.bodyScope, `${path}.bodyScope`) } : {}),
     }
   }
-  if (source.type === 'revolve') {
-    keys(source, [...baseKeys, 'sketchId', 'angle'], path, ['bodyOperation'])
-    const angle = number(source.angle, `${path}.angle`, Number.MIN_VALUE, 360)
-    return { ...base, type: 'revolve', sketchId: string(source.sketchId, `${path}.sketchId`, 128), angle,
-      ...(Object.hasOwn(source, 'bodyOperation') ? { bodyOperation: bodyOperation(source.bodyOperation, `${path}.bodyOperation`) } : {}) }
+  if (source.type === 'revolve' || source.type === 'revolvedCut') {
+    keys(source, [...baseKeys, 'sketchId', 'angle'], path, [source.type === 'revolve' ? 'bodyOperation' : 'bodyScope', 'axis', 'reversed', 'extent', 'thinWall'])
+    const thinWall = readThinWall(source, `${path}.thinWall`)
+    const extent = Object.hasOwn(source, 'extent') ? revolutionExtent(source.extent, `${path}.extent`) : undefined
+    const angle = number(source.angle, `${path}.angle`, extent?.kind === 'two-directions' ? 0 : Number.MIN_VALUE, 360)
+    if (extent?.kind === 'two-directions' && (angle + extent.secondAngle <= 0 || angle + extent.secondAngle > 360)) {
+      fail(`${path}.extent.secondAngle`, 'la suma de los dos ángulos debe ser mayor que 0 y no superar 360')
+    }
+    const parameters = { sketchId: string(source.sketchId, `${path}.sketchId`, 128), angle,
+      ...(Object.hasOwn(source, 'axis') ? { axis: revolutionAxis(source.axis, `${path}.axis`) } : {}),
+      ...(Object.hasOwn(source, 'reversed') ? { reversed: boolean(source.reversed, `${path}.reversed`) } : {}),
+      ...(extent ? { extent } : {}),
+      ...(thinWall ? { thinWall } : {}) }
+    return source.type === 'revolvedCut'
+      ? { ...base, type: 'revolvedCut', ...parameters, ...(Object.hasOwn(source, 'bodyScope') ? { bodyScope: bodyReferences(source.bodyScope, `${path}.bodyScope`) } : {}) }
+      : { ...base, type: 'revolve', ...parameters, ...(Object.hasOwn(source, 'bodyOperation') ? { bodyOperation: bodyOperation(source.bodyOperation, `${path}.bodyOperation`) } : {}) }
   }
   if (source.type === 'combine') {
     const keepTools = boolean(source.keepTools, `${path}.keepTools`)
@@ -725,7 +848,7 @@ function feature(value: unknown, path: string): Feature {
 /** Checks the entire dependency graph and returns a detached, normalized document. */
 export function validateDocument(value: unknown): Document {
   const source = object(value, 'Documento')
-  keys(source, ['version', 'id', 'name', 'units', 'features', 'createdAt', 'updatedAt'], 'Documento')
+  keys(source, ['version', 'id', 'name', 'units', 'features', 'createdAt', 'updatedAt'], 'Documento', ['namedViews'])
   if (source.version !== 1) fail('Documento.version', 'versión de archivo no compatible')
   if (source.units !== 'mm') fail('Documento.units', 'solo se admiten milímetros')
   const sourceFeatures = boundedArray(source.features, 'Documento.features', 0, MAX_FEATURES)
@@ -742,7 +865,7 @@ export function validateDocument(value: unknown): Document {
     // their existing syntax when no explicit body state is created or modified.
     if (bodyIds.length || bodyRefs.length) entityIdentifier(parsed.id, `${path}.id`)
     for (const bodyId of bodyIds) {
-      if (createdBodies.has(bodyId)) fail(`${path}.${parsed.type === 'combine' ? 'resultBodyId' : 'bodyPattern' in parsed ? 'bodyPattern.instances' : 'bodyOperation.bodyId'}`, 'identificador de cuerpo creado duplicado')
+      if (createdBodies.has(bodyId)) fail(`${path}.${parsed.type === 'importedBodies' ? 'bodies' : parsed.type === 'combine' ? 'resultBodyId' : 'bodyPattern' in parsed ? 'bodyPattern.instances' : 'bodyOperation.bodyId'}`, 'identificador de cuerpo creado duplicado')
       createdBodies.add(bodyId)
       if (createdBodies.size > MAX_CREATED_BODY_IDS) fail(path, 'el documento supera 65536 identificadores de cuerpo creados, incluidos los retirados')
     }
@@ -754,7 +877,24 @@ export function validateDocument(value: unknown): Document {
         fail(`${location}.bodyId`, 'el cuerpo no pertenece a la salida explícita de esa operación')
       }
     })
-    if (parsed.type === 'importedSolid') {
+    if ((parsed.type === 'revolve' || parsed.type === 'revolvedCut') && parsed.axis) {
+      const axis = parsed.axis
+      if (axis.kind === 'external-sketch-line' && seen.get(axis.sketchId)?.type !== 'sketch') {
+        fail(`${path}.axis.sketchId`, 'debe referenciar un croquis anterior')
+      }
+      if (axis.kind === 'linear-edge') {
+        const owner = seen.get(axis.edge.sourceFeatureId)
+        if (!owner || owner.type === 'sketch' || owner.type === 'plane') {
+          fail(`${path}.axis.edge.sourceFeatureId`, 'debe referenciar una operación sólida anterior')
+        }
+        for (const reference of featureRevolutionAxisBodyReferences(parsed)) {
+          if (!featureBodyOutputIncludes(owner, reference.bodyId, [...seen.values()])) {
+            fail(`${path}.axis.body.bodyId`, 'el cuerpo del eje no pertenece a la salida explícita de esa operación')
+          }
+        }
+      }
+    }
+    if (parsed.type === 'importedSolid' || parsed.type === 'importedBodies') {
       if (seenImport) fail(`${path}.type`, 'solo se admite un sólido importado')
       if (seenSolid) fail(`${path}.type`, 'el sólido importado debe ser la primera operación sólida, incluso con operaciones suprimidas')
       seenImport = true
@@ -786,14 +926,16 @@ export function validateDocument(value: unknown): Document {
     if ('support' in parsed && parsed.support) {
       checkSupportReference(parsed.support, seen, `${path}.support`)
     }
-    if ((parsed.type === 'extrude' || parsed.type === 'cut') && parsed.endCondition) {
-      const endCondition = parsed.endCondition
+    if (parsed.type === 'extrude' || parsed.type === 'cut') for (const [endCondition, locator] of [
+      [parsed.endCondition, 'endCondition'], [parsed.secondDirection?.endCondition, 'secondDirection.endCondition'],
+    ] as const) {
+      if (!endCondition) continue
       if (endCondition.kind === 'upToSurface') {
-        checkSupportReference(endCondition.target, seen, `${path}.endCondition.target`)
+        checkSupportReference(endCondition.target, seen, `${path}.${locator}.target`)
       } else {
         const base = seen.get(endCondition.baseFeatureId)
         if (!base || base.type === 'sketch' || base.type === 'plane') {
-          fail(`${path}.endCondition.baseFeatureId`, 'debe referenciar una operación sólida anterior')
+          fail(`${path}.${locator}.baseFeatureId`, 'debe referenciar una operación sólida anterior')
         }
       }
     }
@@ -803,10 +945,19 @@ export function validateDocument(value: unknown): Document {
   const createdAt = timestamp(source.createdAt, 'Documento.createdAt')
   const updatedAt = timestamp(source.updatedAt, 'Documento.updatedAt')
   if (updatedAt < createdAt) fail('Documento.updatedAt', 'anterior a la fecha de creación')
-  return {
+  const result: Document = {
     version: 1, id: string(source.id, 'Documento.id', 128), name: string(source.name, 'Documento.name'),
     units: 'mm', features, createdAt, updatedAt,
   }
+  if (Object.hasOwn(source, 'namedViews')) {
+    const field = Object.getOwnPropertyDescriptor(source, 'namedViews')!
+    if (!('value' in field) || !field.enumerable) fail('Documento.namedViews', 'se esperaba un campo de datos')
+    result.namedViews = validateNamedViews(field.value)
+  }
+  if (features.some(feature => feature.type === 'importedBodies') && new TextEncoder().encode(JSON.stringify(result, null, 2)).byteLength > MAX_IMPORTED_BODIES_DOCUMENT_BYTES) {
+    fail('Documento', 'el documento serializado supera 20 MiB')
+  }
+  return result
 }
 
 export function createDocument(name = 'Pieza sin título'): Document {
@@ -861,7 +1012,13 @@ export function updateFeature(document: Document, id: string, patch: Partial<Fea
   if (!original) throw new Error('La operación que se intenta editar no existe.')
   if (patch.id !== undefined && patch.id !== id) throw new Error('El identificador de una operación no se puede cambiar.')
   if (patch.type !== undefined && patch.type !== original.type) throw new Error('El tipo de una operación no se puede cambiar.')
-  const candidate = { ...original, ...patch } as Feature
+  readSecondDirection(original)
+  const secondDirection = readSecondDirectionDraft(patch)
+  const candidate = mergeThinWallDraft(original, patch) as Feature
+  if (Object.hasOwn(patch, 'secondDirection')) {
+    if (secondDirection) Object.assign(candidate, { secondDirection })
+    else delete (candidate as { secondDirection?: unknown }).secondDirection
+  }
   const repetition = (value: Feature): value is RepetitionFeature => value.type === 'linearPattern' || value.type === 'circularPattern' || value.type === 'mirror'
   if (repetition(original) && repetition(candidate) && (original.bodyPattern || candidate.bodyPattern)) {
     const before = original.bodyPattern, after = candidate.bodyPattern
@@ -896,7 +1053,7 @@ export function removeFeature(document: Document, id: string): Document {
   const creators = new Map<string, string | null>()
   const features = document.features.filter((item) => {
     const dependsOnRemoved = featureDependencyIds(item).some((dependencyId) => removed.has(dependencyId))
-      || featureBodyReferences(item).some(reference => {
+      || [...featureBodyReferences(item), ...featureRevolutionAxisBodyReferences(item)].some(reference => {
         const key = JSON.stringify([reference.bodyId, reference.sourceFeatureId])
         if (!creators.has(key)) creators.set(key, bodyReferenceCreationFeatureId(document.features, reference))
         const creator = creators.get(key)

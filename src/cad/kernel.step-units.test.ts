@@ -18,6 +18,12 @@ const inch = `#3=(CONVERSION_BASED_UNIT('arbitrary label',#5) LENGTH_UNIT() NAME
 it('follows actual representation contexts and ignores definition association links', () => {
   expect(check(file(mm, '#3', 3, '#4=SHAPE_DEFINITION_REPRESENTATION(#5,#1);#5=PRODUCT_DEFINITION_SHAPE(\'\',\'\',#1);'))).toEqual({ millimetersPerUnit: 1 });
 });
+it('does not confuse an assembly relationship association with a geometric representation context', () => {
+  const association = "#4=CONTEXT_DEPENDENT_SHAPE_REPRESENTATION(#5,#6);#5=REPRESENTATION_RELATIONSHIP('','',#1,#1);#6=PRODUCT_DEFINITION_SHAPE('','',#1);";
+  expect(check(file(mm, '#3', 3, association))).toEqual({ millimetersPerUnit: 1 });
+  // An association cannot supply the missing units of its actual representation.
+  expect(() => check(file(mm, '#3', 3, association).replace('GLOBAL_UNIT_ASSIGNED_CONTEXT((#3))', ''))).toThrow(/unidades explícitas/);
+});
 it.each([[mm, 1], [mm.replace('.MILLI.', '$'), 1000], [inch, 25.4]] as const)('resolves an explicit supported length graph %s', (units, scale) => {
   expect(check(file(units)).millimetersPerUnit).toBe(scale);
 });

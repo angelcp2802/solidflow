@@ -1,6 +1,20 @@
 import type { BodyReference, Feature } from '../cad/kernel.types'
 import { isAllFeaturePattern } from './featurePatterns'
 
+/** Limit reads are separate from output owners, including retained inactive data. */
+function extrusionLimitBodyReads(feature: Extract<Feature, { type: 'extrude' }>, currentOnly = false): { reference: BodyReference; path: string }[] {
+  const ends = [{ end: feature.endCondition, path: 'endCondition.baseBody' },
+    ...(!currentOnly || feature.secondDirection?.enabled ? [{ end: feature.secondDirection?.endCondition, path: 'secondDirection.endCondition.baseBody' }] : [])]
+  const seen = new Set<string>(), reads: { reference: BodyReference; path: string }[] = []
+  for (const { end, path } of ends) {
+    if (!end || end.kind === 'upToSurface' || !end.baseBody) continue
+    const reference = end.baseBody, key = JSON.stringify([reference.bodyId, reference.sourceFeatureId])
+    if (seen.has(key)) continue
+    seen.add(key); reads.push({ reference: { ...reference }, path })
+  }
+  return reads
+}
+
 /** Detached references in saved operand/scope order, without native resolution. */
 export function featureBodyReferences(feature: Feature): BodyReference[] {
   let references: readonly BodyReference[] = []
@@ -13,15 +27,34 @@ export function featureBodyReferences(feature: Feature): BodyReference[] {
     references = [...feature.source.bodies, ...(feature.bodyPattern?.mode === 'merge' ? [feature.bodyPattern.target] : [])]
   } else if ((feature.type === 'extrude' || feature.type === 'revolve' || feature.type === 'sweep' || feature.type === 'loft') && feature.bodyOperation?.mode === 'merge') {
     references = [feature.bodyOperation.target]
-  } else if (feature.type === 'extrude' && feature.bodyOperation?.mode === 'new'
-    && feature.endCondition && feature.endCondition.kind !== 'upToSurface' && feature.endCondition.baseBody) {
-    references = [feature.endCondition.baseBody]
-  } else if ((feature.type === 'cut' || feature.type === 'hole') && feature.bodyScope) {
+  } else if (feature.type === 'extrude' && feature.bodyOperation?.mode === 'new') {
+    references = extrusionLimitBodyReads(feature).map(read => read.reference)
+  } else if ((feature.type === 'cut' || feature.type === 'revolvedCut' || feature.type === 'hole') && feature.bodyScope) {
     references = feature.bodyScope
   } else if ((feature.type === 'fillet' || feature.type === 'chamfer' || feature.type === 'shell' || feature.type === 'draft') && feature.bodyScope) {
     references = [feature.bodyScope]
   }
   return references.map(reference => ({ ...reference }))
+}
+
+/** Relative schema paths aligned with the detached declared reference inventory. */
+export function featureBodyReferencePaths(feature: Feature): string[] {
+  if (feature.type === 'extrude' && feature.bodyOperation?.mode === 'new') return extrusionLimitBodyReads(feature).map(read => read.path)
+  return featureBodyReferences(feature).map((_, index) => {
+    if ((feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror') && feature.featurePattern) {
+      const count = feature.featurePattern.bindings.length
+      return index < count ? `featurePattern.bindings[${index}].source` : `featurePattern.targets[${index - count}]`
+    }
+    if ((feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror') && feature.source.mode === 'bodies') {
+      return index < feature.source.bodies.length ? `source.bodies[${index}]` : 'bodyPattern.target'
+    }
+    if (feature.type === 'combine') {
+      if (feature.operation !== 'subtract') return `operands[${index}]`
+      return index === 0 ? 'target' : `tools[${index - 1}]`
+    }
+    if (feature.type === 'extrude' || feature.type === 'revolve' || feature.type === 'sweep' || feature.type === 'loft') return 'bodyOperation.target'
+    return `bodyScope${feature.type === 'cut' || feature.type === 'revolvedCut' || feature.type === 'hole' ? `[${index}]` : ''}`
+  })
 }
 
 /** Inputs that must resolve in the current catalog; historical seeds are separate. */
@@ -33,11 +66,13 @@ export function featureCurrentBodyReferences(feature: Feature): BodyReference[] 
     return [...(feature.source.scope === 'current' ? feature.source.bodies : []),
       ...(feature.bodyPattern?.mode === 'merge' ? [feature.bodyPattern.target] : [])].map(reference => ({ ...reference }))
   }
+  if (feature.type === 'extrude' && feature.bodyOperation?.mode === 'new') return extrusionLimitBodyReads(feature, true).map(read => read.reference)
   return featureBodyReferences(feature)
 }
 
 /** IDs allocated by this command, including when the feature is suppressed. */
 export function createdBodyIds(feature: Feature): string[] {
+  if (feature.type === 'importedBodies') return feature.bodies.map(body => body.bodyId)
   if ((feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror') && feature.bodyPattern?.mode === 'new') {
     return feature.bodyPattern.instances.map(instance => instance.bodyId)
   }

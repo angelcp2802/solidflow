@@ -1,12 +1,28 @@
-import { useEffect, useMemo, useRef } from "react";
+import { bindViewNavigation, createViewHistory, type ViewHistory, type ViewRequest } from './viewNavigation';
+export type { ViewName } from './viewNavigation';
+import { pickPartReference, type PartSelectionMode } from "./partSelection";
+import { configureCadNavigation, createCadSelectionGesture } from "./cadNavigation";
+import { createCadContextGesture } from "./cadContextGesture";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { LineSegments2 } from "three/addons/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/addons/lines/LineSegmentsGeometry.js";
 import { LineMaterial } from "three/addons/lines/LineMaterial.js";
-import type { BodyReference, CadResult, EdgeReference, FaceReference, PickableFace, PlaneFrame } from "../cad/kernel.types";
+import type { BodyReference, CadResult, EdgeReference, FaceReference, PickableFace, PlaneFrame, SketchVisual } from "../cad/kernel.types";
 import { sameBodyReference } from "../model/bodyCommands";
 import { createEdgeSelectionIndex, createFaceSelectionIndex, referenceIdentity } from "../cad/selection.references";
+import type { PartContextTarget, PartViewportContextRequest } from './partViewportContext';
+import { pickRevolutionAxisChoices, revolutionAxisCandidateKey, type RevolutionAxisCandidate } from './revolutionAxisPicking';
+import type { RevolutionAxis } from '../cad/kernel.types';
+import { referencePickingPresentationCurrent } from './partReferencePicking';
+
+interface RevolutionAxisPicking {
+  request: unknown;
+  candidates: readonly RevolutionAxisCandidate[];
+  selected?: RevolutionAxis;
+  onSelect: (candidate: RevolutionAxisCandidate) => void;
+}
 
 interface PickableVisual {
   ref: EdgeReference;
@@ -24,6 +40,22 @@ interface FaceVisualObject { face: PickableFace; object: THREE.Mesh }
 interface BodyVisualObject { ref: BodyReference; object: THREE.Mesh }
 interface PlaneVisualObject { id: string; object: THREE.Mesh; border?: THREE.LineSegments; normal?: THREE.ArrowHelper }
 
+export interface FaceHoverObservation { model: CadResult | null; frame: unknown; camera: string; face: PickableFace }
+
+/** Read-only display observation; it does not nominate or modify a saved target. */
+export function currentFaceHoverReference(observation: FaceHoverObservation | null, current: {
+  model: CadResult | null; frame: unknown; camera: string;
+  presentedModel: CadResult | null; presentedFrame: unknown; presentedCamera: string | undefined;
+  face: PickableFace | undefined; selectionMode: PartSelectionMode; disabled: boolean; navigating: boolean;
+}): FaceReference | null {
+  if (!observation || !current.model || !current.frame || current.disabled || current.navigating || !['auto', 'face'].includes(current.selectionMode)
+    || observation.model !== current.model || current.presentedModel !== current.model
+    || observation.frame !== current.frame || current.presentedFrame !== current.frame
+    || observation.camera !== current.camera || current.presentedCamera !== current.camera
+    || current.face !== observation.face) return null;
+  return { sourceFeatureId: observation.face.ref.sourceFeatureId, key: observation.face.ref.key };
+}
+
 function screenRay(camera: THREE.OrthographicCamera | THREE.PerspectiveCamera, pointer: { x: number; y: number }, viewport: { width: number; height: number }): THREE.Raycaster | null {
   if (viewport.width <= 0 || viewport.height <= 0 || pointer.x < 0 || pointer.y < 0 || pointer.x > viewport.width || pointer.y > viewport.height) return null;
   camera.updateMatrixWorld();
@@ -39,12 +71,20 @@ export function pickVisibleFace(camera: THREE.OrthographicCamera | THREE.Perspec
   if (!ray) return null;
   faces.forEach(face => face.object.updateMatrixWorld());
   const byObject = new Map(faces.map(face => [face.object, face.face]));
-  const hit = ray.intersectObjects(faces.map(face => face.object), false)[0];
-  if (!hit) return null;
+  const hits = ray.intersectObjects(faces.map(face => face.object), false);
+  if (!hits.length) return null;
+  const nearest = hits[0].distance, tolerance = Math.max(1e-5, nearest * 1e-7);
+  const candidates = new Map<string, PickableFace>();
+  for (const hit of hits) {
+    if (hit.distance > nearest + tolerance) break;
+    const face = byObject.get(hit.object as THREE.Mesh);
+    if (face) candidates.set(referenceIdentity(face.ref), face);
+  }
+  if (candidates.size !== 1) return null;
   body?.updateMatrixWorld();
   const surface = body ? ray.intersectObject(body, false)[0] : undefined;
-  if (surface && surface.distance < hit.distance - Math.max(1e-5, hit.distance * 1e-7)) return null;
-  return hit ? byObject.get(hit.object as THREE.Mesh) ?? null : null;
+  if (surface && surface.distance < nearest - tolerance) return null;
+  return candidates.values().next().value ?? null;
 }
 
 /** Frontmost body triangles; coincident hits on different bodies are ambiguous. */
@@ -134,32 +174,44 @@ export function pickVisibleEdge(
   return selected;
 }
 
-export type ViewName =
-  "iso" | "front" | "back" | "left" | "right" | "top" | "bottom" | "fit";
+
 interface Props {
   model: CadResult | null;
-  view: { name: ViewName; stamp: number };
+  revolutionAxisPicking?: RevolutionAxisPicking;
+  referencePickingRequest?: unknown;
+  view: ViewRequest;
+  viewHistory?: ViewHistory;
   display: "shaded" | "edges" | "wire";
   grid: boolean;
   selected: boolean;
   onSelect: () => void;
   selectedBodies?: readonly BodyReference[];
   onSelectBody?: (reference: BodyReference) => void;
-  selectionMode?: "body" | "edge" | "face";
+  selectionMode?: PartSelectionMode;
+  selectionDisabled?: boolean;
+  onClearSelection?: () => void;
   selectedEdges?: EdgeReference[];
   onSelectEdge?: (ref: EdgeReference) => void;
   selectedFace?: FaceReference | null;
   selectedFaces?: FaceReference[];
-  onSelectFace?: (face: PickableFace | null) => void;
+  onSelectFace?: (face: PickableFace | null, additive?: boolean) => void;
   selectedPlaneId?: string;
+  selectedPlaneIds?: readonly string[];
   showPlanes?: boolean;
-  onSelectPlane?: (planeId: string) => void;
+  onSelectPlane?: (planeId: string, additive?: boolean) => void;
+  onContextTarget?: (request: PartViewportContextRequest) => void;
+  contextRevision?: unknown;
   visibleSketchIds?: string[];
   selectedSketchId?: string;
+  activeInputSketchIds?: readonly string[];
+  activeInputSketches?: readonly SketchVisual[];
 }
 export default function Viewport({
   model,
+  revolutionAxisPicking,
+  referencePickingRequest,
   view,
+  viewHistory,
   display,
   grid,
   selected,
@@ -167,27 +219,46 @@ export default function Viewport({
   selectedBodies = [],
   onSelectBody,
   selectionMode = "body",
+  selectionDisabled = false,
+  onClearSelection,
   selectedEdges = [],
   onSelectEdge,
   selectedFace,
   selectedFaces = [],
   onSelectFace,
   selectedPlaneId,
+  selectedPlaneIds = [],
   showPlanes = false,
   onSelectPlane,
+  onContextTarget,
+  contextRevision,
   visibleSketchIds,
   selectedSketchId,
+  activeInputSketchIds,
+  activeInputSketches,
 }: Props) {
   const host = useRef<HTMLDivElement>(null);
+  const localViewHistory = useRef(createViewHistory());
+  const navigationHistory = viewHistory ?? localViewHistory.current;
   const context = useRef<{
     scene: THREE.Scene;
     camera: THREE.OrthographicCamera;
     renderer: THREE.WebGLRenderer;
+    presentedModel: CadResult | null;
     controls: OrbitControls;
     group: THREE.Group;
     sketchGroup: THREE.Group;
     faceGroup: THREE.Group;
     planeGroup: THREE.Group;
+    axisGroup: THREE.Group;
+    preparedAxisCandidates?: readonly RevolutionAxisCandidate[];
+    presentedAxisCandidates?: readonly RevolutionAxisCandidate[];
+    presentedAxisCamera?: string;
+    presentedReferenceFrame?: unknown;
+    presentedReferenceCamera?: string;
+    presentedHoverFrame?: unknown;
+    presentedHoverCamera?: string;
+    cancelAxisSelection: () => void;
     sketches: SketchVisualObjects[];
     body: THREE.Mesh | null;
     bodies: BodyVisualObject[];
@@ -195,15 +266,38 @@ export default function Viewport({
     faces: FaceVisualObject[];
     planes: PlaneVisualObject[];
     updateHighlights: () => void;
+    refreshHover: () => void;
     updateSketches: (autoFit?: boolean) => void;
     updatePlanes: (autoFit?: boolean) => void;
     grid: THREE.GridHelper;
     fit: () => void;
+    navigation: ReturnType<typeof bindViewNavigation>;
   } | null>(null);
   const edgeReferences = useMemo(() => createEdgeSelectionIndex(model?.edges ?? []), [model]);
   const faceReferences = useMemo(() => createFaceSelectionIndex(model?.faces ?? []), [model]);
-  const interaction = useRef({ onSelect, onSelectBody, selectedBodies, onSelectEdge, selectionMode, selectedEdges, visibleSketchIds, selectedSketchId, selectedFace, selectedFaces, onSelectFace, selectedPlaneId, showPlanes, onSelectPlane, edgeReferences, faceReferences });
-  interaction.current = { onSelect, onSelectBody, selectedBodies, onSelectEdge, selectionMode, selectedEdges, visibleSketchIds, selectedSketchId, selectedFace, selectedFaces, onSelectFace, selectedPlaneId, showPlanes, onSelectPlane, edgeReferences, faceReferences };
+  const sketchVisuals = useMemo(() => {
+    // Remove stale copies even while a new input build is pending or invalid.
+    // Bodies and their pickers retain the displayed model.
+    const activeIds = new Set(activeInputSketchIds);
+    return [...(model?.sketches ?? []).filter(sketch => !activeIds.has(sketch.id)), ...(activeInputSketches ?? [])];
+  }, [model?.sketches, activeInputSketchIds, activeInputSketches]);
+  const contextFrame = useMemo(() => ({ model, revision: contextRevision, selectionMode, showPlanes, selectionDisabled, enabled: !!onContextTarget }),
+    [model, contextRevision, selectionMode, showPlanes, selectionDisabled, !!onContextTarget]);
+  const axisFrame = useMemo(() => ({ model, revision: contextRevision, request: revolutionAxisPicking?.request,
+    candidates: revolutionAxisPicking?.candidates, selectionDisabled }),
+    [model, contextRevision, revolutionAxisPicking?.request, revolutionAxisPicking?.candidates, selectionDisabled]);
+  const referenceFrame = useMemo(() => referencePickingRequest ? { model, revision: contextRevision, request: referencePickingRequest, selectionDisabled } : undefined,
+    [model, contextRevision, referencePickingRequest, selectionDisabled]);
+  type AxisChoices = { frame: typeof axisFrame; candidates: RevolutionAxisCandidate[]; point: { x: number; y: number } };
+  const [axisChoices, setAxisChoices] = useState<AxisChoices | null>(null);
+  const axisChoiceAuthority = useRef<AxisChoices | null>(null);
+  axisChoiceAuthority.current = axisChoices?.frame === axisFrame ? axisChoices : null;
+  const clearAxisChoices = () => {
+    if (!axisChoiceAuthority.current) return;
+    axisChoiceAuthority.current = null; setAxisChoices(null);
+  };
+  const interaction = useRef({ model, onSelect, onClearSelection, selectionDisabled, onSelectBody, selectedBodies, onSelectEdge, selectionMode, selectedEdges, visibleSketchIds, selectedSketchId, activeInputSketchIds, activeInputSketches, selectedFace, selectedFaces, onSelectFace, selectedPlaneId, selectedPlaneIds, showPlanes, onSelectPlane, onContextTarget, contextFrame, edgeReferences, faceReferences, revolutionAxisPicking, axisFrame, referenceFrame });
+  interaction.current = { model, onSelect, onClearSelection, selectionDisabled, onSelectBody, selectedBodies, onSelectEdge, selectionMode, selectedEdges, visibleSketchIds, selectedSketchId, activeInputSketchIds, activeInputSketches, selectedFace, selectedFaces, onSelectFace, selectedPlaneId, selectedPlaneIds, showPlanes, onSelectPlane, onContextTarget, contextFrame, edgeReferences, faceReferences, revolutionAxisPicking, axisFrame, referenceFrame };
   useEffect(() => {
     const el = host.current!;
     const scene = new THREE.Scene();
@@ -217,20 +311,15 @@ export default function Viewport({
     );
     camera.up.set(0, 1, 0);
     camera.position.set(150, 150, 210);
+    const cameraIdentity = () => [...camera.position.toArray(), ...camera.quaternion.toArray(),
+      camera.zoom, ...camera.projectionMatrix.elements].join('|');
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setClearColor(0xffffff, 0);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     el.appendChild(renderer.domElement);
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.12;
-    controls.screenSpacePanning = true;
-    controls.mouseButtons = {
-      LEFT: THREE.MOUSE.ROTATE,
-      MIDDLE: THREE.MOUSE.PAN,
-      RIGHT: THREE.MOUSE.ROTATE,
-    };
+    let controls = new OrbitControls(camera, renderer.domElement);
+    configureCadNavigation(controls);
     scene.add(new THREE.HemisphereLight(0xf5f9ff, 0x657b92, 2.5));
     const key = new THREE.DirectionalLight(0xffffff, 3);
     key.position.set(-120, 250, 160);
@@ -242,14 +331,15 @@ export default function Viewport({
     scene.add(group);
     const sketchGroup = new THREE.Group();
     scene.add(sketchGroup);
-    const faceGroup = new THREE.Group(), planeGroup = new THREE.Group();
+    const faceGroup = new THREE.Group(), planeGroup = new THREE.Group(), axisGroup = new THREE.Group();
+    scene.add(axisGroup);
     scene.add(faceGroup, planeGroup);
     const floor = new THREE.GridHelper(400, 40, 0x9fb2c5, 0xd6dfe6);
     floor.position.y = -0.05;
     floor.material.transparent = true;
     floor.material.opacity = 0.42;
     scene.add(floor);
-    const fit = () => {
+    const fitRaw = () => {
       const box = new THREE.Box3().setFromObject(group);
       context.current?.sketches.forEach((sketch) => sketch.objects.forEach((object) => {
         if (object.visible) box.expandByObject(object);
@@ -277,22 +367,37 @@ export default function Viewport({
       camera.updateProjectionMatrix();
       controls.update();
     };
+    const navigation = bindViewNavigation(navigationHistory, camera, controls, fitRaw, () => Math.max(el.clientWidth, 1) / Math.max(el.clientHeight, 1), () => {
+      const position = camera.position.clone(), target = controls.target.clone(), enabled = controls.enabled
+      controls.removeEventListener('change', cameraChanged); controls.dispose()
+      controls = new OrbitControls(camera, renderer.domElement)
+      configureCadNavigation(controls); controls.enabled = enabled
+      controls.target.copy(target); camera.position.copy(position); camera.lookAt(target); camera.updateMatrixWorld()
+      controls.addEventListener('change', cameraChanged)
+      if (context.current) context.current.controls = controls
+      return controls
+    });
+    const fit = () => navigation.automatic(fitRaw);
     context.current = {
+      navigation,
       scene,
       camera,
       renderer,
+      presentedModel: null,
       controls,
       group,
       sketchGroup,
       faceGroup,
       planeGroup,
+      axisGroup,
+      cancelAxisSelection: () => {},
       sketches: [],
       body: null,
       bodies: [],
       edges: [],
       faces: [],
       planes: [],
-      updateHighlights: () => {},
+      updateHighlights: () => {}, refreshHover: () => {},
       updateSketches: () => {},
       updatePlanes: () => {},
       grid: floor,
@@ -303,7 +408,7 @@ export default function Viewport({
       if (!current) return;
       const previouslyVisible = !!current.body || current.sketches.some(sketch => sketch.objects.some(object => object.visible)) || current.planes.some(plane => plane.object.visible);
       for (const plane of current.planes) {
-        const selected = plane.id === interaction.current.selectedPlaneId;
+        const selected = plane.id === interaction.current.selectedPlaneId || interaction.current.selectedPlaneIds.includes(plane.id);
         plane.object.visible = selected || interaction.current.showPlanes;
         const material = plane.object.material as THREE.MeshBasicMaterial;
         material.color.setHex(selected ? 0xe58b23 : 0x3c8fcd);
@@ -326,15 +431,17 @@ export default function Viewport({
       const visible = interaction.current.visibleSketchIds === undefined ? null : new Set(interaction.current.visibleSketchIds);
       for (const sketch of current.sketches) {
         const isSelected = sketch.id === interaction.current.selectedSketchId;
+        const isActiveInput = interaction.current.activeInputSketches?.some(input => input.id === sketch.id) === true;
         for (const object of sketch.objects) {
           const construction = object.userData.construction === true;
-          object.visible = isSelected || visible === null || visible.has(sketch.id);
-          object.material.color.setHex(isSelected ? 0xe58b23 : construction ? 0x5798cc : 0x1678cb);
-          object.material.linewidth = isSelected ? 2.5 : construction ? 1.3 : 1.8;
+          object.visible = isActiveInput || isSelected || visible === null || visible.has(sketch.id);
+          object.material.color.setHex(isActiveInput || isSelected ? 0xe58b23 : construction ? 0x5798cc : 0x1678cb);
+          object.material.linewidth = isActiveInput || isSelected ? 2.5 : construction ? 1.3 : 1.8;
           object.material.opacity = construction ? .72 : 1;
         }
       }
-      if (autoFit && !previouslyVisible && current.sketches.some((sketch) => sketch.objects.some((object) => object.visible))) fit();
+      // Revealing an editor input must not change the user's camera.
+      if (autoFit && !interaction.current.activeInputSketchIds?.length && !previouslyVisible && current.sketches.some((sketch) => sketch.objects.some((object) => object.visible))) fit();
     };
     const triad = document.createElement("canvas");
     const pixelRatio = Math.min(window.devicePixelRatio, 2);
@@ -427,6 +534,7 @@ export default function Viewport({
       pen.fill();
     };
     const resize = new ResizeObserver(() => {
+      context.current?.cancelAxisSelection();
       renderer.setSize(el.clientWidth, el.clientHeight);
       const half = camera.top;
       camera.left = (-half * Math.max(el.clientWidth, 1)) / Math.max(el.clientHeight, 1);
@@ -436,19 +544,64 @@ export default function Viewport({
       context.current?.sketches.forEach((sketch) => sketch.objects.forEach((object) => object.material.resolution.set(el.clientWidth, el.clientHeight)));
     });
     resize.observe(el);
-    let down = [0, 0];
+    const selectionGesture = createCadSelectionGesture();
+    const contextGesture = createCadContextGesture();
+    const cancelSelection = () => {
+      selectionGesture.cancel(); contextGesture.cancel(); clearAxisChoices();
+      hoverPointer = null; clearFaceHover(); context.current?.updateHighlights();
+    };
+    const cancelAxisSelection = () => {
+      clearAxisChoices();
+      clearFaceHover(); context.current?.updateHighlights();
+      if (interaction.current.revolutionAxisPicking) {
+        selectionGesture.cancel();
+        if (context.current) context.current.presentedAxisCandidates = undefined;
+      }
+      if (interaction.current.referenceFrame) {
+        selectionGesture.cancel();
+        if (context.current) context.current.presentedReferenceFrame = undefined;
+      }
+    };
+    context.current.cancelAxisSelection = cancelAxisSelection;
+    renderer.domElement.addEventListener('wheel', cancelAxisSelection);
     let hoverPointer: { x: number; y: number } | null = null;
     let hoverDirty = false;
     let hovered: string | null = null;
     let hoveredFace: string | null = null;
+    let faceHoverObservation: FaceHoverObservation | null = null;
+    function clearFaceHover() { hoveredFace = null; faceHoverObservation = null; el.dataset.partHoverFace = ''; }
+    const updateFaceHoverDataset = () => {
+      const value = interaction.current, c = context.current;
+      const reference = currentFaceHoverReference(faceHoverObservation, { model: value.model,
+        frame: value.referenceFrame ?? value.contextFrame, camera: faceHoverObservation ? cameraIdentity() : '',
+        presentedModel: c?.presentedModel ?? null, presentedFrame: c?.presentedHoverFrame, presentedCamera: c?.presentedHoverCamera,
+        face: faceHoverObservation ? value.faceReferences.findPrimary(faceHoverObservation.face.ref) : undefined,
+        selectionMode: value.selectionMode, disabled: value.selectionDisabled || !!value.revolutionAxisPicking,
+        navigating: navigationHistory.navigating });
+      const serialized = reference ? JSON.stringify(reference) : '';
+      if (el.dataset.partHoverFace !== serialized) el.dataset.partHoverFace = serialized;
+    };
     let hoveredPlane: string | null = null;
+    let hoveredBody: BodyReference | null = null;
+    let hoveredAxis: RevolutionAxisCandidate | null = null;
     const updateHighlights = () => {
+      const axisPicking = interaction.current.revolutionAxisPicking;
+      const selectedAxis = axisPicking?.selected ? revolutionAxisCandidateKey(axisPicking.selected) : null;
+      context.current?.axisGroup.children.forEach(child => {
+        if (!(child instanceof THREE.LineSegments)) return;
+        const active = child.userData.axisKey === selectedAxis, hover = child.userData.axisKey === hoveredAxis?.key;
+        (child.material as THREE.LineBasicMaterial).color.setHex(active ? 0xe58b23 : hover ? 0xffbd57 : 0x1678cb);
+      });
+      el.dataset.partAxisHover = axisPicking ? hoveredAxis?.key ?? '' : '';
+      el.title = axisPicking ? hoveredAxis?.label ?? 'Selecciona una línea recta, un eje del origen o del croquis.' : '';
+      if (interaction.current.selectionDisabled) { hovered = null; hoveredFace = null; hoveredPlane = null; }
+      if (interaction.current.selectionDisabled || interaction.current.selectionMode !== 'body') hoveredBody = null;
       context.current?.bodies.forEach(body => {
         const material = body.object.material as THREE.MeshBasicMaterial;
-        material.opacity = interaction.current.selectedBodies.some(reference => sameBodyReference(reference, body.ref)) ? .36 : 0;
+        material.opacity = interaction.current.selectedBodies.some(reference => sameBodyReference(reference, body.ref)) ? .36 : hoveredBody && sameBodyReference(hoveredBody, body.ref) ? .18 : 0;
       });
       const selectedKeys = interaction.current.edgeReferences.selectedKeys(interaction.current.selectedEdges);
-      if (interaction.current.selectionMode !== 'edge' || !context.current?.edges.some((edge) => edgeIdentity(edge.ref) === hovered)) hovered = null;
+      if (!['auto', 'edge'].includes(interaction.current.selectionMode) || !context.current?.edges.some((edge) => edgeIdentity(edge.ref) === hovered)) hovered = null;
       context.current?.edges.forEach((edge) => {
         if (!edge.highlight) return;
         const key = edgeIdentity(edge.ref);
@@ -458,7 +611,7 @@ export default function Viewport({
         edge.highlight.material.color.setHex(isSelected ? 0xe58b23 : 0xffbd57);
         edge.highlight.material.linewidth = isSelected ? 3.3 : 2.8;
       });
-      if (interaction.current.selectionMode !== 'face') hoveredFace = null;
+      if (!['auto', 'face'].includes(interaction.current.selectionMode)) hoveredFace = null;
       const selectedFaces = interaction.current.selectedFace
         ? [...interaction.current.selectedFaces, interaction.current.selectedFace]
         : interaction.current.selectedFaces;
@@ -472,11 +625,15 @@ export default function Viewport({
         material.opacity = isSelected ? .48 : .24;
       });
       context.current?.planes.forEach(plane => {
-        if (plane.border) (plane.border.material as THREE.LineBasicMaterial).color.setHex(plane.id === interaction.current.selectedPlaneId ? 0xe58b23 : plane.id === hoveredPlane ? 0xffbd57 : 0x3c8fcd);
+        if (plane.border) (plane.border.material as THREE.LineBasicMaterial).color.setHex(plane.id === interaction.current.selectedPlaneId || interaction.current.selectedPlaneIds.includes(plane.id) ? 0xe58b23 : plane.id === hoveredPlane ? 0xffbd57 : 0x3c8fcd);
       });
-      renderer.domElement.style.cursor = interaction.current.selectionMode === 'edge' ? (hovered ? 'pointer' : 'crosshair') : interaction.current.selectionMode === 'face' ? (hoveredFace || hoveredPlane ? 'pointer' : 'crosshair') : hoveredPlane ? 'pointer' : '';
+      const kind = interaction.current.selectionDisabled ? '' : hovered ? 'edge' : hoveredFace ? 'face' : hoveredPlane ? 'plane' : hoveredBody ? 'body' : '';
+      el.dataset.partHoverKind = kind;
+      updateFaceHoverDataset();
+      renderer.domElement.style.cursor = interaction.current.selectionDisabled ? 'wait' : axisPicking ? hoveredAxis ? 'pointer' : 'crosshair' : kind ? 'pointer' : interaction.current.selectionMode === 'auto' || interaction.current.selectionMode === 'body' ? '' : 'crosshair';
     };
     context.current.updateHighlights = updateHighlights;
+    context.current.refreshHover = () => { hoverDirty = true; };
     const pick = (x: number, y: number) => {
       const current = context.current;
       if (!current?.body) return null;
@@ -484,17 +641,36 @@ export default function Viewport({
     };
     const pickFace = (x: number, y: number) => pickVisibleFace(camera, context.current?.faces ?? [], { x, y }, { width: el.clientWidth, height: el.clientHeight }, context.current?.body ?? null);
     const pickPlane = (x: number, y: number) => interaction.current.onSelectPlane ? pickVisiblePlane(camera, context.current?.body ?? null, context.current?.planes ?? [], { x, y }, { width: el.clientWidth, height: el.clientHeight }) : null;
+    const pickReference = (mode: Exclude<PartSelectionMode, 'body'>, x: number, y: number) => pickPartReference(mode, {
+      edge: () => pick(x, y), face: () => pickFace(x, y), plane: () => pickPlane(x, y),
+    });
+    const pickBody = (x: number, y: number) => pickVisibleBody(camera, context.current?.bodies ?? [], { x, y }, { width: el.clientWidth, height: el.clientHeight });
+    let selectionModel: CadResult | null = null;
+    let axisGestureCamera = '';
+    let referenceGesturePresentedFrame: unknown;
+    let referenceGesturePresentedCamera: string | undefined;
     const pointerDown = (e: PointerEvent) => {
-      down = [e.clientX, e.clientY];
+      clearAxisChoices();
+      selectionModel = interaction.current.model;
+      axisGestureCamera = cameraIdentity();
+      referenceGesturePresentedFrame = context.current?.presentedReferenceFrame;
+      referenceGesturePresentedCamera = context.current?.presentedReferenceCamera;
+      selectionGesture.down(e, interaction.current.revolutionAxisPicking ? interaction.current.axisFrame : interaction.current.referenceFrame);
+      if (e.button === 2 && interaction.current.onContextTarget && !interaction.current.selectionDisabled && !navigationHistory.navigating) {
+        el.focus({ preventScroll: true });
+        contextGesture.down(e, interaction.current.contextFrame);
+      } else contextGesture.cancel();
       hovered = null;
-      hoveredFace = null; hoveredPlane = null;
+      clearFaceHover(); hoveredPlane = null; hoveredBody = null;
       updateHighlights();
     };
     const pointerMove = (e: PointerEvent) => {
+      selectionGesture.move(e);
+      contextGesture.move(e);
       if (e.buttons) {
         hoverPointer = null;
         hovered = null;
-        hoveredFace = null; hoveredPlane = null;
+        clearFaceHover(); hoveredPlane = null; hoveredBody = null;
         updateHighlights();
         return;
       }
@@ -502,41 +678,63 @@ export default function Viewport({
       hoverPointer = { x: e.clientX - rect.left, y: e.clientY - rect.top };
       hoverDirty = true;
     };
-    const pointerLeave = () => {
+    const pointerLeave = (event: PointerEvent) => {
+      const target = event.relatedTarget;
+      const enteringAxisMenu = target instanceof Element && el.contains(target) && !!target.closest('.revolution-axis-choices');
+      if (enteringAxisMenu) selectionGesture.cancel();
+      else cancelAxisSelection();
+      hoveredAxis = null;
+      contextGesture.cancel();
       hoverPointer = null;
       hovered = null;
-      hoveredFace = null; hoveredPlane = null;
+      clearFaceHover(); hoveredPlane = null; hoveredBody = null;
       updateHighlights();
     };
     const pointerUp = (e: PointerEvent) => {
-      if (
-        e.button !== 0 ||
-        Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 4
-      )
-        return;
+      const point = contextGesture.up(e, interaction.current.contextFrame);
+      if (point) openContext(point, false);
+      if (!selectionGesture.up(e, interaction.current.revolutionAxisPicking ? interaction.current.axisFrame : interaction.current.referenceFrame)
+        || interaction.current.selectionDisabled || selectionModel !== interaction.current.model) return;
       const rect = el.getBoundingClientRect();
       hoverPointer = { x: e.clientX - rect.left, y: e.clientY - rect.top };
       hoverDirty = true;
-      if (interaction.current.selectionMode === 'edge') {
-        const ref = pick(hoverPointer.x, hoverPointer.y);
-        if (ref) interaction.current.onSelectEdge?.({ ...ref });
-        return;
-      }
-      if (interaction.current.selectionMode === 'face') {
-        const face = pickFace(hoverPointer.x, hoverPointer.y);
-        if (face) interaction.current.onSelectFace?.(face);
-        else {
-          const planeId = pickPlane(hoverPointer.x, hoverPointer.y);
-          if (planeId) interaction.current.onSelectPlane?.(planeId);
-          else interaction.current.onSelectFace?.(null);
+      const axisPicking = interaction.current.revolutionAxisPicking;
+      if (interaction.current.referenceFrame && !referencePickingPresentationCurrent({
+        frame: interaction.current.referenceFrame, downPresentedFrame: referenceGesturePresentedFrame, presentedFrame: context.current?.presentedReferenceFrame,
+        model: interaction.current.model, presentedModel: context.current?.presentedModel,
+        camera: cameraIdentity(), downCamera: axisGestureCamera, downPresentedCamera: referenceGesturePresentedCamera, presentedCamera: context.current?.presentedReferenceCamera,
+        navigating: navigationHistory.navigating, width: rect.width, height: rect.height,
+        clientWidth: el.clientWidth, clientHeight: el.clientHeight,
+      })) return;
+      if (axisPicking) {
+        if (navigationHistory.navigating || context.current?.presentedModel !== interaction.current.model
+          || context.current.presentedAxisCandidates !== axisPicking.candidates
+          || axisGestureCamera !== cameraIdentity() || context.current.presentedAxisCamera !== axisGestureCamera
+          || Math.abs(rect.width - el.clientWidth) >= 1 || Math.abs(rect.height - el.clientHeight) >= 1) return;
+        const candidates = pickRevolutionAxisChoices(camera, axisPicking.candidates, hoverPointer,
+          { width: el.clientWidth, height: el.clientHeight }, context.current.body);
+        if (candidates.length === 1) axisPicking.onSelect(candidates[0]);
+        else if (candidates.length > 1) {
+          const choices = { frame: interaction.current.axisFrame, candidates, point: hoverPointer };
+          axisChoiceAuthority.current = choices; setAxisChoices(choices);
         }
         return;
       }
+      if (interaction.current.selectionMode !== 'body') {
+        const candidate = pickReference(interaction.current.selectionMode, hoverPointer.x, hoverPointer.y);
+        if (candidate?.kind === 'edge') interaction.current.onSelectEdge?.({ ...candidate.reference });
+        else if (candidate?.kind === 'face') interaction.current.onSelectFace?.(candidate.face, e.ctrlKey || e.metaKey);
+        else if (candidate?.kind === 'plane') interaction.current.onSelectPlane?.(candidate.id, e.ctrlKey || e.metaKey);
+        else if (interaction.current.onClearSelection) interaction.current.onClearSelection();
+        else if (interaction.current.selectionMode === 'face') interaction.current.onSelectFace?.(null);
+        return;
+      }
       const planeId = pickPlane(hoverPointer.x, hoverPointer.y);
-      if (planeId) { interaction.current.onSelectPlane?.(planeId); return; }
+      if (planeId) { interaction.current.onSelectPlane?.(planeId, e.ctrlKey || e.metaKey); return; }
       if (interaction.current.onSelectBody && context.current?.bodies.length) {
-        const reference = pickVisibleBody(camera, context.current.bodies, hoverPointer, { width: el.clientWidth, height: el.clientHeight });
+        const reference = pickBody(hoverPointer.x, hoverPointer.y);
         if (reference) interaction.current.onSelectBody(reference);
+        else interaction.current.onClearSelection?.();
         return;
       }
       const ray = new THREE.Raycaster();
@@ -549,42 +747,108 @@ export default function Viewport({
       );
       const body = context.current?.body;
       if (body && ray.intersectObject(body, false).length) interaction.current.onSelect();
+      else interaction.current.onClearSelection?.();
     };
-    const cameraChanged = () => { hoverDirty = true; };
+    const cameraChanged = () => { hoverDirty = true; contextGesture.cancel(); cancelAxisSelection(); };
     controls.addEventListener('change', cameraChanged);
+    const openContext = (point: { x: number; y: number }, keyboard: boolean) => {
+      const value = interaction.current;
+      if (!value.onContextTarget || value.selectionDisabled || navigationHistory.navigating || context.current?.presentedModel !== value.model) return;
+      if (keyboard) { value.onContextTarget({ target: { kind: 'keyboard' }, model: value.model, point, origin: el }); return; }
+      const rect = renderer.domElement.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0 || Math.abs(rect.width - el.clientWidth) >= 1 || Math.abs(rect.height - el.clientHeight) >= 1) return;
+      const x = point.x - rect.left, y = point.y - rect.top;
+      let target: PartContextTarget = { kind: 'background' };
+      if (value.selectionMode === 'body') {
+        const plane = pickPlane(x, y);
+        if (plane) target = { kind: 'plane', id: plane };
+        else if (context.current?.bodies.length) {
+          const reference = pickBody(x, y);
+          if (reference) target = { kind: 'body', reference };
+        } else if (context.current?.body && screenRay(camera, { x, y }, { width: el.clientWidth, height: el.clientHeight })?.intersectObject(context.current.body, false).length)
+          target = { kind: 'body', reference: null };
+      } else {
+        const candidate = pickReference(value.selectionMode, x, y);
+        if (candidate?.kind === 'face') target = { kind: 'face', reference: { ...candidate.face.ref } };
+        else if (candidate) target = candidate;
+      }
+      value.onContextTarget({ target, model: value.model, point, origin: el });
+    };
+    const contextMenu = (event: MouseEvent) => {
+      if (!interaction.current.onContextTarget) return;
+      event.preventDefault(); event.stopPropagation();
+      const point = contextGesture.request(event, interaction.current.contextFrame);
+      if (point) openContext(point, false);
+    };
+    const contextKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { contextGesture.cancel(); cancelAxisSelection(); return; }
+      if (event.target !== el || !interaction.current.onContextTarget || event.altKey || event.ctrlKey || event.metaKey
+        || !(event.key === 'ContextMenu' || event.key === 'F10' && event.shiftKey)) return;
+      event.preventDefault(); event.stopPropagation();
+      contextGesture.cancel();
+      const rect = renderer.domElement.getBoundingClientRect();
+      openContext({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }, true);
+    };
+    renderer.domElement.addEventListener('contextmenu', contextMenu);
+    el.addEventListener('keydown', contextKey);
+    renderer.domElement.addEventListener("pointercancel", cancelSelection);
+    window.addEventListener("blur", cancelSelection);
+    window.addEventListener("blur", navigation.cancelGesture);
     renderer.domElement.addEventListener("pointerdown", pointerDown);
     renderer.domElement.addEventListener("pointerup", pointerUp);
     renderer.domElement.addEventListener("pointermove", pointerMove);
     renderer.domElement.addEventListener("pointerleave", pointerLeave);
     renderer.setAnimationLoop(() => {
-      controls.update();
+      // Direct controls update in their input handlers and explicit Fit calls.
+      navigation.afterUpdate();
       if (hoverDirty) {
         hoverDirty = false;
-        const ref = hoverPointer && interaction.current.selectionMode === 'edge' ? pick(hoverPointer.x, hoverPointer.y) : null;
-        const next = ref ? edgeIdentity(ref) : null;
-        const face = hoverPointer && interaction.current.selectionMode === 'face' ? pickFace(hoverPointer.x, hoverPointer.y) : null;
-        const nextFace = face ? edgeIdentity(face.ref) : null;
-        const nextPlane = hoverPointer && interaction.current.selectionMode !== 'edge' && !face ? pickPlane(hoverPointer.x, hoverPointer.y) : null;
-        if (next !== hovered || nextFace !== hoveredFace || nextPlane !== hoveredPlane) {
-          hovered = next;
-          hoveredFace = nextFace;
-          hoveredPlane = nextPlane;
-          updateHighlights();
-        }
+        const mode = interaction.current.selectionMode;
+        const pointer = interaction.current.selectionDisabled ? null : hoverPointer;
+        const axisPicking = interaction.current.revolutionAxisPicking;
+        const axisHoverChoices = pointer && axisPicking ? pickRevolutionAxisChoices(camera, axisPicking.candidates, pointer,
+          { width: el.clientWidth, height: el.clientHeight }, context.current?.body ?? null) : [];
+        el.dataset.partAxisHoverChoices = JSON.stringify(axisHoverChoices.map(candidate => candidate.key));
+        hoveredAxis = axisHoverChoices.length === 1 ? axisHoverChoices[0] : null;
+        const candidate = !axisPicking && pointer && mode !== 'body' ? pickReference(mode, pointer.x, pointer.y) : null;
+        hovered = candidate?.kind === 'edge' ? edgeIdentity(candidate.reference) : null;
+        hoveredFace = candidate?.kind === 'face' ? edgeIdentity(candidate.face.ref) : null;
+        faceHoverObservation = candidate?.kind === 'face' ? { model: interaction.current.model,
+          frame: interaction.current.referenceFrame ?? interaction.current.contextFrame, camera: cameraIdentity(), face: candidate.face } : null;
+        hoveredPlane = candidate?.kind === 'plane' ? candidate.id : pointer && mode === 'body' ? pickPlane(pointer.x, pointer.y) : null;
+        hoveredBody = pointer && mode === 'body' && interaction.current.onSelectBody && !hoveredPlane ? pickBody(pointer.x, pointer.y) : null;
+        updateHighlights();
       }
       renderer.render(scene, camera);
+      if (context.current) {
+        context.current.presentedAxisCandidates = context.current.preparedAxisCandidates;
+        context.current.presentedAxisCamera = cameraIdentity();
+        context.current.presentedReferenceFrame = context.current.presentedModel === interaction.current.model ? interaction.current.referenceFrame : undefined;
+        context.current.presentedReferenceCamera = cameraIdentity();
+        context.current.presentedHoverFrame = context.current.presentedModel === interaction.current.model
+          ? interaction.current.referenceFrame ?? interaction.current.contextFrame : undefined;
+        context.current.presentedHoverCamera = cameraIdentity();
+      }
+      updateFaceHoverDataset();
       drawTriad();
     });
     return () => {
       resize.disconnect();
       renderer.setAnimationLoop(null);
+      renderer.domElement.removeEventListener('contextmenu', contextMenu);
+      el.removeEventListener('keydown', contextKey);
+      renderer.domElement.removeEventListener("pointercancel", cancelSelection);
+      window.removeEventListener("blur", cancelSelection);
+      window.removeEventListener("blur", navigation.cancelGesture);
       renderer.domElement.removeEventListener("pointerdown", pointerDown);
       renderer.domElement.removeEventListener("pointerup", pointerUp);
       renderer.domElement.removeEventListener("pointermove", pointerMove);
       renderer.domElement.removeEventListener("pointerleave", pointerLeave);
+      renderer.domElement.removeEventListener('wheel', cancelAxisSelection);
       controls.removeEventListener('change', cameraChanged);
+      navigation.dispose();
       controls.dispose();
-      for (const content of [group, sketchGroup, faceGroup, planeGroup]) content.traverse((o) => {
+      for (const content of [group, sketchGroup, faceGroup, planeGroup, axisGroup]) content.traverse((o) => {
         if (o instanceof THREE.Mesh || o instanceof THREE.Line) {
           o.geometry.dispose();
           (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) =>
@@ -631,7 +895,7 @@ export default function Viewport({
     );
     geometry.setIndex(model.triangles);
     const mat = new THREE.MeshStandardMaterial({
-      color: selected && selectionMode === 'body' ? 0x57a7ef : 0x8cabc3,
+      color: selected && (selectionMode === 'auto' || selectionMode === 'body') ? 0x57a7ef : 0x8cabc3,
       metalness: 0.38,
       roughness: 0.36,
       side: THREE.DoubleSide,
@@ -657,7 +921,7 @@ export default function Viewport({
         const edgeGeometry = new THREE.BufferGeometry();
         edgeGeometry.setAttribute('position', new THREE.Float32BufferAttribute(edge.lines, 3));
         const object = new THREE.LineSegments(edgeGeometry, new THREE.LineBasicMaterial({
-          color: selected && selectionMode === 'body' ? 0x145b97 : 0x253f53,
+          color: selected && (selectionMode === 'auto' || selectionMode === 'body') ? 0x145b97 : 0x253f53,
           transparent: true, opacity: 0.82,
         }));
         object.visible = display === 'edges' || selectionMode === 'edge';
@@ -695,6 +959,27 @@ export default function Viewport({
     // A new document fits once its first body arrives; parameter edits preserve the camera.
     if (previouslyEmpty) c.fit();
   }, [model, display, selected, selectionMode]);
+  useEffect(() => {
+    const c = context.current;
+    if (!c) return;
+    c.cancelAxisSelection();
+    c.presentedAxisCandidates = undefined;
+    for (const child of [...c.axisGroup.children]) {
+      child.removeFromParent();
+      if (child instanceof THREE.LineSegments) {
+        child.geometry.dispose(); (child.material as THREE.Material).dispose();
+      }
+    }
+    for (const candidate of revolutionAxisPicking?.candidates ?? []) {
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute(candidate.lines, 3));
+      const object = new THREE.LineSegments(geometry, new THREE.LineBasicMaterial({ color: 0x1678cb,
+        depthTest: candidate.material, depthWrite: false, transparent: true, opacity: .9 }));
+      object.userData.axisKey = candidate.key; object.renderOrder = 4; c.axisGroup.add(object);
+    }
+    c.preparedAxisCandidates = revolutionAxisPicking?.candidates;
+    c.updateHighlights(); c.refreshHover();
+  }, [revolutionAxisPicking?.candidates, revolutionAxisPicking?.selected]);
   useEffect(() => {
     const c = context.current;
     if (!c) return;
@@ -750,6 +1035,7 @@ export default function Viewport({
     }
     c.updatePlanes(false);
     c.updateHighlights();
+    c.presentedModel = model;
     if (!previouslyVisible && c.planes.some(plane => plane.object.visible)) c.fit();
   }, [model]);
   useEffect(() => {
@@ -762,7 +1048,7 @@ export default function Viewport({
       object.material.dispose();
     }
     c.sketches = [];
-    for (const sketch of model?.sketches ?? []) {
+    for (const sketch of sketchVisuals) {
       const objects: LineSegments2[] = [];
       for (const [lines, construction] of [[sketch.lines, false], [sketch.constructionLines, true]] as const) {
         if (lines.length < 6) continue;
@@ -783,38 +1069,23 @@ export default function Viewport({
       c.sketches.push({ id: sketch.id, objects });
     }
     c.updateSketches(false);
-    if (!previouslyVisible && c.sketches.some((sketch) => sketch.objects.some((object) => object.visible))) c.fit();
-  }, [model]);
+    if (!interaction.current.activeInputSketchIds?.length && !previouslyVisible && c.sketches.some((sketch) => sketch.objects.some((object) => object.visible))) c.fit();
+  }, [sketchVisuals]);
   useEffect(() => {
     context.current?.updateSketches();
-  }, [visibleSketchIds, selectedSketchId]);
+  }, [visibleSketchIds, selectedSketchId, activeInputSketches]);
   useEffect(() => {
     context.current?.updateHighlights();
   }, [selectedBodies, selectedEdges, selectedFace, selectedFaces, selectionMode]);
+  useEffect(() => { context.current?.refreshHover(); }, [model, selectionMode, selectionDisabled]);
   useEffect(() => {
     context.current?.updatePlanes();
     context.current?.updateHighlights();
-  }, [selectedPlaneId, showPlanes]);
+  }, [selectedPlaneId, selectedPlaneIds, showPlanes]);
   useEffect(() => {
     const c = context.current;
     if (!c) return;
-    const dirs: Record<string, [number, number, number]> = {
-      iso: [1, 1, 1.4],
-      front: [0, 0, 1],
-      back: [0, 0, -1],
-      left: [-1, 0, 0],
-      right: [1, 0, 0],
-      top: [0, 1, 0],
-      bottom: [0, -1, 0],
-    };
-    if (view.name !== "fit") {
-      const dir = new THREE.Vector3(...dirs[view.name]);
-      c.camera.up.set(0, 1, 0);
-      if (view.name === "top" || view.name === "bottom")
-        c.camera.up.set(0, 0, -1);
-      c.camera.position.copy(c.controls.target).add(dir.multiplyScalar(400));
-    }
-    c.fit();
+    c.navigation.request(view);
   }, [view]);
   useEffect(() => {
     if (context.current) context.current.grid.visible = grid;
@@ -823,7 +1094,30 @@ export default function Viewport({
     <div
       ref={host}
       className="viewport-canvas"
+      tabIndex={onContextTarget || revolutionAxisPicking || referencePickingRequest ? 0 : undefined}
       aria-label="Vista 3D de la pieza"
-    />
+      data-part-selection-mode={selectionMode}
+      data-part-axis-picking={!!revolutionAxisPicking}
+      data-part-reference-picking={!!referencePickingRequest}
+      data-part-hover-face=""
+      data-part-axis-candidates={JSON.stringify(revolutionAxisPicking?.candidates.map(candidate => ({ key: candidate.key, label: candidate.label })) ?? [])}
+      data-part-active-input-sketches={JSON.stringify(activeInputSketches?.map(sketch => sketch.id) ?? [])}
+      data-part-selected-face={selectedFace ? JSON.stringify(selectedFace) : ""}
+      data-part-selected-edges={JSON.stringify(selectedEdges)}
+      data-part-selected-bodies={JSON.stringify(selectedBodies)}
+    >
+      {revolutionAxisPicking && axisChoices?.frame === axisFrame && <div className="cad-context-menu revolution-axis-choices"
+        role="menu" aria-label="Elegir eje coincidente" style={{ position: 'absolute', zIndex: 10,
+          left: Math.max(0, Math.min(axisChoices.point.x, (host.current?.clientWidth ?? 260) - 260)),
+          top: Math.max(0, Math.min(axisChoices.point.y, (host.current?.clientHeight ?? 220) - 220)),
+          maxHeight: 210, maxWidth: 260, overflowY: 'auto' }}>
+        {axisChoices.candidates.map(candidate => <button type="button" role="menuitem" key={candidate.key}
+          title={candidate.key} onClick={() => {
+            if (axisChoiceAuthority.current !== axisChoices || interaction.current.axisFrame !== axisChoices.frame
+              || context.current?.presentedAxisCandidates !== revolutionAxisPicking.candidates) return;
+            clearAxisChoices(); revolutionAxisPicking.onSelect(candidate);
+          }}>{candidate.label}</button>)}
+      </div>}
+    </div>
   );
 }

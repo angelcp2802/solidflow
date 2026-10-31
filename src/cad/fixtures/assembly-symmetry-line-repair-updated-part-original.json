@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "id": "symmetry-line-repair-entity",
+  "name": "Original line repair updated",
+  "units": "mm",
+  "createdAt": "2026-10-22T00:00:00.000Z",
+  "updatedAt": "2026-10-22T00:00:00.000Z",
+  "features": [
+    {
+      "id": "profile",
+      "type": "sketch",
+      "name": "Original analytic profile",
+      "plane": "XY",
+      "offset": 0,
+      "suppressed": false,
+      "profile": {
+        "kind": "rectangle",
+        "center": [
+          3,
+          3
+        ],
+        "width": 6,
+        "height": 6
+      }
+    },
+    {
+      "id": "solid",
+      "type": "extrude",
+      "name": "Original H4 solid",
+      "sketchId": "profile",
+      "depth": 6,
+      "symmetric": false,
+      "suppressed": false,
+      "bodyOperation": {
+        "mode": "new",
+        "bodyId": "box"
+      }
+    }
+  ]
+}

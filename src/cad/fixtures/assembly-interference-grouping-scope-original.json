@@ -1,0 +1,232 @@
+{
+  "version": 2,
+  "kind": "assembly",
+  "id": "original-grouping-scope-interference-ui",
+  "revision": "r1",
+  "name": "Original grouped selection and exclusions",
+  "units": "mm",
+  "createdAt": "2026-10-22T00:00:00.000Z",
+  "updatedAt": "2026-10-22T00:00:00.000Z",
+  "definitions": [
+    {
+      "kind": "part",
+      "id": "original-analysis-multibody",
+      "revision": "r1",
+      "document": {
+        "version": 1,
+        "id": "original-analysis-multibody",
+        "name": "Original overlapping independent boxes",
+        "units": "mm",
+        "createdAt": "2026-10-22T00:00:00.000Z",
+        "updatedAt": "2026-10-22T00:00:00.000Z",
+        "features": [
+          {
+            "id": "box-a-profile",
+            "name": "Original first 2 by 3 rectangle",
+            "type": "sketch",
+            "plane": "XY",
+            "offset": 0,
+            "suppressed": false,
+            "profile": {
+              "kind": "rectangle",
+              "center": [
+                1,
+                1.5
+              ],
+              "width": 2,
+              "height": 3
+            }
+          },
+          {
+            "id": "box-a-extrude",
+            "name": "Original first 4 mm solid",
+            "type": "extrude",
+            "sketchId": "box-a-profile",
+            "depth": 4,
+            "symmetric": false,
+            "suppressed": false,
+            "bodyOperation": {
+              "mode": "new",
+              "bodyId": "analysis-body-a"
+            }
+          },
+          {
+            "id": "box-b-profile",
+            "name": "Original second 2 by 3 rectangle",
+            "type": "sketch",
+            "plane": "XY",
+            "offset": 0,
+            "suppressed": false,
+            "profile": {
+              "kind": "rectangle",
+              "center": [
+                2,
+                1.5
+              ],
+              "width": 2,
+              "height": 3
+            }
+          },
+          {
+            "id": "box-b-extrude",
+            "name": "Original second independent 4 mm solid",
+            "type": "extrude",
+            "sketchId": "box-b-profile",
+            "depth": 4,
+            "symmetric": false,
+            "suppressed": false,
+            "bodyOperation": {
+              "mode": "new",
+              "bodyId": "analysis-body-b"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "assembly",
+      "id": "original-grouping-multibody-inner",
+      "revision": "r1",
+      "name": "Original inner S",
+      "createdAt": "2026-10-22T00:00:00.000Z",
+      "updatedAt": "2026-10-22T00:00:00.000Z",
+      "occurrences": [
+        {
+          "id": "m1",
+          "name": "Original M1",
+          "definition": {
+            "id": "original-analysis-multibody",
+            "revision": "r1"
+          },
+          "pose": {
+            "translation": [
+              0,
+              0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0,
+              1
+            ]
+          },
+          "fixed": false,
+          "suppressed": false,
+          "visible": true
+        },
+        {
+          "id": "m2",
+          "name": "Original M2",
+          "definition": {
+            "id": "original-analysis-multibody",
+            "revision": "r1"
+          },
+          "pose": {
+            "translation": [
+              0,
+              0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0,
+              1
+            ]
+          },
+          "fixed": false,
+          "suppressed": false,
+          "visible": true
+        }
+      ],
+      "mates": []
+    },
+    {
+      "kind": "assembly",
+      "id": "original-grouping-multibody-outer",
+      "revision": "r1",
+      "name": "Original reusable outer G",
+      "createdAt": "2026-10-22T00:00:00.000Z",
+      "updatedAt": "2026-10-22T00:00:00.000Z",
+      "occurrences": [
+        {
+          "id": "s",
+          "name": "Original inner S",
+          "definition": {
+            "id": "original-grouping-multibody-inner",
+            "revision": "r1"
+          },
+          "pose": {
+            "translation": [
+              0,
+              0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0,
+              1
+            ]
+          },
+          "fixed": false,
+          "suppressed": false,
+          "visible": true
+        }
+      ],
+      "mates": []
+    }
+  ],
+  "occurrences": [
+    {
+      "id": "g-left",
+      "name": "Original G left",
+      "definition": {
+        "id": "original-grouping-multibody-outer",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": true,
+      "suppressed": false,
+      "visible": true
+    },
+    {
+      "id": "g-right",
+      "name": "Original G right",
+      "definition": {
+        "id": "original-grouping-multibody-outer",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": false,
+      "suppressed": false,
+      "visible": true
+    }
+  ],
+  "mates": []
+}

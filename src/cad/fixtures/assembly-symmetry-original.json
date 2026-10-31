@@ -1,0 +1,533 @@
+{
+  "version": 2,
+  "kind": "assembly",
+  "id": "assembly-symmetry-original",
+  "revision": "r1",
+  "name": "Original five-family symmetry",
+  "units": "mm",
+  "createdAt": "2026-10-21T00:00:00.000Z",
+  "updatedAt": "2026-10-21T00:00:00.000Z",
+  "definitions": [
+    {
+      "kind": "part",
+      "id": "symmetry-original-prism",
+      "revision": "r1",
+      "document": {
+        "version": 1,
+        "id": "symmetry-original-prism",
+        "name": "symmetry-original-prism",
+        "units": "mm",
+        "createdAt": "2026-10-21T00:00:00.000Z",
+        "updatedAt": "2026-10-21T00:00:00.000Z",
+        "features": [
+          {
+            "id": "profile",
+            "type": "sketch",
+            "name": "Original analytic profile",
+            "plane": "XY",
+            "offset": 0,
+            "suppressed": false,
+            "profile": {
+              "kind": "rectangle",
+              "center": [
+                2,
+                3
+              ],
+              "width": 4,
+              "height": 6
+            }
+          },
+          {
+            "id": "solid",
+            "type": "extrude",
+            "name": "Original H4 solid",
+            "sketchId": "profile",
+            "depth": 4,
+            "symmetric": false,
+            "suppressed": false,
+            "bodyOperation": {
+              "mode": "new",
+              "bodyId": "box"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "part",
+      "id": "symmetry-original-cylinder",
+      "revision": "r1",
+      "document": {
+        "version": 1,
+        "id": "symmetry-original-cylinder",
+        "name": "symmetry-original-cylinder",
+        "units": "mm",
+        "createdAt": "2026-10-21T00:00:00.000Z",
+        "updatedAt": "2026-10-21T00:00:00.000Z",
+        "features": [
+          {
+            "id": "profile",
+            "type": "sketch",
+            "name": "Original analytic profile",
+            "plane": "XY",
+            "offset": 0,
+            "suppressed": false,
+            "profile": {
+              "kind": "circle",
+              "center": [
+                0,
+                0
+              ],
+              "radius": 2
+            }
+          },
+          {
+            "id": "solid",
+            "type": "extrude",
+            "name": "Original H4 solid",
+            "sketchId": "profile",
+            "depth": 4,
+            "symmetric": false,
+            "suppressed": false,
+            "bodyOperation": {
+              "mode": "new",
+              "bodyId": "cylinder"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "part",
+      "id": "sphere-source-r2",
+      "revision": "r1",
+      "document": {
+        "version": 1,
+        "id": "sphere-source-r2",
+        "name": "Original R2 revolved sphere",
+        "units": "mm",
+        "createdAt": "2026-10-16T00:00:00.000Z",
+        "updatedAt": "2026-10-16T00:00:00.000Z",
+        "features": [
+          {
+            "id": "sphere-profile",
+            "name": "Original right semicircle and diameter",
+            "type": "sketch",
+            "plane": "XY",
+            "offset": 0,
+            "suppressed": false,
+            "profile": {
+              "kind": "entities",
+              "points": [
+                {
+                  "id": "south",
+                  "x": 0,
+                  "y": -2
+                },
+                {
+                  "id": "north",
+                  "x": 0,
+                  "y": 2
+                }
+              ],
+              "entities": [
+                {
+                  "id": "semicircle",
+                  "type": "arc",
+                  "construction": false,
+                  "center": "origin",
+                  "start": "south",
+                  "end": "north",
+                  "clockwise": false
+                },
+                {
+                  "id": "diameter",
+                  "type": "line",
+                  "construction": false,
+                  "start": "north",
+                  "end": "south"
+                }
+              ],
+              "constraints": []
+            }
+          },
+          {
+            "id": "sphere-revolve",
+            "name": "Original full revolution",
+            "type": "revolve",
+            "sketchId": "sphere-profile",
+            "angle": 360,
+            "suppressed": false,
+            "bodyOperation": {
+              "mode": "new",
+              "bodyId": "sphere-body"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "occurrences": [
+    {
+      "id": "point-source",
+      "name": "point source",
+      "definition": {
+        "id": "symmetry-original-prism",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          -5,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": true,
+      "visible": true,
+      "suppressed": false
+    },
+    {
+      "id": "point-target",
+      "name": "point target",
+      "definition": {
+        "id": "symmetry-original-prism",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          6,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": false,
+      "visible": true,
+      "suppressed": false
+    },
+    {
+      "id": "point-mirror",
+      "name": "point mirror",
+      "definition": {
+        "id": "symmetry-original-prism",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": true,
+      "visible": true,
+      "suppressed": false
+    },
+    {
+      "id": "line-source",
+      "name": "line source",
+      "definition": {
+        "id": "symmetry-original-prism",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          -5,
+          20,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": true,
+      "visible": true,
+      "suppressed": false
+    },
+    {
+      "id": "line-target",
+      "name": "line target",
+      "definition": {
+        "id": "symmetry-original-prism",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          6,
+          20,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": false,
+      "visible": true,
+      "suppressed": false
+    },
+    {
+      "id": "line-mirror",
+      "name": "line mirror",
+      "definition": {
+        "id": "symmetry-original-prism",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          0,
+          20,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": true,
+      "visible": true,
+      "suppressed": false
+    },
+    {
+      "id": "plane-source",
+      "name": "plane source",
+      "definition": {
+        "id": "symmetry-original-prism",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          -5,
+          40,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": true,
+      "visible": true,
+      "suppressed": false
+    },
+    {
+      "id": "plane-target",
+      "name": "plane target",
+      "definition": {
+        "id": "symmetry-original-prism",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          6,
+          40,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": false,
+      "visible": true,
+      "suppressed": false
+    },
+    {
+      "id": "plane-mirror",
+      "name": "plane mirror",
+      "definition": {
+        "id": "symmetry-original-prism",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          0,
+          40,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": true,
+      "visible": true,
+      "suppressed": false
+    },
+    {
+      "id": "sphere-source",
+      "name": "sphere source",
+      "definition": {
+        "id": "sphere-source-r2",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          -5,
+          60,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": true,
+      "visible": true,
+      "suppressed": false
+    },
+    {
+      "id": "sphere-target",
+      "name": "sphere target",
+      "definition": {
+        "id": "sphere-source-r2",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          6,
+          60,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": false,
+      "visible": true,
+      "suppressed": false
+    },
+    {
+      "id": "sphere-mirror",
+      "name": "sphere mirror",
+      "definition": {
+        "id": "symmetry-original-prism",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          0,
+          60,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": true,
+      "visible": true,
+      "suppressed": false
+    },
+    {
+      "id": "cylinder-source",
+      "name": "cylinder source",
+      "definition": {
+        "id": "symmetry-original-cylinder",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          -5,
+          80,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": true,
+      "visible": true,
+      "suppressed": false
+    },
+    {
+      "id": "cylinder-target",
+      "name": "cylinder target",
+      "definition": {
+        "id": "symmetry-original-cylinder",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          6,
+          80,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": false,
+      "visible": true,
+      "suppressed": false
+    },
+    {
+      "id": "cylinder-mirror",
+      "name": "cylinder mirror",
+      "definition": {
+        "id": "symmetry-original-prism",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          0,
+          80,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": true,
+      "visible": true,
+      "suppressed": false
+    }
+  ],
+  "mates": []
+}

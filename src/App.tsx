@@ -1,4 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useViewHistory } from './components/useViewHistory'
+import { isRevolutionFeature } from './cad/revolutionExtent'
+import { standardViews, viewShortcutCommand, type ViewName, type ViewRequest } from './components/viewNavigation'
+import { validateNormalToTarget } from './components/normalToView'
+import { partNormalToTarget, partViewReferenceKey, togglePartViewReference, type PartViewReference } from './components/partNormalTo'
+import { ViewOrientationControls } from './components/ViewOrientationControls'
+import { NamedViewsDialog } from './components/NamedViewsDialog'
+import { sameDocumentExceptNamedViews, useNamedDocumentViews } from './components/useNamedDocumentViews'
+import { requestNewDocument, useNewDocumentDialog } from './components/useNewDocumentDialog';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import {
   Box,
   FilePlus2,
@@ -39,7 +49,6 @@ import {
   Loader2,
   ChevronUp,
   CheckCircle2,
-  ScanLine,
   Triangle,
   Minus,
   Spline,
@@ -51,8 +60,14 @@ import {
   CopyPlus,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import Viewport, { type ViewName } from "./components/Viewport";
+import Viewport from "./components/Viewport";
+import type { PartSelectionMode } from "./components/partSelection";
 import SketchCanvas from "./components/SketchCanvas";
+import AssemblyMenuBar, { type AssemblyMenuDefinition } from "./components/AssemblyMenuBar";
+import CommandHeader from "./components/CommandHeader";
+import PartFeatureContextMenu from "./components/PartFeatureContextMenu";
+import CadContextMenu, { type CadContextAction } from './components/CadContextMenu';
+import { resolvePartContextTarget, type PartContextTarget, type PartViewportContextRequest } from './components/partViewportContext';
 import EntitySketchPanel from "./components/EntitySketchPanel";
 import SketchChamferPanel from "./components/SketchChamferPanel";
 import type { ChamferPlan } from "./sketch/chamfer";
@@ -107,6 +122,12 @@ import { createdBodyIds, featureBodyReferences, featureCurrentBodyReferences } f
 import { reconcileBodyPatternDraft } from "./model/bodyPatterns";
 import { createEdgeSelectionIndex, createFaceSelectionIndex } from "./cad/selection.references";
 import ExtrudePanel from "./components/ExtrudePanel";
+import { extrusionDirectionInputError, mergeExtrusionDraft } from './components/extrusionEditorDraft';
+import { extrusionEndForSide, extrusionEndPatch, extrusionEndPickCurrent, type ExtrusionEndPickingRequest, type ExtrusionSide } from './components/extrusionEndPicking';
+import RevolvePanel, { mergeRevolutionDraft } from "./components/RevolvePanel";
+import { thinWallInputError } from './components/ThinWallPanel';
+import { defaultThinWallDefinition, isThinWallOperation, mergeThinWallEditorDraft, thinAutoCornersAvailableByProfile, thinEndCapsAvailableByProfile, thinWallRequiredByProfile, withRequiredThinWall } from './components/thinWallEditorDraft';
+import { revolutionAxisCandidates, type RevolutionAxisCandidate } from './components/revolutionAxisPicking';
 import HolePanel, { type HoleSection } from "./components/HolePanel";
 import HolePositionsCanvas from "./components/HolePositionsCanvas";
 import {
@@ -129,10 +150,15 @@ import {
   createMirrorExample,
 } from "./examples/patterns";
 import { featureSketchIds } from "./model/featureInputs";
+import { buildPartFeatureTree, partTreeChildrenId, revealPartSketchOwners, treeOccurrenceKey } from "./model/partFeatureTree";
+import { initialPartTargets } from "./model/partWorkflow";
+import { canContinuePartSketch, stagePartSketch, unusedPartSketchPreview } from "./model/partSketchContinuation";
+import { createPartSequenceDocument } from "./examples/part-sequence";
+import { importStructuralStep } from "./model/structuralStepImport";
 import { importStepPart, type StepFile } from "./model/stepImport";
 import { MAX_STEP_BYTES } from "./model/stepSource";
 import { initialLoftSection, resolvedSweepPath } from "./model/advancedInputs";
-import { buildModel, exportCad, initKernel } from "./cad/kernel";
+import { buildModel, exportCad, initKernel, importAssemblyStep } from "./cad/kernel";
 import type {
   Feature,
   SketchFeature,
@@ -151,11 +177,13 @@ import type {
   Vec3,
   BodyReference,
   CombineFeature,
+  RevolutionFeature,
+  ExtrudeFeature,
 } from "./cad/kernel.types";
 import {
   createDemoDocument,
   createDocument,
-  parseDocument,
+  validateDocument,
   serializeDocument,
   addFeature,
   updateFeature,
@@ -163,6 +191,16 @@ import {
   DocumentHistory,
   type Document,
 } from "./model/document";
+import AssemblyWorkspace from "./components/AssemblyWorkspace";
+import ConfiguredAssemblyWorkspace from "./components/ConfiguredAssemblyWorkspace";
+import { createEmptyAssembly } from "./examples/assembly";
+import { createAssemblyFromPart } from "./model/assemblyFromPart";
+import { MAX_ASSEMBLY_BYTES, type AssemblyDocument } from "./model/assemblyDocument";
+import { parseCadDocument, serializeCadDocument, validateCadDocument, type CadDocument } from "./model/cadDocument";
+import type { AssemblyConfiguredDocument } from "./model/assemblyConfiguredDocument";
+import { readCadRecovery, writeCadRecovery } from "./model/cadRecovery";
+import type { EmbeddedPartBuildSnapshot, EmbeddedPartEditorProps } from './components/embeddedPartEditor';
+import { EmbeddedPartWorkError, type EmbeddedPartActivation, type EmbeddedPartTimer } from './components/embeddedPartWork';
 
 const planeNames: Record<Plane, string> = {
   XY: "Alzado",
@@ -174,6 +212,7 @@ const labels: Record<string, string> = {
   extrude: "Saliente-Extruir",
   cut: "Corte-Extruir",
   revolve: "Saliente-Revolución",
+  revolvedCut: "Corte-Revolución",
   fillet: "Redondeo",
   chamfer: "Chaflán",
   plane: "Plano",
@@ -186,6 +225,7 @@ const labels: Record<string, string> = {
   draft: "Desmoldeo",
   hole: "Taladro",
   importedSolid: "Sólido importado STEP",
+  importedBodies: "Cuerpos importados STEP",
   combine: "Combinar",
 };
 const featureIcons: Record<string, LucideIcon> = {
@@ -193,6 +233,7 @@ const featureIcons: Record<string, LucideIcon> = {
   extrude: Box,
   cut: Scissors,
   revolve: RotateCw,
+  revolvedCut: Scissors,
   fillet: CornerDownRight,
   chamfer: Triangle,
   plane: PanelTop,
@@ -205,6 +246,7 @@ const featureIcons: Record<string, LucideIcon> = {
   draft: Cone,
   hole: Crosshair,
   importedSolid: FolderOpen,
+  importedBodies: FolderOpen,
   combine: Component,
 };
 function isFaceOperation(
@@ -222,14 +264,23 @@ function isRepetition(feature: Feature | null): feature is RepetitionFeature {
 function isEdgeFinish(feature: Feature | null): feature is EdgeFinishFeature {
   return feature?.type === "fillet" || feature?.type === "chamfer";
 }
-function initialDocument() {
+interface DocumentSession {
+  document: CadDocument;
+  path?: string;
+  saved?: string;
+  epoch: number;
+  skipInitialRecoveryWrite?: boolean;
+}
+function initialDocumentSession(): DocumentSession {
   try {
-    const saved = localStorage.getItem("solidflow.autosave");
-    if (saved) return parseDocument(saved);
+    const recovery = readCadRecovery(localStorage);
+    if (recovery.status === "recovered") return { document: recovery.document, epoch: 0 };
+    return { document: createDemoDocument(), epoch: 0, skipInitialRecoveryWrite: recovery.status !== "missing" };
   } catch {
-    /* Invalid recovery data does not replace a valid document. */
+    // Accessing localStorage itself can fail. Preserve existing recovery bytes
+    // until the user explicitly changes or replaces the fallback document.
+    return { document: createDemoDocument(), epoch: 0, skipInitialRecoveryWrite: true };
   }
-  return createDemoDocument();
 }
 function download(blob: Blob, name: string) {
   const link = document.createElement("a");
@@ -242,12 +293,14 @@ function IconButton({
   icon: Icon,
   title,
   onClick,
+  children,
   active = false,
   disabled = false,
 }: {
   icon: LucideIcon;
   title: string;
   onClick?: () => void;
+  children?: ReactNode;
   active?: boolean;
   disabled?: boolean;
 }) {
@@ -260,6 +313,7 @@ function IconButton({
       disabled={disabled}
     >
       <Icon size={17} strokeWidth={1.65} />
+      {children}
     </button>
   );
 }
@@ -287,8 +341,15 @@ function Command({
     >
       <Icon size={large ? 30 : 22} strokeWidth={1.45} />
       <span>{label}</span>
-      {large && <ChevronDown size={10} />}
     </button>
+  );
+}
+function CommandGroup({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="command-group part-command-group" role="group" aria-label={label}>
+      <div className="part-command-group-content">{children}</div>
+      <span className="part-command-group-label" aria-hidden="true">{label}</span>
+    </div>
   );
 }
 function NumberField({
@@ -324,7 +385,80 @@ function NumberField({
 }
 
 export default function App() {
-  const [doc, setDoc] = useState<Document>(initialDocument);
+  const [session, setSession] = useState<DocumentSession>(initialDocumentSession);
+  const replaceDocument = (value: CadDocument, path?: string, saved?: string) => {
+    const document = validateCadDocument(value);
+    const serialized = serializeCadDocument(document);
+    setSession(previous => ({ document, path, saved: saved === undefined ? undefined : serialized, epoch: previous.epoch + 1 }));
+  };
+  return session.document.version === 3 ? (
+    <ConfiguredAssemblyWorkspace key={session.epoch} initialDocument={session.document} initialPath={session.path}
+      initialSaved={session.saved} skipInitialRecoveryWrite={session.skipInitialRecoveryWrite} onOpenDocument={replaceDocument} />
+  ) : session.document.version === 2 ? (
+    <AssemblyWorkspace key={session.epoch} initialDocument={session.document} initialPath={session.path}
+      initialSaved={session.saved} onOpenPart={replaceDocument} onOpenConfigured={replaceDocument}
+      renderPartEditor={props => <PartWorkspace initialDocument={props.initialDocument} embeddedEdit={props}
+        onOpenAssembly={() => undefined} />} />
+  ) : (
+    <PartWorkspace key={session.epoch} initialDocument={session.document} initialPath={session.path}
+      initialSaved={session.saved} skipInitialRecoveryWrite={session.skipInitialRecoveryWrite} onOpenAssembly={replaceDocument} />
+  );
+}
+
+interface PartWorkspaceProps {
+  initialDocument: Document;
+  initialPath?: string;
+  initialSaved?: string;
+  skipInitialRecoveryWrite?: boolean;
+  embeddedEdit?: EmbeddedPartEditorProps;
+  onOpenAssembly: (document: AssemblyDocument | AssemblyConfiguredDocument, path?: string, saved?: string) => void;
+}
+interface EmbeddedPartReadiness {
+  buildSnapshot: EmbeddedPartBuildSnapshot;
+  builtFeatures: Feature[] | null;
+  sourceBuiltFeatures: Feature[] | null;
+  sourceLoading: boolean;
+  model: CadResult | null;
+  ready: boolean;
+  busy: boolean;
+  error: string;
+  unfinished: boolean;
+  filePending: boolean;
+  dialogOpen: boolean;
+  builtActivation: EmbeddedPartActivation | null;
+}
+/** Input freshness only; the external ledger separately proves a drained,
+ * completed activation. Neither check grants assembly review or Apply. */
+export function embeddedPartInputsReady(activation: EmbeddedPartActivation, current: EmbeddedPartReadiness): boolean {
+  const { buildSnapshot: snapshot } = current;
+  return current.ready && !current.busy && !current.error && !!current.model && !current.model.featureErrors.length
+    && !current.unfinished && !current.filePending && !current.dialogOpen && !current.sourceLoading
+    && current.builtActivation === activation && current.builtFeatures === snapshot.features
+    && snapshot.features === snapshot.document.features
+    && (snapshot.sourceFeatures === null || current.sourceBuiltFeatures === snapshot.sourceFeatures);
+}
+export function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitialRecoveryWrite = false, onOpenAssembly, embeddedEdit }: PartWorkspaceProps) {
+  const shell = useRef<HTMLDivElement>(null);
+  const embeddedRef = useRef(embeddedEdit); embeddedRef.current = embeddedEdit;
+  const [workRevision, setWorkRevision] = useState(0);
+  const [fileBuildRevision, setFileBuildRevision] = useState(0);
+  const [embeddedReturnReady, setEmbeddedReturnReady] = useState(false);
+  const builtActivation = useRef<EmbeddedPartActivation | null>(null);
+  const isActiveOwner = (owner = embeddedRef.current) => {
+    if (!owner) return !embeddedRef.current;
+    const state = owner.work.getState();
+    return embeddedRef.current?.activation === owner.activation && embeddedRef.current.active
+      && state.phase === 'active' && state.activation === owner.activation;
+  };
+  const runProducer = useCallback(<T,>(send: () => Promise<T>): Promise<T> => {
+    const owner = embeddedRef.current;
+    if (!owner) return send();
+    if (!isActiveOwner(owner)) return Promise.reject(new EmbeddedPartWorkError('inactive'));
+    const settled = () => { if (isActiveOwner(owner)) setWorkRevision(value => value + 1); };
+    return owner.work.run(owner.activation, send).then(value => { settled(); return value; }, reason => { settled(); throw reason; });
+  }, []);
+  const newDocumentDialog = useNewDocumentDialog(), newDocumentRequest = useRef(false);
+  const [doc, setDoc] = useState<Document>(() => validateDocument(initialDocument));
   const history = useRef<DocumentHistory | null>(null);
   if (!history.current) history.current = new DocumentHistory(doc);
   const [model, setModel] = useState<CadResult | null>(null),
@@ -333,12 +467,22 @@ export default function App() {
     [error, setError] = useState("");
   const [builtFeatures, setBuiltFeatures] = useState<Feature[] | null>(null);
   const [edgeSelection, setEdgeSelection] = useState<EdgeReference[]>([]);
-  const [selectionMode, setSelectionMode] = useState<"body" | "edge" | "face">(
-    "body",
+  const [selectionMode, setSelectionMode] = useState<PartSelectionMode>(
+    "auto",
   );
   const [faceSelection, setFaceSelection] = useState<PickableFace | null>(null);
+  // Ordered presentation references are bound to the visible native result.
+  // They neither enter feature parameters nor document history.
+  const [normalSelection, updateNormalSelection] = useState<{
+    document: Document; model: CadResult | null; face: PickableFace | null;
+    selected: string | null; references: PartViewReference[];
+  } | null>(null);
+  const normalSelectionRef = useRef(normalSelection);
+  const setNormalSelection = (value: typeof normalSelection) => { normalSelectionRef.current = value; updateNormalSelection(value); };
   const [pickingSupport, setPickingSupport] = useState(false);
-  const [pickingEndFace, setPickingEndFace] = useState(false);
+  const [endPickingRequest, setEndPickingRequest] = useState<ExtrusionEndPickingRequest | null>(null);
+  const endPickingAuthority = useRef<ExtrusionEndPickingRequest | null>(null);
+  const stopEndPicking = useCallback(() => { endPickingAuthority.current = null; setEndPickingRequest(null); }, []);
   const [holeSection, setHoleSection] = useState<HoleSection>("type");
   const [selectedHolePosition, setSelectedHolePosition] = useState<
     string | null
@@ -349,16 +493,40 @@ export default function App() {
   const [sourceModel, setSourceModel] = useState<CadResult | null>(null);
   const [sourceBuiltFeatures, setSourceBuiltFeatures] = useState<Feature[] | null>(null);
   const [bodySelection, setBodySelection] = useState<BodyReference[]>([]);
+  const [bodyCatalogOpen, setBodyCatalogOpen] = useState(true);
+  const bodyCatalogButton = useRef<HTMLButtonElement>(null);
+  const bodyCatalogContent = useRef<HTMLDivElement>(null);
+  const revealedUnavailableBodies = useRef("");
   const [bodyPicking, setBodyPicking] = useState(false);
   const bodyOutputId = useRef("");
   const [sourceLoading, setSourceLoading] = useState(false);
   const [selected, setSelected] = useState<string | null>(null),
     [editing, setEditing] = useState<Feature | null>(null),
     [plane, setPlane] = useState<Plane>("XY");
+  // A feature started from a new or unused sketch is a reversible preview. The sketch
+  // stays out of recovery/history until acceptance and resumes on Cancel.
+  const [stagedSketch, setStagedSketch] = useState<SketchFeature | null>(null);
+  type AxisPickingRequest = { draft: RevolutionFeature; document: Document; epoch: number; model: CadResult; features: Feature[] };
+  const [axisPickingRequest, setAxisPickingRequest] = useState<AxisPickingRequest | null>(null);
+  const axisPickingAuthority = useRef<AxisPickingRequest | null>(null);
+  const stopAxisPicking = useCallback(() => { axisPickingAuthority.current = null; setAxisPickingRequest(null); }, []);
+  const [featureMenu, setFeatureMenu] = useState<{ requestId: string; featureId: string; parentId?: string; point: { x: number; y: number }; origin: HTMLElement } | null>(null);
+  type ViewportPopup = { requestId: string; target: PartContextTarget; document: Document; model: CadResult | null;
+    selection: string; epoch: number; point: { x: number; y: number }; origin: HTMLElement };
+  const [viewportPopup, setViewportPopup] = useState<ViewportPopup | null>(null);
+  const viewportPopupAuthority = useRef(viewportPopup); viewportPopupAuthority.current = viewportPopup;
+  const invalidateViewportPopup = () => { viewportPopupAuthority.current = null; setViewportPopup(null); };
+  const [expandedFeatureIds, setExpandedFeatureIds] = useState<ReadonlySet<string>>(() => new Set());
+  const treeElement = useRef<HTMLDivElement>(null);
+  const selectedTreeOccurrence = useRef<{ featureId: string; parentId?: string } | null>(null);
+  const editTreeReturn = useRef<{ featureId: string; parentId?: string } | null>(null);
+  useEffect(() => { setFeatureMenu(null); }, [doc, editing]);
+  const operationDocument = useMemo(() => stagedSketch ? stagePartSketch(doc, stagedSketch) : doc, [doc, stagedSketch]);
   const [tab, setTab] = useState("Operaciones"),
     [display, setDisplay] = useState<"shaded" | "edges" | "wire">("edges"),
     [grid, setGrid] = useState(false);
-  const [view, setView] = useState<{ name: ViewName; stamp: number }>({
+  const viewHistory = useViewHistory();
+  const [view, setView] = useState<ViewRequest>({
       name: "iso",
       stamp: 0,
     }),
@@ -379,29 +547,43 @@ export default function App() {
     name: "dimensions" | "relations";
     stamp: number;
   }>({ name: "dimensions", stamp: 0 });
-  const [menu, setMenu] = useState<string | null>(null),
-    [query, setQuery] = useState(""),
+  const [query, setQuery] = useState(""),
     [toast, setToast] = useState(""),
     [toastError, setToastError] = useState(false),
     [panel, setPanel] = useState<"design" | "properties" | null>(null),
     [showHelp, setShowHelp] = useState(false),
     [rename, setRename] = useState(false),
     [discardOpen, setDiscardOpen] = useState(false);
-  const [filePath, setFilePath] = useState<string | undefined>(),
-    [saved, setSaved] = useState(""),
+  const [filePath, setFilePath] = useState<string | undefined>(embeddedEdit ? undefined : initialPath),
+    [saved, setSaved] = useState(initialSaved ?? ""),
     [exporting, setExporting] = useState(false),
     [importing, setImporting] = useState(false),
     [treeOpen, setTreeOpen] = useState(true);
   const fileInput = useRef<HTMLInputElement>(null);
   const stepInput = useRef<HTMLInputElement>(null);
+  const structuralInput = useRef<HTMLInputElement>(null);
+  const structuralRead = useRef<{resolve:(file:StepFile|null)=>void;reject:(error:unknown)=>void}|null>(null);
+  useEffect(() => {
+    const input = structuralInput.current;
+    const cancel = () => { const pending = structuralRead.current; structuralRead.current = null; pending?.resolve(null); };
+    input?.addEventListener('cancel', cancel);
+    return () => { input?.removeEventListener('cancel', cancel); cancel(); };
+  }, []);
   const fileOperation = useRef(false);
   const discardDecision = useRef<((accepted: boolean) => void) | null>(null);
   const discardDialog = useRef<HTMLDivElement>(null);
   const docRef = useRef(doc);
   const editingRef = useRef(editing);
+  const documentEpoch = useRef(0);
+  const mounted = useRef(true);
+  type ReplacementSource = { document: Document; editing: Feature | null; epoch: number };
+  const browserOpenSource = useRef<ReplacementSource | null>(null);
   editingRef.current = editing;
   docRef.current = doc;
   const selectedFeature = doc.features.find((f) => f.id === selected);
+  const selectedFaceFeatureName = faceSelection
+    ? doc.features.find(feature => feature.id === faceSelection.ref.sourceFeatureId)?.name ?? ""
+    : "";
   const modelSelectionDtos = useMemo(() => bodySelectionDtos(model), [model]);
   const sourceSelectionDtos = useMemo(() => bodySelectionDtos(sourceModel), [sourceModel]);
   const sourceOperationDtos = useMemo(() => {
@@ -453,33 +635,42 @@ export default function App() {
               (selectedFeature ? featureSketchIds(selectedFeature)[0] : ""),
         ) as SketchFeature | undefined);
   const sourceFeatures = useMemo(() => {
-    if (!editing || !["fillet", "chamfer", "mirror", "shell", "draft", "extrude", "cut", "hole", "revolve", "sweep", "loft", "combine"].includes(editing.type)
+    if (!editing || !["fillet", "chamfer", "mirror", "shell", "draft", "extrude", "cut", "hole", "revolve", "revolvedCut", "sweep", "loft", "combine"].includes(editing.type)
       && !isRepetition(editing)) return null;
-    const index = doc.features.findIndex(feature => feature.id === editing.id);
-    return doc.features.slice(0, index < 0 ? doc.features.length : index);
-  }, [doc.features, editing?.id, editing?.type]);
+    const index = operationDocument.features.findIndex(feature => feature.id === editing.id);
+    return operationDocument.features.slice(0, index < 0 ? operationDocument.features.length : index);
+  }, [operationDocument.features, editing?.id, editing?.type]);
   const bodyCommand = useMemo(() => {
     if (!editing || !isBodyCommandFeature(editing) || sourceLoading || !sourceModel || sourceBuiltFeatures !== sourceFeatures) return null;
     if (sourceModel.featureErrors.length) return { accepted: false as const, message: "Reconstruye los cuerpos de origen antes de continuar." };
-    return prepareBodyCommand({ document: doc, feature: editing, selection: bodySelection,
+    return prepareBodyCommand({ document: operationDocument, feature: editing, selection: bodySelection,
       catalog: { active: sourceModel.bodyCatalogActive === true, bodies: sourceModel.bodies ?? [] } });
-  }, [doc, editing, bodySelection, sourceModel, sourceLoading, sourceBuiltFeatures, sourceFeatures]);
+  }, [operationDocument, editing, bodySelection, sourceModel, sourceLoading, sourceBuiltFeatures, sourceFeatures]);
   const bodyPlan = bodyCommand?.accepted ? bodyCommand.plan : null;
   const effectiveFeatures = useMemo(() => {
     if (bodyPlan) return bodyPlan.previewFeatures;
     if (sourceFeatures && editing?.type === "extrude" && editing.bodyOperation?.mode === "new"
-      && editing.endCondition && 'baseFeatureId' in editing.endCondition) return sourceFeatures;
-    if (!editing) return doc.features;
-    const index = doc.features.findIndex(
+      && [editing.endCondition, editing.secondDirection?.endCondition].some(end => end && 'baseFeatureId' in end)) return sourceFeatures;
+    if (!editing) return operationDocument.features;
+    if (editing.type === "sketch") {
+      const complete = unusedPartSketchPreview(operationDocument, editing);
+      if (complete) return complete;
+    }
+    const index = operationDocument.features.findIndex(
       (feature) => feature.id === editing.id,
     );
     // Editing rolls the body back to this feature. Following operations rebuild
     // after acceptance and can report lost references without blocking the edit.
     return [
-      ...doc.features.slice(0, index < 0 ? doc.features.length : index),
+      ...operationDocument.features.slice(0, index < 0 ? operationDocument.features.length : index),
       editing,
     ];
-  }, [doc.features, editing, bodyPlan, sourceFeatures]);
+  }, [operationDocument.features, editing, bodyPlan, sourceFeatures]);
+  const buildSnapshot = useMemo<EmbeddedPartBuildSnapshot>(() => ({ document: doc, features: effectiveFeatures, sourceFeatures }),
+    [doc, effectiveFeatures, sourceFeatures]);
+  useLayoutEffect(() => {
+    if (embeddedEdit?.active) embeddedEdit.work.setSnapshot(embeddedEdit.activation, buildSnapshot);
+  }, [embeddedEdit?.work, embeddedEdit?.activation, embeddedEdit?.active, buildSnapshot]);
   const finishEditing = isEdgeFinish(editing) ? editing : null;
   const mirrorEditing = editing?.type === "mirror" ? editing : null;
   const faceEditing = isFaceOperation(editing) ? editing : null;
@@ -490,14 +681,42 @@ export default function App() {
   const pickingMirror = !!mirrorEditing && pickingSupport;
   const pickingFaceOperation =
     !!faceEditing && (!facePreview || pickingSupport);
-  const pickingExtrude =
-    !!extrudeEditing &&
-    extrudeEditing.endCondition?.kind === "upToSurface" &&
-    pickingEndFace;
+  const pickingExtrude = extrusionEndPickCurrent(endPickingRequest, { draft: editing, document: doc, epoch: documentEpoch.current,
+    model: sourceModel, features: sourceFeatures, builtFeatures: sourceBuiltFeatures, loading: sourceLoading,
+    blocked: bodyPicking || pickingSupport });
+  endPickingAuthority.current = pickingExtrude ? endPickingRequest : null;
+  const pickedExtrusionEnd = extrudeEditing && endPickingRequest && pickingExtrude ? extrusionEndForSide(extrudeEditing, endPickingRequest.side) : undefined;
   const pickingHole = !!holeEditing && pickingSupport;
+  const thinWallSourceCurrent = !!sourceFeatures && !!sourceModel && sourceBuiltFeatures === sourceFeatures
+    && !sourceLoading && !sourceModel.featureErrors.length;
+  const thinWallRequired = !!editing && isThinWallOperation(editing)
+    && thinWallRequiredByProfile(editing.sketchId, sourceModel, thinWallSourceCurrent);
+  const thinAutoCornersAvailable = editing?.type === 'extrude'
+    && thinAutoCornersAvailableByProfile(editing.sketchId, sourceModel, thinWallSourceCurrent);
+  const thinEndCapsAvailable = editing?.type === 'extrude'
+    && thinEndCapsAvailableByProfile(editing.sketchId, sourceModel, thinWallSourceCurrent);
+  useEffect(() => {
+    if (!thinWallRequired || !editing || !isThinWallOperation(editing)
+      || Object.hasOwn(editing, 'thinWall') || doc.features.some(feature => feature.id === editing.id)
+      || !mounted.current || docRef.current !== doc || editingRef.current !== editing) return;
+    const next = withRequiredThinWall(editing, undefined, true);
+    stopAxisPicking();
+    setEditing(current => current === editing ? next : current);
+  }, [thinWallRequired, editing, doc, stopAxisPicking]);
+  const axisPicking = !!axisPickingRequest && editing === axisPickingRequest.draft && doc === axisPickingRequest.document
+    && documentEpoch.current === axisPickingRequest.epoch && sourceModel === axisPickingRequest.model
+    && sourceFeatures === axisPickingRequest.features && sourceBuiltFeatures === sourceFeatures && !sourceLoading
+    && !sourceModel.featureErrors.length && !bodyPicking;
+  axisPickingAuthority.current = axisPicking ? axisPickingRequest : null;
+  const axisCandidates = useMemo(() => axisPicking && editing && isRevolutionFeature(editing)
+    ? revolutionAxisCandidates(sourceModel, editing.sketchId) : [], [axisPicking, sourceModel, editing]);
+  const viewportSelectionMode: PartSelectionMode = bodyPicking ? 'body'
+    : pickingSupport || pickingFaceOperation || pickingExtrude || pickingHole ? 'face'
+      : pickingFinish ? 'edge' : editing ? 'body' : selectionMode;
   const placingHoles =
     !!holeEditing && holeSection === "positions" && !pickingHole;
   const visibleBase =
+    axisPicking ||
     bodyPicking ||
     pickingFinish ||
     pickingMirror ||
@@ -532,8 +751,49 @@ export default function App() {
       ? ""
       : error;
   const serializedDocument = useMemo(() => serializeDocument(doc), [doc]);
+  const preservedRecovery = useRef<string | null>(skipInitialRecoveryWrite ? serializedDocument : null);
   const dirty = serializedDocument !== saved || editing !== null;
+  const embeddedChanged = !!embeddedEdit && serializeCadDocument(doc) !== embeddedEdit.baselineSerialized;
+  const embeddedUnfinished = !!editing || !!stagedSketch;
+  const liveEditor = useRef({ doc, buildSnapshot, effectiveFeatures, sourceFeatures, builtFeatures, sourceBuiltFeatures,
+    sourceLoading, model, ready, busy, error, importing, exporting, unfinished: embeddedUnfinished, discardOpen });
+  liveEditor.current = { doc, buildSnapshot, effectiveFeatures, sourceFeatures, builtFeatures, sourceBuiltFeatures,
+    sourceLoading, model, ready, busy, error, importing, exporting, unfinished: embeddedUnfinished, discardOpen };
+  const canReturnCurrentPart = () => {
+    const owner = embeddedRef.current, current = liveEditor.current;
+    return !!owner && mounted.current && isActiveOwner(owner) && docRef.current === current.doc
+      && !editingRef.current && embeddedPartInputsReady(owner.activation, {
+        ...current, builtActivation: builtActivation.current,
+        filePending: current.importing || current.exporting || fileOperation.current,
+        dialogOpen: current.discardOpen || !!discardDecision.current,
+      });
+  };
+  useLayoutEffect(() => {
+    const owner = embeddedRef.current;
+    setEmbeddedReturnReady(!!owner && canReturnCurrentPart()
+      && owner.work.markReady(owner.activation, buildSnapshot));
+  }, [embeddedEdit?.activation, embeddedEdit?.active, buildSnapshot, builtFeatures, sourceBuiltFeatures, sourceLoading,
+    model, ready, busy, error, importing, exporting, embeddedUnfinished, discardOpen, workRevision]);
+  useLayoutEffect(() => {
+    if (embeddedEdit) embeddedEdit.onDirtyChange(embeddedChanged, embeddedUnfinished);
+  }, [embeddedEdit?.onDirtyChange, embeddedChanged, embeddedUnfinished]);
   const previewCurrent = builtFeatures === effectiveFeatures;
+  const unavailableBodySelection = bodySelection.filter(reference =>
+    !model?.bodies?.some(body => sameBodyReference(body.ref, reference)));
+  const unavailableBodySelectionKey = JSON.stringify(unavailableBodySelection.map(reference =>
+    [reference.bodyId, reference.sourceFeatureId]));
+  // Reveal newly unavailable browsing selections once; manual collapse stays respected.
+  useLayoutEffect(() => {
+    if (editing || busy || !previewCurrent || !model?.bodyCatalogActive) return;
+    if (unavailableBodySelection.length && revealedUnavailableBodies.current !== unavailableBodySelectionKey)
+      setBodyCatalogOpen(true);
+    revealedUnavailableBodies.current = unavailableBodySelectionKey;
+  }, [editing, busy, previewCurrent, model?.bodyCatalogActive, unavailableBodySelectionKey, unavailableBodySelection.length]);
+  const toggleBodyCatalog = () => {
+    if (bodyCatalogOpen && bodyCatalogContent.current?.contains(document.activeElement))
+      bodyCatalogButton.current?.focus();
+    setBodyCatalogOpen(value => !value);
+  };
   const editingResolved =
     !editing ||
     editing.suppressed ||
@@ -546,9 +806,15 @@ export default function App() {
           : model?.faces?.some(
             (face) => face.ref.sourceFeatureId === editing.id,
           ));
+  const thinWallDraftError = editing && isThinWallOperation(editing) ? thinWallInputError(editing.thinWall) : null;
+  const extrusionDraftError = editing?.type === 'extrude' || editing?.type === 'cut' ? extrusionDirectionInputError(editing) : null;
   const canAccept =
     !!editing &&
     !!editingResolved &&
+    !thinWallDraftError &&
+    !extrusionDraftError &&
+    (!extrudeEditing || thinWallSourceCurrent) &&
+    (!thinWallRequired || !isThinWallOperation(editing) || !!editing.thinWall) &&
     (!editing || !isBodyCommandFeature(editing) || (!!bodyPlan && !bodyPicking)) &&
     !pickingMirror &&
     !pickingExtrude &&
@@ -568,6 +834,11 @@ export default function App() {
     (editing.type !== "sketch" || sketchTool !== "mirror" || !!mirrorPreview?.changed) &&
     (editing.type !== "sketch" || sketchTool !== "offset" || !!offsetPreview?.changed) &&
     model.featureErrors.length === 0;
+  const canContinueSketch = editing?.type === "sketch" && !editing.suppressed && canAccept && !pickingSupport
+    && canContinuePartSketch(doc, editing)
+    && !["chamfer", "fillet", "mirror", "offset"].includes(sketchTool);
+  const canStartProfileFeature = (!editing || canContinueSketch) && ready && !busy && previewCurrent
+    && !!model && !error && model.featureErrors.length === 0 && !importing && !exporting;
   const canExport =
     !editing &&
     ready &&
@@ -577,18 +848,59 @@ export default function App() {
     !error &&
     !exporting &&
     !importing;
+  const canCreateAssemblyFromPart = !editing && !stagedSketch && ready && !busy
+    && previewCurrent && builtFeatures === doc.features && !!model?.vertices.length
+    && !error && model.featureErrors.length === 0 && !importing && !exporting && !discardOpen;
   const notify = (message: string, isError = false) => {
     setToast(message);
     setToastError(isError);
   };
   const requireFinishedEdit = () => {
+    if (!isActiveOwner()) return false;
     if (!editing) return true;
     notify("Acepta o cancela la operación en curso antes de continuar.");
     return false;
   };
-  const editFeature = (feature: Feature) => {
-    setPickingEndFace(false);
+  const focusTreeOccurrence = (featureId: string, parentId?: string) => {
+    const key = treeOccurrenceKey(featureId, parentId);
+    const target = Array.from(treeElement.current?.querySelectorAll<HTMLElement>(".tree-row[data-tree-occurrence]") ?? [])
+      .find(element => element.dataset.treeOccurrence === key);
+    target?.focus();
+    return !!target;
+  };
+  // The PropertyManager replaces the tree while editing. Restore the exact shared
+  // profile occurrence after its row mounts again, including an unused profile
+  // that acquired an owner when its staged operation was accepted.
+  useLayoutEffect(() => {
+    const destination = editTreeReturn.current;
+    if (editing || !destination) return;
+    const feature = doc.features.find(candidate => candidate.id === destination.featureId);
+    if (!feature) { editTreeReturn.current = null; return; }
+    const owners = feature.type === "sketch" ? revealPartSketchOwners(doc.features, feature.id, destination.parentId) : [];
+    const parentId = owners[0];
+    if (!treeOpen || query || owners.some(id => !expandedFeatureIds.has(id))) {
+      setTreeOpen(true);
+      setQuery("");
+      if (owners.some(id => !expandedFeatureIds.has(id)))
+        setExpandedFeatureIds(previous => new Set([...previous, ...owners]));
+      return;
+    }
+    if (focusTreeOccurrence(feature.id, parentId)) editTreeReturn.current = null;
+  });
+  const editFeature = (feature: Feature, preferredOwnerId?: string) => {
+    invalidateViewportPopup();
+    stopEndPicking();
     if (!requireFinishedEdit()) return;
+    const previousOccurrence = selectedTreeOccurrence.current;
+    const preferred = preferredOwnerId ?? (previousOccurrence?.featureId === feature.id ? previousOccurrence.parentId : undefined);
+    const owners = feature.type === "sketch" ? revealPartSketchOwners(doc.features, feature.id, preferred) : [];
+    const occurrence = { featureId: feature.id, parentId: owners[0] };
+    editTreeReturn.current = occurrence;
+    selectedTreeOccurrence.current = occurrence;
+    setSelected(feature.id);
+    setTreeOpen(true);
+    setQuery("");
+    if (owners.length) setExpandedFeatureIds(previous => new Set([...previous, ...owners]));
     setHoleSection("type");
     setSelectedHolePosition(
       feature.type === "hole" ? (feature.positions[0]?.id ?? null) : null,
@@ -605,7 +917,7 @@ export default function App() {
     setEdgeSelection([]);
     setFaceSelection(null);
     setPickingSupport(false);
-    setSelectionMode("body");
+    setSelectionMode("auto");
     setTab(feature.type === "sketch" ? "Croquis" : "Operaciones");
     if (feature.type === "sketch") {
       setSketchTool("select");
@@ -615,26 +927,103 @@ export default function App() {
     }
   };
   const apply = (next: Document) => {
+    stopAxisPicking();
+    invalidateViewportPopup();
     setDoc(history.current!.apply(next));
     setError("");
   };
-  const changeView = (name: ViewName) => setView({ name, stamp: Date.now() });
+  const [sketchFitStamp, setSketchFitStamp] = useState(0);
+  const viewIs2D = editing?.type === 'sketch' && !pickingSupport || placingHoles;
+  const normalReferences = useMemo((): PartViewReference[] | null => {
+    if (edgeSelection.length || bodySelection.length) return null;
+    if (normalSelection && normalSelection.face === faceSelection && normalSelection.selected === selected)
+      return normalSelection.document === doc && normalSelection.model === visibleBase ? normalSelection.references : null;
+    if (faceSelection) return [{ kind: 'face', face: faceSelection.ref }];
+    if (selectedFeature) return [{ kind: 'feature', id: selectedFeature.id }];
+    if (selected === 'XY' || selected === 'XZ' || selected === 'YZ') return [{ kind: 'principal', plane: selected }];
+    return selected ? null : [];
+  }, [normalSelection, faceSelection, selected, selectedFeature, doc, visibleBase, edgeSelection.length, bodySelection.length]);
+  const normalTarget = useMemo(() => normalReferences && partNormalToTarget(normalReferences, visibleBase, operationDocument.features),
+    [normalReferences, visibleBase, operationDocument.features]);
+  const canNormal = !viewHistory.navigating && !busy && previewCurrent && !sourceLoading && !importing && !exporting
+    && !discardOpen && !newDocumentDialog.pending() && (!!viewIs2D || !!normalTarget && validateNormalToTarget(normalTarget));
+  const adoptNamedViewMetadata = (next: Document) => {
+    const before = docRef.current;
+    if (!sameDocumentExceptNamedViews(before, next)) throw Error('Sólo se puede modificar el catálogo de vistas.');
+    const owned = { ...next, features: before.features };
+    const selection = normalSelectionRef.current;
+    if (selection?.document === before && selection.model === visibleBase)
+      setNormalSelection({ ...selection, document: owned });
+    docRef.current = owned; setDoc(owned); return owned;
+  };
+  const namedViews = useNamedDocumentViews({ document: doc, identity: documentEpoch.current, scene: model, history: viewHistory,
+    isCurrent: () => docRef.current === doc && !fileOperation.current,
+    blocked: !!editing || !!stagedSketch || busy || !previewCurrent || !model || sourceLoading || importing || exporting
+      || fileOperation.current || discardOpen || rename || showHelp || newDocumentDialog.pending(),
+    commit: next => {
+      if (docRef.current !== doc || !sameDocumentExceptNamedViews(doc, next)) throw Error('El documento ha cambiado.');
+      return adoptNamedViewMetadata(history.current!.apply(next));
+    },
+    recall: savedView => setView(previous => ({ name: 'named', stamp: previous.stamp + 1, view: savedView })),
+  });
+  const selectViewReference = (reference: PartViewReference, additive = false) => {
+    invalidateViewportPopup();
+    if (editing || busy || !previewCurrent || docRef.current !== doc || normalSelectionRef.current !== normalSelection) return;
+    if (additive && normalReferences === null) return;
+    const references = togglePartViewReference(normalReferences ?? [], reference, additive);
+    const last = references.at(-1);
+    const face = last?.kind === 'face' ? modelFaceSelection.findPrimary(last.face) ?? null : null;
+    const selected = last?.kind === 'feature' ? last.id : last?.kind === 'principal' ? last.plane : null;
+    if (last?.kind === 'face' && !face) return;
+    setNormalSelection({ document: doc, model: visibleBase, face, selected, references });
+    setFaceSelection(face); setSelected(selected); setEdgeSelection([]); setBodySelection([]);
+    if (last?.kind === 'principal') setPlane(last.plane);
+  };
+  const changeView = (name: ViewName) => {
+    invalidateViewportPopup();
+    if (namedViews.isOpen || viewHistory.navigating) return;
+    if (name === 'previous' && (!viewHistory.canPrevious || viewIs2D)) return;
+    if (viewIs2D) { if (name === 'fit' || name === 'normal' && canNormal) setSketchFitStamp(stamp => stamp + 1); return; }
+    if (name === 'normal') {
+      if (!canNormal || !normalTarget || normalSelectionRef.current !== normalSelection) {
+        notify('Selecciona una cara o plano actual, o dos planos no paralelos para definir qué queda arriba.', true); return;
+      }
+      setView(previous => ({ name: 'normal', target: structuredClone(normalTarget), stamp: previous.stamp + 1 })); return;
+    }
+    setView(previous => ({ name, stamp: previous.stamp + 1 }));
+  };
   useEffect(() => {
-    initKernel()
-      .then(() => setReady(true))
+    const owner = embeddedEdit;
+    if (!isActiveOwner(owner)) return;
+    let active = true;
+    runProducer(() => initKernel())
+      .then(() => { if (active && isActiveOwner(owner)) setReady(true); })
       .catch((e) => {
+        if (!active || !isActiveOwner(owner)) return;
         setError(`No se pudo iniciar el motor geométrico: ${e.message}`);
         setBusy(false);
       });
-  }, []);
+    return () => { active = false; };
+  }, [runProducer, embeddedEdit?.activation, embeddedEdit?.active]);
   useEffect(() => {
-    if (!ready) return;
+    const owner = embeddedEdit;
+    if (!ready || !isActiveOwner(owner)) return;
     let active = true;
     setBusy(true);
-    const timer = setTimeout(() => {
-      buildModel(effectiveFeatures)
+    let timer: ReturnType<typeof setTimeout>;
+    let registered: EmbeddedPartTimer | null = null;
+    if (owner) {
+      registered = owner.work.registerTimer(owner.activation, () => clearTimeout(timer));
+      if (!registered) return;
+    }
+    timer = setTimeout(() => {
+      const send = () => buildModel(effectiveFeatures);
+      const result = owner && registered ? owner.work.runTimer(registered, send) : runProducer(send);
+      result
         .then((result) => {
-          if (active) {
+          if (owner && isActiveOwner(owner)) setWorkRevision(value => value + 1);
+          if (active && isActiveOwner(owner)) {
+            builtActivation.current = owner?.activation ?? null;
             setModel(result);
             setBuiltFeatures(effectiveFeatures);
             setBusy(false);
@@ -642,7 +1031,9 @@ export default function App() {
           }
         })
         .catch((e) => {
-          if (active) {
+          if (owner && isActiveOwner(owner)) setWorkRevision(value => value + 1);
+          if (active && isActiveOwner(owner)) {
+            builtActivation.current = null;
             setBuiltFeatures(null);
             setError(e.message);
             setBusy(false);
@@ -651,10 +1042,14 @@ export default function App() {
     }, 120);
     return () => {
       active = false;
-      clearTimeout(timer);
+      if (owner && registered) owner.work.cancelTimer(registered);
+      else clearTimeout(timer);
     };
-  }, [effectiveFeatures, ready]);
+  }, [effectiveFeatures, ready, runProducer, embeddedEdit?.activation, embeddedEdit?.active,
+    embeddedEdit ? buildSnapshot : null, fileBuildRevision]);
   useEffect(() => {
+    const owner = embeddedEdit;
+    if (!isActiveOwner(owner)) return;
     if (!ready || !sourceFeatures) {
       setSourceModel(null);
       setSourceBuiltFeatures(null);
@@ -665,16 +1060,16 @@ export default function App() {
     setSourceLoading(true);
     setSourceModel(null);
     setSourceBuiltFeatures(null);
-    buildModel(sourceFeatures)
+    runProducer(() => buildModel(sourceFeatures))
       .then((result) => {
-        if (active) {
+        if (active && isActiveOwner(owner)) {
           setSourceModel(result);
           setSourceBuiltFeatures(sourceFeatures);
           setSourceLoading(false);
         }
       })
       .catch((reason) => {
-        if (active) {
+        if (active && isActiveOwner(owner)) {
           setSourceLoading(false);
           setError(reason.message);
         }
@@ -682,19 +1077,22 @@ export default function App() {
     return () => {
       active = false;
     };
-  }, [ready, sourceFeatures]);
+  }, [ready, sourceFeatures, runProducer, embeddedEdit?.activation, embeddedEdit?.active]);
   useEffect(() => {
     setEdgeSelection([]);
   }, [doc.features]);
   useEffect(() => {
+    if (embeddedEdit) return;
+    if (preservedRecovery.current === serializedDocument) return;
+    preservedRecovery.current = null;
     try {
-      localStorage.setItem("solidflow.autosave", serializedDocument);
+      writeCadRecovery(localStorage, doc);
     } catch {
       notify(
         "No se pudo guardar la recuperación local. Guarda la pieza en un archivo.",
       );
     }
-  }, [serializedDocument]);
+  }, [doc, serializedDocument, !!embeddedEdit]);
   useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(() => setToast(""), 4500);
@@ -710,23 +1108,43 @@ export default function App() {
     };
   }, [discardOpen]);
   useEffect(
-    () => () => {
-      const resolve = discardDecision.current;
-      discardDecision.current = null;
-      resolve?.(false);
+    () => {
+      mounted.current = true;
+      return () => {
+        mounted.current = false;
+        browserOpenSource.current = null;
+        const resolve = discardDecision.current;
+        discardDecision.current = null;
+        resolve?.(false);
+      };
     },
     [],
   );
   const reset = (next: Document, path?: string, markSaved = false) => {
-    setPickingEndFace(false);
+    if (embeddedRef.current || !isActiveOwner()) return;
+    stopAxisPicking();
+    namedViews.close();
+    documentEpoch.current++;
+    viewHistory.reset();
+    preservedRecovery.current = null;
+    browserOpenSource.current = null;
+    editTreeReturn.current = null;
+    selectedTreeOccurrence.current = null;
+    setExpandedFeatureIds(new Set());
+    setBodyCatalogOpen(true);
+    revealedUnavailableBodies.current = "";
+    setQuery("");
+    setTreeOpen(true);
+    stopEndPicking();
     setHoleSection("type");
     setSelectedHolePosition(null);
     setDoc(history.current!.reset(next));
     setModel(null);
     setBuiltFeatures(null);
     setEditing(null);
+    setStagedSketch(null);
     setSelected(null);
-    setSelectionMode("body");
+    setSelectionMode("auto");
     setEdgeSelection([]);
     setFaceSelection(null);
     setPickingSupport(false);
@@ -734,7 +1152,7 @@ export default function App() {
     setFilePath(path);
     setSaved(markSaved ? serializeDocument(next) : "");
     setError("");
-    changeView("iso");
+    setView(previous => ({ name: "iso", stamp: previous.stamp + 1 }));
   };
   const finishDiscard = (accepted: boolean) => {
     const resolve = discardDecision.current;
@@ -742,7 +1160,28 @@ export default function App() {
     setDiscardOpen(false);
     resolve?.(accepted);
   };
+  const returnToAssembly = () => {
+    const owner = embeddedRef.current, current = liveEditor.current;
+    if (!owner || !canReturnCurrentPart() || !owner.work.isReady(owner.activation, current.buildSnapshot)) {
+      notify("Termina la operación y espera a que la pieza se reconstruya antes de volver al ensamblaje.");
+      return;
+    }
+    if (!owner.onReturn(current.doc, owner.activation, current.buildSnapshot))
+      notify("La pieza o el ensamblaje cambiaron. Revisa la edición antes de volver.", true);
+  };
+  const discardEmbeddedPart = async () => {
+    const owner = embeddedRef.current;
+    if (!owner || !isActiveOwner(owner) || discardDecision.current || fileOperation.current) return;
+    const changed = serializeCadDocument(docRef.current) !== owner.baselineSerialized;
+    const unfinished = liveEditor.current.unfinished || !!editingRef.current;
+    if (changed || unfinished) {
+      const confirmed = await new Promise<boolean>(resolve => { discardDecision.current = resolve; setDiscardOpen(true); });
+      if (!confirmed || !mounted.current || !isActiveOwner(owner)) return;
+    }
+    owner.onDiscard();
+  };
   const canReplace = async (ownsFileOperation = false): Promise<boolean> => {
+    if (embeddedRef.current || !isActiveOwner()) return false;
     // A second shortcut must not queue another document replacement.
     if (discardDecision.current) return false;
     if (fileOperation.current && !ownsFileOperation) {
@@ -755,14 +1194,67 @@ export default function App() {
       setDiscardOpen(true);
     });
   };
+  const newDocumentBlocked = !!embeddedEdit || busy || !!editing || !!stagedSketch || importing || exporting || discardOpen;
+  const newDocumentUnsafe = busy || !!editing || !!stagedSketch || importing || exporting;
+  const newDocumentUnsafeRef = useRef(newDocumentUnsafe); newDocumentUnsafeRef.current = newDocumentUnsafe;
+  const newDocumentBlockedRef = useRef(newDocumentBlocked); newDocumentBlockedRef.current = newDocumentBlocked;
   const newDoc = async () => {
-    if (await canReplace()) reset(createDocument("Pieza1"));
+    if (embeddedRef.current || !isActiveOwner()) return;
+    if (newDocumentRequest.current || newDocumentBlockedRef.current || fileOperation.current || discardDecision.current) return;
+    newDocumentRequest.current = true;
+    const source = replacementSource();
+    const fresh = () => isReplacementCurrent(source) && !newDocumentUnsafeRef.current && !fileOperation.current;
+    try {
+      await requestNewDocument({ choose: newDocumentDialog.choose, current: fresh, confirm: () => canReplace(), create: kind => {
+        if (kind === 'part') reset(createDocument("Pieza1"));
+        else onOpenAssembly(createEmptyAssembly());
+      } });
+    } catch (reason) { if (mounted.current) notify((reason as Error).message, true); }
+    finally { newDocumentRequest.current = false; }
+  };
+  const replacementSource = (): ReplacementSource => ({ document: docRef.current, editing: editingRef.current, epoch: documentEpoch.current });
+  const isReplacementCurrent = (source: ReplacementSource) => mounted.current && source.epoch === documentEpoch.current &&
+    source.document === docRef.current && source.editing === editingRef.current;
+  const openReplacement = (content: string, path: string | undefined, source: ReplacementSource) => {
+    if (embeddedRef.current || !isActiveOwner()) return;
+    const next = parseCadDocument(content);
+    const saved = serializeCadDocument(next);
+    if (!isReplacementCurrent(source)) throw new Error("El documento cambió durante la apertura. Vuelve a abrir el archivo.");
+    if (next.version === 2 || next.version === 3) onOpenAssembly(next, path, saved);
+    else reset(next, path, true);
+  };
+  const newAssembly = async () => {
+    if (embeddedRef.current || !isActiveOwner()) return;
+    if (newDocumentRequest.current || newDocumentBlockedRef.current || fileOperation.current || discardDecision.current) return;
+    newDocumentRequest.current = true;
+    const source = replacementSource();
+    try {
+      if (!(await canReplace()) || !isReplacementCurrent(source) || newDocumentUnsafeRef.current || fileOperation.current) return;
+      onOpenAssembly(createEmptyAssembly());
+    } catch (reason) { if (mounted.current) notify((reason as Error).message, true); }
+    finally { newDocumentRequest.current = false; }
+  };
+  const newAssemblyFromPart = () => {
+    if (embeddedRef.current || !isActiveOwner()) return;
+    if (!requireFinishedEdit()) return;
+    if (fileOperation.current || discardDecision.current) {
+      notify("Termina la operación de archivo actual antes de crear el ensamblaje.");
+      return;
+    }
+    if (!mounted.current || !canCreateAssemblyFromPart || docRef.current !== doc || editingRef.current) return;
+    // Synchronous snapshot transfer: no pending editor, file read or stale build
+    // can replace the committed part. The new assembly owns its own Save path.
+    try { onOpenAssembly(createAssemblyFromPart(docRef.current)); }
+    catch (reason) { notify((reason as Error).message, true); }
   };
   const loadDemo = async () => {
     if (await canReplace()) reset(createDemoDocument());
   };
   const loadConstrainedDemo = async () => {
     if (await canReplace()) reset(createConstrainedPlateDocument());
+  };
+  const loadPartSequenceDemo = async () => {
+    if (await canReplace()) reset(createPartSequenceDocument());
   };
   const loadSketchRelationsDemo = async (
     kind: "angle" | "tangent" | "driven",
@@ -890,6 +1382,8 @@ export default function App() {
     }
   };
   const saveDoc = async (saveAs = false) => {
+    if (!isActiveOwner()) return;
+    if (namedViews.isOpen) return;
     if (!requireFinishedEdit()) return;
     if (fileOperation.current) {
       notify("Espera a que termine la operación de archivo actual.");
@@ -897,43 +1391,47 @@ export default function App() {
     }
     fileOperation.current = true;
     const snapshot = serializedDocument;
+    const epoch = documentEpoch.current;
+    const owner = embeddedRef.current;
     try {
-      if (window.solidflow) {
-        const path = await window.solidflow.saveDocument(
-          snapshot,
-          doc.name,
-          saveAs ? undefined : filePath,
-        );
-        if (!path) return;
-        if (docRef.current.id === doc.id) setFilePath(path);
-      } else
-        download(
-          new Blob([snapshot], { type: "application/json" }),
-          doc.name + ".solidflow",
-        );
-      if (docRef.current.id === doc.id) setSaved(snapshot);
-      notify("Pieza guardada");
+      await runProducer(async () => {
+        if (window.solidflow) {
+          const path = await window.solidflow.saveDocument(snapshot, doc.name, owner || saveAs ? undefined : filePath);
+          if (!path || !mounted.current || !isActiveOwner(owner) || documentEpoch.current !== epoch) return;
+          if (!owner) setFilePath(path);
+        } else download(new Blob([snapshot], { type: "application/json" }), doc.name + ".solidflow");
+        if (!mounted.current || !isActiveOwner(owner) || documentEpoch.current !== epoch) return;
+        setSaved(snapshot);
+        notify(owner ? "Copia guardada. Los cambios de la pieza siguen pendientes en el ensamblaje." : "Pieza guardada");
+      });
     } catch (e) {
-      notify((e as Error).message, true);
+      if (mounted.current && isActiveOwner(owner)) notify((e as Error).message, true);
     } finally {
       fileOperation.current = false;
+      if (owner && isActiveOwner(owner)) setFileBuildRevision(value => value + 1);
     }
   };
   const openDoc = async () => {
-    if (!(await canReplace())) return;
+    if (embeddedRef.current || !isActiveOwner()) return;
+    const source = replacementSource();
+    if (!(await canReplace()) || !isReplacementCurrent(source)) return;
     fileOperation.current = true;
     try {
       if (window.solidflow) {
         const file = await window.solidflow.openDocument();
-        if (file) reset(parseDocument(file.content), file.path, true);
-      } else fileInput.current?.click();
+        if (file) openReplacement(file.content, file.path, source);
+      } else {
+        browserOpenSource.current = source;
+        fileInput.current?.click();
+      }
     } catch (e) {
-      notify((e as Error).message, true);
+      if (mounted.current) notify((e as Error).message, true);
     } finally {
       fileOperation.current = false;
     }
   };
   const performStepImport = async (read: () => Promise<StepFile | null>) => {
+    if (embeddedRef.current || !isActiveOwner()) return;
     if (!requireFinishedEdit()) return;
     if (fileOperation.current) {
       notify("Espera a que termine la operación de archivo actual.");
@@ -962,7 +1460,23 @@ export default function App() {
       fileOperation.current = false;
     }
   };
+  const selectStructuralStep = async () => {
+    if (embeddedRef.current || !isActiveOwner()) return;
+    if (!requireFinishedEdit() || fileOperation.current || !ready) return;
+    const epoch = documentEpoch.current, original = serializeDocument(docRef.current), editing = editingRef.current;
+    const fresh = () => mounted.current && documentEpoch.current === epoch && editingRef.current === editing && serializeDocument(docRef.current) === original;
+    fileOperation.current = true; setImporting(true);
+    try {
+      const result = await importStructuralStep({ fresh, prepare: importAssemblyStep,
+        read: window.solidflow ? () => window.solidflow!.importStep() : () => new Promise<StepFile|null>((resolve,reject) => { structuralRead.current={resolve,reject}; structuralInput.current?.click(); }),
+        confirm: () => canReplace(true), commit: next => onOpenAssembly(next),
+      });
+      if (fresh() && result === 'stale') notify('La pieza cambió durante la importación estructural.');
+    } catch(reason) { if(fresh()) notify((reason as Error).message,true); }
+    finally { if(mounted.current && documentEpoch.current===epoch) {fileOperation.current=false;setImporting(false);} }
+  };
   const selectStep = () => {
+    if (embeddedRef.current || !isActiveOwner()) return;
     if (!requireFinishedEdit()) return;
     if (fileOperation.current) {
       notify("Espera a que termine la operación de archivo actual.");
@@ -972,6 +1486,7 @@ export default function App() {
     else stepInput.current?.click();
   };
   const exportFile = async (format: "step" | "stl") => {
+    if (!isActiveOwner()) return;
     if (!requireFinishedEdit()) return;
     if (!canExport) return;
     if (fileOperation.current) {
@@ -980,25 +1495,29 @@ export default function App() {
     }
     fileOperation.current = true;
     setExporting(true);
+    const owner = embeddedRef.current;
     try {
-      const blob = await exportCad(format, doc.features);
-      if (window.solidflow) {
-        const path = await window.solidflow.exportDocument(
-          new Uint8Array(await blob.arrayBuffer()),
-          doc.name,
-          format,
-        );
-        if (!path) return;
-      } else download(blob, doc.name + "." + format);
-      notify(`Geometría exportada en ${format.toUpperCase()}`);
+      await runProducer(async () => {
+        const blob = await exportCad(format, doc.features);
+        if (!mounted.current || !isActiveOwner(owner)) return;
+        if (window.solidflow) {
+          const bytes = new Uint8Array(await blob.arrayBuffer());
+          if (!mounted.current || !isActiveOwner(owner)) return;
+          const path = await window.solidflow.exportDocument(bytes, doc.name, format);
+          if (!path) return;
+        } else download(blob, doc.name + "." + format);
+        if (mounted.current && isActiveOwner(owner)) notify(`Geometría exportada en ${format.toUpperCase()}`);
+      });
     } catch (e) {
-      notify((e as Error).message, true);
+      if (mounted.current && isActiveOwner(owner)) notify((e as Error).message, true);
     } finally {
       fileOperation.current = false;
-      setExporting(false);
+      if (mounted.current && isActiveOwner(owner)) setExporting(false);
+      if (owner && isActiveOwner(owner)) setFileBuildRevision(value => value + 1);
     }
   };
   const undo = () => {
+      if (namedViews.isOpen) return;
       if (editing?.type === "sketch") {
         const previous = sketchPast.at(-1);
         if (!previous) return;
@@ -1012,11 +1531,14 @@ export default function App() {
         return;
       }
       if (!requireFinishedEdit()) return;
-      setDoc(history.current!.undo());
+      const next = history.current!.undo();
+      if (sameDocumentExceptNamedViews(docRef.current, next)) { adoptNamedViewMetadata(next); return; }
+      setDoc(next);
       setSelected(null);
       setError("");
     },
     redo = () => {
+      if (namedViews.isOpen) return;
       if (editing?.type === "sketch") {
         const next = sketchFuture.at(-1);
         if (!next) return;
@@ -1030,7 +1552,9 @@ export default function App() {
         return;
       }
       if (!requireFinishedEdit()) return;
-      setDoc(history.current!.redo());
+      const next = history.current!.redo();
+      if (sameDocumentExceptNamedViews(docRef.current, next)) { adoptNamedViewMetadata(next); return; }
+      setDoc(next);
       setSelected(null);
       setError("");
     };
@@ -1045,7 +1569,7 @@ export default function App() {
       return;
     }
     const support = selectedSupport();
-    setSelectionMode("body");
+    setSelectionMode("auto");
     setEdgeSelection([]);
     setFaceSelection(null);
     setPickingSupport(false);
@@ -1093,7 +1617,7 @@ export default function App() {
       reversed: false,
       suppressed: false,
     });
-    setSelectionMode("body");
+    setSelectionMode("auto");
     setFaceSelection(null);
     setPickingSupport(false);
     setEdgeSelection([]);
@@ -1119,15 +1643,17 @@ export default function App() {
     setFaceSelection(null);
     setError("");
   };
-  const changeEndTarget = (target: PlaneSupport) => {
-    if (!extrudeEditing || extrudeEditing.endCondition?.kind !== "upToSurface")
-      return;
-    changeDraft({ endCondition: { kind: "upToSurface", target } });
-    setPickingEndFace(false);
+  const changeEndTarget = (target: PlaneSupport, side: ExtrusionSide, request?: ExtrusionEndPickingRequest) => {
+    if (!mounted.current || !extrudeEditing || extrusionEndForSide(extrudeEditing, side)?.kind !== 'upToSurface'
+      || !thinWallSourceCurrent || (side === 'second' && bodyPicking) || pickingSupport || editingRef.current !== extrudeEditing || docRef.current !== doc) return;
+    if (request && (endPickingAuthority.current !== request || request.side !== side || request.draft !== extrudeEditing
+      || request.document !== doc || request.epoch !== documentEpoch.current)) return;
+    changeDraft(extrusionEndPatch(extrudeEditing, side, { kind: 'upToSurface', target }));
+    stopEndPicking();
     setFaceSelection(null);
     setError("");
   };
-  const selectFace = (face: PickableFace | null) => {
+  const selectFace = (face: PickableFace | null, additive = false) => {
     if (
       (pickingMirror ||
         pickingFaceOperation ||
@@ -1155,7 +1681,8 @@ export default function App() {
       return;
     }
     if (pickingExtrude) {
-      if (currentFace) changeEndTarget({ kind: "face", face: currentFace.ref });
+      const request = endPickingAuthority.current;
+      if (currentFace && request) changeEndTarget({ kind: 'face', face: currentFace.ref }, request.side, request);
       return;
     }
     if (faceEditing && !facePreview && !pickingSupport) {
@@ -1180,9 +1707,12 @@ export default function App() {
       }
       changeSupport({ kind: "face", face: currentFace.ref });
     } else {
-      setFaceSelection(currentFace ?? null);
-      setSelected(null);
-      setEdgeSelection([]);
+      if (!editing && currentFace) selectViewReference({ kind: 'face', face: currentFace.ref }, additive);
+      else {
+        setNormalSelection(null); setFaceSelection(currentFace ?? null);
+        if (!editing) setBodySelection([]);
+        setSelected(null); setEdgeSelection([]);
+      }
       if (currentFace && !currentFace.frame)
         notify(
           "Cara curva seleccionada. Los croquis planos requieren una cara plana.",
@@ -1262,46 +1792,67 @@ export default function App() {
     }
     setBodySelection([]);
     setBodyPicking(false);
-    setSelectionMode("body");
+    setSelectionMode("auto");
     setFaceSelection(null);
     setEdgeSelection([]);
     setPickingSupport(false);
     setTab("Operaciones");
     setError("");
   };
-  const startFeature = (type: "extrude" | "cut" | "revolve") => {
-    if (!requireFinishedEdit()) return;
-    setPickingEndFace(false);
+  const startFeature = (type: "extrude" | "cut" | "revolve" | "revolvedCut") => {
+    if (editing && !canContinueSketch) { requireFinishedEdit(); return; }
+    if (!canStartProfileFeature || !model) {
+      notify("Espera a que la pieza se reconstruya sin errores antes de añadir la operación.");
+      return;
+    }
+    if (type === "revolvedCut" && !model.vertices.length) {
+      notify("Crea primero un sólido antes de aplicar un corte por revolución.");
+      return;
+    }
+    stopEndPicking();
     setPickingSupport(false);
-    setSelectionMode("body");
+    setSelectionMode("auto");
     setEdgeSelection([]);
     setFaceSelection(null);
     const sketch =
+      (canContinueSketch && editing?.type === "sketch" ? editing : undefined) ??
       (selectedSketch?.suppressed ? undefined : selectedSketch) ??
       [...doc.features]
         .reverse()
         .find((f) => f.type === "sketch" && !f.suppressed);
-    if (!sketch) {
+    if (!sketch || sketch.type !== "sketch") {
       notify("Crea o selecciona un croquis antes de añadir la operación.");
       return;
+    }
+    if (canContinueSketch) {
+      // Admission can reject document limits. Keep that failure in the command,
+      // before rendering the staged document or changing the current editor.
+      try { stagePartSketch(doc, sketch); }
+      catch (reason) { notify((reason as Error).message, true); return; }
+      setStagedSketch(sketch);
     }
     const base = {
       id: crypto.randomUUID(),
       name: `${labels[type]}${doc.features.filter((f) => f.type === type).length + 1}`,
       sketchId: sketch.id,
       suppressed: false,
+      ...(thinWallRequiredByProfile(sketch.id, model, previewCurrent) ? { thinWall: defaultThinWallDefinition() } : {}),
     };
     const explicitBodies = model?.bodyCatalogActive === true || !doc.features.some(feature => feature.type !== "sketch" && feature.type !== "plane" && !isBodyCommandFeature(feature));
     bodyOutputId.current = crypto.randomUUID();
-    setBodySelection(type === "cut" && explicitBodies ? bodySelection.map(ref => ({ ...ref })) : []);
-    setBodyPicking(type === "cut" && explicitBodies);
+    const targets = explicitBodies ? initialPartTargets(model.bodies ?? [], bodySelection, sketch) : [];
+    const mergeTarget = type === "extrude" && sketch.support?.kind === "face" && targets.length === 1 ? targets[0] : null;
+    setBodySelection(type === "cut" || type === "revolvedCut" || mergeTarget ? targets : []);
+    setBodyPicking((type === "cut" || type === "revolvedCut") && explicitBodies && !targets.length);
     if (type === "revolve") setEditing({ ...base, type, angle: 360,
       ...(explicitBodies ? { bodyOperation: { mode: "new", bodyId: bodyOutputId.current } } : {}) });
+    else if (type === "revolvedCut") setEditing({ ...base, type, angle: 360,
+      ...(explicitBodies ? { bodyScope: targets } : {}) });
     else if (type === "cut") setEditing({ ...base, type,
       depth: sketch.type === "sketch" && sketch.support ? -20 : 20, symmetric: false,
-      ...(explicitBodies ? { bodyScope: bodySelection.map(ref => ({ ...ref })) } : {}) });
+      ...(explicitBodies ? { bodyScope: targets } : {}) });
     else setEditing({ ...base, type, depth: 20, symmetric: false,
-      ...(explicitBodies ? { bodyOperation: { mode: "new", bodyId: bodyOutputId.current } } : {}) });
+      ...(explicitBodies ? { bodyOperation: mergeTarget ? { mode: "merge", target: mergeTarget } : { mode: "new", bodyId: bodyOutputId.current } } : {}) });
     setTab("Operaciones");
     setError("");
   };
@@ -1313,8 +1864,8 @@ export default function App() {
     bodyOutputId.current = crypto.randomUUID();
     const feature: CombineFeature = { id: crypto.randomUUID(), type: "combine", name: `Combinar${doc.features.filter(item => item.type === "combine").length + 1}`,
       suppressed: false, operation: "add", operands: bodySelection.map(ref => ({ ...ref })), resultBodyId: bodyOutputId.current, keepTools: false };
-    setEditing(feature); setBodyPicking(true); setPickingSupport(false); setPickingEndFace(false);
-    setFaceSelection(null); setEdgeSelection([]); setSelectionMode("body"); setTab("Operaciones"); setError("");
+    setEditing(feature); setBodyPicking(true); setPickingSupport(false); stopEndPicking();
+    setFaceSelection(null); setEdgeSelection([]); setSelectionMode("auto"); setTab("Operaciones"); setError("");
   };
   const startRepetition = (type: RepetitionFeature["type"]) => {
     if (!requireFinishedEdit()) return;
@@ -1386,7 +1937,7 @@ export default function App() {
       setBodySelection(seeds); setBodyPicking(true);
     }
     setEditing(draft);
-    setSelectionMode("body");
+    setSelectionMode("auto");
     setFaceSelection(null);
     setPickingSupport(false);
     setEdgeSelection([]);
@@ -1439,7 +1990,7 @@ export default function App() {
     );
     setFacePreview(false);
     setBodyPicking(false);
-    setSelectionMode("body");
+    setSelectionMode("auto");
     setFaceSelection(null);
     setPickingSupport(false);
     setEdgeSelection([]);
@@ -1488,8 +2039,8 @@ export default function App() {
     setHoleSection("positions");
     setSelectedHolePosition(null);
     setPickingSupport(!selectedFace && !chosenPlane);
-    setPickingEndFace(false);
-    setSelectionMode("body");
+    stopEndPicking();
+    setSelectionMode("auto");
     setFaceSelection(null);
     setEdgeSelection([]);
     setSelected(null);
@@ -1533,12 +2084,13 @@ export default function App() {
     });
     setFinishPreview(false);
     setBodyPicking(false);
-    setSelectionMode("body");
+    setSelectionMode("auto");
     setSelected(null);
     setTab("Operaciones");
     setError("");
   };
   const toggleEdge = (edge: EdgeReference) => {
+    invalidateViewportPopup();
     if (finishEditing) {
       if (sourceLoading) return;
       const current =
@@ -1558,6 +2110,8 @@ export default function App() {
       const edges = modelEdgeSelection.toggle(edgeSelection, edge);
       if (!edges) return;
       setEdgeSelection(edges);
+      setFaceSelection(null);
+      if (!editing) setBodySelection([]);
       setSelected(null);
     }
   };
@@ -1639,6 +2193,7 @@ export default function App() {
   };
   const acceptEdit = () => {
     if (!editing || !canAccept) return;
+    if (stagedSketch && (!("sketchId" in editing) || editing.sketchId !== stagedSketch.id)) return;
     if (editing.type === "sketch" && sketchTool === "chamfer") {
       if (chamferPreview) applySketchChamfer(chamferPreview);
       return;
@@ -1657,49 +2212,70 @@ export default function App() {
     }
     try {
       const bodyApplication = isBodyCommandFeature(editing) && bodyPlan && sourceModel
-        ? applyBodyCommand(bodyPlan, { document: doc, feature: editing, selection: bodySelection,
+        ? applyBodyCommand(bodyPlan, { document: operationDocument, feature: editing, selection: bodySelection,
           catalog: { active: sourceModel.bodyCatalogActive === true, bodies: sourceModel.bodies ?? [] } },
           { features: builtFeatures, healthy: !busy && !error && !!model && model.featureErrors.length === 0 }) : null;
       if (isBodyCommandFeature(editing) && !bodyApplication?.accepted) throw new Error(bodyApplication && !bodyApplication.accepted ? bodyApplication.message : "Espera una vista previa válida de los cuerpos.");
-      const next = bodyApplication?.accepted ? bodyApplication.document : doc.features.some((f) => f.id === editing.id)
+      const next = bodyApplication?.accepted ? bodyApplication.document : operationDocument.features.some((f) => f.id === editing.id)
         ? updateFeature(
-            doc,
+            operationDocument,
             editing.id,
             editing.type === "sketch"
               ? { ...editing, support: editing.support }
               : editing,
           )
-        : addFeature(doc, editing);
+        : addFeature(operationDocument, editing);
+      // Acceptance records the sketch before the feature so Undo can remove
+      // only the solid operation, just as when exiting the sketch explicitly.
+      if (stagedSketch) history.current!.apply(operationDocument);
       apply(next);
       setSelected(editing.id);
       setEditing(null);
+      setStagedSketch(null);
       setBodyPicking(false);
       setBodySelection([]);
       setPickingSupport(false);
-      setPickingEndFace(false);
+      stopEndPicking();
       setFaceSelection(null);
       setEdgeSelection([]);
-      setSelectionMode("body");
+      setSelectionMode("auto");
       setTab("Operaciones");
     } catch (e) {
       setError((e as Error).message);
     }
   };
   const cancelEdit = () => {
+    stopAxisPicking();
     setBodyPicking(false);
     setBodySelection([]);
-    setPickingEndFace(false);
-    setEditing(null);
+    stopEndPicking();
+    setEditing(stagedSketch);
+    setStagedSketch(null);
     setPickingSupport(false);
     setFaceSelection(null);
     setEdgeSelection([]);
-    setSelectionMode("body");
+    setSelectionMode("auto");
     setError("");
-    setTab("Operaciones");
+    setTab(stagedSketch ? "Croquis" : "Operaciones");
   };
   const changeDraft = (patch: Partial<Feature>) => {
+    stopAxisPicking();
+    stopEndPicking();
     if (!editing) return;
-    const merged = { ...editing, ...patch } as Feature;
+    let merged: Feature;
+    const original = doc.features.find(feature => feature.id === editing.id);
+    try {
+      if (isRevolutionFeature(editing)) {
+        merged = mergeRevolutionDraft(editing, patch as Partial<RevolutionFeature>, original && isRevolutionFeature(original) ? original : undefined);
+      } else if (editing.type === 'extrude' || editing.type === 'cut') {
+        merged = mergeExtrusionDraft(editing, patch as Partial<ExtrudeFeature>, original?.type === 'extrude' || original?.type === 'cut' ? original : undefined);
+      } else merged = mergeThinWallEditorDraft(editing, patch, original);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+      return;
+    }
+    if (isThinWallOperation(merged)) merged = withRequiredThinWall(merged, original,
+      thinWallRequiredByProfile(merged.sketchId, sourceModel, thinWallSourceCurrent));
     const ownedPattern = isRepetition(merged) && merged.source.mode === 'bodies' ? merged : null;
     const scopedPattern = isRepetition(merged) && merged.featurePattern ? merged : null;
     const selection = ownedPattern?.source.mode === 'bodies' ? ownedPattern.source.bodies
@@ -1716,15 +2292,44 @@ export default function App() {
       catch (error) { reconciliationError = error instanceof Error ? error.message : String(error); }
       if ('source' in patch) setBodySelection(selection.map(ref => ({ ...ref })));
     }
-    if (JSON.stringify(next) === JSON.stringify(editing)) return;
+    if (JSON.stringify(next) === JSON.stringify(editing)) return editing;
     if (editing.type === "sketch") {
       setSketchPast((old) => [...old, structuredClone(editing)].slice(-100));
       setSketchFuture([]);
     }
     setError(reconciliationError);
     setEditing(next);
+    return next;
+  };
+  const changeAxisPicking = (active: boolean) => {
+    stopAxisPicking();
+    if (!active || !editing || !isRevolutionFeature(editing) || editingRef.current !== editing || docRef.current !== doc
+      || !sourceModel || !sourceFeatures || sourceLoading || sourceBuiltFeatures !== sourceFeatures || sourceModel.featureErrors.length) return;
+    invalidateViewportPopup();
+    setBodyPicking(false); setPickingSupport(false); stopEndPicking();
+    const request = { draft: editing, document: doc, epoch: documentEpoch.current, model: sourceModel, features: sourceFeatures };
+    axisPickingAuthority.current = request; setAxisPickingRequest(request);
+  };
+  const selectRevolutionAxis = (candidate: RevolutionAxisCandidate) => {
+    const request = axisPickingRequest;
+    if (!request || axisPickingAuthority.current !== request || !mounted.current || editingRef.current !== request.draft
+      || docRef.current !== request.document || documentEpoch.current !== request.epoch || !axisCandidates.includes(candidate)) return;
+    changeDraft({ axis: structuredClone(candidate.axis) } as Partial<RevolutionFeature>);
+  };
+  const changeEndPicking = (side: ExtrusionSide) => {
+    const current = endPickingAuthority.current;
+    stopEndPicking(); stopAxisPicking();
+    if (current?.side === side || !mounted.current || !extrudeEditing || editingRef.current !== extrudeEditing || docRef.current !== doc
+      || !thinWallSourceCurrent || !sourceModel || !sourceFeatures || bodyPicking || pickingSupport
+      || extrusionEndForSide(extrudeEditing, side)?.kind !== 'upToSurface') return;
+    invalidateViewportPopup();
+    const request = { side, draft: extrudeEditing, document: doc, epoch: documentEpoch.current, model: sourceModel, features: sourceFeatures };
+    endPickingAuthority.current = request; setEndPickingRequest(request);
   };
   const chooseBodySelection = (references: BodyReference[]) => {
+    stopAxisPicking();
+    stopEndPicking();
+    invalidateViewportPopup();
     if (editing && isBodyCommandFeature(editing)) {
       let changed = withBodySelection(editing, references);
       if (isRepetition(changed) && changed.source.mode === 'bodies') {
@@ -1741,6 +2346,7 @@ export default function App() {
       }
       setEditing(changed); setBodyPicking(true); setError("");
     }
+    if (!editing) { setFaceSelection(null); setEdgeSelection([]); setSelected(null); }
     setBodySelection(references.map(ref => ({ ...ref })));
   };
   const toggleBody = (reference: BodyReference) => {
@@ -1751,6 +2357,20 @@ export default function App() {
     chooseBodySelection(bodySelection.some(ref => sameBodyReference(ref, reference))
       ? bodySelection.filter(ref => !sameBodyReference(ref, reference))
       : single ? [{ ...reference }] : [...bodySelection, { ...reference }]);
+  };
+  const clearBrowsingSelection = () => {
+    invalidateViewportPopup();
+    if (editing || busy || !previewCurrent) return;
+    setNormalSelection(null);
+    setFaceSelection(null);
+    setEdgeSelection([]);
+    setBodySelection([]);
+    setSelected(null);
+  };
+  const changeSelectionMode = (mode: PartSelectionMode) => {
+    if (editing || busy || !previewCurrent) return;
+    clearBrowsingSelection();
+    setSelectionMode(mode);
   };
   const cancelActiveEdit = () => {
     if (editing?.type === "sketch" && (sketchTool === "chamfer" || sketchTool === "fillet" || sketchTool === "mirror" || sketchTool === "offset")) {
@@ -1850,9 +2470,15 @@ export default function App() {
   };
   useEffect(() => {
     const handle = (e: KeyboardEvent) => {
+      if (!isActiveOwner()) return;
+      if (e.defaultPrevented || newDocumentDialog.pending()) return;
       const input =
         e.target instanceof HTMLElement &&
         !!e.target.closest("input,textarea,select,[contenteditable='true']");
+      if (namedViews.isOpen) return;
+      if (e.key === 'Escape' && axisPickingAuthority.current) {
+        e.preventDefault(); stopAxisPicking(); return;
+      }
       if (showHelp || rename || discardDecision.current) {
         if (e.key === "Escape") {
           if (discardDecision.current) finishDiscard(false);
@@ -1878,6 +2504,13 @@ export default function App() {
         cancelActiveEdit();
         return;
       }
+      const requestedView = viewShortcutCommand(e, input);
+      if (requestedView) {
+        if (shell.current?.querySelector('[role="menu"]')) return;
+        e.preventDefault();
+        if (!e.repeat) changeView(requestedView);
+        return;
+      }
       if (e.ctrlKey || e.metaKey) {
         const key = e.key.toLowerCase();
         if (input && (key === "z" || key === "y")) return;
@@ -1886,21 +2519,8 @@ export default function App() {
           if (key === "s") void saveDoc(e.shiftKey);
           if (key === "o") void openDoc();
           if (key === "n") newDoc();
-          if (key === "z") e.shiftKey ? redo() : undo();
+          if (key === "z" && !e.shiftKey) undo();
           if (key === "y") redo();
-        }
-        const views: Record<string, ViewName> = {
-          "1": "front",
-          "2": "back",
-          "3": "left",
-          "4": "right",
-          "5": "top",
-          "6": "bottom",
-          "7": "iso",
-        };
-        if (views[key]) {
-          e.preventDefault();
-          changeView(views[key]);
         }
       } else if (!input) {
         if (e.key === "Escape") {
@@ -1908,9 +2528,8 @@ export default function App() {
             setSketchTool("select");
             setSketchSelection([]);
           } else cancelEdit();
-          setMenu(null);
         }
-        if (e.key.toLowerCase() === "f") changeView("fit");
+
         if (e.key === "Delete") deleteSelected();
       }
     };
@@ -1938,9 +2557,9 @@ export default function App() {
     .filter(
       (feature): feature is ReferencePlaneFeature => feature.type === "plane",
     );
-  const availableFeatures = doc.features.slice(
+  const availableFeatures = operationDocument.features.slice(
     0,
-    editingIndex < 0 ? doc.features.length : editingIndex,
+    editingIndex < 0 ? operationDocument.features.length : editingIndex,
   );
   const preferredEndPlane = availablePlanes
     .filter(
@@ -2019,8 +2638,8 @@ export default function App() {
   const sketches = doc.features.filter(
     (f): f is SketchFeature => f.type === "sketch",
   );
-  const availableSketches = doc.features
-    .slice(0, editingIndex < 0 ? doc.features.length : editingIndex)
+  const availableSketches = operationDocument.features
+    .slice(0, editingIndex < 0 ? operationDocument.features.length : editingIndex)
     .filter((feature): feature is SketchFeature => feature.type === "sketch");
   const consumedSketches = new Set(
     effectiveFeatures
@@ -2029,6 +2648,18 @@ export default function App() {
   );
   const selectedSketchId =
     selectedFeature?.type === "sketch" ? selectedFeature.id : undefined;
+  // Presentation only: operationDocument includes the staged sketch. Use its solved source input.
+  const activeInputSketchKey = JSON.stringify(editing && !editing.suppressed
+    ? [...new Set(featureSketchIds(editing))] : []);
+  // Keep display inputs stable when only an operation parameter or its name changes.
+  const activeInputSketchIds = useMemo(() => JSON.parse(activeInputSketchKey) as string[], [activeInputSketchKey]);
+  const activeInputSketches = useMemo(() => {
+    if (!activeInputSketchIds.length || !sourceFeatures || sourceLoading
+      || sourceBuiltFeatures !== sourceFeatures || !sourceModel || sourceModel.featureErrors.length) return [];
+    const eligible = new Set(sourceFeatures.filter(feature => feature.type === "sketch" && !feature.suppressed)
+      .map(feature => feature.id));
+    return (sourceModel.sketches ?? []).filter(sketch => eligible.has(sketch.id) && activeInputSketchIds.includes(sketch.id));
+  }, [activeInputSketchIds, sourceFeatures, sourceLoading, sourceBuiltFeatures, sourceModel]);
   const visibleSketchIds = sketches
     .filter(
       (sketch) =>
@@ -2043,57 +2674,371 @@ export default function App() {
       visibleSketchIds.includes(sketch.id) &&
       (sketch.lines.length || sketch.constructionLines.length),
   );
-  const consumed = new Set(doc.features.flatMap(featureSketchIds));
-  const row = (feature: Feature, nested = false) => {
+  const featureTree = buildPartFeatureTree(doc.features, expandedFeatureIds, query);
+  const viewportContextBlocked = !!editing || !!stagedSketch || busy || !ready || !previewCurrent || !visibleModel
+    || sourceLoading || importing || exporting || discardOpen || rename || showHelp || newDocumentDialog.pending()
+    || namedViews.isOpen || viewHistory.navigating;
+  const browsingSelectionKey = JSON.stringify([selected, faceSelection?.ref ?? null, edgeSelection, bodySelection, normalReferences]);
+  const viewportContextFrame = useMemo(() => ({ document: doc, model: visibleModel, selection: browsingSelectionKey,
+    mode: selectionMode, showPlanes, view, blocked: viewportContextBlocked }),
+    [doc, visibleModel, browsingSelectionKey, selectionMode, showPlanes, view, viewportContextBlocked]);
+  const viewportContextCurrent = useRef({ frame: viewportContextFrame, popup: viewportPopup });
+  viewportContextCurrent.current = { frame: viewportContextFrame, popup: viewportPopup };
+  const viewportContextIsCurrent = (popup: ViewportPopup) => {
+    const live = viewportContextCurrent.current;
+    return viewportPopupAuthority.current === popup && live.popup === popup && !live.frame.blocked
+      && mounted.current && !fileOperation.current && !discardDecision.current && !newDocumentRequest.current
+      && !editingRef.current && popup.epoch === documentEpoch.current && popup.document === docRef.current
+      && popup.document === live.frame.document && popup.model === live.frame.model && popup.selection === live.frame.selection
+      && !!resolvePartContextTarget(popup.target, docRef.current, live.frame.model, live.frame.showPlanes);
+  };
+  const activeViewportPopup = viewportPopup && viewportContextIsCurrent(viewportPopup) ? viewportPopup : null;
+  useLayoutEffect(() => { if (viewportPopup && !activeViewportPopup) invalidateViewportPopup(); }, [viewportPopup, activeViewportPopup]);
+  const openViewportContext = (request: PartViewportContextRequest) => {
+    if (viewportContextCurrent.current.frame !== viewportContextFrame || viewportContextBlocked || docRef.current !== doc
+      || !mounted.current || editingRef.current || fileOperation.current || discardDecision.current
+      || newDocumentRequest.current || request.model !== visibleModel) return;
+    let target = request.target;
+    if (target.kind === 'keyboard') {
+      if (faceSelection && !edgeSelection.length && !bodySelection.length && normalReferences?.length === 1)
+        target = { kind: 'face', reference: faceSelection.ref };
+      else if (edgeSelection.length === 1 && !faceSelection && !bodySelection.length)
+        target = { kind: 'edge', reference: edgeSelection[0] };
+      else if (bodySelection.length === 1 && !faceSelection && !edgeSelection.length)
+        target = { kind: 'body', reference: bodySelection[0] };
+      else if (normalReferences?.length === 1 && normalReferences[0].kind !== 'face') {
+        const reference = normalReferences[0];
+        target = reference.kind === 'feature' ? { kind: 'feature', id: reference.id } : { kind: 'principal', plane: reference.plane };
+      } else target = { kind: 'background' };
+    }
+    const resolved = resolvePartContextTarget(target, doc, visibleModel, showPlanes);
+    if (!resolved) return;
+    target = resolved.target;
+    let selection = browsingSelectionKey;
+    if (target.kind === 'face') {
+      selectViewReference({ kind: 'face', face: target.reference });
+      selection = JSON.stringify([null, target.reference, [], [], [{ kind: 'face', face: target.reference }]]);
+    } else if (target.kind === 'principal' || target.kind === 'plane' || target.kind === 'feature') {
+      const reference: PartViewReference = target.kind === 'principal'
+        ? { kind: 'principal', plane: target.plane } : { kind: 'feature', id: target.id };
+      selectViewReference(reference);
+      selection = JSON.stringify([target.kind === 'principal' ? target.plane : target.id, null, [], [], [reference]]);
+    } else if (target.kind === 'edge') {
+      invalidateViewportPopup(); setNormalSelection(null); setSelected(null); setFaceSelection(null); setBodySelection([]);
+      const references = [{ ...target.reference }]; setEdgeSelection(references);
+      selection = JSON.stringify([null, null, references, [], null]);
+    } else if (target.kind === 'body' && target.reference) {
+      chooseBodySelection([target.reference]); setNormalSelection(null);
+      selection = JSON.stringify([null, null, [], [target.reference], null]);
+    } else if (target.kind === 'body' && resolved.feature) {
+      selectViewReference({ kind: 'feature', id: resolved.feature.id });
+      selection = JSON.stringify([resolved.feature.id, null, [], [], [{ kind: 'feature', id: resolved.feature.id }]]);
+    }
+    setFeatureMenu(null);
+    const popup: ViewportPopup = { requestId: crypto.randomUUID(), target, document: doc, model: visibleModel,
+      selection, epoch: documentEpoch.current, point: request.point, origin: request.origin };
+    viewportPopupAuthority.current = popup; setViewportPopup(popup);
+  };
+  const viewportContext = activeViewportPopup
+    ? resolvePartContextTarget(activeViewportPopup.target, doc, visibleModel, showPlanes) : null;
+  const viewportContextAction = (action: () => void) => {
+    if (!activeViewportPopup || !viewportContextIsCurrent(activeViewportPopup)) return;
+    invalidateViewportPopup(); action();
+  };
+  const menuFeature = featureMenu ? doc.features.find(feature => feature.id === featureMenu.featureId) : undefined;
+  const inputSketches = (feature: Feature) => [...new Set(featureSketchIds(feature))]
+    .map(id => doc.features.find(candidate => candidate.id === id))
+    .filter((candidate): candidate is SketchFeature => candidate?.type === "sketch");
+  const selectedInputSketches = selectedFeature ? inputSketches(selectedFeature) : [];
+  const viewportContextActions: CadContextAction[] = viewportContext ? [
+    ...(viewportContext.feature ? [{ id: 'edit-feature', label: viewportContext.feature.type === 'sketch' ? 'Editar croquis' : 'Editar operación', icon: Pencil,
+      onSelect: () => viewportContextAction(() => editFeature(viewportContext.feature!)) },
+      ...inputSketches(viewportContext.feature).map(sketch => ({ id: `edit-sketch-${sketch.id}`, label: `Editar croquis: ${sketch.name}`, icon: Square,
+        onSelect: () => viewportContextAction(() => editFeature(sketch, viewportContext.feature!.id)) }))] : []),
+    ...(viewportContext.canSketch ? [{ id: 'new-sketch', label: 'Crear croquis', icon: Pencil,
+      onSelect: () => viewportContextAction(() => startSketch()) }] : []),
+    { id: 'normal-to', label: 'Normal a', icon: PanelTop, disabled: !canNormal,
+      onSelect: () => viewportContextAction(() => changeView('normal')) },
+    ...[...standardViews, { name: 'fit' as const, label: 'Ajustar a pantalla' }, { name: 'previous' as const, label: 'Vista anterior' }]
+      .map(({ name, label }) => ({ id: `view-${name}`, label, disabled: name === 'previous' && !viewHistory.canPrevious,
+        onSelect: () => viewportContextAction(() => changeView(name)) })),
+    { id: 'named-views', label: 'Vistas guardadas…', disabled: !namedViews.canOpen,
+      onSelect: () => viewportContextAction(namedViews.open) },
+    { id: 'clear-selection', label: 'Deseleccionar', disabled: !faceSelection && !edgeSelection.length && !bodySelection.length && !selected,
+      onSelect: () => viewportContextAction(clearBrowsingSelection) },
+  ] : [];
+  const openFeatureMenu = (feature: Feature, origin: HTMLElement, point?: { x: number; y: number }, parentId?: string) => {
+    invalidateViewportPopup();
+    selectedTreeOccurrence.current = { featureId: feature.id, parentId };
+    if (!editing) selectViewReference({ kind: 'feature', id: feature.id });
+    else { setSelected(feature.id); setFaceSelection(null); }
+    const bounds = origin.getBoundingClientRect();
+    setFeatureMenu({ requestId: crypto.randomUUID(), featureId: feature.id, parentId, origin, point: point ?? { x: bounds.left + 20, y: bounds.bottom } });
+  };
+  const setFeatureExpanded = (featureId: string, expanded: boolean) => {
+    const group = featureTree.find(candidate => candidate.feature.id === featureId);
+    if (!group?.children.length || group.forcedOpen) return;
+    if (!expanded && document.activeElement instanceof HTMLElement
+      && document.activeElement.dataset.parentFeatureId === featureId) focusTreeOccurrence(featureId);
+    setExpandedFeatureIds(previous => {
+      const next = new Set(previous);
+      if (expanded) next.add(featureId); else next.delete(featureId);
+      return next;
+    });
+  };
+  const row = (feature: Feature, parentId?: string) => {
     const Icon = featureIcons[feature.type];
     const failed = model?.featureErrors.some((e) => e.id === feature.id);
+    const group = parentId === undefined ? featureTree.find(candidate => candidate.feature.id === feature.id) : undefined;
     return (
+      <div className="part-tree-entry" key={treeOccurrenceKey(feature.id, parentId)}>
+      {group && group.children.length > 0 && <button type="button" className="part-tree-toggle"
+        data-part-tree-toggle={feature.id} aria-expanded={group.expanded}
+        aria-label={`${group.expanded ? "Plegar" : "Desplegar"} ${feature.name}`}
+        aria-controls={partTreeChildrenId(feature.id)}
+        disabled={group.forcedOpen} title={group.forcedOpen ? "Los resultados del filtro permanecen desplegados" : undefined}
+        onClick={() => setFeatureExpanded(feature.id, !group.expanded)}>
+        {group.expanded ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+      </button>}
       <div
-        key={feature.id}
-        className={`tree-row ${nested ? "nested" : ""} ${selected === feature.id ? "selected" : ""} ${feature.suppressed ? "suppressed" : ""}`}
-        onClick={() => {
-          setSelected(feature.id);
-          setFaceSelection(null);
+        className={`tree-row ${parentId !== undefined ? "nested" : ""} ${selected === feature.id || !editing && normalReferences?.some(reference => reference.kind === 'feature' && reference.id === feature.id) ? "selected" : ""} ${feature.suppressed ? "suppressed" : ""}`}
+        data-feature-id={feature.id}
+        data-parent-feature-id={parentId}
+        data-tree-occurrence={treeOccurrenceKey(feature.id, parentId)}
+        tabIndex={0}
+        role="button"
+        aria-label={feature.name}
+        aria-haspopup="menu"
+        aria-expanded={featureMenu?.featureId === feature.id && featureMenu.parentId === parentId}
+        onClick={event => {
+          selectedTreeOccurrence.current = { featureId: feature.id, parentId };
+          if (!editing) selectViewReference({ kind: 'feature', id: feature.id }, event.ctrlKey || event.metaKey);
+          else { setSelected(feature.id); setFaceSelection(null); }
         }}
-        onDoubleClick={() => editFeature(feature)}
-        title="Doble clic para editar"
-      >
-        <ChevronRight
-          size={11}
-          className={
-            feature.type === "sketch" || feature.type === "plane"
-              ? "invisible"
-              : ""
+        onDoubleClick={() => editFeature(feature, parentId)}
+        onContextMenu={event => {
+          event.preventDefault();
+          openFeatureMenu(feature, event.currentTarget, { x: event.clientX, y: event.clientY }, parentId);
+        }}
+        onKeyDown={event => {
+          if (event.key === "ContextMenu" || event.shiftKey && event.key === "F10") {
+            event.preventDefault(); event.stopPropagation(); openFeatureMenu(feature, event.currentTarget, undefined, parentId);
+          } else if (event.key === "ArrowRight") {
+            event.preventDefault(); event.stopPropagation();
+            if (group?.children.length) {
+              if (!group.expanded) setFeatureExpanded(feature.id, true);
+              else focusTreeOccurrence(group.children[0].id, feature.id);
+            }
+          } else if (event.key === "ArrowLeft") {
+            event.preventDefault(); event.stopPropagation();
+            if (parentId !== undefined) focusTreeOccurrence(parentId);
+            else if (group?.expanded) setFeatureExpanded(feature.id, false);
+          } else if (event.key === "Enter") {
+            event.preventDefault(); editFeature(feature, parentId);
+          } else if (event.key === " ") {
+            selectedTreeOccurrence.current = { featureId: feature.id, parentId };
+            event.preventDefault();
+            if (!editing) selectViewReference({ kind: 'feature', id: feature.id }, event.ctrlKey || event.metaKey);
+            else { setSelected(feature.id); setFaceSelection(null); }
           }
-        />
+        }}
+        title="Doble clic para editar · Botón derecho para opciones"
+      >
         <Icon size={16} />
         <span>{feature.name}</span>
         {failed && <AlertTriangle size={13} className="error-icon" />}
         {feature.suppressed && <Eye size={12} />}
       </div>
+      </div>
     );
   };
+  const disabledMenuCommands: Record<string, boolean> = {
+    "Nuevo…": newDocumentBlocked,
+    "Abrir…": !!embeddedEdit,
+    "Abrir pieza de ejemplo": !!embeddedEdit,
+    "Ejemplo: cortes y salientes sucesivos": !!embeddedEdit,
+    "Vista anterior": !viewHistory.canPrevious || viewIs2D,
+    "Ajustar a pantalla": viewHistory.navigating,
+    ...Object.fromEntries(standardViews.map(view => [view.label, !!viewIs2D || viewHistory.navigating])),
+    'Normal a': !canNormal,
+    'Vistas guardadas…': !namedViews.canOpen,
+    "Nuevo ensamblaje vacío": newDocumentBlocked,
+    "Crear ensamblaje con esta pieza": !!embeddedEdit || !canCreateAssemblyFromPart,
+    "Importar STEP…": !!embeddedEdit || !!editing || importing || exporting,
+    "Importar STEP estructurado…": !!embeddedEdit || !!editing || importing || exporting,
+    "Guardar": !!editing || importing || exporting, "Guardar como…": !!editing || importing || exporting,
+    "Guardar copia…": !!editing || importing || exporting, "Guardar copia como…": !!editing || importing || exporting,
+    "Exportar STEP": !canExport, "Exportar STL": !canExport,
+    "Deshacer": editing?.type === "sketch" ? !sketchPast.length : !!editing || !history.current.canUndo,
+    "Rehacer": editing?.type === "sketch" ? !sketchFuture.length : !!editing || !history.current.canRedo,
+    "Editar operación": !!editing || !selectedFeature, "Eliminar operación": !!editing || !selectedFeature,
+    "Cambiar nombre de pieza": !!editing,
+    "Croquis rectangular": !!editing, "Croquis circular": !!editing,
+    "Saliente extruido": !canStartProfileFeature, "Corte extruido": !canStartProfileFeature || !model?.vertices.length,
+    "Revolución": !canStartProfileFeature, "Corte por revolución": !canStartProfileFeature || !model?.vertices.length,
+    "Asistente para taladro": !canExport,
+    "Barrido": !!editing, "Recubrir": !!editing, "Redondeo": !canExport, "Chaflán": !canExport,
+    "Vaciado": !canExport, "Desmoldeo": !canExport, "Plano de referencia": !!editing,
+    "Matriz lineal": !canExport, "Matriz circular": !canExport, "Simetría": !canExport,
+    "Reconstruir": !!editing || importing || exporting,
+  };
+  const partMenus: AssemblyMenuDefinition[] = ([
+    {
+      id: "file", label: "Archivo", items: [
+        ["Nuevo…", "Ctrl+N", newDoc],
+        ["Nuevo ensamblaje vacío", "", newAssembly],
+        ["Crear ensamblaje con esta pieza", "", newAssemblyFromPart],
+        ["Abrir…", "Ctrl+O", openDoc],
+        ["Importar STEP…", "", selectStep],
+        ["Importar STEP estructurado…", "", () => void selectStructuralStep()],
+        [embeddedEdit ? "Guardar copia…" : "Guardar", "Ctrl+S", () => saveDoc()],
+        [embeddedEdit ? "Guardar copia como…" : "Guardar como…", "Ctrl+Mayús+S", () => saveDoc(true)],
+        ["Exportar STEP", "", () => exportFile("step")],
+        ["Exportar STL", "", () => exportFile("stl")],
+        ["Abrir pieza de ejemplo", "", loadDemo],
+        ["Ejemplo: cortes y salientes sucesivos", "", loadPartSequenceDemo],
+      ],
+    },
+    {
+      id: "edit", label: "Editar", items: [
+        ["Deshacer", "Ctrl+Z", undo],
+        ["Rehacer", "Ctrl+Y", redo],
+        ["Editar operación", "", () => selectedFeature && editFeature(selectedFeature)],
+        ...selectedInputSketches.map((sketch): [string, string, () => void] => [selectedInputSketches.length === 1 ? "Editar croquis" : `Editar croquis: ${sketch.name}`, "", () => editFeature(sketch, selectedFeature?.id)]),
+        ["Eliminar operación", "Supr", deleteSelected],
+        ["Cambiar nombre de pieza", "", () => {
+          if (requireFinishedEdit()) setRename(true);
+        }],
+      ],
+    },
+    {
+      id: "view", label: "Ver", items: [
+        ...standardViews.map(({ name, label, shortcut }): [string, string, () => void] => [label, shortcut, () => changeView(name)]),
+        ["Normal a", "Ctrl+8", () => changeView("normal")],
+        ["Vistas guardadas…", "", namedViews.open],
+        ["Vista anterior", "Ctrl+Shift+Z", () => changeView("previous")],
+        ["Ajustar a pantalla", "F", () => changeView("fit")],
+        ["Cuadrícula", "", () => setGrid(!grid)],
+        ["Planos de referencia", "", () => setShowPlanes(!showPlanes)],
+      ],
+    },
+    {
+      id: "insert", label: "Insertar", items: [
+        ["Croquis rectangular", "", () => startSketch()],
+        ["Croquis circular", "", () => startSketch("circle")],
+        ["Saliente extruido", "", () => startFeature("extrude")],
+        ["Corte extruido", "", () => startFeature("cut")],
+        ["Asistente para taladro", "", startHole],
+        ["Revolución", "", () => startFeature("revolve")],
+        ["Corte por revolución", "", () => startFeature("revolvedCut")],
+        ["Barrido", "", () => startAdvancedFeature("sweep")],
+        ["Recubrir", "", () => startAdvancedFeature("loft")],
+        ["Redondeo", "", () => startFinish("fillet")],
+        ["Chaflán", "", () => startFinish("chamfer")],
+        ["Vaciado", "", () => startFaceOperation("shell")],
+        ["Desmoldeo", "", () => startFaceOperation("draft")],
+        ["Plano de referencia", "", startPlane],
+        ["Matriz lineal", "", () => startRepetition("linearPattern")],
+        ["Matriz circular", "", () => startRepetition("circularPattern")],
+        ["Simetría", "", () => startRepetition("mirror")],
+      ],
+    },
+    {
+      id: "tools", label: "Herramientas", items: [
+        ["Propiedades físicas", "", () => setPanel("properties")],
+        ["Reconstruir", "", () => setDoc({ ...doc, features: [...doc.features] })],
+      ],
+    },
+    {
+      id: "help", label: "Ayuda", items: [
+        ["Ayuda y atajos", "", () => setShowHelp(true)],
+        ["Pieza de ejemplo", "", loadDemo],
+      ],
+    },
+  ] satisfies { id: string; label: string; items: [string, string, () => void][] }[])
+    .map(({ id, label, items }) => ({
+      id, label, items: items.map(([label, shortcut, onSelect], index) => ({
+        id: String(index), label, shortcut, onSelect, disabled: label.startsWith("Editar croquis") ? !!editing || importing || exporting : disabledMenuCommands[label],
+        ...(label === "Cuadrícula" ? { checked: grid } : label === "Planos de referencia" ? { checked: showPlanes } : {}),
+      })),
+    }));
+  const operationNameEditor = editing && (
+    <div className="property-section operation-name-section">
+      <h3>
+        <ChevronDown size={12} /> Nombre
+      </h3>
+      <input
+        className="text-input"
+        aria-label="Nombre de operación"
+        value={editing.name}
+        onChange={(e) => changeDraft({ name: e.target.value })}
+      />
+    </div>
+  );
+  const operationBodyEditor = editing && isBodyCommandFeature(editing) && editing.type !== "sweep" && editing.type !== "loft" && !isRepetition(editing) && <BodyFeaturePanel
+    feature={editing} outputBodyId={bodyOutputId.current}
+    existing={doc.features.some(feature => feature.id === editing.id)}
+    bodies={sourceModel?.bodies ?? []} selection={bodySelection}
+    onSelection={chooseBodySelection}
+    disabled={sourceLoading || sourceBuiltFeatures !== sourceFeatures || pickingExtrude}
+    picking={bodyPicking} onPicking={value => { stopEndPicking(); setBodyPicking(value); }}
+    onFeature={feature => {
+      if (sourceLoading || sourceBuiltFeatures !== sourceFeatures || pickingExtrude) return;
+      stopEndPicking(); stopAxisPicking();
+      const separate = (feature.type === "extrude" || feature.type === "revolve") && feature.bodyOperation?.mode === "new";
+      const selection = separate ? [] : bodySelection;
+      if (separate) setBodySelection([]);
+      setEditing(withBodySelection(feature, selection));
+      setBodyPicking(feature.type === "combine" || (feature.type === "extrude" || feature.type === "revolve") && feature.bodyOperation?.mode === "merge");
+      setError("");
+    }}
+    message={bodyCommand && !bodyCommand.accepted ? bodyCommand.message : undefined}
+  />;
+
+  // Activity cleanup acknowledges this activation only. Native promises remain
+  // in the external ledger until their original settlement.
+  useEffect(() => {
+    const owner = embeddedEdit;
+    return () => { if (owner) owner.work.acknowledgeCleanup(owner.activation); };
+  }, [embeddedEdit?.work, embeddedEdit?.activation]);
+
   return (
-    <div
-      className="app-shell"
-      onClick={() => {
-        if (menu) setMenu(null);
-      }}
-    >
+    <div className="app-shell" ref={shell}>
+      {newDocumentDialog.dialog}
+      {activeViewportPopup && viewportContext && <CadContextMenu key={activeViewportPopup.requestId} namespace="part"
+        targetName={viewportContext.name} point={activeViewportPopup.point} restoreFocusElement={activeViewportPopup.origin}
+        actions={viewportContextActions} onClose={() => setViewportPopup(null)} />}
+      {featureMenu && menuFeature && <PartFeatureContextMenu key={featureMenu.requestId}
+        featureName={menuFeature.name} point={featureMenu.point} restoreFocusElement={featureMenu.origin}
+        onClose={() => setFeatureMenu(null)}
+        actions={[
+          { id: "edit-feature", label: menuFeature.type === "sketch" ? "Editar croquis" : "Editar operación", icon: Pencil,
+            disabled: !!editing || importing || exporting, onSelect: () => editFeature(menuFeature, featureMenu.parentId) },
+          ...inputSketches(menuFeature).map(sketch => ({ id: `edit-sketch-${sketch.id}`, label: `Editar croquis: ${sketch.name}`, icon: Square,
+            disabled: !!editing || importing || exporting, onSelect: () => editFeature(sketch, menuFeature.id) })),
+          { id: 'normal-to', label: 'Normal a', icon: PanelTop,
+            disabled: !!editing || !canNormal, onSelect: () => changeView('normal') },
+        ]} />}
       <input
         ref={fileInput}
         type="file"
         accept=".solidflow"
         hidden
         onChange={async (e) => {
-          const f = e.target.files?.[0];
-          if (f)
-            try {
-              reset(parseDocument(await f.text()), undefined, true);
-            } catch (err) {
-              notify((err as Error).message, true);
-            }
-          e.target.value = "";
+          if (embeddedRef.current || !isActiveOwner()) return;
+          const input = e.currentTarget;
+          const f = input.files?.[0], source = browserOpenSource.current;
+          browserOpenSource.current = null;
+          input.value = "";
+          if (!f || !source || !isReplacementCurrent(source)) return;
+          if (fileOperation.current) { notify("Espera a que termine la operación de archivo actual."); return; }
+          fileOperation.current = true;
+          try {
+            if (f.size > MAX_ASSEMBLY_BYTES) throw new Error("El documento supera los 20 MB admitidos.");
+            openReplacement(await f.text(), undefined, source);
+          } catch (err) {
+            if (mounted.current) notify((err as Error).message, true);
+          } finally { fileOperation.current = false; }
         }}
       />
       <input
@@ -2110,199 +3055,41 @@ export default function App() {
           });
         }}
       />
-      <header className="menubar">
-        <div className="brand">
-          <div className="brand-mark">
+      <input ref={structuralInput} type="file" accept=".step,.stp" hidden onChange={e=>{
+        const file=e.target.files?.[0], pending=structuralRead.current; e.target.value='';structuralRead.current=null;if(!pending)return;
+        if(!file){pending.resolve(null);return;} if(file.size>MAX_STEP_BYTES){pending.reject(Error('El STEP supera los 8 MB admitidos.'));return;}
+        void file.arrayBuffer().then(data=>pending.resolve({name:file.name,data:new Uint8Array(data)}),pending.reject);
+      }} />
+      <CommandHeader className="menubar"
+        brand={<div className="brand" aria-label="SolidFlow">
+          <div className="brand-mark" aria-hidden="true">
             S<span>F</span>
           </div>
-          <strong>
+          <strong aria-hidden="true">
             Solid<span>Flow</span>
           </strong>
-        </div>
-        <nav>
-          {[
-            "Archivo",
-            "Editar",
-            "Ver",
-            "Insertar",
-            "Herramientas",
-            "Ayuda",
-          ].map((name) => (
-            <div className="menu-wrap" key={name}>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setMenu(menu === name ? null : name);
-                }}
-                className={menu === name ? "active" : ""}
-              >
-                {name}
-              </button>
-              {menu === name && (
-                <div className="dropdown" onClick={(e) => e.stopPropagation()}>
-                  {(name === "Archivo"
-                    ? [
-                        ["Nueva pieza", "Ctrl+N", newDoc],
-                        ["Abrir…", "Ctrl+O", openDoc],
-                        ["Importar STEP…", "", selectStep],
-                        ["Guardar", "Ctrl+S", () => saveDoc()],
-                        ["Guardar como…", "Ctrl+Mayús+S", () => saveDoc(true)],
-                        ["Exportar STEP", "", () => exportFile("step")],
-                        ["Exportar STL", "", () => exportFile("stl")],
-                        ["Abrir pieza de ejemplo", "", loadDemo],
-                      ]
-                    : name === "Editar"
-                      ? [
-                          ["Deshacer", "Ctrl+Z", undo],
-                          ["Rehacer", "Ctrl+Y", redo],
-                          [
-                            "Editar operación",
-                            "",
-                            () =>
-                              selectedFeature && editFeature(selectedFeature),
-                          ],
-                          ["Eliminar operación", "Supr", deleteSelected],
-                          [
-                            "Cambiar nombre de pieza",
-                            "",
-                            () => {
-                              if (requireFinishedEdit()) setRename(true);
-                            },
-                          ],
-                        ]
-                      : name === "Ver"
-                        ? [
-                            ["Isométrica", "Ctrl+7", () => changeView("iso")],
-                            ["Frontal", "Ctrl+1", () => changeView("front")],
-                            ["Superior", "Ctrl+5", () => changeView("top")],
-                            [
-                              "Ajustar a pantalla",
-                              "F",
-                              () => changeView("fit"),
-                            ],
-                            ["Cuadrícula", "", () => setGrid(!grid)],
-                            [
-                              "Planos de referencia",
-                              "",
-                              () => setShowPlanes(!showPlanes),
-                            ],
-                          ]
-                        : name === "Insertar"
-                          ? [
-                              ["Croquis rectangular", "", () => startSketch()],
-                              [
-                                "Croquis circular",
-                                "",
-                                () => startSketch("circle"),
-                              ],
-                              [
-                                "Saliente extruido",
-                                "",
-                                () => startFeature("extrude"),
-                              ],
-                              ["Corte extruido", "", () => startFeature("cut")],
-                              ["Asistente para taladro", "", startHole],
-                              ["Revolución", "", () => startFeature("revolve")],
-                              [
-                                "Barrido",
-                                "",
-                                () => startAdvancedFeature("sweep"),
-                              ],
-                              [
-                                "Recubrir",
-                                "",
-                                () => startAdvancedFeature("loft"),
-                              ],
-                              ["Redondeo", "", () => startFinish("fillet")],
-                              ["Chaflán", "", () => startFinish("chamfer")],
-                              [
-                                "Vaciado",
-                                "",
-                                () => startFaceOperation("shell"),
-                              ],
-                              [
-                                "Desmoldeo",
-                                "",
-                                () => startFaceOperation("draft"),
-                              ],
-                              ["Plano de referencia", "", startPlane],
-                              [
-                                "Matriz lineal",
-                                "",
-                                () => startRepetition("linearPattern"),
-                              ],
-                              [
-                                "Matriz circular",
-                                "",
-                                () => startRepetition("circularPattern"),
-                              ],
-                              ["Simetría", "", () => startRepetition("mirror")],
-                            ]
-                          : name === "Herramientas"
-                            ? [
-                                [
-                                  "Propiedades físicas",
-                                  "",
-                                  () => setPanel("properties"),
-                                ],
-                                [
-                                  "Reconstruir",
-                                  "",
-                                  () =>
-                                    setDoc({
-                                      ...doc,
-                                      features: [...doc.features],
-                                    }),
-                                ],
-                              ]
-                            : [
-                                ["Ayuda y atajos", "", () => setShowHelp(true)],
-                                ["Pieza de ejemplo", "", loadDemo],
-                              ]
-                  ).map(([label, shortcut, action]) => (
-                    <button
-                      key={String(label)}
-                      onClick={() => {
-                        (action as () => void)();
-                        setMenu(null);
-                      }}
-                    >
-                      <span>{String(label)}</span>
-                      <kbd>{String(shortcut)}</kbd>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-        </nav>
-        <div className="document-title">
+        </div>}
+        menus={<AssemblyMenuBar variant="part" menus={partMenus} />}
+        document={<div className="document-title" title={`${doc.name}${dirty ? " · Cambios sin guardar" : ""} — SolidFlow`}>
           {doc.name}
-          {dirty ? " *" : ""} — SolidFlow
-        </div>
-        <button
-          className="help-top"
-          onClick={() => setShowHelp(true)}
-          title="Ayuda"
-        >
-          <HelpCircle size={17} />
-        </button>
-      </header>
-      <div className="quickbar">
-        <div className="quick-actions">
+          {dirty ? " *" : ""}{embeddedEdit ? ` en ${embeddedEdit.assemblyName}` : " — SolidFlow"}
+        </div>}
+        quickActions={<div className="quick-actions">
           <IconButton
             icon={FilePlus2}
-            title="Nueva pieza (Ctrl+N)"
+            title="Nuevo… (Ctrl+N)"
             onClick={newDoc}
+            disabled={newDocumentBlocked}
           />
           <IconButton
             icon={FolderOpen}
             title="Abrir (Ctrl+O)"
             onClick={() => void openDoc()}
+            disabled={!!embeddedEdit}
           />
           <IconButton
             icon={Save}
-            title="Guardar (Ctrl+S)"
+            title={embeddedEdit ? "Guardar copia… (Ctrl+S)" : "Guardar (Ctrl+S)"}
             onClick={() => void saveDoc()}
           />
           <i />
@@ -2330,10 +3117,15 @@ export default function App() {
           <IconButton
             icon={RotateCw}
             title="Reconstruir pieza"
-            onClick={() => setDoc({ ...doc, features: [...doc.features] })}
+            onClick={() => { if (isActiveOwner()) setDoc({ ...doc, features: [...doc.features] }); }}
           />
-        </div>
-        <div className="command-search">
+        </div>}
+        utilities={<>{embeddedEdit ? <div className="workspace-tag" role="region" aria-label="Edición de pieza en el ensamblaje"
+          title={`Editando ${embeddedEdit.componentName}. Guardar crea una copia independiente.`}>
+          <button className="primary-button" onClick={returnToAssembly} disabled={!embeddedReturnReady}>Volver al ensamblaje</button>
+          <button className="outline-button" onClick={() => void discardEmbeddedPart()}
+            disabled={!embeddedEdit.active || importing || exporting || discardOpen}>Descartar edición</button>
+        </div> : <div className="command-search">
           <Search size={14} />
           <input
             placeholder="Buscar en el árbol…"
@@ -2342,29 +3134,32 @@ export default function App() {
             onChange={(e) => setQuery(e.target.value)}
           />
           <kbd>⌕</kbd>
-        </div>
+        </div>}
         <div className="workspace-tag">
-          <Box size={13} /> Pieza <ChevronDown size={11} />
+          <Box size={13} aria-hidden="true" /> Pieza
         </div>
-      </div>
+        <button className="help-top" onClick={() => setShowHelp(true)} title="Ayuda">
+          <HelpCircle size={17} />
+        </button></>}
+      />
       <section className="command-manager">
         <div className="commands">
           {tab === "Operaciones" ? (
             <>
-              <div className="command-group">
+              <CommandGroup label="Crear">
                 <Command
                   icon={Box}
                   label="Saliente/Base extruido"
                   large
                   onClick={() => startFeature("extrude")}
-                  disabled={!!editing}
+                  disabled={!canStartProfileFeature}
                 />
                 <Command
                   icon={RotateCw}
                   label="Revolución"
                   large
                   onClick={() => startFeature("revolve")}
-                  disabled={!!editing}
+                  disabled={!canStartProfileFeature}
                 />
                 <div className="command-stack">
                   <Command
@@ -2380,14 +3175,21 @@ export default function App() {
                     disabled={!!editing}
                   />
                 </div>
-              </div>
-              <div className="command-group">
+              </CommandGroup>
+              <CommandGroup label="Quitar material">
                 <Command
                   icon={Scissors}
                   label="Corte extruido"
                   large
                   onClick={() => startFeature("cut")}
-                  disabled={!!editing || !model?.vertices.length}
+                  disabled={!canStartProfileFeature || !model?.vertices.length}
+                />
+                <Command
+                  icon={RotateCw}
+                  label="Corte por revolución"
+                  large
+                  onClick={() => startFeature("revolvedCut")}
+                  disabled={!canStartProfileFeature || !model?.vertices.length}
                 />
                 <Command
                   icon={Crosshair}
@@ -2396,8 +3198,8 @@ export default function App() {
                   disabled={!canExport}
                   onClick={startHole}
                 />
-              </div>
-              <div className="command-group">
+              </CommandGroup>
+              <CommandGroup label="Modificar">
                 <Command
                   icon={CornerDownRight}
                   label="Redondeo"
@@ -2426,6 +3228,8 @@ export default function App() {
                     onClick={() => startFaceOperation("draft")}
                   />
                 </div>
+              </CommandGroup>
+              <CommandGroup label="Patrones">
                 <div className="command-stack">
                   <Command
                     icon={Grid3X3}
@@ -2445,11 +3249,15 @@ export default function App() {
                     disabled={!!editing || !canExport}
                     onClick={() => startRepetition("mirror")}
                   />
-                <Command icon={Component} label="Combinar cuerpos" onClick={startCombine}
-                  disabled={!canExport || !model?.bodyCatalogActive || bodySelection.length < 2} />
                 </div>
-              </div>
-              <div className="command-group">
+              </CommandGroup>
+              <CommandGroup label="Cuerpos">
+                <div className="command-stack">
+                  <Command icon={Component} label="Combinar cuerpos" onClick={startCombine}
+                    disabled={!canExport || !model?.bodyCatalogActive || bodySelection.length < 2} />
+                </div>
+              </CommandGroup>
+              <CommandGroup label="Referencias">
                 <Command
                   icon={Pencil}
                   label="Croquis"
@@ -2464,7 +3272,7 @@ export default function App() {
                   onClick={startPlane}
                   disabled={!!editing}
                 />
-              </div>
+              </CommandGroup>
             </>
           ) : tab === "Croquis" ? (
             <>
@@ -2513,14 +3321,15 @@ export default function App() {
                   label="Seleccionar"
                   large
                   onClick={() => selectSketchTool("select")}
-                  active={sketchTool === "select"}
+                  active={editing?.type === "sketch" && sketchTool === "select"}
+                  disabled={editing?.type !== "sketch"}
                 />
                 <Command
                   icon={Minus}
                   label="Línea"
                   large
                   onClick={() => selectSketchTool("line")}
-                  active={sketchTool === "line"}
+                  active={editing?.type === "sketch" && sketchTool === "line"}
                   disabled={!!editing && editing.type !== "sketch"}
                 />
                 <Command
@@ -2543,7 +3352,8 @@ export default function App() {
                       setSketchTool("rectangle");
                     } else selectSketchTool("rectangle");
                   }}
-                  active={sketchTool === "rectangle"}
+                  active={editing?.type === "sketch" && sketchTool === "rectangle"}
+                  disabled={!!editing && editing.type !== "sketch"}
                 />
                 <Command
                   icon={Circle}
@@ -2564,14 +3374,15 @@ export default function App() {
                       setSketchTool("circle");
                     } else selectSketchTool("circle");
                   }}
-                  active={sketchTool === "circle"}
+                  active={editing?.type === "sketch" && sketchTool === "circle"}
+                  disabled={!!editing && editing.type !== "sketch"}
                 />
                 <Command
                   icon={Spline}
                   label="Arco de centro"
                   large
                   onClick={() => selectSketchTool("arc")}
-                  active={sketchTool === "arc"}
+                  active={editing?.type === "sketch" && sketchTool === "arc"}
                   disabled={!!editing && editing.type !== "sketch"}
                 />
               </div>
@@ -2581,7 +3392,7 @@ export default function App() {
                   label="Recortar entidades"
                   large
                   onClick={() => selectSketchTool("trim")}
-                  active={sketchTool === "trim"}
+                  active={editing?.type === "sketch" && sketchTool === "trim"}
                   disabled={editing?.type !== "sketch"}
                 />
                 <Command
@@ -2589,7 +3400,7 @@ export default function App() {
                   label="Extender entidades"
                   large
                   onClick={() => selectSketchTool("extend")}
-                  active={sketchTool === "extend"}
+                  active={editing?.type === "sketch" && sketchTool === "extend"}
                   disabled={editing?.type !== "sketch"}
                 />
                 <Command
@@ -2597,7 +3408,7 @@ export default function App() {
                   label="Chaflán de croquis"
                   large
                   onClick={() => selectSketchTool("chamfer")}
-                  active={sketchTool === "chamfer"}
+                  active={editing?.type === "sketch" && sketchTool === "chamfer"}
                   disabled={editing?.type !== "sketch"}
                 />
                 <Command
@@ -2605,14 +3416,14 @@ export default function App() {
                   label="Redondeo de croquis"
                   large
                   onClick={() => selectSketchTool("fillet")}
-                  active={sketchTool === "fillet"}
+                  active={editing?.type === "sketch" && sketchTool === "fillet"}
                   disabled={editing?.type !== "sketch"}
                 />
                 <Command icon={FlipHorizontal2} label="Simetría de croquis" large
-                  onClick={() => selectSketchTool("mirror")} active={sketchTool === "mirror"}
+                  onClick={() => selectSketchTool("mirror")} active={editing?.type === "sketch" && sketchTool === "mirror"}
                   disabled={editing?.type !== "sketch"} />
                 <Command icon={CopyPlus} label="Equidistancia de entidades" large
-                  onClick={() => selectSketchTool("offset")} active={sketchTool === "offset"}
+                  onClick={() => selectSketchTool("offset")} active={editing?.type === "sketch" && sketchTool === "offset"}
                   disabled={editing?.type !== "sketch"} />
                 <Command
                   icon={Component}
@@ -2731,8 +3542,13 @@ export default function App() {
           <button disabled title="Módulo pendiente">
             Chapa metálica
           </button>
-          <button disabled title="Módulo pendiente">
+          <button onClick={() => void newAssembly()} title="Crear un ensamblaje" disabled={newDocumentBlocked}>
             Ensamblaje
+          </button>
+          <button onClick={newAssemblyFromPart} disabled={!canCreateAssemblyFromPart}
+            aria-label="Crear ensamblaje con esta pieza"
+            title="Crear ensamblaje con esta pieza: copia independiente, fija en el origen. Incluye los cambios aceptados sin guardar.">
+            Con esta pieza
           </button>
           <div />
           <button
@@ -2774,63 +3590,38 @@ export default function App() {
             </button>
           </div>
           {editing ? (
-            <div className="property-manager">
-              <div className="property-title">
-                <span>{labels[editing.type]}</span>
-                <button onClick={cancelActiveEdit} title="Cancelar">
-                  <X size={15} />
-                </button>
+            <div className={`property-manager${isRevolutionFeature(editing) ? " property-manager-revolve" : editing.type === "extrude" || editing.type === "cut" ? " property-manager-extrude" : isEdgeFinish(editing) ? " property-manager-finish" : ""}`}>
+              <div className="property-manager-header">
+                <div className="property-title">
+                  <span>{labels[editing.type]}</span>
+                  <button onClick={cancelActiveEdit} title="Cancelar">
+                    <X size={15} />
+                  </button>
+                </div>
+                <div className="confirm-row">
+                  <button
+                    className="accept"
+                    onClick={acceptEdit}
+                    title="Aceptar operación"
+                    disabled={!canAccept}
+                  >
+                    <Check size={23} />
+                  </button>
+                  <button
+                    className="cancel"
+                    onClick={cancelActiveEdit}
+                    title="Cancelar operación"
+                  >
+                    <X size={23} />
+                  </button>
+                  <span>
+                    {doc.features.some((f) => f.id === editing.id)
+                      ? "Editar operación"
+                      : "Nueva operación"}
+                  </span>
+                </div>
               </div>
-              <div className="confirm-row">
-                <button
-                  className="accept"
-                  onClick={acceptEdit}
-                  title="Aceptar operación"
-                  disabled={!canAccept}
-                >
-                  <Check size={23} />
-                </button>
-                <button
-                  className="cancel"
-                  onClick={cancelActiveEdit}
-                  title="Cancelar operación"
-                >
-                  <X size={23} />
-                </button>
-                <span>
-                  {doc.features.some((f) => f.id === editing.id)
-                    ? "Editar operación"
-                    : "Nueva operación"}
-                </span>
-              </div>
-              <div className="property-section">
-                <h3>
-                  <ChevronDown size={12} /> Nombre
-                </h3>
-                <input
-                  className="text-input"
-                  aria-label="Nombre de operación"
-                  value={editing.name}
-                  onChange={(e) => changeDraft({ name: e.target.value })}
-                />
-              </div>
-              {isBodyCommandFeature(editing) && editing.type !== "sweep" && editing.type !== "loft" && !isRepetition(editing) && <BodyFeaturePanel
-                feature={editing} outputBodyId={bodyOutputId.current}
-                existing={doc.features.some(feature => feature.id === editing.id)}
-                bodies={sourceModel?.bodies ?? []} selection={bodySelection}
-                onSelection={chooseBodySelection}
-                disabled={sourceLoading || sourceBuiltFeatures !== sourceFeatures}
-                picking={bodyPicking} onPicking={setBodyPicking}
-                onFeature={feature => {
-                  const separate = (feature.type === "extrude" || feature.type === "revolve") && feature.bodyOperation?.mode === "new";
-                  const selection = separate ? [] : bodySelection;
-                  if (separate) setBodySelection([]);
-                  setEditing(withBodySelection(feature, selection));
-                  setBodyPicking(feature.type === "combine" || (feature.type === "extrude" || feature.type === "revolve") && feature.bodyOperation?.mode === "merge");
-                  setError("");
-                }}
-                message={bodyCommand && !bodyCommand.accepted ? bodyCommand.message : undefined}
-              />}
+              {!isRevolutionFeature(editing) && editing.type !== "extrude" && editing.type !== "cut" && !isEdgeFinish(editing) && <>{operationNameEditor}{operationBodyEditor}</>}
               {editing.type === "sketch" ? (
                 <>
                   {sketchTool === "offset" && entityProfile && <SketchOffsetPanel
@@ -3120,10 +3911,10 @@ export default function App() {
                 />
               ) : editing.type === "combine" ? (
                 <p className="muted-small">Revisa la selección y el resultado antes de aceptar. Cancelar conserva todos los cuerpos de origen.</p>
-              ) : editing.type === "importedSolid" ? (
+              ) : editing.type === "importedSolid" || editing.type === "importedBodies" ? (
                 <div className="property-section">
                   <h3><ChevronDown size={12} /> Geometría base</h3>
-                  <p className="muted-small">El sólido STEP está guardado dentro de esta pieza. Selecciona sus caras o aristas para añadir croquis, taladros y operaciones.</p>
+                  <p className="muted-small">{editing.type === "importedBodies" ? `${editing.bodies.length} cuerpos STEP están guardados dentro de esta pieza con identidades separadas. Selecciona un cuerpo exacto para las operaciones posteriores.` : 'El sólido STEP está guardado dentro de esta pieza. Selecciona sus caras o aristas para añadir croquis, taladros y operaciones.'}</p>
                   <p className="muted-small">La importación conserva la geometría; no reconstruye el historial de diseño original. Las nuevas operaciones aparecen en el árbol y siguen siendo editables.</p>
                 </div>
               ) : editing.type === "sweep" || editing.type === "loft" ? (
@@ -3224,6 +4015,7 @@ export default function App() {
                   }
                 />
               ) : isEdgeFinish(editing) ? (
+                <>
                 <EdgeFinishPanel
                   feature={editing}
                   onSize={(size) => changeDraft({ size })}
@@ -3236,14 +4028,18 @@ export default function App() {
                   canPreview={canAccept}
                   loading={sourceLoading}
                 />
+                {operationBodyEditor}
+                {operationNameEditor}
+                </>
               ) : (
                 <>
-                  <div className="property-section">
+                  <div className="property-section operation-profile-section">
                     <h3>
                       <ChevronDown size={12} /> Perfil seleccionado
                     </h3>
                     <select
                       aria-label="Croquis de la operación"
+                      disabled={!!stagedSketch}
                       value={"sketchId" in editing ? editing.sketchId : ""}
                       onChange={(e) =>
                         changeDraft({ sketchId: e.target.value })
@@ -3256,25 +4052,38 @@ export default function App() {
                       ))}
                     </select>
                   </div>
-                  {editing.type === "revolve" ? (
-                    <div className="property-section">
-                      <h3>
-                        <ChevronDown size={12} /> Dirección 1
-                      </h3>
-                      <NumberField
-                        label="Ángulo"
-                        value={editing.angle}
-                        onChange={(angle) => changeDraft({ angle })}
-                        unit="°"
-                      />
-                      <p className="muted-small">
-                        Eje vertical Y del croquis. El perfil debe quedar a un
-                        lado del eje.
-                      </p>
-                    </div>
+                  {isRevolutionFeature(editing) ? (
+                    <>
+                      <RevolvePanel feature={editing}
+                        existing={doc.features.some(feature => feature.id === editing.id)}
+                        thinWallRequired={thinWallRequired}
+                        thinWallDisabled={!thinWallSourceCurrent}
+                        sketch={availableSketches.find(sketch => sketch.id === editing.sketchId)}
+                        sourceSketches={availableSketches}
+                        axisPicking={axisPicking}
+                        onAxisPickingChange={changeAxisPicking}
+                        onChange={changeDraft}>
+                        <NumberField
+                          label="Ángulo"
+                          value={editing.angle}
+                          onChange={(angle) => changeDraft({ angle })}
+                          unit="°"
+                        />
+                      </RevolvePanel>
+                      {operationBodyEditor}
+                      {operationNameEditor}
+                    </>
                   ) : (
+                    <>
                     <ExtrudePanel
                       feature={editing}
+                      existing={doc.features.some(feature => feature.id === editing.id)}
+                      autoCornersAvailable={thinAutoCornersAvailable}
+                      endCapsAvailable={thinEndCapsAvailable}
+                      directionDisabled={!thinWallSourceCurrent || pickingSupport}
+                      bodyPicking={bodyPicking}
+                      thinWallRequired={thinWallRequired}
+                      thinWallDisabled={!thinWallSourceCurrent}
                       features={availableFeatures}
                       planes={availablePlanes}
                       baseFeatureId={
@@ -3298,23 +4107,27 @@ export default function App() {
                             }
                       }
                       picking={pickingExtrude}
+                      pickingSide={pickingExtrude ? endPickingRequest?.side : null}
                       loading={sourceLoading}
                       canPickFace={
-                        !!sourceSelectionDtos.faces.length && !sourceLoading
+                        !!sourceSelectionDtos.faces.length && thinWallSourceCurrent
                       }
                       onTarget={changeEndTarget}
-                      onPickFace={() => setPickingEndFace(!pickingExtrude)}
+                      onPickFace={changeEndPicking}
                       onChange={(patch) => {
-                        changeDraft(patch);
-                        if ("endCondition" in patch)
-                          setPickingEndFace(
-                            patch.endCondition?.kind === "upToSurface" &&
-                              editing.endCondition?.kind !== "upToSurface" &&
-                              !!sourceSelectionDtos.faces.length &&
-                              !preferredEndPlane,
-                          );
+                        const next = changeDraft(patch);
+                        if (!next || next.type !== 'extrude' && next.type !== 'cut' || !thinWallSourceCurrent
+                          || !sourceModel || !sourceFeatures || bodyPicking || pickingSupport || !sourceSelectionDtos.faces.length || preferredEndPlane) return;
+                        const side = (['first', 'second'] as const).find(side => extrusionEndForSide(next, side)?.kind === 'upToSurface'
+                          && extrusionEndForSide(editing, side)?.kind !== 'upToSurface');
+                        if (!side) return;
+                        const request = { side, draft: next, document: doc, epoch: documentEpoch.current, model: sourceModel, features: sourceFeatures };
+                        endPickingAuthority.current = request; setEndPickingRequest(request);
                       }}
                     />
+                    {operationBodyEditor}
+                    {operationNameEditor}
+                    </>
                   )}
                   <div className="property-tip">
                     <Info size={15} />
@@ -3329,10 +4142,6 @@ export default function App() {
             </div>
           ) : (
             <>
-              {model?.bodyCatalogActive && <div className="property-section">
-                <h3><ChevronDown size={12} /> Cuerpos sólidos ({model.bodies?.length ?? 0})</h3>
-                <BodyList bodies={model.bodies ?? []} selection={bodySelection} onSelection={chooseBodySelection} disabled={busy || !previewCurrent} />
-              </div>}
               <div className="tree-filter">
                 <Search size={13} />
                 <input
@@ -3347,18 +4156,20 @@ export default function App() {
                   </button>
                 )}
               </div>
-              <div className="tree">
-                <div
+              <div className="tree" ref={treeElement}>
+                <button
+                  type="button"
                   className="tree-document"
-                  onClick={() => setTreeOpen(!treeOpen)}
+                  aria-expanded={treeOpen}
+                  aria-controls="part-document-tree-content"
+                  onClick={() => setTreeOpen(value => !value)}
                 >
                   <ChevronDown size={12} className={treeOpen ? "" : "closed"} />
                   <Box size={18} />
                   <strong>{doc.name}</strong>
                   <span>{dirty ? "*" : ""}</span>
-                </div>
-                {treeOpen && (
-                  <>
+                </button>
+                <div id="part-document-tree-content" hidden={!treeOpen}>
                     <div
                       className="tree-row subdued"
                       onClick={() => setPanel("properties")}
@@ -3367,6 +4178,17 @@ export default function App() {
                       <Info size={15} />
                       <span>Propiedades de la pieza</span>
                     </div>
+                    {model?.bodyCatalogActive && <section className="part-body-catalog" aria-label="Catálogo de cuerpos sólidos">
+                      <button type="button" className="part-body-catalog-toggle" ref={bodyCatalogButton}
+                        aria-expanded={bodyCatalogOpen} aria-controls="part-body-catalog-content" onClick={toggleBodyCatalog}>
+                        {bodyCatalogOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                        <Box size={15} /><span>Cuerpos sólidos ({model.bodies?.length ?? 0})</span>
+                        {unavailableBodySelection.length > 0 && <small className="part-body-catalog-warning">{unavailableBodySelection.length} {unavailableBodySelection.length === 1 ? "no disponible" : "no disponibles"}</small>}
+                      </button>
+                      <div id="part-body-catalog-content" ref={bodyCatalogContent} hidden={!bodyCatalogOpen}>
+                        <BodyList compact bodies={model.bodies ?? []} selection={bodySelection} onSelection={chooseBodySelection} disabled={busy || !previewCurrent} />
+                      </div>
+                    </section>}
                     <div
                       className="tree-row subdued"
                       onClick={() => setPanel("properties")}
@@ -3378,13 +4200,12 @@ export default function App() {
                     {(["XY", "XZ", "YZ"] as Plane[]).map((p) => (
                       <div
                         className={
-                          "tree-row plane " + (selected === p ? "selected" : "")
+                          "tree-row plane " + (selected === p || !editing && normalReferences?.some(reference => reference.kind === 'principal' && reference.plane === p) ? "selected" : "")
                         }
                         key={p}
-                        onClick={() => {
-                          setPlane(p);
-                          setSelected(p);
-                          setFaceSelection(null);
+                        onClick={event => {
+                          if (!editing) selectViewReference({ kind: 'principal', plane: p }, event.ctrlKey || event.metaKey);
+                          else { setPlane(p); setSelected(p); setFaceSelection(null); }
                         }}
                       >
                         <span className="tree-indent" />
@@ -3398,125 +4219,103 @@ export default function App() {
                       <span>Origen</span>
                     </div>
                     <div className="tree-divider" />
-                    {doc.features
-                      .filter((f) => f.type !== "sketch" || !consumed.has(f.id))
-                      .filter(
-                        (f) =>
-                          !query ||
-                          f.name.toLowerCase().includes(query.toLowerCase()) ||
-                          featureSketchIds(f).some((id) =>
-                            doc.features
-                              .find((s) => s.id === id)
-                              ?.name.toLowerCase()
-                              .includes(query.toLowerCase()),
-                          ),
-                      )
-                      .map((f) => (
-                        <div key={f.id}>
-                          {row(f)}
-                          {featureSketchIds(f)
-                            .map((id) => doc.features.find((s) => s.id === id))
-                            .filter((feature): feature is Feature => !!feature)
-                            .map((feature) => row(feature, true))}
-                        </div>
-                      ))}
+                    {featureTree.map(group => (
+                      <div key={group.feature.id}>
+                        {row(group.feature)}
+                        {group.children.length > 0 && <div id={partTreeChildrenId(group.feature.id)} hidden={!group.expanded}>
+                          {group.expanded && group.children.map(feature => row(feature, group.feature.id))}
+                        </div>}
+                      </div>
+                    ))}
                     <div className="rollback-bar">
                       <span />
                       <ChevronUp size={12} />
                     </div>
-                  </>
-                )}
-              </div>
-              {faceSelection && !editing && (
-                <div className="face-selection-summary">
-                  <strong>
-                    {faceSelection.frame
-                      ? "Cara plana seleccionada"
-                      : "Cara curva seleccionada"}
-                  </strong>
-                  <span>
-                    {
-                      doc.features.find(
-                        (feature) =>
-                          feature.id === faceSelection.ref.sourceFeatureId,
-                      )?.name
-                    }
-                  </span>
-                  <button
-                    className="outline-button"
-                    disabled={!faceSelection.frame}
-                    onClick={() => startSketch()}
-                  >
-                    <Pencil size={14} /> Crear croquis en cara
-                  </button>
-                  <button
-                    className="outline-button"
-                    disabled={!faceSelection.frame}
-                    onClick={startPlane}
-                  >
-                    <PanelTop size={14} /> Crear plano desde cara
-                  </button>
                 </div>
-              )}
-              {selectedFeature && (
-                <div className="selection-tools">
-                  <span>{selectedFeature.name}</span>
-                  <div>
+              </div>
+              <div className={`selection-tools${faceSelection ? " face-selection-summary" : ""}`} role="group"
+                aria-label={faceSelection ? "Acciones de la cara seleccionada" : "Acciones de la operación seleccionada"}>
+                <span title={faceSelection
+                  ? `${faceSelection.frame ? "Cara plana seleccionada" : "Cara curva seleccionada"}: ${selectedFaceFeatureName}`
+                  : selectedFeature?.name ?? "Selecciona una operación"}>
+                  {faceSelection ? <>
+                    <strong>{faceSelection.frame ? "Cara plana seleccionada" : "Cara curva seleccionada"}</strong>
+                    {selectedFaceFeatureName && `: ${selectedFaceFeatureName}`}
+                  </> : selectedFeature?.name ?? "Selecciona una operación"}
+                </span>
+                <div>
+                  {faceSelection ? <>
+                    <IconButton icon={Pencil} title="Crear croquis en cara" disabled={!faceSelection.frame} onClick={() => startSketch()}>
+                      <span className="selection-action-label">Crear croquis en cara</span>
+                    </IconButton>
+                    <IconButton icon={PanelTop} title="Crear plano desde cara" disabled={!faceSelection.frame} onClick={startPlane}>
+                      <span className="selection-action-label">Crear plano desde cara</span>
+                    </IconButton>
+                  </> : <>
                     <IconButton
                       icon={Pencil}
                       title="Editar operación"
-                      onClick={() => editFeature(selectedFeature)}
+                      disabled={!selectedFeature}
+                      onClick={() => { if (selectedFeature) editFeature(selectedFeature); }}
                     />
                     <IconButton
                       icon={Eye}
                       title={
-                        selectedFeature.suppressed
+                        selectedFeature?.suppressed
                           ? "Activar operación"
                           : "Suprimir operación"
                       }
-                      onClick={() =>
-                        apply(
+                      disabled={!selectedFeature}
+                      onClick={() => {
+                        if (selectedFeature) apply(
                           updateFeature(doc, selectedFeature.id, {
                             suppressed: !selectedFeature.suppressed,
                           }),
-                        )
-                      }
+                        );
+                      }}
                     />
                     <IconButton
                       icon={Trash2}
                       title="Eliminar operación"
-                      onClick={deleteSelected}
+                      disabled={!selectedFeature}
+                      onClick={() => { if (selectedFeature) deleteSelected(); }}
                     />
-                  </div>
+                  </>}
                 </div>
-              )}
+              </div>
               <div className="manager-footer">
                 <span className="blue-dot" /> Configuración: Predeterminada
               </div>
             </>
           )}
         </aside>
-        <section className="graphics-area">
+        <section className="graphics-area" data-normal-selection-kind={normalTarget?.kind ?? 'invalid'} data-normal-selection-keys={JSON.stringify(normalReferences?.map(partViewReferenceKey) ?? [])} data-normal-enabled={canNormal}>
           <div className="viewport-toolbar">
+            <ViewOrientationControls onView={changeView} canPrevious={viewHistory.canPrevious} canNormal={canNormal} disabled={!!viewIs2D || viewHistory.navigating} onNamedViews={namedViews.open} canNamedViews={namedViews.canOpen} />
+            {!editing && normalReferences && normalReferences.length > 1 && <span className="normal-view-selection" title="Normal a: primera referencia de frente; segunda hacia arriba">{normalReferences.length} referencias</span>}
             <IconButton
               icon={Maximize}
               title="Ajustar a pantalla (F)"
+              disabled={viewHistory.navigating}
               onClick={() => changeView("fit")}
             />
             <i />
             <IconButton
               icon={Box}
               title="Vista isométrica (Ctrl+7)"
+              disabled={!!viewIs2D || viewHistory.navigating}
               onClick={() => changeView("iso")}
             />
             <IconButton
               icon={Square}
               title="Vista frontal (Ctrl+1)"
+              disabled={!!viewIs2D || viewHistory.navigating}
               onClick={() => changeView("front")}
             />
             <IconButton
               icon={Layers}
               title="Vista superior (Ctrl+5)"
+              disabled={!!viewIs2D || viewHistory.navigating}
               onClick={() => changeView("top")}
             />
             <i />
@@ -3541,35 +4340,20 @@ export default function App() {
               onClick={() => setGrid(!grid)}
             />
             <i />
-            <IconButton
-              icon={ScanLine}
-              title="Seleccionar aristas"
-              active={selectionMode === "edge" || pickingFinish}
-              disabled={!!editing}
-              onClick={() => {
-                setSelectionMode(selectionMode === "edge" ? "body" : "edge");
-                setEdgeSelection([]);
-                setSelected(null);
-                setFaceSelection(null);
-              }}
-            />
-            <IconButton
-              icon={MousePointer2}
-              title="Seleccionar caras"
-              active={
-                selectionMode === "face" ||
-                pickingSupport ||
-                pickingFaceOperation ||
-                pickingExtrude
-              }
-              disabled={!!editing}
-              onClick={() => {
-                setSelectionMode(selectionMode === "face" ? "body" : "face");
-                setFaceSelection(null);
-                setEdgeSelection([]);
-                setSelected(null);
-              }}
-            />
+            <div className="part-selection-controls" role="group" aria-label="Selección de pieza">
+              {([
+                ['auto', 'Auto', 'Selección automática'],
+                ['face', 'Caras', 'Seleccionar caras'],
+                ['edge', 'Aristas', 'Seleccionar aristas'],
+                ['body', 'Cuerpos', 'Seleccionar cuerpos'],
+              ] as const).map(([mode, label, title]) => <button key={mode}
+                type="button" title={title} aria-label={title} data-part-selection-mode={mode}
+                aria-pressed={viewportSelectionMode === mode} disabled={!!editing || busy || !previewCurrent}
+                onClick={() => changeSelectionMode(mode)}>{label}</button>)}
+              <button type="button" aria-label="Limpiar selección de pieza" title="Limpiar selección de pieza"
+                disabled={!!editing || busy || !previewCurrent || !faceSelection && !edgeSelection.length && !bodySelection.length && !selected}
+                onClick={clearBrowsingSelection}><X size={14} /></button>
+            </div>
             <IconButton
               icon={PanelTop}
               title="Mostrar planos de referencia"
@@ -3604,7 +4388,7 @@ export default function App() {
                 setSketchSelection(next);
               }}
               solution={sketchSolution}
-              fitStamp={view.stamp}
+              fitStamp={sketchFitStamp}
               chamferPreview={sketchTool === "chamfer" ? chamferPreview : null}
               filletPreview={sketchTool === "fillet" ? filletPreview : null}
               mirrorPreview={sketchTool === "mirror" ? mirrorPreview : null}
@@ -3627,7 +4411,7 @@ export default function App() {
                     : holeEditing.head.diameter
                 }
                 referenceLines={holeReferenceLines}
-                fitStamp={view.stamp}
+                fitStamp={sketchFitStamp}
                 plane={sketchPlaneShortLabel}
               />
             ) : (
@@ -3640,7 +4424,13 @@ export default function App() {
           ) : (
             <Viewport
               model={visibleModel}
+              revolutionAxisPicking={axisPicking ? { request: axisPickingRequest, candidates: axisCandidates,
+                selected: editing && isRevolutionFeature(editing) ? editing.axis : undefined, onSelect: selectRevolutionAxis } : undefined}
+              referencePickingRequest={pickingExtrude ? endPickingRequest : undefined}
+              contextRevision={viewportContextFrame}
+              onContextTarget={viewportContextBlocked ? undefined : openViewportContext}
               view={view}
+              viewHistory={viewHistory}
               display={display}
               grid={grid}
               selected={
@@ -3648,50 +4438,39 @@ export default function App() {
                 !!selectedFeature &&
                 selectedFeature.type !== "sketch" &&
                 selectedFeature.type !== "plane" &&
-                selectionMode === "body" &&
+                (selectionMode === "auto" || selectionMode === "body") &&
                 !finishEditing &&
                 !faceEditing &&
                 !extrudeEditing &&
                 !holeEditing
               }
-              selectionMode={
-                bodyPicking ? "body" : pickingSupport ||
-                pickingFaceOperation ||
-                pickingExtrude ||
-                pickingHole
-                  ? "face"
-                  : pickingFinish
-                    ? "edge"
-                    : finishEditing ||
-                        faceEditing ||
-                        extrudeEditing ||
-                        holeEditing
-                      ? "body"
-                      : selectionMode
-              }
+              selectionMode={viewportSelectionMode}
+              selectionDisabled={axisPicking || pickingExtrude ? sourceLoading || sourceBuiltFeatures !== sourceFeatures : !editing && (busy || !previewCurrent)}
+              onClearSelection={!editing ? clearBrowsingSelection : undefined}
               selectedEdges={selectedEdges}
               selectedBodies={bodySelection}
               onSelectBody={(!editing && !busy && previewCurrent || !!editing && bodyPicking && !sourceLoading && sourceBuiltFeatures === sourceFeatures) ? toggleBody : undefined}
               onSelectEdge={toggleEdge}
               visibleSketchIds={visibleSketchIds}
               selectedSketchId={selectedSketchId}
+              activeInputSketchIds={activeInputSketchIds}
+              activeInputSketches={activeInputSketches}
               selectedFace={faceSelection?.ref}
               selectedFaces={
                 pickingFaceOperation && !pickingSupport
                   ? operationFaces
-                  : pickingExtrude &&
-                      extrudeEditing?.endCondition?.kind === "upToSurface" &&
-                      extrudeEditing.endCondition.target.kind === "face"
-                    ? [extrudeEditing.endCondition.target.face]
-                    : []
+                  : pickingExtrude && pickedExtrusionEnd?.kind === 'upToSurface' && pickedExtrusionEnd.target.kind === 'face'
+                    ? [pickedExtrusionEnd.target.face]
+                    : !editing ? normalReferences?.flatMap(reference => reference.kind === 'face' ? [reference.face] : []) ?? [] : []
               }
               onSelectFace={selectFace}
               selectedPlaneId={selectedPlaneId}
+              selectedPlaneIds={!editing ? normalReferences?.flatMap(reference => reference.kind === 'feature' ? [reference.id] : []) : undefined}
               showPlanes={showPlanes}
-              onSelectPlane={(id) => {
+              onSelectPlane={(id, additive = false) => {
                 if (!editing) {
-                  setSelected(id);
-                  setFaceSelection(null);
+                  if (busy || !previewCurrent) return;
+                  selectViewReference({ kind: 'feature', id }, additive);
                 }
               }}
               onSelect={() => {
@@ -3765,7 +4544,7 @@ export default function App() {
                     ? "Selecciona una cara plana"
                     : sketchPlaneLabel
                   : pickingExtrude
-                    ? "Selecciona la cara de destino · Pieza anterior a la operación"
+                    ? `Selecciona la cara de destino de dirección ${endPickingRequest?.side === 'second' ? '2' : '1'} · Pieza anterior a la operación`
                     : pickingFaceOperation
                       ? pickingSupport
                         ? "Selecciona una cara plana como plano neutro"
@@ -3778,13 +4557,15 @@ export default function App() {
                             ? "Vista previa del acabado"
                             : pickingSupport
                               ? "Selecciona una cara plana"
-                              : selectionMode === "face"
-                                ? faceSelection?.frame
-                                  ? "Cara plana seleccionada"
-                                  : "Selecciona una cara"
-                                : selectionMode === "edge"
-                                  ? `Selección de aristas · ${edgeSelection.length} seleccionadas`
-                                  : "Configuración predeterminada"}
+                              : selectionMode === "auto"
+                                ? faceSelection
+                                  ? faceSelection.frame ? "Cara plana seleccionada" : "Cara curva seleccionada"
+                                  : edgeSelection.length ? "Selección de aristas · " + edgeSelection.length + " seleccionadas" : "Selección automática · Caras y aristas"
+                                : selectionMode === "face"
+                                  ? faceSelection ? faceSelection.frame ? "Cara plana seleccionada" : "Cara curva seleccionada" : "Selecciona una cara"
+                                  : selectionMode === "edge"
+                                    ? "Selección de aristas · " + edgeSelection.length + " seleccionadas"
+                                    : "Selección de cuerpos · " + bodySelection.length + " seleccionados"}
             </span>
           </div>
           {editing && (
@@ -3832,7 +4613,7 @@ export default function App() {
                 ? sketchPlaneShortLabel
                 : view.name === "iso"
                   ? "Isométrica"
-                  : view.name === "fit"
+                  : view.name === "fit" || view.name === "previous"
                     ? "Vista de modelo"
                     : {
                         front: "Frontal",
@@ -3841,6 +4622,10 @@ export default function App() {
                         bottom: "Inferior",
                         left: "Izquierda",
                         right: "Derecha",
+                        dimetric: "Dimétrica",
+                        trimetric: "Trimétrica",
+                        normal: "Normal a",
+                        named: "Vista guardada",
                       }[view.name]}
             </span>
           </div>
@@ -3851,8 +4636,8 @@ export default function App() {
               "Dibuja entidades · Ctrl: selección múltiple · Cotas y relaciones en el panel"
             ) : (
               <>
-                Arrastrar: girar <b>·</b> Rueda: zoom <b>·</b> Botón central:
-                desplazar
+                Clic: seleccionar <b>·</b> Rueda: zoom <b>·</b> Rueda pulsada: girar
+                <b>·</b> Mayús + rueda pulsada: desplazar
               </>
             )}
           </div>
@@ -3950,8 +4735,13 @@ export default function App() {
                   <strong>Placa de montaje</strong>
                   <span>100 × 70 × 12 mm · 4 taladros</span>
                 </button>
-                <button className="outline-button" onClick={newDoc}>
-                  <Plus size={15} /> Pieza vacía
+                <button className="outline-button" onClick={newDoc} disabled={newDocumentBlocked}>
+                  <Plus size={15} /> Nuevo documento
+                </button>
+                <button className="library-card" onClick={loadPartSequenceDemo}>
+                  <Layers size={36} />
+                  <strong>Cortes y salientes sucesivos</strong>
+                  <span>Base y cuatro croquis preparados: dos cortes de 4 mm y salientes de 3 y 2 mm. Selecciona cada croquis en el árbol y añade su operación desde el menú superior. En los salientes, elige añadir material al cuerpo en las propiedades.</span>
                 </button>
                 <button className="library-card" onClick={loadConstrainedDemo}>
                   <Ruler size={36} />
@@ -4168,7 +4958,7 @@ export default function App() {
           {dirty ? " *" : ""}
           <span>●</span>
         </button>
-        <button title="Nueva pieza" onClick={newDoc}>
+        <button title="Nuevo documento" onClick={newDoc} disabled={newDocumentBlocked}>
           <Plus size={14} />
         </button>
         <div />
@@ -4221,7 +5011,7 @@ export default function App() {
       {(exporting || (importing && !discardOpen)) && (
         <div className="toast">
           <Loader2 size={17} className="spin" />
-          {importing ? "Preparando sólido STEP…" : "Exportando geometría…"}
+          {importing ? "Preparando importación STEP…" : "Exportando geometría…"}
         </div>
       )}
       {showHelp && (
@@ -4299,6 +5089,8 @@ export default function App() {
           </div>
         </div>
       )}
+      {namedViews.isOpen && <NamedViewsDialog views={namedViews.views} canSave={namedViews.canSave} canUpdate={namedViews.canUpdate}
+        onSave={namedViews.save} onShow={namedViews.show} onDelete={namedViews.remove} onRename={namedViews.rename} onUpdate={namedViews.update} onClose={namedViews.close} />}
       {rename && (
         <div className="modal-backdrop">
           <form
@@ -4365,10 +5157,10 @@ export default function App() {
               }
             }}
           >
-            <h2 id="discard-title">Cambios sin guardar</h2>
+            <h2 id="discard-title">{embeddedEdit ? "Descartar edición de pieza" : "Cambios sin guardar"}</h2>
             <p id="discard-description">
-              Hay cambios sin guardar en esta pieza. Si continúas, se perderán
-              los cambios y la operación que estés editando.
+              {embeddedEdit ? "Los cambios de esta pieza siguen pendientes en el ensamblaje, aunque hayas guardado una copia. Si continúas, se perderán los cambios y la operación que estés editando."
+                : "Hay cambios sin guardar en esta pieza. Si continúas, se perderán los cambios y la operación que estés editando."}
             </p>
             <div className="modal-actions">
               <button
@@ -4381,7 +5173,7 @@ export default function App() {
                 className="primary-button"
                 onClick={() => finishDiscard(true)}
               >
-                Continuar sin guardar
+                {embeddedEdit ? "Descartar edición" : "Continuar sin guardar"}
               </button>
             </div>
           </div>

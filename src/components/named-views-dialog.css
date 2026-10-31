@@ -1,0 +1,38 @@
+dialog.named-views-dialog[role="dialog"] {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  transform: none;
+  width: min(440px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  box-sizing: border-box;
+  overflow: auto;
+  padding: 18px;
+  border: 1px solid #a5b9cc;
+  border-radius: 6px;
+  background: #fff;
+  color: #19344d;
+  box-shadow: 0 12px 42px #102a4050;
+  font: inherit;
+  font-size: 13px;
+}
+.named-views-dialog::backdrop { background: #132b454d; }
+.named-views-dialog h2 { margin: 0 0 8px; font-size: 18px; }
+.named-views-dialog p { margin: 0 0 12px; color: #526679; }
+.named-views-catalog { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; margin: 14px 0; }
+.named-views-dialog .named-views-catalog select { width: 100%; min-height: 92px; padding: 4px; border: 1px solid #9fb5ca; border-radius: 3px; background: #f4f8fc; color: #19344d; font: inherit; }
+.named-views-catalog option { padding: 5px 7px; }
+.named-views-dialog .named-views-empty { min-height: 64px; margin: 0; padding: 12px; border: 1px solid #c6d2dc; background: #f4f8fc; }
+.named-views-actions { display: flex; flex-direction: column; gap: 8px; }
+dialog.named-views-dialog[role="dialog"] button { min-height: 30px; margin: 0; padding: 4px 12px; border: 1px solid #9fb5ca; border-radius: 3px; background: #f4f8fc; color: #1765a5; cursor: pointer; font: inherit; }
+dialog.named-views-dialog[role="dialog"] button:hover:not(:disabled) { background: #e7f2fc; }
+dialog.named-views-dialog[role="dialog"] button:disabled { opacity: .55; cursor: default; }
+.named-views-dialog :is(button, input, select):focus-visible { outline: 2px solid #1874c9; outline-offset: 2px; }
+.named-views-dialog form { padding-top: 12px; border-top: 1px solid #c6d2dc; }
+.named-views-dialog .named-views-rename { margin-bottom: 14px; }
+.named-views-dialog label { display: block; margin-bottom: 6px; font-weight: 600; }
+.named-views-save { display: flex; flex-wrap: wrap; gap: 8px; }
+.named-views-save input { flex: 1 1 180px; min-width: 0; min-height: 30px; box-sizing: border-box; padding: 4px 8px; border: 1px solid #9fb5ca; border-radius: 3px; background: #fff; color: #19344d; font: inherit; }
+.named-views-dialog form p { margin: 8px 0 0; }
+.named-views-dialog .named-views-error { margin: 10px 0 0; color: #9b2424; }
+dialog.named-views-dialog[role="dialog"] footer { display: flex; justify-content: flex-end; margin-top: 18px; padding: 0; border: 0; background: transparent; }

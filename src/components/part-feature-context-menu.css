@@ -1,0 +1,50 @@
+.part-feature-context-menu {
+  position: fixed;
+  z-index: 1200;
+  box-sizing: border-box;
+  width: 260px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 16px);
+  overflow: auto;
+  padding: 4px;
+  border: 1px solid #a9b9cb;
+  border-radius: 5px;
+  background: #fff;
+  color: #25364b;
+  box-shadow: 0 6px 20px #18334c30;
+  font: 12px/1.4 "Segoe UI", sans-serif;
+  outline: none;
+}
+
+.part-feature-context-heading {
+  padding: 6px 8px 8px;
+  margin-bottom: 3px;
+  border-bottom: 1px solid #dce5ee;
+  color: #405873;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.part-feature-context-menu > button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 30px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.part-feature-context-menu > button > span:last-child { overflow-wrap: anywhere; }
+.part-feature-context-icon { display: flex; width: 16px; flex: 0 0 16px; color: #2762a4; }
+.part-feature-context-menu > button:not(:disabled):hover { background: #edf4fc; }
+.part-feature-context-menu > button:focus-visible { outline: none; border-color: #3a79bb; background: #e2efff; }
+.part-feature-context-menu > button:disabled { color: #8793a2; cursor: default; }
+.part-feature-context-menu > button:disabled .part-feature-context-icon { color: inherit; }
+.part-feature-context-menu:focus-visible { outline: 2px solid #3a79bb; outline-offset: -2px; }

@@ -15,6 +15,8 @@ export interface FaceReference {
   sourceFeatureId: string;
   key: string;
 }
+/** Exact current native vertex incidence; never a mesh vertex index. */
+export interface VertexReference { sourceFeatureId: string; key: string }
 
 /** Exact modeled body state; never a native solid index or geometric signature. */
 export interface BodyReference {
@@ -47,6 +49,12 @@ export interface ImportedSolidFeature extends FeatureBase {
   source: StepSource;
 }
 
+/** Explicit persistent identities; each source reconstructs one closed solid. */
+export interface ImportedBodiesFeature extends FeatureBase {
+  type: 'importedBodies';
+  bodies: { bodyId: string; source: StepSource }[];
+}
+
 export interface SketchFeature extends FeatureBase {
   type: 'sketch';
   plane: Plane;
@@ -71,13 +79,28 @@ export type ExtrudeEndCondition =
   | { kind: 'untilNext'; baseFeatureId: string; baseBody?: BodyReference }
   | { kind: 'upToSurface'; target: PlaneSupport };
 
+/** Optional planar wall thickness; absence retains a filled profile. */
+export type ThinWallDefinition = (
+  | { kind: 'one-side'; thickness: number; reversed: boolean }
+  | { kind: 'mid-plane'; thickness: number }
+  | { kind: 'two-sides'; firstThickness: number; secondThickness: number }
+) & {
+  /** Optional original-chain corner rounding; radius is the inner material radius. */
+  autoCorners?: { enabled: boolean; radius: number };
+  /** Optional internal axial end plates for an eligible blind extrusion. */
+  endCaps?: { enabled: boolean; thickness: number };
+};
+
 interface ExtrudeDefinition extends FeatureBase {
   sketchId: string;
   /** Signed blind length; with a geometric end condition only its sign selects direction. */
   depth: number;
   /** Legacy mid-plane spans -depth/2 to +depth/2; false for geometric end conditions. */
   symmetric: boolean;
+  /** Independent opposite blind length; absence retains the legacy interval. */
+  secondDirection?: { enabled: boolean; depth: number; endCondition?: ExtrudeEndCondition };
   endCondition?: ExtrudeEndCondition;
+  thinWall?: ThinWallDefinition;
 }
 
 /** Absence of body fields retains the legacy aggregate operation. */
@@ -87,13 +110,39 @@ export type ExtrudeFeature = ExtrudeDefinition & (
 );
 export type CutFeature = Extract<ExtrudeFeature, { type: 'cut' }>;
 
+export type RevolutionAxis =
+  | { kind: 'sketch-axis'; axis: 'x' | 'y' }
+  | { kind: 'sketch-line'; entityId: string }
+  | { kind: 'principal-axis'; axis: 'X' | 'Y' | 'Z' }
+  | { kind: 'external-sketch-line'; sketchId: string; entityId: string }
+  | { kind: 'linear-edge'; edge: EdgeReference; body: BodyReference | null };
+
+export type RevolutionExtent =
+  | { kind: 'two-directions'; secondAngle: number }
+  | { kind: 'mid-plane' };
+
 export interface RevolveFeature extends FeatureBase {
   type: 'revolve';
   sketchId: string;
-  /** Revolves around the sketch plane's local Y axis through its origin. */
+  /** Degrees: first side for two directions, total for mid-plane; otherwise the legacy positive sweep. */
   angle: number;
+  /** Absent preserves the legacy one-direction declaration and reference lineage. */
+  extent?: RevolutionExtent;
+  /** Absent preserves the sketch plane's local +Y axis through its origin. */
+  axis?: RevolutionAxis;
+  /** Absent preserves positive rotation about the selected directed axis. */
+  reversed?: boolean;
+  thinWall?: ThinWallDefinition;
   bodyOperation?: BodyOperation;
 }
+
+/** A subtractive revolution. Older readers reject this distinct feature type. */
+export interface RevolvedCutFeature extends Omit<RevolveFeature, 'type' | 'bodyOperation'> {
+  type: 'revolvedCut';
+  /** Absence retains aggregate-body editing; explicit catalogs require exact targets. */
+  bodyScope?: BodyReference[];
+}
+export type RevolutionFeature = RevolveFeature | RevolvedCutFeature;
 
 export type CombineFeature = FeatureBase & (
   | { type: 'combine'; operation: 'add' | 'common'; operands: BodyReference[]; resultBodyId: string; keepTools: boolean }
@@ -280,7 +329,7 @@ export interface DraftFeature extends FeatureBase {
 
 export type FaceOperationFeature = ShellFeature | DraftFeature;
 
-export type Feature = ImportedSolidFeature | SketchFeature | ReferencePlaneFeature | ExtrudeFeature | RevolveFeature | CombineFeature | HoleFeature | SweepFeature | LoftFeature | EdgeFinishFeature | RepetitionFeature | FaceOperationFeature;
+export type Feature = ImportedSolidFeature | ImportedBodiesFeature | SketchFeature | ReferencePlaneFeature | ExtrudeFeature | RevolutionFeature | CombineFeature | HoleFeature | SweepFeature | LoftFeature | EdgeFinishFeature | RepetitionFeature | FaceOperationFeature;
 
 /** Serializable display/picking metadata; identity comes from saved producers. */
 export interface PickableBody {
@@ -293,8 +342,17 @@ export interface PickableBody {
   edgeLines: number[];
   edges: PickableEdge[];
   faces: PickableFace[];
+  vertexPoints?: PickableVertex[];
   volume: number;
   bounds: { min: Vec3; max: Vec3 };
+}
+
+/** Analytic display orientation only; never a sketch support or mate authority. */
+export interface FaceViewAxis {
+  kind: 'axis';
+  point: Vec3;
+  direction: Vec3;
+  xDirection?: Vec3;
 }
 
 export interface PickableFace {
@@ -303,6 +361,8 @@ export interface PickableFace {
   aliases?: readonly FaceReference[];
   /** Null for curved faces: they cannot support a planar sketch. */
   frame: PlaneFrame | null;
+  /** Current cylindrical/conical native axis, independent of face reversal. */
+  viewAxis?: FaceViewAxis;
   /** A face-local display mesh; triangle picking never persists an index. */
   vertices: number[];
   triangles: number[];
@@ -320,6 +380,8 @@ export interface PickableEdge {
   /** Consecutive endpoint pairs for the individual B-rep edge. */
   lines: number[];
 }
+/** Display measurement only; fresh native inspection supplies solve authority. */
+export interface PickableVertex { ref: VertexReference; point: Vec3 }
 
 export interface FeatureError {
   id: string;
@@ -329,13 +391,22 @@ export interface FeatureError {
 export interface SketchVisual {
   id: string;
   frame?: PlaneFrame;
+  /** Classification of this resolved profile; absence is unknown to older consumers. */
+  profileTopology?: 'open' | 'closed' | 'invalid';
+  /** True only when every resolved material component is an open chain. */
+  profileOpenOnly?: true;
+  /** True only for one resolved closed material component; native geometry still validates independently. */
+  profileClosedSingle?: true;
   /** Solved sketch curves as consecutive XYZ endpoint pairs, in millimetres. */
   lines: number[];
   /** Construction geometry is displayed separately and never creates material. */
   constructionLines: number[];
+  /** Resolved world-space LINE witnesses for picking; native rebuilds retain authority. */
+  lineEntities?: { entityId: string; start: Vec3; end: Vec3; construction: boolean }[];
 }
 
 export interface CadResult {
+  vertexPoints?: PickableVertex[];
   bodies?: PickableBody[];
   /** False/absent retains the legacy aggregate scene. */
   bodyCatalogActive?: boolean;
@@ -361,11 +432,27 @@ export interface CadResult {
 
 export type CadExportFormat = 'step' | 'stl';
 
-export type KernelRequest =
+export type KernelRequest = import('./kernel.assembly-types').AssemblyKernelRequest
+  | import('./kernel.assembly-configuration-session').ConfiguredAssemblyKernelRequest
+  | import('./kernel.assembly-types').AssemblyDirectedAngleKernelRequest
+  | { id: number; action: 'insert-assembly-step'; current: import('../model/assemblyDocument').AssemblyDocument; source: StepSource; scope?: import('../model/assemblyDocument').AssemblyDefinitionReference }
+  | { id: number; action: 'import-assembly-step'; source: StepSource }
+  | { id: number; action: 'export-assembly-step'; document: import('../model/assemblyDocument').AssemblyDocument }
   | { id: number; action: 'init' }
   | { id: number; action: 'build'; features: Feature[] }
+  | { id: number; action: 'export-assembly'; document: import('../model/assemblyDocument').AssemblyDocument; format: CadExportFormat }
   | { id: number; action: 'export'; format: CadExportFormat; features?: Feature[] };
 
+export type KernelValue = import('../model/assemblyDocument').AssemblyDocument | CadResult | Blob | null | import('./kernel.assembly-types').AssemblyScene
+  | import('./kernel.assembly-configuration-scene').ConfiguredAssemblyScene
+  | import('./kernel.assembly-configuration-session').ConfiguredAssemblyPreviewReply
+  | import('./kernel.assembly-configuration-session').ConfiguredAssemblyAppliedReply
+  | import('./kernel.assembly-types').AssemblyPreviewReply | import('./kernel.assembly-types').AssemblyAppliedReply
+  | import('./kernel.assembly-source-updates').AssemblySourceUpdateReview
+  | import('./kernel.assembly-replacement').AssemblyReplacementReview
+  | import('./kernel.assembly-document-update-types').AssemblyDocumentUpdateReview
+  | import('../model/assemblyInterference').AssemblyInterferenceReport
+  | import('../model/assemblyDirectedAngle').AssemblyDirectedAngleReport
 export type KernelResponse =
-  | { id: number; ok: true; value: CadResult | Blob | null }
+  | { id: number; ok: true; value: KernelValue }
   | { id: number; ok: false; error: string };

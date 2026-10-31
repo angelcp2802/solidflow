@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "id": "symmetry-nested-repair-replacement-prism",
+  "name": "Original nested symmetry replacement 8x6x8",
+  "units": "mm",
+  "createdAt": "2026-10-22T00:00:00.000Z",
+  "updatedAt": "2026-10-22T00:00:00.000Z",
+  "features": [
+    {
+      "id": "profile",
+      "name": "Original rectangle",
+      "type": "sketch",
+      "plane": "XY",
+      "offset": 0,
+      "suppressed": false,
+      "profile": {
+        "kind": "rectangle",
+        "center": [
+          4,
+          3
+        ],
+        "width": 8,
+        "height": 6
+      }
+    },
+    {
+      "id": "solid",
+      "name": "Original prism",
+      "type": "extrude",
+      "sketchId": "profile",
+      "depth": 8,
+      "symmetric": false,
+      "suppressed": false,
+      "bodyOperation": {
+        "mode": "new",
+        "bodyId": "box"
+      }
+    }
+  ]
+}
