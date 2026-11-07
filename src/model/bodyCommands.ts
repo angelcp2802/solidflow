@@ -1,4 +1,4 @@
-import type { BodyOperation, BodyReference, Feature } from '../cad/kernel.types'
+import type { BodyOperation, BodyReference, ExtrudeEndCondition, ExtrudeFeature, Feature } from '../cad/kernel.types'
 import { addFeature, updateFeature, validateDocument, type Document } from './document'
 import { bodyReferenceCreationFeatureId, featureBodyOutputIncludes, featureCurrentBodyReferences } from './bodyReferences'
 import { featurePatternApplications, isAllFeaturePattern } from './featurePatterns'
@@ -52,24 +52,35 @@ export function isBodyCommandFeature(feature: Feature): boolean {
     || ((feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror') && feature.source.mode === 'features' && feature.featurePattern !== undefined)
     || ((feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror') && feature.source.mode === 'bodies' && feature.bodyPattern !== undefined)
     || ((feature.type === 'extrude' || feature.type === 'revolve' || feature.type === 'sweep' || feature.type === 'loft') && feature.bodyOperation !== undefined)
-    || ((feature.type === 'cut' || feature.type === 'hole' || feature.type === 'fillet' || feature.type === 'chamfer' || feature.type === 'shell' || feature.type === 'draft') && feature.bodyScope !== undefined)
+    || ((feature.type === 'cut' || feature.type === 'revolvedCut' || feature.type === 'hole' || feature.type === 'fillet' || feature.type === 'chamfer' || feature.type === 'shell' || feature.type === 'draft') && feature.bodyScope !== undefined)
+}
+
+/** Draft traversal retains invalid numeric input; document admission is separate. */
+function mapExtrusionEnds<T extends ExtrudeFeature>(feature: T, map: (end: ExtrudeEndCondition) => ExtrudeEndCondition): T {
+  return { ...feature,
+    ...(feature.endCondition ? { endCondition: map(feature.endCondition) } : {}),
+    ...(feature.secondDirection?.endCondition ? { secondDirection: { ...feature.secondDirection, endCondition: map(feature.secondDirection.endCondition) } } : {}),
+  }
 }
 
 /** Changing draft creation mode never adopts a merge target as a new-body limit. */
 export function setBodyOperationDraft(feature: Extract<Feature, { type: 'extrude' | 'revolve' | 'sweep' | 'loft' }>, operation: BodyOperation): Feature {
   const next = { ...feature, bodyOperation: structuredClone(operation) }
   if (next.type === 'sweep' || next.type === 'loft') return { ...next, merge: operation.mode === 'merge' }
-  if (next.type !== 'extrude' || !next.endCondition || !('baseFeatureId' in next.endCondition)) return next
-  const endCondition = { ...next.endCondition }
-  if (operation.mode === 'merge') {
-    delete endCondition.baseBody
-    return { ...next, endCondition: { ...endCondition, baseFeatureId: operation.target.sourceFeatureId } }
-  }
-  if (feature.bodyOperation?.mode !== 'new') {
-    delete endCondition.baseBody
-    return { ...next, endCondition: { ...endCondition, baseFeatureId: '' } }
-  }
-  return next
+  if (next.type !== 'extrude') return next
+  return mapExtrusionEnds(next, end => {
+    if (!('baseFeatureId' in end)) return end
+    const endCondition = { ...end }
+    if (operation.mode === 'merge') {
+      delete endCondition.baseBody
+      return { ...endCondition, baseFeatureId: operation.target.sourceFeatureId }
+    }
+    if (feature.bodyOperation?.mode !== 'new') {
+      delete endCondition.baseBody
+      return { ...endCondition, baseFeatureId: '' }
+    }
+    return endCondition
+  })
 }
 
 /** Explicit editor selection, including its termination/base scope. */
@@ -93,11 +104,9 @@ export function withBodySelection(feature: Feature, selection: readonly BodyRefe
     if (feature.bodyOperation?.mode !== 'merge') return feature
     return setBodyOperationDraft(feature, { mode: 'merge', target: first })
   }
-  if (feature.type === 'cut') return {
-    ...feature, bodyScope: references,
-    ...(feature.endCondition && 'baseFeatureId' in feature.endCondition
-      ? { endCondition: { ...feature.endCondition, baseFeatureId: first.sourceFeatureId } } : {}),
-  }
+  if (feature.type === 'cut') return { ...mapExtrusionEnds(feature, end => 'baseFeatureId' in end
+    ? { ...end, baseFeatureId: first.sourceFeatureId } : end), bodyScope: references }
+  if (feature.type === 'revolvedCut') return { ...feature, bodyScope: references }
   if (feature.type === 'hole') return { ...feature, bodyScope: references, baseFeatureId: first.sourceFeatureId }
   if (feature.type === 'fillet' || feature.type === 'chamfer' || feature.type === 'shell' || feature.type === 'draft') {
     return { ...feature, bodyScope: first, baseFeatureId: first.sourceFeatureId }

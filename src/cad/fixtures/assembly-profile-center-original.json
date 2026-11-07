@@ -1,0 +1,200 @@
+{
+  "version": 2,
+  "kind": "assembly",
+  "id": "assembly-profile-center-original",
+  "revision": "r1",
+  "name": "Original bounded profile pairs",
+  "units": "mm",
+  "createdAt": "2026-10-22T00:00:00.000Z",
+  "updatedAt": "2026-10-22T00:00:00.000Z",
+  "definitions": [
+    {
+      "kind": "part",
+      "id": "original-profile-circle",
+      "revision": "r1",
+      "document": {
+        "version": 1,
+        "id": "original-profile-circle",
+        "name": "original-profile-circle",
+        "units": "mm",
+        "createdAt": "2026-10-22T00:00:00.000Z",
+        "updatedAt": "2026-10-22T00:00:00.000Z",
+        "features": [
+          {
+            "id": "profile",
+            "name": "Original profile",
+            "type": "sketch",
+            "plane": "XY",
+            "offset": 0,
+            "suppressed": false,
+            "profile": {
+              "kind": "circle",
+              "center": [
+                0,
+                0
+              ],
+              "radius": 2
+            }
+          },
+          {
+            "id": "solid",
+            "name": "Original prism",
+            "type": "extrude",
+            "sketchId": "profile",
+            "depth": 3,
+            "symmetric": false,
+            "suppressed": false,
+            "bodyOperation": {
+              "mode": "new",
+              "bodyId": "body"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "part",
+      "id": "original-profile-rectangle",
+      "revision": "r1",
+      "document": {
+        "version": 1,
+        "id": "original-profile-rectangle",
+        "name": "original-profile-rectangle",
+        "units": "mm",
+        "createdAt": "2026-10-22T00:00:00.000Z",
+        "updatedAt": "2026-10-22T00:00:00.000Z",
+        "features": [
+          {
+            "id": "profile",
+            "name": "Original profile",
+            "type": "sketch",
+            "plane": "XY",
+            "offset": 0,
+            "suppressed": false,
+            "profile": {
+              "kind": "rectangle",
+              "center": [
+                0,
+                0
+              ],
+              "width": 6,
+              "height": 4
+            }
+          },
+          {
+            "id": "solid",
+            "name": "Original prism",
+            "type": "extrude",
+            "sketchId": "profile",
+            "depth": 3,
+            "symmetric": false,
+            "suppressed": false,
+            "bodyOperation": {
+              "mode": "new",
+              "bodyId": "body"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "occurrences": [
+    {
+      "id": "circle-fixed",
+      "name": "circle-fixed",
+      "definition": {
+        "id": "original-profile-circle",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          -12,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": true,
+      "visible": true,
+      "suppressed": false
+    },
+    {
+      "id": "circle-free",
+      "name": "circle-free",
+      "definition": {
+        "id": "original-profile-circle",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          -5,
+          3,
+          8
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": false,
+      "visible": true,
+      "suppressed": false
+    },
+    {
+      "id": "rectangle-fixed",
+      "name": "rectangle-fixed",
+      "definition": {
+        "id": "original-profile-rectangle",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          12,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": true,
+      "visible": true,
+      "suppressed": false
+    },
+    {
+      "id": "rectangle-free",
+      "name": "rectangle-free",
+      "definition": {
+        "id": "original-profile-rectangle",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          20,
+          4,
+          10
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": false,
+      "visible": true,
+      "suppressed": false
+    }
+  ],
+  "mates": []
+}

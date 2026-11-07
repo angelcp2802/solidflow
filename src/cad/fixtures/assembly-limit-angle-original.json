@@ -1,0 +1,153 @@
+{
+  "version": 2,
+  "kind": "assembly",
+  "id": "assembly-limit-angle-original",
+  "revision": "r1",
+  "name": "Intervalo angular original entre direcciones",
+  "units": "mm",
+  "createdAt": "2026-10-19T00:00:00.000Z",
+  "updatedAt": "2026-10-19T00:00:00.000Z",
+  "occurrences": [
+    {
+      "id": "fixed",
+      "name": "Bloque angular fijo original",
+      "definition": {
+        "id": "limit-angle-fixed",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": true,
+      "visible": true,
+      "suppressed": false
+    },
+    {
+      "id": "moving",
+      "name": "Bloque angular móvil original",
+      "definition": {
+        "id": "limit-angle-moving",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          0,
+          0,
+          22
+        ],
+        "rotation": [
+          0.5,
+          0,
+          0,
+          0.8660254037844386
+        ]
+      },
+      "fixed": false,
+      "visible": true,
+      "suppressed": false
+    }
+  ],
+  "mates": [],
+  "definitions": [
+    {
+      "kind": "part",
+      "id": "limit-angle-fixed",
+      "revision": "r1",
+      "document": {
+        "version": 1,
+        "id": "limit-angle-fixed",
+        "name": "Original angular-limit 40 by 30 by 4 fixed block",
+        "units": "mm",
+        "createdAt": "2026-10-19T00:00:00.000Z",
+        "updatedAt": "2026-10-19T00:00:00.000Z",
+        "features": [
+          {
+            "id": "fixed-profile",
+            "name": "Original 40 by 30 rectangle",
+            "type": "sketch",
+            "plane": "XY",
+            "offset": 0,
+            "suppressed": false,
+            "profile": {
+              "kind": "rectangle",
+              "center": [
+                0,
+                0
+              ],
+              "width": 40,
+              "height": 30
+            }
+          },
+          {
+            "id": "fixed-solid",
+            "name": "Original 4 mm block",
+            "type": "extrude",
+            "sketchId": "fixed-profile",
+            "depth": 4,
+            "symmetric": false,
+            "suppressed": false,
+            "bodyOperation": {
+              "mode": "new",
+              "bodyId": "angle-fixed-body"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "part",
+      "id": "limit-angle-moving",
+      "revision": "r1",
+      "document": {
+        "version": 1,
+        "id": "limit-angle-moving",
+        "name": "Original angular-limit 10 by 6 by 2 moving block",
+        "units": "mm",
+        "createdAt": "2026-10-19T00:00:00.000Z",
+        "updatedAt": "2026-10-19T00:00:00.000Z",
+        "features": [
+          {
+            "id": "moving-profile",
+            "name": "Original 10 by 6 rectangle",
+            "type": "sketch",
+            "plane": "XY",
+            "offset": 0,
+            "suppressed": false,
+            "profile": {
+              "kind": "rectangle",
+              "center": [
+                0,
+                0
+              ],
+              "width": 10,
+              "height": 6
+            }
+          },
+          {
+            "id": "moving-solid",
+            "name": "Original 2 mm block",
+            "type": "extrude",
+            "sketchId": "moving-profile",
+            "depth": 2,
+            "symmetric": false,
+            "suppressed": false,
+            "bodyOperation": {
+              "mode": "new",
+              "bodyId": "angle-moving-body"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

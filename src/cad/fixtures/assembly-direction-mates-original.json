@@ -1,0 +1,139 @@
+{
+  "version": 2,
+  "kind": "assembly",
+  "id": "assembly-direction-original",
+  "revision": "r1",
+  "name": "Relaciones de dirección originales",
+  "units": "mm",
+  "createdAt": "2026-10-16T00:00:00.000Z",
+  "updatedAt": "2026-10-16T00:00:00.000Z",
+  "definitions": [
+    {
+      "kind": "part",
+      "id": "direction-block",
+      "revision": "r1",
+      "document": {
+        "version": 1,
+        "id": "direction-block",
+        "name": "Bloque original con plano, eje y arista LINE",
+        "units": "mm",
+        "createdAt": "2026-10-16T00:00:00.000Z",
+        "updatedAt": "2026-10-16T00:00:00.000Z",
+        "features": [
+          {
+            "id": "profile",
+            "name": "Rectángulo original 10 por 6",
+            "type": "sketch",
+            "plane": "XY",
+            "offset": 0,
+            "suppressed": false,
+            "profile": {
+              "kind": "rectangle",
+              "center": [
+                0,
+                0
+              ],
+              "width": 10,
+              "height": 6
+            }
+          },
+          {
+            "id": "base",
+            "name": "Prisma original 4 mm",
+            "type": "extrude",
+            "sketchId": "profile",
+            "depth": 4,
+            "symmetric": false,
+            "suppressed": false,
+            "bodyOperation": {
+              "mode": "new",
+              "bodyId": "block-body"
+            }
+          },
+          {
+            "id": "bore-profile",
+            "name": "Círculo original excéntrico R1",
+            "type": "sketch",
+            "plane": "XY",
+            "offset": 0,
+            "suppressed": false,
+            "profile": {
+              "kind": "circle",
+              "center": [
+                2,
+                0
+              ],
+              "radius": 1
+            }
+          },
+          {
+            "id": "bore",
+            "name": "Taladro original pasante",
+            "type": "cut",
+            "sketchId": "bore-profile",
+            "depth": 4,
+            "symmetric": false,
+            "suppressed": false,
+            "bodyScope": [
+              {
+                "bodyId": "block-body",
+                "sourceFeatureId": "base"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "occurrences": [
+    {
+      "id": "ground",
+      "name": "ground",
+      "definition": {
+        "id": "direction-block",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": true,
+      "visible": true,
+      "suppressed": false
+    },
+    {
+      "id": "moving",
+      "name": "moving",
+      "definition": {
+        "id": "direction-block",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          20,
+          10,
+          6
+        ],
+        "rotation": [
+          0.25881904510252074,
+          0,
+          0,
+          0.9659258262890683
+        ]
+      },
+      "fixed": false,
+      "visible": true,
+      "suppressed": false
+    }
+  ],
+  "mates": []
+}

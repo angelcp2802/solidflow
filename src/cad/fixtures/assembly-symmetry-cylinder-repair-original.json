@@ -1,0 +1,176 @@
+{
+  "version": 2,
+  "kind": "assembly",
+  "units": "mm",
+  "id": "assembly-symmetry-cylinder-repair-original",
+  "revision": "r1",
+  "name": "Original cylinder symmetry repair",
+  "createdAt": "2026-10-22T00:00:00.000Z",
+  "updatedAt": "2026-10-22T00:00:00.000Z",
+  "definitions": [
+    {
+      "kind": "part",
+      "id": "symmetry-cylinder-repair-entity",
+      "revision": "r1",
+      "document": {
+        "version": 1,
+        "id": "symmetry-cylinder-repair-entity",
+        "name": "Original cylinder repair baseline",
+        "units": "mm",
+        "createdAt": "2026-10-22T00:00:00.000Z",
+        "updatedAt": "2026-10-22T00:00:00.000Z",
+        "features": [
+          {
+            "id": "profile",
+            "type": "sketch",
+            "name": "Original analytic profile",
+            "plane": "XY",
+            "offset": 0,
+            "suppressed": false,
+            "profile": {
+              "kind": "circle",
+              "center": [
+                0,
+                0
+              ],
+              "radius": 2
+            }
+          },
+          {
+            "id": "solid",
+            "type": "extrude",
+            "name": "Original H4 solid",
+            "sketchId": "profile",
+            "depth": 4,
+            "symmetric": false,
+            "suppressed": false,
+            "bodyOperation": {
+              "mode": "new",
+              "bodyId": "cylinder"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "part",
+      "id": "symmetry-cylinder-repair-mirror",
+      "revision": "r1",
+      "document": {
+        "version": 1,
+        "id": "symmetry-cylinder-repair-mirror",
+        "name": "Original separate native mirror prism",
+        "units": "mm",
+        "createdAt": "2026-10-22T00:00:00.000Z",
+        "updatedAt": "2026-10-22T00:00:00.000Z",
+        "features": [
+          {
+            "id": "profile",
+            "type": "sketch",
+            "name": "Original analytic profile",
+            "plane": "XY",
+            "offset": 0,
+            "suppressed": false,
+            "profile": {
+              "kind": "rectangle",
+              "center": [
+                2,
+                3
+              ],
+              "width": 4,
+              "height": 6
+            }
+          },
+          {
+            "id": "solid",
+            "type": "extrude",
+            "name": "Original H4 solid",
+            "sketchId": "profile",
+            "depth": 4,
+            "symmetric": false,
+            "suppressed": false,
+            "bodyOperation": {
+              "mode": "new",
+              "bodyId": "box"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "occurrences": [
+    {
+      "id": "source",
+      "name": "cylinder source",
+      "definition": {
+        "id": "symmetry-cylinder-repair-entity",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          -5,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": true,
+      "visible": true,
+      "suppressed": false
+    },
+    {
+      "id": "target",
+      "name": "cylinder target",
+      "definition": {
+        "id": "symmetry-cylinder-repair-entity",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          6,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": false,
+      "visible": true,
+      "suppressed": false
+    },
+    {
+      "id": "mirror",
+      "name": "cylinder mirror",
+      "definition": {
+        "id": "symmetry-cylinder-repair-mirror",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": true,
+      "visible": true,
+      "suppressed": false
+    }
+  ],
+  "mates": []
+}

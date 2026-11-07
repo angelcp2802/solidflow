@@ -15,7 +15,7 @@ interface FeaturePatternRoutes {
 /** Explicit intent for an external principal-plane end reference. */
 export interface FeaturePatternReferencePolicy {
   featureId: string
-  path: 'endCondition.target'
+  path: 'endCondition.target' | 'secondDirection.endCondition.target'
   placement: 'world'
 }
 
@@ -109,11 +109,11 @@ function declaration(feature: RepetitionFeature): FeaturePatternOperation | unde
       const policy: unknown = entry.value
       if (!object(policy) || !exact(policy, ['featureId', 'path', 'placement'])
         || Object.values(Object.getOwnPropertyDescriptors(policy)).some(field => !Object.hasOwn(field, 'value') || !field.enumerable)
-        || !identifier(policy.featureId) || !seeds.has(policy.featureId) || used.has(policy.featureId)
-        || policy.path !== 'endCondition.target' || policy.placement !== 'world') {
+        || !identifier(policy.featureId) || !seeds.has(policy.featureId) || used.has(JSON.stringify([policy.featureId, policy.path]))
+        || !['endCondition.target', 'secondDirection.endCondition.target'].includes(policy.path as string) || policy.placement !== 'world') {
         throw new Error('Cada plano límite fijo requiere una política explícita y única de una operación semilla.')
       }
-      used.add(policy.featureId)
+      used.add(JSON.stringify([policy.featureId, policy.path]))
     }
   }
   const targets = new Set<string>()

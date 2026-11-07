@@ -34,6 +34,23 @@ function prepared(input: BodyCommandState): BodyCommandPlan {
 }
 const receipt = (plan: BodyCommandPlan) => ({ features: plan.previewFeatures, healthy: true })
 
+it('attests a revolved-cut scope through preparation/application/history and rejects a changed selection', () => {
+  const input = state({ id: 'revolved-command', name: 'Original revolved cut', type: 'revolvedCut', suppressed: false,
+    sketchId: 'sketch-a', angle: 90, bodyScope: [a] })
+  input.feature = withBodySelection(input.feature, input.selection)
+  const before = structuredClone(input), plan = prepared(input)
+  expect(plan.document.features.at(-1)).toEqual({ id: 'revolved-command', name: 'Original revolved cut', type: 'revolvedCut',
+    suppressed: false, sketchId: 'sketch-a', angle: 90, bodyScope: [a, b] })
+  expect(input).toEqual(before)
+  expect(applyBodyCommand(plan, { ...input, selection: [b] }, receipt(plan)).accepted).toBe(false)
+  const applied = applyBodyCommand(plan, input, receipt(plan))
+  expect(applied.accepted).toBe(true)
+  if (!applied.accepted) throw new Error(applied.message)
+  const history = new DocumentHistory(input.document)
+  history.apply(applied.document); expect(history.undo()).toEqual(input.document)
+  expect(history.redo()).toEqual(applied.document)
+})
+
 // Original radius-1/radius-2 sections at Z0/Z6 and an axial six-mm path.
 // Command tests validate saved records and receipts, without constructing BReps.
 const advancedSketches = (): SketchFeature[] => [

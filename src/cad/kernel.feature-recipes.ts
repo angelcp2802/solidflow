@@ -8,10 +8,11 @@ import {
   bodyBoolean, copyBodyShape, createConservativeBodyBounds, validateBodyShape, type NativeBodyCatalog,
   type NativeBodyReplacement, type NativeBodyStateUpdate, type NativeBodyTransaction,
 } from './kernel.bodies';
-import { buildRecipeInstanceTool, resolveRecipeInstanceUntilNext } from './kernel.recipe-instance';
+import { buildRecipeInstanceTool, resolveRecipeInstanceDirections, resolveRecipeInstanceUntilNext } from './kernel.recipe-instance';
 import { framePoint } from './kernel.frames';
 import { validatePositiveClosedTool } from './kernel.closed-tools';
 import { validateEntityRecipeProfileForAbsence, type EntityRecipeSolveInput } from './kernel.recipe-entities';
+import { validatePrimitiveRecipeProfileForAbsence, type PrimitiveRecipeProfileInput } from './kernel.recipe-primitives';
 import { isNativeCleanupFailure, NativeCleanupError, withNativeOwners, type NativeOwner, type NativeOwners } from './kernel.native-ownership';
 import { attestNativeRecipeScope, assertNativeRecipeScopeCurrent, type NativeRecipeScopeAttestation } from './kernel.recipe-scopes';
 
@@ -116,9 +117,13 @@ function allCutEntirelyBehindRay(closure: RecipeClosure, operation: RecipeOperat
   assertWorkingCurrent: () => void): boolean {
   if (closure.request.scope.mode !== 'all' || operation.type !== 'cut'
     || operation.termination?.kind !== 'throughAll' || operation.termination.bothDirections) return false;
+  const definition = closure.definitions.find(item => item.feature.id === operation.featureId)?.feature;
+  if (definition && (definition.type === 'extrude' || definition.type === 'cut') && definition.secondDirection?.enabled) return false;
+  const thinWallDeclared = Boolean(definition && Object.hasOwn(definition, 'thinWall'));
   const sketch = closure.definitions.find(definition => definition.feature.id === operation.sketchId)?.feature;
   if (sketch?.type !== 'sketch') return false;
   let entityPlacement: Readonly<IntrinsicRecipeExtrusionPlacement> | undefined;
+  let primitiveWitness: Omit<PrimitiveRecipeProfileInput, 'assertWorkingCurrent'> | undefined;
   let origin: Vec3, ray: Vec3;
   if (sketch.profile.kind === 'entities') {
     if (!entitySource) throw new Error('Entity absence requires the engine real-solve checkpoint.');
@@ -141,6 +146,12 @@ function allCutEntirelyBehindRay(closure: RecipeClosure, operation: RecipeOperat
       || !parameter(Math.abs(resolved.signedDepth)) || (profile.kind === 'circle' ? !parameter(profile.radius)
         : !parameter(profile.width) || !parameter(profile.height))) return false;
     origin = framePoint(resolved.frame, profile.center[0], profile.center[1]); ray = resolved.ray;
+    if (thinWallDeclared) {
+      if (!resolved.thinWall) throw new Error('The extracted thin wall is missing its resolved declaration.');
+      primitiveWitness = { profile, frame: resolved.frame, signedDepth: resolved.signedDepth,
+        thinWall: resolved.thinWall, validateTool: validatePositiveClosedTool,
+        ...(resolved.secondDirection ? { secondDirection: resolved.secondDirection } : {}) };
+    }
   }
   if (!origin.every(Number.isFinite) || !ray.every(Number.isFinite)) throw new Error('Recipe ray placement must be finite.');
   const projection = withNativeOwners(owners => {
@@ -181,6 +192,10 @@ function allCutEntirelyBehindRay(closure: RecipeClosure, operation: RecipeOperat
     // positive closed witness and release it successfully before returning.
     witnessTolerance = validateEntityRecipeProfileForAbsence({ source: entitySource!, placement: entityPlacement,
       validateTool: validatePositiveClosedTool, assertWorkingCurrent });
+  } else if (primitiveWitness) {
+    // Keep valid ALL misses, but never hide a collapsed/invalid primitive wall
+    // behind owner bounds. The same real section builder supplies this witness.
+    witnessTolerance = validatePrimitiveRecipeProfileForAbsence({ ...primitiveWitness, assertWorkingCurrent });
   }
   assertWorkingCurrent();
   const rayLength = Math.hypot(...ray), guard = projection.guard + witnessTolerance * rayLength;
@@ -335,7 +350,7 @@ export function evaluateFeatureRecipes(input: RecipeEvaluationInput): OwnedRecip
             };
             assertWorkingCurrent();
             const beforeState = intermediate(before);
-            if (beforeState.empty && operation.termination?.kind !== 'blind' && operation.termination?.kind !== 'upToSurface') {
+            if (beforeState.empty && [operation.termination, operation.secondTermination].some(end => end && end.kind !== 'blind' && end.kind !== 'upToSurface')) {
               throw new Error('A dynamic end condition on an empty working owner needs a separate extent policy.');
             }
             // Equivalent fixed intrinsic bindings share one event/target tool.
@@ -348,7 +363,12 @@ export function evaluateFeatureRecipes(input: RecipeEvaluationInput): OwnedRecip
                 // Tools may contain several closed regions. Recipe/profile gates
                 // remain in the bridge; source/current/final owners still use validateSingle.
                 validateTool: validatePositiveClosedTool };
-              const construction = operation.termination?.kind === 'untilNext' && closure.request.scope.mode === 'all'
+              const definition = closure.definitions.find(item => item.feature.id === operation.featureId)?.feature;
+              const independent = definition && (definition.type === 'extrude' || definition.type === 'cut') && definition.secondDirection?.enabled
+                && (operation.termination?.kind !== 'blind' || operation.secondTermination);
+              const construction = independent && closure.request.scope.mode === 'all'
+                ? resolveRecipeInstanceDirections(constructionInput)
+                : operation.termination?.kind === 'untilNext' && closure.request.scope.mode === 'all'
                 ? (() => {
                   const resolved = resolveRecipeInstanceUntilNext(constructionInput);
                   if (resolved.kind === 'complete') return resolved;

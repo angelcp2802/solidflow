@@ -1,0 +1,316 @@
+{
+  "version": 2,
+  "kind": "assembly",
+  "id": "original-grouping-interference-ui",
+  "revision": "r1",
+  "name": "Original nested reusable interference groups",
+  "units": "mm",
+  "createdAt": "2026-10-22T00:00:00.000Z",
+  "updatedAt": "2026-10-22T00:00:00.000Z",
+  "definitions": [
+    {
+      "kind": "part",
+      "id": "original-grouping-box-a",
+      "revision": "r1",
+      "document": {
+        "version": 1,
+        "id": "original-grouping-box-a",
+        "name": "Original grouping box A",
+        "units": "mm",
+        "createdAt": "2026-10-22T00:00:00.000Z",
+        "updatedAt": "2026-10-22T00:00:00.000Z",
+        "features": [
+          {
+            "id": "profile",
+            "name": "Original 4 by 6 rectangle A",
+            "type": "sketch",
+            "plane": "XY",
+            "offset": 0,
+            "suppressed": false,
+            "profile": {
+              "kind": "rectangle",
+              "center": [
+                3,
+                0
+              ],
+              "width": 4,
+              "height": 6
+            }
+          },
+          {
+            "id": "solid",
+            "name": "Original 4 mm extrusion A",
+            "type": "extrude",
+            "sketchId": "profile",
+            "depth": 4,
+            "symmetric": false,
+            "suppressed": false,
+            "bodyOperation": {
+              "mode": "new",
+              "bodyId": "box"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "part",
+      "id": "original-grouping-box-b",
+      "revision": "r1",
+      "document": {
+        "version": 1,
+        "id": "original-grouping-box-b",
+        "name": "Original grouping box B",
+        "units": "mm",
+        "createdAt": "2026-10-22T00:00:00.000Z",
+        "updatedAt": "2026-10-22T00:00:00.000Z",
+        "features": [
+          {
+            "id": "profile",
+            "name": "Original 4 by 6 rectangle B",
+            "type": "sketch",
+            "plane": "XY",
+            "offset": 0,
+            "suppressed": false,
+            "profile": {
+              "kind": "rectangle",
+              "center": [
+                6,
+                0
+              ],
+              "width": 4,
+              "height": 6
+            }
+          },
+          {
+            "id": "solid",
+            "name": "Original 4 mm extrusion B",
+            "type": "extrude",
+            "sketchId": "profile",
+            "depth": 4,
+            "symmetric": false,
+            "suppressed": false,
+            "bodyOperation": {
+              "mode": "new",
+              "bodyId": "box"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "part",
+      "id": "original-grouping-box-c",
+      "revision": "r1",
+      "document": {
+        "version": 1,
+        "id": "original-grouping-box-c",
+        "name": "Original grouping box C",
+        "units": "mm",
+        "createdAt": "2026-10-22T00:00:00.000Z",
+        "updatedAt": "2026-10-22T00:00:00.000Z",
+        "features": [
+          {
+            "id": "profile",
+            "name": "Original 4 by 6 rectangle C",
+            "type": "sketch",
+            "plane": "XY",
+            "offset": 0,
+            "suppressed": false,
+            "profile": {
+              "kind": "rectangle",
+              "center": [
+                5,
+                0
+              ],
+              "width": 4,
+              "height": 6
+            }
+          },
+          {
+            "id": "solid",
+            "name": "Original 4 mm extrusion C",
+            "type": "extrude",
+            "sketchId": "profile",
+            "depth": 4,
+            "symmetric": false,
+            "suppressed": false,
+            "bodyOperation": {
+              "mode": "new",
+              "bodyId": "box"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "assembly",
+      "id": "original-grouping-inner",
+      "revision": "r1",
+      "name": "Original inner S",
+      "createdAt": "2026-10-22T00:00:00.000Z",
+      "updatedAt": "2026-10-22T00:00:00.000Z",
+      "occurrences": [
+        {
+          "id": "a",
+          "name": "A",
+          "definition": {
+            "id": "original-grouping-box-a",
+            "revision": "r1"
+          },
+          "pose": {
+            "translation": [
+              0,
+              0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0,
+              1
+            ]
+          },
+          "fixed": false,
+          "suppressed": false,
+          "visible": true
+        },
+        {
+          "id": "b",
+          "name": "B",
+          "definition": {
+            "id": "original-grouping-box-b",
+            "revision": "r1"
+          },
+          "pose": {
+            "translation": [
+              0,
+              0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0,
+              1
+            ]
+          },
+          "fixed": false,
+          "suppressed": false,
+          "visible": true
+        }
+      ],
+      "mates": []
+    },
+    {
+      "kind": "assembly",
+      "id": "original-grouping-outer",
+      "revision": "r1",
+      "name": "Original reusable outer G",
+      "createdAt": "2026-10-22T00:00:00.000Z",
+      "updatedAt": "2026-10-22T00:00:00.000Z",
+      "occurrences": [
+        {
+          "id": "s",
+          "name": "Inner S",
+          "definition": {
+            "id": "original-grouping-inner",
+            "revision": "r1"
+          },
+          "pose": {
+            "translation": [
+              0,
+              0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0,
+              1
+            ]
+          },
+          "fixed": false,
+          "suppressed": false,
+          "visible": true
+        },
+        {
+          "id": "c",
+          "name": "C",
+          "definition": {
+            "id": "original-grouping-box-c",
+            "revision": "r1"
+          },
+          "pose": {
+            "translation": [
+              0,
+              0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0,
+              1
+            ]
+          },
+          "fixed": false,
+          "suppressed": false,
+          "visible": true
+        }
+      ],
+      "mates": []
+    }
+  ],
+  "occurrences": [
+    {
+      "id": "g-left",
+      "name": "Original G left",
+      "definition": {
+        "id": "original-grouping-outer",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": true,
+      "suppressed": false,
+      "visible": true
+    },
+    {
+      "id": "g-right",
+      "name": "Original G right",
+      "definition": {
+        "id": "original-grouping-outer",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": false,
+      "suppressed": false,
+      "visible": true
+    }
+  ],
+  "mates": []
+}

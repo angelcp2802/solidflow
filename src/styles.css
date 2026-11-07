@@ -109,7 +109,7 @@ button,
 
 .app-shell {
   display: grid;
-  grid-template-rows: 35px 34px 108px minmax(0, 1fr) 26px 26px;
+  grid-template-rows: 35px 116px minmax(0, 1fr) 26px 26px;
   width: 100%;
   height: 100dvh;
   min-width: 1000px;
@@ -117,12 +117,12 @@ button,
   overflow: hidden;
 }
 
-.menubar {
+.menubar.command-header {
   position: relative;
   z-index: 40;
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 6px;
   padding: 0 11px;
   background: #fff;
   border-bottom: 1px solid #dce1e6;
@@ -132,7 +132,7 @@ button,
   flex-shrink: 0;
   align-items: center;
   gap: 7px;
-  width: 142px;
+  width: auto;
 }
 .brand-mark {
   display: flex;
@@ -175,7 +175,7 @@ button,
   align-items: center;
 }
 .menu-wrap > button {
-  height: 27px;
+  height: 28px;
   padding: 0 8px;
   font-size: 11px;
 }
@@ -186,7 +186,8 @@ button,
 .document-title {
   flex: 1;
   min-width: 0;
-  padding: 0 24px;
+  width: 100%;
+  padding: 0 6px;
   text-align: center;
   color: #62727e;
   font-size: 11px;
@@ -197,8 +198,8 @@ button,
 .help-top {
   display: grid;
   place-items: center;
-  width: 27px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   padding: 0;
   color: #7890a3;
 }
@@ -232,19 +233,25 @@ button,
   color: #7a8791;
 }
 
-.quickbar {
-  display: flex;
-  align-items: center;
-  gap: 17px;
-  padding: 0 12px;
-  background: #f7f8fa;
-  border-bottom: 1px solid #d8dde2;
-}
+/* Shared keyboard menu with the existing part header and legacy selectors. */
+.menubar .part-main-menus > .menu-wrap { align-items: center; }
+.menubar .part-main-menus > .menu-wrap > button { color: #38576e; white-space: nowrap; }
+.menubar .part-main-menus > .menu-wrap > button[aria-expanded="true"] { background: #e3f0fa; border-color: #bed6e9; }
+.menubar .part-main-menus > .menu-wrap > button:focus-visible { outline: 2px solid #2385c8; outline-offset: -2px; }
+.menubar .part-main-menus .dropdown { top: 100%; min-width: 247px; padding: 5px; border-radius: 2px; z-index: 100; }
+.menubar .part-main-menus .dropdown > button { justify-content: flex-start; gap: 6px; min-height: 30px; height: auto; padding: 6px 10px; }
+.menubar .part-main-menus .dropdown > button:not(:disabled):hover,
+.menubar .part-main-menus .dropdown > button:not(:disabled):focus { background: #e3f0fa; color: #235579; outline: none; }
+.menubar .part-main-menus .dropdown > button:disabled { color: #8c9aa4; cursor: default; }
+.menubar .part-main-menus .assembly-menu-shortcut { margin-left: auto; padding-left: 18px; flex-shrink: 0; font-family: inherit; font-size: 10px; color: #7a8791; }
+
 .quick-actions {
   display: flex;
   align-items: center;
   gap: 3px;
 }
+.menubar .quick-actions { flex: 0 0 auto; }
+.menubar .quick-actions > .icon-button { width: 28px; height: 28px; }
 .icon-button {
   display: grid;
   place-items: center;
@@ -269,9 +276,9 @@ button,
   display: flex;
   align-items: center;
   gap: 7px;
-  height: 24px;
+  height: 30px;
   width: 246px;
-  margin-left: auto;
+  flex: 0 0 auto;
   padding: 0 7px;
   color: #8193a0;
   border: 1px solid #cbd5dd;
@@ -283,7 +290,7 @@ button,
   background: transparent;
   min-width: 0;
   flex: 1;
-  height: 21px;
+  height: 28px;
   padding: 0;
   font-size: 11px;
   color: #485e6f;
@@ -305,12 +312,15 @@ button,
 .workspace-tag {
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding-left: 12px;
+  gap: 5px;
+  padding-left: 8px;
+  white-space: nowrap;
   border-left: 1px solid #d5dce3;
   font-size: 11px;
   color: #5f7383;
 }
+.workspace-tag[aria-label="Edición de pieza en el ensamblaje"] { gap: 6px; }
+.workspace-tag[aria-label="Edición de pieza en el ensamblaje"] button { min-height: 28px; padding: 4px 8px; font-size: 11px; }
 
 .command-manager {
   z-index: 20;
@@ -326,7 +336,8 @@ button,
   flex: 1;
   min-height: 0;
   padding: 3px 8px 2px;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
   background: linear-gradient(#f8f9fa, #f0f2f4);
 }
 .command-group {
@@ -339,6 +350,26 @@ button,
 }
 .command-group:first-child {
   padding-left: 0;
+}
+.part-command-group {
+  flex-direction: column;
+  gap: 0;
+}
+.part-command-group-content {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  align-items: stretch;
+  gap: 2px;
+}
+.part-command-group-label {
+  flex: 0 0 16px;
+  color: #657d8e;
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
+  white-space: nowrap;
+  user-select: none;
 }
 .command {
   display: flex;
@@ -374,28 +405,42 @@ button,
   min-height: 27px;
   max-width: 88px;
 }
-.command.large > svg:last-child {
-  margin-top: -1px;
-  color: #798d9e;
-}
 .command.active {
   border-color: #abc7dd;
   background: #dcebf7;
 }
 .command-stack {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+  display: grid;
+  grid-template-rows: repeat(2, 29px);
+  grid-auto-flow: column;
+  grid-auto-columns: max-content;
+  align-content: center;
   gap: 3px;
   min-width: 95px;
   padding-bottom: 3px;
 }
 .command-stack .command {
   height: 29px;
+  white-space: nowrap;
 }
 .command-stack .command > svg {
   width: 19px;
   height: 19px;
+}
+.part-command-group .command.large {
+  padding-top: 2px;
+}
+.part-command-group .command.large > svg {
+  width: 26px;
+  height: 26px;
+}
+.part-command-group .command-stack {
+  grid-template-rows: repeat(2, 27px);
+  gap: 2px;
+  padding-bottom: 0;
+}
+.part-command-group .command-stack .command {
+  height: 27px;
 }
 .ribbon-end {
   display: flex;
@@ -552,12 +597,20 @@ button,
   display: flex;
   align-items: center;
   gap: 6px;
+  width: 100%;
   height: 31px;
   padding: 0 10px 0 9px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+  font: inherit;
   color: #2f5776;
   cursor: default;
   white-space: nowrap;
 }
+.tree-document:focus-visible { outline: 2px solid #2384c2; outline-offset: -2px; }
+.tree-document > svg { flex: 0 0 auto; }
 .tree-document strong {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -608,6 +661,50 @@ button,
 .tree-row.nested > svg:not(:first-child) {
   color: #708faa;
 }
+.part-tree-entry {
+  position: relative;
+}
+.part-tree-entry > .tree-row {
+  padding-left: 33px;
+}
+.part-tree-entry > .tree-row.nested {
+  padding-left: 52px;
+}
+.part-tree-entry > .tree-row > svg:first-child {
+  color: #4b7f9f;
+}
+.part-tree-entry > .tree-row.nested > svg:first-child {
+  color: #708faa;
+}
+.part-tree-toggle {
+  position: absolute;
+  z-index: 1;
+  left: 13px;
+  top: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  color: #607b8d;
+  cursor: pointer;
+}
+.part-tree-toggle:hover:not(:disabled) {
+  background: #d7eaf9;
+}
+.part-tree-toggle:disabled {
+  opacity: 1;
+  cursor: default;
+}
+.part-tree-toggle:focus-visible,
+.part-tree-entry > .tree-row:focus-visible {
+  outline: 2px solid #377fad;
+  outline-offset: -2px;
+}
 .tree-row.suppressed {
   color: #9aa4ac;
   font-style: italic;
@@ -656,13 +753,18 @@ button,
   background: #7eaccb;
 }
 .selection-tools {
-  flex-shrink: 0;
+  /* Selection changes must not resize the tree between the two clicks of an edit. */
+  flex: 0 0 64px;
+  min-height: 64px;
+  min-width: 0;
   padding: 8px 11px;
   border-top: 1px solid #dce4ea;
   background: #f1f6fa;
 }
 .selection-tools > span {
   display: block;
+  height: 14px;
+  line-height: 14px;
   margin-bottom: 5px;
   font-size: 10px;
   color: #6a7f90;
@@ -673,6 +775,24 @@ button,
 .selection-tools > div {
   display: flex;
   gap: 5px;
+  height: 28px;
+}
+.selection-tools .icon-button {
+  position: relative;
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+}
+.selection-action-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 .manager-footer {
   display: flex;
@@ -699,6 +819,14 @@ button,
   min-height: 0;
   overflow: auto;
   padding-bottom: 15px;
+  scroll-padding-top: 89px;
+}
+.property-manager-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f8fafc;
+  box-shadow: 0 2px 4px #4255670a;
 }
 .property-title {
   display: flex;
@@ -1200,6 +1328,37 @@ button,
 .viewport-toolbar > svg {
   margin: 0 3px;
 }
+.part-selection-controls {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+.part-selection-controls button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 26px;
+  padding: 0 5px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: #3b5770;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.part-selection-controls button[aria-pressed="true"] {
+  border-color: #8cb5dc;
+  background: #dcecfb;
+  color: #174f83;
+}
+.part-selection-controls button:focus-visible {
+  outline: 2px solid #2174bb;
+  outline-offset: 1px;
+}
+.part-selection-controls button:disabled {
+  opacity: .45;
+  cursor: default;
+}
 .viewport-label {
   position: absolute;
   top: 17px;
@@ -1208,7 +1367,7 @@ button,
   display: flex;
   flex-direction: column;
   gap: 5px;
-  max-width: calc(50% - 190px);
+  max-width: calc(50% - 280px);
   color: #7890a2;
   pointer-events: none;
 }
@@ -1225,6 +1384,12 @@ button,
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+@media (max-width: 1200px) {
+  .viewport-label {
+    top: 50px;
+    max-width: calc(100% - 150px);
+  }
 }
 .canvas-confirm {
   position: absolute;
@@ -1807,9 +1972,6 @@ button,
     top: 60px;
     max-width: 220px;
   }
-  .document-title {
-    padding: 0 11px;
-  }
   .canvas-hint {
     font-size: 9px;
   }
@@ -1828,16 +1990,17 @@ button,
     padding-left: 12px;
   }
   .brand {
-    width: 133px;
+    width: 25px;
   }
-  .menubar {
+  .brand > strong { display: none; }
+  .menubar.command-header {
     gap: 4px;
   }
   .menu-wrap > button {
     padding: 0 7px;
   }
   .command-search {
-    width: 225px;
+    width: 140px;
   }
   .task-panel {
     flex-basis: 246px;
@@ -1905,9 +2068,8 @@ button,
 .plane-support .muted-small svg { vertical-align: -2px; margin-right: 3px; }
 .check-option { display: flex; align-items: center; gap: 8px; margin-top: 14px; font-size: 12px; }
 .check-option input { accent-color: var(--blue); }
-.face-selection-summary { padding: 12px 14px; display: grid; gap: 9px; border-top: 1px solid #ccd7df; background: #edf5fc; font-size: 12px; }
-.face-selection-summary strong { color: #256181; }
-.face-selection-summary span { color: #6b7d8b; }
+.selection-tools.face-selection-summary { background: #edf5fc; }
+.selection-tools.face-selection-summary strong { color: #256181; }
 .feature-input-list { list-style: none; padding: 8px 0 0; margin: 0; font-size: 12px; color: #5a7182; line-height: 1.8; }
 .loft-section-list { list-style: none; margin: 12px 0; padding: 0; display: grid; gap: 12px; }
 .loft-section-list > li { border: 1px solid #d4dfe7; border-radius: 3px; padding: 9px; background: #f8fbfe; }
@@ -1947,3 +2109,74 @@ button,
 .body-operation-panel select { display: block; width: 100%; margin-top: 5px; }
 .body-operation-panel .outline-button { margin-top: 8px; }
 .body-operand-order { margin: 8px 0; padding-left: 24px; font-size: 11px; color: #47657e; }
+
+/* Scoped extrusion/cut density; preserve readable controls and body selection. */
+.property-manager.property-manager-extrude .property-section { padding: 0 10px 8px; }
+.property-manager.property-manager-extrude .property-section h3 { height: 28px; margin: 0 0 5px; }
+.property-manager.property-manager-extrude .operation-profile-section { padding-top: 7px; }
+.property-manager.property-manager-extrude .operation-profile-section h3 { height: 22px; margin-bottom: 4px; }
+.property-manager.property-manager-extrude .property-section > select { margin-bottom: 6px; }
+.property-manager.property-manager-extrude .muted-small { margin-top: 6px; }
+.property-manager.property-manager-extrude .number-field { min-height: 34px; }
+.property-manager.property-manager-extrude .number-field > div { height: 30px; }
+.property-manager.property-manager-extrude .number-field input { height: 28px; }
+.property-manager.property-manager-extrude .text-input,
+.property-manager.property-manager-extrude .property-section select { min-height: 28px; }
+
+/* Finishing-only parameter density; edge lists and body diagnostics stay available. */
+.property-manager.property-manager-finish .property-section { padding: 0 10px 8px; }
+.property-manager.property-manager-finish .property-section h3 { height: 28px; margin: 0 0 5px; }
+.property-manager.property-manager-finish .muted-small { margin-top: 6px; }
+.property-manager.property-manager-finish .number-field { min-height: 34px; }
+.property-manager.property-manager-finish .number-field > div { height: 30px; }
+.property-manager.property-manager-finish .number-field input { height: 28px; }
+.property-manager.property-manager-finish .text-input,
+.property-manager.property-manager-finish .property-section select { min-height: 28px; }
+
+/* Browsing catalog only; detailed operation body controls retain their layout. */
+.part-body-catalog { flex: 0 0 auto; min-height: 0; border-bottom: 1px solid #dce4ea; }
+.part-body-catalog-toggle {
+  display: flex; align-items: center; gap: 5px; width: 100%; height: 28px;
+  padding: 0 9px 0 20px; border: 0; border-radius: 0; background: #f3f7fb;
+  color: #315c7b; text-align: left; font-size: 11px; cursor: pointer;
+}
+.part-body-catalog-toggle > span { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.part-body-catalog-toggle > svg { flex: 0 0 auto; }
+.part-body-catalog-toggle:hover { background: #e7f1f9; }
+.part-body-catalog-toggle:focus-visible { outline: 2px solid #2384c2; outline-offset: -2px; }
+.part-body-catalog-warning { flex: 0 0 auto; color: #946123; font-size: 9px; }
+.part-body-catalog .body-list-compact { grid-template-columns: minmax(0, 1fr); gap: 0; margin: 0; max-height: none; min-height: 0; overflow: visible; }
+.part-body-catalog .body-list-compact .body-row {
+  position: relative; min-height: 28px; height: 28px; padding: 0 9px 0 38px;
+  gap: 6px; border: 0; border-bottom: 1px solid #e5ecf2; border-radius: 0;
+  background: transparent; font-size: 11px;
+}
+.part-body-catalog .body-list-compact .body-row.selected { background: #fff2d9; box-shadow: inset 2px 0 #dda651; }
+.part-body-catalog .body-list-compact .body-row:focus-within { outline: 2px solid #2384c2; outline-offset: -2px; }
+.part-body-catalog .body-list-compact .body-row input { margin: 0; }
+.part-body-catalog .body-list-compact .body-row > svg { flex: 0 0 auto; }
+.part-body-catalog .body-list-compact .body-row-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; overflow-wrap: normal; }
+.part-body-catalog .body-list-compact .body-row-volume {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0;
+}
+.part-body-catalog .body-catalog-entry { position: relative; min-width: 0; flex: 0 0 auto; }
+.part-body-catalog .body-catalog-entry > .body-row { padding-right: 36px; }
+.part-body-catalog .body-catalog-details > summary {
+  position: absolute; top: 0; right: 3px; display: flex; align-items: center;
+  justify-content: center; width: 28px; height: 28px; list-style: none;
+  color: #315c7b; cursor: pointer; border-radius: 2px;
+}
+.part-body-catalog .body-catalog-details > summary::-webkit-details-marker { display: none; }
+.part-body-catalog .body-catalog-details > summary:hover { background: #e7f1f9; }
+.part-body-catalog .body-catalog-details > summary:focus-visible,
+.part-body-catalog .body-catalog-details-content:focus-visible { outline: 2px solid #2384c2; outline-offset: -2px; }
+.part-body-catalog .body-catalog-details-content {
+  display: flex; flex-direction: column; gap: 2px; max-height: 80px; overflow: auto;
+  padding: 5px 9px 5px 38px; background: #f3f7fb; color: #31536b;
+  font-size: 11px; line-height: 16px; overflow-wrap: anywhere; white-space: normal;
+}
+.part-body-catalog .body-list-compact .body-row.unavailable {
+  height: auto; min-height: 36px; padding-top: 4px; padding-bottom: 4px; background: #fff8ee;
+}
+.part-body-catalog .body-list-compact .body-row.unavailable button { min-width: 28px; min-height: 28px; }

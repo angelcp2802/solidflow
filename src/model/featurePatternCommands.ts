@@ -91,14 +91,15 @@ export function withFeaturePatternScope(feature: RepetitionFeature, scope: 'sele
 }
 
 /** Explicit choice; never infer a missing reference policy from seed geometry. */
-export function withFeaturePatternWorldLimit(feature: RepetitionFeature, featureId: string, enabled: boolean): RepetitionFeature {
+export function withFeaturePatternWorldLimit(feature: RepetitionFeature, featureId: string, enabled: boolean,
+  path: 'endCondition.target' | 'secondDirection.endCondition.target' = 'endCondition.target'): RepetitionFeature {
   if (!feature.featurePattern || feature.featurePattern.mode !== 'regenerate' || feature.source.mode !== 'features'
     || !feature.source.featureIds.includes(featureId) || typeof enabled !== 'boolean') {
     throw new Error('El plano límite fijo requiere una operación semilla y recálculo explícitos.')
   }
   const next = structuredClone(feature), operation = next.featurePattern!
   if (operation.mode !== 'regenerate') throw new Error('El método debe recalcular operaciones.')
-  operation.referencePolicies = operation.referencePolicies.filter(policy => policy.featureId !== featureId)
-  if (enabled) operation.referencePolicies.push({ featureId, path: 'endCondition.target', placement: 'world' })
+  operation.referencePolicies = operation.referencePolicies.filter(policy => policy.featureId !== featureId || policy.path !== path)
+  if (enabled) operation.referencePolicies.push({ featureId, path, placement: 'world' })
   return next
 }

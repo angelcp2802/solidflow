@@ -1,0 +1,139 @@
+{
+  "version": 2,
+  "kind": "assembly",
+  "id": "original-hinge",
+  "revision": "r0",
+  "name": "Original two-leaf hinge control",
+  "units": "mm",
+  "createdAt": "2026-10-23T00:00:00.000Z",
+  "updatedAt": "2026-10-23T00:00:00.000Z",
+  "definitions": [
+    {
+      "kind": "part",
+      "id": "original-hinge-leaf",
+      "revision": "r0",
+      "document": {
+        "version": 1,
+        "id": "original-hinge-leaf",
+        "name": "Original drilled hinge leaf",
+        "units": "mm",
+        "createdAt": "2026-10-23T00:00:00.000Z",
+        "updatedAt": "2026-10-23T00:00:00.000Z",
+        "features": [
+          {
+            "id": "profile",
+            "name": "Original leaf rectangle",
+            "type": "sketch",
+            "plane": "XY",
+            "offset": 0,
+            "suppressed": false,
+            "profile": {
+              "kind": "rectangle",
+              "center": [
+                4,
+                0
+              ],
+              "width": 12,
+              "height": 4
+            }
+          },
+          {
+            "id": "base",
+            "name": "Original four mm leaf",
+            "type": "extrude",
+            "sketchId": "profile",
+            "depth": 4,
+            "symmetric": false,
+            "suppressed": false,
+            "bodyOperation": {
+              "mode": "new",
+              "bodyId": "original-hinge-body"
+            }
+          },
+          {
+            "id": "hole-profile",
+            "name": "Original hinge axis circle",
+            "type": "sketch",
+            "plane": "XY",
+            "offset": 0,
+            "suppressed": false,
+            "profile": {
+              "kind": "circle",
+              "center": [
+                0,
+                0
+              ],
+              "radius": 1
+            }
+          },
+          {
+            "id": "hole",
+            "name": "Original through hole",
+            "type": "cut",
+            "sketchId": "hole-profile",
+            "depth": 4,
+            "symmetric": false,
+            "suppressed": false,
+            "bodyScope": [
+              {
+                "bodyId": "original-hinge-body",
+                "sourceFeatureId": "base"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "occurrences": [
+    {
+      "id": "ground",
+      "name": "ground",
+      "definition": {
+        "id": "original-hinge-leaf",
+        "revision": "r0"
+      },
+      "pose": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": true,
+      "suppressed": false,
+      "visible": true
+    },
+    {
+      "id": "moving",
+      "name": "moving",
+      "definition": {
+        "id": "original-hinge-leaf",
+        "revision": "r0"
+      },
+      "pose": {
+        "translation": [
+          0,
+          0,
+          4
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": false,
+      "suppressed": false,
+      "visible": true
+    }
+  ],
+  "mates": []
+}

@@ -1,0 +1,132 @@
+{
+  "version": 2,
+  "kind": "assembly",
+  "units": "mm",
+  "id": "assembly-symmetry-repair-original",
+  "revision": "r1",
+  "name": "Original material-point symmetry repair",
+  "createdAt": "2026-10-22T00:00:00.000Z",
+  "updatedAt": "2026-10-22T00:00:00.000Z",
+  "definitions": [
+    {
+      "kind": "part",
+      "id": "symmetry-repair-prism",
+      "revision": "r1",
+      "document": {
+        "version": 1,
+        "id": "symmetry-repair-prism",
+        "name": "Original symmetry repair prism 4x6x4",
+        "units": "mm",
+        "createdAt": "2026-10-22T00:00:00.000Z",
+        "updatedAt": "2026-10-22T00:00:00.000Z",
+        "features": [
+          {
+            "id": "profile",
+            "name": "Original rectangle",
+            "type": "sketch",
+            "plane": "XY",
+            "offset": 0,
+            "suppressed": false,
+            "profile": {
+              "kind": "rectangle",
+              "center": [
+                2.0,
+                3
+              ],
+              "width": 4,
+              "height": 6
+            }
+          },
+          {
+            "id": "solid",
+            "name": "Original prism",
+            "type": "extrude",
+            "sketchId": "profile",
+            "depth": 4,
+            "symmetric": false,
+            "suppressed": false,
+            "bodyOperation": {
+              "mode": "new",
+              "bodyId": "box"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "mates": [],
+  "occurrences": [
+    {
+      "id": "source",
+      "name": "Original source",
+      "definition": {
+        "id": "symmetry-repair-prism",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          -10,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": true,
+      "visible": true,
+      "suppressed": false
+    },
+    {
+      "id": "target",
+      "name": "Original target",
+      "definition": {
+        "id": "symmetry-repair-prism",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          7,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": false,
+      "visible": true,
+      "suppressed": false
+    },
+    {
+      "id": "mirror",
+      "name": "Original mirror",
+      "definition": {
+        "id": "symmetry-repair-prism",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": true,
+      "visible": true,
+      "suppressed": false
+    }
+  ]
+}

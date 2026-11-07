@@ -1,0 +1,64 @@
+'use strict';
+
+const COMMANDS = '[aria-label="Comandos del ensamblaje configurado"]';
+const routes = {
+  model: ['button[aria-label="Mostrar árbol del ensamblaje"]', ''],
+  configuration: ['button[aria-label="Mostrar configuraciones"]', ''],
+  occurrence: ['button[aria-label="Mostrar propiedades del componente"]', ''],
+  components: [COMMANDS + ' button[aria-controls="configured-component-name"]', ''],
+  relations: [COMMANDS + ' button', 'Relaciones'],
+  relation: ['button[aria-label="Mostrar relación de posición"]', ''],
+};
+
+// Navigation is an application action, never a hidden-input or React-state write.
+// Picking supplies CDP actualControl; the other workflows retain scripted DOM
+// controls and must not be reported as human pointer interaction.
+module.exports = function configuredNavigation({ page, waitFor, actualControl, pointer }) {
+  const ribbon = require('./desktop-assembly-ribbon-navigation.cjs')({ configured: true, page, waitFor, actualControl });
+  const tree = require('./desktop-assembly-tree-navigation.cjs')({ page, waitFor, actualControl, pointer });
+  async function pane(name) {
+    const route = routes[name];
+    if (!route) throw Error('Unknown configured inspector pane: ' + name);
+    if (await page(name => document.querySelector('[data-configured-pane="' + name + '"]')?.hidden === false, name)) return;
+    await ribbon.reveal(route[0], route[1]);
+    if (actualControl) await actualControl(route[0], route[1] || null);
+    else await page((selector, text) => {
+      const rows = [...document.querySelectorAll(selector)].filter(e => !text || e.textContent.trim() === text);
+      if (rows.length !== 1 || rows[0].disabled || rows[0].closest('[hidden]') || !rows[0].getClientRects().length) throw Error('Visible enabled navigation control required: ' + selector);
+      rows[0].click();
+    }, route[0], route[1]);
+    await waitFor('configured inspector navigation to ' + name, () => page(name => document.querySelector('[data-configured-pane="' + name + '"]')?.hidden === false, name));
+  }
+  async function reveal(selector, text = '') {
+    await ribbon.reveal(selector, text);
+    const owner = await page((selector, text) => {
+      const rows = [...document.querySelectorAll(selector)].filter(e => !text || e.textContent.trim() === text);
+      if (rows.length !== 1) throw Error('One mounted configured control required: ' + selector + ' ' + text);
+      return { pane: rows[0].closest('[data-configured-pane]')?.getAttribute('data-configured-pane') || '', tree: !!rows[0].closest('[role="tree"]') };
+    }, selector, text);
+    if (owner.pane) await pane(owner.pane);
+    if (owner.tree) await tree.reveal(selector, text);
+    const closedOrigins = await page((selector, text) => {
+      const rows = [...document.querySelectorAll(selector)].filter(e => !text || e.textContent.trim() === text);
+      if (rows.length !== 1) throw Error('One mounted configured control required before disclosure');
+      const group = rows[0].closest('details[aria-label="Referencias de origen configuradas"]');
+      return !!group && !group.open && !group.querySelector(':scope > summary')?.contains(rows[0]);
+    }, selector, text);
+    if (closedOrigins) {
+      const summary = 'summary[aria-label="Mostrar referencias de origen configuradas"]';
+      if (actualControl) await actualControl(summary, null, true);
+      else await page(selector => {
+        const row = document.querySelector(selector);
+        if (!row || row.closest('[hidden]') || !row.getClientRects().length) throw Error('Visible origin disclosure required');
+        row.click();
+      }, summary);
+      await waitFor('configured origin controls disclosed through their summary', () => page(() =>
+        document.querySelector('details[aria-label="Referencias de origen configuradas"]')?.open === true));
+    }
+    await waitFor('configured control belongs to visible pane', () => page((selector, text) => {
+      const rows = [...document.querySelectorAll(selector)].filter(e => !text || e.textContent.trim() === text);
+      return rows.length === 1 && !rows[0].closest('[hidden]') && rows[0].getClientRects().length > 0;
+    }, selector, text));
+  }
+  return { pane, ribbon: ribbon.tab, tree, reveal };
+};
