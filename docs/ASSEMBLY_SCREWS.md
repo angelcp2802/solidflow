@@ -97,6 +97,22 @@ source correspondence remains separate work.
 
 ## Original analytical mechanism
 
+The standard new-screw panel has **Seleccionar eje 1/2 en el modelo** beside
+the existing lists. Each role accepts a visible current cylindrical face in
+the declaring scope; incompatible faces and another face of the first
+component retain the armed role with guidance. A confirmed native base scene
+can nominate both roles without granting capture or Apply authority. Run
+**Resolver** before **Capturar tornillo**. Selection Cancel preserves fields;
+document/scope/family/editor changes and entering the manipulator invalidate
+the old session. Saved screw editing retains its exact captured references.
+
+`npm run test:desktop:assembly-screw-picking` exercises the original fixture
+below with actual viewport clicks, including the slider's visible inner wall,
+Capture/Cancel/retry, native Apply, the independent two-turn/+4 mm law,
+history and Save/Open/fresh Solve. This is a finite standard-workspace route,
+separate from configured mechanical picking, arbitrary wall visibility,
+physical thread contact and other-platform acceptance.
+
 The [fixture](../src/cad/fixtures/assembly-screw-original.json) and
 [generator](../scripts/fixtures/generate-assembly-screw.mjs) contain a fixed plate,
 a shaft with an eccentric bore and a rectangular slider. They contain no mates

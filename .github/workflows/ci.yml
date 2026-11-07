@@ -185,6 +185,46 @@ jobs:
         if: matrix.batch == 'relations' && runner.os == 'Linux'
         run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-origin-axis-lock
 
+      - name: Test opposed standard origin planes (Linux)
+        if: matrix.batch == 'relations' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-origin-opposed
+
+      - name: Test opposed standard origin planes (Windows/macOS)
+        if: matrix.batch == 'relations' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-origin-opposed
+
+      - name: Test opposed configured origin planes (Linux)
+        if: matrix.batch == 'relations' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-configured-origin-opposed
+
+      - name: Test opposed configured origin planes (Windows/macOS)
+        if: matrix.batch == 'relations' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-configured-origin-opposed
+
+      - name: Test earlier part edits and explicit support repair (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:part-reference-repair
+
+      - name: Test earlier part edits and explicit support repair (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:part-reference-repair
+
+      - name: Test actual gear axis picking (Linux)
+        if: matrix.batch == 'relations' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-gear-picking
+
+      - name: Test actual gear axis picking (Windows/macOS)
+        if: matrix.batch == 'relations' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-gear-picking
+
+      - name: Test actual screw axis picking (Linux)
+        if: matrix.batch == 'relations' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-screw-picking
+
+      - name: Test actual screw axis picking (Windows/macOS)
+        if: matrix.batch == 'relations' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-screw-picking
+
       - name: Test origin axis rotation capture (Windows/macOS)
         if: matrix.batch == 'relations' && runner.os != 'Linux'
         run: npm run test:desktop:assembly-origin-axis-lock

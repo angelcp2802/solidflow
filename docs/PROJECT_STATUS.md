@@ -6,31 +6,44 @@ The persistent objective is active. The [acceptance ledger](USABLE_VERSION_ACCEP
 defines eighteen concrete local-version criteria, the implemented operation
 inventory, the nine prototype groups and the current resumption point.
 
-The integrated candidate includes the desktop's explicit sketch-selection fix
-and the preserved pending/native-close work. Final local acceptance passes
-build, **11,120 unit/CAD cases in 494 files**, **203 IPC checks with two platform
-skips**, desktop startup and five complete Windows renderer routes. The native
-transition route records **202 checkpoints plus 15 fresh-process checks**;
-the embedded baseline, successive parts, fresh sketches and revolution record
-**172/527/86/251**. The independent audit rehashes **1,327 inputs and nine
-products**, with zero renderer errors and confirmed isolated cleanup.
-See the [exact evidence and limits](VALIDATION.md#usable-candidate-integration-and-pending-transitions--2026-11-07).
+Public checkpoint `ce27324a43aff25e484cb4b3117fde28dbcea92c` includes explicit
+sketch selection, normal Hole/Combine/Shell/Draft/pattern/sweep/loft lifecycles,
+pointer-drawn rectangle/circle/closed arc, saved ordinary-angle endpoints and
+the recorded navigation/property controls. Its frozen local Windows evidence
+has an overlapping 33-command batch and a later 13-command batch on the same
+nine production files. The final full suite passes **11,240 cases in 500 files**
+and **220 IPC/source checks with two platform skips**. Part/assembly material,
+revision-specific colour, mass and actual two-process background recovery have
+their bounded acceptance. See the [final batch and earlier evidence](VALIDATION.md).
 
-The next accepted local increment adds material, density, part colour and a
-separate background preference, plus normal sweep/loft lifecycle acceptance.
-Its frozen ten-command Windows batch passes **11,204 cases in 498 files**,
-**207 IPC checks with two platform skips**, desktop startup and seven renderer
-routes: **70/126/172/202+15/528/157/212** checkpoints. An independent audit verifies
-1,344 source/runtime inputs, seven compiled outputs plus Electron main/preload,
-and the real locked Electron 44.9.3 installation. See [the cases and remaining
-limits](VALIDATION.md#part-properties-and-normal-sweeploft-lifecycle--2026-11-07).
+The unsigned local Windows **0.19.0** prototype has exact production-member
+binding, actual native Open/Save/reopen, Resolver/Cancel and shortcut relaunch
+with a separate profile. The original three-component assembly recovers with
+its colours and mass; its recovered copy needs Save As. The
+[Spanish testing guide](PROBAR_SOLIDFLOW.md) covers the first piece and examples.
+The executable is local development output, not an installed-platform or
+public-release acceptance.
 
-The [command inventory](USABLE_COMMAND_MATRIX.md) identifies actual inactive
-navigation/property controls and unexecuted aliases separately from disabled
-modules. Reused-source colour rendering and fresh-process background persistence
-remain C15 work. The next normal-entry families are Hole and Combine, with their
-original fixture contracts prepared. Other open criteria retain configured,
-human, installed-platform and release acceptance. The persistent goal is active.
+At that public checkpoint, [Security](https://github.com/angelcp2802/solidflow/actions/runs/42383668842)
+passes. The [CI run](https://github.com/angelcp2802/solidflow/actions/runs/42383668777)
+fails macOS/Linux persistence at preparation of the saved ordinary-angle Edit
+control, before the new endpoint preview. Those jobs test synthetic merge
+`546904757241d6f4555910be971b239d967afce4`. A Windows result alone does not
+resolve their failure. Keep the hosted correction and its exact new result
+separate from the earlier local acceptance.
+
+The next focused integration now passes its combined **19-command Windows
+batch** at local `5a205660`: 11,248 cases/502 files, 220 IPC checks/two skips,
+startup and sixteen renderer routes. It covers earlier-part support repair,
+aligned/opposed origin planes in both workspaces and guarded standard
+Gear/Screw cylinder acquisition. An independent audit verifies all 1,388 inputs,
+nine production members and nineteen logs. The strict Relations-panel scroll
+correction is included; new hosted results are still required. These are not
+additions to the already delivered prototype. General persistent naming, remaining material
+picking families, additive ALL/AUTO/variation, broader command aliases, human
+use, recurring stability, installed platforms and release remain required work.
+The [command inventory](USABLE_COMMAND_MATRIX.md) and ledger retain those limits.
+Keep #55 **16/25**, #53 **6/9**, PR #49 draft/unmerged and release gate #5 open.
 
 ## Editing a shared embedded part from its assembly — 2026-11-03
 

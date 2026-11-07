@@ -1,5 +1,39 @@
 # Public fixture provenance
 
+## Explicit support repair and opposed origin planes — 2026-11-07
+
+`scripts/desktop-part-reference-repair-original.cjs` generates an original
+Cartesian 10 × 6 mm rectangle with four saved corner identities and a 4 mm
+explicit new-body extrusion. The native unit test adds a centred 2 × 2 × 2 mm
+supported boss programmatically; the renderer creates it through ordinary
+controls. No imported CAD
+model, external binary or confidential geometry supplies this fixture.
+
+Analytical values are V240/A248 for the base and V248/A264 after the boss.
+Changing base depth to 6 gives V368/A328 and Z bounds 0…8 mm. This explicit
+body-catalog route uses actual `face-v1` cap references; it does not establish
+semantic v2 activation. Changing depth to −6 deliberately loses the stored
+positive-cap support: the valid base is V360/A312 with Z −6…0, the downstream
+sketch has a diagnostic, no ghost boss is shown and geometry export is blocked.
+Explicitly picking the negative cap repairs the same feature identities,
+giving V368/A328, bounds (−5,−3,−8)…(5,3,0) and centroid Z −71/23 mm.
+The separate STEP reader checks eleven physical planes. Preview volume uses
+1e−5 mm³ and planar mesh area 1e−4 mm²; final STEP volume and surface area use
+1e−5 mm³/mm², with bounds at 1e−6 mm. Suppressing the parent retains a
+downstream diagnostic; a zero-solid result is not represented as healthy.
+
+`scripts/desktop-assembly-origin-opposed-flow.cjs` reuses the original tracked
+2 × 3 × 4 mm prism recipe in two occurrences, one fixed at (−15,0,0) and one
+floating at (20,10,6) with 20° initial Z rotation. Both the standard and named
+configured route select projected root/component XY labels, accept aligned
+normals and change to opposed normals through Cancel/retry and Apply. Literal
+normals ±Z, Z=0 plane incidence, unchanged fixed pose and the eight transformed
+corners of each prism establish the result: V48/A104. Three free degrees of
+freedom remain; neither a unique XY position nor a unique yaw is asserted.
+Configured acceptance preserves Base and the unrelated named state. The
+fixture and expectations are independently authored Cartesian data, not a
+measurement or conversion of a third-party model.
+
 ## Original normal-operation and material fixtures — 2026-11-07
 
 The normal Hole, Combine, Shell/Draft, body-pattern and assembly-material routes

@@ -1,6 +1,8 @@
 import { useViewHistory } from './useViewHistory'
 import { useViewportBackgroundSettings } from './ViewportBackgroundSettings'
 import { assemblyMassKg, assemblyPartColors } from './assemblyPartAppearance'
+import { currentMechanicalAxisPick, liveMechanicalAxisContextIsCurrent, mechanicalAxisContextIsCurrent,
+  type MechanicalAxisContext, type MechanicalAxisControls, type MechanicalAxisFamily, type MechanicalAxisPickTicket, type MechanicalAxisSlot } from './assemblyMechanicalAxisPicking'
 import { NamedViewsDialog } from './NamedViewsDialog'
 import { rebindNamedViewSelection, sameDocumentExceptNamedViews, useNamedDocumentViews } from './useNamedDocumentViews'
 import { standardViews, type ViewName, type ViewRequest } from './viewNavigation'
@@ -398,7 +400,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     managerTabRef.current = tab
     if (tab !== 'relations') {
       preselectionPick.current = null
-      clearSymmetryPicking(); setHingePicking(null); setWidthPicking(null); setRackPicking(null)
+      clearSymmetryPicking(); setHingePicking(null); setWidthPicking(null); setRackPicking(null); clearMechanicalPicking(true)
     }
     setManagerTab(tab)
     requestAnimationFrame(() => {
@@ -519,6 +521,16 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   const [editingScrewId, setEditingScrewId] = useState<string | null>(null)
   const [editingRackId, setEditingRackId] = useState<string | null>(null), [rackKeys, setRackKeys] = useState<[string, string]>(['', ''])
   const [rackPicking, setRackPicking] = useState<{ kind: 'pinion' | 'rack-axis' | 'rack-edge'; token: string; generation: number } | null>(null)
+  const [mechanicalAxes, setMechanicalAxes] = useState<Record<MechanicalAxisFamily, [string, string]>>({ gear: ['', ''], screw: ['', ''] })
+  const [mechanicalPicking, updateMechanicalPicking] = useState<MechanicalAxisPickTicket | null>(null)
+  const mechanicalPickingRef = useRef<MechanicalAxisPickTicket | null>(null), mechanicalSession = useRef<object>({})
+  const mechanicalContextRef = useRef<MechanicalAxisContext | null>(null)
+  const setMechanicalPicking = (ticket: MechanicalAxisPickTicket | null) => { mechanicalPickingRef.current = ticket; updateMechanicalPicking(ticket) }
+  const clearMechanicalPicking = (newSession = false) => {
+    if (!newSession && mechanicalPickingRef.current === null) return
+    mechanicalSession.current = {}; setMechanicalPicking(null)
+  }
+  const resetMechanicalAxes = () => { clearMechanicalPicking(true); setMechanicalAxes({ gear: ['', ''], screw: ['', ''] }) }
   const [movementReset, setMovementReset] = useState(0)
   const [dragMode, setDragMode] = useState<'off' | 'translate' | 'rotate'>('off'), [dragActive, setDragActive] = useState(false)
   const [streamProjection, setStreamProjection] = useState<AssemblyUiDragProjection | null>(null)
@@ -544,11 +556,13 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   const [, refreshLinked] = useState(0)
   const current = useRef(committed), currentPreview = useRef(preview), sceneSignature = useRef(''), confirmedScene = useRef<{ signature: string; scene: AssemblyScene } | null>(null); current.current = committed; currentPreview.current = preview
   const setCommitted = (document: AssemblyDocument) => {
+    resetMechanicalAxes()
     embeddedOwnerEpoch.current++
     current.current = document
     publishCommitted(document)
   }
   const setScopePath = (value: string[] | ((previous: string[]) => string[])) => {
+    resetMechanicalAxes()
     embeddedOwnerEpoch.current++
     publishScopePath(value)
   }
@@ -816,6 +830,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     setWidthPicking(null)
     setPickingLinearEdges(false); setEdgeChoice('')
     setRackPicking(null)
+    clearMechanicalPicking(true)
     setStreamProjection(null)
     dragSession.current?.cancel(); dragSession.current = null; dragAnchor.current = null; dragging.current = false; setDragActive(false)
     clearInspection(); analysisPending.current = false
@@ -2214,7 +2229,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   treeOriginCurrent.current = { context: treeOriginContext, entries: treeOrigins, blocked: treeOriginBlocked }
   const selectedTreeOrigin = !treeOriginBlocked ? resolveAssemblyOriginTreeSelection(treeOriginSelection, treeOrigins, treeOriginContext) : null
   const normalViewBlocked = editingBlocked || !!draft || !!preview || replaceDialog || !!streamProjection || dragActive
-    || pickingFaces || pickingLinearEdges || !!symmetryPicking || !!hingePicking || !!widthPicking || !!rackPicking || originPicking
+    || pickingFaces || pickingLinearEdges || !!symmetryPicking || !!hingePicking || !!widthPicking || !!rackPicking || !!mechanicalPicking || originPicking
     || !scene || sceneSignature.current !== serialized || confirmedScene.current?.signature !== serialized || confirmedScene.current?.scene !== scene
   const normalViewSession = useMemo(() => ({}), [treeReset, scene, serialized, scopePath, generation.current])
   const normalViewContext = { documentSignature: serialized, scopePath, sessionIdentity: normalViewSession, scene }
@@ -2319,6 +2334,58 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     if (face.support?.kind !== 'cylinder') return []
     return [{ key: assemblyFaceKey(face), reference, radius: face.support.radius, nativeAxis: face.support.axis, label: `${row?.occurrence.name ?? 'Componente'} · ${path.join(' / ')} · Cilindro R${face.support.radius} · eje local (${face.support.axis.join(', ')}) · ${reference.component.definition.id} · ${reference.component.definition.revision} · ${reference.face.sourceFeatureId}` }]
   }) ?? [] : []
+  const mechanicalOwner = preview ?? confirmedScene.current
+  const mechanicalContext = useMemo<MechanicalAxisContext>(() => ({ phase: preview ? 'preview' : 'committed', owner: mechanicalOwner,
+    document: committed, preview, scene: preview?.reply.scene ?? confirmedScene.current?.scene ?? null, signature: serialized, candidateSignature,
+    token: preview?.reply.token ?? null, generation: generation.current, scope: JSON.stringify(scopePath), scopeDefinition: assemblyDefinitionKey(scopeReference),
+    family: mateType, session: mechanicalSession.current }),
+  [committed, preview, mechanicalOwner, serialized, candidateSignature, scopePath, mateType, generation.current, mechanicalSession.current])
+  const mechanicalEligible = (mateType === 'gear' || mateType === 'screw') && !editingGear && !editingScrew && managerTab === 'relations'
+    && !editingBlocked && !replaceDialog && !hasStaging() && dragMode === 'off' && !dragActive && !dragSession.current && mechanicalContext.scene === scene
+    && (preview ? canApply : !draft && sceneSignature.current === serialized && confirmedScene.current?.signature === serialized && confirmedScene.current.scene === scene)
+  useLayoutEffect(() => { mechanicalContextRef.current = mechanicalContext }, [mechanicalContext])
+  useEffect(() => () => { mechanicalContextRef.current = null; mechanicalPickingRef.current = null; mechanicalSession.current = {} }, [])
+  const mechanicalLiveCurrent = (ticket: MechanicalAxisContext) => {
+    const source = currentPreview.current, confirmed = confirmedScene.current, signature = serializeAssemblyDocument(current.current)
+    const eligible = mounted.current && managerTabRef.current === 'relations' && !operation.current && !hasStaging() && !replaceDialog
+      && dragMode === 'off' && !dragSession.current && !dragging.current && (source ? canApplyAssemblyPreview(source, signature, candidateSignature, generation.current, false)
+        : !draft && confirmed?.signature === signature && sceneSignature.current === signature && confirmed.scene === scene)
+    return liveMechanicalAxisContextIsCurrent(ticket, { mounted: mounted.current, eligible, phase: source ? 'preview' : 'committed',
+      owner: source ?? confirmed, document: current.current, preview: source, scene: source?.reply.scene ?? confirmed?.scene ?? null,
+      signature, candidateSignature: source ? candidateSignature : null, token: source?.reply.token ?? null, generation: generation.current,
+      scope: currentFileScope.current, session: mechanicalSession.current })
+  }
+  const activeMechanicalPick = currentMechanicalAxisPick(mechanicalPicking, mechanicalPickingRef.current, mechanicalContext, !mechanicalEligible) ? mechanicalPicking : null
+  const chooseMechanicalAxis = (context: MechanicalAxisContext, slot: MechanicalAxisSlot, key: string) => {
+    if (!mechanicalContextRef.current || !mechanicalAxisContextIsCurrent(context, mechanicalContextRef.current) || !mechanicalLiveCurrent(context)
+      || slot !== 0 && slot !== 1 || key && gearAxes.filter(value => value.key === key).length !== 1) return
+    const family = context.family as MechanicalAxisFamily
+    clearMechanicalPicking()
+    setMechanicalAxes(previous => ({ ...previous, [family]: slot === 0 ? [key, previous[family][1]] : [previous[family][0], key] }))
+    notify(key ? `Eje ${slot + 1} del ${family === 'gear' ? 'engranaje' : 'tornillo'} seleccionado. Se conserva el documento.` : `Eje ${slot + 1} sin seleccionar.`)
+  }
+  const beginMechanicalPick = (slot: MechanicalAxisSlot) => {
+    if (!mechanicalEligible || !mechanicalLiveCurrent(mechanicalContext)) return
+    if (activeMechanicalPick?.slot === slot) { clearMechanicalPicking(); return }
+    stopOriginPicking(); clearSymmetryPicking(); setHingePicking(null); setWidthPicking(null); setRackPicking(null)
+    setPickingFaces(false); setPickingLinearEdges(false); setDragMode('off')
+    setMechanicalPicking({ ...mechanicalContext, slot })
+    notify(`Selecciona una cara cilíndrica para el eje ${slot + 1} del ${mateType === 'gear' ? 'engranaje' : 'tornillo'}.`)
+  }
+  const pickMechanicalAxis = (incoming: AssemblySceneFace | null, expected: MechanicalAxisPickTicket | null) => {
+    if (!currentMechanicalAxisPick(expected, mechanicalPickingRef.current, mechanicalContextRef.current, !mechanicalEligible)
+      || !mechanicalLiveCurrent(expected)) return
+    const key = incoming ? assemblyFaceKey(incoming) : '', choices = gearAxes.filter(value => value.key === key)
+    if (choices.length !== 1) { notify('Selecciona una cara cilíndrica actual de un componente del ámbito.', true); return }
+    const choice = choices[0], family = expected.family as MechanicalAxisFamily, other = gearAxes.find(value => value.key === mechanicalAxes[family][1 - expected.slot])
+    if (other && samePath(choice.reference.component.occurrencePath, other.reference.component.occurrencePath)) {
+      notify('Selecciona un cilindro de otro componente para este eje.', true); return
+    }
+    chooseMechanicalAxis(expected, expected.slot, choice.key)
+  }
+  const mechanicalAxisControls = (family: MechanicalAxisFamily): MechanicalAxisControls => ({ enabled: mechanicalEligible && mateType === family,
+    keys: mechanicalAxes[family], slot: activeMechanicalPick?.family === family ? activeMechanicalPick.slot : null,
+    onChoice: (slot, key) => chooseMechanicalAxis(mechanicalContext, slot, key), onPick: beginMechanicalPick, onCancel: () => clearMechanicalPicking() })
   const rackPinions = gearAxes
   const rackScene = preview?.reply.scene ?? scene
   const rackEditingRadius = editingRack ? rackScene?.bodies.flatMap(body => body.faces).find(face => {
@@ -2339,7 +2406,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   const symmetrySelectedFaces = symmetrySelected.map(value => value.actual).filter((value): value is AssemblySceneFace => 'face' in value.selection)
   const symmetrySelectedEdges = symmetrySelected.map(value => value.actual).filter((value): value is AssemblySceneEdge => 'edge' in value.selection)
   const symmetrySelectedVertices = symmetrySelected.map(value => value.actual).filter((value): value is AssemblySceneVertex => 'vertex' in value.selection)
-  const rackSelectedFaces = isHinge ? hingeFaceMeshes : isSymmetry ? symmetrySelectedFaces : isWidth ? widthFaceMeshes : mateType === 'rack-pinion' ? rackScene?.bodies.flatMap(body => body.faces).filter(face => rackKeys.includes(assemblyFaceKey(face))) ?? [] : isLimitDistance ? limitFaceMeshes : isDirection || isLimitAngle || mateType === 'angle' ? directionFaceMeshes : isTangent ? tangentFaceMeshes : isCylinderTangent ? cylinderFaceMeshes : isSphereTangent ? sphereFaceMeshes : editedFaceMeshes ?? selectedFaceMeshes
+  const rackSelectedFaces = isHinge ? hingeFaceMeshes : isSymmetry ? symmetrySelectedFaces : isWidth ? widthFaceMeshes : mateType === 'gear' || mateType === 'screw' ? (preview?.reply.scene ?? scene)?.bodies.filter(body => body.visible).flatMap(body => body.faces).filter(face => mechanicalAxes[mateType].includes(assemblyFaceKey(face))) ?? [] : mateType === 'rack-pinion' ? rackScene?.bodies.flatMap(body => body.faces).filter(face => rackKeys.includes(assemblyFaceKey(face))) ?? [] : isLimitDistance ? limitFaceMeshes : isDirection || isLimitAngle || mateType === 'angle' ? directionFaceMeshes : isTangent ? tangentFaceMeshes : isCylinderTangent ? cylinderFaceMeshes : isSphereTangent ? sphereFaceMeshes : editedFaceMeshes ?? selectedFaceMeshes
   const rackSelectedEdges = isHinge ? hingeEdgeMeshes : isSymmetry ? symmetrySelectedEdges : mateType === 'rack-pinion' ? rackScene?.bodies.flatMap(body => body.edges ?? []).filter(edge => rackKeys.includes(assemblyEdgeKey(edge))) ?? [] : directionEdgeMeshes
   const gearCarriers = gearRows.filter(row => inside(row.path, scopePath) && !row.suppressed).map(row => ({ key: JSON.stringify(row.path),
     label: `${row.occurrence.name} · ${row.path.join(' / ')} · ${row.definition.id} · ${row.definition.revision}`,
@@ -2356,7 +2423,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     creationReferenceDraft.current = null
     preselectionPick.current = null
     clearSymmetryPicking()
-    if (next !== mateType) hingeContext.current = null
+    if (next !== mateType) { hingeContext.current = null; resetMechanicalAxes() }
     if (isHinge !== (next === 'hinge')) { setHingeReferences([null,null,null,null]); resetHingeStops(); setEditingHingeId(null); setHingeAlignment('') }
     setHingePicking(null)
     if(isSymmetry!==(next==='symmetry')){setSymmetryReferences([null,null,null]);setEditingSymmetryId(null);setSymmetryAlignment('')}
@@ -2482,7 +2549,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     || confirmedScene.current?.signature !== serialized || confirmedScene.current?.scene !== scene
     || !originDisplays.some(value => value.reference.kind === 'principal-axis' ? originKinds.axes : originKinds.planes)
   const activeOriginPicking = originPicking && managerTab === 'relations' && !originBlocked
-    && !pickingFaces && !pickingLinearEdges && !symmetryPicking && !hingePicking && !widthPicking && !rackPicking && dragMode === 'off'
+    && !pickingFaces && !pickingLinearEdges && !symmetryPicking && !hingePicking && !widthPicking && !rackPicking && !mechanicalPicking && dragMode === 'off'
   useEffect(() => { if (showOriginAxes) setOriginControlsOpen(true) }, [showOriginAxes])
   useEffect(() => { if (showOriginPlanes) setOriginControlsOpen(true) }, [showOriginPlanes])
   useEffect(() => { if (activeOriginPicking) setOriginControlsOpen(true) }, [activeOriginPicking])
@@ -2493,8 +2560,8 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   const selectedOriginReferences = originRoleReferences.filter((reference): reference is AssemblyOriginReference => !!reference && (reference.kind === 'principal-axis' || reference.kind === 'principal-plane'))
   useEffect(() => { stopOriginPicking() }, [serialized, scopePath, selectedPath, mateType, endpointSlot, originOwner, showOriginAxes, showOriginPlanes, busy, preview, draft])
   useEffect(() => {
-    if (pickingFaces || pickingLinearEdges || symmetryPicking || hingePicking || widthPicking || rackPicking || dragMode !== 'off') stopOriginPicking()
-  }, [pickingFaces, pickingLinearEdges, symmetryPicking, hingePicking, widthPicking, rackPicking, dragMode])
+    if (pickingFaces || pickingLinearEdges || symmetryPicking || hingePicking || widthPicking || rackPicking || mechanicalPicking || dragMode !== 'off') stopOriginPicking()
+  }, [pickingFaces, pickingLinearEdges, symmetryPicking, hingePicking, widthPicking, rackPicking, mechanicalPicking, dragMode])
   const beginOriginPick = () => {
     if (originBlocked || operation.current || hasStaging() || currentPreview.current || !mounted.current) return
     if (activeOriginPicking) { stopOriginPicking(); return }
@@ -2565,7 +2632,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   const exampleAssembly = () => void (async () => { if (await mayReplace()) replace(createAssemblyExample()) })()
   const contextBlocked = editingBlocked || !!draft || !!preview || replaceDialog || !!streamProjection || bomOpen
     || dragActive || !!dragSession.current || !!dragging.current || pickingFaces || pickingLinearEdges
-    || !!symmetryPicking || !!hingePicking || !!widthPicking || !!rackPicking || activeOriginPicking
+    || !!symmetryPicking || !!hingePicking || !!widthPicking || !!rackPicking || !!mechanicalPicking || activeOriginPicking
     || !scene || sceneSignature.current !== serialized || confirmedScene.current?.signature !== serialized
     || confirmedScene.current?.scene !== scene
   const contextCurrent = useRef({ target: contextTarget, reset: treeReset, blocked: contextBlocked, originSelection: treeOriginSelection })
@@ -2708,7 +2775,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
       { id: 'example-assembly', label: 'Ejemplo: placa y dos pasadores', disabled: editingBlocked || replaceDialog, onSelect: exampleAssembly },
     ] },
   ])
-  const shortcutPicking = originPicking || pickingFaces || pickingLinearEdges || !!symmetryPicking || !!hingePicking || !!widthPicking || !!rackPicking
+  const shortcutPicking = originPicking || pickingFaces || pickingLinearEdges || !!symmetryPicking || !!hingePicking || !!widthPicking || !!rackPicking || !!mechanicalPicking
   const shortcutCancel = menus.flatMap(menu => menu.items).find(item => item.id === 'cancel-preview')!
   useAssemblyShortcuts({ root: '.assembly-classic-workspace', active: embeddedPart.parentActive, menus, modal: namedViews.isOpen || newDocumentDialog.isOpen || replaceDialog || !!replaceAnswer.current,
     beforeFile: (id, target) => {
@@ -2729,7 +2796,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     escape: shortcutPicking ? { disabled: editingBlocked || dragActive || !!dragSession.current, onSelect: () => {
       if (operation.current || hasStaging() || dragActive || dragSession.current) return
       preselectionPick.current = null
-      clearSymmetryPicking(); setHingePicking(null); setWidthPicking(null); setRackPicking(null)
+      clearSymmetryPicking(); setHingePicking(null); setWidthPicking(null); setRackPicking(null); clearMechanicalPicking(true)
       notify('Selección en vista cancelada. Se conservan las referencias y los campos de la relación.')
     } } : shortcutCancel,
   })
@@ -3024,11 +3091,13 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
           editing={!!editingLimitAngle} disabled={editingBlocked || !!preview || replaceDialog} onName={setMateName} onMinimum={setLimitAngleMinimum} onMaximum={setLimitAngleMaximum}
           onPreview={editingLimitAngle ? editLimitAngle : addMate} onCancelEdit={() => { if (operation.current || hasStaging() || currentPreview.current || replaceDialog) return; setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null); setLimitAngleReferences([null, null]); setLimitDirectedSelection(['', '', '']); setSelectedFaceMeshes([]) }} />}
         {mateType === 'gear' && <AssemblyGearPanel key={JSON.stringify([scopeReference, editingGear?.id ?? 'new'])} mate={editingGear} axes={gearAxes} carriers={gearCarriers} scopeName={scope.name}
+          axisPicker={editingGear ? undefined : mechanicalAxisControls('gear')}
           disabled={editingBlocked || replaceDialog || !!editingGear && !!preview} canCapture={canApply && !sourceUpdate && !documentUpdate && !replacementReview && !replaceDialog}
-          onCapture={request => void captureGear(request)} onEdit={editGear} onCancelEdit={() => setEditingGearId(null)} />}
+          onCapture={request => { clearMechanicalPicking(); void captureGear(request) }} onEdit={editGear} onCancelEdit={() => setEditingGearId(null)} />}
         {mateType === 'screw' && <AssemblyScrewPanel key={JSON.stringify([scopeReference, editingScrew?.id ?? 'new'])} mate={editingScrew} axes={gearAxes}
+          axisPicker={editingScrew ? undefined : mechanicalAxisControls('screw')}
           disabled={editingBlocked || replaceDialog || !!editingScrew && !!preview} canCapture={canApply && !sourceUpdate && !documentUpdate && !replacementReview && !replaceDialog}
-          onCapture={request => void captureScrew(request)} onEdit={editScrew} onCancelEdit={() => setEditingScrewId(null)} />}
+          onCapture={request => { clearMechanicalPicking(); void captureScrew(request) }} onEdit={editScrew} onCancelEdit={() => setEditingScrewId(null)} />}
         {mateType === 'rack-pinion' && <AssemblyRackPinionPanel key={JSON.stringify([scopeReference, editingRack?.id ?? 'new'])} mate={editingRack} pinions={rackPinions} racks={rackChoices} firstKey={rackKeys[0]} secondKey={rackKeys[1]}
           nativeRadius={rackNativeRadius}
           disabled={editingBlocked || replaceDialog || !!editingRack && !!preview} canCapture={canApply && !sourceUpdate && !documentUpdate && !replacementReview && !replaceDialog}
@@ -3077,8 +3146,8 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
         {mate.type === 'limit-directed-angle' && <button aria-label={`Editar límite dirigido ${mate.name}`} disabled={editingBlocked || !!preview || replaceDialog || !!referenceEditTicket} onClick={() => beginLimitDirectedAngleEdit(mate)}>Editar</button>}
         {mate.type === 'limit-angle' && <button aria-label={`Editar intervalo angular ${mate.name}`} disabled={editingBlocked || !!preview || replaceDialog || !!referenceEditTicket} onClick={() => beginLimitAngleEdit(mate)}>Editar</button>}
         {mate.type === 'limit-distance' && <button aria-label={`Editar intervalo entre planos ${mate.name}`} disabled={editingBlocked || !!preview || replaceDialog || !!referenceEditTicket} onClick={() => beginLimitDistanceEdit(mate)}>Editar</button>}
-        {mate.type === 'gear' && <button aria-label={`Editar engranaje ${mate.name}`} disabled={editingBlocked || !!preview || replaceDialog || !!referenceEditTicket} onClick={() => { if (operation.current || hasStaging() || currentPreview.current || draft || replaceDialog || savedReferenceEditIsActive()) return; setMateType('gear'); setDirectionEdit(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null); setEditingGearId(mate.id); setEditingScrewId(null); setPickingFaces(false); setDragMode('off') }}>Editar</button>}
-        {mate.type === 'screw' && <button aria-label={`Editar tornillo ${mate.name}`} disabled={editingBlocked || !!preview || replaceDialog || !!referenceEditTicket} onClick={() => { if (operation.current || hasStaging() || currentPreview.current || draft || replaceDialog || savedReferenceEditIsActive()) return; setMateType('screw'); setDirectionEdit(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null); setEditingScrewId(mate.id); setEditingGearId(null); setPickingFaces(false); setDragMode('off') }}>Editar</button>}
+        {mate.type === 'gear' && <button aria-label={`Editar engranaje ${mate.name}`} disabled={editingBlocked || !!preview || replaceDialog || !!referenceEditTicket} onClick={() => { if (operation.current || hasStaging() || currentPreview.current || draft || replaceDialog || savedReferenceEditIsActive()) return; clearMechanicalPicking(true); setMateType('gear'); setDirectionEdit(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null); setEditingGearId(mate.id); setEditingScrewId(null); setPickingFaces(false); setDragMode('off') }}>Editar</button>}
+        {mate.type === 'screw' && <button aria-label={`Editar tornillo ${mate.name}`} disabled={editingBlocked || !!preview || replaceDialog || !!referenceEditTicket} onClick={() => { if (operation.current || hasStaging() || currentPreview.current || draft || replaceDialog || savedReferenceEditIsActive()) return; clearMechanicalPicking(true); setMateType('screw'); setDirectionEdit(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null); setEditingScrewId(mate.id); setEditingGearId(null); setPickingFaces(false); setDragMode('off') }}>Editar</button>}
         {mate.type === 'rack-pinion' && <button aria-label={`Editar cremallera y piñón ${mate.name}`} disabled={editingBlocked || !!preview || replaceDialog || !!referenceEditTicket} onClick={() => { if (operation.current || hasStaging() || currentPreview.current || draft || replaceDialog || savedReferenceEditIsActive()) return; setMateType('rack-pinion'); setDirectionEdit(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null); setEditingRackId(mate.id); setEditingGearId(null); setEditingScrewId(null); setRackPicking(null); setPickingFaces(false); setDragMode('off') }}>Editar</button>}
         {mate.type === 'concentric' && !mate.suppressed && <button title="Capturar bloqueo de giro desde la vista previa verificada" aria-label={`Bloquear giro ${mate.name}`} disabled={!canApply || !!referenceEditTicket || !!sourceUpdate || !!documentUpdate || !!replacementReview} onClick={() => void capture(mate.id)}><LockKeyhole size={14} /></button>}
         <button aria-label={`Eliminar ${mate.name}`} disabled={editingBlocked || !!referenceEditTicket || solveDeletion(mate.type) && (!!preview || replaceDialog)} onClick={() => deleteRelation(mate)}><Trash2 size={14} /></button></div>)}{!scope.mates.length && <p className="assembly-muted">No hay relaciones en este ámbito.</p>}
@@ -3103,20 +3172,24 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
       </aside>
       <section className="assembly-canvas" data-assembly-browse-mode={browseSelectionMode} data-normal-selection-kind={normalResolution.target?.kind ?? 'invalid'} data-normal-selection-keys={JSON.stringify(normalViewSelection?.items.map(value => [value.kind, value.key]) ?? [])} data-normal-enabled={canNormal}><CompactViewportToolbar label="Controles del visor del ensamblaje" className="assembly-view-tools"><ViewportToolGroup label="Vistas del ensamblaje"><ViewOrientationControls onView={viewButton} disabled={!!dragSession.current || viewHistory.navigating} canPrevious={viewHistory.canPrevious} canNormal={canNormal} onNamedViews={namedViews.open} canNamedViews={namedViews.canOpen} /><button title="Isométrica" disabled={!!dragSession.current || viewHistory.navigating} onClick={() => viewButton('iso')}><ViewportToolIcon name="iso" label="Isométrica" /></button><button title="Frontal" disabled={!!dragSession.current || viewHistory.navigating} onClick={() => viewButton('front')}><ViewportToolIcon name="front" label="Frontal" /></button><button title="Superior" disabled={!!dragSession.current || viewHistory.navigating} onClick={() => viewButton('top')}><ViewportToolIcon name="top" label="Superior" /></button><button title="Ajustar" disabled={!!dragSession.current || viewHistory.navigating} onClick={() => viewButton('fit')}><ViewportToolIcon name="fit" label="Ajustar" /></button></ViewportToolGroup><ViewportToolGroup label="Selección previa"><button aria-label="Preseleccionar caras" title="Preseleccionar caras · Ctrl para añadir o quitar" aria-pressed={browseSelectionMode === 'face'} disabled={normalViewBlocked} onClick={() => setBrowseSelectionMode('face')}><ViewportToolIcon name="face" label="Preseleccionar caras" /></button><button aria-label="Preseleccionar aristas lineales" title="Preseleccionar aristas lineales · Ctrl para añadir o quitar" aria-pressed={browseSelectionMode === 'edge'} disabled={normalViewBlocked} onClick={() => setBrowseSelectionMode('edge')}><ViewportToolIcon name="edge" label="Preseleccionar aristas lineales" /></button></ViewportToolGroup><ViewportToolGroup label="Selección de referencias"><button title="Seleccionar caras" className={pickingFaces ? 'active' : ''} aria-pressed={pickingFaces} disabled={isHinge || isCircularPath || isLinePath || isSymmetry || (isWidth ? widthPickingBlocked : referenceBlocked)} onClick={() => { openManager('relations'); if (isWidth) { const missing = widthReferences.findIndex(value => value === null); toggleWidthPicking(widthPickingSlot ?? (missing < 0 ? 0 : missing as WidthUiSlot)); return } setDragMode('off'); setPickingLinearEdges(false); setPickingFaces(!pickingFaces) }}><ViewportToolIcon name="face" label="Seleccionar caras" /></button>
         {(isDirection || isLimitAngle || mateType === 'angle') && <button title="Seleccionar aristas lineales" aria-label="Seleccionar aristas lineales" aria-pressed={pickingLinearEdges} disabled={referenceBlocked || !!editingLimitAngle || sceneSignature.current !== serialized} onClick={() => { openManager('relations'); setDragMode('off'); setPickingFaces(false); setPickingLinearEdges(!pickingLinearEdges) }}><ViewportToolIcon name="edge" label="Seleccionar aristas" /></button>}
-        </ViewportToolGroup><ViewportToolGroup label="Manipulación del componente" className="assembly-drag-tools"><button title="Arrastrar posición" aria-label="Arrastrar posición" aria-pressed={dragMode === 'translate'} disabled={editingBlocked || !!draft || !!preview || replaceDialog || !eligibleDragFrame} onClick={() => { setTreeOriginSelection(null); setNormalSelection(null); clearSymmetryPicking(); setDragMode('translate') }}><ViewportToolIcon name="translate" label="Arrastrar posición" /></button>
-        <button title="Arrastrar giro" aria-label="Arrastrar giro" aria-pressed={dragMode === 'rotate'} disabled={editingBlocked || !!draft || !!preview || replaceDialog || !eligibleDragFrame} onClick={() => { setTreeOriginSelection(null); setNormalSelection(null); clearSymmetryPicking(); setDragMode('rotate') }}><ViewportToolIcon name="rotate" label="Arrastrar giro" /></button>
+        </ViewportToolGroup><ViewportToolGroup label="Manipulación del componente" className="assembly-drag-tools"><button title="Arrastrar posición" aria-label="Arrastrar posición" aria-pressed={dragMode === 'translate'} disabled={editingBlocked || !!draft || !!preview || replaceDialog || !eligibleDragFrame} onClick={() => { setTreeOriginSelection(null); setNormalSelection(null); clearSymmetryPicking(); clearMechanicalPicking(true); setDragMode('translate') }}><ViewportToolIcon name="translate" label="Arrastrar posición" /></button>
+        <button title="Arrastrar giro" aria-label="Arrastrar giro" aria-pressed={dragMode === 'rotate'} disabled={editingBlocked || !!draft || !!preview || replaceDialog || !eligibleDragFrame} onClick={() => { setTreeOriginSelection(null); setNormalSelection(null); clearSymmetryPicking(); clearMechanicalPicking(true); setDragMode('rotate') }}><ViewportToolIcon name="rotate" label="Arrastrar giro" /></button>
         <button title="Desactivar manipulador" aria-label="Desactivar manipulador" disabled={!!dragSession.current || dragMode === 'off'} onClick={() => setDragMode('off')}><ViewportToolIcon name="stop" label="Desactivar manipulador" /></button></ViewportToolGroup></CompactViewportToolbar>
       <AssemblyViewport partColors={partColors} originLabelTopInset={44} scene={scene} view={view} viewHistory={viewHistory} selectedPath={selectedTreeOrigin ? [] : selectedPath} selectedFaces={normalViewBlocked ? rackSelectedFaces : [...rackSelectedFaces, ...browseFaces]} selectedEdges={normalViewBlocked ? rackSelectedEdges : [...rackSelectedEdges, ...browseResolution.edges]} selectedAnalysisPair={selectedAnalysisPair} browseSelectionMode={browseSelectionMode}
         onContextTarget={openViewportContext}
         originReferences={!normalViewBlocked && browseOrigins.length ? browseOrigins : selectedTreeOrigin ? [selectedTreeOrigin.display] : originDisplays}
         selectedOrigins={!normalViewBlocked && browseOrigins.length ? browseOrigins.map(value => value.reference) : selectedTreeOrigin ? [selectedTreeOrigin.display.reference] : selectedOriginReferences} pickingOrigins={activeOriginPicking} onOrigin={pickOrigin}
-        pickingFaces={isSymmetry ? !!activeSymmetryPick && activeSymmetryPick.producer !== 'vertex' && activeSymmetryPick.producer !== 'line-edge' : pickingFaces || !!rackPicking && rackPicking.kind !== 'rack-edge'} pickingEdges={isSymmetry ? activeSymmetryPick?.producer === 'line-edge' : pickingLinearEdges || rackPicking?.kind === 'rack-edge'} disabled={editingBlocked || replaceDialog || !!preview && !rackPicking}
+        pickingFaces={isSymmetry ? !!activeSymmetryPick && activeSymmetryPick.producer !== 'vertex' && activeSymmetryPick.producer !== 'line-edge' : pickingFaces || !!activeMechanicalPick || !!rackPicking && rackPicking.kind !== 'rack-edge'} pickingEdges={isSymmetry ? activeSymmetryPick?.producer === 'line-edge' : pickingLinearEdges || rackPicking?.kind === 'rack-edge'} disabled={editingBlocked || replaceDialog || !!preview && !rackPicking && !activeMechanicalPick}
         drag={dragMode !== 'off' && !activeSymmetryPick && !pickingFaces && !pickingLinearEdges && !sourceUpdate && !documentUpdate && !replacementReview && !preview && !draft && !replaceDialog && (dragAnchor.current ?? eligibleDragFrame)
           ? { frame: (dragAnchor.current ?? eligibleDragFrame)!, mode: dragMode, active: dragActive } : undefined}
         onDragStart={beginDrag} onDragTarget={dragTarget} onDragEnd={endDrag} onDragCancel={cancel}
         pickingVertices={isSymmetry && activeSymmetryPick?.producer === 'vertex'} selectedVertices={symmetrySelectedVertices} onVertex={vertex => { if (managerTabRef.current === 'relations') pickSymmetryVertex(vertex) }}
-        onViewSelection={nominateViewSelection} onComponent={component => { abandonInsertionSelection(); setTreeOriginSelection(null); if (linkedTicket.current) generation.current++; setSelectedPath(component?.occurrencePath ?? []) }} onFace={face => { if (managerTabRef.current === 'relations') (rackPicking ? pickRackFace : pickFace)(face) }} onEdge={edge => { if (managerTabRef.current === 'relations') (rackPicking ? pickRackEdge : pickDirectionEdge)(edge) }} />
-      <div className="assembly-canvas-label"><strong>{displayed.name}</strong><span>{rackPicking ? rackPicking.kind === 'rack-edge' ? 'Selecciona una arista lineal actual de la cremallera' : rackPicking.kind === 'pinion' ? 'Selecciona el cilindro actual del piñón' : 'Selecciona el eje cilíndrico actual de la cremallera' : dragSession.current ? 'Arrastre · destinos nativos verificados · todavía sin aplicar' : preview ? 'Vista previa · todavía sin aplicar' : documentUpdate ? 'Actualización de subensamblaje · pendiente de resolver y aplicar' : sourceUpdate ? 'Actualización de origen · pendiente de resolver y aplicar' : replacementReview ? 'Sustitución de pieza · pendiente de resolver y aplicar' : activeSymmetryPick ? 'Selecciona ' + SYMMETRY_ROLE_LABELS[activeSymmetryPick.slot] + (activeSymmetryPick.producer === 'line-edge' ? ' · arista lineal' : activeSymmetryPick.producer === 'cylinder-axis' ? ' · eje cilíndrico' : '') : activeHingePick ? 'Selecciona ' + HINGE_ROLE_LABELS[activeHingePick.slot] : widthPickingSlot !== null ? 'Selecciona ' + WIDTH_ROLE_LABELS[widthPickingSlot] : pickingFaces ? `Selecciona referencia ${endpointSlot + 1}` : 'Componentes independientes · mm'}</span></div>
+        onViewSelection={nominateViewSelection} onComponent={component => { abandonInsertionSelection(); setTreeOriginSelection(null); if (linkedTicket.current) generation.current++; setSelectedPath(component?.occurrencePath ?? []) }} onFace={face => {
+          if (managerTabRef.current !== 'relations') return
+          if (activeMechanicalPick) pickMechanicalAxis(face, activeMechanicalPick)
+          else (rackPicking ? pickRackFace : pickFace)(face)
+        }} onEdge={edge => { if (managerTabRef.current === 'relations') (rackPicking ? pickRackEdge : pickDirectionEdge)(edge) }} />
+      <div className="assembly-canvas-label"><strong>{displayed.name}</strong><span>{activeMechanicalPick ? `Selecciona una cara cilíndrica para el eje ${activeMechanicalPick.slot + 1} del ${activeMechanicalPick.family === 'gear' ? 'engranaje' : 'tornillo'}` : rackPicking ? rackPicking.kind === 'rack-edge' ? 'Selecciona una arista lineal actual de la cremallera' : rackPicking.kind === 'pinion' ? 'Selecciona el cilindro actual del piñón' : 'Selecciona el eje cilíndrico actual de la cremallera' : dragSession.current ? 'Arrastre · destinos nativos verificados · todavía sin aplicar' : preview ? 'Vista previa · todavía sin aplicar' : documentUpdate ? 'Actualización de subensamblaje · pendiente de resolver y aplicar' : sourceUpdate ? 'Actualización de origen · pendiente de resolver y aplicar' : replacementReview ? 'Sustitución de pieza · pendiente de resolver y aplicar' : activeSymmetryPick ? 'Selecciona ' + SYMMETRY_ROLE_LABELS[activeSymmetryPick.slot] + (activeSymmetryPick.producer === 'line-edge' ? ' · arista lineal' : activeSymmetryPick.producer === 'cylinder-axis' ? ' · eje cilíndrico' : '') : activeHingePick ? 'Selecciona ' + HINGE_ROLE_LABELS[activeHingePick.slot] : widthPickingSlot !== null ? 'Selecciona ' + WIDTH_ROLE_LABELS[widthPickingSlot] : pickingFaces ? `Selecciona referencia ${endpointSlot + 1}` : 'Componentes independientes · mm'}</span></div>
       {!scene?.bodies.length && !busy && <div className="assembly-empty"><Component size={42} /><h2>Diseña un conjunto de piezas</h2><p>Importa una pieza o abre el ejemplo original para empezar.</p></div>}
     </section>
     </main>

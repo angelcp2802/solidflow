@@ -135,3 +135,16 @@ it('keeps native capture/edit callbacks idle during SSR and distinguishes coupli
   expect(JSON.stringify(value)).toBe(before)
   for (const callback of [input.onCapture, input.onEdit, input.onCancelEdit]) expect(callback).not.toHaveBeenCalled()
 })
+
+it('nominates cylinder roles from a confirmed base scene without authorizing native capture', () => {
+  const input = props(), axisPicker = { enabled: true, keys: [input.axes[0].key, input.axes[1].key] as [string,string], slot: 1 as const,
+    onChoice: () => {}, onPick: () => {}, onCancel: () => {} }
+  const html = renderToStaticMarkup(<AssemblyScrewPanel {...input} canCapture={false} axisPicker={axisPicker} />)
+  expect(html).toMatch(/<button(?=[^>]*aria-label="Seleccionar eje 2 del tornillo en el modelo")(?=[^>]*aria-pressed="true")(?![^>]*disabled=)[^>]*>/)
+  expect(html).toMatch(/<button(?=[^>]*aria-label="Capturar tornillo")(?=[^>]*disabled="")[^>]*>/)
+  expect(html).toContain('Cancelar selección de ejes del tornillo')
+  const saved = renderToStaticMarkup(<AssemblyScrewPanel {...input} mate={mate()} axisPicker={axisPicker} />)
+  expect(saved).not.toContain('en el modelo')
+  const busy = renderToStaticMarkup(<AssemblyScrewPanel {...input} disabled axisPicker={axisPicker} />)
+  expect(busy).toMatch(/<button(?=[^>]*aria-label="Seleccionar eje 1 del tornillo en el modelo")(?=[^>]*disabled="")[^>]*>/)
+})

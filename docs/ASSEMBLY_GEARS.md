@@ -76,6 +76,24 @@ scope's frame, not the world frame. World-space checks must therefore transport
 the actual scope carrier too. A reusable subassembly retains shared declaration
 identity while each occurrence is checked in its own placement.
 
+The standard workspace also offers **Seleccionar eje 1/2 en el modelo** next
+to the existing axis lists. Each role accepts a visible current cylindrical
+face from the declaring scope and retains its exact component, source revision,
+body and face identity. A confirmed native base scene can nominate the roles
+before solving; nomination does not grant capture or Apply authority. Run
+**Resolver** before **Capturar engranaje**. Incompatible faces and a second axis
+on the same component leave the intended role armed with guidance. Cancel
+selection preserves the fields. Changing document, scope, family, editor or
+interaction owner invalidates that selection session; saved-gear editing keeps
+its existing captured references.
+
+`npm run test:desktop:assembly-gear-picking` uses the original plate and two
+pins, real viewport clicks on the exposed shaft walls, Capture/Cancel/retry,
+native Apply, independent eccentric markers for +120/−60 degree world-Z
+rotation, history and saved reopening with a fresh Solve. Its fixed standard
+views and native cylinder eligibility do not establish arbitrary visibility,
+configured mechanical picking, tooth contact or other platforms.
+
 The coupling supplies no collision prevention or physical tooth simulation.
 The existing rectilinear contact-stop route continues to reject an unsupported
 mate family until that family's trajectory preservation is established. No

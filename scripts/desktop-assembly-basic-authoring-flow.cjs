@@ -39,15 +39,21 @@ module.exports = function basicAuthoringWorkflow(context) {
       const rows = [...document.querySelectorAll(selector)].filter(e => text === null || e.textContent.trim() === text);
       if (rows.length !== 1) throw Error('One exact control required: ' + selector + ' / ' + text);
       const e = rows[0], r = e.getBoundingClientRect();
-      let left = 0, top = 0, right = innerWidth, bottom = innerHeight;
+      let left = 0, top = 0, right = innerWidth, bottom = innerHeight; const scrollOwners = [];
       for (let p = e.parentElement; p; p = p.parentElement) {
         const s = getComputedStyle(p), b = p.getBoundingClientRect();
         if (/(auto|scroll|hidden|clip)/.test(s.overflowX)) { left = Math.max(left, b.left + p.clientLeft); right = Math.min(right, b.left + p.clientLeft + p.clientWidth); }
         if (/(auto|scroll|hidden|clip)/.test(s.overflowY)) { top = Math.max(top, b.top + p.clientTop); bottom = Math.min(bottom, b.top + p.clientTop + p.clientHeight); }
+        if (/(auto|scroll|hidden|clip)/.test(s.overflowX + ' ' + s.overflowY)) scrollOwners.push({ tag: p.tagName, id: p.id, className: p.className,
+          overflowX: s.overflowX, overflowY: s.overflowY, scrollLeft: p.scrollLeft, scrollTop: p.scrollTop,
+          clientWidth: p.clientWidth, clientHeight: p.clientHeight, scrollWidth: p.scrollWidth, scrollHeight: p.scrollHeight,
+          maxScrollTop: Math.max(0, p.scrollHeight - p.clientHeight),
+          rect: { left: b.left, right: b.right, top: b.top, bottom: b.bottom } });
       }
       const point = { x: r.left + r.width / 2, y: r.top + r.height / 2 }, hit = document.elementFromPoint(point.x, point.y);
       const host = e.closest('.assembly-viewport'), canvas = host?.querySelector('canvas'), cr = canvas?.getBoundingClientRect();
-      return { point, rect: { left: r.left, right: r.right, top: r.top, bottom: r.bottom }, clip: { left, right, top, bottom },
+      return { point, rect: { left: r.left, right: r.right, top: r.top, bottom: r.bottom }, clip: { left, right, top, bottom }, scrollOwners,
+        relationControl: e.matches('button,input,select') && !!e.closest('#assembly-panel-relations'),
         visible: !e.disabled && !e.closest('[hidden]') && e.checkVisibility({ visibilityProperty: true, contentVisibilityAuto: true })
           && r.width > 0 && r.height > 0 && r.left >= left && r.right <= right && r.top >= top && r.bottom <= bottom && !!hit && (hit === e || e.contains(hit)),
         frameCurrent: !host || !!cr && Math.abs(cr.width - host.clientWidth) < 1 && Math.abs(cr.height - host.clientHeight) < 1,
@@ -62,13 +68,24 @@ module.exports = function basicAuthoringWorkflow(context) {
         selector, text, count: rows.length, busy: document.querySelector('.assembly-app')?.getAttribute('aria-busy'),
         controls: rows.slice(0, 4).map(e => ({ disabled: !!e.disabled, hiddenAncestor: !!e.closest('[hidden]'),
           panel: e.closest('[role="tabpanel"]')?.id ?? null, label: e.getAttribute('aria-label'), title: e.getAttribute('title') })) }));
-      rows[0].scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
+      const element = rows[0], panel = element.matches('button,input,select') ? element.closest('#assembly-panel-relations') : null;
+      if (panel && (panel.hidden || panel.getAttribute('role') !== 'tabpanel' || document.querySelector('#assembly-panel-relations') !== panel
+        || document.querySelector('#assembly-tab-relations')?.getAttribute('aria-selected') !== 'true' || !panel.contains(element)))
+        throw Error('Relation control requires the current visible Relations owner');
+      // nearest can leave a control fractionally clipped at either panel edge.
+      // Centre actual relation buttons/fields, retaining strict clipping
+      // and hit testing below; no origin label or other surface is repositioned.
+      element.scrollIntoView({ block: panel ? 'center' : 'nearest', inline: 'nearest', behavior: 'instant' });
     }, selector, text);
     let previous, since = 0;
     return waitFor('stationary visible authoring control ' + (text ?? selector), async () => {
       const state = await inspect(selector, text), key = canonical(state);
       if (key !== previous) { previous = key; since = Date.now(); }
       return state.visible && state.frameCurrent && Date.now() - since >= 120 ? state : false;
+    }).catch(async error => {
+      try { error.message += '; control=' + JSON.stringify(await inspect(selector, text)); }
+      catch (diagnosticError) { error.message += '; control diagnostic unavailable: ' + String(diagnosticError); }
+      throw error;
     });
   }
   async function actual(selector, text = null) {
@@ -77,7 +94,9 @@ module.exports = function basicAuthoringWorkflow(context) {
     const after = await inspect(selector, text);
     check(canonical(after) === canonical(before), 'Authoring target remains stationary before press: ' + JSON.stringify({ selector, text, before, after }));
     await pointer('mousePressed', before.point, 1); await pointer('mouseReleased', before.point, 0);
-    gestures.push({ action: 'pointer', selector, text, point: before.point });
+    gestures.push({ action: 'pointer', selector, text, point: before.point,
+      ...(before.relationControl ? { reveal: { rect: before.rect, clip: before.clip, scrollOwners: before.scrollOwners,
+        verticalMargin: Math.min(before.rect.top - before.clip.top, before.clip.bottom - before.rect.bottom) } } : {}) });
   }
   async function rightClick(selector) {
     const before = await prepare(selector);
@@ -582,12 +601,17 @@ module.exports = function basicAuthoringWorkflow(context) {
       const original = current.mates.find(mate => mate.type === 'angle');
       check(current.mates.length === 3 && original?.name === 'Guide to base angle edited', 'Boundary edit retains the one authored angle identity');
       await navigation.panel('relations');
+      checks.push({ boundaryEditControlBefore: { angle, state: await inspect('button' + attr('aria-label', 'Editar ángulo ' + original.name), null) } });
       await actual('button' + attr('aria-label', 'Editar ángulo ' + original.name));
       await waitFor('boundary editor retains saved angle ' + angle, () => page(value => {
         const type = document.querySelector('[aria-label="Tipo de relación"]'), field = document.querySelector('[aria-label="Ángulo de relación"]');
         return type?.value === 'angle' && type.disabled && field?.value === String(value) && !field.disabled;
       }, original.angle));
       await control('[aria-label="Ángulo de relación"]', String(angle));
+      const angleField = await inspect('[aria-label="Ángulo de relación"]', null);
+      check(angleField.visible && angleField.frameCurrent, 'Boundary angle field remains fully visible after legitimate panel reveal');
+      checks.push({ boundaryAngleField: { angle, state: angleField,
+        verticalMargin: Math.min(angleField.rect.top - angleField.clip.top, angleField.clip.bottom - angleField.rect.bottom) } });
       const candidate = await preview(current, '[aria-label="Vista previa del ángulo editado"]', null, 'boundary-' + angle + '-preview', 3, -12, 'aligned', angle);
       const wanted = current.mates.map(mate => mate.id === original.id ? { ...structuredClone(mate), angle } : structuredClone(mate));
       check(canonical(candidate.document.mates) === canonical(wanted), 'Boundary preview changes only the exact saved angular declaration');

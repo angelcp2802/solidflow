@@ -105,6 +105,9 @@
 .assembly-gear-ratio > span { padding-bottom: 15px; color: #6b8498; }
 .assembly-gear-references { padding: 3px 8px; border-left: 3px solid #4a95c5; background: #eef6fc; }
 .assembly-gear [role="alert"] { color: #a15743; }
+.assembly-mechanical-axis-role { margin-bottom: 9px; }
+.assembly-section .assembly-mechanical-axis-role > button, .assembly-gear [role="status"] > button { width: 100%; padding: 6px; margin: 3px 0; border: 1px solid #bfd3e2; border-radius: 3px; color: #326e9b; background: #eff6fb; }
+.assembly-section .assembly-mechanical-axis-role > button[aria-pressed="true"] { border-color: #368bca; background: #eaf4fc; color: #155b8d; }
 .assembly-rack-pinion input.assembly-conversion-default { background: #fff; }
 .assembly-rack-pinion input.assembly-conversion-override { background: #fff2a8; }
 .assembly-section .assembly-gear > button { width: 100%; display: flex; justify-content: center; align-items: center; margin-top: 8px; padding: 7px; border-radius: 3px; }

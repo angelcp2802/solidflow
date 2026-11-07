@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Settings2 } from 'lucide-react'
 import type { AssemblyAxisReference, AssemblyMate } from '../model/assemblyDocument'
 import type { AssemblyScrewCaptureRequest } from '../cad/kernel.assembly-types'
+import type { MechanicalAxisControls, MechanicalAxisSlot } from './assemblyMechanicalAxisPicking'
 
 export type AssemblyUiScrewMate = Extract<AssemblyMate, { type: 'screw' }>
 export type AssemblyScrewUiUnit = 'mm-per-turn' | 'turns-per-mm'
@@ -54,38 +55,51 @@ export interface AssemblyScrewPanelProps {
   axes: readonly AssemblyScrewAxisChoice[]
   disabled: boolean
   canCapture: boolean
+  axisPicker?: MechanicalAxisControls
   onCapture: (request: AssemblyScrewCaptureRequest) => void
   onEdit: (fields: AssemblyScrewUiFields) => void
   onCancelEdit: () => void
 }
 export default function AssemblyScrewPanel(props: AssemblyScrewPanelProps) {
-  const [fields, setFields] = useState(() => initialFields(props.mate)), [first, setFirst] = useState(''), [second, setSecond] = useState(''), [error, setError] = useState('')
+  const [fields, setFields] = useState(() => initialFields(props.mate)), [localFirst, setFirst] = useState(''), [localSecond, setSecond] = useState(''), [error, setError] = useState('')
+  const first = props.axisPicker?.keys[0] ?? localFirst, second = props.axisPicker?.keys[1] ?? localSecond
   const signature = props.mate ? JSON.stringify([props.mate.id, props.mate.name, props.mate.lead, props.mate.reverse, props.mate.alignment]) : ''
   useEffect(() => { setFields(initialFields(props.mate)); setError('') }, [signature])
   const firstAxis = props.axes.find(value => value.key === first), secondAxis = props.axes.find(value => value.key === second)
   const sameComponent = !!firstAxis && !!secondAxis && JSON.stringify(firstAxis.reference.component.occurrencePath) === JSON.stringify(secondAxis.reference.component.occurrencePath)
   const blocked = props.disabled || !props.mate && !props.canCapture
-  const update = <Key extends keyof AssemblyScrewUiFields,>(key: Key, value: AssemblyScrewUiFields[Key]) => { setFields(previous => ({ ...previous, [key]: value })); setError('') }
+  const update = <Key extends keyof AssemblyScrewUiFields,>(key: Key, value: AssemblyScrewUiFields[Key]) => { props.axisPicker?.onCancel(); setFields(previous => ({ ...previous, [key]: value })); setError('') }
+  const choose = (slot: MechanicalAxisSlot, key: string) => {
+    if (blocked) return
+    if (props.axisPicker) props.axisPicker.onChoice(slot, key)
+    else if (slot === 0) setFirst(key)
+    else setSecond(key)
+    setError('')
+  }
   let parameters: AssemblyScrewUiParameters | null = null
   try { parameters = assemblyScrewUiParameters(fields) } catch { /* Keep incomplete numeric input editable. */ }
   return <section className="assembly-gear assembly-screw" role="region" aria-label="Tornillo">
     <h3><Settings2 size={16} />{props.mate ? `Editar ${props.mate.name}` : 'Acoplar giro y avance'}</h3>
     <p>La relación alinea dos cilindros y vincula el giro del componente 1 respecto del 2 con su separación axial. Selecciona caras de componentes distintos.</p>
-    {!props.mate && <p>Selecciona Resolver para obtener una vista previa nativa vigente; después elige los ejes y captura el tornillo.</p>}
+    {!props.mate && <p>Selecciona los ejes en el modelo o resuelve para elegirlos en las listas. La captura requiere una vista previa nativa vigente.</p>}
     {props.mate ? <div className="assembly-gear-references"><p>Eje 1: {props.mate.first.component.occurrencePath.join(' / ')} · {props.mate.first.component.definition.id} · {props.mate.first.component.definition.revision}</p>
       <p>Eje 2: {props.mate.second.component.occurrencePath.join(' / ')} · {props.mate.second.component.definition.id} · {props.mate.second.component.definition.revision}</p>
       <p aria-label="Giro relativo acumulado del tornillo">Giro relativo acumulado: {angleLabel(props.mate.angle)}</p>
       <p aria-label="Separación axial de referencia del tornillo">Separación axial de referencia: {props.mate.neutralTravel} mm</p>
       <p>La edición conserva los ceros capturados y continúa desde la rama angular guardada.</p></div>
-      : <>{[0, 1].map(index => <label key={index}>Eje {index + 1}<select aria-label={`Eje ${index + 1} del tornillo`} value={index === 0 ? firstAxis ? first : '' : secondAxis ? second : ''} disabled={blocked} onChange={event => { if (index === 0) setFirst(event.target.value); else setSecond(event.target.value); setError('') }}>
+      : <>{([0, 1] as const).map(index => <div key={index} className="assembly-mechanical-axis-role"><label>Eje {index + 1}<select aria-label={`Eje ${index + 1} del tornillo`} value={index === 0 ? firstAxis ? first : '' : secondAxis ? second : ''} disabled={blocked} onChange={event => choose(index, event.target.value)}>
         <option value="">Selecciona una cara cilíndrica</option>{props.axes.map(value => <option key={value.key} value={value.key}>{value.label}</option>)}
-      </select></label>)}</>}
+      </select></label>{props.axisPicker && <button type="button" aria-label={`Seleccionar eje ${index + 1} del tornillo en el modelo`} aria-pressed={props.axisPicker.slot === index}
+        disabled={props.disabled || !props.axisPicker.enabled} onClick={() => props.axisPicker?.onPick(index)}>Seleccionar eje {index + 1} en el modelo</button>}</div>)}
+      {props.axisPicker?.slot !== null && props.axisPicker?.slot !== undefined && <div role="status" aria-label="Selección de ejes del tornillo">Selecciona una cara cilíndrica para el eje {props.axisPicker.slot + 1}.
+        <button type="button" aria-label="Cancelar selección de ejes del tornillo" onClick={props.axisPicker.onCancel}>Cancelar selección</button></div>}</>}
     <label>Nombre<input aria-label="Nombre del tornillo" value={fields.name} disabled={props.disabled} onChange={event => update('name', event.target.value)} /></label>
     <label>Orientación de los ejes<select aria-label="Orientación de los ejes del tornillo" value={fields.alignment} disabled={props.disabled || !!props.mate} onChange={event => update('alignment', event.target.value as AssemblyScrewUiFields['alignment'])}>
       <option value="aligned">Alineada</option><option value="opposed">Opuesta</option>
     </select></label>
     {props.mate && <p>Otra orientación de los ejes requiere una nueva captura del tornillo.</p>}
     <label>Unidad del avance<select aria-label="Unidad del avance del tornillo" value={fields.unit} disabled={props.disabled} onChange={event => {
+      props.axisPicker?.onCancel()
       const nextUnit = event.target.value as AssemblyScrewUiUnit
       try { const next = assemblyScrewUiAdvance(leadValue(fields.advance, fields.unit), nextUnit); setFields(previous => ({ ...previous, unit: nextUnit, advance: next })); setError('') }
       catch { setFields(previous => ({ ...previous, unit: nextUnit, advance: '' })); setError('Introduce un avance positivo representable en la unidad elegida.') }

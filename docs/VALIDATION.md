@@ -1,5 +1,84 @@
 # Validation
 
+## Reference repair, opposed origins and mechanical axis picking — 2026-11-07
+
+Local source `5a205660f265bf5c7815e95f7f3fe70d25e141d3` passes a frozen
+**19-command Windows batch**: build, full tests, desktop startup and sixteen
+renderer routes. The suite passes **11,248 cases in 502 files**, then **220
+IPC/source checks with two explicit platform skips**. The batch runs with
+Node 24.11.1; the actual Electron 44.9.3 executable matches the unchanged lock. The 1,388-input
+manifest is `350743fced5b9090c5a196206597c9e1e5c88c53352d999871eec4d3459cd588`;
+the independent audit is
+`ea9dc7405fed8efd4a9e20c6635e9fadb8134b780b760d95716c0a4c5722bd84`.
+It rehashes source/runtime inputs, all nine production members and nineteen
+logs, and verifies 341 installed packages and 44 absent platform-optional entries.
+
+| `test:desktop:` route | Checkpoints |
+| --- | --- |
+| `part-reference-repair` | 139 |
+| `assembly-origin-opposed` / `assembly-configured-origin-opposed` | 83 / 132 |
+| `assembly-gear-picking` / `assembly-screw-picking` | 149 / 143 |
+| `assembly-basic-authoring` | 483 |
+| `assembly-screw` / `assembly-rack-pinion` | 165 / 176 |
+| `assembly-origin-axes` / `assembly-configured-origin-axes` | 331 / 326 |
+| `assembly-mate-reference-edit` | 276 |
+| `assembly-shortcuts` / `assembly-configured-shortcuts` | 535 / 582 |
+| `part-sequence` / `sketch-primitives` | 541 / 237 |
+| `assembly-part-properties` | 222, without raster capture |
+
+The original 10 × 6 mm explicit-body part preserves its actual v1 end-cap
+support through depth 4→6. Changing to −6 produces a real downstream diagnostic,
+retains only the valid base and blocks export. Actual negative-cap reselection
+repairs the same sketch/boss identities. Cancel/retry, history, suppression,
+cascade deletion and saved reopening are checked. The repaired STEP has
+V368 mm³/A328 mm², bounds (−5,−3,−8)…(5,3,0), centroid Z −71/23 and eleven
+independently located physical planes. Preview planar mesh area uses 1e−4 mm²;
+STEP volume/area use 1e−5 mm³/mm² and bounds 1e−6 mm. This does not establish
+general persistent naming or v2 activation for explicit body-catalog output.
+
+Both assembly workspaces accept aligned and opposed origin-plane normals
+through projected root/component labels, Cancel/retry, history, native Save/Open
+and fresh Solve. The original two-prism result has V48/A104, unchanged fixed
+pose, literal normals ±Z and Z=0 incidence. Three degrees of freedom remain;
+unique in-plane position and yaw are not asserted. Named-state isolation and
+the untouched Base state are retained.
+
+Standard Gear/Screw panels now nominate declared cylinder axes from either the
+confirmed scene or the authenticated current preview. Each route has six real
+cylinder hits, including selection before a Solve token exists. UI ownership
+checks bind the document, exact scene/owner, generation, scope, family, role and
+session; nomination grants no native capture or Apply authority. Incompatible
+faces, same-component input, drag takeover and saved-editor reopening retain
+their rejection/cancellation cases. Forty-three native scenes, physical motion,
+history, Save/Open and fresh Solve are independently checked. Root and the
+read-only reviewer actually view both final 1544 × 941 captures: the blue axis
+buttons are complete and legible. This does not establish every screen size,
+GPU, material colour or configured specialized picker.
+
+The ordinary-angle driver retains both 0° and 180° Apply/Save/Open/fresh Solve.
+Strict hit/clip/stationary checks exposed fractional clipping from `nearest`
+scrolling in Windows. The driver now centres only actual button/input/select
+controls inside the verified current Relations panel; other surfaces, clipping
+guards, 120 ms stability and deadlines remain unchanged. Real control margins
+and scroll owners are recorded. The earlier macOS/Linux preparation failures
+on public checkpoint `ce27324` require a new hosted run before this correction
+can be claimed for those platforms.
+
+The material route retains 25 native phases and 68 interactions, but its nine
+raster checks are deliberately disabled in this batch. The audit's first
+attempt wrongly expected the earlier 231-check captured route; that auditor
+expectation was corrected to 222, with no runtime/log/oracle change. The failed
+auditor attempt remains retained. Earlier C15 frame evidence keeps its own
+artifact binding; this batch adds no material-raster claim.
+
+Skills used: scoped frontend-design, React best practices, code-review and
+security-review. No dependency, parser/IPC authority, policy exclusion or
+publication permission changes are introduced. The delivered local Windows
+prototype remains the separately identified preceding build; these new UI
+controls are not attributed to that executable. Profile-centre/LINE/circular
+acquisition, additive ALL/AUTO/variation, remaining aliases and the broader
+human/platform/release gates remain tracked work.
+
 ## Final material/menu integration and local Windows prototype — 2026-11-07
 
 The follow-up at local integration revision

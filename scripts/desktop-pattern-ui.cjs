@@ -38,12 +38,18 @@ const SCENARIOS = Object.freeze({
     test: 'production-renderer-origin-axes', caption: 'origin axis relations' }),
   'assembly-configured-origin-axes': Object.freeze({ originAxes: 'configured', originalRecipe: 'desktop-assembly-origin-axes-original.cjs', entry: 'desktop-assembly-configured-origin-axes.cjs',
     test: 'production-renderer-configured-origin-axes', caption: 'configured origin axis relations' }),
+  'assembly-origin-opposed': Object.freeze({ originAxes: 'standard', originOpposed: true, originalRecipe: 'desktop-assembly-origin-axes-original.cjs', entry: 'desktop-assembly-origin-opposed.cjs',
+    test: 'production-renderer-origin-opposed', caption: 'isolated opposed origin plane relation' }),
+  'assembly-configured-origin-opposed': Object.freeze({ originAxes: 'configured', originOpposed: true, originalRecipe: 'desktop-assembly-origin-axes-original.cjs', entry: 'desktop-assembly-configured-origin-opposed.cjs',
+    test: 'production-renderer-configured-origin-opposed', caption: 'configured opposed origin plane relation' }),
   'assembly-origin-axis-lock': Object.freeze({ originAxes: 'standard', originLock: true, originalRecipe: 'desktop-assembly-origin-axis-lock-original.cjs', entry: 'desktop-assembly-origin-axis-lock.cjs',
     test: 'production-renderer-origin-axis-lock', caption: 'origin axis rotation lock' }),
   'assembly-configured-origin-axis-lock': Object.freeze({ originAxes: 'configured', originLock: true, originalRecipe: 'desktop-assembly-origin-axis-lock-original.cjs', entry: 'desktop-assembly-configured-origin-axis-lock.cjs',
     test: 'production-renderer-configured-origin-axis-lock', caption: 'configured origin axis rotation lock' }),
   'part-fresh-sketch': Object.freeze({ originalRecipe: 'desktop-part-fresh-sketch-original.cjs', entry: 'desktop-part-fresh-sketch.cjs',
     test: 'production-renderer-part-fresh-sketch', caption: 'actual pointer face sketches and automatic body destinations' }),
+  'part-reference-repair': Object.freeze({ referenceRepair: true, originalRecipe: 'desktop-part-reference-repair-original.cjs', entry: 'desktop-part-reference-repair.cjs',
+    test: 'production-renderer-part-reference-repair', caption: 'earlier edits and explicit lost face support recovery' }),
   'sketch-primitives': Object.freeze({ sketchPrimitives: true, entry: 'desktop-sketch-primitives.cjs',
     test: 'production-renderer-sketch-primitives', caption: 'pointer-authored rectangle/circle/centre-arc, sketch constraints, history and native STEP' }),
   'part-from-empty': Object.freeze({ entry: 'desktop-part-from-empty.cjs',
@@ -134,6 +140,10 @@ const SCENARIOS = Object.freeze({
     test: 'production-renderer-assembly-interference-grouping', caption: 'assembly root-subassembly grouping' }),
   'assembly-interference-multibody': Object.freeze({ fixture: 'assembly-interference-multibody-original.json', entry: 'desktop-assembly-interference-multibody.cjs',
     test: 'production-renderer-assembly-interference-multibody', caption: 'assembly within-component interference' }),
+  'assembly-gear-picking': Object.freeze({ mechanicalPicking: 'gear', fixture: 'assembly-original.json', entry: 'desktop-assembly-gear-picking.cjs',
+    test: 'production-renderer-gear-material-picking', caption: 'gear material cylinder picking and lifted motion' }),
+  'assembly-screw-picking': Object.freeze({ mechanicalPicking: 'screw', fixture: 'assembly-screw-original.json', entry: 'desktop-assembly-screw-picking.cjs',
+    test: 'production-renderer-screw-material-picking', caption: 'screw material cylinder picking and lifted motion' }),
   'assembly-screw': Object.freeze({ fixture: 'assembly-screw-original.json', entry: 'desktop-assembly-screw.cjs',
     test: 'production-renderer-assembly-screw', caption: 'assembly screw' }),
   'assembly-rack-pinion': Object.freeze({ fixture: 'assembly-rack-pinion-original.json', entry: 'desktop-assembly-rack-pinion.cjs',
@@ -330,8 +340,8 @@ async function launch() {
       await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(require('./desktop-assembly-basic-authoring-original.cjs')()), { flag: 'wx' });
     } else if (activeScenario.configuredPicking) {
       await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(require('./desktop-assembly-configured-picking-original.cjs')()), { flag: 'wx' });
-    } else if (activeScenario === SCENARIOS['part-fresh-sketch']) {
-      await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(require('./desktop-part-fresh-sketch-original.cjs')()), { flag: 'wx' });
+    } else if (activeScenario === SCENARIOS['part-fresh-sketch'] || activeScenario.referenceRepair) {
+      await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(require('./' + activeScenario.originalRecipe)()), { flag: 'wx' });
     } else if (activeScenario === SCENARIOS['part-revolution']) {
       await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(require('./desktop-part-revolution-original.cjs')()), { flag: 'wx' });
     } else if (activeScenario === SCENARIOS['part-sweep-loft']) {
@@ -527,7 +537,7 @@ async function launch() {
         report.catalogCaptureImages.push({ ...item, base64: bytes.toString('base64') });
       }
     }
-    if ((activeScenario.thinWall === true || activeScenario === SCENARIOS['part-external-axis'] || activeScenario === SCENARIOS['assembly-mate-reference-edit'] || activeScenario === SCENARIOS['assembly-basic-authoring'] || activeScenario.configuredPicking || activeScenario.originAxes || activeScenario === SCENARIOS['assembly-configured-components'] || activeScenario === SCENARIOS['part-from-empty'] || activeScenario === SCENARIOS['part-fresh-sketch'] || activeScenario === SCENARIOS['part-sequence'] || activeScenario === SCENARIOS['part-finishing'] || activeScenario === SCENARIOS['part-revolution'] || activeScenario.mechanicalFamily || activeScenario.compoundFamily || [SCENARIOS['assembly-configurations'], SCENARIOS['assembly-configured-relations'], SCENARIOS.assembly, SCENARIOS['assembly-import'], SCENARIOS['assembly-linked-source'], SCENARIOS['assembly-source-revision'], SCENARIOS['assembly-interference-multibody'], SCENARIOS['assembly-interference-grouping'], SCENARIOS['assembly-interference-grouping-multibody'], SCENARIOS['assembly-interference-grouping-scope'], SCENARIOS['assembly-screw'], SCENARIOS['assembly-rack-pinion'], SCENARIOS['assembly-export'], SCENARIOS['assembly-direction'], SCENARIOS['assembly-angle-measurement'], SCENARIOS['assembly-directed-angle'], SCENARIOS['assembly-tangent'], SCENARIOS['assembly-cylinder-tangent'], SCENARIOS['assembly-sphere-tangent'], SCENARIOS['assembly-limit-distance'], SCENARIOS['assembly-limit-distance-compact'], SCENARIOS['assembly-limit-angle'], SCENARIOS['assembly-width'], SCENARIOS['assembly-line-path'], SCENARIOS['assembly-circular-path'], SCENARIOS['assembly-hinge'], SCENARIOS['assembly-hinge-picking'], SCENARIOS['assembly-hinge-repair'], SCENARIOS['assembly-hinge-limits'], SCENARIOS['assembly-hinge-limits-repair'], SCENARIOS['assembly-hinge-limits-picking'], SCENARIOS['assembly-profile-center'], SCENARIOS['assembly-symmetry'], SCENARIOS['assembly-symmetry-line-repair'], SCENARIOS['assembly-symmetry-plane-repair'], SCENARIOS['assembly-symmetry-sphere-repair'], SCENARIOS['assembly-symmetry-cylinder-repair'], SCENARIOS['assembly-symmetry-axisline-repair'], SCENARIOS['assembly-symmetry-repair'], SCENARIOS['assembly-symmetry-picking'], SCENARIOS['assembly-symmetry-nested-selected'], SCENARIOS['assembly-symmetry-nested-source'], SCENARIOS['assembly-replacement']].includes(activeScenario)) && process.env.SOLIDFLOW_UI_CAPTURE === '1') {
+    if ((activeScenario.mechanicalPicking || activeScenario.thinWall === true || activeScenario === SCENARIOS['part-external-axis'] || activeScenario === SCENARIOS['assembly-mate-reference-edit'] || activeScenario === SCENARIOS['assembly-basic-authoring'] || activeScenario.configuredPicking || activeScenario.originAxes || activeScenario === SCENARIOS['assembly-configured-components'] || activeScenario === SCENARIOS['part-from-empty'] || activeScenario === SCENARIOS['part-fresh-sketch'] || activeScenario === SCENARIOS['part-sequence'] || activeScenario === SCENARIOS['part-finishing'] || activeScenario === SCENARIOS['part-revolution'] || activeScenario.mechanicalFamily || activeScenario.compoundFamily || [SCENARIOS['assembly-configurations'], SCENARIOS['assembly-configured-relations'], SCENARIOS.assembly, SCENARIOS['assembly-import'], SCENARIOS['assembly-linked-source'], SCENARIOS['assembly-source-revision'], SCENARIOS['assembly-interference-multibody'], SCENARIOS['assembly-interference-grouping'], SCENARIOS['assembly-interference-grouping-multibody'], SCENARIOS['assembly-interference-grouping-scope'], SCENARIOS['assembly-screw'], SCENARIOS['assembly-rack-pinion'], SCENARIOS['assembly-export'], SCENARIOS['assembly-direction'], SCENARIOS['assembly-angle-measurement'], SCENARIOS['assembly-directed-angle'], SCENARIOS['assembly-tangent'], SCENARIOS['assembly-cylinder-tangent'], SCENARIOS['assembly-sphere-tangent'], SCENARIOS['assembly-limit-distance'], SCENARIOS['assembly-limit-distance-compact'], SCENARIOS['assembly-limit-angle'], SCENARIOS['assembly-width'], SCENARIOS['assembly-line-path'], SCENARIOS['assembly-circular-path'], SCENARIOS['assembly-hinge'], SCENARIOS['assembly-hinge-picking'], SCENARIOS['assembly-hinge-repair'], SCENARIOS['assembly-hinge-limits'], SCENARIOS['assembly-hinge-limits-repair'], SCENARIOS['assembly-hinge-limits-picking'], SCENARIOS['assembly-profile-center'], SCENARIOS['assembly-symmetry'], SCENARIOS['assembly-symmetry-line-repair'], SCENARIOS['assembly-symmetry-plane-repair'], SCENARIOS['assembly-symmetry-sphere-repair'], SCENARIOS['assembly-symmetry-cylinder-repair'], SCENARIOS['assembly-symmetry-axisline-repair'], SCENARIOS['assembly-symmetry-repair'], SCENARIOS['assembly-symmetry-picking'], SCENARIOS['assembly-symmetry-nested-selected'], SCENARIOS['assembly-symmetry-nested-source'], SCENARIOS['assembly-replacement']].includes(activeScenario)) && process.env.SOLIDFLOW_UI_CAPTURE === '1') {
       check(report.captures?.length === 1 && report.captures[0].name === 'assembly-final.png', 'Expected one test-owned assembly capture.');
       const png = await fsp.readFile(path.join(temporary, 'assembly-final.png'));
       check(png.length <= 10 * 1024 * 1024 && digest(png) === report.captures[0].sha256, 'Assembly capture bytes changed.');
@@ -861,7 +871,8 @@ async function runInElectron() {
   const normalDocuments = normalToView ? Object.fromEntries(Object.entries(normalInputs).map(([key, file]) => [key, JSON.parse(fs.readFileSync(file, 'utf8'))])) : null;
   const expected = fromEmpty || sketchPrimitives ? {} : JSON.parse(fs.readFileSync(input, 'utf8')), expectedIds = expected.features?.map(feature => feature.id);
   const untilNext = activeScenario === SCENARIOS['until-next'];
-  const freshSketch = activeScenario === SCENARIOS['part-fresh-sketch'];
+  const referenceRepair = activeScenario.referenceRepair === true;
+  const freshSketch = activeScenario === SCENARIOS['part-fresh-sketch'] || referenceRepair;
   const partSequence = activeScenario === SCENARIOS['part-sequence'];
   const partAssemblyOutput = partSequence ? path.join(owned, 'saved-sequence-assembly.solidflow') : null;
   const partAssemblyPinInput = partSequence ? path.join(owned, 'input-assembly-pin.solidflow') : null;
@@ -918,6 +929,7 @@ async function runInElectron() {
   const interferenceGroupingScope = activeScenario === SCENARIOS['assembly-interference-grouping-scope'];
   const interferenceGroupingMultibody = activeScenario === SCENARIOS['assembly-interference-grouping-multibody'];
   const screw = activeScenario === SCENARIOS['assembly-screw'];
+  const mechanicalPicking = activeScenario.mechanicalPicking;
   const rackPinion = activeScenario === SCENARIOS['assembly-rack-pinion'];
   const assemblyExport = activeScenario === SCENARIOS['assembly-export'];
   const direction = activeScenario === SCENARIOS['assembly-direction'];
@@ -1004,6 +1016,7 @@ async function runInElectron() {
   const assemblyExportOutputs = assemblyExportFormats.map((format, index) => path.join(owned, 'assembly-export-' + (index + 1) + '.' + format));
   const revolutionStepPath = partRevolution ? path.join(owned, 'revolution.step') : null;
   const sweepLoftStepPath = partSweepLoft ? path.join(owned, 'sweep-loft.step') : null;
+  const referenceRepairStepPath = referenceRepair ? path.join(owned, 'support-repair.step') : null;
   const holeStepPath = partHole ? path.join(owned, 'hole.step') : null;
   const combineStepPath = partCombine ? path.join(owned, 'combine.step') : null;
   const sketchPrimitiveFiles = sketchPrimitives ? { rectangle: path.join(owned, 'rectangle.solidflow'), circle: path.join(owned, 'circle.solidflow'), semicircle: path.join(owned, 'semicircle.solidflow'),
@@ -1231,7 +1244,7 @@ async function runInElectron() {
     } finally { endTiming?.(); }
   };
   const pointer = async (type, point, buttons = 0, clickCount = 1, modifiers = 0) => {
-    check((assemblyPartProperties || embeddedPartEdit || partThinWall || partExternalAxis || configuredComponents || normalToView || fromEmpty || basicAuthoring || mateReferenceEdit || partBodyCatalog || partFinishing || partRevolution || partSweepLoft || partProperties || partHole || partCombine || partShellDraft || partPatternCreate || sketchPrimitives || partSequence || originAxes || freshSketch || configuredPicking || assembly || activeScenario === SCENARIOS['assembly-configurations'] || rackPinion || direction || tangent || cylinderTangent || sphereTangent || limitDistance || limitAngle || directedAngle || width || symmetry || symmetryPicking || hingePicking || hingeLimitsPicking) && !window.isVisible() && window.webContents.debugger.isAttached()
+    check((mechanicalPicking || assemblyPartProperties || embeddedPartEdit || partThinWall || partExternalAxis || configuredComponents || normalToView || fromEmpty || basicAuthoring || mateReferenceEdit || partBodyCatalog || partFinishing || partRevolution || partSweepLoft || partProperties || partHole || partCombine || partShellDraft || partPatternCreate || sketchPrimitives || partSequence || originAxes || freshSketch || configuredPicking || assembly || activeScenario === SCENARIOS['assembly-configurations'] || rackPinion || direction || tangent || cylinderTangent || sphereTangent || limitDistance || limitAngle || directedAngle || width || symmetry || symmetryPicking || hingePicking || hingeLimitsPicking) && !window.isVisible() && window.webContents.debugger.isAttached()
       && ['mouseMoved', 'mousePressed', 'mouseReleased'].includes(type)
       && Number.isFinite(point.x) && Number.isFinite(point.y) && point.x >= 0 && point.y >= 0
       && ([0, 1].includes(buttons) || (configuredComponents || normalToView || partSequence || basicAuthoring || freshSketch) && buttons === 2)
@@ -1250,7 +1263,7 @@ async function runInElectron() {
       && Number.isFinite(point.x) && Number.isFinite(point.y) && point.x >= 0 && point.y >= 0
       && Number.isFinite(deltaY) && deltaY !== 0 && Math.abs(deltaY) <= 1000,
     'Expected a bounded actual wheel input in the hidden test-owned interval window.');
-    if (normalToView || sketchPrimitives) {
+    if (normalToView || sketchPrimitives || referenceRepair) {
       check(deltaY === -240 && await evaluate(`(() => {
         const svg=document.querySelector('svg[aria-label="Editor de croquis multientidad"]');
         return !!svg && svg.checkVisibility() && svg.contains(document.elementFromPoint(${point.x},${point.y}));
@@ -1425,7 +1438,7 @@ async function runInElectron() {
     });
   };
   const capture = async (expectedCapture = expected, widthPreview = false) => {
-    if ((!fromEmpty && !basicAuthoring && !mateReferenceEdit && !originAxes && !freshSketch && !partSequence && !partFinishing && !partRevolution && !partExternalAxis && !partThinWall && !configurations && !sourceRevision && !linkedSource && !assembly && !assemblyImport && !interferenceMultibody && !interferenceGrouping && !interferenceGroupingMultibody && !interferenceGroupingScope && !screw && !rackPinion && !assemblyExport && !direction && !angleMeasurement && !directedAngle && !tangent && !cylinderTangent && !sphereTangent && !limitDistance && !limitAngle && !width && !linePath && !circularPath && !hinge && !hingeLimits && !hingePicking && !hingeLimitsPicking && !hingeRepair && !profileCenter && !symmetry && !symmetryRepair && !symmetrySurfaceRepair && !symmetryPicking && !symmetryNestedRepair && !replacement) || process.env.SOLIDFLOW_UI_CAPTURE !== '1') return;
+    if ((!mechanicalPicking && !fromEmpty && !basicAuthoring && !mateReferenceEdit && !originAxes && !freshSketch && !partSequence && !partFinishing && !partRevolution && !partExternalAxis && !partThinWall && !configurations && !sourceRevision && !linkedSource && !assembly && !assemblyImport && !interferenceMultibody && !interferenceGrouping && !interferenceGroupingMultibody && !interferenceGroupingScope && !screw && !rackPinion && !assemblyExport && !direction && !angleMeasurement && !directedAngle && !tangent && !cylinderTangent && !sphereTangent && !limitDistance && !limitAngle && !width && !linePath && !circularPath && !hinge && !hingeLimits && !hingePicking && !hingeLimitsPicking && !hingeRepair && !profileCenter && !symmetry && !symmetryRepair && !symmetrySurfaceRepair && !symmetryPicking && !symmetryNestedRepair && !replacement) || process.env.SOLIDFLOW_UI_CAPTURE !== '1') return;
     check(!widthPreview || width, 'Preview capture is restricted to the fixed Width scenario.');
     check(captures.length === 0 && !window.isVisible(), 'Expected one hidden test-owned capture.');
     const confirmed = () => fromEmpty || partFinishing || (partSequence && expectedCapture.kind !== 'assembly') || freshSketch || partRevolution || partExternalAxis || partThinWall
@@ -1648,9 +1661,9 @@ async function runInElectron() {
       checks, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
     : freshSketch
-    ? require('./desktop-part-fresh-sketch-flow.cjs')({ expected, input, output, evaluate, observe, waitFor, click, pointer, wheel, menu, menuKey, capturePartMenu, capture,
+    ? require(referenceRepair ? './desktop-part-reference-repair-flow.cjs' : './desktop-part-fresh-sketch-flow.cjs')({ expected, input, output, referenceRepairStepPath, evaluate, observe, waitFor, click, pointer, wheel, menu, menuKey, capturePartMenu, capture,
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
-      initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
+      initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, geometryExports }) })
     : partSequence
     ? require('./desktop-part-sequence-flow.cjs')({ expected, input, output, partAssemblyOutput, partAssemblyPinInput, evaluate, observe, waitFor, click, menu, menuKey, pointer, asideWheel, capture,
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
@@ -1707,7 +1720,7 @@ async function runInElectron() {
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, geometryExports }) })
     : originAxes
-    ? require(shortcuts ? './desktop-assembly-shortcuts-flow.cjs' : activeScenario.originLock ? './desktop-assembly-origin-axis-lock-flow.cjs' : './desktop-assembly-origin-axes-flow.cjs')({ configured: originAxes === 'configured', expected, input, output, shortcutOutput, shortcutKey, shortcutText, namedViewKey, cameraFrame, cameraGesture, rasterComparison, evaluate, observe, waitFor, click, pointer, menuKey, captureHeader, asideWheel, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
+    ? require(shortcuts ? './desktop-assembly-shortcuts-flow.cjs' : activeScenario.originOpposed ? './desktop-assembly-origin-opposed-flow.cjs' : activeScenario.originLock ? './desktop-assembly-origin-axis-lock-flow.cjs' : './desktop-assembly-origin-axes-flow.cjs')({ configured: originAxes === 'configured', expected, input, output, shortcutOutput, shortcutKey, shortcutText, namedViewKey, cameraFrame, cameraGesture, rasterComparison, evaluate, observe, waitFor, click, pointer, menuKey, captureHeader, asideWheel, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : configuredCompound
     ? require('./desktop-assembly-configured-compound-flow.cjs')({ family: configuredCompound, profileKind: activeScenario.profileKind, expected, input, output, evaluate, observe, waitFor, click, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, completePendingSave, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : configuredMechanical
@@ -1854,6 +1867,10 @@ async function runInElectron() {
     ? require('./desktop-assembly-rack-pinion-flow.cjs')({ expected, input, output, evaluate, observe, waitFor, click, capture, pointer,
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
+    : mechanicalPicking
+    ? require('./desktop-assembly-mechanical-picking-flow.cjs')({ family: mechanicalPicking, expected, input, output, evaluate, observe, waitFor, click, capture, pointer,
+      checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
+      initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : screw
     ? require('./desktop-assembly-screw-flow.cjs')({ expected, input, output, evaluate, observe, waitFor, click, capture,
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
@@ -1897,8 +1914,8 @@ async function runInElectron() {
   check(typeof actualWorkflow === 'function', 'Expected the statically selected test workflow.');
   class HiddenWindow extends electron.BrowserWindow {
     constructor(options) {
-      super({ ...options, ...(normalToView || activeScenario.compactShortcuts ? { width: 1040, height: 720 } : assemblyPartProperties || configuredComponents || basicAuthoring || limitDistanceCompact || compactConfiguredPicking || partThinWall || partExternalAxis || partRevolution || partSweepLoft || partProperties || partHole || partCombine || partShellDraft || partPatternCreate || sketchPrimitives || partSequence || partFinishing || partBodyCatalog || activeScenario === SCENARIOS['assembly-origin-axes'] ? { width: 1040, height: 700 } : {}), show: false }); check(!window, 'Unexpected second test application window.'); window = this;
-      if (normalToView || activeScenario.compactShortcuts || assemblyPartProperties || configuredComponents || basicAuthoring || limitDistanceCompact || compactConfiguredPicking || partThinWall || partExternalAxis || partRevolution || partSweepLoft || partProperties || partHole || partCombine || partShellDraft || partPatternCreate || sketchPrimitives || partSequence || partFinishing || partBodyCatalog || activeScenario === SCENARIOS['assembly-origin-axes']) {
+      super({ ...options, ...(normalToView || activeScenario.compactShortcuts ? { width: 1040, height: 720 } : assemblyPartProperties || configuredComponents || basicAuthoring || limitDistanceCompact || compactConfiguredPicking || partThinWall || partExternalAxis || partRevolution || partSweepLoft || partProperties || partHole || partCombine || partShellDraft || partPatternCreate || sketchPrimitives || partSequence || partFinishing || partBodyCatalog || referenceRepair || activeScenario === SCENARIOS['assembly-origin-axes'] ? { width: 1040, height: 700 } : {}), show: false }); check(!window, 'Unexpected second test application window.'); window = this;
+      if (normalToView || activeScenario.compactShortcuts || assemblyPartProperties || configuredComponents || basicAuthoring || limitDistanceCompact || compactConfiguredPicking || partThinWall || partExternalAxis || partRevolution || partSweepLoft || partProperties || partHole || partCombine || partShellDraft || partPatternCreate || sketchPrimitives || partSequence || partFinishing || partBodyCatalog || referenceRepair || activeScenario === SCENARIOS['assembly-origin-axes']) {
         check(options.minWidth === 1040 && options.minHeight === 700, 'Compact scenario must use the unchanged production minimum window size.');
         checks.push({ compactViewport: { requestedWindow: { width: 1040, height: normalToView || activeScenario.compactShortcuts ? 720 : 700 }, actualBounds: this.getBounds(), actualContentSize: this.getContentSize() } });
       }
@@ -1935,7 +1952,7 @@ async function runInElectron() {
           await pendingWorker.install();
         }
         await this.webContents.debugger.sendCommand('Page.enable');
-        await this.webContents.debugger.sendCommand('Page.addScriptToEvaluateOnNewDocument', { source: '(' + installWorkerObserver.toString() + ')(' + (assemblyPartProperties || normalToView || fromEmpty || importedBodies || freshSketch || sketchPrimitives || partBodyCatalog || partProperties || partSweepLoft || partHole || partCombine || partShellDraft || partPatternCreate ? 'true' : 'false') + ',' + (structuralStep ? 'true' : 'false') + ',' + (structuralInsertion ? 'true' : 'false') + ',' + (configurations ? 'true' : 'false') + ',' + (partRevolution || embeddedPartTransitions ? 'true' : 'false') + ',' + (assemblyPartProperties || partExternalAxis || partFinishing || freshSketch || partProperties || partCombine ? 'true' : 'false') + ',' + (mateReferenceEdit ? 'true' : 'false') + ',' + (normalToView ? 'true' : 'false') + ',' + (symmetryPicking ? 'true' : 'false') + ',' + (activeScenario.faceLimits || partProperties || partHole || partCombine || partShellDraft || partPatternCreate ? 'true' : 'false') + ',' + (assemblyPartProperties ? 'true' : 'false') + ');' });
+        await this.webContents.debugger.sendCommand('Page.addScriptToEvaluateOnNewDocument', { source: '(' + installWorkerObserver.toString() + ')(' + (assemblyPartProperties || normalToView || fromEmpty || importedBodies || freshSketch || sketchPrimitives || partBodyCatalog || partProperties || partSweepLoft || partHole || partCombine || partShellDraft || partPatternCreate ? 'true' : 'false') + ',' + (structuralStep ? 'true' : 'false') + ',' + (structuralInsertion ? 'true' : 'false') + ',' + (configurations ? 'true' : 'false') + ',' + (partRevolution || embeddedPartTransitions ? 'true' : 'false') + ',' + (assemblyPartProperties || partExternalAxis || partFinishing || freshSketch || partProperties || partCombine ? 'true' : 'false') + ',' + (mateReferenceEdit ? 'true' : 'false') + ',' + (normalToView ? 'true' : 'false') + ',' + (symmetryPicking ? 'true' : 'false') + ',' + (activeScenario.faceLimits || partProperties || partHole || partCombine || partShellDraft || partPatternCreate || referenceRepair ? 'true' : 'false') + ',' + (assemblyPartProperties ? 'true' : 'false') + ');' });
         checks.push('test-owned blank target initialized before CDP observation');
       })();
       await this.instrumentation;
@@ -1992,6 +2009,12 @@ async function runInElectron() {
       if (channel === 'document:export' && partHole) {
         check(payload?.format === 'step' && payload.name === expected.name && payload.data instanceof Uint8Array,
           'The original hole permits only its exact named STEP byte export.');
+        observation.geometry = { name: payload.name, format: payload.format, bytes: payload.data.byteLength,
+          sha256: digest(Buffer.from(payload.data.buffer, payload.data.byteOffset, payload.data.byteLength)) };
+      }
+      if (channel === 'document:export' && referenceRepair) {
+        check(payload?.format === 'step' && payload.name === expected.name && payload.data instanceof Uint8Array,
+          'The fixed original support-repair route permits only its exact named STEP bytes.');
         observation.geometry = { name: payload.name, format: payload.format, bytes: payload.data.byteLength,
           sha256: digest(Buffer.from(payload.data.buffer, payload.data.byteOffset, payload.data.byteLength)) };
       }
@@ -2089,6 +2112,12 @@ async function runInElectron() {
       return { canceled: false, filePaths: [openPaths[opens - 1]] };
     };
     if (member === 'showSaveDialog') return async (_window, options) => {
+      if (referenceRepair && options.title === 'Exportar geometría') {
+        check(++geometryExports === 1 && options.filters?.length === 1 && options.filters[0].name === 'STEP'
+          && options.filters[0].extensions?.length === 1 && options.filters[0].extensions[0] === 'step'
+          && path.basename(options.defaultPath) === expected.name + '.step', 'One fixed original repaired-support STEP export');
+        return { canceled: false, filePath: referenceRepairStepPath };
+      }
       if (partSweepLoft && options.title === 'Exportar geometría') {
         check(++geometryExports === 1 && options.filters?.length === 1 && options.filters[0].name === 'STEP'
           && options.filters[0].extensions?.length === 1 && options.filters[0].extensions[0] === 'step'
@@ -2166,7 +2195,7 @@ async function runInElectron() {
         return csvExports === 1 ? { canceled: true } : { canceled: false, filePath: bomCsvOutputs[csvExports - 2] };
       }
       if (structuralStep || structuralInsertion) check(path.basename(options.defaultPath) === (structuralInsertion ? 'Original structural insertion parent.solidflow' : 'Conjunto _Árbol_ Ω.solidflow'), 'Structural Save As uses the literal sanitized original name.');
-      check(options.title === (assemblyPartProperties ? saves === 0 ? 'Guardar ensamblaje' : 'Guardar ensamblaje configurado' : embeddedPartEdit ? saves === 0 || saves === 4 ? 'Guardar ensamblaje' : 'Guardar pieza' : partSequence ? saves === 0 ? 'Guardar pieza' : 'Guardar ensamblaje' : configurations ? 'Guardar ensamblaje configurado' : mateReferenceEdit || basicAuthoring || originAxes || structuralInsertion || structuralStep || assembly || assemblyImport || assemblySourceUpdate || linkedSource || sourceRevision || screw || rackPinion || assemblyExport || direction || angleMeasurement || directedAngle || tangent || cylinderTangent || sphereTangent || limitDistance || limitAngle || width || linePath || circularPath || hinge || hingeLimits || hingePicking || hingeLimitsPicking || hingeRepair || profileCenter || symmetry || symmetryRepair || symmetrySurfaceRepair || symmetryPicking || symmetryNestedRepair || replacement ? 'Guardar ensamblaje' : 'Guardar pieza') && ++saves <= savePaths.length, 'Unexpected native save/export dialog request.');
+      check(options.title === (assemblyPartProperties ? saves === 0 ? 'Guardar ensamblaje' : 'Guardar ensamblaje configurado' : embeddedPartEdit ? saves === 0 || saves === 4 ? 'Guardar ensamblaje' : 'Guardar pieza' : partSequence ? saves === 0 ? 'Guardar pieza' : 'Guardar ensamblaje' : configurations ? 'Guardar ensamblaje configurado' : mechanicalPicking || mateReferenceEdit || basicAuthoring || originAxes || structuralInsertion || structuralStep || assembly || assemblyImport || assemblySourceUpdate || linkedSource || sourceRevision || screw || rackPinion || assemblyExport || direction || angleMeasurement || directedAngle || tangent || cylinderTangent || sphereTangent || limitDistance || limitAngle || width || linePath || circularPath || hinge || hingeLimits || hingePicking || hingeLimitsPicking || hingeRepair || profileCenter || symmetry || symmetryRepair || symmetrySurfaceRepair || symmetryPicking || symmetryNestedRepair || replacement ? 'Guardar ensamblaje' : 'Guardar pieza') && ++saves <= savePaths.length, 'Unexpected native save/export dialog request.');
       if ((embeddedPartEdit || sourceRevision || configurations) && savePaths[saves - 1] === null) return { canceled: true };
       return { canceled: false, filePath: savePaths[saves - 1] };
     };

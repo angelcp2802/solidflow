@@ -1,7 +1,7 @@
 # Usable command and interaction matrix
 
-Published baseline dated 2026-11-07: `e7f2af3e78580ec997ba7302802c7ca79880da68`
-plus the working command-closure increment. This is the
+Published baseline dated 2026-11-07: `ce27324a43aff25e484cb4b3117fde28dbcea92c`.
+This is the
 finite C13 inventory for the [usable-version gate](USABLE_VERSION_ACCEPTANCE.md).
 It separates source review from the bounded exploratory records noted below.
 This inventory never declares a frozen acceptance batch successful by itself.
@@ -75,7 +75,7 @@ Undo/Redo are a different history.
 | ID / surface | Action → current owner | Existing route and exact remaining interaction |
 | --- | --- | --- |
 | N01, all three view menus | Nine standard views → part `changeView`, standard `viewButton`, configured `menuView`, then `bindViewNavigation`. | V2 exercises shortcut presets and Dimetric/Trimetric menu presses, repeated commands, Previous and non-CAD invariants. Record final-candidate runs; do not infer exact orientation solely from different pixels. |
-| N02, all three compact view selectors | The same nine options plus Normal To → `ViewOrientationControls.onChange` → current workspace view handler. | The expanded V1 exploratory route exercises Frontal/Posterior with actual native Tab/typeahead, one trusted input/change pair and exact unselected Previous restoration in each workspace. Three incompatible Normal guards preserve controls/references/DOM/CAD state; selected-overlay raster equality is not claimed. Final combined-snapshot acceptance remains required. |
+| N02, all three compact view selectors | The same nine options plus Normal To → `ViewOrientationControls.onChange` → current workspace view handler. | The recorded integrated V1 route passes 257 checkpoints, including Frontal/Posterior with actual native Tab/typeahead, one trusted input/change pair and exact unselected Previous restoration in each workspace. Three incompatible Normal guards preserve controls/references/DOM/CAD state; selected-overlay raster equality and every selector option are not claimed. |
 | N03, compact/ribbon aliases | Isometric/Front/Top/Fit buttons → the same view handler; Previous and Normal To buttons → guarded view handler. | V1/V2 cover the command families. Check each compact alias is contained/reachable at the accepted compact window size; preserve document/recovery/native request serial. |
 | N04, actual viewport gestures | Wheel zoom, middle-button rotate, modified middle-button pan → `configureCadNavigation` and `bindViewNavigation`; a dragged/cancelled press cannot become a selection. | V2 supplies actual wheel/middle-drag/pan plus bounded Previous raster restoration. Keep real visible-window/hardware-wheel feel as human acceptance; do not add a second geometry solver to camera checks. |
 | N05, Normal To | Part current face/plane/feature and ordered second reference; assembly current material/datum nomination → current normal-selection resolver and view handler. | V1 plus C1/C2 context routes. Preserve root/occurrence ownership, incompatible-reference guidance and repeated-normal semantics. Nested/configured combinations beyond the stated route remain family/scope acceptance, not automatic coverage. |
@@ -83,7 +83,7 @@ Undo/Redo are a different history.
 | N07, all top menus/header | Archivo/Editar/Ver/Insertar/Herramientas/Ayuda; pin/unpin/disclose, pointer opening, arrows, Home/End, Tab, Escape, first-letter navigation → `AssemblyMenuBar`/`CommandHeader`. | The final V2 routes pass G cycling in Archivo across six clean/sketch/verified-preview contexts, disabled skipping, empty popup, Home/End, arrows, Tab/Escape and exact document/draft/view invariants. A2/C2 retain their other disclosure/draft checks. Other letters and remaining per-action aliases are not established by opening all menus. |
 | N08, keyboard ownership | New/Open/Save/Save As, document Undo/Redo, view shortcuts, Escape → part key listener or `useAssemblyShortcuts`; native text undo remains local. | Shortcut routes test ordinary/configured field, modal and viewport ownership, New/Save transitions and pending preview. Extend only the missing named focus case; preserve repeat/composition/foreign-owner rejection. |
 | N09, assembly ribbon tabs | Ensamblaje/Relaciones/Evaluar → `setRibbonTab`; arrows/Home/End → `AssemblyCommandTabs.navigate`. | A2/C2 call `desktop-assembly-ribbon-controls`: pointer/key tab changes preserve fields, references, inspector, confirmation guards, recovery and native serial in draft and verified-preview states. This does not invoke every command within the tabs. |
-| N10, background preference | Ver → Fondo del visor… → `backgroundSettings.open`; solid/default Apply/Cancel → versioned profile store. | P5 covers piece entry and same-process reopen. Expanded V1 additionally exercises all three menu aliases, Apply/Cancel/default and profile propagation across workspaces without changing CAD state. Those exploratory results need final combined acceptance. Actual fresh-process persistence and framebuffer colour remain separate C15 work. |
+| N10, background preference | Ver → Fondo del visor… → `backgroundSettings.open`; solid/default Apply/Cancel → versioned profile store. | Recorded P5 covers piece entry; its actual two-process transition passes 75+30 checks. Integrated V1 passes all three menu aliases, Apply/Cancel/default and shared-profile propagation without CAD changes. The C15 records include bounded selected/unselected frame review, without exact RGB, OS-picker, other-GPU or platform fidelity claims. |
 
 ## Part workspace: enabled menu inventory
 
@@ -176,21 +176,21 @@ command's identity.
 
 | ID | Classification and bounded disposition |
 | --- | --- |
-| G01 | **Resolved in the working increment:** the bottom control is now Abrir documento… and calls the normal guarded Open route. The current-document button activates the actual viewport or sketch surface; the legacy SVG is deliberately focusable too. P2's exploratory route opens its owned file through this alias and checks solid/legacy-sketch focus without CAD changes. This adds no multi-document editing claim. Final combined acceptance remains required. |
-| G02 | **Resolved in the working increment:** feature Propiedades is disabled without selection, with selection guidance, and during conflicting editing/calculation/file work. P2's exploratory route selects the exact base, opens its real editor, checks the depth and native body, cancels without history/recovery changes and clears selection again. Final combined acceptance remains required. |
+| G01 | **Bounded integrated acceptance:** the bottom Abrir documento… control calls normal guarded Open. P2's 541-checkpoint sequence opens its owned file through this alias and checks current-document solid/legacy-sketch focus without CAD changes. The legacy SVG is deliberately focusable. This adds no multi-document editing claim. |
+| G02 | **Bounded integrated acceptance:** feature Propiedades is disabled without selection, with guidance, and during conflicting editing/calculation/file work. The same recorded P2 sequence selects the exact base, opens its real editor, checks depth/native body, cancels without history/recovery changes and clears selection again. |
 | G03 | **Disabled advertised modules:** part Superficies and Chapa metálica are explicitly disabled with `Módulo pendiente`. They do not enter enabled-command acceptance. Part operations/editor/picker and pending file states also intentionally disable conflicting commands; record the guard, not a successful action. |
 | G04 | **Configured capability omissions, separate gate scope:** the workspace's `Alcance de esta vista` explicitly excludes origin/source repair, geometric export and interactive movement. General reference/source repair, configured interference/export, constrained drag, part-feature variants and flexible instances remain the existing advanced scope in the usable ledger/#54. They are not silently deferred by a C13 pass and should not be invented as hidden enabled menu items. |
-| G05 | **Remaining entry-point evidence:** accept the expanded N02 cases on the final snapshot; first-letter menu navigation, uninvoked menu/ribbon/reveal aliases, part display toggles and remaining sketch ribbon tools still require their named cases. The incompatible selected-overlay shortcut has semantic evidence without a pixel-equality claim. Kernel/handler tests alone do not replace real control use. |
-| G06 | **C15 interaction limits:** accept the expanded N10 aliases/shared-session preference on the final snapshot. Reused-source rendered colour, deselection colour restoration and fresh-process profile persistence are still separate work. Keep them open instead of declaring all appearance finished. |
+| G05 | **Remaining entry-point evidence:** N02 and the stated N07 G-cycling cases have recorded integrated acceptance. Other letter cases, uninvoked menu/ribbon/reveal aliases, part display toggles and remaining sketch ribbon tools still require their named cases. The incompatible selected-overlay shortcut has semantic evidence without pixel equality. Kernel/handler tests do not replace real control use. |
+| G06 | **Bounded C15 acceptance and limits:** N10 shared-session aliases, reused-source rendered colour, deselection appearance and actual fresh-process profile persistence have recorded integrated cases. Retain exact source revisions, the selected frame review and their stated colour/GPU/platform limits; these cases do not establish all appearance fidelity. |
 | G07 | **Acceptance limits:** real visible-window/hardware interaction and the user's demo feedback, installed binaries and recurring Windows/macOS/Linux validation remain their existing gate rows. No screenshot or hidden route closes those automatically. |
 
 ## Next bounded C13 work
 
-1. Accept G01/G02 on the final compiled snapshot, retaining the exact current
-   target, selected/unselected state and solid/legacy sketch focus cases.
-2. Accept the shared N02/N10 cases across part/standard/configured on that same
-   snapshot, keeping unselected Previous pixel equality separate from the
-   selected-overlay semantic guard. Reuse the established camera fixtures.
+1. Retain the recorded G01/G02/N02/N10 acceptance and its exact inputs, products
+   and limits. Repeat affected routes when subsequent changes warrant it.
+2. Cover the remaining part name/delete and display-toggle menu aliases, help
+   close/Escape and explicit rebuild freshness. Keep current-target ownership
+   and document/camera history separate.
 3. Complete a compact command-entry checklist from the rows above. For each
    uninvoked alias record label, target/pane, enabled/disabled state, input method,
    focus/escape result and unchanged or expected document transaction. Use the

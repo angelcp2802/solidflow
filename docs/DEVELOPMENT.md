@@ -1,5 +1,33 @@
 # Development guide
 
+## Support repair, opposed origins and mechanical axis acquisition
+
+Five fixed renderer routes extend the existing lifecycle contracts:
+
+- `test:desktop:part-reference-repair` edits an earlier explicit-body extrusion,
+  observes a real lost support across a signed branch, explicitly picks its
+  replacement and exercises history, suppression, cascade deletion, saved
+  reopening and physical STEP planes. It uses conservative v1 references;
+  preserve the [actual v2 eligibility gate](SEMANTIC_REFERENCES.md).
+- `test:desktop:assembly-origin-opposed` and
+  `test:desktop:assembly-configured-origin-opposed` select root/component origin
+  labels and change aligned to opposed plane normals. Free in-plane position
+  and yaw are not unique. Preserve the fixed occurrence, named-state isolation,
+  actual Cancel/retry, history and saved solve.
+- `test:desktop:assembly-gear-picking` and
+  `test:desktop:assembly-screw-picking` acquire declared cylinder axes from the
+  confirmed scene and the current native preview. These UI nominations grant no
+  capture or Apply authority. Exact owner, document, scene, generation, scope,
+  family, role and session must remain current, including synchronous resets
+  before a new React callback. Capture still requires the authenticated native
+  preview. Retain incompatible-face/same-component rejection and the drag and
+  saved-editor cancellation cases.
+
+Original recipes and tolerances are documented in [provenance](PROVENANCE.md).
+The routes run individually in the existing CI batches without new permissions,
+deadline changes, private inputs or binary uploads. A passing local route does
+not establish its hosted or packaged-platform result.
+
 ## Part materials, appearance and normal sweep/loft entry
 
 Part material and appearance are optional strict declarations; see

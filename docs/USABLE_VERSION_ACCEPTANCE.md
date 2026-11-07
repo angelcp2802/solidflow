@@ -35,11 +35,11 @@ gate.
 | C03 | Extrusion, cut, revolution and revolved cut consume an explicitly selected eligible sketch. | Passed the final recorded sequence/revolution routes with the 4 November fix. Empty selection, operation selection, suppressed and consumed sketches, active drafts and normal selected-sketch input retain their guards. |
 | C04 | Successive salients and cuts, including a new sketch on a face, reconstruct and persist. | Passed the recorded final cases. Sequence oracle V960→944→928→976→984 mm³, final A848 mm² and bounds [-10,-6,0]…[10,6,9]. Fresh-sketch oracle V960→1008→996 and A736→784→808. Original tolerances retained. |
 | C05 | Every enabled implemented solid-operation family has a working normal entry, editable parameters and recoverable invalid input. | The recorded 33-command batch passes the bounded normal family cases below. A visible enabled action without a working handler is a blocker. Additive dynamic ALL, AUTO/variation and broader feature regeneration remain required pending capabilities in their existing contract; canonical body-pattern success does not close them. Existing disabled modules retain clear availability guidance. |
-| C06 | Earlier-feature edits, suppression/deletion and references preserve identities or expose explicit recovery. | One compatible earlier edit and one lost-reference case, reconstruction, diagnosis/repair, Undo/Redo and saved reopen. Preserve the documented topology correspondence limits. |
+| C06 | Earlier-feature edits, suppression/deletion and references preserve identities or expose explicit recovery. | The recorded `part-reference-repair` route passes 139 checks: scalar-depth support continuity, signed-branch loss/diagnosis, explicit reselection with the same IDs, Cancel/retry, suppression/reactivation, cascade deletion/history, Save/Open and physical STEP planes. This explicit-body case uses actual v1 references; preserve the documented v2 gate and topology limits. |
 | C07 | Create a three-component assembly from modeled/imported/reused parts, then fix, float and place the intended occurrence. | Final combined part/assembly and basic-authoring routes, exact names/source/body/occurrence IDs and independently checked placements after reopen. |
-| C08 | Relate components both to root/component origins and to one another. | Planes, axes, coincidence/concentricity, rotation lock and distance with independent poses/residuals, Cancel/retry/Apply, Save/reopen and fresh Solve. |
-| C09 | Ordinary saved relations and their reference replacements work at the supported boundaries. | Distance, angle, coincidence, concentricity and parallel/perpendicular. The integrated original ordinary-assembly route passes 479 checkpoints, retaining 30°→60° and applying, saving, reopening and freshly solving both 0° and 180°. The antipodal seed correction has model/native regressions; retain exact declarations, joint checks and tolerances. Other ordinary-relation/reference-edit cases retain their separate final acceptance requirement. |
-| C10 | Each exposed specialized relation family completes its announced lifecycle. | Fixed inventory of distance/angle limits, directed angle, tangencies, component lock, gear/screw/rack, width, symmetry, profile center, LINE/circular paths and limited/unlimited hinge. Map each to its existing route and close announced material/mechanical-picking and origin-orientation gaps. |
+| C08 | Relate components both to root/component origins and to one another. | Recorded standard/configured origin routes pass 331/326 checks; new aligned/opposed plane cases pass 83/132 with fixed-pose invariance, literal normals/incidence, Cancel/retry, history and saved Solve. Retain separate coincidence/concentricity, rotation-lock and distance contracts, and do not infer unique position/yaw from a plane relation. |
+| C09 | Ordinary saved relations and their reference replacements work at the supported boundaries. | The recorded ordinary-assembly route passes 483 checks, retaining 30°→60° and Apply/Save/Open/fresh Solve at 0°/180°. Saved distance, angle, coincidence, concentricity and parallel/perpendicular reference edits pass the separate 276-check route. Preserve the model/native antipodal regressions, exact declarations, residuals and tolerances. The panel-scroll correction still needs its new hosted result. |
+| C10 | Each exposed specialized relation family completes its announced lifecycle. | Fixed inventory of distance/angle limits, directed angle, tangencies, component lock, gear/screw/rack, width, symmetry, profile center, LINE/circular paths and limited/unlimited hinge. Standard Gear/Screw actual cylindrical acquisition passes 149/143 checks; nomination remains separate from native capture/Apply. Profile-centre, LINE and circular acquisition and other family final cases remain required. |
 | C11 | Shared-source changes and embedded-part editing preserve the parent and every exact active source use. | Repair lost references explicitly, preserve Cancel, update one revision/history state on Apply and keep source-file ownership. Final embedded route covers two reused occurrences, V48→72/A104→132 and independent poses/bounds. |
 | C12 | Pending work, Cancel and operating-system close preserve documents and reject late/stale actions. | Passed the 7 November recorded Windows fixture. Exact dispatched Apply/request outstanding at exit, four rejected Apply exits, authentic reply before parent rebuild, real native keep/discard close and fresh-process recovery/reopen. Interruption midway through kernel execution has separate coverage requirements. |
 | C13 | Selection, viewport context, ribbon/side-panel commands, camera and keyboard act on the intended target. | The [finite command matrix](USABLE_COMMAND_MATRIX.md) maps aliases and evidence. Bottom Open, current-document focus and selected-feature Properties are corrected; final selector, alias, context and keyboard cases remain. Exercise component/face/LINE/datum and background selection, wheel zoom, middle-button navigation, field/tree/viewport focus, Escape, standard/Normal To/named/previous views and separate camera/document history. |
@@ -108,33 +108,29 @@ tolerances and deadlines.
 
 ## Current resumption point
 
-- The published material/sweep baseline is `e7f2af3` in draft PR #49. Local
-  `codex/usability-command-closure-20261107` continues its accepted part-selection
-  and native-transition work without changing the user's open desktop document.
-- A fresh private validation runtime reuses the existing locked dependencies.
-  Its profile and generated documents are isolated from the user's session.
-- The final increment passes eight commands, 11,120 unit/CAD cases, 203 IPC
-  checks with two platform skips, five renderer routes and desktop startup.
-  The independent source/runtime/product audit is retained with manifest
-  `3ec29211edb6539ed942a17d5826b1d8828a109d11d9e1b8d2c2d22934db5d1c`.
-- The next increment passes ten commands, 11,204 unit/CAD cases in 498 files,
-  207 IPC checks with two skips and seven Windows renderer routes. Independent
-  audit manifest: `74cbe1a48b94ca87248e96efdfe606772f1ac64b4f3f5ebfdf1f6583352faae5`.
-- C05 sweep/loft normal creation, saved editing, recovery, Cancel, history and
-  saved reopen pass the bounded original cases. Hole and Combine are the next
-  finite families; their geometric contracts are prepared independently.
-- C15's original-cube route passes 70 checkpoints, including mass and separate
-  same-process background preference. Reused-source rendered colour and
-  fresh-process profile persistence remain open; C15 is not complete.
-- The C13 command matrix records the actual inactive navigation/property
-  controls and remaining selector/alias/focus cases. The current follow-up fixes
-  bottom Open/current-document activation and feature Properties, with solid and
-  legacy-sketch focus. Exploratory part-sequence and expanded Normal To routes
-  pass, including native selector input and three background aliases. Their
-  common final snapshot is pending integration with the Hole/Combine increments.
-  Other open rows keep their existing evidence and supported-variant scope.
-- Public PR #49 remains the review location. The published `8be9f24` snapshot
-  has its own 15 successful CI jobs and two successful security jobs. New
-  aggregate acceptance will be recorded against its own revision.
+- Public checkpoint `ce27324` in draft PR #49 contains the preceding 33-command
+  and 13-command Windows records and the separately delivered local prototype.
+- Local `5a205660` integrates support repair, opposed origin planes, standard
+  Gear/Screw acquisition and the strict Relations-panel actor correction.
+  Its isolated 19-command batch passes 11,248 cases/502 files, 220 IPC checks
+  with two skips, startup and sixteen renderer routes. Input manifest:
+  `350743fced5b9090c5a196206597c9e1e5c88c53352d999871eec4d3459cd588`.
+- The independent audit binds all 1,388 inputs, nine production members and
+  nineteen logs. C15 runs without raster in this batch; earlier captured
+  evidence retains its own exact application identity.
+- C05 normal canonical families have their recorded cases. Additive dynamic
+  ALL, AUTO/variation and broader regeneration remain required implementation
+  work, not closed by successful body-copy patterns.
+- C15's bounded material/revision-colour/mass and two-process profile cases are
+  recorded. Preserve their exact source identity, frame-review and platform
+  limits instead of the obsolete same-process-only gap.
+- C10 still needs the remaining ProfileCentre/LINE/circular acquisition work.
+  C13 retains uninvoked menu/ribbon aliases, display/help/rename/delete and
+  remaining sketch command cases; earlier selector/background/navigation
+  controls have recorded bounded acceptance.
+- The old public macOS/Linux persistence failure occurs before the first new
+  boundary preview. The actor correction passes Windows locally; the next
+  public head needs its own CI, security and dependent Desktop results. Keep
+  #55 at 16/25, #53 at 6/9, PR #49 draft/unmerged and release #5 open.
 
 The project objective stays active until the required local gate is satisfied.

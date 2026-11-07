@@ -3,6 +3,7 @@ import { Settings2 } from 'lucide-react'
 import type { AssemblyAxisReference, AssemblyComponentReference, AssemblyMate } from '../model/assemblyDocument'
 import { assemblyGearFollowerAngle, assemblyGearFollowerPhase, type AssemblyGearDirection, type AssemblyGearRatio } from '../model/assemblyGear'
 import type { AssemblyGearCaptureRequest } from '../cad/kernel.assembly-types'
+import type { MechanicalAxisControls, MechanicalAxisSlot } from './assemblyMechanicalAxisPicking'
 
 export type AssemblyUiGearMate = Extract<AssemblyMate, { type: 'gear' }>
 export interface AssemblyGearUiFields { name: string; numerator: string; denominator: string; direction: AssemblyGearDirection; offsetDegrees: string }
@@ -52,12 +53,14 @@ export interface AssemblyGearPanelProps {
   scopeName: string
   disabled: boolean
   canCapture: boolean
+  axisPicker?: MechanicalAxisControls
   onCapture: (request: AssemblyGearCaptureRequest) => void
   onEdit: (fields: AssemblyGearUiFields) => void
   onCancelEdit: () => void
 }
 export default function AssemblyGearPanel(props: AssemblyGearPanelProps) {
-  const [fields, setFields] = useState(() => initialFields(props.mate)), [first, setFirst] = useState(''), [second, setSecond] = useState('')
+  const [fields, setFields] = useState(() => initialFields(props.mate)), [localFirst, setFirst] = useState(''), [localSecond, setSecond] = useState('')
+  const first = props.axisPicker?.keys[0] ?? localFirst, second = props.axisPicker?.keys[1] ?? localSecond
   const [carrier, setCarrier] = useState('scope'), [error, setError] = useState('')
   const signature = props.mate ? JSON.stringify([props.mate.id, props.mate.name, props.mate.ratio, props.mate.direction, props.mate.phase]) : ''
   useEffect(() => { setFields(initialFields(props.mate)); setError('') }, [signature])
@@ -65,21 +68,30 @@ export default function AssemblyGearPanel(props: AssemblyGearPanelProps) {
   const carrierChoice = props.carriers.find(value => value.key === carrier)
   const sameComponent = !!firstAxis && !!secondAxis && JSON.stringify(firstAxis.reference.component.occurrencePath) === JSON.stringify(secondAxis.reference.component.occurrencePath)
   const blocked = props.disabled || !props.mate && !props.canCapture
-  const update = <Key extends keyof AssemblyGearUiFields,>(key: Key, value: AssemblyGearUiFields[Key]) => { setFields(previous => ({ ...previous, [key]: value })); setError('') }
+  const update = <Key extends keyof AssemblyGearUiFields,>(key: Key, value: AssemblyGearUiFields[Key]) => { props.axisPicker?.onCancel(); setFields(previous => ({ ...previous, [key]: value })); setError('') }
+  const choose = (slot: MechanicalAxisSlot, key: string) => {
+    if (blocked) return
+    if (props.axisPicker) props.axisPicker.onChoice(slot, key)
+    else if (slot === 0) setFirst(key)
+    else setSecond(key)
+    setError('')
+  }
   return <section className="assembly-gear" role="region" aria-label="Engranaje">
     <h3><Settings2 size={16} />{props.mate ? `Editar ${props.mate.name}` : 'Acoplar dos giros'}</h3>
     <p>Relación de giro respecto del portador elegido. Selecciona dos caras cilíndricas de componentes distintos.</p>
-    {!props.mate && <p>Selecciona Resolver para obtener una vista previa nativa vigente; después elige los ejes y captura el engranaje.</p>}
+    {!props.mate && <p>Selecciona los ejes en el modelo o resuelve para elegirlos en las listas. La captura requiere una vista previa nativa vigente.</p>}
     {props.mate ? <div className="assembly-gear-references"><p>Eje 1: {props.mate.first.component.occurrencePath.join(' / ')} · {props.mate.first.component.definition.id} · {props.mate.first.component.definition.revision}</p>
       <p>Eje 2: {props.mate.second.component.occurrencePath.join(' / ')} · {props.mate.second.component.definition.id} · {props.mate.second.component.definition.revision}</p>
       <p>Portador: {props.mate.carrier ? `${props.mate.carrier.occurrencePath.join(' / ')} · ${props.mate.carrier.definition.id} · ${props.mate.carrier.definition.revision}` : props.scopeName}</p>
       <div aria-label="Ángulos acumulados del engranaje"><p>Eje 1: {angleLabel(props.mate.angles.first)} · Eje 2: {angleLabel(props.mate.angles.second)}</p></div>
       <p>La edición conserva los ceros angulares capturados y los ángulos acumulados guardados.</p></div>
-      : <><label>Eje 1<select aria-label="Eje 1 del engranaje" value={firstAxis ? first : ''} disabled={blocked} onChange={event => { setFirst(event.target.value); setError('') }}>
-        <option value="">Selecciona una cara cilíndrica</option>{props.axes.map(value => <option key={value.key} value={value.key}>{value.label}</option>)}
-      </select></label><label>Eje 2<select aria-label="Eje 2 del engranaje" value={secondAxis ? second : ''} disabled={blocked} onChange={event => { setSecond(event.target.value); setError('') }}>
-        <option value="">Selecciona otra cara cilíndrica</option>{props.axes.map(value => <option key={value.key} value={value.key}>{value.label}</option>)}
-      </select></label><label>Portador<select aria-label="Portador del engranaje" value={carrier === 'scope' || carrierChoice ? carrier : ''} disabled={blocked} onChange={event => { setCarrier(event.target.value); setError('') }}>
+      : <>{([0, 1] as const).map(slot => <div key={slot} className="assembly-mechanical-axis-role"><label>Eje {slot + 1}<select aria-label={`Eje ${slot + 1} del engranaje`} value={(slot === 0 ? firstAxis : secondAxis) ? (slot === 0 ? first : second) : ''} disabled={blocked} onChange={event => choose(slot, event.target.value)}>
+        <option value="">Selecciona {slot ? 'otra' : 'una'} cara cilíndrica</option>{props.axes.map(value => <option key={value.key} value={value.key}>{value.label}</option>)}
+      </select></label>{props.axisPicker && <button type="button" aria-label={`Seleccionar eje ${slot + 1} del engranaje en el modelo`} aria-pressed={props.axisPicker.slot === slot}
+        disabled={props.disabled || !props.axisPicker.enabled} onClick={() => props.axisPicker?.onPick(slot)}>Seleccionar eje {slot + 1} en el modelo</button>}</div>)}
+      {props.axisPicker?.slot !== null && props.axisPicker?.slot !== undefined && <div role="status" aria-label="Selección de ejes del engranaje">Selecciona una cara cilíndrica para el eje {props.axisPicker.slot + 1}.
+        <button type="button" aria-label="Cancelar selección de ejes del engranaje" onClick={props.axisPicker.onCancel}>Cancelar selección</button></div>}
+      <label>Portador<select aria-label="Portador del engranaje" value={carrier === 'scope' || carrierChoice ? carrier : ''} disabled={blocked} onChange={event => { props.axisPicker?.onCancel(); setCarrier(event.target.value); setError('') }}>
         <option value="scope">{props.scopeName} · marco del ámbito</option>{props.carriers.map(value => <option key={value.key} value={value.key}>{value.label}</option>)}
       </select></label></>}
     <label>Nombre<input aria-label="Nombre del engranaje" value={fields.name} disabled={props.disabled} onChange={event => update('name', event.target.value)} /></label>
