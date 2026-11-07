@@ -13,6 +13,14 @@ module.exports = function fromEmptyWorkflow(c) {
   let documentId, bodyId;
   const page = (fn, ...args) => evaluate('(' + fn.toString() + ')(' + args.map(v => 'JSON.parse(' + quote(JSON.stringify(v)) + ')').join(',') + ')');
   const recovery = () => page(() => localStorage.getItem('solidflow.autosave'));
+  const menuSnapshot = async () => ({ native: await observe(), recovery: await recovery(), dialogs: dialogCounts(), ipc: structuredClone(ipc), ui: await page(() => {
+    const viewport = document.querySelector('.viewport-canvas[aria-label="Vista 3D de la pieza"]');
+    return { history: ['Deshacer (Ctrl+Z)', 'Rehacer (Ctrl+Y)'].map(title => ({ title, disabled: document.querySelector('button[title="' + title + '"]')?.disabled })),
+      selection: ['selection-mode', 'selected-face', 'selected-edges', 'selected-bodies'].map(name => [name, viewport?.getAttribute('data-part-' + name)]),
+      draft: { mounted: !!document.querySelector('.property-manager'), solver: document.querySelector('.sketch-solver-status')?.textContent,
+        fields: [...document.querySelectorAll('.property-manager input,.property-manager select')].map(field => ({ tag: field.tagName, label: field.getAttribute('aria-label'), value: field.value, checked: field.checked, disabled: field.disabled })),
+        acceptDisabled: document.querySelector('button[title="Aceptar operación"]')?.disabled, cancelDisabled: document.querySelector('button[title="Cancelar operación"]')?.disabled } };
+  }) });
   const near = (value, wanted, tolerance, label) => check(Number.isFinite(value) && Math.abs(value-wanted) <= tolerance, label + ': ' + value + ' expected ' + wanted);
   async function press(selector, text = null) {
     await page((selector, text) => {
@@ -135,6 +143,8 @@ module.exports = function fromEmptyWorkflow(c) {
     check(empty.version===1&&empty.features.length===0&&empty.id!==JSON.parse(initial).id,'New piece begins with no imported geometry and a distinct identity');
     check(await page(()=>{const buttons=document.querySelectorAll('button[title="Deshacer (Ctrl+Z)"]');return buttons.length===1&&buttons[0].disabled;}),'New piece owns one present disabled Undo control');
     const baseSketch=await draw([[-20,-15],[20,15]],0,1);
+    await require('./desktop-header-menu-flow.cjs').fileNavigation({ page, waitFor, check, checks, canonical, actualControl: press, menuKey,
+      snapshot: menuSnapshot, cameraFrame, kind: 'part', phase: 'live-sketch', expectedSaveEnabled: false });
     await feature('extrude',baseSketch,10,false,false,2,12000,3800,10,'base');
     const cutSketch=await draw([[-5,-5],[5,5]],0,3);
     await feature('cut',cutSketch,20,true,false,4,11000,4000,10,'through-hole');
@@ -156,12 +166,8 @@ module.exports = function fromEmptyWorkflow(c) {
     const reopenedDocument=JSON.parse(await recovery());
     check(reopenedDocument.id===documentId&&canonical(reopenedDocument.features)===canonical(saved.features),'Reopened recovery retains exact authored document identity and features');
     check(dialogCounts().opens===1&&dialogCounts().saves===1,'Only one Save As and saved reopen; no input fixture is opened');
-    const viewSnapshot=async()=>({native:await observe(),recovery:await recovery(),dialogs:dialogCounts(),ipc:structuredClone(ipc),ui:await page(()=>{
-        const viewport=document.querySelector('.viewport-canvas[aria-label="Vista 3D de la pieza"]');
-        return {history:['Deshacer (Ctrl+Z)','Rehacer (Ctrl+Y)'].map(title=>({title,disabled:document.querySelector('button[title="'+title+'"]')?.disabled})),
-          selection:['selection-mode','selected-face','selected-edges','selected-bodies'].map(name=>[name,viewport?.getAttribute('data-part-'+name)])};
-      })});
-    await require('./desktop-header-menu-flow.cjs')({page,waitFor,check,checks,canonical,actualControl:press,menuKey,captureHeader,snapshot:viewSnapshot,kind:'part'});
+    const viewSnapshot=menuSnapshot;
+    await require('./desktop-header-menu-flow.cjs')({page,waitFor,check,checks,canonical,actualControl:press,menuKey,captureHeader,snapshot:viewSnapshot,cameraFrame,kind:'part'});
     await require('./desktop-view-navigation-flow.cjs')({page,waitFor,check,checks,canonical,key,cameraFrame,cameraGesture,rasterComparison,kind:'part',actualControl:press,snapshot:viewSnapshot});
     await require('./desktop-part-view-remount.cjs')({page,waitFor,check,checks,canonical,cameraFrame,cameraGesture,key,press,tab,idle,recovery,observe,ipc,dialogCounts});
     const named = await require('./desktop-named-views-flow.cjs')({kind:'part',page,waitFor,check,checks,canonical,digest,key,text:shortcutText,namedViewKey,press,pointer,

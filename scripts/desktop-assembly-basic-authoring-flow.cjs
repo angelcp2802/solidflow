@@ -416,6 +416,10 @@ module.exports = function basicAuthoringWorkflow(context) {
   }
   async function preview(doc, selector, text, phase, mateCount = doc.mates.length, expectedDistance = -12, expectedAlignment = 'aligned', expectedAngle = null) {
     const before = await serial(); await actual(selector, text); const event = await response(before, 'preview-assembly'), value = event.response.value;
+    if (phase.startsWith('boundary-')) checks.push({ ordinaryAngleBoundaryDiagnostic: { phase,
+      baselineMatches: canonical(event.current) === canonical(doc), status: value.status, hasToken: value.hasToken,
+      checks: value.checks, rejections: value.rejections,
+      ...(value.status !== 'ready' ? { committedOriginalFixture: doc, observedBaseline: event.current, candidate: value.document, scopes: value.scopes } : {}) } });
     check(canonical(event.current) === canonical(doc) && value.status === 'ready' && value.hasToken && value.checks.every(c => c.satisfied && c.lengthResidual <= c.lengthTolerance && c.angleResidual <= c.angleTolerance), 'Exact committed baseline and independently verified private preview');
     check(value.document.mates.length === mateCount && value.checks.length === mateCount && value.scopes.length === 1
       && value.scopes[0].result.localDOF > 0 && !value.scopes[0].temporaryAnchor, 'Exactly the authored relations are verified with remaining freedom and no temporary anchor');
@@ -571,6 +575,56 @@ module.exports = function basicAuthoringWorkflow(context) {
     checks.push({ savedAngleEdit: { mateId: original.id, initialAngle: 30, editedAngle: 60, boundaryPreviewsCanceled: [0, 180],
       originalReferences: [original.first, original.second], initialEditor, committedSha256: digest(canonical(committed)) } });
     return committed;
+  }
+  async function persistAngleBoundaries(doc, inputBytes) {
+    const records = []; let current = doc;
+    for (const angle of [0, 180]) {
+      const original = current.mates.find(mate => mate.type === 'angle');
+      check(current.mates.length === 3 && original?.name === 'Guide to base angle edited', 'Boundary edit retains the one authored angle identity');
+      await navigation.panel('relations');
+      await actual('button' + attr('aria-label', 'Editar ángulo ' + original.name));
+      await waitFor('boundary editor retains saved angle ' + angle, () => page(value => {
+        const type = document.querySelector('[aria-label="Tipo de relación"]'), field = document.querySelector('[aria-label="Ángulo de relación"]');
+        return type?.value === 'angle' && type.disabled && field?.value === String(value) && !field.disabled;
+      }, original.angle));
+      await control('[aria-label="Ángulo de relación"]', String(angle));
+      const candidate = await preview(current, '[aria-label="Vista previa del ángulo editado"]', null, 'boundary-' + angle + '-preview', 3, -12, 'aligned', angle);
+      const wanted = current.mates.map(mate => mate.id === original.id ? { ...structuredClone(mate), angle } : structuredClone(mate));
+      check(canonical(candidate.document.mates) === canonical(wanted), 'Boundary preview changes only the exact saved angular declaration');
+      current = await apply(candidate, 'boundary-' + angle + '-apply', 3, -12, angle);
+      // Freeze the whole authenticated Apply-authored graph before the real write.
+      const authored = structuredClone(current), ordinal = ipc.filter(event => event.channel === 'document:save' && event.completed).length + 1;
+      await button('Guardar');
+      await waitFor('saved exact boundary graph ' + angle, async () => {
+        return ipc.filter(event => event.channel === 'document:save' && event.completed).length === ordinal
+          && canonical(JSON.parse(await fs.readFile(output, 'utf8'))) === canonical(authored);
+      });
+      await waitFor('boundary Save renderer is clean ' + angle, () => page(name => {
+        const open = document.querySelector('.assembly-quickbar button[title="Abrir"]');
+        return document.querySelector('.assembly-app')?.getAttribute('aria-busy') === 'false' && open && !open.disabled
+          && document.querySelector('.assembly-shell-document > strong')?.textContent === name;
+      }, authored.name));
+      const saved = await fs.readFile(output); let before = await serial(); await button('Abrir');
+      current = await built(before, 3, 'boundary-' + angle + '-saved-reopen');
+      check(canonical(current) === canonical(authored), 'Boundary reopening retains the complete Apply-authored graph and every reference');
+      relationGeometry(current, -12, 'aligned', angle);
+      const solved = await preview(current, '[aria-label="Resolver ensamblaje"]', null, 'boundary-' + angle + '-fresh-solve', 3, -12, 'aligned', angle);
+      check(canonical(solved.document.mates) === canonical(current.mates), 'Fresh boundary Solve preserves exact saved declarations');
+      before = await serial(); await actual(CANCEL); await response(before, 'discard-assembly'); await recovery(current);
+      await navigation.panel('relations'); await actual('button' + attr('aria-label', 'Editar ángulo ' + original.name));
+      check(await page(value => document.querySelector('[aria-label="Ángulo de relación"]')?.value === String(value)
+        && document.querySelector('[aria-label="Tipo de relación"]')?.disabled === true, angle), 'Reopened boundary stays editable at its literal value');
+      await actual('[aria-label="Terminar edición de ángulo"]');
+      check((await fs.readFile(input)).equals(inputBytes) && (await fs.readFile(output)).equals(saved), 'Boundary Solve/Cancel/editor display preserves both input and saved bytes');
+      records.push({ angle, mateId: original.id, references: [original.first, original.second], saveOrdinal: ordinal,
+        authoredSha256: digest(canonical(authored)), savedSha256: digest(saved), reopenedSha256: digest(canonical(current)), freshSolveVerified: true });
+    }
+    check(dialogCounts().opens === 5 && dialogCounts().saves === 1
+      && ipc.filter(event => event.channel === 'document:save' && event.completed).length === 3,
+    'Both boundary values use their own Save/Open, with one original Save As and existing exact file grants');
+    checks.push({ savedOrdinaryAngleBoundaries: { values: [0, 180], records, persistence: 'actual native Save/Open and fresh Solve for each value',
+      geometry: 'Existing independent datum directions, three native prisms, transformed bounds and preserved fixed occurrence; no unique free-pose claim' } });
+    return current;
   }
   async function move(doc, id, x, expectedCount) {
     await control('[aria-label="Destino local X del componente"]', String(x));
@@ -830,7 +884,12 @@ module.exports = function basicAuthoringWorkflow(context) {
     check((await fs.readFile(input)).equals(inputBytes) && (await fs.readFile(output)).equals(saved), 'Original part and saved bytes unchanged by final solve/Cancel');
     const full = await observe(); check(!full.workerErrors.length && full.assemblies.every(r => r.response?.ok === true), 'Complete worker history contains no pending or failed assembly action');
     check(!consoleErrors.length && !failedRequests.length && dialogCounts().opens === 3 && dialogCounts().saves === 1, 'Exact import/cancel/reopen and Save dialog counts; healthy renderer');
-    evidence.sourceSha256 = digest(inputBytes); evidence.savedSha256 = digest(saved); evidence.identities = { root: rootIdentity, definition, owners };
+    evidence.initialSaved60Sha256 = digest(saved);
+    current = await persistAngleBoundaries(current, inputBytes);
+    const boundaryHistory = await observe();
+    check(!boundaryHistory.workerErrors.length && boundaryHistory.assemblies.every(event => event.response?.ok === true)
+      && !consoleErrors.length && !failedRequests.length, 'All boundary actions settle with healthy complete native and renderer history');
+    evidence.sourceSha256 = digest(inputBytes); evidence.savedSha256 = digest(await fs.readFile(output)); evidence.identities = { root: rootIdentity, definition, owners };
     await navigation.panel('components'); await capture(current);
   };
 };

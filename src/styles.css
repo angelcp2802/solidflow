@@ -640,6 +640,10 @@ button,
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.tree-row.material-row {
+  width: 100%;
+  text-align: left;
+}
 .tree-row > svg {
   color: #4b7f9f;
 }

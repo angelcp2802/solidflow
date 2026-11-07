@@ -1,5 +1,203 @@
 # Validation
 
+## Final material/menu integration and local Windows prototype — 2026-11-07
+
+The follow-up at local integration revision
+`0887fde90c0bb42a8019207ac79370f5494e72bd` passes a second frozen batch of
+**13 commands**: build, `npm test`, desktop startup and ten renderer routes.
+The full suite passes **11,240 cases in 500 files** and **220 IPC checks**, with
+two explicit platform skips. Its 1,375-input manifest is
+`8d4f69f22b193d15511ed6cfbc44d747d036964193d43b4a2e38c22df3017c1a`.
+The independent final audit report is
+`be138ed13b8e4b83a5bd6d40278630f919a187125e823d30dd5809c89e5f5012`.
+All nine production files are byte-identical to the preceding 33-command batch.
+The additions are test/CI integration; no renderer, Electron, worker or WASM
+production code changes between those two frozen applications.
+
+| `test:desktop:` route | Checkpoints |
+| --- | --- |
+| `assembly-part-properties` | 231 |
+| `sketch-primitives` | 237 |
+| `part-properties` / `part-properties-transitions` | 70 / 75 + 30 fresh-process |
+| `normal-to-view` | 257 |
+| `part-from-empty` / `assembly-shortcuts` / `assembly-configured-shortcuts` | 302 / 535 / 582 |
+| `part-sequence` / `assembly-configurations` | 541 / 212 |
+
+The assembly fixture has three uses of an original 2 × 3 × 4 mm prism: two
+copper uses of one source revision at density 1000 kg/m³ and a dark-blue control
+with the same source ID but a distinct revision at density 2000 kg/m³. Original
+mass is 0.000096 kg. Embedded/source Cancel preserves the graph; accepted shared
+properties at density 3000 and green colour change exactly those two uses,
+giving 0.000192 kg. Hiding one preserves total mass; suppressing it gives
+0.000120 kg. Actual conversion to a named configured state, previews, history,
+native Save/Open, exact declarations and native request generations are checked.
+Configured embedded-part editing remains absent; this route does not add it.
+
+The menu follow-up exercises six clean/sketch/verified-preview contexts across
+the three workspaces. Native G cycling selects Guardar/Guardar como, skips their
+disabled states and handles a popup without enabled entries. Home/End, arrows,
+Tab and Escape preserve exact document, draft, history, native and file state;
+five 3D camera crops and one sketch projection remain unchanged. It does not
+establish every initial letter, menu alias or physical keyboard configuration.
+
+Thirty-two fixed part/assembly PNGs are hash-bound to this batch. All sixteen
+same-state pairs have zero changed pixels in this run. Root visually reviewed
+the changed selected-part frame; seven other principal frames match the exact
+bytes previously reviewed. A separate read-only reviewer actually viewed all
+six current selected/deselected assembly frames. Shared copper/green materials,
+the distinct blue control and selection highlights remain distinguishable.
+There is no exact RGB/PBR or other-GPU/platform claim.
+
+A local Windows unpacked **0.19.0** prototype is generated with the existing
+locked builder and Electron distribution. All nine production members extracted
+from its ASAR match the frozen application. Its executable SHA-256 is
+`6e318e80992f03be71e74245d1f974717889d665cdbdbab6873a72bcdc4d689c`.
+It is unsigned local development output, not an installed-platform acceptance
+or public binary release. Packaging warnings and the initial checker correction
+from slash-separated to native Windows ASAR member paths remain recorded.
+
+Using `computer-use` and the actual packaged window, the original default plate
+is saved through the real Windows dialog. An original three-component assembly
+is opened, saved as a new file, reopened and reconstructed with three solids,
+72 mm³, revision-specific colours and displayed mass 0.000096 kg. The complete
+saved JSON graph equals its original input. Real Resolver/Cancel returns from
+a verified preview to the confirmed positions without changing saved bytes.
+Alt+F4 closes the original process; its exit code was not observed. The updated
+desktop shortcut starts a distinct process with the explicitly verified separate
+demo profile. The assembly, colours and mass recover; the recovered copy is
+shown as unsaved, with no claim of a restored native file grant.
+
+The previous shortcut is backed up and its original runtime retained. The
+[Spanish testing guide](PROBAR_SOLIDFLOW.md) covers opening, successive features,
+selection/navigation, materials, assemblies and saved files. Skills used add
+`computer-use` to the earlier scoped design, React, code/security-review and
+REA work. Hosted validation of the resulting public tree, outstanding CAD and
+command cases, human acceptance and the overall usable/release gates remain
+separate requirements.
+
+## Integrated normal-command and persistence batch — 2026-11-07
+
+The frozen Windows candidate at local integration revision
+`c2751a0af8fa74a01db9c2438fba7384ce9d7fc4` passes **33 commands**: `npm run build`, `npm test`,
+`npm run test:desktop` and the 30 renderer routes below. The full suite reports
+**11,240 cases in 500 files**, **215 IPC passes**, no IPC failures and two explicit
+platform skips. Node 24.11.1 and the actual Electron 44.9.3 executable are bound
+to the recorded inputs; all 341 installed package versions match the unchanged
+lock, with 44 incompatible optional entries absent.
+
+| `test:desktop:` route | Checkpoints |
+| --- | --- |
+| `sketch-primitives` | 237 |
+| `part-hole` / `part-combine` | 119 / 114 |
+| `part-shell-draft` / `part-pattern-create` | 172 / 194 |
+| `part-properties` / `part-properties-transitions` | 70 / 75 + 30 fresh-process |
+| `part-sweep-loft` | 126 |
+| `assembly-basic-authoring` / `part-sequence` | 479 / 541 |
+| `normal-to-view` | 257 |
+| `assembly-embedded-part-edit` / `assembly-embedded-part-transitions` | 172 / 202 + 15 fresh-process |
+| `assembly-configurations` | 212 |
+| `part-thin-wall` / `part-auto-corners` / `part-end-caps` | 179 / 130 / 131 |
+| `part-finishing` / `part-revolution` / `part-external-axis` | 103 / 248 / 109 |
+| `part-body-catalog` / `part-from-empty` / `part-fresh-sketch` | 43 / 272 / 84 |
+| `part-two-direction` / `part-two-direction-limits` / `part-face-limits` | 195 / 226 / 219 |
+| `imported-bodies` / `assembly-step` / `assembly-step-insertion` / `assembly-export` | 36 / 52 / 58 / 83 |
+
+The controller freezes 1,370 non-Markdown inputs, source and runtime identity,
+dependency metadata, its own code and the seven compiled outputs. Electron
+main/preload form the remaining two files of the production surface. The input
+manifest is `e1adc5355d0b93f9df056cbc3b87e04208d1880b5ba2ab2e4c1f75063abaaf32`;
+the compiled renderer is `index-C6fidTbV.js`. The separate read-only final audit
+rehashes every input, product and log, checks child/parent results and verifies
+the native geometry, history, file writes, close/restart and capture receipts.
+Its report hash is
+`8efa485eb8cbcfd727565ed4bc939187bd86148a0be7d28513fc658190715ad3`.
+
+The new sketch route draws three XY documents from New: a rectangle, circle and
+centre arc closed by a line. A fixed corner and driving dimensions 6 × 2 produce
+a fully constrained rectangle. An incompatible vertical constraint gives a real
+native diagnosis; direct Cancel restores the original 4 × 2 × 3 solid, then a
+valid retry rebuilds the retained downstream body. Final STEP measurements are
+rectangle V36/A72, radius-2 cylinder height 3 V12π/A20π and upper semicylinder
+V6π/A(10π+12). The latter's centroid Y is 8/(3π). Local/document history, three
+actual Save/Open/STEP paths and independently checked face planes are retained.
+
+Normal Hole, Combine, Shell/Draft and body-pattern routes add real entry,
+editing, invalid-input recovery, Cancel/retry, history and saved reopen. STEP
+checks locate the two through-hole/counterbore axes and upper recesses, preserve
+the ordered subtraction target and unrelated body, locate the shell opening and
+draft planes, and measure literal linear/circular/mirror copy poses. Their raw
+results receive 858 additional read-only audit assertions. These cases retain
+the narrow scope described by their drivers and contracts; they do not prove
+every hole ending, finishing mode, neutral plane, pattern scope or chirality.
+
+Ordinary assembly angle editing now persists and freshly solves both 0° and
+180° with the original IDs and independent geometry, in addition to 30°→60°.
+The material tree row displays its actual assignment and opens properties.
+Bottom Open, selected-feature Properties and solid/legacy-sketch focus are
+exercised through their real controls. Native Frontal/Posterior selectors,
+unselected Previous crops and shared background aliases pass in all three
+workspaces. Selected-overlay exact raster equality remains unclaimed.
+
+The material transition uses two actual processes. Recovery, native cube,
+material and custom background are observed before controls/file IPC; displayed
+mass is checked afterwards before native Open. Fourteen actual PNGs cover seven
+fixed states. Five primary frames were visually reviewed: original blue,
+assigned copper, selected highlight, deselected copper and fresh-process copper
+with the custom background. Six paired states have zero changed pixels; the
+selected pair has 2/676,864 changed pixels with maximum byte delta 1. These are
+observations of noise, not a colour tolerance or a general PBR claim.
+
+REA 6.3.0 separately derives the exact desktop main/preload entry graph from a
+hash-bound compiled footprint. The retained focused Evidence is
+`ev_97a6c85ce79d5752982f580e9c6b2bcab31d0be58742bda2549434a57929bc44`.
+Its two JavaScript files parse without errors, but application coverage is
+partial and 1,200 semantic unknowns remain; dynamic IPC pairing is unresolved.
+The complete renderer analysis exhausted the local Node heap, and its failed
+MCP/CLI attempts remain retained. No full-renderer REA or runtime-enforcement
+claim follows from the focused static result. Runtime loader and file-security
+evidence comes from the actual desktop checks above.
+
+Skills used: `frontend-design`, applicable `vercel-react-best-practices`,
+`code-review`, `security-review` and `reverse-engineer-anything`. Earlier failed
+recorders and the audit's compact-export DTO correction are retained separately;
+an inventory DTO without volume/area is never promoted to a measured scene.
+No dependency installation, security exclusion or public binary release occurs.
+
+This batch establishes the recorded local Windows fixtures. Additive dynamic
+ALL, AUTO/variation and broader feature regeneration remain required pending
+capabilities in [their contract](FEATURE_REGENERATION.md). Reused-source rendered
+appearance has a separate follow-up, and remaining command/keyboard cases,
+final executable/access, human use, installed-platform and release gates stay
+open in the [usable-version ledger](USABLE_VERSION_ACCEPTANCE.md).
+
+## Ordinary angle endpoints and material tree follow-up — 2026-11-07
+
+The local follow-up fixes a real coupled ordinary-angle seed cycle at 0°→180°.
+The original transverse seed remains preferred whenever the complete equation
+group is evaluable; an orthogonal transverse alternative is considered only for
+the endpoint orientation-chart rejection. Existing residual tolerances, budgets,
+rank checks and authenticated native Apply rules remain unchanged. Focused
+model checks pass 396 cases and native checks pass eight cases, including the
+previously working transverse direction and fixed-component invariance.
+
+The normal assembly-authoring renderer route passes 479 checkpoints. It retains
+the original 30°→60° workflow and adds actual Apply, Save, Open and fresh Solve
+at both 0° and 180°, using the same three original prisms, saved relation IDs and
+references. Independent geometry remains V72 mm³/A156 mm² with transformed
+bounds and the fixed occurrence preserved. Five Open dialogs, one Save As and
+three completed Save writes retain their exact file grants. The raw log hash is
+`34c81a77355c1f08b45c88b95dc17cc5a478afa4f2edabe6e2314dcec7f55864`.
+
+The Material tree row now displays the assigned material and is a native button
+opening the existing properties panel. Its renderer route passes 70 checkpoints,
+including entry through that button and exact material labels across Apply,
+Undo/Redo and native Save/Open. The raw log hash is
+`d9c7b1285fa7313e709e9a2daaab5036c90b1502692c19c42d189196538dccff`.
+Both isolated Windows workflows report no renderer/request errors and complete
+their cleanup. These are reviewed exploratory follow-ups; the combined frozen
+batch and full application checks remain pending. Skills used: `frontend-design`,
+applicable `vercel-react-best-practices`, `code-review` and `security-review`.
+
 ## Part properties and normal sweep/loft lifecycle — 2026-11-07
 
 The next bounded Windows increment implements optional part material, density
@@ -39,7 +237,7 @@ The independent final verifier also rechecks the raw cube/sweep/STEP cases,
 configured/BOM/CSV outcomes and pending/native-close event order. Its accepted
 report hash is `98b993149a4692ea61ad4e17cad6a7b0cf57bac3a26e3b9085f4734f79c91639`.
 
-The original 10 mm cube retains V1000 mm³, bounds [0,0,0]…[10,10,10], its body,
+The original 10 mm cube retains V1000 mm³, bounds [-5,-5,0]…[5,5,10], its body,
 six face and twelve edge identities across property Apply, one Undo/Redo and
 native Save/Open. Synthetic density 1000 kg/m³ produces 0.001 kg. A separate
 native unit case verifies a valid single BRep and A600 mm² after serialization

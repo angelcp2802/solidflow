@@ -1,5 +1,28 @@
 # Public fixture provenance
 
+## Original normal-operation and material fixtures — 2026-11-07
+
+The normal Hole, Combine, Shell/Draft, body-pattern and assembly-material routes
+generate original inputs with the tracked `desktop-part-hole-original.cjs`,
+`desktop-part-combine-original.cjs`, `desktop-part-shell-draft-original.cjs`,
+`desktop-part-pattern-create-original.cjs` and
+`desktop-assembly-part-properties-original.cjs` modules in `scripts/`.
+They use literal rectangles, prisms, circles, planes and placements. Their
+independent volumes, areas, axes, copy poses and face-plane oracles live in the
+corresponding flow/STEP readers and are recorded in [validation](VALIDATION.md).
+The material fixture reuses the existing original embedded-edit prism, adding
+explicit synthetic material/density/colour declarations and a distinct control
+revision. No external CAD model supplies these fixtures.
+
+`desktop-sketch-primitives-flow.cjs` instead starts three ordinary New documents
+and draws original rectangle, circle and centre-arc/closing-line profiles with
+pointer strokes. No preauthored profile or result supplies those documents.
+The ordinary-angle endpoint model/native regressions likewise use original
+three-prism coordinates, root/component datums and explicitly authored relations.
+Declarations, runtime interaction and separately measured STEP geometry retain
+their distinct evidence scopes; using the same kernel family is not independent
+interchange certification. See each driver's finite input and tolerance limits.
+
 ## Original ordered assembly preselection — 2026-10-29
 
 [`desktop-assembly-preselection-flow.cjs`](../scripts/desktop-assembly-preselection-flow.cjs)

@@ -87,6 +87,9 @@ module.exports = function runNormalToViewWorkflow(c) {
   async function unchanged(label, expected = baseline) {
     check(canonical(await snapshot()) === canonical(expected), label + ': exact worker history, recovery, model Undo/Redo and file IPC unchanged');
   }
+  const viewCommands = require('./desktop-view-selector-background.cjs').createViewSelectorBackgroundChecks({
+    page, waitFor, check, canonical, key, actual, raf, frame, presentation, snapshot, unchanged, clear, selection,
+    viewSelectInput: c.viewSelectInput, checks });
   const pocketSelector = '.tree-row[data-feature-id="normal-pocket-profile"][data-parent-feature-id="normal-pocket"]';
   const readPocketTarget = (selector, point) => {
     const rows = [...document.querySelectorAll(selector)], row = rows[0], tree = row?.closest('.tree');
@@ -357,7 +360,8 @@ module.exports = function runNormalToViewWorkflow(c) {
       await actual(selector,null,true);
     }
     const rejected=await selected(kind==='part'?'planes':'invalid',2,'Parallel pair disables Normal To',false);const before=await snapshot();
-    await key('8');await raf();check(canonical(await selection())===canonical(rejected),'Rejected pair stays selected');await unchanged('Rejected parallel pair',before);
+    await viewCommands.rejectedNormal(kind);
+    check(canonical(await selection())===canonical(rejected),'Rejected pair stays selected');await unchanged('Rejected parallel pair',before);
     if(kind==='part'){
       await key('1');await pick([5,-2,4],front,top,'Single face before additive removal');
       await pressAt(await project([5,-2,4],front),true);await selected('none',0,'Ctrl-click removes the last selected face');
@@ -409,9 +413,11 @@ module.exports = function runNormalToViewWorkflow(c) {
     const originalBytes={};for(const name of ['part','standard','configured'])originalBytes[name]=await fs.readFile(inputs[name]);
     await waitFor('Normal To initial production startup',()=>page(()=>document.querySelector('.statusbar')?.textContent.includes('Listo')&&typeof window.solidflow?.openDocument==='function'),initialReadyMs);
     for(const current of ['part','standard','configured']){
-      await open(current);await emptyPrevious();await planarAndPair();await curved();await rejectedSelection();
+      await open(current);await viewCommands.afterOpen(kind);await viewCommands.selector(kind);
+      await emptyPrevious();await planarAndPair();await curved();await rejectedSelection();
       if(kind==='part')await partFeatureAndSketch();
       await clear();await unchanged('Completed '+kind+' camera workflow');
+      await viewCommands.background(kind);
     }
     check(dialogCounts().opens===3&&dialogCounts().saves===0,'Exactly three granted original Opens and no Saves');
     for(const name of ['part','standard','configured']){

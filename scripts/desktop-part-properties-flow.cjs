@@ -7,6 +7,7 @@ const { encodeJavaScriptString: quote } = require('./desktop-ui-source.cjs');
 module.exports = function partPropertiesWorkflow(context) {
   const { expected, input, output, evaluate, observe, waitFor, pointer, checks,
     protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs, dialogCounts } = context;
+  const restart = context.propertiesRestart;
   const FORM = 'form[aria-label="Material y apariencia de la pieza"]';
   const MASS = '[aria-label="Masa de la pieza"]';
   const HOST = '.viewport-canvas[aria-label="Vista 3D de la pieza"]';
@@ -18,8 +19,9 @@ module.exports = function partPropertiesWorkflow(context) {
     scope: 'Original cube; material/density/colour Apply and fresh build; Cancel; one Undo/Redo; native Save As/Open; profile background Apply/Cancel/default and document isolation',
     inputLimits: 'Actual CDP left press/release on contained hit-tested controls. Input values use native input setters and bubbling input/change events on revealed current fields; not physical keyboard typing. No React/document/native reply injection.',
     geometryLimits: 'Healthy actual worker responses, body/face/edge identities, native volume/bounds and independent planar triangle area. Mesh area is a presentation observation, not a native BRep-area capability. The separate native cube unit test covers BRep validity/area.',
-    colourLimits: 'Part colour declaration, form state and saved/recovered bytes. No framebuffer/pixel fidelity claim.',
-    freshProcessBackgroundPersistence: { status: 'not-exercised', reason: 'This bounded shared harness restarts only its embedded-close scenario. Here preference persistence is checked across actual saved-document Open in the same production process.' },
+    colourLimits: context.captureProperties ? 'Fixed presented original-cube PNG pairs for visual review, with measured same-state noise. No PBR hex equality or automated material-appearance acceptance.' : 'Part colour declaration, form state and saved/recovered bytes. No framebuffer/pixel fidelity claim.',
+    freshProcessBackgroundPersistence: restart ? { status: 'phase-under-test', phase: restart.phase }
+      : { status: 'not-exercised', reason: 'This baseline route checks saved-document Open in the same production process. The separate fixed transition scenario owns restart acceptance.' },
     tolerances: { volumeMm3: 1e-6, boundsMm: 1e-6, planarMeshAreaMm2: 1e-6, displayedMassKg: 1e-12 } } };
   checks.push(evidence);
   const page = (fn, ...args) => evaluate(`(${fn.toString()})(...JSON.parse(${quote(JSON.stringify(args))}))`);
@@ -135,9 +137,14 @@ module.exports = function partPropertiesWorkflow(context) {
     const value = await waitFor('committed property cube recovery ' + phase, async () => {
       const value = await snapshot();
       return value.recovery && canonical(JSON.parse(value.recovery)) === canonical(wanted)
-        && await page(() => document.querySelector('.statusbar')?.textContent.includes('Listo') && !document.querySelector('.error-banner[role="alert"]')) ? value : false;
+        && await page(name => {
+          const rows = document.querySelectorAll('button[aria-label="Material de la pieza"]');
+          return document.querySelector('.statusbar')?.textContent.includes('Listo') && !document.querySelector('.error-banner[role="alert"]')
+            && rows.length === 1 && rows[0].textContent.trim() === 'Material <' + name + '>';
+        }, wanted.material?.name ?? 'sin especificar') ? value : false;
     });
-    records.push({ phase: phase + '-committed', recoverySha256: digest(value.recovery), history: value.history, title: value.title });
+    const treeMaterial = await page(() => document.querySelector('button[aria-label="Material de la pieza"]')?.textContent.trim());
+    records.push({ phase: phase + '-committed', recoverySha256: digest(value.recovery), history: value.history, title: value.title, treeMaterial });
     return value;
   }
   async function mass(wanted) {
@@ -162,19 +169,91 @@ module.exports = function partPropertiesWorkflow(context) {
     if (savedBytes) check((await fsp.readFile(output)).equals(savedBytes), 'Saved bytes unchanged by ' + phase);
     records.push({ phase, recoverySha256: digest(baseline.recovery), nativeSerial: serial });
   }
+  const parkHover = () => pointer('mouseMoved', { x: 14, y: 14 });
+  async function captureAppearance(phase, fit = false) {
+    if (!context.captureProperties) return;
+    if (fit) await press('button[title="Ajustar a pantalla (F)"]');
+    await parkHover(); await context.captureProperties(phase);
+  }
+  async function recoveredPhase(originalBytes, bootstrap) {
+    const receipt = restart.receipt, saved = receipt.document, bytes = await fsp.readFile(output);
+    check(bootstrap.recovery === receipt.recoveryContent && bootstrap.background === receipt.backgroundContent
+      && digest(bootstrap.recovery) === receipt.recoverySha256 && bytes.toString('utf8') === receipt.savedContent,
+    'Actual startup recovery/profile and saved bytes agree before any control or Open');
+    check(interactions.length === 0 && ipc.length === 0, 'Bootstrap recovery is observed before every actual control and file IPC');
+    const bootstrapBuild = await built(0, 'restart-bootstrap', { response: { value: { bodies: [receipt.nativeBody] } } });
+    const bootstrapSnapshot = await committed(saved, 'restart-bootstrap');
+    check(bootstrapSnapshot.recovery === receipt.recoveryContent && bootstrapSnapshot.history.every(button => button.disabled),
+      'Fresh process reconstructs the exact original assigned document with empty local history');
+    const custom = await waitFor('startup profile custom background applied before controls', async () => {
+      const state = await backgroundState();
+      return state.persisted === receipt.backgroundContent && state.backgroundColor === 'rgb(221, 238, 255)' && state.backgroundImage === 'none' ? state : false;
+    });
+    await captureAppearance('recovered-custom');
+    check(interactions.length === 0 && ipc.length === 0, 'Read-only startup presentation does not manufacture recovery through UI or IPC');
+    const beforeControls = interactions.length, beforeFileIpc = ipc.length;
+    await propertiesButton(); await mass(0.001);
+    check(await page((form, properties) => {
+      const root = document.querySelector(form);
+      return root?.querySelector('[aria-label="Nombre del material"]')?.value === properties.material.name
+        && root.querySelector('[aria-label="Densidad del material"]')?.value === '1000'
+        && root.querySelector('[aria-label="Color de la pieza"]')?.value === properties.appearance.color;
+    }, FORM, assignedProperties), 'Recovered fresh form displays the actual material/density/colour');
+    await press('.task-panel button[title="Cerrar panel"]');
+    const beforeOpen = (await observe()).serial; await press('button[aria-label="Abrir (Ctrl+O)"]');
+    const discard = '[role="dialog"][aria-labelledby="discard-title"]';
+    const opening = await waitFor('recovered document opens or asks through the real discard dialog', async () => {
+      if (await page(selector => !!document.querySelector(selector), discard)) return 'discard';
+      return ipc.some(event => event.channel === 'document:open' && event.completed) ? 'opened' : false;
+    });
+    if (opening === 'discard') await press(discard + ' .primary-button', 'Continuar sin guardar');
+    const reopenedBuild = await built(beforeOpen, 'restart-saved-open', bootstrapBuild), reopened = await committed(saved, 'restart-saved-open');
+    check(reopened.recovery === receipt.recoveryContent && canonical(await backgroundState()) === canonical(custom)
+      && (await fsp.readFile(output)).equals(bytes), 'Actual saved Open preserves exact saved/recovered bytes and custom profile background');
+    const beforeSave = (await observe()).serial; await press('button[title="Guardar (Ctrl+S)"]');
+    await waitFor('fresh Open grant permits exact ordinary Save without a transferred grant', () => ipc.filter(event => event.channel === 'document:save' && event.completed).length === 1);
+    await unchanged(reopened, beforeSave, bytes, 'restart-native-save');
+    await captureAppearance('saved-open-custom');
+    await propertiesButton(); await mass(0.001); await press('.task-panel button[title="Cerrar panel"]');
+    const serial = (await observe()).serial; await openBackground();
+    await press(BACKGROUND + ' button[type="button"]', 'Restaurar predeterminado');
+    check(canonical(await backgroundState()) === canonical(custom), 'Restart default restoration waits for actual Apply');
+    await press(BACKGROUND + ' button[type="submit"]', 'Aplicar fondo');
+    const restored = await waitFor('default profile restored after the real restart', async () => {
+      const state = await backgroundState();
+      return canonical(state) === canonical(receipt.defaultBackground) && await page(selector => !document.querySelector(selector), BACKGROUND) ? state : false;
+    });
+    await unchanged(reopened, serial, bytes, 'restart-default-restored');
+    await captureAppearance('default-background');
+    check((await fsp.readFile(input)).equals(originalBytes) && digest(originalBytes) === receipt.originalSha256,
+      'Two-process recovery and actual native Open/Save retain the original fixture bytes');
+    evidence.partProperties.restartResult = { bootstrapRecoverySha256: digest(bootstrap.recovery), bootstrapBackgroundContent: bootstrap.background,
+      bootstrapBeforeControls: beforeControls, bootstrapBeforeFileIpc: beforeFileIpc, bootstrapNativeSerial: bootstrapBuild.serial,
+      bootstrapNativeBody: bootstrapBuild.response.value.bodies[0], savedSha256: digest(await fsp.readFile(output)),
+      reopenedRecoverySha256: digest(reopened.recovery), defaultBackground: restored, originalSha256: digest(originalBytes) };
+    evidence.partProperties.freshProcessBackgroundPersistence = { status: 'observed-after-real-restart', restoredDefault: true, thirdRestart: 'not-exercised' };
+    evidence.partProperties.reopenedNativeSerial = reopenedBuild.serial;
+    check(dialogCounts().opens === 1 && dialogCounts().saves === 0 && dialogCounts().geometryExports === 0
+      && ipc.filter(event => event.channel === 'document:open' && event.completed).length === 1,
+    'Fresh process uses one real Open and ordinary Save on its own new grant, with no Save As or export');
+    check(!consoleErrors.length && !failedRequests.length && !(await observe()).workerErrors.length, 'Restart has no renderer, asset or native-worker errors');
+  }
   return async () => {
     const originalBytes = await fsp.readFile(input);
     check(canonical(JSON.parse(originalBytes.toString('utf8'))) === canonical(expected), 'Owned input contains the exact original cube recipe');
+    const bootstrap = restart?.phase === 'reopen' ? await page(key => ({ recovery: localStorage.getItem('solidflow.autosave'), background: localStorage.getItem(key) }), KEY) : null;
     await waitFor('property cube production file command ready', () => page(() => document.querySelector('.statusbar')?.textContent.includes('Listo')
       && typeof window.solidflow?.openDocument === 'function'), initialReadyMs);
+    if (restart?.phase === 'reopen') { await recoveredPhase(originalBytes, bootstrap); return; }
     let serial = (await observe()).serial;
     await press('button[aria-label="Abrir (Ctrl+O)"]');
     await press('[role="dialog"][aria-labelledby="discard-title"] .primary-button', 'Continuar sin guardar');
     const originalBuild = await built(serial, 'original-cube'), originalSnapshot = await committed(expected, 'original-cube');
     check(originalSnapshot.history[0].disabled && originalSnapshot.history[1].disabled, 'Original Open resets the part history');
-    await propertiesButton(); await mass(null);
+    await press('button[aria-label="Material de la pieza"]'); await mass(null);
     const originalBackground = await backgroundState();
     check(originalBackground.persisted === null && originalBackground.inlineBackground === '', 'Isolated profile starts with the original default background');
+    if (restart) await captureAppearance('default-unselected', true);
     await press(FORM + ' .part-property-check', 'Asignar material');
     await change(FORM + ' input[aria-label="Nombre del material"]', assignedProperties.material.name);
     await change(FORM + ' input[aria-label="Densidad del material"]', '1000');
@@ -193,6 +272,17 @@ module.exports = function partPropertiesWorkflow(context) {
     check(canonical(unchangedDocument) === canonical(originalDocument) && updatedAt >= originalUpdatedAt, 'Apply changes only bounded properties and monotonic timestamp');
     const assignedSnapshot = await committed(assigned, 'properties-applied'); await mass(0.001);
     check(!assignedSnapshot.history[0].disabled && assignedSnapshot.history[1].disabled, 'One material transaction is undoable');
+    if (restart && context.captureProperties) {
+      await captureAppearance('custom-unselected', true);
+      const selectionSerial = (await observe()).serial;
+      await press('.part-body-catalog .body-row input[type="checkbox"]');
+      await waitFor('actual body selection for appearance capture', () => page(host => JSON.parse(document.querySelector(host)?.getAttribute('data-part-selected-bodies') ?? '[]').length === 1, HOST));
+      await captureAppearance('selected');
+      await press('.part-body-catalog .body-row input[type="checkbox"]');
+      await waitFor('actual body deselection restores custom appearance capture', () => page(host => document.querySelector(host)?.getAttribute('data-part-selected-bodies') === '[]', HOST));
+      await captureAppearance('deselected-custom');
+      await unchanged(assignedSnapshot, selectionSerial, null, 'appearance-selection-observation');
+    }
     serial = (await observe()).serial;
     await change(FORM + ' input[aria-label="Nombre del material"]', 'Cancelled material draft');
     await change(FORM + ' input[aria-label="Densidad del material"]', '2000');
@@ -252,17 +342,26 @@ module.exports = function partPropertiesWorkflow(context) {
     }, FORM);
     check(canonical(restoredFields) === canonical({ name: assignedProperties.material.name, density: '1000', color: '#cc6633' }), 'Reopened normal form displays actual saved material/density/colour');
     await press('.task-panel button[title="Cerrar panel"]');
-    serial = (await observe()).serial; await openBackground();
-    await press(BACKGROUND + ' button[type="button"]', 'Restaurar predeterminado');
-    check(canonical(await backgroundState()) === canonical(solidBackground), 'Restore-default draft waits for Apply');
-    await press(BACKGROUND + ' button[type="submit"]', 'Aplicar fondo');
-    await waitFor('original profile background restored', async () => canonical(await backgroundState()) === canonical(originalBackground)
-      && await page(selector => !document.querySelector(selector), BACKGROUND));
-    await unchanged(reopened, serial, bytes, 'background-default-restored');
+    if (restart) {
+      check(restart.phase === 'first' && reopened.recovery === bytes.toString('utf8'), 'Phase one leaves exact saved/recovered bytes before real process exit');
+      evidence.partProperties.restartReceipt = { version: 1, kind: 'part-properties-profile-restart', document: saved,
+        savedContent: bytes.toString('utf8'), savedSha256: digest(bytes), recoveryContent: reopened.recovery, recoverySha256: digest(reopened.recovery),
+        backgroundKey: KEY, backgroundContent: (await backgroundState()).persisted, defaultBackground: originalBackground,
+        originalSha256: digest(originalBytes), nativeSerial: reopenedBuild.serial, nativeBody: reopenedBuild.response.value.bodies[0] };
+      evidence.partProperties.freshProcessBackgroundPersistence = { status: 'phase-one-only-awaiting-parent-observed-exit-and-restart' };
+    } else {
+      serial = (await observe()).serial; await openBackground();
+      await press(BACKGROUND + ' button[type="button"]', 'Restaurar predeterminado');
+      check(canonical(await backgroundState()) === canonical(solidBackground), 'Restore-default draft waits for Apply');
+      await press(BACKGROUND + ' button[type="submit"]', 'Aplicar fondo');
+      await waitFor('original profile background restored', async () => canonical(await backgroundState()) === canonical(originalBackground)
+        && await page(selector => !document.querySelector(selector), BACKGROUND));
+      await unchanged(reopened, serial, bytes, 'background-default-restored');
+    }
     check((await fsp.readFile(input)).equals(originalBytes), 'The complete workflow preserves the original selected file bytes');
     evidence.partProperties.originalSha256 = digest(originalBytes);
     evidence.partProperties.savedSha256 = digest(bytes);
-    evidence.partProperties.sameProcessBackgroundPersistence = { status: 'PASS', solidBackground, restoredDefault: await backgroundState() };
+    evidence.partProperties.sameProcessBackgroundPersistence = { status: 'PASS', solidBackground, ...(restart ? { retainedForRestart: await backgroundState() } : { restoredDefault: await backgroundState() }) };
     evidence.partProperties.reopenedNativeSerial = reopenedBuild.serial;
     check(dialogCounts().opens === 2 && dialogCounts().saves === 1 && dialogCounts().geometryExports === 0, 'Exactly original Open, Save As, saved Open and no geometry export');
     check(ipc.filter(event => event.channel === 'document:open' && event.completed).length === 2, 'Both Open commands use the production file bridge');

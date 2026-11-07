@@ -403,14 +403,49 @@ module.exports = function partSequenceWorkflow(context) {
     check(canonical(await snapshot())===canonical(original)&&(await observe()).serial===before.serial,'Menu navigation preserves the cut draft without another native build');
     records.push({phase:'live-cut-menu-keyboard',keys:[...viewKeys,'Escape','Escape','Tab','Tab'],viewItems,draftRetained:true,insertGuards:true,serial:before.serial});
   }
+  async function managerAndDocumentControls() {
+    const properties='button[aria-label="Propiedades"]';
+    const snapshot=()=>page(()=>({recovery:localStorage.getItem('solidflow.autosave'),
+      history:['Deshacer (Ctrl+Z)','Rehacer (Ctrl+Y)'].map(title=>({title,disabled:document.querySelector('button[title="'+title+'"]')?.disabled})),
+      title:document.querySelector('.document-title')?.textContent}));
+    const before=await snapshot(),nativeBefore=await observe();
+    check(await page(selector=>document.querySelectorAll(selector).length===1&&document.querySelector(selector).disabled
+      &&document.querySelector(selector).title.includes('Selecciona una operación'),properties),
+      'Empty feature Properties is disabled with actionable selection guidance');
+    await actualTreePress('.document-tabs > button.active');
+    check(await page(()=>document.activeElement===document.querySelector('.viewport-canvas')
+      &&document.querySelector('.document-tabs > button.active')?.getAttribute('aria-current')==='page'),
+      'The current document tab activates the actual part viewport');
+    check(canonical(await snapshot())===canonical(before)&&(await observe()).serial===nativeBefore.serial,
+      'Document activation preserves the document, recovery, history and native build');
+    await actualTreePress(contextSelector('seq-base'));
+    await waitFor('Selected feature Properties becomes available',()=>page(selector=>!document.querySelector(selector)?.disabled,properties));
+    let serial=(await observe()).serial;
+    await actualTreePress(properties); await ready();
+    await built(serial,1,960,4,'manager-properties-preview');
+    check(await page((selector,name)=>document.querySelector('input[aria-label="Nombre de operación"]')?.value===name
+      &&document.querySelector('input[aria-label="Profundidad"]')?.value==='4'&&document.querySelector(selector)?.disabled,
+      properties,expected.features.find(feature=>feature.id==='seq-base').name),
+      'Properties edits the selected base, with correct depth and no conflicting second entry');
+    serial=(await observe()).serial;
+    await actualTreePress('button[title="Cancelar operación"]');
+    await waitFor('Manager Properties Cancel closes its editor',()=>page(()=>!document.querySelector('.property-manager')));
+    await built(serial,1,960,4,'manager-properties-cancel');
+    check(canonical(await snapshot())===canonical(before),'Property-editor Cancel preserves exact committed document, history and recovery');
+    await actualTreePress('button[aria-label="Limpiar selección de pieza"]');
+    await waitFor('Clearing feature selection disables Properties again',()=>page(selector=>document.querySelector(selector)?.disabled,properties));
+    records.push({phase:'manager-document-controls',activeTab:'actual viewport focus',emptyProperties:'disabled with guidance',
+      selectedFeature:'seq-base',cancelPreserved:true,input:'CDP left press/release on current hit-tested controls'});
+  }
   return async () => {
     await waitFor('part file control ready',()=>evaluate(`document.querySelector('.statusbar')?.textContent.includes('Listo') && typeof window.solidflow?.openDocument==='function' && !!document.querySelector('button[aria-label="Abrir (Ctrl+O)"]')`),initialReadyMs);
     let serial=(await observe()).serial;
-    await click('button[aria-label="Abrir (Ctrl+O)"]');
+    await actualTreePress('button[aria-label="Abrir documento"]');
     await waitFor('owned initial document replacement prompt',()=>evaluate(`!!document.querySelector('[role="dialog"][aria-labelledby="discard-title"]')`));
     await evaluate(`(() => { const b=document.querySelector('[role="dialog"][aria-labelledby="discard-title"] .primary-button'); if(!b||b.disabled||b.textContent.trim()!=='Continuar sin guardar')throw Error('Expected owned initial replacement'); b.click(); })()`);
     await built(serial,1,960,4,'original');
     await require('./desktop-command-header-layout.cjs')({page,check,checks}, 'part-sequence-initial-before-reveal', 'part');
+    await managerAndDocumentControls();
     await require('./desktop-part-selection-controls.cjs')(context);
     await explicitSketchEntry();
     await treeNavigation();
@@ -418,7 +453,16 @@ module.exports = function partSequenceWorkflow(context) {
     // The first sketch is edited and accepted before starting a cut: this is
     // the previous lost-body-selection path, not a preauthored operation.
     await row('Left cut profile',true);
-    await ready(); serial=(await observe()).serial; await click(APPLY);
+    await ready();
+    const sketchRecovery=await recovery(),sketchSerial=(await observe()).serial;
+    await actualTreePress('.document-tabs > button.active');
+    const sketchFocus=await page(()=>({active:document.activeElement===document.querySelector('.sketch-canvas svg[aria-label="Editor de croquis"]'),
+      tag:document.activeElement?.tagName,label:document.activeElement?.getAttribute('aria-label'),tabIndex:document.activeElement?.getAttribute('tabindex')}));
+    check(sketchFocus.active&&sketchFocus.tabIndex==='0','The current document tab activates the actual legacy sketch surface');
+    check(await recovery()===sketchRecovery&&(await observe()).serial===sketchSerial,
+      'Legacy sketch activation preserves the sketch draft recovery and native result');
+    records.push({phase:'legacy-document-activation',focus:sketchFocus,serial:sketchSerial,recoverySha256:digest(sketchRecovery)});
+    serial=(await observe()).serial; await click(APPLY);
     await waitFor('sketch accepted',()=>evaluate(`!document.querySelector('.property-manager')`));
     await built(serial,1,960,4,'accepted-sketch');
     const operations = [

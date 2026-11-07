@@ -1,7 +1,90 @@
 'use strict';
 
+// All navigation is real menu-key input. Merely inspecting a label never invokes
+// its command; Save/New/import/export are intentionally not activated here.
+async function fileNavigation({ page, waitFor, check, checks, canonical, actualControl, menuKey, snapshot, cameraFrame, kind, phase, expectedSaveEnabled }) {
+  const evidence = { kind, phase, expectedSaveEnabled, states: [], keys: [], view: [] };
+  checks.push({ headerFileNavigation: evidence });
+  const before = canonical(await snapshot());
+  const inspect = () => page(() => {
+    const headers = document.querySelectorAll('.command-header'), header = headers[0];
+    if (headers.length !== 1) throw Error('One owned current command header required');
+    const trigger = header.querySelector('button[data-assembly-menu="file"]'), id = trigger?.getAttribute('aria-controls');
+    const popup = id ? document.getElementById(id) : null;
+    if (!trigger?.isConnected || popup && (!popup.isConnected || !header.contains(popup) || popup.getAttribute('role') !== 'menu')) throw Error('Current File popup must belong to its connected header');
+    const items = popup ? [...popup.querySelectorAll(':scope > button[data-assembly-command]')].map(button => ({
+      id: button.dataset.assemblyCommand, index: Number(button.dataset.menuIndex), label: button.querySelector(':scope > span:not(.assembly-menu-check)')?.textContent.trim(), disabled: button.disabled,
+      focused: document.activeElement === button })) : [];
+    return { open: !!popup, items, popupFocused: !!popup && document.activeElement === popup,
+      triggerFocused: document.activeElement === trigger, activeConnected: !!document.activeElement?.isConnected,
+      activeDisabled: document.activeElement instanceof HTMLButtonElement && document.activeElement.disabled,
+      activeInHeader: header.contains(document.activeElement), activeCommand: document.activeElement?.getAttribute('data-assembly-command') ?? null };
+  });
+  const observeState = async (label, predicate) => {
+    const current = await waitFor('File key navigation ' + kind + '/' + phase + ': ' + label, async () => { const value = await inspect(); return predicate(value) ? value : false; });
+    check(current.activeConnected && !current.activeDisabled, 'Menu navigation retains a connected enabled focus owner');
+    evidence.states.push({ label, ...current });
+    check(canonical(await snapshot()) === before, 'Menu-only navigation preserves exact document, history, draft and native/file authority: ' + label);
+    return current;
+  };
+  const key = async name => { await menuKey(name); evidence.keys.push(name); };
+  const view = async label => {
+    const svg = await page(() => {
+      const element = document.querySelector('svg[aria-label="Editor de croquis multientidad"]'); if (!element?.checkVisibility()) return null;
+      const matrix = element.getScreenCTM(), origin = element.querySelector('[aria-label="Origen fijo (0, 0)"] circle'), grid = element.querySelector('pattern');
+      if (!matrix || !origin || !grid) throw Error('Actual visible sketch projection required');
+      return { kind: 'sketch-projection', matrix: [matrix.a, matrix.b, matrix.c, matrix.d, matrix.e, matrix.f],
+        origin: [origin.getAttribute('cx'), origin.getAttribute('cy')], grid: [grid.getAttribute('x'), grid.getAttribute('y'), grid.getAttribute('width'), grid.getAttribute('height')] };
+    });
+    if (svg) { evidence.view.push({ label, value: svg }); return svg; }
+    check(typeof cameraFrame === 'function', 'Existing real camera crop helper required for the displayed 3D workspace');
+    let previous = '', since = 0;
+    const frame = await waitFor('stationary File-navigation camera crop ' + label, async () => {
+      const current = await cameraFrame(), { rawSha256, ...compared } = current, signature = canonical(compared);
+      if (signature !== previous) { previous = signature; since = Date.now(); return false; }
+      return Date.now() - since >= 120 ? current : false;
+    });
+    const { rawSha256, ...compared } = frame;
+    evidence.view.push({ label, value: frame }); return { kind: '3d-crop', ...compared };
+  };
+  // Put pointer/focus in the header before either projection/crop observation,
+  // avoiding a transient hover overlay as an artificial camera difference.
+  await actualControl('button[data-assembly-menu="file"]'); await key('Escape');
+  await observeState('preparation Escape restores File trigger', state => !state.open && state.triggerFocused);
+  const originalView = await view('before');
+  await actualControl('button[data-assembly-menu="file"]');
+  const opened = await observeState('File opens on first enabled item or its empty popup', state => state.open && (state.items.some(item => !item.disabled)
+    ? state.activeCommand === state.items.find(item => !item.disabled).id : state.popupFocused));
+  const saves = opened.items.filter(item => item.label?.toLocaleLowerCase().startsWith('g'));
+  check(canonical(saves.map(item => item.label)) === canonical(['Guardar', 'Guardar como…']) && saves.every(item => item.disabled === !expectedSaveEnabled),
+    'Actual File inventory contains exactly the two expected guarded G commands');
+  const enabled = opened.items.filter(item => !item.disabled), focus = (state, item) => item ? state.activeCommand === item.id : state.popupFocused;
+  await key('End'); await observeState('End skips disabled commands to last available item', state => state.open && focus(state, enabled.at(-1)));
+  await key('ArrowDown'); await observeState('Down wraps to first available item', state => state.open && focus(state, enabled[0]));
+  await key('ArrowUp'); await observeState('Up wraps to last available item', state => state.open && focus(state, enabled.at(-1)));
+  await key('Home'); let current = await observeState('Home reaches first available item', state => state.open && focus(state, enabled[0]));
+  for (let repetition = 0; repetition < 4; repetition++) {
+    const activeIndex = current.items.findIndex(item => item.id === current.activeCommand), next = current.items.map((_, offset) => current.items[(activeIndex + offset + 1 + current.items.length) % current.items.length])
+      .find(item => !item.disabled && item.label.toLocaleLowerCase().startsWith('g'));
+    const oldFocus = current.activeCommand, popupFocused = current.popupFocused;
+    await key('g'); current = await observeState('G cycle ' + (repetition + 1), state => state.open && (next ? state.activeCommand === next.id : state.activeCommand === oldFocus && state.popupFocused === popupFocused));
+    check(current.items.filter(item => item.focused).every(item => !item.disabled), 'Repeated G never focuses an unavailable Save command');
+  }
+  if (expectedSaveEnabled) check(canonical(evidence.states.filter(state => /^G cycle /.test(state.label)).map(state => state.activeCommand))
+    === canonical([saves[0].id, saves[1].id, saves[0].id, saves[1].id]), 'Repeated G alternates Guardar/Guardar como and wraps');
+  await key('Tab'); await observeState('Tab closes popup and leaves connected header focus', state => !state.open && state.activeInHeader);
+  await actualControl('button[data-assembly-menu="file"]');
+  await observeState('Reopen retains exact command identities and guards', state => state.open
+    && canonical(state.items.map(({ focused, ...item }) => item)) === canonical(opened.items.map(({ focused, ...item }) => item)));
+  await key('Escape'); await observeState('Escape closes popup and restores File trigger', state => !state.open && state.triggerFocused);
+  const restoredView = await view('after');
+  check(canonical(restoredView) === canonical(originalView), 'Header keyboard navigation preserves exact displayed sketch projection or bounded 3D camera crop');
+  evidence.completed = true;
+  evidence.limits = 'One G prefix with two Save labels, actual Home/End/arrows/Tab/Escape; no command activation, arbitrary text, hardware-keyboard or all-letter/all-menu claim. Sketch mode checks its visible projection, not a hidden 3D camera.';
+}
+
 // Real header controls only; snapshots retain the caller's CAD/file authority.
-module.exports = async function headerMenus({ page, waitFor, check, checks, canonical, actualControl, menuKey, captureHeader, snapshot, kind }) {
+module.exports = async function headerMenus({ page, waitFor, check, checks, canonical, actualControl, menuKey, captureHeader, snapshot, cameraFrame, kind }) {
   const evidence = { kind, states: [], captures: [] }; checks.push({ headerMenus: evidence });
   const before = canonical(await snapshot());
   const inspect = () => page(() => {
@@ -50,6 +133,7 @@ module.exports = async function headerMenus({ page, waitFor, check, checks, cano
   };
   const initial = await state('initial pinned', value => value.pinned === 'true' && value.expanded === 'true' && value.pin && !value.reveal && value.quickVisible && !value.quickInert);
   check(initial.menus.length > 0 && initial.popupCount === 0, 'Initial pinned header has one closed command inventory');
+  await fileNavigation({ page, waitFor, check, checks, canonical, actualControl, menuKey, snapshot, cameraFrame, kind, phase: 'clean', expectedSaveEnabled: true });
   evidence.captures.push(await captureHeader('pinned'));
   await actualControl('[data-header-menu-pin]');
   const opened = await state('unpin retains temporary menus', transient);
@@ -92,3 +176,4 @@ module.exports = async function headerMenus({ page, waitFor, check, checks, cano
   check(canonical(await snapshot()) === before, 'Header pinning preserves exact CAD, history, recovery and file authority');
   evidence.completed = true;
 };
+module.exports.fileNavigation = fileNavigation;

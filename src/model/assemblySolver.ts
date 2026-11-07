@@ -534,7 +534,9 @@ function seedCircularPath(c: Extract<RigidMateConstraint, { type: 'circular-path
   return changed;
 }
 /** A bounded chart initialization from actual frames; never a solved publication. */
-function seedConstraint(c: RigidMateConstraint, free: ReadonlySet<string>, poses: Map<string, RigidPose>, problem: RigidMateProblem): boolean {
+function seedConstraint(c: RigidMateConstraint, free: ReadonlySet<string>, poses: Map<string, RigidPose>, problem: RigidMateProblem,
+  orthogonalAngleTransverse = false): boolean {
+  if (orthogonalAngleTransverse && (c.type !== 'angle' || c.angle !== 0 && c.angle !== 180)) return false;
   if (c.type === 'hinge') return seedConstraint({
     id: c.id, type: 'concentric', first: c.axis[0], second: c.axis[1],
     alignment: c.alignment, rotationLock: null,
@@ -592,7 +594,8 @@ function seedConstraint(c: RigidMateConstraint, free: ReadonlySet<string>, poses
       const sign = c.alignment === 'aligned' ? 1 : -1;
       target = a.axis.map(value => sign * value) as Vec3;
     }
-    rotation = multiplyRotation(alignRotation(b.axis, target, b.x), poses.get(id)!.rotation);
+    const transverse = orthogonalAngleTransverse ? cross(b.axis, b.x) : b.x;
+    rotation = multiplyRotation(alignRotation(b.axis, target, transverse), poses.get(id)!.rotation);
   }
   poses.set(id, validateRigidPose({ translation: [...poses.get(id)!.translation], rotation })); return true;
 }
@@ -713,7 +716,27 @@ function solveGroup(problem: RigidMateProblem, group: Group, poses: Map<string, 
     let changed = false;
     for (const diagnostic of evaluation.diagnostics) if (diagnostic.code === 'orientationChart') {
       const constraint = group.constraints.find(c => c.id === diagnostic.constraintId)!;
-      if (seedConstraint(constraint, free, poses, problem)) { changed = true; evidence.seededConstraintIds.push(constraint.id); }
+      const endpointAngle = constraint.type === 'angle' && (constraint.angle === 0 || constraint.angle === 180);
+      const beforeSeed = endpointAngle ? new Map(poses) : null;
+      if (seedConstraint(constraint, free, poses, problem)) {
+        if (beforeSeed) {
+          const proposed = evaluateRigidMates(local, poses);
+          // Keep the existing seed whenever all equations can be evaluated,
+          // including regular residuals for Newton to restore. An endpoint
+          // half-turn can instead make a coupled alignment antipodal. Try only
+          // the other transverse of that same frame, with the whole group.
+          if (proposed.diagnostics.length && proposed.diagnostics.every(value => value.code === 'orientationChart')) {
+            const alternate = new Map(beforeSeed);
+            if (seedConstraint(constraint, free, alternate, problem, true)) {
+              const checked = evaluateRigidMates(local, alternate);
+              if (!checked.diagnostics.length && checked.checks.length === local.constraints.length) {
+                for (const [id, pose] of alternate) poses.set(id, pose);
+              }
+            }
+          }
+        }
+        changed = true; evidence.seededConstraintIds.push(constraint.id);
+      }
     }
     if (!changed) break;
     evaluation = evaluateRigidMates(local, poses);

@@ -43,7 +43,6 @@ import {
   Plus,
   Trash2,
   Pencil,
-  PanelLeft,
   Component,
   SlidersHorizontal,
   Move3D,
@@ -3582,8 +3581,12 @@ export function PartWorkspace({ initialDocument, initialPath, initialSaved, skip
             </button>
             <button
               className={editing ? "active" : ""}
-              onClick={() => selectedFeature && editFeature(selectedFeature)}
-              title="Propiedades"
+              aria-label="Propiedades"
+              disabled={!selectedFeature || !!editing || busy || importing || exporting || fileOperation.current}
+              onClick={() => {
+                if (selectedFeature && !editing && !busy && !importing && !exporting && !fileOperation.current) editFeature(selectedFeature);
+              }}
+              title={!selectedFeature ? "Selecciona una operación en el árbol para ver sus propiedades" : "Propiedades"}
             >
               <SlidersHorizontal size={17} />
             </button>
@@ -4197,14 +4200,17 @@ export function PartWorkspace({ initialDocument, initialPath, initialSaved, skip
                         <BodyList compact bodies={model.bodies ?? []} selection={bodySelection} onSelection={chooseBodySelection} disabled={busy || !previewCurrent} />
                       </div>
                     </section>}
-                    <div
-                      className="tree-row subdued"
+                    <button
+                      type="button"
+                      className="tree-row subdued material-row"
+                      aria-label="Material de la pieza"
+                      title={doc.material?.name ?? 'Material sin especificar'}
                       onClick={() => setPanel("properties")}
                     >
                       <ChevronRight size={11} />
                       <Layers size={15} />
-                      <span>Material &lt;sin especificar&gt;</span>
-                    </div>
+                      <span>Material &lt;{doc.material?.name ?? 'sin especificar'}&gt;</span>
+                    </button>
                     {(["XY", "XZ", "YZ"] as Plane[]).map((p) => (
                       <div
                         className={
@@ -4913,10 +4919,12 @@ export function PartWorkspace({ initialDocument, initialPath, initialSaved, skip
         )}
       </main>
       <div className="document-tabs">
-        <button title="Navegar documentos">
-          <PanelLeft size={14} />
+        <button title="Abrir documento…" aria-label="Abrir documento" onClick={() => void openDoc()}
+          disabled={!!embeddedEdit || importing || exporting || fileOperation.current}>
+          <FolderOpen size={14} />
         </button>
-        <button className="active">
+        <button className="active" title="Activar pieza" aria-current="page" disabled={busy || sourceLoading || importing || exporting}
+          onClick={() => shell.current?.querySelector<HTMLElement | SVGSVGElement>('.graphics-area .sketch-canvas svg[tabindex], .graphics-area .viewport-canvas[tabindex]')?.focus({ preventScroll: true })}>
           <Box size={14} />
           {doc.name}
           {dirty ? " *" : ""}

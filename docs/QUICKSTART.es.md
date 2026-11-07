@@ -4,6 +4,8 @@ SolidFlow es un CAD paramétrico libre, con interfaz azul y controles actualment
 en español. El proyecto está en desarrollo; los módulos desactivados todavía
 no están implementados. Consulta el [alcance](ROADMAP.md) y la [validación](VALIDATION.md).
 
+Si ya tienes una demo local, sigue la [prueba guiada de pieza y ensamblaje](PROBAR_SOLIDFLOW.md).
+
 ## Abrir desde el código
 
 Instala Git y Node.js 24. En una terminal:

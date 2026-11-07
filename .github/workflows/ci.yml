@@ -285,6 +285,46 @@ jobs:
         if: matrix.batch == 'persistence' && runner.os != 'Linux'
         run: npm run test:desktop:part-revolution
 
+      - name: Test pointer-authored sketch primitives and constraints (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:sketch-primitives
+
+      - name: Test pointer-authored sketch primitives and constraints (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:sketch-primitives
+
+      - name: Test normal hole authoring and STEP geometry (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:part-hole
+
+      - name: Test normal hole authoring and STEP geometry (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:part-hole
+
+      - name: Test ordered body combination and STEP geometry (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:part-combine
+
+      - name: Test ordered body combination and STEP geometry (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:part-combine
+
+      - name: Test normal shell and draft lifecycle (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:part-shell-draft
+
+      - name: Test normal shell and draft lifecycle (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:part-shell-draft
+
+      - name: Test normal pattern authoring and STEP placements (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:part-pattern-create
+
+      - name: Test normal pattern authoring and STEP placements (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:part-pattern-create
+
       - name: Test normal sweep and loft lifecycle (Linux)
         if: matrix.batch == 'persistence' && runner.os == 'Linux'
         run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:part-sweep-loft
@@ -300,6 +340,22 @@ jobs:
       - name: Test part material, colour and viewport background (Windows/macOS)
         if: matrix.batch == 'persistence' && runner.os != 'Linux'
         run: npm run test:desktop:part-properties
+
+      - name: Test material profile across a real process restart (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:part-properties-transitions
+
+      - name: Test material profile across a real process restart (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:part-properties-transitions
+
+      - name: Test reused-source material appearance and configured mass (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-part-properties
+
+      - name: Test reused-source material appearance and configured mass (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-part-properties
 
       - name: Test external revolution axis references (Linux)
         if: matrix.batch == 'persistence' && runner.os == 'Linux'

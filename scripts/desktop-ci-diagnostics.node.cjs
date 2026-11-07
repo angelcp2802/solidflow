@@ -292,6 +292,8 @@ test('actual deadline keeps every timing phase and existing progress within the 
 
 function exerciseChildFinish({ primary = new Error('Original child coordinate assertion'), active = true, frames = 1,
   cleanupError = null, withWindow = true, destroyed = false, nativeClose = null, nativeReopen = false,
+  partPropertiesTransitions = false, propertiesReopenReceipt = null, partPropertiesProcess = null, partPropertiesCaptures = [],
+  assemblyPartProperties = false, assemblyPropertiesCaptures = [],
   expectedStatus = 'FAIL', timing = null, duringCleanup = () => {},
   symmetrySaveTimings = new Map(), ipc = [], now = () => performance.now() } = {}) {
   const source = fs.readFileSync(path.join(__dirname, 'desktop-pattern-ui.cjs'), 'utf8');
@@ -317,7 +319,9 @@ function exerciseChildFinish({ primary = new Error('Original child coordinate as
     check(condition, message) { if (!condition) throw Error(message); },
     saveCompletion: { enabled: !!primary, ordinal: 1, armed: true, pending: !!primary, samples: [] },
     releaseSaveCompletion(by) { context.saveCompletion.pending=false;context.saveCompletion.releasedBy=by;events.push(['release',by]); },
-    owned: '/original-owned-test', activeScenario: { test: 'original-diagnostic-integration' },
+    owned: '/original-owned-test', activeScenario: { test: 'original-diagnostic-integration', ...(partPropertiesTransitions ? { partPropertiesTransitions: true } : {}), ...(assemblyPartProperties ? { assemblyPartProperties: true } : {}) },
+    ...(assemblyPartProperties ? { assemblyPropertiesCaptures } : {}),
+    ...(partPropertiesTransitions ? { propertiesReopenReceipt, partPropertiesProcess, partPropertiesCaptures } : {}),
     path, describeError: value => ({ name: value.name, message: value.message }),
     emitDesktopCiFailure(value) { events.push(['annotation', value.message]); },
     fs: { writeFileSync(name, data) { writtenPaths.push(name); writes.push(JSON.parse(data)); }, writeSync(_fd, data) { events.push(['json', JSON.parse(data).workflowStatus]); } },
@@ -349,6 +353,23 @@ test('actual child finish releases Save, unsubscribes, rejects presentation wait
   assert.equal(context.process.exitCode, 1);
 });
 
+test('fixed material transition reports retain their process evidence and primary error at both exits', () => {
+  for (const reopened of [false, true]) {
+    const primary = new Error('Original material transition assertion');
+    const processEvidence = { phase: reopened ? 'reopen' : 'first', pid: reopened ? 202 : 101 };
+    const captureEvidence = [{ name: reopened ? 'recovered-custom' : 'first-custom' }];
+    const { writes, writtenPaths, events } = exerciseChildFinish({ primary, partPropertiesTransitions: true,
+      propertiesReopenReceipt: reopened ? { priorPid: 101 } : null,
+      partPropertiesProcess: processEvidence, partPropertiesCaptures: captureEvidence });
+    assert.equal(writes.length, 1); assert.equal(writes[0].workflowStatus, 'FAIL');
+    assert.equal(writes[0].error.message, primary.message);
+    assert.deepEqual(writes[0].partPropertiesProcess, processEvidence);
+    assert.deepEqual(writes[0].partPropertiesCaptures, captureEvidence);
+    assert.equal(path.basename(writtenPaths[0]), reopened ? 'part-properties-reopen-result.json' : 'workflow-result.json');
+    assert.deepEqual(events.at(-1), ['exit', 1]);
+  }
+});
+
 test('presentation teardown failure cannot replace the original child failure or strand waiters', () => {
   const primary = new Error('Original worker assertion'), cleanupError = new Error('Subscription teardown failed');
   const { context, writes, rejected, events } = exerciseChildFinish({ primary, cleanupError });
@@ -356,6 +377,15 @@ test('presentation teardown failure cannot replace the original child failure or
   assert.ok(rejected.every(value => value === primary)); assert.equal(rejected.length, 2);
   assert.equal(context.presentationWaiters.size, 0);
   assert.deepEqual(events.filter(event => event[0] === 'annotation'), [['annotation', primary.message]]);
+  assert.deepEqual(events.at(-1), ['exit', 1]);
+});
+
+test('fixed assembly material capture report preserves its original child failure', () => {
+  const primary = Error('Original assembly appearance assertion'), captures = [{ phase: 'standard-initial-unselected' }];
+  const { writes, events } = exerciseChildFinish({ primary, assemblyPartProperties: true, assemblyPropertiesCaptures: captures });
+  assert.equal(writes[0].error.message, primary.message);
+  assert.deepEqual(writes[0].assemblyPropertiesCaptures, captures);
+  assert.equal(writes[0].workflowStatus, 'FAIL');
   assert.deepEqual(events.at(-1), ['exit', 1]);
 });
 

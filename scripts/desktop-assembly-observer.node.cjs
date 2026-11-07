@@ -145,9 +145,24 @@ test('mixed normal-view observer retains standard and configured native metadata
 });
 
 test('configured observation still rejects a missing required configuration ancestry', () => {
-  for (const mixed of [false,true]) {
-    const { worker } = observer([false,false,false,true,false,false,false,mixed]);
+  for (const options of [[false,false,false,true], [false,false,false,true,false,false,false,true],
+    [false,false,false,true,false,false,false,false,false,false,true]]) {
+    const { worker } = observer(options);
     worker.postMessage({ id: 'configured', action: 'build-configured-assembly' });
     assert.throws(()=>worker.emit('message',{id:'configured',ok:true,value:{kind:'configured-assembly-scene',context:{},scene:normalScene(false),referenceDiagnostics:[]}}));
   }
+});
+
+test('mixed material observer retains genuine configured ancestry while standard uses have none', () => {
+  const { api, worker } = observer([false,false,false,true,false,false,false,false,false,false,true]);
+  const standard = normalScene(false), configured = normalScene(true), original = JSON.stringify([standard,configured]);
+  const request = { id: 'material-standard', action: 'build-assembly' };
+  worker.postMessage(request); worker.emit('message',{id:request.id,ok:true,value:standard});
+  worker.postMessage({id:'material-configured',action:'build-configured-assembly'});
+  worker.emit('message',{id:'material-configured',ok:true,value:{kind:'configured-assembly-scene',context:{},scene:configured,referenceDiagnostics:[]}});
+  const rows = plain(api.snapshot()).assemblies;
+  assert.strictEqual(worker.sent[0],request);
+  assert.equal(Object.hasOwn(rows[0].response.value.bodies[0],'configurationAncestry'),false);
+  assert.deepEqual(rows[1].response.value.scene.bodies[0].configurationAncestry,configured.bodies[0].configurationAncestry);
+  assert.equal(JSON.stringify([standard,configured]),original,'Observation cannot change a request or actual scene');
 });

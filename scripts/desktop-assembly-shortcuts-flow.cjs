@@ -216,7 +216,7 @@ module.exports = function assemblyShortcutWorkflow(context) {
         selection:[...document.querySelectorAll('[data-assembly-tree-path][aria-selected="true"],[data-assembly-origin-tree-key][aria-selected="true"]')].map(e=>({path:e.getAttribute('data-assembly-tree-path'),origin:e.getAttribute('data-assembly-origin-tree-key')})),
         picking:document.querySelector('.assembly-viewport')?.getAttribute('data-reference-picking')
       }))});
-    await require('./desktop-header-menu-flow.cjs')({page,waitFor,check,checks,canonical,actualControl,menuKey,captureHeader,snapshot:viewSnapshot,kind:configured?'configured':'standard'});
+    await require('./desktop-header-menu-flow.cjs')({page,waitFor,check,checks,canonical,actualControl,menuKey,captureHeader,snapshot:viewSnapshot,cameraFrame,kind:configured?'configured':'standard'});
     await require('./desktop-view-navigation-flow.cjs')({page,waitFor,check,checks,canonical,key,cameraFrame,cameraGesture,rasterComparison,kind:configured?'configured':'standard',actualControl,snapshot:viewSnapshot});
     if(!configured){
       await actualControl(`[data-assembly-tree-path='["moving"]']`);
@@ -281,6 +281,18 @@ module.exports = function assemblyShortcutWorkflow(context) {
       const e=configured?[...document.querySelectorAll('[aria-label="Comandos del ensamblaje configurado"] button')].find(e=>e.textContent.trim()==='Aplicar configuración'):document.querySelector('[aria-label="Aplicar ensamblaje"]');
       return document.querySelector(root)?.getAttribute('aria-busy')==='false'&&!!e&&!e.disabled;
     },configured,ROOT));
+    await require('./desktop-header-menu-flow.cjs').fileNavigation({ page, waitFor, check, checks, canonical, actualControl, menuKey, cameraFrame,
+      snapshot: async () => ({ ...await viewSnapshot(), editor: await page(() => ({
+        fields: [...document.querySelectorAll('.assembly-app input,.assembly-app select,.configured-assembly-workspace input,.configured-assembly-workspace select')]
+          .filter(field => !field.closest('.command-header')).map(field => ({ tag: field.tagName, label: field.getAttribute('aria-label'), value: field.value, checked: field.checked, disabled: field.disabled })),
+        roles: [...document.querySelectorAll('button[aria-label^="Referencia "]')].map(button => ({ label: button.getAttribute('aria-label'), text: button.textContent, disabled: button.disabled, pressed: button.getAttribute('aria-pressed') })),
+        apply: [...document.querySelectorAll('[aria-label="Comandos del ensamblaje configurado"] button,button[aria-label="Aplicar ensamblaje"]')]
+          .filter(button => button.getAttribute('aria-label') === 'Aplicar ensamblaje' || button.textContent.trim() === 'Aplicar configuración').map(button => ({ text: button.textContent, disabled: button.disabled }))
+      })) }), kind: configured ? 'configured' : 'standard', phase: 'verified-preview', expectedSaveEnabled: false });
+    // File-menu Escape intentionally restores its own trigger. Reuse the
+    // original camera-only focus preparation before the pre-existing global
+    // shortcut/Cancel assertions, so that the menubar no longer owns Escape.
+    await outside();
     const candidateState=await snapshot();await key('S');await key('ShiftS');await key('N');
     check(await page(()=>!document.querySelector('[role="dialog"]')),'Unapplied preview blocks New selector');
     await stable(candidateState,'Preview disables Save and New shortcuts without consuming candidate authority');
