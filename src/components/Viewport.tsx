@@ -1,4 +1,5 @@
 import { bindViewNavigation, createViewHistory, type ViewHistory, type ViewRequest } from './viewNavigation';
+import { useViewportBackground } from './ViewportBackgroundSettings';
 export type { ViewName } from './viewNavigation';
 import { pickPartReference, type PartSelectionMode } from "./partSelection";
 import { configureCadNavigation, createCadSelectionGesture } from "./cadNavigation";
@@ -177,6 +178,7 @@ export function pickVisibleEdge(
 
 interface Props {
   model: CadResult | null;
+  bodyColor?: string;
   revolutionAxisPicking?: RevolutionAxisPicking;
   referencePickingRequest?: unknown;
   view: ViewRequest;
@@ -208,6 +210,7 @@ interface Props {
 }
 export default function Viewport({
   model,
+  bodyColor,
   revolutionAxisPicking,
   referencePickingRequest,
   view,
@@ -237,6 +240,7 @@ export default function Viewport({
   activeInputSketchIds,
   activeInputSketches,
 }: Props) {
+  const background = useViewportBackground();
   const host = useRef<HTMLDivElement>(null);
   const localViewHistory = useRef(createViewHistory());
   const navigationHistory = viewHistory ?? localViewHistory.current;
@@ -895,7 +899,7 @@ export default function Viewport({
     );
     geometry.setIndex(model.triangles);
     const mat = new THREE.MeshStandardMaterial({
-      color: selected && (selectionMode === 'auto' || selectionMode === 'body') ? 0x57a7ef : 0x8cabc3,
+      color: selected && (selectionMode === 'auto' || selectionMode === 'body') ? 0x57a7ef : bodyColor ?? 0x8cabc3,
       metalness: 0.38,
       roughness: 0.36,
       side: THREE.DoubleSide,
@@ -958,7 +962,7 @@ export default function Viewport({
     c.updateHighlights();
     // A new document fits once its first body arrives; parameter edits preserve the camera.
     if (previouslyEmpty) c.fit();
-  }, [model, display, selected, selectionMode]);
+  }, [model, display, selected, selectionMode, bodyColor]);
   useEffect(() => {
     const c = context.current;
     if (!c) return;
@@ -1094,6 +1098,7 @@ export default function Viewport({
     <div
       ref={host}
       className="viewport-canvas"
+      style={background ? { background } : undefined}
       tabIndex={onContextTarget || revolutionAxisPicking || referencePickingRequest ? 0 : undefined}
       aria-label="Vista 3D de la pieza"
       data-part-selection-mode={selectionMode}

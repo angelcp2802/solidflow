@@ -1,4 +1,6 @@
 import { bindViewNavigation, captureCameraView, createViewHistory, type ViewHistory, type ViewRequest } from './viewNavigation'
+import { useViewportBackground } from './ViewportBackgroundSettings'
+import { assemblyPartAppearanceKey } from './assemblyPartAppearance'
 import { configureCadNavigation, createCadSelectionGesture } from './cadNavigation'
 import { createCadContextGesture } from './cadContextGesture'
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
@@ -218,6 +220,7 @@ export function pickAssemblyViewSelection(scene: AssemblyScene, camera: Camera, 
 }
 export interface AssemblyViewportProps {
   scene: AssemblyScene | null
+  partColors?: ReadonlyMap<string, string>
   selectedPath?: readonly string[]
   selectedFaces?: readonly AssemblySceneFace[]
   selectedEdges?: readonly AssemblySceneEdge[]
@@ -251,6 +254,7 @@ export interface AssemblyViewportProps {
   onContextTarget?: (target: AssemblyViewportContextTarget) => void
 }
 export default function AssemblyViewport(props: AssemblyViewportProps) {
+  const background = useViewportBackground()
   const localViewHistory = useRef(createViewHistory())
   const navigationHistory = props.viewHistory ?? localViewHistory.current
   const host = useRef<HTMLDivElement>(null), input = useRef(props); input.current = props
@@ -365,7 +369,7 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
       current.bodies.forEach(({ body, object }) => {
         const active = selected.length > 0 && selected.every((id, i) => body.component.occurrencePath[i] === id)
         const paired = assemblyAnalysisBodySelected(body, input.current.selectedAnalysisPair), material = object.material as THREE.MeshStandardMaterial
-        material.color.setHex(active ? 0x429ce0 : 0x89abc8); material.transparent = paired; material.opacity = paired ? .28 : 1; material.depthWrite = !paired
+        material.color.set(active ? 0x429ce0 : input.current.partColors?.get(assemblyPartAppearanceKey(body.component.definition)) ?? 0x89abc8); material.transparent = paired; material.opacity = paired ? .28 : 1; material.depthWrite = !paired
       })
       current.faces.forEach(({ face, object }) => {
         const key = assemblyFaceKey(face), material = object.material as THREE.MeshBasicMaterial
@@ -559,7 +563,7 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
       // applying worldPose again would double-transform the occurrence.
       const occurrence = new THREE.Group(); occurrence.name = assemblyComponentKey(body.component); current.group.add(occurrence)
       const geometry = new THREE.BufferGeometry(); geometry.setAttribute('position', new THREE.Float32BufferAttribute(body.vertices, 3)); geometry.setAttribute('normal', new THREE.Float32BufferAttribute(body.normals, 3)); geometry.setIndex(body.triangles)
-      const object = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: 0x89abc8, metalness: .25, roughness: .42, side: THREE.DoubleSide })); occurrence.add(object); current.bodies.push({ body, object })
+      const object = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: props.partColors?.get(assemblyPartAppearanceKey(body.component.definition)) ?? 0x89abc8, metalness: .25, roughness: .42, side: THREE.DoubleSide })); occurrence.add(object); current.bodies.push({ body, object })
       if (body.edgeLines.length) { const edges = new THREE.BufferGeometry(); edges.setAttribute('position', new THREE.Float32BufferAttribute(body.edgeLines, 3)); occurrence.add(new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x305c7e, transparent: true, opacity: .7 }))) }
       for (const face of body.faces) {
         const mesh = new THREE.BufferGeometry(); mesh.setAttribute('position', new THREE.Float32BufferAttribute(face.vertices, 3)); mesh.setIndex(face.triangles)
@@ -584,7 +588,7 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
     const pair = props.selectedAnalysisPair, keys = new Set(props.scene?.bodies.map(body => assemblyBodyKey(body.component, body.body)))
     if (pair && [pair.first, pair.second].every(value => keys.has(assemblyBodyKey(value.component, value.body)))) current.analysis.add(createAssemblyInterferenceOverlay(pair))
   }, [props.scene, props.selectedAnalysisPair])
-  useEffect(() => { context.current?.highlight() }, [props.selectedPath, props.selectedFaces, props.selectedEdges, props.selectedVertices, props.originReferences, props.selectedOrigins])
+  useEffect(() => { context.current?.highlight() }, [props.selectedPath, props.selectedFaces, props.selectedEdges, props.selectedVertices, props.originReferences, props.selectedOrigins, props.partColors])
   useEffect(() => { context.current?.cancelBrowse(); context.current?.clearHover(); context.current?.highlight() },
     [props.scene, props.browseSelectionMode, props.interactionRevision, props.disabled, props.pickingFaces, props.pickingEdges, props.pickingVertices, props.pickingOrigins])
   useEffect(() => { context.current?.clearHover(); context.current?.highlight(); context.current?.syncDrag() }, [props.drag, props.disabled, props.pickingFaces, props.pickingEdges, props.pickingVertices, props.pickingOrigins])
@@ -604,7 +608,7 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
         const value = input.current, matches = (value.originReferences ?? []).filter(entry => entry.key === label.key)
           if (!value.disabled && assemblyReferencePickMode(value) === 'origin' && originFrame.current === originCatalog(value) && matches.length === 1 && assemblyOriginDisplayBinding(matches[0]) === label.binding) value.onOrigin?.(structuredClone(matches[0].reference))
       }}>{label.label}</button>
-  return <div className="assembly-viewport" ref={host} tabIndex={props.onContextTarget ? 0 : undefined} aria-label="Visor 3D del ensamblaje" data-analysis-pair={props.selectedAnalysisPair?.id} data-drag-axis={dragAxis ?? ''} data-reference-picking={assemblyReferencePickMode(props) ?? ''}>
+  return <div className="assembly-viewport" ref={host} style={background ? { background } : undefined} tabIndex={props.onContextTarget ? 0 : undefined} aria-label="Visor 3D del ensamblaje" data-analysis-pair={props.selectedAnalysisPair?.id} data-drag-axis={dragAxis ?? ''} data-reference-picking={assemblyReferencePickMode(props) ?? ''}>
     <div className="assembly-origin-labels" aria-label="Referencias de origen visibles">
       <svg className="assembly-origin-leaders" aria-hidden="true">{originLabelState.layout.labels.map(label => <line key={label.key}
         x1={label.x} y1={label.y} x2={Math.max(label.left, Math.min(label.left + label.width, label.x))} y2={Math.max(label.top, Math.min(label.top + label.height, label.y))} />)}</svg>

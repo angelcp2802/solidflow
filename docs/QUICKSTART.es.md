@@ -34,6 +34,13 @@ los datos importados quedan dentro del documento. No se recupera el historial
 de diseño original. Consulta las unidades admitidas y límites en la
 [guía de importación](STEP_IMPORT.md).
 
+En **Herramientas → Propiedades físicas** puedes asignar material, densidad y
+color a la pieza. Aplica los cambios para guardarlos con su historial. La masa
+se calcula a partir del sólido reconstruido y la densidad indicada. En
+**Ver → Fondo del visor…** puedes elegir un fondo sólido para este equipo.
+Consulta los [límites de materiales y apariencia](PART_PROPERTIES.md), incluida
+la compatibilidad con lectores anteriores.
+
 Para practicar la simetría, abre **Simetría de medio perfil** en la biblioteca,
 edita su croquis y elige **Simetría de croquis**. Selecciona los tres tramos y
 el eje de construcción en **Con respecto a**, mantén los puntos sobre el eje

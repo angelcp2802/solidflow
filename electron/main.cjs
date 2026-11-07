@@ -249,11 +249,28 @@ function hasValidSavedNamedViews(document) {
     return Math.fround(Math.hypot(y * uz - z * uy, z * ux - x * uz, x * uy - y * ux)) !== 0;
   });
 }
+// Optional per-part metadata has no file, geometry or executable authority.
+// JSON.parse supplies plain data here; keep its admission rules aligned with
+// src/model/partProperties.ts without changing the exact bytes being saved.
+function hasValidSavedPartProperties(document) {
+  const exact = (value, keys) => value && typeof value === 'object' && !Array.isArray(value)
+    && Object.keys(value).length === keys.length && keys.every(key => Object.hasOwn(value, key));
+  if (Object.hasOwn(document, 'material')) {
+    const material = document.material;
+    if (!exact(material, ['name', 'densityKgPerM3']) || typeof material.name !== 'string' || !material.name
+      || material.name.length > 80 || material.name.trim().normalize('NFC') !== material.name || /[\x00-\x1f\x7f-\x9f]/.test(material.name)
+      || typeof material.densityKgPerM3 !== 'number' || !Number.isFinite(material.densityKgPerM3)
+      || material.densityKgPerM3 <= 0 || material.densityKgPerM3 > 1_000_000) return false;
+  }
+  if (Object.hasOwn(document, 'appearance') && (!exact(document.appearance, ['color'])
+    || typeof document.appearance.color !== 'string' || document.appearance.color.length !== 7 || !/^#[0-9a-fA-F]{6}$/.test(document.appearance.color))) return false;
+  return true;
+}
 function isSavedDocumentEnvelope(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   if (!hasValidSavedNamedViews(value)) return false;
   // Retain the existing v1 transport contract.
-  if (value.version === 1) return Array.isArray(value.features);
+  if (value.version === 1) return Array.isArray(value.features) && hasValidSavedPartProperties(value);
   if (value.version === 3) {
     const fields = ['version', 'kind', 'source', 'catalog', 'rootConfiguration'];
     if (value.kind !== 'configured-assembly' || Object.keys(value).length !== fields.length + Number(Object.hasOwn(value, 'namedViews')) ||
@@ -299,7 +316,7 @@ function isSavedDocumentEnvelope(value) {
     stamp(value.createdAt) && stamp(value.updatedAt) && Date.parse(value.updatedAt) >= Date.parse(value.createdAt) &&
     Array.isArray(value.definitions) && value.definitions.length <= 512 &&
     value.definitions.every(definition => definition?.kind !== 'part' || !definition.document || typeof definition.document !== 'object'
-      || hasValidSavedNamedViews(definition.document)) &&
+      || hasValidSavedNamedViews(definition.document) && hasValidSavedPartProperties(definition.document)) &&
     Array.isArray(value.occurrences) && value.occurrences.length <= 4096 &&
     Array.isArray(value.mates) && value.mates.length <= 4096;
 }

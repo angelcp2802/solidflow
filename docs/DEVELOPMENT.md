@@ -1,5 +1,39 @@
 # Development guide
 
+## Part materials, appearance and normal sweep/loft entry
+
+Part material and appearance are optional strict declarations; see
+[the compatibility and mass contract](PART_PROPERTIES.md). Use the ordinary
+document-history transaction and a fresh native reconstruction. Do not broaden
+the named-view metadata exception or reuse an embedded-editor readiness witness
+for a different document. Assembly appearance resolves the exact definition and
+revision from the document belonging to the displayed scene; it grants no native
+reference, source-update or Apply authority.
+
+The viewport background is a separately validated profile preference. Its
+Apply/Cancel/default controls must preserve document/recovery/history/file grants.
+Keep native keyboard editing and dialog focus while excluding CAD shortcuts
+behind the modal. Unavailable profile storage is a session-only result with
+visible feedback, not an instruction to change CAD recovery storage.
+
+After building, the following fixed production-renderer scenarios use original
+fixtures, isolated profiles and the normal restricted file bridge:
+
+- `npm run test:desktop:part-properties`: a 10 mm cube, synthetic density
+  1000 kg/m³, part colour, fresh displayed mass 0.001 kg, Cancel, Undo/Redo,
+  Save/Open and independent background preference. Its current profile reopening
+  is within one process; it does not establish fresh-process or pixel fidelity.
+- `npm run test:desktop:part-sweep-loft`: ordinary creation of a straight circular
+  sweep and two-section coaxial loft as separate bodies, recoverable open-profile
+  input, Cancel/retry, editing, four history transactions, Save/Open and a final
+  STEP measurement. Retain the cylinder/frustum formulas, exact body identities
+  and existing 1e-5 mm³/mm² and 1e-6 mm tolerances. That original ruled final loft
+  does not establish curved-path, seam, merge or multi-section coverage.
+
+The [command matrix](USABLE_COMMAND_MATRIX.md) distinguishes handlers, aliases,
+interaction evidence, actual missing controls and intentionally unavailable
+modules. Source inspection alone does not close a renderer or human-use gate.
+
 ## Explicit sketch input for new extrusion and revolution operations
 
 The four extrusion/revolution commands use only an explicitly selected, current,

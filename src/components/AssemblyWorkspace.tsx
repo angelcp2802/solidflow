@@ -1,4 +1,6 @@
 import { useViewHistory } from './useViewHistory'
+import { useViewportBackgroundSettings } from './ViewportBackgroundSettings'
+import { assemblyMassKg, assemblyPartColors } from './assemblyPartAppearance'
 import { NamedViewsDialog } from './NamedViewsDialog'
 import { rebindNamedViewSelection, sameDocumentExceptNamedViews, useNamedDocumentViews } from './useNamedDocumentViews'
 import { standardViews, type ViewName, type ViewRequest } from './viewNavigation'
@@ -378,6 +380,7 @@ function downloadBomCsv(content: string, name: string): void {
 }
 
 export default function AssemblyWorkspace({ initialDocument, initialPath, initialSaved, onOpenPart, onOpenConfigured, renderPartEditor }: AssemblyWorkspaceProps) {
+  const backgroundSettings = useViewportBackgroundSettings()
   const newDocumentDialog = useNewDocumentDialog(), newDocumentRequest = useRef(false)
   const [treeReset, setTreeReset] = useState(0)
   type ContextTarget = { point: { x: number; y: number }; element: HTMLElement; reset: number; signature: string; scope: string; generation: number }
@@ -554,6 +557,13 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     busy: exportView.current.busy, draft: exportView.current.draft, preview: !!currentPreview.current, sourceUpdate: hasStaging(),
     replacing: exportView.current.replacing || !!replaceAnswer.current || embeddedPart.isOpen(), sceneSignature: sceneSignature.current, confirmedSceneSignature: confirmedScene.current?.signature ?? null })
   const serialized = useMemo(() => serializeAssemblyDocument(committed), [committed]), candidateSignature = useMemo(() => draft ? serializeAssemblyDocument(draft) : null, [draft])
+  const appearanceDocument = preview && scene === preview.reply.scene ? preview.reply.document
+    : sourceUpdate && sourceUpdate.baseSignature === serialized && scene === sourceUpdate.review.scene ? sourceUpdate.review.document
+    : documentUpdate && documentUpdate.baseSignature === serialized && scene === documentUpdate.review.scene ? documentUpdate.review.document
+    : replacementReview && replacementReview.baseSignature === serialized && scene === replacementReview.review.scene ? replacementReview.review.document : committed;
+  const partColors = useMemo(() => assemblyPartColors(appearanceDocument), [appearanceDocument]);
+  const totalMassKg = assemblyMassKg(committed, scene, !busy && !error && !preview && !hasStaging()
+    && !draft && sceneSignature.current === serialized && confirmedScene.current?.signature === serialized && confirmedScene.current.scene === scene);
   useEffect(() => { creationReferenceDraft.current = null }, [scopePath, serialized, treeReset])
   const rows = useMemo(() => assemblyTreeRows(committed), [committed]), selected = rows.find(row => samePath(row.path, selectedPath))
   const movementScope = selected && (assemblyDefinitionKey(committed) === assemblyDefinitionKey(selected.parent) ? committed
@@ -2670,6 +2680,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
       ...standardViews.map(({ name, label }) => ({ id: 'view-' + name, label, disabled: !!dragSession.current || viewHistory.navigating, onSelect: () => viewButton(name) })),
       { id: 'view-normal', label: 'Normal a', disabled: !canNormal, onSelect: () => viewButton('normal') },
       { id: 'view-named', label: 'Vistas guardadas…', disabled: !namedViews.canOpen, onSelect: namedViews.open },
+      { id: 'viewport-background', label: 'Fondo del visor…', onSelect: backgroundSettings.open },
       { id: 'view-previous', label: 'Vista anterior', disabled: !!dragSession.current || !viewHistory.canPrevious, onSelect: () => viewButton('previous') },
       { id: 'view-fit', label: 'Ajustar a pantalla', disabled: !!dragSession.current || viewHistory.navigating, onSelect: () => viewButton('fit') },
       { id: 'show-tree', label: 'Árbol de componentes', onSelect: () => openManager('components') },
@@ -3095,7 +3106,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
         </ViewportToolGroup><ViewportToolGroup label="Manipulación del componente" className="assembly-drag-tools"><button title="Arrastrar posición" aria-label="Arrastrar posición" aria-pressed={dragMode === 'translate'} disabled={editingBlocked || !!draft || !!preview || replaceDialog || !eligibleDragFrame} onClick={() => { setTreeOriginSelection(null); setNormalSelection(null); clearSymmetryPicking(); setDragMode('translate') }}><ViewportToolIcon name="translate" label="Arrastrar posición" /></button>
         <button title="Arrastrar giro" aria-label="Arrastrar giro" aria-pressed={dragMode === 'rotate'} disabled={editingBlocked || !!draft || !!preview || replaceDialog || !eligibleDragFrame} onClick={() => { setTreeOriginSelection(null); setNormalSelection(null); clearSymmetryPicking(); setDragMode('rotate') }}><ViewportToolIcon name="rotate" label="Arrastrar giro" /></button>
         <button title="Desactivar manipulador" aria-label="Desactivar manipulador" disabled={!!dragSession.current || dragMode === 'off'} onClick={() => setDragMode('off')}><ViewportToolIcon name="stop" label="Desactivar manipulador" /></button></ViewportToolGroup></CompactViewportToolbar>
-      <AssemblyViewport originLabelTopInset={44} scene={scene} view={view} viewHistory={viewHistory} selectedPath={selectedTreeOrigin ? [] : selectedPath} selectedFaces={normalViewBlocked ? rackSelectedFaces : [...rackSelectedFaces, ...browseFaces]} selectedEdges={normalViewBlocked ? rackSelectedEdges : [...rackSelectedEdges, ...browseResolution.edges]} selectedAnalysisPair={selectedAnalysisPair} browseSelectionMode={browseSelectionMode}
+      <AssemblyViewport partColors={partColors} originLabelTopInset={44} scene={scene} view={view} viewHistory={viewHistory} selectedPath={selectedTreeOrigin ? [] : selectedPath} selectedFaces={normalViewBlocked ? rackSelectedFaces : [...rackSelectedFaces, ...browseFaces]} selectedEdges={normalViewBlocked ? rackSelectedEdges : [...rackSelectedEdges, ...browseResolution.edges]} selectedAnalysisPair={selectedAnalysisPair} browseSelectionMode={browseSelectionMode}
         onContextTarget={openViewportContext}
         originReferences={!normalViewBlocked && browseOrigins.length ? browseOrigins : selectedTreeOrigin ? [selectedTreeOrigin.display] : originDisplays}
         selectedOrigins={!normalViewBlocked && browseOrigins.length ? browseOrigins.map(value => value.reference) : selectedTreeOrigin ? [selectedTreeOrigin.display.reference] : selectedOriginReferences} pickingOrigins={activeOriginPicking} onOrigin={pickOrigin}
@@ -3113,11 +3124,12 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
       onOptionsChange={options => { if (!operation.current && !hasStaging() && !currentPreview.current && !draft && !replaceDialog) setBomOptions(options) }}
       onSelect={componentPath => { if (!operation.current && !hasStaging() && !currentPreview.current && !draft && !replaceDialog) { abandonInsertionSelection(); setNormalSelection(nominateAssemblyNormalUnsupported(JSON.stringify(['component', componentPath]), normalViewContext)); setPickingFaces(false); if (fileTicket.current?.purpose === 'update' || linkedTicket.current) generation.current++; setSelectedPath(componentPath) } }}
       onExport={() => void exportBom()} onClose={() => { restoreBomFocus.current = true; setBomOpen(false); setRibbonTab('evaluate') }} />}
-    <footer className={`assembly-status ${error ? 'error' : ''}`} role="status" aria-live="polite">{busy && <Loader2 size={14} className="assembly-spinner" />}<span>{message}</span>{scene && <small>{scene.solidCount} sólidos · {scene.prototypeCount} orígenes · {scene.volume.toLocaleString(undefined, { maximumFractionDigits: 3 })} mm³</small>}</footer>
+    <footer className={`assembly-status ${error ? 'error' : ''}`} role="status" aria-live="polite">{busy && <Loader2 size={14} className="assembly-spinner" />}<span>{message}</span><span aria-label="Masa del ensamblaje">{totalMassKg === null ? 'Masa sin definir' : `${totalMassKg.toLocaleString('es-ES', { maximumSignificantDigits: 8 })} kg`}</span>{scene && <small>{scene.solidCount} sólidos · {scene.prototypeCount} orígenes · {scene.volume.toLocaleString(undefined, { maximumFractionDigits: 3 })} mm³</small>}</footer>
     {activeContext && <CadContextMenu targetName={contextRow?.occurrence.name ?? contextOrigin?.display.label ?? 'Vista del ensamblaje'}
       actions={contextActions} point={activeContext.point} restoreFocusElement={activeContext.element} onClose={() => setContextTarget(null)} />}
     {rootRevision && <AssemblyRootRevisionDialog id={committed.id} currentRevision={committed.revision} revision={rootRevision.revision} error={rootRevision.error}
       onRevision={revision => setRootRevision(value => value && { ...value, revision, error: '' })} onPreview={() => void previewRootRevision()} onCancel={() => setRootRevision(null)} />}
+    {backgroundSettings.dialog}
     {namedViews.isOpen && <NamedViewsDialog views={namedViews.views} canSave={namedViews.canSave} canUpdate={namedViews.canUpdate}
       onSave={namedViews.save} onShow={namedViews.show} onDelete={namedViews.remove} onRename={namedViews.rename} onUpdate={namedViews.update} onClose={namedViews.close} />}
     {newDocumentDialog.dialog}

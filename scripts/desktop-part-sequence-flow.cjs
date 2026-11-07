@@ -355,10 +355,10 @@ module.exports = function partSequenceWorkflow(context) {
     })));
     const expectedViews=[['Frontal','Ctrl+1'],['Posterior','Ctrl+2'],['Izquierda','Ctrl+3'],['Derecha','Ctrl+4'],
       ['Superior','Ctrl+5'],['Inferior','Ctrl+6'],['Isométrica','Ctrl+7'],['Dimétrica',''],['Trimétrica',''],['Normal a','Ctrl+8'],['Vistas guardadas…',''],['Vista anterior','Ctrl+Shift+Z'],
-      ['Ajustar a pantalla','F'],['Cuadrícula',''],['Planos de referencia','']];
+      ['Ajustar a pantalla','F'],['Cuadrícula',''],['Planos de referencia',''],['Fondo del visor…','']];
     check(canonical(viewItems.map(({index,label,shortcut,role})=>({index,label,shortcut,role})))===canonical(expectedViews.map(([label,shortcut],index)=>({
-      index,label,shortcut,role:index<13?'menuitem':'menuitemcheckbox',
-    }))),'Live cut View menu exposes all nine orientations, Normal To, named views, Previous, Fit and display commands in their declared order');
+      index,label,shortcut,role:index===13||index===14?'menuitemcheckbox':'menuitem',
+    }))),'Live cut View menu exposes all nine orientations, Normal To, named views, Previous, Fit, display commands and background settings in their declared order');
     check(await page(()=>{
       const buttons=document.querySelectorAll('button[aria-label="Normal a"]'),host=document.querySelector('.graphics-area');
       return buttons.length===1&&buttons[0].disabled&&buttons[0].title==='Normal a (Ctrl+8)'
@@ -383,9 +383,9 @@ module.exports = function partSequenceWorkflow(context) {
       await menuKey('ArrowDown');viewKeys.push('ArrowDown');await focus(item.index,item.label);
     }
     await menuKey('ArrowDown');viewKeys.push('ArrowDown');await focus(0,'Frontal');
-    await menuKey('ArrowUp');viewKeys.push('ArrowUp');await focus(14,'Planos de referencia');
+    await menuKey('ArrowUp');viewKeys.push('ArrowUp');await focus(15,'Fondo del visor…');
     await menuKey('Home');viewKeys.push('Home');await focus(0,'Frontal');
-    await menuKey('End');viewKeys.push('End');await focus(14,'Planos de referencia');
+    await menuKey('End');viewKeys.push('End');await focus(15,'Fondo del visor…');
     await escape('view');
     check(canonical(await snapshot())===canonical(original),'Menu Escape preserves live cut depth, fields, body references and committed recovery');
     await open('insert');

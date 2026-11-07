@@ -11,6 +11,7 @@ import { readSecondDirection, readSecondDirectionDraft } from '../cad/extrusionD
 import { bodyPatternAddresses, MAX_CREATED_BODY_IDS, validateBodyPatternDeclaration } from './bodyPatterns'
 import { validateFeaturePatternDeclaration, type FeaturePatternOperation } from './featurePatterns'
 import { validateNamedViews, type NamedView } from './namedViews'
+import { validatePartAppearance, validatePartMaterial, type PartAppearance, type PartMaterial } from './partProperties'
 
 export interface Document {
   version: 1
@@ -21,6 +22,8 @@ export interface Document {
   createdAt: string
   updatedAt: string
   namedViews?: NamedView[]
+  material?: PartMaterial
+  appearance?: PartAppearance
 }
 
 export type SolidDocument = Document
@@ -848,7 +851,7 @@ function feature(value: unknown, path: string): Feature {
 /** Checks the entire dependency graph and returns a detached, normalized document. */
 export function validateDocument(value: unknown): Document {
   const source = object(value, 'Documento')
-  keys(source, ['version', 'id', 'name', 'units', 'features', 'createdAt', 'updatedAt'], 'Documento', ['namedViews'])
+  keys(source, ['version', 'id', 'name', 'units', 'features', 'createdAt', 'updatedAt'], 'Documento', ['namedViews', 'material', 'appearance'])
   if (source.version !== 1) fail('Documento.version', 'versión de archivo no compatible')
   if (source.units !== 'mm') fail('Documento.units', 'solo se admiten milímetros')
   const sourceFeatures = boundedArray(source.features, 'Documento.features', 0, MAX_FEATURES)
@@ -953,6 +956,13 @@ export function validateDocument(value: unknown): Document {
     const field = Object.getOwnPropertyDescriptor(source, 'namedViews')!
     if (!('value' in field) || !field.enumerable) fail('Documento.namedViews', 'se esperaba un campo de datos')
     result.namedViews = validateNamedViews(field.value)
+  }
+  for (const key of ['material', 'appearance'] as const) {
+    if (!Object.hasOwn(source, key)) continue
+    const field = Object.getOwnPropertyDescriptor(source, key)!
+    if (!('value' in field) || !field.enumerable) fail(`Documento.${key}`, 'se esperaba un campo de datos')
+    if (key === 'material') result.material = validatePartMaterial(field.value)
+    else result.appearance = validatePartAppearance(field.value)
   }
   if (features.some(feature => feature.type === 'importedBodies') && new TextEncoder().encode(JSON.stringify(result, null, 2)).byteLength > MAX_IMPORTED_BODIES_DOCUMENT_BYTES) {
     fail('Documento', 'el documento serializado supera 20 MiB')

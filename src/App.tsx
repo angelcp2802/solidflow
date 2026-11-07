@@ -1,4 +1,7 @@
 import { useViewHistory } from './components/useViewHistory'
+import PartPropertiesPanel from './components/PartPropertiesPanel'
+import { partMassKg, setPartProperties } from './model/partProperties'
+import { useViewportBackgroundSettings } from './components/ViewportBackgroundSettings'
 import { isRevolutionFeature } from './cad/revolutionExtent'
 import { standardViews, viewShortcutCommand, type ViewName, type ViewRequest } from './components/viewNavigation'
 import { validateNormalToTarget } from './components/normalToView'
@@ -438,6 +441,7 @@ export function embeddedPartInputsReady(activation: EmbeddedPartActivation, curr
     && (snapshot.sourceFeatures === null || current.sourceBuiltFeatures === snapshot.sourceFeatures);
 }
 export function PartWorkspace({ initialDocument, initialPath, initialSaved, skipInitialRecoveryWrite = false, onOpenAssembly, embeddedEdit }: PartWorkspaceProps) {
+  const backgroundSettings = useViewportBackgroundSettings();
   const shell = useRef<HTMLDivElement>(null);
   const embeddedRef = useRef(embeddedEdit); embeddedRef.current = embeddedEdit;
   const [workRevision, setWorkRevision] = useState(0);
@@ -731,6 +735,9 @@ export function PartWorkspace({ initialDocument, initialPath, initialSaved, skip
       ? sourceOperationDtos : visibleBase === sourceModel ? sourceSelectionDtos : modelSelectionDtos;
     return { ...visibleBase, faces: selection.faces, edges: selection.edges };
   }, [visibleBase, pickingFinish, pickingFaceOperation, pickingSupport, sourceOperationDtos, sourceModel, sourceSelectionDtos, modelSelectionDtos]);
+  const propertiesGeometry = ready && !busy && !error && !editing && !stagedSketch && !sourceLoading
+    && builtFeatures === doc.features && model && !model.featureErrors.length ? model : null;
+  const massKg = partMassKg(doc, { model, builtFeatures, busy, sourceLoading, editing: !!editing, staged: !!stagedSketch });
   const operationFaces =
     faceEditing?.type === "shell"
       ? faceEditing.removedFaces
@@ -2920,6 +2927,7 @@ export function PartWorkspace({ initialDocument, initialPath, initialSaved, skip
         ["Ajustar a pantalla", "F", () => changeView("fit")],
         ["Cuadrícula", "", () => setGrid(!grid)],
         ["Planos de referencia", "", () => setShowPlanes(!showPlanes)],
+        ["Fondo del visor…", "", backgroundSettings.open],
       ],
     },
     {
@@ -4424,6 +4432,7 @@ export function PartWorkspace({ initialDocument, initialPath, initialSaved, skip
           ) : (
             <Viewport
               model={visibleModel}
+              bodyColor={doc.appearance?.color}
               revolutionAxisPicking={axisPicking ? { request: axisPickingRequest, candidates: axisCandidates,
                 selected: editing && isRevolutionFeature(editing) ? editing.axis : undefined, onSelect: selectRevolutionAxis } : undefined}
               referencePickingRequest={pickingExtrude ? endPickingRequest : undefined}
@@ -4674,59 +4683,14 @@ export function PartWorkspace({ initialDocument, initialPath, initialSaved, skip
               </button>
             </h3>
             {panel === "properties" ? (
-              <>
-                <p className="panel-intro">{doc.name}</p>
-                <dl>
-                  <dt>Volumen</dt>
-                  <dd>
-                    {((visibleModel?.volume ?? 0) / 1000).toLocaleString(
-                      "es-ES",
-                      {
-                        maximumFractionDigits: 3,
-                      },
-                    )}{" "}
-                    cm³
-                  </dd>
-                  <dt>Envolvente X</dt>
-                  <dd>
-                    {(
-                      (visibleModel?.bounds.max[0] ?? 0) -
-                      (visibleModel?.bounds.min[0] ?? 0)
-                    ).toFixed(2)}{" "}
-                    mm
-                  </dd>
-                  <dt>Envolvente Y</dt>
-                  <dd>
-                    {(
-                      (visibleModel?.bounds.max[1] ?? 0) -
-                      (visibleModel?.bounds.min[1] ?? 0)
-                    ).toFixed(2)}{" "}
-                    mm
-                  </dd>
-                  <dt>Envolvente Z</dt>
-                  <dd>
-                    {(
-                      (visibleModel?.bounds.max[2] ?? 0) -
-                      (visibleModel?.bounds.min[2] ?? 0)
-                    ).toFixed(2)}{" "}
-                    mm
-                  </dd>
-                  <dt>Operaciones</dt>
-                  <dd>
-                    {
-                      doc.features.filter(
-                        (f) => f.type !== "sketch" && f.type !== "plane",
-                      ).length
-                    }
-                  </dd>
-                  <dt>Croquis</dt>
-                  <dd>{sketches.length}</dd>
-                </dl>
-                <p className="muted-small">
-                  Las propiedades corresponden al sólido reconstruido. Unidades:
-                  milímetros.
-                </p>
-              </>
+              <PartPropertiesPanel document={doc} geometry={propertiesGeometry} massKg={massKg}
+                disabled={!propertiesGeometry || importing || exporting || fileOperation.current || !isActiveOwner()}
+                onApply={properties => {
+                  if (docRef.current !== doc || !propertiesGeometry || importing || exporting || fileOperation.current || !isActiveOwner())
+                    throw Error('Espera a que termine la operación actual antes de cambiar las propiedades.');
+                  apply(setPartProperties(doc, properties));
+                  notify('Material y apariencia aplicados.');
+                }} />
             ) : (
               <>
                 <p className="panel-intro">Piezas para empezar</p>
@@ -5089,6 +5053,7 @@ export function PartWorkspace({ initialDocument, initialPath, initialSaved, skip
           </div>
         </div>
       )}
+      {backgroundSettings.dialog}
       {namedViews.isOpen && <NamedViewsDialog views={namedViews.views} canSave={namedViews.canSave} canUpdate={namedViews.canUpdate}
         onSave={namedViews.save} onShow={namedViews.show} onDelete={namedViews.remove} onRename={namedViews.rename} onUpdate={namedViews.update} onClose={namedViews.close} />}
       {rename && (

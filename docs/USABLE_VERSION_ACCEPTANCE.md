@@ -42,9 +42,9 @@ gate.
 | C10 | Each exposed specialized relation family completes its announced lifecycle. | Fixed inventory of distance/angle limits, directed angle, tangencies, component lock, gear/screw/rack, width, symmetry, profile center, LINE/circular paths and limited/unlimited hinge. Map each to its existing route and close announced material/mechanical-picking and origin-orientation gaps. |
 | C11 | Shared-source changes and embedded-part editing preserve the parent and every exact active source use. | Repair lost references explicitly, preserve Cancel, update one revision/history state on Apply and keep source-file ownership. Final embedded route covers two reused occurrences, V48→72/A104→132 and independent poses/bounds. |
 | C12 | Pending work, Cancel and operating-system close preserve documents and reject late/stale actions. | Passed the 7 November recorded Windows fixture. Exact dispatched Apply/request outstanding at exit, four rejected Apply exits, authentic reply before parent rebuild, real native keep/discard close and fresh-process recovery/reopen. Interruption midway through kernel execution has separate coverage requirements. |
-| C13 | Selection, viewport context, ribbon/side-panel commands, camera and keyboard act on the intended target. | Finite visible-command/context inventory. Exercise component/face/LINE/datum and background selection, wheel zoom, middle-button navigation, field/tree/viewport focus, Escape, standard/Normal To/named/previous views and separate camera/document history. |
+| C13 | Selection, viewport context, ribbon/side-panel commands, camera and keyboard act on the intended target. | The [finite command matrix](USABLE_COMMAND_MATRIX.md) maps aliases and evidence. Resolve its actual inactive navigation/property controls, then complete selector, alias, context and keyboard cases. Exercise component/face/LINE/datum and background selection, wheel zoom, middle-button navigation, field/tree/viewport focus, Escape, standard/Normal To/named/previous views and separate camera/document history. |
 | C14 | The currently implemented nested/configured workflows retain their scope, state and references. | Reused subassembly with two supported states, correct editable scope, state isolation, supported relation forms, Cancel/Apply/history/recovery and Save/reopen. Explicitly track the configured omissions below. |
-| C15 | Part materials, density, part colour and background are configurable and persist compatibly. | Missing capability in the current document model and viewers. Implement optional compatible data and controls, reject invalid input and verify old/new round trips, reused-source appearance and appropriate mass calculation. |
+| C15 | Part materials, density, part colour and background are configurable and persist compatibly. | Optional strict declarations, part controls, source-revision colours, fresh native mass and a separate background preference are implemented in the current working increment. Final renderer lifecycle, reused-source appearance and fresh-process profile evidence remain pending. See [the contract](PART_PROPERTIES.md). |
 | C16 | File operations preserve native document versions and the supported interchange formats. | `.solidflow` v1/v2/v3; supported single-solid/structural STEP import; STEP/STL geometry and BOM CSV export where exposed. Actual controls and restricted IPC, cancel/invalid/error paths, saved identities/bytes and an independent STEP reimport geometry check. |
 | C17 | The final application has appropriate security, error and responsiveness checks. | Full `npm test`, build and desktop smoke after relevant changes, code-review and security-review of sensitive boundaries. Fix confirmed vulnerabilities and reproducible use blockers. Profile a reported slowdown on the same workload before/after any performance change. |
 | C18 | A clearly identified executable opens from the desktop and completes a practical combined walkthrough. | Final local artifact hashes and source mapping, actual startup with original sample documents, a short opening/testing guide, save/close/reopen and matching hosted checks. Record user feedback and installed-platform/human acceptance separately. |
@@ -60,7 +60,7 @@ Retain independent BRep/solid-count/volume/area/bounds checks where applicable.
 | Revolve/revolved cut and admitted axes | `part-revolution`, `part-external-axis` | Pending final aggregate acceptance. |
 | Thin walls, supported corners and caps | `part-thin-wall`, `part-auto-corners`, `part-end-caps` | Existing bounded contracts; remaining advertised eligibility/editing cases require explicit mapping. |
 | Fillet/chamfer | `part-finishing` and the finishing contracts | Existing single-edge cases; check enabled advertised selection options and recoverable errors. |
-| Sweep/loft | Existing saved feature types, kernel tests and workflow contracts | Audit normal UI create/edit/Cancel/persistence coverage. |
+| Sweep/loft | `part-sweep-loft`, native/saved-feature contracts | The 7 November bounded normal create/edit/recover/Cancel/history/Save/Open/STEP route passes 126 checkpoints. Retain its declared straight-circle/two-section ruled limits and the overall family inventory. |
 | Shell/draft | Existing saved feature types and documented face-operation contracts | Audit normal UI lifecycle and saved reference repair coverage. |
 | Hole | Existing hole examples, saved feature types and kernel cases | Audit normal UI lifecycle and admitted depth/end variants. |
 | Linear/circular pattern and mirror | `pattern-all`, `pattern-until-next` and pattern/mirror contracts | Complete announced scopes, editing, rejection and saved reopen coverage. |
@@ -117,11 +117,18 @@ tolerances and deadlines.
   checks with two platform skips, five renderer routes and desktop startup.
   The independent source/runtime/product audit is retained with manifest
   `3ec29211edb6539ed942a17d5826b1d8828a109d11d9e1b8d2c2d22934db5d1c`.
-- The next C05 normal-entry acceptance route covers sweep and loft creation,
-  editable invalid input, Cancel, saved editing and fresh reopen. Its shared
-  handlers are implemented; that complete UI lifecycle is still unvalidated.
-- C15 is a confirmed implementation gap. Other open rows require the exact
-  command/variant evidence inventory before choosing the next code change.
+- The next increment passes ten commands, 11,204 unit/CAD cases in 498 files,
+  207 IPC checks with two skips and seven Windows renderer routes. Independent
+  audit manifest: `74cbe1a48b94ca87248e96efdfe606772f1ac64b4f3f5ebfdf1f6583352faae5`.
+- C05 sweep/loft normal creation, saved editing, recovery, Cancel, history and
+  saved reopen pass the bounded original cases. Hole and Combine are the next
+  finite families; their geometric contracts are prepared independently.
+- C15's original-cube route passes 70 checkpoints, including mass and separate
+  same-process background preference. Reused-source rendered colour and
+  fresh-process profile persistence remain open; C15 is not complete.
+- The C13 command matrix records the actual inactive navigation/property
+  controls and remaining selector/alias/focus cases. Other open rows keep
+  their existing evidence and supported-variant scope.
 - Public PR #49 remains the review location. The published `8be9f24` snapshot
   has its own 15 successful CI jobs and two successful security jobs. New
   aggregate acceptance will be recorded against its own revision.

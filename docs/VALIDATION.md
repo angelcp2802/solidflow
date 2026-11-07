@@ -1,5 +1,92 @@
 # Validation
 
+## Part properties and normal sweep/loft lifecycle — 2026-11-07
+
+The next bounded Windows increment implements optional part material, density
+and opaque colour, a separate profile background preference, exact source-revision
+appearance in both assembly viewers and mass derived only from a current healthy
+native result. It also adds ordinary sweep/loft creation and editing acceptance.
+See [the properties contract](PART_PROPERTIES.md) and the still-open
+[usable-version ledger](USABLE_VERSION_ACCEPTANCE.md).
+
+The frozen final batch passes ten commands: build, the seven renderer workflows
+below, `npm test` and desktop startup. The full suite records **11,204 cases in
+498 files**, **207 IPC checks** and two explicit platform skips. The runtime uses
+Node 24.11.1 and the actual Electron 44.9.3 executable. Independent dependency
+inspection matches all 341 installed package roots to the candidate lock; the
+44 absent entries are optional packages incompatible with Windows x64. This
+checks versions and metadata, not every file against its package tarball.
+
+| Windows production-renderer command | Recorded checkpoints |
+| --- | --- |
+| `test:desktop:part-properties` | 70 |
+| `test:desktop:part-sweep-loft` | 126 |
+| `test:desktop:assembly-embedded-part-edit` | 172 |
+| `test:desktop:assembly-embedded-part-transitions` | 202 plus 15 in the fresh process |
+| `test:desktop:part-sequence` | 528 |
+| `test:desktop:normal-to-view` | 157 |
+| `test:desktop:assembly-configurations` | 212 |
+
+The controller rehashes 1,344 non-Markdown source/runtime inputs before and after
+each command and keeps the seven `dist` products immutable after the build.
+Electron main/preload are separately included in those frozen inputs: together
+they form the nine-file production footprint. The input manifest is
+`74cbe1a48b94ca87248e96efdfe606772f1ac64b4f3f5ebfdf1f6583352faae5`.
+The private controller has its own bound hash. Reports retain genuine worker
+messages, document identities, native dialog ownership, exact saved bytes,
+zero renderer console/request errors and isolated cleanup.
+The independent final verifier also rechecks the raw cube/sweep/STEP cases,
+configured/BOM/CSV outcomes and pending/native-close event order. Its accepted
+report hash is `98b993149a4692ea61ad4e17cad6a7b0cf57bac3a26e3b9085f4734f79c91639`.
+
+The original 10 mm cube retains V1000 mm³, bounds [0,0,0]…[10,10,10], its body,
+six face and twelve edge identities across property Apply, one Undo/Redo and
+native Save/Open. Synthetic density 1000 kg/m³ produces 0.001 kg. A separate
+native unit case verifies a valid single BRep and A600 mm² after serialization
+and rebuild; the renderer's independent planar mesh-area check has a separate
+presentation scope. Draft Cancel preserves document/recovery/history. Background
+Apply, Cancel and default restoration preserve CAD and saved-file state.
+
+Sweep/loft start from six original sketches, with no saved solid operations.
+A radius-2 straight circular sweep of length 20 mm has V80π; editing its profile
+to radius 3 gives V180π. Two coaxial sections at X20, Z0/12 with radii 2/4 give
+V112π; editing the upper section to radius 5 gives V156π. Both remain separate
+new bodies. The final STEP contains two valid BReps: cylinder V180π/A138π and
+frustum V156π/A(29+7√153)π, with tolerances 1e-5 mm³/mm² and 1e-6 mm for bounds.
+The reader is a separate process using the same kernel family; this is not an
+independent interchange-compatibility claim.
+
+Both open-profile errors are diagnosed by real native results and visible alerts,
+then corrected before Cancel; both families reenter through the ribbon. Existing
+sweep editing is accepted, while existing loft editing additionally covers
+Cancel/retry. Four transactions survive Undo/Redo and native Save/Open. This
+does not cover Cancel directly during the error, existing-sweep edit Cancel,
+curved paths, seams, merge or arbitrary multi-section lofts.
+
+Earlier exploratory batches remain retained. One recorder incorrectly required
+a body array in a sketch-only result, one menu inventory omitted the new
+background command, and an added configured mass label altered exact CSV feedback.
+The recorder expectations were corrected; configured mass now sits beside its
+geometry totals and the original status-message contract remains intact. An
+independent audit also caught Electron 44.7.0 in a different existing installation.
+Those runs are not candidate-lock acceptance. The final batch uses the already
+available verified 44.9.3 installation without installing dependencies.
+
+Skills used: `frontend-design`, applicable `vercel-react-best-practices`,
+`code-review` and `security-review`. The new bounded file declarations, profile
+storage, real IPC tests, harness and CI additions were reviewed. The unchanged
+lock retains its six moderate packaging-tool advisories; the reviewed minimatch
+pattern-amplification route has no established application-input path here.
+The existing high/critical security gate and policies are unchanged.
+
+This is local Windows evidence. Part colour is checked as declaration/form state
+and saved/recovered data; framebuffer colour, reused-source rendered appearance,
+standard/configured background aliases and fresh-process background persistence
+remain C15 work. Native OS colour-picker interaction, hardware input, installed
+platforms and human use are not established by these hidden-window workflows.
+The command matrix also retains the concrete C13 controls needing attention.
+The overall usable-version and public-release gates remain open.
+
 ## Usable candidate integration and pending transitions — 2026-11-07
 
 The integrated candidate contains the desktop's explicit sketch-input fix and

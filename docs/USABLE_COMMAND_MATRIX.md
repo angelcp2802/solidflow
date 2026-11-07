@@ -1,0 +1,206 @@
+# Usable command and interaction matrix
+
+Source inventory dated 2026-11-07: `5b65187f095fb1e77896139326a8b1849a29e8ec`
+plus the working C15 material, appearance and background increment. This is the
+finite C13 inventory for the [usable-version gate](USABLE_VERSION_ACCEPTANCE.md).
+It is a source review, not a new execution report. The running frozen acceptance
+batch is not modified or declared successful by this document.
+
+An action listed below has a current owner/handler unless explicitly identified
+as a gap. A handler, an enabled button, a mounted menu, a unit test and a completed
+desktop interaction are different evidence. Existing route names identify
+relevant test code; they do not claim that every alias or input method was used,
+or that the route passed on this final candidate. Executed source/product hashes,
+case results and tolerances belong in [VALIDATION.md](VALIDATION.md).
+
+## Boundaries and evidence notation
+
+- **Route:** an existing bounded production-renderer workflow relevant to the
+  action. Reuse its actual checks and stated input limitations.
+- **Gap:** a concrete missing interaction, acceptance record or implementation.
+  A gap is not automatically evidence of a production defect.
+- **Guidance:** an intentionally unavailable state or capability. Confirm the
+  disabled control/explanation; do not count it as an enabled working command.
+- Multiple entry points in one row are aliases of a finite handler family. Each
+  enabled entry point still needs a reachable-target/focus/guard check. The full
+  geometric lifecycle need not be duplicated for every alias.
+- Numeric fields, reference slots and supported variants are checked by the
+  existing operation/mate family matrices in the usable gate, not expanded into
+  an unlimited cross-product of this command inventory.
+- Desktop scripts mix actual CDP pointer/keyboard input with scripted visible
+  form changes and, in some older helpers, DOM activation. Read each route's
+  limits before describing its input as physical. Hidden Electron interaction
+  does not establish human acceptance, OS event ordering or installed-platform
+  support.
+
+Primary owners: [part workspace](../src/App.tsx), [standard assembly workspace](../src/components/AssemblyWorkspace.tsx),
+[configured assembly workspace](../src/components/ConfiguredAssemblyWorkspace.tsx).
+Shared presentation/input owners are [menus](../src/components/AssemblyMenuBar.tsx),
+[header](../src/components/CommandHeader.tsx), [assembly tabs](../src/components/AssemblyCommandTabs.tsx),
+[view controls](../src/components/ViewOrientationControls.tsx),
+[view history](../src/components/viewNavigation.ts),
+[pointer navigation](../src/components/cadNavigation.ts),
+[part viewport](../src/components/Viewport.tsx) and [assembly viewport](../src/components/AssemblyViewport.tsx).
+
+## Existing route index
+
+Run names in the tables mean `npm run test:desktop:<name>` when that package
+entry exists. Shared helpers are not separate runnable acceptance commands.
+
+| Key | Existing routes and bounded purpose |
+| --- | --- |
+| P1 | `part-from-empty`: ordinary new part, pointer rectangles, successive operations, menus, camera and named views. |
+| P2 | `part-fresh-sketch`, `part-sequence`: current face/principal-plane/edge/background contexts, fresh sketches, successive feature edits, references and persistence. |
+| P3 | `part-body-catalog`, `imported-bodies`: body/tree selection, disclosure and bounded body operations; import is an independent route. |
+| P4 | `part-revolution`, `part-external-axis`, `part-sweep-loft`, `part-finishing`, the `part-thin-wall`/`part-auto-corners`/`part-end-caps`/`part-two-direction`/`part-two-direction-limits`/`part-face-limits` routes and `pattern-all`/`pattern-until-next`/`pattern-world-limit`: supported operation lifecycles. Each has its own geometry/input limits. |
+| P5 | `part-properties`: original cube material/density/colour, fresh displayed mass, Cancel, Undo/Redo, Save/Open and separate profile background. Same-process background persistence; no framebuffer-colour or fresh-process claim. |
+| V1 | `normal-to-view`: part, standard root and configured root; material face/datum nomination, ordered references, Normal To, Previous and settled sketch behaviour. |
+| V2 | `part-from-empty`, `assembly-shortcuts`, `assembly-configured-shortcuts` and compact shortcut variants invoke [camera navigation](../scripts/desktop-view-navigation-flow.cjs), [named views](../scripts/desktop-named-views-flow.cjs) and [header menus](../scripts/desktop-header-menu-flow.cjs). Camera checks use bounded fresh raster crops and independent basis tests, not a camera-state injection. |
+| A1 | `assembly-basic-authoring`, `assembly-import`, `assembly-step`, `assembly-step-insertion`: new/imported/reused components, scoped placement, ordinary origin/part relations and neutral exchange. |
+| A2 | `assembly-origin-axes`, `assembly-origin-axis-lock`, `assembly-mate-reference-edit`: origin ownership, selection roles, ordinary saved references, relation preview/history/persistence; axis-lock is separate. |
+| A3 | `assembly` (including its gear/lock/movement cases), `assembly-direction`, `assembly-angle-measurement`, `assembly-directed-angle`, `assembly-limit-distance` and compact variant, `assembly-limit-angle`, the tangent/cylinder/sphere, profile-centre, width, symmetry/repair, line/circular path, screw/rack-pinion and hinge/stops/picking routes listed in the package: finite mate/movement/evaluation families. They do not all use viewport picks. |
+| A4 | `assembly-source-update`, `assembly-source-update-save-pending`, `assembly-linked-source`, `assembly-source-revision`, `assembly-replacement`, `assembly-embedded-part-edit`, `assembly-embedded-part-transitions`: owned document/source transactions, repair, editor handoff, pending work and recovery. |
+| A5 | `assembly-export` and the four `assembly-interference-*` grouping/scope/multibody routes: export/evaluation commands and scoped oracles. |
+| C1 | `assembly-configurations`, `assembly-configured-components`: Base/named/nested states, component import/reuse/fix, component/origin/background contexts and BOM. |
+| C2 | `assembly-configured-origin-axes`, `assembly-configured-origin-axis-lock`, `assembly-configured-picking` and compact variant: origin/material face/LINE picking, ribbon/menu state retention, native verified relation flows. |
+| C3 | `assembly-configured-relations`, configured mechanical/lock/concentric/gear/screw/rack-pinion and compound/profile-centre/circle/line-path/circular-path routes: supported saved configured relation families. |
+
+## Shared navigation, focus and view commands
+
+The finite standard-view set is **Frontal, Posterior, Izquierda, Derecha,
+Superior, Inferior, Isométrica, Dimétrica, Trimétrica**. The first seven have
+Ctrl+1…7; Normal To has Ctrl+8, Fit has F, Previous has Ctrl+Shift+Z. Document
+Undo/Redo are a different history.
+
+| ID / surface | Action → current owner | Existing route and exact remaining interaction |
+| --- | --- | --- |
+| N01, all three view menus | Nine standard views → part `changeView`, standard `viewButton`, configured `menuView`, then `bindViewNavigation`. | V2 exercises shortcut presets and Dimetric/Trimetric menu presses, repeated commands, Previous and non-CAD invariants. Record final-candidate runs; do not infer exact orientation solely from different pixels. |
+| N02, all three compact view selectors | The same nine options plus Normal To → `ViewOrientationControls.onChange` → current workspace view handler. | V2 explicitly observes the selector inventory **without selecting its options**. Add one finite real selector interaction in each workspace, including keyboard selection, Normal To availability and Previous restoration. This is an entry-point gap, not missing view code. |
+| N03, compact/ribbon aliases | Isometric/Front/Top/Fit buttons → the same view handler; Previous and Normal To buttons → guarded view handler. | V1/V2 cover the command families. Check each compact alias is contained/reachable at the accepted compact window size; preserve document/recovery/native request serial. |
+| N04, actual viewport gestures | Wheel zoom, middle-button rotate, modified middle-button pan → `configureCadNavigation` and `bindViewNavigation`; a dragged/cancelled press cannot become a selection. | V2 supplies actual wheel/middle-drag/pan plus bounded Previous raster restoration. Keep real visible-window/hardware-wheel feel as human acceptance; do not add a second geometry solver to camera checks. |
+| N05, Normal To | Part current face/plane/feature and ordered second reference; assembly current material/datum nomination → current normal-selection resolver and view handler. | V1 plus C1/C2 context routes. Preserve root/occurrence ownership, incompatible-reference guidance and repeated-normal semantics. Nested/configured combinations beyond the stated route remain family/scope acceptance, not automatic coverage. |
+| N06, named views | Open, save current, show, update, rename, delete, close → `useNamedDocumentViews` and `NamedViewsDialog`; catalog belongs to the current document. | V2 contains the bounded named-view lifecycle, modal keyboard ownership, save/reopen and workspace isolation. New aliases must not bypass modal/current-document guards. |
+| N07, all top menus/header | Archivo/Editar/Ver/Insertar/Herramientas/Ayuda; pin/unpin/disclose, pointer opening, arrows, Home/End, Tab, Escape, first-letter navigation → `AssemblyMenuBar`/`CommandHeader`. | V2 and A2/C2 helpers exercise focus, disclosure, disabled-item skipping, selected menu commands and draft retention. First-letter cycling and the remaining per-action aliases need explicit final-candidate evidence; opening all menus is not invoking all actions. |
+| N08, keyboard ownership | New/Open/Save/Save As, document Undo/Redo, view shortcuts, Escape → part key listener or `useAssemblyShortcuts`; native text undo remains local. | Shortcut routes test ordinary/configured field, modal and viewport ownership, New/Save transitions and pending preview. Extend only the missing named focus case; preserve repeat/composition/foreign-owner rejection. |
+| N09, assembly ribbon tabs | Ensamblaje/Relaciones/Evaluar → `setRibbonTab`; arrows/Home/End → `AssemblyCommandTabs.navigate`. | A2/C2 call `desktop-assembly-ribbon-controls`: pointer/key tab changes preserve fields, references, inspector, confirmation guards, recovery and native serial in draft and verified-preview states. This does not invoke every command within the tabs. |
+| N10, background preference | Ver → Fondo del visor… → `backgroundSettings.open`; solid/default Apply/Cancel → versioned profile store. | P5 exercises piece entry and same-process reopen. Standard/configured menu entry, shared profile propagation and actual fresh-process persistence still need bounded final evidence. It must not affect dirty state, document history/recovery or CAD requests. |
+
+## Part workspace: enabled menu inventory
+
+Owner: `partMenus`, `disabledMenuCommands` and the corresponding functions in
+`App.tsx`. The dynamic consumed-sketch labels below mean the finite input
+sketches of the selected operation, not arbitrary extra commands.
+
+| ID / menu | Complete actions → current handler(s) | Route / remaining interaction |
+| --- | --- | --- |
+| P-F01 Archivo, creation/open | Nuevo… → `newDoc`; Nuevo ensamblaje vacío → `newAssembly`; Crear ensamblaje con esta pieza → `newAssemblyFromPart`; Abrir… → `openDoc`. | P1/P2/A1 and shortcut New ownership. Check both assembly-creation aliases against the actual accepted part, dirty/discard/Save-and-continue and disabled embedded-editor state. |
+| P-F02 Archivo, import | Importar STEP… → `selectStep`; Importar STEP estructurado… → `selectStructuralStep`. | P3/A1. Distinct ordinary/structured contracts; one successful import is not both paths or every menu alias. |
+| P-F03 Archivo, persistence | Guardar / Guardar como… → `saveDoc(false/true)`; embedded mode advertises Guardar copia… / Guardar copia como…. | P1/P2/P4/P5/A4. Preserve parent association and copy ownership. Final evidence must include the advertised embedded copy aliases and pending guards. |
+| P-F04 Archivo, export/examples | Exportar STEP / STL → `exportFile`; Abrir pieza de ejemplo → `loadDemo`; Ejemplo: cortes y salientes sucesivos → `loadPartSequenceDemo`. | P1/P2/P4 native-file routes. Existing geometry/export checks do not prove both menu and ribbon aliases; example replacement/discard remains a finite menu case. |
+| P-E01 Editar | Deshacer / Rehacer → `undo`/`redo`; Editar operación and Editar croquis[: name] → `editFeature`; Eliminar operación → `deleteSelected`; Cambiar nombre de pieza → finished-edit guard then rename dialog. | P1/P2/P4/P5 and feature-context routes. Add explicit name/delete menu lifecycle where absent; retain consumed-sketch parent occurrence, selection target and dependent-feature warning. |
+| P-V01 Ver | N01/N05/N06/Previous/Fit; Cuadrícula → `setGrid`; Planos de referencia → `setShowPlanes`; Fondo del visor… → background dialog. | V1/V2/P5. Toggle grid/planes through menu and confirm checked state/viewport effect; renderer display changes are separate from model acceptance. |
+| P-I01 Insertar, profiles/solids | Croquis rectangular/circular → `startSketch`; Saliente extruido/Corte extruido/Revolución/Corte por revolución → `startFeature`; Asistente para taladro → `startHole`; Barrido/Recubrir → `startAdvancedFeature`. | P1/P2/P4. The family lifecycle is bounded by C01–C06. Verify menu aliases reveal the same editor/current inputs; do not multiply every numeric combination into C13. |
+| P-I02 Insertar, modification/references | Redondeo/Chaflán → `startFinish`; Vaciado/Desmoldeo → `startFaceOperation`; Plano de referencia → `startPlane`; Matriz lineal/circular/Simetría → `startRepetition`. | P2/P4/pattern routes. Face-operation/plane and pattern entry aliases still need explicit final inventory evidence even where kernel tests exist. |
+| P-T01 Herramientas/Ayuda | Propiedades físicas → `setPanel('properties')`; Reconstruir → cloned feature-array `setDoc`; Ayuda y atajos → help dialog; Pieza de ejemplo → `loadDemo`. | P5 covers the taskbar properties entry. Check Tools properties alias, explicit rebuild freshness, help close/Escape and example confirmation; a help message is not a CAD operation. |
+
+## Part ribbon, side controls and contexts
+
+| ID / surface | Complete enabled action group → current handler(s) | Route / remaining interaction |
+| --- | --- | --- |
+| P-R01 Operaciones | Crear: Saliente/Base extruido, Revolución, Barrido, Recubrir; Quitar material: Corte extruido, Corte por revolución, Asistente para taladro; Modificar: Redondeo, Chaflán, Vaciado, Desmoldeo; Patrones: Matriz lineal, Matriz circular, Simetría; Cuerpos: Combinar cuerpos; Referencias: Croquis, Geometría de referencia. | Same P-I handlers plus `startCombine`; P1–P4. Add per-entry reachable/editor-target/disabled checks; retain per-family geometry/history/persistence acceptance. |
+| P-R02 Croquis | Nuevo/Salir del croquis and Aplicar chaflán/redondeo/simetría/equidistancia → `startSketch`/`acceptEdit`; Cota inteligente / Relaciones de croquis → inspector nomination; Seleccionar/Línea/Rectángulo/Círculo/Arco de centro/Recortar/Extender/Chaflán/Redondeo/Simetría/Equidistancia → `selectSketchTool` or current-profile draft conversion. | P1/P2 provide rectangle/selection/entry examples; sketch unit/native suites cover more logic. **Missing aggregate real ribbon lifecycle** for the other advertised entity/modify/inspector entries. Keep one representative creation/edit/Cancel case per finite tool family. |
+| P-R03 Evaluar/Vistas | Propiedades físicas/Envolvente → same properties panel; Exportar STEP/STL → `exportFile`; Isométrica/Frontal/Superior/Ajustar vista → `changeView`; Cuadrícula/Aristas visibles → display state. | P5/P4/V2. Reachability and actual display toggles/Envolvente alias are not proven by sharing a handler. |
+| P-S01 manager/taskbar/header | Tree, selected-feature properties, piece properties, library, help; header tree search, New/Open/Save/Undo/Redo/Rebuild; bottom New document; create-empty/from-piece assembly. | `requireFinishedEdit`, `editFeature`, `setPanel`, help, query state and file/history handlers; P1/P2/P3/P5. Check focus restoration and search/filter target; see G02 for selected-feature empty-state guidance. |
+| P-S02 selected-operation/face strip | Edit, activate/suppress, delete → `editFeature`/`apply(updateFeature)`/`deleteSelected`; planar-face Create sketch/Create plane → `startSketch`/`startPlane`. | P2 and family routes. Curved-face controls intentionally disable planar support. Add exact suppression/delete-history case if absent from final manifest. |
+| P-S03 viewport selection/display | Auto/Caras/Aristas/Cuerpos → `changeSelectionMode`; clear → `clearBrowsingSelection`; shaded-with-edges/wire/grid/planes → display state; current principal/generated planes and body catalog nominate the actual saved owner. | P2/P3/V1. Body/face/LINE/datum/background and held-click invalidation have bounded routes. Explicit wire/shaded/grid/plane toggles and all mode aliases still require final-candidate interaction evidence. |
+| P-X01 feature-tree right/keyboard context | Edit operation / Edit sketch plus each consumed input sketch → `editFeature(feature,parentId)`; Normal To → `changeView`. | P2 preserves exact occurrence/parent and current source. Capture one keyboard and one right-release case per distinct tree/context target, with Escape/focus restoration. |
+| P-X02 viewport face/edge/plane/body/background context | Conditional Edit operation / Edit sketch / Edit input sketch and Create sketch; Normal To, nine standard views, Fit, Previous, named views, explicit Deselect → guarded `viewportContextAction` plus current handlers. | P2/V1 and context observation helper. Target nomination is on current release, not a stale press. View-command aliases and body/background conditional inventories still need final consolidation; do not infer all variants from one planar face. |
+| P-S04 editor confirmation | Accept/Cancel, sketch create/modify Apply, hole-position confirmation and support/reference picking → `acceptEdit`, `cancelActiveEdit` and current editor controls. | P1/P2/P4/A4. Field families belong to their operation contracts. Pending/current-source/partial-edit guards and Escape must be checked with actual editor ownership. |
+
+## Standard assembly: menus and ribbon
+
+Owner: `menus`, `contextActions`, `openManager` and the named transaction
+functions in `AssemblyWorkspace.tsx`. Reveal-only commands open an inspector;
+they do not claim to have imported, moved or solved a component by themselves.
+
+| ID / surface | Complete action group → current handler(s) | Route / remaining interaction |
+| --- | --- | --- |
+| A-F01 Archivo | Nuevo… → `newAssembly` chooser; Abrir… → `open('open')`; Importar STEP estructurado… → `importStructural`; Guardar/Guardar como… → `save`; Exportar geometría… → evaluation/export inspector. | A1/A4/A5/V2. Confirm menu file aliases, dirty replacement, grants and no double dispatch from focused fields. |
+| A-E01 Editar | Undo/Redo → `undo`; Propiedades del componente → `openManager('properties')`; Editar pieza → `editSelectedPart`/embedded editor; Crear revisión… → `openRootRevision`. | A4/V2. Embedded pending/Cancel/history has its separate route. Ordinary reveal/revision menu aliases still need exact final-target records. |
+| A-V01 Ver | Nine views/Normal To/named/Previous/Fit → current view owners; Árbol de componentes/Propiedades de relación → `openManager`; Ejes/Planos de origen → stop pick then toggle display; Lista de materiales → BOM state; Fondo → profile dialog. | A2/V1/V2; N10 background gap. Origin checkbox/toggle focus, selected-owner retention and stale-pick revocation must remain distinct from relation solving. |
+| A-I01 Insertar | Componente desde archivo… → `open('insert')`; STEP estructurado… → `insertStructural`; Otra ocurrencia de un origen… → component inspector; Relación de posición… → `beginRelationFromSelection`. | A1/A2. Reuse needs its actual insert command, not merely revealing the selector. Verify exact selected source/revision and preselected roles. |
+| A-T01 Herramientas/Ayuda | Resolver/Aplicar/Cancelar → `solve`/`apply`/`cancelToolbarPreview`; Comprobar interferencias/Medir ángulo dirigido → evaluation inspector; Controles del visor → guidance message; Documentos y ejemplos → component inspector; placa/two-pins example → `exampleAssembly`. | A2–A5/V2. Evaluation geometry is separate from reveal aliases; example/Help activation and focus are finite remaining alias cases. |
+| A-R01 Ensamblaje ribbon | Importar componente, Insertar STEP, Reutilizar origen; Relación, Mover componente; Crear revisión…, Configuraciones… → the A-F/E/I handlers, `openManager`, `createAssemblyConfiguredDocument` then `onOpenConfigured`. | A1/A2/A4. The configuration transition needs a bounded source/file/history/selection ownership case; a created v3 envelope alone is not full configured acceptance. |
+| A-R02 Relaciones/Evaluar/confirmation | Relaciones del ámbito → existing-list inspector; Interferencias/Lista de materiales/Exportar → evaluation/BOM; persistent Resolver/Aplicar/Cancelar → actual transaction handlers. | A2/A3/A5 plus ribbon-retention helper. Check visibility, intended pane and confirmation availability across tab changes; family forms retain their own tests. |
+
+## Standard assembly: context, selection and inspector commands
+
+| ID / target | Complete action group → current handler(s) | Route / remaining interaction |
+| --- | --- | --- |
+| A-X01 component tree/viewport | Normal To; Propiedades; Editar pieza for a part; Mover; Fijar/Flotar, Ocultar/Mostrar, Suprimir/Activar → current context ticket, `openManager`, `editSelectedPart`, `contextEdit`. | A1/A2/A4/V1 contain relevant pieces; consolidate actual right-release/keyboard actions with exact path and revision, including nested/root/fixed/suppressed guards. Standard context does not advertise Delete here. |
+| A-X02 origin tree/viewport | Normal To; Referencias de origen → origin inspector; Seleccionar componente propietario → exact owner path. | A2/V1. Root owner is disabled. Check axis-vs-plane Normal To and stale scene/scope rejection, not just a component-name match. |
+| A-X03 background context | Nine standard views, Normal To, Fit, Previous → current guarded `viewButton`. | V1/V2 and context-gesture helpers. The standard background menu has **no** named-view or Deselect command; do not import the configured inventory into it. Finish actual-action/focus evidence for aliases not invoked by existing routes. |
+| A-S01 browse/tree/compact selection | Component/datum tree selection/disclosure, properties navigation, face/LINE preselection with additive Ctrl, face/LINE relation pick modes, origin owner/axis/plane pick → current selection resolvers, `nominateViewSelection`, `pickFace`/direction/origin pickers. | A1/A2/V1; family pick routes for specialized roles. Selection must not start a camera or CAD operation by itself. Exact material-reference picking remains separate from dropdown/form-only cases. |
+| A-S02 components and sources | Reuse actual insert; import/insert; rename, fixed/visible/suppressed, position, Delete occurrence; update piece/subassembly; embedded/external replacement; linked source choose/read/review/release; root revision; embedded Edit part and return/repair/Solve/Apply. | `edit`, `open`, `replaceWithEmbeddedPart`, source/revision/embedded owners; A1/A4. Property fields are a finite occurrence/source transaction matrix; direct model tests do not close entry-point/focus/error-state coverage. |
+| A-S03 ordinary and specialized mates | Add; edit references/parameters; remove role; choose current origin/face/LINE; preview/Solve/Apply/Cancel; existing mate edit/delete; lock rotation/relative position and mechanical capture → `addMate`, `begin*Edit`/`edit*`, `deleteRelation`, `capture`, `captureGear`/`captureScrew`/`captureRack`, current pickers and transaction handlers. | A2/A3. Inventory is the actual finite relation selector plus lock/capture controls: concentric/coincident/distance/angle/parallel/perpendicular, all advertised limits/tangencies, width/symmetry/profile-centre/line/circular-path/hinge, gear/screw/rack-pinion and lock. Variant/boundary/property-field acceptance remains C08–C10; C13 checks entry and target ownership. |
+| A-S04 movement/drag | Numeric local movement preview → `move`; translate-until-contact preview → `translate`; position/giro/stop manipulators → `setDragMode`, current projection session and native verification. | A3 and movement/translation/drag contracts. Keep fixed/ancestor/scope/preview eligibility and cancelled held-input cases; no configured movement claim follows. |
+| A-S05 evaluation/BOM/export | Inspect/clear/select pair and options → `inspect`, `clearInspection`, analysis state; directed-angle measure/clear → `measureDirected`, `clearDirectedAngle`; BOM modes/hidden/member/CSV/close → BOM owner; STEP flat/structured/STL → `exportGeometry`. | A3/A5, A1 structured exchange. Declaration BOM rows grant no mass/geometry authority. Physical option picking and menu/ribbon reveal aliases have only the routes explicitly recorded. |
+
+## Configured assembly: menus and ribbon
+
+Owner: `ConfiguredAssemblyWorkspace.tsx`. Base, named configuration, nested
+scope, selected occurrence and native preview generation remain part of every
+command's identity.
+
+| ID / surface | Complete action group → current handler(s) | Route / remaining interaction |
+| --- | --- | --- |
+| C-F01 Archivo/quick access | Nuevo…, Abrir…, Guardar, Guardar como… → `newDocument`, `open`, `save`; quick Undo/Redo → `undo`. | C1/V2. File/menu/shortcut guards while a relation draft owns input must be preserved; installed/human native dialogs remain separate. |
+| C-E01 Editar | Undo/Redo; Propiedades del componente → `menuReveal('configured-occurrence-inspector')`. | C1/V2. Disabled with no selected occurrence or selected model origin; verify field-to-file blur/commit ownership through the actual advertised alias. |
+| C-V01 Ver | Nine views/Normal To/named/Fit/Previous; Fondo; Árbol del ensamblaje, Configuraciones, Relaciones de posición → `menuView`, named/background owner and `menuReveal`. | C1/C2/V1/V2. N02/N10 gaps remain; a reveal command does not change a configuration or apply a mate. |
+| C-I01 Insertar/Herramientas/Ayuda | Insertar componente… / Reutilizar componente… → component form anchors; Relación de posición… → `openRelationEditor`; Resolver configuración → `solve`; Lista de materiales → `changeBomView`; Controles del visor → guidance message. | C1/C2/C3/V2. No geometric import/export or motion command is implied by this menu. Check exact form/current scope and disabled inherited-suppression states. |
+| C-R01 ribbon | Ensamblaje: Insertar/Reutilizar/Nueva relación/Configuraciones; Relaciones: list; Evaluar: BOM; persistent Aplicar configuración/Resolver configuración/Cancelar → reveal/editor/BOM plus `apply`/`solve`/`cancelPreview`. | C1/C2/C3 and ribbon helper. Draft/verified-preview tab navigation is covered by the helper; per-command alias activation and final-candidate execution remain separate. |
+
+## Configured assembly: contexts and inspectors
+
+| ID / target | Complete action group → current handler(s) | Route / remaining interaction |
+| --- | --- | --- |
+| C-X01 component tree/viewport | Propiedades → reveal; Fijar/Flotar → native `previewOccurrence`; Ocultar/Mostrar and Suprimir/Activar → `edit` under current context ticket. | C1 includes actual context menu focus/actions, Fix/Float preview Cancel/Apply, inherited suppression and A/B/A invalidation. No standard Edit part/Move/Delete menu should be inferred. |
+| C-X02 origin tree/viewport | Normal To; Relacionar en el ámbito actual… → `prepareOriginRelation`; Seleccionar componente propietario → `selectContextComponent`. | C1 origin-context helper nominates an axis/plane, validates root-owner/Normal guards, authors a real coincidence and rejects stale scope. Specialized mate/origin variants remain C10. |
+| C-X03 background context | Nine views/Normal/Fit/Previous, named views and Deseleccionar todo → guarded `menuView`/named owner/explicit selection reset. | C1 exercises Front/Fit/Deselect, origin Normal To and keyboard opening; V2 covers camera families. Other per-context aliases require exact final reachability/action records. |
+| C-S01 tree and state | Tree/disclosure/scope/current occurrence/Properties/Relations; Base/named root selection; create root/scope state based on Base; choose child configuration; selected occurrence name/visibility/suppression/pose and Fix/Float preview → `changeScope`, `commit`, `createConfiguredUiRootVariant`, `createConfiguredUiScopeVariant`, `edit`, `previewOccurrence`. | C1/V2. Prove intended named/Base/shared-scope target and one complete history transaction. Fields and variant semantics remain C14; no need for an unbounded state combination matrix. |
+| C-S02 relation families | New ordinary/mechanical/compound; edit, activate/suppress/delete; preview/Apply/Cancel/Close; role face/LINE/origin pick and stop pick → `openRelationEditor`, `previewRelation`, `previewDraft`, `pickMate`, `pickOrigin`, `stopMatePick`, current transaction handlers. | C2/C3. Ordinary finite types come from `ConfiguredAssemblyMatePanel.families`; mechanical lock/concentric capture/gear/screw/rack-pinion and compound profile-centre/line/circular-path use their own panels. Disabled “use the mechanical/compound form” messages are guidance, not a missing implementation of those supported families. |
+| C-S03 compact view and material selection | Shared orientation/Normal/Previous/named/iso/front/top/fit controls; component click, face/LINE reference picks and visible origin labels → current view/selection handlers and `AssemblyViewport`. | C1/C2/V1/V2; selector interaction N02 remains. Current configured material picks cover original top planes and LINEs; do not infer every nested/suppressed curved material role. |
+| C-S04 BOM | Toggle/close, scope, parts/top-level/indented, hidden filter, exact occurrence select, CSV → `changeBomView`, BOM options/current ticket, `exportBom`. | C1/configured BOM routes. Counts are declaration-only and do not certify density, mass or native validity. Record exact nested-state/member selection; prevent actions during draft/preview. |
+
+## Intentionally unavailable states and concrete gaps
+
+| ID | Classification and bounded disposition |
+| --- | --- |
+| G01 | **Visible enabled command without an implementation:** the part bottom `Navegar documentos` button in `App.tsx` has no handler or native action. Give it an implemented bounded action, or disable/remove it with truthful guidance. The adjacent current-document button is also inert; if it is only an indicator, represent that role clearly. This source finding is not a newly executed click report. |
+| G02 | **Missing empty-selection feedback/guard:** the part manager `Propiedades` button stays enabled with no `selectedFeature`, while its handler only conditionally calls `editFeature`. Disable it or give explicit selection guidance; verify selected/unselected state and focus. Do not call the selected-feature editor missing. |
+| G03 | **Disabled advertised modules:** part Superficies and Chapa metálica are explicitly disabled with `Módulo pendiente`. They do not enter enabled-command acceptance. Part operations/editor/picker and pending file states also intentionally disable conflicting commands; record the guard, not a successful action. |
+| G04 | **Configured capability omissions, separate gate scope:** the workspace's `Alcance de esta vista` explicitly excludes origin/source repair, geometric export and interactive movement. General reference/source repair, configured interference/export, constrained drag, part-feature variants and flexible instances remain the existing advanced scope in the usable ledger/#54. They are not silently deferred by a C13 pass and should not be invented as hidden enabled menu items. |
+| G05 | **Unexecuted entry-point evidence:** orientation selector interaction (N02); first-letter menu navigation; uninvoked menu/ribbon/reveal aliases; part display toggles; the remaining sketch ribbon tools. Record the named case before claiming coverage. A kernel or handler test cannot substitute for opening and using the real control. |
+| G06 | **C15 interaction limits:** P5's part control route does not certify standard/configured background aliases, reused-source rendered colour, deselection colour restoration, or fresh-process profile persistence. Keep those exact cases in C15/N10 instead of declaring all appearance finished. |
+| G07 | **Acceptance limits:** real visible-window/hardware interaction and the user's demo feedback, installed binaries and recurring Windows/macOS/Linux validation remain their existing gate rows. No screenshot or hidden route closes those automatically. |
+
+## Next bounded C13 work
+
+1. After the running source freeze closes, resolve G01/G02 and check their actual
+   selected/unselected and focus behaviour. Do not build multi-document editing
+   as an accidental expansion of a currently inert navigation control.
+2. Add one shared selector case across part/standard/configured: actual option
+   selection, one keyboard option, incompatible Normal To guard, Previous and
+   unchanged document/recovery/native serial. Reuse the established camera
+   fixture and tolerances; do not add a new geometry family.
+3. Complete a compact command-entry checklist from the rows above. For each
+   uninvoked alias record label, target/pane, enabled/disabled state, input method,
+   focus/escape result and unchanged or expected document transaction. Use the
+   existing family route for geometry rather than duplicating all its fields.
+4. Re-run only the affected bounded renderer routes after the final code change,
+   then the required integrated checks. Attach their exact final snapshot and
+   keep unexecuted/human/configured-advanced rows open.
+
+This document was created by source inspection only. No application was opened,
+no CAD/IPC tests were run for this documentation change, and no frozen code,
+workflow, package or accepted artifact was modified.

@@ -102,6 +102,17 @@ function withViewsAt(position, views) {
   return document;
 }
 
+// Original per-part metadata. Synthetic density, no physical catalog claim.
+const partProperties = () => ({ material: { name: 'Material Café', densityKgPerM3: 1000 }, appearance: { color: '#1aBc90' } });
+function withPartPropertiesAt(position, properties) {
+  const document = structuredClone(position === 'part' ? JSON.parse(content) : position === 'embedded-part' ? assembly : configuredAssembly);
+  if (position === 'part') Object.assign(document, properties);
+  else (document.version === 3 ? document.source : document).definitions.push({
+    kind: 'part', id: 'properties-original', revision: 'r1', document: { version: 1, features: [], ...properties },
+  });
+  return document;
+}
+
 test('packaged application ignores development URLs and keeps renderer isolation', async (t) => {
   const { window } = await harness(t);
   assert.equal(window.url, 'solidflow://app/index.html');
@@ -253,6 +264,77 @@ test('configured Save As and reopen preserve exact v3 bytes, cancellation and on
   assert.equal(await save(event, { content: bytes, filePath: reopened.path }), reopened.path);
   await assert.rejects(save(event, { content: bytes, filePath: path.join(temporary, 'other.solidflow') }), /Guardar como/);
   assert.deepEqual(await fs.readdir(temporary), ['configured.solidflow']);
+});
+
+test('part material and colour preserve exact bytes and grants through Save As, reopen and Save in all part positions', async t => {
+  const h = await harness(t), save = h.handlers.get('document:save');
+  for (const position of ['part', 'embedded-part', 'configured-embedded-part']) {
+    const document = withPartPropertiesAt(position, partProperties()), bytes = JSON.stringify(document, null, 2) + '\n';
+    const selected = path.join(h.temporary, position + '.solidflow');
+    h.dialogQueue.push({ canceled: false, filePath: selected });
+    assert.equal(await save(h.event, { content: bytes }), selected);
+    assert.equal(await fs.readFile(selected, 'utf8'), bytes);
+    h.dialogQueue.push({ canceled: false, filePaths: [selected] });
+    const reopened = await h.handlers.get('document:open')(h.event);
+    assert.equal(reopened.content, bytes);
+    assert.equal(await save(h.event, { content: bytes, filePath: reopened.path }), reopened.path);
+    assert.equal(await fs.readFile(selected, 'utf8'), bytes);
+    await assert.rejects(save(h.event, { content: bytes, filePath: path.join(h.temporary, 'unselected.solidflow') }), /Guardar como/);
+  }
+  assert.equal(h.state.dialogCalls, 6); assert.equal((await fs.readdir(h.temporary)).length, 3);
+});
+
+test('part properties reject invalid metadata before native dialogs or writes, including nested configured parts', async t => {
+  const h = await harness(t), save = h.handlers.get('document:save');
+  const invalid = [
+    { material: null }, { material: {} }, { material: { name: 'Original', densityKgPerM3: 1000, token: 'not-authority' } },
+    ...['', ' ', ' padded', 'padded ', 'Cafe\u0301', 'n'.repeat(81), 'name\u0000', 'name\u0085']
+      .map(name => ({ material: { name, densityKgPerM3: 1000 } })),
+    ...[0, -1, 1_000_001, '1000', null, NaN, Infinity].map(densityKgPerM3 => ({ material: { name: 'Original', densityKgPerM3 } })),
+    { appearance: null }, { appearance: {} }, { appearance: { color: '#123456', url: 'file:///private' } },
+    ...['blue', '#abc', '#12345678', '#12345g', ' #123456', '#123456\n', 'url(file:///private)', 12, null].map(color => ({ appearance: { color } })),
+  ];
+  for (const position of ['part', 'embedded-part', 'configured-embedded-part']) {
+    for (const properties of invalid) await assert.rejects(save(h.event, { content: JSON.stringify(withPartPropertiesAt(position, properties)) }), /SolidFlow no válido/, position);
+  }
+  for (const root of [assembly, configuredAssembly]) {
+    await assert.rejects(save(h.event, { content: JSON.stringify({ ...root, ...partProperties() }) }), /SolidFlow no válido/);
+  }
+  assert.equal(h.state.dialogCalls, 0); assert.deepEqual(await fs.readdir(h.temporary), []);
+});
+
+test('invalid part metadata preserves existing bytes and grants; absence and bounded material values remain admitted', async t => {
+  const h = await harness(t), save = h.handlers.get('document:save'), selected = path.join(h.temporary, 'part-properties.solidflow');
+  h.dialogQueue.push({ canceled: false, filePath: selected });
+  assert.equal(await save(h.event, { content }), selected);
+  await assert.rejects(save(h.event, { content: JSON.stringify(withPartPropertiesAt('part', { material: { name: 'Invalid', densityKgPerM3: 0 } })), filePath: selected }), /SolidFlow no válido/);
+  assert.equal(await fs.readFile(selected, 'utf8'), content);
+  for (const properties of [{}, { material: { name: 'n'.repeat(80), densityKgPerM3: 1_000_000 } }, { material: { name: 'Tiny', densityKgPerM3: Number.MIN_VALUE }, appearance: { color: '#000000' } }]) {
+    const bytes = JSON.stringify(withPartPropertiesAt('part', properties));
+    assert.equal(await save(h.event, { content: bytes, filePath: selected }), selected);
+    assert.equal(await fs.readFile(selected, 'utf8'), bytes);
+  }
+  assert.equal(await save(h.event, { content, filePath: selected }), selected);
+  assert.equal(await fs.readFile(selected, 'utf8'), content); assert.equal(h.state.dialogCalls, 1);
+});
+
+test('raw Open byte transport does not bypass the part metadata Save guard', async t => {
+  const h = await harness(t), open = h.handlers.get('document:open'), save = h.handlers.get('document:save');
+  for (const position of ['part', 'embedded-part', 'configured-embedded-part']) {
+    const selected = path.join(h.temporary, 'invalid-' + position + '.solidflow');
+    const bytes = JSON.stringify(withPartPropertiesAt(position, { appearance: { color: '#123456\n' } }));
+    await fs.writeFile(selected, bytes);
+    h.dialogQueue.push({ canceled: false, filePaths: [selected] });
+    // Open deliberately transports bounded bytes; the renderer validates the
+    // complete CAD schema. Its explicit native path grant cannot admit invalid
+    // Save content or silently change the selected bytes.
+    const opened = await open(h.event);
+    assert.equal(opened.content, bytes);
+    await assert.rejects(save(h.event, { content: opened.content, filePath: opened.path }), /SolidFlow no válido/);
+    assert.equal(await fs.readFile(selected, 'utf8'), bytes);
+    assert.equal(await save(h.event, { content, filePath: opened.path }), opened.path);
+  }
+  assert.equal(h.state.dialogCalls, 3);
 });
 
 test('named view catalogs survive real Save As, reopen and normal Save in every admitted document position', async t => {

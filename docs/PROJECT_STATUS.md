@@ -16,12 +16,21 @@ the embedded baseline, successive parts, fresh sketches and revolution record
 products**, with zero renderer errors and confirmed isolated cleanup.
 See the [exact evidence and limits](VALIDATION.md#usable-candidate-integration-and-pending-transitions--2026-11-07).
 
-Materials, density, part colours and background settings are a confirmed
-implementation gap in this candidate. Other open criteria distinguish missing
-capabilities from incomplete final-artifact validation. The ledger records
-advanced configured scope and human/platform/release acceptance explicitly.
-The next normal-entry lifecycle checks are sweep and loft, followed by the
-remaining implemented families in the ledger. The persistent goal is active.
+The next accepted local increment adds material, density, part colour and a
+separate background preference, plus normal sweep/loft lifecycle acceptance.
+Its frozen ten-command Windows batch passes **11,204 cases in 498 files**,
+**207 IPC checks with two platform skips**, desktop startup and seven renderer
+routes: **70/126/172/202+15/528/157/212** checkpoints. An independent audit verifies
+1,344 source/runtime inputs, seven compiled outputs plus Electron main/preload,
+and the real locked Electron 44.9.3 installation. See [the cases and remaining
+limits](VALIDATION.md#part-properties-and-normal-sweeploft-lifecycle--2026-11-07).
+
+The [command inventory](USABLE_COMMAND_MATRIX.md) identifies actual inactive
+navigation/property controls and unexecuted aliases separately from disabled
+modules. Reused-source colour rendering and fresh-process background persistence
+remain C15 work. The next normal-entry families are Hole and Combine, with their
+original fixture contracts prepared. Other open criteria retain configured,
+human, installed-platform and release acceptance. The persistent goal is active.
 
 ## Editing a shared embedded part from its assembly — 2026-11-03
 
