@@ -8,7 +8,7 @@ const { encodeJavaScriptString: quote } = require('./desktop-ui-source.cjs');
 module.exports = function embeddedPartEditWorkflow(context) {
   context = require('./desktop-assembly-navigation.cjs').withNavigation(context);
   const { expected, input, output, partCopyOutput, evaluate, observe, waitFor, pointer, key, checks, ipc, consoleErrors, failedRequests,
-    check, canonical, digest, initialReadyMs, dialogCounts, assemblyNavigation: navigation } = context;
+    check, canonical, digest, initialReadyMs, dialogCounts, pendingWorker, nativeClose, nativeReopen, assemblyNavigation: navigation } = context;
   const page = (fn, ...args) => evaluate('(' + fn.toString() + ')(...JSON.parse(' + quote(JSON.stringify(args)) + '))');
   const APPLY = 'button[aria-label="Aplicar ensamblaje"]', CANCEL = 'button[aria-label="Cancelar vista previa del ensamblaje"]';
   const PANEL = '[role="region"][aria-label="Actualizar origen compartido"]';
@@ -49,7 +49,7 @@ module.exports = function embeddedPartEditWorkflow(context) {
           && !!hit && (hit === e || e.contains(hit)) };
     }, selector, text, disabled);
   }
-  async function prepare(selector, text = null) {
+  async function prepare(selector, text = null, allowDisabled = false) {
     const owner = await page(selector => {
       const e = document.querySelector(selector);
       return !!e?.closest('.assembly-app') && !e.closest('.assembly-app').hidden;
@@ -62,7 +62,7 @@ module.exports = function embeddedPartEditWorkflow(context) {
     }, selector, text);
     let previous, since = 0;
     return waitFor('stationary embedded-edit control ' + (text ?? selector), async () => {
-      const state = await inspect(selector, text), signature = canonical(state);
+      const state = await inspect(selector, text, allowDisabled), signature = canonical(state);
       if (signature !== previous) { previous = signature; since = Date.now(); }
       return state.available && Date.now() - since >= 120 ? state : false;
     });
@@ -75,6 +75,16 @@ module.exports = function embeddedPartEditWorkflow(context) {
       await pointer('mousePressed', target.point, 1, count); await pointer('mouseReleased', target.point, 0, count);
     }
     interactions.push({ kind: double ? 'CDP double click' : 'CDP click', selector, text, point: target.point });
+  }
+  async function pressDisabled(selector, text = null) {
+    const target = await prepare(selector, text, true);
+    await pointer('mouseMoved', target.point);
+    check(canonical(await inspect(selector, text, true)) === canonical(target) && await page((selector, text) => {
+      const buttons = [...document.querySelectorAll(selector)].filter(e => text === null || e.textContent.trim() === text);
+      return buttons.length === 1 && buttons[0] instanceof HTMLButtonElement && buttons[0].disabled;
+    }, selector, text), 'The original target is still disabled at the physical click');
+    await pointer('mousePressed', target.point, 1); await pointer('mouseReleased', target.point, 0);
+    interactions.push({ kind: 'CDP click on disabled control', selector, text, point: target.point });
   }
   const button = (text, scope = '.assembly-app') => press(scope + ' button', text);
   async function control(selector, value) {
@@ -100,20 +110,49 @@ module.exports = function embeddedPartEditWorkflow(context) {
       return state.record;
     });
     phases.push({ action, serial: result.serial, requestHasToken: result.hasToken ?? false,
-      currentSha256: result.current ? digest(canonical(result.current)) : null, response: result.response });
+      currentSha256: result.current ? digest(canonical(result.current)) : null, response: result.response,
+      ...(pendingWorker || nativeReopen ? { requestId: result.id, eventSerial: result.eventSerial, responseEventSerial: result.responseEventSerial,
+        documentSha256: result.document ? digest(canonical(result.document)) : null } : {}) });
     return result;
   }
   async function recovery(doc, label) {
     await waitFor(label + ' exact committed recovery', async () => canonical(JSON.parse(await rawRecovery())) === canonical(doc));
   }
-  async function unchanged(label) {
+  async function sameParentBytes(label) {
     check(await rawRecovery() === parentRecovery, label + ' retains byte-exact parent recovery');
     if (parentFileBytes) check((await fs.readFile(output)).equals(parentFileBytes), label + ' retains byte-exact parent file');
+  }
+  async function unchanged(label) {
+    await sameParentBytes(label);
     const state = await observe();
     check(!state.workerErrors.length, 'No worker errors while parent suspended');
     const updates = state.assemblies.filter(x => x.serial > lastReviewSerial && ['apply-assembly', 'build-assembly'].includes(x.action));
     check(updates.length === 0, label + ' performs no committed-parent native action');
     boundaries.push({ phase: label, recoverySha256: digest(parentRecovery), serial: state.serial });
+  }
+  async function quietWorker() {
+    return waitFor('all observed CAD requests settled before arming next message', async () => {
+      const state = await observe();
+      check(!state.workerErrors.length, 'No worker error before the controlled checkpoint');
+      return [...state.builds, ...state.assemblies].every(row => row.response) ? { serial: state.serial } : false;
+    });
+  }
+  async function pendingRequest(kind, after, matches) {
+    const state = await observe();
+    const posted = [...state.builds, ...state.assemblies].filter(row => row.serial > after);
+    check(!state.workerErrors.length && posted.length <= 1 && state.serial <= after + 1,
+      'Exactly one real CAD request may cross the controlled checkpoint');
+    if (!posted.length) return false;
+    const record = posted[0], stop = await pendingWorker.sample();
+    check(record.serial === after + 1 && matches(record) && record.response === null,
+      'The expected authentic request was posted without a native reply: ' + JSON.stringify({ kind, after, serial: record.serial,
+        id: record.id, action: record.action ?? 'build', hasResponse: record.response !== null, featureCount: record.features?.length,
+        features: record.features?.slice(0, 3).map(feature => ({ id: feature.id, width: feature.profile?.width, center: feature.profile?.center })), stop }));
+    if (!stop.paused) return false;
+    check(stop.kind === kind && stop.request.id === record.id && stop.request.action === (record.action ?? 'build')
+      && stop.request.trusted && !stop.resumed && stop.frame?.url,
+      'The worker stopped on the exact same trusted posted message');
+    return { id: record.id, action: record.action ?? 'build', serial: record.serial, eventSerial: record.eventSerial, response: null, stop };
   }
   function body(scene, id) {
     const rows = scene.bodies.filter(b => canonical(b.component.occurrencePath) === canonical([id]));
@@ -159,12 +198,46 @@ module.exports = function embeddedPartEditWorkflow(context) {
       'Both actual independent native mate checks satisfy their reported budgets');
     geometry(v.scene, updated, revision); signedTopSeparation(v.scene); return v;
   }
-  async function apply(event) {
+  async function apply(event, exercisePending = false) {
     await parentIdle('native preview settled');
     await waitFor('authenticated Apply enabled', () => page(selector => document.querySelector(selector)?.disabled === false, APPLY));
-    const before = await serial(); await press(APPLY); const result = await response(before, 'apply-assembly');
+    const controlled = exercisePending && pendingWorker;
+    const before = controlled ? (await quietWorker()).serial : await serial();
+    if (controlled) await pendingWorker.arm('apply');
+    await press(APPLY);
+    let held;
+    if (controlled) {
+      const match = row => row.action === 'apply-assembly' && row.hasToken && canonical(row.current) === canonical(parent);
+      held = await waitFor('authenticated Apply actually pending in production worker', () => pendingRequest('apply', before, match));
+      const attempts = [];
+      for (const [selector, text] of [['.assembly-embedded-part-controls button', 'Volver a editar pieza'],
+        ['.assembly-embedded-part-controls button', 'Descartar edición'], [CANCEL_UPDATE, null], [CANCEL, null]]) {
+        await pressDisabled(selector, text);
+        const pending = await pendingRequest('apply', before, match);
+        check(canonical(pending) === canonical(held), 'The same Apply remains pending across each rejected exit');
+        await sameParentBytes('Rejected exit during Apply');
+        check(await page(part => !document.querySelector(part)?.checkVisibility()
+          && document.querySelector('.assembly-app')?.getAttribute('aria-busy') === 'true' && !document.querySelector('[role="dialog"]'), PART),
+        'Rejected exit keeps the review busy with no editor or discard confirmation');
+        attempts.push({ control: text ?? selector, pending });
+      }
+      boundaries.push({ phase: 'Apply pending rejects exit and return-to-edit', before: held, attempts, recoverySha256: digest(parentRecovery) });
+      await pendingWorker.release();
+    }
+    const result = await response(before, 'apply-assembly');
     check(result.hasToken && result.response.value.kind === 'assembly-applied', 'Apply consumes an actual private worker capability');
-    await parentIdle('Apply settled'); await recovery(result.response.value.document, 'Apply'); return result;
+    await parentIdle('Apply settled'); await recovery(result.response.value.document, 'Apply');
+    if (controlled) {
+      const resumed = await pendingWorker.sample(), state = await observe();
+      check(resumed.resumed && !resumed.paused && result.id === held.stop.request.id && result.serial === held.serial
+        && result.responseEventSerial > held.eventSerial && canonical(result.current) === canonical(event.current),
+      'The original trusted Apply alone settles on the same parent after release');
+      check([...state.builds, ...state.assemblies].filter(row => row.serial > before).length === 1
+        && (await fs.readFile(output)).equals(parentFileBytes), 'Apply commits once without starting a different edit, build or file write');
+      boundaries.push({ phase: 'Apply settles after rejected exits', resumed, requestSerial: result.serial,
+        responseEventSerial: result.responseEventSerial, recoverySha256: digest(await rawRecovery()) });
+    }
+    return result;
   }
   async function selectMoving() {
     await navigation.panel('components');
@@ -180,18 +253,35 @@ module.exports = function embeddedPartEditWorkflow(context) {
     }, PART));
     await partReady(before, width, 'initial embedded activation'); await unchanged('First embedded render');
   }
-  async function partReady(after, width, label) {
+  function verifyPartBuild(row, width, centerX = width / 2) {
+    check(row.response?.ok && row.response.value.featureErrors.length === 0 && !row.response.value.warnings.length, 'Actual embedded build succeeds without feature errors');
+    const bodies = row.response.value.bodies;
+    check(row.response.value.bodyCatalogActive && bodies?.length === 1 && bodies[0].ref.bodyId === 'embedded-body'
+      && bodies[0].ref.sourceFeatureId === 'embedded-solid', 'Exact explicit body in actual part build');
+    near(bodies[0].volume, width * 3 * 4, 1e-5, 'Independent local part volume');
+    vector(bodies[0].bounds.min, [centerX - width / 2, 0, 0], 1e-6, 'Local lower');
+    vector(bodies[0].bounds.max, [centerX + width / 2, 3, 4], 1e-6, 'Local upper');
+  }
+  function verifyDraftSketch(row) {
+    const value = row.response?.value;
+    check(row.response?.ok && !value.featureErrors.length && !value.warnings.length && !value.bodies?.length
+      && value.sketches?.length === 1 && value.sketches[0].id === 'embedded-profile', 'Healthy native sketch-only rollback preview has no solids');
+    const { lines } = value.sketches[0];
+    check(Array.isArray(lines) && lines.length >= 24 && lines.length % 6 === 0 && lines.every(Number.isFinite),
+      'Native draft supplies finite rectangle line endpoints');
+    const axes = [0, 1, 2].map(axis => lines.filter((_coordinate, index) => index % 3 === axis));
+    const min = axes.map(values => Math.min(...values)), max = axes.map(values => Math.max(...values));
+    vector(min, [-.5, 0, 0], 1e-6, 'Independent draft lower bounds');
+    vector(max, [3.5, 3, 0], 1e-6, 'Independent draft upper bounds');
+    return { id: value.sketches[0].id, lines, bounds: { min, max }, solidCount: value.bodies?.length ?? 0 };
+  }
+  async function partReady(after, width, label, centerX = width / 2) {
     const record = await waitFor(label + ' healthy actual part build', async () => {
       const state = await observe(); check(!state.workerErrors.length, 'No actual part worker errors');
       const matches = state.builds.filter(b => b.serial > after && b.features.length === 2
-        && b.features[0].profile?.width === width && b.features[0].profile?.center?.[0] === width / 2 && b.response);
+        && b.features[0].profile?.width === width && b.features[0].profile?.center?.[0] === centerX && b.response);
       const row = matches.at(-1); if (!row) return false;
-      check(row.response.ok && row.response.value.featureErrors.length === 0 && !row.response.value.warnings.length, 'Actual embedded build succeeds without feature errors');
-      const bodies = row.response.value.bodies;
-      check(row.response.value.bodyCatalogActive && bodies?.length === 1 && bodies[0].ref.bodyId === 'embedded-body'
-        && bodies[0].ref.sourceFeatureId === 'embedded-solid', 'Exact explicit body in actual part build');
-      near(bodies[0].volume, width * 3 * 4, 1e-5, 'Independent local part volume');
-      vector(bodies[0].bounds.min, [0, 0, 0], 1e-6, 'Local lower'); vector(bodies[0].bounds.max, [width, 3, 4], 1e-6, 'Local upper'); return row;
+      verifyPartBuild(row, width, centerX); return row;
     });
     await waitFor(label + ' current activation Return enabled', () => page(selector => document.querySelector(selector)?.disabled === false, RETURN));
     phases.push({ phase: label, serial: record.serial, features: record.features, native: record.response.value }); return record;
@@ -293,9 +383,54 @@ module.exports = function embeddedPartEditWorkflow(context) {
     check(canonical(event.document) === canonical(doc), 'Whole-parent ' + label + ' restores the exact complete graph');
     geometry(event.response.value, updated, revision); await parentIdle(label + ' settled'); await recovery(doc, label); return event;
   }
+  const historyButtons = () => page(() => ['Deshacer ensamblaje', 'Rehacer ensamblaje'].map(label =>
+    document.querySelector('button[aria-label="' + label + '"]')?.disabled ?? null));
+
+  async function reopenAfterNativeClose(inputBytes) {
+    const { finalDocument, savedSha256, partCopySha256, nativeWindowClose } = nativeReopen;
+    const recoverySha256 = nativeWindowClose?.before?.recoverySha256;
+    check(typeof recoverySha256 === 'string', 'Verified prior native close recovery receipt is present');
+    const revision = finalDocument.occurrences.find(row => row.id === 'moving')?.definition.revision;
+    check(typeof revision === 'string' && revision !== 'r0', 'The prior accepted embedded source revision is identified');
+    const launched = await response(0, 'build-assembly');
+    check(canonical(launched.document) === canonical(finalDocument), 'Fresh process rebuilds the exact prior committed recovery graph');
+    geometry(launched.response.value, true, revision); await parentIdle('native reopen recovery ready');
+    await recovery(finalDocument, 'Native reopen');
+    const recovered = await rawRecovery();
+    check(digest(recovered) === recoverySha256 && digest(await fs.readFile(output)) === savedSha256
+      && digest(await fs.readFile(partCopyOutput)) === partCopySha256, 'Fresh process retains exact prior recovery, parent file and detached copy bytes');
+    check(await page(() => typeof window.solidflow?.openDocument === 'function' && typeof window.require === 'undefined'
+      && typeof window.process === 'undefined'), 'Fresh process uses the real restricted file bridge');
+    const beforeOpen = await serial();
+    await button('Abrir', ':is(.assembly-toolbar, .assembly-quickbar)');
+    await press('[role="dialog"][aria-label="Cambios sin guardar"] button', 'Continuar sin guardar');
+    const opened = await response(beforeOpen, 'build-assembly');
+    check(canonical(opened.document) === canonical(finalDocument), 'The actual saved file opens with exactly the recovered identities and relations');
+    geometry(opened.response.value, true, revision); await parentIdle('native reopened saved parent ready');
+    check(canonical(await historyButtons()) === '[true,true]', 'Fresh opened document history begins at the exact saved graph');
+    const beforeSolve = await serial(); await press('button[aria-label="Resolver ensamblaje"]');
+    const preview = await response(beforeSolve, 'preview-assembly'); solved(preview, true, revision);
+    check(canonical(preview.current) === canonical(finalDocument)
+      && canonical(preview.response.value.document.mates) === canonical(finalDocument.mates)
+      && canonical(preview.response.value.document.definitions) === canonical(finalDocument.definitions),
+    'Fresh solve starts from and retains the exact saved source revisions and repaired relations');
+    await press(CANCEL); await parentIdle('native reopened fresh solve Cancel');
+    check(await rawRecovery() === recovered && digest(await fs.readFile(output)) === savedSha256
+      && digest(await fs.readFile(partCopyOutput)) === partCopySha256 && (await fs.readFile(input)).equals(inputBytes),
+    'Reopen and fresh solve leave the original input, parent, recovery and detached copy untouched');
+    const final = await observe();
+    check(dialogCounts().opens === 1 && dialogCounts().saves === 0 && dialogCounts().csvExports === 0 && ipc.every(row => row.completed),
+      'Fresh process completes exactly one owned Open and no Save');
+    check(!final.workerErrors.length && !consoleErrors.length && !failedRequests.length, 'No fresh process renderer, worker or resource failures');
+    Object.assign(evidence.embeddedPartEdit, { finalDocument, savedSha256, partCopySha256,
+      nativeWindowReopen: { startupRecoverySha256: digest(recovered), recoveredSerial: launched.serial, openedSerial: opened.serial,
+        solveSerial: preview.serial, fileBytesPreserved: true, detachedCopyBytesPreserved: true },
+      limits: 'Fresh isolated process and original standard assembly. Production recovery, owned native Open, real placed BRep geometry and fresh solved relations.' });
+  }
 
   return async () => {
     const inputBytes = await fs.readFile(input);
+    if (nativeReopen) { await reopenAfterNativeClose(inputBytes); return; }
     await waitFor('initial production readiness', () => page(() => document.querySelector('.statusbar')?.textContent.includes('Listo')
       && typeof window.solidflow?.openDocument === 'function' && typeof window.require === 'undefined' && typeof window.process === 'undefined'), initialReadyMs);
     let before = await serial(); await press('button[aria-label="Abrir (Ctrl+O)"]');
@@ -402,6 +537,19 @@ module.exports = function embeddedPartEditWorkflow(context) {
     }, PART));
     await unchanged('Successful copy does not write assembly or recovery');
     await closeGuard(true, 'Saving a part copy does not clear unapplied assembly work');
+    let keepEditing;
+    if (nativeClose) {
+      const beforeClose = await quietWorker();
+      check(await page(selector => navigator.userActivation.hasBeenActive && document.querySelector(selector)?.disabled === false, RETURN),
+        'The genuine close follows actual input with unapplied embedded work ready');
+      keepEditing = await nativeClose.keepEditing();
+      await unchanged('Native close cancellation retains the exact committed parent');
+      check(await serial() === beforeClose.serial && (await fs.readFile(partCopyOutput)).equals(copyBytes)
+        && await page(selector => document.querySelector(selector)?.disabled === false, RETURN),
+      'Native cancellation retains the same ready part editor and existing detached copy');
+      boundaries.push({ phase: 'Native close chooses Seguir editando after copy save', receipt: keepEditing,
+        recoverySha256: digest(parentRecovery), partCopySha256: digest(copyBytes), workerSerial: beforeClose.serial });
+    }
     await cancelDiscard(false); await cancelDiscard(true);
 
     const first = await review(); await repair(first);
@@ -418,7 +566,7 @@ module.exports = function embeddedPartEditWorkflow(context) {
     await repair(second); before = await serial(); await press(SOLVE); event = await response(before, 'preview-assembly-part-update');
     solved(event, true, second.revision); intent(event.response.value.document, second.revision); await unchanged('Retry ready before Apply');
     check(!(await observe()).builds.some(b => b.serial > second.serial), 'No resumed/stale part producer posts during review, repair or Solve');
-    const applied = await apply(event), accepted = applied.response.value.document;
+    const applied = await apply(event, true), accepted = applied.response.value.document;
     intent(accepted, second.revision); geometry(applied.response.value.scene, true, second.revision);
     check(!await page(part => !!document.querySelector(part), PART), 'Successful Apply disposes the temporary part editor');
     await undoRedo('Deshacer', parent, false);
@@ -441,14 +589,22 @@ module.exports = function embeddedPartEditWorkflow(context) {
     await closeGuard(false, 'Reopened saved accepted parent is clean');
 
     // An unfinished real sketch change queues its normal production debounce.
-    // Record whether the tiny prism's native build is still pending at the
-    // actual discard decision; do not make CI depend on a minimum kernel time.
+    // The optional checkpoint stops the actual next worker message, making the
+    // discard decision independent of the tiny prism's native build duration.
     parent = accepted; parentRecovery = await rawRecovery(); parentFileBytes = await fs.readFile(output); lastReviewSerial = await serial();
+    const originalHistoryButtons = pendingWorker ? await historyButtons() : null;
+    if (pendingWorker) check(canonical(originalHistoryButtons) === '[true,true]', 'Reopened parent starts with its original empty local history');
     await enter(3);
     if (await page(selector => document.querySelector(selector)?.getAttribute('aria-expanded') === 'false', treeToggle)) await press(treeToggle);
     await press(PROFILE, null, true);
     await waitFor('reopened embedded sketch editable', () => page(selector => document.querySelector(selector)?.value === '3', WIDTH));
     const discardTarget = await prepare(DISCARD);
+    let quiet;
+    if (pendingWorker) {
+      await waitFor('original sketch preview ready before controlled discard', () => page(selector => document.querySelector(selector)?.disabled === false, PART_APPLY));
+      quiet = await quietWorker();
+      await pendingWorker.arm('discard');
+    }
     const unfinished = await page(async (selector, returning) => {
       const field = document.querySelector(selector), start = globalThis.__solidflowUiTestObservation.counters().serial;
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(field, '4');
@@ -460,22 +616,62 @@ module.exports = function embeddedPartEditWorkflow(context) {
         nativePending: state.builds.filter(b => !b.response).map(b => b.serial) };
     }, WIDTH, RETURN);
     check(unfinished.returnDisabled && !unfinished.draftBuildPosted, 'Discard begins with a real unfinished change and its debounce still queued');
+    if (pendingWorker) check(unfinished.start === quiet.serial, 'No request crossed from the settled sketch into the new draft');
     check((await inspect(DISCARD)).available, 'Original discard control remains physically reachable');
     await pointer('mouseMoved', discardTarget.point); await pointer('mousePressed', discardTarget.point, 1); await pointer('mouseReleased', discardTarget.point, 0);
     const confirm = await prepare(DISCARD_DIALOG + ' button.primary-button');
+    // Editing an already-consumed sketch rolls downstream operations back.
+    // The pending reply belongs only to the draft sketch, not to the extrusion.
+    const matchDraft = row => !row.action && row.features.length === 1 && row.features[0].id === 'embedded-profile'
+      && row.features[0].type === 'sketch' && row.features[0].profile?.width === 4
+      && canonical(row.features[0].profile.center) === '[1.5,1.5]';
+    const heldDiscard = pendingWorker ? await waitFor('draft build is actually pending in production worker at discard confirmation',
+      () => pendingRequest('discard', unfinished.start, matchDraft)) : null;
     const decision = await observe();
     const nativePending = decision.builds.filter(b => b.serial > unfinished.start && !b.response).map(b => b.serial);
     before = await serial();
+    if (heldDiscard) check(before === heldDiscard.serial && canonical(nativePending) === canonical([heldDiscard.serial]),
+      'Exactly the held trusted build remains outstanding at the physical discard decision');
     await pointer('mouseMoved', confirm.point); await pointer('mousePressed', confirm.point, 1); await pointer('mouseReleased', confirm.point, 0);
+    let afterDecision;
+    if (heldDiscard) {
+      const suspendedUi = await waitFor('discard suspends the temporary editor and keeps its parent inert while native work is pending', () => page(part => {
+        const editor = document.querySelector(part), parent = document.querySelector('.assembly-app');
+        const ui = { editorPresent: !!editor, editorHidden: !!editor && !editor.checkVisibility(), parentHidden: parent?.hidden === true,
+          parentInert: parent?.inert === true, handoffStatus: !!document.querySelector('.assembly-embedded-part-editor > p[role="status"]') };
+        return Object.values(ui).every(Boolean) ? ui : false;
+      }, PART));
+      afterDecision = await pendingRequest('discard', unfinished.start, matchDraft);
+      check(canonical(afterDecision) === canonical(heldDiscard), 'Confirmed discard is waiting on the same unfinished genuine request');
+      await unchanged('Confirmed discard cannot rebuild the parent before pending native work settles');
+      boundaries.push({ phase: 'Actual pending build and confirmed discard before release', before: heldDiscard, afterDecision, suspendedUi,
+        recoverySha256: digest(parentRecovery) });
+      await pendingWorker.release();
+    }
     await waitFor('unfinished embedded edit discarded and parent restored', () => page(part => !document.querySelector(part)
       && document.querySelector('.assembly-app')?.hidden === false, PART));
     event = await response(before, 'build-assembly');
     check(canonical(event.document) === canonical(accepted), 'Discarded unfinished change restores the exact accepted parent');
     geometry(event.response.value, true, second.revision); await parentIdle('discard restored healthy parent'); await recovery(accepted, 'Discard');
     check((await fs.readFile(output)).equals(parentFileBytes), 'Discard does not write the committed parent file');
+    if (heldDiscard) {
+      const resumed = await pendingWorker.sample(), state = await observe();
+      const late = state.builds.find(row => row.serial === heldDiscard.serial);
+      check(resumed.resumed && !resumed.paused && late?.id === heldDiscard.stop.request.id && late.responseEventSerial > heldDiscard.eventSerial
+        && late.responseEventSerial < event.eventSerial, 'The exact original worker response settled before a fresh parent build');
+      const nativeSketch = verifyDraftSketch(late);
+      const subsequent = [...state.builds, ...state.assemblies].filter(row => row.serial > heldDiscard.serial);
+      check(subsequent.length === 1 && subsequent[0].serial === event.serial && await rawRecovery() === parentRecovery
+        && canonical(await historyButtons()) === canonical(originalHistoryButtons),
+      'The discarded result adds no parent revision, history, recovery change or later edit');
+      boundaries.push({ phase: 'Actual pending build settled before exact parent restoration', resumed, partResponseEventSerial: late.responseEventSerial,
+        restoredBuildSerial: event.serial, restoredBuildEventSerial: event.eventSerial, recoverySha256: digest(parentRecovery),
+        nativeSketch });
+    }
     await closeGuard(false, 'Discard restores clean parent close guard');
     boundaries.push({ phase: 'Discard unfinished sketch change', debounce: unfinished, nativePendingAtDecision: nativePending,
-      nativePendingObserved: nativePending.length > 0, limit: nativePending.length ? 'Actual native request was pending at the decision sample; no artificial hold.'
+      nativePendingObserved: nativePending.length > 0, limit: heldDiscard ? 'Actual dispatched request stopped in the native worker message callback before kernel execution and resumed unchanged after confirmation.'
+        : nativePending.length ? 'Actual native request was pending at the decision sample without a worker breakpoint.'
         : 'Native prism build had settled by the decision sample; this case proves queued-debounce/unfinished discard, not discard during an outstanding native request.' });
     check((await fs.readFile(input)).equals(inputBytes), 'Original synthetic input remains byte-identical');
     const final = await observe();
@@ -483,6 +679,32 @@ module.exports = function embeddedPartEditWorkflow(context) {
     check(!final.workerErrors.length && !consoleErrors.length && !failedRequests.length, 'No actual renderer/worker/resource failures');
     Object.assign(evidence.embeddedPartEdit, { inputSha256: digest(inputBytes), savedSha256: digest(await fs.readFile(output)), partCopySha256: digest(copyBytes), finalDocument: accepted,
       independentOracles: 'Original two-use 2x3x4 rectangular prism: V48/A104 -> two 3x3x4 solids V72/A132. Width2->3 and centerX1->1.5 keep lowerX0. Overall bounds[0,0,0]..[3,3,14]. Fixed baseZ0, movingZ10, identity orientations. First-minus-second material-top distance=-10, checked from actual native world plane supports before authoring. Native volume/area tolerance1e-5; coordinates1e-6; quaternion physical identity1e-8. Fresh rank6/DOF0 and both native mate checks satisfy their own reported tolerances.',
-      limits: 'One original standard assembly, scripted visible form controls and real CDP pointer/keyboard, production worker/native placed solid inventory and metrology, test-owned native-dialog paths. Close guard sampled with a synthetic cancellable beforeunload event; no operating-system close is attempted. Native-pending discard coverage is limited to the explicitly recorded decision sample, without an artificial worker hold. No injected document, model, solver reply, native proof or Apply token. BRep admission belongs to production native body/placement validation; no separate renderer BRep-validity flag is invented. No human native-dialog, linked-file writeback, dormant uses, general topology correspondence, installed package or cross-platform claim.' });
+      limits: 'One original standard assembly, scripted visible form controls and real CDP pointer/keyboard, production worker/native placed solid inventory and metrology, test-owned native-dialog paths. '
+        + (nativeClose ? 'Native close uses the owned Windows window; its receipt records the actual close decisions. ' : 'Close guard sampled with a synthetic cancellable beforeunload event. ')
+        + (pendingWorker ? 'The owned worker stopped at dispatch of each exact trusted event before kernel execution; this is a deterministic overlap test, not a kernel interruption or performance measurement. '
+          : 'Native-pending discard coverage is limited to the explicitly recorded decision sample. ')
+        + 'No injected document, model, solver reply, native proof or Apply token. BRep admission belongs to production native body/placement validation; no separate renderer BRep-validity flag is invented. No human native-dialog, linked-file writeback, dormant uses, general topology correspondence, installed package or cross-platform claim.' });
+    if (nativeClose) {
+      if (pendingWorker) await pendingWorker.dispose();
+      lastReviewSerial = await serial();
+      await enter(3);
+      if (await page(selector => document.querySelector(selector)?.getAttribute('aria-expanded') === 'false', treeToggle)) await press(treeToggle);
+      await press(PROFILE, null, true);
+      await waitFor('native close original sketch operation editable', () => page(selector => document.querySelector(selector)?.value === '3', WIDTH));
+      await control(WIDTH, '4');
+      await waitFor('native close edited sketch preview ready', () => page(selector => document.querySelector(selector)?.disabled === false, PART_APPLY));
+      before = await serial(); await press(PART_APPLY);
+      const unsaved = await partReady(before, 4, 'Native close independent unapplied edit', 1.5);
+      await unchanged('Native close sees unapplied part without any parent change');
+      check((await fs.readFile(partCopyOutput)).equals(copyBytes) && await page(() => navigator.userActivation.hasBeenActive),
+        'An actual input activated the window and the previous independent copy remains intact');
+      const close = { keepEditing, before: { recoverySha256: digest(parentRecovery), savedSha256: digest(parentFileBytes),
+        partCopySha256: digest(copyBytes), unsavedBuildSerial: unsaved.serial, unsavedFeatures: unsaved.features,
+        userActivation: true }, discard: null };
+      evidence.embeddedPartEdit.nativeWindowClose = close;
+      close.discard = await nativeClose.closeWithoutSaving();
+      check((await fs.readFile(output)).equals(parentFileBytes) && (await fs.readFile(partCopyOutput)).equals(copyBytes)
+        && (await fs.readFile(input)).equals(inputBytes), 'After the true native close all three owned files retain their exact bytes');
+    }
   };
 };

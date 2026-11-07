@@ -1,5 +1,20 @@
 # Development guide
 
+## Explicit sketch input for new extrusion and revolution operations
+
+The four extrusion/revolution commands use only an explicitly selected, current,
+unsuppressed sketch or an eligible sketch draft being continued. A selected
+operation does not supply its input sketch for a new operation; an empty
+selection does not fall back to the last sketch. Reject missing input before
+clearing browsing selection or staging a feature, with a message explaining how
+to select a sketch. Existing-operation editing retains its stored references.
+Direct sketch continuation keeps its existing staging, Cancel and history rules.
+
+The sequential-part renderer checks rejected entry through the four real ribbon
+commands with no selection and with an operation selected. Its subsequent
+explicit-sketch extrusion/cut route retains independent geometry, history and
+Save/reopen checks. These cases do not establish sweep/loft input selection.
+
 ## Ordered assembly preselection — 2026-10-29
 
 The standard workspace shares one ordered browse selection between Normal To
@@ -2309,6 +2324,7 @@ npm start
 | `npm run build` | TypeScript checking and production compilation of UI, worker and WASM integration. |
 | `npm run test:desktop` | Real Electron production-loader smoke check after building, with a hidden window and isolated temporary user data. |
 | `npm run test:desktop:assembly-embedded-part-edit` | Production renderer: edit one original embedded prism reused twice, review/repair/Solve/Apply, copy save, history and parent Save/reopen. See [the bounded evidence and remaining limits](VALIDATION.md#editing-an-embedded-part-from-its-assembly--2026-10-31). |
+| `npm run test:desktop:assembly-embedded-part-transitions` | Windows-only production workflow with two isolated processes. Observe exact outstanding worker requests at attempted Apply exit and confirmed discard, exercise the real owned-window close dialog, then verify recovery and saved-file reopening. The driver uses the existing Windows PowerShell/.NET runtime and acts only on the authenticated test window. See [the acceptance ledger](USABLE_VERSION_ACCEPTANCE.md). |
 | `npm run test:desktop:imported-bodies` | Configured production-renderer opening of an original v1 explicit STEP body base, real worker/body identity checks, suppression/history and Save As/reopen through restricted file IPC. Run after building; test-owned dialogs and planar mesh-area checks are separate from native BRep unit evidence. |
 | `npm run test:desktop:assembly-step` | Configured production-renderer structural STEP export/import in both workspaces, cancellation/rejection, autonomous Save As/reopen and reexport. Run after building; real worker and output bytes with original fixtures and test-owned dialogs. Record source-specific execution separately. |
 | `npm run test:desktop:assembly-step-insertion` | Configured production-renderer insertion of an original structural STEP into a saved parent, cancellation/rejection, exact history, component reuse and autonomous saved reopening. Run after building; real worker and restricted file IPC with test-owned dialogs. Record actual execution separately. |

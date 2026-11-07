@@ -1,5 +1,72 @@
 # Validation
 
+## Usable candidate integration and pending transitions — 2026-11-07
+
+The integrated candidate contains the desktop's explicit sketch-input fix and
+the preserved embedded-editor transition tests. Source, dependency-lock and
+production identities are retained by the private validation controller.
+The [acceptance ledger](USABLE_VERSION_ACCEPTANCE.md) records the wider version
+gate and the remaining implementation and validation work.
+
+The first frozen Windows batch passes build, the new transition route and the
+updated successive-part route. It reuses the existing locked Node 24.11.1 and
+Electron 44.9.3 dependencies in a separate runtime. The native transition route
+has 202 checkpoints, followed by 15 fresh-process recovery/reopen checkpoints.
+The part sequence retains its original independent volume/area/bounds oracles
+and passes 527 checkpoints after the explicit selection checks.
+
+The transition recorder stops the exact trusted production worker message
+callback before executing its request. It correlates action, ID and event order
+with the independently observed posted request. Apply stays outstanding across
+four actual disabled-control clicks. The confirmed discard keeps the parent
+hidden/inert until the authentic sketch reply precedes a fresh parent build.
+The sketch-only rollback preview has independent bounds [-0.5,0,0]…[3.5,3,0]
+at 1e−6 mm. The restored parent retains its original two native solids, body and
+source identities, relationships, recovery and history. The existing prism
+oracles V48→72 mm³, A104→132 mm², bounds and physical orientations retain
+their original tolerances.
+
+The Windows driver sends `WM_CLOSE` to the exact test-owned HWND and invokes
+the authenticated Button control with `BM_CLICK`. It records the production
+native dialog's actual results 0 and 1, the retained/destroyed window and the
+helper exit. A separate child process opens the same owned profile, compares
+recovery and saved/copy digests, explicitly reopens the parent file and performs
+a fresh native Solve. The first process delays its automatic application quit
+only until the already-closed window's receipt is recorded. The worker overlap
+case covers a real request at dispatch entry; interruption midway through an
+OpenCascade operation has separate coverage requirements.
+
+**Final frozen Windows increment acceptance passes eight commands.** Build,
+the pending/native-close route, the original embedded route, successive parts,
+fresh sketches, revolution, `npm test` and desktop startup all completed on the
+same final snapshot. The five renderer routes record **202 plus 15 fresh-process,
+172, 527, 86 and 251 checkpoints** respectively, with zero console/request
+errors and confirmed owned process/profile cleanup. The full suite passes
+**11,120 unit/CAD cases in 494 files and 203 IPC checks**, with two explicit
+platform skips. The updated diagnostic VM also passes its 27 focused cases,
+including native destroyed-window success and early owner-creation failure.
+
+An independent final audit rehashed **1,327 inputs in both source and runtime,
+nine products and eight logs**. Each renderer has the exact eight expected
+production-header hashes, with the SVG audited separately. Its retained native
+evidence includes fifteen assembly scenes, four verified previews, all four
+rejected Apply exits, the trusted late sketch response before parent rebuild,
+actual native modal results and exact fresh-process document/file digests.
+Combined input/product manifest:
+`3ec29211edb6539ed942a17d5826b1d8828a109d11d9e1b8d2c2d22934db5d1c`.
+
+The first aggregate full-suite run passed unit/CAD cases and exposed a missing
+`nativeClose` binding in the extracted diagnostic test context. Correcting that
+test and adding its two focused cases leaves all nine production products
+byte-identical to the earlier successful integrated build. The failed run is
+retained. The 3 November final batch also retains its original interrupted
+state from the user's pause. Applied code-review, security-review and the
+relevant React guidance with the project's corrections.
+
+This closes the recorded Windows transition increment. The broader
+usable-version ledger, human use, installed applications and platform/release
+acceptance keep their separate pending criteria.
+
 ## Editing an embedded part from its assembly — 2026-10-31
 
 The standard assembly workspace can open the selected embedded part in its

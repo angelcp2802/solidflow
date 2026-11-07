@@ -143,6 +143,46 @@ module.exports = function partSequenceWorkflow(context) {
     })()`));
     records.push({phase:'context-menu-open',featureId:id,input:keyboard?'CDP ContextMenu after row focus':'CDP right press/release'});
   }
+  async function explicitSketchEntry() {
+    const commands = ['Saliente/Base extruido', 'Corte extruido', 'Revolución', 'Corte por revolución'];
+    const reason = 'Selecciona un croquis en el árbol o edita uno antes de añadir la operación.';
+    const snapshot = () => page(() => ({
+      selected: [...document.querySelectorAll('.tree-row.selected[data-feature-id]')].map(row => row.dataset.featureId),
+      features: [...document.querySelectorAll('.tree-row[data-feature-id]')].map(row => ({ id: row.dataset.featureId, text: row.textContent })),
+      title: document.querySelector('.document-title')?.textContent,
+      history: ['Deshacer (Ctrl+Z)', 'Rehacer (Ctrl+Y)'].map(title => {
+        const matches = [...document.querySelectorAll('button')].filter(button => button.title === title);
+        if (matches.length !== 1) throw Error('One current history control required');
+        return { title, disabled: matches[0].disabled };
+      }),
+      editor: !!document.querySelector('.property-manager'),
+      profile: !!document.querySelector('select[aria-label="Croquis de la operación"]'),
+      recovery: localStorage.getItem('solidflow.autosave'),
+    }));
+    for (const selected of [null, 'seq-base']) {
+      if (selected) await actualTreePress(contextSelector(selected));
+      const before = await snapshot(), nativeBefore = await observe();
+      check(canonical(before.selected) === canonical(selected ? [selected] : []) && !before.editor && !before.profile,
+        'Explicit sketch entry starts with only the intended selection: ' + (selected || 'none'));
+      check(before.recovery && canonical(JSON.parse(before.recovery).features) === canonical(expected.features),
+        'Explicit sketch entry begins with the unchanged original document');
+      for (const command of commands) {
+        await actualTreePress('button.command[title="' + command + '"]');
+        await page(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+        const after = await snapshot(), nativeAfter = await observe();
+        const phase = (selected ? 'selected-operation' : 'no-selection') + ': ' + command;
+        check(!after.editor && !after.profile, phase + ' must not open an operation or inherit an implicit sketch');
+        check(await page(reason => document.querySelector('.toast[role="status"]')?.textContent.trim() === reason, reason),
+          phase + ' explains how to select an explicit sketch');
+        check(canonical(after) === canonical(before), phase + ' preserves exact recovery, document tree, selection and history availability');
+        check(nativeAfter.serial === nativeBefore.serial && nativeAfter.builds.length === nativeBefore.builds.length
+          && nativeAfter.assemblies.length === nativeBefore.assemblies.length && nativeAfter.workerErrors.length === 0,
+          phase + ' issues no native CAD request or worker error');
+        records.push({ phase: 'explicit-sketch-entry-rejected', selection: selected, command,
+          input: 'CDP pointer press/release', editorOpened: false, recoveryUnchanged: true, serial: nativeAfter.serial });
+      }
+    }
+  }
   async function treeNavigation() {
     const parent='.tree-row[data-feature-id="seq-base"]',toggle='button[data-part-tree-toggle="seq-base"]';
     const child='.tree-row[data-feature-id="seq-base-sketch"][data-parent-feature-id="seq-base"]';
@@ -372,6 +412,7 @@ module.exports = function partSequenceWorkflow(context) {
     await built(serial,1,960,4,'original');
     await require('./desktop-command-header-layout.cjs')({page,check,checks}, 'part-sequence-initial-before-reveal', 'part');
     await require('./desktop-part-selection-controls.cjs')(context);
+    await explicitSketchEntry();
     await treeNavigation();
     await savedUnusedCancel();
     // The first sketch is edited and accepted before starting a cut: this is
@@ -389,11 +430,15 @@ module.exports = function partSequenceWorkflow(context) {
     for(let i=0;i<operations.length;i++) {
       const op=operations[i];
       await waitFor('part ready for next operation',()=>evaluate(`document.querySelector('.statusbar')?.textContent.includes('Listo') && !document.querySelector('.property-manager')`));
-      await row(op.sketch);
+      const sketch = expected.features.find(feature => feature.name === op.sketch);
+      check(sketch?.type === 'sketch', 'The sequence selects its original explicit sketch');
+      await actualTreePress(contextSelector(sketch.id));
+      await waitFor('explicit sequence sketch selected',()=>evaluate(`document.querySelectorAll('.tree-row.selected[data-feature-id]').length===1
+        &&document.querySelector(${quote(contextSelector(sketch.id))})?.classList.contains('selected')`));
       await evaluate(`(() => { const t=[...document.querySelectorAll('.ribbon-tabs button')].find(e=>e.textContent.trim()==='Operaciones'); if(t)t.click(); })()`);
-      await click('button.command[title="'+(op.type==='cut'?'Corte extruido':'Saliente/Base extruido')+'"]');
+      await actualTreePress('button.command[title="'+(op.type==='cut'?'Corte extruido':'Saliente/Base extruido')+'"]');
       await waitFor('operation properties ready',()=>evaluate(`!!document.querySelector('input[aria-label="Profundidad"]')`));
-      await initialLayout('sequence-' + op.type + '-' + i, expected.features.find(feature => feature.name === op.sketch).id, false);
+      await initialLayout('sequence-' + op.type + '-' + i, sketch.id, false);
       if(op.type==='cut') {
         await waitFor('sole current cut body preselected',()=>evaluate(`document.querySelectorAll('.body-operation-panel input[type="checkbox"]:checked').length===1`));
       }

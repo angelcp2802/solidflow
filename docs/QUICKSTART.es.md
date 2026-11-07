@@ -21,6 +21,11 @@ deshacer y rehacer, F para encuadrar y Ctrl+7 para la vista isométrica.
 Guarda el documento editable como `.solidflow`. Desde Archivo puedes exportar
 la geometría a STEP o STL. La exportación no conserva el historial paramétrico.
 
+Para añadir una extrusión, un corte o una revolución, selecciona el croquis en
+el árbol antes de pulsar la operación. También puedes continuar directamente
+desde un croquis que estás dibujando. Sin un croquis seleccionado, la aplicación
+te pide elegirlo; no reutiliza automáticamente el de la última operación.
+
 Para partir de geometría existente, elige **Archivo → Importar STEP…** y un
 archivo `.step` o `.stp` de hasta 8 MiB con un único sólido cerrado. El programa
 valida la pieza antes de pedir sustituir el documento actual. Selecciona sus

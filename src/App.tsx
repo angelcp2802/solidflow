@@ -1809,19 +1809,14 @@ export function PartWorkspace({ initialDocument, initialPath, initialSaved, skip
       notify("Crea primero un sólido antes de aplicar un corte por revolución.");
       return;
     }
-    stopEndPicking();
-    setPickingSupport(false);
-    setSelectionMode("auto");
-    setEdgeSelection([]);
-    setFaceSelection(null);
+    // A new operation uses the current sketch draft or an explicitly selected sketch.
+    // Selecting a previous operation does not select its input profile for reuse.
     const sketch =
       (canContinueSketch && editing?.type === "sketch" ? editing : undefined) ??
-      (selectedSketch?.suppressed ? undefined : selectedSketch) ??
-      [...doc.features]
-        .reverse()
-        .find((f) => f.type === "sketch" && !f.suppressed);
-    if (!sketch || sketch.type !== "sketch") {
-      notify("Crea o selecciona un croquis antes de añadir la operación.");
+      (selectedFeature?.type === "sketch" && !selectedFeature.suppressed
+        ? selectedFeature : undefined);
+    if (!sketch) {
+      notify("Selecciona un croquis en el árbol o edita uno antes de añadir la operación.");
       return;
     }
     if (canContinueSketch) {
@@ -1831,6 +1826,11 @@ export function PartWorkspace({ initialDocument, initialPath, initialSaved, skip
       catch (reason) { notify((reason as Error).message, true); return; }
       setStagedSketch(sketch);
     }
+    stopEndPicking();
+    setPickingSupport(false);
+    setSelectionMode("auto");
+    setEdgeSelection([]);
+    setFaceSelection(null);
     const base = {
       id: crypto.randomUUID(),
       name: `${labels[type]}${doc.features.filter((f) => f.type === type).length + 1}`,

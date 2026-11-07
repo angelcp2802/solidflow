@@ -291,14 +291,15 @@ test('actual deadline keeps every timing phase and existing progress within the 
 });
 
 function exerciseChildFinish({ primary = new Error('Original child coordinate assertion'), active = true, frames = 1,
-  cleanupError = null, withWindow = true, timing = null, duringCleanup = () => {},
+  cleanupError = null, withWindow = true, destroyed = false, nativeClose = null, nativeReopen = false,
+  expectedStatus = 'FAIL', timing = null, duringCleanup = () => {},
   symmetrySaveTimings = new Map(), ipc = [], now = () => performance.now() } = {}) {
   const source = fs.readFileSync(path.join(__dirname, 'desktop-pattern-ui.cjs'), 'utf8');
   const start = source.indexOf('  function finish(error) {'), end = source.indexOf('  const evaluate =', start);
   const settleStart = source.indexOf('  function settlePresentationWaiters(error) {');
   const settleEnd = source.indexOf('  const childBudgetStarted =', settleStart);
   assert.ok(start > 0 && end > start && settleStart > 0 && settleEnd > settleStart);
-  const events = [], writes = [], clearedTimers = [], rejected = [];
+  const events = [], writes = [], writtenPaths = [], clearedTimers = [], rejected = [];
   const presentationWaiters = new Set(active ? [1, 2].map(id => ({ timer: 'presentation-' + id,
     resolve() { throw Error('Failure must reject pending presentation'); },
     reject(error) { rejected.push(error); events.push(['presentation-reject', id]); },
@@ -308,8 +309,10 @@ function exerciseChildFinish({ primary = new Error('Original child coordinate as
     checks: [], protocolResponses: [], consoleErrors: [], failedRequests: [], captures: [], ipc,
     opens: 0, saves: 0, csvExports: 0, geometryExports: 0, sourceOpens: 0, stepImports: 0,
     linkedSource: false, sourceRevision: false, partFinishing: false, partRevolution: false, assemblyExport: false, structuralStep: false, structuralInsertion: false,
-    presentation: { active, stopped: false, frames, captureBarriers: 0 }, presentationWaiters,
-    window: withWindow ? { isVisible: () => false, webContents: { isDestroyed: () => false,
+    presentation: { active, stopped: false, frames, captureBarriers: 0 }, presentationWaiters, nativeClose, nativeReopen,
+    window: withWindow ? { isDestroyed: () => destroyed, isVisible() {
+      assert.equal(destroyed, false, 'A destroyed native window cannot be queried for visibility'); return false;
+    }, webContents: { isDestroyed: () => destroyed,
       endFrameSubscription() { events.push(['presentation-end']); duringCleanup(); if (cleanupError) throw cleanupError; } } } : undefined,
     check(condition, message) { if (!condition) throw Error(message); },
     saveCompletion: { enabled: !!primary, ordinal: 1, armed: true, pending: !!primary, samples: [] },
@@ -317,16 +320,20 @@ function exerciseChildFinish({ primary = new Error('Original child coordinate as
     owned: '/original-owned-test', activeScenario: { test: 'original-diagnostic-integration' },
     path, describeError: value => ({ name: value.name, message: value.message }),
     emitDesktopCiFailure(value) { events.push(['annotation', value.message]); },
-    fs: { writeFileSync(_name, data) { writes.push(JSON.parse(data)); }, writeSync(_fd, data) { events.push(['json', JSON.parse(data).workflowStatus]); } },
-    console: { error() {}, log() { throw Error('No PASS log allowed'); } }, process: { exitCode: undefined },
-    app: { exit(code) { events.push(['exit', code]); }, quit() { throw Error('Failure must not call successful quit'); } }, error: primary,
+    fs: { writeFileSync(name, data) { writtenPaths.push(name); writes.push(JSON.parse(data)); }, writeSync(_fd, data) { events.push(['json', JSON.parse(data).workflowStatus]); } },
+    console: { error() {}, log(data) {
+      assert.equal(expectedStatus, 'PASS', 'No PASS log allowed'); events.push(['json', JSON.parse(data).workflowStatus]);
+    } }, process: { exitCode: undefined },
+    app: { exit(code) { events.push(['exit', code]); }, quit() {
+      assert.equal(expectedStatus, 'PASS', 'Failure must not call successful quit'); events.push(['quit']);
+    } }, error: primary,
   });
   // Run the actual waiter cleanup and finish bodies, not a mirrored teardown.
   vm.runInContext(source.slice(settleStart, settleEnd) + source.slice(start, end) + '\nfinish(error);', context);
   const firstEvents = events.slice();
   vm.runInContext('finish(error);', context);
   assert.deepEqual(events, firstEvents, 'Second finish must not repeat cleanup or reporting');
-  return { context, events, writes, clearedTimers, rejected };
+  return { context, events, writes, writtenPaths, clearedTimers, rejected };
 }
 
 test('actual child finish releases Save, unsubscribes, rejects presentation waiters and retains the primary failure', () => {
@@ -359,6 +366,37 @@ test('early child failure before a window or subscription exists still reports t
   assert.equal(events.some(event => event[0] === 'presentation-end'), false);
   assert.equal(context.presentationWaiters.size, 0);
   assert.deepEqual(events.at(-1), ['exit', 1]);
+});
+
+test('actual native-close finish accepts the destroyed owned window and skips its subscription teardown', () => {
+  const { context, writes, writtenPaths, events, clearedTimers, rejected } = exerciseChildFinish({
+    primary: null, nativeClose: {}, destroyed: true, expectedStatus: 'PASS',
+  });
+  assert.equal(writes.length, 1); assert.equal(writes[0].workflowStatus, 'PASS');
+  assert.equal(writes[0].nativeWindowClosed, true); assert.equal(Object.hasOwn(writes[0], 'error'), false);
+  assert.deepEqual(writtenPaths, [path.join('/original-owned-test', 'workflow-result.json')]);
+  assert.deepEqual(events, [['release', 'cleanup'], ['presentation-reject', 1], ['presentation-reject', 2],
+    ['json', 'PASS'], ['quit']]);
+  assert.deepEqual(clearedTimers, ['child-deadline', 'presentation-1', 'presentation-2']);
+  assert.equal(rejected.length, 2);
+  assert.ok(rejected.every(error => error.message === 'Workflow ended before the requested presentation.'));
+  assert.equal(context.presentationWaiters.size, 0);
+  assert.equal(context.presentation.active, false); assert.equal(context.presentation.stopped, true);
+  assert.equal(context.process.exitCode, undefined);
+});
+
+test('native-close failure before its window exists retains the primary error and reports no closed owner', () => {
+  const primary = new Error('Native owner creation failed');
+  const { context, writes, events, clearedTimers } = exerciseChildFinish({
+    primary, nativeClose: {}, active: false, frames: 0, withWindow: false,
+  });
+  assert.equal(writes.length, 1); assert.equal(writes[0].workflowStatus, 'FAIL');
+  assert.equal(writes[0].error.message, primary.message); assert.equal(writes[0].nativeWindowClosed, false);
+  assert.deepEqual(events, [['release', 'cleanup'], ['annotation', primary.message], ['json', 'FAIL'], ['exit', 1]]);
+  assert.deepEqual(clearedTimers, ['child-deadline']);
+  assert.equal(context.presentationWaiters.size, 0);
+  assert.equal(context.presentation.active, false); assert.equal(context.presentation.stopped, true);
+  assert.equal(context.process.exitCode, 1);
 });
 
 test('failed presentation invariant still tears down the active subscription and rejects its waiters', () => {

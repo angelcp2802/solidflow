@@ -14,6 +14,8 @@ const { emitDesktopCiFailure, markDesktopCiFailureReported } = require('./deskto
 const SCENARIOS = Object.freeze({
   'assembly-embedded-part-edit': Object.freeze({ embeddedPartEdit: true, originalRecipe: 'desktop-assembly-embedded-part-edit-original.cjs',
     entry: 'desktop-assembly-embedded-part-edit.cjs', test: 'production-renderer-assembly-embedded-part-edit', caption: 'embedded part editing, source review and retained assembly history' }),
+  'assembly-embedded-part-transitions': Object.freeze({ embeddedPartEdit: true, embeddedPartTransitions: true,
+    entry: 'desktop-assembly-embedded-part-transitions.cjs', test: 'production-renderer-assembly-embedded-part-transitions', caption: 'embedded part pending work and native close' }),
   'normal-to-view': Object.freeze({ originalRecipe: 'desktop-normal-to-view-original.cjs', entry: 'desktop-normal-to-view.cjs',
     test: 'production-renderer-normal-to-view', caption: 'normal views and camera-only history in parts and assemblies' }),
   'assembly-shortcuts': Object.freeze({ shortcuts: true, originAxes: 'standard', originalRecipe: 'desktop-assembly-origin-axis-lock-original.cjs', entry: 'desktop-assembly-shortcuts.cjs', test: 'production-renderer-assembly-shortcuts', caption: 'standard assembly physical keyboard commands' }),
@@ -259,12 +261,23 @@ async function productionHashes(root) {
   await walk(path.join(root, 'dist/assets'));
   return Object.fromEntries(await Promise.all([...new Set(files)].sort().map(async relative => [relative, digest(await fsp.readFile(path.join(root, relative)))])));
 }
+function embeddedCloseReceipt(report) {
+  const result = report.checks?.find(row => row?.embeddedPartEdit)?.embeddedPartEdit;
+  const close = result?.nativeWindowClose;
+  check(report.workflowStatus === 'PASS' && report.nativeWindowClosed === true && result?.finalDocument?.kind === 'assembly'
+    && /^[a-f0-9]{64}$/.test(result.savedSha256) && /^[a-f0-9]{64}$/.test(result.partCopySha256)
+    && /^[a-f0-9]{64}$/.test(close?.before?.recoverySha256) && close?.discard?.destroyed === true
+    && close?.discard?.prompt?.result === 1 && close?.keepEditing?.prompt?.result === 0,
+  'A completed native close and exact saved parent/copy evidence are required before reopening.');
+  return result;
+}
 async function launch() {
   const root = applicationRoot(path.resolve(__dirname, '..')), requireFromRoot = createRequire(path.join(root, 'package.json'));
   const before = await productionHashes(root);
   const temporaryRoot = await fsp.realpath(os.tmpdir());
   const temporary = await fsp.mkdtemp(path.join(temporaryRoot, PROFILE_PREFIX)), token = randomUUID();
   let child, timer, closed = false, spawned = false, spawnError = false, primary, report;
+  let resultFile = 'workflow-result.json';
   const teardown = [];
   try {
     for (const name of ['profile', 'session', 'logs', 'crashes']) await fsp.mkdir(path.join(temporary, name));
@@ -366,33 +379,48 @@ async function launch() {
     }
     const environment = { ...process.env, SOLIDFLOW_PATTERN_UI_TEST_ROOT: root, SOLIDFLOW_PATTERN_UI_TEST_TEMP: temporary, SOLIDFLOW_PATTERN_UI_TEST_TOKEN: token };
     delete environment.ELECTRON_RUN_AS_NODE; delete environment.SOLIDFLOW_DEV_URL;
+    delete environment.SOLIDFLOW_PATTERN_UI_TEST_NATIVE_REOPEN;
     const entry = path.join(__dirname, activeScenario.entry);
     const args = process.platform === 'linux' && environment.CI === 'true' ? ['--ignore-gpu-blocklist', entry] : [entry];
-    await new Promise((resolve, reject) => {
-      const rejectPrimary = error => { primary ??= error; reject(primary); };
-      try { child = spawn(requireFromRoot('electron'), args, { cwd: root, env: environment, stdio: 'inherit', windowsHide: true }); }
-      catch (error) { rejectPrimary(error); return; }
-      spawned = !!child.pid;
-      child.once('spawn', () => { spawned = true; });
-      child.on('error', error => {
-        spawnError = true;
-        if (primary && primary !== error && !teardown.includes(error)) teardown.push(error);
-        rejectPrimary(error);
-      });
-      child.once('close', (code, signal) => {
-        closed = true;
-        if (primary) { reject(primary); return; }
-        if (code !== 0 || signal !== null) rejectPrimary(closeError(code, signal));
-        else resolve();
-      });
-      timer = setTimeout(() => {
-        // Capture timeout first: synchronous close during kill cannot win PASS.
-        rejectPrimary(new Error(`Isolated ${activeScenario.caption} UI test exceeded ${TEST_MS} milliseconds; child close not yet observed.`));
-        try { if (child.exitCode === null && child.signalCode === null) child.kill(); } catch (error) { teardown.push(error); }
-      }, TEST_MS);
-    });
-    report = JSON.parse(await fsp.readFile(path.join(temporary, 'workflow-result.json'), 'utf8'));
+    const deadline = performance.now() + TEST_MS;
+    const runChild = async env => {
+      child = undefined; closed = false; spawned = false; spawnError = false;
+      await new Promise((resolve, reject) => {
+        const rejectPrimary = error => { primary ??= error; reject(primary); };
+        try { child = spawn(requireFromRoot('electron'), args, { cwd: root, env, stdio: 'inherit', windowsHide: true }); }
+        catch (error) { rejectPrimary(error); return; }
+        spawned = !!child.pid;
+        child.once('spawn', () => { spawned = true; });
+        child.on('error', error => {
+          spawnError = true;
+          if (primary && primary !== error && !teardown.includes(error)) teardown.push(error);
+          rejectPrimary(error);
+        });
+        child.once('close', (code, signal) => {
+          closed = true;
+          if (primary) { reject(primary); return; }
+          if (code !== 0 || signal !== null) rejectPrimary(closeError(code, signal));
+          else resolve();
+        });
+        timer = setTimeout(() => {
+          // Capture timeout first: synchronous close during kill cannot win PASS.
+          rejectPrimary(new Error(`Isolated ${activeScenario.caption} UI test exceeded ${TEST_MS} milliseconds; child close not yet observed.`));
+          try { if (child.exitCode === null && child.signalCode === null) child.kill(); } catch (error) { teardown.push(error); }
+        }, Math.max(0, deadline - performance.now()));
+      }).finally(() => clearTimeout(timer));
+    };
+    await runChild(environment);
+    report = JSON.parse(await fsp.readFile(path.join(temporary, resultFile), 'utf8'));
     check(report.workflowStatus === 'PASS', 'The child did not record a successful complete UI workflow.');
+    if (activeScenario.embeddedPartTransitions) {
+      embeddedCloseReceipt(report);
+      resultFile = 'native-reopen-result.json';
+      await runChild({ ...environment, SOLIDFLOW_PATTERN_UI_TEST_NATIVE_REOPEN: '1' });
+      const reopened = JSON.parse(await fsp.readFile(path.join(temporary, resultFile), 'utf8'));
+      check(reopened.workflowStatus === 'PASS' && !reopened.consoleErrors.length && !reopened.failedRequests.length,
+        'The fresh production child must complete its native-close reopen and geometry checks.');
+      report.nativeReopen = { ...reopened, childCloseObserved: true };
+    }
     if (activeScenario === SCENARIOS['part-body-catalog'] && process.env.SOLIDFLOW_UI_CAPTURE === '1') {
       const names = ['initial', 'details', 'final'].map(phase => 'part-body-catalog-' + phase + '.png');
       check(report.captures?.length === names.length && report.captures.every((item, i) => item.name === names[i]), 'Three exact catalog captures required');
@@ -443,7 +471,7 @@ async function launch() {
     // do not replace that annotation with a less useful generic exit message.
     if (closed) {
       try {
-        const childReport = JSON.parse(await fsp.readFile(path.join(temporary, 'workflow-result.json'), 'utf8'));
+        const childReport = JSON.parse(await fsp.readFile(path.join(temporary, resultFile), 'utf8'));
         if (childReport.workflowStatus === 'FAIL' && typeof childReport.error?.message === 'string') markDesktopCiFailureReported(primary);
       } catch { /* Missing child evidence requires the outer failure fallback. */ }
     }
@@ -720,6 +748,10 @@ async function runInElectron() {
   const fromEmpty = activeScenario === SCENARIOS['part-from-empty'];
   const normalToView = activeScenario === SCENARIOS['normal-to-view'];
   const embeddedPartEdit = activeScenario.embeddedPartEdit === true;
+  const embeddedPartTransitions = activeScenario.embeddedPartTransitions === true;
+  const nativeReopen = embeddedPartTransitions && process.env.SOLIDFLOW_PATTERN_UI_TEST_NATIVE_REOPEN === '1'
+    ? embeddedCloseReceipt(JSON.parse(fs.readFileSync(path.join(owned, 'workflow-result.json'), 'utf8'))) : null;
+  let pendingWorker;
   const normalInputs = normalToView ? { part: input, standard: path.join(owned, 'normal-standard.solidflow'), configured: path.join(owned, 'normal-configured.solidflow') } : null;
   const normalDocuments = normalToView ? Object.fromEntries(Object.entries(normalInputs).map(([key, file]) => [key, JSON.parse(fs.readFileSync(file, 'utf8'))])) : null;
   const expected = fromEmpty ? {} : JSON.parse(fs.readFileSync(input, 'utf8')), expectedIds = expected.features?.map(feature => feature.id);
@@ -867,7 +899,7 @@ async function runInElectron() {
   const outputs = untilNext ? { cutSelected: path.join(owned, 'saved-cut-selected.solidflow'),
     cutAll: path.join(owned, 'saved-cut-all.solidflow'), add: path.join(owned, 'saved-add-selected.solidflow') } : null;
   const partCopyOutput = embeddedPartEdit ? path.join(owned, 'saved-embedded-part-copy.solidflow') : null;
-  const openPaths = embeddedPartEdit ? [input, output] : partThinWall ? [input, output] : partExternalAxis ? [input, output, output] : partRevolution ? [input, output, output, output] : normalToView ? [normalInputs.part, normalInputs.standard, normalInputs.configured] : fromEmpty ? [output, output] : shortcuts ? [input, null, shortcutOutput, shortcutOutput, shortcutOutput] : basicAuthoring ? [input, null, output] : partSequence ? [input, output, partAssemblyOutput, partAssemblyPinInput, partAssemblyOutput] : partBodyCatalog ? [input, input] : partFinishing ? [input, finishingFiles.fillet, input, output] : configuredComponents ? [input, null, path.join(owned, 'incoming.solidflow'), path.join(owned, 'incoming.solidflow'), output] : structuralInsertion ? [input, insertionFiles.parent, output] : structuralStep ? [input, structuralFiles.part, output] : untilNext ? [inputPaths.cut, outputs.cutSelected, outputs.cutAll,
+  const openPaths = nativeReopen ? [output] : embeddedPartEdit ? [input, output] : partThinWall ? [input, output] : partExternalAxis ? [input, output, output] : partRevolution ? [input, output, output, output] : normalToView ? [normalInputs.part, normalInputs.standard, normalInputs.configured] : fromEmpty ? [output, output] : shortcuts ? [input, null, shortcutOutput, shortcutOutput, shortcutOutput] : basicAuthoring ? [input, null, output] : partSequence ? [input, output, partAssemblyOutput, partAssemblyPinInput, partAssemblyOutput] : partBodyCatalog ? [input, input] : partFinishing ? [input, finishingFiles.fillet, input, output] : configuredComponents ? [input, null, path.join(owned, 'incoming.solidflow'), path.join(owned, 'incoming.solidflow'), output] : structuralInsertion ? [input, insertionFiles.parent, output] : structuralStep ? [input, structuralFiles.part, output] : untilNext ? [inputPaths.cut, outputs.cutSelected, outputs.cutAll,
     inputPaths.add, outputs.add, inputPaths.reject] : assembly ? [input, output, partUpdatePath, partUpdatePath, output, output, output, projectionOutput, output, interferencePath, translationPath, translationOutput, bomPath, input, gearOutput]
     : assemblyImport ? [input, importSourcePath, importRejectedPath, importSourcePath, output]
     : sourceRevision ? [input, sourceRevisionFiles.parent, output]
@@ -889,7 +921,7 @@ async function runInElectron() {
       repairFiles.replacementPart, repairFiles.replacementPart, repairFiles.replacementSaved]
     : symmetryPicking ? [input, ...Array(6).fill(output)]
     : symmetry ? [input, ...Array(5).fill(output)] : direction ? [input, output, output] : configuredRelations || configuredPicking || configuredMechanical || configuredCompound ? [input, output] : configurations ? [input, output, output] : [input, output];
-  const savePaths = embeddedPartEdit ? [output, null, null, partCopyOutput, output] : normalToView ? [] : fromEmpty ? [output] : shortcuts ? [output, shortcutOutput] : partBodyCatalog ? [] : partSequence ? [output, partAssemblyOutput] : partFinishing ? [finishingFiles.fillet, output] : configurations ? [null, output] : untilNext ? [outputs.cutSelected, outputs.cutAll, outputs.add] : assembly ? [output, projectionOutput, translationOutput, gearOutput]
+  const savePaths = nativeReopen ? [] : embeddedPartEdit ? [output, null, null, partCopyOutput, output] : normalToView ? [] : fromEmpty ? [output] : shortcuts ? [output, shortcutOutput] : partBodyCatalog ? [] : partSequence ? [output, partAssemblyOutput] : partFinishing ? [finishingFiles.fillet, output] : configurations ? [null, output] : untilNext ? [outputs.cutSelected, outputs.cutAll, outputs.add] : assembly ? [output, projectionOutput, translationOutput, gearOutput]
     : direction ? [output, output]
     : assemblyImport ? [importBaselinePath, output]
     : sourceRevision ? [null, output]
@@ -942,6 +974,11 @@ async function runInElectron() {
     await samplePendingSave('saved-controls-fence'); releaseSaveCompletion('saved-controls-fence');
   };
   let opens = 0, saves = 0, csvExports = 0, geometryExports = 0, finished = false, window;
+  const nativeClose = embeddedPartTransitions && !nativeReopen
+    ? require('./desktop-embedded-part-native-close.cjs').createNativeCloseDriver({ app, BaseWindow: electron.BaseWindow, getWindow: () => window, owned, token, check }) : null;
+  // The owned window closes through production. Keep its main process alive
+  // long enough to observe the native helper exit and record the result.
+  if (nativeClose) app.on('before-quit', event => { if (!finished) event.preventDefault(); });
   const presentationWaiters = new Set();
   const presentation = { active: false, stopped: false, frames: 0, captureBarriers: 0,
     limits: 'Hidden test-owned window with active in-memory presentation observation. No real OS focus, background performance or frame-rate claim.' };
@@ -1022,23 +1059,26 @@ async function runInElectron() {
     }
     releaseSaveCompletion('cleanup');
     finished = true; clearTimeout(timeout);
+    const nativeWindowClosed = !!nativeClose && window?.isDestroyed() === true;
     try {
-      if (!error) check(presentation.active && presentation.frames > 0 && !window.isVisible(),
+      if (!error) check(presentation.active && presentation.frames > 0
+        && (nativeClose ? nativeWindowClosed : !window.isVisible()),
         'The completed workflow must retain its hidden presentation observer.');
     } catch (validationError) { error = validationError; }
     try {
-      if (presentation.active && !window.webContents.isDestroyed()) window.webContents.endFrameSubscription();
+      if (presentation.active && !window.isDestroyed() && !window.webContents.isDestroyed()) window.webContents.endFrameSubscription();
       presentation.active = false; presentation.stopped = true;
     } catch (cleanupError) { error ??= cleanupError; }
     settlePresentationWaiters(error || new Error('Workflow ended before the requested presentation.'));
     if (error) emitDesktopCiFailure(error);
     const report = { workflowStatus: error ? 'FAIL' : 'PASS', checks, protocolResponses, consoleErrors, failedRequests, captures,
+      ...(nativeClose ? { nativeWindowClosed } : {}),
       ...(timingSnapshot ? { workflowTiming: timingSnapshot } : {}),
       ...(partRevolution ? { profileCaptures } : {}),
       dialogSubstitutions: { opens, saves, csvExports, ...(linkedSource || sourceRevision ? { sourceOpens } : {}), ...(partFinishing || partRevolution || assemblyExport || structuralStep || structuralInsertion ? { geometryExports } : {}), ...(structuralStep || structuralInsertion ? { stepImports } : {}) }, ipc,
       ...(saveCompletion.enabled ? { saveCompletion: { ordinal: saveCompletion.ordinal, armed: saveCompletion.armed, releasedBy: saveCompletion.releasedBy, samples: saveCompletion.samples } } : {}),
       ...(error ? { error: describeError(error) } : {}) };
-    try { fs.writeFileSync(path.join(owned, 'workflow-result.json'), JSON.stringify(report, null, 2)); }
+    try { fs.writeFileSync(path.join(owned, nativeReopen ? 'native-reopen-result.json' : 'workflow-result.json'), JSON.stringify(report, null, 2)); }
     catch (writeError) { if (!error) emitDesktopCiFailure(writeError); console.error(new AggregateError(error ? [error, writeError] : [writeError], 'Workflow evidence could not be written.', { cause: error ?? writeError })); process.exitCode = 1; }
     if (error) { console.error(error); process.exitCode = 1; }
     const encoded = JSON.stringify({ test: activeScenario.test, ...report });
@@ -1436,9 +1476,9 @@ async function runInElectron() {
   };
   // The extra workflow is a fixed tracked module, never a caller/env-selected script.
   const actualWorkflow = embeddedPartEdit
-    ? require('./desktop-assembly-embedded-part-edit-flow.cjs')({ expected, input, output, partCopyOutput, evaluate, observe, waitFor, click, pointer, key: shortcutKey,
+    ? () => require('./desktop-assembly-embedded-part-edit-flow.cjs')({ expected, input, output, partCopyOutput, evaluate, observe, waitFor, click, pointer, key: shortcutKey,
       checks, ipc, consoleErrors, failedRequests, check, canonical, digest,
-      initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
+      initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }), pendingWorker, nativeClose, nativeReopen })()
     : normalToView
     ? require('./desktop-normal-to-view-flow.cjs')({ inputs: normalInputs, documents: normalDocuments, evaluate, observe, waitFor, click, pointer, wheel, menuKey, normalSelectInput, cameraFrame, cameraGesture, key: shortcutKey,
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
@@ -1709,8 +1749,12 @@ async function runInElectron() {
         // worker or file IPC is supplied or invoked by this page.
         await super.loadURL('about:blank');
         this.webContents.debugger.attach('1.3');
+        if (embeddedPartTransitions && !nativeReopen) {
+          pendingWorker = require('./desktop-embedded-part-pending-observation.cjs').createPendingWorkerGate(this.webContents.debugger, check);
+          await pendingWorker.install();
+        }
         await this.webContents.debugger.sendCommand('Page.enable');
-        await this.webContents.debugger.sendCommand('Page.addScriptToEvaluateOnNewDocument', { source: '(' + installWorkerObserver.toString() + ')(' + (normalToView || fromEmpty || importedBodies || freshSketch || partBodyCatalog ? 'true' : 'false') + ',' + (structuralStep ? 'true' : 'false') + ',' + (structuralInsertion ? 'true' : 'false') + ',' + (configurations ? 'true' : 'false') + ',' + (partRevolution ? 'true' : 'false') + ',' + (partExternalAxis || partFinishing || freshSketch ? 'true' : 'false') + ',' + (mateReferenceEdit ? 'true' : 'false') + ',' + (normalToView ? 'true' : 'false') + ',' + (symmetryPicking ? 'true' : 'false') + ',' + (activeScenario.faceLimits ? 'true' : 'false') + ');' });
+        await this.webContents.debugger.sendCommand('Page.addScriptToEvaluateOnNewDocument', { source: '(' + installWorkerObserver.toString() + ')(' + (normalToView || fromEmpty || importedBodies || freshSketch || partBodyCatalog ? 'true' : 'false') + ',' + (structuralStep ? 'true' : 'false') + ',' + (structuralInsertion ? 'true' : 'false') + ',' + (configurations ? 'true' : 'false') + ',' + (partRevolution || embeddedPartTransitions ? 'true' : 'false') + ',' + (partExternalAxis || partFinishing || freshSketch ? 'true' : 'false') + ',' + (mateReferenceEdit ? 'true' : 'false') + ',' + (normalToView ? 'true' : 'false') + ',' + (symmetryPicking ? 'true' : 'false') + ',' + (activeScenario.faceLimits ? 'true' : 'false') + ');' });
         checks.push('test-owned blank target initialized before CDP observation');
       })();
       await this.instrumentation;
@@ -1726,7 +1770,13 @@ async function runInElectron() {
           });
           presentation.active = true;
           checks.push({ hiddenPresentation: presentation });
-          await actualWorkflow();
+          let workflowError;
+          try { await actualWorkflow(); } catch (error) { workflowError = error; }
+          try { await pendingWorker?.dispose(); } catch (error) {
+            if (!workflowError) throw error;
+            throw new AggregateError([workflowError, error], 'The workflow and its worker observer cleanup failed.', { cause: workflowError });
+          }
+          if (workflowError) throw workflowError;
         })().then(() => finish(), finish);
       });
       return super.loadURL(...args);
@@ -1805,6 +1855,7 @@ async function runInElectron() {
     const value = Reflect.get(target, member); return typeof value === 'function' ? value.bind(target) : value;
   } });
   const testingDialog = new Proxy(electron.dialog, { get(target, member) {
+    if (member === 'showMessageBoxSync' && nativeClose) return (owner, options) => nativeClose.showMessageBoxSync(owner, options, target.showMessageBoxSync.bind(target));
     if (member === 'showOpenDialog') return async (_window, options) => {
       if ((structuralStep || structuralInsertion) && options.title === 'Importar sólido STEP') {
         check(++stepImports <= stepImportPaths.length && options.properties?.length === 1 && options.properties[0] === 'openFile'

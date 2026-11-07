@@ -1,5 +1,55 @@
 # Project status and review queue
 
+## Usable Windows version closure — 2026-11-07
+
+The persistent objective is active. The [acceptance ledger](USABLE_VERSION_ACCEPTANCE.md)
+defines eighteen concrete local-version criteria, the implemented operation
+inventory, the nine prototype groups and the current resumption point.
+
+The integrated candidate includes the desktop's explicit sketch-selection fix
+and the preserved pending/native-close work. Final local acceptance passes
+build, **11,120 unit/CAD cases in 494 files**, **203 IPC checks with two platform
+skips**, desktop startup and five complete Windows renderer routes. The native
+transition route records **202 checkpoints plus 15 fresh-process checks**;
+the embedded baseline, successive parts, fresh sketches and revolution record
+**172/527/86/251**. The independent audit rehashes **1,327 inputs and nine
+products**, with zero renderer errors and confirmed isolated cleanup.
+See the [exact evidence and limits](VALIDATION.md#usable-candidate-integration-and-pending-transitions--2026-11-07).
+
+Materials, density, part colours and background settings are a confirmed
+implementation gap in this candidate. Other open criteria distinguish missing
+capabilities from incomplete final-artifact validation. The ledger records
+advanced configured scope and human/platform/release acceptance explicitly.
+The next normal-entry lifecycle checks are sweep and loft, followed by the
+remaining implemented families in the ledger. The persistent goal is active.
+
+## Editing a shared embedded part from its assembly — 2026-11-03
+
+The standard assembly editor opens an embedded part in the feature editor and
+returns through reference repair, Solve and Apply. The accepted change updates
+both uses of the original test part. The parent retains its file association,
+recovery and history, and the temporary editor can save an independent copy.
+The route verifies the geometry and both relationships after saving, reopening
+and solving again. See the [fixture, tolerances and results](VALIDATION.md#editing-an-embedded-part-from-its-assembly--2026-10-31).
+
+The published `8be9f24` snapshot passed the build, **11,120 unit/CAD cases in
+494 files**, **201 IPC checks with two platform skips**, desktop startup and
+eight complete Windows renderer routes. The embedded-part route has **172
+checkpoints**. GitHub completed all **15 [CI jobs](https://github.com/angelcp2802/solidflow/actions/runs/41185747672)**
+and both **[security jobs](https://github.com/angelcp2802/solidflow/actions/runs/41185747697)**.
+The embedded-part persistence step passed on Windows 2025, Ubuntu 24.04 and macOS 15.
+
+The remaining transition checks cover attempted exit while Apply is pending,
+discard while a native request is outstanding and actual operating-system
+window close. The earlier route sampled the close guard with a synthetic event
+and reached its discard decision after the worker request had settled.
+
+The [prototype checklist](https://github.com/angelcp2802/solidflow/issues/55)
+remains at **16/25**, with nine groups open. The [desktop tracking issue](https://github.com/angelcp2802/solidflow/issues/53)
+remains at **6/9**. [PR #49](https://github.com/angelcp2802/solidflow/pull/49)
+is a draft. Human acceptance, installed applications and the
+[release gate](https://github.com/angelcp2802/solidflow/issues/5) remain open.
+
 ## Independent automatic ends in both directions — 2026-10-29
 
 Extrusions and cuts now retain a separate geometric end condition on each side.
