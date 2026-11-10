@@ -76,6 +76,15 @@ export function pickAssemblyVertex(camera: Camera, bodies: readonly VertexPickBo
     const ray = new THREE.Raycaster(); ray.setFromCamera(candidate.ndc, camera)
     const depth = ray.ray.direction.dot(candidate.world.clone().sub(ray.ray.origin))
     if (!Number.isFinite(depth) || depth < 0) return false
+    // Projecting and unprojecting a boundary point can move the ray just outside
+    // its incident triangles. Anchor visibility to the F64 catalog point, but
+    // only when the correction is within the arithmetic round-trip budget.
+    const reconstructed = ray.ray.origin.clone().addScaledVector(ray.ray.direction, depth)
+    const roundoff = 64 * Number.EPSILON * Math.max(1, depth, ...candidate.world.toArray().map(Math.abs), ...ray.ray.origin.toArray().map(Math.abs))
+    if (!finite3(reconstructed.toArray()) || reconstructed.distanceTo(candidate.world) > roundoff) return false
+    if (camera instanceof THREE.OrthographicCamera) ray.ray.origin.copy(candidate.world).addScaledVector(ray.ray.direction, -depth)
+    else ray.ray.direction.copy(candidate.world).sub(ray.ray.origin).normalize()
+    if (!finite3(ray.ray.origin.toArray()) || !finite3(ray.ray.direction.toArray())) return false
     // Display tessellation tolerance, not CAD/support tolerance. Include OWN body.
     const depthSlack = Math.max(1e-7, Math.abs(depth) * 32 * Number.EPSILON)
     return !ray.intersectObjects(visible.map(value => value.object), false).some(hit => hit.distance < depth - depthSlack)

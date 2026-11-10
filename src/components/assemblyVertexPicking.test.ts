@@ -72,6 +72,29 @@ it('selects a real front box corner but rejects its own-body hidden back corner'
   expect(pickAssemblyVertex(camera(),[f],p,size)).toBe(f.body.vertexPoints![0])
   f.body.vertexPoints!.shift();expect(pickAssemblyVertex(camera(),[f],p,size)).toBeNull()
 })
+it.each([{width:722,height:483},{width:722,height:503},{width:962,height:802},{width:738,height:494}])('selects an axial original prism corner at CSS size $width×$height while retaining occlusion and ties',viewSize=>{
+  const f=fixture([[10,7,2],[10,7,6]]),span=33.24936089611347,height=viewSize.height
+  f.object.geometry.dispose();f.object.geometry=new THREE.BoxGeometry(4,6,4).translate(12,4,4)
+  const c=new THREE.OrthographicCamera(-span*.65*viewSize.width/height,span*.65*viewSize.width/height,span*.65,-span*.65,span*.001,span*20)
+  c.position.set(10.7,-3.3000000000000007,3-span*2);c.lookAt(10.7,-3.3000000000000007,3);c.updateProjectionMatrix();c.updateMatrixWorld()
+  const pixels=height/(span*1.3),p={x:viewSize.width/2+.7*pixels,y:height/2-10.3*pixels}
+  expect(pickAssemblyVertex(c,[f],p,viewSize)).toBe(f.body.vertexPoints![0])
+  const front=f.body.vertexPoints!.shift()!
+  expect(pickAssemblyVertex(c,[f],p,viewSize)).toBeNull()
+  f.body.vertexPoints!.unshift(front)
+  const blocker=fixture([],'blocker');blocker.object.geometry.dispose();blocker.object.geometry=new THREE.BoxGeometry(4,6,4).translate(12,4,-2)
+  expect(pickAssemblyVertex(c,[f,blocker],p,viewSize)).toBeNull()
+  blocker.body.visible=false
+  expect(pickAssemblyVertex(c,[f,blocker],p,viewSize)).toBe(front)
+  const duplicate=fixture([[10,7,2]],'coincident');duplicate.object.geometry.dispose();duplicate.object.geometry=new THREE.BoxGeometry(4,6,4).translate(12,4,4)
+  expect(pickAssemblyVertex(c,[f,duplicate],p,viewSize)).toBeNull()
+})
+it('rejects a nonfinite or materially displaced projection round trip instead of moving its ray to the catalog',()=>{
+  for(const offset of [.1,Infinity]){
+    const c=camera();c.projectionMatrixInverse.elements[12]+=offset
+    expect(pickAssemblyVertex(c,[fixture()],center,size)).toBeNull()
+  }
+})
 it('projects an off-axis real corner using perspective aspect and near/far clipping',()=>{
   const f=fixture([[1,1,1]]),c=new THREE.PerspectiveCamera(90,2,.1,100);c.position.set(0,0,10);c.lookAt(0,0,0);c.updateProjectionMatrix()
   // tan(45)=1; depth9; aspect2 => ndc (1/18,1/9).
@@ -79,6 +102,16 @@ it('projects an off-axis real corner using perspective aspect and near/far clipp
   expect(pickAssemblyVertex(c,[f],p,s,1e-8)).toBe(f.body.vertexPoints![0])
   c.near=10;c.updateProjectionMatrix();expect(pickAssemblyVertex(c,[f],p,s)).toBeNull()
   c.near=.1;c.far=8;c.updateProjectionMatrix();expect(pickAssemblyVertex(c,[f],p,s)).toBeNull()
+})
+it('retains own-body occlusion and coincident-owner rejection in an off-axis perspective view',()=>{
+  const f=fixture([[1,1,1],[1,1,-1]]),c=new THREE.PerspectiveCamera(90,2,.1,100),s={width:1000,height:500}
+  c.position.set(0,0,10);c.lookAt(0,0,0);c.updateProjectionMatrix()
+  const p={x:1000*19/36,y:500*4/9}
+  expect(pickAssemblyVertex(c,[f],p,s)).toBe(f.body.vertexPoints![0])
+  f.body.vertexPoints!.shift()
+  expect(pickAssemblyVertex(c,[f],{x:1000*23/44,y:500*5/11},s)).toBeNull()
+  const a=fixture([[1,1,1]],'a'),b=fixture([[1,1,1]],'b')
+  expect(pickAssemblyVertex(c,[a,b],p,s)).toBeNull()
 })
 it('treats exact half-pixel ties conservatively and preserves the exact CSS threshold boundary',()=>{
   const c=new THREE.OrthographicCamera(-1,1,1,-1,.1,100);c.position.set(0,0,10);c.lookAt(0,0,0);c.updateProjectionMatrix()
