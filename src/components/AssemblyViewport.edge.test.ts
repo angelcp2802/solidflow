@@ -1,3 +1,4 @@
+import { materialArcEdgeKeys } from './assemblyMaterialArcPicking'
 import { expect, it } from 'vitest'
 import * as THREE from 'three'
 import { assemblyEdgeKey, pickAssemblyComponent, pickAssemblyEdge, pickAssemblyViewSelection, type AssemblyPickBody, type AssemblyPickEdge } from './AssemblyViewport'
@@ -112,5 +113,44 @@ it.each(['path', 'revision', 'body', 'body-state', 'edge-state', 'edge-key'] as 
     else if (field === 'edge-state') changed.selection.edge.sourceFeatureId = 'earlier'
     else changed.selection.edge.key += 'changed'
     expect(assemblyEdgeKey(changed)).not.toBe(assemblyEdgeKey(original))
+  } finally { f.dispose() }
+})
+
+// Original synthetic DTOs exercise positive purpose/ownership only, not native circle recognition.
+function arcFixture() {
+  const f = fixture(), edge = f.add(['sub', 'sector']); edge.support = null
+  const body = f.bodies[0].body
+  const vertices = ['a', 'b'].map((name, i) => ({ sourceFeatureId: 'final', key: 'vertex-v1|' + name.repeat(64) }))
+  edge.circularPathOrigins = vertices
+  body.vertexPoints = vertices.map((vertex, i) => ({ selection: { component: body.component, body: body.body, vertex }, point: [i, 0, .5] as [number, number, number], worldPoint: [i, 0, .5] as [number, number, number], tolerance: 1e-7 }))
+  const scene = browseScene(f), request = { purpose: 'material-arc' as const, scene, scopePath: ['sub'], edgeKeys: materialArcEdgeKeys(scene, ['sub']) }
+  return { ...f, edge, scene, request }
+}
+it('selects the actual positive-catalogue arc only through its explicit material purpose, keeping LINE browse unchanged', () => {
+  const f = arcFixture()
+  try {
+    expect(f.request.edgeKeys).toHaveLength(1)
+    expect(pickAssemblyEdge(f.camera, f.bodies, f.edges, point, size)).toBeNull()
+    expect(pickAssemblyViewSelection(f.scene, f.camera, f.bodies, [], f.edges, point, size, 'edge').edge).toBeNull()
+    expect(pickAssemblyEdge(f.camera, f.bodies, f.edges, point, size, 8, f.request, f.scene)).toBe(f.edge)
+    expect(pickAssemblyEdge(f.camera, f.bodies, f.edges, point, size, 8, null, f.scene)).toBeNull()
+  } finally { f.dispose() }
+})
+it.each(['scene', 'scope', 'keys', 'duplicate', 'missing-metadata', 'lost-endpoint', 'duplicate-endpoint', 'line', 'hidden', 'cloned-edge', 'cloned-body'] as const)('rejects a material-arc %s change without falling back or inventing a circle', change => {
+  const f = arcFixture()
+  try {
+    let request = f.request
+    if (change === 'scene') request = { ...request, scene: { ...f.scene } }
+    else if (change === 'scope') request = { ...request, scopePath: ['other'] }
+    else if (change === 'keys') request = { ...request, edgeKeys: ['unrelated'] }
+    else if (change === 'duplicate') request = { ...request, edgeKeys: [...request.edgeKeys, ...request.edgeKeys] }
+    else if (change === 'missing-metadata') delete f.edge.circularPathOrigins
+    else if (change === 'lost-endpoint') f.bodies[0].body.vertexPoints!.pop()
+    else if (change === 'duplicate-endpoint') f.edge.circularPathOrigins![1] = f.edge.circularPathOrigins![0]
+    else if (change === 'line') f.edge.support = { kind: 'line', point: [0, 0, 0], axis: [1, 0, 0], tolerance: 1e-7 }
+    else if (change === 'hidden') f.bodies[0].body.visible = false
+    else if (change === 'cloned-edge') f.edges[0].edge = structuredClone(f.edge)
+    else f.bodies[0].body = structuredClone(f.bodies[0].body)
+    expect(pickAssemblyEdge(f.camera, f.bodies, f.edges, point, size, 8, request, f.scene)).toBeNull()
   } finally { f.dispose() }
 })

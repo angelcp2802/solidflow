@@ -1,3 +1,5 @@
+import { nativeReferencePressIsCurrent, type NativeReferencePress } from './assemblyNativeReferencePicking'
+import { currentMaterialArcEdges, type MaterialArcEdgePickRequest } from './assemblyMaterialArcPicking'
 import { bindViewNavigation, captureCameraView, createViewHistory, type ViewHistory, type ViewRequest } from './viewNavigation'
 import { useViewportBackground } from './ViewportBackgroundSettings'
 import { assemblyPartAppearanceKey } from './assemblyPartAppearance'
@@ -175,11 +177,14 @@ export function resolveAssemblyViewportContext(
   return component ? { kind: 'component', component } : { kind: 'background' }
 }
 /** Individual native-edge display DTOs select identity; mesh segments confer no support authority. */
-export function pickAssemblyEdge(camera: Camera, bodies: readonly AssemblyPickBody[], edges: readonly AssemblyPickEdge[], pointer: { x: number; y: number }, size: { width: number; height: number }, tolerance = 8): AssemblySceneEdge | null {
+export function pickAssemblyEdge(camera: Camera, bodies: readonly AssemblyPickBody[], edges: readonly AssemblyPickEdge[], pointer: { x: number; y: number }, size: { width: number; height: number }, tolerance = 8, materialArcPick?: MaterialArcEdgePickRequest | null, actualScene?: AssemblyScene | null): AssemblySceneEdge | null {
   const ray = rayAt(camera, pointer, size)
   if (!ray || !Number.isFinite(tolerance) || tolerance <= 0) return null
   const visible = bodies.filter(value => value.body.visible), keys = new Set(visible.map(value => assemblyBodyKey(value.body.component, value.body.body)))
-  const available = edges.filter(value => value.edge.support?.kind === 'line' && keys.has(assemblyBodyKey(value.edge.selection.component, value.edge.selection.body)))
+  const materialArcs = materialArcPick === undefined ? null : currentMaterialArcEdges(materialArcPick, actualScene, bodies.map(value => value.body))
+  if (materialArcPick !== undefined && !materialArcs) return null
+  const available = edges.filter(value => (materialArcPick === undefined ? value.edge.support?.kind === 'line' : materialArcs!.has(value.edge))
+    && keys.has(assemblyBodyKey(value.edge.selection.component, value.edge.selection.body)))
   if (!available.length) return null
   const box = new THREE.Box3()
   visible.forEach(value => { value.object.updateMatrixWorld(); box.expandByObject(value.object) })
@@ -234,6 +239,10 @@ export interface AssemblyViewportProps {
   selectedAnalysisPair?: AnalysisPair | null
   pickingFaces?: boolean
   pickingEdges?: boolean
+  /** Explicit display-only purpose; omitted requests retain LINE picking. */
+  materialArcPick?: MaterialArcEdgePickRequest | null
+  /** Stable UI role ticket for an explicit reference gesture. */
+  referencePickOwner?: object | null
   pickingVertices?: boolean
   disabled?: boolean
   /** UI navigation ownership, independent of the native scene generation. */
@@ -280,8 +289,9 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
     let acceptedGesture = false, dragConsumed = false
     let contextPress: (AssemblyViewportInteractionFrame & { catalog: string }) | null = null
     let viewPressFrame: AssemblyViewportInteractionFrame | null = null
+    let referencePressFrame: NativeReferencePress | null = null
     const cancelContext = () => { contextGesture.cancel(); contextPress = null }
-    const cancelBrowse = () => { if (viewPressFrame) selectionGesture.cancel(); viewPressFrame = null }
+    const cancelBrowse = () => { if (viewPressFrame || referencePressFrame) selectionGesture.cancel(); viewPressFrame = null; referencePressFrame = null }
     const cancelInteractionContext = () => { cancelContext(); cancelBrowse() }
     let presentedScene: AssemblyScene | null = null
     const cancelDrag = (notify = true) => {
@@ -442,7 +452,8 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
       const value = input.current
       if (event.button === 0 && !presentationReady()) { selectionGesture.cancel(); return }
       viewPressFrame = event.button === 0 && assemblyViewportBrowseMode(value) !== null && selectionReady() ? captureInteractionFrame() : null
-      selectionGesture.down(event, viewPressFrame ?? value.interactionRevision)
+      referencePressFrame = event.button === 0 && value.referencePickOwner ? { owner: value.referencePickOwner, scene: value.scene, mode: assemblyReferencePickMode(value), revision: value.interactionRevision, purpose: value.materialArcPick?.purpose } : null
+      selectionGesture.down(event, viewPressFrame ?? referencePressFrame ?? value.interactionRevision)
       if (event.button === 2 && contextReady()) {
         contextPress = { ...captureInteractionFrame(), catalog: originFrame.current }
         contextGesture.down(event, contextPress)
@@ -456,7 +467,7 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
       hovered = current && !input.current.disabled && assemblyReferencePickMode(input.current) === 'face' && !event.buttons ? (() => { const face = pickAssemblyFace(camera, current.bodies, current.faces, point(event), size()); return face ? assemblyFaceKey(face) : null })() : null
       const mode = assemblyReferencePickMode(input.current)
       const browseEdges = assemblyViewportBrowseMode(input.current) === 'edge' && selectionReady()
-      hoveredEdge = current && !input.current.disabled && (mode === 'edge' || browseEdges) && !event.buttons ? (() => { const edge = pickAssemblyEdge(camera, current.bodies, current.edges, point(event), size()); return edge ? assemblyEdgeKey(edge) : null })() : null
+      hoveredEdge = current && !input.current.disabled && (mode === 'edge' || browseEdges) && !event.buttons ? (() => { const edge = pickAssemblyEdge(camera, current.bodies, current.edges, point(event), size(), 8, assemblyReferencePickMode(input.current) === 'edge' ? input.current.materialArcPick : undefined, input.current.scene); return edge ? assemblyEdgeKey(edge) : null })() : null
       hoveredVertex = current && !input.current.disabled && assemblyReferencePickMode(input.current) === 'vertex' && !event.buttons ? (() => { const vertex = pickAssemblyVertex(camera, current.bodies, point(event), size()); return vertex ? assemblyVertexKey(vertex) : null })() : null
       hoveredOrigin = current && !input.current.disabled && assemblyReferencePickMode(input.current) === 'origin' && originFrame.current === originCatalog(input.current) && !event.buttons ? (() => { const origin = pickAssemblyOrigin(camera, input.current.originReferences ?? [], assemblyOriginExtent(input.current.scene?.visibleBounds), point(event), size()); return origin ? assemblyOriginReferenceKey(origin) : null })() : null
       renderer.domElement.style.cursor = acceptedGesture ? 'grabbing' : input.current.disabled ? 'wait' : transform.axis ? 'move' : mode !== null ? (hovered || hoveredEdge || hoveredVertex || hoveredOrigin ? 'pointer' : 'crosshair') : event.buttons === 4 ? 'grabbing' : browseEdges && hoveredEdge ? 'pointer' : 'default'; highlight()
@@ -480,8 +491,10 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
       if (contextPoint) { cancelContext(); openContext(contextPoint, false) }
       const current = context.current
       const press = viewPressFrame
-      const select = selectionGesture.up(event, press ? currentContextFrame(press, true) : input.current.interactionRevision)
-      viewPressFrame = null
+      const referencePress = referencePressFrame, value = input.current
+      const referenceCurrent = referencePress && nativeReferencePressIsCurrent(referencePress, value.referencePickOwner, value.scene, assemblyReferencePickMode(value), value.interactionRevision, value.materialArcPick?.purpose) ? referencePress : null
+      const select = selectionGesture.up(event, press ? currentContextFrame(press, true) : referencePress ? referenceCurrent : value.referencePickOwner ? null : value.interactionRevision)
+      viewPressFrame = null; referencePressFrame = null
       if (dragConsumed) { dragConsumed = false; return }
       if (!current || input.current.disabled || !select || !presentationReady()) return
       const mode = assemblyReferencePickMode(input.current)
@@ -490,7 +503,7 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
         if (originPressCatalog === originFrame.current && originFrame.current === originCatalog(input.current)) input.current.onOrigin?.(pickAssemblyOrigin(camera, input.current.originReferences ?? [], assemblyOriginExtent(input.current.scene?.visibleBounds), point(event), size()))
       }
       else if (mode === 'vertex') input.current.onVertex?.(pickAssemblyVertex(camera, current.bodies, point(event), size()))
-      else if (mode === 'edge') input.current.onEdge?.(pickAssemblyEdge(camera, current.bodies, current.edges, point(event), size()))
+      else if (mode === 'edge') input.current.onEdge?.(pickAssemblyEdge(camera, current.bodies, current.edges, point(event), size(), 8, assemblyReferencePickMode(input.current) === 'edge' ? input.current.materialArcPick : undefined, input.current.scene))
       else if (mode === 'face') input.current.onFace(pickAssemblyFace(camera, current.bodies, current.faces, point(event), size()))
       else {
         let component: AssemblyComponentReference | null
@@ -590,7 +603,7 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
   }, [props.scene, props.selectedAnalysisPair])
   useEffect(() => { context.current?.highlight() }, [props.selectedPath, props.selectedFaces, props.selectedEdges, props.selectedVertices, props.originReferences, props.selectedOrigins, props.partColors])
   useEffect(() => { context.current?.cancelBrowse(); context.current?.clearHover(); context.current?.highlight() },
-    [props.scene, props.browseSelectionMode, props.interactionRevision, props.disabled, props.pickingFaces, props.pickingEdges, props.pickingVertices, props.pickingOrigins])
+    [props.scene, props.browseSelectionMode, props.interactionRevision, props.referencePickOwner, props.disabled, props.pickingFaces, props.pickingEdges, props.pickingVertices, props.pickingOrigins])
   useEffect(() => { context.current?.clearHover(); context.current?.highlight(); context.current?.syncDrag() }, [props.drag, props.disabled, props.pickingFaces, props.pickingEdges, props.pickingVertices, props.pickingOrigins])
   useEffect(() => {
     const current = context.current; if (!current || !props.view) return

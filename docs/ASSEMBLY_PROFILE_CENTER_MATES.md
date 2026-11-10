@@ -75,8 +75,15 @@ alone does not prove that the entire path preserves it.
 The editor selects both faces and, for rectangles, both material edges and
 senses. Offset, alignment and quarter-turn choices are explicit. Selecting a
 different face clears its prior edge. Incomplete compound selections cannot
-start a preview. Current authoring uses dropdown choices; this is not a claim
-of viewport profile picking.
+start a preview. The standard workspace offers both the existing dropdowns and
+explicit **Seleccionar cara/arista en el modelo** controls for each role.
+Nomination resolves an exact visible current planar face or LINE with the
+selected face's component/body/producer namespace. A nominated LINE is not a
+certificate of boundary incidence or bounded shape; native preview still
+verifies both. Free circles retain null axes, and changing a rectangle face
+clears its old edge. Document, scope, family, editor or interaction-owner changes
+invalidate the current selection session. Other panel consumers retain their
+existing dropdown workflow.
 
 Creation, editing, suppression and deletion use the existing authenticated
 preview/Apply flow. Preview cancellation preserves the committed document;
@@ -104,3 +111,11 @@ result: see [validation](VALIDATION.md) for source-specific runs and
 geometry. General profile compatibility, circular roll locking, external
 orientation/default equivalence and complete assembly-demo readiness remain
 separate requirements.
+
+`npm run test:desktop:assembly-profile-center-picking` reuses the original
+four-part fixture and native lifecycle oracles with actual CDP face/LINE hits,
+including native rejection of a selected nonincident bottom edge and explicit
+material reselection during saved editing. It also checks selection Cancel and
+changing to the manipulator or saved editor. This fixed standard-workspace route
+does not establish configured picking, arbitrary visibility, contact or other
+platforms.

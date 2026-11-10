@@ -49,6 +49,48 @@ shape. `assemblyMatePathKind` obtains purpose from the saved family and role.
 Neither the shape guard, an opaque key nor matching coordinates authenticates
 a native circular edge.
 
+## Standard viewport declaration controls
+
+The standard editor retains its compound dropdown and adds explicit material
+roles for point, arc, origin and planar UP. Point/origin use current material
+vertices; UP uses the existing planar-face producer. Arc picking is a separate
+`material-arc` purpose: the complete current native circular-path catalogue,
+with two distinct current endpoint entries per edge, is the sole display
+whitelist. Absent LINE support, tessellation, screen shape or an ordinal never
+classifies an edge. Default LINE picking, browsing and Normal To retain their
+existing producers.
+
+Choosing an arc clears the complete path and displays an incomplete declaration.
+A second actual hit on one of that arc's two exact current material endpoints
+completes edge and origin atomically. Another component, another body or the
+same-body centre cannot silently supply an origin. The combined dropdown still
+selects a complete current declaration directly. Native Preview independently
+checks current circular kind, material incidence, placement and precision;
+neither display control authorizes Preview success or Apply.
+
+Each role is bound to the committed native scene, document object, owner,
+scope/definition, generation, family, selection session, editor and live input
+identity. Changes invalidate callbacks before the replacement React render.
+For the recently added Gear, Screw, ProfileCentre, LINE and circular pickers, a
+held left-button press also retains the exact role-ticket object, scene, mode,
+interaction revision and purpose until release. Switching roles or Cancel/rearm
+with the keyboard cannot reuse that press for a newer role. Omitted owners
+retain the older consumer path; this does not certify held-role behavior in
+configured or other legacy relation controls.
+Cancel, manipulation and opening/closing saved editors revoke nomination
+sessions. Source/history/file replacement and scope/family changes retain their
+existing invalidation. These controls do not enable configured-workspace picking.
+
+After building, `npm run test:desktop:assembly-circular-path-picking` uses the
+tracked original radius-2 quarter-sector fixture. It separates B through normal
+Movement controls before picking; this movement is distinct from mate history.
+The route exercises explicit point/arc/endpoint/UP acquisition, incompatible
+material selection, native coordinate rejection, Cancel/retry, history,
+Save/Open/fresh solve and a separately read STEP with literal quarter-sector
+volume, area, centroid and world-bound oracles. The legacy
+`test:desktop:assembly-circular-path` route retains compound-dropdown authoring.
+Executed receipts and platform limits belong in the validation record.
+
 ## Current proof, numerical owners and final verification
 
 The snapshot resolves active saved circular mates through a distinct

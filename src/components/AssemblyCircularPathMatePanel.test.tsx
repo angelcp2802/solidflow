@@ -1,3 +1,4 @@
+import { materialArcKey } from './assemblyMaterialArcPicking'
 import { expect,it,vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { createEmptyAssembly } from '../examples/assembly'
@@ -47,4 +48,17 @@ it('matches fixed and support-circle domain reports without reusing trim or a di
  const {document,report}=fixture(),mate=document.mates[0];if(mate.type!=='circular-path')throw Error('Expected arc')
  mate.position={mode:'coordinate',distanceMm:1};const fixed={...report,position:mate.position,targetCoordinateMm:1,coordinateMm:1,domainMarginsMm:null,precision:{...report.precision,domainMarginErrorMm:null}};expect(assemblyCircularPathUiReports(document,[fixed])).toHaveLength(1);expect(assemblyCircularPathUiReports(document,[{...fixed,targetCoordinateMm:2}])).toEqual([])
  mate.position={mode:'free',domain:'support-circle'};const full={...fixed,position:mate.position,targetCoordinateMm:null};expect(assemblyCircularPathUiReports(document,[full])).toHaveLength(1);expect(assemblyCircularPathUiReports(document,[{...full,domainMarginsMm:report.domainMarginsMm}])).toEqual([])
+})
+
+it('renders explicit four-role controls and prevents pending or lost arcs from authorizing Preview', () => {
+  const first = path(), second = { ...path(), startVertex: { ...point().vertex, key: 'vertex-v1|' + 'b'.repeat(64) } }, paths = [{ key: 'a', label: 'First endpoint', reference: first }, { key: 'b', label: 'Second endpoint', reference: second }]
+  const inputs = { owner: {}, point: point(), arcKey: materialArcKey(first), path: null, guide: null, following: false, upEnabled: false }
+  const picker = { inputs, enabled: true, role: 'origin' as const, onPick: vi.fn(), onChange: vi.fn(), onCancel: vi.fn() }
+  const html = renderToStaticMarkup(<Panel points={choices().points} paths={paths} disabled={false} picker={picker} onPreview={vi.fn()} onCancelEdit={vi.fn()} />)
+  expect(html).toContain('Arco material pendiente'); expect(html).toContain('aria-label="Seleccionar Origen del trayecto circular en el modelo" aria-pressed="true"')
+  expect(html).toContain('<button disabled="">Vista previa de trayecto circular')
+  const lost = renderToStaticMarkup(<Panel points={choices().points} paths={[]} disabled={false} picker={picker} onPreview={vi.fn()} onCancelEdit={vi.fn()} />)
+  expect(lost).toMatch(/aria-label="Seleccionar Origen del trayecto circular en el modelo"[^>]*disabled=""/)
+  const legacy = renderToStaticMarkup(<Panel {...choices()} disabled={false} onPreview={vi.fn()} onCancelEdit={vi.fn()} />)
+  expect(legacy).not.toContain('assembly-circular-path-pick')
 })

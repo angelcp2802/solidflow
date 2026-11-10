@@ -165,13 +165,14 @@ component, integrated engine and real interaction results.
 
 Geometry replay does not complete the feature-pattern goal. Required later
 layers include broader per-instance recipes and end/start conditions, applicable
-varying-sketch constraints, exact selected dependent-feature remapping, additive
-ALL and dynamic geometry scope, an explicitly saved AUTO discovery/capture policy,
+varying-sketch constraints, exact selected dependent-feature remapping, broader
+additive ALL and dynamic geometry scope, an explicitly saved AUTO discovery/capture policy,
 nested semantic recipes
 and broader ownership lifecycle handling. A persisted selected target list is
-not dynamic all-body scope. The cut-only regenerate/ALL increment resolves the
-complete current catalog but does not activate additive ALL or AUTO; their
-pending gates are not evidence of implemented fidelity. The written nested linear-then-mirror fixture is
+not dynamic all-body scope. Regenerate/ALL resolves the complete current catalog
+for cuts and the [bounded Blind primitive additive slice](FEATURE_REGENERATION.md#blind-primitive-additive-all).
+Other positive recipes and AUTO retain their pending gates, which are not
+evidence of implemented fidelity. The written nested linear-then-mirror fixture is
 one selected-scope geometry recipe; broader nested transform/owner combinations,
 dependent-feature remapping and nested regeneration remain required evidence.
 These remain implementation and evidence gaps

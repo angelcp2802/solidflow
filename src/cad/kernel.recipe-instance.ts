@@ -1,5 +1,5 @@
 import type { Shape3D } from 'replicad';
-import { fixedProfileInstanceInput, intrinsicProfileInstancePlacement, requireInitialRecipeDeclaration, type RecipeClosure, type RecipeTermination } from '../model/featureRecipes';
+import { fixedProfileInstanceInput, intrinsicProfileInstancePlacement, isInitialAdditiveAllRecipe, requireInitialRecipeDeclaration, type RecipeClosure, type RecipeTermination } from '../model/featureRecipes';
 import { withNativeOwners } from './kernel.native-ownership';
 import { buildExplicitFramePrimitive, resolveExplicitFrameDirections, resolveExplicitFrameUntilNext, type PrimitiveTermination } from './kernel.recipe-primitives';
 import { principalPlaneFrame } from './kernel.frames';
@@ -74,7 +74,14 @@ function recipeInstanceContext(input: RecipeInstanceToolInput) {
   if (definition?.type === 'cut' && node.type === 'cut') operation = 'subtract';
   else if (definition?.type === 'extrude' && node.type === 'extrude' && definition.bodyOperation?.mode === 'merge') operation = 'add';
   else throw new Error('Creation, consumption and other recipe lifecycle operations remain pending.');
-  if (closure.request.scope.mode === 'all' && operation === 'add') throw new Error('ALL_POSITIVE_SCOPE_PENDING: additive ALL applicability remains required and is not enabled.');
+  const sketch = closure.definitions.find(item => item.feature.id === resolved.sketchId)?.feature;
+  if (closure.request.scope.mode === 'all' && operation === 'add' && (!definition || !sketch || !isInitialAdditiveAllRecipe(definition, sketch))) {
+    throw new Error('ALL_POSITIVE_SCOPE_PENDING: only the intrinsic Blind additive ALL subset is enabled.');
+  }
+  if (closure.request.scope.mode === 'all' && operation === 'add') {
+    if (!input.assertWorkingCurrent) throw Error('Additive ALL requires its evaluator current working-owner guard.');
+    input.assertWorkingCurrent();
+  }
   let termination: PrimitiveTermination;
   if (end.kind === 'blind') termination = { kind: 'blind', symmetric: end.symmetric };
   else if (end.kind === 'throughAll') termination = { kind: 'throughAll', bothDirections: end.bothDirections };
@@ -84,7 +91,6 @@ function recipeInstanceContext(input: RecipeInstanceToolInput) {
     // principal plane remains in document coordinates, rather than following Q.
     termination = { kind: 'upToSurface', limit: { frame: principalPlaneFrame(end.target.plane) } };
   } else throw new Error('The exact principal-plane end reference is not resolved.');
-  const sketch = closure.definitions.find(item => item.feature.id === resolved.sketchId)?.feature;
   const secondTermination = resolved.secondTermination ? nativeTermination(resolved.secondTermination) : undefined;
   return { closure, resolved, operation, termination, secondTermination, sketch };
 }

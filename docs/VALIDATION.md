@@ -1,5 +1,137 @@
 # Validation
 
+## Material reference picking and part workflows — 2026-11-10
+
+The frozen Windows source `251d4767a8488be114b04e113eb6fb913a630e73` passed
+31 commands with Node 24.11.1 and Electron 44.9.3. This includes the build,
+11,316 unit/CAD tests in 509 files, 224 IPC checks with two explicit skips,
+desktop smoke and 28 renderer routes. The audit rehashed 1,418 source and
+runtime inputs, nine production members and 31 command logs, and verified the
+renderer receipts and cleanup.
+
+| Windows renderer workflow | Checkpoints |
+| --- | ---: |
+| Sketch tools and from-empty part | 350 / 443 |
+| Circular, profile-centre and LINE material picking | 118 / 111 / 246 |
+| Gear/Screw actual picking and circular legacy lifecycle | 156 / 150 / 67 |
+| Additive ALL, ordinary patterns, cut ALL and Until Next | 101 / 194 / 19 / 51 |
+| Successive parts and support repair | 541 / 139 |
+| Basic assembly and saved mate reference edits | 483 / 276 |
+| Standard/configured shortcuts and Normal To | 535 / 582 / 257 |
+| Embedded part edit and transition/fresh reopen | 172 / 202 + 15 |
+| Standard/configured axes and opposed origin planes | 331 / 326 / 83 / 132 |
+| Legacy Screw, Rack and assembly part properties | 165 / 176 / 222 |
+
+The sketch route uses the four real Apply buttons on the ribbon and Cancels an
+extended draft after its Redo. The part route exercises the Help modal,
+rename and delete, reference plane and rebuild, preserving file authority.
+The material reference cases exercise current-role ownership and preserve
+native Solve/Apply as the authority. Blind additive ALL retains its declared
+eligibility and independent STEP cap cases. The properties route runs with
+raster capture disabled.
+
+Manifest SHA-256 `1284048e135a44dae5ef08fa7d4fccd6b1d3c8a053ea493b2cb7826e186b0cae`.
+Combined receipt SHA-256 `aa2858cf7e51c263ee0c528e41ad2c528cbf187cc87aea7315f56e1fbaf0b3e6`.
+The renderer build is `index-CJ7XAV39.js`, SHA-256
+`e3f54e72d60b048f00d7c7381e922dcb8444bb60f1f50b2bbee668ee844a398d`, and the
+worker is `kernel.worker-DDgR3yT8.js`, SHA-256
+`22f83385b2d36b5e1235b569d0b20f83a488a70abc20043176d03c8a74ef9c19`.
+
+A second batch from the same input manifest and nine production bytes passed
+build, assembly STEP/STL export (83), structural STEP import (52) and
+insertion (58), embedded imported bodies (36), and configured documents and
+CSV (212). These are bounded Windows results. The newer automatic body scope,
+legacy/configured held-role changes and final packaged acceptance have their
+own gates.
+
+## Sketch modification controls — local Windows evidence, 2026-11-10
+
+An isolated snapshot on `4a797fe96aa117fc3dc7997f5453ea32170abd57` plus the
+two sketch-tool test files passed `npm run build` and
+`npm run test:desktop:sketch-primitives` with Electron 44.9.3. The second command
+passed 350 checkpoints, with 79 records and 171 interactions. The three
+original Save As, Open and physical STEP cases also passed. The first trial's
+chamfer oracle counted only contour lines when selecting the build response.
+The corrected trial verifies both the five contour lines and two supports
+against the [original geometry](PROVENANCE.md#sketch-modification-tools-on-the-original-rectangle).
+
+The added edit exercises the Relations ribbon transition from the chamfer
+panel, six tool entries, visible Apply controls or SVG clicks, three zero-value
+rejections, exact local Undo/Redo and full edit Cancel back to the native
+rectangle extrusion. The fixture verifies the directed fillet sweep and
+unaffected line identities. The scope covers one working case per listed
+modification and the visible side-panel Apply path. Further ribbon aliases,
+saved modified solids and additional variants have separate coverage needs.
+
+Snapshot manifest SHA-256 `ea9a389dac5feb3639fdbe417e51ea33207ce075001d43e17d1c50679431ae26`.
+Renderer log SHA-256 `1ceffe7069f6f28c9ebd6540b24317a6f976d76e6edfee45c82acb4d446cc36e`.
+The results bind that snapshot. The later combined candidate and Windows
+executable require their own checks.
+
+## Blind primitive additive ALL — local Windows evidence, 2026-11-07
+
+The focused candidate based on `5a205660f265bf5c7815e95f7f3fe70d25e141d3`
+enables only the [declared Blind primitive additive ALL slice](FEATURE_REGENERATION.md#blind-primitive-additive-all),
+with evaluator revision `intrinsic-blind-additive-all-v7`. This is separate
+development evidence and does not update the already delivered Windows prototype.
+The original recipes, literal physical cap oracles and tolerances are recorded
+in [PROVENANCE](PROVENANCE.md#blind-primitive-additive-all-original-fixtures).
+
+| Boundary | Actual local result |
+| --- | --- |
+| Complete `npm test` | 11,289 cases in 506 files; 220 IPC/source checks passed, two existing platform skips, zero failures. Unit portion 456.24 s on this workload. |
+| Declaration/presentation | 11 new additive declaration cases and the four complete affected pattern-panel files, 34 SSR cases. SSR is presentation evidence only. |
+| Native applicability | 13 actual native geometry/fault cases, including empty Common plus native distance, contact, overlap, containment, positive near-gap and fatal query/release errors. |
+| Native original integration | 10 cases: six rectangle/circle × linear/circular/mirror, changing current membership, overlap/contained rejection, chronological growth and bridge/near rejection. Cap top trim/normal, centroid and circle axis/radius distinguish physical placements. |
+| Native atomicity | Six cases, including late classification/union/release faults after private growth, stale remote identity, copied authority and wrong native inventory before copies/tools. |
+| `npm run build` / `npm run test:desktop` | Both passed on the production renderer/worker/WASM build. Existing large-chunk advisory remains; no general performance claim. |
+| `test:desktop:part-additive-all` | Final actual-control run passed 101 checkpoints, 24 records, 45 interactions; exactly two Opens, one Save As and one STEP export. |
+| Existing `pattern-all` / `pattern-until-next` | Passed 19 / 51 checkpoints, with their original cut and selected-additive termination contracts. |
+
+The complete suite preceded one isolated test-ownership correction: the retained
+evaluation in the remote-identity atomicity test is now always released even if
+an assertion fails, preserving primary and cleanup errors. Type checking and the
+complete six-case atomicity file passed after that correction. Production,
+declaration semantics and UI driver were unchanged by it; the full-suite and
+post-review focal results are separate evidence, not a claim that the earlier
+full run executed that later test-only cleanup guard.
+
+The final desktop route creates the historical rectangular cap pattern through
+ordinary controls, observes native edge-contact rejection and direct Cancel,
+reenters and grows B, edits placement to grow C with existing-edit Cancel/retry,
+then exercises Undo/Redo, Save/Open and export. Original owner DTO witnesses are
+captured only once; no-op/restored owners and reopened state compare to those
+exact original identities. The final separate native STEP instance measures
+A V72/A112 with nine planes, restored B V64/A96 with six planes, and C V72/A112
+with nine planes, including literal centroids, top/base/wall trims and material
+normals. It is the same kernel family, not independent-kernel interoperability.
+The child closes, its owned temporary files are deleted and renderer/asset/
+worker transport errors are absent. Final desktop log SHA-256 is
+`5b6c6a789492312f6deacfc222095a9eb8b9ed904345a7b6bf2fc6a77244f46d`.
+
+The renderer/worker production hashes are respectively
+`04ddec9331cfe646919751e7036ccac130a5e10ca910f35f5355df32bd0837aa` and
+`22f83385b2d36b5e1235b569d0b20f83a488a70abc20043176d03c8a74ef9c19`.
+The full-test log SHA-256 is
+`de6aa0c970d5df1543e08cfcd796c5202a5fd8f0d7b90bff7d27eb065c6240da`.
+Local logs remain private; tracked fixtures contain only original project geometry.
+
+Retained earlier failures include an incorrect probe expectation that OCCT
+would reject a tolerance-glued near-gap Fuse: it actually produces one solid,
+so the independently observed positive near-distance must reject before Fuse.
+An initial desktop actor tried to reveal an edit field before its current
+catalogue finished loading. The actor now waits for the real enabled panel and
+historical result; containment/hit/stationarity guards and deadlines remain.
+Neither failure was hidden by changing geometric tolerances or fabricating a
+native result.
+
+CI registers this one command in the existing persistence matrix without new
+permissions, jobs, dependencies or uploads. No hosted macOS/Linux result follows
+from the local Windows run. Broader positive endings/supports/entity profiles,
+thin walls, direction 2, bridge merging, creation/split/consumption identities,
+AUTO, variation and broader lifecycle/interoperability remain required. This
+finite increment does not close C05 or the usable-version aggregate gate.
+
 ## Reference repair, opposed origins and mechanical axis picking — 2026-11-07
 
 Local source `5a205660f265bf5c7815e95f7f3fe70d25e141d3` passes a frozen

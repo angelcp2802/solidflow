@@ -225,6 +225,30 @@ jobs:
         if: matrix.batch == 'relations' && runner.os != 'Linux'
         run: npm run test:desktop:assembly-screw-picking
 
+      - name: Test actual profile-center material picking (Linux)
+        if: matrix.batch == 'relations' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-profile-center-picking
+
+      - name: Test actual profile-center material picking (Windows/macOS)
+        if: matrix.batch == 'relations' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-profile-center-picking
+
+      - name: Test actual material LINE path picking (Linux)
+        if: matrix.batch == 'relations' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-line-path-picking
+
+      - name: Test actual material LINE path picking (Windows/macOS)
+        if: matrix.batch == 'relations' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-line-path-picking
+
+      - name: Test actual material circular path picking (Linux)
+        if: matrix.batch == 'relations' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-circular-path-picking
+
+      - name: Test actual material circular path picking (Windows/macOS)
+        if: matrix.batch == 'relations' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-circular-path-picking
+
       - name: Test origin axis rotation capture (Windows/macOS)
         if: matrix.batch == 'relations' && runner.os != 'Linux'
         run: npm run test:desktop:assembly-origin-axis-lock
@@ -364,6 +388,14 @@ jobs:
       - name: Test normal pattern authoring and STEP placements (Windows/macOS)
         if: matrix.batch == 'persistence' && runner.os != 'Linux'
         run: npm run test:desktop:part-pattern-create
+
+      - name: Test additive ALL lifecycle and physical STEP caps (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:part-additive-all
+
+      - name: Test additive ALL lifecycle and physical STEP caps (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:part-additive-all
 
       - name: Test normal sweep and loft lifecycle (Linux)
         if: matrix.batch == 'persistence' && runner.os == 'Linux'

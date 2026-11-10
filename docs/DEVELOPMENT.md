@@ -1,5 +1,39 @@
 # Development guide
 
+## Part help and menu ownership
+
+Part Help uses a native modal dialog with its existing blue/white presentation.
+Opening it transfers focus into the dialog; native Tab remains inside, Escape
+closes only Help, and the connected previous focus owner is restored. Native
+text selection/copy and button activation remain available. CAD keyboard
+commands behind Help cannot consume its events. The displayed version comes
+from the application package. This changes no file or native Apply authority.
+
+The ordinary `part-from-empty` route exercises Help in both the live pointer-
+drawn sketch and the saved eight-feature part. Keep exact draft, SVG projection,
+document/history, worker and file observations; do not cancel the sketch when
+closing Help. The same route checks View grid/plane aliases, native creation of
+an XY+20 mm reference plane, Tools properties/rebuild, name rejection/native
+text undo/Cancel/Apply and menu Undo/Redo/delete. The actual saved bytes remain
+unchanged. Other entry points retain their own command-matrix requirements.
+
+All existing camera, grid and plane-OFF crop comparisons remain exact. Only the
+new translucent-plane ON observation permits at most one native 8-bit byte
+level across the complete unmasked crop for two presented observations at
+least 500 ms apart. A larger difference resets that observation pair within the
+existing deadline. ON must also differ from the exact OFF baseline by more than
+one level, to distinguish a real display effect from quantization. Record the
+changed-pixel count without fitting an acceptance count to one run. This is not
+bit-identical ON, exact camera-state, RGB calibration or other-GPU acceptance.
+
+`SOLIDFLOW_UI_PLANE_DIAGNOSTICS=1` opts only the fixed from-empty scenario into
+two diagnostic PNGs from its exact retained comparison owners. Native image
+hashes, dimensions and a 4 MiB per-image limit are checked. Names are fixed and
+usable once per factory; no extra capture or arbitrary path is accepted. The
+images remain outside the frame-comparison signature. Default CI does not
+encode them. The observer's twelfth boolean retains only this route's actual
+native plane DTOs for independent inspection; it creates no geometry witness.
+
 ## Support repair, opposed origins and mechanical axis acquisition
 
 Five fixed renderer routes extend the existing lifecycle contracts:
@@ -117,6 +151,11 @@ and separately measured STEP results together:
 - `test:desktop:part-pattern-create`: linear, circular and mirror creation,
   editing and recoverable invalid declarations. Final STEP centroids and
   oriented face planes check the literal copy placements.
+- `test:desktop:part-additive-all`: historical rectangular Blind merge source,
+  dynamic current-owner scope, native invalid contact with direct Cancel/retry,
+  placement edit B→C, history and Save/Open. Final STEP checks all three owners
+  and the actual cap/base trimmed planes. Broader positive ALL, AUTO and variation
+  remain required; see [the finite contract](FEATURE_REGENERATION.md#blind-primitive-additive-all).
 
 These finite fixtures do not establish every end mode, neutral face, pattern
 scope or mirror chirality. The family matrix in the usable-version ledger keeps
@@ -2693,13 +2732,15 @@ The [scoped feature geometry contract](FEATURE_PATTERNS.md) distinguishes exact
 per-owner contributions, potential historical states and native availability.
 Its signed material copying is separate from the initial saved per-instance
 regeneration path. Geometry/true keeps selected targets. Varying sketches,
-additive ALL, dynamic geometry scope, AUTO discovery and broader recipes remain
+broader additive ALL, dynamic geometry scope, AUTO discovery and broader recipes remain
 required work.
 
 The [feature recipe declaration layer](FEATURE_RECIPES.md) documents the pure
 closure/frame API. The [regeneration contract](FEATURE_REGENERATION.md) connects
 explicit-frame tool construction, chronological evaluation and the saved
-selected or cut-only ALL scope. The initial native path accepts intrinsic
+selected or bounded dynamic ALL scope, including the
+[Blind primitive additive slice](FEATURE_REGENERATION.md#blind-primitive-additive-all).
+The initial native path accepts intrinsic
 rectangle/circle cuts or selected merge extrusions with blind/ThroughAll endings
 or an explicit fixed principal-plane UpToSurface limit, and no variation.
 The bounded saved policy names the seed and end-condition locator; it is never

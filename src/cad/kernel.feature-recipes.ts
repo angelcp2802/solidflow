@@ -15,11 +15,12 @@ import { validateEntityRecipeProfileForAbsence, type EntityRecipeSolveInput } fr
 import { validatePrimitiveRecipeProfileForAbsence, type PrimitiveRecipeProfileInput } from './kernel.recipe-primitives';
 import { isNativeCleanupFailure, NativeCleanupError, withNativeOwners, type NativeOwner, type NativeOwners } from './kernel.native-ownership';
 import { attestNativeRecipeScope, assertNativeRecipeScopeCurrent, type NativeRecipeScopeAttestation } from './kernel.recipe-scopes';
+import { classifyAdditiveRecipeOwner } from './kernel.recipe-additive-applicability';
 
 import { checkpointSourceSketchSolves, assertSourceSketchSolvesCurrent,
   type SourceSketchSolveCheckpoint, type SourceSketchSolveRegistry } from './kernel.sketch-solves';
 
-export const RECIPE_EVALUATOR_REVISION = 'intrinsic-real-solved-profiles-until-next-v6';
+export const RECIPE_EVALUATOR_REVISION = 'intrinsic-blind-additive-all-v7';
 const compare = (a: string, b: string): number => a < b ? -1 : a > b ? 1 : 0;
 const tolerance = (volume: number): number => Math.max(1e-8, Math.abs(volume) * 1e-10);
 const sameRef = (a: Readonly<BodyReference>, b: Readonly<BodyReference>): boolean =>
@@ -301,8 +302,8 @@ function assertParent(application: RecipeOwnerApplication, targetBodyId: string,
 
 /**
  * Regenerates actual fixed-profile tools in canonical instance/history order.
- * This API is not wired to the saved-document grammar or worker yet. All inputs
- * and sources remain borrowed; no catalog publication occurs here.
+ * The engine supplies the saved declaration and exact native inputs. All inputs
+ * and sources remain borrowed; this evaluator never publishes the catalog.
  */
 export function evaluateFeatureRecipes(input: RecipeEvaluationInput): OwnedRecipeEvaluation {
   try {
@@ -340,6 +341,34 @@ export function evaluateFeatureRecipes(input: RecipeEvaluationInput): OwnedRecip
             const bodyId = application.targetAtPatternInput.bodyId, group = groups.get(bodyId) ?? [];
             group.push(application); groups.set(bodyId, group);
           }
+          const definition = closure.definitions.find(item => item.feature.id === operation.featureId)?.feature;
+          const additiveAll = closure.request.scope.mode === 'all' && definition?.type === 'extrude' && definition.bodyOperation?.mode === 'merge';
+          let additiveTool: Shape3D | undefined, additiveOwner: string | undefined;
+          if (additiveAll) {
+            const ids = [...groups.keys()].sort(compare), inventory = snapshots.targets.map(target => target.ref.bodyId).sort(compare);
+            if (ids.length !== inventory.length || ids.some((id, index) => id !== inventory[index])) throw Error('Additive ALL must classify every attested current owner.');
+            const eventOwners = ids.map(bodyId => ({ bodyId, shape: current.get(bodyId)!, revision: revisions.get(bodyId)! }));
+            const assertEventCurrent = () => {
+              for (const owner of eventOwners) if (current.get(owner.bodyId) !== owner.shape || revisions.get(owner.bodyId) !== owner.revision) {
+                throw Error('An additive ALL working owner/revision changed during applicability inspection.');
+              }
+            };
+            assertEventCurrent();
+            const first = eventOwners[0];
+            additiveTool = owners.own(buildRecipeInstanceTool({ closure, featureId: operation.featureId, address: transform.key,
+              targetBodyId: first.bodyId, workingTarget: first.shape, validateTool: validatePositiveClosedTool, assertWorkingCurrent: assertEventCurrent }).tool);
+            // Classify this event against ALL chronological working owners before
+            // any union. A contact/contained owner still counts for bridge policy.
+            const contacts: string[] = [];
+            for (const owner of eventOwners) {
+              assertEventCurrent();
+              const applicability = classifyAdditiveRecipeOwner(owner.shape, additiveTool);
+              assertEventCurrent();
+              if (applicability.kind !== 'separated') contacts.push(owner.bodyId);
+            }
+            if (contacts.length > 1) throw Error('Una copia del saliente toca varios cuerpos. Revisa la geometría o utiliza destinos seleccionados; sus identidades no se fusionan automáticamente.');
+            additiveOwner = contacts[0];
+          }
           for (const bodyId of [...groups.keys()].sort(compare)) {
             const applications = groups.get(bodyId)!;
             for (const application of applications) assertParent(application, bodyId, transform.key, outputs);
@@ -357,32 +386,33 @@ export function evaluateFeatureRecipes(input: RecipeEvaluationInput): OwnedRecip
             // Every source was attested above and every route counted by extraction.
             const entitySource = sketchSolves ? { ...sketchSolves, features: input.features } : undefined;
             let changed = false;
-            if (!allCutEntirelyBehindRay(closure, operation, transform.key, before, entitySource, assertWorkingCurrent)) {
+            if ((!additiveAll || bodyId === additiveOwner) && !allCutEntirelyBehindRay(closure, operation, transform.key, before, entitySource, assertWorkingCurrent)) {
               const constructionInput = { closure, featureId: operation.featureId,
                 address: transform.key, targetBodyId: bodyId, workingTarget: before, assertWorkingCurrent, entitySource,
                 // Tools may contain several closed regions. Recipe/profile gates
                 // remain in the bridge; source/current/final owners still use validateSingle.
                 validateTool: validatePositiveClosedTool };
-              const definition = closure.definitions.find(item => item.feature.id === operation.featureId)?.feature;
               const independent = definition && (definition.type === 'extrude' || definition.type === 'cut') && definition.secondDirection?.enabled
                 && (operation.termination?.kind !== 'blind' || operation.secondTermination);
-              const construction = independent && closure.request.scope.mode === 'all'
-                ? resolveRecipeInstanceDirections(constructionInput)
-                : operation.termination?.kind === 'untilNext' && closure.request.scope.mode === 'all'
-                ? (() => {
+              const construction = (() => {
+                if (additiveTool) return { kind: 'complete' as const, operation: 'add' as const, tool: copyBodyShape(additiveTool) };
+                if (independent && closure.request.scope.mode === 'all') return resolveRecipeInstanceDirections(constructionInput);
+                if (operation.termination?.kind === 'untilNext' && closure.request.scope.mode === 'all') {
                   const resolved = resolveRecipeInstanceUntilNext(constructionInput);
                   if (resolved.kind === 'complete') return resolved;
                   if (resolved.kind === 'empty-forward' && resolved.operation === 'subtract') return resolved;
                   if (resolved.kind === 'incomplete-limit') throw resolved.error;
                   if (resolved.kind === 'contact-or-near') throw new Error('No se puede resolver Hasta el siguiente en uno de los cuerpos: el perfil lo toca o está demasiado cerca.');
                   throw new Error('ALL UntilNext needs a complete limit or a native-proven separated empty forward region.');
-                })()
-                : { kind: 'complete' as const, ...buildRecipeInstanceTool(constructionInput) };
+                }
+                return { kind: 'complete' as const, ...buildRecipeInstanceTool(constructionInput) };
+              })();
               if (construction.kind === 'complete') {
                 const tool = owners.own(construction.tool);
                 assertWorkingCurrent();
                 const raw = owners.own(bodyBoolean(construction.operation, before, tool));
                 assertWorkingCurrent();
+                if (additiveAll) validateSingle(raw); // No temporary disconnected positive islands or implicit split owners.
                 const rawState = intermediate(raw);
                 const signedChange = construction.operation === 'subtract' ? beforeState.volume - rawState.volume : rawState.volume - beforeState.volume;
                 if (signedChange < -tolerance(beforeState.volume)) throw new Error('A regenerated operation changed material with the wrong sign.');
@@ -408,6 +438,7 @@ export function evaluateFeatureRecipes(input: RecipeEvaluationInput): OwnedRecip
               outputs.set(recipeVirtualOutputKey(application.sourcePoststate, bodyId, transform.key), output);
             }
           }
+          if (additiveTool) release(owners, additiveTool);
         }
         const instanceChanged = [...current].some(([bodyId, shape]) => materialChanged(instanceBefore.get(bodyId)!, shape, owners));
         for (const shape of instanceBefore.values()) release(owners, shape);

@@ -1,5 +1,21 @@
 # Project status and review queue
 
+## Integrated material selection and part workflows — 2026-11-10
+
+The `251d476` Windows snapshot passes 31 commands, including 28 desktop routes,
+11,316 unit/CAD cases, 224 IPC checks and desktop startup. It brings together
+profile-centre, LINE and circular material picking, bounded additive ALL,
+keyboard ownership in Help, and the six real sketch modification routes.
+The additional exchange batch passes five renderer workflows using the same
+nine production files. The [validation record](VALIDATION.md) keeps the exact
+inputs, geometric cases and scope.
+
+The [acceptance ledger](USABLE_VERSION_ACCEPTANCE.md) tracks automatic body
+scope, per-instance variation, broader regeneration, configured and legacy
+reference gestures, and remaining command cases. The subsequent combined
+candidate and packaged Windows walkthrough have separate validation. Issue
+#55 is at 16/25, #53 at 6/9, PR #49 is a draft and release gate #5 is open.
+
 ## Usable Windows version closure — 2026-11-07
 
 The persistent objective is active. The [acceptance ledger](USABLE_VERSION_ACCEPTANCE.md)

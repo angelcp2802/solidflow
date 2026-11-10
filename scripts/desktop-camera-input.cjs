@@ -2,10 +2,13 @@
 
 // Fixed camera-only gestures in the already isolated, hidden renderer workflow.
 // No camera state, application handlers or model values are read or injected.
-module.exports = function cameraInput({ getWindow, evaluate, check, digest, allowed, allowFrameDiagnostics = false, allowRasterComparison = false }) {
+module.exports = function cameraInput({ getWindow, evaluate, check, digest, allowed, allowFrameDiagnostics = false, allowRasterComparison = false, allowPlaneDiagnostics = false }) {
   check(typeof allowRasterComparison === 'boolean' && (!allowRasterComparison || allowed === true && allowFrameDiagnostics === false),
     'Raster comparison requires an explicit camera-navigation opt-in');
+  check(typeof allowPlaneDiagnostics === 'boolean' && (!allowPlaneDiagnostics || allowed === true && allowRasterComparison === true && allowFrameDiagnostics === false),
+    'Plane diagnostics require a separate bounded raster-comparison opt-in');
   const diagnosticNames = new Set();
+  const planeDiagnosticNames = new Set();
   const rasterPixelLimit = 2_000_000;
   const sampleLimit = 16, evidenceByteLimit = 128 * 1024;
   // At most two independent baselines and the latest crop; each is subject to
@@ -45,7 +48,28 @@ module.exports = function cameraInput({ getWindow, evaluate, check, digest, allo
       && digest(frame.bitmap) === frame.result.sha256, 'Retained raster identity and hashes must remain unchanged');
     return frame;
   }
+  function planeDiagnostic(frame, name) {
+    const window = getWindow();
+    check(allowPlaneDiagnostics && allowed === true && allowRasterComparison && !allowFrameDiagnostics
+      && window && !window.isVisible() && window.webContents.debugger.isAttached(), 'Plane diagnostic belongs to the owned hidden from-empty window');
+    check(['planes-first', 'planes-last'].includes(name) && !planeDiagnosticNames.has(name) && planeDiagnosticNames.size < 2,
+      'Each fixed plane diagnostic is encoded once per factory');
+    retainedFrame(frame);
+    const result = frame.result, image = frame.image, size = image?.getSize();
+    check(image && size.width === result.width && size.height === result.height && digest(image.toBitmap()) === result.rawSha256,
+      'Unmodified retained NativeImage matches the actual bounded bitmap');
+    const png = image.toPNG();
+    check(Buffer.isBuffer(png) && png.length > 0 && png.length <= 4 * 1024 * 1024, 'Bounded original plane diagnostic PNG');
+    planeDiagnosticNames.add(name);
+    return { name, mimeType: 'image/png', byteLength: png.length, sha256: digest(png), crop: { ...frame.observed.crop },
+      width: size.width, height: size.height, rawSha256: result.rawSha256, frameSha256: result.sha256, base64: png.toString('base64') };
+  }
   const rasterComparison = allowRasterComparison ? {
+    ...(allowPlaneDiagnostics ? { planePair(first, last) {
+      check(movedBaseline?.result === first && latest?.result === last && planeDiagnosticNames.size === 0,
+        'Plane diagnostic pair requires the exact retained comparison owners');
+      return [planeDiagnostic(movedBaseline, 'planes-first'), planeDiagnostic(latest, 'planes-last')];
+    } } : {}),
     retainBaseline(result) {
       check(latest && latest.result === result, 'Raster baseline must be the latest accepted capture object');
       baseline = retainedFrame(latest);
@@ -218,7 +242,7 @@ module.exports = function cameraInput({ getWindow, evaluate, check, digest, allo
       }catch{}
       // Metadata remains private to the retained pair, outside result and the
       // unchanged stationary-frame signature. clear() releases it with buffers.
-      latest=pixelCount<=rasterPixelLimit?{result,raw,bitmap,covered,metadata:JSON.stringify(result),observed}:{result};
+      latest=pixelCount<=rasterPixelLimit?{result,raw,bitmap,covered,metadata:JSON.stringify(result),observed,...(allowPlaneDiagnostics ? {image} : {})}:{result};
     }
     return result;
   }

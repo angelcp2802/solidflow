@@ -8,7 +8,7 @@ const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 // renderer reference, camera state, solver reply or capability substitution.
 module.exports = function mechanicalPickingWorkflow(context) {
   context = require('./desktop-assembly-navigation.cjs').withNavigation(context);
-  const { family, expected, input, output, evaluate, observe, waitFor, click, capture, pointer, checks,
+  const { referenceRoleKeyboard, family, expected, input, output, evaluate, observe, waitFor, click, capture, pointer, checks,
     protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs, dialogCounts, assemblyNavigation } = context;
   check(family === 'gear' || family === 'screw', 'Only the two fixed mechanical picking cases.');
   const gear = family === 'gear', noun = gear ? 'engranaje' : 'tornillo', label = gear ? 'Engranaje por caras' : 'Tornillo por caras';
@@ -174,6 +174,15 @@ module.exports = function mechanicalPickingWorkflow(context) {
       && await page(() => localStorage.getItem('solidflow.autosave')) === before.recovery, 'Material hit changes only the intended role');
     check(await page(selector => document.querySelector(selector)?.getAttribute('aria-pressed') === 'false', picker(slot)), 'Successful hit disarms role');
   }
+  async function heldRoleOwnership(scene, world) {
+    const projected=await projection(scene,world);await arm(0);let before=await state(),failure;
+    await pointer('mouseMoved',projected.point);await pointer('mousePressed',projected.point,1);
+    try{evidence.keyboardTransitions??=[];evidence.keyboardTransitions.push({kind:'held face role switch',...await referenceRoleKeyboard(family+'-2')})}catch(error){failure=error}finally{try{await pointer('mouseReleased',projected.point)}catch(error){failure=failure?new AggregateError([failure,error],'Held reference release failed',{cause:failure}):error}}if(failure)throw failure;
+    await frames();await unchanged(before,'Held face cannot nominate under later mechanical slot');
+    before=await state();await pointer('mouseMoved',projected.point);await pointer('mousePressed',projected.point,1);failure=null;
+    try{evidence.keyboardTransitions.push({kind:'held face Cancel',...await referenceRoleKeyboard(family+'-2')});evidence.keyboardTransitions.push({kind:'held face rearm',...await referenceRoleKeyboard(family+'-2')})}catch(error){failure=error}finally{try{await pointer('mouseReleased',projected.point)}catch(error){failure=failure?new AggregateError([failure,error],'Held reference release failed',{cause:failure}):error}}if(failure)throw failure;
+    await frames();await unchanged(before,'Held mechanical face cannot survive Cancel/rearm ABA');await click(picker(1));
+  }
   async function parameters() {
     await control('input[aria-label="Nombre del ' + noun + '"]', label);
     if (gear) { await control('input[aria-label="Numerador del engranaje"]', '1'); await control('input[aria-label="Denominador del engranaje"]', '2');
@@ -258,6 +267,7 @@ module.exports = function mechanicalPickingWorkflow(context) {
       planePoint = gear ? [0, -15, 2] : [15, 10, 4];
     // Genuine baseline material acquisition precedes any native relation token.
     await control('select[aria-label="Tipo de relación"]', family);
+    await heldRoleOwnership(base.scene,points[0]);
     await pick(base.scene, 0, face(base.scene, ids[0], 'cylinder', radii[0]), points[0]);
     await pick(base.scene, 1, face(base.scene, ids[1], 'cylinder', radii[1]), points[1]);
     check(await page((noun, apply) => document.querySelector('button[aria-label="Capturar ' + noun + '"]')?.disabled === true && document.querySelector(apply)?.disabled === true, noun, APPLY), 'Two base-scene hits still grant no native Capture/Apply capability');

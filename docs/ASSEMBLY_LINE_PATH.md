@@ -139,3 +139,30 @@ Full Path support, UP without Follow, linear UP guides, singular fallback policy
 general convergence, continuous motion
 or collision safety, external-format compatibility, other-platform runtime
 support and the complete assembly demo remain separate work.
+
+## Standard viewport reference nomination
+
+The standard form offers explicit selection controls beside the existing lists:
+material point vertex, current LINE edge, material origin vertex and an optional
+planar UP guide. Picking the edge clears its old origin. Origin candidates share
+the edge's exact occurrence/source revision, body and producer. A retained edge
+that is missing or ambiguous in the current catalogue must be selected again
+before origin acquisition is enabled. Only the fresh
+native preview proves actual endpoint incidence. A same-body nonincident vertex
+can therefore be nominated and must still reject natively. UP contributes an
+explicit current material plane; no adjacent face or component axis is inferred.
+
+Nomination uses the confirmed committed native scene, not an unapplied preview.
+Document, scope, family, editor and interaction-owner changes invalidate its
+session. Live input identity prevents a callback from an old role or draft from
+rewriting current choices before React commits. These UI guards confer no native
+proof or Apply capability. Consumers without the optional viewport controller
+retain their existing list workflow.
+
+`npm run test:desktop:assembly-line-path-picking` reuses the original three-prism
+UP fixture and lifecycle oracles with actual CDP vertex/LINE/planar hits, invalid
+owner and native nonincident-origin rejection, reference Cancel, ready
+Cancel/retry, saved editing, history and Save/Open/fresh Solve. Fixed original
+view witnesses do not establish arbitrary visibility, configured picking,
+continuous contact or another platform. Circular material picking remains
+required follow-up work with its own supported arc producer and explicit origin.

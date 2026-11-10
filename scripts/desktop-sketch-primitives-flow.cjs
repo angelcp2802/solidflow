@@ -298,6 +298,8 @@ module.exports = function sketchPrimitivesWorkflow(context) {
     const rectangleDoc = await newDocument(true, 'rectangle'); await startSketch();
     let serial = await stroke('Rectángulo', [[0, 0], [4, 2]]), drawn = await sketch(serial, profile => profile.entities.length === 4, 'rectangle-drawn'); rectangle(drawn.features[0].profile, 4, false);
     const accepted = await acceptSketch(drawn, 'rectangle-sketch-accepted'), original = await extrude(accepted, 'rectangle', 4);
+    await require('./desktop-sketch-tools-flow.cjs')({ page, press, change, check, checks, canonical, observe, response, sketch,
+      selectAt, calibration, pointer, stroke, localHistory, zoom, committed, solid, recovery, original, waitFor, near });
     const first = await editRectangle(original, 'rectangle-first-edit'); await localHistory(first.fixed, first.dimensioned, 'driving-length');
     await selectAt([3, 0], 'entity'); serial = (await observe()).serial; await press('.relation-choices button', 'Vertical');
     const invalid = await sketch(serial, profile => profile.constraints.filter(value => value.type === 'vertical').length === 3, 'incompatible-vertical');

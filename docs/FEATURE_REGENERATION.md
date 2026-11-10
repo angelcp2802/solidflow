@@ -6,8 +6,9 @@ against the current working target. The integrated initial path connects
 chronological evaluation and atomic body-catalog publication. It supports
 intrinsic rectangle/circle and real solved entity cuts and merge extrusions, blind/ThroughAll/UntilNext endings
 or an explicitly fixed principal-plane UpToSurface limit, selected targets
-and no variation. Dynamic ALL
-currently supports the intrinsic cut subset; additive ALL remains pending.
+and no variation. Dynamic ALL supports the intrinsic cut subset and the
+[bounded Blind primitive additive slice](#blind-primitive-additive-all) below.
+Broader additive scope remains required.
 The entity composition has bounded local native/full/build evidence and one
 original circular-entity linear selected-to-ALL UI workflow recorded below.
 That single Windows interaction does not establish the broader UI scope.
@@ -118,13 +119,69 @@ including consumers through ALL. The dynamic pattern itself does not depend on
 every catalog member. Creator association uses the original structural context,
 including suppressed/repairable states, and never substitutes a nearby identity.
 
-ALL additive merge recipes report `ALL_POSITIVE_SCOPE_PENDING` before target
-copies or tools. Applicability to a remote owner has not been established;
-exceptions are not silently interpreted as misses. Selected additive behavior
-is unchanged. AUTO requires genuine native discovery and an explicit saved
+Additive recipes outside the Blind primitive slice below report
+`ALL_POSITIVE_SCOPE_PENDING` before target copies or tools. Exceptions are never
+interpreted as misses. Selected additive behavior is unchanged.
+AUTO requires genuine native discovery and an explicit saved
 capture/follow policy; a final-replacement list cannot stand in for owners
 affected by intermediate events. These remain required capabilities, not
 successful parity demonstrated by rejection.
+
+### Blind primitive additive ALL
+
+The first additive ALL slice accepts historical merge extrusions whose source
+sketch has an intrinsic rectangle or circle on a principal plane, with its
+existing offset and signed Blind depth. The saved source must omit support,
+explicit end-condition, thin-wall and second-direction fields, including
+disabled second-direction declarations. Variation remains `none`. Linear,
+circular and mirror use the existing canonical placement and parity rules.
+Pure declaration eligibility does not establish native target availability,
+applicability or permission to publish a shape.
+
+At each chronological source/placement event the evaluator builds one genuine
+placed Blind tool, independent of any owner's extents, and classifies it against
+every attested **current working** owner before any union. A non-destructive
+native Common must complete, return non-null geometry and contain only valid
+material/contact topology. A topology-free compound is not proof of absence:
+a completed native distance query must prove separation greater than
+`1e-7 mm + owner tolerance + tool tolerance + 32 × EPSILON × coordinate scale`.
+A positive distance within that guard rejects as indeterminate. Exact zero
+native distance or actual contact topology is a contact candidate, and positive
+common volume is an overlap candidate. No exception, box heuristic or successful
+tolerance-glued Fuse converts an inconclusive query into a miss.
+
+More than one non-separated owner rejects the event atomically, including
+contained/overlapping/contact owners. This first slice does not fuse body IDs,
+consume owners, duplicate a bridge between them or create replacement IDs.
+For one candidate the genuine union must immediately validate as one closed,
+positive-volume solid; edge/point contact that leaves disconnected solids
+rejects. The final material-change, source/current guards and publication
+proofs remain mandatory. A later event sees the owner changed by preceding
+events, not a historical source shape.
+
+The existing no-op policy is preserved: an address that changes no material
+rejects, and an evaluation with no final replacements rejects. A fully contained
+tool alone therefore does not produce a successful no-op Apply. Within a valid
+changed address, remote or unchanged owners keep their exact refs, lineage,
+metadata and unchanged-revision virtual outputs while still participating in
+inventory/budget/freshness checks. All native query, union, validation and cleanup
+failures prevent publication, including a failure after an earlier private
+working replacement has been computed. The evaluator revision is
+`intrinsic-blind-additive-all-v7`; an older retained preview cannot authorize it.
+
+The original native/declaration/failure fixtures and the actual-control desktop
+scenario are described in [PROVENANCE](PROVENANCE.md#blind-primitive-additive-all-original-fixtures).
+Authored routes are not executed evidence; source-specific results belong in
+[VALIDATION](VALIDATION.md). The desktop route is one linear rectangular
+historical cap pattern: native invalid-contact Cancel/retry, edit from B to C,
+history, Save/Open and a separate same-family STEP reader with literal cap/wall
+geometry. It does not establish all transforms or all supported profile
+interactions in the GUI.
+
+Other positive endings/start policies, associative/entity profiles/supports,
+thin walls, second direction, bridge merging and owner creation/split/consumption,
+AUTO discovery, variation and broader lifecycle/interoperability remain required
+work. Canonical cases do not close C05 or replace its remaining capabilities.
 
 The 54 additional authored cases have distinct boundaries:
 [17 model/command and seven SSR](PROVENANCE.md#dynamic-all-model-and-rendered-fixtures),
@@ -318,7 +375,8 @@ It accepts no arbitrary caller transform or source frame and never uses a
 captured material delta as a regeneration substitute.
 
 This bridge is limited to the initial `mode:'regenerate'`,
-`geometryPattern:false` declaration subset: selected targets or cut-only ALL,
+`geometryPattern:false` declaration subset: selected targets, cut ALL or the
+bounded Blind primitive additive ALL slice,
 no variation, intrinsic primitive or authentic real-solved entity profiles, owned cut/merge and
 blind/ThroughAll/UntilNext or explicit principal-plane/world UpToSurface termination.
 Selected scope checks its exact saved target
@@ -389,7 +447,7 @@ No complete feature or platform-support claim follows.
 
 Required continuation includes broader up-to-surface, offset and other
 end/start conditions; exact face/datum/instance correspondence; arbitrary and
-associative solved profiles; dependent sketches/planes/constraints; additive ALL,
+associative solved profiles; dependent sketches/planes/constraints; broader additive ALL,
 dynamic geometry scope and AUTO discovery with saved capture/follow policy;
 varying sketches,
 dimensions and equations; nested regeneration; creation/split/consumption/Combine
@@ -411,7 +469,7 @@ This command is separate from the standard initial-model desktop smoke and from
 symbolic, SSR and programmatic engine tests. Its [fixture provenance](PROVENANCE.md#instrumented-dynamic-all-desktop-fixture)
 and [actual results](VALIDATION.md) define the evidence boundary. Circular/mirror
 interaction, picking, stale-prefix rejection, binding edits, undo/redo, AUTO,
-additive ALL and the broader recipe/lifecycle requirements remain open.
+broader additive ALL and the broader recipe/lifecycle requirements remain open.
 
 ## Real source solves and native component foundations
 
@@ -531,7 +589,7 @@ Selected cut/merge and cut-only dynamic ALL retain existing route/lifecycle
 rules. Temporary tools use the closed positive-tool validator; historical
 sources, current targets and persistent results still require one valid solid.
 Associative/explicit support placement, varying constraints, native face/datum
-correspondence, additive ALL, AUTO, nested regeneration and
+correspondence, broader additive ALL, AUTO, nested regeneration and
 broader lifecycle work remain incomplete. Their rejection is not implementation
 or reference parity. Existing commands/panel declarations can request this
 unchanged regenerate mode and receive real engine preview; no new UI interaction
@@ -642,7 +700,8 @@ reopening rebuilds the limit from the then-current model rather than a saved
 distance or cached native face.
 
 These are SolidFlow's explicit per-owner rules. General reference-application
-scope parity is unverified. Additive ALL, AUTO discovery, bilateral UntilNext,
+scope parity is unverified. Additive ALL beyond the Blind primitive slice,
+AUTO discovery, bilateral UntilNext,
 associative or varying profiles, broader start/end references and lifecycle
 policies remain required work. Authored tests and declared workflows are not
 executed results; the source-specific [validation record](VALIDATION.md) must

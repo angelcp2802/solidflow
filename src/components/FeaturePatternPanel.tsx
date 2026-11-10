@@ -167,7 +167,7 @@ export default function FeaturePatternPanel({ feature, features, editor, onChang
           <span>{currentTargetPage + 1} / {targetPages}</span>
           <button type="button" disabled={editor.loading || currentTargetPage + 1 === targetPages} onClick={() => setTargetPage(currentTargetPage + 1)}>Siguiente</button>
         </div>}
-        <p className="muted-small">El alcance dinámico actual admite cortes. Los salientes con todos los cuerpos siguen pendientes.</p>
+        <p className="muted-small">Admite cortes y salientes de profundidad fija con perfil rectangular o circular en un plano principal. Cada copia del saliente debe tocar un solo cuerpo; otros finales, soportes, paredes delgadas y dirección 2 siguen pendientes.</p>
       </>}
       {editor.message && <p className="muted-small" role="alert">{editor.message}</p>}
     </div>

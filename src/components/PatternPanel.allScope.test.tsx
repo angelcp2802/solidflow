@@ -44,7 +44,9 @@ describe('rendered dynamic ALL intent', () => {
     expect(html).not.toContain('Seleccionar destinos en la vista');
     expect(html).not.toContain('Destinos de esta geometría');
     expect(html).not.toContain('value="auto"');
-    expect(html).toContain('salientes con todos los cuerpos siguen pendientes');
+    expect(html).toContain('salientes de profundidad fija con perfil rectangular o circular en un plano principal');
+    expect(html).toContain('Cada copia del saliente debe tocar un solo cuerpo');
+    expect(html).toContain('otros finales, soportes, paredes delgadas y dirección 2 siguen pendientes');
     expect(feature).toEqual(before);
   });
 

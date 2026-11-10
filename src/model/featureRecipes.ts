@@ -20,6 +20,15 @@ export const RECIPE_LIMITS = Object.freeze({
   documentPrefix: 100_000, jsonCharacters: 1_000_000,
 });
 
+/** Pure declaration eligibility, never native applicability or ownership. */
+export function isInitialAdditiveAllRecipe(feature: Feature, sketch: Feature): boolean {
+  return feature.type === 'extrude' && feature.bodyOperation?.mode === 'merge'
+    && !Object.hasOwn(feature, 'endCondition') && !Object.hasOwn(feature, 'thinWall') && !Object.hasOwn(feature, 'secondDirection')
+    && sketch.type === 'sketch' && !Object.hasOwn(sketch, 'support')
+    && !!sketch.profile && typeof sketch.profile === 'object'
+    && (sketch.profile.kind === 'rectangle' || sketch.profile.kind === 'circle');
+}
+
 export interface RecipeDiagnostic {
   code: string;
   featureId: string;
@@ -477,12 +486,12 @@ export function extractRecipeClosure(features: readonly Feature[], rawRequest: R
       pending('OPERATION_RECIPE_PENDING', feature.id, 'type', `Regeneration for ${feature.type} remains required; no aggregate/delta substitute is used.`);
       continue;
     }
-    if (request.scope.mode === 'all' && feature.type === 'extrude' && feature.bodyOperation?.mode === 'merge') {
-      pending('ALL_POSITIVE_SCOPE_PENDING', feature.id, 'bodyOperation', 'Additive ALL applicability to remote owners is not established; positive dynamic scope remains required and is not activated by this subset.');
-    }
     node.sketchId = feature.sketchId;
     const sketch = definitions.get(feature.sketchId)!.feature;
     if (sketch.type !== 'sketch') invalid('WRONG_SKETCH_INPUT', feature.id, 'sketchId', 'Operation input must be an exact sketch declaration.');
+    if (request.scope.mode === 'all' && feature.type === 'extrude' && feature.bodyOperation?.mode === 'merge' && !isInitialAdditiveAllRecipe(feature, sketch)) {
+      pending('ALL_POSITIVE_SCOPE_PENDING', feature.id, 'bodyOperation', 'Additive ALL currently requires an intrinsic rectangle/circle Blind merge without support, thin wall or second direction; other positive scopes remain required.');
+    }
     inspectSupport(sketch.id);
     if (!sketch.profile || typeof sketch.profile !== 'object') invalid('PROFILE_DECLARATION', sketch.id, 'profile', 'Expected a parsed profile declaration.');
     if (sketch.profile.kind === 'entities') {

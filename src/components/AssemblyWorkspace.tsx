@@ -37,6 +37,13 @@ import { setAssemblySourceLink } from '../model/assemblySourceLinks'
 import { assemblyCircularPathCatalogChoices } from '../cad/kernel.assembly-document-update-types'
 import AssemblyLinePathMatePanel, { AssemblyLinePathSupportSummary, assemblyLinePathUiChoices, linePathOrigins, sameLinePathGuide, type assemblyLinePathUiProposal } from './AssemblyLinePathMatePanel'
 import AssemblyProfileCenterMatePanel, { AssemblyProfileCenterSupportSummary, type ProfileFaceChoice, type ProfileEdgeChoice, type assemblyProfileCenterUiProposal } from './AssemblyProfileCenterMatePanel'
+import { materialArcKey, materialArcEdgeKeys, currentMaterialArcPaths } from './assemblyMaterialArcPicking'
+import { CIRCULAR_PICK_LABELS, circularContextIsCurrent, currentCircularPick, circularPickProducer, circularRoleIsAvailable, type CircularPathInputs, type CircularPathInputChange, type CircularPickContext, type CircularPickTicket, type CircularPickRole, type CircularPickProducer } from './assemblyCircularPathPicking'
+import { currentLinePathPick, currentLinePathOriginEdge, linePathPickContextIsCurrent, linePathPickProducer, linePathRoleIsAvailable, LINE_PATH_PICK_LABELS, type LinePathInputs, type LinePathInputChange, type LinePathPickContext, type LinePathPickTicket, type LinePathPickRole, type LinePathPickProducer } from './assemblyLinePathPicking'
+import { assemblyVertexKey } from './assemblyVertexPicking'
+import { currentProfileCenterPick, profileCenterContextIsCurrent, type ProfileCenterInputs, type ProfileCenterPickContext, type ProfileCenterPickTicket, type ProfileCenterSlot, type ProfileCenterProducer } from './assemblyProfileCenterPicking'
+import { liveNativeReferencePickContextIsCurrent } from './assemblyNativeReferencePicking'
+import { profileEdgesForFace } from './AssemblyProfileCenterMatePanel'
 import { validateAssemblyProfileFaceSelection } from '../model/assemblyProfileReferences'
 import { sameSymmetryReference, currentSymmetryPick, nextSymmetryPick, scopedAssemblySymmetryPick, symmetryPickForReference, symmetryPickProducer, type SymmetryPickTicket, type SymmetryPickSlot } from './assemblySymmetryPicking'
 import {assemblySymmetryUiProposal,assemblySymmetryUiReports,SYMMETRY_ROLE_LABELS,type SymmetryUiReferences,type SymmetryUiReference,type SymmetryUiFamily} from '../model/assemblySymmetryUi'
@@ -46,7 +53,7 @@ import { ArrowDownToLine, ChevronDown, ChevronRight, FileInput, GitBranch, Move3
 import { applyAssemblyPreview, buildAssembly, captureAssemblyComponentLock, captureAssemblyGear, captureAssemblyRotationLock, captureAssemblyScrew, captureAssemblyRackPinion, discardAssemblyPreview, discardAssemblyPartReplacement, exportAssemblyCad, exportAssemblyStep, importAssemblyStep, insertAssemblyStep, inspectAssemblyInterferences, measureAssemblyDirectedAngle, moveAssemblyComponentMotion, projectAssemblyDrag, previewAssembly, previewAssemblyRootRevision, previewAssemblyPartReplacement, reviewAssemblyPartUpdate, reviewAssemblyPartReplacement, translateAssemblyUntilContact } from '../cad/kernel'
 import { assemblySceneFaceReference, assemblySceneCylinderSurfaceReference, assemblySceneSphereSurfaceReference, assemblySceneEdgeReference, type AssemblyGearCaptureRequest, type AssemblyScrewCaptureRequest, type AssemblyRackPinionCaptureRequest, type AssemblyPreviewReply, type AssemblyScene, type AssemblySceneFace, type AssemblySceneEdge, type AssemblySceneVertex } from '../cad/kernel.assembly-types'
 import type { AssemblyScopeSolveReport } from '../cad/kernel.assembly-solve'
-import { assemblyDefinitionKey, MAX_ASSEMBLY_BYTES, parseCadDocument, serializeAssemblyDocument, validateCadDocument, validateAssemblyDocument, validateAssemblyTangentReference, validateAssemblySphereTangentReference, validateAssemblyPlaneReference,
+import { assemblyDefinitionKey, MAX_ASSEMBLY_BYTES, parseCadDocument, serializeAssemblyDocument, validateCadDocument, validateAssemblyDocument, validateAssemblyTangentReference, validateAssemblySphereTangentReference, validateAssemblyPlaneReference, validateAssemblyVertexReference,
   type AssemblyAxisReference, type AssemblyComponentReference, type AssemblyDefinition, type AssemblyDefinitionReference, type AssemblyDocument,
   type AssemblyGeometryReference, type AssemblyTangentReference, type AssemblyCylinderSurfaceReference, type AssemblyCylinderTangentMate, type AssemblySphereTangentReference, type AssemblySphereTangentMate, type AssemblyLimitDistanceMate, type AssemblyLimitAngleMate, type AssemblyLimitDirectedAngleMate, type AssemblyMate, type AssemblyOccurrence, type AssemblyPlaneReference, type EmbeddedAssemblyDefinition } from '../model/assemblyDocument'
 import { applyAssemblyEdit, AssemblyDocumentHistory, type AssemblyEdit, type NewAssemblyMate } from '../model/assemblyEditing'
@@ -400,7 +407,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     managerTabRef.current = tab
     if (tab !== 'relations') {
       preselectionPick.current = null
-      clearSymmetryPicking(); setHingePicking(null); setWidthPicking(null); setRackPicking(null); clearMechanicalPicking(true)
+      clearSymmetryPicking(); setHingePicking(null); setWidthPicking(null); setRackPicking(null); clearMechanicalPicking(true); clearProfilePicking(true); clearLinePathPicking(true); clearCircularPicking(true)
     }
     setManagerTab(tab)
     requestAnimationFrame(() => {
@@ -485,8 +492,26 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   const [editingCircularPathId,setEditingCircularPathId]=useState<string|null>(null),[circularPathReset,setCircularPathReset]=useState(0)
   const circularPathContext=useRef<{signature:string;scope:string;generation:number;sceneId:string|null;family:string;epoch:number}|null>(null)
   const circularPathEpoch=useRef({key:'',value:0})
+  const [circularInputState, setCircularInputState] = useState<CircularPathInputs | null>(null)
+  const circularInputsRef = useRef<CircularPathInputs | null>(null), circularPickContextRef = useRef<CircularPickContext | null>(null)
+  const [circularPicking, updateCircularPicking] = useState<CircularPickTicket | null>(null)
+  const circularPickingRef = useRef<CircularPickTicket | null>(null), circularPickSession = useRef<object>({})
+  const setCircularPicking = (ticket: CircularPickTicket | null) => { circularPickingRef.current = ticket; updateCircularPicking(ticket) }
+  const clearCircularPicking = (force = false) => { if (!force && circularPickingRef.current === null) return; circularPickSession.current = {}; setCircularPicking(null) }
+  const [linePathInputState, setLinePathInputState] = useState<LinePathInputs | null>(null)
+  const linePathInputsRef = useRef<LinePathInputs | null>(null), linePathPickContextRef = useRef<LinePathPickContext | null>(null)
+  const [linePathPicking, updateLinePathPicking] = useState<LinePathPickTicket | null>(null)
+  const linePathPickingRef = useRef<LinePathPickTicket | null>(null), linePathPickSession = useRef<object>({})
+  const setLinePathPicking = (ticket: LinePathPickTicket | null) => { linePathPickingRef.current = ticket; updateLinePathPicking(ticket) }
+  const clearLinePathPicking = (force = false) => { if (!force && linePathPickingRef.current === null) return; linePathPickSession.current = {}; setLinePathPicking(null) }
   const [editingLinePathId, setEditingLinePathId] = useState<string | null>(null), [linePathReset, setLinePathReset] = useState(0)
   const linePathContext = useRef<{signature:string;scope:string;generation:number;sceneId:string|null;family:string} | null>(null)
+  const [profileInputState, setProfileInputState] = useState<ProfileCenterInputs | null>(null)
+  const profileInputsRef = useRef<ProfileCenterInputs | null>(null), profileContextRef = useRef<ProfileCenterPickContext | null>(null)
+  const [profilePicking, updateProfilePicking] = useState<ProfileCenterPickTicket | null>(null)
+  const profilePickingRef = useRef<ProfileCenterPickTicket | null>(null), profileSession = useRef<object>({})
+  const setProfilePicking = (ticket: ProfileCenterPickTicket | null) => { profilePickingRef.current = ticket; updateProfilePicking(ticket) }
+  const clearProfilePicking = (force = false) => { if (!force && profilePickingRef.current === null) return; profileSession.current = {}; setProfilePicking(null) }
   const [editingProfileId, setEditingProfileId] = useState<string | null>(null), [profileReset, setProfileReset] = useState(0)
   const [mateType, setMateType] = useState<'hinge' | 'circular-path' | 'line-path' | 'profile-center' | 'symmetry' | 'width' | 'concentric' | 'coincident' | 'distance' | 'limit-distance' | 'limit-angle' | 'limit-directed-angle' | 'angle' | 'gear' | 'screw' | 'rack-pinion' | 'tangent' | AssemblyDirectionMateType | AssemblyCylinderTangentMateType | AssemblySphereTangentMateType>('concentric')
   const [distanceEdit, setDistanceEdit] = useState<AssemblyDistanceEditTicket | null>(null)
@@ -530,7 +555,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     if (!newSession && mechanicalPickingRef.current === null) return
     mechanicalSession.current = {}; setMechanicalPicking(null)
   }
-  const resetMechanicalAxes = () => { clearMechanicalPicking(true); setMechanicalAxes({ gear: ['', ''], screw: ['', ''] }) }
+  const resetMechanicalAxes = () => { clearMechanicalPicking(true); clearProfilePicking(true); clearLinePathPicking(true); clearCircularPicking(true); setMechanicalAxes({ gear: ['', ''], screw: ['', ''] }) }
   const [movementReset, setMovementReset] = useState(0)
   const [dragMode, setDragMode] = useState<'off' | 'translate' | 'rotate'>('off'), [dragActive, setDragActive] = useState(false)
   const [streamProjection, setStreamProjection] = useState<AssemblyUiDragProjection | null>(null)
@@ -830,7 +855,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     setWidthPicking(null)
     setPickingLinearEdges(false); setEdgeChoice('')
     setRackPicking(null)
-    clearMechanicalPicking(true)
+    clearMechanicalPicking(true); clearProfilePicking(true); clearLinePathPicking(true); clearCircularPicking(true)
     setStreamProjection(null)
     dragSession.current?.cancel(); dragSession.current = null; dragAnchor.current = null; dragging.current = false; setDragActive(false)
     clearInspection(); analysisPending.current = false
@@ -1890,7 +1915,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   }
   const beginCircularPathEdit=(mate:Extract<AssemblyMate,{type:'circular-path'}>)=>{
     if(!symmetryMayEdit()||referenceEditing)return
-    chooseMateType('circular-path');setEditingCircularPathId(mate.id);setCircularPathReset(v=>v+1);setPickingFaces(false);setPickingLinearEdges(false);setDragMode('off')
+    clearCircularPicking(true);chooseMateType('circular-path');setEditingCircularPathId(mate.id);setCircularPathReset(v=>v+1);setPickingFaces(false);setPickingLinearEdges(false);setDragMode('off')
   }
   const previewLinePath = (proposal: ReturnType<typeof assemblyLinePathUiProposal>) => {
     if (!isLinePath || !symmetryMayEdit() || serialized !== serializeAssemblyDocument(current.current) || JSON.stringify(linePathTicket) !== JSON.stringify(linePathContext.current) || linePathTicket.generation !== generation.current || linePathTicket.scope !== currentFileScope.current || linePathTicket.sceneId !== (confirmedScene.current?.scene.sceneId ?? null)) return
@@ -1906,7 +1931,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   }
   const beginLinePathEdit = (mate: Extract<AssemblyMate,{type:'line-path'}>) => {
     if (!symmetryMayEdit() || referenceEditing) return
-    chooseMateType('line-path'); setEditingLinePathId(mate.id); setLinePathReset(value => value + 1); setPickingFaces(false); setPickingLinearEdges(false); setDragMode('off')
+    clearLinePathPicking(true); clearCircularPicking(true); chooseMateType('line-path'); setEditingLinePathId(mate.id); setLinePathReset(value => value + 1); setPickingFaces(false); setPickingLinearEdges(false); setDragMode('off')
   }
   const previewProfile = (proposal: ReturnType<typeof assemblyProfileCenterUiProposal>) => {
     if (!isProfile || !symmetryMayEdit() || serialized !== serializeAssemblyDocument(current.current)) return
@@ -1923,7 +1948,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   }
   const beginProfileEdit = (mate: Extract<AssemblyMate,{type:'profile-center'}>) => {
     if (!symmetryMayEdit() || referenceEditing) return
-    chooseMateType('profile-center'); setEditingProfileId(mate.id); setProfileReset(value => value + 1); setPickingFaces(false); setPickingLinearEdges(false); setDragMode('off')
+    clearProfilePicking(true); clearLinePathPicking(true); clearCircularPicking(true); chooseMateType('profile-center'); setEditingProfileId(mate.id); setProfileReset(value => value + 1); setPickingFaces(false); setPickingLinearEdges(false); setDragMode('off')
   }
   const previewHinge = (ticket: HingeUiTicket) => {
     if (!isHinge || !symmetryMayEdit() || !hingeLiveCurrent(ticket)) return
@@ -2229,7 +2254,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   treeOriginCurrent.current = { context: treeOriginContext, entries: treeOrigins, blocked: treeOriginBlocked }
   const selectedTreeOrigin = !treeOriginBlocked ? resolveAssemblyOriginTreeSelection(treeOriginSelection, treeOrigins, treeOriginContext) : null
   const normalViewBlocked = editingBlocked || !!draft || !!preview || replaceDialog || !!streamProjection || dragActive
-    || pickingFaces || pickingLinearEdges || !!symmetryPicking || !!hingePicking || !!widthPicking || !!rackPicking || !!mechanicalPicking || originPicking
+    || pickingFaces || pickingLinearEdges || !!symmetryPicking || !!hingePicking || !!widthPicking || !!rackPicking || !!mechanicalPicking || !!profilePicking || !!linePathPicking || !!circularPicking || originPicking
     || !scene || sceneSignature.current !== serialized || confirmedScene.current?.signature !== serialized || confirmedScene.current?.scene !== scene
   const normalViewSession = useMemo(() => ({}), [treeReset, scene, serialized, scopePath, generation.current])
   const normalViewContext = { documentSignature: serialized, scopePath, sessionIdentity: normalViewSession, scene }
@@ -2406,8 +2431,264 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   const symmetrySelectedFaces = symmetrySelected.map(value => value.actual).filter((value): value is AssemblySceneFace => 'face' in value.selection)
   const symmetrySelectedEdges = symmetrySelected.map(value => value.actual).filter((value): value is AssemblySceneEdge => 'edge' in value.selection)
   const symmetrySelectedVertices = symmetrySelected.map(value => value.actual).filter((value): value is AssemblySceneVertex => 'vertex' in value.selection)
-  const rackSelectedFaces = isHinge ? hingeFaceMeshes : isSymmetry ? symmetrySelectedFaces : isWidth ? widthFaceMeshes : mateType === 'gear' || mateType === 'screw' ? (preview?.reply.scene ?? scene)?.bodies.filter(body => body.visible).flatMap(body => body.faces).filter(face => mechanicalAxes[mateType].includes(assemblyFaceKey(face))) ?? [] : mateType === 'rack-pinion' ? rackScene?.bodies.flatMap(body => body.faces).filter(face => rackKeys.includes(assemblyFaceKey(face))) ?? [] : isLimitDistance ? limitFaceMeshes : isDirection || isLimitAngle || mateType === 'angle' ? directionFaceMeshes : isTangent ? tangentFaceMeshes : isCylinderTangent ? cylinderFaceMeshes : isSphereTangent ? sphereFaceMeshes : editedFaceMeshes ?? selectedFaceMeshes
-  const rackSelectedEdges = isHinge ? hingeEdgeMeshes : isSymmetry ? symmetrySelectedEdges : mateType === 'rack-pinion' ? rackScene?.bodies.flatMap(body => body.edges ?? []).filter(edge => rackKeys.includes(assemblyEdgeKey(edge))) ?? [] : directionEdgeMeshes
+  const profileFaces: ProfileFaceChoice[] = (scene?.bodies.filter(body => body.visible).flatMap(body => body.faces) ?? []).flatMap(face => {
+    if (face.support?.kind !== 'plane' || !inside(face.selection.component.occurrencePath, scopePath)) return []
+    try { const reference = validateAssemblyProfileFaceSelection({ ...face.selection, component: { ...face.selection.component, occurrencePath: face.selection.component.occurrencePath.slice(scopePath.length) } }); return [{ key: assemblyFaceKey(face), label: face.selection.component.occurrencePath.join(' / ') + ' · Plano · (' + face.support.point.map(value => Number(value.toPrecision(5))).join(', ') + ') · ' + face.selection.face.key, reference }] } catch { return [] }
+  })
+  const profileEdges: ProfileEdgeChoice[] = (scene?.bodies.filter(body => body.visible).flatMap(body => body.edges ?? []) ?? []).flatMap(edge => {
+    if (!edge.support || !inside(edge.selection.component.occurrencePath, scopePath)) return []
+    const owner = profileFaces.find(face => JSON.stringify(face.reference.component) === JSON.stringify({ ...edge.selection.component, occurrencePath: edge.selection.component.occurrencePath.slice(scopePath.length) }) && JSON.stringify(face.reference.body) === JSON.stringify(edge.selection.body))
+    return owner ? [{ key: assemblyEdgeKey(edge), label: edge.selection.component.occurrencePath.join(' / ') + ' · LINE · (' + edge.support.point.map(value => Number(value.toPrecision(5))).join(', ') + ') · ' + edge.selection.edge.key, faceOwner: owner.reference, edge: structuredClone(edge.selection.edge) }] : []
+  })
+  const profileOwner = useMemo(() => ({}), [committed, scopePath, editingProfileId, profileReset])
+  const profileInputs = useMemo<ProfileCenterInputs>(() => profileInputState?.owner === profileOwner ? profileInputState : {
+    owner: profileOwner, mode: editingProfile?.orientation.mode ?? 'free', selections: editingProfile ? structuredClone([editingProfile.first, editingProfile.second]) : [null, null],
+  }, [profileInputState, profileOwner, editingProfile])
+  const profileContext: ProfileCenterPickContext = { phase: 'committed', owner: confirmedScene.current, document: committed, preview: null,
+    scene: confirmedScene.current?.scene ?? null, signature: serialized, candidateSignature: null, token: null, generation: generation.current,
+    scope: JSON.stringify(scopePath), scopeDefinition: assemblyDefinitionKey(scopeReference), family: mateType, session: profileSession.current,
+    inputs: profileInputs, editor: editingProfileId }
+  useLayoutEffect(() => { profileContextRef.current = profileContext; profileInputsRef.current = profileInputs })
+  useEffect(() => () => { profileContextRef.current = null; profileInputsRef.current = null; profilePickingRef.current = null; profileSession.current = {} }, [])
+  const profileEligible = isProfile && managerTab === 'relations' && !symmetryBlocked && !hasStaging() && dragMode === 'off' && !dragActive && !dragSession.current
+    && confirmedScene.current?.scene === scene
+  const profileLiveCurrent = (ticket: ProfileCenterPickContext) => {
+    const confirmed = confirmedScene.current, signature = serializeAssemblyDocument(current.current)
+    return isProfile && profileContextRef.current !== null && profileCenterContextIsCurrent(ticket, profileContextRef.current)
+      && ticket.inputs === profileInputsRef.current && ticket.editor === editingProfileId
+      && liveNativeReferencePickContextIsCurrent(ticket, { mounted: mounted.current, eligible: managerTabRef.current === 'relations' && !operation.current && !hasStaging()
+        && !draft && !replaceDialog && dragMode === 'off' && !dragSession.current && !dragging.current && sceneSignature.current === signature && confirmed?.signature === signature && confirmed.scene === scene,
+      phase: 'committed', owner: confirmed, document: current.current, preview: currentPreview.current, scene: confirmed?.scene ?? null,
+      signature, candidateSignature: null, token: null, generation: generation.current, scope: currentFileScope.current, session: profileSession.current })
+  }
+  const activeProfilePick = currentProfileCenterPick(profilePicking, profilePickingRef.current, profileContext, !profileEligible) ? profilePicking : null
+  const publishProfileInputs = (inputs: ProfileCenterInputs) => { clearProfilePicking(true); clearLinePathPicking(true); clearCircularPicking(true); profileInputsRef.current = inputs; setProfileInputState(inputs) }
+  const changeProfileSelection = (context: ProfileCenterPickContext, slot: ProfileCenterSlot, selection: ProfileCenterInputs['selections'][0]) => {
+    if (!profileLiveCurrent(context) || slot !== 0 && slot !== 1) return
+    if (selection && (profileFaces.filter(c => JSON.stringify(c.reference) === JSON.stringify(selection.face)).length !== 1
+      || selection.axis && profileEdgesForFace(profileEdges, selection.face).filter(c => JSON.stringify(c.edge) === JSON.stringify(selection.axis!.edge)).length !== 1)) return
+    const selections: ProfileCenterInputs['selections'] = [...context.inputs.selections]; selections[slot] = selection ? structuredClone(selection) : null
+    publishProfileInputs({ ...context.inputs, selections })
+  }
+  const beginProfilePick = (slot: ProfileCenterSlot, producer: ProfileCenterProducer) => {
+    if (!profileEligible || !profileLiveCurrent(profileContext) || slot !== 0 && slot !== 1
+      || producer !== 'face' && (producer !== 'line-edge' || profileInputs.mode !== 'rectangle' || !profileInputs.selections[slot])) return
+    if (activeProfilePick?.slot === slot && activeProfilePick.producer === producer) { clearProfilePicking(); return }
+    stopOriginPicking(); clearSymmetryPicking(); setHingePicking(null); setWidthPicking(null); setRackPicking(null); clearMechanicalPicking(true)
+    setPickingFaces(false); setPickingLinearEdges(false); setDragMode('off'); setProfilePicking({ ...profileContext, slot, producer })
+    notify('Selecciona ' + (producer === 'face' ? 'la cara' : 'la arista LINE material') + ' del perfil ' + (slot + 1) + '.')
+  }
+  const acceptProfilePick = (incoming: AssemblySceneFace | AssemblySceneEdge | null, producer: ProfileCenterProducer, expected: ProfileCenterPickTicket | null) => {
+    if (!currentProfileCenterPick(expected, profilePickingRef.current, profileContextRef.current, !profileEligible)
+      || expected.producer !== producer || !profileLiveCurrent(expected)) return
+    if (producer === 'face') {
+      const matches = incoming && 'face' in incoming.selection ? profileFaces.filter(c => c.key === assemblyFaceKey(incoming as AssemblySceneFace)) : []
+      if (matches.length !== 1) { notify('Selecciona una cara plana actual del ámbito; la vista previa verificará el perfil acotado.', true); return }
+      changeProfileSelection(expected, expected.slot, { face: matches[0].reference, axis: null })
+    } else {
+      const selected = expected.inputs.selections[expected.slot], key = incoming && 'edge' in incoming.selection ? assemblyEdgeKey(incoming as AssemblySceneEdge) : ''
+      const actual = scene?.bodies.filter(b => b.visible).flatMap(b => b.edges ?? []).filter(e => assemblyEdgeKey(e) === key && e.support?.kind === 'line') ?? []
+      const matches = profileEdgesForFace(profileEdges, selected?.face ?? null).filter(c => c.key === key)
+      if (!selected || actual.length !== 1 || matches.length !== 1) { notify('Selecciona una arista LINE actual del mismo componente, cuerpo y productor que la cara; la vista previa verificará su contorno.', true); return }
+      changeProfileSelection(expected, expected.slot, { face: selected.face, axis: { edge: matches[0].edge, sense: selected.axis?.sense ?? 1 } })
+    }
+    notify('Referencia del perfil ' + (expected.slot + 1) + ' seleccionada. Se conserva el documento.')
+  }
+  const profilePicker = { inputs: profileInputs, enabled: profileEligible, slot: activeProfilePick?.slot ?? null, producer: activeProfilePick?.producer ?? null,
+    onChange: (slot: ProfileCenterSlot, selection: ProfileCenterInputs['selections'][0]) => changeProfileSelection(profileContext, slot, selection),
+    onMode: (mode: ProfileCenterInputs['mode']) => { if (profileLiveCurrent(profileContext) && (mode === 'free' || mode === 'rectangle')) publishProfileInputs({ ...profileInputs, mode, selections: [null, null] }) },
+    onPick: beginProfilePick, onCancel: () => clearProfilePicking() }
+  const profileSelectedFaces = profileFaces.filter(c => profileInputs.selections.some(s => s && JSON.stringify(s.face) === JSON.stringify(c.reference))).map(c => c.key)
+  const profileSelectedEdges = profileEdges.filter(c => profileInputs.selections.some(s => s?.axis && JSON.stringify(s.face.component) === JSON.stringify(c.faceOwner.component) && JSON.stringify(s.face.body) === JSON.stringify(c.faceOwner.body) && JSON.stringify(s.axis.edge) === JSON.stringify(c.edge))).map(c => c.key)
+  const linePathChoices = assemblyLinePathUiChoices(scene, scopePath)
+  const circularPathChoices=scene?assemblyCircularPathCatalogChoices({...scene,bodies:scene.bodies.filter(body=>body.visible)}).filter(c=>c.reference.component.occurrencePath.length>scopePath.length&&scopePath.every((id,i)=>c.reference.component.occurrencePath[i]===id)).map(c=>({...c,reference:{...c.reference,component:{...c.reference.component,occurrencePath:c.reference.component.occurrencePath.slice(scopePath.length)}}})):[]
+  const linePathInputOwner = useMemo(() => ({}), [committed, scopePath, editingLinePathId, linePathReset])
+  const linePathInputs = useMemo<LinePathInputs>(() => {
+    if (linePathInputState?.owner === linePathInputOwner) return linePathInputState
+    const mate = editingLinePath, roll = mate?.orientation.roll
+    return { owner: linePathInputOwner, point: mate ? structuredClone(mate.point) : null,
+      edge: mate ? { kind: 'edge', component: structuredClone(mate.path.component), body: structuredClone(mate.path.body), edge: structuredClone(mate.path.edge), support: 'line' } : null,
+      origin: mate ? structuredClone(mate.path.startVertex) : null, guide: roll && roll !== 'free' ? structuredClone(roll.guide) : null,
+      following: !!mate && mate.orientation.pitchYaw !== 'free', upEnabled: !!roll && roll !== 'free' }
+  }, [linePathInputState, linePathInputOwner, editingLinePath])
+  const linePickContext: LinePathPickContext = { phase: 'committed', owner: confirmedScene.current, document: committed, preview: null,
+    scene: confirmedScene.current?.scene ?? null, signature: serialized, candidateSignature: null, token: null, generation: generation.current,
+    scope: JSON.stringify(scopePath), scopeDefinition: assemblyDefinitionKey(scopeReference), family: mateType, session: linePathPickSession.current,
+    inputs: linePathInputs, editor: editingLinePathId, edgeChoices: linePathChoices.edges }
+  useLayoutEffect(() => { linePathPickContextRef.current = linePickContext; linePathInputsRef.current = linePathInputs })
+  useEffect(() => () => { linePathPickContextRef.current = null; linePathInputsRef.current = null; linePathPickingRef.current = null; linePathPickSession.current = {} }, [])
+  const linePickEligible = isLinePath && managerTab === 'relations' && !symmetryBlocked && !hasStaging() && dragMode === 'off' && !dragActive && !dragSession.current
+    && confirmedScene.current?.scene === scene
+  const linePickLiveCurrent = (ticket: LinePathPickContext) => {
+    const confirmed = confirmedScene.current, signature = serializeAssemblyDocument(current.current)
+    return isLinePath && linePathPickContextRef.current !== null && linePathPickContextIsCurrent(ticket, linePathPickContextRef.current)
+      && ticket.inputs === linePathInputsRef.current && ticket.editor === editingLinePathId
+      && liveNativeReferencePickContextIsCurrent(ticket, { mounted: mounted.current, eligible: managerTabRef.current === 'relations' && !operation.current && !hasStaging()
+        && !draft && !replaceDialog && dragMode === 'off' && !dragSession.current && !dragging.current && sceneSignature.current === signature && confirmed?.signature === signature && confirmed.scene === scene,
+      phase: 'committed', owner: confirmed, document: current.current, preview: currentPreview.current, scene: confirmed?.scene ?? null,
+      signature, candidateSignature: null, token: null, generation: generation.current, scope: currentFileScope.current, session: linePathPickSession.current })
+  }
+  const activeLinePick = currentLinePathPick(linePathPicking, linePathPickingRef.current, linePickContext, !linePickEligible) ? linePathPicking : null
+  const publishLinePathInputs = (inputs: LinePathInputs) => { clearLinePathPicking(true); clearCircularPicking(true); linePathInputsRef.current = inputs; setLinePathInputState(inputs) }
+  const changeLinePathInput = (context: LinePathPickContext, change: LinePathInputChange) => {
+    if (!linePickLiveCurrent(context)) return
+    const originEdge = currentLinePathOriginEdge(context.inputs.edge, linePathChoices.edges)
+    if ('point' in change && change.point && linePathChoices.points.filter(c => JSON.stringify(c.reference) === JSON.stringify(change.point)).length !== 1
+      || 'edge' in change && change.edge && linePathChoices.edges.filter(c => JSON.stringify(c.reference) === JSON.stringify(change.edge)).length !== 1
+      || 'origin' in change && change.origin && (!originEdge || linePathOrigins(linePathChoices.points, originEdge).filter(c => JSON.stringify(c.reference.vertex) === JSON.stringify(change.origin)).length !== 1)
+      || 'guide' in change && change.guide && linePathChoices.guides.filter(c => sameLinePathGuide(c.reference, change.guide)).length !== 1) return
+    publishLinePathInputs({ ...context.inputs, ...structuredClone(change), ...('edge' in change ? { origin: null } : {}) })
+  }
+  const beginLinePick = (role: LinePathPickRole) => {
+    const producer = linePathPickProducer(role)
+    if (!linePickEligible || !linePickLiveCurrent(linePickContext) || !producer || !linePathRoleIsAvailable(role, linePathInputs, linePathChoices.edges)) return
+    if (activeLinePick?.role === role) { clearLinePathPicking(); return }
+    stopOriginPicking(); clearSymmetryPicking(); setHingePicking(null); setWidthPicking(null); setRackPicking(null); clearMechanicalPicking(true); clearProfilePicking(true)
+    setPickingFaces(false); setPickingLinearEdges(false); setDragMode('off'); setLinePathPicking({ ...linePickContext, role, producer })
+    notify('Selecciona ' + LINE_PATH_PICK_LABELS[role] + ' en el modelo.')
+  }
+  const acceptLinePick = (incoming: AssemblySceneVertex | AssemblySceneEdge | AssemblySceneFace | null, producer: LinePathPickProducer, expected: LinePathPickTicket | null) => {
+    if (!currentLinePathPick(expected, linePathPickingRef.current, linePathPickContextRef.current, !linePickEligible)
+      || expected.producer !== producer || !linePickLiveCurrent(expected)) return
+    if (producer === 'vertex') {
+      const key = incoming && 'vertex' in incoming.selection ? assemblyVertexKey(incoming as AssemblySceneVertex) : ''
+      const actual = scene?.bodies.filter(b => b.visible).flatMap(b => b.vertexPoints ?? []).filter(v => assemblyVertexKey(v) === key) ?? []
+      let reference: ReturnType<typeof validateAssemblyVertexReference> | null = null
+      if (actual.length === 1 && inside(actual[0].selection.component.occurrencePath, scopePath)) try { reference = validateAssemblyVertexReference({ kind: 'vertex', ...actual[0].selection,
+        component: { ...actual[0].selection.component, occurrencePath: actual[0].selection.component.occurrencePath.slice(scopePath.length) }, support: 'point' }) } catch { /* Not a current material candidate. */ }
+      const originEdge = currentLinePathOriginEdge(expected.inputs.edge, linePathChoices.edges)
+      const choices = expected.role === 'origin' ? linePathOrigins(linePathChoices.points, originEdge) : linePathChoices.points
+      const matches = reference ? choices.filter(c => JSON.stringify(c.reference) === JSON.stringify(reference)) : []
+      if (matches.length !== 1) { notify(expected.role === 'origin' ? 'Selecciona un vértice actual del mismo componente, cuerpo y productor que la arista LINE; la vista previa verificará su incidencia.' : 'Selecciona un vértice material actual del ámbito.', true); return }
+      changeLinePathInput(expected, expected.role === 'origin' ? { origin: matches[0].reference.vertex } : { point: matches[0].reference })
+    } else if (producer === 'line-edge') {
+      const key = incoming && 'edge' in incoming.selection ? assemblyEdgeKey(incoming as AssemblySceneEdge) : ''
+      const actual = scene?.bodies.filter(b => b.visible).flatMap(b => b.edges ?? []).filter(e => assemblyEdgeKey(e) === key && e.support?.kind === 'line') ?? []
+      const reference = actual.length === 1 ? scopedAssemblyEdge(actual[0], scopePath) : null
+      const matches = reference ? linePathChoices.edges.filter(c => JSON.stringify(c.reference) === JSON.stringify(reference)) : []
+      if (matches.length !== 1) { notify('Selecciona una arista LINE material actual del ámbito.', true); return }
+      changeLinePathInput(expected, { edge: matches[0].reference })
+    } else {
+      const key = incoming && 'face' in incoming.selection ? assemblyFaceKey(incoming as AssemblySceneFace) : ''
+      const actual = scene?.bodies.filter(b => b.visible).flatMap(b => b.faces).filter(f => assemblyFaceKey(f) === key && f.support?.kind === 'plane') ?? []
+      const reference = actual.length === 1 ? scopedAssemblyPlaneFace(actual[0], scopePath) : null
+      const matches = reference ? linePathChoices.guides.filter(c => sameLinePathGuide(c.reference, reference)) : []
+      if (matches.length !== 1) { notify('Selecciona una cara plana material actual para la guía UP.', true); return }
+      changeLinePathInput(expected, { guide: matches[0].reference })
+    }
+    notify(LINE_PATH_PICK_LABELS[expected.role] + (expected.role === 'edge' || expected.role === 'up' ? ' seleccionada. Se conserva el documento.' : ' seleccionado. Se conserva el documento.'))
+  }
+  const linePathPicker = { inputs: linePathInputs, enabled: linePickEligible, role: activeLinePick?.role ?? null,
+    onPick: beginLinePick, onChange: (change: LinePathInputChange) => changeLinePathInput(linePickContext, change), onCancel: () => clearLinePathPicking() }
+  const selectedLineVertexReferences = [linePathInputs.point, linePathInputs.edge && linePathInputs.origin ? {
+    component: linePathInputs.edge.component, body: linePathInputs.edge.body, vertex: linePathInputs.origin,
+  } : null]
+  const selectedLineVertices = scene?.bodies.filter(b => b.visible).flatMap(b => b.vertexPoints ?? []).filter(v => {
+    if (!inside(v.selection.component.occurrencePath, scopePath)) return false
+    const component = { ...v.selection.component, occurrencePath: v.selection.component.occurrencePath.slice(scopePath.length) }
+    return selectedLineVertexReferences.some(reference => reference && JSON.stringify(reference.component) === JSON.stringify(component)
+      && JSON.stringify(reference.body) === JSON.stringify(v.selection.body) && JSON.stringify(reference.vertex) === JSON.stringify(v.selection.vertex))
+  }) ?? []
+  const selectedLineFaces = scene?.bodies.filter(b => b.visible).flatMap(b => b.faces).filter(f => {
+    const reference = scopedAssemblyPlaneFace(f, scopePath); return reference && linePathInputs.upEnabled && linePathInputs.guide && sameLinePathGuide(reference, linePathInputs.guide)
+  }) ?? []
+  const selectedLineEdges = scene?.bodies.filter(b => b.visible).flatMap(b => b.edges ?? []).filter(e => {
+    const reference = scopedAssemblyEdge(e, scopePath); return reference && JSON.stringify(reference) === JSON.stringify(linePathInputs.edge)
+  }) ?? []
+  const circularInputOwner = useMemo(() => ({}), [committed, scopePath, editingCircularPathId, circularPathReset])
+  const circularInputs = useMemo<CircularPathInputs>(() => {
+    if (circularInputState?.owner === circularInputOwner) return circularInputState
+    const mate = editingCircularPath, roll = mate?.orientation.roll
+    return { owner: circularInputOwner, point: mate ? structuredClone(mate.point) : null, path: mate ? structuredClone(mate.path) : null,
+      arcKey: mate ? materialArcKey(mate.path) : null, guide: roll && roll !== 'free' ? structuredClone(roll.guide) : null,
+      following: !!mate && mate.orientation.pitchYaw !== 'free', upEnabled: !!roll && roll !== 'free' }
+  }, [circularInputState, circularInputOwner, editingCircularPath])
+  const circularPickContext: CircularPickContext = { phase: 'committed', owner: confirmedScene.current, document: committed, preview: null,
+    scene: confirmedScene.current?.scene ?? null, signature: serialized, candidateSignature: null, token: null, generation: generation.current,
+    scope: JSON.stringify(scopePath), scopeDefinition: assemblyDefinitionKey(scopeReference), family: mateType, session: circularPickSession.current,
+    inputs: circularInputs, editor: editingCircularPathId, pathChoices: circularPathChoices }
+  useLayoutEffect(() => { circularPickContextRef.current = circularPickContext; circularInputsRef.current = circularInputs })
+  useEffect(() => () => { circularPickContextRef.current = null; circularInputsRef.current = null; circularPickingRef.current = null; circularPickSession.current = {} }, [])
+  const circularPickEligible = isCircularPath && managerTab === 'relations' && !symmetryBlocked && !hasStaging() && dragMode === 'off' && !dragActive && !dragSession.current
+    && confirmedScene.current?.scene === scene
+  const circularLiveCurrent = (ticket: CircularPickContext) => {
+    const confirmed = confirmedScene.current, signature = serializeAssemblyDocument(current.current)
+    return isCircularPath && circularPickContextRef.current !== null && circularContextIsCurrent(ticket, circularPickContextRef.current)
+      && ticket.inputs === circularInputsRef.current && ticket.editor === editingCircularPathId
+      && liveNativeReferencePickContextIsCurrent(ticket, { mounted: mounted.current, eligible: managerTabRef.current === 'relations' && !operation.current && !hasStaging()
+        && !draft && !replaceDialog && dragMode === 'off' && !dragSession.current && !dragging.current && sceneSignature.current === signature && confirmed?.signature === signature && confirmed.scene === scene,
+      phase: 'committed', owner: confirmed, document: current.current, preview: currentPreview.current, scene: confirmed?.scene ?? null,
+      signature, candidateSignature: null, token: null, generation: generation.current, scope: currentFileScope.current, session: circularPickSession.current })
+  }
+  const activeCircularPick = currentCircularPick(circularPicking, circularPickingRef.current, circularPickContext, !circularPickEligible) ? circularPicking : null
+  const publishCircularInputs = (inputs: CircularPathInputs) => { clearCircularPicking(true); circularInputsRef.current = inputs; setCircularInputState(inputs) }
+  const changeCircularInput = (context: CircularPickContext, change: CircularPathInputChange) => {
+    if (!circularLiveCurrent(context)) return
+    if ('point' in change && change.point && linePathChoices.points.filter(c => sameCircularPathPoint(c.reference, change.point)).length !== 1
+      || 'path' in change && change.path && circularPathChoices.filter(c => sameCircularPathSelection(c.reference, change.path)).length !== 1
+      || 'arcKey' in change && currentMaterialArcPaths(change.arcKey, circularPathChoices).length !== 2
+      || 'guide' in change && change.guide && linePathChoices.guides.filter(c => sameLinePathGuide(c.reference, change.guide)).length !== 1) return
+    publishCircularInputs({ ...context.inputs, ...structuredClone(change), ...('path' in change ? { arcKey: change.path ? materialArcKey(change.path) : null } : {}),
+      ...('arcKey' in change ? { path: null } : {}) })
+  }
+  const beginCircularPick = (role: CircularPickRole) => {
+    const producer = circularPickProducer(role)
+    if (!circularPickEligible || !circularLiveCurrent(circularPickContext) || !producer || !circularRoleIsAvailable(role, circularInputs, circularPathChoices)) return
+    if (activeCircularPick?.role === role) { clearCircularPicking(); return }
+    stopOriginPicking(); clearSymmetryPicking(); setHingePicking(null); setWidthPicking(null); setRackPicking(null); clearMechanicalPicking(true); clearProfilePicking(true); clearLinePathPicking(true)
+    setPickingFaces(false); setPickingLinearEdges(false); setDragMode('off'); setCircularPicking({ ...circularPickContext, role, producer })
+    notify('Selecciona ' + CIRCULAR_PICK_LABELS[role] + ' en el modelo.')
+  }
+  const acceptCircularPick = (incoming: AssemblySceneVertex | AssemblySceneEdge | AssemblySceneFace | null, producer: CircularPickProducer, expected: CircularPickTicket | null) => {
+    if (!currentCircularPick(expected, circularPickingRef.current, circularPickContextRef.current, !circularPickEligible)
+      || expected.producer !== producer || !circularLiveCurrent(expected)) return
+    if (producer === 'vertex') {
+      const key = incoming && 'vertex' in incoming.selection ? assemblyVertexKey(incoming as AssemblySceneVertex) : ''
+      const actual = scene?.bodies.filter(b => b.visible).flatMap(b => b.vertexPoints ?? []).filter(v => assemblyVertexKey(v) === key) ?? []
+      let reference: ReturnType<typeof validateAssemblyVertexReference> | null = null
+      if (actual.length === 1 && inside(actual[0].selection.component.occurrencePath, scopePath)) try { reference = validateAssemblyVertexReference({ kind: 'vertex', ...actual[0].selection,
+        component: { ...actual[0].selection.component, occurrencePath: actual[0].selection.component.occurrencePath.slice(scopePath.length) }, support: 'point' }) } catch { /* No current material candidate. */ }
+      if (expected.role === 'origin') {
+        const paths = currentMaterialArcPaths(expected.inputs.arcKey, circularPathChoices).filter(c => reference && sameCircularPathPoint({ kind: 'vertex', component: c.reference.component, body: c.reference.body, vertex: c.reference.startVertex, support: 'point' }, reference))
+        if (paths.length !== 1) { notify('Selecciona explícitamente uno de los dos extremos actuales del arco elegido.', true); return }
+        changeCircularInput(expected, { path: paths[0].reference })
+      } else {
+        const matches = reference ? linePathChoices.points.filter(c => sameCircularPathPoint(c.reference, reference)) : []
+        if (matches.length !== 1) { notify('Selecciona un vértice material actual del ámbito.', true); return }
+        changeCircularInput(expected, { point: matches[0].reference })
+      }
+    } else if (producer === 'material-arc') {
+      const key = incoming && 'edge' in incoming.selection ? assemblyEdgeKey(incoming as AssemblySceneEdge) : ''
+      const actual = scene?.bodies.filter(b => b.visible).flatMap(b => b.edges ?? []).filter(e => assemblyEdgeKey(e) === key && inside(e.selection.component.occurrencePath, scopePath)) ?? []
+      const arcKey = actual.length === 1 ? materialArcKey({ ...actual[0].selection, component: { ...actual[0].selection.component, occurrencePath: actual[0].selection.component.occurrencePath.slice(scopePath.length) } }) : null
+      if (!arcKey || currentMaterialArcPaths(arcKey, circularPathChoices).length !== 2) { notify('Selecciona un arco material actual con sus dos extremos explícitos disponibles.', true); return }
+      changeCircularInput(expected, { arcKey })
+    } else {
+      const key = incoming && 'face' in incoming.selection ? assemblyFaceKey(incoming as AssemblySceneFace) : ''
+      const actual = scene?.bodies.filter(b => b.visible).flatMap(b => b.faces).filter(f => assemblyFaceKey(f) === key && f.support?.kind === 'plane') ?? []
+      const reference = actual.length === 1 ? scopedAssemblyPlaneFace(actual[0], scopePath) : null
+      const matches = reference ? linePathChoices.guides.filter(c => sameLinePathGuide(c.reference, reference)) : []
+      if (matches.length !== 1) { notify('Selecciona una cara plana material actual para la guía UP.', true); return }
+      changeCircularInput(expected, { guide: matches[0].reference })
+    }
+    notify(expected.role === 'arc' ? 'Arco elegido. Selecciona explícitamente su extremo de origen.' : CIRCULAR_PICK_LABELS[expected.role] + ' seleccionado. Se conserva el documento.')
+  }
+  const circularPicker = { inputs: circularInputs, enabled: circularPickEligible, role: activeCircularPick?.role ?? null,
+    onPick: beginCircularPick, onChange: (change: CircularPathInputChange) => changeCircularInput(circularPickContext, change), onCancel: () => clearCircularPicking() }
+  const materialArcPick = activeCircularPick?.producer === 'material-arc' && scene ? { purpose: 'material-arc' as const, scene, scopePath: [...scopePath], edgeKeys: materialArcEdgeKeys(scene, scopePath) } : undefined
+  const circularVertexReferences = [circularInputs.point, circularInputs.path ? { component: circularInputs.path.component, body: circularInputs.path.body, vertex: circularInputs.path.startVertex } : null]
+  const selectedCircularVertices = scene?.bodies.filter(b => b.visible).flatMap(b => b.vertexPoints ?? []).filter(v => {
+    if (!inside(v.selection.component.occurrencePath, scopePath)) return false
+    const component = { ...v.selection.component, occurrencePath: v.selection.component.occurrencePath.slice(scopePath.length) }
+    return circularVertexReferences.some(r => r && JSON.stringify(r.component) === JSON.stringify(component) && JSON.stringify(r.body) === JSON.stringify(v.selection.body) && JSON.stringify(r.vertex) === JSON.stringify(v.selection.vertex))
+  }) ?? []
+  const selectedCircularFaces = scene?.bodies.filter(b => b.visible).flatMap(b => b.faces).filter(f => {
+    const reference = scopedAssemblyPlaneFace(f, scopePath); return reference && circularInputs.upEnabled && circularInputs.guide && sameLinePathGuide(reference, circularInputs.guide)
+  }) ?? []
+  const selectedCircularEdges = scene?.bodies.filter(b => b.visible).flatMap(b => b.edges ?? []).filter(e => inside(e.selection.component.occurrencePath, scopePath)
+    && materialArcKey({ ...e.selection, component: { ...e.selection.component, occurrencePath: e.selection.component.occurrencePath.slice(scopePath.length) } }) === circularInputs.arcKey) ?? []
+  const rackSelectedFaces = isCircularPath ? selectedCircularFaces : isLinePath ? selectedLineFaces : isProfile ? scene?.bodies.filter(b => b.visible).flatMap(b => b.faces).filter(f => profileSelectedFaces.includes(assemblyFaceKey(f))) ?? [] : isHinge ? hingeFaceMeshes : isSymmetry ? symmetrySelectedFaces : isWidth ? widthFaceMeshes : mateType === 'gear' || mateType === 'screw' ? (preview?.reply.scene ?? scene)?.bodies.filter(body => body.visible).flatMap(body => body.faces).filter(face => mechanicalAxes[mateType].includes(assemblyFaceKey(face))) ?? [] : mateType === 'rack-pinion' ? rackScene?.bodies.flatMap(body => body.faces).filter(face => rackKeys.includes(assemblyFaceKey(face))) ?? [] : isLimitDistance ? limitFaceMeshes : isDirection || isLimitAngle || mateType === 'angle' ? directionFaceMeshes : isTangent ? tangentFaceMeshes : isCylinderTangent ? cylinderFaceMeshes : isSphereTangent ? sphereFaceMeshes : editedFaceMeshes ?? selectedFaceMeshes
+  const rackSelectedEdges = isCircularPath ? selectedCircularEdges : isLinePath ? selectedLineEdges : isProfile ? scene?.bodies.filter(b => b.visible).flatMap(b => b.edges ?? []).filter(e => profileSelectedEdges.includes(assemblyEdgeKey(e))) ?? [] : isHinge ? hingeEdgeMeshes : isSymmetry ? symmetrySelectedEdges : mateType === 'rack-pinion' ? rackScene?.bodies.flatMap(body => body.edges ?? []).filter(edge => rackKeys.includes(assemblyEdgeKey(edge))) ?? [] : directionEdgeMeshes
   const gearCarriers = gearRows.filter(row => inside(row.path, scopePath) && !row.suppressed).map(row => ({ key: JSON.stringify(row.path),
     label: `${row.occurrence.name} · ${row.path.join(' / ')} · ${row.definition.id} · ${row.definition.revision}`,
     reference: { occurrencePath: row.path.slice(scopePath.length), definition: { ...row.occurrence.definition } } }))
@@ -2479,23 +2760,12 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     notify(needsSecond ? 'Referencia 1 preparada. Selecciona la referencia 2 o elige un origen en el panel.'
       : 'Dos referencias preparadas en el orden seleccionado. Revisa el tipo y pulsa Vista previa.')
   }
-  const circularPathChoices=scene?assemblyCircularPathCatalogChoices({...scene,bodies:scene.bodies.filter(body=>body.visible)}).filter(c=>c.reference.component.occurrencePath.length>scopePath.length&&scopePath.every((id,i)=>c.reference.component.occurrencePath[i]===id)).map(c=>({...c,reference:{...c.reference,component:{...c.reference.component,occurrencePath:c.reference.component.occurrencePath.slice(scopePath.length)}}})):[]
   const circularContextKey=JSON.stringify([serialized,scopePath,generation.current,confirmedScene.current?.scene.sceneId??null,mateType,editingCircularPathId])
   if(circularPathEpoch.current.key!==circularContextKey)circularPathEpoch.current={key:circularContextKey,value:circularPathEpoch.current.value+1}
   const circularPathTicket={signature:serialized,scope:JSON.stringify(scopePath),generation:generation.current,sceneId:confirmedScene.current?.scene.sceneId??null,family:mateType,epoch:circularPathEpoch.current.value}
   circularPathContext.current=circularPathTicket
-  const linePathChoices = assemblyLinePathUiChoices(scene, scopePath)
   const linePathTicket = { signature: serialized, scope: JSON.stringify(scopePath), generation: generation.current, sceneId: confirmedScene.current?.scene.sceneId ?? null, family: mateType }
   linePathContext.current = linePathTicket
-  const profileFaces: ProfileFaceChoice[] = (scene?.bodies.filter(body => body.visible).flatMap(body => body.faces) ?? []).flatMap(face => {
-    if (face.support?.kind !== 'plane' || !inside(face.selection.component.occurrencePath, scopePath)) return []
-    try { const reference = validateAssemblyProfileFaceSelection({ ...face.selection, component: { ...face.selection.component, occurrencePath: face.selection.component.occurrencePath.slice(scopePath.length) } }); return [{ key: assemblyFaceKey(face), label: face.selection.component.occurrencePath.join(' / ') + ' · Plano · (' + face.support.point.map(value => Number(value.toPrecision(5))).join(', ') + ') · ' + face.selection.face.key, reference }] } catch { return [] }
-  })
-  const profileEdges: ProfileEdgeChoice[] = (scene?.bodies.filter(body => body.visible).flatMap(body => body.edges ?? []) ?? []).flatMap(edge => {
-    if (!edge.support || !inside(edge.selection.component.occurrencePath, scopePath)) return []
-    const owner = profileFaces.find(face => JSON.stringify(face.reference.component) === JSON.stringify({ ...edge.selection.component, occurrencePath: edge.selection.component.occurrencePath.slice(scopePath.length) }) && JSON.stringify(face.reference.body) === JSON.stringify(edge.selection.body))
-    return owner ? [{ key: assemblyEdgeKey(edge), label: edge.selection.component.occurrencePath.join(' / ') + ' · LINE · (' + edge.support.point.map(value => Number(value.toPrecision(5))).join(', ') + ') · ' + edge.selection.edge.key, faceOwner: owner.reference, edge: structuredClone(edge.selection.edge) }] : []
-  })
   const widthChoices: WidthPlaneChoice[] = faceChoices.flatMap(face => { const reference=scopedAssemblyPlaneFace(face,scopePath); return reference ? [{key:assemblyFaceKey(face),label:referenceLabel(reference),reference}] : [] })
   const datumOwners = [{key:'scope',component:null}, ...availableComponents.map(row=>({key:JSON.stringify(row.path),component:{occurrencePath:row.path.slice(scopePath.length),definition:{...row.occurrence.definition}}}))]
   for (const owner of datumOwners) for (const plane of ['XY','XZ','YZ'] as const) widthChoices.push({key:'datum:'+owner.key+':'+plane,label:(owner.component?.occurrencePath.join(' / ') ?? 'Ámbito actual')+' · '+plane,reference:{kind:'principal-plane',component:owner.component,plane}})
@@ -2549,7 +2819,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     || confirmedScene.current?.signature !== serialized || confirmedScene.current?.scene !== scene
     || !originDisplays.some(value => value.reference.kind === 'principal-axis' ? originKinds.axes : originKinds.planes)
   const activeOriginPicking = originPicking && managerTab === 'relations' && !originBlocked
-    && !pickingFaces && !pickingLinearEdges && !symmetryPicking && !hingePicking && !widthPicking && !rackPicking && !mechanicalPicking && dragMode === 'off'
+    && !pickingFaces && !pickingLinearEdges && !symmetryPicking && !hingePicking && !widthPicking && !rackPicking && !mechanicalPicking && !profilePicking && !linePathPicking && !circularPicking && dragMode === 'off'
   useEffect(() => { if (showOriginAxes) setOriginControlsOpen(true) }, [showOriginAxes])
   useEffect(() => { if (showOriginPlanes) setOriginControlsOpen(true) }, [showOriginPlanes])
   useEffect(() => { if (activeOriginPicking) setOriginControlsOpen(true) }, [activeOriginPicking])
@@ -2560,8 +2830,8 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   const selectedOriginReferences = originRoleReferences.filter((reference): reference is AssemblyOriginReference => !!reference && (reference.kind === 'principal-axis' || reference.kind === 'principal-plane'))
   useEffect(() => { stopOriginPicking() }, [serialized, scopePath, selectedPath, mateType, endpointSlot, originOwner, showOriginAxes, showOriginPlanes, busy, preview, draft])
   useEffect(() => {
-    if (pickingFaces || pickingLinearEdges || symmetryPicking || hingePicking || widthPicking || rackPicking || mechanicalPicking || dragMode !== 'off') stopOriginPicking()
-  }, [pickingFaces, pickingLinearEdges, symmetryPicking, hingePicking, widthPicking, rackPicking, mechanicalPicking, dragMode])
+    if (pickingFaces || pickingLinearEdges || symmetryPicking || hingePicking || widthPicking || rackPicking || mechanicalPicking || profilePicking || linePathPicking || circularPicking || dragMode !== 'off') stopOriginPicking()
+  }, [pickingFaces, pickingLinearEdges, symmetryPicking, hingePicking, widthPicking, rackPicking, mechanicalPicking, profilePicking, linePathPicking, circularPicking, dragMode])
   const beginOriginPick = () => {
     if (originBlocked || operation.current || hasStaging() || currentPreview.current || !mounted.current) return
     if (activeOriginPicking) { stopOriginPicking(); return }
@@ -2632,7 +2902,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   const exampleAssembly = () => void (async () => { if (await mayReplace()) replace(createAssemblyExample()) })()
   const contextBlocked = editingBlocked || !!draft || !!preview || replaceDialog || !!streamProjection || bomOpen
     || dragActive || !!dragSession.current || !!dragging.current || pickingFaces || pickingLinearEdges
-    || !!symmetryPicking || !!hingePicking || !!widthPicking || !!rackPicking || !!mechanicalPicking || activeOriginPicking
+    || !!symmetryPicking || !!hingePicking || !!widthPicking || !!rackPicking || !!mechanicalPicking || !!profilePicking || !!linePathPicking || !!circularPicking || activeOriginPicking
     || !scene || sceneSignature.current !== serialized || confirmedScene.current?.signature !== serialized
     || confirmedScene.current?.scene !== scene
   const contextCurrent = useRef({ target: contextTarget, reset: treeReset, blocked: contextBlocked, originSelection: treeOriginSelection })
@@ -2775,7 +3045,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
       { id: 'example-assembly', label: 'Ejemplo: placa y dos pasadores', disabled: editingBlocked || replaceDialog, onSelect: exampleAssembly },
     ] },
   ])
-  const shortcutPicking = originPicking || pickingFaces || pickingLinearEdges || !!symmetryPicking || !!hingePicking || !!widthPicking || !!rackPicking || !!mechanicalPicking
+  const shortcutPicking = originPicking || pickingFaces || pickingLinearEdges || !!symmetryPicking || !!hingePicking || !!widthPicking || !!rackPicking || !!mechanicalPicking || !!profilePicking || !!linePathPicking || !!circularPicking
   const shortcutCancel = menus.flatMap(menu => menu.items).find(item => item.id === 'cancel-preview')!
   useAssemblyShortcuts({ root: '.assembly-classic-workspace', active: embeddedPart.parentActive, menus, modal: namedViews.isOpen || newDocumentDialog.isOpen || replaceDialog || !!replaceAnswer.current,
     beforeFile: (id, target) => {
@@ -2796,7 +3066,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     escape: shortcutPicking ? { disabled: editingBlocked || dragActive || !!dragSession.current, onSelect: () => {
       if (operation.current || hasStaging() || dragActive || dragSession.current) return
       preselectionPick.current = null
-      clearSymmetryPicking(); setHingePicking(null); setWidthPicking(null); setRackPicking(null); clearMechanicalPicking(true)
+      clearSymmetryPicking(); setHingePicking(null); setWidthPicking(null); setRackPicking(null); clearMechanicalPicking(true); clearProfilePicking(true); clearLinePathPicking(true); clearCircularPicking(true)
       notify('Selección en vista cancelada. Se conservan las referencias y los campos de la relación.')
     } } : shortcutCancel,
   })
@@ -3038,8 +3308,8 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
           <button disabled={symmetryBlocked||symmetryReferences.some(r=>!r)||!mateName.trim()||(symmetryFamily!=='point'&&symmetryFamily!=='sphere'&&!symmetryAlignment)} onClick={previewSymmetry}>{editingSymmetry?'Vista previa de la edición de simetría':'Vista previa de simetría'}</button>
           {editingSymmetry&&<button disabled={symmetryBlocked} onClick={()=>{if(!symmetryMayEdit())return;clearSymmetryPicking();setEditingSymmetryId(null);setSymmetryReferences([null,null,null]);setSymmetryAlignment('')}}>Cancelar edición de simetría</button>}
         </div>}
-        {isCircularPath&&<AssemblyCircularPathMatePanel key={JSON.stringify([serialized,scopePath,editingCircularPathId,circularPathReset])} mate={editingCircularPath} points={linePathChoices.points} paths={circularPathChoices} guides={linePathChoices.guides} disabled={symmetryBlocked} onPreview={previewCircularPath} onCancelEdit={()=>{if(symmetryMayEdit()){setEditingCircularPathId(null);setCircularPathReset(v=>v+1)}}}/>}
-        {isLinePath && <AssemblyLinePathMatePanel key={JSON.stringify([serialized,scopePath,editingLinePathId,linePathReset])} mate={editingLinePath} points={linePathChoices.points} edges={linePathChoices.edges} guides={linePathChoices.guides} disabled={symmetryBlocked} onPreview={previewLinePath} onCancelEdit={() => { if (symmetryMayEdit()) { setEditingLinePathId(null); setLinePathReset(value => value + 1) } }} />}
+        {isCircularPath&&<AssemblyCircularPathMatePanel key={JSON.stringify([serialized,scopePath,editingCircularPathId,circularPathReset])} mate={editingCircularPath} points={linePathChoices.points} paths={circularPathChoices} guides={linePathChoices.guides} disabled={symmetryBlocked} picker={circularPicker} onPreview={proposal => { if (circularLiveCurrent(circularPickContext)) previewCircularPath(proposal) }} onCancelEdit={()=>{if(symmetryMayEdit()){clearCircularPicking(true);setEditingCircularPathId(null);setCircularPathReset(v=>v+1)}}}/>}
+        {isLinePath && <AssemblyLinePathMatePanel key={JSON.stringify([serialized,scopePath,editingLinePathId,linePathReset])} mate={editingLinePath} points={linePathChoices.points} edges={linePathChoices.edges} guides={linePathChoices.guides} disabled={symmetryBlocked} picker={linePathPicker} onPreview={proposal => { if (linePickLiveCurrent(linePickContext)) previewLinePath(proposal) }} onCancelEdit={() => { if (symmetryMayEdit()) { clearLinePathPicking(true); clearCircularPicking(true); setEditingLinePathId(null); setLinePathReset(value => value + 1) } }} />}
         {isHinge && <AssemblyHingeMatePanel references={hingeReferences} axes={hingeAxes} planes={hingePlanes} name={mateName} alignment={hingeAlignment} editing={!!editingHinge}
           limited={hingeLimited} start={hingeStart} sweep={hingeSweep}
           disabled={symmetryBlocked || dragActive || !!dragSession.current} picking={activeHingePick}
@@ -3049,7 +3319,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
           onName={value=>{if(hingeMayEdit(hingeTicket)){hingeContext.current=null;clearHingePicking();setMateName(value)}}} onAlignment={value=>{if(hingeMayEdit(hingeTicket)){hingeContext.current=null;clearHingePicking();setHingeAlignment(value)}}}
           onPick={toggleHingePicking} onPreview={()=>previewHinge(hingeTicket)}
           onCancelEdit={()=>{if(!hingeMayEdit(hingeTicket))return;hingeContext.current=null;clearHingePicking();setEditingHingeId(null);setHingeReferences([null,null,null,null]);resetHingeStops();setHingeAlignment('')}} />}
-        {isProfile && <AssemblyProfileCenterMatePanel key={JSON.stringify([serialized,scopePath,editingProfileId,profileReset])} mate={editingProfile} faces={profileFaces} edges={profileEdges} disabled={symmetryBlocked} onPreview={previewProfile} onCancelEdit={() => { if (symmetryMayEdit()) { setEditingProfileId(null); setProfileReset(value => value + 1) } }} />}
+        {isProfile && <AssemblyProfileCenterMatePanel key={JSON.stringify([serialized,scopePath,editingProfileId,profileReset])} mate={editingProfile} faces={profileFaces} edges={profileEdges} disabled={symmetryBlocked} picker={profilePicker} onPreview={proposal => { if (profileLiveCurrent(profileContext)) previewProfile(proposal) }} onCancelEdit={() => { if (symmetryMayEdit()) { clearProfilePicking(true); clearLinePathPicking(true); clearCircularPicking(true); setEditingProfileId(null); setProfileReset(value => value + 1) } }} />}
         {isWidth && <AssemblyWidthMatePanel references={widthReferences} choices={widthChoices} name={mateName} widthBranch={widthBranch} tabBranch={tabBranch} alignment={widthAlignment} editing={!!editingWidth} disabled={widthPickingBlocked} pickingIndex={widthPickingSlot} onPick={toggleWidthPicking}
           onReference={(index,reference)=>{if(operation.current||hasStaging()||currentPreview.current||draft||replaceDialog)return;setWidthPicking(null);setPickingFaces(false);setWidthReferences(values=>{const next:WidthUiReferences=[...values];next[index]=reference;return next})}}
           onName={value=>{if(!operation.current&&!hasStaging()&&!currentPreview.current&&!replaceDialog)setMateName(value)}} onWidthBranch={value=>{if(!operation.current&&!hasStaging()&&!currentPreview.current&&!replaceDialog)setWidthBranch(value)}} onTabBranch={value=>{if(!operation.current&&!hasStaging()&&!currentPreview.current&&!replaceDialog)setTabBranch(value)}} onAlignment={value=>{if(!operation.current&&!hasStaging()&&!currentPreview.current&&!replaceDialog)setWidthAlignment(value)}} onPreview={previewWidth}
@@ -3146,8 +3416,8 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
         {mate.type === 'limit-directed-angle' && <button aria-label={`Editar límite dirigido ${mate.name}`} disabled={editingBlocked || !!preview || replaceDialog || !!referenceEditTicket} onClick={() => beginLimitDirectedAngleEdit(mate)}>Editar</button>}
         {mate.type === 'limit-angle' && <button aria-label={`Editar intervalo angular ${mate.name}`} disabled={editingBlocked || !!preview || replaceDialog || !!referenceEditTicket} onClick={() => beginLimitAngleEdit(mate)}>Editar</button>}
         {mate.type === 'limit-distance' && <button aria-label={`Editar intervalo entre planos ${mate.name}`} disabled={editingBlocked || !!preview || replaceDialog || !!referenceEditTicket} onClick={() => beginLimitDistanceEdit(mate)}>Editar</button>}
-        {mate.type === 'gear' && <button aria-label={`Editar engranaje ${mate.name}`} disabled={editingBlocked || !!preview || replaceDialog || !!referenceEditTicket} onClick={() => { if (operation.current || hasStaging() || currentPreview.current || draft || replaceDialog || savedReferenceEditIsActive()) return; clearMechanicalPicking(true); setMateType('gear'); setDirectionEdit(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null); setEditingGearId(mate.id); setEditingScrewId(null); setPickingFaces(false); setDragMode('off') }}>Editar</button>}
-        {mate.type === 'screw' && <button aria-label={`Editar tornillo ${mate.name}`} disabled={editingBlocked || !!preview || replaceDialog || !!referenceEditTicket} onClick={() => { if (operation.current || hasStaging() || currentPreview.current || draft || replaceDialog || savedReferenceEditIsActive()) return; clearMechanicalPicking(true); setMateType('screw'); setDirectionEdit(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null); setEditingScrewId(mate.id); setEditingGearId(null); setPickingFaces(false); setDragMode('off') }}>Editar</button>}
+        {mate.type === 'gear' && <button aria-label={`Editar engranaje ${mate.name}`} disabled={editingBlocked || !!preview || replaceDialog || !!referenceEditTicket} onClick={() => { if (operation.current || hasStaging() || currentPreview.current || draft || replaceDialog || savedReferenceEditIsActive()) return; clearMechanicalPicking(true); clearProfilePicking(true); clearLinePathPicking(true); clearCircularPicking(true); setMateType('gear'); setDirectionEdit(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null); setEditingGearId(mate.id); setEditingScrewId(null); setPickingFaces(false); setDragMode('off') }}>Editar</button>}
+        {mate.type === 'screw' && <button aria-label={`Editar tornillo ${mate.name}`} disabled={editingBlocked || !!preview || replaceDialog || !!referenceEditTicket} onClick={() => { if (operation.current || hasStaging() || currentPreview.current || draft || replaceDialog || savedReferenceEditIsActive()) return; clearMechanicalPicking(true); clearProfilePicking(true); clearLinePathPicking(true); clearCircularPicking(true); setMateType('screw'); setDirectionEdit(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null); setEditingScrewId(mate.id); setEditingGearId(null); setPickingFaces(false); setDragMode('off') }}>Editar</button>}
         {mate.type === 'rack-pinion' && <button aria-label={`Editar cremallera y piñón ${mate.name}`} disabled={editingBlocked || !!preview || replaceDialog || !!referenceEditTicket} onClick={() => { if (operation.current || hasStaging() || currentPreview.current || draft || replaceDialog || savedReferenceEditIsActive()) return; setMateType('rack-pinion'); setDirectionEdit(null); setEditingTangentId(null); setEditingCylinderTangentId(null); setEditingSphereTangentId(null); setEditingLimitDistanceId(null); setEditingLimitAngleId(null); setEditingLimitDirectedAngleId(null); setEditingRackId(mate.id); setEditingGearId(null); setEditingScrewId(null); setRackPicking(null); setPickingFaces(false); setDragMode('off') }}>Editar</button>}
         {mate.type === 'concentric' && !mate.suppressed && <button title="Capturar bloqueo de giro desde la vista previa verificada" aria-label={`Bloquear giro ${mate.name}`} disabled={!canApply || !!referenceEditTicket || !!sourceUpdate || !!documentUpdate || !!replacementReview} onClick={() => void capture(mate.id)}><LockKeyhole size={14} /></button>}
         <button aria-label={`Eliminar ${mate.name}`} disabled={editingBlocked || !!referenceEditTicket || solveDeletion(mate.type) && (!!preview || replaceDialog)} onClick={() => deleteRelation(mate)}><Trash2 size={14} /></button></div>)}{!scope.mates.length && <p className="assembly-muted">No hay relaciones en este ámbito.</p>}
@@ -3170,26 +3440,29 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
 </div>
         </div>
       </aside>
-      <section className="assembly-canvas" data-assembly-browse-mode={browseSelectionMode} data-normal-selection-kind={normalResolution.target?.kind ?? 'invalid'} data-normal-selection-keys={JSON.stringify(normalViewSelection?.items.map(value => [value.kind, value.key]) ?? [])} data-normal-enabled={canNormal}><CompactViewportToolbar label="Controles del visor del ensamblaje" className="assembly-view-tools"><ViewportToolGroup label="Vistas del ensamblaje"><ViewOrientationControls onView={viewButton} disabled={!!dragSession.current || viewHistory.navigating} canPrevious={viewHistory.canPrevious} canNormal={canNormal} onNamedViews={namedViews.open} canNamedViews={namedViews.canOpen} /><button title="Isométrica" disabled={!!dragSession.current || viewHistory.navigating} onClick={() => viewButton('iso')}><ViewportToolIcon name="iso" label="Isométrica" /></button><button title="Frontal" disabled={!!dragSession.current || viewHistory.navigating} onClick={() => viewButton('front')}><ViewportToolIcon name="front" label="Frontal" /></button><button title="Superior" disabled={!!dragSession.current || viewHistory.navigating} onClick={() => viewButton('top')}><ViewportToolIcon name="top" label="Superior" /></button><button title="Ajustar" disabled={!!dragSession.current || viewHistory.navigating} onClick={() => viewButton('fit')}><ViewportToolIcon name="fit" label="Ajustar" /></button></ViewportToolGroup><ViewportToolGroup label="Selección previa"><button aria-label="Preseleccionar caras" title="Preseleccionar caras · Ctrl para añadir o quitar" aria-pressed={browseSelectionMode === 'face'} disabled={normalViewBlocked} onClick={() => setBrowseSelectionMode('face')}><ViewportToolIcon name="face" label="Preseleccionar caras" /></button><button aria-label="Preseleccionar aristas lineales" title="Preseleccionar aristas lineales · Ctrl para añadir o quitar" aria-pressed={browseSelectionMode === 'edge'} disabled={normalViewBlocked} onClick={() => setBrowseSelectionMode('edge')}><ViewportToolIcon name="edge" label="Preseleccionar aristas lineales" /></button></ViewportToolGroup><ViewportToolGroup label="Selección de referencias"><button title="Seleccionar caras" className={pickingFaces ? 'active' : ''} aria-pressed={pickingFaces} disabled={isHinge || isCircularPath || isLinePath || isSymmetry || (isWidth ? widthPickingBlocked : referenceBlocked)} onClick={() => { openManager('relations'); if (isWidth) { const missing = widthReferences.findIndex(value => value === null); toggleWidthPicking(widthPickingSlot ?? (missing < 0 ? 0 : missing as WidthUiSlot)); return } setDragMode('off'); setPickingLinearEdges(false); setPickingFaces(!pickingFaces) }}><ViewportToolIcon name="face" label="Seleccionar caras" /></button>
+      <section className="assembly-canvas" data-assembly-browse-mode={browseSelectionMode} data-normal-selection-kind={normalResolution.target?.kind ?? 'invalid'} data-normal-selection-keys={JSON.stringify(normalViewSelection?.items.map(value => [value.kind, value.key]) ?? [])} data-normal-enabled={canNormal}><CompactViewportToolbar label="Controles del visor del ensamblaje" className="assembly-view-tools"><ViewportToolGroup label="Vistas del ensamblaje"><ViewOrientationControls onView={viewButton} disabled={!!dragSession.current || viewHistory.navigating} canPrevious={viewHistory.canPrevious} canNormal={canNormal} onNamedViews={namedViews.open} canNamedViews={namedViews.canOpen} /><button title="Isométrica" disabled={!!dragSession.current || viewHistory.navigating} onClick={() => viewButton('iso')}><ViewportToolIcon name="iso" label="Isométrica" /></button><button title="Frontal" disabled={!!dragSession.current || viewHistory.navigating} onClick={() => viewButton('front')}><ViewportToolIcon name="front" label="Frontal" /></button><button title="Superior" disabled={!!dragSession.current || viewHistory.navigating} onClick={() => viewButton('top')}><ViewportToolIcon name="top" label="Superior" /></button><button title="Ajustar" disabled={!!dragSession.current || viewHistory.navigating} onClick={() => viewButton('fit')}><ViewportToolIcon name="fit" label="Ajustar" /></button></ViewportToolGroup><ViewportToolGroup label="Selección previa"><button aria-label="Preseleccionar caras" title="Preseleccionar caras · Ctrl para añadir o quitar" aria-pressed={browseSelectionMode === 'face'} disabled={normalViewBlocked} onClick={() => setBrowseSelectionMode('face')}><ViewportToolIcon name="face" label="Preseleccionar caras" /></button><button aria-label="Preseleccionar aristas lineales" title="Preseleccionar aristas lineales · Ctrl para añadir o quitar" aria-pressed={browseSelectionMode === 'edge'} disabled={normalViewBlocked} onClick={() => setBrowseSelectionMode('edge')}><ViewportToolIcon name="edge" label="Preseleccionar aristas lineales" /></button></ViewportToolGroup><ViewportToolGroup label="Selección de referencias"><button title="Seleccionar caras" className={pickingFaces ? 'active' : ''} aria-pressed={pickingFaces} disabled={isProfile || isHinge || isCircularPath || isLinePath || isSymmetry || (isWidth ? widthPickingBlocked : referenceBlocked)} onClick={() => { openManager('relations'); if (isWidth) { const missing = widthReferences.findIndex(value => value === null); toggleWidthPicking(widthPickingSlot ?? (missing < 0 ? 0 : missing as WidthUiSlot)); return } setDragMode('off'); setPickingLinearEdges(false); setPickingFaces(!pickingFaces) }}><ViewportToolIcon name="face" label="Seleccionar caras" /></button>
         {(isDirection || isLimitAngle || mateType === 'angle') && <button title="Seleccionar aristas lineales" aria-label="Seleccionar aristas lineales" aria-pressed={pickingLinearEdges} disabled={referenceBlocked || !!editingLimitAngle || sceneSignature.current !== serialized} onClick={() => { openManager('relations'); setDragMode('off'); setPickingFaces(false); setPickingLinearEdges(!pickingLinearEdges) }}><ViewportToolIcon name="edge" label="Seleccionar aristas" /></button>}
-        </ViewportToolGroup><ViewportToolGroup label="Manipulación del componente" className="assembly-drag-tools"><button title="Arrastrar posición" aria-label="Arrastrar posición" aria-pressed={dragMode === 'translate'} disabled={editingBlocked || !!draft || !!preview || replaceDialog || !eligibleDragFrame} onClick={() => { setTreeOriginSelection(null); setNormalSelection(null); clearSymmetryPicking(); clearMechanicalPicking(true); setDragMode('translate') }}><ViewportToolIcon name="translate" label="Arrastrar posición" /></button>
-        <button title="Arrastrar giro" aria-label="Arrastrar giro" aria-pressed={dragMode === 'rotate'} disabled={editingBlocked || !!draft || !!preview || replaceDialog || !eligibleDragFrame} onClick={() => { setTreeOriginSelection(null); setNormalSelection(null); clearSymmetryPicking(); clearMechanicalPicking(true); setDragMode('rotate') }}><ViewportToolIcon name="rotate" label="Arrastrar giro" /></button>
+        </ViewportToolGroup><ViewportToolGroup label="Manipulación del componente" className="assembly-drag-tools"><button title="Arrastrar posición" aria-label="Arrastrar posición" aria-pressed={dragMode === 'translate'} disabled={editingBlocked || !!draft || !!preview || replaceDialog || !eligibleDragFrame} onClick={() => { setTreeOriginSelection(null); setNormalSelection(null); clearSymmetryPicking(); clearMechanicalPicking(true); clearProfilePicking(true); clearLinePathPicking(true); clearCircularPicking(true); setDragMode('translate') }}><ViewportToolIcon name="translate" label="Arrastrar posición" /></button>
+        <button title="Arrastrar giro" aria-label="Arrastrar giro" aria-pressed={dragMode === 'rotate'} disabled={editingBlocked || !!draft || !!preview || replaceDialog || !eligibleDragFrame} onClick={() => { setTreeOriginSelection(null); setNormalSelection(null); clearSymmetryPicking(); clearMechanicalPicking(true); clearProfilePicking(true); clearLinePathPicking(true); clearCircularPicking(true); setDragMode('rotate') }}><ViewportToolIcon name="rotate" label="Arrastrar giro" /></button>
         <button title="Desactivar manipulador" aria-label="Desactivar manipulador" disabled={!!dragSession.current || dragMode === 'off'} onClick={() => setDragMode('off')}><ViewportToolIcon name="stop" label="Desactivar manipulador" /></button></ViewportToolGroup></CompactViewportToolbar>
       <AssemblyViewport partColors={partColors} originLabelTopInset={44} scene={scene} view={view} viewHistory={viewHistory} selectedPath={selectedTreeOrigin ? [] : selectedPath} selectedFaces={normalViewBlocked ? rackSelectedFaces : [...rackSelectedFaces, ...browseFaces]} selectedEdges={normalViewBlocked ? rackSelectedEdges : [...rackSelectedEdges, ...browseResolution.edges]} selectedAnalysisPair={selectedAnalysisPair} browseSelectionMode={browseSelectionMode}
         onContextTarget={openViewportContext}
         originReferences={!normalViewBlocked && browseOrigins.length ? browseOrigins : selectedTreeOrigin ? [selectedTreeOrigin.display] : originDisplays}
         selectedOrigins={!normalViewBlocked && browseOrigins.length ? browseOrigins.map(value => value.reference) : selectedTreeOrigin ? [selectedTreeOrigin.display.reference] : selectedOriginReferences} pickingOrigins={activeOriginPicking} onOrigin={pickOrigin}
-        pickingFaces={isSymmetry ? !!activeSymmetryPick && activeSymmetryPick.producer !== 'vertex' && activeSymmetryPick.producer !== 'line-edge' : pickingFaces || !!activeMechanicalPick || !!rackPicking && rackPicking.kind !== 'rack-edge'} pickingEdges={isSymmetry ? activeSymmetryPick?.producer === 'line-edge' : pickingLinearEdges || rackPicking?.kind === 'rack-edge'} disabled={editingBlocked || replaceDialog || !!preview && !rackPicking && !activeMechanicalPick}
+        pickingFaces={isSymmetry ? !!activeSymmetryPick && activeSymmetryPick.producer !== 'vertex' && activeSymmetryPick.producer !== 'line-edge' : pickingFaces || activeCircularPick?.producer === 'face' || activeLinePick?.producer === 'face' || activeProfilePick?.producer === 'face' || !!activeMechanicalPick || !!rackPicking && rackPicking.kind !== 'rack-edge'} pickingEdges={isSymmetry ? activeSymmetryPick?.producer === 'line-edge' : activeCircularPick?.producer === 'material-arc' || activeLinePick?.producer === 'line-edge' || activeProfilePick?.producer === 'line-edge' || pickingLinearEdges || rackPicking?.kind === 'rack-edge'} disabled={editingBlocked || replaceDialog || !!preview && !rackPicking && !activeMechanicalPick}
         drag={dragMode !== 'off' && !activeSymmetryPick && !pickingFaces && !pickingLinearEdges && !sourceUpdate && !documentUpdate && !replacementReview && !preview && !draft && !replaceDialog && (dragAnchor.current ?? eligibleDragFrame)
           ? { frame: (dragAnchor.current ?? eligibleDragFrame)!, mode: dragMode, active: dragActive } : undefined}
         onDragStart={beginDrag} onDragTarget={dragTarget} onDragEnd={endDrag} onDragCancel={cancel}
-        pickingVertices={isSymmetry && activeSymmetryPick?.producer === 'vertex'} selectedVertices={symmetrySelectedVertices} onVertex={vertex => { if (managerTabRef.current === 'relations') pickSymmetryVertex(vertex) }}
+        materialArcPick={materialArcPick} referencePickOwner={activeCircularPick ?? activeLinePick ?? activeProfilePick ?? activeMechanicalPick} pickingVertices={activeCircularPick?.producer === 'vertex' || activeLinePick?.producer === 'vertex' || isSymmetry && activeSymmetryPick?.producer === 'vertex'} selectedVertices={isCircularPath ? selectedCircularVertices : isLinePath ? selectedLineVertices : symmetrySelectedVertices} onVertex={vertex => { if (managerTabRef.current !== 'relations') return; if (activeCircularPick) acceptCircularPick(vertex, 'vertex', activeCircularPick); else if (activeLinePick) acceptLinePick(vertex, 'vertex', activeLinePick); else pickSymmetryVertex(vertex) }}
         onViewSelection={nominateViewSelection} onComponent={component => { abandonInsertionSelection(); setTreeOriginSelection(null); if (linkedTicket.current) generation.current++; setSelectedPath(component?.occurrencePath ?? []) }} onFace={face => {
           if (managerTabRef.current !== 'relations') return
-          if (activeMechanicalPick) pickMechanicalAxis(face, activeMechanicalPick)
+          if (activeCircularPick) acceptCircularPick(face, 'face', activeCircularPick)
+          else if (activeLinePick) acceptLinePick(face, 'face', activeLinePick)
+          else if (activeProfilePick) acceptProfilePick(face, 'face', activeProfilePick)
+          else if (activeMechanicalPick) pickMechanicalAxis(face, activeMechanicalPick)
           else (rackPicking ? pickRackFace : pickFace)(face)
-        }} onEdge={edge => { if (managerTabRef.current === 'relations') (rackPicking ? pickRackEdge : pickDirectionEdge)(edge) }} />
-      <div className="assembly-canvas-label"><strong>{displayed.name}</strong><span>{activeMechanicalPick ? `Selecciona una cara cilíndrica para el eje ${activeMechanicalPick.slot + 1} del ${activeMechanicalPick.family === 'gear' ? 'engranaje' : 'tornillo'}` : rackPicking ? rackPicking.kind === 'rack-edge' ? 'Selecciona una arista lineal actual de la cremallera' : rackPicking.kind === 'pinion' ? 'Selecciona el cilindro actual del piñón' : 'Selecciona el eje cilíndrico actual de la cremallera' : dragSession.current ? 'Arrastre · destinos nativos verificados · todavía sin aplicar' : preview ? 'Vista previa · todavía sin aplicar' : documentUpdate ? 'Actualización de subensamblaje · pendiente de resolver y aplicar' : sourceUpdate ? 'Actualización de origen · pendiente de resolver y aplicar' : replacementReview ? 'Sustitución de pieza · pendiente de resolver y aplicar' : activeSymmetryPick ? 'Selecciona ' + SYMMETRY_ROLE_LABELS[activeSymmetryPick.slot] + (activeSymmetryPick.producer === 'line-edge' ? ' · arista lineal' : activeSymmetryPick.producer === 'cylinder-axis' ? ' · eje cilíndrico' : '') : activeHingePick ? 'Selecciona ' + HINGE_ROLE_LABELS[activeHingePick.slot] : widthPickingSlot !== null ? 'Selecciona ' + WIDTH_ROLE_LABELS[widthPickingSlot] : pickingFaces ? `Selecciona referencia ${endpointSlot + 1}` : 'Componentes independientes · mm'}</span></div>
+        }} onEdge={edge => { if (managerTabRef.current !== 'relations') return; if (activeCircularPick) acceptCircularPick(edge, 'material-arc', activeCircularPick); else if (activeLinePick) acceptLinePick(edge, 'line-edge', activeLinePick); else if (activeProfilePick) acceptProfilePick(edge, 'line-edge', activeProfilePick); else (rackPicking ? pickRackEdge : pickDirectionEdge)(edge) }} />
+      <div className="assembly-canvas-label"><strong>{displayed.name}</strong><span>{activeCircularPick ? 'Selecciona ' + CIRCULAR_PICK_LABELS[activeCircularPick.role] + ' en el modelo' : activeLinePick ? 'Selecciona ' + LINE_PATH_PICK_LABELS[activeLinePick.role] + ' en el modelo' : activeProfilePick ? 'Selecciona ' + (activeProfilePick.producer === 'face' ? 'la cara' : 'la arista LINE material') + ' del perfil ' + (activeProfilePick.slot + 1) : activeMechanicalPick ? `Selecciona una cara cilíndrica para el eje ${activeMechanicalPick.slot + 1} del ${activeMechanicalPick.family === 'gear' ? 'engranaje' : 'tornillo'}` : rackPicking ? rackPicking.kind === 'rack-edge' ? 'Selecciona una arista lineal actual de la cremallera' : rackPicking.kind === 'pinion' ? 'Selecciona el cilindro actual del piñón' : 'Selecciona el eje cilíndrico actual de la cremallera' : dragSession.current ? 'Arrastre · destinos nativos verificados · todavía sin aplicar' : preview ? 'Vista previa · todavía sin aplicar' : documentUpdate ? 'Actualización de subensamblaje · pendiente de resolver y aplicar' : sourceUpdate ? 'Actualización de origen · pendiente de resolver y aplicar' : replacementReview ? 'Sustitución de pieza · pendiente de resolver y aplicar' : activeSymmetryPick ? 'Selecciona ' + SYMMETRY_ROLE_LABELS[activeSymmetryPick.slot] + (activeSymmetryPick.producer === 'line-edge' ? ' · arista lineal' : activeSymmetryPick.producer === 'cylinder-axis' ? ' · eje cilíndrico' : '') : activeHingePick ? 'Selecciona ' + HINGE_ROLE_LABELS[activeHingePick.slot] : widthPickingSlot !== null ? 'Selecciona ' + WIDTH_ROLE_LABELS[widthPickingSlot] : pickingFaces ? `Selecciona referencia ${endpointSlot + 1}` : 'Componentes independientes · mm'}</span></div>
       {!scene?.bodies.length && !busy && <div className="assembly-empty"><Component size={42} /><h2>Diseña un conjunto de piezas</h2><p>Importa una pieza o abre el ejemplo original para empezar.</p></div>}
     </section>
     </main>

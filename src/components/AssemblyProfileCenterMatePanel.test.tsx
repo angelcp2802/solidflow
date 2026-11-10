@@ -5,6 +5,7 @@ import type { AssemblyProfileFaceSelection } from '../model/assemblyProfileRefer
 import type { AssemblyProfileCenterMate } from '../model/assemblyDocument'
 import type { AssemblyProfileCenterSupportReport } from '../cad/kernel.assembly-types'
 import Panel, { assemblyProfileCenterUiProposal, assemblyProfileCenterUiReports, profileEdgesForFace, type ProfileEdgeChoice } from './AssemblyProfileCenterMatePanel'
+import type { ProfileCenterPickerControls } from './assemblyProfileCenterPicking'
 
 const face = (id = 'first'): AssemblyProfileFaceSelection => ({ component: { occurrencePath: [id], definition: { id:'original',revision:'r1' } }, body:{bodyId:'body',sourceFeatureId:'solid'},face:{sourceFeatureId:'solid',key:'face-v1|'+'a'.repeat(64)} })
 const edge = { sourceFeatureId:'solid',key:'edge-v1|'+'b'.repeat(64) }
@@ -42,4 +43,16 @@ function reportFixture(rect=false) {
 it.each([false,true])('accepts only consistent bounded current-family display reports (%s)',rect=>{
   const {document,report}=reportFixture(rect);expect(assemblyProfileCenterUiReports(document,[report])).toEqual([report]);expect(assemblyProfileCenterUiReports(document,[report,report])).toEqual([])
   for(const patch of [{positionResidualMm:2e-6},{normalAngleRadians:1e-7},{offsetMm:2},{boundedProfiles:false},{verificationOnly:false},{orientation:{mode:'rectangle',quarterTurns:2}},{profileKinds:{first:'circle',second:'rectangle'}}])expect(assemblyProfileCenterUiReports(document,[{...report,...patch} as AssemblyProfileCenterSupportReport])).toEqual([])
+})
+
+it('offers explicit face and LINE controls only to its standard-workspace owner', () => {
+  const inputs = { owner: {}, mode: 'rectangle' as const, selections: [null, null] as [null, null] }
+  const picker: ProfileCenterPickerControls = { inputs, enabled: true, slot: 0, producer: 'face', onChange: vi.fn(), onMode: vi.fn(), onPick: vi.fn(), onCancel: vi.fn() }
+  const html = renderToStaticMarkup(<Panel faces={[]} edges={[]} disabled={false} picker={picker} onPreview={vi.fn()} onCancelEdit={vi.fn()} />)
+  expect(html).toContain('Seleccionar cara del perfil 1 en el modelo')
+  expect(html).toContain('Seleccionar cara del perfil 2 en el modelo')
+  expect(html).toContain('Seleccionar arista material del perfil 1 en el modelo')
+  expect(html).toContain('aria-pressed="true"')
+  expect(html).toContain('Cancelar selección de centro de perfiles')
+  expect(html).toContain('disabled="">Seleccionar arista en el modelo')
 })

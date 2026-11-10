@@ -1,3 +1,4 @@
+import type { LinePathPickerControls } from './assemblyLinePathPicking'
 import { expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { createEmptyAssembly } from '../examples/assembly'
@@ -133,4 +134,24 @@ it('offers only current visible material planes from the exact body and scope, d
   choices.guides[0].reference.component.occurrencePath[0] = 'changed'
   expect(component.occurrencePath).toEqual(['outer', 'guide'])
   expect(assemblyLinePathUiChoices(scene, ['unrelated']).guides).toEqual([])
+})
+
+it('shows explicit optional standard-workspace material roles while keeping compound origins unavailable without an edge', () => {
+  const picker: LinePathPickerControls = { inputs: { owner: {}, point: null, edge: null, origin: null, guide: null, following: false, upEnabled: false },
+    enabled: true, role: 'point', onChange: vi.fn(), onPick: vi.fn(), onCancel: vi.fn() }
+  const html = renderToStaticMarkup(<Panel points={[]} edges={[]} disabled={false} picker={picker} onPreview={vi.fn()} onCancelEdit={vi.fn()} />)
+  expect(html).toContain('Seleccionar Punto del trayecto LINE en el modelo')
+  expect(html).toContain('Seleccionar Arista del trayecto LINE en el modelo')
+  expect(html).toContain('Seleccionar Origen del trayecto LINE en el modelo')
+  expect(html).toContain('aria-pressed="true"')
+  expect(html).toContain('Cancelar selección de trayecto LINE')
+  expect(html).not.toContain('Seleccionar Guía UP del trayecto LINE en el modelo')
+})
+
+it('does not offer origin acquisition from a retained missing edge despite current vertices in its namespace', () => {
+  const vertex = point('path'), edge = { kind: 'edge' as const, component: vertex.component, body: vertex.body, edge: path().edge, support: 'line' as const }
+  const picker: LinePathPickerControls = { inputs: { owner: {}, point: null, edge, origin: vertex.vertex, guide: null, following: false, upEnabled: false },
+    enabled: true, role: null, onPick: vi.fn(), onChange: vi.fn(), onCancel: vi.fn() }
+  const html = renderToStaticMarkup(<Panel points={[{ key: 'current vertex', label: 'Current same-namespace vertex', reference: vertex }]} edges={[]} disabled={false} picker={picker} onPreview={vi.fn()} onCancelEdit={vi.fn()} />)
+  expect(html).toMatch(/aria-label="Seleccionar Origen del trayecto LINE en el modelo"[^>]*disabled=""/)
 })

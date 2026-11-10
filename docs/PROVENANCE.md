@@ -1,5 +1,104 @@
 # Public fixture provenance
 
+## Sketch modification tools on the original rectangle
+
+The desktop sketch workflow draws its own XY rectangle from (0,0) to (4,2)
+in millimetres and extrudes it 3 mm. It reenters that consumed sketch through
+its real tree occurrence. All six modification cases restore the same baseline
+between tools. They introduce no imported fixtures.
+
+- A 0.5 mm equal chamfer cuts the (4,2) corner at (4,1.5) and (3.5,2).
+  Five contour lines and two construction supports are distinguished.
+- A 0.5 mm fillet at the same corner uses centre (3.5,1.5), the same two
+  contacts and the directed quarter arc. The adjacent sides end at the contacts.
+- Reflection of the y=2 edge about y=0 produces the corresponding edge at y=−2.
+- A two-sided 0.5 mm offset of the bottom edge produces parallel edges at
+  y=−0.5 and y=0.5. Connected-chain selection and end caps are disabled.
+- Trimming removes only the top edge. A separately drawn horizontal line
+  from (1,1) to (3,1) extends to (4,1) against the original right edge.
+
+Point and radius comparisons use 1e−6 mm, and the fillet sweep uses 1e−6 rad.
+Unaffected original lines retain their IDs, endpoints and construction state.
+The test reads real sketch build requests and responses. It independently
+compares Undo/Redo profiles and cancels the edit back to the original solid.
+
+## Original part menu and Help cases — 2026-11-07
+
+The extended `desktop-part-from-empty-flow.cjs` retains the original pointer-
+drawn 40 × 30 × 10 mm base, 10 × 10 through-hole, 8 × 8 × 3 merged boss and
+6 × 4 × 2 pocket. It imports no CAD model. Its eight saved features have final
+V11144/A4136 and bounds (−20,−15,0)…(20,15,13). Removing only the last cut retains
+its unused sketch and yields V11192/A4096; Undo/Redo restores the same identities.
+Native volume uses 1e−5 mm³, planar preview mesh area 1e−4 mm² and bounds 1e−6 mm.
+
+The new temporary reference plane is authored through the normal Insert menu
+on principal XY, offset +20 mm and not reversed. Its independent literal frame
+is origin (0,0,20), X direction (1,0,0), normal (0,0,1). It adds no material;
+Undo restores the exact prior saved document. The native DTO/declaration and
+before/after recovery hashes are recorded rather than inferred from a UI label.
+
+Help is exercised in the first live sketch and after saved reopening. Native
+focus, Tab, Escape, close/return/backdrop actions preserve the exact draft or
+document and SVG projection. Rename uses fixed original test strings and a
+three-space invalid value; text Undo stays in the actual name field. These are
+UI/history cases, not new geometric fixtures or a proprietary reference model.
+
+Earlier display diagnostics retain the rejected attempts. One capture still
+contained a closing menu; a later independent two-PNG comparison located only
+56 differing pixels at a maximum one native byte level on the translucent ON
+state. The ON contract therefore records a full-crop one-level comparison at
+least 500 ms apart and a stronger visible effect against OFF. No count such as
+56 is an acceptance threshold. Grid and OFF restoration retain zero-byte exact
+equality. This does not certify physical colour or another display platform.
+
+## Blind primitive additive ALL original fixtures
+
+`scripts/desktop-part-additive-all-original.cjs` and the additive ALL model/native
+test files are original Cartesian millimetre recipes authored for this project
+under its GPL-3.0 license. They contain no imported/private CAD model, external
+binary, proprietary source or captured native topology. The renderer fixture
+contains three 4 mm cubes at X ranges [0,4], [10,14] and [30,34], all with Y/Z
+ranges [0,4], and an earlier 2 × 2 × 2 mm cap on A at [0,2] × [0,2] × [4,6].
+There is no preauthored repetition, body-reference proof or native result.
+
+The desktop authors a historical operation repetition through normal controls,
+chooses regenerate/ALL and selects the cap's actual historical result. A 4 mm
+translation produces edge-only contact with A and must reject without commit.
+A 10 mm translation grows B, and a later saved edit to 30 mm restores B and
+grows C instead. Original A is V72/A112, untouched cubes V64/A96, and each
+healthy pattern has totals V208 mm³ and A320 mm². The final capped owners have
+centroids [17/9,17/9,7/3] and [30+17/9,17/9,7/3]; B remains [12,2,2].
+The separate same-family STEP reader checks all three positive valid solids,
+literal bounds/centroids and their six or nine physical planar faces, including
+cap top, L-shaped base top, outer and inner cap walls, trimmed areas and material
+normal directions. Native property/mesh area bands are 1e-5 in their respective
+units, lengths/centroids 1e-6 mm and STEP normals 1e-8. Planar worker mesh area
+is an independently summed display mesh area, not a BRep-area oracle.
+
+The native integration cases use the same original recipe with explicit edits:
+rectangle/circle × linear/circular/mirror, adding an earlier D before the same
+last predecessor, actual partial overlap and fully contained rejection,
+chronological contiguous growth, a multiowner bridge, and a positive near-gap.
+Circular uses a literal Z axis through [5,5,0] and 180°; mirror uses an original
+reference plane X5. The circular profile has R1 at local centre [1,1], giving
+V64+2π/A96+4π per capped owner and totals V192+4π/A288+8π.
+Each of the six transform/profile cases also checks the actual cap top's
+trimmed position and outward normal, the solid's independently weighted
+centroid, and the circle's real native cylindrical axis, radius and Z4…6 trim.
+These distinguish a misplaced cap from the same aggregate volume/outer box.
+Exact common/contact
+probes distinguish separation, face/edge/point contact, overlap, containment and
+the tolerance-glued near-gap. Programmatic atomicity tests inject declared
+late query/union/release failures solely at test boundaries; the desktop never
+substitutes geometry, references, React state or worker responses. The input
+eligibility fixtures distinguish symbolic declarations from actual native
+catalog attestation and copied-proof authority.
+
+These are finite authored routes, not execution, platform or general feature
+coverage claims. Save/Open/STEP in the desktop applies to the final linear
+rectangular C-cap; other native cases have their explicitly stated boundaries.
+Results and retained failures belong in [VALIDATION](VALIDATION.md).
+
 ## Explicit support repair and opposed origin planes — 2026-11-07
 
 `scripts/desktop-part-reference-repair-original.cjs` generates an original

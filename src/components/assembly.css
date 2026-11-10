@@ -230,3 +230,12 @@
 .assembly-embedded-part-controls button { min-height: 28px; margin: 2px 5px 2px 0; padding: 4px 8px; border: 1px solid #b7cddd; border-radius: 3px; background: #fff; color: #246993; font-size: 11px; }
 .assembly-embedded-part-controls button:disabled { opacity: .55; }
 .assembly-embedded-part-editor > p[role="status"] { margin: 0; padding: 24px; color: #426780; font-size: 13px; }
+
+.assembly-section .assembly-profile-center-panel fieldset > button, .assembly-profile-center-panel [role="status"] button { width: 100%; padding: 6px; margin: 5px 0; border: 1px solid #bfd3e2; border-radius: 3px; color: #326e9b; background: #eff6fb; }
+.assembly-section .assembly-profile-center-panel fieldset > button[aria-pressed="true"] { border-color: #368bca; background: #eaf4fc; color: #155b8d; }
+
+.assembly-section .assembly-line-path-pick, .assembly-line-path-panel [aria-label="Selección de trayecto LINE"] button { width: 100%; padding: 6px; margin: 5px 0; border: 1px solid #bfd3e2; border-radius: 3px; color: #326e9b; background: #eff6fb; }
+.assembly-section .assembly-line-path-pick[aria-pressed="true"] { border-color: #368bca; background: #eaf4fc; color: #155b8d; }
+
+.assembly-section .assembly-circular-path-pick, .assembly-circular-path-panel [aria-label="Selección de trayecto circular"] button { width: 100%; padding: 6px; margin: 5px 0; border: 1px solid #bfd3e2; border-radius: 3px; color: #326e9b; background: #eff6fb; }
+.assembly-section .assembly-circular-path-pick[aria-pressed="true"] { border-color: #368bca; background: #eaf4fc; color: #155b8d; }

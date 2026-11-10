@@ -1,4 +1,5 @@
 import { useViewHistory } from './components/useViewHistory'
+import PartHelpDialog from './components/PartHelpDialog'
 import PartPropertiesPanel from './components/PartPropertiesPanel'
 import { partMassKg, setPartProperties } from './model/partProperties'
 import { useViewportBackgroundSettings } from './components/ViewportBackgroundSettings'
@@ -4986,81 +4987,7 @@ export function PartWorkspace({ initialDocument, initialPath, initialSaved, skip
           {importing ? "Preparando importación STEP…" : "Exportando geometría…"}
         </div>
       )}
-      {showHelp && (
-        <div className="modal-backdrop" onClick={() => setShowHelp(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <button className="modal-close" onClick={() => setShowHelp(false)}>
-              <X size={18} />
-            </button>
-            <div className="modal-brand">
-              <Box size={25} />
-              <strong>SolidFlow</strong>
-              <span>0.13</span>
-            </div>
-            <h2>Tu primer recorrido</h2>
-            <ol>
-              <li>
-                Selecciona <b>Planta, Alzado o Vista lateral</b> en el árbol.
-                También puedes activar <b>Seleccionar caras</b> y elegir una
-                cara plana, o crear un plano desplazado con{" "}
-                <b>Geometría de referencia</b>.
-              </li>
-              <li>
-                Abre <b>Croquis</b> y dibuja líneas, rectángulos, círculos o
-                arcos. Selecciona entidades o puntos para añadir cotas y
-                relaciones.
-              </li>
-              <li>
-                Acepta el croquis y utiliza <b>Saliente/Base extruido</b>,{" "}
-                <b>Corte extruido</b> o <b>Revolución</b>. En extrusión y corte
-                puedes elegir <b>Por todo</b>, <b>Hasta siguiente</b> o{" "}
-                <b>Hasta superficie</b> para que el extremo siga la pieza o una
-                referencia al reconstruir.
-              </li>
-              <li>
-                <b>Barrido</b> une un perfil cerrado con un recorrido abierto.{" "}
-                <b>Recubrir</b> une secciones ordenadas de varios croquis.
-                Prueba sus ejemplos en la biblioteca.
-              </li>
-              <li>
-                Haz doble clic en una operación para editarla. Guarda la pieza o
-                exporta STEP/STL.
-              </li>
-              <li>
-                Para un acabado, abre <b>Redondeo</b> o <b>Chaflán</b>,
-                selecciona aristas de la pieza y comprueba <b>Vista previa</b>{" "}
-                antes de aceptar. Puedes activar <b>Todas las aristas</b>.
-              </li>
-            </ol>
-            <div className="shortcut-list">
-              <span>
-                Guardar <kbd>Ctrl S</kbd>
-              </span>
-              <span>
-                Deshacer <kbd>Ctrl Z</kbd>
-              </span>
-              <span>
-                Ajustar vista <kbd>F</kbd>
-              </span>
-              <span>
-                Isométrica <kbd>Ctrl 7</kbd>
-              </span>
-            </div>
-            <p>
-              Los croquis admiten contornos de líneas y arcos, círculos y
-              agujeros. Los comandos atenuados pertenecen a módulos todavía
-              pendientes. El formato editable es .solidflow; permite exportar
-              la geometría a STEP y STL.
-            </p>
-            <button
-              className="primary-button"
-              onClick={() => setShowHelp(false)}
-            >
-              Volver a la pieza
-            </button>
-          </div>
-        </div>
-      )}
+      {showHelp && <PartHelpDialog onClose={() => setShowHelp(false)} />}
       {backgroundSettings.dialog}
       {namedViews.isOpen && <NamedViewsDialog views={namedViews.views} canSave={namedViews.canSave} canUpdate={namedViews.canUpdate}
         onSave={namedViews.save} onShow={namedViews.show} onDelete={namedViews.remove} onRename={namedViews.rename} onUpdate={namedViews.update} onClose={namedViews.close} />}
@@ -5087,6 +5014,7 @@ export function PartWorkspace({ initialDocument, initialPath, initialSaved, skip
             <input
               className="text-input"
               name="name"
+              aria-label="Nombre de la pieza"
               defaultValue={doc.name}
               required
               maxLength={100}
