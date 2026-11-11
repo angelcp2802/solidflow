@@ -295,6 +295,37 @@ it.each([
   }
 }), 60_000);
 
+it.each([20, -20])('regenerates one centered capped interval at signed depth %s for primitive and solved entities', depth => withNativeOwners(owners => {
+  const thinWall: ThinWallDefinition = { kind: 'one-side', thickness: 2, reversed: false, endCaps: { enabled: true, thickness: 1 } };
+  const base = owners.own(makeBox([0, -10, -14], [20, 10, -10]));
+  const outer = owners.own(makeBox([2, -6, -10], [18, 6, 10]));
+  const core = owners.own(makeBox([4, -4, -9], [16, 4, 9]));
+  const sourceShape = owners.own(bodyBoolean('add', base, owners.own(bodyBoolean('subtract', outer, core))));
+  const targetShape = owners.own(makeBox([20, -10, -14], [40, 10, -10]));
+  for (const entity of [false, true]) {
+    const setup = declarations(closedRectangle(12, 8, entity), thinWall, { key: '1,0', translation: [20, 0, 0] },
+      'linearPattern', [20, -10, -14], [40, 10, -10]);
+    const baseProfile = setup.features[0]; if (baseProfile.type !== 'sketch') throw Error('Expected original base profile');
+    baseProfile.offset = -14;
+    setup.features[3] = { id: 'effect', name: 'Original centered capped addition', type: 'extrude', suppressed: false,
+      sketchId: 'effect-profile', depth, symmetric: true, thinWall, bodyOperation: { mode: 'merge', target: source } };
+    const before = JSON.stringify(setup), solve = entity ? entitySource(setup.features, owners) : undefined;
+    const active = catalog([{ ref: postSource, shape: sourceShape, createdBy: source.sourceFeatureId }, { ref: target, shape: targetShape }], owners);
+    const evaluated = evaluateFeatureRecipes({ ...setup, catalog: active, ...(solve ? { sourceSketchSolves: solve.registry } : {}),
+      historicalStates: new Map([[exactStateKey(postSource), { ref: postSource, shape: sourceShape, lineage: 'original-centered-caps' }]]) });
+    owners.own({ delete: () => evaluated.dispose() });
+    expect(evaluated.replacements.map(value => value.ref)).toEqual([target]);
+    const shape = evaluated.replacements[0].shape;
+    metrics(shape, 3712, 3152, [20, -10, -14], [40, 10, 10]);
+    probe(shape, [30, 0, -9.5], true);
+    probe(shape, [30, 0, 0], false);
+    probe(shape, [30, 0, 9.5], true);
+    metrics(active.resolve(target).shape, 1600, 1120, [20, -10, -14], [40, 10, -10]);
+    metrics(active.resolve(postSource).shape, 3712, 3152, [0, -10, -14], [20, 10, 10]);
+    expect(JSON.stringify(setup)).toBe(before);
+  }
+}), 60_000);
+
 it.each(['entity', 'primitive'] as const)('does not hide active cap settings behind an ALL separated %s cut witness', kind => withNativeOwners(owners => {
   const profile: SketchFeature['profile'] = kind === 'entity' ? line() : { kind: 'rectangle', center: [5, 0], width: 4, height: 4 };
   const setup = declarations(profile, { kind: 'one-side', thickness: 1, reversed: false, endCaps: { enabled: true, thickness: 1 } },

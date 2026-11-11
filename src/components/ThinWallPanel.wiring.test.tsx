@@ -162,11 +162,12 @@ describe('shared wall wiring into production operation editors', () => {
     const witness = { id: sketch.id, lines: [], constructionLines: [], profileTopology: 'closed' as const, profileClosedSingle: true as const }
     const available = thinEndCapsAvailableByProfile(sketch.id, { featureErrors: [], sketches: [witness] }, true)
     expect(available).toBe(true)
-    const eligible = extrudeTree(blind, vi.fn(), { endCapsAvailable: available })
-    expect(wallSection(eligible).props.endCapsAvailable).toBe(true)
-    expect(renderToStaticMarkup(eligible)).toContain('aria-label="Tapas de extremos"')
+    for (const symmetric of [false, true]) {
+      const eligible = extrudeTree({ ...blind, symmetric }, vi.fn(), { endCapsAvailable: available })
+      expect(wallSection(eligible).props.endCapsAvailable).toBe(true)
+      expect(renderToStaticMarkup(eligible)).toContain('aria-label="Tapas de extremos"')
+    }
     const notEligible: ExtrudeFeature[] = [
-      { ...blind, symmetric: true },
       { ...blind, endCondition: { kind: 'throughAll', baseFeatureId: 'base', bothDirections: false } },
       { ...blind, endCondition: { kind: 'throughAll', baseFeatureId: 'base', bothDirections: true } },
       { ...blind, endCondition: { kind: 'untilNext', baseFeatureId: 'base' } },
@@ -234,7 +235,7 @@ describe('shared wall wiring into production operation editors', () => {
     expect(feature).toEqual(before)
   })
 
-  it('retains caps through a Blind/mid/Blind extent transition without silently disabling them', () => {
+  it('keeps caps available through a Blind/mid/Blind extent transition', () => {
     const capped: ThinWallDefinition = { ...wall, endCaps: { enabled: true, thickness: 1.5 } }
     const feature = { ...extrude, thinWall: capped }; delete feature.endCondition
     const before = structuredClone(feature)
@@ -243,7 +244,9 @@ describe('shared wall wiring into production operation editors', () => {
     expect(mid.symmetric).toBe(true)
     expect(mid.thinWall).toEqual(capped)
     const section = wallSection(extrudeTree(mid, vi.fn(), { endCapsAvailable: true }))
-    expect(section.props).toMatchObject({ endCapsAvailable: false, allowEndCapRecovery: true })
+    expect(section.props).toMatchObject({ endCapsAvailable: true, allowEndCapRecovery: true })
+    const both = { ...mid, secondDirection: { enabled: true, depth: 3 } }
+    expect(wallSection(extrudeTree(both, vi.fn(), { endCapsAvailable: true })).props.endCapsAvailable).toBe(false)
     const off = mergeThinWallEditorDraft(mid, { thinWall: { ...capped, endCaps: { enabled: false, thickness: 1.5 } } }, feature)
     const back = mergeThinWallEditorDraft(off, extrudeModePatch(off, 'blind', null, { kind: 'principal', plane: 'XY' })!, feature)
     expect(back.symmetric).toBe(false)

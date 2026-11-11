@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { layoutAssemblyOriginLabels, type AssemblyOriginLabelAnchor } from './assemblyOriginLabelLayout'
+import { assemblyOriginLabelLeader, layoutAssemblyOriginLabels, type AssemblyOriginLabelAnchor } from './assemblyOriginLabelLayout'
 
 // Original presentation fixtures; literal pixels, no geometry or native result oracle.
 const anchor = (key: string, x = 200, y = 150): AssemblyOriginLabelAnchor => ({ key, binding: `binding:${key}`, label: `Datum ${key}`, x, y })
@@ -54,6 +54,18 @@ it('aligns fractional label boxes to CSS pixels while retaining exact projected 
   const result = layoutAssemblyOriginLabels([entry], { width: 780, height: 542 })
   expect(result.labels).toEqual([{ ...entry, left: 543, top: 331, width: 170, height: 22 }])
   checkBoxes(result, 780, 542)
+})
+
+it.each([
+  [577.2, 119.9, 577.2, 119.9, 'hidden'],
+  [577.2, 120.1, 577.2, 120, 'hidden'],
+  [577.2, 120.5, 577.2, 120, 'hidden'],
+  [577.2, 120.6, 577.2, 120, undefined],
+  [491.6, 97.6, 492, 98, undefined],
+  [664, 125, 662, 120, undefined],
+] as const)('clamps the leader for (%s, %s) without moving its projected witness', (x1, y1, x2, y2, visibility) => {
+  const label = { ...anchor('root-x', x1, y1), left: 492, top: 98, width: 170, height: 22 }
+  expect(assemblyOriginLabelLeader(label)).toEqual({ x1, y1, x2, y2, visibility })
 })
 
 it('packs snapped coincident labels with the original gap and stable key order', () => {

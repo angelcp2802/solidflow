@@ -45,7 +45,8 @@ function close(actual: number, expected: number) { expect(Math.abs(actual - expe
 function vector(actual: readonly number[], expected: Vec3) {
   actual.forEach((value, index) => expect(Math.abs(value - expected[index])).toBeLessThan(1e-6));
 }
-async function verify(features: Feature[], volume: number, area: number, min: Vec3, max: Vec3, solidCount = 1) {
+async function verify(features: Feature[], volume: number, area: number, min: Vec3, max: Vec3, solidCount = 1,
+  axialPlanes?: readonly number[]) {
   const source = structuredClone(features), result = good(features);
   close(result.volume, volume); vector(result.bounds.min, min); vector(result.bounds.max, max);
   const shape = (await importSTEP(engine.export('step'))).asShape3D();
@@ -63,6 +64,14 @@ async function verify(features: Feature[], volume: number, area: number, min: Ve
     close(mass.Mass(), volume); close(surface.Mass(), area);
     vector([bounds.GetXMin(), bounds.GetYMin(), bounds.GetZMin()], min);
     vector([bounds.GetXMax(), bounds.GetYMax(), bounds.GetZMax()], max);
+    if (axialPlanes) {
+      const actual = owners.ownAll(shape.faces).filter(face => face.geomType === 'PLANE').flatMap(face => {
+        const normal = owners.own(face.normalAt());
+        return Math.abs(normal.z) > 1 - 1e-8 ? [owners.own(face.center).z] : [];
+      }).sort((left, right) => left - right);
+      expect(actual).toHaveLength(axialPlanes.length);
+      actual.forEach((plane, index) => expect(Math.abs(plane - axialPlanes[index])).toBeLessThan(1e-6));
+    }
   });
   expect(features).toEqual(source);
   return result;
@@ -83,6 +92,31 @@ describe('thin-wall material in the complete feature engine', () => {
       support: { kind: 'principal', plane: 'XY' }, offset: 3, reversed: false };
     await verify([support, { ...capProfile(), support: { kind: 'plane', planeId: support.id }, offset: 4 },
       extrusion({ depth: -20, thinWall: capped })], 2112, 2416, [-2, -2, -13], [14, 10, 7]);
+  });
+
+  it.each([20, -20])('caps one continuous axial mid-plane envelope at signed depth %s', async depth => {
+    const support: Feature = { id: 'cap-support', name: 'Original translated datum', type: 'plane', suppressed: false,
+      support: { kind: 'principal', plane: 'XY' }, offset: 3, reversed: false };
+    const features = [support, { ...capProfile(), support: { kind: 'plane' as const, planeId: support.id }, offset: 4 },
+      extrusion({ depth, symmetric: true, thinWall: capped, bodyOperation: { mode: 'new', bodyId: 'caps-body' } })];
+    const saved = parseDocument(serializeDocument({ ...createDocument('Original centered axial caps'), features }));
+    expect(saved.features).toEqual(features);
+    // 16×12 outer over Z−3…17, 12×8 void over Z−2…16. There is no end face at Z7.
+    const accepted = await verify(saved.features, 2112, 2416, [-2, -2, -3], [14, 10, 17], 1, [-3, -2, 16, 17]);
+    expect(accepted.bodies?.map(body => body.ref)).toEqual([{ bodyId: 'caps-body', sourceFeatureId: 'operation' }]);
+    const rejected = engine.build([...features.slice(0, -1),
+      extrusion({ depth, symmetric: true, thinWall: { ...capped, endCaps: { enabled: true, thickness: 10 } } })]);
+    expect(rejected.featureErrors).toMatchObject([{ id: 'operation', message: expect.stringMatching(/núcleo axial/) }]);
+    close(rejected.volume, 0);
+    const restored = await verify(saved.features, 2112, 2416, [-2, -2, -3], [14, 10, 17], 1, [-3, -2, 16, 17]);
+    expect(restored.bodies?.map(body => body.ref)).toEqual(accepted.bodies?.map(body => body.ref));
+  });
+
+  it('rejects an active second direction in a capped axial mid-plane', () => {
+    const result = engine.build([capProfile(), extrusion({ depth: 20, symmetric: true, thinWall: capped,
+      secondDirection: { enabled: true, depth: 3 } })]);
+    expect(result.featureErrors).toMatchObject([{ id: 'operation', message: expect.stringMatching(/desactiva el plano medio/) }]);
+    close(result.volume, 0);
   });
 
   it('solves the original constrained profile exactly once before making outer and core prisms', async () => {
@@ -114,13 +148,12 @@ describe('thin-wall material in the complete feature engine', () => {
     await verify(parseDocument(serializeDocument(history.current)).features, 1920, 2112, [-2, -2, 0], [14, 10, 20]);
   });
 
-  it.each(['cut', 'revolve', 'revolvedCut', 'symmetric', 'throughAll', 'untilNext', 'upToSurface'] as const)(
+  it.each(['cut', 'revolve', 'revolvedCut', 'throughAll', 'untilNext', 'upToSurface'] as const)(
     'rejects active axial caps for %s before constructing a provisional tool', kind => {
       let operation: Feature = extrusion({ depth: 20, thinWall: capped });
       if (kind === 'cut') operation = extrusion({ type: 'cut', depth: 20, thinWall: capped });
       else if (kind === 'revolve' || kind === 'revolvedCut') operation = { id: 'operation', name: 'Unsupported caps', type: kind,
         suppressed: false, sketchId: 'profile', angle: 360, thinWall: capped };
-      else if (kind === 'symmetric') operation.symmetric = true;
       else operation.endCondition = kind === 'upToSurface' ? { kind, target: { kind: 'principal', plane: 'XY' } }
         : kind === 'throughAll' ? { kind, baseFeatureId: 'base', bothDirections: false } : { kind, baseFeatureId: 'base' };
       const result = engine.build([...box(), capProfile(), operation]);

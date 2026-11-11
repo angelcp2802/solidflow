@@ -115,8 +115,7 @@ function explicitFramePrimitiveFactory(input: ExplicitFramePrimitiveInput): {
   if (!termination || typeof termination !== 'object') throw new Error('Primitive termination is required.');
   if (termination.kind === 'blind' && typeof termination.symmetric !== 'boolean') throw new Error('Blind symmetry must be explicit.');
   if (termination.kind === 'throughAll' && typeof termination.bothDirections !== 'boolean') throw new Error('ThroughAll direction scope must be explicit.');
-  assertThinWallEndCapsContext(thinWall?.definition, input.operation,
-    termination.kind === 'blind', termination.kind !== 'blind' || termination.symmetric !== false);
+  assertThinWallEndCapsContext(thinWall?.definition, input.operation, termination.kind === 'blind');
   const secondDirection = readSecondDirection(input);
   const span = resolveExtrusionSpan({ depth: signedDepth, symmetric: termination.kind === 'blind' && termination.symmetric,
     ...(termination.kind !== 'blind' ? { endCondition: termination } : {}),
@@ -259,7 +258,7 @@ export function resolveExplicitFrameDirections(input: ExplicitFramePrimitiveInpu
   }
   if (input.termination.kind === 'blind' && input.termination.symmetric
     || input.termination.kind === 'throughAll' && input.termination.bothDirections) throw Error('Cada dirección requiere su propio sentido, sin plano medio ni Por todo bilateral.');
-  assertThinWallEndCapsContext(resolveThinWall(input)?.definition, input.operation, false, false);
+  assertThinWallEndCapsContext(resolveThinWall(input)?.definition, input.operation, false);
   if (direction.endCondition && (!input.secondTermination || input.secondTermination.kind !== direction.endCondition.kind)
     || !direction.endCondition && input.secondTermination && input.secondTermination.kind !== 'blind') throw Error('Falta resolver exactamente el límite de la segunda dirección.');
   const { secondDirection: _direction, secondTermination: _second, ...first } = input;

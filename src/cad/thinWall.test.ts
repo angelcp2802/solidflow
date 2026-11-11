@@ -62,10 +62,10 @@ describe('strict thin-wall declarations and abstract offsets', () => {
   it('requires the exact active-cap operation context while retaining inactive records', () => {
     const active = { ...definitions[0], endCaps: { enabled: true, thickness: 1 } };
     const inactive = { ...active, endCaps: { enabled: false, thickness: 1 } };
-    expect(() => assertThinWallEndCapsContext(active, 'add', true, false)).not.toThrow();
-    for (const context of [['subtract', true, false], ['add', false, false], ['add', true, true]] as const) {
-      expect(() => assertThinWallEndCapsContext(active, context[0], context[1], context[2])).toThrow(/aditiva ciega/);
-      expect(() => assertThinWallEndCapsContext(inactive, context[0], context[1], context[2])).not.toThrow();
+    expect(() => assertThinWallEndCapsContext(active, 'add', true)).not.toThrow();
+    for (const context of [['subtract', true], ['add', false]] as const) {
+      expect(() => assertThinWallEndCapsContext(active, context[0], context[1])).toThrow(/aditiva ciega/);
+      expect(() => assertThinWallEndCapsContext(inactive, context[0], context[1])).not.toThrow();
     }
   });
 

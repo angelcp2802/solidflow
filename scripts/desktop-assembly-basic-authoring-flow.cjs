@@ -140,21 +140,28 @@ module.exports = function basicAuthoringWorkflow(context) {
       undo: document.querySelector('[aria-label="Deshacer ensamblaje"]')?.disabled, redo: document.querySelector('[aria-label="Rehacer ensamblaje"]')?.disabled,
       apply: document.querySelector('[aria-label="Aplicar ensamblaje"]')?.disabled, title: document.querySelector('.assembly-shell-document > strong')?.textContent }));
   }
-  function graph(doc, count) {
+  function graph(doc, count, hiddenId = null, suppressedId = null) {
     check(doc.version === 2 && doc.kind === 'assembly' && doc.id === rootIdentity && doc.units === 'mm' && doc.occurrences.length === count, 'Created parent identity and exact occurrence count');
     check(doc.definitions.length === (count ? 1 : 0), 'One original definition reused without duplication');
     if (count) {
       const d = doc.definitions[0]; check(d.kind === 'part' && canonical(d.document) === canonical(part) && canonical({ id: d.id, revision: d.revision }) === canonical(definition), 'Imported source bytes and current tuple retained');
-      check(new Set(doc.occurrences.map(o => o.id)).size === count && doc.occurrences.every(o => canonical(o.definition) === canonical(definition) && o.visible && !o.suppressed), 'Distinct visible exact-tuple uses');
+      check(new Set(doc.occurrences.map(o => o.id)).size === count && doc.occurrences.every(o =>
+        canonical(o.definition) === canonical(definition) && o.visible === (o.id !== hiddenId)
+          && o.suppressed === (o.id === suppressedId)), 'Distinct exact-tuple uses with expected visibility and suppression');
     }
   }
-  function geometry(scene, doc, count, phase, baseFixed = true) {
-    graph(doc, count);
-    check(scene.kind === 'assembly-scene' && scene.solidCount === count && scene.bodies.length === count && scene.prototypeCount === (count ? 1 : 0) && !scene.warnings.length, 'Exact independent prism counts');
-    near(scene.volume, 24 * count, 1e-5, 'Original total volume'); near(scene.area, 52 * count, 1e-5, 'Original total area');
+  function geometry(scene, doc, count, phase, baseFixed = true, hiddenId = null, suppressedId = null) {
+    graph(doc, count, hiddenId, suppressedId);
+    const activeCount = count - Number(suppressedId !== null);
+    check(scene.kind === 'assembly-scene' && scene.solidCount === activeCount && scene.bodies.length === activeCount && scene.prototypeCount === (activeCount ? 1 : 0) && !scene.warnings.length, 'Exact independent prism counts');
+    near(scene.volume, 24 * activeCount, 1e-5, 'Original total volume'); near(scene.area, 52 * activeCount, 1e-5, 'Original total area');
     for (const o of doc.occurrences) {
       const rows = scene.bodies.filter(b => canonical(b.component) === canonical({ occurrencePath: [o.id], definition }));
-      check(rows.length === 1 && rows[0].solidCount === 1, 'Unique current occurrence native body'); const b = rows[0];
+      if (o.suppressed) {
+        check(rows.length === 0, 'Suppressed exact occurrence has no native body');
+        continue;
+      }
+      check(rows.length === 1 && rows[0].solidCount === 1 && rows[0].visible === o.visible, 'Unique current occurrence native body with matching visibility'); const b = rows[0];
       near(b.volume, 24, 1e-5, 'Original member volume'); near(b.area, 52, 1e-5, 'Original member area');
       vector(b.worldPose.translation, o.pose.translation, 1e-6, 'Native occurrence placement');
       const vertices = [0, 3].flatMap(x => [0, 2].flatMap(y => [0, 4].map(z => rotate(o.pose.rotation, [x, y, z]).map((v, i) => v + o.pose.translation[i]))));
@@ -162,7 +169,7 @@ module.exports = function basicAuthoringWorkflow(context) {
       vector(b.bounds.max, [0, 1, 2].map(i => Math.max(...vertices.map(v => v[i]))), 1e-6, 'Eight original vertices upper bounds');
     }
     if (owners.base && baselinePoses.base) check(canonical(occurrence(doc, owners.base).pose) === canonical(baselinePoses.base) && occurrence(doc, owners.base).fixed === baseFixed, 'Base retains its exact pose and explicitly expected fixed state');
-    phases.push({ phase, solids: count, volume: scene.volume, area: scene.area, documentSha256: digest(canonical(doc)), mates: doc.mates.map(m => ({ id: m.id, name: m.name, type: m.type })) });
+    phases.push({ phase, solids: activeCount, volume: scene.volume, area: scene.area, documentSha256: digest(canonical(doc)), mates: doc.mates.map(m => ({ id: m.id, name: m.name, type: m.type })) });
   }
   function relationGeometry(doc, expectedDistance, expectedAlignment = 'aligned', expectedAngle = null) {
     const plane = doc.mates.find(m => m.type === 'distance'), direction = doc.mates.find(m => m.name.startsWith('Follower to base'));
@@ -421,18 +428,165 @@ module.exports = function basicAuthoringWorkflow(context) {
     Object.assign(contextEvidence, { keyboard, point: target.point, counters: await observe.counters(), documentSha256: digest(canonical(doc)) });
     await actual('.assembly-view-tools button[title="Frontal"]');
     await page(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-    const componentPoint = await page(() => {
-      const r = document.querySelector('.assembly-viewport > canvas').getBoundingClientRect();
-      // Three original 3x2x4 prisms at X=0,8,16: envelope [0,0,0]..[19,2,4].
-      // Frontal screen right=X/up=Y; target the last prism's top-face center.
-      const pixels = r.height / (1.3 * Math.hypot(19, 2, 4));
-      return { x: r.left + r.width / 2 + 8 * pixels, y: r.top + r.height / 2 };
-    });
+    const componentPoint = await frontalPrismPoint(8);
     await require('./desktop-assembly-context-gesture.cjs')({ page, pointer, menuKey, waitFor, check, checks, canonical, observe },
       { kind: 'standard', point: componentPoint, heading: occurrence(doc, owners.follower).name });
     checkContextUnchanged(baseline, await contextReadOnlyState(), 'Assembly context gesture audit preserves full native history and relation roles');
     await viewportMoveAction(doc, selectedId, componentPoint);
+    await viewportVisibilityActions(doc);
+    await viewportSuppressionActions(doc, selectedId);
     await select(selectedId);
+  }
+  function frontalPrismPoint(offset) {
+    return page(offset => {
+      const r = document.querySelector('.assembly-viewport > canvas').getBoundingClientRect();
+      // Three original 3x2x4 prisms at X=0,8,16: envelope [0,0,0]..[19,2,4].
+      // Frontal screen right=X/up=Y. Project a prism's top-face center.
+      const pixels = r.height / (1.3 * Math.hypot(19, 2, 4));
+      return { x: r.left + r.width / 2 + offset * pixels, y: r.top + r.height / 2 };
+    }, offset);
+  }
+  async function viewportVisibilityActions(doc) {
+    const id = owners.guide, selector = tree(id), path = JSON.stringify([id]);
+    const name = occurrence(doc, id).name, viewport = '.assembly-viewport';
+    const originalIpc = canonical(ipc), inputHash = digest(await fs.readFile(input));
+    const visibleAction = contextAction('component-visible');
+    await select(owners.base);
+    await actual('.assembly-view-tools button[title="Frontal"]');
+    await page(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    const point = await frontalPrismPoint(0);
+    async function rightRelease() {
+      await pointer('mouseMoved', point);
+      check(await page((point, viewport) => document.elementFromPoint(point.x, point.y) === document.querySelector(viewport + ' > canvas'), point, viewport),
+        'Independently projected Guide point hits the current canvas');
+      await pointer('mousePressed', point, 2); await pointer('mouseReleased', point, 2);
+      return waitFor('focused context after Guide right release', contextMenuState);
+    }
+    async function visibilityEdit(source, visible, menu) {
+      const action = menu.actions.find(action => action.id === 'component-visible');
+      check(menu.target === name && (await uiState()).selected === path && action?.label === (visible ? 'Mostrar' : 'Ocultar') && !action.disabled,
+        'Context visibility action belongs to the exact Guide occurrence');
+      const before = await serial(); await actual(visibleAction);
+      const row = await response(before, 'build-assembly'), expected = structuredClone(source);
+      occurrence(expected, id).visible = visible; expected.updatedAt = row.document.updatedAt;
+      check(canonical(row.document) === canonical(expected), 'Only Guide visibility and document timestamp change');
+      geometry(row.response.value, row.document, 3, visible ? 'viewport-context-show-guide' : 'viewport-context-hide-guide', true, visible ? null : id);
+      vector(row.response.value.visibleBounds?.min, [0, 0, 0], 1e-6, 'Visible outer prisms retain the original lower envelope');
+      vector(row.response.value.visibleBounds?.max, [19, 2, 4], 1e-6, 'Visible outer prisms retain the original upper envelope');
+      await recovery(row.document);
+      check(await serial() === before + 1, 'One direct native rebuild for the context visibility edit');
+      return row.document;
+    }
+    const hide = await rightRelease();
+    const hidden = await visibilityEdit(doc, false, hide), hiddenState = await contextReadOnlyState();
+    const background = await rightRelease();
+    check(!background.actions.some(action => action.id.startsWith('component-')) && (await uiState()).selected === path,
+      'The vacated Guide position has only background commands and does not retarget selection');
+    await menuKey('Escape');
+    await waitFor('vacated viewport Escape restores focus', () => page(viewport =>
+      !document.querySelector('.cad-context-menu') && document.activeElement === document.querySelector(viewport), viewport));
+    checkContextUnchanged(hiddenState, await contextReadOnlyState(), 'Vacated viewport context and Escape preserve the hidden document and history');
+
+    await select(id); await menuKey('ContextMenu');
+    const show = await waitFor('hidden Guide has its own tree context', contextMenuState);
+    const shown = await visibilityEdit(hidden, true, show);
+    for (const [command, expected, phase] of [
+      ['Deshacer ensamblaje', hidden, 'undo-show'], ['Rehacer ensamblaje', shown, 'redo-show'],
+      ['Deshacer ensamblaje', hidden, 'rollback-show'], ['Deshacer ensamblaje', doc, 'rollback-hide'],
+    ]) {
+      const before = await serial(); await actual('button' + attr('aria-label', command));
+      const row = await response(before, 'build-assembly');
+      check(canonical(row.document) === canonical(expected), 'One visibility history step restores the exact document for ' + phase);
+      geometry(row.response.value, row.document, 3, 'viewport-context-visibility-' + phase, true, expected === hidden ? id : null);
+      await recovery(expected);
+    }
+    check(canonical(ipc) === originalIpc && digest(await fs.readFile(input)) === inputHash,
+      'Visibility commands and history preserve file activity and the original source bytes');
+    checks.push({ standardViewportVisibilityContext: { point, target: { occurrencePath: [id], definition }, hide, show,
+      vacatedTarget: background.target, hiddenSha256: digest(canonical(hidden)), shownSha256: digest(canonical(shown)),
+      rollbackSha256: digest(canonical(doc)), geometryRetained: true, undoRedo: true } });
+  }
+  async function viewportSuppressionActions(doc, id) {
+    const target = occurrence(doc, id), selector = tree(id), path = JSON.stringify([id]);
+    const actionId = 'component-suppressed', actionSelector = contextAction(actionId);
+    const inputHash = digest(await fs.readFile(input)), originalIpc = canonical(ipc);
+    const viewport = '.assembly-viewport';
+    await actual('.assembly-view-tools button[title="Frontal"]');
+    await page(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    const point = await frontalPrismPoint(8);
+    check(target.pose.translation[0] === 16 && !target.fixed && !target.suppressed && target.visible,
+      'Original floating Seguidor at X16 is the visible suppress target');
+    const witness = { point, target: { occurrencePath: [id], definition }, attempts: [] };
+    checks.push({ standardViewportSuppressionContext: witness });
+    async function openSuppress() {
+      await select(owners.base);
+      check((await uiState()).selected === JSON.stringify([owners.base]), 'Base is selected before the viewport right release');
+      await pointer('mouseMoved', point);
+      check(canonical(await frontalPrismPoint(8)) === canonical(point) && await page((point, viewport) =>
+        document.elementFromPoint(point.x, point.y) === document.querySelector(viewport + ' > canvas'), point, viewport),
+      'Independently projected Seguidor point remains stationary and hits the current canvas');
+      await pointer('mousePressed', point, 2); await pointer('mouseReleased', point, 2);
+      return waitFor('viewport right release selects Seguidor and focuses its context', async () => {
+        const menu = await contextMenuState();
+        return menu && (await uiState()).selected === path ? menu : false;
+      });
+    }
+    function checkMenu(menu, label) {
+      const action = menu.actions.find(row => row.id === actionId);
+      check(menu.target === target.name && canonical(menu.actions.map(row => row.id)) === canonical(componentContextActions)
+        && action?.label === label && !action.disabled
+        && menu.actions.find(row => row.id === 'component-move').disabled === (label === 'Activar'),
+      label + ' is enabled for the exact Seguidor context and Move matches its active state');
+    }
+    async function checkScene(before, expected, suppressed, phase) {
+      const row = await response(before, 'build-assembly');
+      const next = row.document;
+      check(canonical(next) === canonical(expected ?? { ...doc, updatedAt: next.updatedAt,
+        occurrences: doc.occurrences.map(component => component.id === id ? { ...component, suppressed } : component) }),
+      'Only Seguidor suppression and the timestamp change on activation, or exact document restored by history: ' + phase);
+      geometry(row.response.value, next, 3, phase, true, null, suppressed ? id : null);
+      vector(row.response.value.visibleBounds?.min, [0, 0, 0], 1e-6, 'Original visible lower envelope');
+      vector(row.response.value.visibleBounds?.max, [suppressed ? 11 : 19, 2, 4], 1e-6, 'Suppression changes the visible envelope to the active original prisms');
+      await recovery(next);
+      await waitFor('context is closed and the exact Seguidor tree state is current', () => page((selector, suppressed) => {
+        const item = document.querySelector(selector);
+        return !!item && item.classList.contains('suppressed') === suppressed && !document.querySelector('.cad-context-menu');
+      }, selector, suppressed));
+      check(await serial() === before + 1, 'Suppression command or history uses exactly one native rebuild: ' + phase);
+      witness.attempts.push({ phase, documentSha256: digest(canonical(next)), suppressed, nativeBodies: row.response.value.bodies.length });
+      return next;
+    }
+    const baseline = await contextReadOnlyState(), canceled = await openSuppress();
+    checkMenu(canceled, 'Suprimir');
+    await menuKey('Escape');
+    await waitFor('Escape returns focus to the viewport without an action', () => page((viewport, selector) =>
+      !document.querySelector('.cad-context-menu') && document.activeElement === document.querySelector(viewport)
+        && document.querySelector(selector)?.getAttribute('aria-selected') === 'true', viewport, selector));
+    checkContextUnchanged(baseline, await contextReadOnlyState(), 'Opening Suprimir and pressing Escape preserve the full document and native history');
+    witness.suppress = await openSuppress(); checkMenu(witness.suppress, 'Suprimir');
+    let before = await serial(); await actual(actionSelector);
+    const inactive = await checkScene(before, null, true, 'viewport-context-suppress-follower');
+
+    await select(id);
+    check(await page(selector => document.activeElement === document.querySelector(selector), selector), 'Suppressed Seguidor tree row owns keyboard focus');
+    await menuKey('ContextMenu');
+    witness.activate = await waitFor('keyboard opens suppressed Seguidor tree context', contextMenuState);
+    checkMenu(witness.activate, 'Activar');
+    await menuKey('End');
+    await waitFor('End focuses the enabled Activar command', () => page(selector =>
+      document.activeElement === document.querySelector(selector) && !document.activeElement.disabled, actionSelector));
+    before = await serial(); await menuKey('Enter');
+    const active = await checkScene(before, null, false, 'tree-context-activate-follower');
+    for (const [command, expected, suppressed, phase] of [
+      ['Deshacer ensamblaje', inactive, true, 'undo-activate'], ['Rehacer ensamblaje', active, false, 'redo-activate'],
+      ['Deshacer ensamblaje', inactive, true, 'rollback-activate'], ['Deshacer ensamblaje', doc, false, 'rollback-suppress'],
+    ]) {
+      before = await serial(); await actual('button' + attr('aria-label', command));
+      await checkScene(before, expected, suppressed, 'viewport-context-suppression-' + phase);
+    }
+    check(canonical(ipc) === originalIpc && digest(await fs.readFile(input)) === inputHash,
+      'Suppress, Activate and history preserve file activity and original source bytes');
+    witness.activationKeys = ['ContextMenu', 'End', 'Enter'];
   }
   async function viewportMoveAction(doc, id, point) {
     const target = occurrence(doc, id), path = JSON.stringify([id]);
@@ -755,9 +909,9 @@ module.exports = function basicAuthoringWorkflow(context) {
       geometry: 'Existing independent datum directions, three native prisms, transformed bounds and preserved fixed occurrence; no unique free-pose claim' } });
     return current;
   }
-  async function previewMove(doc, id, x) {
+  async function previewMove(doc, id, x, activate = () => actual('[aria-label="Vista previa del movimiento"]')) {
     await control('[aria-label="Destino local X del componente"]', String(x));
-    const before = await serial(); await actual('[aria-label="Vista previa del movimiento"]'); const event = await response(before, 'move-assembly-component-motion'), value = event.response.value;
+    const before = await serial(); await activate(); const event = await response(before, 'move-assembly-component-motion'), value = event.response.value;
     check(canonical(event.current) === canonical(doc) && value.status === 'ready' && value.hasToken && value.checks.every(c => c.satisfied), 'Actual movement verified against committed document');
     check(canonical(event.motion.component) === canonical({ occurrencePath: [id], definition }) && event.motion.rotation.angle === 0,
       'Numeric move targets only the selected occurrence with zero requested rotation');
@@ -773,6 +927,85 @@ module.exports = function basicAuthoringWorkflow(context) {
   }
   async function move(doc, id, x, expectedCount) {
     return apply(await previewMove(doc, id, x), 'move-' + x, expectedCount);
+  }
+  async function overlapKeyboardMove(doc, guideId, destination, count) {
+    const baseId = owners.base, base = occurrence(doc, baseId), guide = occurrence(doc, guideId);
+    const baseRow = tree(baseId), guideRow = tree(guideId);
+    const files = () => canonical({ ipc, dialogs: dialogCounts() });
+    const focused = selector => waitFor('actual keyboard focus on ' + selector, () => page(selector => {
+      const item = document.querySelector(selector);
+      return !!item && item === document.activeElement && !item.disabled && item.checkVisibility();
+    }, selector));
+    check(count === 2 && base.fixed && !guide.fixed && base.visible && guide.visible
+      && canonical(base.pose) === canonical(guide.pose) && canonical(base.definition) === canonical(guide.definition),
+    'Base and Guía are distinct visible occurrences of one definition at the exact same pose');
+    await select(baseId);
+    await actual('.assembly-view-tools button[title="Frontal"]');
+    await actual('.assembly-view-tools button[title="Ajustar"]');
+    const before = await contextReadOnlyState(), beforeFiles = files();
+    const canvasPoint = () => page(() => {
+      const canvas = document.querySelector('.assembly-viewport > canvas'), r = canvas?.getBoundingClientRect();
+      if (!r || r.width < 40 || r.height < 40) return false;
+      // Frontal and Fit centre the original [0,0,0]..[3,2,4] envelope.
+      // The viewport centre passes through the interior of both top faces.
+      const point = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      return document.elementFromPoint(point.x, point.y) === canvas ? point : false;
+    });
+    async function centreContext() {
+      const point = await waitFor('viewport centre hits the current assembly canvas', canvasPoint);
+      await pointer('mouseMoved', point);
+      check(canonical(await canvasPoint()) === canonical(point), 'Canvas centre stays hit-tested through the pointer move');
+      await pointer('mousePressed', point, 2); await pointer('mouseReleased', point, 2);
+      const menu = await waitFor('actual context menu at assembly centre', contextMenuState);
+      return { point, menu };
+    }
+    const coincident = await centreContext();
+    check(coincident.menu.target === 'Vista del ensamblaje'
+      && !coincident.menu.actions.some(action => action.id.startsWith('component-'))
+      && (await uiState()).selected === JSON.stringify([baseId]), 'Coincident viewport hit never guesses a component or changes the current tree selection');
+    await menuKey('Escape'); await focused('.assembly-viewport');
+    checkContextUnchanged(before, await contextReadOnlyState(), 'Ambiguous canvas context preserves document, history and all native observations');
+
+    await actual(baseRow); await focused(baseRow);
+    await menuKey('End'); await focused(guideRow);
+    check((await uiState()).selected === JSON.stringify([baseId]), 'Tree End moves focus without selecting Guía');
+    await menuKey('Enter'); await focused(guideRow);
+    check((await uiState()).selected === JSON.stringify([guideId]), 'Tree Enter selects the exact coincident Guía occurrence');
+    await menuKey('ContextMenu');
+    const keyboardMenu = await waitFor('keyboard opens the exact Guía context', contextMenuState);
+    check(keyboardMenu.target === guide.name && keyboardMenu.actions.some(action => action.id === 'component-move' && !action.disabled),
+      'Guía context exposes its live free-occurrence Move command');
+    await focused(contextAction('component-properties'));
+    await menuKey('ArrowDown'); await focused(contextAction('component-edit-part'));
+    await menuKey('ArrowDown'); await focused(contextAction('component-move'));
+    await menuKey('Enter');
+    const heading = '#assembly-panel-properties:not([hidden]) .assembly-movement h3';
+    await focused(heading);
+    check(await page((selector, name) => document.querySelector(selector)?.textContent === 'Mover ' + name, heading, guide.name)
+      && (await uiState()).selected === JSON.stringify([guideId]), 'Keyboard Move focuses the exact Guía movement editor');
+    checkContextUnchanged(before, await contextReadOnlyState(), 'Keyboard selection and Move reveal preserve current CAD, history and native work');
+    await menuKey('Tab'); await focused('[aria-label="Destino local X del componente"]');
+    const proposed = await previewMove(doc, guideId, destination, async () => {
+      for (const label of ['Destino local Y del componente', 'Destino local Z del componente', 'Eje local del movimiento',
+        'Giro local del movimiento en grados', 'Vista previa del movimiento']) {
+        await menuKey('Tab'); await focused('[aria-label=' + JSON.stringify(label) + ']');
+      }
+      await menuKey('Enter');
+    });
+    const moved = await apply(proposed, 'move-' + destination, count);
+    const movedState = await contextReadOnlyState();
+    const separated = await centreContext();
+    check(separated.menu.target === base.name && (await uiState()).selected === JSON.stringify([baseId]),
+      'After Guía moves away, the viewport centre reaches the original fixed Base');
+    await menuKey('Escape'); await focused('.assembly-viewport');
+    await select(guideId);
+    checkContextUnchanged(movedState, await contextReadOnlyState(), 'Separated canvas context preserves the verified movement and all native observations');
+    check(files() === beforeFiles && canonical(occurrence(moved, baseId)) === canonical(base),
+      'Keyboard Move changes only the exact floating Guía and uses no file operation');
+    checks.push({ assemblyOverlapKeyboardMove: { coincident, separated, selectedPath: [guideId], definition,
+      destination, keyboard: { tree: ['End', 'Enter', 'ContextMenu'], menu: ['ArrowDown', 'ArrowDown', 'Enter'], previewTabPresses: 6, previewActivation: 'Enter' },
+      limits: 'Exact original coincident prisms in a hidden renderer. Actual CDP context, selection, Move and preview keys; visible numeric setter and pointer Apply.' } });
+    return moved;
   }
   async function origin(slot, kind, id, value, doc) {
     if (id) await select(id);
@@ -936,8 +1169,10 @@ module.exports = function basicAuthoringWorkflow(context) {
       check(current.occurrences.every(old => canonical(occurrence(event.document, old.id)) === canonical(old)), 'Reuse preserves every prior occurrence');
       owners[role] = added[0].id; current = event.document; geometry(event.response.value, current, count, 'reuse-' + role); await recovery(current); await insertedSelection(current, owners[role], role);
       current = await rename(current, owners[role], name);
-      if (role === 'guide') current = await componentContextWorkflow(current, owners.guide);
-      current = await move(current, owners[role], x, count);
+      if (role === 'guide') {
+        current = await componentContextWorkflow(current, owners.guide);
+        current = await overlapKeyboardMove(current, owners.guide, x, count);
+      } else current = await move(current, owners[role], x, count);
     }
     // Explicitly frame all three placed parts. Movement preserves the user's
     // camera, so the first imported part's framing need not contain root datums

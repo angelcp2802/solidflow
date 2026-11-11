@@ -157,15 +157,22 @@ module.exports = function freshSketchWorkflow(c) {
     'Escape closes only the armed sketch support picker and preserves the exact sketch, tool, selection and history');
     await press('button.command[title="Rectángulo"]');
   }
-  async function built(after, count, volume, area, height, phase) {
+  async function built(after, count, volume, area, height, phase, exactFeatures) {
+    const expectedFeatures = exactFeatures && canonical(exactFeatures);
     const row = await waitFor('native fresh sketch ' + phase, async () => {
       const s = await observe(); check(!s.workerErrors.length, 'Healthy production worker transport');
-      return s.builds.filter(r => r.serial > after && r.features.length === count && r.features[0]?.id === 'fresh-base-profile' && r.response?.ok
-        && r.response.value.featureErrors.length === 0 && r.response.value.bodies?.length === 1
-        && Math.abs(r.response.value.bodies[0].volume - volume) <= 1e-5).at(-1);
+      return s.builds.filter(r => {
+        if (r.serial <= after || r.features.length !== count || r.features[0]?.id !== 'fresh-base-profile' || !r.response) return false;
+        if (expectedFeatures) return canonical(r.features) === expectedFeatures;
+        return r.response.ok && r.response.value.featureErrors.length === 0 && r.response.value.bodies?.length === 1
+          && Math.abs(r.response.value.bodies[0].volume - volume) <= 1e-5;
+      }).at(-1);
     });
-    const result = row.response.value, body = result.bodies[0];
-    check(result.bodyCatalogActive && !result.featureErrors.length && !result.warnings.length && body.ref.bodyId === 'fresh-body', 'One healthy explicit original body');
+    check(row.response.ok, 'Native ' + phase + ' failed: ' + row.response.error);
+    const result = row.response.value, body = result.bodies?.[0];
+    check(result.bodyCatalogActive && !result.featureErrors.length && !result.warnings.length
+      && result.bodies?.length === 1 && body?.ref.bodyId === 'fresh-body',
+    'One healthy explicit original body in ' + phase + ': ' + canonical({ errors: result.featureErrors, warnings: result.warnings }));
     near(body.volume, volume, 1e-5, 'Literal volume'); near(body.meshAreaMm2, area, 1e-4, 'Independent planar mesh area');
     for (let i = 0; i < 3; i++) { near(body.bounds.min[i], [-10,-6,0][i], 1e-6, 'Literal minimum'); near(body.bounds.max[i], [10,6,height][i], 1e-6, 'Literal maximum'); }
     records.push({ phase, serial: row.serial, volume: body.volume, meshAreaMm2: body.meshAreaMm2, bounds: body.bounds }); return row;
@@ -314,6 +321,108 @@ module.exports = function freshSketchWorkflow(c) {
     const targets=type==='cut'?feature.bodyScope:[feature.bodyOperation?.target];
     check((type==='cut'||feature.bodyOperation?.mode==='merge') && targets?.length===1 && targets[0]?.bodyId==='fresh-body' && targets[0]?.sourceFeatureId===sourceFeatureId,'Automatic sole current body target persisted without test correction'); return row;
   }
+  async function pressChainControl(selector) {
+    await page(selector => {
+      const rows = document.querySelectorAll(selector);
+      if (rows.length !== 1) throw Error('One exact earlier operation control required: ' + selector);
+      rows[0].scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
+    }, selector);
+    await page(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    const hit = () => page(selector => {
+      const rows = document.querySelectorAll(selector), element = rows[0], rect = element?.getBoundingClientRect();
+      if (rows.length !== 1 || !rect?.width || !rect.height || element.disabled) return null;
+      const x = rect.left + rect.width / 2, y = rect.top + rect.height / 2;
+      return element.contains(document.elementFromPoint(x, y)) ? { x, y } : null;
+    }, selector);
+    const point = await waitFor('actual earlier operation control ' + selector, hit);
+    await pointer('mouseMoved', point);
+    check(canonical(await hit()) === canonical(point), 'Earlier operation control stays current and hit-tested');
+    await pointer('mousePressed', point, 1); await pointer('mouseReleased', point, 0);
+  }
+  async function earlierBossLifecycle(saved, savedBytes, baseline, bossId, cutSketchId) {
+    const [bossIndex, cutSketchIndex] = [bossId, cutSketchId].map(id => saved.features.findIndex(feature => feature.id === id));
+    const boss = saved.features[bossIndex], cutSketch = saved.features[cutSketchIndex], cut = saved.features.at(-1);
+    check(bossIndex === 3 && cutSketchIndex === 4 && boss.type === 'extrude' && boss.depth === 3
+      && cutSketch.support?.kind === 'face' && cutSketch.support.face.sourceFeatureId === boss.id
+      && cut.type === 'cut' && cut.sketchId === cutSketch.id && cut.depth === -3
+      && canonical(cut.bodyScope) === canonical([{ bodyId: 'fresh-body', sourceFeatureId: boss.id }]),
+    'Original solid and both downstream references identify the exact earlier boss');
+    const changedFeatures = saved.features.map(feature => feature.id === boss.id ? { ...feature, depth: 5 } : feature);
+    const recovery = () => page(() => localStorage.getItem('solidflow.autosave'));
+    const originalRecovery = await recovery();
+    const evidence = { earlierBoss: boss.id, support: cutSketch.support.face, cut: cut.id, observations: [] };
+    checks.push({ earlierBossFaceChain: evidence });
+    function chainGeometry(row, top, floor, phase) {
+      const result = row.response.value, body = result.bodies[0];
+      check(body.ref.sourceFeatureId === cut.id && body.createdByFeatureId === 'fresh-base', 'The final cut retains the exact original material owner');
+      const sketch = result.sketches?.find(value => value.id === cutSketch.id);
+      check(sketch?.frame && sketch.profileClosedSingle === true, 'Current downstream sketch has its resolved closed profile and frame');
+      near(sketch.frame.origin[2], top, 1e-6, 'Downstream support follows the boss top');
+      near(sketch.frame.normal[2], 1, 1e-8, 'Downstream support retains the positive Z orientation');
+      const corners = [[-1,-1],[-1,1],[1,1],[1,-1]];
+      const floorEdges = corners.map(([x,y], index) => {
+        const [nextX,nextY] = corners[(index+1)%corners.length];
+        const first = [x,y,floor], second = [nextX,nextY,floor];
+        const nearPoint = (actual, target) => target.every((value, axis) => Math.abs(actual[axis] - value) <= 1e-6);
+        const candidates = body.edges.filter(edge => {
+          if (edge.ref.sourceFeatureId !== cut.id || edge.lines.length !== 6) return false;
+          const a = edge.lines.slice(0,3), b = edge.lines.slice(3);
+          return nearPoint(a,first) && nearPoint(b,second) || nearPoint(a,second) && nearPoint(b,first);
+        });
+        check(candidates.length === 1, 'One current cut-floor boundary at ' + canonical([first,second]));
+        return candidates[0].ref;
+      });
+      check(new Set(floorEdges.map(edge => edge.key)).size === 4, 'The actual pocket floor has four distinct material edges');
+      evidence.observations.push({ phase, serial: row.serial, sketchFrame: sketch.frame, floor, floorEdges });
+    }
+    function rebuilt(after, edited, phase) {
+      return edited
+        ? built(after, 6, 1028, 840, 9, phase, changedFeatures)
+        : built(after, 6, 996, 808, 7, phase, saved.features);
+    }
+    async function draft() {
+      await pressChainControl('.tree-row[data-feature-id="' + boss.id + '"]:not([data-parent-feature-id])');
+      await pressChainControl('.selection-tools button[title="Editar operación"]');
+      await waitFor('the exact existing earlier boss owns the parameter editor', () => page(id => {
+        const sketch = document.querySelector('select[aria-label="Croquis de la operación"]');
+        const depth = document.querySelector('input[aria-label="Profundidad"]');
+        return sketch?.value === id && depth?.value === '3' && !depth.disabled;
+      }, boss.sketchId));
+      const serial = (await observe()).serial; await changeDepth(5);
+      const prefix = await built(serial, 4, 1040, 816, 9, 'earlier-boss-prefix-preview', changedFeatures.slice(0,4));
+      check(prefix.response.value.bodies[0].ref.sourceFeatureId === boss.id, 'The earlier edit preview rolls back to that boss');
+      await ready();
+      check(await recovery() === originalRecovery && (await fs.readFile(output)).equals(savedBytes),
+        'The staged earlier edit preserves committed recovery and saved bytes');
+    }
+    chainGeometry(baseline, 7, 4, 'saved-baseline');
+    await draft();
+    let serial = (await observe()).serial; await pressChainControl('button[title="Cancelar operación"]');
+    chainGeometry(await rebuilt(serial, false, 'cancel-earlier-boss'), 7, 4, 'cancel');
+    check(await recovery() === originalRecovery && (await fs.readFile(output)).equals(savedBytes),
+      'Cancel preserves the exact saved chain and recovery');
+    await draft();
+    serial = (await observe()).serial; await pressChainControl(APPLY);
+    chainGeometry(await rebuilt(serial, true, 'apply-earlier-boss'), 9, 6, 'apply');
+    serial = (await observe()).serial; await pressChainControl('button[title="Deshacer (Ctrl+Z)"]');
+    chainGeometry(await rebuilt(serial, false, 'undo-earlier-boss'), 7, 4, 'undo');
+    serial = (await observe()).serial; await pressChainControl('button[title="Rehacer (Ctrl+Y)"]');
+    chainGeometry(await rebuilt(serial, true, 'redo-earlier-boss'), 9, 6, 'redo');
+    check((await fs.readFile(output)).equals(savedBytes), 'Apply and history leave disk unchanged until Save');
+    await pressChainControl('button[title="Guardar (Ctrl+S)"]');
+    await waitFor('updated earlier-boss save completes', async () => ipc.filter(event => event.channel === 'document:save' && event.completed).length === 2
+      && await page(() => !document.querySelector('.document-title')?.textContent.includes('*')));
+    const editedBytes = await fs.readFile(output), edited = JSON.parse(editedBytes);
+    check(canonical(edited) === canonical({ ...saved, updatedAt: edited.updatedAt, features: changedFeatures })
+      && !editedBytes.equals(savedBytes), 'Saving changes only the intended operation depth in the exact retained feature sequence');
+    serial = (await observe()).serial; await pressChainControl('button[aria-label="Abrir (Ctrl+O)"]');
+    chainGeometry(await rebuilt(serial, true, 'reopen-earlier-boss'), 9, 6, 'reopen');
+    const recovered = JSON.parse(await recovery());
+    check(recovered.id === saved.id && canonical(recovered.features) === canonical(edited.features)
+      && (await fs.readFile(output)).equals(editedBytes), 'Reopen recovers the identical edited feature chain and preserves file bytes');
+    evidence.baselineSavedSha256 = digest(savedBytes); evidence.editedSavedSha256 = digest(editedBytes);
+    return edited;
+  }
   return async () => {
     await waitFor('part startup',()=>page(()=>document.querySelector('.statusbar')?.textContent.includes('Listo')&&typeof window.solidflow?.openDocument==='function'),initialReadyMs);
     let serial=(await observe()).serial; await click('button[aria-label="Abrir (Ctrl+O)"]');
@@ -372,8 +481,9 @@ module.exports = function freshSketchWorkflow(c) {
     check((await observe()).serial===contextSerial&&await page(()=>localStorage.getItem('solidflow.autosave'))===recovery,'Body/edge keyboard contexts and Fit/deselection do not edit or rebuild the model');
     check(digest(await fs.readFile(output))===digest(savedBytes),'All post-reopen contextual previews leave the saved file bytes intact');
     records.push({phase:'saved-cut-context-edit-and-cancel',previewVolume:1000,previewArea:800,body:selectedBody[0],edge:selectedEdge[0],edgePoint,observedEdgeLines:lines});
-    check(dialogCounts().opens===2&&dialogCounts().saves===1,'Exact original/save/reopen dialogs'); check(!consoleErrors.length&&!failedRequests.length,'No renderer/resource errors');
+    const edited = await earlierBossLifecycle(saved, savedBytes, contextRestored, boss.features.at(-1).id, cutSketch.id);
+    check(dialogCounts().opens===3&&dialogCounts().saves===1,'One original and two saved Open dialogs with one Save As'); check(!consoleErrors.length&&!failedRequests.length,'No renderer/resource errors');
     check(protocolResponses.some(p=>/kernel\.worker-[\w-]+\.js$/.test(p.url)&&p.status===200)&&protocolResponses.some(p=>p.url.endsWith('.wasm')&&p.status===200),'Production worker and WASM observed');
-    checks.push({savedSha256:digest(savedBytes),originalSha256:digest(await fs.readFile(input)),records,drawn,independentOracles:'Volumes960/1008/996 mm3 at1e-5; planar mesh areas736/784/808 mm2 at1e-4; bounds1e-6mm; actual drawn points0.001mm snap checked1e-9. BRep checks separate.'}); await capture(saved);
+    checks.push({savedSha256:digest(await fs.readFile(output)),originalSha256:digest(await fs.readFile(input)),records,drawn,independentOracles:'Original V960/1008/996 mm3 and mesh A736/784/808 mm2; earlier boss +3→+5 gives V1040/A816 in preview and V1028/A840 with the downstream cut. Top support Z9 and four 2×2 floor edges Z6; bounds/lines1e-6mm, normal1e-8, volume1e-5mm³, area1e-4mm². Actual drawn points0.001mm snap checked1e-9. BRep checks separate.'}); await capture(edited);
   };
 };

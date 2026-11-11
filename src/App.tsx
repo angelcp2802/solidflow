@@ -117,6 +117,7 @@ import {
 import EdgeFinishPanel from "./components/EdgeFinishPanel";
 import SweepLoftPanel from "./components/SweepLoftPanel";
 import PatternPanel from "./components/PatternPanel";
+import { featurePatternBuildMessage } from "./components/featurePatternBuildMessage";
 import FaceOperationPanel from "./components/FaceOperationPanel";
 import { BodyList, BodyFeaturePanel } from "./components/BodyManagementPanel";
 import { bodySelectionDtos } from "./cad/body-selection";
@@ -762,13 +763,18 @@ export function PartWorkspace({ initialDocument, initialPath, initialSaved, skip
   const emptyEdgeSelection =
     finishEditing?.selection.mode === "selected" &&
     finishEditing.selection.edges.length === 0;
+  const patternBuildError = error && isRepetition(editing) && sourceFeatures && sourceBuiltFeatures === sourceFeatures
+    && !sourceLoading && sourceModel?.bodyCatalogActive && model && builtFeatures === effectiveFeatures
+    && error === model.featureErrors.map(diagnostic => diagnostic.message).join(" · ")
+    ? model.featureErrors.map(diagnostic => featurePatternBuildMessage(diagnostic, editing, sourceFeatures)).join(" · ")
+    : error;
   const visibleError =
     emptyEdgeSelection ||
     (faceEditing?.type === "draft" &&
       !operationFaces.length &&
       error === "Selecciona al menos una cara para desmoldear.")
       ? ""
-      : error;
+      : patternBuildError;
   const serializedDocument = useMemo(() => serializeDocument(doc), [doc]);
   const preservedRecovery = useRef<string | null>(skipInitialRecoveryWrite ? serializedDocument : null);
   const dirty = serializedDocument !== saved || editing !== null;

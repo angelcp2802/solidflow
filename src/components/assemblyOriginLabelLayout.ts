@@ -10,6 +10,15 @@ export interface AssemblyOriginLabelLayout {
 }
 const margin = 4, gap = 4, buttonWidth = 170, buttonHeight = 22, limit = 96
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
+
+export function assemblyOriginLabelLeader(label: AssemblyOriginLabelPlacement) {
+  const { x: x1, y: y1, left, top, width, height } = label
+  const x2 = clamp(x1, left, left + width), y2 = clamp(y1, top, top + height)
+  // A segment no longer than half the 1 CSS-pixel stroke adds no useful connection.
+  const visibility = Math.hypot(x1 - x2, y1 - y2) <= .5 ? 'hidden' as const : undefined
+  return { x1, y1, x2, y2, visibility }
+}
+
 const pixelPosition = (value: number, min: number, max: number) => {
   const first = Math.ceil(min), last = Math.floor(max)
   // Keep the full box inside its reserved region even when a fractional,

@@ -73,18 +73,64 @@ Historical promotion logs record these final OCI identities for
 | [canary-ebd263f1-single-threaded](https://github.com/taucad/opencascade.js/actions/runs/30779907989/job/91595770927) | `sha256:215198af0e2ca4c5f308e5540869f2419784dc290062d3eb03d34e4f22e0188c` |
 | [canary-ebd263f1-multi-threaded](https://github.com/taucad/opencascade.js/actions/runs/30779907989/job/91595770938) | `sha256:5cb67064edc903ae50c254e32417da9662fa88ec2e734386c28a3806949862ce` |
 
-The package scripts name tags, not digests. Image bytes, signatures and
-attestations have not been independently verified, and there is no verified
-attestation linking these identities to the published npm tarball's build.
-Source acquisition and logged image identification alone do not establish that link.
+The package scripts identify the builder by tag. Registry inspection found
+that the current single-thread, multi-thread and binding-generator tags
+resolve to their historical indexes. Native manifests, configs, six SLSA
+statement digests and their native subjects were independently checked.
+The single-thread Linux amd64 SBOM's digest and subject also match. The
+builder config contains the exact five-layer Emscripten base prefix.
+Signature verification and the original npm build invocation remain open.
 
 Static inspection of Replicad's
 [package scripts](https://github.com/sgenoud/replicad/blob/e4b05f67dc4e2393a876ce8c5064a9c93db05bf1/packages/replicad-opencascadejs/package.json)
 shows that `npm run build` invokes ytt to regenerate configuration. The separate
 `buildSingle` and `buildMulti` scripts consume the committed generated YAML and
-six C++ wrappers directly, so that route need not run ytt. It still requires the
-specified toolchain and compiled inputs; neither regeneration parity nor binary
-reproduction has been demonstrated.
+six C++ wrappers directly, so that route need not run ytt. It still requires
+the specified toolchain and compiled inputs.
+
+## Repeated single-thread consumer link
+
+The [historical Replicad binary commit](https://github.com/sgenoud/replicad/tree/a0bc495676b65ef79ad8ab496238fa145fd0ff67/packages/replicad-opencascadejs)
+was acquired at `a0bc495676b65ef79ad8ab496238fa145fd0ff67`. The 19 checked
+build configuration, source and distribution blobs match the release
+commit. Two fresh Linux amd64 containers linked the committed single-thread
+YAML and wrappers without network or host mounts. The pinned native
+builder manifest is
+`sha256:deb9be8470038652c060b47f2d2e7e2e46d899bb896ecabb007bf60307ee2d54`.
+Both runs produced identical JavaScript, type declarations and WASM.
+The JavaScript and declarations also match the published npm files.
+
+The locally linked WASM is six bytes longer than the published WASM.
+Its SHA-256 is `fce1bf85f0671606c52e84a6b51411409a5c14780552382faf4c540fec677eba`.
+Three function bodies in the code section differ in exception-scope
+instructions. The other eleven sections match byte for byte. Both modules
+read the two original eight-solid STEP fixtures with 136 mm³ and 344 mm²,
+reject the truncated test file and accept a valid retry.
+
+A separate SolidFlow Windows trial built the exact 0.26.0 source with
+only the rebuilt WASM replaced. The emitted module hash matches the
+locally linked bytes. Build, desktop startup, sequential part modeling,
+the Direction 2 fixed-plane recalc, assembly origin-axis authoring and
+structural STEP passed. The same trial passed `npm test` with 11,504 CAD
+and unit cases and 230 IPC checks with two skips. The trial used the
+image's existing compiled inputs.
+
+A private Windows x64 directory package was then built from the same
+trial. Both the raw runtime copy and the worker's emitted WASM match the
+relinked hash. REA and an independent ASAR reader agreed on all 5,276
+file and 102 directory occurrences. All 5,268 non-dist payloads other
+than the selected single-threaded runtime match the verified control
+package. The trial executable used a separate profile and ordinary
+Windows file dialogs. It opened the existing mixed assembly, saved it
+with identical document bytes, reopened it, verified and canceled a
+solve preview and exported an STL identical to the control export. The
+control's independent audit found three closed shells, 180 triangles,
+2,208 mm³ and 1,944 mm². Native receipt SHA-256
+`61b668a86485f2264de3cbf295f98f2300ed1a26e463c4703e7f923b910cd825`.
+This covers one packaged replacement and one original model on Windows.
+The delivered demo retains the original runtime. Exceptional-path
+equivalence, a pristine toolchain rebuild and recipient source delivery
+remain unverified.
 
 RapidJSON's `thirdparty/gtest` and FreeType's `subprojects/dlg` submodules were
 recorded but not acquired. In the inspected OpenCascade.js route, the cloned
@@ -119,8 +165,8 @@ source. Before closing the source review:
   build tools, SDK/ports and any generated or precompiled inputs actually used.
 - Document and execute a clean rebuild; compare its output with the identified
   runtime and explain any differences rather than assuming reproducibility.
-- Exercise replacement of the library in the packaged application and preserve
-  applicable source access, notices and replacement rights.
+- Extend packaged replacement coverage to the remaining platform and runtime
+  variants, and preserve applicable source access, notices and replacement rights.
 - Publish the reviewed source deliverable and instructions through a stable
   recipient-accessible download, then verify that download and its integrity.
 

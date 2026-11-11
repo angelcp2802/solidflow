@@ -17,9 +17,9 @@ module.exports = function endCapsWorkflow(context) {
   const recovery = () => page(() => localStorage.getItem('solidflow.autosave'));
   const records = [], inputs = [], evidence = { partEndCaps: { records, inputs,
     provenance: 'Original analytical millimetre declarations: one unused closed rectangle and one separate read-only cylinder; no imported geometry.',
-    scope: 'Interior axial caps, explicit unsupported-extent recovery, native zero-core rejection, retained inactive thickness focus, Cancel/retry, new/saved Apply, history and fresh reopening.',
+    scope: 'Interior axial caps in Blind and axial mid-plane, explicit automatic-extent recovery, native zero-core rejection, retained inactive thickness focus, Cancel/retry, new/saved Apply, history and fresh reopening.',
     inputLimits: 'Actual CDP left press/release on visible stationary hit-tested controls. Parameter changes use native value setters and bubbling input/change events; no physical keyboard claim. DOM scrolling only reveals controls. No handlers, worker results or application state are injected.',
-    limits: 'One original rectangular XY profile, outside wall2 and positive blind depth20. Renderer volume/bounds do not independently attest BRep validity, area, STEP, other profiles or termination families, complete interaction parity or installed-platform support.' } };
+    limits: 'One original rectangular XY profile, outside wall2 and positive depth20 in Blind and axial mid-plane. Renderer volume/bounds do not independently attest BRep validity, area, STEP, other profiles or termination families, complete interaction parity or installed-platform support.' } };
   checks.push(evidence);
   const originalCount = expected.features.length;
   const base = { bodyId: 'caps-base-body', featureId: 'caps-base', createdBy: 'caps-base', volume: 12 * Math.PI,
@@ -27,7 +27,9 @@ module.exports = function endCapsWorkflow(context) {
   const bounds = { min: [-2, -2, 0], max: [14, 10, 20] };
   const capped = { ...bounds, volume: 2112 }, uncapped = { ...bounds, volume: 1920 };
   const middleTube = { volume: 1920, min: [-2, -2, -10], max: [14, 10, 10] };
+  const middleCapped = { ...middleTube, volume: 2112 };
   const corrected = { ...bounds, volume: 2208 }, editedCaps = { ...bounds, volume: 2304 };
+  const middleEdited = { ...middleTube, volume: 2304 };
   const last = row => row.features.at(-1);
   const sameWall = (row, definition) => last(row)?.type === 'extrude' && canonical(last(row).thinWall) === canonical(definition);
   const owner = (feature, dimensions) => ({ bodyId: feature.bodyOperation.bodyId, featureId: feature.id, createdBy: feature.id, ...dimensions });
@@ -114,8 +116,10 @@ module.exports = function endCapsWorkflow(context) {
     });
   }
   async function built(after, predicate, expectedOwners, phase) { return material(await response(after, predicate, phase), expectedOwners, phase); }
-  async function rejected(after, phase) {
-    const row = material(await response(after, row => sameWall(row, wall(10)) && last(row).depth === 20 && !last(row).symmetric && !last(row).endCondition, phase), [base], phase, true);
+  async function rejected(after, phase, symmetric = false) {
+    const row = material(await response(after, row => sameWall(row, wall(10)) && last(row).depth === 20
+      && last(row).symmetric === symmetric && !last(row).endCondition, phase), [base], phase, true);
+    check(row.response.value.featureErrors[0].message.includes('núcleo axial'), 'Exact native core-length rejection');
     await waitFor('zero-core cap Apply blocked', () => page(selector => document.querySelector(selector)?.disabled === true, APPLY));
     return row;
   }
@@ -163,16 +167,32 @@ module.exports = function endCapsWorkflow(context) {
     await built(serial, row => sameWall(row, wall()), row => owners(row, capped), 'caps-reactivated-retain-thickness');
     check(await page(selector => document.querySelector(selector)?.value === '1', C), 'Reactivating caps restores the retained thickness');
 
-    await change(END, 'mid');
-    await waitFor('explicit recovery after unsupported axial midpoint', () => page((end, caps, thickness, apply) => {
+    serial = (await observe()).serial; await change(END, 'mid');
+    const isMidpoint = row => last(row).depth === 20 && last(row).symmetric === true && !last(row).endCondition;
+    await built(serial, row => sameWall(row, wall()) && isMidpoint(row), row => owners(row, middleCapped), 'midpoint-keeps-caps-active');
+    await ready();
+    serial = (await observe()).serial; await press(CAPS);
+    await built(serial, row => sameWall(row, wall(1, false)) && isMidpoint(row), row => owners(row, middleTube), 'midpoint-caps-off');
+    serial = (await observe()).serial; await press(CAPS);
+    await built(serial, row => sameWall(row, wall()) && isMidpoint(row), row => owners(row, middleCapped), 'midpoint-new-cap-activation');
+    serial = (await observe()).serial; await change(C, 10); await rejected(serial, 'midpoint-zero-core-rejection', true);
+    serial = (await observe()).serial; await change(C, 1);
+    await built(serial, row => sameWall(row, wall()) && isMidpoint(row), row => owners(row, middleCapped), 'midpoint-cap-core-recovered');
+
+    await change(END, 'upToSurface');
+    await waitFor('explicit recovery after unsupported automatic extent', () => page((end, caps, thickness, apply) => {
       const field = document.querySelector(caps), parameter = document.querySelector(thickness);
-      return document.querySelector(end)?.value === 'mid' && field?.checked && !field.disabled && parameter?.value === '1'
+      return document.querySelector(end)?.value === 'upToSurface' && field?.checked && !field.disabled && parameter?.value === '1'
         && parameter.disabled && document.querySelector(apply)?.disabled === true;
     }, END, CAPS, C, APPLY));
     check(await recovery() === initialRecovery, 'Unsupported extent retains the active cap request and committed recovery until explicit deactivation');
-    serial = (await observe()).serial; await press(CAPS);
-    await built(serial, row => sameWall(row, wall(1, false)) && last(row).symmetric === true && !last(row).endCondition, row => owners(row, middleTube), 'explicit-cap-deactivation-for-midpoint');
-    check(await page(selector => { const field = document.querySelector(selector); return !!field && !field.checked && field.disabled; }, CAPS), 'Axial midpoint prevents new cap activation after explicit recovery');
+    await page(selector => document.querySelector(selector)?.scrollIntoView({ block: 'nearest', behavior: 'instant' }), CAPS);
+    await press(CAPS);
+    check(await page(selector => {
+      const field = document.querySelector(selector);
+      return !!field && !field.checked && field.disabled;
+    }, CAPS), 'An automatic extent blocks new cap activation after explicit deactivation');
+    await page(selector => document.querySelector(selector)?.scrollIntoView({ block: 'nearest', behavior: 'instant' }), END);
     serial = (await observe()).serial; await change(END, 'blind');
     await built(serial, row => sameWall(row, wall(1, false)) && !last(row).symmetric && !last(row).endCondition, row => owners(row, uncapped), 'return-blind-keeps-caps-off');
     serial = (await observe()).serial; await press(CAPS);
@@ -267,13 +287,35 @@ module.exports = function endCapsWorkflow(context) {
     check(canonical(finalSaved.features) === canonical(edited.features), 'Saved edited cap thickness preserves source and body identities');
     serial = (await observe()).serial; await press('button[aria-label="Abrir (Ctrl+O)"]');
     await built(serial, row => canonical(row.features) === canonical(finalSaved.features), row => owners(row, editedCaps), 'saved-caps-fresh-native-reopen'); await idle();
-    check(dialogCounts().opens === 2 && dialogCounts().saves === 1, 'Two bounded Open dialogs and one Save As dialog only');
+    const blindRecovery = await recovery();
+    async function stageMidpoint() {
+      await edit(operation.id); const before = (await observe()).serial; await change(END, 'mid');
+      return built(before, row => sameWall(row, wall(2)) && isMidpoint(row), row => owners(row, middleEdited), 'saved-midpoint-preview');
+    }
+    await stageMidpoint();
+    check(await recovery() === blindRecovery, 'The centered preview leaves the saved Blind state intact');
+    serial = (await observe()).serial; await press(CANCEL);
+    await built(serial, row => canonical(row.features) === canonical(finalSaved.features), row => owners(row, editedCaps), 'cancel-saved-midpoint'); await idle();
+    check(await recovery() === blindRecovery, 'Cancel restores exact Blind declarations and recovery');
+    const midpoint = await apply(await stageMidpoint(), row => owners(row, middleEdited), 'apply-saved-midpoint');
+    serial = (await observe()).serial; await press('button[title="Deshacer (Ctrl+Z)"]');
+    await built(serial, row => canonical(row.features) === canonical(finalSaved.features), row => owners(row, editedCaps), 'undo-saved-midpoint'); await idle();
+    serial = (await observe()).serial; await press('button[title="Rehacer (Ctrl+Y)"]');
+    await built(serial, row => canonical(row.features) === canonical(midpoint.features), row => owners(row, middleEdited), 'redo-saved-midpoint'); await idle();
+    await fileCommand('Guardar');
+    await waitFor('centered cap save completed', async () => ipc.filter(event => event.channel === 'document:save' && event.completed).length === 3
+      && await page(() => !document.querySelector('.document-title')?.textContent.includes('*')));
+    const midpointBytes = await fsp.readFile(output), midpointSaved = JSON.parse(midpointBytes.toString('utf8'));
+    check(canonical(midpointSaved.features) === canonical(midpoint.features), 'Saved centered caps preserve the accepted parameters and body identities');
+    serial = (await observe()).serial; await press('button[aria-label="Abrir (Ctrl+O)"]');
+    await built(serial, row => canonical(row.features) === canonical(midpointSaved.features), row => owners(row, middleEdited), 'saved-midpoint-fresh-native-reopen'); await idle();
+    check(dialogCounts().opens === 3 && dialogCounts().saves === 1, 'Three bounded Open dialogs and one Save As dialog only');
     const observation = await observe();
     check(!observation.workerErrors.length && !consoleErrors.length && !failedRequests.length && ipc.every(event => event.completed), 'No end-cap worker, renderer, resource or unfinished IPC failure');
     check(protocolResponses.some(asset => /kernel\.worker-[\w-]+\.js$/.test(asset.url) && asset.status === 200)
       && protocolResponses.some(asset => asset.url.endsWith('.wasm') && asset.status === 200), 'Production end-cap worker and WASM actually loaded');
-    evidence.partEndCaps.persistence = { inputSha256: digest(await fsp.readFile(input)), initialSha256: digest(savedBytes), finalSha256: digest(finalBytes), dialogs: dialogCounts(),
+    evidence.partEndCaps.persistence = { inputSha256: digest(await fsp.readFile(input)), initialSha256: digest(savedBytes), blindSha256: digest(finalBytes), finalSha256: digest(midpointBytes), dialogs: dialogCounts(),
       geometricLimits: 'Renderer native volume tolerance1e-5mm³ and bounds1e-6mm. Independent rectangle outsidewall2/depth20: uncapped1920, cap1=2112, cap1.5=2208, cap2=2304. No BRep, area, STEP or general platform claim.' };
-    evidence.savedSha256 = digest(finalBytes); await capture(finalSaved);
+    evidence.savedSha256 = digest(midpointBytes); await capture(midpointSaved);
   };
 };

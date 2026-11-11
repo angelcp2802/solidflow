@@ -178,12 +178,12 @@ multiple-output contract exists.
 
 ## Axial end caps
 
-Active caps currently require an additive fixed-depth extrusion with one or two
-Blind directions and one simple closed source component, with `symmetric: false`
-and no active automatic end on either side. Open,
-mixed, nested or disconnected sources reject; cuts, revolutions, axial mid-plane
-and automatic limits reject before any provisional prism or no-hit witness.
-Disabled settings retain their data and use the previous uncapped geometry.
+Active caps require an additive fixed-depth extrusion and one simple closed
+source component. The supported extents are one Blind direction, two Blind
+directions, and axial mid-plane without an active second direction. Open,
+mixed, nested or disconnected sources reject. Cuts, revolutions and automatic
+limits reject before any provisional prism or no-hit witness. Disabled
+settings retain their data and use the previous uncapped geometry.
 
 The prepared section carries explicit temporary outer/inner profiles. Construct
 the complete outer extrusion over signed depth `D`, then subtract its inner core
@@ -194,6 +194,13 @@ solve either temporary profile. The remaining core must exceed `1e-5 mm`;
 zero, negative or sub-tolerance cores reject rather than becoming a filled block.
 Engine and supported fixed-depth additive regeneration share this construction,
 native ownership and non-destructive Boolean handling.
+
+For axial mid-plane, the incoming frame already starts at the sketch offset
+minus half of the signed depth. A depth of either sign produces the same
+centered envelope and the same two internal cap planes. The single core crosses
+the sketch plane. The saved format retains the existing signed depth,
+`symmetric` flag and cap declaration. Older engines can reject the combined
+mid-plane and active cap settings during rebuild.
 
 With two active directions, `D` is the complete calculated span above and the
 incoming start already includes its second-direction shift. Construct caps once
@@ -243,8 +250,9 @@ wall remains an error even when an owner is behind its ray.
 
 The blue extrusion panel offers new caps only for a unique current successful
 closed source with `SketchVisual.profileClosedSingle`, and only in additive
-Blind mode without axial symmetry, including an independent second Blind depth.
-This display witness does not replace native checks.
+Blind or axial mid-plane mode. An independent second Blind depth is available
+with the one-direction mode. The native checks also verify the actual section
+and axial core.
 The initial cap thickness of `1 mm` is a SolidFlow UI choice, not a universal
 default inferred from another application. Wall-mode changes and OFF/ON preserve
 both optional settings and their independent dimensions.

@@ -101,7 +101,18 @@ module.exports = function worldLimitWorkflow(context) {
     const afterMissing = await observe(); assertPendingUi(beforeMethod, { ...missing, ui: afterMissing.ui }, false);
     await waitFor('missing policy blocks Apply and offers an explicit unchecked limit', () => evaluate(`(() => {const method=document.querySelector(${encodeJavaScriptString(METHOD)});const limit=document.querySelector(${encodeJavaScriptString(LIMIT)});const apply=document.querySelector(${encodeJavaScriptString(APPLY)});return method?.value==='regenerate'&&!!limit&&!limit.disabled&&!limit.checked&&!!apply&&apply.disabled;})()`));
     if (second) check(await evaluate(`!document.querySelector(${encodeJavaScriptString(FIRST_LIMIT)})`), 'Direction 1 is Blind and offers no fixed-plane policy');
-    checks.push('real worker missing-policy error leaves Apply blocked');
+    const option = second ? 'Mantener el plano límite de dirección 2 de Original fixed-plane seed'
+      : 'Mantener el plano límite de Original fixed-plane seed';
+    const guidance = 'Para recalcular la dirección ' + (second ? '2' : '1') + ' hasta el plano XY, activa «' + option + '» en «Planos límite».';
+    const banner = () => evaluate("document.querySelector('.error-banner[role=alert] span')?.textContent");
+    await waitFor('Spanish guidance names the exact fixed-plane option', async () => await banner() === guidance)
+      .catch(async error => { error.message += '; banner=' + JSON.stringify(await banner()); throw error; });
+    check(await evaluate(`document.querySelector(${encodeJavaScriptString(LIMIT)})?.closest('label')?.textContent.trim() === ${encodeJavaScriptString(option)}`),
+      'The Spanish diagnostic names the actual visible fixed-plane choice');
+    const raw = missing.response.value.featureErrors[0].message;
+    check(raw === SEED_ID + ':' + expectedPolicy.path + ': An external/internal support needs a saved remap policy; no world/latest/nearest default.',
+      'The original worker diagnostic remains exact');
+    checks.push({ worldLimitDiagnostic: { direction: second ? 2 : 1, raw, guidance } });
     const beforePolicy = await observe();
     let pointerPoint = null;
     if (second) pointerPoint = await pressSecondLimit();

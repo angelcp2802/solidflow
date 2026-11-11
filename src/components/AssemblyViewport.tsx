@@ -19,7 +19,7 @@ import type { AssemblyDragFrame } from '../model/assemblyDrag'
 import { identityRigidPose, validateRigidPose, type RigidPose } from '../model/rigidPose'
 import { assemblyReferencePickMode, assemblyVertexKey, pickAssemblyVertex, createAssemblyVertexMarkers, disposeAssemblyVertexMarkers } from './assemblyVertexPicking'
 import { assemblyOriginDisplayBinding, assemblyOriginExtent, assemblyOriginLabels, assemblyOriginReferenceKey, createAssemblyOriginOverlay, pickAssemblyOrigin, type AssemblyOriginDisplay, type AssemblyOriginReference } from './assemblyOriginPicking'
-import { layoutAssemblyOriginLabels, type AssemblyOriginLabelAnchor } from './assemblyOriginLabelLayout'
+import { assemblyOriginLabelLeader, layoutAssemblyOriginLabels, type AssemblyOriginLabelAnchor } from './assemblyOriginLabelLayout'
 import './assembly-origin-display.css'
 type AnalysisPair = AssemblyInterferenceReport['pairs'][number]
 
@@ -657,8 +657,8 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
       }}>{label.label}</button>
   return <div className="assembly-viewport" ref={host} style={background ? { background } : undefined} tabIndex={props.onContextTarget ? 0 : undefined} aria-label="Visor 3D del ensamblaje" data-analysis-pair={props.selectedAnalysisPair?.id} data-drag-axis={dragAxis ?? ''} data-reference-picking={assemblyReferencePickMode(props) ?? ''}>
     <div className="assembly-origin-labels" aria-label="Referencias de origen visibles">
-      <svg className="assembly-origin-leaders" aria-hidden="true">{originLabelState.layout.labels.map(label => <line key={label.key}
-        x1={label.x} y1={label.y} x2={Math.max(label.left, Math.min(label.left + label.width, label.x))} y2={Math.max(label.top, Math.min(label.top + label.height, label.y))} />)}</svg>
+      <svg className="assembly-origin-leaders" aria-hidden="true">{originLabelState.layout.labels.map(label =>
+        <line key={label.key} {...assemblyOriginLabelLeader(label)} />)}</svg>
       {originLabelState.layout.labels.map(label => originButton(label, { left: label.left, top: label.top, width: label.width, height: label.height }))}
       {originLabelState.layout.overflow.length > 0 && <div className="assembly-origin-overflow" role="group" aria-label="Referencias de origen en lista" style={{ width: originLabelState.layout.width, top: originLabelState.topInset + 4, maxHeight: `calc(100% - ${originLabelState.topInset + 8}px)` }}>
         <span>Referencias de origen · {originLabelState.layout.overflow.length}</span>

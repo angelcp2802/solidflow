@@ -531,8 +531,9 @@ result from the authored cases.
 ## Internal thin-wall axial caps — 2026-10-29
 
 Validate the strict optional `thinWall.endCaps` declaration before native work.
-Active settings require a fixed-depth additive non-symmetric extrusion and one
-closed source region. Reject unsupported contexts before automatic-end factories
+Active settings require a fixed-depth additive extrusion and one closed source
+region. Reuse the resolved signed envelope for Blind and axial mid-plane. Reject
+unsupported contexts before automatic-end factories
 and absence witnesses. Keep outer/inner profiles as explicit temporary section
 metadata; generated identifier spellings are not a geometry API. Extrude outer
 material over the signed envelope and shorten/shift only the inner core at both
@@ -1057,6 +1058,12 @@ place labels. Keep the existing four-pixel gap and reserved toolbar band. If
 the full catalog cannot fit, retain all identities in the existing overflow
 list. A valid fractional interval with no integer position retains bounded
 clamping; it must not invent space or clip a button.
+
+Keep the SVG leader and its original projected start for every laid-out label.
+Its end is the nearest point on the button rectangle. Suppress paint when the
+segment is at most half of the one CSS-pixel stroke. Longer leaders retain their
+geometry and appearance. The HTML label continues to own pointer and keyboard
+interaction.
 
 Keep exact camera-image assertions, text-exclusion definitions, projected-anchor
 tolerances and deadlines unchanged. Runtime observations and the visual

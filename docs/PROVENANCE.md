@@ -646,14 +646,23 @@ Complete-engine cases separately use the rectangle above, source support offsets
 thickness history1→2, OFF recovery and exact body references. A source changed to
 the original length12 open LINE recovers only after caps are explicitly disabled;
 the depth4/wall2 result has V96/A160 and literal bounds `(-6,-2,0)..(6,0,4)`.
-Unsupported operations/extents reject without publishing a provisional tool.
+Unsupported operations and extents reject before publishing a provisional tool.
+The axial mid-plane extension uses the same rectangle and translated Z7 frame.
+Signed depths +20 and −20 both have outer bounds `(-2,-2,-3)..(14,10,17)`.
+The live material retains V2112, and STEP reopens at V2112/A2416. The four axial faces
+lie at Z−3, −2, 16 and 17. The core crosses Z7. A cap thickness of 10 mm
+rejects the vanished core. The saved declaration and original body identity
+survive explicit recovery.
 
 Recipe cases regenerate the same cap1 envelope in original primitive and solved
 entity forms through linear/circular/mirror placement. A base20x20x4 contributes
 V1600/A1120, the capped addition V2112/A2416 and their contacting192-area face
 is counted twice before union: final V3712/A3152. Literal bounds and inside-cap/
 outside-core probes distinguish real cap material from a replayed saved delta.
-Source and borrowed owners remain unchanged; only the entity source is solved.
+Source and borrowed owners remain unchanged. Only the entity source is solved.
+The axial mid-plane Selected linear case uses a base at Z−14…−10, the same
+16×12 outer rectangle at Z−10…10 and the 12×8 core at Z−9…9. Both signed
+depths preserve V3712/A3152, material at Z−9.5 and Z9.5 and the void at Z0.
 
 `desktop-part-end-caps-original.cjs` declares a separate read-only R2/H3 cylinder
 at `(40,0)` and an unused original 12x8 rectangle. The renderer uses independent
@@ -661,8 +670,10 @@ volumes1920 (OFF), 2112 (c1), 2208 (c1.5) and2304 (c2), and literal envelope
 bounds at `1e-6 mm`; volume tolerance is `1e-5 mm³`. Its area formulas are not
 renderer measurements. The route covers explicit unsupported-extent recovery,
 native core-zero rejection, retained invalid OFF decimal focus, Cancel/retry,
-new/saved Apply, history, writes and fresh reopening. Controls use CDP pointer
-events and native input setters, not a claim of physical keyboard delivery.
+new/saved Apply, history, writes and fresh reopening. The same original
+rectangle verifies the symmetric bounds Z−10…10, including save, re-open
+and an unchanged original base. Controls use CDP pointer events and native
+input setters. Physical keyboard delivery is outside this route.
 
 ## Original automatic-corner fixtures — 2026-10-29
 

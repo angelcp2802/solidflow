@@ -19,7 +19,10 @@ parameter, document grammar or native acceptance rule.
 
 Selected principal-plane UpToSurface remains selectable so its existing fixed
 world-policy control can be supplied. An inactive second limit is ignored where
-the existing extractor ignores it. Positive ALL/AUTO still reject own
+the existing extractor ignores it. A current missing-policy error for an active
+principal-plane limit names the exact direction, plane and checkbox in
+**Planos límite**. The worker diagnostic and the verified-preview gate
+retain their original values. Positive ALL/AUTO still reject own
 end-condition, thin-wall or second-direction declarations, including retained
 OFF second-direction data. This UI check reuses the same pure additive
 eligibility helper; it does not normalize saved fields.

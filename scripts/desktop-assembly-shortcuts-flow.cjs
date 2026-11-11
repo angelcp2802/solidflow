@@ -5,7 +5,7 @@ const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 // Reuse the original 2x3x4 prism bearing. No injected model or keyboard handler.
 module.exports = function assemblyShortcutWorkflow(context) {
   const c = require('./desktop-assembly-navigation.cjs').withNavigation(context);
-  const { configured, compactShortcuts, expected, input, output, shortcutOutput, reboundConfiguredSave, completePendingSave, shortcutKey, shortcutText, namedViewKey, evaluate, observe, waitFor, pointer, capture,
+  const { configured, compactShortcuts, expected, input, output, shortcutOutput, reboundConfiguredSave, completePendingSave, shortcutKey, shortcutText, assemblyNameComposition, namedViewKey, evaluate, observe, waitFor, pointer, capture,
     check, checks, canonical, digest, ipc, dialogCounts, consoleErrors, failedRequests, initialReadyMs, cameraFrame, cameraGesture, rasterComparison, menuKey, captureHeader } = c;
   const ROOT = configured ? '.configured-assembly-workspace' : '.assembly-app';
   const NAV = configured ? '[aria-label="Comandos del ensamblaje configurado"]' : '.assembly-toolbar';
@@ -348,6 +348,71 @@ module.exports = function assemblyShortcutWorkflow(context) {
       catch(e){if(e.code==='ENOENT')return false;throw e;}
     });
   }
+  async function compositionOwnsSave() {
+    const selector = 'input[aria-label="Nombre del componente"]';
+    const fieldState = () => page(selector => {
+      const field = document.querySelector(selector);
+      return { focused: document.activeElement === field, value: field?.value ?? null };
+    }, selector);
+    await actualControl(selector);
+    const before = await snapshot(), beforeFile = await fs.readFile(output);
+    await page(selector => {
+      const field = document.querySelector(selector), events = [];
+      const types = ['compositionstart', 'compositionupdate', 'compositionend', 'input', 'keydown'];
+      const record = event => {
+        if (event.type !== 'keydown' || event.code === 'KeyS') {
+          events.push({ event, focused: document.activeElement === field });
+        }
+      };
+      for (const type of types) field.addEventListener(type, record, { passive: true });
+      window.assemblyNameCompositionEvidence = remove => {
+        if (remove) {
+          for (const type of types) field.removeEventListener(type, record);
+          delete window.assemblyNameCompositionEvidence;
+        }
+        return events.map(({ event, focused }) => ({ type: event.type, trusted: event.isTrusted, focused,
+          data: event.data ?? null, composing: event.isComposing ?? null, key: event.key ?? null,
+          ctrl: event.ctrlKey ?? null, prevented: event.defaultPrevented }));
+      };
+    }, selector);
+    const evidence = {};
+    checks.push({ assemblyNameComposition: evidence });
+    try {
+      await assemblyNameComposition('start');
+      await waitFor('Chromium exposes the temporary component-name composition', async () => {
+        const state = await fieldState();
+        return state.focused && state.value === 'moving仮名';
+      });
+      await key('S');
+      const after = await snapshot(), afterFile = await fs.readFile(output);
+      const duringSave = await page(() => window.assemblyNameCompositionEvidence(false));
+      const save = duringSave.find(event => event.type === 'keydown');
+      const keyIndex = duringSave.indexOf(save), beforeKey = duringSave.slice(0, keyIndex);
+      const field = await fieldState();
+      Object.assign(evidence, { duringSave, field, recoveryEqual: after.recovery === before.recovery,
+        nativeSerialBefore: before.native.serial, nativeSerialAfter: after.native.serial,
+        fileIpcEqual: canonical(after.ipc) === canonical(before.ipc), savedBytesEqual: afterFile.equals(beforeFile) });
+      check(save?.trusted && save.ctrl && save.key === 's' && save.focused && save.composing && !save.prevented
+        && beforeKey.some(event => event.type === 'compositionstart' && event.trusted)
+        && beforeKey.some(event => event.type === 'input' && event.trusted && event.composing && event.data === '仮名')
+        && !beforeKey.some(event => event.type === 'compositionend'),
+        'A trusted Ctrl+S reaches the original field during a real Chromium composition');
+      check(field.focused && field.value === 'moving仮名' && canonical(after) === canonical(before) && afterFile.equals(beforeFile),
+        'Composing Ctrl+S preserves focus, temporary text, exact document, native history, recovery and saved file');
+      await assemblyNameComposition('cancel');
+      await waitFor('cancelled Chromium composition restores the existing component name', async () => {
+        const state = await fieldState();
+        return state.focused && state.value === 'moving';
+      });
+      await stable(before, 'Cancelling composition changes no CAD, recovery or file authority');
+    } finally {
+      evidence.events = await page(() => window.assemblyNameCompositionEvidence(true));
+    }
+    const end = evidence.events.at(-1), deletion = evidence.events.at(-2);
+    check(end?.type === 'compositionend' && end.focused && end.data === ''
+      && deletion?.type === 'input' && deletion.trusted && deletion.focused && deletion.data === null,
+      'Chromium cancellation removes the candidate in the same field and ends composition');
+  }
   async function nativeTextUndo(selector) {
     await actualControl(selector); const value=await page(s=>document.querySelector(s).value,selector), before=await snapshot();
     await key('A'); await shortcutText('native undo probe');
@@ -377,6 +442,7 @@ module.exports = function assemblyShortcutWorkflow(context) {
     if(!configured){
       await actualControl(`[data-assembly-tree-path='["moving"]']`);
       await nativeTextUndo('input[aria-label="Nombre del componente"]');
+      if (assemblyNameComposition) await compositionOwnsSave();
       const invalidBefore=await snapshot();await key('A');await key('Backspace');await key('S');
       await waitFor('invalid name is restored before Save',()=>page(()=>document.querySelector('input[aria-label="Nombre del componente"]')?.value==='moving'));
       await stable(invalidBefore,'Rejected blank name CtrlS neither saves nor changes CAD/history');

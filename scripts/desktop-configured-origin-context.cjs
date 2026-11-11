@@ -4,7 +4,7 @@
 // and native geometry/persistence oracles stay in the component workflow.
 module.exports = function originContextWorkflow(c) {
   const { page, navigation, pointer, menuKey, cameraFrame, captureComponentMenu, waitFor, check, canonical, observe, control, button,
-    navigateScope, recovery, response, geometry, history, apply, checks, NAV } = c;
+    navigateScope, recovery, response, geometry, history, apply, checks, ipc, dialogCounts, NAV } = c;
   const viewport = '.configured-assembly-view .assembly-viewport';
   async function frame() {
     const p = await page(() => { const r = document.querySelector('[aria-label="Vistas del ensamblaje configurado"]').getBoundingClientRect();
@@ -22,15 +22,21 @@ module.exports = function originContextWorkflow(c) {
       return [...menu.querySelectorAll('[data-cad-context-action]')].map(e => ({ id: e.dataset.cadContextAction, disabled: e.disabled }));
     }, title));
   }
-  async function press(selector, right = false) {
-    const point = await page(selector => {
-      const e = document.querySelector(selector);
+  async function press(selector, right = false, text = '') {
+    const point = await page((selector, text) => {
+      const matches = [...document.querySelectorAll(selector)].filter(e => !text || e.textContent.trim() === text);
+      const e = matches.length === 1 ? matches[0] : null;
       if (!e || e.disabled || e.closest('[hidden]')) throw Error('Current enabled context control required');
       e.scrollIntoView({ block: 'nearest' }); const r = e.getBoundingClientRect(), p = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
       if (!e.contains(document.elementFromPoint(p.x, p.y))) throw Error('Hit-tested visible context control required');
       return p;
-    }, selector);
+    }, selector, text);
     await pointer('mouseMoved', point); await pointer('mousePressed', point, right ? 2 : 1); await pointer('mouseReleased', point, right ? 2 : 0);
+  }
+  async function pressButton(parent, text) {
+    const selector = parent + ' button';
+    await navigation.reveal(selector, text);
+    await press(selector, false, text);
   }
   async function choose(id) {
     await press('[data-cad-context-action="' + id + '"]');
@@ -126,6 +132,125 @@ module.exports = function originContextWorkflow(c) {
       normalCommand: true, normalRenderedChange: true, frontalRenderedChange: true, originViewportKeyboard: true, backgroundPointer: true, backgroundKeyboard: true, explicitDeselection: true, axisFormSeed: true,
       limits: 'Original compact hidden window; CDP context/action pointer and keys, scripted navigation/initial focus. No external UI parity or OS-input claim.' } });
   }
+  async function nested(doc) {
+    const scope = ['right'], owner = ['right', 'anchor'];
+    const definition = { id: 'authoring-anchor', revision: 'r1' };
+    const label = 'Plano XY · right / anchor';
+    const treeKey = JSON.stringify(['origin-tree', [], owner, definition.id, definition.revision, 'principal-plane', 'XY']);
+    const overlayKey = JSON.stringify(['principal-plane', [owner, definition.id, definition.revision], 'XY']);
+    const first = { kind: 'principal-plane', component: { occurrencePath: ['anchor'], definition }, plane: 'XY' };
+    const second = { kind: 'principal-plane', component: null, plane: 'XY' };
+    const scopeDefinition = { id: 'authoring-shared', revision: 'r1' };
+    const historyState = () => page(nav => [...document.querySelectorAll(nav + ' button')]
+      .filter(e => ['Deshacer', 'Rehacer', 'Guardar'].includes(e.title)).map(e => [e.title, e.disabled]), NAV);
+    const files = () => canonical({ ipc, dialogs: dialogCounts() });
+    const selection = () => page(() => {
+      const view = document.querySelector('.configured-assembly-view');
+      return { scope: document.querySelector('[aria-label="Ámbito de configuración"]')?.value,
+        kind: view.dataset.normalSelectionKind, enabled: view.dataset.normalEnabled, keys: JSON.parse(view.dataset.normalSelectionKeys) };
+    });
+    const expectedSelection = { scope: JSON.stringify(scope), kind: 'plane', enabled: 'true', keys: [['origin', treeKey]] };
+    const selected = value => canonical(value) === canonical(expectedSelection);
+    async function projection(side) {
+      // The literal prism envelope is [0,0,0]..[22,3,4]. In the XY normal
+      // frame, +Y stays up and +X reverses on the second Normal To.
+      return waitFor('projected right XY origin on side ' + side, () => page((key, side) => {
+        const view = document.querySelector('.configured-assembly-view .assembly-viewport');
+        const leaders = view.querySelectorAll('.assembly-origin-leaders line');
+        const labels = view.querySelectorAll('.assembly-origin-labels > button.selected');
+        if (leaders.length !== 1 || labels.length !== 1 || labels[0].dataset.originKey !== key) return false;
+        const canvas = view.querySelector('canvas'), r = canvas.getBoundingClientRect();
+        const span = Math.hypot(22, 3, 4), margin = span * .22, scale = r.height / (1.3 * span);
+        const expected = { x: r.width / 2 + side * (20 + margin - 11) * scale, y: r.height / 2 - (margin - 1.5) * scale };
+        const actual = { x: Number(leaders[0].getAttribute('x1')), y: Number(leaders[0].getAttribute('y1')) };
+        if (Math.abs(actual.x - expected.x) > 1 || Math.abs(actual.y - expected.y) > 1) return false;
+        const point = { x: r.left + r.width / 2 + side * 10 * scale, y: r.top + r.height / 2 };
+        if (document.elementFromPoint(point.x, point.y) !== canvas) throw Error('Projected right prism point must hit the current canvas');
+        return { expected, actual, point };
+      }, overlayKey, side));
+    }
+    const scopeValue = JSON.stringify(scope);
+    await navigateScope(scopeValue);
+    await button('Isométrica', '[aria-label="Vistas del ensamblaje configurado"]');
+    const beforeView = await observe(), originalHistory = await historyState(), originalFiles = files();
+    const tree = await origin(owner, 'principal-plane');
+    const actions = [
+      { id: 'view-normal', disabled: false }, { id: 'origin-relation', disabled: false }, { id: 'origin-owner', disabled: false },
+    ];
+    const treeSelection = await selection();
+    check(canonical(tree.actions) === canonical(actions) && selected(treeSelection),
+      'Nested tree context retains the exact right occurrence and local relation nomination: ' + JSON.stringify({ actions: tree.actions, selection: treeSelection }));
+    await choose('view-normal');
+    check(await page(selector => document.activeElement === document.querySelector(selector), tree.selector),
+      'Nested tree Normal To restores focus to its exact origin row');
+    const forward = await projection(1);
+    await pointer('mouseMoved', forward.point); await pointer('mousePressed', forward.point, 2); await pointer('mouseReleased', forward.point, 2);
+    check(canonical(await state(label)) === canonical(actions) && selected(await selection()),
+      'Trusted right release on the projected right XY overlay resolves the same nested occurrence and revision');
+    await choose('view-normal');
+    const reverse = await projection(-1);
+    check(await page(selector => document.activeElement === document.querySelector(selector), viewport),
+      'Repeated Normal To from viewport context restores viewport focus and reverses the same selected plane');
+    await menuKey('ContextMenu'); await state(label); await close(viewport);
+    await menuKey('ContextMenu'); await state(label); await navigateScope('["left"]'); await navigateScope(scopeValue);
+    const afterScopes = await selection();
+    check(await page(() => !document.querySelector('.cad-context-menu')) && afterScopes.scope === scopeValue
+      && !afterScopes.keys.some(([, key]) => key === treeKey),
+      'A/B/A navigation revokes the old nested origin menu and selection');
+    await recovery(doc);
+    check((await observe()).serial === beforeView.serial && canonical(await historyState()) === canonical(originalHistory) && files() === originalFiles,
+      'Nested context and Normal To change neither CAD declarations, document history nor native file state');
+
+    await origin(owner, 'principal-plane', 'F10'); await choose('origin-relation');
+    const draft = () => page(() => ({
+      type: document.querySelector('[aria-label="Tipo de relación configurada"]')?.value,
+      name: document.querySelector('[aria-label="Nombre de relación configurada"]')?.value,
+      references: [1, 2].map(slot => document.querySelector('[aria-label="Referencia ' + slot + ' de relación configurada"]')?.value),
+    }));
+    const nominated = await waitFor('exact scoped first origin and empty second slot', async () => {
+      const value = await draft();
+      return value.type === 'coincident' && canonical(value.references) === canonical([JSON.stringify(first), '']) ? value : false;
+    });
+    const name = 'Original right origin coincidence';
+    await control('Nombre de relación configurada', name);
+    await control('Referencia 2 de relación configurada', JSON.stringify(second));
+    const filled = { ...nominated, name, references: [JSON.stringify(first), JSON.stringify(second)] };
+    check(canonical(await draft()) === canonical(filled), 'Draft contains the ordered nested and scope origin planes before preview');
+    const draftHistory = await historyState();
+    let mateId;
+    async function preview() {
+      const before = await observe();
+      await pressButton('.configured-assembly-workspace', 'Vista previa de relación configurada');
+      const row = await response(before.serial, 'preview-configured-assembly-relation-edit'), reply = row.response.value;
+      mateId ??= row.edit.change.mate.id;
+      const mate = { id: mateId, name, type: 'coincident', first, second, alignment: 'aligned', suppressed: false };
+      const expected = structuredClone(doc);
+      expected.catalog.find(c => c.definition.id === scopeDefinition.id).configurations.find(v => v.id === 'A').mateDeclarations = [mate];
+      check(canonical(row.current.document) === canonical(doc) && canonical(row.edit.scopePath) === canonical(scope)
+        && canonical(row.edit.definition) === canonical(scopeDefinition) && row.edit.configuration === 'A'
+        && canonical(row.edit.change) === canonical({ kind: 'add', mate }), 'Native proposal uses the exact right scope, configuration A and ordered local references');
+      check(reply.hasToken && reply.verification.status === 'verified' && reply.verification.accepted
+        && canonical(reply.document) === canonical(expected), 'Verified preview changes only the shared A declaration, retaining Base and B');
+      geometry(reply.scene, expected, 0, 'nested-origin-context-preview');
+      await recovery(doc);
+      return expected;
+    }
+    const proposed = await preview(), beforeCancel = await observe();
+    await pressButton(NAV, 'Cancelar');
+    await response(beforeCancel.serial, 'discard-configured-assembly');
+    const restored = await response(beforeCancel.serial, 'build-configured-assembly');
+    geometry(restored.response.value, doc, 0, 'nested-origin-context-cancel');
+    await recovery(doc);
+    check(canonical(await draft()) === canonical(filled) && canonical(await historyState()) === canonical(draftHistory) && files() === originalFiles,
+      'Preview Cancel retains the exact editable draft, document history and file state');
+    const retried = await preview();
+    check(canonical(retried) === canonical(proposed), 'Retry verifies the identical declaration graph and occurrence placements');
+    await apply(retried, 0); await history('Deshacer', doc, 0);
+    check(files() === originalFiles, 'Nested preview, Cancel, retry, Apply and Undo do not access files');
+    checks.push({ configuredNestedOriginContext: { scope, owner, definition, configuration: 'A', treeKey, first, second,
+      forward, reverse, cancel: true, retry: true, apply: true, undo: true,
+      limits: 'Owned hidden renderer. CDP menus, Normal To, preview and Cancel. Scripted scope, form, Apply and Undo controls. Original unrotated shared assembly only.' } });
+  }
   async function relate(doc) {
     await navigateScope('[]'); await origin([], 'principal-plane'); await choose('origin-relation');
     const first = { kind: 'principal-plane', component: null, plane: 'XY' };
@@ -198,5 +323,5 @@ module.exports = function originContextWorkflow(c) {
     const current = await apply(expected, 2); await history('Deshacer', doc, 2); await history('Rehacer', current, 2);
     return current;
   }
-  return { present, relate };
+  return { present, nested, relate };
 };

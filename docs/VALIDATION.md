@@ -1,5 +1,210 @@
 # Validation
 
+## Packaged 0.27.0 centered thin-wall cap lifecycle — Windows, 2026-11-11
+
+The first frozen 0.27.0 Windows x64 package at `75b55ab` opened
+the original 12 × 8 mm closed rectangle already extruded as a thin
+wall, centered about XY. The tree's edit command retained 20 mm of
+depth and a 2 mm wall. Enabling 1 mm end caps closed the visible
+opening. Setting 10 mm blocked Apply and reported the missing axial
+core. Cancel restored the 1,920 mm³ wall. Retry and Apply produced
+2,112 mm³. Undo and Redo reproduced both values.
+
+Save As changed the existing feature's cap enablement and document
+timestamp. It retained the feature, profile and body identities. A
+fresh isolated process recovered the two solids and saved a copy
+identical to the previous file. An explicit Open rebuilt the saved
+piece in that process. The ordinary Export STEP command wrote the
+same settled shape.
+
+An independent STEP reader measured two valid solids. The capped
+body measures 2,112 mm³ and 2,416 mm². Its outside bounds are
+`[-2,-2,-10]…[14,10,10]`. The six internal faces bound an enclosed
+void at `[0,0,-9]…[12,8,9]`. The independent reference cylinder
+retained its volume of 12π mm³ and surface area of 20π mm². Positions
+were checked within 1e−6 mm and the physical measures within 1e−5 in
+their respective units. The native route receipt SHA-256 is
+`4abb1a73cf76a27b922c76eb64c8896c152ffd2c12a7482166169e84a5cba31b`.
+This record applies to one positive-depth example in the first
+unsigned directory package. The later origin-leader revision needs
+its own packaged and hosted checks.
+
+## Editing an earlier boss with a dependent face cut — Windows, 2026-11-11
+
+The original `part-fresh-sketch` workflow creates a 4×4 mm boss and a
+2×2 mm cut from two sketches drawn on successive faces. The follow-up to
+`c3aff04` selects the earlier boss in the actual tree and changes its depth
+from 3 to 5 mm. The preview contains the earlier feature and its source
+prefix. It measures 1,040 mm³ and 816 mm² mesh area. Cancel restores the
+original file, recovery and six-feature body.
+
+Apply rebuilds the downstream sketch and cut. The saved support key, cut
+scope and sketch, operation and body identities stay exact. Only the boss
+depth changes in the six-feature sequence. The cut sketch moves from Z7
+to Z9. All four 2×2 mm floor edges move from Z4 to Z6. The final material
+measures 1,028 mm³ and 840 mm² mesh area, with bounds
+`[-10,-6,0]…[10,6,9]`. Undo, Redo, Save and Open verify both states and the
+updated saved bytes. The unchanged baseline is 996 mm³ and 808 mm².
+These values follow from the original 20×12×4 mm base, the 4×4 mm boss
+and the 2×2×3 mm cut. The tolerances are 1e−6 mm for positions, 1e−5 mm³
+for volume, and 1e−4 mm² for mesh area.
+
+The Windows renderer passed 118 checks with three owned Open dialogs
+and one Save As. The run uses actual pointer controls and worker results.
+The depth input uses the visible field setter. BRep validity, platform
+installation and external-window acceptance have separate records.
+
+## Packaged 0.26.0 mixed three-piece assembly — Windows, 2026-11-11
+
+The exact [0.26.0 Windows package](#packaged-0260-demo-and-fixed-plane-cut--windows-2026-11-11)
+opened the project-owned 10 × 6 × 4 mm neutral prism with the native
+single-solid STEP picker. The resulting v1 part was saved, then inserted
+into a separate copy of the two-piece machined assembly. Base and Guía
+kept their shared modeled definition and the two existing relations.
+The inserted occurrence has a second definition with the exact original
+STEP bytes and no linked source.
+
+The native Properties panel fixed and freed the selected prism, then
+applied its local movement to X = 70 mm. Three new relations connected the
+prism to root XY and XZ and to Guía YZ. The YZ signed distance was −35 mm
+and the XZ distance was zero. Undo and Redo removed and restored the last
+relation while the three solid placements and volume remained unchanged.
+
+The isolated process saved and closed the assembly. The test-owned STEP
+and imported part were moved out of their original paths. A fresh process
+recovered the assembly and saved a byte-identical copy. An explicit Open
+in the new process also rebuilt the original saved assembly. A new verified
+Solve reported rank 12 and zero local degrees of freedom. Cancel and STL
+export preserved the saved file.
+
+The saved graph retained the exact original modeled source, both prior
+occurrences and their relations. The independent binary STL audit found
+180 triangles forming three watertight shells. The two machined shells
+are 984 mm³ and 848 mm² each with four through holes in total. The prism
+is 240 mm³ and 248 mm² with bounds [70,0,0]…[80,6,4] mm. The total is
+2,208 mm³ and 1,944 mm². Coordinate and physical measure tolerances
+are 1e−6 mm and 1e−5 in the corresponding units. Native receipt SHA-256
+`3c4b40bb3f1c235c43c79485178d95dd0decf516b255ea5038fd36b84c4709b8`.
+This uses a preexisting two-occurrence parent and one original neutral
+solid. Other formats, layouts and human use retain their own evidence.
+
+## Hosted 0.26.0 compact configured camera observation — 2026-11-11
+
+The macOS persistence member for hosted merge
+`ab65310a77fa96515fe2da895319617c6bd31bfa` failed the new compact
+configured keyboard Fit and Previous assertion. The expected and restored
+stationary canvas crops have the same dimensions, text mask and projected
+root X anchor. Their unmasked pixel hashes differ. The comparison failed
+before the compact pointer Fit command, with no console or resource error.
+The old 0.25.0 route started the corresponding wheel case in Isométrica.
+The new route starts in Superior. This records the observed raster failure
+while camera geometry remains under investigation.
+[macOS persistence log](https://github.com/angelcp2802/solidflow/actions/runs/43033341968/job/130565720893)
+
+The second hosted attempt on the same revision reproduced both raw
+and unmasked hash pairs exactly, with the same projected anchor and
+mask rectangle. The follow-up keeps the strict raster comparison and
+adds a failure-only comparison of the accepted zoom and restored
+captures. Both Windows compact routes and 35 focused diagnostic cases
+passed. The pixel locations and camera state on macOS remain to be
+checked on the revised harness.
+[macOS retry log](https://github.com/angelcp2802/solidflow/actions/runs/43033341968/job/130587116229)
+
+The revised diagnostic on macOS job `130600287200` reproduced the same crop
+hashes and localized the difference to three unmasked pixels, each with a
+maximum native byte delta of one. All three sit immediately below the selected
+root X label, at the displayed location of a 0.1 CSS-pixel SVG leader segment.
+The candidate hides the paint for segments of at most half the one-pixel
+stroke, retaining the SVG element, exact projected start and clamped end.
+The affected region suggests a short-leader rasterization hypothesis. The
+strict camera image and anchor comparisons remain in place, with macOS
+revalidation pending.
+
+## Axial mid-plane thin-wall caps — Windows, 2026-11-11
+
+The focused branch based on `bc19779` admits caps on a fixed-depth additive
+axial mid-plane extrusion of one closed profile. The engine uses the already
+resolved signed span and retains the existing cap declaration and profile
+guards. Separate native cases at depths +20 and −20 preserve a translated
+Z7 source. Both produce one valid STEP-reopened solid, 2,112 mm³ and
+2,416 mm², with axial planes at Z−3, −2, 16 and 17 mm. The position
+tolerance is 1e−6 mm and the volume and area tolerances are 1e−5 in the
+respective units. A 10 mm cap leaves no core and rejects. The Selected
+linear cases exercise primitive and solved-entity sources for both signs,
+including cap and void material probes and exact borrowed owner retention.
+
+The existing `test:desktop:part-end-caps` route passed 178 checkpoints.
+It retained the Blind lifecycle, exercised active and inactive mid-plane
+caps, rejected the vanished core, recovered explicitly from the unsupported
+automatic extent, then edited, canceled, retried, applied, undid, redid,
+saved and reopened the mid-plane case. It retained the same original
+cylinder and exact cap body identity. The centered cap 2 mm edit reached
+2,304 mm³ with bounds Z−10…10 mm. The run retained three owned Open dialogs
+and one Save As. The Windows thin-wall, independent Blind direction and
+mixed-limit renderer routes passed 179, 195 and 226 checks respectively.
+The build, desktop startup and 230 focused unit, UI and CAD cases passed.
+These are scoped Windows checks on the original fixtures.
+
+## Packaged 0.26.0 demo and fixed-plane cut — Windows, 2026-11-11
+
+The frozen Windows x64 package came from `9dafefc6fc5c19625d65357750a4a0442c477a97`
+and tree `bafd2ae95fd99dd820b4a2209c4372360eefc0e2`. Its executable and
+ASAR SHA-256 values are `d97fdeddeeae3c11f3281995a1086dabbede7ba71f94d02f9ed738f24a3e2f00`
+and `9645619b9a0fa2d390811d63d5e3d5414fc8793a4142194c908f7b8945ff175d`.
+Physical and REA inspections matched 5,276 ASAR file hashes and sizes,
+102 directories and all nine production files.
+
+The isolated native window opened the original Direction 2 fixture and
+exported the copied result. In the matrix editor, **Recalcular operaciones**
+blocked acceptance until the user selects how to treat the fixed plane.
+The actual checkbox for Direction 2 enabled acceptance after the rebuild.
+Cancel restored the original volumes, then a second attempt applied,
+saved to a separate path, reopened and exported STEP.
+
+The saved declaration changes the copy to Selected regeneration and records
+only the world policy for `secondDirection.endCondition.target`. The fresh
+STEP read from the same package found two valid bodies and the original bounds
+within 1e−6 mm. The 0.5 mm radius cavity in the selected target changed from
+Z −3…4 mm to Z −3…0 mm. Target volume changed from 58.502212856 to
+61.643805510 mm³. The seed stayed at 58.502212856 mm³ with its Z −7…0 mm
+cavity. Per-body volume, surface area and the lateral cylindrical area
+match the analytic expectations within 1e−5 in the corresponding units.
+The native receipt has SHA-256
+`6c6b706bf25c2a004bfe61bb21eac69da32a795012dc1d5ca15c7a50ffaee890`.
+The tested package still shows the raw English missing-policy banner.
+
+The verified 0.26.0 desktop shortcut loaded **Ensamblaje de dos piezas
+mecanizadas** in its own profile. Base and Guía stayed visible with two
+solids, one origin and 1,968 mm³. Real import and insertion pickers each
+displayed the matching structured STEP title and filter. Escape closed
+them and left the saved assembly unchanged. The Spanish guide and all 17
+original examples were checked. Delivery receipt SHA-256
+`049d629ed5f4aa7429086a665d2fb11f71c8be6848a9189fa2efd58dd47ca405`.
+
+The exact build, 11,504 unit and CAD cases, 230 IPC checks with two skips,
+desktop startup and first 19 prioritized commands passed. The complete
+inventory has 123 commands and continued after this checkpoint. This
+record covers the unsigned Windows directory package and the stated
+fixtures. Hosted, installed-platform and human-use results are separate.
+
+## Nested configured origin context and Normal To — Windows, 2026-11-11
+
+With the right use of an original reused two-prism definition active, the
+configured component renderer used the trusted tree and viewport context
+commands for `right/anchor@r1`. Its global owner key and projected leader
+identify that occurrence, while the scoped relation form uses the local
+`anchor` reference. **Normal a** puts the expected leader at the right of
+the view and flips it left on repeat within one pixel. Right → left →
+right scope navigation revokes the old popup and selection.
+
+Native preview, Cancel, retry, Apply and Undo check the exact current
+reference owner and modify only the shared A relation declarations.
+Both prism placements and the volume and area remain 48 mm³ and 104 mm².
+The focused Windows run passed 361 checks with zero console or request
+errors. Its SHA-256 is
+`e89fda02cfee6d52cefe8c00fdd25bc76ceda42557db2325fbdb2570d82869fe`.
+The result covers the stated configured reuse and coincident planes.
+
 ## Packaging dependency override trial — Windows, 2026-11-11
 
 The isolated dependency change scoped to Electron Builder 26.15.3 resolves
@@ -117,6 +322,30 @@ All nine production files match the frozen 0.25.0 build.
 
 The result covers these two standard viewport actions. Other context
 actions, nested paths and their keyboard aliases retain separate cases.
+
+## Standard assembly viewport suppression and keyboard activation — Windows, 2026-11-11
+
+The hidden production `test:desktop:assembly-basic-authoring` route uses
+the original 3 × 2 × 4 mm prisms. With fixed Base selected, actual
+right-button press and release at the independently projected Seguidor
+position select that floating occurrence at X16. Escape dismisses the
+first menu without changing recovery, document history or worker activity.
+A second right release and pointer activation of **Suprimir** change only
+Seguidor's suppression flag and the document timestamp. The tree retains
+its row, and the document preserves its pose and source revision. The
+exact native body is absent and the remaining two solids total 48 mm³ and
+104 mm².
+
+The suppressed row's focused `ContextMenu`, `End` and `Enter` sequence
+invokes **Activar**. It restores the third body at the same pose and the
+original totals of 72 mm³ and 156 mm². Exact Undo/Redo and rollback compare
+complete declarations and recovery, with one native rebuild per committed
+step. File IPC and the original part bytes remain unchanged. The test
+compares native volume and area within 1e−5 and bounds within 1e−6 mm.
+The complete route passed 627 checkpoints on Windows. This case covers
+one unconstrained occurrence in the standard root and its renderer
+recovery. Saved suppressed documents, nested and configured occurrences
+and other platforms have separate evidence.
 
 ## Complete frozen 0.25.0 Windows inventory — 2026-11-11
 
@@ -5219,6 +5448,33 @@ reports are outside the bounded retrieved log. macOS persistence passed this
 run. All three Desktop jobs stopped at the renderer prerequisite before their
 install/build/test/startup/package steps. Both hosted failures remain open.
 
+## Coincident assembly components and keyboard Move — Windows, 2026-11-11
+
+On corrected 0.26 source `9dafefc6`, the standard authoring route uses
+the original 3 × 2 × 4 mm prism twice at the same pose, once as fixed Base
+and once as free Guía. Frontal and Fit put the common top-face interior at
+the viewport centre. A CDP right-button release there opens only the
+background menu and preserves the selected Base, history and recovery.
+
+The actual tree End key moves focus to Guía while Base remains selected.
+Enter selects Guía. The Context Menu key, arrows and Enter open **Mover
+Guía** and focus its heading. Native Tab traversal reaches the preview
+button, which Enter activates. The numeric X target uses the existing
+visible-field setter and Apply uses the existing pointer control.
+The native proof moves only Guía to X=8 mm, keeps Base fixed and checks the
+original independent geometry and full occurrence graph.
+
+After movement the viewport centre reaches Base. The exact CSS centre
+changes with the visible inspector width, and the Frontal view retains
+its world centre. The two context actions and keyboard selection start no
+CAD operation. File activity is identical through the new route.
+
+Build, the 561-check Windows renderer route and 39 viewport unit cases
+passed. All nine production hashes match the frozen 0.26 build. This
+case covers one exact overlap and the current keyboard route. Hidden
+components, other overlap depths, installed and hardware interaction
+retain their own evidence.
+
 ## Compact assembly view aliases — Windows, 2026-11-11
 
 The standard and configured compact shortcut routes reuse the [original
@@ -5244,6 +5500,32 @@ checks) and `npm run test:desktop:assembly-configured-shortcuts-compact`
 cleanup. The changes extend the test harness only. Enabled Normal To on a
 planar face retains its separate V1 result. Other viewport sizes, part and
 ribbon aliases, hosted checks and visible-window use have their own evidence.
+
+## Assembly component-name composition — Windows, 2026-11-11
+
+On corrected 0.26 source `9dafefc6`, the standard compact shortcut route
+opens the original two-prism assembly, saves to a test-owned file and focuses
+Nombre del componente. Chromium's composition command appends a temporary
+`仮名` candidate to the existing name. The field receives trusted composition
+start, update and input events, then a trusted Ctrl+S with
+`isComposing=true` and `defaultPrevented=false`.
+[Chromium input protocol](https://chromium.googlesource.com/chromium/src/+/55fcafa6649f3dcb55887b389fa1e278f72b5622/third_party/blink/public/devtools_protocol/browser_protocol.pdl)
+
+The temporary value and focus remain present after the chord. The worker
+serial, document and recovery bytes, file requests and already-saved bytes
+are identical. Chromium then cancels the composition in the same field. The
+deletion input is trusted and the delivered `compositionend` has
+`isTrusted=false` in this run. The first harness run stopped at its
+expectation of a trusted cancellation end. The corrected test requires
+the actual deletion and end event. The existing fresh Ctrl+S subsequently
+commits the separately typed name and writes the expected document.
+
+Build, all 557 compact route checks and the 29 shortcut unit cases passed.
+The child closed and removed its isolated profile. All nine local
+production hashes match the frozen 0.26 build. This check covers one
+standard assembly field in a hidden Chromium window. Other fields,
+configured assemblies, foreign focus owners, hardware IME input and
+hosted runs retain their own evidence.
 
 ## Held assembly Undo — Windows, 2026-11-11
 
@@ -15738,6 +16020,31 @@ independent interoperability remain required; this does not narrow the goal
 or establish platform support. These results do not satisfy the full validation
 gate; the individual build, IPC and focused passes remain recorded.
 
+
+## Fixed-plane recipe diagnostic — Windows, 2026-11-11
+
+A packaged 0.26 check found that a missing world policy for Direction 2
+correctly kept Apply disabled and displayed the raw worker message. The
+isolated renderer reproduced the exact message on `9dafefc6` with the
+Direction 2 checkbox available. Its new Spanish-banner assertion failed
+before the presentation change.
+
+The current build now names the direction, principal plane and actual
+checkbox in **Planos límite**. The banner derives this message from the
+current repetition, seed and exact worker locator. The worker response and
+the editor's Apply decision retain their original data. The renderer
+routes for Directions 1 and 2 verify the raw response and Spanish banner,
+missing-policy refusal, preview and Apply, Save As and reopen. The
+Direction 2 route also retains Cancel and retry.
+
+Build and desktop startup passed on Windows x64. The Direction 1 and
+Direction 2 routes passed 23 and 34 checkpoints, respectively. The
+recipe-availability fallback passed 86 checkpoints, and the two world-limit
+unit files passed 41 cases. These include original messages for unrelated
+errors, face/datum limits, inactive Direction 2 and already declared
+policies. Only the renderer JavaScript and HTML entry changed among the
+nine production hashes. Hosted and packaged validation of this follow-up
+retain their own evidence.
 
 ## Fixed principal-plane regeneration in Direction 2 — Windows, 2026-11-11
 

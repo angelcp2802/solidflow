@@ -6,6 +6,7 @@ import { isAutoFeaturePattern, isDynamicFeaturePattern, MAX_FEATURE_PATTERN_CONT
 import { bodyPatternHistoryChoices, type BodyPatternEditor } from './BodyPatternPanel';
 import FeaturePatternDepthVariation from './FeaturePatternDepthVariation';
 import FeaturePatternSketchVariation from './FeaturePatternSketchVariation';
+import { featurePatternWorldLimitLabel } from './featurePatternBuildMessage';
 
 const key = (reference: BodyReference) => JSON.stringify([reference.bodyId, reference.sourceFeatureId]);
 const PAGE_SIZE = 64;
@@ -33,7 +34,7 @@ export function FeaturePatternWorldLimits({ feature, features, loading, onChange
           aria-label={second ? `Mantener plano límite fijo de dirección 2 de ${source.name}` : `Mantener plano límite fijo de ${source.name}`}
           checked={operation.referencePolicies.some(policy => policy.featureId === source.id && policy.path === path)}
           onChange={event => { if (!loading) onChange({ featurePattern: withFeaturePatternWorldLimit(feature, source.id, event.target.checked, path).featurePattern }); }} />
-        <span>{second ? `Mantener el plano límite de dirección 2 de ${source.name}` : `Mantener el plano límite de ${source.name}`}</span>
+        <span>{featurePatternWorldLimitLabel(source.name, path)}</span>
       </label>;
     })}
     {staleLimits.map(policy => <label key={JSON.stringify([policy.featureId, policy.path])} className="check-option">

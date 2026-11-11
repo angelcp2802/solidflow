@@ -36,12 +36,13 @@ module.exports=function componentWorkflow(c){
  async function select(value,stage){const before=await observe();await control('Configuración raíz',value);const row=await response(before.serial,'build-configured-assembly');geometry(row.response.value,row.current.document,stage,'root-'+value);await recovery(row.current.document);return row.current.document;}
  const navigateScope=require('./desktop-configured-scope-navigation.cjs')({page,control,observe,waitFor,check,canonical,ipc,dialogCounts,checks:c.checks});
  const context=require('./desktop-configured-component-context.cjs')({page,navigation,pointer,menuKey,captureComponentMenu,waitFor,check,canonical,observe,recovery,response,button,control,navigateScope,geometry,checks,ipc,dialogCounts,NAV});
- const origins=require('./desktop-configured-origin-context.cjs')({page,navigation,pointer,menuKey,cameraFrame:c.cameraFrame,captureComponentMenu,waitFor,check,canonical,observe,recovery,response,button,control,navigateScope,geometry,history,apply,checks,NAV});
+ const origins=require('./desktop-configured-origin-context.cjs')({page,navigation,pointer,menuKey,cameraFrame:c.cameraFrame,captureComponentMenu,waitFor,check,canonical,observe,recovery,response,button,control,navigateScope,geometry,history,apply,checks,ipc,dialogCounts,NAV});
  return async()=>{
   await waitFor('production startup',()=>page(()=>document.querySelector('.statusbar')?.textContent.includes('Listo')&&typeof window.solidflow?.openDocument==='function'),initialReadyMs);
   const originalBytes=await fs.readFile(input);let before=await observe();await click('button[aria-label="Abrir (Ctrl+O)"]');await waitFor('test-owned initial discard dialog',()=>page(()=>!!document.querySelector('[role="dialog"][aria-labelledby="discard-title"]')));await button('Continuar sin guardar','[role="dialog"][aria-labelledby="discard-title"]');let row=await response(before.serial,'build-configured-assembly');check(canonical(row.current.document)===canonical(expected),'Actual file IPC opens original complete v3');geometry(row.response.value,expected,0,'initial');await recovery(expected);
   await context.initial(expected);
   await origins.present(expected);
+  await origins.nested(expected);
   before=await observe();await navigateScope('["left"]');await recovery(expected);
   await control('Nombre del componente configurado','Imported shifted');await control('Inserción X en mm','5');before=await observe();await button('Importar componente configurado',PANEL);await waitFor('canceled import picker',()=>dialogCounts().opens===2);await recovery(expected);check((await observe()).serial===before.serial,'Canceled import sends no worker preview');
   before=await observe();await button('Importar componente configurado',PANEL);row=await response(before.serial,ACTION);const staged=proposal(row,expected,'insert',1);await recovery(expected);

@@ -100,9 +100,9 @@ export function resolveThinWall(feature: object): ResolvedThinWall | undefined {
 
 /** Context is resolved by the caller before any provisional automatic prism. */
 export function assertThinWallEndCapsContext(definition: ThinWallDefinition | undefined,
-  operation: string, blind: boolean, symmetric: boolean): void {
-  if (definition?.endCaps?.enabled && (operation !== 'add' || !blind || symmetric)) {
-    throw new Error('Tapas de pared delgada: requieren una extrusión aditiva ciega de un solo sentido.');
+  operation: string, allBlind: boolean): void {
+  if (definition?.endCaps?.enabled && (operation !== 'add' || !allBlind)) {
+    throw new Error('Tapas de pared delgada: requieren una extrusión aditiva ciega.');
   }
 }
 

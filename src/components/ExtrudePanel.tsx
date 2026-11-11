@@ -283,7 +283,8 @@ export default function ExtrudePanel({
       <ThinWallPanel thinWall={feature.thinWall} existing={existing} required={thinWallRequired} disabled={loading || thinWallDisabled}
         autoCornersAvailable={feature.type === 'extrude' && autoCornersAvailable}
         allowAutoCornerRecovery={feature.type === 'extrude'}
-        endCapsAvailable={feature.type === 'extrude' && feature.symmetric === false && end === undefined && !(direction?.enabled && secondEnd) && endCapsAvailable}
+        endCapsAvailable={feature.type === 'extrude' && end === undefined
+          && !(direction?.enabled && (feature.symmetric || secondEnd)) && endCapsAvailable}
         allowEndCapRecovery={true}
         onChange={thinWall => onChange({ thinWall })} />
     </>

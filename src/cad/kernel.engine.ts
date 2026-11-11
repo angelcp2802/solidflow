@@ -1202,9 +1202,8 @@ export class CadEngine {
         const thinWall = resolveThinWall(feature);
         assertExtrusionDirectionContext(feature);
         assertThinWallEndCapsContext(thinWall?.definition, feature.type === 'extrude' ? 'add' : 'subtract',
-          feature.type === 'extrude' && feature.endCondition === undefined
-            && !(readSecondDirection(feature)?.enabled && readSecondDirection(feature)?.endCondition),
-          feature.type !== 'extrude' || feature.symmetric !== false);
+          feature.type === 'extrude' && typeof feature.symmetric === 'boolean' && feature.endCondition === undefined
+            && !(readSecondDirection(feature)?.enabled && readSecondDirection(feature)?.endCondition));
         if (thinWall && feature.type !== 'extrude' && feature.type !== 'cut'
           && feature.type !== 'revolve' && feature.type !== 'revolvedCut') {
           throw new Error('La pared delgada solo corresponde a extrusiones y revoluciones de material o corte.');

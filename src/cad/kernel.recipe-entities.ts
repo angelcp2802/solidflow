@@ -78,7 +78,7 @@ function entityRecipePrismFactory(input: EntityRecipeProfileInput): {
     ...(secondDirection ? { secondDirection } : {}) });
   const feature = source.features.find(feature => feature.id === placement.sourceFeatureId);
   assertThinWallEndCapsContext(thinWall?.definition, feature?.type === 'extrude' ? 'add' : 'subtract',
-    placement.termination.kind === 'blind', placement.termination.kind !== 'blind' || placement.termination.symmetric !== false);
+    placement.termination.kind === 'blind');
   const section = thinWall ? prepareThinSection(view.resolved, thinWall) : undefined;
   let profile = section?.sketch.profile ?? view.result.profile;
   const variation = placement.sketchDimensions;
@@ -158,7 +158,7 @@ export function validateEntityRecipeProfileForAbsence(input: EntityRecipeProfile
 /** Native observations from the full authentic solved profile; no saved miss policy is inferred here. */
 export function resolveEntityRecipeUntilNext(input: EntityRecipeToolInput): UntilNextCutResolution {
   if (input.termination.kind !== 'untilNext') throw new Error('Entity UntilNext resolution requires its exact termination.');
-  assertThinWallEndCapsContext(resolveThinWall(input.placement)?.definition, input.operation, false, false);
+  assertThinWallEndCapsContext(resolveThinWall(input.placement)?.definition, input.operation, false);
   if (readSecondDirection(input.placement)?.enabled) throw new Error('La segunda dirección activa requiere profundidad ciega.');
   const { makePrism, ray } = entityRecipePrismFactory(input);
   return withNativeOwners<UntilNextCutResolution>(owners => {
@@ -194,8 +194,7 @@ export function buildEntityRecipeTool(input: EntityRecipeToolInput): Shape3D {
   assertExtrusionDirectionContext({ symmetric: termination.kind === 'blind' && termination.symmetric,
     ...(termination.kind !== 'blind' ? { endCondition: termination } : {}),
     ...(secondDirection ? { secondDirection } : {}) });
-  assertThinWallEndCapsContext(resolveThinWall(placement)?.definition, input.operation,
-    termination.kind === 'blind', termination.kind !== 'blind' || termination.symmetric !== false);
+  assertThinWallEndCapsContext(resolveThinWall(placement)?.definition, input.operation, termination.kind === 'blind');
   const { makePrism, ray, span } = entityRecipePrismFactory(input);
   const depth = placement.signedDepth, frame = placement.frame;
   return withNativeOwners(owners => {
@@ -229,7 +228,7 @@ export function resolveEntityRecipeDirections(input: EntityRecipeToolInput, allo
   if (termination.kind === 'blind' && termination.symmetric || termination.kind === 'throughAll' && termination.bothDirections) {
     throw Error('Cada dirección requiere su propio sentido, sin plano medio ni Por todo bilateral.');
   }
-  assertThinWallEndCapsContext(resolveThinWall(placement)?.definition, input.operation, false, false);
+  assertThinWallEndCapsContext(resolveThinWall(placement)?.definition, input.operation, false);
   if (direction.endCondition && (!input.secondTermination || input.secondTermination.kind !== direction.endCondition.kind)
     || !direction.endCondition && input.secondTermination && input.secondTermination.kind !== 'blind') throw Error('Falta resolver exactamente el límite de la segunda dirección.');
   const { secondDirection: _direction, secondTermination: _secondPlacement, ...firstPlacement } = placement;

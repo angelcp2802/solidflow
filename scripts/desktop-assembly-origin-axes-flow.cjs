@@ -67,17 +67,25 @@ module.exports = function originAxesWorkflow(c) {
               role: hit.getAttribute('role'), label: hit.getAttribute('aria-label')?.slice(0, 160) ?? null,
               className: hit.getAttribute('class')?.slice(0, 160) ?? null } : null };
         });
-        return { labels, toolbar, toolbarCount: toolbars.length, overflow: !!viewport.querySelector('.assembly-origin-overflow') };
+        const leaders = [...viewport.querySelectorAll('.assembly-origin-leaders > line')].map(line => {
+          const [x1, y1, x2, y2] = ['x1', 'y1', 'x2', 'y2'].map(name => line.getAttribute(name));
+          return { finite: [x1, y1, x2, y2].every(value => value !== null && Number.isFinite(Number(value))),
+            length: Math.hypot(Number(x1) - Number(x2), Number(y1) - Number(y2)), visibility: getComputedStyle(line).visibility };
+        });
+        return { labels, leaders, toolbar, toolbarCount: toolbars.length, overflow: !!viewport.querySelector('.assembly-origin-overflow') };
       });
       check(layout.labels.length > 0 && !layout.overflow && layout.labels.every(row => row.inBounds && row.ownHit),
         'Original origin fixture labels remain inside the viewport and individually hittable: ' + JSON.stringify(layout));
       check(layout.labels.every((a, i) => layout.labels.slice(i + 1).every(b => a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top)),
         'Distinct origin label rectangles do not overlap on the original fixture');
+      check(layout.leaders.length === layout.labels.length && layout.leaders.every(leader =>
+        leader.finite && leader.visibility === (leader.length <= .5 ? 'hidden' : 'visible')),
+        'Every origin label retains a finite SVG leader and only half-stroke-or-shorter leaders are hidden');
       check(layout.toolbarCount === 1 && layout.toolbar && layout.toolbar.width > 0 && layout.toolbar.height > 0
         && layout.labels.every(row => row.relativeTop >= 48 && (row.right <= layout.toolbar.left || layout.toolbar.right <= row.left
           || row.bottom <= layout.toolbar.top || layout.toolbar.bottom <= row.top)),
         'Visible origin labels reserve the toolbar band and do not cover its actual rectangle: ' + JSON.stringify(layout));
-      selectionGestures.push({ kind: 'origin-label-layout', labels: layout.labels, toolbar: layout.toolbar });
+      selectionGestures.push({ kind: 'origin-label-layout', labels: layout.labels, leaders: layout.leaders, toolbar: layout.toolbar });
     }
     if (touch) {
       check(!!state.originKey, 'Actual touch targets a projected origin label');

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { Feature, RepetitionFeature } from '../cad/kernel.types';
 import FeaturePatternPanel, { FeaturePatternWorldLimits } from './FeaturePatternPanel';
+import { featurePatternBuildMessage } from './featurePatternBuildMessage';
 import { withFeaturePatternWorldLimit } from '../model/featurePatternCommands';
 
 // Original symbolic render inputs. These do not exercise pointer events or CAD.
@@ -147,5 +148,53 @@ describe('rendered principal-plane recipe choice', () => {
     const stale = field(FeaturePatternWorldLimits({ feature, features, loading: true, onChange }), 'Quitar plano límite no disponible de dirección 2');
     expect(stale.props.disabled).toBe(true); stale.props.onChange?.({ target: { checked: false } });
     expect(onChange).not.toHaveBeenCalled();
+  });
+});
+
+
+describe('fixed-plane worker diagnostic presentation', () => {
+  const firstPath = 'endCondition.target';
+  const secondPath = 'secondDirection.endCondition.target';
+  const raw = (path: string, seedId = current.sourceFeatureId) =>
+    `${seedId}:${path}: An external/internal support needs a saved remap policy; no world/latest/nearest default.`;
+
+  it.each([
+    { path: firstPath, plane: 'XY', direction: 1, label: 'Mantener el plano límite de Corte hasta XY' },
+    { path: secondPath, plane: 'XZ', direction: 2, label: 'Mantener el plano límite de dirección 2 de Corte hasta XY' },
+  ])('names only the actual missing principal-plane choice for direction $direction', ({ path, plane, direction, label }) => {
+    const feature = pattern(), { features } = twoTargets();
+    const diagnostic = Object.freeze({ id: feature.id, message: raw(path) });
+    expect(featurePatternBuildMessage(diagnostic, feature, features)).toBe(
+      `Para recalcular la dirección ${direction} hasta el plano ${plane}, activa «${label}» en «Planos límite».`,
+    );
+    expect(diagnostic.message).toBe(raw(path));
+    expect(render(feature, features)).toContain(label);
+  });
+
+  it.each([
+    { message: raw('support'), id: 'ui-world-pattern' },
+    { message: raw(firstPath, 'foreign-seed'), id: 'ui-world-pattern' },
+    { message: raw(firstPath), id: 'another-pattern' },
+    { message: raw(secondPath) + '\nAnother worker diagnostic.', id: 'ui-world-pattern' },
+    { message: raw(firstPath).replace('saved remap policy', 'world limit'), id: 'ui-world-pattern' },
+  ])('retains unmatched worker text verbatim', diagnostic => {
+    expect(featurePatternBuildMessage(diagnostic, pattern(), twoTargets().features)).toBe(diagnostic.message);
+  });
+
+  it('retains the raw message for a saved policy at this exact locator', () => {
+    const feature = withFeaturePatternWorldLimit(pattern(), current.sourceFeatureId, true, secondPath);
+    const diagnostic = { id: feature.id, message: raw(secondPath) };
+    expect(featurePatternBuildMessage(diagnostic, feature, twoTargets().features)).toBe(diagnostic.message);
+  });
+
+  it.each(['face', 'datum', 'inactive', 'suppressed'] as const)('retains the raw message for a %s limit', state => {
+    const feature = pattern(), { seed, features } = twoTargets();
+    if (state === 'face') seed.secondDirection!.endCondition = { kind: 'upToSurface', target: { kind: 'face',
+      face: { sourceFeatureId: base.sourceFeatureId, key: 'face-v1|original' } } };
+    if (state === 'datum') seed.secondDirection!.endCondition = { kind: 'upToSurface', target: { kind: 'plane', planeId: 'datum' } };
+    if (state === 'inactive') seed.secondDirection!.enabled = false;
+    if (state === 'suppressed') seed.suppressed = true;
+    const diagnostic = { id: feature.id, message: raw(secondPath) };
+    expect(featurePatternBuildMessage(diagnostic, feature, features)).toBe(diagnostic.message);
   });
 });
