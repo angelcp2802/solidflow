@@ -2,11 +2,50 @@ import { useMemo, useState } from 'react';
 import type { BodyReference, Feature, RepetitionFeature } from '../cad/kernel.types';
 import { sameBodyReference } from '../model/bodyCommands';
 import { withFeaturePatternBindings, withFeaturePatternWorldLimit } from '../model/featurePatternCommands';
-import { isAllFeaturePattern, MAX_FEATURE_PATTERN_CONTRIBUTIONS, MAX_FEATURE_PATTERN_TARGETS, type AnyFeaturePatternBinding } from '../model/featurePatterns';
+import { isAutoFeaturePattern, isDynamicFeaturePattern, MAX_FEATURE_PATTERN_CONTRIBUTIONS, MAX_FEATURE_PATTERN_TARGETS, type AnyFeaturePatternBinding } from '../model/featurePatterns';
 import { bodyPatternHistoryChoices, type BodyPatternEditor } from './BodyPatternPanel';
+import FeaturePatternDepthVariation from './FeaturePatternDepthVariation';
+import FeaturePatternSketchVariation from './FeaturePatternSketchVariation';
+import { featurePatternWorldLimitLabel } from './featurePatternBuildMessage';
 
 const key = (reference: BodyReference) => JSON.stringify([reference.bodyId, reference.sourceFeatureId]);
 const PAGE_SIZE = 64;
+
+export function FeaturePatternWorldLimits({ feature, features, loading, onChange }: {
+  feature: RepetitionFeature; features: readonly Feature[]; loading: boolean; onChange: (patch: Partial<Feature>) => void;
+}) {
+  const operation = feature.featurePattern;
+  if (feature.source.mode !== 'features' || operation?.mode !== 'regenerate') return null;
+  const selected = new Set(feature.source.featureIds);
+  const worldLimits = features.flatMap(source => {
+    if (!selected.has(source.id) || source.suppressed || source.type !== 'extrude' && source.type !== 'cut') return [];
+    const ends = [{ end: source.endCondition, path: 'endCondition.target' as const },
+      { end: source.secondDirection?.endCondition, path: 'secondDirection.endCondition.target' as const }];
+    return ends.flatMap(({ end, path }) => end?.kind === 'upToSurface' && end.target.kind === 'principal' ? [{ source, path }] : []);
+  });
+  const staleLimits = operation.referencePolicies.filter(policy => !worldLimits.some(limit => limit.source.id === policy.featureId && limit.path === policy.path));
+  if (!worldLimits.length && !staleLimits.length) return null;
+  return <div className="property-section">
+    <h3>Planos límite</h3>
+    {worldLimits.map(({ source, path }) => {
+      const second = path === 'secondDirection.endCondition.target';
+      return <label key={JSON.stringify([source.id, path])} className="check-option">
+        <input type="checkbox" disabled={loading}
+          aria-label={second ? `Mantener plano límite fijo de dirección 2 de ${source.name}` : `Mantener plano límite fijo de ${source.name}`}
+          checked={operation.referencePolicies.some(policy => policy.featureId === source.id && policy.path === path)}
+          onChange={event => { if (!loading) onChange({ featurePattern: withFeaturePatternWorldLimit(feature, source.id, event.target.checked, path).featurePattern }); }} />
+        <span>{featurePatternWorldLimitLabel(source.name, path)}</span>
+      </label>;
+    })}
+    {staleLimits.map(policy => <label key={JSON.stringify([policy.featureId, policy.path])} className="check-option">
+      <input type="checkbox" checked disabled={loading}
+        aria-label={policy.path === 'secondDirection.endCondition.target' ? 'Quitar plano límite no disponible de dirección 2' : 'Quitar plano límite no disponible'}
+        onChange={() => { if (!loading) onChange({ featurePattern: withFeaturePatternWorldLimit(feature, policy.featureId, false, policy.path).featurePattern }); }} />
+      <span>Plano límite no disponible{policy.path === 'secondDirection.endCondition.target' ? ' de dirección 2' : ''} · quitar</span>
+    </label>)}
+    <p className="muted-small">Cada copia termina en el mismo plano principal. Su profundidad se recalcula desde la posición de la copia.</p>
+  </div>;
+}
 
 export default function FeaturePatternPanel({ feature, features, editor, onChange }: {
   feature: RepetitionFeature;
@@ -21,8 +60,12 @@ export default function FeaturePatternPanel({ feature, features, editor, onChang
   const [choicePage, setChoicePage] = useState(0);
   const [targetPage, setTargetPage] = useState(0);
   if (feature.source.mode !== 'features' || !operation) return null;
-  const selectedOperation = isAllFeaturePattern(operation) ? null : operation;
-  const targetPages = Math.max(1, Math.ceil(editor.bodies.length / PAGE_SIZE));
+  const selectedOperation = isDynamicFeaturePattern(operation) ? null : operation;
+  const automatic = isAutoFeaturePattern(operation);
+  const catalogueNames = new Map(editor.bodies.map(body => [body.ref.bodyId, body.name]));
+  const dynamicTargets = automatic ? operation.capturedBodyIds.map(id => ({ id, name: catalogueNames.get(id) ?? 'Cuerpo detectado no disponible' }))
+    : editor.bodies.map(body => ({ id: body.ref.bodyId, name: body.name }));
+  const targetPages = Math.max(1, Math.ceil(dynamicTargets.length / PAGE_SIZE));
   const currentTargetPage = Math.min(targetPage, targetPages - 1);
   const steps = history.steps.filter(step => feature.source.mode === 'features' && feature.source.featureIds.includes(step.id));
   const step = steps.find(candidate => candidate.id === selectedStep) ?? steps[0];
@@ -43,29 +86,10 @@ export default function FeaturePatternPanel({ feature, features, editor, onChang
       : selectedOperation.targets.filter(target => !sameBodyReference(target, reference)));
   };
   const targetName = (reference: BodyReference) => editor.bodies.find(body => sameBodyReference(body.ref, reference))?.name ?? 'Destino no disponible';
-  const worldLimits = operation.mode === 'regenerate'
-    ? features.filter(source => feature.source.mode === 'features' && feature.source.featureIds.includes(source.id)
-      && !source.suppressed && (source.type === 'extrude' || source.type === 'cut')
-      && source.endCondition?.kind === 'upToSurface' && source.endCondition.target.kind === 'principal') : [];
-  const staleLimits = operation.mode === 'regenerate'
-    ? operation.referencePolicies.filter(policy => !worldLimits.some(source => source.id === policy.featureId)) : [];
   return <>
-    {operation.mode === 'regenerate' && (worldLimits.length > 0 || staleLimits.length > 0) && <div className="property-section">
-      <h3>Planos límite</h3>
-      {worldLimits.map(source => <label key={source.id} className="check-option">
-        <input type="checkbox" disabled={editor.loading}
-          aria-label={`Mantener plano límite fijo de ${source.name}`}
-          checked={operation.referencePolicies.some(policy => policy.featureId === source.id)}
-          onChange={event => onChange({ featurePattern: withFeaturePatternWorldLimit(feature, source.id, event.target.checked).featurePattern })} />
-        <span>Mantener el plano límite de {source.name}</span>
-      </label>)}
-      {staleLimits.map(policy => <label key={policy.featureId} className="check-option">
-        <input type="checkbox" checked disabled={editor.loading} aria-label="Quitar plano límite no disponible"
-          onChange={() => onChange({ featurePattern: withFeaturePatternWorldLimit(feature, policy.featureId, false).featurePattern })} />
-        <span>Plano límite no disponible · quitar</span>
-      </label>)}
-      <p className="muted-small">Cada copia termina en el mismo plano principal. Su profundidad se recalcula desde la posición de la copia.</p>
-    </div>}
+    <FeaturePatternWorldLimits feature={feature} features={features} loading={editor.loading} onChange={onChange} />
+    <FeaturePatternDepthVariation feature={feature} features={features} loading={editor.loading} onChange={onChange} />
+    <FeaturePatternSketchVariation feature={feature} features={features} loading={editor.loading} onChange={onChange} />
     <div className="property-section">
       <h3>Geometría de las operaciones</h3>
       <label className="number-field"><span>Operación seleccionada</span>
@@ -115,7 +139,7 @@ export default function FeaturePatternPanel({ feature, features, editor, onChang
                 </label>)}
               </div>
             </details>}
-            {!selectedOperation && <span> · Todos los cuerpos actuales al recalcular</span>}
+            {!selectedOperation && <span>{isAutoFeaturePattern(operation) ? ' · Cuerpos detectados' : ' · Todos los cuerpos actuales al recalcular'}</span>}
           </li>;
         })}
       </ol>
@@ -143,16 +167,20 @@ export default function FeaturePatternPanel({ feature, features, editor, onChang
         onClick={() => editor.onPicking(!editor.picking)}>{editor.picking ? 'Terminar selección de destinos' : 'Seleccionar destinos en la vista'}</button>
       <p className="muted-small">Solo se modifica el material de los destinos seleccionados. Los cuerpos que no cambien conservan su estado.</p>
       </> : <>
-        <p className="muted-small">Todos los cuerpos actuales se vuelven a resolver al recalcular. Esta selección no se guarda como una lista fija. Los cuerpos sin cambio conservan su estado.</p>
-        <ul aria-label="Catálogo actual para el alcance todos los cuerpos">
-          {editor.bodies.slice(currentTargetPage * PAGE_SIZE, (currentTargetPage + 1) * PAGE_SIZE).map(body => <li key={key(body.ref)}>{body.name}</li>)}
+        <p className="muted-small">{automatic
+          ? 'Los cuerpos detectados se conservan al editar o reabrir la repetición. Usa «Volver a detectar cuerpos» para cambiar el alcance.'
+          : 'Todos los cuerpos actuales se vuelven a resolver al recalcular. Esta selección no se guarda como una lista fija. Los cuerpos sin cambio conservan su estado.'}</p>
+        <ul aria-label={automatic ? 'Cuerpos detectados para la repetición' : 'Catálogo actual para el alcance todos los cuerpos'}>
+          {dynamicTargets.slice(currentTargetPage * PAGE_SIZE, (currentTargetPage + 1) * PAGE_SIZE).map(body => <li key={body.id}>{body.name}</li>)}
         </ul>
         {targetPages > 1 && <div className="pattern-direction-presets" aria-label="Páginas del catálogo actual">
           <button type="button" disabled={editor.loading || currentTargetPage === 0} onClick={() => setTargetPage(currentTargetPage - 1)}>Anterior</button>
           <span>{currentTargetPage + 1} / {targetPages}</span>
           <button type="button" disabled={editor.loading || currentTargetPage + 1 === targetPages} onClick={() => setTargetPage(currentTargetPage + 1)}>Siguiente</button>
         </div>}
-        <p className="muted-small">El alcance dinámico actual admite cortes. Los salientes con todos los cuerpos siguen pendientes.</p>
+        <p className="muted-small">{automatic
+          ? 'La detección usa las mismas reglas que «Todos los cuerpos actuales».'
+          : 'Admite cortes con croquis intrínsecos. Para salientes, usa un perfil rectangular o circular en un plano principal y una profundidad fija. Cada copia del saliente debe tocar un solo cuerpo; otros finales, soportes, paredes delgadas y dirección 2 siguen pendientes.'}</p>
       </>}
       {editor.message && <p className="muted-small" role="alert">{editor.message}</p>}
     </div>

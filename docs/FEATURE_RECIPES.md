@@ -15,7 +15,7 @@ copies signed material contributions; that path remains separate.
 `geometryPattern:false` identify this internal extraction API. The request is
 derived from the explicit saved regeneration mode; the full request is not
 persisted. Saved selected targets/routes or dynamic ALL intent/scope routes,
-explicit principal-plane limit policies and no-variation intent are parsed strictly. History
+explicit principal-plane limit policies and the admitted variation table are parsed strictly. History
 index, canonical plan, target snapshot and
 closure are reconstructed. False without the explicit variant still rejects,
 and regeneration must not route to geometry-delta replay.
@@ -63,7 +63,10 @@ actual owner/face/plane lineages, scope discovery and evaluator revision before
 Apply. ALL additionally attests the complete current catalog, including owners
 that will not change, and rechecks exact refs, lineages and native shape identity
 at staging. Its scope is resolved at the actual pattern-input boundary rather
-than reconstructed from a saved target snapshot. AUTO discovery remains pending.
+than reconstructed from a saved target snapshot. [AUTO](FEATURE_REGENERATION.md#detect-and-follow-bodies-automatically-auto)
+uses a native discovery pass for capture and follows exact saved body identities
+through fresh native evaluations. The editable capture fingerprint records the
+original provenance. Current catalog attestation supplies publication authority.
 
 Math exports check plain dense saved data and descriptors before reading
 operands. Accessors, hidden/symbol fields, sparse arrays and custom prototypes
@@ -89,15 +92,21 @@ owned cut or merge extrusions, blind/through-all/UntilNext
 endings or an explicitly fixed principal-plane up-to-surface limit, and selected targets.
 The native evaluator separately requires authentic solved entity results;
 declaration eligibility does not issue that authority.
-The explicit ALL regeneration variant currently admits cuts from this intrinsic
-subset. ALL additive merge recipes report `ALL_POSITIVE_SCOPE_PENDING` before
-target copies or tools; remote-owner applicability remains unresolved. A failed
-Boolean is not treated as a geometric miss and no bounding-box heuristic selects
-an owner. This gate is an implementation limit, not evidence of external parity.
+The explicit ALL regeneration variant admits cuts from this intrinsic subset
+and the [bounded Blind primitive additive slice](FEATURE_REGENERATION.md#blind-primitive-additive-all).
+That additive slice requires a rectangle/circle sketch on a principal plane and
+omitted support/end-condition/thin-wall/second-direction fields. Other positive
+recipes report `ALL_POSITIVE_SCOPE_PENDING` before target copies or tools.
+Every current native owner is classified before union; a failed or inconclusive
+query is not a geometric miss. Multiowner contact rejects rather than consuming
+or implicitly fusing IDs. This limit is not evidence of external parity.
 Extraction alone does not resolve any native requirement. The initial native
 bridge/evaluator supports that subset, and the engine connects it to the
-explicit saved selected or cut-only dynamic ALL mode with bounded principal-plane policies
-and no variation. The geometry/true branch retains explicitly selected targets.
+explicit saved selected or dynamic ALL mode with its bounded operation/plane policies
+and the [selected Blind depth table](FEATURE_REGENERATION.md#depth-per-instance)
+or the [driving circle radius](FEATURE_REGENERATION.md#driving-sketch-radius-per-instance)
+and [anchored rectangle dimensions](FEATURE_REGENERATION.md#driving-rectangle-dimensions-per-instance).
+The geometry/true branch retains explicitly selected targets.
 
 UntilNext retains its exact historical source base in the extracted termination;
 the saved bindings separately route evaluation to each current progressive owner.
@@ -122,8 +131,8 @@ same-address semantic parent body roles. Native and integrated fixtures check
 selected multi-feature/owner, no-op, late rejection and document-history paths.
 Parent roles retain semantic revisions, not parent BRep/face correspondence.
 Required work still includes other end/start conditions, exact dependent
-sketch/plane/face/constraint remapping, varying dimensions/sketches and equations,
-positive ALL and dynamic geometry scope, AUTO discovery policies, nested recipes,
+sketch/plane/face/constraint remapping, other varying dimensions/sketches and equations,
+broader positive ALL and dynamic geometry scope, nested recipes,
 creation/split/consumption/Combine
 identity ledgers, complete stale preview/Apply, suppression/rollback, picking,
 document lifecycle and export interoperability. Pending diagnostics block the

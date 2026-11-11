@@ -36,7 +36,7 @@ Cap support frames should be anchored to the generating plane and extrusion side
 
 ## Integration requirements
 
-Activation requires coordinated engine, document and editor changes. The first eligible body is a finite entity-profile extrusion without an end condition or Boolean output. Its start offset and frame must follow the existing signed and symmetric extrusion rules exactly. Build semantic context from the relevant ordered dependencies, preserving the legacy lineage unchanged; the experimental context is not a replacement for the complete document history.
+Activation requires coordinated engine, document and editor changes. The first eligible legacy body is a finite entity-profile extrusion without an end condition, `bodyOperation` or body catalog, and without Boolean output. Explicit body-catalog creation currently uses conservative v1 references, even for an otherwise simple entity-profile prism. Do not infer v2 eligibility from the sketch alone. Its start offset and frame must follow the existing signed and symmetric extrusion rules exactly. Build semantic context from the relevant ordered dependencies, preserving the legacy lineage unchanged; the experimental context is not a replacement for the complete document history.
 
 Retain the provenance owner until all native consumers and final picking have finished. Historical support descriptors must copy references, aliases and frames without retaining native wrappers; operations that need historical native faces require a separately owned catalog. A failed operation must preserve the metadata belonging to the last valid body. Unsupported output correspondence must not silently inherit an earlier body's semantic references.
 

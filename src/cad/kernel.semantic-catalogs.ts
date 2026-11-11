@@ -1,6 +1,6 @@
 import type { Edge, Face, Shape3D } from 'replicad';
-import { createEdgeCatalog } from './kernel.edges';
-import { createFaceCatalog, type FaceDescriptor } from './kernel.faces';
+import { createEdgeCatalog, pickableEdgesFromCatalog } from './kernel.edges';
+import { createFaceCatalog, pickableFacesFromCatalog, type FaceDescriptor } from './kernel.faces';
 import { clonePlaneFrame } from './kernel.frames';
 import {
   createEntityPrismIdentityV2, createEntityPrismReferenceCatalogV2,
@@ -227,17 +227,11 @@ export function pickableSemanticFaces(
   shape: Shape3D, sourceFeatureId: string, lineage = '', semantic?: PrismReferences,
 ): PickableFace[] {
   const catalog = createSemanticFaceCatalog(shape, sourceFeatureId, lineage, semantic);
-  return withCatalog(catalog, () => catalog.entries.map(({ face, frame, ref, aliases }) => {
-    const mesh = face.mesh({ tolerance: .05, angularTolerance: .12 });
-    return { ref: { ...ref }, aliases: aliases.map(alias => ({ ...alias })),
-      frame: frame ? clonePlaneFrame(frame) : null, vertices: mesh.vertices, triangles: mesh.triangles };
-  }));
+  return withCatalog(catalog, () => pickableFacesFromCatalog(catalog));
 }
 export function pickableSemanticEdges(
   shape: Shape3D, sourceFeatureId: string, lineage = '', semantic?: PrismReferences,
 ): PickableEdge[] {
   const catalog = createSemanticEdgeCatalog(shape, sourceFeatureId, lineage, semantic);
-  return withCatalog(catalog, () => catalog.entries.map(({ edge, ref, aliases }) => ({ ref: { ...ref },
-    aliases: aliases.map(alias => ({ ...alias })),
-    lines: edge.meshEdges({ tolerance: .05, angularTolerance: .12 }).lines })));
+  return withCatalog(catalog, () => pickableEdgesFromCatalog(catalog));
 }

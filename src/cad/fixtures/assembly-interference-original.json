@@ -1,0 +1,21 @@
+{
+  "version": 2, "kind": "assembly", "id": "original-interference-ui", "revision": "r1",
+  "name": "Original two-box interference", "units": "mm",
+  "createdAt": "2026-10-15T00:00:00.000Z", "updatedAt": "2026-10-15T00:00:00.000Z",
+  "definitions": [{ "kind": "part", "id": "original-analysis-box", "revision": "r1", "document": {
+    "version": 1, "id": "original-analysis-box", "name": "Original analysis box", "units": "mm",
+    "createdAt": "2026-10-15T00:00:00.000Z", "updatedAt": "2026-10-15T00:00:00.000Z",
+    "features": [
+      { "id": "box-profile", "name": "Original 2 by 3 rectangle", "type": "sketch", "plane": "XY", "offset": 0, "suppressed": false,
+        "profile": { "kind": "rectangle", "center": [1, 1.5], "width": 2, "height": 3 } },
+      { "id": "box-extrude", "name": "Original 4 mm solid", "type": "extrude", "sketchId": "box-profile", "depth": 4, "symmetric": false, "suppressed": false,
+        "bodyOperation": { "mode": "new", "bodyId": "analysis-body" } }
+    ]
+  } }],
+  "occurrences": [
+    { "id": "box-a", "name": "Caja A", "definition": { "id": "original-analysis-box", "revision": "r1" },
+      "pose": { "translation": [0, 0, 0], "rotation": [0, 0, 0, 1] }, "fixed": true, "suppressed": false, "visible": true },
+    { "id": "box-b", "name": "Caja B", "definition": { "id": "original-analysis-box", "revision": "r1" },
+      "pose": { "translation": [1, 0, 0], "rotation": [0, 0, 0, 1] }, "fixed": false, "suppressed": false, "visible": true }
+  ], "mates": []
+}

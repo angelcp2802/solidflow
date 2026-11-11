@@ -1,6 +1,7 @@
-import { Box, ChevronDown, Eye, MousePointer2, X } from 'lucide-react'
+import { Box, ChevronDown, Eye, Info, MousePointer2, X } from 'lucide-react'
 import type { BodyReference, Feature, PickableBody } from '../cad/kernel.types'
 import { sameBodyReference, setBodyOperationDraft } from '../model/bodyCommands'
+import { extrusionEndPatch, type ExtrusionSide } from './extrusionEndPicking'
 
 const referenceKey = (reference: BodyReference) => JSON.stringify([reference.bodyId, reference.sourceFeatureId])
 
@@ -10,20 +11,33 @@ interface BodyListProps {
   onSelection: (selection: BodyReference[]) => void
   disabled?: boolean
   single?: boolean
+  compact?: boolean
 }
 
-export function BodyList({ bodies, selection, onSelection, disabled = false, single = false }: BodyListProps) {
+export function BodyList({ bodies, selection, onSelection, disabled = false, single = false, compact = false }: BodyListProps) {
   const unavailable = selection.filter(reference => !bodies.some(body => sameBodyReference(body.ref, reference)))
-  return <div className="body-list" aria-label="Cuerpos sólidos">
+  return <div className={`body-list${compact ? ' body-list-compact' : ''}`} aria-label="Cuerpos sólidos">
     {!bodies.length && <p className="muted-small">No hay cuerpos disponibles en este estado.</p>}
     {bodies.map(body => {
       const checked = selection.some(reference => sameBodyReference(reference, body.ref))
-      return <label className={`body-row ${checked ? 'selected' : ''}`} key={referenceKey(body.ref)}>
+      const volume = `${body.volume.toLocaleString(undefined, { maximumFractionDigits: 3 })} mm³`
+      const row = <label className={`body-row ${checked ? 'selected' : ''}`} key={referenceKey(body.ref)}>
         <input type="checkbox" checked={checked} disabled={disabled} onChange={() => onSelection(checked
           ? selection.filter(reference => !sameBodyReference(reference, body.ref))
           : single ? [{ ...body.ref }] : [...selection.map(reference => ({ ...reference })), { ...body.ref }])} />
-        <Box size={15} /><span>{body.name}<small>{body.volume.toLocaleString(undefined, { maximumFractionDigits: 3 })} mm³</small></span>
+        <Box size={15} />{compact
+          ? <span className="body-row-name" title={`${body.name} · ${volume}`}>{body.name}<small className="body-row-volume"> · {volume}</small></span>
+          : <span>{body.name}<small>{volume}</small></span>}
       </label>
+      return compact ? <div className="body-catalog-entry" key={referenceKey(body.ref)}>
+        {row}
+        <details className="body-catalog-details">
+          <summary aria-label={`Detalles de ${body.name}`} title="Ver nombre completo y volumen"><Info size={13} aria-hidden="true" /></summary>
+          <div className="body-catalog-details-content" tabIndex={0} aria-label={`Detalles de ${body.name}`}>
+            <strong>{body.name}</strong><span>Volumen: {volume}</span>
+          </div>
+        </details>
+      </div> : row
     })}
     {unavailable.map(reference => <div className="body-row unavailable" key={referenceKey(reference)}>
       <span>Cuerpo no disponible<small>Vuelve a seleccionar su estado actual.</small></span>
@@ -47,7 +61,19 @@ export function BodyFeaturePanel({ feature, outputBodyId, existing, onFeature, p
   const combine = feature.type === 'combine' ? feature : null
   const single = !!boss || feature.type === 'fillet' || feature.type === 'chamfer' || feature.type === 'shell' || feature.type === 'draft'
   const newBody = boss?.bodyOperation?.mode === 'new'
-  const limit = boss?.type === 'extrude' && newBody && boss.endCondition && 'baseFeatureId' in boss.endCondition ? boss.endCondition : null
+  const limits = boss?.type === 'extrude' && newBody ? ([
+    { side: 'first' as ExtrusionSide, end: boss.endCondition },
+    { side: 'second' as ExtrusionSide, end: boss.secondDirection?.endCondition },
+  ]).flatMap(({ side, end }) => end && 'baseFeatureId' in end ? [{ side, end }] : []) : []
+  const missingLimit = limits.some(({ side, end }) => end.baseBody === undefined && end.baseFeatureId === ''
+    && new RegExp(`^Documento\\.features\\[\\d+\\]\\.${side === 'second' ? 'secondDirection\\.' : ''}endCondition\\.baseFeatureId: se esperaba texto de entre 1 y 128 caracteres$`).test(message ?? ''))
+  // Translate only these exact incomplete-draft rejections; retain all other diagnostics.
+  const displayMessage = (feature.type === 'cut' || feature.type === 'revolvedCut') && Array.isArray(feature.bodyScope) && feature.bodyScope.length === 0 && list.selection.length === 0
+    && /^Documento\.features\[\d+\]\.bodyScope: se esperaba una lista de entre 1 y 256 elementos$/.test(message ?? '')
+    ? 'Selecciona al menos un cuerpo que quieras cortar.'
+    : missingLimit
+      ? 'Selecciona un cuerpo límite para calcular hasta dónde llega la extrusión.'
+      : message
   return <div className="property-section body-operation-panel">
     <h3><ChevronDown size={12} /> {combine ? 'Combinar cuerpos' : 'Cuerpos de la operación'}</h3>
     {boss && <label>Resultado del saliente
@@ -57,17 +83,18 @@ export function BodyFeaturePanel({ feature, outputBodyId, existing, onFeature, p
         <option value="new">Crear cuerpo separado</option><option value="merge">Añadir material a un cuerpo</option>
       </select>
     </label>}
-    {boss?.type === 'extrude' && limit && <label>Cuerpo límite
-      <select aria-label="Cuerpo límite de la extrusión" value={limit.baseBody ? referenceKey(limit.baseBody) : ''} disabled={list.disabled} onChange={event => {
+    {boss?.type === 'extrude' && limits.map(({ side, end: limit }) => <label key={side}>{side === 'first' ? 'Cuerpo límite' : 'Cuerpo límite de dirección 2'}
+      <select aria-label={side === 'first' ? 'Cuerpo límite de la extrusión' : 'Cuerpo límite de dirección 2'} value={limit.baseBody ? referenceKey(limit.baseBody) : ''} disabled={list.disabled} onChange={event => {
+        if (list.disabled) return
         const body = list.bodies.find(item => referenceKey(item.ref) === event.target.value)
-        if (body) onFeature({ ...boss, endCondition: { ...limit, baseBody: { ...body.ref }, baseFeatureId: body.ref.sourceFeatureId } })
+        if (body) onFeature({ ...boss, ...extrusionEndPatch(boss, side, { ...limit, baseBody: { ...body.ref }, baseFeatureId: body.ref.sourceFeatureId }) })
       }}>
         <option value="" disabled>Selecciona un cuerpo límite</option>
         {list.bodies.map(body => <option key={referenceKey(body.ref)} value={referenceKey(body.ref)}>{body.name}</option>)}
         {limit.baseBody && !list.bodies.some(body => sameBodyReference(body.ref, limit.baseBody!)) && <option value={referenceKey(limit.baseBody)}>Cuerpo límite no disponible · vuelve a seleccionar</option>}
       </select>
       <small>La longitud seguirá este cuerpo al reconstruir.</small>
-    </label>}
+    </label>)}
     {combine && <>
       <label>Operación
         <select aria-label="Operación Combine" value={combine.operation} disabled={list.disabled} onChange={event => {
@@ -99,6 +126,6 @@ export function BodyFeaturePanel({ feature, outputBodyId, existing, onFeature, p
       <button type="button" className={`outline-button ${picking ? 'active' : ''}`} disabled={list.disabled} onClick={() => onPicking(!picking)}><MousePointer2 size={14} /> Seleccionar cuerpos en el visor</button>
     </>}
     <button type="button" className="outline-button" disabled={list.disabled} onClick={() => onPicking(false)}><Eye size={14} /> Ver vista previa</button>
-    {message && <p role="status" className="muted-small">{message}</p>}
+    {displayMessage && <p role="status" className="muted-small">{displayMessage}</p>}
   </div>
 }

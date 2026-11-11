@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "id": "original-part-sequence",
+  "name": "Original sequential part",
+  "units": "mm",
+  "createdAt": "2026-10-23T00:00:00.000Z",
+  "updatedAt": "2026-10-23T00:00:00.000Z",
+  "features": [
+    {"id":"seq-base-sketch","name":"Base profile","type":"sketch","plane":"XY","offset":0,"suppressed":false,"profile":{"kind":"rectangle","width":20,"height":12,"center":[0,0]}},
+    {"id":"seq-base","name":"Base","type":"extrude","sketchId":"seq-base-sketch","depth":4,"symmetric":false,"suppressed":false,"bodyOperation":{"mode":"new","bodyId":"seq-body"}},
+    {"id":"seq-cut-left-sketch","name":"Left cut profile","type":"sketch","plane":"XY","offset":0,"suppressed":false,"profile":{"kind":"rectangle","width":2,"height":2,"center":[-6,0]}},
+    {"id":"seq-cut-right-sketch","name":"Right cut profile","type":"sketch","plane":"XY","offset":0,"suppressed":false,"profile":{"kind":"rectangle","width":2,"height":2,"center":[6,0]}},
+    {"id":"seq-boss-sketch","name":"Boss profile","type":"sketch","plane":"XY","offset":4,"suppressed":false,"profile":{"kind":"rectangle","width":4,"height":4,"center":[0,0]}},
+    {"id":"seq-cap-sketch","name":"Cap profile","type":"sketch","plane":"XY","offset":7,"suppressed":false,"profile":{"kind":"rectangle","width":2,"height":2,"center":[0,0]}}
+  ]
+}

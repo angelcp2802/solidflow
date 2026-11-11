@@ -4,6 +4,8 @@ SolidFlow es un CAD paramétrico libre, con interfaz azul y controles actualment
 en español. El proyecto está en desarrollo; los módulos desactivados todavía
 no están implementados. Consulta el [alcance](ROADMAP.md) y la [validación](VALIDATION.md).
 
+Si ya tienes una demo local, sigue la [prueba guiada de pieza y ensamblaje](PROBAR_SOLIDFLOW.md).
+
 ## Abrir desde el código
 
 Instala Git y Node.js 24. En una terminal:
@@ -21,6 +23,11 @@ deshacer y rehacer, F para encuadrar y Ctrl+7 para la vista isométrica.
 Guarda el documento editable como `.solidflow`. Desde Archivo puedes exportar
 la geometría a STEP o STL. La exportación no conserva el historial paramétrico.
 
+Para añadir una extrusión, un corte o una revolución, selecciona el croquis en
+el árbol antes de pulsar la operación. También puedes continuar directamente
+desde un croquis que estás dibujando. Sin un croquis seleccionado, la aplicación
+te pide elegirlo; no reutiliza automáticamente el de la última operación.
+
 Para partir de geometría existente, elige **Archivo → Importar STEP…** y un
 archivo `.step` o `.stp` de hasta 8 MiB con un único sólido cerrado. El programa
 valida la pieza antes de pedir sustituir el documento actual. Selecciona sus
@@ -28,6 +35,13 @@ caras para añadir croquis o taladros y guarda el resultado como `.solidflow`;
 los datos importados quedan dentro del documento. No se recupera el historial
 de diseño original. Consulta las unidades admitidas y límites en la
 [guía de importación](STEP_IMPORT.md).
+
+En **Herramientas → Propiedades físicas** puedes asignar material, densidad y
+color a la pieza. Aplica los cambios para guardarlos con su historial. La masa
+se calcula a partir del sólido reconstruido y la densidad indicada. En
+**Ver → Fondo del visor…** puedes elegir un fondo sólido para este equipo.
+Consulta los [límites de materiales y apariencia](PART_PROPERTIES.md), incluida
+la compatibilidad con lectores anteriores.
 
 Para practicar la simetría, abre **Simetría de medio perfil** en la biblioteca,
 edita su croquis y elige **Simetría de croquis**. Selecciona los tres tramos y

@@ -1,24 +1,27 @@
 import { getOC, measureShapeVolumeProperties, type Shape3D } from 'replicad';
 import type { BodyReference, Feature, Vec3 } from './kernel.types';
 import {
-  exactStateKey, extractRecipeClosure, fixedProfileInstanceInput, intrinsicProfileInstancePlacement, requireInitialRecipeDeclaration,
+  exactStateKey, extractRecipeClosure, fixedProfileInstanceInput, intrinsicProfileInstancePlacement, requireInitialRecipeDeclaration, recipeAutoNativeApplicationCount,
   type IntrinsicRecipeExtrusionPlacement, type RegenerationRequest, type RecipeClosure, type RecipeOperation, type RecipeOwnerApplication,
 } from '../model/featureRecipes';
 import {
   bodyBoolean, copyBodyShape, createConservativeBodyBounds, validateBodyShape, type NativeBodyCatalog,
   type NativeBodyReplacement, type NativeBodyStateUpdate, type NativeBodyTransaction,
 } from './kernel.bodies';
-import { buildRecipeInstanceTool, resolveRecipeInstanceUntilNext } from './kernel.recipe-instance';
+import { buildRecipeInstanceTool, resolveRecipeInstanceDirections, resolveRecipeInstanceUntilNext } from './kernel.recipe-instance';
 import { framePoint } from './kernel.frames';
 import { validatePositiveClosedTool } from './kernel.closed-tools';
 import { validateEntityRecipeProfileForAbsence, type EntityRecipeSolveInput } from './kernel.recipe-entities';
+import { validatePrimitiveRecipeProfileForAbsence, type PrimitiveRecipeProfileInput } from './kernel.recipe-primitives';
 import { isNativeCleanupFailure, NativeCleanupError, withNativeOwners, type NativeOwner, type NativeOwners } from './kernel.native-ownership';
 import { attestNativeRecipeScope, assertNativeRecipeScopeCurrent, type NativeRecipeScopeAttestation } from './kernel.recipe-scopes';
+import { classifyAdditiveRecipeOwner } from './kernel.recipe-additive-applicability';
+import { RECIPE_EVALUATOR_REVISION, RECIPE_AUTO_CAPTURE_REVISION, recipeAutoScopeDigest, type RecipeAutoScopeIntent } from '../model/featureRecipeAutoScope';
 
 import { checkpointSourceSketchSolves, assertSourceSketchSolvesCurrent,
   type SourceSketchSolveCheckpoint, type SourceSketchSolveRegistry } from './kernel.sketch-solves';
 
-export const RECIPE_EVALUATOR_REVISION = 'intrinsic-real-solved-profiles-until-next-v6';
+export { RECIPE_EVALUATOR_REVISION } from '../model/featureRecipeAutoScope';
 const compare = (a: string, b: string): number => a < b ? -1 : a > b ? 1 : 0;
 const tolerance = (volume: number): number => Math.max(1e-8, Math.abs(volume) * 1e-10);
 const sameRef = (a: Readonly<BodyReference>, b: Readonly<BodyReference>): boolean =>
@@ -114,11 +117,15 @@ function finiteBounds(shape: Shape3D): void {
 function allCutEntirelyBehindRay(closure: RecipeClosure, operation: RecipeOperation,
   address: string, shape: Shape3D, entitySource: EntityRecipeSolveInput | undefined,
   assertWorkingCurrent: () => void): boolean {
-  if (closure.request.scope.mode !== 'all' || operation.type !== 'cut'
+  if (closure.request.scope.mode === 'selected' || operation.type !== 'cut'
     || operation.termination?.kind !== 'throughAll' || operation.termination.bothDirections) return false;
+  const definition = closure.definitions.find(item => item.feature.id === operation.featureId)?.feature;
+  if (definition && (definition.type === 'extrude' || definition.type === 'cut') && definition.secondDirection?.enabled) return false;
+  const thinWallDeclared = Boolean(definition && Object.hasOwn(definition, 'thinWall'));
   const sketch = closure.definitions.find(definition => definition.feature.id === operation.sketchId)?.feature;
   if (sketch?.type !== 'sketch') return false;
   let entityPlacement: Readonly<IntrinsicRecipeExtrusionPlacement> | undefined;
+  let primitiveWitness: Omit<PrimitiveRecipeProfileInput, 'assertWorkingCurrent'> | undefined;
   let origin: Vec3, ray: Vec3;
   if (sketch.profile.kind === 'entities') {
     if (!entitySource) throw new Error('Entity absence requires the engine real-solve checkpoint.');
@@ -141,6 +148,12 @@ function allCutEntirelyBehindRay(closure: RecipeClosure, operation: RecipeOperat
       || !parameter(Math.abs(resolved.signedDepth)) || (profile.kind === 'circle' ? !parameter(profile.radius)
         : !parameter(profile.width) || !parameter(profile.height))) return false;
     origin = framePoint(resolved.frame, profile.center[0], profile.center[1]); ray = resolved.ray;
+    if (thinWallDeclared) {
+      if (!resolved.thinWall) throw new Error('The extracted thin wall is missing its resolved declaration.');
+      primitiveWitness = { profile, frame: resolved.frame, signedDepth: resolved.signedDepth,
+        thinWall: resolved.thinWall, validateTool: validatePositiveClosedTool,
+        ...(resolved.secondDirection ? { secondDirection: resolved.secondDirection } : {}) };
+    }
   }
   if (!origin.every(Number.isFinite) || !ray.every(Number.isFinite)) throw new Error('Recipe ray placement must be finite.');
   const projection = withNativeOwners(owners => {
@@ -181,6 +194,10 @@ function allCutEntirelyBehindRay(closure: RecipeClosure, operation: RecipeOperat
     // positive closed witness and release it successfully before returning.
     witnessTolerance = validateEntityRecipeProfileForAbsence({ source: entitySource!, placement: entityPlacement,
       validateTool: validatePositiveClosedTool, assertWorkingCurrent });
+  } else if (primitiveWitness) {
+    // Keep valid ALL misses, but never hide a collapsed/invalid primitive wall
+    // behind owner bounds. The same real section builder supplies this witness.
+    witnessTolerance = validatePrimitiveRecipeProfileForAbsence({ ...primitiveWitness, assertWorkingCurrent });
   }
   assertWorkingCurrent();
   const rayLength = Math.hypot(...ray), guard = projection.guard + witnessTolerance * rayLength;
@@ -286,15 +303,12 @@ function assertParent(application: RecipeOwnerApplication, targetBodyId: string,
 
 /**
  * Regenerates actual fixed-profile tools in canonical instance/history order.
- * This API is not wired to the saved-document grammar or worker yet. All inputs
- * and sources remain borrowed; no catalog publication occurs here.
+ * The engine supplies the saved declaration and exact native inputs. All inputs
+ * and sources remain borrowed; this evaluator never publishes the catalog.
  */
 export function evaluateFeatureRecipes(input: RecipeEvaluationInput): OwnedRecipeEvaluation {
   try {
     const closure = requireInitialRecipeDeclaration(extractRecipeClosure(input.features, input.request));
-    if (closure.request.scope.mode === 'auto' || closure.request.variation.kind !== 'none') {
-      throw new Error('Automatic discovery and variation require their pending native recipe policies.');
-    }
     // Entity declarations still need current build-issued solves before any
     // native clone or absence decision; their native profiles are validated below.
     const entitySketchIds = [...new Set(closure.operations.flatMap(operation => {
@@ -307,6 +321,7 @@ export function evaluateFeatureRecipes(input: RecipeEvaluationInput): OwnedRecip
     const scope = attestNativeRecipeScope(closure.request.scope, closure.request.targetSnapshot, input.catalog);
     // All native requirements resolve before the first target clone or tool.
     const snapshots = preflight(input, closure);
+    if (closure.request.scope.mode === 'auto') recipeAutoNativeApplicationCount(closure, input.catalog.entries().length);
     return withNativeOwners(owners => {
       const initial = new Map<string, Shape3D>(), current = new Map<string, Shape3D>(), revisions = new Map<string, number>();
       for (const target of snapshots.targets) {
@@ -325,6 +340,42 @@ export function evaluateFeatureRecipes(input: RecipeEvaluationInput): OwnedRecip
             const bodyId = application.targetAtPatternInput.bodyId, group = groups.get(bodyId) ?? [];
             group.push(application); groups.set(bodyId, group);
           }
+          const definition = closure.definitions.find(item => item.feature.id === operation.featureId)?.feature;
+          const additiveAll = closure.request.scope.mode !== 'selected' && definition?.type === 'extrude' && definition.bodyOperation?.mode === 'merge';
+          let additiveTool: Shape3D | undefined, additiveOwner: string | undefined;
+          if (additiveAll) {
+            const ids = [...groups.keys()].sort(compare), inventory = snapshots.targets.map(target => target.ref.bodyId).sort(compare);
+            if (ids.length !== inventory.length || ids.some((id, index) => id !== inventory[index])) throw Error('Additive ALL must classify every attested current owner.');
+            assertNativeRecipeScopeCurrent(scope, closure.request.scope, closure.request.targetSnapshot, input.catalog);
+            const completeInventory = input.catalog.entries().slice().sort((a, b) => compare(a.ref.bodyId, b.ref.bodyId));
+            const eventOwners = completeInventory.map(entry => ({ bodyId: entry.ref.bodyId,
+              shape: current.get(entry.ref.bodyId) ?? entry.shape, revision: revisions.get(entry.ref.bodyId), native: entry }));
+            const assertEventCurrent = () => {
+              const fresh = input.catalog.entries().slice().sort((a, b) => compare(a.ref.bodyId, b.ref.bodyId));
+              if (fresh.length !== eventOwners.length) throw Error('The complete positive recipe inventory changed during inspection.');
+              for (const [index, owner] of eventOwners.entries()) {
+                if (!sameRef(fresh[index].ref, owner.native.ref) || fresh[index].lineage !== owner.native.lineage || fresh[index].shape !== owner.native.shape
+                  || (owner.revision !== undefined && (current.get(owner.bodyId) !== owner.shape || revisions.get(owner.bodyId) !== owner.revision))) {
+                  throw Error('An additive dynamic working owner/revision changed during applicability inspection.');
+                }
+              }
+            };
+            assertEventCurrent();
+            const first = eventOwners.find(owner => owner.bodyId === ids[0])!;
+            additiveTool = owners.own(buildRecipeInstanceTool({ closure, featureId: operation.featureId, address: transform.key,
+              targetBodyId: first.bodyId, workingTarget: first.shape, validateTool: validatePositiveClosedTool, assertWorkingCurrent: assertEventCurrent }).tool);
+            // Classify this event against ALL chronological working owners before
+            // any union. A contact/contained owner still counts for bridge policy.
+            const contacts: string[] = [];
+            for (const owner of eventOwners) {
+              assertEventCurrent();
+              const applicability = classifyAdditiveRecipeOwner(owner.shape, additiveTool);
+              assertEventCurrent();
+              if (applicability.kind !== 'separated') contacts.push(owner.bodyId);
+            }
+            if (contacts.length > 1) throw Error('Una copia del saliente toca varios cuerpos. Revisa la geometría o utiliza destinos seleccionados; sus identidades no se fusionan automáticamente.');
+            additiveOwner = contacts[0];
+          }
           for (const bodyId of [...groups.keys()].sort(compare)) {
             const applications = groups.get(bodyId)!;
             for (const application of applications) assertParent(application, bodyId, transform.key, outputs);
@@ -335,34 +386,40 @@ export function evaluateFeatureRecipes(input: RecipeEvaluationInput): OwnedRecip
             };
             assertWorkingCurrent();
             const beforeState = intermediate(before);
-            if (beforeState.empty && operation.termination?.kind !== 'blind' && operation.termination?.kind !== 'upToSurface') {
+            if (beforeState.empty && [operation.termination, operation.secondTermination].some(end => end && end.kind !== 'blind' && end.kind !== 'upToSurface')) {
               throw new Error('A dynamic end condition on an empty working owner needs a separate extent policy.');
             }
             // Equivalent fixed intrinsic bindings share one event/target tool.
             // Every source was attested above and every route counted by extraction.
             const entitySource = sketchSolves ? { ...sketchSolves, features: input.features } : undefined;
             let changed = false;
-            if (!allCutEntirelyBehindRay(closure, operation, transform.key, before, entitySource, assertWorkingCurrent)) {
+            if ((!additiveAll || bodyId === additiveOwner) && !allCutEntirelyBehindRay(closure, operation, transform.key, before, entitySource, assertWorkingCurrent)) {
               const constructionInput = { closure, featureId: operation.featureId,
                 address: transform.key, targetBodyId: bodyId, workingTarget: before, assertWorkingCurrent, entitySource,
                 // Tools may contain several closed regions. Recipe/profile gates
                 // remain in the bridge; source/current/final owners still use validateSingle.
                 validateTool: validatePositiveClosedTool };
-              const construction = operation.termination?.kind === 'untilNext' && closure.request.scope.mode === 'all'
-                ? (() => {
+              const independent = definition && (definition.type === 'extrude' || definition.type === 'cut') && definition.secondDirection?.enabled
+                && (operation.termination?.kind !== 'blind' || operation.secondTermination);
+              const construction = (() => {
+                if (additiveTool) return { kind: 'complete' as const, operation: 'add' as const, tool: copyBodyShape(additiveTool) };
+                if (independent && closure.request.scope.mode !== 'selected') return resolveRecipeInstanceDirections(constructionInput);
+                if (operation.termination?.kind === 'untilNext' && closure.request.scope.mode !== 'selected') {
                   const resolved = resolveRecipeInstanceUntilNext(constructionInput);
                   if (resolved.kind === 'complete') return resolved;
                   if (resolved.kind === 'empty-forward' && resolved.operation === 'subtract') return resolved;
                   if (resolved.kind === 'incomplete-limit') throw resolved.error;
                   if (resolved.kind === 'contact-or-near') throw new Error('No se puede resolver Hasta el siguiente en uno de los cuerpos: el perfil lo toca o está demasiado cerca.');
                   throw new Error('ALL UntilNext needs a complete limit or a native-proven separated empty forward region.');
-                })()
-                : { kind: 'complete' as const, ...buildRecipeInstanceTool(constructionInput) };
+                }
+                return { kind: 'complete' as const, ...buildRecipeInstanceTool(constructionInput) };
+              })();
               if (construction.kind === 'complete') {
                 const tool = owners.own(construction.tool);
                 assertWorkingCurrent();
                 const raw = owners.own(bodyBoolean(construction.operation, before, tool));
                 assertWorkingCurrent();
+                if (additiveAll) validateSingle(raw); // No temporary disconnected positive islands or implicit split owners.
                 const rawState = intermediate(raw);
                 const signedChange = construction.operation === 'subtract' ? beforeState.volume - rawState.volume : rawState.volume - beforeState.volume;
                 if (signedChange < -tolerance(beforeState.volume)) throw new Error('A regenerated operation changed material with the wrong sign.');
@@ -388,6 +445,7 @@ export function evaluateFeatureRecipes(input: RecipeEvaluationInput): OwnedRecip
               outputs.set(recipeVirtualOutputKey(application.sourcePoststate, bodyId, transform.key), output);
             }
           }
+          if (additiveTool) release(owners, additiveTool);
         }
         const instanceChanged = [...current].some(([bodyId, shape]) => materialChanged(instanceBefore.get(bodyId)!, shape, owners));
         for (const shape of instanceBefore.values()) release(owners, shape);
@@ -428,12 +486,55 @@ export function evaluateFeatureRecipes(input: RecipeEvaluationInput): OwnedRecip
   }
 }
 
-/** Native event-effects for a future AUTO capture proposal, never a saved receipt. */
+function assertRecipeEvaluationCurrent(evaluation: OwnedRecipeEvaluation, proof: EvaluationProof, catalog: NativeBodyCatalog,
+  patternId: string, current: Pick<RecipeEvaluationInput, 'features' | 'request' | 'sourceSketchSolves'>): void {
+  const fresh = requireInitialRecipeDeclaration(extractRecipeClosure(current.features, current.request));
+  if (fresh.fingerprintInput !== proof.fingerprintInput || evaluation.attestation.evaluatorRevision !== RECIPE_EVALUATOR_REVISION) {
+    throw new Error('The recipe document or declaration changed after native evaluation.');
+  }
+  if (proof.catalog !== catalog || patternId !== proof.patternId) throw new Error('The recipe proposal belongs to another catalog or pattern.');
+  if (proof.sketchSolves) {
+    if (current.sourceSketchSolves !== proof.sketchSolves.registry) throw new Error('The recipe source-solve epoch changed after evaluation.');
+    assertSourceSketchSolvesCurrent(proof.sketchSolves.registry, proof.sketchSolves.checkpoint, current.features);
+  }
+  assertNativeRecipeScopeCurrent(proof.scope, fresh.request.scope, fresh.request.targetSnapshot, catalog);
+  for (const snapshot of proof.targets) {
+    const actual = catalog.resolve(snapshot.ref);
+    if (actual.lineage !== snapshot.lineage || actual.shape !== snapshot.shape) throw new Error('A current recipe target changed after evaluation.');
+  }
+  for (const snapshot of proof.sources) {
+    const actual = proof.history.get(exactStateKey(snapshot.ref));
+    if (actual?.error !== undefined) {
+      if (isNativeCleanupFailure(actual.error)) throw actual.error;
+      throw new Error('An exact recipe source capture failed after evaluation.', { cause: actual.error });
+    }
+    if (!actual || !sameRef(actual.ref, snapshot.ref) || actual.lineage !== snapshot.lineage || actual.shape !== snapshot.shape) {
+      throw new Error('An exact recipe source changed after evaluation.');
+    }
+  }
+}
+
+/** Authenticated native event effects; final replacements can omit restored owners. */
 export function recipeEvaluationEventAffectedBodyIds(evaluation: OwnedRecipeEvaluation): readonly string[] {
   const proof = evaluations.get(evaluation);
   if (!proof?.active || proof.scope.intent.mode !== 'all') throw new Error('AUTO capture proposals need a genuine active ALL evaluation.');
   return Object.freeze([...new Set(evaluation.attestation.virtualOutputs.filter(output => output.materialChanged)
     .map(output => output.targetBodyId))].sort(compare));
+}
+
+/** Read a genuine current ALL ledger before staging; the returned intent is not authority. */
+export function createNativeRecipeAutoScopeIntent(evaluation: OwnedRecipeEvaluation, catalog: NativeBodyCatalog,
+  current: Pick<RecipeEvaluationInput, 'features' | 'request' | 'sourceSketchSolves'>): RecipeAutoScopeIntent {
+  const proof = evaluations.get(evaluation);
+  if (!proof?.active || proof.scope.intent.mode !== 'all') throw Error('AUTO discovery needs a genuine active ALL native evaluation.');
+  assertRecipeEvaluationCurrent(evaluation, proof, catalog, current.request.patternId, current);
+  const capturedBodyIds = [...recipeEvaluationEventAffectedBodyIds(evaluation)];
+  if (!capturedBodyIds.length) throw Error('La detección automática no encontró cuerpos con cambios de material.');
+  const digest = recipeAutoScopeDigest({ revision: RECIPE_AUTO_CAPTURE_REVISION, units: 'mm',
+    policy: 'eventMaterialChanged/followSameIdentityAtPatternInput', evaluatorRevision: RECIPE_EVALUATOR_REVISION,
+    patternId: proof.patternId, recipe: proof.fingerprintInput, sources: evaluation.attestation.sources,
+    completeInventory: proof.scope.inventoryFingerprintInput, events: evaluation.attestation.virtualOutputs, capturedBodyIds });
+  return { mode: 'auto', capturedBodyIds, captureFingerprint: RECIPE_AUTO_CAPTURE_REVISION + ':' + digest, follow: 'sameIdentityAtPatternInput' };
 }
 
 /**
@@ -448,30 +549,7 @@ export function stageFeatureRecipeEvaluation(evaluation: OwnedRecipeEvaluation, 
   let transaction: NativeBodyTransaction | undefined, primary: { error: unknown } | undefined;
   const cleanup: unknown[] = [];
   try {
-    const fresh = requireInitialRecipeDeclaration(extractRecipeClosure(current.features, current.request));
-    if (fresh.fingerprintInput !== proof.fingerprintInput || evaluation.attestation.evaluatorRevision !== RECIPE_EVALUATOR_REVISION) {
-      throw new Error('The recipe document or declaration changed after native evaluation.');
-    }
-    if (proof.catalog !== catalog || update.sourceFeatureId !== proof.patternId) throw new Error('The recipe proposal belongs to another catalog or pattern.');
-    if (proof.sketchSolves) {
-      if (current.sourceSketchSolves !== proof.sketchSolves.registry) throw new Error('The recipe source-solve epoch changed after evaluation.');
-      assertSourceSketchSolvesCurrent(proof.sketchSolves.registry, proof.sketchSolves.checkpoint, current.features);
-    }
-    assertNativeRecipeScopeCurrent(proof.scope, fresh.request.scope, fresh.request.targetSnapshot, catalog);
-    for (const snapshot of proof.targets) {
-      const actual = catalog.resolve(snapshot.ref);
-      if (actual.lineage !== snapshot.lineage || actual.shape !== snapshot.shape) throw new Error('A current recipe target changed after evaluation.');
-    }
-    for (const snapshot of proof.sources) {
-      const actual = proof.history.get(exactStateKey(snapshot.ref));
-      if (actual?.error !== undefined) {
-        if (isNativeCleanupFailure(actual.error)) throw actual.error;
-        throw new Error('An exact recipe source capture failed after evaluation.', { cause: actual.error });
-      }
-      if (!actual || !sameRef(actual.ref, snapshot.ref) || actual.lineage !== snapshot.lineage || actual.shape !== snapshot.shape) {
-        throw new Error('An exact recipe source changed after evaluation.');
-      }
-    }
+    assertRecipeEvaluationCurrent(evaluation, proof, catalog, update.sourceFeatureId, current);
     transaction = catalog.stageReplaceMany(evaluation.replacements, update);
   } catch (error) { primary = { error }; }
   try { evaluation.dispose(); } catch (error) { cleanup.push(error); }

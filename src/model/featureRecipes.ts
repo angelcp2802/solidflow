@@ -5,10 +5,14 @@
  * remain attributable to a feature/path, and bounded copying rejects getters.
  */
 import type {
-  BodyReference, FaceReference, Feature, PlaneFrame, PlaneSupport, Profile, Vec3,
+  BodyReference, ExtrudeFeature, FaceReference, Feature, PlaneFrame, PlaneSupport, Profile, ThinWallDefinition, Vec3,
 } from '../cad/kernel.types';
 import { featureDependencyIds } from './featureInputs';
+import { isRecipeInstanceDepth, isRecipeInstanceDepthSeed, MAX_RECIPE_DEPTH_VALUES } from './featureRecipeDepthVariation';
+import { isRecipeSketchDimensionValue, recipeSketchDrivingDimensions, MAX_RECIPE_SKETCH_DIMENSIONS, MAX_RECIPE_SKETCH_DIMENSIONS_PER_INSTANCE, type RecipeSketchDimensionVariation, type RecipeSketchDimensionValue } from './featureRecipeSketchVariation';
 import { principalPlaneFrame } from '../cad/kernel.frames';
+import { readThinWall } from '../cad/thinWall';
+import { assertExtrusionDirectionContext, readSecondDirection } from '../cad/extrusionDirection';
 
 export const RECIPE_LIMITS = Object.freeze({
   sourceFeatures: 32, targets: 32, dynamicTargets: 256, bindings: 512, applications: 512,
@@ -17,6 +21,15 @@ export const RECIPE_LIMITS = Object.freeze({
    * The final canonical fingerprint is independently bounded by the same cap. */
   documentPrefix: 100_000, jsonCharacters: 1_000_000,
 });
+
+/** Pure declaration eligibility, never native applicability or ownership. */
+export function isInitialAdditiveAllRecipe(feature: Feature, sketch: Feature): boolean {
+  return feature.type === 'extrude' && feature.bodyOperation?.mode === 'merge'
+    && !Object.hasOwn(feature, 'endCondition') && !Object.hasOwn(feature, 'thinWall') && !Object.hasOwn(feature, 'secondDirection')
+    && sketch.type === 'sketch' && !Object.hasOwn(sketch, 'support')
+    && !!sketch.profile && typeof sketch.profile === 'object'
+    && (sketch.profile.kind === 'rectangle' || sketch.profile.kind === 'circle');
+}
 
 export interface RecipeDiagnostic {
   code: string;
@@ -79,6 +92,7 @@ export interface RecipeReferencePolicy {
 export type RecipeVariation =
   | { kind: 'none' }
   | { kind: 'varySketch'; sketchIds: string[]; drivingConstraintIds: string[] }
+  | RecipeSketchDimensionVariation
   | { kind: 'dimensions'; values: { address: string; featureId: string; parameter: string; value: number }[] };
 export interface RegenerationRequest {
   mode: 'regenerate';
@@ -96,6 +110,15 @@ export interface RegenerationRequest {
   bindings: RecipeBinding[];
   referencePolicies: RecipeReferencePolicy[];
   variation: RecipeVariation;
+}
+
+/** Only the saved selected single-seed depth table enters the initial evaluator. */
+function selectedDepthValues(request: RegenerationRequest) {
+  const variation = request.variation;
+  if (request.scope.mode !== 'selected' || request.sourceFeatureIds.length !== 1 || variation.kind !== 'dimensions'
+    || !Array.isArray(variation.values) || !variation.values.length
+    || !variation.values.every(row => row.parameter === 'depth' && row.featureId === request.sourceFeatureIds[0])) return null;
+  return variation.values;
 }
 export interface RecipeDefinition {
   feature: Feature;
@@ -120,6 +143,7 @@ export interface RecipeOperation {
   type: Feature['type'];
   sketchId: string | null;
   termination: RecipeTermination | null;
+  secondTermination?: RecipeTermination;
   applications: RecipeOwnerApplication[];
 }
 export type RecipeNativeRequirement =
@@ -318,7 +342,7 @@ export function extractRecipeClosure(features: readonly Feature[], rawRequest: R
     uniqueStrings(request.variation.drivingConstraintIds, 1, 256, patternId, 'variation.drivingConstraintIds');
   } else if (request.variation.kind === 'dimensions') {
     recordKeys(request.variation, patternId, 'variation', ['kind', 'values']);
-    if (!Array.isArray(request.variation.values) || !request.variation.values.length || request.variation.values.length > 512) invalid('VARIATION_VALUES', patternId, 'variation.values', 'Provide a bounded nonempty dimension table.');
+    if (!Array.isArray(request.variation.values) || !request.variation.values.length || request.variation.values.length > MAX_RECIPE_DEPTH_VALUES) invalid('VARIATION_VALUES', patternId, 'variation.values', 'Provide a bounded nonempty dimension table.');
     const varied = new Set<string>();
     for (const row of request.variation.values) {
       recordKeys(row, patternId, 'variation.values', ['address', 'featureId', 'parameter', 'value']);
@@ -326,9 +350,30 @@ export function extractRecipeClosure(features: readonly Feature[], rawRequest: R
       if (!addresses.includes(row.address) || !selectedSet.has(row.featureId) || !Number.isFinite(row.value) || varied.has(key)) invalid('VARIATION_VALUES', patternId, 'variation.values', 'Dimension entries require an active address, selected feature and unique finite value.');
       stringId(row.parameter, patternId, 'variation.values.parameter'); varied.add(key);
     }
+  } else if (request.variation.kind === 'sketchDimensions') {
+    recordKeys(request.variation, patternId, 'variation', ['kind', 'values']);
+    if (request.scope.mode !== 'selected' || request.sourceFeatureIds.length !== 1 || !Array.isArray(request.variation.values)
+      || !request.variation.values.length
+      || request.variation.values.length > Math.min(MAX_RECIPE_SKETCH_DIMENSIONS, MAX_RECIPE_SKETCH_DIMENSIONS_PER_INSTANCE * addresses.length)) {
+      invalid('VARIATION_VALUES', patternId, 'variation.values', 'Sketch dimensions require a bounded selected single-seed table.');
+    }
+    const used = new Map<string, Set<string>>();
+    for (const row of request.variation.values) {
+      recordKeys(row, patternId, 'variation.values', ['address', 'sketchId', 'constraintId', 'value']);
+      stringId(row.sketchId, patternId, 'variation.values.sketchId');
+      stringId(row.constraintId, patternId, 'variation.values.constraintId');
+      const ids = used.get(row.address) ?? new Set<string>();
+      if (!addresses.includes(row.address) || ids.has(row.constraintId)
+        || ids.size >= MAX_RECIPE_SKETCH_DIMENSIONS_PER_INSTANCE || !isRecipeSketchDimensionValue(row.value)) {
+        invalid('VARIATION_VALUES', patternId, 'variation.values', 'Sketch dimensions require distinct driving constraints per active address and bounded positive lengths.');
+      }
+      ids.add(row.constraintId);
+      used.set(row.address, ids);
+    }
   } else invalid('VARIATION_MODE', patternId, 'variation', 'Unknown variation intent.');
-  if (request.scope.mode === 'auto') pending('AUTO_DISCOVERY_PENDING', patternId, 'scope', 'Native AUTO capture/discovery and positive-operation applicability remain required; captured IDs alone do not activate this mode.');
-  if (request.variation.kind !== 'none') pending('VARIATION_PENDING', patternId, 'variation', 'Constraint/dimension variation requires an instance solve and complete dependency fingerprint.');
+  const depthValues = selectedDepthValues(request);
+  const sketchValues = request.variation.kind === 'sketchDimensions' ? request.variation.values : null;
+  if (request.variation.kind !== 'none' && !depthValues && !sketchValues) pending('VARIATION_PENDING', patternId, 'variation', 'Constraint or other dimensional variation requires its own instance solve and complete dependency fingerprint.');
   if (!['selected', 'all', 'auto'].includes(request.scope.mode)) invalid('SCOPE_MODE', patternId, 'scope', 'Unknown scope intent.');
   if (request.scope.mode === 'all' && request.scope.reevaluateAt !== 'patternInput') invalid('SCOPE_POLICY', patternId, 'scope', 'All requires an explicit re-evaluation moment.');
   if (request.scope.mode === 'auto') {
@@ -382,7 +427,7 @@ export function extractRecipeClosure(features: readonly Feature[], rawRequest: R
   for (const policy of request.referencePolicies) {
     recordKeys(policy, patternId, 'referencePolicies', ['featureId', 'path', 'placement'], ['owner', 'parentTargetBodyId']);
     stringId(policy.featureId, patternId, 'referencePolicies.featureId');
-    if (!['support', 'endCondition.target'].includes(policy.path)) invalid('REFERENCE_POLICY', patternId, 'referencePolicies.path', 'Unknown reference schema locator.');
+    if (!['support', 'endCondition.target', 'secondDirection.endCondition.target'].includes(policy.path)) invalid('REFERENCE_POLICY', patternId, 'referencePolicies.path', 'Unknown reference schema locator.');
     const key = locatorKey(policy.featureId, policy.path);
     if (policies.has(key) || !['world', 'transform', 'instance'].includes(policy.placement)) invalid('REFERENCE_POLICY', patternId, 'referencePolicies', 'Reference locators must be unique and have an explicit placement policy.');
     policies.set(key, policy);
@@ -463,23 +508,46 @@ export function extractRecipeClosure(features: readonly Feature[], rawRequest: R
     const feature = definition.feature;
     const node: RecipeOperation = { featureId: feature.id, type: feature.type, sketchId: null, termination: null, applications: [] };
     operations.push(node);
+    try { assertExtrusionDirectionContext(feature); }
+    catch { invalid('SECOND_DIRECTION_DECLARATION', feature.id, 'secondDirection', 'Expected a bounded second blind direction with a compatible extrusion context.'); }
     const selectedBindings = [...bindingSources].filter(([, source]) => source.sourceFeatureId === feature.id).sort(([a], [b]) => textOrder(a, b));
+    if (Object.hasOwn(feature, 'thinWall')) {
+      try { readThinWall(feature); }
+      catch { invalid('THIN_WALL_DECLARATION', feature.id, 'thinWall', 'Expected an exact bounded thin-wall declaration.'); }
+    }
     if (feature.type !== 'extrude' && feature.type !== 'cut') {
+      if (depthValues) pending('VARIATION_PENDING', feature.id, 'variation', 'Per-instance depth requires an intrinsic one-direction Blind cut or merge.');
       pending('OPERATION_RECIPE_PENDING', feature.id, 'type', `Regeneration for ${feature.type} remains required; no aggregate/delta substitute is used.`);
       continue;
-    }
-    if (request.scope.mode === 'all' && feature.type === 'extrude' && feature.bodyOperation?.mode === 'merge') {
-      pending('ALL_POSITIVE_SCOPE_PENDING', feature.id, 'bodyOperation', 'Additive ALL applicability to remote owners is not established; positive dynamic scope remains required and is not activated by this subset.');
     }
     node.sketchId = feature.sketchId;
     const sketch = definitions.get(feature.sketchId)!.feature;
     if (sketch.type !== 'sketch') invalid('WRONG_SKETCH_INPUT', feature.id, 'sketchId', 'Operation input must be an exact sketch declaration.');
+    if (sketchValues) {
+      const drivers = new Set(recipeSketchDrivingDimensions(feature, sketch).map(driver => driver.constraintId));
+      if (sketchValues.some(row => row.sketchId !== sketch.id || !drivers.has(row.constraintId))) {
+        invalid('VARIATION_SKETCH', feature.id, 'variation.values', 'La variación requiere las cotas conductoras exactas de un círculo o rectángulo anclado en un corte o saliente ciego intrínseco sobre un cuerpo existente.');
+      }
+    }
+    const eligibleDepthSeed = depthValues !== null && isRecipeInstanceDepthSeed(feature, sketch);
+    if (depthValues) {
+      if (!eligibleDepthSeed) {
+        pending('VARIATION_PENDING', feature.id, 'variation', 'Per-instance depth requires an intrinsic one-direction Blind cut or merge.');
+      } else for (const row of depthValues) {
+        if (!isRecipeInstanceDepth(row.value) || Math.sign(row.value) !== Math.sign(feature.depth)) {
+          invalid('VARIATION_DEPTH', feature.id, 'variation.values', 'La profundidad por instancia debe estar entre 0,01 y 100.000 mm y mantener el sentido de la operación semilla.');
+        }
+      }
+    }
+    if (request.scope.mode !== 'selected' && feature.type === 'extrude' && feature.bodyOperation?.mode === 'merge' && !isInitialAdditiveAllRecipe(feature, sketch)) {
+      pending('ALL_POSITIVE_SCOPE_PENDING', feature.id, 'bodyOperation', 'Additive ALL currently requires an intrinsic rectangle/circle Blind merge without support, thin wall or second direction; other positive scopes remain required.');
+    }
     inspectSupport(sketch.id);
     if (!sketch.profile || typeof sketch.profile !== 'object') invalid('PROFILE_DECLARATION', sketch.id, 'profile', 'Expected a parsed profile declaration.');
     if (sketch.profile.kind === 'entities') {
       // Declaration eligibility is not native authority. The evaluator must
       // obtain a current build-issued source solve before any native clone.
-      if (sketch.support || request.variation.kind !== 'none') pending('SOLVED_PROFILE_PENDING', sketch.id, 'profile', 'Associative or varying entity profiles need their instance solve contract.');
+      if (sketch.support || request.variation.kind !== 'none' && !sketchValues && !eligibleDepthSeed) pending('SOLVED_PROFILE_PENDING', sketch.id, 'profile', 'Associative or varying entity profiles need their instance solve contract.');
     }
     else if (sketch.profile.kind !== 'rectangle' && sketch.profile.kind !== 'circle') invalid('PROFILE_DECLARATION', sketch.id, 'profile', 'Unknown profile declaration.');
     if (!Number.isFinite(feature.depth) || Math.abs(feature.depth) < .01 || Math.abs(feature.depth) > 100_000 || typeof feature.symmetric !== 'boolean') invalid('EXTRUSION_PARAMETERS', feature.id, 'depth', 'Expected finite signed depth and an explicit symmetric flag.');
@@ -504,6 +572,28 @@ export function extractRecipeClosure(features: readonly Feature[], rawRequest: R
         node.termination = end.kind === 'throughAll' ? { kind: 'throughAll', bothDirections: end.bothDirections, baseFeatureId: end.baseFeatureId }
           : { kind: 'untilNext', baseFeatureId: end.baseFeatureId };
       } else invalid('UNSUPPORTED_END_SCHEMA', feature.id, 'endCondition', 'Unknown end-condition schema; do not reinterpret it as blind or copied geometry.');
+    }
+    const secondEnd = readSecondDirection(feature);
+    if (secondEnd && !secondEnd.enabled && secondEnd.endCondition?.kind === 'upToSurface') {
+      const key = locatorKey(feature.id, 'secondDirection.endCondition.target');
+      if (policies.has(key)) usedPolicies.add(key); // Retained policy is data only, not a native limit requirement.
+    }
+    if (secondEnd?.enabled && secondEnd.endCondition) {
+      const end = secondEnd.endCondition, path = 'secondDirection.endCondition';
+      if (end.kind === 'upToSurface') {
+        const policy = policyFor(feature.id, `${path}.target`, end.target);
+        node.secondTermination = { kind: 'upToSurface', target: end.target, policy };
+        if (end.target.kind !== 'principal' || policy.placement !== 'world') {
+          pending('UP_TO_SURFACE_PENDING', feature.id, path, 'Only an explicitly fixed external principal-plane limit is currently resolved; datum/face and transformed/instance correspondence remain required.');
+        }
+      } else {
+        const sourceBase = feature.type === 'cut' ? feature.bodyScope?.[0]
+          : feature.bodyOperation?.mode === 'merge' ? feature.bodyOperation.target : feature.bodyOperation?.mode === 'new' ? end.baseBody : undefined;
+        if (!sourceBase || sourceBase.sourceFeatureId !== end.baseFeatureId) invalid('SOURCE_LIMIT_BASE', feature.id, `${path}.baseFeatureId`, 'The saved second limit must agree with its declared exact owner input.');
+        if (feature.type === 'cut' && end.baseBody !== undefined) invalid('SOURCE_LIMIT_BASE', feature.id, `${path}.baseBody`, 'Cut limits use their explicit owner scope.');
+        node.secondTermination = end.kind === 'throughAll' ? { kind: 'throughAll', bothDirections: false, baseFeatureId: end.baseFeatureId }
+          : { kind: 'untilNext', baseFeatureId: end.baseFeatureId };
+      }
     }
     for (const [key, source] of selectedBindings) {
       let sourceInput: BodyReference | null = null;
@@ -539,9 +629,28 @@ export function extractRecipeClosure(features: readonly Feature[], rawRequest: R
   request.targetSnapshot.sort((a, b) => textOrder(a.bodyId, b.bodyId));
   if (request.scope.mode === 'selected') request.scope.targets.sort((a, b) => textOrder(a.bodyId, b.bodyId));
   request.referencePolicies.sort((a, b) => textOrder(locatorKey(a.featureId, a.path), locatorKey(b.featureId, b.path)));
+  if (depthValues) depthValues.sort((a, b) => textOrder(a.address, b.address));
+  if (sketchValues) sketchValues.sort((a, b) => textOrder(a.address, b.address) || textOrder(a.constraintId, b.constraintId));
   const fingerprintInput = canonical({ request, definitions: orderedDefinitions, dependencies, operations, nativeRequirements: uniqueRequirements });
   return freezeTree({ request, definitions: orderedDefinitions, dependencies, operations, nativeRequirements: uniqueRequirements,
     diagnostics, eligibility: diagnostics.length ? 'pending-capability' : 'initial-declaration-subset', fingerprintInput });
+}
+
+/** Count actual AUTO owner/event work, not subqueries or only successful unions. */
+export function recipeAutoNativeApplicationCount(closure: RecipeClosure, completeNativeOwnerCount: number): number {
+  if (closure.request.scope.mode !== 'auto' || !Number.isInteger(completeNativeOwnerCount) || completeNativeOwnerCount < 1
+    || completeNativeOwnerCount > RECIPE_LIMITS.dynamicTargets) throw Error('AUTO necesita el inventario nativo completo y acotado.');
+  let perPlacement = 0;
+  for (const operation of closure.operations) {
+    const definition = closure.definitions.find(item => item.feature.id === operation.featureId)?.feature;
+    const positive = definition?.type === 'extrude' && definition.bodyOperation?.mode === 'merge';
+    perPlacement += positive ? completeNativeOwnerCount : new Set(operation.applications.map(item => item.targetAtPatternInput.bodyId)).size;
+  }
+  const count = perPlacement * closure.request.plan.transforms.length;
+  if (!Number.isSafeInteger(count) || count < 1 || count > RECIPE_LIMITS.applications) {
+    throw Error('AUTO supera el límite de 512 aplicaciones nativas cuerpo/evento, incluidas las comprobaciones de cuerpos no capturados.');
+  }
+  return count;
 }
 
 /** This gate says nothing about successful native evaluation or reference-target fidelity. */
@@ -688,9 +797,13 @@ export interface ResolvedRecipeExtrusionInput {
   ray: Vec3;
   signedDepth: number;
   termination: RecipeTermination;
+  secondTermination?: RecipeTermination;
+  thinWall?: ThinWallDefinition;
+  secondDirection?: ExtrudeFeature['secondDirection'];
 }
 export interface IntrinsicRecipeExtrusionPlacement extends Omit<ResolvedRecipeExtrusionInput, 'profile'> {
   sketchId: string; sourceFrame: PlaneFrame;
+  sketchDimensions?: readonly RecipeSketchDimensionValue[];
 }
 /** Placement only: this adapter never turns saved entity coordinates into a solved profile. */
 export function intrinsicProfileInstancePlacement(closure: RecipeClosure, featureId: string, address: string): Readonly<IntrinsicRecipeExtrusionPlacement> {
@@ -701,13 +814,31 @@ export function intrinsicProfileInstancePlacement(closure: RecipeClosure, featur
   const feature = closure.definitions.find(definition => definition.feature.id === featureId)?.feature;
   if (!node?.termination || !feature || (feature.type !== 'extrude' && feature.type !== 'cut')) invalid('OPERATION_RECIPE_PENDING', featureId, 'type', 'Expected an eligible extracted extrusion operation.');
   const sketch = closure.definitions.find(definition => definition.feature.id === feature.sketchId)?.feature;
-  if (!sketch || sketch.type !== 'sketch' || sketch.support || closure.request.variation.kind !== 'none') invalid('FIXED_PROFILE_INPUT', featureId, 'sketchId', 'Intrinsic unchanged local sketch coordinates are required; associative/varying solves remain pending.');
+  if (!sketch || sketch.type !== 'sketch' || sketch.support) invalid('FIXED_PROFILE_INPUT', featureId, 'sketchId', 'Intrinsic unchanged local sketch coordinates are required; associative/varying solves remain pending.');
   if (!Number.isFinite(sketch.offset) || !['XY', 'XZ', 'YZ'].includes(sketch.plane)) invalid('FIXED_PROFILE_INPUT', sketch.id, 'plane', 'Intrinsic source plane and offset must be valid.');
+  let depth = feature.depth;
+  if (closure.request.variation.kind !== 'none' && closure.request.variation.kind !== 'sketchDimensions') {
+    const values = selectedDepthValues(closure.request);
+    if (!values || closure.request.sourceFeatureIds[0] !== featureId || node.termination.kind !== 'blind' || !isRecipeInstanceDepthSeed(feature, sketch)) {
+      invalid('VARIATION_PENDING', featureId, 'variation', 'This placement has no admitted intrinsic selected Blind depth table.');
+    }
+    depth = values.find(row => row.address === address)?.value ?? depth;
+    if (!isRecipeInstanceDepth(depth) || Math.sign(depth) !== Math.sign(feature.depth)) {
+      invalid('VARIATION_DEPTH', featureId, 'variation.values', 'The instance depth must remain in bounds and follow the original seed direction.');
+    }
+  }
   const sourceFrame = principalPlaneFrame(sketch.plane, sketch.offset);
-  const mapped = transformedExtrusionFrame(sourceFrame, feature.depth, transform);
+  const mapped = transformedExtrusionFrame(sourceFrame, depth, transform);
   const termination = node.termination.kind === 'blind' ? { ...node.termination, signedDepth: mapped.signedDepth } : node.termination;
+  const thinWall = readThinWall(feature);
+  const secondDirection = readSecondDirection(feature);
+  const sketchDimensions = closure.request.variation.kind === 'sketchDimensions'
+    ? closure.request.variation.values.filter(row => row.address === address) : undefined;
   return freezeTree({ sourceFeatureId: featureId, sketchId: sketch.id, sourceFrame,
-    frame: mapped.frame, ray: mapped.ray, signedDepth: mapped.signedDepth, termination });
+    frame: mapped.frame, ray: mapped.ray, signedDepth: mapped.signedDepth, termination,
+    ...(node.secondTermination ? { secondTermination: node.secondTermination } : {}),
+    ...(thinWall ? { thinWall } : {}), ...(secondDirection ? { secondDirection } : {}),
+    ...(sketchDimensions?.length ? { sketchDimensions } : {}) });
 }
 /** Primitive compatibility adapter; entity geometry is available only through its real-solve reader. */
 export function fixedProfileInstanceInput(closure: RecipeClosure, featureId: string, address: string): Readonly<ResolvedRecipeExtrusionInput> {
@@ -715,5 +846,8 @@ export function fixedProfileInstanceInput(closure: RecipeClosure, featureId: str
   const sketch = closure.definitions.find(definition => definition.feature.id === placement.sketchId)?.feature;
   if (!sketch || sketch.type !== 'sketch' || sketch.profile.kind === 'entities') invalid('FIXED_PROFILE_INPUT', featureId, 'sketchId', 'The primitive adapter cannot consume an unsolved entity declaration.');
   return freezeTree({ sourceFeatureId: featureId, profile: boundedClone(sketch.profile, sketch.id, { remaining: RECIPE_LIMITS.jsonNodes }),
-    frame: placement.frame, ray: placement.ray, signedDepth: placement.signedDepth, termination: placement.termination });
+    frame: placement.frame, ray: placement.ray, signedDepth: placement.signedDepth, termination: placement.termination,
+    ...(placement.secondTermination ? { secondTermination: placement.secondTermination } : {}),
+    ...(placement.thinWall ? { thinWall: placement.thinWall } : {}),
+    ...(placement.secondDirection ? { secondDirection: placement.secondDirection } : {}) });
 }

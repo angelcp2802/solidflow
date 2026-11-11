@@ -1,0 +1,18 @@
+.part-properties-form { display: grid; gap: 12px; margin-top: 18px; font-size: 11px; color: #385d78; }
+.part-properties-form > label { display: grid; gap: 5px; }
+.part-properties-form .part-property-check { display: flex; gap: 7px; align-items: center; }
+.part-properties-form input:not([type="checkbox"]) { width: 100%; min-width: 0; min-height: 30px; padding: 5px 7px; color: #29465b; background: #fff; border: 1px solid #c7d6e2; border-radius: 3px; }
+.part-properties-form input[type="color"] { padding: 3px; }
+.part-properties-form input:disabled { background: #eef2f6; color: #83919c; }
+.part-properties-actions { display: flex; flex-wrap: wrap; gap: 7px; justify-content: flex-end; }
+.part-properties-actions > button { padding: 6px 9px; border: 1px solid #c7d9e6; border-radius: 3px; background: #eff6fb; color: #326e9b; }
+.part-properties-actions > button[type="submit"] { background: #1673b9; color: #fff; border-color: #1167a7; }
+.part-properties-form [role="alert"] { color: #aa3b31; line-height: 1.5; margin: 0; }
+.part-properties-form p { margin: 0; line-height: 1.5; }
+.viewport-background-dialog { width: min(390px, calc(100vw - 32px)); padding: 22px; border: 1px solid #9db7ca; border-radius: 5px; color: #294258; background: #fafcfe; box-shadow: 0 12px 42px #183e5c45; }
+.viewport-background-dialog::backdrop { background: #183e5c65; }
+.viewport-background-dialog form { display: grid; gap: 15px; font-size: 12px; }
+.viewport-background-dialog h2, .viewport-background-dialog p { margin: 0; }
+.viewport-background-dialog h2 { font-size: 16px; color: #32658d; }
+.viewport-background-dialog label { display: flex; align-items: center; gap: 9px; }
+.viewport-background-dialog input[type="color"] { width: 65px; min-height: 30px; }

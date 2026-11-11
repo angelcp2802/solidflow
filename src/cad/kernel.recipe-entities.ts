@@ -1,12 +1,20 @@
 import type { Shape3D } from 'replicad';
 import type { Feature, PlaneFrame, Vec3 } from './kernel.types';
 import type { IntrinsicRecipeExtrusionPlacement } from '../model/featureRecipes';
-import { entityProfileSolid } from './kernel.profiles';
+import { entityProfileSolid, solveEntityProfileResult } from './kernel.profiles';
+import { isRecipeSketchDimensionValue, recipeSketchDrivingDimensions } from '../model/featureRecipeSketchVariation';
+import { sketchPoint } from '../sketch/editing';
+import type { EntityProfile } from '../sketch/types';
+import { prepareThinSection } from './kernel.thin-wall';
+import { assertThinWallEndCapsContext, resolveThinWall } from './thinWall';
+import { buildThinWallEndCaps } from './kernel.thin-caps';
+import { assertExtrusionDirectionContext, readSecondDirection, resolveExtrusionSpan, type ResolvedExtrusionSpan } from './extrusionDirection';
 import { copyBodyShape, maximumNativeShapeTolerance } from './kernel.bodies';
 import { withNativeOwners } from './kernel.native-ownership';
 import { throughAllBossTool, throughAllTool, untilNextTool, upToSurfaceTool } from './kernel.extrusion-limits';
 import { resolveUntilNextAdd, resolveUntilNextCut, type UntilNextCutResolution } from './kernel.until-next-resolution';
 import type { PrimitiveTermination } from './kernel.recipe-primitives';
+import { resolveDirectionTools, type DirectionToolResolution } from './kernel.direction-tools';
 import { readCheckpointSourceSketchSolve, type SourceSketchSolveCheckpoint,
   type SourceSketchSolveRegistry } from './kernel.sketch-solves';
 
@@ -26,6 +34,7 @@ export interface EntityRecipeProfileInput {
 export interface EntityRecipeToolInput extends EntityRecipeProfileInput {
   readonly termination: PrimitiveTermination;
   readonly operation: 'add' | 'subtract';
+  readonly secondTermination?: PrimitiveTermination;
   readonly workingTarget: Shape3D;
 }
 const sameFrame = (a: PlaneFrame, b: PlaneFrame): boolean =>
@@ -33,9 +42,24 @@ const sameFrame = (a: PlaneFrame, b: PlaneFrame): boolean =>
   a.xDirection.every((value, axis) => value === b.xDirection[axis]) &&
   a.normal.every((value, axis) => value === b.normal[axis]);
 
+/** Positive lengths alone permit reflected solutions about the fixed corner. */
+function sameRectangleBranch(source: EntityProfile, varied: EntityProfile): boolean {
+  for (const constraint of source.constraints) {
+    if (constraint.type !== 'horizontal' && constraint.type !== 'vertical') continue;
+    const edge = source.entities.find(entity => entity.id === constraint.entityId);
+    if (edge?.type !== 'line') return false;
+    const axis = constraint.type === 'horizontal' ? 'x' : 'y';
+    const a = sketchPoint(source, edge.start), b = sketchPoint(source, edge.end);
+    const c = sketchPoint(varied, edge.start), d = sketchPoint(varied, edge.end);
+    if (!a || !b || !c || !d || b[axis] === a[axis]
+      || Math.sign(b[axis] - a[axis]) !== Math.sign(d[axis] - c[axis])) return false;
+  }
+  return true;
+}
+
 /** The ordinary tool and absence witness use the same authentic native profile construction. */
 function entityRecipePrismFactory(input: EntityRecipeProfileInput): {
-  makePrism: (length: number, start?: number) => Shape3D; ray: Vec3;
+  makePrism: (length: number, start?: number) => Shape3D; ray: Vec3; span: ResolvedExtrusionSpan;
 } {
   const { source, placement } = input;
   input.assertWorkingCurrent();
@@ -47,6 +71,49 @@ function entityRecipePrismFactory(input: EntityRecipeProfileInput): {
   const depth = placement.signedDepth, sign = Math.sign(depth), frame = placement.frame;
   if (!Number.isFinite(depth) || Math.abs(depth) < .01 || Math.abs(depth) > 100_000) throw new Error('Entity recipe depth is outside the native parameter range.');
   const ray = frame.normal.map(value => sign * value) as Vec3;
+  const thinWall = resolveThinWall(placement);
+  const secondDirection = readSecondDirection(placement);
+  const span = resolveExtrusionSpan({ depth, symmetric: placement.termination.kind === 'blind' && placement.termination.symmetric,
+    ...(placement.termination.kind !== 'blind' ? { endCondition: placement.termination } : {}),
+    ...(secondDirection ? { secondDirection } : {}) });
+  const feature = source.features.find(feature => feature.id === placement.sourceFeatureId);
+  assertThinWallEndCapsContext(thinWall?.definition, feature?.type === 'extrude' ? 'add' : 'subtract',
+    placement.termination.kind === 'blind');
+  const section = thinWall ? prepareThinSection(view.resolved, thinWall) : undefined;
+  let profile = section?.sketch.profile ?? view.result.profile;
+  const variation = placement.sketchDimensions;
+  if (variation?.length) {
+    const drivers = recipeSketchDrivingDimensions(feature, view.input);
+    if (view.result.status !== 'fullyDefined' || variation.length > drivers.length
+      || section || placement.thinWall || placement.secondDirection || placement.termination.kind !== 'blind' || placement.termination.symmetric) {
+      throw Error('La variación requiere cotas conductoras de un círculo o rectángulo anclado y una dirección ciega.');
+    }
+    // Seed a rectangular solve from the certified source branch. The saved
+    // constraints and the published source solve stay untouched.
+    const rectangle = drivers[0]?.parameter === 'width';
+    const varied = structuredClone(rectangle ? view.result.profile : view.input.profile);
+    const used = new Set<string>();
+    for (const row of variation) {
+      const driver = drivers.find(candidate => candidate.constraintId === row.constraintId);
+      const constraint = varied.constraints.find(item => item.id === row.constraintId);
+      if (!driver || !constraint || constraint.type !== (driver.parameter === 'radius' ? 'radius' : 'length')
+        || row.sketchId !== view.input.id || used.has(row.constraintId) || !isRecipeSketchDimensionValue(row.value)) {
+        throw Error('La cota conductora exacta ya no está disponible.');
+      }
+      used.add(row.constraintId);
+      constraint.value = row.value;
+    }
+    input.assertWorkingCurrent();
+    const solved = solveEntityProfileResult(varied);
+    readCheckpointSourceSketchSolve(source.registry, source.checkpoint, source.features, placement.sketchId);
+    input.assertWorkingCurrent();
+    if (solved.status !== 'fullyDefined') throw Error(`No se pueden resolver las cotas de esta instancia (${solved.status}): ${solved.message}`);
+    if (rectangle && !sameRectangleBranch(view.result.profile, solved.profile)) {
+      throw Error('Las cotas de esta instancia cambian la orientación del rectángulo anclado.');
+    }
+    profile = solved.profile;
+  }
+  if (profile.kind !== 'entities') throw new Error('Entity recipes require a closed resolved entity section.');
   // Reflection parity was applied exactly once by transformedExtrusionFrame.
   // Keep the authentic solved local coordinates and arc orientation unchanged.
   const makePrism = (length: number, start = 0): Shape3D => {
@@ -60,18 +127,21 @@ function entityRecipePrismFactory(input: EntityRecipeProfileInput): {
       input.assertWorkingCurrent();
       // Explicit frame already includes the sketch offset once. This builder
       // constructs contours/holes/regions from result.profile without solving.
-      const prism = owners.own(entityProfileSolid(view.result.profile, view.input.plane, 0,
-        { type: 'extrude', depth: sign * length }, { ...frame, origin }));
+      const prism = owners.own(section && thinWall?.definition.endCaps?.enabled
+        ? buildThinWallEndCaps(section, thinWall.definition, view.input.plane, 0, sign * length, { ...frame, origin })
+        : entityProfileSolid(profile, view.input.plane, 0,
+          { type: 'extrude', depth: sign * length }, { ...frame, origin }, !!thinWall?.definition.autoCorners?.enabled));
       input.validateTool(prism);
       input.assertWorkingCurrent();
       return prism;
     }, prism => [prism], 'Entity recipe prism construction or release failed.');
   };
-  return { makePrism, ray };
+  return { makePrism, ray, span };
 }
 
 /** Native profile evidence only. The witness never changes or replaces an owner. */
 export function validateEntityRecipeProfileForAbsence(input: EntityRecipeProfileInput): number {
+  if (readSecondDirection(input.placement)?.enabled) throw new Error('La segunda dirección activa no admite un testigo de ausencia para un límite automático.');
   const { makePrism } = entityRecipePrismFactory(input);
   const tolerance = withNativeOwners(owners => {
     const prism = owners.own(makePrism(Math.abs(input.placement.signedDepth)));
@@ -88,6 +158,8 @@ export function validateEntityRecipeProfileForAbsence(input: EntityRecipeProfile
 /** Native observations from the full authentic solved profile; no saved miss policy is inferred here. */
 export function resolveEntityRecipeUntilNext(input: EntityRecipeToolInput): UntilNextCutResolution {
   if (input.termination.kind !== 'untilNext') throw new Error('Entity UntilNext resolution requires its exact termination.');
+  assertThinWallEndCapsContext(resolveThinWall(input.placement)?.definition, input.operation, false);
+  if (readSecondDirection(input.placement)?.enabled) throw new Error('La segunda dirección activa requiere profundidad ciega.');
   const { makePrism, ray } = entityRecipePrismFactory(input);
   return withNativeOwners<UntilNextCutResolution>(owners => {
     const result = (input.operation === 'subtract' ? resolveUntilNextCut : resolveUntilNextAdd)({
@@ -109,13 +181,27 @@ export function resolveEntityRecipeUntilNext(input: EntityRecipeToolInput): Unti
 /** Real solved entities, freshly constructed native material; no seed BRep/delta copying. */
 export function buildEntityRecipeTool(input: EntityRecipeToolInput): Shape3D {
   const { source, placement, termination } = input;
-  const { makePrism, ray } = entityRecipePrismFactory(input);
+  const secondDirection = readSecondDirection(placement);
+  if (secondDirection?.enabled && (termination.kind !== placement.termination.kind
+    || termination.kind === 'blind' && placement.termination.kind === 'blind' && termination.symmetric !== placement.termination.symmetric)) {
+    throw Error('La terminación nativa debe coincidir con la declaración de cada dirección.');
+  }
+  if (secondDirection?.enabled && (termination.kind !== 'blind' || secondDirection.endCondition)) {
+    const resolution = resolveEntityRecipeDirections(input, input.operation === 'subtract');
+    if (resolution.kind !== 'complete') throw Error('No se puede construir una operación sin material en ambas direcciones.');
+    return resolution.tool;
+  }
+  assertExtrusionDirectionContext({ symmetric: termination.kind === 'blind' && termination.symmetric,
+    ...(termination.kind !== 'blind' ? { endCondition: termination } : {}),
+    ...(secondDirection ? { secondDirection } : {}) });
+  assertThinWallEndCapsContext(resolveThinWall(placement)?.definition, input.operation, termination.kind === 'blind');
+  const { makePrism, ray, span } = entityRecipePrismFactory(input);
   const depth = placement.signedDepth, frame = placement.frame;
   return withNativeOwners(owners => {
     const target = termination.kind === 'throughAll' || termination.kind === 'untilNext'
       ? owners.own(copyBodyShape(input.workingTarget)) : undefined;
     let tool: Shape3D;
-    if (termination.kind === 'blind') tool = owners.own(makePrism(Math.abs(depth), termination.symmetric ? -Math.abs(depth) / 2 : 0));
+    if (termination.kind === 'blind') tool = owners.own(makePrism(Math.abs(span.signedDepth), span.startShift / Math.sign(depth)));
     else if (termination.kind === 'throughAll') tool = owners.own(input.operation === 'add'
       ? throughAllBossTool(target!, frame.origin, ray, termination.bothDirections, makePrism)
       : throughAllTool(target!, frame.origin, ray, termination.bothDirections, makePrism));
@@ -127,4 +213,36 @@ export function buildEntityRecipeTool(input: EntityRecipeToolInput): Shape3D {
     readCheckpointSourceSketchSolve(source.registry, source.checkpoint, source.features, placement.sketchId);
     return tool;
   }, tool => [tool], 'Entity recipe tool construction or release failed.');
+}
+
+/** Fresh authentic sections for two rays, read from the same current solve and owner. */
+export function resolveEntityRecipeDirections(input: EntityRecipeToolInput, allowSeparatedMiss: boolean): DirectionToolResolution {
+  const { placement, termination } = input, direction = readSecondDirection(placement);
+  if (direction?.enabled && (termination.kind !== placement.termination.kind
+    || termination.kind === 'blind' && placement.termination.kind === 'blind' && termination.symmetric !== placement.termination.symmetric)) {
+    throw Error('La terminación nativa debe coincidir con la declaración de cada dirección.');
+  }
+  if (!direction?.enabled || termination.kind === 'blind' && !direction.endCondition) {
+    return { kind: 'complete', tool: buildEntityRecipeTool(input) };
+  }
+  if (termination.kind === 'blind' && termination.symmetric || termination.kind === 'throughAll' && termination.bothDirections) {
+    throw Error('Cada dirección requiere su propio sentido, sin plano medio ni Por todo bilateral.');
+  }
+  assertThinWallEndCapsContext(resolveThinWall(placement)?.definition, input.operation, false);
+  if (direction.endCondition && (!input.secondTermination || input.secondTermination.kind !== direction.endCondition.kind)
+    || !direction.endCondition && input.secondTermination && input.secondTermination.kind !== 'blind') throw Error('Falta resolver exactamente el límite de la segunda dirección.');
+  const { secondDirection: _direction, secondTermination: _secondPlacement, ...firstPlacement } = placement;
+  const { secondTermination: _secondNative, ...firstInput } = input;
+  const first = { ...firstInput, placement: firstPlacement };
+  const signedDepth = -Math.sign(placement.signedDepth) * direction.depth;
+  const second: EntityRecipeToolInput = { ...firstInput, placement: { ...firstPlacement, signedDepth,
+    termination: placement.secondTermination ?? { kind: 'blind', signedDepth, symmetric: false } },
+    termination: input.secondTermination ?? { kind: 'blind', symmetric: false } };
+  const branches = [first, second].map(branch => ({
+    build: () => buildEntityRecipeTool(branch), untilNext: branch.termination.kind === 'untilNext',
+    ...(branch.termination.kind === 'untilNext' || branch.termination.kind === 'throughAll' ? {
+      observeForward: () => resolveEntityRecipeUntilNext({ ...branch, termination: { kind: 'untilNext' } }),
+    } : {}),
+  }));
+  return resolveDirectionTools(branches, allowSeparatedMiss && input.operation === 'subtract', input.validateTool);
 }

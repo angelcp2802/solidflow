@@ -72,6 +72,54 @@ it('extracts definitions without replaying the owner-creation prefix or claiming
   expect(closure.eligibility).toBe('initial-declaration-subset'); // Declaration classification, no native PASS.
 });
 
+it.each([
+  { kind: 'one-side', thickness: 2, reversed: false },
+  { kind: 'mid-plane', thickness: 2 },
+  { kind: 'two-sides', firstThickness: 1, secondThickness: 2 },
+] as const)('retains strict thin-wall declarations in real-extrusion recipe inputs: %j', thinWall => {
+  const { features, request } = fixture();
+  Object.assign(features[3], { thinWall });
+  const closure = extractRecipeClosure(features, request);
+  expect(closure.eligibility).toBe('initial-declaration-subset');
+  expect(closure.diagnostics).toEqual([]);
+  expect(closure.operations[0]).toMatchObject({ sketchId: 'cut-sketch', termination: { kind: 'throughAll' } });
+  const input = fixedProfileInstanceInput(closure, 'cut', '1,0');
+  expect(input.thinWall).toEqual(thinWall);
+  expect(input.thinWall).not.toBe(thinWall);
+  expect(Object.isFrozen(input.thinWall)).toBe(true);
+  const changed = structuredClone(features);
+  Object.assign(changed[3], { thinWall: { ...thinWall, ...(thinWall.kind === 'two-sides' ? { firstThickness: 3 } : { thickness: 3 }) } });
+  expect(extractRecipeClosure(changed, request).fingerprintInput).not.toBe(closure.fingerprintInput);
+});
+
+it('rejects malformed thin-wall recipe data and never invokes raw accessors', () => {
+  const { features, request } = fixture();
+  Object.assign(features[3], { thinWall: { kind: 'mid-plane', thickness: 0 } });
+  expect(codes(() => extractRecipeClosure(features, request))).toContain('THIN_WALL_DECLARATION');
+  const getter = vi.fn(() => ({ kind: 'mid-plane', thickness: 2 }));
+  Object.defineProperty(features[3], 'thinWall', { enumerable: true, get: getter });
+  expect(codes(() => extractRecipeClosure(features, request))).toContain('NON_JSON_RECIPE');
+  expect(getter).not.toHaveBeenCalled();
+});
+
+it.each(['extrude', 'cut', 'revolve', 'revolvedCut'] as const)('admits only the implemented extrusion bridge for thin-wall %s', type => {
+  const { features, request } = fixture();
+  const common = { id: 'cut', name: 'Original wall source', suppressed: false, sketchId: 'cut-sketch',
+    thinWall: { kind: 'mid-plane', thickness: 1 } as const };
+  if (type === 'extrude') features[3] = { ...common, type, depth: 4, symmetric: false, bodyOperation: { mode: 'merge', target: a } };
+  if (type === 'cut') features[3] = { ...common, type, depth: 4, symmetric: false, bodyScope: [a] };
+  if (type === 'revolve') features[3] = { ...common, type, angle: 90, bodyOperation: { mode: 'merge', target: a } };
+  if (type === 'revolvedCut') features[3] = { ...common, type, angle: 90, bodyScope: [a] };
+  const closure = extractRecipeClosure(features, request);
+  if (type === 'extrude' || type === 'cut') {
+    expect(closure.diagnostics).toEqual([]);
+    expect(fixedProfileInstanceInput(closure, 'cut', '1,0').thinWall).toEqual(common.thinWall);
+  } else {
+    expect(closure.diagnostics.map(item => item.code)).toEqual(['OPERATION_RECIPE_PENDING']);
+    expect(codes(() => fixedProfileInstanceInput(closure, 'cut', '1,0'))).toEqual(['OPERATION_RECIPE_PENDING']);
+  }
+});
+
 it('orders selected operations by history and binds a selected parent to the same owner route', () => {
   const { features, request } = orderedFixture(), closure = extractRecipeClosure(features, request);
   expect(closure.operations.map(operation => operation.featureId)).toEqual(['boss', 'cut']);
@@ -271,6 +319,7 @@ it('builds explicit intrinsic-frame inputs only for an active extracted transfor
   const input = fixedProfileInstanceInput(closure, 'cut', '1,0');
   expect(input.frame.origin).toEqual([20, 0, 0]); expect(input.ray).toEqual([0, 0, 1]);
   expect(input.profile).toEqual({ kind: 'circle', center: [5, 5], radius: 1 });
+  expect(Object.hasOwn(input, 'thinWall')).toBe(false);
   expect(codes(() => fixedProfileInstanceInput(closure, 'cut', '2,0'))).toContain('INACTIVE_INSTANCE');
 });
 

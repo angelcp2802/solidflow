@@ -16,6 +16,8 @@ describe('accepted sketch display geometry', () => {
     expect(result.lines.slice(0, 6)).toEqual(firstSegment);
     expect(result.lines.slice(-3)).toEqual(firstSegment.slice(0, 3));
     expect(result.constructionLines).toEqual([]);
+    expect(result.profileTopology).toBe('closed');
+    expect(result.profileClosedSingle).toBe(true);
   });
 
   it('displays an open entity line separately from construction geometry', () => {
@@ -26,6 +28,25 @@ describe('accepted sketch display geometry', () => {
     const result = sketchVisual(sketch);
     expect(result.lines).toEqual([7, 3, 4, 7, 10, 4]);
     expect(result.constructionLines).toEqual([7, 0, 0, 7, 3, 4]);
+    expect(result.lineEntities).toEqual([
+      { entityId: 'open', start: [7, 3, 4], end: [7, 10, 4], construction: false },
+      { entityId: 'helper', start: [7, 0, 0], end: [7, 3, 4], construction: true },
+    ]);
+    expect(result.profileTopology).toBe('open');
+    expect(result.profileOpenOnly).toBe(true);
+    expect(result.profileClosedSingle).toBeUndefined();
+  });
+
+  it('keeps multi-contour closed displays distinct from a single closed witness', () => {
+    const sketch = feature();
+    sketch.profile = { kind: 'entities', points: [], constraints: [], entities: [
+      { id: 'outer', type: 'circle', center: 'origin', radius: 10, construction: false },
+      { id: 'inner', type: 'circle', center: 'origin', radius: 5, construction: false },
+    ] };
+    const result = sketchVisual(sketch);
+    expect(result.profileTopology).toBe('closed');
+    expect(result.profileClosedSingle).toBeUndefined();
+    expect(result.lines.length).toBeGreaterThan(0);
   });
 
   it.each([false, true])('discretizes the correct arc side with clockwise=%s', (clockwise) => {
@@ -38,6 +59,7 @@ describe('accepted sketch display geometry', () => {
     const y = result.lines.filter((_, index) => index % 3 === 1);
     expect(clockwise ? Math.min(...y) : Math.max(...y)).toBeCloseTo(clockwise ? -10 : 10, 8);
     expect(y.every((coordinate) => clockwise ? coordinate <= 1e-12 : coordinate >= -1e-12)).toBe(true);
+    expect(result.lineEntities).toBeUndefined();
   });
 
   it('discretizes a circle on its plane as a closed display wire', () => {
@@ -51,12 +73,32 @@ describe('accepted sketch display geometry', () => {
     }
     expect(result.lines.slice(-3)[0]).toBeCloseTo(result.lines[0], 10);
     expect(result.lines.slice(-3)[2]).toBeCloseTo(result.lines[2], 10);
+    expect(result.lineEntities).toBeUndefined();
+  });
+
+  it('never identifies primitive, duplicate or collapsed display segments as selectable LINE entities', () => {
+    expect(sketchVisual(feature()).lineEntities).toBeUndefined();
+    const sketch = feature();
+    sketch.profile = { kind: 'entities', points: [{ id: 'a', x: 1, y: 2 }], constraints: [],
+      entities: [{ id: 'duplicate', type: 'line', start: 'origin', end: 'a', construction: true },
+        { id: 'duplicate', type: 'line', start: 'a', end: 'origin', construction: true },
+        { id: 'collapsed', type: 'line', start: 'a', end: 'a', construction: true }] };
+    expect(sketchVisual(sketch).lineEntities).toBeUndefined();
   });
 
   it('returns a valid empty visual for an accepted empty sketch', () => {
     const sketch = feature();
     sketch.profile = { kind: 'entities', points: [], entities: [], constraints: [] };
-    expect(sketchVisual(sketch)).toEqual({ id: 'sketch', lines: [], constructionLines: [],
+    expect(sketchVisual(sketch)).toEqual({ id: 'sketch', profileTopology: 'invalid', lines: [], constructionLines: [],
       frame: { origin: [0, 0, 7], xDirection: [1, 0, 0], normal: [0, 0, 1] } });
+  });
+
+  it('marks an ambiguous or branching resolved profile invalid without resolving it again', () => {
+    const sketch = feature();
+    sketch.profile = { kind: 'entities', points: [{ id: 'a', x: 5, y: 0 }, { id: 'b', x: 5, y: 5 }, { id: 'c', x: 10, y: 0 }],
+      entities: [{ id: 'one', type: 'line', start: 'origin', end: 'a', construction: false },
+        { id: 'two', type: 'line', start: 'a', end: 'b', construction: false },
+        { id: 'three', type: 'line', start: 'a', end: 'c', construction: false }], constraints: [] };
+    expect(sketchVisual(sketch).profileTopology).toBe('invalid');
   });
 });

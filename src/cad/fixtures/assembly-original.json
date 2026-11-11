@@ -1,0 +1,60 @@
+{
+  "version": 2,
+  "kind": "assembly",
+  "id": "ui-assembly",
+  "revision": "r1",
+  "name": "Original isolated assembly interaction",
+  "units": "mm",
+  "createdAt": "2026-10-15T00:00:00.000Z",
+  "updatedAt": "2026-10-15T00:00:00.000Z",
+  "definitions": [
+    {
+      "kind": "part", "id": "example-plate", "revision": "r1",
+      "document": {
+        "version": 1, "id": "example-plate", "name": "Original plate", "units": "mm",
+        "createdAt": "2026-10-15T00:00:00.000Z", "updatedAt": "2026-10-15T00:00:00.000Z",
+        "features": [
+          { "id": "profile", "name": "Original plate rectangle", "type": "sketch", "plane": "XY", "offset": 0, "suppressed": false,
+            "profile": { "kind": "rectangle", "center": [0, 0], "width": 40, "height": 30 } },
+          { "id": "base", "name": "Original plate solid", "type": "extrude", "sketchId": "profile", "depth": 4, "symmetric": false, "suppressed": false,
+            "bodyOperation": { "mode": "new", "bodyId": "plate-body" } },
+          { "id": "hole-profile-0", "name": "Original left hole", "type": "sketch", "plane": "XY", "offset": 0, "suppressed": false,
+            "profile": { "kind": "circle", "center": [-10, 0], "radius": 3 } },
+          { "id": "hole-0", "name": "Original left through cut", "type": "cut", "sketchId": "hole-profile-0", "depth": 4, "symmetric": false, "suppressed": false,
+            "bodyScope": [{ "bodyId": "plate-body", "sourceFeatureId": "base" }] },
+          { "id": "hole-profile-1", "name": "Original right hole", "type": "sketch", "plane": "XY", "offset": 0, "suppressed": false,
+            "profile": { "kind": "circle", "center": [10, 0], "radius": 3 } },
+          { "id": "hole-1", "name": "Original right through cut", "type": "cut", "sketchId": "hole-profile-1", "depth": 4, "symmetric": false, "suppressed": false,
+            "bodyScope": [{ "bodyId": "plate-body", "sourceFeatureId": "hole-0" }] }
+        ]
+      }
+    },
+    {
+      "kind": "part", "id": "example-pin", "revision": "r1",
+      "document": {
+        "version": 1, "id": "example-pin", "name": "Original eccentric pin", "units": "mm",
+        "createdAt": "2026-10-15T00:00:00.000Z", "updatedAt": "2026-10-15T00:00:00.000Z",
+        "features": [
+          { "id": "profile", "name": "Original outer circle", "type": "sketch", "plane": "XY", "offset": 0, "suppressed": false,
+            "profile": { "kind": "circle", "center": [0, 0], "radius": 2 } },
+          { "id": "base", "name": "Original pin solid", "type": "extrude", "sketchId": "profile", "depth": 12, "symmetric": false, "suppressed": false,
+            "bodyOperation": { "mode": "new", "bodyId": "pin-body" } },
+          { "id": "bore-profile", "name": "Original eccentric bore", "type": "sketch", "plane": "XY", "offset": 0, "suppressed": false,
+            "profile": { "kind": "circle", "center": [1, 0], "radius": 0.25 } },
+          { "id": "bore", "name": "Original eccentric through cut", "type": "cut", "sketchId": "bore-profile", "depth": 12, "symmetric": false, "suppressed": false,
+            "bodyScope": [{ "bodyId": "pin-body", "sourceFeatureId": "base" }] }
+        ]
+      }
+    }
+  ],
+  "occurrences": [
+    { "id": "plate", "name": "Original plate", "definition": { "id": "example-plate", "revision": "r1" },
+      "pose": { "translation": [0, 0, 0], "rotation": [0, 0, 0, 1] }, "fixed": true, "visible": true, "suppressed": false },
+    { "id": "left", "name": "Original left pin", "definition": { "id": "example-pin", "revision": "r1" },
+      "pose": { "translation": [-4, 3, -2], "rotation": [0.1141494561018167, -0.08437133711873408, 0.15385361474592685, 0.9778447956470742] },
+      "fixed": false, "visible": true, "suppressed": false },
+    { "id": "right", "name": "Original right pin", "definition": { "id": "example-pin", "revision": "r1" },
+      "pose": { "translation": [14, -7, -1], "rotation": [0, 0, 0, 1] }, "fixed": false, "visible": true, "suppressed": false }
+  ],
+  "mates": []
+}

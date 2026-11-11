@@ -1,0 +1,314 @@
+{
+  "version": 2,
+  "kind": "assembly",
+  "id": "assembly-screw-original",
+  "revision": "r1",
+  "name": "Eje y corredera originales",
+  "units": "mm",
+  "createdAt": "2026-10-16T00:00:00.000Z",
+  "updatedAt": "2026-10-16T00:00:00.000Z",
+  "definitions": [
+    {
+      "kind": "part",
+      "id": "screw-ground",
+      "revision": "r1",
+      "document": {
+        "version": 1,
+        "id": "screw-ground",
+        "name": "Soporte original",
+        "units": "mm",
+        "createdAt": "2026-10-16T00:00:00.000Z",
+        "updatedAt": "2026-10-16T00:00:00.000Z",
+        "features": [
+          {
+            "id": "profile",
+            "name": "Perfil original",
+            "type": "sketch",
+            "plane": "XY",
+            "offset": 0,
+            "suppressed": false,
+            "profile": {
+              "kind": "rectangle",
+              "center": [
+                0,
+                0
+              ],
+              "width": 40,
+              "height": 30
+            }
+          },
+          {
+            "id": "base",
+            "name": "Extrusión original",
+            "type": "extrude",
+            "sketchId": "profile",
+            "depth": 4,
+            "symmetric": false,
+            "suppressed": false,
+            "bodyOperation": {
+              "mode": "new",
+              "bodyId": "screw-ground-body"
+            }
+          },
+          {
+            "id": "hole-profile",
+            "name": "Círculo del taladro",
+            "type": "sketch",
+            "plane": "XY",
+            "offset": 0,
+            "suppressed": false,
+            "profile": {
+              "kind": "circle",
+              "center": [
+                0,
+                0
+              ],
+              "radius": 3
+            }
+          },
+          {
+            "id": "hole",
+            "name": "Taladro pasante",
+            "type": "cut",
+            "sketchId": "hole-profile",
+            "depth": 4,
+            "symmetric": false,
+            "suppressed": false,
+            "bodyScope": [
+              {
+                "bodyId": "screw-ground-body",
+                "sourceFeatureId": "base"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "kind": "part",
+      "id": "screw-shaft",
+      "revision": "r1",
+      "document": {
+        "version": 1,
+        "id": "screw-shaft",
+        "name": "Eje original con marcador",
+        "units": "mm",
+        "createdAt": "2026-10-16T00:00:00.000Z",
+        "updatedAt": "2026-10-16T00:00:00.000Z",
+        "features": [
+          {
+            "id": "profile",
+            "name": "Perfil original",
+            "type": "sketch",
+            "plane": "XY",
+            "offset": 0,
+            "suppressed": false,
+            "profile": {
+              "kind": "circle",
+              "center": [
+                0,
+                0
+              ],
+              "radius": 2
+            }
+          },
+          {
+            "id": "base",
+            "name": "Extrusión original",
+            "type": "extrude",
+            "sketchId": "profile",
+            "depth": 30,
+            "symmetric": false,
+            "suppressed": false,
+            "bodyOperation": {
+              "mode": "new",
+              "bodyId": "screw-shaft-body"
+            }
+          },
+          {
+            "id": "hole-profile",
+            "name": "Círculo del taladro",
+            "type": "sketch",
+            "plane": "XY",
+            "offset": 0,
+            "suppressed": false,
+            "profile": {
+              "kind": "circle",
+              "center": [
+                1,
+                0
+              ],
+              "radius": 0.25
+            }
+          },
+          {
+            "id": "hole",
+            "name": "Taladro pasante",
+            "type": "cut",
+            "sketchId": "hole-profile",
+            "depth": 30,
+            "symmetric": false,
+            "suppressed": false,
+            "bodyScope": [
+              {
+                "bodyId": "screw-shaft-body",
+                "sourceFeatureId": "base"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "kind": "part",
+      "id": "screw-nut",
+      "revision": "r1",
+      "document": {
+        "version": 1,
+        "id": "screw-nut",
+        "name": "Corredera original",
+        "units": "mm",
+        "createdAt": "2026-10-16T00:00:00.000Z",
+        "updatedAt": "2026-10-16T00:00:00.000Z",
+        "features": [
+          {
+            "id": "profile",
+            "name": "Perfil original",
+            "type": "sketch",
+            "plane": "XY",
+            "offset": 0,
+            "suppressed": false,
+            "profile": {
+              "kind": "rectangle",
+              "center": [
+                0,
+                0
+              ],
+              "width": 10,
+              "height": 10
+            }
+          },
+          {
+            "id": "base",
+            "name": "Extrusión original",
+            "type": "extrude",
+            "sketchId": "profile",
+            "depth": 6,
+            "symmetric": false,
+            "suppressed": false,
+            "bodyOperation": {
+              "mode": "new",
+              "bodyId": "screw-nut-body"
+            }
+          },
+          {
+            "id": "hole-profile",
+            "name": "Círculo del taladro",
+            "type": "sketch",
+            "plane": "XY",
+            "offset": 0,
+            "suppressed": false,
+            "profile": {
+              "kind": "circle",
+              "center": [
+                0,
+                0
+              ],
+              "radius": 2.5
+            }
+          },
+          {
+            "id": "hole",
+            "name": "Taladro pasante",
+            "type": "cut",
+            "sketchId": "hole-profile",
+            "depth": 6,
+            "symmetric": false,
+            "suppressed": false,
+            "bodyScope": [
+              {
+                "bodyId": "screw-nut-body",
+                "sourceFeatureId": "base"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "occurrences": [
+    {
+      "id": "ground",
+      "name": "Soporte fijo",
+      "definition": {
+        "id": "screw-ground",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": true,
+      "visible": true,
+      "suppressed": false
+    },
+    {
+      "id": "shaft",
+      "name": "Eje giratorio",
+      "definition": {
+        "id": "screw-shaft",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          0,
+          0,
+          -8
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": false,
+      "visible": true,
+      "suppressed": false
+    },
+    {
+      "id": "nut",
+      "name": "Corredera deslizante",
+      "definition": {
+        "id": "screw-nut",
+        "revision": "r1"
+      },
+      "pose": {
+        "translation": [
+          0,
+          0,
+          10
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      "fixed": false,
+      "visible": true,
+      "suppressed": false
+    }
+  ],
+  "mates": []
+}
