@@ -131,6 +131,20 @@ it('keeps manual repairs pending native Solve and labels semantic/component rete
   expect(html).toContain('Reparada manualmente · pendiente de resolver'); expect(html).toContain('Referencia semántica conservada'); expect(html).toContain('Componente conservado')
   expect(html.match(/Cara de reparación/g)).toHaveLength(1)
 })
+it('enables Solve only after both exact repair locators are complete', () => {
+  const review = fixture(), first = review.endpoints[0]
+  const second = { ...structuredClone(first), locator: { ...first.locator, side: 'second' as const } }
+  review.endpoints.push(second)
+  const firstKey = assemblySourceEndpointKey(first), secondKey = assemblySourceEndpointKey(second)
+  const solveDisabled = /<button(?=[^>]*aria-label="Resolver actualización de pieza")(?=[^>]*disabled="")[^>]*>/
+  expect(markup(review)).toMatch(solveDisabled)
+  const partial = markup(review, { repaired: [firstKey, assemblySourceEndpointKey({ ...second, locator: { ...second.locator, mateId: 'other' } })] })
+  expect(partial).toMatch(solveDisabled)
+  expect(partial).toContain('Repara todas las referencias pendientes para resolver la actualización.')
+  const ready = markup(review, { repaired: [firstKey, secondKey] })
+  expect(ready).not.toMatch(solveDisabled)
+  expect(ready).not.toContain('Repara todas las referencias pendientes para resolver la actualización.')
+})
 it('blocks repair and Solve during work but exposes Cancel only when the operation is cancelable', () => {
   const blocked = markup(fixture(), { busy: true }), cancelable = markup(fixture(), { busy: true, cancelable: true })
   expect(blocked).toMatch(/<select(?=[^>]*aria-label="Cara de reparación M first")(?=[^>]*disabled="")[^>]*>/)

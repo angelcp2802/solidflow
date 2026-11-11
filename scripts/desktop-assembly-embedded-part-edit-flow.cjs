@@ -13,6 +13,9 @@ module.exports = function embeddedPartEditWorkflow(context) {
   const APPLY = 'button[aria-label="Aplicar ensamblaje"]', CANCEL = 'button[aria-label="Cancelar vista previa del ensamblaje"]';
   const PANEL = '[role="region"][aria-label="Actualizar origen compartido"]';
   const SOLVE = 'button[aria-label="Resolver actualización de pieza"]', CANCEL_UPDATE = 'button[aria-label="Cancelar actualización de pieza"]';
+  const SOLVE_RIBBON = '.assembly-app button[aria-label="Resolver ensamblaje"]';
+  const TOOLS = '.assembly-app button[data-assembly-menu="tools"]';
+  const SOLVE_MENU = '.assembly-app [role="menu"] button[data-assembly-command="solve"]';
   const PART = '.assembly-embedded-part-editor .app-shell';
   const RETURN = PART + ' [aria-label="Edición de pieza en el ensamblaje"] button.primary-button';
   const DISCARD = PART + ' [aria-label="Edición de pieza en el ensamblaje"] button.outline-button';
@@ -397,8 +400,31 @@ module.exports = function embeddedPartEditWorkflow(context) {
     check(!(await observe()).builds.some(b => b.serial > event.serial), 'No late part build destroys the retained review');
     return event;
   }
+  async function verifySourceSolve(remaining, label) {
+    const before = await serial(), history = await historyButtons(), files = canonical(ipc), disabled = remaining > 0;
+    await waitFor(label + ' panel and ribbon share current repair readiness', () => page((panel, solve, ribbon, apply, disabled, remaining) => {
+      const pending = [...document.querySelectorAll(panel + ' [data-endpoint-status="needs-repair"]')];
+      return pending.length === remaining && [solve, ribbon].every(selector => document.querySelector(selector)?.disabled === disabled)
+        && document.querySelector(apply)?.disabled === true;
+    }, PANEL, SOLVE, SOLVE_RIBBON, APPLY, disabled, remaining));
+    if (disabled) {
+      await pressDisabled(SOLVE);
+      await pressDisabled(SOLVE_RIBBON);
+    }
+    await press(TOOLS);
+    await waitFor(label + ' Tools Solve shares current repair readiness', () => page((selector, disabled) =>
+      document.querySelector(selector)?.disabled === disabled, SOLVE_MENU, disabled));
+    if (disabled) await pressDisabled(SOLVE_MENU);
+    await key('Escape');
+    await waitFor(label + ' Tools popup closes without a command', () => page(selector => !document.querySelector(selector), SOLVE_MENU));
+    check(await serial() === before && canonical(await historyButtons()) === canonical(history) && canonical(ipc) === files,
+      label + ' sends no worker or file command and leaves history exact');
+    await sameParentBytes(label);
+    boundaries.push({ phase: label, remaining, solveDisabled: disabled, serial: before });
+  }
   async function repair(event) {
-    for (const endpoint of event.response.value.endpoints.filter(e => e.status === 'needs-repair')) {
+    const pending = event.response.value.endpoints.filter(e => e.status === 'needs-repair');
+    for (const [index, endpoint] of pending.entries()) {
       const owner = endpoint.endpoint.component.occurrencePath[0], selected = faceRef(top(event.response.value.scene, owner));
       const label = endpoint.locator.mateId + ' ' + endpoint.locator.side;
       check(selected.component.occurrencePath.length === 1 && ['base', 'moving'].includes(owner), 'Exact repair remains under its original occurrence owner');
@@ -409,6 +435,7 @@ module.exports = function embeddedPartEditWorkflow(context) {
           const k = JSON.parse(e.getAttribute('data-assembly-endpoint')); return k[2] === mateId && k[3] === side;
         }); return fields.length === 1 && fields[0].getAttribute('data-endpoint-status') === 'manual-repair';
       }, endpoint.locator.mateId, endpoint.locator.side, PANEL));
+      await verifySourceSolve(pending.length - index - 1, 'After exact repair ' + label);
     }
   }
   function intent(doc, revision) {
@@ -676,8 +703,10 @@ module.exports = function embeddedPartEditWorkflow(context) {
     }
     await cancelDiscard(false); await cancelDiscard(true);
 
-    const first = await review(); await repair(first);
+    const first = await review();
+    await verifySourceSolve(2, 'First source review with two pending references'); await repair(first);
     before = await serial(); await press(SOLVE); event = await response(before, 'preview-assembly-part-update'); solved(event, true, first.revision);
+    check(event.reviewId === first.response.value.reviewId, 'Source panel Solve submits the exact repaired first review');
     await unchanged('Ready repaired source preview');
     before = await serial(); await press(CANCEL_UPDATE); const discarded = await response(before, 'discard-assembly-part-update');
     check(discarded.reviewId === first.response.value.reviewId, 'Cancel revokes the exact first review');
@@ -687,7 +716,16 @@ module.exports = function embeddedPartEditWorkflow(context) {
 
     const second = await review();
     check(second.revision !== first.revision && second.response.value.reviewId !== first.response.value.reviewId, 'Retry creates a fresh revision and private review');
-    await repair(second); before = await serial(); await press(SOLVE); event = await response(before, 'preview-assembly-part-update');
+    await verifySourceSolve(2, 'Fresh review discards old repair readiness'); await repair(second);
+    before = await serial(); await press(SOLVE_RIBBON); const ribbon = await response(before, 'preview-assembly-part-update');
+    solved(ribbon, true, second.revision); await parentIdle('repaired ribbon Solve settles');
+    check(ribbon.reviewId === second.response.value.reviewId, 'Ribbon Solve submits the exact repaired second review');
+    await press(TOOLS); before = await serial(); await press(SOLVE_MENU);
+    const revoked = await response(before, 'discard-assembly');
+    event = await response(before, 'preview-assembly-part-update');
+    check(revoked.hasToken && revoked.serial < event.serial && event.reviewId === ribbon.reviewId
+      && canonical(event.proposed) === canonical(ribbon.proposed),
+    'Tools Solve revokes the prior preview before verifying the same exact repaired review');
     solved(event, true, second.revision); intent(event.response.value.document, second.revision); await unchanged('Retry ready before Apply');
     check(!(await observe()).builds.some(b => b.serial > second.serial), 'No resumed/stale part producer posts during review, repair or Solve');
     const applied = await apply(event, true), accepted = applied.response.value.document;

@@ -1,6 +1,7 @@
 'use strict';
 const fsp = require('node:fs/promises');
 const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
+const assertPendingSourceSolve = require('./desktop-assembly-source-readiness.cjs');
 
 // Fixed original shared-prism source-update case after the pointer workflow.
 // Files enter through actual Open; native catalogs supply reference identities.
@@ -37,12 +38,11 @@ module.exports = async function directedGuideWorkflow(context) {
     const matches = options.filter(value => value && canonical(JSON.parse(value)) === canonical(reference));
     check(matches.length === 1, 'Exact current reference option missing or ambiguous.'); await control(selector, matches[0]);
   }
-  async function response(serial, action, expectReferenceFailure = false) {
+  async function response(serial, action) {
     return waitFor('guide repair actual ' + action, async () => { const state = await observe(), values = state.assemblies.filter(item => item.serial > serial && item.action === action && item.response);
       check(!state.workerErrors.length && values.length <= 1, 'Guide repair worker error or duplicate operation.'); if (!values.length) return false;
       const reply = values[0].response;
-      if (expectReferenceFailure) check(reply.ok === false && reply.error === 'Quedan referencias de la pieza pendientes de reparación.' && !Object.hasOwn(reply, 'value'), 'Unrepaired private source stage did not return its exact correlated failure.');
-      else check(reply.ok, reply.error || 'Guide repair operation failed.'); return values[0]; });
+      check(reply.ok, reply.error || 'Guide repair operation failed.'); return values[0]; });
   }
   async function recovery(document) {
     await waitFor('guide repair exact recovery', async () => canonical(JSON.parse(await page(() => localStorage.getItem('solidflow.autosave')))) === canonical(document));
@@ -174,16 +174,19 @@ module.exports = async function directedGuideWorkflow(context) {
     await choose('select[aria-label="' + (side === 'guide' ? 'Arista' : 'Cara') + ' de reparación ' + label + '"]', ref);
     await click('button[aria-label="Reparar referencia ' + label + '"]'); repaired[side] = ref; await statuses(repaired); await unchanged('manual ' + side + ' repair');
   }
-  async function solveUpdate(reviewed, repaired, accepted) {
-    const before = await observe(); await click(SOLVE); const event = await response(before.serial, 'preview-assembly-part-update', !accepted); evidence.pendingEvent = event;
+  async function checkPendingSource(repaired) {
+    const state = await assertPendingSourceSolve({ page, observe, waitFor, check, canonical }, sides.length - Object.keys(repaired).length);
+    check(await page(summary => !document.querySelector(summary), SUMMARY), 'Pending source has no solved report.');
+    await statuses(repaired); await unchanged('pending source');
+    phases.push({ phase: 'source/pending-ui-blocked', ...state });
+  }
+  async function solveUpdate(reviewed, repaired) {
+    const before = await observe(); await click(SOLVE); const event = await response(before.serial, 'preview-assembly-part-update'); evidence.pendingEvent = event;
     check(event.reviewId === reviewed.response.value.reviewId && canonical(event.current) === canonical(saved), 'Source solve lost its private review identity or committed base.'); updateDocument(event.proposed, reviewed.revision, repaired);
-    if (accepted) { const value = ready(event, 5, reviewed.revision); updateDocument(value.document, reviewed.revision, repaired);
-      await waitFor('repaired Apply enabled', () => page(selector => document.querySelector(selector)?.disabled === false, APPLY)); }
-    else {
-      check(event.response.ok === false && !Object.hasOwn(event.response, 'value'), 'Unrepaired source was given geometry authority.');
-      await idle(); check(await page((panel, apply, summary) => !!document.querySelector(panel) && document.querySelector(apply)?.disabled === true && !document.querySelector(summary), PANEL, APPLY, SUMMARY), 'Rejected update lost editable stage or exposed stale Apply/report.'); }
+    const value = ready(event, 5, reviewed.revision); updateDocument(value.document, reviewed.revision, repaired);
+    await waitFor('repaired Apply enabled', () => page(selector => document.querySelector(selector)?.disabled === false, APPLY));
     await statuses(repaired); await unchanged('source solve'); delete evidence.pendingEvent;
-    record(accepted ? 'source/ready' : Object.keys(repaired).length ? 'source/rejected-guide-pending' : 'source/rejected-all-pending', event); return event;
+    record('source/ready', event); return event;
   }
   async function apply(event, depth, revision) {
     await idle(); const before = await observe(); await click(APPLY); const result = await response(before.serial, 'apply-assembly'), value = result.response.value;
@@ -204,8 +207,8 @@ module.exports = async function directedGuideWorkflow(context) {
   await waitFor('guide baseline saved through IPC', async () => { try { return dialogCounts().saves === 2 && canonical(JSON.parse(await fsp.readFile(files.output, 'utf8'))) === canonical(saved); } catch (error) { if (error.code === 'ENOENT') return false; throw error; } });
   await idle(); savedBytes = await fsp.readFile(files.output); evidence.baselineSavedSha256 = digest(savedBytes);
   const cancelled = await openReview(), repaired = {};
-  await solveUpdate(cancelled, repaired, false); await repair(cancelled.response.value, 'first', repaired); await repair(cancelled.response.value, 'second', repaired);
-  await solveUpdate(cancelled, repaired, false); await repair(cancelled.response.value, 'guide', repaired); event = await solveUpdate(cancelled, repaired, true);
+  await checkPendingSource(repaired); await repair(cancelled.response.value, 'first', repaired); await repair(cancelled.response.value, 'second', repaired);
+  await checkPendingSource(repaired); await repair(cancelled.response.value, 'guide', repaired); event = await solveUpdate(cancelled, repaired);
   await click(CANCEL); await idle();
   await waitFor('cancelled ready source stage clears Apply/report', () => page((panel, apply, summary) => !document.querySelector(panel)
     && document.querySelector(apply)?.disabled === true && !document.querySelector(summary), PANEL, APPLY, SUMMARY));
@@ -222,7 +225,7 @@ module.exports = async function directedGuideWorkflow(context) {
   await unchanged('cancelled fresh baseline verification');
   const reviewed = await openReview(), accepted = {}; check(reviewed.revision !== cancelled.revision, 'Cancelled revision reused.');
   for (const side of sides) await repair(reviewed.response.value, side, accepted);
-  event = await solveUpdate(reviewed, accepted, true); const updated = await apply(event, 5, reviewed.revision); updateDocument(updated, reviewed.revision, accepted);
+  event = await solveUpdate(reviewed, accepted); const updated = await apply(event, 5, reviewed.revision); updateDocument(updated, reviewed.revision, accepted);
   for (const [action, document, depth, revision] of [['undo', saved, 4, source.revision], ['redo', updated, 5, reviewed.revision]]) {
     before = await observe(); await click('button[aria-label="' + (action === 'undo' ? 'Deshacer' : 'Rehacer') + ' ensamblaje"]'); event = await response(before.serial, 'build-assembly');
     check(canonical(event.document) === canonical(document), 'One ' + action + ' lost complete source/ref transaction.'); geometry(event.response.value, document, depth, revision);
@@ -243,6 +246,6 @@ module.exports = async function directedGuideWorkflow(context) {
     && (await fsp.readFile(files.input)).equals(initialBytes) && (await fsp.readFile(files.part)).equals(updateBytes), 'Existing fixture/output or original repair inputs changed.');
   const state = await observe(); check(!consoleErrors.length && !failedRequests.length && !state.workerErrors.length, 'Guide repair renderer/worker/request failure.');
   Object.assign(evidence, { revisedDocument: updated, revisedSavedSha256: digest(await fsp.readFile(files.output)),
-    independentOracles: 'Three original10x6xhprisms withthroughR1bores:h4 V720-12pi,A744+18pi;h5 V900-15pi,A840+24pi. Literalposes I,Rx(-10),Ry90; exactcurrenttop/top/+ZLINE gives350deg aboutworld+X. V/A,bounds1e-5; originalpositions1e-7mm,orientations1e-8rad; native/savedposition1e-12mm; directions1e-8,angle1e-7deg. Allthreepending andonlyguidependingreject; manualthree-refrepair; Cancelready,freshrevision,Apply,oneUndoRedo,exactSave/reopen/freshnativeSolve.',
+    independentOracles: 'Three original10x6xhprisms withthroughR1bores:h4 V720-12pi,A744+18pi;h5 V900-15pi,A840+24pi. Literalposes I,Rx(-10),Ry90; exactcurrenttop/top/+ZLINE gives350deg aboutworld+X. V/A,bounds1e-5; originalpositions1e-7mm,orientations1e-8rad; native/savedposition1e-12mm; directions1e-8,angle1e-7deg. All three pending and only guide pending block Solve; manualthree-refrepair; Cancelready,freshrevision,Apply,oneUndoRedo,exactSave/reopen/freshnativeSolve.',
     limits: 'One shared original source updated through actual DOM/worker/file IPC. Native catalog supports and geometric DTOs, not a desktop BRep-validity query. No automatic correspondence, guide part replacement, arbitrary direction families, pointer repair, human native dialogs, linked sources, installed packages or platform acceptance.' });
 };

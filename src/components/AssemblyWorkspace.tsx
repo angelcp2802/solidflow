@@ -65,7 +65,7 @@ import { createAssemblyExample, createEmptyAssembly } from '../examples/assembly
 import { writeCadRecovery } from '../model/cadRecovery'
 import { repairAssemblyEndpoint } from '../model/assemblySourceUpdates'
 import type { AssemblySourceUpdateReview } from '../cad/kernel.assembly-source-updates'
-import AssemblySourceUpdatePanel, { assemblySourceEndpointKey, assemblySourceRepairChoices, type AssemblySourceEndpointReview, type AssemblySourceRepairChoice } from './AssemblySourceUpdatePanel'
+import AssemblySourceUpdatePanel, { assemblySourceEndpointKey, assemblySourceHasPendingRepairs, assemblySourceRepairChoices, type AssemblySourceEndpointReview, type AssemblySourceRepairChoice } from './AssemblySourceUpdatePanel'
 import AssemblyDocumentSourceUpdatePanel, { assemblyDocumentUpdatePending, type DocumentUpdateMateDecision } from './AssemblyDocumentSourceUpdatePanel'
 import { assemblyDocumentUpdateChoices, assemblyDocumentUpdateEndpointKey, assemblyDocumentUpdateMateKey,
   type AssemblyDocumentUpdateReview, type AssemblyDocumentUpdateDecisions } from '../cad/kernel.assembly-document-update-types'
@@ -1031,14 +1031,23 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     currentPreview.current = record; setPreview(record); setDraft(candidate); setScene(reply.scene); notify('Vista previa verificada. Revisa las relaciones y pulsa Aplicar.')
   }
   const solve = async (proposed = currentUpdate.current?.document ?? current.current, keepCreationReferences = false) => {
-    if (!scopeCommandIsCurrent() || embeddedPart.isOpen() && !currentUpdate.current) return
+    const sourceStage = currentUpdate.current
+    if (!mounted.current || !scopeCommandIsCurrent() || embeddedPart.isOpen() && !sourceStage) return
     if (currentDocumentUpdate.current) { await solveDocumentUpdate(); return }
     if (currentReplacement.current) { await solveReplacement(); return }
     if (operation.current || savedReferenceEditIsActive() && proposed === current.current) return
-    const base = current.current, signature = serializeAssemblyDocument(base); invalidate(!!currentUpdate.current, keepCreationReferences); const id = ++generation.current; operation.current = true; setBusy(true); setCancelable(true); notify('Resolviendo todas las relaciones…')
+    const base = current.current, signature = serializeAssemblyDocument(base)
+    if (sourceStage && (!sourceStage.review.reviewId || sourceStage.baseSignature !== signature || sourceStage.document !== proposed
+      || assemblySourceHasPendingRepairs(sourceStage.review, sourceStage.repaired))) return
+    invalidate(!!sourceStage, keepCreationReferences); const id = ++generation.current; operation.current = true; setBusy(true); setCancelable(true); notify('Resolviendo todas las relaciones…')
     try {
-      const reviewId = currentUpdate.current?.review.reviewId
-      acceptReply(await (reviewId ? previewAssemblyPartUpdate(base, reviewId, proposed) : previewAssembly(base, proposed)), id, signature)
+      const reviewId = sourceStage?.review.reviewId
+      const reply = await (reviewId ? previewAssemblyPartUpdate(base, reviewId, proposed) : previewAssembly(base, proposed))
+      if (sourceStage && currentUpdate.current !== sourceStage) {
+        if (reply.status === 'ready') discardToken(reply.token)
+        return
+      }
+      acceptReply(reply, id, signature)
     } catch (reason) { if (mounted.current && id === generation.current) { linkedSourceFailureDisposition(pendingLinked.current, !!currentUpdate.current || !!currentDocumentUpdate.current, dropPendingLinked); notify((reason as Error).message, true) } }
     finally { if (mounted.current && id === generation.current) { operation.current = false; setBusy(false); setCancelable(false) } }
   }
@@ -1513,7 +1522,8 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   }
   const open = async (purpose: AssemblyFilePurpose) => {
     if (embeddedPart.isOpen() || operation.current || hasStaging() || purpose === 'insert' && !scopeCommandIsCurrent()) return
-    clearInspection()
+    // Successful document replacement invalidates the report. A canceled Open keeps it.
+    if (purpose !== 'open') clearInspection()
     const source = purpose === 'update' && selected ? { id: selected.definition.id, revision: selected.definition.revision } : undefined
     const sourceKind = purpose === 'update' ? selected?.definition.kind : undefined
     let replacement: AssemblyReplacementSelection | undefined
@@ -3105,6 +3115,11 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
       onSelect: () => contextAction(() => { abandonInsertionSelection(); setTreeOriginSelection(null); setNormalSelection(nominateAssemblyNormalUnsupported(JSON.stringify(['component', contextOrigin.ownerPath]), normalViewContext)); setSelectedPath([...contextOrigin.ownerPath]) }) },
   ] : [...standardViews, { name: 'normal' as const, label: 'Normal a' }, { name: 'fit' as const, label: 'Ajustar a pantalla' }, { name: 'previous' as const, label: 'Vista anterior' }].map(({ name, label }) => ({ id: `view-${name}`,
     label, disabled: viewHistory.navigating || name === 'normal' && !canNormal || name === 'previous' && !viewHistory.canPrevious, onSelect: () => contextAction(() => viewButton(name)) }))
+  const solveDisabled = busy || !!rootRevision || !!referenceEditTicket
+    || !!sourceUpdate && assemblySourceHasPendingRepairs(sourceUpdate.review, sourceUpdate.repaired)
+  const solveCurrent = () => {
+    if (currentUpdate.current === sourceUpdate) void solve()
+  }
   const menus: AssemblyMenuDefinition[] = withAssemblyShortcutLabels([
     { id: 'file', label: 'Archivo', items: [
       { id: 'new', label: 'Nuevo…', disabled: newDocumentBlocked || replaceDialog, onSelect: newAssembly },
@@ -3141,7 +3156,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
       { id: 'insert-relation', label: 'Relación de posición…', onSelect: beginRelationFromSelection },
     ] },
     { id: 'tools', label: 'Herramientas', items: [
-      { id: 'solve', label: 'Resolver ensamblaje', disabled: busy || !!rootRevision || !!referenceEditTicket, onSelect: () => void solve() },
+      { id: 'solve', label: 'Resolver ensamblaje', disabled: solveDisabled, onSelect: solveCurrent },
       { id: 'apply', label: 'Aplicar vista previa', disabled: !canApply, onSelect: () => void apply() },
       { id: 'cancel-preview', label: 'Cancelar vista previa', disabled: busy ? !cancelable : !preview && !sourceUpdate && !documentUpdate && !replacementReview, onSelect: cancelToolbarPreview },
       { id: 'interferences', label: 'Comprobar interferencias…', onSelect: () => openManager('evaluate', '.assembly-interference h2') },
@@ -3251,7 +3266,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
         </AssemblyCommandGroup>
         </div>
         <AssemblyCommandGroup label="Confirmación" className="assembly-confirm-commands">
-          <button className="assembly-primary assembly-command-large" aria-label="Resolver ensamblaje" disabled={busy || !!rootRevision || !!referenceEditTicket} onClick={() => void solve()}><CircleDot size={25} />Resolver</button>
+          <button className="assembly-primary assembly-command-large" aria-label="Resolver ensamblaje" disabled={solveDisabled} onClick={solveCurrent}><CircleDot size={25} />Resolver</button>
           <div className="assembly-command-stack">
             <button className="assembly-primary" aria-label="Aplicar ensamblaje" disabled={!canApply} onClick={() => void apply()}><Check size={19} />Aplicar</button>
             <button aria-label="Cancelar vista previa del ensamblaje" disabled={busy ? !cancelable : !preview && !sourceUpdate && !documentUpdate && !replacementReview} onClick={cancelToolbarPreview}><X size={19} />Cancelar</button>
@@ -3352,7 +3367,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
         selectedName={rows.find(row => samePath(row.path, displayedProjection.projection.component.occurrencePath))?.occurrence.name ?? 'Componente seleccionado'}
         drivenName={rows.find(row => samePath(row.path, displayedProjection.projection.drivenComponent.occurrencePath))?.occurrence.name ?? 'Grupo raíz'} />}
       {embeddedPart.controls}
-      {sourceUpdate && <AssemblySourceUpdatePanel review={sourceUpdate.review} document={sourceUpdate.document} repaired={sourceUpdate.repaired} busy={busy} cancelable={cancelable} onRepair={repairSource} onSolve={() => void solve()} onCancel={cancel} />}
+      {sourceUpdate && <AssemblySourceUpdatePanel review={sourceUpdate.review} document={sourceUpdate.document} repaired={sourceUpdate.repaired} busy={busy} cancelable={cancelable} onRepair={repairSource} onSolve={solveCurrent} onCancel={cancel} />}
       {documentUpdate && <AssemblyDocumentSourceUpdatePanel review={documentUpdate.review} decisions={documentUpdate.decisions} busy={busy} cancelable={cancelable}
         onRepair={repairDocumentSource} onMateDecision={decideDocumentMate} onSolve={() => void solveDocumentUpdate()} onCancel={cancel} />}
       {replacementReview && <AssemblyReplacementPanel review={replacementReview.review} decisions={replacementReview.decisions} busy={busy} cancelable={cancelable}

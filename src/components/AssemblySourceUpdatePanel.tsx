@@ -133,8 +133,14 @@ export interface AssemblySourceUpdatePanelProps {
   review: AssemblySourceUpdateReview; document: AssemblyDocument; repaired: readonly string[]; busy: boolean
   onRepair: EndpointProps['onRepair']; onSolve: () => void; onCancel: () => void; cancelable?: boolean
 }
+export function assemblySourceHasPendingRepairs(review: AssemblySourceUpdateReview, repaired: readonly string[]): boolean {
+  const completed = new Set(repaired)
+  return review.endpoints.some(endpoint => endpoint.status === 'needs-repair' && !completed.has(assemblySourceEndpointKey(endpoint)))
+}
+
 export default function AssemblySourceUpdatePanel({ review, document, repaired, busy, onRepair, onSolve, onCancel, cancelable = false }: AssemblySourceUpdatePanelProps) {
   const part = document.definitions.find(value => value.kind === 'part' && assemblyDefinitionKey(value) === assemblyDefinitionKey(review.replacement))
+  const pendingRepairs = assemblySourceHasPendingRepairs(review, repaired)
   return <section className="assembly-section assembly-source-update" role="region" aria-label="Actualizar origen compartido" aria-busy={busy}>
     <h2>Actualizar origen compartido</h2><p><strong>{part?.kind === 'part' ? part.document.name : 'Pieza incorporada'}</strong> · Nueva revisión de la pieza</p>
     <p>{review.occurrences.length} usos guardados · {assemblySourceActiveOccurrenceCount(review)} ocurrencias activas</p>
@@ -143,7 +149,8 @@ export default function AssemblySourceUpdatePanel({ review, document, repaired, 
     {review.endpoints.map(endpoint => <SourceEndpoint key={assemblySourceEndpointKey(endpoint)} review={review} document={document} endpoint={endpoint}
       repaired={repaired.includes(assemblySourceEndpointKey(endpoint))} disabled={busy} onRepair={onRepair} />)}
     {!review.endpoints.length && <p>No hay referencias de relaciones afectadas.</p>}
-    <button className="assembly-primary" aria-label="Resolver actualización de pieza" disabled={busy} onClick={onSolve}>Resolver actualización de pieza</button>
+    {pendingRepairs && <p>Repara todas las referencias pendientes para resolver la actualización.</p>}
+    <button className="assembly-primary" aria-label="Resolver actualización de pieza" disabled={busy || pendingRepairs} onClick={onSolve}>Resolver actualización de pieza</button>
     <button aria-label="Cancelar actualización de pieza" disabled={busy && !cancelable} onClick={onCancel}>Cancelar actualización de pieza</button>
   </section>
 }

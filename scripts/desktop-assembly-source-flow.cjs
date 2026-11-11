@@ -1,5 +1,6 @@
 'use strict';
 const fsp = require('node:fs/promises');
+const assertPendingSourceSolve = require('./desktop-assembly-source-readiness.cjs');
 
 // Extends the original assembled plate/two-pin workflow through real controls.
 // Test data and observations never replace renderer state or worker results.
@@ -26,12 +27,12 @@ module.exports = async function sourceUpdateWorkflow(context) {
       ...(event.reviewId ? { reviewId: event.reviewId } : {}),
       ...(!event.response.ok ? { rpcError: event.response.error } : {}) });
   };
-  async function stageResponse(serial, rejected = false) {
+  async function stageResponse(serial) {
     return waitFor('actual private part-update preview', async () => {
       const state = await observe.assemblyResponseAfter(serial, 'preview-assembly-part-update');
       check(!state.workerErrors.length, 'Observed a real assembly worker error.');
       check(state.completedCount <= 1, 'One actual private part-update preview.'); if (!state.completedCount) return false;
-      const event = state.record; check(rejected ? event.response.ok === false : event.response.ok === true, 'Expected exact private-stage response disposition.'); return event;
+      const event = state.record; check(event.response.ok === true, 'Expected successful private-stage response.'); return event;
     });
   }
   check(updatedPart.version === 1 && updatedPart.id === source.id
@@ -131,16 +132,9 @@ module.exports = async function sourceUpdateWorkflow(context) {
   await unchanged('Cancelled source update');
   const reviewed = await openReview(), review = reviewed.response.value, revision = reviewed.revision;
   check(revision !== cancelled.revision && review.reviewId !== cancelled.response.value.reviewId, 'Canceled source revision or private review identity was reused.');
-  let before = await observe.counters(); await click(SOLVE_UPDATE);
-  const broken = await stageResponse(before.serial, true);
-  check(broken.reviewId === review.reviewId && canonical(broken.current) === canonical(saved)
-    && canonical(broken.proposed) === canonical(review.document), 'Unrepaired preview bypassed the exact private review/base/proposal.');
-  check(broken.response.error === 'Quedan referencias de la pieza pendientes de reparación.'
-    && !broken.response.value && !broken.hasToken, 'Unrepaired source references unexpectedly enabled Apply.');
-  await idle('unrepaired source rejection completes');
-  check(await page((panel, apply) => !!document.querySelector(panel) && document.querySelector(apply)?.disabled === true, PANEL, APPLY),
-    'Source rejection discarded the editable stage or left Apply enabled.');
-  await unchanged('Unrepaired source rejection'); record('source/rejected-unrepaired', broken);
+  const blocked = await assertPendingSourceSolve({ page, observe, waitFor, check, canonical }, 4);
+  await unchanged('Unrepaired source Solve blocked');
+  stages.push({ phase: 'source/unrepaired-blocked', reviewId: review.reviewId, ...blocked });
   for (const endpoint of review.endpoints) {
     const original = endpoint.endpoint, path = original.component.occurrencePath;
     const body = review.scene.bodies.find(value => canonical(value.component.occurrencePath) === canonical(path));
@@ -153,7 +147,7 @@ module.exports = async function sourceUpdateWorkflow(context) {
     await control('select[aria-label="Cara de reparación ' + label + '"]', JSON.stringify(reference));
     await click('button[aria-label="Reparar referencia ' + label + '"]');
   }
-  before = await observe.counters(); await click(SOLVE_UPDATE);
+  let before = await observe.counters(); await click(SOLVE_UPDATE);
   const preview = await stageResponse(before.serial), reply = preview.response.value;
   check(preview.reviewId === review.reviewId && reply.status === 'ready' && reply.hasToken && canonical(preview.current) === canonical(saved), 'Repaired update has no fresh authenticated private review preview.');
   assertDocument(preview.proposed, revision, true);

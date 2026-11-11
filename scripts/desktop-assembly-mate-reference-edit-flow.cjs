@@ -26,7 +26,7 @@ module.exports = function mateReferenceEditWorkflow(context) {
   const evidence = { scenario: 'mate-reference-edit', phases, gestures,
     provenance: 'Five uses of the tracked, independently authored 3 by 2 by 4 mm prism. No external CAD or vendor data.',
     tolerances: { volumeMm3: 1e-5, areaMm2: 1e-5, boundsAndPlaneMm: 1e-6, directionAndAngleRad: 1e-6 },
-    limits: 'Standard root scope; four independent mates and one fixed occurrence. Actual pointer datum, planar face and LINE picks; selects are scripted visible controls. Only distance and angle require exact Cancel raster restoration, with origins hidden through their real checkboxes. Coincidence and concentricity use UI, document, token, native geometry, history and persistence checks without raster comparison. All four restore origin keys, selection and projected anchors semantically, without an origin-overlay pixel-equivalence claim. No nested/configured reference-editing or cross-platform claim; free coordinates are not unique-pose oracles.' };
+    limits: 'Standard root scope; four independent mates and one fixed occurrence. Actual pointer datum, planar face and LINE picks; selects are scripted visible controls. Datum distance and angle require exact Cancel raster restoration, with origins hidden through their real checkboxes. Coincidence, concentricity and material distance use UI, document, token, native geometry, history and persistence checks without raster comparison. Each restores origin keys, selection and projected anchors semantically. No nested/configured reference-editing or cross-platform claim; free coordinates are not unique-pose oracles.' };
   checks.push(evidence);
   const near = (a, b, tolerance, message) => check(Number.isFinite(a) && Math.abs(a - b) <= tolerance, message + ': ' + a + ' versus ' + b);
   const vector = (a, b, tolerance, message) => { check(Array.isArray(a) && a.length === b.length, message + ' dimensions'); a.forEach((v, i) => near(v, b[i], tolerance, message + '[' + i + ']')); };
@@ -229,8 +229,8 @@ module.exports = function mateReferenceEditWorkflow(context) {
     }
     const bounds=envelope(corners(doc));vector(scene.bounds.min,bounds.min,1e-6,'Whole assembly lower bounds');vector(scene.bounds.max,bounds.max,1e-6,'Whole assembly upper bounds');
     // Independent separation/direction checks for the four authored families.
-    // Supports are literal datum axes or the original top face/front top X
-    // edge, never solver DTO values. This loop does not certify locked roll.
+    // Supports are literal datum axes, original planar faces or the front top
+    // X edge. This loop does not certify locked roll.
     for(const m of doc.mates){
       const original=expected.mates.find(x=>x.id===m.id);
       check(original&&m.type===original.type&&m.name===original.name&&m.suppressed===original.suppressed,'ID/type/name/suppression survive replacement');
@@ -238,8 +238,10 @@ module.exports = function mateReferenceEditWorkflow(context) {
       const point=(r,p=[0,0,0])=>rotate(frame(r).rotation,p).map((v,i)=>v+frame(r).translation[i]);
       const direction=(r,v)=>rotate(frame(r).rotation,v);
       if(m.type==='distance'||m.type==='coincident'){
-        const normal=m.type==='distance'?[1,0,0]:[0,0,1], a=direction(m.first,normal),b=direction(m.second,normal);
-        const firstPoint=point(m.first,m.first.kind==='face'?[0,0,4]:[0,0,0]),secondPoint=point(m.second);
+        const materialDistance=m.type==='distance'&&m.first.kind==='face'&&m.second.kind==='face';
+        const normal=m.type==='coincident'?[0,0,1]:materialDistance?[0,0,-1]:[1,0,0];
+        const a=direction(m.first,normal),b=direction(m.second,normal);
+        const firstPoint=point(m.first,m.type==='coincident'&&m.first.kind==='face'?[0,0,4]:[0,0,0]),secondPoint=point(m.second);
         near(dot(a,b),1,1e-6,'Aligned literal plane normals');
         near(dot(b,firstPoint.map((v,i)=>v-secondPoint[i])),m.type==='distance'?-8:0,1e-6,'Independent signed plane separation');
       }else if(m.type==='angle'){
@@ -276,22 +278,29 @@ module.exports = function mateReferenceEditWorkflow(context) {
     check(await serial()===before,'Origin reference choice creates no worker request');
     return datum(kind,id,value);
   }
-  async function material(slot,kind,id,scene,doc){
+  async function material(slot,kind,id,scene,doc,bottom=false){
     await actual(role(slot));
     if(kind==='edge')await actual('[aria-label="Seleccionar aristas lineales"]');
     await waitFor('current material picking mode',()=>page(kind=>document.querySelector('.assembly-viewport')?.getAttribute('data-reference-picking')===kind,kind));
-    await actual('button[title="Frontal"]');await actual('button[title="Ajustar"]');
+    if(bottom){
+      // The elevated concentric occurrence can cover ground from Frontal.
+      // Posterior exposes both lower planes with screen right = −X.
+      await actual('button[data-assembly-menu="view"]');
+      await actual('button[role="menuitem"][data-assembly-command="view-back"]');
+    }else await actual('button[title="Frontal"]');
+    await actual('button[title="Ajustar"]');
     await page(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true)))));
     const body=scene.bodies.find(b=>b.component.occurrencePath[0]===id);
+    const planeZ=bottom?0:4, normalZ=bottom?-1:1;
     const supports=(kind==='face'?body.faces:body.edges).filter(r=>kind==='face'
-      ?r.support?.kind==='plane'&&r.support.normal[2]>.999999&&Math.abs(r.support.point[2]-4)<1e-8
+      ?r.support?.kind==='plane'&&r.support.normal[2]*normalZ>.999999&&Math.abs(r.support.point[2]-planeZ)<1e-8
       :r.support?.kind==='line'&&Math.abs(r.support.axis[0])>.999999&&Math.abs(r.support.point[1])<1e-8&&Math.abs(r.support.point[2]-4)<1e-8);
-    check(supports.length===1,'Unique analytical top plane or top-front X LINE');
+    check(supports.length===1,'Unique analytical prism plane or top-front X LINE');
     const reference={kind,...structuredClone(supports[0].selection),support:kind==='face'?'plane':'line'};
-    const o=occurrence(doc,id),local=kind==='face'?[1.5,1,4]:[1.5,0,4],world=rotate(o.pose.rotation,local).map((v,i)=>v+o.pose.translation[i]);
+    const o=occurrence(doc,id),local=kind==='face'?[1.5,1,planeZ]:[1.5,0,4],world=rotate(o.pose.rotation,local).map((v,i)=>v+o.pose.translation[i]);
     const bounds=envelope(corners(doc)),center=bounds.min.map((v,i)=>(v+bounds.max[i])/2),span=Math.hypot(...bounds.min.map((v,i)=>bounds.max[i]-v));
     const rect=await page(()=>{const e=document.querySelector('.assembly-viewport canvas'),r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height};});
-    const pixels=rect.height/(1.3*span),point={x:rect.x+rect.width/2+(world[0]-center[0])*pixels,y:rect.y+rect.height/2-(world[1]-center[1])*pixels};
+    const pixels=rect.height/(1.3*span),point={x:rect.x+rect.width/2+normalZ*(world[0]-center[0])*pixels,y:rect.y+rect.height/2-(world[1]-center[1])*pixels};
     const hit = () => page(point=>document.elementFromPoint(point.x,point.y)===document.querySelector('.assembly-viewport canvas'),point);
     check(await hit(),'Analytical material point hits exposed canvas');
     if (kind === 'face' && !checkedHeldFace) {
@@ -332,9 +341,9 @@ module.exports = function mateReferenceEditWorkflow(context) {
       check(await page(selector => document.querySelector(selector)?.classList.contains('active'), role(slot === 1 ? 2 : 1)),
         'Successful ordinary face advances to the other armed role');
       await actual('button[title="Seleccionar caras"]');
-      await waitFor('face tool explicitly disarmed with reference retained',()=>page(slot=>
+      await waitFor('face tool explicitly disarmed with reference retained',()=>page((slot,id)=>
         document.querySelector('.assembly-viewport')?.getAttribute('data-reference-picking')===''
-        &&document.querySelector('[aria-label="Referencia '+slot+' de la relación"] span')?.textContent.includes('ground'),slot));
+        &&document.querySelector('[aria-label="Referencia '+slot+' de la relación"] span')?.textContent.includes(id),slot,id));
     }
     check(await serial()===before,'Material choice creates no worker request');
     gestures.push({action:'material-pointer',slot,kind,world,point,reference});return reference;
@@ -348,9 +357,10 @@ module.exports = function mateReferenceEditWorkflow(context) {
     await waitFor('preview freezes reference controls and unrelated relation mutations',async()=>{const state=await editor(type);return guarded(state)&&state.refs.every(r=>r.disabled)&&state.clearDisabled.every(Boolean)&&state.previewDisabled;});
     return v;
   }
-  async function edit(base,scene,type){
+  async function edit(base,scene,type,materialDistance=false){
+    const phase=materialDistance?'material-distance':type;
     // Fixed case scope, never a fallback after a failed pixel assertion.
-    const exactRaster=type==='distance'||type==='angle';
+    const exactRaster=phase==='distance'||type==='angle';
     const rasterComparison=exactRaster?'exact':'semanticOnly';
     const rasterReason=exactRaster?null:'Outside the fixed distance/angle raster scope; functional, native geometry and semantic restoration checks apply.';
     const original=base.mates.find(m=>m.type===type);await actual(aria(labels[type][0]+' '+original.name));
@@ -359,7 +369,14 @@ module.exports = function mateReferenceEditWorkflow(context) {
     await waitFor('missing endpoint disables preview',async()=>{const state=await editor(type);return state.clearDisabled[0]&&state.previewDisabled;});
     check(canonical({ui:await ui(),counters:await observe.counters()})===canonical(beforeClear),'Clearing draft leaves recovery/history/committed scene label and native history exact');
     let first,second=structuredClone(original.second);
-    if(type==='distance'){
+    if(materialDistance){
+      first=await material(1,'face','ground',scene,base,true);
+      second=await material(2,'face','distance',scene,base,true);
+      check(canonical(first.component.occurrencePath)===canonical(['ground'])
+        &&canonical(second.component.occurrencePath)===canonical(['distance'])
+        &&canonical(first.component.definition)===canonical(second.component.definition),
+      'Bottom-face picks distinguish exact occurrences of the same shared part');
+    }else if(type==='distance'){
       // Both directions root/component, then the final component pair.
       await origin(1,'principal-plane','ground','YZ');await origin(1,'principal-plane',null,'YZ');
       first=await origin(1,'principal-plane','ground','YZ');second=await origin(2,'principal-plane','distance','YZ');
@@ -388,11 +405,11 @@ module.exports = function mateReferenceEditWorkflow(context) {
     originDisplay.hidden=true;
     const diagnosticImages=[];
     const diagnosticFrame=async name=>{
-      const {diagnosticImage,...frame}=await cameraFrame(type==='distance'&&name?{diagnostic:name}:undefined);
+      const {diagnosticImage,...frame}=await cameraFrame(phase==='distance'&&name?{diagnostic:name}:undefined);
       if(diagnosticImage)diagnosticImages.push(diagnosticImage);
       return frame;
     };
-    const renderRestoration={type,rasterComparison,rasterCompared:false,rasterReason,id:original.id,references:structuredClone([wanted.first,wanted.second]),
+    const renderRestoration={type,phase,rasterComparison,rasterCompared:false,rasterReason,id:original.id,references:structuredClone([wanted.first,wanted.second]),
       before:null,secondBefore:null,baseline:null,baselineConfirmation:null,
       stability:exactRaster?{required:3,polls:0,consecutive:0,changes:0,last:null,distinct:[]}:null,
       preview:null,firstRestored:null,lastRestored:null,polls:0,distinct:[],diagnosticImages,originDisplay};
@@ -437,14 +454,21 @@ module.exports = function mateReferenceEditWorkflow(context) {
       renderRestoration.baseline={frame:null,presentation:await presentation(),editor:draft};
       renderRestoration.before=renderRestoration.baseline;
     }
-    const firstPreview=await preview(base,wanted,type,type+'-preview');
+    const firstPreview=await preview(base,wanted,type,phase+'-preview');
     const readPreview=async()=>{
       // DOM confirmation may precede the viewport's scene effect and paint.
       // Await real frame delivery; do not render, fit or alter the camera.
       await page(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true)))));
       return {frame:exactRaster?await cameraFrame():null,presentation:await presentation()};
     };
-    if(type==='distance'){
+    if(materialDistance){
+      const originalZ=occurrence(base,'distance').pose.translation[2], editedZ=occurrence(firstPreview.document,'distance').pose.translation[2];
+      // The old YZ relation left Z free. The new material planes fix it.
+      near(editedZ,-8,1e-6,'The ordered bottom planes require the moving owner at Z−8');
+      check(Math.abs(editedZ-originalZ)>7,'Material references produce a distinct axial placement from the saved datum graph');
+      renderRestoration.axialPlacement={originalZ,editedZ};
+      renderRestoration.preview=await readPreview();
+    }else if(type==='distance'){
       near(occurrence(base,'distance').pose.translation[0],8,1e-6,'Original moving owner starts at literal X=8');
       near(occurrence(firstPreview.document,'distance').pose.translation[0],0,1e-6,'Edited planes require moving owner at literal X=0');
       const readiness={polls:0,first:null,last:null,distinct:[]};renderRestoration.previewReadiness=readiness;
@@ -487,15 +511,15 @@ module.exports = function mateReferenceEditWorkflow(context) {
     });
     check(canonical({editor:await editor(type),ui:await ui(),counters:await observe.counters()})===canonical(beforeOriginRestore),
       'Restoring origin visibility preserves both edited references, committed graph/history and worker counters');
-    const retry=await preview(base,wanted,type,type+'-retry');check(canonical(retry.document.mates)===canonical(firstPreview.document.mates),'Retry retains both newly selected references');
+    const retry=await preview(base,wanted,type,phase+'-retry');check(canonical(retry.document.mates)===canonical(firstPreview.document.mates),'Retry retains both newly selected references');
     const beforeApply=await serial();await actual(APPLY);const applied=await response(beforeApply,'apply-assembly'),current=applied.response.value.document;
     check(applied.hasToken&&applied.response.value.kind==='assembly-applied'&&canonical(untimed(current))===canonical(untimed(retry.document)),'Apply consumes exact authenticated proposal');
-    geometry(applied.response.value.scene,current,type+'-apply');await recovery(current);
+    geometry(applied.response.value.scene,current,phase+'-apply');await recovery(current);
     let currentScene=applied.response.value.scene;
     for(const [label,wantedDoc]of[['Deshacer ensamblaje',base],['Rehacer ensamblaje',current]]){
-      const before=await serial();await actual(aria(label));currentScene=await build(before,wantedDoc,type+'-'+label);
+      const before=await serial();await actual(aria(label));currentScene=await build(before,wantedDoc,phase+'-'+label);
     }
-    checks.push({referenceEdit:{type,rasterComparison,rasterCompared:renderRestoration.rasterCompared,rasterReason,
+    checks.push({referenceEdit:{type,phase,rasterComparison,rasterCompared:renderRestoration.rasterCompared,rasterReason,
       id:original.id,opened,first,second,explicitRotationRelease:type==='concentric',cancelRetainedDraft:true,
       ...(exactRaster?{committedRenderCrop:committedFrame}:{}),historyRoundTrip:true}});
     return {document:current,scene:currentScene};
@@ -518,7 +542,7 @@ module.exports = function mateReferenceEditWorkflow(context) {
     });
     await waitFor('saved name and idle guards',()=>page(name=>document.querySelector('.assembly-app')?.getAttribute('aria-busy')==='false'
       &&document.querySelector('.assembly-shell-document > strong')?.textContent===name,authored.name));
-    const saved=await fs.readFile(output);before=await serial();await button('Abrir');await build(before,authored,'saved-reopen');
+    const saved=await fs.readFile(output);before=await serial();await button('Abrir');scene=await build(before,authored,'saved-reopen');
     for(const type of ['distance','angle','coincident','concentric']){
       const mate=authored.mates.find(m=>m.type===type);await actual(aria(labels[type][0]+' '+mate.name));
       const state=await editor(type);check(state.type===type&&state.typeDisabled&&state.refs.every(r=>r.text&&!r.text.includes('Sin seleccionar')&&!r.disabled),'Reopened exact saved references remain editable');
@@ -526,10 +550,29 @@ module.exports = function mateReferenceEditWorkflow(context) {
     }
     await recovery(authored);
     check((await fs.readFile(input)).equals(inputBytes)&&(await fs.readFile(output)).equals(saved),'Opening/editing display preserves both original and saved bytes');
+    const materialEdit=await edit(authored,scene,'distance',true), materialGraph=structuredClone(materialEdit.document);
+    check((await fs.readFile(output)).equals(saved),'Material preview and history preserve the earlier saved datum graph on disk');
+    await button('Guardar');
+    await waitFor('complete material reference save to the rebound path',async()=>
+      ipc.filter(e=>e.channel==='document:save'&&e.completed).length===2
+      &&canonical(JSON.parse(await fs.readFile(output,'utf8')))===canonical(materialGraph)
+      &&await page(name=>document.querySelector('.assembly-shell-document > strong')?.textContent===name,materialGraph.name));
+    const materialSaved=await fs.readFile(output);
+    before=await serial();await button('Abrir');await build(before,materialGraph,'material-distance-saved-reopen');
+    before=await serial();await actual(aria('Resolver ensamblaje'));
+    const solved=await response(before,'preview-assembly'), confirmed=solved.response.value;
+    check(canonical(solved.current)===canonical(materialGraph)&&confirmed.status==='ready'&&confirmed.hasToken
+      &&confirmed.checks.length===4&&confirmed.checks.every(value=>value.satisfied)
+      &&canonical(confirmed.document.mates)===canonical(materialGraph.mates),'Fresh Solve verifies the exact reopened material references');
+    geometry(confirmed.scene,confirmed.document,'material-distance-reopened-fresh-solve');
+    before=await serial();await actual(CANCEL);await response(before,'discard-assembly');await recovery(materialGraph);
+    check((await fs.readFile(output)).equals(materialSaved)&&(await fs.readFile(input)).equals(inputBytes),
+      'Fresh Solve and Cancel preserve the exact source and saved material graph on disk');
     const full=await observe();check(!full.workerErrors.length&&full.assemblies.every(r=>r.response?.ok===true),'Complete native history healthy');
-    check(dialogCounts().opens===2&&dialogCounts().saves===1&&!consoleErrors.length&&!failedRequests.length,'Exact dialogs and healthy renderer');
-    evidence.inputSha256=digest(inputBytes);evidence.savedSha256=digest(saved);evidence.savedMates=authored.mates;
-    await navigation.panel('components');await capture(authored);
+    check(dialogCounts().opens===3&&dialogCounts().saves===1&&!consoleErrors.length&&!failedRequests.length,'Exact dialogs and healthy renderer');
+    evidence.inputSha256=digest(inputBytes);evidence.datumSavedSha256=digest(saved);
+    evidence.savedSha256=digest(materialSaved);evidence.savedMates=materialGraph.mates;
+    await navigation.panel('components');await capture(materialGraph);
   };
 };
 

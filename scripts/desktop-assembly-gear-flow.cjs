@@ -425,19 +425,11 @@ module.exports = async function gearWorkflow(context) {
   await finalStep('capture-if-enabled', () => capture(saved));
   const observed = (await finalStep('observe-final-assemblies', observe)).assemblies;
   const workerCounts = Object.fromEntries([...new Set(observed.map(value => value.action))].map(action => [action, observed.filter(value => value.action === action).length]));
-  const sourceRejections = checks.flatMap(value => value && typeof value === 'object' && value.sourceUpdateInputSha256
-    ? value.stages.filter(stage => stage.phase === 'source/rejected-unrepaired') : []);
-  check(sourceRejections.length === 1, 'Expected one explicitly checked incomplete source-repair rejection.');
-  const expectedRejection = sourceRejections[0], rejected = observed.filter(value => value.response?.ok !== true);
-  check(rejected.length === 1 && expectedRejection.action === 'preview-assembly-part-update'
-    && expectedRejection.rpcError === 'Quedan referencias de la pieza pendientes de reparación.'
-    && typeof expectedRejection.reviewId === 'string' && rejected[0].serial === expectedRejection.serial
-    && rejected[0].action === expectedRejection.action && rejected[0].reviewId === expectedRejection.reviewId
-    && digest(canonical(rejected[0].current)) === expectedRejection.currentSha256
-    && digest(canonical(rejected[0].proposed)) === expectedRejection.proposedSha256
-    && rejected[0].response.ok === false && rejected[0].response.error === expectedRejection.rpcError
-    && !rejected[0].response.value, 'Only the exact recorded incomplete private source repair may reject.');
-  check(observed.every(value => value === rejected[0] || value.response?.ok === true), 'An unexpected assembly request failed or did not complete.');
+  const sourceBlocks = checks.flatMap(value => value && typeof value === 'object' && value.sourceUpdateInputSha256
+    ? value.stages.filter(stage => stage.phase === 'source/unrepaired-blocked') : []);
+  check(sourceBlocks.length === 1 && sourceBlocks[0].pending === 4
+    && typeof sourceBlocks[0].reviewId === 'string', 'The exact four pending source repairs block Solve in the live panel.');
+  check(observed.every(value => value.response?.ok === true), 'Every dispatched assembly request succeeds.');
   Object.assign(evidence, { gearSavedSha256: digest(bytes), savedDocument: saved, workerCounts,
     independentOracles: 'Original plate/pin formulas; native eccentric radius1 bore markers rotated with sin/cos; world/local Z opposite1:2 +60/-30 and opposite2:1 +120/-240; selected native axes are -Z, so lifted angles have opposite signs (-120/+240); same1:2 +720 driver produces native deltas -4pi/-2pi and unchanged physical endpoints; incompatible360X must reject intermediate stations; DOF2->1->2->1; metrics1e-5, centers1e-6, angles1e-8.',
     evidenceLimits: 'Real hidden production renderer/native worker/file IPC with substituted isolated native-dialog paths. Explicit numeric winding verifies bounded stations only, not a continuous trajectory or collision-free rotation. No installed reference runtime, gear teeth/contact simulation, continuous multi-turn gesture, flexible assemblies, installed-package or platform claim.' });

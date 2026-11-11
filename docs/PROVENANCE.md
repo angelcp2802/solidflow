@@ -1157,6 +1157,14 @@ references with ground/component datums, ground's top plane z=4 and the angle
 component's top-front X-directed LINE at y=0,z=4. Geometry catalogs nominate
 the current topology keys; they do not supply expected coordinates or results.
 
+The saved material-distance edit reuses the same two prism occurrences. Both
+bottom faces are local Z0 with normal −Z. The literal interior points
+(1.5,1,0) are projected from Posterior. Keeping fixed ground at world Z0 and
+the ordered signed separation −8 mm requires the moving occurrence at Z−8.
+The earlier YZ datum relation leaves Z free. The separate saved material graph
+retains both distinct occurrence paths of the same definition and the exact
+ordered −8 mm declaration through fresh Open and Solve.
+
 The production-renderer route independently rotates the eight literal prism
 corners and compares native per-member/assembly bounds and placed mesh extrema
 within 1e-6 mm. Volume

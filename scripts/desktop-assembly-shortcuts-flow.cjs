@@ -329,6 +329,53 @@ module.exports = function assemblyShortcutWorkflow(context) {
     checks.push({keyboardModalAudit:audit});
     check(valid,'Modal preserves complete worker history/recovery/IPC and exact export-disable/restore presentation: '+JSON.stringify(audit));
   }
+  const FILE_TRIGGER = 'button[data-assembly-menu="file"]';
+  const STANDARD_DISCARD = '[role="dialog"][aria-label="Cambios sin guardar"]';
+  const inspectionReport = () => page(() => {
+    const report = document.querySelector('[aria-label="Interferencias y holguras"] [data-analysis-id]');
+    return report ? { id: report.dataset.analysisId, text: report.textContent, visible: report.checkVisibility() } : null;
+  });
+  async function inspectBeforeFileOpen(document) {
+    const before = await serial();
+    await aria('Comprobar interferencias');
+    const row = await response(before, 'inspect-assembly-interferences'), report = row.response.value;
+    check(canonical(row.current) === canonical(document) && report.kind === 'assembly-interference-report'
+      && report.hasToken === false && report.options.clearance === 1 && report.bodyCount === 2
+      && report.potentialPairCount === 1 && report.pairs.length === 0,
+    'Actual one-millimeter inspection of the two separated original prisms returns an exact read-only report');
+    await recovery(document);
+    return waitFor('visible current report from actual native inspection', async () => {
+      const presented = await inspectionReport();
+      return presented?.id === report.analysisId && presented.visible ? presented : false;
+    });
+  }
+  async function openFromFileMenu() {
+    await actualControl(FILE_TRIGGER);
+    await menuKey('ArrowDown');
+    await waitFor('the enabled Abrir menu item owns focus', () => page(triggerSelector => {
+      const trigger = document.querySelector(triggerSelector);
+      const popup = document.getElementById(trigger?.getAttribute('aria-controls') ?? '');
+      const item = popup?.querySelector('button[data-assembly-command="open"]');
+      return item?.getAttribute('role') === 'menuitem' && !item.disabled && document.activeElement === item;
+    }, FILE_TRIGGER));
+    await menuKey('Enter');
+  }
+  async function cancelDirtyFileOpen(document) {
+    const report = await inspectBeforeFileOpen(document);
+    const before = await snapshot(), authorityBefore = await modalAuthority();
+    await openFromFileMenu();
+    await waitFor('dirty Archivo Abrir confirmation owns focus', () => page(selector => {
+      const dialog = document.querySelector(selector);
+      return dialog?.contains(document.activeElement) && !document.querySelector('[role="menu"]');
+    }, STANDARD_DISCARD));
+    const openedReport = await inspectionReport(), opened = await snapshot(), authorityOpened = await modalAuthority();
+    await actualControl(STANDARD_DISCARD + ' button', 'Cancelar');
+    await waitFor('Cancel restores the owning Archivo trigger', () => page((dialog, trigger) =>
+      !document.querySelector(dialog) && document.activeElement === document.querySelector(trigger), STANDARD_DISCARD, FILE_TRIGGER));
+    await recovery(document);
+    await modalStable(before, opened, await snapshot(), authorityBefore, authorityOpened, await modalAuthority(), 'Archivo/Abrir/Cancelar');
+    return { before: report, whileConfirming: openedReport, after: await inspectionReport() };
+  }
   const currentDocument = () => page(() => JSON.parse(localStorage.getItem('solidflow.autosave')));
   function geometry(wrapper, label) {
     const scene = configured ? wrapper.scene : wrapper;
@@ -439,6 +486,7 @@ module.exports = function assemblyShortcutWorkflow(context) {
     await require('./desktop-header-menu-flow.cjs')({page,waitFor,check,checks,canonical,actualControl,menuKey,captureHeader,snapshot:viewSnapshot,cameraFrame,kind:configured?'configured':'standard'});
     await require('./desktop-view-navigation-flow.cjs')({page,waitFor,check,checks,canonical,key,cameraFrame,cameraGesture,rasterComparison,kind:configured?'configured':'standard',actualControl,snapshot:viewSnapshot,
       compactView: compactShortcuts ? compactView : undefined });
+    let dirtyFileOpen;
     if(!configured){
       await actualControl(`[data-assembly-tree-path='["moving"]']`);
       await nativeTextUndo('input[aria-label="Nombre del componente"]');
@@ -470,6 +518,7 @@ module.exports = function assemblyShortcutWorkflow(context) {
         await key('Escape');await waitFor('Escape closes only replacement dialog',()=>page(()=>!document.querySelector('[role="dialog"]')));
         await recovery(current);await modalStable(state,opened,await snapshot(),authorityBefore,authorityOpened,await modalAuthority(),command);
       }
+      dirtyFileOpen = await cancelDirtyFileOpen(current);
       await key('S');await saved(output,current,3);
     } else {
       await actualControl('[aria-label="Comandos del ensamblaje configurado"] button[aria-controls="configured-relation-inspector"]');
@@ -480,11 +529,32 @@ module.exports = function assemblyShortcutWorkflow(context) {
       await aria('Cerrar relación');await recovery(current);await outside();await key('S');await saved(output,current,2);
     }
     await outside();await key('ShiftS');await saved(shortcutOutput,current,configured?3:4);
-    // Cancelled native Open consumes only its own granted picker path.
-    const openRecovery=await snapshot();await key('O');await waitFor('native picker cancellation completed',()=>ipc.filter(v=>v.channel==='document:open'&&v.completed).length===2);
+    // Cancelled native Open consumes only its own picker. The original
+    // successful keyboard reopen still exercises replacement of the workspace.
+    const cleanReport = configured ? null : await inspectBeforeFileOpen(current);
+    const openRecovery = await snapshot(), savedBeforeOpen = await fs.readFile(shortcutOutput);
+    if (configured) await key('O'); else await openFromFileMenu();
+    await waitFor('native picker cancellation completed',()=>ipc.filter(v=>v.channel==='document:open'&&v.completed).length===2);
     check(canonical(await currentDocument())===canonical(current)&&canonical((await observe()).assemblies)===canonical(openRecovery.native.assemblies),'Canceled Open preserves complete document and worker history');
     await recovery(current);
+    const cleanAfter = configured ? null : await inspectionReport();
+    if (!configured) {
+      check(canonical(ipc.slice(openRecovery.ipc.length)) === canonical([{ channel: 'document:open', completed: true }])
+        && canonical(dialogCounts()) === canonical({ ...openRecovery.dialogs, opens: openRecovery.dialogs.opens + 1 })
+        && await page(() => localStorage.getItem('solidflow.autosave')) === openRecovery.recovery
+        && (await fs.readFile(shortcutOutput)).equals(savedBeforeOpen) && (await fs.readFile(input)).equals(originalBytes),
+      'Canceled Archivo picker performs one completed read-only Open, with exact recovery and both owned file byte sequences unchanged');
+    }
     before=await serial();await key('O');row=await response(before,BUILD);check(canonical(configured?row.current.document:row.document)===canonical(current),'Keyboard reopen retains exact saved document');geometry(row.response.value,'reopened');await recovery(current);
+    if (!configured) {
+      const reopenedReport = await inspectionReport();
+      const evidence = { dirty: dirtyFileOpen, clean: { before: cleanReport, after: cleanAfter }, reopenedReport };
+      checks.push({ standardFileOpenInspection: evidence });
+      check(canonical(dirtyFileOpen.whileConfirming) === canonical(dirtyFileOpen.before)
+        && canonical(dirtyFileOpen.after) === canonical(dirtyFileOpen.before)
+        && canonical(cleanAfter) === canonical(cleanReport) && reopenedReport === null,
+      'Archivo Abrir keeps the report during and after both cancellations and revokes it on successful reopen: ' + JSON.stringify(evidence));
+    }
     // Camera shortcuts have no CAD/document authority. Standard projected origin labels additionally witness orientation.
     if(!configured){await actualControl('#assembly-origin-controls label:first-child input');}
     await outside();const cameraBefore=await snapshot();

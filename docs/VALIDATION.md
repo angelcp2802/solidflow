@@ -1,5 +1,55 @@
 # Validation
 
+## Solve availability during shared part source repair — Windows, 2026-11-11
+
+On the earlier production renderer, the source panel, ribbon and Tools
+menu offered Solve while both original planar endpoints still needed
+repair. A click in the source panel posted a native source preview, which
+rejected the pending references.
+
+On the corrected renderer, all three controls stay disabled with two or
+one pending reference. Actual clicks on the disabled controls leave the
+worker serial, recovery, file activity and history unchanged. Completing
+both exact endpoint repairs enables the controls. The source panel and
+ribbon each send the exact current review. Tools Solve revokes the ribbon
+preview token and verifies the same repaired proposal again. Canceling
+the first review revokes its review ID, and the retry starts with both
+repairs pending under a fresh ID.
+
+The original shared 2 × 3 × 4 mm prism grows to 3 × 3 × 4 mm at both uses.
+The verified scene totals 72 mm³ and 132 mm². Apply, Undo/Redo, Save/Open
+and fresh Solve retain the ordered repaired faces and the original signed
+−10 mm distance. The route passed 251 checkpoints in the hidden Windows
+production renderer. The worker still validates the completed proposal
+and its current review before supplying Apply authority.
+
+The ordinary shared-source and gear workflow, embedded transitions and properties,
+directed-angle guide, both hinge repair routes and eight symmetry repair
+routes passed on the same Windows source. Incomplete repairs leave Solve
+and Apply disabled. Completed repair cases retain their native previews.
+
+## Ordinary signed distance between two material faces — Windows, 2026-11-11
+
+The production `test:desktop:assembly-mate-reference-edit` route passed
+342 checkpoints. It retains
+the original datum/LINE/planar edits and their first Save As and Open. It
+then edits the same saved −8 mm distance through two actual viewport
+clicks from **Posterior**. The points lie inside the two lower prism
+faces. They have the same local geometry and definition revision, with
+different exact occurrence paths for fixed ground and moving distance.
+The new references keep their order, plane support, mate ID, name,
+alignment and signed value. Their local normals are −Z. The verified
+moving pose reaches Z−8 mm relative to the original fixed ground.
+
+Cancel retains the exact saved datum graph and the two new draft picks.
+Retry, one Apply and one Undo/Redo round trip preserve exact ordered
+references, document, recovery and the saved bytes until Save. The next
+Save writes the material graph through the existing grant for that path.
+Fresh Open, Solve and Cancel retain the same references and saved bytes.
+The five solids total 120 mm³ and 260 mm². Independent corner and plane
+checks use 1e−6 mm and volume and area use 1e−5 in their respective units.
+This case checks one standard root with the existing original prisms.
+
 ## Packaged 0.27.0 centered thin-wall cap lifecycle — Windows, 2026-11-11
 
 The first frozen 0.27.0 Windows x64 package at `75b55ab` opened
@@ -26,8 +76,63 @@ were checked within 1e−6 mm and the physical measures within 1e−5 in
 their respective units. The native route receipt SHA-256 is
 `4abb1a73cf76a27b922c76eb64c8896c152ffd2c12a7482166169e84a5cba31b`.
 This record applies to one positive-depth example in the first
-unsigned directory package. The later origin-leader revision needs
-its own packaged and hosted checks.
+unsigned directory package.
+
+## Packaged 0.27.0 two-direction thin-wall caps — Windows, 2026-11-11
+
+The corrected Windows x64 directory package at `4f7fb8b` opened the
+saved centered wall and edited it from the operation tree. The two
+fixed-depth directions measured 13 mm and 7 mm with 4 mm end caps.
+The editor accepted the complete 20 mm span. Apply gave a 2,688 mm³
+wall. Undo returned 2,112 mm³ and Redo restored 2,688 mm³. Save As
+retained all feature, profile and body identities and left the
+source file unchanged. Native Open rebuilt the saved piece before
+the ordinary STEP export.
+
+A separate STEP reader found two valid solids. The capped body
+measured 2,688 mm³ and 2,176 mm². Its six external faces span
+Z −7 to +13 mm, and the six enclosed faces span Z −3 to +9 mm. The
+one 12 mm cavity crosses the original sketch plane. The separate
+cylinder retained 12π mm³ and 20π mm². Positions were checked
+within 1e−6 mm and physical measures within 1e−5 in their respective
+units. The native and physical receipt SHA-256 is
+`713b328bf80badb0096c228f496eb10815b702ed9645e42af027804a0956b02a`.
+This covers one fixed-depth, single-region part on Windows.
+
+## Packaged 0.27.0 materials, recovery and configured BOM — Windows, 2026-11-11
+
+The corrected 0.27.0 Windows x64 directory prototype from `4f7fb8b`
+opens the existing two-body v1 part. It uses the native colour picker to
+set red `#c64c3c` and assigns **Material de ensayo 2700** at 2,700 kg/m³.
+Undo returns to the unassigned state and Redo restores the material and
+red appearance. The saved part retains its exact features. Independent
+physical volumes of 2,112 and 12π mm³
+give a displayed mass of 0.0058041876 kg within 5e−10 kg. Two v2
+occurrences of the same source display 0.011608375 kg. Hiding the second
+retains full mass, suppression halves it and Undo restores it. A fresh
+process with the same profile recovers the red assembly and blue
+`#d8e9fa` background. Save As produces a byte-identical assembly copy.
+Native Open of the saved v1 part restores its two red bodies and mass.
+The background persists in the profile across both documents.
+
+Ribbon conversion to v3 and native Save As preserve the exact v2 source.
+Base displays four solids and full mass. Its grouped BOM row and independent
+CSV record quantity two and both exact paths. The occurrence dropdown
+highlights only the second occurrence's two bodies. In the named
+**Solo fija** state, hiding that occurrence retains full mass and quantity
+two with hidden items included. The visible-only CSV records one and
+the first path. Suppression reduces mass to 0.0058041876 kg and quantity
+to one with hidden items included. Native Open restores that saved state.
+Switching to Base restores four solids and full mass, and Undo returns to
+the saved clean variant. Both v3 documents retain the same v2 source.
+The variant changes only the second occurrence's state.
+
+The native audit SHA-256 is
+`af77939c19ec2c22fa17f6fb828a5962bfb7a7bd60fe71ee1847a3e33f676487`.
+The configured BOM audit SHA-256 is
+`c713ff2e9dc56315b7e9d2a8fb5d4b881f8c8099c8e955cab53ab3c1165f6b4a`.
+These observations cover one original two-body source, its two root
+occurrences and one isolated Windows profile.
 
 ## Editing an earlier boss with a dependent face cut — Windows, 2026-11-11
 
@@ -1501,6 +1606,25 @@ production-renderer interactions with test-owned dialog outcomes and existing
 original fixtures. Build and desktop startup pass with Electron 44.9.3. The
 part-alias route records 448 checkpoints and the embedded edit route 207.
 The hosted and packaged walkthroughs have separate results.
+
+## Part File-menu empty assembly — Windows focal, 2026-11-11
+
+The existing `test:desktop:part-operation-aliases` route invokes **Archivo →
+Nuevo ensamblaje vacío** from the dirty mounting-plate example using
+hit-tested pointer input. Escape keeps the exact part, selection, recovery,
+history and native requests, and restores focus to Archivo. Retry and
+**Continuar sin guardar** create a new standard assembly with its own
+unsaved file identity, empty history and exact recovery. Its one native build
+reports zero solids, volume and area, with empty component and relation
+declarations. The earlier saved part bytes and the owned file queue remain
+exact. An ordinary New Part transition returns the fixture to the part
+workspace for teardown.
+
+The build and hidden Windows renderer passed. The full route records 464
+checkpoints, zero console and resource failures, observed child exit and
+isolated temporary cleanup. This case covers direct discard-and-create from
+the unsaved example. Save-and-continue and File-menu copy have their own
+acceptance cases.
 
 ## Part plane toolbar and ordinary selection modes — Windows focal, 2026-11-11
 
@@ -6899,6 +7023,26 @@ the cause. The three dependent Desktop jobs failed their renderer gate before
 build/unit/smoke/package. [Security](https://github.com/angelcp2802/solidflow/actions/runs/40234044893)
 passed. Current local acceptance does not resolve those failures; hosted
 validation of the new head remains pending.
+
+## Standard assembly File Open and live report — Windows, 2026-11-11
+
+The standard and compact shortcut renderer routes use the existing original
+two-prism assembly and trusted pointer and keyboard input. They run the
+interference check with a 1 mm clearance and observe the native report for
+two bodies and one candidate pair excluded by the broad phase. The focused
+**Archivo → Abrir…** item opens the dirty-document confirmation. **Cancelar**
+restores focus to **Archivo**, with the same report, document, recovery,
+worker history and file activity. Canceling the clean file picker retains the
+same report and both owned files byte for byte. It completes one read-only
+Open request. Reopening the saved document replaces the workspace state,
+clears the previous report and rebuilds the exact saved assembly.
+
+On the pre-fix source, both cancellations removed the visible report. The
+fix lets successful replacement invalidate it through the existing workspace
+transition. The renderer substitutes the OS dialog with a canceled result
+or the existing owned test file. This exercises the production renderer and
+file-operation code on Windows x64. The standard and compact routes passed
+560 and 582 checks. The existing configured route passed 623 checks.
 
 ## Assembly keyboard commands — 2026-10-25
 

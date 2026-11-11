@@ -68,9 +68,22 @@ module.exports = async function partFileAliases(context) {
   const title = () => page(() => document.querySelector('.document-title')?.getAttribute('title'));
   const stableOwner = async () => {
     const { native, recovery, ui, dialogs, ipc } = await snapshot();
-    return { serial: native.serial, builds: native.builds, workerErrors: native.workerErrors, recovery, ui, dialogs, ipc, title: await title() };
+    return { serial: native.serial, builds: native.builds, assemblies: native.assemblies, workerErrors: native.workerErrors,
+      recovery, ui, dialogs, ipc, title: await title() };
   };
   const savedUnchanged = async label => check((await fs.readFile(output)).equals(savedBytes), label + ' leaves exact saved part bytes');
+  async function openReplacementPrompt(label) {
+    await file(label);
+    await waitFor('replacement prompt keeps the safe initial focus', () => page(selector => {
+      const dialogs = document.querySelectorAll('[role="dialog"]'), e = dialogs[0];
+      return dialogs.length === 1 && e.matches(selector) && e.checkVisibility()
+        && document.activeElement === e.querySelector('button.outline-button');
+    }, discard));
+  }
+  async function cancelFocus() {
+    await waitFor('replacement Cancel restores File menu focus', () => page((selector, trigger) =>
+      !document.querySelector(selector) && document.activeElement?.matches(trigger), discard, fileTrigger));
+  }
   for (const [index, item] of partFileExports.entries()) {
     evidence.pending = item.surface + '/' + item.format + (item.canceled ? '/cancel' : '');
     if (item.surface === 'Evaluar' && index === 3) await press('.ribbon-tabs button', 'Evaluar');
@@ -124,21 +137,13 @@ module.exports = async function partFileAliases(context) {
 
   async function replaceExample(label, cancelByKey, verify) {
     const before = await stableOwner();
-    const openPrompt = async () => {
-      await file(label);
-      await waitFor('replacement prompt keeps the safe initial focus', () => page(selector => {
-        const e = document.querySelector(selector);
-        return !!e?.checkVisibility() && document.activeElement === e.querySelector('button.outline-button');
-      }, discard));
-    };
-    await openPrompt();
+    await openReplacementPrompt(label);
     if (cancelByKey) await menuKey('Escape');
     else await press(discard + ' button.outline-button', 'Cancelar');
-    await waitFor('replacement Cancel restores File menu focus', () => page((selector, trigger) =>
-      !document.querySelector(selector) && document.activeElement?.matches(trigger), discard, fileTrigger));
+    await cancelFocus();
     check(canonical(await stableOwner()) === canonical(before), 'Canceled example replacement preserves exact recovery, model, history and IPC');
     await savedUnchanged('Canceled example');
-    await openPrompt(); await press(discard + ' button.primary-button', 'Continuar sin guardar');
+    await openReplacementPrompt(label); await press(discard + ' button.primary-button', 'Continuar sin guardar');
     await idle();
     const after = await stableOwner(), next = JSON.parse(after.recovery);
     const build = after.builds.filter(row => row.serial > before.serial
@@ -179,4 +184,66 @@ module.exports = async function partFileAliases(context) {
       near(model.bounds.max[axis], [50, 35, 12][axis], 1e-6, 'Mounting plate maximum bound');
     }
   });
+
+  const emptyLabel = 'Nuevo ensamblaje vacío', before = await stableOwner();
+  const previousPart = JSON.parse(before.recovery);
+  check(previousPart.version === 1 && previousPart.name === 'Placa de montaje' && before.title.includes('Cambios sin guardar'),
+    'Direct new assembly starts with the current dirty mounting plate');
+  await openReplacementPrompt(emptyLabel); await menuKey('Escape'); await cancelFocus();
+  check(canonical(await stableOwner()) === canonical(before),
+    'Cancel keeps the exact part, recovery, selection, history and all native observations');
+  await savedUnchanged('Canceled empty assembly');
+  await openReplacementPrompt(emptyLabel);
+  await press(discard + ' button.primary-button', 'Continuar sin guardar');
+  const row = await waitFor('direct creation builds the new empty assembly', async () => {
+    const state = await context.observe.assemblyResponseAfter(before.serial, 'build-assembly');
+    check(!state.workerErrors.length && state.completedCount <= 1, 'Direct creation has at most one successful native assembly build');
+    if (!state.record) return false;
+    check(state.record.response.ok, state.record.response.error || 'Empty assembly build failed');
+    return state.record;
+  });
+  const doc = row.document, scene = row.response.value;
+  check(doc.version === 2 && doc.kind === 'assembly' && doc.revision === 'r1' && doc.units === 'mm' && doc.name === 'Ensamblaje'
+    && typeof doc.id === 'string' && doc.id.length > 0 && doc.id !== previousPart.id && doc.id !== document.id
+    && doc.definitions.length === 0 && doc.occurrences.length === 0 && doc.mates.length === 0,
+  'Direct creation owns a new independent version-2 document with no copied part or relationships');
+  check(scene.kind === 'assembly-scene' && scene.bodies.length === 0 && scene.solidCount === 0 && scene.prototypeCount === 0
+    && scene.volume === 0 && scene.area === 0 && scene.bounds === null && scene.visibleBounds === null && !scene.warnings.length,
+  'Actual native scene contains zero solids, volume, area or bounds');
+  const newRecovery = await waitFor('fresh assembly has an unsaved path, empty history and exact recovery', async () => {
+    const ui = await page(() => {
+      const assembly = document.querySelector('.assembly-app');
+      const undo = assembly?.querySelector('[aria-label="Deshacer ensamblaje"]');
+      const redo = assembly?.querySelector('[aria-label="Rehacer ensamblaje"]');
+      return assembly?.getAttribute('aria-busy') === 'false' && undo?.disabled && redo?.disabled
+        && assembly.querySelector('.assembly-shell-file')?.textContent === 'Sin guardar'
+        && assembly.querySelector('.assembly-shell-document > strong')?.textContent.includes('*')
+        && !document.querySelector('[role="dialog"], .part-main-menus, [data-assembly-tree-path]')
+        && localStorage.getItem('solidflow.autosave');
+    });
+    return ui && canonical(JSON.parse(ui)) === canonical(doc) ? ui : false;
+  });
+  const after = await context.observe();
+  check(after.serial === before.serial + 1 && canonical(after.builds) === canonical(before.builds) && !after.workerErrors.length
+    && canonical(ipc) === canonical(before.ipc) && canonical(dialogCounts()) === canonical(before.dialogs),
+  'Confirmation creates only one new assembly build without part or file work');
+  await savedUnchanged('Confirmed empty assembly');
+  evidence.emptyAssembly = { label: emptyLabel, canceledWithExactState: true, fileIpcUnchanged: true, sourceFileUnchanged: true,
+    serial: row.serial, documentId: doc.id, recoverySha256: digest(newRecovery), solids: scene.solidCount, volume: scene.volume };
+
+  // The owned route normally ends in the part workspace. Use the ordinary
+  // document chooser so the fixture does not leave a dirty assembly at shutdown.
+  const chooser = '[role="dialog"][aria-labelledby="new-document-title"]';
+  const assemblyDiscard = '[role="dialog"][aria-label="Cambios sin guardar"]';
+  await press('.assembly-quickbar button[title="Nuevo"]');
+  await waitFor('owned document chooser opens for teardown', () => page(selector => document.querySelector(selector)?.checkVisibility(), chooser));
+  await press(chooser + ' [data-new-document-kind="part"]');
+  await waitFor('owned empty assembly asks before teardown replacement', () => page(selector => document.querySelector(selector)?.checkVisibility(), assemblyDiscard));
+  await press(assemblyDiscard + ' button', 'Continuar sin guardar');
+  await idle();
+  const final = await stableOwner(), finalPart = JSON.parse(final.recovery);
+  check(finalPart.version === 1 && finalPart.id !== doc.id && finalPart.features.length === 0
+    && canonical(final.ipc) === canonical(before.ipc) && canonical(final.dialogs) === canonical(before.dialogs),
+  'The owned fixture returns to an empty part without adding any file actions');
+  evidence.emptyAssembly.teardownPartId = finalPart.id;
 };
