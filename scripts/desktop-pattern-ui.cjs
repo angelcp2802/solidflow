@@ -227,6 +227,8 @@ const SCENARIOS = Object.freeze({
     test: 'production-renderer-assembly-profile-center', caption: 'assembly bounded profile-center lifecycle' }),
   'assembly-width': Object.freeze({ fixture: 'assembly-width-original.json', entry: 'desktop-assembly-width.cjs',
     test: 'production-renderer-assembly-width', caption: 'assembly centered width four planes' }),
+  'assembly-width-intersecting': Object.freeze({ fixture: 'assembly-width-intersecting-original.json', entry: 'desktop-assembly-width-intersecting.cjs',
+    test: 'production-renderer-assembly-width-intersecting', caption: 'assembly centered width intersecting planes' }),
   'assembly-symmetry': Object.freeze({ fixture: 'assembly-symmetry-original.json', entry: 'desktop-assembly-symmetry.cjs',
     test: 'production-renderer-assembly-symmetry', caption: 'assembly symmetry five native purposes' }),
   'assembly-symmetry-line-repair': Object.freeze({ fixture: 'assembly-symmetry-line-repair-original.json', entry: 'desktop-assembly-symmetry-line-repair.cjs',
@@ -1032,7 +1034,8 @@ async function runInElectron() {
   const circularStepOutput = activeScenario.circularPicking ? path.join(owned, 'circular-path.step') : null;
   const linePath = activeScenario === SCENARIOS['assembly-line-path'] || activeScenario.linePicking === true;
   const profileCenter = activeScenario === SCENARIOS['assembly-profile-center'] || activeScenario.profilePicking === true;
-  const width = activeScenario === SCENARIOS['assembly-width'];
+  const intersectingWidth = activeScenario === SCENARIOS['assembly-width-intersecting'];
+  const width = activeScenario === SCENARIOS['assembly-width'] || intersectingWidth;
   const symmetry = activeScenario === SCENARIOS['assembly-symmetry'];
   const symmetrySurfaceRepair = [SCENARIOS['assembly-symmetry-line-repair'], SCENARIOS['assembly-symmetry-plane-repair'], SCENARIOS['assembly-symmetry-sphere-repair'], SCENARIOS['assembly-symmetry-cylinder-repair'], SCENARIOS['assembly-symmetry-axisline-repair']].includes(activeScenario);
   const symmetryRadialRepair = activeScenario === SCENARIOS['assembly-symmetry-sphere-repair'] || activeScenario === SCENARIOS['assembly-symmetry-cylinder-repair'];
@@ -2030,6 +2033,8 @@ async function runInElectron() {
     ? require('./desktop-assembly-profile-center-flow.cjs')({ referenceRoleKeyboard, profilePicking: activeScenario.profilePicking === true, pointer: activeScenario.profilePicking ? pointer : undefined, expected, input, output, evaluate, observe, waitFor, click, capture, checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : symmetry
     ? require('./desktop-assembly-symmetry-flow.cjs')({ expected, input, output, evaluate, observe, waitFor, click, capture, pointer, checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
+    : intersectingWidth
+    ? require('./desktop-assembly-width-intersecting-flow.cjs')({ expected, input, output, evaluate, observe, waitFor, click, pointer, checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
     : width
     ? require('./desktop-assembly-width-flow.cjs')({ expected, input, output, evaluate, observe, waitFor, click, capture, pointer, checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : directedAngle

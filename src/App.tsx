@@ -2547,9 +2547,6 @@ export function PartWorkspace({ initialDocument, initialPath, initialSaved, skip
         if (documentShortcut || requestedView || (!input && !modified && e.key === "Delete")) e.preventDefault();
         return;
       }
-      if (e.key === 'Escape' && axisPickingAuthority.current) {
-        e.preventDefault(); stopAxisPicking(); return;
-      }
       if (showHelp || rename || discardDecision.current) {
         if (e.key === "Escape") {
           if (discardDecision.current) finishDiscard(false);
@@ -2561,6 +2558,9 @@ export function PartWorkspace({ initialDocument, initialPath, initialSaved, skip
         }
         if (documentShortcut && ["n", "o", "s"].includes(key)) e.preventDefault();
         return;
+      }
+      if (e.key === 'Escape' && axisPickingAuthority.current) {
+        e.preventDefault(); stopAxisPicking(); return;
       }
       if (e.key === "Escape" && editing?.type === "sketch" && pickingSupport) {
         e.preventDefault();

@@ -67,6 +67,42 @@ module.exports = function externalAxisWorkflow(context) {
     await press('[data-assembly-menu="file"]');
     await press('.part-main-menus .assembly-menu-wrap:has(> [data-assembly-menu="file"][aria-expanded="true"]) > [role="menu"] > [role="menuitem"]', label);
   }
+  async function cancelOpenWithAxisArmed() {
+    const discard = '[role="dialog"][aria-labelledby="discard-title"]';
+    const read = async () => {
+      const { candidates, ...state } = await page((discard, axis, apply) => {
+        const host = document.querySelector('.viewport-canvas');
+        const prompt = document.querySelector(discard), active = document.activeElement;
+        return {
+          picker: host?.dataset.partAxisPicking ?? null, candidates: host?.dataset.partAxisCandidates ?? '',
+          axis: document.querySelector(axis)?.value ?? null,
+          angle: document.querySelector('input[aria-label="Ángulo"]')?.value ?? null,
+          applyDisabled: document.querySelector(apply)?.disabled ?? null,
+          prompt: !!prompt, safeFocus: !!prompt && active === prompt.querySelector('button.outline-button'),
+          fileFocus: active?.matches('.part-main-menus [data-assembly-menu="file"]') ?? false,
+        };
+      }, discard, AXIS, APPLY);
+      return { ...state, candidateSha256: digest(candidates) };
+    };
+    const before = await read();
+    check(before.picker === 'true' && before.axis === 'principal-Y' && before.angle === '360'
+      && !before.applyDisabled && !before.prompt, 'Current world-Y revolution draft has a ready armed prefix picker before Open');
+    const native = await observe(), savedRecovery = await recovery(), dialogBefore = dialogCounts();
+    const ipcBefore = structuredClone(ipc), source = await fsp.readFile(input);
+    await fileCommand('Abrir…');
+    await waitFor('dirty part Open decision takes safe focus over the armed axis picker', async () => (await read()).safeFocus);
+    const opened = await read();
+    await menuKey('Escape'); await frames();
+    const closed = await read();
+    evidence.partExternalAxis.cancelOpenWithAxisArmed = { before, opened, closed };
+    check(canonical(await observe()) === canonical(native) && await recovery() === savedRecovery
+      && canonical(dialogCounts()) === canonical(dialogBefore) && canonical(ipc) === canonical(ipcBefore)
+      && (await fsp.readFile(input)).equals(source),
+    'Canceling dirty Open preserves native build history, recovery, original file bytes and file requests');
+    check(canonical(opened) === canonical({ ...before, prompt: true, safeFocus: true })
+      && canonical(closed) === canonical({ ...before, fileFocus: true }),
+    'One Escape cancels the Open confirmation, returns focus to Archivo and preserves the exact armed axis draft: ' + JSON.stringify({ before, opened, closed }));
+  }
   async function built(after, predicate, volume, bounds, phase) {
     const row = await waitFor('external-axis native build ' + phase, async () => {
       const state = await observe(); check(!state.workerErrors.length, 'No axis worker transport failure');
@@ -224,6 +260,7 @@ module.exports = function externalAxisWorkflow(context) {
     await press('input[aria-label="Invertir dirección"]'); await ready();
     await change(AXIS, 'principal-Y'); await ready();
     await press('button[title="Vista frontal (Ctrl+1)"]'); await arm();
+    await cancelOpenWithAxisArmed();
     let key = await candidateKey(['external-sketch-line', 'external-axis', 'axis-line']), point = await findAxis(key);
     let guardSerial = (await observe()).serial;
     await pointer('mousePressed', point, 1); await menuKey('Escape'); await pointer('mouseReleased', point, 0); await frames();

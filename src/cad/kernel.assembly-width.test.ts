@@ -19,6 +19,7 @@ import { placeAssemblyShape } from './kernel.assembly-placements'
 import { ownedNativeTopology } from './kernel.native-topology'
 import { withNativeOwners } from './kernel.native-ownership'
 import type { Vec3 } from './kernel.types'
+import intersectingFixture from './fixtures/assembly-width-intersecting-original.json'
 
 type Width = Extract<AssemblyMate, { type: 'width' }>
 const stamp = '2026-10-21T00:00:00.000Z', source = { id: 'original-width-box', revision: 'r1' }
@@ -286,17 +287,7 @@ it('repairs four current native faces after a real source widening and then solv
 },60_000)
 
 it('solves original intersecting triangular-prism sides and checks the rebuilt D1 bisectors', () => {
-  const document = original(); document.mates = []; document.occurrences = document.occurrences.slice(0,2)
-  const base = document.definitions[0]; if (base.kind !== 'part') throw Error('Original source required')
-  document.definitions = [4,3].map((halfWidth,i) => {
-    const part = structuredClone(base), height = i === 0 ? 3 : 4
-    part.id = 'triangle-original-' + i; part.document.id = part.id
-    const sketch = part.document.features[0]; if (sketch.type !== 'sketch') throw Error('Original sketch required')
-    sketch.profile = { kind:'entities',points:[{id:'a',x:-halfWidth,y:0},{id:'b',x:halfWidth,y:0},{id:'c',x:0,y:height}],
-      entities:[['a','b'],['b','c'],['c','a']].map(([start,end],j) => ({id:'edge-'+j,type:'line' as const,start,end,construction:false})),constraints:[] }
-    return part
-  })
-  document.occurrences.forEach((v,i) => { v.definition = {id:document.definitions[i].id,revision:'r1'}; v.fixed = i === 0; v.pose = identityRigidPose() })
+  const document = validateAssemblyDocument(intersectingFixture)
   const scene = buildAssemblyScene(document)
   const select = (id:string,normal:Vec3): AssemblyPlaneReference => {
     const faces = scene.bodies.find(v => v.component.occurrencePath[0] === id)!.faces.filter(v => v.support?.kind === 'plane' && dot(v.support.normal,normal) > .999999)
@@ -304,7 +295,6 @@ it('solves original intersecting triangular-prism sides and checks the rebuilt D
   }
   document.mates = [{id:'width',name:'Original triangular centered planes',type:'width',mode:'centered',suppressed:false,
     width:[select('a',[-.6,.8,0]),select('a',[.6,.8,0])],tab:[select('b',[-.8,.6,0]),select('b',[.8,.6,0])],widthBranch:'difference',tabBranch:'difference',alignment:'aligned'}]
-  document.occurrences[1].pose = {translation:[3,0,0],rotation:[0,0,Math.sin(.27/2),Math.cos(.27/2)]}
   const value = ready(prepareAssemblySolve(document))
   try {
     const actual = validateAssemblyDocument(value.document), measured = withNativeOwners(owners => actual.occurrences.map((occurrence,i) => {

@@ -126,7 +126,11 @@ fixed owners, a fourth-only free owner, nested assembly placement, intersecting
 plane pairs, strict declarations and source/replacement repairs. Separate
 renderer tests exercise controls; the fixed `test:desktop:assembly-width`
 scenario uses original tracked geometry, actual worker replies and test-owned
-file dialogs. Authored tests and configured commands are not execution results;
+file dialogs. The separate `test:desktop:assembly-width-intersecting` scenario
+authors Centered Width between two intersecting face pairs in the standard
+editor, then saves and reopens the exact four ordered roles. It uses the
+original triangular-prism fixture shared with the independent native D1 case.
+Authored tests and configured commands are not execution results;
 consult [VALIDATION](VALIDATION.md) and [PROVENANCE](PROVENANCE.md).
 
 Additional cases exercise four free oblique owners with physical plane-equation

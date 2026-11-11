@@ -8059,6 +8059,28 @@ request must reject that initial moving-pair interference. This does not turn
 sampled rotations into continuous collision, finite-contact, pointer-interaction
 or platform evidence.
 
+## Original intersecting centered-width desktop fixture
+
+`src/cad/fixtures/assembly-width-intersecting-original.json` stores the two
+original triangular profiles already exercised by the native Width D1 case.
+The fixed width section has XY corners ((-4,0),(4,0),(0,3)) and the tab has
+((-3,0),(3,0),(0,4)), both extruded from Z0 to Z4 mm. Each volume is
+`(base * height / 2) * 4 = 48 mm^3`. The 5 mm sloping sides give
+`2 * 12 + (base + 5 + 5) * 4` for the areas of 96 and 88 mm².
+The tab starts at translation `[3,0,0]` and rotation `Rz(0.27)`.
+The fixture declares no mate. It contains only original synthetic recipes
+and no imported model or external application data.
+
+The ordered inclined outward normals are `[-.6,.8,0], [.6,.8,0]` and
+`[-.8,.6,0], [.8,.6,0]`. Their pairwise dot products are +0.28 and −0.28.
+Both local difference bisectors are the plane X=0 with normal −X.
+Initially the bisectors have an angle of 0.27 rad and a signed offset
+delta of `-3 * cos(0.27)` mm. The case checks the aligned difference
+branches at the solved endpoint, with the fixed owner unchanged.
+The renderer checks world support equations and literal transformed corners.
+The companion kernel case independently rebuilds the native BRep and checks
+its validity and oriented surface D1 normals.
+
 ## Original centered-width rectilinear contact-stop cases
 
 `src/cad/kernel.assembly-width-translation.test.ts` reuses the original

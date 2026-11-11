@@ -1,5 +1,32 @@
 # Validation
 
+## Centered Width with intersecting material planes — Windows, 2026-11-11
+
+The `test:desktop:assembly-width-intersecting` command passed 43 recorded
+checkpoints in the hidden Windows x64 production renderer. The standard
+relation editor selects four exact inclined material faces through its ordered
+dropdowns on the [original triangular prisms](PROVENANCE.md#original-intersecting-centered-width-desktop-fixture).
+The two pairs have normal dot products +0.28 and −0.28. They use the
+difference/difference branches and aligned bisectors. The fixed part and
+both source recipes remain identical.
+
+Actual preview and Cancel leave the original committed document intact.
+The second preview supplies Apply authority, and one Undo/Redo round trip
+restores both exact states. Save As/Open restores the same ordered faces
+and mate ID. Fresh Solve produces a new native verification, and Cancel
+keeps the saved bytes. Two Open dialogs and one Save As are test-owned.
+The independent support equations go from 0.27 rad and −2.891312689 mm
+to residuals below 1e−8 rad and 1e−6 mm. The two volumes remain 48 mm³
+each, with areas 96 and 88 mm² and bounds checked against transformed
+corners. The focused native Width suite passed all 14 cases, including
+the independent D1 and BRep validity check for this geometry. The existing
+parallel Width renderer passed its separate 95-checkpoint route.
+
+This result covers scripted form choices, actual worker and file IPC,
+two intersecting pairs and one fixed owner. Viewport picking is covered
+separately for the parallel fixture. Finite contact, other Width modes,
+packaged UI and additional platforms retain their own acceptance requirements.
+
 ## Solve availability during shared part source repair — Windows, 2026-11-11
 
 On the earlier production renderer, the source panel, ribbon and Tools
@@ -3579,6 +3606,23 @@ offset clipping/split repair, remaining specialized editors/picking, full
 interaction/demo/human use, installed platforms and recurring stability remain
 open. Straight planar chain ends are not axial end caps; the bounded acceptance
 above does not close the complete thin-feature group or establish parity.
+
+## Part Open confirmation and active axis picker — Windows, 2026-11-11
+
+The existing `part-external-axis` production renderer uses the original
+world-Y 360° revolution draft with its current prefix-axis picker armed.
+Actual pointer input opens **Archivo → Abrir…** and focus moves to
+**Cancelar** in the dirty-document confirmation. On the pre-fix build,
+one Escape left the confirmation open and emptied the picker catalog.
+With the fix, Escape closes the confirmation, returns focus to **Archivo**
+and preserves the same armed picker, candidate catalog and draft fields.
+
+The route passed 112 checks on Windows x64. This cancellation preserves
+complete native build observations, recovery, the owned source bytes and
+file request counts. The following actual Escape during a canvas press
+still cancels the picker, and a later fresh pick can edit, save and reopen
+the edited test document with exact saved references. The confirmation is exercised before
+the native file picker opens.
 
 ## External revolution axes and current-prefix picking — 2026-10-28
 
