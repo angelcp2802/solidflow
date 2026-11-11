@@ -567,7 +567,11 @@ export default function Viewport({
       }
     };
     context.current.cancelAxisSelection = cancelAxisSelection;
-    renderer.domElement.addEventListener('wheel', cancelAxisSelection);
+    const cancelWheelSelection = () => {
+      selectionGesture.cancel();
+      cancelAxisSelection();
+    };
+    renderer.domElement.addEventListener('wheel', cancelWheelSelection);
     let hoverPointer: { x: number; y: number } | null = null;
     let hoverDirty = false;
     let hovered: string | null = null;
@@ -848,7 +852,7 @@ export default function Viewport({
       renderer.domElement.removeEventListener("pointerup", pointerUp);
       renderer.domElement.removeEventListener("pointermove", pointerMove);
       renderer.domElement.removeEventListener("pointerleave", pointerLeave);
-      renderer.domElement.removeEventListener('wheel', cancelAxisSelection);
+      renderer.domElement.removeEventListener('wheel', cancelWheelSelection);
       controls.removeEventListener('change', cameraChanged);
       navigation.dispose();
       controls.dispose();

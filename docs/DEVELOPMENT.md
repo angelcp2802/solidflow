@@ -83,6 +83,11 @@ one repeated Z keydown before releasing either key. Recovery, history and
 native observations remain at seven features until Ctrl+Y restores the final
 cut. Editable fields retain their native text undo and redo.
 
+Part document commands leave Ctrl+Alt and simultaneous Ctrl+Meta to the
+current input owner. On Windows the same route sends both combinations with
+N while the closed File trigger owns focus. It checks the delivered keyboard
+modifiers and exact document, worker, focus and file observations.
+
 All existing camera, grid and plane-OFF crop comparisons remain exact. Only the
 new translucent-plane ON observation permits at most one native 8-bit byte
 level across the complete unmasked crop for two presented observations at
@@ -425,6 +430,15 @@ an empty string. It requires the exact model, selection/request frame, camera,
 presented scene and unique current face; navigation, disabled/mode changes and
 pointer cancellation invalidate it. It supplies no target-setting capability.
 Observer face/frame summaries are enabled only for this fixed scenario.
+
+The displayed CAD model derives from the active geometry and selection
+catalog. A draft result received while the preceding source is still
+displayed keeps that source's presentation identity. Genuine source, camera
+or role changes still invalidate a held click. The face-limit route compares
+the original saved inward-face click with the live draft response delivered
+before the press and while the button is held. The owned worker runs both
+actual requests. The probe correlates their existing messages and waits for
+the renderer to present the new status before releasing the pointer.
 
 The sequence recorder waits for one enabled current field before using its
 existing setter. The fresh-sketch recorder shares that wait across all three

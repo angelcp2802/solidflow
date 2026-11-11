@@ -6,13 +6,25 @@ const STEPS = Object.freeze([
   { kind: 'discard', action: 'build' },
 ]);
 const AUTO_SCOPE_STEPS = Object.freeze([{ kind: 'auto-scope', action: 'capture-feature-recipe-scope' }]);
+const FACE_LIMIT_STEPS = Object.freeze([
+  { kind: 'face-prefix-control', action: 'build', continueBreakpoint: true },
+  { kind: 'face-obsolete-draft-control', action: 'build', continueBreakpoint: true },
+  { kind: 'face-draft-control', action: 'build' },
+  { kind: 'face-prefix-overlap', action: 'build', continueBreakpoint: true },
+  { kind: 'face-obsolete-draft-overlap', action: 'build', continueBreakpoint: true },
+  { kind: 'face-draft-overlap', action: 'build' },
+]);
+
+function checkpoint(step) {
+  return { ...step, frame: null, hitBreakpoints: [], reason: null, request: null, releasing: false, resumed: false };
+}
 
 // Test-only CDP session under the owned production page. Break on the real
 // worker's assigned message callback and resume it with the same trusted event.
 // The normal worker API, queue, native code, response and UI remain in place.
 function createPendingWorkerGate(debuggerTransport, check, workflow = 'embedded-part') {
-  check(workflow === 'embedded-part' || workflow === 'auto-scope', 'Only the two fixed owned-worker scenarios can pause a request');
-  const steps = workflow === 'auto-scope' ? AUTO_SCOPE_STEPS : STEPS;
+  check(['embedded-part', 'auto-scope', 'face-limits'].includes(workflow), 'Only fixed owned-worker scenarios can pause a request');
+  const steps = workflow === 'face-limits' ? FACE_LIMIT_STEPS : workflow === 'auto-scope' ? AUTO_SCOPE_STEPS : STEPS;
   let target, current, installed = false, disposed = false, enabled = false, step = 0, unexpected;
   const scripts = new Map();
   const workerCommand = (method, params = {}) => debuggerTransport.sendCommand(method, params, target.sessionId);
@@ -33,6 +45,7 @@ function createPendingWorkerGate(debuggerTransport, check, workflow = 'embedded-
       if (method === 'Debugger.resumed') {
         if (!current?.releasing) { unexpected = 'Worker resumed before the recorded decision'; return; }
         current.resumed = true;
+        if (current.following) current = current.following;
       }
     }
   }
@@ -54,7 +67,7 @@ function createPendingWorkerGate(debuggerTransport, check, workflow = 'embedded-
     });
     check(!exceptionDetails && result?.type === 'function' && typeof result.objectId === 'string',
       'Read the actual dedicated worker message callback');
-    current = { ...next, frame: null, hitBreakpoints: [], reason: null, request: null, releasing: false, resumed: false };
+    current = checkpoint(next);
     const { breakpointId } = await workerCommand('Debugger.setBreakpointOnFunctionCall', { objectId: result.objectId });
     check(typeof breakpointId === 'string' && breakpointId.length > 0, 'Worker message breakpoint installed');
     current.breakpointId = breakpointId;
@@ -88,7 +101,13 @@ function createPendingWorkerGate(debuggerTransport, check, workflow = 'embedded-
     const state = await sample();
     check(state.paused && state.request && !current.releasing, 'Release the one observed worker message');
     current.releasing = true;
-    await workerCommand('Debugger.removeBreakpoint', { breakpointId: current.breakpointId });
+    if (current.continueBreakpoint) {
+      // Keep the next exact face-build request observable without rearming
+      // after the worker has already resumed.
+      current.following = { ...checkpoint(steps[step++]), breakpointId: current.breakpointId };
+    } else {
+      await workerCommand('Debugger.removeBreakpoint', { breakpointId: current.breakpointId });
+    }
     await workerCommand('Debugger.resume');
   }
   async function dispose() {

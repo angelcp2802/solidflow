@@ -109,6 +109,24 @@ it('propagates a named intrinsic edit to both selected uses while Base remains u
   expect(next.source).toEqual(document.source); expect(scope({ ...next, rootConfiguration: null }, 'left').occurrences.find(row => row.id === 'b')!.suppressed).toBe(false)
 })
 
+it('rejects property changes through a suppressed owner and lets an active owner reactivate its direct child', () => {
+  const document = fixture(); document.rootConfiguration = 'both-compact'
+  const left = document.catalog[0].configurations.find(row => row.id === 'both-compact')!.occurrences.find(row => row.occurrenceId === 'left')!
+  left.suppressed = true
+  const original = serializeAssemblyConfiguredDocument(document)
+  expect(scope(document, 'left')).toMatchObject({ suppressed: true, configuration: 'compact' })
+  expect(scope(document, 'right')).toMatchObject({ suppressed: false, configuration: 'compact' })
+  expect(() => editConfiguredUiOccurrence(document, ['left'], 'b', { visible: false })).toThrow(/ámbito.*suprimido/)
+  expect(serializeAssemblyConfiguredDocument(document)).toBe(original)
+  expect(effective(document).parts.find(row => row.path.join('/') === 'right/b')).toMatchObject({ visible: true, suppressed: false })
+
+  const suppressed = editConfiguredUiOccurrence(document, ['right'], 'b', { suppressed: true })
+  expect(effective(suppressed).parts.find(row => row.path.join('/') === 'right/b')?.suppressed).toBe(true)
+  const restored = editConfiguredUiOccurrence(suppressed, ['right'], 'b', { suppressed: false })
+  expect(effective(restored).parts.find(row => row.path.join('/') === 'right/b')?.suppressed).toBe(false)
+  expect(effective(restored).parts.find(row => row.path.join('/') === 'left/b')?.suppressed).toBe(true)
+})
+
 it('routes an explicit Base edit to the original state and leaves named overrides intact', () => {
   const document = fixture(), next = editConfiguredUiOccurrence(document, ['left'], 'b', { pose: { translation: [7, 0, 0], rotation: [0, 0, 0, 1] } })
   expect(next.catalog).toEqual(document.catalog); expect(scope(next, 'left').occurrences.find(row => row.id === 'b')!.pose.translation).toEqual([7, 0, 0])

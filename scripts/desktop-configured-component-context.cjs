@@ -137,13 +137,74 @@ module.exports = function configuredComponentContext(c) {
       ['component-properties', false], ['component-fixed', true], ['component-visible', true], ['component-suppressed', true],
     ]), 'Suppressed owner permits Properties and blocks all three component mutations');
     await menuKey('End'); check(await page(() => document.activeElement?.dataset.cadContextAction === 'component-properties'), 'Menu keyboard navigation skips inherited disabled actions');
-    await escape(row(['left', 'anchor']));
+    const visibility = '[aria-label="Ocurrencia configurada visible"]';
+    const propertySnapshot = () => page(() => ({
+      recovery: localStorage.getItem('solidflow.autosave'),
+      file: document.querySelector('.assembly-shell-file')?.title,
+      history: [...document.querySelectorAll('[aria-label="Archivo del ensamblaje configurado"] button')]
+        .filter(e => ['Deshacer', 'Rehacer', 'Guardar'].includes(e.title)).map(e => [e.title, e.disabled]),
+    }));
+    async function pressVisibility() {
+      const point = await page(selector => {
+        const field = document.querySelector(selector);
+        field.scrollIntoView({ block: 'nearest' });
+        const rect = field.getBoundingClientRect(), point = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+        if (!field.contains(document.elementFromPoint(point.x, point.y))) throw Error('Hit-tested occurrence visibility control required');
+        return point;
+      }, visibility);
+      await pointer('mouseMoved', point); await pointer('mousePressed', point, 1); await pointer('mouseReleased', point, 0);
+    }
+    const beforeProperties = await propertySnapshot(), workerBeforeProperties = await observe(),
+      ipcBeforeProperties = canonical(c.ipc), dialogsBeforeProperties = canonical(c.dialogCounts());
+    await choose('component-properties');
+    await waitFor('suppressed owner properties remain open for inspection', () => page(() => {
+      const pane = document.querySelector('[data-configured-pane="occurrence"]');
+      return pane?.hidden === false && document.activeElement?.closest('#configured-occurrence-inspector')
+        && document.querySelector('[aria-label="Ámbito de configuración"]')?.value === '["left"]'
+        && document.querySelector('[aria-label="Ocurrencia configurada"]')?.value === 'anchor';
+    }));
+    check(await page(() => {
+      const fields = [...document.querySelectorAll('#configured-occurrence-inspector :is(button,input,select)')];
+      return fields.length >= 9 && fields.every(field => field.matches(':disabled'));
+    }), 'Suppressed owner disables every occurrence mutation in Properties');
+    check(await page(() => document.activeElement?.id === 'configured-occurrence-inspector'
+      && document.activeElement.textContent.includes('El ámbito está suprimido. Puedes consultar estas propiedades.')),
+    'Focus and read-only guidance remain on the exact occurrence inspector');
+    await pressVisibility();
+    await recovery(suppressedOwner);
+    check(await page(selector => document.querySelector(selector)?.checked, visibility)
+      && canonical(await propertySnapshot()) === canonical(beforeProperties)
+      && (await observe()).serial === workerBeforeProperties.serial
+      && canonical(c.ipc) === ipcBeforeProperties && canonical(c.dialogCounts()) === dialogsBeforeProperties,
+    'Clicking the blocked property preserves the active right prism, history, recovery and file state without worker traffic');
+
+    await openTree(['right', 'anchor'], 'anchor'); await choose('component-properties');
+    await waitFor('active shared owner exposes the same editable Properties field', () => page(selector =>
+      document.querySelector('[data-configured-pane="occurrence"]')?.hidden === false
+      && document.querySelector('[aria-label="Ámbito de configuración"]')?.value === '["right"]'
+      && document.querySelector(selector)?.matches(':enabled:checked'), visibility));
+    previous = await observe(); await pressVisibility();
+    built = await response(previous.serial, 'build-configured-assembly');
+    const activeEdit = structuredClone(suppressedOwner);
+    activeEdit.catalog.find(c => c.definition.id === 'authoring-shared').configurations.find(v => v.id === 'A').occurrences.push({ occurrenceId: 'anchor', visible: false });
+    await recovery(activeEdit);
+    check(canonical(built.current.document) === canonical(activeEdit) && built.response.value.scene.bodies.length === 1
+      && canonical(built.response.value.scene.bodies[0].component.occurrencePath) === canonical(['right', 'anchor'])
+      && !built.response.value.scene.bodies[0].visible && built.response.value.scene.visibleBounds === null,
+    'The same physical click can hide the exact right prism through its active owner');
+    previous = await observe(); await button('Deshacer', c.NAV); built = await response(previous.serial, 'build-configured-assembly');
+    await recovery(suppressedOwner);
+    const restoredBounds = built.response.value.scene.visibleBounds;
+    check(canonical(built.current.document) === canonical(suppressedOwner)
+      && restoredBounds?.min.every((v, i) => Math.abs(v - [20, 0, 0][i]) <= 1e-6)
+      && restoredBounds.max.every((v, i) => Math.abs(v - [22, 3, 4][i]) <= 1e-6),
+      'Undo of the active property restores the right prism while the left owner stays suppressed');
     previous = await observe(); await button('Deshacer', c.NAV); built = await response(previous.serial, 'build-configured-assembly');
     await recovery(doc); geometry(built.response.value, doc, 0, 'context-owner-undo');
     await openTree(['left', 'anchor'], 'anchor'); await navigateScope('["right"]'); await navigateScope('["left"]');
     check(await page(() => !document.querySelector('.cad-context-menu')), 'Owner navigation closes the old context across A/B/A');
     checks.push({ configuredComponentContexts: { treePointer: true, contextKey: true, shiftF10: true, viewportPointer: true, viewportKey: true,
-      properties: true, visibility: true, suppression: true, inheritedSuppression: true,
+      properties: true, visibility: true, suppression: true, inheritedSuppression: true, suppressedPropertiesReadOnly: true,
       limits: 'Hidden original two-prism fixture; CDP pointer/key for opening/actions, scripted DOM navigation and initial focus. No OS input, whole-application or external-runtime parity claim.' } });
   }
   return { openTree, choose, initial };

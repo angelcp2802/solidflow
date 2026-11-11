@@ -173,8 +173,41 @@ module.exports = function fromEmptyWorkflow(c) {
         'File popup owns '+command+' and preserves the selected cut, recovery, native work and file dialogs');
     }
     await menuKey('Escape');
-    await waitFor('File popup Escape returns focus to the trigger',()=>page(selector=>
-      document.activeElement?.matches(selector)&&document.activeElement.getAttribute('aria-expanded')==='false',fileTrigger));
+    const fileClosedFocus = () => page(selector =>
+      document.activeElement?.matches(selector)&&document.activeElement.getAttribute('aria-expanded')==='false',fileTrigger);
+    await waitFor('File popup Escape returns focus to the trigger',fileClosedFocus);
+    if(process.platform==='win32'){
+      const before=await menuSnapshot(), modifiers=[];
+      checks.push({partUnsupportedNewModifiers:modifiers});
+      for(const combo of ['AltN','DualN']){
+        await page(selector=>{
+          const trigger=document.querySelector(selector), events=[];
+          const capture=event=>{if(event.code==='KeyN')events.push(event);};
+          trigger.addEventListener('keydown',capture);
+          window.partNewModifierObservation=()=>{
+            trigger.removeEventListener('keydown',capture);
+            delete window.partNewModifierObservation;
+            return events.map(event=>({trusted:event.isTrusted,key:event.key,ctrl:event.ctrlKey,alt:event.altKey,
+              meta:event.metaKey,shift:event.shiftKey,prevented:event.defaultPrevented,altGraph:event.getModifierState('AltGraph')}));
+          };
+        },fileTrigger);
+        let received;
+        try{await key(combo);}
+        finally{received=await page(()=>window.partNewModifierObservation());}
+        check(received.length===1&&received[0].trusted&&received[0].key==='n'&&received[0].ctrl&&!received[0].shift
+          &&received[0].alt===(combo==='AltN')&&received[0].meta===(combo==='DualN'),
+        'One trusted New keydown carries the exact unsupported modifier combination');
+        await page(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+        const chooser=await page(selector=>!!document.querySelector(selector),NEW),after=await menuSnapshot(), focus=await fileClosedFocus();
+        modifiers.push({combo,event:received[0],chooser,focus,unchanged:canonical(after)===canonical(before)});
+        if(chooser){
+          await key('Escape');
+          await waitFor('test cleanup restores File focus after the unexpected New chooser',fileClosedFocus);
+        }
+      }
+      check(modifiers.every(row=>!row.chooser&&row.focus&&row.unchanged&&!row.event.prevented),
+        'Unsupported New modifiers keep focus and leave document, history, native work and file activity unchanged');
+    }
     let serial=(await observe()).serial, afterUndo;
     await key('Z',async()=>{
       await idle();

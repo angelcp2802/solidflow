@@ -28,6 +28,7 @@ import { AssemblyConfiguredDocumentHistory } from '../model/assemblyConfiguredHi
 import { validateAssemblyConfiguredDocument, parseAssemblyConfiguredDocument, serializeAssemblyConfiguredDocument, type AssemblyConfiguredDocument } from '../model/assemblyConfiguredDocument'
 import { parseCadDocument, type CadDocument } from '../model/cadDocument'
 import { CAD_RECOVERY_KEY } from '../model/cadRecovery'
+import ConfiguredAssemblyReferenceDiagnostics, { type ConfiguredReferenceDiagnostic } from './ConfiguredAssemblyReferenceDiagnostics'
 import { buildConfiguredAssemblyBom, type ConfiguredAssemblyBomOptions, type ConfiguredAssemblyBomMember } from '../model/assemblyConfiguredBom'
 import { createConfiguredUiRootVariant, createConfiguredUiScopeVariant, configuredUiPose, editConfiguredUiOccurrence, configuredUiTicket, configuredUiTicketMatches, configuredUiSceneMatches, configuredUiDisplayScene, configuredBomUiTicket, configuredBomUiTicketMatches, configuredBomUiSelectedPath, downloadConfiguredBomCsv, runConfiguredBomCsvExport, configuredMateUiTicketMatches, configuredMateUiPreviewMatches, configuredMechanicalUiPreviewMatches, type ConfiguredUiTicket } from './configuredAssemblyUi'
 import AssemblyViewport, { type AssemblyViewportViewSelection, type AssemblyViewportContextTarget } from './AssemblyViewport'
@@ -51,6 +52,7 @@ import './configured-assembly.css'
 
 let controllerEpoch = 0
 type RelationDraft = ConfiguredMateDraft | ConfiguredMechanicalDraft | ConfiguredCompoundDraft
+type InspectorReveal = { id: string; relation?: { scope: string; generation: number; mateId: string } }
 type DiscardDecision = {
   owner: ConfiguredUiTicket
   restoreFocus: Element | null
@@ -104,9 +106,13 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
   const [inspectorPane, setInspectorPane] = useState<'model' | 'configuration' | 'components' | 'occurrence' | 'relations' | 'relation'>('model')
   const [ribbonTab, setRibbonTab] = useState<AssemblyCommandTab>('assembly')
   const inspector = useRef<HTMLElement>(null)
-  const [revealRequest, setRevealRequest] = useState<{ id: string } | null>(null)
-  const revealInspector = (id: string) => {
-    const aside = inspector.current, target = aside?.querySelector<HTMLElement>('#' + id)
+  const [revealRequest, setRevealRequest] = useState<InspectorReveal | null>(null)
+  const revealInspector = ({ id, relation }: InspectorReveal) => {
+    if (relation && (relation.scope !== scope || relation.generation !== generation)) return
+    const aside = inspector.current, section = aside?.querySelector<HTMLElement>('#' + id)
+    const target = relation
+      ? [...section?.querySelectorAll<HTMLElement>('[data-configured-mate-id]') ?? []].find(row => row.dataset.configuredMateId === relation.mateId)
+      : section
     if (!aside || !target || target.closest('[hidden]')) return
     const anchor = target.dataset.inspectorAnchor ? aside.querySelector<HTMLElement>('#' + target.dataset.inspectorAnchor) ?? target : target
     const visible = (element: HTMLElement) => {
@@ -118,7 +124,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
       return true
     }
     const controls = 'input:enabled, select:enabled, button:enabled'
-    const field = target.matches(controls) && visible(target) ? target
+    const field = relation || target.matches(controls) && visible(target) ? target
       : [...target.querySelectorAll<HTMLElement>(controls)].find(visible)
         ?? [...target.querySelectorAll<HTMLElement>('summary')].find(visible) ?? anchor
     // Keep the section heading and its context visible independently of focus.
@@ -131,7 +137,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
     const id = revealRequest.id
     setInspectorPane(id === 'configured-model-tree' ? 'model' : id === 'configured-root-state' ? 'configuration' : id === 'configured-relations' ? 'relations' : id === 'configured-occurrence-inspector' ? 'occurrence' : id === 'configured-relation-inspector' ? 'relation' : 'components')
   }, [revealRequest])
-  useEffect(() => { if (revealRequest) revealInspector(revealRequest.id) }, [revealRequest, inspectorPane])
+  useEffect(() => { if (revealRequest) revealInspector(revealRequest) }, [revealRequest, inspectorPane])
   // A newly opened editor is revealed once; typing and picking keep their scroll position.
   useEffect(() => {
     if (mateDraft?.id) { setInspectorPane('relation'); setRevealRequest({ id: 'configured-relation-inspector' }) }
@@ -290,7 +296,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
     recall: savedView => setView(previous => ({ name: 'named', stamp: previous.stamp + 1, view: savedView })),
   })
   const edit = (change: Parameters<typeof editConfiguredUiOccurrence>[3]) => {
-    if (!fresh(renderedTicket) || operation.current || pending.current || mateDraftRef.current || !selected) return
+    if (!fresh(renderedTicket) || operation.current || pending.current || mateDraftRef.current || selectedScope.suppressed || !selected) return
     setFailure(null)
     try { commit(editConfiguredUiOccurrence(current.current, JSON.parse(scopeRef.current), selected.id, change)); setMessage('Estado actualizado. Resuelve para comprobar sus relaciones.') }
     catch (reason) { error(reason) }
@@ -312,7 +318,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
     void buildConfiguredAssembly({ document: current.current, generation: captured.generation }).then(value => {
       if (!fresh(captured)) return
       if (!configuredUiSceneMatches(value, current.current, captured.generation)) throw Error('La escena no corresponde a la configuración actual.')
-      committedSceneRef.current = value; setScene(value); setMessage(value.referenceDiagnostics.length ? 'Hay referencias que necesitan reparación. La geometría disponible se conserva.' : 'Configuración lista.')
+      committedSceneRef.current = value; setScene(value); setMessage(value.referenceDiagnostics.length ? 'La geometría disponible se conserva.' : 'Configuración lista.')
     }).catch(reason => { if (fresh(captured)) { setScene(null); error(reason) } }).finally(() => { if (fresh(captured)) finish() })
   }, [serialized, generation])
   useEffect(() => {
@@ -572,6 +578,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
   const displayScene = useMemo(() => scene ? configuredUiDisplayScene(scene) : null, [scene])
   const totalMassKg = assemblyMassKg(document.source, displayScene, !busy && !failure && !preview && !!scene && configuredUiSceneMatches(scene, document, generation))
   const blocked = busy || !!preview || discardDialog
+  const occurrenceEditBlocked = blocked || !!mateDraft || selectedScope.suppressed
   const treeOriginRows = useMemo(() => buildAssemblyOriginTree(evaluation, []), [evaluation])
   const treeOriginSession = useMemo(() => ({}), [scene, generation, path, !!mateDraft, blocked, inspectorPane === 'model', navigationRevision])
   const treeOriginContext = { documentSignature: serialized, scopePath: selectedScope.path, sessionIdentity: treeOriginSession }
@@ -647,6 +654,13 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
     && !mateDraftRef.current && !matePickRef.current && !originPickRef.current && !newDocumentRequest.current
     && !newDocumentDialog.pending() && !answer.current && !!scene && scene === sceneRef.current
     && scene === committedSceneRef.current && configuredUiSceneMatches(scene, current.current, epoch.current)
+  const locateReferenceIssue = (diagnostic: ConfiguredReferenceDiagnostic) => {
+    if (!fresh(renderedTicket) || !contextSceneCurrent() || !scene?.referenceDiagnostics.includes(diagnostic)) return
+    const owner = JSON.stringify(diagnostic.scopePath)
+    changeScope(owner)
+    if (scopeRef.current !== owner) return
+    setRevealRequest({ id: 'configured-relations', relation: { scope: owner, generation, mateId: diagnostic.mateId } })
+  }
   const contextBase = (committed: ConfiguredAssemblyScene, point: { x: number; y: number }, element: HTMLElement,
     selection = { normal: normalSelection, origin: treeOriginSelection, bom: bomSelection }) =>
     ({ scene: committed, context: ticket(), evaluation, point: { ...point }, element, ...selection })
@@ -861,14 +875,16 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
         onImport={() => void previewOccurrence(true)} onReuse={() => void previewOccurrence()} />
 </div>
       <div data-configured-pane="occurrence" hidden={inspectorPane !== 'occurrence'}><h2>{selected?.name ?? 'Componente'}</h2>      <label>Ocurrencia<select aria-label="Ocurrencia configurada" disabled={blocked} value={occurrenceId} onChange={event => { if (!fresh(renderedTicket) || operation.current || pending.current) return; setBomSelection(null); setTreeOriginSelection(null); setNormalSelection(event.target.value ? nominateAssemblyNormalUnsupported(JSON.stringify(['component', scope, event.target.value]), normalViewContext) : nominateAssemblyNormalFace(null, null, true, normalViewContext, false)); occurrenceRef.current = event.target.value; setOccurrenceId(event.target.value); if (event.target.value) setRevealRequest({ id: 'configured-occurrence-inspector' }) }}><option value="">Selecciona una ocurrencia</option>{selectedScope.occurrences.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}</select></label>
-      {selected && <section id="configured-occurrence-inspector" tabIndex={-1} aria-label="Editar estado de ocurrencia"><p>{selectedScope.configuration === null ? 'Editando Base: los estados que heredan estos valores también cambian.' : 'Editando sólo la configuración ' + selectedScope.configuration + '. Los usos de esta misma variante comparten el cambio.'}</p>
-        <p>{selected.fixed ? 'Componente fijado respecto al padre.' : 'Componente libre respecto al padre.'} {selectedScope.configuration === null ? 'Fijar o liberar en Base afecta a los estados que heredan ese valor.' : 'Fijar o liberar afecta a todos los usos de esta misma definición y estado.'}</p>
-        <button disabled={blocked || !!mateDraft || !scene || selectedScope.suppressed || selected.suppressed} onClick={() => void previewOccurrence(false, !selected.fixed)}>{selected.fixed ? 'Vista previa de liberar componente' : 'Vista previa de fijar componente'}</button>
-        <fieldset disabled={blocked || !!mateDraft}><legend>Traslación local (mm)</legend>{['X', 'Y', 'Z'].map((axis, i) => <label key={axis}>{axis}<input aria-label={'Posición configurada ' + axis} type="number" step="any" value={pose[i]} onChange={event => { if (fresh(renderedTicket)) setPose(values => values.map((v, index) => index === i ? event.target.value : v)) }} /></label>)}</fieldset>
-        <label>Eje local de giro<select aria-label="Eje local de giro configurado" disabled={blocked || !!mateDraft} value={rotationAxis} onChange={event => { if (fresh(renderedTicket)) setRotationAxis(event.target.value as 'X' | 'Y' | 'Z') }}>{(['X', 'Y', 'Z'] as const).map(axis => <option key={axis} value={axis}>{axis}</option>)}</select></label><label>Giro incremental (grados)<input aria-label="Giro incremental configurado en grados" type="number" step="any" disabled={blocked || !!mateDraft} value={rotationDegrees} onChange={event => { if (fresh(renderedTicket)) setRotationDegrees(event.target.value) }} /></label>
-        <button disabled={blocked || !!mateDraft || pose.some(v => !v.trim()) || !rotationDegrees.trim()} onClick={() => { if (!fresh(renderedTicket) || operation.current || pending.current) return; try { edit({ pose: configuredUiPose(selected.pose, pose.map(Number), rotationAxis, Number(rotationDegrees)) }) } catch (reason) { error(reason) } }}>Actualizar posición del estado</button>
-        <label><input type="checkbox" aria-label="Ocurrencia configurada visible" disabled={blocked || !!mateDraft} checked={selected.visible} onChange={event => edit({ visible: event.target.checked })} />Visible</label><label><input type="checkbox" aria-label="Ocurrencia configurada suprimida" disabled={blocked || !!mateDraft} checked={selected.suppressed} onChange={event => edit({ suppressed: event.target.checked })} />Suprimida</label>
-        {evaluation.scopes.some(row => JSON.stringify(row.path) === JSON.stringify([...selectedScope.path, selected.id])) && <label>Configuración hija<select aria-label="Configuración hija de la ocurrencia" disabled={blocked || !!mateDraft || selectedScope.configuration === null} value={evaluation.scopes.find(row => JSON.stringify(row.path) === JSON.stringify([...selectedScope.path, selected.id]))?.configuration ?? ''} onChange={event => edit({ configuration: event.target.value || null })}><option value="">Base</option>{document.catalog.find(row => assemblyDefinitionKey(row.definition) === assemblyDefinitionKey(selected.definition))?.configurations.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}</select>{selectedScope.configuration === null && <small>Crea primero una configuración del padre para elegir una variante hija.</small>}</label>}
+      {selected && <section id="configured-occurrence-inspector" tabIndex={-1} aria-label="Editar estado de ocurrencia">
+        {selectedScope.suppressed ? <p>El ámbito está suprimido. Puedes consultar estas propiedades.</p>
+          : <p>{selectedScope.configuration === null ? 'Editando Base: los estados que heredan estos valores también cambian.' : 'Editando sólo la configuración ' + selectedScope.configuration + '. Los usos de esta misma variante comparten el cambio.'}</p>}
+        <p>{selected.fixed ? 'Componente fijado respecto al padre.' : 'Componente libre respecto al padre.'} {!selectedScope.suppressed && (selectedScope.configuration === null ? 'Fijar o liberar en Base afecta a los estados que heredan ese valor.' : 'Fijar o liberar afecta a todos los usos de esta misma definición y estado.')}</p>
+        <button disabled={occurrenceEditBlocked || !scene || selected.suppressed} onClick={() => void previewOccurrence(false, !selected.fixed)}>{selected.fixed ? 'Vista previa de liberar componente' : 'Vista previa de fijar componente'}</button>
+        <fieldset disabled={occurrenceEditBlocked}><legend>Traslación local (mm)</legend>{['X', 'Y', 'Z'].map((axis, i) => <label key={axis}>{axis}<input aria-label={'Posición configurada ' + axis} type="number" step="any" value={pose[i]} onChange={event => { if (fresh(renderedTicket)) setPose(values => values.map((v, index) => index === i ? event.target.value : v)) }} /></label>)}</fieldset>
+        <label>Eje local de giro<select aria-label="Eje local de giro configurado" disabled={occurrenceEditBlocked} value={rotationAxis} onChange={event => { if (fresh(renderedTicket)) setRotationAxis(event.target.value as 'X' | 'Y' | 'Z') }}>{(['X', 'Y', 'Z'] as const).map(axis => <option key={axis} value={axis}>{axis}</option>)}</select></label><label>Giro incremental (grados)<input aria-label="Giro incremental configurado en grados" type="number" step="any" disabled={occurrenceEditBlocked} value={rotationDegrees} onChange={event => { if (fresh(renderedTicket)) setRotationDegrees(event.target.value) }} /></label>
+        <button disabled={occurrenceEditBlocked || pose.some(v => !v.trim()) || !rotationDegrees.trim()} onClick={() => { if (!fresh(renderedTicket) || operation.current || pending.current) return; try { edit({ pose: configuredUiPose(selected.pose, pose.map(Number), rotationAxis, Number(rotationDegrees)) }) } catch (reason) { error(reason) } }}>Actualizar posición del estado</button>
+        <label><input type="checkbox" aria-label="Ocurrencia configurada visible" disabled={occurrenceEditBlocked} checked={selected.visible} onChange={event => edit({ visible: event.target.checked })} />Visible</label><label><input type="checkbox" aria-label="Ocurrencia configurada suprimida" disabled={occurrenceEditBlocked} checked={selected.suppressed} onChange={event => edit({ suppressed: event.target.checked })} />Suprimida</label>
+        {evaluation.scopes.some(row => JSON.stringify(row.path) === JSON.stringify([...selectedScope.path, selected.id])) && <label>Configuración hija<select aria-label="Configuración hija de la ocurrencia" disabled={occurrenceEditBlocked || selectedScope.configuration === null} value={evaluation.scopes.find(row => JSON.stringify(row.path) === JSON.stringify([...selectedScope.path, selected.id]))?.configuration ?? ''} onChange={event => edit({ configuration: event.target.value || null })}><option value="">Base</option>{document.catalog.find(row => assemblyDefinitionKey(row.definition) === assemblyDefinitionKey(selected.definition))?.configurations.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}</select>{selectedScope.configuration === null && <small>Crea primero una configuración del padre para elegir una variante hija.</small>}</label>}
       </section>}
 </div>
       <div data-configured-pane="relations" hidden={inspectorPane !== 'relations'}>      <section id="configured-relations" tabIndex={-1} className="configured-mate-list" role="region" aria-label="Relaciones del estado configurado"><h2>Relaciones del estado</h2>
@@ -877,7 +893,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
         <button disabled={blocked || !!mateDraft || !scene || selectedScope.suppressed} onClick={() => openRelationEditor(undefined, true)}>Nueva relación mecánica configurada</button>
         <button disabled={blocked || !!mateDraft || !scene || selectedScope.suppressed} onClick={() => openRelationEditor(undefined, false, true)}>Nueva relación compuesta configurada</button>
         {!effectiveMates.length && <p>No hay relaciones declaradas en este estado.</p>}
-        <ul>{effectiveMates.map(mate => { const unavailable = configuredMechanicalMate(mate) || configuredCompoundMate(mate) ? null : configuredMateEditUnavailable(mate); return <li key={mate.id} data-configured-mate-id={mate.id} data-configured-mate-type={mate.type} data-configured-mate-suppressed={String(mate.suppressed)}>
+        <ul>{effectiveMates.map(mate => { const unavailable = configuredMechanicalMate(mate) || configuredCompoundMate(mate) ? null : configuredMateEditUnavailable(mate); return <li key={mate.id} tabIndex={-1} data-configured-mate-id={mate.id} data-configured-mate-type={mate.type} data-configured-mate-suppressed={String(mate.suppressed)}>
           <strong>{mate.name}</strong><small>{mate.type}{mate.suppressed ? ' · suprimida' : ''}{mate.type === 'distance' ? ` · ${mate.distance} mm` : ''}{mate.type === 'angle' ? ` · ${mate.angle}°` : ''}</small>
           <button aria-label={`Editar relación configurada ${mate.name}`} title={unavailable ?? 'Editar referencias y parámetros'} disabled={blocked || !!mateDraft || !!unavailable || !scene || selectedScope.suppressed} onClick={() => openRelationEditor(mate)}>Editar</button>
           {mate.type === 'concentric' && mate.rotationLock === null && <button aria-label={`Bloquear giro de relación configurada ${mate.name}`} disabled={blocked || !!mateDraft || !scene || selectedScope.suppressed} onClick={() => openRelationEditor(mate, true)}>Bloquear giro</button>}
@@ -947,6 +963,9 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
       {preview && <p role="status">Vista previa verificada · todavía sin aplicar. {preview.states.length} estados resueltos; {preview.verification.reports.length} relaciones comprobadas.</p>}
       {scene && <p aria-label="Totales de configuración">{scene.scene.solidCount} sólidos · {scene.scene.volume.toFixed(3)} mm³ · {scene.scene.area.toFixed(3)} mm²</p>}
       {scene && <p aria-label="Masa del ensamblaje configurado">Masa: {totalMassKg === null ? 'sin definir' : `${totalMassKg.toLocaleString('es-ES', { maximumSignificantDigits: 8 })} kg`}</p>}
+      {!!scene?.referenceDiagnostics.length && scene === committedSceneRef.current && configuredUiSceneMatches(scene, document, generation)
+        && <ConfiguredAssemblyReferenceDiagnostics key={scene.scene.sceneId} diagnostics={scene.referenceDiagnostics}
+          evaluation={evaluation} disabled={contextBlocked} onLocate={locateReferenceIssue} />}
       <details className="configured-assembly-limit"><summary>Alcance de esta vista</summary><p>Edición de estados y relaciones con captura mecánica verificada, variantes y lista de materiales CSV. La reparación de orígenes, la exportación de geometría y el movimiento interactivo aún no están disponibles en esta vista.</p></details>
     </main></div>{bomOpen && <ConfiguredAssemblyBomPanel report={bom.report} error={bom.error} options={bomOptions} disabled={blocked || !!mateDraft} selectedPath={bomSelectedPath}
       rootConfigurationLabel={document.rootConfiguration === null ? 'Base' : `${rootVariants.find(value => value.id === document.rootConfiguration)?.name ?? document.rootConfiguration} · ${JSON.stringify(document.rootConfiguration)}`}

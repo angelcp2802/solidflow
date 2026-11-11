@@ -44,7 +44,9 @@ make the intended reference unique.
 
 While editing an operation, its reference fields own the selection mode and the
 browsing controls are disabled. Finish or cancel the operation before changing
-the ordinary filter. Wheel zoom and held-middle-button camera navigation keep
+the ordinary filter. In a sketch, Escape returns from the armed planar-face
+support picker to the current sketch with its tool and selection intact.
+Wheel zoom and held-middle-button camera navigation keep
 their existing controls; a dragged or canceled gesture does not become a click.
 Assembly browsing continues to select components; an armed relation field owns
 its face, edge, vertex or origin selection instead.
@@ -335,8 +337,10 @@ run. Consult [validation](VALIDATION.md) for actual execution and
 | Left click | Select the current body, component, face or edge picking target |
 
 Ctrl/Meta with the middle button also pans. Left dragging does not orbit.
-Canceled or dragged gestures do not select on release. Explicit component
-movement uses its own tool. Sketch editing retains 2D middle-button pan.
+Canceled or dragged gestures do not select on release. In the 3D part view,
+using the wheel while the left button is held cancels that pending click.
+Explicit component movement uses its own tool. Sketch editing retains 2D
+middle-button pan.
 
 ## Assembly priorities and current limits
 

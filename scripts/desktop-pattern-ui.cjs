@@ -80,6 +80,9 @@ const SCENARIOS = Object.freeze({
     test: 'production-renderer-part-auto-scope', caption: 'automatic scope discovery, pinned edits, explicit recapture and physical STEP notch' }),
   'part-instance-depth': Object.freeze({ instanceDepth: true, originalRecipe: 'desktop-part-instance-depth-original.cjs', entry: 'desktop-part-instance-depth.cjs',
     test: 'production-renderer-part-instance-depth', caption: 'addressed Blind depth assignment, edit cancellation, history and persistence' }),
+  'part-instance-depth-entities': Object.freeze({ instanceDepth: true, originalRecipe: 'desktop-part-instance-rectangle-original.cjs',
+    entry: 'desktop-part-instance-depth-entities.cjs', test: 'production-renderer-part-instance-depth-entities',
+    caption: 'addressed Blind depth on a solved entity sketch, history and persistence' }),
   'part-instance-radius': Object.freeze({ instanceDepth: true, instanceRadius: true, originalRecipe: 'desktop-part-instance-radius-original.cjs', entry: 'desktop-part-instance-radius.cjs',
     test: 'production-renderer-part-instance-radius', caption: 'real solved driving radius assignment, edit cancellation, history and persistence' }),
   'part-instance-rectangle': Object.freeze({ instanceDepth: true, instanceRectangle: true,
@@ -1331,12 +1334,21 @@ async function runInElectron() {
       clickCount: type === 'mouseMoved' ? 0 : clickCount, pointerType: 'mouse', modifiers,
     }); } finally { endTiming?.(); }
   };
-  const {cameraFrame,cameraGesture,rasterComparison}=require('./desktop-camera-input.cjs')({getWindow:()=>window,evaluate,check,digest,allowed:configuredComponents||normalToView||fromEmpty||partOperationAliases||shortcuts||mateReferenceEdit,allowFrameDiagnostics:mateReferenceEdit,allowRasterComparison:fromEmpty||partOperationAliases||shortcuts,allowPlaneDiagnostics:fromEmpty&&process.env.SOLIDFLOW_UI_PLANE_DIAGNOSTICS==='1'});
-  const wheel = async (point, deltaY) => {
+  const freshPartWheel = activeScenario === SCENARIOS['part-fresh-sketch'];
+  const {cameraFrame,cameraGesture,rasterComparison}=require('./desktop-camera-input.cjs')({getWindow:()=>window,evaluate,check,digest,allowed:configuredComponents||normalToView||fromEmpty||partOperationAliases||shortcuts||mateReferenceEdit||freshPartWheel,allowFrameDiagnostics:mateReferenceEdit,allowRasterComparison:fromEmpty||partOperationAliases||shortcuts,allowPlaneDiagnostics:fromEmpty&&process.env.SOLIDFLOW_UI_PLANE_DIAGNOSTICS==='1'});
+  const wheel = async (point, deltaY, buttons = 0) => {
     check((partExternalAxis || activeScenario.faceLimits || normalToView || fromEmpty || sketchPrimitives || limitDistance || freshSketch) && !window.isVisible() && window.webContents.debugger.isAttached()
       && Number.isFinite(point.x) && Number.isFinite(point.y) && point.x >= 0 && point.y >= 0
       && Number.isFinite(deltaY) && deltaY !== 0 && Math.abs(deltaY) <= 1000,
     'Expected a bounded actual wheel input in the hidden test-owned interval window.');
+    if (buttons !== 0) {
+      check(freshPartWheel && buttons === 1 && deltaY === -120 && await evaluate(`(() => {
+        const host=document.querySelector('.viewport-canvas[data-part-selection-mode="face"]');
+        const canvas=host?.querySelector('canvas:not([role="img"])');
+        return !!canvas && canvas.checkVisibility() && !document.querySelector('.property-manager,[role="dialog"],[role="menu"]')
+          && document.elementFromPoint(${point.x},${point.y})===canvas;
+      })()`), 'Held-left wheel input belongs to the original part browsing canvas');
+    }
     if (normalToView || sketchPrimitives || referenceRepair) {
       check(deltaY === -240 && await evaluate(`(() => {
         const svg=document.querySelector('svg[aria-label="Editor de croquis multientidad"]');
@@ -1344,7 +1356,7 @@ async function runInElectron() {
       })()`), 'Normal-view wheel input belongs to the original multientity sketch only');
     }
     await window.webContents.debugger.sendCommand('Input.dispatchMouseEvent', {
-      type: 'mouseWheel', x: point.x, y: point.y, deltaX: 0, deltaY, button: 'none', buttons: 0,
+      type: 'mouseWheel', x: point.x, y: point.y, deltaX: 0, deltaY, button: 'none', buttons,
       clickCount: 0, pointerType: 'mouse',
     });
   };
@@ -1367,12 +1379,14 @@ async function runInElectron() {
   // Physical keyboard events only, scoped to owned shortcuts and the fixed from-empty workflow.
   const shortcutKey = async (combo, beforeRepeat) => {
     check((embeddedPartEdit || normalToView || fromEmpty || shortcuts) && !window.isVisible() && window.webContents.debugger.isAttached(), 'Only fixed shortcut keys in owned hidden scenario');
-    if (beforeRepeat !== undefined) {
-      check(fromEmpty && combo === 'Z' && typeof beforeRepeat === 'function' && await evaluate(`(() => {
+    const unsupportedNew = combo === 'AltN' || combo === 'DualN';
+    if (beforeRepeat !== undefined || unsupportedNew) {
+      check(fromEmpty && (unsupportedNew ? process.platform === 'win32' && beforeRepeat === undefined
+        : combo === 'Z' && typeof beforeRepeat === 'function') && await evaluate(`(() => {
         const active = document.activeElement, trigger = 'nav.part-main-menus button[data-assembly-menu="file"][aria-expanded="false"]';
         return active?.matches(trigger) && document.querySelectorAll(trigger).length === 1
           && !document.querySelector('[role="menu"],[role="dialog"],.property-manager');
-      })()`), 'Held document Undo belongs to the closed File trigger in the owned from-empty part');
+      })()`), 'Held Undo or unsupported New chords require the closed File trigger in the owned from-empty part');
     }
     // Native editor commands belong only to the two original fixture fields
     // or one exact visible, focused creation/rename field in its actual modal.
@@ -1779,6 +1793,7 @@ async function runInElectron() {
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
     : freshSketch
     ? require(referenceRepair ? './desktop-part-reference-repair-flow.cjs' : './desktop-part-fresh-sketch-flow.cjs')({ expected, input, output, referenceRepairStepPath, evaluate, observe, waitFor, click, pointer, wheel, menu, menuKey, capturePartMenu, capture,
+      cameraFrame: freshPartWheel ? cameraFrame : undefined, waitForPresentation,
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, geometryExports }) })
     : partSequence
@@ -1787,6 +1802,7 @@ async function runInElectron() {
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
     : partThinWall
     ? thinWallScenarioFiles().workflow({ expected, input, output, evaluate, observe, waitFor, pointer, wheel, menuKey, capture,
+      workerGate: () => pendingWorker, waitForPresentation,
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
     : partExternalAxis
@@ -2087,6 +2103,10 @@ async function runInElectron() {
         }
         if (partAutoScope) {
           pendingWorker = require('./desktop-embedded-part-pending-observation.cjs').createPendingWorkerGate(this.webContents.debugger, check, 'auto-scope');
+          await pendingWorker.install();
+        }
+        if (activeScenario.faceLimits) {
+          pendingWorker = require('./desktop-embedded-part-pending-observation.cjs').createPendingWorkerGate(this.webContents.debugger, check, 'face-limits');
           await pendingWorker.install();
         }
         await this.webContents.debugger.sendCommand('Page.enable');

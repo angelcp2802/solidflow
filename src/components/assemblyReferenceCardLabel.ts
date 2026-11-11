@@ -1,5 +1,17 @@
 import { assemblyDefinitionKey, type AssemblyGeometryReference, type AssemblySphereTangentReference, type AssemblyTangentReference } from '../model/assemblyDocument'
+import type { AssemblyMateEndpointSide } from '../model/assemblyMateEndpoints'
 import type { AssemblyTreeRow } from './assemblyContextTarget'
+
+export const assemblyMateEndpointLabels: Readonly<Record<AssemblyMateEndpointSide, string>> = {
+  'axis-0': 'Eje A de bisagra', 'axis-1': 'Eje B de bisagra',
+  'axial-0': 'Plano axial A de bisagra', 'axial-1': 'Plano axial B de bisagra',
+  'angle-0': 'Plano angular A de bisagra', 'angle-1': 'Plano angular B de bisagra',
+  point: 'Punto material', path: 'Trayecto y origen material', up: 'Guía UP · cara plana material',
+  first: 'Referencia 1', second: 'Referencia 2', guide: 'Eje guía', carrier: 'Componente portador',
+  'width-0': 'Anchura · plano 1', 'width-1': 'Anchura · plano 2',
+  'tab-0': 'Pestaña · plano 1', 'tab-1': 'Pestaña · plano 2',
+  source: 'Origen', target: 'Destino', mirror: 'Plano de simetría',
+}
 
 type CardReference = AssemblyGeometryReference | AssemblyTangentReference | AssemblySphereTangentReference
 const samePath = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((id, index) => id === b[index])

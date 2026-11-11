@@ -529,9 +529,10 @@ export function extractRecipeClosure(features: readonly Feature[], rawRequest: R
         invalid('VARIATION_SKETCH', feature.id, 'variation.values', 'La variación requiere las cotas conductoras exactas de un círculo o rectángulo anclado en un corte o saliente ciego intrínseco sobre un cuerpo existente.');
       }
     }
+    const eligibleDepthSeed = depthValues !== null && isRecipeInstanceDepthSeed(feature, sketch);
     if (depthValues) {
-      if (!isRecipeInstanceDepthSeed(feature, sketch)) {
-        pending('VARIATION_PENDING', feature.id, 'variation', 'Per-instance depth requires an intrinsic one-direction Blind rectangular or circular cut or merge.');
+      if (!eligibleDepthSeed) {
+        pending('VARIATION_PENDING', feature.id, 'variation', 'Per-instance depth requires an intrinsic one-direction Blind cut or merge.');
       } else for (const row of depthValues) {
         if (!isRecipeInstanceDepth(row.value) || Math.sign(row.value) !== Math.sign(feature.depth)) {
           invalid('VARIATION_DEPTH', feature.id, 'variation.values', 'La profundidad por instancia debe estar entre 0,01 y 100.000 mm y mantener el sentido de la operación semilla.');
@@ -546,7 +547,7 @@ export function extractRecipeClosure(features: readonly Feature[], rawRequest: R
     if (sketch.profile.kind === 'entities') {
       // Declaration eligibility is not native authority. The evaluator must
       // obtain a current build-issued source solve before any native clone.
-      if (sketch.support || request.variation.kind !== 'none' && !sketchValues) pending('SOLVED_PROFILE_PENDING', sketch.id, 'profile', 'Associative or varying entity profiles need their instance solve contract.');
+      if (sketch.support || request.variation.kind !== 'none' && !sketchValues && !eligibleDepthSeed) pending('SOLVED_PROFILE_PENDING', sketch.id, 'profile', 'Associative or varying entity profiles need their instance solve contract.');
     }
     else if (sketch.profile.kind !== 'rectangle' && sketch.profile.kind !== 'circle') invalid('PROFILE_DECLARATION', sketch.id, 'profile', 'Unknown profile declaration.');
     if (!Number.isFinite(feature.depth) || Math.abs(feature.depth) < .01 || Math.abs(feature.depth) > 100_000 || typeof feature.symmetric !== 'boolean') invalid('EXTRUSION_PARAMETERS', feature.id, 'depth', 'Expected finite signed depth and an explicit symmetric flag.');

@@ -147,9 +147,13 @@ part-feature variants, and flexible instances. Incompatible legacy consumers
 continue rejecting v3. The configured view labels its unavailable operations;
 it must not substitute base-state results for the selected configuration.
 Suppressing a component used by an active relation can leave that relation
-unavailable. The relation list can explicitly suppress or remove it using a
-verified preview; native reference repair remains unavailable. Restore the
-component or explicitly change the relation before solving that state again.
+unavailable. Below the viewport, the current committed scene lists each
+unavailable reference by relation, selected scope, role, occurrence and
+reason. **Ir a relación** opens and focuses that relation in its declaring
+scope. This is inspection. The existing relation list can explicitly suppress
+or remove the relation through a verified preview. Restore the component or
+explicitly change the relation before solving that state again. Native
+reference repair remains unavailable.
 
 The [configured declaration BOM](ASSEMBLY_CONFIGURED_BOM.md) is now a separate
 committed-context consumer with variant grouping, explicit scope and CSV export.

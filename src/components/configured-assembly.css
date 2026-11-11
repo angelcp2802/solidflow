@@ -48,6 +48,14 @@
 .configured-assembly-limit { padding:4px 12px; font-size:11px; color:#63717c; background:#f6f8fa; }
 .configured-assembly-limit summary { cursor:pointer; }
 .configured-assembly-limit p { margin:5px 0; }
+.configured-reference-diagnostics { flex:none; padding:5px 12px; border-top:1px solid #d1b778; background:#fff8e8; color:#654a16; font-size:11px; }
+.configured-reference-diagnostics summary { width:fit-content; cursor:pointer; font-weight:600; }
+.configured-reference-diagnostics ul { list-style:none; max-height:18vh; overflow:auto; margin:5px 0 0; padding:0; }
+.configured-reference-diagnostics li { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:4px 0; overflow-wrap:anywhere; }
+.configured-reference-diagnostics small { display:block; font-size:inherit; }
+.configured-reference-diagnostics button { flex:none; }
+.configured-reference-diagnostics nav { display:flex; align-items:center; gap:8px; margin-top:5px; }
+.configured-mate-list li:focus { outline:2px solid #2877b4; outline-offset:-2px; }
 .configured-inspector-tabs { display:flex; align-items:center; gap:2px; position:sticky; top:0; z-index:2; margin:0 -12px 10px; padding:4px 7px; min-height:31px; background:#f0f3f6; border-bottom:1px solid #c5cfd8; }
 .configured-inspector-tabs button { display:grid; place-items:center; width:30px; height:27px; border-color:transparent; background:transparent; }
 .configured-inspector-tabs button[aria-pressed=true] { background:#fff; border-color:#b7c8d8; color:#1d6a9f; }

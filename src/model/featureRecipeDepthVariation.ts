@@ -23,5 +23,5 @@ export function isRecipeInstanceDepthSeed(seed: Feature | undefined, sketch: Fea
     && seed.symmetric === false && isRecipeInstanceDepth(seed.depth)
     && !Object.hasOwn(seed, 'endCondition') && !Object.hasOwn(seed, 'thinWall') && !Object.hasOwn(seed, 'secondDirection')
     && sketch?.type === 'sketch' && sketch.id === seed.sketchId && sketch.suppressed === false && !Object.hasOwn(sketch, 'support')
-    && (sketch.profile?.kind === 'rectangle' || sketch.profile?.kind === 'circle');
+    && (sketch.profile?.kind === 'rectangle' || sketch.profile?.kind === 'circle' || sketch.profile?.kind === 'entities');
 }

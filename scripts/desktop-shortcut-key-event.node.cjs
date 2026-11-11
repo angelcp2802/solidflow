@@ -51,6 +51,25 @@ test('held Undo rejects other commands and editable focus, and releases both key
     ['Control','rawKeyDown',undefined],['z','rawKeyDown',undefined],['z','keyUp',undefined],['Control','keyUp',undefined],
   ]);
 });
+test('unsupported Windows New chords press and release both physical modifiers',async()=>{
+  const control={key:'Control',code:'ControlLeft',windowsVirtualKeyCode:17};
+  for(const [combo,extra,modifiers] of [
+    ['AltN',{key:'Alt',code:'AltRight',windowsVirtualKeyCode:165,location:2},3],
+    ['DualN',{key:'Meta',code:'MetaLeft',windowsVirtualKeyCode:91,location:1},6],
+  ]){
+    const key={key:'n',code:'KeyN',windowsVirtualKeyCode:78,modifiers};
+    assert.deepEqual(await events(combo,'win32',false),[
+      {...control,type:'rawKeyDown',modifiers:2},
+      {...extra,type:'rawKeyDown',modifiers},
+      {...key,type:'rawKeyDown'},
+      {...key,type:'keyUp'},
+      {...extra,type:'keyUp',modifiers:2},
+      {...control,type:'keyUp',modifiers:0},
+    ]);
+    await assert.rejects(events(combo,'win32',true),/owned non-editable Windows focus/);
+    await assert.rejects(events(combo,'darwin',false),/owned non-editable Windows focus/);
+  }
+});
 test('select-all without owned editable focus and unknown keys dispatch nothing',async()=>{
   const sent=[];const options={platform:'darwin',editable:false,send:async event=>sent.push(event)};
   await assert.rejects(dispatchShortcutKey('A',options),/owned editable/);

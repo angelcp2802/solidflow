@@ -126,10 +126,11 @@ interaction or worker preview/Apply coverage.
 
 ## Depth per instance
 
-One intrinsic rectangular or circular Blind cut or merge can assign a different
-depth to each active copy under `regenerate/selected`. The seed has one direction
-and no symmetric depth, support, thin wall or end-condition field. The saved
-`variation` changes from `{ kind: 'none' }` to an explicit table.
+One intrinsic Blind cut or merge with a primitive rectangle or circle, or with a
+closed, solved entity profile, can assign a different depth to each active copy
+under `regenerate/selected`. The seed has one direction and no symmetric depth,
+support, thin wall or end-condition field. The saved `variation` changes from
+`{ kind: 'none' }` to an explicit table.
 
 ```ts
 variation: {
@@ -150,17 +151,27 @@ the seed, method or scope requires clearing the table first. A later seed change
 that makes the depth ineligible gives a rebuild diagnostic. It leaves the saved
 values available for repair. Existing files with `none` keep their meaning.
 A reader from before this feature rejects the new table.
+The entity extension reuses the same table. An earlier evaluator that supports
+the table still reports the entity seed as ineligible during rebuild.
 
 The evaluator folds the table and exact seed definitions into its current
 fingerprint, maps depth with the existing frame and parity rules, and constructs
-a native tool against each progressive owner. The existing proposal and atomic
+a native tool against each progressive owner. With an entity sketch, each
+tool uses the same current build-issued source solve and placement frame.
+The depth assignment changes only extrusion length and keeps the solved
+section, including its contours and holes. The existing proposal and atomic
 catalog publication guards still apply. The table carries no native authority.
 Dynamic ALL and AUTO, sketch constraints, equations and other depth and end
 policies retain their separate requirements.
 
 The [original plate fixture](PROVENANCE.md#original-addressed-depth-fixtures)
 has four physical pocket floors. Swapping two depths preserves total volume and
-area while moving the two corresponding floors.
+area while moving the two corresponding floors. The anchored entity rectangle
+uses the same physical floor checks. A circular merge additionally verifies
+a driving radius that differs from its nominal saved radius. The annular cut
+checks both contours with material probes. The desktop route
+`npm run test:desktop:part-instance-depth` exercises the primitive and solved
+rectangle cases with 84 checks each, including save and reopen.
 
 ## Driving sketch radius per instance
 

@@ -1,5 +1,169 @@
 # Validation
 
+## Live draft replies while picking an end face — Windows, 2026-11-11
+
+The [original face-limit fixture](PROVENANCE.md#original-viewport-face-limit-inputs--2026-10-29)
+supplies the saved direction 2 target and the inward cap at z −3 mm.
+An initial paired trial paused a superseded build. It passed with the
+renderer still reconstructing at release, so it did not exercise a live
+draft publication.
+
+The next paired trial let the exact source prefix and superseded draft
+finish. It then paused the matching current draft at the production worker's
+message callback. With the original product, the control accepted the
+inward face when this reply settled before the press. The overlap rejected
+it when the same reply completed and the renderer returned to editing
+between press and release. Both trusted endpoints reached the same canvas
+with the same bounds and armed direction 2. The exact inward face was ready
+at pointer-down. The prior macOS observation remains a separate result.
+
+The corrected run accepts both timings and produces the same direction 2
+reference and 1,320 mm³ boss. The existing Cancel, history, source-plane
+motion and saved reopen checks still run. In a separate held input, Enter
+switches the active picker to direction 1. The original direction 2 release
+leaves direction 1 armed and sends no CAD request or recovery update.
+The final face route passed 245 checkpoints, 20 native-build phases and
+seven rejection cases. All five renderer routes closed their child normally
+and cleaned up their isolated temporary files. These are local Windows
+production-renderer results with test-owned file-dialog selections.
+
+| Local check | Result | Raw log SHA-256 |
+| --- | --- | --- |
+| Original, superseded reply trial | Inconclusive for current replies | `3191cea459ff23b10464ae9bd46d0880b712977955c82a34868f763dbffb7325` |
+| Original, current reply trial | Reproduced lost click on overlap | `57f85d367331fd7e63bafb20fa6df5eebd51652c974a1038353c40713da5f6d5` |
+| Build | PASS | `7b06d637439406f7aa11ef631eb9be70fd89dd4946b7f034440c03c80107e18d` |
+| Face limits | PASS, 245 | `ecc9448c040436d352202289dac82cd4a53a317cb44b74c8ab23929eb2e04732` |
+| Fresh sketch | PASS, 93 | `09e5b6a48510c4621a9d839f6eeb7851ffb1fd652ef73674be4853db37087360` |
+| External axis | PASS, 109 | `d9e6d0b90938f45d9c5a67dabb01ab8b4cee319c121b5009416d09a7e7f6872b` |
+| Reference repair | PASS, 139 | `9a56fa72359b16bbbd6014d78ddf5fdcfac4a8f3679ea27101ac3dc68354b9f7` |
+| Automatic scope | PASS, 134 | `5f8d220df0df8b0a6e66ce2a6ff832b59c7201b72f8ea3f30ed23a4db51a6f86` |
+
+## Packaged 0.22.0 on Windows — 2026-11-11
+
+Draft PR #49 publishes commit `5860dc9b0849223cec8bdc76c299d6b0d6a4ca8e`.
+Its [CI merge](https://github.com/angelcp2802/solidflow/actions/runs/42996220437)
+and local frozen source `02cd62547622d2b0ed5395f344ab1345b3646cff` share tree
+`c91b985734277fe9e24c56457a594fb8f4b27b8e`. All 122 local Windows commands
+passed, including build, 11,493 unit and CAD tests, 226 IPC checks with two
+explicit skips, and desktop startup. The independent terminal audit rehashed
+each command log, 1,584 tracked inputs, nine production members and eleven
+selected dependency files.
+
+The Windows x64 prototype's executable SHA-256 is
+`f1791aee49f974c96e538fea6d0545ecc211cd197d5b1ca04fdf85dcc853efbf` and its
+ASAR SHA-256 is
+`d097539f8130e50581692da08107d93f163ec003cf4d827bfd2ba81f2137ca3e`.
+Independent package and REA checks verified the production members and all
+5,276 archive files. The verified local shortcut opens the original part with a
+separate desktop profile. The guide includes original part, assembly and STEP
+examples.
+
+In the packaged window, changing one merged boss width from 1 to 2 mm
+preserved its 3 mm height. The saved copy reopened at 813 mm³, up from 810 mm³.
+An independent STL read measured 813 mm³ and 626 mm² and verified the three
+footprint positions. The configured assembly test exercised save-before-New,
+native Save cancellation and retry, cancellation of Open after Save, reopening
+the saved copies, and fresh-process recovery of a separate three-solid variant.
+The earlier v2 three-plate document reopened with its original displayed
+volume and mass.
+
+The [0.22 Security run](https://github.com/angelcp2802/solidflow/actions/runs/42996220682)
+passed both jobs. A separate audit of the exact candidate lockfile reported
+zero high or critical findings and six moderate development-toolchain findings.
+The [preceding 0.21 CI run](https://github.com/angelcp2802/solidflow/actions/runs/42988456550)
+passed all 15 jobs, including Windows, macOS and Linux packaging. The Windows
+0.22 artifact is the locally unpacked application. The recurring hosted,
+installed-platform and human acceptance requirements remain open.
+
+## Compatible type changes in configured relations — Windows, 2026-11-11
+
+The [original configured component assembly](../scripts/desktop-assembly-configured-components-original.cjs)
+opens a coincidence from the root XY origin and selects the XY plane of
+`left/anchor` as its second reference. With the regression added, the original
+0.23 production renderer fails when **Distancia** clears both ordered planes.
+
+The corrected compact renderer keeps the same planes, draft name, history,
+recovery and file identity through the type change. It verifies one private
+zero-distance preview in the same root state, with the exact ordered endpoints
+and the original placed geometry. Cancel leaves the committed document intact.
+Switching back to **Coincidencia** keeps both planes and removes the distance
+parameter. The existing coincidence Apply/history route then continues.
+
+The build passed and four focused unit files passed 55 cases. These include
+an incompatible role, a stale source revision and an ambiguous choice.
+The compact configured component route passed 313 checkpoints. Configured
+viewport picking passed 195 in the regular layout and 198 in the compact
+layout. All three closed their isolated child normally and removed its
+temporary files. They use test-owned file-dialog selections. Installed
+packages and other systems have separate acceptance.
+
+| Local check | Raw log SHA-256 |
+| --- | --- |
+| Original implementation with the regression | `aaae42bdf75fe3f04e724f0093ed071a09a4531fe2dd48c0991dff276ebf9af2` |
+| Build | `fe0cd393f2470ba5183703b40abbaef3aed7834698d47a3c849ffff8cf0238b4` |
+| Focused unit tests | `df6ec7f59690904e1a2402fbf553266e28eed528c3c6a1a750af7fd2c93a7d12` |
+| Compact configured component renderer | `967a68b36b184d05b535229e8fae1d38ee6b1989b0ca0c3a66617d511b7e89b4` |
+| Regular configured picking | `e789525709d4b58125c76bfddeef5da078b2deaf74503c521567fc111df15ef3` |
+| Compact configured picking | `20b34c3a82e03f416b85f8a03a5eac8005dc1d0632847c5428fd663526ebddbf` |
+
+## Properties inside a suppressed configured scope — Windows, 2026-11-11
+
+The [original two-prism assembly](../scripts/desktop-assembly-configured-components-original.cjs)
+uses the same intrinsic state for two nested occurrences. Suppressing the left
+owner leaves the right prism visible, at bounds [20, 0, 0] to [22, 3, 4] mm.
+With the added regression and the original 0.23 implementation, the compact
+renderer reached the suppressed left occurrence's Properties and failed on
+its enabled edit controls.
+
+The corrected compact route opens **Propiedades** through the actual component
+context. The inspector receives focus and its edit controls are disabled. A
+hit-tested click on **Visible** preserves the committed document, history,
+recovery, file identity and existing native scene. The same click through the
+active right owner changes its visibility. Undo restores the original right
+prism bounds within 1e-6 mm. The focused declaration test also reactivates a
+directly suppressed child through its active parent.
+
+The build passed and three focused unit files passed 60 cases. The compact
+`test:desktop:assembly-configured-components` and regular
+`test:desktop:assembly-configurations` routes passed 300 and 231 checkpoints
+respectively, with normal child close and isolated temporary cleanup.
+The renderer uses test-owned file-dialog selections and CDP input. Installed
+packages and other systems have separate acceptance.
+
+| Local check | Raw log SHA-256 |
+| --- | --- |
+| Original implementation with the regression | `59a1a332ecb4bea344ad9222f1fbcb0bcbdd831e1eba02a89029d03920537b9c` |
+| Build | `3c252aba094279deff77e3f05328acd86679757bfb368dedf9b88b13ba0193fa` |
+| Focused unit tests | `7456a30ef067f7946848e592393b212065491c5adca71dd6a5b90174b1dd7e96` |
+| Configured component renderer | `1c009441344c0fa51c8a5653253c4e7b2ac8d0c2af7dde84c0243a6b497bff64` |
+| Configured persistence renderer | `67ebe4a49df367ac687228faccb8606c56296a3fcec5847cfe282fccf939d245` |
+
+## Configured reference details and navigation — Windows, 2026-11-11
+
+The [original four-prism assembly](PROVENANCE.md#original-persisted-configuration-contexts)
+reports one unavailable reference in **Right single**. The selected child
+state suppresses `right/b` and retains the active distance relation to its
+YZ plane. The actual scene retains three solids, 58 mm³ and 138 mm².
+
+The production renderer opens the diagnostic details and chooses **Ir a
+relación** with hit-tested CDP pointer input. It focuses the exact right
+scope's active relation and preserves recovery, history and file state.
+The existing verified suppression preview clears the issue privately.
+Cancel restores the same committed document and diagnostic. **Right compact**
+restores four solids and clears the stale warning. No fixture bytes were added
+or changed.
+
+The build passed. Five focused unit files passed 124 cases. The existing
+`test:desktop:assembly-configurations` route passed 231 checkpoints, with
+normal child close and isolated temporary cleanup. This is a local production
+renderer run. Installed packages and other systems have separate acceptance.
+
+| Local check | Raw log SHA-256 |
+| --- | --- |
+| Build | `f36857a7e484564616cf1836234126a2a29a3c4d1a970f810bcd350bf45238cd` |
+| Focal unit tests | `5b29effff87acb762f1896c45eaa28e0dbb7118906868242757ce117f29a7ec9` |
+| Configured persistence renderer | `5a755c5806068c160813c17d48d9923f64328fe01ca988b4167b1de0fa4c4b69` |
+
 ## Hosted Windows persistence job limit
 
 In the [0.21.0 Windows persistence job](https://github.com/angelcp2802/solidflow/actions/runs/42983244610/job/130398335384),

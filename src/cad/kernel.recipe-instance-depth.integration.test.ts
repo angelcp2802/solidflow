@@ -1,12 +1,12 @@
 import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import initOpenCascade from 'replicad-opencascadejs';
-import { measureShapeSurfaceProperties, measureShapeVolumeProperties, setOC, type Shape3D } from 'replicad';
+import { makeBox, measureShapeSurfaceProperties, measureShapeVolumeProperties, setOC, type Shape3D } from 'replicad';
 import { beforeAll, expect, it } from 'vitest';
 import { addFeature, DocumentHistory, parseDocument, serializeDocument, updateFeature, validateDocument, type Document } from '../model/document';
 import { withFeaturePatternInstanceDepth } from '../model/featurePatternCommands';
 import { createStepSource } from '../model/stepSource';
-import { NativeBodyCatalog, validateBodyShape } from './kernel.bodies';
+import { bodyBoolean, NativeBodyCatalog, validateBodyShape } from './kernel.bodies';
 import { CadEngine } from './kernel.engine';
 import { withNativeOwners } from './kernel.native-ownership';
 import { importStepSolid } from './kernel.step';
@@ -15,6 +15,8 @@ import type { BodyReference, LinearPatternFeature, RepetitionFeature, Vec3 } fro
 const require = createRequire(import.meta.url);
 beforeAll(async () => setOC(await initOpenCascade({ wasmBinary: await readFile(require.resolve('replicad-opencascadejs/wasm')) })), 60_000);
 const original = () => validateDocument(require('../../scripts/desktop-part-instance-depth-original.cjs')());
+const solvedRectangle = () => validateDocument(require('../../scripts/desktop-part-instance-rectangle-original.cjs')());
+const rectangularProfiles = [['primitive', original], ['entities', solvedRectangle]] as const;
 const seed: BodyReference = { bodyId: 'plate-body', sourceFeatureId: 'pocket' };
 const output: BodyReference = { bodyId: seed.bodyId, sourceFeatureId: 'depth-pattern' };
 function common(owner: BodyReference) {
@@ -81,8 +83,8 @@ function horizontalFaces(shape: Shape3D, centres: Vec3[], area: number): void {
   });
 }
 
-it('rebuilds addressed pockets, distinguishes equal-volume edits, and reimports STEP with literal floor positions', () => fixture(async engine => {
-  const before = original(), pattern = linearDepths(-2, -3);
+it.each(rectangularProfiles)('rebuilds addressed %s pockets, distinguishes equal-volume edits and checks STEP floors', (_kind, originalDocument) => fixture(async engine => {
+  const before = originalDocument(), pattern = linearDepths(-2, -3);
   const saved = addFeature(before, pattern), history = new DocumentHistory(saved);
   const box: [Vec3, Vec3] = [[0, 0, 0], [20, 8, 5]];
   const floors: Vec3[] = [[3, 4, 4], [8, 4, 3], [13, 4, 2], [18, 4, 4]];
@@ -107,8 +109,8 @@ it('rebuilds addressed pockets, distinguishes equal-volume edits, and reimports 
   });
 }), 60_000);
 
-it('uses the physical downward ray after reflection and preserves the original seed depth', () => fixture(engine => {
-  const before = original();
+it.each(rectangularProfiles)('uses the physical downward ray for reflected %s pockets', (_kind, originalDocument) => fixture(engine => {
+  const before = originalDocument();
   const profile = before.features[0];
   if (profile.type !== 'sketch' || profile.profile.kind !== 'rectangle') throw Error('Original rectangle required');
   profile.profile.center = [0, 4];
@@ -119,13 +121,18 @@ it('uses the physical downward ray after reflection and preserves the original s
   horizontalFaces(shape, [[3, 4, 4], [-3, 4, 2]], 4);
 }), 60_000);
 
-it('applies a positive depth to a circular instance of a merge, with unchanged seed cap', () => fixture(engine => {
+it.each(['circle', 'entities'] as const)('applies positive depth to a circular instance of a %s merge', kind => fixture(engine => {
   const before = original(), [profile, base, cap] = before.features;
   if (profile.type !== 'sketch' || base.type !== 'extrude' || cap.type !== 'sketch') throw Error('Original prefix required');
   profile.profile = { kind: 'rectangle', center: [0, 0], width: 8, height: 8 };
   base.depth = 2;
   cap.offset = 2;
-  cap.profile = { kind: 'circle', center: [2.5, 0], radius: 1 };
+  cap.profile = kind === 'circle' ? { kind: 'circle', center: [2.5, 0], radius: 1 } : {
+    kind: 'entities', points: [{ id: 'center', x: 2.5, y: 0 }],
+    entities: [{ id: 'circle', type: 'circle', center: 'center', radius: .8, construction: false }],
+    constraints: [{ id: 'fixed-center', type: 'fix', pointId: 'center', x: 2.5, y: 0 },
+      { id: 'driving-radius', type: 'radius', entityId: 'circle', value: 1 }],
+  };
   const seedCap = { bodyId: 'plate-body', sourceFeatureId: 'cap' };
   before.features[3] = { type: 'extrude', id: 'cap', name: 'Original merged cap', suppressed: false, sketchId: cap.id,
     depth: 1, symmetric: false, bodyOperation: { mode: 'merge', target: { bodyId: 'plate-body', sourceFeatureId: 'plate' } } };
@@ -137,8 +144,42 @@ it('applies a positive depth to a circular instance of a merge, with unchanged s
   horizontalFaces(shape, [[2.5, 0, 3], [-2.5, 0, 4]], Math.PI);
 }), 60_000);
 
-it('retains the exact prior material when a late varied pattern address misses the owner', () => fixture(engine => {
-  const before = original();
+it('preserves both contours of an annular entity profile at different depths', () => fixture(engine => {
+  const before = original(), sketch = before.features[2];
+  if (sketch.type !== 'sketch') throw Error('Original profile required');
+  sketch.profile = {
+    kind: 'entities',
+    points: [{ id: 'center', x: 3, y: 4 }],
+    entities: [
+      { id: 'outer', type: 'circle', center: 'center', radius: 2, construction: false },
+      { id: 'inner', type: 'circle', center: 'center', radius: 1, construction: false },
+    ],
+    constraints: [],
+  };
+  const pattern = linear();
+  pattern.first.count = 3;
+  const varied = withFeaturePatternInstanceDepth(withFeaturePatternInstanceDepth(pattern, '1,0', -2), '2,0', -3);
+  const saved = parseDocument(serializeDocument(addFeature(before, varied)));
+  const shape = healthy(engine, saved);
+  metrics(shape, 800 - 18 * Math.PI, 600 + 36 * Math.PI, [[0, 0, 0], [20, 8, 5]]);
+  withNativeOwners(owners => {
+    // Probe a material island inside the inner contour, an annular gap above
+    // each floor, and intact material beneath that same gap.
+    const probes: [Vec3, number][] = [
+      [[3, 4, 4.5], .001], [[8, 4, 3.5], .001], [[13, 4, 2.5], .001],
+      [[4.5, 4, 4.5], 0], [[9.5, 4, 3.5], 0], [[14.5, 4, 2.5], 0],
+      [[4.5, 4, 3.5], .001], [[9.5, 4, 2.5], .001], [[14.5, 4, 1.5], .001],
+    ];
+    for (const [center, volume] of probes) {
+      const cube = owners.own(makeBox(center.map(value => value - .05) as Vec3, center.map(value => value + .05) as Vec3));
+      const common = owners.own(bodyBoolean('common', shape, cube));
+      near(owners.own(measureShapeVolumeProperties(common)).volume, volume, 1e-8);
+    }
+  });
+}), 60_000);
+
+it.each(rectangularProfiles)('retains the prior %s body after a late varied instance misses', (_kind, originalDocument) => fixture(engine => {
+  const before = originalDocument();
   const initial = engine.build(before.features);
   const operation = linearDepths(-2, -3);
   if (operation.type !== 'linearPattern') throw Error('Original linear pattern required');

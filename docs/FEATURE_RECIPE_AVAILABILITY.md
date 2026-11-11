@@ -26,8 +26,9 @@ eligibility helper; it does not normalize saved fields.
 
 Depth and sketch dimension assignments keep the explicit
 clear-before-scope-change contract. The [anchored rectangle extension](FEATURE_REGENERATION.md#driving-rectangle-dimensions-per-instance)
-adds width and height for the stated Blind cut. Angle, equation and other
-drivers retain their separate requirements.
+adds width and height for the stated Blind cut or merge. The depth table
+also applies to a closed, solved entity profile, retaining that source section.
+Angle, equation and other drivers retain their separate requirements.
 
 ## Selection and repair
 

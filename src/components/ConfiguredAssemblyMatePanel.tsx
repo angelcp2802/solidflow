@@ -7,6 +7,7 @@ import { assemblyDirectionMateObjective, assemblyDirectionReferenceKind } from '
 import { assemblySceneFaceReference, assemblySceneEdgeReference, assemblySceneCylinderSurfaceReference, assemblySceneSphereSurfaceReference } from '../cad/kernel.assembly-types'
 import type { ConfiguredAssemblyScene } from '../cad/kernel.assembly-configuration-scene'
 import { configuredUiSceneMatches, configuredUiDisplayScene } from './configuredAssemblyUi'
+import { isAssemblyOrdinaryCreationType } from './assemblyRelationDefaults'
 
 const families = {
   distance: 'Distancia', coincident: 'Coincidencia', parallel: 'Paralela', perpendicular: 'Perpendicular', angle: 'Ángulo', concentric: 'Concéntrica sin bloqueo de giro',
@@ -76,6 +77,21 @@ export function configuredMateUiRoleChoices(draft: ConfiguredMateDraft, slot: nu
     return direction(r)
   })
 }
+/** Binary roles keep their order across ordinary types when the exact choice is current. */
+export function configuredMateUiChangeType(draft: ConfiguredMateDraft, type: ConfiguredEditableMateType,
+  choices: readonly ConfiguredMateUiChoice[]): ConfiguredMateDraft {
+  if (draft.editing || draft.type === type) return draft
+  const next = { ...configuredMateUiDraft(draft.id), type, name: draft.name }
+  if (!isAssemblyOrdinaryCreationType(draft.type) || !isAssemblyOrdinaryCreationType(type)) return next
+  next.references = next.references.map((_, slot) => {
+    const reference = draft.references[slot]
+    if (!reference) return null
+    const key = referenceKey(reference)
+    const matches = configuredMateUiRoleChoices(next, slot, choices).filter(choice => choice.key === key)
+    return matches.length === 1 ? structuredClone(matches[0].reference) : null
+  })
+  return next
+}
 /** Exact current scene nominees only. Native purpose/incidence is checked later. */
 export function configuredMateUiChoices(document: AssemblyConfiguredDocument, scene: ConfiguredAssemblyScene | null, generation: number, scopePath: string[]): ConfiguredMateUiChoice[] {
   if (!scene || !configuredUiSceneMatches(scene, document, generation)) return []
@@ -128,7 +144,7 @@ export default function ConfiguredAssemblyMatePanel(props: { draft: ConfiguredMa
   let reason = ''; try { configuredMateUiProposal(draft, props.choices) } catch (error) { reason = error instanceof Error ? error.message : 'Completa las referencias y parámetros.' }
   const numeric = (label: string, key: 'value' | 'minimum' | 'maximum' | 'start' | 'sweep') => <label>{label}<input type="number" step="any" aria-label={label} value={draft[key]} disabled={disabled} onChange={e => change({ [key]: e.target.value })} /></label>
   return <section className="configured-mate-editor" role="region" aria-label="Editar relación del estado">
-    <label>Tipo<select aria-label="Tipo de relación configurada" value={draft.type} disabled={disabled || draft.editing} onChange={e => change({ ...configuredMateUiDraft(draft.id), type: e.target.value as ConfiguredEditableMateType, name: draft.name })}>{Object.entries(families).map(([value, name]) => <option key={value} value={value}>{name}</option>)}</select></label>
+    <label>Tipo<select aria-label="Tipo de relación configurada" value={draft.type} disabled={disabled || draft.editing} onChange={e => change(configuredMateUiChangeType(draft, e.target.value as ConfiguredEditableMateType, props.choices))}>{Object.entries(families).map(([value, name]) => <option key={value} value={value}>{name}</option>)}</select></label>
     {draft.type === 'symmetry' && <label>Familia<select aria-label="Familia de simetría configurada" value={draft.entityKind} disabled={disabled} onChange={e => change({ entityKind: e.target.value as ConfiguredMateDraft['entityKind'], references: [null, null, null] })}>{['point', 'line', 'plane', 'sphere', 'cylinder'].map(kind => <option key={kind}>{kind}</option>)}</select></label>}
     {draft.type === 'hinge' && <label><input type="checkbox" aria-label="Limitar giro de bisagra configurada" checked={draft.limited} disabled={disabled} onChange={e => change({ limited: e.target.checked, references: draft.references.slice(0, 4), start: '', sweep: '' })} />Limitar giro</label>}
     {configuredMateUiRoleLabels(draft).map((label, slot) => { const list = configuredMateUiRoleChoices(draft, slot, props.choices), selected = draft.references[slot], key = selected ? referenceKey(selected) : '', found = list.some(value => value.key === key); return <div key={slot}><label>{label}<select aria-label={`${label} de relación configurada`} disabled={disabled} value={found ? key : selected ? 'retained' : ''} onChange={e => { const refs = [...draft.references]; refs[slot] = list.find(value => value.key === e.target.value)?.reference ?? null; change({ references: refs }) }}>

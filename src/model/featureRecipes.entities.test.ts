@@ -51,6 +51,18 @@ it('retains associative sketch/plane diagnostics for a saved datum support', () 
   expect(closure.diagnostics.map(item => item.code)).toEqual(expect.arrayContaining(['ASSOCIATIVE_SKETCH_PENDING', 'ASSOCIATIVE_PLANE_PENDING', 'SOLVED_PROFILE_PENDING']));
   expect(() => requireInitialRecipeDeclaration(closure)).toThrow();
 });
+it('extracts an entity Blind depth table as placement without substituting saved coordinates for the solved profile', () => {
+  const { features, request } = fixture(), seed = features[3];
+  if (seed.type !== 'cut') throw new Error('Original cut required.');
+  delete seed.endCondition;
+  request.variation = { kind: 'dimensions', values: [{ address: '1,0', featureId: 'seed', parameter: 'depth', value: 2 }] };
+  const closure = requireInitialRecipeDeclaration(extractRecipeClosure(features, request));
+  const placement = intrinsicProfileInstancePlacement(closure, 'seed', '1,0');
+  expect(placement).toMatchObject({ signedDepth: 2, termination: { kind: 'blind', signedDepth: 2, symmetric: false } });
+  expect(Object.hasOwn(placement, 'profile')).toBe(false);
+  expect(() => fixedProfileInstanceInput(closure, 'seed', '1,0')).toThrow('unsolved entity');
+});
+
 it('retains variation diagnostics rather than treating varied entities as fixed replay', () => {
   const { features, request } = fixture();
   request.variation = { kind: 'dimensions', values: [{ address: '1,0', featureId: 'seed', parameter: 'depth', value: 2 }] };

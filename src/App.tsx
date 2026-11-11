@@ -739,12 +739,14 @@ export function PartWorkspace({ initialDocument, initialPath, initialSaved, skip
     pickingHole
       ? sourceModel
       : model;
+  const visibleSelection = pickingFinish || pickingFaceOperation && !pickingSupport
+    ? sourceOperationDtos : visibleBase === sourceModel ? sourceSelectionDtos : modelSelectionDtos;
+  // An offscreen draft reply must not replace the presented source frame
+  // while an end face or another source reference owns the pointer.
   const visibleModel = useMemo(() => {
     if (!visibleBase) return null;
-    const selection = pickingFinish || pickingFaceOperation && !pickingSupport
-      ? sourceOperationDtos : visibleBase === sourceModel ? sourceSelectionDtos : modelSelectionDtos;
-    return { ...visibleBase, faces: selection.faces, edges: selection.edges };
-  }, [visibleBase, pickingFinish, pickingFaceOperation, pickingSupport, sourceOperationDtos, sourceModel, sourceSelectionDtos, modelSelectionDtos]);
+    return { ...visibleBase, faces: visibleSelection.faces, edges: visibleSelection.edges };
+  }, [visibleBase, visibleSelection]);
   const propertiesGeometry = ready && !busy && !error && !editing && !stagedSketch && !sourceLoading
     && builtFeatures === doc.features && model && !model.featureErrors.length ? model : null;
   const massKg = partMassKg(doc, { model, builtFeatures, busy, sourceLoading, editing: !!editing, staged: !!stagedSketch });
@@ -2532,7 +2534,8 @@ export function PartWorkspace({ initialDocument, initialPath, initialSaved, skip
         !!e.target.closest("input,textarea,select,[contenteditable='true']");
       if (namedViews.isOpen) return;
       const modified = e.ctrlKey || e.metaKey, key = e.key.toLowerCase();
-      const documentShortcut = modified && ["s", "o", "n", "z", "y"].includes(key);
+      const documentShortcut = modified && !e.altKey && !(e.ctrlKey && e.metaKey)
+        && ["s", "o", "n", "z", "y"].includes(key);
       const requestedView = viewShortcutCommand(e, input);
       if (shell.current?.querySelector('[role="menu"]')) {
         if (documentShortcut || requestedView || (!input && !modified && e.key === "Delete")) e.preventDefault();
@@ -2550,11 +2553,12 @@ export function PartWorkspace({ initialDocument, initialPath, initialSaved, skip
           }
           e.preventDefault();
         }
-        if (
-          modified &&
-          ["n", "o", "s"].includes(key)
-        )
-          e.preventDefault();
+        if (documentShortcut && ["n", "o", "s"].includes(key)) e.preventDefault();
+        return;
+      }
+      if (e.key === "Escape" && editing?.type === "sketch" && pickingSupport) {
+        e.preventDefault();
+        setPickingSupport(false);
         return;
       }
       if (

@@ -12,6 +12,11 @@ revision and effective configuration. A stale or suppressed scope cannot accept
 an edit. Changes to a shared definition/state affect every use selecting that
 same intrinsic state; selecting one displayed instance does not isolate it.
 
+**Propiedades** remains available for inspection within a suppressed scope.
+Its pose, visibility, suppression and child-state controls are read-only
+there. Edit the occurrence from an active use of that state. When the parent
+scope is active, a directly suppressed child can still be reactivated there.
+
 - **Base insertion:** the new occurrence is active in Base and inherited by
   existing named states. Existing overrides remain intact.
 - **Named insertion:** the occurrence is registered once in the source and

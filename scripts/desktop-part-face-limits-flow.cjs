@@ -4,7 +4,7 @@ const { encodeJavaScriptString: quote } = require('./desktop-ui-source.cjs');
 
 module.exports = function faceLimitsWorkflow(context) {
   const { expected, input, output, evaluate, observe, waitFor, pointer, wheel, menuKey, capture, check, canonical, digest,
-    checks, protocolResponses, consoleErrors, failedRequests, ipc, dialogCounts, initialReadyMs } = context;
+    checks, protocolResponses, consoleErrors, failedRequests, ipc, dialogCounts, initialReadyMs, workerGate, waitForPresentation } = context;
   const APPLY = 'button[title="Aceptar operación"]', CANCEL = 'button[title="Cancelar operación"]';
   const D1 = 'input[aria-label="Profundidad"]', TWO = 'input[aria-label="Dirección 2"]';
   const D2 = 'input[aria-label="Profundidad de dirección 2"]', END = 'select[aria-label="Condición final"]';
@@ -12,8 +12,8 @@ module.exports = function faceLimitsWorkflow(context) {
   const TARGET = 'select[aria-label="Superficie de destino"]', TARGET2 = 'select[aria-label="Superficie de destino de dirección 2"]';
   const NAME = 'input[aria-label="Nombre de operación"]', PLANE = 'input[aria-label="Distancia del plano"]';
   const PICK = '.property-manager button.outline-button';
-  const records = [], inputs = [], faces = [], guards = [], inputTraces = [];
-  const evidence = { partFaceLimits: { records, inputs, faces, guards, inputTraces,
+  const records = [], inputs = [], faces = [], guards = [], inputTraces = [], draftReplyTrials = [];
+  const evidence = { partFaceLimits: { records, inputs, faces, guards, inputTraces, draftReplyTrials,
     provenance: 'The unchanged original independent-end-limit fixture: Cartesian stepped base, separate 12x8 read-only limit blocks and two rectangles, in millimetres. No imported model or saved topology is supplied.',
     scope: 'Real D1/D2 viewport face clicks, exact original face/body owners, held-gesture wheel/leave/Escape rejection, Cancel/retry, Apply, history, source-plane motion, two writes and fresh reopening.',
     inputLimits: 'Actual CDP pointer press/release, wheel and Escape. Visible parameter fields use native setters and bubbling events. View changes use existing presets and Fit controls. Read-only hover references locate displayed original faces; no camera, handler, React state, document or worker response is injected.',
@@ -140,9 +140,68 @@ module.exports = function faceLimitsWorkflow(context) {
     await press('[data-assembly-menu="file"]');
     await press('.part-main-menus .assembly-menu-wrap:has(> [data-assembly-menu="file"][aria-expanded="true"]) > [role="menu"] > [role="menuitem"]', label);
   }
-  async function edit(id, field) {
+  async function edit(id, field, onOpen) {
     await idle(); await press('.tree-row[data-feature-id="' + id + '"]'); await press('.selection-tools button[title="Editar operación"]');
+    await onOpen?.();
     await waitFor('saved editable face-limit parameter', async () => (await visible(field)).available);
+  }
+  async function prepareSavedDraftTrial(trial, features) {
+    const gate = workerGate(), start = (await observe()).serial;
+    const operationIndex = features.findIndex(feature => feature.id === plainOperation.id);
+    check(operationIndex === originalCount, 'Saved boss follows the exact original source prefix');
+    const prefixFeatures = features.slice(0, operationIndex), draftFeatures = features.slice(0, operationIndex + 1);
+    const posted = (kind, expectedFeatures, after) => waitFor('genuine queued ' + kind + ' build', async () =>
+      (await observe()).builds.find(row => row.serial > after && !row.response && canonical(row.features) === canonical(expectedFeatures)));
+    const paused = async (kind, expectedFeatures, after) => {
+      const stop = await waitFor('actual ' + kind + ' worker checkpoint', async () => {
+        const sample = await gate.sample();
+        return sample.kind === kind && sample.paused && sample.request ? sample : false;
+      });
+      const row = (await observe()).builds.find(row => row.id === stop.request.id);
+      check(row?.serial > after && !row.response && canonical(row.features) === canonical(expectedFeatures),
+        'The genuine paused worker build matches its exact posted feature list');
+      return { stop, serial: row.serial };
+    };
+    const completed = async observation => {
+      const row = await waitFor('genuine resumed ' + observation.stop.kind + ' reply', async () =>
+        (await observe()).builds.find(row => row.id === observation.stop.request.id && row.response));
+      check(row.serial === observation.serial && row.response.ok && !row.response.value.featureErrors.length
+        && row.responseEventSerial > row.eventSerial, 'The same native request completes successfully');
+      return row;
+    };
+    const evidence = { trial };
+    draftReplyTrials.push(evidence);
+    await gate.arm('face-prefix-' + trial);
+    await edit(plainOperation.id, TARGET2, async () => {
+      evidence.prefix = await paused('face-prefix-' + trial, prefixFeatures, start);
+      // The editor initially asks for a draft while the source is unavailable.
+      // Let it post now, so it cannot be mistaken for the live second draft.
+      const queued = await posted('draft before prefix readiness', draftFeatures, evidence.prefix.serial);
+      await gate.release();
+      evidence.obsolete = await paused('face-obsolete-draft-' + trial, draftFeatures, evidence.prefix.serial);
+      check(queued.id === evidence.obsolete.stop.request.id, 'The first queued draft is identified without delaying the live draft later');
+      const source = await completed(evidence.prefix);
+      const caps = source.response.value.bodies.find(body => body.ref.bodyId === bottom.bodyId)?.faces ?? [];
+      check(caps.some(face => canonical(face.ref) === canonical(innerBottomFace)),
+        'The settled source prefix contains the exact original inward face before either gesture');
+      evidence.prefix.responseEventSerial = source.responseEventSerial;
+      const live = await posted('draft after prefix readiness', draftFeatures, evidence.obsolete.serial);
+      await gate.release();
+      evidence.draft = await paused('face-draft-' + trial, draftFeatures, evidence.obsolete.serial);
+      check(live.id === evidence.draft.stop.request.id, 'The held draft was posted after the exact source became current');
+      evidence.obsolete.responseEventSerial = (await completed(evidence.obsolete)).responseEventSerial;
+    });
+    const releaseDraft = async () => {
+      await gate.release();
+      const result = await completed(evidence.draft);
+      await waitFor('renderer consumes the current draft reply', () => page(() =>
+        document.querySelector('.statusbar')?.textContent.includes('Editando operación')));
+      await frames();
+      await waitForPresentation('Saved draft worker reply');
+      evidence.draft.responseEventSerial = result.responseEventSerial;
+    };
+    if (trial === 'control') await releaseDraft();
+    return { trial, evidence, releaseDraft };
   }
   async function begin(sketchId = 'limits-plain-profile', cut = false) {
     await idle(); await press('.tree-row[data-feature-id="' + sketchId + '"]'); await press('.ribbon-tabs button', 'Operaciones');
@@ -230,7 +289,7 @@ module.exports = function faceLimitsWorkflow(context) {
   // listeners never dispatch input or decide whether a face should be accepted.
   // In particular, clearing hover on pointer-down is normal production behavior.
   async function startInputTrace(point) {
-    await page(point => {
+    return page(point => {
       const key = '__solidflowFaceClickDiagnostics';
       if (Object.hasOwn(window, key)) throw Error('A previous face-input observer is still active');
       const events = [], limit = 16, endpoints = { canvasDown: false, canvasUp: false };
@@ -276,19 +335,36 @@ module.exports = function faceLimitsWorkflow(context) {
         delete window[key];
         return { before, events, endpoints, dropped, limit, after: snapshot(), observerRemoved: !Object.hasOwn(window, key) };
       } } });
+      return before;
     }, point);
   }
   const buildHeaders = state => ({ serial: state.serial, workerErrors: state.workerErrors.slice(-4).map(error => String(error).slice(0, 512)),
     builds: state.builds.slice(-4).map(row => ({ serial: row.serial, lastFeatureId: last(row)?.id ?? null,
       responsePresent: !!row.response, responseOk: row.response?.ok ?? null })) });
-  async function pick(side, ref, viewName, z, predicate, expectedOwners, phase) {
+  async function pick(side, ref, viewName, z, predicate, expectedOwners, phase, controlled) {
     await view(viewName); await arm(side); const point = await findFace(ref, viewName, z);
     const before = await observe(), serial = before.serial;
-    await startInputTrace(point);
+    const beforeInput = await startInputTrace(point);
     let primary;
     try {
-      await pointer('mousePressed', point, 1); await pointer('mouseReleased', point, 0);
+      if (controlled) {
+        const reply = before.builds.find(row => row.id === controlled.evidence.draft.stop.request.id);
+        check(!!reply && !!reply.response === (controlled.trial === 'control')
+          && beforeInput.hitIsCanvas && beforeInput.picking === 'true' && beforeInput.mode === 'face'
+          && beforeInput.status?.includes(controlled.trial === 'control' ? 'Editando operación' : 'Reconstruyendo')
+          && canonical(JSON.parse(beforeInput.hoverFace || 'null')) === canonical(ref),
+        'The exact presented inward face is ready while the designated draft reply is held or settled');
+      }
+      await pointer('mousePressed', point, 1);
+      try {
+        if (controlled?.trial === 'overlap') await controlled.releaseDraft();
+      } finally { await pointer('mouseReleased', point, 0); }
       inputs.push({ input: 'actual viewport left press/release', side, point, view: viewName, originalRef: ref });
+      if (controlled) {
+        await frames();
+        check(await page(() => document.querySelector('.viewport-canvas')?.dataset.partReferencePicking === 'false'),
+          'The current inward-face click is accepted with the draft reply ' + (controlled.trial === 'control' ? 'settled before pointer-down' : 'presented between pointer-down and pointer-up'));
+      }
       await waitFor('accepted original face closes its owned request', () => page(() => document.querySelector('.viewport-canvas')?.dataset.partReferencePicking === 'false'));
       return await built(serial, predicate, expectedOwners, phase);
     } catch (error) { primary = error; throw error; }
@@ -302,6 +378,19 @@ module.exports = function faceLimitsWorkflow(context) {
           return observer.stop();
         });
         trace.afterWorker = buildHeaders(await observe());
+        if (controlled) {
+          controlled.evidence.gesture = trace.dom;
+          const down = trace.dom.events.find(event => event.type === 'pointerdown');
+          const up = trace.dom.events.find(event => event.type === 'pointerup');
+          if (!primary) check(down?.trusted && up?.trusted && down.pointerId === up.pointerId
+            && down.targetIsCanvas && up.targetIsCanvas && down.snapshot.hitIsCanvas && up.snapshot.hitIsCanvas
+            && down.snapshot.picking === 'true' && up.snapshot.picking === 'true'
+            && up.snapshot.status?.includes('Editando operación')
+            && canonical(down.snapshot.canvas) === canonical(up.snapshot.canvas)
+            && canonical(JSON.parse(down.snapshot.hoverFace || 'null')) === canonical(ref)
+            && down.snapshot.firstTarget === up.snapshot.firstTarget && down.snapshot.secondTarget === up.snapshot.secondTarget,
+          'Both trusted endpoints retain the same armed role and hit-tested canvas, with the exact original face ready at down');
+        }
         if (!primary) {
           check(trace.dom.observerRemoved && trace.dom.events.length <= trace.dom.limit, 'Bounded read-only face-input observer is removed after the click');
           check(trace.dom.endpoints.canvasDown && trace.dom.endpoints.canvasUp,
@@ -343,6 +432,33 @@ module.exports = function faceLimitsWorkflow(context) {
     }), 'Escape revokes the face request and the old release cannot select a browsing face');
     guards.push({ side, kind: 'Escape', originalRef: ref, point, beforeSerial: serial, rejected: true, result: 'draft Cancel; exact recovery retained' });
   }
+  async function rejectHeldRoleChange(ref, initialRecovery) {
+    await ready(); await view('iso'); await arm('second');
+    const point = await findFace(ref, 'iso', -3), before = (await observe()).serial;
+    const firstRoleArmed = () => page(selector => {
+      const field = document.querySelector(selector), group = field?.closest('.extrude-end-target');
+      return !!group?.querySelector('button.outline-button.active')
+        && document.querySelector('.viewport-canvas')?.dataset.partReferencePicking === 'true';
+    }, TARGET);
+    await pointer('mousePressed', point, 1);
+    try {
+      await page(selector => {
+        const button = document.querySelector(selector)?.closest('.extrude-end-target')?.querySelector('button.outline-button');
+        if (!button || button.disabled || button.classList.contains('active') || !button.checkVisibility())
+          throw Error('The other visible end-face role must be enabled');
+        button.focus({ preventScroll: true });
+      }, TARGET);
+      await menuKey('Enter');
+      await waitFor('keyboard switches the held face request to direction 1', firstRoleArmed);
+      await frames();
+    } finally { await pointer('mouseReleased', point, 0); }
+    await frames();
+    check(await firstRoleArmed() && (await observe()).serial === before && await recovery() === initialRecovery,
+      'A real role change rejects the old held release and retains the newly armed role without CAD or recovery changes');
+    guards.push({ side: 'second', kind: 'Enter switches to direction 1', originalRef: ref, point, beforeSerial: before, rejected: true });
+    await press(PICK, 'Volver a vista previa');
+    await ready();
+  }
   return async () => {
     const originalBytes = await fsp.readFile(input);
     await waitFor('initial original-face document commands', () => page(() => document.querySelector('.statusbar')?.textContent.includes('Listo')
@@ -382,15 +498,16 @@ module.exports = function faceLimitsWorkflow(context) {
     const savedBytes = await fsp.readFile(output), saved = JSON.parse(savedBytes.toString('utf8'));
     check(canonical(saved.features) === canonical(complete.features), 'First write preserves both actual face targets on boss and cut');
     const savedRecovery = await recovery();
-    await edit(plainOperation.id, TARGET2);
+    const control = await prepareSavedDraftTrial('control', saved.features);
     await pick('second', innerBottomFace, 'iso', -3, row => draft(row, 'extrude', faceEnd(topFace), faceEnd(innerBottomFace)),
-      row => plainOwners(row, editedBoss), 'saved-second-face-target-preview');
+      row => plainOwners(row, editedBoss), 'saved-second-face-target-preview', control);
     check(await recovery() === savedRecovery, 'Saved face-target preview leaves committed recovery exact');
     await press(CANCEL); await idle();
     check(await recovery() === savedRecovery, 'Saved target Cancel restores both exact face references and downstream cut');
-    await edit(plainOperation.id, TARGET2);
+    const overlap = await prepareSavedDraftTrial('overlap', saved.features);
     preview = await pick('second', innerBottomFace, 'iso', -3, row => draft(row, 'extrude', faceEnd(topFace), faceEnd(innerBottomFace)),
-      row => plainOwners(row, editedBoss), 'retry-saved-second-face-target');
+      row => plainOwners(row, editedBoss), 'retry-saved-second-face-target', overlap);
+    await rejectHeldRoleChange(innerBottomFace, savedRecovery);
     check(preview.features.length === originalCount + 1, 'Saved boss preview excludes its downstream cut');
     const editedFeatures = saved.features.map(item => item.id === plainOperation.id
       ? { ...item, secondDirection: { ...item.secondDirection, endCondition: faceEnd(innerBottomFace) } } : item);

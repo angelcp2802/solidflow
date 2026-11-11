@@ -142,6 +142,13 @@ X=±2.5 with heights 1 and 2 mm, giving V128+3π and A192+6π. A late linear
 miss retains the exact prepattern plate. The native tolerances are 1e−5 mm³
 for volume, 1e−5 mm² for area, 1e−6 mm for coordinates and 1e−8 for normals.
 
+The solved entity variant reuses the original anchored rectangle and the
+same depth oracles. The solved circular cap has a nominal radius of 0.8 mm
+and a driving radius of 1 mm. The annular cut uses authored concentric
+radii of 2 and 1 mm at X=3, 8 and 13. Its depths 1, 2 and 3 mm remove
+18π mm³ and add 36π mm² of wall area. Material probes inside the central
+islands, in the annular gaps and below their floors distinguish both contours.
+
 ## Sketch modification tools on the original rectangle
 
 The desktop sketch workflow draws its own XY rectangle from (0,0) to (4,2)

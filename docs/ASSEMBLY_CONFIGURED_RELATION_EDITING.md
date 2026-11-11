@@ -76,6 +76,11 @@ v3 history state, preserving catalog and root selector. Context, generation,
 scope, edit and draft tickets reject stale asynchronous completion. Undo/Redo,
 saving and reopening continue to use the complete configured envelope.
 
+In a new ordinary binary relation, changing type keeps a selected reference in
+its original slot when it remains a unique current choice for that role. The
+new type starts with its own parameter defaults. An incompatible or unavailable
+reference leaves its slot empty for a new selection.
+
 The original prism recipe and independent literal bounds are documented in
 [provenance](PROVENANCE.md#original-configured-relation-editing). Pure declaration,
 native worker, server-rendered UI and production-renderer evidence are separate.

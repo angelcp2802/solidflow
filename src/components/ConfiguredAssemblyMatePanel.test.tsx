@@ -7,7 +7,7 @@ import { applyAssemblyConfiguredMateEdit, type AssemblyConfiguredMateEdit } from
 import { identityRigidPose } from '../model/rigidPose'
 import type { ConfiguredAssemblyScene } from '../cad/kernel.assembly-configuration-scene'
 import { configuredUiTicket, configuredUiTicketMatches, configuredMateUiTicketMatches, configuredMateUiPreviewMatches } from './configuredAssemblyUi'
-import ConfiguredAssemblyMatePanel, { configuredMateUiDraft, configuredMateUiChoices, configuredMateUiProposal, configuredMateUiRoleChoices, configuredMateEditUnavailable, type ConfiguredMateUiChoice } from './ConfiguredAssemblyMatePanel'
+import ConfiguredAssemblyMatePanel, { configuredMateUiDraft, configuredMateUiChangeType, configuredMateUiChoices, configuredMateUiProposal, configuredMateUiRoleChoices, configuredMateEditUnavailable, type ConfiguredMateUiChoice } from './ConfiguredAssemblyMatePanel'
 
 // Original public A/B declaration fixture. The empty, un-attested scene below
 // is ONLY a UI context fixture; no native surface, solve or capability is claimed.
@@ -61,6 +61,33 @@ it('keeps mixed plane/axis directional intent explicit and does not manufacture 
   expect(configuredMateUiProposal(draft, choices)).toMatchObject({ type: 'perpendicular', alignment: 'opposed' })
   draft.type = 'concentric'; draft.references = [axis('a'), axis('b')]
   expect(configuredMateUiProposal(draft, draft.references.map(ref => choice(ref!)))).toMatchObject({ type: 'concentric', rotationLock: null })
+})
+
+it('keeps exact live planes in order and starts the new ordinary type with fresh parameters', () => {
+  const document = fixture(), choices = configuredMateUiChoices(document, scene(document), 7, ['right'])
+  const draft = { ...configuredMateUiDraft('kept'), type: 'distance' as const, name: 'Original ordered planes',
+    references: [principal(null), principal('b')], alignment: 'opposed' as const, value: '6' }
+  const next = configuredMateUiChangeType(draft, 'coincident', choices)
+  expect(next).toEqual({ ...configuredMateUiDraft(draft.id), type: 'coincident', name: draft.name, references: draft.references })
+  expect(next.references[1]).not.toBe(draft.references[1])
+  expect(configuredMateUiProposal(next, choices)).toMatchObject({ type: 'coincident', first: principal(null), second: principal('b'), alignment: 'aligned' })
+  expect(draft.value).toBe('6')
+})
+
+it('keeps a compatible axis in its original slot and clears incompatible or unavailable nominees', () => {
+  const document = fixture(), choices = configuredMateUiChoices(document, scene(document), 7, ['right'])
+  const rootAxis = validateAssemblyGeometryReference({ kind: 'principal-axis', component: null, axis: 'Z' })
+  const mixed = { ...configuredMateUiDraft('mixed'), type: 'parallel' as const, references: [principal('b'), rootAxis] }
+  expect(configuredMateUiChangeType(mixed, 'concentric', choices).references).toEqual([null, rootAxis])
+  expect(configuredMateUiChangeType(mixed, 'distance', choices).references).toEqual([principal('b'), null])
+  expect(configuredMateUiChangeType(mixed, 'hinge', choices).references).toEqual([null, null])
+
+  const planes = { ...mixed, references: [principal(null), principal('b')] }
+  const stale = structuredClone(planes.references[1]); stale.component!.definition.revision = 'old'
+  expect(configuredMateUiChangeType({ ...planes, references: [planes.references[0], stale] }, 'distance', choices).references)
+    .toEqual([principal(null), null])
+  expect(configuredMateUiChangeType(planes, 'distance', [choice(principal(null)), choice(principal(null)), choice(principal('b'))]).references)
+    .toEqual([null, principal('b')])
 })
 
 it.each(['lock', 'gear', 'screw', 'rack-pinion', 'concentric'] as const)('routes %s capture-dependent editing to its dedicated form while preserving the generic form boundary', type => {

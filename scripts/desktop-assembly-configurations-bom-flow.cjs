@@ -67,6 +67,57 @@ module.exports=async function configuredBomWorkflow(c){
  await control(RANGE,'[]');await control(MODE,'parts-only');await table('root table restored',PARTS);let before=await observe();await button('Resolver configuración');await response(before.serial,'preview-configured-assembly');await gated('Real configured preview');await table('preview retains committed quantities',PARTS);before=await observe();await button('Cancelar');await response(before.serial,'discard-configured-assembly');await response(before.serial,'build-configured-assembly');await recovery(savedDocument,'BOM preview cancel');
  let e=await selector('mixed');await control(MODE,'top-level');await table('mixed top separates Base/compact',[['configuration-S',null,1,1],['configuration-S','compact',1,1]]);await control(MODE,'indented');await table('mixed state ancestry separates rows',[['configuration-S',null,1,1],['configuration-A',null,1,1],['configuration-B',null,1,1],['configuration-S','compact',1,1],['configuration-A',null,1,1],['configuration-B',null,1,1]]);
  e=await selector('single-right');await control(MODE,'parts-only');await table('suppressed right B omitted',[['configuration-A',null,null,2],['configuration-B',null,null,1]]);check(e.response.value.scene.solidCount===3&&Math.abs(e.response.value.scene.volume-58)<1e-5&&Math.abs(e.response.value.scene.area-138)<1e-5,'Suppressed B actual native solids/volume/area');
+ const diagnostics = '.configured-reference-diagnostics';
+ const issue = {scopePath:['right'],mateId:'original-X-distance',side:'first',path:['right','b'],problem:'suppressed-component'};
+ check(canonical(e.response.value.referenceDiagnostics)===canonical([issue]),'Right single reports exactly the inherited active mate and the suppressed right B endpoint');
+ await click('button[aria-label="Cerrar lista de materiales configurada"]');
+ const blockedDocument = e.current.document, beforeLocate = await snapshot(), beforeLocateSerial = (await observe()).serial, beforeLocateFiles = canonical(ipc);
+ async function pressVisible(selector) {
+  const point = await waitFor('hit-testable configured diagnostic control', () => page(selector => {
+   const target = document.querySelector(selector), bounds = target?.getBoundingClientRect();
+   if (!bounds?.width || !bounds.height || target.disabled) return false;
+   const x = bounds.left + bounds.width / 2, y = bounds.top + bounds.height / 2;
+   return target.contains(document.elementFromPoint(x,y)) ? {x,y} : false;
+  },selector));
+  await c.pointer('mouseMoved',point); await c.pointer('mousePressed',point,1); await c.pointer('mouseReleased',point,0);
+ }
+ await waitFor('current reference count is visible while details are closed',()=>page(selector=>{
+  const details=document.querySelector(selector);
+  return details?.open===false&&details.querySelector('summary')?.textContent==='1 referencia no disponible';
+ },diagnostics));
+ await pressVisible(diagnostics+' summary');
+ await waitFor('exact current mate, state, endpoint and reason shown',()=>page(selector=>{
+  const details=document.querySelector(selector),row=details?.querySelector('li');
+  return details?.open===true&&details.querySelectorAll('li').length===1
+   &&row?.querySelector('strong')?.textContent==='Original signed X distance'
+   &&row.querySelector('[title="right"]')?.textContent==='right · single'
+   &&row.querySelector('[title="right / b"]')?.textContent==='Referencia 1 · right / b · Componente suprimido';
+ },diagnostics));
+ await pressVisible(diagnostics+' button[aria-label="Ir a relación Original signed X distance en right"]');
+ await waitFor('current right single relation row owns focus',()=>page(()=>{
+  const pane=document.querySelector('[data-configured-pane="relations"]'), row=pane?.querySelector('[data-configured-mate-id="original-X-distance"]');
+  return pane?.hidden===false&&row===document.activeElement&&row.dataset.configuredMateSuppressed==='false'
+   &&document.querySelector('[aria-label="Ámbito de configuración"]')?.value==='["right"]';
+ }));
+ check(canonical(await snapshot())===canonical({...beforeLocate,scope:'["right"]',occurrence:''})
+  &&(await observe()).serial===beforeLocateSerial&&canonical(ipc)===beforeLocateFiles,
+ 'Locating the exact relation changes only inspection scope/focus, with no file or worker request');
+ before=await observe();
+ await click('[data-configured-mate-id="original-X-distance"] button[aria-label="Suprimir relación configurada Original signed X distance"]');
+ const suppressedPreview=await response(before.serial,'preview-configured-assembly-relation-edit');
+ check(suppressedPreview.response.value.verification.accepted&&suppressedPreview.response.value.scene.referenceDiagnostics.length===0
+  &&suppressedPreview.response.value.scene.scene.solidCount===3,'Existing verified relation suppression preview resolves only the diagnostic');
+ await recovery(blockedDocument,'Suppression preview retains the exact committed declaration');
+ check(await page(selector=>!document.querySelector(selector),diagnostics),'A verified preview hides the superseded committed diagnostic');
+ before=await observe();await button('Cancelar');await response(before.serial,'discard-configured-assembly');e=await response(before.serial,'build-configured-assembly');
+ await recovery(blockedDocument,'Cancel preserves the original active relation');
+ check(canonical(e.response.value.referenceDiagnostics)===canonical([issue])&&canonical(await snapshot())===canonical({...beforeLocate,scope:'["right"]',occurrence:''})
+  &&canonical(ipc)===beforeLocateFiles,'Cancel restores the same diagnostic and preserves complete recovery, history and saved identity');
+ await waitFor('reference disclosure remounts for the restored committed scene',()=>page(selector=>!!document.querySelector(selector),diagnostics));
+ e=await selector('mixed');
+ check(e.response.value.referenceDiagnostics.length===0&&e.response.value.scene.solidCount===4
+  &&await page(selector=>!document.querySelector(selector),diagnostics),'Right compact restores four solids and clears the stale warning');
+ await click('button[aria-label="Lista de materiales configurada"]');
  e=await selector('both-compact');before=await observe();await navigateScope('[]');await control('Ocurrencia configurada','right');before=await observe();await checkbox('Ocurrencia configurada visible',false);e=await response(before.serial,'build-configured-assembly');await recovery(e.current.document,'Hidden parent');await table('include hidden retains declarations',PARTS);check(e.response.value.scene.solidCount===4&&e.response.value.scene.bodies.filter(b=>b.visible).length===2,'Actual hidden ancestor has four physical/two visible solids');await checkbox(HIDDEN,false);await table('hidden ancestor prunes visible-only table',ONE);await control(RANGE,'["right"]');await table('hidden explicit scope empty',[]);await checkbox(HIDDEN,true);await table('hidden scoped members included',ONE);
  // Discard only this owned visibility edit and reopen the actual saved baseline.
  before=await observe();await button('Abrir');await waitFor('owned configured discard choice',()=>page(()=>!!document.querySelector('[role="dialog"][aria-label="Cambios del ensamblaje configurado"]')));await button('Continuar sin guardar','[role="dialog"][aria-label="Cambios del ensamblaje configurado"]');e=await response(before.serial,'build-configured-assembly');check(canonical(e.current.document)===canonical(savedDocument),'Final real Open restores exact saved full v3');geometry(e.response.value,savedDocument,10,10,'BOM-final-reopened-native');await recovery(savedDocument,'BOM final reopen');

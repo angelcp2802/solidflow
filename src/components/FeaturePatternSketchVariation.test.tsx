@@ -21,12 +21,13 @@ function render(operation: LinearPatternFeature, features: readonly Feature[] = 
     autoScope={{ available: true, pending: false, onCapture: unexpected }} onPickFace={unexpected} pickingFace={false} canPickFace={false}
     bodyEditor={{ bodies: [{ ref: owner, name: 'Placa' }], existing: true, loading, picking: false, onSelection: unexpected, onPicking: unexpected }} />);
 }
-it('shows active instances and the driving radius, preserving the nominal source and ordinary blue editor', () => {
+it('offers driving radius or depth for an unvaried solved circular cut', () => {
   const operation = feature(), before = structuredClone(operation), html = render(operation);
   expect(html).toContain('aria-label="Instancia para variar su radio"');
   expect(html).toContain('<option value="1,0" selected="">Instancia 2, 1</option>');
   expect(html).toMatch(/aria-label="Radio del croquis de la instancia"[^>]*value="1"/);
-  expect(html).not.toContain('Asignar profundidad');
+  expect(html).toContain('aria-label="Instancia para variar su profundidad"');
+  expect(html).toContain('Asignar profundidad');
   expect(operation).toEqual(before);
 });
 it('locks source, calculation method and automatic scope until radius assignments are cleared', () => {
@@ -36,6 +37,7 @@ it('locks source, calculation method and automatic scope until radius assignment
   expect(html).toContain('<option value="auto" disabled="">Detectar cuerpos automáticamente</option>');
   expect(html).toMatch(/aria-label="Repetir Corte semilla"[^>]*disabled=""/);
   expect(html).toContain('Quitar radio de Instancia 2, 1');
+  expect(html).not.toContain('Asignar profundidad');
 });
 it('keeps obsolete assignments repairable and blocks editing while the preview is loading', () => {
   const operation = withFeaturePatternSketchRadius(feature(), sources, '1,0', .5) as LinearPatternFeature;
@@ -43,14 +45,27 @@ it('keeps obsolete assignments repairable and blocks editing while the preview i
   expect(render(operation)).toContain('Instancia 2, 1 · 0.5 mm · no disponible');
   expect(render(operation, sources, true)).toMatch(/disabled="" aria-label="Quitar radio de Instancia 2, 1"/);
 });
-it('shows only the repairable variation family when an earlier edit changes primitive/entity eligibility', () => {
+it('keeps stale radius assignments removable after switching to a primitive sketch', () => {
   const radius = withFeaturePatternSketchRadius(feature(), sources, '1,0', .5) as LinearPatternFeature;
   const radiusStale = render(radius, primitive);
   expect(radiusStale).toContain('Quitar cota de Instancia 2, 1 (driving-radius)');
   expect(radiusStale).not.toContain('Asignar profundidad');
   expect(radiusStale).not.toContain('Asignar radio');
+});
+
+it('keeps depth assignments editable for an entity sketch and removable after changing to Through All', () => {
   const depth = withFeaturePatternInstanceDepth(feature(), '1,0', -2) as LinearPatternFeature;
-  const depthStale = render(depth, sources);
+  const depthRebased = render(depth, sources);
+  expect(depthRebased).toContain('Instancia 2, 1 · 2 mm</span>');
+  expect(depthRebased).toContain('Asignar profundidad');
+  expect(depthRebased).not.toContain('Asignar radio');
+
+  const throughAll = structuredClone(sources);
+  const seed = throughAll[3];
+  if (seed.type !== 'cut') throw Error('Original cut required');
+  seed.endCondition = { kind: 'throughAll', baseFeatureId: 'plate', bothDirections: false };
+  const depthStale = render(depth, throughAll);
+  expect(depthStale).toContain('Instancia 2, 1 · 2 mm · no disponible');
   expect(depthStale).toContain('Quitar profundidad de Instancia 2, 1');
   expect(depthStale).not.toContain('Asignar radio');
   expect(depthStale).not.toContain('Asignar profundidad');

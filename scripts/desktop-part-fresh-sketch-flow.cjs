@@ -3,7 +3,7 @@ const fs = require('node:fs/promises');
 const { encodeJavaScriptString: quote } = require('./desktop-ui-source.cjs');
 
 module.exports = function freshSketchWorkflow(c) {
-  const { expected, input, output, evaluate, observe, waitFor, click, pointer, wheel, menu, menuKey, capturePartMenu, capture, checks,
+  const { expected, input, output, evaluate, observe, waitFor, click, pointer, wheel, menu, menuKey, capturePartMenu, capture, cameraFrame, waitForPresentation, checks,
     protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs, dialogCounts } = c;
   const APPLY = 'button[title="Aceptar operación"]', records = [], drawn = [];
   const page = (fn, ...args) => evaluate('(' + fn.toString() + ')(' + args.map(v => 'JSON.parse(' + quote(JSON.stringify(v)) + ')').join(',') + ')');
@@ -59,6 +59,104 @@ module.exports = function freshSketchWorkflow(c) {
     }));
   }
   async function ready() { await waitFor('enabled operation acceptance', () => page(selector => { const e = document.querySelector(selector); return !!e && !e.disabled; }, APPLY)); }
+  async function wheelCancelsFacePress(point, reference) {
+    const recovery = () => page(() => localStorage.getItem('solidflow.autosave'));
+    const snapshot = require('./desktop-part-menu-snapshot.cjs')({ page, observe, recovery, dialogCounts, ipc });
+    const selectedFace = () => page(() => document.querySelector('.viewport-canvas').dataset.partSelectedFace);
+    const clear = () => click('button[aria-label="Limpiar selección de pieza"]');
+    const before = await snapshot(), originalBytes = await fs.readFile(input);
+    check(await selectedFace() === '', 'The actual original face is unselected before the held wheel gesture');
+    await pointer('mouseMoved', point); await pointer('mousePressed', point, 1);
+    let beforeZoom, afterZoom;
+    try {
+      await waitForPresentation('Original face view before held-wheel zoom');
+      beforeZoom = await cameraFrame();
+      await wheel(point, -120, 1);
+      await waitForPresentation('Original face view after held-wheel zoom');
+      afterZoom = await waitFor('held wheel changes the presented face view before release', async () => {
+        const frame = await cameraFrame(); return frame.sha256 !== beforeZoom.sha256 ? frame : false;
+      });
+    } finally { await pointer('mouseReleased', point, 0); }
+    check(beforeZoom.width === afterZoom.width && beforeZoom.height === afterZoom.height
+      && beforeZoom.maskedRects.length === 0 && afterZoom.maskedRects.length === 0
+      && beforeZoom.sha256 === beforeZoom.rawSha256 && afterZoom.sha256 === afterZoom.rawSha256,
+    'Held wheel zoom changes a same-size unmasked raster crop');
+    await page(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    const released = await selectedFace(), afterRelease = await snapshot();
+    if (released) await clear();
+    await pointer('mouseMoved', point); await pointer('mousePressed', point, 1); await pointer('mouseReleased', point, 0);
+    const fresh = await waitFor('a fresh actual face click after the held wheel', async () => {
+      const value = await selectedFace(); return value && JSON.parse(value);
+    });
+    await clear();
+    await click('button[aria-label="Vista anterior"]');
+    await waitForPresentation('Original part view after Previous restores the zoom');
+    const after = await snapshot(), sameSource = (await fs.readFile(input)).equals(originalBytes);
+    const unchangedRelease = canonical(afterRelease) === canonical(before);
+    checks.push({ partWheelSelection: { point, beforeZoom, afterZoom, released, fresh, expected: reference,
+      unchangedRelease, sameSource, nativeSerials: [before.native.serial, afterRelease.native.serial, after.native.serial] } });
+    check(!released && unchangedRelease, 'Wheel zoom revokes an ordinary pending part selection before left release');
+    check(canonical(fresh) === canonical(reference) && canonical(after) === canonical(before) && sameSource,
+      'A fresh click still selects the exact face without changing the document, native work, history or file');
+  }
+  async function sketchSupportEscape(sketch) {
+    const svg = 'svg[aria-label="Editor de croquis multientidad"]', support = '.plane-support button';
+    const offset = 'button.command[title="Equidistancia de entidades"]', interactions = [];
+    const { press } = require('./desktop-part-pattern-actors.cjs')({ ...c, interactions });
+    await press(offset);
+    const entityId = sketch.profile.entities[0].id;
+    const point = await page((selector, id) => {
+      const row = [...document.querySelectorAll(selector + ' [data-selection-kind="entity"]')]
+        .find(element => element.dataset.selectionId === id);
+      const stroke = row?.querySelector('path[stroke="transparent"]'), matrix = stroke?.getScreenCTM();
+      if (!stroke || !matrix) throw Error('The drawn original sketch line must be visible');
+      const middle = stroke.getPointAtLength(stroke.getTotalLength() / 2).matrixTransform(matrix);
+      if (!row.contains(document.elementFromPoint(middle.x, middle.y))) throw Error('The drawn line must own its midpoint');
+      return { x: middle.x, y: middle.y };
+    }, svg, entityId);
+    await pointer('mouseMoved', point); await pointer('mousePressed', point, 1); await pointer('mouseReleased', point, 0);
+    const state = () => page((svg, support) => {
+      const picker = document.querySelector(support);
+      return { picking: picker?.classList.contains('active'), focus: document.activeElement === picker,
+        sketch: !!document.querySelector(svg), viewport: !!document.querySelector('.viewport-canvas canvas'),
+        draft: { tools: [...document.querySelectorAll('button.command.active')].map(button => button.title).sort(),
+          selected: [...document.querySelectorAll(svg + ' [data-selection-kind="entity"]:has(path[stroke="#e78b14"])')]
+            .map(entity => entity.dataset.selectionId),
+          support: document.querySelector('select[aria-label="Soporte del plano"]')?.value,
+          name: document.querySelector('input[aria-label="Nombre de operación"]')?.value,
+          history: ['Deshacer (Ctrl+Z)', 'Rehacer (Ctrl+Y)'].map(title => document.querySelector('button[title="' + title + '"]')?.disabled),
+        },
+        recovery: localStorage.getItem('solidflow.autosave'),
+      };
+    }, svg, support);
+    const before = await waitFor('the selected original line has a ready Equidistancia preview', async () => {
+      const value = await state();
+      return value.sketch && value.draft.tools.includes('Equidistancia de entidades')
+        && value.draft.tools.includes('Aplicar equidistancia')
+        && canonical(value.draft.selected) === canonical([entityId]) ? value : false;
+    });
+    const native = await observe(), beforeFile = { dialogs: dialogCounts(), ipc: structuredClone(ipc) };
+    await press(support, 'Cambiar cara de soporte');
+    const armed = await waitFor('the focused sketch support button owns the armed 3D picker', async () => {
+      const value = await state(); return value.picking && value.focus && value.viewport && !value.sketch ? value : false;
+    });
+    await menuKey('Escape');
+    await page(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    const after = await state();
+    // Return through the visible button only to record the failed baseline's tool and selection.
+    if (after.picking) await press(support, 'Volver a editar');
+    const returned = await state(), afterNative = await observe();
+    const unchangedFile = canonical(beforeFile) === canonical({ dialogs: dialogCounts(), ipc });
+    checks.push({ partSketchSupportEscape: { sketchId: sketch.id, entityId, point, interactions,
+      before: before.draft, armed: { picking: armed.picking, focus: armed.focus, viewport: armed.viewport },
+      after: { picking: after.picking, focus: after.focus, sketch: after.sketch, viewport: after.viewport },
+      returned: returned.draft, recoveryUnchanged: returned.recovery === before.recovery,
+      nativeSerials: [native.serial, afterNative.serial], unchangedFile } });
+    check(!after.picking && after.focus && after.sketch && !after.viewport && canonical(returned.draft) === canonical(before.draft)
+      && returned.recovery === before.recovery && canonical(afterNative) === canonical(native) && unchangedFile,
+    'Escape closes only the armed sketch support picker and preserves the exact sketch, tool, selection and history');
+    await press('button.command[title="Rectángulo"]');
+  }
   async function built(after, count, volume, area, height, phase) {
     const row = await waitFor('native fresh sketch ' + phase, async () => {
       const s = await observe(); check(!s.workerErrors.length, 'Healthy production worker transport');
@@ -92,6 +190,7 @@ module.exports = function freshSketchWorkflow(c) {
       check(await page(ref=>document.querySelector('.viewport-canvas').dataset.partSelectedFace===JSON.stringify(ref),chosen),'Background context preserves selection before an explicit command');
       await dismissContext();await right(background);await menuReady('background');await click('[data-part-context-action="clear-selection"]');
       await waitFor('explicit background deselection',()=>page(()=>document.querySelector('.viewport-canvas').dataset.partSelectedFace===''));
+      await wheelCancelsFacePress(facePoint, chosen);
       await require('./desktop-part-context-observation.cjs')({ page, pointer, checks, records, check }, facePoint);
       await pointer('mouseMoved',facePoint);await pointer('mousePressed',facePoint,2);
       await menuKey('Escape');await pointer('mouseReleased',facePoint,2);
@@ -152,6 +251,7 @@ module.exports = function freshSketchWorkflow(c) {
     const [a,b] = calibration.targets, wanted = [[a[0],a[1]],[a[0],b[1]],[b[0],a[1]],[b[0],b[1]]];
     for (const target of wanted) check(p.points.filter(point => Math.abs(point.x-target[0])<1e-9 && Math.abs(point.y-target[1])<1e-9).length === 1, 'Saved drawing equals independent 0.001 mm snapped pointer target');
     near(b[0]-a[0], side, 1e-9, 'Requested rectangle width'); near(b[1]-a[1], side, 1e-9, 'Requested rectangle height');
+    if (side === 4) await sketchSupportEscape(sketch);
     drawn.push({ sketchId: sketch.id, support: sketch.support, targets: wanted, facePoint, scale: calibration.scale }); return sketch;
   }
   async function operation(type, sketch, count, volume, area, height, sourceFeatureId) {

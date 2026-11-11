@@ -56,6 +56,7 @@ export function editConfiguredUiOccurrence(document: AssemblyConfiguredDocument,
   const next = validateAssemblyConfiguredDocument(document), evaluation = evaluateAssemblyConfiguration(next.source, next.catalog, next.rootConfiguration)
   const scope = evaluation.scopes.find(row => JSON.stringify(row.path) === JSON.stringify(scopePath))
   if (!scope || !scope.occurrences.some(row => row.id === occurrenceId)) throw Error('La ocurrencia ya no pertenece al ámbito actual.')
+  if (scope.suppressed) throw Error('El ámbito seleccionado está suprimido.')
   const pose = change.pose === undefined ? {} : { pose: validateRigidPose(change.pose) }
   if (scope.configuration === null) {
     if (Object.hasOwn(change, 'configuration')) throw Error('Crea primero una configuración del padre para elegir una variante hija.')

@@ -135,6 +135,51 @@ module.exports = function originContextWorkflow(c) {
         && document.querySelector('[aria-label="Referencia 1 de relación configurada"]')?.value === JSON.stringify(first), first));
     await control('Referencia 2 de relación configurada', JSON.stringify(second));
     await control('Nombre de relación configurada', 'Original origin context coincidence');
+    const type = 'Tipo de relación configurada';
+    const draftState = () => page(() => ({
+      type: document.querySelector('[aria-label="Tipo de relación configurada"]')?.value,
+      name: document.querySelector('[aria-label="Nombre de relación configurada"]')?.value,
+      references: [1, 2].map(slot => document.querySelector('[aria-label="Referencia ' + slot + ' de relación configurada"]')?.value),
+      distance: document.querySelector('[aria-label="Distancia de relación configurada en mm"]')?.value ?? null,
+      recovery: localStorage.getItem('solidflow.autosave'),
+      file: document.querySelector('.assembly-shell-file')?.title,
+      history: [...document.querySelectorAll('[aria-label="Archivo del ensamblaje configurado"] button')]
+        .filter(control => ['Deshacer', 'Rehacer', 'Guardar'].includes(control.title)).map(control => [control.title, control.disabled]),
+    }));
+    const coincidenceDraft = await draftState(), beforeTypeChange = await observe();
+    await control(type, 'distance');
+    await waitFor('configured draft shows the selected distance type', async () => (await draftState()).type === 'distance');
+    const distanceDraft = { ...coincidenceDraft, type: 'distance', distance: '' };
+    check(canonical(await draftState()) === canonical(distanceDraft)
+      && canonical(coincidenceDraft.references) === canonical([JSON.stringify(first), JSON.stringify(second)])
+      && (await observe()).serial === beforeTypeChange.serial,
+    'Compatible configured type change preserves ordered root and component planes, name, history and recovery');
+    await control('Distancia de relación configurada en mm', '0');
+    const beforeDistance = await observe();
+    await button('Vista previa de relación configurada');
+    const distancePreview = await response(beforeDistance.serial, 'preview-configured-assembly-relation-edit');
+    const expectedDistance = structuredClone(doc);
+    const distanceVariant = expectedDistance.catalog.find(c => c.definition.id === 'authoring-root').configurations.find(v => v.id === 'demo');
+    const distanceMate = { id: distancePreview.edit.change.mate.id, name: coincidenceDraft.name, type: 'distance', first, second, distance: 0, alignment: 'aligned', suppressed: false };
+    distanceVariant.mateDeclarations = [...(distanceVariant.mateDeclarations ?? []), distanceMate];
+    check(canonical(distancePreview.current.document) === canonical(doc)
+      && distancePreview.edit.configuration === 'demo' && canonical(distancePreview.edit.scopePath) === '[]'
+      && canonical(distancePreview.edit.change.mate) === canonical(distanceMate)
+      && distancePreview.response.value.hasToken && distancePreview.response.value.verification.accepted
+      && canonical(distancePreview.response.value.document) === canonical(expectedDistance),
+    'One real distance preview verifies the same ordered planes in the exact root state');
+    geometry(distancePreview.response.value.scene, expectedDistance, 2, 'type-switch-distance-preview');
+    await recovery(doc);
+    const beforeDistanceCancel = await observe();
+    await button('Cancelar', NAV);
+    await response(beforeDistanceCancel.serial, 'discard-configured-assembly');
+    await response(beforeDistanceCancel.serial, 'build-configured-assembly');
+    await recovery(doc);
+    check(canonical(await draftState()) === canonical({ ...distanceDraft, distance: '0' }),
+      'Distance preview Cancel restores the exact editable draft and leaves the committed file and history intact');
+    await control(type, 'coincident');
+    await waitFor('configured draft returns to coincidence with the same planes', async () =>
+      canonical(await draftState()) === canonical(coincidenceDraft));
     let before = await observe(); await button('Vista previa de relación configurada');
     let row = await response(before.serial, 'preview-configured-assembly-relation-edit'), reply = row.response.value;
     const mate = { id: row.edit.change.mate.id, name: 'Original origin context coincidence', type: 'coincident', first, second, alignment: 'aligned', suppressed: false };
