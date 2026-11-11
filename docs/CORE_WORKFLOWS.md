@@ -450,6 +450,10 @@ material incidence. Principal axes can participate in concentric rotation
 capture; gear, screw and other material-based families retain their own support
 requirements.
 
+In a standard assembly, right-click a visible origin in the viewport while
+reference picking is idle to open its context menu. This works with either
+Componentes or Relaciones open.
+
 For a concentric relation between origin axes, or between an origin axis and a
 cylindrical face, **Bloquear giro** captures the current relative orientation.
 The components can still slide along the common axis. In a standard assembly,

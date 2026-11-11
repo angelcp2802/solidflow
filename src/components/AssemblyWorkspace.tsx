@@ -2345,13 +2345,14 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   const treeOrigins = useMemo(() => {
     try { return buildAssemblyOriginTree(evaluateAssemblyConfiguration(committed, [], null), []) } catch { return [] }
   }, [committed])
-  const treeOriginBlocked = managerTab !== 'components' || editingBlocked || !!draft || !!preview || replaceDialog || !!streamProjection
+  const originContextBlocked = editingBlocked || !!draft || !!preview || replaceDialog || !!streamProjection
     || dragActive || !scene || sceneSignature.current !== serialized
     || confirmedScene.current?.signature !== serialized || confirmedScene.current?.scene !== scene
+  const treeOriginBlocked = managerTab !== 'components' || originContextBlocked
   const treeOriginSession = useMemo(() => ({}), [treeReset, scene, serialized, scopePath, generation.current, treeOriginBlocked])
   const treeOriginContext = { documentSignature: serialized, scopePath, sessionIdentity: treeOriginSession }
-  const treeOriginCurrent = useRef({ context: treeOriginContext, entries: treeOrigins, blocked: treeOriginBlocked })
-  treeOriginCurrent.current = { context: treeOriginContext, entries: treeOrigins, blocked: treeOriginBlocked }
+  const treeOriginCurrent = useRef({ context: treeOriginContext, entries: treeOrigins, blocked: originContextBlocked })
+  treeOriginCurrent.current = { context: treeOriginContext, entries: treeOrigins, blocked: originContextBlocked }
   const selectedTreeOrigin = !treeOriginBlocked ? resolveAssemblyOriginTreeSelection(treeOriginSelection, treeOrigins, treeOriginContext) : null
   const normalViewBlocked = editingBlocked || !!draft || !!preview || replaceDialog || !!streamProjection || dragActive
     || pickingFaces || pickingLinearEdges || !!symmetryPicking || !!hingePicking || !!widthPicking || !!rackPicking || !!mechanicalPicking || !!profilePicking || !!linePathPicking || !!circularPicking || originPicking
@@ -3274,7 +3275,10 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
         onClick={() => openManager('properties', '[aria-label="Nombre del componente"]')}><Settings2 size={15} />Propiedades</button></div>
       <AssemblyComponentTree document={committed} selectedPath={selectedPath} resetKey={treeReset} active={managerTab === 'components'}
         originRows={treeOrigins} selectedOriginKey={selectedTreeOrigin?.treeKey} onOrigin={selectTreeOrigin} originDisabled={treeOriginBlocked}
-        onComponentContext={(value, point, element) => openComponentContext(value, point, element, true)} onOriginContext={openOriginContext}
+        onComponentContext={(value, point, element) => openComponentContext(value, point, element, true)}
+        onOriginContext={(entry, point, element) => {
+          if (managerTabRef.current === 'components') openOriginContext(entry, point, element)
+        }}
         onSelect={value => { abandonInsertionSelection(); setTreeOriginSelection(null); setNormalSelection(nominateAssemblyNormalUnsupported(JSON.stringify(['component', value]), normalViewContext)); if (fileTicket.current?.purpose === 'update' || linkedTicket.current) generation.current++; setSelectedPath(value) }} disabled={editingBlocked} />
       <section className="assembly-section"><h3>Insertar origen reutilizable</h3><select aria-label="Origen del componente" value={sourceKey} disabled={editingBlocked} onChange={event => setSourceKey(event.target.value)}><option value="">Selecciona un origen</option>{committed.definitions.map(value => <option key={assemblyDefinitionKey(value)} value={assemblyDefinitionKey(value)}>{value.kind === 'part' ? value.document.name : value.name} · {value.revision}</option>)}</select>
         <button disabled={editingBlocked || !sourceKey} onClick={reuseComponent}><Plus size={14} />Insertar otra ocurrencia</button></section>

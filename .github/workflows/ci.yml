@@ -105,8 +105,8 @@ jobs:
   renderer:
     name: Renderer (${{ matrix.os }}, ${{ matrix.batch }}, Node 24)
     runs-on: ${{ matrix.os }}
-    # Windows and macOS persistence have reached 35 minutes during job cleanup.
-    timeout-minutes: ${{ matrix.batch == 'persistence' && (matrix.os == 'windows-2025' || matrix.os == 'macos-15') && 45 || 35 }}
+    # Persistence jobs have reached 35 minutes on all three runner platforms.
+    timeout-minutes: ${{ matrix.batch == 'persistence' && 45 || 35 }}
     strategy:
       fail-fast: false
       matrix:

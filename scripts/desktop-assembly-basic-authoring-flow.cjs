@@ -433,6 +433,65 @@ module.exports = function basicAuthoringWorkflow(context) {
     checkContextUnchanged(baseline, await contextReadOnlyState(), 'Assembly context gesture audit preserves full native history and relation roles');
     await select(selectedId);
   }
+  async function viewportOriginContextWorkflow(doc, selectedId) {
+    const planeKey = JSON.stringify(['principal-plane', null, 'XY']);
+    const planesToggle = '.assembly-origin-tools label:nth-of-type(2) input';
+    const viewport = '.assembly-viewport';
+    const targetPoint = (mode = '') => page((key, viewport, mode) => {
+      const host = document.querySelector(viewport), canvas = host.querySelector('canvas');
+      const rect = canvas.getBoundingClientRect();
+      const origin = [...host.querySelectorAll('button[data-origin-key]')].find(button => button.dataset.originKey === key);
+      if (!origin || origin.disabled !== (mode === '') || host.dataset.referencePicking !== mode
+        || Math.abs(rect.width - host.clientWidth) >= 1 || Math.abs(rect.height - host.clientHeight) >= 1) return null;
+      // Original 3x2x4 prisms at X=0,8,16, Frontal looking down +Z.
+      // Project [-1,-1,0] on root XY, strictly outside every material face.
+      const pixels = rect.height / (1.3 * Math.hypot(19, 2, 4));
+      const point = { x: rect.left + rect.width / 2 - 10.5 * pixels, y: rect.top + rect.height / 2 + 2 * pixels };
+      return document.elementFromPoint(point.x, point.y) === canvas ? point : null;
+    }, planeKey, viewport, mode);
+    const press = async point => {
+      await pointer('mouseMoved', point);
+      await pointer('mousePressed', point, 2); await pointer('mouseReleased', point, 2);
+      await page(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      return contextMenuState();
+    };
+    await actual(planesToggle);
+    await actual('.assembly-view-tools button[title="Frontal"]');
+    await select(selectedId);
+    const original = await contextReadOnlyState();
+    const point = await waitFor('unarmed root XY has a real reachable canvas point', targetPoint);
+    const treePanel = await press(point);
+    check(treePanel?.target === 'Plano XY · Raíz', 'Components panel control right-click reaches the exact original root XY plane: ' + JSON.stringify(treePanel));
+    await menuKey('Escape');
+    await waitFor('original viewport context closes', () => page(() => !document.querySelector('.cad-context-menu')));
+    await select(selectedId);
+    await actual('#assembly-tab-relations');
+    const relationPoint = await waitFor('same root XY is visible while Relations stays current', targetPoint);
+    const relationPanel = await press(relationPoint);
+    await recovery(doc);
+    checkContextUnchanged(original, await contextReadOnlyState(), 'Viewport origin context is read-only with the reference picker idle');
+    check(canonical(relationPanel) === canonical(treePanel), 'Right-clicking the same current viewport origin opens its exact menu from Relations: ' + JSON.stringify(relationPanel));
+    await actual(contextAction('origin-controls'));
+    await waitFor('viewport origin command focuses the current Relations disclosure', () => page(() => {
+      const details = document.querySelector('#assembly-relation-origins');
+      return !document.querySelector('.cad-context-menu') && details?.open && document.activeElement === details.querySelector('summary');
+    }));
+
+    const picker = '[aria-label="Seleccionar orígenes"]';
+    await control(TYPE, 'distance');
+    await actual('[aria-label="Referencia 1 de la relación"]');
+    await actual(picker);
+    const pickerPoint = await waitFor('the same root XY has a reachable canvas point while its picker owns input', () => targetPoint('origin'));
+    const armed = await contextReadOnlyState();
+    const protectedMenu = await press(pickerPoint);
+    check(!protectedMenu && !await page(() => document.querySelector('.cad-context-menu')),
+      'An active origin picker does not open any viewport context menu');
+    checkContextUnchanged(armed, await contextReadOnlyState(), 'Right release preserves the exact armed origin role and committed state');
+    checks.push({ standardViewportOriginContext: { point, relationPoint, pickerPoint, treePanel, relationPanel,
+      activePickerMenu: protectedMenu, scope: 'root', plane: 'XY' } });
+    await actual(picker);
+    await select(selectedId);
+  }
   async function preview(doc, selector, text, phase, mateCount = doc.mates.length, expectedDistance = -12, expectedAlignment = 'aligned', expectedAngle = null) {
     const before = await serial(); await actual(selector, text); const event = await response(before, 'preview-assembly'), value = event.response.value;
     if (phase.startsWith('boundary-')) checks.push({ ordinaryAngleBoundaryDiagnostic: { phase,
@@ -842,6 +901,7 @@ module.exports = function basicAuthoringWorkflow(context) {
       'Explicit fit after placement preserves recovery, selection, history and complete worker observations');
     gestures.push({ action: 'explicit-fit-after-three-component-placement', documentSha256: digest(canonical(current)) });
     await viewportContextWorkflow(current, owners.follower);
+    await viewportOriginContextWorkflow(current, owners.follower);
     await control(TYPE, 'distance'); await control(NAME, 'Guide to root'); await control('[aria-label="Distancia firmada"]', '-10');
     await origin(1, 'principal-plane', null, 'YZ', current); await origin(2, 'principal-plane', owners.guide, 'YZ', current);
     current = await apply(await preview(current, '#assembly-panel-relations button', 'Vista previa de la nueva relación', 'root-plane-preview', 1, -10), 'root-plane-apply', 3, -10);

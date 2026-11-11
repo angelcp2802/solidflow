@@ -39,15 +39,15 @@ gate.
 | C07 | Create a three-component assembly from modeled/imported/reused parts, then fix, float and place the intended occurrence. | The [0.23.0 native Windows walkthrough](VALIDATION.md#packaged-assembly-authoring-and-shared-part-editing--windows-2026-11-11) starts empty, imports one original prism, reuses its definition twice, fixes Base and places the other two. The saved occurrence identities and STL placements match after reopening. The final combined part and assembly routes retain their own evidence. |
 | C08 | Relate components both to root/component origins and to one another. | The [0.23.0 Windows walkthrough](VALIDATION.md#packaged-assembly-authoring-and-shared-part-editing--windows-2026-11-11) verifies saved root-to-Guía YZ distance and Seguidor-to-Base Z parallelism. The standard/configured origin routes and aligned/opposed plane cases retain their fixed-pose, incidence, Cancel/retry and history checks. Coincidence, concentricity and rotation lock retain separate contracts. A plane relation can leave position and yaw underconstrained. |
 | C09 | Ordinary saved relations and their reference replacements work at the supported boundaries. | The recorded ordinary-assembly route passes 483 checks, retaining 30°→60° and Apply/Save/Open/fresh Solve at 0°/180°. Saved distance, angle, coincidence, concentricity and parallel/perpendicular reference edits pass the separate 276-check route. Preserve the antipodal regressions and tolerances. The panel-scroll correction passed Windows, Linux and macOS hosted jobs on `a490e89`. |
-| C10 | Each exposed specialized relation family completes its announced lifecycle. | Fixed inventory of distance/angle limits, directed angle, tangencies, component lock, gear/screw/rack, width, symmetry, profile center, LINE/circular paths and limited/unlimited hinge. Material acquisition and held-role selection have bounded desktop results for the stated families. Keep nomination separate from native capture/Apply and verify the combined lifecycle and scope. |
-| C11 | Shared-source changes and embedded-part editing preserve the parent and every exact active source use. | The [0.23.0 Windows walkthrough](VALIDATION.md#packaged-assembly-authoring-and-shared-part-editing--windows-2026-11-11) verifies Cancel, a single Apply/Undo/Redo, a retained Z-axis relation and both uses of the revised source after reopening. Independent STL measures 72 mm³ and 132 mm² at the original poses. The embedded renderer route retains explicit material-face repair, source ownership and separate transition checks. |
+| C10 | Each exposed specialized relation family completes its announced lifecycle. | Fixed inventory of distance/angle limits, directed angle, tangencies, component lock, gear/screw/rack, width, symmetry, profile center, LINE/circular paths and limited/unlimited hinge. Material acquisition and held-role selection have bounded desktop results for the stated families. Keep nomination separate from native capture/Apply and verify the combined lifecycle and scope. The original configured LINE recipe now has a packaged Windows lifecycle with rejection, Cancel/retry, Apply, edit, history and reopening. [Packaged LINE evidence](VALIDATION.md#packaged-configured-line-path--windows-2026-11-11). |
+| C11 | Shared-source changes and embedded-part editing preserve the parent and every exact active source use. | The [0.24.0 Windows walkthrough](VALIDATION.md#packaged-material-face-repair--windows-2026-11-11) verifies two explicit planar-face repairs, Cancel/retry, one Apply/Undo/Redo and fresh Solve after reopen. The saved graph retains both occurrences, their poses, the Z-axis relation and both repaired owners. Independent STL measures 72 mm³ and 132 mm². The embedded renderer route retains source-ownership and transition checks. |
 | C12 | Pending work, Cancel and operating-system close preserve documents and reject late/stale actions. | Passed the 7 November recorded Windows fixture. Exact dispatched Apply/request outstanding at exit, four rejected Apply exits, authentic reply before parent rebuild, real native keep/discard close and fresh-process recovery/reopen. Interruption midway through kernel execution has separate coverage requirements. |
 | C13 | Selection, viewport context, ribbon/side-panel commands, camera and keyboard act on the intended target. | The [finite command matrix](USABLE_COMMAND_MATRIX.md) maps aliases and evidence. Windows records cover bounded Help ownership, edit-menu focus, sketch modification controls and held-role selection. The follow-up verifies part File-menu ownership for Delete and Ctrl+Z/S/O/N, plus the configured dirty-document decision and retry in both layouts. Finish the remaining entry-point, context and keyboard cases. Retain view, camera and document history as separate checks. |
-| C14 | The currently implemented nested/configured workflows retain their scope, state and references. | Reused subassembly with two supported states, correct editable scope, state isolation, supported relation forms, Cancel/Apply/history/recovery and Save/reopen. Explicitly track the configured omissions below. |
-| C15 | Part materials, density, part colour and background are configurable and persist compatibly. | Passed the recorded integrated cases: part properties 70, actual two-process recovery/background 75+30 and three-use standard/configured material/mass lifecycle 231. Thirty-two fixed frames are hash-verified; selected views are qualitatively reviewed. Exact source ID+revision, history and file compatibility remain authoritative. Retain the documented OS-picker/GPU/platform limits and [the contract](PART_PROPERTIES.md). |
+| C14 | The currently implemented nested/configured workflows retain their scope, state and references. | Reused subassembly with two supported states, correct editable scope, state isolation, supported relation forms, Cancel/Apply/history/recovery and Save/reopen. Explicitly track the configured omissions below. The configured LINE package case verifies right Compact, mixed Base/Compact isolation, saved orientation and fresh resolve. [Packaged LINE evidence](VALIDATION.md#packaged-configured-line-path--windows-2026-11-11). |
+| C15 | Part materials, density, part colour and background are configurable and persist compatibly. | The 0.24.0 Windows package verifies native colour pickers, 0.001 kg mass, Undo/Redo, a byte-identical recovery copy and native Open for one cube. Prior integrated cases cover part properties (70), two-process recovery/background (75+30) and the three-use standard/configured material/mass lifecycle (231). Thirty-two fixed frames remain hash-verified, with qualitative review of selected views. Exact source ID and revision, history and file compatibility remain authoritative. [Packaged walkthrough](VALIDATION.md#packaged-part-appearance-and-recovery--windows-2026-11-11) · [Properties contract](PART_PROPERTIES.md). |
 | C16 | File operations preserve native document versions and the supported interchange formats. | Recorded Windows cases cover `.solidflow` v1/v2/v3, ordinary single-solid and structural STEP, STEP/STL geometry and configured BOM CSV, including stated cancellation/rejection cases and independent STEP geometry. The 0.21.0 Windows package has an exact structural STEP round trip, dirty Save and continue with Cancel/retry, and fresh-process byte-identical recovery. Other exact integrated and installed/platform checks remain required. |
 | C17 | The final application has appropriate security, error and responsiveness checks. | Full `npm test`, build and desktop smoke after relevant changes, code-review and security-review of sensitive boundaries. Fix confirmed vulnerabilities and reproducible use blockers. Profile a reported slowdown on the same workload before/after any performance change. |
-| C18 | A clearly identified executable opens from the desktop and completes a practical combined walkthrough. | The [0.23.0 Windows package](VALIDATION.md#packaged-assembly-authoring-and-shared-part-editing--windows-2026-11-11) has a verified shortcut and guide, native part and configured-reference cases in draft PR #49, and the standard assembly walkthroughs above. The [0.22.0 Windows prototype](VALIDATION.md#packaged-0220-on-windows--2026-11-11) records a boss-width edit and configured Save/Open/recovery. Hosted checks, user feedback and installed-platform acceptance remain separate. |
+| C18 | A clearly identified executable opens from the desktop and completes a practical combined walkthrough. | The 0.24.0 Windows shortcut opens the original one-solid, 772 mm³ part with its own profile. The updated guide has ten verified samples. The C11, C15 and configured LINE walkthroughs use the same package. The final combined walkthrough, hosted checks, installed-platform acceptance and human use retain separate requirements. [0.24.0 demo access](VALIDATION.md#packaged-demo-access--windows-2026-11-11) · [0.23.0 native assembly cases](VALIDATION.md#packaged-assembly-authoring-and-shared-part-editing--windows-2026-11-11) · [0.22.0 native part and configured cases](VALIDATION.md#packaged-0220-on-windows--2026-11-11). |
 
 ## Solid-operation family matrix
 
@@ -73,7 +73,7 @@ checked items out of 25. Each of its nine open groups keeps its own evidence.
 
 | Existing open group | Recorded bounded cases | Remaining gate work |
 | --- | --- | --- |
-| Complete demo and human use | Sequential part modeling and embedded editing have recorded routes. The `1c6e955` Windows package passes the two- and three-plate origin/component distance walkthrough and fresh-process recovery. | C07, C08, C11, C18 on the next integrated executable, verified access and guide. Record human use separately. |
+| Complete demo and human use | The 0.24.0 Windows directory build has verified desktop access, a guide and separate native C11 and C15 results. The 0.23.0 package retains the native standard authoring and configured-reference cases. | Complete the combined part and assembly walkthrough on the final executable. Record human use and installed-platform acceptance separately. |
 | Remaining view-editor behaviour | Presets, Normal To, named views, Previous and bounded native selector and gesture cases in three workspaces. | C13/N02–N06 retains the remaining selector, compact and context entries. |
 | Broader keyboard interaction | Document/camera shortcuts, field ownership, Help focus, modal Escape and menu traversal have bounded cases. Local follow-up covers the part File menu and configured discard dialog in normal and compact windows. | C13/N07/N08 and P-X01 retain their named field, tree, viewport, repeat and composition cases. |
 | Recurring persistence and installed/platform use | Versioned documents, interchange, close and recovery have local routes. All three persistence jobs pass on `2a9ad6d`. | C16–C18 require the next exact-head results and executable. Recurring hosted stability, cost and installed acceptance remain in [desktop tracking](https://github.com/angelcp2802/solidflow/issues/53). |
@@ -108,6 +108,26 @@ tolerances and deadlines.
 
 ## Current resumption point
 
+- Draft PR #49 head `916b5e34d52de912230d47c5e87fc0d67796967a` and the
+  hosted merge `9ca4a228f684aa37a3f8dc534087885c86c23434` match the
+  frozen 0.24.0 source tree of `f299733`. The frozen Windows inventory
+  passed all 122 commands. Both Security jobs passed. Windows and macOS
+  persistence passed. Ubuntu persistence was cancelled at its 35-minute
+  limit, so all three Desktop jobs stopped at their prerequisite. [Draft PR](https://github.com/angelcp2802/solidflow/pull/49)
+  · [CI](https://github.com/angelcp2802/solidflow/actions/runs/43012702127)
+  · [Security](https://github.com/angelcp2802/solidflow/actions/runs/43012702125)
+- The local 0.24.0 desktop shortcut and updated guide are verified. The
+  original four-cut plate opens at 772 mm³ and the guide includes ten
+  verified samples. C11 material-face repair, C15 appearance and recovery,
+  and the C10/C14 configured LINE case have separate native passes.
+  [Windows demo access and native cases](VALIDATION.md#packaged-demo-access--windows-2026-11-11)
+- Verify the 45-minute Ubuntu persistence job and the Desktop prerequisites
+  on the follow-up revision. Record the combined
+  part and assembly walkthrough on the final executable, any remaining
+  native command cases, installed-platform results and human use.
+
+### Earlier integration records
+
 - Draft PR #49 head `8f5c7701` and the hosted merge have the exact reviewed
   tree of `f40743`. All 121 frozen Windows commands pass, including the Screw
   regression and every declared desktop route. The local 0.20.0 executable
@@ -126,14 +146,12 @@ tolerances and deadlines.
   plate at 120 mm through Cancel/retry/Apply, history, Save/Open, fresh Solve
   and process recovery. The recovered three-plate Save As matches the saved
   original bytes. Source binding and limits are in [Validation](VALIDATION.md).
-- The next candidate combines exact root-part placement transport, named
+- An earlier candidate combined exact root-part placement transport, named
   origin-owner selectors, explicit recipe availability and repair, the five
   normal finishing/Hole cases and finite operation/copy alias evidence.
   The source, executable and hosted checks each retain their own acceptance
   receipts. The seven explicit variation/repair/Windows-transition CI steps
   and the new focal routes keep the current job permissions and budgets.
-
-### Earlier integration records
 
 - Public `02bab957` in draft PR #49 follows the 31-command Windows baseline
   and adds the bounded Float64 corner-picking correction. All nine relations,

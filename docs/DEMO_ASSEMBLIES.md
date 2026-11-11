@@ -423,7 +423,9 @@ For `line-path.solidflow`, choose **Punto sobre trayecto LINE**.
 1. Choose B's local vertex [-2,3,0] in **Punto del trayecto LINE configurado**.
 2. Choose A's top edge parallel to Y at X−2, Z4 in **Arista del trayecto LINE
    configurado**. Choose [-2,−3,4] in **Origen del trayecto LINE configurado**.
-   Changing the edge clears its previous origin.
+   Changing the edge clears its previous origin. If the preview says the
+   origin must coincide with an endpoint, select one of the two endpoints
+   of that edge and retry.
 3. Set **Modo del trayecto LINE configurado** to **Distancia** and
    **Valor del trayecto LINE configurado** to 1. Leave position reversal off.
 4. Set **Orientación del trayecto LINE configurado** to **Alinear un eje local

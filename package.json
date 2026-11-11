@@ -1,6 +1,6 @@
 {
   "name": "solidflow",
-  "version": "0.24.0",
+  "version": "0.25.0",
   "private": true,
   "description": "Free, open-source parametric desktop CAD",
   "type": "module",
@@ -157,6 +157,11 @@
     "typescript": "7.0.2",
     "vite": "8.3.4",
     "vitest": "5.0.3"
+  },
+  "overrides": {
+    "app-builder-lib@26.15.3": {
+      "minimatch@^9.0.3 || ^10.2.5": "11.0.8"
+    }
   },
   "build": {
     "appId": "com.solidflow.desktop",

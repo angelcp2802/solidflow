@@ -111,7 +111,27 @@ module.exports = function configuredCompoundWorkflow(c) {
   async function preview(baseline,stage,kind='replace'){const before=await observe();await button('Vista previa de relación compuesta configurada',FORM);return ready(await response(before.serial,ACTION),baseline,stage,kind);}
   async function apply(staged,stage){const before=await observe();await button('Aplicar configuración',NAV);const a=await response(before.serial,'apply-configured-assembly');check(canonical(a.response.value.document)===canonical(staged),'Apply commits exact prepared complete document');const row=await response(before.serial,'build-configured-assembly');geometry(row.response.value,staged,stage,'applied');await recovery(staged);return staged;}
   async function history(label,doc,stage){const before=await observe();await button(label,NAV);const row=await response(before.serial,'build-configured-assembly');check(canonical(row.current.document)===canonical(doc),'History restores exact complete context');geometry(row.response.value,doc,stage,label);await recovery(doc);}
-  async function reject(baseline){const before=await observe();await button('Vista previa de relación compuesta configurada',FORM);const row=await response(before.serial,ACTION,false);check(!row.response.value,'Rejected material intent yields no native proposal');await recovery(baseline);check(await page(nav=>[...document.querySelectorAll(nav+' button')].some(b=>b.textContent.trim()==='Aplicar configuración'&&b.disabled),NAV),'Rejected native intent has no Apply capability');}
+  async function reject(baseline) {
+    const before = await observe();
+    await button('Vista previa de relación compuesta configurada', FORM);
+    const row = await response(before.serial, ACTION, false);
+    check(!row.response.value, 'Rejected material intent yields no native proposal');
+    if (family === 'line-path') {
+      check(row.response.error === 'The material start is not an exact endpoint of this edge.', 'LINE rejection retains the exact native endpoint diagnostic');
+    }
+    const message = family === 'line-path' ? 'El origen debe coincidir con un extremo de la arista LINE seleccionada.' : row.response.error;
+    await recovery(baseline);
+    const displayed = await page(root => {
+      const workspace = document.querySelector(root);
+      return {
+        alert: workspace?.querySelector('.configured-assembly-error[role="alert"]')?.textContent,
+        status: workspace?.querySelector('footer[role="status"]')?.textContent,
+      };
+    }, ROOT);
+    check(displayed.alert === message && displayed.status === message, 'The editor shows the expected alert and status for the rejected material intent');
+    checks.push({ configuredCompoundRejection: { raw: row.response.error, ...displayed } });
+    check(await page(nav => [...document.querySelectorAll(nav + ' button')].some(b => b.textContent.trim() === 'Aplicar configuración' && b.disabled), NAV), 'Rejected native intent has no Apply capability');
+  }
   const navigateScope=require('./desktop-configured-scope-navigation.cjs')({page,control,observe,waitFor,check,canonical,ipc,dialogCounts,checks:c.checks});
  return async()=>{
     await waitFor('production startup',()=>page(()=>document.querySelector('.statusbar')?.textContent.includes('Listo')&&typeof window.solidflow?.openDocument==='function'),initialReadyMs);

@@ -2705,8 +2705,8 @@ separately. The configured mechanical and
 compound workflows retain their separate job. The original Desktop check names
 depend on every renderer and configured job: after pinned Node setup, an
 unconditional result guard fails unless both dependencies succeeded. A skipped
-or canceled dependency cannot satisfy that guard. The Windows and macOS
-persistence renderers have a 45-minute job limit. The other renderer jobs
+or canceled dependency cannot satisfy that guard. Persistence renderers on
+Windows, macOS and Linux have a 45-minute job limit. The other renderer jobs
 and Desktop jobs have 35 minutes, and the configured job has 20 minutes.
 Each scenario retains its own deadline, sandbox settings and no-publish
 packaging. This

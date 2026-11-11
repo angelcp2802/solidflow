@@ -1,5 +1,158 @@
 # Validation
 
+## Packaging dependency override trial — Windows, 2026-11-11
+
+The isolated dependency change scoped to Electron Builder 26.15.3 resolves
+the two affected minimatch consumers to 11.0.8. The installed dependency
+audit reports zero findings. The two older 3.x and 5.x dependency families
+retain their locked versions. The updated minimatch and new transitive
+glob matcher use BlueOak-1.0.0 and remain development dependencies.
+[Advisory](https://github.com/advisories/GHSA-g3hv-75wg-m249)
+
+The isolated change passed 20 Builder file-matching comparisons and five
+universal matcher comparisons on benign inputs, build, Windows x64
+directory packaging and the packaged inventory audit. The output contains
+5,276 ASAR files and the nine production files match the exact build.
+The packaging tools are outside the application archive. The Windows
+trial uses the locked Electron 44.9.3 distribution. macOS universal and
+the integrated follow-up retain their own validation requirements.
+
+## Complete frozen 0.24.0 Windows inventory — 2026-11-11
+
+All 122 commands passed on frozen source `f299733` and tree
+`1d1db57d6ddf01e6c54caedec36bfd2265b394b6`. The independent terminal
+check rehashed every command log, all 1,586 tracked inputs, nine production
+files and eleven selected dependency files. Build, 11,504 unit and CAD
+cases in 524 files, 227 IPC checks with two skips, and desktop/WASM startup
+are included in the inventory. Hosted Security passed both jobs. macOS
+persistence passed the face-target step and finished successfully. Ubuntu
+persistence reached its 35-minute limit during configured-component
+authoring after 57 successful test steps. The following Linux material-pointer
+and compact configured cases were skipped. The follow-up extends the
+Linux persistence limit to 45 minutes. The 0.24 CI run ended cancelled with
+11 successful jobs and three Desktop prerequisite failures.
+[CI](https://github.com/angelcp2802/solidflow/actions/runs/43012702127)
+· [Security](https://github.com/angelcp2802/solidflow/actions/runs/43012702125)
+
+## Packaged configured LINE path — Windows, 2026-11-11
+
+The isolated native window used the frozen SolidFlow 0.24.0 Windows x64
+directory package. It opened the original four-prism model in Both compact
+and created a LINE relation from right · compact. The original contains two
+uses of the same intrinsic configuration. The right parent is rotated
+90° about Z and translated 30 mm along X.
+[Original recipe](../scripts/desktop-assembly-configured-compound-original.cjs)
+· [Package provenance](#packaged-material-face-repair--windows-2026-11-11)
+
+The moving vertex was B's local [-2, 3, 0] mm. The path was A's upper
+material edge at X−2, Z4, parallel to Y. Choosing the lower vertex
+[-2, −3, 0] as its origin produced the exact-endpoint diagnostic and kept
+Apply disabled. Choosing [-2, −3, 4] resolved the path with Follow Y and
+UP Z guided by A's upper material face. Cancel preserved the draft. A new
+verified preview applied the 1 mm position. Editing the same relation to
+25 percent from the other end preserved its four reference roles and
+orientation choices.
+
+The distance and percentage saves place the moving vertex at [-2, −2, 4]
+and [-2, 1.5, 4] mm in the declaring scope. An independent calculation used
+the saved rigid transforms and original prism dimensions. The percentage
+point is [28.5, −2, 4] mm in world coordinates on the right. The Undo save
+is byte-identical to the distance save. After Redo, selecting Right compact
+changes only the root state in the saved graph. The left moving prism is at
+its Base bounds [10, 1, 2] to [14, 7, 6] mm. The right moving prism spans
+[28.5, −2, 4] to [34.5, 2, 8] mm. The checks used 1e−6 mm for position and
+1e−8 for orientation. Original Base and dormant declarations remain exact.
+
+The mixed file reopened in Right compact. A fresh verified preview resolved
+three states and checked one relation. Cancel retained its saved bytes.
+Opening the relation form restored the point, edge, origin, guide,
+orientation and 25 percent value. The application displayed four solids,
+384 mm³ and 512 mm² throughout the recorded states. This covers a single
+configured LINE recipe and pose-based geometry. Configured geometry export,
+other specialized relation families and installed-platform checks retain
+separate evidence requirements.
+
+## Packaged demo access — Windows, 2026-11-11
+
+The verified **SolidFlow 0.24 - Demo** desktop shortcut starts the frozen
+Windows x64 directory package with its own demo profile. Native Help
+reported version 0.24.0. The original **Placa de cuatro cortes** opened as
+one solid at 772 mm³ in a clean document. The shortcut and open part were
+verified again when the Spanish guide was updated. The updated guide and
+all ten original part, assembly and STEP samples matched their recorded
+hashes. [Package provenance](#packaged-material-face-repair--windows-2026-11-11)
+
+The native shared-part repair, part appearance and configured LINE walkthroughs
+used the same package in isolated QA profiles. These separate cases and the
+shortcut check cover access and the stated native workflows. The combined
+walkthrough on the final executable, installed-platform acceptance and
+human use retain separate evidence requirements.
+[Material-face repair](#packaged-material-face-repair--windows-2026-11-11)
+· [Appearance and recovery](#packaged-part-appearance-and-recovery--windows-2026-11-11)
+· [Configured LINE path](#packaged-configured-line-path--windows-2026-11-11)
+
+## Packaged part appearance and recovery — Windows, 2026-11-11
+
+This walkthrough used the same frozen 0.24.0 Windows x64 directory package
+and source tree as the material-face repair check.
+[Package provenance](#packaged-material-face-repair--windows-2026-11-11)
+
+The original 10 × 10 × 10 mm cube starts with its material unassigned.
+We applied part colour `#cc6633` through the native colour picker and
+assigned a synthetic material with density 1,000 kg/m³. The unselected cube
+appeared orange. Its volume of 1,000 mm³ is 10⁻⁶ m³, giving the displayed
+mass of 0.001 kg. One Undo restored the unassigned material and one Redo
+restored the applied properties. The saved part contained the exact material,
+density and colour. [Original cube recipe](../scripts/desktop-part-properties-original.cjs)
+
+We set the viewport background to `#ddeeff` through the native picker.
+The light-blue background did not mark the saved part dirty. A fresh process
+using the same isolated profile restored the background, and the saved
+recovery copy matched the original save byte for byte. Opening the saved
+part through the native dialog restored its material, density, colour and
+displayed mass.
+
+The walkthrough covers one original cube and one profile in the unsigned
+Windows x64 directory build. File values are exact and the visual colour
+checks are qualitative. Calibrated colour and picker behaviour on other
+platforms retain separate evidence requirements.
+
+## Packaged material-face repair — Windows, 2026-11-11
+
+The [0.24.0 draft revision](https://github.com/angelcp2802/solidflow/pull/49/commits/916b5e34d52de912230d47c5e87fc0d67796967a)
+and frozen source `f299733e9bc5a4d297766b6ad3824b075e00e235` share tree
+`1d1db57d6ddf01e6c54caedec36bfd2265b394b6`. The Windows x64 directory
+package used executable SHA-256
+`3d5a9454178090631f4745df455a2d478709518baf74ceafe9c63121c4ce7741` and
+ASAR SHA-256
+`eb1287f17dcbfc7f75ff00e19ff8f6f8f5c50b67194eb1be857d2284fa9b7742`.
+
+The [original shared-part fixture](../scripts/desktop-assembly-embedded-part-edit-original.cjs)
+contains two occurrences of one 2 × 3 × 4 mm prism and a locked root Z
+relation. The [original renderer route](../scripts/desktop-assembly-embedded-part-edit-flow.cjs)
+added an aligned distance of −10 mm from the top face of base to the top
+face of moving. The packaged walkthrough opened that confirmed assembly.
+Changing the shared rectangle width from 2 to 3 mm and its X centre from
+1 to 1.5 mm preserved the lower X boundary. The review retained the axis
+relation and required explicit repair of both material-face endpoints.
+We confirmed the top face at local Z4 on each original owner. The verified
+preview reported rank 6 and zero local degrees of freedom.
+
+Cancel returned to the edited 36 mm³ part. Repeating both repairs and
+applying updated the two occurrences in one history step. Undo restored
+48 mm³ and Redo restored 72 mm³. Independent file inspection checked the
+original fixture hash, preserved occurrence IDs and poses, both relation
+IDs and ordered owners, the historical source revision and one new revision
+shared by both uses and all affected endpoints. The saved file reopened at
+72 mm³ and passed a fresh Solve followed by Cancel.
+
+An independent read of the native STL found two prisms, each with signed
+volume 36 mm³ and area 66 mm², at Z0–4 and Z10–14 mm. The totals were
+72 mm³ and 132 mm², with bounds [0, 0, 0] to [3, 3, 14] mm. This covers two
+explicit planar repairs on one original shared part in an unsigned Windows
+directory build. Other topology families, installed-platform use and human
+acceptance retain separate evidence requirements.
+
 ## Packaged assembly authoring and shared-part editing — Windows, 2026-11-11
 
 The [0.23.0 draft revision](https://github.com/angelcp2802/solidflow/pull/49/commits/d8621f04f488683503cce4e41b6e1ba5d236b0bb)
@@ -6642,6 +6795,16 @@ background right-click exposes the four view commands, and keyboard context
 uses the selected Base. The workflow keeps its original relation, Cancel/Apply,
 history and exact saved reopening checks. Numeric/name fields remain scripted;
 pointer and context-key actions use actual input transport.
+
+On 2026-11-11, the same original three-prism renderer exposed a root XY
+viewport context from Componentes and dropped that same right release from
+Relaciones on `f299733`. The correction opens the exact menu in both
+panels. Its Referencias de origen command focuses the disclosure. With the
+distance origin picker armed, the same viewport gesture opens no menu and
+preserves the exact role, recovery, history and worker observations. Build,
+164 focused unit cases and the Windows basic-authoring, origin-axis and
+Normal To renderer routes pass at 512, 363 and 274 checkpoints respectively,
+with zero renderer console or resource errors.
 
 Local Windows x64, Node 24.11.1 and Electron 44.9.3 acceptance 02 used 1,140
 matching non-Markdown source/runtime inputs:

@@ -488,7 +488,14 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
       if (reply.kind !== 'configured-assembly-preview' || reply.generation !== captured.context.generation || !reply.verification.accepted
         || !configuredUiSceneMatches(reply.scene, reply.document, reply.candidateGeneration) || !configuredMateUiPreviewMatches(reply.document, edit)) { release(reply.token); throw Error('La vista previa no conserva la edición de relación solicitada.') }
       pending.current = reply; setPreview(reply); setScene(reply.scene); setMessage('Edición verificada. Revisa la vista previa y pulsa Aplicar o Cancelar.')
-    } catch (reason) { if (isCurrent()) error(reason) }
+    } catch (reason) {
+      if (isCurrent()) {
+        const { change } = edit
+        const invalidLineOrigin = (change.kind === 'add' || change.kind === 'replace') && change.mate.type === 'line-path'
+          && reason instanceof Error && reason.message === 'The material start is not an exact endpoint of this edge.'
+        error(invalidLineOrigin ? 'El origen debe coincidir con un extremo de la arista LINE seleccionada.' : reason)
+      }
+    }
     finally { if (fresh(captured.context) && operationKind.current === 'solve') finish() }
   }
   const previewMechanical = async (intent: AssemblyConfiguredMechanicalEdit) => {
