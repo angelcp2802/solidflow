@@ -3,7 +3,7 @@ import { bodyReferenceCreationFeatureId, featureBodyOutputIncludes } from './bod
 import { activeFeaturePatternAddresses, featurePatternSourceReferences, isDynamicFeaturePattern, isAllFeaturePattern, type AnyFeaturePatternBinding, type FeaturePatternOperation } from './featurePatterns'
 import { readRecipeAutoScopeCapture, type RecipeAutoScopeCapture } from './featureRecipeAutoScope'
 import { isRecipeInstanceDepth, type RecipeInstanceDepthValue } from './featureRecipeDepthVariation'
-import { isRecipeSketchRadius, recipeCircleDrivingRadius, type RecipeSketchDimensionValue } from './featureRecipeSketchVariation'
+import { isRecipeSketchDimensionValue, MAX_RECIPE_SKETCH_DIMENSIONS, MAX_RECIPE_SKETCH_DIMENSIONS_PER_INSTANCE, recipeSketchDrivingDimensions, type RecipeSketchDimensionValue } from './featureRecipeSketchVariation'
 
 /** Explicit target selection prunes removed routes and defaults new targets on each binding. */
 export function withFeaturePatternTargets(feature: RepetitionFeature, targets: readonly BodyReference[]): RepetitionFeature {
@@ -119,7 +119,7 @@ export function withFeaturePatternInstanceDepth(feature: RepetitionFeature, addr
   if (operation?.mode !== 'regenerate' || operation.scope !== 'selected' || feature.source.mode !== 'features' || feature.source.featureIds.length !== 1) {
     throw new Error('La profundidad por instancia requiere recalcular una semilla sobre cuerpos seleccionados.')
   }
-  if (operation.variation.kind === 'sketchDimensions') throw Error('Quita los radios por instancia antes de variar la profundidad.')
+  if (operation.variation.kind === 'sketchDimensions') throw Error('Quita las cotas de croquis por instancia antes de variar la profundidad.')
   const rows = operation.variation.kind === 'dimensions' ? operation.variation.values : []
   if (value !== null && (!activeFeaturePatternAddresses(feature).includes(address) || !isRecipeInstanceDepth(value))) {
     throw new Error('Selecciona una instancia activa e indica una profundidad entre 0,01 y 100.000 mm.')
@@ -130,25 +130,56 @@ export function withFeaturePatternInstanceDepth(feature: RepetitionFeature, addr
     variation: values.length ? { kind: 'dimensions', values: structuredClone(values) } : { kind: 'none' } } }
 }
 
-/** An explicit driving-constraint edit; no source profile or solved geometry is saved. */
-export function withFeaturePatternSketchRadius(feature: RepetitionFeature, features: readonly Feature[], address: string, value: number | null): RepetitionFeature {
+function sketchVariationSeed(feature: RepetitionFeature, features: readonly Feature[]) {
+  const seedId = feature.source.mode === 'features' && feature.source.featureIds.length === 1 ? feature.source.featureIds[0] : undefined;
+  const seed = features.find(item => item.id === seedId);
+  const sketch = seed?.type === 'cut' ? features.find(item => item.id === seed.sketchId) : undefined;
+  return { sketch, drivers: recipeSketchDrivingDimensions(seed, sketch) };
+}
+
+/** Edit one exact address/constraint pair; saved rows contain declarations only. */
+export function withFeaturePatternSketchDimension(feature: RepetitionFeature, features: readonly Feature[], address: string,
+  constraintId: string, value: number | null): RepetitionFeature {
   const operation = feature.featurePattern;
-  if (operation?.mode !== 'regenerate' || operation.scope !== 'selected' || feature.source.mode !== 'features' || feature.source.featureIds.length !== 1) {
-    throw Error('El radio por instancia requiere recalcular una semilla sobre cuerpos seleccionados.');
+  if (operation?.mode !== 'regenerate' || operation.scope !== 'selected' || feature.source.mode !== 'features') {
+    throw Error('La cota por instancia requiere recalcular operaciones sobre cuerpos seleccionados.');
   }
   if (operation.variation.kind === 'dimensions') throw Error('Quita las profundidades por instancia antes de variar el croquis.');
   const rows = operation.variation.kind === 'sketchDimensions' ? operation.variation.values : [];
-  const seedId = feature.source.featureIds[0];
-  const seed = features.find(item => item.id === seedId);
-  const sketch = seed?.type === 'cut' ? features.find(item => item.id === seed.sketchId) : undefined;
-  const radius = recipeCircleDrivingRadius(seed, sketch);
-  if (value !== null && (!radius || !sketch || !activeFeaturePatternAddresses(feature).includes(address) || !isRecipeSketchRadius(value))) {
-    throw Error('Selecciona una instancia activa y un corte circular de centro fijo y radio conductor entre 0,01 y 100.000 mm.');
+  const values: RecipeSketchDimensionValue[] = rows.filter(row => row.address !== address || row.constraintId !== constraintId);
+  if (value !== null) {
+    const { sketch, drivers } = sketchVariationSeed(feature, features);
+    if (!sketch || !drivers.some(driver => driver.constraintId === constraintId)
+      || !activeFeaturePatternAddresses(feature).includes(address) || !isRecipeSketchDimensionValue(value)) {
+      throw Error('Selecciona una instancia activa y una cota conductora entre 0,01 y 100.000 mm.');
+    }
+    if (rows.some(row => row.address === address && row.constraintId === constraintId && row.sketchId !== sketch.id)) {
+      throw Error('Quita la cota no disponible antes de asignarla al croquis actual.');
+    }
+    if (values.length >= MAX_RECIPE_SKETCH_DIMENSIONS
+      || values.filter(row => row.address === address).length >= MAX_RECIPE_SKETCH_DIMENSIONS_PER_INSTANCE) {
+      throw Error('Quita una cota asignada antes de añadir otra.');
+    }
+    values.push({ address, sketchId: sketch.id, constraintId, value });
   }
-  const values: RecipeSketchDimensionValue[] = rows.filter(row => row.address !== address);
-  if (value !== null) values.push({ address, sketchId: sketch!.id, constraintId: radius!.constraintId, value });
   return { ...structuredClone(feature), featurePattern: { ...structuredClone(operation),
-    variation: values.length ? { kind: 'sketchDimensions', values } : { kind: 'none' } } };
+    variation: values.length ? { kind: 'sketchDimensions', values: structuredClone(values) } : { kind: 'none' } } };
+}
+
+/** Existing circle-only command retains its removal behavior for an unavailable saved radius. */
+export function withFeaturePatternSketchRadius(feature: RepetitionFeature, features: readonly Feature[], address: string,
+  value: number | null): RepetitionFeature {
+  const { drivers } = sketchVariationSeed(feature, features);
+  const radius = drivers.find(driver => driver.parameter === 'radius');
+  if (value !== null) {
+    if (!radius) throw Error('Selecciona una instancia activa y un corte circular de centro fijo y radio conductor entre 0,01 y 100.000 mm.');
+    return withFeaturePatternSketchDimension(feature, features, address, radius.constraintId, value);
+  }
+  const operation = feature.featurePattern;
+  const rows = operation?.mode === 'regenerate' && operation.variation.kind === 'sketchDimensions'
+    ? operation.variation.values.filter(row => row.address === address) : [];
+  if (!radius && (rows.length > 1 || drivers.length > 0)) throw Error('Selecciona la cota exacta que quieres quitar.');
+  return withFeaturePatternSketchDimension(feature, features, address, rows.length === 1 ? rows[0].constraintId : radius?.constraintId ?? '', null);
 }
 
 /** Explicit choice; never infer a missing reference policy from seed geometry. */

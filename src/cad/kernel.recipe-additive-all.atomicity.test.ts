@@ -114,7 +114,7 @@ it('records no-op revisions for every remote owner and rejects copied positive e
   try {
     evaluation = evaluateFeatureRecipes(value);
     expect(evaluation.replacements.map(e => e.ref.bodyId)).toEqual(['B']);
-    expect(evaluation.attestation.evaluatorRevision).toBe('intrinsic-auto-selected-sketch-radius-v11');
+    expect(evaluation.attestation.evaluatorRevision).toBe('intrinsic-auto-selected-sketch-dimensions-v12');
     for (const owner of ['A', 'C']) expect(evaluation.attestation.virtualOutputs.filter(o => o.targetBodyId === owner)).toEqual([
       { sourcePoststate: source, targetBodyId: owner, address: '1,0', role: 'body', inputRevision: 0, outputRevision: 0, materialChanged: false }]);
     const copied: OwnedRecipeEvaluation = { ...evaluation };

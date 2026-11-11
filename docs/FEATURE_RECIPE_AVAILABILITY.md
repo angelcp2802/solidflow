@@ -24,9 +24,10 @@ end-condition, thin-wall or second-direction declarations, including retained
 OFF second-direction data. This UI check reuses the same pure additive
 eligibility helper; it does not normalize saved fields.
 
-Depth and driving-radius assignments retain their existing eligibility and
-explicit clear-before-scope-change contract. This increment introduces no
-width/height, angle, equation or other driver.
+Depth and sketch dimension assignments keep the explicit
+clear-before-scope-change contract. The [anchored rectangle extension](FEATURE_REGENERATION.md#driving-rectangle-dimensions-per-instance)
+adds width and height for the stated Blind cut. Angle, equation and other
+drivers retain their separate requirements.
 
 ## Selection and repair
 

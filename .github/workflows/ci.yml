@@ -465,6 +465,14 @@ jobs:
         if: matrix.batch == 'persistence' && runner.os != 'Linux'
         run: npm run test:desktop:part-instance-radius
 
+      - name: Test solved per-instance rectangle dimensions (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:part-instance-rectangle
+
+      - name: Test solved per-instance rectangle dimensions (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:part-instance-rectangle
+
       - name: Test recipe availability and explicit saved repair (Linux)
         if: matrix.batch == 'persistence' && runner.os == 'Linux'
         run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:part-recipe-availability

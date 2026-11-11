@@ -8860,7 +8860,12 @@ The fixed scenario covers structural import from both workspaces, dialog
 cancellation, malformed-source rejection, normal Save As/reopening and a second
 structured export from the reopened autonomous bases. The exact STEP source
 bytes/SHA, body assignments, product reuse, names and local placements have
-separate checks. Source neutral paths are never saved as `.solidflow` targets.
+separate checks. The dirty-assembly Save-and-continue case imports the same
+original neutral file again while the first accepted import remains unsaved.
+The first Save dialog cancels. The second uses a test-owned SolidFlow path for
+the previous assembly. The real main-process writer completes before its
+unchanged result is released to the renderer. This checks the held decision
+and exact prior bytes while retaining the same eight-solid geometry oracle.
 The dialog substitutions belong solely to the test-owned isolated filesystem;
 worker requests and replies remain the actual production path. No solver reply,
 React callback or application state is injected.
@@ -8966,3 +8971,22 @@ The final actor checks disabled new choices and reopens the unavailable intent
 for explicit repair. Real button presses and visible-field setters remain
 separate evidence from the model's pure metadata/declaration cases. These
 fixtures do not add recipes, establish other platforms or close C05.
+
+
+## Original addressed rectangle dimension fixture
+
+The editable fixture `scripts/desktop-part-instance-rectangle-original.cjs`
+extends the existing original 20 × 8 × 5 mm depth plate. Four authored shared
+line segments form a 2 × 2 mm rectangle anchored at (2, 3) on XY at Z5.
+Two driving lengths and four horizontal/vertical declarations constrain it.
+The cut removes material to Z4. Two linear copies shift the anchored profile
+by X5 and X10. Their width/height pairs (1, 3) and (3, 1) remove 3 mm³ each.
+Together with the original pocket the volume is 790 mm³. The open cavities
+add 24 mm² of side walls to the 600 mm² original surface.
+
+Exchanging the pairs leaves both totals unchanged. At Z4.5, a probe at
+(8.5, 3.5) distinguishes the two widths in the first copy. A probe at
+(7.5, 5.5) distinguishes its two heights. The corresponding points for the
+second copy move 5 mm in X. Fixed reference points and analytical dimensions
+come from the fixture design. The native model and the file readback provide
+observations. No external CAD assets or solved geometry are stored in the fixture.

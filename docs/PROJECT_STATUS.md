@@ -1,5 +1,31 @@
 # Project status and review queue
 
+## Local Windows 0.20.0 demo — 2026-11-11
+
+Draft [PR #49](https://github.com/angelcp2802/solidflow/pull/49) publishes the
+reviewed 0.20.0 demo tree at `8f5c7701`. The Windows build, 11,471 unit/CAD
+cases in 522 files, 224 IPC checks with two explicit skips and desktop startup
+pass on this tree. [CI](https://github.com/angelcp2802/solidflow/actions/runs/42945034388)
+passed all fifteen jobs on the matching merge tree, including the Windows
+x64, Linux x64 and macOS arm64 builds, unit/CAD, IPC, production-loader and
+packaging checks. The exact Screw lifecycle that failed on the preceding
+head now passes on all three runners.
+[Security](https://github.com/angelcp2802/solidflow/actions/runs/42945034397)
+passed on the candidate.
+
+The local Windows x64 package opens from its own desktop shortcut. The
+[packaged walkthrough](VALIDATION.md#packaged-0200-demo-and-recovery--windows-2026-11-11)
+checks an extrusion and four retained cuts, material and mass, and a three-part
+assembly with both origin-to-component and component-to-component distances.
+It exercises Cancel, history, Save/Open, clean exit and fresh-process recovery.
+The [Spanish guide](PROBAR_SOLIDFLOW.md) explains the normal modeling controls.
+
+The matching frozen Windows batch passed all 121 commands, covering build,
+tests and every declared desktop route. Remaining recipe and command cases, user feedback, recurring hosted
+stability and installed-platform acceptance stay in the
+[prototype ledger](USABLE_VERSION_ACCEPTANCE.md). The executable remains a
+local unsigned demo. The public release gate remains open.
+
 ## Local prototype candidate 0.20.0 — 2026-11-10
 
 The combined AUTO and selected-instance-depth source passes eighteen Windows

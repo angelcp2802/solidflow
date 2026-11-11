@@ -2,7 +2,9 @@ import type { Shape3D } from 'replicad';
 import type { Feature, PlaneFrame, Vec3 } from './kernel.types';
 import type { IntrinsicRecipeExtrusionPlacement } from '../model/featureRecipes';
 import { entityProfileSolid, solveEntityProfileResult } from './kernel.profiles';
-import { circleRadiusConstraint, isRecipeSketchRadius } from '../model/featureRecipeSketchVariation';
+import { isRecipeSketchDimensionValue, recipeSketchDrivingDimensions } from '../model/featureRecipeSketchVariation';
+import { sketchPoint } from '../sketch/editing';
+import type { EntityProfile } from '../sketch/types';
 import { prepareThinSection } from './kernel.thin-wall';
 import { assertThinWallEndCapsContext, resolveThinWall } from './thinWall';
 import { buildThinWallEndCaps } from './kernel.thin-caps';
@@ -40,6 +42,21 @@ const sameFrame = (a: PlaneFrame, b: PlaneFrame): boolean =>
   a.xDirection.every((value, axis) => value === b.xDirection[axis]) &&
   a.normal.every((value, axis) => value === b.normal[axis]);
 
+/** Positive lengths alone permit reflected solutions about the fixed corner. */
+function sameRectangleBranch(source: EntityProfile, varied: EntityProfile): boolean {
+  for (const constraint of source.constraints) {
+    if (constraint.type !== 'horizontal' && constraint.type !== 'vertical') continue;
+    const edge = source.entities.find(entity => entity.id === constraint.entityId);
+    if (edge?.type !== 'line') return false;
+    const axis = constraint.type === 'horizontal' ? 'x' : 'y';
+    const a = sketchPoint(source, edge.start), b = sketchPoint(source, edge.end);
+    const c = sketchPoint(varied, edge.start), d = sketchPoint(varied, edge.end);
+    if (!a || !b || !c || !d || b[axis] === a[axis]
+      || Math.sign(b[axis] - a[axis]) !== Math.sign(d[axis] - c[axis])) return false;
+  }
+  return true;
+}
+
 /** The ordinary tool and absence witness use the same authentic native profile construction. */
 function entityRecipePrismFactory(input: EntityRecipeProfileInput): {
   makePrism: (length: number, start?: number) => Shape3D; ray: Vec3; span: ResolvedExtrusionSpan;
@@ -64,26 +81,36 @@ function entityRecipePrismFactory(input: EntityRecipeProfileInput): {
     placement.termination.kind === 'blind', placement.termination.kind !== 'blind' || placement.termination.symmetric !== false);
   const section = thinWall ? prepareThinSection(view.resolved, thinWall) : undefined;
   let profile = section?.sketch.profile ?? view.result.profile;
-  const variation = placement.sketchDimension;
-  if (variation) {
-    const radius = circleRadiusConstraint(view.input);
-    if (view.result.status !== 'fullyDefined' || !radius || variation.sketchId !== view.input.id
-      || radius.constraintId !== variation.constraintId || !isRecipeSketchRadius(variation.value)
+  const variation = placement.sketchDimensions;
+  if (variation?.length) {
+    const drivers = recipeSketchDrivingDimensions(feature, view.input);
+    if (view.result.status !== 'fullyDefined' || variation.length > drivers.length
       || section || placement.thinWall || placement.secondDirection || placement.termination.kind !== 'blind' || placement.termination.symmetric) {
-      throw Error('La variación requiere el radio conductor exacto de un círculo de centro fijo y una dirección ciega.');
+      throw Error('La variación requiere cotas conductoras de un círculo o rectángulo anclado y una dirección ciega.');
     }
-    // Only a copied driving constraint changes. The real source solve and its
-    // published handle remain untouched; no caller supplies a SolveResult.
-    const varied = structuredClone(view.input.profile);
-    if (varied.kind !== 'entities') throw Error('La variación requiere un perfil de entidades.');
-    const constraint = varied.constraints.find(item => item.id === variation.constraintId);
-    if (!constraint || constraint.type !== 'radius') throw Error('La cota conductora ya no está disponible.');
-    constraint.value = variation.value;
+    // Seed a rectangular solve from the certified source branch. The saved
+    // constraints and the published source solve stay untouched.
+    const rectangle = drivers[0]?.parameter === 'width';
+    const varied = structuredClone(rectangle ? view.result.profile : view.input.profile);
+    const used = new Set<string>();
+    for (const row of variation) {
+      const driver = drivers.find(candidate => candidate.constraintId === row.constraintId);
+      const constraint = varied.constraints.find(item => item.id === row.constraintId);
+      if (!driver || !constraint || constraint.type !== (driver.parameter === 'radius' ? 'radius' : 'length')
+        || row.sketchId !== view.input.id || used.has(row.constraintId) || !isRecipeSketchDimensionValue(row.value)) {
+        throw Error('La cota conductora exacta ya no está disponible.');
+      }
+      used.add(row.constraintId);
+      constraint.value = row.value;
+    }
     input.assertWorkingCurrent();
     const solved = solveEntityProfileResult(varied);
     readCheckpointSourceSketchSolve(source.registry, source.checkpoint, source.features, placement.sketchId);
     input.assertWorkingCurrent();
-    if (solved.status !== 'fullyDefined') throw Error(`No se puede resolver el radio de esta instancia (${solved.status}): ${solved.message}`);
+    if (solved.status !== 'fullyDefined') throw Error(`No se pueden resolver las cotas de esta instancia (${solved.status}): ${solved.message}`);
+    if (rectangle && !sameRectangleBranch(view.result.profile, solved.profile)) {
+      throw Error('Las cotas de esta instancia cambian la orientación del rectángulo anclado.');
+    }
     profile = solved.profile;
   }
   if (profile.kind !== 'entities') throw new Error('Entity recipes require a closed resolved entity section.');

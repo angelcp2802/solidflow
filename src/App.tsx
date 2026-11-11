@@ -2911,6 +2911,7 @@ export function PartWorkspace({ initialDocument, initialPath, initialSaved, skip
     "Nuevo…": newDocumentBlocked,
     "Abrir…": !!embeddedEdit,
     "Abrir pieza de ejemplo": !!embeddedEdit,
+    "Pieza de ejemplo": !!embeddedEdit,
     "Ejemplo: cortes y salientes sucesivos": !!embeddedEdit,
     "Vista anterior": !viewHistory.canPrevious || viewIs2D,
     "Ajustar a pantalla": viewHistory.navigating,
@@ -4588,7 +4589,7 @@ export function PartWorkspace({ initialDocument, initialPath, initialSaved, skip
                     ? "Extruir croquis"
                     : "Crear croquis"}
                 </button>
-                <button className="text-link" onClick={loadDemo}>
+                <button className="text-link" onClick={loadDemo} disabled={!!embeddedEdit}>
                   Abrir pieza de ejemplo
                 </button>
               </div>
@@ -4713,6 +4714,7 @@ export function PartWorkspace({ initialDocument, initialPath, initialSaved, skip
           <IconButton
             icon={FolderOpen}
             title="Biblioteca de diseño"
+            disabled={!!embeddedEdit}
             active={panel === "design"}
             onClick={() => setPanel(panel === "design" ? null : "design")}
           />

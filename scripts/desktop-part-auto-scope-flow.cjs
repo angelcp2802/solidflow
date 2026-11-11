@@ -85,7 +85,7 @@ module.exports = function autoScopeWorkflow(context) {
     });
     const { value } = record.response, candidate = record.features.at(-1), operation = candidate.featurePattern;
     check(record.response.ok && value.kind === 'feature-recipe-auto-scope' && value.patternId === candidate.id
-      && record.patternId === candidate.id && value.evaluatorRevision === 'intrinsic-auto-selected-sketch-radius-v11', 'Actual worker returns only matching detached AUTO intent');
+      && record.patternId === candidate.id && value.evaluatorRevision === 'intrinsic-auto-selected-sketch-dimensions-v12', 'Actual worker returns only matching detached AUTO intent');
     check(canonical(record.fields) === canonical(['action', 'features', 'id', 'patternId']) && operation.scope === 'all'
       && operation.reevaluateAt === 'patternInput' && !Object.hasOwn(operation, 'capturedBodyIds'), 'Capture receives only the temporary ALL declaration and its pattern identity');
     check(canonical(value.scope.capturedBodyIds) === canonical(ids) && value.scope.follow === 'sameIdentityAtPatternInput'

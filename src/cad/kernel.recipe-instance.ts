@@ -42,8 +42,8 @@ function nativeTermination(end: RecipeTermination): PrimitiveTermination {
 
 /**
  * Initial native bridge: one intrinsic selected/ALL operation/event/address/
- * target. Selected Blind depth or the admitted circular driving radius may vary.
- * The entity bridge solves that constraint internally. This never accepts an arbitrary caller transform or source frame and
+ * target. Selected Blind depth or admitted sketch dimensions may vary.
+ * The entity bridge solves the driving constraints internally. This never accepts an arbitrary caller transform or source frame and
  * never falls back to geometry-delta copying. Closure/native attestation and
  * atomic owner publication are evaluator responsibilities.
  */

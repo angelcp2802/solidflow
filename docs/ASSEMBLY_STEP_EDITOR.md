@@ -18,8 +18,15 @@ replacement decision. A multibody product stays one part with explicit body
 assignments. Reused products stay reused; equal names or geometry do not merge
 their identities.
 
-Finish pending edits first. A canceled file selection, unsupported file,
-rejected replacement or stale response keeps the current document, history,
+Finish pending edits first. When the current assembly has unsaved changes,
+**Guardar y continuar** saves that assembly with its current file grant or
+asks for a new SolidFlow location. The prepared STEP import still owns the
+workspace while Save is pending. Canceling or failing Save keeps the
+replacement decision open so the user can retry. The editor rechecks the
+current document and operation before continuing after Save.
+
+A canceled file selection, unsupported file, rejected replacement or stale
+response keeps the current document, history,
 saved-file identity and recovery. Successful import starts a new unsaved
 assembly with fresh history. It is a document replacement, not an undoable
 insertion, linked reload, automatic repair or an Apply capability. Save As a

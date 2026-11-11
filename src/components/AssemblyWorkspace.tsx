@@ -597,7 +597,9 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   const [datumComponent, setDatumComponent] = useState('scope'), [datumPlane, setDatumPlane] = useState<Plane>('XY'), [datumAxis, setDatumAxis] = useState<'X' | 'Y' | 'Z'>('X'), [componentLock, setComponentLock] = useState(['', ''])
   const viewHistory = useViewHistory()
   const [view, setView] = useState<ViewRequest>({ name: 'iso', stamp: 0 }), [rebuild, setRebuild] = useState(0)
-  const [replaceDialog, setReplaceDialog] = useState(false), replaceAnswer = useRef<((answer: boolean) => void) | null>(null), replaceModal = useRef<HTMLDivElement>(null)
+  const [replaceDialog, setReplaceDialog] = useState(false), [replaceSaving, setReplaceSaving] = useState(false)
+  const replaceAnswer = useRef<{ resolve: (answer: boolean) => void; saveBeforeImport?: (ownsDecision: () => boolean) => Promise<boolean>; saving: boolean } | null>(null)
+  const replaceModal = useRef<HTMLDivElement>(null)
   const [rootRevision, setRootRevision] = useState<{ revision: string; signature: string; error: string } | null>(null)
   const structuralInput = useRef<HTMLInputElement>(null)
   const structuralRead = useRef<{resolve:(file:StepFile|null)=>void;reject:(error:unknown)=>void}|null>(null)
@@ -915,7 +917,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   }
   useEffect(() => {
     mounted.current = true
-    return () => { mounted.current = false; generation.current++; linkedEpoch.current++; linkedTicket.current = null; linkedBindings.current.clear(); if (pendingLinked.current?.grantId) linkedBindings.current.releaseGrant(pendingLinked.current.grantId); pendingLinked.current = null; dragSession.current?.cancel(); dragSession.current = null; if (currentPreview.current) discardToken(currentPreview.current.reply.token); if (currentUpdate.current?.review.reviewId) void discardAssemblyPartUpdate(currentUpdate.current.review.reviewId).catch(() => {}); if (currentReplacement.current) void discardAssemblyPartReplacement(currentReplacement.current.review.reviewId).catch(() => {}); if (currentDocumentUpdate.current) void discardAssemblyDocumentUpdate(currentDocumentUpdate.current.review.reviewId).catch(() => {}); replaceAnswer.current?.(false) }
+    return () => { mounted.current = false; generation.current++; linkedEpoch.current++; linkedTicket.current = null; linkedBindings.current.clear(); if (pendingLinked.current?.grantId) linkedBindings.current.releaseGrant(pendingLinked.current.grantId); pendingLinked.current = null; dragSession.current?.cancel(); dragSession.current = null; if (currentPreview.current) discardToken(currentPreview.current.reply.token); if (currentUpdate.current?.review.reviewId) void discardAssemblyPartUpdate(currentUpdate.current.review.reviewId).catch(() => {}); if (currentReplacement.current) void discardAssemblyPartReplacement(currentReplacement.current.review.reviewId).catch(() => {}); if (currentDocumentUpdate.current) void discardAssemblyDocumentUpdate(currentDocumentUpdate.current.review.reviewId).catch(() => {}); const decision = replaceAnswer.current; replaceAnswer.current = null; decision?.resolve(false) }
   }, [])
   useEffect(() => { linkedBindings.current.retain(linkedEpoch.current, committed); refreshLinked(v => v + 1) }, [serialized])
   useEffect(() => { setWidthReferences([null,null,null,null]); setEditingWidthId(null); setWidthPicking(null) }, [serialized, scopePath])
@@ -1197,14 +1199,31 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     }
     finally { if (mounted.current && id === generation.current) { operation.current = false; setBusy(false) } }
   }
-  const save = async (saveAs = false): Promise<boolean> => {
-    if (embeddedPart.isOpen() || namedViews.isOpen || activity.commandActive || draft || hasStaging() || rootRevision) return false
-    const snapshot = serializeAssemblyDocument(current.current), document = current.current; operation.current = true; setBusy(true)
+  const persistAssembly = async (document: AssemblyDocument, targetPath: string | undefined, fresh: () => boolean): Promise<boolean> => {
+    if (!fresh()) return false
     try {
-      if (window.solidflow) { const target = await window.solidflow.saveDocument(snapshot, document.name, saveAs ? undefined : path); if (!target) return false; if (current.current === document) setPath(target) }
-      else download(snapshot, document.name)
-      if (mounted.current && current.current === document) setSaved(snapshot); notify('Ensamblaje guardado.'); return true
-    } catch (reason) { notify((reason as Error).message, true); return false }
+      const snapshot = serializeAssemblyDocument(document)
+      if (window.solidflow) {
+        const target = await window.solidflow.saveDocument(snapshot, document.name, targetPath)
+        if (!target || !fresh()) return false
+        setPath(target)
+      } else download(snapshot, document.name)
+      setSaved(snapshot)
+      notify('Ensamblaje guardado.')
+      return true
+    } catch (reason) {
+      if (fresh()) notify((reason as Error).message, true)
+      return false
+    }
+  }
+  const save = async (saveAs = false, ownsDecision?: () => boolean): Promise<boolean> => {
+    if (embeddedPart.isOpen() || namedViews.isOpen || activity.commandActive || draft || hasStaging() || rootRevision) return false
+    const document = current.current
+    operation.current = true; setBusy(true)
+    try {
+      return await persistAssembly(document, saveAs ? undefined : path,
+        () => mounted.current && current.current === document && (!ownsDecision || ownsDecision()))
+    }
     finally { operation.current = false; if (mounted.current) setBusy(false) }
   }
   const exportBom = async () => {
@@ -1230,13 +1249,41 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     build: exportAssemblyCad, buildStructured: exportAssemblyStep, write: window.solidflow ? (bytes, name, selectedFormat) => window.solidflow!.exportDocument(bytes, name, selectedFormat) : undefined,
     download: downloadAssemblyGeometry,
   })
-  const mayReplace = async (ownsOperation = false): Promise<boolean> => {
-    if ((!ownsOperation && operation.current) || hasStaging()) return false
+  const mayReplace = async (saveBeforeImport?: (ownsDecision: () => boolean) => Promise<boolean>): Promise<boolean> => {
+    if ((!saveBeforeImport && operation.current) || hasStaging() || replaceAnswer.current) return false
     if (!dirtyRef.current) return true
-    if (replaceAnswer.current) return false
-    setReplaceDialog(true); return new Promise(resolve => { replaceAnswer.current = resolve })
+    return new Promise(resolve => {
+      replaceAnswer.current = { resolve, saveBeforeImport, saving: false }
+      setReplaceDialog(true)
+    })
   }
-  const answerReplace = (answer: boolean) => { setReplaceDialog(false); const resolve = replaceAnswer.current; replaceAnswer.current = null; resolve?.(answer) }
+  const answerReplace = (answer: boolean) => {
+    const decision = replaceAnswer.current
+    if (!decision || decision.saving) return
+    replaceAnswer.current = null
+    setReplaceDialog(false)
+    decision.resolve(answer)
+  }
+  const saveAndReplace = async () => {
+    const decision = replaceAnswer.current
+    if (!decision || decision.saving) return
+    decision.saving = true
+    setReplaceSaving(true)
+    const ownsDecision = () => mounted.current && replaceAnswer.current === decision && decision.saving
+    let success = false
+    try { success = await (decision.saveBeforeImport ? decision.saveBeforeImport(ownsDecision) : save(false, ownsDecision)) }
+    finally {
+      if (ownsDecision()) {
+        decision.saving = false
+        setReplaceSaving(false)
+        if (success) answerReplace(true)
+        else requestAnimationFrame(() => {
+          if (replaceAnswer.current === decision && !decision.saving)
+            replaceModal.current?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus()
+        })
+      }
+    }
+  }
   useEffect(() => {
     if (!replaceDialog) return
     const previous = window.document.activeElement
@@ -1245,7 +1292,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
       if (event.key === 'Escape') { event.preventDefault(); answerReplace(false) }
       if (event.key === 'Tab') {
         const buttons = Array.from(replaceModal.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? [])
-        if (!buttons.length) return
+        if (!buttons.length) { event.preventDefault(); return }
         const first = buttons[0], last = buttons[buttons.length - 1]
         if (event.shiftKey && window.document.activeElement === first) { event.preventDefault(); last.focus() }
         else if (!event.shiftKey && window.document.activeElement === last) { event.preventDefault(); first.focus() }
@@ -1266,13 +1313,15 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   }
   const importStructural = async () => {
     if(operation.current || hasStaging() || currentPreview.current || draft || rootRevision || replaceDialog) return
-    const signature=serializeAssemblyDocument(current.current), id=generation.current
-    const fresh=()=>mounted.current && generation.current===id && serializeAssemblyDocument(current.current)===signature && !hasStaging() && !currentPreview.current && !exportView.current.draft
+    const source = current.current, signature = serializeAssemblyDocument(source), id = generation.current
+    const fresh = () => mounted.current && activity.commandActive && generation.current === id && current.current === source
+      && serializeAssemblyDocument(current.current) === signature && !hasStaging() && !currentPreview.current && !exportView.current.draft
     operation.current=true;setBusy(true);setCancelable(false)
     try {
       await importStructuralStep({fresh,prepare:importAssemblyStep,
         read:window.solidflow?()=>window.solidflow!.importStep():()=>new Promise<StepFile|null>((resolve,reject)=>{structuralRead.current={resolve,reject};structuralInput.current?.click()}),
-        confirm:()=>mayReplace(true),commit:document=>{
+        // Keep the import lock while the exact original document is saved.
+        confirm:()=>mayReplace(ownsDecision => persistAssembly(source, path, () => ownsDecision() && fresh())),commit:document=>{
           // Release this import synchronously before replacement invalidates its
           // generation and the normal workspace build acquires its own gate.
           operation.current=false;setBusy(false);setCancelable(false)
@@ -3541,6 +3590,17 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     {namedViews.isOpen && <NamedViewsDialog views={namedViews.views} canSave={namedViews.canSave} canUpdate={namedViews.canUpdate}
       onSave={namedViews.save} onShow={namedViews.show} onDelete={namedViews.remove} onRename={namedViews.rename} onUpdate={namedViews.update} onClose={namedViews.close} />}
     {newDocumentDialog.dialog}
-    {replaceDialog && <div className="assembly-modal-backdrop"><div ref={replaceModal} className="assembly-modal" role="dialog" aria-modal="true" aria-label="Cambios sin guardar"><h2>Hay cambios sin guardar</h2><p>Guarda el ensamblaje antes de sustituirlo.</p>{draft && <p>Aplica o cancela la vista previa para guardar sus cambios.</p>}<div><button disabled={!!draft || busy} onClick={() => void save().then(success => { if (success) answerReplace(true) })}>Guardar y continuar</button><button onClick={() => answerReplace(true)}>Continuar sin guardar</button><button onClick={() => answerReplace(false)}>Cancelar</button></div></div></div>}
+    {replaceDialog && <div className="assembly-modal-backdrop">
+      <div ref={replaceModal} className="assembly-modal" role="dialog" aria-modal="true" aria-label="Cambios sin guardar" aria-busy={replaceSaving}>
+        <h2>Hay cambios sin guardar</h2>
+        <p>Guarda el ensamblaje antes de sustituirlo.</p>
+        {draft && <p>Aplica o cancela la vista previa para guardar sus cambios.</p>}
+        <div>
+          <button disabled={!!draft || replaceSaving || (busy && !replaceAnswer.current?.saveBeforeImport)} onClick={() => void saveAndReplace()}>Guardar y continuar</button>
+          <button disabled={replaceSaving} onClick={() => answerReplace(true)}>Continuar sin guardar</button>
+          <button disabled={replaceSaving} onClick={() => answerReplace(false)}>Cancelar</button>
+        </div>
+      </div>
+    </div>}
   </div>{embeddedPart.editor}</>
 }

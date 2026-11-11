@@ -3,7 +3,7 @@ import { bodyPatternAddresses } from './bodyPatterns'
 import { validRecipeAutoCaptureFingerprint, type RecipeAutoScopeIntent } from './featureRecipeAutoScope'
 import type { RecipeScopeIntent } from './featureRecipes'
 import { isRecipeInstanceDepth, MAX_RECIPE_DEPTH_VALUES, type RecipeInstanceDepthVariation } from './featureRecipeDepthVariation'
-import { isRecipeSketchRadius, MAX_RECIPE_SKETCH_DIMENSIONS, type RecipeSketchDimensionVariation } from './featureRecipeSketchVariation'
+import { isRecipeSketchDimensionValue, MAX_RECIPE_SKETCH_DIMENSIONS, MAX_RECIPE_SKETCH_DIMENSIONS_PER_INSTANCE, type RecipeSketchDimensionVariation } from './featureRecipeSketchVariation'
 
 /** One exact historical feature output, routed to current owned targets. */
 export interface FeaturePatternBinding {
@@ -108,16 +108,19 @@ function validVariation(value: unknown, all: boolean, seedIds: ReadonlySet<strin
   if (kind === 'sketchDimensions') {
     if (all || seedIds.size !== 1 || !exact(value, ['kind', 'values'])) return false
     const rows: unknown = ownData(value, 'values')?.value
-    if (!dense(rows, 1, Math.min(MAX_RECIPE_SKETCH_DIMENSIONS, addresses.length))) return false
-    const seen = new Set<string>(), active = new Set(addresses)
+    if (!dense(rows, 1, Math.min(MAX_RECIPE_SKETCH_DIMENSIONS, MAX_RECIPE_SKETCH_DIMENSIONS_PER_INSTANCE * addresses.length))) return false
+    const seen = new Map<string, Set<string>>(), active = new Set(addresses)
     for (let index = 0; index < rows.length; index++) {
       const row: unknown = ownData(rows, index)?.value
       if (!object(row) || !exact(row, ['address', 'sketchId', 'constraintId', 'value'])) return false
-      const address = ownData(row, 'address')?.value
-      if (typeof address !== 'string' || !active.has(address) || seen.has(address)
-        || !identifier(ownData(row, 'sketchId')?.value) || !identifier(ownData(row, 'constraintId')?.value)
-        || !isRecipeSketchRadius(ownData(row, 'value')?.value)) return false
-      seen.add(address)
+      const address = ownData(row, 'address')?.value, constraintId = ownData(row, 'constraintId')?.value
+      if (typeof address !== 'string' || !active.has(address)
+        || !identifier(ownData(row, 'sketchId')?.value) || !identifier(constraintId)
+        || !isRecipeSketchDimensionValue(ownData(row, 'value')?.value)) return false
+      const ids = seen.get(address) ?? new Set<string>()
+      if (ids.has(constraintId) || ids.size >= MAX_RECIPE_SKETCH_DIMENSIONS_PER_INSTANCE) return false
+      ids.add(constraintId)
+      seen.set(address, ids)
     }
     return true
   }

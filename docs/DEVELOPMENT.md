@@ -124,6 +124,21 @@ These are bounded command-entry and ownership checks. Full geometric variants,
 remaining context/keyboard aliases, hosted platforms and human use retain their
 separate gates in the [command matrix](USABLE_COMMAND_MATRIX.md).
 
+The same part-alias route then uses the original prism for both geometry
+exports from Archivo and Evaluar. The fixed five native dialog outcomes
+include one Cancel before four writes. Match actual file bytes to their
+IPC payloads and check geometry with the separate STEP reader and binary STL
+triangle measurements. An unsaved name change and the unsaved built-in
+sequence challenge both File example replacements. Cancel preserves recovery,
+history and focus. Confirmation gives the example fresh history while the
+previous saved file stays intact.
+
+The embedded editor disables its replacement-only library and the example
+aliases in Archivo, Ayuda and the empty viewport. The ordinary embedded-edit
+route presses the disabled library and three menu actions while preserving
+current worker state, recovery and file actions. Its Properties and Help
+controls still open their own panels.
+
 ## Support repair, opposed origins and mechanical axis acquisition
 
 Five fixed renderer routes extend the existing lifecycle contracts:
@@ -2590,7 +2605,7 @@ translucent-rendering contract.
 | `npm run test:desktop:assembly-embedded-part-edit` | Production renderer: edit one original embedded prism reused twice, review/repair/Solve/Apply, copy save, history and parent Save/reopen. See [the bounded evidence and remaining limits](VALIDATION.md#editing-an-embedded-part-from-its-assembly--2026-10-31). |
 | `npm run test:desktop:assembly-embedded-part-transitions` | Windows-only production workflow with two isolated processes. Observe exact outstanding worker requests at attempted Apply exit and confirmed discard, exercise the real owned-window close dialog, then verify recovery and saved-file reopening. The driver uses the existing Windows PowerShell/.NET runtime and acts only on the authenticated test window. See [the acceptance ledger](USABLE_VERSION_ACCEPTANCE.md). |
 | `npm run test:desktop:imported-bodies` | Configured production-renderer opening of an original v1 explicit STEP body base, real worker/body identity checks, suppression/history and Save As/reopen through restricted file IPC. Run after building; test-owned dialogs and planar mesh-area checks are separate from native BRep unit evidence. |
-| `npm run test:desktop:assembly-step` | Configured production-renderer structural STEP export/import in both workspaces, cancellation/rejection, autonomous Save As/reopen and reexport. Run after building; real worker and output bytes with original fixtures and test-owned dialogs. Record source-specific execution separately. |
+| `npm run test:desktop:assembly-step` | Production-renderer structural STEP export/import in both workspaces, cancellation/rejection, Save and continue from a dirty assembly, autonomous Save As/reopen and reexport. Run after building with the original geometry, real worker and test-owned dialogs. |
 | `npm run test:desktop:assembly-step-insertion` | Configured production-renderer insertion of an original structural STEP into a saved parent, cancellation/rejection, exact history, component reuse and autonomous saved reopening. Run after building; real worker and restricted file IPC with test-owned dialogs. Record actual execution separately. |
 | `npm run test:desktop:pattern-all` | Scripted production-renderer selected-to-ALL cut interaction, Apply, Save As and reopen, after building. |
 | `npm run test:desktop:pattern-until-next` | Scripted production-renderer UntilNext selected cut, cut ALL and selected additive merge, real rejection, Apply, Save As and reopen, after building. |

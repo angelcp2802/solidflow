@@ -5,7 +5,7 @@ const { encodeJavaScriptString: quote } = require('./desktop-ui-source.cjs');
 // All operations are authored through the production renderer. Native observations
 // are read-only witnesses; no React state, body ID, reference or reply is injected.
 module.exports = function sweepLoftWorkflow(context) {
-  const { expected, input, output, sweepLoftStepPath, evaluate, observe, waitFor, pointer,
+  const { expected, input, output, sweepLoftStepPath, evaluate, observe, waitFor, pointer, menuKey,
     checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
     initialReadyMs, dialogCounts } = context;
   const APPLY = 'button[title="Aceptar operación"]', CANCEL = 'button[title="Cancelar operación"]';
@@ -13,8 +13,8 @@ module.exports = function sweepLoftWorkflow(context) {
   const SECTION = 'select[aria-label="Croquis de sección 2"]';
   const records = [], interactions = [];
   const evidence = { partSweepLoft: { records, interactions,
-    scope: 'Original sketches -> normal sweep/loft creation, recoverable invalid input, Cancel, existing-operation editing, four Undo/Redo pairs, native Save/reopen and final STEP',
-    inputLimits: 'Actual CDP pointer press/release on visible hit-tested controls. Select fields use native setters and change events after legitimate DOM reveal; not physical keyboard typing. No reference or worker response injection.',
+    scope: 'Original sketches -> normal sweep/loft creation, recoverable invalid input, Cancel, existing-operation editing, four Undo/Redo pairs, native Save/reopen, saved section menus and final STEP',
+    inputLimits: 'Actual CDP pointer press/release on visible hit-tested controls and keyboard input on the exact reopened loft row or its popup. Select fields use native setters and change events after DOM reveal. Native observations are read-only.',
     featureLimits: 'One straight circular sweep, two coaxial circular loft sections, separate new bodies, profile/section reassignment and ruled final loft. No curved sweep, seam correspondence, multi-section loft, merge or cross-platform support claim.',
     tolerances: { previewVolumeMm3: 1e-5, previewBoundsMm: 1e-6 } } };
   checks.push(evidence);
@@ -56,7 +56,7 @@ module.exports = function sweepLoftWorkflow(context) {
           && !!hit && (hit === element || element.contains(hit)) };
     }, selector, label ?? null);
   }
-  async function press(selector, label) {
+  async function press(selector, label, button = 1) {
     await reveal(selector, label);
     let previous, since = 0;
     const target = await waitFor('stationary sweep/loft control ' + (label ?? selector), async () => {
@@ -66,8 +66,9 @@ module.exports = function sweepLoftWorkflow(context) {
     }).catch(async error => { error.message += '; target=' + JSON.stringify(await inspect(selector, label)); throw error; });
     await pointer('mouseMoved', target.point);
     check(canonical(await inspect(selector, label)) === canonical(target), 'Sweep/loft target remains contained and hit-tested before pointer press');
-    await pointer('mousePressed', target.point, 1); await pointer('mouseReleased', target.point, 0);
-    interactions.push({ selector, ...(label ? { label } : {}), point: target.point, input: 'CDP left press/release after DOM reveal' });
+    await pointer('mousePressed', target.point, button); await pointer('mouseReleased', target.point, button === 2 ? 2 : 0);
+    interactions.push({ selector, ...(label ? { label } : {}), point: target.point,
+      input: button === 2 ? 'CDP right press/release after DOM reveal' : 'CDP left press/release after DOM reveal' });
   }
   async function change(selector, value) {
     await reveal(selector);
@@ -172,6 +173,7 @@ module.exports = function sweepLoftWorkflow(context) {
     const restored = await built(serial, features => canonical(features) === canonical(baselineRecord.features), radii, phase);
     const snapshot = await committed(restored.features, phase);
     check(canonical(snapshot) === canonical(baselineSnapshot), 'Cancel restores exact recovery, history availability and title for ' + phase);
+    return restored;
   }
   async function accept(preview, radii, phase) {
     await ready(); const serial = (await observe()).serial; await press(APPLY);
@@ -183,6 +185,117 @@ module.exports = function sweepLoftWorkflow(context) {
     await press('.selection-tools button[title="Editar operación"]');
     await waitFor('existing sweep/loft editor has exact input', () => page((selector, value) => document.querySelector(selector)?.value === value,
       selector, feature.type === 'sweep' ? feature.profileSketchId : feature.sections[1].sketchId));
+  }
+  async function editSavedLoftSections(reopened, baseline, savedBytes) {
+    const loft = reopened.features.at(-1);
+    const sections = [
+      { id: 'loft-base-r2', label: 'Editar croquis: Original loft lower R2' },
+      { id: 'loft-top-r5', label: 'Editar croquis: Original loft upper R5' },
+    ];
+    check(loft.type === 'loft' && canonical(loft.sections.map(section => section.sketchId)) === canonical(sections.map(section => section.id)),
+      'The reopened loft consumes the exact original lower R2 and upper R5 sections');
+    const row = '.tree-row[data-feature-id="' + loft.id + '"]:not([data-parent-feature-id])';
+    const editPopup = '.part-main-menus .assembly-menu-wrap:has(> [data-assembly-menu="edit"][aria-expanded="true"]) > [role="menu"]';
+    const contextPopup = '.part-feature-context-menu[role="menu"]';
+    const fileState = canonical({ dialogs: dialogCounts(), ipc });
+    const entries = [];
+    evidence.partSweepLoft.savedSectionEditors = { ownerId: loft.id, entries };
+
+    async function sectionLabels(selector) {
+      const labels = await waitFor('visible section commands of the reopened loft', () => page(selector => {
+        const menus = document.querySelectorAll(selector), menu = menus[0];
+        if (menus.length !== 1 || !menu.checkVisibility()) return false;
+        return [...menu.querySelectorAll('button[role="menuitem"]')].map(button => ({
+          label: (button.matches('[data-assembly-command]')
+            ? button.querySelector(':scope > span:not(.assembly-menu-check)')?.textContent : button.textContent)?.trim(),
+          disabled: button.disabled,
+        })).filter(item => item.label?.startsWith('Editar croquis'));
+      }, selector));
+      check(canonical(labels) === canonical(sections.map(section => ({ label: section.label, disabled: false }))),
+        'The actual popup advertises exactly the two enabled current section labels');
+    }
+    async function contextOpen() {
+      await sectionLabels(contextPopup);
+      await waitFor('Loft context owns focus and the exact selected parent row', () => page((selector, name) => {
+        const menu = document.querySelector('.part-feature-context-menu[role="menu"]'), owner = document.querySelector(selector);
+        return owner?.classList.contains('selected') && owner.getAttribute('aria-expanded') === 'true'
+          && menu?.querySelector('.part-feature-context-heading')?.textContent === name && menu.contains(document.activeElement)
+          && document.activeElement?.matches('[data-part-context-action="edit-feature"]:not(:disabled)');
+      }, row, loft.name));
+    }
+    async function verifyEntry(section, phase, serial) {
+      const index = reopened.features.findIndex(feature => feature.id === section.id), target = reopened.features[index];
+      check(target?.type === 'sketch' && target.profile.kind === 'circle', 'The requested section is an exact saved circle sketch');
+      const prefix = canonical(reopened.features.slice(0, index + 1));
+      const editor = () => page(() => {
+        const panel = document.querySelector('.property-manager');
+        return { name: panel?.querySelector('input[aria-label="Nombre de operación"]')?.value,
+          radius: panel?.querySelector('input[aria-label="Radio"]')?.value,
+          circleSketch: !!document.querySelector('svg[aria-label="Editor de croquis"]') };
+      });
+      await waitFor('current section sketch editor ' + phase, async () => {
+        const state = await editor();
+        return state.name === target.name && state.radius === String(target.profile.radius) && state.circleSketch;
+      }).catch(async error => { error.message += '; editor=' + JSON.stringify(await editor()); throw error; });
+      const preview = await response(serial, features => canonical(features) === prefix, phase);
+      check(preview.response.ok && !preview.response.value.featureErrors.length && preview.response.value.volume === 0
+        && preview.response.value.bodyCatalogActive === false && preview.response.value.meshTriangleCount === 0
+        && !preview.response.value.bodies?.length && await recovery() === baseline.recovery,
+      'The exact section opens its sketch-only native prefix and preserves committed recovery');
+      const restored = await cancel(reopened, baseline, { sweep: 3, loft: 5 }, phase + '-cancel');
+      const nested = '.tree-row[data-feature-id="' + section.id + '"][data-parent-feature-id="' + loft.id + '"]';
+      const occurrence = await waitFor('Cancel returns focus to the exact consumed section occurrence ' + phase, () => page(selector => {
+        const rows = document.querySelectorAll(selector), target = rows[0];
+        return rows.length === 1 && target === document.activeElement && target.classList.contains('selected')
+          ? target.dataset.treeOccurrence : false;
+      }, nested));
+      check(canonical(restored.response.value.bodies) === canonical(reopened.response.value.bodies),
+        'Cancel restores both exact reopened native bodies and their geometry');
+      entries.push({ phase, sectionId: section.id, label: section.label, occurrence, previewSerial: preview.serial, restoredSerial: restored.serial });
+    }
+
+    for (const section of sections) {
+      await press(row);
+      const serial = (await observe()).serial;
+      await press('[data-assembly-menu="edit"]');
+      await sectionLabels(editPopup);
+      await press(editPopup + ' button[role="menuitem"]', section.label);
+      await verifyEntry(section, 'edit-menu-' + section.id, serial);
+    }
+
+    let serial = (await observe()).serial;
+    await press(row, undefined, 2);
+    await contextOpen();
+    await press(contextPopup + ' [data-part-context-action="edit-sketch-loft-base-r2"]', sections[0].label);
+    await verifyEntry(sections[0], 'right-context-loft-base-r2', serial);
+
+    await press(row);
+    const rowFocused = () => page(selector => {
+      const owner = document.querySelector(selector);
+      return owner === document.activeElement && owner?.getAttribute('aria-expanded') === 'false'
+        && !document.querySelector('.part-feature-context-menu');
+    }, row);
+    await waitFor('exact reopened loft row owns keyboard input', rowFocused);
+    serial = (await observe()).serial;
+    await menuKey('ContextMenu', false, loft.id);
+    await contextOpen();
+    await menuKey('Escape', false, loft.id);
+    await waitFor('context Escape restores the exact reopened loft row', rowFocused);
+    check((await observe()).serial === serial && canonical(await committed(reopened.features, 'loft-context-escape')) === canonical(baseline),
+      'Context Escape preserves the exact document, history and native build');
+    evidence.partSweepLoft.savedSectionEditors.escapedToOwner = true;
+
+    await menuKey('ContextMenu', false, loft.id);
+    await contextOpen();
+    for (const section of sections) {
+      await menuKey('ArrowDown', false, loft.id);
+      await waitFor('keyboard focuses section ' + section.id, () => page(id =>
+        document.activeElement?.getAttribute('data-part-context-action') === 'edit-sketch-' + id, section.id));
+    }
+    await menuKey('Enter', false, loft.id);
+    await verifyEntry(sections[1], 'keyboard-context-loft-top-r5', serial);
+    check(canonical({ dialogs: dialogCounts(), ipc }) === fileState && (await fsp.readFile(output)).equals(savedBytes),
+      'Section editors and context Escape preserve the exact saved bytes and file activity');
   }
   async function newSweep(phase, menuAlias = false) {
     await press('.tree-row[data-feature-id="sweep-profile-r2"]:not([data-parent-feature-id])'); await tab();
@@ -277,6 +390,7 @@ module.exports = function sweepLoftWorkflow(context) {
     const reopenedSnapshot = await committed(reopened.features, 'saved-reopened');
     check(canonical(reopened.response.value.bodies) === canonical(final.record.response.value.bodies), 'Reopened native bodies retain exact identities and observed geometry');
     check(canonical(JSON.parse(reopenedSnapshot.recovery)) === canonical(saved), 'Reopened recovery equals actual native saved document');
+    await editSavedLoftSections(reopened, reopenedSnapshot, bytes);
     await file('Exportar STEP');
     await waitFor('actual sweep/loft STEP export completes', () => dialogCounts().geometryExports === 1
       && ipc.filter(event => event.channel === 'document:export' && event.completed).length === 1);

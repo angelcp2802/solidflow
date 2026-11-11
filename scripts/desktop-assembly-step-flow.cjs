@@ -45,7 +45,7 @@ const BOXES = [
 module.exports = function structuralStepWorkflow(context) {
   context = require('./desktop-assembly-navigation.cjs').withNavigation(context);
   const assemblyNavigation = context.assemblyNavigation;
-  const { expected, input, output, structuralFiles, evaluate, observe, waitFor, click, menu, checks, check, canonical, digest,
+  const { expected, input, output, structuralFiles, evaluate, observe, waitFor, click, menu, completePendingSave, checks, check, canonical, digest,
     ipc, protocolResponses, consoleErrors, failedRequests, initialReadyMs, dialogCounts } = context;
   const IMPORT = 'button[aria-label="Importar STEP estructurado"]', EXPORT = 'button[aria-label="Exportar STEP estructurado del ensamblaje"]';
   const phases = [], exports = [], evidence = { scenario: 'original-structural-step-editor', phases, exports }; checks.push(evidence);
@@ -180,6 +180,51 @@ module.exports = function structuralStepWorkflow(context) {
       actual = { name: path.basename(file), bytes: bytes.length, sha256: digest(bytes), graph: writtenGraph(bytes), native: await nativeGeometry(bytes, count) }; }
     exports.push({ label, serial: event.serial, canceled, actual });
   }
+  async function saveBeforeReplacement(document, before, serial) {
+    const dialog = '[role="dialog"][aria-label="Cambios sin guardar"]';
+    const saveRequests = () => ipc.filter(e => e.channel === 'document:save');
+    const ready = () => page(dialog => {
+      const modal = document.querySelector(dialog), save = modal?.querySelector('button');
+      return modal?.getAttribute('aria-busy') === 'false' && save?.textContent === 'Guardar y continuar'
+        && !save.disabled && document.activeElement === save;
+    }, dialog);
+    async function chooseSave() {
+      await waitFor('exact focused Save and continue command', ready);
+      await page(dialog => {
+        const modal = document.querySelector(dialog), save = modal?.querySelector('button');
+        if (save?.textContent !== 'Guardar y continuar' || save.disabled) throw Error('Enabled Save and continue required');
+        save.click();
+      }, dialog);
+    }
+    check(before.file === 'Sin guardar' && canonical(JSON.parse(before.recovery)) === canonical(document), 'Original dirty assembly and recovery are the exact replacement source.');
+    await chooseSave();
+    await waitFor('canceled Save returns focus to the same replacement decision', async () => dialogCounts().saves === 1
+      && saveRequests()[0]?.completed && await ready());
+    check(saveRequests().length === 1 && saveRequests()[0].documentWrite.chosen === false
+      && !fs.existsSync(structuralFiles.beforeReplacement), 'Canceled native Save does not obtain a file target.');
+    check((await observe()).serial === serial && canonical(await state()) === canonical(before),
+      'Canceled Save keeps the exact original document, history, path and recovery without preparing another STEP.');
+    await chooseSave();
+    await waitFor('actual previous document written before the held Save reply', () => saveRequests()[1]?.actualWrite);
+    const pending = await page(dialog => {
+      const modal = document.querySelector(dialog);
+      return { busy: modal?.getAttribute('aria-busy'), actions: [...modal?.querySelectorAll('button') ?? []].map(button => [button.textContent, button.disabled]),
+        workspaceBusy: document.querySelector('.assembly-app')?.getAttribute('aria-busy') };
+    }, dialog);
+    check(canonical(pending) === canonical({ busy: 'true', workspaceBusy: 'true',
+      actions: [['Guardar y continuar', true], ['Continuar sin guardar', true], ['Cancelar', true]] }),
+    'The prepared import and its sole decision still own the workspace while the native Save reply is pending.');
+    const requests = saveRequests();
+    const bytes = await fsp.readFile(structuralFiles.beforeReplacement);
+    check(requests.length === 2 && requests[1].completed && requests[1].ipcReturnReleased === false
+      && requests.every(request => request.documentWrite.name === document.name && request.documentWrite.hasPath === false
+        && request.documentWrite.sha256 === digest(bytes))
+      && canonical(JSON.parse(bytes.toString('utf8'))) === canonical(document),
+    'Both Save attempts use the exact original assembly, and the native dialog writes only the chosen .solidflow copy.');
+    check((await observe()).serial === serial && canonical(await state()) === canonical(before), 'Native disk write alone cannot replace the workspace.');
+    phases.push({ phase: 'assembly/import-save-before-replacement', serial, sha256: digest(bytes), pending });
+    await completePendingSave();
+  }
   async function assemblyImport(mode, document) {
     await idle('structural import readiness'); const before = await state(), serial = (await observe()).serial, count = dialogCounts().stepImports;
     await click(IMPORT); await waitFor('actual readonly STEP picker', () => dialogCounts().stepImports === count + 1 && ipc.filter(e => e.channel === 'document:import-step' && e.completed).length === count + 1);
@@ -189,8 +234,11 @@ module.exports = function structuralStepWorkflow(context) {
       phases.push({ phase: 'assembly/import-rejected', serial: event.serial, error: event.response.error }); return document; }
     graphDocument(event.response.value, true);
     const dirty = before.title.endsWith(' *');
-    if (dirty) await confirmReplacement();
-    const result = await builtAfter(serial, 'assembly/import-success', true);
+    if (mode === 'save') {
+      check(dirty, 'Repeat import prompts for the current unsaved assembly.');
+      await saveBeforeReplacement(document, before, event.serial);
+    } else if (dirty) await confirmReplacement();
+    const result = await builtAfter(serial, mode === 'save' ? 'assembly/import-after-save' : 'assembly/import-success', true);
     if (!dirty) await noReplacementDialog('clean assembly structural import');
     check(canonical(result) === canonical(event.response.value), 'Prepared actual importer output becomes exact committed build input.');
     const ui = await state(); check(ui.file === 'Sin guardar' && ui.title.endsWith(' *') && ui.undo && ui.redo && ui.apply && ui.cancel, 'Successful structural replacement clears file authority/history and remains unsaved without Apply token.'); return result;
@@ -202,6 +250,12 @@ module.exports = function structuralStepWorkflow(context) {
     let committed = await builtAfter(serial, 'original/open', false); check(canonical(committed) === canonical(expected), 'Open uses the exact original authored fixture.');
     await exportCurrent(committed, 'original/export-cancel', true); await exportCurrent(committed, 'original/export');
     committed = await assemblyImport('cancel', committed); committed = await assemblyImport('reject', committed); committed = await assemblyImport('success', committed);
+    const previous = committed;
+    committed = await assemblyImport('save', committed);
+    const previousBytes = await fsp.readFile(structuralFiles.beforeReplacement);
+    check(canonical(JSON.parse(previousBytes.toString('utf8'))) === canonical(previous)
+      && !canonical(committed).includes(structuralFiles.beforeReplacement),
+    'Imported document stays independent of the original file saved before replacement.');
     // Open a normal original v1 part through the real dialog, then exercise its
     // explicit menu import with the actual previously exported neutral bytes.
     const partSerial = (await observe()).serial;
@@ -219,7 +273,7 @@ module.exports = function structuralStepWorkflow(context) {
     committed = await builtAfter(serial, 'part/import-success', true); check(canonical(committed) === canonical(imported.response.value), 'Part workspace commits exact actual imported graph.');
     if (!partDirty) await noReplacementDialog('clean part structural import');
     const unsaved = await state(); check(unsaved.file === 'Sin guardar' && unsaved.title.endsWith(' *') && unsaved.undo && unsaved.redo, 'Part→assembly replacement retains no neutral/part save target or old history.');
-    await button('Guardar como'); await waitFor('actual structural assembly Save As', () => dialogCounts().saves === 1 && ipc.some(e => e.channel === 'document:save' && e.completed));
+    await button('Guardar como'); await waitFor('actual structural assembly Save As', () => dialogCounts().saves === 3 && ipc.filter(e => e.channel === 'document:save' && e.completed).length === 3);
     await idle('actual structural Save As finished'); await waitFor('new saved path and clean title', async () => { const ui = await state(); return ui.file === path.basename(output) && ui.title === expected.name; });
     const savedBytes = await fsp.readFile(output), saved = JSON.parse(savedBytes.toString('utf8')); check(canonical(saved) === canonical(committed), 'Save As owns exact imported graph/bases/assignments.');
     const importReads = ipc.filter(e => e.channel === 'document:import-step').length;
@@ -227,8 +281,10 @@ module.exports = function structuralStepWorkflow(context) {
     serial = (await observe()).serial; await button('Abrir'); committed = await builtAfter(serial, 'saved/reopen', true);
     check(canonical(committed) === canonical(saved) && ipc.filter(e => e.channel === 'document:import-step').length === importReads, 'Saved reopening preserves exact embedded sources/IDs without any neutral file read.');
     await exportCurrent(committed, 'reopened/reexport');
-    check((await fsp.readFile(output)).equals(savedBytes) && (await fsp.readFile(input)).equals(original), 'Reopened structural export changes neither saved autonomous source nor original fixture bytes.');
-    const counts = dialogCounts(); check(counts.opens === 3 && counts.saves === 1 && counts.stepImports === 4 && counts.geometryExports === 3 && counts.csvExports === 0, 'Exact bounded Open/Save/STEP input/export dialog counts.');
+    check((await fsp.readFile(output)).equals(savedBytes) && (await fsp.readFile(input)).equals(original)
+      && (await fsp.readFile(structuralFiles.beforeReplacement)).equals(previousBytes),
+    'Reopened structural export preserves the two saved assemblies and original fixture bytes.');
+    const counts = dialogCounts(); check(counts.opens === 3 && counts.saves === 3 && counts.stepImports === 5 && counts.geometryExports === 3 && counts.csvExports === 0, 'Exact bounded Open/Save/STEP input/export dialog counts.');
     check((await observe()).workerErrors.length === 0 && !consoleErrors.length && !failedRequests.length && ipc.every(e => e.completed), 'No worker/renderer/resource or incomplete IPC failures.');
     check(protocolResponses.some(e => /kernel\.worker-[\w-]+\.js$/.test(e.url) && e.status === 200) && protocolResponses.some(e => e.url.endsWith('.wasm') && e.status === 200), 'Real production worker/WASM loads observed.');
     Object.assign(evidence, { savedSha256: digest(savedBytes), importedDocumentSha256: digest(canonical(saved)),

@@ -48,6 +48,7 @@ module.exports = function partOperationAliasWorkflow(context) {
     check(dialogCounts().opens === 1 && dialogCounts().saves === 1 && ipc.every(row => row.completed)
       && (await fs.readFile(output)).equals(savedBytes) && canonical(JSON.parse(await recovery())) === canonical(document),
     'Finite aliases leave exactly one owned Open/Save and byte-identical source/recovery');
+    await require('./desktop-part-file-alias-flow.cjs')({ ...context, snapshot, idle, document, savedBytes });
     check(!consoleErrors.length && !failedRequests.length, 'Finite aliases have no renderer/resource errors');
     checks.push({ originalOperationAliasFixture: { sha256: digest(await fs.readFile(input)), savedSha256: digest(savedBytes), interactions,
       provenance: 'Existing tracked src/cad/fixtures/part-sequence-original.json; original20×12×4 explicit prism and five declared rectangular sketches. No new model.',

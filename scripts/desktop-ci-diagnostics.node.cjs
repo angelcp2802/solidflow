@@ -310,7 +310,7 @@ function exerciseChildFinish({ primary = new Error('Original child coordinate as
     timeout: 'child-deadline', clearTimeout(id) { clearedTimers.push(id); },
     checks: [], protocolResponses: [], consoleErrors: [], failedRequests: [], captures: [], ipc,
     opens: 0, saves: 0, csvExports: 0, geometryExports: 0, sourceOpens: 0, stepImports: 0,
-    linkedSource: false, sourceRevision: false, partFinishing: false, partRevolution: false, assemblyExport: false, structuralStep: false, structuralInsertion: false,
+    linkedSource: false, sourceRevision: false, partOperationAliases: false, partFinishing: false, partRevolution: false, assemblyExport: false, structuralStep: false, structuralInsertion: false,
     presentation: { active, stopped: false, frames, captureBarriers: 0 }, presentationWaiters, nativeClose, nativeReopen,
     window: withWindow ? { isDestroyed: () => destroyed, isVisible() {
       assert.equal(destroyed, false, 'A destroyed native window cannot be queried for visibility'); return false;

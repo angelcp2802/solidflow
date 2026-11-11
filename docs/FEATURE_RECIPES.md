@@ -104,7 +104,8 @@ Extraction alone does not resolve any native requirement. The initial native
 bridge/evaluator supports that subset, and the engine connects it to the
 explicit saved selected or dynamic ALL mode with its bounded operation/plane policies
 and the [selected Blind depth table](FEATURE_REGENERATION.md#depth-per-instance)
-or the [bounded circular driving-radius table](FEATURE_REGENERATION.md#driving-sketch-radius-per-instance).
+or the [driving circle radius](FEATURE_REGENERATION.md#driving-sketch-radius-per-instance)
+and [anchored rectangle dimensions](FEATURE_REGENERATION.md#driving-rectangle-dimensions-per-instance).
 The geometry/true branch retains explicitly selected targets.
 
 UntilNext retains its exact historical source base in the extracted termination;

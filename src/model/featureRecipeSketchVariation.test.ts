@@ -36,7 +36,7 @@ it('round trips exact driving-constraint intent and preserves source IDs, nomina
   expect(parseDocument(serializeDocument(addFeature(before, feature))).features).toEqual([...before.features, feature]);
   expect(serializeDocument(before)).toBe(bytes);
   const placement = intrinsicProfileInstancePlacement(requireInitialRecipeDeclaration(extractRecipeClosure(before.features, request(feature))), 'pocket', '1,0');
-  expect(placement.sketchDimension).toEqual(rows(feature)[0]);
+  expect(placement.sketchDimensions).toEqual(rows(feature));
   expect(placement.signedDepth).toBe(-1);
 });
 
@@ -51,7 +51,7 @@ it('requires explicit clearing before source, method, scope or variation-family 
   expect(() => withFeaturePatternSeeds(feature, ['plate'])).toThrow(/variaciones/);
   expect(() => withFeaturePatternMode(feature, 'geometry')).toThrow(/variaciones/);
   expect(() => withFeaturePatternScope(feature, 'all')).toThrow(/variaciones/);
-  expect(() => withFeaturePatternInstanceDepth(feature, '1,0', -2)).toThrow(/radios/);
+  expect(() => withFeaturePatternInstanceDepth(feature, '1,0', -2)).toThrow(/cotas de croquis/);
   const cleared = withFeaturePatternSketchRadius(feature, original().features, '1,0', null);
   expect(cleared.featurePattern).toMatchObject({ variation: { kind: 'none' } });
 });

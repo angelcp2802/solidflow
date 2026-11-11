@@ -482,6 +482,33 @@ module.exports = function embeddedPartEditWorkflow(context) {
     parentRecovery = await rawRecovery(); lastReviewSerial = await serial();
 
     await enter();
+    await quietWorker();
+    const exampleBoundary = { serial: await serial(), recovery: await rawRecovery(), dialogs: dialogCounts(), ipc: structuredClone(ipc) };
+    await pressDisabled(PART + ' button[aria-label="Biblioteca de diseño"]');
+    for (const [menu, labels] of [
+      ['file', ['Abrir pieza de ejemplo', 'Ejemplo: cortes y salientes sucesivos']],
+      ['help', ['Pieza de ejemplo']],
+    ]) {
+      await press(PART + ' nav.part-main-menus [data-assembly-menu="' + menu + '"]');
+      const commands = PART + ' nav.part-main-menus [role="menu"] > button[data-assembly-command]';
+      for (const label of labels) await pressDisabled(commands, label);
+      await key('Escape');
+    }
+    check(!await page(part => !!document.querySelector(part + ' .library-card,' + part + ' [role="dialog"]'), PART)
+      && canonical({ serial: await serial(), recovery: await rawRecovery(), dialogs: dialogCounts(), ipc }) === canonical(exampleBoundary),
+    'Unavailable example commands preserve the exact embedded piece and parent recovery without starting file or native work');
+    await press(PART + ' .taskbar button[aria-label="Propiedades físicas"]');
+    await waitFor('embedded material panel still opens', () => page(part =>
+      document.querySelector(part + ' .task-panel > h3')?.textContent.trim() === 'Propiedades físicas', PART));
+    await press(PART + ' .task-panel button[title="Cerrar panel"]');
+    await press(PART + ' .taskbar button[aria-label="Ayuda y atajos"]');
+    await waitFor('embedded help still opens', () => page(part => !!document.querySelector(part + ' dialog.part-help-dialog[open]'), PART));
+    await press(PART + ' dialog.part-help-dialog button[aria-label="Cerrar ayuda"]');
+    await waitFor('embedded help closes without leaving its piece', () => page(part =>
+      !document.querySelector(part + ' .task-panel,' + part + ' dialog.part-help-dialog'), PART));
+    boundaries.push({ phase: 'embedded example actions unavailable', library: true, fileExamples: 2, helpExample: true,
+      physicalPropertiesOpened: true, helpOpened: true });
+
     await bodyFocus(); await keyboard('S', 'Inactive parent ignores body Save');
     await waitFor('first detached-copy save canceled', () => dialogCounts().saves === 2 && ipc.filter(x => x.channel === 'document:save' && x.completed).length === 2);
     before = await serial(); await press(PART + ' button[title="Reconstruir pieza"]'); await partReady(before, 2, 'after canceled copy');

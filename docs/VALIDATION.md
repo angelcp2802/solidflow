@@ -1,5 +1,151 @@
 # Validation
 
+## Desktop test context for export aliases — Windows, 2026-11-11
+
+The first frozen 0.21.0 combination passed all 11,490 unit/CAD cases in
+524 files. The following IPC/diagnostic suite passed 211 cases, reported
+two explicit skips and failed thirteen existing cases before desktop startup.
+The failures shared a missing alias flag in two isolated test contexts.
+The raw test log SHA-256 is
+`33ad21051c5ae009e3c954c24bb3c7ebf76bb2a57454556a60b6886000afb343`.
+
+The correction initializes the alias flag for the report test and checks
+the export channel before recording the alias-specific result. The original
+Save and cleanup assertions remain in place. The two affected files pass
+all 39 focused checks. This change affects the test harness. The separate
+combined candidate retains its own build, desktop and hosted records.
+
+## Addressed rectangular sketch dimensions — Windows, 2026-11-11
+
+The [original anchored pocket](PROVENANCE.md#original-addressed-rectangle-dimension-fixture)
+and its two linear copies exercise independent width and height assignments
+on each active address. A 2 × 2 mm seed and (1, 3)/(3, 1) copies produce
+790 mm³ and 624 mm². Swapping the two pairs leaves the totals equal.
+A native floor and material probe on each copy distinguishes the results.
+The tests cover document history and STEP reimport, a reversed origin-snapped
+sketch with an inherited solved height, circular and mirror placement, and a
+late failed copy that preserves the original body. The native volume and area
+tolerance is 1e-5 in the corresponding units, with 1e-6 mm bounds and floor
+centres and 1e-8 mm³ for the material probes.
+
+The local focal suite passes 111 cases in eight files. The production renderer
+route passes 167 checkpoints, including invalid zero, four independent
+assignments, Cancel/retry, history, Save As/Open and removing one dimension
+without removing the other at that address. The source document and original
+file bytes stay intact. The first renderer attempt queried the pattern control
+before it mounted. The accepted run waits for that same visible control with
+the existing deadline. This is the stated intrinsic rectangular Blind slice.
+General constraint variation and broader recipe cases retain their requirements.
+
+## Saving before structural STEP replacement — Windows, 2026-11-11
+
+The standard assembly retains its original document while it prepares the
+structural STEP and offers **Guardar y continuar**. The scoped save uses the
+original document's existing path grant or its own native Save dialog. The
+STEP transaction rechecks the current document and operation before it
+publishes the new assembly.
+
+The local production-renderer route passed 62 checkpoints using the
+[original eight-solid fixture](PROVENANCE.md#original-structural-step-editor-workflow).
+The dirty case starts with the unsaved result of the earlier successful import.
+Canceling the first Save dialog restores focus to **Guardar y continuar** and
+preserves the document, recovery, path and history. The second Save writes an
+exact copy of that original assembly to the chosen SolidFlow file. The test
+holds the actual main-process return after the write. The old assembly remains
+visible and all three decision buttons remain disabled until the return
+is released. The prepared STEP then opens as a new unsaved assembly with
+fresh history. Its eight placed solids match the established V136 mm³,
+A344 mm² and literal bounds within the existing 1e-6 bands. The later Save As,
+reopening and reexport preserve the previous saved copy byte for byte.
+
+The Windows build, production Electron startup, both standard assembly
+shortcut layouts and the structural STEP insertion route also passed.
+The STEP test used test-owned dialog paths and a held Save reply from the
+real main-process writer. It recorded three Open dialogs, three Save dialogs, five STEP read
+dialogs, three STEP exports, normal child close and temporary cleanup.
+The raw route log SHA-256 is
+`3d0f523e3e2816889f35117d51d68935b3013bd504819a6286da300ecd4f77ab`.
+Installed builds, human use of the dialogs and other systems retain their
+own validation.
+
+## Packaged 0.20.0 demo and recovery — Windows, 2026-11-11
+
+The unsigned Windows x64 package comes from frozen source
+`f40743a59a6f0e6a813494a84cfd531b60044c7a`. The published PR head
+`8f5c7701e9312be0630ca68c8d542e1a3eea6ee7` and the hosted merge
+`bdac80a8708d4de2c865aad08ab8916ed302e481` have the same reviewed tree
+`d0155532a8be533d552ea2e0e31161a6468c06f3`. Local build, 11,471
+unit/CAD cases in 522 files, 224 IPC checks with two explicit skips and desktop
+startup passed on the frozen source. The full Windows batch passed all 121
+commands, including every declared desktop command. The frozen input manifest
+SHA-256 is `1741d85c8613da0f19786e0e1bd92873bdf52572104b5c066b86a5a7f27f9a13`.
+
+[CI](https://github.com/angelcp2802/solidflow/actions/runs/42945034388)
+completed successfully with fifteen jobs on the same merge tree. All renderer
+and configured-authoring jobs pass. The Windows x64, Linux x64 and macOS
+arm64 Desktop jobs pass their build, unit/CAD, IPC, production-loader and
+packaging steps. [Security](https://github.com/angelcp2802/solidflow/actions/runs/42945034397)
+also passes. These hosted and local results retain their individual platform
+limits and establish this candidate run.
+
+- Executable SHA-256 `148f9c10008544950a70960247d78505ef85f1259cbd69329ee8eaea062cd05d`.
+- ASAR SHA-256 `f75d283697747561b0a153b0adde1e7a451e9696f292c20a96aca92f6064978c`.
+- The package audit independently bound the nine production files, thirteen
+  production dependencies, and notices to their staged inputs. The REA archive
+  inventory independently matched all 5,276 ASAR file paths, sizes and hashes.
+
+In the packaged window, the original 100 × 70 mm mounting plate retains five
+sketches and four Ø10 × 12 mm cuts when its base extrusion changes from 12 to
+14 mm. Cancel and Undo restore the 12 mm through cuts. Redo restores 14 mm.
+The saved 14 mm plate assigns an original test material at 1,000 kg/m³. Its
+volume follows `98000 - 1200π` mm³ and the UI displays 94.230089 cm³ and
+0.094230089 kg. Native Open restores its material, dimensions and mass.
+
+The assembly starts from that saved part, with the first occurrence fixed at
+identity. Cancel of the verified 150 mm origin-YZ-to-component-YZ preview
+preserves the saved two-occurrence file byte for byte. Apply and a second
+120 mm relation between the reused component planes place the three
+occurrences at approximately X = 0, −150 and −270 mm. Independent inspection
+of the saved file verifies the exact plane owners, shared embedded part and
+aligned orientations, and measures both distance residuals below 1e-8 mm.
+The case retains six local degrees of freedom.
+
+The packaged walkthrough includes Undo/Redo, wheel zoom, component selection
+by click, native Save As and Open, fresh Solve/Cancel and a clean close. A fresh
+process on the same test profile recovers the three positions and displayed
+0.28269027 kg mass. Native Save As writes a byte-identical 7,737-byte copy of
+the saved assembly. The saved combined volume follows `294000 - 3600π` mm³.
+A separate demo profile launched through the desktop shortcut opens the
+example with three visible plates and the same mass. The analytic values and
+file comparison verify this bounded model. Full source command coverage,
+hardware interaction, installed-platform acceptance and human use retain
+their separate records.
+
+## Saved loft section entry points — Windows, 2026-11-11
+
+The follow-up extends `test:desktop:part-sweep-loft` on the same frozen 0.20.0
+renderer with 181 checkpoints in the completed local run. Build, 11,471
+unit/CAD cases, 224 IPC checks with two explicit skips and desktop smoke pass
+on this follow-up. All nine production members match the demo. The existing
+original two-circle loft is saved and reopened. Actual pointer activation
+opens both named section commands through Editar and the lower section
+through the loft row's right-click menu. The actual ContextMenu key opens
+that row's menu, and keyboard navigation opens the upper section.
+
+The live sketch editor shows the matching name and exact radius, 2 or 5 mm.
+The read-only worker observer sees the corresponding sketch-only prefix.
+Each Cancel restores the two exact native body records and focuses the
+specific sketch occurrence nested under the loft. Escape from the popup
+restores the loft row without another build. Recovery, history availability,
+file activity and saved bytes remain exact. The existing independent STEP
+dimensions and solid checks remain in the route.
+
+The first run timed out because the test queried the multientity canvas.
+These two original circles use the primitive editor. The corrected
+observation checks the primitive canvas, visible name and radius without
+changing the application, fixture or deadlines. Other multi-input features,
+draft edits, viewport aliases and installed input retain separate coverage.
+
 ## Positive pattern-panel fixture completeness — Windows, 2026-11-11
 
 The frozen `c6cab00` integration built successfully. Its `npm test` stopped at
@@ -455,6 +601,36 @@ and platform acceptance retain the [finite matrix](USABLE_COMMAND_MATRIX.md).
 No full `npm test` was launched for this isolated increment: the coordinator
 reserved it for the final integrated candidate. Product, IPC, native solver,
 dependency, fixture and document-format behaviour are unchanged.
+
+## Part file export and example replacement — Windows focal, 2026-11-11
+
+The existing `test:desktop:part-operation-aliases` route keeps the
+34 operation entries and extends their original 20 × 12 × 4 mm prism.
+Contained pointer presses invoke STEP and STL through Archivo and Evaluar.
+The first STEP picker is canceled without creating a file. All four accepted
+exports match the exact IPC byte ranges. Both STEP files re-import as one
+valid planar BRep. Both binary STL files contain twelve outward triangles,
+two complementary facets per face. Independent geometry gives volume
+960 mm³ and area 736 mm² at 1e-5, with bounds [-10, -6, 0] to [10, 6, 4] mm.
+The STEP reader is a separate instance of the same kernel family.
+
+The sequence example is offered while the current part has an unsaved
+rename. Cancel restores focus to Archivo and keeps the exact original
+recovery, history and saved bytes. Confirming the retry loads the sequence
+prism and resets history. The mounting-plate example uses the same lifecycle
+from that unsaved sequence, with Escape for the first cancellation.
+The new 100 × 70 × 12 mm plate retains five sketches and four separate
+Ø10 through cuts. Its independent volume is 12(7000 − 100π) mm³ at 1e-5.
+The accepted replacements leave the previous saved file intact.
+
+The embedded part editor disables replacement-only controls. The existing
+embedded workflow presses the disabled library, both File example actions and
+the Help example. Recovery, native request serial and file activity stay exact.
+The Properties and Help controls remain usable. These are local Windows
+production-renderer interactions with test-owned dialog outcomes and existing
+original fixtures. Build and desktop startup pass with Electron 44.9.3. The
+part-alias route records 448 checkpoints and the embedded edit route 207.
+The hosted and packaged walkthroughs have separate results.
 
 ## Part plane toolbar and ordinary selection modes — Windows focal, 2026-11-11
 

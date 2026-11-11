@@ -1,7 +1,7 @@
 import type { Feature } from '../cad/kernel.types';
 import { sha256Bytes } from '../shared/sha256';
 
-export const RECIPE_EVALUATOR_REVISION = 'intrinsic-auto-selected-sketch-radius-v11';
+export const RECIPE_EVALUATOR_REVISION = 'intrinsic-auto-selected-sketch-dimensions-v12';
 export const RECIPE_AUTO_CAPTURE_REVISION = 'auto-scope-v1';
 export interface RecipeAutoScopeIntent {
   mode: 'auto';

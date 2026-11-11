@@ -7,7 +7,8 @@ chronological evaluation and atomic body-catalog publication. It supports
 intrinsic rectangle/circle and real solved entity cuts and merge extrusions, blind/ThroughAll/UntilNext endings
 or an explicitly fixed principal-plane UpToSurface limit on selected targets.
 One selected intrinsic Blind seed also admits [depth per instance](#depth-per-instance).
-A selected Blind circular entity cut admits its [driving radius per instance](#driving-sketch-radius-per-instance).
+A selected intrinsic Blind cut admits [driving circle radius](#driving-sketch-radius-per-instance)
+and [anchored rectangle dimensions](#driving-rectangle-dimensions-per-instance) per instance.
 Dynamic ALL supports the intrinsic cut subset and the
 [bounded Blind primitive additive slice](#blind-primitive-additive-all) below.
 Broader additive scope remains required.
@@ -60,9 +61,9 @@ normal operation capabilities separate from recipe eligibility and preserves
 explicit repair of unavailable saved selections. UI guidance does not replace
 the native gates below.
 
-AUTO, selected per-instance Blind depth and the bounded driving-radius table share evaluator revision
-`intrinsic-auto-selected-sketch-radius-v11`. Earlier v8/v9/v10
-previews cannot authorize this evaluator. The revision authenticates
+AUTO, selected per-instance Blind depth and the admitted driving dimensions
+share evaluator revision `intrinsic-auto-selected-sketch-dimensions-v12`.
+Earlier previews cannot authorize this evaluator. The revision authenticates
 neither editable capture fingerprints nor saved target snapshots: current
 native scope, closure, source and preview/Apply checks still decide admission.
 AUTO and ALL retain variation `none`; switching a selected dimension table to either
@@ -204,9 +205,40 @@ The original three-pocket fixture has source nominal radius 0.8 but driving
 radius 1. Two copies use 0.5 and 1.5. Independent native checks use V=800−3.5π mm³
 and A=600+6π mm², physical cylindrical walls, spatial material probes, history,
 saved reopening and STEP reimport. Swapping copy radii preserves V/A while
-changing those physical walls/probes. This does not complete other driving
-dimensions, general solved-sketch variation, equations, associative inputs or
-broader operation recipes. Executed results belong in [VALIDATION](VALIDATION.md).
+changing those physical walls/probes. Anchored rectangles use the separate admission rules below. General solved
+sketch variation, equations, associative inputs and broader operation recipes
+retain their own requirements. Executed results belong in [VALIDATION](VALIDATION.md).
+
+## Driving rectangle dimensions per instance
+
+An intrinsic rectangular Blind cut can assign a width, a height or both to
+each active instance under Selected regeneration. The sketch uses four shared
+non-construction lines, alternating horizontal and vertical around a closed
+loop. One corner is fixed or directly uses the sketch origin. One driving
+edge length in each direction determines the two dimensions. The declaration
+must preserve the exact sketch and driving-constraint identities.
+
+The table keeps the same `sketchDimensions` fields. Each address and constraint
+pair is unique. Rows use positive millimetres from 0.01 to 100,000. The table
+has at most two rows per active instance and at most 512 rows in total. The
+existing application budget still counts the actual routed owners. Each
+unassigned dimension comes from the source solve. Each copy solves its
+assigned dimensions together from the authenticated source branch, retaining
+the anchored orientation. Only a fully defined solve and successful native
+tool evaluation can authorize Apply.
+
+In the selected regeneration editor, choose **Instancia**, then **Anchura**
+or **Altura** under **Cota** and assign the value. A row can be removed without
+clearing another dimension on that instance. Unavailable assignments remain
+visible until explicitly removed. Existing radius and depth documents retain
+their saved meaning. Earlier readers can reject tables with repeated
+addresses and cannot evaluate this rectangular recipe.
+
+The [original fixture](PROVENANCE.md#original-addressed-rectangle-dimension-fixture)
+has a fixed-corner 2 × 2 mm pocket and two varied copies. The native acceptance
+uses material probes to distinguish exchanged dimensions at the same volume and
+area. General solved sketch variation, equations, mixed depth and sketch
+tables, associative inputs and dynamic-scope variation remain separate.
 
 ## Dynamic ALL scope
 
