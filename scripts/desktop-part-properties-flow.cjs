@@ -312,6 +312,16 @@ module.exports = function partPropertiesWorkflow(context) {
     const bytes = await fsp.readFile(output), saved = JSON.parse(bytes.toString('utf8'));
     check(canonical(saved) === canonical(assigned), 'Native saved bytes contain exact assigned properties, feature IDs and inputs');
     const savedSnapshot = await committed(saved, 'native-saved');
+    const beforeNoOp = (await observe()).serial;
+    await press(FORM + ' button[type="submit"]', 'Aplicar propiedades');
+    // Allow the renderer's debounced build to be dispatched before asserting its absence.
+    await page(() => new Promise(resolve => setTimeout(resolve, 500)));
+    const noOpObservation = await observe();
+    const noOpBuilds = noOpObservation.builds.filter(record => record.serial > beforeNoOp);
+    records.push({ phase: 'unchanged-properties-apply-observation', beforeSerial: beforeNoOp,
+      afterSerial: noOpObservation.serial, buildSerials: noOpBuilds.map(record => record.serial) });
+    await unchanged(savedSnapshot, beforeNoOp, bytes, 'unchanged-properties-apply');
+    await mass(0.001);
     await press('.task-panel button[title="Cerrar panel"]');
     serial = (await observe()).serial;
     await openBackground(); await press(BACKGROUND + ' label', 'Usar un color sólido');

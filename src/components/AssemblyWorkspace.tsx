@@ -464,6 +464,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   const [treeOriginSelection, setTreeOriginSelection] = useState<AssemblyOriginTreeSelection | null>(null)
   // One ordered browse selection feeds camera commands and relation preselection independently.
   const [normalSelection, setNormalSelection] = useState<AssemblyNormalSelection | null>(null)
+  const prefilledBrowseItems = useRef<AssemblyNormalSelection['items'] | null>(null)
   const [browseSelectionMode, setBrowseSelectionMode] = useState<'face' | 'edge'>('face')
   useEffect(() => { setTreeOriginSelection(null) }, [selectedPath])
   const [symmetryReferences,setSymmetryReferences]=useState<SymmetryUiReferences>([null,null,null]), [symmetryFamily,setSymmetryFamily]=useState<SymmetryUiFamily>('point'), [symmetryAlignment,setSymmetryAlignment]=useState<'aligned'|'opposed'|''>(''), [editingSymmetryId,setEditingSymmetryId]=useState<string|null>(null)
@@ -2895,8 +2896,12 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
       if (selected.status === 'invalid') notify(selected.message ?? 'Vuelve a seleccionar una o dos referencias actuales del ámbito.', true)
       return
     }
+    const browseItems = normalViewSelection?.items ?? null
+    if (browseItems === prefilledBrowseItems.current) { panel(); return }
     const nextType = assemblyRelationDefault(selected.references, mateType)
     if (!nextType) { panel(); notify('Estas referencias requieren un editor con roles específicos.', true); return }
+    // Reopening the panel keeps the draft. A fresh nomination supplies a new ordered list.
+    prefilledBrowseItems.current = browseItems
     chooseMateType(nextType)
     setReferences([structuredClone(selected.references[0]), selected.references[1] ? structuredClone(selected.references[1]) : null])
     setFaceChoice(''); setEdgeChoice(''); setDragMode('off')

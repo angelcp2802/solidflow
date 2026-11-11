@@ -1,5 +1,26 @@
 # Validation
 
+## Ordinary mixed relation draft reentry — Windows, 2026-11-11
+
+On `c79870d`, a real viewport press selected the original Ground top face.
+The ribbon's **Relación** command filled the first reference and armed the
+second. The principal-plane controls assigned the root XY to that second role.
+After visiting **Componentes**, **Insertar → Relación de posición…** reused the
+old face nomination, cleared XY and armed the second face role again.
+
+On the corrected renderer, both **Insertar → Relación de posición…** and
+the ribbon's **Relación** reopened the same mixed draft with its face identity,
+root XY, name, 4 mm value and active role. The exact recovery, document history,
+worker and file activity stayed unchanged. A fresh press on the same Ground
+face could start another draft, and the existing ordered face/LINE case still
+completed its native lifecycle.
+
+The existing `test:desktop:assembly-direction` route passed 370 checkpoints
+with zero renderer or resource errors at 1544 × 941 content size. It also
+passed 370 at 1024 × 681 with only the hidden test window's initial size varied.
+The mixed case covers unpreviewed standard root authoring with the original
+two drilled prisms. It ends before native Preview of that mixed draft.
+
 ## Ordinary assembly face highlights — Windows, 2026-11-11
 
 The production Electron renderer selected the two independent top faces of

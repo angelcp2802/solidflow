@@ -49,15 +49,18 @@ export function validatePartProperties(value: unknown): PartProperties {
   return properties
 }
 
+export function samePartProperties(first: PartProperties, second: PartProperties): boolean {
+  return first.material?.name === second.material?.name
+    && first.material?.densityKgPerM3 === second.material?.densityKgPerM3
+    && first.appearance?.color === second.appearance?.color
+}
+
 /** Return a validated, detached candidate for one DocumentHistory.apply call.
  * Cloning features intentionally invalidates native-build identity: an embedded
  * editor must produce a fresh ready witness before committing this document. */
 export function setPartProperties(document: Document, properties: PartProperties): Document {
   const current = validateDocument(document), next = validatePartProperties(properties)
-  const previous: PartProperties = {}
-  if (current.material) previous.material = current.material
-  if (current.appearance) previous.appearance = current.appearance
-  if (JSON.stringify(previous) === JSON.stringify(next)) return current
+  if (samePartProperties(current, next)) return current
   delete current.material
   delete current.appearance
   const now = new Date().toISOString()

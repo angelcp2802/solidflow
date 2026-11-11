@@ -166,6 +166,51 @@ module.exports = async function assemblyPreselection({ context, base, page, cont
     await noCad(before, label);
     gestures.push({ label, point, world, modifiers, selectedKeys: wanted });
   }
+  async function mixedDraftReentry() {
+    const rootXY = { kind: 'principal-plane', component: null, plane: 'XY' };
+    const origin = '#assembly-panel-relations details:has(select[aria-label="Componente del plano"])';
+    const counters = await observe.counters(), files = canonical({ ipc: context.ipc, dialogs: context.dialogCounts() });
+    const history = () => page(() => [...document.querySelectorAll('.assembly-app button')].filter(button =>
+      /^(Deshacer|Rehacer)(?:\b|\s)/.test(button.title || button.getAttribute('aria-label') || button.textContent.trim()))
+      .map(button => [button.getAttribute('aria-label') || button.title || button.textContent.trim(), button.disabled]));
+    const initialHistory = await history();
+    await prepare(); await browse('face');
+    await pick([0, 0, 4], [['face', faceKey]], 0, 'mixed-draft/ground-face');
+    await press(RELATION); await control(TYPE, 'distance');
+    check(canonical(await references()) === canonical([pair[0], null]), 'Ribbon preselection supplies only the original material face');
+    await press(origin + ' > summary');
+    check(await page(() => document.querySelector('select[aria-label="Componente del plano"]')?.value === 'scope'
+      && document.querySelector('select[aria-label="Plano principal"]')?.value === 'XY'), 'Current direct origin controls show the root XY plane');
+    await press(origin + ' button'); await control(NAME, 'Plano material y raíz');
+    await control('input[aria-label="Distancia firmada"]', '4');
+    const wanted = [pair[0], rootXY];
+    const read = async () => { const state = await secondRoleSnapshot(); return { references: state.roles.map(role => role.reference),
+      type: state.type, name: state.name, picking: state.picking, activeRoles: state.roles.map(role => role.active), panel: state.panel.selected,
+      value: await page(() => document.querySelector('input[aria-label="Distancia firmada"]')?.value) }; };
+    const draft = await read();
+    check(canonical(draft.references) === canonical(wanted) && draft.picking === '' && draft.type === 'distance' && draft.panel === 'true' && draft.value === '4',
+      'Direct root XY assignment completes the mixed draft and closes the armed face tool');
+    const returned = [];
+    const verifyReturn = async alias => {
+      await page(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      const actual = await read(); returned.push({ alias, actual });
+      check(canonical(actual) === canonical(draft), alias + ' must resume the exact mixed draft without replaying the original material pick: ' + JSON.stringify(actual));
+    };
+    await components(); await press('button[data-assembly-menu="insert"]'); await press('button[data-assembly-command="insert-relation"]');
+    await verifyReturn('Insertar → Relación de posición');
+    await components(); await press(RELATION); await verifyReturn('Relación de ensamblaje');
+    await components();
+    await pick([0, 0, 4], [['face', faceKey]], 0, 'mixed-draft/fresh-ground-face');
+    await press(RELATION);
+    const fresh = await read();
+    check(canonical(fresh.references) === canonical([pair[0], null]) && fresh.picking === 'face' && fresh.activeRoles[1],
+      'A deliberate fresh pick of the same material face can start another ordered relation');
+    await noCad(counters.serial, 'mixed unpreviewed draft reentry');
+    check(canonical(await observe.counters()) === canonical(counters) && canonical(await history()) === canonical(initialHistory)
+      && canonical({ ipc: context.ipc, dialogs: context.dialogCounts() }) === files, 'Draft reentry preserves exact history, worker and file activity');
+    const window = await page(() => ({ width: innerWidth, height: innerHeight }));
+    evidence.mixedDraftReentry = { window, draft, returned, fresh, historyUnchanged: true, workerUnchanged: true, filesUnchanged: true };
+  }
   async function pairDraft(label) {
     const before = (await observe()).serial;
     await prepare(); await browse('face');
@@ -235,6 +280,7 @@ module.exports = async function assemblyPreselection({ context, base, page, cont
   });
   await noCad(roleSerial, 'single-face/armed-second-face');
   await components(); await noCad(before, 'single-face/disarmed');
+  await mixedDraftReentry();
   await pairDraft('pair-cancel'); await preview('pair-cancel/preview');
   await waitFor('preselected preview idle before manager navigation', () => page(() =>
     document.querySelector('.assembly-app')?.getAttribute('aria-busy') === 'false' && !document.querySelector('.assembly-spinner')));
@@ -254,7 +300,7 @@ module.exports = async function assemblyPreselection({ context, base, page, cont
   check(canonical(await references()) === canonical(pair), 'Preview Cancel retains the exact editable preselected endpoints.');
   await pairDraft('pair-apply');
   const event = await preview('pair-apply/preview');
-  check(gestures.length === 6 && phases.length === 2, 'Expected a single-face preload completed by a second-face gesture and two ordered face/LINE attempts.');
+  check(gestures.length === 8 && phases.length === 2, 'Expected a single-face preload completed by a second face, mixed draft reentry and two ordered face/LINE attempts.');
   evidence.finalReferences = pair;
   return event;
 };

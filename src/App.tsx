@@ -2,7 +2,7 @@ import { useViewHistory } from './components/useViewHistory'
 import PartHelpDialog from './components/PartHelpDialog'
 import PartRenameDialog from './components/PartRenameDialog'
 import PartPropertiesPanel from './components/PartPropertiesPanel'
-import { partMassKg, setPartProperties } from './model/partProperties'
+import { partMassKg, samePartProperties, setPartProperties } from './model/partProperties'
 import { useViewportBackgroundSettings } from './components/ViewportBackgroundSettings'
 import { isRevolutionFeature } from './cad/revolutionExtent'
 import { standardViews, viewShortcutCommand, type ViewName, type ViewRequest } from './components/viewNavigation'
@@ -4763,6 +4763,7 @@ export function PartWorkspace({ initialDocument, initialPath, initialSaved, skip
                 onApply={properties => {
                   if (docRef.current !== doc || !propertiesGeometry || importing || exporting || fileOperation.current || !isActiveOwner())
                     throw Error('Espera a que termine la operación actual antes de cambiar las propiedades.');
+                  if (samePartProperties(doc, properties)) return;
                   apply(setPartProperties(doc, properties));
                   notify('Material y apariencia aplicados.');
                 }} />

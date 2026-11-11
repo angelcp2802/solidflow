@@ -24,8 +24,10 @@ A compatible ordinary family is retained. Otherwise planes suggest Coincident,
 declared axes suggest Concentric, and mixed/LINE references suggest Parallel.
 Choose the required family explicitly; no distance, angle or contact is guessed.
 Saved relations and specialized role editors retain their own drafts when
-reopened. A pending preview can be reopened through **Relación** without losing
-its Apply/Cancel state. The manager's Relations tab remains ordinary navigation.
+reopened. **Relación** and **Insertar → Relación de posición…** also reopen an
+ordinary draft with its edited references. A fresh browse selection can start
+another pair. A pending preview keeps its Apply/Cancel state when reopened.
+The manager's Relations tab remains ordinary navigation.
 
 To empty an ordinary creation role, use its **Quitar referencia** button. This
 changes the draft only. After Cancel, you can retry the retained pair, replace

@@ -2,8 +2,10 @@
 
 Open **Herramientas → Propiedades físicas** in a part, or the matching right-side
 task panel. Assign a material name, a density in kg/m³ and an optional opaque
-part colour. **Aplicar propiedades** commits one document-history entry and
-rebuilds the part. **Cancelar cambios** drops only the uncommitted fields.
+part colour. **Aplicar propiedades** commits changed values in one
+document-history entry and rebuilds the part. Applying the same values keeps
+the current reconstruction and history. **Cancelar cambios** drops only the
+uncommitted fields.
 Undo/Redo, recovery and native `.solidflow` saving use the normal document paths.
 The editor must finish its current geometry operation before applying properties.
 
