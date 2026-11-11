@@ -73,6 +73,21 @@ module.exports = async function viewNavigation(context) {
       label + ': identical text exclusion identities, text, state and integer bounds');
     projectedSame(actual, expected, label);
   }
+  function sameCompactFitFrame(actual, expected, label, phase, fitted, pair) {
+    try {
+      same(actual, expected, label);
+    } catch (error) {
+      let comparison = { status: 'unavailable' };
+      if (pair?.moved && rasterComparison && !rasterUnavailable) {
+        try { comparison = rasterComparison.compare(pair.restored, pair.moved); } catch { /* Keep the original failure. */ }
+      } else if (!pair) {
+        // Both retained slots belong to the original and zoomed wheel frames.
+        comparison = { status: 'unavailable', reason: 'retained-wheel-baselines' };
+      }
+      evidence.fitRasterComparison = { phase, startingPreset: 'Superior', expected, actual, fitted, comparison };
+      throw error;
+    }
+  }
   function changed(actual, expected, label) {
     check(actual.width === expected.width && actual.height === expected.height && actual.sha256 !== expected.sha256,
       label + ': actual rendered scene changes at unchanged canvas dimensions');
@@ -147,7 +162,12 @@ module.exports = async function viewNavigation(context) {
       const base = await frame(gesture + (compactWheel ? ' initial Superior' : ' initial isometric'), gesture === 'wheel-in'
         ? result => rasterComparison?.retainBaseline(result) : undefined);
       same(base, presets.get(startingPreset), gesture + ' baseline');
-      await cameraGesture(gesture); const moved = await frame(gesture + ' actual input');
+      let movedResult;
+      await cameraGesture(gesture); const moved = await frame(gesture + ' actual input', compactWheel && rasterComparison
+        ? result => {
+          try { rasterComparison.retainMovedBaseline(result); movedResult = result; }
+          catch { /* The independent original-wheel baseline is still usable. */ }
+        } : undefined);
       changed(moved, base, gesture);
       await unchanged(gesture);
       if (gesture === 'wheel-in') {
@@ -158,9 +178,13 @@ module.exports = async function viewNavigation(context) {
         // zoomed state and must produce the same stationary result.
         changed(keyboardFitted, moved, 'Fit visibly changes the zoomed scene');
         projectedSame(keyboardFitted, base, 'Fit recovers the projected framing');
+        let keyboardRestoredResult;
         await key('ShiftZ');
-        const keyboardRestored = await frame('Previous restores zoom after keyboard Fit');
-        same(keyboardRestored, moved, 'Previous restores zoom before keyboard Fit');
+        const keyboardRestored = await frame('Previous restores zoom after keyboard Fit', compactWheel
+          ? result => { keyboardRestoredResult = result; } : undefined);
+        if (compactWheel) sameCompactFitFrame(keyboardRestored, moved, 'Previous restores zoom before keyboard Fit',
+          'keyboard-previous', keyboardFitted, { restored: keyboardRestoredResult, moved: movedResult });
+        else same(keyboardRestored, moved, 'Previous restores zoom before keyboard Fit');
         await unchanged('Keyboard Fit and Previous');
         evidence.fit = { fitted: keyboardFitted, baseline: base, restored: keyboardRestored,
           limits: 'Fit must change the zoomed crop at unchanged dimensions and recover available SVG anchors within 0.11 CSS px. It need not reproduce the preset bitmap; independent camera tests check framing numerically. Previous retains exact text exclusions and every remaining pixel.' };
@@ -168,10 +192,12 @@ module.exports = async function viewNavigation(context) {
           changed(keyboardFitted, iso, 'Fit retains a non-isometric orientation');
           const compactControl = await compactView('Ajustar');
           const fitted = await frame('compact Fit from zoomed Superior');
-          same(fitted, keyboardFitted, 'Compact Fit matches keyboard Fit from zoomed Superior');
+          sameCompactFitFrame(fitted, keyboardFitted, 'Compact Fit matches keyboard Fit from zoomed Superior', 'compact-fit', keyboardFitted);
+          let restoredResult;
           await key('ShiftZ');
-          const restored = await frame('Previous restores zoom after compact Fit');
-          same(restored, moved, 'Previous restores the exact pre-compact-Fit crop');
+          const restored = await frame('Previous restores zoom after compact Fit', result => { restoredResult = result; });
+          sameCompactFitFrame(restored, moved, 'Previous restores the exact pre-compact-Fit crop',
+            'compact-previous', fitted, { restored: restoredResult, moved: movedResult });
           await unchanged('Compact Fit and Previous');
           Object.assign(evidence.fit, { fitted, restored, compactControl, keyboardFitted, startingPreset: 'Superior' });
         }

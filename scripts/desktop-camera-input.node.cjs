@@ -515,7 +515,13 @@ async function navigationFixture(options={}){
     querySelectorAll:selector=>{assert.equal(selector,'button[role="menuitem"]');return rows;}};
   const document={
     querySelector:selector=>{
-      if(selector==='.assembly-origin-labels'){events.push('projection:'+active);return null;}
+      if(selector==='.assembly-origin-labels'){
+        events.push('projection:'+active);
+        return options.projected?{
+          children:[{matches:()=>true,dataset:{originKey:'original-axis'}}],
+          querySelectorAll:()=>[{getAttribute:name=>name==='x1'?'77.2':'12.1'}],
+        }:null;
+      }
       assert.equal(selector,'[role="menu"]');return menuOpen?popup:null;
     },
     querySelectorAll:query=>{
@@ -535,7 +541,7 @@ async function navigationFixture(options={}){
     if(label.startsWith('previous preset '))return label.at(-1);
     if(label.includes('temporary front'))return '1';
     if(label==='keyboard Fit after wheel')return 'e';
-    if(label==='Previous restores zoom after keyboard Fit')return 'd';
+    if(label==='Previous restores zoom after keyboard Fit')return options.failCompact==='keyboard-previous'?'e':'d';
     if(label==='compact Fit from zoomed Superior')return options.failCompact==='fit'?'a':'e';
     if(label==='Previous restores zoom after compact Fit')return options.failCompact==='previous'?'a':'d';
     if(label==='wheel-in initial Superior')return '5';
@@ -547,8 +553,14 @@ async function navigationFixture(options={}){
   };
   const rasterComparison={
     retainBaseline(result){assert.equal(result,latest);baseline=result;events.push('retain:'+active);if(options.retainError)throw Error('diagnostic retention');},
-    retainMovedBaseline(result){assert.equal(result,latest);lower=result;events.push('retain:'+active);if(options.retainError)throw Error('diagnostic retention');},
-    compare(result,expected){assert.equal(result,latest);assert.ok(baseline);if(active==='previous preset 6')assert.equal(expected,lower);else assert.equal(expected,undefined);compares++;events.push('compare:'+active);if(options.compareError)throw Error('diagnostic comparison');return {status:'compared',raw:{changedPixels:1}};},
+    retainMovedBaseline(result){assert.equal(result,latest);lower=result;events.push('retain:'+active);if(options.retainError||options.movedRetentionError&&active==='wheel-in actual input')throw Error('diagnostic retention');},
+    compare(result,expected){
+      assert.equal(result,latest);assert.ok(baseline);
+      const usesMoved=active==='previous preset 6'||/^Previous restores zoom after (keyboard|compact) Fit$/.test(active);
+      assert.equal(expected,usesMoved?lower:undefined);compares++;events.push('compare:'+active);
+      if(options.compareError)throw Error('diagnostic comparison');
+      return {status:'compared',raw:{changedPixels:1}};
+    },
     clear(){clears++;baseline=lower=null;events.push('clear');if(options.clearError)throw Error('diagnostic cleanup');},
   };
   let error;
@@ -656,6 +668,8 @@ test('compact Fit uses Superior and restores the same zoom after keyboard and po
     assert.equal(fit.restored.sha256,wheel.moved.sha256);
     assert.equal(wheel.restoredBase.sha256,fit.baseline.sha256);
     assert.deepEqual(fit.compactControl,{label:'Ajustar',enabled:true});
+    assert.equal(f.evidence.fitRasterComparison,undefined);
+    assert.equal(f.compares,0);
     const trace=f.events.filter(value=>/^(key|gesture|compact|accepted):/.test(value));
     const start=trace.indexOf('accepted:wheel-in initial Superior')-1;
     const expected=[
@@ -671,16 +685,51 @@ test('compact Fit uses Superior and restores the same zoom after keyboard and po
   }
 });
 
-test('compact Fit rejects a changed orientation and a failed Previous restoration',async()=>{
-  for(const [failCompact,message] of [
-    ['fit',/Compact Fit matches keyboard Fit from zoomed Superior/],
-    ['previous',/Previous restores the exact pre-compact-Fit crop/],
+test('compact Fit failures retain the current witnesses and never relax the original assertion',async()=>{
+  for(const [failCompact,message,phase,polls,expected,actual] of [
+    ['keyboard-previous',/Previous restores zoom before keyboard Fit/,'keyboard-previous',25,'d','e'],
+    ['fit',/Compact Fit matches keyboard Fit from zoomed Superior/,'compact-fit',26,'e','a'],
+    ['previous',/Previous restores the exact pre-compact-Fit crop/,'compact-previous',27,'d','a'],
   ]){
-    const f=await navigationFixture({compact:true,failCompact});
+    const f=await navigationFixture({compact:true,failCompact,projected:true});
     assert.equal(f.error,f.primaryError);assert.match(f.error.message,message);
     assert.notEqual(f.evidence.completed,true);
-    assert.equal(f.compares,0);assert.equal(f.clears,2);assert.equal(f.events.at(-1),'clear');
+    const report=f.evidence.fitRasterComparison;
+    assert.equal(report.phase,phase);assert.equal(report.startingPreset,'Superior');
+    assert.equal(report.expected.sha256,expected.repeat(64));assert.equal(report.actual.sha256,actual.repeat(64));
+    assert.equal(report.fitted.sha256,'e'.repeat(64));
+    for(const frame of [report.expected,report.actual,report.fitted]){
+      assert.match(frame.rawSha256,/^[0-9a-f]{64}$/);
+      assert.equal(JSON.stringify(frame.projected),JSON.stringify([{key:'original-axis',x:77.2,y:12.1}]));
+    }
+    const moved=f.events.indexOf('retain:wheel-in actual input');
+    assert.deepEqual(f.events.slice(moved-1,moved+2),['accepted:wheel-in actual input','retain:wheel-in actual input','projection:wheel-in actual input']);
+    assert.equal(report.comparison.status,failCompact==='fit'?'unavailable':'compared');
+    assert.equal(f.compares,failCompact==='fit'?0:1);
+    if(failCompact!=='fit')assert.equal(report.comparison.raw.changedPixels,1);
+    assert.equal(f.polls.length,polls);assert.ok(f.polls.every(count=>count===3));
+    assert.equal(f.events.filter(value=>value.startsWith('capture:')).length,polls*3);
+    assert.equal(f.clears,2);assert.equal(f.events.at(-1),'clear');
   }
+});
+
+test('compact Previous preserves the original failure if raster observation is unavailable',async()=>{
+  for(const option of ['movedRetentionError','compareError','clearError','optOut']){
+    const f=await navigationFixture({compact:true,failCompact:'keyboard-previous',[option]:true});
+    assert.equal(f.error,f.primaryError);assert.match(f.error.message,/Previous restores zoom before keyboard Fit/);
+    assert.equal(f.evidence.fitRasterComparison.comparison.status,'unavailable');
+    assert.equal(f.evidence.fitRasterComparison.expected.sha256,'d'.repeat(64));
+    assert.equal(f.evidence.fitRasterComparison.actual.sha256,'e'.repeat(64));
+    assert.equal(f.polls.length,25);assert.ok(f.polls.every(count=>count===3));
+    assert.equal(f.events.filter(value=>value.startsWith('capture:')).length,75);
+    assert.equal(f.clears,option==='optOut'?0:2);
+    if(option!=='optOut')assert.equal(f.events.at(-1),'clear');
+  }
+  const baseline=await navigationFixture({compact:true,failWheel:true,movedRetentionError:true});
+  assert.equal(baseline.error,baseline.primaryError);
+  assert.match(baseline.error.message,/Previous crosses one completed wheel-in transaction/);
+  assert.equal(baseline.evidence.rasterComparison.status,'compared');
+  assert.equal(baseline.compares,1);
 });
 
 test('view preset menus exercise both orientations and no-op history in each workspace through actualControl',async()=>{
