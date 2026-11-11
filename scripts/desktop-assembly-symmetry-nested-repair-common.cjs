@@ -41,6 +41,14 @@ module.exports=function nestedPointRepair(context,operation){
  async function button(text,within='.assembly-app'){ await assemblyNavigation.button(text, within);await page((text,within)=>{const a=[...document.querySelectorAll(within+' button')].filter(x=>x.textContent.trim()===text);if(a.length!==1||a[0].disabled)throw Error('Exact enabled button absent:'+text);a[0].click()},text,within)}
  async function control(selector,value){ await assemblyNavigation.reveal(selector);await page((selector,value)=>{const e=document.querySelector(selector);if(!e||e.disabled||e instanceof HTMLSelectElement&&![...e.options].some(o=>o.value===value&&!o.disabled))throw Error('Exact editable control/choice absent');Object.getOwnPropertyDescriptor(e instanceof HTMLSelectElement?HTMLSelectElement.prototype:HTMLInputElement.prototype,'value').set.call(e,value);e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}))},selector,value);await waitFor('actual control value',()=>page((s,v)=>document.querySelector(s)?.value===v,selector,value))}
  async function choose(selector,ref){const a=await page(s=>[...document.querySelector(s).options].map(o=>({value:o.value,disabled:o.disabled})),selector),found=a.filter(o=>{try{return !o.disabled&&canonical(JSON.parse(o.value))===canonical(ref)}catch{return false}});check(found.length===1,'One exact current reference option');await control(selector,found[0].value)}
+ async function openOriginOwner(field) {
+   await page(field => {
+     const details = document.querySelector(field)?.closest('details');
+     const summary = details?.querySelector(':scope > summary');
+     if (!summary || summary.closest('[hidden]')) throw Error('Visible current origin disclosure required');
+     if (!details.open) summary.click();
+   }, field);
+ }
 
  async function ordinaryOriginAcrossScopes(document) {
    const scopeSelector = 'select[aria-label="Ámbito de las relaciones"]';
@@ -59,12 +67,7 @@ module.exports=function nestedPointRepair(context,operation){
      const field = 'select[aria-label="' + test.field + '"]';
      await control(typeSelector, test.type);
      await control(scopeSelector, JSON.stringify([test.from, 'inner']));
-     await page(field => {
-       const details = document.querySelector(field)?.closest('details');
-       const summary = details?.querySelector(':scope > summary');
-       if (!summary || summary.closest('[hidden]')) throw Error('Visible current origin disclosure required');
-       if (!details.open) summary.click();
-     }, field);
+     await openOriginOwner(field);
      const originalOwner = JSON.stringify([test.from, 'inner', 'source']);
      await control(field, originalOwner);
      const activeSlot = await page(() => {
@@ -97,6 +100,110 @@ module.exports=function nestedPointRepair(context,operation){
    check((await observe()).serial === before && canonical(dialogCounts()) === canonical(fileCounts) &&
      canonical(await history()) === canonical(historyBefore),
      'Choosing the current origin preserves worker, committed recovery, history and file dialogs');
+ }
+
+ async function ordinaryOriginAfterOwnerSuppression(current) {
+   const scopeSelector = 'select[aria-label="Ámbito de las relaciones"]';
+   const typeSelector = 'select[aria-label="Tipo de relación"]';
+   const field = 'select[aria-label="Componente del plano"]';
+   const ownerPath = ['left', 'inner', 'source'], scopePath = JSON.stringify(scope);
+   const witness = { scope: JSON.parse(scopePath), ownerPath, phases: [] };
+   checks.push({ suppressedDatumOwner: witness });
+   const original = current.document, dialogBaseline = dialogCounts();
+   const changeProperty = async (document, label, previous) => {
+     await select(document, ownerPath);
+     await assemblyNavigation.panel('properties');
+     const before = (await observe()).serial;
+     await page((label, previous) => {
+       const fields = [...document.querySelectorAll('.assembly-component-properties label.assembly-check')];
+       const box = fields.find(field => field.textContent.trim() === label)?.querySelector('input');
+       if (!box || box.disabled || box.closest('[hidden]') || box.checked !== (previous === 'true')) throw Error('Exact component checkbox required: ' + label);
+       box.click();
+     }, label, String(previous));
+     const event = await response(before, 'build-assembly');
+     await recovery(event.document);
+     return event;
+   };
+   const ownerState = () => page((scopeSelector, field, owner) => {
+     const select = document.querySelector(field);
+     return { scope: document.querySelector(scopeSelector)?.value, value: select?.value,
+       label: select?.selectedOptions[0]?.textContent, ownerAvailable: !!select && [...select.options].some(option => option.value === owner && !option.disabled),
+       enabled: !!select && !select.disabled && select.checkVisibility() };
+   }, scopeSelector, field, JSON.stringify(ownerPath));
+   const useDisplayedPlane = async () => {
+     const active = await page(() => {
+       const slots = [1, 2].filter(number => document.querySelector('button[aria-label="Referencia ' + number + ' de la relación"]')?.classList.contains('active'));
+       if (slots.length !== 1) throw Error('Exact current ordinary reference slot required');
+       return slots[0];
+     });
+     await button('Usar en referencia ' + active, '#assembly-panel-relations details');
+     return page(slot => {
+       const title = document.querySelector('button[aria-label="Referencia ' + slot + ' de la relación"] span')?.title;
+       return { slot: Number(slot), reference: title ? JSON.parse(title) : null, status: document.querySelector('.assembly-status > span')?.textContent };
+     }, String(active));
+   };
+
+   await control(scopeSelector, scopePath);
+   await control(typeSelector, 'distance');
+   await openOriginOwner(field);
+   await control(field, JSON.stringify(ownerPath));
+   check((await ownerState()).ownerAvailable, 'The current source owner is selectable before suppression');
+   const hidden = await changeProperty(original, 'Visible', true);
+   metrics(hidden.response.value, hidden.document, 'baseline', false);
+   const hiddenSources = hidden.response.value.bodies.filter(body => body.component.occurrencePath.at(-1) === 'source');
+   check(hiddenSources.length === 2 && hiddenSources.every(body => !body.visible), 'Hiding keeps both original source uses in the native scene');
+   await assemblyNavigation.panel('relations');
+   await openOriginOwner(field);
+   const hiddenChoice = await ownerState();
+   check(hiddenChoice.scope === scopePath && hiddenChoice.ownerAvailable && hiddenChoice.value === JSON.stringify(ownerPath),
+     'Hiding the active occurrence preserves its exact selected datum owner');
+   witness.phases.push({ phase: 'hidden', displayed: hiddenChoice, solids: hidden.response.value.solidCount });
+
+   const suppressed = await changeProperty(hidden.document, 'Suprimido', false), after = suppressed.response.value;
+   const expected = structuredClone(hidden.document);
+   inner(expected).occurrences.find(occurrence => occurrence.id === 'source').suppressed = true;
+   expected.updatedAt = suppressed.document.updatedAt;
+   inner(expected).updatedAt = inner(suppressed.document).updatedAt;
+   check(canonical(suppressed.document) === canonical(expected), 'Only the exact shared local source suppression is committed');
+   check(after.solidCount === 4 && !after.warnings.length, 'Two original source uses disappear from the rebuilt scene');
+   near(after.volume, 384, 1e-5, 'Four remaining 96 mm³ prisms');
+   near(after.area, 512, 1e-5, 'Four remaining 128 mm² prisms');
+   check(canonical(after.bodies) === canonical(current.scene.bodies.filter(body => body.component.occurrencePath.at(-1) !== 'source')),
+     'The four other exact occurrences and native geometry are preserved');
+
+   await assemblyNavigation.panel('relations');
+   await openOriginOwner(field);
+   const beforePick = (await observe()).serial, displayed = await ownerState(), actual = await useDisplayedPlane();
+   witness.phases.push({ phase: 'suppressed', displayed, actual, solids: after.solidCount, volume: after.volume, area: after.area });
+   check(displayed.scope === scopePath && displayed.value === 'scope' && displayed.label === 'Ámbito actual' && displayed.enabled && !displayed.ownerAvailable,
+     'The active shared scope remains selected and its own plane is visibly available');
+   check(canonical(actual.reference) === canonical({ kind: 'principal-plane', component: null, plane: 'XY' }),
+     'The displayed scoped plane must fill the exact current role after its prior owner was suppressed: ' + JSON.stringify(actual));
+   await recovery(suppressed.document);
+   check((await observe()).serial === beforePick && canonical(dialogCounts()) === canonical(dialogBaseline),
+     'Choosing the displayed origin performs no native or file work');
+
+   const active = await changeProperty(suppressed.document, 'Suprimido', true);
+   metrics(active.response.value, active.document, 'baseline', false);
+   await assemblyNavigation.panel('relations');
+   await openOriginOwner(field);
+   const restoredChoice = await ownerState();
+   check(restoredChoice.scope === scopePath && restoredChoice.ownerAvailable && restoredChoice.value === 'scope',
+     'Reactivation makes the exact owner available again without silently selecting it');
+   await control(field, JSON.stringify(ownerPath));
+   const activePick = await useDisplayedPlane();
+   check(canonical(activePick.reference) === canonical({ kind: 'principal-plane',
+     component: { occurrencePath: ['source'], definition: current.scene.bodies.find(body => canonical(body.component.occurrencePath) === canonical(ownerPath)).component.definition }, plane: 'XY' }),
+   'An explicit fresh owner selection uses its exact scope-relative path and source revision');
+   witness.phases.push({ phase: 'reactivated', restoredChoice, actual: activePick, solids: active.response.value.solidCount });
+
+   for (const document of [suppressed.document, hidden.document, original]) {
+     const before = (await observe()).serial;
+     await click('button[aria-label="Deshacer ensamblaje"]');
+     const event = await response(before, 'build-assembly');
+     check(canonical(event.document) === canonical(document), 'One exact Undo per occurrence state change');
+     await recovery(document);
+   }
  }
 
  // Source repair has its own private stage protocol. Only this exact pending
@@ -143,7 +250,10 @@ module.exports=function nestedPointRepair(context,operation){
  }
  return async()=>{
   check(expected.id==='assembly-symmetry-nested-repair-original','Original fixture');const originalBytes=await fsp.readFile(input);await waitFor('initial production ready',()=>page(()=>document.querySelector('.statusbar')?.textContent.includes('Listo')&&typeof window.solidflow?.openDocument==='function'),initialReadyMs);let b=await observe();await click('button[aria-label="Abrir (Ctrl+O)"]');await waitFor('initial discard',()=>page(()=>!!document.querySelector('[aria-labelledby="discard-title"]')));await button('Continuar sin guardar','[aria-labelledby="discard-title"]');let e=await response(b.serial,'build-assembly'),current={document:e.document,scene:e.response.value};check(canonical(e.document)===canonical(expected),'Exact original imported');metrics(current.scene,current.document,'baseline',false);
-  if (selected) await ordinaryOriginAcrossScopes(current.document);
+  if (selected) {
+    await ordinaryOriginAcrossScopes(current.document);
+    await ordinaryOriginAfterOwnerSuppression(current);
+  }
   await control('select[aria-label="Ámbito de las relaciones"]',JSON.stringify(scope));await control('select[aria-label="Tipo de relación"]','symmetry');await control('select[aria-label="Familia de simetría"]','point');const refs=references(current.scene,4,4);for(const side of ['source','target'])await choose('select[aria-label="'+labels[roles.indexOf(side)]+'"]',refs[side]);const actual=plane(leaf(current.scene,['left','inner','mirror'])),s=actual.selection,key=JSON.stringify([JSON.stringify([s.component.occurrencePath,s.component.definition.id,s.component.definition.revision]),s.body?[s.body.bodyId,s.body.sourceFeatureId]:null,s.face.sourceFeatureId,s.face.key]);await control('select[aria-label="Plano de simetría"]',key);await control('input[aria-label="Nombre de simetría"]','Original nested material-point symmetry');b=await observe();await button('Vista previa de simetría');e=await response(b.serial,'preview-assembly');ready(e,'baseline');check(e.response.value.document.mates.length===0&&inner(e.response.value.document).mates.length===1,'One saved shared inner declaration, no root fake');current=await apply(e,'baseline');const baseline=current.document,bytes=await save(baseline,files.baselineSaved,1);
   let rev=await review(baseline);
   if(selected)check(await page(()=>document.querySelector('button[aria-label="Resolver sustitución de pieza"]')?.disabled===true),'Pending source blocks replacement');

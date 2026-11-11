@@ -1856,6 +1856,15 @@ button,
 .modal.small {
   width: 360px;
 }
+.part-rename-dialog {
+  margin: auto;
+  padding: 0;
+  border: 0;
+  overflow: visible;
+  background: transparent;
+}
+.part-rename-dialog::backdrop { background: #29475f59; }
+.part-rename-error { color: #895a30; }
 .modal-close {
   position: absolute;
   top: 9px;

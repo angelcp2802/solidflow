@@ -17,6 +17,11 @@ owner selectors return to **Ámbito actual**. Using the displayed choice
 assigns the new scope's own datum to the active reference. Previously selected
 component owners belong to their original occurrence paths.
 
+If the selected owner is suppressed or removed within the active scope, the
+selectors return to **Ámbito actual**. Hiding an active owner keeps its
+datum available. Reactivating a suppressed owner makes it selectable again.
+The editor starts from the current scope until you choose the component again.
+
 Both workspaces also display selectable origin references. Enable axes or
 planes and choose the current scope, selected component or both. In the
 standard workspace, activate reference 1 or 2 and **Seleccionar origen**;
@@ -42,6 +47,9 @@ choose component B, rearm the other role and select its origin. Both roles remai
 in the same draft. Only current visible owners inside the selected scope appear;
 paths distinguish nested occurrences. Owner changes disarm selection immediately,
 and a pick from the preceding owner/display cannot be replayed after returning.
+When the displayed component is unavailable, **Mostrar origen de** shows
+**Ámbito actual**. If planes or axes are enabled, the current scope's compatible
+origins can be selected immediately when you open a new relation.
 This selector does not move, solve, replace or change a component's state.
 
 The overlay uses the current effective global placement, while saved identity

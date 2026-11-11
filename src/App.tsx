@@ -1,5 +1,6 @@
 import { useViewHistory } from './components/useViewHistory'
 import PartHelpDialog from './components/PartHelpDialog'
+import PartRenameDialog from './components/PartRenameDialog'
 import PartPropertiesPanel from './components/PartPropertiesPanel'
 import { partMassKg, setPartProperties } from './model/partProperties'
 import { useViewportBackgroundSettings } from './components/ViewportBackgroundSettings'
@@ -2550,12 +2551,9 @@ export function PartWorkspace({ initialDocument, initialPath, initialSaved, skip
         return;
       }
       if (showHelp || rename || discardDecision.current) {
-        if (e.key === "Escape") {
+        if (e.key === "Escape" && !rename) {
           if (discardDecision.current) finishDiscard(false);
-          else {
-            setShowHelp(false);
-            setRename(false);
-          }
+          else setShowHelp(false);
           e.preventDefault();
         }
         if (documentShortcut && ["n", "o", "s"].includes(key)) e.preventDefault();
@@ -5061,48 +5059,8 @@ export function PartWorkspace({ initialDocument, initialPath, initialSaved, skip
       {backgroundSettings.dialog}
       {namedViews.isOpen && <NamedViewsDialog views={namedViews.views} canSave={namedViews.canSave} canUpdate={namedViews.canUpdate}
         onSave={namedViews.save} onShow={namedViews.show} onDelete={namedViews.remove} onRename={namedViews.rename} onUpdate={namedViews.update} onClose={namedViews.close} />}
-      {rename && (
-        <div className="modal-backdrop">
-          <form
-            className="modal small"
-            onSubmit={(e) => {
-              e.preventDefault();
-              const data = new FormData(e.currentTarget);
-              try {
-                apply({
-                  ...doc,
-                  name: String(data.get("name")).trim(),
-                  updatedAt: new Date().toISOString(),
-                });
-                setRename(false);
-              } catch (err) {
-                notify((err as Error).message, true);
-              }
-            }}
-          >
-            <h2>Nombre de la pieza</h2>
-            <input
-              className="text-input"
-              name="name"
-              aria-label="Nombre de la pieza"
-              defaultValue={doc.name}
-              required
-              maxLength={100}
-              autoFocus
-            />
-            <div className="modal-actions">
-              <button
-                type="button"
-                className="outline-button"
-                onClick={() => setRename(false)}
-              >
-                Cancelar
-              </button>
-              <button className="primary-button">Guardar</button>
-            </div>
-          </form>
-        </div>
-      )}
+      {rename && <PartRenameDialog name={doc.name} onClose={() => setRename(false)}
+        onRename={name => apply({ ...doc, name, updatedAt: new Date().toISOString() })} />}
       {discardOpen && (
         <div className="modal-backdrop" onClick={() => finishDiscard(false)}>
           <div

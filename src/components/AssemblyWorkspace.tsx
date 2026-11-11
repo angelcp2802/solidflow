@@ -637,6 +637,12 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     current.current = document
     const activePath = JSON.parse(currentFileScope.current) as string[]
     if (activePath.length && !resolveActiveAssemblyScope(document, activePath)) setScopePath([])
+    else setDatumComponent(owner => {
+      if (owner === 'scope') return owner
+      const available = assemblyTreeRows(document).some(row => !row.suppressed && inside(row.path, activePath)
+        && JSON.stringify(row.path) === owner)
+      return available ? owner : 'scope'
+    })
     publishCommitted(document)
   }
   const setScopePath = (value: string[]) => {

@@ -125,9 +125,9 @@ module.exports = async function partFileAliases(context) {
 
   await press('nav.part-main-menus [data-assembly-menu="edit"]');
   await press('nav.part-main-menus [role="menu"] > button[data-assembly-command]', 'Cambiar nombre de pieza');
-  const name = '.modal-backdrop form.modal.small input[aria-label="Nombre de la pieza"]';
+  const name = 'dialog.part-rename-dialog:modal form.modal.small input[aria-label="Nombre de la pieza"]';
   await change(name, 'Original part with unsaved rename');
-  await press('.modal-backdrop form.modal.small button.primary-button', 'Guardar');
+  await press('dialog.part-rename-dialog:modal form.modal.small button.primary-button', 'Guardar');
   await idle();
   const dirty = await stableOwner(), renamed = JSON.parse(dirty.recovery);
   check(renamed.id === document.id && renamed.name === 'Original part with unsaved rename'

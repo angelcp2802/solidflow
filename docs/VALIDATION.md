@@ -1,5 +1,48 @@
 # Validation
 
+## Packaged 0.30.0 keyboard and width choices — Windows, 2026-11-11
+
+The Windows x64 directory package for `9a4664cd897909aa4942941e15b0f12a00457fc1`
+has executable SHA-256 `529607a420f0c72cc713a9b45e6d0581fa29079b10d80c36733c54a7459ff433`
+and ASAR SHA-256 `a47f33069fa2ee524720ca7d7db642469ee547fe054448651c057db4e4429686`.
+Independent readers agreed on all 5,276 archive files and nine production
+members. The build, 11,528 unit and CAD cases, 232 IPC checks with two skips,
+and desktop startup passed. The focused renderer runs passed 116 external-axis,
+43 inclined-width, 56 body-selection and 89 nested-origin checkpoints.
+
+In a separate packaged window, Escape closed the open File menu with the
+revolution picker still armed. In the Open confirmation it returned to the
+closed File trigger and preserved the picker. A second Escape restored the
+360° origin-Y preview. Cancel returned the original 8 mm³ prism and the
+saved copy matched the prior Cancel control byte for byte.
+
+The packaged Width editor showed different labels for ten material planes.
+Selecting the four original inclined faces by identifier produced a verified
+rank-three preview at 96 mm³. The displayed residuals were 2.32e-9 mm and
+2.58e-10 rad. Applying, saving, reopening and solving kept the same four
+ordered references and occurrence poses as the earlier control. The local
+shortcut then reopened the 2,208 mm³ three-solid assembly in a fresh
+process, and its saved recovery copy matched the startup bytes. The guide
+contains 23 verified examples. The complete command inventory, installed
+startup, hosted platforms and human use retain their own checks.
+
+## View menu and viewport display toggles — Windows, 2026-11-11
+
+On the saved original eight-feature part, the **Ver → Cuadrícula** command
+activates the viewport's grid button. Turning the grid off with that button
+restores the original 941×442 unmasked canvas crop byte for byte. Starting
+with the toolbar reproduces the same grid bitmap. The checked menu item then
+turns the grid off and restores the same crop.
+
+The same cross-control sequence covers **Planos de referencia** with a
+temporary native XY plane at Z20 mm. Both ON checks retain the existing
+one-byte presentation tolerance for translucent frames. Both OFF checks
+restore the exact original crop. The visibility changes preserve selection,
+history, the committed document and file activity. Undo removes the
+temporary plane and restores the exact prior recovery bytes. The full
+`test:desktop:part-from-empty` run passed 575 checkpoints with no console
+or resource errors in the hidden Windows x64 production renderer.
+
 ## Ordinary origin owner after a nested scope change — Windows, 2026-11-11
 
 On the earlier standard production renderer, choosing the left nested source
@@ -20,6 +63,19 @@ The existing `test:desktop:assembly-symmetry-nested-selected` route passed
 nested repair lifecycle. The separate shared-source nested and standard
 origin-axis routes also passed. This exercises two occurrences of one
 original shared definition in the hidden Windows x64 production renderer.
+
+The same-scope suppression regression reproduced a related mismatch in
+0.30. After suppressing the selected source inside the still-active nested
+scope, the enabled dropdown showed **Ámbito actual** and its action rejected
+the prior owner. The corrected renderer assigns the local XY plane to the
+active reference without another native request or file dialog. Hiding the
+source preserves the exact owner and all six native prisms. Suppression leaves
+four prisms at 384 mm³ and 512 mm² with the other occurrences and their geometry
+exact. Reactivation restores the source option. Selecting it explicitly uses
+its exact scope-relative occurrence and source revision. One Undo for each
+of the three property edits restores the exact original document. The
+expanded nested route passed 128 checkpoints, and the independent scope and
+grouping route passed 119 on Windows x64.
 
 ## Centered Width with intersecting material planes — Windows, 2026-11-11
 
@@ -349,6 +405,24 @@ desktop startup and first 19 prioritized commands passed. The complete
 inventory has 123 commands and continued after this checkpoint. This
 record covers the unsigned Windows directory package and the stated
 fixtures. Hosted, installed-platform and human-use results are separate.
+
+## Configured origin owner fallback — Windows, 2026-11-11
+
+The [original configured four-prism assembly](../scripts/desktop-assembly-configurations-original.cjs)
+uses the same definition in Left Base and Right Compact. In the production
+renderer, the test enabled planes, chose Left Base component A and armed the
+first role. Closing that relation and opening a new one in Right Compact left
+**Componente elegido** disabled and selected on the baseline. The viewport
+displayed zero origin labels and the new relation could not arm an origin role.
+
+The corrected editor shows **Ámbito actual** with planes still enabled and
+both roles initially empty. The visible **Plano XY · Ámbito right** label
+assigns local XY to the first role and disarms. The second role, exact recovery,
+history, worker requests and file operations stay unchanged across the case.
+The original geometry retained four solids, 68 mm³ and 172 mm². The complete
+configured relation route passed 147 recorded checks with zero console and
+resource errors. The new case uses scripted DOM controls in the hidden Windows
+production renderer. It ends before native preview of the new draft.
 
 ## Nested configured origin context and Normal To — Windows, 2026-11-11
 
@@ -3659,6 +3733,23 @@ They retain popup and temporary disclosure checks, blocked file commands,
 and the existing exact preview-discard and recovery assertions. The standard
 and configured routes passed 558 and 620 checks. Their compact variants
 passed 580 and 637 checks on Windows x64.
+
+## Part rename modal keyboard ownership — Windows, 2026-11-11
+
+The existing `part-from-empty` renderer invokes **Editar → Cambiar nombre
+de pieza** on the saved eight-feature part. On the pre-fix renderer, Tab
+from the Save control focused a background button while the rename form
+stayed open. The native dialog keeps forward and reverse Tab within the
+form and returns focus to **Editar** after Cancel, Escape and acceptance.
+A blank trimmed name reports its error inside the dialog and keeps the
+field editable. Native text Undo remains local to the name field.
+
+The route passed 580 checks on Windows x64. The accepted rename keeps all
+feature and view declarations. Document Undo/Redo and cancellation retain
+the route's exact recovery, native observations and saved-file checks.
+The separate `part-sequence` route passed 541 checks, including the dirty
+renamed part's assembly-copy workflow. These tests exercise production
+renderer controls with trusted test input and owned file outcomes.
 
 ## Part Open confirmation and active axis picker — Windows, 2026-11-11
 

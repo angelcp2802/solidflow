@@ -636,14 +636,15 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
   const originOwners = useMemo(() => configuredOriginOwners(evaluation, selectedScope.path), [evaluation, selectedScope.path])
   const originComponentKey = originComponent ?? originOwners.find(row => JSON.stringify(row.path) === JSON.stringify([...selectedScope.path, occurrenceId]))?.key ?? ''
   const chosenOriginOwner = originOwners.find(row => row.key === originComponentKey)
+  const originDisplayOwner = chosenOriginOwner ? originOwner : 'scope'
   const mateHighlights = useMemo(() => configuredMateHighlights(!blocked && scene && configuredUiSceneMatches(scene, document, generation) ? displayScene : null, selectedScope.path, generalDraft, mateChoices.values), [blocked, scene, document, generation, displayScene, selectedScope.path, generalDraft, mateChoices.values])
   const originDisplay = useMemo(() => {
     if (inspectorPane !== 'relation' || !generalDraft || blocked || !scene || !configuredUiSceneMatches(scene, document, generation)) return []
     const kinds = { axes: originAxes, planes: originPlanes }
-    const own = originOwner !== 'selected' ? buildAssemblyOriginDisplay(evaluation, selectedScope.path, null, kinds) : []
-    const component = originOwner !== 'scope' && chosenOriginOwner ? chosenOriginOwner.origins.filter(row => row.reference.kind === 'principal-axis' ? kinds.axes : kinds.planes) : []
+    const own = originDisplayOwner !== 'selected' ? buildAssemblyOriginDisplay(evaluation, selectedScope.path, null, kinds) : []
+    const component = originDisplayOwner !== 'scope' && chosenOriginOwner ? chosenOriginOwner.origins.filter(row => row.reference.kind === 'principal-axis' ? kinds.axes : kinds.planes) : []
     return [...own, ...component]
-  }, [inspectorPane, generalDraft, blocked, scene, document, generation, evaluation, selectedScope.path, chosenOriginOwner, originOwner, originAxes, originPlanes])
+  }, [inspectorPane, generalDraft, blocked, scene, document, generation, evaluation, selectedScope.path, chosenOriginOwner, originDisplayOwner, originAxes, originPlanes])
   const selectedOrigins = useMemo(() => configuredOriginHighlights(originDisplay, generalDraft, mateChoices.values), [originDisplay, generalDraft, mateChoices.values])
   const pickOrigin = (reference: AssemblyOriginReference | null) => {
     if (!freshMate() || operation.current || pending.current || inspectorPane !== 'relation' || !originPick || originPickRef.current !== originPick || !generalDraft || !scene || selectedScope.suppressed || !configuredUiSceneMatches(scene, current.current, epoch.current)) return
@@ -930,14 +931,14 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
           <label><input type="checkbox" aria-label="Mostrar ejes de origen configurados" checked={originAxes} disabled={blocked || !scene} onChange={event => { if (!freshMate() || operation.current || pending.current || inspectorPane !== 'relation') return; stopMatePick(); setOriginAxes(event.target.checked) }} />Ejes</label>
           <label><input type="checkbox" aria-label="Mostrar planos de origen configurados" checked={originPlanes} disabled={blocked || !scene} onChange={event => { if (!freshMate() || operation.current || pending.current || inspectorPane !== 'relation') return; stopMatePick(); setOriginPlanes(event.target.checked) }} />Planos</label>
         </div>
-        <label>Mostrar origen de<select aria-label="Propietario de referencias de origen configuradas" value={originOwner} disabled={blocked || !scene} onChange={event => { if (!freshMate() || operation.current || pending.current || inspectorPane !== 'relation') return; stopMatePick(); setOriginOwner(event.target.value as typeof originOwner) }}>
+        <label>Mostrar origen de<select aria-label="Propietario de referencias de origen configuradas" value={originDisplayOwner} disabled={blocked || !scene} onChange={event => { if (!freshMate() || operation.current || pending.current || inspectorPane !== 'relation') return; stopMatePick(); setOriginOwner(event.target.value as typeof originOwner) }}>
           <option value="scope">Ámbito actual</option><option value="selected" disabled={!chosenOriginOwner}>Componente elegido</option><option value="both" disabled={!chosenOriginOwner}>Ambos</option>
         </select></label>
         <label>Componente de origen<select aria-label="Componente de referencias de origen configuradas" value={chosenOriginOwner?.key ?? ''} disabled={blocked || !scene || !originOwners.length} onChange={event => {
           if (!freshMate() || operation.current || pending.current || inspectorPane !== 'relation' || !scene || !configuredUiSceneMatches(scene, current.current, epoch.current)) return
           const owner = originOwners.find(row => row.key === event.target.value)
           if (!owner) return
-          stopMatePick(); setOriginComponent(owner.key); setOriginOwner(value => value === 'scope' ? 'selected' : value)
+          stopMatePick(); setOriginComponent(owner.key); setOriginOwner(originDisplayOwner === 'scope' ? 'selected' : originDisplayOwner)
         }}><option value="" disabled>Elige un componente visible</option>{originOwners.map(owner => <option key={owner.key} value={owner.key}>{owner.label}</option>)}</select></label>
         <div className="configured-origin-roles">{configuredMateUiRoleLabels(generalDraft).map((label, slot) => <button key={slot} type="button" aria-label={`Seleccionar ${label} por origen en vista configurada`} aria-pressed={originPick?.slot === slot} disabled={blocked || !scene || !originDisplay.some(row => configuredOriginPickChoice(originDisplay, generalDraft, mateChoices.values, slot, row.reference))} onClick={() => {
           if (!freshMate() || operation.current || pending.current || inspectorPane !== 'relation' || !scene || !configuredUiSceneMatches(scene, current.current, epoch.current)) return

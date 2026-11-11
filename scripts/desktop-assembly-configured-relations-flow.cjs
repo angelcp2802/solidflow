@@ -37,11 +37,63 @@ module.exports=function configuredRelationsWorkflow(c){
  async function history(label,wanted,left,right){const before=await observe();await button(label,NAV);const row=await response(before.serial,'build-configured-assembly');check(canonical(row.current.document)===canonical(wanted),label+' exact full context');geometry(row.response.value,wanted,left,right,label);await recovery(wanted);}
  async function select(value,left,right){const before=await observe();await control('Configuración raíz',value);const row=await response(before.serial,'build-configured-assembly');geometry(row.response.value,row.current.document,left,right,'selector-'+value);await recovery(row.current.document);return row.current.document;}
  const navigateScope=require('./desktop-configured-scope-navigation.cjs')({page,control,observe,waitFor,check,canonical,ipc,dialogCounts,checks:c.checks});
+ async function originOwnerAcrossScopes() {
+  const relations='[aria-label="Relaciones del estado configurado"]', owner='Propietario de referencias de origen configuradas';
+  const component='Componente de referencias de origen configuradas', planes='Mostrar planos de origen configurados';
+  const role='Seleccionar Referencia 1 por origen en vista configurada', close='Cerrar edición de relación configurada';
+  const viewport='[aria-label="Visor 3D del ensamblaje"]', scopePlane=JSON.stringify(['principal-plane',null,'XY']);
+  const togglePlanes=async()=>{
+   const selector='input[aria-label="'+planes+'"]';await navigation.reveal(selector);
+   await page(selector=>{const input=document.querySelector(selector);if(!input||input.disabled)throw Error('Expected the enabled plane checkbox');input.click();},selector);
+  };
+  const snapshot=()=>page((owner,component,planes,role,viewport)=>{
+   const find=label=>document.querySelector('[aria-label="'+label+'"]');
+   return {scope:find('Ámbito de configuración')?.value,mode:find(owner)?.value,modeDisabled:find(owner)?.selectedOptions[0]?.disabled,
+    component:find(component)?.value,planes:find(planes)?.checked,roleDisabled:find(role)?.disabled,
+    pick:document.querySelector(viewport)?.getAttribute('data-reference-picking'),
+    labels:[...document.querySelectorAll(viewport+' button[data-origin-key]')].map(row=>row.dataset.originKey).sort(),
+    references:[1,2].map(slot=>find('Referencia '+slot+' de relación configurada')?.value),
+    recovery:localStorage.getItem('solidflow.autosave'),history:[...document.querySelectorAll('.configured-assembly-workspace button')]
+     .filter(row=>/^(Deshacer|Rehacer)(?:\b|\s)/.test(row.title||row.getAttribute('aria-label')||row.textContent.trim())).map(row=>row.disabled)};
+  },owner,component,planes,role,viewport);
+  const initial=await snapshot(), counters=await observe.counters(), files=canonical({ipc,dialogs:dialogCounts()});
+  await navigateScope('["left"]');
+  await button('Nueva relación configurada',relations);await togglePlanes();
+  const leftOwner=JSON.stringify([['left'],{occurrencePath:['a'],definition:{id:'configuration-A',revision:'r1'}}]);
+  await control(component,leftOwner);await aria(role);
+  const left=await snapshot();
+  check(left.scope==='["left"]'&&left.mode==='selected'&&!left.modeDisabled&&left.component===leftOwner&&left.pick==='origin',
+   'Left Base explicitly arms the displayed component origin without selecting a tree occurrence');
+  await button(close,FORM);await navigateScope('["right"]');await button('Nueva relación configurada',relations);
+  const right=await snapshot();
+  check(right.scope==='["right"]'&&right.component===''&&right.planes&&right.pick===''&&right.references.every(ref=>ref===''),
+   'New Right Compact relation keeps plane visibility, clears the previous component and starts with two empty roles');
+  check(right.mode==='scope'&&right.modeDisabled===false&&right.roleDisabled===false,
+   'New Right Compact relation must expose the current scope and enable origin picking without another owner choice: '+JSON.stringify({mode:right.mode,modeDisabled:right.modeDisabled,roleDisabled:right.roleDisabled,labels:right.labels}));
+  await aria(role);
+  const rightLabel='Plano XY · Ámbito right';
+  await waitFor('right-scope XY label available in the live origin picker',()=>page((viewport,key)=>
+   [...document.querySelectorAll(viewport+' button[data-origin-key]')].some(row=>row.dataset.originKey===key&&!row.disabled&&row.checkVisibility()),viewport,scopePlane));
+  await page((viewport,key,title)=>{
+   const rows=[...document.querySelectorAll(viewport+' button[data-origin-key]')].filter(row=>row.dataset.originKey===key);
+   if(rows.length!==1||rows[0].disabled||rows[0].title!==title)throw Error('Expected one enabled XY viewport label of the current scope');rows[0].click();
+  },viewport,scopePlane,rightLabel);
+  const picked=await snapshot();
+  const reference=JSON.parse(picked.references[0]);
+  check(picked.pick===''&&picked.references[1]===''&&canonical(reference)===canonical({kind:'principal-plane',component:null,plane:'XY'}),
+   'The right-scope label assigns only the first role to exact local XY and disarms');
+  await togglePlanes();await button(close,FORM);
+  const after=await snapshot();
+  check(after.recovery===initial.recovery&&canonical(after.history)===canonical(initial.history)&&canonical(await observe.counters())===canonical(counters)
+   &&canonical({ipc,dialogs:dialogCounts()})===files,'Origin owner and draft transitions leave exact recovery, history, worker and file authority unchanged');
+  c.checks.push({configuredOriginOwnerFallback:{from:left.scope,to:right.scope,mode:right.mode,label:rightLabel,reference,
+   untouched:['second role','history','recovery','worker','file'],input:'scripted DOM controls in the production renderer'}});
+ }
  return async()=>{
   await waitFor('production startup',()=>page(()=>document.querySelector('.statusbar')?.textContent.includes('Listo')&&typeof window.solidflow?.openDocument==='function'),initialReadyMs);
   const originalBytes=await fs.readFile(input);let before=await observe();await click('button[aria-label="Abrir (Ctrl+O)"]');await waitFor('initial discard dialog',()=>page(()=>!!document.querySelector('[role="dialog"][aria-labelledby="discard-title"]')));await button('Continuar sin guardar','[role="dialog"][aria-labelledby="discard-title"]');
   let row=await response(before.serial,'build-configured-assembly');check(canonical(row.current.document)===canonical(expected),'Real file IPC opened original v3');geometry(row.response.value,expected,10,4,'initial');await recovery(expected);
-  before=await observe();await navigateScope('["right"]');
+  await originOwnerAcrossScopes();
   await draft(123);await recovery(expected);before=await observe();
   await control('Ámbito de configuración','[]');row=await response(before.serial,'build-configured-assembly');
   check(canonical(row.current.document)===canonical(expected)&&await page(form=>!document.querySelector(form),FORM),

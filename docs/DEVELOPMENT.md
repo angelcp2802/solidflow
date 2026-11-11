@@ -2705,6 +2705,31 @@ execution and visual limits in validation rather than inferring a pass here.
 
 The desktop smoke check loads the initial model, preload, worker and WASM and checks readiness and console errors. It does not click the editor's tools or launch the packaged installer. On a headless Linux machine, a display server is needed for Electron; CI can use `xvfb-run -a npm run test:desktop` after installing the required system libraries. Do not disable Electron's sandbox to make a check pass.
 
+### Optional Windows installer acceptance
+
+Run the **CI** workflow manually on the intended ref and enable
+`validate_windows_installer`. The option defaults to false. A dispatch also
+runs ordinary CI, so wait for an existing run on the same ref to finish.
+The added job uses a disposable Windows x64 runner and checks out the exact
+dispatched commit. It installs locked dependencies, builds the unsigned
+NSIS target with publishing disabled, and verifies the packaged ASAR
+against the build.
+
+The job installs silently into a unique runner-temporary directory. It
+checks the installed executable's x64 PE and version, and compares every
+file from the unpacked build, including the executable and ASAR, with the
+installed copy. It launches that executable using a separate temporary
+profile. Windows accessibility must report **Listo** and **Sólido** from
+its owned window. Startup must create storage in the temporary profile
+and leave the default profile absent. The job reports the commit, version,
+hashes and result.
+The runner discards the installed files and profile.
+
+This is a Windows x64 silent-install and initial-model startup check for
+the exact dispatched revision. Signing, assisted installation, upgrades,
+uninstall, other platforms, and the combined modeling demo have separate
+acceptance evidence.
+
 Run focused tests while developing, then the checks relevant to the complete change. The [CI workflow](../.github/workflows/ci.yml) is configured for Node 24 on Windows 2025 x64, Ubuntu 24.04 x64 and macOS 15 arm64: install, build, unit tests, IPC tests, Electron smoke check and packaging. Linux uses Xvfb. A configured job is not an executed result; check Actions for the actual commit and platform before claiming a pass.
 
 The longer renderer commands run in three fixed batches per operating system:

@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      validate_windows_installer:
+        description: Install and start the unsigned NSIS build on a disposable Windows runner
+        type: boolean
+        default: false
 
 # Fork pull requests run unprivileged code without repository secrets.
 # Do not replace pull_request with pull_request_target or workflow_run.
@@ -16,6 +21,45 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  windows-installer:
+    name: Windows installer acceptance (x64)
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.validate_windows_installer }}
+    runs-on: windows-2025
+    timeout-minutes: 20
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+    steps:
+      - name: Check out the exact dispatched revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          package-manager-cache: false
+
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Build the exact revision
+        run: npm run build
+
+      - name: Build the unsigned Windows installer
+        run: npx --no-install electron-builder --win nsis --x64 --publish never
+
+      - name: Verify the packaged application members
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path artifacts -Force | Out-Null
+          node scripts/verify-package-integrity.mjs
+
+      - name: Install and verify startup in an isolated profile
+        shell: pwsh
+        run: ./scripts/verify-windows-installer.ps1
+
   desktop:
     name: Desktop (${{ matrix.platform }}-${{ matrix.arch }}, Node 24)
     runs-on: ${{ matrix.os }}
@@ -873,6 +917,14 @@ jobs:
       - name: Test centered width with four plane references (Windows/macOS)
         if: matrix.batch == 'relations' && runner.os != 'Linux'
         run: npm run test:desktop:assembly-width
+
+      - name: Test centered width with intersecting material planes (Linux)
+        if: matrix.batch == 'relations' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-width-intersecting
+
+      - name: Test centered width with intersecting material planes (Windows/macOS)
+        if: matrix.batch == 'relations' && runner.os != 'Linux'
+        run: npm run test:desktop:assembly-width-intersecting
 
       - name: Test native symmetry authoring with three references (Linux)
         if: matrix.batch == 'hinge-symmetry' && runner.os == 'Linux'

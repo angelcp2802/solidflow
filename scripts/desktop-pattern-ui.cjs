@@ -1444,7 +1444,7 @@ async function runInElectron() {
         const r=e.getBoundingClientRect();return e.contains(document.elementFromPoint(r.left+r.width/2,r.top+r.height/2));
       }
       if(${fromEmpty}&&e.getAttribute('aria-label')==='Nombre de la pieza'){
-        const form=e.closest('.modal-backdrop form.modal.small'),fields=form?.querySelectorAll('input[aria-label="Nombre de la pieza"]'),r=e.getBoundingClientRect();
+        const form=e.closest('dialog.part-rename-dialog:modal form.modal.small'),fields=form?.querySelectorAll('input[aria-label="Nombre de la pieza"]'),r=e.getBoundingClientRect();
         return fields?.length===1&&fields[0]===e&&form.querySelector('h2')?.textContent.trim()==='Nombre de la pieza'
           &&e.contains(document.elementFromPoint(r.left+r.width/2,r.top+r.height/2));
       }
@@ -1485,7 +1485,7 @@ async function runInElectron() {
     check(await evaluate(`(() => {
       const e=document.activeElement;if(!(e instanceof HTMLInputElement)||e.disabled||e.readOnly||e.closest('[hidden]')||!e.getClientRects().length)return false;
       if(${partRename}){
-        const form=e.closest('.modal-backdrop form.modal.small'),fields=form?.querySelectorAll('input[aria-label="Nombre de la pieza"]'),r=e.getBoundingClientRect();
+        const form=e.closest('dialog.part-rename-dialog:modal form.modal.small'),fields=form?.querySelectorAll('input[aria-label="Nombre de la pieza"]'),r=e.getBoundingClientRect();
         return fields?.length===1&&fields[0]===e&&form.querySelector('h2')?.textContent.trim()==='Nombre de la pieza'
           &&e.checkVisibility()&&e.contains(document.elementFromPoint(r.left+r.width/2,r.top+r.height/2));
       }
@@ -1540,7 +1540,10 @@ async function runInElectron() {
             && active?.matches('button[data-part-context-action]:not(:disabled)') && menu.contains(active);
         })()`), 'Sweep/loft keyboard input belongs to the exact selected owner row or its current popup');
     }
-    if (shift && key === 'Tab') check(fromEmpty && await evaluate(`(() => { const dialog=document.querySelector('dialog.part-help-dialog'); return dialog?.matches(':modal') && dialog.contains(document.activeElement); })()`), 'Reverse Tab belongs only to the current test-owned Help modal');
+    if (shift && key === 'Tab') check(fromEmpty && await evaluate(`(() => {
+      const dialogs=document.querySelectorAll('dialog.part-help-dialog:modal,dialog.part-rename-dialog:modal');
+      return dialogs.length===1 && dialogs[0].contains(document.activeElement);
+    })()`), 'Reverse Tab belongs only to the current test-owned Help or Rename modal');
     if (key === 'g' || key === 'Delete') check(!shift && (fromEmpty || shortcuts && key === 'g') && await evaluate(`(() => {
       const headers=document.querySelectorAll('.command-header'),header=headers[0],trigger=header?.querySelector('button[data-assembly-menu="file"]');
       const id=trigger?.getAttribute('aria-controls'),popup=id?document.getElementById(id):null,active=document.activeElement;

@@ -180,17 +180,34 @@ module.exports = async function partMenuAliases(context) {
     return;
   }
   const base = await frame('initial');
-  async function toggle(name, label, baseline) {
+  async function toggle(name, label, toolbar, baseline) {
+    const toolbarActive = () => page(selector => {
+      const button = document.querySelector(selector);
+      if (!button || button.disabled) throw Error('Current display toolbar control required');
+      return button.classList.contains('active');
+    }, toolbar);
+    check(!await toolbarActive(), label + ': toolbar begins off');
     await command('view', label, false);
+    check(await toolbarActive(), label + ': menu ON is reflected in the toolbar');
     const enabled = name === 'planes' ? await planeOnFrame(baseline) : await frame(name + '-on');
     check(enabled.width === baseline.width && enabled.height === baseline.height && enabled.sha256 !== baseline.sha256, label + ': real visible display effect');
     await unchanged(label + ' on');
-    await command('view', label, true);
+    await actual(toolbar); await waitForPresentation('Toolbar restores ' + label);
     const restored = await frame(name + '-off');
-    check(canonical(restored) === canonical(baseline), label + ': exact bounded canvas restoration');
+    check(!await toolbarActive() && canonical(restored) === canonical(baseline), label + ': toolbar OFF restores the exact original canvas');
     await unchanged(label + ' off');
+
+    await actual(toolbar); await waitForPresentation('Toolbar enables ' + label);
+    check(await toolbarActive(), label + ': toolbar can restore ON');
+    if (name === 'planes') await planeOnFrame(restored, 'toolbar-planes');
+    else check(canonical(await frame('toolbar-grid-on')) === canonical(enabled), 'Toolbar and menu produce the same opaque grid bitmap');
+    await unchanged('Toolbar ' + label + ' on');
+    await command('view', label, true);
+    const menuOff = await frame('toolbar-' + name + '-off');
+    check(!await toolbarActive() && canonical(menuOff) === canonical(baseline), label + ': checked menu turns the toolbar off and restores the exact original canvas');
+    await unchanged('Menu ' + label + ' off');
   }
-  await toggle('grid', 'Cuadrícula', base);
+  await toggle('grid', 'Cuadrícula', '.viewport-toolbar button[aria-label="Mostrar cuadrícula"]', base);
   // Principal supports are not created reference-plane objects. Author one
   // through its real menu so the display command has an actual native target.
   let serial = (await observe()).serial;
@@ -212,18 +229,7 @@ module.exports = async function partMenuAliases(context) {
   await actual('.tree-row[data-feature-id="' + document.features.at(-1).id + '"]');
   before = await snapshot();
   const planeBase = await frame('planes-before');
-  await toggle('planes', 'Planos de referencia', planeBase);
-  const planeToolbar = '.viewport-toolbar button[aria-label="Mostrar planos de referencia"]';
-  check(await page(selector => !document.querySelector(selector).disabled && !document.querySelector(selector).classList.contains('active'), planeToolbar), 'Current plane toolbar is enabled and starts with the actual temporary native plane hidden');
-  const toolbarPlaneBase = await frame('toolbar-planes-before');
-  check(canonical(toolbarPlaneBase) === canonical(planeBase), 'Fresh toolbar plane baseline retains the exact original opaque OFF frame');
-  await actual(planeToolbar); await waitForPresentation('Toolbar plane ON');
-  check(await page(selector => document.querySelector(selector).classList.contains('active'), planeToolbar), 'Actual toolbar plane ON state');
-  await planeOnFrame(toolbarPlaneBase, 'toolbar-planes'); await unchanged('Toolbar plane ON');
-  await actual(planeToolbar); await waitForPresentation('Toolbar plane OFF');
-  const toolbarPlaneOff = await frame('toolbar-planes-off');
-  check(await page(selector => !document.querySelector(selector).classList.contains('active'), planeToolbar) && canonical(toolbarPlaneOff) === canonical(planeBase), 'Actual toolbar plane OFF restores the exact original opaque crop');
-  await unchanged('Toolbar plane OFF');
+  await toggle('planes', 'Planos de referencia', '.viewport-toolbar button[aria-label="Mostrar planos de referencia"]', planeBase);
   serial = (await observe()).serial; await key('Z'); await idle();
   await built(serial, 8, 11144, 4136, 13, 'undo-menu-plane');
   check(await recovery() === originalRecovery, 'Undo removes exactly the temporary reference plane and restores the saved document');
@@ -238,19 +244,43 @@ module.exports = async function partMenuAliases(context) {
   }, document.name));
   await actual('.task-panel button[title="Cerrar panel"]');
   await unchanged('Tools properties close');
-  const renameField = '.modal-backdrop form.modal.small input[aria-label="Nombre de la pieza"]';
-  const renameClosed = () => page(() => !document.querySelector('.modal-backdrop form.modal.small input[aria-label="Nombre de la pieza"]'));
+  const renameField = 'dialog.part-rename-dialog:modal form.modal.small input[aria-label="Nombre de la pieza"]';
+  const renameClosed = () => page(() => !document.querySelector('dialog.part-rename-dialog')
+    && document.activeElement?.matches('nav.part-main-menus button[data-assembly-menu="edit"][aria-expanded="false"]'));
   const fieldValue = () => page(selector => document.querySelector(selector)?.value, renameField);
   const nameReceipts = [];
   evidence.rename = nameReceipts;
   await command('edit', 'Cambiar nombre de pieza');
   await waitFor('Part name field owns native keyboard editing', () => page(selector => document.activeElement?.matches(selector), renameField));
+  const tabFocus = () => page(() => {
+    const active = document.activeElement, form = document.querySelector('dialog.part-rename-dialog:modal form.modal.small');
+    return { ownsFocus: form?.contains(active), cancel: active === form?.querySelector('.outline-button'),
+      save: active === form?.querySelector('.primary-button'), input: active === form?.querySelector('input'),
+      tag: active?.tagName, title: active?.title, label: active?.getAttribute('aria-label') };
+  });
+  await menuKey('Tab');
+  const cancelTab = await tabFocus();
+  await menuKey('Tab');
+  const saveTab = await tabFocus();
+  await menuKey('Tab');
+  const wrapTab = await tabFocus();
+  nameReceipts.push({ phase: 'forward-tab', cancelTab, saveTab, wrapTab });
+  check(cancelTab.ownsFocus && cancelTab.cancel && saveTab.ownsFocus && saveTab.save && wrapTab.ownsFocus && wrapTab.input,
+    'Tab traverses Cancel and Save, then wraps to the same rename field: ' + JSON.stringify({ cancelTab, saveTab, wrapTab }));
+  await menuKey('Tab', true);
+  const reverseTab = await tabFocus();
+  nameReceipts.push({ phase: 'reverse-tab', reverseTab });
+  check(reverseTab.ownsFocus && reverseTab.save, 'Shift+Tab from the name wraps to the same dialog Save control');
+  await menuKey('Tab');
+  check((await tabFocus()).input, 'The dialog returns to the exact name input for native editing');
   await key('A'); await text('   ');
   check(await fieldValue() === '   ', 'The original rename field receives only the fixed whitespace rejection input');
-  await actual('.modal-backdrop form.modal.small .primary-button');
+  await actual('dialog.part-rename-dialog:modal form.modal.small .primary-button');
   const rejection = await waitFor('Empty trimmed part name remains editable with a real error', () => page(selector => {
-    const field = document.querySelector(selector), error = document.querySelector('.toast.toast-error[role="alert"]');
-    return field?.value === '   ' && error?.textContent.trim() ? error.textContent.trim() : false;
+    const field = document.querySelector(selector), error = field?.closest('dialog:modal')?.querySelector('[role="alert"]');
+    return field?.value === '   ' && field.getAttribute('aria-invalid') === 'true'
+      && error?.id === field.getAttribute('aria-describedby') && error.checkVisibility() && error.textContent.trim()
+      ? error.textContent.trim() : false;
   }, renameField));
   await unchanged('Rejected whitespace rename');
   await actual(renameField); await key('A'); await text('Part menu cancelled');
@@ -259,16 +289,21 @@ module.exports = async function partMenuAliases(context) {
   const undoneText = await fieldValue();
   check(undoneText !== 'Part menu cancelled', 'Ctrl+Z remains native text undo inside the rename field');
   await unchanged('Rename native text undo');
-  await actual('.modal-backdrop form.modal.small .outline-button');
-  await waitFor('Rename Cancel closes its original form', renameClosed);
+  await actual('dialog.part-rename-dialog:modal form.modal.small .outline-button');
+  await waitFor('Rename Cancel closes the modal and returns Edit focus', renameClosed);
   await unchanged('Rename Cancel');
   nameReceipts.push({ phase: 'invalid-and-cancel', rejection, nativeTextUndo: undoneText, recoverySha256: digest(await recovery()) });
+  await command('edit', 'Cambiar nombre de pieza');
+  await waitFor('Fresh rename form owns Escape', () => page(selector => document.activeElement?.matches(selector), renameField));
+  await menuKey('Escape');
+  await waitFor('Native rename Escape closes the modal and returns Edit focus', renameClosed);
+  await unchanged('Rename Escape');
   await command('edit', 'Cambiar nombre de pieza');
   await waitFor('Fresh rename form owns typing', () => page(selector => document.activeElement?.matches(selector), renameField));
   await key('A'); await text('Part menu renamed');
   check(await fieldValue() === 'Part menu renamed', 'The positive rename uses the same actual form');
-  await actual('.modal-backdrop form.modal.small .primary-button');
-  await waitFor('Accepted rename closes the form', renameClosed); await idle();
+  await actual('dialog.part-rename-dialog:modal form.modal.small .primary-button');
+  await waitFor('Accepted rename closes the modal and returns Edit focus', renameClosed); await idle();
   const renamed = JSON.parse(await recovery());
   check(renamed.id === document.id && renamed.name === 'Part menu renamed'
     && canonical(renamed.features) === canonical(document.features) && canonical(renamed.namedViews) === canonical(document.namedViews),

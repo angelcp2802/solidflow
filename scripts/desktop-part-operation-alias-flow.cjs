@@ -12,6 +12,8 @@ module.exports = async function partOperationAliases(context) {
   checks.push({ partOperationAliases: evidence });
   const { page, press, inspect, reveal } = require('./desktop-part-pattern-actors.cjs')({ ...context, interactions: evidence.interactions });
   const MENU = 'nav.part-main-menus [role="menu"] > button[data-assembly-command]';
+  const INSERT_TRIGGER = 'nav.part-main-menus button[data-assembly-menu="insert"]';
+  const insertTriggerFocused = () => page(selector => document.activeElement === document.querySelector(selector + '[aria-expanded="false"]'), INSERT_TRIGGER);
   const CANCEL = 'button[title="Cancelar operación"]';
   const CLEAR = 'button[aria-label="Limpiar selección de pieza"]';
   const VIEW = '.viewport-canvas[aria-label="Vista 3D de la pieza"]';
@@ -158,14 +160,8 @@ module.exports = async function partOperationAliases(context) {
           document.querySelector(s)?.getAttribute('data-part-selected-bodies') === JSON.stringify([ref]), VIEW, originalBody),
         'Body-operation entry retains exactly its nominated current native body');
         check(await recoveryIsOriginal(), 'Opening the editor never publishes its draft');
-        if (entry.surface === 'Insertar') {
-          // Menu selection deliberately returns focus to its trigger. Escape
-          // still belongs to that menu owner before focus moves back to CAD.
-          check(await page(() => document.activeElement?.matches('nav.part-main-menus [data-assembly-menu="insert"]')),
-            'The activated Insertar alias returns focus to its actual menu trigger');
-          const menuBefore = await snapshot(); await menuKey('Escape');
-          check(canonical(await snapshot()) === canonical(menuBefore), 'Menu-owned Escape preserves the exact current CAD draft and native authority');
-        }
+        if (entry.surface === 'Insertar') check(await insertTriggerFocused(),
+          'The activated Insertar alias returns focus to its actual closed menu trigger');
         if (entry.type === 'extrude' && entry.surface === 'Insertar') {
           await waitFor('new extrusion native observation settled', async () => {
             const state = await observe(); return state.serial > serial && state.builds.every(row => row.response);
@@ -174,7 +170,20 @@ module.exports = async function partOperationAliases(context) {
           for (const guarded of entries) await open(guarded, true);
           check(canonical(await snapshot()) === canonical(draftBefore), 'All thirty-four disabled entries preserve the exact extrusion draft, references, Apply state, history and native observation');
         }
-        await press('.ribbon-tabs button', entry.type === 'sketch' ? 'Croquis' : 'Operaciones');
+        const delegateEscape = entry.surface === 'Insertar' && entry.type === 'extrude';
+        if (entry.surface === 'Insertar') {
+          const menuBefore = await snapshot();
+          await press(INSERT_TRIGGER);
+          await waitFor('open Insertar popup owns keyboard focus over the current draft', () => page(selector => {
+            const trigger = document.querySelector(selector), popup = document.getElementById(trigger?.getAttribute('aria-controls') ?? '');
+            return trigger?.getAttribute('aria-expanded') === 'true' && popup?.getAttribute('role') === 'menu'
+              && popup.contains(document.activeElement);
+          }, INSERT_TRIGGER));
+          await menuKey('Escape');
+          await waitFor('open Insertar Escape returns focus to its closed trigger', insertTriggerFocused);
+          check(canonical(await snapshot()) === canonical(menuBefore), 'Open popup Escape preserves the exact current CAD draft and native authority');
+        }
+        if (!delegateEscape) await press('.ribbon-tabs button', entry.type === 'sketch' ? 'Croquis' : 'Operaciones');
         let exit = 'editor/Cancel';
         if (entry.type === 'sketch') {
           const draftBefore = await snapshot(); await menuKey('Escape');
@@ -184,7 +193,8 @@ module.exports = async function partOperationAliases(context) {
           exit = 'editor/Escape ends tool/Cancel';
         }
         const beforeCancel = (await observe()).serial;
-        if (entry.type !== 'sketch' && index % 2) { await menuKey('Escape'); exit = 'editor/Escape'; }
+        if (delegateEscape) { await menuKey('Escape'); exit = 'closed Insertar/Escape'; }
+        else if (entry.type !== 'sketch' && index % 2) { await menuKey('Escape'); exit = 'editor/Escape'; }
         else await press(CANCEL);
         await idle(); await restore(beforeCancel, entry.label + '/cancel');
         evidence.entries.push({ ...entry, outcome: exit, inputSketch: nomination.sketch,
