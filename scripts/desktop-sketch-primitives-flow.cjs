@@ -34,7 +34,16 @@ module.exports = function sketchPrimitivesWorkflow(context) {
         ? element.querySelector(':scope > span:not(.assembly-menu-check)')?.textContent : element.textContent)?.trim() ?? '';
       const matches = [...document.querySelectorAll(selector)].filter(element => label === null || text(element) === label);
       if (matches.length !== 1) return { count: matches.length, available: false };
-      const element = matches[0], r = element.getBoundingClientRect(), point = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      const element = matches[0], r = element.getBoundingClientRect();
+      let point = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      if (element instanceof HTMLLabelElement && element.control instanceof HTMLInputElement
+        && element.control.type === 'checkbox' && element.contains(element.control)) {
+        // An inline label can wrap: the centre of its union rectangle can be a
+        // gap between lines. Keep the label gesture on an actual text fragment.
+        const fragment = [...element.getClientRects()].find(rect => rect.width > 0 && rect.height > 0
+          && document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2) === element);
+        if (fragment) point = { x: fragment.left + fragment.width / 2, y: fragment.top + fragment.height / 2 };
+      }
       let left = 0, top = 0, right = innerWidth, bottom = innerHeight;
       for (let parent = element.parentElement; parent; parent = parent.parentElement) {
         const style = getComputedStyle(parent), bounds = parent.getBoundingClientRect();
@@ -332,6 +341,8 @@ module.exports = function sketchPrimitivesWorkflow(context) {
     await localHistory(arc, closed, 'diameter-closure'); const semiAccepted = await acceptSketch(closed, 'semicircle-sketch-accepted');
     const semiFinal = await extrude(semiAccepted, 'semicircle'); await saveOpenExport(semiFinal, 'semicircle', 3, semiDoc);
     check(newIds.size === 3 && dialogCounts().opens === 3 && dialogCounts().saves === 3 && dialogCounts().geometryExports === 3, 'Exactly three original new parts/Save As/Open/STEP exports');
+    await require('./desktop-single-step-import-flow.cjs')({ files, page, press, file, observe, response, committed,
+      recovery, waitFor, check, checks, near, canonical, digest, dialogCounts, ipc });
     check(protocolResponses.some(asset => /kernel\.worker-[\w-]+\.js$/.test(asset.url) && asset.status === 200)
       && protocolResponses.some(asset => asset.url.endsWith('.wasm') && asset.status === 200), 'Actual production sketch worker and WASM loaded');
     check(!consoleErrors.length && !failedRequests.length && !(await observe()).workerErrors.length, 'No sketch-primitive renderer/asset/worker errors');

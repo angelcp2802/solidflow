@@ -1,5 +1,19 @@
 # Project status and review queue
 
+## Local prototype candidate 0.20.0 — 2026-11-10
+
+The combined AUTO and selected-instance-depth source passes eighteen Windows
+commands and 11,367 unit/CAD cases. The next local prototype is identified as
+0.20.0 and combines those changes with the display command cases and the axial
+corner-picking correction. The [validation record](VALIDATION.md) preserves the
+exact source bindings and limits. Its final source validation and packaged
+Windows walkthrough are pending.
+
+Public `02bab957` in draft PR #49 contains the focused corner correction over
+the preceding integrated baseline. Its hosted matrix is in progress. The
+prototype [ledger](USABLE_VERSION_ACCEPTANCE.md) retains the broader recipes,
+remaining finite command cases, installed/platform and human acceptance gates.
+
 ## Integrated material selection and part workflows — 2026-11-10
 
 The `251d476` Windows snapshot passes 31 commands, including 28 desktop routes,

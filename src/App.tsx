@@ -161,7 +161,8 @@ import { importStructuralStep } from "./model/structuralStepImport";
 import { importStepPart, type StepFile } from "./model/stepImport";
 import { MAX_STEP_BYTES } from "./model/stepSource";
 import { initialLoftSection, resolvedSweepPath } from "./model/advancedInputs";
-import { buildModel, exportCad, initKernel, importAssemblyStep } from "./cad/kernel";
+import { buildModel, captureFeatureRecipeScope, exportCad, initKernel, importAssemblyStep } from "./cad/kernel";
+import { withFeaturePatternAutoCapture, withFeaturePatternScope } from './model/featurePatternCommands';
 import type {
   Feature,
   SketchFeature,
@@ -580,6 +581,14 @@ export function PartWorkspace({ initialDocument, initialPath, initialSaved, skip
   const editingRef = useRef(editing);
   const documentEpoch = useRef(0);
   const mounted = useRef(true);
+  type AutoScopeAttempt = { draft: RepetitionFeature; status: 'pending' | 'failed'; message?: string };
+  const [autoScopeAttempt, setAutoScopeAttempt] = useState<AutoScopeAttempt | null>(null);
+  const autoScopeAuthority = useRef<AutoScopeAttempt | null>(null);
+  const currentAutoScopeAttempt = autoScopeAttempt?.draft === editing ? autoScopeAttempt : null;
+  const clearAutoScopeAttempt = () => {
+    autoScopeAuthority.current = null;
+    setAutoScopeAttempt(null);
+  };
   type ReplacementSource = { document: Document; editing: Feature | null; epoch: number };
   const browserOpenSource = useRef<ReplacementSource | null>(null);
   editingRef.current = editing;
@@ -817,6 +826,7 @@ export function PartWorkspace({ initialDocument, initialPath, initialSaved, skip
   const extrusionDraftError = editing?.type === 'extrude' || editing?.type === 'cut' ? extrusionDirectionInputError(editing) : null;
   const canAccept =
     !!editing &&
+    currentAutoScopeAttempt?.status !== 'pending' &&
     !!editingResolved &&
     !thinWallDraftError &&
     !extrusionDraftError &&
@@ -1119,6 +1129,7 @@ export function PartWorkspace({ initialDocument, initialPath, initialSaved, skip
       mounted.current = true;
       return () => {
         mounted.current = false;
+        autoScopeAuthority.current = null;
         browserOpenSource.current = null;
         const resolve = discardDecision.current;
         discardDecision.current = null;
@@ -1129,6 +1140,7 @@ export function PartWorkspace({ initialDocument, initialPath, initialSaved, skip
   );
   const reset = (next: Document, path?: string, markSaved = false) => {
     if (embeddedRef.current || !isActiveOwner()) return;
+    clearAutoScopeAttempt();
     stopAxisPicking();
     namedViews.close();
     documentEpoch.current++;
@@ -2199,7 +2211,7 @@ export function PartWorkspace({ initialDocument, initialPath, initialSaved, skip
       : "Equidistancia aplicada. Las copias conservan su relación con las entidades originales.");
   };
   const acceptEdit = () => {
-    if (!editing || !canAccept) return;
+    if (!editing || !canAccept || autoScopeAuthority.current?.draft === editing) return;
     if (stagedSketch && (!("sketchId" in editing) || editing.sketchId !== stagedSketch.id)) return;
     if (editing.type === "sketch" && sketchTool === "chamfer") {
       if (chamferPreview) applySketchChamfer(chamferPreview);
@@ -2252,6 +2264,7 @@ export function PartWorkspace({ initialDocument, initialPath, initialSaved, skip
     }
   };
   const cancelEdit = () => {
+    clearAutoScopeAttempt();
     stopAxisPicking();
     setBodyPicking(false);
     setBodySelection([]);
@@ -2269,6 +2282,7 @@ export function PartWorkspace({ initialDocument, initialPath, initialSaved, skip
     stopAxisPicking();
     stopEndPicking();
     if (!editing) return;
+    if (isRepetition(editing)) clearAutoScopeAttempt();
     let merged: Feature;
     const original = doc.features.find(feature => feature.id === editing.id);
     try {
@@ -2307,6 +2321,37 @@ export function PartWorkspace({ initialDocument, initialPath, initialSaved, skip
     setError(reconciliationError);
     setEditing(next);
     return next;
+  };
+  const canCaptureAutoScope = !!editing && isRepetition(editing) && !editing.suppressed
+    && editing.featurePattern?.mode === 'regenerate' && editing.featurePattern.bindings.length > 0
+    && !!sourceFeatures && !sourceLoading && sourceBuiltFeatures === sourceFeatures
+    && sourceModel?.bodyCatalogActive === true && !sourceModel.featureErrors.length;
+  const captureAutoScope = async () => {
+    if (!canCaptureAutoScope || !editing || !isRepetition(editing) || !sourceFeatures
+      || autoScopeAuthority.current?.draft === editing || fileOperation.current) return;
+    const owner = embeddedRef.current, epoch = documentEpoch.current;
+    if (!isActiveOwner(owner) || docRef.current !== doc || editingRef.current !== editing) return;
+    const attempt: AutoScopeAttempt = { draft: editing, status: 'pending' };
+    autoScopeAuthority.current = attempt;
+    setAutoScopeAttempt(attempt);
+    const current = () => autoScopeAuthority.current === attempt && mounted.current
+      && docRef.current === doc && editingRef.current === editing && documentEpoch.current === epoch
+      && liveEditor.current.sourceFeatures === sourceFeatures && !fileOperation.current && isActiveOwner(owner);
+    try {
+      const provisional = withFeaturePatternScope(editing, 'all');
+      const capture = await runProducer(() => captureFeatureRecipeScope([...sourceFeatures, provisional], editing.id));
+      if (!current()) return;
+      const next = withFeaturePatternAutoCapture(editing, capture);
+      changeDraft({ featurePattern: next.featurePattern });
+    } catch (reason) {
+      if (current()) setAutoScopeAttempt({ draft: editing, status: 'failed',
+        message: reason instanceof Error ? reason.message : String(reason) });
+    } finally {
+      if (autoScopeAuthority.current === attempt) {
+        autoScopeAuthority.current = null;
+        setAutoScopeAttempt(value => value === attempt ? null : value);
+      }
+    }
   };
   const changeAxisPicking = (active: boolean) => {
     stopAxisPicking();
@@ -3978,6 +4023,8 @@ export function PartWorkspace({ initialDocument, initialPath, initialSaved, skip
                   feature={editing}
                   features={availableFeatures}
                   planes={availablePlanes}
+                  autoScope={{ available: canCaptureAutoScope, pending: currentAutoScopeAttempt?.status === 'pending',
+                    error: currentAutoScopeAttempt?.message, onCapture: captureAutoScope }}
                   bodyEditor={sourceModel?.bodyCatalogActive ? {
                     bodies: sourceModel?.bodies ?? [], existing: doc.features.some(feature => feature.id === editing.id),
                     picking: bodyPicking, loading: sourceLoading || sourceBuiltFeatures !== sourceFeatures,
@@ -4011,6 +4058,7 @@ export function PartWorkspace({ initialDocument, initialPath, initialSaved, skip
                     }
                     setBodySelection(targets);
                     setBodyPicking(false);
+                    clearAutoScopeAttempt();
                     setEditing(next);
                     setError('');
                   }}

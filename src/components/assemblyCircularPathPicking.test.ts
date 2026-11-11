@@ -1,4 +1,4 @@
-import { nativeReferencePressIsCurrent } from './assemblyNativeReferencePicking'
+import { nativeReferencePressIsCurrent, nativeReferencePressMatches } from './assemblyNativeReferencePicking'
 import { expect, it } from 'vitest'
 import { circularContextIsCurrent, circularPickProducer, circularRoleIsAvailable, currentCircularPick, type CircularPickContext, type CircularPickTicket, type CircularPickRole } from './assemblyCircularPathPicking'
 import { currentMaterialArcPaths, materialArcKey, materialArcKeys } from './assemblyMaterialArcPicking'
@@ -49,4 +49,13 @@ it('binds a held reference press to its exact role owner and scene through Cance
   expect(nativeReferencePressIsCurrent(frame, owner, c.scene, 'vertex', 5)).toBe(false)
   expect(nativeReferencePressIsCurrent(frame, owner, c.scene, 'vertex', undefined, 'material-arc')).toBe(false)
   expect(nativeReferencePressIsCurrent({ ...frame, scene: null }, owner, null, 'vertex')).toBe(false)
+})
+
+it('cannot transfer an unowned canvas or label down into a newly armed reference pick', () => {
+  const c = context(), owner = {}, frame = { owner, scene: c.scene, mode: 'origin', revision: 2 }
+  expect(nativeReferencePressMatches(null, undefined, c.scene, null, 2)).toBe(true)
+  expect(nativeReferencePressMatches(null, owner, c.scene, 'origin', 2)).toBe(false)
+  expect(nativeReferencePressMatches(frame, null, c.scene, 'origin', 2)).toBe(false)
+  expect(nativeReferencePressMatches(frame, owner, c.scene, 'origin', 2)).toBe(true)
+  expect(nativeReferencePressMatches(frame, {}, c.scene, 'origin', 2)).toBe(false)
 })

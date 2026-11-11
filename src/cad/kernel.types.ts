@@ -440,10 +440,12 @@ export type KernelRequest = import('./kernel.assembly-types').AssemblyKernelRequ
   | { id: number; action: 'export-assembly-step'; document: import('../model/assemblyDocument').AssemblyDocument }
   | { id: number; action: 'init' }
   | { id: number; action: 'build'; features: Feature[] }
+  | { id: number; action: 'capture-feature-recipe-scope'; features: Feature[]; patternId: string }
   | { id: number; action: 'export-assembly'; document: import('../model/assemblyDocument').AssemblyDocument; format: CadExportFormat }
   | { id: number; action: 'export'; format: CadExportFormat; features?: Feature[] };
 
 export type KernelValue = import('../model/assemblyDocument').AssemblyDocument | CadResult | Blob | null | import('./kernel.assembly-types').AssemblyScene
+  | import('../model/featureRecipeAutoScope').RecipeAutoScopeCapture
   | import('./kernel.assembly-configuration-scene').ConfiguredAssemblyScene
   | import('./kernel.assembly-configuration-session').ConfiguredAssemblyPreviewReply
   | import('./kernel.assembly-configuration-session').ConfiguredAssemblyAppliedReply

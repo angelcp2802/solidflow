@@ -1,11 +1,14 @@
 import type { BodyReference, Feature, RepetitionFeature } from '../cad/kernel.types'
 import { bodyReferenceCreationFeatureId, featureBodyOutputIncludes } from './bodyReferences'
-import { featurePatternSourceReferences, isAllFeaturePattern, type AnyFeaturePatternBinding, type FeaturePatternOperation } from './featurePatterns'
+import { activeFeaturePatternAddresses, featurePatternSourceReferences, isDynamicFeaturePattern, isAllFeaturePattern, type AnyFeaturePatternBinding, type FeaturePatternOperation } from './featurePatterns'
+import { readRecipeAutoScopeCapture, type RecipeAutoScopeCapture } from './featureRecipeAutoScope'
+import { isRecipeInstanceDepth, type RecipeInstanceDepthValue } from './featureRecipeDepthVariation'
+import { isRecipeSketchRadius, recipeCircleDrivingRadius, type RecipeSketchDimensionValue } from './featureRecipeSketchVariation'
 
 /** Explicit target selection prunes removed routes and defaults new targets on each binding. */
 export function withFeaturePatternTargets(feature: RepetitionFeature, targets: readonly BodyReference[]): RepetitionFeature {
   if (!feature.featurePattern) return feature
-  if (isAllFeaturePattern(feature.featurePattern)) throw new Error('El alcance ALL se resuelve desde el catálogo actual; no admite destinos guardados.')
+  if (isDynamicFeaturePattern(feature.featurePattern)) throw new Error('El alcance ALL se resuelve desde el catálogo actual; no admite destinos guardados.')
   const previous = new Set(feature.featurePattern.targets.map(target => target.bodyId))
   const selected = new Set(targets.map(target => target.bodyId))
   const additions = targets.filter(target => !previous.has(target.bodyId)).map(target => target.bodyId)
@@ -18,9 +21,14 @@ export function withFeaturePatternTargets(feature: RepetitionFeature, targets: r
 /** Newly selected seed features require an explicit output choice, never a guessed binding. */
 export function withFeaturePatternSeeds(feature: RepetitionFeature, featureIds: readonly string[]): RepetitionFeature {
   if (!feature.featurePattern || feature.source.mode !== 'features') return feature
+  const current = feature.featurePattern
+  if (current.mode === 'regenerate' && current.scope === 'selected' && current.variation.kind !== 'none'
+    && (featureIds.length !== 1 || featureIds[0] !== feature.source.featureIds[0])) {
+    throw new Error('Quita las variaciones por instancia antes de cambiar la semilla.')
+  }
   const selected = new Set(featureIds), next = structuredClone(feature), operation = next.featurePattern!
   const source = { ...feature.source, featureIds: [...featureIds] }
-  return isAllFeaturePattern(operation)
+  return isDynamicFeaturePattern(operation)
     ? { ...next, source, featurePattern: { ...operation, bindings: operation.bindings.filter(binding => selected.has(binding.source.sourceFeatureId)),
       referencePolicies: operation.referencePolicies.filter(policy => selected.has(policy.featureId)) } }
     : { ...next, source, featurePattern: { ...operation, bindings: operation.bindings.filter(binding => selected.has(binding.source.sourceFeatureId)),
@@ -32,7 +40,7 @@ export function withFeaturePatternBindings(feature: RepetitionFeature, bindings:
   if (!feature.featurePattern) return feature
   const next = structuredClone(feature)
   const operation = next.featurePattern!
-  if (isAllFeaturePattern(operation)) {
+  if (isDynamicFeaturePattern(operation)) {
     if (bindings.some(binding => binding.targetBodyIds !== 'scope')) throw new Error('Las rutas ALL deben seguir el alcance dinámico.')
     return { ...next, featurePattern: { ...operation, bindings: bindings.map(binding => ({ source: { ...binding.source }, targetBodyIds: 'scope' })) } }
   }
@@ -61,33 +69,86 @@ export function withFeaturePatternMode(feature: RepetitionFeature, mode: Feature
     throw new Error('El método de repetición requiere operaciones con destinos explícitos.')
   }
   const next = structuredClone(feature), routes = next.featurePattern!
-  if (isAllFeaturePattern(routes)) {
+  if (isDynamicFeaturePattern(routes)) {
     if (mode === 'geometry') throw new Error('Selecciona destinos explícitos antes de copiar geometría.')
     return next
   }
   if (routes.mode === mode) return next
+  if (routes.mode === 'regenerate' && routes.variation.kind !== 'none') throw new Error('Quita las variaciones por instancia antes de copiar geometría.')
   const operation: FeaturePatternOperation = mode === 'geometry'
     ? { mode, targets: routes.targets, bindings: routes.bindings }
     : { mode, scope: 'selected', targets: routes.targets, bindings: routes.bindings, referencePolicies: [], variation: { kind: 'none' } }
   return { ...next, source: { mode: 'features', geometryPattern: mode === 'geometry', featureIds: [...feature.source.featureIds] }, featurePattern: operation }
 }
 
-/** Explicit scope edit. Derived ALL targets are never persisted or guessed. */
+/** Explicit scope edit. Derived current or captured IDs never become manual targets. */
 export function withFeaturePatternScope(feature: RepetitionFeature, scope: 'selected' | 'all'): RepetitionFeature {
   if (scope !== 'selected' && scope !== 'all') throw new Error('El alcance debe ser seleccionado o ALL.')
   if (!feature.featurePattern || feature.featurePattern.mode !== 'regenerate') throw new Error('El alcance dinámico requiere recalcular operaciones.')
   const next = structuredClone(feature), operation = next.featurePattern!
   if (operation.mode !== 'regenerate') throw new Error('El alcance dinámico requiere recalcular operaciones.')
-  if (isAllFeaturePattern(operation)) {
-    if (scope === 'all') return next
+  if (scope === 'selected') {
+    if (!isDynamicFeaturePattern(operation)) return next
     return { ...next, featurePattern: { mode: 'regenerate', scope: 'selected', targets: [],
       bindings: operation.bindings.map(binding => ({ source: { ...binding.source }, targetBodyIds: [] })),
       referencePolicies: operation.referencePolicies, variation: { kind: 'none' } } }
   }
-  if (scope === 'selected') return next
+  if (isAllFeaturePattern(operation)) return next
+  if (operation.variation.kind !== 'none') throw new Error('Quita las variaciones por instancia antes de usar todos los cuerpos.')
   return { ...next, featurePattern: { mode: 'regenerate', scope: 'all', reevaluateAt: 'patternInput',
     bindings: operation.bindings.map(binding => ({ source: { ...binding.source }, targetBodyIds: 'scope' })),
     referencePolicies: operation.referencePolicies, variation: { kind: 'none' } } }
+}
+
+/** Materialize declared capture intent only; the caller still needs a fresh native preview. */
+export function withFeaturePatternAutoCapture(feature: RepetitionFeature, capture: RecipeAutoScopeCapture): RepetitionFeature {
+  capture = readRecipeAutoScopeCapture(capture)
+  if (feature.source.mode !== 'features' || feature.featurePattern?.mode !== 'regenerate' || capture.patternId !== feature.id) {
+    throw Error('La detección automática no corresponde a esta operación. Vuelve a detectar sus cuerpos.')
+  }
+  if (feature.featurePattern.variation.kind !== 'none') throw Error('Quita las variaciones por instancia antes de detectar cuerpos automáticamente.')
+  return { ...structuredClone(feature), featurePattern: { mode: 'regenerate', scope: 'auto',
+    capturedBodyIds: [...capture.scope.capturedBodyIds], captureFingerprint: capture.scope.captureFingerprint, follow: capture.scope.follow,
+    bindings: feature.featurePattern.bindings.map(binding => ({ source: { ...binding.source }, targetBodyIds: 'scope' })),
+    referencePolicies: structuredClone(feature.featurePattern.referencePolicies), variation: { kind: 'none' } } }
+}
+
+/** One explicit address edit; clearing the last row restores the original none intent. */
+export function withFeaturePatternInstanceDepth(feature: RepetitionFeature, address: string, value: number | null): RepetitionFeature {
+  const operation = feature.featurePattern
+  if (operation?.mode !== 'regenerate' || operation.scope !== 'selected' || feature.source.mode !== 'features' || feature.source.featureIds.length !== 1) {
+    throw new Error('La profundidad por instancia requiere recalcular una semilla sobre cuerpos seleccionados.')
+  }
+  if (operation.variation.kind === 'sketchDimensions') throw Error('Quita los radios por instancia antes de variar la profundidad.')
+  const rows = operation.variation.kind === 'dimensions' ? operation.variation.values : []
+  if (value !== null && (!activeFeaturePatternAddresses(feature).includes(address) || !isRecipeInstanceDepth(value))) {
+    throw new Error('Selecciona una instancia activa e indica una profundidad entre 0,01 y 100.000 mm.')
+  }
+  const values: RecipeInstanceDepthValue[] = rows.filter(row => row.address !== address)
+  if (value !== null) values.push({ address, featureId: feature.source.featureIds[0], parameter: 'depth', value })
+  return { ...structuredClone(feature), featurePattern: { ...structuredClone(operation),
+    variation: values.length ? { kind: 'dimensions', values: structuredClone(values) } : { kind: 'none' } } }
+}
+
+/** An explicit driving-constraint edit; no source profile or solved geometry is saved. */
+export function withFeaturePatternSketchRadius(feature: RepetitionFeature, features: readonly Feature[], address: string, value: number | null): RepetitionFeature {
+  const operation = feature.featurePattern;
+  if (operation?.mode !== 'regenerate' || operation.scope !== 'selected' || feature.source.mode !== 'features' || feature.source.featureIds.length !== 1) {
+    throw Error('El radio por instancia requiere recalcular una semilla sobre cuerpos seleccionados.');
+  }
+  if (operation.variation.kind === 'dimensions') throw Error('Quita las profundidades por instancia antes de variar el croquis.');
+  const rows = operation.variation.kind === 'sketchDimensions' ? operation.variation.values : [];
+  const seedId = feature.source.featureIds[0];
+  const seed = features.find(item => item.id === seedId);
+  const sketch = seed?.type === 'cut' ? features.find(item => item.id === seed.sketchId) : undefined;
+  const radius = recipeCircleDrivingRadius(seed, sketch);
+  if (value !== null && (!radius || !sketch || !activeFeaturePatternAddresses(feature).includes(address) || !isRecipeSketchRadius(value))) {
+    throw Error('Selecciona una instancia activa y un corte circular de centro fijo y radio conductor entre 0,01 y 100.000 mm.');
+  }
+  const values: RecipeSketchDimensionValue[] = rows.filter(row => row.address !== address);
+  if (value !== null) values.push({ address, sketchId: sketch!.id, constraintId: radius!.constraintId, value });
+  return { ...structuredClone(feature), featurePattern: { ...structuredClone(operation),
+    variation: values.length ? { kind: 'sketchDimensions', values } : { kind: 'none' } } };
 }
 
 /** Explicit choice; never infer a missing reference policy from seed geometry. */

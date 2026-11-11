@@ -3,7 +3,7 @@ import type { Feature, RepetitionFeature } from '../cad/kernel.types'
 import { applyBodyCommand, prepareBodyCommand, type BodyCommandState } from './bodyCommands'
 import { parseDocument, serializeDocument, validateDocument } from './document'
 import { withFeaturePatternMode, withFeaturePatternScope, withFeaturePatternSeeds, withFeaturePatternWorldLimit } from './featurePatternCommands'
-import { validateFeaturePatternDeclaration } from './featurePatterns'
+import { sourceRecipeScopeIntent, validateFeaturePatternDeclaration } from './featurePatterns'
 import { extractRecipeClosure, requireInitialRecipeDeclaration, type RegenerationRequest } from './featureRecipes'
 
 // Original symbolic fixtures: no native or reference-application evidence.
@@ -36,7 +36,7 @@ function request(feature: RepetitionFeature): RegenerationRequest {
   return { mode: 'regenerate', geometryPattern: false, patternId: feature.id, patternKind: feature.type,
     beforeFeatureIndex: prefix.length, sourceFeatureIds: [current.sourceFeatureId],
     plan: { transforms: [{ key: '1,0', translation: [3, 0, 4] }], structure: { originalFixture: 'policy-only' } },
-    scope: operation.scope === 'all' ? { mode: 'all', reevaluateAt: 'patternInput' } : { mode: 'selected', targets: operation.targets },
+    scope: sourceRecipeScopeIntent(operation),
     targetSnapshot: [current], bindings: operation.bindings.map(binding => ({ source: binding.source, targets: binding.targetBodyIds })),
     referencePolicies: operation.referencePolicies, variation: operation.variation }
 }

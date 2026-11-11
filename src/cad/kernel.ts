@@ -6,6 +6,8 @@ import type { AssemblyAppliedReply, AssemblyGearCaptureRequest, AssemblyScrewCap
 import type { AssemblySolveOptions } from './kernel.assembly-solve';
 import type { AssemblySourceUpdateReview } from './kernel.assembly-source-updates';
 import type { Document } from '../model/document';
+import { captureRecipeAutoInput } from '../model/featureRecipeAutoInput';
+import { readRecipeAutoScopeCapture, type RecipeAutoScopeCapture } from '../model/featureRecipeAutoScope';
 import type { AssemblyInterferenceOptions, AssemblyInterferenceReport } from '../model/assemblyInterference';
 import type { AssemblyComponentMove } from '../model/assemblyMovement';
 import type { AssemblyComponentMotion } from '../model/assemblyMotion';
@@ -93,6 +95,18 @@ export async function buildModel(features: Feature[]): Promise<CadResult> {
   await initKernel();
   if (requestedGeneration !== generation) throw new Error('El motor CAD se ha cerrado.');
   return request<CadResult>({ action: 'build', features });
+}
+
+/** A strict native capture authors intent only; Apply still needs its normal fresh preview. */
+export async function captureFeatureRecipeScope(features: Feature[], patternId: string): Promise<RecipeAutoScopeCapture> {
+  const input = captureRecipeAutoInput(features, patternId), requestedGeneration = generation;
+  await initKernel();
+  if (requestedGeneration !== generation) throw Error('El motor CAD se ha cerrado.');
+  const capture = readRecipeAutoScopeCapture(await request<RecipeAutoScopeCapture>({ action: 'capture-feature-recipe-scope', features: input.features, patternId: input.patternId }));
+  if (capture.patternId !== input.patternId || capture.sourceFeaturesSignature !== input.sourceFeaturesSignature || requestedGeneration !== generation) {
+    throw Error('La detección automática pertenece a otra operación o a un motor anterior.');
+  }
+  return capture;
 }
 
 /** Supply the committed document to export independently of debounced previews. */

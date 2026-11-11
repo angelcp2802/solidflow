@@ -1,7 +1,7 @@
 import { getOC, measureShapeVolumeProperties, type Shape3D } from 'replicad';
 import type { BodyReference, Feature, Vec3 } from './kernel.types';
 import {
-  exactStateKey, extractRecipeClosure, fixedProfileInstanceInput, intrinsicProfileInstancePlacement, requireInitialRecipeDeclaration,
+  exactStateKey, extractRecipeClosure, fixedProfileInstanceInput, intrinsicProfileInstancePlacement, requireInitialRecipeDeclaration, recipeAutoNativeApplicationCount,
   type IntrinsicRecipeExtrusionPlacement, type RegenerationRequest, type RecipeClosure, type RecipeOperation, type RecipeOwnerApplication,
 } from '../model/featureRecipes';
 import {
@@ -16,11 +16,12 @@ import { validatePrimitiveRecipeProfileForAbsence, type PrimitiveRecipeProfileIn
 import { isNativeCleanupFailure, NativeCleanupError, withNativeOwners, type NativeOwner, type NativeOwners } from './kernel.native-ownership';
 import { attestNativeRecipeScope, assertNativeRecipeScopeCurrent, type NativeRecipeScopeAttestation } from './kernel.recipe-scopes';
 import { classifyAdditiveRecipeOwner } from './kernel.recipe-additive-applicability';
+import { RECIPE_EVALUATOR_REVISION, RECIPE_AUTO_CAPTURE_REVISION, recipeAutoScopeDigest, type RecipeAutoScopeIntent } from '../model/featureRecipeAutoScope';
 
 import { checkpointSourceSketchSolves, assertSourceSketchSolvesCurrent,
   type SourceSketchSolveCheckpoint, type SourceSketchSolveRegistry } from './kernel.sketch-solves';
 
-export const RECIPE_EVALUATOR_REVISION = 'intrinsic-blind-additive-all-v7';
+export { RECIPE_EVALUATOR_REVISION } from '../model/featureRecipeAutoScope';
 const compare = (a: string, b: string): number => a < b ? -1 : a > b ? 1 : 0;
 const tolerance = (volume: number): number => Math.max(1e-8, Math.abs(volume) * 1e-10);
 const sameRef = (a: Readonly<BodyReference>, b: Readonly<BodyReference>): boolean =>
@@ -116,7 +117,7 @@ function finiteBounds(shape: Shape3D): void {
 function allCutEntirelyBehindRay(closure: RecipeClosure, operation: RecipeOperation,
   address: string, shape: Shape3D, entitySource: EntityRecipeSolveInput | undefined,
   assertWorkingCurrent: () => void): boolean {
-  if (closure.request.scope.mode !== 'all' || operation.type !== 'cut'
+  if (closure.request.scope.mode === 'selected' || operation.type !== 'cut'
     || operation.termination?.kind !== 'throughAll' || operation.termination.bothDirections) return false;
   const definition = closure.definitions.find(item => item.feature.id === operation.featureId)?.feature;
   if (definition && (definition.type === 'extrude' || definition.type === 'cut') && definition.secondDirection?.enabled) return false;
@@ -308,9 +309,6 @@ function assertParent(application: RecipeOwnerApplication, targetBodyId: string,
 export function evaluateFeatureRecipes(input: RecipeEvaluationInput): OwnedRecipeEvaluation {
   try {
     const closure = requireInitialRecipeDeclaration(extractRecipeClosure(input.features, input.request));
-    if (closure.request.scope.mode === 'auto' || closure.request.variation.kind !== 'none') {
-      throw new Error('Automatic discovery and variation require their pending native recipe policies.');
-    }
     // Entity declarations still need current build-issued solves before any
     // native clone or absence decision; their native profiles are validated below.
     const entitySketchIds = [...new Set(closure.operations.flatMap(operation => {
@@ -323,6 +321,7 @@ export function evaluateFeatureRecipes(input: RecipeEvaluationInput): OwnedRecip
     const scope = attestNativeRecipeScope(closure.request.scope, closure.request.targetSnapshot, input.catalog);
     // All native requirements resolve before the first target clone or tool.
     const snapshots = preflight(input, closure);
+    if (closure.request.scope.mode === 'auto') recipeAutoNativeApplicationCount(closure, input.catalog.entries().length);
     return withNativeOwners(owners => {
       const initial = new Map<string, Shape3D>(), current = new Map<string, Shape3D>(), revisions = new Map<string, number>();
       for (const target of snapshots.targets) {
@@ -342,19 +341,27 @@ export function evaluateFeatureRecipes(input: RecipeEvaluationInput): OwnedRecip
             group.push(application); groups.set(bodyId, group);
           }
           const definition = closure.definitions.find(item => item.feature.id === operation.featureId)?.feature;
-          const additiveAll = closure.request.scope.mode === 'all' && definition?.type === 'extrude' && definition.bodyOperation?.mode === 'merge';
+          const additiveAll = closure.request.scope.mode !== 'selected' && definition?.type === 'extrude' && definition.bodyOperation?.mode === 'merge';
           let additiveTool: Shape3D | undefined, additiveOwner: string | undefined;
           if (additiveAll) {
             const ids = [...groups.keys()].sort(compare), inventory = snapshots.targets.map(target => target.ref.bodyId).sort(compare);
             if (ids.length !== inventory.length || ids.some((id, index) => id !== inventory[index])) throw Error('Additive ALL must classify every attested current owner.');
-            const eventOwners = ids.map(bodyId => ({ bodyId, shape: current.get(bodyId)!, revision: revisions.get(bodyId)! }));
+            assertNativeRecipeScopeCurrent(scope, closure.request.scope, closure.request.targetSnapshot, input.catalog);
+            const completeInventory = input.catalog.entries().slice().sort((a, b) => compare(a.ref.bodyId, b.ref.bodyId));
+            const eventOwners = completeInventory.map(entry => ({ bodyId: entry.ref.bodyId,
+              shape: current.get(entry.ref.bodyId) ?? entry.shape, revision: revisions.get(entry.ref.bodyId), native: entry }));
             const assertEventCurrent = () => {
-              for (const owner of eventOwners) if (current.get(owner.bodyId) !== owner.shape || revisions.get(owner.bodyId) !== owner.revision) {
-                throw Error('An additive ALL working owner/revision changed during applicability inspection.');
+              const fresh = input.catalog.entries().slice().sort((a, b) => compare(a.ref.bodyId, b.ref.bodyId));
+              if (fresh.length !== eventOwners.length) throw Error('The complete positive recipe inventory changed during inspection.');
+              for (const [index, owner] of eventOwners.entries()) {
+                if (!sameRef(fresh[index].ref, owner.native.ref) || fresh[index].lineage !== owner.native.lineage || fresh[index].shape !== owner.native.shape
+                  || (owner.revision !== undefined && (current.get(owner.bodyId) !== owner.shape || revisions.get(owner.bodyId) !== owner.revision))) {
+                  throw Error('An additive dynamic working owner/revision changed during applicability inspection.');
+                }
               }
             };
             assertEventCurrent();
-            const first = eventOwners[0];
+            const first = eventOwners.find(owner => owner.bodyId === ids[0])!;
             additiveTool = owners.own(buildRecipeInstanceTool({ closure, featureId: operation.featureId, address: transform.key,
               targetBodyId: first.bodyId, workingTarget: first.shape, validateTool: validatePositiveClosedTool, assertWorkingCurrent: assertEventCurrent }).tool);
             // Classify this event against ALL chronological working owners before
@@ -396,8 +403,8 @@ export function evaluateFeatureRecipes(input: RecipeEvaluationInput): OwnedRecip
                 && (operation.termination?.kind !== 'blind' || operation.secondTermination);
               const construction = (() => {
                 if (additiveTool) return { kind: 'complete' as const, operation: 'add' as const, tool: copyBodyShape(additiveTool) };
-                if (independent && closure.request.scope.mode === 'all') return resolveRecipeInstanceDirections(constructionInput);
-                if (operation.termination?.kind === 'untilNext' && closure.request.scope.mode === 'all') {
+                if (independent && closure.request.scope.mode !== 'selected') return resolveRecipeInstanceDirections(constructionInput);
+                if (operation.termination?.kind === 'untilNext' && closure.request.scope.mode !== 'selected') {
                   const resolved = resolveRecipeInstanceUntilNext(constructionInput);
                   if (resolved.kind === 'complete') return resolved;
                   if (resolved.kind === 'empty-forward' && resolved.operation === 'subtract') return resolved;
@@ -479,12 +486,55 @@ export function evaluateFeatureRecipes(input: RecipeEvaluationInput): OwnedRecip
   }
 }
 
-/** Native event-effects for a future AUTO capture proposal, never a saved receipt. */
+function assertRecipeEvaluationCurrent(evaluation: OwnedRecipeEvaluation, proof: EvaluationProof, catalog: NativeBodyCatalog,
+  patternId: string, current: Pick<RecipeEvaluationInput, 'features' | 'request' | 'sourceSketchSolves'>): void {
+  const fresh = requireInitialRecipeDeclaration(extractRecipeClosure(current.features, current.request));
+  if (fresh.fingerprintInput !== proof.fingerprintInput || evaluation.attestation.evaluatorRevision !== RECIPE_EVALUATOR_REVISION) {
+    throw new Error('The recipe document or declaration changed after native evaluation.');
+  }
+  if (proof.catalog !== catalog || patternId !== proof.patternId) throw new Error('The recipe proposal belongs to another catalog or pattern.');
+  if (proof.sketchSolves) {
+    if (current.sourceSketchSolves !== proof.sketchSolves.registry) throw new Error('The recipe source-solve epoch changed after evaluation.');
+    assertSourceSketchSolvesCurrent(proof.sketchSolves.registry, proof.sketchSolves.checkpoint, current.features);
+  }
+  assertNativeRecipeScopeCurrent(proof.scope, fresh.request.scope, fresh.request.targetSnapshot, catalog);
+  for (const snapshot of proof.targets) {
+    const actual = catalog.resolve(snapshot.ref);
+    if (actual.lineage !== snapshot.lineage || actual.shape !== snapshot.shape) throw new Error('A current recipe target changed after evaluation.');
+  }
+  for (const snapshot of proof.sources) {
+    const actual = proof.history.get(exactStateKey(snapshot.ref));
+    if (actual?.error !== undefined) {
+      if (isNativeCleanupFailure(actual.error)) throw actual.error;
+      throw new Error('An exact recipe source capture failed after evaluation.', { cause: actual.error });
+    }
+    if (!actual || !sameRef(actual.ref, snapshot.ref) || actual.lineage !== snapshot.lineage || actual.shape !== snapshot.shape) {
+      throw new Error('An exact recipe source changed after evaluation.');
+    }
+  }
+}
+
+/** Authenticated native event effects; final replacements can omit restored owners. */
 export function recipeEvaluationEventAffectedBodyIds(evaluation: OwnedRecipeEvaluation): readonly string[] {
   const proof = evaluations.get(evaluation);
   if (!proof?.active || proof.scope.intent.mode !== 'all') throw new Error('AUTO capture proposals need a genuine active ALL evaluation.');
   return Object.freeze([...new Set(evaluation.attestation.virtualOutputs.filter(output => output.materialChanged)
     .map(output => output.targetBodyId))].sort(compare));
+}
+
+/** Read a genuine current ALL ledger before staging; the returned intent is not authority. */
+export function createNativeRecipeAutoScopeIntent(evaluation: OwnedRecipeEvaluation, catalog: NativeBodyCatalog,
+  current: Pick<RecipeEvaluationInput, 'features' | 'request' | 'sourceSketchSolves'>): RecipeAutoScopeIntent {
+  const proof = evaluations.get(evaluation);
+  if (!proof?.active || proof.scope.intent.mode !== 'all') throw Error('AUTO discovery needs a genuine active ALL native evaluation.');
+  assertRecipeEvaluationCurrent(evaluation, proof, catalog, current.request.patternId, current);
+  const capturedBodyIds = [...recipeEvaluationEventAffectedBodyIds(evaluation)];
+  if (!capturedBodyIds.length) throw Error('La detección automática no encontró cuerpos con cambios de material.');
+  const digest = recipeAutoScopeDigest({ revision: RECIPE_AUTO_CAPTURE_REVISION, units: 'mm',
+    policy: 'eventMaterialChanged/followSameIdentityAtPatternInput', evaluatorRevision: RECIPE_EVALUATOR_REVISION,
+    patternId: proof.patternId, recipe: proof.fingerprintInput, sources: evaluation.attestation.sources,
+    completeInventory: proof.scope.inventoryFingerprintInput, events: evaluation.attestation.virtualOutputs, capturedBodyIds });
+  return { mode: 'auto', capturedBodyIds, captureFingerprint: RECIPE_AUTO_CAPTURE_REVISION + ':' + digest, follow: 'sameIdentityAtPatternInput' };
 }
 
 /**
@@ -499,30 +549,7 @@ export function stageFeatureRecipeEvaluation(evaluation: OwnedRecipeEvaluation, 
   let transaction: NativeBodyTransaction | undefined, primary: { error: unknown } | undefined;
   const cleanup: unknown[] = [];
   try {
-    const fresh = requireInitialRecipeDeclaration(extractRecipeClosure(current.features, current.request));
-    if (fresh.fingerprintInput !== proof.fingerprintInput || evaluation.attestation.evaluatorRevision !== RECIPE_EVALUATOR_REVISION) {
-      throw new Error('The recipe document or declaration changed after native evaluation.');
-    }
-    if (proof.catalog !== catalog || update.sourceFeatureId !== proof.patternId) throw new Error('The recipe proposal belongs to another catalog or pattern.');
-    if (proof.sketchSolves) {
-      if (current.sourceSketchSolves !== proof.sketchSolves.registry) throw new Error('The recipe source-solve epoch changed after evaluation.');
-      assertSourceSketchSolvesCurrent(proof.sketchSolves.registry, proof.sketchSolves.checkpoint, current.features);
-    }
-    assertNativeRecipeScopeCurrent(proof.scope, fresh.request.scope, fresh.request.targetSnapshot, catalog);
-    for (const snapshot of proof.targets) {
-      const actual = catalog.resolve(snapshot.ref);
-      if (actual.lineage !== snapshot.lineage || actual.shape !== snapshot.shape) throw new Error('A current recipe target changed after evaluation.');
-    }
-    for (const snapshot of proof.sources) {
-      const actual = proof.history.get(exactStateKey(snapshot.ref));
-      if (actual?.error !== undefined) {
-        if (isNativeCleanupFailure(actual.error)) throw actual.error;
-        throw new Error('An exact recipe source capture failed after evaluation.', { cause: actual.error });
-      }
-      if (!actual || !sameRef(actual.ref, snapshot.ref) || actual.lineage !== snapshot.lineage || actual.shape !== snapshot.shape) {
-        throw new Error('An exact recipe source changed after evaluation.');
-      }
-    }
+    assertRecipeEvaluationCurrent(evaluation, proof, catalog, update.sourceFeatureId, current);
     transaction = catalog.stageReplaceMany(evaluation.replacements, update);
   } catch (error) { primary = { error }; }
   try { evaluation.dispose(); } catch (error) { cleanup.push(error); }

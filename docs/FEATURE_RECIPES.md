@@ -15,7 +15,7 @@ copies signed material contributions; that path remains separate.
 `geometryPattern:false` identify this internal extraction API. The request is
 derived from the explicit saved regeneration mode; the full request is not
 persisted. Saved selected targets/routes or dynamic ALL intent/scope routes,
-explicit principal-plane limit policies and no-variation intent are parsed strictly. History
+explicit principal-plane limit policies and the admitted variation table are parsed strictly. History
 index, canonical plan, target snapshot and
 closure are reconstructed. False without the explicit variant still rejects,
 and regeneration must not route to geometry-delta replay.
@@ -63,7 +63,10 @@ actual owner/face/plane lineages, scope discovery and evaluator revision before
 Apply. ALL additionally attests the complete current catalog, including owners
 that will not change, and rechecks exact refs, lineages and native shape identity
 at staging. Its scope is resolved at the actual pattern-input boundary rather
-than reconstructed from a saved target snapshot. AUTO discovery remains pending.
+than reconstructed from a saved target snapshot. [AUTO](FEATURE_REGENERATION.md#detect-and-follow-bodies-automatically-auto)
+uses a native discovery pass for capture and follows exact saved body identities
+through fresh native evaluations. The editable capture fingerprint records the
+original provenance. Current catalog attestation supplies publication authority.
 
 Math exports check plain dense saved data and descriptors before reading
 operands. Accessors, hidden/symbol fields, sparse arrays and custom prototypes
@@ -100,7 +103,9 @@ or implicitly fusing IDs. This limit is not evidence of external parity.
 Extraction alone does not resolve any native requirement. The initial native
 bridge/evaluator supports that subset, and the engine connects it to the
 explicit saved selected or dynamic ALL mode with its bounded operation/plane policies
-and no variation. The geometry/true branch retains explicitly selected targets.
+and the [selected Blind depth table](FEATURE_REGENERATION.md#depth-per-instance)
+or the [bounded circular driving-radius table](FEATURE_REGENERATION.md#driving-sketch-radius-per-instance).
+The geometry/true branch retains explicitly selected targets.
 
 UntilNext retains its exact historical source base in the extracted termination;
 the saved bindings separately route evaluation to each current progressive owner.
@@ -125,8 +130,8 @@ same-address semantic parent body roles. Native and integrated fixtures check
 selected multi-feature/owner, no-op, late rejection and document-history paths.
 Parent roles retain semantic revisions, not parent BRep/face correspondence.
 Required work still includes other end/start conditions, exact dependent
-sketch/plane/face/constraint remapping, varying dimensions/sketches and equations,
-broader positive ALL and dynamic geometry scope, AUTO discovery policies, nested recipes,
+sketch/plane/face/constraint remapping, other varying dimensions/sketches and equations,
+broader positive ALL and dynamic geometry scope, nested recipes,
 creation/split/consumption/Combine
 identity ledgers, complete stale preview/Apply, suppression/rollback, picking,
 document lifecycle and export interoperability. Pending diagnostics block the

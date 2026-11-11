@@ -1,7 +1,8 @@
 import type { Shape3D } from 'replicad';
 import type { Feature, PlaneFrame, Vec3 } from './kernel.types';
 import type { IntrinsicRecipeExtrusionPlacement } from '../model/featureRecipes';
-import { entityProfileSolid } from './kernel.profiles';
+import { entityProfileSolid, solveEntityProfileResult } from './kernel.profiles';
+import { circleRadiusConstraint, isRecipeSketchRadius } from '../model/featureRecipeSketchVariation';
 import { prepareThinSection } from './kernel.thin-wall';
 import { assertThinWallEndCapsContext, resolveThinWall } from './thinWall';
 import { buildThinWallEndCaps } from './kernel.thin-caps';
@@ -62,7 +63,29 @@ function entityRecipePrismFactory(input: EntityRecipeProfileInput): {
   assertThinWallEndCapsContext(thinWall?.definition, feature?.type === 'extrude' ? 'add' : 'subtract',
     placement.termination.kind === 'blind', placement.termination.kind !== 'blind' || placement.termination.symmetric !== false);
   const section = thinWall ? prepareThinSection(view.resolved, thinWall) : undefined;
-  const profile = section?.sketch.profile ?? view.result.profile;
+  let profile = section?.sketch.profile ?? view.result.profile;
+  const variation = placement.sketchDimension;
+  if (variation) {
+    const radius = circleRadiusConstraint(view.input);
+    if (view.result.status !== 'fullyDefined' || !radius || variation.sketchId !== view.input.id
+      || radius.constraintId !== variation.constraintId || !isRecipeSketchRadius(variation.value)
+      || section || placement.thinWall || placement.secondDirection || placement.termination.kind !== 'blind' || placement.termination.symmetric) {
+      throw Error('La variación requiere el radio conductor exacto de un círculo de centro fijo y una dirección ciega.');
+    }
+    // Only a copied driving constraint changes. The real source solve and its
+    // published handle remain untouched; no caller supplies a SolveResult.
+    const varied = structuredClone(view.input.profile);
+    if (varied.kind !== 'entities') throw Error('La variación requiere un perfil de entidades.');
+    const constraint = varied.constraints.find(item => item.id === variation.constraintId);
+    if (!constraint || constraint.type !== 'radius') throw Error('La cota conductora ya no está disponible.');
+    constraint.value = variation.value;
+    input.assertWorkingCurrent();
+    const solved = solveEntityProfileResult(varied);
+    readCheckpointSourceSketchSolve(source.registry, source.checkpoint, source.features, placement.sketchId);
+    input.assertWorkingCurrent();
+    if (solved.status !== 'fullyDefined') throw Error(`No se puede resolver el radio de esta instancia (${solved.status}): ${solved.message}`);
+    profile = solved.profile;
+  }
   if (profile.kind !== 'entities') throw new Error('Entity recipes require a closed resolved entity section.');
   // Reflection parity was applied exactly once by transformedExtrusionFrame.
   // Keep the authentic solved local coordinates and arc orientation unchanged.

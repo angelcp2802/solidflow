@@ -1,5 +1,55 @@
 # Public fixture provenance
 
+## Original signed origin-plane distance
+
+`kernel.assembly-origin-distance.test.ts` constructs an original 2 × 3 × 4 mm
+rectangular prism using ordinary part features and reuses it twice at identity.
+The first occurrence is fixed. The root YZ plane and the second occurrence's
+YZ plane define one aligned signed distance `d`, with no other relations.
+The independent convention is `dot(nSecond, pRoot - pSecond) = d`. The moving
+prism therefore occupies `(-d,0,0)…(2-d,3,4)`, with V24 mm³ and A52 mm².
+
+The finite cases are 30, 150, −150, 1000 and −1,000,000 mm. Resolved plane
+witness points/normals and the actual placed BRep are checked at 1e−6 mm, 1e−8 for
+normal alignment and 1e−5 mm³/mm² for volume/area. The 150 mm lifecycle includes
+Cancel, Apply, history and saved parsing/reconstruction. Separate cases retain
+an explicit zero-iteration rejection and precision refusal at 1e12 mm. These
+are original programmatic fixtures. No private model or reference application
+supplies their declarations or expected placements.
+
+## Original single-solid STEP round trip
+
+The standard part import test uses the 6 × 2 × 3 mm prism produced by the
+original rectangle edit in `desktop-sketch-primitives-flow.cjs`. The application
+exports the STEP during that run. The ordinary `Importar STEP…` control then
+reads it through the native file bridge and kernel reader. Expected volume is
+36 mm³ and the bounds are (0,0,0)…(6,2,3). Volume uses 1e−5 mm³ and bounds use
+1e−6 mm. A separate 74-byte original text fixture lacks a STEP header and
+solids and is used for the rejection case.
+
+The saved imported feature carries the same bytes, encoding and SHA-256 as
+the selected STEP. Reopening the `.solidflow` document uses its embedded source.
+The native picker is given three fixed test-owned choices for Cancel, malformed
+input and the exported prism.
+## Original addressed depth fixtures
+
+`scripts/desktop-part-instance-depth-original.cjs` describes an original
+20 × 8 × 5 mm plate and a 2 × 2 mm pocket centred at (3, 4), cut from Z=5 to
+Z=4. Three copies at +5, +10 and +15 mm in X use depths 2, 3 and the seed's
+1 mm. The floors at X=3, 8, 13, 18 lie at Z=4, 3, 2, 4 mm. The pockets
+remove 28 mm³ and add 56 mm² of wall area, giving V772/A656. An edit swaps
+the two middle depths without changing either total. The native test checks
+physical trimmed face centres, areas and normals after the swap and after
+reading the actual STEP export. The renderer case creates the pattern through
+the normal editor and checks its planar mesh area separately.
+
+Reflection uses a 20 × 8 × 5 mm plate centred in X, a seed pocket at X=3
+and a copy at X=−3 across YZ. The depths 1 and 3 mm give V784/A632 and floor
+Z values 4 and 2 mm. Circular merge uses an 8 × 8 × 2 mm base and R1 caps at
+X=±2.5 with heights 1 and 2 mm, giving V128+3π and A192+6π. A late linear
+miss retains the exact prepattern plate. The native tolerances are 1e−5 mm³
+for volume, 1e−5 mm² for area, 1e−6 mm for coordinates and 1e−8 for normals.
+
 ## Sketch modification tools on the original rectangle
 
 The desktop sketch workflow draws its own XY rectangle from (0,0) to (4,2)
@@ -50,6 +100,31 @@ state. The ON contract therefore records a full-crop one-level comparison at
 least 500 ms apart and a stronger visible effect against OFF. No count such as
 56 is an acceptance threshold. Grid and OFF restoration retain zero-byte exact
 equality. This does not certify physical colour or another display platform.
+
+## Automatic recipe scope original fixture
+
+`scripts/desktop-part-auto-scope-original.cjs` describes five original analytic
+millimetre bodies authored for SolidFlow under GPL-3.0. S and A are 4 × 4 × 2
+prisms at X 0–4 and 10–14 with Z 2–4. B, D and C are 4 mm cubes at X 10–14,
+20–24 and 30–34 with Z −4–0. Every Y range is 0–4. The source cut removes the
+2 × 2 corner of S and the following Blind merge refills it. The input has no
+preauthored pattern, native result, imported model or capture receipt.
+
+Repeating cut and fill at +10 mm restores A and leaves a 2 × 2 through notch in
+B. Native discovery must capture A and B even though only B receives a final
+replacement. At +20 mm the same pinned scope rejects, while explicit recapture
+selects only D. The two successful patterns have the same V240 mm³ and A408 mm².
+The final D notch spans [20,22] × [0,2] × [−4,0], giving V48 mm³, A88 mm² and
+centroid [22⅓,2⅓,−2]. A separate native STEP reader of the same kernel family
+checks five positive valid solids, their literal oriented planes and centroids,
+using bands of 1e-5 for volume and area, 1e-6 mm for positions and 1e-8 for normals.
+Worker mesh area is a separately summed display-mesh measurement.
+
+The native tests add an A extension to Z5, a previously uncaptured cube E at
+X10–14, Z−12–−8, a coincident different-ID replacement for A and an uncaptured
+contact prism at X10–12, Y0–2, Z0–2. These distinguish following from recapture,
+missing-body rejection, and the complete-catalog bridge check. The synthetic
+fault tests inject failures into actual native operations and verify atomicity.
 
 ## Blind primitive additive ALL original fixtures
 
@@ -8746,3 +8821,28 @@ full-suite claims. Executed results belong in [validation](VALIDATION.md).
 Coverage is limited to this centered planar sequence; it does not establish
 arbitrary support orientation, changing topology, general interactive sketch
 coverage or platform support.
+
+## Original per-instance solved-circle radius plate — 2026-11-11
+
+`scripts/desktop-part-instance-radius-original.cjs` extends the tracked original
+instance-depth plate with a new entity sketch, independently authored here.
+No imported model or external application geometry supplies it. The plate is
+[0,0,0]…[20,8,5] mm. Its first circular pocket is centred at (3,4), depth 1 from
+z 5 to 4. The raw radius 0.8 deliberately differs from its driving radius 1; its
+centre is fixed. A three-position linear pattern adds centres (8,4) and (13,4),
+with driving radii 0.5 and 1.5. Three positions include the seed.
+
+Independent formulas are V=20×8×5−π(1²+0.5²+1.5²)=800−3.5π mm³ and
+A=2(20×8+20×5+8×5)+2π(1+0.5+1.5)×1=600+6π mm². Pocket top areas cancel
+floor areas. Swapping the copy radii preserves both metrics but exchanges
+cylindrical wall areas π and 3π mm² at centres X 8 and X 13. Side 0.1 mm cubes at
+(8.9,4,4.5) and (13.9,4,4.5) alternate between present volume 0.001 mm³ and
+absence. The unassigned-copy case inherits the solved radius 1 rather than
+raw 0.8: V=800−2.25π mm³ and A=600+5π mm².
+
+Native tests check BRep validity, one solid, V/A within 1e-5 in their units,
+bounds/physical face centroids within 1e-6 mm, probe common volume within 1e-8 mm³,
+source immutability, saved parsing, history and STEP reimport. Renderer checks
+use original exact saved rows and native worker volume within 1e-5 mm³; a circular
+tessellated mesh is not used as an exact surface-area oracle. These definitions
+and intended checks do not establish unexecuted platform or renderer results.

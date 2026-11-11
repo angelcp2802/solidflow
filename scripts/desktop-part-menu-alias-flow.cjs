@@ -132,7 +132,11 @@ module.exports = async function partMenuAliases(context) {
   await waitFor('Tab stays on the Help return control', () => page(() => document.activeElement?.matches('dialog.part-help-dialog .primary-button')));
   await menuKey('Tab');
   await waitFor('native Help Tab cycle returns to its close control', () => page(() => document.activeElement?.matches('dialog.part-help-dialog button[aria-label="Cerrar ayuda"]')));
-  evidence.helpTabCycle = ['Cerrar ayuda', 'Volver a la pieza', 'Cerrar ayuda'];
+  await menuKey('Tab', true);
+  await waitFor('Reverse Tab wraps Help to its return control', () => page(() => document.activeElement?.matches('dialog.part-help-dialog .primary-button')));
+  await menuKey('Tab', true);
+  await waitFor('Reverse Tab returns Help to its close control', () => page(() => document.activeElement?.matches('dialog.part-help-dialog button[aria-label="Cerrar ayuda"]')));
+  evidence.helpTabCycle = ['Cerrar ayuda', 'Volver a la pieza', 'Cerrar ayuda', 'Volver a la pieza', 'Cerrar ayuda'];
   for (const shortcut of ['N', 'O', 'S']) await key(shortcut);
   check(await help(), 'Help retains ownership of New/Open/Save shortcuts');
   await unchanged('Help shortcut ownership');
@@ -279,7 +283,6 @@ module.exports = async function partMenuAliases(context) {
   serial = (await observe()).serial; await command('edit', 'Deshacer'); await idle();
   await built(serial, 8, 11144, 4136, 13, 'restore-menu-delete');
   check(await recovery() === originalRecovery, 'Delete/history alias lifecycle restores exact original recovery');
-  check(originalSavedBytes && (await fs.readFile(output)).equals(originalSavedBytes), 'All menu cases preserve the actual saved bytes without another file write');
   before = await snapshot();
   serial = (await observe()).serial;
   await command('tools', 'Reconstruir');
@@ -289,4 +292,51 @@ module.exports = async function partMenuAliases(context) {
   check(after.recovery === before.recovery && canonical(after.ui) === canonical(before.ui)
     && canonical(after.dialogs) === canonical(before.dialogs) && canonical(after.ipc) === canonical(before.ipc), 'Rebuild creates fresh native geometry without document/history/file changes');
   evidence.rebuiltSerial = rebuilt.serial;
+
+  const cut = document.features.at(-1);
+  const input = document.features.find(feature => feature.id === cut.sketchId);
+  check(cut.type === 'cut' && input?.type === 'sketch', 'The last cut has one exact original saved input sketch');
+  const cutRow = '.tree-row[data-feature-id="' + cut.id + '"]';
+  const sketchRow = '.tree-row[data-feature-id="' + input.id + '"][data-parent-feature-id="' + cut.id + '"]';
+  evidence.editEntries = [];
+  for (const entry of [
+    { label: 'Editar operación', target: cut, selector: cutRow, count: 8, volume: 11144, area: 4136 },
+    { label: 'Editar croquis', target: input, selector: sketchRow, count: 7, volume: 11192, area: 4096 },
+  ]) {
+    await actual(cutRow);
+    const initial = await snapshot();
+    const beforeEntry = initial.native.serial;
+    await command('edit', entry.label);
+    const editor = await waitFor('exact saved editor for ' + entry.label, () => page((name, inputId, isSketch) => {
+      const panel = document.querySelector('.property-manager');
+      if (!panel || panel.querySelector('.confirm-row span')?.textContent.trim() !== 'Editar operación') return false;
+      if (panel.querySelector('input[aria-label="Nombre de operación"]')?.value !== name) return false;
+      if (isSketch) return !!document.querySelector('svg[aria-label="Editor de croquis multientidad"]');
+      return panel.querySelector('select[aria-label="Croquis de la operación"]')?.value === inputId;
+    }, entry.target.name, input.id, entry.target.type === 'sketch'));
+    check(editor, 'The menu opens the saved feature editor with its own identity and inputs');
+    await ready();
+    const opened = await built(beforeEntry, entry.count, entry.volume, entry.area, 13, 'menu-entry-' + entry.target.type);
+    check(canonical(opened.features) === canonical(document.features.slice(0, entry.count)),
+      'The actual editor builds only its exact saved feature prefix');
+    check(await recovery() === originalRecovery, 'Opening the editor leaves the committed recovery intact');
+    const beforeCancel = (await observe()).serial;
+    await actual('.property-manager button[title="Cancelar operación"]');
+    await idle();
+    const returned = await built(beforeCancel, 8, 11144, 4136, 13, 'menu-return-' + entry.target.type);
+    const focus = await waitFor('focus restored to its exact saved tree occurrence', () => page(selector => {
+      const row = document.querySelector(selector);
+      return row && document.activeElement === row ? row.getAttribute('data-tree-occurrence') : false;
+    }, entry.selector));
+    const final = await snapshot();
+    check(canonical(returned.features) === canonical(document.features)
+      && canonical(returned.response.value.bodies) === canonical(rebuilt.response.value.bodies),
+    'Cancel restores the exact saved geometry, IDs and producer');
+    check(final.recovery === initial.recovery && canonical(final.ui.history) === canonical(initial.ui.history)
+      && canonical(final.dialogs) === canonical(initial.dialogs) && canonical(final.ipc) === canonical(initial.ipc),
+    'Editor entry and Cancel preserve document history and file authority');
+    evidence.editEntries.push({ label: entry.label, targetId: entry.target.id, focus, previewSerial: opened.serial,
+      restoredSerial: returned.serial, recoverySha256: digest(final.recovery) });
+  }
+  check(originalSavedBytes && (await fs.readFile(output)).equals(originalSavedBytes), 'All menu cases preserve the actual saved bytes without another file write');
 };

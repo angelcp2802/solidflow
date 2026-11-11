@@ -1,7 +1,7 @@
 import type { BodyOperation, BodyReference, ExtrudeEndCondition, ExtrudeFeature, Feature } from '../cad/kernel.types'
 import { addFeature, updateFeature, validateDocument, type Document } from './document'
 import { bodyReferenceCreationFeatureId, featureBodyOutputIncludes, featureCurrentBodyReferences } from './bodyReferences'
-import { featurePatternApplications, isAllFeaturePattern } from './featurePatterns'
+import { featurePatternApplications, isDynamicFeaturePattern, isAutoFeaturePattern } from './featurePatterns'
 import { featurePatternHistoricalFingerprint, withFeaturePatternTargets } from './featurePatternCommands'
 
 export interface BodyCommandCatalog {
@@ -88,7 +88,7 @@ export function withBodySelection(feature: Feature, selection: readonly BodyRefe
   const references = selection.map(reference => ({ ...reference }))
   const first = references[0] ?? { bodyId: '', sourceFeatureId: '' }
   if ((feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror') && feature.source.mode === 'features' && feature.featurePattern) {
-    if (isAllFeaturePattern(feature.featurePattern)) {
+    if (isDynamicFeaturePattern(feature.featurePattern)) {
       if (selection.length) throw new Error('ALL resuelve sus destinos desde el catálogo; cambia a seleccionados para elegir cuerpos.')
       return structuredClone(feature)
     }
@@ -173,10 +173,17 @@ export function prepareBodyCommand(state: BodyCommandState): BodyCommandPreparat
     const sources = sourceFeatures({ ...state, document })
     const catalog = catalogFingerprint(state.catalog, sources)
     if ((state.feature.type === 'linearPattern' || state.feature.type === 'circularPattern' || state.feature.type === 'mirror')
-      && state.feature.featurePattern && isAllFeaturePattern(state.feature.featurePattern)) {
-      if (!state.catalog.active || !state.catalog.bodies.length) throw new Error('ALL requiere un catálogo nativo actual activo.')
-      if (state.selection.length) throw new Error('ALL no guarda una selección manual de destinos.')
-      featurePatternApplications(state.feature, state.catalog.bodies.length)
+      && state.feature.featurePattern && isDynamicFeaturePattern(state.feature.featurePattern)) {
+      const operation = state.feature.featurePattern
+      if (!state.catalog.active || !state.catalog.bodies.length) throw new Error('El alcance dinámico requiere un catálogo nativo actual activo.')
+      if (state.selection.length) throw new Error('El alcance dinámico no guarda una selección manual de destinos.')
+      if (isAutoFeaturePattern(operation)) {
+        const currentIds = new Set(state.catalog.bodies.map(body => body.ref.bodyId))
+        if (operation.capturedBodyIds.some(id => !currentIds.has(id))) {
+          throw Error('Una identidad capturada no está disponible. Vuelve a detectar los cuerpos o repara su historial.')
+        }
+      }
+      featurePatternApplications(state.feature, isAutoFeaturePattern(operation) ? operation.capturedBodyIds.length : state.catalog.bodies.length)
     }
     const historicalSources = historicalSelectionSources(state.feature, sources)
     const selection = selectionFingerprint(state.selection, state.catalog, historicalSources)

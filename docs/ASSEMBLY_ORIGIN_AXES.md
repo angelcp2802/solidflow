@@ -20,6 +20,17 @@ Click a projected label, axis line or finite plane witness. One accepted pick
 fills that role and disarms picking. Leaving the relation pane also disarms
 picking while retaining the draft. Incompatible kinds leave the role unchanged.
 
+A physical press in the viewport or on an origin label belongs to the selection
+role active at that instant. Switching roles, cancelling and arming the same
+role again, or changing the scene invalidates a held press. A new click or
+Enter on the focused current label can select the reference. Label layout,
+visible-owner identity and the active scope must still agree.
+
+The same rule applies to material reference picking in both workspaces. Each
+armed role has its own identity, including the automatic next face role in the
+standard editor. The UI identity only binds the gesture. Native Preview and
+Apply keep their existing verification requirements.
+
 The configured editor's **Componente de origen** selector changes the displayed
 owner independently of the tree selection. Assign an origin from component A,
 choose component B, rearm the other role and select its origin. Both roles remain

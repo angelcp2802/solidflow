@@ -19,6 +19,18 @@ function fixture(overrides: Partial<KernelWorkerQueueOperations> = {}) {
 }
 
 describe('dedicated worker transport envelope and serial failure containment', () => {
+  it('accepts only features and a pattern ID for automatic native scope discovery', async () => {
+    const f = fixture(), action = 'capture-feature-recipe-scope', patternId = 'pattern';
+    const features: Extract<KernelRequest, { action: typeof action }>['features'] = [];
+    await f.receive({ id: 1, action, features });
+    await f.receive({ id: 2, action, features, patternId, capturedBodyIds: ['preselected'] });
+    await f.receive({ id: 3, action, features, patternId, captureFingerprint: 'renderer-supplied' });
+    expect(f.operations.initialize).not.toHaveBeenCalled();
+    await f.receive({ id: 4, action, features, patternId });
+    expect(f.replies.map(reply => reply.ok)).toEqual([false, false, false, true]);
+    expect(f.operations.handle).toHaveBeenCalledExactlyOnceWith({ id: 4, action, features, patternId });
+  });
+
   it('requires occurrence intent and rejects replacement authority on its dedicated envelope', async () => {
     const f = fixture(), current = { document: 'payload checked by dispatcher', generation: 1 }, edit = { change: 'payload checked by dispatcher' };
     await f.receive({ id: 1, action: 'preview-configured-assembly-occurrence-edit', current });

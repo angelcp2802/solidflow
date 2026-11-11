@@ -6,7 +6,7 @@ const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 // form select values are explicitly scripted. Geometry oracles use the literal
 // prism corners/axes/planes, never the application's solver or reference helpers.
 module.exports = function mateReferenceEditWorkflow(context) {
-  const { expected, input, output, evaluate, observe, waitFor, pointer, capture, cameraFrame, checks, check,
+  const { expected, input, output, evaluate, observe, waitFor, pointer, menuKey, referenceRoleKeyboard, capture, cameraFrame, checks, check,
     canonical, digest, ipc, dialogCounts, consoleErrors, failedRequests, initialReadyMs } = context;
   const page = (fn, ...args) => evaluate('(' + fn.toString() + ')(' + args.map(value =>
     'JSON.parse(' + encodeJavaScriptString(JSON.stringify(value)) + ')').join(',') + ')');
@@ -22,6 +22,7 @@ module.exports = function mateReferenceEditWorkflow(context) {
     coincident: ['Editar coincidencia', 'Vista previa de la relación editada'],
     concentric: ['Editar concentricidad', 'Vista previa de la relación editada'] };
   const phases = [], gestures = [];
+  let checkedHeldFace = false;
   const evidence = { scenario: 'mate-reference-edit', phases, gestures,
     provenance: 'Five uses of the tracked, independently authored 3 by 2 by 4 mm prism. No external CAD or vendor data.',
     tolerances: { volumeMm3: 1e-5, areaMm2: 1e-5, boundsAndPlaneMm: 1e-6, directionAndAngleRad: 1e-6 },
@@ -291,7 +292,36 @@ module.exports = function mateReferenceEditWorkflow(context) {
     const bounds=envelope(corners(doc)),center=bounds.min.map((v,i)=>(v+bounds.max[i])/2),span=Math.hypot(...bounds.min.map((v,i)=>bounds.max[i]-v));
     const rect=await page(()=>{const e=document.querySelector('.assembly-viewport canvas'),r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height};});
     const pixels=rect.height/(1.3*span),point={x:rect.x+rect.width/2+(world[0]-center[0])*pixels,y:rect.y+rect.height/2-(world[1]-center[1])*pixels};
-    check(await page(point=>document.elementFromPoint(point.x,point.y)===document.querySelector('.assembly-viewport canvas'),point),'Analytical material point hits exposed canvas');
+    const hit = () => page(point=>document.elementFromPoint(point.x,point.y)===document.querySelector('.assembly-viewport canvas'),point);
+    check(await hit(),'Analytical material point hits exposed canvas');
+    if (kind === 'face' && !checkedHeldFace) {
+      const faceRole = target => page(selector => document.querySelector(selector)?.classList.contains('active')
+        && document.querySelector('.assembly-viewport')?.getAttribute('data-reference-picking') === 'face', role(target));
+      const snapshot = async () => ({ document: await page(() => localStorage.getItem('solidflow.autosave')),
+        roles: await page(() => [...document.querySelectorAll('.assembly-reference-slot > button:first-child span')].map(e => [e.textContent, e.title])),
+        counters: await observe.counters(), ipc: canonical(ipc), inputSha256: digest(await fs.readFile(input)) });
+      const original = await snapshot();
+      const other = slot === 1 ? 2 : 1;
+      for (const [kind, target] of [['role-change', other], ['cancel-rearm', other]]) {
+        await pointer('mouseMoved',point); await pointer('mousePressed',point,1);
+        let keyboard;
+        try {
+          if (kind === 'cancel-rearm') {
+            await menuKey('Escape');
+            await waitFor('Escape cancels held ordinary face intent', () => page(() => document.querySelector('.assembly-viewport')?.getAttribute('data-reference-picking') === ''));
+          }
+          keyboard = await referenceRoleKeyboard('face-' + target);
+          await waitFor('native keyboard armed ordinary face role ' + target, () => faceRole(target));
+          check(await hit(), 'Held ordinary face releases over the same exposed canvas');
+        } finally { await pointer('mouseReleased',point,0); }
+        await page(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(true)))));
+        check(await faceRole(target) && canonical(await snapshot()) === canonical(original), 'Held ordinary face preserves both roles, document, original file and native/IPC counters through ' + kind);
+        gestures.push({ action: 'held-ordinary-face', kind, target, point, keyboard, rejected: true });
+      }
+      await referenceRoleKeyboard('face-' + slot);
+      await waitFor('native keyboard restores the original ordinary role', () => faceRole(slot));
+      checkedHeldFace = true;
+    }
     const before=await serial();await pointer('mouseMoved',point);await pointer('mousePressed',point,1);await pointer('mouseReleased',point,0);
     await waitFor('material pick stores intended role and advances selection',()=>page((slot,kind,id)=>
       document.querySelector('.assembly-viewport')?.getAttribute('data-reference-picking')===(kind==='face'?'face':'')
@@ -299,6 +329,8 @@ module.exports = function mateReferenceEditWorkflow(context) {
     // A face pick intentionally keeps the next slot armed; LINE is one-shot.
     // Leave the face tool using its actual UI toggle before selecting a datum.
     if(kind==='face'){
+      check(await page(selector => document.querySelector(selector)?.classList.contains('active'), role(slot === 1 ? 2 : 1)),
+        'Successful ordinary face advances to the other armed role');
       await actual('button[title="Seleccionar caras"]');
       await waitFor('face tool explicitly disarmed with reference retained',()=>page(slot=>
         document.querySelector('.assembly-viewport')?.getAttribute('data-reference-picking')===''

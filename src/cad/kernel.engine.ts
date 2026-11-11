@@ -58,7 +58,8 @@ import { placeAssemblyShapeChecked, validateAssemblyShape, type PlacedAssemblySh
 import type { RigidPose } from '../model/rigidPose';
 import { ownedNativeTopology } from './kernel.native-topology';
 import { createVertexCatalog, pickableVerticesFromCatalog, resolveVertexReference, type VertexCatalog } from './kernel.vertices';
-import { evaluateFeatureRecipes, stageFeatureRecipeEvaluation, type NativeRecipeSourceState } from './kernel.feature-recipes';
+import { evaluateFeatureRecipes, stageFeatureRecipeEvaluation, createNativeRecipeAutoScopeIntent, type NativeRecipeSourceState } from './kernel.feature-recipes';
+import type { RecipeAutoScopeIntent } from '../model/featureRecipeAutoScope';
 import type { RegenerationRequest } from '../model/featureRecipes';
 import { createSourceSketchSolveRegistry, resolveSourceSketchSupport } from './kernel.sketch-solves';
 import { resolveNativeRecipeScope } from './kernel.recipe-scopes';
@@ -70,7 +71,7 @@ import { bodyBoolean, copyBodyShape, NativeBodyCatalog, type NativeBodyEntry, ty
 import { createdBodyIds, featureBodyReferences } from '../model/bodyReferences';
 import { MAX_CREATED_BODY_IDS, validateBodyPatternDeclaration } from '../model/bodyPatterns';
 import { bodyPatternCopy } from './kernel.body-patterns';
-import { MAX_FEATURE_PATTERN_CONTRIBUTIONS, featurePatternApplications, featurePatternSourceReferences, isAllFeaturePattern, validateFeaturePatternDeclaration } from '../model/featurePatterns';
+import { MAX_FEATURE_PATTERN_CONTRIBUTIONS, featurePatternApplications, featurePatternSourceReferences, sourceRecipeScopeIntent, validateFeaturePatternDeclaration } from '../model/featurePatterns';
 import { FeatureContributionReleaseError, featureContributionKey, featurePatternReplacements, ownedGeometryDelta, type OwnedFeatureGeometry } from './kernel.feature-patterns';
 import {
   createSemanticFaceCatalog, createSemanticEdgeCatalog, preparePrismReferencesV2,
@@ -377,6 +378,7 @@ function historicalBodyFaceCatalog(body: Shape3D, sourceFeatureId: string, linea
 
 /** Owns the native shape; rendering data never retains pointers into the WASM heap. */
 export class CadEngine {
+  private autoScopeDiscovery: { patternId: string; intent: RecipeAutoScopeIntent | null } | null = null;
   private shape: Shape3D | null = null;
   private bodyCatalog: NativeBodyCatalog | null = null;
   private hasErrors = false;
@@ -883,6 +885,19 @@ export class CadEngine {
     return this.rebuild(features, 'render');
   }
 
+  /** Narrow internal temporary-engine route. No reply escapes before caller disposal succeeds. */
+  buildForAutoScopeDiscovery(features: Feature[], patternId: string): RecipeAutoScopeIntent {
+    if (this.autoScopeDiscovery) throw Error('Una detección automática ya está en curso.');
+    const pending = { patternId, intent: null as RecipeAutoScopeIntent | null };
+    this.autoScopeDiscovery = pending;
+    try {
+      const model = this.build(features);
+      if (model.featureErrors.length) throw Error('No se puede detectar el ámbito: ' + model.featureErrors.map(error => error.message).join('; '));
+      if (!pending.intent) throw Error('La detección no produjo una captura nativa actual.');
+      return structuredClone(pending.intent);
+    } finally { this.autoScopeDiscovery = null; }
+  }
+
   /** Internal assembly route: the complete native rebuild without visual meshing. */
   rebuildForAssemblyReferences(features: Feature[]): AssemblyReferenceInventory {
     return this.rebuild(features, 'assembly-references');
@@ -1377,8 +1392,7 @@ export class CadEngine {
           const support = feature.type === 'mirror' ? resolveSupport(feature.support) : null;
           if (feature.type === 'mirror' && !support) throw new Error('El plano de simetría no está disponible. Recupera el soporte.');
           const plan = patternPlan(feature, support?.frame), operation = feature.featurePattern;
-          const scope: RegenerationRequest['scope'] = isAllFeaturePattern(operation)
-            ? { mode: 'all', reevaluateAt: 'patternInput' } : { mode: 'selected', targets: operation.targets };
+          const scope = sourceRecipeScopeIntent(operation);
           const targetSnapshot = resolveNativeRecipeScope(scope, bodyCatalog);
           featurePatternApplications(feature, targetSnapshot.length);
           const request: RegenerationRequest = {
@@ -1392,6 +1406,9 @@ export class CadEngine {
           const evaluation = evaluateFeatureRecipes({ features, request, catalog: bodyCatalog, historicalStates: historicalRecipeStates, sourceSketchSolves });
           let nextLineage: string;
           try {
+            if (this.autoScopeDiscovery?.patternId === feature.id) {
+              this.autoScopeDiscovery.intent = createNativeRecipeAutoScopeIntent(evaluation, bodyCatalog, { features, request, sourceSketchSolves });
+            }
             const proof = evaluation.attestation;
             nextLineage = advanceLineage(lineage, [feature.id, feature.type, 'owned-feature-regeneration',
               proof.evaluatorRevision, proof.recipeFingerprintInput, proof.sources.map(item => [item.ref, item.lineage]),

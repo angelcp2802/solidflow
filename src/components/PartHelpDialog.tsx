@@ -21,9 +21,17 @@ export default function PartHelpDialog({ onClose }: PartHelpDialogProps) {
       if (event.key === 'Escape') {
         event.preventDefault(); event.stopImmediatePropagation(); latestClose.current(); return
       }
+      if (event.key === 'Tab' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        const buttons = element.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')
+        const first = buttons[0], last = buttons[buttons.length - 1], active = document.activeElement
+        const boundary = active === element || !element.contains(active) || active === (event.shiftKey ? first : last)
+        const target = boundary ? event.shiftKey ? last : first : null
+        if (target) { event.preventDefault(); target.focus() }
+      }
       if ((event.ctrlKey || event.metaKey) && !event.altKey
         && ['n', 'o', 's', 'z', 'y', '1', '2', '3', '4', '5', '6', '7', '8'].includes(event.key.toLowerCase())) event.preventDefault()
-      // Native Tab, text selection/copy and button activation stay available.
+      // Interior Tab, text selection/copy and button activation stay native.
+      // Wrap the controls before a scrollable dialog becomes an extra Tab stop.
       // No CAD or menu key handler behind the modal consumes the same event.
       event.stopImmediatePropagation()
     }

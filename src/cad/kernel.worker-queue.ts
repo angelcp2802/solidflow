@@ -14,6 +14,7 @@ type Fields<A extends Action> = {
 const fields = {
   init: {},
   build: { features: 'required' },
+  'capture-feature-recipe-scope': { features: 'required', patternId: 'required' },
   export: { format: 'required', features: 'optional' },
   'import-assembly-step': { source: 'required' },
   'insert-assembly-step': { current: 'required', source: 'required', scope: 'optional' },

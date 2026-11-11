@@ -1,6 +1,6 @@
 {
   "name": "solidflow",
-  "version": "0.19.0",
+  "version": "0.20.0",
   "private": true,
   "description": "Free, open-source parametric desktop CAD",
   "type": "module",
@@ -25,6 +25,9 @@
     "test:desktop:part-hole": "node scripts/desktop-part-hole.cjs",
     "test:desktop:part-combine": "node scripts/desktop-part-combine.cjs",
     "test:desktop:part-additive-all": "node scripts/desktop-part-additive-all.cjs",
+    "test:desktop:part-auto-scope": "node scripts/desktop-part-auto-scope.cjs",
+    "test:desktop:part-instance-depth": "node scripts/desktop-part-instance-depth.cjs",
+    "test:desktop:part-instance-radius": "node scripts/desktop-part-instance-radius.cjs",
     "test:desktop:part-pattern-create": "node scripts/desktop-part-pattern-create.cjs",
     "test:desktop:part-shell-draft": "node scripts/desktop-part-shell-draft.cjs",
     "test:desktop:part-properties-transitions": "node scripts/desktop-part-properties-transitions.cjs",

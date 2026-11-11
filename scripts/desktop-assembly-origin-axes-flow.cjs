@@ -7,7 +7,7 @@ const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 module.exports = function originAxesWorkflow(c) {
   c = require('./desktop-assembly-navigation.cjs').withNavigation(c);
   const assemblyNavigation = c.assemblyNavigation;
-  const { configured, expected, input, output, evaluate, observe, waitFor, click, pointer, menuKey, asideWheel, capture, checks,
+  const { configured, expected, input, output, evaluate, observe, waitFor, click, pointer, menuKey, referenceRoleKeyboard, asideWheel, capture, checks,
     consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs, dialogCounts } = c;
   const ROOT = configured ? '.configured-assembly-workspace' : '.assembly-app';
   const NAV = configured ? ':is([aria-label="Archivo del ensamblaje configurado"],[aria-label="Comandos del ensamblaje configurado"])' : ':is(.assembly-toolbar, .assembly-quickbar)';
@@ -22,7 +22,7 @@ module.exports = function originAxesWorkflow(c) {
   const ribbon = require('./desktop-assembly-ribbon-controls.cjs')({ configured, page, waitFor, actualControl, menuKey, observe, check, canonical, gestures: selectionGestures });
   const near = (actual, wanted, tolerance, name) => check(Number.isFinite(actual) && Math.abs(actual - wanted) <= tolerance,
     name + ': actual=' + actual + ', expected=' + wanted);
-  async function actualControl(selector, text = null, allowAsideWheel = false) {
+  async function actualControl(selector, text = null, allowAsideWheel = false, beforeRelease) {
     if (navigation) await navigation.reveal(selector, text ?? ''); else await assemblyNavigation.reveal(selector, text ?? '');
     const inspect = () => page((selector, text) => {
       const matches = [...document.querySelectorAll(selector)].filter(e => text === null || e.textContent.trim() === text);
@@ -105,9 +105,16 @@ module.exports = function originAxesWorkflow(c) {
     check(hit.visible && hit.scrollTop === state.scrollTop && hit.point.x === state.point.x && hit.point.y === state.point.y,
       'Actual target remains stationary immediately before press: ' + JSON.stringify({ selector, text, before: state, after: hit, diagnostic: pointerDiagnostic }));
     await pointer('mousePressed', state.point, 1);
-    const pressed = await inspect();
-    check(pressed.visible && pressed.point.x === state.point.x && pressed.point.y === state.point.y, 'Actual origin control remains stationary while pressed: ' + JSON.stringify({ before: state, pressed }));
-    await pointer('mouseReleased', state.point, 0);
+    try {
+      const pressed = await inspect();
+      check(pressed.visible && pressed.point.x === state.point.x && pressed.point.y === state.point.y, 'Actual origin control remains stationary while pressed: ' + JSON.stringify({ before: state, pressed }));
+      if (beforeRelease) {
+        await beforeRelease();
+        const rearmed = await stationary();
+        check(rearmed.visible && rearmed.originKey === state.originKey && rearmed.point.x === state.point.x && rearmed.point.y === state.point.y,
+          'The rearmed origin label is still the actual hit at the original press coordinates');
+      }
+    } finally { await pointer('mouseReleased', state.point, 0); }
     selectionGestures.push({ kind: 'control', selector, text, point: state.point, scrollTop: state.scrollTop, originKey: state.originKey });
   }
   const originMode = () => page(() => document.querySelector('[aria-label="Visor 3D del ensamblaje"]')?.getAttribute('data-reference-picking'));
@@ -211,8 +218,11 @@ module.exports = function originAxesWorkflow(c) {
     check((await observe()).serial === before, 'Origin navigation is display-only');
     selectionGestures.push({ kind: 'leave-armed-origin', draftRetained: true, pickingStopped: true });
   }
-  async function originLabel(slot, kind, value, owner, accepted = true) {
+  async function originLabel(slot, kind, value, owner, accepted = true, inputKind = 'pointer') {
     const before = (await observe()).serial, original = await references();
+    const heldSnapshot = async () => ({ recovery: await page(() => localStorage.getItem('solidflow.autosave')),
+      inputSha256: digest(await fs.readFile(input)), ipc: canonical(ipc) });
+    const beforeHeld = inputKind === 'held' ? await heldSnapshot() : null;
     const label = 'Seleccionar ' + (kind === 'principal-axis' ? 'Eje ' : 'Plano ') + value + ' · ' + (owner ?? 'Raíz');
     const wanted = { kind, component: owner ? { occurrencePath: [owner], definition: { id: 'origin-axis-prism', revision: 'r1' } } : null,
       [kind === 'principal-axis' ? 'axis' : 'plane']: value };
@@ -245,17 +255,32 @@ module.exports = function originAxesWorkflow(c) {
       window.__solidflowOriginLabelEventProbe = probe;
       for (const type of probe.types) for (const target of [document, probe.label]) target.addEventListener(type, probe.listener, { capture: true, passive: true });
     }, key);
+    let eventReport, keyboard;
     try {
-      await actualControl('button[aria-label="' + label + '"]');
+      if (inputKind === 'keyboard') keyboard = await referenceRoleKeyboard('root-z');
+      else await actualControl('button[aria-label="' + label + '"]', null, false, inputKind === 'held' ? async () => {
+        await menuKey('Escape');
+        await waitFor('Escape cancels a held origin label intent', async () => await originMode() === '');
+        keyboard = await referenceRoleKeyboard('origin-2');
+        await waitFor('native keyboard rearmed the same origin slot', async () => await originMode() === 'origin'
+          && await page(configured => configured
+            ? document.querySelector('button[aria-label="Seleccionar Referencia 2 por origen en vista configurada"]')?.getAttribute('aria-pressed') === 'true'
+            : document.querySelector('button[aria-label="Referencia 2 de la relación"]')?.classList.contains('active'), configured));
+      } : undefined);
     } finally {
-      const events = await page(() => {
+      eventReport = await page(() => {
         const probe = window.__solidflowOriginLabelEventProbe;
         if (!probe) throw Error('Origin event probe missing during cleanup');
         for (const type of probe.types) for (const target of [document, probe.label]) target.removeEventListener(type, probe.listener, true);
         delete window.__solidflowOriginLabelEventProbe;
         return { events: probe.events, dropped: probe.dropped };
       });
-      checks.push({ originLabelEvents: { label, key, slot, ...events } });
+      checks.push({ originLabelEvents: { label, key, slot, inputKind, keyboard, ...eventReport } });
+    }
+    if (inputKind !== 'pointer') {
+      const clicks = eventReport.events.filter(event => event.type === 'click' && event.trusted && event.target.key === key);
+      check(clicks.length > 0 && clicks.every(event => inputKind === 'held' ? event.detail > 0 : event.detail === 0),
+        'The retained origin label received the expected trusted ' + inputKind + ' click');
     }
     checks.push({ originPress: { label, slot, intended: wanted, observed: await page((configured, label) => ({
       roles: [1, 2].map(slot => configured ? document.querySelector('[aria-label="Referencia ' + slot + ' de relación configurada"]')?.value : document.querySelector('[aria-label="Referencia ' + slot + ' de la relación"] span')?.textContent),
@@ -279,10 +304,13 @@ module.exports = function originAxesWorkflow(c) {
       const after = await references(); check(after[slot === 1 ? 1 : 0] === original[slot === 1 ? 1 : 0], 'The other origin role remains unchanged');
       check(await page(key => [...document.querySelectorAll('[data-origin-key]')].some(e => e.getAttribute('data-origin-key') === key && e.classList.contains('selected')), key), 'Accepted current origin is visibly highlighted');
     } else {
-      check(canonical(await references()) === canonical(original) && await originMode() === 'origin', 'Incompatible visible plane is rejected without replacing a role or disarming the eligible axis pick');
+      const description = inputKind === 'held' ? 'A stale label release after Escape/rearm leaves both roles unchanged and the current role armed'
+        : 'Incompatible visible plane is rejected without replacing a role or disarming the eligible axis pick';
+      check(canonical(await references()) === canonical(original) && await originMode() === 'origin', description);
+      if (beforeHeld) check(canonical(await heldSnapshot()) === canonical(beforeHeld), 'Held origin release preserves document recovery, original file and IPC');
     }
     check((await observe()).serial === before, 'Origin selection sends no worker solve');
-    selectionGestures.push({ kind: accepted ? 'origin-assigned' : 'origin-rejected', slot, reference: wanted });
+    selectionGestures.push({ kind: accepted ? 'origin-assigned' : 'origin-rejected', inputKind, slot, reference: wanted });
   }
   async function button(text, parent = ROOT) { await assemblyNavigation.button(text, parent);
     if (navigation) await navigation.reveal(parent + ' button', text);
@@ -502,7 +530,11 @@ module.exports = function originAxesWorkflow(c) {
     }
     for (const [slot, owner] of [[1, 'moving'], [2, null]]) {
       await control(ownerLabel, owner ? 'selected' : 'scope');
-      await armOrigin(slot); await originLabel(slot, 'principal-axis', axis, owner);
+      await armOrigin(slot);
+      if (stage === 1 && slot === 2) {
+        await originLabel(slot, 'principal-axis', axis, owner, false, 'held');
+        await originLabel(slot, 'principal-axis', axis, owner, true, 'keyboard');
+      } else await originLabel(slot, 'principal-axis', axis, owner);
       if (!configured && stage === 1) await standardRelationGuidance(slot === 1 ? 'first-reference' : 'complete-references');
     }
     if (configured && !checkedOwnerContinuity) {

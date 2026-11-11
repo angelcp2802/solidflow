@@ -2,8 +2,10 @@ import { useMemo, useState } from 'react';
 import type { BodyReference, Feature, RepetitionFeature } from '../cad/kernel.types';
 import { sameBodyReference } from '../model/bodyCommands';
 import { withFeaturePatternBindings, withFeaturePatternWorldLimit } from '../model/featurePatternCommands';
-import { isAllFeaturePattern, MAX_FEATURE_PATTERN_CONTRIBUTIONS, MAX_FEATURE_PATTERN_TARGETS, type AnyFeaturePatternBinding } from '../model/featurePatterns';
+import { isAutoFeaturePattern, isDynamicFeaturePattern, MAX_FEATURE_PATTERN_CONTRIBUTIONS, MAX_FEATURE_PATTERN_TARGETS, type AnyFeaturePatternBinding } from '../model/featurePatterns';
 import { bodyPatternHistoryChoices, type BodyPatternEditor } from './BodyPatternPanel';
+import FeaturePatternDepthVariation from './FeaturePatternDepthVariation';
+import FeaturePatternSketchVariation from './FeaturePatternSketchVariation';
 
 const key = (reference: BodyReference) => JSON.stringify([reference.bodyId, reference.sourceFeatureId]);
 const PAGE_SIZE = 64;
@@ -57,8 +59,12 @@ export default function FeaturePatternPanel({ feature, features, editor, onChang
   const [choicePage, setChoicePage] = useState(0);
   const [targetPage, setTargetPage] = useState(0);
   if (feature.source.mode !== 'features' || !operation) return null;
-  const selectedOperation = isAllFeaturePattern(operation) ? null : operation;
-  const targetPages = Math.max(1, Math.ceil(editor.bodies.length / PAGE_SIZE));
+  const selectedOperation = isDynamicFeaturePattern(operation) ? null : operation;
+  const automatic = isAutoFeaturePattern(operation);
+  const catalogueNames = new Map(editor.bodies.map(body => [body.ref.bodyId, body.name]));
+  const dynamicTargets = automatic ? operation.capturedBodyIds.map(id => ({ id, name: catalogueNames.get(id) ?? 'Cuerpo detectado no disponible' }))
+    : editor.bodies.map(body => ({ id: body.ref.bodyId, name: body.name }));
+  const targetPages = Math.max(1, Math.ceil(dynamicTargets.length / PAGE_SIZE));
   const currentTargetPage = Math.min(targetPage, targetPages - 1);
   const steps = history.steps.filter(step => feature.source.mode === 'features' && feature.source.featureIds.includes(step.id));
   const step = steps.find(candidate => candidate.id === selectedStep) ?? steps[0];
@@ -81,6 +87,8 @@ export default function FeaturePatternPanel({ feature, features, editor, onChang
   const targetName = (reference: BodyReference) => editor.bodies.find(body => sameBodyReference(body.ref, reference))?.name ?? 'Destino no disponible';
   return <>
     <FeaturePatternWorldLimits feature={feature} features={features} loading={editor.loading} onChange={onChange} />
+    <FeaturePatternDepthVariation feature={feature} features={features} loading={editor.loading} onChange={onChange} />
+    <FeaturePatternSketchVariation feature={feature} features={features} loading={editor.loading} onChange={onChange} />
     <div className="property-section">
       <h3>Geometría de las operaciones</h3>
       <label className="number-field"><span>Operación seleccionada</span>
@@ -130,7 +138,7 @@ export default function FeaturePatternPanel({ feature, features, editor, onChang
                 </label>)}
               </div>
             </details>}
-            {!selectedOperation && <span> · Todos los cuerpos actuales al recalcular</span>}
+            {!selectedOperation && <span>{isAutoFeaturePattern(operation) ? ' · Cuerpos detectados' : ' · Todos los cuerpos actuales al recalcular'}</span>}
           </li>;
         })}
       </ol>
@@ -158,16 +166,20 @@ export default function FeaturePatternPanel({ feature, features, editor, onChang
         onClick={() => editor.onPicking(!editor.picking)}>{editor.picking ? 'Terminar selección de destinos' : 'Seleccionar destinos en la vista'}</button>
       <p className="muted-small">Solo se modifica el material de los destinos seleccionados. Los cuerpos que no cambien conservan su estado.</p>
       </> : <>
-        <p className="muted-small">Todos los cuerpos actuales se vuelven a resolver al recalcular. Esta selección no se guarda como una lista fija. Los cuerpos sin cambio conservan su estado.</p>
-        <ul aria-label="Catálogo actual para el alcance todos los cuerpos">
-          {editor.bodies.slice(currentTargetPage * PAGE_SIZE, (currentTargetPage + 1) * PAGE_SIZE).map(body => <li key={key(body.ref)}>{body.name}</li>)}
+        <p className="muted-small">{automatic
+          ? 'Los cuerpos detectados se conservan al editar o reabrir la repetición. Usa «Volver a detectar cuerpos» para cambiar el alcance.'
+          : 'Todos los cuerpos actuales se vuelven a resolver al recalcular. Esta selección no se guarda como una lista fija. Los cuerpos sin cambio conservan su estado.'}</p>
+        <ul aria-label={automatic ? 'Cuerpos detectados para la repetición' : 'Catálogo actual para el alcance todos los cuerpos'}>
+          {dynamicTargets.slice(currentTargetPage * PAGE_SIZE, (currentTargetPage + 1) * PAGE_SIZE).map(body => <li key={body.id}>{body.name}</li>)}
         </ul>
         {targetPages > 1 && <div className="pattern-direction-presets" aria-label="Páginas del catálogo actual">
           <button type="button" disabled={editor.loading || currentTargetPage === 0} onClick={() => setTargetPage(currentTargetPage - 1)}>Anterior</button>
           <span>{currentTargetPage + 1} / {targetPages}</span>
           <button type="button" disabled={editor.loading || currentTargetPage + 1 === targetPages} onClick={() => setTargetPage(currentTargetPage + 1)}>Siguiente</button>
         </div>}
-        <p className="muted-small">Admite cortes y salientes de profundidad fija con perfil rectangular o circular en un plano principal. Cada copia del saliente debe tocar un solo cuerpo; otros finales, soportes, paredes delgadas y dirección 2 siguen pendientes.</p>
+        <p className="muted-small">{automatic
+          ? 'La detección usa las mismas reglas que «Todos los cuerpos actuales».'
+          : 'Admite cortes con croquis intrínsecos. Para salientes, usa un perfil rectangular o circular en un plano principal y una profundidad fija. Cada copia del saliente debe tocar un solo cuerpo; otros finales, soportes, paredes delgadas y dirección 2 siguen pendientes.'}</p>
       </>}
       {editor.message && <p className="muted-small" role="alert">{editor.message}</p>}
     </div>

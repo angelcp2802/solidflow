@@ -74,7 +74,7 @@ it('retains additive ALL, AUTO and nested-operation gates', () => {
   request.scope = { mode: 'all', reevaluateAt: 'patternInput' }; request.bindings[0].targets = 'scope';
   expect(extractRecipeClosure(features, request).diagnostics.map(item => item.code)).toContain('ALL_POSITIVE_SCOPE_PENDING');
   request.scope = { mode: 'auto', capturedBodyIds: ['A'], captureFingerprint: 'original-unissued-capture', follow: 'sameIdentityAtPatternInput' };
-  expect(extractRecipeClosure(features, request).diagnostics.map(item => item.code)).toContain('AUTO_DISCOVERY_PENDING');
+  expect(extractRecipeClosure(features, request).diagnostics.map(item => item.code)).toContain('ALL_POSITIVE_SCOPE_PENDING');
   const nested: RepetitionFeature = { id: 'seed', name: 'Original nested declaration', type: 'linearPattern', suppressed: false,
     baseFeatureId: 'create-S', source: { mode: 'features', geometryPattern: true, featureIds: ['create-S'] },
     first: { direction: [1, 0, 0], spacing: 2, count: 2 }, second: null, secondSeedOnly: false, skipped: [] };

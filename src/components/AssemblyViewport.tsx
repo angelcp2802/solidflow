@@ -1,4 +1,4 @@
-import { nativeReferencePressIsCurrent, type NativeReferencePress } from './assemblyNativeReferencePicking'
+import { nativeReferencePressMatches, type NativeReferencePress } from './assemblyNativeReferencePicking'
 import { currentMaterialArcEdges, type MaterialArcEdgePickRequest } from './assemblyMaterialArcPicking'
 import { bindViewNavigation, captureCameraView, createViewHistory, type ViewHistory, type ViewRequest } from './viewNavigation'
 import { useViewportBackground } from './ViewportBackgroundSettings'
@@ -262,6 +262,14 @@ export interface AssemblyViewportProps {
   onVertex?: (vertex: AssemblySceneVertex | null) => void
   onContextTarget?: (target: AssemblyViewportContextTarget) => void
 }
+function referencePressAt(value: AssemblyViewportProps): NativeReferencePress | null {
+  return value.referencePickOwner ? { owner: value.referencePickOwner, scene: value.scene,
+    mode: assemblyReferencePickMode(value), revision: value.interactionRevision, purpose: value.materialArcPick?.purpose } : null
+}
+function referencePressMatches(press: NativeReferencePress | null, value: AssemblyViewportProps): boolean {
+  return nativeReferencePressMatches(press, value.referencePickOwner, value.scene, assemblyReferencePickMode(value),
+    value.interactionRevision, value.materialArcPick?.purpose)
+}
 export default function AssemblyViewport(props: AssemblyViewportProps) {
   const background = useViewportBackground()
   const localViewHistory = useRef(createViewHistory())
@@ -269,7 +277,9 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
   const host = useRef<HTMLDivElement>(null), input = useRef(props); input.current = props
   const [dragAxis, setDragAxis] = useState<string | null>(null)
   const [originLabelState, setOriginLabelState] = useState(() => ({ layout: layoutAssemblyOriginLabels([], { width: 0, height: 0 }, { topInset: props.originLabelTopInset }), signature: '', width: 0, height: 0, topInset: props.originLabelTopInset ?? 0 }))
-  const originLabelFrame = useRef(''), originLabelPress = useRef<{ key: string; signature: string; revision: number | undefined } | null>(null)
+  const originLabelFrame = useRef(''), originLabelPress = useRef<{
+    key: string; signature: string; revision: number | undefined; pointerId: number; reference: NativeReferencePress | null
+  } | null>(null)
   const originFrame = useRef('')
   const originCatalog = (value: AssemblyViewportProps) => JSON.stringify([value.originReferences, value.scene?.visibleBounds])
   const context = useRef<{ scene: AssemblyScene | null; group: THREE.Group; analysis: THREE.Group; markers: THREE.Group; clearHover: () => void; cancelBrowse: () => void; camera: THREE.OrthographicCamera; controls: OrbitControls; bodies: AssemblyPickBody[]; faces: AssemblyPickFace[]; edges: AssemblyPickEdge[]; fit: () => void; navigation: ReturnType<typeof bindViewNavigation>; highlight: () => void; syncDrag: () => void } | null>(null)
@@ -452,7 +462,7 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
       const value = input.current
       if (event.button === 0 && !presentationReady()) { selectionGesture.cancel(); return }
       viewPressFrame = event.button === 0 && assemblyViewportBrowseMode(value) !== null && selectionReady() ? captureInteractionFrame() : null
-      referencePressFrame = event.button === 0 && value.referencePickOwner ? { owner: value.referencePickOwner, scene: value.scene, mode: assemblyReferencePickMode(value), revision: value.interactionRevision, purpose: value.materialArcPick?.purpose } : null
+      referencePressFrame = event.button === 0 ? referencePressAt(value) : null
       selectionGesture.down(event, viewPressFrame ?? referencePressFrame ?? value.interactionRevision)
       if (event.button === 2 && contextReady()) {
         contextPress = { ...captureInteractionFrame(), catalog: originFrame.current }
@@ -492,8 +502,8 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
       const current = context.current
       const press = viewPressFrame
       const referencePress = referencePressFrame, value = input.current
-      const referenceCurrent = referencePress && nativeReferencePressIsCurrent(referencePress, value.referencePickOwner, value.scene, assemblyReferencePickMode(value), value.interactionRevision, value.materialArcPick?.purpose) ? referencePress : null
-      const select = selectionGesture.up(event, press ? currentContextFrame(press, true) : referencePress ? referenceCurrent : value.referencePickOwner ? null : value.interactionRevision)
+      const referenceCurrent = referencePressMatches(referencePress, value) ? referencePress ?? value.interactionRevision : null
+      const select = selectionGesture.up(event, press ? currentContextFrame(press, true) : referenceCurrent)
       viewPressFrame = null; referencePressFrame = null
       if (dragConsumed) { dragConsumed = false; return }
       if (!current || input.current.disabled || !select || !presentationReady()) return
@@ -602,7 +612,7 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
     if (pair && [pair.first, pair.second].every(value => keys.has(assemblyBodyKey(value.component, value.body)))) current.analysis.add(createAssemblyInterferenceOverlay(pair))
   }, [props.scene, props.selectedAnalysisPair])
   useEffect(() => { context.current?.highlight() }, [props.selectedPath, props.selectedFaces, props.selectedEdges, props.selectedVertices, props.originReferences, props.selectedOrigins, props.partColors])
-  useEffect(() => { context.current?.cancelBrowse(); context.current?.clearHover(); context.current?.highlight() },
+  useEffect(() => { originLabelPress.current = null; context.current?.cancelBrowse(); context.current?.clearHover(); context.current?.highlight() },
     [props.scene, props.browseSelectionMode, props.interactionRevision, props.referencePickOwner, props.disabled, props.pickingFaces, props.pickingEdges, props.pickingVertices, props.pickingOrigins])
   useEffect(() => { context.current?.clearHover(); context.current?.highlight(); context.current?.syncDrag() }, [props.drag, props.disabled, props.pickingFaces, props.pickingEdges, props.pickingVertices, props.pickingOrigins])
   useEffect(() => {
@@ -613,13 +623,23 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
       className={(props.selectedOrigins ?? []).some(ref => assemblyOriginReferenceKey(ref) === label.key) ? 'selected' : ''}
       style={style} aria-label={`Seleccionar ${label.label}`} title={label.label} data-origin-key={label.key}
       disabled={!!props.disabled || originLabelState.topInset !== (props.originLabelTopInset ?? 0) || !originLabelState.layout.usable || assemblyReferencePickMode(props) !== 'origin'}
-      onPointerDown={() => { originLabelPress.current = { key: label.key, signature: originLabelState.signature, revision: input.current.interactionRevision } }}
-      onPointerCancel={() => { originLabelPress.current = null }} onClick={event => {
-        const press = originLabelPress.current; originLabelPress.current = null
-        if (originLabelState.topInset !== (input.current.originLabelTopInset ?? 0) || originLabelFrame.current !== originLabelState.signature || host.current?.clientWidth !== originLabelState.width || host.current?.clientHeight !== originLabelState.height
-          || event.detail > 0 && (press?.key !== label.key || press.signature !== originLabelState.signature || !Object.is(press.revision, input.current.interactionRevision))) return
-        const value = input.current, matches = (value.originReferences ?? []).filter(entry => entry.key === label.key)
-          if (!value.disabled && assemblyReferencePickMode(value) === 'origin' && originFrame.current === originCatalog(value) && matches.length === 1 && assemblyOriginDisplayBinding(matches[0]) === label.binding) value.onOrigin?.(structuredClone(matches[0].reference))
+      onPointerDown={event => {
+        if (!event.isPrimary || event.button !== 0) return
+        const value = input.current
+        originLabelPress.current = { key: label.key, signature: originLabelState.signature, revision: value.interactionRevision,
+          pointerId: event.pointerId, reference: referencePressAt(value) }
+      }} onPointerCancel={event => {
+        if (originLabelPress.current?.pointerId === event.pointerId) originLabelPress.current = null
+      }} onClick={event => {
+        const press = originLabelPress.current, value = input.current
+        originLabelPress.current = null
+        if (originLabelState.topInset !== (value.originLabelTopInset ?? 0) || originLabelFrame.current !== originLabelState.signature
+          || host.current?.clientWidth !== originLabelState.width || host.current?.clientHeight !== originLabelState.height
+          || event.detail > 0 && (press?.key !== label.key || press.signature !== originLabelState.signature
+            || !Object.is(press.revision, value.interactionRevision) || !referencePressMatches(press.reference, value))) return
+        const matches = (value.originReferences ?? []).filter(entry => entry.key === label.key)
+        if (!value.disabled && assemblyReferencePickMode(value) === 'origin' && originFrame.current === originCatalog(value)
+          && matches.length === 1 && assemblyOriginDisplayBinding(matches[0]) === label.binding) value.onOrigin?.(structuredClone(matches[0].reference))
       }}>{label.label}</button>
   return <div className="assembly-viewport" ref={host} style={background ? { background } : undefined} tabIndex={props.onContextTarget ? 0 : undefined} aria-label="Visor 3D del ensamblaje" data-analysis-pair={props.selectedAnalysisPair?.id} data-drag-axis={dragAxis ?? ''} data-reference-picking={assemblyReferencePickMode(props) ?? ''}>
     <div className="assembly-origin-labels" aria-label="Referencias de origen visibles">

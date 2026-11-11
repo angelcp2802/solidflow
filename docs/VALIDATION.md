@@ -1,5 +1,322 @@
 # Validation
 
+## Bounded driving-circle radius variation — Windows focal evidence, 2026-11-11
+
+The focused follow-up based on `6d1f705771cd581799153de613b1fed11bf7645b`
+implements the [Selected Blind circular driving-radius table](FEATURE_REGENERATION.md#driving-sketch-radius-per-instance).
+Its final 1,453-entry non-documentation source manifest SHA-256 is
+`c758bb3a9c11ad75d9b75ab9cf891ae77b92b4689df2e2bb809782efe769d7c5`.
+Product, model and native-test inputs stayed unchanged through the focal
+checks. The only subsequent non-documentation edit extended the shared
+renderer actor with explicit row removal. Both affected renderer routes were
+repeated on that final actor.
+Node 24.11.1 and the existing Electron 44.9.3 runtime were used without an
+installation or runtime replacement. The executable hash also stayed unchanged.
+
+- Fourteen model/SSR files passed 198 cases, including strict saved data,
+  foreign/inactive identities, unavailable-row repair, variation-family guards,
+  and 511/512 accepted versus 516 rejected route applications. The table itself
+  remains bounded by the existing 255-copy plan.
+- Twelve native files passed 148 cases. The new radius file contributes twelve
+  cases: original physical walls/probes, equal-volume/area radius swap, history,
+  Save/Open parsing, STEP reimport, inherited solved source radius, mirror and
+  circular frames, late geometric/solve/source/revocation/cleanup failures,
+  forged solve readers and pre-clone application-budget rejection.
+- `npm run build` and `npm run test:desktop` passed. Existing large-bundle and
+  externalized `node:module` build notices remain unchanged in kind.
+- `npm run test:desktop:part-instance-radius` passed 93 checkpoints, 46 recorded
+  actions including 29 actual pointer presses, and twelve geometry/history phases.
+  It exercises zero rejection, two actual address assignments, Apply, edit,
+  Cancel/retry, Undo/Redo and native Save As/Open through the existing editor.
+  It also removes both rows through their real buttons, checks the resulting
+  `none` preview and actual method/scope options, and cancels back to the exact
+  saved table, recovery and file bytes. Original input bytes and exact source
+  IDs remain unchanged.
+- `npm run test:desktop:part-instance-depth` passed its separate 84 checkpoints,
+  preserving the existing depth actor's volume and planar-area checks.
+
+Both renderer children closed and their isolated temporary directories were
+deleted. Their eight production-member hashes match each other and the final
+files. The private audit receipt SHA-256 is
+`1a0114f8952b0cae7c15ffb86f4450b53625f5fac74c2430ec3ce6271e90d603`.
+Initial original-fixture failures are retained privately: a nominal miss still
+intersected the plate, and budget-only target declarations lacked prior owners.
+The corrected fixtures supply a fully separated last circle and real prior
+owner declarations; no production tolerance or application budget was relaxed.
+An independent read-only review checked the complete product/test/actor diff
+and both source manifests, reporting no actionable finding. It did not execute
+additional tests or constitute human acceptance.
+
+The independent [original formulas and tolerances](PROVENANCE.md#original-per-instance-solved-circle-radius-plate--2026-11-11)
+remain separate from renderer evidence. Circular tessellated mesh area is not
+an exact native surface-area oracle. The renderer covers one linear workflow.
+Mirror/circular checks here are native cases. The next combined integration
+snapshot owns the full `npm test` run. C05, the final integrated gate,
+installed-platform acceptance and a public release retain their required
+follow-ups. Other driving
+dimensions, general solved-sketch variation, equations, associative supports
+and broader operation recipes remain required work.
+
+## Candidate 0.20 source and packaged-window findings — 2026-11-11
+
+Frozen Windows source `6d1f705771cd581799153de613b1fed11bf7645b` passed all
+25 commands. Results include 11,373 unit/CAD cases in 514 files, 224 IPC checks
+with two explicit skips, build, desktop startup and 22 renderer commands.
+The routes cover selected instance depth, captured AUTO, additive ALL, ordinary
+STEP and from-empty editing, sketch tools, materials and two-process recovery,
+embedded transitions, material LINE/circular picking, symmetry, hinges, origin
+axes, saved references, exports, configurations and successive part operations.
+
+The input manifest is
+`1405d3265236914cf76db76169775fb18e0ff36910878349c9a77707024d8fb6`.
+The terminal receipt is
+`6f7bf0eeb8e660ac6756a2a52e9ad68598a6972f53dbe55ea64bc0ad1d737b0b`.
+Independent review rehashed 1,439 non-Markdown inputs, all 1,547 source/runtime
+copies, dependency metadata, logs and nine production members. Its audit is
+`833030d1b2bf1961fbb018a1e39232b5eac54df448c778cc2c54b026d018e32a`.
+
+The local Windows x64 executable has SHA-256
+`fd47569505f3976c12b5b5b41a065ebad46a881da9fb8746ef528fac61d8055c`.
+Its ASAR is
+`bfbfc299222818ce9b65b14b92fb9034fca9c85ca51fda05bf2d594f31c8020b`.
+All nine production members match the frozen build. Thirteen production
+packages are physically staged and packaged with their license notices.
+The executable is unsigned and the final delivery gate remains open.
+
+The visible packaged-window test used the original built-in mounting plate,
+with a 100 × 70 × 12 mm extrusion and four radius-5 mm cuts of depth 12 mm.
+Cancel restored the original geometry. Accepting depth 14 mm, Undo and Redo
+produced the expected volumes 80.230089 and 94.230089 cm³ at the displayed
+1e-6 cm³ resolution. Independent formulas are
+`(100*70*depth - 4*pi*25*12)/1000`. Saved feature identities and all other
+feature parameters match exactly. Native Save As, clean OS close, process
+restart, recovery and native Open retained the edited depth and volume.
+
+Creating an assembly from that piece produced a fixed first occurrence.
+Reusing its source added a floating second occurrence. Selecting the root YZ
+datum in the tree and the second instance's visible YZ label supplied the exact
+references for a signed plane distance. The 30 mm case passed preview, Cancel
+to identity, retry, Apply, Undo/Redo, native Save/Open and fresh Solve. The saved
+moving translation is `(-29.999999999998998,0,0) mm`, with unchanged rotation,
+source definition and fixed first occurrence. The independent pose check uses
+1e-8 mm. A clean OS close then exited the owned process.
+
+The 150 mm case from two identity placements returned `nonConverged` and
+withheld Apply. The original two-instance baseline was saved with identity
+poses and no mates after this rejection and the subsequent cancelled preview.
+This is a reproducible use blocker. Its correction and final packaged recheck
+remain required. The successful 30 mm case retains its bounded evidence.
+
+REA verified the package inventory and the nine production hashes. Its
+inspection evidence is
+`ev_2e70162a1f958cf8c1487ea768288ab2e99649fdd057eb1e0398f87bc3dea519`,
+with inventory
+`ev_c48eeb7a20dcc92201827d8ea509b768a2394414593ef58a0489d92d659f82f9`.
+The archive graph has 5,375 content nodes, 5,379 occurrences and zero integrity
+contradictions. Complete local exported evidence has SHA-256
+`6179204974276249de161c867ee1044605ebee54b505ebbafed989ee48dc841d`.
+The larger JavaScript application-graph request ended with a closed transport
+and supplied no accepted graph. Archive inventory and visible interaction have
+their separate scopes. Hardware, recurring persistence and other-platform
+acceptance retain their existing requirements.
+
+## Hosted persistence follow-up — 2026-11-11
+
+On public `02bab957`, all three relations, all three configured-authoring and
+all three hinge/symmetry jobs passed. The previous material LINE and circular
+failures now pass on Windows, Linux and macOS. Security completed successfully.
+Persistence failed in the from-empty Help keyboard loop on Windows/macOS and
+the sketch checkbox-label hit on Linux. Desktop prerequisite gates consequently
+failed.
+
+Local `4fb894f61be7648b9ff719f0ec4d01a4d4c87812` addresses both interactions.
+A compact 1040 × 720 window reproduced the Help failure. The scrollable modal
+introduced an extra native Tab stop. The correction wraps the two boundary
+buttons while preserving interior focus and composition/modified-key handling.
+Help default/compact routes pass 520/520 checks. Checkbox text acquisition now
+chooses an actual label fragment whose exact point hits the label, preserving
+the original complete bounding-box, clipping and stationary-input guards.
+Sketch default/compact Windows routes pass 371/365. Linux execution retains its
+separate hosted verification requirement.
+
+This follow-up also passes build, startup, 11,373 unit/CAD cases in 514 files
+and 224 IPC checks with two skips. Input manifest
+`af6d665a12a0e39fa8be87b0ce250c4d35a7e7c898fc7690ffa71f9980c57f44`.
+Terminal audit
+`a67be6b6d3e006a32b08932c7ac17ad8087011648a81016eec48593dfd36ffd4`.
+The 150 mm use blocker, sketch-dimension variation and final combined artifact
+remain separate follow-ups.
+
+## AUTO and selected depth combined — Windows evidence, 2026-11-10
+
+The frozen `daa78a6e9fd42f45a1fb25d10389750e63d596a7` source passed eighteen
+commands, with 11,367 unit/CAD cases in 514 files and 224 IPC checks plus two
+explicit skips. Build and native desktop startup passed. The fifteen renderer
+routes include instance depth (84), AUTO (134), additive ALL (101), cut ALL
+(19), Until Next (51), from-empty menus (465), sketch tools and ordinary STEP
+import (371), successive parts (541), part properties (70), two-process
+properties recovery (65 + 27), assembly properties (222), embedded transitions
+(202 + 15), export (83), structural STEP (52) and configured documents (212).
+Raster capture was disabled for the property routes in this batch.
+
+This source uses the shared evaluator
+`intrinsic-auto-selected-instance-depth-v10`. AUTO retains its captured-body
+semantics. The depth table is limited to the declared selected, intrinsic
+Blind slice. The original physical floor/plane cases and stale/atomicity
+requirements apply. Solved-sketch variation and broader recipes keep their
+separate requirements.
+
+Input manifest SHA-256 `c4e63d024079562cb9efa951c9541be0873e30997b0c8f2825125771813bdcc1`.
+Completed receipt SHA-256 `670a613874c719d89d14944cacd3344dbdb76e1a76364d7c44e5c14cdcf41ed6`.
+The subsequent 0.20.0 prototype candidate adds display aliases and the corner
+picker correction. It needs its own final checks and packaged walkthrough.
+
+## Axial material corner picking — local correction, 2026-11-10
+
+Hosted Windows/Linux LINE and macOS circular routes on `debb881` failed to
+nominate their first material vertex. The exact failing content sizes were
+reproduced locally. The canvas rectangle stayed fixed through role activation.
+An isolated geometry test also reproduced the rejection at an axial corner.
+
+Source `249c5d29c2a7c48c4d119cde78aa3bbd7a2ee5a1`, published with the same tree
+as `02bab957`, bounds the projection round-trip correction to 64 times machine
+epsilon scaled by the world point, ray origin and depth. It anchors the
+visibility ray to the original Float64 point. Nonfinite and larger corrections
+reject. The existing 8 CSS-pixel radius, 0.5 pixel ambiguity band, current
+catalog identities and occlusion by every visible body are preserved.
+
+Build, smoke, 11,322 unit/CAD cases in 509 files, 224 IPC checks with two skips,
+and default LINE/circular routes passed. Original-window reproductions changed
+from failure to 246 LINE checkpoints at 722 × 503 and 118 circular checkpoints
+at 738 × 494. The unit file checks four sizes, own-body and other-body
+occlusion, coincident-owner ambiguity and off-axis perspective. These local
+Windows results precede the new hosted matrix for `02bab957`.
+
+Audit report SHA-256 `f177a33ed530bd078689bb14c390ec0bb56e11e2c82ff289c48c709e50af300e`.
+
+## Part display and Evaluate aliases — focal Windows evidence, 2026-11-10
+
+The isolated follow-up to `daa78a6e9fd42f45a1fb25d10389750e63d596a7`
+adds a test helper to the existing from-empty route. It uses the same original
+eight-feature piece after actual Save/Open and the preceding menu cases. The
+application, worker, file bridge and raster-comparison implementation are
+unchanged by this follow-up. `npm run build` and
+`npm run test:desktop:part-from-empty` pass locally, with 516 checkpoints overall.
+The new helper records 30 actual contained CDP control presses and 13 display
+comparisons. Its UI log SHA-256 is
+`24bdd7ae72dfa5c0a4ad2f4d568eb4e7ab05b2743921ae611768d4d9f816cb19`.
+
+The shaded/edge state is entered from both the viewport and Vistas ribbon.
+Both entry points produce the same native bitmap. Wire toggling and returning
+from wire through the edge control restore the original bitmap. The two grid
+aliases are exercised in both directions. The observed changed-pixel counts
+are 7,580 for shaded, 165,319 for wire and 13,462 for grid on this bounded crop.
+All eight restored comparisons and the repeated wire comparison have zero
+changed pixels and zero native-byte delta. The complete crop is unmasked and
+each stationary capture uses the existing 500 ms contract. No tolerance, mask,
+camera state or frame is supplied by the new helper. The separate translucent
+plane rule remains limited to its preceding plane scenario.
+
+Both **Propiedades físicas** and **Envolvente** in Evaluar open the current
+piece's property panel. The actual readout shows 11.144 cm³, bounds 40×30×13 mm,
+four solid operations and four sketches. Each close restores the original
+canvas exactly. Every action preserves the exact native observation, recovery,
+history availability, selection, file grants, IPC and saved file bytes. The
+native witness remains at serial 43, with V11144 mm³ and planar mesh A4136 mm².
+The hidden child closes and its isolated profile is deleted. Renderer and asset
+errors are empty. The original two Opens and one Save As stay the only dialogs.
+
+The production renderer and worker hashes are respectively
+`30e56b55d64cb20eff50972a26054abb7ff4168b0d22d964847df469e4d185ec`
+and `7237e629313b9b0f82a71329aa057f2cb98d15b5379168b8a55611076cfdaa09`.
+Node 24.11.1 and the existing Electron 44.9.3 installation were used. The build
+and UI pass describe this focal Windows run. Full-suite and combined-candidate
+acceptance belong to their own final snapshot. The crop and field checks do not
+establish full C13, installed/hardware use, calibrated colours or other platforms.
+
+## Combined diagnostic correction — 2026-11-10
+
+The first combined AUTO/gesture/ordinary STEP snapshot `3d476b2` passed its
+build and early AUTO, configured-picking and sketch routes. Its unit/CAD
+portion passed 11,347 cases in 511 files. The IPC portion exposed thirteen
+diagnostic-wrapper failures caused by an unbound scenario variable in the
+new STEP report code. The rejected run is retained as a failed batch.
+
+The correction reads the scenario descriptor when completing a report and
+checks the requested action before STEP-specific proxy variables. The full
+IPC command then passed 224 checks with two explicit Windows skips. The next
+frozen source requires the full combined commands again.
+
+## Automatic body scope and held reference ownership — Windows evidence
+
+The isolated AUTO source `68168d430b627f154017c7c18fbee7731839b026` passed eight
+commands. The full suite passed 11,319 cases in 508 files and 220 IPC checks
+with two explicit skips. Build and desktop smoke passed. The AUTO desktop
+route passed 134 checkpoints, including a delayed native result after Cancel,
+failed recapture, explicit new capture, Save/Open and STEP reimport. The STEP
+has five solids, V240/A408 and the notch in the intended body. Existing ALL,
+cut ALL, Until Next and embedded transition routes also passed.
+
+AUTO manifest SHA-256 `c07bd91975c36548697061c4876bb1a1b99ef0cbef3afbd6139ca7bd7e9c4c16`.
+Audit report SHA-256 `8361a4fab041a75108056a42f8498d9cae7adc751e2a6411bff8c0a248430b34`.
+The [original fixture](PROVENANCE.md#automatic-recipe-scope-original-fixture)
+and evaluator contract define the supported scope.
+
+The held-role change `4e3cdc8678e22719844d40d5687cec3834e5333f` passed build,
+desktop smoke, 50 focal tests and eleven renderer routes. These include
+ordinary and configured face picking, origin label input, saved relation
+editing, Width, Rack, Hinge, Symmetry and circular paths. Three controls
+reproduced the stale press on the previous exact products. The new routes
+verify that a stale physical release loses ownership and fresh keyboard
+activation remains available. The source manifest and audit hashes are
+`e14112aaf15515f6996ee48f226d925a298a800f882183cd6a6455fe88075289` and
+`7679dd8b4ce9a0b70b032db142762e733737d4ac5827676990deb4ee357cbfc0`.
+These two isolated results precede verification of their combined snapshot.
+
+## Standard part import and document exchange — local Windows evidence, 2026-11-10
+
+The standard File-menu `Importar STEP…` case passed in a 371-checkpoint
+`sketch-primitives` run after `npm run build`. The candidate uses the [original
+exported prism](PROVENANCE.md#original-single-solid-step-round-trip). Picker
+Cancel retains the original document without dispatching a build. The malformed
+file reaches the native reader, displays its rejection and preserves the
+original recovery and file bytes. The accepted import creates a distinct
+unsaved v1 part and embeds the selected STEP bytes and SHA-256. Save As and
+Open retain its identity, volume and bounds, with fresh history and no extra
+STEP read. The original three native STEP exports remain in the route.
+
+The nine production members match the `251d476` candidate. Import snapshot
+manifest SHA-256 `4ab84c2093aed5a85d53fc755c3f820a2650ddc829c4f232d5d4030b4278c02d`.
+Renderer log SHA-256 `10fc55a040a8d70c5ab0f6f2be35a26f2804507a72684333334115a85c9825ab`.
+
+The separate exact `251d4767a8488be114b04e113eb6fb913a630e73` exchange batch
+passed a build and five renderer commands. `assembly-export` passed 83
+checkpoints for STEP and STL. `assembly-step` and `assembly-step-insertion`
+passed 52 and 58 for structural replacement and insertion. `imported-bodies`
+passed 36 for explicit embedded bodies. `assembly-configurations` passed 212
+for the configured document lifecycle and CSV cases. This batch used manifest
+`1284048e135a44dae5ef08fa7d4fccd6b1d3c8a053ea493b2cb7826e186b0cae` and the same
+nine products. These are Windows renderer and file-bridge checks with bounded
+dialog substitutions and original documents.
+
+## Edit menu target and focus — local Windows evidence, 2026-11-10
+
+The isolated `part-from-empty` run on `251d4767a8488be114b04e113eb6fb913a630e73`
+plus its menu test change passed 465 checkpoints after a clean build. Its nine
+production members match the combined candidate. The real Edit operation and
+Edit sketch menu items open the saved last cut and its single input sketch.
+Cancel focuses the exact tree occurrence, including the sketch's cut parent.
+
+The cut editor retains eight features and V11144/A4136. Editing the sketch
+rolls back to seven features with V11192/A4096. Both direct cancels restore
+the exact eight-feature body and its bounds, history, recovery and file bytes.
+The two Open and one Save As counts are unchanged. The geometry tolerances
+are those of the [original part](PROVENANCE.md#original-part-menu-and-help-cases--2026-11-07).
+This run covers a single consumed sketch and the two stated menu entries.
+
+Snapshot manifest SHA-256 `8fac37e2010eba6b3fa395b61a335e5536c35fadc87703a764272837a71b91ce`.
+Renderer log SHA-256 `5b76c2fce8abe02d4e11f7b93db55ddc4ef26987684c1a337b4e38e73194386d`.
+
 ## Material reference picking and part workflows — 2026-11-10
 
 The frozen Windows source `251d4767a8488be114b04e113eb6fb913a630e73` passed

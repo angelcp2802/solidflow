@@ -2,9 +2,10 @@
 const fs=require('node:fs/promises');
 const {encodeJavaScriptString:quote}=require('./desktop-ui-source.cjs');
 module.exports=function configuredPicking(c){
- const {expected,input,output,evaluate,observe,waitFor,click,pointer,menuKey,asideWheel,capture,checks,check,canonical,digest,ipc,dialogCounts,consoleErrors,failedRequests,initialReadyMs}=c;
+ const {expected,input,output,evaluate,observe,waitFor,click,pointer,menuKey,referenceRoleKeyboard,asideWheel,capture,checks,check,canonical,digest,ipc,dialogCounts,consoleErrors,failedRequests,initialReadyMs}=c;
  const ROOT='.configured-assembly-workspace',NAV=':is([aria-label="Archivo del ensamblaje configurado"],[aria-label="Comandos del ensamblaje configurado"])',FORM='[aria-label="Editar relación del estado"]',ACTION='preview-configured-assembly-relation-edit',gestures=[],phases=[];
  const page=(fn,...args)=>evaluate('('+fn.toString()+')('+args.map(v=>'JSON.parse('+quote(JSON.stringify(v))+')').join(',')+')');
+ let checkedHeldFace = false;
  const navigation=require('./desktop-configured-navigation.cjs')({page,waitFor,actualControl});
  const ribbon=require('./desktop-assembly-ribbon-controls.cjs')({configured:true,page,waitFor,actualControl,menuKey,observe,check,canonical,gestures});
  const near=(a,b,t,label)=>check(Number.isFinite(a)&&Math.abs(a-b)<=t,label+': '+a+' expected '+b);
@@ -132,7 +133,39 @@ module.exports=function configuredPicking(c){
   await actualControl('button[aria-label="'+label+'"]',null,true);
   await waitFor('actual role picking '+kind,()=>page(kind=>document.querySelector('[aria-label="Visor 3D del ensamblaje"]')?.getAttribute('data-reference-picking')===kind,kind));
   await waitFor('visible active role feedback',()=>page(slot=>{const e=document.querySelector('[aria-label="Selección de referencia en vista configurada"]');return e&&e.textContent.includes('Referencia '+slot);},slot));
-  await front();const before=(await observe()).serial,p=await press([id==='A'?-8:8,kind==='face'?0:-2,id==='A'?4:z+4],z);
+  await front();
+  const world = [id === 'A' ? -8 : 8, kind === 'face' ? 0 : -2, id === 'A' ? 4 : z + 4];
+  if (kind === 'face' && !checkedHeldFace) {
+   const p = await point(world, z), other = slot === 1 ? 2 : 1;
+   const faceRole = target => page(target => document.querySelector('button[aria-label="Seleccionar Referencia ' + target + ' por cara en vista configurada"]')?.getAttribute('aria-pressed') === 'true'
+    && document.querySelector('.assembly-viewport')?.getAttribute('data-reference-picking') === 'face', target);
+   const hit = () => page(p => document.elementFromPoint(p.x, p.y) === document.querySelector('.assembly-viewport canvas'), p);
+   const snapshot = async () => ({ dom: await page(() => ({ recovery: localStorage.getItem('solidflow.autosave'),
+    references: [1, 2].map(slot => document.querySelector('[aria-label="Referencia ' + slot + ' de relación configurada"]')?.value) })),
+    counters: await observe.counters(), ipc: canonical(ipc), inputSha256: digest(await fs.readFile(input)) });
+   const original = await snapshot();
+   for (const transition of ['role-change', 'cancel-rearm']) {
+    check(await hit(), 'Held configured face targets the literal prism through the real canvas');
+    await pointer('mouseMoved', p); await pointer('mousePressed', p, 1);
+    let keyboard;
+    try {
+     if (transition === 'cancel-rearm') {
+      await menuKey('Escape');
+      await waitFor('Escape cancels held configured face intent', () => page(() => document.querySelector('.assembly-viewport')?.getAttribute('data-reference-picking') === ''));
+     }
+     keyboard = await referenceRoleKeyboard('face-' + other);
+     await waitFor('native keyboard armed configured face role ' + other, () => faceRole(other));
+     check(await hit(), 'Held configured face releases over the same exposed canvas');
+    } finally { await pointer('mouseReleased', p, 0); }
+    await page(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(true)))));
+    check(await faceRole(other) && canonical(await snapshot()) === canonical(original), 'Held configured face preserves both roles, document, original file and native/IPC counters through ' + transition);
+    gestures.push({ kind: 'held-configured-face', transition, target: other, p, keyboard, rejected: true });
+   }
+   await referenceRoleKeyboard('face-' + slot);
+   await waitFor('native keyboard restores the original configured role', () => faceRole(slot));
+   checkedHeldFace = true;
+  }
+  const before=(await observe()).serial,p=await press(world,z);
   const ref=await waitFor('actual role reference populated',()=>page((slot,kind,id)=>{const value=document.querySelector('[aria-label="Referencia '+slot+' de relación configurada"]')?.value;if(!value)return false;const r=JSON.parse(value);return r.kind===kind&&r.component?.occurrencePath.length===1&&r.component.occurrencePath[0]===id?r:false;},slot,kind,id));
   await waitFor('picked role exits temporary picking feedback',()=>page(()=>!document.querySelector('[aria-label="Selección de referencia en vista configurada"]')&&document.querySelector('[aria-label="Visor 3D del ensamblaje"]')?.getAttribute('data-reference-picking')===''));
   const body=scene.bodies.find(b=>b.component.occurrencePath[0]===id),rows=(kind==='face'?body.faces:body.edges).filter(r=>canonical(r.selection[kind])===canonical(ref[kind]));

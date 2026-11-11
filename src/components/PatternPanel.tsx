@@ -12,7 +12,7 @@ import { supportLabel } from "./PlaneSupportPanel";
 import BodyPatternPanel, { type BodyPatternEditor } from "./BodyPatternPanel";
 import FeaturePatternPanel from "./FeaturePatternPanel";
 import { withFeaturePatternMode, withFeaturePatternScope, withFeaturePatternSeeds } from "../model/featurePatternCommands";
-import { isAllFeaturePattern } from "../model/featurePatterns";
+import { isDynamicFeaturePattern } from "../model/featurePatterns";
 
 interface Props {
   feature: RepetitionFeature;
@@ -24,7 +24,9 @@ interface Props {
   canPickFace: boolean;
   bodyEditor?: BodyPatternEditor;
   onSourceKindChange?: (mode: 'bodies' | 'features') => void;
+  autoScope?: { available: boolean; pending: boolean; error?: string; onCapture: () => void };
 }
+
 
 function ValueField({
   label,
@@ -170,11 +172,14 @@ export default function PatternPanel({
   canPickFace,
   bodyEditor,
   onSourceKindChange,
+  autoScope,
 }: Props) {
   const solids = features.filter(
     (candidate) => candidate.type !== "sketch" && candidate.type !== "plane",
   );
+  const hasInstanceVariations = feature.featurePattern?.mode === 'regenerate' && feature.featurePattern.variation.kind !== 'none';
   const setSource = (incoming: PatternSource) => {
+    if (hasInstanceVariations) return;
     const source: PatternSource = feature.featurePattern && incoming.mode === 'features'
       ? { ...incoming, geometryPattern: feature.featurePattern.mode === 'geometry' } : incoming;
     const scoped = feature.featurePattern && source.mode === 'features'
@@ -226,20 +231,32 @@ export default function PatternPanel({
             const next = withFeaturePatternMode(feature, event.target.value === 'regenerate' ? 'regenerate' : 'geometry');
             onChange({ source: next.source, featurePattern: next.featurePattern });
           }}>
-          <option value="geometry" disabled={isAllFeaturePattern(feature.featurePattern)}>Copiar geometría</option>
+          <option value="geometry" disabled={isDynamicFeaturePattern(feature.featurePattern) || hasInstanceVariations}>Copiar geometría</option>
           <option value="regenerate">Recalcular operaciones</option>
         </select>
         {feature.featurePattern.mode === 'regenerate' && <>
           <label className="number-field"><span>Alcance de los cuerpos</span>
-            <select aria-label="Alcance de los cuerpos de la repetición" value={feature.featurePattern.scope} disabled={bodyEditor?.loading}
+            <select aria-label="Alcance de los cuerpos de la repetición" value={autoScope?.pending ? 'auto' : feature.featurePattern.scope} disabled={bodyEditor?.loading}
               onChange={event => {
-                const next = withFeaturePatternScope(feature, event.target.value === 'all' ? 'all' : 'selected');
+                const scope = event.target.value;
+                if (scope === 'auto') { if (!hasInstanceVariations) autoScope?.onCapture(); return; }
+                const next = withFeaturePatternScope(feature, scope === 'all' ? 'all' : 'selected');
                 onChange({ featurePattern: next.featurePattern });
               }}>
-              <option value="selected">Cuerpos seleccionados</option><option value="all">Todos los cuerpos actuales</option>
+              <option value="selected">Cuerpos seleccionados</option>
+              <option value="all" disabled={hasInstanceVariations}>Todos los cuerpos actuales</option>
+              {(autoScope || feature.featurePattern.scope === 'auto') &&
+                <option value="auto" disabled={hasInstanceVariations || !autoScope?.available || autoScope.pending}>Detectar cuerpos automáticamente</option>}
             </select>
           </label>
-          <p className="muted-small">Cada instancia se recalcula sobre sus cuerpos destino, con croquis rectangulares o circulares sin soporte y finales por profundidad, por todo o hasta un plano principal fijo. Para copiar geometría, elige primero cuerpos seleccionados.</p>
+          {autoScope && (feature.featurePattern.scope === 'auto' || autoScope.pending) && <button type="button" className="outline-button"
+            disabled={hasInstanceVariations || !autoScope.available || autoScope.pending} onClick={autoScope.onCapture}>Volver a detectar cuerpos</button>}
+          {autoScope?.pending && <p className="muted-small" role="status">Detectando cuerpos afectados…</p>}
+          {autoScope?.error && <p className="muted-small" role="alert">{autoScope.error}</p>}
+          {autoScope && !autoScope.available && feature.featurePattern.bindings.length === 0 &&
+            <p className="muted-small">Elige la geometría de las operaciones antes de detectar cuerpos.</p>}
+          <p className="muted-small">Recalcula cortes y salientes fusionados con croquis sin soporte. Admite profundidad fija, Por todo, Hasta el siguiente y un plano principal fijo según el alcance.</p>
+          {hasInstanceVariations && <p className="muted-small">Quita las variaciones asignadas antes de cambiar la semilla, el método o el alcance.</p>}
         </>}
       </div>}
       {feature.source.mode === 'bodies' ? (bodyEditor && <BodyPatternPanel feature={feature} features={features} editor={bodyEditor} onChange={onChange} />) : <div className="property-section">
@@ -283,7 +300,7 @@ export default function PatternPanel({
                     aria-label={`Repetir ${candidate.name}`}
                     checked={checkedIds.includes(candidate.id)}
                     disabled={
-                      candidate.suppressed && !checkedIds.includes(candidate.id)
+                      hasInstanceVariations || candidate.suppressed && !checkedIds.includes(candidate.id)
                     }
                     onChange={(event) => {
                       const ids = event.target.checked
@@ -311,6 +328,7 @@ export default function PatternPanel({
                     <input
                       type="checkbox"
                       checked
+                      disabled={hasInstanceVariations}
                       aria-label={`Quitar referencia perdida ${id}`}
                       onChange={() =>
                         setSource({
@@ -327,9 +345,9 @@ export default function PatternPanel({
                 ))}
             </div>
             <p className="muted-small">
-              Repite el material añadido o retirado por las operaciones
-              seleccionadas, en el orden del historial. Conserva su geometría;
-              las condiciones finales no se recalculan.
+              {feature.featurePattern?.mode === 'regenerate'
+                ? 'Recalcula las operaciones seleccionadas en el orden del historial.'
+                : 'Repite el material añadido o retirado por las operaciones seleccionadas en el orden del historial. Conserva su geometría y sus condiciones finales.'}
             </p>
           </>
         ) : (

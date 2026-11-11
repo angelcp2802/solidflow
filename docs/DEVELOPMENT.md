@@ -1,5 +1,19 @@
 # Development guide
 
+## Signed plane-distance conditioning
+
+The native assembly adapter includes the magnitude of each active declared
+signed plane distance in its numerical length scale and Float64 magnitude
+guard. Two coincident origin references can otherwise supply only a 1 mm
+scale, regardless of the requested separation. This conditioning does not
+change the physical distance/sign convention, acceptance tolerances, iteration
+or step budgets, reference authority, cancellation or atomic publication.
+
+The [original two-prism cases](PROVENANCE.md#original-signed-origin-plane-distance)
+check resolved plane separation and placed material, saved reconstruction and an
+exhausted budget. Their programmatic result does not establish packaged UI,
+hosted CI or general platform acceptance.
+
 ## Part help and menu ownership
 
 Part Help uses a native modal dialog with its existing blue/white presentation.
@@ -154,8 +168,12 @@ and separately measured STEP results together:
 - `test:desktop:part-additive-all`: historical rectangular Blind merge source,
   dynamic current-owner scope, native invalid contact with direct Cancel/retry,
   placement edit B→C, history and Save/Open. Final STEP checks all three owners
-  and the actual cap/base trimmed planes. Broader positive ALL, AUTO and variation
+  and the actual cap/base trimmed planes. Broader positive ALL and variation
   remain required; see [the finite contract](FEATURE_REGENERATION.md#blind-primitive-additive-all).
+- `test:desktop:part-auto-scope`: native detection from the actual pattern
+  selector, direct Cancel while one capture request is held, pinned placement
+  edits and explicit recapture, history, Save/Open and physical STEP notch.
+  The test resumes the original worker request without substituting its reply.
 
 These finite fixtures do not establish every end mode, neutral face, pattern
 scope or mirror chirality. The family matrix in the usable-version ledger keeps
@@ -2478,6 +2496,14 @@ npm start
 
 ## Checks
 
+The existing `test:desktop:part-from-empty` command includes
+`desktop-part-display-alias-flow.cjs` after its menu lifecycle. That helper
+crosses viewport/ribbon shaded, edge and grid controls, repeats wire display,
+and invokes both property aliases under Evaluar. It compares fresh unmasked
+opaque raster bytes exactly and checks unchanged native observations, document,
+history and actual saved bytes. The earlier plane case retains its own declared
+translucent-rendering contract.
+
 | Command | Scope |
 | --- | --- |
 | `npm test` | The public unit/CAD suite and desktop-security checks from a fresh checkout. |
@@ -2970,3 +2996,15 @@ shapes are identical. Positive native circular-origin scene metadata nominates
 editor/repair choices, never proofs. The separate production-renderer command
 above uses unchanged hidden-harness deadlines and real worker/file IPC. Record
 its actual source-specific execution independently of configured CI.
+
+### Bounded driving sketch radius per pattern instance
+
+`npm run test:desktop:part-instance-radius` reuses the production-loader
+instance-dimension workflow with the tracked original solved-circle plate.
+It invokes real controls for Selected/Regenerate, active-address radius
+assignment, invalid zero rejection, edit Cancel/retry, Undo/Redo and native
+Save As/Open. The depth workflow retains its separate original fixture and
+planar geometry checks. Native radius geometry and STEP walls/probes live in
+`kernel.recipe-sketch-radius.integration.test.ts`; see the exact admitted
+[contract](FEATURE_REGENERATION.md#driving-sketch-radius-per-instance) and
+[original provenance](PROVENANCE.md#original-per-instance-solved-circle-radius-plate--2026-11-11).

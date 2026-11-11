@@ -41,16 +41,16 @@ function nativeTermination(end: RecipeTermination): PrimitiveTermination {
 }
 
 /**
- * Initial native bridge: one fixed intrinsic selected/ALL operation/event/address/
- * target. It never accepts an arbitrary caller transform or source frame and
+ * Initial native bridge: one intrinsic selected/ALL operation/event/address/
+ * target. Selected Blind depth or the admitted circular driving radius may vary.
+ * The entity bridge solves that constraint internally. This never accepts an arbitrary caller transform or source frame and
  * never falls back to geometry-delta copying. Closure/native attestation and
  * atomic owner publication are evaluator responsibilities.
  */
 function recipeInstanceContext(input: RecipeInstanceToolInput) {
   const closure = requireInitialRecipeDeclaration(input.closure);
   if (closure.request.mode !== 'regenerate' || closure.request.geometryPattern !== false ||
-      closure.eligibility !== 'initial-declaration-subset' || closure.request.scope.mode === 'auto' ||
-      closure.request.variation.kind !== 'none') {
+      closure.eligibility !== 'initial-declaration-subset') {
     throw new Error('The native recipe bridge requires the extracted initial regeneration subset.');
   }
   const node = closure.operations.find(operation => operation.featureId === input.featureId),
@@ -75,10 +75,10 @@ function recipeInstanceContext(input: RecipeInstanceToolInput) {
   else if (definition?.type === 'extrude' && node.type === 'extrude' && definition.bodyOperation?.mode === 'merge') operation = 'add';
   else throw new Error('Creation, consumption and other recipe lifecycle operations remain pending.');
   const sketch = closure.definitions.find(item => item.feature.id === resolved.sketchId)?.feature;
-  if (closure.request.scope.mode === 'all' && operation === 'add' && (!definition || !sketch || !isInitialAdditiveAllRecipe(definition, sketch))) {
+  if (closure.request.scope.mode !== 'selected' && operation === 'add' && (!definition || !sketch || !isInitialAdditiveAllRecipe(definition, sketch))) {
     throw new Error('ALL_POSITIVE_SCOPE_PENDING: only the intrinsic Blind additive ALL subset is enabled.');
   }
-  if (closure.request.scope.mode === 'all' && operation === 'add') {
+  if (closure.request.scope.mode !== 'selected' && operation === 'add') {
     if (!input.assertWorkingCurrent) throw Error('Additive ALL requires its evaluator current working-owner guard.');
     input.assertWorkingCurrent();
   }
@@ -98,7 +98,7 @@ function recipeInstanceContext(input: RecipeInstanceToolInput) {
 /** ALL may retain an owner only when both authenticated dynamic rays prove absence. */
 export function resolveRecipeInstanceDirections(input: RecipeInstanceToolInput): RecipeInstanceDirectionsResolution {
   const { closure, resolved, operation, termination, secondTermination, sketch } = recipeInstanceContext(input);
-  if (closure.request.scope.mode === 'all' && !input.assertWorkingCurrent) throw Error('ALL independent directions require their current working-owner/revision guard.');
+  if (closure.request.scope.mode !== 'selected' && !input.assertWorkingCurrent) throw Error('Dynamic independent directions require their current working-owner/revision guard.');
   input.assertWorkingCurrent?.();
   const allowMiss = operation === 'subtract';
   return withNativeOwners<RecipeInstanceDirectionsResolution>(owners => {
@@ -123,7 +123,7 @@ function resolveInstanceUntilNext(input: RecipeInstanceToolInput,
   context: ReturnType<typeof recipeInstanceContext>): RecipeInstanceUntilNextResolution {
   const { closure, resolved, operation, termination, sketch } = context;
   if (termination.kind !== 'untilNext') throw new Error('The resolution bridge requires an extracted UntilNext operation.');
-  if (closure.request.scope.mode === 'all' && !input.assertWorkingCurrent) {
+  if (closure.request.scope.mode !== 'selected' && !input.assertWorkingCurrent) {
     throw new Error('ALL UntilNext resolution requires its evaluator working-owner/revision guard.');
   }
   input.assertWorkingCurrent?.();

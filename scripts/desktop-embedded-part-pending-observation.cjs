@@ -5,11 +5,14 @@ const STEPS = Object.freeze([
   { kind: 'apply', action: 'apply-assembly' },
   { kind: 'discard', action: 'build' },
 ]);
+const AUTO_SCOPE_STEPS = Object.freeze([{ kind: 'auto-scope', action: 'capture-feature-recipe-scope' }]);
 
 // Test-only CDP session under the owned production page. Break on the real
 // worker's assigned message callback and resume it with the same trusted event.
 // The normal worker API, queue, native code, response and UI remain in place.
-function createPendingWorkerGate(debuggerTransport, check) {
+function createPendingWorkerGate(debuggerTransport, check, workflow = 'embedded-part') {
+  check(workflow === 'embedded-part' || workflow === 'auto-scope', 'Only the two fixed owned-worker scenarios can pause a request');
+  const steps = workflow === 'auto-scope' ? AUTO_SCOPE_STEPS : STEPS;
   let target, current, installed = false, disposed = false, enabled = false, step = 0, unexpected;
   const scripts = new Map();
   const workerCommand = (method, params = {}) => debuggerTransport.sendCommand(method, params, target.sessionId);
@@ -41,10 +44,10 @@ function createPendingWorkerGate(debuggerTransport, check) {
       flatten: true, filter: [{ type: 'worker' }, { exclude: true }] });
   }
   async function arm(kind) {
-    const next = STEPS[step];
+    const next = steps[step];
     check(installed && !disposed && !unexpected && target && !target.detached && KERNEL_WORKER.test(target.url),
       unexpected ?? 'Exact owned production CAD worker target must be running');
-    check(next?.kind === kind && (!current || current.resumed), 'Two ordered, non-overlapping pending checkpoints are allowed');
+    check(next?.kind === kind && (!current || current.resumed), 'Only the fixed ordered, non-overlapping pending checkpoints are allowed');
     if (!enabled) { await workerCommand('Debugger.enable'); enabled = true; }
     const { result, exceptionDetails } = await workerCommand('Runtime.evaluate', {
       expression: 'globalThis.onmessage', objectGroup: 'solidflow-pending-checkpoint',

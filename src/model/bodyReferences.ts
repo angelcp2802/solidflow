@@ -1,5 +1,5 @@
 import type { BodyReference, Feature } from '../cad/kernel.types'
-import { isAllFeaturePattern } from './featurePatterns'
+import { isAllFeaturePattern, isAutoFeaturePattern, isDynamicFeaturePattern } from './featurePatterns'
 
 /** Limit reads are separate from output owners, including retained inactive data. */
 function extrusionLimitBodyReads(feature: Extract<Feature, { type: 'extrude' }>, currentOnly = false): { reference: BodyReference; path: string }[] {
@@ -22,7 +22,7 @@ export function featureBodyReferences(feature: Feature): BodyReference[] {
     references = feature.operation === 'subtract' ? [feature.target, ...feature.tools] : feature.operands
   } else if ((feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror') && feature.featurePattern) {
     references = [...feature.featurePattern.bindings.map(binding => binding.source),
-      ...(isAllFeaturePattern(feature.featurePattern) ? [] : feature.featurePattern.targets)]
+      ...(isDynamicFeaturePattern(feature.featurePattern) ? [] : feature.featurePattern.targets)]
   } else if ((feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror') && feature.source.mode === 'bodies') {
     references = [...feature.source.bodies, ...(feature.bodyPattern?.mode === 'merge' ? [feature.bodyPattern.target] : [])]
   } else if ((feature.type === 'extrude' || feature.type === 'revolve' || feature.type === 'sweep' || feature.type === 'loft') && feature.bodyOperation?.mode === 'merge') {
@@ -60,7 +60,7 @@ export function featureBodyReferencePaths(feature: Feature): string[] {
 /** Inputs that must resolve in the current catalog; historical seeds are separate. */
 export function featureCurrentBodyReferences(feature: Feature): BodyReference[] {
   if ((feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror') && feature.featurePattern) {
-    return isAllFeaturePattern(feature.featurePattern) ? [] : feature.featurePattern.targets.map(reference => ({ ...reference }))
+    return isDynamicFeaturePattern(feature.featurePattern) ? [] : feature.featurePattern.targets.map(reference => ({ ...reference }))
   }
   if ((feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror') && feature.source.mode === 'bodies') {
     return [...(feature.source.scope === 'current' ? feature.source.bodies : []),
@@ -68,6 +68,12 @@ export function featureCurrentBodyReferences(feature: Feature): BodyReference[] 
   }
   if (feature.type === 'extrude' && feature.bodyOperation?.mode === 'new') return extrusionLimitBodyReads(feature, true).map(read => read.reference)
   return featureBodyReferences(feature)
+}
+
+/** Captured identity reads have no saved producer; never invent a BodyReference. */
+export function featureCapturedBodyIds(feature: Feature): string[] {
+  return (feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror')
+    && feature.featurePattern && isAutoFeaturePattern(feature.featurePattern) ? [...feature.featurePattern.capturedBodyIds] : []
 }
 
 /** IDs allocated by this command, including when the feature is suppressed. */
@@ -88,6 +94,7 @@ export function featureBodyOutputIds(feature: Feature, earlierFeatures?: readonl
   if ((feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror') && feature.featurePattern) {
     // A scoped no-op keeps its old exact state. This is a potential repair
     // association, never a declaration that every target advances to this ID.
+    if (isAutoFeaturePattern(feature.featurePattern)) return [...feature.featurePattern.capturedBodyIds]
     if (isAllFeaturePattern(feature.featurePattern)) {
       if (!earlierFeatures) throw new Error('La asociación potencial de ALL requiere el historial anterior.')
       const boundary = earlierFeatures.findIndex(item => item.id === feature.id)
@@ -110,7 +117,8 @@ export function featureBodyOutputIds(feature: Feature, earlierFeatures?: readonl
 /** Exact structural repair query; it does not assert native currentness. */
 export function featureBodyOutputIncludes(feature: Feature, bodyId: string, earlierFeatures: readonly Feature[]): boolean {
   if ((feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror')
-    && feature.featurePattern && isAllFeaturePattern(feature.featurePattern)) {
+    && feature.featurePattern && isDynamicFeaturePattern(feature.featurePattern)) {
+    if (isAutoFeaturePattern(feature.featurePattern) && !feature.featurePattern.capturedBodyIds.includes(bodyId)) return false
     const boundary = earlierFeatures.findIndex(item => item.id === feature.id)
     return earlierFeatures.some((item, index) => (boundary < 0 || index < boundary) && createdBodyIds(item).includes(bodyId))
   }
@@ -144,13 +152,13 @@ export function bodyReferenceCreationFeatureId(features: readonly Feature[], ref
     // Historical seeds may share the target identity. Only the modifying target
     // continues that identity's creation chain; copied inputs never do.
     const repetition = feature.type === 'linearPattern' || feature.type === 'circularPattern' || feature.type === 'mirror'
-    if (repetition && feature.featurePattern && isAllFeaturePattern(feature.featurePattern)) {
+    if (repetition && feature.featurePattern && isDynamicFeaturePattern(feature.featurePattern)) {
       // ALL preserves a target identity already created before this boundary.
       // A historical seed never supplies the target's creator association.
       const creator = creators.get(current.bodyId)
       return creator && creator.index < index ? creator.id : null
     }
-    const source = repetition && feature.featurePattern && !isAllFeaturePattern(feature.featurePattern)
+    const source = repetition && feature.featurePattern && !isDynamicFeaturePattern(feature.featurePattern)
       ? feature.featurePattern.targets.filter(candidate => candidate.bodyId === current.bodyId)
       : repetition && feature.bodyPattern?.mode === 'merge'
         ? [feature.bodyPattern.target] : featureBodyReferences(feature).filter(candidate => candidate.bodyId === current.bodyId)

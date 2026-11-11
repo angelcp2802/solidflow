@@ -3,7 +3,7 @@ import { isEdgeReferenceKeyV2, isFaceReferenceKeyV2 } from '../cad/kernel.semant
 import { validateEntityProfile } from '../sketch/validation'
 import { featureDependencyIds, featureSketchIds } from './featureInputs'
 import { validateStepSource } from './stepSource'
-import { bodyReferenceCreationFeatureId, createdBodyIds, featureBodyOutputIncludes, featureBodyReferences, featureBodyReferencePaths } from './bodyReferences'
+import { bodyReferenceCreationFeatureId, createdBodyIds, featureBodyOutputIncludes, featureBodyReferences, featureBodyReferencePaths, featureCapturedBodyIds } from './bodyReferences'
 import { featureRevolutionAxisBodyReferences } from './revolutionAxisReferences'
 import { captureOwnDataRecord } from './ownDataRecord'
 import { mergeThinWallDraft, readThinWall } from '../cad/thinWall'
@@ -872,6 +872,9 @@ export function validateDocument(value: unknown): Document {
       createdBodies.add(bodyId)
       if (createdBodies.size > MAX_CREATED_BODY_IDS) fail(path, 'el documento supera 65536 identificadores de cuerpo creados, incluidos los retirados')
     }
+    featureCapturedBodyIds(parsed).forEach((bodyId, captureIndex) => {
+      if (!createdBodies.has(bodyId)) fail(`${path}.featurePattern.capturedBodyIds[${captureIndex}]`, 'la identidad capturada debe tener un creador anterior')
+    })
     bodyRefs.forEach((reference, referenceIndex) => {
       const location = bodyReferencePath(parsed, referenceIndex, path)
       const owner = seen.get(reference.sourceFeatureId)
@@ -1061,8 +1064,13 @@ export function removeFeature(document: Document, id: string): Document {
   // Resolve against the original structural context, including repairable,
   // suppressed or non-materialized states; never infer a native replacement.
   const creators = new Map<string, string | null>()
+  const identityCreators = new Map(document.features.flatMap(feature => createdBodyIds(feature).map(bodyId => [bodyId, feature.id] as const)))
   const features = document.features.filter((item) => {
     const dependsOnRemoved = featureDependencyIds(item).some((dependencyId) => removed.has(dependencyId))
+      || featureCapturedBodyIds(item).some(bodyId => {
+        const creator = identityCreators.get(bodyId)
+        return creator !== undefined && removed.has(creator)
+      })
       || [...featureBodyReferences(item), ...featureRevolutionAxisBodyReferences(item)].some(reference => {
         const key = JSON.stringify([reference.bodyId, reference.sourceFeatureId])
         if (!creators.has(key)) creators.set(key, bodyReferenceCreationFeatureId(document.features, reference))

@@ -55,3 +55,8 @@ export interface NativeReferencePress { owner: object; scene: NativeReferencePic
 export function nativeReferencePressIsCurrent(press: NativeReferencePress, owner: object | null | undefined, scene: NativeReferencePickContext['scene'], mode: string | null, revision?: number, purpose?: string | null): boolean {
   return press.owner === owner && press.scene !== null && press.scene === scene && press.mode === mode && press.revision === revision && press.purpose === purpose
 }
+
+/** An unowned down cannot turn into an explicitly armed reference gesture. */
+export function nativeReferencePressMatches(press: NativeReferencePress | null, owner: object | null | undefined, scene: NativeReferencePickContext['scene'], mode: string | null, revision?: number, purpose?: string | null): boolean {
+  return press ? nativeReferencePressIsCurrent(press, owner, scene, mode, revision, purpose) : owner == null
+}

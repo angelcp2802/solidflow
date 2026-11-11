@@ -11,7 +11,7 @@ import { NativeBodyCatalog } from './kernel.bodies';
 import * as bodyHelpers from './kernel.bodies';
 import * as bridge from './kernel.recipe-instance';
 import * as applicability from './kernel.recipe-additive-applicability';
-import { evaluateFeatureRecipes, stageFeatureRecipeEvaluation, type NativeRecipeSourceState, type OwnedRecipeEvaluation } from './kernel.feature-recipes';
+import { createNativeRecipeAutoScopeIntent, evaluateFeatureRecipes, stageFeatureRecipeEvaluation, type NativeRecipeSourceState, type OwnedRecipeEvaluation } from './kernel.feature-recipes';
 import { NativeCleanupError, withNativeOwners } from './kernel.native-ownership';
 
 const require = createRequire(import.meta.url), source: BodyReference = { bodyId: 'A', sourceFeatureId: 'seed-cap' };
@@ -101,6 +101,7 @@ it('attests an unchanged remote owner native identity again before staging a pos
       const replacement = owners.own(bodyHelpers.copyBodyShape(value.catalog.resolve({ bodyId: 'C', sourceFeatureId: 'create-c' }).shape));
       vi.spyOn(value.catalog, 'entries').mockImplementation(() => oldEntries().map(e => e.ref.bodyId === 'C' ? { ...e, shape: replacement } : e));
       const staged = vi.spyOn(value.catalog, 'stageReplaceMany');
+      expect(() => createNativeRecipeAutoScopeIntent(evaluation, value.catalog, value)).toThrow(/membership or owner state changed/);
       expect(() => stageFeatureRecipeEvaluation(evaluation, value.catalog, { sourceFeatureId: value.request.patternId, lineage: 'original-positive-state' }, value)).toThrow(/membership or owner state changed/);
       expect(staged).not.toHaveBeenCalled(); vi.restoreAllMocks();
     });
@@ -113,10 +114,12 @@ it('records no-op revisions for every remote owner and rejects copied positive e
   try {
     evaluation = evaluateFeatureRecipes(value);
     expect(evaluation.replacements.map(e => e.ref.bodyId)).toEqual(['B']);
-    expect(evaluation.attestation.evaluatorRevision).toBe('intrinsic-blind-additive-all-v7');
+    expect(evaluation.attestation.evaluatorRevision).toBe('intrinsic-auto-selected-sketch-radius-v11');
     for (const owner of ['A', 'C']) expect(evaluation.attestation.virtualOutputs.filter(o => o.targetBodyId === owner)).toEqual([
       { sourcePoststate: source, targetBodyId: owner, address: '1,0', role: 'body', inputRevision: 0, outputRevision: 0, materialChanged: false }]);
     const copied: OwnedRecipeEvaluation = { ...evaluation };
+    expect(createNativeRecipeAutoScopeIntent(evaluation, value.catalog, value).capturedBodyIds).toEqual(['B']);
+    expect(() => createNativeRecipeAutoScopeIntent(copied, value.catalog, value)).toThrow(/genuine active ALL native evaluation/);
     expect(() => stageFeatureRecipeEvaluation(copied, value.catalog,
       { sourceFeatureId: value.request.patternId, lineage: 'copied-positive-receipt' }, value)).toThrow(/forged/);
   } finally { evaluation?.dispose(); }

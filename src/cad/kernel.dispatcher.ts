@@ -13,6 +13,7 @@ import { validateConfiguredAssemblySolvePolicy } from './kernel.assembly-configu
 import { exportAssemblyCadNative } from './kernel.assembly-export'
 import { measureAssemblyDirectedAngleNative } from './kernel.assembly-angle-measurement'
 import type { KernelRequest, KernelValue } from './kernel.types'
+import { discoverFeatureRecipeAutoScope } from './kernel.recipe-auto-discovery'
 
 /** Production command routing; caller serializes requests after WASM readiness. */
 export class KernelDispatcher {
@@ -73,6 +74,7 @@ export class KernelDispatcher {
       }
       case 'export-assembly-step': return exportAssemblyStepStructureNative(request.document)
       case 'build': this.#configured.discard(); this.#assembly.discard(); return this.#part.build(request.features)
+      case 'capture-feature-recipe-scope': return discoverFeatureRecipeAutoScope(request.features, request.patternId)
       case 'export': this.#assembly.discard(); return this.#part.export(request.format, request.features)
       // A committed export owns independent engines and placements. It does not
       // replace either workspace or consume a pending assembly capability.

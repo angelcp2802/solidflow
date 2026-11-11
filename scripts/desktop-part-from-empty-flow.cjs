@@ -198,6 +198,8 @@ module.exports = function fromEmptyWorkflow(c) {
       'Original one Open/SaveAs plus one named-view Save and reopen, with no added SaveAs');
     await require('./desktop-part-menu-alias-flow.cjs')({ page, waitFor, check, checks, canonical, snapshot: menuSnapshot,
       press, menuKey, key, text: shortcutText, pointer, output, digest, cameraFrame, rasterComparison, built, observe, idle, document: named.document, change, ready, recovery, waitForPresentation });
+    await require('./desktop-part-display-alias-flow.cjs')({ evaluate, waitFor, check, checks, canonical, snapshot: menuSnapshot,
+      pointer, output, digest, cameraFrame, rasterComparison, observe, idle, document: named.document, waitForPresentation });
     check(!consoleErrors.length&&!failedRequests.length,'No renderer or resource errors');
     check(protocolResponses.some(p=>/kernel\.worker-[\w-]+\.js$/.test(p.url)&&p.status===200)&&protocolResponses.some(p=>p.url.endsWith('.wasm')&&p.status===200),'Actual production worker and WASM loaded');
     checks.push({savedSha256:digest(named.savedBytes),originalSaveSha256:digest(savedBytes),phases,drawings,independentOracles:'Original rectangles: base40x30x10; through-hole10x10; mergedboss8x8x3; separatepocket6x4x2. V12000/11000/11192/11144mm3 at1e-5; planar meshA3800/4000/4096/4136mm2 at1e-4; bounds1e-6mm; four-point rectangles1e-9mm. No prepared geometry or imported input.',limits:'Actual pointer strokes and command input; parameter fields assigned via existing controls. Mesh area is not native BRep area; external-window and platform acceptance are separate.'});

@@ -486,6 +486,12 @@ function conditioning(document: AssemblyDocument, resolved: readonly ResolvedAss
     lengthScale = Math.max(lengthScale, Math.abs(point[axis] - origin[axis])); magnitude = Math.max(magnitude, Math.abs(point[axis]))
   }
   for (const item of resolved) for (const witness of positionalWitnesses(item)) {
+    // Coincident origin references can have zero extent even when the declared
+    // separation is large. Keep normalized steps tied to that physical length.
+    if (item.mate.type === 'distance') {
+      lengthScale = Math.max(lengthScale, Math.abs(item.mate.distance))
+      magnitude = Math.max(magnitude, Math.abs(item.mate.distance))
+    }
     if (isResolvedAssemblyProfileCenterMate(item)) {
       lengthScale = Math.max(lengthScale, Math.abs(item.mate.offsetMm))
       magnitude = Math.max(magnitude, Math.abs(item.mate.offsetMm))

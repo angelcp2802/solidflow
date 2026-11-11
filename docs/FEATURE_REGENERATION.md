@@ -5,8 +5,10 @@ against the current working target. The integrated initial path connects
 [recipe declarations](FEATURE_RECIPES.md), explicit-frame native construction,
 chronological evaluation and atomic body-catalog publication. It supports
 intrinsic rectangle/circle and real solved entity cuts and merge extrusions, blind/ThroughAll/UntilNext endings
-or an explicitly fixed principal-plane UpToSurface limit, selected targets
-and no variation. Dynamic ALL supports the intrinsic cut subset and the
+or an explicitly fixed principal-plane UpToSurface limit on selected targets.
+One selected intrinsic Blind seed also admits [depth per instance](#depth-per-instance).
+A selected Blind circular entity cut admits its [driving radius per instance](#driving-sketch-radius-per-instance).
+Dynamic ALL supports the intrinsic cut subset and the
 [bounded Blind primitive additive slice](#blind-primitive-additive-all) below.
 Broader additive scope remains required.
 The entity composition has bounded local native/full/build evidence and one
@@ -48,8 +50,56 @@ featurePattern: {
 
 ALL uses the same feature source with `geometryPattern:false`. It saves neither
 `targets` nor a derived current snapshot; an own targets field is invalid even
-when undefined. Every binding follows the scope. AUTO is not an accepted saved
-variant. Geometry/true continues to use explicitly selected targets.
+when undefined. Every binding follows the scope. Geometry/true continues to
+use explicitly selected targets.
+
+### Shared evaluator identity
+
+AUTO, selected per-instance Blind depth and the bounded driving-radius table share evaluator revision
+`intrinsic-auto-selected-sketch-radius-v11`. Earlier v8/v9/v10
+previews cannot authorize this evaluator. The revision authenticates
+neither editable capture fingerprints nor saved target snapshots: current
+native scope, closure, source and preview/Apply checks still decide admission.
+AUTO and ALL retain variation `none`; switching a selected dimension table to either
+scope requires explicitly removing its assigned rows first.
+
+### Detect and follow bodies automatically (AUTO)
+
+In the operation pattern editor, choose **Recalcular operaciones**, select the
+historical results to repeat and choose **Detectar cuerpos automáticamente**.
+This runs the admitted ALL recipe against the complete native catalog in a
+temporary engine. Any actual material change during an event counts, even
+when a later event restores that body. Contact and no-op events do not count.
+Discovery succeeds only after the native evaluation, staging and cleanup finish.
+An empty capture or a net-zero pattern does not enter the draft.
+
+```ts
+featurePattern: {
+  mode: 'regenerate';
+  scope: 'auto';
+  capturedBodyIds: string[];
+  captureFingerprint: string; // auto-scope-v1:<SHA-256>
+  follow: 'sameIdentityAtPatternInput';
+  bindings: { source: BodyReference; targetBodyIds: 'scope' }[];
+  referencePolicies: FeaturePatternReferencePolicy[];
+  variation: { kind: 'none' };
+}
+```
+
+Edits, rebuilds, Undo/Redo and reopening follow those exact body IDs to their
+then-current native producers. A missing or consumed ID blocks the pattern
+and can be repaired with **Volver a detectar cuerpos**. That is the explicit
+action that updates the membership and provenance. The historical fingerprint
+is editable document data, while a fresh, normally verified native preview
+authorizes Apply. New readers keep the existing selected and ALL declarations
+compatible. Older strict readers reject the new scope explicitly.
+
+Discovery uses all admitted ALL cuts and the bounded Blind primitive additive
+slice. A positive event in a captured scope still checks the complete current
+catalog for multi-owner contact and modifies only a captured owner. The 512
+owner/event limit includes every such catalog query, counted once per event and
+owner. No query or cleanup failure is interpreted as a geometric miss. AUTO
+does not add the broader positive recipes, variation or nested regeneration.
 
 Limits are 32 source features, 32 selected targets or 256 current ALL owners,
 512 bindings and 512 active source/placement/owner applications. The actual ALL
@@ -67,6 +117,91 @@ The property panel exposes `Copiar geometría` and `Recalcular operaciones` for
 explicit feature patterns, with the source flag updated together with the saved
 mode. That control and programmatic document tests do not establish real editor
 interaction or worker preview/Apply coverage.
+
+## Depth per instance
+
+One intrinsic rectangular or circular Blind cut or merge can assign a different
+depth to each active copy under `regenerate/selected`. The seed has one direction
+and no symmetric depth, support, thin wall or end-condition field. The saved
+`variation` changes from `{ kind: 'none' }` to an explicit table.
+
+```ts
+variation: {
+  kind: 'dimensions',
+  values: [{ address: '1,0', featureId: 'original-cut-id', parameter: 'depth', value: -2 }]
+}
+```
+
+Each row names the exact selected operation and canonical active address. The
+value is a signed length in millimetres before transform parity. Its magnitude
+is 0.01–100,000 mm and its sign follows the historical seed. A copy without a row
+uses the seed depth. The seed itself, source body identities and sketch inputs
+retain their existing definitions. Row order is immaterial to the recipe proof.
+
+The editor assigns or removes depths explicitly. A placement edit that makes an
+address unavailable preserves the row for repair and blocks acceptance. Changing
+the seed, method or scope requires clearing the table first. A later seed change
+that makes the depth ineligible gives a rebuild diagnostic. It leaves the saved
+values available for repair. Existing files with `none` keep their meaning.
+A reader from before this feature rejects the new table.
+
+The evaluator folds the table and exact seed definitions into its current
+fingerprint, maps depth with the existing frame and parity rules, and constructs
+a native tool against each progressive owner. The existing proposal and atomic
+catalog publication guards still apply. The table carries no native authority.
+Dynamic ALL and AUTO, sketch constraints, equations and other depth and end
+policies retain their separate requirements.
+
+The [original plate fixture](PROVENANCE.md#original-addressed-depth-fixtures)
+has four physical pocket floors. Swapping two depths preserves total volume and
+area while moving the two corresponding floors.
+
+## Driving sketch radius per instance
+
+The bounded saved variant is:
+
+```ts
+variation: {
+  kind: 'sketchDimensions';
+  values: { address: string; sketchId: string; constraintId: string; value: number }[];
+}
+```
+
+It requires Selected regeneration, one Blind cut seed, one direction, and an
+intrinsic entity sketch with exactly one non-construction circle, one centre
+point, its fixed-centre constraint and one driving radius constraint. Support,
+thin wall, second direction and other end conditions are not admitted. Values
+are positive millimetres from 0.01 to 100,000. Each row names one distinct active
+canonical address and the exact source sketch/radius-constraint IDs. The
+existing maximum of 255 copies bounds the table; the independent 512 application
+budget still counts every routed owner. No document version changes.
+Existing `none` and depth declarations retain their grammar. Older applications
+reject the new variation discriminator rather than silently resizing a profile.
+
+The extractor checks those identities and canonicalizes table order. The full
+source definition, constraint values, plan and table participate in the preview
+fingerprint. The entity bridge reads the authentic current source checkpoint,
+requires a fully defined source, deeply copies its input profile, changes only
+the named driving constraint and calls the real solver internally. It requires
+a fully defined result and builds material from that solved profile. It does
+not resize a nominal circle, accept a caller-supplied SolveResult or publish an
+instance solve into the source registry. An unassigned copy inherits the real
+solved source profile. Current source/working-owner guards surround solving and
+native construction; existing evaluator ownership and publication remain atomic.
+
+The editor uses the existing instance selector and explicit assign/remove-row
+workflow. Seed, method and scope cannot change until assigned rows are removed.
+An unavailable row remains visible and removable; another variation family
+cannot silently replace it. Invalid semantic references are diagnosed by the
+recipe gate, preserving the existing saved-document repair workflow.
+
+The original three-pocket fixture has source nominal radius 0.8 but driving
+radius 1. Two copies use 0.5 and 1.5. Independent native checks use V=800−3.5π mm³
+and A=600+6π mm², physical cylindrical walls, spatial material probes, history,
+saved reopening and STEP reimport. Swapping copy radii preserves V/A while
+changing those physical walls/probes. This does not complete other driving
+dimensions, general solved-sketch variation, equations, associative inputs or
+broader operation recipes. Executed results belong in [VALIDATION](VALIDATION.md).
 
 ## Dynamic ALL scope
 
@@ -180,7 +315,7 @@ interactions in the GUI.
 
 Other positive endings/start policies, associative/entity profiles/supports,
 thin walls, second direction, bridge merging and owner creation/split/consumption,
-AUTO discovery, variation and broader lifecycle/interoperability remain required
+Variation and broader lifecycle/interoperability remain required
 work. Canonical cases do not close C05 or replace its remaining capabilities.
 
 The 54 additional authored cases have distinct boundaries:
@@ -377,8 +512,10 @@ captured material delta as a regeneration substitute.
 This bridge is limited to the initial `mode:'regenerate'`,
 `geometryPattern:false` declaration subset: selected targets, cut ALL or the
 bounded Blind primitive additive ALL slice,
-no variation, intrinsic primitive or authentic real-solved entity profiles, owned cut/merge and
+intrinsic primitive or authentic real-solved entity profiles, owned cut/merge and
 blind/ThroughAll/UntilNext or explicit principal-plane/world UpToSurface termination.
+Depth variation is limited to the selected primitive case above.
+The separate driving-circle radius table uses the bounded real-solve path above.
 Selected scope checks its exact saved target
 routes; ALL checks the attested derived target snapshot and scope routes.
 Other UpToSurface reference declarations retain their pending gates,
@@ -555,6 +692,8 @@ saved support and with variation none. Model eligibility does not issue a
 solve or native certificate. The primitive compatibility adapter still rejects
 entity declarations; the placement adapter returns only the exact sketch ID,
 source frame, canonical instance frame/ray and signed depth.
+The later [driving-radius increment](#driving-sketch-radius-per-instance) adds
+its explicit exception, preserving this ordinary unchanged-profile route.
 
 The evaluator obtains a real build-issued source checkpoint before cloning a
 target. The entity constructor reads only an authentic handle included in that
