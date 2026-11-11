@@ -17,6 +17,141 @@ The packaging tools are outside the application archive. The Windows
 trial uses the locked Electron 44.9.3 distribution. macOS universal and
 the integrated follow-up retain their own validation requirements.
 
+## Packaged 0.25.0 combined demo — Windows, 2026-11-11
+
+The native walkthrough used the frozen 0.25.0 Windows x64 directory package
+from `37c2423316a3c07af7543ec42fcabbd4b4839097` and tree
+`c4680a969a0e0d1b06d169cf8485106df1a61682`. The executable SHA-256 was
+`b49fa0b50bbef4663c50a87be6c887388ec09a484cd3b5cbe3e60770e8d66ec1` and the
+ASAR SHA-256 was
+`9d70c7dc9c72bf86a15ae8b9958435055c5a4a9df4a0b6740f162aee9418bbd1`.
+The native QA profile was isolated from the demo profile.
+
+The [original sequential part](PROVENANCE.md#sequential-part-original)
+opened with one base solid and four prepared sketches. Selecting each
+sketch in turn, the native editor applied two 4 mm cuts and two merged
+extrusions of 3 and 2 mm. The measured volume sequence was
+960 → 944 → 928 → 976 → 984 mm³. The saved part reopened before it
+was used to create the standard assembly.
+
+Base was fixed at the origin. Guía reused the same saved definition and
+moved 35 mm along X in a verified preview. The assembly used an aligned
+root-X to Guía-X relation with a captured rotation lock and a signed
+Base-YZ to Guía-YZ distance of −35 mm. The verified final solve reported
+zero degrees of freedom. The saved assembly reopened with both occurrences
+and their exact reference roles. A fresh verified Solve followed native
+Open in the same process, and Cancel preserved the committed bytes.
+
+An independent check of the native binary STL found two watertight shells,
+168 triangles, 984 mm³ and 848 mm² per shell, and four through bores at X
+−6, 6, 29 and 41 mm. The combined result was 1,968 mm³ and 1,696 mm².
+The coordinate, volume/area and direction tolerances were 1e−6 mm, 1e−5
+in the corresponding units and 1e−8, respectively. This is mesh evidence
+for the stated original geometry. The native walkthrough receipt has
+SHA-256 `27dd61a25bfdcb480b34a02cb071baff83f6cd950afaa866326aa485373acc76`.
+
+The verified **SolidFlow 0.25 - Demo** shortcut opened the saved assembly
+in its own profile. Native Help reported 0.25.0. The document was clean,
+with two solids, one source and both solids fitted in view. The Spanish
+guide and all 13 original samples matched their recorded hashes. The
+delivery receipt has SHA-256
+`b6f0a8c29f7aa2a2a4dd4efb7576c45f7f801bba5b241eb185659ece43275260`.
+
+This case covers the four prepared profiles and a two-occurrence standard
+assembly on Windows x64. The three-occurrence case, the fresh face-sketch
+case, the configured workflows, the hosted checks, installed-platform
+acceptance and human use retain their own evidence.
+
+## Packaged 0.25.0 structural STEP replacement and recovery — Windows, 2026-11-11
+
+The same 0.25.0 Windows x64 package ran in a separate profile with the
+[original eight-solid parametric fixture](PROVENANCE.md#original-structural-step-editor-workflow).
+Native Open loaded two occurrences of the same nested assembly definition.
+The standard assembly's **Exportar geometría** panel wrote structured STEP.
+The first native import replaced the clean parametric assembly and left
+an unsaved autonomous document with eight solids, three part origins and
+136 mm³. Importing the same STEP again opened the replacement decision.
+Canceling the first native Save dialog kept that decision open and the
+first assembly visible. A second **Guardar y continuar** saved the first
+import to its own file and opened the second import with fresh history.
+
+After saving the second import, the QA process closed normally. The
+original STEP was moved out of its original path before the next launch.
+The new process recovered the second document, saved a byte-identical copy,
+then explicitly reopened the saved second document and exported structured
+STEP and STL while the original source remained unavailable. The two
+imports retain the same product and occurrence identities with distinct
+document revisions. The saved bases contain four independently verified
+local solids without external source links.
+
+The independent audit read both AP242 files as entity graphs and separately
+rebuilt their geometry through the packaged native kernel. Both have six
+products, six declared uses, four source-local solids and eight valid
+placed solids. The two equally named parts retain separate identities.
+All eight literal bounds match, with combined volume 136 mm³, area
+344 mm² and bounds [0,0,−4]…[104,92,22] mm. The 96 triangles in the
+reopened STL independently match the expected planar boxes. Geometry was
+checked within 1e−6 in the corresponding units and local rotations within
+1e−10 in quaternion norm. Audit SHA-256
+`c0fb76b08b29bd73238374e404bd3b13ff14af4b33f5e69c6165c5af53ed4fc0`.
+
+This case exercises native file dialogs, clean restart and explicit
+reopening on Windows x64. The renderer's held-save reply case separately
+checks the transaction before the writer responds. The native picker
+showed the single-solid STEP label for the structural command. Installed
+platforms, human use and other neutral profiles retain their own evidence.
+
+## Standard assembly viewport context — Windows, 2026-11-11
+
+Two hidden production-renderer routes use independently projected points
+on the original fixture and trusted right-button press and release. With
+the fixed occurrence previously selected, the **Mover componente** route
+targets the moving occurrence, previews its X translation from 16 to
+17 mm and restores the exact committed state on Cancel. The **Editar
+pieza** route targets the moving occurrence and its current revision,
+opens the in-context editor and preserves the unfinished 4 mm draft on
+Escape. A second exit discards that test-owned draft and restores the
+parent document, exact occurrence selection, history and file bytes.
+The routes pass 529 and 210 checkpoints with no console or asset errors.
+All nine production files match the frozen 0.25.0 build.
+
+The result covers these two standard viewport actions. Other context
+actions, nested paths and their keyboard aliases retain separate cases.
+
+## Complete frozen 0.25.0 Windows inventory — 2026-11-11
+
+All 122 commands passed on source
+`37c2423316a3c07af7543ec42fcabbd4b4839097` and tree
+`c4680a969a0e0d1b06d169cf8485106df1a61682`. The independent terminal
+audit rehashed every command log, 1,586 tracked inputs, nine production
+files and 16 selected dependency files. Its SHA-256 is
+`f7a6afc3be45621075edb30b219aee1e1724b5e73b05419e0480feb6562cf552`.
+The inventory includes the build, 11,504 unit and CAD cases in 524 files,
+227 IPC checks with two explicit skips, and Electron/WASM startup.
+
+The two Security jobs and the Windows and Ubuntu persistence jobs passed
+on the exact hosted merge
+`febdf028878bf6cca2974f9acba453fc035e1f83`. At this observation macOS
+persistence was still running. Desktop jobs retain their prerequisites.
+[CI](https://github.com/angelcp2802/solidflow/actions/runs/43022928891)
+· [Security](https://github.com/angelcp2802/solidflow/actions/runs/43022928819)
+
+## Distinct native STEP pickers — Windows, 2026-11-11
+
+The production loader at `7124c69a637abdf7021b06f8adb7ff6d2899f3be`
+opened **Importar STEP estructurado** from the assembly sidebar and
+**Insertar STEP estructurado** from the assembly ribbon. Both real Windows
+pickers displayed **STEP estructurado** as the file-type filter. Escape
+closed each dialog and left the recovered eight-solid assembly in view.
+Save As afterward produced bytes identical to the original recovered
+document. The native record has SHA-256
+`233d0b90503e400341ac000558350e90eee8a9039d1f7ef186773dda6e5a9dae`.
+
+The existing single-solid title and filter passed the production-renderer
+and IPC checks. The optional IPC purpose selects only a fixed main-process
+label. The same sender check, file-operation lock, one-file picker,
+extensions, bounded read and absence of a write grant remain in force.
+
 ## Complete frozen 0.24.0 Windows inventory — 2026-11-11
 
 All 122 commands passed on frozen source `f299733` and tree
@@ -5083,6 +5218,57 @@ routes passed according to mandatory workflow ordering, though their individual
 reports are outside the bounded retrieved log. macOS persistence passed this
 run. All three Desktop jobs stopped at the renderer prerequisite before their
 install/build/test/startup/package steps. Both hosted failures remain open.
+
+## Compact assembly view aliases — Windows, 2026-11-11
+
+The standard and configured compact shortcut routes reuse the [original
+principal-axis lock fixture](../scripts/desktop-assembly-origin-axis-lock-original.cjs)
+on the `37c2423` production source. All nine local production files match
+the frozen 0.25.0 package inputs. Each hidden test window was requested at
+1040×720 and measured 1024×681 in content coordinates.
+
+Actual pointer presses hit the fully contained Frontal, Superior,
+Vista anterior, Isométrica and Ajustar buttons without scrolling. Frontal,
+Superior and Isométrica match the retained shortcut crops. Vista anterior
+returns from Superior to Frontal. Ajustar changes the wheel-zoomed crop,
+recovers the available projected origin anchors and leaves the zoomed view
+available to the keyboard Previous command. A pointer press on the disabled
+Normal a control with root X selected leaves the crop unchanged. The camera
+comparisons retain the established bounded canvas crop, text exclusions and
+0.11 CSS px anchor tolerance. Document history, selection, recovery, native
+requests and file activity are unchanged.
+
+`npm run build`, `npm run test:desktop:assembly-shortcuts-compact` (547
+checks) and `npm run test:desktop:assembly-configured-shortcuts-compact`
+(639 checks) passed. Both routes confirm child close and temporary profile
+cleanup. The changes extend the test harness only. Enabled Normal To on a
+planar face retains its separate V1 result. Other viewport sizes, part and
+ribbon aliases, hosted checks and visible-window use have their own evidence.
+
+## Held assembly Undo — Windows, 2026-11-11
+
+The compact standard and configured shortcut routes use the original
+principal-axis lock fixture and the existing saved-view sequence on
+`37c2423` production source. The dialog closes and focus returns to its
+Vistas guardadas button. The saved-view rename and subsequent camera
+update give two exact eligible history steps.
+
+The test sends the initial Ctrl+Z through Chromium's input transport. It
+waits for the update to undo, then sends one repeated Z keydown before
+releasing either key. A listener on the focused button records
+two trusted keydowns with repeat false and true, both prevented, then
+the trusted keyup. Recovery bytes stay identical after the repeat. A
+fresh Undo reaches the earlier rename. Two fresh Redos restore the exact
+rename and camera update. Selection, geometry, native request history and
+file activity remain unchanged.
+
+Build passed. The standard and configured compact routes passed 550 and
+642 checks at 1024×681 content size, with child closure and cleanup. The
+shortcut unit suite passed 29 cases and the keyboard transport suite
+passed nine. This covers one Chromium-delivered repeat on a closed
+saved-view trigger in each assembly workspace. Other repeat commands,
+hardware input, IME, foreign focus owners and hosted results retain their
+own evidence.
 
 ## Camera selection and compact named views — 2026-10-27
 
@@ -15552,6 +15738,36 @@ independent interoperability remain required; this does not narrow the goal
 or establish platform support. These results do not satisfy the full validation
 gate; the individual build, IPC and focused passes remain recorded.
 
+
+## Fixed principal-plane regeneration in Direction 2 — Windows, 2026-11-11
+
+The [original two-box variant](PROVENANCE.md#fixed-principal-plane-recipe-fixtures)
+uses Direction 1 Blind and Direction 2 to the fixed XY plane. The normal
+pattern editor rejects regeneration without the exact
+`secondDirection.endCondition.target` policy and keeps Apply disabled.
+Only Direction 2 offers the fixed-plane checkbox. A hit-tested pointer
+press sets that policy and a current native preview enables Apply. The
+pattern row and method use the existing DOM test actions.
+
+Cancel restores the original geometry-copy recipe and its exact recovery
+bytes. A second preview retains the same committed bytes until Apply.
+Save As and Open preserve the single Direction 2 policy, source prefix,
+owner identities and route. The original input bytes match after reopening.
+
+The radius-0.5 cut spans 7 mm in the seed and in the copied geometry.
+After a [3,0,4] mm translation, the fixed-plane regenerated cut spans 3 mm
+in the target. The respective native volumes match 64−7π/4 and 64−3π/4 mm³
+within 1e−5 mm³, and the box bounds match within 1e−6 mm. These checks
+measure one Selected linear cut in the renderer.
+
+On exact `37c2423` production source, build and both Windows x64 renderer
+commands passed with isolated child closure and cleanup.
+`test:desktop:pattern-world-limit` recorded 22 checkpoints and
+`test:desktop:pattern-world-limit-second` recorded 32. The existing
+world-limit component suite passed 11 cases. The three selected native
+world-anchored endpoint cases also passed their independent tool and body
+measurements. Hosted, package and broader recipe validation retain their
+own evidence.
 
 ## Fixed principal-plane regeneration — local evidence, 2026-10-14
 

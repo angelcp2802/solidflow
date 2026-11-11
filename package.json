@@ -1,6 +1,6 @@
 {
   "name": "solidflow",
-  "version": "0.25.0",
+  "version": "0.26.0",
   "private": true,
   "description": "Free, open-source parametric desktop CAD",
   "type": "module",
@@ -69,6 +69,7 @@
     "test:desktop:assembly-step": "node scripts/desktop-assembly-step.cjs",
     "test:desktop:assembly-step-insertion": "node scripts/desktop-assembly-step-insertion.cjs",
     "test:desktop:pattern-world-limit": "node scripts/desktop-pattern-world-limit.cjs",
+    "test:desktop:pattern-world-limit-second": "node scripts/desktop-pattern-world-limit-second.cjs",
     "test:desktop:pattern-until-next": "node scripts/desktop-pattern-until-next.cjs",
     "test:desktop:assembly": "node scripts/desktop-assembly.cjs",
     "test:desktop:assembly-configurations": "node scripts/desktop-assembly-configurations.cjs",

@@ -431,7 +431,53 @@ module.exports = function basicAuthoringWorkflow(context) {
     await require('./desktop-assembly-context-gesture.cjs')({ page, pointer, menuKey, waitFor, check, checks, canonical, observe },
       { kind: 'standard', point: componentPoint, heading: occurrence(doc, owners.follower).name });
     checkContextUnchanged(baseline, await contextReadOnlyState(), 'Assembly context gesture audit preserves full native history and relation roles');
+    await viewportMoveAction(doc, selectedId, componentPoint);
     await select(selectedId);
+  }
+  async function viewportMoveAction(doc, id, point) {
+    const target = occurrence(doc, id), path = JSON.stringify([id]);
+    await select(owners.base);
+    const before = await contextReadOnlyState(), fileIpc = canonical(ipc), inputHash = digest(await fs.readFile(input));
+    await pointer('mouseMoved', point);
+    check(await page(point => document.elementFromPoint(point.x, point.y) === document.querySelector('.assembly-viewport > canvas'), point),
+      'Projected floating component remains a reachable canvas target');
+    await pointer('mousePressed', point, 2); await pointer('mouseReleased', point, 2);
+    const menu = await waitFor('released viewport context offers the selected floating component', contextMenuState);
+    check(menu.target === target.name && menu.actions.some(action => action.id === 'component-move'
+      && action.label === 'Mover componente' && !action.disabled) && (await uiState()).selected === path,
+    'Viewport right release selects the exact floating occurrence instead of the previously selected Base');
+    await actual(contextAction('component-move'));
+    await waitFor('context Move focuses the exact component movement heading', () => page(name => {
+      const panel = document.querySelector('#assembly-panel-properties');
+      const section = panel?.querySelector('.assembly-movement');
+      const heading = section?.querySelector('h3');
+      const input = section?.querySelector('[aria-label="Destino local X del componente"]');
+      return panel?.hidden === false && !document.querySelector('.cad-context-menu') && heading?.textContent === 'Mover ' + name
+        && document.activeElement === heading && input?.disabled === false && input.value === '16';
+    }, target.name));
+    check((await uiState()).selected === path, 'The focused movement panel still belongs to the actual right-click target');
+    checkContextUnchanged(before, await contextReadOnlyState(), 'Opening Move from the viewport preserves confirmed CAD, history and relation roles');
+
+    const proposal = await previewMove(doc, id, 17);
+    geometry(proposal.scene, proposal.document, doc.occurrences.length, 'viewport-context-move-preview');
+    const serialBeforeCancel = await serial();
+    await actual(CANCEL); await response(serialBeforeCancel, 'discard-assembly'); await recovery(doc);
+    const after = await contextReadOnlyState(), currentUi = await uiState();
+    check(canonical(after.persistentUi) === canonical(before.persistentUi) && canonical(after.references) === canonical(before.references)
+      && currentUi.selected === path && currentUi.panel === 'assembly-tab-properties', 'Cancel restores exact confirmed state and retains the intended movement panel');
+    const start = before.counters.serial;
+    const { assemblies, builds, autoCaptures = [], workerErrors } = after.observation;
+    const requests = [...assemblies, ...builds, ...autoCaptures].filter(row => row.serial > start)
+      .sort((a, b) => a.serial - b.serial).map(row => ({ serial: row.serial, action: row.action ?? 'build', ok: row.response?.ok }));
+    const expected = ['move-assembly-component-motion', 'discard-assembly']
+      .map((action, index) => ({ serial: start + index + 1, action, ok: true }));
+    check(after.counters.serial === start + expected.length && canonical(requests) === canonical(expected)
+      && canonical(workerErrors) === canonical(before.observation.workerErrors),
+    'The viewport Move preview and Cancel complete exactly their two observed worker requests without a part build or worker error');
+    check(canonical(ipc) === fileIpc && digest(await fs.readFile(input)) === inputHash,
+      'The viewport Move preview and Cancel preserve file activity and the original file');
+    checks.push({ standardViewportMoveContext: { point, target: { occurrencePath: [id], definition }, menu,
+      confirmedX: 16, previewX: 17, cancelRestored: true, workerActions: requests.map(row => row.action), workerRequests: requests } });
   }
   async function viewportOriginContextWorkflow(doc, selectedId) {
     const planeKey = JSON.stringify(['principal-plane', null, 'XY']);
@@ -709,7 +755,7 @@ module.exports = function basicAuthoringWorkflow(context) {
       geometry: 'Existing independent datum directions, three native prisms, transformed bounds and preserved fixed occurrence; no unique free-pose claim' } });
     return current;
   }
-  async function move(doc, id, x, expectedCount) {
+  async function previewMove(doc, id, x) {
     await control('[aria-label="Destino local X del componente"]', String(x));
     const before = await serial(); await actual('[aria-label="Vista previa del movimiento"]'); const event = await response(before, 'move-assembly-component-motion'), value = event.response.value;
     check(canonical(event.current) === canonical(doc) && value.status === 'ready' && value.hasToken && value.checks.every(c => c.satisfied), 'Actual movement verified against committed document');
@@ -723,7 +769,10 @@ module.exports = function basicAuthoringWorkflow(context) {
     check(canonical(value.document.occurrences.map(o => o.id).sort()) === canonical(doc.occurrences.map(o => o.id).sort())
       && canonical(value.document.definitions) === canonical(doc.definitions), 'Movement preserves the entire occurrence identity set and source definitions');
     check(doc.occurrences.filter(o => o.id !== id).every(o => canonical(occurrence(value.document, o.id)) === canonical(o)), 'Other occurrences remain exact through the move');
-    await recovery(doc); return apply(value, 'move-' + x, expectedCount);
+    await recovery(doc); return value;
+  }
+  async function move(doc, id, x, expectedCount) {
+    return apply(await previewMove(doc, id, x), 'move-' + x, expectedCount);
   }
   async function origin(slot, kind, id, value, doc) {
     if (id) await select(id);

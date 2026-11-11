@@ -140,8 +140,10 @@ const SCENARIOS = Object.freeze({
     test: 'production-renderer-assembly-structural-step', caption: 'structural STEP editor interchange' }),
   'assembly-step-insertion': Object.freeze({ originalRecipe: 'desktop-assembly-step-insertion-flow.cjs', entry: 'desktop-assembly-step-insertion.cjs',
     test: 'production-renderer-assembly-structural-step-insertion', caption: 'structural STEP component insertion' }),
-  'world-limit': Object.freeze({ fixture: 'pattern-world-limit-original.json', entry: 'desktop-pattern-world-limit.cjs',
+  'world-limit': Object.freeze({ fixture: 'pattern-world-limit-original.json', entry: 'desktop-pattern-world-limit.cjs', worldLimit: 'first',
     test: 'production-renderer-fixed-world-limit', caption: 'fixed world-limit' }),
+  'world-limit-second': Object.freeze({ entry: 'desktop-pattern-world-limit-second.cjs', worldLimit: 'second',
+    test: 'production-renderer-fixed-world-limit-second', caption: 'fixed world-limit on direction 2' }),
   'until-next': Object.freeze({ fixture: 'pattern-until-next-cut-original.json', entry: 'desktop-pattern-until-next.cjs',
     test: 'production-renderer-until-next', caption: 'UntilNext',
     additionalFixtures: Object.freeze({ add: 'pattern-until-next-add-original.json', reject: 'pattern-until-next-partial-original.json' }) }),
@@ -379,6 +381,9 @@ async function launch() {
       await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(require('./' + activeScenario.originalRecipe)()), { flag: 'wx' });
     } else if (activeScenario === SCENARIOS['part-revolution']) {
       await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(require('./desktop-part-revolution-original.cjs')()), { flag: 'wx' });
+    } else if (activeScenario.worldLimit === 'second') {
+      const original = require('./desktop-pattern-world-limit-flow.cjs').createSecondDirectionDocument();
+      await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(original), { flag: 'wx' });
     } else if (activeScenario === SCENARIOS['part-sweep-loft']) {
       await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(require('./desktop-part-sweep-loft-original.cjs')()), { flag: 'wx' });
     } else if (activeScenario.partProperties === true) {
@@ -1320,7 +1325,7 @@ async function runInElectron() {
     } finally { endTiming?.(); }
   };
   const pointer = async (type, point, buttons = 0, clickCount = 1, modifiers = 0) => {
-    check((activeScenario.circularPicking || activeScenario.linePicking || activeScenario.profilePicking || mechanicalPicking || assemblyPartProperties || embeddedPartEdit || partThinWall || partExternalAxis || configuredComponents || normalToView || fromEmpty || partOperationAliases || basicAuthoring || mateReferenceEdit || partBodyCatalog || partFinishing || partRevolution || partSweepLoft || partProperties || partHole || partCombine || partShellDraft || partPatternCreate || partAdditiveAll || partAutoScope || partInstanceDepth || sketchPrimitives || partSequence || originAxes || freshSketch || configuredPicking || assembly || activeScenario === SCENARIOS['assembly-configurations'] || rackPinion || direction || tangent || cylinderTangent || sphereTangent || limitDistance || limitAngle || directedAngle || width || symmetry || symmetryPicking || hingePicking || hingeLimitsPicking) && !window.isVisible() && window.webContents.debugger.isAttached()
+    check((activeScenario.circularPicking || activeScenario.linePicking || activeScenario.profilePicking || mechanicalPicking || assemblyPartProperties || embeddedPartEdit || partThinWall || partExternalAxis || configuredComponents || normalToView || fromEmpty || partOperationAliases || basicAuthoring || mateReferenceEdit || partBodyCatalog || partFinishing || partRevolution || partSweepLoft || partProperties || partHole || partCombine || partShellDraft || partPatternCreate || partAdditiveAll || partAutoScope || partInstanceDepth || sketchPrimitives || partSequence || originAxes || freshSketch || configuredPicking || assembly || activeScenario === SCENARIOS['assembly-configurations'] || rackPinion || direction || tangent || cylinderTangent || sphereTangent || limitDistance || limitAngle || directedAngle || width || symmetry || symmetryPicking || hingePicking || hingeLimitsPicking || activeScenario.worldLimit === 'second') && !window.isVisible() && window.webContents.debugger.isAttached()
       && ['mouseMoved', 'mousePressed', 'mouseReleased'].includes(type)
       && Number.isFinite(point.x) && Number.isFinite(point.y) && point.x >= 0 && point.y >= 0
       && ([0, 1].includes(buttons) || buttons === 2
@@ -1335,6 +1340,26 @@ async function runInElectron() {
     }); } finally { endTiming?.(); }
   };
   const freshPartWheel = activeScenario === SCENARIOS['part-fresh-sketch'];
+  const embeddedViewportContext = activeScenario === SCENARIOS['assembly-embedded-part-edit'] ? async point => {
+    check(!window.isVisible() && window.webContents.debugger.isAttached()
+      && Number.isFinite(point.x) && Number.isFinite(point.y) && point.x >= 0 && point.y >= 0,
+    'Expected a stationary context click in the hidden embedded-part test window.');
+    const currentCanvas = () => evaluate(`(() => {
+      const parent=document.querySelector('.assembly-app'), view=parent?.querySelector('.assembly-viewport');
+      const canvas=view?.querySelector(':scope > canvas');
+      return !!canvas && !parent.hidden && !parent.inert && parent.getAttribute('aria-busy')==='false'
+        && view.getAttribute('data-reference-picking')==='' && !document.querySelector('[role="dialog"],[role="menu"]')
+        && document.elementFromPoint(${point.x},${point.y})===canvas;
+    })()`);
+    check(await currentCanvas(), 'Embedded Edit context belongs to the current idle parent canvas.');
+    await pointer('mouseMoved', point);
+    check(await currentCanvas(), 'The projected parent canvas still owns the stationary right press.');
+    const dispatch = (type, buttons) => window.webContents.debugger.sendCommand('Input.dispatchMouseEvent', {
+      type, x: point.x, y: point.y, button: 'right', buttons, clickCount: 1, pointerType: 'mouse',
+    });
+    await dispatch('mousePressed', 2);
+    await dispatch('mouseReleased', 0);
+  } : undefined;
   const touchOriginLabel = async point => {
     check([SCENARIOS['assembly-origin-axes'], SCENARIOS['assembly-configured-origin-axes']].includes(activeScenario)
       && !window.isVisible() && window.webContents.debugger.isAttached()
@@ -1390,12 +1415,20 @@ async function runInElectron() {
     check((embeddedPartEdit || normalToView || fromEmpty || shortcuts) && !window.isVisible() && window.webContents.debugger.isAttached(), 'Only fixed shortcut keys in owned hidden scenario');
     const unsupportedNew = combo === 'AltN' || combo === 'DualN';
     if (beforeRepeat !== undefined || unsupportedNew) {
-      check(fromEmpty && (unsupportedNew ? process.platform === 'win32' && beforeRepeat === undefined
+      const heldAssembly = !unsupportedNew && shortcuts && activeScenario.compactShortcuts === true;
+      check((fromEmpty || heldAssembly) && (unsupportedNew ? process.platform === 'win32' && beforeRepeat === undefined
         : combo === 'Z' && typeof beforeRepeat === 'function') && await evaluate(`(() => {
-        const active = document.activeElement, trigger = 'nav.part-main-menus button[data-assembly-menu="file"][aria-expanded="false"]';
-        return active?.matches(trigger) && document.querySelectorAll(trigger).length === 1
-          && !document.querySelector('[role="menu"],[role="dialog"],.property-manager');
-      })()`), 'Held Undo or unsupported New chords require the closed File trigger in the owned from-empty part');
+        const active = document.activeElement;
+        if(document.querySelector('[role="menu"],[role="dialog"],.property-manager'))return false;
+        if(${heldAssembly}){
+          const root=document.querySelector(${encodeJavaScriptString(originAxes === 'configured' ? '.configured-assembly-workspace' : '.assembly-app')});
+          const controls=root?.querySelectorAll('button[aria-label="Vistas guardadas"]'), trigger=controls?.[0];
+          return root?.getAttribute('aria-busy')==='false'&&controls?.length===1&&active===trigger
+            &&!trigger.disabled&&trigger.checkVisibility();
+        }
+        const trigger = 'nav.part-main-menus button[data-assembly-menu="file"][aria-expanded="false"]';
+        return active?.matches(trigger) && document.querySelectorAll(trigger).length === 1;
+      })()`), 'Held Undo or unsupported New chords require the current closed, focused owner in the fixed part or compact assembly route');
     }
     // Native editor commands belong only to the two original fixture fields
     // or one exact visible, focused creation/rename field in its actual modal.
@@ -1777,7 +1810,7 @@ async function runInElectron() {
     ? require('./desktop-assembly-part-properties-flow.cjs')({ expected, input, output, configuredOutput: assemblyPropertiesOutput, evaluate, observe, waitFor, pointer, captureAssemblyProperties,
       checks, ipc, consoleErrors, failedRequests, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, geometryExports }) })
     : embeddedPartEdit
-    ? () => require('./desktop-assembly-embedded-part-edit-flow.cjs')({ expected, input, output, partCopyOutput, evaluate, observe, waitFor, click, pointer, key: shortcutKey,
+    ? () => require('./desktop-assembly-embedded-part-edit-flow.cjs')({ expected, input, output, partCopyOutput, evaluate, observe, waitFor, click, pointer, embeddedViewportContext, key: shortcutKey,
       checks, ipc, consoleErrors, failedRequests, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }), pendingWorker, nativeClose, nativeReopen })()
     : normalToView
@@ -1879,7 +1912,7 @@ async function runInElectron() {
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, geometryExports }) })
     : originAxes
-    ? require(shortcuts ? './desktop-assembly-shortcuts-flow.cjs' : activeScenario.originOpposed ? './desktop-assembly-origin-opposed-flow.cjs' : activeScenario.originLock ? './desktop-assembly-origin-axis-lock-flow.cjs' : './desktop-assembly-origin-axes-flow.cjs')({ configured: originAxes === 'configured', expected, input, output, referenceRoleKeyboard, shortcutOutput, reboundConfiguredSave, completePendingSave, shortcutKey, shortcutText, namedViewKey, cameraFrame, cameraGesture, rasterComparison, evaluate, observe, waitFor, click, pointer, touchOriginLabel, menuKey, captureHeader, asideWheel, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
+    ? require(shortcuts ? './desktop-assembly-shortcuts-flow.cjs' : activeScenario.originOpposed ? './desktop-assembly-origin-opposed-flow.cjs' : activeScenario.originLock ? './desktop-assembly-origin-axis-lock-flow.cjs' : './desktop-assembly-origin-axes-flow.cjs')({ configured: originAxes === 'configured', compactShortcuts: activeScenario.compactShortcuts === true, expected, input, output, referenceRoleKeyboard, shortcutOutput, reboundConfiguredSave, completePendingSave, shortcutKey, shortcutText, namedViewKey, cameraFrame, cameraGesture, rasterComparison, evaluate, observe, waitFor, click, pointer, touchOriginLabel, menuKey, captureHeader, asideWheel, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : configuredCompound
     ? require('./desktop-assembly-configured-compound-flow.cjs')({ family: configuredCompound, profileKind: activeScenario.profileKind, expected, input, output, evaluate, observe, waitFor, click, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, completePendingSave, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : configuredMechanical
@@ -2066,8 +2099,9 @@ async function runInElectron() {
     ? require('./desktop-pattern-until-next-flow.cjs')({ fixtures, outputs, inputPaths, evaluate, observe, waitFor, click, menu,
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
-    : activeScenario === SCENARIOS['world-limit']
-    ? require('./desktop-pattern-world-limit-flow.cjs')({ expected, expectedIds, evaluate, observe, waitFor, click, menu, checks,
+    : activeScenario.worldLimit
+    ? require('./desktop-pattern-world-limit-flow.cjs')({ second: activeScenario.worldLimit === 'second',
+      expected, expectedIds, evaluate, observe, waitFor, click, pointer, menu, checks,
       protocolResponses, consoleErrors, failedRequests, ipc, input, output, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) }) : workflow;
   check(typeof actualWorkflow === 'function', 'Expected the statically selected test workflow.');
@@ -2287,9 +2321,13 @@ async function runInElectron() {
   const testingDialog = new Proxy(electron.dialog, { get(target, member) {
     if (member === 'showMessageBoxSync' && nativeClose) return (owner, options) => nativeClose.showMessageBoxSync(owner, options, target.showMessageBoxSync.bind(target));
     if (member === 'showOpenDialog') return async (_window, options) => {
-      if (options.title === 'Importar sólido STEP' && (sketchPrimitives || structuralStep || structuralInsertion)) {
-        check(++stepImports <= stepImportPaths.length && options.properties?.length === 1 && options.properties[0] === 'openFile'
-          && options.filters?.length === 1 && options.filters[0].name === 'Sólido STEP' && options.filters[0].extensions?.join(',') === 'step,stp', 'Exact existing read-only STEP picker policy.');
+      if ((sketchPrimitives || structuralStep || structuralInsertion) && options.filters?.[0]?.extensions?.includes('step')) {
+        const title = sketchPrimitives ? 'Importar sólido STEP' : structuralStep ? 'Importar STEP estructurado' : 'Insertar STEP estructurado';
+        const filter = sketchPrimitives ? 'Sólido STEP' : 'STEP estructurado';
+        check(++stepImports <= stepImportPaths.length && options.title === title && options.properties?.length === 1 && options.properties[0] === 'openFile'
+          && options.filters?.length === 1 && options.filters[0].name === filter && options.filters[0].extensions?.join(',') === 'step,stp',
+        'Exact read-only STEP picker for ' + title + ': ' + JSON.stringify(options));
+        checks.push({ stepPicker: { title, filter } });
         const file = stepImportPaths[stepImports - 1]; return file === null ? { canceled: true, filePaths: [] } : { canceled: false, filePaths: [file] };
       }
       if ((linkedSource || sourceRevision) && options.title === 'Elegir fuente enlazada de SolidFlow') {

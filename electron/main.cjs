@@ -384,9 +384,17 @@ ipcMain.handle('source:release', async (event, payload) => {
   sourceGrants.delete(requireSourceGrantId(payload));
 });
 
-handleFileOperation('document:import-step', async (event) => {
+const stepImportPickerLabels = new Map([
+  [undefined, { title: 'Importar sólido STEP', filter: 'Sólido STEP' }],
+  ['structure', { title: 'Importar STEP estructurado', filter: 'STEP estructurado' }],
+  ['structure-insertion', { title: 'Insertar STEP estructurado', filter: 'STEP estructurado' }],
+]);
+
+handleFileOperation('document:import-step', async (event, purpose) => {
+  const labels = stepImportPickerLabels.get(purpose);
+  if (!labels) throw new Error('La finalidad STEP no es válida.');
   const result = await dialog.showOpenDialog(mainWindow, {
-    title: 'Importar sólido STEP', filters: [{ name: 'Sólido STEP', extensions: ['step', 'stp'] }], properties: ['openFile'],
+    title: labels.title, filters: [{ name: labels.filter, extensions: ['step', 'stp'] }], properties: ['openFile'],
   });
   if (result.canceled || !result.filePaths[0]) return null;
   assertSender(event);

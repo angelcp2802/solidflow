@@ -1320,7 +1320,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     operation.current=true;setBusy(true);setCancelable(false)
     try {
       await importStructuralStep({fresh,prepare:importAssemblyStep,
-        read:window.solidflow?()=>window.solidflow!.importStep():()=>new Promise<StepFile|null>((resolve,reject)=>{structuralRead.current={resolve,reject};structuralInput.current?.click()}),
+        read:window.solidflow?()=>window.solidflow!.importStep('structure'):()=>new Promise<StepFile|null>((resolve,reject)=>{structuralRead.current={resolve,reject};structuralInput.current?.click()}),
         // Keep the import lock while the exact original document is saved.
         confirm:()=>mayReplace(ownsDecision => persistAssembly(source, path, () => ownsDecision() && fresh())),commit:document=>{
           // Release this import synchronously before replacement invalidates its
@@ -1341,7 +1341,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
     operation.current=true;setBusy(true);setCancelable(false)
     try {
       await insertAssemblyStepFile({current:current.current,scope:capturedScope,fresh,prepare:insertAssemblyStep,
-        read:window.solidflow?()=>window.solidflow!.importStep():()=>new Promise<StepFile|null>((resolve,reject)=>{structuralRead.current={resolve,reject};structuralInput.current?.click()}),
+        read:window.solidflow?()=>window.solidflow!.importStep('structure-insertion'):()=>new Promise<StepFile|null>((resolve,reject)=>{structuralRead.current={resolve,reject};structuralInput.current?.click()}),
         commit:document=>{
           // The following ordinary change invalidates this generation. Release
           // only this insertion before the normal rebuild owns the next gate.

@@ -502,6 +502,7 @@ async function navigationFixture(options={}){
   const events=[],checks=[],polls=[];
   let menuOpen=false,menuActions=0;
   const presetNames=new Map([['Dimétrica','dimetric'],['Trimétrica','trimetric']]);
+  const compactFrames=new Map([['Frontal','1'],['Superior','5'],['Vista anterior','1'],['Isométrica','a'],['Normal a','a']]);
   const orientationOptions=['','front','back','left','right','top','bottom','iso','dimetric','trimetric','normal'].map(value=>({
     value,textContent:value==='dimetric'?'Dimétrica':value==='trimetric'?'Trimétrica':value,disabled:value===''}));
   if(options.normalNotLast)orientationOptions.push(orientationOptions.splice(-2,1)[0]);
@@ -533,9 +534,14 @@ async function navigationFixture(options={}){
     if(label==='previous preset '+options.failPreviousPreset)return 'e';
     if(label.startsWith('previous preset '))return label.at(-1);
     if(label.includes('temporary front'))return '1';
-    if(label==='fit after wheel')return 'e';
-    if(label==='wheel-in previous restores baseline'&&options.failWheel)return 'e';
-    if(label==='previous restores zoom after Fit')return 'd';
+    if(label==='keyboard Fit after wheel')return 'e';
+    if(label==='Previous restores zoom after keyboard Fit')return 'd';
+    if(label==='compact Fit from zoomed Superior')return options.failCompact==='fit'?'a':'e';
+    if(label==='Previous restores zoom after compact Fit')return options.failCompact==='previous'?'a':'d';
+    if(label==='wheel-in initial Superior')return '5';
+    if(label==='wheel-in previous restores baseline')return options.failWheel?'e':options.compact?'5':'a';
+    const compactAlias='compact viewport alias ';
+    if(label.startsWith(compactAlias))return compactFrames.get(label.slice(compactAlias.length));
     if(label.includes('actual input')||label.includes('previous restores gesture'))return label.startsWith('orbit')?'b':label.startsWith('pan')?'c':'d';
     return 'a';
   };
@@ -558,6 +564,12 @@ async function navigationFixture(options={}){
         assert.equal(selector,'[role="menu"] button[role="menuitem"]');assert.equal(menuOpen,true);assert.ok(presetNames.has(label));
         menuActions++;menuOpen=false;
       },
+      compactView:options.compact?async(label,enabled=true)=>{
+        assert.ok(label==='Ajustar'||compactFrames.has(label));
+        assert.equal(enabled,label!=='Normal a');
+        events.push('compact:'+label);
+        return {label,enabled};
+      }:undefined,
       page:async(fn,...args)=>vm.runInNewContext('('+fn.toString()+')(...args)',{document,args}),
       cameraFrame:async(...args)=>{
         assert.deepEqual(args,[]);events.push('capture:'+active);
@@ -630,6 +642,45 @@ test('successful and opted-out navigation share the same polls, captures and rep
   assert.equal(success.evidence.completed,true);assert.equal(without.evidence.completed,true);
   const inputs=events=>events.filter(value=>!value.startsWith('retain:')&&value!=='clear');
   assert.deepEqual(inputs(success.events),without.events);assert.deepEqual(success.polls,without.polls);
+});
+
+test('compact Fit uses Superior and restores the same zoom after keyboard and pointer Fit',async()=>{
+  for(const kind of ['standard','configured']){
+    const f=await navigationFixture({kind,compact:true});
+    assert.equal(f.error,undefined);assert.equal(f.evidence.completed,true);
+    const fit=f.evidence.fit,wheel=f.evidence.gestures.find(value=>value.gesture==='wheel-in');
+    assert.equal(fit.startingPreset,'Superior');
+    assert.equal(fit.baseline.sha256,f.evidence.presets.find(value=>value.command==='5').frame.sha256);
+    assert.notEqual(fit.fitted.sha256,f.evidence.presets.find(value=>value.command==='7').frame.sha256);
+    assert.equal(fit.fitted.sha256,fit.keyboardFitted.sha256);
+    assert.equal(fit.restored.sha256,wheel.moved.sha256);
+    assert.equal(wheel.restoredBase.sha256,fit.baseline.sha256);
+    assert.deepEqual(fit.compactControl,{label:'Ajustar',enabled:true});
+    const trace=f.events.filter(value=>/^(key|gesture|compact|accepted):/.test(value));
+    const start=trace.indexOf('accepted:wheel-in initial Superior')-1;
+    const expected=[
+      'key:5','accepted:wheel-in initial Superior','gesture:wheel-in','accepted:wheel-in actual input',
+      'key:F','accepted:keyboard Fit after wheel','key:ShiftZ','accepted:Previous restores zoom after keyboard Fit',
+      'compact:Ajustar','accepted:compact Fit from zoomed Superior','key:ShiftZ','accepted:Previous restores zoom after compact Fit',
+    ];
+    assert.deepEqual(trace.slice(start,start+expected.length),expected);
+    assert.deepEqual(f.events.filter(value=>value.startsWith('compact:')),
+      ['compact:Ajustar','compact:Frontal','compact:Superior','compact:Vista anterior','compact:Isométrica','compact:Normal a']);
+    assert.equal(f.polls.length,42);assert.ok(f.polls.every(count=>count===3));
+    assert.equal(f.events.filter(value=>value.startsWith('capture:')).length,126);
+  }
+});
+
+test('compact Fit rejects a changed orientation and a failed Previous restoration',async()=>{
+  for(const [failCompact,message] of [
+    ['fit',/Compact Fit matches keyboard Fit from zoomed Superior/],
+    ['previous',/Previous restores the exact pre-compact-Fit crop/],
+  ]){
+    const f=await navigationFixture({compact:true,failCompact});
+    assert.equal(f.error,f.primaryError);assert.match(f.error.message,message);
+    assert.notEqual(f.evidence.completed,true);
+    assert.equal(f.compares,0);assert.equal(f.clears,2);assert.equal(f.events.at(-1),'clear');
+  }
 });
 
 test('view preset menus exercise both orientations and no-op history in each workspace through actualControl',async()=>{

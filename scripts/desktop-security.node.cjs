@@ -855,6 +855,27 @@ test('Windows atomic Save recovers after a real no-delete-sharing reader closes'
   assert.equal(h.state.dialogCalls, 1); assert.deepEqual(h.state.consoleErrors, []);
 });
 
+test('STEP import selects the native dialog for its fixed purpose', async (t) => {
+  const { handlers, event, dialogQueue, state } = await harness(t);
+  const importing = handlers.get('document:import-step');
+  for (const [purpose, title, filter] of [
+    [undefined, 'Importar sólido STEP', 'Sólido STEP'],
+    ['structure', 'Importar STEP estructurado', 'STEP estructurado'],
+    ['structure-insertion', 'Insertar STEP estructurado', 'STEP estructurado'],
+  ]) {
+    dialogQueue.push({ canceled: true, filePaths: [] });
+    assert.equal(await importing(event, purpose), null);
+    assert.deepEqual(JSON.parse(JSON.stringify(state.lastOpenDialog)), {
+      title, filters: [{ name: filter, extensions: ['step', 'stp'] }], properties: ['openFile'],
+    });
+  }
+  assert.equal(state.dialogCalls, 3);
+  for (const purpose of [null, 'document', { purpose: 'structure' }]) {
+    await assert.rejects(importing(event, purpose), /finalidad STEP/);
+    assert.equal(state.dialogCalls, 3);
+  }
+});
+
 test('STEP import returns exact selected bytes and a basename without granting write access', async (t) => {
   const { handlers, event, temporary, dialogQueue } = await harness(t);
   const selected = path.join(temporary, 'Part.STP');

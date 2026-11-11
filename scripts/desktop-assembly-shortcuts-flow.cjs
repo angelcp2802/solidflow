@@ -5,7 +5,7 @@ const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 // Reuse the original 2x3x4 prism bearing. No injected model or keyboard handler.
 module.exports = function assemblyShortcutWorkflow(context) {
   const c = require('./desktop-assembly-navigation.cjs').withNavigation(context);
-  const { configured, expected, input, output, shortcutOutput, reboundConfiguredSave, completePendingSave, shortcutKey, shortcutText, namedViewKey, evaluate, observe, waitFor, pointer, capture,
+  const { configured, compactShortcuts, expected, input, output, shortcutOutput, reboundConfiguredSave, completePendingSave, shortcutKey, shortcutText, namedViewKey, evaluate, observe, waitFor, pointer, capture,
     check, checks, canonical, digest, ipc, dialogCounts, consoleErrors, failedRequests, initialReadyMs, cameraFrame, cameraGesture, rasterComparison, menuKey, captureHeader } = c;
   const ROOT = configured ? '.configured-assembly-workspace' : '.assembly-app';
   const NAV = configured ? '[aria-label="Comandos del ensamblaje configurado"]' : '.assembly-toolbar';
@@ -56,6 +56,36 @@ module.exports = function assemblyShortcutWorkflow(context) {
     check(canonical(await inspect()) === canonical(target), 'Command geometry and hit remain current before pointer press');
     await pointer('mousePressed', { x: target.x, y: target.y }, 1); await pointer('mouseReleased', { x: target.x, y: target.y }, 0);
     gestures.push({ selector, text, point: [target.x, target.y] });
+  }
+  async function compactView(label, enabled = true) {
+    const inspect = () => page((root, label) => {
+      const viewport = document.querySelector(root + ' .assembly-viewport');
+      const toolbar = viewport?.parentElement?.querySelector(':scope > .compact-viewport-toolbar');
+      const controls = [...(toolbar?.querySelectorAll('button') ?? [])]
+        .filter(button => (button.getAttribute('aria-label') ?? button.title) === label);
+      const button = controls[0], rect = button?.getBoundingClientRect();
+      if (!rect || controls.length !== 1) return null;
+      const box = ({ left, top, right, bottom }) => ({ left, top, right, bottom });
+      const bounds = box(rect), bar = box(toolbar.getBoundingClientRect()), canvas = box(viewport.getBoundingClientRect());
+      const contains = (outer, inner) => outer.left <= inner.left && outer.top <= inner.top
+        && outer.right >= inner.right && outer.bottom >= inner.bottom;
+      const x = Math.floor(rect.left + rect.width / 2), y = Math.floor(rect.top + rect.height / 2);
+      return { label, x, y, bounds, bar, canvas, screen: [innerWidth, innerHeight],
+        enabled: !button.disabled, visible: button.checkVisibility() && rect.width > 0 && rect.height > 0,
+        contained: contains(bar, bounds) && contains(canvas, bounds)
+          && contains({ left: 0, top: 0, right: innerWidth, bottom: innerHeight }, bounds),
+        hit: button.contains(document.elementFromPoint(x, y)) };
+    }, ROOT, label);
+    const target = await waitFor('unscrolled compact viewport control: ' + label, async () => {
+      const current = await inspect();
+      return current?.enabled === enabled && current.visible && current.contained && current.hit ? current : false;
+    }).catch(async error => { error.message += '; compactControl=' + JSON.stringify(await inspect()); throw error; });
+    const point = { x: target.x, y: target.y };
+    await pointer('mouseMoved', point);
+    check(canonical(await inspect()) === canonical(target), label + ': compact control remains current and hit-testable');
+    await pointer('mousePressed', point, 1);
+    await pointer('mouseReleased', point, 0);
+    return target;
   }
   const button = (text, parent = NAV) => actualControl(parent + ' button', text);
   const aria = label => actualControl('button[aria-label="' + label + '"]');
@@ -342,7 +372,8 @@ module.exports = function assemblyShortcutWorkflow(context) {
         picking:document.querySelector('.assembly-viewport')?.getAttribute('data-reference-picking')
       }))});
     await require('./desktop-header-menu-flow.cjs')({page,waitFor,check,checks,canonical,actualControl,menuKey,captureHeader,snapshot:viewSnapshot,cameraFrame,kind:configured?'configured':'standard'});
-    await require('./desktop-view-navigation-flow.cjs')({page,waitFor,check,checks,canonical,key,cameraFrame,cameraGesture,rasterComparison,kind:configured?'configured':'standard',actualControl,snapshot:viewSnapshot});
+    await require('./desktop-view-navigation-flow.cjs')({page,waitFor,check,checks,canonical,key,cameraFrame,cameraGesture,rasterComparison,kind:configured?'configured':'standard',actualControl,snapshot:viewSnapshot,
+      compactView: compactShortcuts ? compactView : undefined });
     if(!configured){
       await actualControl(`[data-assembly-tree-path='["moving"]']`);
       await nativeTextUndo('input[aria-label="Nombre del componente"]');
@@ -427,7 +458,7 @@ module.exports = function assemblyShortcutWorkflow(context) {
     },configured));
     check(dialogCounts().opens===3&&dialogCounts().saves===2,'Original shortcut prefix consumes exactly three Open and two SaveAs grants');
     const named=await require('./desktop-named-views-flow.cjs')({kind:configured?'configured':'standard',page,waitFor,check,checks,canonical,digest,
-      key:shortcutKey,text:shortcutText,namedViewKey,press:actualControl,pointer,cameraFrame,cameraGesture,rasterComparison,observe,ipc,dialogCounts,output:shortcutOutput,
+      key:shortcutKey,heldUndo:compactShortcuts,text:shortcutText,namedViewKey,press:actualControl,pointer,cameraFrame,cameraGesture,rasterComparison,observe,ipc,dialogCounts,output:shortcutOutput,
       reopen:async document=>{
         const beforeOpen=await serial();await key('O');const reopened=await response(beforeOpen,BUILD);
         check(canonical(configured?reopened.current.document:reopened.document)===canonical(document),

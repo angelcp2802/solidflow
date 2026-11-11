@@ -6,7 +6,7 @@ contextBridge.exposeInMainWorld('solidflow', Object.freeze({
   chooseLinkedSource: () => ipcRenderer.invoke('source:choose'),
   readLinkedSource: grantId => ipcRenderer.invoke('source:read', grantId),
   releaseLinkedSource: grantId => ipcRenderer.invoke('source:release', grantId),
-  importStep: () => ipcRenderer.invoke('document:import-step'),
+  importStep: purpose => ipcRenderer.invoke('document:import-step', purpose),
   saveDocument: (content, name, filePath) => ipcRenderer.invoke('document:save', { content, name, filePath }),
   exportDocument: (data, name, format) => ipcRenderer.invoke('document:export', { data, name, format })
 }));

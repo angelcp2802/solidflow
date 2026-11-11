@@ -3,7 +3,7 @@
 // Shared, read-only camera acceptance. Input and fresh stationary canvas crops
 // belong to the test-owned transport supplied by the caller, not camera APIs.
 module.exports = async function viewNavigation(context) {
-  const { page, waitFor, check, checks, canonical, snapshot, key, cameraGesture, cameraFrame, rasterComparison, kind, actualControl } = context;
+  const { page, waitFor, check, checks, canonical, snapshot, key, cameraGesture, cameraFrame, rasterComparison, kind, actualControl, compactView } = context;
   let rasterUnavailable = false;
   check(['part', 'standard', 'configured'].includes(kind), 'Known view-navigation workspace');
   const evidence = { kind, presets: [], menuPresets: [], gestures: [], previous: [], projectionTolerancePx: .11,
@@ -141,23 +141,40 @@ module.exports = async function viewNavigation(context) {
     try { rasterComparison?.clear(); } catch { rasterUnavailable = true; }
     lowerPresetResult = undefined;
     for (const gesture of ['orbit', 'pan', 'wheel-in']) {
-      await key('7'); const base = await frame(gesture + ' initial isometric', gesture === 'wheel-in'
+      const compactWheel = gesture === 'wheel-in' && !!compactView;
+      const startingPreset = compactWheel ? '5' : '7';
+      await key(startingPreset);
+      const base = await frame(gesture + (compactWheel ? ' initial Superior' : ' initial isometric'), gesture === 'wheel-in'
         ? result => rasterComparison?.retainBaseline(result) : undefined);
-      same(base, iso, gesture + ' baseline');
+      same(base, presets.get(startingPreset), gesture + ' baseline');
       await cameraGesture(gesture); const moved = await frame(gesture + ' actual input');
       changed(moved, base, gesture);
       await unchanged(gesture);
       if (gesture === 'wheel-in') {
-        await key('F'); const fitted = await frame('fit after wheel');
-        // Fit recomputes framing; it does not restore a stored camera snapshot.
-        // Floating-point normalization may change raster edges despite matching
-        // projected geometry. Keep every Previous comparison pixel-exact below.
-        changed(fitted, moved, 'Fit visibly changes the zoomed scene');
-        projectedSame(fitted, base, 'Fit recovers the projected framing');
-        await key('ShiftZ'); same(await frame('previous restores zoom after Fit'), moved, 'Previous restores zoom before Fit');
-        await unchanged('Fit and Previous');
-        evidence.fit = { fitted, baseline: base, restored: moved,
+        await key('F');
+        const keyboardFitted = await frame('keyboard Fit after wheel');
+        // Fit recomputes framing, which may shift raster edges relative to the
+        // original preset. Both Fit commands still start from the exact same
+        // zoomed state and must produce the same stationary result.
+        changed(keyboardFitted, moved, 'Fit visibly changes the zoomed scene');
+        projectedSame(keyboardFitted, base, 'Fit recovers the projected framing');
+        await key('ShiftZ');
+        const keyboardRestored = await frame('Previous restores zoom after keyboard Fit');
+        same(keyboardRestored, moved, 'Previous restores zoom before keyboard Fit');
+        await unchanged('Keyboard Fit and Previous');
+        evidence.fit = { fitted: keyboardFitted, baseline: base, restored: keyboardRestored,
           limits: 'Fit must change the zoomed crop at unchanged dimensions and recover available SVG anchors within 0.11 CSS px. It need not reproduce the preset bitmap; independent camera tests check framing numerically. Previous retains exact text exclusions and every remaining pixel.' };
+        if (compactWheel) {
+          changed(keyboardFitted, iso, 'Fit retains a non-isometric orientation');
+          const compactControl = await compactView('Ajustar');
+          const fitted = await frame('compact Fit from zoomed Superior');
+          same(fitted, keyboardFitted, 'Compact Fit matches keyboard Fit from zoomed Superior');
+          await key('ShiftZ');
+          const restored = await frame('Previous restores zoom after compact Fit');
+          same(restored, moved, 'Previous restores the exact pre-compact-Fit crop');
+          await unchanged('Compact Fit and Previous');
+          Object.assign(evidence.fit, { fitted, restored, compactControl, keyboardFitted, startingPreset: 'Superior' });
+        }
       }
       await key('1'); const front = await frame(gesture + ' temporary front');
       changed(front, moved, gesture + ' temporary preset');
@@ -180,6 +197,17 @@ module.exports = async function viewNavigation(context) {
       evidence.gestures.push({ gesture, base, moved, restored, restoredBase });
     }
     await key('7'); same(await frame('final isometric'), iso, 'Final isometric');
+    if (compactView) {
+      evidence.compactAliases = [];
+      for (const [label, expected] of [['Frontal', presets.get('1')], ['Superior', presets.get('5')],
+        ['Vista anterior', presets.get('1')], ['Isométrica', iso], ['Normal a', iso]]) {
+        const control = await compactView(label, label !== 'Normal a');
+        const current = await frame('compact viewport alias ' + label);
+        same(current, expected, label + ': compact pointer result');
+        await unchanged('Compact viewport alias ' + label);
+        evidence.compactAliases.push({ control, frame: current });
+      }
+    }
     await unchanged('Completed camera browsing');
     const orientation = await page(() => {
       const selectors = document.querySelectorAll('select[aria-label="Orientación de vista"]'), select = selectors[0];

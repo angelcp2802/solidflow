@@ -1490,7 +1490,7 @@ export function PartWorkspace({ initialDocument, initialPath, initialSaved, skip
     fileOperation.current = true; setImporting(true);
     try {
       const result = await importStructuralStep({ fresh, prepare: importAssemblyStep,
-        read: window.solidflow ? () => window.solidflow!.importStep() : () => new Promise<StepFile|null>((resolve,reject) => { structuralRead.current={resolve,reject}; structuralInput.current?.click(); }),
+        read: window.solidflow ? () => window.solidflow!.importStep('structure') : () => new Promise<StepFile|null>((resolve,reject) => { structuralRead.current={resolve,reject}; structuralInput.current?.click(); }),
         confirm: () => canReplace(true), commit: next => onOpenAssembly(next),
       });
       if (fresh() && result === 'stale') notify('La pieza cambió durante la importación estructural.');

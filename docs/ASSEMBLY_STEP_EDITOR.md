@@ -10,7 +10,8 @@ increment does not complete arbitrary STEP interoperability or the assembly demo
 ## Import as a new assembly
 
 Choose the structural assembly import command in either workspace. It opens
-one `.step` or `.stp` file and prepares an autonomous version-2 document in the
+the native **Importar STEP estructurado** picker for one `.step` or `.stp`
+file and prepares an autonomous version-2 document in the
 CAD worker. All product and solid transfers, closed-solid checks, source
 integrity, an independent complete native scene build and the final
 saved-document size check must succeed before the
@@ -42,8 +43,9 @@ conditions; an assembly root is required. The existing part command
 
 ## Insert into the current assembly
 
-Choose **Insertar STEP estructurado** in the assembly workspace to embed a
-neutral assembly as a reusable component in the current scope. This adds one
+Choose **Insertar STEP estructurado** in the assembly workspace. The native
+picker uses the same command name. This embeds a neutral assembly as a
+reusable component in the current scope and adds one
 ordinary history state while retaining the parent's ID, revision, name, saved
 file path and saved baseline. Undo/Redo preserves the exact inserted identities.
 The source root becomes one reusable assembly definition; its original nested

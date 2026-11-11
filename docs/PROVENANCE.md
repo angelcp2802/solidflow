@@ -5037,6 +5037,17 @@ not surface area. Its authored flow is unexecuted until source-specific evidence
 appears in [VALIDATION.md](VALIDATION.md); it does not establish broader
 interaction, interoperability or platform support.
 
+The original Direction 2 renderer variant derives from the same tracked
+two-box document. Its radius-0.5 profile stays on XY at Z=−6 mm.
+Direction 1 is Blind at −1 mm. Direction 2 reaches the principal XY plane
+along positive Z, giving a seed interval of [−7,0] mm. Geometry copy
+translates that interval to [−3,4] mm. Selected regeneration with an
+explicit world policy for Direction 2 recomputes the interval as [−3,0] mm
+and retains the Blind end. Each box starts at 64 mm³. The resulting cut
+volumes are π×7/4 and π×3/4 mm³. The original project geometry supplies
+both the input and the independent bounds and volume calculations.
+[Executed Direction 2 workflow](VALIDATION.md#fixed-principal-plane-regeneration-in-direction-2--windows-2026-11-11)
+
 ## Source-solve and native component fixtures
 
 These 90 additional cases are original synthetic constructions authored for

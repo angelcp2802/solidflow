@@ -5,7 +5,7 @@ const fs = require('node:fs/promises');
 // or original prism assembly. Inputs are native pointer/key events only. Camera
 // declarations are observed only after the application saves them in recovery.
 module.exports = async function namedViews(c) {
-  const { kind, page, waitFor, check, checks, canonical, digest, key, text, namedViewKey, press, pointer,
+  const { kind, page, waitFor, check, checks, canonical, digest, key, heldUndo, text, namedViewKey, press, pointer,
     cameraFrame, cameraGesture, rasterComparison, observe, ipc, dialogCounts, output, reopen } = c;
   const DIALOG = 'dialog.named-views-dialog[open]', INPUT = DIALOG + ' input[aria-label="Nombre de la vista"]';
   const names = { part: 'Part view', standard: 'Assembly view', configured: 'Configured view' };
@@ -140,6 +140,48 @@ module.exports = async function namedViews(c) {
     if (!selectionRetained) evidence.selectionMismatch = { label, expected: selected, actual: actualSelection };
     check(selectionRetained, label + ': part/tree selection and currently projected origin states retained');
     check(canonical(await visibility()) === canonical(visible), label + ': original origin visibility retained');
+  }
+  async function undoHeld(beforeUpdate, beforeRename) {
+    await page(() => {
+      const trigger = document.querySelector('button[aria-label="Vistas guardadas"]');
+      if (document.activeElement !== trigger) throw Error('Closed saved-view trigger must own focus before held Undo');
+      const events = [];
+      const capture = event => {
+        if (event.code === 'KeyZ') events.push({ event, focused: document.activeElement === trigger });
+      };
+      trigger.addEventListener('keydown', capture);
+      trigger.addEventListener('keyup', capture);
+      window.solidflowHeldAssemblyUndo = () => {
+        trigger.removeEventListener('keydown', capture);
+        trigger.removeEventListener('keyup', capture);
+        delete window.solidflowHeldAssemblyUndo;
+        return events.map(({ event, focused }) => ({ type: event.type, key: event.key, repeat: event.repeat,
+          trusted: event.isTrusted, ctrl: event.ctrlKey, meta: event.metaKey, alt: event.altKey,
+          shift: event.shiftKey, prevented: event.defaultPrevented, focused }));
+      };
+    });
+    let received, firstRecovery;
+    try {
+      await key('Z', async () => {
+        await unchanged(beforeUpdate, 'Initial held Undo removes only the saved camera update');
+        firstRecovery = await recovery();
+      });
+      await settled();
+    } finally {
+      received = await page(() => window.solidflowHeldAssemblyUndo());
+    }
+    const afterRepeat = await recovery();
+    evidence.heldUndo = { received, firstRecoverySha256: digest(firstRecovery), afterRepeatRecoverySha256: digest(afterRepeat) };
+    check(received.length === 3 && received[0].type === 'keydown' && !received[0].repeat
+      && received[1].type === 'keydown' && received[1].repeat && received[2].type === 'keyup'
+      && received.every(row => row.trusted && row.key === 'z' && row.focused && row.ctrl !== row.meta && !row.alt && !row.shift)
+      && received[0].prevented && received[1].prevented, 'One trusted initial and repeated Undo keydown reach the focused closed trigger before release');
+    check(afterRepeat === firstRecovery, 'Repeat retains the byte-exact recovery after one history step');
+    await unchanged(beforeUpdate, 'Held Undo repeat leaves the saved rename in place');
+    await command('Z');
+    await unchanged(beforeRename, 'Fresh Undo reaches the earlier rename after both held keys are released');
+    await command('Y');
+    await unchanged(beforeUpdate, 'Fresh Redo restores exactly the rename');
   }
   async function frame(label, accept) {
     await pointer('mouseMoved', { x: 16, y: 16 });
@@ -306,7 +348,8 @@ module.exports = async function namedViews(c) {
     await press(DIALOG + ' button', 'Actualizar vista');
     two = structuredClone(beforeUpdate); two.namedViews[0].view = structuredClone(second.view);
     await current(two); await unchanged(two, 'Update changes only the selected saved pose to the already captured second camera'); await close();
-    await command('Z'); await unchanged(beforeUpdate, 'Undo saved-view camera update');
+    if (heldUndo) await undoHeld(beforeUpdate, beforeRename);
+    else { await command('Z'); await unchanged(beforeUpdate, 'Undo saved-view camera update'); }
     await command('Y'); await unchanged(two, 'Redo saved-view camera update');
     first = structuredClone(two.namedViews[0]);
     await open(); await selectView(first, 'Home'); await press(DIALOG + ' button', 'Actualizar vista');

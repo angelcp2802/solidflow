@@ -7,7 +7,7 @@ const { encodeJavaScriptString: quote } = require('./desktop-ui-source.cjs');
 // browser focus/scroll. Native face keys come from the actual current scene.
 module.exports = function embeddedPartEditWorkflow(context) {
   context = require('./desktop-assembly-navigation.cjs').withNavigation(context);
-  const { expected, input, output, partCopyOutput, evaluate, observe, waitFor, pointer, key, checks, ipc, consoleErrors, failedRequests,
+  const { expected, input, output, partCopyOutput, evaluate, observe, waitFor, pointer, embeddedViewportContext, key, checks, ipc, consoleErrors, failedRequests,
     check, canonical, digest, initialReadyMs, dialogCounts, pendingWorker, nativeClose, nativeReopen, assemblyNavigation: navigation } = context;
   const page = (fn, ...args) => evaluate('(' + fn.toString() + ')(...JSON.parse(' + quote(JSON.stringify(args)) + '))');
   const APPLY = 'button[aria-label="Aplicar ensamblaje"]', CANCEL = 'button[aria-label="Cancelar vista previa del ensamblaje"]';
@@ -247,11 +247,49 @@ module.exports = function embeddedPartEditWorkflow(context) {
   }
   async function enter(width = 2) {
     await selectMoving(); const before = await serial(); await press('button[aria-label="Editar pieza del componente"]');
+    await verifyEditorEntry(before, width, 'initial embedded activation');
+  }
+  async function verifyEditorEntry(before, width, label) {
     await waitFor('embedded editor active and parent inert', () => page(part => {
       const p = document.querySelector(part), a = document.querySelector('.assembly-app');
       return !!p && p.checkVisibility() && !!a?.hidden && a.inert && a.getAttribute('aria-hidden') === 'true';
     }, PART));
-    await partReady(before, width, 'initial embedded activation'); await unchanged('First embedded render');
+    await partReady(before, width, label); await unchanged('First embedded render');
+  }
+  async function enterFromViewport(width) {
+    const base = '[data-assembly-tree-path=\'["base"]\']', moving = '[data-assembly-tree-path=\'["moving"]\']';
+    const editAction = '.cad-context-menu button[data-cad-context-action="component-edit-part"]';
+    await navigation.panel('components');
+    await press(base);
+    check(await page(selector => document.querySelector(selector)?.getAttribute('aria-selected') === 'true', base),
+      'Fixed Base owns the selection before the viewport gesture');
+    await press('.assembly-app [data-assembly-menu="view"]');
+    await press('.assembly-app [data-assembly-command="view-left"]');
+    await page(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    const point = await page(width => {
+      const canvas = document.querySelector('.assembly-viewport > canvas'), rect = canvas.getBoundingClientRect();
+      // Two original prisms span [0,0,0]..[width,3,14]. From Izquierda,
+      // screen right is +Z. The moving face center is at Z12, five past Z7.
+      const pixels = rect.height / (1.3 * Math.hypot(width, 3, 14));
+      return { x: rect.left + rect.width / 2 + 5 * pixels, y: rect.top + rect.height / 2 };
+    }, width);
+    const before = await serial(), saved = canonical(ipc), history = await historyButtons();
+    await embeddedViewportContext(point);
+    await waitFor('actual viewport Edit menu belongs to moving', () => page((moving, action) => {
+      const item = document.querySelector(action), menu = item?.closest('[role="menu"]');
+      return menu?.querySelector('.part-feature-context-heading')?.textContent === 'moving'
+        && menu.contains(document.activeElement) && item.disabled === false
+        && document.querySelector(moving)?.getAttribute('aria-selected') === 'true';
+    }, moving, editAction));
+    check(await serial() === before, 'Viewport context nomination allocates no CAD request');
+    await press(editAction);
+    await verifyEditorEntry(before, width, 'viewport context embedded activation');
+    check(await page((part, moving) => !document.querySelector('.cad-context-menu')
+      && document.querySelector(part + ' [aria-label="Edición de pieza en el ensamblaje"]')?.title.startsWith('Editando moving.')
+      && document.querySelector(moving)?.getAttribute('aria-selected') === 'true', PART, moving),
+    'The temporary editor belongs to the exact viewport-selected occurrence');
+    const { id, revision } = parent.occurrences.find(occurrence => occurrence.id === 'moving').definition;
+    return { point, occurrencePath: ['moving'], definition: { id, revision }, ipc: saved, history };
   }
   function verifyPartBuild(row, width, centerX = width / 2) {
     check(row.response?.ok && row.response.value.featureErrors.length === 0 && !row.response.value.warnings.length, 'Actual embedded build succeeds without feature errors');
@@ -680,7 +718,8 @@ module.exports = function embeddedPartEditWorkflow(context) {
     parent = accepted; parentRecovery = await rawRecovery(); parentFileBytes = await fs.readFile(output); lastReviewSerial = await serial();
     const originalHistoryButtons = pendingWorker ? await historyButtons() : null;
     if (pendingWorker) check(canonical(originalHistoryButtons) === '[true,true]', 'Reopened parent starts with its original empty local history');
-    await enter(3);
+    const viewportEntry = embeddedViewportContext ? await enterFromViewport(3) : null;
+    if (!viewportEntry) await enter(3);
     if (await page(selector => document.querySelector(selector)?.getAttribute('aria-expanded') === 'false', treeToggle)) await press(treeToggle);
     await press(PROFILE, null, true);
     await waitFor('reopened embedded sketch editable', () => page(selector => document.querySelector(selector)?.value === '3', WIDTH));
@@ -705,7 +744,18 @@ module.exports = function embeddedPartEditWorkflow(context) {
     if (pendingWorker) check(unfinished.start === quiet.serial, 'No request crossed from the settled sketch into the new draft');
     check((await inspect(DISCARD)).available, 'Original discard control remains physically reachable');
     await pointer('mouseMoved', discardTarget.point); await pointer('mousePressed', discardTarget.point, 1); await pointer('mouseReleased', discardTarget.point, 0);
-    const confirm = await prepare(DISCARD_DIALOG + ' button.primary-button');
+    let confirm = await prepare(DISCARD_DIALOG + ' button.primary-button');
+    if (viewportEntry) {
+      check(await page(dialog => document.activeElement === document.querySelector(dialog + ' button.outline-button'), DISCARD_DIALOG),
+        'The context-opened editor gives Cancel the safe default focus');
+      await key('Escape');
+      await waitFor('Escape retains the viewport-opened unfinished edit', () => page((part, width, dialog) =>
+        !document.querySelector(dialog) && document.querySelector(part)?.checkVisibility()
+        && document.querySelector(width)?.value === '4' && document.querySelector('.assembly-app')?.inert, PART, WIDTH, DISCARD_DIALOG));
+      await unchanged('Cancel keeps the exact parent file and unfinished viewport edit');
+      await press(DISCARD);
+      confirm = await prepare(DISCARD_DIALOG + ' button.primary-button');
+    }
     // Editing an already-consumed sketch rolls downstream operations back.
     // The pending reply belongs only to the draft sketch, not to the extrusion.
     const matchDraft = row => !row.action && row.features.length === 1 && row.features[0].id === 'embedded-profile'
@@ -740,6 +790,15 @@ module.exports = function embeddedPartEditWorkflow(context) {
     check(canonical(event.document) === canonical(accepted), 'Discarded unfinished change restores the exact accepted parent');
     geometry(event.response.value, true, second.revision); await parentIdle('discard restored healthy parent'); await recovery(accepted, 'Discard');
     check((await fs.readFile(output)).equals(parentFileBytes), 'Discard does not write the committed parent file');
+    if (viewportEntry) {
+      check(canonical(await historyButtons()) === canonical(viewportEntry.history) && canonical(ipc) === viewportEntry.ipc
+        && await rawRecovery() === parentRecovery && await page(() =>
+          document.querySelector('[data-assembly-tree-path=\'["moving"]\']')?.getAttribute('aria-selected') === 'true'),
+      'Discard restores the exact parent occurrence, history, recovery and file without new IPC');
+      boundaries.push({ phase: 'Viewport Edit context, Cancel and discard', point: viewportEntry.point,
+        occurrencePath: viewportEntry.occurrencePath, definition: viewportEntry.definition, restoredBuildSerial: event.serial,
+        savedSha256: digest(parentFileBytes), recoverySha256: digest(parentRecovery) });
+    }
     if (heldDiscard) {
       const resumed = await pendingWorker.sample(), state = await observe();
       const late = state.builds.find(row => row.serial === heldDiscard.serial);
