@@ -196,6 +196,23 @@ test('moved comparison owns a separate exact baseline and releases it without ch
   f.rasterComparison.clear();
 });
 
+test('moved retention binds the exact crop without reading metadata or rehashing pixels',async()=>{
+  const f=fixture({rasterComparison:true,size:{width:8,height:8}}),moved=await f.cameraFrame();
+  const sha=moved.sha256,retentionDigests=f.digests.length;
+  let metadataReads=0;
+  Object.defineProperty(moved,'sha256',{get:()=>{metadataReads++;return sha;},enumerable:true});
+  f.rasterComparison.retainMovedBaseline(moved);
+  assert.equal(metadataReads,0);assert.equal(f.digests.length,retentionDigests);
+  assert.equal(f.captures.length,1);assert.equal(f.scripts.length,2);assert.deepEqual(f.sent,[]);
+
+  f.setCapture(Buffer.from(f.raw));const restored=await f.cameraFrame(),comparisonDigests=f.digests.length;
+  assert.equal(f.rasterComparison.compare(restored,moved).unmasked.changedPixels,0);
+  assert.ok(metadataReads>0);assert.equal(f.digests.length,comparisonDigests+4);
+  f.raw[0]^=1;
+  assert.throws(()=>f.rasterComparison.compare(restored,moved),/identity and hashes must remain unchanged/);
+  f.rasterComparison.clear();
+});
+
 test('moved retention replaces only its single owner and rejects stale, mutated, oversized or cleared captures',async()=>{
   const f=fixture({rasterComparison:true,size:{width:8,height:8}}),first=await f.cameraFrame();
   f.rasterComparison.retainMovedBaseline(first);

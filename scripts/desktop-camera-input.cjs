@@ -42,8 +42,12 @@ module.exports = function cameraInput({ getWindow, evaluate, check, digest, allo
       return JSON.parse(serialized);
     } catch { return { status: 'unavailable', reason: 'diagnostic-error' }; }
   }
-  function retainedFrame(frame) {
+  function boundedCrop(frame) {
     check(frame && frame.raw && frame.bitmap && frame.covered, 'Raster comparison requires a retained crop within the pixel limit');
+    return frame;
+  }
+  function retainedFrame(frame) {
+    boundedCrop(frame);
     check(JSON.stringify(frame.result) === frame.metadata && digest(frame.raw) === frame.result.rawSha256
       && digest(frame.bitmap) === frame.result.sha256, 'Retained raster identity and hashes must remain unchanged');
     return frame;
@@ -76,7 +80,9 @@ module.exports = function cameraInput({ getWindow, evaluate, check, digest, allo
     },
     retainMovedBaseline(result) {
       check(latest && latest.result === result, 'Moved raster baseline must be the latest accepted capture object');
-      movedBaseline = retainedFrame(latest);
+      // Bind the exact private owner before the next capture. Its reader
+      // validates the retained metadata and hashes before comparing pixels.
+      movedBaseline = boundedCrop(latest);
     },
     clearMovedBaseline() { movedBaseline = null; },
     compare(result, expectedMoved) {
