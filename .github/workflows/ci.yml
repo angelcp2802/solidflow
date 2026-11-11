@@ -105,7 +105,8 @@ jobs:
   renderer:
     name: Renderer (${{ matrix.os }}, ${{ matrix.batch }}, Node 24)
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 35
+    # The Windows persistence batch reached 35 minutes during job cleanup.
+    timeout-minutes: ${{ matrix.os == 'windows-2025' && matrix.batch == 'persistence' && 45 || 35 }}
     strategy:
       fail-fast: false
       matrix:

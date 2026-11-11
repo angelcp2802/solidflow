@@ -1,5 +1,17 @@
 # Validation
 
+## Hosted Windows persistence job limit
+
+In the [0.21.0 Windows persistence job](https://github.com/angelcp2802/solidflow/actions/runs/42983244610/job/130398335384),
+all 61 executed validation steps passed. GitHub recorded the 35-minute
+job timeout during the post-setup cleanup. The other eleven renderer and
+configured jobs passed. The three Desktop jobs stopped at the required
+prerequisite guard, so this attempt did not verify Desktop packaging.
+
+The Windows persistence job now has a 45-minute budget. The renderer matrix,
+test commands, per-scenario deadlines and required Desktop results are
+identical. Record the next hosted result on its exact head.
+
 ## Desktop test context for export aliases — Windows, 2026-11-11
 
 The first frozen 0.21.0 combination passed all 11,490 unit/CAD cases in

@@ -10,7 +10,8 @@ embedded-part transition command. Its authenticated owned-window and TaskDialog
 driver supplies the native-close observation and two-process recovery case.
 
 These static additions retain the existing read-only workflow permissions,
-renderer prerequisites, fixed command deadlines and 35-minute job budgets.
+renderer prerequisites and fixed command deadlines. The renderer job budgets
+are documented in the validation section below.
 Record the actual result on each published head. The source's local cases and a
 successful hosted job establish their individual evidence boundaries.
 
@@ -2668,15 +2669,17 @@ The desktop smoke check loads the initial model, preload, worker and WASM and ch
 
 Run focused tests while developing, then the checks relevant to the complete change. The [CI workflow](../.github/workflows/ci.yml) is configured for Node 24 on Windows 2025 x64, Ubuntu 24.04 x64 and macOS 15 arm64: install, build, unit tests, IPC tests, Electron smoke check and packaging. Linux uses Xvfb. A configured job is not an executed result; check Actions for the actual commit and platform before claiming a pass.
 
-The 78 distinct longer renderer commands run in three fixed batches per operating
-system: persistence has 38, relations 23 and hinge-symmetry 17, separately from
-unit/CAD and packaging. The configured mechanical and
+The longer renderer commands run in three fixed batches per operating system:
+persistence, relations and hinge-symmetry. Unit/CAD checks and packaging run
+separately. The configured mechanical and
 compound workflows retain their separate job. The original Desktop check names
 depend on every renderer and configured job: after pinned Node setup, an
 unconditional result guard fails unless both dependencies succeeded. A skipped
-or canceled dependency cannot satisfy that guard. Existing 35-minute general
-job and 20-minute configured job limits, scenario deadlines, sandbox settings
-and no-publish packaging remain unchanged. This split is tracked in issue #53;
+or canceled dependency cannot satisfy that guard. The Windows persistence
+renderer has a 45-minute job limit. The other renderer jobs and Desktop
+jobs have 35 minutes, and the configured job has 20 minutes. Each scenario
+retains its own deadline, sandbox settings and no-publish packaging. This
+split is tracked in issue #53;
 command-inventory parity does not replace hosted execution.
 
 CI packages have no signing or notarization credentials and are built with `--publish never`. Binary upload is disabled until the CAD library's complete corresponding-source bundle is verified. They are not automatically published releases. Local packaging commands are `npm run package:win`, `npm run package:mac` and `npm run package:linux`; use the command appropriate to the host. Packaging success does not prove interactive operation, signing or acceptance by the platform's application controls. Current evidence and its limits belong in [VALIDATION.md](VALIDATION.md).
