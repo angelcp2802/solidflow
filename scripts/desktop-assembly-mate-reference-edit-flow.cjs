@@ -278,18 +278,7 @@ module.exports = function mateReferenceEditWorkflow(context) {
     check(await serial()===before,'Origin reference choice creates no worker request');
     return datum(kind,id,value);
   }
-  async function material(slot,kind,id,scene,doc,bottom=false){
-    await actual(role(slot));
-    if(kind==='edge')await actual('[aria-label="Seleccionar aristas lineales"]');
-    await waitFor('current material picking mode',()=>page(kind=>document.querySelector('.assembly-viewport')?.getAttribute('data-reference-picking')===kind,kind));
-    if(bottom){
-      // The elevated concentric occurrence can cover ground from Frontal.
-      // Posterior exposes both lower planes with screen right = −X.
-      await actual('button[data-assembly-menu="view"]');
-      await actual('button[role="menuitem"][data-assembly-command="view-back"]');
-    }else await actual('button[title="Frontal"]');
-    await actual('button[title="Ajustar"]');
-    await page(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true)))));
+  async function materialTarget(kind, id, scene, doc, bottom = false) {
     const body=scene.bodies.find(b=>b.component.occurrencePath[0]===id);
     const planeZ=bottom?0:4, normalZ=bottom?-1:1;
     const supports=(kind==='face'?body.faces:body.edges).filter(r=>kind==='face'
@@ -301,9 +290,26 @@ module.exports = function mateReferenceEditWorkflow(context) {
     const bounds=envelope(corners(doc)),center=bounds.min.map((v,i)=>(v+bounds.max[i])/2),span=Math.hypot(...bounds.min.map((v,i)=>bounds.max[i]-v));
     const rect=await page(()=>{const e=document.querySelector('.assembly-viewport canvas'),r=e.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height};});
     const pixels=rect.height/(1.3*span),point={x:rect.x+rect.width/2+normalZ*(world[0]-center[0])*pixels,y:rect.y+rect.height/2-(world[1]-center[1])*pixels};
+    return { reference, world, point };
+  }
+  async function material(slot,kind,id,scene,doc,bottom=false,{checkHeld=true,positionCamera=true}={}){
+    await actual(role(slot));
+    if(kind==='edge')await actual('[aria-label="Seleccionar aristas lineales"]');
+    await waitFor('current material picking mode',()=>page(kind=>document.querySelector('.assembly-viewport')?.getAttribute('data-reference-picking')===kind,kind));
+    if(positionCamera){
+      if(bottom){
+        // The elevated concentric occurrence can cover ground from Frontal.
+        // Posterior exposes both lower planes with screen right = −X.
+        await actual('button[data-assembly-menu="view"]');
+        await actual('button[role="menuitem"][data-assembly-command="view-back"]');
+      }else await actual('button[title="Frontal"]');
+      await actual('button[title="Ajustar"]');
+    }
+    await page(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true)))));
+    const { reference, world, point } = await materialTarget(kind, id, scene, doc, bottom);
     const hit = () => page(point=>document.elementFromPoint(point.x,point.y)===document.querySelector('.assembly-viewport canvas'),point);
     check(await hit(),'Analytical material point hits exposed canvas');
-    if (kind === 'face' && !checkedHeldFace) {
+    if (kind === 'face' && checkHeld && !checkedHeldFace) {
       const faceRole = target => page(selector => document.querySelector(selector)?.classList.contains('active')
         && document.querySelector('.assembly-viewport')?.getAttribute('data-reference-picking') === 'face', role(target));
       const snapshot = async () => ({ document: await page(() => localStorage.getItem('solidflow.autosave')),
@@ -347,6 +353,139 @@ module.exports = function mateReferenceEditWorkflow(context) {
     }
     check(await serial()===before,'Material choice creates no worker request');
     gestures.push({action:'material-pointer',slot,kind,world,point,reference});return reference;
+  }
+  async function checkNewDistanceFaceOverlay(base, scene, inputBytes) {
+    const previewLabel = 'Vista previa de la nueva relación';
+    await actual(aria('Relación de ensamblaje'));
+    await control('[aria-label="Tipo de relación"]', 'distance');
+    await setOriginVisibility([false, false]);
+    await actual('button[title="Frontal"]');
+    await actual('button[title="Ajustar"]');
+    const firstTarget = await materialTarget('face', 'ground', scene, base);
+    const secondTarget = await materialTarget('face', 'distance', scene, base);
+    const sampleCenters = [firstTarget.point, secondTarget.point];
+    const roles = () => page(() => [1, 2].map(slot => {
+      const title = document.querySelector('[aria-label="Referencia ' + slot + ' de la relación"] span')?.title;
+      return title ? JSON.parse(title) : null;
+    }));
+    const committed = async () => ({ ui: await ui(), counters: await observe.counters(),
+      ipc: canonical(ipc), sourceSha256: digest(await fs.readFile(input)) });
+    const start = await committed();
+    const frames = {};
+    checks.push({ newDistanceFaceOverlay: { frames, scope: 'Root, original five-prism fixture, Front view' } });
+    async function frame(name, expectedRoles) {
+      check(canonical(await roles()) === canonical(expectedRoles), 'Exact new distance role declarations: ' + name);
+      await pointer('mouseMoved', { x: 30, y: 20 });
+      const state = visiblePresentation(await presentation());
+      check(state.picking === '' && state.labels.length === 0 && state.leaders.length === 0 && state.selectedPath === null,
+        'Reference crop has no hover, pick tool, origin display or component selection: ' + name);
+      let last = null;
+      const crop = await waitFor('stationary exact new-distance face crop: ' + name, async () => {
+        await page(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+        const { sha256, width, height, interiorSamples, unmaskedPixelCount, maskedRects } = await cameraFrame({ sampleCenters });
+        check(maskedRects.length === 0 && unmaskedPixelCount === width * height, 'Full unmasked geometry crop: ' + name);
+        const current = { sha256, width, height, interiorSamples };
+        const same = canonical(current) === canonical(last);
+        last = current;
+        return same ? current : false;
+      });
+      frames[name] = crop;
+    }
+    await frame('empty', [null, null]);
+    const first = await material(1, 'face', 'ground', scene, base, false, {checkHeld:false,positionCamera:false});
+    await frame('first-alone', [first, null]);
+    const second = await material(2, 'face', 'distance', scene, base, false, {checkHeld:false,positionCamera:false});
+    await frame('both-forward', [first, second]);
+    await actual(clear(1));
+    await frame('cleared-first', [null, second]);
+    await actual(clear(2));
+    await frame('reset', [null, null]);
+    const reverseSecond = await material(2, 'face', 'distance', scene, base, false, {checkHeld:false,positionCamera:false});
+    await frame('second-alone', [null, reverseSecond]);
+    const reverseFirst = await material(1, 'face', 'ground', scene, base, false, {checkHeld:false,positionCamera:false});
+    await frame('both-reverse', [reverseFirst, reverseSecond]);
+    await actual(role(1));
+    await actual('button[title="Seleccionar caras"]');
+    await actual('details summary', 'Usar un plano principal');
+    await control('[aria-label="Componente del plano"]', 'scope');
+    await control('[aria-label="Plano principal"]', 'XY');
+    await button('Usar en referencia 1');
+    const rootPlane = datum('principal-plane', null, 'XY');
+    await frame('first-now-plane', [rootPlane, second]);
+    await actual(clear(2));
+    await frame('plane-alone', [rootPlane, null]);
+    await actual(clear(1));
+    await frame('cleared-all', [null, null]);
+    check((await fs.readFile(input)).equals(inputBytes) && canonical(await committed()) === canonical(start),
+      'New draft selection and clearing preserve exact graph, history, worker counters and file activity');
+    check(Object.values(frames).every(f => f.width === frames.empty.width && f.height === frames.empty.height),
+      'All ordered role crops use the same geometry rectangle');
+    const positions = frame => frame.interiorSamples.map(({ x, y, side }) => [x, y, side]);
+    const expectedPositions = canonical(positions(frames.empty));
+    check(Object.values(frames).every(frame => canonical(positions(frame)) === expectedPositions),
+      'Every interior sample has the same exact bitmap coordinates');
+    const samples = name => frames[name].interiorSamples.map(sample => sample.sha256);
+    const [firstBase, secondBase] = samples('empty');
+    const [firstSelected, secondUntouched] = samples('first-alone');
+    const [firstUntouched, secondSelected] = samples('second-alone');
+    check(firstSelected !== firstBase && secondSelected !== secondBase
+      && firstUntouched === firstBase && secondUntouched === secondBase,
+    'Each face control changes only its analytically located interior');
+    check(canonical(samples('both-forward')) === canonical([firstSelected, secondSelected]),
+      'Both selected face interiors match their independent one-face controls');
+    const comparisons = [
+      ['both-reverse', 'both-forward'], ['cleared-first', 'second-alone'],
+      ['first-now-plane', 'second-alone'], ['reset', 'empty'], ['plane-alone', 'empty'], ['cleared-all', 'empty'],
+    ];
+    const mismatches = comparisons.filter(([actualName, expectedName]) => canonical(samples(actualName)) !== canonical(samples(expectedName)));
+    check(mismatches.length === 0, 'New distance highlights follow only current material roles: ' + JSON.stringify(mismatches));
+    check(await page(label => [...document.querySelectorAll('#assembly-panel-relations button')].some(button => button.textContent.trim() === label && button.disabled), previewLabel), 'Cleared draft cannot request a preview');
+
+    await material(2, 'face', 'distance', scene, base, false, {checkHeld:false,positionCamera:false});
+    await button('Usar en referencia 1');
+    await frame('mixed-before-preview', [rootPlane, second]);
+    check(canonical(samples('mixed-before-preview')) === canonical(samples('second-alone')), 'Mixed draft retains exactly the material face overlay');
+    await actual('input[aria-label="Distancia firmada"]');
+    await page(() => {
+      const input = document.querySelector('input[aria-label="Distancia firmada"]');
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, '-4');
+      input.dispatchEvent(new Event('input', {bubbles:true}));
+      input.dispatchEvent(new Event('change', {bubbles:true}));
+    });
+    await waitFor('scripted signed distance stays at minus four', () => page(() =>
+      document.querySelector('input[aria-label="Distancia firmada"]')?.value === '-4'));
+    const beforePreview = await serial();
+    await button(previewLabel);
+    const request = await response(beforePreview, 'preview-assembly'), reply = request.response.value;
+    check(canonical(request.current) === canonical(base) && reply.status === 'ready' && reply.hasToken
+      && reply.checks.length === 5 && reply.checks.every(result => result.satisfied) && reply.document?.mates.length === 5,
+    'Exact mixed origin and material face obtain a verified preview');
+    const added = reply.document.mates.find(mate => !base.mates.some(existing => existing.id === mate.id));
+    check(added?.type === 'distance' && added.alignment === 'aligned'
+      && added.distance === -4 && canonical([added.first, added.second]) === canonical([rootPlane, second]),
+    'Verified preview retains the ordered references and negative four millimetre distance');
+    const originalMates = reply.document.mates.filter(mate => mate.id !== added.id);
+    check(canonical(originalMates) === canonical(base.mates), 'Mixed preview retains the four original mates');
+    const moving = occurrence(reply.document, 'distance').pose;
+    const faceNormal = rotate(moving.rotation, [0, 0, 1]);
+    const faceZ = moving.translation[2] + rotate(moving.rotation, [0, 0, 4])[2];
+    near(dot(faceNormal, [0, 0, 1]), 1, 1e-6, 'Literal top-plane orientation');
+    near(-faceZ, -4, 1e-6, 'Independent root XY to original top-face distance');
+    geometry(reply.scene, { ...reply.document, mates: originalMates }, 'new-distance-mixed-preview');
+    const beforeCancel = await serial();
+    await actual(CANCEL);
+    const cancelled = await response(beforeCancel, 'discard-assembly');
+    check(cancelled.response.value === null, 'Mixed preview capability is revoked');
+    await recovery(base);
+    await waitFor('retained current mixed draft after Cancel', async () =>
+      canonical(await roles()) === canonical([rootPlane, second]) && canonical(await ui()) === canonical(start.ui));
+    await frame('mixed-after-cancel', [rootPlane, second]);
+    check(['mixed-before-preview', 'mixed-after-cancel'].every(name => canonical(positions(frames[name])) === expectedPositions)
+      && canonical(samples('mixed-after-cancel')) === canonical(samples('mixed-before-preview')),
+    'Cancel restores the retained highlight at both exact face interiors');
+    check((await fs.readFile(input)).equals(inputBytes) && canonical(ipc) === start.ipc, 'Mixed preview and Cancel preserve the source and file activity');
+    await actual(clear(2));
+    await actual(clear(1));
   }
   async function preview(base,wantedMate,type,phase){
     const before=await serial();await actual(aria(labels[type][1]));const event=await response(before,'preview-assembly'),v=event.response.value;
@@ -530,6 +669,7 @@ module.exports = function mateReferenceEditWorkflow(context) {
     await waitFor('owned initial discard confirmation',()=>page(()=>!!document.querySelector('[role="dialog"][aria-labelledby="discard-title"]')));
     await button('Continuar sin guardar','[role="dialog"][aria-labelledby="discard-title"]');
     let scene=await build(before,expected,'original'),current=expected;
+    await checkNewDistanceFaceOverlay(current, scene, inputBytes);
     for(const type of ['distance','angle','coincident','concentric']){
       const result=await edit(current,scene,type);current=result.document;scene=result.scene;
     }

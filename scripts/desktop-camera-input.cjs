@@ -159,14 +159,22 @@ module.exports = function cameraInput({ getWindow, evaluate, check, digest, allo
     // Replace the candidate before capturing; only the explicit baseline may
     // outlive the latest poll. Buffers never enter result or its signature.
     latest = null;
-    let diagnostic = null;
+    let diagnostic = null, sampleCenters = [];
     if (options !== undefined) {
-      check(allowFrameDiagnostics === true && options !== null && typeof options === 'object' && !Array.isArray(options)
-        && Object.keys(options).length === 1 && Object.hasOwn(options, 'diagnostic')
-        && ['before', 'before-confirm', 'restored'].includes(options.diagnostic), 'Only the opted-in reference-edit workflow may request a named frame diagnostic');
-      diagnostic = options.diagnostic;
-      check(diagnosticNames.size < 3 && !diagnosticNames.has(diagnostic), 'At most three unique named frame diagnostics');
-      diagnosticNames.add(diagnostic);
+      check(allowFrameDiagnostics === true && options !== null && typeof options === 'object'
+        && !Array.isArray(options) && Object.keys(options).length === 1,
+      'Only the opted-in reference-edit workflow may request frame evidence');
+      if (Object.hasOwn(options, 'sampleCenters')) {
+        check(Array.isArray(options.sampleCenters) && options.sampleCenters.length === 2
+          && [...options.sampleCenters].every(point => point && Number.isFinite(point.x) && Number.isFinite(point.y)),
+        'Exactly two finite geometry sample centers');
+        sampleCenters = options.sampleCenters;
+      } else {
+        check(Object.hasOwn(options, 'diagnostic') && ['before', 'before-confirm', 'restored'].includes(options.diagnostic), 'Fixed reference-edit diagnostic name');
+        diagnostic = options.diagnostic;
+        check(diagnosticNames.size < 3 && !diagnosticNames.has(diagnostic), 'At most three unique named frame diagnostics');
+        diagnosticNames.add(diagnostic);
+      }
     }
     const {window,rect}=await bounds();
     // Interior crop avoids the command toolbar, orientation triad and status UI.
@@ -231,6 +239,21 @@ module.exports = function cameraInput({ getWindow, evaluate, check, digest, allo
     check(maskedPixelCount<=pixelCount*.10,'Text exclusions must leave at least 90 percent of the capture exact');
     for(let i=0;i<covered.length;i++)if(covered[i])bitmap.fill(0,i*4,i*4+4);
     const result={width:size.width,height:size.height,sha256:digest(bitmap),rawSha256:digest(raw),maskedRects,unmaskedPixelCount:pixelCount-maskedPixelCount};
+    if (sampleCenters.length) {
+      result.interiorSamples = sampleCenters.map(point => {
+        const x = Math.floor((point.x - crop.x) * sx), y = Math.floor((point.y - crop.y) * sy);
+        const side = 7, radius = (side - 1) / 2;
+        check(x >= radius && x + radius < size.width && y >= radius && y + radius < size.height,
+          'Each geometry sample lies wholly inside the real capture');
+        const sample = Buffer.alloc(side * side * 4);
+        for (let row = 0; row < side; row++) {
+          const pixel = (y - radius + row) * size.width + x - radius;
+          check(!covered.subarray(pixel, pixel + side).some(Boolean), 'Geometry samples contain no text mask');
+          raw.copy(sample, row * side * 4, pixel * 4, (pixel + side) * 4);
+        }
+        return { x, y, side, sha256:digest(sample) };
+      });
+    }
     if (diagnostic !== null) {
       // Encode the already captured, unmodified image. No extra screenshot,
       // page mutation, path, camera access or alternative comparison buffer.

@@ -37,7 +37,7 @@ export function assemblyDragWorldTarget(proxy: THREE.Object3D): RigidPose {
 
 export const assemblyComponentKey = (component: AssemblyComponentReference): string =>
   JSON.stringify([component.occurrencePath, component.definition.id, component.definition.revision])
-export const assemblyFaceKey = (face: AssemblySceneFace): string => JSON.stringify([
+export const assemblyFaceKey = (face: Pick<AssemblySceneFace, 'selection'>): string => JSON.stringify([
   assemblyComponentKey(face.selection.component), face.selection.body ? [face.selection.body.bodyId, face.selection.body.sourceFeatureId] : null, face.selection.face.sourceFeatureId, face.selection.face.key,
 ])
 export const assemblyBodyKey = (component: AssemblyComponentReference, body: AssemblySceneBody['body']): string =>

@@ -1,5 +1,27 @@
 # Validation
 
+## Ordinary assembly face highlights — Windows, 2026-11-11
+
+The production Electron renderer selected the two independent top faces of
+original 3 × 2 × 4 mm prisms in both orders. The role cards kept their exact
+material references. Two 7 × 7 interior samples at analytically projected face
+centers distinguished each orange highlight from the other face and the
+unselected control. The control at the pre-fix product reproduced three
+failures: reversed pick order, clearing only the first role and replacing the
+first face with scope XY. One diagnostic pair with equal recorded projection
+and model-view matrices differed on a 20-pixel vertical edge. The regression
+keeps complete frame hashes for diagnosis and compares the two face interiors.
+
+With the correction, changing either role keeps the other face highlighted.
+The same renderer verified a signed −4 mm distance from root XY to the retained
+material face, with five satisfied relations and unchanged original references.
+Independent literal coordinates verified the signed separation to 1e-6 mm.
+The original five solids measured 120 mm³ and 260 mm². Cancel revoked the
+preview and restored the retained role highlight, source bytes and file
+activity. The Windows x64 run at `f87dfac` passed 404 checkpoints including the
+existing saved-relation edit and round-trip routes. Scope is the tested standard
+root workspace and fixture.
+
 ## Packaged 0.30.0 keyboard and width choices — Windows, 2026-11-11
 
 The Windows x64 directory package for `9a4664cd897909aa4942941e15b0f12a00457fc1`
@@ -7211,6 +7233,22 @@ the cause. The three dependent Desktop jobs failed their renderer gate before
 build/unit/smoke/package. [Security](https://github.com/angelcp2802/solidflow/actions/runs/40234044893)
 passed. Current local acceptance does not resolve those failures; hosted
 validation of the new head remains pending.
+
+## Standard assembly Edit component properties — Windows, 2026-11-11
+
+The existing standard and compact shortcut routes select the original
+`moving` occurrence and press **Editar → Propiedades del componente**
+with actual pointer input. The menu closes, the properties pane opens,
+and its **Nombre del componente** field owns focus for the exact
+`["moving"]` tree path. Each menu reveal leaves the worker, recovery,
+and file observations unchanged.
+
+After a blank name is rejected, the same menu alias restores focus for the
+trusted name edit and Ctrl+S. The saved document changes only the current
+occurrence name and its document timestamp. Both prisms retain the existing
+independent volume, area and bounds checks. The Windows x64 standard and
+compact routes passed 566 and 588 checks with their existing owned file
+paths. The result covers the ordinary assembly alias in those two layouts.
 
 ## Standard assembly File Open and live report — Windows, 2026-11-11
 

@@ -329,6 +329,26 @@ module.exports = function assemblyShortcutWorkflow(context) {
     checks.push({keyboardModalAudit:audit});
     check(valid,'Modal preserves complete worker history/recovery/IPC and exact export-disable/restore presentation: '+JSON.stringify(audit));
   }
+  async function componentPropertiesFromEdit(phase) {
+    const before = await snapshot();
+    const trigger = ROOT + ' .command-header button[data-assembly-menu="edit"]';
+    const command = ROOT + ' .command-header [role="menu"] button[data-assembly-command="component-properties"]';
+    await actualControl(trigger);
+    await actualControl(command);
+    const focused = await waitFor('Edit Properties focuses the exact selected moving occurrence', () => page((root, triggerSelector) => {
+      const workspace = document.querySelector(root), pane = workspace?.querySelector('#assembly-panel-properties');
+      const fields = pane?.querySelectorAll('input[aria-label="Nombre del componente"]'), field = fields?.[0];
+      const selected = [...(workspace?.querySelectorAll('[role="treeitem"][data-assembly-tree-path][aria-selected="true"]') ?? [])];
+      const path = selected[0]?.dataset.assemblyTreePath;
+      if (selected.length !== 1 || path !== '["moving"]' || !pane || pane.hidden || fields?.length !== 1
+        || !field.checkVisibility() || field.disabled || field.readOnly || document.activeElement !== field || field.value !== 'moving'
+        || workspace.querySelector('#assembly-tab-properties')?.getAttribute('aria-selected') !== 'true'
+        || document.querySelector(triggerSelector)?.getAttribute('aria-expanded') !== 'false') return false;
+      return { path: JSON.parse(path), pane: pane.id, field: field.getAttribute('aria-label'), name: field.value };
+    }, ROOT, trigger));
+    await stable(before, 'Edit Properties reveals and focuses without a CAD, recovery or file operation');
+    checks.push({ editMenuComponentProperties: { phase, compact: compactShortcuts, ...focused } });
+  }
   const FILE_TRIGGER = 'button[data-assembly-menu="file"]';
   const STANDARD_DISCARD = '[role="dialog"][aria-label="Cambios sin guardar"]';
   const inspectionReport = () => page(() => {
@@ -489,12 +509,13 @@ module.exports = function assemblyShortcutWorkflow(context) {
     let dirtyFileOpen;
     if(!configured){
       await actualControl(`[data-assembly-tree-path='["moving"]']`);
+      await componentPropertiesFromEdit('selected-component');
       await nativeTextUndo('input[aria-label="Nombre del componente"]');
       if (assemblyNameComposition) await compositionOwnsSave();
       const invalidBefore=await snapshot();await key('A');await key('Backspace');await key('S');
       await waitFor('invalid name is restored before Save',()=>page(()=>document.querySelector('input[aria-label="Nombre del componente"]')?.value==='moving'));
       await stable(invalidBefore,'Rejected blank name CtrlS neither saves nor changes CAD/history');
-      await actualControl('input[aria-label="Nombre del componente"]');
+      await componentPropertiesFromEdit('before-save');
       await key('A'); await shortcutText('Keyboard renamed');
       before=await serial(); await key('S'); row=await response(before,BUILD); current=row.document;
       const renamed=structuredClone(expected);renamed.occurrences[1].name='Keyboard renamed';renamed.updatedAt=current.updatedAt;
