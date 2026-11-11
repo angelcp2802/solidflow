@@ -1,5 +1,87 @@
 # Validation
 
+## Packaged assembly authoring and shared-part editing — Windows, 2026-11-11
+
+The [0.23.0 draft revision](https://github.com/angelcp2802/solidflow/pull/49/commits/d8621f04f488683503cce4e41b6e1ba5d236b0bb)
+and the frozen Windows source share tree
+`8f48d81e441571b433a1b121e6f5a83992d739c5`. The Windows x64 executable
+has SHA-256 `e8506d67456573e357c148828fb788b1d3a21d599c3ce58ccde4417e77983630`.
+The ASAR has SHA-256
+`7174a7b6a26d1c45baba3a1de3791566e33ed0b6ca52223f35103ce561f47356`.
+REA and the independent package audit matched all 5,276 archive file
+occurrences. The build passed 11,503 unit and CAD cases, 227 IPC checks
+with two explicit skips, and desktop startup.
+
+The complete 122-command Windows inventory passed. The terminal audit
+rehashed every command log, all 1,586 tracked inputs, nine production
+members and eleven selected dependency files. The
+[0.23 macOS persistence job](https://github.com/angelcp2802/solidflow/actions/runs/43004218055/job/130467560335)
+passed the face-target step that timed out on 0.22. GitHub canceled the
+job during finalization after it exceeded its 35-minute limit. All executed
+steps, including cleanup, reported success. The 0.24 workflow extends only
+macOS persistence to the 45-minute limit already used by Windows. The hosted
+result of that change is pending.
+
+In an isolated native window, **Nuevo → Ensamblaje** created an empty
+assembly. We imported the [original 3 × 2 × 4 mm prism](../scripts/desktop-assembly-basic-authoring-original.cjs)
+and reused its origin twice. Base was fixed at X0. Movement preview and
+Apply placed Guía and Seguidor at X8 and X16 mm. We then applied a signed
+−10 mm distance from root YZ to Guía YZ and an aligned parallel relation
+from Seguidor Z to Base Z. The saved v2 file has one definition, three
+distinct occurrence IDs and both ordered relation pairs. The saved X
+positions match 0, 10 and 16 mm within 1e−6 mm.
+
+The assembly reopened and resolved both relations. Cancel retained its saved
+bytes. An independent read of the native STL found three separated prisms,
+each with volume 24 mm³ and area 52 mm² within 1e−5. The exported bounds
+were [0, 0, 0] to [19, 2, 4] mm.
+
+The [original embedded-part assembly](../scripts/desktop-assembly-embedded-part-edit-original.cjs)
+starts with two occurrences of one 2 × 3 × 4 mm source and a locked Z-axis
+relation. We opened the moving occurrence's part, changed the rectangle
+width to 3 mm and its X centre to 1.5 mm, and returned to the assembly.
+The review identified both active uses. After a verified preview, Cancel
+returned to the edited 36 mm³ part and preserved the baseline assembly file.
+Retry and Apply updated both occurrences in one history step. Undo restored
+48 mm³ and Redo restored 72 mm³.
+
+The saved assembly retained both occurrence IDs, both poses, the historical
+source revision and one new shared revision. The saved Z relation retained its
+ID and its moving endpoint followed the new revision. The file reopened at
+72 mm³, and Solve then Cancel preserved its bytes. The independent STL read
+found two 36 mm³, 66 mm² prisms at Z0–4 and Z10–14 mm, giving 72 mm³ and
+132 mm² overall. The assembly instance closed cleanly. The separate verified
+desktop shortcut and guide leave the 772 mm³ part example open for the demo.
+
+These cases cover one native Windows directory build, two ordinary relation
+types and a declared-axis shared-source edit. Material-face reference repair,
+other model families, installed-platform use and human acceptance have separate
+evidence requirements.
+
+## Standard assembly scope after suppression — Windows, 2026-11-11
+
+The [original grouped-scope assembly](../src/cad/fixtures/assembly-interference-grouping-scope-original.json)
+shares its inner definition between two root occurrences. In the original
+renderer, suppressing the selected left scope's ancestor made the scope field
+display the root. Reusing a part still edited the shared inner definition,
+including the active right occurrence. The committed graph had two root
+occurrences and three inner occurrences.
+
+The corrected renderer keeps an explicitly selected hidden active scope and
+updates both shared uses when a part is inserted there. Suppressing its
+ancestor switches to the root. The next reuse adds a third root occurrence and
+leaves both shared definitions intact. Native placement gains two root solids
+and retains four right solids. Their separate volumes sum to 144 mm³ and areas
+to 312 mm² within 1e−5. Undo and Redo restore the exact suppression and root
+insertion graphs. The original file stays byte-identical and the test restores
+the clean starting document before close.
+
+Build and 97 focused unit cases passed. The Windows production-renderer
+grouped-scope, basic-authoring and saved-mate-reference routes passed 119, 483
+and 283 checkpoints, respectively, with no console or resource failures. The
+renderer uses a hidden test window, production controls and test-owned file
+selection. This covers the original reused assembly and its scope transition.
+
 ## Live draft replies while picking an end face — Windows, 2026-11-11
 
 The [original face-limit fixture](PROVENANCE.md#original-viewport-face-limit-inputs--2026-10-29)

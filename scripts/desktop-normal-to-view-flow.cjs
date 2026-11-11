@@ -317,6 +317,47 @@ module.exports = function runNormalToViewWorkflow(c) {
     await key('8');await waitNormal('Nearest cardinal orientation');
     await pick([-4,1,2],front,planeFace(2,2),'Nearest isometric tie reaches front pocket floor');
   }
+  async function presetCancelsFacePress() {
+    const faceMode = 'button[data-part-selection-mode="face"]';
+    const frontKey = faceKey(planeFace(2,4)), backKey = faceKey(planeFace(2,0));
+    check(frontKey !== backKey, 'Frontal and Posterior expose different native faces');
+    for (const [phase, presets, hashesMatch, expectedHeldKey, expectedFreshKey] of [
+      ['held-left-across-part-preset', ['2'], [false], null, backKey],
+      ['held-left-across-unchanged-part-preset', ['1'], [true], frontKey, frontKey],
+      ['held-left-across-part-preset-round-trip', ['2', 'ShiftZ'], [false, true], null, frontKey],
+    ]) {
+      await key('1'); await actual(faceMode);
+      const initial = await selection(), before = await snapshot();
+      check(initial?.kind === 'none' && initial.keys.length === 0, 'The held preset case starts without a part selection');
+      const point = await project([0,0,2], front);
+      await pointer('mouseMoved', point); await pointer('mousePressed', point, 1);
+      let beforeView, held;
+      const views = [];
+      try {
+        beforeView = await frame(phase + ' in Frontal');
+        for (const preset of presets) {
+          await key(preset);
+          views.push(await frame(phase + ' after preset ' + preset));
+        }
+        held = await selection();
+      } finally { await pointer('mouseReleased', point, 0); }
+      check(views.every((value, index) => (value.sha256 === beforeView.sha256) === hashesMatch[index]
+        && value.width === beforeView.width && value.height === beforeView.height)
+        && canonical(held) === canonical(initial), 'Each completed preset presents the expected raster while the original press is held: ' + phase);
+      await raf();
+      const released = await selection();
+      if (released.keys.length) await actual(faceMode);
+      await pressAt(point);
+      const fresh = await selected('plane',1,'A fresh left click after the preset reaches the exact current face');
+      phases.push({ kind, phase, point, frontKey, backKey, initial, held, released, fresh, beforeView, views });
+      await unchanged('Keyboard preset and held release', before);
+      const expectedKeys = expectedHeldKey ? [expectedHeldKey] : initial.keys;
+      check(canonical(released.keys) === canonical(expectedKeys),
+        'Held press after a completed camera preset sequence must follow its actual navigation: ' + phase + '; released ' + canonical(released.keys));
+      check(canonical(fresh.keys) === canonical([expectedFreshKey]), 'A fresh click selects the exact current face after ' + phase);
+      await actual(faceMode);
+    }
+  }
   async function planarAndPair() {
     const top=planeFace(2,4),floor=planeFace(2,2),bottom=planeFace(2,0);
     await key('1');if(kind==='part')await actual('button[data-part-selection-mode="face"]');
@@ -414,7 +455,9 @@ module.exports = function runNormalToViewWorkflow(c) {
     await waitFor('Normal To initial production startup',()=>page(()=>document.querySelector('.statusbar')?.textContent.includes('Listo')&&typeof window.solidflow?.openDocument==='function'),initialReadyMs);
     for(const current of ['part','standard','configured']){
       await open(current);await viewCommands.afterOpen(kind);await viewCommands.selector(kind);
-      await emptyPrevious();await planarAndPair();await curved();await rejectedSelection();
+      await emptyPrevious();
+      if(kind==='part')await presetCancelsFacePress();
+      await planarAndPair();await curved();await rejectedSelection();
       if(kind==='part')await partFeatureAndSketch();
       await clear();await unchanged('Completed '+kind+' camera workflow');
       await viewCommands.background(kind);

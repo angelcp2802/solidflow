@@ -654,13 +654,15 @@ export default function Viewport({
     });
     const pickBody = (x: number, y: number) => pickVisibleBody(camera, context.current?.bodies ?? [], { x, y }, { width: el.clientWidth, height: el.clientHeight });
     let selectionModel: CadResult | null = null;
-    let axisGestureCamera = '';
+    let selectionCamera = '';
+    let selectionViewRevision = 0;
     let referenceGesturePresentedFrame: unknown;
     let referenceGesturePresentedCamera: string | undefined;
     const pointerDown = (e: PointerEvent) => {
       clearAxisChoices();
       selectionModel = interaction.current.model;
-      axisGestureCamera = cameraIdentity();
+      selectionCamera = cameraIdentity();
+      selectionViewRevision = navigationHistory.snapshot();
       referenceGesturePresentedFrame = context.current?.presentedReferenceFrame;
       referenceGesturePresentedCamera = context.current?.presentedReferenceCamera;
       selectionGesture.down(e, interaction.current.revolutionAxisPicking ? interaction.current.axisFrame : interaction.current.referenceFrame);
@@ -703,21 +705,24 @@ export default function Viewport({
       if (point) openContext(point, false);
       if (!selectionGesture.up(e, interaction.current.revolutionAxisPicking ? interaction.current.axisFrame : interaction.current.referenceFrame)
         || interaction.current.selectionDisabled || selectionModel !== interaction.current.model) return;
+      const axisPicking = interaction.current.revolutionAxisPicking, referenceFrame = interaction.current.referenceFrame;
+      const currentCamera = cameraIdentity();
+      if (!axisPicking && !referenceFrame && (navigationHistory.navigating || selectionCamera !== currentCamera
+        || selectionViewRevision !== navigationHistory.snapshot())) return;
       const rect = el.getBoundingClientRect();
       hoverPointer = { x: e.clientX - rect.left, y: e.clientY - rect.top };
       hoverDirty = true;
-      const axisPicking = interaction.current.revolutionAxisPicking;
-      if (interaction.current.referenceFrame && !referencePickingPresentationCurrent({
-        frame: interaction.current.referenceFrame, downPresentedFrame: referenceGesturePresentedFrame, presentedFrame: context.current?.presentedReferenceFrame,
+      if (referenceFrame && !referencePickingPresentationCurrent({
+        frame: referenceFrame, downPresentedFrame: referenceGesturePresentedFrame, presentedFrame: context.current?.presentedReferenceFrame,
         model: interaction.current.model, presentedModel: context.current?.presentedModel,
-        camera: cameraIdentity(), downCamera: axisGestureCamera, downPresentedCamera: referenceGesturePresentedCamera, presentedCamera: context.current?.presentedReferenceCamera,
+        camera: currentCamera, downCamera: selectionCamera, downPresentedCamera: referenceGesturePresentedCamera, presentedCamera: context.current?.presentedReferenceCamera,
         navigating: navigationHistory.navigating, width: rect.width, height: rect.height,
         clientWidth: el.clientWidth, clientHeight: el.clientHeight,
       })) return;
       if (axisPicking) {
         if (navigationHistory.navigating || context.current?.presentedModel !== interaction.current.model
           || context.current.presentedAxisCandidates !== axisPicking.candidates
-          || axisGestureCamera !== cameraIdentity() || context.current.presentedAxisCamera !== axisGestureCamera
+          || selectionCamera !== currentCamera || context.current.presentedAxisCamera !== selectionCamera
           || Math.abs(rect.width - el.clientWidth) >= 1 || Math.abs(rect.height - el.clientHeight) >= 1) return;
         const candidates = pickRevolutionAxisChoices(camera, axisPicking.candidates, hoverPointer,
           { width: el.clientWidth, height: el.clientHeight }, context.current.body);

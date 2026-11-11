@@ -1335,6 +1335,15 @@ async function runInElectron() {
     }); } finally { endTiming?.(); }
   };
   const freshPartWheel = activeScenario === SCENARIOS['part-fresh-sketch'];
+  const touchOriginLabel = async point => {
+    check([SCENARIOS['assembly-origin-axes'], SCENARIOS['assembly-configured-origin-axes']].includes(activeScenario)
+      && !window.isVisible() && window.webContents.debugger.isAttached()
+      && Number.isFinite(point.x) && Number.isFinite(point.y) && point.x >= 0 && point.y >= 0,
+    'Expected actual touch on an origin label in the hidden test-owned CAD window.');
+    const send = (type, touchPoints) => window.webContents.debugger.sendCommand('Input.dispatchTouchEvent', { type, touchPoints });
+    await send('touchStart', [{ x: point.x, y: point.y, id: 1 }]);
+    await send('touchEnd', []);
+  };
   const {cameraFrame,cameraGesture,rasterComparison}=require('./desktop-camera-input.cjs')({getWindow:()=>window,evaluate,check,digest,allowed:configuredComponents||normalToView||fromEmpty||partOperationAliases||shortcuts||mateReferenceEdit||freshPartWheel,allowFrameDiagnostics:mateReferenceEdit,allowRasterComparison:fromEmpty||partOperationAliases||shortcuts,allowPlaneDiagnostics:fromEmpty&&process.env.SOLIDFLOW_UI_PLANE_DIAGNOSTICS==='1'});
   const wheel = async (point, deltaY, buttons = 0) => {
     check((partExternalAxis || activeScenario.faceLimits || normalToView || fromEmpty || sketchPrimitives || limitDistance || freshSketch) && !window.isVisible() && window.webContents.debugger.isAttached()
@@ -1870,7 +1879,7 @@ async function runInElectron() {
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, geometryExports }) })
     : originAxes
-    ? require(shortcuts ? './desktop-assembly-shortcuts-flow.cjs' : activeScenario.originOpposed ? './desktop-assembly-origin-opposed-flow.cjs' : activeScenario.originLock ? './desktop-assembly-origin-axis-lock-flow.cjs' : './desktop-assembly-origin-axes-flow.cjs')({ configured: originAxes === 'configured', expected, input, output, referenceRoleKeyboard, shortcutOutput, reboundConfiguredSave, completePendingSave, shortcutKey, shortcutText, namedViewKey, cameraFrame, cameraGesture, rasterComparison, evaluate, observe, waitFor, click, pointer, menuKey, captureHeader, asideWheel, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
+    ? require(shortcuts ? './desktop-assembly-shortcuts-flow.cjs' : activeScenario.originOpposed ? './desktop-assembly-origin-opposed-flow.cjs' : activeScenario.originLock ? './desktop-assembly-origin-axis-lock-flow.cjs' : './desktop-assembly-origin-axes-flow.cjs')({ configured: originAxes === 'configured', expected, input, output, referenceRoleKeyboard, shortcutOutput, reboundConfiguredSave, completePendingSave, shortcutKey, shortcutText, namedViewKey, cameraFrame, cameraGesture, rasterComparison, evaluate, observe, waitFor, click, pointer, touchOriginLabel, menuKey, captureHeader, asideWheel, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : configuredCompound
     ? require('./desktop-assembly-configured-compound-flow.cjs')({ family: configuredCompound, profileKind: activeScenario.profileKind, expected, input, output, evaluate, observe, waitFor, click, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, completePendingSave, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : configuredMechanical

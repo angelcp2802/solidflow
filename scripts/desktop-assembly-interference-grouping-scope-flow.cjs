@@ -272,5 +272,88 @@ module.exports = function groupingScopeInterferenceWorkflow(context) {
       independentOracles: 'Four coincident M leaves each contain independent A[0,2],B[1,3]x[0,3]x[0,4],V24/A52,Common12. Root G-left/right each contain S={m1,m2}. All false28/sum480,true16/sum288; among sameG true0,false6/sum96; one excluded among false1/V12,true0; mixed parent+leaf true8/sum144; leaf XOR true8/sum144; all one excluded true8/sum144. V/A1e-5,bounds1e-6,sum1e-4; no union.',
       evidenceLimits: 'Scripted production controls and actual worker metrics/current exact references. No CAD/report/state injection, viewport pointer/body-color evidence, native reference-application equivalence, continuous collision, installed-package or general platform claim.' });
     await capture(expected);
+
+    const relationScope = 'select[aria-label="Ámbito de las relaciones"]';
+    const leftScope = JSON.stringify(['g-left', 's']);
+    const rightScope = JSON.stringify(['g-right', 's']);
+    const leftTree = await assemblyNavigation.tree.selector('data-assembly-tree-path', JSON.stringify(['g-left']));
+    const part = expected.definitions.find(definition => definition.kind === 'part');
+    const sourceOption = JSON.stringify([part.id, part.revision]);
+    const shared = document => document.definitions.find(definition => definition.id === 'original-grouping-multibody-inner');
+    const left = document => document.occurrences.find(occurrence => occurrence.id === 'g-left');
+    const activeScope = () => page(selector => {
+      const select = document.querySelector(selector);
+      return { value: select.value, options: [...select.options].map(option => option.value) };
+    }, relationScope);
+    const scopeBuild = async (activate, phase) => {
+      const before = await observe();
+      await activate();
+      const event = await responseAfter(before.serial, 'build-assembly');
+      await idle(phase);
+      await waitFor('committed scope change recovery', async () =>
+        canonical(JSON.parse(await page(() => localStorage.getItem('solidflow.autosave')))) === canonical(event.document));
+      return event;
+    };
+    const setLeftFlag = async (flag, phase) => {
+      await click(leftTree);
+      await click('button[aria-label="Propiedades del componente seleccionado"]');
+      return scopeBuild(() => page(flag => {
+        const labels = [...document.querySelectorAll('.assembly-component-properties label.assembly-check')];
+        const input = labels.find(label => label.textContent.trim() === flag)?.querySelector('input');
+        if (!input || input.disabled || input.closest('[hidden]')) throw Error('Current component state control required: ' + flag);
+        input.click();
+      }, flag), phase);
+    };
+    const reuse = async phase => {
+      await control('select[aria-label="Origen del componente"]', sourceOption);
+      return scopeBuild(() => button('Insertar otra ocurrencia'), phase);
+    };
+    const undo = () => click('button[aria-label="Deshacer ensamblaje"]');
+    const redo = () => click('button[aria-label="Rehacer ensamblaje"]');
+
+    await control(relationScope, leftScope);
+    const hidden = await setLeftFlag('Visible', 'hide active left scope');
+    check(!left(hidden.document).visible && !left(hidden.document).suppressed && (await activeScope()).value === leftScope,
+      'An active hidden occurrence keeps its selected relation scope.');
+    const hiddenUse = await reuse('reuse in active hidden scope');
+    check(hiddenUse.document.occurrences.length === 2 && shared(hiddenUse.document).occurrences.length === 3,
+      'Reuse in the hidden but active scope still updates the shared inner definition.');
+    const hiddenChild = shared(hiddenUse.document).occurrences.at(-1).id;
+    const nativeHiddenUse = hiddenUse.response.value.bodies.filter(body => body.component.occurrencePath.at(-1) === hiddenChild);
+    check(nativeHiddenUse.length === 4 && nativeHiddenUse.filter(body => body.visible).length === 2,
+      'Hidden scope reuse adds one two-body member to each shared use, with only right visible.');
+    const hiddenRestored = await scopeBuild(undo, 'undo hidden-scope reuse');
+    check(canonical(hiddenRestored.document) === canonical(hidden.document), 'Undo restores exact hidden-scope baseline.');
+
+    await control(relationScope, leftScope);
+    const suppressed = await setLeftFlag('Suprimido', 'suppress left scope ancestor');
+    const scopeState = await activeScope();
+    check(left(suppressed.document).suppressed && suppressed.response.value.solidCount === 4
+      && scopeState.value === '[]' && !scopeState.options.includes(leftScope) && scopeState.options.includes(rightScope),
+    'Suppress excludes inherited left scopes while preserving the active right; the visible selection is root.');
+    const inserted = await reuse('reuse from root after suppression');
+    const added = inserted.document.occurrences.filter(member => !suppressed.document.occurrences.some(old => old.id === member.id));
+    check(added.length === 1 && canonical(shared(inserted.document)) === canonical(shared(suppressed.document))
+      && canonical(inserted.document.definitions) === canonical(suppressed.document.definitions),
+    'Reuse after suppression must insert at displayed root without editing shared declarations. Actual root and inner counts: '
+      + inserted.document.occurrences.length + '/' + shared(inserted.document).occurrences.length + '; DOM scope: ' + scopeState.value);
+    const insertedBodies = inserted.response.value.bodies.filter(body => canonical(body.component.occurrencePath) === canonical([added[0].id]));
+    check(inserted.response.value.solidCount === 6 && insertedBodies.length === 2
+      && inserted.response.value.bodies.filter(body => body.component.occurrencePath[0] === 'g-right').length === 4,
+    'Current native inventory gains two solids at the new root path and preserves the active right.');
+    close(inserted.response.value.volume, 6 * 24, 1e-5, 'Independent sum of six box volumes.');
+    close(inserted.response.value.area, 6 * 52, 1e-5, 'Independent sum of six box areas.');
+    const restored = await scopeBuild(undo, 'undo root reuse');
+    const replayed = await scopeBuild(redo, 'redo root reuse');
+    check(canonical(restored.document) === canonical(suppressed.document) && canonical(replayed.document) === canonical(inserted.document)
+      && replayed.response.value.solidCount === 6 && (await activeScope()).value === '[]', 'Undo and Redo preserve exact root reuse history and scope.');
+    await scopeBuild(undo, 'restore suppressed document before close');
+    const undoSuppression = await scopeBuild(undo, 'restore hidden document before close');
+    const clean = await scopeBuild(undo, 'restore clean original before close');
+    check(canonical(undoSuppression.document) === canonical(hidden.document) && canonical(clean.document) === canonical(expected),
+      'Close starts from the clean original with exact restored history.');
+    check((await fsp.readFile(input)).equals(trackedBytes) && ipc.length === 1, 'Scope changes perform no file mutation or extra native picker.');
+    checks.push({ liveRelationScope: { hidden: hidden.document, hiddenReuse: hiddenUse.document, suppressed: suppressed.document,
+      scopeState, rootInsertion: inserted.document, rootInsertionSolidCount: inserted.response.value.solidCount, restored: restored.document, replayed: replayed.document } });
   };
 };

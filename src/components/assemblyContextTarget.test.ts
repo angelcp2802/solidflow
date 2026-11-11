@@ -1,12 +1,30 @@
 import { describe, expect, it } from 'vitest'
 import { assemblyConfigurationCoreFixture } from '../model/assemblyConfigurationCore.test-utils'
 import { evaluateAssemblyConfiguration } from '../model/assemblyConfigurationCore'
-import type { AssemblyDocument, EmbeddedAssemblyDefinition } from '../model/assemblyDocument'
-import { assemblyTreeRows, createAssemblyComponentContextTarget, resolveAssemblyComponentContextTarget, resolveAssemblyOriginContextEntry } from './assemblyContextTarget'
+import { validateAssemblyDocument, type AssemblyDocument, type EmbeddedAssemblyDefinition } from '../model/assemblyDocument'
+import groupingScopeOriginal from '../cad/fixtures/assembly-interference-grouping-scope-original.json'
+import { assemblyTreeRows, createAssemblyComponentContextTarget, resolveActiveAssemblyScope, resolveAssemblyComponentContextTarget, resolveAssemblyOriginContextEntry } from './assemblyContextTarget'
 import { buildAssemblyOriginTree } from './assemblyOriginTree'
 
 // Original configuration prisms reused for declaration identity only; no native claim.
 const fixture = () => assemblyConfigurationCoreFixture().document
+
+it('retains hidden scope authority but never borrows a suppressed occurrence’s active shared sibling', () => {
+  const document = validateAssemblyDocument(groupingScopeOriginal)
+  const left = ['g-left', 's'], right = ['g-right', 's']
+  const inner = document.definitions.find(definition => definition.id === 'original-grouping-multibody-inner')
+  expect(resolveActiveAssemblyScope(document, [])).toBe(document)
+  expect(resolveActiveAssemblyScope(document, left)).toBe(inner)
+  expect(resolveActiveAssemblyScope(document, right)).toBe(inner)
+  expect(resolveActiveAssemblyScope(document, [...left, 'm1'])).toBeNull()
+  expect(resolveActiveAssemblyScope(document, ['missing'])).toBeNull()
+  document.occurrences[0].visible = false
+  expect(resolveActiveAssemblyScope(document, left)).toBe(inner)
+  document.occurrences[0].suppressed = true
+  expect(resolveActiveAssemblyScope(document, ['g-left'])).toBeNull()
+  expect(resolveActiveAssemblyScope(document, left)).toBeNull()
+  expect(resolveActiveAssemblyScope(document, right)).toBe(inner)
+})
 
 describe('component context destination', () => {
   it('retains the absolute reused instance and returns declarations from the current document', () => {

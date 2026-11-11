@@ -7,7 +7,7 @@ const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 module.exports = function originAxesWorkflow(c) {
   c = require('./desktop-assembly-navigation.cjs').withNavigation(c);
   const assemblyNavigation = c.assemblyNavigation;
-  const { configured, expected, input, output, evaluate, observe, waitFor, click, pointer, menuKey, referenceRoleKeyboard, asideWheel, capture, checks,
+  const { configured, expected, input, output, evaluate, observe, waitFor, click, pointer, touchOriginLabel, menuKey, referenceRoleKeyboard, asideWheel, capture, checks,
     consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs, dialogCounts } = c;
   const ROOT = configured ? '.configured-assembly-workspace' : '.assembly-app';
   const NAV = configured ? ':is([aria-label="Archivo del ensamblaje configurado"],[aria-label="Comandos del ensamblaje configurado"])' : ':is(.assembly-toolbar, .assembly-quickbar)';
@@ -22,7 +22,7 @@ module.exports = function originAxesWorkflow(c) {
   const ribbon = require('./desktop-assembly-ribbon-controls.cjs')({ configured, page, waitFor, actualControl, menuKey, observe, check, canonical, gestures: selectionGestures });
   const near = (actual, wanted, tolerance, name) => check(Number.isFinite(actual) && Math.abs(actual - wanted) <= tolerance,
     name + ': actual=' + actual + ', expected=' + wanted);
-  async function actualControl(selector, text = null, allowAsideWheel = false, beforeRelease) {
+  async function actualControl(selector, text = null, allowAsideWheel = false, beforeRelease, touch = false) {
     if (navigation) await navigation.reveal(selector, text ?? ''); else await assemblyNavigation.reveal(selector, text ?? '');
     const inspect = () => page((selector, text) => {
       const matches = [...document.querySelectorAll(selector)].filter(e => text === null || e.textContent.trim() === text);
@@ -79,6 +79,11 @@ module.exports = function originAxesWorkflow(c) {
         'Visible origin labels reserve the toolbar band and do not cover its actual rectangle: ' + JSON.stringify(layout));
       selectionGestures.push({ kind: 'origin-label-layout', labels: layout.labels, toolbar: layout.toolbar });
     }
+    if (touch) {
+      check(!!state.originKey, 'Actual touch targets a projected origin label');
+      await touchOriginLabel(state.point);
+      return;
+    }
     await pointer('mouseMoved', state.point);
     const hit = await inspect();
     let pointerDiagnostic = null;
@@ -109,7 +114,7 @@ module.exports = function originAxesWorkflow(c) {
       const pressed = await inspect();
       check(pressed.visible && pressed.point.x === state.point.x && pressed.point.y === state.point.y, 'Actual origin control remains stationary while pressed: ' + JSON.stringify({ before: state, pressed }));
       if (beforeRelease) {
-        await beforeRelease();
+        await beforeRelease(state.point);
         const rearmed = await stationary();
         check(rearmed.visible && rearmed.originKey === state.originKey && rearmed.point.x === state.point.x && rearmed.point.y === state.point.y,
           'The rearmed origin label is still the actual hit at the original press coordinates');
@@ -222,7 +227,7 @@ module.exports = function originAxesWorkflow(c) {
     const before = (await observe()).serial, original = await references();
     const heldSnapshot = async () => ({ recovery: await page(() => localStorage.getItem('solidflow.autosave')),
       inputSha256: digest(await fs.readFile(input)), ipc: canonical(ipc) });
-    const beforeHeld = inputKind === 'held' ? await heldSnapshot() : null;
+    const beforeHeld = ['held', 'drag', 'touch'].includes(inputKind) ? await heldSnapshot() : null;
     const label = 'Seleccionar ' + (kind === 'principal-axis' ? 'Eje ' : 'Plano ') + value + ' · ' + (owner ?? 'Raíz');
     const wanted = { kind, component: owner ? { occurrencePath: [owner], definition: { id: 'origin-axis-prism', revision: 'r1' } } : null,
       [kind === 'principal-axis' ? 'axis' : 'plane']: value };
@@ -230,12 +235,15 @@ module.exports = function originAxesWorkflow(c) {
     check(await page((label, key) => document.querySelector('button[aria-label="' + label + '"]')?.getAttribute('data-origin-key') === key, label, key), 'Projected label has exact literal scope/owner/datum identity');
     // Temporary passive DOM observation only. No React state, handler guards,
     // native references or click delivery are supplied by this diagnostic.
-    await page(key => {
+    await page((key, inputKind) => {
       if (window.__solidflowOriginLabelEventProbe) throw Error('Previous origin event probe was not removed');
       const probe = { events: [], dropped: 0, types: ['pointerdown', 'pointerup', 'click', 'pointercancel'] };
+      if (inputKind === 'drag') probe.types.push('pointermove');
+      if (inputKind === 'touch') probe.types.push('pointerleave');
       probe.label = [...document.querySelectorAll('button[data-origin-key]')].find(e => e.getAttribute('data-origin-key') === key);
       if (!probe.label) throw Error('One current origin label required for event observation');
       probe.listener = event => {
+        if (inputKind === 'touch' && event.target.closest?.('[data-origin-key]')?.getAttribute('data-origin-key') !== key) return;
         if (probe.events.length >= 16) { probe.dropped++; return; }
         const label = [...document.querySelectorAll('button[data-origin-key]')].find(e => e.getAttribute('data-origin-key') === key);
         const r = label?.getBoundingClientRect(), host = label?.closest('.assembly-viewport');
@@ -244,6 +252,8 @@ module.exports = function originAxesWorkflow(c) {
           label: node.getAttribute('aria-label')?.slice(0, 160) ?? null } : { nodeName: node?.nodeName ?? null };
         const current = event.currentTarget instanceof Element ? event.currentTarget : null, currentRect = current?.getBoundingClientRect(), currentHost = current?.closest('.assembly-viewport');
         probe.events.push({ type: event.type, timeStamp: event.timeStamp, trusted: event.isTrusted, detail: event.detail,
+          ...(inputKind === 'drag' ? { x: event.clientX, y: event.clientY, buttons: event.buttons } : {}),
+          ...(inputKind === 'touch' ? { pointerType: event.pointerType, pointerId: event.pointerId } : {}),
           target: identity(event.target), currentTarget: { ...identity(event.currentTarget), disabled: current?.disabled ?? null,
             connected: event.currentTarget?.isConnected ?? null, rect: currentRect ? { left: currentRect.left, right: currentRect.right, top: currentRect.top, bottom: currentRect.bottom } : null,
             host: currentHost ? { clientWidth: currentHost.clientWidth, clientHeight: currentHost.clientHeight } : null },
@@ -254,7 +264,7 @@ module.exports = function originAxesWorkflow(c) {
       };
       window.__solidflowOriginLabelEventProbe = probe;
       for (const type of probe.types) for (const target of [document, probe.label]) target.addEventListener(type, probe.listener, { capture: true, passive: true });
-    }, key);
+    }, key, inputKind);
     let eventReport, keyboard;
     try {
       if (inputKind === 'keyboard') keyboard = await referenceRoleKeyboard('root-z');
@@ -266,7 +276,13 @@ module.exports = function originAxesWorkflow(c) {
           && await page(configured => configured
             ? document.querySelector('button[aria-label="Seleccionar Referencia 2 por origen en vista configurada"]')?.getAttribute('aria-pressed') === 'true'
             : document.querySelector('button[aria-label="Referencia 2 de la relación"]')?.classList.contains('active'), configured));
-      } : undefined);
+      } : inputKind === 'drag' ? async point => {
+        const moved = { x: point.x + 8, y: point.y };
+        check(await page((key, point) => document.elementFromPoint(point.x, point.y)?.closest('button[data-origin-key]')
+          ?.getAttribute('data-origin-key') === key, key, moved), 'The eight-pixel drag remains inside the same enabled projected label');
+        await pointer('mouseMoved', moved, 1);
+        await pointer('mouseMoved', point, 1);
+      } : undefined, inputKind === 'touch');
     } finally {
       eventReport = await page(() => {
         const probe = window.__solidflowOriginLabelEventProbe;
@@ -279,8 +295,22 @@ module.exports = function originAxesWorkflow(c) {
     }
     if (inputKind !== 'pointer') {
       const clicks = eventReport.events.filter(event => event.type === 'click' && event.trusted && event.target.key === key);
-      check(clicks.length > 0 && clicks.every(event => inputKind === 'held' ? event.detail > 0 : event.detail === 0),
+      check(clicks.length > 0 && clicks.every(event => inputKind === 'keyboard' ? event.detail === 0 : event.detail > 0),
         'The retained origin label received the expected trusted ' + inputKind + ' click');
+    }
+    if (inputKind === 'drag') {
+      const down = eventReport.events.find(event => event.type === 'pointerdown' && event.trusted && event.target.key === key);
+      check(down && eventReport.events.some(event => event.type === 'pointermove' && event.trusted && event.buttons === 1
+        && event.target.key === key && Math.hypot(event.x - down.x, event.y - down.y) > 4), 'The actual held move exceeds the viewport selection threshold inside its label');
+    }
+    if (inputKind === 'touch') {
+      const events = eventReport.events.filter(event => event.trusted && event.currentTarget.key === key);
+      const down = events.find(event => event.type === 'pointerdown' && event.pointerType === 'touch');
+      const up = events.findIndex(event => event.type === 'pointerup' && event.pointerId === down?.pointerId);
+      const leave = events.findIndex(event => event.type === 'pointerleave' && event.pointerId === down?.pointerId);
+      const click = events.findIndex(event => event.type === 'click' && event.detail > 0);
+      check(down && up > 0 && leave > up && click > leave && !events.some(event => event.type === 'pointercancel'),
+        'A stationary trusted touch releases the same pointer, then leaves the label before its browser click');
     }
     checks.push({ originPress: { label, slot, intended: wanted, observed: await page((configured, label) => ({
       roles: [1, 2].map(slot => configured ? document.querySelector('[aria-label="Referencia ' + slot + ' de relación configurada"]')?.value : document.querySelector('[aria-label="Referencia ' + slot + ' de la relación"] span')?.textContent),
@@ -305,10 +335,11 @@ module.exports = function originAxesWorkflow(c) {
       check(await page(key => [...document.querySelectorAll('[data-origin-key]')].some(e => e.getAttribute('data-origin-key') === key && e.classList.contains('selected')), key), 'Accepted current origin is visibly highlighted');
     } else {
       const description = inputKind === 'held' ? 'A stale label release after Escape/rearm leaves both roles unchanged and the current role armed'
+        : inputKind === 'drag' ? 'A dragged origin label leaves both roles unchanged and the current role armed'
         : 'Incompatible visible plane is rejected without replacing a role or disarming the eligible axis pick';
       check(canonical(await references()) === canonical(original) && await originMode() === 'origin', description);
-      if (beforeHeld) check(canonical(await heldSnapshot()) === canonical(beforeHeld), 'Held origin release preserves document recovery, original file and IPC');
     }
+    if (beforeHeld) check(canonical(await heldSnapshot()) === canonical(beforeHeld), 'Origin gesture preserves document recovery, original file and IPC');
     check((await observe()).serial === before, 'Origin selection sends no worker solve');
     selectionGestures.push({ kind: accepted ? 'origin-assigned' : 'origin-rejected', inputKind, slot, reference: wanted });
   }
@@ -531,10 +562,11 @@ module.exports = function originAxesWorkflow(c) {
     for (const [slot, owner] of [[1, 'moving'], [2, null]]) {
       await control(ownerLabel, owner ? 'selected' : 'scope');
       await armOrigin(slot);
+      if (stage === 1 && slot === 1) await originLabel(slot, 'principal-axis', axis, owner, false, 'drag');
       if (stage === 1 && slot === 2) {
         await originLabel(slot, 'principal-axis', axis, owner, false, 'held');
         await originLabel(slot, 'principal-axis', axis, owner, true, 'keyboard');
-      } else await originLabel(slot, 'principal-axis', axis, owner);
+      } else await originLabel(slot, 'principal-axis', axis, owner, true, stage === 1 && slot === 1 ? 'touch' : 'pointer');
       if (!configured && stage === 1) await standardRelationGuidance(slot === 1 ? 'first-reference' : 'complete-references');
     }
     if (configured && !checkedOwnerContinuity) {

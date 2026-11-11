@@ -22,6 +22,19 @@ export function assemblyTreeRows(document: AssemblyDocument): AssemblyTreeRow[] 
   visit(document, [], true, false); return rows
 }
 
+/** Hidden occurrences keep their authoring scope. A suppressed ancestor removes it. */
+export function resolveActiveAssemblyScope(document: AssemblyDocument, path: readonly string[]): AssemblyDocument | EmbeddedAssemblyDefinition | null {
+  let node: AssemblyDocument | EmbeddedAssemblyDefinition = document
+  for (const id of path) {
+    const occurrence = node.occurrences.find(value => value.id === id)
+    if (!occurrence || occurrence.suppressed) return null
+    const definition = document.definitions.find(value => assemblyDefinitionKey(value) === assemblyDefinitionKey(occurrence.definition))
+    if (definition?.kind !== 'assembly') return null
+    node = definition
+  }
+  return node
+}
+
 export interface AssemblyComponentContextTarget {
   readonly documentSignature: string
   readonly scopePath: readonly string[]

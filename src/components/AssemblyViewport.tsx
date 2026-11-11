@@ -278,8 +278,11 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
   const [dragAxis, setDragAxis] = useState<string | null>(null)
   const [originLabelState, setOriginLabelState] = useState(() => ({ layout: layoutAssemblyOriginLabels([], { width: 0, height: 0 }, { topInset: props.originLabelTopInset }), signature: '', width: 0, height: 0, topInset: props.originLabelTopInset ?? 0 }))
   const originLabelFrame = useRef(''), originLabelPress = useRef<{
-    key: string; signature: string; revision: number | undefined; pointerId: number; reference: NativeReferencePress | null
+    key: string; signature: string; revision: number | undefined; pointerId: number; reference: NativeReferencePress | null; released: boolean
   } | null>(null)
+  const originLabelGesture = useRef<ReturnType<typeof createCadSelectionGesture> | null>(null)
+  const labelGesture = originLabelGesture.current ??= createCadSelectionGesture()
+  const cancelOriginLabelPress = () => { originLabelPress.current = null; labelGesture.cancel() }
   const originFrame = useRef('')
   const originCatalog = (value: AssemblyViewportProps) => JSON.stringify([value.originReferences, value.scene?.visibleBounds])
   const context = useRef<{ scene: AssemblyScene | null; group: THREE.Group; analysis: THREE.Group; markers: THREE.Group; clearHover: () => void; cancelBrowse: () => void; camera: THREE.OrthographicCamera; controls: OrbitControls; bodies: AssemblyPickBody[]; faces: AssemblyPickFace[]; edges: AssemblyPickEdge[]; fit: () => void; navigation: ReturnType<typeof bindViewNavigation>; highlight: () => void; syncDrag: () => void } | null>(null)
@@ -612,7 +615,7 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
     if (pair && [pair.first, pair.second].every(value => keys.has(assemblyBodyKey(value.component, value.body)))) current.analysis.add(createAssemblyInterferenceOverlay(pair))
   }, [props.scene, props.selectedAnalysisPair])
   useEffect(() => { context.current?.highlight() }, [props.selectedPath, props.selectedFaces, props.selectedEdges, props.selectedVertices, props.originReferences, props.selectedOrigins, props.partColors])
-  useEffect(() => { originLabelPress.current = null; context.current?.cancelBrowse(); context.current?.clearHover(); context.current?.highlight() },
+  useEffect(() => { cancelOriginLabelPress(); context.current?.cancelBrowse(); context.current?.clearHover(); context.current?.highlight() },
     [props.scene, props.browseSelectionMode, props.interactionRevision, props.referencePickOwner, props.disabled, props.pickingFaces, props.pickingEdges, props.pickingVertices, props.pickingOrigins])
   useEffect(() => { context.current?.clearHover(); context.current?.highlight(); context.current?.syncDrag() }, [props.drag, props.disabled, props.pickingFaces, props.pickingEdges, props.pickingVertices, props.pickingOrigins])
   useEffect(() => {
@@ -626,16 +629,27 @@ export default function AssemblyViewport(props: AssemblyViewportProps) {
       onPointerDown={event => {
         if (!event.isPrimary || event.button !== 0) return
         const value = input.current
-        originLabelPress.current = { key: label.key, signature: originLabelState.signature, revision: value.interactionRevision,
-          pointerId: event.pointerId, reference: referencePressAt(value) }
+        const press = { key: label.key, signature: originLabelState.signature, revision: value.interactionRevision,
+          pointerId: event.pointerId, reference: referencePressAt(value), released: false }
+        originLabelPress.current = press
+        labelGesture.down(event, press)
+      }} onPointerMove={event => labelGesture.move(event)}
+      onPointerUp={event => {
+        const press = originLabelPress.current
+        if (press?.key === label.key && labelGesture.up(event, press)) press.released = true
+        else cancelOriginLabelPress()
+      }} onPointerLeave={event => {
+        const press = originLabelPress.current
+        // A touch can leave after release and before the browser sends its click.
+        if (press?.pointerId === event.pointerId && !press.released) cancelOriginLabelPress()
       }} onPointerCancel={event => {
-        if (originLabelPress.current?.pointerId === event.pointerId) originLabelPress.current = null
+        if (originLabelPress.current?.pointerId === event.pointerId) cancelOriginLabelPress()
       }} onClick={event => {
         const press = originLabelPress.current, value = input.current
-        originLabelPress.current = null
+        cancelOriginLabelPress()
         if (originLabelState.topInset !== (value.originLabelTopInset ?? 0) || originLabelFrame.current !== originLabelState.signature
           || host.current?.clientWidth !== originLabelState.width || host.current?.clientHeight !== originLabelState.height
-          || event.detail > 0 && (press?.key !== label.key || press.signature !== originLabelState.signature
+          || event.detail > 0 && (!press?.released || press.key !== label.key || press.signature !== originLabelState.signature
             || !Object.is(press.revision, value.interactionRevision) || !referencePressMatches(press.reference, value))) return
         const matches = (value.originReferences ?? []).filter(entry => entry.key === label.key)
         if (!value.disabled && assemblyReferencePickMode(value) === 'origin' && originFrame.current === originCatalog(value)

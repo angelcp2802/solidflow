@@ -2404,6 +2404,12 @@ original root/component pair for the unchanged native oracle. Owner selection
 is scripted; origin-label selection uses actual CDP input. See
 [validation](VALIDATION.md) for executed cases and limits.
 
+On the same original fixture, the standard and configured origin-axis routes
+send a stationary CDP touch to a projected label. A verified release can still
+select when the pointer leaves before the browser click. The armed role and
+current label still own selection. Mouse drag inside the label, Escape/rearm
+and keyboard activation retain their separate assertions.
+
 Assembly renderer workflows use the application's contextual manager tabs.
 `desktop-assembly-navigation.cjs` and `desktop-configured-navigation.cjs` reveal
 the owning panel before a scripted control action; neither unhides DOM nodes nor
@@ -2699,10 +2705,11 @@ separately. The configured mechanical and
 compound workflows retain their separate job. The original Desktop check names
 depend on every renderer and configured job: after pinned Node setup, an
 unconditional result guard fails unless both dependencies succeeded. A skipped
-or canceled dependency cannot satisfy that guard. The Windows persistence
-renderer has a 45-minute job limit. The other renderer jobs and Desktop
-jobs have 35 minutes, and the configured job has 20 minutes. Each scenario
-retains its own deadline, sandbox settings and no-publish packaging. This
+or canceled dependency cannot satisfy that guard. The Windows and macOS
+persistence renderers have a 45-minute job limit. The other renderer jobs
+and Desktop jobs have 35 minutes, and the configured job has 20 minutes.
+Each scenario retains its own deadline, sandbox settings and no-publish
+packaging. This
 split is tracked in issue #53;
 command-inventory parity does not replace hosted execution.
 

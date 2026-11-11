@@ -338,7 +338,8 @@ run. Consult [validation](VALIDATION.md) for actual execution and
 
 Ctrl/Meta with the middle button also pans. Left dragging does not orbit.
 Canceled or dragged gestures do not select on release. In the 3D part view,
-using the wheel while the left button is held cancels that pending click.
+wheel input cancels a pending left click. Selection requires a settled view
+without intervening navigation, even when Vista anterior restores the camera.
 Explicit component movement uses its own tool. Sketch editing retains 2D
 middle-button pan.
 
@@ -437,7 +438,8 @@ keeps the current owner, visible references and armed role; it does not cancel
 picking. Activating visibility or a new origin role opens the section again.
 
 Click an axis line, a displayed plane, or its projected label to nominate the
-reference. Labels identify the axis or plane and its owner; they are also useful
+reference. A projected label accepts a stationary click or keyboard activation.
+Labels identify the axis or plane and its owner; they are also useful
 when a line is viewed end-on. If labels overlap, show only the scope or selected
 component before picking. A successful selection fills
 one role, highlights the reference and ends that picking action. Rearm selection
