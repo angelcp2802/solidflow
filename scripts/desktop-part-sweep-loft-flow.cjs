@@ -184,9 +184,13 @@ module.exports = function sweepLoftWorkflow(context) {
     await waitFor('existing sweep/loft editor has exact input', () => page((selector, value) => document.querySelector(selector)?.value === value,
       selector, feature.type === 'sweep' ? feature.profileSketchId : feature.sections[1].sketchId));
   }
-  async function newSweep(phase) {
+  async function newSweep(phase, menuAlias = false) {
     await press('.tree-row[data-feature-id="sweep-profile-r2"]:not([data-parent-feature-id])'); await tab();
-    const serial = (await observe()).serial; await press('button.command[title="Barrido"]');
+    const serial = (await observe()).serial;
+    if (menuAlias) {
+      await press('[data-assembly-menu="insert"]');
+      await press('.part-main-menus [role="menu"] > button[data-assembly-command]', 'Barrido');
+    } else await press('button.command[title="Barrido"]');
     const record = await built(serial, features => features.length === sourceCount + 1 && features.at(-1).type === 'sweep'
       && features.at(-1).profileSketchId === 'sweep-profile-r2' && features.at(-1).pathSketchId === 'sweep-path', { sweep: 2 }, phase);
     check(canonical(record.features.at(-1).path) === canonical([{ entityId: 'path-line', reversed: false }]), 'Actual command resolves the original LINE in its declared direction');
@@ -207,6 +211,8 @@ module.exports = function sweepLoftWorkflow(context) {
     await press('[role="dialog"][aria-labelledby="discard-title"] .primary-button', 'Continuar sin guardar');
     const original = await built(serial, features => canonical(features) === canonical(expected.features), {}, 'original-sketches');
     const originalSnapshot = await committed(original.features, 'original-sketches');
+    await newSweep('insert-menu-sweep-r2-preview', true);
+    await cancel(original, originalSnapshot, {}, 'insert-menu-sweep-cancel');
     await newSweep('new-sweep-r2-preview');
     serial = (await observe()).serial; await change(PROFILE, 'sweep-path');
     await invalid(serial, features => features.at(-1).type === 'sweep' && features.at(-1).profileSketchId === 'sweep-path', originalSnapshot, 'new-sweep-open-profile-error');

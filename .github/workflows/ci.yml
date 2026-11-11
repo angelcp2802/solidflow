@@ -277,6 +277,10 @@ jobs:
         if: matrix.batch == 'persistence' && runner.os != 'Linux'
         run: npm run test:desktop:assembly-embedded-part-edit
 
+      - name: Test embedded part native close and process recovery (Windows)
+        if: matrix.batch == 'persistence' && runner.os == 'Windows'
+        run: npm run test:desktop:assembly-embedded-part-transitions
+
       - name: Test standard assembly keyboard commands (Linux)
         if: matrix.batch == 'persistence' && runner.os == 'Linux'
         run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:assembly-shortcuts
@@ -317,6 +321,14 @@ jobs:
         if: matrix.batch == 'persistence' && runner.os != 'Linux'
         run: npm run test:desktop:part-from-empty
 
+      - name: Test finite part operation aliases (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:part-operation-aliases
+
+      - name: Test finite part operation aliases (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:part-operation-aliases
+
       - name: Test successive part operations (Linux)
         if: matrix.batch == 'persistence' && runner.os == 'Linux'
         run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:part-sequence
@@ -345,6 +357,14 @@ jobs:
         if: matrix.batch == 'persistence' && runner.os != 'Linux'
         run: npm run test:desktop:part-finishing
 
+      - name: Test all-edge fillet and chamfer lifecycle (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:part-finishing-all
+
+      - name: Test all-edge fillet and chamfer lifecycle (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:part-finishing-all
+
       - name: Test part revolution and STEP round trip (Windows/macOS)
         if: matrix.batch == 'persistence' && runner.os != 'Linux'
         run: npm run test:desktop:part-revolution
@@ -364,6 +384,30 @@ jobs:
       - name: Test normal hole authoring and STEP geometry (Windows/macOS)
         if: matrix.batch == 'persistence' && runner.os != 'Linux'
         run: npm run test:desktop:part-hole
+
+      - name: Test blind flat-bottom hole lifecycle (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:part-hole-flat
+
+      - name: Test blind flat-bottom hole lifecycle (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:part-hole-flat
+
+      - name: Test conical-bottom hole depth references (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:part-hole-conical
+
+      - name: Test conical-bottom hole depth references (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:part-hole-conical
+
+      - name: Test countersink UntilNext and physical depth (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:part-hole-next
+
+      - name: Test countersink UntilNext and physical depth (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:part-hole-next
 
       - name: Test ordered body combination and STEP geometry (Linux)
         if: matrix.batch == 'persistence' && runner.os == 'Linux'
@@ -404,6 +448,30 @@ jobs:
       - name: Test automatic body scope discovery and persistence (Windows/macOS)
         if: matrix.batch == 'persistence' && runner.os != 'Linux'
         run: npm run test:desktop:part-auto-scope
+
+      - name: Test selected per-instance depth editing (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:part-instance-depth
+
+      - name: Test selected per-instance depth editing (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:part-instance-depth
+
+      - name: Test solved per-instance driving radius (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:part-instance-radius
+
+      - name: Test solved per-instance driving radius (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:part-instance-radius
+
+      - name: Test recipe availability and explicit saved repair (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:part-recipe-availability
+
+      - name: Test recipe availability and explicit saved repair (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:part-recipe-availability
 
       - name: Test normal sweep and loft lifecycle (Linux)
         if: matrix.batch == 'persistence' && runner.os == 'Linux'

@@ -1,5 +1,238 @@
 # Validation
 
+## Positive pattern-panel fixture completeness — Windows, 2026-11-11
+
+The frozen `c6cab00` integration built successfully. Its `npm test` stopped at
+eight assertions in `PatternPanel.allScope.test.tsx` and
+`PatternPanel.savedModes.test.tsx`, with 11,463 passing cases in 520 files.
+The batch ended before its IPC and desktop-startup phases. The retained raw
+test log SHA-256 is
+`0586fbd82b075cb98bd3c1fec92aa2a789a1039fc10866af597eef4998ec3861`.
+
+Both earlier positive panel fixtures provided the named operations and body
+owners with absent sketch declarations. The availability control correctly
+reports the missing sketch. The fixture correction adds six original intrinsic
+XY profiles with their already referenced IDs before their consumers. Every
+existing selected method, enabled scope, historical reference and loading
+assertion stays intact. The dedicated unavailable-selection and explicit
+repair cases retain their own fixtures. The product and native recipe rules
+remain identical to `c6cab00`.
+
+The focused pattern-panel and recipe/pattern model suite passes 334 cases in
+21 files. Build and the six affected Windows renderer routes pass, with 19
+ALL, 101 additive ALL, 134 AUTO, 86 availability/repair, 84 depth and 93 radius
+checkpoints. All nine production member hashes match the earlier frozen build.
+The new combined candidate has its own full-suite and renderer receipt.
+
+## Packaged origin and component-distance walkthrough — Windows, 2026-11-11
+
+The local unsigned Windows 0.20.0 executable built from `1c6e955` has the exact
+tree published as `2a9ad6d`. Its executable SHA-256 is
+`6919becd74f546562ee3449131a293b0e6ed6680b9b54f7eb1b8b5b87ad82a47` and its
+application archive SHA-256 is
+`f171b9541d8cac1a68131665d63adea2785a7aea74af2cdfb92d09b60b1762e1`.
+The archive inventory and nine production members were separately verified
+with REA and an independent byte audit. Interactive behavior has its own
+native-window checks below.
+
+The exact original two-occurrence identity fixture that failed the preceding
+150 mm solve now passes actual native-window preview, Cancel, retry, Apply,
+Undo/Redo, Save As, Open and fresh Solve/Cancel. Saving after the initial Cancel
+retains the byte-identical no-mate baseline. A fresh application process with
+the same isolated profile recovers the separated pair and its distance relation;
+fresh Solve again returns a verified preview. The saved second occurrence is
+at X = -149.99999999880148 mm, giving a 1.20e-9 mm signed-distance residual.
+
+The same window then inserts a third occurrence of the original plate, names
+it explicitly and chooses its YZ plane using the ordinary component-plane
+selector. A second relation joins the second and third occurrences at 120 mm.
+Preview/Cancel/retry/Apply, Undo/Redo, native Save As, Open and fresh Solve/Cancel
+pass. Saved X coordinates are 0, -149.99999999993855 and -269.9999999999001 mm;
+both signed-distance residuals are below 1e-8 mm. The fixed first occurrence,
+shared exact source revision and identity rotations remain unchanged. The
+display shows three solids and 282690.266 mm³. A clean native close exits the
+owned process, and neither earlier fixture is overwritten.
+
+These two plane-distance relations leave six local degrees of freedom in the
+three-component case. A subsequent fresh process with the same isolated profile
+also recovers all three separated plates and their names. Fresh Solve/Cancel and
+native Save As pass, and the recovered copy is byte-identical to the original
+three-component document. Native close then exits that owned process cleanly.
+This walkthrough covers these original plates on this Windows artifact.
+Physical STEP export of this case and acceptance of the next integrated
+executable remain separate checks. The source batch for `1c6e955` stopped at command 77
+after 76 passes on the retained screw scene/document mismatch. This native
+walkthrough retains that failed batch's FAIL result. General platform and menu
+acceptance remain pending.
+## Five finite normal-operation cases — Windows focal evidence, 2026-11-11
+
+The focused follow-up from `57da4a78ef7b405ac5ef57a6f857a20a98335ef1`
+adds test routes for existing all-edge fillet/chamfer and three advertised Hole
+variants. It changes no production implementation, saved grammar, native gate,
+dependency or runtime. All 1,463 non-documentation source inputs remained exact
+through the final focal block; manifest SHA-256:
+`cdd1c16fb51f0f6766e430cafc82b9171f958b5687f2ec65ca888b09dffafb86`.
+The existing Node 24.11.1 and Electron 44.9.3 were reused without installation;
+the Electron executable retained SHA-256
+`61f45e6f522c666c6156222680712870b38f3a4acbd2e847b987f53ddb613544`.
+
+| Final check | Actual result | Measured command time |
+| --- | --- | --- |
+| `npm run build` | Passed | 4.289 s |
+| `npx --no-install vitest run src/cad/kernel.finishing-all.integration.test.ts src/cad/kernel.hole-variants.integration.test.ts` | Five cases in two files passed; native physical shapes, exact owners/history/saved reconstruction and six Hole states with actual STEP | 7.622 s |
+| `npm run test:desktop:part-finishing-all` | 167 checkpoints, 93 recorded actions; both all-edge operations | 35.009 s |
+| `npm run test:desktop:part-hole-flat` | 138 checkpoints, 78 recorded actions | 23.364 s |
+| `npm run test:desktop:part-hole-conical` | 151 checkpoints, 84 recorded actions | 24.025 s |
+| `npm run test:desktop:part-hole-next` | 145 checkpoints, 82 recorded actions | 25.764 s |
+| `npm run test:desktop:part-finishing` | Existing selected-edge regression: 103 checkpoints, 53 recorded actions | 19.870 s |
+| `npm run test:desktop:part-hole` | Existing simple/counterbore through-hole regression: 119 checkpoints, 56 recorded actions | 18.267 s |
+| `npm run test:desktop` | Passed, including the production worker-queue checks | 1.686 s |
+
+The four added renderer commands total 108.162 seconds on this local host.
+Each is included as a Linux xvfb and Windows/macOS pair in the existing CI
+persistence batch. Every previous step, the 35-minute job limit, permissions,
+dependencies and sandbox configuration remain unchanged. Local duration is not
+a hosted runtime or cross-platform acceptance result.
+
+All-edge cases create at 0.5 mm and edit to 1 mm through the ordinary editor,
+reject zero, correct it, Cancel/reenter, Apply, cancel/retry the existing edit,
+Undo/Redo both transactions, Save As/Open and export actual STEP. Body B retains
+its exact native DTO while A's actual STEP has the independent V/A/bounds and
+26-surface partition. The all-fillet boundary has 6 planes/12 cylinders/8 spheres;
+the all-chamfer boundary has 26 planes with independently checked native
+centroids and normal directions.
+
+The Hole routes use an actual original top-face press, two genuine centre IDs
+at X=−4/+4,Y=0, ordinary controls and visible-field setters. They cover flat
+Blind depth3→4, conical Blind shoulder3→tip3 at 90°, and countersink UntilNext
+90°→120°. Rejected inputs are zero depth, tip depth0.5 and head diameter12.
+Correction and both new/existing Cancel paths preserve exact recovery, history
+availability, title and native body; two Undo/two Redo restore each transaction.
+Each route completes exactly two Open, one Save As and one STEP export. The
+UntilNext fixture's sealed cavity makes Z6 the first exit while material remains
+below it. STEP observes actual walls, floors and cone boundaries, rather than
+using the requested numbers as a geometric witness.
+
+The [original formulas and tolerances](PROVENANCE.md#original-all-edge-finishing-and-finite-hole-variants--2026-11-11)
+remain independent of implementation. Finishing V/A/bounds use 5e−6;
+Hole V/A use 1e−5 and coordinates/radii use 1e−6, with angular checks at 1e−8.
+The separate STEP reader shares the kernel family. Cone semi-angle is inferred
+from actual circular boundaries/apex and Z extent because the shipped WASM
+does not bind `gp_Cone`; no arbitrary-axis cone or independent-kernel claim is
+made. Circular tessellated mesh area is not used as an exact surface-area oracle.
+
+The first native all-edge run passed its two cases in 3.68 s of Vitest time.
+The first native Hole run took 3.68 s and retained two reader failures/one pass
+from the unavailable `gp_Cone` binding. The corrected reader passed all three
+cases in 6.01 s. The first flat renderer passed in 23.545 s before the final
+23.364 s execution. Those initial logs remain private; the times are execution
+records, not a measured performance improvement. No tolerance or deadline was
+relaxed and no application behavior was repaired for these cases.
+
+All six final renderer children reported the same checkpoints as their parent,
+closed, deleted their isolated profiles and retained identical eight-member
+production hashes, matching the final files. There were no renderer/resource
+errors or unfinished IPC events. The private source/log/terminal audit SHA-256 is
+`e4865a9a37cddeca7b91e4ec406635072ebb1d6234fbd7e83c0f4576ddee31f5`.
+Independent read-only review found no demonstrated defect in the mathematical
+oracles, bounded actors, native ownership/cleanup and static CI additions.
+
+This Windows x64 focal increment uses hidden-renderer presses and scripted
+visible-field setters. Physical typing, installed acceptance and human approval
+retain their own checks. The next combined root snapshot owns the pending full
+`npm test`. C05 variation/regeneration, the body-catalogue contract in issue #26,
+other family variants, the remaining prototype groups, final hosted checks and
+release acceptance remain open.
+
+## Recipe availability and explicit repair — Windows focal evidence, 2026-11-11
+
+The focused branch based on `1c6e95571dcc6c58ed292c2d5402f269a4e3c510`
+first reproduced the enabled-choice mismatch without changing product code.
+Its original healthy cut/entity-merge/Hole prefix has V=796−π/4 mm³. The baseline
+renderer passed 56 checkpoints and 27 recorded actions: Recalculate was offered
+for Hole but rejected by the existing operation gate; ALL and AUTO were offered
+for an entity merge while ALL was rejected by the existing positive-scope gate.
+Both Cancel paths retained exact recovery and original file bytes. Two baseline
+SSR cases separately checked the structured diagnostic codes.
+
+The [availability and repair increment](FEATURE_RECIPE_AVAILABILITY.md) then
+blocked new incompatible choices, retaining already selected/stale intent for
+explicit removal or repair. The final 1,460 hashed repository inputs outside `docs/`
+remained unchanged across the focal block; manifest SHA-256:
+`ee06b01388c7c676d959f7582be4e06e33eed41db2099c83ee4f6244a2d56133`.
+
+| Check | Observed result |
+| --- | --- |
+| Model/SSR focal files | 220 cases in 14 files passed, including normal-operation versus recipe capability, source/limit/ownership exclusions, retained selected/missing IDs, variation guards and bounded metadata work without extraction/solve |
+| `npm run build` | Passed; existing large-bundle/externalized-module notices retained |
+| `test:desktop:part-recipe-availability` | 86 checkpoints, 45 recorded interactions; disabled new choices, real disabled-seed press with exact unchanged worker/draft/recovery, saved unavailable request, Cancel, explicit cut repair by the same pattern ID, Undo/Redo and native Save As/Open |
+| `test:desktop:part-instance-radius` | 93 checkpoints passed |
+| `test:desktop:part-instance-depth` | 84 checkpoints passed |
+| `test:desktop:part-auto-scope` | 134 checkpoints passed |
+| `test:desktop:part-additive-all` | 101 checkpoints passed |
+| `npm run test:desktop` | Passed |
+
+The final repair actor opens the original and unavailable documents plus the
+saved repaired output, with exactly three Open and one Save As dialogs. Both
+original files remain byte-identical. Repair changes the seed only through the
+actual controls and Apply; Undo returns to the exact original unavailable
+declaration. Its independent repaired volume is V=792−π/4 mm³, within 1e-5 mm³.
+No circular mesh-area measurement supplies a native surface-area oracle.
+
+All five final renderer children closed and their isolated profiles were
+deleted. Their eight production-member hashes agree. Compared with the baseline,
+only the UI bundle and its HTML entry differ: worker, WASM, Electron main/preload,
+CSS and the external-module asset retain their hashes. The existing Electron
+44.9.3 runtime and Node 24.11.1 were used without installation; runtime identity
+was rechecked. Private audit receipt SHA-256:
+`76379a9d37bb5626f872e6ab67e28e00dfbbe5a45471e4dea60497bf2fe085f9`.
+
+Initial baseline harness/assertion failures are retained privately. The actor
+needed to wait for its source-kind control to mount, and diagnostic codes belong
+to structured declarations rather than the user-facing error string. A later
+test-only type annotation omitted the existing ThroughAll direction flag; it
+was corrected before the final build. No native gate or tolerance was relaxed.
+Independent read-only review reported no demonstrated defect in the metadata
+guards, preserved repair paths, final actor and memoized historical prefix.
+
+This is local Windows evidence. Full `npm test` remains required on the next
+combined integration source; it was not run concurrently on this branch. There
+is no new recipe, parser grammar, native authority, performance improvement or
+other-platform claim. C05, the broader #26 requirements, installed acceptance
+and public release remain open.
+## Exact root-part scene poses after a screw edit — Windows focal, 2026-11-11
+
+The `2a9ad6d` hosted Screw route failed on Windows, macOS and Linux at its
+unchanged exact scene/document placement comparison, after a two-turn move,
+slider translation and lead/handedness edit. The frozen Windows integration
+batch also stopped at that route after 76 passing commands. Those failures
+remain failures of their original source; their remaining commands did not run.
+
+A focused follow-up based on `1c6e955` reproduces the mismatch natively: composing
+a valid root-part quaternion with identity changes one Float64 bit. A separate
+original 3-4-5 declaration case fails the same exact-preservation requirement.
+A diagnostic removing only the signed-distance conditioning addition passes
+the native reproduction. That conditioning is retained: the correction copies
+the already validated root-part pose without another identity composition.
+Nested composition, quaternion admission, native authority, tolerances and
+solver budgets are unchanged.
+
+Local Node 24.11.1 / Electron 44.9.3 checks pass:
+
+- 268 cases across four model/native files, including the signed 150 mm origin
+  regression, strict invalid-quaternion rejection and detached root-pose copies.
+- `npm run build`, the complete `test:desktop:assembly-screw` route and desktop
+  startup. The Screw child and parent agree on 165 checkpoints and 27 recorded
+  phases; its 26 scenes contain 78 exact root scene/document poses. Original
+  volume/area, captured relations, motion, Cancel, history, Save/Open and fresh
+  Solve checks retain their existing tolerances and assertions.
+- The Screw route has no renderer/request errors, closes its child, removes its
+  isolated temporary directory and uses exactly two Open and one Save As.
+
+These are focused Windows source results. A new combined full suite, hosted
+platform runs and packaged acceptance remain separate. They do not retroactively
+pass the earlier failed integration batch or certify every assembly placement.
+
 ## Bounded driving-circle radius variation — Windows focal evidence, 2026-11-11
 
 The focused follow-up based on `6d1f705771cd581799153de613b1fed11bf7645b`
@@ -146,6 +379,129 @@ Terminal audit
 `a67be6b6d3e006a32b08932c7ac17ad8087011648a81016eec48593dfd36ffd4`.
 The 150 mm use blocker, sketch-dimension variation and final combined artifact
 remain separate follow-ups.
+
+## Finite operation entries and embedded-copy aliases — Windows focal, 2026-11-11
+
+This test-only increment follows `43c8a42`. The new fixed
+`test:desktop:part-operation-aliases` scenario reuses the tracked original
+`part-sequence-original.json`; no model or dependency was added. Ordinary
+Open/Save As owns its single input/output. The independent original prism is
+20 × 12 × 4 mm: V960 mm³ at 1e-5, planar triangle A736 mm² at 1e-4 and bounds
+[-10, -6, 0] to [10, 6, 4] at 1e-6 mm. Triangle area is not a native BRep-area
+capability. Thirty-two actual native builds check the original source/body
+identity, once initially and after each of thirty-one cancelled editors.
+
+The 407-checkpoint route records all seventeen Insertar and seventeen
+Operaciones entries: thirty-one expected editors, two missing-open-path Sweep
+explanations and disabled one-body Combine. The positive Sweep menu is also
+exercised in the existing Sweep/Loft native lifecycle; the existing positive
+Combine ribbon route is retained and rerun. Exact consumed-sketch occurrence
+IDs, selected profile/loft inputs, rectangle/circle tools and current native body
+nominations are checked. No React, model, reference, camera or worker reply is
+injected.
+
+Sixteen menu-owned Escape cases preserve the editor; an actual tab press then
+transfers focus for the separate CAD Escape behaviour. Sketch Escape ends the
+tool and leaves the sketch open until explicit Cancel. Thirty-four disabled
+entry presses preserve the settled extrusion draft, Apply state, references,
+history and native observations. The one-body Combine guard adds one further
+disabled press. Thirty-five comparisons require exact native bytes over the
+complete unmasked opaque crop, including each restored lifecycle and the final
+initial-tree-list/camera restoration. The separate translucent-plane contract
+is unchanged. The route took 94.81 seconds within the existing 180-second
+parent/170-second child budget; no deadline was extended.
+
+The embedded edit and native-close transition routes add both File copy labels
+and quick Save-copy. All three produce the exact preceding successful keyboard
+copy bytes, with a fresh owned path choice and `hasPath=false`. The original two
+keyboard picker cancellations, keyboard success, parent/source Cancel/Apply,
+history and pending native guards remain. Both disabled copy menu entries and
+the guarded quick button preserve unfinished source editing. A retained failed
+diagnostic observed a legitimate source-prefix reply followed by its full
+body-plan build; the final guard waits for that actual full native build first,
+then requires exact before/after equality. It substitutes no timers, replies,
+geometry or capabilities. The fixed save queue has eight entries; only positions
+zero and seven use the assembly save title. Parent/recovery and detached-copy
+bytes remain exact, including test-owned native close and fresh-process reopen.
+
+On one quiet Windows x64 snapshot, existing Electron 44.9.3 and host Node 24.11.1:
+
+| Command | Observed terminal result |
+| --- | --- |
+| `npm run build` | Passed. |
+| `test:desktop:part-operation-aliases` | 407 checkpoints, 94.81 s. |
+| `test:desktop:assembly-embedded-part-edit` | 193 checkpoints, 24.93 s. |
+| `test:desktop:part-sweep-loft` | 135 checkpoints and existing physical STEP checks, 23.05 s. |
+| `test:desktop:assembly-embedded-part-transitions` | 223 checkpoints plus 15 in the fresh process, 30.92 s. |
+| `test:desktop:part-from-empty` | Original 566 checkpoints, 116.49 s; only its identical snapshot implementation was shared. |
+| `test:desktop` | Passed, 1.67 s. |
+| `test:desktop:part-combine` | Existing positive native/STEP route, 114 checkpoints, 21.25 s. |
+
+The private source manifest SHA-256 is
+`4801b35aa6ec4611c1806d5aae094938240794c3fe45935bf8da123fb747eaf6`:
+1552 source inputs, 1444 non-Markdown. Those inputs, eight parent-monitored
+production loader hashes, package metadata and the separately checked SVG were
+unchanged before/after all seven serial focal commands. All six renderer workflow
+parents report child closure and owned temporary cleanup. Smoke has its separate
+boot record. Only these result documents changed
+afterwards. The new scenario is added to the existing CI persistence batch with
+the existing Linux/Windows/macOS launch patterns, without new permissions or
+deadline changes; hosted results are not claimed here.
+
+This closes the named bounded operation-entry and advertised embedded-copy
+records on this local runtime, not all C13. Remaining file/example/context,
+multi-input edit, assembly/configured aliases, keyboard cases, compact/human use
+and platform acceptance retain the [finite matrix](USABLE_COMMAND_MATRIX.md).
+No full `npm test` was launched for this isolated increment: the coordinator
+reserved it for the final integrated candidate. Product, IPC, native solver,
+dependency, fixture and document-format behaviour are unchanged.
+
+## Part plane toolbar and ordinary selection modes — Windows focal, 2026-11-11
+
+A test-only follow-up based on `4fb894f61be7648b9ff719f0ec4d01a4d4c87812`
+passes `npm run build` and the complete `test:desktop:part-from-empty` route
+with 566 checkpoints at both the ordinary local window and a private
+1040×700-window variant. Node 24.11.1 and the existing Electron 44.9.3 runtime
+were reused. The 1,440 non-Markdown input hashes remain unchanged; the frozen
+full-input manifest, including documentation before this result record, is
+`94e026e7ca83792a138c8fecb49efedeb252fd326db0f897e2777d6914532e06`.
+
+- The toolbar plane button acts on the actual original XY+20 reference plane
+  already created by the menu case. Both ON/OFF are real contained pointer
+  presses. ON uses the prior full-unmasked, at-least-500-ms, one-native-byte
+  level contract; each OFF restores the original opaque crop exactly.
+- Auto and Caras select the expected current native exterior face; Aristas
+  selects its literal boundary LINE; Cuerpos selects the current native body.
+  Full reference identities match the actual worker catalog. Four canvas
+  presses follow real mode-button presses, with current effective-mode and
+  enabled/Clear state checks. Public saved camera data locates input only.
+- Each existing live-sketch and saved-cut draft receives five actual disabled
+  presses (four modes and Clear), plus two allowed presentation-only plane
+  toggles. Draft fields, effective mode, selection, native work, document and
+  history remain unchanged. The SVG projection or saved-cut canvas is restored.
+- All four Clear transitions and final selection restoration preserve exact
+  full opaque central-crop metadata/bytes without new masks or RGB tolerances.
+  Native observations, committed recovery/history, file authority and actual
+  saved bytes remain unchanged. The original geometric sequence and file
+  lifecycle remain in the same complete route.
+
+Both children close and delete their isolated temporary directories. Their
+eight monitored production-loader file hashes match the final files; package
+metadata is pinned separately. The compact copy changes only its private fixed
+window constructor. The first trial's stale-capture ownership rejection is
+retained privately; the correction takes a fresh OFF baseline and retains exact
+comparison with the original frame. No oracle, deadline or production behavior
+was relaxed. Only existing read-only observer face/edge fields were enabled for
+this fixed route; no new fixture, production UI/kernel, dependency or CI
+permission change is included.
+
+This is the bounded P-S03 toolbar/selection slice, not completion of C13. The
+remaining finite operation-entry, embedded/copy, menu/context and keyboard
+cases retain their own requirements. The next combined source needs its own
+global and hosted checks; no additional full-suite run was duplicated alongside
+the active integration batch. These local Windows results do not establish
+installed, other-platform or human acceptance.
+
 
 ## AUTO and selected depth combined — Windows evidence, 2026-11-10
 

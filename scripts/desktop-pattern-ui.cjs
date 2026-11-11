@@ -54,6 +54,8 @@ const SCENARIOS = Object.freeze({
     test: 'production-renderer-sketch-primitives', caption: 'pointer-authored rectangle/circle/centre-arc, sketch constraints, history and native STEP' }),
   'part-from-empty': Object.freeze({ entry: 'desktop-part-from-empty.cjs',
     test: 'production-renderer-part-from-empty', caption: 'new part, pointer sketches and successive solid operations' }),
+  'part-operation-aliases': Object.freeze({ fixture: 'part-sequence-original.json', entry: 'desktop-part-operation-aliases.cjs',
+    test: 'production-renderer-part-operation-aliases', caption: 'finite part operation entry aliases and guarded cancellation' }),
   'part-sequence': Object.freeze({ fixture: 'part-sequence-original.json', entry: 'desktop-part-sequence.cjs',
     test: 'production-renderer-part-sequence', caption: 'successive cuts and additive bosses' }),
   'part-revolution': Object.freeze({ originalRecipe: 'desktop-part-revolution-original.cjs', entry: 'desktop-part-revolution.cjs',
@@ -64,6 +66,12 @@ const SCENARIOS = Object.freeze({
     test: 'production-renderer-part-properties', caption: 'part material, appearance, physical properties and viewport background' }),
   'part-hole': Object.freeze({ hole: true, originalRecipe: 'desktop-part-hole-original.cjs', entry: 'desktop-part-hole.cjs',
     test: 'production-renderer-part-hole', caption: 'normal two-centre hole authoring, counterbore editing and native STEP round trip' }),
+  'part-hole-flat': Object.freeze({ hole: true, holeVariant: 'flat', originalRecipe: 'desktop-part-hole-variants-original.cjs', entry: 'desktop-part-hole-flat.cjs',
+    test: 'production-renderer-part-hole-flat', caption: 'normal blind flat-bottom hole depth, invalid recovery, edit and physical STEP' }),
+  'part-hole-conical': Object.freeze({ hole: true, holeVariant: 'conical', originalRecipe: 'desktop-part-hole-variants-original.cjs', entry: 'desktop-part-hole-conical.cjs',
+    test: 'production-renderer-part-hole-conical', caption: 'normal conical-bottom hole shoulder/tip depth, invalid recovery and physical STEP' }),
+  'part-hole-next': Object.freeze({ hole: true, holeVariant: 'next', originalRecipe: 'desktop-part-hole-variants-original.cjs', entry: 'desktop-part-hole-next.cjs',
+    test: 'production-renderer-part-hole-next', caption: 'normal countersink UntilNext into original cavity, angle edit and physical STEP' }),
   'part-combine': Object.freeze({ combine: true, originalRecipe: 'desktop-part-combine-original.cjs', entry: 'desktop-part-combine.cjs',
     test: 'production-renderer-part-combine', caption: 'normal ordered body combinations, target editing and native STEP round trip' }),
   'part-additive-all': Object.freeze({ additiveAll: true, originalRecipe: 'desktop-part-additive-all-original.cjs', entry: 'desktop-part-additive-all.cjs',
@@ -74,6 +82,8 @@ const SCENARIOS = Object.freeze({
     test: 'production-renderer-part-instance-depth', caption: 'addressed Blind depth assignment, edit cancellation, history and persistence' }),
   'part-instance-radius': Object.freeze({ instanceDepth: true, instanceRadius: true, originalRecipe: 'desktop-part-instance-radius-original.cjs', entry: 'desktop-part-instance-radius.cjs',
     test: 'production-renderer-part-instance-radius', caption: 'real solved driving radius assignment, edit cancellation, history and persistence' }),
+  'part-recipe-availability': Object.freeze({ instanceDepth: true, recipeAvailability: true, originalRecipe: 'desktop-part-recipe-availability-original.cjs', entry: 'desktop-part-recipe-availability.cjs',
+    test: 'production-renderer-part-recipe-availability', caption: 'recipe availability and explicit repair without changing normal operation capabilities' }),
   'part-pattern-create': Object.freeze({ patternCreate: true, originalRecipe: 'desktop-part-pattern-create-original.cjs', entry: 'desktop-part-pattern-create.cjs',
     test: 'production-renderer-part-pattern-create', caption: 'normal linear/circular/mirror creation, history, persistence and physical STEP copy poses' }),
   'part-shell-draft': Object.freeze({ shellDraft: true, originalRecipe: 'desktop-part-shell-draft-original.cjs', entry: 'desktop-part-shell-draft.cjs',
@@ -96,6 +106,8 @@ const SCENARIOS = Object.freeze({
     test: 'production-renderer-part-face-limits', caption: 'actual viewport face targets in both extrusion directions' }),
   'part-finishing': Object.freeze({ originalRecipe: 'desktop-part-finishing-original.cjs', entry: 'desktop-part-finishing.cjs',
     test: 'production-renderer-part-finishing', caption: 'selected body edge fillet and chamfer' }),
+  'part-finishing-all': Object.freeze({ finishingAll: true, originalRecipe: 'desktop-part-finishing-original.cjs', entry: 'desktop-part-finishing-all.cjs',
+    test: 'production-renderer-part-finishing-all', caption: 'normal all-edge fillet/chamfer, explicit resize, history and physical STEP' }),
   'part-body-catalog': Object.freeze({ originalRecipe: 'desktop-part-body-catalog-original.cjs', entry: 'desktop-part-body-catalog.cjs',
     test: 'production-renderer-part-body-catalog', caption: 'compact body catalog selection and keyboard details' }),
   all: Object.freeze({ fixture: 'pattern-all-original.json', entry: 'desktop-pattern-all.cjs',
@@ -362,14 +374,20 @@ async function launch() {
       await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(require('./desktop-part-sweep-loft-original.cjs')()), { flag: 'wx' });
     } else if (activeScenario.partProperties === true) {
       await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(require('./desktop-part-properties-original.cjs')()), { flag: 'wx' });
-    } else if (activeScenario === SCENARIOS['part-hole']) {
-      await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(require('./desktop-part-hole-original.cjs')()), { flag: 'wx' });
+    } else if (activeScenario.hole === true) {
+      const original = activeScenario.holeVariant ? require('./desktop-part-hole-variants-original.cjs')(activeScenario.holeVariant)
+        : require('./desktop-part-hole-original.cjs')();
+      await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(original), { flag: 'wx' });
     } else if (activeScenario === SCENARIOS['part-combine']) {
       await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(require('./desktop-part-combine-original.cjs')()), { flag: 'wx' });
     } else if (activeScenario.additiveAll === true) {
       await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(require('./desktop-part-additive-all-original.cjs')()), { flag: 'wx' });
     } else if (activeScenario.autoScope === true) {
       await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(require('./desktop-part-auto-scope-original.cjs')()), { flag: 'wx' });
+    } else if (activeScenario.recipeAvailability === true) {
+      const original = require('./desktop-part-recipe-availability-original.cjs');
+      await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(original()), { flag: 'wx' });
+      await fsp.writeFile(path.join(temporary, 'stale.solidflow'), JSON.stringify(original.stale()), { flag: 'wx' });
     } else if (activeScenario.instanceDepth === true) {
       await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(require('./' + activeScenario.originalRecipe)()), { flag: 'wx' });
     } else if (activeScenario === SCENARIOS['part-pattern-create']) {
@@ -380,7 +398,7 @@ async function launch() {
       await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(require('./desktop-part-external-axis-original.cjs')()), { flag: 'wx' });
     } else if (activeScenario.thinWall === true) {
       await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(thinWallScenarioFiles().original()), { flag: 'wx' });
-    } else if (activeScenario === SCENARIOS['part-finishing']) {
+    } else if (activeScenario === SCENARIOS['part-finishing'] || activeScenario.finishingAll === true) {
       await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(require('./desktop-part-finishing-original.cjs')()), { flag: 'wx' });
     } else if (activeScenario === SCENARIOS['part-body-catalog']) {
       await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(require('./desktop-part-body-catalog-original.cjs')()), { flag: 'wx' });
@@ -881,6 +899,7 @@ async function runInElectron() {
   const translationOutput = path.join(owned, 'saved-translation.solidflow');
   const gearOutput = path.join(owned, 'saved-gear.solidflow');
   const fromEmpty = activeScenario === SCENARIOS['part-from-empty'];
+  const partOperationAliases = activeScenario === SCENARIOS['part-operation-aliases'];
   const sketchPrimitives = activeScenario.sketchPrimitives === true;
   const normalToView = activeScenario === SCENARIOS['normal-to-view'];
   const embeddedPartEdit = activeScenario.embeddedPartEdit === true;
@@ -919,7 +938,7 @@ async function runInElectron() {
   const partInstanceDepth = activeScenario.instanceDepth === true;
   const partExternalAxis = activeScenario === SCENARIOS['part-external-axis'];
   const partThinWall = activeScenario.thinWall === true;
-  const partFinishing = activeScenario === SCENARIOS['part-finishing'];
+  const partFinishing = activeScenario === SCENARIOS['part-finishing'] || activeScenario.finishingAll === true;
   const partBodyCatalog = activeScenario === SCENARIOS['part-body-catalog'];
   const basicAuthoring = activeScenario === SCENARIOS['assembly-basic-authoring'];
   const mateReferenceEdit = activeScenario === SCENARIOS['assembly-mate-reference-edit'];
@@ -1069,7 +1088,7 @@ async function runInElectron() {
   const outputs = untilNext ? { cutSelected: path.join(owned, 'saved-cut-selected.solidflow'),
     cutAll: path.join(owned, 'saved-cut-all.solidflow'), add: path.join(owned, 'saved-add-selected.solidflow') } : null;
   const partCopyOutput = embeddedPartEdit ? path.join(owned, 'saved-embedded-part-copy.solidflow') : null;
-  const openPaths = assemblyPartProperties ? [input, output, assemblyPropertiesOutput] : propertiesReopenReceipt ? [output] : nativeReopen ? [output] : sketchPrimitives ? [sketchPrimitiveFiles.rectangle, sketchPrimitiveFiles.circle, sketchPrimitiveFiles.semicircle, sketchPrimitiveFiles.imported] : partPatternCreate ? [input, patternCreateFiles.linear, input, patternCreateFiles.circular, input, patternCreateFiles.mirror] : partShellDraft ? [input, shellDraftFiles.shell, input, shellDraftFiles.draft] : embeddedPartEdit ? [input, output] : partThinWall ? [input, output] : partExternalAxis ? [input, output, output] : partRevolution ? [input, output, output, output] : normalToView ? [normalInputs.part, normalInputs.standard, normalInputs.configured] : fromEmpty ? [output, output] : shortcuts ? [input, null, shortcutOutput, shortcutOutput, shortcutOutput] : basicAuthoring ? [input, null, output, output, output] : partSequence ? [input, output, partAssemblyOutput, partAssemblyPinInput, partAssemblyOutput] : partBodyCatalog ? [input, input] : partFinishing ? [input, finishingFiles.fillet, input, output] : configuredComponents ? [input, null, path.join(owned, 'incoming.solidflow'), path.join(owned, 'incoming.solidflow'), output] : structuralInsertion ? [input, insertionFiles.parent, output] : structuralStep ? [input, structuralFiles.part, output] : untilNext ? [inputPaths.cut, outputs.cutSelected, outputs.cutAll,
+  const openPaths = activeScenario.recipeAvailability ? [input, path.join(owned, 'stale.solidflow'), output] : assemblyPartProperties ? [input, output, assemblyPropertiesOutput] : propertiesReopenReceipt ? [output] : nativeReopen ? [output] : sketchPrimitives ? [sketchPrimitiveFiles.rectangle, sketchPrimitiveFiles.circle, sketchPrimitiveFiles.semicircle, sketchPrimitiveFiles.imported] : partPatternCreate ? [input, patternCreateFiles.linear, input, patternCreateFiles.circular, input, patternCreateFiles.mirror] : partShellDraft ? [input, shellDraftFiles.shell, input, shellDraftFiles.draft] : embeddedPartEdit ? [input, output] : partThinWall ? [input, output] : partExternalAxis ? [input, output, output] : partRevolution ? [input, output, output, output] : normalToView ? [normalInputs.part, normalInputs.standard, normalInputs.configured] : fromEmpty ? [output, output] : partOperationAliases ? [input] : shortcuts ? [input, null, shortcutOutput, shortcutOutput, shortcutOutput] : basicAuthoring ? [input, null, output, output, output] : partSequence ? [input, output, partAssemblyOutput, partAssemblyPinInput, partAssemblyOutput] : partBodyCatalog ? [input, input] : partFinishing ? [input, finishingFiles.fillet, input, output] : configuredComponents ? [input, null, path.join(owned, 'incoming.solidflow'), path.join(owned, 'incoming.solidflow'), output] : structuralInsertion ? [input, insertionFiles.parent, output] : structuralStep ? [input, structuralFiles.part, output] : untilNext ? [inputPaths.cut, outputs.cutSelected, outputs.cutAll,
     inputPaths.add, outputs.add, inputPaths.reject] : assembly ? [input, output, partUpdatePath, partUpdatePath, output, output, output, projectionOutput, output, interferencePath, translationPath, translationOutput, bomPath, input, gearOutput]
     : assemblyImport ? [input, importSourcePath, importRejectedPath, importSourcePath, output]
     : sourceRevision ? [input, sourceRevisionFiles.parent, output]
@@ -1091,7 +1110,7 @@ async function runInElectron() {
       repairFiles.replacementPart, repairFiles.replacementPart, repairFiles.replacementSaved]
     : symmetryPicking ? [input, ...Array(6).fill(output)]
     : symmetry ? [input, ...Array(5).fill(output)] : direction ? [input, output, output] : configuredRelations || configuredPicking || configuredMechanical || configuredCompound ? [input, output] : configurations ? [input, output, output] : [input, output];
-  const savePaths = assemblyPartProperties ? [output, assemblyPropertiesOutput] : nativeReopen ? [] : sketchPrimitives ? [sketchPrimitiveFiles.rectangle, sketchPrimitiveFiles.circle, sketchPrimitiveFiles.semicircle, sketchPrimitiveFiles.imported] : partPatternCreate ? [patternCreateFiles.linear, patternCreateFiles.circular, patternCreateFiles.mirror] : partShellDraft ? [shellDraftFiles.shell, shellDraftFiles.draft] : embeddedPartEdit ? [output, null, null, partCopyOutput, output] : normalToView ? [] : fromEmpty ? [output] : shortcuts ? [output, shortcutOutput] : partBodyCatalog ? [] : partSequence ? [output, partAssemblyOutput] : partFinishing ? [finishingFiles.fillet, output] : configurations ? [null, output] : untilNext ? [outputs.cutSelected, outputs.cutAll, outputs.add] : assembly ? [output, projectionOutput, translationOutput, gearOutput]
+  const savePaths = assemblyPartProperties ? [output, assemblyPropertiesOutput] : nativeReopen ? [] : sketchPrimitives ? [sketchPrimitiveFiles.rectangle, sketchPrimitiveFiles.circle, sketchPrimitiveFiles.semicircle, sketchPrimitiveFiles.imported] : partPatternCreate ? [patternCreateFiles.linear, patternCreateFiles.circular, patternCreateFiles.mirror] : partShellDraft ? [shellDraftFiles.shell, shellDraftFiles.draft] : embeddedPartEdit ? [output, null, null, partCopyOutput, partCopyOutput, partCopyOutput, partCopyOutput, output] : normalToView ? [] : fromEmpty || partOperationAliases ? [output] : shortcuts ? [output, shortcutOutput] : partBodyCatalog ? [] : partSequence ? [output, partAssemblyOutput] : partFinishing ? [finishingFiles.fillet, output] : configurations ? [null, output] : untilNext ? [outputs.cutSelected, outputs.cutAll, outputs.add] : assembly ? [output, projectionOutput, translationOutput, gearOutput]
     : direction ? [output, output]
     : assemblyImport ? [importBaselinePath, output]
     : sourceRevision ? [null, output]
@@ -1279,7 +1298,7 @@ async function runInElectron() {
     } finally { endTiming?.(); }
   };
   const pointer = async (type, point, buttons = 0, clickCount = 1, modifiers = 0) => {
-    check((activeScenario.circularPicking || activeScenario.linePicking || activeScenario.profilePicking || mechanicalPicking || assemblyPartProperties || embeddedPartEdit || partThinWall || partExternalAxis || configuredComponents || normalToView || fromEmpty || basicAuthoring || mateReferenceEdit || partBodyCatalog || partFinishing || partRevolution || partSweepLoft || partProperties || partHole || partCombine || partShellDraft || partPatternCreate || partAdditiveAll || partAutoScope || partInstanceDepth || sketchPrimitives || partSequence || originAxes || freshSketch || configuredPicking || assembly || activeScenario === SCENARIOS['assembly-configurations'] || rackPinion || direction || tangent || cylinderTangent || sphereTangent || limitDistance || limitAngle || directedAngle || width || symmetry || symmetryPicking || hingePicking || hingeLimitsPicking) && !window.isVisible() && window.webContents.debugger.isAttached()
+    check((activeScenario.circularPicking || activeScenario.linePicking || activeScenario.profilePicking || mechanicalPicking || assemblyPartProperties || embeddedPartEdit || partThinWall || partExternalAxis || configuredComponents || normalToView || fromEmpty || partOperationAliases || basicAuthoring || mateReferenceEdit || partBodyCatalog || partFinishing || partRevolution || partSweepLoft || partProperties || partHole || partCombine || partShellDraft || partPatternCreate || partAdditiveAll || partAutoScope || partInstanceDepth || sketchPrimitives || partSequence || originAxes || freshSketch || configuredPicking || assembly || activeScenario === SCENARIOS['assembly-configurations'] || rackPinion || direction || tangent || cylinderTangent || sphereTangent || limitDistance || limitAngle || directedAngle || width || symmetry || symmetryPicking || hingePicking || hingeLimitsPicking) && !window.isVisible() && window.webContents.debugger.isAttached()
       && ['mouseMoved', 'mousePressed', 'mouseReleased'].includes(type)
       && Number.isFinite(point.x) && Number.isFinite(point.y) && point.x >= 0 && point.y >= 0
       && ([0, 1].includes(buttons) || (configuredComponents || normalToView || partSequence || basicAuthoring || freshSketch) && buttons === 2)
@@ -1292,7 +1311,7 @@ async function runInElectron() {
       clickCount: type === 'mouseMoved' ? 0 : clickCount, pointerType: 'mouse', modifiers,
     }); } finally { endTiming?.(); }
   };
-  const {cameraFrame,cameraGesture,rasterComparison}=require('./desktop-camera-input.cjs')({getWindow:()=>window,evaluate,check,digest,allowed:configuredComponents||normalToView||fromEmpty||shortcuts||mateReferenceEdit,allowFrameDiagnostics:mateReferenceEdit,allowRasterComparison:fromEmpty||shortcuts,allowPlaneDiagnostics:fromEmpty&&process.env.SOLIDFLOW_UI_PLANE_DIAGNOSTICS==='1'});
+  const {cameraFrame,cameraGesture,rasterComparison}=require('./desktop-camera-input.cjs')({getWindow:()=>window,evaluate,check,digest,allowed:configuredComponents||normalToView||fromEmpty||partOperationAliases||shortcuts||mateReferenceEdit,allowFrameDiagnostics:mateReferenceEdit,allowRasterComparison:fromEmpty||partOperationAliases||shortcuts,allowPlaneDiagnostics:fromEmpty&&process.env.SOLIDFLOW_UI_PLANE_DIAGNOSTICS==='1'});
   const wheel = async (point, deltaY) => {
     check((partExternalAxis || activeScenario.faceLimits || normalToView || fromEmpty || sketchPrimitives || limitDistance || freshSketch) && !window.isVisible() && window.webContents.debugger.isAttached()
       && Number.isFinite(point.x) && Number.isFinite(point.y) && point.x >= 0 && point.y >= 0
@@ -1395,7 +1414,7 @@ async function runInElectron() {
     const codes = { Escape: 27, Tab: 9, ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, Home: 36, End: 35, Enter: 13,
       ...((fromEmpty || shortcuts) ? { g: 71 } : {}),
       ...((configuredComponents || normalToView || partSequence || basicAuthoring || freshSketch) ? { ContextMenu: 93 } : {}), ...((configuredComponents || freshSketch) ? { F10: 121 } : {}) };
-    check((partExternalAxis || activeScenario.faceLimits || configuredComponents || normalToView || fromEmpty || basicAuthoring || mateReferenceEdit || originAxes || partSequence || configuredPicking || assembly || freshSketch || activeScenario === SCENARIOS['assembly-configurations']) && !window.isVisible() && window.webContents.debugger.isAttached()
+    check((partExternalAxis || activeScenario.faceLimits || configuredComponents || normalToView || fromEmpty || partOperationAliases || basicAuthoring || mateReferenceEdit || originAxes || partSequence || configuredPicking || assembly || freshSketch || activeScenario === SCENARIOS['assembly-configurations']) && !window.isVisible() && window.webContents.debugger.isAttached()
       && Object.prototype.hasOwnProperty.call(codes, key) && typeof shift === 'boolean'
       && (!shift || (configuredComponents || freshSketch) && key === 'F10' || fromEmpty && key === 'Tab'), 'Expected bounded keyboard input in the hidden allowlisted CAD workflow.');
     if (shift && key === 'Tab') check(fromEmpty && await evaluate(`(() => { const dialog=document.querySelector('dialog.part-help-dialog'); return dialog?.matches(':modal') && dialog.contains(document.activeElement); })()`), 'Reverse Tab belongs only to the current test-owned Help modal');
@@ -1699,6 +1718,10 @@ async function runInElectron() {
     ? require('./desktop-normal-to-view-flow.cjs')({ inputs: normalInputs, documents: normalDocuments, evaluate, observe, waitFor, click, pointer, wheel, menuKey, normalSelectInput, viewSelectInput, cameraFrame, cameraGesture, key: shortcutKey,
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
+    : partOperationAliases
+    ? require('./desktop-part-operation-alias-workflow.cjs')({ expected, input, output, evaluate, observe, waitFor, pointer, menuKey,
+      cameraFrame, rasterComparison, waitForPresentation, checks, ipc, consoleErrors, failedRequests, check, canonical, digest,
+      initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
     : fromEmpty
     ? require('./desktop-part-from-empty-flow.cjs')({ expected, output, evaluate, observe, waitFor, click, pointer, wheel, menu, menuKey, captureHeader, capture, cameraFrame, cameraGesture, rasterComparison, waitForPresentation, key: shortcutKey, shortcutText, namedViewKey,
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
@@ -1758,7 +1781,7 @@ async function runInElectron() {
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest, pendingWorker,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, geometryExports }) })()
     : partInstanceDepth
-    ? require('./desktop-part-instance-depth-flow.cjs')({ expected, input, output, evaluate, observe, waitFor, pointer,
+    ? require(activeScenario.recipeAvailability ? './desktop-part-recipe-availability-flow.cjs' : './desktop-part-instance-depth-flow.cjs')({ expected, input, output, evaluate, observe, waitFor, pointer,
       checks, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) }, activeScenario.instanceRadius ? 'radius' : 'depth')
     : partPatternCreate
@@ -1775,11 +1798,11 @@ async function runInElectron() {
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, geometryExports }) })
     : partHole
-    ? require('./desktop-part-hole-flow.cjs')({ expected, input, output, holeStepPath, evaluate, observe, waitFor, pointer,
+    ? require(activeScenario.holeVariant ? './desktop-part-hole-variants-flow.cjs' : './desktop-part-hole-flow.cjs')({ variant: activeScenario.holeVariant, expected, input, output, holeStepPath, evaluate, observe, waitFor, pointer,
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, geometryExports }) })
     : partFinishing
-    ? require('./desktop-part-finishing-flow.cjs')({ expected, input, output, finishingFiles, evaluate, observe, waitFor, pointer, capture,
+    ? require('./desktop-part-finishing-flow.cjs')({ expected, input, output, finishingFiles, allEdges: activeScenario.finishingAll === true, evaluate, observe, waitFor, pointer, capture,
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, geometryExports }) })
     : originAxes
@@ -2019,7 +2042,7 @@ async function runInElectron() {
           await pendingWorker.install();
         }
         await this.webContents.debugger.sendCommand('Page.enable');
-        await this.webContents.debugger.sendCommand('Page.addScriptToEvaluateOnNewDocument', { source: '(' + installWorkerObserver.toString() + ')(' + (assemblyPartProperties || normalToView || fromEmpty || importedBodies || freshSketch || sketchPrimitives || partBodyCatalog || partProperties || partSweepLoft || partHole || partCombine || partShellDraft || partPatternCreate || partAdditiveAll || partAutoScope || partInstanceDepth ? 'true' : 'false') + ',' + (structuralStep ? 'true' : 'false') + ',' + (structuralInsertion ? 'true' : 'false') + ',' + (configurations ? 'true' : 'false') + ',' + (partRevolution || embeddedPartTransitions ? 'true' : 'false') + ',' + (assemblyPartProperties || partExternalAxis || partFinishing || freshSketch || partProperties || partCombine ? 'true' : 'false') + ',' + (mateReferenceEdit ? 'true' : 'false') + ',' + (normalToView ? 'true' : 'false') + ',' + (symmetryPicking ? 'true' : 'false') + ',' + (activeScenario.faceLimits || partProperties || partHole || partCombine || partShellDraft || partPatternCreate || partAdditiveAll || partAutoScope || referenceRepair ? 'true' : 'false') + ',' + (assemblyPartProperties ? 'true' : 'false') + ',' + (fromEmpty ? 'true' : 'false') + ');' });
+        await this.webContents.debugger.sendCommand('Page.addScriptToEvaluateOnNewDocument', { source: '(' + installWorkerObserver.toString() + ')(' + (assemblyPartProperties || normalToView || fromEmpty || partOperationAliases || importedBodies || freshSketch || sketchPrimitives || partBodyCatalog || partProperties || partSweepLoft || partHole || partCombine || partShellDraft || partPatternCreate || partAdditiveAll || partAutoScope || partInstanceDepth ? 'true' : 'false') + ',' + (structuralStep ? 'true' : 'false') + ',' + (structuralInsertion ? 'true' : 'false') + ',' + (configurations ? 'true' : 'false') + ',' + (partRevolution || embeddedPartTransitions ? 'true' : 'false') + ',' + (assemblyPartProperties || partExternalAxis || partFinishing || freshSketch || partProperties || partCombine || fromEmpty ? 'true' : 'false') + ',' + (mateReferenceEdit ? 'true' : 'false') + ',' + (normalToView ? 'true' : 'false') + ',' + (symmetryPicking ? 'true' : 'false') + ',' + (activeScenario.faceLimits || partProperties || partHole || partCombine || partShellDraft || partPatternCreate || partAdditiveAll || partAutoScope || referenceRepair || fromEmpty ? 'true' : 'false') + ',' + (assemblyPartProperties ? 'true' : 'false') + ',' + (fromEmpty ? 'true' : 'false') + ');' });
         checks.push('test-owned blank target initialized before CDP observation');
       })();
       await this.instrumentation;
@@ -2287,7 +2310,7 @@ async function runInElectron() {
         return csvExports === 1 ? { canceled: true } : { canceled: false, filePath: bomCsvOutputs[csvExports - 2] };
       }
       if (structuralStep || structuralInsertion) check(path.basename(options.defaultPath) === (structuralInsertion ? 'Original structural insertion parent.solidflow' : 'Conjunto _Árbol_ Ω.solidflow'), 'Structural Save As uses the literal sanitized original name.');
-      check(options.title === (assemblyPartProperties ? saves === 0 ? 'Guardar ensamblaje' : 'Guardar ensamblaje configurado' : embeddedPartEdit ? saves === 0 || saves === 4 ? 'Guardar ensamblaje' : 'Guardar pieza' : partSequence ? saves === 0 ? 'Guardar pieza' : 'Guardar ensamblaje' : configurations ? 'Guardar ensamblaje configurado' : mechanicalPicking || mateReferenceEdit || basicAuthoring || originAxes || structuralInsertion || structuralStep || assembly || assemblyImport || assemblySourceUpdate || linkedSource || sourceRevision || screw || rackPinion || assemblyExport || direction || angleMeasurement || directedAngle || tangent || cylinderTangent || sphereTangent || limitDistance || limitAngle || width || linePath || circularPath || hinge || hingeLimits || hingePicking || hingeLimitsPicking || hingeRepair || profileCenter || symmetry || symmetryRepair || symmetrySurfaceRepair || symmetryPicking || symmetryNestedRepair || replacement ? 'Guardar ensamblaje' : 'Guardar pieza') && ++saves <= savePaths.length, 'Unexpected native save/export dialog request.');
+      check(options.title === (assemblyPartProperties ? saves === 0 ? 'Guardar ensamblaje' : 'Guardar ensamblaje configurado' : embeddedPartEdit ? saves === 0 || saves === 7 ? 'Guardar ensamblaje' : 'Guardar pieza' : partSequence ? saves === 0 ? 'Guardar pieza' : 'Guardar ensamblaje' : configurations ? 'Guardar ensamblaje configurado' : mechanicalPicking || mateReferenceEdit || basicAuthoring || originAxes || structuralInsertion || structuralStep || assembly || assemblyImport || assemblySourceUpdate || linkedSource || sourceRevision || screw || rackPinion || assemblyExport || direction || angleMeasurement || directedAngle || tangent || cylinderTangent || sphereTangent || limitDistance || limitAngle || width || linePath || circularPath || hinge || hingeLimits || hingePicking || hingeLimitsPicking || hingeRepair || profileCenter || symmetry || symmetryRepair || symmetrySurfaceRepair || symmetryPicking || symmetryNestedRepair || replacement ? 'Guardar ensamblaje' : 'Guardar pieza') && ++saves <= savePaths.length, 'Unexpected native save/export dialog request.');
       if ((embeddedPartEdit || sourceRevision || configurations) && savePaths[saves - 1] === null) return { canceled: true };
       return { canceled: false, filePath: savePaths[saves - 1] };
     };

@@ -702,9 +702,13 @@ export function expandAssemblyParts(input: AssemblyDocument, includeSuppressed =
     for (const occurrence of node.occurrences) {
       const nextSuppressed = suppressed || occurrence.suppressed
       if (nextSuppressed && !includeSuppressed) continue
-      const nextPath = [...path, occurrence.id], nextPose = composeRigidPoses(worldPose, occurrence.pose)
+      const nextPath = [...path, occurrence.id]
       const nextChain = [...chain, occurrence], nextVisible = visible && occurrence.visible
       const definition = definitions.get(assemblyDefinitionKey(occurrence.definition))!
+      // A root part's declaration already is its world placement. Preserve its
+      // accepted Float64 quaternion instead of normalizing it via identity.
+      const nextPose = !path.length && definition.kind === 'part'
+        ? validateRigidPose(occurrence.pose) : composeRigidPoses(worldPose, occurrence.pose)
       if (definition.kind === 'part') result.push({ path: nextPath, definition, occurrence, chain: nextChain,
         worldPose: nextPose, suppressed: nextSuppressed, visible: nextVisible })
       else walk(definition, nextPath, nextPose, nextChain, nextSuppressed, nextVisible)

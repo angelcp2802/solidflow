@@ -1,4 +1,5 @@
 import { ChevronDown, RotateCw, Trash2 } from "lucide-react";
+import { useMemo } from "react";
 import type {
   Feature,
   LinearPatternDirection,
@@ -13,6 +14,7 @@ import BodyPatternPanel, { type BodyPatternEditor } from "./BodyPatternPanel";
 import FeaturePatternPanel from "./FeaturePatternPanel";
 import { withFeaturePatternMode, withFeaturePatternScope, withFeaturePatternSeeds } from "../model/featurePatternCommands";
 import { isDynamicFeaturePattern } from "../model/featurePatterns";
+import { recipeSeedUnavailableReason, recipeSelectionUnavailableReason } from "../model/featureRecipeAvailability";
 
 interface Props {
   feature: RepetitionFeature;
@@ -178,6 +180,9 @@ export default function PatternPanel({
     (candidate) => candidate.type !== "sketch" && candidate.type !== "plane",
   );
   const hasInstanceVariations = feature.featurePattern?.mode === 'regenerate' && feature.featurePattern.variation.kind !== 'none';
+  const sourceIndex = useMemo(() => new Map(features.map(source => [source.id, source])), [features]);
+  const selectedReason = recipeSelectionUnavailableReason(feature, sourceIndex, 'selected');
+  const dynamicReason = recipeSelectionUnavailableReason(feature, sourceIndex, 'dynamic');
   const setSource = (incoming: PatternSource) => {
     if (hasInstanceVariations) return;
     const source: PatternSource = feature.featurePattern && incoming.mode === 'features'
@@ -228,29 +233,34 @@ export default function PatternPanel({
         <select aria-label="Método de repetición de operaciones" value={feature.featurePattern.mode}
           disabled={bodyEditor?.loading}
           onChange={event => {
+            if (event.target.value === 'regenerate' && selectedReason) return;
             const next = withFeaturePatternMode(feature, event.target.value === 'regenerate' ? 'regenerate' : 'geometry');
             onChange({ source: next.source, featurePattern: next.featurePattern });
           }}>
           <option value="geometry" disabled={isDynamicFeaturePattern(feature.featurePattern) || hasInstanceVariations}>Copiar geometría</option>
-          <option value="regenerate">Recalcular operaciones</option>
+          <option value="regenerate" disabled={!!selectedReason}>Recalcular operaciones</option>
         </select>
+        {selectedReason && <p className="muted-small" role="status">{selectedReason}</p>}
         {feature.featurePattern.mode === 'regenerate' && <>
           <label className="number-field"><span>Alcance de los cuerpos</span>
             <select aria-label="Alcance de los cuerpos de la repetición" value={autoScope?.pending ? 'auto' : feature.featurePattern.scope} disabled={bodyEditor?.loading}
               onChange={event => {
                 const scope = event.target.value;
+                if ((scope === 'all' || scope === 'auto') && dynamicReason) return;
                 if (scope === 'auto') { if (!hasInstanceVariations) autoScope?.onCapture(); return; }
                 const next = withFeaturePatternScope(feature, scope === 'all' ? 'all' : 'selected');
                 onChange({ featurePattern: next.featurePattern });
               }}>
               <option value="selected">Cuerpos seleccionados</option>
-              <option value="all" disabled={hasInstanceVariations}>Todos los cuerpos actuales</option>
+              <option value="all" disabled={hasInstanceVariations || !!dynamicReason}>Todos los cuerpos actuales</option>
               {(autoScope || feature.featurePattern.scope === 'auto') &&
-                <option value="auto" disabled={hasInstanceVariations || !autoScope?.available || autoScope.pending}>Detectar cuerpos automáticamente</option>}
+                <option value="auto" disabled={hasInstanceVariations || !!dynamicReason || !autoScope?.available || autoScope.pending}>Detectar cuerpos automáticamente</option>}
             </select>
           </label>
           {autoScope && (feature.featurePattern.scope === 'auto' || autoScope.pending) && <button type="button" className="outline-button"
-            disabled={hasInstanceVariations || !autoScope.available || autoScope.pending} onClick={autoScope.onCapture}>Volver a detectar cuerpos</button>}
+            disabled={hasInstanceVariations || !!dynamicReason || !autoScope.available || autoScope.pending}
+            onClick={() => { if (!dynamicReason) autoScope.onCapture(); }}>Volver a detectar cuerpos</button>}
+          {!hasInstanceVariations && !selectedReason && dynamicReason && <p className="muted-small" role="status">{dynamicReason}</p>}
           {autoScope?.pending && <p className="muted-small" role="status">Detectando cuerpos afectados…</p>}
           {autoScope?.error && <p className="muted-small" role="alert">{autoScope.error}</p>}
           {autoScope && !autoScope.available && feature.featurePattern.bindings.length === 0 &&
@@ -293,16 +303,22 @@ export default function PatternPanel({
               className="pattern-feature-list"
               aria-label="Operaciones para repetir"
             >
-              {solids.map((candidate) => (
+              {solids.map((candidate) => {
+                const checked = checkedIds.includes(candidate.id);
+                const reason = feature.featurePattern?.mode === 'regenerate'
+                  ? recipeSeedUnavailableReason(candidate, sourceIndex, isDynamicFeaturePattern(feature.featurePattern) ? 'dynamic' : 'selected') : null;
+                return (
                 <label key={candidate.id} className="check-option">
                   <input
                     type="checkbox"
                     aria-label={`Repetir ${candidate.name}`}
-                    checked={checkedIds.includes(candidate.id)}
+                    checked={checked}
+                    title={reason ?? undefined}
                     disabled={
-                      hasInstanceVariations || candidate.suppressed && !checkedIds.includes(candidate.id)
+                      hasInstanceVariations || !checked && (!!reason || candidate.suppressed)
                     }
                     onChange={(event) => {
+                      if (event.target.checked && reason) return;
                       const ids = event.target.checked
                         ? [...checkedIds, candidate.id]
                         : checkedIds.filter((id) => id !== candidate.id);
@@ -318,7 +334,8 @@ export default function PatternPanel({
                     {candidate.suppressed ? " · suprimida" : ""}
                   </span>
                 </label>
-              ))}
+                );
+              })}
               {checkedIds
                 .filter(
                   (id) => !solids.some((candidate) => candidate.id === id),

@@ -34,7 +34,7 @@ gate.
 | C02 | Create and edit supported sketch entities, dimensions and constraints through the normal editor. | Passed the recorded integrated XY rectangle/circle/centre-arc route: 237 checkpoints with actual strokes, driving dimensions, fixed corner, incompatible constraint, diagnosis, direct Cancel, local/document Undo/Redo and three Save/Open/STEP cases. Existing numerical suites supply the other supported geometry cases; broader command/input aliases remain in C13. |
 | C03 | Extrusion, cut, revolution and revolved cut consume an explicitly selected eligible sketch. | Passed the final recorded sequence/revolution routes with the 4 November fix. Empty selection, operation selection, suppressed and consumed sketches, active drafts and normal selected-sketch input retain their guards. |
 | C04 | Successive salients and cuts, including a new sketch on a face, reconstruct and persist. | Passed the recorded final cases. Sequence oracle V960→944→928→976→984 mm³, final A848 mm² and bounds [-10,-6,0]…[10,6,9]. Fresh-sketch oracle V960→1008→996 and A736→784→808. Original tolerances retained. |
-| C05 | Every enabled implemented solid-operation family has a working normal entry, editable parameters and recoverable invalid input. | The recorded normal families retain their cases. The combined `daa78a6` source passes bounded additive ALL, captured AUTO and selected Blind depth variation. Follow-up `81edcde` adds focal evidence for a Selected Blind circle's solved driving-radius table. Its combined checks, other driving dimensions, additional recipe parameters and broader regeneration remain required. Existing disabled modules retain clear availability guidance. |
+| C05 | Every enabled implemented solid-operation family has a working normal entry, editable parameters and recoverable invalid input. | The recorded normal families retain their cases. The combined `daa78a6` source passes bounded additive ALL, captured AUTO and selected Blind depth variation. Follow-up `81edcde` adds focal evidence for a Selected Blind circle's solved driving-radius table. Its combined checks, other driving dimensions, additional recipe parameters and broader regeneration remain required. The [finite recipe availability inventory](FEATURE_RECIPE_AVAILABILITY.md) separates blocked new choices and explicit saved-selection repair from those remaining requirements. Existing disabled modules retain clear availability guidance. |
 | C06 | Earlier-feature edits, suppression/deletion and references preserve identities or expose explicit recovery. | The recorded `part-reference-repair` route passes 139 checks: scalar-depth support continuity, signed-branch loss/diagnosis, explicit reselection with the same IDs, Cancel/retry, suppression/reactivation, cascade deletion/history, Save/Open and physical STEP planes. This explicit-body case uses actual v1 references; preserve the documented v2 gate and topology limits. |
 | C07 | Create a three-component assembly from modeled/imported/reused parts, then fix, float and place the intended occurrence. | Final combined part/assembly and basic-authoring routes, exact names/source/body/occurrence IDs and independently checked placements after reopen. |
 | C08 | Relate components both to root/component origins and to one another. | Recorded standard/configured origin routes pass 331/326 checks; new aligned/opposed plane cases pass 83/132 with fixed-pose invariance, literal normals/incidence, Cancel/retry, history and saved Solve. Retain separate coincidence/concentricity, rotation-lock and distance contracts, and do not infer unique position/yaw from a plane relation. |
@@ -59,10 +59,10 @@ Retain independent BRep/solid-count/volume/area/bounds checks where applicable.
 | Extrude/cut and independent end directions | `part-sequence`, `part-from-empty`, `part-two-direction`, `part-two-direction-limits`, `part-face-limits` | Recorded integrated canonical routes pass; command aliases remain in C13. |
 | Revolve/revolved cut and admitted axes | `part-revolution`, `part-external-axis` | Recorded integrated bounded revolution/cut and external-axis routes pass. |
 | Thin walls, supported corners and caps | `part-thin-wall`, `part-auto-corners`, `part-end-caps` | Recorded integrated cases pass; retain the documented eligibility limits and distinguish other native-only variants. |
-| Fillet/chamfer | `part-finishing` and the finishing contracts | Recorded integrated single-edge cases pass; all-edge geometry has native evidence but its full UI lifecycle is not established here. |
+| Fillet/chamfer | `part-finishing`, `part-finishing-all` and the finishing contracts | Recorded integrated single-edge cases pass. The 11 November focused follow-up adds both all-edge normal lifecycles at size 0.5→1 mm, invalid recovery, edit/Cancel/history/Save/Open and physical STEP. Its final combined-candidate result remains required; tangent propagation and other modes are not inferred. |
 | Sweep/loft | `part-sweep-loft`, native/saved-feature contracts | The 7 November bounded normal create/edit/recover/Cancel/history/Save/Open/STEP route passes 126 checkpoints. Retain its declared straight-circle/two-section ruled limits and the overall family inventory. |
 | Shell/draft | `part-shell-draft` and documented face-operation contracts | Recorded integrated lifecycle passes 172 checkpoints, including invalid thickness, selected opening, four draft faces and physical STEP planes. Other neutral/opening variants are not inferred from this case. |
-| Hole | `part-hole`, saved feature types and kernel cases | Recorded integrated lifecycle passes 119 checkpoints for two simple/counterbored through-hole centres with outside-centre rejection and physical STEP axes/radii. Other admitted end modes retain their separate contracts. |
+| Hole | `part-hole`, `part-hole-flat`, `part-hole-conical`, `part-hole-next`, saved feature types and kernel cases | Recorded integrated lifecycle passes 119 checkpoints for two simple/counterbored through-hole centres. The 11 November focused follow-up adds normal Blind flat depth3→4, conical shoulder3→tip3 and countersink UntilNext90°→120°, including rejected input and physical STEP depths/surfaces. Its final combined-candidate result remains required. Other admitted combinations retain their separate contracts. |
 | Linear/circular pattern and mirror | `part-pattern-create`, `pattern-all`, `pattern-until-next`, `part-additive-all`, `part-auto-scope`, `part-instance-depth`, `part-instance-radius` and pattern/mirror contracts | Body patterns retain their 194-checkpoint route. The combined bounded additive ALL, AUTO and selected-depth routes pass 101, 134 and 84. The new driving-circle radius route passes 93 focal checkpoints. The final combined 0.20.0 candidate and broader variation/regeneration retain their requirements. |
 | Combine and explicit body catalogues | `part-combine`, `part-body-catalog`, imported-body and combine contracts | Recorded integrated ordered union/intersection/subtraction route passes 114 checkpoints, preserving an unrelated body, identities, history and final STEP bounds. Keep-tools and other variants retain their separate evidence. |
 
@@ -71,17 +71,17 @@ Retain independent BRep/solid-count/volume/area/bounds checks where applicable.
 The [priority issue](https://github.com/angelcp2802/solidflow/issues/55) has 16
 checked items out of 25. Each of its nine open groups keeps its own evidence.
 
-| Existing open group | Gate rows and follow-up |
-| --- | --- |
-| Complete demo and human use | C07, C08, C11, C18; record actual human feedback separately. |
-| Remaining view-editor behaviour | C13 and its finite view-command cases. |
-| Broader keyboard interaction | C13 with field, tree and viewport ownership. |
-| Recurring persistence and installed/platform use | C16–C18 and [desktop tracking](https://github.com/angelcp2802/solidflow/issues/53). |
-| Menus, context, selection and navigation | C05, C07, C13; every enabled advertised command gets an inventory entry. |
-| Contextual/reference-first editors | C06, C09–C11 and the applicable saved editors. |
-| Thin/specialized material/mechanical/origin cases | C05, C08, C10 with the supported-variant inventory. |
-| Boundary angles and nested/configured/material references | C09, C10, C14. |
-| Materials, density, colours and backgrounds | C15. |
+| Existing open group | Recorded bounded cases | Remaining gate work |
+| --- | --- | --- |
+| Complete demo and human use | Sequential part modeling and embedded editing have recorded routes. The `1c6e955` Windows package passes the two- and three-plate origin/component distance walkthrough and fresh-process recovery. | C07, C08, C11, C18 on the next integrated executable, verified access and guide. Record human use separately. |
+| Remaining view-editor behaviour | Presets, Normal To, named views, Previous and bounded native selector and gesture cases in three workspaces. | C13/N02–N06 retains the remaining selector, compact and context entries. |
+| Broader keyboard interaction | Document/camera shortcuts, field ownership, Help focus, modal Escape and menu traversal have bounded cases. | C13/N07/N08 and P-X01 retain their named field, tree and viewport cases. |
+| Recurring persistence and installed/platform use | Versioned documents, interchange, close and recovery have local routes. All three persistence jobs pass on `2a9ad6d`. | C16–C18 require the next exact-head results and executable. Recurring hosted stability, cost and installed acceptance remain in [desktop tracking](https://github.com/angelcp2802/solidflow/issues/53). |
+| Menus, context, selection and navigation | The ordinary selection modes, plane toolbar, finite operation entries and embedded-copy aliases have Windows focal records. | C05, C07, C13 retain export/example, multi-sketch, tree/viewport and standard/configured aliases in the command matrix. |
+| Contextual/reference-first editors | Explicit support repair, saved ordinary-reference edits and embedded source changes have original lifecycle cases. | C06 and C09–C11 retain remaining advertised contexts, exact source ownership and final binding. Configured source/reference repair retains its separate advanced contract. |
+| Thin/specialized material/mechanical/origin cases | Thin modes, corners, Blind caps, second directions, mechanical picking, aligned/opposed origins and five normal finishing/Hole cases have bounded evidence. | C05, C08, C10 retain the declared variant and scope inventory, including cap, offset and wider automatic-corner requirements. |
+| Boundary angles and nested/configured/material references | Ordinary 0°/180°, named-state isolation and the supported compound/mechanical configured cases have records. | C09, C10, C14 require their combined scope/lifecycle evidence. Advanced configured movement, projection and repair stay in their separate contracts. |
+| Materials, density, colours and backgrounds | C15 records 70, 75+30 and 231 checks, including real recovery and the fixed presentation captures. | Bind the cases to the next integrated source and artifact. Picker, GPU and human-use evidence retain their separate limits. |
 
 Configured source/reference repair, constrained drag, configured interference
 and geometric export, part-feature variants and flexible instances are genuine
@@ -108,6 +108,26 @@ tolerances and deadlines.
 
 ## Current resumption point
 
+- Draft PR #49 publishes `2a9ad6d`, with the exact tree of local `1c6e955`.
+  Build, 11,427 unit/CAD cases in 518 files, 224 IPC checks with two skips and
+  desktop startup pass. The 115-command source batch stops at the Screw route
+  after 76 passes. Hosted Security and nine renderer/configured jobs pass,
+  including all three persistence jobs. Three relations jobs fail the same
+  Screw scene/document placement comparison and gate the Desktop jobs.
+- The `1c6e955` Windows 0.20.0 archive has nine verified production members.
+  The packaged walkthrough now passes the original 150 mm case and a third
+  plate at 120 mm through Cancel/retry/Apply, history, Save/Open, fresh Solve
+  and process recovery. The recovered three-plate Save As matches the saved
+  original bytes. Source binding and limits are in [Validation](VALIDATION.md).
+- The next candidate combines exact root-part placement transport, named
+  origin-owner selectors, explicit recipe availability and repair, the five
+  normal finishing/Hole cases and finite operation/copy alias evidence.
+  The source, executable and hosted checks each retain their own acceptance
+  receipts. The seven explicit variation/repair/Windows-transition CI steps
+  and the new focal routes keep the current job permissions and budgets.
+
+### Earlier integration records
+
 - Public `02bab957` in draft PR #49 follows the 31-command Windows baseline
   and adds the bounded Float64 corner-picking correction. All nine relations,
   configured-authoring and hinge/symmetry jobs pass, with Security successful.
@@ -127,10 +147,9 @@ tolerances and deadlines.
 - Local `4fb894f6` passes its full suite, build and startup plus default/compact
   Help 520/520 and sketch 371/365 cases. Its Help keyboard and label-fragment
   corrections retain exact source bindings and hosted verification requirements.
-- The next combined source includes the signed-distance conditioning correction
-  from `e76be8f` and the driving-circle table from `81edcde`. Their separate
-  focal cases pass. Full combined checks and the new packaged 150 mm identity
-  case are pending.
+- The `1c6e955` integration includes signed-distance conditioning from
+  `e76be8f` and the driving-circle table from `81edcde`, with their separate
+  focal evidence retained.
 - C05 AUTO, bounded selected-depth variation and the Selected Blind
   driving-circle radius table have their recorded cases. Other driving
   dimensions, general solved-sketch variation, additional recipe parameters and

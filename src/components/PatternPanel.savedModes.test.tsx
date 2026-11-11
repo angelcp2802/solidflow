@@ -11,12 +11,20 @@ const b = { bodyId: 'mode-ui-b', sourceFeatureId: 'create-b' };
 const historical = { bodyId: a.bodyId, sourceFeatureId: 'parent-a' };
 const current = { bodyId: a.bodyId, sourceFeatureId: 'child-a' };
 const sources: Feature[] = [
+  { id: 'profile-a', type: 'sketch', name: 'Croquis original de la base A', suppressed: false, plane: 'XY', offset: 0,
+    profile: { kind: 'rectangle', center: [-10, 0], width: 8, height: 8 } },
   { id: a.sourceFeatureId, type: 'extrude', name: 'Base A', suppressed: false, sketchId: 'profile-a', depth: 4, symmetric: false,
     bodyOperation: { mode: 'new', bodyId: a.bodyId } },
+  { id: 'profile-b', type: 'sketch', name: 'Croquis original de la base B', suppressed: false, plane: 'XY', offset: 0,
+    profile: { kind: 'rectangle', center: [10, 0], width: 8, height: 8 } },
   { id: b.sourceFeatureId, type: 'extrude', name: 'Base B', suppressed: false, sketchId: 'profile-b', depth: 4, symmetric: false,
     bodyOperation: { mode: 'new', bodyId: b.bodyId } },
+  { id: 'parent-profile', type: 'sketch', name: 'Croquis original del saliente', suppressed: false, plane: 'XY', offset: 3,
+    profile: { kind: 'circle', center: [-10, 0], radius: 1 } },
   { id: historical.sourceFeatureId, type: 'extrude', name: 'Saliente histórico A', suppressed: false, sketchId: 'parent-profile', depth: 2,
     symmetric: false, bodyOperation: { mode: 'merge', target: a } },
+  { id: 'child-profile', type: 'sketch', name: 'Croquis original del corte', suppressed: false, plane: 'XY', offset: 5,
+    profile: { kind: 'circle', center: [-10, 0], radius: 0.5 } },
   { id: current.sourceFeatureId, type: 'cut', name: 'Corte posterior A', suppressed: false, sketchId: 'child-profile', depth: -2,
     symmetric: false, bodyScope: [historical] },
 ];

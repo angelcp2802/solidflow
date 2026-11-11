@@ -295,6 +295,25 @@ module.exports = function embeddedPartEditWorkflow(context) {
     await page(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(true)))));
     await unchanged(label);
   }
+  async function copyAlias(label, disabled = false) {
+    const quick = label === 'Guardar copia… (Ctrl+S)';
+    if (quick) await press(PART + ' button[title="' + label + '"]');
+    else {
+      await press(PART + ' nav.part-main-menus [data-assembly-menu="file"]');
+      const id = await page((part, label) => {
+        const rows = [...document.querySelectorAll(part + ' nav.part-main-menus [role="menu"] > button[data-assembly-command]')]
+          .filter(e => e.querySelector(':scope > span:not(.assembly-menu-check)')?.textContent.trim() === label);
+        if (rows.length !== 1) throw Error('One advertised embedded-copy alias required');
+        return rows[0].dataset.assemblyCommand;
+      }, PART, label);
+      check(/^\d+$/.test(id), 'Copy alias belongs to the current embedded File menu');
+      const selector = PART + ' nav.part-main-menus [role="menu"] > button[data-assembly-command="' + id + '"]';
+      if (disabled) { await pressDisabled(selector); await key('Escape'); }
+      else await press(selector);
+    }
+    boundaries.push({ phase: 'advertised embedded-copy alias', label, disabled,
+      input: 'Contained stationary CDP pointer press/release', handlerGuard: quick && disabled });
+  }
   async function closeGuard(blocked, label) {
     const state = await page(() => {
       const event = new Event('beforeunload', { cancelable: true });
@@ -478,6 +497,34 @@ module.exports = function embeddedPartEditWorkflow(context) {
         && state.builds.some(b => b.serial > before && b.features.length === 1 && b.features[0].id === 'embedded-profile' && b.response?.ok);
     });
     check(await page(selector => document.querySelector(selector)?.disabled === true, RETURN), 'Return blocked during real source/operation editing');
+    // The prefix reply resolves the body's current plan and can legitimately
+    // schedule its full preview afterwards. Start the no-request guard only
+    // once that real second build has returned, without a timer substitution.
+    const copyPrefix = (await observe()).builds.filter(row => row.serial > before && row.features.length === 1
+      && row.features[0].id === 'embedded-profile' && row.response?.ok).at(-1);
+    check(copyPrefix, 'The actual source prefix owns the copy-guard checkpoint');
+    const copyFull = await waitFor('copy guard current full native body plan after its prefix', async () => {
+      const row = (await observe()).builds.filter(row => row.serial > copyPrefix.serial && row.features.length === 2
+        && row.features[0].id === 'embedded-profile' && row.features[1].id === 'embedded-solid' && row.response).at(-1);
+      if (!row) return false; verifyPartBuild(row, 2, 1); return row;
+    });
+    phases.push({ phase: 'copy aliases/current full editor body plan', serial: copyFull.serial, prefixSerial: copyPrefix.serial,
+      features: copyFull.features, native: copyFull.response.value });
+    await quietWorker();
+    const draftCopyBefore = { native: await observe(), recovery: await rawRecovery(), dialogs: dialogCounts(), ipc: structuredClone(ipc),
+      fields: await page(part => [...document.querySelectorAll(part + ' .property-manager input,' + part + ' .property-manager select')]
+        .map(e => ({ label: e.getAttribute('aria-label'), value: e.value, checked: e.checked, disabled: e.disabled })), PART) };
+    for (const label of ['Guardar copia…', 'Guardar copia como…', 'Guardar copia… (Ctrl+S)']) await copyAlias(label, true);
+    const draftCopyAfter = { native: await observe(), recovery: await rawRecovery(), dialogs: dialogCounts(), ipc: structuredClone(ipc),
+      fields: await page(part => [...document.querySelectorAll(part + ' .property-manager input,' + part + ' .property-manager select')]
+        .map(e => ({ label: e.getAttribute('aria-label'), value: e.value, checked: e.checked, disabled: e.disabled })), PART) };
+    boundaries.push({ phase: 'copy aliases preserve the current source-operation draft',
+      changed: Object.keys(draftCopyBefore).filter(key => canonical(draftCopyBefore[key]) !== canonical(draftCopyAfter[key])),
+      before: { serial: draftCopyBefore.native.serial, builds: draftCopyBefore.native.builds.map(row => ({ serial: row.serial, features: row.features.length, received: !!row.response })), fields: draftCopyBefore.fields },
+      after: { serial: draftCopyAfter.native.serial, builds: draftCopyAfter.native.builds.map(row => ({ serial: row.serial, features: row.features.length, received: !!row.response })), fields: draftCopyAfter.fields } });
+    check(canonical(draftCopyAfter) === canonical(draftCopyBefore),
+    'Both disabled copy menu entries and the guarded quick-save preserve the exact real source draft and file/native authority');
+    await unchanged('All three copy aliases reject an unfinished operation');
     before = await serial(); await press(PART + ' button[title="Cancelar operación"]'); await partReady(before, 2, 'after source-operation Cancel');
 
     const treeToggle = PART + ' button[data-part-tree-toggle="embedded-solid"]';
@@ -536,6 +583,18 @@ module.exports = function embeddedPartEditWorkflow(context) {
       const title = document.querySelector(part + ' .document-title'); return !!title && !title.title.includes('Cambios sin guardar');
     }, PART));
     await unchanged('Successful copy does not write assembly or recovery');
+    for (const [index, label] of ['Guardar copia…', 'Guardar copia como…', 'Guardar copia… (Ctrl+S)'].entries()) {
+      const copyBefore = await serial(); await copyAlias(label);
+      await waitFor('advertised copy alias completes only its owned save', () => dialogCounts().saves === 5 + index
+        && ipc.filter(row => row.channel === 'document:save' && row.completed).length === 5 + index);
+      const rebuilt = await partReady(copyBefore, 3, label + ' fresh activation');
+      const aliasBytes = await fs.readFile(partCopyOutput), aliasWrite = ipc.filter(row => row.channel === 'document:save').at(-1).documentWrite;
+      check(aliasBytes.equals(copyBytes) && aliasWrite?.chosen === true && aliasWrite.hasPath === false
+        && aliasWrite.sha256 === digest(copyBytes) && canonical(rebuilt.features) === canonical(copiedBuild.features),
+      'Advertised copy alias writes exact detached part bytes without reusing parent/copy path authority');
+      await unchanged(label + ' preserves committed parent and assembly recovery');
+      await closeGuard(true, label + ' leaves unapplied assembly work pending');
+    }
     await closeGuard(true, 'Saving a part copy does not clear unapplied assembly work');
     let keepEditing;
     if (nativeClose) {
@@ -575,7 +634,7 @@ module.exports = function embeddedPartEditWorkflow(context) {
     await undoRedo('Rehacer', accepted, true, second.revision);
     await button('Guardar como', ':is(.assembly-toolbar, .assembly-quickbar)');
     await waitFor('parent-only actual Save As', async () => {
-      try { return dialogCounts().saves === 5 && canonical(JSON.parse(await fs.readFile(output, 'utf8'))) === canonical(accepted); }
+      try { return dialogCounts().saves === 8 && canonical(JSON.parse(await fs.readFile(output, 'utf8'))) === canonical(accepted); }
       catch (reason) { if (reason.code === 'ENOENT') return false; throw reason; }
     });
     await parentIdle('saved parent controls ready');
@@ -675,7 +734,7 @@ module.exports = function embeddedPartEditWorkflow(context) {
         : 'Native prism build had settled by the decision sample; this case proves queued-debounce/unfinished discard, not discard during an outstanding native request.' });
     check((await fs.readFile(input)).equals(inputBytes), 'Original synthetic input remains byte-identical');
     const final = await observe();
-    check(dialogCounts().opens === 2 && dialogCounts().saves === 5 && dialogCounts().csvExports === 0 && ipc.every(x => x.completed), 'Exact test-owned Open/Save queue and completed IPC');
+    check(dialogCounts().opens === 2 && dialogCounts().saves === 8 && dialogCounts().csvExports === 0 && ipc.every(x => x.completed), 'Exact test-owned Open/Save queue and completed IPC');
     check(!final.workerErrors.length && !consoleErrors.length && !failedRequests.length, 'No actual renderer/worker/resource failures');
     Object.assign(evidence.embeddedPartEdit, { inputSha256: digest(inputBytes), savedSha256: digest(await fs.readFile(output)), partCopySha256: digest(copyBytes), finalDocument: accepted,
       independentOracles: 'Original two-use 2x3x4 rectangular prism: V48/A104 -> two 3x3x4 solids V72/A132. Width2->3 and centerX1->1.5 keep lowerX0. Overall bounds[0,0,0]..[3,3,14]. Fixed baseZ0, movingZ10, identity orientations. First-minus-second material-top distance=-10, checked from actual native world plane supports before authoring. Native volume/area tolerance1e-5; coordinates1e-6; quaternion physical identity1e-8. Fresh rank6/DOF0 and both native mate checks satisfy their own reported tolerances.',

@@ -1,5 +1,97 @@
 # Public fixture provenance
 
+## Original origin-owner selector labels
+
+The two rendering cases in `AssemblyWorkspace.test.tsx` reuse the existing
+original example-part declaration. One has three occurrences named Base fija,
+Brazo izquierdo and Brazo derecho. The other reuses an original module twice,
+with the repeated names Módulo and Pieza repetida. Literal full occurrence paths
+distinguish all options. These are symbolic UI fixtures authored for this
+project, with no imported model, source binary or native geometric claim.
+
+## Original root-part placement preservation
+
+The declaration-only case in `assemblyDocument.test.ts` uses its existing
+original rectangular part at translation (7,−9,11) and an independently chosen
+3-4-5 quaternion (0,0,0.6,0.8). Multiplication by `1 + 2*Number.EPSILON` supplies
+admitted Float64 norm roundoff. Expansion must preserve those declared values
+exactly and detach the result. The independently known transformed point
+(1,0,0) is (7.28,−8.04,11), with the existing 1e−12 mm test band.
+
+The native regression in `kernel.assembly-screw.test.ts` reuses the tracked
+original ground/shaft/slider fixture, two shaft turns and slider Z15 mm. It
+changes the captured screw to lead 4 mm/turn and reversed advance. Source
+definitions, fixed occurrence and captured coordinate zero remain intact.
+Exact root scene/document poses and saved reconstruction are checked alongside
+the existing V5400+357π/8 mm³ and A3400+1331π/8 mm² formulas at 1e−5. No imported
+model or external application supplies either fixture or its expectations.
+## Original all-edge finishing and finite Hole variants — 2026-11-11
+
+These are original programmatic fixtures, authored from literal millimetre
+coordinates. They contain no imported model, vendor source or retained topology
+key. Expected measurements come from the following Cartesian formulas, not the
+CAD implementation. The new routes exercise existing normal operations; they
+introduce no new recipe or supported parameter.
+
+`desktop-part-finishing-all` reuses the tracked two-prism finishing fixture.
+Body A occupies (0,0,0)…(10,6,4), V240/A248; body B is translated +20 in X.
+Only A is selected. Both all-edge operations are created at size 0.5 and edited
+to 1 mm. B must retain its complete native DTO, creator, producer and bounds.
+For a=10, b=6, c=4 and size r, let x=a−2r, y=b−2r, z=c−2r:
+
+- Rounded box: V=xyz+2r(xy+xz+yz)+πr²(x+y+z)+4πr³/3 and
+  A=2(xy+xz+yz)+2πr(x+y+z)+4πr². At r=1, V=176+46π/3 and
+  A=112+32π. The physical boundary has six planes, twelve radius-r cylinders
+  and eight radius-r spheres.
+- Equal chamfer: V=abc−2r²(a+b+c)+16r³/3 and
+  A=2(xy+xz+yz)+4√2r(a+b+c−6r)+4√3r². At r=1, V=616/3 and
+  A=112+56√2+4√3. The actual native corner strategy has six original planes,
+  twelve rectangular bevels and eight equilateral corner triangles. Native
+  plane centroids are at the bound, r/2 or 2r/3 from the corresponding original
+  corner coordinates; active normal magnitudes are 1, 1/√2 or 1/√3.
+
+Native finishing tests check valid single solids, bounds, V/A and the physical
+face partition at 5e−6 mm/mm²/mm³; chamfer normal components use 1e−8.
+The renderer's actual exported STEP is read by a separate native instance.
+It checks V/A at 5e−6, bounds at 5e−6, surface counts and fillet radii at 5e−6.
+That is a same-kernel-family round trip, not independent-kernel interoperability.
+
+`desktop-part-hole-variants-original.cjs` reuses the original 20×12×10 plate,
+(-10,-6,0)…(10,6,10), V2400/A1120. The actual top face is picked through the
+viewport; a native face witness is compared afterward and is never injected.
+Both R1 holes have coordinate-authored centres at X=−4/+4,Y=0. The UntilNext
+fixture alone adds a sealed 12×8×2 cavity at Z4…6: source V2208/A1392. Material
+remains at Z0…4, so the expected first exit Z6 discriminates UntilNext from a
+through cut. The finite parameter states are:
+
+| Route/state | Independent V (mm³) | Independent A (mm²) | Physical depths |
+| --- | --- | --- | --- |
+| Flat Blind, depth3 | 2400−6π | 1120+12π | R1 walls Z7…10; disk floors Z7 |
+| Flat Blind, depth4 | 2400−8π | 1120+16π | R1 walls Z6…10; disk floors Z6 |
+| Conical Blind, shoulder3, 90° | 2400−20π/3 | 1120+10π+2√2π | R1 walls Z7…10; cone Z6…7 |
+| Conical Blind, tip3, 90° | 2400−14π/3 | 1120+6π+2√2π | R1 walls Z8…10; cone Z7…8 |
+| Countersink UntilNext, 90° | 2208−32π/3 | 1392+2π+6√2π | R1 walls Z6…9; R2→R1 cone Z9…10 |
+| Countersink UntilNext, 120° | 2208−8π−8π/(3√3) | 1392+6π+8π/√3 | R1 walls Z6…(10−1/√3); cone above to Z10 |
+
+The analytic decomposition subtracts two cylinders and, as applicable, two
+cones/frusta. Blind flat floors cancel their removed entry disks in total area;
+conical tips and countersinks add their independently derived lateral surfaces.
+The physical STEP checks include each wall's actual axis/radius/trimmed bounds,
+each blind floor's centre/disk area and each cone's lateral area, circular
+boundaries, trimmed extent and apex where present. Native V/A and STEP V/A use
+1e−5 mm³/mm², coordinates/radii use 1e−6 mm and axis/angle uses 1e−8.
+The shipped WASM does not bind `gp_Cone`; cone semi-angle is instead inferred
+from those actual boundary radii/apex and Z extent. This finite inference applies
+only to these Z-axis cones. It does not establish arbitrary-axis cone support.
+
+The original fixtures, original native bytes and saved output must remain exact
+through Cancel/history/reopen/export. All five normal workflows use actual
+contained pointer presses and ordinary visible input/select setters; the setters
+are not physical typing. Save/Open/STEP dialogs substitute fixed test-owned
+paths. Hidden-renderer automation does not establish installed-platform or human
+acceptance. Broader C05 variation/regeneration and the body-catalogue contract
+in issue #26 retain their separate requirements.
+
 ## Original signed origin-plane distance
 
 `kernel.assembly-origin-distance.test.ts` constructs an original 2 × 3 × 4 mm
@@ -8846,3 +8938,31 @@ source immutability, saved parsing, history and STEP reimport. Renderer checks
 use original exact saved rows and native worker volume within 1e-5 mm³; a circular
 tessellated mesh is not used as an exact surface-area oracle. These definitions
 and intended checks do not establish unexecuted platform or renderer results.
+
+## Original recipe availability and repair plate — 2026-11-11
+
+`scripts/desktop-part-recipe-availability-original.cjs` extends the original
+instance-depth plate with a fully constrained entity-circle merge and a simple
+normal through-Hole. No imported model or reference application supplies it.
+The plate volume is 20×8×5=800 mm³. Its original 2×2×1 pocket removes 4 mm³;
+the R1 boss at (12,4), z5…6 adds π mm³; the R0.5 through-bore at (17,4),
+z0…5 removes 5π/4 mm³. The healthy prefix therefore has V=796−π/4 mm³ and
+bounds [0,0,0]…[20,8,6] mm. The Hole cuts along +Z from the principal XY plane.
+All three operations are valid normal operations.
+
+The companion `stale()` declaration appends a Selected regeneration request
+for the Hole. Its saved syntax, IDs and routes are valid, but the existing
+native recipe gate rejects that operation type. This intentionally unavailable
+request is not a fixture for normal Hole failure. Explicit repair substitutes
+the original pocket seed with one copy translated +5 mm in X, removing another
+4 mm³: V=792−π/4 mm³. The body identity, original seven features and pattern ID
+remain fixed. The UI actor checks worker-native volume within 1e-5 mm³, original
+feature definitions, Cancel, Undo/Redo, three native Open dialogs, independent
+Save As and exact file/recovery preservation. No tessellated circular area is
+used as a native surface-area oracle.
+
+The pre-fix actor records the offered-but-rejected choices on a healthy prefix.
+The final actor checks disabled new choices and reopens the unavailable intent
+for explicit repair. Real button presses and visible-field setters remain
+separate evidence from the model's pure metadata/declaration cases. These
+fixtures do not add recipes, establish other platforms or close C05.

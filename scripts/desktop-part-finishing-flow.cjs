@@ -11,6 +11,7 @@ module.exports = function finishingWorkflow(c) {
   const APPLY = 'button[title="Aceptar operación"]', CANCEL = 'button[title="Cancelar operación"]';
   const HOST = '.viewport-canvas[aria-label="Vista 3D de la pieza"]', CANVAS = HOST + ' > canvas:not([role="img"])';
   const records = [], interactions = [], exports = [];
+  const allEdges = c.allEdges === true, oracle = require('./desktop-part-finishing-oracles.cjs');
   const evidence = { partFinishing: { records, interactions, exports } }; checks.push(evidence);
   const recovery = () => page(() => localStorage.getItem('solidflow.autosave'));
   const near = (actual, wanted, tolerance, label) => check(Number.isFinite(actual) && Math.abs(actual - wanted) <= tolerance,
@@ -78,7 +79,8 @@ module.exports = function finishingWorkflow(c) {
       'Exactly two healthy explicit bodies: ' + JSON.stringify({ serial: record.serial, kind,
         catalog: result.bodyCatalogActive, count: result.bodies?.length, featureErrors: result.featureErrors, warnings: result.warnings }));
     const a = body(result, 'a'), b = body(result, 'b');
-    near(a.volume, kind === 'fillet' ? 236 + Math.PI : kind === 'chamfer' ? 238 : 240, 5e-6, 'Independent A volume');
+    const expectedA = kind ? oracle(kind, allEdges ? 'all' : 'selected', record.features.at(-1).size) : { volume: 240 };
+    near(a.volume, expectedA.volume, 5e-6, 'Independent A volume');
     near(b.volume, 240, 5e-6, 'Independent untouched B volume');
     for (const [current, shift] of [[a, 0], [b, 20]]) {
       for (const [side, wanted] of [['min', [shift, 0, 0]], ['max', [shift + 10, 6, 4]]])
@@ -163,22 +165,52 @@ module.exports = function finishingWorkflow(c) {
     await press('button.command[title="' + (kind === 'fillet' ? 'Redondeo' : 'Chaflán') + '"]');
     await waitFor('finish editor has current source', () => page(() => !!document.querySelector('.finish-view-switch button:not(:disabled)') && !document.querySelector('.property-manager')?.textContent.includes('Preparando la pieza')));
     await layout(kind);
-    await viewportPoint([10, 6, 2], true);
-    await waitFor('one actual selected corner edge', () => page((host, edge) => {
-      const selected = JSON.parse(document.querySelector(host)?.getAttribute('data-part-selected-edges') || '[]');
-      return selected.length === 1 && JSON.stringify(selected[0]) === JSON.stringify(edge);
-    }, HOST, edge));
+    if (allEdges) {
+      await press('.finish-checkbox input[type="checkbox"]');
+      await changeSize(kind, 0);
+      await waitFor('invalid all-edge size blocks Apply', () => page(selector => document.querySelector(selector)?.disabled === true, APPLY));
+      check(await recovery() === baseline, 'Invalid all-edge size preserves exact committed recovery');
+      await changeSize(kind, .5);
+    } else {
+      await viewportPoint([10, 6, 2], true);
+      await waitFor('one actual selected corner edge', () => page((host, edge) => {
+        const selected = JSON.parse(document.querySelector(host)?.getAttribute('data-part-selected-edges') || '[]');
+        return selected.length === 1 && JSON.stringify(selected[0]) === JSON.stringify(edge);
+      }, HOST, edge));
+    }
     await waitFor('finishing current preview ready', () => page(selector => !document.querySelector(selector)?.disabled, APPLY));
-    const latest = (await observe()).builds.filter(r => r.features.at(-1)?.type === kind && r.features.at(-1)?.selection?.edges?.length === 1 && r.response).at(-1);
-    check(!!latest, 'Actual selected-edge preview observed'); geometry(latest, kind, originalB);
+    const latest = (await observe()).builds.filter(r => r.features.at(-1)?.type === kind && (allEdges
+      ? r.features.at(-1).selection?.mode === 'all' && r.features.at(-1).size === .5
+      : r.features.at(-1).selection?.edges?.length === 1) && r.response).at(-1);
+    check(!!latest, 'Actual authored finishing preview observed'); geometry(latest, kind, originalB);
     const feature = latest.features.at(-1);
-    check(feature.size === 1 && feature.baseFeatureId === 'create-a' && canonical(feature.bodyScope) === canonical({ bodyId: 'workflow-body-a', sourceFeatureId: 'create-a' })
-      && canonical(feature.selection) === canonical({ mode: 'selected', edges: [edge] }) && canonical(latest.features.slice(0, -1)) === canonical(expected.features),
-      'Actual draft has exact original owner, selected edge, unit size and untouched prefix');
+    check(feature.size === (allEdges ? .5 : 1) && feature.baseFeatureId === 'create-a' && canonical(feature.bodyScope) === canonical({ bodyId: 'workflow-body-a', sourceFeatureId: 'create-a' })
+      && canonical(feature.selection) === canonical(allEdges ? { mode: 'all' } : { mode: 'selected', edges: [edge] }) && canonical(latest.features.slice(0, -1)) === canonical(expected.features),
+      'Actual draft has exact original owner, authored edge policy/size and untouched prefix');
     await press('.finish-view-switch button', 'Vista previa');
     await waitFor('finish preview mode displayed', () => page(() => document.querySelector('.finish-view-switch button.active')?.textContent.trim() === 'Vista previa'));
     check(await recovery() === baseline, 'Finishing preview preserves exact committed recovery');
     return latest;
+  }
+  async function changeSize(kind, value) {
+    const selector = 'input[aria-label="' + (kind === 'fillet' ? 'Radio del redondeo' : 'Distancia del chaflán') + '"]';
+    await press(selector);
+    await page((selector, value) => {
+      const field = document.querySelector(selector), r = field?.getBoundingClientRect();
+      if (!(field instanceof HTMLInputElement) || field.disabled || !r?.width || !r.height || document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2) !== field) throw Error('One visible current finish-size field required');
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(field, String(value));
+      field.dispatchEvent(new Event('input', { bubbles: true }));
+    }, selector, value);
+    await waitFor('finish-size field retains authored value', () => page((selector, value) => document.querySelector(selector)?.value === String(value), selector, value));
+    interactions.push({ selector, value, input: 'Visible field setter/input after actual contained pointer press' });
+  }
+  async function editAll(kind, id, wanted, originalB) {
+    await press('.tree-row[data-feature-id="' + id + '"]:not([data-parent-feature-id])');
+    await press('.selection-tools button[title="Editar operación"]');
+    await waitFor('saved all-edge policy is current in the editor', () => page(() => document.querySelector('.finish-checkbox input')?.checked === true));
+    const serial = (await observe()).serial; await changeSize(kind, wanted);
+    return built(serial, features => features.at(-1)?.id === id && features.at(-1).selection?.mode === 'all' && features.at(-1).size === wanted,
+      kind, kind + '-all-edit-preview-' + wanted, originalB);
   }
   let nativePromise;
   async function nativeStep(bytes, kind) {
@@ -204,15 +236,34 @@ module.exports = function finishingWorkflow(c) {
         const volume = own(new oc.GProp_GProps()), area = own(new oc.GProp_GProps()), bounds = own(new oc.Bnd_Box());
         oc.BRepGProp.VolumeProperties(solid, volume, 1e-10, false, false); oc.BRepGProp.SurfaceProperties(solid, area, false, false);
         oc.BRepBndLib.AddOptimal(solid, bounds, false, false);
-        solids.push({ volume: volume.Mass(), area: area.Mass(), min: [bounds.GetXMin(), bounds.GetYMin(), bounds.GetZMin()], max: [bounds.GetXMax(), bounds.GetYMax(), bounds.GetZMax()] });
+        const faceKinds = { plane: 0, cylinder: 0, sphere: 0, other: 0 }, radii = [];
+        if (allEdges) {
+          const faces = own(new oc.TopExp_Explorer(solid, oc.TopAbs_ShapeEnum.TopAbs_FACE, oc.TopAbs_ShapeEnum.TopAbs_SHAPE));
+          while (faces.More()) {
+            const face = own(oc.TopoDS.Face(own(faces.Current()))), surface = own(new oc.BRepAdaptor_Surface(face, false)), type = surface.GetType();
+            if (type === oc.GeomAbs_SurfaceType.GeomAbs_Plane) faceKinds.plane++;
+            else if (type === oc.GeomAbs_SurfaceType.GeomAbs_Cylinder) { faceKinds.cylinder++; radii.push(own(surface.Cylinder()).Radius()); }
+            else if (type === oc.GeomAbs_SurfaceType.GeomAbs_Sphere) { faceKinds.sphere++; radii.push(own(surface.Sphere()).Radius()); }
+            else faceKinds.other++;
+            faces.Next();
+          }
+        }
+        solids.push({ volume: volume.Mass(), area: area.Mass(), min: [bounds.GetXMin(), bounds.GetYMin(), bounds.GetZMin()], max: [bounds.GetXMax(), bounds.GetYMax(), bounds.GetZMax()],
+          ...(allEdges ? { faceKinds, radii } : {}) });
         explorer.Next();
       }
       check(solids.length === 2, 'Exactly two valid independent STEP solids'); solids.sort((a, b) => a.min[0] - b.min[0]);
-      const expectedVolume = kind === 'fillet' ? 236 + Math.PI : 238, expectedArea = kind === 'fillet' ? 238 + 2.5 * Math.PI : 239 + 4 * Math.SQRT2;
+      const analytical = oracle(kind, allEdges ? 'all' : 'selected', 1), expectedVolume = analytical.volume, expectedArea = analytical.area;
       solids.forEach((solid, i) => {
         near(solid.volume, i ? 240 : expectedVolume, 5e-6, 'Analytical exported solid volume'); near(solid.area, i ? 248 : expectedArea, 5e-6, 'Analytical exported solid area');
         for (const [side, wanted] of [['min', [i * 20, 0, 0]], ['max', [i * 20 + 10, 6, 4]]])
           wanted.forEach((value, axis) => near(solid[side][axis], value, 5e-6, 'Literal exported solid bounds'));
+        if (allEdges) {
+          const wanted = i ? { plane: 6, cylinder: 0, sphere: 0, other: 0 } : kind === 'fillet'
+            ? { plane: 6, cylinder: 12, sphere: 8, other: 0 } : { plane: 26, cylinder: 0, sphere: 0, other: 0 };
+          check(canonical(solid.faceKinds) === canonical(wanted), 'Actual STEP retains every original all-edge surface family');
+          solid.radii.forEach(radius => near(radius, 1, 5e-6, 'Actual STEP round radius'));
+        }
       });
       result = { kind, reader: 'separate native STEP reader; same kernel family, not independent interoperability', solids };
     } catch (error) { primary = error; }
@@ -240,11 +291,23 @@ module.exports = function finishingWorkflow(c) {
       check(await recovery() === baseline && canonical(await history()) === canonical(oldHistory), 'Cancel restores exact document recovery and history availability');
       const preview = await prepare(kind, corners[0].ref, baseline, b), feature = preview.features.at(-1);
       serial = (await observe()).serial; await press(APPLY);
-      const accepted = await built(serial, features => canonical(features) === canonical(preview.features), kind, kind + '-accepted', b); await idle();
-      serial = (await observe()).serial; await press('button[title="Deshacer (Ctrl+Z)"]');
-      await built(serial, features => canonical(features) === canonical(expected.features), null, kind + '-undo', b); await idle();
-      serial = (await observe()).serial; await press('button[title="Rehacer (Ctrl+Y)"]');
-      await built(serial, features => canonical(features) === canonical(accepted.features), kind, kind + '-redo', b); await idle();
+      let accepted = await built(serial, features => canonical(features) === canonical(preview.features), kind, kind + '-accepted', b); await idle();
+      const created = accepted;
+      if (allEdges) {
+        const committed = await recovery(); await editAll(kind, feature.id, 1, b);
+        serial = (await observe()).serial; await press(CANCEL);
+        await built(serial, features => canonical(features) === canonical(created.features), kind, kind + '-all-edit-cancel', b); await idle();
+        check(await recovery() === committed, 'Cancel of all-edge resize restores exact committed recovery');
+        const edited = await editAll(kind, feature.id, 1, b);
+        serial = (await observe()).serial; await press(APPLY);
+        accepted = await built(serial, features => canonical(features) === canonical(edited.features), kind, kind + '-all-edit-accepted', b); await idle();
+      }
+      const states = allEdges ? [['undo', created, kind], ['undo', original, null], ['redo', created, kind], ['redo', accepted, kind]]
+        : [['undo', original, null], ['redo', accepted, kind]];
+      for (const [step, [direction, target, targetKind]] of states.entries()) {
+        serial = (await observe()).serial; await press('button[title="' + (direction === 'undo' ? 'Deshacer (Ctrl+Z)' : 'Rehacer (Ctrl+Y)') + '"]');
+        await built(serial, features => canonical(features) === canonical(target.features), targetKind, kind + '-' + direction + '-' + step, b); await idle();
+      }
       await file('Guardar como…');
       await waitFor('finishing actual save completes', () => page(() => !document.querySelector('.document-title')?.textContent.includes('*')));
       check(dialogCounts().saves === index + 1 && ipc.filter(e => e.channel === 'document:save' && e.completed).length === index + 1, 'Exact completed native document save');
@@ -263,7 +326,9 @@ module.exports = function finishingWorkflow(c) {
     check(protocolResponses.some(asset => /kernel\.worker-[\w-]+\.js$/.test(asset.url) && asset.status === 200)
       && protocolResponses.some(asset => asset.url.endsWith('.wasm') && asset.status === 200), 'Real production worker and WASM loaded');
     evidence.savedSha256 = digest(savedBytes); evidence.partFinishing.originalSha256 = digest(await fsp.readFile(input));
-    evidence.partFinishing.limits = 'Two original current-body single-edge cases; no all-edge/tangent propagation or general finishing coverage. STEP same kernel family; V/A/bounds tolerance5e-6, corner witness5e-7. No deadline changes.';
+    evidence.partFinishing.limits = allEdges
+      ? 'Two original current-body all-edge cases with sizes0.5/1, invalid zero, edit Cancel/retry, exact B preservation and STEP surface families. No tangent propagation/general topology claim. STEP same kernel family; V/A/bounds5e-6. No deadline changes.'
+      : 'Two original current-body single-edge cases; no all-edge/tangent propagation or general finishing coverage. STEP same kernel family; V/A/bounds tolerance5e-6, corner witness5e-7. No deadline changes.';
     await capture(JSON.parse(savedBytes));
   };
 };

@@ -78,7 +78,7 @@ module.exports = async function partMenuAliases(context) {
     });
     evidence.frames[label] = result; return result;
   }
-  async function planeOnFrame(off) {
+  async function planeOnFrame(off, name = 'planes') {
     rasterComparison.retainBaseline(off);
     let first = null, last = null, since = 0, resets = 0, comparison = null;
     const noMasks = value => value.masks.identical && value.masks.expectedPixels === 0 && value.masks.actualPixels === 0;
@@ -101,21 +101,21 @@ module.exports = async function partMenuAliases(context) {
         const effect = rasterComparison.compare(next);
         check(noMasks(effect) && sameMetadata(effect) && effect.raw.changedPixels > 0 && effect.raw.maxByteDelta > 1,
           'Plane ON has a genuine visible effect beyond one-level quantization versus exact OFF');
-        evidence.planeOn = { first, last: next, elapsedMs: elapsed, resets, maximumNativeByteDelta: 1,
+        evidence[name === 'planes' ? 'planeOn' : 'toolbarPlaneOn'] = { first, last: next, elapsedMs: elapsed, resets, maximumNativeByteDelta: 1,
           comparison: { raw: comparison.raw, unmasked: comparison.unmasked, masks: comparison.masks },
           visibleEffect: { raw: effect.raw, unmasked: effect.unmasked, masks: effect.masks },
           limits: 'Two full crops at least 500 ms apart within one native 8-bit byte level; changed-pixel count is reported, not bounded by a fitted count. No new masks, bit-identical ON, exact camera-state, colour calibration or other GPU claim. All OFF and other camera/frame equalities remain exact.' };
-        if (typeof rasterComparison.planePair === 'function') evidence.planeDiagnosticImages = rasterComparison.planePair(first, next);
+        if (name === 'planes' && typeof rasterComparison.planePair === 'function') evidence.planeDiagnosticImages = rasterComparison.planePair(first, next);
         return next;
       });
     } catch (error) {
       try {
         evidence.planeOnFailure = { resets, comparison: comparison && { raw: comparison.raw, masks: comparison.masks, pixelEvidence: comparison.pixelEvidence } };
-        if (first && last && typeof rasterComparison.planePair === 'function') evidence.planeDiagnosticImages = rasterComparison.planePair(first, last);
+        if (name === 'planes' && first && last && typeof rasterComparison.planePair === 'function') evidence.planeDiagnosticImages = rasterComparison.planePair(first, last);
       } catch (diagnosticError) { evidence.planeOnFailure.diagnosticError = String(diagnosticError); }
       throw error;
     } finally { rasterComparison.clear(); }
-    evidence.frames['planes-on'] = result; return result;
+    evidence.frames[name + '-on'] = result; return result;
   }
   const help = () => page(expected => {
     const brand = document.querySelector('.modal .modal-brand');
@@ -176,6 +176,7 @@ module.exports = async function partMenuAliases(context) {
     const afterSketchProjection = await sketchProjection();
     check(canonical(afterSketchProjection) === canonical(beforeSketchProjection), 'Help retains the exact actual SVG projection and live sketch');
     evidence.sketchProjection = { before: beforeSketchProjection, after: afterSketchProjection };
+    await require('./desktop-part-selection-alias-flow.cjs')({ ...context, sketchProjection }, 'live-sketch');
     return;
   }
   const base = await frame('initial');
@@ -212,6 +213,17 @@ module.exports = async function partMenuAliases(context) {
   before = await snapshot();
   const planeBase = await frame('planes-before');
   await toggle('planes', 'Planos de referencia', planeBase);
+  const planeToolbar = '.viewport-toolbar button[aria-label="Mostrar planos de referencia"]';
+  check(await page(selector => !document.querySelector(selector).disabled && !document.querySelector(selector).classList.contains('active'), planeToolbar), 'Current plane toolbar is enabled and starts with the actual temporary native plane hidden');
+  const toolbarPlaneBase = await frame('toolbar-planes-before');
+  check(canonical(toolbarPlaneBase) === canonical(planeBase), 'Fresh toolbar plane baseline retains the exact original opaque OFF frame');
+  await actual(planeToolbar); await waitForPresentation('Toolbar plane ON');
+  check(await page(selector => document.querySelector(selector).classList.contains('active'), planeToolbar), 'Actual toolbar plane ON state');
+  await planeOnFrame(toolbarPlaneBase, 'toolbar-planes'); await unchanged('Toolbar plane ON');
+  await actual(planeToolbar); await waitForPresentation('Toolbar plane OFF');
+  const toolbarPlaneOff = await frame('toolbar-planes-off');
+  check(await page(selector => !document.querySelector(selector).classList.contains('active'), planeToolbar) && canonical(toolbarPlaneOff) === canonical(planeBase), 'Actual toolbar plane OFF restores the exact original opaque crop');
+  await unchanged('Toolbar plane OFF');
   serial = (await observe()).serial; await key('Z'); await idle();
   await built(serial, 8, 11144, 4136, 13, 'undo-menu-plane');
   check(await recovery() === originalRecovery, 'Undo removes exactly the temporary reference plane and restores the saved document');
@@ -320,6 +332,7 @@ module.exports = async function partMenuAliases(context) {
     check(canonical(opened.features) === canonical(document.features.slice(0, entry.count)),
       'The actual editor builds only its exact saved feature prefix');
     check(await recovery() === originalRecovery, 'Opening the editor leaves the committed recovery intact');
+    if (entry.target.type === 'cut') await require('./desktop-part-selection-alias-flow.cjs')(context, 'saved-operation');
     const beforeCancel = (await observe()).serial;
     await actual('.property-manager button[title="Cancelar operación"]');
     await idle();

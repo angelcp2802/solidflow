@@ -163,6 +163,7 @@ import { MAX_STEP_BYTES } from "./model/stepSource";
 import { initialLoftSection, resolvedSweepPath } from "./model/advancedInputs";
 import { buildModel, captureFeatureRecipeScope, exportCad, initKernel, importAssemblyStep } from "./cad/kernel";
 import { withFeaturePatternAutoCapture, withFeaturePatternScope } from './model/featurePatternCommands';
+import { recipeSelectionUnavailableReason } from './model/featureRecipeAvailability';
 import type {
   Feature,
   SketchFeature,
@@ -2322,7 +2323,9 @@ export function PartWorkspace({ initialDocument, initialPath, initialSaved, skip
     setEditing(next);
     return next;
   };
-  const canCaptureAutoScope = !!editing && isRepetition(editing) && !editing.suppressed
+  const recipeSourceIndex = useMemo(() => new Map(sourceFeatures?.map(feature => [feature.id, feature]) ?? []), [sourceFeatures]);
+  const autoScopeRecipeReason = editing && isRepetition(editing) ? recipeSelectionUnavailableReason(editing, recipeSourceIndex, 'dynamic') : null;
+  const canCaptureAutoScope = !autoScopeRecipeReason && !!editing && isRepetition(editing) && !editing.suppressed
     && editing.featurePattern?.mode === 'regenerate' && editing.featurePattern.bindings.length > 0
     && !!sourceFeatures && !sourceLoading && sourceBuiltFeatures === sourceFeatures
     && sourceModel?.bodyCatalogActive === true && !sourceModel.featureErrors.length;
@@ -2609,10 +2612,10 @@ export function PartWorkspace({ initialDocument, initialPath, initialSaved, skip
     .filter(
       (feature): feature is ReferencePlaneFeature => feature.type === "plane",
     );
-  const availableFeatures = operationDocument.features.slice(
+  const availableFeatures = useMemo(() => operationDocument.features.slice(
     0,
     editingIndex < 0 ? operationDocument.features.length : editingIndex,
-  );
+  ), [operationDocument.features, editingIndex]);
   const preferredEndPlane = availablePlanes
     .filter(
       (reference) =>

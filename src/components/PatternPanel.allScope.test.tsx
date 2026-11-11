@@ -12,8 +12,12 @@ const a = { bodyId: 'all-ui-a', sourceFeatureId: 'all-ui-create' };
 const seed = { bodyId: a.bodyId, sourceFeatureId: 'all-ui-cut' };
 const kinds = ['linearPattern', 'circularPattern', 'mirror'] as const;
 const sources: Feature[] = [
+  { id: 'profile-a', type: 'sketch', name: 'Croquis original de la base', suppressed: false, plane: 'XY', offset: 0,
+    profile: { kind: 'rectangle', center: [0, 0], width: 80, height: 20 } },
   { id: a.sourceFeatureId, type: 'extrude', name: 'Base original', suppressed: false, sketchId: 'profile-a', depth: 4, symmetric: false,
     bodyOperation: { mode: 'new', bodyId: a.bodyId } },
+  { id: 'profile-cut', type: 'sketch', name: 'Croquis original del corte', suppressed: false, plane: 'XY', offset: 0,
+    profile: { kind: 'circle', center: [-5, 0], radius: 1 } },
   { id: seed.sourceFeatureId, type: 'cut', name: 'Corte histórico exacto', suppressed: false, sketchId: 'profile-cut', depth: 1, symmetric: false, bodyScope: [a] },
 ];
 function pattern(kind: RepetitionFeature['type']): RepetitionFeature {

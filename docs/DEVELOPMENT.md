@@ -1,5 +1,46 @@
 # Development guide
 
+## Hosted variation, repair and Windows transition checks
+
+The existing persistence batch runs the selected instance-depth, solved
+driving-radius and recipe-availability commands explicitly on each of its three
+systems. Their own input, geometry, history, repair and file-ownership contracts
+remain authoritative. The Windows member also runs the existing Windows-only
+embedded-part transition command. Its authenticated owned-window and TaskDialog
+driver supplies the native-close observation and two-process recovery case.
+
+These static additions retain the existing read-only workflow permissions,
+renderer prerequisites, fixed command deadlines and 35-minute job budgets.
+Record the actual result on each published head. The source's local cases and a
+successful hosted job establish their individual evidence boundaries.
+
+## Legacy origin-owner labels
+
+The principal-plane and origin-axis component selectors reuse the existing
+analysis-owner labels: occurrence names along the full chain, saved path and
+component kind. Repeated friendly names therefore remain distinguishable.
+Their option values are still the exact JSON occurrence paths. Scope/root
+choices, filtering, current-reference guards and native admission are unchanged.
+The SSR regression checks the actual options for three reused occurrences and
+two repeated nested instances; it supplies no native geometry or platform result.
+
+## Root-part scene placement declarations
+
+`expandAssemblyParts` retains a strict detached copy of an already validated
+top-level part pose. That declaration is already in world coordinates. Composing
+it with identity can normalize an accepted quaternion again and change its
+last Float64 bit, breaking exact scene/document placement identity. Nested
+assembly chains retain their existing composition. Geometry transforms still
+use normalized computational copies; quaternion admission, solve budgets,
+physical tolerances and native Apply authority are unchanged.
+
+The regression follows the original screw through two shaft turns, slider
+translation and a lead/handedness edit. It checks exact root scene poses,
+unchanged sources, native relation checks, original volume/area and saved
+reconstruction. Declaration tests independently use the original 3-4-5
+quaternion and still reject an invalid rotation. These cases retain their
+separate renderer and platform acceptance requirements.
+
 ## Signed plane-distance conditioning
 
 The native assembly adapter includes the magnitude of each active declared
@@ -47,6 +88,41 @@ usable once per factory; no extra capture or arbitrary path is accepted. The
 images remain outside the frame-comparison signature. Default CI does not
 encode them. The observer's twelfth boolean retains only this route's actual
 native plane DTOs for independent inspection; it creates no geometry witness.
+
+## Finite part operation and embedded-copy entry points
+
+`test:desktop:part-operation-aliases` reuses the public
+`part-sequence-original.json` fixture and ordinary Open/Save As. Its existing
+20 × 12 × 4 mm prism has V960 mm³, planar mesh A736 mm² and bounds
+[-10, -6, 0] to [10, 6, 4]. The route records all seventeen Insertar and seventeen
+Operaciones entries: thirty-one editor/Cancel lifecycles, two missing-open-path
+Sweep explanations and the disabled one-body Combine entry. The existing
+Sweep/Loft route additionally invokes the positive Sweep menu alias; its ribbon
+and the positive Combine ribbon retain their own native lifecycles.
+
+Nominate the exact consumed-sketch occurrence or current native body appropriate
+to the command. These browsing selections are mutually exclusive. Menu-owned
+Escape preserves the editor; an actual ribbon-tab press then gives CAD focus
+for its separate Escape contract. In a multientity sketch, Escape ends the tool
+and leaves the sketch open until explicit Cancel. Keep all thirty-four disabled
+entry presses in the settled non-sketch draft, its exact Apply/reference/history
+state, fresh native reconstruction after Cancel and thirty-five exact unmasked
+opaque crop comparisons. No camera or model state is injected. The separate
+route preserves the original from-empty route's workload and 180-second budget.
+
+The standard embedded-part edit and transition routes retain keyboard copy
+Cancel/success cases and add both advertised File copy aliases and the quick
+Save-copy button. Each successful alias writes identical detached-part bytes
+without reusing a parent or prior-copy file grant. Both disabled menu entries
+and the guarded quick button preserve the unfinished source operation. Its
+native source-prefix reply can schedule the resolved full body-plan preview;
+wait for that actual full build before starting an exact no-new-request guard.
+Keep the fixed eight-save queue, assembly titles at ordinals zero/seven, parent
+recovery, pending native Apply guards and the transition's actual close/reopen.
+
+These are bounded command-entry and ownership checks. Full geometric variants,
+remaining context/keyboard aliases, hosted platforms and human use retain their
+separate gates in the [command matrix](USABLE_COMMAND_MATRIX.md).
 
 ## Support repair, opposed origins and mechanical axis acquisition
 
@@ -3008,3 +3084,38 @@ planar geometry checks. Native radius geometry and STEP walls/probes live in
 `kernel.recipe-sketch-radius.integration.test.ts`; see the exact admitted
 [contract](FEATURE_REGENERATION.md#driving-sketch-radius-per-instance) and
 [original provenance](PROVENANCE.md#original-per-instance-solved-circle-radius-plate--2026-11-11).
+
+### Recipe availability and explicit saved-selection repair
+
+`npm run test:desktop:part-recipe-availability` uses the original cut/entity-merge/
+Hole plate to distinguish normal operations from regeneration availability. It
+checks disabled new seed/method/scope choices, a real press on an unchecked
+unsupported seed, preserved saved method/scope, Cancel, explicit repair by the
+same feature ID, history and native Save As/Open. The original and unavailable
+input files remain unchanged. The [finite inventory](FEATURE_RECIPE_AVAILABILITY.md)
+and [provenance](PROVENANCE.md#original-recipe-availability-and-repair-plate--2026-11-11)
+keep this UI work separate from broader recipe implementation.
+
+### Part plane-toolbar and selection-mode aliases
+
+The existing `test:desktop:part-from-empty` route reuses its authored XY+20
+reference plane for the viewport plane button, including actual ON/OFF presses.
+Plane ON retains the existing unmasked two-frame contract; every OFF restores
+the exact original opaque crop. It does not create another plane fixture.
+
+`desktop-part-selection-alias-flow.cjs` then invokes Auto, Caras, Aristas and
+Cuerpos on the original saved eight-feature part. Existing read-only observer
+fields supply the current native face, LINE and body references. The sole
+surviving named-view declaration, already recalled by the existing workflow,
+locates the material for actual pointer input. No renderer camera or model
+state is supplied. Clear and the original selection restore exact opaque
+central-crop bytes, with unchanged native observations, committed document,
+history, file authority and actual saved bytes.
+
+The already-open live sketch and saved-cut editor supply the disabled-control
+cases. All four mode buttons and Clear receive actual disabled presses; their
+effective mode and draft remain unchanged. The plane button remains an enabled
+presentation control during these drafts and is restored without changing the
+SVG projection or the saved-cut canvas. These finite cases do not replace the
+[remaining command inventory](USABLE_COMMAND_MATRIX.md), embedded/copy and other
+operation-entry/context cases or final integrated/platform acceptance.

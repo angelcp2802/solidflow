@@ -677,3 +677,50 @@ it('keeps direct STEP insertion separate from structural replacement and gates i
   expect(html).toContain('aria-label="Origen del componente"')
   expect(html).toContain('Insertar otra ocurrencia')
 })
+
+function originSelectorOptions(html: string, label: string) {
+  const select = html.match(new RegExp('<select(?=[^>]*aria-label="' + label + '")[^>]*>[\\s\\S]*?</select>'))?.[0]
+  expect(select).toBeDefined(); expect(select).toContain('disabled=""')
+  const decode = (value: string) => value.replace(/&quot;/g, '"').replace(/&#x27;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
+  return [...select!.matchAll(/<option value="([^"]*)"([^>]*)>([\s\S]*?)<\/option>/g)]
+    .map(row => ({ value: decode(row[1]), label: decode(row[3]), selected: row[2].includes('selected=""') }))
+}
+
+it('labels both legacy origin selectors with three original occurrence names while preserving path values and initial guards', () => {
+  const part = createAssemblyExample().definitions.find(definition => definition.kind === 'part')!
+  const document = createEmptyAssembly('Original three-owner labels'); document.definitions = [part]
+  document.occurrences = ['Base fija', 'Brazo izquierdo', 'Brazo derecho'].map((name, index) => ({
+    id: `original-owner-${index + 1}`, name, definition: { id: part.id, revision: part.revision },
+    pose: identityRigidPose(), fixed: index === 0, visible: true, suppressed: false }))
+  const before = serializeAssemblyDocument(document)
+  const html = renderToStaticMarkup(<AssemblyWorkspace initialDocument={document} onOpenPart={() => undefined} />)
+  for (const [selector, scope] of [['Componente del plano', 'Ámbito actual'], ['Componente del eje de origen', 'Raíz']]) {
+    expect(originSelectorOptions(html, selector)).toEqual([
+      { value: 'scope', label: scope, selected: true },
+      ...document.occurrences.map(owner => ({ value: JSON.stringify([owner.id]), label: `${owner.name} · ${JSON.stringify([owner.id])} · Pieza`, selected: false })),
+    ])
+  }
+  expect(serializeAssemblyDocument(document)).toBe(before)
+})
+
+it('distinguishes repeated and nested friendly names by the existing full owner labels without changing identities', () => {
+  const part = createAssemblyExample().definitions.find(definition => definition.kind === 'part')!
+  const document = createEmptyAssembly('Original repeated nested labels'), stamp = document.createdAt
+  document.definitions = [part, { kind: 'assembly', id: 'original-label-module', revision: 'r1', name: 'Original label module',
+    createdAt: stamp, updatedAt: stamp, mates: [], occurrences: [{ id: 'pin', name: 'Pieza repetida', definition: { id: part.id, revision: part.revision },
+      pose: identityRigidPose(), fixed: false, visible: true, suppressed: false }] }]
+  document.occurrences = ['module-a', 'module-b'].map(id => ({ id, name: 'Módulo', definition: { id: 'original-label-module', revision: 'r1' },
+    pose: identityRigidPose(), fixed: false, visible: true, suppressed: false }))
+  const before = serializeAssemblyDocument(document)
+  const html = renderToStaticMarkup(<AssemblyWorkspace initialDocument={document} onOpenPart={() => undefined} />)
+  for (const selector of ['Componente del plano', 'Componente del eje de origen']) {
+    const options = originSelectorOptions(html, selector).filter(option => option.value !== 'scope')
+    expect(options).toEqual(['module-a', 'module-b'].flatMap(id => [
+      { value: JSON.stringify([id]), label: `Módulo · ${JSON.stringify([id])} · Subensamblaje`, selected: false },
+      { value: JSON.stringify([id, 'pin']), label: `Módulo / Pieza repetida · ${JSON.stringify([id, 'pin'])} · Pieza`, selected: false },
+    ]))
+    expect(new Set(options.map(option => option.label)).size).toBe(4)
+    expect(new Set(options.map(option => option.value)).size).toBe(4)
+  }
+  expect(serializeAssemblyDocument(document)).toBe(before)
+})

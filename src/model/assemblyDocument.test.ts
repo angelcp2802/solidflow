@@ -108,6 +108,22 @@ it('reuses one definition with two distinct occurrence identities and placements
   expect(JSON.stringify(input)).toBe(before); close(expanded[1].worldPose.translation, [10, 0, -8]);
 });
 
+it('keeps accepted root-part placement declarations exact and detached during expansion', () => {
+  // Original 3-4-5 quaternion with admitted Float64 norm roundoff. A root
+  // placement is already world data; expansion must not normalize it again.
+  const factor = 1 + 2 * Number.EPSILON;
+  const pose: RigidPose = { translation: [7, -9, 11], rotation: [0, 0, .6 * factor, .8 * factor] };
+  const input = assembly([part()], [occurrence('root-part', pin, pose)]), before = JSON.stringify(input);
+  const expanded = expandAssemblyParts(input)[0];
+  expect(expanded.worldPose).toEqual(pose);
+  expect(expanded.worldPose.rotation).not.toBe(expanded.occurrence.pose.rotation);
+  close(transformRigidPoint(expanded.worldPose, [1, 0, 0]), [7.28, -8.04, 11]);
+  expanded.worldPose.translation[0] = 99; expanded.worldPose.rotation[0] = .1;
+  expect(JSON.stringify(input)).toBe(before); expect(expanded.occurrence.pose).toEqual(pose);
+  const invalid = structuredClone(input); invalid.occurrences[0].pose.rotation = [0, 0, 0, 1.01];
+  expect(() => expandAssemblyParts(invalid)).toThrow(/unit Hamilton quaternion/);
+});
+
 it('keys exact definition revisions and full paths without delimiter or occurrence aliasing', () => {
   expect(assemblyDefinitionKey({ id: 'a|b', revision: 'c' })).not.toBe(assemblyDefinitionKey({ id: 'a', revision: 'b|c' }));
   expect(assemblyDefinitionKey({ id: 'same', revision: 'r1' })).not.toBe(assemblyDefinitionKey({ id: 'same', revision: 'r2' }));

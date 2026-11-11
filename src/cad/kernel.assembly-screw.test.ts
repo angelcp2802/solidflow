@@ -228,6 +228,35 @@ it('permits lead, handedness, name and suppression intent without replacing capt
   expect(screw(preview.document).neutralTravel).toBe(-18); expect(screw(preview.document).angle).toBe(0); value.session.discard()
 }, 60_000)
 
+it('keeps root scene placements exact after a lifted screw lead and handedness edit', () => {
+  const value = captured()
+  try {
+    let document = value.session.apply(value.document,
+      ready(value.session.moveMotion(value.document, motion(value.document, 'shaft', 4 * Math.PI))).token).document
+    document = value.session.apply(document,
+      ready(value.session.moveMotion(document, motion(document, 'nut', 0, 15))).token).document
+    const before = serializeAssemblyDocument(document)
+    const proposal = structuredClone(document)
+    Object.assign(screw(proposal), { lead: 4, reverse: true })
+    const preview = ready(value.session.prepare(document, proposal))
+    physical(preview.scene)
+    expect(serializeAssemblyDocument(document)).toBe(before)
+    expect(preview.document.definitions).toEqual(document.definitions)
+    expect(preview.document.occurrences[0]).toEqual(document.occurrences[0])
+    expect(preview.checks.every(check => check.satisfied)).toBe(true)
+    expect(screw(preview.document)).toMatchObject({ lead: 4, reverse: true,
+      neutralRotation: screw(document).neutralRotation, neutralTravel: screw(document).neutralTravel })
+    for (const body of preview.scene.bodies) {
+      const occurrence = preview.document.occurrences.find(item => item.id === body.component.occurrencePath[0])!
+      expect(body.worldPose).toEqual(occurrence.pose)
+    }
+    const applied = value.session.apply(document, preview.token)
+    const reopened = parseAssemblyDocument(serializeAssemblyDocument(applied.document)), scene = buildAssemblyScene(reopened)
+    physical(scene)
+    for (const body of scene.bodies) expect(body.worldPose).toEqual(reopened.occurrences.find(item => item.id === body.component.occurrencePath[0])!.pose)
+  } finally { value.session.discard() }
+}, 60_000)
+
 it.each(['angle', 'neutral rotation', 'neutral travel', 'new relation', 'endpoint path', 'alignment'] as const)('rejects renderer-forged screw %s before native Apply', field => {
   const value = captured(), proposal = structuredClone(value.document), older = ready(value.session.prepare(value.document))
   if (field === 'angle') screw(proposal).angle += 2 * Math.PI

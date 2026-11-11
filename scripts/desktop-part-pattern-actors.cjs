@@ -66,5 +66,5 @@ module.exports = function partPatternActors({ evaluate, waitFor, pointer, check,
     await press('[data-assembly-menu="file"]');
     await press('.part-main-menus .assembly-menu-wrap:has(> [data-assembly-menu="file"][aria-expanded="true"]) > [role="menu"] > [role="menuitem"]', label);
   }
-  return { page, press, change, file };
+  return { page, press, change, file, inspect, reveal };
 };

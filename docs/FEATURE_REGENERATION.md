@@ -55,6 +55,11 @@ use explicitly selected targets.
 
 ### Shared evaluator identity
 
+The [finite availability inventory](FEATURE_RECIPE_AVAILABILITY.md) keeps
+normal operation capabilities separate from recipe eligibility and preserves
+explicit repair of unavailable saved selections. UI guidance does not replace
+the native gates below.
+
 AUTO, selected per-instance Blind depth and the bounded driving-radius table share evaluator revision
 `intrinsic-auto-selected-sketch-radius-v11`. Earlier v8/v9/v10
 previews cannot authorize this evaluator. The revision authenticates
