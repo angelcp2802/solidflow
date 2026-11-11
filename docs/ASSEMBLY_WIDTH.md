@@ -67,6 +67,11 @@ remain explicit; neither material orientation nor a nearby pose silently
 selects a replacement branch. A cancelling branch rejects and leaves the
 confirmed document intact so the user can correct the proposal.
 
+The material-plane labels show the component path, a short face identifier,
+and the plane's normal and point in local coordinates. If two labels match,
+the full owner, body and face identity distinguishes them. These display
+values leave the saved face reference and worker verification intact.
+
 Each of the four roles has a model-picking button alongside its plane selector.
 A pick resolves one unique current visible planar scene entry and stores only
 its scoped reference declaration. Selection advances to the next empty role;

@@ -45,13 +45,13 @@ module.exports = function bodyCatalogWorkflow(c) {
         focused: document.activeElement === e };
     }, selector);
   }
-  async function press(selector, double = false) {
-    await page(selector => {
+  async function press(selector, double = false, inline = 'nearest') {
+    await page((selector, inline) => {
       const matches = document.querySelectorAll(selector);
       if (matches.length !== 1 || matches[0].closest('[hidden]')) throw Error('One visible control required: ' + selector);
-      matches[0].scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      matches[0].scrollIntoView({ block: 'nearest', inline });
       return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-    }, selector);
+    }, selector, inline);
     let previous, since = 0;
     const target = await waitFor('stationary catalog target ' + selector, async () => {
       const state = await inspect(selector), signature = canonical({ ...state, focused: undefined });
@@ -205,11 +205,37 @@ module.exports = function bodyCatalogWorkflow(c) {
     boundary = (await observe()).serial; await press('button[title="Cancelar operación"]');
     await built(boundary, 'edit-cancelled');
     check(await recovery() === baseline.recovery && canonical(await history()) === canonical(baseline.history), 'Cancel restores original recovery and history');
+    await press(row(0) + ' input'); await press(row(1) + ' input'); await selection(['a', 'b']);
     await press(FOLDER);
     check(await page(selector => document.querySelector(selector)?.getAttribute('aria-expanded') === 'false', FOLDER), 'Catalog is closed before same-ID replacement');
-    boundary = (await observe()).serial; await press('button[aria-label="Abrir (Ctrl+O)"]'); await built(boundary, 'same-id-reopened');
-    check(await page(selector => document.querySelector(selector)?.getAttribute('aria-expanded') === 'true', FOLDER)
-      && await recovery() === baseline.recovery, 'Reopening identical original document resets folder open and preserves document identity/recovery');
+    await press('button.command[title="Combinar cuerpos"]', false, 'center');
+    await waitFor('pending Combine owns the body picker', () => page(host =>
+      /^Combinar/.test(document.querySelector('[aria-label="Nombre de operación"]')?.value ?? '')
+        && document.querySelector(host)?.dataset.partSelectionMode === 'body', HOST));
+    await selection(['a', 'b']);
+    await press('button[aria-label="Abrir (Ctrl+O)"]');
+    await waitFor('dirty Open decision owns focus over pending Combine', () => page(() =>
+      document.activeElement === document.querySelector('[role="dialog"][aria-labelledby="discard-title"] .outline-button')));
+    await selection(['a', 'b']);
+    check(await recovery() === baseline.recovery && dialogCounts().opens === 1,
+      'The pending Combine and confirmation make no committed edit or additional native Open before the decision');
+    boundary = (await observe()).serial;
+    await press('[role="dialog"][aria-labelledby="discard-title"] .primary-button');
+    await built(boundary, 'same-id-reopened');
+    const reopened = await page((host, folder, entry) => ({
+      mode: document.querySelector(host)?.dataset.partSelectionMode,
+      selected: JSON.parse(document.querySelector(host)?.dataset.partSelectedBodies ?? 'null'),
+      folder: document.querySelector(folder)?.getAttribute('aria-expanded'),
+      checked: [...document.querySelectorAll(entry + ' input')].map(input => input.checked),
+      clearDisabled: document.querySelector('button[aria-label="Limpiar selección de pieza"]')?.disabled,
+    }), HOST, FOLDER, ENTRY);
+    evidence.partBodyCatalog.reopened = reopened;
+    check(canonical(reopened) === canonical({ mode: 'auto', selected: [], folder: 'true', checked: [false, false], clearDisabled: true }),
+      'Reopening the identical original after discarding Combine starts with an empty automatic selection: ' + JSON.stringify(reopened));
+    check(await recovery() === baseline.recovery && canonical(await history()) === canonical(baseline.history),
+      'Same-ID reopen restores exact original recovery and history');
+    await press(row(1) + ' input'); await selection(['b']);
+    await press('button[aria-label="Limpiar selección de pieza"]'); await selection([]);
     check((await fsp.readFile(input)).equals(originalBytes), 'Original fixture bytes remain unchanged');
     check(dialogCounts().opens === 2 && dialogCounts().saves === 0 && dialogCounts().geometryExports === 0, 'Exactly two original opens; no Save/export');
     const final = await observe();

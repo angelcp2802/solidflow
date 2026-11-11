@@ -283,6 +283,25 @@ function referenceLabel(reference: AssemblyGeometryReference | AssemblyTangentRe
   const component = reference.component?.occurrencePath.join(' / ') ?? 'Ámbito actual'
   return reference.kind === 'principal-axis' ? `${component} · Eje de origen ${reference.axis}` : reference.kind === 'principal-plane' ? `${component} · ${reference.plane}` : reference.kind === 'edge' ? `${component} · Arista lineal · ${reference.edge.sourceFeatureId}` : `${component} · ${reference.support === 'axis' ? 'Cilindro' : reference.support === 'cylinder-surface' ? 'Superficie cilíndrica' : reference.support === 'sphere-surface' ? 'Superficie esférica' : 'Plano'} · ${reference.face.sourceFeatureId}`
 }
+export function assemblyMaterialPlaneChoices(faces: readonly AssemblySceneFace[], scopePath: readonly string[]): WidthPlaneChoice[] {
+  const labelCounts = new Map<string, number>()
+  const vector = (value: readonly number[]) => value.map(coordinate => Number(coordinate.toPrecision(6))).join(', ')
+  const choices = faces.flatMap(face => {
+    const reference = scopedAssemblyPlaneFace(face, scopePath)
+    if (reference?.kind !== 'face' || face.support?.kind !== 'plane') return []
+    const owner = reference.component.occurrencePath.join(' / ')
+    const id = reference.face.key.replace(/^face-v[12]\|/, '').slice(0, 8)
+    const label = `${owner} · Plano ${id} · normal local (${vector(face.support.normal)}) · punto local (${vector(face.support.point)}) mm · ${reference.face.sourceFeatureId}`
+    labelCounts.set(label, (labelCounts.get(label) ?? 0) + 1)
+    return [{ key: assemblyFaceKey(face), label, reference }]
+  })
+  return choices.map(choice => {
+    if (labelCounts.get(choice.label) === 1) return choice
+    const { component, body, face } = choice.reference
+    const identity = JSON.stringify([component.occurrencePath, body?.bodyId ?? null, face.key])
+    return { ...choice, label: choice.label + ' · ' + identity }
+  })
+}
 export function AssemblyComponentTree({ document, selectedPath, onSelect, disabled = false, active = true, resetKey = document.id,
   originRows = [], selectedOriginKey = null, onOrigin, originDisabled = false, onComponentContext, onOriginContext }: {
   document: AssemblyDocument; selectedPath: readonly string[]; onSelect: (path: string[]) => void; disabled?: boolean; active?: boolean; resetKey?: unknown
@@ -623,6 +642,8 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   const setScopePath = (value: string[]) => {
     clearStandardReferencePicking()
     resetMechanicalAxes()
+    // Component datum owners are occurrence paths in the departing scope.
+    setDatumComponent('scope')
     embeddedOwnerEpoch.current++
     const next = resolveActiveAssemblyScope(current.current, value) ? value : []
     // Commands must see the new scope before React publishes its controls.
@@ -2877,7 +2898,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
   circularPathContext.current=circularPathTicket
   const linePathTicket = { signature: serialized, scope: JSON.stringify(scopePath), generation: generation.current, sceneId: confirmedScene.current?.scene.sceneId ?? null, family: mateType }
   linePathContext.current = linePathTicket
-  const widthChoices: WidthPlaneChoice[] = faceChoices.flatMap(face => { const reference=scopedAssemblyPlaneFace(face,scopePath); return reference ? [{key:assemblyFaceKey(face),label:referenceLabel(reference),reference}] : [] })
+  const widthChoices = isWidth || isSymmetry ? assemblyMaterialPlaneChoices(faceChoices, scopePath) : []
   const datumOwners = [{key:'scope',component:null}, ...availableComponents.map(row=>({key:JSON.stringify(row.path),component:{occurrencePath:row.path.slice(scopePath.length),definition:{...row.occurrence.definition}}}))]
   for (const owner of datumOwners) for (const plane of ['XY','XZ','YZ'] as const) widthChoices.push({key:'datum:'+owner.key+':'+plane,label:(owner.component?.occurrencePath.join(' / ') ?? 'Ámbito actual')+' · '+plane,reference:{kind:'principal-plane',component:owner.component,plane}})
   const symmetryChoices:{key:string;label:string;reference:SymmetryUiReference}[]=[]

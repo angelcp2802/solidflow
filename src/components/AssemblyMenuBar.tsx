@@ -74,7 +74,7 @@ export default function AssemblyMenuBar({ menus, label, variant = 'assembly' }: 
     else if (event.key === 'Home' || event.key === 'End') {
       event.preventDefault(); const next = event.key === 'Home' ? 0 : menus.length - 1
       if (openRef.current) show(next); else { setTabStop(next); triggers.current.get(menus[next].id)?.focus() }
-    } else if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(true) }
+    } else if (event.key === 'Escape' && openRef.current) { event.preventDefault(); event.stopPropagation(); close(true) }
   }
   const popupKey = (event: KeyboardEvent<HTMLDivElement>, menu: AssemblyMenuDefinition, index: number) => {
     const active = event.target instanceof HTMLElement ? Number(event.target.dataset.menuIndex ?? -1) : -1

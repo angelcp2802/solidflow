@@ -1,5 +1,26 @@
 # Validation
 
+## Ordinary origin owner after a nested scope change — Windows, 2026-11-11
+
+On the earlier standard production renderer, choosing the left nested source
+as a principal-plane owner and then switching to the right reused scope
+showed **Ámbito actual** in the enabled owner dropdown. The action still
+looked for the left source, rejected it as unavailable and left the role
+empty.
+
+On the corrected renderer, choosing the displayed right-scope origin fills
+only the active role with its local XY plane. The reverse scope switch with
+an explicit right component owner verifies the same behavior for the local X
+axis. Both references have a null component because they belong to their
+declaring scopes. Native worker serial, exact committed recovery, Undo/Redo
+availability and file dialog counts stay unchanged during these nominations.
+
+The existing `test:desktop:assembly-symmetry-nested-selected` route passed
+89 checkpoints, including these two scripted form paths and its original
+nested repair lifecycle. The separate shared-source nested and standard
+origin-axis routes also passed. This exercises two occurrences of one
+original shared definition in the hidden Windows x64 production renderer.
+
 ## Centered Width with intersecting material planes — Windows, 2026-11-11
 
 The `test:desktop:assembly-width-intersecting` command passed 43 recorded
@@ -21,6 +42,16 @@ each, with areas 96 and 88 mm² and bounds checked against transformed
 corners. The focused native Width suite passed all 14 cases, including
 the independent D1 and BRep validity check for this geometry. The existing
 parallel Width renderer passed its separate 95-checkpoint route.
+
+The later label regression on the same original fixture reproduced ten
+material entries with only two distinct display names in the earlier
+renderer. The corrected four role lists show ten distinct labels with face
+identifiers and local plane geometry. All ten native option keys and their
+order, all nine datum options and the selected four references remain exact.
+The labels also survive solved placement, Save As and Open. The Windows x64
+intersecting and parallel Width routes passed with the label change, along
+with the nested symmetry and hinge routes. A separate symbolic test verifies
+that colliding abbreviated labels expose the complete face and body identity.
 
 This result covers scripted form choices, actual worker and file IPC,
 two intersecting pairs and one fixed owner. Viewport picking is covered
@@ -3606,6 +3637,28 @@ offset clipping/split repair, remaining specialized editors/picking, full
 interaction/demo/human use, installed platforms and recurring stability remain
 open. Straight planar chain ends are not axial end caps; the bounded acceptance
 above does not close the complete thin-feature group or establish parity.
+
+## Closed pinned menu Escape — Windows, 2026-11-11
+
+A closed pinned menu trigger leaves Escape to the current workspace. The
+open popup owns its first Escape and restores focus to its trigger. An
+unpinned temporary disclosure owns Escape after its popup closes.
+
+In the original `part-external-axis` route, popup Escape retains the armed
+axis picker. Escape in the dirty Open confirmation closes the confirmation
+and returns to the pinned **Archivo** trigger, with the picker still armed.
+On the pre-fix renderer a second Escape there did nothing. The corrected
+renderer reaches the picker, clears its candidates, and retains the exact
+world-Y draft, focus, recovery, native build history and file activity.
+The Windows x64 route passed 116 checks using actual pointer and key input
+in an isolated production renderer.
+
+The standard and configured assembly shortcut routes cancel a verified
+preview by pressing Escape from the pinned closed **Archivo** trigger.
+They retain popup and temporary disclosure checks, blocked file commands,
+and the existing exact preview-discard and recovery assertions. The standard
+and configured routes passed 558 and 620 checks. Their compact variants
+passed 580 and 637 checks on Windows x64.
 
 ## Part Open confirmation and active axis picker — Windows, 2026-11-11
 
@@ -8095,6 +8148,23 @@ closed”, leaving its internal phase unknown. Windows rigid assembly also has
 an exact child-deadline annotation; its single log request returned “Transport
 closed”, with no internal phase or underlying cause available. Hosted
 acceptance of the new header head remains pending.
+
+## Part body selection after file replacement — Windows, 2026-11-11
+
+The existing `part-body-catalog` production renderer selects both original
+prisms using their tree checkboxes, starts **Combinar cuerpos**, and uses
+**Abrir → Continuar sin guardar** to reopen the same owned source file.
+Before accepting the decision, the current two operands remain selected and
+there is no new Open request or change to recovery. The pre-fix renderer
+reopened the file in body-picking mode with both discarded operands checked.
+
+The corrected renderer passed 56 checks on Windows x64. The fresh viewport
+is in Auto with no body references selected, the expanded catalogue has
+both rows unchecked, and Clear is disabled. A fresh selection of the second
+body and Clear work. The route rebuilds both original V240 mm³ and A248 mm²
+prisms within 5e-6, with the original bytes, recovery, clean history and two
+owned Open requests. It uses trusted pointer actions and the existing
+test-owned native file picker outcomes.
 
 ## Body catalogue layout — 2026-10-25
 

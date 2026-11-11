@@ -12,6 +12,11 @@ origen** entry in each reference list. Root and nested scope labels distinguish
 the coordinate systems. The controls nominate a reference; the native preview
 must still validate and solve it before Apply.
 
+When the standard relation scope changes, the principal-plane and principal-axis
+owner selectors return to **Ámbito actual**. Using the displayed choice
+assigns the new scope's own datum to the active reference. Previously selected
+component owners belong to their original occurrence paths.
+
 Both workspaces also display selectable origin references. Enable axes or
 planes and choose the current scope, selected component or both. In the
 standard workspace, activate reference 1 or 2 and **Seleccionar origen**;

@@ -33,6 +33,8 @@ module.exports = function intersectingWidthWorkflow(context) {
     protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs, dialogCounts } = withNavigation(context);
   const page = (fn, ...args) => evaluate('(' + fn.toString() + ')(' + args.map(value =>
     'JSON.parse(' + encodeJavaScriptString(JSON.stringify(value)) + ')').join(',') + ')');
+  const readRoleOptions = () => page(roles => roles.map(role => [...document.querySelector('select[aria-label="' + role + '"]').options]
+    .map((option, index) => ({ index, value: option.value, label: option.textContent }))), ROLES);
   const same = (actual, wanted, label) => check(canonical(actual) === canonical(wanted), label);
   const near = (actual, wanted, tolerance, label) => check(Number.isFinite(actual) && Math.abs(actual - wanted) <= tolerance,
     label + ' (observed ' + actual + ', expected ' + wanted + ')');
@@ -193,7 +195,27 @@ module.exports = function intersectingWidthWorkflow(context) {
     check(new Set(keys).size === 4, 'Four unique ordered material faces');
     const beforeForm = await observe();
     await select('Tipo de relación', 'width');
-    for (const [index, role] of ROLES.entries()) await select(role, keys[index]);
+    const roleOptions = await readRoleOptions();
+    evidence.materialOptions = roleOptions[0].filter(option => option.value.startsWith('['));
+    check(roleOptions.every(options => canonical(options) === canonical(roleOptions[0])), 'Four roles share the same ordered native option catalog');
+    check(evidence.materialOptions.length === 10 && new Set(evidence.materialOptions.map(option => option.label)).size === 10,
+      'Ten material face choices need distinct visible labels');
+    same(evidence.materialOptions.map(option => option.value), event.response.value.bodies.flatMap(body => body.faces.map(optionKey)),
+      'Material face choices keep their exact native keys and order');
+    const datumChoices = roleOptions[0].filter(option => option.value.startsWith('datum:'));
+    same(datumChoices.map(({ value, label }) => ({ value, label })), [['scope', 'Ámbito actual'], ['["a"]', 'a'], ['["b"]', 'b']].flatMap(([owner, name]) =>
+      ['XY', 'XZ', 'YZ'].map(plane => ({ value: 'datum:' + owner + ':' + plane, label: name + ' · ' + plane }))),
+    'Principal-plane names and keys remain in their original order');
+    const normals = PRISMS.flatMap(prism => prism.normals);
+    for (const [index, role] of ROLES.entries()) {
+      const face = original.faces[index], prefix = refs[index].component.occurrencePath[0] + ' · Plano ' + refs[index].face.key.slice(8, 16);
+      const matches = evidence.materialOptions.filter(option => option.label.startsWith(prefix + ' ·'));
+      check(matches.length === 1 && matches[0].label.includes('normal local (' + normals[index].join(', ') + ')') &&
+        matches[0].label.includes('punto local (' + face.support.point.map(value => Number(value.toPrecision(6))).join(', ') + ') mm'),
+      'The visible face ID and local geometry identify one option for ' + role);
+      same(matches[0].value, keys[index], 'Visible label resolves the same exact key for ' + role);
+      await select(role, matches[0].value);
+    }
     const name = 'input[aria-label="Nombre de anchura"]';
     await assemblyNavigation.reveal(name);
     await page((selector, value) => {
@@ -240,6 +262,7 @@ module.exports = function intersectingWidthWorkflow(context) {
     inspect(event.response.value, event.document, true, 'reopened Width', refs);
     await recovery(accepted, 'reopened Width');
     await click('button[aria-label="Editar anchura ' + NAME + '"]');
+    same(await readRoleOptions(), roleOptions, 'Reopened solve placement preserves every local label, native key and order');
     same(await page(roles => roles.map(role => {
       const field = document.querySelector('select[aria-label="' + role + '"]');
       return field && !field.disabled && !field.closest('[hidden]') && !field.selectedOptions[0]?.disabled ? field.value : null;

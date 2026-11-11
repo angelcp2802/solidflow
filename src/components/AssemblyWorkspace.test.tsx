@@ -1,6 +1,6 @@
 import { expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
-import AssemblyWorkspace, { assemblyFileTicketIsCurrent, AssemblyComponentTree, AssemblySolveSummary, assemblyHasVisibleDragBody, assemblyMateProposal, assemblyTreeRows, canApplyAssemblyPreview, insertAssemblyComponent, insertAssemblyPart, scopedAssemblyFace, scopedAssemblyPlaneFace, scopedAssemblyWidthPick, scopedAssemblyTangentFace, scopedAssemblyCylinderSurface, scopedAssemblySphereTangentFace, scopedAssemblyEdge, type AssemblyUiPreview } from './AssemblyWorkspace'
+import AssemblyWorkspace, { assemblyFileTicketIsCurrent, AssemblyComponentTree, AssemblySolveSummary, assemblyHasVisibleDragBody, assemblyMateProposal, assemblyMaterialPlaneChoices, assemblyTreeRows, canApplyAssemblyPreview, insertAssemblyComponent, insertAssemblyPart, scopedAssemblyFace, scopedAssemblyPlaneFace, scopedAssemblyWidthPick, scopedAssemblyTangentFace, scopedAssemblyCylinderSurface, scopedAssemblySphereTangentFace, scopedAssemblyEdge, type AssemblyUiPreview } from './AssemblyWorkspace'
 import { assemblyTangentUiProposal } from './AssemblyTangentMatePanel'
 import { assemblyCylinderTangentUiProposal } from './AssemblyCylinderTangentMatePanel'
 import { assemblySphereTangentUiProposal, type AssemblySphereTangentUiFields } from './AssemblySphereTangentMatePanel'
@@ -97,6 +97,20 @@ it('keeps reused Width occurrence paths separate while producing only a scoped p
   expect(selected?.reference.component!.occurrencePath).toEqual(['reuse-b','pin'])
   expect(selected?.reference.component!.definition).toEqual({id:'pin',revision:'r1'})
   expect(selected && 'token' in selected).toBe(false); expect(selected && 'widthCentered' in selected).toBe(false)
+})
+it('distinguishes compact plane label collisions without replacing scoped reference keys', () => {
+  const first = face(['sub-a', 'pin'], 'plane'), second = structuredClone(first), third = structuredClone(first)
+  second.selection.face.key = first.selection.face.key.slice(0, -1) + 'c'
+  third.selection.body!.bodyId = 'other-body'
+  const choices = assemblyMaterialPlaneChoices([first, second, third, face(['sub-b', 'pin'], 'plane'), face()], ['sub-a'])
+  expect(choices).toHaveLength(3)
+  expect(new Set(choices.map(choice => choice.label)).size).toBe(3)
+  expect(new Set(choices.map(choice => choice.key)).size).toBe(3)
+  for (const [index, original] of [first, second, third].entries()) {
+    expect(choices[index].label).toContain('pin · Plano bbbbbbbb · normal local (0, 0, 1)')
+    expect(choices[index].label).toContain(original.selection.face.key)
+    expect(choices[index].reference).toEqual(scopedAssemblyPlaneFace(original, ['sub-a']))
+  }
 })
 it('renders the real assembly controls and keeps Apply blocked before an actual worker reply', () => {
   const document = createAssemblyExample(), before = serializeAssemblyDocument(document)

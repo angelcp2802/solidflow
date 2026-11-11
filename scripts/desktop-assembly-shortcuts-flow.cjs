@@ -581,13 +581,16 @@ module.exports = function assemblyShortcutWorkflow(context) {
         apply: [...document.querySelectorAll('[aria-label="Comandos del ensamblaje configurado"] button,button[aria-label="Aplicar ensamblaje"]')]
           .filter(button => button.getAttribute('aria-label') === 'Aplicar ensamblaje' || button.textContent.trim() === 'Aplicar configuración').map(button => ({ text: button.textContent, disabled: button.disabled }))
       })) }), kind: configured ? 'configured' : 'standard', phase: 'verified-preview', expectedSaveEnabled: false });
-    // File-menu Escape intentionally restores its own trigger. Reuse the
-    // original camera-only focus preparation before the pre-existing global
-    // shortcut/Cancel assertions, so that the menubar no longer owns Escape.
-    await outside();
+    const closedFileFocused = () => page(selector => {
+      const trigger = document.querySelector(selector);
+      return document.activeElement === trigger && trigger?.getAttribute('aria-expanded') === 'false'
+        && trigger.closest('.command-header')?.dataset.menuPinned === 'true';
+    }, FILE_TRIGGER);
+    check(await closedFileFocused(), 'Popup Escape returns to the pinned closed Archivo trigger with the preview still current');
     const candidateState=await snapshot();await key('S');await key('ShiftS');await key('N');
     check(await page(()=>!document.querySelector('[role="dialog"]')),'Unapplied preview blocks New selector');
     await stable(candidateState,'Preview disables Save and New shortcuts without consuming candidate authority');
+    check(await closedFileFocused(), 'Blocked file shortcuts retain the closed Archivo trigger as keyboard focus');
     before=await serial();await key('Escape');await response(before,configured?'discard-configured-assembly':'discard-assembly');await recovery(current);
     await waitFor('Escape revokes Apply capability',()=>page(configured=>{
       const e=configured?[...document.querySelectorAll('[aria-label="Comandos del ensamblaje configurado"] button')].find(e=>e.textContent.trim()==='Aplicar configuración'):document.querySelector('[aria-label="Aplicar ensamblaje"]');return !!e&&e.disabled;

@@ -1175,6 +1175,8 @@ export function PartWorkspace({ initialDocument, initialPath, initialSaved, skip
     setSelectionMode("auto");
     setEdgeSelection([]);
     setFaceSelection(null);
+    setBodySelection([]);
+    setBodyPicking(false);
     setPickingSupport(false);
     setSourceModel(null);
     setFilePath(path);
