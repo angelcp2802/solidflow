@@ -173,8 +173,8 @@ variation: {
 }
 ```
 
-It requires Selected regeneration, one Blind cut seed, one direction, and an
-intrinsic entity sketch with exactly one non-construction circle, one centre
+It requires Selected regeneration, one Blind cut or merged boss seed,
+one direction, an explicit existing owner, and an intrinsic entity sketch with exactly one non-construction circle, one centre
 point, its fixed-centre constraint and one driving radius constraint. Support,
 thin wall, second direction and other end conditions are not admitted. Values
 are positive millimetres from 0.01 to 100,000. Each row names one distinct active
@@ -211,8 +211,9 @@ retain their own requirements. Executed results belong in [VALIDATION](VALIDATIO
 
 ## Driving rectangle dimensions per instance
 
-An intrinsic rectangular Blind cut can assign a width, a height or both to
-each active instance under Selected regeneration. The sketch uses four shared
+An intrinsic rectangular Blind cut or boss merged into an explicit
+existing body can assign a width, a height or both to each active instance
+under Selected regeneration. The sketch uses four shared
 non-construction lines, alternating horizontal and vertical around a closed
 loop. One corner is fixed or directly uses the sketch origin. One driving
 edge length in each direction determines the two dimensions. The declaration
@@ -232,7 +233,8 @@ or **Altura** under **Cota** and assign the value. A row can be removed without
 clearing another dimension on that instance. Unavailable assignments remain
 visible until explicitly removed. Existing radius and depth documents retain
 their saved meaning. Earlier readers can reject tables with repeated
-addresses and cannot evaluate this rectangular recipe.
+addresses and cannot evaluate this rectangular recipe. Earlier evaluators
+with cut-only sketch dimensions also reject these additive recipes.
 
 The [original fixture](PROVENANCE.md#original-addressed-rectangle-dimension-fixture)
 has a fixed-corner 2 × 2 mm pocket and two varied copies. The native acceptance

@@ -24,6 +24,33 @@ test('model undo, file commands, and non-macOS editing never receive an editor c
     assert.equal(rows[0].key,platform==='darwin'?'Meta':'Control');
   }
 });
+test('one held model Undo repeats the Z keydown before either key is released',async()=>{
+  const sent=[];
+  const key={key:'z',code:'KeyZ',windowsVirtualKeyCode:90,modifiers:2};
+  const modifier={key:'Control',code:'ControlLeft',windowsVirtualKeyCode:17};
+  await dispatchShortcutKey('Z',{platform:'win32',editable:false,send:async event=>sent.push(event),
+    beforeRepeat:async()=>assert.deepEqual(sent,[
+      {...modifier,type:'rawKeyDown',modifiers:2},
+      {...key,type:'rawKeyDown'},
+    ]),
+  });
+  assert.deepEqual(sent.slice(2),[
+    {...key,type:'rawKeyDown',autoRepeat:true},
+    {...key,type:'keyUp'},
+    {...modifier,type:'keyUp',modifiers:0},
+  ]);
+});
+test('held Undo rejects other commands and editable focus, and releases both keys after a failed first-key check',async()=>{
+  const sent=[], options={platform:'win32',editable:false,send:async event=>sent.push(event),beforeRepeat:async()=>{}};
+  await assert.rejects(dispatchShortcutKey('Y',options),/bounded non-editable document Undo/);
+  await assert.rejects(dispatchShortcutKey('Z',{...options,editable:true}),/bounded non-editable document Undo/);
+  assert.deepEqual(sent,[]);
+  const failure=new Error('first-key check failed');
+  await assert.rejects(dispatchShortcutKey('Z',{...options,beforeRepeat:async()=>{throw failure;}}),error=>error===failure);
+  assert.deepEqual(sent.map(({key,type,autoRepeat})=>[key,type,autoRepeat]),[
+    ['Control','rawKeyDown',undefined],['z','rawKeyDown',undefined],['z','keyUp',undefined],['Control','keyUp',undefined],
+  ]);
+});
 test('select-all without owned editable focus and unknown keys dispatch nothing',async()=>{
   const sent=[];const options={platform:'darwin',editable:false,send:async event=>sent.push(event)};
   await assert.rejects(dispatchShortcutKey('A',options),/owned editable/);

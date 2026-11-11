@@ -29,7 +29,7 @@ import { validateAssemblyConfiguredDocument, parseAssemblyConfiguredDocument, se
 import { parseCadDocument, type CadDocument } from '../model/cadDocument'
 import { CAD_RECOVERY_KEY } from '../model/cadRecovery'
 import { buildConfiguredAssemblyBom, type ConfiguredAssemblyBomOptions, type ConfiguredAssemblyBomMember } from '../model/assemblyConfiguredBom'
-import { createConfiguredUiRootVariant, createConfiguredUiScopeVariant, configuredUiPose, editConfiguredUiOccurrence, configuredUiTicket, configuredUiTicketMatches, configuredUiSceneMatches, configuredUiDisplayScene, configuredBomUiTicket, configuredBomUiTicketMatches, configuredBomUiSelectedPath, downloadConfiguredBomCsv, runConfiguredBomCsvExport, configuredMateUiTicketMatches, configuredMateUiPreviewMatches, configuredMechanicalUiPreviewMatches } from './configuredAssemblyUi'
+import { createConfiguredUiRootVariant, createConfiguredUiScopeVariant, configuredUiPose, editConfiguredUiOccurrence, configuredUiTicket, configuredUiTicketMatches, configuredUiSceneMatches, configuredUiDisplayScene, configuredBomUiTicket, configuredBomUiTicketMatches, configuredBomUiSelectedPath, downloadConfiguredBomCsv, runConfiguredBomCsvExport, configuredMateUiTicketMatches, configuredMateUiPreviewMatches, configuredMechanicalUiPreviewMatches, type ConfiguredUiTicket } from './configuredAssemblyUi'
 import AssemblyViewport, { type AssemblyViewportViewSelection, type AssemblyViewportContextTarget } from './AssemblyViewport'
 import { configuredComponentPick, configuredMatePickChoice, configuredMateHighlights, type ConfiguredMatePick } from './configuredAssemblyPicking'
 import { buildAssemblyOriginDisplay, type AssemblyOriginReference } from './assemblyOriginPicking'
@@ -51,6 +51,12 @@ import './configured-assembly.css'
 
 let controllerEpoch = 0
 type RelationDraft = ConfiguredMateDraft | ConfiguredMechanicalDraft | ConfiguredCompoundDraft
+type DiscardDecision = {
+  owner: ConfiguredUiTicket
+  restoreFocus: Element | null
+  resolve: (approved: ConfiguredUiTicket | null) => void
+  saving: boolean
+}
 function nextEpoch(minimum = 0) { controllerEpoch = Math.max(controllerEpoch, minimum); if (controllerEpoch >= Number.MAX_SAFE_INTEGER) throw Error('Vuelve a abrir la aplicación para continuar.'); return ++controllerEpoch }
 
 /** Disclosure is local presentation state; changing it never changes picking intent. */
@@ -146,7 +152,9 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
   const viewHistory = useViewHistory()
   const [view, setView] = useState<ViewRequest>({ name: 'iso', stamp: 0 })
   const [navigationRevision, setNavigationRevision] = useState(0), navigationRevisionRef = useRef(0)
-  const [discardDialog, setDiscardDialog] = useState(false), answer = useRef<((allow: boolean) => void) | null>(null)
+  const [discardDialog, setDiscardDialog] = useState(false)
+  const [discardSaving, setDiscardSaving] = useState(false), [discardSaveError, setDiscardSaveError] = useState<string | null>(null)
+  const answer = useRef<DiscardDecision | null>(null)
   const [bomOpen, setBomOpen] = useState(false), [bomOptions, setBomOptions] = useState<ConfiguredAssemblyBomOptions>({ mode: 'parts-only', includeHidden: true, scopePath: [] })
   const [bomSelection, setBomSelection] = useState<{ serialized: string; member: ConfiguredAssemblyBomMember } | null>(null)
   type Popup = { scene: ConfiguredAssemblyScene; context: ReturnType<typeof configuredUiTicket>; evaluation: ReturnType<typeof evaluateAssemblyConfiguration>;
@@ -161,7 +169,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
     restoreBomFocus.current = false
     bomToggle.current?.focus()
   }, [bomOpen, ribbonTab, busy])
-  const dialog = useRef<HTMLDivElement>(null)
+  const dialog = useRef<HTMLDialogElement>(null)
   const current = useRef(document), epoch = useRef(generation), scopeRef = useRef(scope), occurrenceRef = useRef(occurrenceId), pathRef = useRef(path), mounted = useRef(false)
   const pending = useRef(preview), operation = useRef(false), skipRecovery = useRef(skipInitialRecoveryWrite)
   const operationKind = useRef<'build' | 'solve' | 'apply' | 'file' | null>(null), dirtyRef = useRef(false)
@@ -203,6 +211,26 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
   const bomSelectedPath = configuredBomUiSelectedPath(bom.report, serialized, bomSelection)
   const ticket = () => configuredUiTicket(current.current, epoch.current, scopeRef.current, pathRef.current, occurrenceRef.current, mateRevision.current, navigationRevisionRef.current)
   const fresh = (value: ReturnType<typeof ticket>) => mounted.current && configuredUiTicketMatches(value, ticket())
+  const confirmDiscard = (owner: ConfiguredUiTicket, restoreFocus: Element | null): Promise<ConfiguredUiTicket | null> => {
+    if (!fresh(owner) || answer.current) return Promise.resolve(null)
+    if (!dirtyRef.current) return Promise.resolve(owner)
+    return new Promise(resolve => {
+      answer.current = { owner, restoreFocus, resolve, saving: false }
+      setDiscardSaveError(null)
+      setDiscardDialog(true)
+    })
+  }
+  const settleDiscard = (decision: DiscardDecision, approved: ConfiguredUiTicket | null) => {
+    if (answer.current !== decision) return
+    answer.current = null
+    setDiscardDialog(false)
+    setDiscardSaving(false)
+    decision.resolve(approved && fresh(approved) ? approved : null)
+  }
+  const finishDiscard = (allow: boolean) => {
+    const decision = answer.current
+    if (decision && !decision.saving) settleDiscard(decision, allow ? decision.owner : null)
+  }
   const mateTicket = () => ({ context: ticket(), revision: mateRevision.current, draft: JSON.stringify(mateDraftRef.current), sceneId: sceneRef.current?.scene.sceneId ?? null })
   const renderedMateTicket = { context: renderedTicket, revision: mateRevision.current, draft: JSON.stringify(mateDraft), sceneId: scene?.scene.sceneId ?? null }
   const freshMate = () => mounted.current && configuredMateUiTicketMatches(renderedMateTicket, mateTicket())
@@ -224,7 +252,8 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
     if (pending.current) release(pending.current.token)
     pending.current = null; setPreview(null); finish()
     if (!keepMateDraft) { mateDraftRef.current = null; setMateDraft(null) }
-    answer.current?.(false); answer.current = null; setDiscardDialog(false)
+    const decision = answer.current
+    if (decision) settleDiscard(decision, null)
     epoch.current = next; setGeneration(next); committedSceneRef.current = null; setScene(null)
   }
   const commit = (next: AssemblyConfiguredDocument, minimum = 0) => {
@@ -268,7 +297,13 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
   }
   useEffect(() => {
     mounted.current = true
-    return () => { mounted.current = false; if (pending.current) release(pending.current.token); answer.current?.(false) }
+    return () => {
+      mounted.current = false
+      if (pending.current) release(pending.current.token)
+      const decision = answer.current
+      answer.current = null
+      decision?.resolve(null)
+    }
   }, [])
   useEffect(() => {
     const retained = committedSceneRef.current
@@ -286,18 +321,27 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
   }, [serialized])
   useEffect(() => { if (selected) { setPose(selected.pose.translation.map(String)); setRotationDegrees('0') } }, [serialized, scope, occurrenceId])
   useEffect(() => { const leave = (event: BeforeUnloadEvent) => { if (dirtyRef.current || pending.current || mateDraftRef.current) { event.preventDefault(); event.returnValue = '' } }; window.addEventListener('beforeunload', leave); return () => window.removeEventListener('beforeunload', leave) }, [])
-  useEffect(() => {
-    if (!discardDialog || !dialog.current) return
-    const node = dialog.current, previous = window.document.activeElement
-    const buttons = () => [...node.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')]
-    buttons()[0]?.focus()
-    const key = (event: KeyboardEvent) => {
-      if (!fresh(renderedTicket)) return
-      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); const resolve = answer.current; answer.current = null; setDiscardDialog(false); resolve?.(false) }
-      if (event.key === 'Tab') { const rows = buttons(), first = rows[0], last = rows.at(-1); if (event.shiftKey && window.document.activeElement === first) { event.preventDefault(); last?.focus() } else if (!event.shiftKey && window.document.activeElement === last) { event.preventDefault(); first?.focus() } }
+  useLayoutEffect(() => {
+    const node = dialog.current
+    if (!discardDialog || !node) return
+    const previous = answer.current?.restoreFocus
+    node.showModal()
+    const buttons = () => node.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')
+    buttons()[0]?.focus({ preventScroll: true })
+    const wrapTab = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab') return
+      const rows = buttons(), first = rows[0], last = rows[rows.length - 1]
+      if (first && window.document.activeElement !== (event.shiftKey ? first : last)) return
+      event.preventDefault()
+      const target = event.shiftKey ? last : first
+      target?.focus()
     }
-    node.addEventListener('keydown', key)
-    return () => { node.removeEventListener('keydown', key); if (previous instanceof HTMLElement && previous.isConnected) previous.focus() }
+    node.addEventListener('keydown', wrapTab)
+    return () => {
+      node.removeEventListener('keydown', wrapTab)
+      if (node.open) node.close()
+      if (previous instanceof HTMLElement && previous.isConnected) previous.focus({ preventScroll: true })
+    }
   }, [discardDialog])
   const solve = async () => {
     if (!fresh(renderedTicket) || operation.current || pending.current || mateDraftRef.current || !scene) return
@@ -325,45 +369,83 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
     } catch (reason) { if (fresh(captured)) { revoke(); error(reason) } }
     finally { if (fresh(captured)) finish() }
   }
-  const save = async (saveAs: boolean) => {
-    if (namedViews.isOpen || !fresh(renderedTicket) || operation.current || pending.current || mateDraftRef.current) return false
-    if (!window.solidflow) { setMessage('Abre la aplicación de escritorio para guardar en un archivo.'); return false }
-    const captured = ticket(), content = captured.serialized; setFailure(null); begin('file')
+  const save = async (saveAs: boolean, decision?: DiscardDecision): Promise<ConfiguredUiTicket | null> => {
+    const captured = decision?.owner ?? renderedTicket
+    const ownsSave = () => fresh(captured) && (decision ? answer.current === decision && decision.saving : !answer.current)
+    if (namedViews.isOpen || operation.current || pending.current || mateDraftRef.current || !ownsSave()) return null
+    if (!window.solidflow) { setMessage('Abre la aplicación de escritorio para guardar en un archivo.'); return null }
+    const content = captured.serialized, name = current.current.source.name
+    setFailure(null); begin('file')
     try {
-      const target = await window.solidflow.saveDocument(content, current.current.source.name, saveAs ? undefined : pathRef.current)
-      if (!fresh(captured)) return false
-      if (!target) { setMessage('Guardado cancelado. El archivo y los cambios siguen como estaban.'); return false }
-      pathRef.current = target; setPath(target); setSaved(content); setMessage('Ensamblaje configurado guardado.'); return true
-    } catch (reason) { if (fresh(captured)) error(reason); return false }
-    finally { if (mounted.current && epoch.current === captured.generation) finish() }
+      const target = await window.solidflow.saveDocument(content, name, saveAs ? undefined : captured.path)
+      if (!ownsSave()) return null
+      if (!target) { setMessage('Guardado cancelado. El archivo y los cambios siguen como estaban.'); return null }
+      pathRef.current = target; setPath(target); setSaved(content); setMessage('Ensamblaje configurado guardado.')
+      // A native Save can bind a new path. All other parts of the ticket stay exact.
+      return { ...captured, path: target }
+    } catch (reason) {
+      if (ownsSave()) {
+        if (decision) setDiscardSaveError(reason instanceof Error ? reason.message : String(reason))
+        else error(reason)
+      }
+      return null
+    } finally { if (mounted.current && epoch.current === captured.generation) finish() }
+  }
+  const saveAndContinue = async () => {
+    const decision = answer.current
+    if (!decision || decision.saving || !fresh(decision.owner)) return
+    decision.saving = true
+    setDiscardSaving(true)
+    setDiscardSaveError(null)
+    let approved: ConfiguredUiTicket | null = null
+    try { approved = await save(false, decision) }
+    finally {
+      if (mounted.current && answer.current === decision) {
+        if (approved) settleDiscard(decision, approved)
+        else {
+          decision.saving = false
+          setDiscardSaving(false)
+          requestAnimationFrame(() => {
+            if (answer.current === decision && !decision.saving)
+              dialog.current?.querySelector<HTMLButtonElement>('[data-configured-save-continue]')?.focus({ preventScroll: true })
+          })
+        }
+      }
+    }
   }
   const newDocument = async () => {
     if (newDocumentRequest.current || !fresh(renderedTicket) || operation.current || pending.current || mateDraftRef.current || answer.current) return
     newDocumentRequest.current = true
-    const captured = ticket()
+    let captured = ticket()
+    const restoreFocus = window.document.activeElement
     const stillCurrent = () => fresh(captured) && !operation.current && !pending.current && !mateDraftRef.current
     try {
       await requestNewDocument({ choose: newDocumentDialog.choose, current: stillCurrent,
-        confirm: () => dirtyRef.current ? new Promise<boolean>(resolve => { answer.current = resolve; setDiscardDialog(true) }) : Promise.resolve(true),
+        confirm: async () => {
+          const approved = await confirmDiscard(captured, restoreFocus)
+          if (!approved) return false
+          captured = approved
+          return true
+        },
         create: kind => onOpenDocument(kind === 'part' ? createDocument('Pieza1') : createEmptyAssembly()),
       })
     } catch (reason) { if (mounted.current) error(reason) }
     finally { newDocumentRequest.current = false }
   }
   const open = async () => {
-    if (!fresh(renderedTicket) || operation.current || pending.current || mateDraftRef.current || !window.solidflow) return
-    const captured = ticket(); setFailure(null); begin('file')
+    if (!fresh(renderedTicket) || operation.current || pending.current || mateDraftRef.current || answer.current
+      || newDocumentRequest.current || !window.solidflow) return
+    const approved = await confirmDiscard(ticket(), window.document.activeElement)
+    if (!approved || !fresh(approved) || operation.current || pending.current || mateDraftRef.current
+      || answer.current || newDocumentRequest.current) return
+    setFailure(null); begin('file')
     try {
-      if (captured.serialized !== saved) {
-        const allowed = await new Promise<boolean>(resolve => { answer.current = resolve; setDiscardDialog(true) })
-        if (!allowed || !fresh(captured)) return
-      }
       const file = await window.solidflow.openDocument()
-      if (!fresh(captured) || !file) return
+      if (!fresh(approved) || !file) return
       const next = parseCadDocument(file.content)
       revoke(); restoreBomFocus.current = false; setRibbonTab('assembly'); onOpenDocument(next, file.path, file.content)
-    } catch (reason) { if (fresh(captured)) error(reason) }
-    finally { if (fresh(captured)) finish() }
+    } catch (reason) { if (fresh(approved)) error(reason) }
+    finally { if (fresh(approved)) finish() }
   }
   const undo = (redo: boolean) => {
     if (namedViews.isOpen || !fresh(renderedTicket) || operation.current || pending.current || mateDraftRef.current) return
@@ -489,7 +571,7 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
   const partColors = useMemo(() => assemblyPartColors(appearanceSource), [appearanceSource])
   const displayScene = useMemo(() => scene ? configuredUiDisplayScene(scene) : null, [scene])
   const totalMassKg = assemblyMassKg(document.source, displayScene, !busy && !failure && !preview && !!scene && configuredUiSceneMatches(scene, document, generation))
-  const blocked = busy || !!preview
+  const blocked = busy || !!preview || discardDialog
   const treeOriginRows = useMemo(() => buildAssemblyOriginTree(evaluation, []), [evaluation])
   const treeOriginSession = useMemo(() => ({}), [scene, generation, path, !!mateDraft, blocked, inspectorPane === 'model', navigationRevision])
   const treeOriginContext = { documentSignature: serialized, scopePath: selectedScope.path, sessionIdentity: treeOriginSession }
@@ -879,6 +961,15 @@ export default function ConfiguredAssemblyWorkspace({ initialDocument, initialPa
     {namedViews.isOpen && <NamedViewsDialog views={namedViews.views} canSave={namedViews.canSave} canUpdate={namedViews.canUpdate}
       onSave={namedViews.save} onShow={namedViews.show} onDelete={namedViews.remove} onRename={namedViews.rename} onUpdate={namedViews.update} onClose={namedViews.close} />}
     {newDocumentDialog.dialog}
-    {discardDialog && <div ref={dialog} role="dialog" aria-modal="true" aria-label="Cambios del ensamblaje configurado"><p>Hay cambios sin guardar. ¿Sustituir el documento actual?</p><button onClick={() => { if (!fresh(renderedTicket)) return; const resolve = answer.current; answer.current = null; setDiscardDialog(false); resolve?.(false) }}>Cancelar apertura</button><button onClick={() => { if (!fresh(renderedTicket)) return; const resolve = answer.current; answer.current = null; setDiscardDialog(false); resolve?.(true) }}>Continuar sin guardar</button></div>}
+    {discardDialog && <dialog ref={dialog} className="configured-discard-dialog" role="dialog" aria-modal="true" aria-label="Cambios del ensamblaje configurado"
+      aria-busy={discardSaving} onCancel={event => { event.preventDefault(); finishDiscard(false) }}>
+      <p>Hay cambios sin guardar. ¿Sustituir el documento actual?</p>
+      {discardSaveError && <p role="alert">{discardSaveError}</p>}
+      <div className="configured-discard-actions">
+        <button type="button" disabled={discardSaving} onClick={() => finishDiscard(false)}>Cancelar</button>
+        <button type="button" data-configured-save-continue disabled={discardSaving || !window.solidflow} onClick={() => void saveAndContinue()}>Guardar y continuar</button>
+        <button type="button" disabled={discardSaving} onClick={() => finishDiscard(true)}>Continuar sin guardar</button>
+      </div>
+    </dialog>}
   </div>
 }

@@ -106,6 +106,21 @@ The main process admits a bounded v3 transport envelope; full graph and native
 validation remain separate boundaries. Invalid recovery is read-only and is
 not overwritten by a fallback document.
 
+**Nuevo** and **Abrir** ask before replacing a configured assembly with
+unsaved changes. One modal decision keeps the active document, scope and
+revision until the user responds. Escape or **Cancelar** returns to the
+previous control. **Continuar sin guardar** proceeds while that same
+document and operation still own the decision.
+
+**Guardar y continuar** saves the current v3 document through the usual
+desktop file command. It uses the current granted path or asks the user
+where to save an untargeted assembly. The decision stays modal while Save
+is pending. Canceling Save returns to the same decision. After an error the
+dialog shows the reason and allows a retry. Successful Save records the
+actual path returned by the desktop, then continues the chosen New or Open.
+If the following Open picker is canceled, the current assembly stays open
+with its newly saved baseline and file path.
+
 ## Evidence and remaining work
 
 Original pure cases cover complete gear/screw/rack capture syntax, dormant

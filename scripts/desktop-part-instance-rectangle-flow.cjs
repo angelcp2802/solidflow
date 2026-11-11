@@ -3,9 +3,12 @@ const fs = require('node:fs/promises');
 
 module.exports = function instanceRectangleWorkflow(context) {
   const { expected, input, output, observe, waitFor, checks, consoleErrors, failedRequests,
-    ipc, check, canonical, digest, initialReadyMs, dialogCounts } = context;
+    additive, ipc, check, canonical, digest, initialReadyMs, dialogCounts } = context;
+  const volumes = additive ? { original: 804, unvaried: 812, varied: 810, removed: 809 }
+    : { original: 796, unvaried: 788, varied: 790, removed: 791 };
+  const maxZ = additive ? 6 : 5;
   const evidence = { phases: [], interactions: [],
-    scope: 'Original anchored rectangular Blind cut, independent width and height on two linear instances.',
+    scope: 'Original anchored rectangular Blind ' + (additive ? 'merged boss' : 'cut') + ', independent width and height on two linear instances.',
     input: 'Contained pointer press/release and visible field setters in the owned production renderer.',
     geometry: 'Independent volume and planar mesh area, exact body identity and bounds. Native material probes are separate.' };
   checks.push({ instanceRectangleDimensions: evidence });
@@ -57,7 +60,7 @@ module.exports = function instanceRectangleWorkflow(context) {
       'Only the exact current body producer advances');
     near(body.volume, volume, 'Independent native volume');
     near(body.meshAreaMm2, area, 'Independent planar mesh area');
-    check(canonical(body.bounds) === canonical({ min: [0, 0, 0], max: [20, 8, 5] }), 'Exact outer plate bounds');
+    check(canonical(body.bounds) === canonical({ min: [0, 0, 0], max: [20, 8, maxZ] }), 'Exact outer body bounds');
     evidence.phases.push({ phase, serial: record.serial, body, variation: record.features.at(-1).featurePattern?.variation });
     return record;
   }
@@ -81,7 +84,7 @@ module.exports = function instanceRectangleWorkflow(context) {
   async function commit(values, phase) {
     const before = await serial();
     await press(APPLY);
-    const result = await native(before, values, 790, 624, phase);
+    const result = await native(before, values, volumes.varied, 624, phase);
     await committed(result.features);
     return result;
   }
@@ -91,7 +94,7 @@ module.exports = function instanceRectangleWorkflow(context) {
     let before = await serial();
     await press('button[aria-label="Abrir (Ctrl+O)"]');
     await press('[role="dialog"][aria-labelledby="discard-title"] .primary-button', 'Continuar sin guardar');
-    const original = await native(before, null, 796, 608, 'original');
+    const original = await native(before, null, volumes.original, 608, 'original');
     const originalRecovery = await committed(original.features);
 
     if (await page(() => document.querySelector('.part-body-catalog-toggle')?.getAttribute('aria-expanded') === 'false')) {
@@ -116,7 +119,7 @@ module.exports = function instanceRectangleWorkflow(context) {
     before = await serial();
     await change('input[aria-label="Instancias en dirección 1"]', 3);
     await change('input[aria-label="Separación en dirección 1"]', 5);
-    await native(before, [], 788, 624, 'unvaried-preview');
+    await native(before, [], volumes.unvaried, 624, 'unvaried-preview');
 
     await mounted(field('Anchura'));
     await change(field('Anchura'), 0);
@@ -125,7 +128,7 @@ module.exports = function instanceRectangleWorkflow(context) {
     field('Anchura')), 'Zero does not allow assigning a width');
     before = await serial();
     await assign(first);
-    await native(before, first, 790, 624, 'two-dimensions-preview');
+    await native(before, first, volumes.varied, 624, 'two-dimensions-preview');
     check(await recovery() === originalRecovery, 'Unapplied dimension assignments preserve recovery');
     const created = await commit(first, 'two-dimensions-commit');
     const patternId = created.features.at(-1).id, createdRecovery = await recovery();
@@ -138,27 +141,27 @@ module.exports = function instanceRectangleWorkflow(context) {
     await edit();
     before = await serial();
     await assign(swapped);
-    await native(before, swapped, 790, 624, 'swap-preview');
+    await native(before, swapped, volumes.varied, 624, 'swap-preview');
     before = await serial();
     await press(CANCEL);
-    const restored = await native(before, first, 790, 624, 'swap-cancel');
+    const restored = await native(before, first, volumes.varied, 624, 'swap-cancel');
     check(await committed(restored.features) === createdRecovery
       && canonical(restored.response.value.bodies) === canonical(created.response.value.bodies),
     'Cancel restores the exact first table, recovery and native body');
     await edit();
     before = await serial();
     await assign(swapped);
-    await native(before, swapped, 790, 624, 'swap-retry');
+    await native(before, swapped, volumes.varied, 624, 'swap-retry');
     const edited = await commit(swapped, 'swap-commit');
     check(edited.features.at(-1).id === patternId, 'Editing preserves pattern identity');
 
     before = await serial();
     await press('button[title="Deshacer (Ctrl+Z)"]');
-    check(await committed((await native(before, first, 790, 624, 'undo')).features) === createdRecovery,
+    check(await committed((await native(before, first, volumes.varied, 624, 'undo')).features) === createdRecovery,
       'Undo restores the exact first table');
     before = await serial();
     await press('button[title="Rehacer (Ctrl+Y)"]');
-    await committed((await native(before, swapped, 790, 624, 'redo')).features);
+    await committed((await native(before, swapped, volumes.varied, 624, 'redo')).features);
     await file('Guardar como…');
     await waitFor('native Save As completes and the title is clean', async () =>
       ipc.some(event => event.channel === 'document:save' && event.completed)
@@ -167,20 +170,20 @@ module.exports = function instanceRectangleWorkflow(context) {
     check(saved.id === expected.id && canonical(saved.features) === canonical(edited.features), 'Saved bytes retain exact dimensions and source');
     before = await serial();
     await press('button[aria-label="Abrir (Ctrl+O)"]');
-    const reopened = await native(before, swapped, 790, 624, 'reopened');
+    const reopened = await native(before, swapped, volumes.varied, 624, 'reopened');
     const savedRecovery = await committed(reopened.features);
     check(canonical(JSON.parse(savedRecovery)) === canonical(saved), 'Native Open rebuilds the exact saved table');
 
     await edit();
     before = await serial();
     await press('button[aria-label="Quitar anchura de Instancia 2, 1"]');
-    await native(before, swapped.slice(1), 791, 622, 'remove-one-dimension');
+    await native(before, swapped.slice(1), volumes.removed, 622, 'remove-one-dimension');
     check(await page(() => document.querySelectorAll('[aria-label="Cotas asignadas"] li').length === 3
       && !!document.querySelector('button[aria-label="Quitar altura de Instancia 2, 1"]')),
     'Removing width retains the height on the same instance');
     before = await serial();
     await press(CANCEL);
-    const cancelled = await native(before, swapped, 790, 624, 'remove-cancel');
+    const cancelled = await native(before, swapped, volumes.varied, 624, 'remove-cancel');
     check(await committed(cancelled.features) === savedRecovery && (await fs.readFile(output)).equals(bytes),
       'Cancel after removal preserves saved recovery and bytes');
     check((await fs.readFile(input)).equals(inputBytes), 'Original source file bytes unchanged');

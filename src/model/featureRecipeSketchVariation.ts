@@ -19,7 +19,9 @@ export const isRecipeSketchDimensionValue = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value) && value >= .01 && value <= 100_000;
 
 function recipeVariationSketch(seed: Feature | undefined, sketch: Feature | undefined): SketchFeature | null {
-  if (!seed || seed.type !== 'cut' || seed.suppressed || !seed.bodyScope?.length || seed.symmetric !== false
+  if (!seed || seed.suppressed
+    || !(seed.type === 'cut' && seed.bodyScope?.length || seed.type === 'extrude' && seed.bodyOperation?.mode === 'merge')
+    || seed.symmetric !== false
     || !Number.isFinite(seed.depth) || Math.abs(seed.depth) < .01 || Math.abs(seed.depth) > 100_000
     || ['endCondition', 'thinWall', 'secondDirection'].some(key => Object.hasOwn(seed, key))
     || !sketch || sketch.type !== 'sketch' || sketch.id !== seed.sketchId || sketch.suppressed || Object.hasOwn(sketch, 'support')) return null;

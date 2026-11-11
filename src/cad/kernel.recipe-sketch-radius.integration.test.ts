@@ -31,8 +31,8 @@ function pattern(): LinearPatternFeature {
     featurePattern: { mode: 'regenerate', scope: 'selected', targets: [owner], bindings: [{ source: owner, targetBodyIds: [owner.bodyId] }],
       referencePolicies: [], variation: { kind: 'none' } } };
 }
-function varied(first = .5, second: number | null = 1.5): LinearPatternFeature {
-  const features = original().features;
+function varied(first = .5, second: number | null = 1.5, document = original()): LinearPatternFeature {
+  const features = document.features;
   return withFeaturePatternSketchRadius(withFeaturePatternSketchRadius(pattern(), features, '1,0', first), features, '2,0', second) as LinearPatternFeature;
 }
 async function usingEngine(run: (engine: CadEngine) => void | Promise<void>) {
@@ -108,6 +108,22 @@ it('solves actual driving radii and preserves exact physical pockets through swa
     const imported = owners.own(importStepSolid(step));
     metrics(imported, 800 - 3.5 * Math.PI, 600 + 6 * Math.PI); pockets(imported, true);
   });
+}), 60_000);
+
+it('adds merged bosses from the solved circle radius at each instance', () => usingEngine(engine => {
+  const before = original(), sketch = before.features[2], seed = before.features[3];
+  if (sketch.type !== 'sketch' || seed.type !== 'cut' || !seed.bodyScope?.[0]) throw Error('Original circle required');
+  sketch.offset = 4;
+  const { bodyScope, ...definition } = seed;
+  before.features[3] = { ...definition, name: 'Saliente circular', type: 'extrude', depth: 2,
+    bodyOperation: { mode: 'merge', target: bodyScope[0] } };
+  const saved = addFeature(before, varied(.5, 1.5, before));
+  const material = build(engine, parseDocument(serializeDocument(saved)));
+  // Only the millimetre outside the plate contributes. Top discs replace
+  // equal areas on the plate and the cylindrical walls increase area.
+  metrics(material, 800 + 3.5 * Math.PI, 600 + 6 * Math.PI, [[0, 0, 0], [20, 8, 6]]);
+  probe(material, [8.9, 4, 5.5], false);
+  probe(material, [13.9, 4, 5.5], true);
 }), 60_000);
 
 it('inherits the real solved source radius rather than its nominal geometry for an unassigned copy', () => usingEngine(engine => {

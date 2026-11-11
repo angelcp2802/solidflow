@@ -133,7 +133,7 @@ export function withFeaturePatternInstanceDepth(feature: RepetitionFeature, addr
 function sketchVariationSeed(feature: RepetitionFeature, features: readonly Feature[]) {
   const seedId = feature.source.mode === 'features' && feature.source.featureIds.length === 1 ? feature.source.featureIds[0] : undefined;
   const seed = features.find(item => item.id === seedId);
-  const sketch = seed?.type === 'cut' ? features.find(item => item.id === seed.sketchId) : undefined;
+  const sketch = seed?.type === 'cut' || seed?.type === 'extrude' ? features.find(item => item.id === seed.sketchId) : undefined;
   return { sketch, drivers: recipeSketchDrivingDimensions(seed, sketch) };
 }
 
@@ -172,7 +172,7 @@ export function withFeaturePatternSketchRadius(feature: RepetitionFeature, featu
   const { drivers } = sketchVariationSeed(feature, features);
   const radius = drivers.find(driver => driver.parameter === 'radius');
   if (value !== null) {
-    if (!radius) throw Error('Selecciona una instancia activa y un corte circular de centro fijo y radio conductor entre 0,01 y 100.000 mm.');
+    if (!radius) throw Error('Selecciona una instancia activa y un croquis circular de centro fijo y radio conductor entre 0,01 y 100.000 mm.');
     return withFeaturePatternSketchDimension(feature, features, address, radius.constraintId, value);
   }
   const operation = feature.featurePattern;

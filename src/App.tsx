@@ -2531,6 +2531,13 @@ export function PartWorkspace({ initialDocument, initialPath, initialSaved, skip
         e.target instanceof HTMLElement &&
         !!e.target.closest("input,textarea,select,[contenteditable='true']");
       if (namedViews.isOpen) return;
+      const modified = e.ctrlKey || e.metaKey, key = e.key.toLowerCase();
+      const documentShortcut = modified && ["s", "o", "n", "z", "y"].includes(key);
+      const requestedView = viewShortcutCommand(e, input);
+      if (shell.current?.querySelector('[role="menu"]')) {
+        if (documentShortcut || requestedView || (!input && !modified && e.key === "Delete")) e.preventDefault();
+        return;
+      }
       if (e.key === 'Escape' && axisPickingAuthority.current) {
         e.preventDefault(); stopAxisPicking(); return;
       }
@@ -2544,8 +2551,8 @@ export function PartWorkspace({ initialDocument, initialPath, initialSaved, skip
           e.preventDefault();
         }
         if (
-          (e.ctrlKey || e.metaKey) &&
-          ["n", "o", "s"].includes(e.key.toLowerCase())
+          modified &&
+          ["n", "o", "s"].includes(key)
         )
           e.preventDefault();
         return;
@@ -2559,18 +2566,16 @@ export function PartWorkspace({ initialDocument, initialPath, initialSaved, skip
         cancelActiveEdit();
         return;
       }
-      const requestedView = viewShortcutCommand(e, input);
       if (requestedView) {
-        if (shell.current?.querySelector('[role="menu"]')) return;
         e.preventDefault();
         if (!e.repeat) changeView(requestedView);
         return;
       }
-      if (e.ctrlKey || e.metaKey) {
-        const key = e.key.toLowerCase();
+      if (modified) {
         if (input && (key === "z" || key === "y")) return;
-        if (["s", "o", "n", "z", "y"].includes(key)) {
+        if (documentShortcut) {
           e.preventDefault();
+          if (e.repeat) return;
           if (key === "s") void saveDoc(e.shiftKey);
           if (key === "o") void openDoc();
           if (key === "n") newDoc();

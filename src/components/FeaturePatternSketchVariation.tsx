@@ -40,7 +40,7 @@ export default function FeaturePatternSketchVariation({ feature, features, loadi
   const rows = operation.variation.kind === 'sketchDimensions' ? operation.variation.values : [];
   const seedId = feature.source.featureIds.length === 1 ? feature.source.featureIds[0] : undefined;
   const seed = features.find(item => item.id === seedId);
-  const sketch = seed?.type === 'cut' ? features.find(item => item.id === seed.sketchId) : undefined;
+  const sketch = seed?.type === 'cut' || seed?.type === 'extrude' ? features.find(item => item.id === seed.sketchId) : undefined;
   const drivers = recipeSketchDrivingDimensions(seed, sketch);
   if (!drivers.length && !rows.length) return null;
   let addresses: string[] = [];

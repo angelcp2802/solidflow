@@ -1,14 +1,16 @@
 'use strict';
 const fs = require('node:fs/promises');
+const path = require('node:path');
 const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 // Reuse the original 2x3x4 prism bearing. No injected model or keyboard handler.
 module.exports = function assemblyShortcutWorkflow(context) {
   const c = require('./desktop-assembly-navigation.cjs').withNavigation(context);
-  const { configured, expected, input, output, shortcutOutput, shortcutKey, shortcutText, namedViewKey, evaluate, observe, waitFor, pointer, capture,
+  const { configured, expected, input, output, shortcutOutput, reboundConfiguredSave, completePendingSave, shortcutKey, shortcutText, namedViewKey, evaluate, observe, waitFor, pointer, capture,
     check, checks, canonical, digest, ipc, dialogCounts, consoleErrors, failedRequests, initialReadyMs, cameraFrame, cameraGesture, rasterComparison, menuKey, captureHeader } = c;
   const ROOT = configured ? '.configured-assembly-workspace' : '.assembly-app';
   const NAV = configured ? '[aria-label="Comandos del ensamblaje configurado"]' : '.assembly-toolbar';
   const NEW_DIALOG = '[role="dialog"][aria-labelledby="new-document-title"]';
+  const CONFIGURED_DISCARD = 'dialog[aria-label="Cambios del ensamblaje configurado"]';
   const serial = async () => (await observe.counters()).serial;
   const BUILD = configured ? 'build-configured-assembly' : 'build-assembly';
   const gestures = [], phases = [];
@@ -94,6 +96,129 @@ module.exports = function assemblyShortcutWorkflow(context) {
   const outside = () => actualControl(ROOT + ' button[title="Isométrica"]');
   const snapshot = async () => ({ native: await observe(), recovery: await page(() => localStorage.getItem('solidflow.autosave')), dialogs: dialogCounts(), ipc: structuredClone(ipc) });
   const stable = async (before, label) => check(canonical(await snapshot()) === canonical(before), label);
+  async function configuredDiscardReady() {
+    await waitFor('configured unsaved decision owns focus', () => page(selector => {
+      const dialog = document.querySelector(selector), cancel = dialog?.querySelector('button');
+      return dialog instanceof HTMLDialogElement && dialog.matches(':modal') && cancel?.textContent === 'Cancelar'
+        && document.activeElement === cancel && document.querySelectorAll('[role="dialog"]').length === 1;
+    }, CONFIGURED_DISCARD));
+  }
+  async function configuredDirtyReplacement(document) {
+    const namedDialog = 'dialog.named-views-dialog[open]';
+    const open = '[aria-label="Archivo del ensamblaje configurado"] button[title="Abrir"]';
+    const baseline = await snapshot();
+    const dirty = structuredClone(document);
+    check(dirty.namedViews?.length > 0, 'An original saved named view can be removed to make the current configured document dirty');
+    dirty.namedViews.shift();
+    if (!dirty.namedViews.length) delete dirty.namedViews;
+    await actualControl(ROOT + ' button[aria-label="Vistas guardadas"]');
+    await actualControl(namedDialog + ' button', 'Eliminar');
+    await key('Escape'); await recovery(dirty);
+    await outside();
+    const before = await snapshot();
+    check(canonical(before.native) === canonical(baseline.native) && canonical(before.ipc) === canonical(baseline.ipc),
+      'Removing only the first named view makes a dirty metadata edit without a worker or file request');
+    const point = await waitFor('idle configured Open target under the replacement dialog', () => page(selector => {
+      const button = document.querySelector(selector), r = button?.getBoundingClientRect();
+      if (!r || button.disabled || !r.width || !r.height) return false;
+      const x = r.left + r.width / 2, y = r.top + r.height / 2;
+      return button.contains(document.elementFromPoint(x, y)) ? { x, y } : false;
+    }, open));
+    await key('N'); await newDialogReady();
+    await actualControl(NEW_DIALOG + ' [data-new-document-kind="part"]');
+    await configuredDiscardReady();
+    check(await page((selector, point, dialog) => {
+      const button = document.querySelector(selector), hit = document.elementFromPoint(point.x, point.y);
+      return button?.disabled && !!hit && !button.contains(hit) && document.querySelector(dialog)?.matches(':modal');
+    }, open, point, CONFIGURED_DISCARD), 'Configured New modal blocks the previously hit-tested Open point');
+    await pointer('mouseMoved', point);
+    await pointer('mousePressed', point, 1);
+    await pointer('mouseReleased', point, 0);
+    await key('O'); await key('S');
+    check(await page(selector => {
+      const dialog = document.querySelector(selector);
+      return dialog?.matches(':modal') && dialog.contains(document.activeElement);
+    }, CONFIGURED_DISCARD), 'Background pointer and file shortcuts leave the current configured decision active');
+    await key('Escape');
+    await waitFor('cancelled configured New restores its original focus', () => page((selector, root) =>
+      !document.querySelector(selector) && document.activeElement === document.querySelector(root + ' button[title="Isométrica"]'),
+    CONFIGURED_DISCARD, ROOT));
+    await recovery(dirty);
+    await stable(before, 'Canceling dirty configured New leaves exact worker history, recovery and file activity');
+    await key('O'); await configuredDiscardReady();
+    await actualControl(CONFIGURED_DISCARD + ' button', 'Cancelar');
+    await waitFor('cancelled configured Open restores its original focus', () => page((selector, root) =>
+      !document.querySelector(selector) && document.activeElement === document.querySelector(root + ' button[title="Isométrica"]'),
+    CONFIGURED_DISCARD, ROOT));
+    await recovery(dirty);
+    await stable(before, 'Canceling dirty configured Open leaves exact worker history, recovery and file activity');
+    checks.push({ configuredDiscardOwnership: { openPoint: point, backgroundClick: true, escapeCancelNew: true, buttonCancelOpen: true,
+      recoverySha256: digest(before.recovery), fileDialogCounts: before.dialogs } });
+    return dirty;
+  }
+  async function configuredSaveBeforeOpen(empty) {
+    const saveButton = CONFIGURED_DISCARD + ' [data-configured-save-continue]';
+    const source = { version: 3, kind: 'configured-assembly', source: empty, catalog: [], rootConfiguration: null };
+    const beforeConversion = await serial();
+    await actualControl('button[aria-label="Crear configuraciones del ensamblaje"]');
+    const converted = await response(beforeConversion, BUILD), scene = converted.response.value.scene;
+    check(canonical(converted.current.document) === canonical(source)
+      && scene.solidCount === 0 && scene.bodies.length === 0 && scene.volume === 0 && scene.area === 0 && scene.bounds === null,
+    'Actual conversion creates the exact empty configured assembly and zero-body scene');
+    await recovery(source); await outside();
+    const before = await snapshot();
+    const fileLabel = () => page(root => document.querySelector(root + ' .assembly-shell-file')?.textContent, ROOT);
+    const saveRequests = () => ipc.filter(e => e.channel === 'document:save');
+    const openRequests = () => ipc.filter(e => e.channel === 'document:open');
+    const saveCount = saveRequests().length, openCount = openRequests().length;
+    check(await fileLabel() === 'Sin guardar', 'The newly configured assembly has no granted document path');
+    await key('O'); await configuredDiscardReady();
+    await actualControl(saveButton);
+    await waitFor('native Save cancellation returns focus to the same configured decision', async () =>
+      saveRequests().length === saveCount + 1 && saveRequests().at(-1)?.completed
+      && await page((dialog, save) => document.querySelector(dialog)?.matches(':modal') && document.activeElement === document.querySelector(save), CONFIGURED_DISCARD, saveButton));
+    const canceled = saveRequests().at(-1);
+    check(canceled.documentWrite?.hasPath === false && canceled.documentWrite.chosen === false
+      && openRequests().length === openCount && await fileLabel() === 'Sin guardar',
+    'Canceling the native Save picker leaves the configured assembly dirty with no path and no Open');
+    const afterCancel = await snapshot();
+    check(canonical(afterCancel.native) === canonical(before.native) && afterCancel.recovery === before.recovery,
+      'Canceled Save preserves the exact configured scene and recovery');
+    check(dialogCounts().saves === before.dialogs.saves + 1 && dialogCounts().opens === before.dialogs.opens,
+      'The canceled attempt consumes only its owned native Save picker');
+    await actualControl(saveButton);
+    await waitFor('native Save writes the untargeted configured assembly and withholds its return', () => saveRequests().at(-1)?.actualWrite);
+    const selected = saveRequests().at(-1), bytes = await fs.readFile(reboundConfiguredSave);
+    check(selected.completed && selected.ipcReturnReleased === false && selected.documentWrite.hasPath === false
+      && selected.documentWrite.sha256 === digest(bytes) && canonical(JSON.parse(bytes.toString('utf8'))) === canonical(source),
+    'Native Save chooses the new granted location for the exact empty v3 document');
+    const locked = await page(selector => {
+      const modal = document.querySelector(selector);
+      return modal?.matches(':modal') && modal.getAttribute('aria-busy') === 'true'
+        && modal.querySelectorAll('button').length === 3 && [...modal.querySelectorAll('button')].every(button => button.disabled);
+    }, CONFIGURED_DISCARD);
+    check(locked, 'The single configured decision disables all its commands until Save returns');
+    await key('Escape'); await key('O'); await key('S');
+    check(openRequests().length === openCount && saveRequests().length === saveCount + 2
+      && await page(selector => document.querySelector(selector)?.matches(':modal'), CONFIGURED_DISCARD),
+    'Escape and file shortcuts do not settle the held Save or start another file request');
+    check(await fileLabel() === 'Sin guardar' && canonical((await snapshot()).native) === canonical(before.native),
+      'A native disk write alone cannot publish the new file identity or replace the workspace');
+    await completePendingSave();
+    await waitFor('after Save, canceled native Open leaves the newly granted configured document clean', async () =>
+      openRequests().length === openCount + 1 && openRequests().at(-1)?.completed
+      && await fileLabel() === path.basename(reboundConfiguredSave)
+      && await page(root => document.querySelector(root)?.getAttribute('aria-busy') === 'false'
+        && !document.querySelector(root + ' header')?.textContent.includes('*') && !document.querySelector('[role="dialog"]'), ROOT));
+    await recovery(source);
+    check(canonical((await snapshot()).native) === canonical(before.native) && selected.ipcReturnReleased === true
+      && dialogCounts().saves === before.dialogs.saves + 2 && dialogCounts().opens === before.dialogs.opens + 1
+      && (await fs.readFile(reboundConfiguredSave)).equals(bytes),
+    'One subsequent canceled Open retains the exact saved configured document, geometry and recovery');
+    checks.push({ configuredSaveBeforeOpen: { nativeSaveCanceled: true, pathRebound: true, openAfterSave: 'canceled',
+      previousFile: 'Sin guardar', savedFile: path.basename(reboundConfiguredSave), savedSha256: digest(bytes) } });
+    return bytes;
+  }
   const originProjection = () => page(() => [...document.querySelectorAll('.assembly-origin-labels button[data-origin-key]')].map(element => {
     const rect=element.getBoundingClientRect();return {key:element.dataset.originKey,rect:[rect.x,rect.y,rect.width,rect.height],selected:element.classList.contains('selected')};
   }));
@@ -310,12 +435,12 @@ module.exports = function assemblyShortcutWorkflow(context) {
         geometry(reopened.response.value,'named-view-reopened');await recovery(document);
       }});
     current=named.document;
-    // Cross workspace boundaries using the actual selector and existing discard
-    // dialogs. Preserve both owned files; only standard Save-and-continue may
-    // update the current SaveAs file, with the explicitly checked name change.
+    // Cross workspace boundaries using the actual selector and discard dialogs.
+    // New saves the standard name edit or the configured named-view edit.
     const outputBytes=await fs.readFile(output), shortcutBytes=await fs.readFile(shortcutOutput);
     const savesBeforeNew=ipc.filter(v=>v.channel==='document:save'&&v.completed).length;
-    if(!configured){
+    if(configured) current = await configuredDirtyReplacement(current);
+    else {
       await actualControl(`[data-assembly-tree-path='["moving"]']`);
       await actualControl('input[aria-label="Nombre del componente"]');
       await key('A');await shortcutText('Saved before New');before=await serial();await outside();
@@ -329,6 +454,9 @@ module.exports = function assemblyShortcutWorkflow(context) {
     if(!configured){
       await waitFor('dirty assembly New requires Save-and-continue',()=>page(()=>!!document.querySelector('[role="dialog"][aria-label="Cambios sin guardar"]')));
       await actualControl('[role="dialog"][aria-label="Cambios sin guardar"] button','Guardar y continuar');
+    } else {
+      await configuredDiscardReady();
+      await actualControl(CONFIGURED_DISCARD + ' [data-configured-save-continue]');
     }
     const partBuild=await waitFor('one completed empty part build after New',async()=>{
       const state=await observe();check(!state.workerErrors.length,'New part worker transport healthy');
@@ -354,9 +482,13 @@ module.exports = function assemblyShortcutWorkflow(context) {
       &&canonical(newPart)===canonical({version:1,id:newPart.id,name:'Pieza1',units:'mm',features:[],createdAt:newPart.createdAt,updatedAt:newPart.createdAt}),
     'New part has a distinct identity and only the empty document declaration');
     await waitFor('New completes its exact save policy before another document command',async()=>
-      ipc.filter(v=>v.channel==='document:save'&&v.completed).length===savesBeforeNew+(configured?0:1)
+      ipc.filter(v=>v.channel==='document:save'&&v.completed).length===savesBeforeNew+1
       &&canonical(JSON.parse(await fs.readFile(shortcutOutput,'utf8')))===canonical(current));
-    if(configured)check((await fs.readFile(shortcutOutput)).equals(shortcutBytes),'Configured New leaves saved file bytes intact');
+    if(configured){
+      const bytes=await fs.readFile(shortcutOutput), write=ipc.filter(v=>v.channel==='document:save').at(-1).documentWrite;
+      check(!bytes.equals(shortcutBytes)&&write?.hasPath===true&&write.chosen===true&&write.sha256===digest(bytes),
+        'Configured New saves only the exact dirty v3 to its granted file before creating the new part');
+    }
     check(dialogCounts().opens===4&&dialogCounts().saves===2,'New retains the three original Open grants plus named-view reopen, with no additional picker for Save-and-continue');
     before=await serial();await key('N');await newDialogReady();
     await actualControl(NEW_DIALOG+' [data-new-document-kind="assembly"]');
@@ -377,23 +509,29 @@ module.exports = function assemblyShortcutWorkflow(context) {
         &&root.querySelector('[aria-label="Rehacer ensamblaje"]')?.disabled===true
         &&raw&&JSON.stringify(JSON.parse(raw))===JSON.stringify(expected);
     },empty));
+    const reboundBytes = configured ? await configuredSaveBeforeOpen(empty) : null;
     before=await serial();await key('O');
-    await waitFor('unsaved empty assembly asks before reopening original',()=>page(()=>!!document.querySelector('[role="dialog"][aria-label="Cambios sin guardar"]')));
-    await actualControl('[role="dialog"][aria-label="Cambios sin guardar"] button','Continuar sin guardar');
+    if(!configured){
+      await waitFor('unsaved empty assembly asks before reopening original',()=>page(()=>!!document.querySelector('[role="dialog"][aria-label="Cambios sin guardar"]')));
+      await actualControl('[role="dialog"][aria-label="Cambios sin guardar"] button','Continuar sin guardar');
+    }
     row=await response(before,BUILD);
     check(canonical(configured?row.current.document:row.document)===canonical(current),'Original final Open restores the exact saved document and named catalog after both workspace replacements');
     geometry(row.response.value,'reopened-after-new');await recovery(current);
     check((await fs.readFile(output)).equals(outputBytes),'New and reopen preserve the earlier Save file byte for byte');
-    check(ipc.filter(v=>v.channel==='document:save'&&v.completed).length===savesBeforeNew+(configured?0:1),'Only the declared standard Save-and-continue writes during New transitions');
+    check(ipc.filter(v=>v.channel==='document:save'&&v.completed).length===savesBeforeNew+(configured?3:1),
+      'Exactly one Save and continue for New plus the two declared configured Open save attempts');
+    if(reboundBytes)check((await fs.readFile(reboundConfiguredSave)).equals(reboundBytes),'Opening the earlier saved assembly preserves the newly granted v3 file');
     checks.push({newDocumentCreation:{configured,partId:newPart.id,assemblyId:empty.id,partBuildSerial:partBuild.serial,assemblyBuildSerial:emptyBuild.serial,
-      saveAndContinue:!configured,limits:'Part path is not exposed by the renderer; fresh part identity, empty declaration/history and bounded file requests are checked, not an unobservable internal path. Empty part observer exposes feature declarations and explicit-body absence, not aggregate mesh metrics.'}});
+      saveAndContinue:true,limits:'Part path is not exposed by the renderer; fresh part identity, empty declaration/history and bounded file requests are checked, not an unobservable internal path. Empty part observer exposes feature declarations and explicit-body absence, not aggregate mesh metrics.'}});
     check((await fs.readFile(input)).equals(originalBytes),'Original fixture file never overwritten');
     check(canonical(JSON.parse(await fs.readFile(shortcutOutput,'utf8')))===canonical(current),'Final SaveAs bytes retained after reopen and Cancel');
-    check(dialogCounts().opens===5&&dialogCounts().saves===2,'Original four Open plus one named-view reopen; exactly two SaveAs grants');
-    check(ipc.filter(v=>v.channel==='document:save'&&v.completed).length===(configured?4:6),
-      'Original completed Save sequence plus exactly one named-view Save');
+    check(dialogCounts().opens===(configured?6:5)&&dialogCounts().saves===(configured?4:2),
+      'Exact original dialog grants plus the configured canceled Open and two Save attempts');
+    check(ipc.filter(v=>v.channel==='document:save'&&v.completed).length===(configured?7:6),
+      'Exact completed document Save count with the configured Save and continue cases');
     const final=await observe();check(!final.workerErrors.length&&!consoleErrors.length&&!failedRequests.length,'No native or renderer errors');
-    checks.push({ scenario:configured?'configured-assembly-shortcuts':'assembly-shortcuts',phases,gestures,savedSha256:digest(await fs.readFile(shortcutOutput)),sourceSha256:digest(originalBytes),limits:'Actual CDP keydown/up and text key events; native file dialogs substituted only with owned paths. Both New selectors cancel without replacement; standard dirty New chooses Assembly then cancels confirmation. Configured draft and both previews block New. Both create an empty part then an empty standard assembly and reopen the original; standard additionally saves its checked name edit through Save-and-continue. No external native-window or cross-platform parity claim.' });
+    checks.push({ scenario:configured?'configured-assembly-shortcuts':'assembly-shortcuts',phases,gestures,savedSha256:digest(await fs.readFile(shortcutOutput)),sourceSha256:digest(originalBytes),limits:'Actual CDP keydown/up and text key events; native file dialogs substituted only with owned paths. Both New selectors cancel without replacement. Standard dirty New cancels its confirmation; configured dirty New blocks background Open, cancels, and retries after canceling dirty Open. Configured draft and both previews block New. Both save their checked edits through Save and continue, create an empty part and assembly, and reopen the earlier saved document. Configured also checks native Save cancellation, a new Save path and a subsequent canceled Open. No external native-window or cross-platform parity claim.' });
     await capture(current);
   };
 };

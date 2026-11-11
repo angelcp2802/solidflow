@@ -15,7 +15,8 @@ import { importStepSolid } from './kernel.step';
 
 const require = createRequire(import.meta.url);
 beforeAll(async () => setOC(await initOpenCascade({ wasmBinary: await readFile(require.resolve('replicad-opencascadejs/wasm')) })), 60_000);
-const original = () => validateDocument(require('../../scripts/desktop-part-instance-rectangle-original.cjs')());
+const original = (operation: 'cut' | 'extrude' = 'cut') =>
+  validateDocument(require('../../scripts/desktop-part-instance-rectangle-original.cjs')(operation));
 const owner: BodyReference = { bodyId: 'plate-body', sourceFeatureId: 'pocket' };
 const output: BodyReference = { bodyId: owner.bodyId, sourceFeatureId: 'rectangle-pattern' };
 const width = 'driving-width', height = 'driving-height';
@@ -74,11 +75,11 @@ function probe(material: Shape3D, center: Vec3, present: boolean) {
     near(owners.own(measureShapeVolumeProperties(common)).volume, present ? .001 : 0, 1e-8);
   });
 }
-function floors(material: Shape3D, expected: readonly { center: Vec3; area: number }[]) {
+function endFaces(material: Shape3D, z: number, expected: readonly { center: Vec3; area: number }[]) {
   withNativeOwners(owners => {
     const properties = owners.ownAll(material.faces).filter(face => face.geomType === 'PLANE')
       .map(face => owners.own(measureShapeSurfaceProperties(face)))
-      .filter(face => Math.abs(face.centerOfMass[2] - 4) < 1e-6);
+      .filter(face => Math.abs(face.centerOfMass[2] - z) < 1e-6);
     expect(properties).toHaveLength(expected.length);
     for (const floor of expected) {
       const actual = properties.filter(face => floor.center.every((value, axis) => Math.abs(value - face.centerOfMass[axis]) < 1e-6));
@@ -89,7 +90,7 @@ function floors(material: Shape3D, expected: readonly { center: Vec3; area: numb
 }
 function pockets(material: Shape3D, swap: boolean) {
   metrics(material, 790, 624);
-  floors(material, [{ center: [3, 4, 4], area: 4 },
+  endFaces(material, 4, [{ center: [3, 4, 4], area: 4 },
     { center: swap ? [8.5, 3.5, 4] : [7.5, 4.5, 4], area: 3 },
     { center: swap ? [12.5, 4.5, 4] : [13.5, 3.5, 4], area: 3 }]);
   probe(material, [8.5, 3.5, 4.5], !swap);
@@ -115,6 +116,33 @@ it('solves both lengths on the original anchored pockets, distinguishing equal-m
   withNativeOwners(owners => pockets(owners.own(importStepSolid(step)), true));
 }), 60_000);
 
+it('merges different solved bosses into the exact original owner through history, reopening and STEP', () => usingEngine(async engine => {
+  const before = original('extrude'), source = serializeDocument(before), history = new DocumentHistory(before);
+  const saved = history.apply(addFeature(before, varied(before, false)));
+  const reopened = parseDocument(serializeDocument(saved));
+  function bosses(material: Shape3D, swap: boolean) {
+    // The same 20×8×5 plate plus 2×2, 1×3 and 3×1 bosses that project
+    // 1 mm above it. The embedded millimetre adds no external volume.
+    metrics(material, 810, 624, [[0, 0, 0], [20, 8, 6]]);
+    endFaces(material, 6, [{ center: [3, 4, 6], area: 4 },
+      { center: swap ? [8.5, 3.5, 6] : [7.5, 4.5, 6], area: 3 },
+      { center: swap ? [12.5, 4.5, 6] : [13.5, 3.5, 6], area: 3 }]);
+    probe(material, [8.5, 3.5, 5.5], swap);
+    probe(material, [13.5, 3.5, 5.5], !swap);
+    probe(material, [7.5, 5.5, 5.5], !swap);
+    probe(material, [12.5, 5.5, 5.5], swap);
+  }
+  bosses(build(engine, reopened), false);
+  const swapped = history.apply(updateFeature(saved, output.sourceFeatureId, varied(before, true)));
+  bosses(build(engine, swapped), true);
+  bosses(build(engine, history.undo()), false);
+  bosses(build(engine, history.redo()), true);
+  expect(serializeDocument(before)).toBe(source);
+  const blob = engine.export('step', swapped.features);
+  const step = createStepSource(new Uint8Array(await blob.arrayBuffer()));
+  withNativeOwners(owners => bosses(owners.own(importStepSolid(step)), true));
+}), 60_000);
+
 it('inherits the solved height and source orientation of the reversed, origin-snapped rectangle', () => usingEngine(engine => {
   const document = original(), plate = document.features[0] as SketchFeature;
   if (plate.profile.kind !== 'rectangle') throw Error('Original plate required');
@@ -132,7 +160,7 @@ it('inherits the solved height and source orientation of the reversed, origin-sn
   const result = build(engine, addFeature(document, feature));
   // The source and unassigned copy solve 2×2; the partial override solves 1×2.
   metrics(result, 790, 622, [[-2, -3, 0], [18, 5, 5]]);
-  floors(result, [{ center: [1, 1, 4], area: 4 }, { center: [5.5, 1, 4], area: 2 }, { center: [11, 1, 4], area: 4 }]);
+  endFaces(result, 4, [{ center: [1, 1, 4], area: 4 }, { center: [5.5, 1, 4], area: 2 }, { center: [11, 1, 4], area: 4 }]);
   probe(result, [5.5, 1.5, 4.5], false);
   probe(result, [4.5, 1.5, 4.5], true);
 }), 60_000);
@@ -152,7 +180,7 @@ it.each(['mirror', 'circularPattern'] as const)('applies the solved rectangle in
   const result = build(engine, parseDocument(serializeDocument(addFeature(document, feature))));
   const mirror = kind === 'mirror';
   metrics(result, 793, 616, mirror ? [[-10, 0, 0], [10, 8, 5]] : [[0, 0, 0], [20, 8, 5]]);
-  floors(result, [{ center: [3, 4, 4], area: 4 }, { center: mirror ? [-2.5, 4.5, 4] : [17.5, 3.5, 4], area: 3 }]);
+  endFaces(result, 4, [{ center: [3, 4, 4], area: 4 }, { center: mirror ? [-2.5, 4.5, 4] : [17.5, 3.5, 4], area: 3 }]);
   probe(result, mirror ? [-2.5, 5.5, 4.5] : [17.5, 2.5, 4.5], false);
   probe(result, mirror ? [-3.5, 5.5, 4.5] : [16.5, 2.5, 4.5], true);
 }), 60_000);
@@ -165,5 +193,5 @@ it('keeps the original body when a later solved instance misses the selected tar
   expect(rejected.featureErrors[0].message).toMatch(/changes no material/);
   expect(rejected.bodies).toEqual(initial.bodies);
   metrics(shape(engine, owner), 796, 608);
-  floors(shape(engine, owner), [{ center: [3, 4, 4], area: 4 }]);
+  endFaces(shape(engine, owner), 4, [{ center: [3, 4, 4], area: 4 }]);
 }), 60_000);

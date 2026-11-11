@@ -12,6 +12,84 @@ The Windows persistence job now has a 45-minute budget. The renderer matrix,
 test commands, per-scenario deadlines and required Desktop results are
 identical. Record the next hosted result on its exact head.
 
+## Saving before configured New and Open — Windows, 2026-11-11
+
+The configured shortcut routes use the original prism and empty assembly
+fixtures. **Guardar y continuar** before **Nuevo** writes the changed v3
+document to its granted path before the new part opens. In an untargeted v3
+assembly, canceling the first Save before **Abrir** retains the document,
+recovery and decision, and restores focus to the Save button. Retrying saves
+to a new path. While the successful Save reply is held, Escape and the file
+shortcuts leave the same decision active. The Open picker follows the Save
+reply. Canceling that picker preserves the clean assembly at its new path.
+Reopening the earlier file restores its exact saved bytes.
+
+The Windows build, desktop smoke and configured persistence routes passed.
+The normal and compact shortcut routes passed 623 and 628 checkpoints,
+respectively. Both used six Open and four Save dialog substitutions. The
+configured persistence route passed 212 checkpoints. All three renderer
+routes closed the isolated child normally and removed their temporary files.
+These cases use the production renderer and file IPC with test-owned picker
+selections. Manual native dialogs, installed builds and other systems have
+their own validation.
+
+| Local command | Raw log SHA-256 |
+| --- | --- |
+| `npm run build` | `8bb22e3c4211803b055322ddf13db72bb2956f55eeb34a47cbb50c7e184f4e3f` |
+| `npm run test:desktop` | `1d5599f9adf5fc088e3e40d8cd4c7c3cc08f76c34df520b1d8ef3bf407d66eee` |
+| `npm run test:desktop:assembly-configurations` | `b0f98ebd3ced14762333d12893d78d025d19d69c13372322a55c53d06fa5a960` |
+| `npm run test:desktop:assembly-configured-shortcuts` | `4aaaef9cd49b8aa77b3b13b05d938cb2ff7e8d74a3d55b2e59561c0ecef579aa` |
+| `npm run test:desktop:assembly-configured-shortcuts-compact` | `24733db58b4cbf4db6982e814454345cbe8ab4c3ea84ab3c0fc3ce9ba614f276` |
+
+## Addressed dimensions on merged bosses — Windows, 2026-11-11
+
+Selected regeneration accepts one intrinsic Blind cut or explicitly merged
+boss. The existing table retains its exact sketch and driver identities.
+The bounded circular and rectangular boss cases require a fully defined
+source and instance solve. The declaration still rejects new-body and
+legacy aggregate extrusions.
+
+The original rectangular boss variant produces a single 810 mm³ body with
+624 mm² area. Independent end-face locations and material probes distinguish
+swapping the copy sizes at equal volume and area. The native case checks
+document history, reopening and STEP reimport. The circular boss variant
+adds 3.5π mm³ and 6π mm² to the original plate and retains the original body
+identity and the expected material in each varied copy.
+
+The local build and five focused files passed 69 cases. The production
+renderer runs the existing pocket and merged boss routes with 167 checkpoints
+each, including Cancel/retry, Undo/Redo, Save As/Open and single-row removal.
+They use 13 geometry observations and 90 interactions per route. The combined
+renderer log hash is
+`b4e09a6427cd16217c836f35835cc28539e6163ff4954f531f8847d91f27ec34`.
+The integrated candidate, hosted and installed checks remain separate.
+
+## Configured New and Open confirmation — Windows, 2026-11-11
+
+The configured assembly holds one replacement decision for its current
+document and operation. The editor opens a modal dialog that makes the
+background inert and restores focus when the decision closes.
+
+The original configured prism shortcut routes remove one saved named view
+to make the reopened document dirty. After New selects a part, the test
+presses the previously hit-tested background Open point with CDP mouse input
+and invokes Ctrl+O and Ctrl+S. The dialog stays current and prevents file
+activity. Escape cancels New. The test then cancels dirty Open using its
+visible button. Both restore the previous control and preserve exact worker
+records, recovery bytes and file activity. Retrying New and choosing
+**Continuar sin guardar** creates the new part. The later Open restores the
+exact earlier saved v3 assembly and named-view catalog.
+
+The Windows build passed. The normal and compact configured shortcut routes
+passed 611 and 612 checkpoints respectively. Each retained its five Open
+and two Save dialogs, normal child close and test-owned temporary cleanup.
+The raw route log hashes are
+`2ebade290f1b51af82c125080a2fa26536f7b39ed612ead1d9d8c34f73648b94`
+and `49aad0826d7c1dd3b2c96409e20a598f2ea6bd1e1b0366385789dae5ce79f420`.
+The cases use an isolated production renderer with test-owned file-dialog
+selections. Human native dialogs, installed builds and other systems have
+their own validation.
+
 ## Desktop test context for export aliases — Windows, 2026-11-11
 
 The first frozen 0.21.0 combination passed all 11,490 unit/CAD cases in
@@ -613,6 +691,23 @@ and platform acceptance retain the [finite matrix](USABLE_COMMAND_MATRIX.md).
 No full `npm test` was launched for this isolated increment: the coordinator
 reserved it for the final integrated candidate. Product, IPC, native solver,
 dependency, fixture and document-format behaviour are unchanged.
+
+## Part File popup keyboard ownership — Windows focal, 2026-11-11
+
+The ordinary from-empty route selects the final accepted cut and opens
+Archivo with focus on its first command. The unchanged 0.21 renderer loses
+the exact cut selection and changes recovery when a real CDP Delete press
+reaches the part handler from the popup. The retained failing log SHA-256 is
+`33329f1c18aad0abf61088f1b42a989697915649427470f207e009ea398d988e`.
+
+The correction keeps workspace shortcuts with the open menu. Delete and
+Ctrl+Z/S/O/N preserve the same cut, popup command focus, native build serial,
+recovery and file-dialog counts after each press. Escape restores trigger
+focus. The existing Undo/Redo, Save and reopen still exercise the eight-feature
+part and retain their geometric checks. Local build, production-loader smoke
+and the full 569-checkpoint from-empty route pass. The passing route log
+SHA-256 is `43138b68c90c9d5f505caa944cadfde6536886598465f52f10b4e60e43896fff`.
+Further held-key and composition cases retain their separate scope.
 
 ## Part file export and example replacement — Windows focal, 2026-11-11
 

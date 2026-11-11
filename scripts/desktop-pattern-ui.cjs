@@ -85,6 +85,9 @@ const SCENARIOS = Object.freeze({
   'part-instance-rectangle': Object.freeze({ instanceDepth: true, instanceRectangle: true,
     originalRecipe: 'desktop-part-instance-rectangle-original.cjs', entry: 'desktop-part-instance-rectangle.cjs',
     test: 'production-renderer-part-instance-rectangle', caption: 'paired driving rectangle dimensions, exact cancellation, history and persistence' }),
+  'part-instance-rectangle-boss': Object.freeze({ instanceDepth: true, instanceRectangle: true, instanceRectangleBoss: true,
+    originalRecipe: 'desktop-part-instance-rectangle-original.cjs', entry: 'desktop-part-instance-rectangle-boss.cjs',
+    test: 'production-renderer-part-instance-rectangle-boss', caption: 'merged rectangular bosses with paired driving dimensions, history and persistence' }),
   'part-recipe-availability': Object.freeze({ instanceDepth: true, recipeAvailability: true, originalRecipe: 'desktop-part-recipe-availability-original.cjs', entry: 'desktop-part-recipe-availability.cjs',
     test: 'production-renderer-part-recipe-availability', caption: 'recipe availability and explicit repair without changing normal operation capabilities' }),
   'part-pattern-create': Object.freeze({ patternCreate: true, originalRecipe: 'desktop-part-pattern-create-original.cjs', entry: 'desktop-part-pattern-create.cjs',
@@ -392,7 +395,8 @@ async function launch() {
       await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(original()), { flag: 'wx' });
       await fsp.writeFile(path.join(temporary, 'stale.solidflow'), JSON.stringify(original.stale()), { flag: 'wx' });
     } else if (activeScenario.instanceDepth === true) {
-      await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(require('./' + activeScenario.originalRecipe)()), { flag: 'wx' });
+      const original = require('./' + activeScenario.originalRecipe)(activeScenario.instanceRectangleBoss ? 'extrude' : undefined);
+      await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(original), { flag: 'wx' });
     } else if (activeScenario === SCENARIOS['part-pattern-create']) {
       await fsp.writeFile(path.join(temporary, 'input.solidflow'), JSON.stringify(require('./desktop-part-pattern-create-original.cjs')()), { flag: 'wx' });
     } else if (activeScenario === SCENARIOS['part-shell-draft']) {
@@ -947,6 +951,8 @@ async function runInElectron() {
   const mateReferenceEdit = activeScenario === SCENARIOS['assembly-mate-reference-edit'];
   const originAxes = activeScenario.originAxes;
   const shortcuts = !!activeScenario.shortcuts, shortcutOutput = shortcuts ? path.join(owned, 'saved-shortcuts-copy.solidflow') : null;
+  const configuredShortcuts = shortcuts && originAxes === 'configured';
+  const reboundConfiguredSave = configuredShortcuts ? path.join(owned, 'saved-configured-before-open.solidflow') : null;
   const configuredRelations = activeScenario === SCENARIOS['assembly-configured-relations'];
   const configuredComponents = activeScenario === SCENARIOS['assembly-configured-components'];
   const configuredPicking = !!activeScenario.configuredPicking;
@@ -1099,7 +1105,7 @@ async function runInElectron() {
   const outputs = untilNext ? { cutSelected: path.join(owned, 'saved-cut-selected.solidflow'),
     cutAll: path.join(owned, 'saved-cut-all.solidflow'), add: path.join(owned, 'saved-add-selected.solidflow') } : null;
   const partCopyOutput = embeddedPartEdit ? path.join(owned, 'saved-embedded-part-copy.solidflow') : null;
-  const openPaths = activeScenario.recipeAvailability ? [input, path.join(owned, 'stale.solidflow'), output] : assemblyPartProperties ? [input, output, assemblyPropertiesOutput] : propertiesReopenReceipt ? [output] : nativeReopen ? [output] : sketchPrimitives ? [sketchPrimitiveFiles.rectangle, sketchPrimitiveFiles.circle, sketchPrimitiveFiles.semicircle, sketchPrimitiveFiles.imported] : partPatternCreate ? [input, patternCreateFiles.linear, input, patternCreateFiles.circular, input, patternCreateFiles.mirror] : partShellDraft ? [input, shellDraftFiles.shell, input, shellDraftFiles.draft] : embeddedPartEdit ? [input, output] : partThinWall ? [input, output] : partExternalAxis ? [input, output, output] : partRevolution ? [input, output, output, output] : normalToView ? [normalInputs.part, normalInputs.standard, normalInputs.configured] : fromEmpty ? [output, output] : partOperationAliases ? [input] : shortcuts ? [input, null, shortcutOutput, shortcutOutput, shortcutOutput] : basicAuthoring ? [input, null, output, output, output] : partSequence ? [input, output, partAssemblyOutput, partAssemblyPinInput, partAssemblyOutput] : partBodyCatalog ? [input, input] : partFinishing ? [input, finishingFiles.fillet, input, output] : configuredComponents ? [input, null, path.join(owned, 'incoming.solidflow'), path.join(owned, 'incoming.solidflow'), output] : structuralInsertion ? [input, insertionFiles.parent, output] : structuralStep ? [input, structuralFiles.part, output] : untilNext ? [inputPaths.cut, outputs.cutSelected, outputs.cutAll,
+  const openPaths = activeScenario.recipeAvailability ? [input, path.join(owned, 'stale.solidflow'), output] : assemblyPartProperties ? [input, output, assemblyPropertiesOutput] : propertiesReopenReceipt ? [output] : nativeReopen ? [output] : sketchPrimitives ? [sketchPrimitiveFiles.rectangle, sketchPrimitiveFiles.circle, sketchPrimitiveFiles.semicircle, sketchPrimitiveFiles.imported] : partPatternCreate ? [input, patternCreateFiles.linear, input, patternCreateFiles.circular, input, patternCreateFiles.mirror] : partShellDraft ? [input, shellDraftFiles.shell, input, shellDraftFiles.draft] : embeddedPartEdit ? [input, output] : partThinWall ? [input, output] : partExternalAxis ? [input, output, output] : partRevolution ? [input, output, output, output] : normalToView ? [normalInputs.part, normalInputs.standard, normalInputs.configured] : fromEmpty ? [output, output] : partOperationAliases ? [input] : configuredShortcuts ? [input, null, shortcutOutput, shortcutOutput, null, shortcutOutput] : shortcuts ? [input, null, shortcutOutput, shortcutOutput, shortcutOutput] : basicAuthoring ? [input, null, output, output, output] : partSequence ? [input, output, partAssemblyOutput, partAssemblyPinInput, partAssemblyOutput] : partBodyCatalog ? [input, input] : partFinishing ? [input, finishingFiles.fillet, input, output] : configuredComponents ? [input, null, path.join(owned, 'incoming.solidflow'), path.join(owned, 'incoming.solidflow'), output] : structuralInsertion ? [input, insertionFiles.parent, output] : structuralStep ? [input, structuralFiles.part, output] : untilNext ? [inputPaths.cut, outputs.cutSelected, outputs.cutAll,
     inputPaths.add, outputs.add, inputPaths.reject] : assembly ? [input, output, partUpdatePath, partUpdatePath, output, output, output, projectionOutput, output, interferencePath, translationPath, translationOutput, bomPath, input, gearOutput]
     : assemblyImport ? [input, importSourcePath, importRejectedPath, importSourcePath, output]
     : sourceRevision ? [input, sourceRevisionFiles.parent, output]
@@ -1121,7 +1127,7 @@ async function runInElectron() {
       repairFiles.replacementPart, repairFiles.replacementPart, repairFiles.replacementSaved]
     : symmetryPicking ? [input, ...Array(6).fill(output)]
     : symmetry ? [input, ...Array(5).fill(output)] : direction ? [input, output, output] : configuredRelations || configuredPicking || configuredMechanical || configuredCompound ? [input, output] : configurations ? [input, output, output] : [input, output];
-  const savePaths = assemblyPartProperties ? [output, assemblyPropertiesOutput] : nativeReopen ? [] : sketchPrimitives ? [sketchPrimitiveFiles.rectangle, sketchPrimitiveFiles.circle, sketchPrimitiveFiles.semicircle, sketchPrimitiveFiles.imported] : partPatternCreate ? [patternCreateFiles.linear, patternCreateFiles.circular, patternCreateFiles.mirror] : partShellDraft ? [shellDraftFiles.shell, shellDraftFiles.draft] : embeddedPartEdit ? [output, null, null, partCopyOutput, partCopyOutput, partCopyOutput, partCopyOutput, output] : normalToView ? [] : fromEmpty || partOperationAliases ? [output] : shortcuts ? [output, shortcutOutput] : partBodyCatalog ? [] : partSequence ? [output, partAssemblyOutput] : partFinishing ? [finishingFiles.fillet, output] : configurations ? [null, output] : untilNext ? [outputs.cutSelected, outputs.cutAll, outputs.add] : assembly ? [output, projectionOutput, translationOutput, gearOutput]
+  const savePaths = assemblyPartProperties ? [output, assemblyPropertiesOutput] : nativeReopen ? [] : sketchPrimitives ? [sketchPrimitiveFiles.rectangle, sketchPrimitiveFiles.circle, sketchPrimitiveFiles.semicircle, sketchPrimitiveFiles.imported] : partPatternCreate ? [patternCreateFiles.linear, patternCreateFiles.circular, patternCreateFiles.mirror] : partShellDraft ? [shellDraftFiles.shell, shellDraftFiles.draft] : embeddedPartEdit ? [output, null, null, partCopyOutput, partCopyOutput, partCopyOutput, partCopyOutput, output] : normalToView ? [] : fromEmpty || partOperationAliases ? [output] : configuredShortcuts ? [output, shortcutOutput, null, reboundConfiguredSave] : shortcuts ? [output, shortcutOutput] : partBodyCatalog ? [] : partSequence ? [output, partAssemblyOutput] : partFinishing ? [finishingFiles.fillet, output] : configurations ? [null, output] : untilNext ? [outputs.cutSelected, outputs.cutAll, outputs.add] : assembly ? [output, projectionOutput, translationOutput, gearOutput]
     : direction ? [output, output]
     : structuralStep ? [null, structuralFiles.beforeReplacement, output]
     : assemblyImport ? [importBaselinePath, output]
@@ -1144,7 +1150,8 @@ async function runInElectron() {
   const protocolResponses = [], consoleErrors = [], failedRequests = [], ipc = [], checks = [], captures = [], profileCaptures = [], partPropertiesCaptures = [], assemblyPropertiesCaptures = [];
   // One statically selected successful Save per owned child. The real main
   // handler writes/validates the file; only its unchanged return is withheld.
-  const saveCompletion = { enabled: sourceUpdateSavePending || structuralStep || !!configuredMechanical || !!configuredCompound, ordinal: structuralStep || configuredMechanical || configuredCompound ? 2 : 1,
+  const saveCompletion = { enabled: sourceUpdateSavePending || structuralStep || configuredShortcuts || !!configuredMechanical || !!configuredCompound,
+    ordinal: configuredShortcuts ? 7 : structuralStep || configuredMechanical || configuredCompound ? 2 : 1,
     armed: false, pending: false, releasedBy: null, nativeReady: null, ready: null, release: null, observation: null, samples: [] };
   function releaseSaveCompletion(by) {
     if (!saveCompletion.pending) return;
@@ -1358,8 +1365,15 @@ async function runInElectron() {
     await window.webContents.debugger.sendCommand('Input.dispatchKeyEvent', { ...event, type: 'keyUp' });
   };
   // Physical keyboard events only, scoped to owned shortcuts and the fixed from-empty workflow.
-  const shortcutKey = async combo => {
+  const shortcutKey = async (combo, beforeRepeat) => {
     check((embeddedPartEdit || normalToView || fromEmpty || shortcuts) && !window.isVisible() && window.webContents.debugger.isAttached(), 'Only fixed shortcut keys in owned hidden scenario');
+    if (beforeRepeat !== undefined) {
+      check(fromEmpty && combo === 'Z' && typeof beforeRepeat === 'function' && await evaluate(`(() => {
+        const active = document.activeElement, trigger = 'nav.part-main-menus button[data-assembly-menu="file"][aria-expanded="false"]';
+        return active?.matches(trigger) && document.querySelectorAll(trigger).length === 1
+          && !document.querySelector('[role="menu"],[role="dialog"],.property-manager');
+      })()`), 'Held document Undo belongs to the closed File trigger in the owned from-empty part');
+    }
     // Native editor commands belong only to the two original fixture fields
     // or one exact visible, focused creation/rename field in its actual modal.
     const editable = (combo==='A'||combo==='Z') && await evaluate(`(() => {
@@ -1381,7 +1395,7 @@ async function runInElectron() {
       return ['Nombre del componente','Nombre de relación configurada'].includes(e.getAttribute('aria-label'))
         &&!!e.closest('.assembly-app,.configured-assembly-workspace')&&!document.querySelector('[role="dialog"]');
     })()`);
-    await dispatchShortcutKey(combo,{platform:process.platform,editable,send:event=>window.webContents.debugger.sendCommand('Input.dispatchKeyEvent',event)});
+    await dispatchShortcutKey(combo,{platform:process.platform,editable,beforeRepeat,send:event=>window.webContents.debugger.sendCommand('Input.dispatchKeyEvent',event)});
   };
   const shortcutText = async value => {
     const named = (fromEmpty || shortcuts) && ['Part view','Assembly view','Configured view','PART VIEW','ASSEMBLY VIEW','CONFIGURED VIEW','Temporary view','Pending view','Pending rename','Part view renamed','Assembly view renamed','Configured view renamed'].includes(value);
@@ -1425,7 +1439,7 @@ async function runInElectron() {
   };
   const menuKey = async (key, shift = false, loftOwnerId) => {
     const codes = { Escape: 27, Tab: 9, ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, Home: 36, End: 35, Enter: 13,
-      ...((fromEmpty || shortcuts) ? { g: 71 } : {}),
+      ...((fromEmpty || shortcuts) ? { g: 71 } : {}), ...(fromEmpty ? { Delete: 46 } : {}),
       ...((configuredComponents || normalToView || partSequence || basicAuthoring || freshSketch || partSweepLoft) ? { ContextMenu: 93 } : {}), ...((configuredComponents || freshSketch) ? { F10: 121 } : {}) };
     check((partExternalAxis || activeScenario.faceLimits || configuredComponents || normalToView || fromEmpty || partOperationAliases || basicAuthoring || mateReferenceEdit || originAxes || partSequence || configuredPicking || assembly || freshSketch || partSweepLoft || activeScenario === SCENARIOS['assembly-configurations']) && !window.isVisible() && window.webContents.debugger.isAttached()
       && Object.prototype.hasOwnProperty.call(codes, key) && typeof shift === 'boolean'
@@ -1447,12 +1461,12 @@ async function runInElectron() {
         })()`), 'Sweep/loft keyboard input belongs to the exact selected owner row or its current popup');
     }
     if (shift && key === 'Tab') check(fromEmpty && await evaluate(`(() => { const dialog=document.querySelector('dialog.part-help-dialog'); return dialog?.matches(':modal') && dialog.contains(document.activeElement); })()`), 'Reverse Tab belongs only to the current test-owned Help modal');
-    if (key === 'g') check(!shift && (fromEmpty || shortcuts) && await evaluate(`(() => {
+    if (key === 'g' || key === 'Delete') check(!shift && (fromEmpty || shortcuts && key === 'g') && await evaluate(`(() => {
       const headers=document.querySelectorAll('.command-header'),header=headers[0],trigger=header?.querySelector('button[data-assembly-menu="file"]');
       const id=trigger?.getAttribute('aria-controls'),popup=id?document.getElementById(id):null,active=document.activeElement;
       return headers.length===1&&trigger?.isConnected&&trigger.getAttribute('aria-expanded')==='true'
         &&popup?.isConnected&&popup.getAttribute('role')==='menu'&&header.contains(popup)&&active?.isConnected&&popup.contains(active);
-    })()`), 'One static G belongs only to the current focused test-owned File popup');
+    })()`), 'Bounded File popup key belongs only to the current focused test-owned popup');
     const code = key === 'g' ? 'KeyG' : key;
     await window.webContents.debugger.sendCommand('Input.dispatchKeyEvent', { type: 'keyDown', key, code, windowsVirtualKeyCode: codes[key],
       modifiers: shift ? 8 : 0,
@@ -1811,6 +1825,7 @@ async function runInElectron() {
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, geometryExports }) })()
     : activeScenario.instanceRectangle
     ? require('./desktop-part-instance-rectangle-flow.cjs')({ expected, input, output, evaluate, observe, waitFor, pointer,
+      additive: activeScenario.instanceRectangleBoss === true,
       checks, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves }) })
     : partInstanceDepth
@@ -1839,7 +1854,7 @@ async function runInElectron() {
       checks, protocolResponses, consoleErrors, failedRequests, ipc, check, canonical, digest,
       initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, geometryExports }) })
     : originAxes
-    ? require(shortcuts ? './desktop-assembly-shortcuts-flow.cjs' : activeScenario.originOpposed ? './desktop-assembly-origin-opposed-flow.cjs' : activeScenario.originLock ? './desktop-assembly-origin-axis-lock-flow.cjs' : './desktop-assembly-origin-axes-flow.cjs')({ configured: originAxes === 'configured', expected, input, output, referenceRoleKeyboard, shortcutOutput, shortcutKey, shortcutText, namedViewKey, cameraFrame, cameraGesture, rasterComparison, evaluate, observe, waitFor, click, pointer, menuKey, captureHeader, asideWheel, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
+    ? require(shortcuts ? './desktop-assembly-shortcuts-flow.cjs' : activeScenario.originOpposed ? './desktop-assembly-origin-opposed-flow.cjs' : activeScenario.originLock ? './desktop-assembly-origin-axis-lock-flow.cjs' : './desktop-assembly-origin-axes-flow.cjs')({ configured: originAxes === 'configured', expected, input, output, referenceRoleKeyboard, shortcutOutput, reboundConfiguredSave, completePendingSave, shortcutKey, shortcutText, namedViewKey, cameraFrame, cameraGesture, rasterComparison, evaluate, observe, waitFor, click, pointer, menuKey, captureHeader, asideWheel, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : configuredCompound
     ? require('./desktop-assembly-configured-compound-flow.cjs')({ family: configuredCompound, profileKind: activeScenario.profileKind, expected, input, output, evaluate, observe, waitFor, click, capture, checks, consoleErrors, failedRequests, ipc, check, canonical, digest, completePendingSave, initialReadyMs: INITIAL_READY_MS, dialogCounts: () => ({ opens, saves, csvExports }) })
     : configuredMechanical

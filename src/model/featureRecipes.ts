@@ -526,7 +526,7 @@ export function extractRecipeClosure(features: readonly Feature[], rawRequest: R
     if (sketchValues) {
       const drivers = new Set(recipeSketchDrivingDimensions(feature, sketch).map(driver => driver.constraintId));
       if (sketchValues.some(row => row.sketchId !== sketch.id || !drivers.has(row.constraintId))) {
-        invalid('VARIATION_SKETCH', feature.id, 'variation.values', 'La variación requiere las cotas conductoras exactas de un círculo o rectángulo anclado en un corte ciego intrínseco.');
+        invalid('VARIATION_SKETCH', feature.id, 'variation.values', 'La variación requiere las cotas conductoras exactas de un círculo o rectángulo anclado en un corte o saliente ciego intrínseco sobre un cuerpo existente.');
       }
     }
     if (depthValues) {

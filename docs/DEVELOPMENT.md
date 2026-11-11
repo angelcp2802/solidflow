@@ -73,6 +73,16 @@ an XY+20 mm reference plane, Tools properties/rebuild, name rejection/native
 text undo/Cancel/Apply and menu Undo/Redo/delete. The actual saved bytes remain
 unchanged. Other entry points retain their own command-matrix requirements.
 
+An open part menu owns keyboard input. While it is open, the workspace
+prevents the default of its file, history, camera and Delete shortcuts and
+leaves menu navigation with the popup. Escape returns focus to the trigger.
+The ordinary from-empty route checks Delete and Ctrl+Z/S/O/N on the selected
+final cut. Part document shortcuts act once per physical press. After closing
+the popup, the route holds Ctrl+Z through the first native rebuild and sends
+one repeated Z keydown before releasing either key. Recovery, history and
+native observations remain at seven features until Ctrl+Y restores the final
+cut. Editable fields retain their native text undo and redo.
+
 All existing camera, grid and plane-OFF crop comparisons remain exact. Only the
 new translucent-plane ON observation permits at most one native 8-bit byte
 level across the complete unmasked crop for two presented observations at

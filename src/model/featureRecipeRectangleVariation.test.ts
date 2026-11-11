@@ -98,6 +98,20 @@ it.each(['free', 'duplicate-edge', 'construction', 'wrong-axis', 'annotation', '
     expect(() => extractRecipeClosure(before.features, request(feature))).toThrow(/cotas conductoras exactas/);
   });
 
+it('requires an explicit merge into an existing owner for a rectangular boss', () => {
+  const before = validateDocument(require('../../scripts/desktop-part-instance-rectangle-original.cjs')('extrude'));
+  const seed = before.features[3], sketch = before.features[2], feature = varied(before);
+  if (seed.type !== 'extrude') throw Error('Original merged boss required');
+  expect(recipeSketchDrivingDimensions(seed, sketch)).toEqual(drivers);
+  expect(requireInitialRecipeDeclaration(extractRecipeClosure(before.features, request(feature))).eligibility)
+    .toBe('initial-declaration-subset');
+  seed.bodyOperation = { mode: 'new', bodyId: 'other-body' };
+  expect(recipeSketchDrivingDimensions(seed, sketch)).toEqual([]);
+  expect(() => extractRecipeClosure(before.features, request(feature))).toThrow(/cotas conductoras exactas/);
+  delete seed.bodyOperation;
+  expect(recipeSketchDrivingDimensions(seed, sketch)).toEqual([]);
+});
+
 it('rejects duplicate pairs and preserves a foreign driver for explicit repair', () => {
   const before = original(), feature = varied(before);
   const values = rows(feature);

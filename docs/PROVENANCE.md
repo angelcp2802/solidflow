@@ -8990,3 +8990,12 @@ Exchanging the pairs leaves both totals unchanged. At Z4.5, a probe at
 second copy move 5 mm in X. Fixed reference points and analytical dimensions
 come from the fixture design. The native model and the file readback provide
 observations. No external CAD assets or solved geometry are stored in the fixture.
+
+The merged boss variant of the same fixture moves the rectangle to Z4 and
+extrudes it 2 mm in +Z into the exact plate owner. Its embedded millimetre adds
+no external material. The same three footprints add 10 mm³ and 24 mm², giving
+810 mm³ and 624 mm². The original positions at Z5.5 distinguish the exchanged
+width and height through physical material probes. The circular test applies
+the same change to the original driving-radius fixture. Its three outward
+1 mm cylinders have radii 1, 0.5 and 1.5 mm, giving added volume 3.5π mm³ and
+added area 6π mm².

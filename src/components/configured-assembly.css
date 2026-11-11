@@ -96,6 +96,18 @@
 /* Picking instructions occupy their own row; they must not cover origin labels. */
 .configured-assembly-layout > main > [aria-label="Selección de origen en vista configurada"] { flex: 0 0 auto; margin: 0; padding: 6px 8px; background: #f4faff; border: 1px solid #c6d6e2; font-size: 11px; }
 .configured-origin-controls small { display:block; margin-top:5px; }
+.configured-assembly-workspace .configured-discard-dialog {
+  inset: 0;
+  margin: auto;
+  transform: none;
+  box-sizing: border-box;
+  width: min(430px, calc(100% - 24px));
+  border-radius: 8px;
+}
+.configured-discard-dialog::backdrop { background: #183e5c65; }
+.configured-discard-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.configured-assembly-workspace .configured-discard-actions button { margin: 0; }
+.configured-discard-dialog [role="alert"] { color: #8d2222; }
 .configured-assembly-workspace [aria-label="Selección de origen en vista configurada"] { margin:0; padding:7px 12px; background:#eaf3ff; color:#225b85; }
 .configured-assembly-workspace [aria-label="Selección de referencia en vista configurada"] { margin:0; padding:7px 12px; background:#eaf3ff; color:#225b85; }
 @media (max-width:1180px),(max-height:760px) {

@@ -3,7 +3,7 @@
 // Original millimetre fixture extending the tracked instance-depth plate.
 // The fixed lower-left corner and shared line endpoints make the two driving
 // lengths independent. No solved geometry or material is embedded.
-module.exports = () => {
+module.exports = (operation = 'cut') => {
   const document = require('./desktop-part-instance-depth-original.cjs')();
   document.id = 'original-instance-rectangle-plate';
   document.name = 'Original instance rectangle plate';
@@ -29,5 +29,13 @@ module.exports = () => {
       { id: 'driving-height', type: 'length', entityId: 'left', value: 2 },
     ],
   };
+  if (operation === 'extrude') {
+    document.id = 'original-instance-rectangle-boss-plate';
+    document.name = 'Original instance rectangle boss plate';
+    sketch.offset = 4;
+    const { bodyScope, ...seed } = document.features[3];
+    document.features[3] = { ...seed, name: 'Saliente semilla', type: 'extrude', depth: 2,
+      bodyOperation: { mode: 'merge', target: bodyScope[0] } };
+  }
   return document;
 };

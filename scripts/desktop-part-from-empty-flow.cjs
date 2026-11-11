@@ -147,10 +147,50 @@ module.exports = function fromEmptyWorkflow(c) {
     await feature('extrude',bossSketch,3,false,true,6,11192,4096,13,'second-boss');
     const pocketSketch=await draw([[-16,-10],[-10,-6]],10,7);
     const final=await feature('cut',pocketSketch,-2,false,false,8,11144,4136,13,'separate-pocket');
-    let serial=(await observe()).serial;await key('Z');await idle();
-    const undo=await built(serial,7,11192,4096,13,'undo-pocket');
-    check(canonical(undo.features)===canonical(final.features.slice(0,-1)),'Undo removes only the last cut, retaining its sketch');
-    serial=(await observe()).serial;await key('Y');await idle();
+    const lastCut=final.features.at(-1);
+    const fileTrigger='nav.part-main-menus [data-assembly-menu="file"]';
+    const menuFocus = () => page((triggerSelector, id) => {
+      const trigger=document.querySelector(triggerSelector), popupId=trigger?.getAttribute('aria-controls');
+      const popup=popupId&&document.getElementById(popupId), active=document.activeElement;
+      const selected=[...document.querySelectorAll('.tree-row.selected[data-feature-id]')];
+      return { expanded:trigger?.getAttribute('aria-expanded'), popupId, ownsFocus:!!popup&&popup.contains(active),
+        command:active?.getAttribute('data-assembly-command'), exactCut:selected.length===1&&selected[0].dataset.featureId===id };
+    },fileTrigger,lastCut.id);
+    await press('.tree-row[data-feature-id="'+lastCut.id+'"]:not([data-parent-feature-id])');
+    await press(fileTrigger);
+    const focus=await waitFor('File popup owns focus with the exact final cut selected',async()=>{
+      const state=await menuFocus();return state.expanded==='true'&&state.ownsFocus&&state.exactCut&&state.command!==null?state:false;
+    });
+    const beforeMenuKeys=await menuSnapshot(), menuGuard={cutId:lastCut.id,focus,keys:[]};
+    checks.push({partFilePopupOwnership:menuGuard});
+    for(const command of ['Delete','Z','S','O','N']){
+      if(command==='Delete')await menuKey(command);
+      else await key(command);
+      await page(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+      const after=await menuSnapshot(), nextFocus=await menuFocus();
+      menuGuard.keys.push({command,focus:nextFocus,recoverySha256:digest(after.recovery),serial:after.native.serial,dialogs:after.dialogs});
+      check(canonical(after)===canonical(beforeMenuKeys)&&canonical(nextFocus)===canonical(focus),
+        'File popup owns '+command+' and preserves the selected cut, recovery, native work and file dialogs');
+    }
+    await menuKey('Escape');
+    await waitFor('File popup Escape returns focus to the trigger',()=>page(selector=>
+      document.activeElement?.matches(selector)&&document.activeElement.getAttribute('aria-expanded')==='false',fileTrigger));
+    let serial=(await observe()).serial, afterUndo;
+    await key('Z',async()=>{
+      await idle();
+      const undo=await built(serial,7,11192,4096,13,'undo-pocket');
+      check(canonical(undo.features)===canonical(final.features.slice(0,-1)),'Undo removes only the last cut, retaining its sketch');
+      afterUndo=await menuSnapshot();
+      check(canonical(JSON.parse(afterUndo.recovery).features)===canonical(undo.features),'Recovery retains the seven features after the initial Undo keydown');
+    });
+    await page(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+    await idle();
+    const afterRepeat=await menuSnapshot();
+    const summarizeUndo=state=>({features:JSON.parse(state.recovery).features.map(feature=>feature.id),
+      recoverySha256:digest(state.recovery),serial:state.native.serial,history:state.ui.history});
+    checks.push({partHeldUndo:{initial:summarizeUndo(afterUndo),repeat:summarizeUndo(afterRepeat)}});
+    check(canonical(afterRepeat)===canonical(afterUndo),'Held Ctrl+Z repeat preserves the exact seven-feature recovery, history and native observation');
+    serial=afterRepeat.native.serial;await key('Y');await idle();
     const redo=await built(serial,8,11144,4136,13,'redo-pocket');check(canonical(redo.features)===canonical(final.features),'Redo restores exact ordered operations');
     await menu('Guardar como…');
     await waitFor('actual saved file complete',async()=>dialogCounts().saves===1&&ipc.some(e=>e.channel==='document:save'&&e.completed)&&await page(()=>!document.querySelector('.document-title')?.textContent.includes('*')));
