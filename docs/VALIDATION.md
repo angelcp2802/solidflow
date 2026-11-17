@@ -1,5 +1,76 @@
 # Validation
 
+## Configured mixed-origin keyboard context — Windows, 2026-11-17
+
+At `75da103`, the original nested configured fixture selected the Z axis of
+`right / anchor`, then added that occurrence's XY plane with trusted Ctrl-click.
+The browse selection retained both exact origins. Normal To rejected the axis
+combination and its display projection contained only the first origin. The
+viewport ContextMenu key then produced no popup because that axis differed from
+the last selected tree plane.
+
+The configured viewport now passes the complete browse selection's ambiguity
+to the existing keyboard context resolver. The same two-origin selection opens
+the fourteen-action background menu. It retains the full selection, scope,
+recovery, document history, native request serial and file activity. Existing
+single-origin owner, pointer and Normal To routes stay in the same workflow.
+
+An unpreviewed nested coincidence draft also selected a current material face
+through the visible reference choices, with local XY in the other role.
+ContextMenu and Shift+F10 both left the draft intact and opened no popup, with
+native serial 14 before and after. Restoring the original plane option then
+completed the existing nested preview, Cancel, retry, Apply, Undo and saved
+document lifecycle.
+
+The build and 91 focused unit cases passed. The configured-components route
+passed 375 checkpoints at 1024 × 661 content size with zero console or resource
+errors. This was the hidden Windows x64 production renderer, using trusted
+Chromium tree pointer and context-key input. Scope and form navigation use the
+existing scripted visible controls. OS keyboard behavior, other platforms and
+the complete integrated suite retain their separate validation requirements.
+
+## Standard assembly keyboard origin context — Windows, 2026-11-11
+
+In the original compact three-prism route, an unpreviewed signed-distance
+draft retained the actual Guía top face and root XY. The user then selected
+only Seguidor XY in the Components tree and opened the keyboard context menu
+from the focused viewport. At `9c850fe`, the viewport showed its background
+menu even though the exact component origin was the sole browse selection.
+
+The corrected renderer opens **Plano XY · Seguidor** and **Seleccionar
+componente propietario** selects that exact occurrence. The two draft roles,
+root scope, recovery, document history, worker observations and file activity
+stay unchanged. A separate real additive browse selection containing both
+the material face and origin still opens the background menu. The existing
+root XY pointer route and armed-picker protection remain in the same run.
+
+`test:desktop:assembly-basic-authoring` passed 666 checkpoints at 1024 × 661
+content size with zero console or resource errors. The run used a focused
+viewport and trusted Chromium ContextMenu input in the hidden Windows x64
+production renderer. It covers the original standard root assembly.
+
+## Unchanged embedded part properties — Windows, 2026-11-11
+
+On `ff4b30e`, the production renderer submitted untouched physical properties
+in two original standard assemblies. The three-use material assembly used
+the embedded `moving` occurrence with assigned density and colour. The shared
+nested assembly used `left / inner / source`, with material unassigned and a
+96 mm³ local prism. The first route used trusted pointer input. The nested
+route used the actual visible controls through scripted DOM activation.
+
+In each case, the child build record, enabled Return, local history, fields,
+mass and exact parent recovery remained unchanged after the submit. Returning
+posted one fresh parent assembly build. The parent remained clean and kept its
+document, history, source revisions and placements. The nested parent retained
+six solids, 576 mm³ and 768 mm². The existing genuine density and colour change
+still advanced the two shared uses while preserving the independent revision,
+with source-review Cancel/retry, native Apply, Undo/Redo and Save/Open.
+
+`test:desktop:assembly-part-properties` passed 224 checkpoints and
+`test:desktop:assembly-symmetry-nested-selected` passed 135. Both Windows x64
+runs reported zero console or resource errors. This evidence covers the two
+stated fixtures and the rendered standard embedded editor.
+
 ## Ordinary mixed relation draft reentry — Windows, 2026-11-11
 
 On `c79870d`, a real viewport press selected the original Ground top face.

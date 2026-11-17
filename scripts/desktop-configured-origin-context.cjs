@@ -22,7 +22,7 @@ module.exports = function originContextWorkflow(c) {
       return [...menu.querySelectorAll('[data-cad-context-action]')].map(e => ({ id: e.dataset.cadContextAction, disabled: e.disabled }));
     }, title));
   }
-  async function press(selector, right = false, text = '') {
+  async function press(selector, right = false, text = '', modifiers = 0) {
     const point = await page((selector, text) => {
       const matches = [...document.querySelectorAll(selector)].filter(e => !text || e.textContent.trim() === text);
       const e = matches.length === 1 ? matches[0] : null;
@@ -31,7 +31,7 @@ module.exports = function originContextWorkflow(c) {
       if (!e.contains(document.elementFromPoint(p.x, p.y))) throw Error('Hit-tested visible context control required');
       return p;
     }, selector, text);
-    await pointer('mouseMoved', point); await pointer('mousePressed', point, right ? 2 : 1); await pointer('mouseReleased', point, right ? 2 : 0);
+    await pointer('mouseMoved', point); await pointer('mousePressed', point, right ? 2 : 1, 1, modifiers); await pointer('mouseReleased', point, right ? 2 : 0, 1, modifiers);
   }
   async function pressButton(parent, text) {
     const selector = parent + ' button';
@@ -172,6 +172,36 @@ module.exports = function originContextWorkflow(c) {
     const scopeValue = JSON.stringify(scope);
     await navigateScope(scopeValue);
     await button('Isométrica', '[aria-label="Vistas del ensamblaje configurado"]');
+    const ambiguityBefore = await observe(), ambiguityHistory = await historyState(), ambiguityFiles = files();
+    const axisMenu = await origin(owner, 'principal-axis'); await close(axisMenu.selector);
+    const planeSelector = '[data-assembly-tree-key=' + JSON.stringify(treeKey) + ']';
+    await navigation.reveal(planeSelector); await press(planeSelector, false, '', process.platform === 'darwin' ? 4 : 2);
+    const ambiguousSelection = await waitFor('actual additive nested axis and plane browse selection', async () => {
+      const value = await selection();
+      return value.keys.length === 2 && value.keys.every(([kind]) => kind === 'origin') && value.keys[1][1] === treeKey ? value : false;
+    });
+    const axisOverlayKey = JSON.stringify(['principal-axis', [owner, definition.id, definition.revision], 'Z']);
+    await waitFor('current axis overlay is presented for the mixed origin selection', () => page(key => {
+      const host = document.querySelector('.configured-assembly-view .assembly-viewport');
+      const labels = [...host.querySelectorAll('.assembly-origin-labels > button')];
+      return host.dataset.referencePicking === '' && labels.length === 1 && labels[0].dataset.originKey === key;
+    }, axisOverlayKey));
+    await page(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    await page(selector => document.querySelector(selector).focus(), viewport); await menuKey('ContextMenu');
+    await page(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    const ambiguousMenu = await page(() => {
+      const menu = document.querySelector('.cad-context-menu');
+      return menu?.contains(document.activeElement) ? { title: menu.querySelector('.part-feature-context-heading')?.textContent,
+        actions: [...menu.querySelectorAll('[data-cad-context-action]')].map(row => row.dataset.cadContextAction) } : null;
+    });
+    checks.push({ configuredMixedOriginKeyboardObservation: { selection: ambiguousSelection, menu: ambiguousMenu } });
+    check(ambiguousMenu?.title === 'Vista del ensamblaje' && !ambiguousMenu.actions.includes('origin-owner'),
+      'Two selected nested origins stay ambiguous even when Normal To cannot resolve the first axis: ' + JSON.stringify(ambiguousMenu));
+    await close(viewport);
+    check((await observe()).serial === ambiguityBefore.serial && canonical(await historyState()) === canonical(ambiguityHistory)
+      && files() === ambiguityFiles && canonical(await selection()) === canonical(ambiguousSelection),
+      'Configured mixed-origin keyboard context preserves the full browse selection, document, history and file activity');
+    checks.push({ configuredMixedOriginKeyboard: { owner, selection: ambiguousSelection, menu: ambiguousMenu } });
     const beforeView = await observe(), originalHistory = await historyState(), originalFiles = files();
     const tree = await origin(owner, 'principal-plane');
     const actions = [
@@ -217,6 +247,29 @@ module.exports = function originContextWorkflow(c) {
     const filled = { ...nominated, name, references: [JSON.stringify(first), JSON.stringify(second)] };
     check(canonical(await draft()) === canonical(filled), 'Draft contains the ordered nested and scope origin planes before preview');
     const draftHistory = await historyState();
+    const materialReference = await page(() => {
+      const select = document.querySelector('[aria-label="Referencia 1 de relación configurada"]');
+      const reference = [...select.options].filter(option => option.value).map(option => JSON.parse(option.value)).find(value =>
+        value.kind === 'face' && value.support === 'plane' && value.component?.occurrencePath.length === 1
+        && value.component.occurrencePath[0] === 'anchor');
+      if (!reference) throw Error('Original nested anchor has a current planar material option');
+      return reference;
+    });
+    await control('Referencia 1 de relación configurada', JSON.stringify(materialReference));
+    const materialDraft = { ...filled, references: [JSON.stringify(materialReference), JSON.stringify(second)] };
+    check(canonical(await draft()) === canonical(materialDraft), 'Visible configured choices retain a nested material face and local XY in the unpreviewed draft');
+    const draftNative = await observe();
+    for (const key of ['ContextMenu', 'F10']) {
+      await page(selector => document.querySelector(selector).focus(), viewport); await menuKey(key, key === 'F10');
+      await page(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      check(await page(() => !document.querySelector('.cad-context-menu')) && canonical(await draft()) === canonical(materialDraft)
+        && canonical(await historyState()) === canonical(draftHistory) && (await observe()).serial === draftNative.serial && files() === originalFiles,
+        'The exact configured mate draft owns input and rejects viewport ' + key + ' without edits or file activity');
+    }
+    checks.push({ configuredNestedDraftKeyboard: { owner, scope, draft: materialDraft, keys: ['ContextMenu', 'Shift+F10'],
+      nativeSerialBefore: draftNative.serial, nativeSerialAfter: (await observe()).serial, filesAndHistoryUnchanged: true } });
+    await control('Referencia 1 de relación configurada', JSON.stringify(first));
+    check(canonical(await draft()) === canonical(filled), 'Returning to the original origin choice preserves the exact nested preview intent');
     let mateId;
     async function preview() {
       const before = await observe();

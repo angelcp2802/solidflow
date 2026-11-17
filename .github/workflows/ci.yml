@@ -51,10 +51,7 @@ jobs:
         run: npx --no-install electron-builder --win nsis --x64 --publish never
 
       - name: Verify the packaged application members
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Path artifacts -Force | Out-Null
-          node scripts/verify-package-integrity.mjs
+        run: node scripts/verify-package-integrity.mjs
 
       - name: Install and verify startup in an isolated profile
         shell: pwsh
@@ -73,12 +70,15 @@ jobs:
           - os: windows-2025
             platform: win
             arch: x64
+            resources: release/win-unpacked/resources
           - os: macos-15
             platform: mac
             arch: arm64
+            resources: release/mac-arm64/SolidFlow.app/Contents/Resources
           - os: ubuntu-24.04
             platform: linux
             arch: x64
+            resources: release/linux-unpacked/resources
     env:
       CI: "true"
       # CI artifacts have no signing credentials and are never published.
@@ -142,6 +142,9 @@ jobs:
         # Build was already checked above. Use the local locked builder, with no
         # registry fallback, GitHub release upload, signing secret or notarizing.
         run: npx --no-install electron-builder --${{ matrix.platform }} --${{ matrix.arch }} --publish never
+
+      - name: Verify the packaged application members and notices
+        run: node scripts/verify-package-integrity.mjs "${{ matrix.resources }}"
 
       # Validate packaging without distributing binaries until the full
       # corresponding-source bundle for the CAD toolchain is verified.

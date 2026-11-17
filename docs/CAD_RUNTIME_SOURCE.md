@@ -34,6 +34,11 @@ Both `dist/replicad_single.d.ts` and `dist/replicad_multi.d.ts` contain
 `b44516bd24e6abf0dbe680086e286b117d77299ea77e80f230220dc77d250b08`.
 They match the installed package but are **not** included in the inspected ASAR.
 
+The inspected ASAR records a historical package. The current packaging
+configuration excludes the three raw `replicad_multi` runtime files. The npm
+lock and tarball identities still cover both upstream variants. Record the
+single-thread runtime, its sources and the notices for each new distributable.
+
 The inspected ASAR has SHA-256
 `815128c7bcf6e5c4856908c12640a8117a0811499ff92c1070a7e82414c8feca`.
 Its two production assets below match the corresponding local Vite build:

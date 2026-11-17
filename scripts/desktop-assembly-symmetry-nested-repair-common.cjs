@@ -226,6 +226,34 @@ module.exports=function nestedPointRepair(context,operation){
  }
  async function recovery(doc){await waitFor('exact committed recovery',async()=>canonical(JSON.parse(await page(()=>localStorage.getItem('solidflow.autosave'))))===canonical(doc)&&await page(()=>document.querySelector('.assembly-app')?.getAttribute('aria-busy')==='false'))}
  async function select(doc,path){const rows=[];function visit(node,p){for(const o of node.occurrences){const d=definition(doc,o.definition);rows.push({path:[...p,o.id],name:o.name,level:p.length+1,definition:d});if(d.kind==='assembly')visit(d,[...p,o.id])}}visit(doc,[]);const index=rows.findIndex(r=>canonical(r.path)===canonical(path));check(index>=0,'Declared UI tree path');await assemblyNavigation.reveal(await assemblyNavigation.tree.selector('data-assembly-tree-path',JSON.stringify(path)));(await assemblyNavigation.panel('components'), await page((encoded,index)=>{const rows=JSON.parse(encoded),actual=[...document.querySelectorAll('.assembly-tree [role="treeitem"][data-assembly-tree-path]')];if(actual.length!==rows.length)throw Error('Tree inventory mismatch');for(let i=0;i<rows.length;i++)if(actual[i].getAttribute('data-assembly-tree-path')!==JSON.stringify(rows[i].path)||actual[i].getAttribute('aria-level')!==String(rows[i].level)||actual[i].querySelector('span')?.firstChild?.textContent!==rows[i].name||actual[i].querySelector('small')?.textContent!==rows[i].definition.id+' · '+rows[i].definition.revision)throw Error('Tree identity/ancestry mismatch');if(actual[index].disabled||actual[index].closest('[hidden]'))throw Error('Tree target disabled or hidden');actual[index].click()},JSON.stringify(rows),String(index)));await idle()}
+ async function untouchedNestedProperties(current) {
+   const ownerPath = ['left', 'inner', 'source'], source = trace(current.document, ownerPath).node;
+   const part = '.assembly-embedded-part-editor .app-shell';
+   const history = () => page(() => [...document.querySelectorAll('.assembly-app button[aria-label="Deshacer ensamblaje"],.assembly-app button[aria-label="Rehacer ensamblaje"]')]
+     .map(button => [button.getAttribute('aria-label'), button.disabled]));
+   const parentHistory = await history();
+   await select(current.document, ownerPath); await assemblyNavigation.panel('properties');
+   const serial = (await observe.counters()).serial;
+   await click('button[aria-label="Editar pieza del componente"]');
+   const childBuild = await waitFor('ready embedded leaf uses the exact original nested prism', async () => {
+     const state = await observe(), row = state.builds.find(value => value.serial > serial && value.response);
+     if (!row) return false;
+     check(row.response.ok && canonical(row.features) === canonical(source.document.features), 'The exact nested leaf sends its unchanged features');
+     const value = row.response.value;
+     check(!value.featureErrors.length && value.bodies.length === 1 && canonical(value.bodies[0].ref) === canonical({ bodyId: 'box', sourceFeatureId: 'solid' }),
+       'Exact valid local body of the nested leaf');
+     near(value.bodies[0].volume, 96, 1e-6, 'Literal 4 x 6 x 4 mm nested child volume'); return row;
+   });
+   await click(part + ' .taskbar button[title="Propiedades físicas"]');
+   const { restored, receipt } = await require('./desktop-embedded-properties-noop-observation.cjs')({ page, observe, waitFor, check, canonical,
+     digest, dialogCounts, childBuild, ownerPath, submit: () => click(part + ' .part-properties-form button[type="submit"]'),
+     close: () => click(part + ' [aria-label="Edición de pieza en el ensamblaje"] button.primary-button'), waitParent: after => response(after, 'build-assembly') });
+   check(receipt.mass === 'Sin asignar' && canonical(restored.document) === canonical(current.document), 'Return retains the original unassigned nested source and every revision/pose');
+   metrics(restored.response.value, current.document, 'baseline', false);
+   await recovery(current.document); check(canonical(await history()) === canonical(parentHistory), 'Nested untouched Apply and Return leave parent history unchanged');
+   evidence.untouchedNestedProperties = { ...receipt, source: { id: source.id, revision: source.revision }, activeSolids: restored.response.value.solidCount,
+     volume: restored.response.value.volume, area: restored.response.value.area };
+ }
  function record(phase,e){const v=e.response.value??{status:'worker-rejected'};evidence.phases.push({phase,serial:e.serial,action:e.action,reviewId:e.reviewId??v.reviewId??null,baseSha256:e.current?digest(canonical(e.current)):null,proposedSha256:e.proposed?digest(canonical(e.proposed)):null,...(!e.response.ok?{rpcError:e.response.error}:{}),status:v.status??v.kind,documentSha256:v.document?digest(canonical(v.document)):null,reports:v.symmetries,scopeMap:v.scopeMap,endpoints:v.endpoints?.map(x=>({locator:x.locator,status:x.status}))})}
  function reports(v,doc,awake){const paths=awake?['left','right','sleeping']:['left','right'];check(v.symmetries?.length===paths.length,'Report per active expansion only');for(const root of paths){const a=v.symmetries.filter(r=>canonical(r.scopePath)===canonical([root,'inner']));check(a.length===1&&a[0].mateId===inner(doc,root).mates[0].id&&a[0].status==='ok'&&a[0].satisfied&&a[0].entityKind==='point','Exact active scope native report');const r=a[0];near(r.positionErrorMm,0,1e-6,'Native position');check(r.angleRadians===null&&r.radiusDifferenceMm===null&&r.uncertainty.positionMm<=r.lengthTolerance,'Point-purpose unchanged bands');for(const side of roles)check(canonical(r.componentPaths[side])===canonical([root,'inner',side]),'Fully scoped report role')}}
  function ready(e,phase,awake=false){const v=e.response.value;check(v.status==='ready'&&v.hasToken&&v.checks.length>0&&v.checks.every(x=>x.satisfied),'Authenticated ready candidate');reports(v,v.document,awake);metrics(v.scene,v.document,phase,true,awake);record('ready/'+phase,e);return v}
@@ -251,6 +279,7 @@ module.exports=function nestedPointRepair(context,operation){
  return async()=>{
   check(expected.id==='assembly-symmetry-nested-repair-original','Original fixture');const originalBytes=await fsp.readFile(input);await waitFor('initial production ready',()=>page(()=>document.querySelector('.statusbar')?.textContent.includes('Listo')&&typeof window.solidflow?.openDocument==='function'),initialReadyMs);let b=await observe();await click('button[aria-label="Abrir (Ctrl+O)"]');await waitFor('initial discard',()=>page(()=>!!document.querySelector('[aria-labelledby="discard-title"]')));await button('Continuar sin guardar','[aria-labelledby="discard-title"]');let e=await response(b.serial,'build-assembly'),current={document:e.document,scene:e.response.value};check(canonical(e.document)===canonical(expected),'Exact original imported');metrics(current.scene,current.document,'baseline',false);
   if (selected) {
+    await untouchedNestedProperties(current);
     await ordinaryOriginAcrossScopes(current.document);
     await ordinaryOriginAfterOwnerSuppression(current);
   }

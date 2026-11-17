@@ -187,8 +187,9 @@ module.exports = function assemblyPartPropertiesWorkflow(c) {
     await selectMoving(); await navigation.panel('properties'); const after = await serial(); await press('button[aria-label="Editar pieza del componente"]'); mode = 'embedded';
     await waitFor('real embedded editor owns the visible workspace', () => page(part => document.querySelector(part)?.checkVisibility()
       && document.querySelector('.assembly-app')?.hidden && document.querySelector('.assembly-app')?.inert, PART));
-    await partBuild(after); await press(PART + ' .taskbar button[title="Propiedades físicas"]'); await mass(.000024);
+    const build = await partBuild(after); await press(PART + ' .taskbar button[title="Propiedades físicas"]'); await mass(.000024);
     await waitFor('existing shared properties form', () => page(form => document.querySelector(form + ' [aria-label="Densidad del material"]')?.value === '1000', FORM));
+    return build;
   }
   async function partBuild(after) {
     return waitFor('actual fresh original embedded prism build', async () => {
@@ -251,12 +252,15 @@ module.exports = function assemblyPartPropertiesWorkflow(c) {
     const discard = '[role="dialog"][aria-labelledby="discard-title"]';
     if (await page(selector => !!document.querySelector(selector), discard)) await rawPress(discard + ' button', 'Continuar sin guardar');
     mode = 'standard'; const initial = await response(afterOpen, 'build-assembly'); geometry(initial.response.value, 'r0'); await idle(expected, 'initial original assembly'); await mass(.000096); await clearSelection(); await captures('standard-initial');
-    const parent = await snapshot(); await enter(); await draft(); const cancelSerial = await serial(); await button('Cancelar cambios', FORM);
+    const parent = await snapshot(), childBuild = await enter(); await draft(); const cancelSerial = await serial(); await button('Cancelar cambios', FORM);
     check(await page(form => document.querySelector(form + ' [aria-label="Densidad del material"]')?.value === '1000'
       && document.querySelector(form + ' [aria-label="Color de la pieza"]')?.value === '#cc6633', FORM), 'Cancel restores original shared form declaration');
     check(await serial() === cancelSerial, 'Draft Cancel does not rebuild native geometry'); await unchanged(parent, 'Embedded panel Cancel');
-    const unchangedReturn = await serial(); await press(RETURN); mode = 'standard'; const restored = await response(unchangedReturn, 'build-assembly'); geometry(restored.response.value, 'r0'); await idle(expected, 'unchanged embedded return'); await mass(.000096);
-    check(!(await observe()).assemblies.some(r => r.serial > unchangedReturn && r.action === 'review-assembly-part-update'), 'Cancelled unchanged piece does not create a source review');
+    const { restored, receipt } = await require('./desktop-embedded-properties-noop-observation.cjs')({ page, observe, waitFor,
+      check, canonical, digest, dialogCounts, ipc, childBuild, ownerPath: ['moving'], submit: () => button('Aplicar propiedades', FORM),
+      close: async () => { await press(RETURN); mode = 'standard'; }, waitParent: after => response(after, 'build-assembly') });
+    geometry(restored.response.value, 'r0'); await idle(expected, 'unchanged embedded return'); await mass(.000096);
+    await unchanged(parent, 'Untouched Apply and Return'); evidence.assemblyPartProperties.untouchedApply = receipt;
     await enter(); await draft(); const afterLocal = await serial(); await button('Aplicar propiedades', FORM); await partBuild(afterLocal); await mass(.000072); await unchanged(parent, 'Local properties Apply');
     await review(); const beforeCancel = await serial(); await press(CANCEL_REVIEW); mode = 'embedded'; await waitFor('Cancel resumes actual retained draft', () => page(part => document.querySelector(part)?.checkVisibility(), PART)); await partBuild(beforeCancel); await mass(.000072); await unchanged(parent, 'Source review Cancel');
     await review(); const beforeSolve = await serial(); await press('button[aria-label="Resolver actualización de pieza"]'); const preview = await response(beforeSolve, 'preview-assembly-part-update'); await mass(0, true);

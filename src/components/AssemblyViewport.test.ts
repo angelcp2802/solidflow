@@ -119,13 +119,16 @@ it('keyboard context retains the background commands for a multiple-origin selec
       .toEqual({ kind: 'background' })
   } finally { f.dispose() }
 })
-it('keyboard context keeps a mixed face and origin selection instead of retargeting its origin alone', () => {
+it('keyboard context distinguishes a mixed selection from an unrelated face highlight', () => {
   const f = fixture()
   try {
     const body = f.add(['pin'], 0), plane = { kind: 'principal-plane', component: null, plane: 'XY' } as const
     const entry: AssemblyOriginDisplay = { key: assemblyOriginReferenceKey(plane), reference: plane, label: 'Original plane', worldPose: identityRigidPose() }
-    expect(resolveAssemblyViewportContext(f.camera, f.bodies, null, size, { ...contextState(f), selectedPath: ['pin'], originReferences: [entry],
-      selectedOrigins: [plane], selectedFaces: [body.faceEntry.face] })).toEqual({ kind: 'background' })
+    const state = { ...contextState(f), selectedPath: ['pin'], originReferences: [entry],
+      selectedOrigins: [plane], selectedFaces: [body.faceEntry.face] }
+    expect(resolveAssemblyViewportContext(f.camera, f.bodies, null, size, state)).toEqual({ kind: 'background' })
+    expect(resolveAssemblyViewportContext(f.camera, f.bodies, null, size, { ...state, keyboardOriginHasOtherSelection: true })).toEqual({ kind: 'background' })
+    expect(resolveAssemblyViewportContext(f.camera, f.bodies, null, size, { ...state, keyboardOriginHasOtherSelection: false })).toEqual({ kind: 'origin', reference: plane })
   } finally { f.dispose() }
 })
 it('keeps a manipulable intent proxy empty and reads its actual world frame instead of a parent-local target', () => {

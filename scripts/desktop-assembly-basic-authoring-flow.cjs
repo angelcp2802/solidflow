@@ -88,12 +88,12 @@ module.exports = function basicAuthoringWorkflow(context) {
       throw error;
     });
   }
-  async function actual(selector, text = null) {
+  async function actual(selector, text = null, modifiers = 0) {
     const before = await prepare(selector, text);
     await pointer('mouseMoved', before.point);
     const after = await inspect(selector, text);
     check(canonical(after) === canonical(before), 'Authoring target remains stationary before press: ' + JSON.stringify({ selector, text, before, after }));
-    await pointer('mousePressed', before.point, 1); await pointer('mouseReleased', before.point, 0);
+    await pointer('mousePressed', before.point, 1, 1, modifiers); await pointer('mouseReleased', before.point, 0, 1, modifiers);
     gestures.push({ action: 'pointer', selector, text, point: before.point,
       ...(before.relationControl ? { reveal: { rect: before.rect, clip: before.clip, scrollOwners: before.scrollOwners,
         verticalMargin: Math.min(before.rect.top - before.clip.top, before.clip.bottom - before.rect.bottom) } } : {}) });
@@ -692,6 +692,77 @@ module.exports = function basicAuthoringWorkflow(context) {
     await actual(picker);
     await select(selectedId);
   }
+  async function keyboardOriginWithDraft(doc, scene) {
+    const viewport = '.assembly-viewport', scope = '[aria-label="Ámbito de las relaciones"]';
+    const originRef = ref('principal-plane', owners.follower, 'XY');
+    const datum = '[data-assembly-origin-tree-reference]' + attr('data-assembly-origin-tree-reference', JSON.stringify(originRef));
+    const originLabel = 'Plano XY · Seguidor';
+    const originKey = JSON.stringify(['principal-plane', [[owners.follower], definition.id, definition.revision], 'XY']);
+    const role = number => '[aria-label="Referencia ' + number + ' de la relación"]';
+    const references = () => page(() => [1, 2].map(number => {
+      const title = document.querySelector('[aria-label="Referencia ' + number + ' de la relación"] span')?.title;
+      return title ? JSON.parse(title) : null;
+    }));
+    const browseKeys = () => page(() => JSON.parse(document.querySelector('.assembly-canvas')?.dataset.normalSelectionKeys));
+    const scopeAndMode = () => page((scope, viewport) => [document.querySelector(scope)?.value,
+      document.querySelector(viewport)?.dataset.referencePicking], scope, viewport);
+    const focusViewport = () => page(viewport => {
+      const host = document.querySelector(viewport);
+      if (!host?.checkVisibility() || host.tabIndex !== 0) throw Error('Current keyboard context viewport must be reachable');
+      host.focus({ preventScroll: true });
+      if (document.activeElement !== host) throw Error('Current viewport did not receive focus');
+    }, viewport);
+    const openKeyboardContext = async label => {
+      await waitFor('current visible origin catalog before ' + label, () => page((viewport, key) => {
+        const host = document.querySelector(viewport), labels = [...(host?.querySelectorAll('button[data-origin-key]') ?? [])];
+        return host?.dataset.referencePicking === '' && labels.some(row => row.dataset.originKey === key && row.checkVisibility());
+      }, viewport, originKey));
+      await page(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      await focusViewport(); await menuKey('ContextMenu');
+      return waitFor(label, contextMenuState);
+    };
+    const face = scene.bodies.find(body => body.component.occurrencePath[0] === owners.guide)?.faces.find(value =>
+      value.support?.kind === 'plane' && value.support.normal[2] > .999999 && Math.abs(value.support.point[2] - 4) < 1e-6);
+    check(face, 'Original Guía has an exact top planar material reference');
+    const wanted = [{ kind: 'face', ...face.selection, support: 'plane' }, ref('principal-plane', null, 'XY')];
+    const canvasPick = async point => {
+      check(await page((point, viewport) => document.elementFromPoint(point.x, point.y) === document.querySelector(viewport + ' > canvas'), point, viewport),
+        'Independently projected Guía face hits the current unobstructed canvas');
+      await pointer('mouseMoved', point); await pointer('mousePressed', point, 1); await pointer('mouseReleased', point, 0);
+    };
+    await control(TYPE, 'distance'); await actual(role(1));
+    await actual('.assembly-view-tools button[title="Frontal"]');
+    await page(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    const point = await frontalPrismPoint(0); await canvasPick(point);
+    await waitFor('exact Guía top fills authored face role', async () => canonical((await references())[0]) === canonical(wanted[0]));
+    await origin(2, 'principal-plane', null, 'XY', doc);
+    await actual('#assembly-tab-components'); await actual(datum);
+    const before = await contextReadOnlyState(), file = canonical({ ipc, dialogs: dialogCounts() });
+    const selected = await browseKeys();
+    check(selected.length === 1 && selected[0][0] === 'origin' && canonical(await references()) === canonical(wanted)
+      && canonical(await scopeAndMode()) === canonical(['[]', '']), 'One exact current browse origin and two retained authored roles in an unarmed root scope');
+    const menu = await openKeyboardContext('viewport keyboard origin context with an unrelated authored face');
+    check(menu.target === originLabel && menu.actions.some(action => action.id === 'origin-owner' && !action.disabled),
+      'Keyboard menu must target the single current component datum despite the authored face highlight: ' + JSON.stringify(menu));
+    await actual(contextAction('origin-owner'));
+    await waitFor('owner command selects the exact Seguidor occurrence', () => page(selector => document.querySelector(selector)?.getAttribute('aria-selected') === 'true'
+      && !document.querySelector('.cad-context-menu'), tree(owners.follower)));
+    checkContextUnchanged(before, await contextReadOnlyState(), 'Keyboard origin-owner command changes selection only');
+
+    await canvasPick(point);
+    await waitFor('real material preselection for ambiguity control', async () => (await browseKeys())[0]?.[0] === 'face');
+    await actual(datum, null, process.platform === 'darwin' ? 4 : 2);
+    await waitFor('actual additive browse selection contains both material and origin', async () => canonical((await browseKeys()).map(item => item[0])) === canonical(['face', 'origin']));
+    const ambiguous = await openKeyboardContext('keyboard genuine mixed selection receives background context');
+    check(ambiguous.target === 'Vista del ensamblaje' && !ambiguous.actions.some(action => action.id === 'origin-owner'),
+      'Actual simultaneous material and origin browse selections remain ambiguous');
+    await menuKey('Escape');
+    checkContextUnchanged(before, await contextReadOnlyState(), 'Genuine ambiguity retains both authored roles and exact committed state');
+    check(canonical(await references()) === canonical(wanted) && canonical({ ipc, dialogs: dialogCounts() }) === file, 'Context use leaves exact declarations and file activity untouched');
+    checks.push({ standardKeyboardOriginContext: { selected, menu, ambiguous, reference: originRef, authoredRoles: wanted, scope: [] } });
+    for (const slot of [1, 2]) await actual('[aria-label="Quitar referencia ' + slot + ' de la relación"]');
+    await select(owners.follower);
+  }
   async function preview(doc, selector, text, phase, mateCount = doc.mates.length, expectedDistance = -12, expectedAlignment = 'aligned', expectedAngle = null) {
     const before = await serial(); await actual(selector, text); const event = await response(before, 'preview-assembly'), value = event.response.value;
     if (phase.startsWith('boundary-')) checks.push({ ordinaryAngleBoundaryDiagnostic: { phase,
@@ -1186,6 +1257,7 @@ module.exports = function basicAuthoringWorkflow(context) {
     gestures.push({ action: 'explicit-fit-after-three-component-placement', documentSha256: digest(canonical(current)) });
     await viewportContextWorkflow(current, owners.follower);
     await viewportOriginContextWorkflow(current, owners.follower);
+    await keyboardOriginWithDraft(current, event.response.value);
     await control(TYPE, 'distance'); await control(NAME, 'Guide to root'); await control('[aria-label="Distancia firmada"]', '-10');
     await origin(1, 'principal-plane', null, 'YZ', current); await origin(2, 'principal-plane', owners.guide, 'YZ', current);
     current = await apply(await preview(current, '#assembly-panel-relations button', 'Vista previa de la nueva relación', 'root-plane-preview', 1, -10), 'root-plane-apply', 3, -10);

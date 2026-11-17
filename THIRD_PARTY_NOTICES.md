@@ -21,8 +21,9 @@ Electron Builder are MIT. Their presence does not relicense them as project code
 
 ## CAD library source
 
-The application uses the unmodified `replicad-opencascadejs@1.1.0` npm package.
-Its package metadata records source commit
+The build uses the locked `replicad-opencascadejs@1.1.0` npm package. Packaged
+applications include its single-thread runtime and omit the unused raw
+multi-thread variant. Its package metadata records source commit
 `e4b05f67dc4e2393a876ce8c5064a9c93db05bf1`. The source and build configuration are
 available in [the upstream Replicad repository at that commit](https://github.com/sgenoud/replicad/tree/e4b05f67dc4e2393a876ce8c5064a9c93db05bf1/packages/replicad-opencascadejs).
 The package's original LGPL text is included locally. Its build scripts identify

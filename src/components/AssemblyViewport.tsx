@@ -151,14 +151,15 @@ export function pickAssemblyComponent(camera: Camera, bodies: readonly AssemblyP
 export function resolveAssemblyViewportContext(
   camera: Camera, bodies: readonly AssemblyPickBody[], pointer: { x: number; y: number } | null,
   size: { width: number; height: number },
-  state: Pick<AssemblyViewportProps, 'scene' | 'selectedPath' | 'originReferences' | 'selectedOrigins' | 'selectedFaces' | 'disabled' | 'pickingFaces' | 'pickingEdges' | 'pickingVertices' | 'pickingOrigins'>
+  state: Pick<AssemblyViewportProps, 'scene' | 'selectedPath' | 'originReferences' | 'selectedOrigins' | 'selectedFaces' | 'keyboardOriginHasOtherSelection' | 'disabled' | 'pickingFaces' | 'pickingEdges' | 'pickingVertices' | 'pickingOrigins'>
     & { presentedScene: AssemblyScene | null; originsCurrent: boolean; dragActive: boolean },
 ): AssemblyViewportContextSelection | null {
   if (state.disabled || state.dragActive || assemblyReferencePickMode(state) !== null
     || !state.scene || state.presentedScene !== state.scene || !state.originsCurrent) return null
   if (!pointer) {
     const selectedOrigins = state.selectedOrigins ?? []
-    if (selectedOrigins.length > 1 || selectedOrigins.length && (state.selectedFaces?.length ?? 0)) return { kind: 'background' }
+    const hasOtherSelection = state.keyboardOriginHasOtherSelection ?? !!state.selectedFaces?.length
+    if (selectedOrigins.length > 1 || selectedOrigins.length && hasOtherSelection) return { kind: 'background' }
     if (selectedOrigins.length === 1) {
       const key = assemblyOriginReferenceKey(selectedOrigins[0])
       const matches = (state.originReferences ?? []).filter(entry => assemblyOriginReferenceKey(entry.reference) === key)
@@ -234,6 +235,8 @@ export interface AssemblyViewportProps {
   /** Reserved presentation band for an owning workspace toolbar; witnesses stay unchanged. */
   originLabelTopInset?: number
   selectedOrigins?: readonly AssemblyOriginReference[]
+  /** When an origin comes from browsing, its keyboard menu ignores draft face highlights. */
+  keyboardOriginHasOtherSelection?: boolean
   pickingOrigins?: boolean
   onOrigin?: (reference: AssemblyOriginReference | null) => void
   selectedAnalysisPair?: AnalysisPair | null

@@ -1335,7 +1335,7 @@ async function runInElectron() {
       && Number.isFinite(point.x) && Number.isFinite(point.y) && point.x >= 0 && point.y >= 0
       && ([0, 1].includes(buttons) || buttons === 2
         && (configuredComponents || normalToView || partSequence || basicAuthoring || freshSketch || partSweepLoft && type !== 'mouseMoved'))
-      && (modifiers === 0 || (normalToView || direction) && [2, 4].includes(modifiers))
+      && (modifiers === 0 || (normalToView || direction || basicAuthoring || configuredComponents) && [2, 4].includes(modifiers))
       && (clickCount === 1 || clickCount === 2 && (embeddedPartEdit || normalToView || partRevolution || partSequence || partBodyCatalog)
         && ['mousePressed', 'mouseReleased'].includes(type) && buttons !== 2), 'Expected actual pointer input in the hidden test-owned CAD window.');
     const endTiming = workflowTiming?.begin('pointer');

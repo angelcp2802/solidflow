@@ -3617,6 +3617,7 @@ export default function AssemblyWorkspace({ initialDocument, initialPath, initia
         onContextTarget={openViewportContext}
         originReferences={!normalViewBlocked && browseOrigins.length ? browseOrigins : selectedTreeOrigin ? [selectedTreeOrigin.display] : originDisplays}
         selectedOrigins={!normalViewBlocked && browseOrigins.length ? browseOrigins.map(value => value.reference) : selectedTreeOrigin ? [selectedTreeOrigin.display.reference] : selectedOriginReferences} pickingOrigins={activeOriginPicking} onOrigin={pickOrigin}
+        keyboardOriginHasOtherSelection={!normalViewBlocked && browseOrigins.length && normalViewSelection ? normalViewSelection.items.length > 1 : undefined}
         pickingFaces={isSymmetry ? !!activeSymmetryPick && activeSymmetryPick.producer !== 'vertex' && activeSymmetryPick.producer !== 'line-edge'
           : activeCircularPick?.producer === 'face' || activeLinePick?.producer === 'face' || activeProfilePick?.producer === 'face'
             || !!activeMechanicalPick || activeHingePick?.producer === 'face' || !!activeWidthPick || activeGenericPick?.mode === 'face'

@@ -73,15 +73,15 @@ checked items out of 25. Each of its nine open groups keeps its own evidence.
 
 | Existing open group | Recorded bounded cases | Remaining gate work |
 | --- | --- | --- |
-| Complete demo and human use | The 0.25.0 Windows directory package passed the native combined part and two-occurrence assembly walkthrough, with verified desktop access and a guide. The 0.24.0 package retains separate native C11 and C15 results. The 0.23.0 package retains its three-occurrence authoring and configured-reference cases. | Record human use and installed-platform acceptance separately. |
+| Complete demo and human use | The 0.32.0 Windows directory package repeated the combined part and two-occurrence assembly walkthrough. The 0.33.0 shortcut recovered the three-solid assembly and its guide includes 27 original examples. Prior native C11 and C15 evidence remains linked above. | Record human use and installed-platform acceptance separately. |
 | Remaining view-editor behaviour | Presets, Normal To, named views, Previous and bounded native selector and gesture cases in three workspaces. The standard and configured compact renderer routes exercise direct view buttons at 1024×681 content size. | C13/N02–N06 retains the remaining selector, compact and context entries. |
-| Broader keyboard interaction | Document/camera shortcuts, field ownership, Help focus, modal Escape and menu traversal have bounded cases. Local follow-up covers the part File menu and configured discard dialog in normal and compact windows. | C13/N07/N08 and P-X01 retain their named field, tree, viewport, repeat and composition cases. |
-| Recurring persistence and installed/platform use | Versioned documents, interchange, close and recovery have local routes. All three persistence jobs pass on `2a9ad6d`. | C16 and C17 retain the exact-head results still to be verified. C18 records the local executable and combined walkthrough. Recurring hosted stability, cost and installed acceptance remain in [desktop tracking](https://github.com/angelcp2802/solidflow/issues/53). |
+| Broader keyboard interaction | Document/camera shortcuts, field ownership, Help focus, modal Escape and menu traversal have bounded cases. Local follow-up covers the part File menu and configured discard dialog in both layouts. A standard compact viewport case verifies the single selected origin menu and a genuine mixed-selection control. | C13/N07/N08 and P-X01 retain their named field, tree, viewport, repeat and composition cases. |
+| Recurring persistence and installed/platform use | Versioned documents, interchange, close and recovery have local routes. Exact 0.31.0 hosted CI passed all twelve renderer and authoring jobs and three Desktop jobs. | C16 and C17 retain the exact-head results still to be verified. C18 records the local executable and combined walkthrough. Recurring hosted stability, cost and installed acceptance remain in [desktop tracking](https://github.com/angelcp2802/solidflow/issues/53). |
 | Menus, context, selection and navigation | Windows focal records cover ordinary selection modes, plane toolbar, operation entries and embedded-copy aliases. The standard viewport right-release opens Move and Edit Part for the targeted occurrence. The 0.25.0 package verifies the structural STEP transition. | C05, C07, C13 retain multi-sketch, tree/viewport and remaining standard/configured aliases in the command matrix. |
 | Contextual/reference-first editors | Explicit support repair, saved ordinary-reference edits and embedded source changes have original lifecycle cases. | C06 and C09–C11 retain remaining advertised contexts, exact source ownership and final binding. Configured source/reference repair retains its separate advanced contract. |
 | Thin/specialized material/mechanical/origin cases | Thin modes, corners, Blind caps, second directions, mechanical picking, aligned/opposed origins and five normal finishing/Hole cases have bounded evidence. | C05, C08, C10 retain the declared variant and scope inventory, including cap, offset and wider automatic-corner requirements. |
 | Boundary angles and nested/configured/material references | Ordinary 0°/180°, named-state isolation and the supported compound/mechanical configured cases have records. | C09, C10, C14 require their combined scope/lifecycle evidence. Advanced configured movement, projection and repair stay in their separate contracts. |
-| Materials, density, colours and backgrounds | C15 records 70, 75+30 and 231 checks, including real recovery and the fixed presentation captures. | Bind the cases to the next integrated source and artifact. Picker, GPU and human-use evidence retain their separate limits. |
+| Materials, density, colours and backgrounds | C15 retains the earlier recovery and presentation cases. Exact 0.33.0 native Windows also verifies material and colour after reopen and unchanged Apply with identical saved bytes. | Bind the cases to the next integrated source and artifact. Picker, GPU and human-use evidence retain their separate limits. |
 
 Configured source/reference repair, constrained drag, configured interference
 and geometric export, part-feature variants and flexible instances are genuine
@@ -107,6 +107,52 @@ production behaviour. Preserve failed evidence, authentication, oracles,
 tolerances and deadlines.
 
 ## Current resumption point
+
+The exact 0.33.0 Windows x64 directory package at source `ff4b30e` passed the
+build, 11,528 unit and CAD cases, 232 IPC checks with two skips, the production
+loader smoke and the four prioritized property and direction commands. The
+independent ASAR audit and REA matched all 5,276 regular files. The desktop
+shortcut recovered three solids at 2,208 mm³ after close and restart. The
+native solve preview verified and Cancel restored the confirmed positions.
+The guide includes 27 original models. The executable is unsigned and the
+installed check remains open. [0.33.0 functional record](https://github.com/angelcp2802/solidflow/issues/55)
+
+The exact 0.32.0 native package repeated the four-operation sequence from a
+960 mm³ original and related two occurrences of the result. The second
+occurrence opened the shared source for editing. Increasing the last extrusion
+from 2 to 3 mm updated both occurrences and retained their saved placements
+and relations. Reopen and fresh Solve retained rank 6 and zero local degrees
+of freedom. Independent STL inspection measured two closed shells and
+1,968 mm³ before editing, and two closed shells and 1,976 mm³ afterward.
+The 0.32.0 standalone portable startup and all 124 frozen Windows commands
+passed. The terminal audit independently rehashed the source, production
+and selected dependency members and every command log.
+[Combined walkthrough](https://github.com/angelcp2802/solidflow/issues/55)
+· [Portable and installed tracking](https://github.com/angelcp2802/solidflow/issues/53)
+
+Exact 0.33.0 native part properties retained a 1,000 mm³ cube, density of
+1,000 kg/m³, orange `#cc6633` and mass of 0.001 kg after reopening. Applying
+the same properties kept Undo and Redo disabled and preserved the saved bytes.
+The later root and nested embedded-property tests and standard viewport
+keyboard origin test have separate bounded renderer records.
+[Embedded no-op](VALIDATION.md#unchanged-embedded-part-properties--windows-2026-11-11)
+· [Keyboard origin context](VALIDATION.md#standard-assembly-keyboard-origin-context--windows-2026-11-11)
+
+Exact 0.31.0 hosted jobs passed Electron startup and packaging on Windows x64,
+macOS arm64 and Linux x64. The three tested platforms share that exact merge.
+All twelve renderer and authoring jobs on the exact 0.32.0 merge passed.
+GitHub's internal service failure left its three Desktop jobs unexecuted.
+The targeted retry ended during service startup and GitHub then rejected
+further retries. The new 0.33.0 draft has its own
+[CI](https://github.com/angelcp2802/solidflow/actions/runs/44192984081) and
+[Security](https://github.com/angelcp2802/solidflow/actions/runs/44192984080) runs.
+The 17 November dependency audit reports GHSA-fc5q-39xc-vjpf in picomatch
+4.0.7, used by development tools. A fixed compatible release is pending.
+The high-severity audit gate stays open. Keep complete command inventories,
+recurring hosted runs, human acceptance and the disposable Windows
+installation in their respective gates.
+
+### 0.30.0 and 0.28.0 checkpoints
 
 - The [0.30.0 Windows package](VALIDATION.md#packaged-0300-keyboard-and-width-choices--windows-2026-11-11)
   passed its required checks and the four focused width, keyboard, body
