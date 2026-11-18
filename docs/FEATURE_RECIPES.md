@@ -135,8 +135,8 @@ parent-route field alone does not attest the route's native existence.
 Ordinary extrusions can also translate an exact trimmed curved face. Normal
 offsets of curved faces and other recipe placements remain open. The ordinary
 extrusion editor offers independent normal/translation controls on each surface
-end; clearing an offset restores the absent legacy field. This does not add
-interactive recipe reference placements. See the [saved contract](../src/cad/extrude-end-conditions.md).
+end; clearing an offset restores the absent legacy field. These offset controls
+do not select a recipe reference placement. See the [saved contract](../src/cad/extrude-end-conditions.md).
 
 The current evaluator handles canonical linear/circular/mirror placements,
 ordered intrinsic operations, exact historical sources, current targets and

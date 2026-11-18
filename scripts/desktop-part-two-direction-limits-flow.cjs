@@ -23,7 +23,7 @@ module.exports = function twoDirectionLimitsWorkflow(context) {
   const recovery = () => page(() => localStorage.getItem('solidflow.autosave'));
   const records = [], inputs = [], evidence = { partTwoDirectionLimits: { records, inputs,
     provenance: 'Original analytical millimetre declarations: one merged step, two separate read-only limit bodies, four reference planes and two unused rectangles; no imported geometry.',
-    scope: 'Independent blind/automatic ends, explicit per-side body limits, reverse without reference substitution, midpoint/OFF recovery, anchored source-plane motion, exact cut ownership, Cancel/retry, history, two writes and fresh reopening.',
+    scope: 'Independent blind/automatic ends, explicit per-side body limits, reverse without reference substitution, midpoint/OFF recovery, anchored source-plane motion, exact cut ownership, Cancel/retry, history, three writes and fresh reopening.',
     inputLimits: 'Actual CDP left press/release on visible stationary hit-tested controls. Parameters use native setters and bubbling input/change events; no physical keyboard claim. DOM scrolling only reveals controls. No handlers, worker results or application state are injected.',
     limits: 'Original parallel XY rectangles and planar world targets. Renderer volume/bounds do not independently attest BRep validity, area, STEP, curved limits, regeneration recipes, arbitrary frames, complete interaction parity or installed-platform support.' } };
   checks.push(evidence);

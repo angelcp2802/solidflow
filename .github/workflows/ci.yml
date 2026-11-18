@@ -665,6 +665,14 @@ jobs:
         if: matrix.batch == 'persistence' && runner.os != 'Linux'
         run: npm run test:desktop:pattern-world-limit
 
+      - name: Test exact historical face pattern choice (Linux)
+        if: matrix.batch == 'persistence' && runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:pattern-world-face-limit
+
+      - name: Test exact historical face pattern choice (Windows/macOS)
+        if: matrix.batch == 'persistence' && runner.os != 'Linux'
+        run: npm run test:desktop:pattern-world-face-limit
+
       - name: Test saved UntilNext regeneration (Linux)
         if: matrix.batch == 'persistence' && runner.os == 'Linux'
         run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run test:desktop:pattern-until-next
