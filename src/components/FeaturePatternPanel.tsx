@@ -84,23 +84,24 @@ export function FeaturePatternWorldLimits({ feature, features, loading, onChange
   </div>;
 }
 
-function SketchSupportPlacement({ feature, features, loading, onChange }: {
-  feature: RepetitionFeature; features: readonly Feature[]; loading: boolean; onChange: (patch: Partial<Feature>) => void;
+export function SketchSupportPlacement({ feature, history, loading, onChange }: {
+  feature: RepetitionFeature; history: ReadonlyMap<string, Feature>; loading: boolean; onChange: (patch: Partial<Feature>) => void;
 }) {
-  const history = useMemo(() => new Map(features.map(item => [item.id, item])), [features]);
   const operation = feature.featurePattern;
   if (feature.source.mode !== 'features' || operation?.mode !== 'regenerate' || operation.scope !== 'selected') return null;
   const members = new Set(feature.source.featureIds.flatMap(id => transformedSketchSupports(history.get(id), key => history.get(key))));
   const policies = operation.referencePolicies.filter(policy => policy.path === 'support');
   if (!members.size && !policies.length) return null;
+  const hasVariations = operation.variation.kind !== 'none';
+  const editable = !loading && !hasVariations;
   const ids = new Set(policies.map(policy => policy.featureId));
   const complete = members.size === ids.size && [...members].every(item => ids.has(item.id));
   return <div className="property-section">
     <h3>Soportes de croquis</h3>
     <label className="number-field"><span>Colocación de los soportes</span>
-      <select aria-label="Colocación de los soportes de croquis" disabled={loading}
+      <select aria-label="Colocación de los soportes de croquis" disabled={!editable}
         value={!ids.size ? '' : complete ? 'transform' : 'partial'} onChange={event => {
-          if (!loading && ['', 'transform'].includes(event.target.value)) onChange({
+          if (editable && ['', 'transform'].includes(event.target.value)) onChange({
             featurePattern: withTransformedSketchSupports(feature, history, event.target.value === 'transform').featurePattern });
         }}>
         <option value="">Sin asignar</option>
@@ -108,7 +109,8 @@ function SketchSupportPlacement({ feature, features, loading, onChange }: {
         <option value="transform" disabled={!members.size || members.size > MAX_RECIPE_DEFINITIONS}>Transformar con cada copia</option>
       </select>
     </label>
-    <ul>{[...members].map(item => <li key={item.id}>{item.name} · {item.id}</li>)}</ul>
+    {hasVariations && <p className="muted-small">Quita las variaciones por instancia para cambiar la colocación de los soportes.</p>}
+    <ul>{[...members].map(item => <li key={item.id}>{item.type === 'plane' ? 'Plano' : 'Croquis'} · {item.name}</li>)}</ul>
   </div>;
 }
 
@@ -119,6 +121,7 @@ export default function FeaturePatternPanel({ feature, features, editor, onChang
   onChange: (patch: Partial<Feature>) => void;
 }) {
   const operation = feature.featurePattern;
+  const supportHistory = useMemo(() => new Map(features.map(item => [item.id, item])), [features]);
   const history = useMemo(() => bodyPatternHistoryChoices(features, operation?.bindings.map(binding => binding.source) ?? []),
     [features, operation?.bindings]);
   const [selectedStep, setSelectedStep] = useState(operation?.bindings[0]?.source.sourceFeatureId ?? '');
@@ -152,7 +155,7 @@ export default function FeaturePatternPanel({ feature, features, editor, onChang
   };
   const targetName = (reference: BodyReference) => editor.bodies.find(body => sameBodyReference(body.ref, reference))?.name ?? 'Destino no disponible';
   return <>
-    <SketchSupportPlacement feature={feature} features={features} loading={editor.loading} onChange={onChange} />
+    <SketchSupportPlacement feature={feature} history={supportHistory} loading={editor.loading} onChange={onChange} />
     <FeaturePatternWorldLimits feature={feature} features={features} history={history.steps} loading={editor.loading} onChange={onChange} />
     <FeaturePatternDepthVariation feature={feature} features={features} loading={editor.loading} onChange={onChange} />
     <FeaturePatternSketchVariation feature={feature} features={features} loading={editor.loading} onChange={onChange} />

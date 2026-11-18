@@ -63,7 +63,7 @@ module.exports = function associatedSketchWorkflow({ expected, evaluate, observe
     await waitFor('geometry editor opens',()=>evaluate('document.querySelector('+js(method)+')?.value === "geometry"'));
     let before=await observe(); await choose(method,'regenerate'); await after(before,'missing',true);
     await waitFor('missing support blocks Apply',async()=>await disabled() && await evaluate("document.querySelector('.error-banner[role=alert] span')?.textContent.includes('Transformar con cada copia')"));
-    check(await evaluate('document.querySelector('+js(support)+')?.closest(".property-section")?.textContent.includes("Plano derivado · datum-b")'),'Original historical chain is offered');
+    check(await evaluate('document.querySelector('+js(support)+')?.closest(".property-section")?.textContent.includes("Plano · Plano derivado")'),'Original historical chain is offered');
     before=await observe(); await choose(support,'transform'); const candidate=await after(before,'ready',true);
     await waitFor('verified support enables Apply',async()=>await disabled()===false);
     return candidate;

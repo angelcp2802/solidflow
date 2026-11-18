@@ -1,10 +1,12 @@
+import { createRequire } from 'node:module';
+import { parseDocument, serializeDocument, updateFeature, validateDocument } from '../model/document';
 import { Children, isValidElement, type ReactElement, type ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { Feature, RepetitionFeature } from '../cad/kernel.types';
-import FeaturePatternPanel, { FeaturePatternWorldLimits } from './FeaturePatternPanel';
+import FeaturePatternPanel, { FeaturePatternWorldLimits, SketchSupportPlacement } from './FeaturePatternPanel';
 import { featurePatternBuildMessage } from './featurePatternBuildMessage';
-import { withFeaturePatternWorldLimit } from '../model/featurePatternCommands';
+import { withFeaturePatternInstanceDepth, withFeaturePatternMode, withFeaturePatternWorldLimit } from '../model/featurePatternCommands';
 
 // Original symbolic render inputs. These do not exercise pointer events or CAD.
 const base = { bodyId: 'ui-world-owner', sourceFeatureId: 'ui-world-base' };
@@ -241,4 +243,35 @@ it('keeps independent world and transform policies for two ends on an associated
   feature = { ...feature, ...onChange.mock.lastCall![0] };
   expect(field(root(), SECOND).props.checked).toBe(true);
   expect(field(root(), transformed).props.checked).toBe(false);
+});
+
+it('lets a user remove a saved depth variation after the source sketch gains a datum support', () => {
+  const original = validateDocument(createRequire(import.meta.url)('../../scripts/desktop-pattern-sketch-support-original.cjs')());
+  const sketch = original.features.find(item => item.id === 'profile-c'), seed = original.features.find(item => item.id === 'seed-limit');
+  if (sketch?.type !== 'sketch' || seed?.type !== 'cut') throw Error('Original associated sketch missing');
+  const support = sketch.support;
+  delete sketch.support; delete seed.endCondition;
+  const oldPattern = original.features.at(-1)! as RepetitionFeature;
+  const varied = withFeaturePatternInstanceDepth(withFeaturePatternMode(oldPattern, 'regenerate'), '1', 3);
+  const saved = parseDocument(serializeDocument(updateFeature(original, oldPattern.id, varied)));
+  const changed = updateFeature(saved, sketch.id, { support });
+  const feature = changed.features.at(-1)! as RepetitionFeature;
+  const features = changed.features.slice(0, -1), html = render(feature, features);
+  const selector = html.match(/<select[^>]*aria-label="Colocación de los soportes de croquis"[^>]*>/)?.[0];
+  expect(selector).toContain('disabled=""');
+  const onChange = vi.fn(), supportHistory = new Map(features.map(item => [item.id, item]));
+  const fieldFor = (candidate: RepetitionFeature) => field(SketchSupportPlacement({ feature: candidate, history: supportHistory, loading: false, onChange }),
+    'Colocación de los soportes de croquis');
+  fieldFor(feature).props.onChange?.({ target: { value: 'transform' } });
+  expect(onChange).not.toHaveBeenCalled();
+  const cleared = withFeaturePatternInstanceDepth(feature, '1', null);
+  expect(fieldFor(cleared).props.disabled).toBe(false);
+  fieldFor(cleared).props.onChange?.({ target: { value: 'transform' } });
+  expect(onChange.mock.lastCall?.[0].featurePattern.referencePolicies.map((item: { featureId: string }) => item.featureId))
+    .toEqual(['datum-a', 'datum-b', 'profile-c']);
+  expect(html).toContain('Plano · Plano derivado');
+  expect(html).not.toContain('Plano derivado · datum-b');
+  expect(html).toContain('Quitar profundidad de Instancia 2');
+  expect(html).toContain('Quita las variaciones por instancia');
+  expect(feature.featurePattern).toMatchObject({ variation: { kind: 'dimensions', values: [{ address: '1', value: 3 }] }, referencePolicies: [] });
 });
