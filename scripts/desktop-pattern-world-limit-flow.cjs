@@ -5,7 +5,7 @@ const { encodeJavaScriptString } = require('./desktop-ui-source.cjs');
 // Trusted tracked workflow factory. It receives only the shared observer/DOM
 // helpers and test-owned paths; it never supplies worker or application state.
 module.exports = function worldLimitWorkflow(context) {
-  const { face, second, expected, expectedIds, evaluate, observe, waitFor, click, pointer, menu, checks,
+  const { datum, face, second, expected, expectedIds, evaluate, observe, waitFor, click, pointer, menu, checks,
     protocolResponses, consoleErrors, failedRequests, ipc, input, output,
     check, canonical, digest, initialReadyMs, dialogCounts } = context;
   const PATTERN_ID = 'ui-world-P', SEED_ID = 'seed-limit';
@@ -40,7 +40,7 @@ module.exports = function worldLimitWorkflow(context) {
     const desired = {
       S: [SEED_ID, 'create-S', volumeAfterCut(originalCutLength), [-1, -1, -8], [1, 1, 8]],
       A: [['missing-policy', 'wrong-owner'].includes(phase) ? 'create-A' : PATTERN_ID, 'create-A', ['missing-policy', 'wrong-owner'].includes(phase) ? 64
-        : volumeAfterCut(phase === 'geometry' ? originalCutLength : regeneratedCutLength), [2, -1, -8], [4, 1, 8]],
+        : volumeAfterCut(phase === 'geometry' || phase === 'transform' ? originalCutLength : regeneratedCutLength), [2, -1, -8], [4, 1, 8]],
     };
     if (face) for (const [id, creator] of [['face-limit', 'limit-create'], ['face-decoy', 'decoy-create']]) {
       desired[id] = ['shared-cut', creator, 32 - Math.PI / 16, [10, -2, -3], [12, 2, 1]];
@@ -77,9 +77,9 @@ module.exports = function worldLimitWorkflow(context) {
       assertBodies(record, phase); return record;
     });
   }
-  function assertPendingUi(before, response, limitChecked) {
+  function assertPendingUi(before, response, limitChecked, transformChecked = false) {
     const samples = response.ui.filter(sample => sample.eventSerial > before.eventSerial
-      && sample.eventSerial < response.responseEventSerial && sample.method === 'regenerate' && (face ? sample.faceOwner === limitChecked : sample.worldLimitChecked === limitChecked));
+      && sample.eventSerial < response.responseEventSerial && sample.method === 'regenerate' && (!datum || sample.transformLimitChecked === transformChecked) && (face ? sample.faceOwner === limitChecked : sample.worldLimitChecked === limitChecked));
     check(samples.some(sample => sample.applyDisabled === true) && samples.every(sample => sample.applyDisabled === true),
       'Apply did not stay disabled before the actual fixed-plane worker response.');
   }
@@ -133,6 +133,23 @@ module.exports = function worldLimitWorkflow(context) {
     const missing = await buildAfter(beforeMethod.serial, 'missing-policy');
     const afterMissing = await observe(); assertPendingUi(beforeMethod, { ...missing, ui: afterMissing.ui }, face ? '' : false);
     if (face) return previewHistoricalOwner(missing);
+    if (datum) {
+      const apply = encodeJavaScriptString(APPLY);
+      await waitFor('missing datum policy blocks Apply and names placement', () => evaluate(
+        `document.querySelector(${apply})?.disabled && document.querySelector('.error-banner[role=alert] span')?.textContent.includes('se transforma con cada copia')`));
+      let preview;
+      for (const [mode, selector] of [['transform', 'input[aria-label="Transformar plano límite de Original fixed-plane seed · dirección 1"]'], ['world', LIMIT]]) {
+        const before = await observe(); await click(selector);
+        const record = await buildAfter(before.serial, mode);
+        check(canonical(record.features.at(-1).featurePattern.referencePolicies) === canonical([{ ...expectedPolicy, placement: mode }]),
+          'Worker uses the exact selected datum placement');
+        assertPendingUi(before, { ...record, ui: (await observe()).ui }, mode === 'world', mode === 'transform');
+        await waitFor('verified ' + mode + ' datum preview enables Apply', () => evaluate(`document.querySelector(${apply})?.disabled === false`));
+        checks.push({ datumPlacement: mode, serial: record.serial, bodies: record.response.value.bodies });
+        preview = record;
+      }
+      return { missing, preview, pointerPoint: null };
+    }
     await waitFor('missing policy blocks Apply and offers an explicit unchecked limit', () => evaluate(`(() => {const method=document.querySelector(${encodeJavaScriptString(METHOD)});const limit=document.querySelector(${encodeJavaScriptString(LIMIT)});const apply=document.querySelector(${encodeJavaScriptString(APPLY)});return method?.value==='regenerate'&&!!limit&&!limit.disabled&&!limit.checked&&!!apply&&apply.disabled;})()`));
     if (second) check(await evaluate(`!document.querySelector(${encodeJavaScriptString(FIRST_LIMIT)})`), 'Direction 1 is Blind and offers no fixed-plane policy');
     const option = second ? 'Mantener el plano límite de dirección 2 de Original fixed-plane seed'
@@ -173,7 +190,7 @@ module.exports = function worldLimitWorkflow(context) {
       return value;
     });
     let staged = await previewWorld(), cancelled = null;
-    if (second || face) {
+    if (second || face || datum) {
       check(await recovery() === geometryRecovery, 'Verified preview leaves the committed geometry recipe intact');
       const beforeCancel = await observe();
       await click('button[title="Cancelar operación"]');
@@ -196,7 +213,7 @@ module.exports = function worldLimitWorkflow(context) {
       assertDeclaration(document, true); return true;
     });
     const history = [];
-    if (face) {
+    if (face || datum) {
       for (const [title, phase] of [['Deshacer (Ctrl+Z)', 'geometry'], ['Rehacer (Ctrl+Y)', 'world']]) {
         serial = (await observe()).serial;
         await click('button[title="' + title + '"]');
@@ -242,5 +259,17 @@ module.exports.createSecondDirectionDocument = () => {
   seed.secondDirection = { enabled: true, depth: 6, endCondition: seed.endCondition };
   delete seed.endCondition;
   seed.depth = -1;
+  return document;
+};
+
+// Both oriented construction planes and all dimensions are original to SolidFlow.
+module.exports.createDatumDocument = () => {
+  const document = structuredClone(require('../src/cad/fixtures/pattern-world-limit-original.json'));
+  const first = { id: 'datum-a', type: 'plane', name: 'Original reversed XY at 2', suppressed: false,
+    support: { kind: 'principal', plane: 'XY' }, reversed: true, offset: 2 };
+  const second = { ...first, id: 'datum-b', name: 'Original negative Z at 1', support: { kind: 'plane', planeId: first.id }, reversed: false, offset: 1 };
+  document.features.unshift(first, second);
+  document.features.find(item => item.id === 'seed-limit').endCondition = {
+    kind: 'upToSurface', target: { kind: 'plane', planeId: second.id }, offset: { construction: 'normal', signedDistanceMm: 1 } };
   return document;
 };

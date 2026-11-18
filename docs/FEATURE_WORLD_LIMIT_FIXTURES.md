@@ -155,3 +155,12 @@ The worker must preserve each owner's exact ID, volume and bounds when the
 editor rejects the coincident decoy, cancels a valid preview, commits, undoes,
 redoes, saves and reopens. Volume tolerance is 10⁻⁵ mm³ and bounds tolerance
 is 10⁻⁶ mm per coordinate. All dimensions and geometry originate in this project.
+
+`node scripts/desktop-pattern-datum-limit.cjs` derives an original test-owned part
+from the same two-box fixture. A reversed principal XY datum at z = 2 mm and
+its 1 mm child offset yield z = 1 mm with normal −Z. A 1 mm normal offset
+places the cut end at z = 0 mm. On linear translation by (3, 0, 4) mm, the
+fixed endpoint produces a 2 mm cut and the transformed endpoint a 6 mm cut.
+The desktop route selects each policy, validates both volumes, cancels, applies,
+undoes, redoes, saves and reopens. The native integration also exercises both
+policies under a half-turn about Y and a reflection about XY at z = 2 mm.
